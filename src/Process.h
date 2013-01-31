@@ -1,7 +1,7 @@
 #ifndef PROCESS_H
 #define PROCESS_H
 
-#include "ByteArray.h"
+#include "String.h"
 #include "EventReceiver.h"
 #include "Path.h"
 #include "List.h"
@@ -16,17 +16,17 @@ public:
 
     void setCwd(const Path& cwd);
 
-    bool start(const ByteArray& command, const List<ByteArray>& arguments);
-    bool start(const ByteArray& command, const List<ByteArray>& arguments,
-               const List<ByteArray>& environ);
+    bool start(const String& command, const List<String>& arguments);
+    bool start(const String& command, const List<String>& arguments,
+               const List<String>& environ);
 
-    ByteArray errorString() const { return mErrorString; }
+    String errorString() const { return mErrorString; }
 
-    void write(const ByteArray& data);
+    void write(const String& data);
     void closeStdIn();
 
-    ByteArray readAllStdOut();
-    ByteArray readAllStdErr();
+    String readAllStdOut();
+    String readAllStdErr();
 
     bool isFinished() const { return mPid == -1; }
     int returnCode() const { return mReturn; }
@@ -37,9 +37,9 @@ public:
     signalslot::Signal0& readyReadStdErr() { return mReadyReadStdErr; }
     signalslot::Signal0& finished() { return mFinished; }
 
-    static List<ByteArray> environment();
+    static List<String> environment();
 
-    static Path findCommand(const ByteArray& command);
+    static Path findCommand(const String& command);
 
 protected:
     virtual void event(const Event* event);
@@ -51,7 +51,7 @@ private:
     void closeStdErr();
 
     void handleInput(int fd);
-    void handleOutput(int fd, ByteArray& buffer, int& index, signalslot::Signal0& signal);
+    void handleOutput(int fd, String& buffer, int& index, signalslot::Signal0& signal);
 
 private:
     int mStdIn[2];
@@ -61,13 +61,13 @@ private:
     pid_t mPid;
     int mReturn;
 
-    std::deque<ByteArray> mStdInBuffer;
-    ByteArray mStdOutBuffer, mStdErrBuffer;
+    std::deque<String> mStdInBuffer;
+    String mStdOutBuffer, mStdErrBuffer;
     int mStdInIndex, mStdOutIndex, mStdErrIndex;
 
     Path mCwd;
 
-    ByteArray mErrorString;
+    String mErrorString;
 
     signalslot::Signal0 mReadyReadStdOut, mReadyReadStdErr, mFinished;
 };

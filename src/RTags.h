@@ -1,7 +1,7 @@
 #ifndef RTags_h
 #define RTags_h
 
-#include "ByteArray.h"
+#include "String.h"
 #include "Location.h"
 #include "Log.h"
 #include "Memory.h"
@@ -37,21 +37,21 @@ enum CursorType {
 
 class CursorInfo;
 typedef Map<Location, CursorInfo> SymbolMap;
-typedef Map<ByteArray, Set<Location> > UsrMap;
+typedef Map<String, Set<Location> > UsrMap;
 typedef Map<Location, Set<Location> > ReferenceMap;
-typedef Map<ByteArray, Set<Location> > SymbolNameMap;
+typedef Map<String, Set<Location> > SymbolNameMap;
 typedef Map<uint32_t, Set<uint32_t> > DependencyMap;
 typedef Map<uint32_t, SourceInformation> SourceInformationMap;
-typedef Map<Path, Set<ByteArray> > FilesMap;
+typedef Map<Path, Set<String> > FilesMap;
 typedef Map<uint32_t, Set<FixIt> > FixItMap;
-typedef Map<uint32_t, List<ByteArray> > DiagnosticsMap;
+typedef Map<uint32_t, List<String> > DiagnosticsMap;
 
 namespace RTags {
 void dirtySymbolNames(SymbolNameMap &map, const Set<uint32_t> &dirty);
 void dirtySymbols(SymbolMap &map, const Set<uint32_t> &dirty);
 void dirtyUsr(UsrMap &map, const Set<uint32_t> &dirty);
 
-ByteArray backtrace(int maxFrames = -1);
+String backtrace(int maxFrames = -1);
 
 
 template <typename Container, typename Value>
@@ -118,7 +118,7 @@ inline int digits(int len)
     return ret;
 }
 
-ByteArray shortOptions(const option *longOptions);
+String shortOptions(const option *longOptions);
 int readLine(FILE *f, char *buf = 0, int max = -1);
 inline int fileSize(FILE *f)
 {
@@ -129,11 +129,11 @@ inline int fileSize(FILE *f)
     fseek(f, pos, SEEK_SET);
     return ret;
 }
-ByteArray filterPreprocessor(const Path &path);
+String filterPreprocessor(const Path &path);
 void removeDirectory(const Path &path);
 int canonicalizePath(char *path, int len);
-ByteArray unescape(ByteArray command);
-bool startProcess(const Path &dotexe, const List<ByteArray> &dollarArgs);
+String unescape(String command);
+bool startProcess(const Path &dotexe, const List<String> &dollarArgs);
 void findApplicationDirPath(const char *argv0);
 Path applicationDirPath();
 Path findProjectRoot(const Path &path);

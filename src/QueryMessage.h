@@ -65,8 +65,8 @@ public:
 
     Type type() const { return mType; }
 
-    const List<ByteArray> &pathFilters() const { return mPathFilters; }
-    void setPathFilters(const List<ByteArray> &pathFilters)
+    const List<String> &pathFilters() const { return mPathFilters; }
+    void setPathFilters(const List<String> &pathFilters)
     {
         mPathFilters = pathFilters;
         std::sort(mPathFilters.begin(), mPathFilters.end());
@@ -74,9 +74,9 @@ public:
 
     int messageId() const { return MessageId; }
 
-    ByteArray query() const { return mQuery; }
+    String query() const { return mQuery; }
     Location location() const { return Location::decodeClientLocation(mQuery); }
-    void setQuery(const ByteArray &query) { mQuery = query; }
+    void setQuery(const String &query) { mQuery = query; }
 
     Match match() const;
 
@@ -98,22 +98,22 @@ public:
     static unsigned keyFlags(unsigned queryFlags);
     inline unsigned keyFlags() const { return keyFlags(mFlags); }
 
-    ByteArray encode() const;
+    String encode() const;
     void fromData(const char *data, int size);
 
-    void setProjects(const List<ByteArray> &projects) { mProjects = projects; }
-    List<ByteArray> projects() const { return mProjects; }
+    void setProjects(const List<String> &projects) { mProjects = projects; }
+    List<String> projects() const { return mProjects; }
 
     uint8_t buildIndex() const { return mBuildIndex; }
     void setBuildIndex(uint8_t index) { mBuildIndex = index; }
 private:
-    ByteArray mQuery;
+    String mQuery;
     Type mType;
     unsigned mFlags;
     int mMax, mMinOffset, mMaxOffset;
     uint8_t mBuildIndex;
-    List<ByteArray> mPathFilters;
-    List<ByteArray> mProjects;
+    List<String> mPathFilters;
+    List<String> mProjects;
 };
 
 DECLARE_NATIVE_TYPE(QueryMessage::Type);

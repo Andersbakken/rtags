@@ -11,7 +11,7 @@
 #include <stack>
 #include "GRTags.h"
 #include "Map.h"
-#include "ByteArray.h"
+#include "String.h"
 #include "StopWatch.h"
 #include "Log.h"
 #include "RTags.h"
@@ -25,10 +25,10 @@ public:
     };
     GRParser();
     ~GRParser();
-    int parse(const Path &file, unsigned opts, Map<ByteArray, Map<Location, bool> > &entries);
+    int parse(const Path &file, unsigned opts, Map<String, Map<Location, bool> > &entries);
 private:
-    void addEntry(const ByteArray &name, const List<ByteArray> &containerScope, int offset);
-    void addReference(const ByteArray &name, int offset);
+    void addEntry(const String &name, const List<String> &containerScope, int offset);
+    void addReference(const String &name, int offset);
     inline clang::tok::TokenKind kind(int idx) const
     {
         if (idx < 0 || idx >= mTokens.size())
@@ -50,9 +50,9 @@ private:
         length = token.getLength();
     }
 
-    inline ByteArray tokenSpelling(const clang::Token &token) const
+    inline String tokenSpelling(const clang::Token &token) const
     {
-        return ByteArray(mBuf + tokenOffset(token), token.getLength());
+        return String(mBuf + tokenOffset(token), token.getLength());
     }
 
     static inline int tokenOffset(const clang::Token &token)
@@ -73,21 +73,21 @@ private:
         Container
     };
     struct State {
-        State(StateType t = Global, int idx = -1, const ByteArray &n = ByteArray())
+        State(StateType t = Global, int idx = -1, const String &n = String())
             : type(t), braceIndex(idx), name(n), pendingIndex(-1)
         {}
         StateType type;
         int braceIndex; // what brace index this state should get popped on or -1
-        ByteArray name; // for classes/structs/namespaces
+        String name; // for classes/structs/namespaces
         int pendingIndex; // index of where the real class is for pending
                           // container states or where the real function is for
                           // pendingfunction
     };
     std::stack<State> mState;
-    List<ByteArray> mContainerScope;
+    List<String> mContainerScope;
     List<clang::Token> mTokens;
     uint32_t mFileId;
-    Map<ByteArray, Map<Location, bool> > *mEntries;
+    Map<String, Map<Location, bool> > *mEntries;
 };
 
 #endif

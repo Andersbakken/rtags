@@ -1,7 +1,7 @@
 #ifndef ListSymbolsJob_h
 #define ListSymbolsJob_h
 
-#include "ByteArray.h"
+#include "String.h"
 #include "List.h"
 #include "QueryMessage.h"
 #include "Job.h"
@@ -13,7 +13,7 @@ public:
 protected:
     virtual void execute();
 private:
-    const ByteArray string;
+    const String string;
 };
 
 #endif

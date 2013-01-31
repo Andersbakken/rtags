@@ -1,7 +1,7 @@
 #ifndef GRTags_h
 #define GRTags_h
 
-#include "ByteArray.h"
+#include "String.h"
 #include "Location.h"
 #include "Map.h"
 #include "Path.h"
@@ -31,18 +31,18 @@ private:
         PreferExact = 0x2,
         AbsolutePath = 0x4
     };
-    void findSymbols(const ByteArray &pattern);
-    void listSymbols(const ByteArray &pattern);
-    void paths(const ByteArray &pattern);
+    void findSymbols(const String &pattern);
+    void listSymbols(const String &pattern);
+    void paths(const String &pattern);
     bool load(const Path &db);
     bool save();
     void dump();
     int parseFiles();
     static Path::VisitResult visit(const Path &path, void *userData);
-    List<ByteArray> mFilters;
+    List<String> mFilters;
     Map<uint32_t, time_t> mFiles;
     // file id to last modified, time_t means currently parsing
-    Map<ByteArray, Map<Location, bool> > mSymbols;
+    Map<String, Map<Location, bool> > mSymbols;
     // symbolName to Map<location, bool> bool == false means cursor, true means reference
 
     leveldb::DB *mDB;

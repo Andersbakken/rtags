@@ -22,13 +22,13 @@ void GccArguments::clear()
 
 static inline GccArguments::Lang guessLang(const Path &fullPath)
 {
-    ByteArray compiler = fullPath.fileName();
-    ByteArray c;
+    String compiler = fullPath.fileName();
+    String c;
     int dash = compiler.lastIndexOf('-');
     if (dash >= 0) {
-        c = ByteArray(compiler.constData() + dash + 1, compiler.size() - dash - 1);
+        c = String(compiler.constData() + dash + 1, compiler.size() - dash - 1);
     } else {
-        c = ByteArray(compiler.constData(), compiler.size());
+        c = String(compiler.constData(), compiler.size());
     }
 
     if (c.size() != compiler.size()) {
@@ -58,9 +58,9 @@ static inline GccArguments::Lang guessLang(const Path &fullPath)
     return lang;
 }
 
-static inline void eatAutoTools(List<ByteArray> &args)
+static inline void eatAutoTools(List<String> &args)
 {
-    List<ByteArray> copy = args;
+    List<String> copy = args;
     for (int i=0; i<args.size(); ++i) {
         if (args.at(i).contains("gcc") || args.at(i).contains("g++") || args.at(i) == "cd" || args.at(i) == "c++") {
             if (i) {
@@ -75,7 +75,7 @@ static inline void eatAutoTools(List<ByteArray> &args)
     }
 }
 
-static inline ByteArray trim(const char *start, int size)
+static inline String trim(const char *start, int size)
 {
     while (size && isspace(*start)) {
         ++start;
@@ -84,10 +84,10 @@ static inline ByteArray trim(const char *start, int size)
     while (size && isspace(start[size - 1])) {
         --size;
     }
-    return ByteArray(start, size);
+    return String(start, size);
 }
 
-bool GccArguments::parse(ByteArray args, const Path &base)
+bool GccArguments::parse(String args, const Path &base)
 {
     mLang = NoLang;
     mClangArgs.clear();
@@ -95,8 +95,8 @@ bool GccArguments::parse(ByteArray args, const Path &base)
     mBase = base;
 
     char quote = '\0';
-    List<ByteArray> split;
-    ByteArray old2 = args;
+    List<String> split;
+    String old2 = args;
     {
         char *cur = args.data();
         char *prev = cur;
@@ -160,12 +160,12 @@ bool GccArguments::parse(ByteArray args, const Path &base)
     const int s = split.size();
     bool seenCompiler = false;
     for (int i=0; i<s; ++i) {
-        const ByteArray &arg = split.at(i);
+        const String &arg = split.at(i);
         if (arg.isEmpty())
             continue;
         if (arg.startsWith('-')) {
             if (arg.startsWith("-x")) {
-                ByteArray a;
+                String a;
                 if (arg.size() == 2 && i + 1 < s) {
                     a = split.at(++i);
                 } else {
@@ -182,7 +182,7 @@ bool GccArguments::parse(ByteArray args, const Path &base)
                 const Path out = Path::resolved(arg, path);
                 mOutputFile = out;
             } else if (arg.startsWith("-D")) {
-                ByteArray a;
+                String a;
                 if (arg.size() == 2 && i + 1 < s) {
                     a = (arg + split.at(++i));
                 } else {
@@ -226,7 +226,7 @@ bool GccArguments::parse(ByteArray args, const Path &base)
         error("Unable to find or resolve input files");
         const int c = mUnresolvedInputFiles.size();
         for (int i=0; i<c; ++i) {
-            const ByteArray &input = mUnresolvedInputFiles.at(i);
+            const String &input = mUnresolvedInputFiles.at(i);
             error("  %s", input.constData());
         }
         clear();
@@ -251,7 +251,7 @@ GccArguments::Lang GccArguments::lang() const
     return mLang;
 }
 
-List<ByteArray> GccArguments::clangArgs() const
+List<String> GccArguments::clangArgs() const
 {
     return mClangArgs;
 }
@@ -276,11 +276,11 @@ Path GccArguments::baseDirectory() const
     return mBase;
 }
 
-void GccArguments::addFlags(const List<ByteArray> &extraFlags)
+void GccArguments::addFlags(const List<String> &extraFlags)
 {
     const int count = extraFlags.size();
     for (int i=0; i<count; ++i) {
-        ByteArray flag = extraFlags.at(i);
+        String flag = extraFlags.at(i);
         if (flag.startsWith("-I")) {
             Path p = Path::resolved(flag.constData() + 2);
             flag.replace(2, flag.size() - 2, p);

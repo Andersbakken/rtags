@@ -39,19 +39,19 @@ int canonicalizePath(char *path, int len)
     return len;
 }
 
-ByteArray unescape(ByteArray command)
+String unescape(String command)
 {
     command.replace("\'", "\\'");
     command.prepend("bash --norc -c 'echo -n ");
     command.append('\'');
-    // ByteArray cmd = "bash --norc -c 'echo -n " + command + "'";
+    // String cmd = "bash --norc -c 'echo -n " + command + "'";
     FILE *f = popen(command.constData(), "r");
-    ByteArray ret;
+    String ret;
     char buf[1024];
     do {
         const int read = fread(buf, 1, 1024, f);
         if (read)
-            ret += ByteArray(buf, read);
+            ret += String(buf, read);
     } while (!feof(f));
     fclose(f);
     return ret;
@@ -81,9 +81,9 @@ int readLine(FILE *f, char *buf, int max)
 }
 
 
-ByteArray shortOptions(const option *longOptions)
+String shortOptions(const option *longOptions)
 {
-    ByteArray ret;
+    String ret;
     for (int i=0; longOptions[i].name; ++i) {
         if (ret.contains(longOptions[i].val)) {
             error("%c (%s) is already used", longOptions[i].val, longOptions[i].name);
@@ -106,7 +106,7 @@ ByteArray shortOptions(const option *longOptions)
         }
     }
 #if 0
-    ByteArray unused;
+    String unused;
     for (char ch='a'; ch<='z'; ++ch) {
         if (!ret.contains(ch)) {
             unused.append(ch);
@@ -161,7 +161,7 @@ void removeDirectory(const Path &path)
     }
     rmdir(path.constData());
 }
-bool startProcess(const Path &dotexe, const List<ByteArray> &dollarArgs)
+bool startProcess(const Path &dotexe, const List<String> &dollarArgs)
 {
     switch (fork()) {
     case 0:
@@ -213,7 +213,7 @@ bool startProcess(const Path &dotexe, const List<ByteArray> &dollarArgs)
     if (f) {
         fwrite(dotexe.constData(), 1, dotexe.size(), f);
         fwrite(" ", 1, 1, f);
-        const ByteArray joined = ByteArray::join(dollarArgs, " ");
+        const String joined = String::join(dollarArgs, " ");
         fwrite(joined.constData(), 1, joined.size(), f);
         fclose(f);
     }
@@ -280,7 +280,7 @@ void findApplicationDirPath(const char *argv0)
         }
     }
     const char *path = getenv("PATH");
-    const List<ByteArray> paths = ByteArray(path).split(':');
+    const List<String> paths = String(path).split(':');
     for (int i=0; i<paths.size(); ++i) {
         Path p = (paths.at(i) + "/") + argv0;
         if (p.resolve()) {
@@ -337,15 +337,15 @@ static inline char *demangle(const char *str)
     return ret;
 }
 
-ByteArray backtrace(int maxFrames)
+String backtrace(int maxFrames)
 {
     enum { SIZE = 1024 };
     void *stack[SIZE];
 
     int frameCount = backtrace(stack, sizeof(stack) / sizeof(void*));
     if (frameCount <= 0)
-        return ByteArray("Couldn't get stack trace");
-    ByteArray ret;
+        return String("Couldn't get stack trace");
+    String ret;
     char **symbols = backtrace_symbols(stack, frameCount);
     if (symbols) {
         char frame[1024];
@@ -361,9 +361,9 @@ ByteArray backtrace(int maxFrames)
     return ret;
 }
 #else
-ByteArray backtrace(int)
+String backtrace(int)
 {
-    return ByteArray();
+    return String();
 }
 #endif
 
@@ -502,7 +502,7 @@ static inline Path checkEntry(const Entry *entries, const Path &path, const Path
         if ((p.isEmpty() || p == home) && (entries[i].flags & Wildcard)) {
             const int len = strlen(entries[i].name);
             if (entries[i].name[len - 1] == '*') {
-                const ByteArray name(entries[i].name, len - 1);
+                const String name(entries[i].name, len - 1);
                 p = findAncestor(path, name.constData(), entries[i].flags & ~Wildcard);
             }
         }
@@ -623,9 +623,9 @@ Path findProjectRoot(const Path &path)
     return Path();
 }
 
-ByteArray filterPreprocessor(const Path &path)
+String filterPreprocessor(const Path &path)
 {
-    ByteArray ret;
+    String ret;
     FILE *f = fopen(path.constData(), "r");
     if (f) {
         char line[1026];

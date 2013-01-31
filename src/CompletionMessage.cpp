@@ -8,9 +8,9 @@ CompletionMessage::CompletionMessage(unsigned flags, const Path &path, int line,
 {
 }
 
-ByteArray CompletionMessage::encode() const
+String CompletionMessage::encode() const
 {
-    ByteArray data;
+    String data;
     {
         Serializer stream(data);
         stream << mRaw << mFlags << mPath << mLine << mColumn << mPos << mContents << mProjects;

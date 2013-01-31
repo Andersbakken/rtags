@@ -3,7 +3,7 @@
 
 #include "Path.h"
 #include "List.h"
-#include "ByteArray.h"
+#include "String.h"
 #include <fnmatch.h>
 
 namespace Filter {
@@ -14,11 +14,11 @@ enum Result {
     Directory
 };
 
-static inline Result filter(const Path &path, const List<ByteArray> &filters = List<ByteArray>())
+static inline Result filter(const Path &path, const List<String> &filters = List<String>())
 {
     const int size = filters.size();
     for (int i=0; i<size; ++i) {
-        const ByteArray &filter = filters.at(i);
+        const String &filter = filters.at(i);
         if (!fnmatch(filter.constData(), path.constData(), 0) || path.contains(filter))
             return Filtered;
     }

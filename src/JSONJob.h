@@ -1,7 +1,7 @@
 #ifndef JSONJob_h
 #define JSONJob_h
 
-#include "ByteArray.h"
+#include "String.h"
 #include "Job.h"
 #include "RTags.h"
 

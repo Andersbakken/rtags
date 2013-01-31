@@ -7,7 +7,7 @@
 FindFileJob::FindFileJob(const QueryMessage &query, const shared_ptr<Project> &project)
     : Job(query, WriteBuffered, project)
 {
-    const ByteArray q = query.query();
+    const String q = query.query();
     if (!q.isEmpty()) {
         if (query.flags() & QueryMessage::MatchRegexp) {
             mRegExp = q;
@@ -30,35 +30,35 @@ void FindFileJob::execute()
         RegExp,
         Pattern
     } mode = All;
-    ByteArray::CaseSensitivity cs = ByteArray::CaseSensitive;
+    String::CaseSensitivity cs = String::CaseSensitive;
     if (mRegExp.isValid()) {
         mode = RegExp;
     } else if (!mPattern.isEmpty()) {
         mode = Pattern;
     }
     if (queryFlags() & QueryMessage::MatchCaseInsensitive)
-        cs = ByteArray::CaseInsensitive;
+        cs = String::CaseInsensitive;
 
-    ByteArray out;
+    String out;
     out.reserve(PATH_MAX);
     if (queryFlags() & QueryMessage::AbsolutePath) {
         out.append(srcRoot);
         assert(srcRoot.endsWith('/'));
     }
     Scope<const FilesMap&> scope = proj->lockFilesForRead();
-    const Map<Path, Set<ByteArray> > &dirs = scope.data();
-    Map<Path, Set<ByteArray> >::const_iterator dirit = dirs.begin();
+    const Map<Path, Set<String> > &dirs = scope.data();
+    Map<Path, Set<String> >::const_iterator dirit = dirs.begin();
     bool foundExact = false;
     const int patternSize = mPattern.size();
-    List<ByteArray> matches;
+    List<String> matches;
     const bool preferExact = queryFlags() & QueryMessage::FindFilePreferExact;
     while (dirit != dirs.end()) {
         const Path &dir = dirit->first;
         out.append(dir.constData() + srcRoot.size(), dir.size() - srcRoot.size());
 
-        const Set<ByteArray> &files = dirit->second;
-        for (Set<ByteArray>::const_iterator it = files.begin(); it != files.end(); ++it) {
-            const ByteArray &key = *it;
+        const Set<String> &files = dirit->second;
+        for (Set<String>::const_iterator it = files.begin(); it != files.end(); ++it) {
+            const String &key = *it;
             out.append(key);
             bool ok;
             switch (mode) {
@@ -99,7 +99,7 @@ void FindFileJob::execute()
         out.chop(dir.size() - srcRoot.size());
         ++dirit;
     }
-    for (List<ByteArray>::const_iterator it = matches.begin(); it != matches.end(); ++it) {
+    for (List<String>::const_iterator it = matches.begin(); it != matches.end(); ++it) {
         if (!write(*it))
             break;
     }

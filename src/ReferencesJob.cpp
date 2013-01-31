@@ -9,7 +9,7 @@ ReferencesJob::ReferencesJob(const Location &loc, const QueryMessage &query, con
     locations.insert(loc);
 }
 
-ReferencesJob::ReferencesJob(const ByteArray &sym, const QueryMessage &query, const shared_ptr<Project> &proj)
+ReferencesJob::ReferencesJob(const String &sym, const QueryMessage &query, const shared_ptr<Project> &proj)
     : Job(query, 0, proj), symbolName(sym)
 {
 }

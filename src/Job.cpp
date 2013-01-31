@@ -14,7 +14,7 @@ Job::Job(const QueryMessage &query, unsigned jobFlags, const shared_ptr<Project>
       mMaxOffset(query.maxOffset()), mJobFlags(jobFlags), mQueryFlags(query.flags()), mProject(proj),
       mPathFilters(0), mPathFiltersRegExp(0), mMax(query.max()), mConnection(0)
 {
-    const List<ByteArray> &pathFilters = query.pathFilters();
+    const List<String> &pathFilters = query.pathFilters();
     if (!pathFilters.isEmpty()) {
         if (mQueryFlags & QueryMessage::MatchRegexp) {
             mPathFiltersRegExp = new List<RegExp>();
@@ -24,7 +24,7 @@ Job::Job(const QueryMessage &query, unsigned jobFlags, const shared_ptr<Project>
                 mPathFiltersRegExp->append(pathFilters.at(i));
             }
         } else {
-            mPathFilters = new List<ByteArray>(pathFilters);
+            mPathFilters = new List<String>(pathFilters);
         }
     }
 }
@@ -41,11 +41,11 @@ Job::~Job()
     delete mPathFiltersRegExp;
 }
 
-bool Job::write(const ByteArray &out, unsigned flags)
+bool Job::write(const String &out, unsigned flags)
 {
     if (mJobFlags & WriteUnfiltered || filter(out)) {
         if ((mJobFlags & QuoteOutput) && !(flags & DontQuote)) {
-            ByteArray o((out.size() * 2) + 2, '"');
+            String o((out.size() * 2) + 2, '"');
             char *ch = o.data() + 1;
             int l = 2;
             for (int i=0; i<out.size(); ++i) {
@@ -68,7 +68,7 @@ bool Job::write(const ByteArray &out, unsigned flags)
     return true;
 }
 
-bool Job::writeRaw(const ByteArray &out, unsigned flags)
+bool Job::writeRaw(const String &out, unsigned flags)
 {
     if (!(flags & IgnoreMax)) {
         switch (mMax) {

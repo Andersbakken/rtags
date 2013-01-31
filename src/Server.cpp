@@ -83,7 +83,7 @@ bool Server::init(const Options &options)
     if (options.options & SpellChecking)
         mOptions.defaultArguments << "-fspell-checking";
     mClangPath = Path::resolved(CLANG_BIN "/clang");
-    error() << "using args:" << ByteArray::join(mOptions.defaultArguments, " ");
+    error() << "using args:" << String::join(mOptions.defaultArguments, " ");
 
     Messages::init();
     if (mOptions.options & ClearProjects) {
@@ -198,7 +198,7 @@ void Server::onConnectionDestroyed(Connection *o)
 void Server::onNewMessage(Message *message, Connection *connection)
 {
     ClientMessage *m = static_cast<ClientMessage*>(message);
-    const ByteArray raw = m->raw();
+    const String raw = m->raw();
     if (!raw.isEmpty()) {
         if (!isCompletionStream(connection) && message->messageId() != CompileMessage::MessageId) {
             error() << raw;
@@ -250,7 +250,7 @@ void Server::handleCreateOutputMessage(CreateOutputMessage *message, Connection 
     if (message->level() == CompilationError) {
         shared_ptr<Project> project = currentProject();
         if (project && project->isValid()) {
-            const ByteArray errors = project->diagnostics();
+            const String errors = project->diagnostics();
             if (!errors.isEmpty()) {
                 obj->log(errors.constData(), errors.size());
             }
@@ -485,7 +485,7 @@ void Server::fixIts(const QueryMessage &query, Connection *conn)
     const Path path = query.query();
     shared_ptr<Project> project = updateProjectForLocation(path);
     if (project && project->isValid()) {
-        ByteArray out = project->fixIts(Location::fileId(path));
+        String out = project->fixIts(Location::fileId(path));
         if (!out.isEmpty())
             conn->write(out);
     }
@@ -530,7 +530,7 @@ void Server::referencesForLocation(const QueryMessage &query, Connection *conn)
 
 void Server::referencesForName(const QueryMessage& query, Connection *conn)
 {
-    const ByteArray name = query.query();
+    const String name = query.query();
 
     shared_ptr<Project> project = currentProject();
     if (!project) {
@@ -546,7 +546,7 @@ void Server::referencesForName(const QueryMessage& query, Connection *conn)
 
 void Server::findSymbols(const QueryMessage &query, Connection *conn)
 {
-    const ByteArray partial = query.query();
+    const String partial = query.query();
 
     shared_ptr<Project> project = currentProject();
     if (!project) {
@@ -562,7 +562,7 @@ void Server::findSymbols(const QueryMessage &query, Connection *conn)
 
 void Server::listSymbols(const QueryMessage &query, Connection *conn)
 {
-    const ByteArray partial = query.query();
+    const String partial = query.query();
 
     shared_ptr<Project> project = currentProject();
     if (!project) {
@@ -697,7 +697,7 @@ void Server::processSourceFile(GccArguments args)
     const Path srcRoot = args.projectRoot();
     List<Path> inputFiles = args.inputFiles();
     if (srcRoot.isEmpty()) {
-        warning("Can't find project root for %s", ByteArray::join(inputFiles, ", ").constData());
+        warning("Can't find project root for %s", String::join(inputFiles, ", ").constData());
         return;
     }
 
@@ -733,7 +733,7 @@ void Server::processSourceFile(GccArguments args)
             mCurrentProject = project;
         }
 
-        List<ByteArray> arguments = args.clangArgs();
+        List<String> arguments = args.clangArgs();
 
         for (int i=0; i<count; ++i) {
             SourceInformation sourceInformation = project->sourceInfo(Location::insertFile(inputFiles.at(i)));
@@ -910,7 +910,7 @@ bool Server::selectProject(const Match &match, Connection *conn)
     return false;
 }
 
-bool Server::updateProject(const List<ByteArray> &projects)
+bool Server::updateProject(const List<String> &projects)
 {
     for (int i=0; i<projects.size(); ++i) {
         if (selectProject(projects.at(i), 0))
@@ -1046,7 +1046,7 @@ void Server::handleCompletionMessage(CompletionMessage *message, Connection *con
     }
 }
 
-void Server::startCompletion(const Path &path, int line, int column, int pos, const ByteArray &contents, Connection *conn)
+void Server::startCompletion(const Path &path, int line, int column, int pos, const String &contents, Connection *conn)
 {
     // error() << "starting completion" << path << line << column;
     if (!mOptions.completionCacheSize) {
@@ -1065,7 +1065,7 @@ void Server::startCompletion(const Path &path, int line, int column, int pos, co
 
     CXIndex index;
     CXTranslationUnit unit;
-    List<ByteArray> args;
+    List<String> args;
     if (!project->fetchFromCache(path, args, index, unit)) {
         const SourceInformation info = project->sourceInfo(fileId);
         if (!info.isNull()) {

@@ -2,11 +2,11 @@
 #define FixIt_h
 
 #include <stdint.h>
-#include "ByteArray.h"
+#include "String.h"
 
 struct FixIt
 {
-    inline FixIt(uint32_t s = 0, uint32_t e = 0, const ByteArray &t = ByteArray())
+    inline FixIt(uint32_t s = 0, uint32_t e = 0, const String &t = String())
         : start(s), end(e), text(t)
     {
     }
@@ -20,7 +20,7 @@ struct FixIt
     }
 
     uint32_t start, end;
-    ByteArray text;
+    String text;
 };
 
 #endif

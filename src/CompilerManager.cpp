@@ -3,21 +3,21 @@
 #include "MutexLocker.h"
 
 Mutex sMutex;
-Map<Path, List<ByteArray> > sFlags;
+Map<Path, List<String> > sFlags;
 
 namespace CompilerManager {
-List<ByteArray> flags(const Path &compiler)
+List<String> flags(const Path &compiler)
 {
     MutexLocker lock(&sMutex);
-    Map<Path, List<ByteArray> >::const_iterator it = sFlags.find(compiler);
+    Map<Path, List<String> >::const_iterator it = sFlags.find(compiler);
     if (it != sFlags.end())
         return it->second;
 
-    List<ByteArray> out;
+    List<String> out;
     for (int i=0; i<2; ++i) {
         Process proc;
-        List<ByteArray> args;
-        List<ByteArray> environ;
+        List<String> args;
+        List<String> environ;
         environ << "PATH=/usr/local/bin:/usr/bin";
         if (i == 0) {
             args << "-v" << "-x" << "c++" << "-E" << "-";
@@ -37,9 +37,9 @@ List<ByteArray> flags(const Path &compiler)
             out = proc.readAllStdErr().split('\n');
         }
     }
-    List<ByteArray> &flags = sFlags[compiler];
+    List<String> &flags = sFlags[compiler];
     for (int i=0; i<out.size(); ++i) {
-        const ByteArray &line = out.at(i);
+        const String &line = out.at(i);
         int j = 0;
         while (j < line.size() && isspace(line.at(j)))
             ++j;
@@ -50,7 +50,7 @@ List<ByteArray> flags(const Path &compiler)
             flags.append(path);
         }
     }
-    warning() << compiler << "got\n" << ByteArray::join(flags, "\n");
+    warning() << compiler << "got\n" << String::join(flags, "\n");
 
     return flags;
 }

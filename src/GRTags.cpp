@@ -47,8 +47,8 @@ bool GRTags::exec(int argc, char **argv)
     int logLevel = 0;
     Path dir;
     int c;
-    const ByteArray shortOptions = RTags::shortOptions(options);
-    ByteArray pattern;
+    const String shortOptions = RTags::shortOptions(options);
+    String pattern;
     while ((c = getopt_long(argc, argv, shortOptions.constData(), options, 0)) != -1) {
         switch (c) {
         case '?':
@@ -198,7 +198,7 @@ bool GRTags::exec(int argc, char **argv)
     return false;
 }
 
-void GRTags::findSymbols(const ByteArray &pattern)
+void GRTags::findSymbols(const String &pattern)
 {
     std::string value;
     if (mDB->Get(leveldb::ReadOptions(), leveldb::Slice(pattern.constData(), pattern.size()), &value).ok()) {
@@ -228,7 +228,7 @@ void GRTags::findSymbols(const ByteArray &pattern)
     }
 }
 
-void GRTags::listSymbols(const ByteArray &pattern)
+void GRTags::listSymbols(const String &pattern)
 {
     shared_ptr<leveldb::Iterator> it(mDB->NewIterator(leveldb::ReadOptions()));
     const char *match = pattern.isEmpty() ? 0 : pattern.constData();
@@ -278,8 +278,8 @@ Path::VisitResult GRTags::visit(const Path &path, void *userData)
             grtags->mPending.append(path);
         } else {
             grtags->mDirty.remove(fileId);
-            debug() << path << "seems to be up to date. Parsed at" << ByteArray::formatTime(parsed, ByteArray::DateTime)
-                    << "last modified at" << ByteArray::formatTime(path.lastModified(), ByteArray::DateTime);
+            debug() << path << "seems to be up to date. Parsed at" << String::formatTime(parsed, String::DateTime)
+                    << "last modified at" << String::formatTime(path.lastModified(), String::DateTime);
         }
         break; }
     }
@@ -384,7 +384,7 @@ bool GRTags::save()
         while (it->Valid()) {
             const leveldb::Slice key = it->key();
             const leveldb::Slice value = it->value();
-            const ByteArray k(key.data(), key.size());
+            const String k(key.data(), key.size());
             Map<Location, bool> newValue = mSymbols.take(k);
             Map<Location, bool> oldValue;
             {
@@ -418,7 +418,7 @@ bool GRTags::save()
                 if (oldValue.isEmpty()) {
                     batch.Delete(key);
                 } else {
-                    ByteArray out;
+                    String out;
                     out.reserve(1024);
                     Serializer serializer(out);
                     serializer << oldValue;
@@ -428,8 +428,8 @@ bool GRTags::save()
             it->Next();
         }
     }
-    for (Map<ByteArray, Map<Location, bool> >::const_iterator it = mSymbols.begin(); it != mSymbols.end(); ++it) {
-        ByteArray out;
+    for (Map<String, Map<Location, bool> >::const_iterator it = mSymbols.begin(); it != mSymbols.end(); ++it) {
+        String out;
         Serializer serializer(out);
         serializer << it->second;
         batch.Put(leveldb::Slice(it->first.constData(), it->first.size()),
@@ -467,7 +467,7 @@ void GRTags::dump()
     for (Map<uint32_t, time_t>::const_iterator it = mFiles.begin(); it != mFiles.end(); ++it) {
         const Path path = Location::path(it->first);
         if (it->second) {
-            error() << "  " << path << ByteArray::formatTime(it->second, ByteArray::DateTime);
+            error() << "  " << path << String::formatTime(it->second, String::DateTime);
         } else {
             error() << "  " << path;
         }
@@ -480,7 +480,7 @@ void GRTags::dump()
     it->Seek(leveldb::Slice("A", 1));
     while (it->Valid()) {
         const leveldb::Slice key = it->key();
-        error() << "  " << ByteArray(key.data(), key.size());
+        error() << "  " << String(key.data(), key.size());
         const leveldb::Slice value = it->value();
         Map<Location, bool> locations;
         {
@@ -525,15 +525,15 @@ int GRTags::parseFiles()
     return count;
 }
 
-void GRTags::paths(const ByteArray &pattern)
+void GRTags::paths(const String &pattern)
 {
     const Path srcRoot = mPath.parentDir();
     const bool absolute = mFlags & AbsolutePath;
 
     const bool all = pattern.isEmpty();
-    const ByteArray::CaseSensitivity cs = (mFlags & MatchCaseInsensitive
-                                           ? ByteArray::CaseInsensitive
-                                           : ByteArray::CaseSensitive);
+    const String::CaseSensitivity cs = (mFlags & MatchCaseInsensitive
+                                           ? String::CaseInsensitive
+                                           : String::CaseSensitive);
 
     bool foundExact = false;
     const int patternSize = pattern.size();

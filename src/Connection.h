@@ -4,7 +4,7 @@
 #include "Messages.h"
 #include "EventReceiver.h"
 #include "LocalClient.h"
-#include "ByteArray.h"
+#include "String.h"
 #include "Map.h"
 #include "SignalSlot.h"
 
@@ -21,29 +21,29 @@ public:
     void setSilent(bool on) { mSilent = on; }
     bool isSilent() const { return mSilent; }
 
-    bool connectToServer(const ByteArray &name, int timeout);
+    bool connectToServer(const String &name, int timeout);
 
     int pendingWrite() const;
 
     template<typename T> bool send(const T *message);
-    bool send(int id, const ByteArray& message);
+    bool send(int id, const String& message);
     template <int StaticBufSize>
     bool write(const char *format, ...)
     {
         va_list args;
         va_start(args, format);
-        const ByteArray ret = ByteArray::format<StaticBufSize>(format, args);
+        const String ret = String::format<StaticBufSize>(format, args);
         va_end(args);
         ResponseMessage msg(ret);
         return send(&msg);
     }
-    bool write(const ByteArray &out)
+    bool write(const String &out)
     {
         ResponseMessage msg(out);
         return send(&msg);
     }
 
-    void writeAsync(const ByteArray &out);
+    void writeAsync(const String &out);
     void finish();
 
     bool isConnected() const { return mClient->isConnected(); }

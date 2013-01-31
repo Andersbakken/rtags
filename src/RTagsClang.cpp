@@ -1,17 +1,17 @@
 #include "RTagsClang.h"
 
 namespace RTags {
-ByteArray eatString(CXString str)
+String eatString(CXString str)
 {
-    const ByteArray ret(clang_getCString(str));
+    const String ret(clang_getCString(str));
     clang_disposeString(str);
     return ret;
 }
 
-ByteArray cursorToString(CXCursor cursor, unsigned flags)
+String cursorToString(CXCursor cursor, unsigned flags)
 {
     const CXCursorKind kind = clang_getCursorKind(cursor);
-    ByteArray ret;
+    String ret;
     ret.reserve(256);
     ret += eatString(clang_getCursorKindSpelling(kind));
     if (clang_isInvalid(kind))
@@ -32,8 +32,8 @@ ByteArray cursorToString(CXCursor cursor, unsigned flags)
         break;
     }
 
-    const ByteArray name = eatString(clang_getCursorDisplayName(cursor));
-    const ByteArray other = eatString(clang_getCursorSpelling(cursor));
+    const String name = eatString(clang_getCursorDisplayName(cursor));
+    const String other = eatString(clang_getCursorSpelling(cursor));
     if (!name.isEmpty())
         ret += " " + name;
     if (other != name && !other.isEmpty())
@@ -58,7 +58,7 @@ ByteArray cursorToString(CXCursor cursor, unsigned flags)
         ret += ' ';
         ret += fileName.data();
         ret += ',';
-        ret += ByteArray::number(off);
+        ret += String::number(off);
 
         if (flags & IncludeRange) {
             ret += " (";
@@ -66,18 +66,18 @@ ByteArray cursorToString(CXCursor cursor, unsigned flags)
             unsigned start, end;
             clang_getSpellingLocation(clang_getRangeStart(range), 0, 0, 0, &start);
             clang_getSpellingLocation(clang_getRangeEnd(range), 0, 0, 0, &end);
-            ret += ByteArray::number(start);
+            ret += String::number(start);
             ret += '-';
-            ret += ByteArray::number(end);
+            ret += String::number(end);
             ret += ')';
         }
 
         // if (presumedLine != line || presumedCol != col)
-        //     ret += ByteArray::snprintf<32>("presumed: %d:%d", presumedLine, presumedCol);
+        //     ret += String::snprintf<32>("presumed: %d:%d", presumedLine, presumedCol);
         // if (instantiationLoc != off)
-        //     ret += ByteArray::snprintf<32>("instantiation: %d", instantiationLoc);
+        //     ret += String::snprintf<32>("instantiation: %d", instantiationLoc);
         // if (expansionLoc != off)
-        //     ret += ByteArray::snprintf<32>("expansion: %d", expansionLoc);
+        //     ret += String::snprintf<32>("expansion: %d", expansionLoc);
 
     }
     return ret;
@@ -126,7 +126,7 @@ CXCursor findFirstChild(CXCursor parent)
 struct FindChildVisitor
 {
     CXCursorKind kind;
-    ByteArray name;
+    String name;
     CXCursor cursor;
 };
 
@@ -150,13 +150,13 @@ static CXChildVisitResult findChildVisitor(CXCursor cursor, CXCursor, CXClientDa
 
 CXCursor findChild(CXCursor parent, CXCursorKind kind)
 {
-    FindChildVisitor u = { kind, ByteArray(), clang_getNullCursor() };
+    FindChildVisitor u = { kind, String(), clang_getNullCursor() };
     if (!clang_isInvalid(clang_getCursorKind(parent)))
         clang_visitChildren(parent, findChildVisitor, &u);
     return u.cursor;
 }
 
-CXCursor findChild(CXCursor parent, const ByteArray &name)
+CXCursor findChild(CXCursor parent, const String &name)
 {
     FindChildVisitor u = { CXCursor_FirstInvalid, name, clang_getNullCursor() };
     if (!clang_isInvalid(clang_getCursorKind(parent)))

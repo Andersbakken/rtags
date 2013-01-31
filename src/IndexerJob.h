@@ -13,7 +13,7 @@ struct IndexData {
     SymbolMap symbols;
     SymbolNameMap symbolNames;
     DependencyMap dependencies;
-    ByteArray message;
+    String message;
     UsrMap usrMap;
     FixItMap fixIts;
     DiagnosticsMap diagnostics;
@@ -56,7 +56,7 @@ private:
         return createLocation(clang_getCursorLocation(cursor), blocked);
     }
     static Location createLocation(const CXCursor &cursor);
-    ByteArray addNamePermutations(const CXCursor &cursor, const Location &location);
+    String addNamePermutations(const CXCursor &cursor, const Location &location);
     static CXChildVisitResult indexVisitor(CXCursor cursor, CXCursor parent, CXClientData client_data);
     static CXChildVisitResult verboseVisitor(CXCursor cursor, CXCursor, CXClientData userData);
     static CXChildVisitResult dumpVisitor(CXCursor cursor, CXCursor, CXClientData userData);
@@ -80,9 +80,9 @@ private:
     const uint32_t mFileId;
     UnitList mUnits;
 
-    Map<ByteArray, uint32_t> mFileIds;
+    Map<String, uint32_t> mFileIds;
 
-    List<ByteArray> mClangLines;
+    List<String> mClangLines;
 
     StopWatch mTimer;
     shared_ptr<IndexData> mData;

@@ -2,7 +2,7 @@
 #define ClientMessage_h
 
 #include "Message.h"
-#include "ByteArray.h"
+#include "String.h"
 
 class ClientMessage : public Message
 {
@@ -26,12 +26,12 @@ public:
         init(argc, const_cast<const char**>(argv));
     }
 
-    inline ByteArray raw() const
+    inline String raw() const
     {
         return mRaw;
     }
 protected:
-    ByteArray mRaw;
+    String mRaw;
 };
 
 #endif

@@ -50,7 +50,7 @@ struct CachedUnit
     CXTranslationUnit unit;
     CXIndex index;
     Path path;
-    List<ByteArray> arguments;
+    List<String> arguments;
 };
 
 class FileManager;
@@ -97,27 +97,27 @@ public:
     SourceInformation sourceInfo(uint32_t fileId) const;
     Set<uint32_t> dependencies(uint32_t fileId) const;
     bool visitFile(uint32_t fileId);
-    ByteArray fixIts(uint32_t fileId) const;
-    ByteArray diagnostics() const;
+    String fixIts(uint32_t fileId) const;
+    String diagnostics() const;
     int reindex(const Match &match);
     int remove(const Match &match);
     void onJobFinished(const shared_ptr<IndexerJob> &job);
     SourceInformationMap sources() const;
     DependencyMap dependencies() const;
     Set<Path> watchedPaths() const { return mWatchedPaths; }
-    bool fetchFromCache(const Path &path, List<ByteArray> &args, CXIndex &index, CXTranslationUnit &unit);
-    void addToCache(const Path &path, const List<ByteArray> &args, CXIndex index, CXTranslationUnit unit);
+    bool fetchFromCache(const Path &path, List<String> &args, CXIndex &index, CXTranslationUnit &unit);
+    void addToCache(const Path &path, const List<String> &args, CXIndex index, CXTranslationUnit unit);
     void timerEvent(TimerEvent *event);
     bool isIndexing() const { MutexLocker lock(&mMutex); return !mJobs.isEmpty(); }
 private:
-    bool initJobFromCache(const Path &path, const List<ByteArray> &args,
-                          CXIndex &index, CXTranslationUnit &unit, List<ByteArray> *argsOut);
+    bool initJobFromCache(const Path &path, const List<String> &args,
+                          CXIndex &index, CXTranslationUnit &unit, List<String> *argsOut);
     void onFileModified(const Path &);
     void addDependencies(const DependencyMap &hash, Set<uint32_t> &newFiles);
     void addDiagnostics(const DependencyMap &dependencies, const DiagnosticsMap &diagnostics, const FixItMap &fixIts);
     int syncDB();
     void startDirtyJobs();
-    void addCachedUnit(const Path &path, const List<ByteArray> &args, CXIndex index, CXTranslationUnit unit);
+    void addCachedUnit(const Path &path, const List<String> &args, CXIndex index, CXTranslationUnit unit);
     bool save();
     void onValidateDBJobErrors(const Set<Location> &errors);
 

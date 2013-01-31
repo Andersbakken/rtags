@@ -18,7 +18,7 @@ struct FindImplicitEqualsConstructorUserData {
 
 struct VerboseVisitorUserData {
     int indent;
-    ByteArray out;
+    String out;
     IndexerJob *job;
 };
 
@@ -47,7 +47,7 @@ void IndexerJob::inclusionVisitor(CXFile includedFile,
     const Path path = l.path();
     job->mData->symbolNames[path].insert(l);
     const char *fn = path.fileName();
-    job->mData->symbolNames[ByteArray(fn, strlen(fn))].insert(l);
+    job->mData->symbolNames[String(fn, strlen(fn))].insert(l);
 
     const uint32_t fileId = l.fileId();
     if (!includeLen) {
@@ -64,11 +64,11 @@ void IndexerJob::inclusionVisitor(CXFile includedFile,
     }
 }
 
-static inline void addToSymbolNames(const ByteArray &arg, bool hasTemplates, const Location &location, SymbolNameMap &symbolNames)
+static inline void addToSymbolNames(const String &arg, bool hasTemplates, const Location &location, SymbolNameMap &symbolNames)
 {
     symbolNames[arg].insert(location);
     if (hasTemplates) {
-        ByteArray copy = arg;
+        String copy = arg;
         const int lt = arg.indexOf('<');
         if (lt == -1)
             return;
@@ -87,10 +87,10 @@ static inline void addToSymbolNames(const ByteArray &arg, bool hasTemplates, con
 
 static const CXCursor nullCursor = clang_getNullCursor();
 
-ByteArray IndexerJob::addNamePermutations(const CXCursor &cursor, const Location &location)
+String IndexerJob::addNamePermutations(const CXCursor &cursor, const Location &location)
 {
     int retLength = -1;
-    ByteArray qparam, qnoparam;
+    String qparam, qnoparam;
 
     CXCursor cur = cursor;
     CXCursorKind kind;
@@ -112,7 +112,7 @@ ByteArray IndexerJob::addNamePermutations(const CXCursor &cursor, const Location
         if (!name || !strlen(name)) {
             break;
         }
-        const ByteArray qname(name);
+        const String qname(name);
         if (qparam.isEmpty()) {
             qparam = qname;
             if (kind == CXCursor_VarDecl || kind == CXCursor_ParmDecl) {
@@ -178,7 +178,7 @@ Location IndexerJob::createLocation(const CXSourceLocation &location, bool *bloc
         unsigned start;
         clang_getSpellingLocation(location, &file, 0, 0, &start);
         if (file) {
-            ByteArray fileName = RTags::eatString(clang_getFileName(file));
+            String fileName = RTags::eatString(clang_getFileName(file));
             uint32_t &fileId = mFileIds[fileName];
             if (!fileId)
                 fileId = Location::insertFile(Path::resolved(fileName));
@@ -347,7 +347,7 @@ void IndexerJob::handleReference(const CXCursor &cursor, CXCursorKind kind, cons
                         unsigned offset;
                         clang_getSpellingLocation(end, 0, 0, 0, &offset);
 
-                        ByteArray name;
+                        String name;
                         while (offset > 0) {
                             fseek(f, --offset, SEEK_SET);
                             char ch = static_cast<char>(fgetc(f));
@@ -535,7 +535,7 @@ void IndexerJob::handleInclude(const CXCursor &cursor, CXCursorKind kind, const 
         const Location refLoc(includedFile, 0);
         if (!refLoc.isNull()) {
             {
-                ByteArray include = "#include ";
+                String include = "#include ";
                 const Path path = refLoc.path();
                 mData->symbolNames[(include + path)].insert(location);
                 mData->symbolNames[(include + path.fileName())].insert(location);
@@ -564,7 +564,7 @@ static inline bool isInline(const CXCursor &cursor)
     }
 }
 
-static inline bool addType(ByteArray &symbolName, CXTypeKind kind)
+static inline bool addType(String &symbolName, CXTypeKind kind)
 {
     const char *type = 0;
     switch (kind) {
@@ -648,7 +648,7 @@ bool IndexerJob::handleCursor(const CXCursor &cursor, CXCursorKind kind, const L
             info.definition = clang_isCursorDefinition(cursor);
         }
         info.kind = kind;
-        const ByteArray usr = RTags::eatString(clang_getCursorUSR(cursor));
+        const String usr = RTags::eatString(clang_getCursorUSR(cursor));
         if (!usr.isEmpty())
             mData->usrMap[usr].insert(location);
 
@@ -686,12 +686,12 @@ bool IndexerJob::parse(int build)
         abort();
         return false;
     }
-    const List<ByteArray> args = mSourceInformation.builds.at(build).args;
-    const List<ByteArray> &defaultArguments = Server::instance()->options().defaultArguments;
+    const List<String> args = mSourceInformation.builds.at(build).args;
+    const List<String> &defaultArguments = Server::instance()->options().defaultArguments;
     CXTranslationUnit &unit = mUnits[build].second;
     assert(!unit);
-    mClangLines.append(ByteArray());
-    ByteArray &clangLine = mClangLines[build];
+    mClangLines.append(String());
+    String &clangLine = mClangLines[build];
 
     clangLine = Server::instance()->clangPath();
     clangLine += ' ';
@@ -699,11 +699,11 @@ bool IndexerJob::parse(int build)
     int idx = 0;
     List<const char*> clangArgs(args.size() + defaultArguments.size(), 0);
 
-    const List<ByteArray> *lists[] = { &args, &defaultArguments };
+    const List<String> *lists[] = { &args, &defaultArguments };
     for (int i=0; i<2; ++i) {
         const int count = lists[i]->size();
         for (int j=0; j<count; ++j) {
-            ByteArray arg = lists[i]->at(j);
+            String arg = lists[i]->at(j);
             if (arg.isEmpty())
                 continue;
 
@@ -726,7 +726,7 @@ bool IndexerJob::parse(int build)
     }
 
     error() << "got failure" << clangLine;
-    const ByteArray preprocessorOnly = RTags::filterPreprocessor(mSourceInformation.sourceFile);
+    const String preprocessorOnly = RTags::filterPreprocessor(mSourceInformation.sourceFile);
     if (!preprocessorOnly.isEmpty()) {
         CXUnsavedFile unsaved = { mSourceInformation.sourceFile.constData(), preprocessorOnly.constData(),
                                   static_cast<unsigned long>(preprocessorOnly.size()) };
@@ -782,7 +782,7 @@ bool IndexerJob::diagnose(int build, int *errorCount)
                                             CXDiagnostic_DisplayCategoryId|
                                             CXDiagnostic_DisplayCategoryName);
         const uint32_t fileId = createLocation(clang_getDiagnosticLocation(diagnostic), 0).fileId();
-        const ByteArray text = RTags::eatString(clang_formatDiagnostic(diagnostic, diagnosticOptions));
+        const String text = RTags::eatString(clang_formatDiagnostic(diagnostic, diagnosticOptions));
         if (fileId)
             mData->diagnostics[fileId].append(text);
         if (testLog(logLevel) || testLog(CompilationError)) {
@@ -797,7 +797,7 @@ bool IndexerJob::diagnose(int build, int *errorCount)
         }
         for (unsigned f=0; f<fixItCount; ++f) {
             CXSourceRange range;
-            const ByteArray string = RTags::eatString(clang_getDiagnosticFixIt(diagnostic, f, &range));
+            const String string = RTags::eatString(clang_getDiagnosticFixIt(diagnostic, f, &range));
             unsigned startOffset;
             CXFile file;
             clang_getSpellingLocation(clang_getRangeStart(range), &file, 0, 0, &startOffset);
@@ -901,19 +901,19 @@ void IndexerJob::execute()
         {
             mData->message += mSourceInformation.sourceFile.toTilde();
             if (buildCount > 1)
-                mData->message += ByteArray::format<16>(" (%d builds)", buildCount);
+                mData->message += String::format<16>(" (%d builds)", buildCount);
             if (!unitCount) {
                 mData->message += " error";
             } else if (unitCount != buildCount) {
-                mData->message += ByteArray::format<16>(" (%d errors, %d ok)", buildCount - unitCount, unitCount);
+                mData->message += String::format<16>(" (%d errors, %d ok)", buildCount - unitCount, unitCount);
             }
-            mData->message += ByteArray::format<16>(" in %sms. ", ByteArray::number(mTimer.elapsed()).constData());
+            mData->message += String::format<16>(" in %sms. ", String::number(mTimer.elapsed()).constData());
             if (unitCount) {
-                mData->message += ByteArray::format<1024>("(%d syms, %d symNames, %d refs, %d deps, %d files)",
+                mData->message += String::format<1024>("(%d syms, %d symNames, %d refs, %d deps, %d files)",
                                                           mData->symbols.size(), mData->symbolNames.size(), mData->references.size(),
                                                           mData->dependencies.size(), mVisitedFiles.size());
             } else if (mData->dependencies.size()) {
-                mData->message += ByteArray::format<16>("(%d deps)", mData->dependencies.size());
+                mData->message += String::format<16>("(%d deps)", mData->dependencies.size());
             }
             if (mFlags & Dirty)
                 mData->message += " (dirty)";
@@ -943,7 +943,7 @@ CXChildVisitResult IndexerJob::verboseVisitor(CXCursor cursor, CXCursor, CXClien
 
         VerboseVisitorUserData *u = reinterpret_cast<VerboseVisitorUserData*>(userData);
         if (u->indent >= 0)
-            u->out += ByteArray(u->indent, ' ');
+            u->out += String(u->indent, ' ');
         u->out += RTags::cursorToString(cursor);
         if (clang_equalCursors(ref, cursor)) {
             u->out += " refs self";
@@ -982,18 +982,18 @@ CXChildVisitResult IndexerJob::dumpVisitor(CXCursor cursor, CXCursor, CXClientDa
     if (loc.fileId()) {
         CXCursor ref = clang_getCursorReferenced(cursor);
 
-        ByteArray out;
+        String out;
         out.reserve(256);
         int col = -1;
         if (dump->showContext) {
             out.append(loc.context(&col));
             if (col != -1) {
-                out.append(ByteArray::format<32>(" // %d, %d: ", col, dump->indentLevel));
+                out.append(String::format<32>(" // %d, %d: ", col, dump->indentLevel));
             } else {
-                out.append(ByteArray::format<32>(" // %d: ", dump->indentLevel));
+                out.append(String::format<32>(" // %d: ", dump->indentLevel));
             }
         } else {
-            out.append(ByteArray(dump->indentLevel * 2, ' '));
+            out.append(String(dump->indentLevel * 2, ' '));
         }
         out.append(RTags::cursorToString(cursor, RTags::AllCursorToStringFlags));
         if (clang_equalCursors(ref, cursor)) {

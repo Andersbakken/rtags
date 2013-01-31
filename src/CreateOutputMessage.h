@@ -2,7 +2,7 @@
 #define OutputMessage_h
 
 #include "ClientMessage.h"
-#include "ByteArray.h"
+#include "String.h"
 
 class CreateOutputMessage : public ClientMessage
 {
@@ -15,7 +15,7 @@ public:
 
     int level() const;
 
-    ByteArray encode() const;
+    String encode() const;
     void fromData(const char *data, int size);
 
 private:

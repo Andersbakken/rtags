@@ -3,7 +3,7 @@
 
 #include "Path.h"
 #include "List.h"
-#include "ByteArray.h"
+#include "String.h"
 
 class GccArgumentsImpl;
 
@@ -14,12 +14,12 @@ public:
 
     GccArguments();
 
-    bool parse(ByteArray args, const Path &base);
+    bool parse(String args, const Path &base);
     Lang lang() const;
     void clear();
 
-    void addFlags(const List<ByteArray> &extraFlags);
-    List<ByteArray> clangArgs() const;
+    void addFlags(const List<String> &extraFlags);
+    List<String> clangArgs() const;
     List<Path> inputFiles() const;
     List<Path> unresolvedInputFiles() const;
     Path outputFile() const;
@@ -27,7 +27,7 @@ public:
     Path compiler() const;
     Path projectRoot() const;
 private:
-    List<ByteArray> mClangArgs;
+    List<String> mClangArgs;
     List<Path> mInputFiles, mUnresolvedInputFiles;
     Path mOutputFile, mBase, mCompiler;
     GccArguments::Lang mLang;

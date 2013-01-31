@@ -37,7 +37,7 @@ void SHA256::update(const char *data, unsigned int size)
     SHA256_Update(&priv->ctx, data, size);
 }
 
-void SHA256::update(const ByteArray &data)
+void SHA256::update(const String &data)
 {
     if (priv->finalized)
         priv->finalized = false;
@@ -52,9 +52,9 @@ void SHA256::reset()
 
 static const char* const hexLookup = "0123456789abcdef";
 
-static inline ByteArray hashToHex(SHA256Private* priv)
+static inline String hashToHex(SHA256Private* priv)
 {
-    ByteArray out(SHA256_DIGEST_LENGTH * 2, '\0');
+    String out(SHA256_DIGEST_LENGTH * 2, '\0');
     const unsigned char* get = priv->hash;
     char* put = out.data();
     const char* const end = out.data() + out.size();
@@ -65,7 +65,7 @@ static inline ByteArray hashToHex(SHA256Private* priv)
     return out;
 }
 
-ByteArray SHA256::hash(MapType type) const
+String SHA256::hash(MapType type) const
 {
     if (!priv->finalized) {
         SHA256_Final(priv->hash, &priv->ctx);
@@ -74,15 +74,15 @@ ByteArray SHA256::hash(MapType type) const
     }
     if (type == Hex)
         return hashToHex(priv);
-    return ByteArray(reinterpret_cast<char*>(priv->hash), SHA256_DIGEST_LENGTH);
+    return String(reinterpret_cast<char*>(priv->hash), SHA256_DIGEST_LENGTH);
 }
 
-ByteArray SHA256::hash(const ByteArray& data, MapType type)
+String SHA256::hash(const String& data, MapType type)
 {
     return SHA256::hash(data.constData(), data.size(), type);
 }
 
-ByteArray SHA256::hash(const char* data, unsigned int size, MapType type)
+String SHA256::hash(const char* data, unsigned int size, MapType type)
 {
     SHA256Private priv;
     SHA256_Init(&priv.ctx);
@@ -90,5 +90,5 @@ ByteArray SHA256::hash(const char* data, unsigned int size, MapType type)
     SHA256_Final(priv.hash, &priv.ctx);
     if (type == Hex)
         return hashToHex(&priv);
-    return ByteArray(reinterpret_cast<char*>(priv.hash), SHA256_DIGEST_LENGTH);
+    return String(reinterpret_cast<char*>(priv.hash), SHA256_DIGEST_LENGTH);
 }

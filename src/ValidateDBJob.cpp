@@ -125,8 +125,8 @@ void ValidateDBJob::execute()
                 }
                 if (foundError) {
                     error() << "Something is suspicious about" << foundError << it->first << it->second;
-                    error() << ByteArray::format<64>("[%s]",
-                                                     ByteArray(lastFileContents + offset - 1,
+                    error() << String::format<64>("[%s]",
+                                                     String(lastFileContents + offset - 1,
                                                                it->second.symbolLength + 2).constData());
                 }
 

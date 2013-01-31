@@ -4,11 +4,11 @@
 #include "Map.h"
 #include "List.h"
 #include "Path.h"
-#include "ByteArray.h"
+#include "String.h"
 
 namespace CompilerManager
 {
-List<ByteArray> flags(const Path &compiler);
+List<String> flags(const Path &compiler);
 }
 
 #endif

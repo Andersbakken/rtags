@@ -1,7 +1,7 @@
 #ifndef Location_h
 #define Location_h
 
-#include "ByteArray.h"
+#include "String.h"
 #include "Log.h"
 #include "Path.h"
 #include "ReadLocker.h"
@@ -94,7 +94,7 @@ public:
     inline bool isNull() const { return !mData; }
     inline bool isValid() const { return mData; }
     inline void clear() { mData = 0; mCachedPath.clear(); }
-    inline bool operator==(const ByteArray &str) const
+    inline bool operator==(const String &str) const
     {
         const Location fromPath = Location::fromPathAndOffset(str);
         return operator==(fromPath);
@@ -139,7 +139,7 @@ public:
         return offset() > other.offset();
     }
 
-    ByteArray context(int *column = 0) const;
+    String context(int *column = 0) const;
     bool convertOffset(int &line, int &col) const;
 
     enum KeyFlag {
@@ -149,7 +149,7 @@ public:
         ShowLineNumbers = 0x4
     };
 
-    ByteArray key(unsigned flags = NoFlag) const;
+    String key(unsigned flags = NoFlag) const;
     bool toKey(char buf[8]) const
     {
         if (isNull()) {
@@ -168,7 +168,7 @@ public:
         return ret;
     }
 
-    static Location decodeClientLocation(const ByteArray &data)
+    static Location decodeClientLocation(const String &data)
     {
         uint32_t offset;
         memcpy(&offset, data.constData() + data.size() - sizeof(offset), sizeof(offset));
@@ -179,29 +179,29 @@ public:
         error("Failed to make location from [%s,%d]", path.constData(), offset);
         return Location();
     }
-    static ByteArray encodeClientLocation(const ByteArray &key)
+    static String encodeClientLocation(const String &key)
     {
         const int lastComma = key.lastIndexOf(',');
         if (lastComma <= 0 || lastComma + 1 >= key.size())
-            return ByteArray();
+            return String();
 
         char *endPtr;
         uint32_t offset = strtoull(key.constData() + lastComma + 1, &endPtr, 10);
         if (*endPtr != '\0')
-            return ByteArray();
+            return String();
         Path path = Path::resolved(key.left(lastComma));
-        ByteArray out;
+        String out;
         {
             out = path;
             char buf[4];
             memcpy(buf, &offset, sizeof(buf));
-            out += ByteArray(buf, 4);
+            out += String(buf, 4);
         }
 
         return out;
     }
 
-    static Location fromPathAndOffset(const ByteArray &pathAndOffset)
+    static Location fromPathAndOffset(const String &pathAndOffset)
     {
         const int comma = pathAndOffset.lastIndexOf(',');
         if (comma <= 0 || comma + 1 == pathAndOffset.size()) {
@@ -209,7 +209,7 @@ public:
             return Location();
         }
         bool ok;
-        const uint32_t fileId = ByteArray(pathAndOffset.constData() + comma + 1, pathAndOffset.size() - comma - 1).toULongLong(&ok);
+        const uint32_t fileId = String(pathAndOffset.constData() + comma + 1, pathAndOffset.size() - comma - 1).toULongLong(&ok);
         if (!ok) {
             error("Can't create location from this: %s", pathAndOffset.constData());
             return Location();
@@ -263,7 +263,7 @@ template <> inline Deserializer &operator>>(Deserializer &s, Location &t)
 
 static inline Log operator<<(Log dbg, const Location &loc)
 {
-    const ByteArray out = "Location(" + loc.key() + ")";
+    const String out = "Location(" + loc.key() + ")";
     return (dbg << out);
 }
 

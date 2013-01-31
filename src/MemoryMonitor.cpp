@@ -1,5 +1,5 @@
 #include "MemoryMonitor.h"
-#include "ByteArray.h"
+#include "String.h"
 #include "List.h"
 #include "Log.h"
 #include <unistd.h>
@@ -50,7 +50,7 @@ static bool lineVisitor(char* line, void* userData)
 static inline uint64_t usageLinux()
 {
     const pid_t pid = getpid();
-    FILE* file = fopen(("/proc/" + ByteArray::number(pid) + "/smaps").constData(), "r");
+    FILE* file = fopen(("/proc/" + String::number(pid) + "/smaps").constData(), "r");
     if (!file)
         return 0;
 

@@ -91,7 +91,7 @@ bool Project::restore()
 
         DependencyMap reversedDependencies;
         // these dependencies are in the form of:
-        // Path.cpp: Path.h, ByteArray.h ...
+        // Path.cpp: Path.h, String.h ...
         // mDependencies are like this:
         // Path.h: Path.cpp, Server.cpp ...
 
@@ -116,7 +116,7 @@ bool Project::restore()
                 mModifiedFiles.insert(it->first);
             } else {
                 const time_t parsed = it->second.parsed;
-                // error() << "parsed" << ByteArray::formatTime(parsed, ByteArray::DateTime) << parsed;
+                // error() << "parsed" << String::formatTime(parsed, String::DateTime) << parsed;
                 assert(mDependencies.value(it->first).contains(it->first));
                 assert(mDependencies.contains(it->first));
                 const Set<uint32_t> &deps = reversedDependencies[it->first];
@@ -265,7 +265,7 @@ void Project::onJobFinished(const shared_ptr<IndexerJob> &job)
             mSources[fileId].parsed = job->parseTime();
             error("[%3d%%] %d/%d %s %s. %d mb mem.",
                   static_cast<int>(round((double(idx) / double(mJobCounter)) * 100.0)), idx, mJobCounter,
-                  ByteArray::formatTime(time(0), ByteArray::Time).constData(),
+                  String::formatTime(time(0), String::Time).constData(),
                   data->message.constData(), int((MemoryMonitor::usage() / (1024 * 1024))));
 
             if (mJobs.isEmpty() && job->flags() & IndexerJob::Dirty) {
@@ -323,7 +323,7 @@ bool Project::save()
     fseek(f, pos, SEEK_SET);
     out << size;
 
-    error() << "saved project" << path() << "in" << ByteArray::format<12>("%dms", timer.elapsed()).constData();
+    error() << "saved project" << path() << "in" << String::format<12>("%dms", timer.elapsed()).constData();
     fclose(f);
     return true;
 }
@@ -419,14 +419,14 @@ Set<uint32_t> Project::dependencies(uint32_t fileId) const
     return mDependencies.value(fileId);
 }
 
-ByteArray Project::diagnostics() const
+String Project::diagnostics() const
 {
     MutexLocker lock(&mMutex);
-    List<ByteArray> ret;
+    List<String> ret;
     for (DiagnosticsMap::const_iterator it = mDiagnostics.begin(); it != mDiagnostics.end(); ++it) {
         ret += it->second;
     }
-    return ByteArray::join(ret, '\n');
+    return String::join(ret, '\n');
 }
 
 int Project::reindex(const Match &match)
@@ -484,7 +484,7 @@ void Project::onValidateDBJobErrors(const Set<Location> &errors)
 void Project::startDirtyJobs()
 {
     Set<uint32_t> dirtyFiles;
-    Map<Path, List<ByteArray> > toIndex;
+    Map<Path, List<String> > toIndex;
     {
         MutexLocker lock(&mMutex);
         std::swap(dirtyFiles, mModifiedFiles);
@@ -671,7 +671,7 @@ DependencyMap Project::dependencies() const
     return mDependencies;
 }
 
-void Project::addCachedUnit(const Path &path, const List<ByteArray> &args, CXIndex index, CXTranslationUnit unit)
+void Project::addCachedUnit(const Path &path, const List<String> &args, CXIndex index, CXTranslationUnit unit)
 {
     assert(index);
     assert(unit);
@@ -709,8 +709,8 @@ void Project::addCachedUnit(const Path &path, const List<ByteArray> &args, CXInd
     }
 }
 
-bool Project::initJobFromCache(const Path &path, const List<ByteArray> &args,
-                               CXIndex &index, CXTranslationUnit &unit, List<ByteArray> *argsOut)
+bool Project::initJobFromCache(const Path &path, const List<String> &args,
+                               CXIndex &index, CXTranslationUnit &unit, List<String> *argsOut)
 {
     CachedUnit *prev = 0;
     CachedUnit *cachedUnit = mFirstCachedUnit;
@@ -744,13 +744,13 @@ bool Project::initJobFromCache(const Path &path, const List<ByteArray> &args,
     return false;
 }
 
-bool Project::fetchFromCache(const Path &path, List<ByteArray> &args, CXIndex &index, CXTranslationUnit &unit)
+bool Project::fetchFromCache(const Path &path, List<String> &args, CXIndex &index, CXTranslationUnit &unit)
 {
     MutexLocker lock(&mMutex);
-    return initJobFromCache(path, List<ByteArray>(), index, unit, &args);
+    return initJobFromCache(path, List<String>(), index, unit, &args);
 }
 
-void Project::addToCache(const Path &path, const List<ByteArray> &args, CXIndex index, CXTranslationUnit unit)
+void Project::addToCache(const Path &path, const List<String> &args, CXIndex index, CXTranslationUnit unit)
 {
     MutexLocker lock(&mMutex);
     addCachedUnit(path, args, index, unit);
@@ -775,11 +775,11 @@ void Project::addDiagnostics(const DependencyMap &visited, const DiagnosticsMap 
     }
 }
 
-ByteArray Project::fixIts(uint32_t fileId) const
+String Project::fixIts(uint32_t fileId) const
 {
     MutexLocker lock(&mMutex);
     const FixItMap::const_iterator it = mFixIts.find(fileId);
-    ByteArray out;
+    String out;
     if (it != mFixIts.end()) {
         const Set<FixIt> &fixIts = it->second;
         if (!fixIts.isEmpty()) {
@@ -788,7 +788,7 @@ ByteArray Project::fixIts(uint32_t fileId) const
                 --f;
                 if (!out.isEmpty())
                     out.append('\n');
-                out.append(ByteArray::format<32>("%d-%d %s", f->start, f->end, f->text.constData()));
+                out.append(String::format<32>("%d-%d %s", f->start, f->end, f->text.constData()));
 
             } while (f != fixIts.begin());
         }

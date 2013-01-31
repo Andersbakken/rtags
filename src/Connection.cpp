@@ -7,11 +7,11 @@ class ResponseMessageEvent : public Event
 {
 public:
     enum { Type = 1 };
-    ResponseMessageEvent(const ByteArray &r)
+    ResponseMessageEvent(const String &r)
         : Event(Type), response(r)
     {}
 
-    const ByteArray response;
+    const String response;
 };
 
 Connection::Connection()
@@ -39,12 +39,12 @@ Connection::~Connection()
 }
 
 
-bool Connection::connectToServer(const ByteArray &name, int timeout)
+bool Connection::connectToServer(const String &name, int timeout)
 {
     return mClient->connect(name, timeout);
 }
 
-bool Connection::send(int id, const ByteArray &message)
+bool Connection::send(int id, const String &message)
 {
     if (!mClient->isConnected()) {
         ::error("Trying to send message to unconnected client (%d)", id);
@@ -54,7 +54,7 @@ bool Connection::send(int id, const ByteArray &message)
     if (mSilent)
         return true;
 
-    ByteArray header, data;
+    String header, data;
     {
         if (message.size()) {
             Serializer strm(data);
@@ -129,7 +129,7 @@ void Connection::dataWritten(LocalClient *, int bytes)
     }
 }
 
-void Connection::writeAsync(const ByteArray &out)
+void Connection::writeAsync(const String &out)
 {
     EventLoop::instance()->postEvent(this, new ResponseMessageEvent(out));
 }

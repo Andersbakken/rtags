@@ -2,13 +2,13 @@
 #define RegExp_h
 
 #include <regex.h>
-#include "ByteArray.h"
+#include "String.h"
 #include "Log.h"
 
 class RegExp
 {
 public:
-    RegExp(const ByteArray &pattern = ByteArray(), uint32_t flags = 0)
+    RegExp(const String &pattern = String(), uint32_t flags = 0)
         : mPattern(pattern), mFlags(flags), mState(Unset)
     {}
 
@@ -36,12 +36,12 @@ public:
         return mPattern.isEmpty() || !isValid();
     }
 
-    ByteArray pattern() const
+    String pattern() const
     {
         return mPattern;
     }
 
-    RegExp &operator=(const ByteArray &pattern)
+    RegExp &operator=(const String &pattern)
     {
         clear();
         mPattern = pattern;
@@ -60,10 +60,10 @@ public:
             : index(-1)
         {}
         int index;
-        ByteArray capture;
+        String capture;
     };
 
-    int indexIn(const ByteArray &string, int offset = 0, List<Capture> *caps = 0, uint32_t flags = 0) const
+    int indexIn(const String &string, int offset = 0, List<Capture> *caps = 0, uint32_t flags = 0) const
     {
         if (!isValid())
             return -1;
@@ -86,7 +86,7 @@ public:
         return captures[0].rm_so;
     }
 private:
-    ByteArray mPattern;
+    String mPattern;
     uint32_t mFlags;
     mutable regex_t mRegex;
     enum State {

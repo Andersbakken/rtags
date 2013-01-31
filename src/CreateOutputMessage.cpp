@@ -11,9 +11,9 @@ int CreateOutputMessage::level() const
     return mLevel;
 }
 
-ByteArray CreateOutputMessage::encode() const
+String CreateOutputMessage::encode() const
 {
-    ByteArray data;
+    String data;
     {
         Serializer stream(data);
         stream << mRaw << mLevel;

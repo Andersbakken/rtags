@@ -19,7 +19,7 @@
 void sigSegvHandler(int signal)
 {
     fprintf(stderr, "Caught signal %d\n", signal);
-    ByteArray trace = RTags::backtrace();
+    String trace = RTags::backtrace();
     if (!trace.isEmpty()) {
         fprintf(stderr, "%s", trace.constData());
     }
@@ -100,9 +100,9 @@ int main(int argc, char** argv)
         { "large-by-value-copy", required_argument, 0, 'r' },
         { 0, 0, 0, 0 }
     };
-    const ByteArray shortOptions = RTags::shortOptions(opts);
+    const String shortOptions = RTags::shortOptions(opts);
 
-    List<ByteArray> argCopy;
+    List<String> argCopy;
     List<char*> argList;
     {
         bool norc = false;
@@ -129,20 +129,20 @@ int main(int argc, char** argv)
             char *rc;
             int size = Path("/etc/rdmrc").readAll(rc);
             if (rc) {
-                argCopy = ByteArray(rc, size).split('\n');
+                argCopy = String(rc, size).split('\n');
                 delete[] rc;
             }
             if (!rcfile.isEmpty()) {
                 size = rcfile.readAll(rc);
                 if (rc) {
-                    List<ByteArray> split = ByteArray(rc, size).split('\n');
+                    List<String> split = String(rc, size).split('\n');
                     argCopy.append(split);
                     delete[] rc;
                 }
             }
             const int s = argCopy.size();
             for (int i=0; i<s; ++i) {
-                ByteArray &arg = argCopy.at(i);
+                String &arg = argCopy.at(i);
                 if (!arg.isEmpty() && !arg.startsWith('#') && !arg.startsWith(' '))
                     argList.append(arg.data());
             }
@@ -155,12 +155,12 @@ int main(int argc, char** argv)
     }
 
     Server::Options serverOpts;
-    serverOpts.socketFile = ByteArray::format<128>("%s.rdm", Path::home().constData());
+    serverOpts.socketFile = String::format<128>("%s.rdm", Path::home().constData());
     serverOpts.threadCount = ThreadPool::idealThreadCount();
     serverOpts.completionCacheSize = 0;
     serverOpts.options = Server::Wall|Server::SpellChecking;
-    serverOpts.excludeFilters = ByteArray(EXCLUDEFILTER_DEFAULT).split(';');
-    serverOpts.dataDir = ByteArray::format<128>("%s.rtags", Path::home().constData());
+    serverOpts.excludeFilters = String(EXCLUDEFILTER_DEFAULT).split(';');
+    serverOpts.dataDir = String::format<128>("%s.rtags", Path::home().constData());
 
     const char *logFile = 0;
     unsigned logFlags = 0;
@@ -181,13 +181,13 @@ int main(int argc, char** argv)
             logLevel = -1;
             break;
         case 'x':
-            serverOpts.excludeFilters += ByteArray(optarg).split(';');
+            serverOpts.excludeFilters += String(optarg).split(';');
             break;
         case 'n':
             serverOpts.socketFile = optarg;
             break;
         case 'd':
-            serverOpts.dataDir = ByteArray::format<128>("%s", Path::resolved(optarg).constData());
+            serverOpts.dataDir = String::format<128>("%s", Path::resolved(optarg).constData());
             break;
         case 'h':
             usage(stdout);
@@ -239,13 +239,13 @@ int main(int argc, char** argv)
                 fprintf(stderr, "Can't parse argument to -r %s\n", optarg);
                 return 1;
             }
-            serverOpts.defaultArguments.append("-Wlarge-by-value-copy=" + ByteArray(optarg)); // ### not quite working
+            serverOpts.defaultArguments.append("-Wlarge-by-value-copy=" + String(optarg)); // ### not quite working
             break; }
         case 'D':
-            serverOpts.defaultArguments.append("-D" + ByteArray(optarg));
+            serverOpts.defaultArguments.append("-D" + String(optarg));
             break;
         case 'I':
-            serverOpts.defaultArguments.append("-I" + ByteArray(optarg));
+            serverOpts.defaultArguments.append("-I" + String(optarg));
             break;
         case 'i':
             serverOpts.defaultArguments.append("-include");

@@ -1,5 +1,5 @@
-#ifndef ByteArray_h
-#define ByteArray_h
+#ifndef String_h
+#define String_h
 
 #include <string>
 #include <stdint.h>
@@ -10,7 +10,7 @@
 #include <time.h>
 #include "List.h"
 
-class ByteArray
+class String
 {
 public:
     enum CaseSensitivity
@@ -18,7 +18,7 @@ public:
         CaseSensitive,
         CaseInsensitive
     };
-    ByteArray(const char *data = 0, int len = -1)
+    String(const char *data = 0, int len = -1)
     {
         if (data) {
             if (len == -1)
@@ -26,19 +26,19 @@ public:
             mString = std::string(data, len);
         }
     }
-    ByteArray(int len, char fillChar)
+    String(int len, char fillChar)
         : mString(len, fillChar)
     {}
 
-    ByteArray(const ByteArray &ba)
+    String(const String &ba)
         : mString(ba.mString)
     {}
 
-    ByteArray(const std::string &str)
+    String(const std::string &str)
         : mString(str)
     {}
 
-    ByteArray &operator=(const ByteArray &other)
+    String &operator=(const String &other)
     {
         mString = other.mString;
         return *this;
@@ -86,7 +86,7 @@ public:
         return -1;
     }
 
-    bool contains(const ByteArray &other, CaseSensitivity cs = CaseSensitive) const
+    bool contains(const String &other, CaseSensitivity cs = CaseSensitive) const
     {
         return indexOf(other, 0, cs) != -1;
     }
@@ -96,7 +96,7 @@ public:
         return indexOf(ch, 0, cs) != -1;
     }
 
-    int lastIndexOf(const ByteArray &ba, int from = -1, CaseSensitivity cs = CaseSensitive) const
+    int lastIndexOf(const String &ba, int from = -1, CaseSensitivity cs = CaseSensitive) const
     {
         if (ba.isEmpty())
             return -1;
@@ -106,7 +106,7 @@ public:
             return mString.rfind(ba.mString, from == -1 ? std::string::npos : size_t(from));
         if (from == -1)
             from = mString.size() - 1;
-        const ByteArray lowered = ba.toLower();
+        const String lowered = ba.toLower();
         const int needleSize = lowered.size();
         int matched = 0;
         while (from >= 0) {
@@ -121,7 +121,7 @@ public:
         return -1;
     }
 
-    int indexOf(const ByteArray &ba, int from = 0, CaseSensitivity cs = CaseSensitive) const
+    int indexOf(const String &ba, int from = 0, CaseSensitivity cs = CaseSensitive) const
     {
         if (ba.isEmpty())
             return -1;
@@ -130,7 +130,7 @@ public:
         if (cs == CaseSensitive)
             return mString.find(ba.mString, from);
 
-        const ByteArray lowered = ba.toLower();
+        const String lowered = ba.toLower();
         const int count = size();
         int matched = 0;
 
@@ -167,14 +167,14 @@ public:
     }
 
 
-    ByteArray toLower() const
+    String toLower() const
     {
         std::string ret = mString;
         std::transform(ret.begin(), ret.end(), ret.begin(), ::tolower);
         return ret;
     }
 
-    ByteArray toUpper() const
+    String toUpper() const
     {
         std::string ret = mString;
         std::transform(ret.begin(), ret.end(), ret.begin(), ::toupper);
@@ -250,7 +250,7 @@ public:
         mString.reserve(size);
     }
 
-    void prepend(const ByteArray &other)
+    void prepend(const String &other)
     {
         mString.insert(0, other);
     }
@@ -265,7 +265,7 @@ public:
         mString += ch;
     }
 
-    void append(const ByteArray &ba)
+    void append(const String &ba)
     {
         mString.append(ba);
     }
@@ -283,31 +283,31 @@ public:
         mString.erase(idx, count);
     }
 
-    ByteArray &operator+=(char ch)
+    String &operator+=(char ch)
     {
         mString += ch;
         return *this;
     }
 
-    ByteArray &operator+=(const char *cstr)
+    String &operator+=(const char *cstr)
     {
         if (cstr)
             mString += cstr;
         return *this;
     }
 
-    ByteArray &operator+=(const ByteArray &other)
+    String &operator+=(const String &other)
     {
         mString += other.mString;
         return *this;
     }
 
-    int compare(const ByteArray &other) const
+    int compare(const String &other) const
     {
         return mString.compare(other.mString);
     }
 
-    bool operator==(const ByteArray &other) const
+    bool operator==(const String &other) const
     {
         return mString == other.mString;
     }
@@ -317,7 +317,7 @@ public:
         return other && !mString.compare(other);
     }
 
-    bool operator!=(const ByteArray &other) const
+    bool operator!=(const String &other) const
     {
         return mString != other.mString;
     }
@@ -327,12 +327,12 @@ public:
         return !other || mString.compare(other);
     }
 
-    bool operator<(const ByteArray &other) const
+    bool operator<(const String &other) const
     {
         return mString < other.mString;
     }
 
-    bool operator>(const ByteArray &other) const
+    bool operator>(const String &other) const
     {
         return mString > other.mString;
     }
@@ -358,7 +358,7 @@ public:
         return false;
     }
 
-    bool endsWith(const ByteArray &str, CaseSensitivity cs = CaseSensitive) const
+    bool endsWith(const String &str, CaseSensitivity cs = CaseSensitive) const
     {
         const int len = str.size();
         const int s = mString.size();
@@ -370,7 +370,7 @@ public:
         return false;
     }
 
-    bool startsWith(const ByteArray &str, CaseSensitivity cs = CaseSensitive) const
+    bool startsWith(const String &str, CaseSensitivity cs = CaseSensitive) const
     {
         const int s = mString.size();
         const int len = str.size();
@@ -382,12 +382,12 @@ public:
         return false;
     }
 
-    void replace(int idx, int len, const ByteArray &with)
+    void replace(int idx, int len, const String &with)
     {
         mString.replace(idx, len, with.mString);
     }
 
-    void replace(const ByteArray &from, const ByteArray &to)
+    void replace(const String &from, const String &to)
     {
         int idx = 0;
         while (true) {
@@ -412,7 +412,7 @@ public:
         return count;
     }
 
-    ByteArray mid(int from, int l = -1) const
+    String mid(int from, int l = -1) const
     {
         if (l == -1)
             l = size() - from;
@@ -421,12 +421,12 @@ public:
         return mString.substr(from, l);
     }
 
-    ByteArray left(int l) const
+    String left(int l) const
     {
         return mString.substr(0, l);
     }
 
-    ByteArray right(int l) const
+    String right(int l) const
     {
         return mString.substr(size() - l, l);
     }
@@ -436,9 +436,9 @@ public:
         return mString;
     }
 
-    List<ByteArray> split(char ch) const
+    List<String> split(char ch) const
     {
-        List<ByteArray> ret;
+        List<String> ret;
         int last = 0;
         while (1) {
             const int next = indexOf(ch, last);
@@ -477,7 +477,7 @@ public:
         Date
     };
 
-    static ByteArray formatTime(time_t t, TimeFormat fmt = DateTime)
+    static String formatTime(time_t t, TimeFormat fmt = DateTime)
     {
         const char *format = 0;
         switch (fmt) {
@@ -496,10 +496,10 @@ public:
         tm tm;
         localtime_r(&t, &tm);
         const int w = strftime(buf, sizeof(buf), format, &tm);
-        return ByteArray(buf, w);
+        return String(buf, w);
     }
 
-    static ByteArray number(long long num, int base = 10)
+    static String number(long long num, int base = 10)
     {
         const char *format = 0;
         switch (base) {
@@ -507,7 +507,7 @@ public:
         case 16: format = "0x%llx"; break;
         case 8: format = "%llo"; break;
         case 1: {
-            ByteArray ret;
+            String ret;
             while (num) {
                 ret.append(num & 1 ? '1' : '0');
                 num >>= 1;
@@ -515,21 +515,21 @@ public:
             return ret; }
         default:
             assert(0);
-            return ByteArray();
+            return String();
         }
         char buf[32];
         const int w = ::snprintf(buf, sizeof(buf), format, num);
-        return ByteArray(buf, w);
+        return String(buf, w);
     }
 
-    static ByteArray join(const List<ByteArray> &list, char ch)
+    static String join(const List<String> &list, char ch)
     {
-        return ByteArray::join(list, ByteArray(&ch, 1));
+        return String::join(list, String(&ch, 1));
     }
 
-    static ByteArray join(const List<ByteArray> &list, const ByteArray &sep)
+    static String join(const List<String> &list, const String &sep)
     {
-        ByteArray ret;
+        String ret;
         const int sepSize = sep.size();
         int size = std::max(0, list.size() - 1) * sepSize;
         const int count = list.size();
@@ -537,7 +537,7 @@ public:
             size += list.at(i).size();
         ret.reserve(size);
         for (int i=0; i<count; ++i) {
-            const ByteArray &b = list.at(i);
+            const String &b = list.at(i);
             ret.append(b);
             if (sepSize && i + 1 < list.size())
                 ret.append(sep);
@@ -545,17 +545,17 @@ public:
         return ret;
     }
     template <int StaticBufSize>
-    static ByteArray format(const char *format, ...)
+    static String format(const char *format, ...)
     {
         va_list args;
         va_start(args, format);
-        const ByteArray ret = ByteArray::format<StaticBufSize>(format, args);
+        const String ret = String::format<StaticBufSize>(format, args);
         va_end(args);
         return ret;
     }
 
     template <int StaticBufSize>
-    static ByteArray format(const char *format, va_list args)
+    static String format(const char *format, va_list args)
     {
         va_list copy;
         va_copy(copy, args);
@@ -570,7 +570,7 @@ public:
         }
         ch[size] = 0;
         va_end(copy);
-        const ByteArray ret(ch, size);
+        const String ret(ch, size);
         if (ch != buffer)
             free(ch);
         return ret;
@@ -579,40 +579,40 @@ private:
     std::string mString;
 };
 
-inline const bool operator==(const char *l, const ByteArray &r)
+inline const bool operator==(const char *l, const String &r)
 {
     return r.operator==(l);
 }
 
-inline const bool operator!=(const char *l, const ByteArray &r)
+inline const bool operator!=(const char *l, const String &r)
 {
     return r.operator!=(l);
 }
 
-inline const ByteArray operator+(const ByteArray &l, const char *r)
+inline const String operator+(const String &l, const char *r)
 {
-    ByteArray ret = l;
+    String ret = l;
     ret += r;
     return ret;
 }
 
-inline const ByteArray operator+(const char *l, const ByteArray &r)
+inline const String operator+(const char *l, const String &r)
 {
-    ByteArray ret = l;
+    String ret = l;
     ret += r;
     return ret;
 }
 
-inline const ByteArray operator+(const ByteArray &l, char ch)
+inline const String operator+(const String &l, char ch)
 {
-    ByteArray ret = l;
+    String ret = l;
     ret += ch;
     return ret;
 }
 
-inline const ByteArray operator+(char l, const ByteArray &r)
+inline const String operator+(char l, const String &r)
 {
-    ByteArray ret;
+    String ret;
     ret.reserve(r.size() + 1);
     ret += l;
     ret += r;
@@ -620,9 +620,9 @@ inline const ByteArray operator+(char l, const ByteArray &r)
 }
 
 
-inline const ByteArray operator+(const ByteArray &l, const ByteArray &r)
+inline const String operator+(const String &l, const String &r)
 {
-    ByteArray ret = l;
+    String ret = l;
     ret += r;
     return ret;
 }

@@ -1,7 +1,7 @@
 #ifndef CursorInfo_h
 #define CursorInfo_h
 
-#include "ByteArray.h"
+#include "String.h"
 #include "Location.h"
 #include "Path.h"
 #include "Log.h"
@@ -136,9 +136,9 @@ public:
         IgnoreTargets = 0x1,
         IgnoreReferences = 0x2
     };
-    ByteArray toString(unsigned cursorInfoFlags = 0, unsigned keyFlags = 0) const;
+    String toString(unsigned cursorInfoFlags = 0, unsigned keyFlags = 0) const;
     uint16_t symbolLength; // this is just the symbol name length e.g. foo => 3
-    ByteArray symbolName; // this is fully qualified Foobar::Barfoo::foo
+    String symbolName; // this is fully qualified Foobar::Barfoo::foo
     CXCursorKind kind;
     CXTypeKind type;
     union {

@@ -1,14 +1,14 @@
 #include "CompileMessage.h"
 #include "Serializer.h"
 
-CompileMessage::CompileMessage(const Path &path, const ByteArray &args)
+CompileMessage::CompileMessage(const Path &path, const String &args)
     : mPath(path), mArgs(args)
 {
 }
 
-ByteArray CompileMessage::encode() const
+String CompileMessage::encode() const
 {
-    ByteArray data;
+    String data;
     {
         Serializer stream(data);
         stream << mRaw << mPath << mArgs;

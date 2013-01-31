@@ -50,7 +50,7 @@ GRParser::~GRParser()
     delete[] mBuf;
 }
 
-int GRParser::parse(const Path &file, unsigned opts, Map<ByteArray, Map<Location, bool> > &entries)
+int GRParser::parse(const Path &file, unsigned opts, Map<String, Map<Location, bool> > &entries)
 {
     mFileName = file;
     mSize = mFileName.readAll(mBuf);
@@ -130,13 +130,13 @@ int GRParser::parse(const Path &file, unsigned opts, Map<ByteArray, Map<Location
     return mCount;
 }
 
-void GRParser::addEntry(const ByteArray &name, const List<ByteArray> &containerScope, int offset)
+void GRParser::addEntry(const String &name, const List<String> &containerScope, int offset)
 {
     ++mCount;
     const Location loc(mFileId, offset);
     (*mEntries)[name][loc] = false;
     if (!containerScope.isEmpty()) {
-        ByteArray entry = name;
+        String entry = name;
         entry.reserve(256); // ### does this help for prepend?
         for (int i=containerScope.size() - 1; i>=0; --i) {
             entry.prepend("::");
@@ -146,7 +146,7 @@ void GRParser::addEntry(const ByteArray &name, const List<ByteArray> &containerS
     }
 }
 
-void GRParser::addReference(const ByteArray &name, int offset)
+void GRParser::addReference(const String &name, int offset)
 {
     ++mCount;
     const Location loc(mFileId, offset);
@@ -252,7 +252,7 @@ void GRParser::handleLeftBrace()
         mState.pop();
         if (containerIndex != -1) {
             const clang::Token &token = mTokens[containerIndex];
-            const ByteArray name = tokenSpelling(token);
+            const String name = tokenSpelling(token);
             if (!isKeyWord(name.constData(), name.size())) {
                 const int added = addContext(containerIndex);
                 addEntry(tokenSpelling(token), mContainerScope, tokenOffset(token));
@@ -267,7 +267,7 @@ void GRParser::handleLeftBrace()
         assert(function != -1);
         const clang::Token &token = mTokens.at(function);
         int offset = tokenOffset(token);
-        ByteArray name = tokenSpelling(token);
+        String name = tokenSpelling(token);
         if (!isKeyWord(name.constData(), name.size())) {
 
             if (kind(function - 1) == clang::tok::tilde) {
@@ -368,7 +368,7 @@ void GRParser::handleSemi()
             assert(pending != -1);
             const clang::Token &token = mTokens.at(pending);
             int offset = tokenOffset(token);
-            ByteArray name = tokenSpelling(token);
+            String name = tokenSpelling(token);
             if (kind(pending - 1) == clang::tok::tilde) {
                 --offset;
                 name.prepend('~');

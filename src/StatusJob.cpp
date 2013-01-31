@@ -125,7 +125,7 @@ void StatusJob::execute()
         for (SourceInformationMap::const_iterator it = map.begin(); it != map.end(); ++it) {
             for (int i=0; i<it->second.builds.size(); ++i) {
                 write<512>("  %s: %s", Location::path(it->first).constData(), it->second.builds.at(i).compiler.constData(),
-                           ByteArray::join(it->second.builds.at(i).args, " ").constData());
+                           String::join(it->second.builds.at(i).args, " ").constData());
             }
         }
     }

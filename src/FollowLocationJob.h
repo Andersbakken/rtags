@@ -1,7 +1,7 @@
 #ifndef FollowLocationJob_h
 #define FollowLocationJob_h
 
-#include "ByteArray.h"
+#include "String.h"
 #include "List.h"
 #include "RTags.h"
 #include "Job.h"

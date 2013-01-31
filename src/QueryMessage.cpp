@@ -7,9 +7,9 @@ QueryMessage::QueryMessage(Type type)
 {
 }
 
-ByteArray QueryMessage::encode() const
+String QueryMessage::encode() const
 {
-    ByteArray data;
+    String data;
     {
         Serializer stream(data);
         stream << mRaw << mQuery << mType << mFlags << mMax

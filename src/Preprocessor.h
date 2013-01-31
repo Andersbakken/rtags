@@ -3,7 +3,7 @@
 
 #include "Path.h"
 #include "List.h"
-#include "ByteArray.h"
+#include "String.h"
 #include "EventReceiver.h"
 #include "RTags.h"
 

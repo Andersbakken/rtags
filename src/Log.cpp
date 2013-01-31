@@ -52,7 +52,7 @@ void restartTime()
     sStart.restart();
 }
 
-static inline ByteArray prettyTimeSinceStarted()
+static inline String prettyTimeSinceStarted()
 {
     uint64_t elapsed = sStart.elapsed();
     char buf[128];
@@ -103,7 +103,7 @@ static void log(int level, const char *format, va_list v)
         delete []msg;
 }
 
-void logDirect(int level, const ByteArray &out)
+void logDirect(int level, const String &out)
 {
     MutexLocker lock(&sOutputsMutex);
     if (sOutputs.isEmpty()) {
@@ -193,7 +193,7 @@ bool initLogging(int level, const Path &file, unsigned flags)
         if (!(flags & (Log::Append|Log::DontRotate)) && file.exists()) {
             int i = 0;
             while (true) {
-                const Path rotated = ByteArray::format<64>("%s.%d", file.constData(), ++i);
+                const Path rotated = String::format<64>("%s.%d", file.constData(), ++i);
                 if (!rotated.exists()) {
                     if (rename(file.constData(), rotated.constData())) {
                         char buf[1025];

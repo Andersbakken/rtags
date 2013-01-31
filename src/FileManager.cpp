@@ -37,7 +37,7 @@ void FileManager::onRecurseJobFinished(const Set<Path> &paths)
             error() << "Got empty parent here" << *it;
             continue;
         }
-        Set<ByteArray> &dir = map[parent];
+        Set<String> &dir = map[parent];
         if (dir.isEmpty())
             mWatcher.watch(parent);
         dir.insert(it->fileName());
@@ -67,7 +67,7 @@ void FileManager::onFileAdded(const Path &path)
     FilesMap &map = scope.data();
     const Path parent = path.parentDir();
     if (!parent.isEmpty()) {
-        Set<ByteArray> &dir = map[parent];
+        Set<String> &dir = map[parent];
         if (dir.isEmpty())
             mWatcher.watch(parent);
         dir.insert(path.fileName());
@@ -86,7 +86,7 @@ void FileManager::onFileRemoved(const Path &path)
         return;
     }
     const Path parent = path.parentDir();
-    Set<ByteArray> &dir = map[parent];
+    Set<String> &dir = map[parent];
     if (dir.remove(path.fileName()) && dir.isEmpty()) {
         mWatcher.unwatch(parent);
         map.remove(parent);

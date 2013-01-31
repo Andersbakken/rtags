@@ -1,7 +1,7 @@
 #ifndef Match_h
 #define Match_h
 
-#include "ByteArray.h"
+#include "String.h"
 #include "RegExp.h"
 #include "Log.h"
 
@@ -15,7 +15,7 @@ public:
         Flag_CaseInsensitive = 0x4
     };
 
-    inline Match(const ByteArray &pattern = ByteArray(), unsigned flags = Flag_StringMatch)
+    inline Match(const String &pattern = String(), unsigned flags = Flag_StringMatch)
         : mFlags(flags)
     {
         if (flags & Flag_RegExp)
@@ -29,20 +29,20 @@ public:
         : mRegExp(regExp), mPattern(regExp.pattern()), mFlags(Flag_RegExp)
     {}
 
-    inline bool match(const ByteArray &text) const
+    inline bool match(const String &text) const
     {
         if (indexIn(text) != -1)
             return true;
         if (mFlags & Flag_StringMatch)
-            return mPattern.indexOf(text, 0, mFlags & Flag_CaseInsensitive ? ByteArray::CaseInsensitive : ByteArray::CaseSensitive) != -1;
+            return mPattern.indexOf(text, 0, mFlags & Flag_CaseInsensitive ? String::CaseInsensitive : String::CaseSensitive) != -1;
         return false;
     }
 
-    inline int indexIn(const ByteArray &text) const
+    inline int indexIn(const String &text) const
     {
         int index = -1;
         if (mFlags & Flag_StringMatch)
-            index = text.indexOf(mPattern, 0, mFlags & Flag_CaseInsensitive ? ByteArray::CaseInsensitive : ByteArray::CaseSensitive);
+            index = text.indexOf(mPattern, 0, mFlags & Flag_CaseInsensitive ? String::CaseInsensitive : String::CaseSensitive);
         if (index == -1 && mFlags & Flag_RegExp)
             index = mRegExp.indexIn(text);
         return index;
@@ -57,20 +57,20 @@ public:
         return mRegExp;
     }
 
-    inline ByteArray pattern() const
+    inline String pattern() const
     {
         return mPattern;
     }
 private:
     RegExp mRegExp;
-    ByteArray mPattern;
+    String mPattern;
     unsigned mFlags;
 };
 
 inline Log operator<<(Log log, const Match &match)
 {
-    ByteArray ret = "Match(flags: ";
-    ret += ByteArray::number(match.flags(), 16);
+    String ret = "Match(flags: ";
+    ret += String::number(match.flags(), 16);
     if (match.regExp().isValid())
         ret += " rx: " + match.regExp().pattern();
     if (!match.pattern().isEmpty())

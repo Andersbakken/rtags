@@ -1,7 +1,7 @@
 #ifndef LOCALCLIENT_H
 #define LOCALCLIENT_H
 
-#include "ByteArray.h"
+#include "String.h"
 #include "EventReceiver.h"
 #include "SignalSlot.h"
 #include <deque>
@@ -17,10 +17,10 @@ public:
 
     bool isConnected() const { return mFd != -1; }
 
-    ByteArray readAll();
+    String readAll();
     int read(char *buf, int size);
     int bytesAvailable() const { return mReadBuffer.size() - mReadBufferPos; }
-    bool write(const ByteArray& data);
+    bool write(const String& data);
 
     signalslot::Signal1<LocalClient*> &dataAvailable() { return mDataAvailable; }
     signalslot::Signal1<LocalClient*> &connected() { return mConnected; }
@@ -39,9 +39,9 @@ private:
     signalslot::Signal1<LocalClient*> mDataAvailable, mConnected, mDisconnected;
     signalslot::Signal2<LocalClient*, int> mBytesWritten;
 
-    std::deque<ByteArray> mBuffers;
+    std::deque<String> mBuffers;
     int mBufferIdx;
-    ByteArray mReadBuffer;
+    String mReadBuffer;
     int mReadBufferPos;
 };
 

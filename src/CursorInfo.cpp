@@ -1,9 +1,9 @@
 #include "CursorInfo.h"
 #include "RTagsClang.h"
 
-ByteArray CursorInfo::toString(unsigned cursorInfoFlags, unsigned keyFlags) const
+String CursorInfo::toString(unsigned cursorInfoFlags, unsigned keyFlags) const
 {
-    ByteArray ret = ByteArray::format<1024>("SymbolName: %s\n"
+    String ret = String::format<1024>("SymbolName: %s\n"
                                             "Kind: %s\n"
                                             "Type: %s\n"
                                             "SymbolLength: %u\n"
@@ -14,15 +14,15 @@ ByteArray CursorInfo::toString(unsigned cursorInfoFlags, unsigned keyFlags) cons
                                             RTags::eatString(clang_getCursorKindSpelling(kind)).constData(),
                                             RTags::eatString(clang_getTypeKindSpelling(type)).constData(),
                                             symbolLength,
-                                            start != -1 && end != -1 ? ByteArray::format<32>("Range: %d-%d\n", start, end).constData() : "",
-                                            kind == CXCursor_EnumConstantDecl ? ByteArray::format<32>("Enum Value: %lld\n", enumValue).constData() : "",
+                                            start != -1 && end != -1 ? String::format<32>("Range: %d-%d\n", start, end).constData() : "",
+                                            kind == CXCursor_EnumConstantDecl ? String::format<32>("Enum Value: %lld\n", enumValue).constData() : "",
                                             isDefinition() ? "Definition\n" : "");
 
     if (!targets.isEmpty() && !(cursorInfoFlags & IgnoreTargets)) {
         ret.append("Targets:\n");
         for (Set<Location>::const_iterator tit = targets.begin(); tit != targets.end(); ++tit) {
             const Location &l = *tit;
-            ret.append(ByteArray::format<128>("    %s\n", l.key(keyFlags).constData()));
+            ret.append(String::format<128>("    %s\n", l.key(keyFlags).constData()));
         }
     }
 
@@ -30,7 +30,7 @@ ByteArray CursorInfo::toString(unsigned cursorInfoFlags, unsigned keyFlags) cons
         ret.append("References:\n");
         for (Set<Location>::const_iterator rit = references.begin(); rit != references.end(); ++rit) {
             const Location &l = *rit;
-            ret.append(ByteArray::format<128>("    %s\n", l.key(keyFlags).constData()));
+            ret.append(String::format<128>("    %s\n", l.key(keyFlags).constData()));
         }
     }
     return ret;

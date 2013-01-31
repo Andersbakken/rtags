@@ -28,7 +28,7 @@ inline Log operator<<(Log dbg, CXCursorKind kind);
 
 namespace RTags {
 
-ByteArray eatString(CXString str);
+String eatString(CXString str);
 enum CursorToStringFlags {
     NoCursorToStringFlags = 0x0,
     IncludeUSR = 0x1,
@@ -36,7 +36,7 @@ enum CursorToStringFlags {
     DefaultCursorToStringFlags = IncludeRange,
     AllCursorToStringFlags = IncludeUSR|IncludeRange
 };
-ByteArray cursorToString(CXCursor cursor, unsigned = DefaultCursorToStringFlags);
+String cursorToString(CXCursor cursor, unsigned = DefaultCursorToStringFlags);
 SymbolMap::const_iterator findCursorInfo(const SymbolMap &map, const Location &location);
 inline CursorInfo findCursorInfo(const SymbolMap &map, const Location &location, Location *key)
 {
@@ -84,7 +84,7 @@ struct Filter
             }
         }
         if (!names.isEmpty()) {
-            const ByteArray name = RTags::eatString(clang_getCursorSpelling(cursor));
+            const String name = RTags::eatString(clang_getCursorSpelling(cursor));
             if (names.contains(name)) {
                 if (mode == Or)
                     return true;
@@ -100,14 +100,14 @@ struct Filter
     }
 
     Set<CXCursorKind> kinds;
-    Set<ByteArray> names;
+    Set<String> names;
     int argumentCount;
     Mode mode;
 };
 
 CXCursor findFirstChild(CXCursor parent);
 CXCursor findChild(CXCursor parent, CXCursorKind kind);
-CXCursor findChild(CXCursor parent, const ByteArray &name);
+CXCursor findChild(CXCursor parent, const String &name);
 List<CXCursor> findChain(CXCursor parent, const List<CXCursorKind> &kinds);
 List<CXCursor> children(CXCursor parent, const Filter &in = Filter(), const Filter &out = Filter());
 

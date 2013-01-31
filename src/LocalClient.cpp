@@ -17,11 +17,11 @@ class DelayedWriteEvent : public Event
 {
 public:
     enum { Type = 1 };
-    DelayedWriteEvent(const ByteArray& d)
+    DelayedWriteEvent(const String& d)
         : Event(Type), data(d)
     {}
 
-    const ByteArray data;
+    const String data;
 };
 
 LocalClient::LocalClient()
@@ -113,9 +113,9 @@ void LocalClient::dataCallback(int, unsigned int flags, void* userData)
         client->writeMore();
 }
 
-ByteArray LocalClient::readAll()
+String LocalClient::readAll()
 {
-    ByteArray buf;
+    String buf;
     std::swap(buf, mReadBuffer);
     if (mReadBufferPos) {
         buf.remove(0, mReadBufferPos);
@@ -138,7 +138,7 @@ int LocalClient::read(char *buf, int size)
     return size;
 }
 
-bool LocalClient::write(const ByteArray& data)
+bool LocalClient::write(const String& data)
 {
     if (pthread_equal(pthread_self(), EventLoop::instance()->thread())) {
         if (mBuffers.empty())
@@ -207,7 +207,7 @@ bool LocalClient::writeMore()
             EventLoop::instance()->removeFileDescriptor(mFd, EventLoop::Write);
             break;
         }
-        const ByteArray& front = mBuffers.front();
+        const String& front = mBuffers.front();
         int w;
         eintrwrap(w, ::send(mFd, &front[mBufferIdx], front.size() - mBufferIdx, sendflags));
 

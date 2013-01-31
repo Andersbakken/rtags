@@ -74,7 +74,7 @@ int64_t Path::fileSize() const
     return -1;
 }
 
-Path Path::resolved(const ByteArray &path, const Path &cwd, bool *ok)
+Path Path::resolved(const String &path, const Path &cwd, bool *ok)
 {
     Path ret(path);
     if (ret.resolve(cwd) && ok) {
@@ -107,7 +107,7 @@ bool Path::resolve(const Path &cwd)
     {
         char buffer[PATH_MAX + 2];
         if (realpath(constData(), buffer)) {
-            ByteArray::operator=(buffer);
+            String::operator=(buffer);
             return true;
         }
     }
@@ -186,17 +186,17 @@ bool Path::isSystem(const char *path)
     return false;
 }
 
-Path Path::canonicalized(const ByteArray &path)
+Path Path::canonicalized(const String &path)
 {
     Path p(path);
     p.canonicalize();
     return p;
 }
 
-bool Path::mksubdir(const ByteArray &path) const
+bool Path::mksubdir(const String &path) const
 {
     if (isDir()) {
-        ByteArray combined = *this;
+        String combined = *this;
         if (!combined.endsWith('/'))
             combined.append('/');
         combined.append(path);
@@ -232,7 +232,7 @@ void Path::visit(VisitCallback callback, void *userData) const
         path.append('/');
     const int s = path.size();
     path.reserve(s + 128);
-    List<ByteArray> recurseDirs;
+    List<String> recurseDirs;
     while (!readdir_r(d, dbuf, &p) && p) {
         if (!strcmp(p->d_name, ".") || !strcmp(p->d_name, ".."))
             continue;
@@ -316,7 +316,7 @@ Path Path::toTilde() const
 {
     const Path home = Path::home();
     if (startsWith(home))
-        return ByteArray::format<64>("~/%s", constData() + home.size());
+        return String::format<64>("~/%s", constData() + home.size());
     return *this;
 }
 

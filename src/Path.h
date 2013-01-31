@@ -7,44 +7,44 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include "Set.h"
-#include "ByteArray.h"
+#include "String.h"
 
-class Path : public ByteArray
+class Path : public String
 {
 public:
     Path(const Path &other)
-        : ByteArray(other)
+        : String(other)
     {}
-    Path(const ByteArray &other)
-        : ByteArray(other)
+    Path(const String &other)
+        : String(other)
     {}
     Path(const char *path)
-        : ByteArray(path)
+        : String(path)
     {}
     Path(const char *path, int size)
-        : ByteArray(path, size)
+        : String(path, size)
     {}
     Path() {}
     Path &operator=(const Path &other)
     {
-        ByteArray::operator=(other);
+        String::operator=(other);
         return *this;
     }
-    Path &operator=(const ByteArray &other)
+    Path &operator=(const String &other)
     {
-        ByteArray::operator=(other);
+        String::operator=(other);
         return *this;
     }
 
     Path &operator=(const char *path)
     {
-        ByteArray::operator=(path);
+        String::operator=(path);
         return *this;
     }
 
     bool operator==(const Path &other) const
     {
-        return Path::resolved(*this).ByteArray::operator==(Path::resolved(other));
+        return Path::resolved(*this).String::operator==(Path::resolved(other));
     }
 
     bool operator!=(const Path &other) const
@@ -77,7 +77,7 @@ public:
     static bool mkdir(const Path &path);
     static bool rm(const Path &file);
     static Path home();
-    bool mksubdir(const ByteArray &subdir) const;
+    bool mksubdir(const String &subdir) const;
     bool isSource() const;
     static bool isSource(const char *extension);
     bool isSystem() const { return Path::isSystem(constData()); }
@@ -91,8 +91,8 @@ public:
     int canonicalize();
     time_t lastModified() const; // returns time_t ... no shit
     int64_t fileSize() const;
-    static Path resolved(const ByteArray &path, const Path &cwd = Path(), bool *ok = 0);
-    static Path canonicalized(const ByteArray &path);
+    static Path resolved(const String &path, const Path &cwd = Path(), bool *ok = 0);
+    static Path canonicalized(const String &path);
     static Path pwd();
     int readAll(char *&, int max = -1) const;
     Path toTilde() const;

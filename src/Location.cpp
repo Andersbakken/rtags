@@ -6,10 +6,10 @@ Map<uint32_t, Path> Location::sIdsToPaths;
 uint32_t Location::sLastId = 0;
 ReadWriteLock Location::sLock;
 
-ByteArray Location::key(unsigned flags) const
+String Location::key(unsigned flags) const
 {
     if (isNull())
-        return ByteArray();
+        return String();
     int extra = 0;
     const int off = offset();
     int line = 0, col = 0;
@@ -21,7 +21,7 @@ ByteArray Location::key(unsigned flags) const
         flags &= ~Location::ShowLineNumbers;
         extra = RTags::digits(off) + 1;
     }
-    ByteArray ctx;
+    String ctx;
     if (flags & Location::ShowContext) {
         ctx += '\t';
         ctx += context();
@@ -30,7 +30,7 @@ ByteArray Location::key(unsigned flags) const
 
     const Path p = path();
 
-    ByteArray ret(p.size() + extra, '0');
+    String ret(p.size() + extra, '0');
 
     if (flags & Location::Padded) {
         snprintf(ret.data(), ret.size() + extra + 1, "%s,%06d%s", p.constData(),
@@ -45,7 +45,7 @@ ByteArray Location::key(unsigned flags) const
     return ret;
 }
 
-ByteArray Location::context(int *column) const
+String Location::context(int *column) const
 {
     const uint32_t off = offset();
     uint32_t o = off;
@@ -58,7 +58,7 @@ ByteArray Location::context(int *column) const
                 break;
             if (fseek(f, --o, SEEK_SET) == -1) {
                 fclose(f);
-                return ByteArray();
+                return String();
             }
         }
         char buf[1024] = { '\0' };
@@ -66,11 +66,11 @@ ByteArray Location::context(int *column) const
         fclose(f);
         if (column)
             *column = (off - o - 1);
-        return ByteArray(buf, len);
+        return String(buf, len);
     }
     if (f)
         fclose(f);
-    return ByteArray();
+    return String();
 }
 
 bool Location::convertOffset(int &line, int &col) const

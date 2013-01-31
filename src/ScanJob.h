@@ -15,7 +15,7 @@ public:
 private:
     static Path::VisitResult visit(const Path &path, void *userData);
     Path mPath;
-    const List<ByteArray> &mFilters;
+    const List<String> &mFilters;
     Set<Path> mPaths;
     signalslot::Signal1<const Set<Path> &> mFinished; // value => true means it's a source file
 

@@ -3,7 +3,7 @@
 
 #include "Job.h"
 #include "List.h"
-#include "ByteArray.h"
+#include "String.h"
 #include "Path.h"
 #include "Event.h"
 #include <clang-c/Index.h>
@@ -12,8 +12,8 @@ class CompletionJob : public Job
 {
 public:
     CompletionJob(const shared_ptr<Project> &project);
-    void init(CXIndex index, CXTranslationUnit unit, const Path &path, const List<ByteArray> &args,
-              int line, int column, int pos, const ByteArray &unsaved);
+    void init(CXIndex index, CXTranslationUnit unit, const Path &path, const List<String> &args,
+              int line, int column, int pos, const String &unsaved);
 
     virtual void execute();
     signalslot::Signal1<Path> &finished() { return mFinished; }
@@ -24,9 +24,9 @@ private:
     CXIndex mIndex;
     CXTranslationUnit mUnit;
     Path mPath;
-    List<ByteArray> mArgs;
+    List<String> mArgs;
     int mLine, mColumn, mPos;
-    ByteArray mUnsaved;
+    String mUnsaved;
     signalslot::Signal1<Path> mFinished;
 };
 

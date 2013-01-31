@@ -7,8 +7,8 @@ CompletionJob::CompletionJob(const shared_ptr<Project> &project)
 {
 }
 
-void CompletionJob::init(CXIndex index, CXTranslationUnit unit, const Path &path, const List<ByteArray> &args,
-                         int line, int column, int pos, const ByteArray &unsaved)
+void CompletionJob::init(CXIndex index, CXTranslationUnit unit, const Path &path, const List<String> &args,
+                         int line, int column, int pos, const String &unsaved)
 {
     mIndex = index;
     mUnit = unit;
@@ -27,7 +27,7 @@ static inline bool isPartOfSymbol(char ch)
 
 struct CompletionNode
 {
-    ByteArray completion, signature;
+    String completion, signature;
     int priority, distance;
 };
 
@@ -121,7 +121,7 @@ void CompletionJob::processDiagnostics(CXCodeCompleteResults* results)
                                             CXDiagnostic_DisplayOption|
                                             CXDiagnostic_DisplayCategoryId|
                                             CXDiagnostic_DisplayCategoryName);
-        const ByteArray text = RTags::eatString(clang_formatDiagnostic(diagnostic, diagnosticOptions));
+        const String text = RTags::eatString(clang_formatDiagnostic(diagnostic, diagnosticOptions));
         log(CompilationError, "%s", text.constData());
 
         clang_disposeDiagnostic(diagnostic);
@@ -147,7 +147,7 @@ void CompletionJob::execute()
         if (!mUnsaved.isEmpty()) {
             tokenize(mUnsaved.constData(), mUnsaved.size(), tokens);
             // for (Map<Token, int>::const_iterator it = tokens.begin(); it != tokens.end(); ++it) {
-            //     error() << ByteArray(it->first.data, it->first.length) << it->second;
+            //     error() << String(it->first.data, it->first.length) << it->second;
             // }
         }
         for (unsigned i = 0; i < results->NumResults; ++i) {

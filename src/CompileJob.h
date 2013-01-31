@@ -14,7 +14,7 @@ public:
     virtual void run();
     signalslot::Signal1<GccArguments> &argsReady() { return mArgsReady; }
 private:
-    const ByteArray mArgs;
+    const String mArgs;
     const Path mPath;
     signalslot::Signal1<GccArguments> mArgsReady;
 

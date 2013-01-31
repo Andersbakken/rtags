@@ -3,7 +3,7 @@
 
 #include "ClientMessage.h"
 #include "Path.h"
-#include "ByteArray.h"
+#include "String.h"
 
 class CompletionMessage : public ClientMessage
 {
@@ -24,20 +24,20 @@ public:
     int column() const { return mColumn; }
     int pos() const { return mPos; }
 
-    void setContents(const ByteArray &contents) { mContents = contents; }
-    ByteArray contents() const { return mContents; }
+    void setContents(const String &contents) { mContents = contents; }
+    String contents() const { return mContents; }
 
-    ByteArray encode() const;
+    String encode() const;
     void fromData(const char *data, int size);
 
-    void setProjects(const List<ByteArray> &projects) { mProjects = projects; }
-    List<ByteArray> projects() const { return mProjects; }
+    void setProjects(const List<String> &projects) { mProjects = projects; }
+    List<String> projects() const { return mProjects; }
 private:
     unsigned mFlags;
     Path mPath;
     int mLine, mColumn, mPos;
-    ByteArray mContents;
-    List<ByteArray> mProjects;
+    String mContents;
+    List<String> mProjects;
 };
 
 #endif

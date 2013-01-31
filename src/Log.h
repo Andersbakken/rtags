@@ -1,7 +1,7 @@
 #ifndef Log_h
 #define Log_h
 
-#include "ByteArray.h"
+#include "String.h"
 #include "List.h"
 #include "Map.h"
 #include "Memory.h"
@@ -57,7 +57,7 @@ void verboseDebug(const char *format, ...);
 void warning(const char *format, ...);
 void error(const char *format, ...);
 #endif
-void logDirect(int level, const ByteArray &out);
+void logDirect(int level, const String &out);
 
 bool testLog(int level);
 bool initLogging(int logLevel, const Path &logFile, unsigned flags);
@@ -158,7 +158,7 @@ private:
         }
 
         const int level;
-        ByteArray out;
+        String out;
         bool spacing;
         int disableSpacingOverride;
     };
@@ -166,11 +166,11 @@ private:
     shared_ptr<Data> mData;
 };
 
-template <typename T> inline ByteArray typeName()
+template <typename T> inline String typeName()
 {
     const char *name = typeid(T).name();
     char *ret = abi::__cxa_demangle(name, 0, 0, 0);
-    ByteArray ba;
+    String ba;
     if (ret) {
         ba = ret;
         free(ret);
@@ -255,7 +255,7 @@ inline Log operator<<(Log stream, const Map<Key, Value> &map)
     return stream;
 }
 
-inline Log operator<<(Log stream, const ByteArray &byteArray)
+inline Log operator<<(Log stream, const String &byteArray)
 {
     stream.write(byteArray.constData(), byteArray.size());
     return stream;

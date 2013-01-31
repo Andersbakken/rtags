@@ -6,7 +6,7 @@
 #include "Log.h"
 #include <unistd.h>
 
-Client::Client(const Path &path, int timeout, unsigned flags, const List<ByteArray> &rdmArgs)
+Client::Client(const Path &path, int timeout, unsigned flags, const List<String> &rdmArgs)
     : mConnectTimeout(timeout), mConnection(0), mFlags(flags), mRdmArgs(rdmArgs), mName(path)
 {
     if ((mFlags & (RestartRdm|AutostartRdm)) == (RestartRdm|AutostartRdm)) {
@@ -29,7 +29,7 @@ Client::Client(const Path &path, int timeout, unsigned flags, const List<ByteArr
     }
 }
 
-bool Client::sendMessage(int id, const ByteArray &msg, SendFlag flag)
+bool Client::sendMessage(int id, const String &msg, SendFlag flag)
 {
     if (!mConnection && !connectToServer() && !(mFlags & (RestartRdm|AutostartRdm))) {
         if (!(mFlags & DontWarnOnConnectionFailure))
@@ -50,7 +50,7 @@ bool Client::sendMessage(int id, const ByteArray &msg, SendFlag flag)
 void Client::onNewMessage(Message *message, Connection *)
 {
     if (message->messageId() == ResponseMessage::MessageId) {
-        const ByteArray response = static_cast<ResponseMessage*>(message)->data();
+        const String response = static_cast<ResponseMessage*>(message)->data();
         if (!response.isEmpty()) {
             error("%s", response.constData());
             fflush(stdout);
@@ -76,7 +76,7 @@ bool Client::connectToServer()
     if (!mConnection->connectToServer(mName, mConnectTimeout)) {
         if (mFlags & AutostartRdm) {
             const Path cmd = RTags::applicationDirPath() + "/rdm";
-            warning("trying to start rdm %s [%s]", cmd.nullTerminated(), ByteArray::join(mRdmArgs, " ").constData());
+            warning("trying to start rdm %s [%s]", cmd.nullTerminated(), String::join(mRdmArgs, " ").constData());
             if (RTags::startProcess(cmd, mRdmArgs)) {
                 warning("Started successfully");
                 for (int i=0; i<5; ++i) {

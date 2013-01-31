@@ -3,7 +3,7 @@
 
 #include "ThreadPool.h"
 #include "List.h"
-#include "ByteArray.h"
+#include "String.h"
 #include "Event.h"
 #include "SignalSlot.h"
 #include "Server.h"
@@ -36,7 +36,7 @@ public:
         IgnoreMax = 0x1,
         DontQuote = 0x2
     };
-    bool write(const ByteArray &out, unsigned flags = NoWriteFlags);
+    bool write(const String &out, unsigned flags = NoWriteFlags);
     bool write(const CursorInfo &info, unsigned flags = NoWriteFlags);
     bool write(const Location &location, unsigned flags = NoWriteFlags);
 
@@ -47,8 +47,8 @@ public:
     unsigned queryFlags() const { return mQueryFlags; }
     void setQueryFlags(unsigned queryFlags) { mQueryFlags = queryFlags; }
     unsigned keyFlags() const;
-    inline bool filter(const ByteArray &val) const;
-    signalslot::Signal1<const ByteArray &> &output() { return mOutput; }
+    inline bool filter(const String &val) const;
+    signalslot::Signal1<const String &> &output() { return mOutput; }
     shared_ptr<Project> project() const { return mProject.lock(); }
     virtual void run();
     virtual void execute() = 0;
@@ -59,16 +59,16 @@ protected:
     mutable Mutex mMutex;
     bool mAborted;
 private:
-    bool writeRaw(const ByteArray &out, unsigned flags);
+    bool writeRaw(const String &out, unsigned flags);
     int mId, mMinOffset, mMaxOffset;
     unsigned mJobFlags;
     unsigned mQueryFlags;
-    signalslot::Signal1<const ByteArray &> mOutput;
+    signalslot::Signal1<const String &> mOutput;
     weak_ptr<Project> mProject;
-    List<ByteArray> *mPathFilters;
+    List<String> *mPathFilters;
     List<RegExp> *mPathFiltersRegExp;
     int mMax;
-    ByteArray mBuffer;
+    String mBuffer;
     Connection *mConnection;
 };
 
@@ -77,7 +77,7 @@ inline bool Job::write(unsigned flags, const char *format, ...)
 {
     va_list args;
     va_start(args, format);
-    const ByteArray ret = ByteArray::format<StaticBufSize>(format, args);
+    const String ret = String::format<StaticBufSize>(format, args);
     va_end(args);
     return write(ret, flags);
 }
@@ -87,12 +87,12 @@ inline bool Job::write(const char *format, ...)
 {
     va_list args;
     va_start(args, format);
-    const ByteArray ret = ByteArray::format<StaticBufSize>(format, args);
+    const String ret = String::format<StaticBufSize>(format, args);
     va_end(args);
     return write(ret);
 }
 
-inline bool Job::filter(const ByteArray &val) const
+inline bool Job::filter(const String &val) const
 {
     if ((!mPathFilters && !mPathFiltersRegExp)
         || ((!mQueryFlags & QueryMessage::FilterSystemIncludes) && Path::isSystem(val.constData()))) {
@@ -114,12 +114,12 @@ class JobOutputEvent : public Event
 {
 public:
     enum { Type = 2 };
-    JobOutputEvent(const shared_ptr<Job> &j, const ByteArray &o, bool f)
+    JobOutputEvent(const shared_ptr<Job> &j, const String &o, bool f)
         : Event(Type), job(j), out(o), finish(f), id(j->id())
     {}
 
     weak_ptr<Job> job;
-    const ByteArray out;
+    const String out;
     const bool finish;
     const int id;
 };

@@ -4,7 +4,7 @@
 #include "GccArguments.h"
 #include "Path.h"
 #include "QueryMessage.h"
-#include "ByteArray.h"
+#include "String.h"
 #include "Map.h"
 #include "List.h"
 
@@ -14,7 +14,7 @@ class Message;
 class Client
 {
 public:
-    Client(const Path &path, int timeout, unsigned flags = 0, const List<ByteArray> &rdmArgs = List<ByteArray>());
+    Client(const Path &path, int timeout, unsigned flags = 0, const List<String> &rdmArgs = List<String>());
     enum Flag {
         None = 0x0,
         AutostartRdm = 0x1,
@@ -27,7 +27,7 @@ public:
         SendDontRunEventLoop
     };
 
-    List<ByteArray> rdmArgs() const { return mRdmArgs; }
+    List<String> rdmArgs() const { return mRdmArgs; }
     unsigned flags() const { return mFlags; }
     template<typename T>
     bool message(const T *msg, SendFlag flag = SendNone);
@@ -35,11 +35,11 @@ public:
     void onDisconnected();
     void onNewMessage(Message *message, Connection *);
 private:
-    bool sendMessage(int id, const ByteArray& msg, SendFlag flag);
+    bool sendMessage(int id, const String& msg, SendFlag flag);
     const int mConnectTimeout;
     Connection *mConnection;
     unsigned mFlags;
-    List<ByteArray> mRdmArgs;
+    List<String> mRdmArgs;
     const Path mName;
 };
 

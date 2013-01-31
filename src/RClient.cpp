@@ -10,18 +10,18 @@ class RCCommand
 public:
     virtual ~RCCommand() {}
     virtual bool exec(RClient *rc, Client *client) = 0;
-    virtual ByteArray description() const = 0;
+    virtual String description() const = 0;
 };
 
 class QueryCommand : public RCCommand
 {
 public:
-    QueryCommand(QueryMessage::Type t, const ByteArray &q)
+    QueryCommand(QueryMessage::Type t, const String &q)
         : type(t), query(q), extraQueryFlags(0), buildIndex(0)
     {}
 
     const QueryMessage::Type type;
-    const ByteArray query;
+    const String query;
     unsigned extraQueryFlags;
     uint8_t buildIndex;
 
@@ -39,9 +39,9 @@ public:
         return client->message(&msg);
     }
 
-    virtual ByteArray description() const
+    virtual String description() const
     {
-        return ("QueryMessage " + ByteArray::number(type) + " " + query);
+        return ("QueryMessage " + String::number(type) + " " + query);
     }
 };
 
@@ -61,7 +61,7 @@ public:
     const int column;
     const bool stream;
     Client *client;
-    ByteArray data;
+    String data;
 
     virtual bool exec(RClient *rc, Client *cl)
     {
@@ -81,9 +81,9 @@ public:
         }
     }
 
-    virtual ByteArray description() const
+    virtual String description() const
     {
-        return ByteArray::format<128>("CompletionMessage %s:%d:%d", path.constData(), line, column);
+        return String::format<128>("CompletionMessage %s:%d:%d", path.constData(), line, column);
     }
 
     static void stdinReady(int fd, unsigned int flags, void* userData)
@@ -118,7 +118,7 @@ public:
             EventLoop::instance()->exit();
             return;
         }
-        ByteArray contents(contentsSize, ' ');
+        String contents(contentsSize, ' ');
         int read = 0;
         char *c = contents.data();
         while (read < contentsSize) {
@@ -140,7 +140,7 @@ public:
         //         << contents.right(100);
 
         CompletionMessage msg(CompletionMessage::None, path, line, column, pos);
-        const ByteArray args = ByteArray::format<64>("%s:%d:%d:%d:%d", path.constData(), line, column, pos, contentsSize);
+        const String args = String::format<64>("%s:%d:%d:%d:%d", path.constData(), line, column, pos, contentsSize);
         const char *argv[] = { "completionStream", args.constData() };
         msg.init(2, argv);
         msg.setContents(contents);
@@ -162,7 +162,7 @@ public:
         msg.init(rc->argc(), rc->argv());
         return client->message(&msg);
     }
-    virtual ByteArray description() const
+    virtual String description() const
     {
         return "RdmLogCommand";
     }
@@ -172,18 +172,18 @@ public:
 class CompileCommand : public RCCommand
 {
 public:
-    CompileCommand(const Path &p, const ByteArray &a)
+    CompileCommand(const Path &p, const String &a)
         : path(p), args(a)
     {}
     const Path path;
-    const ByteArray args;
+    const String args;
     virtual bool exec(RClient *rc, Client *client)
     {
         CompileMessage msg(path, args);
         msg.init(rc->argc(), rc->argv());
         return client->message(&msg);
     }
-    virtual ByteArray description() const
+    virtual String description() const
     {
         return ("CompileMessage " + path);
     }
@@ -200,7 +200,7 @@ RClient::~RClient()
     cleanupLogging();
 }
 
-QueryCommand *RClient::addQuery(QueryMessage::Type t, const ByteArray &query)
+QueryCommand *RClient::addQuery(QueryMessage::Type t, const String &query)
 {
     QueryCommand *cmd = new QueryCommand(t, query);
     mCommands.append(cmd);
@@ -211,7 +211,7 @@ void RClient::addLog(int level)
     mCommands.append(new RdmLogCommand(level));
 }
 
-void RClient::addCompile(const Path &cwd, const ByteArray &args)
+void RClient::addCompile(const Path &cwd, const String &args)
 {
     mCommands.append(new CompileCommand(cwd, args));
 }
@@ -399,16 +399,16 @@ struct Option opts[] = {
 
 static void help(FILE *f, const char* app)
 {
-    List<ByteArray> out;
+    List<String> out;
     int longest = 0;
     for (int i=0; opts[i].description; ++i) {
         if (!opts[i].longOpt && !opts[i].shortOpt) {
-            out.append(ByteArray());
+            out.append(String());
         } else {
-            out.append(ByteArray::format<64>("  %s%s%s%s",
-                                             opts[i].longOpt ? ByteArray::format<4>("--%s", opts[i].longOpt).constData() : "",
+            out.append(String::format<64>("  %s%s%s%s",
+                                             opts[i].longOpt ? String::format<4>("--%s", opts[i].longOpt).constData() : "",
                                              opts[i].longOpt && opts[i].shortOpt ? "|" : "",
-                                             opts[i].shortOpt ? ByteArray::format<2>("-%c", opts[i].shortOpt).constData() : "",
+                                             opts[i].shortOpt ? String::format<2>("-%c", opts[i].shortOpt).constData() : "",
                                              opts[i].argument == required_argument ? " [arg] "
                                              : opts[i].argument == optional_argument ? " [optional] " : ""));
             longest = std::max<int>(out[i].size(), longest);
@@ -422,7 +422,7 @@ static void help(FILE *f, const char* app)
         } else {
             fprintf(f, "%s%s%s\n",
                     out.at(i).constData(),
-                    ByteArray(longest - out.at(i).size(), ' ').constData(),
+                    String(longest - out.at(i).size(), ' ').constData(),
                     opts[i].description);
         }
     }
@@ -437,7 +437,7 @@ bool RClient::parse(int &argc, char **argv)
     options.reserve(sizeof(opts) / sizeof(Option));
     List<QueryCommand*> projectCommands;
 
-    ByteArray shortOptionString;
+    String shortOptionString;
     Map<int, Option*> shortOptions, longOptions;
     for (int i=0; opts[i].description; ++i) {
         if (opts[i].option != None) {
@@ -464,7 +464,7 @@ bool RClient::parse(int &argc, char **argv)
     }
 
 #if 0
-    ByteArray unused;
+    String unused;
     for (int i=0; i<26; ++i) {
         if (!shortOptionString.contains('a' + i))
             unused.append('a' + i);
@@ -544,14 +544,14 @@ bool RClient::parse(int &argc, char **argv)
         case AutostartRdm:
             mClientFlags |= Client::AutostartRdm;
             if (optarg)
-                mRdmArgs = ByteArray(optarg, strlen(optarg)).split(' ');
+                mRdmArgs = String(optarg, strlen(optarg)).split(' ');
             break;
         case CodeComplete:
             logFile = "/tmp/rc.log";
             mCommands.append(new CompletionCommand);
             break;
         case CodeCompleteAt: {
-            const ByteArray arg = optarg;
+            const String arg = optarg;
             List<RegExp::Capture> caps;
             RegExp rx("^\\(.*\\):\\([0-9][0-9]*\\):\\([0-9][0-9]*\\)$");
             if (rx.indexIn(arg, 0, &caps) != 0 || caps.size() != 4) {
@@ -564,7 +564,7 @@ bool RClient::parse(int &argc, char **argv)
                 return false;
             }
 
-            ByteArray out;
+            String out;
             {
                 Serializer serializer(out);
                 serializer << path << atoi(caps[2].capture.constData()) << atoi(caps[3].capture.constData());
@@ -575,7 +575,7 @@ bool RClient::parse(int &argc, char **argv)
         case RestartRdm:
             mClientFlags |= Client::RestartRdm;
             if (optarg)
-                mRdmArgs = ByteArray(optarg, strlen(optarg)).split(' ');
+                mRdmArgs = String(optarg, strlen(optarg)).split(' ');
             break;
         case AllReferences:
             mQueryFlags |= QueryMessage::AllReferences;
@@ -660,7 +660,7 @@ bool RClient::parse(int &argc, char **argv)
             }
             break;
         case UnsavedFile: {
-            const ByteArray arg(optarg);
+            const String arg(optarg);
             const int colon = arg.lastIndexOf(':');
             if (colon == -1) {
                 fprintf(stderr, "Can't parse -u [%s]\n", optarg);
@@ -677,7 +677,7 @@ bool RClient::parse(int &argc, char **argv)
                 return false;
             }
 
-            ByteArray contents(bytes, '\0');
+            String contents(bytes, '\0');
             const int r = fread(contents.data(), 1, bytes, stdin);
             if (r != bytes) {
                 fprintf(stderr, "Read error %d (%s). Got %d, expected %d\n",
@@ -689,7 +689,7 @@ bool RClient::parse(int &argc, char **argv)
         case FollowLocation:
         case CursorInfo:
         case ReferenceLocation: {
-            const ByteArray encoded = Location::encodeClientLocation(optarg);
+            const String encoded = Location::encodeClientLocation(optarg);
             if (encoded.isEmpty()) {
                 fprintf(stderr, "Can't resolve argument %s\n", optarg);
                 return false;
@@ -708,7 +708,7 @@ bool RClient::parse(int &argc, char **argv)
             break;
         case JobCount:
             if (const int count = atoi(optarg)) {
-                addQuery(QueryMessage::JobCount, ByteArray::number(count));
+                addQuery(QueryMessage::JobCount, String::number(count));
             } else {
                 fprintf(stderr, "%s is not a positive integer\n", optarg);
                 return false;
@@ -787,7 +787,7 @@ bool RClient::parse(int &argc, char **argv)
             addQuery(QueryMessage::HasFileManager, p);
             break; }
         case Compile: {
-            ByteArray args = optarg;
+            String args = optarg;
             while (optind < argc) {
                 args.append(' ');
                 args.append(argv[optind++]);

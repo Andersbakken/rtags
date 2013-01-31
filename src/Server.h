@@ -2,7 +2,7 @@
 #define Server_h
 
 #include "FileSystemWatcher.h"
-#include "ByteArray.h"
+#include "String.h"
 #include "List.h"
 #include "Map.h"
 #include "QueryMessage.h"
@@ -49,23 +49,23 @@ public:
         unsigned options;
         int threadCount;
         int completionCacheSize;
-        List<ByteArray> defaultArguments, excludeFilters;
+        List<String> defaultArguments, excludeFilters;
     };
     bool init(const Options &options);
-    const List<ByteArray> &excludeFilters() const { return mOptions.excludeFilters; }
+    const List<String> &excludeFilters() const { return mOptions.excludeFilters; }
     const Path &clangPath() const { return mClangPath; }
     const Options &options() const { return mOptions; }
     bool saveFileIds() const;
 private:
     bool selectProject(const Match &match, Connection *conn);
-    bool updateProject(const List<ByteArray> &projects);
+    bool updateProject(const List<String> &projects);
 
     bool isCompletionStream(Connection* conn) const;
 
     void restoreFileIds();
     void clear();
     void onNewConnection();
-    signalslot::Signal2<int, const List<ByteArray> &> &complete() { return mComplete; }
+    signalslot::Signal2<int, const List<String> &> &complete() { return mComplete; }
     shared_ptr<Project> setCurrentProject(const Path &path);
     void event(const Event *event);
     void processSourceFile(GccArguments args);
@@ -116,7 +116,7 @@ private:
     shared_ptr<Project> addProject(const Path &path);
     void loadProject(shared_ptr<Project> &project);
     void onCompletionJobFinished(Path path);
-    void startCompletion(const Path &path, int line, int column, int pos, const ByteArray &contents, Connection *conn);
+    void startCompletion(const Path &path, int line, int column, int pos, const String &contents, Connection *conn);
 
     typedef Map<Path, shared_ptr<Project> > ProjectsMap;
     ProjectsMap mProjects;
@@ -131,7 +131,7 @@ private:
 
     ThreadPool *mIndexerThreadPool;
     ThreadPool mQueryThreadPool;
-    signalslot::Signal2<int, const List<ByteArray> &> mComplete;
+    signalslot::Signal2<int, const List<String> &> mComplete;
     Path mClangPath;
 
     Map<LocalClient*, Connection*> mCompletionStreams;
@@ -141,7 +141,7 @@ private:
             : line(-1), column(-1), pos(-1), connection(0)
         {}
         int line, column, pos;
-        ByteArray contents;
+        String contents;
         Connection *connection;
     };
     Map<Path, PendingCompletion> mPendingCompletions;

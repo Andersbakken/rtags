@@ -2,7 +2,7 @@
 #define SourceInformation_h
 
 #include "List.h"
-#include "ByteArray.h"
+#include "String.h"
 #include "Path.h"
 
 class SourceInformation
@@ -15,11 +15,11 @@ public:
     Path sourceFile;
     struct Build
     {
-        Build(const Path &c = Path(), const List<ByteArray> &a = List<ByteArray>())
+        Build(const Path &c = Path(), const List<String> &a = List<String>())
             : compiler(c), args(a)
         {}
         Path compiler;
-        List<ByteArray> args;
+        List<String> args;
     };
     List<Build> builds;
     time_t parsed;
@@ -29,7 +29,7 @@ public:
         return sourceFile.isEmpty();
     }
 
-    bool merge(const Path &compiler, const List<ByteArray> &args)
+    bool merge(const Path &compiler, const List<String> &args)
     {
         for (int i=0; i<builds.size(); ++i) {
             if (builds.at(i).compiler == compiler && builds.at(i).args == args)
@@ -38,13 +38,13 @@ public:
         builds.append(Build(compiler, args));
         return true;
     }
-    inline ByteArray toString() const
+    inline String toString() const
     {
-        ByteArray out = ByteArray::format<64>("%s %s\n", sourceFile.constData(),
-                                              parsed ? ("Parsed: " +ByteArray::formatTime(parsed, ByteArray::DateTime)).constData() : "Not parsed");
+        String out = String::format<64>("%s %s\n", sourceFile.constData(),
+                                              parsed ? ("Parsed: " +String::formatTime(parsed, String::DateTime)).constData() : "Not parsed");
         for (int i=0; i<builds.size(); ++i) {
-            out += ByteArray::format<256>("  %s %s\n", builds.at(i).compiler.constData(),
-                                          ByteArray::join(builds.at(i).args, ' ').constData());
+            out += String::format<256>("  %s %s\n", builds.at(i).compiler.constData(),
+                                          String::join(builds.at(i).args, ' ').constData());
         }
         return out;
     }
@@ -75,7 +75,7 @@ template <> inline Deserializer &operator>>(Deserializer &s, SourceInformation &
 
 static inline Log operator<<(Log dbg, const SourceInformation &s)
 {
-    dbg << ByteArray::format<256>("SourceInformation(%s)", s.toString().constData());
+    dbg << String::format<256>("SourceInformation(%s)", s.toString().constData());
     return dbg;
 }
 

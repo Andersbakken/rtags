@@ -9,12 +9,12 @@ JSONJob::JSONJob(const QueryMessage &q, const shared_ptr<Project> &project)
     assert(project.get());
 }
 
-static ByteArray toJSON(const Location &loc, uint32_t fileId, int length, int srcRootLength)
+static String toJSON(const Location &loc, uint32_t fileId, int length, int srcRootLength)
 {
     if (loc.fileId() == fileId) {
-        return ByteArray::format<64>("{\"offset\":%d,\"length\":%d}", loc.offset(), length);
+        return String::format<64>("{\"offset\":%d,\"length\":%d}", loc.offset(), length);
     } else {
-        return ByteArray::format<64>("{\"file\":\"%s\",\"offset\":%d,\"length\":%d}",
+        return String::format<64>("{\"file\":\"%s\",\"offset\":%d,\"length\":%d}",
                                      Location::path(loc.fileId()).constData() + srcRootLength, loc.offset(), length);
     }
 }

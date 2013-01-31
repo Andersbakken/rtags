@@ -1,7 +1,7 @@
 #ifndef StatusJob_h
 #define StatusJob_h
 
-#include "ByteArray.h"
+#include "String.h"
 #include "List.h"
 #include "Job.h"
 
@@ -14,7 +14,7 @@ public:
 protected:
     virtual void execute();
 private:
-    const ByteArray query;
+    const String query;
 };
 
 #endif

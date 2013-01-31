@@ -267,13 +267,13 @@ void Process::setCwd(const Path& cwd)
     mCwd = cwd;
 }
 
-bool Process::start(const ByteArray& command,
-                    const List<ByteArray>& arguments)
+bool Process::start(const String& command,
+                    const List<String>& arguments)
 {
-    return start(command, arguments, List<ByteArray>());
+    return start(command, arguments, List<String>());
 }
 
-Path Process::findCommand(const ByteArray& command)
+Path Process::findCommand(const String& command)
 {
     if (command.isEmpty() || command.at(0) == '/')
         return command;
@@ -282,8 +282,8 @@ Path Process::findCommand(const ByteArray& command)
     if (!path)
         return Path();
     bool ok;
-    const List<ByteArray> paths = ByteArray(path).split(':');
-    for (List<ByteArray>::const_iterator it = paths.begin(); it != paths.end(); ++it) {
+    const List<String> paths = String(path).split(':');
+    for (List<String>::const_iterator it = paths.begin(); it != paths.end(); ++it) {
         const Path ret = Path::resolved(command, *it, &ok);
         if (ok && !access(ret.nullTerminated(), R_OK | X_OK))
             return ret;
@@ -291,7 +291,7 @@ Path Process::findCommand(const ByteArray& command)
     return Path();
 }
 
-bool Process::start(const ByteArray& command, const List<ByteArray>& a, const List<ByteArray>& environ)
+bool Process::start(const String& command, const List<String>& a, const List<String>& environ)
 {
     mErrorString.clear();
 
@@ -300,7 +300,7 @@ bool Process::start(const ByteArray& command, const List<ByteArray>& a, const Li
         mErrorString = "Command not found";
         return false;
     }
-    List<ByteArray> arguments = a;
+    List<String> arguments = a;
 #if 0
     char *contents;
     const int read = cmd.readAll(contents, 33);
@@ -310,7 +310,7 @@ bool Process::start(const ByteArray& command, const List<ByteArray>& a, const Li
         char *newLine = strchr(contents, '\n');
         if (newLine) {
             arguments.prepend(command);
-            cmd = findCommand(ByteArray(contents + 2, newLine - contents - 2));
+            cmd = findCommand(String(contents + 2, newLine - contents - 2));
         }
     }
 #endif
@@ -324,7 +324,7 @@ bool Process::start(const ByteArray& command, const List<ByteArray>& a, const Li
     args[arguments.size() + 1] = 0;
     args[0] = cmd.nullTerminated();
     int pos = 1;
-    for (List<ByteArray>::const_iterator it = arguments.begin(); it != arguments.end(); ++it) {
+    for (List<String>::const_iterator it = arguments.begin(); it != arguments.end(); ++it) {
         args[pos] = it->nullTerminated();
         //printf("arg: '%s'\n", args[pos]);
         ++pos;
@@ -333,7 +333,7 @@ bool Process::start(const ByteArray& command, const List<ByteArray>& a, const Li
     env[environ.size()] = 0;
     pos = 0;
     //printf("fork, about to exec '%s'\n", cmd.nullTerminated());
-    for (List<ByteArray>::const_iterator it = environ.begin(); it != environ.end(); ++it) {
+    for (List<String>::const_iterator it = environ.begin(); it != environ.end(); ++it) {
         env[pos] = it->nullTerminated();
         //printf("env: '%s'\n", env[pos]);
         ++pos;
@@ -400,7 +400,7 @@ bool Process::start(const ByteArray& command, const List<ByteArray>& a, const Li
     return true;
 }
 
-void Process::write(const ByteArray& data)
+void Process::write(const String& data)
 {
     if (!data.isEmpty() && mStdIn[1] != -1) {
         mStdInBuffer.push_back(data);
@@ -441,17 +441,17 @@ void Process::closeStdErr()
     mStdErr[0] = -1;
 }
 
-ByteArray Process::readAllStdOut()
+String Process::readAllStdOut()
 {
-    ByteArray out;
+    String out;
     std::swap(mStdOutBuffer, out);
     mStdOutIndex = 0;
     return out;
 }
 
-ByteArray Process::readAllStdErr()
+String Process::readAllStdErr()
 {
-    ByteArray out;
+    String out;
     std::swap(mStdErrBuffer, out);
     mStdErrIndex = 0;
     return out;
@@ -480,7 +480,7 @@ void Process::handleInput(int fd)
 
         //printf("Process::handleInput in loop\n");
         int w, want;
-        const ByteArray& front = mStdInBuffer.front();
+        const String& front = mStdInBuffer.front();
         if (mStdInIndex) {
             want = front.size() - mStdInIndex;
             eintrwrap(w, ::write(fd, front.mid(mStdInIndex).constData(), want));
@@ -499,7 +499,7 @@ void Process::handleInput(int fd)
     }
 }
 
-void Process::handleOutput(int fd, ByteArray& buffer, int& index, signalslot::Signal0& signal)
+void Process::handleOutput(int fd, String& buffer, int& index, signalslot::Signal0& signal)
 {
     //printf("Process::handleOutput %d\n", fd);
     enum { BufSize = 1024, MaxSize = (1024 * 1024 * 16) };
@@ -552,11 +552,11 @@ void Process::stop()
     ::kill(mPid, SIGTERM);
 }
 
-List<ByteArray> Process::environment()
+List<String> Process::environment()
 {
     extern char** environ;
     char** cur = environ;
-    List<ByteArray> env;
+    List<String> env;
     while (*cur) {
         env.push_back(*cur);
         ++cur;

@@ -1,7 +1,7 @@
 #ifndef Serializer_h
 #define Serializer_h
 
-#include "ByteArray.h"
+#include "String.h"
 #include "List.h"
 #include "Log.h"
 #include "Map.h"
@@ -13,7 +13,7 @@
 class Serializer
 {
 public:
-    Serializer(ByteArray &out)
+    Serializer(String &out)
         : mOut(&out), mOutFile(0)
     {}
 
@@ -35,7 +35,7 @@ public:
         }
     }
 private:
-    ByteArray *mOut;
+    String *mOut;
     FILE *mOutFile;
 };
 
@@ -133,7 +133,7 @@ DECLARE_NATIVE_TYPE(time_t);
 #endif
 
 template <>
-inline Serializer &operator<<(Serializer &s, const ByteArray &byteArray)
+inline Serializer &operator<<(Serializer &s, const String &byteArray)
 {
     const int size = byteArray.size();
     s << size;
@@ -255,7 +255,7 @@ Deserializer &operator>>(Deserializer &s, Set<T> &set)
 }
 
 template <>
-inline Deserializer &operator>>(Deserializer &s, ByteArray &byteArray)
+inline Deserializer &operator>>(Deserializer &s, String &byteArray)
 {
     int size;
     s >> size;

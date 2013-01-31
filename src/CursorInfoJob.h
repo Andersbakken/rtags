@@ -1,7 +1,7 @@
 #ifndef CursorInfoJob_h
 #define CursorInfoJob_h
 
-#include "ByteArray.h"
+#include "String.h"
 #include "List.h"
 #include "RTagsClang.h"
 #include "Job.h"

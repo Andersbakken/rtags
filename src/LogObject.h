@@ -1,7 +1,7 @@
 #ifndef LogObject_h
 #define LogObject_h
 
-#include "ByteArray.h"
+#include "String.h"
 #include "Log.h"
 #include "Connection.h"
 #include "EventReceiver.h"
@@ -22,7 +22,7 @@ public:
 
     virtual void log(const char *msg, int len)
     {
-        mConnection->writeAsync(ByteArray(msg, len));
+        mConnection->writeAsync(String(msg, len));
     }
 private:
     Connection *mConnection;

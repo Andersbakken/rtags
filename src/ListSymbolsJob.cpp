@@ -17,7 +17,7 @@ ListSymbolsJob::ListSymbolsJob(const QueryMessage &query, const shared_ptr<Proje
 
 void ListSymbolsJob::execute()
 {
-    List<ByteArray> out;
+    List<String> out;
     const bool hasFilter = Job::hasFilter();
     const unsigned queryFlags = Job::queryFlags();
     const bool skipParentheses = queryFlags & QueryMessage::SkipParentheses;
@@ -34,7 +34,7 @@ void ListSymbolsJob::execute()
         SymbolNameMap::const_iterator it = string.isEmpty() ? map.begin() : map.lower_bound(string);
         int count = 0;
         while (it != map.end()) {
-            const ByteArray &entry = it->first;
+            const String &entry = it->first;
             if (!string.isEmpty() && !entry.startsWith(string))
                 break;
             if (!skipParentheses || !entry.contains('(')) {
@@ -67,7 +67,7 @@ void ListSymbolsJob::execute()
         write(")", IgnoreMax|DontQuote);
     } else {
         if (queryFlags & QueryMessage::ReverseSort) {
-            std::sort(out.begin(), out.end(), std::greater<ByteArray>());
+            std::sort(out.begin(), out.end(), std::greater<String>());
         } else {
             std::sort(out.begin(), out.end());
         }

@@ -1,7 +1,7 @@
 #ifndef FindFileJob_h
 #define FindFileJob_h
 
-#include "ByteArray.h"
+#include "String.h"
 #include "List.h"
 #include "RTagsClang.h"
 #include "Job.h"
@@ -15,7 +15,7 @@ public:
 protected:
     virtual void execute();
 private:
-    ByteArray mPattern;
+    String mPattern;
     RegExp mRegExp;
 };
 
