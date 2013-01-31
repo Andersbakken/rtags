@@ -75,6 +75,7 @@ int Connection::pendingWrite() const
 {
     return mPendingWrite;
 }
+
 void Connection::finish()
 {
     mDone = true;

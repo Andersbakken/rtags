@@ -21,7 +21,9 @@ void Preprocessor::preprocess()
     List<String> args = mArgs.builds.at(mBuildIndex).args;
     args.append("-E");
     args.append(mArgs.sourceFile);
-    mProc->start(mArgs.builds.at(mBuildIndex).compiler, args);
+    List<ByteArray> environ;
+    environ << "PATH=/usr/local/bin:/usr/bin";
+    mProc->start(mArgs.builds.at(mBuildIndex).compiler, args, environ);
 }
 
 void Preprocessor::onProcessFinished()
