@@ -5,55 +5,9 @@ include_directories(
     ${PROJECT_SOURCE_DIR}/3rdparty/leveldb
     )
 
-set(rtags_client_HDRS
-    ByteArray.h
-    Client.h
-    CompilerManager.h
-    CompletionMessage.h
-    Connection.h
-    CreateOutputMessage.h
-    Event.h
-    EventLoop.h
-    EventReceiver.h
-    FastDelegate.h
-    Job.h
-    List.h
-    LocalClient.h
-    Location.h
-    Log.h
-    LogObject.h
-    Map.h
-    Message.h
-    Messages.h
-    Mutex.h
-    MutexLocker.h
-    Path.h
-    Preprocessor.h
-    Process.h
-    CompileMessage.h
-    QueryMessage.h
-    RClient.h
-    ReadLocker.h
-    RegExp.h
-    ResponseMessage.h
-    Semaphore.h
-    Serializer.h
-    Set.h
-    SharedMemory.h
-    SignalSlot.h
-    SourceInformation.h
-    ReadWriteLock.h
-    Str.h
-    Thread.h
-    ThreadLocal.h
-    ThreadPool.h
-    WaitCondition.h
-    WriteLocker.h
-    RTags.h
-   )
-
 set(rtags_client_SRCS
     Client.cpp
+    CompileMessage.cpp
     CompilerManager.cpp
     CompletionMessage.cpp
     Connection.cpp
@@ -65,71 +19,43 @@ set(rtags_client_SRCS
     Log.cpp
     Messages.cpp
     Path.cpp
-    Preprocessor.cpp
     Process.cpp
-    CompileMessage.cpp
     QueryMessage.cpp
     RClient.cpp
+    RTags.cpp
     ReadWriteLock.cpp
     Semaphore.cpp
     SharedMemory.cpp
     Thread.cpp
     ThreadPool.cpp
-    RTags.cpp
-    )
-
-set(rtags_HDRS
-    ${rtags_client_HDRS}
-    CompileJob.h
-    CompletionJob.h
-    CursorInfo.h
-    CursorInfoJob.h
-    FileManager.h
-    FileSystemWatcher.h
-    Filter.h
-    FindFileJob.h
-    FindSymbolsJob.h
-    FollowLocationJob.h
-    GccArguments.h
-    IndexerJob.h
-    ListSymbolsJob.h
-    LocalServer.h
-    Match.h
-    MemoryMonitor.h
-    Project.h
-    RTagsClang.h
-    ReferencesJob.h
-    ScanJob.h
-    Server.h
-    StatusJob.h
-    ValidateDBJob.h
     )
 
 set(rtags_SRCS
     ${rtags_client_SRCS}
     CompileJob.cpp
     CompletionJob.cpp
+    CursorInfo.cpp
     CursorInfoJob.cpp
+    FileManager.cpp
     FindFileJob.cpp
     FindSymbolsJob.cpp
     FollowLocationJob.cpp
-    ScanJob.cpp
+    GccArguments.cpp
     IndexerJob.cpp
+    JSONJob.cpp
     Job.cpp
     ListSymbolsJob.cpp
-    ReferencesJob.cpp
-    StatusJob.cpp
-    JSONJob.cpp
-    ValidateDBJob.cpp
     LocalServer.cpp
-    CursorInfo.cpp
-    Server.cpp
     MemoryMonitor.cpp
-    GccArguments.cpp
-    FileManager.cpp
+    Preprocessor.cpp
     Project.cpp
     RTagsClang.cpp
-   )
+    ReferencesJob.cpp
+    ScanJob.cpp
+    Server.cpp
+    StatusJob.cpp
+    ValidateDBJob.cpp
+    )
 
 set(grtags_SRCS
     GRParser.cpp

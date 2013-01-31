@@ -21,9 +21,6 @@ void Preprocessor::preprocess()
         mProc->finished().connect(this, &Preprocessor::onProcessFinished);
     }
     List<ByteArray> args = mArgs.builds.first().args; // ### ?
-    const int idx = args.indexOf("-fspell-checking");
-    if (idx != -1)
-        args.removeAt(idx);
     args.append("-E");
     args.append(mArgs.sourceFile);
     mProc->start(mArgs.builds.first().compiler, args);
