@@ -17,12 +17,13 @@ class QueryCommand : public RCCommand
 {
 public:
     QueryCommand(QueryMessage::Type t, const ByteArray &q)
-        : type(t), query(q), extraQueryFlags(0)
+        : type(t), query(q), extraQueryFlags(0), buildIndex(0)
     {}
 
     const QueryMessage::Type type;
     const ByteArray query;
     unsigned extraQueryFlags;
+    uint8_t buildIndex;
 
     virtual bool exec(RClient *rc, Client *client)
     {
@@ -31,6 +32,7 @@ public:
         msg.setQuery(query);
         msg.setFlags(extraQueryFlags | rc->queryFlags());
         msg.setMax(rc->max());
+        msg.setBuildIndex(buildIndex);
         msg.setPathFilters(rc->pathFilters().toList());
         msg.setRangeFilter(rc->minOffset(), rc->maxOffset());
         msg.setProjects(rc->projects());
@@ -262,7 +264,6 @@ enum OptionType {
     Diagnostics,
     DumpFile,
     ElispList,
-    FilterPreprocessor,
     FilterSystemHeaders,
     FindFile,
     FindFilePreferExact,
@@ -362,7 +363,6 @@ struct Option opts[] = {
     { Compile, "compile", 'c', required_argument, "Pass compilation arguments to rdm." },
     { RemoveFile, "remove", 'D', required_argument, "Remove file from project." },
     { FindProjectRoot, "find-project-root", 0, required_argument, "Use to check behavior of find-project-root." },
-    { FilterPreprocessor, "filter-preprocessor", 0, required_argument, "Use to check behavior of filterPreprocessor." },
     { JSON, "json", 0, optional_argument, "Dump json about files matching arg or whole project if no argument." },
 
     { None, 0, 0, 0, "" },
@@ -736,9 +736,6 @@ bool RClient::parse(int &argc, char **argv)
         case FindProjectRoot:
             error() << "findProjectRoot" << optarg << RTags::findProjectRoot(optarg);
             return 0;
-        case FilterPreprocessor:
-            error() << RTags::filterPreprocessor(optarg);
-            return 0;
         case Reindex:
         case Project:
         case FindFile:
@@ -800,8 +797,7 @@ bool RClient::parse(int &argc, char **argv)
             break;
         case IsIndexed:
         case DumpFile:
-        case FixIts:
-        case PreprocessFile: {
+        case FixIts: {
             Path p = Path::resolved(optarg);
             if (!p.exists()) {
                 fprintf(stderr, "%s does not exist\n", optarg);
@@ -820,12 +816,37 @@ bool RClient::parse(int &argc, char **argv)
             case FixIts: type = QueryMessage::FixIts; break;
             case IsIndexed: type = QueryMessage::IsIndexed; break;
             case DumpFile: type = QueryMessage::DumpFile; break;
-            case PreprocessFile: type = QueryMessage::PreprocessFile; break;
             default: assert(0); break;
             }
 
             addQuery(type, p);
             break; }
+        case PreprocessFile: {
+            unsigned long long idx = 0;
+            Path p = optarg;
+            if (!p.exists()) {
+                List<RegExp::Capture> caps;
+                const RegExp rx(".*_\\([0-9][0-9]*\\)$");
+                const int match = rx.indexIn(p, 0, &caps);
+                if (match != -1) {
+                    assert(caps.size() == 2);
+                    idx = caps.at(1).capture.toULongLong();
+                    if (idx > UINT8_MAX) {
+                        fprintf(stderr, "Invalid build index %llu (must be <= 256)\n", idx);
+                        return false;
+                    }
+                    p.resize(caps.at(1).index - 1);
+                }
+            }
+            p.resolve();
+            if (!p.isFile()) {
+                fprintf(stderr, "%s is not a file\n", optarg);
+                return false;
+            }
+            QueryCommand *cmd = addQuery(QueryMessage::PreprocessFile, p);
+            cmd->buildIndex = static_cast<uint8_t>(idx);
+            break; }
+            
         case RemoveFile: {
             const Path p = Path::resolved(optarg);
             if (!p.exists()) {

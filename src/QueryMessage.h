@@ -102,11 +102,15 @@ public:
 
     void setProjects(const List<ByteArray> &projects) { mProjects = projects; }
     List<ByteArray> projects() const { return mProjects; }
+
+    uint8_t buildIndex() const { return mBuildIndex; }
+    void setBuildIndex(uint8_t index) { mBuildIndex = index; }
 private:
     ByteArray mQuery;
     Type mType;
     unsigned mFlags;
     int mMax, mMinOffset, mMaxOffset;
+    uint8_t mBuildIndex;
     List<ByteArray> mPathFilters;
     List<ByteArray> mProjects;
 };

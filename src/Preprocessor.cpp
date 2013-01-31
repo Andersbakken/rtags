@@ -4,9 +4,11 @@
 #include "Log.h"
 #include "RTags.h"
 
-Preprocessor::Preprocessor(const SourceInformation &args, Connection *connection)
-    : mArgs(args), mConnection(connection), mProc(0)
+Preprocessor::Preprocessor(const SourceInformation &args, uint8_t buildIndex, Connection *connection)
+    : mArgs(args), mBuildIndex(buildIndex), mConnection(connection), mProc(0)
 {
+    mProc = new Process;
+    mProc->finished().connect(this, &Preprocessor::onProcessFinished);
 }
 
 Preprocessor::~Preprocessor()
@@ -16,20 +18,16 @@ Preprocessor::~Preprocessor()
 
 void Preprocessor::preprocess()
 {
-    if (!mProc) {
-        mProc = new Process;
-        mProc->finished().connect(this, &Preprocessor::onProcessFinished);
-    }
-    List<ByteArray> args = mArgs.builds.first().args; // ### ?
+    List<ByteArray> args = mArgs.builds.at(mBuildIndex).args;
     args.append("-E");
     args.append(mArgs.sourceFile);
-    mProc->start(mArgs.builds.first().compiler, args);
+    mProc->start(mArgs.builds.at(mBuildIndex).compiler, args);
 }
 
 void Preprocessor::onProcessFinished()
 {
-    mConnection->write<256>("// %s %s", mArgs.builds.first().compiler.constData(),
-                            ByteArray::join(mArgs.builds.first().args, ' ').constData());
+    mConnection->write<256>("// %s %s", mArgs.builds.at(mBuildIndex).compiler.constData(),
+                            ByteArray::join(mArgs.builds.at(mBuildIndex).args, ' ').constData());
     mConnection->write(mProc->readAllStdOut());
     const ByteArray err = mProc->readAllStdErr();
     if (!err.isEmpty()) {

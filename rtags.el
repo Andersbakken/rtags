@@ -178,9 +178,13 @@
   (setq buffer-read-only t)
   )
 
-(defun rtags-preprocess-file (&optional buffer)
-  (interactive)
-  (let ((fn (buffer-file-name buffer))
+(defun rtags-preprocess-file (&optional build-index buffer)
+  (interactive "P")
+  (setq build-index (cond ((and build-index (not (integerp build-index)))
+                           (read-from-minibuffer "Build index: " nil nil nil 0)) ;; should insert builds
+                          ((not build-index) 0)
+                          (t build-index)))
+  (let ((fn (format "%s_%d" (buffer-file-name buffer) build-index))
         bufname narrow-start narrow-end)
     (if (and mark-active
              (not (equal (region-beginning) (region-end))))

@@ -31,7 +31,7 @@ public:
     {}
 
     ByteArray(const ByteArray &ba)
-    : mString(ba.mString)
+        : mString(ba.mString)
     {}
 
     ByteArray(const std::string &str)
@@ -452,20 +452,20 @@ public:
     }
 
 
-    unsigned long long toULongLong(bool *ok = 0) const
+    unsigned long long toULongLong(bool *ok = 0, int base = 10) const
     {
         errno = 0;
         char *end = 0;
-        const unsigned ret = strtoull(constData(), &end, 10);
+        const unsigned long long ret = strtoull(constData(), &end, base);
         if (ok)
             *ok = !errno && !*end;
         return ret;
     }
-    unsigned long long toLongLong(bool *ok = 0) const
+    long long toLongLong(bool *ok = 0, int base = 10) const
     {
         errno = 0;
         char *end = 0;
-        const unsigned ret = strtoll(constData(), &end, 10);
+        const long long ret = strtoll(constData(), &end, base);
         if (ok)
             *ok = !errno && !*end;
         return ret;

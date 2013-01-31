@@ -634,7 +634,14 @@ void Server::preprocessFile(const QueryMessage &query, Connection *conn)
         conn->finish();
         return;
     }
-    Preprocessor* pre = new Preprocessor(c, conn);
+    if (c.builds.size() <= query.buildIndex()) {
+        conn->write<512>("No build for for index %d (max %d) for %s",
+                         query.buildIndex(), c.builds.size() - 1, path.constData());
+        conn->finish();
+        return;
+    }
+        
+    Preprocessor* pre = new Preprocessor(c, query.buildIndex(), conn);
     pre->preprocess();
 }
 
