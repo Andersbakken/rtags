@@ -1,6 +1,6 @@
 #include "CompletionMessage.h"
 #include "RTags.h"
-#include "Serializer.h"
+#include <rct/Serializer.h>
 
 
 CompletionMessage::CompletionMessage(unsigned flags, const Path &path, int line, int column, int pos)

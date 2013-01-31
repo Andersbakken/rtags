@@ -10,10 +10,10 @@
 #include <clang/Basic/SourceLocation.h>
 #include <stack>
 #include "GRTags.h"
-#include "Map.h"
-#include "String.h"
-#include "StopWatch.h"
-#include "Log.h"
+#include <rct/Map.h>
+#include <rct/String.h>
+#include <rct/StopWatch.h>
+#include <rct/Log.h>
 #include "RTags.h"
 
 class GRParser

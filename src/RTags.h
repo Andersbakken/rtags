@@ -1,12 +1,12 @@
 #ifndef RTags_h
 #define RTags_h
 
-#include "String.h"
+#include <rct/String.h>
 #include "Location.h"
-#include "Log.h"
-#include "Memory.h"
+#include <rct/Log.h>
+#include <rct/Memory.h>
 #include "FixIt.h"
-#include "Path.h"
+#include <rct/Path.h>
 #include "SourceInformation.h"
 #include <assert.h>
 #include <getopt.h>
@@ -132,7 +132,6 @@ inline int fileSize(FILE *f)
 String filterPreprocessor(const Path &path);
 void removeDirectory(const Path &path);
 int canonicalizePath(char *path, int len);
-String unescape(String command);
 bool startProcess(const Path &dotexe, const List<String> &dollarArgs);
 void findApplicationDirPath(const char *argv0);
 Path applicationDirPath();

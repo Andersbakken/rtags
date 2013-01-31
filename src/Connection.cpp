@@ -1,7 +1,7 @@
 #include "Connection.h"
 #include "LocalClient.h"
-#include "Event.h"
-#include "EventLoop.h"
+#include <rct/Event.h>
+#include <rct/EventLoop.h>
 
 class ResponseMessageEvent : public Event
 {

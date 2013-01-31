@@ -1,7 +1,7 @@
 #include "Preprocessor.h"
 #include "Connection.h"
-#include "Process.h"
-#include "Log.h"
+#include <rct/Process.h>
+#include <rct/Log.h>
 #include "RTags.h"
 
 Preprocessor::Preprocessor(const SourceInformation &args, uint8_t buildIndex, Connection *connection)

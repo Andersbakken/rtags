@@ -1,9 +1,9 @@
 #ifndef ScanJob_h
 #define ScanJob_h
 
-#include "ThreadPool.h"
-#include "Path.h"
-#include "SignalSlot.h"
+#include <rct/ThreadPool.h>
+#include <rct/Path.h>
+#include <rct/SignalSlot.h>
 #include "Project.h"
 
 class ScanJob : public ThreadPool::Job

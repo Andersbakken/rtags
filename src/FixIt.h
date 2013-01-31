@@ -2,7 +2,7 @@
 #define FixIt_h
 
 #include <stdint.h>
-#include "String.h"
+#include <rct/String.h>
 
 struct FixIt
 {

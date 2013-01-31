@@ -1,9 +1,9 @@
 #ifndef Filter_h
 #define Filter_h
 
-#include "Path.h"
-#include "List.h"
-#include "String.h"
+#include <rct/Path.h>
+#include <rct/List.h>
+#include <rct/String.h>
 #include <fnmatch.h>
 
 namespace Filter {

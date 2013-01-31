@@ -1,12 +1,12 @@
 #ifndef FindFileJob_h
 #define FindFileJob_h
 
-#include "String.h"
-#include "List.h"
+#include <rct/String.h>
+#include <rct/List.h>
 #include "RTagsClang.h"
 #include "Job.h"
 #include "Location.h"
-#include "RegExp.h"
+#include <rct/RegExp.h>
 
 class FindFileJob : public Job
 {

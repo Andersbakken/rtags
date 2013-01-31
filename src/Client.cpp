@@ -2,8 +2,8 @@
 #include "Messages.h"
 #include "Connection.h"
 #include "ResponseMessage.h"
-#include "EventLoop.h"
-#include "Log.h"
+#include <rct/EventLoop.h>
+#include <rct/Log.h>
 #include <unistd.h>
 
 Client::Client(const Path &path, int timeout, unsigned flags, const List<String> &rdmArgs)

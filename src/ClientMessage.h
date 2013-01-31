@@ -2,7 +2,7 @@
 #define ClientMessage_h
 
 #include "Message.h"
-#include "String.h"
+#include <rct/String.h>
 
 class ClientMessage : public Message
 {

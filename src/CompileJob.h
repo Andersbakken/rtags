@@ -1,10 +1,10 @@
 #ifndef CompileJob_h
 #define CompileJob_h
 
-#include "ThreadPool.h"
-#include "Path.h"
+#include <rct/ThreadPool.h>
+#include <rct/Path.h>
 #include "CompileMessage.h"
-#include "SignalSlot.h"
+#include <rct/SignalSlot.h>
 #include "GccArguments.h"
 
 class CompileJob : public ThreadPool::Job

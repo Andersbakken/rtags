@@ -1,7 +1,7 @@
 #ifndef Str_h
 #define Str_h
 
-#include "Memory.h"
+#include <rct/Memory.h>
 #include <clang-c/Index.h>
 #include <string.h>
 

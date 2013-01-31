@@ -1,9 +1,9 @@
 #include "Job.h"
 #include "RTags.h"
-#include "EventLoop.h"
+#include <rct/EventLoop.h>
 #include "Server.h"
 #include "CursorInfo.h"
-#include "RegExp.h"
+#include <rct/RegExp.h>
 #include "QueryMessage.h"
 
 // static int count = 0;

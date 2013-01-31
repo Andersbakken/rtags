@@ -1,9 +1,9 @@
 #ifndef GCCARGUMENTS_H
 #define GCCARGUMENTS_H
 
-#include "Path.h"
-#include "List.h"
-#include "String.h"
+#include <rct/Path.h>
+#include <rct/List.h>
+#include <rct/String.h>
 
 class GccArgumentsImpl;
 

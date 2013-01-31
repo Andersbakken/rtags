@@ -2,10 +2,10 @@
 #define CompletionJob_h
 
 #include "Job.h"
-#include "List.h"
-#include "String.h"
-#include "Path.h"
-#include "Event.h"
+#include <rct/List.h>
+#include <rct/String.h>
+#include <rct/Path.h>
+#include <rct/Event.h>
 #include <clang-c/Index.h>
 
 class CompletionJob : public Job

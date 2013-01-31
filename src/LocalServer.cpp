@@ -1,7 +1,7 @@
 #include "LocalServer.h"
-#include "EventLoop.h"
+#include <rct/EventLoop.h>
 #include "LocalClient.h"
-#include "Log.h"
+#include <rct/Log.h>
 #include "RTags.h"
 #include <errno.h>
 #include <string.h>

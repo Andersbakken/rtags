@@ -1,9 +1,9 @@
 #ifndef LOCALCLIENT_H
 #define LOCALCLIENT_H
 
-#include "String.h"
-#include "EventReceiver.h"
-#include "SignalSlot.h"
+#include <rct/String.h>
+#include <rct/EventReceiver.h>
+#include <rct/SignalSlot.h>
 #include <deque>
 
 class LocalClient : public EventReceiver

@@ -2,7 +2,7 @@
 #define OutputMessage_h
 
 #include "ClientMessage.h"
-#include "String.h"
+#include <rct/String.h>
 
 class CreateOutputMessage : public ClientMessage
 {

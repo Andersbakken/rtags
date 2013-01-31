@@ -2,8 +2,8 @@
 #define CompletionMessage_h
 
 #include "ClientMessage.h"
-#include "Path.h"
-#include "String.h"
+#include <rct/Path.h>
+#include <rct/String.h>
 
 class CompletionMessage : public ClientMessage
 {

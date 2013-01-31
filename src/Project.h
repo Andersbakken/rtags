@@ -2,13 +2,13 @@
 #define Project_h
 
 #include "CursorInfo.h"
-#include "Path.h"
+#include <rct/Path.h>
 #include "RTags.h"
 #include "Match.h"
-#include "RegExp.h"
-#include "EventReceiver.h"
-#include "ReadWriteLock.h"
-#include "FileSystemWatcher.h"
+#include <rct/RegExp.h>
+#include <rct/EventReceiver.h>
+#include <rct/ReadWriteLock.h>
+#include <rct/FileSystemWatcher.h>
 
 template <typename T>
 class Scope

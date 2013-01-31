@@ -1,7 +1,7 @@
 #include "Messages.h"
-#include "ReadWriteLock.h"
-#include "ReadLocker.h"
-#include "WriteLocker.h"
+#include <rct/ReadWriteLock.h>
+#include <rct/ReadLocker.h>
+#include <rct/WriteLocker.h>
 #include <assert.h>
 
 class MessageCreatorBase

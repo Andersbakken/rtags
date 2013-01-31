@@ -1,5 +1,5 @@
 #include "CreateOutputMessage.h"
-#include "Serializer.h"
+#include <rct/Serializer.h>
 
 CreateOutputMessage::CreateOutputMessage(int level)
     : mLevel(level)

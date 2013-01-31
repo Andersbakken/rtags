@@ -17,7 +17,6 @@ message("Using Clang version ${CLANG_VERSION}")
 add_definitions(-Wall)
 add_definitions("-DCLANG_INCLUDEPATH=\"${PROJECT_SOURCE_DIR}/3rdparty/clang_install/lib/clang/${CLANG_VERSION}/include/\"")
 add_definitions("-DCLANG_BIN=\"${PROJECT_SOURCE_DIR}/3rdparty/clang_install/bin/\"")
-add_definitions("-DMAKE=\"${PROJECT_SOURCE_DIR}/3rdparty/make_install/bin/make\"")
 add_definitions(-DOS_${CMAKE_SYSTEM_NAME})
 
 if(CMAKE_SYSTEM_NAME MATCHES "Linux")
@@ -41,34 +40,40 @@ elseif(CMAKE_SYSTEM_NAME MATCHES "Darwin")
   find_path(COREFOUNDATION_INCLUDE "CoreFoundation/CoreFoundation.h")
 endif()
 
-check_cxx_symbol_exists(backtrace "execinfo.h" HAVE_BACKTRACE)
-check_cxx_symbol_exists(CLOCK_MONOTONIC_RAW "time.h" HAVE_CLOCK_MONOTONIC_RAW)
-check_cxx_symbol_exists(CLOCK_MONOTONIC "time.h" HAVE_CLOCK_MONOTONIC)
-check_cxx_symbol_exists(mach_absolute_time "mach/mach.h;mach/mach_time.h" HAVE_MACH_ABSOLUTE_TIME)
-check_cxx_symbol_exists(inotify_init "sys/inotify.h" HAVE_INOTIFY)
-check_cxx_symbol_exists(kqueue "sys/types.h;sys/event.h" HAVE_KQUEUE)
-check_cxx_symbol_exists(SO_NOSIGPIPE "sys/types.h;sys/socket.h" HAVE_NOSIGPIPE)
-check_cxx_symbol_exists(MSG_NOSIGNAL "sys/types.h;sys/socket.h" HAVE_NOSIGNAL)
-check_cxx_symbol_exists(SA_SIGINFO "signal.h" HAVE_SIGINFO)
+include(CheckCXXCompilerFlag)
+if(NOT CMAKE_SYSTEM_NAME MATCHES "Darwin")
+  CHECK_CXX_COMPILER_FLAG("-std=c++0x" COMPILER_SUPPORTS_CXX_0X)
+  if(COMPILER_SUPPORTS_CXX_0X)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++0x")
+  endif()
+else()
+  add_definitions(-D_DARWIN_UNLIMITED_SELECT)
+endif()
 
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/bin)
-configure_file(${CMAKE_CURRENT_SOURCE_DIR}/config.h.in
-               ${CMAKE_CURRENT_BINARY_DIR}/config.h)
-
 include(rtags.cmake)
 
+set(rct_ROOT $ENV{RCT_ROOT})
+if("${rct_ROOT}" STREQUAL "")
+  set(rct_ROOT "${CMAKE_CURRENT_BINARY_DIR}/../3rdparty/rct_install/")
+endif()
+
+include_directories(${rct_ROOT}/include)
+set(rct_LIBS ${rct_ROOT}/lib/librct.a)
+
+message("FUCKED ${rct_LIBS}")
+
+
 include_directories(${CMAKE_CURRENT_LIST_DIR} ${CORESERVICES_INCLUDE} ${COREFOUNDATION_INCLUDE})
-add_executable(rdm rdm.cpp)
-target_link_libraries(rdm rtags ${clang_LIBS} ${system_LIBS} ${CORESERVICES_LIBRARY} ${COREFOUNDATION_LIBRARY})
-add_dependencies(rdm rtags)
+add_executable(rdm rdm.cpp ${rtags_client_SRCS} ${rtags_SRCS})
+target_link_libraries(rdm ${rct_LIBS} ${clang_LIBS} ${CORESERVICES_LIBRARY} ${COREFOUNDATION_LIBRARY} ${rct_LIBS} ${system_LIBS} ${rct_LIBS})
 
 include_directories(${CMAKE_CURRENT_LIST_DIR} ${CORESERVICES_INCLUDE} ${COREFOUNDATION_INCLUDE})
 add_executable(clangtest clangtest.c)
-target_link_libraries(clangtest ${clang_LIBS} ${system_LIBS} ${CORESERVICES_LIBRARY} ${COREFOUNDATION_LIBRARY})
+target_link_libraries(clangtest ${clang_LIBS} ${CORESERVICES_LIBRARY} ${COREFOUNDATION_LIBRARY} ${rct_LIBS} ${system_LIBS} ${rct_LIBS})
 
 add_executable(rc rc.cpp ${rtags_client_SRCS})
-target_link_libraries(rc ${system_LIBS})
-add_dependencies(rc rtags)
+target_link_libraries(rc ${rct_LIBS} ${system_LIBS})
 
 add_executable(gr ${grtags_SRCS})
 include_directories(${PROJECT_SOURCE_DIR}
@@ -80,6 +85,7 @@ target_link_libraries(gr
   ${system_LIBS}
   ${CORESERVICES_LIBRARY}
   ${COREFOUNDATION_LIBRARY}
+  ${rct_LIBS}
   ${PROJECT_SOURCE_DIR}/3rdparty/leveldb/libleveldb.a)
 
 if(CMAKE_SYSTEM_NAME MATCHES "Darwin")

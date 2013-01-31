@@ -1,15 +1,15 @@
 #ifndef Server_h
 #define Server_h
 
-#include "FileSystemWatcher.h"
-#include "String.h"
-#include "List.h"
-#include "Map.h"
+#include <rct/FileSystemWatcher.h>
+#include <rct/String.h>
+#include <rct/List.h>
+#include <rct/Map.h>
 #include "QueryMessage.h"
 #include "Connection.h"
-#include "ThreadPool.h"
+#include <rct/ThreadPool.h>
 #include "RTags.h"
-#include "EventReceiver.h"
+#include <rct/EventReceiver.h>
 #include "FileManager.h"
 #include "Project.h"
 #include "ScanJob.h"

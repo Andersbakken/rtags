@@ -3,6 +3,7 @@ include(clang.cmake)
 
 include_directories(
     ${PROJECT_SOURCE_DIR}/3rdparty/leveldb
+    ${PROJECT_SOURCE_DIR}/3rdparty/rct_install/include
     )
 
 set(rtags_client_SRCS
@@ -12,22 +13,12 @@ set(rtags_client_SRCS
     CompletionMessage.cpp
     Connection.cpp
     CreateOutputMessage.cpp
-    EventLoop.cpp
-    EventReceiver.cpp
     LocalClient.cpp
     Location.cpp
-    Log.cpp
     Messages.cpp
-    Path.cpp
-    Process.cpp
     QueryMessage.cpp
     RClient.cpp
     RTags.cpp
-    ReadWriteLock.cpp
-    Semaphore.cpp
-    SharedMemory.cpp
-    Thread.cpp
-    ThreadPool.cpp
     )
 
 set(rtags_SRCS
@@ -46,7 +37,6 @@ set(rtags_SRCS
     Job.cpp
     ListSymbolsJob.cpp
     LocalServer.cpp
-    MemoryMonitor.cpp
     Preprocessor.cpp
     Project.cpp
     RTagsClang.cpp
@@ -61,29 +51,6 @@ set(grtags_SRCS
     GRParser.cpp
     GRTags.cpp
     Location.cpp
-    Log.cpp
-    Path.cpp
     RTags.cpp
-    ReadWriteLock.cpp
 )
 
-if(HAVE_INOTIFY EQUAL 1)
-  list(APPEND rtags_SRCS FileSystemWatcher_inotify.cpp)
-elseif(HAVE_FSEVENTS EQUAL 1)
-  list(APPEND rtags_SRCS FileSystemWatcher_fsevents.cpp)
-elseif(HAVE_KQUEUE EQUAL 1)
-  list(APPEND rtags_SRCS FileSystemWatcher_kqueue.cpp)
-endif()
-
-include(CheckCXXCompilerFlag)
-if(NOT CMAKE_SYSTEM_NAME MATCHES "Darwin")
-  CHECK_CXX_COMPILER_FLAG("-std=c++0x" COMPILER_SUPPORTS_CXX_0X)
-  if(COMPILER_SUPPORTS_CXX_0X)
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++0x")
-  endif()
-else()
-  add_definitions(-D_DARWIN_UNLIMITED_SELECT)
-endif()
-
-add_library(rtags ${rtags_SRCS})
-add_dependencies(rtags gperf)

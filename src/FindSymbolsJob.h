@@ -1,8 +1,8 @@
 #ifndef FindSymbolsJob_h
 #define FindSymbolsJob_h
 
-#include "String.h"
-#include "List.h"
+#include <rct/String.h>
+#include <rct/List.h>
 #include "QueryMessage.h"
 #include "Job.h"
 

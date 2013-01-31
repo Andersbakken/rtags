@@ -1,10 +1,9 @@
 #include "LocalClient.h"
-#include "Event.h"
-#include "EventLoop.h"
-#include "Log.h"
+#include <rct/Event.h>
+#include <rct/EventLoop.h>
+#include <rct/Log.h>
 #include "RTags.h"
-#include "config.h"
-#include "StopWatch.h"
+#include <rct/StopWatch.h>
 #include <algorithm>
 #include <fcntl.h>
 #include <string.h>

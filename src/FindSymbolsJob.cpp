@@ -1,6 +1,6 @@
 #include "FindSymbolsJob.h"
 #include "Server.h"
-#include "Log.h"
+#include <rct/Log.h>
 #include "RTagsClang.h"
 
 static inline unsigned jobFlags(unsigned queryFlags)

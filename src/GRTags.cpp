@@ -1,9 +1,9 @@
 #include "GRTags.h"
 #include "Filter.h"
 #include "GRParser.h"
-#include "Log.h"
+#include <rct/Log.h>
 #include <getopt.h>
-#include <Memory.h>
+#include <rct/Memory.h>
 #include <math.h>
 #include <leveldb/cache.h>
 #include <leveldb/write_batch.h>

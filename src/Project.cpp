@@ -1,16 +1,16 @@
 #include "Project.h"
 #include "FileManager.h"
 #include "IndexerJob.h"
-#include "Log.h"
-#include "MemoryMonitor.h"
-#include "Path.h"
+#include <rct/Log.h>
+#include <rct/MemoryMonitor.h>
+#include <rct/Path.h>
 #include "RTags.h"
-#include "ReadLocker.h"
-#include "RegExp.h"
+#include <rct/ReadLocker.h>
+#include <rct/RegExp.h>
 #include "Server.h"
 #include "Server.h"
 #include "ValidateDBJob.h"
-#include "WriteLocker.h"
+#include <rct/WriteLocker.h>
 #include <math.h>
 
 static void *ModifiedFiles = &ModifiedFiles;

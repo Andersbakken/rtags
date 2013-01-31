@@ -1,7 +1,7 @@
 #include "GccArguments.h"
-#include "Log.h"
+#include <rct/Log.h>
 #include "RTags.h"
-#include "Process.h"
+#include <rct/Process.h>
 #include "Server.h"
 
 GccArguments::GccArguments()

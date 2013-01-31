@@ -1,6 +1,6 @@
 #include "ListSymbolsJob.h"
 #include "Server.h"
-#include "Log.h"
+#include <rct/Log.h>
 #include "RTags.h"
 
 enum {

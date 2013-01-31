@@ -1,9 +1,8 @@
 #include "RTags.h"
 #include "CursorInfo.h"
 #include "Server.h"
-#include "StopWatch.h"
+#include <rct/StopWatch.h>
 #include "Str.h"
-#include "config.h"
 #include <dirent.h>
 #include <fcntl.h>
 #include <fnmatch.h>
@@ -14,8 +13,6 @@
 #ifdef OS_Darwin
 #include <mach-o/dyld.h>
 #endif
-
-bool inSignalHandler = false;
 
 namespace RTags {
 
@@ -37,24 +34,6 @@ int canonicalizePath(char *path, int len)
         }
     }
     return len;
-}
-
-String unescape(String command)
-{
-    command.replace("\'", "\\'");
-    command.prepend("bash --norc -c 'echo -n ");
-    command.append('\'');
-    // String cmd = "bash --norc -c 'echo -n " + command + "'";
-    FILE *f = popen(command.constData(), "r");
-    String ret;
-    char buf[1024];
-    do {
-        const int read = fread(buf, 1, 1024, f);
-        if (read)
-            ret += String(buf, read);
-    } while (!feof(f));
-    fclose(f);
-    return ret;
 }
 
 int readLine(FILE *f, char *buf, int max)

@@ -1,10 +1,10 @@
 #ifndef LogObject_h
 #define LogObject_h
 
-#include "String.h"
-#include "Log.h"
+#include <rct/String.h>
+#include <rct/Log.h>
 #include "Connection.h"
-#include "EventReceiver.h"
+#include <rct/EventReceiver.h>
 
 class LogObject : public LogOutput, public EventReceiver
 {

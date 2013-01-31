@@ -1,8 +1,8 @@
 #ifndef CompileMessage_h
 #define CompileMessage_h
 
-#include "List.h"
-#include "String.h"
+#include <rct/List.h>
+#include <rct/String.h>
 #include "ClientMessage.h"
 #include "RTags.h"
 

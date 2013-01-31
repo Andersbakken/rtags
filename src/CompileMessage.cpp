@@ -1,5 +1,5 @@
 #include "CompileMessage.h"
-#include "Serializer.h"
+#include <rct/Serializer.h>
 
 CompileMessage::CompileMessage(const Path &path, const String &args)
     : mPath(path), mArgs(args)

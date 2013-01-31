@@ -33,6 +33,13 @@ ExternalProject_Add(
     INSTALL_COMMAND ""
     UPDATE_COMMAND ""
     )
+ExternalProject_Add(
+    rct
+    SOURCE_DIR ./rct
+    CMAKE_ARGS -DCMAKE_INSTALL_PREFIX=${CMAKE_CURRENT_BINARY_DIR}/rct_install
+    GIT_REPOSITORY git@github.com:Andersbakken/rct.git
+    GIT_TAG "origin/master"
+)
 
 add_custom_target (
     leveldb_make

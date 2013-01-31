@@ -2,9 +2,9 @@
 #define ValidateDBJob_h
 
 #include "Job.h"
-#include "Set.h"
+#include <rct/Set.h>
 #include "Location.h"
-#include "SignalSlot.h"
+#include <rct/SignalSlot.h>
 
 class ValidateDBJob : public Job
 {

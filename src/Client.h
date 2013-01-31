@@ -2,11 +2,11 @@
 #define CLIENT_H
 
 #include "GccArguments.h"
-#include "Path.h"
+#include <rct/Path.h>
 #include "QueryMessage.h"
-#include "String.h"
-#include "Map.h"
-#include "List.h"
+#include <rct/String.h>
+#include <rct/Map.h>
+#include <rct/List.h>
 
 class Connection;
 class Message;

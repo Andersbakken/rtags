@@ -1,6 +1,6 @@
 #include "CompilerManager.h"
-#include "Process.h"
-#include "MutexLocker.h"
+#include <rct/Process.h>
+#include <rct/MutexLocker.h>
 
 Mutex sMutex;
 Map<Path, List<String> > sFlags;

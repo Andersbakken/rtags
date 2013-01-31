@@ -1,8 +1,8 @@
 #include "IndexerJob.h"
-#include "StopWatch.h"
-#include "MemoryMonitor.h"
+#include <rct/StopWatch.h>
+#include <rct/MemoryMonitor.h>
 #include "Server.h"
-#include "EventLoop.h"
+#include <rct/EventLoop.h>
 #include "RTagsClang.h"
 
 struct DumpUserData {

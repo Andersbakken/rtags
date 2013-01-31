@@ -1,8 +1,8 @@
 #ifndef LOCALSERVER_H
 #define LOCALSERVER_H
 
-#include "Path.h"
-#include "SignalSlot.h"
+#include <rct/Path.h>
+#include <rct/SignalSlot.h>
 #include <deque>
 
 class LocalClient;

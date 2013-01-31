@@ -1,10 +1,10 @@
 #ifndef CompilerManager_h
 #define CompilerManager_h
 
-#include "Map.h"
-#include "List.h"
-#include "Path.h"
-#include "String.h"
+#include <rct/Map.h>
+#include <rct/List.h>
+#include <rct/Path.h>
+#include <rct/String.h>
 
 namespace CompilerManager
 {

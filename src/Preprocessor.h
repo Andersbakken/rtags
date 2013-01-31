@@ -1,10 +1,10 @@
 #ifndef PREPROCESSOR_H
 #define PREPROCESSOR_H
 
-#include "Path.h"
-#include "List.h"
-#include "String.h"
-#include "EventReceiver.h"
+#include <rct/Path.h>
+#include <rct/List.h>
+#include <rct/String.h>
+#include <rct/EventReceiver.h>
 #include "RTags.h"
 
 class Connection;

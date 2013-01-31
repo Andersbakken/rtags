@@ -1,11 +1,11 @@
 #ifndef CursorInfo_h
 #define CursorInfo_h
 
-#include "String.h"
+#include <rct/String.h>
 #include "Location.h"
-#include "Path.h"
-#include "Log.h"
-#include "List.h"
+#include <rct/Path.h>
+#include <rct/Log.h>
+#include <rct/List.h>
 #include <clang-c/Index.h>
 
 class CursorInfo;

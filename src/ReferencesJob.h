@@ -1,9 +1,9 @@
 #ifndef ReferencesJob_h
 #define ReferencesJob_h
 
-#include "String.h"
+#include <rct/String.h>
 #include "Job.h"
-#include "List.h"
+#include <rct/List.h>
 #include "Location.h"
 #include "RTags.h"
 

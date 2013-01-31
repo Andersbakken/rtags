@@ -1,13 +1,13 @@
 #ifndef Job_h
 #define Job_h
 
-#include "ThreadPool.h"
-#include "List.h"
-#include "String.h"
-#include "Event.h"
-#include "SignalSlot.h"
+#include <rct/ThreadPool.h>
+#include <rct/List.h>
+#include <rct/String.h>
+#include <rct/Event.h>
+#include <rct/SignalSlot.h>
 #include "Server.h"
-#include "RegExp.h"
+#include <rct/RegExp.h>
 #include "RTagsClang.h"
 
 class CursorInfo;

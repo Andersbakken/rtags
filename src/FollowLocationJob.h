@@ -1,8 +1,8 @@
 #ifndef FollowLocationJob_h
 #define FollowLocationJob_h
 
-#include "String.h"
-#include "List.h"
+#include <rct/String.h>
+#include <rct/List.h>
 #include "RTags.h"
 #include "Job.h"
 #include "Location.h"

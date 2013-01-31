@@ -1,6 +1,6 @@
 #include "CompletionJob.h"
 #include "IndexerJob.h"
-#include "EventLoop.h"
+#include <rct/EventLoop.h>
 
 CompletionJob::CompletionJob(const shared_ptr<Project> &project)
     : Job(WriteBuffered|WriteUnfiltered, project), mIndex(0), mUnit(0), mLine(-1), mColumn(-1), mPos(-1)

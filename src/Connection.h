@@ -2,11 +2,11 @@
 #define CONNECTION_H
 
 #include "Messages.h"
-#include "EventReceiver.h"
+#include <rct/EventReceiver.h>
 #include "LocalClient.h"
-#include "String.h"
-#include "Map.h"
-#include "SignalSlot.h"
+#include <rct/String.h>
+#include <rct/Map.h>
+#include <rct/SignalSlot.h>
 
 class ConnectionPrivate;
 class LocalClient;

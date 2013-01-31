@@ -4,8 +4,8 @@
 #include "RTags.h"
 #include "Job.h"
 #include "Str.h"
-#include "ThreadPool.h"
-#include "Mutex.h"
+#include <rct/ThreadPool.h>
+#include <rct/Mutex.h>
 #include <clang-c/Index.h>
 
 struct IndexData {

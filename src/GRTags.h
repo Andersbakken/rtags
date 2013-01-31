@@ -1,10 +1,10 @@
 #ifndef GRTags_h
 #define GRTags_h
 
-#include "String.h"
+#include <rct/String.h>
 #include "Location.h"
-#include "Map.h"
-#include "Path.h"
+#include <rct/Map.h>
+#include <rct/Path.h>
 #include <leveldb/db.h>
 #include <leveldb/comparator.h>
 

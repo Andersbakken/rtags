@@ -2,8 +2,8 @@
 #include "CreateOutputMessage.h"
 #include "CompileMessage.h"
 #include "CompletionMessage.h"
-#include "EventLoop.h"
-#include "RegExp.h"
+#include <rct/EventLoop.h>
+#include <rct/RegExp.h>
 
 class RCCommand
 {
@@ -835,8 +835,8 @@ bool RClient::parse(int &argc, char **argv)
                 if (match != -1) {
                     assert(caps.size() == 2);
                     idx = caps.at(1).capture.toULongLong();
-                    if (idx > UINT8_MAX) {
-                        fprintf(stderr, "Invalid build index %llu (must be <= 256)\n", idx);
+                    if (idx > 255) {
+                        fprintf(stderr, "Invalid build index %llu (must be < 256)\n", idx);
                         return false;
                     }
                     p.resize(caps.at(1).index - 1);

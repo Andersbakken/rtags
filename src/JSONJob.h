@@ -1,7 +1,7 @@
 #ifndef JSONJob_h
 #define JSONJob_h
 
-#include "String.h"
+#include <rct/String.h>
 #include "Job.h"
 #include "RTags.h"
 
