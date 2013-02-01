@@ -463,25 +463,26 @@ bool RClient::parse(int &argc, char **argv)
         }
     }
 
-#if 0
-    String unused;
-    for (int i=0; i<26; ++i) {
-        if (!shortOptionString.contains('a' + i))
-            unused.append('a' + i);
-        if (!shortOptionString.contains('A' + i))
-            unused.append('A' + i);
-    }
-    printf("Unused: %s\n", unused.constData());
-    for (int i=0; opts[i].description; ++i) {
-        if (opts[i].longOpt) {
-            if (!opts[i].shortOpt) {
-                printf("No shortoption for %s\n", opts[i].longOpt);
-            } else if (opts[i].longOpt[0] != opts[i].shortOpt) {
-                printf("Not ideal option for %s|%c\n", opts[i].longOpt, opts[i].shortOpt);
+    if (getenv("RTAGS_DUMP_UNUSED")) {
+        String unused;
+        for (int i=0; i<26; ++i) {
+            if (!shortOptionString.contains('a' + i))
+                unused.append('a' + i);
+            if (!shortOptionString.contains('A' + i))
+                unused.append('A' + i);
+        }
+        printf("Unused: %s\n", unused.constData());
+        for (int i=0; opts[i].description; ++i) {
+            if (opts[i].longOpt) {
+                if (!opts[i].shortOpt) {
+                    printf("No shortoption for %s\n", opts[i].longOpt);
+                } else if (opts[i].longOpt[0] != opts[i].shortOpt) {
+                    printf("Not ideal option for %s|%c\n", opts[i].longOpt, opts[i].shortOpt);
+                }
             }
         }
+        return 0;
     }
-#endif
 
     {
         const option opt = { 0, 0, 0, 0 };
@@ -850,7 +851,7 @@ bool RClient::parse(int &argc, char **argv)
             QueryCommand *cmd = addQuery(QueryMessage::PreprocessFile, p);
             cmd->buildIndex = static_cast<uint8_t>(idx);
             break; }
-            
+
         case RemoveFile: {
             const Path p = Path::resolved(optarg);
             if (!p.exists()) {

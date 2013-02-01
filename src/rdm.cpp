@@ -97,9 +97,31 @@ int main(int argc, char** argv)
         { "completion-cache-size", required_argument, 0, 'a' },
         { "no-spell-checking", no_argument, 0, 'l' },
         { "large-by-value-copy", required_argument, 0, 'r' },
+        { "allow-multiple-builds", no_argument, 0, 'm' },
         { 0, 0, 0, 0 }
     };
     const String shortOptions = RTags::shortOptions(opts);
+    if (getenv("RTAGS_DUMP_UNUSED")) {
+        String unused;
+        for (int i=0; i<26; ++i) {
+            if (!shortOptions.contains('a' + i))
+                unused.append('a' + i);
+            if (!shortOptions.contains('A' + i))
+                unused.append('A' + i);
+        }
+        printf("Unused: %s\n", unused.constData());
+        for (int i=0; opts[i].name; ++i) {
+            if (opts[i].name) {
+                if (!opts[i].val) {
+                    printf("No shortoption for %s\n", opts[i].name);
+                } else if (opts[i].name[0] != opts[i].val) {
+                    printf("Not ideal option for %s|%c\n", opts[i].name, opts[i].val);
+                }
+            }
+        }
+        return 0;
+    }
+
 
     List<String> argCopy;
     List<char*> argList;
