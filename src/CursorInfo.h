@@ -17,7 +17,6 @@ public:
         : symbolLength(0), kind(CXCursor_FirstInvalid), type(CXType_Invalid), enumValue(0), start(-1), end(-1)
     {}
 
-    static int cursorRank(CXCursorKind kind);
     void clear()
     {
         start = end = -1;
@@ -48,6 +47,8 @@ public:
         }
         return changed;
     }
+
+    int targetRank(const CursorInfo &target) const;
 
     bool isValid() const
     {
@@ -134,9 +135,10 @@ public:
 
     enum Flag {
         IgnoreTargets = 0x1,
-        IgnoreReferences = 0x2
+        IgnoreReferences = 0x2,
+        DefaultFlags = IgnoreTargets|IgnoreReferences
     };
-    String toString(unsigned cursorInfoFlags = 0, unsigned keyFlags = 0) const;
+    String toString(unsigned cursorInfoFlags = DefaultFlags, unsigned keyFlags = 0) const;
     uint16_t symbolLength; // this is just the symbol name length e.g. foo => 3
     String symbolName; // this is fully qualified Foobar::Barfoo::foo
     CXCursorKind kind;

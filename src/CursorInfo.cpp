@@ -36,9 +36,9 @@ String CursorInfo::toString(unsigned cursorInfoFlags, unsigned keyFlags) const
     return ret;
 }
 
-int CursorInfo::cursorRank(CXCursorKind kind)
+int CursorInfo::targetRank(const CursorInfo &target) const
 {
-    switch (kind) {
+    switch (target.kind) {
     case CXCursor_Constructor: // this one should be more than class/struct decl
         return 1;
     case CXCursor_ClassDecl:
@@ -63,7 +63,7 @@ CursorInfo CursorInfo::bestTarget(const SymbolMap &map, Location *loc) const
     int bestRank = -1;
     for (SymbolMap::const_iterator it = targets.begin(); it != targets.end(); ++it) {
         const CursorInfo &ci = it->second;
-        const int r = cursorRank(ci.kind);
+        const int r = targetRank(ci);
         if (r > bestRank || (r == bestRank && ci.isDefinition())) {
             bestRank = r;
             best = it;
