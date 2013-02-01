@@ -211,14 +211,18 @@
                       last-match last-line start end)
                   (while (re-search-forward match-regexp nil t)
                     (let ((current-line (string-to-int (match-string 1))))
-                      (if (and (not start) (> current-line narrow-start)) (setq start (+ (count-lines (point-min) last-match) (- narrow-start last-line))))
-                      (if (and (not end) (> current-line narrow-end)) (setq end (+ (count-lines (point-min) last-match) (- narrow-end last-line))))
+                      (if (and (not start) (> current-line narrow-start))
+                          (setq start (+ (count-lines (point-min) last-match) (- narrow-start last-line))))
+                      (if (and (not end) (> current-line narrow-end))
+                          (setq end (+ (count-lines (point-min) last-match) (- narrow-end last-line))))
                       (setq last-line current-line)
                       (setq last-match (point))))
                   (if last-match
                       (progn
-                        (if (not start) (setq start (+ (count-lines (point-min) last-match) (- narrow-start last-line))))
-                        (if (not end) (setq end (+ (count-lines (point-min) last-match) (- narrow-end last-line))))))
+                        (if (not start)
+                            (setq start (+ (count-lines (point-min) last-match) (- narrow-start last-line))))
+                        (if (not end)
+                            (setq end (+ (count-lines (point-min) last-match) (- narrow-end last-line))))))
                   (if (and start end)
                       (progn
                         (goto-char (point-min))
@@ -1304,6 +1308,7 @@ References to references will be treated as references to the referenced symbol"
     (if tagname
         (setq prompt (concat (format "Find rfiles (default %s): " tagname)))
       (setq prompt "Find rfiles: "))
+    (rtags-is-indexed)
     (setq input (completing-read prompt (function rtags-filename-complete) nil nil nil 'rtags-find-file-history))
     (setq rtags-find-file-history (remove-duplicates rtags-find-file-history :from-end t :test 'equal))
     (cond ((string-match "\\(.*\\),\\([0-9]+\\)" input)

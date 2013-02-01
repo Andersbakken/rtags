@@ -51,7 +51,61 @@ else()
 endif()
 
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/bin)
-include(rtags.cmake)
+include(clang.cmake)
+
+include_directories(
+    ${PROJECT_SOURCE_DIR}/3rdparty/leveldb
+    ${PROJECT_SOURCE_DIR}/3rdparty/rct_install/include
+    )
+
+set(rtags_shared_SOURCES
+    Client.cpp
+    CompileMessage.cpp
+    CompilerManager.cpp
+    CompletionMessage.cpp
+    Connection.cpp
+    CreateOutputMessage.cpp
+    LocalClient.cpp
+    Location.cpp
+    Messages.cpp
+    QueryMessage.cpp
+    RClient.cpp
+    RTags.cpp
+    )
+
+set(rdm_SOURCES
+    ${rtags_shared_SOURCES}
+    CompileJob.cpp
+    CompletionJob.cpp
+    CursorInfo.cpp
+    CursorInfoJob.cpp
+    DependenciesJob.cpp
+    FileManager.cpp
+    FindFileJob.cpp
+    FindSymbolsJob.cpp
+    FollowLocationJob.cpp
+    GccArguments.cpp
+    IndexerJob.cpp
+    JSONJob.cpp
+    Job.cpp
+    ListSymbolsJob.cpp
+    LocalServer.cpp
+    Preprocessor.cpp
+    Project.cpp
+    RTagsClang.cpp
+    ReferencesJob.cpp
+    ScanJob.cpp
+    Server.cpp
+    StatusJob.cpp
+    ValidateDBJob.cpp
+    )
+
+set(gr_SOURCES
+    GRParser.cpp
+    GRTags.cpp
+    Location.cpp
+    RTags.cpp
+)
 
 set(rct_ROOT $ENV{RCT_ROOT})
 if("${rct_ROOT}" STREQUAL "")
@@ -65,17 +119,17 @@ message("FUCKED ${rct_LIBS}")
 
 
 include_directories(${CMAKE_CURRENT_LIST_DIR} ${CORESERVICES_INCLUDE} ${COREFOUNDATION_INCLUDE})
-add_executable(rdm rdm.cpp ${rtags_client_SRCS} ${rtags_SRCS})
+add_executable(rdm rdm.cpp ${rtags_shared_SOURCES} ${rdm_SOURCES})
 target_link_libraries(rdm ${rct_LIBS} ${clang_LIBS} ${CORESERVICES_LIBRARY} ${COREFOUNDATION_LIBRARY} ${rct_LIBS} ${system_LIBS} ${rct_LIBS})
 
 include_directories(${CMAKE_CURRENT_LIST_DIR} ${CORESERVICES_INCLUDE} ${COREFOUNDATION_INCLUDE})
 add_executable(clangtest clangtest.c)
 target_link_libraries(clangtest ${clang_LIBS} ${CORESERVICES_LIBRARY} ${COREFOUNDATION_LIBRARY} ${rct_LIBS} ${system_LIBS} ${rct_LIBS})
 
-add_executable(rc rc.cpp ${rtags_client_SRCS})
+add_executable(rc rc.cpp ${rtags_shared_SOURCES})
 target_link_libraries(rc ${rct_LIBS} ${system_LIBS})
 
-add_executable(gr ${grtags_SRCS})
+add_executable(gr ${gr_SOURCES})
 include_directories(${PROJECT_SOURCE_DIR}
   ${CORESERVICES_INCLUDE}
   ${COREFOUNDATION_INCLUDE}

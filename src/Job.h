@@ -92,20 +92,35 @@ inline bool Job::write(const char *format, ...)
     return write(ret);
 }
 
-inline bool Job::filter(const String &val) const
+inline bool Job::filter(const String &value) const
 {
-    if ((!mPathFilters && !mPathFiltersRegExp)
-        || ((!mQueryFlags & QueryMessage::FilterSystemIncludes) && Path::isSystem(val.constData()))) {
+    if (!mPathFilters && !mPathFiltersRegExp && !(mQueryFlags & QueryMessage::FilterSystemIncludes))
         return true;
-    } else if (mPathFilters) {
-        return RTags::startsWith(*mPathFilters, val);
-    }
+
+    const char *val = value.constData();
+    while (*val && isspace(*val))
+        ++val;
+
+    if (mQueryFlags & QueryMessage::FilterSystemIncludes && Path::isSystem(val))
+        return false;
+
+    if (!mPathFilters && !mPathFiltersRegExp)
+        return true;
+    
+    assert(!mPathFilters != !mPathFiltersRegExp);
+    String copy;
+    const String &ref = (val != value.constData() ? copy : value);
+    if (val != value.constData())
+        copy = val;
+    if (mPathFilters)
+        return RTags::startsWith(*mPathFilters, ref);
+
+    assert(mPathFiltersRegExp);
 
     const int count = mPathFiltersRegExp->size();
     for (int i=0; i<count; ++i) {
-        if (mPathFiltersRegExp->at(i).indexIn(val) != -1)
+        if (mPathFiltersRegExp->at(i).indexIn(ref) != -1)
             return true;
-
     }
     return false;
 }
@@ -116,7 +131,8 @@ public:
     enum { Type = 2 };
     JobOutputEvent(const shared_ptr<Job> &j, const String &o, bool f)
         : Event(Type), job(j), out(o), finish(f), id(j->id())
-    {}
+    {
+    }
 
     weak_ptr<Job> job;
     const String out;
