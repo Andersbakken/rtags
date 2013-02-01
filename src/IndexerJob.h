@@ -73,6 +73,8 @@ private:
     void superclassTemplateMemberFunctionUgleHack(const CXCursor &cursor, CXCursorKind kind,
                                                   const Location &location, const CXCursor &ref,
                                                   const CXCursor &parent);
+    void nestedClassConstructorCallUgleHack(const CXCursor &parent, CursorInfo &info,
+                                            CXCursorKind refKind, const Location &refLoc);
 
     unsigned mFlags;
 
@@ -94,6 +96,8 @@ private:
 
     time_t mParseTime;
     bool mStarted;
+
+    CXCursor mLastCursor;
 };
 
 #endif

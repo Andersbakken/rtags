@@ -261,6 +261,15 @@ static inline CXCursor findDestructorForDelete(const CXCursor &deleteStatement)
     return destructor;
 }
 
+struct LastCursorUpdater
+{
+    LastCursorUpdater(CXCursor &var, const CXCursor &cursor) : mVar(var), mCursor(cursor) {}
+    ~LastCursorUpdater() { mVar = mCursor; }
+
+    CXCursor &mVar;
+    const CXCursor &mCursor;
+};
+
 CXChildVisitResult IndexerJob::indexVisitor(CXCursor cursor, CXCursor parent, CXClientData data)
 {
     IndexerJob *job = static_cast<IndexerJob*>(data);
@@ -269,6 +278,8 @@ CXChildVisitResult IndexerJob::indexVisitor(CXCursor cursor, CXCursor parent, CX
         if (job->mAborted)
             return CXChildVisit_Break;
     }
+
+    const LastCursorUpdater updater(job->mLastCursor, cursor);
 
     const CXCursorKind kind = clang_getCursorKind(cursor);
     const RTags::CursorType type = RTags::cursorType(kind);
@@ -326,6 +337,37 @@ static inline bool isImplicit(const CXCursor &cursor)
 {
     return clang_equalLocations(clang_getCursorLocation(cursor),
                                 clang_getCursorLocation(clang_getCursorSemanticParent(cursor)));
+}
+
+void IndexerJob::nestedClassConstructorCallUgleHack(const CXCursor &parent, CursorInfo &info,
+                                                    CXCursorKind refKind, const Location &refLoc)
+{
+    if (refKind == CXCursor_Constructor
+        && clang_getCursorKind(mLastCursor) == CXCursor_TypeRef
+        && clang_getCursorKind(parent) == CXCursor_CXXFunctionalCastExpr) {
+        const CXStringScope str = clang_getCursorSpelling(mLastCursor);
+        int start = -1;
+        const char *cstr = str.data();
+        int idx = 0;
+        while (cstr[idx]) {
+            if (start == -1 && cstr[idx] == ' ') {
+                start = idx;
+            }
+            ++idx;
+        }
+        if (start != -1) {
+            // error() << "Changed symbolLength from" << info.symbolLength << "to" << (idx - start - 1) << "for dude reffing" << refLoc;
+            info.symbolLength = idx - start - 1;
+        }
+        RTags::Filter in;
+        in.kinds.insert(CXCursor_TypeRef);
+        const List<CXCursor> typeRefs = RTags::children(parent, in);
+        for (int i=0; i<typeRefs.size(); ++i) {
+            const Location loc = createLocation(typeRefs.at(i));
+            // error() << "Added" << refLoc << "to targets for" << typeRefs.at(i);
+            mData->symbols[loc].targets.insert(refLoc);
+        }
+    }
 }
 
 void IndexerJob::superclassTemplateMemberFunctionUgleHack(const CXCursor &cursor, CXCursorKind kind,
@@ -395,11 +437,10 @@ void IndexerJob::handleReference(const CXCursor &cursor, CXCursorKind kind, cons
     }
 
     bool isOperator = false;
-    if (kind == CXCursor_CallExpr
-        && (refKind == CXCursor_CXXMethod
-            || refKind == CXCursor_ConversionFunction
-            || refKind == CXCursor_FunctionDecl
-            || refKind == CXCursor_FunctionTemplate)) {
+    if (kind == CXCursor_CallExpr && (refKind == CXCursor_CXXMethod
+                                      || refKind == CXCursor_ConversionFunction
+                                      || refKind == CXCursor_FunctionDecl
+                                      || refKind == CXCursor_FunctionTemplate)) {
         // these are bullshit, for this construct:
         // foo.bar();
         // the position of the cursor is at the foo, not the bar.
@@ -407,44 +448,47 @@ void IndexerJob::handleReference(const CXCursor &cursor, CXCursorKind kind, cons
         // references so we toss them.
         // For functions it can be the position of the namespace.
         // E.g. Foo::bar(); cursor is on Foo
+        // For constructors they happen to be the only thing we have that
+        // actually refs the constructor and not the class so we have to keep
+        // them for that.
         return;
-    } else {
-        switch (refKind) {
-        case CXCursor_Constructor:
-            if (isImplicit(ref))
-                return;
-            break;
-        case CXCursor_CXXMethod:
-        case CXCursor_FunctionDecl:
-        case CXCursor_FunctionTemplate: {
-            CXStringScope scope = clang_getCursorDisplayName(ref);
-            const char *data = scope.data();
-            if (data) {
-                const int len = strlen(data);
-                if (len > 8 && !strncmp(data, "operator", 8) && !isalnum(data[8]) && data[8] != '_') {
-                    if (isImplicit(ref))
-                        return; // eat implicit operator calls
-                    isOperator = true;
-                }
-            }
-            break; }
-        default:
-            break;
-        }
     }
 
-    const Location refLoc = createLocation(ref, 0);
-    if (!refLoc.isValid())
+    switch (refKind) {
+    case CXCursor_Constructor:
+        if (isImplicit(ref))
+            return;
+        break;
+    case CXCursor_CXXMethod:
+    case CXCursor_FunctionDecl:
+    case CXCursor_FunctionTemplate: {
+        CXStringScope scope = clang_getCursorDisplayName(ref);
+        const char *data = scope.data();
+        if (data) {
+            const int len = strlen(data);
+            if (len > 8 && !strncmp(data, "operator", 8) && !isalnum(data[8]) && data[8] != '_') {
+                if (isImplicit(ref))
+                    return; // eat implicit operator calls
+                isOperator = true;
+            }
+        }
+        break; }
+    default:
+        break;
+    }
+
+    const Location reffedLoc = createLocation(ref, 0);
+    if (!reffedLoc.isValid())
         return;
 
-    CursorInfo &refInfo = mData->symbols[refLoc];
-    if (!refInfo.symbolLength && !handleCursor(ref, refKind, refLoc))
+    CursorInfo &refInfo = mData->symbols[reffedLoc];
+    if (!refInfo.symbolLength && !handleCursor(ref, refKind, reffedLoc))
         return;
 
     refInfo.references.insert(location);
 
     CursorInfo &info = mData->symbols[location];
-    info.targets.insert(refLoc);
+    info.targets.insert(reffedLoc);
 
     // We need the new cursor to replace the symbolLength. This is important
     // in the following case:
@@ -473,7 +517,8 @@ void IndexerJob::handleReference(const CXCursor &cursor, CXCursorKind kind, cons
         info.symbolLength = isOperator ? end - start : refInfo.symbolLength;
         info.symbolName = refInfo.symbolName;
         info.type = clang_getCursorType(cursor).kind;
-        if (kind == CXCursor_TypeRef) {
+        switch (kind) {
+        case CXCursor_TypeRef:
             switch (clang_getCursorKind(parent)) {
             case CXCursor_FunctionDecl:
             case CXCursor_CXXMethod:
@@ -499,11 +544,17 @@ void IndexerJob::handleReference(const CXCursor &cursor, CXCursorKind kind, cons
             default:
                 break;
             }
-
+            break;
+        case CXCursor_CallExpr:
+            nestedClassConstructorCallUgleHack(parent, info, refKind, reffedLoc);
+            // see rtags/tests/nestedClassConstructorCallUgleHack/
+            break;
+        default:
+            break;
         }
     }
     Set<Location> &val = mData->references[location];
-    val.insert(refLoc);
+    val.insert(reffedLoc);
 }
 
 void IndexerJob::addOverriddenCursors(const CXCursor& cursor, const Location& location, List<CursorInfo*>& infos)
@@ -918,8 +969,8 @@ void IndexerJob::execute()
             mData->message += String::format<16>(" in %sms. ", String::number(mTimer.elapsed()).constData());
             if (unitCount) {
                 mData->message += String::format<1024>("(%d syms, %d symNames, %d refs, %d deps, %d files)",
-                                                          mData->symbols.size(), mData->symbolNames.size(), mData->references.size(),
-                                                          mData->dependencies.size(), mVisitedFiles.size());
+                                                       mData->symbols.size(), mData->symbolNames.size(), mData->references.size(),
+                                                       mData->dependencies.size(), mVisitedFiles.size());
             } else if (mData->dependencies.size()) {
                 mData->message += String::format<16>("(%d deps)", mData->dependencies.size());
             }
