@@ -76,6 +76,7 @@ bool LocalClient::connect(const Path& path, int maxTime)
         if (maxTime > 0 && timer.elapsed() >= maxTime) {
             return false;
         }
+        usleep(100000);
     }
 
     assert(mFd != -1);
