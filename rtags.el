@@ -340,11 +340,11 @@
 
 (defun rtags-print-dependencies (&optional buffer)
   (interactive)
-  (unless buffer (setq buffer (current-buffer)))
-  (let ((dep-buffer (rtags-get-buffer (format "*RTags dependencies %s*" (buffer-file-name buffer)))))
+  (let ((dep-buffer (rtags-get-buffer))
+        (fn (buffer-file-name (or buffer (current-buffer)))))
     (rtags-location-stack-push)
     (switch-to-buffer dep-buffer)
-    (rtags-call-rc (rtags-path-for-project) "--dependencies" (buffer-file-name buffer))
+    (rtags-call-rc (rtags-path-for-project) "--dependencies" fn)
     (rtags-start-mode nil)))
 
 (defun rtags-print-enum-value-at-point (&optional location)
