@@ -83,6 +83,7 @@ private:
     void removeFile(const QueryMessage &query, Connection *conn);
     void followLocation(const QueryMessage &query, Connection *conn);
     void cursorInfo(const QueryMessage &query, Connection *conn);
+    void dependencies(const QueryMessage &query, Connection *conn);
     void fixIts(const QueryMessage &query, Connection *conn);
     void JSON(const QueryMessage &query, Connection *conn);
     void jobCount(const QueryMessage &query, Connection *conn);

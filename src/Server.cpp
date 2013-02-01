@@ -291,6 +291,9 @@ void Server::handleQueryMessage(QueryMessage *message, Connection *conn)
     case QueryMessage::DumpFile:
         dumpFile(*message, conn);
         break;
+    case QueryMessage::Dependencies:
+        dependencies(*message, conn);
+        break;
     case QueryMessage::DeleteProject:
         removeProject(*message, conn);
         break;
@@ -477,6 +480,33 @@ void Server::cursorInfo(const QueryMessage &query, Connection *conn)
 
     CursorInfoJob job(loc, query, project);
     job.run(conn);
+    conn->finish();
+}
+
+void Server::dependencies(const QueryMessage &query, Connection *conn)
+{
+    const Path path = query.query();
+    shared_ptr<Project> project = updateProjectForLocation(path);
+    if (project) {
+        const uint32_t fileId = Location::fileId(path);
+        if (fileId) {
+            Set<uint32_t> dependencies = project->dependencies(fileId, Project::DependsOnArg);
+            dependencies.remove(fileId);
+            if (!dependencies.isEmpty()) {
+                conn->write<64>("%s is depended on by:", path.constData());
+                for (Set<uint32_t>::const_iterator it = dependencies.begin(); it != dependencies.end(); ++it) {
+                    conn->write<64>("  %s", Location::path(*it).constData());
+                }
+            }
+            dependencies = project->dependencies(fileId, Project::ArgDependsOn);
+            if (!dependencies.isEmpty()) {
+                conn->write<64>("%s depends on:", path.constData());
+                for (Set<uint32_t>::const_iterator it = dependencies.begin(); it != dependencies.end(); ++it) {
+                    conn->write<64>("  %s", Location::path(*it).constData());
+                }
+            }
+        }
+    }
     conn->finish();
 }
 

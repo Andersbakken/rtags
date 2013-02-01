@@ -95,7 +95,11 @@ public:
 
     void index(const SourceInformation &args, unsigned indexerJobFlags);
     SourceInformation sourceInfo(uint32_t fileId) const;
-    Set<uint32_t> dependencies(uint32_t fileId) const;
+    enum DependencyMode {
+        DependsOnArg,
+        ArgDependsOn // slow
+    };
+    Set<uint32_t> dependencies(uint32_t fileId, DependencyMode mode) const;
     bool visitFile(uint32_t fileId);
     String fixIts(uint32_t fileId) const;
     String diagnostics() const;

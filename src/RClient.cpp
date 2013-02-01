@@ -262,6 +262,7 @@ enum OptionType {
     CursorInfoIncludeReferences,
     CursorInfoIncludeTargets,
     DeleteProject,
+    Dependencies,
     Diagnostics,
     DumpFile,
     ElispList,
@@ -366,6 +367,7 @@ struct Option opts[] = {
     { FindProjectRoot, "find-project-root", 0, required_argument, "Use to check behavior of find-project-root." },
     { JSON, "json", 0, optional_argument, "Dump json about files matching arg or whole project if no argument." },
     { Builds, "builds", 0, required_argument, "Dump builds for source file." },
+    { Dependencies, "dependencies", 0, required_argument, "Dump dependencies for source file." },
 
     { None, 0, 0, 0, "" },
     { None, 0, 0, 0, "Command flags:" },
@@ -801,6 +803,7 @@ bool RClient::parse(int &argc, char **argv)
         case Builds:
         case IsIndexed:
         case DumpFile:
+        case Dependencies:
         case FixIts: {
             Path p = Path::resolved(optarg);
             if (!p.exists()) {
@@ -818,6 +821,7 @@ bool RClient::parse(int &argc, char **argv)
             QueryMessage::Type type = QueryMessage::Invalid;
             switch (opt->option) {
             case Builds: type = QueryMessage::Builds; break;
+            case Dependencies: type = QueryMessage::Dependencies; break;
             case FixIts: type = QueryMessage::FixIts; break;
             case IsIndexed: type = QueryMessage::IsIndexed; break;
             case DumpFile: type = QueryMessage::DumpFile; break;

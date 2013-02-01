@@ -17,6 +17,7 @@ public:
         ClearProjects,
         CursorInfo,
         DeleteProject,
+        Dependencies,
         DumpFile,
         FindFile,
         FindSymbols,

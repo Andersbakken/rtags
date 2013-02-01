@@ -413,10 +413,19 @@ void Project::addDependencies(const DependencyMap &deps, Set<uint32_t> &newFiles
     }
 }
 
-Set<uint32_t> Project::dependencies(uint32_t fileId) const
+Set<uint32_t> Project::dependencies(uint32_t fileId, DependencyMode mode) const
 {
     MutexLocker lock(&mMutex);
-    return mDependencies.value(fileId);
+    if (mode == DependsOnArg)
+        return mDependencies.value(fileId);
+
+    Set<uint32_t> ret;
+    const DependencyMap::const_iterator end = mDependencies.end();
+    for (DependencyMap::const_iterator it = mDependencies.begin(); it != end; ++it) {
+        if (it->second.contains(fileId))
+            ret.insert(it->first);
+    }
+    return ret;
 }
 
 String Project::diagnostics() const
