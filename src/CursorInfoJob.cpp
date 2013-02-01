@@ -31,7 +31,7 @@ void CursorInfoJob::execute()
             --it;
     }
     ciFlags |= CursorInfo::IgnoreTargets|CursorInfo::IgnoreReferences;
-    if (it != map.begin() && !(queryFlags() & QueryMessage::CursorInfoIgnoreParents)) {
+    if (it != map.begin() && !(queryFlags() & QueryMessage::CursorInfoIncludeParents)) {
         const uint32_t fileId = location.fileId();
         const int offset = location.offset();
         while (true) {

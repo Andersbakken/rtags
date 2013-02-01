@@ -318,11 +318,11 @@
             (setq name (buffer-substring (match-beginning 0) (match-end 0)))))
       name)))
 
-(defun rtags-cursorinfo (&optional location) ;; ### I want to pass more args here
+(defun rtags-cursorinfo (&optional location includeparents) ;; ### I want to pass more args here
   (let ((loc (if location location (rtags-current-location)))
         (path (rtags-path-for-project)))
     (with-temp-buffer
-      (rtags-call-rc path "-U" loc)
+      (rtags-call-rc path "-U" loc (if includeparents "-B"))
       (buffer-string))))
 
 (defun rtags-print-cursorinfo (&optional location)
@@ -1069,7 +1069,7 @@ References to references will be treated as references to the referenced symbol"
       (setq rtags-cursorinfo-last-location cur)
       (setq rtags-cursorinfo-symbol-name nil)
       (setq rtags-cursorinfo-container-name nil)
-      (let ((cursorinfo (rtags-cursorinfo cur)))
+      (let ((cursorinfo (rtags-cursorinfo cur t)))
         (setq rtags-cursorinfo-symbol-name (rtags-current-symbol-name cursorinfo))
         (setq rtags-cursorinfo-container-name (rtags-current-container-name cursorinfo))
         (force-mode-line-update))

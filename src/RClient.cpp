@@ -258,7 +258,7 @@ enum OptionType {
     Compile,
     ConnectTimeout,
     CursorInfo,
-    CursorInfoIgnoreParents,
+    CursorInfoIncludeParents,
     CursorInfoIgnoreReferences,
     CursorInfoIgnoreTargets,
     DeleteProject,
@@ -390,7 +390,7 @@ struct Option opts[] = {
     { Timeout, "timeout", 'y', required_argument, "Max time in ms to wait for job to finish (default no timeout)." },
     { FindVirtuals, "find-virtuals", 'k', no_argument, "Use in combinations with -R or -r to show other implementations of this function." },
     { FindFilePreferExact, "find-file-prefer-exact", 'A', no_argument, "Use to make --find-file prefer exact matches over partial matches." },
-    { CursorInfoIgnoreParents, "cursor-info-ignore-parents", 'B', no_argument, "Use to make --cursor-info not include parent cursors." },
+    { CursorInfoIncludeParents, "cursor-info-include-parents", 'B', no_argument, "Use to make --cursor-info include parent cursors." },
     { CursorInfoIgnoreTargets, "cursor-info-ignore-targets", 0, no_argument, "Use to make --cursor-info not include target cursors." },
     { CursorInfoIgnoreReferences, "cursor-info-ignore-references", 0, no_argument, "Use to make --cursor-info not include reference cursors." },
     { WithProject, "with-project", 0, required_argument, "Like --project but pass as a flag." },
@@ -533,8 +533,8 @@ bool RClient::parse(int &argc, char **argv)
         case FindFilePreferExact:
             mQueryFlags |= QueryMessage::FindFilePreferExact;
             break;
-        case CursorInfoIgnoreParents:
-            mQueryFlags |= QueryMessage::CursorInfoIgnoreParents;
+        case CursorInfoIncludeParents:
+            mQueryFlags |= QueryMessage::CursorInfoIncludeParents;
             break;
         case CursorInfoIgnoreTargets:
             mQueryFlags |= QueryMessage::CursorInfoIgnoreTargets;
