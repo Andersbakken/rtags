@@ -153,6 +153,7 @@ inline bool isCursor(CXCursorKind kind)
     switch (kind) {
     case CXCursor_LabelStmt:
     case CXCursor_MacroDefinition:
+    case CXCursor_FunctionTemplate:
         return true;
     case CXCursor_CXXAccessSpecifier:
         return false;
