@@ -57,8 +57,8 @@ public:
         AbsolutePath = 0x01000,
         FindFilePreferExact = 0x02000,
         CursorInfoIncludeParents = 0x04000,
-        CursorInfoIgnoreTargets = 0x08000,
-        CursorInfoIgnoreReferences = 0x10000,
+        CursorInfoIncludeTargets = 0x08000,
+        CursorInfoIncludeReferences = 0x10000,
     };
 
     QueryMessage(Type type = Invalid);

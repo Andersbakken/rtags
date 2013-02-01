@@ -153,7 +153,7 @@ class RdmLogCommand : public RCCommand
 public:
     enum { Default = -2 };
     RdmLogCommand(int level)
-        : mLevel(level)
+    : mLevel(level)
     {
     }
     virtual bool exec(RClient *rc, Client *client)
@@ -259,8 +259,8 @@ enum OptionType {
     ConnectTimeout,
     CursorInfo,
     CursorInfoIncludeParents,
-    CursorInfoIgnoreReferences,
-    CursorInfoIgnoreTargets,
+    CursorInfoIncludeReferences,
+    CursorInfoIncludeTargets,
     DeleteProject,
     Diagnostics,
     DumpFile,
@@ -390,9 +390,9 @@ struct Option opts[] = {
     { Timeout, "timeout", 'y', required_argument, "Max time in ms to wait for job to finish (default no timeout)." },
     { FindVirtuals, "find-virtuals", 'k', no_argument, "Use in combinations with -R or -r to show other implementations of this function." },
     { FindFilePreferExact, "find-file-prefer-exact", 'A', no_argument, "Use to make --find-file prefer exact matches over partial matches." },
-    { CursorInfoIncludeParents, "cursor-info-include-parents", 'B', no_argument, "Use to make --cursor-info include parent cursors." },
-    { CursorInfoIgnoreTargets, "cursor-info-ignore-targets", 0, no_argument, "Use to make --cursor-info not include target cursors." },
-    { CursorInfoIgnoreReferences, "cursor-info-ignore-references", 0, no_argument, "Use to make --cursor-info not include reference cursors." },
+    { CursorInfoIncludeParents, "cursorinfo-include-parents", 0, no_argument, "Use to make --cursor-info include parent cursors." },
+    { CursorInfoIncludeTargets, "cursorinfo-include-targets", 0, no_argument, "Use to make --cursor-info include target cursors." },
+    { CursorInfoIncludeReferences, "cursorinfo-include-references", 0, no_argument, "Use to make --cursor-info include reference cursors." },
     { WithProject, "with-project", 0, required_argument, "Like --project but pass as a flag." },
     { None, 0, 0, 0, 0 }
 };
@@ -406,11 +406,11 @@ static void help(FILE *f, const char* app)
             out.append(String());
         } else {
             out.append(String::format<64>("  %s%s%s%s",
-                                             opts[i].longOpt ? String::format<4>("--%s", opts[i].longOpt).constData() : "",
-                                             opts[i].longOpt && opts[i].shortOpt ? "|" : "",
-                                             opts[i].shortOpt ? String::format<2>("-%c", opts[i].shortOpt).constData() : "",
-                                             opts[i].argument == required_argument ? " [arg] "
-                                             : opts[i].argument == optional_argument ? " [optional] " : ""));
+                                          opts[i].longOpt ? String::format<4>("--%s", opts[i].longOpt).constData() : "",
+                                          opts[i].longOpt && opts[i].shortOpt ? "|" : "",
+                                          opts[i].shortOpt ? String::format<2>("-%c", opts[i].shortOpt).constData() : "",
+                                          opts[i].argument == required_argument ? " [arg] "
+                                          : opts[i].argument == optional_argument ? " [optional] " : ""));
             longest = std::max<int>(out[i].size(), longest);
         }
     }
@@ -420,7 +420,7 @@ static void help(FILE *f, const char* app)
         if (out.at(i).isEmpty()) {
             fprintf(f, "%s\n", opts[i].description);
         } else {
-            fprintf(f, "%s%s%s\n",
+            fprintf(f, "%s%s %s\n",
                     out.at(i).constData(),
                     String(longest - out.at(i).size(), ' ').constData(),
                     opts[i].description);
@@ -536,11 +536,11 @@ bool RClient::parse(int &argc, char **argv)
         case CursorInfoIncludeParents:
             mQueryFlags |= QueryMessage::CursorInfoIncludeParents;
             break;
-        case CursorInfoIgnoreTargets:
-            mQueryFlags |= QueryMessage::CursorInfoIgnoreTargets;
+        case CursorInfoIncludeTargets:
+            mQueryFlags |= QueryMessage::CursorInfoIncludeTargets;
             break;
-        case CursorInfoIgnoreReferences:
-            mQueryFlags |= QueryMessage::CursorInfoIgnoreReferences;
+        case CursorInfoIncludeReferences:
+            mQueryFlags |= QueryMessage::CursorInfoIncludeReferences;
             break;
         case AutostartRdm:
             mClientFlags |= Client::AutostartRdm;

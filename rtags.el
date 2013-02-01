@@ -318,16 +318,21 @@
             (setq name (buffer-substring (match-beginning 0) (match-end 0)))))
       name)))
 
-(defun rtags-cursorinfo (&optional location includeparents) ;; ### I want to pass more args here
-  (let ((loc (if location location (rtags-current-location)))
+(defun rtags-cursorinfo (&optional location verbose)
+  (let ((loc (or location (rtags-current-location)))
         (path (rtags-path-for-project)))
     (with-temp-buffer
-      (rtags-call-rc path "-U" loc (if includeparents "-B"))
+      (rtags-call-rc path
+                     "-U"
+                     loc
+                     (if verbose "--cursorinfo-include-parents")
+                     (if verbose "--cursorinfo-include-targets")
+                     (if verbose "--cursorinfo-include-references"))
       (buffer-string))))
 
-(defun rtags-print-cursorinfo (&optional location)
-  (interactive)
-  (message "%s" (rtags-cursorinfo location)))
+(defun rtags-print-cursorinfo (&optional verbose)
+  (interactive "P")
+  (message "%s" (rtags-cursorinfo nil verbose)))
 
 (defun rtags-print-enum-value-at-point (&optional location)
   (interactive)
@@ -1381,7 +1386,7 @@ References to references will be treated as references to the referenced symbol"
 (defun rtags-current-symbol-name (&optional cursorinfo striptype/return)
   (unless cursorinfo
     (setq cursorinfo (rtags-cursorinfo)))
-  (let ((container (string-match "^Container:" cursorinfo))
+  (let ((container (string-match "^====================" cursorinfo))
         (symbolname (string-match "^SymbolName: \\(.*\\)$" cursorinfo)))
     (if (and symbolname (or (not container) (< symbolname container)))
         (let* ((ret (match-string 1 cursorinfo))
@@ -1393,7 +1398,7 @@ References to references will be treated as references to the referenced symbol"
 (defun rtags-current-container-name (&optional cursorinfo)
   (unless cursorinfo
     (setq cursorinfo (rtags-cursorinfo)))
-  (let* ((container (string-match "^Container:" cursorinfo))
+  (let* ((container (string-match "^====================" cursorinfo))
          (symbolname (string-match "^SymbolName: \\(.*\\)$" cursorinfo (if container container 0))))
     (if container
         (match-string 1 cursorinfo)

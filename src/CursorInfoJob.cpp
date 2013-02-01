@@ -18,9 +18,9 @@ void CursorInfoJob::execute()
         return;
     SymbolMap::const_iterator it = RTags::findCursorInfo(map, location);
     unsigned ciFlags = 0;
-    if (queryFlags() & QueryMessage::CursorInfoIgnoreTargets)
+    if (!(queryFlags() & QueryMessage::CursorInfoIncludeTargets))
         ciFlags |= CursorInfo::IgnoreTargets;
-    if (queryFlags() & QueryMessage::CursorInfoIgnoreReferences)
+    if (!(queryFlags() & QueryMessage::CursorInfoIncludeReferences))
         ciFlags |= CursorInfo::IgnoreReferences;
     if (it != map.end()) {
         write(it->first);
@@ -31,7 +31,7 @@ void CursorInfoJob::execute()
             --it;
     }
     ciFlags |= CursorInfo::IgnoreTargets|CursorInfo::IgnoreReferences;
-    if (it != map.begin() && !(queryFlags() & QueryMessage::CursorInfoIncludeParents)) {
+    if (it != map.begin() && queryFlags() & QueryMessage::CursorInfoIncludeParents) {
         const uint32_t fileId = location.fileId();
         const int offset = location.offset();
         while (true) {
@@ -39,7 +39,7 @@ void CursorInfoJob::execute()
             if (it->first.fileId() != fileId)
                 break;
             if (it->second.isDefinition() && RTags::isContainer(it->second.kind) && offset >= it->second.start && offset <= it->second.end) {
-                write("Container:");
+                write("====================");
                 write(it->first);
                 write(it->second, ciFlags);
             }
