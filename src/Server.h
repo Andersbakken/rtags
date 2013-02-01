@@ -38,7 +38,8 @@ public:
         Wall = 0x08,
         IgnorePrintfFixits = 0x10,
         UnlimitedErrors = 0x20,
-        SpellChecking = 0x40
+        SpellChecking = 0x40,
+        AllowMultipleBuildsForSameCompiler = 0x80
     };
     ThreadPool *threadPool() const { return mIndexerThreadPool; }
     void startQueryJob(const shared_ptr<Job> &job);

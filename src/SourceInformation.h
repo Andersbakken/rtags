@@ -29,22 +29,13 @@ public:
         return sourceFile.isEmpty();
     }
 
-    bool merge(const Path &compiler, const List<String> &args)
-    {
-        for (int i=0; i<builds.size(); ++i) {
-            if (builds.at(i).compiler == compiler && builds.at(i).args == args)
-                return false;
-        }
-        builds.append(Build(compiler, args));
-        return true;
-    }
     inline String toString() const
     {
         String out = String::format<64>("%s %s\n", sourceFile.constData(),
-                                              parsed ? ("Parsed: " +String::formatTime(parsed, String::DateTime)).constData() : "Not parsed");
+                                        parsed ? ("Parsed: " +String::formatTime(parsed, String::DateTime)).constData() : "Not parsed");
         for (int i=0; i<builds.size(); ++i) {
             out += String::format<256>("  %s %s\n", builds.at(i).compiler.constData(),
-                                          String::join(builds.at(i).args, ' ').constData());
+                                       String::join(builds.at(i).args, ' ').constData());
         }
         return out;
     }

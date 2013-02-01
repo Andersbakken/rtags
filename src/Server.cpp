@@ -733,7 +733,7 @@ void Server::processSourceFile(GccArguments args)
             mCurrentProject = project;
         }
 
-        List<String> arguments = args.clangArgs();
+        const List<String> arguments = args.clangArgs();
 
         for (int i=0; i<count; ++i) {
             SourceInformation sourceInformation = project->sourceInfo(Location::insertFile(inputFiles.at(i)));
@@ -742,8 +742,19 @@ void Server::processSourceFile(GccArguments args)
                 sourceInformation.sourceFile = inputFiles.at(i);
                 sourceInformation.builds.append(SourceInformation::Build(args.compiler(), arguments));
                 index = true;
-            } else if (sourceInformation.merge(args.compiler(), arguments)) {
-                index = true;
+            } else {
+                List<SourceInformation::Build> &builds = sourceInformation.builds;
+                for (int i=0; i<builds.size(); ++i) {
+                    if (builds.at(i).compiler == args.compiler()) {
+                        if (builds.at(i).args == arguments) {
+                            break;
+                        } else if (mOptions.options & AllowMultipleBuildsForSameCompiler) {
+                            builds[i].args = arguments;
+                            index = true;
+                            break;
+                        }
+                    }
+                }
             }
             if (index) {
                 project->index(sourceInformation, IndexerJob::Makefile);

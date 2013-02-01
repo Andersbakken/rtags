@@ -64,6 +64,7 @@ void usage(FILE *f)
             "  --socket-file|-n [arg]            Use this file for the server socket (default ~/.rdm)\n"
             "  --setenv|-e [arg]                 Set this environment variable (--setenv \"foobar=1\")\n"
             "  --completion-cache-size|-a [arg]  Cache this many translation units (default 0, must have at least 1 to use completion)\n"
+            "  --allow-multiple-builds|-m        Without this setting different flags for the same compiler will be merged for each source file\n"
             "  --thread-count|-j [arg]           Spawn this many threads for thread pool\n");
 }
 
@@ -213,6 +214,9 @@ int main(int argc, char** argv)
         case 'h':
             usage(stdout);
             return 0;
+        case 'm':
+            serverOpts.options |= Server::AllowMultipleBuildsForSameCompiler;
+            break;
         case 'V':
             serverOpts.options |= Server::Validate;
             break;
