@@ -124,7 +124,7 @@
 
 (defun rtags-executable-find (exe)
   (let ((result (if rtags-path (concat rtags-path "/bin/" exe) (executable-find exe))))
-    (if (file-exists-p result) result nil)))
+    (and result (file-exists-p result)))
 
 (defun rtags-call-rc (path &rest arguments)
   (apply #'rtags-call-rc-helper path nil t arguments))
