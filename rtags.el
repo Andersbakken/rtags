@@ -124,7 +124,9 @@
 
 (defun rtags-executable-find (exe)
   (let ((result (if rtags-path (concat rtags-path "/bin/" exe) (executable-find exe))))
-    (and result (file-exists-p result)))
+    (if (and result (file-exists-p result))
+        result)))
+
 
 (defun rtags-call-rc (path &rest arguments)
   (apply #'rtags-call-rc-helper path nil t arguments))
@@ -135,39 +137,40 @@
 (defun rtags-call-rc-helper (path unsaved-pos output &rest arguments)
   (save-excursion
     (let ((rc (rtags-executable-find "rc")))
-      (setq arguments (remove-if '(lambda (arg) (not arg))
-                                 arguments))
-      (if rc
-          (progn
-            (if rtags-autostart-rdm
-                (push (if rtags-rdm-log-enabled "--autostart-rdm=-L/tmp/rdm.log" "--autostart-rdm") arguments))
-            (if rtags-path-filter
-                (progn
-                  (push (format "--path-filter=%s" rtags-path-filter) arguments)
-                  (if rtags-path-filter-regex
-                      (push "-Z" arguments))))
-            (if rtags-range-filter
-                (push rtags-range-filter arguments))
+      (when rc
+        (setq arguments (remove-if '(lambda (arg) (not arg))
+                                   arguments))
+        (if rc
+            (progn
+              (if rtags-autostart-rdm
+                  (push (if rtags-rdm-log-enabled "--autostart-rdm=-L/tmp/rdm.log" "--autostart-rdm") arguments))
+              (if rtags-path-filter
+                  (progn
+                    (push (format "--path-filter=%s" rtags-path-filter) arguments)
+                    (if rtags-path-filter-regex
+                        (push "-Z" arguments))))
+              (if rtags-range-filter
+                  (push rtags-range-filter arguments))
 
-            (if rtags-timeout
-                (push (format "--timeout=%d" rtags-timeout) arguments))
-            (if path
-                (progn
-                  (if rtags-match-source-file-to-project
-                      (let ((mapped (if rtags-match-source-file-to-project (apply rtags-match-source-file-to-project (list path)))))
-                        (if (and mapped (length mapped)) (push (concat "--with-project=" mapped) arguments))))
-                  (push (concat "--with-project=" path) arguments)))
+              (if rtags-timeout
+                  (push (format "--timeout=%d" rtags-timeout) arguments))
+              (if path
+                  (progn
+                    (if rtags-match-source-file-to-project
+                        (let ((mapped (if rtags-match-source-file-to-project (apply rtags-match-source-file-to-project (list path)))))
+                          (if (and mapped (length mapped)) (push (concat "--with-project=" mapped) arguments))))
+                    (push (concat "--with-project=" path) arguments)))
 
-            (rtags-log (concat rc " " (combine-and-quote-strings arguments)))
-            (if unsaved-pos
-                (apply #'call-process-region (point-min) unsaved-pos rc nil (list output t) nil arguments)
-              (apply #'call-process rc nil (list output nil) nil arguments))
-            (goto-char (point-min))
-            (rtags-log (buffer-string))
-            (when (looking-at "Can't seem to connect to server")
-              (message "Can't seem to connect to server. Is rdm running?")
-              (erase-buffer))
-            (> (point-max) (point-min)))))))
+              (rtags-log (concat rc " " (combine-and-quote-strings arguments)))
+              (if unsaved-pos
+                  (apply #'call-process-region (point-min) unsaved-pos rc nil (list output t) nil arguments)
+                (apply #'call-process rc nil (list output nil) nil arguments))
+              (goto-char (point-min))
+              (rtags-log (buffer-string))
+              (when (looking-at "Can't seem to connect to server")
+                (message "Can't seem to connect to server. Is rdm running?")
+                (erase-buffer))
+              (> (point-max) (point-min))))))))
 
 (defun rtags-path-for-project (&optional buffer)
   (expand-file-name (if (buffer-file-name buffer)
