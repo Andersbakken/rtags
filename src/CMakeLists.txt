@@ -3,9 +3,16 @@ if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Release)
 endif()
 
-include(CheckSymbolExists)
-include(CheckCXXSymbolExists)
 include(${CMAKE_CURRENT_LIST_DIR}/ClangVersion.cmake)
+
+if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/rct/rct.cmake)
+  include(${CMAKE_CURRENT_SOURCE_DIR}/rct/rct.cmake)
+  set(rct_ROOT ${CMAKE_CURRENT_LIST_DIR}/rct)
+else()
+  set(rct_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/../3rdparty/rct_install/")
+  set(rct_LIBS ${rct_ROOT}/lib/librct.a)
+  set(rct_SOURCES "")
+endif()
 
 if(CMAKE_BUILD_TYPE MATCHES "Debug")
   add_definitions(-DRTAGS_DEBUG)
@@ -20,12 +27,13 @@ add_definitions("-DCLANG_BIN=\"${PROJECT_SOURCE_DIR}/3rdparty/clang_install/bin/
 add_definitions(-DOS_${CMAKE_SYSTEM_NAME})
 
 if(CMAKE_SYSTEM_NAME MATCHES "Linux")
-  set(system_LIBS rt)
+  set(system_LIBS rt crypto)
 elseif(CMAKE_SYSTEM_NAME MATCHES "FreeBSD")
 #  add_definitions("-DMAKE=\"gmake\"")
   add_definitions(-D__LONG_LONG_SUPPORTED)
-  set(system_LIBS pthread)
+  set(system_LIBS pthread crypto)
 elseif(CMAKE_SYSTEM_NAME MATCHES "Darwin")
+  set(system_LIBS crypto)
   find_program(SW_VER sw_vers)
   execute_process(COMMAND "${SW_VER}" -productVersion OUTPUT_VARIABLE osver)
   string(REPLACE "\n" "" osver "${osver}")
@@ -107,29 +115,20 @@ set(gr_SOURCES
     RTags.cpp
 )
 
-set(rct_ROOT $ENV{RCT_ROOT})
-if("${rct_ROOT}" STREQUAL "")
-  set(rct_ROOT "${CMAKE_CURRENT_BINARY_DIR}/../3rdparty/rct_install/")
-endif()
-
 include_directories(${rct_ROOT}/include)
-set(rct_LIBS ${rct_ROOT}/lib/librct.a)
-
-message("FUCKED ${rct_LIBS}")
-
 
 include_directories(${CMAKE_CURRENT_LIST_DIR} ${CORESERVICES_INCLUDE} ${COREFOUNDATION_INCLUDE})
-add_executable(rdm rdm.cpp ${rtags_shared_SOURCES} ${rdm_SOURCES})
+add_executable(rdm rdm.cpp ${rtags_shared_SOURCES} ${rdm_SOURCES} ${rct_SOURCES})
 target_link_libraries(rdm ${rct_LIBS} ${clang_LIBS} ${CORESERVICES_LIBRARY} ${COREFOUNDATION_LIBRARY} ${rct_LIBS} ${system_LIBS} ${rct_LIBS})
 
 include_directories(${CMAKE_CURRENT_LIST_DIR} ${CORESERVICES_INCLUDE} ${COREFOUNDATION_INCLUDE})
 add_executable(clangtest clangtest.c)
-target_link_libraries(clangtest ${clang_LIBS} ${CORESERVICES_LIBRARY} ${COREFOUNDATION_LIBRARY} ${rct_LIBS} ${system_LIBS} ${rct_LIBS})
+target_link_libraries(clangtest ${clang_LIBS} ${CORESERVICES_LIBRARY} ${COREFOUNDATION_LIBRARY} ${rct_LIBS} ${system_LIBS})
 
-add_executable(rc rc.cpp ${rtags_shared_SOURCES})
+add_executable(rc rc.cpp ${rtags_shared_SOURCES} ${rct_SOURCES})
 target_link_libraries(rc ${rct_LIBS} ${system_LIBS})
 
-add_executable(gr ${gr_SOURCES})
+add_executable(gr ${gr_SOURCES} ${rct_SOURCES})
 include_directories(${PROJECT_SOURCE_DIR}
   ${CORESERVICES_INCLUDE}
   ${COREFOUNDATION_INCLUDE}
