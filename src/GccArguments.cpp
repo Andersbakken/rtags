@@ -159,10 +159,14 @@ bool GccArguments::parse(String args, const Path &base)
 
     const int s = split.size();
     bool seenCompiler = false;
+    String arg;
     for (int i=0; i<s; ++i) {
-        const String &arg = split.at(i);
+        arg = split.at(i);
         if (arg.isEmpty())
             continue;
+        if ((arg.startsWith('\'') && arg.endsWith('\'')) ||
+            (arg.startsWith('"') && arg.endsWith('"')))
+            arg = arg.mid(1, arg.size() - 2);
         if (arg.startsWith('-')) {
             if (arg.startsWith("-x")) {
                 String a;
