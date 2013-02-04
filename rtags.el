@@ -370,7 +370,15 @@
           (t (message "RTags: No enum here") nil))))
 
 (defun rtags-current-location ()
-  (format "%s,%d" (buffer-file-name) (- (point) 1)))
+  (let ((prev (buffer-local-value enable-multibyte-characters (current-buffer)))
+        (loc (local-variable-p enable-multibyte-characters))
+        (pos))
+    (set-buffer-multibyte nil)
+    (setq pos (- (point) 1))
+    (set-buffer-multibyte prev)
+    (unless loc
+      (kill-local-variable enable-multibyte-characters))
+  (format "%s,%d" (buffer-file-name) pos)))
 
 (defun rtags-log (log)
   (if rtags-rc-log-enabled
