@@ -139,9 +139,9 @@ target_link_libraries(gr
 
 if(CMAKE_SYSTEM_NAME MATCHES "Darwin")
   add_custom_command(TARGET rdm POST_BUILD
-                     COMMAND ${CMAKE_CURRENT_LIST_DIR}/fix-dylib.sh ${PROJECT_SOURCE_DIR} rdm)
+      COMMAND ${CMAKE_CURRENT_LIST_DIR}/fix-dylib.sh ${PROJECT_SOURCE_DIR} ${PROJECT_SOURCE_DIR}/bin/rdm)
   add_custom_command(TARGET rc POST_BUILD
-                     COMMAND ${CMAKE_CURRENT_LIST_DIR}/fix-dylib.sh ${PROJECT_SOURCE_DIR} rc)
+      COMMAND ${CMAKE_CURRENT_LIST_DIR}/fix-dylib.sh ${PROJECT_SOURCE_DIR} ${PROJECT_SOURCE_DIR}/bin/rc)
   add_custom_command(TARGET gr POST_BUILD
-                     COMMAND ${CMAKE_CURRENT_LIST_DIR}/fix-dylib.sh ${PROJECT_SOURCE_DIR} gr)
+      COMMAND ${CMAKE_CURRENT_LIST_DIR}/fix-dylib.sh ${PROJECT_SOURCE_DIR} ${PROJECT_SOURCE_DIR}/bin/gr)
 endif()
