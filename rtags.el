@@ -369,16 +369,32 @@
                      (message "%s - %s - 0x%X" (rtags-current-symbol-name info) enumval (string-to-int enumval)))))))
           (t (message "RTags: No enum here") nil))))
 
-(defun rtags-current-location ()
+(defun rtags-offset (&optional p)
+  (save-excursion
+    (if p
+        (goto-char p)
+      (let ((prev (buffer-local-value enable-multibyte-characters (current-buffer)))
+            (loc (local-variable-p enable-multibyte-characters))
+            (pos))
+        (set-buffer-multibyte nil)
+        (setq pos (- (point) 1))
+        (set-buffer-multibyte prev)
+        (unless loc
+          (kill-local-variable enable-multibyte-characters))
+        pos))))
+
+(defun rtags-goto-offset (pos)
   (let ((prev (buffer-local-value enable-multibyte-characters (current-buffer)))
         (loc (local-variable-p enable-multibyte-characters))
         (pos))
     (set-buffer-multibyte nil)
-    (setq pos (- (point) 1))
+    (goto-char (+ pos 1))
     (set-buffer-multibyte prev)
     (unless loc
-      (kill-local-variable enable-multibyte-characters))
-  (format "%s,%d" (buffer-file-name) pos)))
+      (kill-local-variable enable-multibyte-characters))))
+
+(defun rtags-current-location ()
+  (format "%s,%d" (buffer-file-name) (rtags-offset)))
 
 (defun rtags-log (log)
   (if rtags-rc-log-enabled
@@ -428,7 +444,7 @@
                  (find-file-other-window (match-string 1 location))
                (find-file (match-string 1 location)))
              (run-hooks rtags-after-find-file-hook)
-             (goto-char (+ offset 1))
+             (rtags-goto-offset offset)
              t))
           (t
            (if (string-match "^ +\\(.*\\)$" location)
@@ -751,7 +767,7 @@ References to references will be treated as references to the referenced symbol"
     (save-excursion
       (if (looking-at "[0-9A-Za-z_~#]")
           (progn
-            (while (and (> (point) 1) (looking-at "[0-9A-Za-z_~#]"))
+            (while (and (> (point) (point-min)) (looking-at "[0-9A-Za-z_~#]"))
               (backward-char))
             (if (not (looking-at "[0-9A-Za-z_~#]"))
                 (forward-char))
@@ -769,8 +785,9 @@ References to references will be treated as references to the referenced symbol"
             (unless (equal replacewith "")
               (if destructor
                   (setq pos (- pos 1)))
+              (setq pos (rtags-offset pos))
               (with-temp-buffer
-                (rtags-call-rc nil "-e" "-O" "-N" "-r" (format "%s,%d" file (- pos 1)))
+                (rtags-call-rc nil "-e" "-O" "-N" "-r" (format "%s,%d" file pos))
                 ;; (message "Got renames %s" (buffer-string))
                 (dolist (line (split-string (buffer-string) "\n"))
                   (if (string-match "^\\(.*\\),\\([0-9]+\\)$" line)
@@ -787,7 +804,7 @@ References to references will be treated as references to the referenced symbol"
                     (set-buffer buf)
                     (when (run-hook-with-args-until-failure rtags-edit-hook)
                       (incf modifications)
-                      (goto-char (+ (cdr value) 1))
+                      (rtags-goto-offset (cdr value))
                       (if (looking-at "~")
                           (forward-char))
 
