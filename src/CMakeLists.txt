@@ -5,11 +5,13 @@ endif()
 
 include(${CMAKE_CURRENT_LIST_DIR}/ClangVersion.cmake)
 
-if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/rct/rct.cmake)
-  include(${CMAKE_CURRENT_SOURCE_DIR}/rct/rct.cmake)
-  set(rct_ROOT ${CMAKE_CURRENT_LIST_DIR}/rct)
+if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/rct/CMakeLists.txt)
+  add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/rct/)
+  include_directories(${CMAKE_CURRENT_SOURCE_DIR}/rct/src/ ${CMAKE_CURRENT_SOURCE_DIR}/rct/include)
+  set(rct_LIBS ${CMAKE_CURRENT_SOURCE_DIR}/rct/librct.a)
 else()
-  set(rct_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/../3rdparty/rct_install/")
+  set(rct_ROOT ${PROJECT_SOURCE_DIR}/3rdparty/rct_install/)
+  include_directories(${rct_ROOT}/include)
   set(rct_LIBS ${rct_ROOT}/lib/librct.a)
   set(rct_SOURCES "")
 endif()
@@ -61,10 +63,7 @@ endif()
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/bin)
 include(clang.cmake)
 
-include_directories(
-    ${PROJECT_SOURCE_DIR}/3rdparty/leveldb
-    ${PROJECT_SOURCE_DIR}/3rdparty/rct_install/include
-    )
+include_directories(${PROJECT_SOURCE_DIR}/3rdparty/leveldb)
 
 set(rtags_shared_SOURCES
     Client.cpp
@@ -115,13 +114,10 @@ set(gr_SOURCES
     RTags.cpp
 )
 
-include_directories(${rct_ROOT}/include)
-
 include_directories(${CMAKE_CURRENT_LIST_DIR} ${CORESERVICES_INCLUDE} ${COREFOUNDATION_INCLUDE})
 add_executable(rdm rdm.cpp ${rtags_shared_SOURCES} ${rdm_SOURCES} ${rct_SOURCES})
 target_link_libraries(rdm ${rct_LIBS} ${clang_LIBS} ${CORESERVICES_LIBRARY} ${COREFOUNDATION_LIBRARY} ${rct_LIBS} ${system_LIBS} ${rct_LIBS})
 
-include_directories(${CMAKE_CURRENT_LIST_DIR} ${CORESERVICES_INCLUDE} ${COREFOUNDATION_INCLUDE})
 add_executable(clangtest clangtest.c)
 target_link_libraries(clangtest ${clang_LIBS} ${CORESERVICES_LIBRARY} ${COREFOUNDATION_LIBRARY} ${rct_LIBS} ${system_LIBS})
 
@@ -129,7 +125,7 @@ add_executable(rc rc.cpp ${rtags_shared_SOURCES} ${rct_SOURCES})
 target_link_libraries(rc ${rct_LIBS} ${system_LIBS})
 
 add_executable(gr ${gr_SOURCES} ${rct_SOURCES})
-include_directories(${PROJECT_SOURCE_DIR}
+include_directories(
   ${CORESERVICES_INCLUDE}
   ${COREFOUNDATION_INCLUDE}
   ${PROJECT_SOURCE_DIR}/3rdparty/leveldb/include)
