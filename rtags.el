@@ -384,6 +384,7 @@
         pos))))
 
 (defun rtags-goto-offset (pos)
+  (interactive "NOffset: ")
   (let ((prev (buffer-local-value enable-multibyte-characters (current-buffer)))
         (loc (local-variable-p enable-multibyte-characters))
         (pos))
@@ -1211,6 +1212,7 @@ References to references will be treated as references to the referenced symbol"
 (defvar rtags-diagnostics-mode-map (make-sparse-keymap))
 (define-key rtags-diagnostics-mode-map (kbd "q") 'rtags-bury-or-delete)
 (define-key rtags-diagnostics-mode-map (kbd "c") 'rtags-clear-diagnostics)
+(define-key rtags-diagnostics-mode-map (kbd "f") 'rtags-apply-fixit)
 (set-keymap-parent rtags-diagnostics-mode-map compilation-mode-map)
 (define-derived-mode rtags-diagnostics-mode compilation-mode
   (setq mode-name "rtags-diagnostics")
@@ -1436,7 +1438,7 @@ References to references will be treated as references to the referenced symbol"
                       (insert buffertext)))
                   (save-excursion
                     (set-buffer (or tempbuf buffer))
-                    (goto-char (+ start 1)) ;; emacs offsets start at 1 for some reason
+                    (rtags-goto-offset start) ;; emacs offsets start at 1 for some reason
                     (delete-char (- end start)) ;; may be 0
                     (insert text)))))
           ;; (message (format "got something %d to %d => [%s]" start end text))))
@@ -1450,11 +1452,6 @@ References to references will be treated as references to the referenced symbol"
       )
     )
   )
-
-(defun rtags-goto-offset (offset)
-  (interactive "NOffset: ")
-  (if offset
-      (goto-char (+ 1 offset))))
 
 (defun rtags-current-symbol-name (&optional cursorinfo striptype/return)
   (unless cursorinfo
