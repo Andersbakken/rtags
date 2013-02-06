@@ -247,16 +247,7 @@ void Server::handleCompileMessage(CompileMessage *message, Connection *conn)
 
 void Server::handleCreateOutputMessage(CreateOutputMessage *message, Connection *conn)
 {
-    LogObject *obj = new LogObject(conn, message->level());
-    if (message->level() == CompilationError) {
-        shared_ptr<Project> project = currentProject();
-        if (project && project->isValid()) {
-            const String errors = project->diagnostics();
-            if (!errors.isEmpty()) {
-                obj->log(errors.constData(), errors.size());
-            }
-        }
-    }
+    new LogObject(conn, message->level());
 }
 
 void Server::handleQueryMessage(QueryMessage *message, Connection *conn)
@@ -661,7 +652,7 @@ void Server::preprocessFile(const QueryMessage &query, Connection *conn)
         conn->finish();
         return;
     }
-        
+
     Preprocessor* pre = new Preprocessor(c, query.buildIndex(), conn);
     pre->preprocess();
 }
@@ -726,7 +717,7 @@ void Server::processSourceFile(GccArguments args)
         for (int i=0; i<count; ++i) {
             Path &p = inputFiles[i];
             if (Filter::filter(p, mOptions.excludeFilters) == Filter::Filtered) {
-                error() << "Filtered out" << p;
+                warning() << "Filtered out" << p;
                 p.clear();
                 ++filtered;
             }

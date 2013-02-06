@@ -16,7 +16,6 @@ struct IndexData {
     String message;
     UsrMap usrMap;
     FixItMap fixIts;
-    DiagnosticsMap diagnostics;
 };
 
 typedef List<std::pair<CXIndex, CXTranslationUnit> > UnitList;
@@ -70,6 +69,7 @@ private:
     void handleInclude(const CXCursor &cursor, CXCursorKind kind, const Location &location);
     Location findByUSR(const CXCursor &cursor, CXCursorKind kind, const Location &loc) const;
     void addOverriddenCursors(const CXCursor& cursor, const Location& location, List<CursorInfo*>& infos);
+    void sendDiagnostics(const List<String> &diagnostics);
     void superclassTemplateMemberFunctionUgleHack(const CXCursor &cursor, CXCursorKind kind,
                                                   const Location &location, const CXCursor &ref,
                                                   const CXCursor &parent);

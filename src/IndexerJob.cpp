@@ -816,6 +816,7 @@ bool IndexerJob::diagnose(int build, int *errorCount)
         return false;
     }
 
+    List<String> compilationErrors;
     const unsigned diagnosticCount = clang_getNumDiagnostics(mUnits.at(build).second);
     for (unsigned i=0; i<diagnosticCount; ++i) {
         CXDiagnostic diagnostic = clang_getDiagnostic(mUnits.at(build).second, i);
@@ -845,13 +846,11 @@ bool IndexerJob::diagnose(int build, int *errorCount)
                                             CXDiagnostic_DisplayCategoryId|
                                             CXDiagnostic_DisplayCategoryName);
         const uint32_t fileId = createLocation(clang_getDiagnosticLocation(diagnostic), 0).fileId();
-        const String text = RTags::eatString(clang_formatDiagnostic(diagnostic, diagnosticOptions));
         if (mVisitedFiles.contains(fileId)) {
-            if (fileId)
-                mData->diagnostics[fileId].append(text);
+            const String text = RTags::eatString(clang_formatDiagnostic(diagnostic, diagnosticOptions));
             if (testLog(logLevel) || testLog(CompilationError)) {
                 log(logLevel, "%s: %s => %s", mSourceInformation.sourceFile.constData(), mClangLines.at(build).constData(), text.constData());
-                log(CompilationError, "%s", text.constData());
+                compilationErrors.append(text);
             }
 
             const unsigned fixItCount = clang_getDiagnosticNumFixIts(diagnostic);
@@ -874,18 +873,27 @@ bool IndexerJob::diagnose(int build, int *errorCount)
                 } else {
                     error("Fixit for %s: Replace %d-%d with [%s]", loc.path().constData(),
                           startOffset, endOffset, string.constData());
-                    log(CompilationError, "Fixit for %s: Replace %d-%d with [%s]", loc.path().constData(),
-                        startOffset, endOffset, string.constData());
+                    compilationErrors.append(String::format<128>("Fixit for %s: Replace %d-%d with [%s]", loc.path().constData(),
+                                                                 startOffset, endOffset, string.constData()));
                     mData->fixIts[loc.fileId()].insert(FixIt(startOffset, endOffset, string));
                 }
             }
         }
+
         clang_disposeDiagnostic(diagnostic);
     }
-    if (testLog(CompilationError)) {
-        log(CompilationError, "$");
-    }
+    if (testLog(CompilationError))
+        sendDiagnostics(compilationErrors);
     return !isAborted();
+}
+
+void IndexerJob::sendDiagnostics(const List<String> &diagnostics)
+{
+    for (Set<uint32_t>::const_iterator it = mVisitedFiles.begin(); it != mVisitedFiles.end(); ++it)
+        log(CompilationError, "file: %s", Location::path(*it).constData());
+
+    for (int i=0; i<diagnostics.size(); ++i)
+        logDirect(CompilationError, diagnostics.at(i));
 }
 
 bool IndexerJob::visit(int build)

@@ -552,11 +552,6 @@
   :group 'rtags
   :type 'number)
 
-(defcustom rtags-diagnostics-clear-buffer nil
-  "Whether the diagnostics buffer is cleared between each diagnostic block or not"
-  :group 'rtags
-  :type 'boolean)
-
 (defcustom rtags-cursorinfo-timer-enabled nil
   "Whether rtags cursorinfo is enabled"
   :group 'rtags
@@ -1148,24 +1143,51 @@ References to references will be treated as references to the referenced symbol"
                 flymake-err-info))
 )
 
-(defvar rtags-diagnostics-completed nil)
+(defun rtags-diagnostics-remove (pattern buf)
+  (with-current-buffer buf
+    (save-excursion
+      (setq buffer-read-only nil)
+      (goto-char (point-min))
+      (while (not (eobp))
+        ;; (message (buffer-substring (point-at-bol) (point-at-eol)))
+        (if (looking-at pattern)
+            (let ((to (+ (point-at-eol) 1)))
+              (if (> to (point-max))
+                  (setq to (point-max)))
+              (delete-char (- to (point))))
+          (next-line)))
+      (setq buffer-read-only t)))
+  )
 
+(defun rtags-diagnostics-append (line buf)
+  (with-current-buffer buf
+    (setq buffer-read-only nil)
+    (let (deactivate-mark)
+      (save-excursion
+        (goto-char (point-max))
+        (insert line)))
+    (setq buffer-read-only t)))
+
+(defvar rtags-pending-diagnostics nil)
 (defun rtags-diagnostics-process-filter (process output)
-  (when (and rtags-diagnostics-clear-buffer rtags-diagnostics-completed (> (length output) 0))
-    (setq rtags-diagnostics-completed nil)
-    (rtags-clear-diagnostics))
-
   (when (buffer-file-name)
-    (let ((dollar (string-match "\\$\s*$" output)))
-      ;; (message "%s %d" output dollar)
-      (if dollar
-          (setq output (substring output 0 dollar)))
-
-      (if (> (length output) 0)
-          (flymake-parse-output-and-residual output))
-
-      (when dollar
-        (setq rtags-diagnostics-completed t)
+    (when rtags-pending-diagnostics
+      (setq output (concat rtags-pending-diagnostics output))
+      (setq rtags-pending-diagnostics nil))
+    (let ((flymake nil)
+          (lines (split-string output "\n")))
+      (while lines
+        (let ((line (car lines)))
+          ;; (message "balls:[%s]" line)
+          (if (string-match "file: \\(.*\\)" line)
+              (rtags-diagnostics-remove (match-string 1 line) (process-buffer process))
+            (progn
+              ;; (message "getting stuff %s" line)
+              (rtags-diagnostics-append (concat line "\n") (process-buffer process))
+              (flymake-parse-output-and-residual line)
+              (setq flymake t))))
+        (setq lines (cdr lines)))
+      (when flymake
         (flymake-parse-residual)
         (setq flymake-err-info flymake-new-err-info)
         (setq flymake-new-err-info nil)
@@ -1173,14 +1195,6 @@ References to references will be treated as references to the referenced symbol"
         (flymake-delete-own-overlays)
         (rtags-fixup-flymake-err-info)
         (flymake-highlight-err-lines flymake-err-info))))
-
-  (with-current-buffer (process-buffer process)
-    (setq buffer-read-only nil)
-    (let (deactivate-mark)
-      (save-excursion
-        (goto-char (point-max))
-        (insert output)))
-    (setq buffer-read-only t))
   )
 
 (defvar rtags-diagnostics-mode-map (make-sparse-keymap))

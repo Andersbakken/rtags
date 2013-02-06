@@ -102,7 +102,6 @@ public:
     Set<uint32_t> dependencies(uint32_t fileId, DependencyMode mode) const;
     bool visitFile(uint32_t fileId);
     String fixIts(uint32_t fileId) const;
-    String diagnostics() const;
     int reindex(const Match &match);
     int remove(const Match &match);
     void onJobFinished(const shared_ptr<IndexerJob> &job);
@@ -118,7 +117,7 @@ private:
                           CXIndex &index, CXTranslationUnit &unit, List<String> *argsOut);
     void onFileModified(const Path &);
     void addDependencies(const DependencyMap &hash, Set<uint32_t> &newFiles);
-    void addDiagnostics(const DependencyMap &dependencies, const DiagnosticsMap &diagnostics, const FixItMap &fixIts);
+    void addFixIts(const DependencyMap &dependencies, const FixItMap &fixIts);
     int syncDB();
     void startDirtyJobs();
     void addCachedUnit(const Path &path, const List<String> &args, CXIndex index, CXTranslationUnit unit);
@@ -172,7 +171,6 @@ private:
     Set<Path> mWatchedPaths;
 
     FixItMap mFixIts;
-    DiagnosticsMap mDiagnostics;
 
     Set<Location> mPreviousErrors;
 

@@ -428,16 +428,6 @@ Set<uint32_t> Project::dependencies(uint32_t fileId, DependencyMode mode) const
     return ret;
 }
 
-String Project::diagnostics() const
-{
-    MutexLocker lock(&mMutex);
-    List<String> ret;
-    for (DiagnosticsMap::const_iterator it = mDiagnostics.begin(); it != mDiagnostics.end(); ++it) {
-        ret += it->second;
-    }
-    return String::join(ret, '\n');
-}
-
 int Project::reindex(const Match &match)
 {
     Set<uint32_t> dirty;
@@ -644,7 +634,7 @@ int Project::syncDB()
     for (Map<uint32_t, shared_ptr<IndexData> >::iterator it = mPendingData.begin(); it != mPendingData.end(); ++it) {
         const shared_ptr<IndexData> &data = it->second;
         addDependencies(data->dependencies, newFiles);
-        addDiagnostics(data->dependencies, data->diagnostics, data->fixIts);
+        addFixIts(data->dependencies, data->fixIts);
         writeCursors(data->symbols, symbols.data());
         writeUsr(data->usrMap, usr.data(), symbols.data());
         writeReferences(data->references, symbols.data());
@@ -765,7 +755,7 @@ void Project::addToCache(const Path &path, const List<String> &args, CXIndex ind
     addCachedUnit(path, args, index, unit);
 }
 
-void Project::addDiagnostics(const DependencyMap &visited, const DiagnosticsMap &diagnostics, const FixItMap &fixIts) // lock always held
+void Project::addFixIts(const DependencyMap &visited, const FixItMap &fixIts) // lock always held
 {
     for (DependencyMap::const_iterator it = visited.begin(); it != visited.end(); ++it) {
         const FixItMap::const_iterator fit = fixIts.find(it->first);
@@ -774,13 +764,6 @@ void Project::addDiagnostics(const DependencyMap &visited, const DiagnosticsMap 
         } else {
             mFixIts[it->first] = fit->second;
         }
-        const DiagnosticsMap::const_iterator dit = diagnostics.find(it->first);
-        if (dit == diagnostics.end()) {
-            mDiagnostics.erase(it->first);
-        } else {
-            mDiagnostics[it->first] = dit->second;
-        }
-
     }
 }
 
