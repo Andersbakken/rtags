@@ -63,8 +63,6 @@ endif()
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/bin)
 include(clang.cmake)
 
-include_directories(${PROJECT_SOURCE_DIR}/3rdparty/leveldb)
-
 set(rtags_shared_SOURCES
     Client.cpp
     CompileMessage.cpp
@@ -125,6 +123,7 @@ add_executable(rc rc.cpp ${rtags_shared_SOURCES} ${rct_SOURCES})
 target_link_libraries(rc ${rct_LIBS} ${system_LIBS})
 
 if (GRTAGS_ENABLED MATCHES "1")
+  include_directories(${PROJECT_SOURCE_DIR}/3rdparty/leveldb)
   add_executable(gr ${gr_SOURCES} ${rct_SOURCES})
   include_directories(
     ${CORESERVICES_INCLUDE}
