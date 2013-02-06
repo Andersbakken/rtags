@@ -846,39 +846,40 @@ bool IndexerJob::diagnose(int build, int *errorCount)
                                             CXDiagnostic_DisplayCategoryName);
         const uint32_t fileId = createLocation(clang_getDiagnosticLocation(diagnostic), 0).fileId();
         const String text = RTags::eatString(clang_formatDiagnostic(diagnostic, diagnosticOptions));
-        if (fileId)
-            mData->diagnostics[fileId].append(text);
-        if (testLog(logLevel) || testLog(CompilationError)) {
-            log(logLevel, "%s: %s => %s", mSourceInformation.sourceFile.constData(), mClangLines.at(build).constData(), text.constData());
-            log(CompilationError, "%s", text.constData());
-        }
+        if (mVisitedFiles.contains(fileId)) {
+            if (fileId)
+                mData->diagnostics[fileId].append(text);
+            if (testLog(logLevel) || testLog(CompilationError)) {
+                log(logLevel, "%s: %s => %s", mSourceInformation.sourceFile.constData(), mClangLines.at(build).constData(), text.constData());
+                log(CompilationError, "%s", text.constData());
+            }
 
-        const unsigned fixItCount = clang_getDiagnosticNumFixIts(diagnostic);
-        RegExp rx;
-        if (mFlags & IgnorePrintfFixits) {
-            rx = "^%[A-Za-z0-9]\\+$";
-        }
-        for (unsigned f=0; f<fixItCount; ++f) {
-            CXSourceRange range;
-            const String string = RTags::eatString(clang_getDiagnosticFixIt(diagnostic, f, &range));
-            unsigned startOffset;
-            CXFile file;
-            clang_getSpellingLocation(clang_getRangeStart(range), &file, 0, 0, &startOffset);
-            unsigned endOffset;
-            clang_getSpellingLocation(clang_getRangeEnd(range), 0, 0, 0, &endOffset);
-            const Location loc(file, startOffset);
-            if (mFlags & IgnorePrintfFixits && rx.indexIn(string) == 0) {
-                error("Ignored fixit for %s: Replace %d-%d with [%s]", loc.path().constData(),
-                      startOffset, endOffset, string.constData());
-            } else {
-                error("Fixit for %s: Replace %d-%d with [%s]", loc.path().constData(),
-                      startOffset, endOffset, string.constData());
-                log(CompilationError, "Fixit for %s: Replace %d-%d with [%s]", loc.path().constData(),
-                    startOffset, endOffset, string.constData());
-                mData->fixIts[loc.fileId()].insert(FixIt(startOffset, endOffset, string));
+            const unsigned fixItCount = clang_getDiagnosticNumFixIts(diagnostic);
+            RegExp rx;
+            if (mFlags & IgnorePrintfFixits) {
+                rx = "^%[A-Za-z0-9]\\+$";
+            }
+            for (unsigned f=0; f<fixItCount; ++f) {
+                CXSourceRange range;
+                const String string = RTags::eatString(clang_getDiagnosticFixIt(diagnostic, f, &range));
+                unsigned startOffset;
+                CXFile file;
+                clang_getSpellingLocation(clang_getRangeStart(range), &file, 0, 0, &startOffset);
+                unsigned endOffset;
+                clang_getSpellingLocation(clang_getRangeEnd(range), 0, 0, 0, &endOffset);
+                const Location loc(file, startOffset);
+                if (mFlags & IgnorePrintfFixits && rx.indexIn(string) == 0) {
+                    error("Ignored fixit for %s: Replace %d-%d with [%s]", loc.path().constData(),
+                          startOffset, endOffset, string.constData());
+                } else {
+                    error("Fixit for %s: Replace %d-%d with [%s]", loc.path().constData(),
+                          startOffset, endOffset, string.constData());
+                    log(CompilationError, "Fixit for %s: Replace %d-%d with [%s]", loc.path().constData(),
+                        startOffset, endOffset, string.constData());
+                    mData->fixIts[loc.fileId()].insert(FixIt(startOffset, endOffset, string));
+                }
             }
         }
-
         clang_disposeDiagnostic(diagnostic);
     }
     if (testLog(CompilationError)) {
@@ -957,7 +958,7 @@ void IndexerJob::execute()
 
         for (int i=0; i<buildCount; ++i) {
             int err = 0;
-            if (!diagnose(i, &err) || !visit(i))
+            if (!visit(i) || !diagnose(i, &err))
                 goto end;
             errorCount += err;
         }
