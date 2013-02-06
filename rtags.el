@@ -1178,8 +1178,8 @@ References to references will be treated as references to the referenced symbol"
         (setq buffer-read-only nil)
         (save-excursion
           (goto-char (point-max))
-          (insert line)))
-      (setq buffer-read-only t)
+          (insert line))
+        (setq buffer-read-only t))
       (if old (select-window old))
       )
     )
