@@ -702,8 +702,12 @@ bool IndexerJob::handleCursor(const CXCursor &cursor, CXCursorKind kind, const L
         info.end = end;
 
         if (kind == CXCursor_EnumConstantDecl) {
+#if CLANG_VERSION_MINOR > 1
             info.enumValue = clang_getEnumConstantDeclValue(cursor);
-        } else {
+#else
+            info.definition = clang_isCursorDefinition(cursor);
+#endif
+        } else{
             info.definition = clang_isCursorDefinition(cursor);
         }
         info.kind = kind;

@@ -94,7 +94,11 @@ struct Filter
             }
         }
         if (argumentCount != -1) {
+#if CLANG_VERSION_MINOR > 1
             return clang_Cursor_getNumArguments(cursor) == argumentCount;
+#else
+            return true;
+#endif
         }
         return matched;
     }

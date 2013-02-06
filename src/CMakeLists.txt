@@ -124,24 +124,28 @@ target_link_libraries(clangtest ${clang_LIBS} ${CORESERVICES_LIBRARY} ${COREFOUN
 add_executable(rc rc.cpp ${rtags_shared_SOURCES} ${rct_SOURCES})
 target_link_libraries(rc ${rct_LIBS} ${system_LIBS})
 
-add_executable(gr ${gr_SOURCES} ${rct_SOURCES})
-include_directories(
-  ${CORESERVICES_INCLUDE}
-  ${COREFOUNDATION_INCLUDE}
-  ${PROJECT_SOURCE_DIR}/3rdparty/leveldb/include)
-target_link_libraries(gr
-  ${clang_LIBS}
-  ${system_LIBS}
-  ${CORESERVICES_LIBRARY}
-  ${COREFOUNDATION_LIBRARY}
-  ${rct_LIBS}
-  ${PROJECT_SOURCE_DIR}/3rdparty/leveldb/libleveldb.a)
+if (GRTAGS_ENABLED MATCHES "1")
+  add_executable(gr ${gr_SOURCES} ${rct_SOURCES})
+  include_directories(
+    ${CORESERVICES_INCLUDE}
+    ${COREFOUNDATION_INCLUDE}
+    ${PROJECT_SOURCE_DIR}/3rdparty/leveldb/include)
+  target_link_libraries(gr
+    ${clang_LIBS}
+    ${system_LIBS}
+    ${CORESERVICES_LIBRARY}
+    ${COREFOUNDATION_LIBRARY}
+    ${rct_LIBS}
+    ${PROJECT_SOURCE_DIR}/3rdparty/leveldb/libleveldb.a)
+endif()
 
 if(CMAKE_SYSTEM_NAME MATCHES "Darwin")
   add_custom_command(TARGET rdm POST_BUILD
-      COMMAND ${CMAKE_CURRENT_LIST_DIR}/fix-dylib.sh ${PROJECT_SOURCE_DIR} ${PROJECT_SOURCE_DIR}/bin/rdm)
+    COMMAND ${CMAKE_CURRENT_LIST_DIR}/fix-dylib.sh ${PROJECT_SOURCE_DIR} ${PROJECT_SOURCE_DIR}/bin/rdm)
   add_custom_command(TARGET rc POST_BUILD
-      COMMAND ${CMAKE_CURRENT_LIST_DIR}/fix-dylib.sh ${PROJECT_SOURCE_DIR} ${PROJECT_SOURCE_DIR}/bin/rc)
-  add_custom_command(TARGET gr POST_BUILD
+    COMMAND ${CMAKE_CURRENT_LIST_DIR}/fix-dylib.sh ${PROJECT_SOURCE_DIR} ${PROJECT_SOURCE_DIR}/bin/rc)
+  if(GRTAGS_ENABLED MATCHES 1)
+    add_custom_command(TARGET gr POST_BUILD
       COMMAND ${CMAKE_CURRENT_LIST_DIR}/fix-dylib.sh ${PROJECT_SOURCE_DIR} ${PROJECT_SOURCE_DIR}/bin/gr)
+  endif()
 endif()
