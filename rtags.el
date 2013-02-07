@@ -784,7 +784,7 @@ References to references will be treated as references to the referenced symbol"
               (with-temp-buffer
                 (rtags-call-rc nil "-e" "-O" "-N" "-r" (format "%s,%d" file pos))
                 ;; (message "Got renames %s" (buffer-string))
-                (dolist (line (split-string (buffer-string) "\n"))
+                (dolist (line (split-string (buffer-string) "\n" t))
                   (if (string-match "^\\(.*\\),\\([0-9]+\\)$" line)
                       (add-to-list 'replacements (cons (match-string 1 line) (string-to-int (match-string 2 line))) t))))
               ;; (message "Got %d replacements" (length replacements))
@@ -935,6 +935,7 @@ References to references will be treated as references to the referenced symbol"
     (save-excursion
       ;;(message "prepared completion")
       (let* ((buffer (current-buffer))
+
              (path (rtags-path-for-project))
              (buffer-size (- (point-max) (point-min)))
              (line (line-number-at-pos))
@@ -964,34 +965,17 @@ References to references will be treated as references to the referenced symbol"
                (text (match-string 4 line)))
           (unless buf
             (setq buf (find-file-noselect file)))
-          (if (and buf
-                   (or (not (buffer-modified-p buf))
-                       (y-or-n-p (format "%s is modified. This is probably not a good idea. Are you sure? " file))))
-              (with-current-buffer buf
-                (save-excursion
-                  (rtags-goto-offset start)
-                  (delete-char (- end start)) ;; may be 0
-                  (insert text))))))))
-
-(defun rtags-stop-diagnostics ()
-  (interactive)
-  (if (and rtags-diagnostics-process (not (eq (process-status rtags-diagnostics-process) 'exit)))
-      (kill-process rtags-diagnostics-process))
-  (if (get-buffer "*RTags Diagnostics*")
-      (kill-buffer "*RTags Diagnostics*")))
-
-(defun rtags-clear-diagnostics ()
-  (interactive)
-  (when (get-buffer "*RTags Diagnostics*")
-    (let (deactivate-mark)
-      (with-current-buffer "*RTags Diagnostics*"
-        (setq buffer-read-only nil)
-        (goto-char (point-min))
-        (delete-char (- (point-max) (point-min)))
-        (setq buffer-read-only t))
-      )
-    )
-  )
+          (when (and buf
+                     (or (not (buffer-modified-p buf))
+                         (y-or-n-p (format "%s is modified. This is probably not a good idea. Are you sure? " file))))
+            (let ((win (get-buffer-window buf)))
+              (if win
+                  (select-window win)
+                (switch-to-buffer-other-window buf)))
+            (save-excursion
+              (rtags-goto-offset start)
+              (delete-char (- end start)) ;; may be 0
+              (insert text)))))))
 
 (defvar rtags-completion-signatures (make-hash-table :test 'equal))
 (defvar rtags-completion-buffer-pending nil)
@@ -1162,71 +1146,62 @@ References to references will be treated as references to the referenced symbol"
                 flymake-err-info))
 )
 
-(defun rtags-diagnostics-remove (file buf)
-  (let (deactivate-mark)
-    (let ((win (get-buffer-window buf))
-          (old (get-buffer-window)))
-      (if win (select-window win))
-      (with-current-buffer buf
-        (if (> (point-max) (point-min))
-            (save-excursion
-              (setq buffer-read-only nil)
-              (goto-char (point-min))
-              (while (not (eobp))
-                (if (or (looking-at file) (looking-at (concat "Fixit for " file)))
-                    (let ((to (+ (point-at-eol) 1)))
-                      (if (> to (point-max))
-                          (setq to (point-max)))
-                      (delete-char (- to (point))))
-                  (if (not (eobp))
-                      (next-line))))
-              (setq buffer-read-only t)))
-        )
-      (if old (select-window old))
-      )
-    )
-  )
+(defun rtags-stop-diagnostics ()
+  (interactive)
+  (if (and rtags-diagnostics-process (not (eq (process-status rtags-diagnostics-process) 'exit)))
+      (kill-process rtags-diagnostics-process))
+  (if (get-buffer "*RTags Diagnostics*")
+      (kill-buffer "*RTags Diagnostics*")))
 
-(defun rtags-diagnostics-append (line buf)
-  (let (deactivate-mark)
-    (let ((win (get-buffer-window buf))
-          (old (get-buffer-window)))
-      (if win (select-window win))
-      (with-current-buffer buf
+(defun rtags-clear-diagnostics ()
+  (interactive)
+  (when (get-buffer "*RTags Diagnostics*")
+    (let (deactivate-mark)
+      (with-current-buffer "*RTags Diagnostics*"
         (setq buffer-read-only nil)
-        (save-excursion
-          (goto-char (point-max))
-          (insert line))
+        (goto-char (point-min))
+        (delete-char (- (point-max) (point-min)))
         (setq buffer-read-only t))
-      (if old (select-window old))
       )
     )
   )
 
 (defvar rtags-pending-diagnostics nil)
 (defun rtags-diagnostics-process-filter (process output)
-  (when (buffer-file-name)
+  (let (errors)
     (when rtags-pending-diagnostics
       (setq output (concat rtags-pending-diagnostics output))
       (setq rtags-pending-diagnostics nil))
-    (let ((lines (split-string output "\n" t)))
-      (while lines
-        (let ((line (car lines)))
-          (if (string-match "file: \\(.*\\)" line)
-              (rtags-diagnostics-remove (concat (match-string 1 line) ":") (process-buffer process))
-            (progn
-              (rtags-diagnostics-append (concat line "\n") (process-buffer process))
-              ;; (flymake-parse-output-and-residual line)
-              )))
-        (setq lines (cdr lines))))
-    (flymake-parse-output-and-residual (with-current-buffer (process-buffer process) (buffer-string)))
-    ;; (flymake-parse-residual)
-    (setq flymake-err-info flymake-new-err-info)
-    (setq flymake-new-err-info nil)
-    (setq flymake-err-info (flymake-fix-line-numbers flymake-err-info 1 (flymake-count-lines)))
-    (flymake-delete-own-overlays)
-    (rtags-fixup-flymake-err-info)
-    (flymake-highlight-err-lines flymake-err-info)
+    (with-current-buffer (process-buffer process)
+      (setq buffer-read-only nil)
+      (let ((lines (split-string output "\n" t)))
+        (while lines
+          (let ((line (car lines)))
+            (cond ((string-match "file: \\(.*\\)" line)
+                   (goto-char (point-min)) (flush-lines (concat "\\(Fixit for \\)?" (match-string 1 line) ":")))
+                  (t
+                   (goto-char (point-max))
+                   (insert line "\n")))
+            (setq lines (cdr lines)))))
+      (setq buffer-read-only t)
+      (setq errors (buffer-string)))
+    (let ((windows (window-list))
+          (old (get-buffer-window)))
+      (while windows
+        (if (buffer-file-name (window-buffer (car windows)))
+            (with-current-buffer (window-buffer (car windows))
+              (flymake-parse-output-and-residual errors)
+              (flymake-parse-residual)
+              (setq flymake-err-info (if flymake-new-err-info (flymake-fix-line-numbers flymake-new-err-info 1 (flymake-count-lines))))
+              (setq flymake-new-err-info nil)
+              (select-window (car windows))
+              (flymake-delete-own-overlays)
+              (rtags-fixup-flymake-err-info)
+              (if flymake-err-info
+                  (flymake-highlight-err-lines flymake-err-info))))
+        (setq windows (cdr windows)))
+      (select-window old)
+      )
     )
   )
 
