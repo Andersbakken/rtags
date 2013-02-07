@@ -964,12 +964,14 @@ References to references will be treated as references to the referenced symbol"
                (text (match-string 4 line)))
           (unless buf
             (setq buf (find-file-noselect file)))
-          (when buf
-            (with-current-buffer buf
-              (save-excursion
-                (rtags-goto-offset start)
-                (delete-char (- end start)) ;; may be 0
-                (insert text))))))))
+          (if (and buf
+                   (or (not (buffer-modified-p buf))
+                       (y-or-n-p (format "%s is modified. This is probably not a good idea. Are you sure? " file))))
+              (with-current-buffer buf
+                (save-excursion
+                  (rtags-goto-offset start)
+                  (delete-char (- end start)) ;; may be 0
+                  (insert text))))))))
 
 (defun rtags-stop-diagnostics ()
   (interactive)
