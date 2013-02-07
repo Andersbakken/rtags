@@ -953,6 +953,23 @@ References to references will be treated as references to the referenced symbol"
   )
 
 (defvar rtags-diagnostics-process nil)
+(defun rtags-apply-fixit-at-point ()
+  (interactive)
+  (let ((line (buffer-substring (point-at-bol) (point-at-eol))))
+    (if (string-match "^Fixit for \\(.*\\): Replace \\([0-9]+\\)-\\([0-9]+\\) with \\[\\(.*\\)\\]$" line)
+        (let* ((file (match-string 1 line))
+               (buf (find-buffer-visiting file))
+               (start (string-to-int (match-string 2 line)))
+               (end (string-to-int (match-string 3 line)))
+               (text (match-string 4 line)))
+          (unless buf
+            (setq buf (find-file-noselect file)))
+          (when buf
+            (with-current-buffer buf
+              (save-excursion
+                (rtags-goto-offset start)
+                (delete-char (- end start)) ;; may be 0
+                (insert text))))))))
 
 (defun rtags-stop-diagnostics ()
   (interactive)
@@ -1214,7 +1231,7 @@ References to references will be treated as references to the referenced symbol"
 (defvar rtags-diagnostics-mode-map (make-sparse-keymap))
 (define-key rtags-diagnostics-mode-map (kbd "q") 'rtags-bury-or-delete)
 (define-key rtags-diagnostics-mode-map (kbd "c") 'rtags-clear-diagnostics)
-(define-key rtags-diagnostics-mode-map (kbd "f") 'rtags-apply-fixit)
+(define-key rtags-diagnostics-mode-map (kbd "f") 'rtags-apply-fixit-at-point)
 (set-keymap-parent rtags-diagnostics-mode-map compilation-mode-map)
 (define-derived-mode rtags-diagnostics-mode compilation-mode
   (setq mode-name "rtags-diagnostics")
@@ -1439,7 +1456,7 @@ References to references will be treated as references to the referenced symbol"
                       (insert buffertext)))
                   (save-excursion
                     (set-buffer (or tempbuf buffer))
-                    (rtags-goto-offset start) ;; emacs offsets start at 1 for some reason
+                    (rtags-goto-offset start)
                     (delete-char (- end start)) ;; may be 0
                     (insert text)))))
           ;; (message (format "got something %d to %d => [%s]" start end text))))
