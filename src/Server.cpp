@@ -36,6 +36,7 @@
 #include <clang-c/Index.h>
 #include <stdio.h>
 
+void *UnloadTimer = &UnloadTimer;
 Server *Server::sInstance = 0;
 Server::Server()
     : mServer(0), mVerbose(false), mJobId(0), mIndexerThreadPool(0), mQueryThreadPool(2),
@@ -198,6 +199,9 @@ void Server::onConnectionDestroyed(Connection *o)
 
 void Server::onNewMessage(Message *message, Connection *connection)
 {
+    if (mOptions.unloadTimer)
+        mUnloadTimer.start(shared_from_this(), mOptions.unloadTimer * 1000 * 60, SingleShot, UnloadTimer);
+        
     ClientMessage *m = static_cast<ClientMessage*>(message);
     const String raw = m->raw();
     if (!raw.isEmpty()) {
@@ -381,7 +385,6 @@ void Server::isIndexing(const QueryMessage &, Connection *conn)
             conn->finish();
             return;
         }
-
     }
     conn->write("0");
     conn->finish();
@@ -1182,4 +1185,17 @@ bool Server::saveFileIds() const
     out << size;
     fclose(f);
     return true;
+}
+
+void Server::timerEvent(TimerEvent *e)
+{
+    if (e->userData() == UnloadTimer) {
+        MutexLocker lock(&mMutex);
+        shared_ptr<Project> cur = mCurrentProject.lock();
+        for (ProjectsMap::const_iterator it = mProjects.begin(); it != mProjects.end(); ++it) {
+            if (it->second->isValid() && it->second != cur && !it->second->isIndexing()) {
+                it->second->unload();
+            }
+        }
+    }
 }

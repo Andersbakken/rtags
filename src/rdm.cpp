@@ -39,33 +39,34 @@ void usage(FILE *f)
 {
     fprintf(f,
             "rdm [...options...]\n"
-            "  --help|-h                         Display this page\n"
-            "  --include-path|-I [arg]           Add additional include path to clang\n"
-            "  --include|-i [arg]                Add additional include directive to clang\n"
-            "  --define|-D [arg]                 Add additional define directive to clang\n"
-            "  --log-file|-L [arg]               Log to this file\n"
-            "  --append|-A                       Append to log file\n"
-            "  --verbose|-v                      Change verbosity, multiple -v's are allowed\n"
-            "  --clear-project-caches|-C         Clear out project caches\n"
-            "  --enable-sighandler|-s            Enable signal handler to dump stack for crashes.\n"
-            "                                    Note that this might not play well with clang's signal handler\n"
-            "  --clang-includepath|-P            Use clang include paths by default\n"
-            "  --no-Wall|-W                      Don't use -Wall\n"
-            "  --Wlarge-by-value-copy|-r [arg]   Use -Wlarge-by-value-copy=[arg] when invoking clang\n"
-            "  --no-spell-checking|-l            Don't pass -fspell-checking\n"
-            "  --unlimited-error|-f              Pass -ferror-limit=0 to clang\n"
-            "  --silent|-S                       No logging to stdout\n"
-            "  --validate|-V                     Enable validation of database on startup and after indexing\n"
-            "  --exclude-filter|-x [arg]         Files to exclude from rdm, default \"" EXCLUDEFILTER_DEFAULT "\"\n"
-            "  --no-rc|-N                        Don't load any rc files\n"
-            "  --ignore-printf-fixits|-F         Disregard any clang fixit that looks like it's trying to fix format for printf and friends\n"
-            "  --rc-file|-c [arg]                Use this file instead of ~/.rdmrc\n"
-            "  --data-dir|-d [arg]               Use this directory to store persistent data (default ~/.rtags)\n"
-            "  --socket-file|-n [arg]            Use this file for the server socket (default ~/.rdm)\n"
-            "  --setenv|-e [arg]                 Set this environment variable (--setenv \"foobar=1\")\n"
-            "  --completion-cache-size|-a [arg]  Cache this many translation units (default 0, must have at least 1 to use completion)\n"
-            "  --allow-multiple-builds|-m        Without this setting different flags for the same compiler will be merged for each source file\n"
-            "  --thread-count|-j [arg]           Spawn this many threads for thread pool\n");
+            "  --help|-h                         Display this page.\n"
+            "  --include-path|-I [arg]           Add additional include path to clang.\n"
+            "  --include|-i [arg]                Add additional include directive to clang.\n"
+            "  --define|-D [arg]                 Add additional define directive to clang.\n"
+            "  --log-file|-L [arg]               Log to this file.\n"
+            "  --append|-A                       Append to log file.\n"
+            "  --verbose|-v                      Change verbosity, multiple -v's are allowed.\n"
+            "  --clear-project-caches|-C         Clear out project caches.\n"
+            "  --enable-sighandler|-s            Enable signal handler to dump stack for crashes..\n"
+            "                                    Note that this might not play well with clang's signal handler.\n"
+            "  --clang-includepath|-P            Use clang include paths by default.\n"
+            "  --no-Wall|-W                      Don't use -Wall.\n"
+            "  --Wlarge-by-value-copy|-r [arg]   Use -Wlarge-by-value-copy=[arg] when invoking clang.\n"
+            "  --no-spell-checking|-l            Don't pass -fspell-checking.\n"
+            "  --unlimited-error|-f              Pass -ferror-limit=0 to clang.\n"
+            "  --silent|-S                       No logging to stdout.\n"
+            "  --validate|-V                     Enable validation of database on startup and after indexing.\n"
+            "  --exclude-filter|-x [arg]         Files to exclude from rdm, default \"" EXCLUDEFILTER_DEFAULT "\".\n"
+            "  --no-rc|-N                        Don't load any rc files.\n"
+            "  --ignore-printf-fixits|-F         Disregard any clang fixit that looks like it's trying to fix format for printf and friends.\n"
+            "  --rc-file|-c [arg]                Use this file instead of ~/.rdmrc.\n"
+            "  --data-dir|-d [arg]               Use this directory to store persistent data (default ~/.rtags).\n"
+            "  --socket-file|-n [arg]            Use this file for the server socket (default ~/.rdm).\n"
+            "  --setenv|-e [arg]                 Set this environment variable (--setenv \"foobar=1\").\n"
+            "  --completion-cache-size|-a [arg]  Cache this many translation units (default 0, must have at least 1 to use completion).\n"
+            "  --allow-multiple-builds|-m        Without this setting different flags for the same compiler will be merged for each source file.\n"
+            "  --unload-timer|-u [arg]           Number of minutes to wait before unloading non-current projects (default 60, 0 to disable).\n"
+            "  --thread-count|-j [arg]           Spawn this many threads for thread pool.\n");
 }
 
 int main(int argc, char** argv)
@@ -99,6 +100,7 @@ int main(int argc, char** argv)
         { "no-spell-checking", no_argument, 0, 'l' },
         { "large-by-value-copy", required_argument, 0, 'r' },
         { "allow-multiple-builds", no_argument, 0, 'm' },
+        { "unload-timer", required_argument, 0, 'u' },
         { 0, 0, 0, 0 }
     };
     const String shortOptions = RTags::shortOptions(opts);
@@ -183,6 +185,7 @@ int main(int argc, char** argv)
     serverOpts.options = Server::Wall|Server::SpellChecking;
     serverOpts.excludeFilters = String(EXCLUDEFILTER_DEFAULT).split(';');
     serverOpts.dataDir = String::format<128>("%s.rtags", Path::home().constData());
+    serverOpts.unloadTimer = 60;
 
     const char *logFile = 0;
     unsigned logFlags = 0;
@@ -244,6 +247,14 @@ int main(int argc, char** argv)
         case 's':
             signal(SIGSEGV, sigSegvHandler);
             break;
+        case 'u': {
+            bool ok;
+            serverOpts.unloadTimer = static_cast<int>(String(optarg).toULongLong(&ok));
+            if (!ok) {
+                fprintf(stderr, "Invalid argument to --unload-timer %s\n", optarg);
+                return 1;
+            }
+            break; }
         case 'a':
             serverOpts.completionCacheSize = atoi(optarg);
             if (serverOpts.completionCacheSize < 1) {
@@ -307,11 +318,11 @@ int main(int argc, char** argv)
 
     EventLoop loop;
 
-    Server server;
+    shared_ptr<Server> server(new Server);
     ::socketFile = serverOpts.socketFile;
     if (!serverOpts.dataDir.endsWith('/'))
         serverOpts.dataDir.append('/');
-    if (!server.init(serverOpts)) {
+    if (!server->init(serverOpts)) {
         cleanupLogging();
         return 1;
     }

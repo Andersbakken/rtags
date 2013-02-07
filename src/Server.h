@@ -22,6 +22,7 @@ class CompileMessage;
 class LocalServer;
 class GccArguments;
 class Job;
+class TimerEvent;
 class Server : public EventReceiver
 {
 public:
@@ -45,11 +46,10 @@ public:
     void startQueryJob(const shared_ptr<Job> &job);
     void startIndexerJob(const shared_ptr<IndexerJob> &job);
     struct Options {
-        Options() : options(0), threadCount(0), completionCacheSize(0) {}
+        Options() : options(0), threadCount(0), completionCacheSize(0), unloadTimer(0) {}
         Path socketFile, dataDir;
         unsigned options;
-        int threadCount;
-        int completionCacheSize;
+        int threadCount, completionCacheSize, unloadTimer;
         List<String> defaultArguments, excludeFilters;
     };
     bool init(const Options &options);
@@ -62,6 +62,8 @@ private:
     bool updateProject(const List<String> &projects);
 
     bool isCompletionStream(Connection* conn) const;
+
+    void timerEvent(TimerEvent *event);
 
     void restoreFileIds();
     void clear();
@@ -150,6 +152,7 @@ private:
     Set<Path> mActiveCompletions;
 
     bool mRestoreProjects;
+    Timer mUnloadTimer;
 
     mutable Mutex mMutex;
 
