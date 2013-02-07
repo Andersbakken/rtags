@@ -37,10 +37,10 @@ enum CursorToStringFlags {
     AllCursorToStringFlags = IncludeUSR|IncludeRange
 };
 String cursorToString(CXCursor cursor, unsigned = DefaultCursorToStringFlags);
-SymbolMap::const_iterator findCursorInfo(const SymbolMap &map, const Location &location);
-inline CursorInfo findCursorInfo(const SymbolMap &map, const Location &location, Location *key)
+SymbolMap::const_iterator findCursorInfo(const SymbolMap &map, const Location &location, bool *moved);
+inline CursorInfo findCursorInfo(const SymbolMap &map, const Location &location, bool *moved, Location *key)
 {
-    const SymbolMap::const_iterator it = findCursorInfo(map, location);
+    const SymbolMap::const_iterator it = findCursorInfo(map, location, moved);
     if (it == map.end()) {
         if (key)
             key->clear();

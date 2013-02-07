@@ -84,8 +84,10 @@ String cursorToString(CXCursor cursor, unsigned flags)
 }
 
 
-SymbolMap::const_iterator findCursorInfo(const SymbolMap &map, const Location &location)
+SymbolMap::const_iterator findCursorInfo(const SymbolMap &map, const Location &location, bool *moved)
 {
+    if (moved)
+        *moved = false;
     if (map.isEmpty())
         return map.end();
 
@@ -104,8 +106,11 @@ SymbolMap::const_iterator findCursorInfo(const SymbolMap &map, const Location &l
     if (location.fileId() != it->first.fileId())
         return map.end();
     const int off = location.offset() - it->first.offset();
-    if (it->second.symbolLength > off)
+    if (it->second.symbolLength > off) {
+        if (moved)
+            *moved = !it->second.isValid(it->first);
         return it;
+    }
     return map.end();
 }
 

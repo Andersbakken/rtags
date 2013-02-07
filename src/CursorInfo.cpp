@@ -81,7 +81,7 @@ SymbolMap CursorInfo::targetInfos(const SymbolMap &map) const
 {
     SymbolMap ret;
     for (Set<Location>::const_iterator it = targets.begin(); it != targets.end(); ++it) {
-        SymbolMap::const_iterator found = RTags::findCursorInfo(map, *it);
+        SymbolMap::const_iterator found = RTags::findCursorInfo(map, *it, 0);
         if (found != map.end()) {
             ret[*it] = found->second;
         } else {
@@ -97,7 +97,7 @@ SymbolMap CursorInfo::referenceInfos(const SymbolMap &map) const
 {
     SymbolMap ret;
     for (Set<Location>::const_iterator it = references.begin(); it != references.end(); ++it) {
-        SymbolMap::const_iterator found = RTags::findCursorInfo(map, *it);
+        SymbolMap::const_iterator found = RTags::findCursorInfo(map, *it, 0);
         if (found != map.end()) {
             ret[*it] = found->second;
         }
@@ -111,7 +111,7 @@ SymbolMap CursorInfo::callers(const Location &loc, const SymbolMap &map) const
     const SymbolMap cursors = virtuals(loc, map);
     for (SymbolMap::const_iterator c = cursors.begin(); c != cursors.end(); ++c) {
         for (Set<Location>::const_iterator it = c->second.references.begin(); it != c->second.references.end(); ++it) {
-            const SymbolMap::const_iterator found = RTags::findCursorInfo(map, *it);
+            const SymbolMap::const_iterator found = RTags::findCursorInfo(map, *it, 0);
             if (found == map.end())
                 continue;
             if (RTags::isReference(found->second.kind)) { // is this always right?
@@ -222,4 +222,29 @@ SymbolMap CursorInfo::declarationAndDefinition(const Location &loc, const Symbol
     if (t.kind == kind)
         cursors[l] = t;
     return cursors;
+}
+
+bool CursorInfo::isValid(const Location &location) const
+{
+    const Path p = location.path();
+    bool ret = false;
+    FILE *f = fopen(p.constData(), "r");
+    if (f && fseek(f, location.offset(), SEEK_SET) != -1) {
+        int end = symbolName.indexOf('(');
+        if (end == -1)
+            end = symbolName.size();
+        int start = end;
+        while (start > 0 && RTags::isSymbol(symbolName.at(start - 1)))
+            --start;
+        
+        const int length = end - start;
+        char buf[1024];
+        if (length && length < static_cast<int>(sizeof(buf)) - 1 && fread(buf, std::min<int>(length, sizeof(buf) - 1), 1, f)) {
+            buf[length] = '\0';
+            ret = !memcmp(symbolName.constData() + start, buf, length);
+        }
+    }
+    if (f)
+        fclose(f);
+    return ret;
 }

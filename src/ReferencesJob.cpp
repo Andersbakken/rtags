@@ -34,7 +34,12 @@ void ReferencesJob::execute()
             const SymbolMap &map = scope.data();
             for (Set<Location>::const_iterator it = locations.begin(); it != locations.end(); ++it) {
                 Location pos;
-                CursorInfo cursorInfo = RTags::findCursorInfo(map, *it, &pos);
+                bool moved = false;
+                CursorInfo cursorInfo = RTags::findCursorInfo(map, *it, symbolName.isEmpty() ? &moved : 0, &pos);
+                if (moved) {
+                    write("Symbol has moved");
+                    return;
+                }
                 if (startLocation.isNull())
                     startLocation = pos;
                 if (RTags::isReference(cursorInfo.kind)) {

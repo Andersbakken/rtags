@@ -15,7 +15,13 @@ void FollowLocationJob::execute()
         return;
 
     const SymbolMap &map = scope.data();
-    const SymbolMap::const_iterator it = RTags::findCursorInfo(map, location);
+    bool moved;
+    const SymbolMap::const_iterator it = RTags::findCursorInfo(map, location, &moved);
+    if (moved) {
+        write("Symbol has moved");
+        return;
+    }
+    
     if (it == map.end())
         return;
 
@@ -44,8 +50,7 @@ void FollowLocationJob::execute()
                 }
             }
         }
-        if (!loc.isNull()) {
+        if (!loc.isNull())
             write(loc);
-        }
     }
 }
