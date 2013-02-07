@@ -9,41 +9,6 @@ ValidateDBJob::ValidateDBJob(const shared_ptr<Project> &proj, const Set<Location
 {
 }
 
-static inline bool isSymbol(char ch)
-{
-    return (isalnum(ch) || ch == '_');
-}
-
-static inline bool isOperator(char ch)
-{
-    switch (ch) {
-    case '!':
-    case '%':
-    case '&':
-    case '(':
-    case ')':
-    case '+':
-    case ',':
-    case '-':
-    case '.':
-    case '/':
-    case ':':
-    case '<':
-    case '=':
-    case '>':
-    case '?':
-    case '[':
-    case ']':
-    case '^':
-    case '|':
-    case '~':
-        return true;
-    default:
-        break;
-    }
-    return false;
-}
-
 void ValidateDBJob::execute()
 {
     int errors = 0;
@@ -87,9 +52,9 @@ void ValidateDBJob::execute()
                 }
                 int foundError = 0;
                 int offset = it->first.offset();
-                if (isOperator(lastFileContents[offset])) {
+                if (RTags::isOperator(lastFileContents[offset])) {
                     for (int i=1; i<it->second.symbolLength; ++i) {
-                        if (!isOperator(lastFileContents[i + offset])) {
+                        if (!RTags::isOperator(lastFileContents[i + offset])) {
                             error() << "Foumd something wrong" << it->second.kind << lastFileContents[i + offset];
                             foundError = 1;
                             break;
@@ -98,7 +63,7 @@ void ValidateDBJob::execute()
                 } else {
                     if (!strncmp(lastFileContents + offset, "operator", 8)) {
                         for (int i=8; i<it->second.symbolLength; ++i) {
-                            if (!isOperator(lastFileContents[i + offset])) {
+                            if (!RTags::isOperator(lastFileContents[i + offset])) {
                                 error() << "Foumd something wrong" << it->second.kind << lastFileContents[i + offset]
                                         << i << 2;
                                 foundError = 2;
@@ -107,7 +72,7 @@ void ValidateDBJob::execute()
                         }
                     } else {
                         for (int i=0; i<it->second.symbolLength; ++i) {
-                            if (!isSymbol(lastFileContents[i + offset])) {
+                            if (!RTags::isSymbol(lastFileContents[i + offset])) {
                                 error() << "Foumd something wrong" << it->second.kind << lastFileContents[i + offset] << i
                                         << 3;
                                 foundError = 3;
@@ -117,17 +82,17 @@ void ValidateDBJob::execute()
                     }
                 }
                 if (!foundError) {
-                    if (offset > 0 && isSymbol(lastFileContents[offset - 1])) {
+                    if (offset > 0 && RTags::isSymbol(lastFileContents[offset - 1])) {
                         foundError = 2;
-                    } else if (isSymbol(lastFileContents[offset + it->second.symbolLength])) {
+                    } else if (RTags::isSymbol(lastFileContents[offset + it->second.symbolLength])) {
                         foundError = 3;
                     }
                 }
                 if (foundError) {
                     error() << "Something is suspicious about" << foundError << it->first << it->second;
                     error() << String::format<64>("[%s]",
-                                                     String(lastFileContents + offset - 1,
-                                                               it->second.symbolLength + 2).constData());
+                                                  String(lastFileContents + offset - 1,
+                                                         it->second.symbolLength + 2).constData());
                 }
 
             }

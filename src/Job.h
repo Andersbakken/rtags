@@ -106,7 +106,7 @@ inline bool Job::filter(const String &value) const
 
     if (!mPathFilters && !mPathFiltersRegExp)
         return true;
-    
+
     assert(!mPathFilters != !mPathFiltersRegExp);
     String copy;
     const String &ref = (val != value.constData() ? copy : value);

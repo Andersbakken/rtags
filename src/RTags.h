@@ -63,6 +63,41 @@ inline bool addTo(Container &container, const Value &value)
     return container.size() != oldSize;
 }
 
+static inline bool isSymbol(char ch)
+{
+    return (isalnum(ch) || ch == '_');
+}
+
+static inline bool isOperator(char ch)
+{
+    switch (ch) {
+    case '!':
+    case '%':
+    case '&':
+    case '(':
+    case ')':
+    case '+':
+    case ',':
+    case '-':
+    case '.':
+    case '/':
+    case ':':
+    case '<':
+    case '=':
+    case '>':
+    case '?':
+    case '[':
+    case ']':
+    case '^':
+    case '|':
+    case '~':
+        return true;
+    default:
+        break;
+    }
+    return false;
+}
+
 inline bool encodePath(Path &path)
 {
     int size = path.size();

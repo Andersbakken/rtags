@@ -24,7 +24,7 @@ struct VerboseVisitorUserData {
 
 IndexerJob::IndexerJob(const shared_ptr<Project> &project, unsigned flags,
                        const SourceInformation &sourceInformation)
-    : Job(0, project), mSourceInformation(sourceInformation), mFileId(Location::insertFile(sourceInformation.sourceFile)),
+    : Job(0, project), mFlags(flags), mSourceInformation(sourceInformation), mFileId(Location::insertFile(sourceInformation.sourceFile)),
       mUnits(sourceInformation.builds.size()), mDump(false), mParseTime(0), mStarted(false)
 {
 }
