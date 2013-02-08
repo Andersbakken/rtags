@@ -117,10 +117,15 @@ add_executable(rdm rdm.cpp ${rtags_shared_SOURCES} ${rdm_SOURCES} ${rct_SOURCES}
 target_link_libraries(rdm ${rct_LIBS} ${clang_LIBS} ${CORESERVICES_LIBRARY} ${COREFOUNDATION_LIBRARY} ${rct_LIBS} ${system_LIBS} ${rct_LIBS})
 
 add_executable(clangtest clangtest.c)
-target_link_libraries(clangtest ${clang_LIBS} ${CORESERVICES_LIBRARY} ${COREFOUNDATION_LIBRARY} ${rct_LIBS} ${system_LIBS})
+target_link_libraries(clangtest ${clang_LIBS} ${CORESERVICES_LIBRARY} ${COREFOUNDATION_LIBRARY} ${system_LIBS})
 
 add_executable(rc rc.cpp ${rtags_shared_SOURCES} ${rct_SOURCES})
 target_link_libraries(rc ${rct_LIBS} ${system_LIBS})
+
+if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/rct/CMakeLists.txt)
+  add_dependencies(rc rct)
+  add_dependencies(rdm rct)
+endif()
 
 if (GRTAGS_ENABLED MATCHES "1")
   include_directories(${PROJECT_SOURCE_DIR}/3rdparty/leveldb)
@@ -136,6 +141,9 @@ if (GRTAGS_ENABLED MATCHES "1")
     ${COREFOUNDATION_LIBRARY}
     ${rct_LIBS}
     ${PROJECT_SOURCE_DIR}/3rdparty/leveldb/libleveldb.a)
+  if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/rct/CMakeLists.txt)
+    add_dependencies(gr rct)
+  endif()
 endif()
 
 if(CMAKE_SYSTEM_NAME MATCHES "Darwin")
