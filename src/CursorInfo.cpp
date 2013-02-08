@@ -230,9 +230,18 @@ bool CursorInfo::isValid(const Location &location) const
     bool ret = false;
     FILE *f = fopen(p.constData(), "r");
     if (f && fseek(f, location.offset(), SEEK_SET) != -1) {
-        int end = symbolName.indexOf('(');
-        if (end == -1)
-            end = symbolName.size();
+        int paren = symbolName.indexOf('(');
+        int bracket = symbolName.indexOf('<');
+        int end = symbolName.size();
+        if (paren != -1) {
+            if (bracket != -1) {
+                end = std::min(paren, bracket);
+            } else {
+                end = paren;
+            }
+        } else if (bracket != -1) {
+            end = bracket;
+        }
         int start = end;
         while (start > 0 && RTags::isSymbol(symbolName.at(start - 1)))
             --start;
