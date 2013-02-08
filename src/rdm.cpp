@@ -65,7 +65,7 @@ void usage(FILE *f)
             "  --setenv|-e [arg]                 Set this environment variable (--setenv \"foobar=1\").\n"
             "  --completion-cache-size|-a [arg]  Cache this many translation units (default 0, must have at least 1 to use completion).\n"
             "  --allow-multiple-builds|-m        Without this setting different flags for the same compiler will be merged for each source file.\n"
-            "  --unload-timer|-u [arg]           Number of minutes to wait before unloading non-current projects (default 60, 0 to disable).\n"
+            "  --unload-timer|-u [arg]           Number of minutes to wait before unloading non-current projects (disabled by default).\n"
             "  --thread-count|-j [arg]           Spawn this many threads for thread pool.\n");
 }
 
@@ -185,7 +185,7 @@ int main(int argc, char** argv)
     serverOpts.options = Server::Wall|Server::SpellChecking;
     serverOpts.excludeFilters = String(EXCLUDEFILTER_DEFAULT).split(';');
     serverOpts.dataDir = String::format<128>("%s.rtags", Path::home().constData());
-    serverOpts.unloadTimer = 60;
+    serverOpts.unloadTimer = 0;
 
     const char *logFile = 0;
     unsigned logFlags = 0;

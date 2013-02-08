@@ -22,14 +22,13 @@ public:
     List<String> clangArgs() const;
     List<Path> inputFiles() const;
     List<Path> unresolvedInputFiles() const;
-    Path outputFile() const;
     Path baseDirectory() const;
     Path compiler() const;
     Path projectRoot() const;
 private:
     List<String> mClangArgs;
     List<Path> mInputFiles, mUnresolvedInputFiles;
-    Path mOutputFile, mBase, mCompiler;
+    Path mBase, mCompiler;
     GccArguments::Lang mLang;
     friend class MakefileParser;
     friend class Server;

@@ -132,7 +132,7 @@ public:
         }
         Path path(data.constData(), colon);
         data.clear();
-        if (!path.resolve()) {
+        if (!path.resolve(Path::MakeAbsolute)) {
             error() << "Can't resolve" << path;
             return;
         }
@@ -561,7 +561,7 @@ bool RClient::parse(int &argc, char **argv)
                 fprintf(stderr, "Can't decode argument for --code-complete-at [%s]\n", optarg);
                 return false;
             }
-            const Path path = Path::resolved(caps[1].capture);
+            const Path path = Path::resolved(caps[1].capture, Path::MakeAbsolute);
             if (!path.exists()) {
                 fprintf(stderr, "Can't decode argument for --code-complete-at [%s]\n", optarg);
                 return false;
@@ -674,7 +674,7 @@ bool RClient::parse(int &argc, char **argv)
                 fprintf(stderr, "Can't parse -u [%s]\n", optarg);
                 return false;
             }
-            const Path path = Path::resolved(arg.left(colon));
+            const Path path = Path::resolved(arg.left(colon), Path::MakeAbsolute);
             if (!path.isFile()) {
                 fprintf(stderr, "Can't open [%s] for reading\n", arg.left(colon).nullTerminated());
                 return false;
@@ -779,8 +779,7 @@ bool RClient::parse(int &argc, char **argv)
             } else {
                 p = ".";
             }
-            if (!p.isAbsolute())
-                p.resolve();
+            p.resolve(Path::MakeAbsolute);
             if (!p.exists()) {
                 fprintf(stderr, "%s does not seem to exist\n", optarg);
                 return false;
@@ -800,16 +799,20 @@ bool RClient::parse(int &argc, char **argv)
         case IsIndexing:
             addQuery(QueryMessage::IsIndexing);
             break;
-        case Builds:
         case IsIndexed:
+        case Builds:
         case DumpFile:
         case Dependencies:
         case FixIts: {
-            Path p = Path::resolved(optarg);
+            Path p = optarg;
             if (!p.exists()) {
                 fprintf(stderr, "%s does not exist\n", optarg);
                 return false;
             }
+
+            if (!p.isAbsolute())
+                p.prepend(Path::pwd());
+
             if (p.isDir()) {
                 if (opt->option != IsIndexed) {
                     fprintf(stderr, "%s is not a file\n", optarg);
@@ -847,7 +850,7 @@ bool RClient::parse(int &argc, char **argv)
                     p.resize(caps.at(1).index - 1);
                 }
             }
-            p.resolve();
+            p.resolve(Path::MakeAbsolute);
             if (!p.isFile()) {
                 fprintf(stderr, "%s is not a file\n", optarg);
                 return false;
@@ -857,7 +860,7 @@ bool RClient::parse(int &argc, char **argv)
             break; }
 
         case RemoveFile: {
-            const Path p = Path::resolved(optarg);
+            const Path p = Path::resolved(optarg, Path::MakeAbsolute);
             if (!p.exists()) {
                 addQuery(QueryMessage::RemoveFile, p);
             } else {

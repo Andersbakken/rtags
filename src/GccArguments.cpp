@@ -14,7 +14,6 @@ void GccArguments::clear()
     mClangArgs.clear();
     mInputFiles.clear();
     mUnresolvedInputFiles.clear();
-    mOutputFile.clear();
     mBase.clear();
     mCompiler.clear();
     mLang = NoLang;
@@ -137,7 +136,7 @@ bool GccArguments::parse(String args, const Path &base)
 
     Path path;
     if (split.front() == "cd" && split.size() > 3 && split.at(2) == "&&") {
-        path = Path::resolved(split.at(1), base);
+        path = Path::resolved(split.at(1), Path::MakeAbsolute, base);
         split.erase(split.begin(), split.begin() + 3);
     } else {
         path = base;
@@ -179,12 +178,6 @@ bool GccArguments::parse(String args, const Path &base)
                     return false;
                 mClangArgs.append("-x");
                 mClangArgs.append(a);
-            } else if (arg.startsWith("-o")) {
-                if (!mOutputFile.isEmpty()) {
-                    warning("Already have an output file: %s (new %s)", mOutputFile.constData(), arg.constData());
-                }
-                const Path out = Path::resolved(arg, path);
-                mOutputFile = out;
             } else if (arg.startsWith("-D")) {
                 String a;
                 if (arg.size() == 2 && i + 1 < s) {
@@ -197,9 +190,9 @@ bool GccArguments::parse(String args, const Path &base)
                 Path inc;
                 bool ok = false;
                 if (arg.size() > 2) {
-                    inc = Path::resolved(arg.mid(2), path, &ok);
+                    inc = Path::resolved(arg.mid(2), Path::RealPath, path, &ok);
                 } else if (i + 1 < s) {
-                    inc = Path::resolved(split.at(++i), path, &ok);
+                    inc = Path::resolved(split.at(++i), Path::RealPath, path, &ok);
                 }
                 if (ok)
                     mClangArgs.append("-I" + inc);
@@ -210,12 +203,11 @@ bool GccArguments::parse(String args, const Path &base)
             if (!seenCompiler) {
                 seenCompiler = true;
             } else {
-                bool ok;
-                Path input = Path::resolved(arg, path, &ok);
+                Path input = Path::resolved(arg, Path::MakeAbsolute, path);
                 if (input.isSource()) {
-                    if (ok)
-                        mInputFiles.append(input);
-                    mUnresolvedInputFiles.append(arg);
+                    mUnresolvedInputFiles.append(input);
+                    input.resolve(Path::RealPath);
+                    mInputFiles.append(input);
                 }
             }
         }
@@ -237,7 +229,6 @@ bool GccArguments::parse(String args, const Path &base)
         return false;
     }
 
-    mOutputFile = Path::resolved(mOutputFile, path);
     static Map<Path, Path> resolvedFromPath;
     Path &compiler = resolvedFromPath[split.front()];
     if (compiler.isEmpty()) {
@@ -268,11 +259,6 @@ List<Path> GccArguments::inputFiles() const
 List<Path> GccArguments::unresolvedInputFiles() const
 {
     return mUnresolvedInputFiles;
-}
-
-Path GccArguments::outputFile() const
-{
-    return mOutputFile;
 }
 
 Path GccArguments::baseDirectory() const
