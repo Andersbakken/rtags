@@ -1246,7 +1246,7 @@ References to references will be treated as references to the referenced symbol"
   )
 
 (defun rtags-diagnostics (&optional restart)
-  (interactive)
+  (interactive "P")
   (if restart
       (rtags-stop-diagnostics))
   (rtags-init-diagnostics-buffer-and-process)
