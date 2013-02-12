@@ -77,7 +77,11 @@ bool Server::init(const Options &options)
         Path clangPath = Path::resolved(CLANG_INCLUDEPATH);
         clangPath.prepend("-I");
         mOptions.defaultArguments.append(clangPath);
+    } else {
+        mOptions.defaultArguments.append("-nobuiltininc");
+        mOptions.defaultArguments.append("-nostdinc++");
     }
+
     if (options.options & UnlimitedErrors)
         mOptions.defaultArguments.append("-ferror-limit=0");
     if (options.options & Wall)
@@ -201,7 +205,7 @@ void Server::onNewMessage(Message *message, Connection *connection)
 {
     if (mOptions.unloadTimer)
         mUnloadTimer.start(shared_from_this(), mOptions.unloadTimer * 1000 * 60, SingleShot, UnloadTimer);
-        
+
     ClientMessage *m = static_cast<ClientMessage*>(message);
     const String raw = m->raw();
     if (!raw.isEmpty()) {
