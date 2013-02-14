@@ -7,11 +7,9 @@
 #include "Connection.h"
 #include "CreateOutputMessage.h"
 #include "CursorInfoJob.h"
-#include <rct/Event.h>
-#include <rct/EventLoop.h>
+#include "DependenciesJob.h"
 #include "Filter.h"
 #include "FindFileJob.h"
-#include "DependenciesJob.h"
 #include "FindSymbolsJob.h"
 #include "FollowLocationJob.h"
 #include "IndexerJob.h"
@@ -19,21 +17,24 @@
 #include "ListSymbolsJob.h"
 #include "LocalClient.h"
 #include "LocalServer.h"
-#include <rct/Log.h>
 #include "LogObject.h"
 #include "Match.h"
 #include "Message.h"
 #include "Messages.h"
-#include <rct/Path.h>
 #include "Preprocessor.h"
-#include <rct/Process.h>
 #include "QueryMessage.h"
 #include "RTags.h"
 #include "ReferencesJob.h"
-#include <rct/RegExp.h>
-#include <rct/SHA256.h>
 #include "StatusJob.h"
 #include <clang-c/Index.h>
+#include <rct/Event.h>
+#include <rct/EventLoop.h>
+#include <rct/Log.h>
+#include <rct/Path.h>
+#include <rct/Process.h>
+#include <rct/Rct.h>
+#include <rct/RegExp.h>
+#include <rct/SHA256.h>
 #include <stdio.h>
 
 void *UnloadTimer = &UnloadTimer;
@@ -154,7 +155,7 @@ int Server::reloadProjects()
                 if (version == Server::DatabaseVersion) {
                     int fs;
                     in >> fs;
-                    if (fs != RTags::fileSize(f)) {
+                    if (fs != Rct::fileSize(f)) {
                         error("%s seems to be corrupted, refusing to restore. Removing.",
                               file.constData());
                         remove = true;
@@ -669,7 +670,7 @@ void Server::clearProjects()
     MutexLocker lock(&mMutex);
     for (ProjectsMap::const_iterator it = mProjects.begin(); it != mProjects.end(); ++it)
         it->second->unload();
-    RTags::removeDirectory(mOptions.dataDir);
+    Rct::removeDirectory(mOptions.dataDir);
     mCurrentProject.reset();
 }
 
@@ -1157,7 +1158,7 @@ void Server::restoreFileIds()
     if (version == DatabaseVersion) {
         int size;
         in >> size;
-        if (size != RTags::fileSize(f)) {
+        if (size != Rct::fileSize(f)) {
             error("Refusing to load corrupted file %s", p.constData());
         } else {
             in >> pathsToIds;

@@ -4,6 +4,7 @@
 #include "ResponseMessage.h"
 #include <rct/EventLoop.h>
 #include <rct/Log.h>
+#include <rct/Rct.h>
 #include <unistd.h>
 
 Client::Client(const Path &path, int timeout, unsigned flags, const List<String> &rdmArgs)
@@ -75,9 +76,9 @@ bool Client::connectToServer()
     mConnection = new Connection;
     if (!mConnection->connectToServer(mName, mConnectTimeout)) {
         if (mFlags & AutostartRdm) {
-            const Path cmd = RTags::applicationDirPath() + "/rdm";
+            const Path cmd = Rct::applicationDirPath() + "/rdm";
             warning("trying to start rdm %s [%s]", cmd.nullTerminated(), String::join(mRdmArgs, " ").constData());
-            if (RTags::startProcess(cmd, mRdmArgs)) {
+            if (Rct::startProcess(cmd, mRdmArgs)) {
                 warning("Started successfully");
                 for (int i=0; i<5; ++i) {
                     if (mConnection->connectToServer(mName, mConnectTimeout)) {

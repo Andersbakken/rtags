@@ -1,5 +1,6 @@
 #include "Location.h"
 #include "Server.h"
+#include <rct/Rct.h>
 #include "RTags.h"
 Map<Path, uint32_t> Location::sPathsToIds;
 Map<uint32_t, Path> Location::sIdsToPaths;
@@ -62,7 +63,7 @@ String Location::context(int *column) const
             }
         }
         char buf[1024] = { '\0' };
-        const int len = RTags::readLine(f, buf, 1023);
+        const int len = Rct::readLine(f, buf, 1023);
         fclose(f);
         if (column)
             *column = (off - o - 1);
@@ -86,7 +87,7 @@ bool Location::convertOffset(int &line, int &col) const
     int last = 0;
     uint32_t idx = 0;
     while (true) {
-        const int lineLen = RTags::readLine(f);
+        const int lineLen = Rct::readLine(f);
         if (lineLen == -1) {
             col = line = -1;
             fclose(f);

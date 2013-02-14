@@ -1,6 +1,7 @@
 #include "Project.h"
 #include "FileManager.h"
 #include "IndexerJob.h"
+#include <rct/Rct.h>
 #include <rct/Log.h>
 #include <rct/MemoryMonitor.h>
 #include <rct/Path.h>
@@ -65,7 +66,7 @@ bool Project::restore()
     {
         int fs;
         in >> fs;
-        if (fs != RTags::fileSize(f)) {
+        if (fs != Rct::fileSize(f)) {
             error("%s seems to be corrupted, refusing to restore %s",
                   p.constData(), mPath.constData());
             restoreError = true;

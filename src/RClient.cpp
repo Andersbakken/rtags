@@ -3,6 +3,7 @@
 #include "CompileMessage.h"
 #include "CompletionMessage.h"
 #include <rct/EventLoop.h>
+#include <rct/Rct.h>
 #include <rct/RegExp.h>
 
 class RCCommand
@@ -432,7 +433,7 @@ static void help(FILE *f, const char* app)
 
 bool RClient::parse(int &argc, char **argv)
 {
-    RTags::findApplicationDirPath(*argv);
+    Rct::findApplicationDirPath(*argv);
     mSocketFile = Path::home() + ".rdm";
 
     List<option> options;

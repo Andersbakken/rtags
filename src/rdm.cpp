@@ -2,7 +2,7 @@
 #include <rct/Log.h>
 #include "RTags.h"
 #include "Server.h"
-#include <rct/Thread.h>
+#include <rct/Rct.h>
 #include <rct/Thread.h>
 #include <rct/ThreadPool.h>
 #include <getopt.h>
@@ -71,7 +71,7 @@ void usage(FILE *f)
 
 int main(int argc, char** argv)
 {
-    RTags::findApplicationDirPath(*argv);
+    Rct::findApplicationDirPath(*argv);
 
     struct option opts[] = {
         { "help", no_argument, 0, 'h' },
@@ -103,7 +103,7 @@ int main(int argc, char** argv)
         { "unload-timer", required_argument, 0, 'u' },
         { 0, 0, 0, 0 }
     };
-    const String shortOptions = RTags::shortOptions(opts);
+    const String shortOptions = Rct::shortOptions(opts);
     if (getenv("RTAGS_DUMP_UNUSED")) {
         String unused;
         for (int i=0; i<26; ++i) {

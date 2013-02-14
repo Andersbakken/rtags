@@ -4,6 +4,7 @@
 #include <rct/Log.h>
 #include <getopt.h>
 #include <rct/Memory.h>
+#include <rct/Rct.h>
 #include <math.h>
 #include <leveldb/cache.h>
 #include <leveldb/write_batch.h>
@@ -47,7 +48,7 @@ bool GRTags::exec(int argc, char **argv)
     int logLevel = 0;
     Path dir;
     int c;
-    const String shortOptions = RTags::shortOptions(options);
+    const String shortOptions = Rct::shortOptions(options);
     String pattern;
     while ((c = getopt_long(argc, argv, shortOptions.constData(), options, 0)) != -1) {
         switch (c) {
@@ -292,7 +293,7 @@ bool GRTags::load(const Path &db)
     leveldb::Options options;
     if (mMode == Create) {
         // ### protect against removing wrong dir?
-        RTags::removeDirectory(db);
+        Rct::removeDirectory(db);
         options.create_if_missing = true;
     }
     const leveldb::Status status = leveldb::DB::Open(options, db.constData(), &mDB);
