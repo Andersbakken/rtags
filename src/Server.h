@@ -11,7 +11,6 @@
 #include "RTags.h"
 #include <rct/EventReceiver.h>
 #include "FileManager.h"
-#include "Project.h"
 #include "ScanJob.h"
 
 class Connection;
@@ -23,6 +22,8 @@ class LocalServer;
 class GccArguments;
 class Job;
 class TimerEvent;
+class Project;
+class IndexerJob;
 class Server : public EventReceiver
 {
 public:

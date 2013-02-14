@@ -2,6 +2,7 @@
 #include "RTags.h"
 #include "Server.h"
 #include "CursorInfo.h"
+#include "Project.h"
 
 FollowLocationJob::FollowLocationJob(const Location &loc, const QueryMessage &query, const shared_ptr<Project> &project)
     : Job(query, 0, project), location(loc)
@@ -15,13 +16,14 @@ void FollowLocationJob::execute()
         return;
 
     const SymbolMap &map = scope.data();
-    bool moved;
-    const SymbolMap::const_iterator it = RTags::findCursorInfo(map, location, &moved);
+    bool moved = false;
+    const SymbolMap::const_iterator it = RTags::findCursorInfo(map, location,
+                                                               queryFlags() & QueryMessage::ValidateSymbol ? &moved : 0);
     if (moved) {
         write("Symbol has moved");
         return;
     }
-    
+
     if (it == map.end())
         return;
 

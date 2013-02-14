@@ -9,6 +9,7 @@
 #include <rct/EventReceiver.h>
 #include <rct/ReadWriteLock.h>
 #include <rct/FileSystemWatcher.h>
+#include "IndexerJob.h"
 
 template <typename T>
 class Scope
@@ -87,13 +88,7 @@ public:
 
     bool isIndexed(uint32_t fileId) const;
 
-    enum Flag {
-        None = 0x0,
-        Validate = 0x1,
-        IgnorePrintfFixits = 0x2
-    };
-
-    void index(const SourceInformation &args, unsigned indexerJobFlags);
+    void index(const SourceInformation &args, IndexerJob::Type type);
     SourceInformation sourceInfo(uint32_t fileId) const;
     enum DependencyMode {
         DependsOnArg,
@@ -154,7 +149,7 @@ private:
     struct PendingJob
     {
         SourceInformation source;
-        unsigned jobFlags;
+        IndexerJob::Type type;
     };
     Map<uint32_t, PendingJob> mPendingJobs;
 
@@ -173,8 +168,6 @@ private:
     FixItMap mFixIts;
 
     Set<Location> mPreviousErrors;
-
-    unsigned mFlags;
 
     Map<uint32_t, shared_ptr<IndexData> > mPendingData;
     Set<uint32_t> mPendingDirtyFiles;

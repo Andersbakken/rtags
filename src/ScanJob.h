@@ -4,8 +4,7 @@
 #include <rct/ThreadPool.h>
 #include <rct/Path.h>
 #include <rct/SignalSlot.h>
-#include "Project.h"
-
+class Project;
 class ScanJob : public ThreadPool::Job
 {
 public:

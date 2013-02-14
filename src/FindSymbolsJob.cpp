@@ -2,6 +2,7 @@
 #include "Server.h"
 #include <rct/Log.h>
 #include "RTagsClang.h"
+#include "Project.h"
 
 static inline unsigned jobFlags(unsigned queryFlags)
 {

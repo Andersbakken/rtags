@@ -3,6 +3,7 @@
 #include "Server.h"
 #include "CursorInfo.h"
 #include "FileManager.h"
+#include "Project.h"
 
 DependenciesJob::DependenciesJob(const QueryMessage &query, const shared_ptr<Project> &project)
     : Job(query, WriteBuffered, project), mFileId(Location::fileId(query.query()))

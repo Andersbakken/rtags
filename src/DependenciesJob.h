@@ -2,9 +2,9 @@
 #define DependenciesJob_h
 
 #include "Job.h"
-#include "Project.h"
 #include "QueryMessage.h"
 
+class Project;
 class DependenciesJob : public Job
 {
 public:

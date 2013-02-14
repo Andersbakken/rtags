@@ -2,6 +2,7 @@
 #include "RTags.h"
 #include "Server.h"
 #include "CursorInfo.h"
+#include "Project.h"
 
 CursorInfoJob::CursorInfoJob(const Location &loc, const QueryMessage &query, const shared_ptr<Project> &proj)
     : Job(query, 0, proj), location(loc)
@@ -16,8 +17,8 @@ void CursorInfoJob::execute()
     const SymbolMap &map = scope.data();
     if (map.isEmpty())
         return;
-    bool moved;
-    SymbolMap::const_iterator it = RTags::findCursorInfo(map, location, &moved);
+    bool moved = false;
+    SymbolMap::const_iterator it = RTags::findCursorInfo(map, location, queryFlags() & QueryMessage::ValidateSymbol ? &moved : 0);
     if (moved) {
         write("Symbol has moved");
         return;

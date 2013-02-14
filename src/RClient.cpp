@@ -308,6 +308,7 @@ enum OptionType {
     Timeout,
     UnloadProject,
     UnsavedFile,
+    ValidateSymbol,
     Verbose,
     WaitForIndexing,
     WithProject
@@ -397,6 +398,7 @@ struct Option opts[] = {
     { CursorInfoIncludeTargets, "cursorinfo-include-targets", 0, no_argument, "Use to make --cursor-info include target cursors." },
     { CursorInfoIncludeReferences, "cursorinfo-include-references", 0, no_argument, "Use to make --cursor-info include reference cursors." },
     { WithProject, "with-project", 0, required_argument, "Like --project but pass as a flag." },
+    { ValidateSymbol, "validate-symbol", 0, no_argument, "Make sure symbol on file matches the expected cursor info before returning it." },
     { None, 0, 0, 0, 0 }
 };
 
@@ -529,6 +531,9 @@ bool RClient::parse(int &argc, char **argv)
             return 0;
         case SocketFile:
             mSocketFile = optarg;
+            break;
+        case ValidateSymbol:
+            mQueryFlags |= QueryMessage::ValidateSymbol;
             break;
         case FindVirtuals:
             mQueryFlags |= QueryMessage::FindVirtuals;

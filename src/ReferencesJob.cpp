@@ -2,6 +2,7 @@
 #include "Server.h"
 #include "RTags.h"
 #include "CursorInfo.h"
+#include "Project.h"
 
 ReferencesJob::ReferencesJob(const Location &loc, const QueryMessage &query, const shared_ptr<Project> &proj)
     : Job(query, 0, proj)
@@ -35,7 +36,9 @@ void ReferencesJob::execute()
             for (Set<Location>::const_iterator it = locations.begin(); it != locations.end(); ++it) {
                 Location pos;
                 bool moved = false;
-                CursorInfo cursorInfo = RTags::findCursorInfo(map, *it, symbolName.isEmpty() ? &moved : 0, &pos);
+                CursorInfo cursorInfo = RTags::findCursorInfo(map, *it,
+                                                              symbolName.isEmpty() && queryFlags() & QueryMessage::ValidateSymbol
+                                                              ? &moved : 0, &pos);
                 if (moved) {
                     write("Symbol has moved");
                     return;

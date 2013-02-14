@@ -3,6 +3,7 @@
 #include "RTags.h"
 #include "Server.h"
 #include <clang-c/Index.h>
+#include "Project.h"
 
 const char *StatusJob::delimiter = "*********************************";
 StatusJob::StatusJob(const QueryMessage &q, const shared_ptr<Project> &project)

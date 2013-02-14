@@ -22,6 +22,7 @@
 #include "Message.h"
 #include "Messages.h"
 #include "Preprocessor.h"
+#include "Project.h"
 #include "QueryMessage.h"
 #include "RTags.h"
 #include "ReferencesJob.h"

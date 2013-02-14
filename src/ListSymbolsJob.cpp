@@ -1,5 +1,6 @@
 #include "ListSymbolsJob.h"
 #include "Server.h"
+#include "Project.h"
 #include <rct/Log.h>
 #include "RTags.h"
 

@@ -23,12 +23,12 @@ typedef List<std::pair<CXIndex, CXTranslationUnit> > UnitList;
 class IndexerJob : public Job
 {
 public:
-    enum Flag {
-        Makefile = 0x1,
-        Dirty = 0x2,
-        IgnorePrintfFixits = 0x4
+    enum Type {
+        Makefile,
+        Dirty,
+        Dump
     };
-    IndexerJob(const shared_ptr<Project> &project, unsigned flags,
+    IndexerJob(const shared_ptr<Project> &project, Type type,
                const SourceInformation &sourceInformation);
     IndexerJob(const QueryMessage &msg,
                const shared_ptr<Project> &project,
@@ -41,7 +41,7 @@ public:
     const SourceInformation &sourceInformation() const { return mSourceInformation; }
     time_t parseTime() const { return mParseTime; }
     const Set<uint32_t> &visitedFiles() const { return mVisitedFiles; }
-    unsigned flags() const { return mFlags; }
+    Type flags() const { return mType; }
 private:
     bool parse(int build);
     bool visit(int build);
@@ -76,7 +76,7 @@ private:
     void nestedClassConstructorCallUgleHack(const CXCursor &parent, CursorInfo &info,
                                             CXCursorKind refKind, const Location &refLoc);
 
-    unsigned mFlags;
+    const Type mType;
 
     Set<uint32_t> mVisitedFiles;
     Set<uint32_t> mBlockedFiles;
@@ -91,8 +91,6 @@ private:
 
     StopWatch mTimer;
     shared_ptr<IndexData> mData;
-
-    bool mDump;
 
     time_t mParseTime;
     bool mStarted;

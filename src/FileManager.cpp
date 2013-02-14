@@ -2,6 +2,7 @@
 #include "ScanJob.h"
 #include "Server.h"
 #include "Filter.h"
+#include "Project.h"
 
 FileManager::FileManager()
 {

@@ -25,14 +25,9 @@ enum {
 };
 
 Project::Project(const Path &path)
-    : mPath(path), mJobCounter(0), mTimerRunning(false), mFlags(0),
+    : mPath(path), mJobCounter(0), mTimerRunning(false),
       mFirstCachedUnit(0), mLastCachedUnit(0), mUnitCacheSize(0)
 {
-    const unsigned options = Server::instance()->options().options;
-    if (options & Server::Validate)
-        mFlags |= Project::Validate;
-    if (options & Server::IgnorePrintfFixits)
-        mFlags |= Project::IgnorePrintfFixits;
     mWatcher.modified().connect(this, &Project::onFileModified);
     mWatcher.removed().connect(this, &Project::onFileModified);
 }
@@ -283,7 +278,7 @@ void Project::onJobFinished(const shared_ptr<IndexerJob> &job)
         }
     }
     if (startPending)
-        index(pending.source, pending.jobFlags);
+        index(pending.source, pending.type);
 }
 
 bool Project::save()
@@ -329,7 +324,7 @@ bool Project::save()
     return true;
 }
 
-void Project::index(const SourceInformation &c, unsigned indexerJobFlags)
+void Project::index(const SourceInformation &c, IndexerJob::Type type)
 {
     MutexLocker locker(&mMutex);
     static const char *fileFilter = getenv("RTAGS_FILE_FILTER");
@@ -341,7 +336,7 @@ void Project::index(const SourceInformation &c, unsigned indexerJobFlags)
     shared_ptr<IndexerJob> &job = mJobs[fileId];
     if (job) {
         if (job->abortIfStarted()) {
-            const PendingJob pending = { c, indexerJobFlags };
+            const PendingJob pending = { c, type };
             mPendingJobs[fileId] = pending;
         }
         return;
@@ -350,15 +345,12 @@ void Project::index(const SourceInformation &c, unsigned indexerJobFlags)
     mSources[fileId] = c;
     mPendingData.remove(fileId);
 
-    if (mFlags & IgnorePrintfFixits)
-        indexerJobFlags |= IndexerJob::IgnorePrintfFixits;
-
     // CXIndex index = 0;
     // CXTranslationUnit unit = 0;
     // initJobFromCache(c.sourceFile, c.args, index, unit, 0);
     // ### Needs to be changed a little.
     shared_ptr<Project> project = static_pointer_cast<Project>(shared_from_this());
-    job.reset(new IndexerJob(project, indexerJobFlags, c));
+    job.reset(new IndexerJob(project, type, c));
 
     ++mJobCounter;
     if (!mTimerRunning) {
@@ -651,6 +643,10 @@ int Project::syncDB()
         }
     }
     mPendingData.clear();
+    if (Server::instance()->options().options & Server::Validate) {
+        shared_ptr<ValidateDBJob> validate(new ValidateDBJob(static_pointer_cast<Project>(shared_from_this()), mPreviousErrors));
+        Server::instance()->startQueryJob(validate);
+    }
     return watch.elapsed();
 }
 

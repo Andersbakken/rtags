@@ -48,6 +48,8 @@ public:
         return changed;
     }
 
+    String displayName() const;
+
     int targetRank(const CursorInfo &target) const;
 
     bool isValid() const

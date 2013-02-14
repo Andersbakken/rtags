@@ -1,5 +1,6 @@
 #include "JSONJob.h"
 #include "CursorInfo.h"
+#include "Project.h"
 #include "RTags.h"
 #include "Server.h"
 

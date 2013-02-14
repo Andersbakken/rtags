@@ -2,6 +2,7 @@
 #include "CursorInfo.h"
 #include "RTags.h"
 #include "Server.h"
+#include "Project.h"
 #include <clang-c/Index.h>
 
 ValidateDBJob::ValidateDBJob(const shared_ptr<Project> &proj, const Set<Location> &prev)
@@ -22,6 +23,7 @@ void ValidateDBJob::execute()
         char *lastFileContents = 0;
         uint32_t lastFileId = -1;
         for (SymbolMap::const_iterator it = map.begin(); it != map.end(); ++it) {
+            ++total;
             if (isAborted()) {
                 delete []lastFileContents;
                 return;
@@ -55,7 +57,7 @@ void ValidateDBJob::execute()
                 if (RTags::isOperator(lastFileContents[offset])) {
                     for (int i=1; i<it->second.symbolLength; ++i) {
                         if (!RTags::isOperator(lastFileContents[i + offset])) {
-                            error() << "Foumd something wrong" << it->second.kind << lastFileContents[i + offset];
+                            error() << "Found something wrong" << it->second.kind << lastFileContents[i + offset];
                             foundError = 1;
                             break;
                         }
@@ -64,7 +66,7 @@ void ValidateDBJob::execute()
                     if (!strncmp(lastFileContents + offset, "operator", 8)) {
                         for (int i=8; i<it->second.symbolLength; ++i) {
                             if (!RTags::isOperator(lastFileContents[i + offset])) {
-                                error() << "Foumd something wrong" << it->second.kind << lastFileContents[i + offset]
+                                error() << "Found something wrong" << it->second.kind << lastFileContents[i + offset]
                                         << i << 2;
                                 foundError = 2;
                                 break;
@@ -73,7 +75,7 @@ void ValidateDBJob::execute()
                     } else {
                         for (int i=0; i<it->second.symbolLength; ++i) {
                             if (!RTags::isSymbol(lastFileContents[i + offset])) {
-                                error() << "Foumd something wrong" << it->second.kind << lastFileContents[i + offset] << i
+                                error() << "Found something wrong" << it->second.kind << lastFileContents[i + offset] << i
                                         << 3;
                                 foundError = 3;
                                 break;
@@ -86,6 +88,8 @@ void ValidateDBJob::execute()
                         foundError = 2;
                     } else if (RTags::isSymbol(lastFileContents[offset + it->second.symbolLength])) {
                         foundError = 3;
+                    } else if (!ci.isValid(it->first)) {
+                        foundError = 4;
                     }
                 }
                 if (foundError) {

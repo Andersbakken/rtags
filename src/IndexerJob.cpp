@@ -3,6 +3,7 @@
 #include <rct/MemoryMonitor.h>
 #include "Server.h"
 #include <rct/EventLoop.h>
+#include "Project.h"
 #include "RTagsClang.h"
 
 struct DumpUserData {
@@ -22,17 +23,18 @@ struct VerboseVisitorUserData {
     IndexerJob *job;
 };
 
-IndexerJob::IndexerJob(const shared_ptr<Project> &project, unsigned flags,
+IndexerJob::IndexerJob(const shared_ptr<Project> &project, Type type,
                        const SourceInformation &sourceInformation)
-    : Job(0, project), mFlags(flags), mSourceInformation(sourceInformation), mFileId(Location::insertFile(sourceInformation.sourceFile)),
-      mUnits(sourceInformation.builds.size()), mDump(false), mParseTime(0), mStarted(false)
+    : Job(0, project), mType(type), mSourceInformation(sourceInformation),
+      mFileId(Location::insertFile(sourceInformation.sourceFile)),
+      mUnits(sourceInformation.builds.size()), mParseTime(0), mStarted(false)
 {
 }
 IndexerJob::IndexerJob(const QueryMessage &msg, const shared_ptr<Project> &project,
                        const SourceInformation &sourceInformation)
-    : Job(msg, WriteUnfiltered|WriteBuffered, project), mFlags(0), mSourceInformation(sourceInformation),
+    : Job(msg, WriteUnfiltered|WriteBuffered, project), mType(Dump), mSourceInformation(sourceInformation),
       mFileId(Location::insertFile(sourceInformation.sourceFile)), mUnits(sourceInformation.builds.size()),
-      mDump(true), mParseTime(0), mStarted(false)
+      mParseTime(0), mStarted(false)
 {
 }
 
@@ -818,6 +820,8 @@ bool IndexerJob::diagnose(int build, int *errorCount)
 
     List<String> compilationErrors;
     const unsigned diagnosticCount = clang_getNumDiagnostics(mUnits.at(build).second);
+    const unsigned options = Server::instance()->options().options;
+
     for (unsigned i=0; i<diagnosticCount; ++i) {
         CXDiagnostic diagnostic = clang_getDiagnostic(mUnits.at(build).second, i);
         int logLevel = INT_MAX;
@@ -855,7 +859,7 @@ bool IndexerJob::diagnose(int build, int *errorCount)
 
             const unsigned fixItCount = clang_getDiagnosticNumFixIts(diagnostic);
             RegExp rx;
-            if (mFlags & IgnorePrintfFixits) {
+            if (options & Server::IgnorePrintfFixits) {
                 rx = "^%[A-Za-z0-9]\\+$";
             }
             for (unsigned f=0; f<fixItCount; ++f) {
@@ -867,7 +871,7 @@ bool IndexerJob::diagnose(int build, int *errorCount)
                 unsigned endOffset;
                 clang_getSpellingLocation(clang_getRangeEnd(range), 0, 0, 0, &endOffset);
                 const Location loc(file, startOffset);
-                if (mFlags & IgnorePrintfFixits && rx.indexIn(string) == 0) {
+                if (options & Server::IgnorePrintfFixits && rx.indexIn(string) == 0) {
                     error("Ignored fixit for %s: Replace %d-%d with [%s]", loc.path().constData(),
                           startOffset, endOffset, string.constData());
                 } else {
@@ -935,7 +939,7 @@ void IndexerJob::execute()
         return;
     mTimer.start();
     mData.reset(new IndexData);
-    if (mDump) {
+    if (mType == Dump) {
         assert(id() != -1);
         if (shared_ptr<Project> p = project()) {
             for (int i=0; i<mSourceInformation.builds.size(); ++i) {
@@ -987,7 +991,7 @@ void IndexerJob::execute()
             } else if (mData->dependencies.size()) {
                 mData->message += String::format<16>("(%d deps)", mData->dependencies.size());
             }
-            if (mFlags & Dirty)
+            if (mType == Dirty)
                 mData->message += " (dirty)";
         }
   end:
