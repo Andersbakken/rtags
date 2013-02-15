@@ -613,7 +613,7 @@ return t if rtags is allowed to modify this file"
   :group 'rtags
   :type 'boolean)
 
-(defcustom rtags-autostart-rdm t
+(defcustom rtags-autostart-rdm nil
   "If autostart rdm"
   :group 'rtags
   :type 'boolean)
