@@ -612,14 +612,10 @@ void Server::status(const QueryMessage &query, Connection *conn)
 void Server::isIndexed(const QueryMessage &query, Connection *conn)
 {
     bool ok = false;
-    const Path path = query.query();
-    shared_ptr<Project> project = updateProjectForLocation(path);
+    const Match match = query.match();
+    shared_ptr<Project> project = updateProjectForLocation(match);
     if (project) {
-        if (path.isFile()) {
-            ok = project->isIndexed(Location::fileId(path));
-        } else if (path.isDir()) {
-            ok = project->fileManager->contains(path);
-        }
+        ok = project->match(match);
     }
 
     conn->write(ok ? "1" : "0");

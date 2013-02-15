@@ -221,7 +221,7 @@ bool Project::match(const Match &p)
 {
     Path paths[] = { p.pattern(), p.pattern() };
     paths[1].resolve();
-    const int count = paths[1] != paths[0] ? 2 : 1;
+    const int count = paths[1].compare(paths[0]) ? 2 : 1;
     Scope<const FilesMap&> files = lockFilesForRead();
     for (int i=0; i<count; ++i) {
         const Path &path = paths[i];
