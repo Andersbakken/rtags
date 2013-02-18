@@ -32,7 +32,7 @@ IndexerJob::IndexerJob(const shared_ptr<Project> &project, Type type,
 }
 IndexerJob::IndexerJob(const QueryMessage &msg, const shared_ptr<Project> &project,
                        const SourceInformation &sourceInformation)
-    : Job(msg, WriteUnfiltered|WriteBuffered, project), mType(Dump), mSourceInformation(sourceInformation),
+    : Job(msg, WriteUnfiltered|WriteBuffered|QuietJob, project), mType(Dump), mSourceInformation(sourceInformation),
       mFileId(Location::insertFile(sourceInformation.sourceFile)), mUnits(sourceInformation.builds.size()),
       mParseTime(0), mStarted(false)
 {

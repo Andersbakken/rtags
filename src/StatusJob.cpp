@@ -7,7 +7,7 @@
 
 const char *StatusJob::delimiter = "*********************************";
 StatusJob::StatusJob(const QueryMessage &q, const shared_ptr<Project> &project)
-    : Job(q, WriteUnfiltered, project), query(q.query())
+    : Job(q, WriteUnfiltered|QuietJob, project), query(q.query())
 {
 }
 

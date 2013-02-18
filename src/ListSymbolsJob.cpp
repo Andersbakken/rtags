@@ -5,8 +5,8 @@
 #include "RTags.h"
 
 enum {
-    DefaultFlags = Job::WriteUnfiltered|Job::WriteBuffered,
-    ElispFlags = DefaultFlags|Job::QuoteOutput
+    DefaultFlags = Job::WriteUnfiltered|Job::WriteBuffered|Job::QuietJob,
+    ElispFlags = DefaultFlags|Job::QuoteOutput|Job::QuietJob
 };
 
 

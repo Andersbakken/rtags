@@ -6,7 +6,7 @@
 #include "Project.h"
 
 DependenciesJob::DependenciesJob(const QueryMessage &query, const shared_ptr<Project> &project)
-    : Job(query, WriteBuffered, project), mFileId(Location::fileId(query.query()))
+    : Job(query, WriteBuffered|QuietJob, project), mFileId(Location::fileId(query.query()))
 {
 }
 

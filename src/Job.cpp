@@ -81,6 +81,9 @@ bool Job::writeRaw(const String &out, unsigned flags)
         }
     }
 
+    if (!(mJobFlags & QuietJob))
+        error("=> %s", out.constData());
+
     if (mConnection) {
         if (!mConnection->write(out)) {
             abort();

@@ -6,7 +6,7 @@
 #include "Project.h"
 
 FindFileJob::FindFileJob(const QueryMessage &query, const shared_ptr<Project> &project)
-    : Job(query, WriteBuffered, project)
+    : Job(query, WriteBuffered|QuietJob, project)
 {
     const String q = query.query();
     if (!q.isEmpty()) {

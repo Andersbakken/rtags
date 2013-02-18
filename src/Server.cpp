@@ -618,6 +618,7 @@ void Server::isIndexed(const QueryMessage &query, Connection *conn)
         ok = project->match(match);
     }
 
+    error("=> %d", ok);
     conn->write(ok ? "1" : "0");
     conn->finish();
 }
@@ -627,8 +628,10 @@ void Server::hasFileManager(const QueryMessage &query, Connection *conn)
     const Path path = query.query();
     shared_ptr<Project> project = updateProjectForLocation(path);
     if (project && project->fileManager && (project->fileManager->contains(path) || project->match(path))) {
+        error("=> 1");
         conn->write("1");
     } else {
+        error("=> 0");
         conn->write("0");
     }
     conn->finish();

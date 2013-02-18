@@ -21,7 +21,8 @@ public:
         None = 0x0,
         WriteUnfiltered = 0x1,
         QuoteOutput = 0x2,
-        WriteBuffered = 0x4
+        WriteBuffered = 0x4,
+        QuietJob = 0x8
     };
     enum { Priority = 10 };
     Job(const QueryMessage &msg, unsigned jobFlags, const shared_ptr<Project> &proj);
