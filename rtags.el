@@ -461,7 +461,9 @@
 (defun rtags-find-symbols-by-name-internal (p references filter)
   (rtags-save-location)
   (rtags-setup-filters filter)
-  (let ((tagname (rtags-current-symbol))
+  (let ((tagname (if mark-active
+                     (buffer-substring (region-beginning) (region-end))
+                   (rtags-current-symbol)))
         (switch (if references "-R" "-F"))
         (path (rtags-path-for-project))
         prompt
