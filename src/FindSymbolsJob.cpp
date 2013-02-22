@@ -35,12 +35,18 @@ void FindSymbolsJob::execute()
         const SymbolMap &map = scope.data();
         List<RTags::SortedCursor> sorted;
         sorted.reserve(out.size());
+        const bool declarationOnly = queryFlags() & QueryMessage::DeclarationOnly;
         for (Map<Location, bool>::const_iterator it = out.begin(); it != out.end(); ++it) {
             RTags::SortedCursor node(it->first);
             if (it->second) {
                 const SymbolMap::const_iterator found = map.find(it->first);
                 if (found != map.end()) {
                     node.isDefinition = found->second.isDefinition();
+                    if (declarationOnly && node.isDefinition) {
+                        CursorInfo decl = found->second.bestTarget(map);
+                        if (!decl.isNull())
+                            continue;
+                    }
                     node.kind = found->second.kind;
                 }
             }

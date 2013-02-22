@@ -87,6 +87,7 @@ void ReferencesJob::execute()
                         }
                     }
                 } else if (queryFlags() & QueryMessage::FindVirtuals) {
+                    // ### not supporting DeclarationOnly
                     const SymbolMap virtuals = cursorInfo.virtuals(pos, map);
                     List<RTags::SortedCursor> sortedCursors;
                     sortedCursors.reserve(virtuals.size());

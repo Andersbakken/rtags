@@ -262,6 +262,7 @@ enum OptionType {
     CursorInfoIncludeParents,
     CursorInfoIncludeReferences,
     CursorInfoIncludeTargets,
+    DeclarationOnly,
     DeleteProject,
     Dependencies,
     Diagnostics,
@@ -399,6 +400,7 @@ struct Option opts[] = {
     { CursorInfoIncludeReferences, "cursorinfo-include-references", 0, no_argument, "Use to make --cursor-info include reference cursors." },
     { WithProject, "with-project", 0, required_argument, "Like --project but pass as a flag." },
     { ValidateSymbol, "validate-symbol", 0, no_argument, "Make sure symbol on file matches the expected cursor info before returning it." },
+    { DeclarationOnly, "declaration-only", 0, no_argument, "Filter out definitions (unless inline).", },
     { None, 0, 0, 0, 0 }
 };
 
@@ -531,6 +533,9 @@ bool RClient::parse(int &argc, char **argv)
             return 0;
         case SocketFile:
             mSocketFile = optarg;
+            break;
+        case DeclarationOnly:
+            mQueryFlags |= QueryMessage::DeclarationOnly;
             break;
         case ValidateSymbol:
             mQueryFlags |= QueryMessage::ValidateSymbol;

@@ -34,6 +34,7 @@ void FollowLocationJob::execute()
     Location loc;
     CursorInfo target = cursorInfo.bestTarget(map, &loc);
     if (!loc.isNull()) {
+        // ### not respecting DeclarationOnly
         if (cursorInfo.kind != target.kind) {
             if (!target.isDefinition() && !target.targets.isEmpty()) {
                 switch (target.kind) {
@@ -52,7 +53,16 @@ void FollowLocationJob::execute()
                 }
             }
         }
-        if (!loc.isNull())
+        if (!loc.isNull()) {
+            if (queryFlags() & QueryMessage::DeclarationOnly && target.isDefinition()) {
+                Location declLoc;
+                const CursorInfo decl = target.bestTarget(map, &declLoc);
+                if (!declLoc.isNull()) {
+                    write(declLoc);
+                    return;
+                }
+            }
             write(loc);
+        }
     }
 }
