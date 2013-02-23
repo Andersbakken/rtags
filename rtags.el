@@ -636,7 +636,7 @@ return t if rtags is allowed to modify this file"
   (define-key map (kbd "C-x r ]") (function rtags-location-stack-forward))
   (define-key map (kbd "C-x r C") (function rtags-switch-to-completion-buffer))
   (define-key map (kbd "C-x r D") (function rtags-diagnostics))
-  (define-key map (kbd "C-x r G") (function rtags-clear-diagnostics))
+  (define-key map (kbd "C-x r G") (function rtags-guess-function-at-point))
   (define-key map (kbd "C-x r p") (function rtags-set-current-project))
   (define-key map (kbd "C-x r P") (function rtags-print-dependencies))
   (define-key map (kbd "C-x r e") (function rtags-reparse-file))
@@ -756,6 +756,29 @@ References to references will be treated as references to the referenced symbol"
       (rtags-handle-completion-buffer))
     )
   )
+
+(defun rtags-guess-function-at-point()
+  (interactive)
+  (rtags-save-location)
+  (let ((token (rtags-current-token)))
+    (if token
+        (with-current-buffer (rtags-get-buffer)
+          (rtags-call-rc nil "--declaration-only" "-l" "-F" token)
+          (rtags-reset-bookmarks)
+          (rtags-handle-completion-buffer t))))
+  )
+
+(defun rtags-current-token ()
+  (save-excursion
+    (when (looking-at "[0-9A-Za-z_~#]")
+      (while (and (> (point) (point-min)) (looking-at "[0-9A-Za-z_~#]"))
+        (backward-char))
+      (if (not (looking-at "[0-9A-Za-z_~#]"))
+          (forward-char))
+      (let ((start (point)))
+        (while (looking-at "[0-9A-Za-z_~#]")
+          (forward-char))
+        (buffer-substring start (point))))))
 
 (defun rtags-rename-symbol ()
   (interactive)
@@ -1273,7 +1296,7 @@ References to references will be treated as references to the referenced symbol"
   )
 
 
-(defun rtags-handle-completion-buffer ()
+(defun rtags-handle-completion-buffer (&optional noautojump)
   (setq rtags-last-request-not-indexed nil)
   (rtags-reset-bookmarks)
   (cond ((= (point-min) (point-max))
@@ -1292,7 +1315,7 @@ References to references will be treated as references to the referenced symbol"
              (goto-char (point-min))
              (rtags-start-mode t)
              (setq rtags-no-otherbuffer nil)
-             (if rtags-jump-to-first-match
+             (if (and rtags-jump-to-first-match (not noautojump))
                  (rtags-select-other-buffer))))
         )
   )
@@ -1557,6 +1580,13 @@ References to references will be treated as references to the referenced symbol"
 (defun rtags-show-target-in-other-buffer ()
   (interactive)
   (let ((target (rtags-target)))
+    (unless target
+      (let ((token (rtags-current-token)))
+        (if token
+            (with-temp-buffer
+              (rtags-call-rc nil "--declaration-only" "-N" "-F" token)
+              (if (= (count-lines (point-min) (point-max)) 1)
+                  (setq target (buffer-substring (point) (- (point-max) 1))))))))
     (if target
         (let ((other-buffer-content (rtags-remove-other-buffer))
               (win (selected-window))
