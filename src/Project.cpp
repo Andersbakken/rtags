@@ -259,10 +259,10 @@ void Project::onJobFinished(const shared_ptr<IndexerJob> &job)
             const int idx = mJobCounter - mJobs.size();
 
             mSources[fileId].parsed = job->parseTime();
-            error("[%3d%%] %d/%d %s %s. %d mb mem.",
+            error("[%3d%%] %d/%d %s %s.",
                   static_cast<int>(round((double(idx) / double(mJobCounter)) * 100.0)), idx, mJobCounter,
                   String::formatTime(time(0), String::Time).constData(),
-                  data->message.constData(), int((MemoryMonitor::usage() / (1024 * 1024))));
+                  data->message.constData());
 
             if (mJobs.isEmpty() && job->flags() & IndexerJob::Dirty) {
                 const int syncTime = syncDB();
