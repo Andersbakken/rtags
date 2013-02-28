@@ -110,7 +110,7 @@ set(gr_SOURCES
 
 include_directories(${CMAKE_CURRENT_LIST_DIR} ${CORESERVICES_INCLUDE} ${COREFOUNDATION_INCLUDE})
 add_executable(rdm rdm.cpp ${rtags_shared_SOURCES} ${rdm_SOURCES} ${rct_SOURCES})
-target_link_libraries(rdm ${rct_LIBS} ${clang_LIBS} ${CORESERVICES_LIBRARY} ${COREFOUNDATION_LIBRARY} ${rct_LIBS} ${system_LIBS} ${rct_LIBS})
+target_link_libraries(rdm ${rct_LIBS} ${clang_LIBS} ${CORESERVICES_LIBRARY} ${COREFOUNDATION_LIBRARY} ${rct_LIBS} ${system_LIBS})
 
 add_executable(clangtest clangtest.c)
 target_link_libraries(clangtest ${clang_LIBS} ${CORESERVICES_LIBRARY} ${COREFOUNDATION_LIBRARY} ${system_LIBS})
@@ -136,6 +136,7 @@ if (GRTAGS_ENABLED MATCHES "1")
     ${CORESERVICES_LIBRARY}
     ${COREFOUNDATION_LIBRARY}
     ${rct_LIBS}
+    ${system_LIBS}
     ${PROJECT_SOURCE_DIR}/3rdparty/leveldb/libleveldb.a)
   if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/rct/CMakeLists.txt)
     add_dependencies(gr rct)
