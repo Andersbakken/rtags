@@ -18,5 +18,8 @@ for i in `which -a "\`basename $0\`"`; do
         [ "$RTAGS_RMAKE" ] && exit 0
         "$i" "$@"
         exit $?
+    else
+        dir=`dirname $i`
+        PATH=`echo $PATH | perl -i -e "while (<>) {s,$dir/?:,,; print;}"`
     fi
 done
