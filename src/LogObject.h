@@ -3,7 +3,7 @@
 
 #include <rct/String.h>
 #include <rct/Log.h>
-#include "Connection.h"
+#include <rct/Connection.h>
 #include <rct/EventReceiver.h>
 
 class LogObject : public LogOutput, public EventReceiver

@@ -1,7 +1,7 @@
 #ifndef ClientMessage_h
 #define ClientMessage_h
 
-#include "Message.h"
+#include <rct/Message.h>
 #include <rct/String.h>
 
 class ClientMessage : public Message

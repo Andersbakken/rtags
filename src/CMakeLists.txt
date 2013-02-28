@@ -68,10 +68,8 @@ set(rtags_shared_SOURCES
     CompileMessage.cpp
     CompilerManager.cpp
     CompletionMessage.cpp
-    Connection.cpp
     CreateOutputMessage.cpp
     Location.cpp
-    Messages.cpp
     QueryMessage.cpp
     RClient.cpp
     RTags.cpp

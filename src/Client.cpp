@@ -1,9 +1,9 @@
 #include "Client.h"
-#include "Messages.h"
-#include "Connection.h"
-#include "ResponseMessage.h"
+#include "Server.h"
+#include <rct/Connection.h>
 #include <rct/EventLoop.h>
 #include <rct/Log.h>
+#include <rct/Messages.h>
 #include <rct/Rct.h>
 #include <unistd.h>
 
@@ -13,9 +13,8 @@ Client::Client(const Path &path, int timeout, unsigned flags, const List<String>
     if ((mFlags & (RestartRdm|AutostartRdm)) == (RestartRdm|AutostartRdm)) {
         mFlags &= ~AutostartRdm; // this is implied and would upset connectToServer
     }
-    if (!(mFlags & DontInitMessages)) {
-        Messages::init();
-    }
+
+    Client::initMessages();
     const bool ret = connectToServer();
     if (mFlags & RestartRdm) {
         if (ret) {
@@ -28,6 +27,14 @@ Client::Client(const Path &path, int timeout, unsigned flags, const List<String>
         connectToServer();
         mFlags &= ~AutostartRdm;
     }
+}
+
+void Client::initMessages()
+{
+    Messages::registerMessage<QueryMessage>();
+    Messages::registerMessage<CompletionMessage>();
+    Messages::registerMessage<CompileMessage>();
+    Messages::registerMessage<CreateOutputMessage>();
 }
 
 bool Client::sendMessage(int id, const String &msg, SendFlag flag)
@@ -99,3 +106,4 @@ bool Client::connectToServer()
     }
     return true;
 }
+

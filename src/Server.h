@@ -1,17 +1,21 @@
 #ifndef Server_h
 #define Server_h
 
+#include "QueryMessage.h"
+#include "CompileMessage.h"
+#include "CreateOutputMessage.h"
+#include "CompletionMessage.h"
+#include "FileManager.h"
+#include "QueryMessage.h"
+#include "RTags.h"
+#include "ScanJob.h"
+#include <rct/Connection.h>
+#include <rct/EventReceiver.h>
 #include <rct/FileSystemWatcher.h>
-#include <rct/String.h>
 #include <rct/List.h>
 #include <rct/Map.h>
-#include "QueryMessage.h"
-#include "Connection.h"
+#include <rct/String.h>
 #include <rct/ThreadPool.h>
-#include "RTags.h"
-#include <rct/EventReceiver.h>
-#include "FileManager.h"
-#include "ScanJob.h"
 
 class Connection;
 class Message;

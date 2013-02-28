@@ -19,8 +19,7 @@ public:
         None = 0x0,
         AutostartRdm = 0x1,
         RestartRdm = 0x2,
-        DontWarnOnConnectionFailure = 0x4,
-        DontInitMessages = 0x8
+        DontWarnOnConnectionFailure = 0x4
     };
     enum SendFlag {
         SendNone,
@@ -34,6 +33,7 @@ public:
     bool connectToServer();
     void onDisconnected();
     void onNewMessage(Message *message, Connection *);
+    static void initMessages();
 private:
     bool sendMessage(int id, const String& msg, SendFlag flag);
     const int mConnectTimeout;

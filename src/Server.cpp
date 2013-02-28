@@ -4,7 +4,6 @@
 #include "CompileJob.h"
 #include "CompileMessage.h"
 #include "CompletionJob.h"
-#include "Connection.h"
 #include "CreateOutputMessage.h"
 #include "CursorInfoJob.h"
 #include "DependenciesJob.h"
@@ -17,8 +16,6 @@
 #include "ListSymbolsJob.h"
 #include "LogObject.h"
 #include "Match.h"
-#include "Message.h"
-#include "Messages.h"
 #include "Preprocessor.h"
 #include "Project.h"
 #include "QueryMessage.h"
@@ -26,11 +23,14 @@
 #include "ReferencesJob.h"
 #include "StatusJob.h"
 #include <clang-c/Index.h>
-#include <rct/LocalClient.h>
-#include <rct/LocalServer.h>
+#include <rct/Connection.h>
 #include <rct/Event.h>
 #include <rct/EventLoop.h>
+#include <rct/LocalClient.h>
+#include <rct/LocalServer.h>
 #include <rct/Log.h>
+#include <rct/Message.h>
+#include <rct/Messages.h>
 #include <rct/Path.h>
 #include <rct/Process.h>
 #include <rct/Rct.h>
@@ -72,6 +72,7 @@ void Server::clear()
 
 bool Server::init(const Options &options)
 {
+    Client::initMessages();
     mIndexerThreadPool = new ThreadPool(options.threadCount);
 
     mOptions = options;
@@ -93,7 +94,6 @@ bool Server::init(const Options &options)
     mClangPath = Path::resolved(CLANG_BIN "/clang");
     error() << "using args:" << String::join(mOptions.defaultArguments, " ");
 
-    Messages::init();
     if (mOptions.options & ClearProjects) {
         clearProjects();
     }
@@ -107,7 +107,7 @@ bool Server::init(const Options &options)
         mServer = 0;
         if (!i) {
             enum { Timeout = 5000 };
-            Client client(mOptions.socketFile, Timeout, Client::DontWarnOnConnectionFailure | Client::DontInitMessages);
+            Client client(mOptions.socketFile, Timeout, Client::DontWarnOnConnectionFailure);
             QueryMessage msg(QueryMessage::Shutdown);
             client.message(&msg);
         }

@@ -1,5 +1,5 @@
 #include "Preprocessor.h"
-#include "Connection.h"
+#include <rct/Connection.h>
 #include <rct/Process.h>
 #include <rct/Log.h>
 #include "RTags.h"
