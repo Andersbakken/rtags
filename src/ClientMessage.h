@@ -7,6 +7,13 @@
 class ClientMessage : public Message
 {
 public:
+    enum {
+        CompletionId = ResponseId + 1,
+        QueryId,
+        ProjectId,
+        CreateOutputId
+    };
+    
     inline void init(int argc, const char **argv)
     {
         mRaw.reserve(256);
