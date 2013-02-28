@@ -71,7 +71,7 @@ void usage(FILE *f)
 
 int main(int argc, char** argv)
 {
-    Rct::findApplicationDirPath(*argv);
+    Rct::findExecutablePath(*argv);
 
     struct option opts[] = {
         { "help", no_argument, 0, 'h' },

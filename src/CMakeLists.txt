@@ -70,7 +70,6 @@ set(rtags_shared_SOURCES
     CompletionMessage.cpp
     Connection.cpp
     CreateOutputMessage.cpp
-    LocalClient.cpp
     Location.cpp
     Messages.cpp
     QueryMessage.cpp
@@ -94,7 +93,6 @@ set(rdm_SOURCES
     JSONJob.cpp
     Job.cpp
     ListSymbolsJob.cpp
-    LocalServer.cpp
     Preprocessor.cpp
     Project.cpp
     RTagsClang.cpp

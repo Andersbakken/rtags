@@ -15,8 +15,6 @@
 #include "IndexerJob.h"
 #include "JSONJob.h"
 #include "ListSymbolsJob.h"
-#include "LocalClient.h"
-#include "LocalServer.h"
 #include "LogObject.h"
 #include "Match.h"
 #include "Message.h"
@@ -28,6 +26,8 @@
 #include "ReferencesJob.h"
 #include "StatusJob.h"
 #include <clang-c/Index.h>
+#include <rct/LocalClient.h>
+#include <rct/LocalServer.h>
 #include <rct/Event.h>
 #include <rct/EventLoop.h>
 #include <rct/Log.h>

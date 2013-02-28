@@ -1,5 +1,5 @@
 #include "Connection.h"
-#include "LocalClient.h"
+#include <rct/LocalClient.h>
 #include <rct/Event.h>
 #include <rct/EventLoop.h>
 

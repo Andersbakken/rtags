@@ -76,7 +76,7 @@ bool Client::connectToServer()
     mConnection = new Connection;
     if (!mConnection->connectToServer(mName, mConnectTimeout)) {
         if (mFlags & AutostartRdm) {
-            const Path cmd = Rct::applicationDirPath() + "/rdm";
+            const Path cmd = Rct::executablePath() + "/rdm";
             warning("trying to start rdm %s [%s]", cmd.nullTerminated(), String::join(mRdmArgs, " ").constData());
             if (Rct::startProcess(cmd, mRdmArgs)) {
                 warning("Started successfully");

@@ -437,7 +437,7 @@ static void help(FILE *f, const char* app)
 
 bool RClient::parse(int &argc, char **argv)
 {
-    Rct::findApplicationDirPath(*argv);
+    Rct::findExecutablePath(*argv);
     mSocketFile = Path::home() + ".rdm";
 
     List<option> options;

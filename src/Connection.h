@@ -3,7 +3,7 @@
 
 #include "Messages.h"
 #include <rct/EventReceiver.h>
-#include "LocalClient.h"
+#include <rct/LocalClient.h>
 #include <rct/String.h>
 #include <rct/Map.h>
 #include <rct/SignalSlot.h>
