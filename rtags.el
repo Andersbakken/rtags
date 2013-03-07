@@ -1385,6 +1385,7 @@ References to references will be treated as references to the referenced symbol"
 (defun rtags-find-file (&optional prefix tagname)
   (interactive "P")
   (rtags-save-location)
+  (setq rtags-path-filter nil)
   (let ((tagname (rtags-current-symbol t)) prompt input offset line column
         (prefer-exact rtags-find-file-prefer-exact-match))
     (if prefix
