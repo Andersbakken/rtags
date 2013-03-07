@@ -30,6 +30,7 @@ public:
     ~Job();
 
     bool hasFilter() const { return mPathFilters || mPathFiltersRegExp; }
+    List<String> pathFilters() const { return mPathFilters ? *mPathFilters : List<String>(); }
     int id() const { return mId; }
     void setId(int id) { mId = id; }
     enum WriteFlag {

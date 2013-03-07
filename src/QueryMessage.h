@@ -62,7 +62,8 @@ public:
         CursorInfoIncludeTargets = 0x08000,
         CursorInfoIncludeReferences = 0x10000,
         ValidateSymbol = 0x20000,
-        DeclarationOnly = 0x40000
+        DeclarationOnly = 0x40000,
+        IMenu = 0x80000
     };
 
     QueryMessage(Type type = Invalid);

@@ -278,6 +278,7 @@ enum OptionType {
     FollowLocation,
     HasFileManager,
     Help,
+    IMenu,
     IsIndexed,
     IsIndexing,
     JSON,
@@ -298,8 +299,8 @@ enum OptionType {
     ReferenceLocation,
     ReferenceName,
     Reindex,
-    ReloadProjects,
     ReloadFileManager,
+    ReloadProjects,
     RemoveFile,
     RestartRdm,
     ReverseSort,
@@ -403,6 +404,7 @@ struct Option opts[] = {
     { WithProject, "with-project", 0, required_argument, "Like --project but pass as a flag." },
     { ValidateSymbol, "validate-symbol", 0, no_argument, "Make sure symbol on file matches the expected cursor info before returning it." },
     { DeclarationOnly, "declaration-only", 0, no_argument, "Filter out definitions (unless inline).", },
+    { IMenu, "imenu", 0, no_argument, "Use with --list-symbols to provide output for (rtags-imenu) (filter namespaces, fully qualified function names, ignore certain cursors etc)." },
     { None, 0, 0, 0, 0 }
 };
 
@@ -535,6 +537,9 @@ bool RClient::parse(int &argc, char **argv)
             return 0;
         case SocketFile:
             mSocketFile = optarg;
+            break;
+        case IMenu:
+            mQueryFlags |= QueryMessage::IMenu;
             break;
         case DeclarationOnly:
             mQueryFlags |= QueryMessage::DeclarationOnly;
