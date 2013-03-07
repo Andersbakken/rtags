@@ -347,6 +347,9 @@ void Server::handleQueryMessage(QueryMessage *message, Connection *conn)
     case QueryMessage::PreprocessFile:
         preprocessFile(*message, conn);
         break;
+    case QueryMessage::ReloadFileManager:
+        reloadFileManager(*message, conn);
+        break;
     }
 }
 
@@ -622,6 +625,20 @@ void Server::isIndexed(const QueryMessage &query, Connection *conn)
     conn->write(ok ? "1" : "0");
     conn->finish();
 }
+
+void Server::reloadFileManager(const QueryMessage &, Connection *conn)
+{
+    shared_ptr<Project> project = currentProject();
+    if (project) {
+        conn->write<512>("Reloading files for %s", project->path().constData());
+        conn->finish();
+        project->fileManager->reload();
+    } else {
+        conn->write("No current project");
+        conn->finish();
+    }
+}
+
 
 void Server::hasFileManager(const QueryMessage &query, Connection *conn)
 {

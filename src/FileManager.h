@@ -18,6 +18,7 @@ public:
     void onFileRemoved(const Path &path);
     void onRecurseJobFinished(const Set<Path> &mPaths);
     bool contains(const Path &path) const;
+    void reload();
 private:
     FileSystemWatcher mWatcher;
     weak_ptr<Project> mProject;

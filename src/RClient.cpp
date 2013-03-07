@@ -299,6 +299,7 @@ enum OptionType {
     ReferenceName,
     Reindex,
     ReloadProjects,
+    ReloadFileManager,
     RemoveFile,
     RestartRdm,
     ReverseSort,
@@ -371,6 +372,7 @@ struct Option opts[] = {
     { JSON, "json", 0, optional_argument, "Dump json about files matching arg or whole project if no argument." },
     { Builds, "builds", 0, required_argument, "Dump builds for source file." },
     { Dependencies, "dependencies", 0, required_argument, "Dump dependencies for source file." },
+    { ReloadFileManager, "reload-file-manager", 'B', no_argument, "Reload file manager." },
 
     { None, 0, 0, 0, "" },
     { None, 0, 0, 0, "Command flags:" },
@@ -727,6 +729,9 @@ bool RClient::parse(int &argc, char **argv)
                 fprintf(stderr, "%s is not a positive integer\n", optarg);
                 return false;
             }
+            break;
+        case ReloadFileManager:
+            addQuery(QueryMessage::ReloadFileManager);
             break;
         case ReloadProjects:
             addQuery(QueryMessage::ReloadProjects);

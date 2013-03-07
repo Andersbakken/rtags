@@ -112,3 +112,12 @@ bool FileManager::contains(const Path &path) const
         return true;
     return false;
 }
+
+void FileManager::reload()
+{
+    shared_ptr<Project> proj = mProject.lock();
+    Scope<FilesMap&> scope = proj->lockFilesForWrite();
+    FilesMap &map = scope.data();
+    map.clear();
+    recurseDirs();
+}

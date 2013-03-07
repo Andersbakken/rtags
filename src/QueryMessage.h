@@ -35,6 +35,7 @@ public:
         ReferencesLocation,
         ReferencesName,
         Reindex,
+        ReloadFileManager,
         ReloadProjects,
         RemoveFile,
         Shutdown,
