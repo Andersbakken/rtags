@@ -481,6 +481,7 @@
       (rtags-handle-completion-buffer)
       )
     )
+  (rtags-setup-filters nil)
   )
 
 (defun rtags-remove-completion-buffer ()
@@ -647,6 +648,7 @@ return t if rtags is allowed to modify this file"
   (define-key map (kbd "C-x r ;") (function rtags-find-file))
   (define-key map (kbd "C-x r F") (function rtags-fixit))
   (define-key map (kbd "C-x r B") (function rtags-show-rtags-buffer))
+  (define-key map (kbd "C-x r I") (function rtags-imenu))
   )
 
 (defun rtags-print-current-location ()
@@ -714,6 +716,7 @@ If called with a prefix restrict to current buffer"
   (rtags-setup-filters prefix)
   (rtags-save-location)
   (let ((target (rtags-target)))
+    (rtags-setup-filters nil)
     (if target
         (rtags-goto-location target))
     )
@@ -730,6 +733,7 @@ References to references will be treated as references to the referenced symbol"
   (let ((arg (rtags-current-location)))
     (with-current-buffer (rtags-get-buffer)
       (rtags-call-rc nil "-l" "-r" arg)
+      (rtags-setup-filters nil)
       (rtags-handle-completion-buffer))
     )
   )
@@ -742,6 +746,7 @@ References to references will be treated as references to the referenced symbol"
   (let ((arg (rtags-current-location)))
     (with-current-buffer (rtags-get-buffer)
       (rtags-call-rc nil "-k" "-l" "-r" arg)
+      (rtags-setup-filters nil)
       (rtags-handle-completion-buffer))
     )
   )
@@ -753,6 +758,7 @@ References to references will be treated as references to the referenced symbol"
   (let ((arg (rtags-current-location)))
     (with-current-buffer (rtags-get-buffer)
       (rtags-call-rc nil "-l" "-e" "-r" arg)
+      (rtags-setup-filters nil)
       (rtags-handle-completion-buffer))
     )
   )
@@ -1381,11 +1387,25 @@ References to references will be treated as references to the referenced symbol"
     (delete-window) ;; ### this should really use rtags-select so it would get bookmarks
     (rtags-goto-location line)))
 
+(defun rtags-imenu ()
+  (interactive)
+  (rtags-save-location)
+  (rtags-setup-filters (buffer-file-name))
+  (let* ((alternatives (with-temp-buffer
+                        (rtags-call-rc default-directory "--imenu" "--list-symbols" "-Y")
+                        (eval (read (buffer-string)))))
+         (match (car alternatives)))
+    (if (> (length alternatives) 1)
+        (setq match (ido-completing-read "Symbol: " alternatives)))
+    (if match
+        (rtags-goto-location (with-temp-buffer (rtags-call-rc default-directory "-F" match) (buffer-string)))
+      (message "RTags: No symbols")))
+  (rtags-setup-filters nil))
+
 (defvar rtags-find-file-history nil)
 (defun rtags-find-file (&optional prefix tagname)
   (interactive "P")
   (rtags-save-location)
-  (setq rtags-path-filter nil)
   (let ((tagname (rtags-current-symbol t)) prompt input offset line column
         (prefer-exact rtags-find-file-prefer-exact-match))
     (if prefix

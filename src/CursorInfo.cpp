@@ -4,19 +4,19 @@
 String CursorInfo::toString(unsigned cursorInfoFlags, unsigned keyFlags) const
 {
     String ret = String::format<1024>("SymbolName: %s\n"
-                                            "Kind: %s\n"
-                                            "Type: %s\n"
-                                            "SymbolLength: %u\n"
-                                            "%s" // range
-                                            "%s" // enumValue
-                                            "%s", // definition
-                                            symbolName.constData(),
-                                            RTags::eatString(clang_getCursorKindSpelling(kind)).constData(),
-                                            RTags::eatString(clang_getTypeKindSpelling(type)).constData(),
-                                            symbolLength,
-                                            start != -1 && end != -1 ? String::format<32>("Range: %d-%d\n", start, end).constData() : "",
-                                            kind == CXCursor_EnumConstantDecl ? String::format<32>("Enum Value: %lld\n", enumValue).constData() : "",
-                                            isDefinition() ? "Definition\n" : "");
+                                      "Kind: %s\n"
+                                      "Type: %s\n"
+                                      "SymbolLength: %u\n"
+                                      "%s" // range
+                                      "%s" // enumValue
+                                      "%s", // definition
+                                      symbolName.constData(),
+                                      RTags::eatString(clang_getCursorKindSpelling(kind)).constData(),
+                                      RTags::eatString(clang_getTypeKindSpelling(type)).constData(),
+                                      symbolLength,
+                                      start != -1 && end != -1 ? String::format<32>("Range: %d-%d\n", start, end).constData() : "",
+                                      kind == CXCursor_EnumConstantDecl ? String::format<32>("Enum Value: %lld\n", enumValue).constData() : "",
+                                      isDefinition() ? "Definition\n" : "");
 
     if (!targets.isEmpty() && !(cursorInfoFlags & IgnoreTargets)) {
         ret.append("Targets:\n");

@@ -537,8 +537,11 @@ void IndexerJob::handleReference(const CXCursor &cursor, CXCursorKind kind, cons
                     case CXType_LValueReference:
                         ci.symbolName.prepend(info.symbolName + " &");
                         break;
+                    case CXType_FunctionProto:
+                        ci.symbolName.prepend("void ");
                     default:
                         ci.symbolName.prepend(info.symbolName + " ");
+                        // ci.symbolName.prepend(String::number(ci.type) + " " + info.symbolName + " ");
                         break;
                     }
                 }

@@ -14,6 +14,7 @@ protected:
     virtual void execute();
     List<String> imenu(const shared_ptr<Project> &project);
     List<String> listSymbols(const shared_ptr<Project> &project);
+    void foobar();
 private:
     const String string;
 };
