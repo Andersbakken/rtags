@@ -520,36 +520,6 @@ void IndexerJob::handleReference(const CXCursor &cursor, CXCursorKind kind, cons
         info.symbolName = refInfo.symbolName;
         info.type = clang_getCursorType(cursor).kind;
         switch (kind) {
-        case CXCursor_TypeRef:
-            switch (clang_getCursorKind(parent)) {
-            case CXCursor_FunctionDecl:
-            case CXCursor_CXXMethod:
-            case CXCursor_VarDecl:
-            case CXCursor_ParmDecl:
-            case CXCursor_FieldDecl: {
-                SymbolMap::iterator it = mData->symbols.find(createLocation(parent, 0));
-                if (it != mData->symbols.end()) {
-                    CursorInfo &ci = it->second;
-                    switch (ci.type) {
-                    case CXType_Pointer:
-                        ci.symbolName.prepend(info.symbolName + " *");
-                        break;
-                    case CXType_LValueReference:
-                        ci.symbolName.prepend(info.symbolName + " &");
-                        break;
-                    case CXType_FunctionProto:
-                        ci.symbolName.prepend("void ");
-                    default:
-                        ci.symbolName.prepend(info.symbolName + " ");
-                        // ci.symbolName.prepend(String::number(ci.type) + " " + info.symbolName + " ");
-                        break;
-                    }
-                }
-                break; }
-            default:
-                break;
-            }
-            break;
         case CXCursor_CallExpr:
             nestedClassConstructorCallUgleHack(parent, info, refKind, reffedLoc);
             // see rtags/tests/nestedClassConstructorCallUgleHack/

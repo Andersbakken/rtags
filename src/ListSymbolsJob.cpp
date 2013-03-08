@@ -90,16 +90,7 @@ List<String> ListSymbolsJob::imenu(const shared_ptr<Project> &project)
             default:
                 break;
             }
-            String symbolName = it->second.symbolName;
-            // const int space = symbolName.indexOf(' ');
-            // const int paren = symbolName.indexOf('(');
-            // if (space >= 0 && space < paren)
-            //     symbolName.remove(0, space + 1);
-
-            // error() << symbolName << it->first;
-            // error("[%s] %s", symbolName.constData(), Location::path
-            // error() << it->second.symbolName << space << paren;
-
+            const String &symbolName = it->second.symbolName;
             if (!string.isEmpty() && !symbolName.contains(string))
                 continue;
             if (elispList) {
