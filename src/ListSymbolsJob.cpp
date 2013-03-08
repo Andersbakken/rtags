@@ -83,9 +83,7 @@ List<String> ListSymbolsJob::imenu(const shared_ptr<Project> &project)
                 // fall through
             case CXCursor_VarDecl:
             case CXCursor_ParmDecl:
-            case CXCursor_FieldDecl:
             case CXCursor_InclusionDirective:
-            case CXCursor_EnumConstantDecl:
                 continue;
             default:
                 break;
