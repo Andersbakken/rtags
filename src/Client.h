@@ -31,7 +31,7 @@ public:
     template<typename T>
     bool message(const T *msg, SendFlag flag = SendNone);
     bool connectToServer();
-    void onDisconnected();
+    void onDisconnected(Connection *);
     void onNewMessage(Message *message, Connection *);
     static void initMessages();
 private:

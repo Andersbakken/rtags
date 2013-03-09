@@ -47,12 +47,28 @@ void ListSymbolsJob::execute()
     }
 }
 
+namespace foo
+{
+namespace bar
+{
+void foo();
+struct F
+{
+    void f() {}
+};
+
+}
+
+}
+
 List<String> ListSymbolsJob::imenu(const shared_ptr<Project> &project)
 {
     List<String> out;
     const bool elispList = queryFlags() & QueryMessage::ElispList;
 
     Scope<const SymbolMap&> symbols = project->lockSymbolsForRead();
+    Scope<const SymbolNameMap&> symbolNames = project->lockSymbolNamesForRead();
+    const SymbolNameMap &symbolNamesMap = symbolNames.data();
     const SymbolMap &map = symbols.data();
     const List<String> paths = pathFilters();
     if (paths.isEmpty()) {
@@ -88,9 +104,39 @@ List<String> ListSymbolsJob::imenu(const shared_ptr<Project> &project)
             default:
                 break;
             }
-            const String &symbolName = it->second.symbolName;
+            String symbolName = it->second.symbolName;
             if (!string.isEmpty() && !symbolName.contains(string))
                 continue;
+
+            int last = symbolName.indexOf('(');
+            while (true) {
+                const int colons = symbolName.lastIndexOf("::", last);
+                if (colons == -1)
+                    break;
+
+                const String candidate = symbolName.left(colons);
+
+                error() << candidate << symbolName;
+                const SymbolNameMap::const_iterator it = symbolNamesMap.find(candidate);
+                if (it != symbolNamesMap.end() && !it->second.isEmpty()) {
+                    const Set<Location> &locations = it->second;
+                    error() << locations;
+                    bool isNamespace = true;
+                    for (Set<Location>::const_iterator loc = locations.begin(); loc != locations.end(); ++loc) {
+                        const SymbolMap::const_iterator c = map.find(*loc);
+                        if (c != map.end() && c->second.kind != CXCursor_Namespace) {
+                            isNamespace = false;
+                            break;
+                        }
+                    }
+                    if (isNamespace) {
+                        symbolName = symbolName.mid(colons + 2);
+                        break;
+                    }
+                }
+                last = colons - 2;
+            }
+
             if (elispList) {
                 write(symbolName);
             } else {

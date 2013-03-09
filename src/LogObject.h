@@ -15,7 +15,7 @@ public:
         conn->disconnected().connect(this, &LogObject::shutdown);
     }
 
-    void shutdown()
+    void shutdown(Connection *)
     {
         deleteLater();
     }

@@ -69,7 +69,7 @@ void Client::onNewMessage(Message *message, Connection *)
 }
 
 
-void Client::onDisconnected()
+void Client::onDisconnected(Connection *)
 {
     if (mConnection) {
         mConnection->deleteLater();
