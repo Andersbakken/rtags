@@ -556,39 +556,20 @@ static inline void writeUsr(const UsrMap &usr, UsrMap &current, SymbolMap &symbo
 static inline void writeCursors(SymbolMap &symbols, SymbolMap &current)
 {
     if (!symbols.isEmpty()) {
-        SymbolMap::iterator it = symbols.begin();
-        const SymbolMap::iterator end = symbols.end();
-        while (it != end) {
-            // This is kind of a hack but we use these cursors' symbolnames
-            // to make the symbolname of references earlier so we can't
-            // inject the class/struct/union stuff then and here we're
-            // anyway walking the whole lot of them.
-            switch (it->second.kind) {
-            case CXCursor_ClassDecl:
-            case CXCursor_ClassTemplate:
-                it->second.symbolName.prepend("class ");
-                break;
-            case CXCursor_StructDecl:
-                it->second.symbolName.prepend("struct ");
-                break;
-            case CXCursor_UnionDecl:
-                it->second.symbolName.prepend("union ");
-                break;
-            default:
-                break;
-            }
-            if (!current.isEmpty()) {
+        if (current.isEmpty()) {
+            current = symbols;
+        } else {
+            SymbolMap::iterator it = symbols.begin();
+            const SymbolMap::iterator end = symbols.end();
+            while (it != end) {
                 SymbolMap::iterator cur = current.find(it->first);
                 if (cur == current.end()) {
                     current[it->first] = it->second;
                 } else {
                     cur->second.unite(it->second);
                 }
+                ++it;
             }
-            ++it;
-        }
-        if (current.isEmpty()) {
-            current = symbols;
         }
     }
 }

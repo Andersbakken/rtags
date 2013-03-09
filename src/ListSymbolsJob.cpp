@@ -47,28 +47,12 @@ void ListSymbolsJob::execute()
     }
 }
 
-namespace foo
-{
-namespace bar
-{
-void foo();
-struct F
-{
-    void f() {}
-};
-
-}
-
-}
-
 List<String> ListSymbolsJob::imenu(const shared_ptr<Project> &project)
 {
     List<String> out;
     const bool elispList = queryFlags() & QueryMessage::ElispList;
 
     Scope<const SymbolMap&> symbols = project->lockSymbolsForRead();
-    Scope<const SymbolNameMap&> symbolNames = project->lockSymbolNamesForRead();
-    const SymbolNameMap &symbolNamesMap = symbolNames.data();
     const SymbolMap &map = symbols.data();
     const List<String> paths = pathFilters();
     if (paths.isEmpty()) {
@@ -91,56 +75,27 @@ List<String> ListSymbolsJob::imenu(const shared_ptr<Project> &project)
             if (RTags::isReference(cursorInfo.kind))
                 continue;
             switch (cursorInfo.kind) {
-            case CXCursor_ClassDecl:
-            case CXCursor_StructDecl:
-            case CXCursor_ClassTemplate:
-                if (cursorInfo.isDefinition())
-                    break;
-                // fall through
             case CXCursor_VarDecl:
             case CXCursor_ParmDecl:
             case CXCursor_InclusionDirective:
-                continue;
-            default:
+            case CXCursor_EnumConstantDecl:
                 break;
-            }
-            String symbolName = it->second.symbolName;
-            if (!string.isEmpty() && !symbolName.contains(string))
-                continue;
-
-            int last = symbolName.indexOf('(');
-            while (true) {
-                const int colons = symbolName.lastIndexOf("::", last);
-                if (colons == -1)
+            case CXCursor_ClassDecl:
+            case CXCursor_StructDecl:
+            case CXCursor_ClassTemplate:
+                if (!cursorInfo.isDefinition())
                     break;
-
-                const String candidate = symbolName.left(colons);
-
-                error() << candidate << symbolName;
-                const SymbolNameMap::const_iterator it = symbolNamesMap.find(candidate);
-                if (it != symbolNamesMap.end() && !it->second.isEmpty()) {
-                    const Set<Location> &locations = it->second;
-                    error() << locations;
-                    bool isNamespace = true;
-                    for (Set<Location>::const_iterator loc = locations.begin(); loc != locations.end(); ++loc) {
-                        const SymbolMap::const_iterator c = map.find(*loc);
-                        if (c != map.end() && c->second.kind != CXCursor_Namespace) {
-                            isNamespace = false;
-                            break;
-                        }
-                    }
-                    if (isNamespace) {
-                        symbolName = symbolName.mid(colons + 2);
-                        break;
-                    }
+                // fall through
+            default: {
+                const String &symbolName = it->second.symbolName;
+                if (!string.isEmpty() && !symbolName.contains(string))
+                    continue;
+                if (elispList) {
+                    write(symbolName);
+                } else {
+                    out.append(symbolName);
                 }
-                last = colons - 2;
-            }
-
-            if (elispList) {
-                write(symbolName);
-            } else {
-                out.append(symbolName);
+                break; }
             }
         }
     }

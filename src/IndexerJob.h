@@ -42,6 +42,7 @@ public:
     time_t parseTime() const { return mParseTime; }
     const Set<uint32_t> &visitedFiles() const { return mVisitedFiles; }
     Type flags() const { return mType; }
+    static String typeName(const CXCursor &cursor);
 private:
     bool parse(int build);
     bool visit(int build);
@@ -55,6 +56,7 @@ private:
         return createLocation(clang_getCursorLocation(cursor), blocked);
     }
     static Location createLocation(const CXCursor &cursor);
+
     String addNamePermutations(const CXCursor &cursor, const Location &location);
     static CXChildVisitResult indexVisitor(CXCursor cursor, CXCursor parent, CXClientData client_data);
     static CXChildVisitResult verboseVisitor(CXCursor cursor, CXCursor, CXClientData userData);

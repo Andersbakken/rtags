@@ -66,93 +66,91 @@ void IndexerJob::inclusionVisitor(CXFile includedFile,
     }
 }
 
-static inline void addToSymbolNames(const String &arg, bool hasTemplates, const Location &location, SymbolNameMap &symbolNames)
-{
-    symbolNames[arg].insert(location);
-    if (hasTemplates) {
-        String copy = arg;
-        const int lt = arg.indexOf('<');
-        if (lt == -1)
-            return;
-        const int gt = arg.indexOf('>', lt + 1);
-        if (gt == -1)
-            return;
-        if (gt + 1 == arg.size()) {
-            copy.truncate(lt);
-        } else {
-            copy.remove(lt, gt - lt + 1);
-        }
-
-        symbolNames[copy].insert(location);
-    }
-}
-
 static const CXCursor nullCursor = clang_getNullCursor();
+
+struct Root {
+    Root(const String &str = String(), int pos = 0)
+        : name(str), position(pos)
+    {}
+    String name;
+    int position;
+};
 
 String IndexerJob::addNamePermutations(const CXCursor &cursor, const Location &location)
 {
-    int retLength = -1;
-    String qparam, qnoparam;
+    CXCursorKind kind = clang_getCursorKind(cursor);
+    const CXCursorKind originalKind = kind;
+    String type = typeName(cursor);
+    const int typeInsertPos = kind == CXCursor_ParmDecl ? 0 : type.size();
+    List<Root> roots;
+    Set<String> names;
+    String cursorInfoName;
 
-    CXCursor cur = cursor;
-    CXCursorKind kind;
-
-    bool first = true;
-    while (true) {
-        if (clang_equalCursors(cur, nullCursor))
-            break;
-        kind = clang_getCursorKind(cur);
-
-        if (first) {
-            first = false;
-        } else if (!RTags::needsQualifiers(kind)) {
-            break;
-        }
-
-        CXStringScope displayName(clang_getCursorDisplayName(cur));
+    CXCursor c = cursor;
+    do {
+        CXStringScope displayName(clang_getCursorDisplayName(c));
         const char *name = displayName.data();
-        if (!name || !strlen(name)) {
+        if (!name || !strlen(name))
             break;
-        }
-        const String qname(name);
-        if (qparam.isEmpty()) {
-            qparam = qname;
-            if (kind == CXCursor_VarDecl || kind == CXCursor_ParmDecl) {
-                retLength = qparam.size();
-            }
-            const int sp = qparam.indexOf('(');
-            if (sp != -1)
-                qnoparam = qparam.left(sp);
+        String text;
+        if (kind == CXCursor_ClassTemplate) {
+            const char *start = strchr(name, '<');
+            assert(start);
+            const char *end = strchr(start, '>');
+            assert(end);
+            text.assign(name, start - name);
+            if (end + 1)
+                text.append(end + 1);
         } else {
-            qparam.prepend(qname + "::");
-            if (!qnoparam.isEmpty())
-                qnoparam.prepend(qname + "::");
+            text = name;
         }
-
-        assert(!qparam.isEmpty());
-        bool hasTemplates = false;
-        switch (kind) {
-        case CXCursor_ClassTemplate:
-        case CXCursor_Constructor:
-        case CXCursor_Destructor:
-            hasTemplates = qnoparam.contains('<');
-            break;
-        default:
-            break;
+        if (roots.isEmpty()) {
+            roots.append(Root(text));
+            names.insert(text);
+            const int paren = text.indexOf('(');
+            if (paren != -1) {
+                roots.append(Root(text.left(paren)));
+                names.insert(roots.last().name);
+            }
+            if (!type.isEmpty()) {
+                const int count = roots.size();
+                for (int i=0; i<count; ++i) {
+                    roots.append(Root(type + roots.at(i).name, typeInsertPos));
+                    names.insert(roots.last().name);
+                }
+            }
+        } else {
+            text += "::";
+            for (int i=0; i<roots.size(); ++i) {
+                Root &root = roots[i];
+                root.name.insert(root.position, text);
+                names.insert(root.name);
+            }
         }
-
-        addToSymbolNames(qparam, hasTemplates, location, mData->symbolNames);
-        if (!qnoparam.isEmpty()) {
-            assert(!qnoparam.isEmpty());
-            addToSymbolNames(qnoparam, hasTemplates, location, mData->symbolNames);
+        c = clang_getCursorSemanticParent(c);
+        kind = clang_getCursorKind(c);
+        if (cursorInfoName.isEmpty()) {
+            switch (kind) {
+            case CXCursor_ClassDecl:
+            case CXCursor_ClassTemplate:
+            case CXCursor_StructDecl:
+                break;
+            case CXCursor_Namespace:
+                // namespaces can include all namespaces in their symbolname
+                if (originalKind == CXCursor_Namespace)
+                    break;
+            default:
+                cursorInfoName = roots.at(type.isEmpty() ? 0 : 1).name;
+                break;
+            }
         }
+    } while (RTags::needsQualifiers(kind));
 
-        if (!RTags::needsQualifiers(kind))
-            break;
-        cur = clang_getCursorSemanticParent(cur);
+    for (Set<String>::const_iterator it = names.begin(); it != names.end(); ++it) {
+        mData->symbolNames[*it].insert(location);
     }
 
-    return retLength == -1 ? qparam : qparam.right(retLength);
+    return cursorInfoName;
 }
 
 static const CXSourceLocation nullLocation = clang_getNullLocation();
@@ -598,38 +596,98 @@ static inline bool isInline(const CXCursor &cursor)
     }
 }
 
-static inline bool addType(String &symbolName, CXTypeKind kind)
+const char *builtinTypeName(CXTypeKind kind)
 {
-    const char *type = 0;
+    const char *ret = 0;
     switch (kind) {
-    case CXType_Void: type = "void "; break;
-    case CXType_Bool: type = "bool "; break;
-    case CXType_Char_U: type = "char_u "; break;
-    case CXType_UChar: type = "unsigned char "; break;
-    case CXType_Char16: type = "char16 "; break;
-    case CXType_Char32: type = "char32 "; break;
-    case CXType_UShort: type = "unsigned short "; break;
-    case CXType_UInt: type = "unsigned int "; break;
-    case CXType_ULong: type = "unsigned long "; break;
-    case CXType_ULongLong: type = "unsigned long long "; break;
-    case CXType_UInt128: type = "uint128 "; break;
-    case CXType_Char_S: type = "char_s "; break;
-    case CXType_SChar: type = "schar "; break;
-    case CXType_WChar: type = "wchar "; break;
-    case CXType_Short: type = "short "; break;
-    case CXType_Int: type = "int "; break;
-    case CXType_Long: type = "long "; break;
-    case CXType_LongLong: type = "long long "; break;
-    case CXType_Int128: type = "int128 "; break;
-    case CXType_Float: type = "float "; break;
-    case CXType_Double: type = "double "; break;
-    case CXType_LongDouble: type = "long double "; break;
+    case CXType_Void: ret ="void"; break;
+    case CXType_Bool: ret ="bool"; break;
+    case CXType_Char_U: ret ="unsigned char"; break;
+    case CXType_UChar: ret ="unsigned char"; break;
+    case CXType_Char16: ret ="char16"; break;
+    case CXType_Char32: ret ="char32"; break;
+    case CXType_UShort: ret ="unsigned short"; break;
+    case CXType_UInt: ret ="unsigned int"; break;
+    case CXType_ULong: ret ="unsigned long"; break;
+    case CXType_ULongLong: ret ="unsigned long long"; break;
+    case CXType_UInt128: ret ="uint128"; break;
+    case CXType_Char_S: ret ="char"; break;
+    case CXType_SChar: ret ="schar"; break;
+    case CXType_WChar: ret ="wchar"; break;
+    case CXType_Short: ret ="short"; break;
+    case CXType_Int: ret ="int"; break;
+    case CXType_Long: ret ="long"; break;
+    case CXType_LongLong: ret ="long long"; break;
+    case CXType_Int128: ret ="int128"; break;
+    case CXType_Float: ret ="float"; break;
+    case CXType_Double: ret ="double"; break;
+    case CXType_LongDouble: ret ="long double"; break;
     default:
-        return false;
+        break;
     }
-    assert(type);
-    symbolName.prepend(type);
-    return true;
+    return ret;
+}
+
+static String typeString(const CXType &type)
+{
+    const char *builtIn = builtinTypeName(type.kind);
+    if (builtIn)
+        return builtIn;
+
+    if (char pointer = (type.kind == CXType_Pointer ? '*' : (type.kind == CXType_LValueReference ? '&' : 0))) {
+        const CXType pointee = clang_getPointeeType(type);
+        String ret = typeString(pointee);
+        if (ret.endsWith('*') || ret.endsWith('&')) {
+            ret += pointer;
+        } else {
+            ret += ' ';
+            ret += pointer;
+        }
+        return ret;
+    }
+
+    if (type.kind == CXType_ConstantArray) {
+        String arrayType = typeString(clang_getArrayElementType(type));
+        const long long count = clang_getNumElements(type);
+        arrayType += '[';
+        if (count >= 0)
+            arrayType += String::number(count);
+        arrayType += ']';
+        return arrayType;
+    }
+    String ret = IndexerJob::typeName(clang_getTypeDeclaration(type));
+    if (ret.endsWith(' '))
+        ret.chop(1);
+    return ret;
+}
+
+String IndexerJob::typeName(const CXCursor &cursor)
+{
+    String ret;
+    switch (clang_getCursorKind(cursor)) {
+    case CXCursor_FunctionTemplate:
+    case CXCursor_FunctionDecl:
+    case CXCursor_CXXMethod:
+        ret = typeString(clang_getResultType(clang_getCursorType(cursor)));
+        break;
+    case CXCursor_ClassTemplate:
+    case CXCursor_ClassDecl:
+    case CXCursor_StructDecl:
+    case CXCursor_UnionDecl:
+        ret = RTags::eatString(clang_getCursorSpelling(cursor));
+        break;
+    case CXCursor_VarDecl:
+    case CXCursor_FieldDecl:
+    case CXCursor_ParmDecl:
+        ret = typeString(clang_getCursorType(cursor));
+        break;
+    default:
+        return String();
+    }
+    if (!ret.endsWith('*') && !ret.endsWith('&'))
+        ret.append(' ');
+    // error() << "returning" << ret << "for" << cursor;
+    return ret;
 }
 
 bool IndexerJob::handleCursor(const CXCursor &cursor, CXCursorKind kind, const Location &location)
@@ -641,13 +699,25 @@ bool IndexerJob::handleCursor(const CXCursor &cursor, CXCursorKind kind, const L
         info.symbolLength = cstr ? strlen(cstr) : 0;
         info.type = clang_getCursorType(cursor).kind;
         if (!info.symbolLength) {
+            // this is for these constructs:
+            // typedef struct {
+            //    int a;
+            // } foobar;
+            //
+            // We end up not getting a spelling for the cursor
+
             switch (kind) {
             case CXCursor_ClassDecl:
+                info.symbolLength = 5;
+                info.symbolName = "class";
+                break;
             case CXCursor_UnionDecl:
                 info.symbolLength = 5;
+                info.symbolName = "union";
                 break;
             case CXCursor_StructDecl:
                 info.symbolLength = 6;
+                info.symbolName = "struct";
                 break;
             default:
                 mData->symbols.remove(location);
@@ -655,18 +725,6 @@ bool IndexerJob::handleCursor(const CXCursor &cursor, CXCursorKind kind, const L
             }
         } else {
             info.symbolName = addNamePermutations(cursor, location);
-
-            switch (kind) {
-            case CXCursor_FunctionDecl:
-            case CXCursor_CXXMethod:
-            case CXCursor_VarDecl:
-            case CXCursor_ParmDecl:
-            case CXCursor_FieldDecl:
-                addType(info.symbolName, info.type);
-                break;
-            default:
-                break;
-            }
         }
 
         CXSourceRange range = clang_getCursorExtent(cursor);
@@ -1030,7 +1088,6 @@ CXChildVisitResult IndexerJob::dumpVisitor(CXCursor cursor, CXCursor, CXClientDa
     Location loc = dump->job->createLocation(cursor);
     if (loc.fileId()) {
         CXCursor ref = clang_getCursorReferenced(cursor);
-
         String out;
         out.reserve(256);
         int col = -1;
@@ -1045,10 +1102,11 @@ CXChildVisitResult IndexerJob::dumpVisitor(CXCursor cursor, CXCursor, CXClientDa
             out.append(String(dump->indentLevel * 2, ' '));
         }
         out.append(RTags::cursorToString(cursor, RTags::AllCursorToStringFlags));
+        out.append(" " + typeName(cursor) + " ");
         if (clang_equalCursors(ref, cursor)) {
-            out.append(" refs self");
+            out.append("refs self");
         } else if (!clang_equalCursors(ref, nullCursor)) {
-            out.append(" refs ");
+            out.append("refs ");
             out.append(RTags::cursorToString(ref, RTags::AllCursorToStringFlags));
         }
         dump->job->write(out);

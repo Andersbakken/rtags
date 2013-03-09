@@ -31,7 +31,7 @@ class IndexerJob;
 class Server : public EventReceiver
 {
 public:
-    enum { DatabaseVersion = 15 };
+    enum { DatabaseVersion = 16 };
 
     Server();
     ~Server();
