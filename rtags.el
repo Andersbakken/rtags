@@ -417,7 +417,7 @@
 (defun rtags-goto-location (location &optional nobookmark otherbuffer)
   "Go to a location passed in. It can be either: file,12 or file:13:14 or plain file"
   ;;  (message (format "rtags-goto-location \"%s\"" location))
-  (when (length location)
+  (when (> (length location) 0)
     (if rtags-no-otherbuffer (setq otherbuffer nil))
     (cond ((string-match "\\(.*\\):\\([0-9]+\\):\\([0-9]+\\)" location)
            (let ((line (string-to-int (match-string 2 location)))
