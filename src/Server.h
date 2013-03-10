@@ -22,7 +22,7 @@ class Message;
 class ErrorMessage;
 class OutputMessage;
 class CompileMessage;
-class LocalServer;
+class SocketServer;
 class GccArguments;
 class Job;
 class TimerEvent;
@@ -122,7 +122,7 @@ private:
         return mCurrentProject.lock();
     }
     int reloadProjects();
-    void onCompletionStreamDisconnected(LocalClient *client);
+    void onCompletionStreamDisconnected(SocketClient *client);
     shared_ptr<Project> addProject(const Path &path);
     void loadProject(shared_ptr<Project> &project);
     void onCompletionJobFinished(Path path);
@@ -134,7 +134,7 @@ private:
 
     static Server *sInstance;
     Options mOptions;
-    LocalServer *mServer;
+    SocketServer *mServer;
     Map<int, Connection*> mPendingLookups;
     bool mVerbose;
     int mJobId;
@@ -144,7 +144,7 @@ private:
     signalslot::Signal2<int, const List<String> &> mComplete;
     Path mClangPath;
 
-    Map<LocalClient*, Connection*> mCompletionStreams;
+    Map<SocketClient*, Connection*> mCompletionStreams;
     struct PendingCompletion
     {
         PendingCompletion()

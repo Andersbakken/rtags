@@ -26,8 +26,8 @@
 #include <rct/Connection.h>
 #include <rct/Event.h>
 #include <rct/EventLoop.h>
-#include <rct/LocalClient.h>
-#include <rct/LocalServer.h>
+#include <rct/SocketClient.h>
+#include <rct/SocketServer.h>
 #include <rct/Log.h>
 #include <rct/Message.h>
 #include <rct/Messages.h>
@@ -99,7 +99,7 @@ bool Server::init(const Options &options)
     }
 
     for (int i=0; i<10; ++i) {
-        mServer = new LocalServer;
+        mServer = new SocketServer;
         if (mServer->listen(mOptions.socketFile)) {
             break;
         }
@@ -180,7 +180,7 @@ int Server::reloadProjects()
 void Server::onNewConnection()
 {
     while (true) {
-        LocalClient *client = mServer->nextClient();
+        SocketClient *client = mServer->nextClient();
         if (!client)
             break;
         Connection *conn = new Connection(client);
@@ -1145,18 +1145,18 @@ void Server::onCompletionJobFinished(Path path)
 
 bool Server::isCompletionStream(Connection* conn) const
 {
-    LocalClient *client = conn->client();
+    SocketClient *client = conn->client();
     return (mCompletionStreams.find(client) != mCompletionStreams.end());
 }
 
-void Server::onCompletionStreamDisconnected(LocalClient *client)
+void Server::onCompletionStreamDisconnected(SocketClient *client)
 {
     mCompletionStreams.remove(client);
 }
 
 void Server::handleCompletionStream(CompletionMessage *message, Connection *conn)
 {
-    LocalClient *client = conn->client();
+    SocketClient *client = conn->client();
     assert(client);
     client->disconnected().connect(this, &Server::onCompletionStreamDisconnected);
     mCompletionStreams[client] = conn;
