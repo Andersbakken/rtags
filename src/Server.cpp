@@ -100,7 +100,7 @@ bool Server::init(const Options &options)
 
     for (int i=0; i<10; ++i) {
         mServer = new SocketServer;
-        if (mServer->listen(mOptions.socketFile)) {
+        if (mServer->listenUnix(mOptions.socketFile)) {
             break;
         }
         delete mServer;
