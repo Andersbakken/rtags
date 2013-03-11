@@ -18,7 +18,7 @@ public:
     void preprocess();
 
 private:
-    void onProcessFinished();
+    void onProcessFinished(Process *);
 
 private:
     const SourceInformation mArgs;

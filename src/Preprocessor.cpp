@@ -26,7 +26,7 @@ void Preprocessor::preprocess()
     mProc->start(mArgs.builds.at(mBuildIndex).compiler, args, environ);
 }
 
-void Preprocessor::onProcessFinished()
+void Preprocessor::onProcessFinished(Process *)
 {
     mConnection->write<256>("// %s %s", mArgs.builds.at(mBuildIndex).compiler.constData(),
                             String::join(mArgs.builds.at(mBuildIndex).args, ' ').constData());
