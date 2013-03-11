@@ -77,8 +77,6 @@ public:
         std::sort(mPathFilters.begin(), mPathFilters.end());
     }
 
-    int messageId() const { return MessageId; }
-
     String query() const { return mQuery; }
     Location location() const { return Location::decodeClientLocation(mQuery); }
     void setQuery(const String &query) { mQuery = query; }
@@ -103,9 +101,9 @@ public:
     static unsigned keyFlags(unsigned queryFlags);
     inline unsigned keyFlags() const { return keyFlags(mFlags); }
 
-    String encode() const;
-    void fromData(const char *data, int size);
-
+    virtual void encode(Serializer &serializer) const;
+    virtual void decode(Deserializer &deserializer);
+    
     void setProjects(const List<String> &projects) { mProjects = projects; }
     List<String> projects() const { return mProjects; }
 

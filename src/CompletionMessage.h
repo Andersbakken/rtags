@@ -16,8 +16,6 @@ public:
     };
 
     CompletionMessage(unsigned flags = 0, const Path &path = Path(), int line = -1, int column = -1, int pos = -1);
-    virtual int messageId() const { return MessageId; }
-
     unsigned flags() const { return mFlags; }
     Path path() const { return mPath; }
     int line() const { return mLine; }
@@ -27,8 +25,8 @@ public:
     void setContents(const String &contents) { mContents = contents; }
     String contents() const { return mContents; }
 
-    String encode() const;
-    void fromData(const char *data, int size);
+    virtual void encode(Serializer &serializer) const;
+    virtual void decode(Deserializer &deserializer);
 
     void setProjects(const List<String> &projects) { mProjects = projects; }
     List<String> projects() const { return mProjects; }

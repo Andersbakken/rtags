@@ -2,22 +2,16 @@
 #include <rct/Serializer.h>
 
 CompileMessage::CompileMessage(const Path &path, const String &args)
-    : mPath(path), mArgs(args)
+    : ClientMessage(MessageId), mPath(path), mArgs(args)
 {
 }
 
-String CompileMessage::encode() const
+void CompileMessage::encode(Serializer &serializer) const
 {
-    String data;
-    {
-        Serializer stream(data);
-        stream << mRaw << mPath << mArgs;
-    }
-    return data;
+    serializer << mRaw << mPath << mArgs;
 }
 
-void CompileMessage::fromData(const char *data, int size)
+void CompileMessage::decode(Deserializer &deserializer)
 {
-    Deserializer stream(data, size);
-    stream >> mRaw >> mPath >> mArgs;
+    deserializer >> mRaw >> mPath >> mArgs;
 }

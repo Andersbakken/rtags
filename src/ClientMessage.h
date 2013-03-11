@@ -13,7 +13,9 @@ public:
         ProjectId,
         CreateOutputId
     };
-    
+
+    ClientMessage(int id) : Message(id) {}
+
     inline void init(int argc, const char **argv)
     {
         mRaw.reserve(256);

@@ -13,15 +13,13 @@ public:
 
     CompileMessage(const Path &path = Path(), const String &args = String());
 
-    virtual int messageId() const { return MessageId; }
-
     Path path() const { return mPath; }
 
     String arguments() const { return mArgs; }
     void setArguments(const String &arguments) { mArgs = arguments; }
 
-    String encode() const;
-    void fromData(const char *data, int size);
+    virtual void encode(Serializer &serializer) const;
+    virtual void decode(Deserializer &deserializer);
 private:
     Path mPath;
     String mArgs;

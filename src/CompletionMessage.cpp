@@ -4,22 +4,16 @@
 
 
 CompletionMessage::CompletionMessage(unsigned flags, const Path &path, int line, int column, int pos)
-    : mFlags(flags), mPath(path), mLine(line), mColumn(column), mPos(pos)
+    : ClientMessage(MessageId), mFlags(flags), mPath(path), mLine(line), mColumn(column), mPos(pos)
 {
 }
 
-String CompletionMessage::encode() const
+void CompletionMessage::encode(Serializer &serializer) const
 {
-    String data;
-    {
-        Serializer stream(data);
-        stream << mRaw << mFlags << mPath << mLine << mColumn << mPos << mContents << mProjects;
-    }
-    return data;
+    serializer << mRaw << mFlags << mPath << mLine << mColumn << mPos << mContents << mProjects;
 }
 
-void CompletionMessage::fromData(const char *data, int size)
+void CompletionMessage::decode(Deserializer &deserializer)
 {
-    Deserializer stream(data, size);
-    stream >> mRaw >> mFlags >> mPath >> mLine >> mColumn >> mPos >> mContents >> mProjects;
+    deserializer >> mRaw >> mFlags >> mPath >> mLine >> mColumn >> mPos >> mContents >> mProjects;
 }

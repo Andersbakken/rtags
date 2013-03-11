@@ -11,13 +11,10 @@ public:
 
     CreateOutputMessage(int level = 0);
 
-    virtual int messageId() const { return MessageId; }
-
     int level() const;
 
-    String encode() const;
-    void fromData(const char *data, int size);
-
+    virtual void encode(Serializer &serializer) const;
+    virtual void decode(Deserializer &deserializer);
 private:
     int mLevel;
 };

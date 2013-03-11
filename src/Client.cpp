@@ -37,7 +37,7 @@ void Client::initMessages()
     Messages::registerMessage<CreateOutputMessage>();
 }
 
-bool Client::sendMessage(int id, const String &msg, SendFlag flag)
+bool Client::message(const Message *msg, SendFlag flag)
 {
     if (!mConnection && !connectToServer() && !(mFlags & (RestartRdm|AutostartRdm))) {
         if (!(mFlags & DontWarnOnConnectionFailure))
@@ -49,7 +49,7 @@ bool Client::sendMessage(int id, const String &msg, SendFlag flag)
         mConnection->disconnected().connect(this, &Client::onDisconnected);
         mConnection->newMessage().connect(this, &Client::onNewMessage);
     }
-    mConnection->send(id, msg);
+    mConnection->send(msg);
     if (flag != SendDontRunEventLoop)
         EventLoop::instance()->run();
     return true;

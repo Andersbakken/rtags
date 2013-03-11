@@ -2,7 +2,7 @@
 #include <rct/Serializer.h>
 
 CreateOutputMessage::CreateOutputMessage(int level)
-    : mLevel(level)
+    : ClientMessage(MessageId), mLevel(level)
 {
 }
 
@@ -11,18 +11,12 @@ int CreateOutputMessage::level() const
     return mLevel;
 }
 
-String CreateOutputMessage::encode() const
+void CreateOutputMessage::encode(Serializer &serializer) const
 {
-    String data;
-    {
-        Serializer stream(data);
-        stream << mRaw << mLevel;
-    }
-    return data;
+    serializer << mRaw << mLevel;
 }
 
-void CreateOutputMessage::fromData(const char *data, int size)
+void CreateOutputMessage::decode(Deserializer &deserializer)
 {
-    Deserializer ds(data, size);
-    ds >> mRaw >> mLevel;
+    deserializer >> mRaw >> mLevel;
 }
