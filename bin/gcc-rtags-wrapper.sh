@@ -21,6 +21,6 @@ for i in `which -a "\`basename $0\`"`; do
         exit $?
     else
         dir=`dirname $i`
-        PATH=`echo $PATH | perl -i -e "while (<>) {s,$dir/?:,,; print;}"`
+        PATH=`echo $PATH | sed -e "s,$dir/\\?:,,g"`
     fi
 done
