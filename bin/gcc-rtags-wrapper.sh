@@ -21,6 +21,6 @@ for i in `which -a "\`basename $0\`"`; do
         exit $?
     else
         dir=`dirname $i`
-        PATH=`echo $PATH | sed -e "s,$dir/\\?:,,g"`
+        PATH=`echo $PATH | sed -e "s,$dir/*:*,,g"`
     fi
 done
