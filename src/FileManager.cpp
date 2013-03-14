@@ -38,11 +38,13 @@ void FileManager::onRecurseJobFinished(const Set<Path> &paths)
             error() << "Got empty parent here" << *it;
             continue;
         }
+        assert(!parent.isEmpty());
         Set<String> &dir = map[parent];
         if (dir.isEmpty())
             mWatcher.watch(parent);
         dir.insert(it->fileName());
     }
+    assert(!map.contains(""));
 }
 
 void FileManager::onFileAdded(const Path &path)
@@ -75,6 +77,7 @@ void FileManager::onFileAdded(const Path &path)
     } else {
         error() << "Got empty parent here" << path;
     }
+    assert(!map.contains(""));
 }
 
 void FileManager::onFileRemoved(const Path &path)

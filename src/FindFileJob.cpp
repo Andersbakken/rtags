@@ -55,7 +55,11 @@ void FindFileJob::execute()
     const bool preferExact = queryFlags() & QueryMessage::FindFilePreferExact;
     while (dirit != dirs.end()) {
         const Path &dir = dirit->first;
-        out.append(dir.constData() + srcRoot.size(), dir.size() - srcRoot.size());
+        if (dir.size() < srcRoot.size()) {
+            continue;
+        } else {
+            out.append(dir.constData() + srcRoot.size(), dir.size() - srcRoot.size());
+        }
 
         const Set<String> &files = dirit->second;
         for (Set<String>::const_iterator it = files.begin(); it != files.end(); ++it) {
