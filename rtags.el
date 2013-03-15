@@ -1463,7 +1463,7 @@ References to references will be treated as references to the referenced symbol"
   (if (get-buffer "*RTags*")
       (display-buffer "*RTags*")))
 
-(defun rtags-fixit (&optional noediff buffer)
+(defun rtags-fixit (&optional ediff buffer)
   (interactive "P")
   (save-some-buffers)
   (unless buffer
@@ -1471,7 +1471,7 @@ References to references will be treated as references to the referenced symbol"
   (save-excursion
     (let* ((path (buffer-file-name buffer))
            (tempbuf nil)
-           (buffertext (unless noediff (with-current-buffer buffer (buffer-string))))
+           (buffertext (if ediff (with-current-buffer buffer (buffer-string))))
            (line nil))
       (with-temp-buffer
         (rtags-call-rc path "--fixit" path)
@@ -1482,7 +1482,7 @@ References to references will be treated as references to the referenced symbol"
                 (let ((start (string-to-int (match-string 1 line)))
                       (end (string-to-int (match-string 2 line)))
                       (text (match-string 3 line)))
-                  (when (not (or noediff tempbuf))
+                  (when (not (or (not ediff) tempbuf))
                     (setq tempbuf (rtags-get-buffer (format "*RTags Fixit - %s *" path)))
                     (with-current-buffer tempbuf
                       (insert buffertext)))

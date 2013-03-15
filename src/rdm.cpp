@@ -34,7 +34,7 @@ void sigIntHandler(int)
     _exit(1);
 }
 
-#define EXCLUDEFILTER_DEFAULT "*/CMakeFiles/*;*/cmake*/Modules/*;*/conftest/conftest.c*"
+#define EXCLUDEFILTER_DEFAULT "*/CMakeFiles/*;*/cmake*/Modules/*;*/conftest.c*"
 void usage(FILE *f)
 {
     fprintf(f,
