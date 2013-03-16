@@ -156,7 +156,8 @@ call something like this:
 (rtags-enable-standard-keybindings c-mode-base-map)
 #+END_SRC
 
-There are lots of interactive functions to call but the most important ones are:
+* Elisp
+There are lots of interactive functions to call:
 
 #+BEGIN_SRC
 (rtags-find-symbol-at-point)
@@ -178,6 +179,7 @@ rtags-find-references-at-point, rtags-find-symbol, rtags-find-references
 Find all references to symbol under cursor. If symbol is itself a
 reference it will find all references to the referenced symbol
 
+#+BEGIN_SRC
 (rtags-find-symbol)
 #+END_SRC
 Prompt for name of symbol to go to. Imagine the following code:
