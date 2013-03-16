@@ -159,8 +159,8 @@ call something like this:
 There are lots of interactive functions to call but the most important ones are:
 
 #+BEGIN_SRC
-
 - (rtags-find-symbol-at-point)
+#+END_SRC
 
 Follow symbol under cursor. For references this goes to the
 definition (or declaration if no definition is known of the
@@ -172,13 +172,16 @@ pass a prefix argument and have narrowed the current file, limit to
 the narrowed region. This prefix argument is the same for:
 rtags-find-references-at-point, rtags-find-symbol, rtags-find-references
 
+#+BEGIN_SRC
 - (rtags-find-references-at-point)
 Find all references to symbol under cursor. If symbol is itself a
 reference it will find all references to the referenced symbol
 
 - (rtags-find-symbol)
+#+END_SRC
 Prompt for name of symbol to go to. Imagine the following code:
-<c++>
+#+BEGIN_SRC
+
 namespace N
 {
 class C
@@ -203,94 +206,144 @@ C::func
 N::C::func(int)
 N::C::func
 
+#+END_SRC
+
+#+BEGIN_SRC
 - (rtags-find-references)
+#+END_SRC
+
 Prompt for name of symbol to find references to. Same as above but
 find references to symbol rather than declarations and definitions.
 
+#+BEGIN_SRC
 - (rtags-diagnostics)
+#+END_SRC
+
 Start an async process in a buffer to receive warnings/errors from
 clang whenever a file gets reindexed. It integrates with flymake to
 put highlighting on code with warnings and errors
 
+#+BEGIN_SRC
 - (rtags-enable-standard-keybindings)
+#+END_SRC
 Sets up a ton of standard keybindings under C-x r (we try to avoid
 crashing with the register shortcuts). If you pass a mode to the
 function it will set it up on that mode, otherwise it will use
 c-mode-base-map).
 
+#+BEGIN_SRC
 - (rtags-find-file)
+#+END_SRC
 
 Lets you jump to file by name (partial or full, concept kinda stolen
 from gtags.el) with completion in the project. This includes all files
 under what we determine to be the root of the project, not just source
 files.
 
+#+BEGIN_SRC
 - (rtags-find-virtuals-at-point)
+#+END_SRC
 For virtual functions, show the various reimplementations of the
 function at point
 
+#+BEGIN_SRC
 - (rtags-fixit)
+#+END_SRC
 Apply clang's automatic fixits in current file. If you pass a
 prefix arg use ediff to apply it. See
 (http://clang.llvm.org/diagnostics.html) for more info.
 
+#+BEGIN_SRC
 - (rtags-imenu)
+#+END_SRC
 Provices an ido-based imenu like interface to a subset of the
 symbols in the current file. Note that it does not actually use
 imenu infrastructure.
 
-- (rtags-location-stack-back) and (rtags-location-stack-forward)
+#+BEGIN_SRC
+- (rtags-location-stack-back)
+  (rtags-location-stack-forward)
+#+END_SRC
+
 Whenever rtags jumps somewhere it pushes a location onto its
 stack. Jump back and forward in this stack
 
-- (rtags-next-match) and (rtags-previous-match)
+#+BEGIN_SRC
+- (rtags-next-match)
+(rtags-previous-match)
+#+END_SRC
+
 For functions that return more than one match, jump to the
 next/previous one.
 
 - (rtags-preprocess-file)
+#+BEGIN_SRC
 Preprocess current file according to known C(XX)Flags and show the
 result in a buffer. If region is active only display the
 preprocessed output for that region.
+#+END_SRC
 
+#+BEGIN_SRC
 - (rtags-print-cursorinfo)
+#+END_SRC
 Print some info about symbol under cursor
 
+#+BEGIN_SRC
 - (rtags-print-dependencies)
+#+END_SRC
 Open a buffer showing files that depend on current file/files that
 current file depends on.
 
+#+BEGIN_SRC
 - (rtags-print-enum-value-at-point)
+#+END_SRC
 Print integral value of enum value at point
 
+#+BEGIN_SRC
 - (rtags-quit-rdm)
+#+END_SRC
 Shut down rdm
 
+#+BEGIN_SRC
 - (rtags-rename-symbol)
+#+END_SRC
 Rename symbol under cursor. Make sure all files are saved and fully
 indexed before using.
 
+#+BEGIN_SRC
 - (rtags-reparse-file)
+#+END_SRC
 Explicitly trigger a reparse of current file. Mostly for
 debugging. Unless we have bugs it should not be necessary.
 
+#+BEGIN_SRC
 - (rtags-show-rtags-buffer)
+#+END_SRC
 Switch to *RTags* buffer. This is the buffer where a number of
 functions display their alternatives when they have more than one
 match.
 
 Variables:
 
+#+BEGIN_SRC
 - rtags-path
+#+END_SRC
 Path to rc/rdm if they're not in $PATH.
 
+#+BEGIN_SRC
 - rtags-jump-to-first-match
+#+END_SRC
 Similar to compilation-auto-jump-to-first-error. Whether to jump to
 the first match automatically when there's more than one.
 
+#+BEGIN_SRC
 - rtags-find-file-case-insensitive
+#+END_SRC
 Whether to match files case-insensitively
 
+#+BEGIN_SRC
 - rtags-find-file-prefer-exact-match
+#+END_SRC
 Whether to exclude partial matches for file names when an exact
 match is found. E.g.
 /foobar.cpp
@@ -299,11 +352,11 @@ If rtags-find-file-prefer-exact-match is t a query for bar.cpp
 would only return /bar.cpp, otherwise both foobar.cpp and bar.cpp
 would be returned.
 
-Fall back to other taggers:
+- Fall back to other taggers:
+  You can do something like the following to fall back to e.g. gtags
+  if rtags doesn't have a certain project indexed:
 
-- You can do something like the following to fall back to e.g. gtags
-if rtags doesn't have a certain project indexed:
-
+#+BEGIN_SRC
 (defun use-rtags (&optional useFileManager)
   (and (rtags-executable-find "rc")
        (cond ((not (gtags-get-rootpath)) t)
@@ -348,7 +401,6 @@ if rtags doesn't have a certain project indexed:
 (define-key global-map (kbd "C-,") (function tags-find-references))
 (define-key global-map (kbd "C-<") (function rtags-find-virtuals-at-point))
 (define-key global-map (kbd "M-i") (function tags-imenu))
-
 
 #+END_SRC
 
