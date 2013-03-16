@@ -197,17 +197,14 @@ int C::func(int val)
 {
     return val * 2;
 }
-</c++>
-
-int N::C::func(int) will now be accessible by the following names:
-func
-func(int)
-C::func(int)
-C::func
-N::C::func(int)
-N::C::func
-
 #+END_SRC
+int N::C::func(int) will now be accessible by the following names:
+- func
+- func(int)
+- C::func(int)
+- C::func
+- N::C::func(int)
+- N::C::func
 
 #+BEGIN_SRC
 (rtags-find-references)
