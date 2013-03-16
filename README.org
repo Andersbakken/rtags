@@ -160,26 +160,24 @@ There are lots of interactive functions to call but the most important ones are:
 
 #+BEGIN_SRC
 
-;; interactive functions
-
 - (rtags-find-symbol-at-point)
 
-;; Follow symbol under cursor. For references this goes to the
-;; definition (or declaration if no definition is known of the
-;; symbol. For declarations it goes to the definition and vice
-;; versa. For definitions of variables/parameters with constructors
-;; it goes to the constructor in question.
-;; If you pass a prefix argument, limit to current source file, if you
-;; pass a prefix argument and have narrowed the current file, limit to
-;; the narrowed region. This prefix argument is the same for:
-;; rtags-find-references-at-point, rtags-find-symbol, rtags-find-references
+Follow symbol under cursor. For references this goes to the
+definition (or declaration if no definition is known of the
+symbol. For declarations it goes to the definition and vice
+versa. For definitions of variables/parameters with constructors
+it goes to the constructor in question.
+If you pass a prefix argument, limit to current source file, if you
+pass a prefix argument and have narrowed the current file, limit to
+the narrowed region. This prefix argument is the same for:
+rtags-find-references-at-point, rtags-find-symbol, rtags-find-references
 
 - (rtags-find-references-at-point)
-;; Find all references to symbol under cursor. If symbol is itself a
-;; reference it will find all references to the referenced symbol
+Find all references to symbol under cursor. If symbol is itself a
+reference it will find all references to the referenced symbol
 
 - (rtags-find-symbol)
-;; Prompt for name of symbol to go to. Imagine the following code:
+Prompt for name of symbol to go to. Imagine the following code:
 <c++>
 namespace N
 {
@@ -197,7 +195,7 @@ int C::func(int val)
 }
 </c++>
 
-;; int N::C::func(int) will now be accessible by the following names:
+int N::C::func(int) will now be accessible by the following names:
 func
 func(int)
 C::func(int)
@@ -206,105 +204,105 @@ N::C::func(int)
 N::C::func
 
 - (rtags-find-references)
-;; Prompt for name of symbol to find references to. Same as above but
-;; find references to symbol rather than declarations and definitions.
+Prompt for name of symbol to find references to. Same as above but
+find references to symbol rather than declarations and definitions.
 
 - (rtags-diagnostics)
-;; Start an async process in a buffer to receive warnings/errors from
-;; clang whenever a file gets reindexed. It integrates with flymake to
-;; put highlighting on code with warnings and errors
+Start an async process in a buffer to receive warnings/errors from
+clang whenever a file gets reindexed. It integrates with flymake to
+put highlighting on code with warnings and errors
 
 - (rtags-enable-standard-keybindings)
-;; Sets up a ton of standard keybindings under C-x r (we try to avoid
-;; crashing with the register shortcuts). If you pass a mode to the
-;; function it will set it up on that mode, otherwise it will use
-;; c-mode-base-map).
+Sets up a ton of standard keybindings under C-x r (we try to avoid
+crashing with the register shortcuts). If you pass a mode to the
+function it will set it up on that mode, otherwise it will use
+c-mode-base-map).
 
 - (rtags-find-file)
 
-;; Lets you jump to file by name (partial or full, concept kinda
-;; stolen from gtags.el) with completion in the project. This includes
-;; all files under what we determine to be the root of the project,
-;; not just source files.
+Lets you jump to file by name (partial or full, concept kinda stolen
+from gtags.el) with completion in the project. This includes all files
+under what we determine to be the root of the project, not just source
+files.
 
 - (rtags-find-virtuals-at-point)
-;; For virtual functions, show the various reimplementations of the
-;; function at point
+For virtual functions, show the various reimplementations of the
+function at point
 
 - (rtags-fixit)
-;; Apply clang's automatic fixits in current file. If you pass a
-;; prefix arg use ediff to apply it. See
-;; (http://clang.llvm.org/diagnostics.html) for more info.
+Apply clang's automatic fixits in current file. If you pass a
+prefix arg use ediff to apply it. See
+(http://clang.llvm.org/diagnostics.html) for more info.
 
 - (rtags-imenu)
-;; Provices an ido-based imenu like interface to a subset of the
-;; symbols in the current file. Note that it does not actually use
-;; imenu infrastructure.
+Provices an ido-based imenu like interface to a subset of the
+symbols in the current file. Note that it does not actually use
+imenu infrastructure.
 
 - (rtags-location-stack-back) and (rtags-location-stack-forward)
-;; Whenever rtags jumps somewhere it pushes a location onto its
-;; stack. Jump back and forward in this stack
+Whenever rtags jumps somewhere it pushes a location onto its
+stack. Jump back and forward in this stack
 
 - (rtags-next-match) and (rtags-previous-match)
-;; For functions that return more than one match, jump to the
-;; next/previous one.
+For functions that return more than one match, jump to the
+next/previous one.
 
 - (rtags-preprocess-file)
-;; Preprocess current file according to known C(XX)Flags and show the
-;; result in a buffer. If region is active only display the
-;; preprocessed output for that region.
+Preprocess current file according to known C(XX)Flags and show the
+result in a buffer. If region is active only display the
+preprocessed output for that region.
 
 - (rtags-print-cursorinfo)
-;; Print some info about symbol under cursor
+Print some info about symbol under cursor
 
 - (rtags-print-dependencies)
-;; Open a buffer showing files that depend on current file/files that
-;; current file depends on.
+Open a buffer showing files that depend on current file/files that
+current file depends on.
 
 - (rtags-print-enum-value-at-point)
-;; Print integral value of enum value at point
+Print integral value of enum value at point
 
 - (rtags-quit-rdm)
-;; Shut down rdm
+Shut down rdm
 
 - (rtags-rename-symbol)
-;; Rename symbol under cursor. Make sure all files are saved and fully
-;; indexed before using.
+Rename symbol under cursor. Make sure all files are saved and fully
+indexed before using.
 
 - (rtags-reparse-file)
-;; Explicitly trigger a reparse of current file. Mostly for
-;; debugging. Unless we have bugs it should not be necessary.
+Explicitly trigger a reparse of current file. Mostly for
+debugging. Unless we have bugs it should not be necessary.
 
 - (rtags-show-rtags-buffer)
-;; Switch to *RTags* buffer. This is the buffer where a number of
-;; functions display their alternatives when they have more than one
-;; match.
+Switch to *RTags* buffer. This is the buffer where a number of
+functions display their alternatives when they have more than one
+match.
 
-;; Variables:
+Variables:
 
 - rtags-path
-;; Path to rc/rdm if they're not in $PATH.
+Path to rc/rdm if they're not in $PATH.
 
 - rtags-jump-to-first-match
-;; Similar to compilation-auto-jump-to-first-error. Whether to jump to
-;; the first match automatically when there's more than one.
+Similar to compilation-auto-jump-to-first-error. Whether to jump to
+the first match automatically when there's more than one.
 
 - rtags-find-file-case-insensitive
-;; Whether to match files case-insensitively
+Whether to match files case-insensitively
 
 - rtags-find-file-prefer-exact-match
-;; Whether to exclude partial matches for file names when an exact
-;; match is found. E.g.
-;; /foobar.cpp
-;; /bar.cpp
-;; If rtags-find-file-prefer-exact-match is t a query for bar.cpp
-;; would only return /bar.cpp, otherwise both foobar.cpp and bar.cpp
-;; would be returned.
+Whether to exclude partial matches for file names when an exact
+match is found. E.g.
+/foobar.cpp
+/bar.cpp
+If rtags-find-file-prefer-exact-match is t a query for bar.cpp
+would only return /bar.cpp, otherwise both foobar.cpp and bar.cpp
+would be returned.
 
-;; Fall back to other taggers:
+Fall back to other taggers:
 
-;; You can do something like the following to fall back to e.g. gtags
-;; if rtags doesn't have a certain project indexed:
+- You can do something like the following to fall back to e.g. gtags
+if rtags doesn't have a certain project indexed:
 
 (defun use-rtags (&optional useFileManager)
   (and (rtags-executable-find "rc")
