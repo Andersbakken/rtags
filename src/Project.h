@@ -89,6 +89,7 @@ public:
     bool isIndexed(uint32_t fileId) const;
 
     void index(const SourceInformation &args, IndexerJob::Type type);
+    bool index(const Path &sourceFile, const Path &compiler = Path(), const List<String> &args = List<String>());
     SourceInformationMap sourceInfos() const;
     SourceInformation sourceInfo(uint32_t fileId) const;
     enum DependencyMode {
@@ -108,6 +109,7 @@ public:
     void addToCache(const Path &path, const List<String> &args, CXIndex index, CXTranslationUnit unit);
     void timerEvent(TimerEvent *event);
     bool isIndexing() const { MutexLocker lock(&mMutex); return !mJobs.isEmpty(); }
+    void onJSFilesAdded();
 private:
     bool initJobFromCache(const Path &path, const List<String> &args,
                           CXIndex &index, CXTranslationUnit &unit, List<String> *argsOut);

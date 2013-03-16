@@ -13,6 +13,7 @@ public:
     {}
 
     Path sourceFile;
+
     struct Build
     {
         Build(const Path &c = Path(), const List<String> &a = List<String>())
@@ -22,9 +23,15 @@ public:
         List<String> args;
     };
     List<Build> builds;
+
+    inline bool isJS() const
+    {
+        return builds.isEmpty() && sourceFile.endsWith(".js");
+    }
+
     time_t parsed;
 
-    bool isNull() const
+    inline bool isNull() const
     {
         return sourceFile.isEmpty();
     }

@@ -44,6 +44,8 @@ public:
     Type flags() const { return mType; }
     static String typeName(const CXCursor &cursor);
 private:
+    void executeJS();
+    void executeCPP();
     bool parse(int build);
     bool visit(int build);
     bool diagnose(int build, int *errorCount);

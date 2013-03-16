@@ -79,7 +79,7 @@ private:
     signalslot::Signal2<int, const List<String> &> &complete() { return mComplete; }
     shared_ptr<Project> setCurrentProject(const Path &path);
     void event(const Event *event);
-    void processSourceFile(GccArguments args);
+    void processSourceFile(const GccArguments &args);
     void onNewMessage(Message *message, Connection *conn);
     void onConnectionDestroyed(Connection *o);
     void clearProjects();

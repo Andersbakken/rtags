@@ -122,9 +122,11 @@ inline bool startsWith(const List<T> &list, const T &str)
     return false;
 }
 
-inline bool isReference(CXCursorKind kind)
+inline bool isReference(unsigned kind)
 {
-    if (clang_isReference(kind))
+    if (kind >= CursorInfo::JSInvalid)
+        return kind == CursorInfo::JSReference; // ### weaksym?
+    if (clang_isReference(static_cast<CXCursorKind>(kind)))
         return true;
     switch (kind) {
     case CXCursor_DeclRefExpr:
@@ -134,13 +136,15 @@ inline bool isReference(CXCursorKind kind)
     case CXCursor_CallExpr:
     case CXCursor_CXXDeleteExpr:
         return true;
+    case CursorInfo::JSReference:
+        return false;
     default:
         break;
     }
     return false;
 }
 
-inline bool isCursor(CXCursorKind kind)
+inline bool isCursor(uint16_t kind)
 {
     switch (kind) {
     case CXCursor_LabelStmt:
@@ -152,24 +156,34 @@ inline bool isCursor(CXCursorKind kind)
     default:
         break;
     }
-    return clang_isDeclaration(kind);
+    return clang_isDeclaration(static_cast<CXCursorKind>(kind));
 }
 
-static inline CursorType cursorType(CXCursorKind kind)
+static inline CursorType cursorType(uint16_t kind)
 {
-    if (clang_isStatement(kind)) {
+    switch (kind) {
+    case CursorInfo::JSInvalid:
+        return Other;
+    case CursorInfo::JSReference:
+        return Reference;
+    case CursorInfo::JSVariable:
+    case CursorInfo::JSFunction:
+    case CursorInfo::JSWeakVariable:
+        return Cursor;
+    case CXCursor_InclusionDirective:
+        return Include;
+    }
+    if (clang_isStatement(static_cast<CXCursorKind>(kind))) {
         return Other;
     } else if (RTags::isCursor(kind)) {
         return Cursor;
     } else if (RTags::isReference(kind)) {
         return Reference;
-    } else if (kind == CXCursor_InclusionDirective) {
-        return Include;
     }
     return Other;
 }
 
-static inline bool isContainer(CXCursorKind kind)
+static inline bool isContainer(uint16_t kind)
 {
     switch (kind) {
     case CXCursor_CXXMethod:
@@ -215,13 +229,13 @@ struct SortedCursor
 {
     SortedCursor(const Location &loc = Location(),
                  bool definition = false,
-                 CXCursorKind k = CXCursor_FirstInvalid)
+                 uint16_t k = CXCursor_FirstInvalid)
         : location(loc), isDefinition(definition), kind(k)
     {}
 
     Location location;
     bool isDefinition;
-    CXCursorKind kind;
+    uint16_t kind;
 
     int rank() const
     {

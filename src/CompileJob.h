@@ -12,11 +12,11 @@ class CompileJob : public ThreadPool::Job
 public:
     CompileJob(const CompileMessage &message);
     virtual void run();
-    signalslot::Signal1<GccArguments> &argsReady() { return mArgsReady; }
+    signalslot::Signal1<const GccArguments&> &argsReady() { return mArgsReady; }
 private:
     const String mArgs;
     const Path mPath;
-    signalslot::Signal1<GccArguments> mArgsReady;
+    signalslot::Signal1<const GccArguments &> mArgsReady;
 
 };
 

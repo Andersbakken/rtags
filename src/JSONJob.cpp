@@ -48,7 +48,7 @@ void JSONJob::execute()
             while (sit != map.end() && sit->first.fileId() == it->first) {
                 Location targetLocation;
                 CursorInfo target = sit->second.bestTarget(map, &targetLocation);
-                const CXStringScope type = clang_getCursorKindSpelling(sit->second.kind);
+                const String type = sit->second.kindSpelling();
                 if (firstSymbol) {
                     firstSymbol = false;
                 } else {
@@ -56,11 +56,11 @@ void JSONJob::execute()
                 }
                 if (!targetLocation.isNull()) {
                     write<256>("{\"location\":%s,\"type\":\"%s\",\"target\":%s}",
-                               toJSON(sit->first, it->first, sit->second.symbolLength, srcRootLength).constData(), type.data(),
+                               toJSON(sit->first, it->first, sit->second.symbolLength, srcRootLength).constData(), type.constData(),
                                toJSON(targetLocation, it->first, target.symbolLength, srcRootLength).constData());
                 } else {
                     write<256>("{\"location\":%s,\"type\":\"%s\"}",
-                               toJSON(sit->first, it->first, sit->second.symbolLength, srcRootLength).constData(), type.data());
+                               toJSON(sit->first, it->first, sit->second.symbolLength, srcRootLength).constData(), type.constData());
                 }
 
                 ++sit;

@@ -36,7 +36,7 @@ void ValidateDBJob::execute()
                     stream << "Invalid entry for " << loc
                            << " symbolName: " << ci.symbolName;
                     if (ci.kind)
-                        stream << " kind: " << RTags::eatString(clang_getCursorKindSpelling(ci.kind));// this somehow seems to hang when kind == 0
+                        stream << " kind: " << ci.kindSpelling();// this somehow seems to hang when kind == 0
                     stream << " isDefinition: " << (ci.isDefinition() ? "true" : "false")
                            << " target: " << ci.targets
                            << " references:";

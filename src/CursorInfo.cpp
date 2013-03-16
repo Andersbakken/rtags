@@ -1,6 +1,21 @@
 #include "CursorInfo.h"
 #include "RTagsClang.h"
 
+const char *jsKindNames[] = {
+    "JSInvalid",
+    "JSVariable",
+    "JSWeakVariable",
+    "JSFunction",
+    "JSReference"
+};
+
+String CursorInfo::kindSpelling(uint16_t kind)
+{
+    if (kind >= JSInvalid)
+        return jsKindNames[kind - JSInvalid];
+    return RTags::eatString(clang_getCursorKindSpelling(static_cast<CXCursorKind>(kind)));
+}
+
 String CursorInfo::toString(unsigned cursorInfoFlags, unsigned keyFlags) const
 {
     String ret = String::format<1024>("SymbolName: %s\n"
@@ -11,7 +26,7 @@ String CursorInfo::toString(unsigned cursorInfoFlags, unsigned keyFlags) const
                                       "%s" // enumValue
                                       "%s", // definition
                                       symbolName.constData(),
-                                      RTags::eatString(clang_getCursorKindSpelling(kind)).constData(),
+                                      kindSpelling().constData(),
                                       RTags::eatString(clang_getTypeKindSpelling(type)).constData(),
                                       symbolLength,
                                       start != -1 && end != -1 ? String::format<32>("Range: %d-%d\n", start, end).constData() : "",
@@ -133,7 +148,7 @@ enum Mode {
     NormalRefs
 };
 
-static inline void allImpl(const SymbolMap &map, const Location &loc, const CursorInfo &info, SymbolMap &out, Mode mode, CXCursorKind kind)
+static inline void allImpl(const SymbolMap &map, const Location &loc, const CursorInfo &info, SymbolMap &out, Mode mode, unsigned kind)
 {
     if (out.contains(loc))
         return;

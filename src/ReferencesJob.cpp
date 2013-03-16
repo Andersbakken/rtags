@@ -19,7 +19,7 @@ void ReferencesJob::execute()
 {
     shared_ptr<Project> proj = project();
     Location startLocation;
-    Map<Location, std::pair<bool, CXCursorKind> > references;
+    Map<Location, std::pair<bool, uint16_t> > references;
     if (proj) {
         if (!symbolName.isEmpty()) {
             Scope<const SymbolNameMap&> scope = proj->lockSymbolNamesForRead();
@@ -104,7 +104,7 @@ void ReferencesJob::execute()
     enum { Rename = (QueryMessage::ReverseSort|QueryMessage::AllReferences) };
     if ((queryFlags() & Rename) == Rename) {
         if (!references.isEmpty()) {
-            Map<Location, std::pair<bool, CXCursorKind> >::const_iterator it = references.end();
+            Map<Location, std::pair<bool, uint16_t> >::const_iterator it = references.end();
             do {
                 --it;
                 write(it->first);
@@ -113,7 +113,7 @@ void ReferencesJob::execute()
     } else {
         List<RTags::SortedCursor> sorted;
         sorted.reserve(references.size());
-        for (Map<Location, std::pair<bool, CXCursorKind> >::const_iterator it = references.begin();
+        for (Map<Location, std::pair<bool, uint16_t> >::const_iterator it = references.begin();
              it != references.end(); ++it) {
             sorted.append(RTags::SortedCursor(it->first, it->second.first, it->second.second));
         }

@@ -264,9 +264,35 @@ void Server::onNewMessage(Message *message, Connection *connection)
 void Server::handleCompileMessage(CompileMessage *message, Connection *conn)
 {
     conn->finish(); // nothing to wait for
-    shared_ptr<CompileJob> job(new CompileJob(*message));
-    job->argsReady().connect(this, &Server::processSourceFile);
-    mQueryThreadPool.start(job);
+    Path path = message->arguments();
+    if (path.endsWith(".js") && !path.contains(' ')) {
+        if (!path.isAbsolute())
+            path.prepend(message->path());
+        const Path srcRoot = RTags::findProjectRoot(path);
+        if (srcRoot.isEmpty()) {
+            error() << "Can't find project root for" << path;
+            return;
+        }
+        {
+            MutexLocker lock(&mMutex);
+
+            shared_ptr<Project> project = mProjects.value(srcRoot);
+            if (!project) {
+                project = addProject(srcRoot);
+                assert(project);
+            }
+            loadProject(project);
+
+            if (!mCurrentProject.lock())
+                mCurrentProject = project;
+
+            project->index(path);
+        }
+    } else {
+        shared_ptr<CompileJob> job(new CompileJob(*message));
+        job->argsReady().connect(this, &Server::processSourceFile);
+        mQueryThreadPool.start(job);
+    }
 }
 
 void Server::handleCreateOutputMessage(CreateOutputMessage *message, Connection *conn)
@@ -740,7 +766,7 @@ void Server::startQueryJob(const shared_ptr<Job> &job)
     mQueryThreadPool.start(job);
 }
 
-void Server::processSourceFile(GccArguments args)
+void Server::processSourceFile(const GccArguments &args)
 {
     if (args.lang() == GccArguments::NoLang || mOptions.ignoredCompilers.contains(args.compiler())) {
         return;
@@ -780,37 +806,13 @@ void Server::processSourceFile(GccArguments args)
         }
         loadProject(project);
 
-        if (!mCurrentProject.lock()) {
+        if (!mCurrentProject.lock())
             mCurrentProject = project;
-        }
 
         const List<String> arguments = args.clangArgs();
 
         for (int i=0; i<count; ++i) {
-            SourceInformation sourceInformation = project->sourceInfo(Location::insertFile(inputFiles.at(i)));
-            if (sourceInformation.isNull()) {
-                sourceInformation.sourceFile = inputFiles.at(i);
-                sourceInformation.builds.append(SourceInformation::Build(args.compiler(), arguments));
-            } else {
-                List<SourceInformation::Build> &builds = sourceInformation.builds;
-                bool added = false;
-                for (int j=0; j<builds.size(); ++j) {
-                    if (builds.at(j).compiler == args.compiler()) {
-                        if (builds.at(j).args == arguments) {
-                            debug() << inputFiles.at(i) << " is not dirty. ignoring";
-                            return;
-                        } else if (!(mOptions.options & AllowMultipleBuildsForSameCompiler)) {
-                            builds[j].args = arguments;
-                            added = true;
-                            break;
-                        }
-                    }
-                }
-                if (!added) {
-                    sourceInformation.builds.append(SourceInformation::Build(args.compiler(), arguments));
-                }
-            }
-            project->index(sourceInformation, IndexerJob::Makefile);
+            project->index(inputFiles.at(i), args.compiler(), arguments);
         }
     }
 }

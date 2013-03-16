@@ -82,7 +82,6 @@ bool Project::restore()
             in >> scope.data();
         }
 
-
         in >> mDependencies >> mSources >> mVisitedFiles;
 
         DependencyMap reversedDependencies;
@@ -358,6 +357,41 @@ void Project::index(const SourceInformation &c, IndexerJob::Type type)
         mTimer.start();
     }
     Server::instance()->startIndexerJob(job);
+}
+
+bool Project::index(const Path &sourceFile, const Path &compiler, const List<String> &args)
+{
+    SourceInformation sourceInformation = sourceInfo(Location::insertFile(sourceFile));
+    const bool js = args.isEmpty() && sourceFile.endsWith(".js");
+    if (sourceInformation.isNull()) {
+        sourceInformation.sourceFile = sourceFile;
+        if (!js)
+            sourceInformation.builds.append(SourceInformation::Build(compiler, args));
+    } else if (js) {
+        debug() << sourceFile << " is not dirty. ignoring";
+        return false;
+    } else {
+        List<SourceInformation::Build> &builds = sourceInformation.builds;
+        bool added = false;
+        const bool allowMultiple = Server::instance()->options().options & Server::AllowMultipleBuildsForSameCompiler;
+        for (int j=0; j<builds.size(); ++j) {
+            if (builds.at(j).compiler == compiler) {
+                if (builds.at(j).args == args) {
+                    debug() << sourceFile << " is not dirty. ignoring";
+                    return false;
+                } else if (!allowMultiple) {
+                    builds[j].args = args;
+                    added = true;
+                    break;
+                }
+            }
+        }
+        if (!added) {
+            sourceInformation.builds.append(SourceInformation::Build(compiler, args));
+        }
+    }
+    index(sourceInformation, IndexerJob::Makefile);
+    return true;
 }
 
 void Project::onFileModified(const Path &file)
@@ -789,4 +823,10 @@ void Project::timerEvent(TimerEvent *e)
         e->stop();
     }
 }
-
+void Project::onJSFilesAdded()
+{
+    Set<Path> jsFiles = fileManager->jsFiles();
+    for (Set<Path>::const_iterator it = jsFiles.begin(); it != jsFiles.end(); ++it) {
+        index(*it);
+    }
+}

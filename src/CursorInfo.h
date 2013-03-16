@@ -13,6 +13,14 @@ typedef Map<Location, CursorInfo> SymbolMap;
 class CursorInfo
 {
 public:
+    enum JSCursorKind {
+        JSInvalid = 10000,
+        JSVariable,
+        JSWeakVariable,
+        JSFunction,
+        JSReference
+    };
+    
     CursorInfo()
         : symbolLength(0), kind(CXCursor_FirstInvalid), type(CXType_Invalid), enumValue(0), start(-1), end(-1)
     {}
@@ -29,6 +37,8 @@ public:
         symbolName.clear();
     }
 
+    String kindSpelling() const { return kindSpelling(kind); }
+    static String kindSpelling(uint16_t kind);
     bool dirty(const Set<uint32_t> &dirty)
     {
         bool changed = false;
@@ -145,7 +155,7 @@ public:
     String toString(unsigned cursorInfoFlags = DefaultFlags, unsigned keyFlags = 0) const;
     uint16_t symbolLength; // this is just the symbol name length e.g. foo => 3
     String symbolName; // this is fully qualified Foobar::Barfoo::foo
-    CXCursorKind kind;
+    uint16_t kind;
     CXTypeKind type;
     union {
         bool definition;

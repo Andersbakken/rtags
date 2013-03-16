@@ -27,61 +27,81 @@ void FileManager::recurseDirs()
 
 void FileManager::onRecurseJobFinished(const Set<Path> &paths)
 {
-    shared_ptr<Project> project = mProject.lock();
-    assert(project);
-    Scope<FilesMap&> scope = project->lockFilesForWrite();
-    FilesMap &map = scope.data();
-    mWatcher.clear();
-    for (Set<Path>::const_iterator it = paths.begin(); it != paths.end(); ++it) {
-        const Path parent = it->parentDir();
-        if (parent.isEmpty()) {
-            error() << "Got empty parent here" << *it;
-            continue;
+    bool emitJS = false;
+    {
+        MutexLocker lock(&mMutex);
+        Set<Path> old;
+        std::swap(mJSFiles, old);
+
+        shared_ptr<Project> project = mProject.lock();
+        assert(project);
+        Scope<FilesMap&> scope = project->lockFilesForWrite();
+        FilesMap &map = scope.data();
+        mWatcher.clear();
+        for (Set<Path>::const_iterator it = paths.begin(); it != paths.end(); ++it) {
+            if (it->endsWith(".js"))
+                mJSFiles.insert(*it);
+            const Path parent = it->parentDir();
+            if (parent.isEmpty()) {
+                error() << "Got empty parent here" << *it;
+                continue;
+            }
+            assert(!parent.isEmpty());
+            Set<String> &dir = map[parent];
+            if (dir.isEmpty())
+                mWatcher.watch(parent);
+            dir.insert(it->fileName());
         }
-        assert(!parent.isEmpty());
-        Set<String> &dir = map[parent];
-        if (dir.isEmpty())
-            mWatcher.watch(parent);
-        dir.insert(it->fileName());
+        assert(!map.contains(""));
+        emitJS = old != mJSFiles;
     }
-    assert(!map.contains(""));
+    if (emitJS)
+        mJSFilesChanged();
 }
 
 void FileManager::onFileAdded(const Path &path)
 {
-    if (path.isEmpty()) {
-        error("Got empty file added here");
-        return;
-    }
-    const Filter::Result res = Filter::filter(path);
-    switch (res) {
-    case Filter::Directory:
-        recurseDirs();
-        return;
-    case Filter::Filtered:
-        return;
-    default:
-        break;
-    }
+    bool emitJS = false;
+    {
+        MutexLocker lock(&mMutex);
+        if (path.isEmpty()) {
+            error("Got empty file added here");
+            return;
+        }
+        const Filter::Result res = Filter::filter(path);
+        switch (res) {
+        case Filter::Directory:
+            recurseDirs();
+            return;
+        case Filter::Filtered:
+            return;
+        default:
+            break;
+        }
 
-    shared_ptr<Project> project = mProject.lock();
-    assert(project);
-    Scope<FilesMap&> scope = project->lockFilesForWrite();
-    FilesMap &map = scope.data();
-    const Path parent = path.parentDir();
-    if (!parent.isEmpty()) {
-        Set<String> &dir = map[parent];
-        if (dir.isEmpty())
-            mWatcher.watch(parent);
-        dir.insert(path.fileName());
-    } else {
-        error() << "Got empty parent here" << path;
+        shared_ptr<Project> project = mProject.lock();
+        assert(project);
+        Scope<FilesMap&> scope = project->lockFilesForWrite();
+        FilesMap &map = scope.data();
+        const Path parent = path.parentDir();
+        if (!parent.isEmpty()) {
+            Set<String> &dir = map[parent];
+            if (dir.isEmpty())
+                mWatcher.watch(parent);
+            dir.insert(path.fileName());
+            emitJS = path.endsWith(".js");
+        } else {
+            error() << "Got empty parent here" << path;
+        }
+        assert(!map.contains(Path()));
     }
-    assert(!map.contains(Path()));
+    if (emitJS)
+        mJSFilesChanged();
 }
 
 void FileManager::onFileRemoved(const Path &path)
 {
+    MutexLocker lock(&mMutex);
     shared_ptr<Project> project = mProject.lock();
     Scope<FilesMap&> scope = project->lockFilesForWrite();
     FilesMap &map = scope.data();
@@ -108,6 +128,7 @@ static inline bool startsWith(const Path &left, const Path &right)
 
 bool FileManager::contains(const Path &path) const
 {
+    MutexLocker lock(&mMutex);
     shared_ptr<Project> proj = mProject.lock();
     if (!proj)
         return false;
@@ -121,9 +142,15 @@ bool FileManager::contains(const Path &path) const
 
 void FileManager::reload()
 {
+    MutexLocker lock(&mMutex);
     shared_ptr<Project> proj = mProject.lock();
     Scope<FilesMap&> scope = proj->lockFilesForWrite();
     FilesMap &map = scope.data();
     map.clear();
     recurseDirs();
+}
+Set<Path> FileManager::jsFiles() const
+{
+    MutexLocker lock(&mMutex);
+    return mJSFiles;
 }

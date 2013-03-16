@@ -19,9 +19,14 @@ public:
     void onRecurseJobFinished(const Set<Path> &mPaths);
     bool contains(const Path &path) const;
     void reload();
+    Set<Path> jsFiles() const;
+    signalslot::Signal0 &jsFilesChanged() { return mJSFilesChanged; }
 private:
     FileSystemWatcher mWatcher;
     weak_ptr<Project> mProject;
+    signalslot::Signal0 mJSFilesChanged;
+    Set<Path> mJSFiles;
+    mutable Mutex mMutex;
 };
 
 #endif

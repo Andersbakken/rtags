@@ -6,6 +6,7 @@
 #include "Project.h"
 #include "CompilerManager.h"
 #include "RTagsClang.h"
+#include "JSParser.h"
 
 struct DumpUserData {
     int indentLevel;
@@ -1154,6 +1155,63 @@ void IndexerJob::execute()
         return;
     mTimer.start();
     mData.reset(new IndexData);
+    if (mSourceInformation.isJS()) {
+        executeJS();
+    } else {
+        executeCPP();
+    }
+}
+
+void IndexerJob::executeJS()
+{
+    const String contents = mSourceInformation.sourceFile.readAll(1024 * 1024 * 100);
+    if (contents.isEmpty()) {
+        error() << "Can't open" << mSourceInformation.sourceFile << "for reading";
+        return;
+    }
+
+    JSParser parser;
+    if (!parser.init()) {
+        error() << "Can't init JSParser for" << mSourceInformation.sourceFile;
+        return;
+    }
+    if (isAborted())
+        return;
+    String errors; // ### what to do about this one?
+    String dump;
+    if (!parser.parse(mSourceInformation.sourceFile, contents, &mData->symbols, &mData->symbolNames,
+                      &errors, mType == Dump ? &dump : 0)) {
+        error() << "Can't parse" << mSourceInformation.sourceFile;
+    }
+    mParseTime = time(0);
+
+    if (mType == Dump) {
+        dump += "\n";
+        {
+            Log stream(&dump);
+            for (Map<Location, CursorInfo>::const_iterator it = mData->symbols.begin(); it != mData->symbols.end(); ++it) {
+                stream << it->first << it->second;
+            }
+
+            for (Map<String, Set<Location> >::const_iterator it = mData->symbolNames.begin(); it != mData->symbolNames.end(); ++it) {
+                stream << it->first << it->second;
+            }
+
+            assert(id() != -1);
+        }
+        write(dump);
+
+        mData->symbols.clear();
+        mData->symbolNames.clear();
+    } else {
+        mData->message = String::format<128>("%s in %dms. (%d syms, %d symNames, %d refs)",
+                                             mSourceInformation.sourceFile.toTilde().constData(),
+                                             mTimer.elapsed(), mData->symbols.size(), mData->symbolNames.size(), mData->references.size());
+    }
+}
+
+void IndexerJob::executeCPP()
+{
     if (mType == Dump) {
         assert(id() != -1);
         if (shared_ptr<Project> p = project()) {
@@ -1190,7 +1248,7 @@ void IndexerJob::execute()
             errorCount += err;
         }
         {
-            mData->message += mSourceInformation.sourceFile.toTilde();
+            mData->message = mSourceInformation.sourceFile.toTilde();
             if (buildCount > 1)
                 mData->message += String::format<16>(" (%d builds)", buildCount);
             if (!unitCount) {
@@ -1198,11 +1256,11 @@ void IndexerJob::execute()
             } else if (unitCount != buildCount) {
                 mData->message += String::format<16>(" (%d errors, %d ok)", buildCount - unitCount, unitCount);
             }
-            mData->message += String::format<16>(" in %sms. ", String::number(mTimer.elapsed()).constData());
+            mData->message += String::format<16>(" in %dms. ", mTimer.elapsed());
             if (unitCount) {
-                mData->message += String::format<1024>("(%d syms, %d symNames, %d refs, %d deps, %d files)",
-                                                       mData->symbols.size(), mData->symbolNames.size(), mData->references.size(),
-                                                       mData->dependencies.size(), mVisitedFiles.size());
+                mData->message += String::format<128>("(%d syms, %d symNames, %d refs, %d deps, %d files)",
+                                                      mData->symbols.size(), mData->symbolNames.size(), mData->references.size(),
+                                                      mData->dependencies.size(), mVisitedFiles.size());
             } else if (mData->dependencies.size()) {
                 mData->message += String::format<16>("(%d deps)", mData->dependencies.size());
             }
