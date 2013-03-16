@@ -1,21 +1,25 @@
 * Introduction
 
-RTags is a client/server application that indexes c/c++ code
-and keeps a persistent in-memory database of references, symbolnames,
-completions etc. It allows you to find symbols by name (including
-class and namespace scope), we integrate with dabbrev for intelligent
-completion (we could integrate with 'autocompletion but honestly, if
-you want that, Qt Creator, Eclipse and Visual Studio has your
-back). Most importantly we give you proper follow-symbol and
-find-references support.
+RTags is a client/server application that indexes c/c++ code and keeps
+a persistent in-memory database of references, declarations,
+definitions, symbolnames etc. It allows you to find symbols by name
+(including class and namespace scope). Most importantly we give you
+proper follow-symbol and find-references support. We also have neat
+little things like rename-symbol, integration with clang's "fixits"
+(http://clang.llvm.org/diagnostics.html). We also integrate with
+flymake using clang's vastly superior errors and warnings. Since rtags
+constantly will reindex "dirty" files you get live updating of
+compiler errors and warnings. Since we already know how to compile
+your sources we have a way to quickly bring up the preprocessed output
+of the current source file in a buffer.
 
 While existing taggers like gnu global, cscope, etags, ctags etc do a
 good job for C they often fall a little bit short for C++. With its
-incredible lexical complexity parsing C++ is an incredibly hard task
+incredible lexical complexity, parsing C++ is an incredibly hard task
 and we make no bones about the fact that the only reason we are able
 to improve on the current tools is because of clang
 (http://clang.llvm.org/). RTags is named rtags in recognition of
-Roberto Raggi on whose C++ parser we intended to make this project but
+Roberto Raggi on whose C++ parser we intended to base this project but
 he assured us clang was the way to go. The name stuck though.
 
 * Usage
@@ -38,14 +42,19 @@ We maintain a set of elisp bindings so you don't acually have to call
 this yourself but we feel that this architecture allows us to add
 bindings to other editors (like vim) at a later point.
 
+rc has a vast number of commands and options and we intend to write a
+man page at some point. Most users will have limited interest in ever
+calling it manually and would rather just use the interactive elisp
+functions.
+
 * Architecture
 
 Since clang requires us to really compile the file we need to know the
-actual c(xx)flags for parsing the source files. In essence RTags
-indexes all the source files it has been told about and all the
-headers included by these source files. To tell rtags about a source
-(you only need to do this once, after that it will monitor the file
-for changes using inotify/kqueue) you need call this command:
+actual c(xx)flags for the source files. In essence RTags indexes all
+the source files it has been told about and all the headers included
+by these source files. To tell rtags about a source (you only need to
+do this once, after that it will monitor the file for changes using
+inotify/kqueue) you need call this command:
 
 #+BEGIN_SRC
 $ rc --compile "gcc -W... -I... -D... source.c"
@@ -57,22 +66,27 @@ it is like this:
 
 #+BEGIN_SRC
 
-$ ln -s /path/to/rtags/gcc-rtags-wrapper.sh /somewhere/that/is/in/your/path/before/usr/bin/gcc
-$ ln -s /path/to/rtags/gcc-rtags-wrapper.sh /somewhere/that/is/in/your/path/before/usr/bin/c++
-$ ln -s /path/to/rtags/gcc-rtags-wrapper.sh /somewhere/that/is/in/your/path/before/usr/bin/cc
-$ ln -s /path/to/rtags/gcc-rtags-wrapper.sh /somewhere/that/is/in/your/path/before/usr/bin/g++
+$ ln -s /path/to/rtags/bin/gcc-rtags-wrapper.sh /somewhere/that/is/in/your/path/before/usr/bin/gcc
+$ ln -s /path/to/rtags/bin/gcc-rtags-wrapper.sh /somewhere/that/is/in/your/path/before/usr/bin/c++
+$ ln -s /path/to/rtags/bin/gcc-rtags-wrapper.sh /somewhere/that/is/in/your/path/before/usr/bin/cc
+$ ln -s /path/to/rtags/bin/gcc-rtags-wrapper.sh
+/somewhere/that/is/in/your/path/before/usr/bin/g++
 
-$ ls -la | grep wrapper
-lrwxrwxrwx  1 abakken abakken      44 Jan 12 15:37 c++ -> /home/abakken/dev/rtags/gcc-rtags-wrapper.sh
-lrwxrwxrwx  1 abakken abakken      44 Jan 12 15:37 cc -> /home/abakken/dev/rtags/gcc-rtags-wrapper.sh
-lrwxrwxrwx  1 abakken abakken      44 Jan 12 15:37 g++ -> /home/abakken/dev/rtags/gcc-rtags-wrapper.sh
-lrwxrwxrwx  1 abakken abakken      44 Jan 12 15:37 gcc -> /home/abakken/dev/rtags/gcc-rtags-wrapper.sh
+#+END_SRC
+E.g.
+#+BEGIN_SRC
+
+$ which -a gcc | xargs file
+/home/abakken/bin/gcc: symbolic link to `/home/abakken/dev/rtags/bin/gcc-rtags-wrapper.sh'
+/usr/bin/gcc:         symbolic link to `gcc-4.7'
 
 #+END_SRC
 
 This script will essentially stick itself in the middle of your
 compiles and notify rtags that you want this file indexed and then
-invoke the next entry in the $PATH that matches $0.
+invoke the next entry in the $PATH that matches $0. This is a similar
+approach to the one taken by distributed build systems like icecream
+(https://github.com/icecc/icecream).
 
 RTags will group source files into projects based on some heuristics.
 
@@ -89,25 +103,37 @@ for things by name. You can explicitly change the current project using:
 $ rc -w foobar
 #+END_SRC
 
-The emacs integration tries to do it automatically for you.
+We try to do it automatically for you by passing along information
+about the current buffer when we call rc from elisp so that rdm can
+update its current project on demand.
 
 RTags keeps a cache of indexed data so you don't have to reindex
-everything if you restart it. The location of this data is by default
-~/.rtags but can be overridden by passing --data-dir /other/dir to
-rdm.
+everything if you restart it. Note that reloading this data sometimes
+takes quite a few seconds (could be 10+ for big projects) and emacs
+will be blocked until it is finished if an emacs command triggered
+this reload. There's not a lot of good options to avoid this. We
+definitely don't want to make Emacs' rc integration async since we'd
+then have to move your cursor behind your back when the command
+eventually finished and nobody wants that. We're looking into better
+options.
 
-RTags also maintains a list of active projects
-It also maintains an ini-format file for which projects currently are
-indexed that by default sits in ~/.rtagsprojects.
+The location of this data is by default ~/.rtags but can be overridden
+by passing --data-dir /other/dir to rdm or putting something like this
+in your ~/.rdmrc:
 
-Building rtags:
+#+BEGIN_SRC
+$ cat ~/.rdmrc
+--data-dir=/other/dir
+#+END_SRC
+
+Installing rtags:
 
 #+BEGIN_SRC
 cd /path/to/rtags
 cmake .
 make 3rdparty # This step will take quite a while. It will download trunk of clang and llvm and build it
 make
-export PATH=/path/to/rtags/src:$PATH
+export PATH=/path/to/rtags/src:~/bin/:$PATH
 ln -s /path/to/rtags/gcc-rtags-wrapper.sh ~/bin/c++
 ln -s /path/to/rtags/gcc-rtags-wrapper.sh ~/bin/cc
 ln -s /path/to/rtags/gcc-rtags-wrapper.sh ~/bin/g++
@@ -123,8 +149,6 @@ Add something like this to your .emacs:
 
 #+END_SRC
 
-Or something to that effect.
-
 To enable the standard keybindings (using a prefix of C-x r) you could
 call something like this:
 
@@ -136,14 +160,201 @@ There are lots of interactive functions to call but the most important ones are:
 
 #+BEGIN_SRC
 
-(rtags-find-symbol-at-point) ;; follow symbol under cursor
-(rtags-find-references-at-point) ;; find all references to symbol under cursor
-(rtags-find-symbol) ;; prompt for name of symbol to go to
-(rtags-find-references) ;; prompt for name of symbol to find references to
+;; interactive functions
+
+- (rtags-find-symbol-at-point)
+
+;; Follow symbol under cursor. For references this goes to the
+;; definition (or declaration if no definition is known of the
+;; symbol. For declarations it goes to the definition and vice
+;; versa. For definitions of variables/parameters with constructors
+;; it goes to the constructor in question.
+;; If you pass a prefix argument, limit to current source file, if you
+;; pass a prefix argument and have narrowed the current file, limit to
+;; the narrowed region. This prefix argument is the same for:
+;; rtags-find-references-at-point, rtags-find-symbol, rtags-find-references
+
+- (rtags-find-references-at-point)
+;; Find all references to symbol under cursor. If symbol is itself a
+;; reference it will find all references to the referenced symbol
+
+- (rtags-find-symbol)
+;; Prompt for name of symbol to go to. Imagine the following code:
+<c++>
+namespace N
+{
+class C
+{
+public:
+    int func(int);
+};
+};
+
+using namespace N;
+int C::func(int val)
+{
+    return val * 2;
+}
+</c++>
+
+;; int N::C::func(int) will now be accessible by the following names:
+func
+func(int)
+C::func(int)
+C::func
+N::C::func(int)
+N::C::func
+
+- (rtags-find-references)
+;; Prompt for name of symbol to find references to. Same as above but
+;; find references to symbol rather than declarations and definitions.
+
+- (rtags-diagnostics)
+;; Start an async process in a buffer to receive warnings/errors from
+;; clang whenever a file gets reindexed. It integrates with flymake to
+;; put highlighting on code with warnings and errors
+
+- (rtags-enable-standard-keybindings)
+;; Sets up a ton of standard keybindings under C-x r (we try to avoid
+;; crashing with the register shortcuts). If you pass a mode to the
+;; function it will set it up on that mode, otherwise it will use
+;; c-mode-base-map).
+
+- (rtags-find-file)
+
+;; Lets you jump to file by name (partial or full, concept kinda
+;; stolen from gtags.el) with completion in the project. This includes
+;; all files under what we determine to be the root of the project,
+;; not just source files.
+
+- (rtags-find-virtuals-at-point)
+;; For virtual functions, show the various reimplementations of the
+;; function at point
+
+- (rtags-fixit)
+;; Apply clang's automatic fixits in current file. If you pass a
+;; prefix arg use ediff to apply it. See
+;; (http://clang.llvm.org/diagnostics.html) for more info.
+
+- (rtags-imenu)
+;; Provices an ido-based imenu like interface to a subset of the
+;; symbols in the current file. Note that it does not actually use
+;; imenu infrastructure.
+
+- (rtags-location-stack-back) and (rtags-location-stack-forward)
+;; Whenever rtags jumps somewhere it pushes a location onto its
+;; stack. Jump back and forward in this stack
+
+- (rtags-next-match) and (rtags-previous-match)
+;; For functions that return more than one match, jump to the
+;; next/previous one.
+
+- (rtags-preprocess-file)
+;; Preprocess current file according to known C(XX)Flags and show the
+;; result in a buffer. If region is active only display the
+;; preprocessed output for that region.
+
+- (rtags-print-cursorinfo)
+;; Print some info about symbol under cursor
+
+- (rtags-print-dependencies)
+;; Open a buffer showing files that depend on current file/files that
+;; current file depends on.
+
+- (rtags-print-enum-value-at-point)
+;; Print integral value of enum value at point
+
+- (rtags-quit-rdm)
+;; Shut down rdm
+
+- (rtags-rename-symbol)
+;; Rename symbol under cursor. Make sure all files are saved and fully
+;; indexed before using.
+
+- (rtags-reparse-file)
+;; Explicitly trigger a reparse of current file. Mostly for
+;; debugging. Unless we have bugs it should not be necessary.
+
+- (rtags-show-rtags-buffer)
+;; Switch to *RTags* buffer. This is the buffer where a number of
+;; functions display their alternatives when they have more than one
+;; match.
+
+;; Variables:
+
+- rtags-path
+;; Path to rc/rdm if they're not in $PATH.
+
+- rtags-jump-to-first-match
+;; Similar to compilation-auto-jump-to-first-error. Whether to jump to
+;; the first match automatically when there's more than one.
+
+- rtags-find-file-case-insensitive
+;; Whether to match files case-insensitively
+
+- rtags-find-file-prefer-exact-match
+;; Whether to exclude partial matches for file names when an exact
+;; match is found. E.g.
+;; /foobar.cpp
+;; /bar.cpp
+;; If rtags-find-file-prefer-exact-match is t a query for bar.cpp
+;; would only return /bar.cpp, otherwise both foobar.cpp and bar.cpp
+;; would be returned.
+
+;; Fall back to other taggers:
+
+;; You can do something like the following to fall back to e.g. gtags
+;; if rtags doesn't have a certain project indexed:
+
+(defun use-rtags (&optional useFileManager)
+  (and (rtags-executable-find "rc")
+       (cond ((not (gtags-get-rootpath)) t)
+             ((and (not (eq major-mode 'c++-mode))
+                   (not (eq major-mode 'c-mode))) (rtags-has-filemanager))
+             (useFileManager (rtags-has-filemanager))
+             (t (rtags-is-indexed)))))
+
+(defun tags-find-symbol-at-point (&optional prefix)
+  (interactive "P")
+  (if (and (not (rtags-find-symbol-at-point prefix)) rtags-last-request-not-indexed)
+      (gtags-find-tag)))
+(defun tags-find-references-at-point (&optional prefix)
+  (interactive "P")
+  (if (and (not (rtags-find-references-at-point prefix)) rtags-last-request-not-indexed)
+      (gtags-find-rtag)))
+(defun tags-find-symbol ()
+  (interactive)
+  (call-interactively (if (use-rtags) 'rtags-find-symbol 'gtags-find-symbol)))
+(defun tags-find-references ()
+  (interactive)
+  (call-interactively (if (use-rtags) 'rtags-find-references 'gtags-find-rtag)))
+(defun tags-find-file ()
+  (interactive)
+  (call-interactively (if (use-rtags t) 'rtags-find-file 'gtags-find-file)))
+(defun tags-imenu ()
+  (interactive)
+  (call-interactively (if (use-rtags t) 'rtags-imenu 'idomenu)))
+
+(define-key c-mode-base-map (kbd "M-.") (function tags-find-symbol-at-point))
+(define-key c-mode-base-map (kbd "M-,") (function tags-find-references-at-point))
+(define-key c-mode-base-map (kbd "M-;") (function tags-find-file))
+(define-key c-mode-base-map (kbd "C-.") (function tags-find-symbol))
+(define-key c-mode-base-map (kbd "C-,") (function tags-find-references))
+(define-key c-mode-base-map (kbd "C-<") (function rtags-find-virtuals-at-point))
+(define-key c-mode-base-map (kbd "M-i") (function tags-imenu))
+
+(define-key global-map (kbd "M-.") (function tags-find-symbol-at-point))
+(define-key global-map (kbd "M-,") (function tags-find-references-at-point))
+(define-key global-map (kbd "M-;") (function tags-find-file))
+(define-key global-map (kbd "C-.") (function tags-find-symbol))
+(define-key global-map (kbd "C-,") (function tags-find-references))
+(define-key global-map (kbd "C-<") (function rtags-find-virtuals-at-point))
+(define-key global-map (kbd "M-i") (function tags-imenu))
+
 
 #+END_SRC
 
-* Vidoes
+* Videos
 
 Here are some videos demonstrating how to use rtags with emacs:
 
@@ -158,3 +369,9 @@ http://youtu.be/DUkT3CCpHVw
 RTags is still in development and is not the most stable piece of
 software you'll ever find. We crash sometimes (though admittedly
 mostly inside clang). We're constantly working to improve on it.
+
+* Known issues
+
+- We deal poorly with files with \r\n line endings. There may be an
+elisp based solution to this but since rtags is based on byte offsets
+and emacs kinda takes away the line feeds for us it gets messy.
