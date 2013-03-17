@@ -107,7 +107,9 @@ List<String> ListSymbolsJob::listSymbols(const shared_ptr<Project> &project)
     List<String> out;
     const bool hasFilter = Job::hasFilter();
     const bool elispList = queryFlags() & QueryMessage::ElispList;
-    const bool skipParentheses = queryFlags() & QueryMessage::SkipParentheses;
+    const bool skipParentheses = queryFlags() & QueryMessage::StripParentheses;
+
+    Set<String> have;
 
     Scope<const SymbolNameMap&> symbolNames = project->lockSymbolNamesForRead();
     const SymbolNameMap &map = symbolNames.data();
@@ -118,8 +120,6 @@ List<String> ListSymbolsJob::listSymbols(const shared_ptr<Project> &project)
         ++it;
         if (!string.isEmpty() && !entry.startsWith(string))
             break;
-        if (skipParentheses && !entry.contains('('))
-            continue;
         bool ok = true;
         if (hasFilter) {
             ok = false;
@@ -132,10 +132,31 @@ List<String> ListSymbolsJob::listSymbols(const shared_ptr<Project> &project)
             }
         }
         if (ok) {
-            if (elispList) {
-                write(entry);
+            if (skipParentheses) {
+                const int paren = entry.indexOf('(');
+                if (paren == -1) {
+                    if (have.contains(entry))
+                        continue;
+                    have.insert(entry);
+                    if (elispList)
+                        write(entry);
+                    else
+                        out.append(entry);
+                } else {
+                    const String noparen = entry.left(paren);
+                    if (have.contains(noparen))
+                        continue;
+                    have.insert(noparen);
+                    if (elispList)
+                        write(noparen);
+                    else
+                        out.append(noparen);
+                }
             } else {
-                out.append(entry);
+                if (elispList)
+                    write(entry);
+                else
+                    out.append(entry);
             }
         }
         if (!(++count % 10) && isAborted())

@@ -47,7 +47,7 @@ public:
         NoContext = 0x00001,
         LineNumbers = 0x00002,
         FilterSystemIncludes = 0x00004,
-        SkipParentheses = 0x00008,
+        StripParentheses = 0x00008,
         AllReferences = 0x00010,
         ReverseSort = 0x00020,
         ElispList = 0x00040,

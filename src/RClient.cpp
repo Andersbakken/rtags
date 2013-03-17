@@ -305,7 +305,7 @@ enum OptionType {
     RestartRdm,
     ReverseSort,
     Silent,
-    SkipParen,
+    StripParen,
     SocketFile,
     Status,
     Timeout,
@@ -377,7 +377,7 @@ struct Option opts[] = {
 
     { None, 0, 0, 0, "" },
     { None, 0, 0, 0, "Command flags:" },
-    { SkipParen, "skip-paren", 'p', no_argument, "Skip parens in various contexts." },
+    { StripParen, "strip-paren", 'p', no_argument, "Strip parens in various contexts." },
     { Max, "max", 'M', required_argument, "Max lines of output for queries." },
     { ReverseSort, "reverse-sort", 'O', no_argument, "Sort output reversed." },
     { UnsavedFile, "unsaved-file", 0, required_argument, "Pass unsaved file on command line. E.g. --unsaved-file=main.cpp:1200 then write 1200 bytes on stdin." },
@@ -656,8 +656,8 @@ bool RClient::parse(int &argc, char **argv)
         case LogFile:
             logFile = optarg;
             break;
-        case SkipParen:
-            mQueryFlags |= QueryMessage::SkipParentheses;
+        case StripParen:
+            mQueryFlags |= QueryMessage::StripParentheses;
             break;
         case ConnectTimeout:
             mConnectTimeout = atoi(optarg);
