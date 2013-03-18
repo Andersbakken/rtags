@@ -29,7 +29,10 @@ public:
     Location(const CXFile &file, uint32_t offset)
         : mData(0)
     {
-        assert(file);
+        if (!file) {
+            mData = (uint64_t(offset) << 32);
+            return;
+        }
         CXString fn = clang_getFileName(file);
         const char *cstr = clang_getCString(fn);
         if (!cstr)

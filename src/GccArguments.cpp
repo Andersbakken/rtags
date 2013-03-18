@@ -203,6 +203,15 @@ bool GccArguments::parse(String args, const Path &base)
                     mClangArgs.append("-I" + inc);
             } else if (arg.startsWith("-std") || arg == "-m32") {
                 mClangArgs.append(arg);
+            } else if (arg == "-include") {
+                if (i + 1 < s) {
+                    bool ok;
+                    Path inc = Path::resolved(split.at(++i), Path::RealPath, path, &ok);
+                    if (ok) {
+                        mClangArgs.append(arg);
+                        mClangArgs.append(inc);
+                    }
+                }
             }
         } else {
             if (!seenCompiler) {
