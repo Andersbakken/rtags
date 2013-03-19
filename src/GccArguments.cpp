@@ -57,16 +57,12 @@ static inline GccArguments::Lang guessLang(const Path &fullPath)
     return lang;
 }
 
-static inline bool hasName(const String& arg, const char* name)
-{
-    return (arg == name || arg.endsWith(name));
-}
-
 static inline void eatAutoTools(List<String> &args)
 {
     List<String> copy = args;
     for (int i=0; i<args.size(); ++i) {
-        if (hasName(args.at(i), "cc") || hasName(args.at(i), "g++") || hasName(args.at(i), "c++") || args.at(i) == "cd") {
+        const String &arg = args.at(i);
+        if (arg.endsWith("cc") || arg.endsWith("g++") || arg.endsWith("c++") || arg == "cd") {
             if (i) {
                 args.erase(args.begin(), args.begin() + i);
                 if (testLog(Debug)) {
