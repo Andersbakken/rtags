@@ -16,3 +16,7 @@ rdm
 3rdparty/config.log
 3rdparty/leveldb/
 3rdparty/llvm/
+/src/rct/
+/3rdparty/esprima/
+/3rdparty/rct/
+/3rdparty/v8/
