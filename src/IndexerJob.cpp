@@ -821,6 +821,12 @@ bool IndexerJob::parse(int build)
             String arg = lists[i]->at(j);
             if (arg.isEmpty())
                 continue;
+            if (arg == "-include" && j + 1 < count) {
+                const uint32_t fileId = Location::fileId(lists[i]->at(j + 1));
+                if (fileId) {
+                    mData->dependencies[fileId].insert(mFileId);
+                }
+            }
 
             clangArgs[idx++] = lists[i]->at(j).constData();
             arg.replace("\"", "\\\"");
