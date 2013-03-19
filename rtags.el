@@ -315,7 +315,7 @@
 
 (defun rtags-current-symbol (&optional no-symbol-name)
   (save-excursion
-    (let ((name (if no-symbol-name nil (rtags-current-symbol-name nil t))))
+    (let ((name (if no-symbol-name nil (rtags-current-symbol-name))))
       (unless name
         (cond
          ((looking-at "[0-9A-Za-z_]")
@@ -1503,17 +1503,15 @@ References to references will be treated as references to the referenced symbol"
     )
   )
 
-(defun rtags-current-symbol-name (&optional cursorinfo striptype/return)
+(defun rtags-current-symbol-name (&optional cursorinfo)
   (unless cursorinfo
     (setq cursorinfo (rtags-cursorinfo)))
   (let ((container (string-match "^Container:" cursorinfo))
         (symbolname (string-match "^SymbolName: \\(.*\\)$" cursorinfo)))
     (if (and symbolname (or (not container) (< symbolname container)))
-        (let* ((ret (match-string 1 cursorinfo))
-               (space (if striptype/return (string-match " " ret))))
-          (if space
-              (substring ret (+ space 1))
-            ret)))))
+        (match-string 1 cursorinfo))
+    )
+  )
 
 (defun rtags-current-container-name (&optional cursorinfo)
   (unless cursorinfo
