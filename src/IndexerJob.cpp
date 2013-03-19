@@ -68,68 +68,41 @@ void IndexerJob::inclusionVisitor(CXFile includedFile,
 
 static const CXCursor nullCursor = clang_getNullCursor();
 
-struct Root {
-    Root(const String &str = String(), int pos = 0)
-        : name(str), position(pos)
-    {}
-    String name;
-    int position;
-};
-
 String IndexerJob::addNamePermutations(const CXCursor &cursor, const Location &location)
 {
     CXCursorKind kind = clang_getCursorKind(cursor);
     const CXCursorKind originalKind = kind;
-    String type = typeName(cursor);
-    const int typeInsertPos = kind == CXCursor_ParmDecl ? 0 : type.size();
-    List<Root> roots;
-    Set<String> names;
-    String cursorInfoName;
+    char buf[1024];
+    int pos = sizeof(buf) - 1;
+    buf[pos] = '\0';
+    int cutoff = -1;
 
     CXCursor c = cursor;
+    bool hasTemplates = false;
     do {
         CXStringScope displayName(clang_getCursorDisplayName(c));
         const char *name = displayName.data();
-        if (!name || !strlen(name))
+        if (!name)
             break;
-        String text;
-        if (kind == CXCursor_ClassTemplate) {
-            const char *start = strchr(name, '<');
-            assert(start);
-            const char *end = strchr(start, '>');
-            assert(end);
-            text.assign(name, start - name);
-            if (end + 1)
-                text.append(end + 1);
-        } else {
-            text = name;
+        const int len = strlen(name);
+        if (!len)
+            break;
+
+        if (kind == CXCursor_ClassTemplate)
+            hasTemplates = true;
+        if (pos != sizeof(buf) - 1 && (pos -= 2) >= 0) {
+            memset(buf + pos, ':', 2);
         }
-        if (roots.isEmpty()) {
-            roots.append(Root(text));
-            names.insert(text);
-            const int paren = text.indexOf('(');
-            if (paren != -1) {
-                roots.append(Root(text.left(paren)));
-                names.insert(roots.last().name);
-            }
-            if (!type.isEmpty()) {
-                const int count = roots.size();
-                for (int i=0; i<count; ++i) {
-                    roots.append(Root(type + roots.at(i).name, typeInsertPos));
-                    names.insert(roots.last().name);
-                }
-            }
-        } else {
-            text += "::";
-            for (int i=0; i<roots.size(); ++i) {
-                Root &root = roots[i];
-                root.name.insert(root.position, text);
-                names.insert(root.name);
-            }
+        pos -= len;
+        if (pos < 0) {
+            error("SymbolName too long. Giving up");
+            return String();
         }
+        memcpy(buf + pos, name, len);
+
         c = clang_getCursorSemanticParent(c);
         kind = clang_getCursorKind(c);
-        if (cursorInfoName.isEmpty()) {
+        if (cutoff == -1) {
             switch (kind) {
             case CXCursor_ClassDecl:
             case CXCursor_ClassTemplate:
@@ -140,17 +113,62 @@ String IndexerJob::addNamePermutations(const CXCursor &cursor, const Location &l
                 if (originalKind == CXCursor_Namespace)
                     break;
             default:
-                cursorInfoName = roots.at(type.isEmpty() ? 0 : 1).name;
+                cutoff = pos;
                 break;
             }
         }
     } while (RTags::needsQualifiers(kind));
 
-    for (Set<String>::const_iterator it = names.begin(); it != names.end(); ++it) {
-        mData->symbolNames[*it].insert(location);
+    String type;
+    switch (originalKind) {
+    case CXCursor_ClassDecl:
+    case CXCursor_StructDecl:
+    case CXCursor_ClassTemplate:
+        break;
+    default:
+        type = typeName(cursor);
+        break;
+    }
+    if (cutoff == -1)
+        cutoff = pos;
+    String ret;
+    for (int i=0; i<2; ++i) {
+        char *ch = buf + pos;
+        while (true) {
+            const String name(ch, sizeof(buf) - (ch - buf) - 1);
+            mData->symbolNames[name].insert(location);
+            if (!type.isEmpty()) {
+                mData->symbolNames[type + name].insert(location);
+            }
+
+            ch = strstr(ch + 1, "::");
+            if (ch) {
+                ch += 2;
+            } else {
+                break;
+            }
+        }
+        if (i == 0) {
+            ret.assign(buf + cutoff, sizeof(buf) - cutoff - 1);
+            if (!type.isEmpty())
+                ret.prepend(type);
+        }
+
+
+        if (!hasTemplates) {
+            break;
+        } else if (i == 0) {
+            char *start = strchr(buf + pos, '<');
+            assert(start);
+            char *end = strchr(start, '>');
+            const int templateSize = (end - start) + 1;
+            assert(end);
+            memmove(buf + pos + templateSize, buf + pos, start - (buf + pos));
+            pos += templateSize;
+        }
     }
 
-    return cursorInfoName;
+    return ret;
 }
 
 static const CXSourceLocation nullLocation = clang_getNullLocation();
@@ -666,6 +684,7 @@ String IndexerJob::typeName(const CXCursor &cursor)
     String ret;
     switch (clang_getCursorKind(cursor)) {
     case CXCursor_FunctionTemplate:
+        // ### If the return value is a template type we get an empty string here
     case CXCursor_FunctionDecl:
     case CXCursor_CXXMethod:
         ret = typeString(clang_getResultType(clang_getCursorType(cursor)));
@@ -676,17 +695,17 @@ String IndexerJob::typeName(const CXCursor &cursor)
     case CXCursor_UnionDecl:
         ret = RTags::eatString(clang_getCursorSpelling(cursor));
         break;
-    case CXCursor_VarDecl:
     case CXCursor_FieldDecl:
+        // ### If the return value is a template type we get an empty string here
+    case CXCursor_VarDecl:
     case CXCursor_ParmDecl:
         ret = typeString(clang_getCursorType(cursor));
         break;
     default:
         return String();
     }
-    if (!ret.endsWith('*') && !ret.endsWith('&'))
+    if (!ret.isEmpty() && !ret.endsWith('*') && !ret.endsWith('&'))
         ret.append(' ');
-    // error() << "returning" << ret << "for" << cursor;
     return ret;
 }
 

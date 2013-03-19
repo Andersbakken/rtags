@@ -18,11 +18,7 @@ ListSymbolsJob::ListSymbolsJob(const QueryMessage &query, const shared_ptr<Proje
 
 void ListSymbolsJob::execute()
 {
-    List<String> out;
-    const bool elispList = queryFlags() & QueryMessage::ElispList;
-
-    if (elispList)
-        write("(list", IgnoreMax|DontQuote);
+    Set<String> out;
     shared_ptr<Project> proj = project();
     if (proj) {
         if (queryFlags() & QueryMessage::IMenu) {
@@ -32,25 +28,31 @@ void ListSymbolsJob::execute()
         }
     }
 
+    const bool elispList = queryFlags() & QueryMessage::ElispList;
+
     if (elispList) {
+        write("(list", IgnoreMax|DontQuote);
+        for (Set<String>::const_iterator it = out.begin(); it != out.end(); ++it) {
+            write(*it);
+        }
         write(")", IgnoreMax|DontQuote);
     } else {
+        List<String> sorted = out.toList();
         if (queryFlags() & QueryMessage::ReverseSort) {
-            std::sort(out.begin(), out.end(), std::greater<String>());
+            std::sort(sorted.begin(), sorted.end(), std::greater<String>());
         } else {
-            std::sort(out.begin(), out.end());
+            std::sort(sorted.begin(), sorted.end());
         }
-        const int count = out.size();
+        const int count = sorted.size();
         for (int i=0; i<count; ++i) {
-            write(out.at(i));
+            write(sorted.at(i));
         }
     }
 }
 
-List<String> ListSymbolsJob::imenu(const shared_ptr<Project> &project)
+Set<String> ListSymbolsJob::imenu(const shared_ptr<Project> &project)
 {
-    List<String> out;
-    const bool elispList = queryFlags() & QueryMessage::ElispList;
+    Set<String> out;
 
     Scope<const SymbolMap&> symbols = project->lockSymbolsForRead();
     const SymbolMap &map = symbols.data();
@@ -90,11 +92,7 @@ List<String> ListSymbolsJob::imenu(const shared_ptr<Project> &project)
                 const String &symbolName = it->second.symbolName;
                 if (!string.isEmpty() && !symbolName.contains(string))
                     continue;
-                if (elispList) {
-                    write(symbolName);
-                } else {
-                    out.append(symbolName);
-                }
+                out.insert(symbolName);
                 break; }
             }
         }
@@ -102,14 +100,11 @@ List<String> ListSymbolsJob::imenu(const shared_ptr<Project> &project)
     return out;
 }
 
-List<String> ListSymbolsJob::listSymbols(const shared_ptr<Project> &project)
+Set<String> ListSymbolsJob::listSymbols(const shared_ptr<Project> &project)
 {
-    List<String> out;
+    Set<String> out;
     const bool hasFilter = Job::hasFilter();
-    const bool elispList = queryFlags() & QueryMessage::ElispList;
-    const bool skipParentheses = queryFlags() & QueryMessage::StripParentheses;
-
-    Set<String> have;
+    const bool stripParentheses = queryFlags() & QueryMessage::StripParentheses;
 
     Scope<const SymbolNameMap&> symbolNames = project->lockSymbolNamesForRead();
     const SymbolNameMap &map = symbolNames.data();
@@ -132,39 +127,17 @@ List<String> ListSymbolsJob::listSymbols(const shared_ptr<Project> &project)
             }
         }
         if (ok) {
-            if (skipParentheses) {
-                const int paren = entry.indexOf('(');
-                if (paren == -1) {
-                    if (have.contains(entry))
-                        continue;
-                    have.insert(entry);
-                    if (elispList)
-                        write(entry);
-                    else
-                        out.append(entry);
-                } else {
-                    const String noparen = entry.left(paren);
-                    if (have.contains(noparen))
-                        continue;
-                    have.insert(noparen);
-                    if (elispList)
-                        write(noparen);
-                    else
-                        out.append(noparen);
-                }
+            const int paren = entry.indexOf('(');
+            if (paren == -1) {
+                out.insert(entry);
             } else {
-                if (elispList)
-                    write(entry);
-                else
-                    out.append(entry);
+                out.insert(entry.left(paren));
+                if (!stripParentheses)
+                    out.insert(entry);
             }
         }
-        if (!(++count % 10) && isAborted())
+        if (!(++count % 100) && isAborted())
             break;
     }
     return out;
 }
-
-void ListSymbolsJob::foobar()
-{}
-

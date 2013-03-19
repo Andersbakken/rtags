@@ -21,12 +21,14 @@ void FindSymbolsJob::execute()
     if (proj) {
         Scope<const SymbolNameMap&> scope = proj->lockSymbolNamesForRead();
         const SymbolNameMap &map = scope.data();
-        const SymbolNameMap::const_iterator it = map.find(string);
-        if (it != map.end()) {
+        SymbolNameMap::const_iterator it = map.lower_bound(string);
+        while (it != map.end() && it->first.startsWith(string) &&
+            (it->first.size() == string.size() || it->first.at(string.size()) == '<' || it->first.at(string.size()) == '(')) {
             const Set<Location> &locations = it->second;
             for (Set<Location>::const_iterator i = locations.begin(); i != locations.end(); ++i) {
                 out[*i] = true;
             }
+            ++it;
         }
     }
 

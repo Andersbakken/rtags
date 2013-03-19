@@ -12,9 +12,8 @@ public:
     ListSymbolsJob(const QueryMessage &query, const shared_ptr<Project> &proj);
 protected:
     virtual void execute();
-    List<String> imenu(const shared_ptr<Project> &project);
-    List<String> listSymbols(const shared_ptr<Project> &project);
-    void foobar();
+    Set<String> imenu(const shared_ptr<Project> &project);
+    Set<String> listSymbols(const shared_ptr<Project> &project);
 private:
     const String string;
 };
