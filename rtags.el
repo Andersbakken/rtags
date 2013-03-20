@@ -1473,6 +1473,8 @@ References to references will be treated as references to the referenced symbol"
     (let* ((path (buffer-file-name buffer))
            (tempbuf nil)
            (buffertext (if ediff (with-current-buffer buffer (buffer-string))))
+           (min (- (if mark-active (region-beginning) (point-min)) 1))
+           (max (- (if mark-active (region-end) (point-max)) 1))
            (line nil))
       (with-temp-buffer
         (rtags-call-rc path "--fixit" path)
@@ -1483,15 +1485,16 @@ References to references will be treated as references to the referenced symbol"
                 (let ((start (string-to-int (match-string 1 line)))
                       (end (string-to-int (match-string 2 line)))
                       (text (match-string 3 line)))
-                  (when (not (or (not ediff) tempbuf))
-                    (setq tempbuf (rtags-get-buffer (format "*RTags Fixit - %s *" path)))
-                    (with-current-buffer tempbuf
-                      (insert buffertext)))
-                  (save-excursion
-                    (set-buffer (or tempbuf buffer))
-                    (rtags-goto-offset start)
-                    (delete-char (- end start)) ;; may be 0
-                    (insert text)))))
+                  (when (and (>= start min) (< start max))
+                    (when (not (or (not ediff) tempbuf))
+                      (setq tempbuf (rtags-get-buffer (format "*RTags Fixit - %s *" path)))
+                      (with-current-buffer tempbuf
+                        (insert buffertext)))
+                    (save-excursion
+                      (set-buffer (or tempbuf buffer))
+                      (rtags-goto-offset start)
+                      (delete-char (- end start)) ;; may be 0
+                      (insert text))))))
           ;; (message (format "got something %d to %d => [%s]" start end text))))
           (next-line))
         )
