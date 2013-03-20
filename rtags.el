@@ -236,10 +236,11 @@
 
 (defun rtags-reparse-file (&optional buffer)
   (interactive)
-  (let ((path (rtags-path-for-project)))
+  (let ((path (rtags-path-for-project))
+        (file (buffer-name buffer)))
     (with-temp-buffer
-      (rtags-call-rc path "-V" (buffer-name buffer)))
-    (message (format "Dirtied %s" (buffer-name buffer)))
+      (rtags-call-rc path "-V" file))
+    (message (format "Dirtied %s" file))
     )
   )
 
@@ -1256,8 +1257,9 @@ References to references will be treated as references to the referenced symbol"
   (setq buffer-read-only t)
   )
 
-(defun rtags-init-diagnostics-buffer-and-process ()
+(defun rtags-init-diagnostics-buffer-and-process (&optional nodirty)
   (let ((buf (get-buffer-create "*RTags Diagnostics*")))
+    (unless nodirty (rtags-reparse-file))
     (with-current-buffer buf
       (rtags-diagnostics-mode))
     (if (cond ((not rtags-diagnostics-process) t)
@@ -1276,7 +1278,7 @@ References to references will be treated as references to the referenced symbol"
     )
   )
 
-(defun rtags-diagnostics (&optional restart)
+(defun rtags-diagnostics (&optional restart nodirty)
   (interactive "P")
   (if restart
       (rtags-stop-diagnostics))
