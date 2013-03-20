@@ -429,8 +429,7 @@ int Project::reindex(const Match &match)
 
         const DependencyMap::const_iterator end = mDependencies.end();
         for (DependencyMap::const_iterator it = mDependencies.begin(); it != end; ++it) {
-            if (!mPendingDirtyFiles.contains(it->first)
-                && (match.isEmpty() || match.match(Location::path(it->first)))) {
+            if (match.isEmpty() || match.match(Location::path(it->first))) {
                 dirty.insert(it->first);
             }
         }
