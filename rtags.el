@@ -7,7 +7,7 @@
 (require 'ido)
 (require 'dabbrev)
 (require 'cc-mode)
-(require 'flymake)
+(require 'flycheck)
 (require 'bookmark)
 
 (defvar rtags-last-buffer nil)
@@ -1198,51 +1198,77 @@ References to references will be treated as references to the referenced symbol"
     )
   )
 
+(flycheck-declare-checker rtags-flycheck-checker
+  "flycheck checker for rtags."
+  :command '("dummy" source)
+  :error-parser 'flycheck-parse-checkstyle
+  :modes '(c++-mode c-mode))
+
+(defun rtags-do-flycheck (process)
+  "Finish a syntax check from PROCESS.
+
+Parse the output and report an appropriate error status."
+  (flycheck-report-status "")
+  (let* ((checker (process-get process :flycheck-checker))
+         (exit-status (process-exit-status process))
+         (output (flycheck-get-output process))
+         (errors
+          (condition-case err
+              (flycheck-relevant-errors
+               (flycheck-parse-output output checker (current-buffer)))
+            (error
+             (message "Failed to parse errors from checker %S in output: %s\n\
+Error: %s" checker output (error-message-string err))
+             (flycheck-report-status "!")
+             :errored))))
+    (flycheck-clean-substituted-files)
+    (unless (eq errors :errored)
+      (setq flycheck-current-errors
+            (flycheck-sort-errors (append errors flycheck-current-errors nil)))
+      (flycheck-report-errors flycheck-current-errors)
+      (when (and (/= exit-status 0) (not errors))
+        ;; Report possibly flawed checker definition
+        (message "Checker %S returned non-zero exit code %s, but no errors from\
+output: %s\nChecker definition probably flawed."
+                 checker exit-status output)
+        (flycheck-report-status "?"))
+      (when (eq (current-buffer) (window-buffer))
+        (flycheck-show-error-at-point))
+      (let ((next-checker (flycheck-get-next-checker-for-buffer checker)))
+        (if next-checker
+            (flycheck-start-checker next-checker)
+          (run-hooks 'flycheck-after-syntax-check-hook))))))
+
 (defvar rtags-pending-diagnostics nil)
 (defun rtags-diagnostics-process-filter (process output)
   (let ((errors)
+        (oldbuffer (current-buffer))
         (files (make-hash-table)))
     (when rtags-pending-diagnostics
       (setq output (concat rtags-pending-diagnostics output))
       (setq rtags-pending-diagnostics nil))
     (with-current-buffer (process-buffer process)
       (setq buffer-read-only nil)
-      (let ((lines (split-string output "\n" t)))
-        (while lines
-          (let ((line (car lines)))
-            (cond ((string-match "file: \\(.*\\)" line)
-                   (let* ((file (match-string 1 line))
-                          (buf (find-buffer-visiting file)))
-                     (if buf (puthash buf nil files))
-                     (goto-char (point-min))
-                     (flush-lines (concat "\\(Fixit for \\)?" file ":"))))
-                  ((string-match "\\(Fixit for \\)?\\(/.*\\):\\([0-9]+:[0-9]+\\| Replace\\)" line)
-                   (let* ((file (match-string 2 line))
-                          (buf (find-buffer-visiting file)))
-                     (if buf (puthash buf t files)))
-                   (goto-char (point-max))
-                   (insert line "\n"))
-                  (t
-                   (goto-char (point-max))
-                   (insert line "\n"))))
-          (setq lines (cdr lines)))
-        )
+      (message (format "matching %s" output))
+      (let ((startpos (string-match "xml version" output))
+            (endpos (string-match "</checkstyle>" output))
+            (proc (get-process "RTags Diagnostics"))
+            (current))
+        (while (and proc startpos endpos)
+          (setq current (substring output (- startpos 2) (+ endpos 13)))
+          (setq output (substring output (+ endpos 13)))
+          (setq startpos (string-match "xml version" output))
+          (setq endpos (string-match "</checkstyle>" output))
+          (insert current "\n")
+          ;; set up the stuff flycheck wants from our process
+          (process-put proc :flycheck-pending-output (make-list 1 current))
+          (process-put proc :flycheck-checker 'rtags-flycheck-checker)
+          (message "we do this?")
+          (with-current-buffer oldbuffer
+            (rtags-do-flycheck proc))))
       (setq buffer-read-only t)
-      (setq errors (buffer-string)))
-    (maphash (lambda (buf haserrors)
-               (with-current-buffer buf
-                 (setq flymake-err-info nil)
-                 (flymake-delete-own-overlays)
-                 (when haserrors
-                   (flymake-parse-output-and-residual errors)
-                   (flymake-parse-residual)
-                   (setq flymake-err-info (if flymake-new-err-info (flymake-fix-line-numbers flymake-new-err-info 1 (flymake-count-lines))))
-                   (setq flymake-new-err-info nil)
-                   (flymake-delete-own-overlays)
-                   (rtags-fixup-flymake-err-info)
-                   (if flymake-err-info
-                       (flymake-highlight-err-lines flymake-err-info)))))
-             files)
+      (when (length output)
+        (setq rtags-pending-diagnostics output)))
     )
   )
 
@@ -1269,9 +1295,9 @@ References to references will be treated as references to the referenced symbol"
         (let ((process-connection-type nil)) ;; use a pipe
           (setq rtags-diagnostics-process
                 (if rtags-autostart-rdm
-                    (start-process "RTags Diagnostics" buf (rtags-executable-find "rc") "-G"
+                    (start-process "RTags Diagnostics" buf (rtags-executable-find "rc") "-m"
                                    (if rtags-rdm-log-enabled "--autostart-rdm=-L/tmp/rdm.log" "--autostart-rdm"))
-                  (start-process "RTags Diagnostics" buf (rtags-executable-find "rc") "-G")))
+                  (start-process "RTags Diagnostics" buf (rtags-executable-find "rc") "-m")))
           (set-process-filter rtags-diagnostics-process (function rtags-diagnostics-process-filter))
           (rtags-clear-diagnostics))
       )

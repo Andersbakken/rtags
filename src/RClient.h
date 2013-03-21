@@ -37,6 +37,7 @@ public:
     char **argv() const { return mArgv; }
 private:
     QueryCommand *addQuery(QueryMessage::Type t, const String &query = String());
+
     void addLog(int level);
     void addCompile(const Path &cwd, const String &args);
 

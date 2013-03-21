@@ -909,10 +909,40 @@ bool IndexerJob::diagnose(int build, int *errorCount)
                                             CXDiagnostic_DisplayCategoryName);
         const uint32_t fileId = createLocation(clang_getDiagnosticLocation(diagnostic), 0).fileId();
         if (mVisitedFiles.contains(fileId)) {
-            const String text = RTags::eatString(clang_formatDiagnostic(diagnostic, diagnosticOptions));
-            if (testLog(logLevel) || testLog(RTags::CompilationError)) {
-                log(logLevel, "%s: %s => %s", mSourceInformation.sourceFile.constData(), mClangLines.at(build).constData(), text.constData());
-                compilationErrors.append(text);
+            if (testLog(logLevel) || testLog(CompilationError)) {
+                String text;
+                if (testLog(CompilationErrorXml)) {
+                    const CXSourceLocation loc = clang_getDiagnosticLocation(diagnostic);
+                    CXFile file;
+                    unsigned line, column;
+                    clang_getFileLocation(loc, &file, &line, &column, 0);
+                    const CXDiagnosticSeverity sev = clang_getDiagnosticSeverity(diagnostic);
+                    const char* severity = 0;
+                    switch (sev) {
+                    case CXDiagnostic_Warning:
+                        severity = "warning";
+                        break;
+                    case CXDiagnostic_Error:
+                    case CXDiagnostic_Fatal:
+                        severity = "error";
+                        break;
+                    default:
+                        break;
+                    }
+                    if (severity) {
+                        String msg = RTags::eatString(clang_getDiagnosticSpelling(diagnostic));
+                        msg.replace("\"", "\\\"");
+                        text = String::format<512>("<file name=\"%s\"><error line=\"%d\" column=\"%d\" severity=\"%s\" message=\"%s\"/></file>",
+                                                   RTags::eatString(clang_getFileName(file)).nullTerminated(), line, column, severity,
+                                                   msg.nullTerminated());
+                    }
+                } else {
+                    text = RTags::eatString(clang_formatDiagnostic(diagnostic, diagnosticOptions));
+                }
+                if (!text.isEmpty()) {
+                    log(logLevel, "%s: %s => %s", mSourceInformation.sourceFile.constData(), mClangLines.at(build).constData(), text.constData());
+                    compilationErrors.append(text);
+                }
             }
 
             const unsigned fixItCount = clang_getDiagnosticNumFixIts(diagnostic);
@@ -935,8 +965,9 @@ bool IndexerJob::diagnose(int build, int *errorCount)
                 } else {
                     error("Fixit for %s: Replace %d-%d with [%s]", loc.path().constData(),
                           startOffset, endOffset, string.constData());
-                    compilationErrors.append(String::format<128>("Fixit for %s: Replace %d-%d with [%s]", loc.path().constData(),
-                                                                 startOffset, endOffset, string.constData()));
+                    if (!testLog(CompilationErrorXml))
+                        compilationErrors.append(String::format<128>("Fixit for %s: Replace %d-%d with [%s]", loc.path().constData(),
+                                                                     startOffset, endOffset, string.constData()));
                     mData->fixIts[loc.fileId()].insert(FixIt(startOffset, endOffset, string));
                 }
             }
@@ -944,18 +975,25 @@ bool IndexerJob::diagnose(int build, int *errorCount)
 
         clang_disposeDiagnostic(diagnostic);
     }
-    if (testLog(RTags::CompilationError))
-        sendDiagnostics(compilationErrors);
+    if (testLog(CompilationError)) {
+        if (testLog(CompilationErrorXml)) {
+            compilationErrors.prepend("<?xml version=\"1.0\" encoding=\"utf-8\"?><checkstyle>");
+            compilationErrors.append("</checkstyle>");
+        }
+        sendDiagnostics(compilationErrors, testLog(CompilationErrorXml) ? CompilationErrorXml : CompilationError);
+    }
     return !isAborted();
 }
 
-void IndexerJob::sendDiagnostics(const List<String> &diagnostics)
+void IndexerJob::sendDiagnostics(const List<String> &diagnostics, LogLevel level)
 {
-    for (Set<uint32_t>::const_iterator it = mVisitedFiles.begin(); it != mVisitedFiles.end(); ++it)
-        log(RTags::CompilationError, "file: %s", Location::path(*it).constData());
+    if (level == CompilationError) {
+        for (Set<uint32_t>::const_iterator it = mVisitedFiles.begin(); it != mVisitedFiles.end(); ++it)
+            log(level, "file: %s", Location::path(*it).constData());
+    }
 
     for (int i=0; i<diagnostics.size(); ++i)
-        logDirect(RTags::CompilationError, diagnostics.at(i));
+        logDirect(level, diagnostics.at(i));
 }
 
 bool IndexerJob::visit(int build)

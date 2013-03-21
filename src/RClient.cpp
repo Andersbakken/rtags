@@ -152,9 +152,10 @@ public:
 class RdmLogCommand : public RCCommand
 {
 public:
-    enum { Default = -2 };
+    enum { Default = -3 };
+
     RdmLogCommand(int level)
-    : mLevel(level)
+        : mLevel(level)
     {
     }
     virtual bool exec(RClient *rc, Client *client)
@@ -207,6 +208,7 @@ QueryCommand *RClient::addQuery(QueryMessage::Type t, const String &query)
     mCommands.append(cmd);
     return cmd;
 }
+
 void RClient::addLog(int level)
 {
     mCommands.append(new RdmLogCommand(level));
@@ -314,7 +316,8 @@ enum OptionType {
     ValidateSymbol,
     Verbose,
     WaitForIndexing,
-    WithProject
+    WithProject,
+    XmlDiagnostics
 };
 
 struct Option {
@@ -390,6 +393,7 @@ struct Option opts[] = {
     { AllReferences, "all-references", 'e', no_argument, "Include definitions/declarations/constructors/destructors for references. Used for rename symbol." },
     { ElispList, "elisp-list", 'Y', no_argument, "Output elisp: (list \"one\" \"two\" ...)." },
     { Diagnostics, "diagnostics", 'G', no_argument, "Receive continual diagnostics from rdm." },
+    { XmlDiagnostics, "xml-diagnostics", 'm', no_argument, "Receive continual XML formatted diagnostics from rdm." },
     { WaitForIndexing, "wait-for-indexing", 'X', no_argument, "Wait for indexing to finish before doing query." },
     { MatchRegexp, "match-regexp", 'Z', no_argument, "Treat various text patterns as regexps (-P, -i, -V)." },
     { MatchCaseInsensitive, "match-icase", 'I', no_argument, "Match case insensitively" },
@@ -749,6 +753,9 @@ bool RClient::parse(int &argc, char **argv)
             break;
         case Diagnostics:
             addLog(RTags::CompilationError);
+            break;
+        case XmlDiagnostics:
+            addLog(CompilationErrorXml);
             break;
         case QuitRdm:
             addQuery(QueryMessage::Shutdown);
