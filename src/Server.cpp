@@ -771,30 +771,29 @@ void Server::processSourceFile(GccArguments args)
 
         for (int i=0; i<count; ++i) {
             SourceInformation sourceInformation = project->sourceInfo(Location::insertFile(inputFiles.at(i)));
-            bool index = false;
             if (sourceInformation.isNull()) {
                 sourceInformation.sourceFile = inputFiles.at(i);
                 sourceInformation.builds.append(SourceInformation::Build(args.compiler(), arguments));
-                index = true;
             } else {
                 List<SourceInformation::Build> &builds = sourceInformation.builds;
+                bool added = false;
                 for (int i=0; i<builds.size(); ++i) {
                     if (builds.at(i).compiler == args.compiler()) {
                         if (builds.at(i).args == arguments) {
-                            break;
-                        } else if (mOptions.options & AllowMultipleBuildsForSameCompiler) {
+                            debug() << inputFiles.at(i) << " is not dirty. ignoring";
+                            return;
+                        } else if (!mOptions.options & AllowMultipleBuildsForSameCompiler) {
                             builds[i].args = arguments;
-                            index = true;
+                            added = true;
                             break;
                         }
                     }
                 }
+                if (!added) {
+                    sourceInformation.builds.append(SourceInformation::Build(args.compiler(), arguments));
+                }
             }
-            if (index) {
-                project->index(sourceInformation, IndexerJob::Makefile);
-            } else {
-                debug() << inputFiles.at(i) << " is not dirty. ignoring";
-            }
+            project->index(sourceInformation, IndexerJob::Makefile);
         }
     }
 }
