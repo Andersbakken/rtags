@@ -6,6 +6,12 @@ Mutex sMutex;
 Map<Path, List<String> > sFlags;
 
 namespace CompilerManager {
+List<Path> compilers()
+{
+    MutexLocker lock(&sMutex);
+    return sFlags.keys();
+}
+
 List<String> flags(const Path &compiler)
 {
     MutexLocker lock(&sMutex);

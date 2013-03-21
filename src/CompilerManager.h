@@ -8,6 +8,7 @@
 
 namespace CompilerManager
 {
+List<Path> compilers();
 List<String> flags(const Path &compiler);
 }
 

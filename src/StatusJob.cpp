@@ -4,6 +4,7 @@
 #include "Server.h"
 #include <clang-c/Index.h>
 #include "Project.h"
+#include "CompilerManager.h"
 
 const char *StatusJob::delimiter = "*********************************";
 StatusJob::StatusJob(const QueryMessage &q, const shared_ptr<Project> &project)
@@ -14,7 +15,7 @@ StatusJob::StatusJob(const QueryMessage &q, const shared_ptr<Project> &project)
 void StatusJob::execute()
 {
     bool matched = false;
-    const char *alternatives = "fileids|dependencies|fileinfos|symbols|symbolnames|watchedpaths";
+    const char *alternatives = "fileids|dependencies|fileinfos|symbols|symbolnames|watchedpaths|compilers";
     if (query.isEmpty() || !strcasecmp(query.nullTerminated(), "fileids")) {
         matched = true;
         write(delimiter);
@@ -128,6 +129,18 @@ void StatusJob::execute()
                 write<512>("  %s: %s", Location::path(it->first).constData(), it->second.builds.at(i).compiler.constData(),
                            String::join(it->second.builds.at(i).args, " ").constData());
             }
+        }
+    }
+
+    if (query.isEmpty() || !strcasecmp(query.nullTerminated(), "compilers")) {
+        const List<Path> compilers = CompilerManager::compilers();
+        write(delimiter);
+        write("compilers");
+        write(delimiter);
+        for (int i=0; i<compilers.size(); ++i) {
+            write<256>("   %s: %s",
+                       compilers.at(i).constData(),
+                       String::join(CompilerManager::flags(compilers.at(i)), " ").constData());
         }
     }
 }
