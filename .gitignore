@@ -20,3 +20,7 @@ rdm
 /3rdparty/esprima/
 /3rdparty/rct/
 /3rdparty/v8/
+/bin/clangtest
+/bin/gr
+/3rdparty/picojson/
+/3rdparty/libcxx/
