@@ -777,13 +777,13 @@ void Server::processSourceFile(GccArguments args)
             } else {
                 List<SourceInformation::Build> &builds = sourceInformation.builds;
                 bool added = false;
-                for (int i=0; i<builds.size(); ++i) {
-                    if (builds.at(i).compiler == args.compiler()) {
-                        if (builds.at(i).args == arguments) {
+                for (int j=0; j<builds.size(); ++j) {
+                    if (builds.at(j).compiler == args.compiler()) {
+                        if (builds.at(j).args == arguments) {
                             debug() << inputFiles.at(i) << " is not dirty. ignoring";
                             return;
                         } else if (!mOptions.options & AllowMultipleBuildsForSameCompiler) {
-                            builds[i].args = arguments;
+                            builds[j].args = arguments;
                             added = true;
                             break;
                         }
