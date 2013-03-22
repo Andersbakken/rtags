@@ -7,8 +7,10 @@
 (require 'ido)
 (require 'dabbrev)
 (require 'cc-mode)
-(require 'flycheck)
+(require 'dash)
+(require 's)
 (require 'bookmark)
+(require 'compile)
 
 (defvar rtags-last-buffer nil)
 (defvar rtags-path-filter nil)
@@ -1009,6 +1011,82 @@ References to references will be treated as references to the referenced symbol"
               (delete-char (- end start)) ;; may be 0
               (insert text)))))))
 
+(defvar rtags-overlays (make-hash-table :test 'equal))
+
+(defun rtags-overlays-remove (filename)
+  (let* ((errorlist (gethash filename rtags-overlays nil))
+         (copy (-slice errorlist 0)))
+    (when (listp copy)
+      (-each copy #'delete-overlay))
+    (puthash filename nil rtags-overlays)))
+
+(defun rtags-really-find-buffer (fn)
+ (setq fn (file-truename fn))
+ (car
+  (member-if #'(lambda (arg)
+                 (and (buffer-file-name arg)
+                      (string= fn (file-truename (buffer-file-name arg)))))
+             (buffer-list))))
+
+(defun rtags-string-to-number (string)
+  (when (stringp string)
+    (string-to-number string)))
+
+(defun rtags-parse-xml-string (xml)
+  (with-temp-buffer
+    (insert xml)
+    (libxml-parse-xml-region (point-min) (point-max))))
+
+(defun rtags-parse-overlay-error-node (node filename)
+  (when (listp node)
+    (let* ((name (car node))
+           (attrs (cadr node))
+           (offsetstart (rtags-string-to-number (cdr (assq 'offsetstart attrs))))
+           (offsetend (rtags-string-to-number (cdr (assq 'offsetend attrs))))
+           (severity (cdr (assq 'severity attrs)))
+           (message (cdr (assq 'message attrs))))
+      (when (eq name 'error)
+        (let ((errorlist (gethash filename rtags-overlays nil))
+              (filebuffer (rtags-really-find-buffer filename)))
+          (when filebuffer
+            (unless offsetend
+              (with-current-buffer filebuffer
+                (save-excursion
+                  (rtags-goto-offset offsetstart)
+                  (let ((rsym (rtags-current-symbol t)))
+                    (when rsym
+                      (setq offsetend (+ offsetstart (length rsym))))))))
+
+            (let ((overlay (make-overlay (+ offsetstart 1) (+ offsetend 1) filebuffer)))
+              (overlay-put overlay 'rtags-error-message message)
+              (overlay-put overlay 'rtags-error-severity severity)
+              (overlay-put overlay 'face (cons 'background-color "red"))
+              (if errorlist
+                  (setq errorlist (append errorlist overlay))
+                (setq errorlist (list overlay)))
+              (puthash filename errorlist rtags-overlays)))))))
+  )
+
+(defun rtags-parse-overlay-node (node)
+  (when (listp node)
+    (let* ((name (car node))
+           (attrs (cadr node))
+           (body (cddr node))
+           (filename (cdr (assq 'name attrs))))
+      (when (eq name 'file)
+        (rtags-overlays-remove filename)
+        (--each body (rtags-parse-overlay-error-node it filename))))
+    )
+  )
+
+(defun rtags-overlays-parse (output)
+  (let ((doc (rtags-parse-xml-string output)))
+    (when doc
+      (unless (eq (car doc) 'checkstyle)
+        (error "Unexpected root element %s" (car doc)))
+      (-each (cddr doc) #'rtags-parse-overlay-node)))
+  )
+
 (defvar rtags-completion-signatures (make-hash-table :test 'equal))
 (defvar rtags-completion-buffer-pending nil)
 
@@ -1198,47 +1276,6 @@ References to references will be treated as references to the referenced symbol"
     )
   )
 
-(flycheck-declare-checker rtags-flycheck-checker
-  "flycheck checker for rtags."
-  :command '("dummy" source)
-  :error-parser 'flycheck-parse-checkstyle
-  :modes '(c++-mode c-mode))
-
-(defun rtags-do-flycheck (process)
-  "Finish a syntax check from PROCESS.
-
-Parse the output and report an appropriate error status."
-  (flycheck-report-status "")
-  (let* ((checker (process-get process :flycheck-checker))
-         (exit-status (process-exit-status process))
-         (output (flycheck-get-output process))
-         (errors
-          (condition-case err
-              (flycheck-relevant-errors
-               (flycheck-parse-output output checker (current-buffer)))
-            (error
-             (message "Failed to parse errors from checker %S in output: %s\n\
-Error: %s" checker output (error-message-string err))
-             (flycheck-report-status "!")
-             :errored))))
-    (flycheck-clean-substituted-files)
-    (unless (eq errors :errored)
-      (setq flycheck-current-errors
-            (flycheck-sort-errors (append errors flycheck-current-errors nil)))
-      (flycheck-report-errors flycheck-current-errors)
-      (when (and (/= exit-status 0) (not errors))
-        ;; Report possibly flawed checker definition
-        (message "Checker %S returned non-zero exit code %s, but no errors from\
-output: %s\nChecker definition probably flawed."
-                 checker exit-status output)
-        (flycheck-report-status "?"))
-      (when (eq (current-buffer) (window-buffer))
-        (flycheck-show-error-at-point))
-      (let ((next-checker (flycheck-get-next-checker-for-buffer checker)))
-        (if next-checker
-            (flycheck-start-checker next-checker)
-          (run-hooks 'flycheck-after-syntax-check-hook))))))
-
 (defvar rtags-pending-diagnostics nil)
 (defun rtags-diagnostics-process-filter (process output)
   (let ((errors)
@@ -1250,24 +1287,17 @@ output: %s\nChecker definition probably flawed."
     (with-current-buffer (process-buffer process)
       (setq buffer-read-only nil)
       (message (format "matching %s" output))
-      (let ((startpos (string-match "xml version" output))
-            (endpos (string-match "</checkstyle>" output))
+      (let ((endpos (string-match "</checkstyle>" output))
             (proc (get-process "RTags Diagnostics"))
             (current))
-        (while (and proc startpos endpos)
-          (setq current (substring output (- startpos 2) (+ endpos 13)))
-          (setq output (substring output (+ endpos 13)))
-          (setq startpos (string-match "xml version" output))
+        (while (and proc endpos)
+          (setq current (substring output 0 (+ endpos 13)))
+          (setq output (s-trim-right (substring output (+ endpos 13))))
           (setq endpos (string-match "</checkstyle>" output))
           (insert current "\n")
-          ;; set up the stuff flycheck wants from our process
-          (process-put proc :flycheck-pending-output (make-list 1 current))
-          (process-put proc :flycheck-checker 'rtags-flycheck-checker)
-          (message "we do this?")
-          (with-current-buffer oldbuffer
-            (rtags-do-flycheck proc))))
+          (rtags-overlays-parse current)))
       (setq buffer-read-only t)
-      (when (length output)
+      (when (> (length output) 0)
         (setq rtags-pending-diagnostics output)))
     )
   )
