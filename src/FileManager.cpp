@@ -77,7 +77,7 @@ void FileManager::onFileAdded(const Path &path)
     } else {
         error() << "Got empty parent here" << path;
     }
-    assert(!map.contains(""));
+    assert(!map.contains(Path()));
 }
 
 void FileManager::onFileRemoved(const Path &path)
