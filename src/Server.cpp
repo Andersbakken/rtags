@@ -106,7 +106,7 @@ bool Server::init(const Options &options)
         delete mServer;
         mServer = 0;
         if (!i) {
-            enum { Timeout = 5000 };
+            enum { Timeout = 1000 };
             Client client(mOptions.socketFile, Timeout, Client::DontWarnOnConnectionFailure);
             QueryMessage msg(QueryMessage::Shutdown);
             client.message(&msg);

@@ -192,7 +192,7 @@ public:
 
 RClient::RClient()
     : mQueryFlags(0), mClientFlags(0), mMax(-1), mLogLevel(0), mTimeout(0),
-      mMinOffset(-1), mMaxOffset(-1), mConnectTimeout(5000), mArgc(0), mArgv(0)
+      mMinOffset(-1), mMaxOffset(-1), mConnectTimeout(1000), mArgc(0), mArgv(0)
 {
 }
 
