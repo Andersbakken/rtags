@@ -867,6 +867,20 @@ bool IndexerJob::parse(int build)
     return !isAborted();
 }
 
+struct XmlEntry
+{
+    enum Type { None, Warning, Error, Fixit };
+
+    XmlEntry(Type t = None, const String& m = String(), int l = 0, int c = 0, int so = -1, int eo = -1)
+        : type(t), message(m), line(l), column(c), startOffset(so), endOffset(eo)
+    {
+    }
+
+    Type type;
+    String message;
+    int line, column, startOffset, endOffset;
+};
+
 bool IndexerJob::diagnose(int build, int *errorCount)
 {
     if (errorCount)
@@ -880,8 +894,8 @@ bool IndexerJob::diagnose(int build, int *errorCount)
     const unsigned diagnosticCount = clang_getNumDiagnostics(mUnits.at(build).second);
     const unsigned options = Server::instance()->options().options;
 
-    String lastFile;
-    Set<uint32_t> errorFiles;
+    Map<uint32_t, List<XmlEntry> > xmlEntries;
+    const bool xmlEnabled = testLog(CompilationErrorXml);
 
     for (unsigned i=0; i<diagnosticCount; ++i) {
         CXDiagnostic diagnostic = clang_getDiagnostic(mUnits.at(build).second, i);
@@ -889,7 +903,7 @@ bool IndexerJob::diagnose(int build, int *errorCount)
         const CXDiagnosticSeverity severity = clang_getDiagnosticSeverity(diagnostic);
         switch (severity) {
         case CXDiagnostic_Fatal:
-        case CXDiagnostic_fError:
+        case CXDiagnostic_Error:
             if (errorCount)
                 ++*errorCount;
             logLevel = Error;
@@ -910,84 +924,53 @@ bool IndexerJob::diagnose(int build, int *errorCount)
                                             CXDiagnostic_DisplayOption|
                                             CXDiagnostic_DisplayCategoryId|
                                             CXDiagnostic_DisplayCategoryName);
-        const uint32_t fileId = createLocation(clang_getDiagnosticLocation(diagnostic), 0).fileId();
+        const CXSourceLocation diagLoc = clang_getDiagnosticLocation(diagnostic);
+        const Location loc = createLocation(diagLoc, 0);
+        const uint32_t fileId = loc.fileId();
         if (mVisitedFiles.contains(fileId)) {
-            if (testLog(logLevel) || testLog(CompilationError)) {
-                String text;
-                if (testLog(CompilationErrorXml)) {
-                    const CXDiagnosticSeverity sev = clang_getDiagnosticSeverity(diagnostic);
-                    const char* severity = 0;
-                    switch (sev) {
-                    case CXDiagnostic_Warning:
-                        severity = "warning";
-                        break;
-                    case CXDiagnostic_Error:
-                    case CXDiagnostic_Fatal:
-                        severity = "error";
-                        break;
-                    default:
-                        break;
-                    }
-                    if (severity) {
-                        const unsigned rangeCount = clang_getDiagnosticNumRanges(diagnostic);
-                        if (!rangeCount) {
-                            const CXSourceLocation loc = clang_getDiagnosticLocation(diagnostic);
+            if (xmlEnabled) {
+                const CXDiagnosticSeverity sev = clang_getDiagnosticSeverity(diagnostic);
+                XmlEntry::Type type = XmlEntry::None;
+                switch (sev) {
+                case CXDiagnostic_Warning:
+                    type = XmlEntry::Warning;
+                    break;
+                case CXDiagnostic_Error:
+                case CXDiagnostic_Fatal:
+                    type = XmlEntry::Error;
+                    break;
+                default:
+                    break;
+                }
+                if (type != XmlEntry::None) {
+                    const unsigned rangeCount = clang_getDiagnosticNumRanges(diagnostic);
+                    const String msg = RTags::eatString(clang_getDiagnosticSpelling(diagnostic));
+                    if (!rangeCount) {
+                        unsigned line, column;
+                        clang_getFileLocation(diagLoc, 0, &line, &column, 0);
 
-                            CXFile file;
-                            unsigned line, column, startoffset;
-                            clang_getFileLocation(loc, &file, &line, &column, &startoffset);
+                        xmlEntries[fileId].append(XmlEntry(type, msg, line, column, loc.offset()));
+                    } else {
+                        for (unsigned rangePos = 0; rangePos < rangeCount; ++rangePos) {
+                            const CXSourceRange range = clang_getDiagnosticRange(diagnostic, rangePos);
+                            const CXSourceLocation start = clang_getRangeStart(range);
+                            const CXSourceLocation end = clang_getRangeEnd(range);
 
-                            const String fn = RTags::eatString(clang_getFileName(file));
-                            if (fn != lastFile) {
-                                if (!compilationErrors.isEmpty())
-                                    compilationErrors.append("</file>");
-                                const String header = String::format<128>("<file name=\"%s\">", fn.nullTerminated());
-                                compilationErrors.append(header);
-                                lastFile = fn;
-                            }
+                            unsigned line, column, startOffset, endOffset;
+                            clang_getFileLocation(start, 0, &line, &column, &startOffset);
+                            clang_getFileLocation(end, 0, 0, 0, &endOffset);
 
-                            errorFiles.insert(fileId);
-                            String msg = RTags::eatString(clang_getDiagnosticSpelling(diagnostic));
-                            msg.replace("\"", "\\\"");
-                            text = String::format<512>("<error line=\"%d\" column=\"%d\" severity=\"%s\" "
-                                                       "offsetstart=\"%d\" message=\"%s\"/>",
-                                                       line, column, severity, startoffset, msg.nullTerminated());
-                        } else {
-                            for (unsigned rangePos = 0; rangePos < rangeCount; ++rangePos) {
-                                const CXSourceRange range = clang_getDiagnosticRange(diagnostic, rangePos);
-                                const CXSourceLocation start = clang_getRangeStart(range);
-                                const CXSourceLocation end = clang_getRangeEnd(range);
-
-                                CXFile file;
-                                unsigned line, column, startoffset, endoffset;
-                                clang_getFileLocation(start, &file, &line, &column, &startoffset);
-                                clang_getFileLocation(end, 0, 0, 0, &endoffset);
-
-                                const String fn = RTags::eatString(clang_getFileName(file));
-                                if (fn != lastFile) {
-                                    if (!compilationErrors.isEmpty())
-                                        compilationErrors.append("</file>");
-                                    const String header = String::format<128>("<file name=\"%s\">", fn.nullTerminated());
-                                    compilationErrors.append(header);
-                                    lastFile = fn;
-                                }
-
-                                errorFiles.insert(fileId);
-                                String msg = RTags::eatString(clang_getDiagnosticSpelling(diagnostic));
-                                msg.replace("\"", "\\\"");
-                                text += String::format<256>("<error line=\"%d\" column=\"%d\" severity=\"%s\" "
-                                                            "offsetstart=\"%d\" offsetend=\"%d\" message=\"%s\"/>",
-                                                            line, column, severity, startoffset, endoffset, msg.nullTerminated());
-                            }
+                            xmlEntries[fileId].append(XmlEntry(type, msg, line, column, startOffset, endOffset));
                         }
                     }
-                } else {
-                    text = RTags::eatString(clang_formatDiagnostic(diagnostic, diagnosticOptions));
                 }
-                if (!text.isEmpty()) {
-                    log(logLevel, "%s: %s => %s", mSourceInformation.sourceFile.constData(), mClangLines.at(build).constData(), text.constData());
-                    compilationErrors.append(text);
-                }
+            }
+            if (testLog(logLevel) || testLog(CompilationError)) {
+                const String msg = RTags::eatString(clang_formatDiagnostic(diagnostic, diagnosticOptions));
+                if (testLog(logLevel))
+                    logDirect(logLevel, msg.constData());
+                if (testLog(CompilationError))
+                    logDirect(CompilationError, msg.constData());
             }
 
             const unsigned fixItCount = clang_getDiagnosticNumFixIts(diagnostic);
@@ -996,57 +979,78 @@ bool IndexerJob::diagnose(int build, int *errorCount)
                 rx = "^%[A-Za-z0-9]\\+$";
             }
             for (unsigned f=0; f<fixItCount; ++f) {
-                CXSourceRange range;
-                const String string = RTags::eatString(clang_getDiagnosticFixIt(diagnostic, f, &range));
-                unsigned startOffset;
+                unsigned startOffset, line, column;
                 CXFile file;
-                clang_getSpellingLocation(clang_getRangeStart(range), &file, 0, 0, &startOffset);
-                unsigned endOffset;
-                clang_getSpellingLocation(clang_getRangeEnd(range), 0, 0, 0, &endOffset);
+                CXSourceRange range;
+                const CXStringScope stringScope = clang_getDiagnosticFixIt(diagnostic, f, &range);
+                clang_getSpellingLocation(clang_getRangeStart(range), &file, &line, &column, &startOffset);
+
                 const Location loc(file, startOffset);
-                if (options & Server::IgnorePrintfFixits && rx.indexIn(string) == 0) {
-                    error("Ignored fixit for %s: Replace %d-%d with [%s]", loc.path().constData(),
-                          startOffset, endOffset, string.constData());
-                } else {
-                    error("Fixit for %s: Replace %d-%d with [%s]", loc.path().constData(),
-                          startOffset, endOffset, string.constData());
-                    if (!testLog(CompilationErrorXml))
-                        compilationErrors.append(String::format<128>("Fixit for %s: Replace %d-%d with [%s]", loc.path().constData(),
-                                                                     startOffset, endOffset, string.constData()));
-                    mData->fixIts[loc.fileId()].insert(FixIt(startOffset, endOffset, string));
+                if (mVisitedFiles.contains(loc.fileId())) {
+
+                    const char* string = clang_getCString(stringScope);
+                    unsigned endOffset;
+                    clang_getSpellingLocation(clang_getRangeEnd(range), 0, 0, 0, &endOffset);
+                    if (options & Server::IgnorePrintfFixits && rx.indexIn(string) == 0) {
+                        error("Ignored fixit for %s: Replace %d-%d with [%s]", loc.path().constData(),
+                              startOffset, endOffset, string);
+                    } else {
+                        error("Fixit for %s: Replace %d-%d with [%s]", loc.path().constData(),
+                              startOffset, endOffset, string);
+                        if (xmlEnabled) {
+                            xmlEntries[loc.fileId()].append(XmlEntry(XmlEntry::Fixit, string, line, column,
+                                                                     startOffset, endOffset));
+                        }
+                        if (testLog(logLevel) || testLog(CompilationError)) {
+                            const String msg = String::format<128>("Fixit for %s: Replace %d-%d with [%s]", loc.path().constData(),
+                                                                   startOffset, endOffset, string);
+                            if (testLog(logLevel))
+                                logDirect(logLevel, msg.constData());
+                            if (testLog(CompilationError))
+                                logDirect(CompilationError, msg.constData());
+                        }
+                        mData->fixIts[loc.fileId()].insert(FixIt(startOffset, endOffset, string));
+                    }
                 }
             }
         }
 
         clang_disposeDiagnostic(diagnostic);
     }
-    if (testLog(CompilationError)) {
-        if (testLog(CompilationErrorXml)) {
-            if (!compilationErrors.isEmpty())
-                compilationErrors.append("</file>");
-            for (Set<uint32_t>::const_iterator it = mVisitedFiles.begin(); it != mVisitedFiles.end(); ++it) {
-                if (!errorFiles.contains(*it)) {
-                    const String fn = Location::path(*it);
-                    compilationErrors.append(String::format<64>("<file name=\"%s\"/>", fn.nullTerminated()));
+    if (xmlEnabled) {
+        logDirect(CompilationErrorXml, "<?xml version=\"1.0\" encoding=\"utf-8\"?><checkstyle>");
+        if (!xmlEntries.isEmpty()) {
+            Map<uint32_t, List<XmlEntry> >::const_iterator entry = xmlEntries.begin();
+            const Map<uint32_t, List<XmlEntry> >::const_iterator end = xmlEntries.end();
+
+            const char* severities[] = { "none", "warning", "error", "fixit" };
+
+            while (entry != end) {
+                log(CompilationErrorXml, "<file name=\"%s\">", Location::path(entry->first).constData());
+                const List<XmlEntry>& list = entry->second;
+                const int listSize = list.size();
+                for (int i = 0; i < listSize; ++i) {
+                    const XmlEntry& entry = list.at(i);
+                    log(CompilationErrorXml, "<error line=\"%d\" column=\"%d\" startOffset=\"%d\" %sseverity=\"%s\" message=\"%s\"/>",
+                        entry.line, entry.column, entry.startOffset,
+                        (entry.endOffset == -1 ? "" : String::format<32>("endOffset=\"%d\" ", entry.endOffset).constData()),
+                        severities[entry.type], entry.message.constData());
                 }
+                logDirect(CompilationErrorXml, "</file>");
+                ++entry;
             }
-            compilationErrors.append("</checkstyle>");
-            compilationErrors.prepend("<?xml version=\"1.0\" encoding=\"utf-8\"?><checkstyle>");
         }
-        sendDiagnostics(compilationErrors, testLog(CompilationErrorXml) ? CompilationErrorXml : CompilationError);
+
+        for (Set<uint32_t>::const_iterator it = mVisitedFiles.begin(); it != mVisitedFiles.end(); ++it) {
+            if (!xmlEntries.contains(*it)) {
+                const String fn = Location::path(*it);
+                log(CompilationErrorXml, "<file name=\"%s\"/>", fn.constData());
+            }
+        }
+
+        logDirect(CompilationErrorXml, "</checkstyle>");
     }
     return !isAborted();
-}
-
-void IndexerJob::sendDiagnostics(const List<String> &diagnostics, LogLevel level)
-{
-    if (level == CompilationError) {
-        for (Set<uint32_t>::const_iterator it = mVisitedFiles.begin(); it != mVisitedFiles.end(); ++it)
-            log(level, "file: %s", Location::path(*it).constData());
-    }
-
-    for (int i=0; i<diagnostics.size(); ++i)
-        logDirect(level, diagnostics.at(i));
 }
 
 bool IndexerJob::visit(int build)

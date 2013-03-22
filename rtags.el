@@ -31,6 +31,27 @@
 (defvar rtags-last-request-not-indexed nil)
 (defvar rtags-buffer-bookmarks 0)
 
+(defface rtags-warnline
+ '((((class color) (background dark)) (:background "blue"))
+   (((class color) (background light)) (:background "blue"))
+   (t (:bold t)))
+ "Face used for marking error lines."
+ :group 'rtags)
+
+(defface rtags-errline
+ '((((class color) (background dark)) (:background "red"))
+   (((class color) (background light)) (:background "red"))
+   (t (:bold t)))
+ "Face used for marking warning lines."
+ :group 'rtags)
+
+(defface rtags-fixitline
+  '((((class color) (background dark)) (:background "goldenrod4"))
+    (((class color) (background light)) (:background "goldenrod4"))
+    (t (:bold t)))
+  "Face used for marking fixit lines."
+  :group 'rtags)
+
 (defvar rtags-font-lock-keywords
   `((,"^\\(.*:[0-9]+:[0-9]+:\\)\\(.*\\)$"
      (1 font-lock-string-face)
@@ -1014,10 +1035,9 @@ References to references will be treated as references to the referenced symbol"
 (defvar rtags-overlays (make-hash-table :test 'equal))
 
 (defun rtags-overlays-remove (filename)
-  (let* ((errorlist (gethash filename rtags-overlays nil))
-         (copy (-slice errorlist 0)))
-    (when (listp copy)
-      (-each copy #'delete-overlay))
+  (let ((errorlist (gethash filename rtags-overlays nil)))
+    (when (listp errorlist)
+      (-each errorlist #'delete-overlay))
     (puthash filename nil rtags-overlays)))
 
 (defun rtags-really-find-buffer (fn)
@@ -1041,29 +1061,39 @@ References to references will be treated as references to the referenced symbol"
   (when (listp node)
     (let* ((name (car node))
            (attrs (cadr node))
-           (offsetstart (rtags-string-to-number (cdr (assq 'offsetstart attrs))))
-           (offsetend (rtags-string-to-number (cdr (assq 'offsetend attrs))))
+           (line (rtags-string-to-number (cdr (assq 'line attrs))))
+           (column (rtags-string-to-number (cdr (assq 'column attrs))))
+           (startoffset (rtags-string-to-number (cdr (assq 'startOffset attrs))))
+           (endoffset (rtags-string-to-number (cdr (assq 'endOffset attrs))))
            (severity (cdr (assq 'severity attrs)))
            (message (cdr (assq 'message attrs))))
       (when (eq name 'error)
         (let ((errorlist (gethash filename rtags-overlays nil))
               (filebuffer (rtags-really-find-buffer filename)))
           (when filebuffer
-            (unless offsetend
+            (when (or (not endoffset) (= endoffset -1))
               (with-current-buffer filebuffer
                 (save-excursion
-                  (rtags-goto-offset offsetstart)
+                  (rtags-goto-offset startoffset)
                   (let ((rsym (rtags-current-symbol t)))
                     (when rsym
-                      (setq offsetend (+ offsetstart (length rsym))))))))
+                      (setq endoffset (+ startoffset (length rsym))))))))
 
-            (let ((overlay (make-overlay (+ offsetstart 1) (+ offsetend 1) filebuffer)))
+            (let ((overlay (make-overlay (+ startoffset 1) (+ endoffset 1) filebuffer)))
               (overlay-put overlay 'rtags-error-message message)
               (overlay-put overlay 'rtags-error-severity severity)
-              (overlay-put overlay 'face (cons 'background-color "red"))
-              (if errorlist
-                  (setq errorlist (append errorlist overlay))
-                (setq errorlist (list overlay)))
+              (overlay-put overlay 'face (cond ((string= severity "error") 'rtags-errline)
+                                               ((string= severity "warning") 'rtags-warnline)
+                                               ((string= severity "fixit") 'rtags-fixitline)
+                                               (t 'rtags-errline)))
+              (if (string= severity "fixit")
+                  (progn
+                    (overlay-put overlay 'priority 1)
+                    (insert (format "Fixit for %s: Replace %d-%d with [%s]"
+                                    filename startoffset endoffset message)))
+                (insert (format "%s:%d:%d: %s: %s\n" filename line column severity message)))
+
+              (setq errorlist (append errorlist (list overlay)))
               (puthash filename errorlist rtags-overlays)))))))
   )
 
@@ -1075,6 +1105,9 @@ References to references will be treated as references to the referenced symbol"
            (filename (cdr (assq 'name attrs))))
       (when (eq name 'file)
         (rtags-overlays-remove filename)
+        (save-excursion
+          (goto-char (point-min))
+          (flush-lines (concat filename ":")))
         (--each body (rtags-parse-overlay-error-node it filename))))
     )
   )
@@ -1286,7 +1319,7 @@ References to references will be treated as references to the referenced symbol"
       (setq rtags-pending-diagnostics nil))
     (with-current-buffer (process-buffer process)
       (setq buffer-read-only nil)
-      (message (format "matching %s" output))
+      ;;(message (format "matching %s" output))
       (let ((endpos (string-match "</checkstyle>" output))
             (proc (get-process "RTags Diagnostics"))
             (current))
@@ -1294,7 +1327,6 @@ References to references will be treated as references to the referenced symbol"
           (setq current (substring output 0 (+ endpos 13)))
           (setq output (s-trim-right (substring output (+ endpos 13))))
           (setq endpos (string-match "</checkstyle>" output))
-          (insert current "\n")
           (rtags-overlays-parse current)))
       (setq buffer-read-only t)
       (when (> (length output) 0)

@@ -305,6 +305,7 @@ public:
     {
         return clang_getCString(string);
     }
+    operator CXString () const { return string; }
 private:
     CXString string;
 };
