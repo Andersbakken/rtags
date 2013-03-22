@@ -871,15 +871,42 @@ struct XmlEntry
 {
     enum Type { None, Warning, Error, Fixit };
 
-    XmlEntry(Type t = None, const String& m = String(), int l = 0, int c = 0, int so = -1, int eo = -1)
-        : type(t), message(m), line(l), column(c), startOffset(so), endOffset(eo)
+    XmlEntry(Type t = None, const String& m = String(), int l = 0, int c = 0, int eo = -1)
+        : type(t), message(m), line(l), column(c), endOffset(eo)
     {
     }
 
     Type type;
     String message;
-    int line, column, startOffset, endOffset;
+    int line, column, endOffset;
 };
+
+static inline String xmlEscape(const String& xml)
+{
+    std::ostringstream strm;
+    const char* ch = xml.constData();
+    while (ch) {
+        switch (*ch) {
+        case '"':
+            strm << "\\\"";
+            break;
+        case '<':
+            strm << "&lt;";
+            break;
+        case '>':
+            strm << "&gt;";
+            break;
+        case '&':
+            strm << "&amp;";
+            break;
+        default:
+            strm << *ch;
+            break;
+        }
+        ++ch;
+    }
+    return strm.str();
+}
 
 bool IndexerJob::diagnose(int build, int *errorCount)
 {
@@ -894,7 +921,7 @@ bool IndexerJob::diagnose(int build, int *errorCount)
     const unsigned diagnosticCount = clang_getNumDiagnostics(mUnits.at(build).second);
     const unsigned options = Server::instance()->options().options;
 
-    Map<uint32_t, List<XmlEntry> > xmlEntries;
+    Map<uint32_t, Map<int, XmlEntry> > xmlEntries;
     const bool xmlEnabled = testLog(CompilationErrorXml);
 
     for (unsigned i=0; i<diagnosticCount; ++i) {
@@ -928,6 +955,7 @@ bool IndexerJob::diagnose(int build, int *errorCount)
         const Location loc = createLocation(diagLoc, 0);
         const uint32_t fileId = loc.fileId();
         if (mVisitedFiles.contains(fileId)) {
+            const String msg = RTags::eatString(clang_formatDiagnostic(diagnostic, diagnosticOptions));
             if (xmlEnabled) {
                 const CXDiagnosticSeverity sev = clang_getDiagnosticSeverity(diagnostic);
                 XmlEntry::Type type = XmlEntry::None;
@@ -944,12 +972,11 @@ bool IndexerJob::diagnose(int build, int *errorCount)
                 }
                 if (type != XmlEntry::None) {
                     const unsigned rangeCount = clang_getDiagnosticNumRanges(diagnostic);
-                    const String msg = RTags::eatString(clang_getDiagnosticSpelling(diagnostic));
                     if (!rangeCount) {
                         unsigned line, column;
                         clang_getFileLocation(diagLoc, 0, &line, &column, 0);
 
-                        xmlEntries[fileId].append(XmlEntry(type, msg, line, column, loc.offset()));
+                        xmlEntries[fileId][loc.offset()] = XmlEntry(type, msg, line, column);
                     } else {
                         for (unsigned rangePos = 0; rangePos < rangeCount; ++rangePos) {
                             const CXSourceRange range = clang_getDiagnosticRange(diagnostic, rangePos);
@@ -960,13 +987,12 @@ bool IndexerJob::diagnose(int build, int *errorCount)
                             clang_getFileLocation(start, 0, &line, &column, &startOffset);
                             clang_getFileLocation(end, 0, 0, 0, &endOffset);
 
-                            xmlEntries[fileId].append(XmlEntry(type, msg, line, column, startOffset, endOffset));
+                            xmlEntries[fileId][startOffset] = XmlEntry(type, msg, line, column, endOffset);
                         }
                     }
                 }
             }
             if (testLog(logLevel) || testLog(CompilationError)) {
-                const String msg = RTags::eatString(clang_formatDiagnostic(diagnostic, diagnosticOptions));
                 if (testLog(logLevel))
                     logDirect(logLevel, msg.constData());
                 if (testLog(CompilationError))
@@ -998,8 +1024,14 @@ bool IndexerJob::diagnose(int build, int *errorCount)
                         error("Fixit for %s: Replace %d-%d with [%s]", loc.path().constData(),
                               startOffset, endOffset, string);
                         if (xmlEnabled) {
-                            xmlEntries[loc.fileId()].append(XmlEntry(XmlEntry::Fixit, string, line, column,
-                                                                     startOffset, endOffset));
+                            XmlEntry& entry = xmlEntries[loc.fileId()][startOffset];
+                            entry.type = XmlEntry::Fixit;
+                            if (entry.message.isEmpty()) {
+                                entry.message = string;
+                                entry.line = line;
+                                entry.column = column;
+                            }
+                            entry.endOffset = endOffset;
                         }
                         if (testLog(logLevel) || testLog(CompilationError)) {
                             const String msg = String::format<128>("Fixit for %s: Replace %d-%d with [%s]", loc.path().constData(),
@@ -1020,21 +1052,23 @@ bool IndexerJob::diagnose(int build, int *errorCount)
     if (xmlEnabled) {
         logDirect(CompilationErrorXml, "<?xml version=\"1.0\" encoding=\"utf-8\"?><checkstyle>");
         if (!xmlEntries.isEmpty()) {
-            Map<uint32_t, List<XmlEntry> >::const_iterator entry = xmlEntries.begin();
-            const Map<uint32_t, List<XmlEntry> >::const_iterator end = xmlEntries.end();
+            Map<uint32_t, Map<int, XmlEntry> >::const_iterator entry = xmlEntries.begin();
+            const Map<uint32_t, Map<int, XmlEntry> >::const_iterator end = xmlEntries.end();
 
             const char* severities[] = { "none", "warning", "error", "fixit" };
 
             while (entry != end) {
                 log(CompilationErrorXml, "<file name=\"%s\">", Location::path(entry->first).constData());
-                const List<XmlEntry>& list = entry->second;
-                const int listSize = list.size();
-                for (int i = 0; i < listSize; ++i) {
-                    const XmlEntry& entry = list.at(i);
+                const Map<int, XmlEntry>& map = entry->second;
+                Map<int, XmlEntry>::const_iterator it = map.begin();
+                const Map<int, XmlEntry>::const_iterator end = map.end();
+                while (it != end) {
+                    const XmlEntry& entry = it->second;
                     log(CompilationErrorXml, "<error line=\"%d\" column=\"%d\" startOffset=\"%d\" %sseverity=\"%s\" message=\"%s\"/>",
-                        entry.line, entry.column, entry.startOffset,
+                        entry.line, entry.column, it->first,
                         (entry.endOffset == -1 ? "" : String::format<32>("endOffset=\"%d\" ", entry.endOffset).constData()),
-                        severities[entry.type], entry.message.constData());
+                        severities[entry.type], xmlEscape(entry.message).constData());
+                    ++it;
                 }
                 logDirect(CompilationErrorXml, "</file>");
                 ++entry;
