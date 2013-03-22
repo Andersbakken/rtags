@@ -69,7 +69,7 @@ int GRParser::parse(const Path &file, unsigned opts, Map<String, Map<Location, b
     clang::LangOptions options;
     if (opts & CPlusPlus) {
         options.CPlusPlus = true;
-        options.CPlusPlus11 = true;
+        // options.CPlusPlus11 = true; // not sure when this was added to clang so I don't know what to do with the ifdef
     }
     mLexer = new clang::Lexer(loc, options, mBuf, mBuf, mBuf + mSize);
     const int verbosity = getenv("VERBOSE") ? atoi(getenv("VERBOSE")) : 0;
