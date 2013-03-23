@@ -1012,7 +1012,7 @@ References to references will be treated as references to the referenced symbol"
 (defun rtags-apply-fixit-at-point ()
   (interactive)
   (let ((line (buffer-substring (point-at-bol) (point-at-eol))))
-    (if (string-match "^Fixit for \\(.*\\): Replace \\([0-9]+\\)-\\([0-9]+\\) with \\[\\(.*\\)\\]$" line)
+    (if (string-match "^\\(.*\\):[0-9]+:[0-9]+: fixit: \\([0-9]+\\)-\\([0-9]+\\): .*did you mean '\\(.*\\)'\\?$" line)
         (let* ((file (match-string 1 line))
                (buf (find-buffer-visiting file))
                (start (string-to-int (match-string 2 line)))
@@ -1089,8 +1089,7 @@ References to references will be treated as references to the referenced symbol"
               (if (string= severity "fixit")
                   (progn
                     (overlay-put overlay 'priority 1)
-                    (insert (format "Fixit for %s: Replace %d-%d with [%s]"
-                                    filename startoffset endoffset message)))
+                    (insert (format "%s:%d:%d: fixit: %d-%d: %s\n" filename line column startoffset endoffset message)))
                 (insert (format "%s:%d:%d: %s: %s\n" filename line column severity message)))
 
               (setq errorlist (append errorlist (list overlay)))

@@ -954,17 +954,11 @@ bool IndexerJob::diagnose(int build, int *errorCount)
             break;
         }
 
-        const unsigned diagnosticOptions = (CXDiagnostic_DisplaySourceLocation|
-                                            CXDiagnostic_DisplayColumn|
-                                            CXDiagnostic_DisplaySourceRanges|
-                                            CXDiagnostic_DisplayOption|
-                                            CXDiagnostic_DisplayCategoryId|
-                                            CXDiagnostic_DisplayCategoryName);
         const CXSourceLocation diagLoc = clang_getDiagnosticLocation(diagnostic);
         const Location loc = createLocation(diagLoc, 0);
         const uint32_t fileId = loc.fileId();
         if (mVisitedFiles.contains(fileId)) {
-            const String msg = RTags::eatString(clang_formatDiagnostic(diagnostic, diagnosticOptions));
+            const String msg = RTags::eatString(clang_getDiagnosticSpelling(diagnostic));
             if (xmlEnabled) {
                 const CXDiagnosticSeverity sev = clang_getDiagnosticSeverity(diagnostic);
                 XmlEntry::Type type = XmlEntry::None;
@@ -1036,7 +1030,7 @@ bool IndexerJob::diagnose(int build, int *errorCount)
                             XmlEntry& entry = xmlEntries[loc.fileId()][startOffset];
                             entry.type = XmlEntry::Fixit;
                             if (entry.message.isEmpty()) {
-                                entry.message = string;
+                                entry.message = String::format<64>("did you mean '%s'?", string);
                                 entry.line = line;
                                 entry.column = column;
                             }
