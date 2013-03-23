@@ -883,10 +883,17 @@ struct XmlEntry
 
 static inline String xmlEscape(const String& xml)
 {
+    if (xml.isEmpty())
+        return xml;
+
     std::ostringstream strm;
     const char* ch = xml.constData();
-    while (ch) {
+    bool done = false;
+    for (;;) {
         switch (*ch) {
+        case '\0':
+            done = true;
+            break;
         case '"':
             strm << "\\\"";
             break;
@@ -903,6 +910,8 @@ static inline String xmlEscape(const String& xml)
             strm << *ch;
             break;
         }
+        if (done)
+            break;
         ++ch;
     }
     return strm.str();
