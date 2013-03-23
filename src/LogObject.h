@@ -27,7 +27,7 @@ public:
 
     virtual bool testLog(int level)
     {
-        if (logLevel() < 0)
+        if (logLevel() < 0 || level < 0)
             return level == logLevel();
         return LogObject::testLog(level);
     }
