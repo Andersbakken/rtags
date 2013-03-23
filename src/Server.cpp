@@ -1056,13 +1056,22 @@ void Server::shutdown(const QueryMessage &query, Connection *conn)
 void Server::builds(const QueryMessage &query, Connection *conn)
 {
     const Path path = query.query();
-    shared_ptr<Project> project = updateProjectForLocation(path);
-    if (project) {
-        const uint32_t fileId = Location::fileId(path);
-        if (fileId) {
-            const SourceInformation info = project->sourceInfo(fileId);
-            conn->write(info.toString());
+    if (!path.isEmpty()) {
+        shared_ptr<Project> project = updateProjectForLocation(path);
+        if (project) {
+            const uint32_t fileId = Location::fileId(path);
+            if (fileId) {
+                const SourceInformation info = project->sourceInfo(fileId);
+                conn->write(info.toString());
+            }
         }
+    } else if (shared_ptr<Project> project = currentProject()) {
+        const SourceInformationMap infos = project->sourceInfos();
+        for (SourceInformationMap::const_iterator it = infos.begin(); it != infos.end(); ++it) {
+            conn->write(it->second.toString());
+        }
+    } else {
+        conn->write("No project");
     }
     conn->finish();
 }

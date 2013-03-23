@@ -375,6 +375,11 @@ void Project::onFileModified(const Path &file)
     }
 }
 
+SourceInformationMap Project::sourceInfos() const
+{
+    MutexLocker lock(&mMutex);
+    return mSources;
+}
 
 SourceInformation Project::sourceInfo(uint32_t fileId) const
 {

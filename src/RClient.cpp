@@ -371,7 +371,7 @@ struct Option opts[] = {
     { RemoveFile, "remove", 'D', required_argument, "Remove file from project." },
     { FindProjectRoot, "find-project-root", 0, required_argument, "Use to check behavior of find-project-root." },
     { JSON, "json", 0, optional_argument, "Dump json about files matching arg or whole project if no argument." },
-    { Builds, "builds", 0, required_argument, "Dump builds for source file." },
+    { Builds, "builds", 0, optional_argument, "Dump builds for source file." },
     { Dependencies, "dependencies", 0, required_argument, "Dump dependencies for source file." },
     { ReloadFileManager, "reload-file-manager", 'B', no_argument, "Reload file manager." },
 
@@ -767,12 +767,14 @@ bool RClient::parse(int &argc, char **argv)
         case FindFile:
         case ListSymbols:
         case JSON:
+        case Builds:
         case Status: {
             QueryMessage::Type type = QueryMessage::Invalid;
             switch (opt->option) {
             case Reindex: type = QueryMessage::Reindex; break;
             case Project: type = QueryMessage::Project; break;
             case FindFile: type = QueryMessage::FindFile; break;
+            case Builds: type = QueryMessage::Builds; break;
             case Status: type = QueryMessage::Status; break;
             case JSON: type = QueryMessage::JSON; break;
             case ListSymbols: type = QueryMessage::ListSymbols; break;
@@ -821,7 +823,6 @@ bool RClient::parse(int &argc, char **argv)
             addQuery(QueryMessage::IsIndexing);
             break;
         case IsIndexed:
-        case Builds:
         case DumpFile:
         case Dependencies:
         case FixIts: {
@@ -844,7 +845,6 @@ bool RClient::parse(int &argc, char **argv)
             }
             QueryMessage::Type type = QueryMessage::Invalid;
             switch (opt->option) {
-            case Builds: type = QueryMessage::Builds; break;
             case Dependencies: type = QueryMessage::Dependencies; break;
             case FixIts: type = QueryMessage::FixIts; break;
             case IsIndexed: type = QueryMessage::IsIndexed; break;

@@ -89,6 +89,7 @@ public:
     bool isIndexed(uint32_t fileId) const;
 
     void index(const SourceInformation &args, IndexerJob::Type type);
+    SourceInformationMap sourceInfos() const;
     SourceInformation sourceInfo(uint32_t fileId) const;
     enum DependencyMode {
         DependsOnArg,
