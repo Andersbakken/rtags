@@ -37,15 +37,16 @@ public:
     ~Server();
     static Server *instance() { return sInstance; }
     enum Option {
-        NoOptions = 0x00,
-        ClangIncludePath = 0x01,
-        Validate = 0x02,
-        ClearProjects = 0x04,
-        Wall = 0x08,
-        IgnorePrintfFixits = 0x10,
-        UnlimitedErrors = 0x20,
-        SpellChecking = 0x40,
-        AllowMultipleBuildsForSameCompiler = 0x80
+        NoOptions = 0x000,
+        ClangIncludePath = 0x001,
+        Validate = 0x002,
+        ClearProjects = 0x004,
+        Wall = 0x008,
+        IgnorePrintfFixits = 0x010,
+        UnlimitedErrors = 0x020,
+        SpellChecking = 0x040,
+        AllowMultipleBuildsForSameCompiler = 0x080,
+        NoStartupCurrentProject = 0x100
     };
     ThreadPool *threadPool() const { return mIndexerThreadPool; }
     void startQueryJob(const shared_ptr<Job> &job);

@@ -122,6 +122,15 @@ bool Server::init(const Options &options)
     restoreFileIds();
     mServer->clientConnected().connect(this, &Server::onNewConnection);
     reloadProjects();
+    if (!(mOptions.options & NoStartupCurrentProject)) {
+        Path current = Path(mOptions.dataDir + ".currentProject").readAll(1024);
+        if (current.size() > 1) {
+            current.chop(1);
+            if (!setCurrentProject(current)) {
+                error() << "Can't restore project" << current;
+            }
+        }
+    }
 
     return true;
 }
@@ -689,6 +698,7 @@ void Server::clearProjects()
         it->second->unload();
     Rct::removeDirectory(mOptions.dataDir);
     mCurrentProject.reset();
+    unlink((mOptions.dataDir + ".currentProject").constData());
 }
 
 void Server::reindex(const QueryMessage &query, Connection *conn)
@@ -846,6 +856,19 @@ shared_ptr<Project> Server::setCurrentProject(const Path &path) // lock always h
     ProjectsMap::iterator it = mProjects.find(path);
     if (it != mProjects.end()) {
         mCurrentProject = it->second;
+        FILE *f = fopen((mOptions.dataDir + ".currentProject").constData(), "w");
+        if (f) {
+            if (!fwrite(path.constData(), path.size(), 1, f) || !fwrite("\n", 1, 1, f)) {
+                error() << "error writing to" << (mOptions.dataDir + ".currentProject");
+                fclose(f);
+                unlink((mOptions.dataDir + ".currentProject").constData());
+            } else {
+                fclose(f);
+            }
+        } else {
+            error() << "error opening" << (mOptions.dataDir + ".currentProject") << "for write";
+        }
+
         assert(mCurrentProject.lock());
         if (!it->second->isValid())
             loadProject(it->second);
@@ -890,8 +913,10 @@ void Server::removeProject(const QueryMessage &query, Connection *conn)
     while (it != mProjects.end()) {
         ProjectsMap::iterator cur = it++;
         if (cur->second->match(match)) {
-            if (mCurrentProject.lock() == it->second)
+            if (mCurrentProject.lock() == it->second) {
                 mCurrentProject.reset();
+                unlink((mOptions.dataDir + ".currentProject").constData());
+            }
             cur->second->unload();
             Path path = cur->first;
             conn->write<128>("%s project: %s", unload ? "Unloaded" : "Deleted", path.constData());
