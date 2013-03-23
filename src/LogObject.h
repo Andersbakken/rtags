@@ -25,7 +25,7 @@ public:
         mConnection->writeAsync(String(msg, len));
     }
 
-    virtual bool testLog(int level)
+    virtual bool testLog(int level) const
     {
         if (logLevel() < 0 || level < 0)
             return level == logLevel();
