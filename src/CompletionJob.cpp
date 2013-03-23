@@ -110,7 +110,7 @@ static inline void tokenize(const char *data, int size, Map<Token, int> &tokens)
 
 void CompletionJob::processDiagnostics(CXCodeCompleteResults* results)
 {
-    if (!testLog(CompilationError))
+    if (!testLog(RTags::CompilationError))
         return;
 
     const unsigned int numDiags = clang_codeCompleteGetNumDiagnostics(results);
@@ -123,11 +123,11 @@ void CompletionJob::processDiagnostics(CXCodeCompleteResults* results)
                                             CXDiagnostic_DisplayCategoryId|
                                             CXDiagnostic_DisplayCategoryName);
         const String text = RTags::eatString(clang_formatDiagnostic(diagnostic, diagnosticOptions));
-        log(CompilationError, "%s", text.constData());
+        log(RTags::CompilationError, "%s", text.constData());
 
         clang_disposeDiagnostic(diagnostic);
     }
-    log(CompilationError, "$");
+    log(RTags::CompilationError, "$");
 }
 
 void CompletionJob::execute()

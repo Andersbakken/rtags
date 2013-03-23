@@ -24,6 +24,13 @@ public:
     {
         mConnection->writeAsync(String(msg, len));
     }
+
+    virtual bool testLog(int level)
+    {
+        if (logLevel() < 0)
+            return level == logLevel();
+        return LogObject::testLog(level);
+    }
 private:
     Connection *mConnection;
 };

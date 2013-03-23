@@ -18,6 +18,8 @@ class Database;
 class Project;
 namespace RTags {
 
+enum { CompilationError = -1 };
+
 enum DatabaseLockType {
     Read = ReadWriteLock::Read,
     Write = ReadWriteLock::Write,

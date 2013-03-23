@@ -910,7 +910,7 @@ bool IndexerJob::diagnose(int build, int *errorCount)
         const uint32_t fileId = createLocation(clang_getDiagnosticLocation(diagnostic), 0).fileId();
         if (mVisitedFiles.contains(fileId)) {
             const String text = RTags::eatString(clang_formatDiagnostic(diagnostic, diagnosticOptions));
-            if (testLog(logLevel) || testLog(CompilationError)) {
+            if (testLog(logLevel) || testLog(RTags::CompilationError)) {
                 log(logLevel, "%s: %s => %s", mSourceInformation.sourceFile.constData(), mClangLines.at(build).constData(), text.constData());
                 compilationErrors.append(text);
             }
@@ -944,7 +944,7 @@ bool IndexerJob::diagnose(int build, int *errorCount)
 
         clang_disposeDiagnostic(diagnostic);
     }
-    if (testLog(CompilationError))
+    if (testLog(RTags::CompilationError))
         sendDiagnostics(compilationErrors);
     return !isAborted();
 }
@@ -952,10 +952,10 @@ bool IndexerJob::diagnose(int build, int *errorCount)
 void IndexerJob::sendDiagnostics(const List<String> &diagnostics)
 {
     for (Set<uint32_t>::const_iterator it = mVisitedFiles.begin(); it != mVisitedFiles.end(); ++it)
-        log(CompilationError, "file: %s", Location::path(*it).constData());
+        log(RTags::CompilationError, "file: %s", Location::path(*it).constData());
 
     for (int i=0; i<diagnostics.size(); ++i)
-        logDirect(CompilationError, diagnostics.at(i));
+        logDirect(RTags::CompilationError, diagnostics.at(i));
 }
 
 bool IndexerJob::visit(int build)

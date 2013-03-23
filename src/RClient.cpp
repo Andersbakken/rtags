@@ -748,7 +748,7 @@ bool RClient::parse(int &argc, char **argv)
             addLog(RdmLogCommand::Default);
             break;
         case Diagnostics:
-            addLog(CompilationError);
+            addLog(RTags::CompilationError);
             break;
         case QuitRdm:
             addQuery(QueryMessage::Shutdown);
