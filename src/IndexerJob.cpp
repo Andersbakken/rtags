@@ -922,7 +922,7 @@ bool IndexerJob::diagnose(int build, int *errorCount)
     const unsigned options = Server::instance()->options().options;
 
     Map<uint32_t, Map<int, XmlEntry> > xmlEntries;
-    const bool xmlEnabled = testLog(CompilationErrorXml);
+    const bool xmlEnabled = testLog(RTags::CompilationErrorXml);
 
     for (unsigned i=0; i<diagnosticCount; ++i) {
         CXDiagnostic diagnostic = clang_getDiagnostic(mUnits.at(build).second, i);
@@ -974,7 +974,7 @@ bool IndexerJob::diagnose(int build, int *errorCount)
                     const unsigned rangeCount = clang_getDiagnosticNumRanges(diagnostic);
                     if (!rangeCount) {
                         unsigned line, column;
-                        clang_getFileLocation(diagLoc, 0, &line, &column, 0);
+                        clang_getSpellingLocation(diagLoc, 0, &line, &column, 0);
 
                         xmlEntries[fileId][loc.offset()] = XmlEntry(type, msg, line, column);
                     } else {
@@ -984,19 +984,19 @@ bool IndexerJob::diagnose(int build, int *errorCount)
                             const CXSourceLocation end = clang_getRangeEnd(range);
 
                             unsigned line, column, startOffset, endOffset;
-                            clang_getFileLocation(start, 0, &line, &column, &startOffset);
-                            clang_getFileLocation(end, 0, 0, 0, &endOffset);
+                            clang_getSpellingLocation(start, 0, &line, &column, &startOffset);
+                            clang_getSpellingLocation(end, 0, 0, 0, &endOffset);
 
                             xmlEntries[fileId][startOffset] = XmlEntry(type, msg, line, column, endOffset);
                         }
                     }
                 }
             }
-            if (testLog(logLevel) || testLog(CompilationError)) {
+            if (testLog(logLevel) || testLog(RTags::CompilationError)) {
                 if (testLog(logLevel))
                     logDirect(logLevel, msg.constData());
-                if (testLog(CompilationError))
-                    logDirect(CompilationError, msg.constData());
+                if (testLog(RTags::CompilationError))
+                    logDirect(RTags::CompilationError, msg.constData());
             }
 
             const unsigned fixItCount = clang_getDiagnosticNumFixIts(diagnostic);
@@ -1033,13 +1033,13 @@ bool IndexerJob::diagnose(int build, int *errorCount)
                             }
                             entry.endOffset = endOffset;
                         }
-                        if (testLog(logLevel) || testLog(CompilationError)) {
+                        if (testLog(logLevel) || testLog(RTags::CompilationError)) {
                             const String msg = String::format<128>("Fixit for %s: Replace %d-%d with [%s]", loc.path().constData(),
                                                                    startOffset, endOffset, string);
                             if (testLog(logLevel))
                                 logDirect(logLevel, msg.constData());
-                            if (testLog(CompilationError))
-                                logDirect(CompilationError, msg.constData());
+                            if (testLog(RTags::CompilationError))
+                                logDirect(RTags::CompilationError, msg.constData());
                         }
                         mData->fixIts[loc.fileId()].insert(FixIt(startOffset, endOffset, string));
                     }
@@ -1050,7 +1050,7 @@ bool IndexerJob::diagnose(int build, int *errorCount)
         clang_disposeDiagnostic(diagnostic);
     }
     if (xmlEnabled) {
-        logDirect(CompilationErrorXml, "<?xml version=\"1.0\" encoding=\"utf-8\"?><checkstyle>");
+        logDirect(RTags::CompilationErrorXml, "<?xml version=\"1.0\" encoding=\"utf-8\"?><checkstyle>");
         if (!xmlEntries.isEmpty()) {
             Map<uint32_t, Map<int, XmlEntry> >::const_iterator entry = xmlEntries.begin();
             const Map<uint32_t, Map<int, XmlEntry> >::const_iterator end = xmlEntries.end();
@@ -1058,19 +1058,19 @@ bool IndexerJob::diagnose(int build, int *errorCount)
             const char* severities[] = { "none", "warning", "error", "fixit" };
 
             while (entry != end) {
-                log(CompilationErrorXml, "<file name=\"%s\">", Location::path(entry->first).constData());
+                log(RTags::CompilationErrorXml, "<file name=\"%s\">", Location::path(entry->first).constData());
                 const Map<int, XmlEntry>& map = entry->second;
                 Map<int, XmlEntry>::const_iterator it = map.begin();
                 const Map<int, XmlEntry>::const_iterator end = map.end();
                 while (it != end) {
                     const XmlEntry& entry = it->second;
-                    log(CompilationErrorXml, "<error line=\"%d\" column=\"%d\" startOffset=\"%d\" %sseverity=\"%s\" message=\"%s\"/>",
+                    log(RTags::CompilationErrorXml, "<error line=\"%d\" column=\"%d\" startOffset=\"%d\" %sseverity=\"%s\" message=\"%s\"/>",
                         entry.line, entry.column, it->first,
                         (entry.endOffset == -1 ? "" : String::format<32>("endOffset=\"%d\" ", entry.endOffset).constData()),
                         severities[entry.type], xmlEscape(entry.message).constData());
                     ++it;
                 }
-                logDirect(CompilationErrorXml, "</file>");
+                logDirect(RTags::CompilationErrorXml, "</file>");
                 ++entry;
             }
         }
@@ -1078,11 +1078,11 @@ bool IndexerJob::diagnose(int build, int *errorCount)
         for (Set<uint32_t>::const_iterator it = mVisitedFiles.begin(); it != mVisitedFiles.end(); ++it) {
             if (!xmlEntries.contains(*it)) {
                 const String fn = Location::path(*it);
-                log(CompilationErrorXml, "<file name=\"%s\"/>", fn.constData());
+                log(RTags::CompilationErrorXml, "<file name=\"%s\"/>", fn.constData());
             }
         }
 
-        logDirect(CompilationErrorXml, "</checkstyle>");
+        logDirect(RTags::CompilationErrorXml, "</checkstyle>");
     }
     return !isAborted();
 }

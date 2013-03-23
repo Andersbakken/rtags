@@ -755,7 +755,7 @@ bool RClient::parse(int &argc, char **argv)
             addLog(RTags::CompilationError);
             break;
         case XmlDiagnostics:
-            addLog(CompilationErrorXml);
+            addLog(RTags::CompilationErrorXml);
             break;
         case QuitRdm:
             addQuery(QueryMessage::Shutdown);
