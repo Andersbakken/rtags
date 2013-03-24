@@ -676,6 +676,7 @@ return t if rtags is allowed to modify this file"
   (define-key map (kbd "C-x r O") (function rtags-goto-offset))
   (define-key map (kbd "C-x r ;") (function rtags-find-file))
   (define-key map (kbd "C-x r F") (function rtags-fixit))
+  (define-key map (kbd "C-x r x") (function rtags-fix-fixit-at-point))
   (define-key map (kbd "C-x r B") (function rtags-show-rtags-buffer))
   (define-key map (kbd "C-x r I") (function rtags-imenu))
   )
@@ -1087,6 +1088,8 @@ References to references will be treated as references to the referenced symbol"
             (let ((overlay (make-overlay (+ startoffset 1) (+ endoffset 1) filebuffer)))
               (overlay-put overlay 'rtags-error-message message)
               (overlay-put overlay 'rtags-error-severity severity)
+              (overlay-put overlay 'rtags-error-start startoffset)
+              (overlay-put overlay 'rtags-error-end endoffset)
               (overlay-put overlay 'face (cond ((string= severity "error") 'rtags-errline)
                                                ((string= severity "warning") 'rtags-warnline)
                                                ((string= severity "fixit") 'rtags-fixitline)
@@ -1151,6 +1154,31 @@ References to references will be treated as references to the referenced symbol"
   )
 
 (add-hook 'post-command-hook (function rtags-update-current-error))
+
+(defun rtags-fix-fixit-overlay (overlay)
+  (let ((msg (overlay-get overlay 'rtags-error-message))
+        (severity (overlay-get overlay 'rtags-error-severity))
+        (start (overlay-get overlay 'rtags-error-start))
+        (end (overlay-get overlay 'rtags-error-end)))
+    (if (and start end msg (stringp severity) (string= severity "fixit"))
+        (if (string-match "did you mean '\\(.*\\)'\\?$" msg)
+            (progn
+              (save-excursion
+                (rtags-goto-offset start)
+                (delete-char (- end start))
+                (insert (match-string 1 msg)))
+              t)
+          nil)
+      nil))
+  )
+
+
+(defun rtags-fix-fixit-at-point ()
+  (interactive)
+  (let ((current-overlays (overlays-at (point)))
+        (done nil))
+    (--each-while current-overlays (not done) (setq done (rtags-fix-fixit-overlay it))))
+  )
 
 (defvar rtags-completion-signatures (make-hash-table :test 'equal))
 (defvar rtags-completion-buffer-pending nil)
