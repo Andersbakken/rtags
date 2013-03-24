@@ -989,8 +989,14 @@ bool IndexerJob::diagnose(int build, int *errorCount)
                             unsigned line, column, startOffset, endOffset;
                             clang_getSpellingLocation(start, 0, &line, &column, &startOffset);
                             clang_getSpellingLocation(end, 0, 0, 0, &endOffset);
-
-                            xmlEntries[fileId][startOffset] = XmlEntry(type, msg, line, column, endOffset);
+                            if (!rangePos && !startOffset && !endOffset) {
+                                // huh, range invalid? fall back to diag location
+                                clang_getSpellingLocation(diagLoc, 0, &line, &column, 0);
+                                xmlEntries[fileId][loc.offset()] = XmlEntry(type, msg, line, column);
+                                break;
+                            } else {
+                                xmlEntries[fileId][startOffset] = XmlEntry(type, msg, line, column, endOffset);
+                            }
                         }
                     }
                 }
