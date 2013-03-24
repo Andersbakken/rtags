@@ -11,6 +11,7 @@ ExternalProject_Add(
     GIT_TAG origin/release_32
     BINARY_DIR llvm_build
     CMAKE_ARGS -DCMAKE_INSTALL_PREFIX=${CMAKE_CURRENT_BINARY_DIR}/clang_install -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
+    PATCH_COMMAND patch -p1 < ../llvm.patch
     )
 
 ExternalProject_Add(
