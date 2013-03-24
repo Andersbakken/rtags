@@ -14,7 +14,6 @@ protected:
     virtual void execute();
 private:
     const Match match;
-    int mSymbolCount, mFileCount;
 };
 
 #endif

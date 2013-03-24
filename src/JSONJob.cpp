@@ -5,7 +5,7 @@
 #include "Server.h"
 
 JSONJob::JSONJob(const QueryMessage &q, const shared_ptr<Project> &project)
-    : Job(q, WriteUnfiltered|QuietJob, project), match(q.match()), mSymbolCount(0), mFileCount(0)
+    : Job(q, WriteUnfiltered|QuietJob, project), match(q.match())
 {
     assert(project.get());
 }
