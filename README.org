@@ -408,11 +408,32 @@ would be returned.
 
 Here are some videos demonstrating how to use rtags with emacs:
 
-Find symbol/references under cursor:
-http://youtu.be/k4driyVYSRU
+Set up rtags:
+http://www.youtube.com/watch?v=FtW3V8XoApo&list=PLAL6K6Ycnt4IwjIjWcYV9bFgcTG_4T1Y_&index=7
 
-Find symbol by name:
-http://youtu.be/DUkT3CCpHVw
+Set up symlinks and run the daemon:
+http://www.youtube.com/watch?v=J2B-z0LBL_s&list=PLAL6K6Ycnt4IwjIjWcYV9bFgcTG_4T1Y_&index=6
+
+Project setup using make:
+http://www.youtube.com/watch?v=bD6Rlycn1RU&list=PLAL6K6Ycnt4IwjIjWcYV9bFgcTG_4T1Y_&index=5
+
+Project setup using ninja:
+http://www.youtube.com/watch?v=Zivoc5DH_II&list=PLAL6K6Ycnt4IwjIjWcYV9bFgcTG_4T1Y_&index=9
+
+Navigation/references:
+http://www.youtube.com/watch?v=IfenCEuOqOs&list=PLAL6K6Ycnt4IwjIjWcYV9bFgcTG_4T1Y_&index=2
+
+Fixits:
+http://www.youtube.com/watch?v=wVoaE3Pj4oU&list=PLAL6K6Ycnt4IwjIjWcYV9bFgcTG_4T1Y_&index=1
+
+"IMenu"/virtuals/filenames:
+http://www.youtube.com/watch?v=mnQPz5J7gN0&list=PLAL6K6Ycnt4IwjIjWcYV9bFgcTG_4T1Y_&index=3
+
+Rename symbol:
+http://www.youtube.com/watch?v=p6JHriYmVuY&list=PLAL6K6Ycnt4IwjIjWcYV9bFgcTG_4T1Y_&index=4
+
+Enums and cursor info:
+http://www.youtube.com/watch?v=9CsoJTs58q8&list=PLAL6K6Ycnt4IwjIjWcYV9bFgcTG_4T1Y_&index=8
 
 * Disclaimer
 
