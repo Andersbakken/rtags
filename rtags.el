@@ -569,6 +569,11 @@
 
 ;; **************************** API *********************************
 
+(defcustom rtags-error-timer-interval .5
+  "Interval for minibuffer error timer"
+  :group 'rtags
+  :type 'number)
+
 (defcustom rtags-completion-enabled nil
   "Whether rtags completion is enabled"
   :group 'rtags
@@ -1118,6 +1123,34 @@ References to references will be treated as references to the referenced symbol"
         (error "Unexpected root element %s" (car doc)))
       (-each (cddr doc) #'rtags-parse-overlay-node)))
   )
+
+(defun rtags-check-overlay (overlay)
+  (if (and (not (active-minibuffer-window)) (not cursor-in-echo-area))
+      (let ((msg (overlay-get overlay 'rtags-error-message)))
+        (if msg
+          (progn
+            (message msg)
+            t)
+          nil))
+    nil)
+  )
+
+(defvar rtags-update-current-error-timer nil)
+
+(defun rtags-display-current-error ()
+  (let ((current-overlays (overlays-at (point)))
+        (done nil))
+    (setq rtags-update-current-error-timer nil)
+    (--each-while current-overlays (not done) (setq done (rtags-check-overlay it))))
+  )
+
+(defun rtags-update-current-error ()
+  (if rtags-update-current-error-timer
+      (cancel-timer rtags-update-current-error-timer))
+  (setq rtags-update-current-error-timer (run-with-idle-timer rtags-error-timer-interval nil (function rtags-display-current-error)))
+  )
+
+(add-hook 'post-command-hook (function rtags-update-current-error))
 
 (defvar rtags-completion-signatures (make-hash-table :test 'equal))
 (defvar rtags-completion-buffer-pending nil)
