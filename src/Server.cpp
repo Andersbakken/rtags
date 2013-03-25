@@ -792,7 +792,7 @@ void Server::processSourceFile(GccArguments args)
                         if (builds.at(j).args == arguments) {
                             debug() << inputFiles.at(i) << " is not dirty. ignoring";
                             return;
-                        } else if (!mOptions.options & AllowMultipleBuildsForSameCompiler) {
+                        } else if (!(mOptions.options & AllowMultipleBuildsForSameCompiler)) {
                             builds[j].args = arguments;
                             added = true;
                             break;
