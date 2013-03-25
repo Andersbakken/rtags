@@ -144,6 +144,30 @@
           (beginning-of-line)
           (if win (rtags-select-other-buffer) (rtags-select))))))
 
+(defun rtags-next-diag () (interactive) (rtags-next-prev-diag t))
+(defun rtags-previous-diag () (interactive) (rtags-next-prev-diag nil))
+
+(defun rtags-next-prev-diag (next)
+  (if (get-buffer "*RTags Diagnostics*")
+      (let (target
+            (win (get-buffer-window "*RTags Diagnostics*")))
+        (if win (select-window win))
+        (set-buffer "*RTags Diagnostics*")
+        (when (not (= (point-max) (point-min)))
+          (cond ((and (= (point-at-bol) (point-min)) (not next))
+                 (setq target (- (point-max) 1))
+                 (message "*RTags Diagnostics* Wrapped"))
+                ((and (= (+ (point-at-eol) 1) (point-max)) next)
+                 (setq target (point-min))
+                 (message "*RTags Diagnostics* Wrapped"))
+                (next
+                 (setq target (point-at-bol 2)))
+                (t
+                 (setq target (point-at-bol 0))))
+          (goto-char target)
+          (beginning-of-line)
+          (if win (rtags-select-other-buffer) (rtags-select))))))
+
 (defun rtags-executable-find (exe)
   (let ((result (if rtags-path (concat rtags-path "/bin/" exe) (executable-find exe))))
     (if (and result (file-exists-p result))
@@ -1399,6 +1423,7 @@ References to references will be treated as references to the referenced symbol"
           (setq current (substring output 0 (+ endpos 13)))
           (setq output (rtags-trim-whitespace (substring output (+ endpos 13))))
           (setq endpos (string-match "</checkstyle>" output))
+          (rtags-reset-bookmarks)
           (rtags-overlays-parse (rtags-trim-whitespace current))))
       (setq buffer-read-only t)
       (when (> (length output) 0)
