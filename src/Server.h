@@ -52,10 +52,10 @@ public:
     void startQueryJob(const shared_ptr<Job> &job);
     void startIndexerJob(const shared_ptr<IndexerJob> &job);
     struct Options {
-        Options() : options(0), threadCount(0), completionCacheSize(0), unloadTimer(0) {}
+        Options() : options(0), threadCount(0), completionCacheSize(0), unloadTimer(0), clangStackSize(0) {}
         Path socketFile, dataDir;
         unsigned options;
-        int threadCount, completionCacheSize, unloadTimer;
+        int threadCount, completionCacheSize, unloadTimer, clangStackSize;
         List<String> defaultArguments, excludeFilters;
     };
     bool init(const Options &options);

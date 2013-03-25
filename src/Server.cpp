@@ -73,7 +73,7 @@ void Server::clear()
 bool Server::init(const Options &options)
 {
     Client::initMessages();
-    mIndexerThreadPool = new ThreadPool(options.threadCount);
+    mIndexerThreadPool = new ThreadPool(options.threadCount, options.clangStackSize);
 
     mOptions = options;
     if (options.options & ClangIncludePath) {

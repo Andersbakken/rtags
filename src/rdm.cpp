@@ -34,7 +34,8 @@ void sigIntHandler(int)
     _exit(1);
 }
 
-#define EXCLUDEFILTER_DEFAULT "*/CMakeFiles/*;*/cmake*/Modules/*;*/conftest.c*"
+#define EXCLUDEFILTER_DEFAULT "*/CMakeFiles/*;*/cmake*/Modules/*;*/conftest.c*;/tmp/*"
+int defaultStackSize = -1;
 void usage(FILE *f)
 {
     fprintf(f,
@@ -67,11 +68,20 @@ void usage(FILE *f)
             "  --no-current-project|-o           Don't restore the last current project on startup.\n"
             "  --allow-multiple-builds|-m        Without this setting different flags for the same compiler will be merged for each source file.\n"
             "  --unload-timer|-u [arg]           Number of minutes to wait before unloading non-current projects (disabled by default).\n"
-            "  --thread-count|-j [arg]           Spawn this many threads for thread pool.\n");
+            "  --thread-count|-j [arg]           Spawn this many threads for thread pool.\n"
+            "  --clang-stack-size|-t [arg]       Use this much stack for clang's threads (default %d).\n", defaultStackSize);
 }
 
 int main(int argc, char** argv)
 {
+    {
+        size_t stacksize;
+        pthread_attr_t attr;
+        pthread_attr_init(&attr);
+        pthread_attr_getstacksize(&attr, &stacksize);
+        defaultStackSize = stacksize * 2;
+    }
+
     Rct::findExecutablePath(*argv);
 
     struct option opts[] = {
@@ -103,6 +113,7 @@ int main(int argc, char** argv)
         { "allow-multiple-builds", no_argument, 0, 'm' },
         { "unload-timer", required_argument, 0, 'u' },
         { "no-current-project", no_argument, 0, 'o' },
+        { "clang-stack-size", required_argument, 0, 't' },
         { 0, 0, 0, 0 }
     };
     const String shortOptions = Rct::shortOptions(opts);
@@ -188,6 +199,7 @@ int main(int argc, char** argv)
     serverOpts.excludeFilters = String(EXCLUDEFILTER_DEFAULT).split(';');
     serverOpts.dataDir = String::format<128>("%s.rtags", Path::home().constData());
     serverOpts.unloadTimer = 0;
+    serverOpts.clangStackSize = defaultStackSize;
 
     const char *logFile = 0;
     unsigned logFlags = 0;
@@ -209,6 +221,13 @@ int main(int argc, char** argv)
             break;
         case 'x':
             serverOpts.excludeFilters += String(optarg).split(';');
+            break;
+        case 't':
+            serverOpts.clangStackSize = atoi(optarg);
+            if (serverOpts.clangStackSize <= 0) {
+                fprintf(stderr, "Invalid stack size: %s\n", optarg);
+                return 1;
+            }
             break;
         case 'n':
             serverOpts.socketFile = optarg;
