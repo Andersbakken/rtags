@@ -29,7 +29,7 @@ public:
     {
         if (logLevel() < 0 || level < 0)
             return level == logLevel();
-        return LogObject::testLog(level);
+        return LogOutput::testLog(level);
     }
 private:
     Connection *mConnection;
