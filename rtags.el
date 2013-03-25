@@ -3,14 +3,12 @@
   :group 'tools
   :prefix "rtags-")
 
-(require 'cl)
-(require 'ido)
-(require 'dabbrev)
-(require 'cc-mode)
-(require 'dash)
-(require 's)
 (require 'bookmark)
+(require 'cc-mode)
+(require 'cl)
 (require 'compile)
+(require 'dabbrev)
+(require 'ido)
 
 (defvar rtags-last-buffer nil)
 (defvar rtags-path-filter nil)
@@ -349,7 +347,7 @@
          (t
           (while (looking-at "[ \t]")
             (forward-char 1))))
-        (if (looking-at "[A-Za-z_][A-Za-z_0-9]*")
+        (if (looking-at "[A-Za-z_0-9]*")
             (setq name (buffer-substring (match-beginning 0) (match-end 0)))))
       name)))
 
@@ -1042,8 +1040,9 @@ References to references will be treated as references to the referenced symbol"
 
 (defun rtags-overlays-remove (filename)
   (let ((errorlist (gethash filename rtags-overlays nil)))
-    (when (listp errorlist)
-      (-each errorlist #'delete-overlay))
+    (while (and errorlist (listp errorlist))
+      (delete-overlay (car errorlist))
+      (setq errorlist (cdr errorlist)))
     (puthash filename nil rtags-overlays)))
 
 (defun rtags-really-find-buffer (fn)
@@ -1085,23 +1084,24 @@ References to references will be treated as references to the referenced symbol"
                     (when rsym
                       (setq endoffset (+ startoffset (length rsym))))))))
 
-            (let ((overlay (make-overlay (+ startoffset 1) (+ endoffset 1) filebuffer)))
-              (overlay-put overlay 'rtags-error-message message)
-              (overlay-put overlay 'rtags-error-severity severity)
-              (overlay-put overlay 'rtags-error-start startoffset)
-              (overlay-put overlay 'rtags-error-end endoffset)
-              (overlay-put overlay 'face (cond ((string= severity "error") 'rtags-errline)
-                                               ((string= severity "warning") 'rtags-warnline)
-                                               ((string= severity "fixit") 'rtags-fixitline)
-                                               (t 'rtags-errline)))
-              (if (string= severity "fixit")
-                  (progn
-                    (overlay-put overlay 'priority 1)
-                    (insert (format "%s:%d:%d: fixit: %d-%d: %s\n" filename line column startoffset endoffset message)))
-                (insert (format "%s:%d:%d: %s: %s\n" filename line column severity message)))
+            (if (and startoffset endoffset filebuffer)
+                (let ((overlay (make-overlay (+ startoffset 1) (+ endoffset 1) filebuffer)))
+                  (overlay-put overlay 'rtags-error-message message)
+                  (overlay-put overlay 'rtags-error-severity severity)
+                  (overlay-put overlay 'rtags-error-start startoffset)
+                  (overlay-put overlay 'rtags-error-end endoffset)
+                  (overlay-put overlay 'face (cond ((string= severity "error") 'rtags-errline)
+                                                   ((string= severity "warning") 'rtags-warnline)
+                                                   ((string= severity "fixit") 'rtags-fixitline)
+                                                   (t 'rtags-errline)))
+                  (if (string= severity "fixit")
+                      (progn
+                        (overlay-put overlay 'priority 1)
+                        (insert (format "%s:%d:%d: fixit: %d-%d: %s\n" filename line column startoffset endoffset message)))
+                    (insert (format "%s:%d:%d: %s: %s\n" filename line column severity message)))
 
-              (setq errorlist (append errorlist (list overlay)))
-              (puthash filename errorlist rtags-overlays)))))))
+                  (setq errorlist (append errorlist (list overlay)))
+                  (puthash filename errorlist rtags-overlays))))))))
   )
 
 (defun rtags-parse-overlay-node (node)
@@ -1115,16 +1115,22 @@ References to references will be treated as references to the referenced symbol"
         (save-excursion
           (goto-char (point-min))
           (flush-lines (concat filename ":")))
-        (--each body (rtags-parse-overlay-error-node it filename))))
+        (dolist (it body)
+          (rtags-parse-overlay-error-node it filename))))
     )
   )
 
 (defun rtags-overlays-parse (output)
-  (let ((doc (rtags-parse-xml-string output)))
+  (let* ((doc (rtags-parse-xml-string output))
+         (overlays (cddr doc)))
     (when doc
       (unless (eq (car doc) 'checkstyle)
         (error "Unexpected root element %s" (car doc)))
-      (-each (cddr doc) #'rtags-parse-overlay-node)))
+      (while overlays
+        (rtags-parse-overlay-node (car overlays))
+        (setq overlays (cdr overlays)))
+      )
+    )
   )
 
 (defun rtags-check-overlay (overlay)
@@ -1141,10 +1147,10 @@ References to references will be treated as references to the referenced symbol"
 (defvar rtags-update-current-error-timer nil)
 
 (defun rtags-display-current-error ()
-  (let ((current-overlays (overlays-at (point)))
-        (done nil))
+  (let ((current-overlays (overlays-at (point))))
     (setq rtags-update-current-error-timer nil)
-    (--each-while current-overlays (not done) (setq done (rtags-check-overlay it))))
+    (while (and current-overlays (rtags-check-overlay (car current-overlays)))
+      (setq (current-overlays (cdr current-overlays)))))
   )
 
 (defun rtags-update-current-error ()
@@ -1175,9 +1181,9 @@ References to references will be treated as references to the referenced symbol"
 
 (defun rtags-fix-fixit-at-point ()
   (interactive)
-  (let ((current-overlays (overlays-at (point)))
-        (done nil))
-    (--each-while current-overlays (not done) (setq done (rtags-fix-fixit-overlay it))))
+  (let ((current-overlays (overlays-at (point))))
+    (while (and current-overlays (rtags-fix-fixit-at-point (car current-overlays)))
+      (setq (current-overlays (cdr current-overlays)))))
   )
 
 (defvar rtags-completion-signatures (make-hash-table :test 'equal))
@@ -1369,6 +1375,11 @@ References to references will be treated as references to the referenced symbol"
     )
   )
 
+(defun rtags-trim-whitespace (str)
+  (while (string-match "\\`\n+\\|^\\s-+\\|\\s-+$\\|\n+\\'" str)
+    (setq str (replace-match "" t t str)))
+  str)
+
 (defvar rtags-pending-diagnostics nil)
 (defun rtags-diagnostics-process-filter (process output)
   (let ((errors)
@@ -1379,15 +1390,15 @@ References to references will be treated as references to the referenced symbol"
       (setq rtags-pending-diagnostics nil))
     (with-current-buffer (process-buffer process)
       (setq buffer-read-only nil)
-      ;;(message (format "matching %s" output))
+      ;; (message "matching %s" output)
       (let ((endpos (string-match "</checkstyle>" output))
             (proc (get-process "RTags Diagnostics"))
             (current))
         (while (and proc endpos)
           (setq current (substring output 0 (+ endpos 13)))
-          (setq output (s-trim-right (substring output (+ endpos 13))))
+          (setq output (rtags-trim-whitespace (substring output (+ endpos 13))))
           (setq endpos (string-match "</checkstyle>" output))
-          (rtags-overlays-parse current)))
+          (rtags-overlays-parse (rtags-trim-whitespace current))))
       (setq buffer-read-only t)
       (when (> (length output) 0)
         (setq rtags-pending-diagnostics output)))
