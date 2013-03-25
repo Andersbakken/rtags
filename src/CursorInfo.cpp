@@ -15,7 +15,10 @@ String CursorInfo::toString(unsigned cursorInfoFlags, unsigned keyFlags) const
                                       RTags::eatString(clang_getTypeKindSpelling(type)).constData(),
                                       symbolLength,
                                       start != -1 && end != -1 ? String::format<32>("Range: %d-%d\n", start, end).constData() : "",
-                                      kind == CXCursor_EnumConstantDecl ? String::format<32>("Enum Value: %lld\n", enumValue).constData() : "",
+#if CINDEX_VERSION_MINOR > 1
+                                      kind == CXCursor_EnumConstantDecl ? String::format<32>("Enum Value: %lld\n", enumValue).constData() :
+#endif
+                                      "",
                                       isDefinition() ? "Definition\n" : "");
 
     if (!targets.isEmpty() && !(cursorInfoFlags & IgnoreTargets)) {

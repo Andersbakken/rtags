@@ -103,7 +103,7 @@ public:
 
     virtual void encode(Serializer &serializer) const;
     virtual void decode(Deserializer &deserializer);
-    
+
     void setProjects(const List<String> &projects) { mProjects = projects; }
     List<String> projects() const { return mProjects; }
 
