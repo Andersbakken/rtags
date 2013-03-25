@@ -9,7 +9,8 @@
 (require 'compile)
 (require 'dabbrev)
 (require 'ido)
-(require 'xml)
+(unless (fboundp 'libxml-parse-xml-region)
+  (require 'xml))
 
 (defvar rtags-last-buffer nil)
 (defvar rtags-path-filter nil)
@@ -1085,7 +1086,9 @@ References to references will be treated as references to the referenced symbol"
 (defun rtags-parse-xml-string (xml)
   (with-temp-buffer
     (insert xml)
-    (car (xml-parse-region (point-min) (point-max)))))
+    (if (fboundp 'libxml-parse-xml-region)
+        (libxml-parse-xml-region (point-min) (point-max))
+      (car (xml-parse-region (point-min) (point-max))))))
 
 (defun rtags-parse-overlay-error-node (node filename)
   (when (listp node)
