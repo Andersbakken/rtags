@@ -157,7 +157,7 @@
           (cond ((and (= (point-at-bol) (point-min)) (not next))
                  (setq target (- (point-max) 1))
                  (message "*RTags Diagnostics* Wrapped"))
-                ((and (= (+ (point-at-eol) 1) (point-max)) next)
+                ((and (>= (+ (point-at-eol) 1) (point-max)) next)
                  (setq target (point-min))
                  (message "*RTags Diagnostics* Wrapped"))
                 (next
@@ -1175,7 +1175,7 @@ References to references will be treated as references to the referenced symbol"
   (let ((current-overlays (overlays-at (point))))
     (setq rtags-update-current-error-timer nil)
     (while (and current-overlays (rtags-check-overlay (car current-overlays)))
-      (setq (current-overlays (cdr current-overlays)))))
+      (setq current-overlays (cdr current-overlays))))
   )
 
 (defun rtags-update-current-error ()
@@ -1207,8 +1207,8 @@ References to references will be treated as references to the referenced symbol"
 (defun rtags-fix-fixit-at-point ()
   (interactive)
   (let ((current-overlays (overlays-at (point))))
-    (while (and current-overlays (rtags-fix-fixit-at-point (car current-overlays)))
-      (setq (current-overlays (cdr current-overlays)))))
+    (while (and current-overlays (rtags-fix-fixit-overlay (car current-overlays)))
+      (setq current-overlays (cdr current-overlays))))
   )
 
 (defvar rtags-completion-signatures (make-hash-table :test 'equal))

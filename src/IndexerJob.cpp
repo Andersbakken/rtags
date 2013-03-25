@@ -73,7 +73,7 @@ String IndexerJob::addNamePermutations(const CXCursor &cursor, const Location &l
 {
     CXCursorKind kind = clang_getCursorKind(cursor);
     const CXCursorKind originalKind = kind;
-    char buf[1024];
+    char buf[32768];
     int pos = sizeof(buf) - 1;
     buf[pos] = '\0';
     int cutoff = -1;
