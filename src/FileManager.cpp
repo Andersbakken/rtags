@@ -90,10 +90,13 @@ void FileManager::onFileRemoved(const Path &path)
         return;
     }
     const Path parent = path.parentDir();
-    Set<String> &dir = map[parent];
-    if (dir.remove(path.fileName()) && dir.isEmpty()) {
-        mWatcher.unwatch(parent);
-        map.remove(parent);
+    if (map.contains(parent)) {
+        Set<String> &dir = map[parent];
+        dir.remove(path.fileName());
+        if (dir.isEmpty()) {
+            mWatcher.unwatch(parent);
+            map.remove(parent);
+        }
     }
 }
 
