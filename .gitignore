@@ -11,3 +11,6 @@ rdm
 .gdb_history
 /bin/clangtest
 /bin/gr
+/.ninja_log
+/build.ninja
+/rules.ninja

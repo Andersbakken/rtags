@@ -8,7 +8,7 @@ if (EXISTS "${CLANG_ROOT}/lib/libclang.so")
 elseif (EXISTS "${CLANG_ROOT}/lib/libclang.dylib")
     set(LibClang_LIBRARY "${CLANG_ROOT}/lib/libclang.dylib")
 else()
-    find_library(LibClang_LIBRARY NAMES clang HINTS "${CLANG_ROOT}/lib" NO_DEFAULT_PATH)
+    find_library(LibClang_LIBRARY NAMES clang HINTS "${CLANG_ROOT}/lib")
 endif()
 
 set(LibClang_LIBRARIES ${LibClang_LIBRARY})
