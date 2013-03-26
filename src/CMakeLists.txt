@@ -17,10 +17,7 @@ if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/rct/CMakeLists.txt)
   include_directories(${CMAKE_CURRENT_SOURCE_DIR}/rct/src/ ${CMAKE_CURRENT_SOURCE_DIR}/rct/include)
   set(rct_LIBS ${CMAKE_CURRENT_SOURCE_DIR}/rct/librct.a)
 else()
-  set(rct_ROOT ${PROJECT_SOURCE_DIR}/3rdparty/rct_install/)
-  include_directories(${rct_ROOT}/include)
-  set(rct_LIBS ${rct_ROOT}/lib/librct.a)
-  set(rct_SOURCES "")
+  message(FATAL_ERROR "Unable to find src/rct. Did you run 'git submodule init && gitsubmodule update'?")
 endif()
 
 if(CMAKE_BUILD_TYPE MATCHES "Debug")
@@ -126,13 +123,13 @@ set(gr_SOURCES
 )
 
 include_directories(${CMAKE_CURRENT_LIST_DIR} ${CORESERVICES_INCLUDE} ${COREFOUNDATION_INCLUDE})
-add_executable(rdm rdm.cpp ${rtags_shared_SOURCES} ${rdm_SOURCES} ${rct_SOURCES})
+add_executable(rdm rdm.cpp ${rtags_shared_SOURCES} ${rdm_SOURCES})
 target_link_libraries(rdm ${rct_LIBS} ${clang_LIBS} ${CORESERVICES_LIBRARY} ${COREFOUNDATION_LIBRARY} ${rct_LIBS} ${system_LIBS})
 
 add_executable(clangtest clangtest.c)
 target_link_libraries(clangtest ${clang_LIBS} ${CORESERVICES_LIBRARY} ${COREFOUNDATION_LIBRARY} ${system_LIBS})
 
-add_executable(rc rc.cpp ${rtags_shared_SOURCES} ${rct_SOURCES})
+add_executable(rc rc.cpp ${rtags_shared_SOURCES})
 target_link_libraries(rc ${rct_LIBS} ${system_LIBS})
 
 if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/rct/CMakeLists.txt)
@@ -142,7 +139,7 @@ endif()
 
 if (GRTAGS_ENABLED MATCHES "1")
   include_directories(${PROJECT_SOURCE_DIR}/3rdparty/leveldb)
-  add_executable(gr ${gr_SOURCES} ${rct_SOURCES})
+  add_executable(gr ${gr_SOURCES})
   include_directories(
     ${CORESERVICES_INCLUDE}
     ${COREFOUNDATION_INCLUDE}

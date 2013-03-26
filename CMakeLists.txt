@@ -8,10 +8,6 @@ set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/")
 
 add_subdirectory(src)
 
-add_custom_target(3rdparty
-    COMMAND cmake . && \$\(MAKE\)
-    WORKING_DIRECTORY 3rdparty)
-
 add_custom_target(release
     COMMAND cmake -DCMAKE_BUILD_TYPE=Release .
     WORKING_DIRECTORY .)
