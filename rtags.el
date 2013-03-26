@@ -1164,8 +1164,8 @@ References to references will be treated as references to the referenced symbol"
 (defun rtags-check-overlay (overlay)
   (if (and (not (active-minibuffer-window)) (not cursor-in-echo-area))
       (let ((msg (overlay-get overlay 'rtags-error-message)))
-        (if msg
-            (message msg))))
+        (if (stringp msg)
+            (message (concat "RTags: " msg)))))
   )
 
 (defvar rtags-update-current-error-timer nil)
