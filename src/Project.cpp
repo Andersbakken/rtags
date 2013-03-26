@@ -111,13 +111,15 @@ bool Project::restore()
                 mModifiedFiles.insert(it->first);
             } else {
                 const time_t parsed = it->second.parsed;
-                // error() << "parsed" << String::formatTime(parsed, String::DateTime) << parsed;
+                // error() << "parsed" << String::formatTime(parsed, String::DateTime) << parsed << it->second.sourceFile;
                 assert(mDependencies.value(it->first).contains(it->first));
                 assert(mDependencies.contains(it->first));
                 const Set<uint32_t> &deps = reversedDependencies[it->first];
                 for (Set<uint32_t>::const_iterator d = deps.begin(); d != deps.end(); ++d) {
-                    if (!mModifiedFiles.contains(*d) && Location::path(*d).lastModified() > parsed)
+                    if (!mModifiedFiles.contains(*d) && Location::path(*d).lastModified() > parsed) {
+                        // error() << Location::path(*d).lastModified() << "is more than" << parsed;
                         mModifiedFiles.insert(*d);
+                    }
                 }
                 ++it;
             }
@@ -126,6 +128,8 @@ bool Project::restore()
             startDirtyJobs();
     }
 end:
+    fileManager->jsFilesChanged().connect(this, &Project::onJSFilesAdded);
+    onJSFilesAdded();
     fclose(f);
     if (restoreError) {
         Path::rm(p);
@@ -397,7 +401,7 @@ bool Project::index(const Path &sourceFile, const Path &compiler, const List<Str
 void Project::onFileModified(const Path &file)
 {
     const uint32_t fileId = Location::fileId(file);
-    warning() << file << "was modified" << fileId << mModifiedFiles.contains(fileId);
+    // error() << file << "was modified" << fileId << mModifiedFiles.contains(fileId);
     if (!fileId || !mModifiedFiles.insert(fileId)) {
         return;
     }

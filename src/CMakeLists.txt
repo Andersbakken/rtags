@@ -47,7 +47,7 @@ add_definitions("-DCLANG_INCLUDEPATH=\"${CLANG_SYSTEM_INCLUDE}\"")
 add_definitions("-DCLANG_VERSION_MAJOR=${CLANG_VERSION_MAJOR}")
 add_definitions("-DCLANG_VERSION_MINOR=${CLANG_VERSION_MINOR}")
 add_definitions("-DCLANG_BIN=\"${PROJECT_SOURCE_DIR}/3rdparty/clang_install/bin/\"")
-add_definitions("-DESPRIMA_JS=\"${PROJECT_SOURCE_DIR}/3rdparty/esprima/esprima.js\"")
+add_definitions("-DESPRIMA_JS=\"${PROJECT_SOURCE_DIR}/src/esprima/esprima.js\"")
 add_definitions(-DOS_${CMAKE_SYSTEM_NAME})
 
 if(CMAKE_SYSTEM_NAME MATCHES "Linux")
@@ -131,16 +131,15 @@ set(gr_SOURCES
 )
 
 include_directories(${CMAKE_CURRENT_LIST_DIR} ${CORESERVICES_INCLUDE} ${COREFOUNDATION_INCLUDE})
+
 add_executable(rdm rdm.cpp ${rtags_shared_SOURCES} ${rdm_SOURCES})
+target_link_libraries(rdm ${rct_LIBS} ${clang_LIBS} ${CORESERVICES_LIBRARY} ${COREFOUNDATION_LIBRARY} ${rct_LIBS} ${system_LIBS})
 
 add_executable(clangtest clangtest.c)
 target_link_libraries(clangtest ${clang_LIBS} ${CORESERVICES_LIBRARY} ${COREFOUNDATION_LIBRARY} ${system_LIBS})
 
 add_executable(rc rc.cpp ${rtags_shared_SOURCES})
 target_link_libraries(rc ${rct_LIBS} ${system_LIBS})
-
-add_executable(rdm rdm.cpp ${rtags_shared_SOURCES} ${rdm_SOURCES} ${rct_SOURCES})
-target_link_libraries(rdm ${rct_LIBS} ${clang_LIBS} ${CORESERVICES_LIBRARY} ${COREFOUNDATION_LIBRARY} ${rct_LIBS} ${system_LIBS})
 
 if(EXISTS ${PROJECT_SOURCE_DIR}/3rdparty/v8/out/native/libv8_base.a)
   include_directories(${PROJECT_SOURCE_DIR}/3rdparty/v8/include/)

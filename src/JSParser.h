@@ -13,7 +13,7 @@
 class JSParser
 {
 public:
-    JSParser() : mFileId(0), mSymbols(0), mSymbolNames(0), mErrors(0) {}
+    JSParser() : mIsolate(0), mFileId(0), mSymbols(0), mSymbolNames(0), mErrors(0) {}
     ~JSParser();
     bool init();
 
@@ -30,6 +30,7 @@ private:
     v8::Persistent<v8::Context> mContext;
     v8::Persistent<v8::Object> mEsprima;
     v8::Persistent<v8::Function> mParse;
+    v8::Isolate *mIsolate;
     enum Flag {
         NoFlag = 0x0,
         TreatRefsAsWeakVariables = 0x1

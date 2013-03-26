@@ -1204,9 +1204,15 @@ void IndexerJob::executeJS()
         mData->symbols.clear();
         mData->symbolNames.clear();
     } else {
+        mData->dependencies[mFileId].insert(mFileId);
         mData->message = String::format<128>("%s in %dms. (%d syms, %d symNames, %d refs)",
                                              mSourceInformation.sourceFile.toTilde().constData(),
                                              mTimer.elapsed(), mData->symbols.size(), mData->symbolNames.size(), mData->references.size());
+        shared_ptr<Project> p = project();
+        if (p) {
+            shared_ptr<IndexerJob> job = static_pointer_cast<IndexerJob>(shared_from_this());
+            p->onJobFinished(job);
+        }
     }
 }
 

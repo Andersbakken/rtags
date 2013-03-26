@@ -1,5 +1,7 @@
 #include "JSParser.h"
 #include <v8.h>
+#include <rct/Mutex.h>
+#include <rct/MutexLocker.h>
 
 v8::Handle<v8::String> toJson(v8::Handle<v8::Value> obj)
 {
@@ -78,17 +80,26 @@ static inline bool operator!=(v8::Handle<v8::String> l, const char *r)
 
 JSParser::~JSParser()
 {
-    mParse.Dispose(v8::Isolate::GetCurrent());
-    mEsprima.Dispose(v8::Isolate::GetCurrent());
-    mContext.Dispose(v8::Isolate::GetCurrent());
+    // mParse.Dispose(v8::Isolate::GetCurrent()); // the one underneath got deprecated at some point but I don't know when
+    // mEsprima.Dispose(v8::Isolate::GetCurrent());
+    // mContext.Dispose(v8::Isolate::GetCurrent());
+    {
+        const v8::Isolate::Scope isolateScope(mIsolate);
+        mParse.Dispose();
+        mEsprima.Dispose();
+        mContext.Dispose();
+    }
+    mIsolate->Dispose();
 }
 
 bool JSParser::init()
 {
+    mIsolate = v8::Isolate::New();
+    const v8::Isolate::Scope isolateScope(mIsolate);
     v8::HandleScope handleScope;
     mContext = v8::Context::New();
-    assert(!mContext.IsEmpty());
     v8::Context::Scope scope(mContext);
+    assert(!mContext.IsEmpty());
 
     const String esprimaSrcString = Path(ESPRIMA_JS).readAll();
     v8::Handle<v8::String> esprimaSrc = v8::String::New(esprimaSrcString.constData(), esprimaSrcString.size());
@@ -117,6 +128,7 @@ bool JSParser::init()
 bool JSParser::parse(const Path &path, const String &contents, SymbolMap *symbols, SymbolNameMap *symbolNames,
                      String *errors, String *json)
 {
+    const v8::Isolate::Scope isolateScope(mIsolate);
     mFileId = Location::insertFile(path);
     v8::HandleScope handleScope;
     v8::Context::Scope scope(mContext);
@@ -136,10 +148,14 @@ bool JSParser::parse(const Path &path, const String &contents, SymbolMap *symbol
     mSymbols = symbols;
     mSymbolNames = symbolNames;
     mErrors = errors;
-    if (json)
-        *json = toCString(toJson(result));
+    if (!result.IsEmpty()) {
+        if (json)
+            *json = toCString(toJson(result));
 
-    visit(result->ToObject());
+        visit(result->ToObject());
+    } else if (errors) {
+        *errors = "Failed to parse";
+    }
     // for (Map<int, CursorInfo>::const_iterator it = symbols.begin(); it != symbols.end(); ++it) {
     //     error() << String::format<64>("%s,%d", path.constData(), it->first) << it->second;
     // }
@@ -199,23 +215,27 @@ bool JSParser::visitIdentifier(v8::Handle<v8::Object> identifier, CursorInfo::JS
     const Location loc(mFileId, offset);
     c.symbolName += String(toCString(name), name->Length());
     if (c.kind == CursorInfo::JSReference || c.kind == CursorInfo::JSWeakVariable) {
-        const uint32_t targetOffset = mScope.last().value(c.symbolName, UINT_MAX);
-        if (targetOffset != UINT_MAX) {
-            const Location target(mFileId, targetOffset);
-            c.targets.insert(target);
-            if (mSymbols) {
-                assert(mSymbols->contains(target));
-                (*mSymbols)[target].references.insert(loc);
-            }
-            if (c.kind == CursorInfo::JSWeakVariable) {
-                c.kind = CursorInfo::JSReference;
+        for (int i=mScope.size() - 1; i>=0; --i) {
+            uint32_t targetOffset = mScope.at(i).value(c.symbolName, UINT_MAX);
+            if (targetOffset != UINT_MAX) {
+                const Location target(mFileId, targetOffset);
+                c.targets.insert(target);
+                if (mSymbols) {
+                    assert(mSymbols->contains(target));
+                    (*mSymbols)[target].references.insert(loc);
+                }
+                if (c.kind == CursorInfo::JSWeakVariable) {
+                    c.kind = CursorInfo::JSReference;
+                }
+                break;
             }
         }
     }
     c.symbolLength = length;
-    if (mSymbols)
+    if (mSymbols) {
         (*mSymbols)[loc] = c;
-    error() << "adding" << c << "at" << offset << "scope" << mScope.last().keys();
+    }
+    // error() << "adding" << c << "at" << offset << "scope" << mScope.last().keys();
     if (c.kind != CursorInfo::JSReference) {
         mScope.last()[c.symbolName] = offset;
         if (mSymbolNames)
