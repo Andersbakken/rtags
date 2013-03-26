@@ -69,6 +69,7 @@ void usage(FILE *f)
             "  --allow-multiple-builds|-m        Without this setting different flags for the same compiler will be merged for each source file.\n"
             "  --unload-timer|-u [arg]           Number of minutes to wait before unloading non-current projects (disabled by default).\n"
             "  --thread-count|-j [arg]           Spawn this many threads for thread pool.\n"
+            "  --compiler-alias|-b [arg]         Alias these 2+ compilers (e.g. /usr/bin/gcc;/usr/local/bin/gcc;/opt/local/bin/gcc)\n"
             "  --clang-stack-size|-t [arg]       Use this much stack for clang's threads (default %d).\n", defaultStackSize);
 }
 
@@ -114,6 +115,7 @@ int main(int argc, char** argv)
         { "unload-timer", required_argument, 0, 'u' },
         { "no-current-project", no_argument, 0, 'o' },
         { "clang-stack-size", required_argument, 0, 't' },
+        { "compiler-alias", required_argument, 0, 'b' },
         { 0, 0, 0, 0 }
     };
     const String shortOptions = Rct::shortOptions(opts);

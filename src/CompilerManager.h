@@ -10,6 +10,8 @@ namespace CompilerManager
 {
 List<Path> compilers();
 List<String> flags(const Path &compiler);
+void addAliases(const Set<Path> &paths);
+Set<Path> aliases(const Path &path);
 }
 
 #endif
