@@ -1162,11 +1162,7 @@ References to references will be treated as references to the referenced symbol"
   (if (and (not (active-minibuffer-window)) (not cursor-in-echo-area))
       (let ((msg (overlay-get overlay 'rtags-error-message)))
         (if msg
-          (progn
-            (message msg)
-            t)
-          nil))
-    nil)
+            (message msg))))
   )
 
 (defvar rtags-update-current-error-timer nil)
@@ -1174,7 +1170,7 @@ References to references will be treated as references to the referenced symbol"
 (defun rtags-display-current-error ()
   (let ((current-overlays (overlays-at (point))))
     (setq rtags-update-current-error-timer nil)
-    (while (and current-overlays (rtags-check-overlay (car current-overlays)))
+    (while (and current-overlays (not (rtags-check-overlay (car current-overlays))))
       (setq current-overlays (cdr current-overlays))))
   )
 
@@ -1191,23 +1187,17 @@ References to references will be treated as references to the referenced symbol"
         (severity (overlay-get overlay 'rtags-error-severity))
         (start (overlay-get overlay 'rtags-error-start))
         (end (overlay-get overlay 'rtags-error-end)))
-    (if (and start end msg (stringp severity) (string= severity "fixit"))
-        (if (string-match "did you mean '\\(.*\\)'\\?$" msg)
-            (progn
-              (save-excursion
-                (rtags-goto-offset start)
-                (delete-char (- end start))
-                (insert (match-string 1 msg)))
-              t)
-          nil)
-      nil))
+    (if (and start end msg (stringp severity) (string= severity "fixit") (string-match "did you mean '\\(.*\\)'\\?$" msg))
+        (save-excursion
+          (rtags-goto-offset start)
+          (delete-char (- end start))
+          (insert (match-string 1 msg)))))
   )
-
 
 (defun rtags-fix-fixit-at-point ()
   (interactive)
   (let ((current-overlays (overlays-at (point))))
-    (while (and current-overlays (rtags-fix-fixit-overlay (car current-overlays)))
+    (while (and current-overlays (not (rtags-fix-fixit-overlay (car current-overlays))))
       (setq current-overlays (cdr current-overlays))))
   )
 
