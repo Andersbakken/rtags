@@ -128,6 +128,7 @@ bool Server::init(const Options &options)
             current.chop(1);
             if (!setCurrentProject(current)) {
                 error() << "Can't restore project" << current;
+                unlink((mOptions.dataDir + ".currentProject").constData());
             }
         }
     }
