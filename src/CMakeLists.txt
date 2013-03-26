@@ -137,6 +137,7 @@ if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/rct/CMakeLists.txt)
   add_dependencies(rdm rct)
 endif()
 
+message("Need to fix grtags, requires leveldb")
 if (GRTAGS_ENABLED MATCHES "1")
   include_directories(${PROJECT_SOURCE_DIR}/3rdparty/leveldb)
   add_executable(gr ${gr_SOURCES})
