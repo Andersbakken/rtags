@@ -17,7 +17,7 @@ if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/rct/CMakeLists.txt)
   include_directories(${CMAKE_CURRENT_SOURCE_DIR}/rct/src/ ${CMAKE_CURRENT_SOURCE_DIR}/rct/include)
   set(rct_LIBS ${CMAKE_CURRENT_SOURCE_DIR}/rct/librct.a)
 else()
-  message(FATAL_ERROR "Unable to find src/rct. Did you run 'git submodule init && gitsubmodule update'?")
+  message(FATAL_ERROR "Unable to find src/rct. Did you run 'git submodule init && git submodule update'?")
 endif()
 
 if(CMAKE_BUILD_TYPE MATCHES "Debug")
