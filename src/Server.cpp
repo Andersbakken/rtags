@@ -700,6 +700,7 @@ void Server::clearProjects()
     Rct::removeDirectory(mOptions.dataDir);
     mCurrentProject.reset();
     unlink((mOptions.dataDir + ".currentProject").constData());
+    mProjects.clear();
 }
 
 void Server::reindex(const QueryMessage &query, Connection *conn)
