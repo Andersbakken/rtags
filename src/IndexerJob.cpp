@@ -138,11 +138,22 @@ String IndexerJob::addNamePermutations(const CXCursor &cursor, const Location &l
         while (true) {
             const String name(ch, sizeof(buf) - (ch - buf) - 1);
             mData->symbolNames[name].insert(location);
-            if (!type.isEmpty()) {
+            if (!type.isEmpty() && (originalKind != CXCursor_ParmDecl || !strchr(ch, '('))) {
+                // We only want to add the type to the final declaration for ParmDecls
+                // e.g.
+                // void foo(int)::bar
+                // int bar
+                //
+                // not
+                // int void foo(int)::bar
+                // or
+                // void foo(int)::int bar
+
                 mData->symbolNames[type + name].insert(location);
             }
 
             ch = strstr(ch + 1, "::");
+
             if (ch) {
                 ch += 2;
             } else {
@@ -649,13 +660,19 @@ const char *builtinTypeName(CXTypeKind kind)
 
 static String typeString(const CXType &type)
 {
+    String ret;
+    if (clang_isConstQualifiedType(type))
+        ret = "const ";
+
     const char *builtIn = builtinTypeName(type.kind);
-    if (builtIn)
-        return builtIn;
+    if (builtIn) {
+        ret += builtIn;
+        return ret;
+    }
 
     if (char pointer = (type.kind == CXType_Pointer ? '*' : (type.kind == CXType_LValueReference ? '&' : 0))) {
         const CXType pointee = clang_getPointeeType(type);
-        String ret = typeString(pointee);
+        ret += typeString(pointee);
         if (ret.endsWith('*') || ret.endsWith('&')) {
             ret += pointer;
         } else {
@@ -666,17 +683,17 @@ static String typeString(const CXType &type)
     }
 
     if (type.kind == CXType_ConstantArray) {
-        String arrayType = typeString(clang_getArrayElementType(type));
+        ret += typeString(clang_getArrayElementType(type));
 #if CLANG_VERSION_MAJOR > 3 || (CLANG_VERSION_MAJOR == 3 && CLANG_VERSION_MINOR >= 1)
         const long long count = clang_getNumElements(type);
-        arrayType += '[';
+        ret += '[';
         if (count >= 0)
-            arrayType += String::number(count);
-        arrayType += ']';
+            ret += String::number(count);
+        ret += ']';
 #endif
-        return arrayType;
+        return ret;
     }
-    String ret = IndexerJob::typeName(clang_getTypeDeclaration(type));
+    ret += IndexerJob::typeName(clang_getTypeDeclaration(type));
     if (ret.endsWith(' '))
         ret.chop(1);
     return ret;

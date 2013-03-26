@@ -14,3 +14,6 @@ rdm
 /.ninja_log
 /build.ninja
 /rules.ninja
+/src/esprima/
+/.gdb_brestore
+/.gdb_brestore.txt
