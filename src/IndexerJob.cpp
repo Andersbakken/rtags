@@ -667,11 +667,13 @@ static String typeString(const CXType &type)
 
     if (type.kind == CXType_ConstantArray) {
         String arrayType = typeString(clang_getArrayElementType(type));
+#if CLANG_VERSION_MAJOR > 3 || (CLANG_VERSION_MAJOR == 3 && CLANG_VERSION_MINOR >= 1)
         const long long count = clang_getNumElements(type);
         arrayType += '[';
         if (count >= 0)
             arrayType += String::number(count);
         arrayType += ']';
+#endif
         return arrayType;
     }
     String ret = IndexerJob::typeName(clang_getTypeDeclaration(type));

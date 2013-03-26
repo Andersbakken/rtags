@@ -1,6 +1,9 @@
-find_path(LibClang_INCLUDE_DIR clang-c/Index.h)
+if(NOT DEFINED CLANG_ROOT)
+  set(CLANG_ROOT $ENV{CLANG_ROOT})
+endif()
 
-find_library(LibClang_LIBRARY NAMES clang)
+find_path(LibClang_INCLUDE_DIR clang-c/Index.h HINTS "${CLANG_ROOT}/include")
+find_library(LibClang_LIBRARY NAMES clang HINTS "${CLANG_ROOT}/lib")
 
 set(LibClang_LIBRARIES ${LibClang_LIBRARY})
 set(LibClang_INCLUDE_DIRS ${LibClang_INCLUDE_DIR})

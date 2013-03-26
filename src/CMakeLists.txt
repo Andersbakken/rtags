@@ -3,7 +3,14 @@ if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Release)
 endif()
 
+find_package(LibClang REQUIRED)
+include_directories(${LibClang_INCLUDE_DIRS})
+set(clang_LIBS ${LibClang_LIBRARIES})
+
 include(${CMAKE_CURRENT_LIST_DIR}/ClangVersion.cmake)
+ClangVersion(${LibClang_INCLUDE_DIRS} CLANG_VERSION_MAJOR CLANG_VERSION_MINOR)
+set(CLANG_VERSION "${CLANG_VERSION_MAJOR}.${CLANG_VERSION_MINOR}")
+message("Using Clang version ${CLANG_VERSION} from ${LibClang_INCLUDE_DIRS}/clang-c/")
 
 if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/rct/CMakeLists.txt)
   add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/rct/)
@@ -20,12 +27,23 @@ if(CMAKE_BUILD_TYPE MATCHES "Debug")
   add_definitions(-DRTAGS_DEBUG)
 endif()
 
-ClangVersion("${PROJECT_SOURCE_DIR}/3rdparty/clang_install" CLANG_VERSION)
-message("Using Clang version ${CLANG_VERSION}")
+### Move this to FindLibClang.cmake or ClangVersion.cmake?
+if(EXISTS "${LibClang_INCLUDE_DIRS}/clang/${CLANG_VERSION}/include/limits.h")
+  set(CLANG_SYSTEM_INCLUDE "${LibClang_INCLUDE_DIR}/clang/${CLANG_VERSION}/include/")
+else()
+  set(CLANG_SYSTEM_INCLUDE ${LibClang_LIBRARIES})
+  string(REGEX REPLACE "\\/libclang\\.[dylibso]+$" "" CLANG_SYSTEM_INCLUDE ${CLANG_SYSTEM_INCLUDE})
+  if(EXISTS "${CLANG_SYSTEM_INCLUDE}/clang/${CLANG_VERSION}/include/limits.h")
+    set(CLANG_SYSTEM_INCLUDE "${CLANG_SYSTEM_INCLUDE}/clang/${CLANG_VERSION}/include/")
+  else()
+    message(FATAL_ERROR "Couldn't find limits.h in either ${LibClang_INCLUDE_DIR}/clang/${CLANG_VERSION}/include/ or ${CLANG_SYSTEM_INCLUDE}/clang/${CLANG_VERSION}/include/")
+  endif()
+endif()
 
 add_definitions(-Wall)
-add_definitions("-DCLANG_INCLUDEPATH=\"${PROJECT_SOURCE_DIR}/3rdparty/clang_install/lib/clang/${CLANG_VERSION}/include/\"")
-add_definitions("-DCLANG_BIN=\"${PROJECT_SOURCE_DIR}/3rdparty/clang_install/bin/\"")
+add_definitions("-DCLANG_INCLUDEPATH=\"${CLANG_SYSTEM_INCLUDE}\"")
+add_definitions("-DCLANG_VERSION_MAJOR=${CLANG_VERSION_MAJOR}")
+add_definitions("-DCLANG_VERSION_MINOR=${CLANG_VERSION_MINOR}")
 add_definitions(-DOS_${CMAKE_SYSTEM_NAME})
 
 if(CMAKE_SYSTEM_NAME MATCHES "Linux")
@@ -61,7 +79,6 @@ else()
 endif()
 
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/bin)
-include(clang.cmake)
 
 set(rtags_shared_SOURCES
     Client.cpp
