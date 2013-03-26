@@ -1,3 +1,6 @@
 [submodule "src/rct"]
 	path = src/rct
 	url = https://github.com/Andersbakken/rct
+[submodule "src/esprima"]
+	path = src/esprima
+	url = git://github.com/ariya/esprima.git
