@@ -16,7 +16,7 @@ void StatusJob::execute()
 {
     bool matched = false;
     const char *alternatives = "fileids|dependencies|fileinfos|symbols|symbolnames|watchedpaths|compilers";
-    if (query.isEmpty() || !strcasecmp(query.nullTerminated(), "fileids")) {
+    if (!strcasecmp(query.nullTerminated(), "fileids")) {
         matched = true;
         write(delimiter);
         write("fileids");
