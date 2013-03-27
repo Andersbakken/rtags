@@ -1,0 +1,26 @@
+#!/bin/bash
+
+echo `pwd` > /tmp/reb
+
+gitroot="`git rev-parse --show-toplevel`"
+
+if [ ! -d "$gitroot" ]; then
+    echo 1 >> /tmp/reb
+    exit 0
+fi
+
+cd $gitroot/src/rct
+if ! git branch | grep --quiet "\* (no branch)"; then
+    echo 2 >> /tmp/reb
+    exit 0
+fi
+
+if [ `git branch --contains HEAD | grep -v "(no branch)" | wc -l` != 1 ]; then
+    echo 3 >> /tmp/reb
+    exit 0
+fi
+
+branch=`git branch --contains HEAD | grep -v "(no branch)"`
+git checkout $branch
+echo 4 >> /tmp/reb
+exit 0
