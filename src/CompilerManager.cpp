@@ -1,19 +1,12 @@
 #include "CompilerManager.h"
 #include <rct/Process.h>
 #include <rct/MutexLocker.h>
+#include "Server.h"
 
 static Mutex sMutex;
 static Map<Path, List<String> > sFlags;
-static Map<Path, Set<Path> > sAliases;
-static bool sUseCompilerFlags = false;
 
 namespace CompilerManager {
-void init(const Server::Options &options)
-{
-    MutexLocker lock(&sMutex);
-    sUseCompilerFlags = (options.options & Server::UseCompilerFlags);
-}
-
 List<Path> compilers()
 {
     MutexLocker lock(&sMutex);
@@ -23,20 +16,19 @@ List<Path> compilers()
 List<String> flags(const Path &compiler)
 {
     MutexLocker lock(&sMutex);
+    enum {
+        Unset,
+        Use,
+        DontUse
+    } sUseCompilerFlags = Unset;
 
-    if (!sUseCompilerFlags)
+    if (sUseCompilerFlags == Unset)
+        sUseCompilerFlags = Server::instance()->options().options & Server::UseCompilerFlags ? Use : DontUse;
+
+    if (sUseCompilerFlags == DontUse)
         return List<String>();
 
     Map<Path, List<String> >::const_iterator it = sFlags.find(compiler);
-    if (it == sFlags.end()) {
-        const Set<Path> aliases = sAliases.value(compiler);
-        for (Set<Path>::const_iterator ait = aliases.begin(); ait != aliases.end(); ++ait) {
-            it = sFlags.find(*ait);
-            if (it != sFlags.end())
-                break;
-        }
-    }
-
     if (it != sFlags.end())
         return it->second;
 
@@ -80,23 +72,5 @@ List<String> flags(const Path &compiler)
     warning() << compiler << "got\n" << String::join(flags, "\n");
 
     return flags;
-}
-
-void addAliases(const Set<Path> &paths)
-{
-    MutexLocker lock(&sMutex);
-    if (paths.size() > 1) {
-        for (Set<Path>::const_iterator it = paths.begin(); it != paths.end(); ++it) {
-            Set<Path> copy = paths;
-            copy.remove(*it);
-            sAliases[*it] = copy;
-        }
-    }
-}
-
-Set<Path> aliases(const Path &path)
-{
-    MutexLocker lock(&sMutex);
-    return sAliases.value(path);
 }
 }

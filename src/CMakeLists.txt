@@ -80,7 +80,6 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/bin)
 set(rtags_shared_SOURCES
     Client.cpp
     CompileMessage.cpp
-    CompilerManager.cpp
     CompletionMessage.cpp
     CreateOutputMessage.cpp
     Location.cpp
@@ -93,6 +92,7 @@ set(rdm_SOURCES
     ${rtags_shared_SOURCES}
     CompileJob.cpp
     CompletionJob.cpp
+    CompilerManager.cpp
     CursorInfo.cpp
     CursorInfoJob.cpp
     DependenciesJob.cpp

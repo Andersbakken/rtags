@@ -58,6 +58,7 @@ public:
         unsigned options;
         int threadCount, completionCacheSize, unloadTimer, clangStackSize;
         List<String> defaultArguments, excludeFilters;
+        Set<Path> ignoredCompilers;
     };
     bool init(const Options &options);
     const List<String> &excludeFilters() const { return mOptions.excludeFilters; }

@@ -69,7 +69,7 @@ void usage(FILE *f)
             "  --allow-multiple-builds|-m        Without this setting different flags for the same compiler will be merged for each source file.\n"
             "  --unload-timer|-u [arg]           Number of minutes to wait before unloading non-current projects (disabled by default).\n"
             "  --thread-count|-j [arg]           Spawn this many threads for thread pool.\n"
-            "  --compiler-alias|-b [arg]         Alias these 2+ compilers (e.g. /usr/bin/gcc;/usr/local/bin/gcc;/opt/local/bin/gcc)\n"
+            "  --ignore-compiler|-b [arg]        Alias this compiler (Might be practical to avoid duplicated builds for things like icecc).\n"
             "  --clang-stack-size|-t [arg]       Use this much stack for clang's threads (default %d).\n", defaultStackSize);
 }
 
@@ -115,7 +115,7 @@ int main(int argc, char** argv)
         { "unload-timer", required_argument, 0, 'u' },
         { "no-current-project", no_argument, 0, 'o' },
         { "clang-stack-size", required_argument, 0, 't' },
-        { "compiler-alias", required_argument, 0, 'b' },
+        { "ignore-compiler", required_argument, 0, 'b' },
         { "compiler-flags", no_argument, 0, 'G' },
         { 0, 0, 0, 0 }
     };
@@ -231,6 +231,9 @@ int main(int argc, char** argv)
                 fprintf(stderr, "Invalid stack size: %s\n", optarg);
                 return 1;
             }
+            break;
+        case 'b':
+            serverOpts.ignoredCompilers.insert(Path::resolved(optarg));
             break;
         case 'n':
             serverOpts.socketFile = optarg;

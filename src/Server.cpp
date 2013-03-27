@@ -74,7 +74,6 @@ void Server::clear()
 bool Server::init(const Options &options)
 {
     Client::initMessages();
-    CompilerManager::init(options);
 
     mIndexerThreadPool = new ThreadPool(options.threadCount, options.clangStackSize);
 
@@ -741,8 +740,9 @@ void Server::startQueryJob(const shared_ptr<Job> &job)
 
 void Server::processSourceFile(GccArguments args)
 {
-    if (args.lang() == GccArguments::NoLang)
+    if (args.lang() == GccArguments::NoLang || mOptions.ignoredCompilers.contains(args.compiler())) {
         return;
+    }
     const Path srcRoot = args.projectRoot();
     List<Path> inputFiles = args.inputFiles();
     if (srcRoot.isEmpty()) {
