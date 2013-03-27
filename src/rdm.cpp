@@ -91,7 +91,7 @@ int main(int argc, char** argv)
         { "include", required_argument, 0, 'i' },
         { "define", required_argument, 0, 'D' },
         { "log-file", required_argument, 0, 'L' },
-        { "no-clang-includepath", no_argument, 0, 'P' },
+        { "no-builtin-includes", no_argument, 0, 'U' },
         { "setenv", required_argument, 0, 'e' },
         { "no-Wall", no_argument, 0, 'W' },
         { "append", no_argument, 0, 'A' },
@@ -116,6 +116,7 @@ int main(int argc, char** argv)
         { "no-current-project", no_argument, 0, 'o' },
         { "clang-stack-size", required_argument, 0, 't' },
         { "compiler-alias", required_argument, 0, 'b' },
+        { "compiler-flags", no_argument, 0, 'G' },
         { 0, 0, 0, 0 }
     };
     const String shortOptions = Rct::shortOptions(opts);
@@ -249,6 +250,9 @@ int main(int argc, char** argv)
         case 'o':
             serverOpts.options |= Server::NoStartupCurrentProject;
             break;
+        case 'G':
+            serverOpts.options |= Server::UseCompilerFlags;
+            break;
         case 'F':
             serverOpts.options |= Server::IgnorePrintfFixits;
             break;
@@ -258,8 +262,8 @@ int main(int argc, char** argv)
         case 'l':
             serverOpts.options &= ~Server::SpellChecking;
             break;
-        case 'P':
-            serverOpts.options |= Server::ClangIncludePath;
+        case 'U':
+            serverOpts.options |= Server::NoBuiltinIncludes;
             break;
         case 'W':
             serverOpts.options &= ~Server::Wall;

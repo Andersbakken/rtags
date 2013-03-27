@@ -5,9 +5,11 @@
 #include <rct/List.h>
 #include <rct/Path.h>
 #include <rct/String.h>
+#include "Server.h"
 
 namespace CompilerManager
 {
+void init(const Server::Options &options);
 List<Path> compilers();
 List<String> flags(const Path &compiler);
 void addAliases(const Set<Path> &paths);

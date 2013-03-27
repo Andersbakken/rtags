@@ -3,6 +3,7 @@
 #include "Client.h"
 #include "CompileJob.h"
 #include "CompileMessage.h"
+#include "CompilerManager.h"
 #include "CompletionJob.h"
 #include "CreateOutputMessage.h"
 #include "CursorInfoJob.h"
@@ -73,16 +74,18 @@ void Server::clear()
 bool Server::init(const Options &options)
 {
     Client::initMessages();
+    CompilerManager::init(options);
+
     mIndexerThreadPool = new ThreadPool(options.threadCount, options.clangStackSize);
 
     mOptions = options;
-    if (options.options & ClangIncludePath) {
+    if (options.options & NoBuiltinIncludes) {
+        mOptions.defaultArguments.append("-nobuiltininc");
+        mOptions.defaultArguments.append("-nostdinc++");
+    } else {
         Path clangPath = Path::resolved(CLANG_INCLUDEPATH);
         clangPath.prepend("-I");
         mOptions.defaultArguments.append(clangPath);
-    } else {
-        mOptions.defaultArguments.append("-nobuiltininc");
-        mOptions.defaultArguments.append("-nostdinc++");
     }
 
     if (options.options & UnlimitedErrors)

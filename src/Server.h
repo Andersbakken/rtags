@@ -38,7 +38,7 @@ public:
     static Server *instance() { return sInstance; }
     enum Option {
         NoOptions = 0x000,
-        ClangIncludePath = 0x001,
+        NoBuiltinIncludes = 0x001,
         Validate = 0x002,
         ClearProjects = 0x004,
         Wall = 0x008,
@@ -46,7 +46,8 @@ public:
         UnlimitedErrors = 0x020,
         SpellChecking = 0x040,
         AllowMultipleBuildsForSameCompiler = 0x080,
-        NoStartupCurrentProject = 0x100
+        NoStartupCurrentProject = 0x100,
+        UseCompilerFlags = 0x200
     };
     ThreadPool *threadPool() const { return mIndexerThreadPool; }
     void startQueryJob(const shared_ptr<Job> &job);

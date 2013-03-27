@@ -5,8 +5,15 @@
 static Mutex sMutex;
 static Map<Path, List<String> > sFlags;
 static Map<Path, Set<Path> > sAliases;
+static bool sUseCompilerFlags = false;
 
 namespace CompilerManager {
+void init(const Server::Options &options)
+{
+    MutexLocker lock(&sMutex);
+    sUseCompilerFlags = (options.options & Server::UseCompilerFlags);
+}
+
 List<Path> compilers()
 {
     MutexLocker lock(&sMutex);
@@ -16,6 +23,10 @@ List<Path> compilers()
 List<String> flags(const Path &compiler)
 {
     MutexLocker lock(&sMutex);
+
+    if (!sUseCompilerFlags)
+        return List<String>();
+
     Map<Path, List<String> >::const_iterator it = sFlags.find(compiler);
     if (it == sFlags.end()) {
         const Set<Path> aliases = sAliases.value(compiler);
