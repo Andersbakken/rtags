@@ -514,7 +514,7 @@
         (path (rtags-path-for-project))
         prompt
         input)
-    (if tagname
+    (if (> (length tagname) 0)
         (setq prompt (concat p ": (default " tagname ") "))
       (setq prompt (concat p ": ")))
     (setq input (completing-read prompt (function rtags-symbolname-complete) nil nil nil 'rtags-symbol-history))
@@ -1574,7 +1574,7 @@ References to references will be treated as references to the referenced symbol"
         (prefer-exact rtags-find-file-prefer-exact-match))
     (if prefix
         (setq prefer-exact (not prefer-exact)))
-    (if tagname
+    (if (> (length tagname) 0)
         (setq prompt (concat (format "Find rfiles (default %s): " tagname)))
       (setq prompt "Find rfiles: "))
     (rtags-is-indexed)
