@@ -42,6 +42,7 @@ private:
 
     unsigned mQueryFlags;
     int mMax, mLogLevel, mTimeout, mMinOffset, mMaxOffset, mConnectTimeout;
+    String mContext;
     Set<String> mPathFilters;
     Map<Path, String> mUnsavedFiles;
     List<RCCommand*> mCommands;

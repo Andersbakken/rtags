@@ -77,6 +77,9 @@ public:
         std::sort(mPathFilters.begin(), mPathFilters.end());
     }
 
+    void setContext(const String &context) { mContext = context; }
+    String context() const { return mContext; }
+
     String query() const { return mQuery; }
     Location location() const { return Location::decodeClientLocation(mQuery); }
     void setQuery(const String &query) { mQuery = query; }
@@ -110,7 +113,7 @@ public:
     uint8_t buildIndex() const { return mBuildIndex; }
     void setBuildIndex(uint8_t index) { mBuildIndex = index; }
 private:
-    String mQuery;
+    String mQuery, mContext;
     Type mType;
     unsigned mFlags;
     int mMax, mMinOffset, mMaxOffset;

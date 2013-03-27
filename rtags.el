@@ -300,7 +300,7 @@
       (rtags-call-rc nil "-w")
       (goto-char (point-min))
       (while (not (eobp))
-        (let ((line (buffer-substring (point-at-bol) (point-at-eol))))
+        (let ((line (buffer-substring-no-properties (point-at-bol) (point-at-eol))))
           (if (string-match "^\\([^ ]+\\)[^<]*<=$" line)
               (let ((name (match-string 1 line)))
                 (setq projects (add-to-list 'projects name t))
@@ -372,16 +372,18 @@
           (while (looking-at "[ \t]")
             (forward-char 1))))
         (if (looking-at "[A-Za-z_0-9]*")
-            (setq name (buffer-substring (match-beginning 0) (match-end 0)))))
+            (setq name (buffer-substring-no-properties (match-beginning 0) (match-end 0)))))
       name)))
 
 (defun rtags-cursorinfo (&optional location verbose)
   (let ((loc (or location (rtags-current-location)))
+        (context (unless location (rtags-current-symbol t)))
         (path (rtags-path-for-project)))
     (with-temp-buffer
       (rtags-call-rc path
                      "-U"
                      loc
+                     (if context (concat "-t" context))
                      (if verbose "--cursorinfo-include-parents")
                      (if verbose "--cursorinfo-include-targets")
                      (if verbose "--cursorinfo-include-references"))
@@ -508,7 +510,7 @@
   (rtags-save-location)
   (rtags-setup-filters filter)
   (let ((tagname (if mark-active
-                     (buffer-substring (region-beginning) (region-end))
+                     (buffer-substring-no-properties (region-beginning) (region-end))
                    (rtags-current-symbol)))
         (switch (if references "-R" "-F"))
         (path (rtags-path-for-project))
@@ -719,12 +721,12 @@ return t if rtags is allowed to modify this file"
   (setq rtags-location-stack-index 0)
   )
 
-(defun rtags-target (&optional location)
-  (let ((path (rtags-path-for-project)))
-    (unless location
-      (setq location (rtags-current-location)))
+(defun rtags-target ()
+  (let ((path (rtags-path-for-project))
+        (location (rtags-current-location))
+        (context (rtags-current-symbol t)))
     (with-temp-buffer
-      (rtags-call-rc path "-N" "-f" location)
+      (rtags-call-rc path "-N" "-f" location "-t" context)
       (setq rtags-last-request-not-indexed nil)
       (cond ((= (point-min) (point-max))
              (message "RTags: No target") nil)
@@ -732,7 +734,7 @@ return t if rtags is allowed to modify this file"
              (setq rtags-last-request-not-indexed t) nil)
             ((string= (buffer-string) "Symbol has moved\n")
              (message "RTags: Symbol has moved") nil)
-            (t (buffer-substring (point-min) (- (point-max) 1))))
+            (t (buffer-substring-no-properties (point-min) (- (point-max) 1))))
       )
     )
   )
@@ -771,9 +773,10 @@ References to references will be treated as references to the referenced symbol"
   (interactive "P")
   (rtags-setup-filters prefix)
   (rtags-save-location)
-  (let ((arg (rtags-current-location)))
+  (let ((arg (rtags-current-location))
+        (context (rtags-current-symbol t)))
     (with-current-buffer (rtags-get-buffer)
-      (rtags-call-rc nil "-l" "-r" arg)
+      (rtags-call-rc nil "-l" "-r" arg "-t" context)
       (rtags-setup-filters nil)
       (rtags-handle-completion-buffer))
     )
@@ -784,9 +787,10 @@ References to references will be treated as references to the referenced symbol"
   "List all reimplentations of function under cursor. This includes both declarations and definitions"
   (rtags-setup-filters prefix)
   (rtags-save-location)
-  (let ((arg (rtags-current-location)))
+  (let ((arg (rtags-current-location))
+        (context (rtags-current-symbol t)))
     (with-current-buffer (rtags-get-buffer)
-      (rtags-call-rc nil "-k" "-l" "-r" arg)
+      (rtags-call-rc nil "-k" "-l" "-r" arg "-t" context)
       (rtags-setup-filters nil)
       (rtags-handle-completion-buffer))
     )
@@ -796,9 +800,10 @@ References to references will be treated as references to the referenced symbol"
   (interactive "P")
   (rtags-setup-filters prefix)
   (rtags-save-location)
-  (let ((arg (rtags-current-location)))
+  (let ((arg (rtags-current-location))
+        (context (rtags-current-symbol t)))
     (with-current-buffer (rtags-get-buffer)
-      (rtags-call-rc nil "-l" "-e" "-r" arg)
+      (rtags-call-rc nil "-l" "-e" "-r" arg "-t" context)
       (rtags-setup-filters nil)
       (rtags-handle-completion-buffer))
     )
@@ -825,7 +830,7 @@ References to references will be treated as references to the referenced symbol"
       (let ((start (point)))
         (while (looking-at "[0-9A-Za-z_~#]")
           (forward-char))
-        (buffer-substring start (point))))))
+        (buffer-substring-no-properties start (point))))))
 
 (defun rtags-rename-symbol ()
   (interactive)
@@ -846,7 +851,7 @@ References to references will be treated as references to the referenced symbol"
                   (setq destructor t)))
             (while (looking-at "[0-9A-Za-z_~#]")
               (forward-char))
-            (setq prev (buffer-substring pos (point)))
+            (setq prev (buffer-substring-no-properties pos (point)))
             (setq len (- (point) pos))
             (setq replacewith (read-from-minibuffer (format "Replace '%s' with: " prev)))
             (unless (equal replacewith "")
@@ -876,7 +881,7 @@ References to references will be treated as references to the referenced symbol"
                           (forward-char))
 
                       ;; (message "About to replace %s with %s at %d in %s"
-                      ;;          (buffer-substring (point) (+ (point) len)) replacewith (point) (car value))
+                      ;;          (buffer-substring-no-properties (point) (+ (point) len)) replacewith (point) (car value))
                       (delete-char len)
                       (insert replacewith)
                       ))
@@ -942,7 +947,7 @@ References to references will be treated as references to the referenced symbol"
     (let ((end (point)))
       (backward-char)
       (c-beginning-of-current-token)
-      (let ((sig (gethash (buffer-substring (point) end) rtags-completion-signatures)))
+      (let ((sig (gethash (buffer-substring-no-properties (point) end) rtags-completion-signatures)))
         (if sig
             (message "%s" (combine-and-quote-strings sig "\n")))))))
 
@@ -979,7 +984,7 @@ References to references will be treated as references to the referenced symbol"
   (and (= (line-number-at-pos) rtags-completion-cache-line)
        (= (rtags-find-symbol-start) rtags-completion-cache-column)
        (string= (buffer-file-name (current-buffer)) rtags-completion-cache-file-name)
-       (string= (buffer-substring (point-at-bol) (+ (point-at-bol) rtags-completion-cache-column))
+       (string= (buffer-substring-no-properties (point-at-bol) (+ (point-at-bol) rtags-completion-cache-column))
                 rtags-completion-cache-line-contents)))
 
 (defun rtags-expand ()
@@ -1017,10 +1022,10 @@ References to references will be treated as references to the referenced symbol"
               rtags-completion-cache-file-name (buffer-file-name buffer)
               rtags-completion-cache-line line
               rtags-completion-cache-column column
-              rtags-completion-cache-line-contents (buffer-substring (point-at-bol) (+ (point-at-bol) column)))
+              rtags-completion-cache-line-contents (buffer-substring-no-properties (point-at-bol) (+ (point-at-bol) column)))
         ;; (message "writing shit %s" header)
         (process-send-string rtags-completion-stream-process header)
-        (process-send-string rtags-completion-stream-process (buffer-substring (point-min) (point-max))))
+        (process-send-string rtags-completion-stream-process (buffer-substring-no-properties (point-min) (point-max))))
       )
     )
   )
@@ -1028,7 +1033,7 @@ References to references will be treated as references to the referenced symbol"
 (defvar rtags-diagnostics-process nil)
 (defun rtags-apply-fixit-at-point ()
   (interactive)
-  (let ((line (buffer-substring (point-at-bol) (point-at-eol))))
+  (let ((line (buffer-substring-no-properties (point-at-bol) (point-at-eol))))
     (if (string-match "^\\(.*\\):[0-9]+:[0-9]+: fixit: \\([0-9]+\\)-\\([0-9]+\\): .*did you mean '\\(.*\\)'\\?$" line)
         (let* ((file (match-string 1 line))
                (buf (find-buffer-visiting file))
@@ -1507,12 +1512,12 @@ References to references will be treated as references to the referenced symbol"
       (goto-char (point-min))
       (if (equal "" string)
           (while (not (eobp))
-            (intern (buffer-substring (point-at-bol) (point-at-eol)) complete-list)
+            (intern (buffer-substring-no-properties (point-at-bol) (point-at-eol)) complete-list)
             (forward-line))
         (let ((match-string (format  ".*\\(%s.*\\)" string)))
           (while (not (eobp))
             (if (looking-at match-string)
-                (intern (buffer-substring (match-beginning 1) (match-end 1)) complete-list))
+                (intern (buffer-substring-no-properties (match-beginning 1) (match-end 1)) complete-list))
             (forward-line))))
       (cond ((eq code nil)
              (try-completion string complete-list predicate))
@@ -1535,7 +1540,7 @@ References to references will be treated as references to the referenced symbol"
             (other-window 1))
           (bookmark-jump bookmark)
           (rtags-location-stack-push))
-      (rtags-goto-location (buffer-substring (point-at-bol) (point-at-eol)) nil otherbuffer))
+      (rtags-goto-location (buffer-substring-no-properties (point-at-bol) (point-at-eol)) nil otherbuffer))
     )
   )
 
@@ -1546,7 +1551,7 @@ References to references will be treated as references to the referenced symbol"
 
 (defun rtags-select-and-remove-rtags-buffer ()
   (interactive)
-  (let ((line (buffer-substring (point-at-bol) (point-at-eol))))
+  (let ((line (buffer-substring-no-properties (point-at-bol) (point-at-eol))))
     (delete-window) ;; ### this should really use rtags-select so it would get bookmarks
     (rtags-goto-location line)))
 
@@ -1610,7 +1615,7 @@ References to references will be treated as references to the referenced symbol"
             (t nil))
       ;; (message (format "Got lines and shit %d\n[%s]" (count-lines (point-min) (point-max)) (buffer-string)))
       (cond ((= (point-min) (point-max)) t)
-            ((= (count-lines (point-min) (point-max)) 1) (rtags-goto-location (buffer-substring (point-at-bol) (point-at-eol))))
+            ((= (count-lines (point-min) (point-max)) 1) (rtags-goto-location (buffer-substring-no-properties (point-at-bol) (point-at-eol))))
             (t (progn
                  (switch-to-buffer-other-window rtags-buffer-name)
                  (shrink-window-if-larger-than-buffer)
@@ -1643,7 +1648,7 @@ References to references will be treated as references to the referenced symbol"
         (rtags-call-rc path "--fixit" path)
         (goto-char (point-min))
         (while (not (eobp))
-          (let ((line (buffer-substring (point-at-bol) (point-at-eol))))
+          (let ((line (buffer-substring-no-properties (point-at-bol) (point-at-eol))))
             (if (string-match "^\\([0-9]+\\)-\\([0-9]+\\) \\(.*\\)$" line)
                 (let ((start (string-to-int (match-string 1 line)))
                       (end (string-to-int (match-string 2 line)))
@@ -1696,8 +1701,8 @@ References to references will be treated as references to the referenced symbol"
               (end (+ (string-to-int (match-string 3 cursorinfo)) 1)))
           (cons start end)))))
 
-(defun rtags-target-content (&optional location)
-  (let ((cursorinfo (rtags-cursorinfo (rtags-target location))) file)
+(defun rtags-target-content ()
+  (let ((cursorinfo (rtags-cursorinfo (rtags-target))) file)
     (if (string-match "^\\(/[^ ]*\\),[0-9]+ " cursorinfo)
         (progn
           (setq file match-string 1 cursorinfo)
@@ -1721,7 +1726,7 @@ References to references will be treated as references to the referenced symbol"
 ;;               (tip))
 ;;           (save-excursion
 ;;             (find-file file)
-;;             (setq tip (buffer-substring start end))
+;;             (setq tip (buffer-substring-no-properties start end))
 ;;             tip)
 ;;           )
 ;;       )
@@ -1772,7 +1777,7 @@ References to references will be treated as references to the referenced symbol"
             (with-temp-buffer
               (rtags-call-rc nil "--declaration-only" "-N" "-F" token)
               (if (= (count-lines (point-min) (point-max)) 1)
-                  (setq target (buffer-substring (point) (- (point-max) 1))))))))
+                  (setq target (buffer-substring-no-properties (point) (- (point-max) 1))))))))
     (if target
         (let ((other-buffer-content (rtags-remove-other-buffer))
               (win (selected-window))

@@ -9,13 +9,13 @@ QueryMessage::QueryMessage(Type type)
 
 void QueryMessage::encode(Serializer &serializer) const
 {
-    serializer << mRaw << mQuery << mType << mFlags << mMax
+    serializer << mRaw << mQuery << mContext << mType << mFlags << mMax
                << mMinOffset << mMaxOffset << mBuildIndex << mPathFilters << mProjects;
 }
 
 void QueryMessage::decode(Deserializer &deserializer)
 {
-    deserializer >> mRaw >> mQuery >> mType >> mFlags >> mMax
+    deserializer >> mRaw >> mQuery >> mContext >> mType >> mFlags >> mMax
                  >> mMinOffset >> mMaxOffset >> mBuildIndex >> mPathFilters >> mProjects;
 }
 

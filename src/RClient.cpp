@@ -17,12 +17,13 @@ public:
 class QueryCommand : public RCCommand
 {
 public:
-    QueryCommand(QueryMessage::Type t, const String &q)
-        : type(t), query(q), extraQueryFlags(0), buildIndex(0)
+    QueryCommand(QueryMessage::Type t, const String &q, const String &c)
+        : type(t), query(q), context(c), extraQueryFlags(0), buildIndex(0)
     {}
 
     const QueryMessage::Type type;
     const String query;
+    const String context;
     unsigned extraQueryFlags;
     uint8_t buildIndex;
 
@@ -31,6 +32,7 @@ public:
         QueryMessage msg(type);
         msg.init(rc->argc(), rc->argv());
         msg.setQuery(query);
+        msg.setContext(context);
         msg.setFlags(extraQueryFlags | rc->queryFlags());
         msg.setMax(rc->max());
         msg.setBuildIndex(buildIndex);
@@ -204,7 +206,8 @@ RClient::~RClient()
 
 QueryCommand *RClient::addQuery(QueryMessage::Type t, const String &query)
 {
-    QueryCommand *cmd = new QueryCommand(t, query);
+    QueryCommand *cmd = new QueryCommand(t, query, mContext);
+    mContext.clear();
     mCommands.append(cmd);
     return cmd;
 }
@@ -258,6 +261,7 @@ enum OptionType {
     CodeCompleteAt,
     Compile,
     ConnectTimeout,
+    Context,
     CursorInfo,
     CursorInfoIncludeParents,
     CursorInfoIncludeReferences,
@@ -404,6 +408,7 @@ struct Option opts[] = {
     { ValidateSymbol, "validate-symbol", 0, no_argument, "Make sure symbol on file matches the expected cursor info before returning it." },
     { DeclarationOnly, "declaration-only", 0, no_argument, "Filter out definitions (unless inline).", },
     { IMenu, "imenu", 0, no_argument, "Use with --list-symbols to provide output for (rtags-imenu) (filter namespaces, fully qualified function names, ignore certain cursors etc)." },
+    { Context, "context", 't', required_argument, "Context for current symbol (for fuzzy matching with dirty files)." },
     { None, 0, 0, 0, 0 }
 };
 
@@ -564,6 +569,9 @@ bool RClient::parse(int &argc, char **argv)
         case CodeComplete:
             logFile = "/tmp/rc.log";
             mCommands.append(new CompletionCommand);
+            break;
+        case Context:
+            mContext = optarg;
             break;
         case CodeCompleteAt: {
             const String arg = optarg;
