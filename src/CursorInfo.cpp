@@ -84,7 +84,7 @@ SymbolMap CursorInfo::targetInfos(const SymbolMap &map) const
 {
     SymbolMap ret;
     for (Set<Location>::const_iterator it = targets.begin(); it != targets.end(); ++it) {
-        SymbolMap::const_iterator found = RTags::findCursorInfo(map, *it, 0);
+        SymbolMap::const_iterator found = RTags::findCursorInfo(map, *it);
         if (found != map.end()) {
             ret[*it] = found->second;
         } else {
@@ -100,7 +100,7 @@ SymbolMap CursorInfo::referenceInfos(const SymbolMap &map) const
 {
     SymbolMap ret;
     for (Set<Location>::const_iterator it = references.begin(); it != references.end(); ++it) {
-        SymbolMap::const_iterator found = RTags::findCursorInfo(map, *it, 0);
+        SymbolMap::const_iterator found = RTags::findCursorInfo(map, *it);
         if (found != map.end()) {
             ret[*it] = found->second;
         }
@@ -114,7 +114,7 @@ SymbolMap CursorInfo::callers(const Location &loc, const SymbolMap &map) const
     const SymbolMap cursors = virtuals(loc, map);
     for (SymbolMap::const_iterator c = cursors.begin(); c != cursors.end(); ++c) {
         for (Set<Location>::const_iterator it = c->second.references.begin(); it != c->second.references.end(); ++it) {
-            const SymbolMap::const_iterator found = RTags::findCursorInfo(map, *it, 0);
+            const SymbolMap::const_iterator found = RTags::findCursorInfo(map, *it);
             if (found == map.end())
                 continue;
             if (RTags::isReference(found->second.kind)) { // is this always right?

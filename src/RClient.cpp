@@ -17,13 +17,12 @@ public:
 class QueryCommand : public RCCommand
 {
 public:
-    QueryCommand(QueryMessage::Type t, const String &q, const String &c)
-        : type(t), query(q), context(c), extraQueryFlags(0), buildIndex(0)
+    QueryCommand(QueryMessage::Type t, const String &q)
+        : type(t), query(q), extraQueryFlags(0), buildIndex(0)
     {}
 
     const QueryMessage::Type type;
     const String query;
-    const String context;
     unsigned extraQueryFlags;
     uint8_t buildIndex;
 
@@ -32,7 +31,7 @@ public:
         QueryMessage msg(type);
         msg.init(rc->argc(), rc->argv());
         msg.setQuery(query);
-        msg.setContext(context);
+        msg.setContext(rc->context());
         msg.setFlags(extraQueryFlags | rc->queryFlags());
         msg.setMax(rc->max());
         msg.setBuildIndex(buildIndex);
@@ -206,8 +205,7 @@ RClient::~RClient()
 
 QueryCommand *RClient::addQuery(QueryMessage::Type t, const String &query)
 {
-    QueryCommand *cmd = new QueryCommand(t, query, mContext);
-    mContext.clear();
+    QueryCommand *cmd = new QueryCommand(t, query);
     mCommands.append(cmd);
     return cmd;
 }
@@ -314,7 +312,6 @@ enum OptionType {
     Timeout,
     UnloadProject,
     UnsavedFile,
-    ValidateSymbol,
     Verbose,
     WaitForIndexing,
     WithProject,
@@ -405,10 +402,9 @@ struct Option opts[] = {
     { CursorInfoIncludeTargets, "cursorinfo-include-targets", 0, no_argument, "Use to make --cursor-info include target cursors." },
     { CursorInfoIncludeReferences, "cursorinfo-include-references", 0, no_argument, "Use to make --cursor-info include reference cursors." },
     { WithProject, "with-project", 0, required_argument, "Like --project but pass as a flag." },
-    { ValidateSymbol, "validate-symbol", 0, no_argument, "Make sure symbol on file matches the expected cursor info before returning it." },
     { DeclarationOnly, "declaration-only", 0, no_argument, "Filter out definitions (unless inline).", },
     { IMenu, "imenu", 0, no_argument, "Use with --list-symbols to provide output for (rtags-imenu) (filter namespaces, fully qualified function names, ignore certain cursors etc)." },
-    { Context, "context", 't', required_argument, "Context for current symbol (for fuzzy matching with dirty files)." },
+    { Context, "context", 't', required_argument, "Context for current symbol (for fuzzy matching with dirty files)." }, // ### multiple context doesn't work
     { None, 0, 0, 0, 0 }
 };
 
@@ -547,9 +543,6 @@ bool RClient::parse(int &argc, char **argv)
             break;
         case DeclarationOnly:
             mQueryFlags |= QueryMessage::DeclarationOnly;
-            break;
-        case ValidateSymbol:
-            mQueryFlags |= QueryMessage::ValidateSymbol;
             break;
         case FindVirtuals:
             mQueryFlags |= QueryMessage::FindVirtuals;

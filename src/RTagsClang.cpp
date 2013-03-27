@@ -83,33 +83,58 @@ String cursorToString(CXCursor cursor, unsigned flags)
     return ret;
 }
 
-
-SymbolMap::const_iterator findCursorInfo(const SymbolMap &map, const Location &location, bool *moved)
+SymbolMap::const_iterator findCursorInfo(const SymbolMap &map, const Location &location, const String &context)
 {
-    if (moved)
-        *moved = false;
     if (map.isEmpty())
         return map.end();
 
-    SymbolMap::const_iterator it = map.find(location);
-    if (it != map.end())
-        return it;
-    it = map.lower_bound(location);
-    if (it == map.end()) {
-        --it;
-    } else {
-        const int cmp = it->first.compare(location);
-        if (!cmp)
+    if (context.isEmpty()) {
+        SymbolMap::const_iterator it = map.find(location);
+        if (it != map.end())
             return it;
-        --it;
-    }
-    if (location.fileId() != it->first.fileId())
+        it = map.lower_bound(location);
+        if (it == map.end()) {
+            --it;
+        } else if (it->first.compare(location) != 0) {
+            --it;
+        }
+        if (it->first.fileId() == location.fileId()) {
+            const int off = location.offset() - it->first.offset();
+            if (it->second.symbolLength > off) {
+                return it;
+            }
+        }
         return map.end();
-    const int off = location.offset() - it->first.offset();
-    if (it->second.symbolLength > off) {
-        if (moved)
-            *moved = !it->second.isValid(it->first);
-        return it;
+    }
+
+    SymbolMap::const_iterator f = map.lower_bound(location);
+    SymbolMap::const_iterator b = f;
+
+    for (int j=0; j<128; ++j) {
+        if (f != map.end()) {
+            if (location.fileId() != f->first.fileId()) {
+                if (b == map.begin())
+                    break;
+                f = map.end();
+            } else if (f->second.symbolName.contains(context)) {
+                // error() << "found it forward" << j;
+                return f;
+            } else {
+                ++f;
+            }
+        }
+
+        if (b != map.begin()) {
+            --b;
+            if (location.fileId() != b->first.fileId()) {
+                if (f == map.end())
+                    break;
+                b = map.begin();
+            } else if (b->second.symbolName.contains(context)) {
+                // error() << "found it backward" << j;
+                return b;
+            }
+        }
     }
     return map.end();
 }

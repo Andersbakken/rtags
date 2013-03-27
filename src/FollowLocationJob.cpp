@@ -16,13 +16,8 @@ void FollowLocationJob::execute()
         return;
 
     const SymbolMap &map = scope.data();
-    bool moved = false;
-    const SymbolMap::const_iterator it = RTags::findCursorInfo(map, location,
-                                                               queryFlags() & QueryMessage::ValidateSymbol ? &moved : 0);
-    if (moved) {
-        write("Symbol has moved");
-        return;
-    }
+    error() << context();
+    const SymbolMap::const_iterator it = RTags::findCursorInfo(map, location, context());
 
     if (it == map.end())
         return;

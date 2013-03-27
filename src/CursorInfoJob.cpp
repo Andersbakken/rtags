@@ -17,12 +17,7 @@ void CursorInfoJob::execute()
     const SymbolMap &map = scope.data();
     if (map.isEmpty())
         return;
-    bool moved = false;
-    SymbolMap::const_iterator it = RTags::findCursorInfo(map, location, queryFlags() & QueryMessage::ValidateSymbol ? &moved : 0);
-    if (moved) {
-        write("Symbol has moved");
-        return;
-    }
+    SymbolMap::const_iterator it = RTags::findCursorInfo(map, location, context());
 
     unsigned ciFlags = 0;
     if (!(queryFlags() & QueryMessage::CursorInfoIncludeTargets))

@@ -30,6 +30,8 @@ public:
 
     String socketFile() const { return mSocketFile; }
 
+    String context() const { return mContext; }
+
     unsigned queryFlags() const { return mQueryFlags; }
 
     int argc() const { return mArgc; }

@@ -12,7 +12,8 @@
 Job::Job(const QueryMessage &query, unsigned jobFlags, const shared_ptr<Project> &proj)
     : mAborted(false), mId(-1), mMinOffset(query.minOffset()),
       mMaxOffset(query.maxOffset()), mJobFlags(jobFlags), mQueryFlags(query.flags()), mProject(proj),
-      mPathFilters(0), mPathFiltersRegExp(0), mMax(query.max()), mConnection(0)
+      mPathFilters(0), mPathFiltersRegExp(0), mMax(query.max()), mConnection(0),
+      mContext(query.context())
 {
     const List<String> &pathFilters = query.pathFilters();
     if (!pathFilters.isEmpty()) {

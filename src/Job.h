@@ -57,6 +57,7 @@ public:
     void run(Connection *connection);
     bool isAborted() const { MutexLocker lock(&mMutex); return mAborted; }
     void abort() { MutexLocker lock(&mMutex); mAborted = true; }
+    String context() const { return mContext; }
 protected:
     mutable Mutex mMutex;
     bool mAborted;
@@ -72,6 +73,7 @@ private:
     int mMax;
     String mBuffer;
     Connection *mConnection;
+    const String mContext;
 };
 
 template <int StaticBufSize>
