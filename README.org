@@ -408,7 +408,7 @@ would be returned.
 
 Here are some videos demonstrating how to use rtags with emacs:
 
-[[http://www.youtube.com/watch?v=FtW3V8XoApo&list=PLAL6K6Ycnt4IwjIjWcYV9bFgcTG_4T1Y_&index=7][Set up rtags]]
+[[http://www.youtube.com/watch?v=Z4g05SjkQzM&list=PLAL6K6Ycnt4IwjIjWcYV9bFgcTG_4T1Y_&index=10][Set up rtags]]
 
 [[http://www.youtube.com/watch?v=J2B-z0LBL_s&list=PLAL6K6Ycnt4IwjIjWcYV9bFgcTG_4T1Y_&index=6][Set up symlinks and run the daemon]]
 
