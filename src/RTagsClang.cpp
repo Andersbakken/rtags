@@ -89,19 +89,16 @@ SymbolMap::const_iterator findCursorInfo(const SymbolMap &map, const Location &l
         return map.end();
 
     if (context.isEmpty()) {
-        SymbolMap::const_iterator it = map.find(location);
-        if (it != map.end())
+        SymbolMap::const_iterator it = map.lower_bound(location);
+        if (it != map.end() && it->first == location) {
             return it;
-        it = map.lower_bound(location);
-        if (it == map.end()) {
+        } else if (it != map.begin()) {
             --it;
-        } else if (it->first.compare(location) != 0) {
-            --it;
-        }
-        if (it->first.fileId() == location.fileId()) {
-            const int off = location.offset() - it->first.offset();
-            if (it->second.symbolLength > off) {
-                return it;
+            if (it->first.fileId() == location.fileId()) {
+                const int off = location.offset() - it->first.offset();
+                if (it->second.symbolLength > off) {
+                    return it;
+                }
             }
         }
         return map.end();
