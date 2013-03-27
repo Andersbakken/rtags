@@ -36,6 +36,7 @@ enum CursorType {
     Reference,
     Other
 };
+void initMessages();
 }
 
 class CursorInfo;

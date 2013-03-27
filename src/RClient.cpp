@@ -37,7 +37,7 @@ public:
         msg.setPathFilters(rc->pathFilters().toList());
         msg.setRangeFilter(rc->minOffset(), rc->maxOffset());
         msg.setProjects(rc->projects());
-        return client->message(&msg);
+        return client->send(&msg, rc->timeout());
     }
 
     virtual String description() const
@@ -72,13 +72,13 @@ public:
             msg.init(rc->argc(), rc->argv());
             msg.setProjects(rc->projects());
             EventLoop::instance()->addFileDescriptor(STDIN_FILENO, EventLoop::Read, stdinReady, this);
-            return client->message(&msg);
+            return client->send(&msg, rc->timeout());
         } else {
             CompletionMessage msg(CompletionMessage::None, path, line, column);
             msg.init(rc->argc(), rc->argv());
             msg.setContents(rc->unsavedFiles().value(path));
             msg.setProjects(rc->projects());
-            return client->message(&msg);
+            return client->send(&msg, rc->timeout());
         }
     }
 
@@ -145,7 +145,7 @@ public:
         const char *argv[] = { "completionStream", args.constData() };
         msg.init(2, argv);
         msg.setContents(contents);
-        client->message(&msg, Client::SendDontRunEventLoop);
+        client->connection()->send(&msg);
     }
 };
 
@@ -162,7 +162,7 @@ public:
     {
         CreateOutputMessage msg(mLevel == Default ? rc->logLevel() : mLevel);
         msg.init(rc->argc(), rc->argv());
-        return client->message(&msg);
+        return client->send(&msg, rc->timeout());
     }
     virtual String description() const
     {
@@ -183,7 +183,7 @@ public:
     {
         CompileMessage msg(path, args);
         msg.init(rc->argc(), rc->argv());
-        return client->message(&msg);
+        return client->send(&msg, rc->timeout());
     }
     virtual String description() const
     {
@@ -192,7 +192,7 @@ public:
 };
 
 RClient::RClient()
-    : mQueryFlags(0), mClientFlags(0), mMax(-1), mLogLevel(0), mTimeout(0),
+    : mQueryFlags(0), mMax(-1), mLogLevel(0), mTimeout(0),
       mMinOffset(-1), mMaxOffset(-1), mConnectTimeout(1000), mArgc(0), mArgv(0)
 {
 }
@@ -219,31 +219,30 @@ void RClient::addCompile(const Path &cwd, const String &args)
     mCommands.append(new CompileCommand(cwd, args));
 }
 
-static void timeout(int timerId, void *userData)
-{
-    EventLoop *loop = static_cast<EventLoop*>(userData);
-    loop->removeTimer(timerId);
-    loop->exit();
-}
-
 bool RClient::exec()
 {
+    RTags::initMessages();
+
     EventLoop loop;
 
-    Client client(mSocketFile, mConnectTimeout, mClientFlags, mRdmArgs);
+    Client client;
+    if (!client.connectToServer(mSocketFile, mConnectTimeout)) {
+        error("Can't seem to connect to server");
+        return false;
+    }
 
     bool ret = true;
     const int commandCount = mCommands.size();
     for (int i=0; i<commandCount; ++i) {
         RCCommand *cmd = mCommands.at(i);
         debug() << "running command " << cmd->description();
-        const int timeoutId = (mTimeout ? loop.addTimer(mTimeout, ::timeout, &loop) : -1);
         ret = cmd->exec(this, &client);
-        if (timeoutId != -1)
-            loop.removeTimer(timeoutId);
         delete cmd;
-        if (!ret)
+        if (!ret) {
+            while (++i < commandCount)
+                delete mCommands.at(i);
             break;
+        }
     }
     mCommands.clear();
     return ret;
@@ -253,7 +252,6 @@ enum OptionType {
     None = 0,
     AbsolutePath,
     AllReferences,
-    AutostartRdm,
     Builds,
     Clear,
     CodeComplete,
@@ -304,7 +302,6 @@ enum OptionType {
     ReloadFileManager,
     ReloadProjects,
     RemoveFile,
-    RestartRdm,
     ReverseSort,
     Silent,
     StripParen,
@@ -337,9 +334,7 @@ struct Option opts[] = {
     { None, 0, 0, 0, "" },
     { None, 0, 0, 0, "Rdm:" },
     { QuitRdm, "quit-rdm", 'q', no_argument, "Tell server to shut down." },
-    { RestartRdm, "restart-rdm", 0, optional_argument, "Restart rdm [args] before doing the rest of the commands." },
-    { AutostartRdm, "autostart-rdm", 'a', optional_argument, "Output elisp: (list \"one\" \"two\" ...)." },
-    { ConnectTimeout, "connect-timeout", 0, required_argument, "Timeout for connecting to rdm in ms (default 5000)." },
+    { ConnectTimeout, "connect-timeout", 0, required_argument, "Timeout for connecting to rdm in ms (default 1000)." },
 
     { None, 0, 0, 0, "" },
     { None, 0, 0, 0, "Project management:" },
@@ -566,11 +561,6 @@ bool RClient::parse(int &argc, char **argv)
         case CursorInfoIncludeReferences:
             mQueryFlags |= QueryMessage::CursorInfoIncludeReferences;
             break;
-        case AutostartRdm:
-            mClientFlags |= Client::AutostartRdm;
-            if (optarg)
-                mRdmArgs = String(optarg, strlen(optarg)).split(' ');
-            break;
         case CodeComplete:
             logFile = "/tmp/rc.log";
             mCommands.append(new CompletionCommand);
@@ -597,11 +587,6 @@ bool RClient::parse(int &argc, char **argv)
             CompletionCommand *cmd = new CompletionCommand(path, atoi(caps[2].capture.constData()), atoi(caps[3].capture.constData()));
             mCommands.append(cmd);
             break; }
-        case RestartRdm:
-            mClientFlags |= Client::RestartRdm;
-            if (optarg)
-                mRdmArgs = String(optarg, strlen(optarg)).split(' ');
-            break;
         case AllReferences:
             mQueryFlags |= QueryMessage::AllReferences;
             break;
@@ -920,7 +905,7 @@ bool RClient::parse(int &argc, char **argv)
     }
 
 
-    if (mCommands.isEmpty() && !(mClientFlags & (Client::RestartRdm|Client::AutostartRdm))) {
+    if (mCommands.isEmpty()) {
         help(stderr, argv[0]);
         return false;
     }

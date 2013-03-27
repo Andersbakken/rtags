@@ -31,7 +31,6 @@ public:
     String socketFile() const { return mSocketFile; }
 
     unsigned queryFlags() const { return mQueryFlags; }
-    unsigned clientFlags() const { return mClientFlags; }
 
     int argc() const { return mArgc; }
     char **argv() const { return mArgv; }
@@ -41,7 +40,7 @@ private:
     void addLog(int level);
     void addCompile(const Path &cwd, const String &args);
 
-    unsigned mQueryFlags, mClientFlags;
+    unsigned mQueryFlags;
     int mMax, mLogLevel, mTimeout, mMinOffset, mMaxOffset, mConnectTimeout;
     Set<String> mPathFilters;
     Map<Path, String> mUnsavedFiles;

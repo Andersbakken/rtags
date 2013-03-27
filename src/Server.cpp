@@ -73,7 +73,7 @@ void Server::clear()
 
 bool Server::init(const Options &options)
 {
-    Client::initMessages();
+    RTags::initMessages();
 
     mIndexerThreadPool = new ThreadPool(options.threadCount, options.clangStackSize);
 
@@ -109,9 +109,11 @@ bool Server::init(const Options &options)
         mServer = 0;
         if (!i) {
             enum { Timeout = 1000 };
-            Client client(mOptions.socketFile, Timeout, Client::DontWarnOnConnectionFailure);
-            QueryMessage msg(QueryMessage::Shutdown);
-            client.message(&msg);
+            Client client;
+            if (client.connectToServer(mOptions.socketFile, Timeout)) {
+                QueryMessage msg(QueryMessage::Shutdown);
+                client.send(&msg, Timeout);
+            }
         }
         sleep(1);
         Path::rm(mOptions.socketFile);

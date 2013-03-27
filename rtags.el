@@ -189,8 +189,6 @@
                                    arguments))
         (if rc
             (progn
-              (if rtags-autostart-rdm
-                  (push (if rtags-rdm-log-enabled "--autostart-rdm=-L/tmp/rdm.log" "--autostart-rdm") arguments))
               (if rtags-path-filter
                   (progn
                     (push (format "--path-filter=%s" rtags-path-filter) arguments)
@@ -663,17 +661,6 @@ return t if rtags is allowed to modify this file"
   "If t, log rc commands and responses"
   :group 'rtags
   :type 'boolean)
-
-(defcustom rtags-rdm-log-enabled nil
-  "If t, log for autostarted rdm"
-  :group 'rtags
-  :type 'boolean)
-
-(defcustom rtags-autostart-rdm nil
-  "If autostart rdm"
-  :group 'rtags
-  :type 'boolean)
-
 
 (defun rtags-enable-standard-keybindings (&optional map)
   (interactive)
@@ -1445,11 +1432,7 @@ References to references will be treated as references to the referenced symbol"
               ((eq (process-status rtags-diagnostics-process) 'signal) t)
               (t nil))
         (let ((process-connection-type nil)) ;; use a pipe
-          (setq rtags-diagnostics-process
-                (if rtags-autostart-rdm
-                    (start-process "RTags Diagnostics" buf (rtags-executable-find "rc") "-m"
-                                   (if rtags-rdm-log-enabled "--autostart-rdm=-L/tmp/rdm.log" "--autostart-rdm"))
-                  (start-process "RTags Diagnostics" buf (rtags-executable-find "rc") "-m")))
+          (setq rtags-diagnostics-process (start-process "RTags Diagnostics" buf (rtags-executable-find "rc") "-m"))
           (set-process-filter rtags-diagnostics-process (function rtags-diagnostics-process-filter))
           (rtags-clear-diagnostics))
       )

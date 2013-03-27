@@ -8,6 +8,7 @@
 #include <fnmatch.h>
 #include <sys/types.h>
 #include <rct/Rct.h>
+#include <rct/Messages.h>
 #ifdef OS_FreeBSD
 #include <sys/sysctl.h>
 #endif
@@ -384,6 +385,14 @@ String filterPreprocessor(const Path &path)
     }
 
     return ret;
+}
+
+void initMessages()
+{
+    Messages::registerMessage<QueryMessage>();
+    Messages::registerMessage<CompletionMessage>();
+    Messages::registerMessage<CompileMessage>();
+    Messages::registerMessage<CreateOutputMessage>();
 }
 
 }

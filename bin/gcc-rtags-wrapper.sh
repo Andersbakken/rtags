@@ -11,10 +11,11 @@ for i in `which -a "\`basename $0\`"`; do
     if [ `basename $resolved` != "gcc-rtags-wrapper.sh" ]; then
         if [ -z "$RTAGS_DISABLED" ] && [ -x "$rc" ]; then
             if [ "$RTAGS_SERVER_FILE" ]; then
-                $rc -n "$RTAGS_SERVER_FILE" --silent --compile "$i" "$@" &
+                $rc --timeout=3000 -n "$RTAGS_SERVER_FILE" --silent --compile "$i" "$@" &
             else
-                $rc --silent --compile "$i" "$@" &
+                $rc --timeout=3000 --silent --compile "$i" "$@" &
             fi
+            disown
         fi
         [ "$RTAGS_RMAKE" ] && exit 0
         "$i" "$@"
