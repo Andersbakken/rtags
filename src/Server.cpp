@@ -286,7 +286,7 @@ void Server::handleCompileMessage(CompileMessage *message, Connection *conn)
             if (!mCurrentProject.lock())
                 mCurrentProject = project;
 
-            project->index(path);
+            project->index(path.resolved());
         }
     } else {
         shared_ptr<CompileJob> job(new CompileJob(*message));
