@@ -168,7 +168,6 @@ static inline CursorType cursorType(uint16_t kind)
         return Reference;
     case CursorInfo::JSVariable:
     case CursorInfo::JSFunction:
-    case CursorInfo::JSWeakVariable:
         return Cursor;
     case CXCursor_InclusionDirective:
         return Include;

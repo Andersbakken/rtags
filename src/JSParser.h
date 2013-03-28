@@ -24,7 +24,7 @@ public:
                String *json = 0);
 private:
     bool recurseObject(v8::Handle<v8::Object> object, const char *name);
-    void handleIdentifier(v8::Handle<v8::Object> object);
+    void handleIdentifier(v8::Handle<v8::Object> object, bool function);
 
     v8::Persistent<v8::Context> mContext;
     v8::Persistent<v8::Object> mEsprima;

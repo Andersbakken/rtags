@@ -4,7 +4,6 @@
 const char *jsKindNames[] = {
     "JSInvalid",
     "JSVariable",
-    "JSWeakVariable",
     "JSFunction",
     "JSReference"
 };

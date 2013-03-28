@@ -3,6 +3,8 @@
 #include <rct/Mutex.h>
 #include <rct/MutexLocker.h>
 
+#define toCString(str) *v8::String::Utf8Value(str)
+
 v8::Handle<v8::String> toJSON(v8::Handle<v8::Value> obj)
 {
     v8::HandleScope scope;
@@ -66,7 +68,8 @@ static v8::Handle<T> get(v8::Handle<v8::Array> object, int index)
 
 static inline bool operator==(v8::Handle<v8::String> l, const char *r)
 {
-    return l.IsEmpty() ? (!r || !strlen(r)) : !strcmp(*v8::String::Utf8Value(l), r);
+    error() << "comparing" << (l.IsEmpty() ? "empty" : toCString(l)) << r;
+    return l.IsEmpty() ? (!r || !strlen(r)) : !strcmp(toCString(l), r);
 }
 
 static inline bool operator==(const char *l, v8::Handle<v8::String> r)
@@ -83,8 +86,6 @@ static inline bool operator!=(v8::Handle<v8::String> l, const char *r)
 {
     return !operator==(l, r);
 }
-
-#define toCString(str) *v8::String::Utf8Value(str)
 
 JSParser::~JSParser()
 {
@@ -182,29 +183,7 @@ bool JSParser::parse(const Path &path, const String &contents, SymbolMap *symbol
     return true;
 }
 
-// bool JSParser::visit(v8::Handle<v8::Object> object)
-// {
-//     assert(!object.IsEmpty());
-//     // v8::Handle<v8::Value> b = parse->Get(v8::String::New("body"));
-//     // printf("isnull %d\n", b.IsEmpty());
-//     // printf("foo[%s]\n", toCString(toJSON(b)));
-
-//     v8::Handle<v8::Array> body = get<v8::Array>(object, "body");
-//     if (body.IsEmpty()) {
-//         return false;
-//     }
-
-//     mScope.append(Map<String, uint32_t>());
-//     for (unsigned i=0; i<body->Length(); ++i) {
-//         if (!visitBlock(get<v8::Object>(body, i), NoFlag)) {
-//             error("Invalid body element at index %d", i);
-//         }
-//     }
-//     mScope.removeLast();
-//     return true;
-// }
-
-void JSParser::handleIdentifier(v8::Handle<v8::Object> object)
+void JSParser::handleIdentifier(v8::Handle<v8::Object> object, bool function)
 {
     v8::Handle<v8::String> name = get<v8::String>(object, "name");
     v8::Handle<v8::Array> range = get<v8::Array>(object, "range");
@@ -212,264 +191,76 @@ void JSParser::handleIdentifier(v8::Handle<v8::Object> object)
     const uint32_t offset = get<v8::Integer>(range, 0)->Value();
     const uint32_t length = get<v8::Integer>(range, 1)->Value() - offset;
     CursorInfo c;
-    for (int i=0; i<mParents.size(); ++i) {
-        c.symbolName += mParents.at(i);
-        c.symbolName += '.';
-    }
-
     const Location loc(mFileId, offset);
-    c.symbolName += String(toCString(name), name->Length());
-    error() << "got identifier" << c.symbolName;
-    const String key = mParents.isEmpty() ? c.symbolName : c.symbolName.right(name->Length());
-    c.kind = CursorInfo::JSVariable;
+    c.symbolName = String(toCString(name), name->Length());
     c.symbolLength = length;
-    for (int i=mScope.size() - 1; i>=0; --i) {
-        uint32_t targetOffset = mScope.at(i).value(key, UINT_MAX);
-        error() << "looking for" << key << "in" << i << mScope.at(i).keys() << (targetOffset != UINT_MAX);
-        if (targetOffset != UINT_MAX) {
-            const Location target(mFileId, targetOffset);
-            c.targets.insert(target);
-            if (mSymbols) {
-                assert(mSymbols->contains(target));
-                (*mSymbols)[target].references.insert(loc);
+    error() << "Got function" << c.symbolName << function;
+    if (function) {
+        c.kind = CursorInfo::JSFunction;
+    } else {
+        c.kind = CursorInfo::JSVariable;
+        for (int i=mScope.size() - 1; i>=0; --i) {
+            uint32_t targetOffset = mScope.at(i).value(c.symbolName, UINT_MAX);
+            // error() << "looking for" << c.symbolName << "in" << i << mScope.at(i).keys() << (targetOffset != UINT_MAX);
+            if (targetOffset != UINT_MAX) {
+                const Location target(mFileId, targetOffset);
+                c.targets.insert(target);
+                if (mSymbols) {
+                    assert(mSymbols->contains(target));
+                    (*mSymbols)[target].references.insert(loc);
+                }
+                c.kind = CursorInfo::JSReference;
+                break;
             }
-            c.kind = CursorInfo::JSReference;
-            break;
         }
     }
     if (mSymbols)
         (*mSymbols)[loc] = c;
     // error() << "adding" << c << "at" << offset << "scope" << mScope.last().keys();
-    if (c.kind != CursorInfo::JSReference) {
-        mScope.last()[key] = offset;
-        error() << "Adding" << key << offset;
-        if (mSymbolNames)
-            (*mSymbolNames)[c.symbolName].insert(loc);
+    for (int i=mParents.size(); i>=0; --i) {
+        if (i < mParents.size()) {
+            c.symbolName.prepend(mParents.at(i) + '.');
+        } else if (c.kind != CursorInfo::JSReference) {
+            mScope.last()[c.symbolName] = offset;
+        }
+        if (c.kind != CursorInfo::JSReference) {
+            if (mSymbolNames)
+                (*mSymbolNames)[c.symbolName].insert(loc);
+        }
     }
 }
-
-int indent = 0;
 
 bool JSParser::recurseObject(v8::Handle<v8::Object> object, const char *name)
 {
     if (object.IsEmpty())
         return false;
     bool popScope = false;
-    if (!strcmp(name, "body")) {
+    if (name && !strcmp(name, "body")) {
         popScope = true;
         mScope.append(Map<String, uint32_t>());
     }
-    
-    assert(object->IsObject());
-
-    for (int i=0; i<indent; ++i) {
-        printf("  ");
-    }
-    printf("%s\n", name);
-
-    ++indent;
-
     if (object->IsArray()) {
         v8::Handle<v8::Array> array = v8::Handle<v8::Array>::Cast(object);
         for (unsigned i=0; i<array->Length(); ++i) {
             recurseObject(get<v8::Object>(array, i), 0);
         }
     } else if (object->IsObject()) {
-        v8::Handle<v8::String> type = get<v8::String>(object, "type");
-        if (type->IsString() && type == "Identifier") {
-            handleIdentifier(object);
-        } else {
-            v8::Handle<v8::Array> props = object->GetOwnPropertyNames();
-            assert(!props.IsEmpty());
-            for (unsigned i=0; i<props->Length(); ++i) {
-                v8::Handle<v8::String> prop = get<v8::String>(props, i);
-                recurseObject(get<v8::Object>(object, prop), toCString(prop));
+        v8::Handle<v8::Array> props = object->GetOwnPropertyNames();
+        assert(!props.IsEmpty());
+        for (unsigned i=0; i<props->Length(); ++i) {
+            v8::Handle<v8::String> prop = get<v8::String>(props, i);
+            v8::Handle<v8::Object> sub = get<v8::Object>(object, prop);
+            if (!sub.IsEmpty() && sub->IsObject()) {
+                if (get<v8::String>(sub, "type") == "Identifier") {
+                    handleIdentifier(sub, get<v8::String>(object, "type") == "FunctionDeclaration");
+                } else {
+                    recurseObject(sub, toCString(prop));
+                }
             }
         }
     }
-    --indent;
     if (popScope)
         mScope.removeLast();
 
     return true;
 }
-
-// bool JSParser::visitIdentifier(v8::Handle<v8::Object> identifier, CursorInfo::JSCursorKind kind)
-// {
-//     if (identifier.IsEmpty() || !identifier->IsObject()) {
-//         printf("[%s] %s:%d: if (identifier.IsEmpty() || !identifier->IsObject()) { [after]\n", __func__, __FILE__, __LINE__);
-//         return false;
-//     }
-//     // v8::Handle<v8::Array> props = identifier->GetOwnPropertyNames();
-//     // for (unsigned i=0; i<props->Length(); ++i) {
-//     //     v8::Handle<v8::String> str = get<v8::String>(props, i);
-//     //     error() << "prop" << i << *v8::String::Utf8Value(str);
-//     // }
-
-//     v8::Handle<v8::String> name = get<v8::String>(identifier, "name");
-//     v8::Handle<v8::Array> range = get<v8::Array>(identifier, "range");
-//     assert(!range.IsEmpty() && range->Length() == 2);
-//     const uint32_t offset = get<v8::Integer>(range, 0)->Value();
-//     const uint32_t length = get<v8::Integer>(range, 1)->Value() - offset;
-//     CursorInfo c;
-//     c.kind = kind;
-//     for (int i=0; i<mParents.size(); ++i) {
-//         c.symbolName += mParents.at(i);
-//         c.symbolName += '.';
-//     }
-
-//     const Location loc(mFileId, offset);
-//     c.symbolName += String(toCString(name), name->Length());
-//     const String key = mParents.isEmpty() ? c.symbolName : c.symbolName.right(name->Length());
-//     if (c.kind == CursorInfo::JSReference || c.kind == CursorInfo::JSWeakVariable) {
-//         for (int i=mScope.size() - 1; i>=0; --i) {
-//             uint32_t targetOffset = mScope.at(i).value(key, UINT_MAX);
-//             // error() << "looking for" << key << "in" << i << mScope.at(i).keys()
-//             //         << (targetOffset == UINT_MAX);
-//             if (targetOffset != UINT_MAX) {
-//                 const Location target(mFileId, targetOffset);
-//                 c.targets.insert(target);
-//                 if (mSymbols) {
-//                     assert(mSymbols->contains(target));
-//                     (*mSymbols)[target].references.insert(loc);
-//                 }
-//                 if (c.kind == CursorInfo::JSWeakVariable) {
-//                     c.kind = CursorInfo::JSReference;
-//                 }
-//                 break;
-//             }
-//         }
-//     }
-
-//     for (int i=0; i<indent; ++i) {
-//         printf("  ");
-//     }
-//     printf("identifier: %s %d %d (%d)\n", c.symbolName.constData(), length, c.kind, kind);
-//     c.symbolLength = length;
-//     if (mSymbols) {
-//         (*mSymbols)[loc] = c;
-//     }
-//     // error() << "adding" << c << "at" << offset << "scope" << mScope.last().keys();
-//     if (c.kind != CursorInfo::JSReference) {
-//         mScope.last()[key] = offset;
-//         if (mSymbolNames)
-//             (*mSymbolNames)[c.symbolName].insert(loc);
-//     }
-//     return true;
-// }
-
-// bool JSParser::visitBlock(v8::Handle<v8::Object> object, unsigned flags)
-// {
-//     v8::HandleScope handleScope;
-//     if (object.IsEmpty() || !object->IsObject())
-//         return false;
-//     assert(object->IsObject());
-
-//     v8::Handle<v8::String> type = get<v8::String>(object, "type");
-//     for (int i=0; i<indent; ++i) {
-//         printf("  ");
-//     }
-//     printf("%s\n", toCString(type));
-
-//     assert(!type.IsEmpty());
-//     if (type == "FunctionDeclaration") {
-//         visitIdentifier(get<v8::Object>(object, "id"), CursorInfo::JSFunction);
-//     } else if (type == "VariableDeclaration") {
-//         v8::Handle<v8::Array> declarations = get<v8::Array>(object, "declarations");
-//         if (!declarations.IsEmpty() && declarations->IsArray()) {
-//             for (unsigned i=0; i<declarations->Length(); ++i) {
-//                 v8::Handle<v8::Object> declarator = get<v8::Object>(declarations, i);
-//                 if (get<v8::String>(declarator, "type") == "VariableDeclarator") {
-//                     visitIdentifier(get<v8::Object>(declarator, "id"), CursorInfo::JSVariable);
-//                     ++indent;
-//                     visitBlock(get<v8::Object>(declarator, "init"), flags);
-//                     --indent;
-//                 }
-//             }
-//         }
-//     } else if (type == "Identifier") {
-//         visitIdentifier(object, flags & TreatRefsAsWeakVariables ? CursorInfo::JSWeakVariable : CursorInfo::JSReference);
-//     } else {
-//         bool popObjectScope = false;
-//         unsigned f = flags;
-//         const char *sub = 0;
-//         if (type == "MemberExpression") {
-//             sub = "object";
-//         } else if (type == "AssignmentExpression") {
-//             sub = "left";
-//         }
-//         if (sub) {
-//             v8::Handle<v8::Object> obj = get<v8::Object>(object, sub);
-//             if (!obj.IsEmpty() && obj->IsObject()) {
-//                 v8::Handle<v8::String> objName = get<v8::String>(obj, "name");
-//                 if (objName.IsEmpty() || !objName->IsString()) {
-//                     printf("[%s] %s:%d: if (objName.IsEmpty() || objName->IsString()) { [after]\n", __func__, __FILE__, __LINE__);
-//                     v8::Handle<v8::Object> o = get<v8::Object>(obj, "object");
-//                     if (o->IsObject()) {
-//                         printf("[%s] %s:%d: if (o->IsString()) { [after]\n", __func__, __FILE__, __LINE__);
-//                         objName = get<v8::String>(o, "name");
-//                         error() << toCString(objName);
-//                     }
-//                 }
-//                 // objName = get<v8::String>(get<v8::Object>(obj, "object"), "name");
-//                 if (!objName.IsEmpty() && objName->IsString()) {
-//                     visitIdentifier(obj, CursorInfo::JSWeakVariable);
-//                     mParents.append(String(toCString(objName), objName->Length()));
-//                     // error() << "Adding a parent" << mParents;
-//                     popObjectScope = true;
-//                     f |= TreatRefsAsWeakVariables;
-//                 } else {
-//                     error() << "no name for" << sub << toCString(type)
-//                             << toCString(toJSON(obj));
-//                 }
-//             } else {
-//                 error() << "no object for" << sub << toCString(type);
-//             }
-//             v8::Handle<v8::Object> property = get<v8::Object>(object, "property");
-//             if (!property.IsEmpty() && property->IsObject()) {
-//                 error() << "visiting things" << toCString(toJSON(property));
-//                 visitIdentifier(property, CursorInfo::JSReference);
-//             }
-//         }
-
-//         v8::Handle<v8::Array> properties = object->GetOwnPropertyNames();
-//         if (!properties.IsEmpty() && properties->IsArray()) {
-//             for (unsigned i=0; i<properties->Length(); ++i) {
-//                 v8::Handle<v8::String> property = get<v8::String>(properties, i);
-//                 // error() << "visiting" << toCString(property);
-//                 if (property != "type"
-//                     && property != "body"
-//                     && property != "Identifier"
-//                     && (!sub || property != sub)) {
-//                     // error() << "Visiting a block" << toCString(property);
-//                     ++indent;
-//                     visitBlock(get<v8::Object>(object, toCString(property)), f);
-//                     --indent;
-//                 }
-//             }
-//         }
-//         if (popObjectScope)
-//             mParents.removeLast();
-//     }
-//     v8::Handle<v8::Value> bodyValue = object->Get(v8::String::New("body"));
-//     if (!bodyValue.IsEmpty()) {
-//         mScope.append(Map<String, uint32_t>());
-//         if (bodyValue->IsArray()) {
-//             v8::Handle<v8::Array> body = v8::Handle<v8::Array>::Cast(bodyValue);
-//             for (unsigned i=0; i<body->Length(); ++i) {
-//                 visitBlock(get<v8::Object>(body, i), flags);
-//             }
-//         } else if (bodyValue->IsObject()) {
-//             v8::Handle<v8::Object> body = v8::Handle<v8::Object>::Cast(bodyValue);
-//             v8::Handle<v8::Array> properties = body->GetOwnPropertyNames();
-//             if (!properties.IsEmpty() && properties->IsArray()) {
-//                 for (unsigned i=0; i<properties->Length(); ++i) {
-//                     v8::Handle<v8::String> property = get<v8::String>(properties, i);
-//                     visitBlock(get<v8::Object>(body, property), flags);
-//                 }
-//             }
-//         }
-//         mScope.removeLast();
-//     }
-//     return true;
-// }

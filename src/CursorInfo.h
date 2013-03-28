@@ -16,11 +16,10 @@ public:
     enum JSCursorKind {
         JSInvalid = 10000,
         JSVariable,
-        JSWeakVariable,
         JSFunction,
         JSReference
     };
-    
+
     CursorInfo()
         : symbolLength(0), kind(CXCursor_FirstInvalid), type(CXType_Invalid), enumValue(0), start(-1), end(-1)
     {}

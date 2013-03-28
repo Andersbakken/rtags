@@ -17,3 +17,4 @@ gr
 /src/esprima/
 /.gdb_brestore
 /.gdb_brestore.txt
+/src/include/rct/rct-config.h
