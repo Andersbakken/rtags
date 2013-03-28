@@ -189,9 +189,12 @@ bool JSParser::visit(v8::Handle<v8::Object> object)
     return true;
 }
 
+int indent = 0;
+
 bool JSParser::visitIdentifier(v8::Handle<v8::Object> identifier, CursorInfo::JSCursorKind kind)
 {
     if (identifier.IsEmpty() || !identifier->IsObject()) {
+        printf("[%s] %s:%d: if (identifier.IsEmpty() || !identifier->IsObject()) { [after]\n", __func__, __FILE__, __LINE__);
         return false;
     }
     // v8::Handle<v8::Array> props = identifier->GetOwnPropertyNames();
@@ -234,6 +237,11 @@ bool JSParser::visitIdentifier(v8::Handle<v8::Object> identifier, CursorInfo::JS
             }
         }
     }
+
+    for (int i=0; i<indent; ++i) {
+        printf("  ");
+    }
+    printf("identifier: %s %d %d (%d)\n", c.symbolName.constData(), length, c.kind, kind);
     c.symbolLength = length;
     if (mSymbols) {
         (*mSymbols)[loc] = c;
@@ -255,7 +263,11 @@ bool JSParser::visitBlock(v8::Handle<v8::Object> object, unsigned flags)
     assert(object->IsObject());
 
     v8::Handle<v8::String> type = get<v8::String>(object, "type");
-    // error() << "visitBlock" << toCString(toJSON(object));
+    for (int i=0; i<indent; ++i) {
+        printf("  ");
+    }
+    printf("%s\n", toCString(type));
+    
     assert(!type.IsEmpty());
     if (type == "FunctionDeclaration") {
         visitIdentifier(get<v8::Object>(object, "id"), CursorInfo::JSFunction);
@@ -266,7 +278,9 @@ bool JSParser::visitBlock(v8::Handle<v8::Object> object, unsigned flags)
                 v8::Handle<v8::Object> declarator = get<v8::Object>(declarations, i);
                 if (get<v8::String>(declarator, "type") == "VariableDeclarator") {
                     visitIdentifier(get<v8::Object>(declarator, "id"), CursorInfo::JSVariable);
+                    ++indent;
                     visitBlock(get<v8::Object>(declarator, "init"), flags);
+                    --indent;
                 }
             }
         }
@@ -285,13 +299,28 @@ bool JSParser::visitBlock(v8::Handle<v8::Object> object, unsigned flags)
             v8::Handle<v8::Object> obj = get<v8::Object>(object, sub);
             if (!obj.IsEmpty() && obj->IsObject()) {
                 v8::Handle<v8::String> objName = get<v8::String>(obj, "name");
+                if (objName.IsEmpty() || !objName->IsString()) {
+                    printf("[%s] %s:%d: if (objName.IsEmpty() || objName->IsString()) { [after]\n", __func__, __FILE__, __LINE__);
+                    v8::Handle<v8::Object> o = get<v8::Object>(obj, "object");
+                    if (o->IsObject()) {
+                        printf("[%s] %s:%d: if (o->IsString()) { [after]\n", __func__, __FILE__, __LINE__);
+                        objName = get<v8::String>(o, "name");
+                        error() << toCString(objName);
+                    }
+                }
+                // objName = get<v8::String>(get<v8::Object>(obj, "object"), "name");
                 if (!objName.IsEmpty() && objName->IsString()) {
                     visitIdentifier(obj, CursorInfo::JSWeakVariable);
                     mParents.append(String(toCString(objName), objName->Length()));
                     // error() << "Adding a parent" << mParents;
                     popObjectScope = true;
                     f |= TreatRefsAsWeakVariables;
+                } else {
+                    error() << "no name for" << sub << toCString(type)
+                            << toCString(toJSON(obj));
                 }
+            } else {
+                error() << "no object for" << sub << toCString(type);
             }
             v8::Handle<v8::Object> property = get<v8::Object>(object, "property");
             if (!property.IsEmpty() && property->IsObject()) {
@@ -310,7 +339,9 @@ bool JSParser::visitBlock(v8::Handle<v8::Object> object, unsigned flags)
                     && property != "Identifier"
                     && (!sub || property != sub)) {
                     // error() << "Visiting a block" << toCString(property);
+                    ++indent;
                     visitBlock(get<v8::Object>(object, toCString(property)), f);
+                    --indent;
                 }
             }
         }
