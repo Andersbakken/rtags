@@ -23,8 +23,17 @@ public:
                String *errors,
                String *json = 0);
 private:
-    bool recurseObject(v8::Handle<v8::Object> object, const char *name);
-    void handleIdentifier(v8::Handle<v8::Object> object, bool function);
+    enum { None = 0x0 };
+    enum RecurseFlag {
+        AssignmentExpression = 0x1,
+        VariableDeclarator = 0x2
+    };
+    bool recurseObject(v8::Handle<v8::Object> object, const char *name, unsigned flags);
+    enum IdentifierFlag {
+        FunctionDeclaration = 0x1,
+        AddToParents = 0x2
+    };
+    void handleIdentifier(v8::Handle<v8::Object> object, unsigned flags);
 
     v8::Persistent<v8::Context> mContext;
     v8::Persistent<v8::Object> mEsprima;

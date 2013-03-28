@@ -26,6 +26,8 @@ v8::Handle<v8::String> toJSON(v8::Handle<v8::Value> obj)
 template <typename T>
 static v8::Handle<T> get(v8::Handle<v8::Object> object, v8::Handle<v8::String> property)
 {
+    if (object.IsEmpty() || !object->IsObject())
+        return v8::Handle<T>();
     v8::HandleScope scope;
     v8::Handle<v8::Value> prop(object->Get(property));
     if (prop.IsEmpty() || prop->IsNull() || prop->IsUndefined()) {
@@ -57,6 +59,8 @@ static v8::Persistent<T> getPersistent(v8::Handle<v8::Object> object, const char
 template <typename T>
 static v8::Handle<T> get(v8::Handle<v8::Array> object, int index)
 {
+    if (object.IsEmpty() || !object->IsArray())
+        return v8::Handle<T>();
     v8::HandleScope scope;
     v8::Handle<v8::Value> prop = object->Get(index);
     if (prop.IsEmpty() || prop->IsNull() || prop->IsUndefined()) {
@@ -68,7 +72,7 @@ static v8::Handle<T> get(v8::Handle<v8::Array> object, int index)
 
 static inline bool operator==(v8::Handle<v8::String> l, const char *r)
 {
-    error() << "comparing" << (l.IsEmpty() ? "empty" : toCString(l)) << r;
+    // error() << "comparing" << (l.IsEmpty() ? "empty" : toCString(l)) << r;
     return l.IsEmpty() ? (!r || !strlen(r)) : !strcmp(toCString(l), r);
 }
 
@@ -167,7 +171,7 @@ bool JSParser::parse(const Path &path, const String &contents, SymbolMap *symbol
         if (json)
             *json = toCString(toJSON(result));
         mScope.append(Map<String, uint32_t>());
-        recurseObject(get<v8::Object>(result->ToObject(), "body"), "body");
+        recurseObject(get<v8::Object>(result->ToObject(), "body"), "body", None);
         mScope.removeLast();
     } else if (errors) {
         *errors = "Failed to parse";
@@ -183,7 +187,9 @@ bool JSParser::parse(const Path &path, const String &contents, SymbolMap *symbol
     return true;
 }
 
-void JSParser::handleIdentifier(v8::Handle<v8::Object> object, bool function)
+int indent = 0;
+
+void JSParser::handleIdentifier(v8::Handle<v8::Object> object, unsigned flags)
 {
     v8::Handle<v8::String> name = get<v8::String>(object, "name");
     v8::Handle<v8::Array> range = get<v8::Array>(object, "range");
@@ -194,8 +200,7 @@ void JSParser::handleIdentifier(v8::Handle<v8::Object> object, bool function)
     const Location loc(mFileId, offset);
     c.symbolName = String(toCString(name), name->Length());
     c.symbolLength = length;
-    error() << "Got function" << c.symbolName << function;
-    if (function) {
+    if (flags & FunctionDeclaration) {
         c.kind = CursorInfo::JSFunction;
     } else {
         c.kind = CursorInfo::JSVariable;
@@ -220,47 +225,84 @@ void JSParser::handleIdentifier(v8::Handle<v8::Object> object, bool function)
     for (int i=mParents.size(); i>=0; --i) {
         if (i < mParents.size()) {
             c.symbolName.prepend(mParents.at(i) + '.');
-        } else if (c.kind != CursorInfo::JSReference) {
-            mScope.last()[c.symbolName] = offset;
+        } else {
+            if (c.kind != CursorInfo::JSReference)
+                mScope.last()[c.symbolName] = offset;
+            if (flags & AddToParents)
+                mParents.append(c.symbolName);
         }
         if (c.kind != CursorInfo::JSReference) {
             if (mSymbolNames)
                 (*mSymbolNames)[c.symbolName].insert(loc);
         }
     }
+    for (int i=0; i<indent; ++i) {
+        printf("  ");
+    }
+    printf("adding symbol %s %s %s %d\n", c.symbolName.constData(), c.kindSpelling().constData(), loc.key().constData(), c.symbolLength);
 }
 
-bool JSParser::recurseObject(v8::Handle<v8::Object> object, const char *name)
+bool JSParser::recurseObject(v8::Handle<v8::Object> object, const char *name, unsigned flags)
 {
     if (object.IsEmpty())
         return false;
+    for (int i=0; i<indent; ++i) {
+        printf("  ");
+    }
+    v8::Handle<v8::String> type = get<v8::String>(object, "type");
+    printf("recursing %s%s\n", name ? name : "(unnamed)",
+           !type.IsEmpty() && type->IsString() ? String::format<64>(" type: %s", toCString(type)).constData() : "");
+
+    ++indent;
     bool popScope = false;
     if (name && !strcmp(name, "body")) {
         popScope = true;
+        // error() << "adding a scope";
         mScope.append(Map<String, uint32_t>());
     }
     if (object->IsArray()) {
         v8::Handle<v8::Array> array = v8::Handle<v8::Array>::Cast(object);
         for (unsigned i=0; i<array->Length(); ++i) {
-            recurseObject(get<v8::Object>(array, i), 0);
+            recurseObject(get<v8::Object>(array, i), 0, flags);
         }
     } else if (object->IsObject()) {
         v8::Handle<v8::Array> props = object->GetOwnPropertyNames();
         assert(!props.IsEmpty());
+        bool addToParent = false;
+        v8::Handle<v8::String> objectType = get<v8::String>(object, "type");
+        if (objectType == "AssignmentExpression") {
+            flags |= AssignmentExpression;
+        } else if (objectType == "VariableDeclarator") {
+            flags |= VariableDeclarator;
+        }
+        
         for (unsigned i=0; i<props->Length(); ++i) {
             v8::Handle<v8::String> prop = get<v8::String>(props, i);
             v8::Handle<v8::Object> sub = get<v8::Object>(object, prop);
             if (!sub.IsEmpty() && sub->IsObject()) {
                 if (get<v8::String>(sub, "type") == "Identifier") {
-                    handleIdentifier(sub, get<v8::String>(object, "type") == "FunctionDeclaration");
+                    unsigned identifierFlags = None;
+                    if (objectType == "FunctionDeclaration")
+                        identifierFlags |= FunctionDeclaration;
+                    if ((flags & AssignmentExpression && prop == "object") || (flags & VariableDeclarator && prop == "id")) {
+                        identifierFlags |= AddToParents;
+                        addToParent = true;
+                    }
+                    handleIdentifier(sub, identifierFlags);
                 } else {
-                    recurseObject(sub, toCString(prop));
+                    recurseObject(sub, toCString(prop), flags);
                 }
             }
+        }
+        if (addToParent) {
+            assert(!mParents.isEmpty());
+            mParents.removeLast();
         }
     }
     if (popScope)
         mScope.removeLast();
+
+    --indent;
 
     return true;
 }
