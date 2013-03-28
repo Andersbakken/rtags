@@ -99,13 +99,19 @@ JSParser::~JSParser()
     {
         const v8::Isolate::Scope isolateScope(mIsolate);
 #ifdef V8_DISPOSE_REQUIRES_ARG
-        mParse.Dispose(v8::Isolate::GetCurrent());
-        mEsprima.Dispose(v8::Isolate::GetCurrent());
-        mContext.Dispose(v8::Isolate::GetCurrent());
+        if (!mParse.IsEmpty())
+            mParse.Dispose(mIsolate);
+        if (!mEsprima.IsEmpty())
+            mEsprima.Dispose(mIsolate);
+        if (!mContext.IsEmpty())
+            mContext.Dispose(mIsolate);
 #else
-        mParse.Dispose();
-        mEsprima.Dispose();
-        mContext.Dispose();
+        if (!mParse.IsEmpty())
+            mParse.Dispose();
+        if (!mEsprima.IsEmpty())
+            mEsprima.Dispose();
+        if (!mContext.IsEmpty())
+            mContext.Dispose();
 #endif
     }
     mIsolate->Dispose();
@@ -155,6 +161,10 @@ bool JSParser::parse(const Path &path, const String &contents, SymbolMap *symbol
     if (contents.isEmpty())
         tmp = path.readAll();
     const String &c = contents.isEmpty() ? tmp : contents;
+    if (c.isEmpty()) {
+        printf("[%s] %s:%d: if (c.isEmpty()) { [after]\n", __func__, __FILE__, __LINE__);
+        return false;
+    }
     v8::Handle<v8::Value> args[2];
     // args[0] = v8::String::New(file.constData(), file.size());
     args[0] = v8::String::New(c.constData(), c.size());
@@ -162,6 +172,10 @@ bool JSParser::parse(const Path &path, const String &contents, SymbolMap *symbol
     options->Set(v8::String::New("range"), v8::Boolean::New(true));
     options->Set(v8::String::New("tolerant"), v8::Boolean::New(true));
     args[1] = options;
+    assert(!mEsprima.IsEmpty() && mEsprima->IsObject());
+    assert(!mParse.IsEmpty() && mParse->IsFunction());
+    assert(!args[0].IsEmpty() && args[0]->IsString());
+    assert(!args[1].IsEmpty() && args[1]->IsObject());
     v8::Handle<v8::Value> result = mParse->Call(mEsprima, 2, args);
 
     mSymbols = symbols;
@@ -191,6 +205,9 @@ int indent = 0;
 
 void JSParser::handleIdentifier(v8::Handle<v8::Object> object, unsigned flags)
 {
+    const v8::Isolate::Scope isolateScope(mIsolate);
+    v8::HandleScope handleScope;
+    v8::Context::Scope scope(mContext);
     v8::Handle<v8::String> name = get<v8::String>(object, "name");
     v8::Handle<v8::Array> range = get<v8::Array>(object, "range");
     assert(!range.IsEmpty() && range->Length() == 2);
@@ -212,7 +229,7 @@ void JSParser::handleIdentifier(v8::Handle<v8::Object> object, unsigned flags)
         c.kind = CursorInfo::JSVariable;
         for (int i=mScope.size() - 1; i>=0; --i) {
             uint32_t targetOffset = mScope.at(i).value(c.symbolName, UINT_MAX);
-            error() << "looking for" << c.symbolName << "in" << i << mScope.at(i).keys() << (targetOffset != UINT_MAX);
+            // error() << "looking for" << c.symbolName << "in" << i << mScope.at(i).keys() << (targetOffset != UINT_MAX);
             if (targetOffset != UINT_MAX) {
                 const Location target(mFileId, targetOffset);
                 c.targets.insert(target);
@@ -240,28 +257,28 @@ void JSParser::handleIdentifier(v8::Handle<v8::Object> object, unsigned flags)
             }
         }
 
-        error() << "adding" << c.symbolName << "to scope" << mScope.size() - 1;
+        // error() << "adding" << c.symbolName << "to scope" << mScope.size() - 1;
         mScope.last()[c.symbolName] = offset;
     }
     if (flags & AddToParents)  // ### ????, should this only happen for non-references?
         mParents.append(symbolName);
 
-    for (int i=0; i<indent; ++i) {
-        printf("  ");
-    }
-    printf("adding symbol %s %s %s %d\n", c.symbolName.constData(), c.kindSpelling().constData(), loc.key().constData(), c.symbolLength);
+    // for (int i=0; i<indent; ++i) {
+    //     printf("  ");
+    // }
+    // printf("adding symbol %s %s %s %d\n", c.symbolName.constData(), c.kindSpelling().constData(), loc.key().constData(), c.symbolLength);
 }
 
 bool JSParser::recurseObject(v8::Handle<v8::Object> object, const char *name, unsigned flags)
 {
     if (object.IsEmpty())
         return false;
-    for (int i=0; i<indent; ++i) {
-        printf("  ");
-    }
-    v8::Handle<v8::String> type = get<v8::String>(object, "type");
-    printf("recursing %s%s\n", name ? name : "(unnamed)",
-           !type.IsEmpty() && type->IsString() ? String::format<64>(" type: %s", toCString(type)).constData() : "");
+    // for (int i=0; i<indent; ++i) {
+    //     printf("  ");
+    // }
+    // v8::Handle<v8::String> type = get<v8::String>(object, "type");
+    // printf("recursing %s%s\n", name ? name : "(unnamed)",
+    // !type.IsEmpty() && type->IsString() ? String::format<64>(" type: %s", toCString(type)).constData() : "");
 
     ++indent;
     bool popScope = false;
