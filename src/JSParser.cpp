@@ -3,7 +3,7 @@
 #include <rct/Mutex.h>
 #include <rct/MutexLocker.h>
 
-v8::Handle<v8::String> toJson(v8::Handle<v8::Value> obj)
+v8::Handle<v8::String> toJSON(v8::Handle<v8::Value> obj)
 {
     v8::HandleScope scope;
 
@@ -150,7 +150,7 @@ bool JSParser::parse(const Path &path, const String &contents, SymbolMap *symbol
     mErrors = errors;
     if (!result.IsEmpty()) {
         if (json)
-            *json = toCString(toJson(result));
+            *json = toCString(toJSON(result));
 
         visit(result->ToObject());
     } else if (errors) {
@@ -172,7 +172,7 @@ bool JSParser::visit(v8::Handle<v8::Object> object)
     assert(!object.IsEmpty());
     // v8::Handle<v8::Value> b = parse->Get(v8::String::New("body"));
     // printf("isnull %d\n", b.IsEmpty());
-    // printf("foo[%s]\n", toCString(toJson(b)));
+    // printf("foo[%s]\n", toCString(toJSON(b)));
 
     v8::Handle<v8::Array> body = get<v8::Array>(object, "body");
     if (body.IsEmpty()) {
@@ -214,9 +214,12 @@ bool JSParser::visitIdentifier(v8::Handle<v8::Object> identifier, CursorInfo::JS
 
     const Location loc(mFileId, offset);
     c.symbolName += String(toCString(name), name->Length());
+    const String key = mParents.isEmpty() ? c.symbolName : c.symbolName.right(name->Length());
     if (c.kind == CursorInfo::JSReference || c.kind == CursorInfo::JSWeakVariable) {
         for (int i=mScope.size() - 1; i>=0; --i) {
-            uint32_t targetOffset = mScope.at(i).value(c.symbolName, UINT_MAX);
+            uint32_t targetOffset = mScope.at(i).value(key, UINT_MAX);
+            // error() << "looking for" << key << "in" << i << mScope.at(i).keys()
+            //         << (targetOffset == UINT_MAX);
             if (targetOffset != UINT_MAX) {
                 const Location target(mFileId, targetOffset);
                 c.targets.insert(target);
@@ -237,7 +240,7 @@ bool JSParser::visitIdentifier(v8::Handle<v8::Object> identifier, CursorInfo::JS
     }
     // error() << "adding" << c << "at" << offset << "scope" << mScope.last().keys();
     if (c.kind != CursorInfo::JSReference) {
-        mScope.last()[c.symbolName] = offset;
+        mScope.last()[key] = offset;
         if (mSymbolNames)
             (*mSymbolNames)[c.symbolName].insert(loc);
     }
@@ -252,7 +255,7 @@ bool JSParser::visitBlock(v8::Handle<v8::Object> object, unsigned flags)
     assert(object->IsObject());
 
     v8::Handle<v8::String> type = get<v8::String>(object, "type");
-    // error() << "visitBlock" << toCString(type);
+    // error() << "visitBlock" << toCString(toJSON(object));
     assert(!type.IsEmpty());
     if (type == "FunctionDeclaration") {
         visitIdentifier(get<v8::Object>(object, "id"), CursorInfo::JSFunction);
@@ -263,6 +266,7 @@ bool JSParser::visitBlock(v8::Handle<v8::Object> object, unsigned flags)
                 v8::Handle<v8::Object> declarator = get<v8::Object>(declarations, i);
                 if (get<v8::String>(declarator, "type") == "VariableDeclarator") {
                     visitIdentifier(get<v8::Object>(declarator, "id"), CursorInfo::JSVariable);
+                    visitBlock(get<v8::Object>(declarator, "init"), flags);
                 }
             }
         }
@@ -271,19 +275,29 @@ bool JSParser::visitBlock(v8::Handle<v8::Object> object, unsigned flags)
     } else {
         bool popObjectScope = false;
         unsigned f = flags;
+        const char *sub = 0;
         if (type == "MemberExpression") {
-            v8::Handle<v8::Object> obj = get<v8::Object>(object, "object");
+            sub = "object";
+        } else if (type == "AssignmentExpression") {
+            sub = "left";
+        }
+        if (sub) {
+            v8::Handle<v8::Object> obj = get<v8::Object>(object, sub);
             if (!obj.IsEmpty() && obj->IsObject()) {
                 v8::Handle<v8::String> objName = get<v8::String>(obj, "name");
                 if (!objName.IsEmpty() && objName->IsString()) {
-                    visitIdentifier(obj, flags & TreatRefsAsWeakVariables ? CursorInfo::JSWeakVariable : CursorInfo::JSReference);
+                    visitIdentifier(obj, CursorInfo::JSWeakVariable);
                     mParents.append(String(toCString(objName), objName->Length()));
+                    // error() << "Adding a parent" << mParents;
                     popObjectScope = true;
                     f |= TreatRefsAsWeakVariables;
                 }
             }
-        } else if (type == "AssignmentExpression") {
-            f |= TreatRefsAsWeakVariables;
+            v8::Handle<v8::Object> property = get<v8::Object>(object, "property");
+            if (!property.IsEmpty() && property->IsObject()) {
+                error() << "visiting things" << toCString(toJSON(property));
+                visitIdentifier(property, CursorInfo::JSReference);
+            }
         }
 
         v8::Handle<v8::Array> properties = object->GetOwnPropertyNames();
@@ -294,7 +308,8 @@ bool JSParser::visitBlock(v8::Handle<v8::Object> object, unsigned flags)
                 if (property != "type"
                     && property != "body"
                     && property != "Identifier"
-                    && (!popObjectScope || property != "object")) {
+                    && (!sub || property != sub)) {
+                    // error() << "Visiting a block" << toCString(property);
                     visitBlock(get<v8::Object>(object, toCString(property)), f);
                 }
             }

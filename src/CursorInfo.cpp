@@ -20,14 +20,14 @@ String CursorInfo::toString(unsigned cursorInfoFlags, unsigned keyFlags) const
 {
     String ret = String::format<1024>("SymbolName: %s\n"
                                       "Kind: %s\n"
-                                      "Type: %s\n"
+                                      "%s" // type
                                       "SymbolLength: %u\n"
                                       "%s" // range
                                       "%s" // enumValue
                                       "%s", // definition
                                       symbolName.constData(),
                                       kindSpelling().constData(),
-                                      RTags::eatString(clang_getTypeKindSpelling(type)).constData(),
+                                      kind >= JSInvalid ? "" : String::format<32>("Type: %s\n", RTags::eatString(clang_getTypeKindSpelling(type)).constData()).constData(),
                                       symbolLength,
                                       start != -1 && end != -1 ? String::format<32>("Range: %d-%d\n", start, end).constData() : "",
 #if CINDEX_VERSION_MINOR > 1
@@ -65,6 +65,11 @@ int CursorInfo::targetRank(const CursorInfo &target) const
         return 0;
     case CXCursor_FieldDecl:
     case CXCursor_VarDecl:
+    case CXCursor_FunctionDecl:
+    case CXCursor_CXXMethod:
+        // functiondecl and cxx method must be more than cxx
+        // CXCursor_FunctionTemplate. Since constructors for templatatized
+        // objects seem to come out as function templates
         return 3;
     case CXCursor_MacroDefinition:
         return 4;

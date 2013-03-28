@@ -1189,12 +1189,14 @@ void IndexerJob::executeJS()
         dump += "\n";
         {
             Log stream(&dump);
+            stream << "symbols:\n";
             for (Map<Location, CursorInfo>::const_iterator it = mData->symbols.begin(); it != mData->symbols.end(); ++it) {
-                stream << it->first << it->second;
+                stream << it->first << it->second << '\n';
             }
 
+            stream << "symbolnames:\n";
             for (Map<String, Set<Location> >::const_iterator it = mData->symbolNames.begin(); it != mData->symbolNames.end(); ++it) {
-                stream << it->first << it->second;
+                stream << it->first << it->second << '\n';
             }
 
             assert(id() != -1);

@@ -128,8 +128,8 @@ bool Project::restore()
             startDirtyJobs();
     }
 end:
-    fileManager->jsFilesChanged().connect(this, &Project::onJSFilesAdded);
-    onJSFilesAdded();
+    // fileManager->jsFilesChanged().connect(this, &Project::onJSFilesAdded);
+    // onJSFilesAdded();
     fclose(f);
     if (restoreError) {
         Path::rm(p);
