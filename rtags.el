@@ -174,6 +174,10 @@
     (if (and result (file-exists-p result))
         result)))
 
+(defun rtags-index-js-file ()
+  (interactive)
+  (if (buffer-file-name)
+      (rtags-call-rc (buffer-file-name) "--compile" (buffer-file-name))))
 
 (defun rtags-call-rc (path &rest arguments)
   (apply #'rtags-call-rc-helper path nil t arguments))
