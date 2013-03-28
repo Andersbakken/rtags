@@ -198,7 +198,13 @@ void JSParser::handleIdentifier(v8::Handle<v8::Object> object, unsigned flags)
     const uint32_t length = get<v8::Integer>(range, 1)->Value() - offset;
     CursorInfo c;
     const Location loc(mFileId, offset);
-    c.symbolName = String(toCString(name), name->Length());
+    const String symbolName(toCString(name), name->Length());
+    c.symbolName = String::join(mParents, '.');
+    if (c.symbolName.isEmpty()) {
+        c.symbolName = symbolName;
+    } else {
+        c.symbolName += '.' + symbolName;
+    }
     c.symbolLength = length;
     if (flags & FunctionDeclaration) {
         c.kind = CursorInfo::JSFunction;
@@ -206,7 +212,7 @@ void JSParser::handleIdentifier(v8::Handle<v8::Object> object, unsigned flags)
         c.kind = CursorInfo::JSVariable;
         for (int i=mScope.size() - 1; i>=0; --i) {
             uint32_t targetOffset = mScope.at(i).value(c.symbolName, UINT_MAX);
-            // error() << "looking for" << c.symbolName << "in" << i << mScope.at(i).keys() << (targetOffset != UINT_MAX);
+            error() << "looking for" << c.symbolName << "in" << i << mScope.at(i).keys() << (targetOffset != UINT_MAX);
             if (targetOffset != UINT_MAX) {
                 const Location target(mFileId, targetOffset);
                 c.targets.insert(target);
@@ -222,20 +228,24 @@ void JSParser::handleIdentifier(v8::Handle<v8::Object> object, unsigned flags)
     if (mSymbols)
         (*mSymbols)[loc] = c;
     // error() << "adding" << c << "at" << offset << "scope" << mScope.last().keys();
-    for (int i=mParents.size(); i>=0; --i) {
-        if (i < mParents.size()) {
-            c.symbolName.prepend(mParents.at(i) + '.');
-        } else {
-            if (c.kind != CursorInfo::JSReference)
-                mScope.last()[c.symbolName] = offset;
-            if (flags & AddToParents)
-                mParents.append(c.symbolName);
+    if (c.kind != CursorInfo::JSReference) {
+        if (mSymbolNames) {
+            (*mSymbolNames)[symbolName].insert(loc);
+            (*mSymbolNames)[c.symbolName].insert(loc);
+            int pos = c.symbolName.size() - (symbolName.size() + 1);
+            for (int i=mParents.size() - 1; i>0; --i) {
+                pos -= (mParents.at(i).size() + 1);
+                assert(pos > 0);
+                (*mSymbolNames)[c.symbolName.right(pos)].insert(loc);
+            }
         }
-        if (c.kind != CursorInfo::JSReference) {
-            if (mSymbolNames)
-                (*mSymbolNames)[c.symbolName].insert(loc);
-        }
+
+        error() << "adding" << c.symbolName << "to scope" << mScope.size() - 1;
+        mScope.last()[c.symbolName] = offset;
     }
+    if (flags & AddToParents)  // ### ????, should this only happen for non-references?
+        mParents.append(symbolName);
+
     for (int i=0; i<indent; ++i) {
         printf("  ");
     }
