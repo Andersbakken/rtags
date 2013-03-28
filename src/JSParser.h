@@ -23,9 +23,8 @@ public:
                String *errors,
                String *json = 0);
 private:
-    bool visit(v8::Handle<v8::Object> object);
-    bool visitIdentifier(v8::Handle<v8::Object> identifier, CursorInfo::JSCursorKind kind);
-    bool visitBlock(v8::Handle<v8::Object> object, unsigned flags);
+    bool recurseObject(v8::Handle<v8::Object> object, const char *name);
+    void handleIdentifier(v8::Handle<v8::Object> object);
 
     v8::Persistent<v8::Context> mContext;
     v8::Persistent<v8::Object> mEsprima;
