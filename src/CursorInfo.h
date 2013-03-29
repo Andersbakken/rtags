@@ -17,7 +17,8 @@ public:
         JSInvalid = 10000,
         JSVariable,
         JSFunction,
-        JSReference
+        JSReference,
+        JSWeakVariable
     };
 
     CursorInfo()

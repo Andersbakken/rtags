@@ -5,7 +5,9 @@ const char *jsKindNames[] = {
     "JSInvalid",
     "JSVariable",
     "JSFunction",
-    "JSReference"
+    "JSReference",
+    "JSWeakVariable",
+    0
 };
 
 String CursorInfo::kindSpelling(uint16_t kind)
