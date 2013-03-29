@@ -26,7 +26,8 @@ private:
     enum { None = 0x0 };
     enum RecurseFlag {
         AssignmentExpression = 0x1,
-        VariableDeclarator = 0x2
+        VariableDeclarator = 0x2,
+        MemberExpression = 0x4
     };
     bool recurseObject(v8::Handle<v8::Object> object, const char *name, unsigned flags);
     enum IdentifierFlag {

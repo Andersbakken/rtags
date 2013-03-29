@@ -244,7 +244,7 @@ void JSParser::handleIdentifier(v8::Handle<v8::Object> object, unsigned flags)
     }
     if (mSymbols)
         (*mSymbols)[loc] = c;
-    // error() << "adding" << c << "at" << offset << "scope" << mScope.last().keys();
+    error() << "getting a symbol" << c.symbolName << loc << (c.kind == CursorInfo::JSReference);
     if (c.kind != CursorInfo::JSReference) {
         if (mSymbolNames) {
             (*mSymbolNames)[symbolName].insert(loc);
@@ -258,6 +258,7 @@ void JSParser::handleIdentifier(v8::Handle<v8::Object> object, unsigned flags)
         }
 
         // error() << "adding" << c.symbolName << "to scope" << mScope.size() - 1;
+        error() << "adding" << c.symbolName << "at" << offset << "scope" << mScope.last().keys();
         mScope.last()[c.symbolName] = offset;
     }
     if (flags & AddToParents)  // ### ????, should this only happen for non-references?
@@ -279,12 +280,13 @@ bool JSParser::recurseObject(v8::Handle<v8::Object> object, const char *name, un
     // v8::Handle<v8::String> type = get<v8::String>(object, "type");
     // printf("recursing %s%s\n", name ? name : "(unnamed)",
     // !type.IsEmpty() && type->IsString() ? String::format<64>(" type: %s", toCString(type)).constData() : "");
+    // error() << "recurseObject" << name << (type.IsEmpty() ? "" : toCString(type))
 
     ++indent;
     bool popScope = false;
     if (name && !strcmp(name, "body")) {
         popScope = true;
-        // error() << "adding a scope";
+        error() << "adding a scope";
         mScope.append(Map<String, uint32_t>());
     }
     if (object->IsArray()) {
@@ -301,6 +303,8 @@ bool JSParser::recurseObject(v8::Handle<v8::Object> object, const char *name, un
             flags |= AssignmentExpression;
         } else if (objectType == "VariableDeclarator") {
             flags |= VariableDeclarator;
+        } else if (objectType == "MemberExpression") {
+            flags |= MemberExpression;
         }
         
         for (unsigned i=0; i<props->Length(); ++i) {
@@ -311,7 +315,8 @@ bool JSParser::recurseObject(v8::Handle<v8::Object> object, const char *name, un
                     unsigned identifierFlags = None;
                     if (objectType == "FunctionDeclaration")
                         identifierFlags |= FunctionDeclaration;
-                    if ((flags & AssignmentExpression && prop == "object") || (flags & VariableDeclarator && prop == "id")) {
+                    if ((flags & (AssignmentExpression|MemberExpression) && prop == "object")
+                        || (flags & VariableDeclarator && prop == "id")) {
                         identifierFlags |= AddToParents;
                         addToParent = true;
                     }
@@ -326,8 +331,10 @@ bool JSParser::recurseObject(v8::Handle<v8::Object> object, const char *name, un
             mParents.removeLast();
         }
     }
-    if (popScope)
+    if (popScope) {
+        error() << "popping a scope";
         mScope.removeLast();
+    }
 
     --indent;
 
