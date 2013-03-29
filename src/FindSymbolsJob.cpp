@@ -22,11 +22,19 @@ void FindSymbolsJob::execute()
         Scope<const SymbolNameMap&> scope = proj->lockSymbolNamesForRead();
         const SymbolNameMap &map = scope.data();
         SymbolNameMap::const_iterator it = map.lower_bound(string);
-        while (it != map.end() && it->first.startsWith(string) &&
-            (it->first.size() == string.size() || it->first.at(string.size()) == '<' || it->first.at(string.size()) == '(')) {
-            const Set<Location> &locations = it->second;
-            for (Set<Location>::const_iterator i = locations.begin(); i != locations.end(); ++i) {
-                out[*i] = true;
+        while (it != map.end() && it->first.startsWith(string)) {
+            bool ok = false;
+            if (it->first.size() == string.size()) {
+                ok = true;
+            } else if ((it->first.at(string.size()) == '<' || it->first.at(string.size()) == '(')
+                       && it->first.indexOf(")::", string.size()) == -1) { // we don't want to match foobar for void foobar(int)::parm
+                ok = true;
+            }
+            if (ok) {
+                const Set<Location> &locations = it->second;
+                for (Set<Location>::const_iterator i = locations.begin(); i != locations.end(); ++i) {
+                    out[*i] = true;
+                }
             }
             ++it;
         }
