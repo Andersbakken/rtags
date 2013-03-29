@@ -4,7 +4,7 @@
 #include "Project.h"
 
 ScanJob::ScanJob(const Path &path, const shared_ptr<Project> &project)
-    : mPath(path), mFilters(Server::instance()->excludeFilters()), mProject(project)
+    : mPath(path), mFilters(Server::instance()->options().excludeFilters), mProject(project)
 {
     if (!mPath.endsWith('/'))
         mPath.append('/');

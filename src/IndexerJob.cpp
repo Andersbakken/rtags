@@ -843,8 +843,7 @@ bool IndexerJob::parse(int build)
     mClangLines.append(String());
     String &clangLine = mClangLines[build];
 
-    clangLine = Server::instance()->clangPath();
-    clangLine += ' ';
+    clangLine = "clang ";
 
     int idx = 0;
     List<const char*> clangArgs(args.size() + defaultArguments.size() + compilerArgs.size(), 0);

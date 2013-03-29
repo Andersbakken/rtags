@@ -93,7 +93,6 @@ bool Server::init(const Options &options)
         mOptions.defaultArguments.append("-Wall");
     if (options.options & SpellChecking)
         mOptions.defaultArguments << "-fspell-checking";
-    mClangPath = "clang";
     error() << "using args:" << String::join(mOptions.defaultArguments, " ");
 
     if (mOptions.options & ClearProjects) {

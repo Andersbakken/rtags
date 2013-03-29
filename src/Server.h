@@ -61,8 +61,6 @@ public:
         Set<Path> ignoredCompilers;
     };
     bool init(const Options &options);
-    const List<String> &excludeFilters() const { return mOptions.excludeFilters; }
-    const Path &clangPath() const { return mClangPath; }
     const Options &options() const { return mOptions; }
     bool saveFileIds() const;
 private:
@@ -145,7 +143,6 @@ private:
     ThreadPool *mIndexerThreadPool;
     ThreadPool mQueryThreadPool;
     signalslot::Signal2<int, const List<String> &> mComplete;
-    Path mClangPath;
 
     Map<SocketClient*, Connection*> mCompletionStreams;
     struct PendingCompletion
