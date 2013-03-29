@@ -778,9 +778,9 @@ bool IndexerJob::handleCursor(const CXCursor &cursor, CXCursorKind kind, const L
 #if CINDEX_VERSION_MINOR > 1
             info.enumValue = clang_getEnumConstantDeclValue(cursor);
 #else
-            info.definition = clang_isCursorDefinition(cursor);
+            info.definition = 1;
 #endif
-        } else{
+        } else {
             info.definition = clang_isCursorDefinition(cursor);
         }
         info.kind = kind;
@@ -789,6 +789,19 @@ bool IndexerJob::handleCursor(const CXCursor &cursor, CXCursorKind kind, const L
             mData->usrMap[usr].insert(location);
 
         switch (info.kind) {
+        case CXCursor_FunctionDecl: {
+            // apparently some function decls will give a different usr for
+            // their definition and their declaration.  Using the canonical
+            // cursor's usr allows us to join them. Check JSClassRelease in
+            // JavaScriptCore for an example.
+            const CXCursor canonical = clang_getCanonicalCursor(cursor);
+            if (!clang_equalCursors(canonical, cursor)) {
+                const String canonicalUsr = RTags::eatString(clang_getCursorUSR(canonical));
+                if (canonicalUsr != usr && !canonicalUsr.isEmpty()) {
+                    mData->usrMap[canonicalUsr].insert(location);
+                }
+            }
+            break; }
         case CXCursor_Constructor:
         case CXCursor_Destructor: {
             Location parentLocation = createLocation(clang_getCursorSemanticParent(cursor));
