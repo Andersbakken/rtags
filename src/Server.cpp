@@ -653,15 +653,19 @@ void Server::status(const QueryMessage &query, Connection *conn)
 
 void Server::isIndexed(const QueryMessage &query, Connection *conn)
 {
-    bool ok = false;
+    int ret = 0;
     const Match match = query.match();
     shared_ptr<Project> project = updateProjectForLocation(match);
     if (project) {
-        ok = project->match(match);
+        ret = project->match(match);
+        if (!ret) {
+            const Path path = query.query();
+            ret = project->fileManager && (project->fileManager->contains(path) || project->match(path)) ? 2 : 0;
+        }
     }
 
-    error("=> %d", ok);
-    conn->write(ok ? "1" : "0");
+    error("=> %d", ret);
+    conn->write<16>("%d", ret);
     conn->finish();
 }
 

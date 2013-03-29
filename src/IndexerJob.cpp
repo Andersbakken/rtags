@@ -134,43 +134,69 @@ String IndexerJob::addNamePermutations(const CXCursor &cursor, const Location &l
     if (cutoff == -1)
         cutoff = pos;
     String ret;
+    // i == 0 --> with templates, i == 1 without templates or without EnumConstantDecl part
     for (int i=0; i<2; ++i) {
-        char *ch = buf + pos;
-        while (true) {
-            const String name(ch, sizeof(buf) - (ch - buf) - 1);
-            mData->symbolNames[name].insert(location);
-            if (!type.isEmpty() && (originalKind != CXCursor_ParmDecl || !strchr(ch, '('))) {
-                // We only want to add the type to the final declaration for ParmDecls
-                // e.g.
-                // void foo(int)::bar
-                // int bar
-                //
-                // not
-                // int void foo(int)::bar
-                // or
-                // void foo(int)::int bar
+        {
+            char *ch = buf + pos;
+            while (true) {
+                const String name(ch, sizeof(buf) - (ch - buf) - 1);
+                mData->symbolNames[name].insert(location);
+                if (!type.isEmpty() && (originalKind != CXCursor_ParmDecl || !strchr(ch, '('))) {
+                    // We only want to add the type to the final declaration for ParmDecls
+                    // e.g.
+                    // void foo(int)::bar
+                    // int bar
+                    //
+                    // not
+                    // int void foo(int)::bar
+                    // or
+                    // void foo(int)::int bar
 
-                mData->symbolNames[type + name].insert(location);
-            }
+                    mData->symbolNames[type + name].insert(location);
+                }
 
-            ch = strstr(ch + 1, "::");
+                ch = strstr(ch + 1, "::");
 
-            if (ch) {
-                ch += 2;
-            } else {
-                break;
+                if (ch) {
+                    ch += 2;
+                } else {
+                    break;
+                }
             }
         }
         if (i == 0) {
+            // create actual symbol name that will go into CursorInfo. This doesn't include namespaces etc
             ret.assign(buf + cutoff, sizeof(buf) - cutoff - 1);
             if (!type.isEmpty())
                 ret.prepend(type);
         }
 
-
-        if (!hasTemplates) {
+        if (i == 1 || (!hasTemplates && originalKind != CXCursor_EnumConstantDecl)) {
             break;
-        } else if (i == 0) {
+        }
+
+        if (originalKind == CXCursor_EnumConstantDecl) { // remove CXCursor_EnumDecl
+            char *last = 0, *secondLast = 0;
+            char *delimiter = buf + pos;
+            while (true) {
+                secondLast = last;
+                last = delimiter;
+                delimiter = strstr(delimiter, "::");
+                if (delimiter) {
+                    delimiter += 2;
+                } else {
+                    break;
+                }
+            }
+            if (secondLast && last) {
+                const int len = (last - secondLast);
+                if (secondLast != buf + pos) {
+                    memmove(buf + pos + len, buf + pos, secondLast - (buf + pos));
+                }
+                pos += len;
+            }
+        } else { // remove templates
+            assert(hasTemplates);
             char *start = strchr(buf + pos, '<');
             assert(start);
             char *end = strchr(start, '>');
