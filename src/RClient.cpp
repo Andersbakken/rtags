@@ -378,6 +378,7 @@ public:
     {
         CompileMessage msg(path, args);
         msg.init(rc->argc(), rc->argv());
+        msg.setProjects(rc->projects());
         return client->send(&msg, rc->timeout());
     }
     virtual String description() const

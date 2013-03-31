@@ -12,11 +12,12 @@ class CompileJob : public ThreadPool::Job
 public:
     CompileJob(const CompileMessage &message);
     virtual void run();
-    signalslot::Signal1<const GccArguments&> &argsReady() { return mArgsReady; }
+    signalslot::Signal2<const GccArguments&, const List<String> &> &argsReady() { return mArgsReady; }
 private:
     const String mArgs;
     const Path mPath;
-    signalslot::Signal1<const GccArguments &> mArgsReady;
+    const List<String> mProjects;
+    signalslot::Signal2<const GccArguments &, const List<String> &> mArgsReady;
 
 };
 

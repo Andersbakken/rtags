@@ -769,15 +769,22 @@ void Server::startQueryJob(const shared_ptr<Job> &job)
     mQueryThreadPool.start(job);
 }
 
-void Server::processSourceFile(const GccArguments &args)
+void Server::processSourceFile(const GccArguments &args, const List<String> &projects)
 {
     if (args.lang() == GccArguments::NoLang || mOptions.ignoredCompilers.contains(args.compiler())) {
         return;
     }
-    const Path srcRoot = args.projectRoot();
+    Path srcRoot;
+    if (updateProject(projects)) {
+        srcRoot = currentProject()->path();
+    } else if (!projects.isEmpty()) {
+        srcRoot = projects.first();
+    } else {
+        srcRoot = args.projectRoot();
+    }
     List<Path> inputFiles = args.inputFiles();
     if (srcRoot.isEmpty()) {
-        warning("Can't find project root for %s", String::join(inputFiles, ", ").constData());
+        error("Can't find project root for %s", String::join(inputFiles, ", ").constData());
         return;
     }
 

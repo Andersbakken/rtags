@@ -8,10 +8,10 @@ CompileMessage::CompileMessage(const Path &path, const String &args)
 
 void CompileMessage::encode(Serializer &serializer) const
 {
-    serializer << mRaw << mPath << mArgs;
+    serializer << mRaw << mPath << mArgs << mProjects;
 }
 
 void CompileMessage::decode(Deserializer &deserializer)
 {
-    deserializer >> mRaw >> mPath >> mArgs;
+    deserializer >> mRaw >> mPath >> mArgs >> mProjects;
 }
