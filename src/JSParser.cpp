@@ -452,7 +452,7 @@ void JSParser::handleIdentifier(v8::Handle<v8::Object> object, const String &nam
             assert(name == "property");
             createSymbol(object, CursorInfo::JSWeakVariable, OnlyLastParent);
         }
-        break; 
+        break;
     default:
         break;
     }
