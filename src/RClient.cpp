@@ -70,7 +70,6 @@ enum OptionType {
     UnloadProject,
     UnsavedFile,
     Verbose,
-    WaitForIndexing,
     WithProject,
     XmlDiagnostics
 };
@@ -151,7 +150,6 @@ struct Option opts[] = {
     { ElispList, "elisp-list", 'Y', no_argument, "Output elisp: (list \"one\" \"two\" ...)." },
     { Diagnostics, "diagnostics", 'G', no_argument, "Receive continual diagnostics from rdm." },
     { XmlDiagnostics, "xml-diagnostics", 'm', no_argument, "Receive continual XML formatted diagnostics from rdm." },
-    { WaitForIndexing, "wait-for-indexing", 'X', no_argument, "Wait for indexing to finish before doing query." },
     { MatchRegexp, "match-regexp", 'Z', no_argument, "Treat various text patterns as regexps (-P, -i, -V)." },
     { MatchCaseInsensitive, "match-icase", 'I', no_argument, "Match case insensitively" },
     { AbsolutePath, "absolute-path", 'K', no_argument, "Print files with absolute path." },
@@ -604,9 +602,6 @@ bool RClient::parse(int &argc, char **argv)
             break;
         case AbsolutePath:
             mQueryFlags |= QueryMessage::AbsolutePath;
-            break;
-        case WaitForIndexing:
-            mQueryFlags |= QueryMessage::WaitForIndexing;
             break;
         case ReverseSort:
             mQueryFlags |= QueryMessage::ReverseSort;

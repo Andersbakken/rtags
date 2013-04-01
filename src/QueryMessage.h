@@ -51,7 +51,7 @@ public:
         AllReferences = 0x00010,
         ReverseSort = 0x00020,
         ElispList = 0x00040,
-        WaitForIndexing = 0x00080,
+        IMenu = 0x00080,
         MatchRegexp = 0x00100,
         MatchCaseInsensitive = 0x00200,
         FindVirtuals = 0x00400,
@@ -61,8 +61,7 @@ public:
         CursorInfoIncludeParents = 0x04000,
         CursorInfoIncludeTargets = 0x08000,
         CursorInfoIncludeReferences = 0x10000,
-        DeclarationOnly = 0x20000,
-        IMenu = 0x40000
+        DeclarationOnly = 0x20000
     };
 
     QueryMessage(Type type = Invalid);
