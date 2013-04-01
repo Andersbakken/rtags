@@ -33,6 +33,7 @@ public:
     IndexerJob(const QueryMessage &msg,
                const shared_ptr<Project> &project,
                const SourceInformation &sourceInformation);
+    virtual ~IndexerJob();
 
     shared_ptr<IndexData> data() const { return mData; }
     uint32_t fileId() const { return mFileId; }

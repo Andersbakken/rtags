@@ -8,6 +8,60 @@
 #include "RTagsClang.h"
 #include "JSParser.h"
 
+// #define TIMINGS_ENABLED
+#ifdef TIMINGS_ENABLED
+static Mutex mutex;
+static Map<const char*, uint64_t> times;
+static void addTiming(const char *name, uint64_t usec)
+{
+    MutexLocker lock(&mutex);
+    times[name] += usec;
+}
+
+struct TimingNode
+{
+    const char *key;
+    uint64_t usecs;
+    bool operator<(const TimingNode &other) const { return usecs > other.usecs; }
+};
+
+static void dumpTimings()
+{
+    MutexLocker lock(&mutex);
+    List<TimingNode> nodes;
+    uint64_t tot = 0;
+    for (Map<const char*, uint64_t>::const_iterator it = times.begin(); it != times.end(); ++it) {
+        if (!it->first) {
+            TimingNode node = { "Total", it->second };
+            nodes.append(node);
+            tot = it->second;
+        } else {
+            TimingNode node = { it->first, it->second };
+            nodes.append(node);
+        }
+    }
+    if (tot) {
+        std::sort(nodes.begin(), nodes.end());
+        error("Timings:\n---------------------------");
+        for (int i=0; i<nodes.size(); ++i) {
+            error("%s: %llums (%.1f%%)", nodes.at(i).key, static_cast<unsigned long long>(nodes.at(i).usecs) / 1000,
+                  (static_cast<double>(nodes.at(i).usecs) / static_cast<double>(tot)) * 100.0);
+        }
+    }
+}
+class Timing
+{
+public:
+    Timing(const char *n) : name(n), watch(StopWatch::Microsecond) {}
+    ~Timing() { addTiming(name, watch.elapsed()); }
+    const char *name;
+    StopWatch watch;
+};
+#define TIMING() Timing timing(__FUNCTION__)
+#else
+#define TIMING() if (0)
+#endif
+
 struct DumpUserData {
     int indentLevel;
     IndexerJob *job;
@@ -29,15 +83,23 @@ IndexerJob::IndexerJob(const shared_ptr<Project> &project, Type type,
                        const SourceInformation &sourceInformation)
     : Job(0, project), mType(type), mSourceInformation(sourceInformation),
       mFileId(Location::insertFile(sourceInformation.sourceFile)),
-      mUnits(sourceInformation.builds.size()), mParseTime(0), mStarted(false)
+      mUnits(sourceInformation.builds.size()), mTimer(StopWatch::Microsecond), mParseTime(0), mStarted(false)
 {
 }
 IndexerJob::IndexerJob(const QueryMessage &msg, const shared_ptr<Project> &project,
                        const SourceInformation &sourceInformation)
     : Job(msg, WriteUnfiltered|WriteBuffered|QuietJob, project), mType(Dump), mSourceInformation(sourceInformation),
       mFileId(Location::insertFile(sourceInformation.sourceFile)), mUnits(sourceInformation.builds.size()),
-      mParseTime(0), mStarted(false)
+      mTimer(StopWatch::Microsecond), mParseTime(0), mStarted(false)
 {
+}
+
+IndexerJob::~IndexerJob()
+{
+#ifdef TIMINGS_ENABLED
+    addTiming(0, mTimer.elapsed()); // in ms
+    dumpTimings();
+#endif
 }
 
 void IndexerJob::inclusionVisitor(CXFile includedFile,
@@ -45,6 +107,7 @@ void IndexerJob::inclusionVisitor(CXFile includedFile,
                                   unsigned includeLen,
                                   CXClientData userData)
 {
+    TIMING();
     IndexerJob *job = static_cast<IndexerJob*>(userData);
     const Location l(includedFile, 0);
 
@@ -72,6 +135,7 @@ static const CXCursor nullCursor = clang_getNullCursor();
 
 String IndexerJob::addNamePermutations(const CXCursor &cursor, const Location &location)
 {
+    TIMING();
     CXCursorKind kind = clang_getCursorKind(cursor);
     const CXCursorKind originalKind = kind;
     char buf[32768];
@@ -213,6 +277,7 @@ String IndexerJob::addNamePermutations(const CXCursor &cursor, const Location &l
 static const CXSourceLocation nullLocation = clang_getNullLocation();
 Location IndexerJob::createLocation(const CXCursor &cursor)
 {
+    TIMING();
     CXSourceLocation location = clang_getCursorLocation(cursor);
     if (!clang_equalLocations(location, nullLocation)) {
         CXFile file;
@@ -227,6 +292,7 @@ Location IndexerJob::createLocation(const CXCursor &cursor)
 
 Location IndexerJob::createLocation(const CXSourceLocation &location, bool *blocked)
 {
+    TIMING();
     Location ret;
     if (blocked)
         *blocked = false;
@@ -265,6 +331,7 @@ Location IndexerJob::createLocation(const CXSourceLocation &location, bool *bloc
 
 static inline CXCursor findDestructorForDelete(const CXCursor &deleteStatement)
 {
+    TIMING();
     const CXCursor child = RTags::findFirstChild(deleteStatement);
     CXCursorKind kind = clang_getCursorKind(child);
     switch (kind) {
@@ -329,6 +396,7 @@ struct LastCursorUpdater
 
 CXChildVisitResult IndexerJob::indexVisitor(CXCursor cursor, CXCursor parent, CXClientData data)
 {
+    TIMING();
     IndexerJob *job = static_cast<IndexerJob*>(data);
     {
         MutexLocker lock(&job->mMutex);
@@ -487,6 +555,7 @@ void IndexerJob::superclassTemplateMemberFunctionUgleHack(const CXCursor &cursor
 
 void IndexerJob::handleReference(const CXCursor &cursor, CXCursorKind kind, const Location &location, const CXCursor &ref, const CXCursor &parent)
 {
+    TIMING();
     const CXCursorKind refKind = clang_getCursorKind(ref);
     if (clang_isInvalid(refKind)) {
         superclassTemplateMemberFunctionUgleHack(cursor, kind, location, ref, parent);
@@ -589,6 +658,7 @@ void IndexerJob::handleReference(const CXCursor &cursor, CXCursorKind kind, cons
 
 void IndexerJob::addOverriddenCursors(const CXCursor& cursor, const Location& location, List<CursorInfo*>& infos)
 {
+    TIMING();
     CXCursor *overridden;
     unsigned count;
     clang_getOverriddenCursors(cursor, &overridden, &count);
@@ -617,6 +687,7 @@ void IndexerJob::addOverriddenCursors(const CXCursor& cursor, const Location& lo
 
 void IndexerJob::handleInclude(const CXCursor &cursor, CXCursorKind kind, const Location &location)
 {
+    TIMING();
     assert(kind == CXCursor_InclusionDirective);
     (void)kind;
     CXFile includedFile = clang_getIncludedFile(cursor);
@@ -687,6 +758,7 @@ const char *builtinTypeName(CXTypeKind kind)
 
 static String typeString(const CXType &type)
 {
+    TIMING();
     String ret;
     if (clang_isConstQualifiedType(type))
         ret = "const ";
@@ -728,6 +800,7 @@ static String typeString(const CXType &type)
 
 String IndexerJob::typeName(const CXCursor &cursor)
 {
+    TIMING();
     String ret;
     switch (clang_getCursorKind(cursor)) {
     case CXCursor_FunctionTemplate:
@@ -758,6 +831,7 @@ String IndexerJob::typeName(const CXCursor &cursor)
 
 bool IndexerJob::handleCursor(const CXCursor &cursor, CXCursorKind kind, const Location &location)
 {
+    TIMING();
     CursorInfo &info = mData->symbols[location];
     if (!info.symbolLength || !RTags::isCursor(info.kind)) {
         CXStringScope name = clang_getCursorSpelling(cursor);
@@ -854,6 +928,7 @@ bool IndexerJob::handleCursor(const CXCursor &cursor, CXCursorKind kind, const L
 
 bool IndexerJob::parse(int build)
 {
+    TIMING();
     CXIndex &index = mUnits[build].first;
     if (!index)
         index = clang_createIndex(0, 1);
@@ -977,6 +1052,7 @@ static inline String xmlEscape(const String& xml)
 
 bool IndexerJob::diagnose(int build, int *errorCount)
 {
+    TIMING();
     if (errorCount)
         *errorCount = 0;
     if (!mUnits.at(build).second) {
@@ -1156,6 +1232,7 @@ bool IndexerJob::diagnose(int build, int *errorCount)
 
 bool IndexerJob::visit(int build)
 {
+    TIMING();
     if (!mUnits.at(build).second) {
         abort();
         return false;
@@ -1189,9 +1266,10 @@ bool IndexerJob::visit(int build)
 
 void IndexerJob::execute()
 {
+    mTimer.start();
+    TIMING();
     if (isAborted())
         return;
-    mTimer.start();
     mData.reset(new IndexData);
     if (mSourceInformation.isJS()) {
         executeJS();
@@ -1202,6 +1280,7 @@ void IndexerJob::execute()
 
 void IndexerJob::executeJS()
 {
+    TIMING();
     const String contents = mSourceInformation.sourceFile.readAll(1024 * 1024 * 100);
     if (contents.isEmpty()) {
         error() << "Can't open" << mSourceInformation.sourceFile << "for reading";
@@ -1247,7 +1326,7 @@ void IndexerJob::executeJS()
         mData->dependencies[mFileId].insert(mFileId);
         mData->message = String::format<128>("%s in %dms. (%d syms, %d symNames, %d refs)",
                                              mSourceInformation.sourceFile.toTilde().constData(),
-                                             mTimer.elapsed(), mData->symbols.size(), mData->symbolNames.size(), mData->references.size());
+                                             static_cast<int>(mTimer.elapsed()) / 1000, mData->symbols.size(), mData->symbolNames.size(), mData->references.size());
         shared_ptr<Project> p = project();
         if (p) {
             shared_ptr<IndexerJob> job = static_pointer_cast<IndexerJob>(shared_from_this());
@@ -1258,6 +1337,7 @@ void IndexerJob::executeJS()
 
 void IndexerJob::executeCPP()
 {
+    TIMING();
     if (mType == Dump) {
         assert(id() != -1);
         if (shared_ptr<Project> p = project()) {
@@ -1302,7 +1382,7 @@ void IndexerJob::executeCPP()
             } else if (unitCount != buildCount) {
                 mData->message += String::format<16>(" (%d errors, %d ok)", buildCount - unitCount, unitCount);
             }
-            mData->message += String::format<16>(" in %dms. ", mTimer.elapsed());
+            mData->message += String::format<16>(" in %dms. ", static_cast<int>(mTimer.elapsed()) / 1000);
             if (unitCount) {
                 mData->message += String::format<128>("(%d syms, %d symNames, %d refs, %d deps, %d files)",
                                                       mData->symbols.size(), mData->symbolNames.size(), mData->references.size(),
