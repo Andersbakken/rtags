@@ -45,6 +45,7 @@ enum OptionType {
     LineNumbers,
     ListSymbols,
     LogFile,
+    Man,
     MatchCaseInsensitive,
     MatchRegexp,
     Max,
@@ -133,6 +134,7 @@ struct Option opts[] = {
     { Builds, "builds", 0, optional_argument, "Dump builds for source file." },
     { Dependencies, "dependencies", 0, required_argument, "Dump dependencies for source file." },
     { ReloadFileManager, "reload-file-manager", 'B', no_argument, "Reload file manager." },
+    { Man, "man", 0, no_argument, "Output XML for xmltoman to generate man page for rc :-)" },
 
     { None, 0, 0, 0, "" },
     { None, 0, 0, 0, "Command flags:" },
@@ -196,6 +198,54 @@ static void help(FILE *f, const char* app)
                     opts[i].description);
         }
     }
+}
+
+static void man()
+{
+    String out =
+        "<!DOCTYPE manpage SYSTEM \"http://masqmail.cx/xmltoman/xmltoman.dtd\">\n"
+        "<?xml-stylesheet type=\"text/xsl\" href=\"http://masqmail.cx/xmltoman/xmltoman.xsl\"?>\n"
+        "\n"
+        "<manpage name=\"rc\" section=\"1\" desc=\"command line client for RTags\">\n"
+        "\n"
+        "<synopsis>\n"
+        "  <cmd>rc <arg>file.1.xml</arg> > file.1</cmd>\n"
+        "</synopsis>\n"
+        "\n"
+        "<description>\n"
+        "\n"
+        "<p>rc is a command line client used to control RTags.</p>\n"
+        "\n"
+        "</description>\n";
+    for (int i=0; opts[i].description; ++i) {
+        if (*opts[i].description) {
+            if (!opts[i].longOpt && !opts[i].shortOpt) {
+                if (i)
+                    out.append("</section>\n");
+                out.append(String::format<128>("<section name=\"%s\">\n", opts[i].description));
+            } else {
+                out.append(String::format<64>("  <option>%s%s%s%s<optdesc>%s</optdesc></option>\n",
+                                              opts[i].longOpt ? String::format<4>("--%s", opts[i].longOpt).constData() : "",
+                                              opts[i].longOpt && opts[i].shortOpt ? "|" : "",
+                                              opts[i].shortOpt ? String::format<2>("-%c", opts[i].shortOpt).constData() : "",
+                                              opts[i].argument == required_argument ? " [arg] "
+                                              : opts[i].argument == optional_argument ? " [optional] " : "",
+                                              opts[i].description));
+            }
+        }
+    }
+    out.append("</section>\n"
+               "<section name=\"Authors\">\n"
+               "  <p>RTags was written by Jan Erik Hanssen &lt;jhanssen@gmail.com&gt; and Anders Bakken &lt;abakken@gmail.com&gt;</p>\n"
+               "</section>\n"
+               "<section name=\"See also\">\n"
+               "  <p><manref name=\"rdm\" section=\"1\"/></p>\n"
+               "</section>\n"
+               "<section name=\"Comments\">\n"
+               "  <p>This man page was written using <manref name=\"xmltoman\" section=\"1\" href=\"http://masqmail.cx/xmltoman/\"/>.</p>\n"
+               "</section>\n"
+               "</manpage>\n");
+    printf("%s", out.constData());
 }
 
 class RCCommand
@@ -537,6 +587,9 @@ bool RClient::parse(int &argc, char **argv)
             break;
         case Help:
             help(stdout, argv[0]);
+            return 0;
+        case Man:
+            man();
             return 0;
         case SocketFile:
             mSocketFile = optarg;
