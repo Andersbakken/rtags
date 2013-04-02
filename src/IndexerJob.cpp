@@ -60,8 +60,8 @@ public:
 #define TIMING() Timing timing(__FUNCTION__)
 #define NAMED_TIMING(name) addTiming(name, timing.watch.elapsed())
 #else
-#define TIMING() if (0)
-#define NAMED_TIMING(name) if (0)
+#define TIMING() do {} while (0)
+#define NAMED_TIMING(name) do {} while (0)
 #endif
 
 struct DumpUserData {
