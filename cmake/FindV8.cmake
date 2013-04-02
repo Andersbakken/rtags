@@ -7,7 +7,7 @@
 get_filename_component(module_file_path ${CMAKE_CURRENT_LIST_FILE} PATH)
 
 # Look for the header file.
-find_path(V8_INCLUDE NAMES v8.h PATHS /usr/include $ENV{V8_ROOT}/include DOC "Path in which the file v8.h is located." )
+find_path(V8_INCLUDE NAMES v8.h PATHS $ENV{V8_ROOT}/include /opt/local/include /usr/local/include /usr/include DOC "Path in which the file v8.h is located." )
 mark_as_advanced(V8_INCLUDE)
 
 # Look for the library.
@@ -17,6 +17,7 @@ mark_as_advanced(V8_LIBS)
 
 # Copy the results to the output variables.
 if (V8_INCLUDE AND V8_LIBS)
+  message(STATUS "Found v8 in ${V8_INCLUDE} ${V8_LIBS}")
   set(V8_FOUND 1)
   include(CheckCXXSourceCompiles)
   set(CMAKE_REQUIRED_LIBRARY ${V8_LIBS} pthread)

@@ -2,7 +2,14 @@ if(NOT DEFINED CLANG_ROOT)
   set(CLANG_ROOT $ENV{CLANG_ROOT})
 endif()
 
-find_path(CLANG_INCLUDE clang-c/Index.h HINTS "${CLANG_ROOT}/include")
+find_path(CLANG_INCLUDE clang-c/Index.h
+          HINTS
+          ${CLANG_ROOT}/include
+          /opt/local/libexec/llvm-3.3/include
+          /opt/local/libexec/llvm-3.2/include
+          /opt/local/libexec/llvm-3.1/include
+          /opt/local/libexec/llvm-3.0/include)
+
 if (EXISTS ${CLANG_INCLUDE})
   if ("${CLANG_ROOT}" STREQUAL "")
 	string(REGEX REPLACE "\\/include" "" CLANG_ROOT ${CLANG_INCLUDE})
