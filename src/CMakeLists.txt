@@ -7,6 +7,7 @@ find_package(LibClang REQUIRED)
 include_directories(${CLANG_INCLUDE})
 
 find_package(V8 REQUIRED)
+find_package(LevelDB)
 
 include(${CMAKE_CURRENT_LIST_DIR}/rct/rct.cmake)
 
@@ -93,26 +94,26 @@ target_link_libraries(rc ${SYSTEM_LIBS})
 
 add_executable(rdm rdm.cpp ${RTAGS_SHARED_SOURCES} ${RCT_SOURCES} ${RDM_SOURCES})
 include_directories(${V8_INCLUDE})
-if (V8_DISPOSE_REQUIRES_ARG)
-  add_definitions(-DV8_DISPOSE_REQUIRES_ARG)
+if (V8_DISPOSE_HAS_ISOLATE)
+  add_definitions(-DV8_DISPOSE_HAS_ISOLATE)
 endif ()
 target_link_libraries(rdm ${rct_LIBS} ${CLANG_LIBS} ${CORESERVICES_LIBRARY} ${COREFOUNDATION_LIBRARY} ${rct_LIBS} ${SYSTEM_LIBS} ${V8_LIBS})
 
-message("Need to fix grtags, requires leveldb")
-if (GRTAGS_ENABLED MATCHES "1")
-  include_directories(${PROJECT_SOURCE_DIR}/3rdparty/leveldb)
+#if (LEVELDB_FOUND EQUAL 1)
+if (0 EQUAL 1)
+  add_definitions(-DGRTAGS)
   add_executable(gr ${GR_SOURCES} ${RCT_SOURCES})
   include_directories(
     ${CORESERVICES_INCLUDE}
     ${COREFOUNDATION_INCLUDE}
-    ${PROJECT_SOURCE_DIR}/3rdparty/leveldb/include)
+    ${LEVELDB_INCLUDE})
   target_link_libraries(gr
     ${CLANG_LIBS}
     ${SYSTEM_LIBS}
     ${CORESERVICES_LIBRARY}
     ${COREFOUNDATION_LIBRARY}
     ${SYSTEM_LIBS}
-    ${PROJECT_SOURCE_DIR}/3rdparty/leveldb/libleveldb.a)
+    ${LEVELDB_LIBS})
 endif ()
 
 if (CMAKE_SYSTEM_NAME MATCHES "Darwin")
