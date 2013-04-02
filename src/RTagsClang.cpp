@@ -105,6 +105,8 @@ SymbolMap::const_iterator findCursorInfo(const SymbolMap &map, const Location &l
     }
 
     SymbolMap::const_iterator f = map.lower_bound(location);
+    if (f != map.begin() && (f == map.end() || f->first != location))
+        --f;
     SymbolMap::const_iterator b = f;
 
     for (int j=0; j<128; ++j) {
