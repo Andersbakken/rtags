@@ -131,7 +131,7 @@ JSParser::~JSParser()
 {
     {
         const v8::Isolate::Scope isolateScope(mIsolate);
-#ifdef V8_DISPOSE_REQUIRES_ARG
+#ifdef V8_DISPOSE_HAS_ISOLATE
         if (!mParse.IsEmpty())
             mParse.Dispose(mIsolate);
         if (!mEsprima.IsEmpty())

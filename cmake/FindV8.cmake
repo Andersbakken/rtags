@@ -20,7 +20,7 @@ if (V8_INCLUDE AND V8_LIBS)
   message(STATUS "Found v8 in ${V8_INCLUDE} ${V8_LIBS}")
   set(V8_FOUND 1)
   include(CheckCXXSourceCompiles)
-  set(CMAKE_REQUIRED_LIBRARY ${V8_LIBS} pthread)
+  set(CMAKE_REQUIRED_LIBRARIES ${V8_LIBS} pthread)
   set(CMAKE_REQUIRED_INCLUDES ${V8_INCLUDE})
 
   check_cxx_source_compiles("
@@ -32,7 +32,7 @@ if (V8_INCLUDE AND V8_LIBS)
         ctx.Dispose(0);
         return 0;
      }"
-     V8_DISPOSE_REQUIRES_ARG)
+     V8_DISPOSE_HAS_ISOLATE)
  else ()
    set(V8_FOUND 0)
  endif ()
