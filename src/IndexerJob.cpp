@@ -58,8 +58,10 @@ public:
     StopWatch watch;
 };
 #define TIMING() Timing timing(__FUNCTION__)
+#define NAMED_TIMING(name) addTiming(name, timing.watch.elapsed())
 #else
 #define TIMING() if (0)
+#define NAMED_TIMING(name) if (0)
 #endif
 
 struct DumpUserData {
@@ -603,6 +605,8 @@ void IndexerJob::handleReference(const CXCursor &cursor, CXCursorKind kind, cons
         break;
     }
 
+    NAMED_TIMING("handleReference1");
+
     const Location reffedLoc = createLocation(ref, 0);
     if (!reffedLoc.isValid())
         return;
@@ -615,6 +619,7 @@ void IndexerJob::handleReference(const CXCursor &cursor, CXCursorKind kind, cons
 
     CursorInfo &info = mData->symbols[location];
     info.targets.insert(reffedLoc);
+    NAMED_TIMING("handleReference2");
 
     // We need the new cursor to replace the symbolLength. This is important
     // in the following case:
@@ -652,8 +657,12 @@ void IndexerJob::handleReference(const CXCursor &cursor, CXCursorKind kind, cons
             break;
         }
     }
+    NAMED_TIMING("handleReference3");
+
     Set<Location> &val = mData->references[location];
     val.insert(reffedLoc);
+    NAMED_TIMING("handleReference4");
+
 }
 
 void IndexerJob::addOverriddenCursors(const CXCursor& cursor, const Location& location, List<CursorInfo*>& infos)
