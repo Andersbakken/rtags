@@ -116,6 +116,15 @@ if (0 EQUAL 1)
     ${LEVELDB_LIBS})
 endif ()
 
+if (NOT "${PROJECT_SOURCE_DIR}" STREQUAL "${PROJECT_BINARY_DIR}")
+  file (GLOB binFiles "${PROJECT_SOURCE_DIR}/bin/*")
+  file (MAKE_DIRECTORY "${PROJECT_BINARY_DIR}/bin")
+  foreach (file ${binFiles})
+    message("Copying ${file} to ${PROJECT_BINARY_DIR}/bin")
+    file (COPY "${file}" DESTINATION "${PROJECT_BINARY_DIR}/bin")
+  endforeach ()
+endif ()
+
 if (CMAKE_SYSTEM_NAME MATCHES "Darwin")
   add_custom_command(TARGET rdm POST_BUILD
     COMMAND ${CMAKE_CURRENT_LIST_DIR}/fix-dylib.sh ${PROJECT_BINARY_DIR} ${PROJECT_BINARY_DIR}/bin/rdm)
