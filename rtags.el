@@ -422,23 +422,34 @@
           (t (message "RTags: No enum here") nil))))
 
 (defun rtags-buffer-is-multibyte ()
-  (string-match "\\butf-" (symbol-name buffer-file-coding-system)))
+  (string-match "\\butf\\b" (symbol-name buffer-file-coding-system)))
+
+(defun rtags-buffer-is-dos()
+  (string-match "\\bdos\\b" (symbol-name buffer-file-coding-system)))
+
+(defun rtags-carriage-returns ()
+  (if (rtags-buffer-is-dos)
+      (1- (line-number-at-pos))
+    0)
+  )
 
 (defun rtags-offset (&optional p)
-  (save-excursion
-    (if p
-        (goto-char p)
-      (if (rtags-buffer-is-multibyte)
-          (let ((prev (buffer-local-value enable-multibyte-characters (current-buffer)))
-                (loc (local-variable-p enable-multibyte-characters))
-                (pos))
-            (set-buffer-multibyte nil)
-            (setq pos (1- (point)))
-            (set-buffer-multibyte prev)
-            (unless loc
-              (kill-local-variable enable-multibyte-characters))
-            pos)
-        (1- (point))))))
+  (let (carriagereturns)
+    (save-excursion
+      (if p
+          (goto-char p)
+        (setq carriagereturns (rtags-carriage-returns))
+        (if (rtags-buffer-is-multibyte)
+            (let ((prev (buffer-local-value enable-multibyte-characters (current-buffer)))
+                  (loc (local-variable-p enable-multibyte-characters))
+                  (pos))
+              (set-buffer-multibyte nil)
+              (setq pos (1- (point)))
+              (set-buffer-multibyte prev)
+              (unless loc
+                (kill-local-variable enable-multibyte-characters))
+              (+ pos carriagereturns))
+          (+ (1- (point)) carriagereturns))))))
 
 (defun rtags-goto-offset (pos)
   (interactive "NOffset: ")
@@ -452,8 +463,10 @@
           (kill-local-variable enable-multibyte-characters)))
     (goto-char (1+ pos))))
 
-(defun rtags-current-location ()
-  (format "%s,%d" (buffer-file-name) (rtags-offset)))
+(defun rtags-current-location (&optional linecol)
+  (if linecol
+      (format "%s:%d:%d" (buffer-file-name) (line-number-at-pos) (1+ (- (point) (point-at-bol))))
+    (format "%s,%d" (buffer-file-name) (rtags-offset))))
 
 (defun rtags-log (log)
   (if rtags-rc-log-enabled
@@ -568,7 +581,7 @@
 (defvar rtags-location-stack nil)
 
 (defun rtags-location-stack-push ()
-  (let ((bm (rtags-current-location)))
+  (let ((bm (rtags-current-location t)))
     (while (> rtags-location-stack-index 0)
       (progn
         (setq rtags-location-stack-index (- rtags-location-stack-index 1))
@@ -587,7 +600,7 @@
 (defun rtags-location-stack-jump (by)
   (interactive)
   (let ((instack (nth rtags-location-stack-index rtags-location-stack))
-        (cur (rtags-current-location)))
+        (cur (rtags-current-location t)))
     (if (not (string= instack cur))
         (rtags-goto-location instack t)
       (let ((target (+ rtags-location-stack-index by)))
@@ -735,9 +748,10 @@ return t if rtags is allowed to modify this file"
 (defun rtags-target ()
   (let ((path (rtags-path-for-project))
         (location (rtags-current-location))
-        (context (rtags-current-symbol t)))
+        (context (rtags-current-symbol t))
+        (dos (rtags-buffer-is-dos)))
     (with-temp-buffer
-      (rtags-call-rc path "-N" "-f" location "-t" context)
+      (rtags-call-rc path "-N" "-f" location "-t" context (if dos "-l"))
       (setq rtags-last-request-not-indexed nil)
       (cond ((= (point-min) (point-max))
              (message "RTags: No target") nil)
