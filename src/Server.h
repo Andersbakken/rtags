@@ -76,6 +76,7 @@ private:
     void onNewConnection();
     signalslot::Signal2<int, const List<String> &> &complete() { return mComplete; }
     shared_ptr<Project> setCurrentProject(const Path &path);
+    shared_ptr<Project> setCurrentProject(const shared_ptr<Project> &project);
     void event(const Event *event);
     void processSourceFile(const GccArguments &args, const List<String> &projects);
     void onNewMessage(Message *message, Connection *conn);
@@ -125,7 +126,7 @@ private:
     int reloadProjects();
     void onCompletionStreamDisconnected(SocketClient *client);
     shared_ptr<Project> addProject(const Path &path);
-    void loadProject(shared_ptr<Project> &project);
+    void loadProject(const shared_ptr<Project> &project);
     void onCompletionJobFinished(Path path);
     void startCompletion(const Path &path, int line, int column, int pos, const String &contents, Connection *conn);
 

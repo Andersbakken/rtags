@@ -856,7 +856,7 @@ void Server::event(const Event *event)
     }
 }
 
-void Server::loadProject(shared_ptr<Project> &project)
+void Server::loadProject(const shared_ptr<Project> &project)
 {
     assert(project);
     if (!project->isValid()) {
@@ -872,10 +872,19 @@ shared_ptr<Project> Server::setCurrentProject(const Path &path) // lock always h
 {
     ProjectsMap::iterator it = mProjects.find(path);
     if (it != mProjects.end()) {
-        mCurrentProject = it->second;
+        setCurrentProject(it->second);
+        return it->second;
+    }
+    return shared_ptr<Project>();
+}
+
+shared_ptr<Project> Server::setCurrentProject(const shared_ptr<Project> &project)
+{
+    if (project && project != mCurrentProject.lock()) {
+        mCurrentProject = project;
         FILE *f = fopen((mOptions.dataDir + ".currentProject").constData(), "w");
         if (f) {
-            if (!fwrite(path.constData(), path.size(), 1, f) || !fwrite("\n", 1, 1, f)) {
+            if (!fwrite(project->path().constData(), project->path().size(), 1, f) || !fwrite("\n", 1, 1, f)) {
                 error() << "error writing to" << (mOptions.dataDir + ".currentProject");
                 fclose(f);
                 unlink((mOptions.dataDir + ".currentProject").constData());
@@ -886,10 +895,9 @@ shared_ptr<Project> Server::setCurrentProject(const Path &path) // lock always h
             error() << "error opening" << (mOptions.dataDir + ".currentProject") << "for write";
         }
 
-        assert(mCurrentProject.lock());
-        if (!it->second->isValid())
-            loadProject(it->second);
-        return it->second;
+        if (!project->isValid())
+            loadProject(project);
+        return project;
     }
     return shared_ptr<Project>();
 }
@@ -962,33 +970,29 @@ void Server::reloadProjects(const QueryMessage &query, Connection *conn)
 bool Server::selectProject(const Match &match, Connection *conn)
 {
     MutexLocker lock(&mMutex);
-    Path selected;
+    shared_ptr<Project> selected;
     bool error = false;
     for (ProjectsMap::const_iterator it = mProjects.begin(); it != mProjects.end(); ++it) {
         if (it->second->match(match)) {
             if (error) {
                 if (conn)
                     conn->write(it->first);
-            } else if (!selected.isEmpty()) {
+            } else if (selected) {
                 error = true;
                 if (conn) {
                     conn->write<128>("Multiple matches for %s", match.pattern().constData());
-                    conn->write(selected);
+                    conn->write(selected->path());
                     conn->write(it->first);
                 }
-                selected.clear();
+                selected.reset();
             } else {
-                selected = it->first;
+                selected = it->second;
             }
         }
     }
-    if (!selected.isEmpty()) {
-        shared_ptr<Project> current = mCurrentProject.lock();
-        if (!current || selected != current->path()) {
-            setCurrentProject(selected);
-            if (conn)
-                conn->write<128>("Selected project: %s for %s", selected.constData(), match.pattern().constData());
-        }
+    if (selected) {
+        if (setCurrentProject(selected) && conn)
+            conn->write<128>("Selected project: %s for %s", selected->path().constData(), match.pattern().constData());
         return true;
     } else if (!error && conn) {
         conn->write<128>("No matches for %s", match.pattern().constData());
