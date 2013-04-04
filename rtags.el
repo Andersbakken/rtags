@@ -757,8 +757,6 @@ return t if rtags is allowed to modify this file"
              (message "RTags: No target") nil)
             ((string= (buffer-string) "Not indexed\n")
              (setq rtags-last-request-not-indexed t) nil)
-            ((string= (buffer-string) "Symbol has moved\n")
-             (message "RTags: Symbol has moved") nil)
             (t (buffer-substring-no-properties (point-min) (- (point-max) 1))))
       )
     )
