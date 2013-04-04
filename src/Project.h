@@ -72,7 +72,7 @@ public:
 
     Path path() const { return mPath; }
 
-    bool match(const Match &match);
+    bool match(const Match &match, bool *indexed = 0);
 
     Scope<const SymbolMap&> lockSymbolsForRead(int maxTime = 0);
     Scope<SymbolMap&> lockSymbolsForWrite();

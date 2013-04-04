@@ -220,22 +220,29 @@ void Project::unload()
     fileManager.reset();
 }
 
-bool Project::match(const Match &p)
+bool Project::match(const Match &p, bool *indexed)
 {
     Path paths[] = { p.pattern(), p.pattern() };
     paths[1].resolve();
     const int count = paths[1].compare(paths[0]) ? 2 : 1;
     Scope<const FilesMap&> files = lockFilesForRead();
+    bool ret = false;
     for (int i=0; i<count; ++i) {
         const Path &path = paths[i];
-        if (files.data().contains(path) || p.match(mPath))
-            return true;
         const uint32_t id = Location::fileId(path);
-        if (isIndexed(id))
+        if (isIndexed(id)) {
+            if (indexed)
+                *indexed = true;
             return true;
-
+        } else if (files.data().contains(path) || p.match(mPath)) {
+            if (!indexed)
+                return true;
+            ret = true;
+        }
     }
-    return false;
+    if (indexed)
+        *indexed = false;
+    return ret;
 }
 
 void Project::onJobFinished(const shared_ptr<IndexerJob> &job)

@@ -1476,22 +1476,24 @@ References to references will be treated as references to the referenced symbol"
   (other-window 1)
   )
 
-(defun rtags-is-indexed (&optional buffer)
+(defvar rtags-indexed nil)
+(defvar rtags-file-managed nil)
+
+(defun rtags-buffer-status (&optional buffer)
   (let ((path (rtags-path-for-project buffer)))
     (with-temp-buffer
       (rtags-call-rc path "-T" path)
       (goto-char (point-min))
-      (looking-at "1")))
+      (cond ((looking-at "1") 'rtags-indexed)
+            ((looking-at "2") 'rtags-file-managed)
+            (t nil))))
   )
+
+(defun rtags-is-indexed (&optional buffer)
+  (equal (rtags-buffer-status buffer) 'rtags-indexed))
 
 (defun rtags-has-filemanager (&optional buffer)
-  (let ((path (rtags-path-for-project buffer)))
-    (with-temp-buffer
-      (rtags-call-rc path "--has-filemanager" path)
-      (goto-char (point-min))
-      (looking-at "1")))
-  )
-
+  (equal (rtags-buffer-status buffer) 'rtags-file-managed))
 
 (defun rtags-handle-completion-buffer (&optional noautojump)
   (setq rtags-last-request-not-indexed nil)

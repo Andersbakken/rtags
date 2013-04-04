@@ -657,11 +657,9 @@ void Server::isIndexed(const QueryMessage &query, Connection *conn)
     const Match match = query.match();
     shared_ptr<Project> project = updateProjectForLocation(match);
     if (project) {
-        ret = project->match(match);
-        if (!ret) {
-            const Path path = query.query();
-            ret = project->fileManager && (project->fileManager->contains(path) || project->match(path)) ? 2 : 0;
-        }
+        bool indexed = false;
+        if (project->match(match, &indexed))
+            ret = indexed ? 1 : 2;
     }
 
     error("=> %d", ret);
