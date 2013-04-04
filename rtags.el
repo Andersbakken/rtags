@@ -421,29 +421,36 @@
                      (message "%s - %s - 0x%X" (rtags-current-symbol-name info) enumval (string-to-int enumval)))))))
           (t (message "RTags: No enum here") nil))))
 
+(defun rtags-buffer-is-multibyte ()
+  (string-match "\\butf-" (symbol-name buffer-file-coding-system)))
+
 (defun rtags-offset (&optional p)
   (save-excursion
     (if p
         (goto-char p)
-      (let ((prev (buffer-local-value enable-multibyte-characters (current-buffer)))
-            (loc (local-variable-p enable-multibyte-characters))
-            (pos))
-        (set-buffer-multibyte nil)
-        (setq pos (- (point) 1))
-        (set-buffer-multibyte prev)
-        (unless loc
-          (kill-local-variable enable-multibyte-characters))
-        pos))))
+      (if (rtags-buffer-is-multibyte)
+          (let ((prev (buffer-local-value enable-multibyte-characters (current-buffer)))
+                (loc (local-variable-p enable-multibyte-characters))
+                (pos))
+            (set-buffer-multibyte nil)
+            (setq pos (1- (point)))
+            (set-buffer-multibyte prev)
+            (unless loc
+              (kill-local-variable enable-multibyte-characters))
+            pos)
+        (1- (point))))))
 
 (defun rtags-goto-offset (pos)
   (interactive "NOffset: ")
-  (let ((prev (buffer-local-value enable-multibyte-characters (current-buffer)))
-        (loc (local-variable-p enable-multibyte-characters)))
-    (set-buffer-multibyte nil)
-    (goto-char (+ pos 1))
-    (set-buffer-multibyte prev)
-    (unless loc
-      (kill-local-variable enable-multibyte-characters))))
+  (if (rtags-buffer-is-multibyte)
+      (let ((prev (buffer-local-value enable-multibyte-characters (current-buffer)))
+            (loc (local-variable-p enable-multibyte-characters)))
+        (set-buffer-multibyte nil)
+        (goto-char (1+ pos))
+        (set-buffer-multibyte prev)
+        (unless loc
+          (kill-local-variable enable-multibyte-characters)))
+    (goto-char (1+ pos))))
 
 (defun rtags-current-location ()
   (format "%s,%d" (buffer-file-name) (rtags-offset)))
