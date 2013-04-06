@@ -162,6 +162,22 @@ Scope<SymbolMap&> Project::lockSymbolsForWrite()
     return scope;
 }
 
+Scope<const ErrorSymbolMap&> Project::lockErrorSymbolsForRead(int maxTime)
+{
+    Scope<const ErrorSymbolMap&> scope;
+    if (mErrorSymbolsLock.lockForRead(maxTime))
+        scope.mData.reset(new Scope<const ErrorSymbolMap&>::Data(mErrorSymbols, &mErrorSymbolsLock));
+    return scope;
+}
+
+Scope<ErrorSymbolMap&> Project::lockErrorSymbolsForWrite()
+{
+    Scope<ErrorSymbolMap&> scope;
+    mErrorSymbolsLock.lockForWrite();
+    scope.mData.reset(new Scope<ErrorSymbolMap&>::Data(mErrorSymbols, &mErrorSymbolsLock));
+    return scope;
+}
+
 Scope<const SymbolNameMap&> Project::lockSymbolNamesForRead(int maxTime)
 {
     Scope<const SymbolNameMap&> scope;
@@ -602,7 +618,26 @@ static inline void writeUsr(const UsrMap &usr, UsrMap &current, SymbolMap &symbo
     }
 }
 
-static inline void writeCursors(SymbolMap &symbols, SymbolMap &current)
+static inline void writeErrorSymbols(const SymbolMap &symbols, ErrorSymbolMap &errorSymbols, const Map<uint32_t, int> &errors)
+{
+    for (Map<uint32_t, int>::const_iterator it = errors.begin(); it != errors.end(); ++it) {
+        if (it->second) {
+            SymbolMap &symbolsForFile = errorSymbols[it->first];
+            if (symbolsForFile.isEmpty()) {
+                const Location loc(it->first, 0);
+                SymbolMap::const_iterator sit = symbols.lower_bound(loc);
+                while (sit != symbols.end() && sit->first.fileId() == it->first) {
+                    symbolsForFile[sit->first] = sit->second;
+                    ++sit;
+                }
+            }
+        } else {
+            errorSymbols.remove(it->first);
+        }
+    }
+}
+
+static inline void writeSymbols(SymbolMap &symbols, SymbolMap &current)
 {
     if (!symbols.isEmpty()) {
         if (current.isEmpty()) {
@@ -644,8 +679,13 @@ int Project::syncDB()
         return -1;
     StopWatch watch;
     Scope<SymbolMap&> symbols = lockSymbolsForWrite();
+    Scope<ErrorSymbolMap&> errorSymbols = lockErrorSymbolsForWrite();
     Scope<SymbolNameMap&> symbolNames = lockSymbolNamesForWrite();
     Scope<UsrMap&> usr = lockUsrForWrite();
+    for (Map<uint32_t, shared_ptr<IndexData> >::iterator it = mPendingData.begin(); it != mPendingData.end(); ++it) {
+        writeErrorSymbols(symbols.data(), errorSymbols.data(), it->second->errors);
+    }
+
     if (!mPendingDirtyFiles.isEmpty()) {
         RTags::dirtySymbols(symbols.data(), mPendingDirtyFiles);
         RTags::dirtySymbolNames(symbolNames.data(), mPendingDirtyFiles);
@@ -658,7 +698,7 @@ int Project::syncDB()
         const shared_ptr<IndexData> &data = it->second;
         addDependencies(data->dependencies, newFiles);
         addFixIts(data->dependencies, data->fixIts);
-        writeCursors(data->symbols, symbols.data());
+        writeSymbols(data->symbols, symbols.data());
         writeUsr(data->usrMap, usr.data(), symbols.data());
         writeReferences(data->references, symbols.data());
         writeSymbolNames(data->symbolNames, symbolNames.data());

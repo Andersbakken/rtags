@@ -323,6 +323,7 @@ Location IndexerJob::createLocation(const CXSourceLocation &location, bool *bloc
                         mBlockedFiles.insert(fileId);
                     } else {
                         mVisitedFiles.insert(fileId);
+                        mData->errors[fileId] = 0;
                     }
                 }
             }
@@ -1059,11 +1060,9 @@ static inline String xmlEscape(const String& xml)
     return strm.str();
 }
 
-bool IndexerJob::diagnose(int build, int *errorCount)
+bool IndexerJob::diagnose(int build)
 {
     TIMING();
-    if (errorCount)
-        *errorCount = 0;
     if (!mUnits.at(build).second) {
         abort();
         return false;
@@ -1083,8 +1082,6 @@ bool IndexerJob::diagnose(int build, int *errorCount)
         switch (severity) {
         case CXDiagnostic_Fatal:
         case CXDiagnostic_Error:
-            if (errorCount)
-                ++*errorCount;
             logLevel = Error;
             break;
         case CXDiagnostic_Warning:
@@ -1101,6 +1098,8 @@ bool IndexerJob::diagnose(int build, int *errorCount)
         const Location loc = createLocation(diagLoc, 0);
         const uint32_t fileId = loc.fileId();
         if (mVisitedFiles.contains(fileId)) {
+            if (severity >= CXDiagnostic_Error)
+                ++mData->errors[fileId];
             const String msg = RTags::eatString(clang_getDiagnosticSpelling(diagnostic));
             if (xmlEnabled) {
                 const CXDiagnosticSeverity sev = clang_getDiagnosticSeverity(diagnostic);
@@ -1165,7 +1164,6 @@ bool IndexerJob::diagnose(int build, int *errorCount)
 
                 const Location loc(file, startOffset);
                 if (mVisitedFiles.contains(loc.fileId())) {
-
                     const char* string = clang_getCString(stringScope);
                     unsigned endOffset;
                     clang_getSpellingLocation(clang_getRangeEnd(range), 0, 0, 0, &endOffset);
@@ -1364,7 +1362,6 @@ void IndexerJob::executeCPP()
             MutexLocker lock(&mMutex);
             mStarted = true;
         }
-        int errorCount = 0;
         int unitCount = 0;
         const int buildCount = mSourceInformation.builds.size();
         for (int i=0; i<buildCount; ++i) {
@@ -1377,10 +1374,8 @@ void IndexerJob::executeCPP()
         mParseTime = time(0);
 
         for (int i=0; i<buildCount; ++i) {
-            int err = 0;
-            if (!visit(i) || !diagnose(i, &err))
+            if (!visit(i) || !diagnose(i))
                 goto end;
-            errorCount += err;
         }
         {
             mData->message = mSourceInformation.sourceFile.toTilde();

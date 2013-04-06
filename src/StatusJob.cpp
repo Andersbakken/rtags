@@ -15,8 +15,8 @@ StatusJob::StatusJob(const QueryMessage &q, const shared_ptr<Project> &project)
 void StatusJob::execute()
 {
     bool matched = false;
-    const char *alternatives = "fileids|dependencies|fileinfos|symbols|symbolnames|watchedpaths|compilers";
-    if (!strcasecmp(query.nullTerminated(), "fileids")) {
+    const char *alternatives = "fileids|dependencies|fileinfos|symbols|symbolnames|errorsymbols|watchedpaths|compilers";
+    if (!strcasecmp(query.constData(), "fileids")) {
         matched = true;
         write(delimiter);
         write("fileids");
@@ -36,7 +36,7 @@ void StatusJob::execute()
         return;
     }
 
-    if (query.isEmpty() || !strcasecmp(query.nullTerminated(), "watchedpaths")) {
+    if (query.isEmpty() || !strcasecmp(query.constData(), "watchedpaths")) {
         matched = true;
         write(delimiter);
         write("watchedpaths");
@@ -49,7 +49,7 @@ void StatusJob::execute()
             return;
     }
 
-    if (query.isEmpty() || !strcasecmp(query.nullTerminated(), "dependencies")) {
+    if (query.isEmpty() || !strcasecmp(query.constData(), "dependencies")) {
         matched = true;
         const DependencyMap map = proj->dependencies();
         write(delimiter);
@@ -78,7 +78,7 @@ void StatusJob::execute()
         }
     }
 
-    if (query.isEmpty() || !strcasecmp(query.nullTerminated(), "symbols")) {
+    if (query.isEmpty() || !strcasecmp(query.constData(), "symbols")) {
         matched = true;
         Scope<const SymbolMap&> scope = proj->lockSymbolsForRead();
         if (scope.isNull())
@@ -97,7 +97,31 @@ void StatusJob::execute()
         }
     }
 
-    if (query.isEmpty() || !strcasecmp(query.nullTerminated(), "symbolnames")) {
+    if (query.isEmpty() || !strcasecmp(query.constData(), "errorsymbols")) {
+        matched = true;
+        Scope<const ErrorSymbolMap&> scope = proj->lockErrorSymbolsForRead();
+        if (scope.isNull())
+            return;
+        const ErrorSymbolMap &map = scope.data();
+        write(delimiter);
+        write("errorsymbols");
+        write(delimiter);
+        for (ErrorSymbolMap::const_iterator it = map.begin(); it != map.end(); ++it) {
+            Path file = Location::path(it->first);
+            write<128>("---------------- %s ---------------", file.constData());
+            const SymbolMap &symbols = it->second;
+            for (SymbolMap::const_iterator sit = symbols.begin(); sit != symbols.end(); ++sit) {
+                const Location loc = sit->first;
+                const CursorInfo ci = sit->second;
+                write(loc);
+                write(ci);
+                if (isAborted())
+                    return;
+            }
+        }
+    }
+
+    if (query.isEmpty() || !strcasecmp(query.constData(), "symbolnames")) {
         matched = true;
         Scope<const SymbolNameMap&> scope = proj->lockSymbolNamesForRead();
         if (scope.isNull())
@@ -118,7 +142,7 @@ void StatusJob::execute()
         }
     }
 
-    if (query.isEmpty() || !strcasecmp(query.nullTerminated(), "fileinfos")) {
+    if (query.isEmpty() || !strcasecmp(query.constData(), "fileinfos")) {
         matched = true;
         const SourceInformationMap map = proj->sources();
         write(delimiter);
@@ -132,7 +156,7 @@ void StatusJob::execute()
         }
     }
 
-    if (query.isEmpty() || !strcasecmp(query.nullTerminated(), "compilers")) {
+    if (query.isEmpty() || !strcasecmp(query.constData(), "compilers")) {
         const List<Path> compilers = CompilerManager::compilers();
         write(delimiter);
         write("compilers");

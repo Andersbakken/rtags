@@ -16,6 +16,7 @@ struct IndexData {
     String message;
     UsrMap usrMap;
     FixItMap fixIts;
+    Map<uint32_t, int> errors;
 };
 
 typedef List<std::pair<CXIndex, CXTranslationUnit> > UnitList;
@@ -49,7 +50,7 @@ private:
     void executeCPP();
     bool parse(int build);
     bool visit(int build);
-    bool diagnose(int build, int *errorCount);
+    bool diagnose(int build);
 
     virtual void execute();
 

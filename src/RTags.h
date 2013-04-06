@@ -41,6 +41,7 @@ void initMessages();
 
 class CursorInfo;
 typedef Map<Location, CursorInfo> SymbolMap;
+typedef Map<uint32_t, SymbolMap> ErrorSymbolMap;
 typedef Map<String, Set<Location> > UsrMap;
 typedef Map<Location, Set<Location> > ReferenceMap;
 typedef Map<String, Set<Location> > SymbolNameMap;

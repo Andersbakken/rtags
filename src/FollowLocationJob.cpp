@@ -14,20 +14,31 @@ void FollowLocationJob::execute()
     Scope<const SymbolMap&> scope = project()->lockSymbolsForRead();
     if (scope.isNull())
         return;
+    Scope<const ErrorSymbolMap&> errorScope = project()->lockErrorSymbolsForRead();
+    if (errorScope.isNull())
+        return;
 
     const SymbolMap &map = scope.data();
-    error() << context();
-    const SymbolMap::const_iterator it = RTags::findCursorInfo(map, location, context());
+
+    const ErrorSymbolMap::const_iterator e = errorScope.data().find(location.fileId());
+
+    bool foundInError = false;
+    SymbolMap::const_iterator it = RTags::findCursorInfo(map, location, context(),
+                                                         e == errorScope.data().end() ? 0 : &e->second, &foundInError);
 
     if (it == map.end())
         return;
 
     const CursorInfo &cursorInfo = it->second;
-    if (cursorInfo.isClass() && cursorInfo.isDefinition())
+    if (cursorInfo.isClass() && cursorInfo.isDefinition()) {
         return;
+    }
 
     Location loc;
     CursorInfo target = cursorInfo.bestTarget(map, &loc);
+    if (target.isNull() && foundInError) {
+        target = cursorInfo.bestTarget(e->second, &loc);
+    }
     if (!loc.isNull()) {
         // ### not respecting DeclarationOnly
         if (cursorInfo.kind != target.kind) {
@@ -42,6 +53,9 @@ void FollowLocationJob::execute()
                 case CXCursor_Constructor:
                 case CXCursor_FunctionTemplate:
                     target = target.bestTarget(map, &loc);
+                    if (target.isNull() && foundInError)
+                        target = cursorInfo.bestTarget(e->second, &loc);
+
                     break;
                 default:
                     break;
@@ -54,10 +68,10 @@ void FollowLocationJob::execute()
                 const CursorInfo decl = target.bestTarget(map, &declLoc);
                 if (!declLoc.isNull()) {
                     write(declLoc);
-                    return;
                 }
+            } else {
+                write(loc);
             }
-            write(loc);
         }
     }
 }

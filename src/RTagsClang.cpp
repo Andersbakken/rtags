@@ -83,12 +83,9 @@ String cursorToString(CXCursor cursor, unsigned flags)
     return ret;
 }
 
-SymbolMap::const_iterator findCursorInfo(const SymbolMap &map, const Location &location, const String &context)
+static inline SymbolMap::const_iterator findCursorInfo(const SymbolMap &map, const Location &location, const String &context, bool scan)
 {
-    if (map.isEmpty())
-        return map.end();
-
-    if (context.isEmpty()) {
+    if (context.isEmpty() || !scan) {
         SymbolMap::const_iterator it = map.lower_bound(location);
         if (it != map.end() && it->first == location) {
             return it;
@@ -96,7 +93,7 @@ SymbolMap::const_iterator findCursorInfo(const SymbolMap &map, const Location &l
             --it;
             if (it->first.fileId() == location.fileId()) {
                 const int off = location.offset() - it->first.offset();
-                if (it->second.symbolLength > off) {
+                if (it->second.symbolLength > off && (context.isEmpty() || it->second.symbolName.contains(context))) {
                     return it;
                 }
             }
@@ -109,7 +106,8 @@ SymbolMap::const_iterator findCursorInfo(const SymbolMap &map, const Location &l
         --f;
     SymbolMap::const_iterator b = f;
 
-    for (int j=0; j<128; ++j) {
+    enum { Search = 32 };
+    for (int j=0; j<Search; ++j) {
         if (f != map.end()) {
             if (location.fileId() != f->first.fileId()) {
                 if (b == map.begin())
@@ -136,6 +134,41 @@ SymbolMap::const_iterator findCursorInfo(const SymbolMap &map, const Location &l
         }
     }
     return map.end();
+}
+
+SymbolMap::const_iterator findCursorInfo(const SymbolMap &map, const Location &location, const String &context,
+                                         const SymbolMap *errors, bool *foundInErrors)
+{
+    if (foundInErrors)
+        *foundInErrors = false;
+    if (map.isEmpty() && !errors)
+        return map.end();
+    if (errors) {
+        SymbolMap::const_iterator ret = findCursorInfo(map, location, context, false);
+        if (ret != map.end()) {
+            return ret;
+        }
+        ret = findCursorInfo(*errors, location, context, false);
+        if (ret != errors->end()) {
+            if (foundInErrors)
+                *foundInErrors = true;
+            return ret;
+        }
+        ret = findCursorInfo(map, location, context, true);
+        if (ret != map.end()) {
+            return ret;
+        }
+        ret = findCursorInfo(*errors, location, context, true);
+        if (ret != errors->end()) {
+            if (foundInErrors)
+                *foundInErrors = true;
+            return ret;
+        }
+        return map.end();
+    } else {
+        const SymbolMap::const_iterator ret = findCursorInfo(map, location, context, true);
+        return ret;
+    }
 }
 
 static CXChildVisitResult findFirstChildVisitor(CXCursor cursor, CXCursor, CXClientData data)

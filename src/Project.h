@@ -77,6 +77,9 @@ public:
     Scope<const SymbolMap&> lockSymbolsForRead(int maxTime = 0);
     Scope<SymbolMap&> lockSymbolsForWrite();
 
+    Scope<const ErrorSymbolMap&> lockErrorSymbolsForRead(int maxTime = 0);
+    Scope<ErrorSymbolMap&> lockErrorSymbolsForWrite();
+
     Scope<const SymbolNameMap&> lockSymbolNamesForRead(int maxTime = 0);
     Scope<SymbolNameMap&> lockSymbolNamesForWrite();
 
@@ -111,6 +114,22 @@ public:
     bool isIndexing() const { MutexLocker lock(&mMutex); return !mJobs.isEmpty(); }
     void onJSFilesAdded();
 private:
+    // template <typename T> static Scope<const T&> lockForRead(T &t, ReadWriteLock &lock)
+    // {
+    //     Scope<const T&> scope;
+    //     lock.lockForRead();
+    //     scope.mData.reset(new Scope<const T&>::Data(t, &lock));
+    //     return scope;
+    // }
+
+    // template <typename T> static Scope<T&> lockForWrite(T &t, ReadWriteLock &lock)
+    // {
+    //     Scope<T&> scope;
+    //     lock.lockForWrite();
+    //     scope.mData.reset(new Scope<T&>::Data(t, &lock));
+    //     return scope;
+    // }
+
     bool initJobFromCache(const Path &path, const List<String> &args,
                           CXIndex &index, CXTranslationUnit &unit, List<String> *argsOut);
     void onFileModified(const Path &);
@@ -126,6 +145,9 @@ private:
 
     SymbolMap mSymbols;
     ReadWriteLock mSymbolsLock;
+
+    ErrorSymbolMap mErrorSymbols;
+    ReadWriteLock mErrorSymbolsLock;
 
     SymbolNameMap mSymbolNames;
     ReadWriteLock mSymbolNamesLock;
