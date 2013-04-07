@@ -181,7 +181,6 @@ private:
     Set<uint32_t> mModifiedFiles;
     Timer mModifiedFilesTimer, mSaveTimer, mSyncTimer;
 
-    bool mTimerRunning;
     StopWatch mTimer;
 
     FileSystemWatcher mWatcher;

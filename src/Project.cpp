@@ -25,8 +25,7 @@ enum {
 };
 
 Project::Project(const Path &path)
-    : mPath(path), mJobCounter(0), mTimerRunning(false),
-      mFirstCachedUnit(0), mLastCachedUnit(0), mUnitCacheSize(0)
+    : mPath(path), mJobCounter(0), mFirstCachedUnit(0), mLastCachedUnit(0), mUnitCacheSize(0)
 {
     mWatcher.modified().connect(this, &Project::onFileModified);
     mWatcher.removed().connect(this, &Project::onFileModified);
@@ -290,16 +289,9 @@ void Project::onJobFinished(const shared_ptr<IndexerJob> &job)
                   String::formatTime(time(0), String::Time).constData(),
                   data->message.constData());
 
-            if (mJobs.isEmpty() && job->flags() & IndexerJob::Dirty) {
-                const int syncTime = syncDB();
-                error() << "Jobs took" << (static_cast<double>(mTimer.elapsed()) / 1000.0) << "secs, syncing took"
-                        << (static_cast<double>(syncTime) / 1000.0) << " secs, using"
-                        << MemoryMonitor::usage() / (1024.0 * 1024.0) << "mb of memory";
-                mTimerRunning = false;
-                mSaveTimer.start(shared_from_this(), SaveTimeout, SingleShot, Save);
-                mJobCounter = 0;
-            } else if (mJobs.isEmpty()) {
-                mSyncTimer.start(shared_from_this(), SyncTimeout, SingleShot, Sync);
+            if (mJobs.isEmpty()) {
+                mSyncTimer.start(shared_from_this(), job->flags() & IndexerJob::Dirty ? 0 : SyncTimeout,
+                                 SingleShot, Sync);
             }
         }
     }
@@ -378,11 +370,8 @@ void Project::index(const SourceInformation &c, IndexerJob::Type type)
     shared_ptr<Project> project = static_pointer_cast<Project>(shared_from_this());
     job.reset(new IndexerJob(project, type, c));
 
-    ++mJobCounter;
-    if (!mTimerRunning) {
-        mTimerRunning = true;
+    if (!mJobCounter++)
         mTimer.start();
-    }
     Server::instance()->startIndexerJob(job);
 }
 
@@ -864,7 +853,6 @@ void Project::timerEvent(TimerEvent *e)
         error() << "Jobs took" << (static_cast<double>(mTimer.elapsed()) / 1000.0) << "secs, syncing took"
                 << (static_cast<double>(syncTime) / 1000.0) << " secs, using"
                 << MemoryMonitor::usage() / (1024.0 * 1024.0) << "mb of memory";
-        mTimerRunning = false;
         mSaveTimer.start(shared_from_this(), SaveTimeout, SingleShot, Save);
         mJobCounter = 0;
     } else if (e->userData() == ModifiedFiles) {
