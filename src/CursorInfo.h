@@ -74,13 +74,13 @@ public:
 
     bool isValid(const Location &location) const;
 
-    CursorInfo bestTarget(const SymbolMap &map, Location *loc = 0) const;
-    SymbolMap targetInfos(const SymbolMap &map) const;
-    SymbolMap referenceInfos(const SymbolMap &map) const;
-    SymbolMap callers(const Location &loc, const SymbolMap &map) const;
-    SymbolMap allReferences(const Location &loc, const SymbolMap &map) const;
-    SymbolMap virtuals(const Location &loc, const SymbolMap &map) const;
-    SymbolMap declarationAndDefinition(const Location &loc, const SymbolMap &map) const;
+    CursorInfo bestTarget(const SymbolMap &map, const SymbolMap *errors = 0, Location *loc = 0) const;
+    SymbolMap targetInfos(const SymbolMap &map, const SymbolMap *errors = 0) const;
+    SymbolMap referenceInfos(const SymbolMap &map, const SymbolMap *errors = 0) const;
+    SymbolMap callers(const Location &loc, const SymbolMap &map, const SymbolMap *errors = 0) const;
+    SymbolMap allReferences(const Location &loc, const SymbolMap &map, const SymbolMap *errors = 0) const;
+    SymbolMap virtuals(const Location &loc, const SymbolMap &map, const SymbolMap *errors = 0) const;
+    SymbolMap declarationAndDefinition(const Location &loc, const SymbolMap &map, const SymbolMap *errors = 0) const;
 
     bool isClass() const
     {

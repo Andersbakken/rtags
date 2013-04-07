@@ -21,10 +21,10 @@ void FollowLocationJob::execute()
     const SymbolMap &map = scope.data();
 
     const ErrorSymbolMap::const_iterator e = errorScope.data().find(location.fileId());
+    const SymbolMap *errors = e == errorScope.data().end() ? 0 : &e->second;
 
     bool foundInError = false;
-    SymbolMap::const_iterator it = RTags::findCursorInfo(map, location, context(),
-                                                         e == errorScope.data().end() ? 0 : &e->second, &foundInError);
+    SymbolMap::const_iterator it = RTags::findCursorInfo(map, location, context(), errors, &foundInError);
 
     if (it == map.end())
         return;
@@ -35,9 +35,9 @@ void FollowLocationJob::execute()
     }
 
     Location loc;
-    CursorInfo target = cursorInfo.bestTarget(map, &loc);
+    CursorInfo target = cursorInfo.bestTarget(map, errors, &loc);
     if (target.isNull() && foundInError) {
-        target = cursorInfo.bestTarget(e->second, &loc);
+        target = cursorInfo.bestTarget(e->second, errors, &loc);
     }
     if (!loc.isNull()) {
         // ### not respecting DeclarationOnly
@@ -52,9 +52,9 @@ void FollowLocationJob::execute()
                 case CXCursor_Destructor:
                 case CXCursor_Constructor:
                 case CXCursor_FunctionTemplate:
-                    target = target.bestTarget(map, &loc);
+                    target = target.bestTarget(map, errors, &loc);
                     if (target.isNull() && foundInError)
-                        target = cursorInfo.bestTarget(e->second, &loc);
+                        target = cursorInfo.bestTarget(e->second, errors, &loc);
 
                     break;
                 default:
@@ -65,7 +65,7 @@ void FollowLocationJob::execute()
         if (!loc.isNull()) {
             if (queryFlags() & QueryMessage::DeclarationOnly && target.isDefinition()) {
                 Location declLoc;
-                const CursorInfo decl = target.bestTarget(map, &declLoc);
+                const CursorInfo decl = target.bestTarget(map, errors, &declLoc);
                 if (!declLoc.isNull()) {
                     write(declLoc);
                 }

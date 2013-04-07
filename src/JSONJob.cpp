@@ -47,7 +47,7 @@ void JSONJob::execute()
             SymbolMap::const_iterator sit = map.lower_bound(loc);
             while (sit != map.end() && sit->first.fileId() == it->first) {
                 Location targetLocation;
-                CursorInfo target = sit->second.bestTarget(map, &targetLocation);
+                CursorInfo target = sit->second.bestTarget(map, 0, &targetLocation);
                 const String type = sit->second.kindSpelling();
                 if (firstSymbol) {
                     firstSymbol = false;
