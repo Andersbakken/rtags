@@ -80,10 +80,7 @@ void StatusJob::execute()
 
     if (query.isEmpty() || !strcasecmp(query.constData(), "symbols")) {
         matched = true;
-        Scope<const SymbolMap&> scope = proj->lockSymbolsForRead();
-        if (scope.isNull())
-            return;
-        const SymbolMap &map = scope.data();
+        const SymbolMap &map = proj->symbols();
         write(delimiter);
         write("symbols");
         write(delimiter);
@@ -99,10 +96,7 @@ void StatusJob::execute()
 
     if (query.isEmpty() || !strcasecmp(query.constData(), "errorsymbols")) {
         matched = true;
-        Scope<const ErrorSymbolMap&> scope = proj->lockErrorSymbolsForRead();
-        if (scope.isNull())
-            return;
-        const ErrorSymbolMap &map = scope.data();
+        const ErrorSymbolMap &map = proj->errorSymbols();
         write(delimiter);
         write("errorsymbols");
         write(delimiter);
@@ -123,10 +117,7 @@ void StatusJob::execute()
 
     if (query.isEmpty() || !strcasecmp(query.constData(), "symbolnames")) {
         matched = true;
-        Scope<const SymbolNameMap&> scope = proj->lockSymbolNamesForRead();
-        if (scope.isNull())
-            return;
-        const SymbolNameMap &map = scope.data();
+        const SymbolNameMap &map = proj->symbolNames();
         write(delimiter);
         write("symbolnames");
         write(delimiter);

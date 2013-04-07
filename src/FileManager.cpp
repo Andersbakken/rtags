@@ -20,23 +20,22 @@ void FileManager::recurseDirs()
 {
     shared_ptr<Project> project = mProject.lock();
     assert(project);
-    shared_ptr<ScanJob> job(new ScanJob(project->path(), project));
-    job->finished().connect(this, &FileManager::onRecurseJobFinished);
+    shared_ptr<ScanJob> job(new ScanJob(project->path()));
+    job->finished().connectAsync(this, &FileManager::onRecurseJobFinished);
     Server::instance()->threadPool()->start(job);
 }
 
-void FileManager::onRecurseJobFinished(const Set<Path> &paths)
+void FileManager::onRecurseJobFinished(Set<Path> paths)
 {
     bool emitJS = false;
     {
-        MutexLocker lock(&mMutex);
+        MutexLocker lock(&mMutex); // ### is this needed now?
         Set<Path> old;
         std::swap(mJSFiles, old);
 
         shared_ptr<Project> project = mProject.lock();
         assert(project);
-        Scope<FilesMap&> scope = project->lockFilesForWrite();
-        FilesMap &map = scope.data();
+        FilesMap &map = project->files();
         mWatcher.clear();
         for (Set<Path>::const_iterator it = paths.begin(); it != paths.end(); ++it) {
             if (it->endsWith(".js"))
@@ -81,8 +80,7 @@ void FileManager::onFileAdded(const Path &path)
 
         shared_ptr<Project> project = mProject.lock();
         assert(project);
-        Scope<FilesMap&> scope = project->lockFilesForWrite();
-        FilesMap &map = scope.data();
+        FilesMap &map = project->files();
         const Path parent = path.parentDir();
         if (!parent.isEmpty()) {
             Set<String> &dir = map[parent];
@@ -103,8 +101,7 @@ void FileManager::onFileRemoved(const Path &path)
 {
     MutexLocker lock(&mMutex);
     shared_ptr<Project> project = mProject.lock();
-    Scope<FilesMap&> scope = project->lockFilesForWrite();
-    FilesMap &map = scope.data();
+    FilesMap &map = project->files();
     if (map.contains(path)) {
         recurseDirs();
         return;
@@ -144,8 +141,7 @@ void FileManager::reload()
 {
     MutexLocker lock(&mMutex);
     shared_ptr<Project> proj = mProject.lock();
-    Scope<FilesMap&> scope = proj->lockFilesForWrite();
-    FilesMap &map = scope.data();
+    FilesMap &map = proj->files();
     map.clear();
     recurseDirs();
 }

@@ -11,17 +11,11 @@ FollowLocationJob::FollowLocationJob(const Location &loc, const QueryMessage &qu
 
 void FollowLocationJob::execute()
 {
-    Scope<const SymbolMap&> scope = project()->lockSymbolsForRead();
-    if (scope.isNull())
-        return;
-    Scope<const ErrorSymbolMap&> errorScope = project()->lockErrorSymbolsForRead();
-    if (errorScope.isNull())
-        return;
+    const SymbolMap &map = project()->symbols();
+    const ErrorSymbolMap &errorSymbols = project()->errorSymbols();
 
-    const SymbolMap &map = scope.data();
-
-    const ErrorSymbolMap::const_iterator e = errorScope.data().find(location.fileId());
-    const SymbolMap *errors = e == errorScope.data().end() ? 0 : &e->second;
+    const ErrorSymbolMap::const_iterator e = errorSymbols.find(location.fileId());
+    const SymbolMap *errors = e == errorSymbols.end() ? 0 : &e->second;
 
     bool foundInError = false;
     SymbolMap::const_iterator it = RTags::findCursorInfo(map, location, context(), errors, &foundInError);

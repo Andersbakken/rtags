@@ -11,10 +11,7 @@ CursorInfoJob::CursorInfoJob(const Location &loc, const QueryMessage &query, con
 
 void CursorInfoJob::execute()
 {
-    Scope<const SymbolMap &> scope = project()->lockSymbolsForRead();
-    if (scope.isNull())
-        return;
-    const SymbolMap &map = scope.data();
+    const SymbolMap &map = project()->symbols();
     if (map.isEmpty())
         return;
     SymbolMap::const_iterator it = RTags::findCursorInfo(map, location, context());

@@ -11,30 +11,6 @@
 #include <rct/FileSystemWatcher.h>
 #include "IndexerJob.h"
 
-template <typename T>
-class Scope
-{
-public:
-    bool isNull() const { return !mData; }
-    bool isValid() const { return mData; }
-    T data() const { return mData->t; }
-private:
-    friend class Project;
-    struct Data {
-        Data(T tt, ReadWriteLock *l)
-            : t(tt), lock(l)
-        {
-        }
-        ~Data()
-        {
-            lock->unlock();
-        }
-        T t;
-        ReadWriteLock *lock;
-    };
-    shared_ptr<Data> mData;
-};
-
 struct CachedUnit
 {
     CachedUnit()
@@ -72,23 +48,23 @@ public:
 
     Path path() const { return mPath; }
 
-    bool match(const Match &match, bool *indexed = 0);
+    bool match(const Match &match, bool *indexed = 0) const;
 
-    Scope<const SymbolMap&> lockSymbolsForRead(int maxTime = 0);
-    Scope<SymbolMap&> lockSymbolsForWrite();
+    const SymbolMap &symbols() const { return mSymbols; }
+    SymbolMap &symbols() { return mSymbols; }
 
-    Scope<const ErrorSymbolMap&> lockErrorSymbolsForRead(int maxTime = 0);
-    Scope<ErrorSymbolMap&> lockErrorSymbolsForWrite();
+    const ErrorSymbolMap &errorSymbols() const { return mErrorSymbols; }
+    ErrorSymbolMap &errorSymbols() { return mErrorSymbols; }
 
-    Scope<const SymbolNameMap&> lockSymbolNamesForRead(int maxTime = 0);
-    Scope<SymbolNameMap&> lockSymbolNamesForWrite();
+    const SymbolNameMap &symbolNames() const { return mSymbolNames; }
+    SymbolNameMap &symbolNames() { return mSymbolNames; }
 
-    Scope<const FilesMap&> lockFilesForRead(int maxTime = 0);
-    Scope<FilesMap&> lockFilesForWrite();
+    const FilesMap &files() const { return mFiles; }
+    FilesMap &files() { return mFiles; }
 
-    Scope<const UsrMap&> lockUsrForRead(int maxTime = 0);
-    Scope<UsrMap&> lockUsrForWrite();
-
+    const UsrMap &usrs() const { return mUsr; }
+    UsrMap &usrs() { return mUsr; }
+    
     bool isIndexed(uint32_t fileId) const;
 
     void index(const SourceInformation &args, IndexerJob::Type type);
@@ -114,22 +90,6 @@ public:
     bool isIndexing() const { MutexLocker lock(&mMutex); return !mJobs.isEmpty(); }
     void onJSFilesAdded();
 private:
-    // template <typename T> static Scope<const T&> lockForRead(T &t, ReadWriteLock &lock)
-    // {
-    //     Scope<const T&> scope;
-    //     lock.lockForRead();
-    //     scope.mData.reset(new Scope<const T&>::Data(t, &lock));
-    //     return scope;
-    // }
-
-    // template <typename T> static Scope<T&> lockForWrite(T &t, ReadWriteLock &lock)
-    // {
-    //     Scope<T&> scope;
-    //     lock.lockForWrite();
-    //     scope.mData.reset(new Scope<T&>::Data(t, &lock));
-    //     return scope;
-    // }
-
     bool initJobFromCache(const Path &path, const List<String> &args,
                           CXIndex &index, CXTranslationUnit &unit, List<String> *argsOut);
     void onFileModified(const Path &);
@@ -144,19 +104,10 @@ private:
     const Path mPath;
 
     SymbolMap mSymbols;
-    ReadWriteLock mSymbolsLock;
-
     ErrorSymbolMap mErrorSymbols;
-    ReadWriteLock mErrorSymbolsLock;
-
     SymbolNameMap mSymbolNames;
-    ReadWriteLock mSymbolNamesLock;
-
     UsrMap mUsr;
-    ReadWriteLock mUsrLock;
-
     FilesMap mFiles;
-    ReadWriteLock mFilesLock;
 
     enum InitMode {
         Normal,

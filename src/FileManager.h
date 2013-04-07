@@ -5,10 +5,11 @@
 #include <rct/List.h>
 #include <rct/FileSystemWatcher.h>
 #include <rct/Mutex.h>
+#include <rct/EventReceiver.h>
 #include "Location.h"
 
 class Project;
-class FileManager
+class FileManager : public EventReceiver
 {
 public:
     FileManager();
@@ -16,7 +17,7 @@ public:
     void recurseDirs();
     void onFileAdded(const Path &path);
     void onFileRemoved(const Path &path);
-    void onRecurseJobFinished(const Set<Path> &mPaths);
+    void onRecurseJobFinished(Set<Path> mPaths);
     bool contains(const Path &path) const;
     void reload();
     Set<Path> jsFiles() const;

@@ -3,8 +3,8 @@
 #include "Filter.h"
 #include "Project.h"
 
-ScanJob::ScanJob(const Path &path, const shared_ptr<Project> &project)
-    : mPath(path), mFilters(Server::instance()->options().excludeFilters), mProject(project)
+ScanJob::ScanJob(const Path &path)
+    : mPath(path), mFilters(Server::instance()->options().excludeFilters)
 {
     if (!mPath.endsWith('/'))
         mPath.append('/');
@@ -13,8 +13,7 @@ ScanJob::ScanJob(const Path &path, const shared_ptr<Project> &project)
 void ScanJob::run()
 {
     mPath.visit(&ScanJob::visit, this);
-    if (shared_ptr<Project> project = mProject.lock())
-        mFinished(mPaths);
+    mFinished(mPaths);
 }
 
 Path::VisitResult ScanJob::visit(const Path &path, void *userData)

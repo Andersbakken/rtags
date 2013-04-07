@@ -24,12 +24,10 @@ void JSONJob::execute()
 {
     shared_ptr<Project> proj = project();
     const Path root = proj->path();
-    const DependencyMap deps = proj->dependencies();;
+    const DependencyMap deps = proj->dependencies();
     // error() << deps.keys();
     assert(proj);
-    Scope<const SymbolMap&> scope = proj->lockSymbolsForRead();
-    const SymbolMap &map = scope.data();
-    assert(!scope.isNull());
+    const SymbolMap &map = proj->symbols();
     write("{");
     bool firstObject = true;
     for (DependencyMap::const_iterator it = deps.begin(); it != deps.end(); ++it) {

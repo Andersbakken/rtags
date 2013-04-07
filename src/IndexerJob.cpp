@@ -323,6 +323,12 @@ Location IndexerJob::createLocation(const CXSourceLocation &location, bool *bloc
                         mBlockedFiles.insert(fileId);
                     } else {
                         mVisitedFiles.insert(fileId);
+                        if (mVisitedFiles.size() % 10 == 0) {
+                            // We seem to get worse total performance when some
+                            // translation units get to index all the headers.
+                            // error() << "Sleeping some for" << mSourceInformation.sourceFile;
+                            usleep(500000);
+                        }
                         mData->errors[fileId] = 0;
                     }
                 }

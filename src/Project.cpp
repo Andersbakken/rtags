@@ -68,20 +68,8 @@ bool Project::restore()
         }
     }
     {
-        {
-            Scope<SymbolMap &> scope = lockSymbolsForWrite();
-            in >> scope.data();
-        }
-        {
-            Scope<SymbolNameMap &> scope = lockSymbolNamesForWrite();
-            in >> scope.data();
-        }
-        {
-            Scope<UsrMap &> scope = lockUsrForWrite();
-            in >> scope.data();
-        }
 
-        in >> mDependencies >> mSources >> mVisitedFiles;
+        in >> mSymbols >> mSymbolNames >> mUsr >> mDependencies >> mSources >> mVisitedFiles;
 
         DependencyMap reversedDependencies;
         // these dependencies are in the form of:
@@ -145,86 +133,6 @@ bool Project::isValid() const
     return fileManager.get();
 }
 
-Scope<const SymbolMap&> Project::lockSymbolsForRead(int maxTime)
-{
-    Scope<const SymbolMap&> scope;
-    if (mSymbolsLock.lockForRead(maxTime))
-        scope.mData.reset(new Scope<const SymbolMap&>::Data(mSymbols, &mSymbolsLock));
-    return scope;
-}
-
-Scope<SymbolMap&> Project::lockSymbolsForWrite()
-{
-    Scope<SymbolMap&> scope;
-    mSymbolsLock.lockForWrite();
-    scope.mData.reset(new Scope<SymbolMap&>::Data(mSymbols, &mSymbolsLock));
-    return scope;
-}
-
-Scope<const ErrorSymbolMap&> Project::lockErrorSymbolsForRead(int maxTime)
-{
-    Scope<const ErrorSymbolMap&> scope;
-    if (mErrorSymbolsLock.lockForRead(maxTime))
-        scope.mData.reset(new Scope<const ErrorSymbolMap&>::Data(mErrorSymbols, &mErrorSymbolsLock));
-    return scope;
-}
-
-Scope<ErrorSymbolMap&> Project::lockErrorSymbolsForWrite()
-{
-    Scope<ErrorSymbolMap&> scope;
-    mErrorSymbolsLock.lockForWrite();
-    scope.mData.reset(new Scope<ErrorSymbolMap&>::Data(mErrorSymbols, &mErrorSymbolsLock));
-    return scope;
-}
-
-Scope<const SymbolNameMap&> Project::lockSymbolNamesForRead(int maxTime)
-{
-    Scope<const SymbolNameMap&> scope;
-    if (mSymbolNamesLock.lockForRead(maxTime))
-        scope.mData.reset(new Scope<const SymbolNameMap&>::Data(mSymbolNames, &mSymbolNamesLock));
-    return scope;
-}
-
-Scope<SymbolNameMap&> Project::lockSymbolNamesForWrite()
-{
-    Scope<SymbolNameMap&> scope;
-    mSymbolNamesLock.lockForWrite();
-    scope.mData.reset(new Scope<SymbolNameMap&>::Data(mSymbolNames, &mSymbolNamesLock));
-    return scope;
-}
-
-Scope<const UsrMap&> Project::lockUsrForRead(int maxTime)
-{
-    Scope<const UsrMap&> scope;
-    if (mUsrLock.lockForRead(maxTime))
-        scope.mData.reset(new Scope<const UsrMap&>::Data(mUsr, &mUsrLock));
-    return scope;
-}
-
-Scope<UsrMap&> Project::lockUsrForWrite()
-{
-    Scope<UsrMap&> scope;
-    mUsrLock.lockForWrite();
-    scope.mData.reset(new Scope<UsrMap&>::Data(mUsr, &mUsrLock));
-    return scope;
-
-}
-Scope<const FilesMap&> Project::lockFilesForRead(int maxTime)
-{
-    Scope<const FilesMap&> scope;
-    if (mFilesLock.lockForRead(maxTime))
-        scope.mData.reset(new Scope<const FilesMap&>::Data(mFiles, &mFilesLock));
-    return scope;
-}
-
-Scope<FilesMap&> Project::lockFilesForWrite()
-{
-    Scope<FilesMap&> scope;
-    mFilesLock.lockForWrite();
-    scope.mData.reset(new Scope<FilesMap&>::Data(mFiles, &mFilesLock));
-    return scope;
-}
-
 void Project::unload()
 {
     MutexLocker lock(&mMutex);
@@ -235,12 +143,11 @@ void Project::unload()
     fileManager.reset();
 }
 
-bool Project::match(const Match &p, bool *indexed)
+bool Project::match(const Match &p, bool *indexed) const
 {
     Path paths[] = { p.pattern(), p.pattern() };
     paths[1].resolve();
     const int count = paths[1].compare(paths[0]) ? 2 : 1;
-    Scope<const FilesMap&> files = lockFilesForRead();
     bool ret = false;
     for (int i=0; i<count; ++i) {
         const Path &path = paths[i];
@@ -249,7 +156,7 @@ bool Project::match(const Match &p, bool *indexed)
             if (indexed)
                 *indexed = true;
             return true;
-        } else if (files.data().contains(path) || p.match(mPath)) {
+        } else if (mFiles.contains(path) || p.match(mPath)) {
             if (!indexed)
                 return true;
             ret = true;
@@ -318,20 +225,8 @@ bool Project::save()
     Serializer out(f);
     out << static_cast<int>(Server::DatabaseVersion);
     const int pos = ftell(f);
-    out << static_cast<int>(0);
-    {
-        Scope<const SymbolMap &> scope = lockSymbolsForRead();
-        out << scope.data();
-    }
-    {
-        Scope<const SymbolNameMap &> scope = lockSymbolNamesForRead();
-        out << scope.data();
-    }
-    {
-        Scope<const UsrMap &> scope = lockUsrForRead();
-        out << scope.data();
-    }
-    out << mDependencies << mSources << mVisitedFiles;
+    out << static_cast<int>(0) << mSymbols << mSymbolNames << mUsr
+        << mDependencies << mSources << mVisitedFiles;
 
     const int size = ftell(f);
     fseek(f, pos, SEEK_SET);
@@ -551,18 +446,9 @@ void Project::startDirtyJobs()
         }
     }
     if (!indexed && !mPendingDirtyFiles.isEmpty()) {
-        {
-            Scope<SymbolMap&> symbols = lockSymbolsForWrite();
-            RTags::dirtySymbols(symbols.data(), mPendingDirtyFiles);
-        }
-        {
-            Scope<SymbolNameMap&> symbolNames = lockSymbolNamesForWrite();
-            RTags::dirtySymbolNames(symbolNames.data(), mPendingDirtyFiles);
-        }
-        {
-            Scope<UsrMap&> usr = lockUsrForWrite();
-            RTags::dirtyUsr(usr.data(), mPendingDirtyFiles);
-        }
+        RTags::dirtySymbols(mSymbols, mPendingDirtyFiles);
+        RTags::dirtySymbolNames(mSymbolNames, mPendingDirtyFiles);
+        RTags::dirtyUsr(mUsr, mPendingDirtyFiles);
         mPendingDirtyFiles.clear();
     }
 }
@@ -667,18 +553,14 @@ int Project::syncDB()
     if (mPendingDirtyFiles.isEmpty() && mPendingData.isEmpty())
         return -1;
     StopWatch watch;
-    Scope<SymbolMap&> symbols = lockSymbolsForWrite();
-    Scope<ErrorSymbolMap&> errorSymbols = lockErrorSymbolsForWrite();
-    Scope<SymbolNameMap&> symbolNames = lockSymbolNamesForWrite();
-    Scope<UsrMap&> usr = lockUsrForWrite();
     for (Map<uint32_t, shared_ptr<IndexData> >::iterator it = mPendingData.begin(); it != mPendingData.end(); ++it) {
-        writeErrorSymbols(symbols.data(), errorSymbols.data(), it->second->errors);
+        writeErrorSymbols(mSymbols, mErrorSymbols, it->second->errors);
     }
 
     if (!mPendingDirtyFiles.isEmpty()) {
-        RTags::dirtySymbols(symbols.data(), mPendingDirtyFiles);
-        RTags::dirtySymbolNames(symbolNames.data(), mPendingDirtyFiles);
-        RTags::dirtyUsr(usr.data(), mPendingDirtyFiles);
+        RTags::dirtySymbols(mSymbols, mPendingDirtyFiles);
+        RTags::dirtySymbolNames(mSymbolNames, mPendingDirtyFiles);
+        RTags::dirtyUsr(mUsr, mPendingDirtyFiles);
         mPendingDirtyFiles.clear();
     }
 
@@ -687,10 +569,10 @@ int Project::syncDB()
         const shared_ptr<IndexData> &data = it->second;
         addDependencies(data->dependencies, newFiles);
         addFixIts(data->dependencies, data->fixIts);
-        writeSymbols(data->symbols, symbols.data());
-        writeUsr(data->usrMap, usr.data(), symbols.data());
-        writeReferences(data->references, symbols.data());
-        writeSymbolNames(data->symbolNames, symbolNames.data());
+        writeSymbols(data->symbols, mSymbols);
+        writeUsr(data->usrMap, mUsr, mSymbols);
+        writeReferences(data->references, mSymbols);
+        writeSymbolNames(data->symbolNames, mSymbolNames);
     }
     for (Set<uint32_t>::const_iterator it = newFiles.begin(); it != newFiles.end(); ++it) {
         const Path path = Location::path(*it);

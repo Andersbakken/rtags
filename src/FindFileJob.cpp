@@ -46,9 +46,8 @@ void FindFileJob::execute()
         out.append(srcRoot);
         assert(srcRoot.endsWith('/'));
     }
-    Scope<const FilesMap&> scope = proj->lockFilesForRead();
-    const Map<Path, Set<String> > &dirs = scope.data();
-    Map<Path, Set<String> >::const_iterator dirit = dirs.begin();
+    const FilesMap& dirs = proj->files();
+    FilesMap::const_iterator dirit = dirs.begin();
     bool foundExact = false;
     const int patternSize = mPattern.size();
     List<String> matches;

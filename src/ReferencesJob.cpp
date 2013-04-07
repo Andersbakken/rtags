@@ -22,22 +22,11 @@ void ReferencesJob::execute()
     Map<Location, std::pair<bool, uint16_t> > references;
     if (proj) {
         if (!symbolName.isEmpty()) {
-            Scope<const SymbolNameMap&> scope = proj->lockSymbolNamesForRead();
-            if (scope.isNull())
-                return;
-            locations = scope.data().value(symbolName);
+            locations = proj->symbolNames().value(symbolName);
         }
         if (!locations.isEmpty()) {
-            Scope<const SymbolMap&> scope = proj->lockSymbolsForRead();
-            if (scope.isNull())
-                return;
-
-            Scope<const ErrorSymbolMap&> errorScope = proj->lockErrorSymbolsForRead();
-            if (errorScope.isNull())
-                return;
-
-            const SymbolMap &map = scope.data();
-            const ErrorSymbolMap &errorMap = errorScope.data();
+            const SymbolMap &map = proj->symbols();
+            const ErrorSymbolMap &errorMap = proj->errorSymbols();
             const ErrorSymbolMap::const_iterator e = symbolName.isEmpty() ? errorMap.find(locations.begin()->fileId()) : errorMap.end();
             const SymbolMap *errors = e == errorMap.end() ? 0 : &e->second;
 

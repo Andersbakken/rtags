@@ -54,8 +54,7 @@ Set<String> ListSymbolsJob::imenu(const shared_ptr<Project> &project)
 {
     Set<String> out;
 
-    Scope<const SymbolMap&> symbols = project->lockSymbolsForRead();
-    const SymbolMap &map = symbols.data();
+    const SymbolMap &map = project->symbols();
     const List<String> paths = pathFilters();
     if (paths.isEmpty()) {
         error() << "--imenu must take path filters";
@@ -106,8 +105,7 @@ Set<String> ListSymbolsJob::listSymbols(const shared_ptr<Project> &project)
     const bool hasFilter = Job::hasFilter();
     const bool stripParentheses = queryFlags() & QueryMessage::StripParentheses;
 
-    Scope<const SymbolNameMap&> symbolNames = project->lockSymbolNamesForRead();
-    const SymbolNameMap &map = symbolNames.data();
+    const SymbolNameMap &map = project->symbolNames();
     SymbolNameMap::const_iterator it = string.isEmpty() ? map.begin() : map.lower_bound(string);
     int count = 0;
     while (it != map.end()) {

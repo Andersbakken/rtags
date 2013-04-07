@@ -16,10 +16,7 @@ void ValidateDBJob::execute()
     int total = 0;
     Set<Location> newErrors;
     {
-        Scope<const SymbolMap&> scope = project()->lockSymbolsForRead();
-        if (scope.isNull())
-            return;
-        const SymbolMap &map = scope.data();
+        const SymbolMap &map = project()->symbols();
         char *lastFileContents = 0;
         uint32_t lastFileId = -1;
         for (SymbolMap::const_iterator it = map.begin(); it != map.end(); ++it) {
