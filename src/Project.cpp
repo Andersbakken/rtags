@@ -553,9 +553,9 @@ int Project::syncDB()
     if (mPendingDirtyFiles.isEmpty() && mPendingData.isEmpty())
         return -1;
     StopWatch watch;
-    for (Map<uint32_t, shared_ptr<IndexData> >::iterator it = mPendingData.begin(); it != mPendingData.end(); ++it) {
-        writeErrorSymbols(mSymbols, mErrorSymbols, it->second->errors);
-    }
+    // for (Map<uint32_t, shared_ptr<IndexData> >::iterator it = mPendingData.begin(); it != mPendingData.end(); ++it) {
+    //     writeErrorSymbols(mSymbols, mErrorSymbols, it->second->errors);
+    // }
 
     if (!mPendingDirtyFiles.isEmpty()) {
         RTags::dirtySymbols(mSymbols, mPendingDirtyFiles);
