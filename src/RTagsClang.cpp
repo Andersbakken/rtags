@@ -154,16 +154,17 @@ SymbolMap::const_iterator findCursorInfo(const SymbolMap &map, const Location &l
                 *foundInErrors = true;
             return ret;
         }
-        ret = findCursorInfo(map, location, context, true);
-        if (ret != map.end()) {
-            return ret;
-        }
         ret = findCursorInfo(*errors, location, context, true);
         if (ret != errors->end()) {
             if (foundInErrors)
                 *foundInErrors = true;
             return ret;
         }
+        ret = findCursorInfo(map, location, context, true);
+        if (ret != map.end()) {
+            return ret;
+        }
+
         return map.end();
     } else {
         const SymbolMap::const_iterator ret = findCursorInfo(map, location, context, true);
