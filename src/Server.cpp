@@ -3,7 +3,6 @@
 #include "Client.h"
 #include "CompileJob.h"
 #include "CompileMessage.h"
-#include "CompilerManager.h"
 #include "CompletionJob.h"
 #include "CreateOutputMessage.h"
 #include "CursorInfoJob.h"

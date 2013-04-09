@@ -46,8 +46,7 @@ public:
         UnlimitedErrors = 0x020,
         SpellChecking = 0x040,
         AllowMultipleBuildsForSameCompiler = 0x080,
-        NoStartupCurrentProject = 0x100,
-        UseCompilerFlags = 0x200
+        NoStartupCurrentProject = 0x100
     };
     ThreadPool *threadPool() const { return mIndexerThreadPool; }
     void startQueryJob(const shared_ptr<Job> &job);

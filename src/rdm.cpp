@@ -116,7 +116,6 @@ int main(int argc, char** argv)
         { "no-current-project", no_argument, 0, 'o' },
         { "clang-stack-size", required_argument, 0, 't' },
         { "ignore-compiler", required_argument, 0, 'b' },
-        { "compiler-flags", no_argument, 0, 'G' },
         { 0, 0, 0, 0 }
     };
     const String shortOptions = Rct::shortOptions(opts);
@@ -252,9 +251,6 @@ int main(int argc, char** argv)
             break;
         case 'o':
             serverOpts.options |= Server::NoStartupCurrentProject;
-            break;
-        case 'G':
-            serverOpts.options |= Server::UseCompilerFlags;
             break;
         case 'F':
             serverOpts.options |= Server::IgnorePrintfFixits;

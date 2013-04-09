@@ -4,7 +4,6 @@
 #include "Server.h"
 #include <rct/EventLoop.h>
 #include "Project.h"
-#include "CompilerManager.h"
 #include "RTagsClang.h"
 #include "JSParser.h"
 
@@ -953,7 +952,6 @@ bool IndexerJob::parse(int build)
         return false;
     }
     const List<String> args = mSourceInformation.builds.at(build).args;
-    const List<String> compilerArgs = CompilerManager::flags(mSourceInformation.builds.at(build).compiler);
     const List<String> &defaultArguments = Server::instance()->options().defaultArguments;
     CXTranslationUnit &unit = mUnits[build].second;
     assert(!unit);
@@ -963,10 +961,10 @@ bool IndexerJob::parse(int build)
     clangLine = "clang ";
 
     int idx = 0;
-    List<const char*> clangArgs(args.size() + defaultArguments.size() + compilerArgs.size(), 0);
+    List<const char*> clangArgs(args.size() + defaultArguments.size(), 0);
 
-    const List<String> *lists[] = { &args, &compilerArgs, &defaultArguments };
-    for (int i=0; i<3; ++i) {
+    const List<String> *lists[] = { &args, &defaultArguments };
+    for (int i=0; i<2; ++i) {
         const int count = lists[i]->size();
         for (int j=0; j<count; ++j) {
             String arg = lists[i]->at(j);

@@ -58,7 +58,6 @@ set(RTAGS_SHARED_SOURCES
 set(RDM_SOURCES
   CompileJob.cpp
   CompletionJob.cpp
-  CompilerManager.cpp
   CursorInfo.cpp
   CursorInfoJob.cpp
   DependenciesJob.cpp
