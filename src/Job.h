@@ -6,7 +6,6 @@
 #include <rct/String.h>
 #include <rct/Event.h>
 #include <rct/SignalSlot.h>
-#include "Server.h"
 #include <rct/RegExp.h>
 #include "RTagsClang.h"
 
@@ -14,6 +13,7 @@ class CursorInfo;
 class Location;
 class QueryMessage;
 class Project;
+class Connection;
 class Job : public ThreadPool::Job, public enable_shared_from_this<Job>
 {
 public:
@@ -49,7 +49,7 @@ public:
     unsigned queryFlags() const { return mQueryFlags; }
     void setQueryFlags(unsigned queryFlags) { mQueryFlags = queryFlags; }
     unsigned keyFlags() const;
-    inline bool filter(const String &val) const;
+    bool filter(const String &val) const;
     signalslot::Signal1<const String &> &output() { return mOutput; }
     shared_ptr<Project> project() const { return mProject.lock(); }
     virtual void run();
@@ -58,10 +58,11 @@ public:
     bool isAborted() const { MutexLocker lock(&mMutex); return mAborted; }
     void abort() { MutexLocker lock(&mMutex); mAborted = true; }
     String context() const { return mContext; }
-protected:
+    Mutex &mutex() const { return mMutex; }
+    bool &aborted() { return mAborted; }
+private:
     mutable Mutex mMutex;
     bool mAborted;
-private:
     bool writeRaw(const String &out, unsigned flags);
     int mId, mMinOffset, mMaxOffset;
     unsigned mJobFlags;
@@ -94,39 +95,6 @@ inline bool Job::write(const char *format, ...)
     const String ret = String::format<StaticBufSize>(format, args);
     va_end(args);
     return write(ret);
-}
-
-inline bool Job::filter(const String &value) const
-{
-    if (!mPathFilters && !mPathFiltersRegExp && !(mQueryFlags & QueryMessage::FilterSystemIncludes))
-        return true;
-
-    const char *val = value.constData();
-    while (*val && isspace(*val))
-        ++val;
-
-    if (mQueryFlags & QueryMessage::FilterSystemIncludes && Path::isSystem(val))
-        return false;
-
-    if (!mPathFilters && !mPathFiltersRegExp)
-        return true;
-
-    assert(!mPathFilters != !mPathFiltersRegExp);
-    String copy;
-    const String &ref = (val != value.constData() ? copy : value);
-    if (val != value.constData())
-        copy = val;
-    if (mPathFilters)
-        return RTags::startsWith(*mPathFilters, ref);
-
-    assert(mPathFiltersRegExp);
-
-    const int count = mPathFiltersRegExp->size();
-    for (int i=0; i<count; ++i) {
-        if (mPathFiltersRegExp->at(i).indexIn(ref) != -1)
-            return true;
-    }
-    return false;
 }
 
 class JobOutputEvent : public Event

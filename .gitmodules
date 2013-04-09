@@ -7,3 +7,6 @@
 [submodule "src/auto-complete"]
 	path = src/auto-complete
 	url = git://github.com/auto-complete/auto-complete.git
+[submodule "src/rparser"]
+	path = src/rparser
+	url = git@github.com:Andersbakken/rparser.git

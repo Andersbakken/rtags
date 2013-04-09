@@ -500,7 +500,7 @@ void Server::dumpFile(const QueryMessage &query, Connection *conn)
         return;
     }
 
-    shared_ptr<IndexerJob> job(new IndexerJob(query, project, c));
+    shared_ptr<IndexerJob> job = IndexerJob::createDump(query, project, c);
     job->setId(nextId());
     mPendingLookups[job->id()] = conn;
     startQueryJob(job);

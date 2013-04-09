@@ -136,6 +136,40 @@ bool Job::write(const CursorInfo &ci, unsigned ciflags)
     return true;
 }
 
+bool Job::filter(const String &value) const
+{
+    if (!mPathFilters && !mPathFiltersRegExp && !(mQueryFlags & QueryMessage::FilterSystemIncludes))
+        return true;
+
+    const char *val = value.constData();
+    while (*val && isspace(*val))
+        ++val;
+
+    if (mQueryFlags & QueryMessage::FilterSystemIncludes && Path::isSystem(val))
+        return false;
+
+    if (!mPathFilters && !mPathFiltersRegExp)
+        return true;
+
+    assert(!mPathFilters != !mPathFiltersRegExp);
+    String copy;
+    const String &ref = (val != value.constData() ? copy : value);
+    if (val != value.constData())
+        copy = val;
+    if (mPathFilters)
+        return RTags::startsWith(*mPathFilters, ref);
+
+    assert(mPathFiltersRegExp);
+
+    const int count = mPathFiltersRegExp->size();
+    for (int i=0; i<count; ++i) {
+        if (mPathFiltersRegExp->at(i).indexIn(ref) != -1)
+            return true;
+    }
+    return false;
+}
+
+
 unsigned Job::keyFlags() const
 {
     return QueryMessage::keyFlags(mQueryFlags);

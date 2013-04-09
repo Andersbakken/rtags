@@ -9,6 +9,7 @@
 #include "QueryMessage.h"
 #include "RTags.h"
 #include "ScanJob.h"
+#include "RTagsPluginFactory.h"
 #include <rct/Connection.h>
 #include <rct/EventReceiver.h>
 #include <rct/FileSystemWatcher.h>
@@ -62,6 +63,7 @@ public:
     bool init(const Options &options);
     const Options &options() const { return mOptions; }
     bool saveFileIds() const;
+    RTagsPluginFactory &factory() { return mPluginFactory; }
 private:
     bool selectProject(const Match &match, Connection *conn);
     bool updateProject(const List<String> &projects);
@@ -159,6 +161,8 @@ private:
 
     bool mRestoreProjects;
     Timer mUnloadTimer;
+
+    RTagsPluginFactory mPluginFactory;
 
     mutable Mutex mMutex;
 

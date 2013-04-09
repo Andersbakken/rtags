@@ -21,6 +21,17 @@ public:
         JSWeakVariable
     };
 
+    enum RPCursorKind {
+        Invalid = 20000,
+        Function,
+        Class,
+        Constructor,
+        Destructor,
+        Variable,
+        Member,
+        Argument // or struct
+    };
+
     CursorInfo()
         : symbolLength(0), kind(CXCursor_FirstInvalid), type(CXType_Invalid), enumValue(0), start(-1), end(-1)
     {}
@@ -150,7 +161,7 @@ public:
     enum Flag {
         IgnoreTargets = 0x1,
         IgnoreReferences = 0x2,
-        DefaultFlags = IgnoreTargets|IgnoreReferences
+        DefaultFlags = 0x0
     };
     String toString(unsigned cursorInfoFlags = DefaultFlags, unsigned keyFlags = 0) const;
     uint16_t symbolLength; // this is just the symbol name length e.g. foo => 3

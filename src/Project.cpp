@@ -99,13 +99,15 @@ bool Project::restore()
             } else {
                 const time_t parsed = it->second.parsed;
                 // error() << "parsed" << String::formatTime(parsed, String::DateTime) << parsed << it->second.sourceFile;
-                assert(mDependencies.value(it->first).contains(it->first));
-                assert(mDependencies.contains(it->first));
-                const Set<uint32_t> &deps = reversedDependencies[it->first];
-                for (Set<uint32_t>::const_iterator d = deps.begin(); d != deps.end(); ++d) {
-                    if (!mModifiedFiles.contains(*d) && Location::path(*d).lastModified() > parsed) {
-                        // error() << Location::path(*d).lastModified() << "is more than" << parsed;
-                        mModifiedFiles.insert(*d);
+                if (mDependencies.value(it->first).contains(it->first)) {
+                    assert(mDependencies.value(it->first).contains(it->first));
+                    assert(mDependencies.contains(it->first));
+                    const Set<uint32_t> &deps = reversedDependencies[it->first];
+                    for (Set<uint32_t>::const_iterator d = deps.begin(); d != deps.end(); ++d) {
+                        if (!mModifiedFiles.contains(*d) && Location::path(*d).lastModified() > parsed) {
+                            // error() << Location::path(*d).lastModified() << "is more than" << parsed;
+                            mModifiedFiles.insert(*d);
+                        }
                     }
                 }
                 ++it;
@@ -197,7 +199,7 @@ void Project::onJobFinished(const shared_ptr<IndexerJob> &job)
                   data->message.constData());
 
             if (mJobs.isEmpty()) {
-                mSyncTimer.start(shared_from_this(), job->flags() & IndexerJob::Dirty ? 0 : SyncTimeout,
+                mSyncTimer.start(shared_from_this(), job->type() == IndexerJob::Dirty ? 0 : SyncTimeout,
                                  SingleShot, Sync);
             }
         }
@@ -254,19 +256,16 @@ void Project::index(const SourceInformation &c, IndexerJob::Type type)
         }
         return;
     }
+    shared_ptr<Project> project = static_pointer_cast<Project>(shared_from_this());
 
     mSources[fileId] = c;
     mPendingData.remove(fileId);
 
-    // CXIndex index = 0;
-    // CXTranslationUnit unit = 0;
-    // initJobFromCache(c.sourceFile, c.args, index, unit, 0);
-    // ### Needs to be changed a little.
-    shared_ptr<Project> project = static_pointer_cast<Project>(shared_from_this());
-    job.reset(new IndexerJob(project, type, c));
-
     if (!mJobCounter++)
         mTimer.start();
+    job = IndexerJob::createIndex(project, type, c);
+    assert(job);
+    
     Server::instance()->startIndexerJob(job);
 }
 

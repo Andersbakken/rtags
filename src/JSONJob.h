@@ -4,6 +4,7 @@
 #include <rct/String.h>
 #include "Job.h"
 #include "RTags.h"
+#include "Match.h"
 
 class QueryMessage;
 class JSONJob : public Job

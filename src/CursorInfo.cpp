@@ -10,10 +10,25 @@ const char *jsKindNames[] = {
     0
 };
 
+const char *rKindNames[] = {
+    "Invalid",
+    "Function",
+    "Class",
+    "Constructor",
+    "Destructor",
+    "Variable",
+    "Member",
+    "Argument",
+    0
+};
+
 String CursorInfo::kindSpelling(uint16_t kind)
 {
-    if (kind >= JSInvalid)
+    if (kind >= Invalid) {
+        return rKindNames[kind - Invalid];
+    } else if (kind >= JSInvalid) {
         return jsKindNames[kind - JSInvalid];
+    }
     return RTags::eatString(clang_getCursorKindSpelling(static_cast<CXCursorKind>(kind)));
 }
 
