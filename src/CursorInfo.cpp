@@ -239,7 +239,7 @@ SymbolMap CursorInfo::declarationAndDefinition(const Location &loc, const Symbol
     cursors[loc] = *this;
 
     Location l;
-    CursorInfo t = bestTarget(map, errors, &l);
+    const CursorInfo t = bestTarget(map, errors, &l);
 
     if (t.kind == kind)
         cursors[l] = t;
