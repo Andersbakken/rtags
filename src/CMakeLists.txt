@@ -9,6 +9,7 @@ include_directories(${CLANG_INCLUDE})
 find_package(V8 REQUIRED)
 find_package(LevelDB)
 
+set(RCT_INCLUDE_DIR rct/rct)
 include(${CMAKE_CURRENT_LIST_DIR}/rct/rct.cmake)
 
 if (CMAKE_BUILD_TYPE MATCHES "Debug")
