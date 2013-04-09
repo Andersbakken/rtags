@@ -5,13 +5,13 @@ function followSymlink()
     python -c "import os, sys; print os.path.realpath(\"$1\")"
 }
 
+rc=`which rc`
 for i in `which -a "\`basename $0\`"`; do
     resolved=`followSymlink $i`
     if [ `basename $resolved` != "gcc-rtags-wrapper.sh" ]; then
         [ -n "$RTAGS_SERVER_FILE" ] && RTAGS_ARGS="$RTAGS_ARGS -n$RTAGS_SERVER_FILE"
         [ -n "$RTAGS_PROJECT" ] && RTAGS_ARGS="$RTAGS_ARGS --with-project=$RTAGS_PROJECT"
         [ -z "$RTAGS_COMPILE_TIMEOUT" ] && RTAGS_COMPILE_TIMEOUT=3000
-        rc=`which rc`
         args=`which rtags_args`
         [ -n "$args" ] && RTAGS_ARGS="$RTAGS_ARGS `$args \"$@\"`"
 
