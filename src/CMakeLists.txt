@@ -55,8 +55,9 @@ set(RTAGS_SHARED_SOURCES
   CreateOutputMessage.cpp
   Location.cpp
   QueryMessage.cpp
-  RClient.cpp
   RTags.cpp)
+
+add_library(shared ${RTAGS_SHARED_SOURCES})
 
 set(RDM_SOURCES
   CompileJob.cpp
@@ -95,8 +96,9 @@ include_directories(${CMAKE_CURRENT_LIST_DIR}
 add_executable(clangtest clangtest.c)
 target_link_libraries(clangtest ${CLANG_LIBS} ${CORESERVICES_LIBRARY} ${COREFOUNDATION_LIBRARY} ${SYSTEM_LIBS})
 
-add_executable(rc rc.cpp ${RTAGS_SHARED_SOURCES})
-target_link_libraries(rc rct ${SYSTEM_LIBS})
+add_executable(rc rc.cpp RClient.cpp)
+add_dependencies(rc rct shared)
+target_link_libraries(rc rct shared ${SYSTEM_LIBS})
 
 #if (LEVELDB_FOUND EQUAL 1)
 if (0 EQUAL 1)
@@ -115,12 +117,12 @@ if (0 EQUAL 1)
     ${LEVELDB_LIBS})
 endif ()
 
-add_library(rtags SHARED ${RTAGS_SHARED_SOURCES} ${RDM_SOURCES})
-target_link_libraries(rtags ${CLANG_LIBS} ${CORESERVICES_LIBRARY} ${COREFOUNDATION_LIBRARY} rct ${SYSTEM_LIBS})
+add_library(rtags SHARED ${RDM_SOURCES})
+target_link_libraries(rtags ${CLANG_LIBS} ${CORESERVICES_LIBRARY} ${COREFOUNDATION_LIBRARY} shared rct ${SYSTEM_LIBS})
 add_dependencies(rtags rct)
 
 add_executable(rdm rdm.cpp)
-target_link_libraries(rdm rtags)
+target_link_libraries(rdm rtags shared)
 
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/bin)
 
