@@ -10,6 +10,7 @@ find_package(V8 REQUIRED)
 find_package(LevelDB)
 
 add_subdirectory(rct)
+include(${CMAKE_CURRENT_LIST_DIR}/rct/compiler.cmake)
 # set(RCT_INCLUDE_DIR rct)
 # include(${CMAKE_CURRENT_LIST_DIR}/rct/rct.cmake)
 
@@ -95,7 +96,7 @@ add_executable(clangtest clangtest.c)
 target_link_libraries(clangtest ${CLANG_LIBS} ${CORESERVICES_LIBRARY} ${COREFOUNDATION_LIBRARY} ${SYSTEM_LIBS})
 
 add_executable(rc rc.cpp ${RTAGS_SHARED_SOURCES})
-target_link_libraries(rc ${SYSTEM_LIBS} rct)
+target_link_libraries(rc rct ${SYSTEM_LIBS})
 
 #if (LEVELDB_FOUND EQUAL 1)
 if (0 EQUAL 1)
