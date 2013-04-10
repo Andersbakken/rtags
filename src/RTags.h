@@ -1,7 +1,7 @@
 #ifndef RTags_h
 #define RTags_h
 
-#include <rct/rct-config.h>
+#include "rct-config.h"
 #include <rct/String.h>
 #include "Location.h"
 #include <rct/Log.h>

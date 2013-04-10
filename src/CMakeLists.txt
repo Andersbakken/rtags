@@ -84,7 +84,12 @@ set(RDM_SOURCES
 
 set(GR_SOURCES GRParser.cpp GRTags.cpp Location.cpp RTags.cpp)
 
-include_directories(${CMAKE_CURRENT_LIST_DIR} ${CORESERVICES_INCLUDE} ${COREFOUNDATION_INCLUDE} rct/include/ rct)
+include_directories(${CMAKE_CURRENT_LIST_DIR}
+                    ${CORESERVICES_INCLUDE}
+                    ${COREFOUNDATION_INCLUDE}
+                    rct/include/
+                    rct
+                    ${CMAKE_CURRENT_BINARY_DIR}/rct/include/rct)
 
 add_executable(clangtest clangtest.c)
 target_link_libraries(clangtest ${CLANG_LIBS} ${CORESERVICES_LIBRARY} ${COREFOUNDATION_LIBRARY} ${SYSTEM_LIBS})
