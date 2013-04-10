@@ -21,3 +21,4 @@ gr
 /bin/librtagsclang.so
 /bin/librtagsesprima.so
 /src/librtags.dylib
+/src/librtags.so
