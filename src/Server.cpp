@@ -72,7 +72,6 @@ void Server::clear()
 
 bool Server::init(const Options &options)
 {
-    printf("FISK %p %p\n", Server::instance(), EventLoop::instance());
     {
         List<Path> plugins = Rct::executablePath().parentDir().files(Path::File);
         for (int i=0; i<plugins.size(); ++i) {
