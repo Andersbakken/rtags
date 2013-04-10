@@ -9,8 +9,9 @@ include_directories(${CLANG_INCLUDE})
 find_package(V8 REQUIRED)
 find_package(LevelDB)
 
-set(RCT_INCLUDE_DIR rct)
-include(${CMAKE_CURRENT_LIST_DIR}/rct/rct.cmake)
+add_subdirectory(rct)
+# set(RCT_INCLUDE_DIR rct)
+# include(${CMAKE_CURRENT_LIST_DIR}/rct/rct.cmake)
 
 if (CMAKE_BUILD_TYPE MATCHES "Debug")
   add_definitions(-DRTAGS_DEBUG)
@@ -83,13 +84,13 @@ set(RDM_SOURCES
 
 set(GR_SOURCES GRParser.cpp GRTags.cpp Location.cpp RTags.cpp)
 
-include_directories(${CMAKE_CURRENT_LIST_DIR} ${CORESERVICES_INCLUDE} ${COREFOUNDATION_INCLUDE})
+include_directories(${CMAKE_CURRENT_LIST_DIR} ${CORESERVICES_INCLUDE} ${COREFOUNDATION_INCLUDE} rct/include/ rct)
 
 add_executable(clangtest clangtest.c)
 target_link_libraries(clangtest ${CLANG_LIBS} ${CORESERVICES_LIBRARY} ${COREFOUNDATION_LIBRARY} ${SYSTEM_LIBS})
 
-add_executable(rc rc.cpp ${RTAGS_SHARED_SOURCES} ${RCT_SOURCES})
-target_link_libraries(rc ${SYSTEM_LIBS})
+add_executable(rc rc.cpp ${RTAGS_SHARED_SOURCES})
+target_link_libraries(rc ${SYSTEM_LIBS} rct)
 
 #if (LEVELDB_FOUND EQUAL 1)
 if (0 EQUAL 1)
@@ -108,8 +109,9 @@ if (0 EQUAL 1)
     ${LEVELDB_LIBS})
 endif ()
 
-add_library(rtags SHARED ${RTAGS_SHARED_SOURCES} ${RCT_SOURCES} ${RDM_SOURCES})
-target_link_libraries(rtags ${rct_LIBS} ${CLANG_LIBS} ${CORESERVICES_LIBRARY} ${COREFOUNDATION_LIBRARY} ${rct_LIBS} ${SYSTEM_LIBS})
+add_library(rtags SHARED ${RTAGS_SHARED_SOURCES} ${RDM_SOURCES})
+target_link_libraries(rtags ${CLANG_LIBS} ${CORESERVICES_LIBRARY} ${COREFOUNDATION_LIBRARY} rct ${SYSTEM_LIBS})
+add_dependencies(rtags rct)
 
 add_executable(rdm rdm.cpp)
 target_link_libraries(rdm rtags)
@@ -121,7 +123,7 @@ if (V8_DISPOSE_HAS_ISOLATE)
   add_definitions(-DV8_DISPOSE_HAS_ISOLATE)
 endif ()
 add_library(rtagsesprima MODULE IndexerJobEsprima.cpp JSParser.cpp)
-add_dependencies(rtagsesprima rdm)
+add_dependencies(rtagsesprima rtags)
 target_link_libraries(rtagsesprima ${V8_LIBS} rtags)
 
 add_library(rtagsclang MODULE IndexerJobClang.cpp)
