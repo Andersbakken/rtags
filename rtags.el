@@ -1493,7 +1493,7 @@ References to references will be treated as references to the referenced symbol"
   (equal (rtags-buffer-status buffer) 'rtags-indexed))
 
 (defun rtags-has-filemanager (&optional buffer)
-  (equal (rtags-buffer-status buffer) 'rtags-file-managed))
+  (rtags-buffer-status buffer))
 
 (defun rtags-handle-completion-buffer (&optional noautojump)
   (setq rtags-last-request-not-indexed nil)
