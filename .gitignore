@@ -18,3 +18,6 @@ gr
 /.gdb_brestore
 /.gdb_brestore.txt
 /src/include/rct/rct-config.h
+/bin/librtagsclang.so
+/bin/librtagsesprima.so
+/src/librtags.dylib
