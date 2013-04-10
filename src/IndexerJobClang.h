@@ -31,8 +31,9 @@ private:
         CXFile file;
         unsigned start;
         clang_getSpellingLocation(location, &file, 0, 0, &start);
-        if (file)
+        if (file) {
             return createLocation(RTags::eatString(clang_getFileName(file)), start, blocked);
+        }
         return Location();
     }
     inline Location createLocation(const CXCursor &cursor, bool *blocked = 0)

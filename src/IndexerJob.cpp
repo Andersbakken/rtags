@@ -96,31 +96,31 @@ Location IndexerJob::createLocation(uint32_t fileId, uint32_t offset, bool *bloc
     TIMING();
     if (blocked)
         *blocked = false;
-    if (fileId) {
-        if (blocked) {
-            if (mVisitedFiles.contains(fileId)) {
-                *blocked = false;
-            } else if (mBlockedFiles.contains(fileId)) {
-                *blocked = true;
+    if (!fileId)
+        return Location();
+    if (blocked) {
+        if (mVisitedFiles.contains(fileId)) {
+            *blocked = false;
+        } else if (mBlockedFiles.contains(fileId)) {
+            *blocked = true;
+        } else {
+            shared_ptr<Project> p = project();
+            if (!p) {
+                return Location();
+            } else if (p->visitFile(fileId)) {
+                if (blocked)
+                    *blocked = false;
+                mVisitedFiles.insert(fileId);
+                mData->errors[fileId] = 0;
             } else {
-                shared_ptr<Project> p = project();
-                if (!p) {
-                    return Location();
-                } else if (p->visitFile(fileId)) {
-                    if (blocked)
-                        *blocked = false;
-                    mVisitedFiles.insert(fileId);
-                    mData->errors[fileId] = 0;
-                    return Location(fileId, offset);
-                } else {
-                    mBlockedFiles.insert(fileId);
-                    if (blocked)
-                        *blocked = true;
-                }
+                mBlockedFiles.insert(fileId);
+                if (blocked)
+                    *blocked = true;
+                return Location();
             }
         }
     }
-    return Location();
+    return Location(fileId, offset);
 }
 
 bool IndexerJob::abortIfStarted()
@@ -141,7 +141,9 @@ void IndexerJob::execute()
     mData.reset(new IndexData);
 
     index();
-    shared_ptr<Project> p = project();
-    if (p)
-        p->onJobFinished(static_pointer_cast<IndexerJob>(shared_from_this()));
+    if (mType != Dump) {
+        shared_ptr<Project> p = project();
+        if (p)
+            p->onJobFinished(static_pointer_cast<IndexerJob>(shared_from_this()));
+    }
 }

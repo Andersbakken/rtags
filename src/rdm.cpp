@@ -70,6 +70,7 @@ void usage(FILE *f)
             "  --unload-timer|-u [arg]           Number of minutes to wait before unloading non-current projects (disabled by default).\n"
             "  --thread-count|-j [arg]           Spawn this many threads for thread pool.\n"
             "  --ignore-compiler|-b [arg]        Alias this compiler (Might be practical to avoid duplicated builds for things like icecc).\n"
+            "  --disable-plugin|-p [arg]         Don't load this plugin\n"
             "  --clang-stack-size|-t [arg]       Use this much stack for clang's threads (default %d).\n", defaultStackSize);
 }
 
@@ -116,6 +117,7 @@ int main(int argc, char** argv)
         { "no-current-project", no_argument, 0, 'o' },
         { "clang-stack-size", required_argument, 0, 't' },
         { "ignore-compiler", required_argument, 0, 'b' },
+        { "disable-plugin", required_argument, 0, 'p' },
         { 0, 0, 0, 0 }
     };
     const String shortOptions = Rct::shortOptions(opts);

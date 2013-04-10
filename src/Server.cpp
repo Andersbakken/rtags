@@ -72,6 +72,7 @@ void Server::clear()
 
 bool Server::init(const Options &options)
 {
+    printf("FISK %p %p\n", Server::instance(), EventLoop::instance());
     {
         List<Path> plugins = Rct::executablePath().parentDir().files(Path::File);
         for (int i=0; i<plugins.size(); ++i) {
@@ -841,22 +842,27 @@ void Server::event(const Event *event)
     switch (event->type()) {
     case JobOutputEvent::Type: {
         const JobOutputEvent *e = static_cast<const JobOutputEvent*>(event);
+        printf("[%s] %s:%d: const JobOutputEvent *e = static_cast<const JobOutputEvent*>(event); [after]\n", __func__, __FILE__, __LINE__);
         Map<int, Connection*>::iterator it = mPendingLookups.find(e->id);
         if (it == mPendingLookups.end()) {
+            printf("[%s] %s:%d: if (it == mPendingLookups.end()) { [after]\n", __func__, __FILE__, __LINE__);
             if (shared_ptr<Job> job = e->job.lock())
                 job->abort();
             break;
         }
         if (!it->second->isConnected()) {
+            printf("[%s] %s:%d: if (!it->second->isConnected()) { [after]\n", __func__, __FILE__, __LINE__);
             if (shared_ptr<Job> job = e->job.lock())
                 job->abort();
             break;
         }
         if (!e->out.isEmpty() && !it->second->write(e->out)) {
+            printf("[%s] %s:%d: if (!e->out.isEmpty() && !it->second->write(e->out)) { [after]\n", __func__, __FILE__, __LINE__);
             if (shared_ptr<Job> job = e->job.lock())
                 job->abort();
             break;
         }
+        printf("%s\n", e->out.constData());
 
         if (e->finish && !isCompletionStream(it->second))
             it->second->finish();

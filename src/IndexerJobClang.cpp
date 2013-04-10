@@ -891,7 +891,7 @@ bool IndexerJobClang::parse(int build)
         clang_getInclusions(unit, IndexerJobClang::inclusionVisitor, this);
         clang_disposeTranslationUnit(unit);
         unit = 0;
-    } else {
+    } else if (type() != Dump) {
         mData->dependencies[mFileId].insert(mFileId);
     }
     return !isAborted();
@@ -1160,14 +1160,12 @@ void IndexerJobClang::index()
 {
     if (type() == Dump) {
         assert(id() != -1);
-        if (shared_ptr<Project> p = project()) {
-            for (int i=0; i<mSourceInformation.builds.size(); ++i) {
-                parse(i);
-                if (mUnits.at(i).second) {
-                    DumpUserData u = { 0, this, !(queryFlags() & QueryMessage::NoContext) };
-                    clang_visitChildren(clang_getTranslationUnitCursor(mUnits.at(i).second),
-                                        IndexerJobClang::dumpVisitor, &u);
-                }
+        for (int i=0; i<mSourceInformation.builds.size(); ++i) {
+            parse(i);
+            if (mUnits.at(i).second) {
+                DumpUserData u = { 0, this, !(queryFlags() & QueryMessage::NoContext) };
+                clang_visitChildren(clang_getTranslationUnitCursor(mUnits.at(i).second),
+                                    IndexerJobClang::dumpVisitor, &u);
             }
         }
     } else {
