@@ -33,7 +33,6 @@ public:
     {
         shared_ptr<IndexerJob> ret;
         for (int i=0; i<mPlugins.size(); ++i) {
-            printf("Got instance %p %d/%d\n", mPlugins.at(i)->instance(), i, mPlugins.size());
             assert(mPlugins.at(i)->instance());
             ret = mPlugins.at(i)->instance()->createJob(project, type, sourceInformation);
             if (ret)
