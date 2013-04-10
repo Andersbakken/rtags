@@ -12,22 +12,50 @@ class RTagsPluginFactory
 public:
     ~RTagsPluginFactory()
     {
-        mPlugins.clear();
+        for (int i=0; i<mPlugins.size(); ++i) {
+            delete mPlugins.at(i);
+        }
     }
     bool addPlugin(const Path &plugin)
     {
-        mPlugins.append(plugin);
-        if (!mPlugins.last().instance()) {
-            mPlugins.removeLast();
+        Plugin<RTagsPlugin> *p = new Plugin<RTagsPlugin>(plugin);
+        if (!p->instance()) {
+            delete p;
             return false;
         }
+
+        mPlugins.append(p);
         return true;
     }
 
-    shared_ptr<IndexerJob> createJob(const shared_ptr<Project> &project, IndexerJob::Type type, const SourceInformation &sourceInformation);
-    shared_ptr<IndexerJob> createJob(const QueryMessage &msg, const shared_ptr<Project> &project, const SourceInformation &sourceInformation);
+    shared_ptr<IndexerJob> createJob(const shared_ptr<Project> &project, IndexerJob::Type type,
+                                     const SourceInformation &sourceInformation)
+    {
+        shared_ptr<IndexerJob> ret;
+        for (int i=0; i<mPlugins.size(); ++i) {
+            printf("Got instance %p %d/%d\n", mPlugins.at(i)->instance(), i, mPlugins.size());
+            assert(mPlugins.at(i)->instance());
+            ret = mPlugins.at(i)->instance()->createJob(project, type, sourceInformation);
+            if (ret)
+                break;
+        }
+        return ret;
+    }
+    shared_ptr<IndexerJob> createJob(const QueryMessage &msg, const shared_ptr<Project> &project,
+                                     const SourceInformation &sourceInformation)
+    {
+        shared_ptr<IndexerJob> ret;
+        for (int i=0; i<mPlugins.size(); ++i) {
+            assert(mPlugins.at(i)->instance());
+            ret = mPlugins.at(i)->instance()->createJob(msg, project, sourceInformation);
+            if (ret)
+                break;
+        }
+        return ret;
+
+    }
 private:
-    List<Plugin<RTagsPlugin> > mPlugins;
+    List<Plugin<RTagsPlugin> *> mPlugins;
 };
 
 #endif

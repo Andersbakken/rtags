@@ -2,6 +2,37 @@
 #include "Project.h"
 #include "Server.h"
 
+#include "RTagsPlugin.h"
+
+class ClangPlugin : public RTagsPlugin
+{
+public:
+    virtual shared_ptr<IndexerJob> createJob(const shared_ptr<Project> &project,
+                                             IndexerJob::Type type,
+                                             const SourceInformation &sourceInformation)
+    {
+        if (!sourceInformation.isJS())
+            return shared_ptr<IndexerJob>(new IndexerJobClang(project, type, sourceInformation));
+        return shared_ptr<IndexerJob>();
+    }
+    virtual shared_ptr<IndexerJob> createJob(const QueryMessage &msg,
+                                             const shared_ptr<Project> &project,
+                                             const SourceInformation &sourceInformation)
+    {
+        if (!sourceInformation.isJS())
+            return shared_ptr<IndexerJob>(new IndexerJobClang(msg, project, sourceInformation));
+        return shared_ptr<IndexerJob>();
+    }
+};
+
+extern "C" {
+RTagsPlugin *createInstance()
+{
+    return new ClangPlugin;
+}
+};
+
+
 static const CXSourceLocation nullLocation = clang_getNullLocation();
 static const CXCursor nullCursor = clang_getNullCursor();
 

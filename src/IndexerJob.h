@@ -28,10 +28,6 @@ public:
     IndexerJob(const shared_ptr<Project> &project, Type type, const SourceInformation &sourceInformation);
     IndexerJob(const QueryMessage &msg, const shared_ptr<Project> &project, const SourceInformation &sourceInformation);
     virtual ~IndexerJob();
-
-    static shared_ptr<IndexerJob> createIndex(const shared_ptr<Project> &project, Type type, const SourceInformation &sourceInformation);
-    static shared_ptr<IndexerJob> createDump(const QueryMessage &msg, const shared_ptr<Project> &project, const SourceInformation &sourceInformation);
-
     shared_ptr<IndexData> data() const { return mData; }
     uint32_t fileId() const { return mFileId; }
     Path path() const { return mSourceInformation.sourceFile; }

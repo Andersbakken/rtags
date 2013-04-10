@@ -68,11 +68,7 @@ set(RDM_SOURCES
   FollowLocationJob.cpp
   GccArguments.cpp
   IndexerJob.cpp
-  IndexerJobEsprima.cpp
-  IndexerJobClang.cpp
-  IndexerJobRParser.cpp
   JSONJob.cpp
-  JSParser.cpp
   Job.cpp
   ListSymbolsJob.cpp
   Preprocessor.cpp
@@ -112,13 +108,25 @@ if (0 EQUAL 1)
     ${LEVELDB_LIBS})
 endif ()
 
-include(${CMAKE_CURRENT_LIST_DIR}/rparser/rparser.cmake)
-add_executable(rdm rdm.cpp ${RTAGS_SHARED_SOURCES} ${RCT_SOURCES} ${RDM_SOURCES} ${RPARSER_SOURCES})
+add_library(rtags SHARED ${RTAGS_SHARED_SOURCES} ${RCT_SOURCES} ${RDM_SOURCES})
+target_link_libraries(rtags ${rct_LIBS} ${CLANG_LIBS} ${CORESERVICES_LIBRARY} ${COREFOUNDATION_LIBRARY} ${rct_LIBS} ${SYSTEM_LIBS})
+
+add_executable(rdm rdm.cpp)
+target_link_libraries(rdm rtags)
+
+set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/bin)
+
 include_directories(${V8_INCLUDE})
 if (V8_DISPOSE_HAS_ISOLATE)
   add_definitions(-DV8_DISPOSE_HAS_ISOLATE)
 endif ()
-target_link_libraries(rdm ${rct_LIBS} ${CLANG_LIBS} ${CORESERVICES_LIBRARY} ${COREFOUNDATION_LIBRARY} ${rct_LIBS} ${SYSTEM_LIBS} ${V8_LIBS})
+add_library(rtagsesprima MODULE IndexerJobEsprima.cpp JSParser.cpp)
+add_dependencies(rtagsesprima rdm)
+target_link_libraries(rtagsesprima ${V8_LIBS} rtags)
+
+add_library(rtagsclang MODULE IndexerJobClang.cpp)
+add_dependencies(rtagsclang rdm)
+target_link_libraries(rtagsclang rtags)
 
 if (NOT "${PROJECT_SOURCE_DIR}" STREQUAL "${PROJECT_BINARY_DIR}")
   file (GLOB binFiles "${PROJECT_SOURCE_DIR}/bin/*")

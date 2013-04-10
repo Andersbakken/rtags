@@ -245,8 +245,6 @@ void Project::index(const SourceInformation &c, IndexerJob::Type type)
     static const char *fileFilter = getenv("RTAGS_FILE_FILTER");
     if (fileFilter && !strstr(c.sourceFile.constData(), fileFilter))
         return;
-    mSyncTimer.stop();
-    mSaveTimer.stop();
     const uint32_t fileId = Location::insertFile(c.sourceFile);
     shared_ptr<IndexerJob> &job = mJobs[fileId];
     if (job) {
@@ -263,9 +261,16 @@ void Project::index(const SourceInformation &c, IndexerJob::Type type)
 
     if (!mJobCounter++)
         mTimer.start();
-    job = IndexerJob::createIndex(project, type, c);
-    assert(job);
-    
+
+    job = Server::instance()->factory().createJob(project, type, c);
+    if (!job) {
+        error() << "Failed to create job for" << c;
+        mJobs.erase(fileId);
+        return;
+    }
+    mSyncTimer.stop();
+    mSaveTimer.stop();
+
     Server::instance()->startIndexerJob(job);
 }
 

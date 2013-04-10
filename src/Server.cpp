@@ -72,6 +72,14 @@ void Server::clear()
 
 bool Server::init(const Options &options)
 {
+    {
+        List<Path> plugins = Rct::executablePath().parentDir().files(Path::File);
+        for (int i=0; i<plugins.size(); ++i) {
+            if (mPluginFactory.addPlugin(plugins.at(i))) {
+                error() << "Loaded plugin" << plugins.at(i);
+            }
+        }
+    }
     RTags::initMessages();
 
     mIndexerThreadPool = new ThreadPool(options.threadCount, options.clangStackSize);
@@ -500,10 +508,15 @@ void Server::dumpFile(const QueryMessage &query, Connection *conn)
         return;
     }
 
-    shared_ptr<IndexerJob> job = IndexerJob::createDump(query, project, c);
-    job->setId(nextId());
-    mPendingLookups[job->id()] = conn;
-    startQueryJob(job);
+    shared_ptr<IndexerJob> job = Server::instance()->factory().createJob(query, project, c);
+    if (job) {
+        job->setId(nextId());
+        mPendingLookups[job->id()] = conn;
+        startQueryJob(job);
+    } else {
+        conn->write<128>("Failed to create job for %s", c.sourceFile.constData());
+        conn->finish();
+    }
 }
 
 void Server::cursorInfo(const QueryMessage &query, Connection *conn)

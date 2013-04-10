@@ -1,7 +1,4 @@
 #include "IndexerJob.h"
-#include "IndexerJobClang.h"
-#include "IndexerJobEsprima.h"
-#include "IndexerJobRParser.h"
 #include <rct/StopWatch.h>
 #include "Project.h"
 
@@ -60,51 +57,6 @@ public:
 #define TIMING() do {} while (0)
 #define NAMED_TIMING(name) do {} while (0)
 #endif
-
-enum IndexerJobType {
-    Esprima,
-    Clang,
-    RParser
-};
-
-static inline IndexerJobType indexerJobType(const SourceInformation &sourceInfo)
-{
-    if (sourceInfo.isJS()) {
-        return Esprima;
-    }
-    char line[16];
-    FILE *f = fopen(sourceInfo.sourceFile.constData(), "r");
-    IndexerJobType ret = Clang;
-    if (f) {
-        if (Rct::readLine(f, line, sizeof(line) - 1) >= 10 && !strcmp("// RParser", line)) {
-            ret = RParser;
-        }
-        fclose(f);
-    }
-    return ret;
-}
-
-shared_ptr<IndexerJob> IndexerJob::createIndex(const shared_ptr<Project> &project, Type type, const SourceInformation &sourceInformation)
-{
-    shared_ptr<IndexerJob> ret;
-    switch (indexerJobType(sourceInformation)) {
-    case Esprima: ret.reset(new IndexerJobEsprima(project, type, sourceInformation)); break;
-    case Clang: ret.reset(new IndexerJobClang(project, type, sourceInformation)); break;
-    case RParser: ret.reset(new IndexerJobRParser(project, type, sourceInformation)); break;
-    }
-    return ret;
-}
-
-shared_ptr<IndexerJob> IndexerJob::createDump(const QueryMessage &msg, const shared_ptr<Project> &project, const SourceInformation &sourceInformation)
-{
-    shared_ptr<IndexerJob> ret;
-    switch (indexerJobType(sourceInformation)) {
-    case Esprima: ret.reset(new IndexerJobEsprima(msg, project, sourceInformation)); break;
-    case Clang: ret.reset(new IndexerJobClang(msg, project, sourceInformation)); break;
-    case RParser: ret.reset(new IndexerJobRParser(msg, project, sourceInformation)); break;
-    }
-    return ret;
-}
 
 IndexerJob::IndexerJob(const shared_ptr<Project> &project, Type type, const SourceInformation &sourceInformation)
     : Job(0, project), mType(type), mSourceInformation(sourceInformation),
