@@ -44,7 +44,6 @@ Job::~Job()
 
 bool Job::write(const String &out, unsigned flags)
 {
-    printf("%s %d %d\n", out.constData(), mJobFlags, flags);
     if (mJobFlags & WriteUnfiltered || filter(out)) {
         if ((mJobFlags & QuoteOutput) && !(flags & DontQuote)) {
             String o((out.size() * 2) + 2, '"');
@@ -97,7 +96,6 @@ bool Job::writeRaw(const String &out, unsigned flags)
 
     if (mJobFlags & WriteBuffered) {
         enum { BufSize = 16384 };
-        error() << "Got some shit" << mBuffer << out;
         if (mBuffer.size() + out.size() + 1 > BufSize) {
             EventLoop::instance()->postEvent(Server::instance(), new JobOutputEvent(shared_from_this(), mBuffer, false));
             mBuffer.clear();
@@ -181,10 +179,7 @@ void Job::run()
 {
     execute();
     if (mId != -1) {
-        printf("[%s] %s:%d: if (mId != -1) { [after]\n", __func__, __FILE__, __LINE__);
-        printf("%p %p\n", Server::instance(), EventLoop::instance());
         EventLoop::instance()->postEvent(Server::instance(), new JobOutputEvent(shared_from_this(), mBuffer, true));
-        printf("[%s] %s:%d: EventLoop::instance()->postEvent(Server::instance(), new JobOutputEvent(shared_from_this(), mBuffer, true)); [after]\n", __func__, __FILE__, __LINE__);
     }
 }
 
