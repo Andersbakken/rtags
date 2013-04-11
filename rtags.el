@@ -1203,13 +1203,15 @@ References to references will be treated as references to the referenced symbol"
 (defun rtags-fix-fixit-overlay (overlay)
   (let ((msg (overlay-get overlay 'rtags-error-message))
         (severity (overlay-get overlay 'rtags-error-severity))
+        (insert)
         (start (overlay-get overlay 'rtags-error-start))
         (end (overlay-get overlay 'rtags-error-end)))
     (if (and start end msg (stringp severity) (string= severity "fixit") (string-match "did you mean '\\(.*\\)'\\?$" msg))
         (save-excursion
+          (setq insert (match-string 1 msg))
           (rtags-goto-offset start)
           (delete-char (- end start))
-          (insert (match-string 1 msg)))))
+          (if insert (insert insert)))))
   )
 
 (defun rtags-fix-fixit-at-point ()
