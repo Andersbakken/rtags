@@ -311,9 +311,15 @@ static inline Path resolveCompiler(const Path &compiler)
                         } else if (found) {
                             char res[PATH_MAX];
                             buf[len + fnLen] = '\0';
-                            if (realpath(buf, res))
-                                return res;
-                            return Path(buf, len + fnLen);
+                            if (realpath(buf, res)) {
+                                len = strlen(res);
+                                if (strcmp(res + len - 21, "/gcc-rtags-wrapper.sh") && strcmp(res + len - 6, "/icecc")) {
+                                    return Path(res, len);
+                                }
+                                // ignore if it there's another wrapper thing in the path
+                            } else {
+                                return Path(buf, len + fnLen);
+                            }
                         }
                     }
                 }
