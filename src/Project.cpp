@@ -274,74 +274,78 @@ void Project::index(const SourceInformation &c, IndexerJob::Type type)
     Server::instance()->startIndexerJob(job);
 }
 
-static bool compareCompiler(const Path &left, const Path &right)
+static inline Path resolveCompiler(const Path &compiler)
 {
-    if (left == right)
-        return true;
-    const char *fileName = left.fileName();
-    if (strcmp(fileName, right.fileName()))
-        return false;
-
-    const Path l = left.resolved();
-    const Path r = right.resolved();
-    if (l == r)
-        return true;
-    const char *lfn = l.fileName();
-    const char *rfn = r.fileName();
-    const bool resolveLeft = !strcmp(lfn, "gcc-rtags-wrapper.sh") || !strcmp(lfn, "icecc");
-    const bool resolveRight = !strcmp(rfn, "gcc-rtags-wrapper.sh") || !strcmp(rfn, "icecc");
-    if (!resolveLeft && !resolveRight)
-        return false;
-
-    const char *path = getenv("PATH");
-    String paths(path);
-    paths.replace(':', '\0');
-    char buf[PATH_MAX];
-    const char *ch = paths.constData();
-    int idx = 0;
-    int lIdx = -1;
-    int rIdx = -1;
-    int files = 0;
-    while (idx < paths.size()) {
-        const int len = strlen(ch + idx);
-        if (len > 0) {
-            const char *slash = (ch[idx + len - 1] == '/' ? "" : "/");
-            snprintf(buf, sizeof(buf), "%s%s%s", ch + idx, slash, fileName);
-            if (!access(buf, F_OK|X_OK)) {
-                if (lIdx == -1 && left == buf)
-                    lIdx = files;
-                if (rIdx == -1 && right == buf)
-                    rIdx = files;
-                ++files;
-            }
-        }
-        idx += len + 1;
+    Path resolved;
+    const char *linkFn;
+    const char *fn;
+    int fnLen;
+    if (compiler.isSymLink()) {
+        resolved = compiler.resolved();
+        linkFn = resolved.fileName();
+        fn = compiler.fileName(&fnLen);
+    } else {
+        linkFn = fn = compiler.fileName(&fnLen);
     }
-    if (resolveLeft && lIdx != -1 && lIdx + 1 == rIdx)
-        return true;
-    if (resolveRight && rIdx != -1 && rIdx + 1 == lIdx)
-        return true;
-    return false;
+    if (!strcmp(linkFn, "gcc-rtags-wrapper.sh") || !strcmp(linkFn, "icecc")) {
+        const char *path = getenv("PATH");
+        const char *last = path;
+        bool done = false;
+        bool found = false;
+        char buf[PATH_MAX];
+        while (!done) {
+            switch (*path) {
+            case '\0':
+                done = true;
+            case ':': {
+                int len = (path - last);
+                if (len > 0 && len + 2 + fnLen < static_cast<int>(sizeof(buf))) {
+                    memcpy(buf, last, len);
+                    buf[len] = '\0';
+                    if (buf[len - 1] != '/')
+                        buf[len++] = '/';
+                    strcpy(buf + len, fn);
+                    if (!access(buf, F_OK|X_OK)) {
+                        if (buf == compiler) {
+                            found = true;
+                        } else if (found) {
+                            char res[PATH_MAX];
+                            buf[len + fnLen] = '\0';
+                            if (realpath(buf, res))
+                                return res;
+                            return Path(buf, len + fnLen);
+                        }
+                    }
+                }
+                last = path + 1;
+                break; }
+            default:
+                break;
+            }
+            ++path;
+        }
+    }
+    if (resolved.isEmpty())
+        return compiler.resolved();
+    return resolved;
 }
 
-bool Project::index(const Path &sourceFile, const Path &compiler, const List<String> &args)
+bool Project::index(const Path &sourceFile, const Path &cc, const List<String> &args)
 {
+    const Path compiler = resolveCompiler(cc.canonicalized());
     SourceInformation sourceInformation = sourceInfo(Location::insertFile(sourceFile));
     const bool js = args.isEmpty() && sourceFile.endsWith(".js");
+    bool added = false;
     if (sourceInformation.isNull()) {
         sourceInformation.sourceFile = sourceFile;
-        if (!js)
-            sourceInformation.builds.append(SourceInformation::Build(compiler.canonicalized(), args));
     } else if (js) {
         debug() << sourceFile << " is not dirty. ignoring";
         return false;
     } else {
         List<SourceInformation::Build> &builds = sourceInformation.builds;
-        bool added = false;
         const bool allowMultiple = Server::instance()->options().options & Server::AllowMultipleBuildsForSameCompiler;
-        const Path c = compiler.canonicalized();
         for (int j=0; j<builds.size(); ++j) {
-            if (compareCompiler(builds.at(j).compiler, c)) {
+            if (builds.at(j).compiler == compiler) {
                 if (builds.at(j).args == args) {
                     debug() << sourceFile << " is not dirty. ignoring";
                     return false;
@@ -352,10 +356,9 @@ bool Project::index(const Path &sourceFile, const Path &compiler, const List<Str
                 }
             }
         }
-        if (!added) {
-            sourceInformation.builds.append(SourceInformation::Build(c, args));
-        }
     }
+    if (!added)
+        sourceInformation.builds.append(SourceInformation::Build(compiler, args));
     index(sourceInformation, IndexerJob::Makefile);
     return true;
 }
@@ -363,7 +366,7 @@ bool Project::index(const Path &sourceFile, const Path &compiler, const List<Str
 void Project::onFileModified(const Path &file)
 {
     const uint32_t fileId = Location::fileId(file);
-    // error() << file << "was modified" << fileId << mModifiedFiles.contains(fileId);
+    debug() << file << "was modified" << fileId << mModifiedFiles.contains(fileId);
     if (!fileId || !mModifiedFiles.insert(fileId)) {
         return;
     }
