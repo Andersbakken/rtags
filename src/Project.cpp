@@ -274,6 +274,56 @@ void Project::index(const SourceInformation &c, IndexerJob::Type type)
     Server::instance()->startIndexerJob(job);
 }
 
+static bool compareCompiler(const Path &left, const Path &right)
+{
+    if (left == right)
+        return true;
+    const char *fileName = left.fileName();
+    if (strcmp(fileName, right.fileName()))
+        return false;
+
+    const Path l = left.resolved();
+    const Path r = right.resolved();
+    if (l == r)
+        return true;
+    const char *lfn = l.fileName();
+    const char *rfn = r.fileName();
+    const bool resolveLeft = !strcmp(lfn, "gcc-rtags-wrapper.sh") || !strcmp(lfn, "icecc");
+    const bool resolveRight = !strcmp(rfn, "gcc-rtags-wrapper.sh") || !strcmp(rfn, "icecc");
+    if (!resolveLeft && !resolveRight)
+        return false;
+
+    const char *path = getenv("PATH");
+    String paths(path);
+    paths.replace(':', '\0');
+    char buf[PATH_MAX];
+    const char *ch = paths.constData();
+    int idx = 0;
+    int lIdx = -1;
+    int rIdx = -1;
+    int files = 0;
+    while (idx < paths.size()) {
+        const int len = strlen(ch + idx);
+        if (len > 0) {
+            const char *slash = (ch[idx + len - 1] == '/' ? "" : "/");
+            snprintf(buf, sizeof(buf), "%s%s%s", ch + idx, slash, fileName);
+            if (!access(buf, F_OK|X_OK)) {
+                if (lIdx == -1 && left == buf)
+                    lIdx = files;
+                if (rIdx == -1 && right == buf)
+                    rIdx = files;
+                ++files;
+            }
+        }
+        idx += len + 1;
+    }
+    if (resolveLeft && lIdx != -1 && lIdx + 1 == rIdx)
+        return true;
+    if (resolveRight && rIdx != -1 && rIdx + 1 == lIdx)
+        return true;
+    return false;
+}
+
 bool Project::index(const Path &sourceFile, const Path &compiler, const List<String> &args)
 {
     SourceInformation sourceInformation = sourceInfo(Location::insertFile(sourceFile));
@@ -281,7 +331,7 @@ bool Project::index(const Path &sourceFile, const Path &compiler, const List<Str
     if (sourceInformation.isNull()) {
         sourceInformation.sourceFile = sourceFile;
         if (!js)
-            sourceInformation.builds.append(SourceInformation::Build(compiler, args));
+            sourceInformation.builds.append(SourceInformation::Build(compiler.canonicalized(), args));
     } else if (js) {
         debug() << sourceFile << " is not dirty. ignoring";
         return false;
@@ -289,8 +339,9 @@ bool Project::index(const Path &sourceFile, const Path &compiler, const List<Str
         List<SourceInformation::Build> &builds = sourceInformation.builds;
         bool added = false;
         const bool allowMultiple = Server::instance()->options().options & Server::AllowMultipleBuildsForSameCompiler;
+        const Path c = compiler.canonicalized();
         for (int j=0; j<builds.size(); ++j) {
-            if (builds.at(j).compiler == compiler) {
+            if (compareCompiler(builds.at(j).compiler, c)) {
                 if (builds.at(j).args == args) {
                     debug() << sourceFile << " is not dirty. ignoring";
                     return false;
@@ -302,7 +353,7 @@ bool Project::index(const Path &sourceFile, const Path &compiler, const List<Str
             }
         }
         if (!added) {
-            sourceInformation.builds.append(SourceInformation::Build(compiler, args));
+            sourceInformation.builds.append(SourceInformation::Build(c, args));
         }
     }
     index(sourceInformation, IndexerJob::Makefile);
