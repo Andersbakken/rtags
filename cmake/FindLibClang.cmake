@@ -8,7 +8,10 @@ find_path(CLANG_INCLUDE clang-c/Index.h
           /opt/local/libexec/llvm-3.3/include
           /opt/local/libexec/llvm-3.2/include
           /opt/local/libexec/llvm-3.1/include
-          /opt/local/libexec/llvm-3.0/include)
+          /opt/local/libexec/llvm-3.0/include
+          /usr/local/include
+          /usr/include
+          NO_DEFAULT_PATH)
 
 if (EXISTS ${CLANG_INCLUDE})
   if ("${CLANG_ROOT}" STREQUAL "")
