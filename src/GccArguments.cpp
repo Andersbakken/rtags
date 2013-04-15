@@ -49,9 +49,9 @@ static inline GccArguments::Lang guessLang(const Path &fullPath)
     }
 
     GccArguments::Lang lang = GccArguments::NoLang;
-    if (c.startsWith("g++") || c.startsWith("c++")) {
+    if (c.startsWith("g++") || c.startsWith("c++") || c.startsWith("clang++")) {
         lang = GccArguments::CPlusPlus;
-    } else if (c.startsWith("gcc") || c.startsWith("cc")) {
+    } else if (c.startsWith("gcc") || c.startsWith("cc") || c.startsWith("clang")) {
         lang = GccArguments::C;
     }
     return lang;
@@ -142,8 +142,9 @@ bool GccArguments::parse(String args, const Path &base)
     } else {
         path = base;
     }
-    if (split.isEmpty())
+    if (split.isEmpty()) {
         return false;
+    }
 
     if (split.first().endsWith("rtags-gcc-prefix.sh")) {
         if (split.size() == 1)
@@ -175,8 +176,9 @@ bool GccArguments::parse(String args, const Path &base)
                 } else {
                     a = arg.mid(2);
                 }
-                if (a == "c-header" || a == "c++-header")
+                if (a == "c-header" || a == "c++-header") {
                     return false;
+                }
                 mClangArgs.append("-x");
                 mClangArgs.append(a);
             } else if (arg.startsWith("-D")) {
