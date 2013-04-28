@@ -622,6 +622,23 @@
   :group 'rtags
   :type 'number)
 
+
+(defcustom rtags-display-current-error-as-message t
+  "Display error under cursor using (message)"
+  :type 'boolean
+  :group 'rtags)
+
+(defcustom rtags-display-current-error-as-tooltip nil
+  "Display error under cursor using popup-tip (requires 'popup)"
+  :type 'boolean
+  :group 'rtags
+  :require 'popup)
+
+(defcustom rtags-error-timer-interval .5
+  "Interval for minibuffer error timer"
+  :group 'rtags
+  :type 'number)
+
 (defcustom rtags-completion-enabled nil
   "Whether rtags completion is enabled"
   :group 'rtags
@@ -1179,8 +1196,11 @@ References to references will be treated as references to the referenced symbol"
 (defun rtags-check-overlay (overlay)
   (if (and (not (active-minibuffer-window)) (not cursor-in-echo-area))
       (let ((msg (overlay-get overlay 'rtags-error-message)))
-        (if (stringp msg)
-            (message (concat "RTags: " msg)))))
+        (when (stringp msg)
+          (if rtags-display-current-error-as-tooltip
+              (popup-tip msg)) ;; :face 'rtags-warnline)) ;;(overlay-get overlay 'face)))
+          (if rtags-display-current-error-as-message
+              (message (concat "RTags: " msg))))))
   )
 
 (defvar rtags-update-current-error-timer nil)
@@ -1195,7 +1215,13 @@ References to references will be treated as references to the referenced symbol"
 (defun rtags-update-current-error ()
   (if rtags-update-current-error-timer
       (cancel-timer rtags-update-current-error-timer))
-  (setq rtags-update-current-error-timer (run-with-idle-timer rtags-error-timer-interval nil (function rtags-display-current-error)))
+  (setq rtags-update-current-error-timer
+        (and (or rtags-display-current-error-as-tooltip
+                 rtags-display-current-error-as-message)
+             (run-with-idle-timer
+              rtags-error-timer-interval
+              nil
+              (function rtags-display-current-error))))
   )
 
 (add-hook 'post-command-hook (function rtags-update-current-error))
