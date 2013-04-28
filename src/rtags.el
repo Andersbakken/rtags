@@ -714,6 +714,7 @@ return t if rtags is allowed to modify this file"
   (define-key map (kbd "C-x r v") (function rtags-find-virtuals-at-point))
   (define-key map (kbd "C-x r V") (function rtags-print-enum-value-at-point))
   (define-key map (kbd "C-x r /") (function rtags-find-all-references-at-point))
+  (define-key map (kbd "C-x r Y") (function rtags-cycle-overlays-on-screen))
   (define-key map (kbd "C-x r >") (function rtags-find-symbol))
   (define-key map (kbd "C-x r <") (function rtags-find-references))
   (define-key map (kbd "C-x r [") (function rtags-location-stack-back))
@@ -1195,12 +1196,17 @@ References to references will be treated as references to the referenced symbol"
 
 (defun rtags-check-overlay (overlay)
   (if (and (not (active-minibuffer-window)) (not cursor-in-echo-area))
-      (let ((msg (overlay-get overlay 'rtags-error-message)))
-        (when (stringp msg)
-          (if rtags-display-current-error-as-tooltip
-              (popup-tip msg)) ;; :face 'rtags-warnline)) ;;(overlay-get overlay 'face)))
-          (if rtags-display-current-error-as-message
-              (message (concat "RTags: " msg))))))
+      (rtags-display-overlay overlay (point))
+    )
+  )
+
+(defun rtags-display-overlay (overlay point)
+  (let ((msg (overlay-get overlay 'rtags-error-message)))
+    (when (stringp msg)
+      (if rtags-display-current-error-as-tooltip
+          (popup-tip msg :point point)) ;; :face 'rtags-warnline)) ;;(overlay-get overlay 'face)))
+      (if rtags-display-current-error-as-message
+          (message (concat "RTags: " msg)))))
   )
 
 (defvar rtags-update-current-error-timer nil)
@@ -1225,6 +1231,25 @@ References to references will be treated as references to the referenced symbol"
   )
 
 (add-hook 'post-command-hook (function rtags-update-current-error))
+
+(defun rtags-is-rtags-overlay (overlay) (and overlay (overlay-get overlay 'rtags-error-message)))
+
+(defun rtags-overlays-on-screen ()
+  (remove-if-not 'rtags-is-rtags-overlay (overlays-in (window-start) (window-end))))
+
+(defvar rtags-highlighted-overlay nil)
+
+(defun rtags-cycle-overlays-on-screen ()
+  (interactive)
+  (let* ((overlays (rtags-overlays-on-screen))
+         (idx (and rtags-highlighted-overlay (position rtags-highlighted-overlay overlays)))
+         (overlay (if (and idx (< (1+ idx) (length overlays)))
+                      (nth (1+ idx) overlays)
+                    (car overlays))))
+    (when overlay
+      (setq rtags-highlighted-overlay overlay)
+      (rtags-display-overlay overlay (overlay-start overlay))))
+  )
 
 (defun rtags-fix-fixit-overlay (overlay)
   (let ((msg (overlay-get overlay 'rtags-error-message))
