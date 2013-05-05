@@ -8,10 +8,10 @@ set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/")
 
 add_subdirectory(src)
 
-add_custom_target(release
-  COMMAND cmake -DCMAKE_BUILD_TYPE=Release .
-  WORKING_DIRECTORY .)
-
-add_custom_target(debug
-  COMMAND cmake -DCMAKE_BUILD_TYPE=Debug .
-  WORKING_DIRECTORY .)
+if (EXISTS "rules.ninja") 
+  add_custom_target(release COMMAND cmake -GNinja -DCMAKE_BUILD_TYPE=Release . WORKING_DIRECTORY .)
+  add_custom_target(debug COMMAND cmake -GNinja -DCMAKE_BUILD_TYPE=Debug . WORKING_DIRECTORY .)
+else()
+  add_custom_target(release COMMAND cmake -DCMAKE_BUILD_TYPE=Release . WORKING_DIRECTORY)
+  add_custom_target(debug COMMAND cmake -DCMAKE_BUILD_TYPE=Debug . WORKING_DIRECTORY)
+endif()
