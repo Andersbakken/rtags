@@ -869,8 +869,11 @@ bool IndexerJobClang::parse(int build)
 
     clangLine += mSourceInformation.sourceFile;
 
+    CXUnsavedFile file = { mSourceInformation.sourceFile.constData(),
+                           mContents.constData(),
+                           static_cast<unsigned long>(mContents.size()) };
     unit = clang_parseTranslationUnit(index, mSourceInformation.sourceFile.constData(),
-                                      clangArgs.data(), idx, 0, 0,
+                                      clangArgs.data(), idx, &file, 1,
                                       CXTranslationUnit_Incomplete | CXTranslationUnit_DetailedPreprocessingRecord);
 
     warning() << "loading unit " << clangLine << " " << (unit != 0);
@@ -1169,12 +1172,10 @@ void IndexerJobClang::index()
             }
         }
     } else {
-        {
-            MutexLocker lock(&mutex());
-            mStarted = true;
-        }
         int unitCount = 0;
         const int buildCount = mSourceInformation.builds.size();
+        mParseTime = time(0);
+        mContents = mSourceInformation.sourceFile.readAll();
         for (int i=0; i<buildCount; ++i) {
             if (!parse(i)) {
                 goto end;
@@ -1182,7 +1183,6 @@ void IndexerJobClang::index()
             if (mUnits.at(i).second)
                 ++unitCount;
         }
-        mParseTime = time(0);
 
         for (int i=0; i<buildCount; ++i) {
             if (!visit(i) || !diagnose(i))

@@ -39,7 +39,7 @@ public:
 protected:
     virtual void index() = 0;
     virtual void execute();
-    
+
     Location createLocation(uint32_t fileId, uint32_t offset, bool *blocked);
     Location createLocation(const Path &file, uint32_t offset, bool *blocked);
     const Type mType;
@@ -55,7 +55,7 @@ protected:
     shared_ptr<IndexData> mData;
 
     time_t mParseTime;
-    bool mStarted, mAborted;
+    bool mStarted;
 };
 
 #endif

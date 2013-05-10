@@ -61,14 +61,14 @@ public:
 IndexerJob::IndexerJob(const shared_ptr<Project> &project, Type type, const SourceInformation &sourceInformation)
     : Job(0, project), mType(type), mSourceInformation(sourceInformation),
       mFileId(Location::insertFile(sourceInformation.sourceFile)), mTimer(StopWatch::Microsecond), mParseTime(0),
-      mStarted(false), mAborted(false)
+      mStarted(false)
 {}
 
 IndexerJob::IndexerJob(const QueryMessage &msg, const shared_ptr<Project> &project,
                        const SourceInformation &sourceInformation)
     : Job(msg, WriteUnfiltered|WriteBuffered|QuietJob, project), mType(Dump), mSourceInformation(sourceInformation),
       mFileId(Location::insertFile(sourceInformation.sourceFile)), mTimer(StopWatch::Microsecond), mParseTime(0),
-      mStarted(false), mAborted(false)
+      mStarted(false)
 {
 }
 
@@ -128,7 +128,7 @@ bool IndexerJob::abortIfStarted()
     MutexLocker lock(&mutex());
     if (mStarted)
         aborted() = true;
-    return mAborted;
+    return aborted();
 }
 
 void IndexerJob::execute()

@@ -65,6 +65,7 @@ private:
     UnitList mUnits;
     List<String> mClangLines;
     CXCursor mLastCursor;
+    String mContents;
 };
 
 #endif
