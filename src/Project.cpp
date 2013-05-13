@@ -193,6 +193,10 @@ void Project::onJobFinished(const shared_ptr<IndexerJob> &job)
             const int idx = mJobCounter - mJobs.size();
 
             mSources[fileId].parsed = job->parseTime();
+            if (testLog(RTags::CompilationErrorXml))
+                log(RTags::CompilationErrorXml, "<?xml version=\"1.0\" encoding=\"utf-8\"?><progress index=\"%d\" total=\"%d\"></progress>",
+                    idx, mJobCounter);
+
             error("[%3d%%] %d/%d %s %s.",
                   static_cast<int>(round((double(idx) / double(mJobCounter)) * 100.0)), idx, mJobCounter,
                   String::formatTime(time(0), String::Time).constData(),
