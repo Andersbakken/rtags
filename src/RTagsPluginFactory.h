@@ -1,7 +1,7 @@
 #ifndef RTagsPluginFactory_h
 #define RTagsPluginFactory_h
 
-#include <rct/Memory.h>
+#include <rct/tr1.h>
 #include <rct/Path.h>
 #include <rct/List.h>
 #include <rct/Plugin.h>
