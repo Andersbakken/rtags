@@ -17,7 +17,7 @@ for i in `which -a "\`basename $0\`"`; do
 
         if [ -z "$RTAGS_DISABLED" ] && [ -x "$rc" ]; then
             $rc --timeout=$RTAGS_COMPILE_TIMEOUT $RTAGS_ARGS --silent --compile "$i" "$@" &
-            disown
+            disown &>/dev/null # rc might be finished by now and if so disown will yell at us
         fi
         [ "$RTAGS_RMAKE" ] && exit 0
         "$i" "$@"
