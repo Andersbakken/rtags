@@ -1,7 +1,7 @@
 #ifndef RTagsPlugin_h
 #define RTagsPlugin_h
 
-#include <rct/tr1.h>
+#include <rct/Tr1.h>
 #include <rct/Path.h>
 #include <rct/List.h>
 #include "IndexerJob.h"
