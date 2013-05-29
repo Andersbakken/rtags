@@ -24,6 +24,8 @@ Path::VisitResult ScanJob::visit(const Path &path, void *userData)
     case Filter::Filtered:
         return Path::Continue;
     case Filter::Directory:
+        if (Path::exists(path + "/.rtags-ignore"))
+            return Path::Continue;
         return Path::Recurse;
     case Filter::File:
     case Filter::Source:
