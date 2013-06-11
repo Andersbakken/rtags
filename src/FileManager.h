@@ -14,16 +14,17 @@ class FileManager : public EventReceiver
 public:
     FileManager();
     void init(const shared_ptr<Project> &proj);
-    void recurseDirs();
+    void reload();
     void onFileAdded(const Path &path);
     void onFileRemoved(const Path &path);
     void onRecurseJobFinished(Set<Path> mPaths);
     bool contains(const Path &path) const;
-    void clearFileSystemWatcher();
-    void reload();
+    void clearFileSystemWatcher() { mWatcher.clear(); }
+    Set<Path> watchedPaths() const { return mWatcher.watchedPaths(); }
     Set<Path> jsFiles() const;
     signalslot::Signal0 &jsFilesChanged() { return mJSFilesChanged; }
 private:
+    void watch(const Path &path);
     FileSystemWatcher mWatcher;
     weak_ptr<Project> mProject;
     signalslot::Signal0 mJSFilesChanged;

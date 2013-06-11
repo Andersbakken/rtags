@@ -29,6 +29,10 @@ Project::Project(const Path &path)
 {
     mWatcher.modified().connect(this, &Project::onFileModified);
     mWatcher.removed().connect(this, &Project::onFileModified);
+    if (Server::instance()->options().options & Server::NoFileManagerWatch) {
+        mWatcher.removed().connect(this, &Project::reloadFileManager);
+        mWatcher.added().connect(this, &Project::reloadFileManager);
+    }
 }
 
 void Project::init()
@@ -821,4 +825,9 @@ void Project::onJSFilesAdded()
     for (Set<Path>::const_iterator it = jsFiles.begin(); it != jsFiles.end(); ++it) {
         index(*it);
     }
+}
+
+void Project::reloadFileManager(const Path &)
+{
+    fileManager->reload();
 }

@@ -90,6 +90,7 @@ public:
     bool isIndexing() const { MutexLocker lock(&mMutex); return !mJobs.isEmpty(); }
     void onJSFilesAdded();
 private:
+    void reloadFileManager(const Path &);
     bool initJobFromCache(const Path &path, const List<String> &args,
                           CXIndex &index, CXTranslationUnit &unit, List<String> *argsOut);
     void onFileModified(const Path &);

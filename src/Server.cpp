@@ -896,7 +896,10 @@ shared_ptr<Project> Server::setCurrentProject(const Path &path) // lock always h
 
 shared_ptr<Project> Server::setCurrentProject(const shared_ptr<Project> &project)
 {
-    if (project && project != mCurrentProject.lock()) {
+    shared_ptr<Project> old = mCurrentProject.lock();
+    if (project && project != old) {
+        if (old)
+            old->fileManager->clearFileSystemWatcher();
         mCurrentProject = project;
         FILE *f = fopen((mOptions.dataDir + ".currentProject").constData(), "w");
         if (f) {
@@ -911,8 +914,11 @@ shared_ptr<Project> Server::setCurrentProject(const shared_ptr<Project> &project
             error() << "error opening" << (mOptions.dataDir + ".currentProject") << "for write";
         }
 
-        if (!project->isValid())
+        if (!project->isValid()) {
             loadProject(project);
+        } else {
+            project->fileManager->reload();
+        }
         return project;
     }
     return shared_ptr<Project>();

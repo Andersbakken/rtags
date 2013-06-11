@@ -13,10 +13,10 @@ FileManager::FileManager()
 void FileManager::init(const shared_ptr<Project> &proj)
 {
     mProject = proj;
-    recurseDirs();
+    reload();
 }
 
-void FileManager::recurseDirs()
+void FileManager::reload()
 {
     shared_ptr<Project> project = mProject.lock();
     assert(project);
@@ -27,7 +27,6 @@ void FileManager::recurseDirs()
 
 void FileManager::onRecurseJobFinished(Set<Path> paths)
 {
-    const bool watch = !(Server::instance()->options().options & Server::NoFileManagerWatch);
     bool emitJS = false;
     {
         MutexLocker lock(&mMutex); // ### is this needed now?
@@ -37,6 +36,7 @@ void FileManager::onRecurseJobFinished(Set<Path> paths)
         shared_ptr<Project> project = mProject.lock();
         assert(project);
         FilesMap &map = project->files();
+        map.clear();
         mWatcher.clear();
         for (Set<Path>::const_iterator it = paths.begin(); it != paths.end(); ++it) {
             if (it->endsWith(".js"))
@@ -48,8 +48,8 @@ void FileManager::onRecurseJobFinished(Set<Path> paths)
             }
             assert(!parent.isEmpty());
             Set<String> &dir = map[parent];
-            if (dir.isEmpty() && watch)
-                mWatcher.watch(parent);
+            if (dir.isEmpty())
+                watch(parent);
             dir.insert(it->fileName());
         }
         assert(!map.contains(""));
@@ -71,7 +71,7 @@ void FileManager::onFileAdded(const Path &path)
         const Filter::Result res = Filter::filter(path);
         switch (res) {
         case Filter::Directory:
-            recurseDirs();
+            reload();
             return;
         case Filter::Filtered:
             return;
@@ -85,8 +85,8 @@ void FileManager::onFileAdded(const Path &path)
         const Path parent = path.parentDir();
         if (!parent.isEmpty()) {
             Set<String> &dir = map[parent];
-            if (dir.isEmpty() && !(Server::instance()->options().options & Server::NoFileManagerWatch))
-                mWatcher.watch(parent);
+            if (dir.isEmpty())
+                watch(parent);
             dir.insert(path.fileName());
             emitJS = path.endsWith(".js");
         } else {
@@ -104,7 +104,7 @@ void FileManager::onFileRemoved(const Path &path)
     shared_ptr<Project> project = mProject.lock();
     FilesMap &map = project->files();
     if (map.contains(path)) {
-        recurseDirs();
+        reload();
         return;
     }
     const Path parent = path.parentDir();
@@ -112,8 +112,7 @@ void FileManager::onFileRemoved(const Path &path)
         Set<String> &dir = map[parent];
         dir.remove(path.fileName());
         if (dir.isEmpty()) {
-            if (!(Server::instance()->options().options & Server::NoFileManagerWatch))
-                mWatcher.unwatch(parent);
+            mWatcher.unwatch(parent);
             map.remove(parent);
         }
     }
@@ -139,22 +138,15 @@ bool FileManager::contains(const Path &path) const
     return false;
 }
 
-void FileManager::reload()
-{
-    MutexLocker lock(&mMutex);
-    shared_ptr<Project> proj = mProject.lock();
-    FilesMap &map = proj->files();
-    map.clear();
-    recurseDirs();
-}
 Set<Path> FileManager::jsFiles() const
 {
     MutexLocker lock(&mMutex);
     return mJSFiles;
 }
-
-void FileManager::clearFileSystemWatcher()
+void FileManager::watch(const Path &path)
 {
-    MutexLocker lock(&mMutex);
-    mWatcher.clear();
+    if (!(Server::instance()->options().options & Server::NoFileManagerWatch)
+        && !path.contains("/.git/") && !path.contains("/.svn/") && !path.contains("/.cvs/")) {
+        mWatcher.watch(path);
+    }
 }

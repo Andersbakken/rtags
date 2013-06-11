@@ -40,9 +40,17 @@ void StatusJob::execute()
         write(delimiter);
         write("watchedpaths");
         write(delimiter);
-        const Set<Path> watched = proj->watchedPaths();
+        Set<Path> watched = proj->watchedPaths();
+        write("Indexer");
         for (Set<Path>::const_iterator it = watched.begin(); it != watched.end(); ++it) {
             write<256>("  %s", it->constData());
+        }
+        if (proj->fileManager) {
+            write("FileManager");
+            watched = proj->fileManager->watchedPaths();
+            for (Set<Path>::const_iterator it = watched.begin(); it != watched.end(); ++it) {
+                write<256>("  %s", it->constData());
+            }
         }
         if (isAborted())
             return;
