@@ -82,7 +82,10 @@ bool Project::restore()
             if (dir.isEmpty()) {
                 error() << "File busted" << it->first << Location::path(it->first);
                 continue;
+            } else if (!(Server::instance()->options().options & Server::WatchSystemPaths) && dir.isSystem()) {
+                continue;
             }
+
             if (mWatchedPaths.insert(dir))
                 mWatcher.watch(dir);
             for (Set<uint32_t>::const_iterator s = it->second.begin(); s != it->second.end(); ++s) {

@@ -47,7 +47,9 @@ public:
         UnlimitedErrors = 0x020,
         SpellChecking = 0x040,
         AllowMultipleBuildsForSameCompiler = 0x080,
-        NoStartupCurrentProject = 0x100
+        NoStartupCurrentProject = 0x100,
+        WatchSystemPaths = 0x200,
+        NoFileManagerWatch = 0x400
     };
     ThreadPool *threadPool() const { return mIndexerThreadPool; }
     void startQueryJob(const shared_ptr<Job> &job);

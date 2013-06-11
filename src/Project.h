@@ -64,7 +64,7 @@ public:
 
     const UsrMap &usrs() const { return mUsr; }
     UsrMap &usrs() { return mUsr; }
-    
+
     bool isIndexed(uint32_t fileId) const;
 
     void index(const SourceInformation &args, IndexerJob::Type type);

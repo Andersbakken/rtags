@@ -69,6 +69,8 @@ void usage(FILE *f)
             "  --allow-multiple-builds|-m        Without this setting different flags for the same compiler will be merged for each source file.\n"
             "  --unload-timer|-u [arg]           Number of minutes to wait before unloading non-current projects (disabled by default).\n"
             "  --thread-count|-j [arg]           Spawn this many threads for thread pool.\n"
+            "  --watch-system-paths|-w           Watch system paths for changes.\n"
+            "  --no-filemanager-watch|-M         Don't use a file system watcher for filemanager.\n"
             "  --ignore-compiler|-b [arg]        Alias this compiler (Might be practical to avoid duplicated builds for things like icecc).\n"
             "  --disable-plugin|-p [arg]         Don't load this plugin\n"
             "  --clang-stack-size|-t [arg]       Use this much stack for clang's threads (default %d).\n", defaultStackSize);
@@ -118,6 +120,8 @@ int main(int argc, char** argv)
         { "clang-stack-size", required_argument, 0, 't' },
         { "ignore-compiler", required_argument, 0, 'b' },
         { "disable-plugin", required_argument, 0, 'p' },
+        { "watch-system-paths", no_argument, 0, 'w' },
+        { "no-filemanager-watch", no_argument, 0, 'M' },
         { 0, 0, 0, 0 }
     };
     const String shortOptions = Rct::shortOptions(opts);
@@ -253,6 +257,12 @@ int main(int argc, char** argv)
             break;
         case 'o':
             serverOpts.options |= Server::NoStartupCurrentProject;
+            break;
+        case 'w':
+            serverOpts.options |= Server::WatchSystemPaths;
+            break;
+        case 'M':
+            serverOpts.options |= Server::NoFileManagerWatch;
             break;
         case 'F':
             serverOpts.options |= Server::IgnorePrintfFixits;

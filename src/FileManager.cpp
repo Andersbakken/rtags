@@ -27,6 +27,7 @@ void FileManager::recurseDirs()
 
 void FileManager::onRecurseJobFinished(Set<Path> paths)
 {
+    const bool watch = !(Server::instance()->options().options & Server::NoFileManagerWatch);
     bool emitJS = false;
     {
         MutexLocker lock(&mMutex); // ### is this needed now?
@@ -47,7 +48,7 @@ void FileManager::onRecurseJobFinished(Set<Path> paths)
             }
             assert(!parent.isEmpty());
             Set<String> &dir = map[parent];
-            if (dir.isEmpty())
+            if (dir.isEmpty() && watch)
                 mWatcher.watch(parent);
             dir.insert(it->fileName());
         }
@@ -84,7 +85,7 @@ void FileManager::onFileAdded(const Path &path)
         const Path parent = path.parentDir();
         if (!parent.isEmpty()) {
             Set<String> &dir = map[parent];
-            if (dir.isEmpty())
+            if (dir.isEmpty() && !(Server::instance()->options().options & Server::NoFileManagerWatch))
                 mWatcher.watch(parent);
             dir.insert(path.fileName());
             emitJS = path.endsWith(".js");
@@ -111,7 +112,8 @@ void FileManager::onFileRemoved(const Path &path)
         Set<String> &dir = map[parent];
         dir.remove(path.fileName());
         if (dir.isEmpty()) {
-            mWatcher.unwatch(parent);
+            if (!(Server::instance()->options().options & Server::NoFileManagerWatch))
+                mWatcher.unwatch(parent);
             map.remove(parent);
         }
     }
@@ -149,4 +151,10 @@ Set<Path> FileManager::jsFiles() const
 {
     MutexLocker lock(&mMutex);
     return mJSFiles;
+}
+
+void FileManager::clearFileSystemWatcher()
+{
+    MutexLocker lock(&mMutex);
+    mWatcher.clear();
 }

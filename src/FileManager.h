@@ -19,6 +19,7 @@ public:
     void onFileRemoved(const Path &path);
     void onRecurseJobFinished(Set<Path> mPaths);
     bool contains(const Path &path) const;
+    void clearFileSystemWatcher();
     void reload();
     Set<Path> jsFiles() const;
     signalslot::Signal0 &jsFilesChanged() { return mJSFilesChanged; }
