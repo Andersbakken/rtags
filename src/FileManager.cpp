@@ -5,6 +5,7 @@
 #include "Project.h"
 
 FileManager::FileManager()
+    : mLastReloadTime(0)
 {
     mWatcher.added().connect(this, &FileManager::onFileAdded);
     mWatcher.removed().connect(this, &FileManager::onFileRemoved);
@@ -18,6 +19,7 @@ void FileManager::init(const shared_ptr<Project> &proj)
 
 void FileManager::reload()
 {
+    mLastReloadTime = Rct::monoMs();
     shared_ptr<Project> project = mProject.lock();
     assert(project);
     shared_ptr<ScanJob> job(new ScanJob(project->path()));

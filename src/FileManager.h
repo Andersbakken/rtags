@@ -15,6 +15,7 @@ public:
     FileManager();
     void init(const shared_ptr<Project> &proj);
     void reload();
+    uint64_t lastReloadTime() const { return mLastReloadTime; }
     void onFileAdded(const Path &path);
     void onFileRemoved(const Path &path);
     void onRecurseJobFinished(Set<Path> mPaths);
@@ -29,6 +30,7 @@ private:
     weak_ptr<Project> mProject;
     signalslot::Signal0 mJSFilesChanged;
     Set<Path> mJSFiles;
+    uint64_t mLastReloadTime;
     mutable Mutex mMutex;
 };
 

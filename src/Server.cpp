@@ -265,6 +265,9 @@ void Server::onNewMessage(Message *message, Connection *connection)
         connection->finish();
         break;
     }
+    shared_ptr<Project> project = currentProject();
+    if (project && project->fileManager && (Rct::monoMs() - project->fileManager->lastReloadTime()) > 60000)
+        project->fileManager->reload();
 }
 
 void Server::handleCompileMessage(CompileMessage *message, Connection *conn)
