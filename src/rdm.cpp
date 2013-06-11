@@ -70,7 +70,11 @@ void usage(FILE *f)
             "  --unload-timer|-u [arg]           Number of minutes to wait before unloading non-current projects (disabled by default).\n"
             "  --thread-count|-j [arg]           Spawn this many threads for thread pool.\n"
             "  --watch-system-paths|-w           Watch system paths for changes.\n"
+#ifdef OS_Darwin
+            "  --filemanager-watch|-M            Use a file system watcher for filemanager.\n"
+#else
             "  --no-filemanager-watch|-M         Don't use a file system watcher for filemanager.\n"
+#endif
             "  --ignore-compiler|-b [arg]        Alias this compiler (Might be practical to avoid duplicated builds for things like icecc).\n"
             "  --disable-plugin|-p [arg]         Don't load this plugin\n"
             "  --clang-stack-size|-t [arg]       Use this much stack for clang's threads (default %d).\n", defaultStackSize);
@@ -121,7 +125,11 @@ int main(int argc, char** argv)
         { "ignore-compiler", required_argument, 0, 'b' },
         { "disable-plugin", required_argument, 0, 'p' },
         { "watch-system-paths", no_argument, 0, 'w' },
+#ifdef OS_Darwin
+        { "filemanager-watch", no_argument, 0, 'M' },
+#else
         { "no-filemanager-watch", no_argument, 0, 'M' },
+#endif
         { 0, 0, 0, 0 }
     };
     const String shortOptions = Rct::shortOptions(opts);
@@ -204,6 +212,9 @@ int main(int argc, char** argv)
     serverOpts.threadCount = ThreadPool::idealThreadCount();
     serverOpts.completionCacheSize = 0;
     serverOpts.options = Server::Wall|Server::SpellChecking;
+#ifdef OS_Darwin
+    serverOpts.options |= Server::NoFileManagerWatch;
+#endif
     serverOpts.excludeFilters = String(EXCLUDEFILTER_DEFAULT).split(';');
     serverOpts.dataDir = String::format<128>("%s.rtags", Path::home().constData());
     serverOpts.unloadTimer = 0;
@@ -262,7 +273,11 @@ int main(int argc, char** argv)
             serverOpts.options |= Server::WatchSystemPaths;
             break;
         case 'M':
+#ifdef OS_Darwin
+            serverOpts.options &= ~Server::NoFileManagerWatch;
+#else
             serverOpts.options |= Server::NoFileManagerWatch;
+#endif
             break;
         case 'F':
             serverOpts.options |= Server::IgnorePrintfFixits;
