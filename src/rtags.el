@@ -581,19 +581,21 @@
 (defvar rtags-location-stack nil)
 
 (defun rtags-location-stack-push ()
-  (let ((bm (rtags-current-location t)))
-    (while (> rtags-location-stack-index 0)
-      (progn
-        (setq rtags-location-stack-index (- rtags-location-stack-index 1))
-        (pop rtags-location-stack)
+  (if buffer-file-name
+      (let ((bm (rtags-current-location t)))
+        (while (> rtags-location-stack-index 0)
+          (progn
+            (setq rtags-location-stack-index (- rtags-location-stack-index 1))
+            (pop rtags-location-stack)
+            )
+          )
+        (unless (string= bm (nth 0 rtags-location-stack))
+          (push bm rtags-location-stack)
+          (if (> (length rtags-location-stack) rtags-max-bookmark-count)
+              (nbutlast rtags-location-stack (- (length rtags-location-stack) rtags-max-bookmark-count))
+            )
+          )
         )
-      )
-    (unless (string= bm (nth 0 rtags-location-stack))
-      (push bm rtags-location-stack)
-      (if (> (length rtags-location-stack) rtags-max-bookmark-count)
-          (nbutlast rtags-location-stack (- (length rtags-location-stack) rtags-max-bookmark-count))
-        )
-      )
     )
   )
 
