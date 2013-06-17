@@ -3,10 +3,8 @@
 
 const char *jsKindNames[] = {
     "JSInvalid",
-    "JSVariable",
-    "JSFunction",
+    "JSDeclaration",
     "JSReference",
-    "JSWeakVariable",
     0
 };
 

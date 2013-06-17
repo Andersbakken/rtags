@@ -15,10 +15,8 @@ class CursorInfo
 public:
     enum JSCursorKind {
         JSInvalid = 10000,
-        JSVariable,
-        JSFunction,
-        JSReference,
-        JSWeakVariable
+        JSDeclaration,
+        JSReference
     };
 
     enum RPCursorKind {

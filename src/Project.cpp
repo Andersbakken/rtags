@@ -353,7 +353,7 @@ bool Project::index(const Path &sourceFile, const Path &cc, const List<String> &
     SourceInformation sourceInformation = sourceInfo(Location::insertFile(sourceFile));
     const bool js = args.isEmpty() && sourceFile.endsWith(".js");
     bool added = false;
-    if (sourceInformation.isNull()) {
+    if (sourceInformation.isNull() || js) {
         sourceInformation.sourceFile = sourceFile;
     } else if (js) {
         debug() << sourceFile << " is not dirty. ignoring";
@@ -374,7 +374,7 @@ bool Project::index(const Path &sourceFile, const Path &cc, const List<String> &
             }
         }
     }
-    if (!added)
+    if (!added && !js)
         sourceInformation.builds.append(SourceInformation::Build(compiler, args));
     index(sourceInformation, IndexerJob::Makefile);
     return true;

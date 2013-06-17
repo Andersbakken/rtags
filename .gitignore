@@ -22,3 +22,4 @@ gr
 /bin/librtagsesprima.so
 /src/librtags.dylib
 /src/librtags.so
+/src/rtags-esprima.js
