@@ -465,8 +465,9 @@
 
 (defun rtags-current-location (&optional linecol)
   (if linecol
-      (format "%s:%d:%d" (buffer-file-name) (line-number-at-pos) (1+ (- (point) (point-at-bol))))
-    (format "%s,%d" (buffer-file-name) (rtags-offset))))
+      (format "%s:%d:%d" (or (buffer-file-name) (buffer-name))
+              (line-number-at-pos) (1+ (- (point) (point-at-bol))))
+    (format "%s,%d" (or (buffer-file-name) (buffer-name)) (rtags-offset))))
 
 (defun rtags-log (log)
   (if rtags-rc-log-enabled
@@ -486,6 +487,18 @@
   (setq rtags-last-buffer (current-buffer))
   (rtags-location-stack-push))
 
+(defun rtags-find-file-or-buffer (file-or-buffer &optional otherwindow)
+  (if (file-exists-p file-or-buffer)
+      (if otherwindow
+          (find-file-other-window file-or-buffer)
+        (find-file file-or-buffer))
+    (let ((buf (get-buffer file-or-buffer)))
+      (cond ((not buf) (message "No buffer named %s" file-or-buffer))
+            (otherwindow (switch-to-buffer-other-window file-or-buffer))
+            (t (switch-to-buffer file-or-buffer))))
+    )
+  )
+
 (defun rtags-goto-location (location &optional nobookmark otherbuffer)
   "Go to a location passed in. It can be either: file,12 or file:13:14 or plain file"
   ;;  (message (format "rtags-goto-location \"%s\"" location))
@@ -494,9 +507,7 @@
     (cond ((string-match "\\(.*\\):\\([0-9]+\\):\\([0-9]+\\)" location)
            (let ((line (string-to-int (match-string 2 location)))
                  (column (string-to-int (match-string 3 location))))
-             (if otherbuffer
-                 (find-file-other-window (match-string 1 location))
-               (find-file (match-string 1 location)))
+             (rtags-find-file-or-buffer (match-string 1 location))
              (run-hooks rtags-after-find-file-hook)
              (goto-line line)
              (beginning-of-line)
@@ -504,28 +515,20 @@
              t))
           ((string-match "\\(.*\\):\\([0-9]+\\)" location)
            (let ((line (string-to-int (match-string 2 location))))
-             (if otherbuffer
-                 (find-file-other-window (match-string 1 location))
-               (find-file (match-string 1 location)))
+             (rtags-find-file-or-buffer (match-string 1 location))
              (run-hooks rtags-after-find-file-hook)
              (goto-line line)
              t))
           ((string-match "\\(.*\\),\\([0-9]+\\)" location)
            (let ((offset (string-to-int (match-string 2 location))))
-             (if otherbuffer
-                 (find-file-other-window (match-string 1 location))
-               (find-file (match-string 1 location)))
+             (rtags-find-file-or-buffer (match-string 1 location))
              (run-hooks rtags-after-find-file-hook)
              (rtags-goto-offset offset)
              t))
           (t
            (if (string-match "^ +\\(.*\\)$" location)
                (setq location (match-string 1 location)))
-           (if otherbuffer
-               (find-file-other-window location)
-             (find-file location))
-           )
-          )
+           (rtags-find-file-or-buffer location)))
     (unless nobookmark (rtags-location-stack-push))
     )
   )
