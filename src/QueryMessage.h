@@ -61,7 +61,8 @@ public:
         CursorInfoIncludeParents = 0x04000,
         CursorInfoIncludeTargets = 0x08000,
         CursorInfoIncludeReferences = 0x10000,
-        DeclarationOnly = 0x20000
+        DeclarationOnly = 0x20000,
+        ContainingFunction = 0x40000
     };
 
     QueryMessage(Type type = Invalid);

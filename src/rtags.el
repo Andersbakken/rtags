@@ -189,8 +189,10 @@
   (save-excursion
     (let ((rc (rtags-executable-find "rc")))
       (when rc
-        (setq arguments (remove-if '(lambda (arg) (not arg))
-                                   arguments))
+        (setq arguments (remove-if '(lambda (arg) (not arg)) arguments))
+        (if (and rtags-show-containing-function
+                 (not (member "-N" arguments)))
+            (push "-o" arguments))
         (if rc
             (progn
               (if rtags-path-filter
@@ -627,7 +629,6 @@
   :group 'rtags
   :type 'number)
 
-
 (defcustom rtags-display-current-error-as-message t
   "Display error under cursor using (message)"
   :type 'boolean
@@ -707,6 +708,11 @@ return t if rtags is allowed to modify this file"
 
 (defcustom rtags-rc-log-enabled nil
   "If t, log rc commands and responses"
+  :group 'rtags
+  :type 'boolean)
+
+(defcustom rtags-show-containing-function nil
+  "If t, pass -o to rc to include containing function"
   :group 'rtags
   :type 'boolean)
 

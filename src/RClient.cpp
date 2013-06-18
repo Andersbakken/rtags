@@ -16,6 +16,7 @@ enum OptionType {
     CodeCompleteAt,
     Compile,
     ConnectTimeout,
+    ContainingFunction,
     Context,
     CursorInfo,
     CursorInfoIncludeParents,
@@ -166,6 +167,7 @@ struct Option opts[] = {
     { DeclarationOnly, "declaration-only", 0, no_argument, "Filter out definitions (unless inline).", },
     { IMenu, "imenu", 0, no_argument, "Use with --list-symbols to provide output for (rtags-imenu) (filter namespaces, fully qualified function names, ignore certain cursors etc)." },
     { Context, "context", 't', required_argument, "Context for current symbol (for fuzzy matching with dirty files)." }, // ### multiple context doesn't work
+    { ContainingFunction, "containing-function", 'o', no_argument, "Include name of containing function in output. "},
     { None, 0, 0, 0, 0 }
 };
 
@@ -596,6 +598,9 @@ bool RClient::parse(int &argc, char **argv)
             break;
         case IMenu:
             mQueryFlags |= QueryMessage::IMenu;
+            break;
+        case ContainingFunction:
+            mQueryFlags |= QueryMessage::ContainingFunction;
             break;
         case DeclarationOnly:
             mQueryFlags |= QueryMessage::DeclarationOnly;

@@ -5,6 +5,7 @@
 #include "CursorInfo.h"
 #include <rct/RegExp.h>
 #include "QueryMessage.h"
+#include "Project.h"
 
 // static int count = 0;
 // static int active = 0;
@@ -121,9 +122,29 @@ bool Job::write(const Location &location, unsigned flags)
             return false;
         }
     }
-    if (!write(location.key(keyFlags()).constData()))
-        return false;
-    return true;
+    String out = location.key(keyFlags());
+    if (queryFlags() & QueryMessage::ContainingFunction) {
+        const SymbolMap &symbols = project()->symbols();
+        SymbolMap::const_iterator it = symbols.find(location);
+        if (it == symbols.end()) {
+            error() << "Somehow can't find" << location << "in symbols";
+        } else {
+            const uint32_t fileId = location.fileId();
+            const int offset = location.offset();
+            while (true) {
+                --it;
+                if (it->first.fileId() != fileId)
+                    break;
+                if (it->second.isDefinition() && RTags::isContainer(it->second.kind) && offset >= it->second.start && offset <= it->second.end) {
+                    out += "\tfunction: " + it->second.symbolName;
+                    break;
+                } else if (it == symbols.begin()) {
+                    break;
+                }
+            }
+        }
+    }
+    return write(out);
 }
 
 bool Job::write(const CursorInfo &ci, unsigned ciflags)
