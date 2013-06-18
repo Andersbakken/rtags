@@ -353,7 +353,7 @@ bool Project::index(const Path &sourceFile, const Path &cc, const List<String> &
     SourceInformation sourceInformation = sourceInfo(Location::insertFile(sourceFile));
     const bool js = args.isEmpty() && sourceFile.endsWith(".js");
     bool added = false;
-    if (sourceInformation.isNull() || js) {
+    if (sourceInformation.isNull()) {
         sourceInformation.sourceFile = sourceFile;
     } else if (js) {
         debug() << sourceFile << " is not dirty. ignoring";
@@ -610,14 +610,12 @@ static inline void writeSymbols(SymbolMap &symbols, SymbolMap &current)
 
 static inline void writeReferences(const ReferenceMap &references, SymbolMap &symbols)
 {
-    if (!references.isEmpty()) {
-        const ReferenceMap::const_iterator end = references.end();
-        for (ReferenceMap::const_iterator it = references.begin(); it != end; ++it) {
-            const Set<Location> &refs = it->second;
-            for (Set<Location>::const_iterator rit = refs.begin(); rit != refs.end(); ++rit) {
-                CursorInfo &ci = symbols[*rit];
-                ci.references.insert(it->first);
-            }
+    const ReferenceMap::const_iterator end = references.end();
+    for (ReferenceMap::const_iterator it = references.begin(); it != end; ++it) {
+        const Set<Location> &refs = it->second;
+        for (Set<Location>::const_iterator rit = refs.begin(); rit != refs.end(); ++rit) {
+            CursorInfo &ci = symbols[*rit];
+            ci.references.insert(it->first);
         }
     }
 }
