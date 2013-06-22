@@ -90,17 +90,17 @@ function indexFile(code, file)
                 scopes.push(s);
                 scopeStack.push(s);
             }
-            if (node.type == "ObjectExpression") {
-                if (isChild("init") && parentTypeIs("VariableDeclarator")) {
+            if (node.type == esprima.Syntax.ObjectExpression) {
+                if (isChild("init") && parentTypeIs(esprima.Syntax.VariableDeclarator)) {
                     node.addedScope = true;
                     scopeStack[scopeStack.length - 1].objectScope.push(parents[parents.length - 2].id.name);
-                } else if (isChild("value") && parentTypeIs("Property")) {
+                } else if (isChild("value") && parentTypeIs(esprima.Syntax.Property)) {
                     node.addedScope = true;
                     scopeStack[scopeStack.length - 1].objectScope.push(parents[parents.length - 2].key.name);
                 }
-            } else if (node.type == "MemberExpression") {
+            } else if (node.type == esprima.Syntax.MemberExpression) {
                 node.name = resolveName(node);
-                if (node.property.type == "Literal") {
+                if (node.property.type == esprima.Syntax.Literal) {
                     // this one will not show up as an Identifier so we have to add it here
                     path = scopeStack[scopeStack.length - 1].objectScope.join(".");
                     if (path)
@@ -109,22 +109,23 @@ function indexFile(code, file)
                     add(path, node.property.range);
                 }
                 // log("got member expression", node.name, node.range);
-            } else if (node.type == "Identifier") {
+            } else if (node.type == esprima.Syntax.Identifier) {
                 path = scopeStack[scopeStack.length - 1].objectScope.join(".");
                 if (path)
                     path += ".";
                 var decl = false;
-                if (parentTypeIs("MemberExpression") && isChild("property")) {
+                if (parentTypeIs(esprima.Syntax.MemberExpression) && isChild("property")) {
                     path += parents[parents.length - 2].name;
                 } else {
-                    if (parentTypeIs("Property") && parentTypeIs("ObjectExpression", parents.length - 2)
+                    if (parentTypeIs(esprima.Syntax.Property) && parentTypeIs(esprima.Syntax.ObjectExpression, parents.length - 2)
                         && isChild("init", parents.length - 2)) {
                         decl = true;
-                    } else if (parentTypeIs("VariableDeclarator")) {
+                    } else if (parentTypeIs(esprima.Syntax.VariableDeclarator)) {
                         decl = true;
                     }
                     path += node.name;
                 }
+
                 add(path, node.range, decl); // probably more of them that should pass true
                 // log("identifier", path, JSON.stringify(node.range));
             }

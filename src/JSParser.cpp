@@ -210,7 +210,7 @@ bool JSParser::parse(const Path &path, const String &contents, SymbolMap *symbol
     assert(!args[0].IsEmpty() && args[0]->IsString());
     assert(!args[1].IsEmpty() && args[1]->IsString());
     v8::Handle<v8::Value> result = mParse->Call(mContext->Global(), 2, args);
-    if (!result->IsArray())
+    if (result.IsEmpty() || !result->IsArray())
         return false;
     v8::Handle<v8::Array> res = v8::Handle<v8::Array>::Cast(result);
     // error() << result;
@@ -225,7 +225,7 @@ bool JSParser::parse(const Path &path, const String &contents, SymbolMap *symbol
             const v8::Handle<v8::String> key = get<v8::String>(props, j);
             const v8::Handle<v8::Array> refs = get<v8::Array>(scope, key);
             const int refCount = refs->Length();
-            const String keyString = toCString(key);
+            String keyString = toCString(key);
             CursorInfo *decl = 0;
             Map<Location, CursorInfo*> pendingRefCursors;
             Location declLoc;
@@ -238,8 +238,7 @@ bool JSParser::parse(const Path &path, const String &contents, SymbolMap *symbol
                 c.symbolLength = c.end - c.start;
                 c.symbolName = keyString;
                 if (ref->Length() == 3) {
-                    if (symbolNames)
-                        (*symbolNames)[keyString].insert(loc);
+                    (*symbolNames)[keyString].insert(loc);
                     c.kind = CursorInfo::JSDeclaration;
                     decl = &c;
                     declLoc = loc;

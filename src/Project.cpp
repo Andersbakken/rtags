@@ -620,7 +620,6 @@ static inline void writeReferences(const ReferenceMap &references, SymbolMap &sy
     }
 }
 
-
 int Project::syncDB()
 {
     if (mPendingDirtyFiles.isEmpty() && mPendingData.isEmpty())
