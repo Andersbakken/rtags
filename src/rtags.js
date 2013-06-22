@@ -110,6 +110,7 @@ function indexFile(code, file)
                 }
                 // log("got member expression", node.name, node.range);
             } else if (node.type == esprima.Syntax.Identifier) {
+                // log("Got an identifier", node, scopeStack.length);
                 path = scopeStack[scopeStack.length - 1].objectScope.join(".");
                 if (path)
                     path += ".";
@@ -120,12 +121,18 @@ function indexFile(code, file)
                     if (parentTypeIs(esprima.Syntax.Property) && parentTypeIs(esprima.Syntax.ObjectExpression, parents.length - 2)
                         && isChild("init", parents.length - 2)) {
                         decl = true;
-                    } else if (parentTypeIs(esprima.Syntax.VariableDeclarator)) {
+                    } else if (parentTypeIs(esprima.Syntax.VariableDeclarator) && isChild("id")) {
                         decl = true;
+                    } else if (parentTypeIs(esprima.Syntax.FunctionDeclaration)) { // it's either a parameter or the id of the function
+                        decl = true;
+                    } else {
+                        // log("reference it seems", node.name, node.type, node.range, parents[parents.length - 2].name,
+                        //     parents[parents.length - 2].type);
+
                     }
                     path += node.name;
                 }
-
+                // log("Adding an identifier", path, node.range, decl);
                 add(path, node.range, decl); // probably more of them that should pass true
                 // log("identifier", path, JSON.stringify(node.range));
             }
