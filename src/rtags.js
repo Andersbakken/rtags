@@ -72,9 +72,20 @@ function indexFile(code, file)
             if (scope.objects[path])
                 found = true;
         } else {
+            var object;
+            var idx = path.indexOf('.');
+            if (idx != -1) {
+                object = path.substr(0, idx);
+            } else {
+                object = path;
+            }
             for (var i=scopeStack.length - 1; i>=0; --i) {
                 if (scopeStack[i].objects[path]) {
                     found = true;
+                    // log("Found", path, "in a scope", i, scopeStack.length);
+                    scope = scopeStack[i];
+                    break;
+                } else if (scopeStack[i].objects[object]) {
                     // log("Found", path, "in a scope", i, scopeStack.length);
                     scope = scopeStack[i];
                     break;
