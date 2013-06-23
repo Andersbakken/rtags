@@ -16,7 +16,14 @@ function resolveName(node)
 
 function indexFile(code, file)
 {
-    var parsed = esprima.parse(code, { range: true, tolerant: true });
+    var parsed;
+    try {
+        parsed = esprima.parse(code, { range: true, tolerant: true });
+    } catch (err) {
+        log("Got error", err);
+        return undefined;
+    }
+
     if (!parsed) {
         throw new Error("Couldn't parse file " + file + ' ' + code.length);
         return undefined;
@@ -28,7 +35,7 @@ function indexFile(code, file)
         throw new Error('Unable to identify anything without a valid scope manager');
 
     var scopeManager = esrefactorContext._scopeManager;
-    var lookup = esrefactorContext._lookup;
+    // var lookup = esrefactorContext._lookup;
     // log(esrefactorContext._syntax);
 
     scopeManager.attach();
@@ -53,22 +60,29 @@ function indexFile(code, file)
     var scopes = [];
     var scopeStack = [];
 
+    // 0, reference
+    // 1, declaration,
+    // 2, declaration if unique in current scope
     function add(path, range, declaration) {
         if ({}[path])
             path += ' ';
         var scope = scopeStack[scopeStack.length - 1];
-        var cur = null;
-        if (!declaration) {
+        var found = false;
+        if (declaration) {
+            if (scope.objects[path])
+                found = true;
+        } else {
             for (var i=scopeStack.length - 1; i>=0; --i) {
-                cur = scopeStack[i].objects[path];
-                if (cur) {
+                if (scopeStack[i].objects[path]) {
+                    found = true;
                     // log("Found", path, "in a scope", i, scopeStack.length);
                     scope = scopeStack[i];
                     break;
                 }
             }
         }
-        if (!cur) {
+
+        if (!found) {
             range.push(true);
             scope.objects[path] = [range];
         } else {
@@ -92,10 +106,10 @@ function indexFile(code, file)
             }
             if (node.type == esprima.Syntax.ObjectExpression) {
                 if (isChild("init") && parentTypeIs(esprima.Syntax.VariableDeclarator)) {
-                    node.addedScope = true;
+                    node.addedObjectScope = true;
                     scopeStack[scopeStack.length - 1].objectScope.push(parents[parents.length - 2].id.name);
                 } else if (isChild("value") && parentTypeIs(esprima.Syntax.Property)) {
-                    node.addedScope = true;
+                    node.addedObjectScope = true;
                     scopeStack[scopeStack.length - 1].objectScope.push(parents[parents.length - 2].key.name);
                 }
             } else if (node.type == esprima.Syntax.MemberExpression) {
@@ -139,7 +153,7 @@ function indexFile(code, file)
         },
         leave: function (node) {
             parents.pop();
-            if (node.addedScope)
+            if (node.addedObjectScope)
                 scopeStack[scopeStack.length - 1].objectScope.pop();
             if (scopeManager.release(node)) // the scopeManager probably knows enough about this to provide the scopeStack
                 scopeStack.pop();
