@@ -14,14 +14,14 @@ function resolveName(node)
     return "";
 }
 
-function indexFile(code, file)
+function indexFile(code, file, verbose)
 {
     var parsed;
     try {
         parsed = esprima.parse(code, { range: true, tolerant: true });
     } catch (err) {
         log("Got error", err);
-        return undefined;
+        return {errors:[err]};
     }
 
     if (!parsed) {
@@ -103,6 +103,7 @@ function indexFile(code, file)
     }
 
     var byName = {};
+    var errors = null;
     estraverse.traverse(esrefactorContext._syntax, {
         enter: function (node) {
             var path;
@@ -115,7 +116,9 @@ function indexFile(code, file)
                 scopes.push(s);
                 scopeStack.push(s);
             }
-            if (node.type == esprima.Syntax.ObjectExpression) {
+            if (node.type == esprima.Syntax.Program) {
+                errors = node.errors;
+            } else if (node.type == esprima.Syntax.ObjectExpression) {
                 if (isChild("init") && parentTypeIs(esprima.Syntax.VariableDeclarator)) {
                     node.addedObjectScope = true;
                     scopeStack[scopeStack.length - 1].objectScope.push(parents[parents.length - 2].id.name);
@@ -173,13 +176,18 @@ function indexFile(code, file)
     });
     scopeManager.detach();
 
-    var objects = [];
+    var ret = { objects:[] };
     for (var s=0; s<scopes.length; ++s) {
         if (scopes[s].count) {
-            objects.push(scopes[s].objects);
+            ret.objects.push(scopes[s].objects);
             // log(s, scopes[s].objects);
         }
     }
-    return objects;
+    if (verbose)
+        ret.ast = esrefactorContext._syntax;
+    if (errors)
+        ret.errors = errors;
+
+    return ret;
 }
 

@@ -59,10 +59,9 @@ void IndexerJobEsprima::index()
     }
     if (isAborted())
         return;
-    String errors; // ### what to do about this one?
     String dump;
     if (!parser.parse(mSourceInformation.sourceFile, contents, &mData->symbols, &mData->symbolNames,
-                      &errors, mType == Dump ? &dump : 0)) {
+                      mType == Dump ? &dump : 0)) {
         error() << "Can't parse" << mSourceInformation.sourceFile;
     }
     mParseTime = time(0);

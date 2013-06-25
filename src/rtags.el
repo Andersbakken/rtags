@@ -174,10 +174,12 @@
     (if (and result (file-exists-p result))
         result)))
 
+;; this function is used as a find-file hook so it needs to always return t
 (defun rtags-index-js-file ()
   (interactive)
   (if (buffer-file-name)
       (rtags-call-rc (buffer-file-name) "--compile" (buffer-file-name))))
+
 
 (defun rtags-call-rc (path &rest arguments)
   (apply #'rtags-call-rc-helper path nil t arguments))
@@ -716,6 +718,11 @@ return t if rtags is allowed to modify this file"
   :group 'rtags
   :type 'boolean)
 
+(defcustom rtags-index-js-files nil
+  "If t, automatically index all js files that are opened"
+  :group 'rtags
+  :type 'boolean)
+
 (defun rtags-enable-standard-keybindings (&optional map)
   (interactive)
   (unless map
@@ -746,6 +753,10 @@ return t if rtags is allowed to modify this file"
   (define-key map (kbd "C-x r B") (function rtags-show-rtags-buffer))
   (define-key map (kbd "C-x r I") (function rtags-imenu))
   )
+
+(if rtags-index-js-files
+    (add-hook 'find-file-hook 'rtags-index-js-file)
+  (remove-hook 'find-file-hook 'rtags-index-js-file))
 
 (defun rtags-print-current-location ()
   (interactive)

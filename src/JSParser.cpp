@@ -5,7 +5,8 @@
 
 #define toCString(str) *v8::String::Utf8Value(str)
 
-static v8::Handle<v8::String> toJSON(v8::Handle<v8::Value> obj, bool pretty)
+template <typename T>
+static v8::Handle<v8::String> toJSON(v8::Handle<T> obj, bool pretty)
 {
     v8::HandleScope scope;
 
@@ -34,6 +35,13 @@ Log operator<<(Log log, v8::Handle<v8::String> string)
 }
 
 Log operator<<(Log log, v8::Handle<v8::Value> value)
+{
+    if (!value.IsEmpty())
+        log << toCString(toJSON(value, true));
+    return log;
+}
+
+Log operator<<(Log log, v8::Handle<v8::Object> value)
 {
     if (!value.IsEmpty())
         log << toCString(toJSON(value, true));
@@ -157,7 +165,7 @@ v8::Handle<v8::Value> jsDefine(const v8::Arguments &args)
 
 bool JSParser::init()
 {
-   mIsolate = v8::Isolate::New();
+    mIsolate = v8::Isolate::New();
     const v8::Isolate::Scope isolateScope(mIsolate);
     v8::HandleScope handleScope;
     v8::Handle<v8::ObjectTemplate> globalObjectTemplate = v8::ObjectTemplate::New();
@@ -188,8 +196,7 @@ bool JSParser::init()
     return !mParse.IsEmpty() && mParse->IsFunction();
 }
 
-bool JSParser::parse(const Path &path, const String &contents, SymbolMap *symbols, SymbolNameMap *symbolNames,
-                     String *errors, String *json)
+bool JSParser::parse(const Path &path, const String &contents, SymbolMap *symbols, SymbolNameMap *symbolNames, String *ast)
 {
     const v8::Isolate::Scope isolateScope(mIsolate);
     // mFileId = Location::insertFile(path);
@@ -203,66 +210,92 @@ bool JSParser::parse(const Path &path, const String &contents, SymbolMap *symbol
         error() << "No contents for" << path;
         return false;
     }
-    v8::Handle<v8::Value> args[2];
+    v8::Handle<v8::Value> args[3];
     args[0] = v8::String::New(c.constData(), c.size());
     args[1] = v8::String::New(path.constData(), path.size());
+    args[2] = v8::Boolean::New(ast);
+
     assert(!mParse.IsEmpty() && mParse->IsFunction());
     assert(!args[0].IsEmpty() && args[0]->IsString());
     assert(!args[1].IsEmpty() && args[1]->IsString());
-    v8::Handle<v8::Value> result = mParse->Call(mContext->Global(), 2, args);
-    if (result.IsEmpty() || !result->IsArray())
+    assert(!args[2].IsEmpty() && args[2]->IsBoolean());
+    v8::Handle<v8::Value> resultVal = mParse->Call(mContext->Global(), 3, args);
+    if (resultVal.IsEmpty() || !resultVal->IsObject())
         return false;
-    v8::Handle<v8::Array> res = v8::Handle<v8::Array>::Cast(result);
+    v8::Handle<v8::Object> result = v8::Handle<v8::Object>::Cast(resultVal);
+    if (ast) {
+        v8::Handle<v8::Object> astObject = get<v8::Object>(result, "ast");
+        if (!astObject.IsEmpty())
+            *ast = toCString(toJSON(astObject, true));
+    }
     // error() << result;
-    const uint32_t fileId = Location::insertFile(path);
-    for (unsigned i=0; i<res->Length(); ++i) {
-        v8::Handle<v8::Object> scope = get<v8::Object>(res, i);
-        assert(!scope.IsEmpty());
-        const v8::Handle<v8::Array> props = scope->GetOwnPropertyNames();
-        const int propCount = props->Length();
-        // error() << "Got a scope" << scope;
-        for (int j=0; j<propCount; ++j) {
-            const v8::Handle<v8::String> key = get<v8::String>(props, j);
-            const v8::Handle<v8::Array> refs = get<v8::Array>(scope, key);
-            const int refCount = refs->Length();
-            String keyString = toCString(key);
-            CursorInfo *decl = 0;
-            Map<Location, CursorInfo*> pendingRefCursors;
-            Location declLoc;
-            for (int k=0; k<refCount; ++k) {
-                const v8::Handle<v8::Array> ref = get<v8::Array>(refs, k);
-                const Location loc(fileId, static_cast<uint32_t>(get<v8::Number>(ref, 0)->Value()));
-                CursorInfo &c = (*symbols)[loc];
-                c.start = loc.offset();
-                c.end = static_cast<uint32_t>(get<v8::Number>(ref, 1)->Value());
-                c.symbolLength = c.end - c.start;
-                c.symbolName = keyString;
-                if (ref->Length() == 3) {
-                    (*symbolNames)[keyString].insert(loc);
-                    c.kind = CursorInfo::JSDeclaration;
-                    decl = &c;
-                    declLoc = loc;
-                    for (Map<Location, CursorInfo*>::const_iterator it = pendingRefCursors.begin(); it != pendingRefCursors.end(); ++it) {
-                        it->second->targets.insert(declLoc);
-                        c.references.insert(it->first);
-                    }
-                    // error() << "Got a declaration" << loc << keyString << pendingRefCursors.size();
-                    pendingRefCursors.clear();
-                } else {
-                    c.kind = CursorInfo::JSReference;
-                    if (decl) {
-                        decl->references.insert(loc);
-                        c.targets.insert(declLoc);
+    v8::Handle<v8::Array> res = get<v8::Array>(result, "objects");
+    if (!res.IsEmpty()) {
+        const uint32_t fileId = Location::insertFile(path);
+        for (unsigned i=0; i<res->Length(); ++i) {
+            v8::Handle<v8::Object> scope = get<v8::Object>(res, i);
+            assert(!scope.IsEmpty());
+            const v8::Handle<v8::Array> props = scope->GetOwnPropertyNames();
+            const int propCount = props->Length();
+            // error() << "Got a scope" << scope;
+            for (int j=0; j<propCount; ++j) {
+                const v8::Handle<v8::String> key = get<v8::String>(props, j);
+                const v8::Handle<v8::Array> refs = get<v8::Array>(scope, key);
+                const int refCount = refs->Length();
+                String keyString = toCString(key);
+                CursorInfo *decl = 0;
+                Map<Location, CursorInfo*> pendingRefCursors;
+                Location declLoc;
+                for (int k=0; k<refCount; ++k) {
+                    const v8::Handle<v8::Array> ref = get<v8::Array>(refs, k);
+                    const Location loc(fileId, static_cast<uint32_t>(get<v8::Number>(ref, 0)->Value()));
+                    CursorInfo &c = (*symbols)[loc];
+                    c.start = loc.offset();
+                    c.end = static_cast<uint32_t>(get<v8::Number>(ref, 1)->Value());
+                    c.symbolLength = c.end - c.start;
+                    c.symbolName = keyString;
+                    if (ref->Length() == 3) {
+                        (*symbolNames)[keyString].insert(loc);
+                        c.kind = CursorInfo::JSDeclaration;
+                        decl = &c;
+                        declLoc = loc;
+                        for (Map<Location, CursorInfo*>::const_iterator it = pendingRefCursors.begin(); it != pendingRefCursors.end(); ++it) {
+                            it->second->targets.insert(declLoc);
+                            c.references.insert(it->first);
+                        }
+                        // error() << "Got a declaration" << loc << keyString << pendingRefCursors.size();
+                        pendingRefCursors.clear();
                     } else {
-                        pendingRefCursors[loc] = &c;
+                        c.kind = CursorInfo::JSReference;
+                        if (decl) {
+                            decl->references.insert(loc);
+                            c.targets.insert(declLoc);
+                        } else {
+                            pendingRefCursors[loc] = &c;
+                        }
+                        // error() << "Got a reference" << loc << keyString;
                     }
-                    // error() << "Got a reference" << loc << keyString;
                 }
             }
         }
     }
 
+    v8::Handle<v8::Array> errors = get<v8::Array>(result, "errors");
+    if (!errors.IsEmpty() && errors->Length() && testLog(RTags::CompilationErrorXml)) {
+        const int length = errors->Length();
+        log(RTags::CompilationErrorXml, "<?xml version=\"1.0\" encoding=\"utf-8\"?><checkstyle><file name=\"%s\">", path.constData());
+        for (int i=0; i<length; ++i) {
+            v8::Handle<v8::Object> error = get<v8::Array>(errors, i);
+            assert(!error.IsEmpty());
+            log(RTags::CompilationErrorXml, "<error line=\"%d\" column=\"%d\" startOffset=\"%d\" severity=\"error\" message=\"%s\"/>",
+                static_cast<int>(get<v8::Number>(error, "lineNumber")->Value()),
+                static_cast<int>(get<v8::Number>(error, "column")->Value()),
+                static_cast<int>(get<v8::Number>(error, "index")->Value()),
+                toCString(get<v8::String>(error, "description")));
+        }
 
+        logDirect(RTags::CompilationErrorXml, "</file></checkstyle>");
+    }
 
     return true;
 }
