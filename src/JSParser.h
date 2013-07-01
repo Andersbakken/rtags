@@ -17,10 +17,7 @@ public:
     ~JSParser();
     bool init();
 
-    bool parse(const Path &path, const String &contents,
-               SymbolMap *cursors,
-               SymbolNameMap *symbolNames,
-               String *ast);
+    bool parse(const Path &path, SymbolMap *cursors, SymbolNameMap *symbolNames, String *ast);
 private:
     v8::Persistent<v8::Context> mContext;
     v8::Persistent<v8::Function> mParse;

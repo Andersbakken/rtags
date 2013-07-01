@@ -46,12 +46,6 @@ IndexerJobEsprima::IndexerJobEsprima(const QueryMessage &msg,
 
 void IndexerJobEsprima::index()
 {
-    const String contents = mSourceInformation.sourceFile.readAll(1024 * 1024 * 100);
-    if (contents.isEmpty()) {
-        error() << "Can't open" << mSourceInformation.sourceFile << "for reading";
-        return;
-    }
-
     JSParser parser;
     if (!parser.init()) {
         error() << "Can't init JSParser for" << mSourceInformation.sourceFile;
@@ -60,7 +54,7 @@ void IndexerJobEsprima::index()
     if (isAborted())
         return;
     String dump;
-    if (!parser.parse(mSourceInformation.sourceFile, contents, &mData->symbols, &mData->symbolNames,
+    if (!parser.parse(mSourceInformation.sourceFile, &mData->symbols, &mData->symbolNames,
                       mType == Dump ? &dump : 0)) {
         error() << "Can't parse" << mSourceInformation.sourceFile;
     }

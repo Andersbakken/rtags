@@ -196,22 +196,20 @@ bool JSParser::init()
     return !mParse.IsEmpty() && mParse->IsFunction();
 }
 
-bool JSParser::parse(const Path &path, const String &contents, SymbolMap *symbols, SymbolNameMap *symbolNames, String *ast)
+bool JSParser::parse(const Path &path, SymbolMap *symbols, SymbolNameMap *symbolNames, String *ast)
 {
+    const String contents = path.readAll();
+    if (contents.isEmpty()) {
+        error() << "No contents for" << path;
+        return false;
+    }
+
     const v8::Isolate::Scope isolateScope(mIsolate);
     // mFileId = Location::insertFile(path);
     v8::HandleScope handleScope;
     v8::Context::Scope scope(mContext);
-    String tmp;
-    if (contents.isEmpty())
-        tmp = path.readAll();
-    const String &c = contents.isEmpty() ? tmp : contents;
-    if (c.isEmpty()) {
-        error() << "No contents for" << path;
-        return false;
-    }
     v8::Handle<v8::Value> args[3];
-    args[0] = v8::String::New(c.constData(), c.size());
+    args[0] = v8::String::New(contents.constData(), contents.size());
     args[1] = v8::String::New(path.constData(), path.size());
     args[2] = v8::Boolean::New(ast);
 
