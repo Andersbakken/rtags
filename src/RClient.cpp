@@ -621,7 +621,7 @@ bool RClient::parse(int &argc, char **argv)
             mQueryFlags |= QueryMessage::CursorInfoIncludeReferences;
             break;
         case CodeComplete:
-            logFile = "/tmp/rc.log";
+            // logFile = "/tmp/rc.log";
             mCommands.append(new CompletionCommand);
             break;
         case Context:
