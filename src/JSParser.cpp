@@ -1,5 +1,6 @@
 #include "JSParser.h"
 #include <v8.h>
+#include <rct/RegExp.h>
 #include <rct/Mutex.h>
 #include <rct/MutexLocker.h>
 
@@ -198,11 +199,30 @@ bool JSParser::init()
 
 bool JSParser::parse(const Path &path, SymbolMap *symbols, SymbolNameMap *symbolNames, String *ast)
 {
-    const String contents = path.readAll();
+    String contents = path.readAll();
     if (contents.isEmpty()) {
         error() << "No contents for" << path;
         return false;
     }
+    const int initialSize = contents.size();
+
+    const RegExp rx("^// *include( *\"\\([^\"]\\+\\)\" *)");
+    List<RegExp::Capture> caps;
+    List<Path> includes;
+
+    int idx = -1;
+    while ((idx = rx.indexIn(contents, idx + 1, &caps)) != -1) {
+        assert(caps.size() == 2);
+        Path p = caps.at(1).capture;
+        if (p.isFile()) {
+            includes.append(p);
+        }
+    }
+    for (List<Path>::const_iterator it = includes.begin(); it != includes.end(); ++it) {
+        const String c = it->readAll();
+        contents.insert(0, c);
+    }
+    const uint32_t limit = contents.size() - initialSize;
 
     const v8::Isolate::Scope isolateScope(mIsolate);
     // mFileId = Location::insertFile(path);
@@ -246,7 +266,8 @@ bool JSParser::parse(const Path &path, SymbolMap *symbols, SymbolNameMap *symbol
                 Location declLoc;
                 for (int k=0; k<refCount; ++k) {
                     const v8::Handle<v8::Array> ref = get<v8::Array>(refs, k);
-                    const Location loc(fileId, static_cast<uint32_t>(get<v8::Number>(ref, 0)->Value()));
+                    const uint32_t off = static_cast<uint32_t>(get<v8::Number>(ref, 0)->Value());
+                    const Location loc(fileId, off);
                     CursorInfo &c = (*symbols)[loc];
                     c.start = loc.offset();
                     c.end = static_cast<uint32_t>(get<v8::Number>(ref, 1)->Value());

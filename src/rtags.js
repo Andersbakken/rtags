@@ -1,3 +1,4 @@
+// include("esrefactor/lib/esrefactor.js")
 var esrefactorContext = new esrefactor.Context();
 
 function resolveName(node)
