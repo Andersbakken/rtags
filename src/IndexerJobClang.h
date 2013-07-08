@@ -6,6 +6,25 @@
 #include "Str.h"
 #include <clang-c/Index.h>
 
+typedef List<std::pair<CXIndex, CXTranslationUnit> > UnitList;
+
+class IndexDataClang : public IndexData
+{
+public:
+    IndexDataClang() : IndexData(ClangType) {}
+    virtual ~IndexDataClang()
+    {
+        for (int i=0; i<units.size(); ++i) {
+            if (units.at(i).first)
+                clang_disposeIndex(units.at(i).first);
+            if (units.at(i).second)
+                clang_disposeTranslationUnit(units.at(i).second);
+        }
+    }
+
+    UnitList units;
+};
+
 class IndexerJobClang : public IndexerJob
 {
 public:
@@ -15,6 +34,9 @@ public:
                     const shared_ptr<Project> &project,
                     const SourceInformation &sourceInformation);
     static String typeName(const CXCursor &cursor);
+    virtual shared_ptr<IndexData> createIndexData() { return shared_ptr<IndexData>(new IndexDataClang); }
+
+    shared_ptr<IndexDataClang> data() const { return static_pointer_cast<IndexDataClang>(IndexerJob::data()); }
 private:
     virtual void index();
 
@@ -60,9 +82,6 @@ private:
     void nestedClassConstructorCallUgleHack(const CXCursor &parent, CursorInfo &info,
                                             CXCursorKind refKind, const Location &refLoc);
 
-    typedef List<std::pair<CXIndex, CXTranslationUnit> > UnitList;
-
-    UnitList mUnits;
     List<String> mClangLines;
     CXCursor mLastCursor;
     String mContents;

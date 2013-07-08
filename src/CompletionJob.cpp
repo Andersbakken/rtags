@@ -5,7 +5,7 @@
 #include "Project.h"
 
 CompletionJob::CompletionJob(const shared_ptr<Project> &project)
-    : Job(WriteBuffered|WriteUnfiltered, project), mIndex(0), mUnit(0), mLine(-1), mColumn(-1), mPos(-1)
+    : Job(WriteBuffered|WriteUnfiltered|QuietJob, project), mIndex(0), mUnit(0), mLine(-1), mColumn(-1), mPos(-1)
 {
 }
 
@@ -209,7 +209,7 @@ void CompletionJob::execute()
                 write<128>("%s %s", nodes[i].completion.constData(), nodes[i].signature.constData());
             }
         }
-
+        error() << "Wrote" << nodeCount << "completions for" << mPath << mLine << mColumn;
         delete[] nodes;
 
         //processDiagnostics(results);

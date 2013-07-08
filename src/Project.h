@@ -3,6 +3,7 @@
 
 #include "CursorInfo.h"
 #include <rct/Path.h>
+#include <rct/LinkedList.h>
 #include "RTags.h"
 #include "Match.h"
 #include <rct/RegExp.h>
@@ -14,16 +15,24 @@
 struct CachedUnit
 {
     CachedUnit()
-        : next(0), unit(0), index(0)
+        : unit(0), index(0)
     {}
     ~CachedUnit()
     {
-        if (unit)
-            clang_disposeTranslationUnit(unit);
-        if (index)
-            clang_disposeIndex(index);
+        clear();
     }
-    CachedUnit *next;
+    void clear()
+    {
+        if (unit) {
+            clang_disposeTranslationUnit(unit);
+            unit = 0;
+        }
+
+        if (index) {
+            clang_disposeIndex(index);
+            index = 0;
+        }
+    }
     CXTranslationUnit unit;
     CXIndex index;
     Path path;
@@ -33,7 +42,7 @@ struct CachedUnit
 class FileManager;
 class IndexerJob;
 class TimerEvent;
-struct IndexData;
+class IndexData;
 class Project : public EventReceiver
 {
 public:
@@ -89,10 +98,12 @@ public:
     void timerEvent(TimerEvent *event);
     bool isIndexing() const { MutexLocker lock(&mMutex); return !mJobs.isEmpty(); }
     void onJSFilesAdded();
+    List<std::pair<Path, List<String> > > cachedUnits() const;
 private:
     void reloadFileManager(const Path &);
     bool initJobFromCache(const Path &path, const List<String> &args,
                           CXIndex &index, CXTranslationUnit &unit, List<String> *argsOut);
+    LinkedList<CachedUnit*>::iterator findCachedUnit(const Path &path, const List<String> &args);
     void onFileModified(const Path &);
     void addDependencies(const DependencyMap &hash, Set<uint32_t> &newFiles);
     void addFixIts(const DependencyMap &dependencies, const FixItMap &fixIts);
@@ -148,8 +159,7 @@ private:
     Map<uint32_t, shared_ptr<IndexData> > mPendingData;
     Set<uint32_t> mPendingDirtyFiles;
 
-    CachedUnit *mFirstCachedUnit, *mLastCachedUnit;
-    int mUnitCacheSize;
+    LinkedList<CachedUnit*> mCachedUnits;
 };
 
 inline bool Project::visitFile(uint32_t fileId)

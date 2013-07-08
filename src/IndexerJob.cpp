@@ -138,7 +138,8 @@ void IndexerJob::execute()
         mStarted = true;
     }
     mTimer.restart();
-    mData.reset(new IndexData);
+    mData = createIndexData();
+    assert(mData);
 
     index();
     if (mType != Dump) {

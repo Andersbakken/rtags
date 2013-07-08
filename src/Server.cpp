@@ -1173,7 +1173,9 @@ void Server::handleCompletionMessage(CompletionMessage *message, Connection *con
 void Server::startCompletion(const Path &path, int line, int column, int pos, const String &contents, Connection *conn)
 {
     // error() << "starting completion" << path << line << column;
+    printf("[%s:%d]: if (!mOptions.completionCacheSize) {\n", __func__, __LINE__); fflush(stdout);
     if (!mOptions.completionCacheSize) {
+        printf("[%s:%d]: if (!mOptions.completionCacheSize) {\n", __func__, __LINE__); fflush(stdout);
         conn->finish();
         return;
     }

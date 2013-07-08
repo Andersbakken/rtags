@@ -6,7 +6,18 @@
 #include <rct/ThreadPool.h>
 #include <rct/Mutex.h>
 
-struct IndexData {
+class IndexData
+{
+public:
+    enum {
+        ClangType = 1
+    };
+    IndexData(int t = 0)
+        : type(t)
+    {}
+    virtual ~IndexData()
+    {}
+
     ReferenceMap references;
     SymbolMap symbols;
     SymbolNameMap symbolNames;
@@ -15,6 +26,7 @@ struct IndexData {
     UsrMap usrMap;
     FixItMap fixIts;
     Map<uint32_t, int> errors;
+    const int type;
 };
 
 class IndexerJob : public Job
@@ -39,6 +51,7 @@ public:
 protected:
     virtual void index() = 0;
     virtual void execute();
+    virtual shared_ptr<IndexData> createIndexData() { return shared_ptr<IndexData>(new IndexData); }
 
     Location createLocation(uint32_t fileId, uint32_t offset, bool *blocked);
     Location createLocation(const Path &file, uint32_t offset, bool *blocked);

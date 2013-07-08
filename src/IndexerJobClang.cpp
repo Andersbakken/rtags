@@ -55,14 +55,13 @@ struct VerboseVisitorUserData {
 
 IndexerJobClang::IndexerJobClang(const shared_ptr<Project> &project, Type type,
                                  const SourceInformation &sourceInformation)
-    : IndexerJob(project, type, sourceInformation),
-      mUnits(sourceInformation.builds.size()), mLastCursor(nullCursor)
+    : IndexerJob(project, type, sourceInformation), mLastCursor(nullCursor)
 {
 }
+
 IndexerJobClang::IndexerJobClang(const QueryMessage &msg, const shared_ptr<Project> &project,
                                  const SourceInformation &sourceInformation)
-    : IndexerJob(msg, project, sourceInformation),
-      mUnits(sourceInformation.builds.size()), mLastCursor(nullCursor)
+    : IndexerJob(msg, project, sourceInformation), mLastCursor(nullCursor)
 {
 }
 
@@ -827,7 +826,9 @@ bool IndexerJobClang::handleCursor(const CXCursor &cursor, CXCursorKind kind, co
 
 bool IndexerJobClang::parse(int build)
 {
-    CXIndex &index = mUnits[build].first;
+    UnitList &units = data()->units;
+
+    CXIndex &index = units[build].first;
     if (!index)
         index = clang_createIndex(0, 1);
     if (!index) {
@@ -836,8 +837,9 @@ bool IndexerJobClang::parse(int build)
     }
     const List<String> args = mSourceInformation.builds.at(build).args;
     const List<String> &defaultArguments = Server::instance()->options().defaultArguments;
-    CXTranslationUnit &unit = mUnits[build].second;
+    CXTranslationUnit &unit = units[build].second;
     assert(!unit);
+
     mClangLines.append(String());
     String &clangLine = mClangLines[build];
 
@@ -952,20 +954,22 @@ static inline String xmlEscape(const String& xml)
 
 bool IndexerJobClang::diagnose(int build)
 {
-    if (!mUnits.at(build).second) {
+    UnitList &units = data()->units;
+
+    if (!units.at(build).second) {
         abort();
         return false;
     }
 
     List<String> compilationErrors;
-    const unsigned diagnosticCount = clang_getNumDiagnostics(mUnits.at(build).second);
+    const unsigned diagnosticCount = clang_getNumDiagnostics(units.at(build).second);
     const unsigned options = Server::instance()->options().options;
 
     Map<uint32_t, Map<int, XmlEntry> > xmlEntries;
     const bool xmlEnabled = testLog(RTags::CompilationErrorXml);
 
     for (unsigned i=0; i<diagnosticCount; ++i) {
-        CXDiagnostic diagnostic = clang_getDiagnostic(mUnits.at(build).second, i);
+        CXDiagnostic diagnostic = clang_getDiagnostic(units.at(build).second, i);
         int logLevel = INT_MAX;
         const CXDiagnosticSeverity severity = clang_getDiagnosticSeverity(diagnostic);
         switch (severity) {
@@ -1128,21 +1132,23 @@ bool IndexerJobClang::diagnose(int build)
 
 bool IndexerJobClang::visit(int build)
 {
-    if (!mUnits.at(build).second) {
+    UnitList &units = data()->units;
+
+    if (!units.at(build).second) {
         abort();
         return false;
     }
-    clang_getInclusions(mUnits.at(build).second, IndexerJobClang::inclusionVisitor, this);
+    clang_getInclusions(units.at(build).second, IndexerJobClang::inclusionVisitor, this);
     if (isAborted())
         return false;
 
-    clang_visitChildren(clang_getTranslationUnitCursor(mUnits.at(build).second),
+    clang_visitChildren(clang_getTranslationUnitCursor(units.at(build).second),
                         IndexerJobClang::indexVisitor, this);
     if (isAborted())
         return false;
     if (testLog(VerboseDebug)) {
         VerboseVisitorUserData u = { 0, "<VerboseVisitor " + mClangLines.at(build) + ">\n", this };
-        clang_visitChildren(clang_getTranslationUnitCursor(mUnits.at(build).second),
+        clang_visitChildren(clang_getTranslationUnitCursor(units.at(build).second),
                             IndexerJobClang::verboseVisitor, &u);
         u.out += "</VerboseVisitor " + mClangLines.at(build) + ">";
         if (getenv("RTAGS_INDEXERJOB_DUMP_TO_FILE")) {
@@ -1161,13 +1167,16 @@ bool IndexerJobClang::visit(int build)
 
 void IndexerJobClang::index()
 {
+    UnitList &units = data()->units;
+    units.resize(sourceInformation().builds.size());
+
     if (type() == Dump) {
         assert(id() != -1);
         for (int i=0; i<mSourceInformation.builds.size(); ++i) {
             parse(i);
-            if (mUnits.at(i).second) {
+            if (units.at(i).second) {
                 DumpUserData u = { 0, this, !(queryFlags() & QueryMessage::NoContext) };
-                clang_visitChildren(clang_getTranslationUnitCursor(mUnits.at(i).second),
+                clang_visitChildren(clang_getTranslationUnitCursor(units.at(i).second),
                                     IndexerJobClang::dumpVisitor, &u);
             }
         }
@@ -1177,16 +1186,15 @@ void IndexerJobClang::index()
         mParseTime = time(0);
         mContents = mSourceInformation.sourceFile.readAll();
         for (int i=0; i<buildCount; ++i) {
-            if (!parse(i)) {
-                goto end;
-            }
-            if (mUnits.at(i).second)
+            if (!parse(i))
+                return;
+            if (units.at(i).second)
                 ++unitCount;
         }
 
         for (int i=0; i<buildCount; ++i) {
             if (!visit(i) || !diagnose(i))
-                goto end;
+                return;
         }
         {
             mData->message = mSourceInformation.sourceFile.toTilde();
@@ -1209,14 +1217,6 @@ void IndexerJobClang::index()
                 mData->message += " (dirty)";
         }
     }
-end:
-    for (int i=0; i<mUnits.size(); ++i) {
-        if (mUnits.at(i).first)
-            clang_disposeIndex(mUnits.at(i).first);
-        if (mUnits.at(i).second)
-            clang_disposeTranslationUnit(mUnits.at(i).second);
-    }
-    mUnits.clear();
 }
 
 CXChildVisitResult IndexerJobClang::verboseVisitor(CXCursor cursor, CXCursor, CXClientData userData)
@@ -1294,4 +1294,3 @@ CXChildVisitResult IndexerJobClang::dumpVisitor(CXCursor cursor, CXCursor, CXCli
     --dump->indentLevel;
     return CXChildVisit_Continue;
 }
-

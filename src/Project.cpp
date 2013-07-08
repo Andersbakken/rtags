@@ -11,6 +11,7 @@
 #include "Server.h"
 #include "Server.h"
 #include "ValidateDBJob.h"
+#include "IndexerJobClang.h"
 #include <rct/WriteLocker.h>
 #include <math.h>
 
@@ -25,7 +26,7 @@ enum {
 };
 
 Project::Project(const Path &path)
-    : mPath(path), mJobCounter(0), mFirstCachedUnit(0), mLastCachedUnit(0), mUnitCacheSize(0)
+    : mPath(path), mJobCounter(0)
 {
     mWatcher.modified().connect(this, &Project::onFileModified);
     mWatcher.removed().connect(this, &Project::onFileModified);
@@ -196,6 +197,19 @@ void Project::onJobFinished(const shared_ptr<IndexerJob> &job)
 
             shared_ptr<IndexData> data = job->data();
             mPendingData[fileId] = data;
+            if (data->type == IndexData::ClangType && Server::instance()->options().completionCacheSize > 0)  {
+                shared_ptr<IndexDataClang> clangData = static_pointer_cast<IndexDataClang>(data);
+                const SourceInformation sourceInfo = job->sourceInformation();
+                assert(sourceInfo.builds.size() == clangData->units.size());
+                for (int i=0; i<sourceInfo.builds.size(); ++i) {
+                    LinkedList<CachedUnit*>::iterator it = findCachedUnit(sourceInfo.sourceFile, sourceInfo.builds.at(i).args);
+                    if (it != mCachedUnits.end())
+                        mCachedUnits.erase(it);
+                    addCachedUnit(sourceInfo.sourceFile, sourceInfo.builds.at(i).args,
+                                  clangData->units.at(i).first, clangData->units.at(i).second);
+                    clangData->units[i] = std::make_pair<CXIndex, CXTranslationUnit>(0, 0);
+                }
+            }
 
             const int idx = mJobCounter - mJobs.size();
 
@@ -680,73 +694,53 @@ DependencyMap Project::dependencies() const
     return mDependencies;
 }
 
-void Project::addCachedUnit(const Path &path, const List<String> &args, CXIndex index, CXTranslationUnit unit)
+void Project::addCachedUnit(const Path &path, const List<String> &args, CXIndex index, CXTranslationUnit unit) // lock always held
 {
     assert(index);
     assert(unit);
+    const int maxCacheSize = Server::instance()->options().completionCacheSize;
+    if (!maxCacheSize) {
+        clang_disposeTranslationUnit(unit);
+        clang_disposeIndex(index);
+        return;
+    }
     CachedUnit *cachedUnit = new CachedUnit;
     cachedUnit->path = path;
     cachedUnit->index = index;
     cachedUnit->unit = unit;
     cachedUnit->arguments = args;
-    if (!mFirstCachedUnit) {
-        assert(!mLastCachedUnit);
-        assert(!mUnitCacheSize);
-        mFirstCachedUnit = mLastCachedUnit = cachedUnit;
-        mUnitCacheSize = 1;
-        return;
+    mCachedUnits.push_back(cachedUnit);
+    while (mCachedUnits.size() > maxCacheSize) {
+        CachedUnit *unit = *mCachedUnits.begin();
+        delete unit;
+        mCachedUnits.erase(mCachedUnits.begin());
     }
+}
 
-    const int maxCacheSize = Server::instance()->options().completionCacheSize;
-    assert(maxCacheSize >= 1);
-    if (mUnitCacheSize == maxCacheSize) {
-        CachedUnit *tmp = mFirstCachedUnit;
-        mFirstCachedUnit = tmp->next;
-        if (!mFirstCachedUnit)
-            mLastCachedUnit = 0;
-        delete tmp;
-    } else {
-        ++mUnitCacheSize;
+LinkedList<CachedUnit*>::iterator Project::findCachedUnit(const Path &path, const List<String> &args)
+{
+    for (LinkedList<CachedUnit*>::iterator it = mCachedUnits.begin(); it != mCachedUnits.end(); ++it) {
+        if ((*it)->path == path && (args.isEmpty() || args == (*it)->arguments))
+            return it;
     }
-    if (!mLastCachedUnit) {
-        mLastCachedUnit = mFirstCachedUnit = cachedUnit;
-    } else {
-        assert(mLastCachedUnit);
-        assert(!mLastCachedUnit->next);
-        mLastCachedUnit->next = cachedUnit;
-        mLastCachedUnit = cachedUnit;
-    }
+    return mCachedUnits.end();
 }
 
 bool Project::initJobFromCache(const Path &path, const List<String> &args,
                                CXIndex &index, CXTranslationUnit &unit, List<String> *argsOut)
 {
-    CachedUnit *prev = 0;
-    CachedUnit *cachedUnit = mFirstCachedUnit;
-    while (cachedUnit) {
-        if (cachedUnit->path == path && (args.isEmpty() || args == cachedUnit->arguments)) {
-            index = cachedUnit->index;
-            unit = cachedUnit->unit;
-            cachedUnit->unit = 0;
-            cachedUnit->index = 0;
-            if (prev) {
-                prev->next = cachedUnit->next;
-                if (cachedUnit == mLastCachedUnit)
-                    mLastCachedUnit = prev;
-            } else {
-                mFirstCachedUnit = cachedUnit->next;
-                if (!mFirstCachedUnit)
-                    mLastCachedUnit = 0;
-            }
-            --mUnitCacheSize;
-            assert(mUnitCacheSize >= 0);
-            if (argsOut)
-                *argsOut = cachedUnit->arguments;
-            delete cachedUnit;
-            return true;
-        }
-        prev = cachedUnit;
-        cachedUnit = cachedUnit->next;
+    LinkedList<CachedUnit*>::iterator it = findCachedUnit(path, args);
+    if (it != mCachedUnits.end()) {
+        CachedUnit *cachedUnit = *it;
+        index = cachedUnit->index;
+        unit = cachedUnit->unit;
+        cachedUnit->unit = 0;
+        cachedUnit->index = 0;
+        if (argsOut)
+            *argsOut = cachedUnit->arguments;
+        mCachedUnits.erase(it);
+        delete cachedUnit;
+        return true;
     }
     index = 0;
     unit = 0;
@@ -827,4 +821,13 @@ void Project::onJSFilesAdded()
 void Project::reloadFileManager(const Path &)
 {
     fileManager->reload();
+}
+List<std::pair<Path, List<String> > > Project::cachedUnits() const
+{
+    MutexLocker lock(&mMutex);
+    List<std::pair<Path, List<String> > > ret;
+
+    for (LinkedList<CachedUnit*>::const_iterator it = mCachedUnits.begin(); it != mCachedUnits.end(); ++it)
+        ret.append(std::make_pair((*it)->path, (*it)->arguments));
+    return ret;
 }
