@@ -844,22 +844,18 @@ void Server::event(const Event *event)
     switch (event->type()) {
     case JobOutputEvent::Type: {
         const JobOutputEvent *e = static_cast<const JobOutputEvent*>(event);
-        printf("[%s] %s:%d: const JobOutputEvent *e = static_cast<const JobOutputEvent*>(event); [after]\n", __func__, __FILE__, __LINE__);
         Map<int, Connection*>::iterator it = mPendingLookups.find(e->id);
         if (it == mPendingLookups.end()) {
-            printf("[%s] %s:%d: if (it == mPendingLookups.end()) { [after]\n", __func__, __FILE__, __LINE__);
             if (shared_ptr<Job> job = e->job.lock())
                 job->abort();
             break;
         }
         if (!it->second->isConnected()) {
-            printf("[%s] %s:%d: if (!it->second->isConnected()) { [after]\n", __func__, __FILE__, __LINE__);
             if (shared_ptr<Job> job = e->job.lock())
                 job->abort();
             break;
         }
         if (!e->out.isEmpty() && !it->second->write(e->out)) {
-            printf("[%s] %s:%d: if (!e->out.isEmpty() && !it->second->write(e->out)) { [after]\n", __func__, __FILE__, __LINE__);
             if (shared_ptr<Job> job = e->job.lock())
                 job->abort();
             break;
@@ -1173,9 +1169,7 @@ void Server::handleCompletionMessage(CompletionMessage *message, Connection *con
 void Server::startCompletion(const Path &path, int line, int column, int pos, const String &contents, Connection *conn)
 {
     // error() << "starting completion" << path << line << column;
-    printf("[%s:%d]: if (!mOptions.completionCacheSize) {\n", __func__, __LINE__); fflush(stdout);
     if (!mOptions.completionCacheSize) {
-        printf("[%s:%d]: if (!mOptions.completionCacheSize) {\n", __func__, __LINE__); fflush(stdout);
         conn->finish();
         return;
     }
