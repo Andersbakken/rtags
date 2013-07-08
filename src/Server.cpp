@@ -846,21 +846,23 @@ void Server::event(const Event *event)
         const JobOutputEvent *e = static_cast<const JobOutputEvent*>(event);
         Map<int, Connection*>::iterator it = mPendingLookups.find(e->id);
         if (it == mPendingLookups.end()) {
+            error() << "Can't find connection for id" << e->id;
             if (shared_ptr<Job> job = e->job.lock())
                 job->abort();
             break;
         }
         if (!it->second->isConnected()) {
+            error() << "Connection has been disconnected";
             if (shared_ptr<Job> job = e->job.lock())
                 job->abort();
             break;
         }
         if (!e->out.isEmpty() && !it->second->write(e->out)) {
+            error() << "Failed to write to connection";
             if (shared_ptr<Job> job = e->job.lock())
                 job->abort();
             break;
         }
-        printf("%s\n", e->out.constData());
 
         if (e->finish && !isCompletionStream(it->second))
             it->second->finish();
@@ -1198,7 +1200,7 @@ void Server::startCompletion(const Path &path, int line, int column, int pos, co
     }
 
     mActiveCompletions.insert(path);
-    shared_ptr<CompletionJob> job(new CompletionJob(project));
+    shared_ptr<CompletionJob> job(new CompletionJob(project, isCompletionStream(conn) ? CompletionJob::Stream : CompletionJob::Sync));
     job->init(index, unit, path, args, line, column, pos, contents);
     job->setId(nextId());
     job->finished().connectAsync(this, &Server::onCompletionJobFinished);

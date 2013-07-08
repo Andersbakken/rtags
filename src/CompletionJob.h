@@ -11,12 +11,17 @@
 class CompletionJob : public Job
 {
 public:
-    CompletionJob(const shared_ptr<Project> &project);
+    enum Type {
+        Stream,
+        Sync
+    };
+    CompletionJob(const shared_ptr<Project> &project, Type type);
     void init(CXIndex index, CXTranslationUnit unit, const Path &path, const List<String> &args,
               int line, int column, int pos, const String &unsaved);
 
     virtual void execute();
     signalslot::Signal1<Path> &finished() { return mFinished; }
+    Type type() const { return mType; }
 private:
     void processDiagnostics(CXCodeCompleteResults* results);
 
@@ -28,6 +33,7 @@ private:
     int mLine, mColumn, mPos;
     String mUnsaved;
     signalslot::Signal1<Path> mFinished;
+    const Type mType;
 };
 
 #endif

@@ -4,8 +4,9 @@
 #include <rct/EventLoop.h>
 #include "Project.h"
 
-CompletionJob::CompletionJob(const shared_ptr<Project> &project)
-    : Job(WriteBuffered|WriteUnfiltered|QuietJob, project), mIndex(0), mUnit(0), mLine(-1), mColumn(-1), mPos(-1)
+CompletionJob::CompletionJob(const shared_ptr<Project> &project, Type type)
+    : Job(WriteBuffered|WriteUnfiltered|QuietJob, project), mIndex(0), mUnit(0),
+      mLine(-1), mColumn(-1), mPos(-1), mType(type)
 {
 }
 
@@ -204,7 +205,11 @@ void CompletionJob::execute()
         }
         if (nodeCount) {
             qsort(nodes, nodeCount, sizeof(CompletionNode), compareCompletionNode);
-            write<128>("`%s %s", nodes[0].completion.constData(), nodes[0].signature.constData());
+            if (mType == Stream) {
+                write<128>("`%s %s", nodes[0].completion.constData(), nodes[0].signature.constData());
+            } else {
+                write<128>("%s %s", nodes[0].completion.constData(), nodes[0].signature.constData());
+            }
             for (int i=1; i<nodeCount; ++i) {
                 write<128>("%s %s", nodes[i].completion.constData(), nodes[i].signature.constData());
             }
