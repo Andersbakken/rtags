@@ -134,6 +134,7 @@ void CompletionJob::processDiagnostics(CXCodeCompleteResults* results)
 
 void CompletionJob::execute()
 {
+    StopWatch timer;
     CXUnsavedFile unsavedFile = { mUnsaved.isEmpty() ? 0 : mPath.constData(),
                                   mUnsaved.isEmpty() ? 0 : mUnsaved.constData(),
                                   static_cast<unsigned long>(mUnsaved.size()) };
@@ -214,7 +215,8 @@ void CompletionJob::execute()
                 write<128>("%s %s", nodes[i].completion.constData(), nodes[i].signature.constData());
             }
         }
-        error() << "Wrote" << nodeCount << "completions for" << mPath << mLine << mColumn;
+        error() << "Wrote" << nodeCount << "completions for" << mPath << mLine << mColumn
+                << "in" << timer.elapsed() << "ms";
         delete[] nodes;
 
         //processDiagnostics(results);
