@@ -394,7 +394,8 @@ bool Project::index(const Path &sourceFile, const Path &cc, const List<String> &
                     debug() << sourceFile << " is not dirty. ignoring";
                     return false;
                 }
-            } else if (!allowMultiple) {
+            }
+            if (!allowMultiple) {
                 builds[j].compiler = compiler;
                 builds[j].args = args;
                 added = true;
