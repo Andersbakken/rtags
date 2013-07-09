@@ -98,7 +98,22 @@ public:
     void setMax(int max) { mMax = max; }
 
     unsigned flags() const { return mFlags; }
-    void setFlags(unsigned flags) { mFlags = flags; }
+    void setFlags(unsigned flags)
+    {
+        mFlags = flags;
+        switch (mType) {
+        case ClearProjects:
+        case Project:
+        case DeleteProject:
+        case Reindex:
+        case RemoveFile:
+        case UnloadProject:
+            mFlags |= MatchRegexp;
+            break;
+        default:
+            break;
+        }
+    }
 
     static unsigned keyFlags(unsigned queryFlags);
     inline unsigned keyFlags() const { return keyFlags(mFlags); }

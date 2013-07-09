@@ -454,7 +454,7 @@ void Server::isIndexing(const QueryMessage &, Connection *conn)
 void Server::removeFile(const QueryMessage &query, Connection *conn)
 {
     // Path path = query.path();
-    const Match match(query.query());
+    const Match match = query.match();
     shared_ptr<Project> project = updateProjectForLocation(match);
     if (!project) {
         project = currentProject();
@@ -559,10 +559,9 @@ void Server::dependencies(const QueryMessage &query, Connection *conn)
 
 void Server::fixIts(const QueryMessage &query, Connection *conn)
 {
-    const Path path = query.query();
-    shared_ptr<Project> project = updateProjectForLocation(path);
+    shared_ptr<Project> project = updateProjectForLocation(query.match());
     if (project && project->isValid()) {
-        String out = project->fixIts(Location::fileId(path));
+        String out = project->fixIts(Location::fileId(query.query()));
         if (!out.isEmpty())
             conn->write(out);
     }
@@ -701,7 +700,7 @@ void Server::hasFileManager(const QueryMessage &query, Connection *conn)
 {
     const Path path = query.query();
     shared_ptr<Project> project = updateProjectForLocation(path);
-    if (project && project->fileManager && (project->fileManager->contains(path) || project->match(path))) {
+    if (project && project->fileManager && (project->fileManager->contains(path) || project->match(query.match()))) {
         error("=> 1");
         conn->write("1");
     } else {
