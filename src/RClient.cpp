@@ -390,7 +390,7 @@ public:
         const char *argv[] = { "completionStream", args.constData() };
         msg.init(2, argv);
         msg.setContents(contents);
-        client->connection()->send(&msg);
+        client->send(&msg, -1);
     }
 };
 
