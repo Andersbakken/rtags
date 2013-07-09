@@ -103,7 +103,7 @@ target_link_libraries(clangtest ${CLANG_LIBS} ${CORESERVICES_LIBRARY} ${COREFOUN
 
 add_executable(rc rc.cpp RClient.cpp)
 add_dependencies(rc rct shared)
-target_link_libraries(rc rct shared ${SYSTEM_LIBS})
+target_link_libraries(rc shared rct ${SYSTEM_LIBS})
 
 #if (LEVELDB_FOUND EQUAL 1)
 if (0 EQUAL 1)
