@@ -207,7 +207,6 @@ void Project::onJobFinished(const shared_ptr<IndexerJob> &job)
                     LinkedList<CachedUnit*>::iterator it = findCachedUnit(sourceInfo.sourceFile, sourceInfo.builds.at(i).args);
                     if (it != mCachedUnits.end())
                         mCachedUnits.erase(it);
-                    error() << i << currentFile << sourceInfo.sourceFile;
                     if (!i && currentFile == sourceInfo.sourceFile) {
                         shared_ptr<ReparseJob> rj(new ReparseJob(clangData->units.at(i).second,
                                                                  clangData->units.at(i).first,
