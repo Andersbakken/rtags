@@ -836,48 +836,18 @@ bool IndexerJobClang::parse(int build)
         return false;
     }
     const List<String> args = mSourceInformation.builds.at(build).args;
-    const List<String> &defaultArguments = Server::instance()->options().defaultArguments;
     CXTranslationUnit &unit = units[build].second;
     assert(!unit);
 
     mClangLines.append(String());
-    String &clangLine = mClangLines[build];
+    String &clangLine = mClangLines.last();
+    CXUnsavedFile unsaved = { mSourceInformation.sourceFile.constData(),
+                              mContents.constData(),
+                              static_cast<unsigned long>(mContents.size()) };
 
-    clangLine = "clang ";
-
-    int idx = 0;
-    List<const char*> clangArgs(args.size() + defaultArguments.size(), 0);
-
-    const List<String> *lists[] = { &args, &defaultArguments };
-    for (int i=0; i<2; ++i) {
-        const int count = lists[i]->size();
-        for (int j=0; j<count; ++j) {
-            String arg = lists[i]->at(j);
-            if (arg.isEmpty())
-                continue;
-            if (arg == "-include" && j + 1 < count) {
-                const uint32_t fileId = Location::fileId(lists[i]->at(j + 1));
-                if (fileId) {
-                    mData->dependencies[fileId].insert(mFileId);
-                }
-            }
-
-            clangArgs[idx++] = lists[i]->at(j).constData();
-            arg.replace("\"", "\\\"");
-            clangLine += arg;
-            clangLine += ' ';
-        }
-    }
-
-    clangLine += mSourceInformation.sourceFile;
-
-    CXUnsavedFile file = { mSourceInformation.sourceFile.constData(),
-                           mContents.constData(),
-                           static_cast<unsigned long>(mContents.size()) };
-    unit = clang_parseTranslationUnit(index, mSourceInformation.sourceFile.constData(),
-                                      clangArgs.data(), idx, &file, 1,
-                                      CXTranslationUnit_Incomplete | CXTranslationUnit_DetailedPreprocessingRecord);
-
+    RTags::parseTranslationUnit(mSourceInformation.sourceFile, args,
+                                unit, index, clangLine,
+                                mFileId, &mData->dependencies, &unsaved, 1);
     warning() << "loading unit " << clangLine << " " << (unit != 0);
     if (unit) {
         return !isAborted();
@@ -886,11 +856,13 @@ bool IndexerJobClang::parse(int build)
     error() << "got failure" << clangLine;
     const String preprocessorOnly = RTags::filterPreprocessor(mSourceInformation.sourceFile);
     if (!preprocessorOnly.isEmpty()) {
-        CXUnsavedFile unsaved = { mSourceInformation.sourceFile.constData(), preprocessorOnly.constData(),
-                                  static_cast<unsigned long>(preprocessorOnly.size()) };
-        unit = clang_parseTranslationUnit(index, mSourceInformation.sourceFile.constData(),
-                                          clangArgs.data(), idx, &unsaved, 1,
-                                          CXTranslationUnit_Incomplete | CXTranslationUnit_DetailedPreprocessingRecord);
+        CXUnsavedFile preprocessorOnlyUnsaved = {
+            mSourceInformation.sourceFile.constData(), preprocessorOnly.constData(),
+            static_cast<unsigned long>(preprocessorOnly.size())
+        };
+        RTags::parseTranslationUnit(mSourceInformation.sourceFile, args,
+                                    unit, index, clangLine,
+                                    mFileId, &mData->dependencies, &preprocessorOnlyUnsaved, 1);
     }
     if (unit) {
         clang_getInclusions(unit, IndexerJobClang::inclusionVisitor, this);

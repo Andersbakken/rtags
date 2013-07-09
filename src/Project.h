@@ -15,7 +15,7 @@
 struct CachedUnit
 {
     CachedUnit()
-        : unit(0), index(0)
+        : unit(0), index(0), parseCount(0)
     {}
     ~CachedUnit()
     {
@@ -37,6 +37,7 @@ struct CachedUnit
     CXIndex index;
     Path path;
     List<String> arguments;
+    int parseCount;
 };
 
 class FileManager;
@@ -93,8 +94,8 @@ public:
     SourceInformationMap sources() const;
     DependencyMap dependencies() const;
     Set<Path> watchedPaths() const { return mWatchedPaths; }
-    bool fetchFromCache(const Path &path, List<String> &args, CXIndex &index, CXTranslationUnit &unit);
-    void addToCache(const Path &path, const List<String> &args, CXIndex index, CXTranslationUnit unit);
+    bool fetchFromCache(const Path &path, List<String> &args, CXIndex &index, CXTranslationUnit &unit, int *parseCount);
+    void addToCache(const Path &path, const List<String> &args, CXIndex index, CXTranslationUnit unit, int parseCount);
     void timerEvent(TimerEvent *event);
     bool isIndexing() const { MutexLocker lock(&mMutex); return !mJobs.isEmpty(); }
     void onJSFilesAdded();
@@ -102,14 +103,14 @@ public:
 private:
     void reloadFileManager(const Path &);
     bool initJobFromCache(const Path &path, const List<String> &args,
-                          CXIndex &index, CXTranslationUnit &unit, List<String> *argsOut);
+                          CXIndex &index, CXTranslationUnit &unit, List<String> *argsOut, int *parseCount);
     LinkedList<CachedUnit*>::iterator findCachedUnit(const Path &path, const List<String> &args);
     void onFileModified(const Path &);
     void addDependencies(const DependencyMap &hash, Set<uint32_t> &newFiles);
     void addFixIts(const DependencyMap &dependencies, const FixItMap &fixIts);
     int syncDB();
     void startDirtyJobs();
-    void addCachedUnit(const Path &path, const List<String> &args, CXIndex index, CXTranslationUnit unit);
+    void addCachedUnit(const Path &path, const List<String> &args, CXIndex index, CXTranslationUnit unit, int parseCount);
     bool save();
     void onValidateDBJobErrors(const Set<Location> &errors);
 

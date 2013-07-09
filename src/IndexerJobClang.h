@@ -37,6 +37,7 @@ public:
     virtual shared_ptr<IndexData> createIndexData() { return shared_ptr<IndexData>(new IndexDataClang); }
 
     shared_ptr<IndexDataClang> data() const { return static_pointer_cast<IndexDataClang>(IndexerJob::data()); }
+    String contents() const { return mContents; }
 private:
     virtual void index();
 

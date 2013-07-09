@@ -1,4 +1,5 @@
 #include "RTagsClang.h"
+#include "Server.h"
 
 namespace RTags {
 String eatString(CXString str)
@@ -169,6 +170,60 @@ SymbolMap::const_iterator findCursorInfo(const SymbolMap &map, const Location &l
     } else {
         const SymbolMap::const_iterator ret = findCursorInfo(map, location, context, true);
         return ret;
+    }
+}
+
+void parseTranslationUnit(const Path &sourceFile, const List<String> &args,
+                          CXTranslationUnit &unit, CXIndex &index, String &clangLine,
+                          uint32_t fileId, DependencyMap *dependencies,
+                          CXUnsavedFile *unsaved, int unsavedCount)
+
+{
+    clangLine = "clang ";
+
+    int idx = 0;
+    const List<String> &defaultArguments = Server::instance()->options().defaultArguments;
+    List<const char*> clangArgs(args.size() + defaultArguments.size(), 0);
+
+    const List<String> *lists[] = { &args, &defaultArguments };
+    for (int i=0; i<2; ++i) {
+        const int count = lists[i]->size();
+        for (int j=0; j<count; ++j) {
+            String arg = lists[i]->at(j);
+            if (arg.isEmpty())
+                continue;
+            if (dependencies && arg == "-include" && j + 1 < count) {
+                const uint32_t fileId = Location::fileId(lists[i]->at(j + 1));
+                if (fileId) {
+                    (*dependencies)[fileId].insert(fileId);
+                }
+            }
+
+            clangArgs[idx++] = lists[i]->at(j).constData();
+            arg.replace("\"", "\\\"");
+            clangLine += arg;
+            clangLine += ' ';
+        }
+    }
+
+    clangLine += sourceFile;
+
+    StopWatch sw;
+    unsigned int flags = CXTranslationUnit_DetailedPreprocessingRecord;
+    if (Server::instance()->options().completionCacheSize)
+        flags |= CXTranslationUnit_PrecompiledPreamble|CXTranslationUnit_CacheCompletionResults;
+
+    unit = clang_parseTranslationUnit(index, sourceFile.constData(),
+                                      clangArgs.data(), idx, unsaved, unsavedCount, flags);
+    // error() << sourceFile << sw.elapsed();
+}
+
+void reparseTranslationUnit(CXTranslationUnit &unit, CXUnsavedFile *unsaved, int unsavedCount)
+{
+    assert(unit);
+    if (clang_reparseTranslationUnit(unit, 0, unsaved, clang_defaultReparseOptions(unit)) != 0) {
+        clang_disposeTranslationUnit(unit);
+        unit = 0;
     }
 }
 

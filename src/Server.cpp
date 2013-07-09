@@ -773,7 +773,7 @@ void Server::reindex(const QueryMessage &query, Connection *conn)
     conn->finish();
 }
 
-void Server::startIndexerJob(const shared_ptr<IndexerJob> &job)
+void Server::startIndexerJob(const shared_ptr<ThreadPool::Job> &job)
 {
     mIndexerThreadPool->start(job);
 }
@@ -1012,6 +1012,12 @@ bool Server::selectProject(const Match &match, Connection *conn)
                 selected.reset();
             } else {
                 selected = it->second;
+                const Path p = match.pattern();
+                if (p.exists()) {
+                    mCurrentFile = p;
+                } else {
+                    mCurrentFile.clear();
+                }
             }
         }
     }
@@ -1172,6 +1178,11 @@ void Server::handleCompletionMessage(CompletionMessage *message, Connection *con
 
 void Server::startCompletion(const Path &path, int line, int column, int pos, const String &contents, Connection *conn)
 {
+    {
+        MutexLocker lock(&mMutex);
+        mCurrentFile = path;
+    }
+
     // error() << "starting completion" << path << line << column;
     if (!mOptions.completionCacheSize) {
         conn->finish();
@@ -1190,20 +1201,21 @@ void Server::startCompletion(const Path &path, int line, int column, int pos, co
     CXIndex index;
     CXTranslationUnit unit;
     List<String> args;
-    if (!project->fetchFromCache(path, args, index, unit)) {
+    int parseCount = 0;
+    if (!project->fetchFromCache(path, args, index, unit, &parseCount)) {
         const SourceInformation info = project->sourceInfo(fileId);
-        if (!info.isNull()) {
-            project->reindex(path);
-            conn->write<128>("Scheduled rebuild of %s", path.constData());
+        if (info.isNull()) {
+            if (!isCompletionStream(conn))
+                conn->finish();
+            return;
         }
-        if (!isCompletionStream(conn))
-            conn->finish();
-        return;
+        assert(!info.builds.isEmpty());
+        args = info.builds.first().args;
     }
 
     mActiveCompletions.insert(path);
     shared_ptr<CompletionJob> job(new CompletionJob(project, isCompletionStream(conn) ? CompletionJob::Stream : CompletionJob::Sync));
-    job->init(index, unit, path, args, line, column, pos, contents);
+    job->init(index, unit, path, args, line, column, pos, contents, parseCount);
     job->setId(nextId());
     job->finished().connectAsync(this, &Server::onCompletionJobFinished);
     mPendingLookups[job->id()] = conn;

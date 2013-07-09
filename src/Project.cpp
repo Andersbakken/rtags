@@ -13,6 +13,7 @@
 #include "ValidateDBJob.h"
 #include "IndexerJobClang.h"
 #include <rct/WriteLocker.h>
+#include "ReparseJob.h"
 #include <math.h>
 
 static void *ModifiedFiles = &ModifiedFiles;
@@ -180,6 +181,7 @@ bool Project::match(const Match &p, bool *indexed) const
 void Project::onJobFinished(const shared_ptr<IndexerJob> &job)
 {
     PendingJob pending;
+    const Path currentFile = Server::instance()->currentFile();
     bool startPending = false;
     {
         MutexLocker lock(&mMutex);
@@ -205,8 +207,20 @@ void Project::onJobFinished(const shared_ptr<IndexerJob> &job)
                     LinkedList<CachedUnit*>::iterator it = findCachedUnit(sourceInfo.sourceFile, sourceInfo.builds.at(i).args);
                     if (it != mCachedUnits.end())
                         mCachedUnits.erase(it);
-                    addCachedUnit(sourceInfo.sourceFile, sourceInfo.builds.at(i).args,
-                                  clangData->units.at(i).first, clangData->units.at(i).second);
+                    error() << i << currentFile << sourceInfo.sourceFile;
+                    if (!i && currentFile == sourceInfo.sourceFile) {
+                        shared_ptr<ReparseJob> rj(new ReparseJob(clangData->units.at(i).second,
+                                                                 clangData->units.at(i).first,
+                                                                 sourceInfo.sourceFile,
+                                                                 sourceInfo.builds.at(i).args,
+                                                                 static_pointer_cast<IndexerJobClang>(job)->contents(),
+                                                                 static_pointer_cast<Project>(shared_from_this())));
+                        Server::instance()->startIndexerJob(rj);
+
+                    } else {
+                        addCachedUnit(sourceInfo.sourceFile, sourceInfo.builds.at(i).args,
+                                      clangData->units.at(i).first, clangData->units.at(i).second, 1);
+                    }
                     clangData->units[i] = std::make_pair<CXIndex, CXTranslationUnit>(0, 0);
                 }
             }
@@ -694,7 +708,8 @@ DependencyMap Project::dependencies() const
     return mDependencies;
 }
 
-void Project::addCachedUnit(const Path &path, const List<String> &args, CXIndex index, CXTranslationUnit unit) // lock always held
+void Project::addCachedUnit(const Path &path, const List<String> &args, CXIndex index,
+                            CXTranslationUnit unit, int parseCount) // lock always held
 {
     assert(index);
     assert(unit);
@@ -709,6 +724,7 @@ void Project::addCachedUnit(const Path &path, const List<String> &args, CXIndex 
     cachedUnit->index = index;
     cachedUnit->unit = unit;
     cachedUnit->arguments = args;
+    cachedUnit->parseCount = parseCount;
     mCachedUnits.push_back(cachedUnit);
     while (mCachedUnits.size() > maxCacheSize) {
         CachedUnit *unit = *mCachedUnits.begin();
@@ -727,7 +743,8 @@ LinkedList<CachedUnit*>::iterator Project::findCachedUnit(const Path &path, cons
 }
 
 bool Project::initJobFromCache(const Path &path, const List<String> &args,
-                               CXIndex &index, CXTranslationUnit &unit, List<String> *argsOut)
+                               CXIndex &index, CXTranslationUnit &unit, List<String> *argsOut,
+                               int *parseCount)
 {
     LinkedList<CachedUnit*>::iterator it = findCachedUnit(path, args);
     if (it != mCachedUnits.end()) {
@@ -739,24 +756,28 @@ bool Project::initJobFromCache(const Path &path, const List<String> &args,
         if (argsOut)
             *argsOut = cachedUnit->arguments;
         mCachedUnits.erase(it);
+        if (parseCount)
+            *parseCount = cachedUnit->parseCount;
         delete cachedUnit;
         return true;
     }
     index = 0;
     unit = 0;
+    if (parseCount)
+        *parseCount = -1;
     return false;
 }
 
-bool Project::fetchFromCache(const Path &path, List<String> &args, CXIndex &index, CXTranslationUnit &unit)
+bool Project::fetchFromCache(const Path &path, List<String> &args, CXIndex &index, CXTranslationUnit &unit, int *parseCount)
 {
     MutexLocker lock(&mMutex);
-    return initJobFromCache(path, List<String>(), index, unit, &args);
+    return initJobFromCache(path, List<String>(), index, unit, &args, parseCount);
 }
 
-void Project::addToCache(const Path &path, const List<String> &args, CXIndex index, CXTranslationUnit unit)
+void Project::addToCache(const Path &path, const List<String> &args, CXIndex index, CXTranslationUnit unit, int parseCount)
 {
     MutexLocker lock(&mMutex);
-    addCachedUnit(path, args, index, unit);
+    addCachedUnit(path, args, index, unit, parseCount);
 }
 
 void Project::addFixIts(const DependencyMap &visited, const FixItMap &fixIts) // lock always held

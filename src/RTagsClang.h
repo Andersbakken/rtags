@@ -41,6 +41,12 @@ SymbolMap::const_iterator findCursorInfo(const SymbolMap &map, const Location &l
                                          const String &context = String(),
                                          const SymbolMap *errors = 0, bool *foundInErrors = 0);
 
+void parseTranslationUnit(const Path &sourceFile, const List<String> &args,
+                          CXTranslationUnit &unit, CXIndex &index, String &clangLine,
+                          uint32_t fileId, DependencyMap *dependencies,
+                          CXUnsavedFile *unsaved, int unsavedCount);
+void reparseTranslationUnit(CXTranslationUnit &unit, CXUnsavedFile *unsaved, int unsavedCount);
+
 struct Filter
 {
     enum Mode {

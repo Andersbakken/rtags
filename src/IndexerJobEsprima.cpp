@@ -82,7 +82,7 @@ void IndexerJobEsprima::index()
         mData->symbolNames.clear();
     } else {
         mData->dependencies[mFileId].insert(mFileId);
-        mData->message = String::format<128>("%s in %dms. (%d syms, %d symNames, %d refs)",
+        mData->message = String::format<128>("%s in %dms (%d). (%d syms, %d symNames, %d refs) in %d(%d)",
                                              mSourceInformation.sourceFile.toTilde().constData(),
                                              static_cast<int>(mTimer.elapsed()) / 1000, mData->symbols.size(), mData->symbolNames.size(), mData->references.size());
     }

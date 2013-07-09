@@ -54,7 +54,7 @@ public:
     };
     ThreadPool *threadPool() const { return mIndexerThreadPool; }
     void startQueryJob(const shared_ptr<Job> &job);
-    void startIndexerJob(const shared_ptr<IndexerJob> &job);
+    void startIndexerJob(const shared_ptr<ThreadPool::Job> &job);
     struct Options {
         Options() : options(0), threadCount(0), completionCacheSize(0), unloadTimer(0), clangStackSize(0) {}
         Path socketFile, dataDir;
@@ -65,6 +65,7 @@ public:
     };
     bool init(const Options &options);
     const Options &options() const { return mOptions; }
+    Path currentFile() const { MutexLocker lock(&mMutex); return mCurrentFile; }
     bool saveFileIds() const;
     RTagsPluginFactory &factory() { return mPluginFactory; }
 private:
@@ -166,6 +167,8 @@ private:
     Timer mUnloadTimer;
 
     RTagsPluginFactory mPluginFactory;
+
+    Path mCurrentFile;
 
     mutable Mutex mMutex;
 

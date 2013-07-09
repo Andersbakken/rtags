@@ -3,15 +3,17 @@
 #include "IndexerJob.h"
 #include <rct/EventLoop.h>
 #include "Project.h"
+#include <IndexerJobClang.h>
+#include "Server.h"
 
 CompletionJob::CompletionJob(const shared_ptr<Project> &project, Type type)
     : Job(WriteBuffered|WriteUnfiltered|QuietJob, project), mIndex(0), mUnit(0),
-      mLine(-1), mColumn(-1), mPos(-1), mType(type)
+      mLine(-1), mColumn(-1), mPos(-1), mParseCount(-1), mType(type)
 {
 }
 
 void CompletionJob::init(CXIndex index, CXTranslationUnit unit, const Path &path, const List<String> &args,
-                         int line, int column, int pos, const String &unsaved)
+                         int line, int column, int pos, const String &unsaved, int parseCount)
 {
     mIndex = index;
     mUnit = unit;
@@ -19,6 +21,7 @@ void CompletionJob::init(CXIndex index, CXTranslationUnit unit, const Path &path
     mArgs = args;
     mLine = line;
     mPos = pos;
+    mParseCount = parseCount;
     mColumn = column;
     mUnsaved = unsaved;
 }
@@ -125,6 +128,7 @@ void CompletionJob::processDiagnostics(CXCodeCompleteResults* results)
                                             CXDiagnostic_DisplayCategoryId|
                                             CXDiagnostic_DisplayCategoryName);
         const String text = RTags::eatString(clang_formatDiagnostic(diagnostic, diagnosticOptions));
+        error() << "Got diagnostic" << curDiag << numDiags << text;
         log(RTags::CompilationError, "%s", text.constData());
 
         clang_disposeDiagnostic(diagnostic);
@@ -138,12 +142,37 @@ void CompletionJob::execute()
     CXUnsavedFile unsavedFile = { mUnsaved.isEmpty() ? 0 : mPath.constData(),
                                   mUnsaved.isEmpty() ? 0 : mUnsaved.constData(),
                                   static_cast<unsigned long>(mUnsaved.size()) };
+    if (!mUnit) {
+        assert(!mIndex);
+        mIndex = clang_createIndex(0, 1);
+        String clangLine;
+        RTags::parseTranslationUnit(mPath, mArgs, mUnit, mIndex, clangLine,
+                                    0, 0, &unsavedFile, 1);
+        mParseCount = 1;
+        if (!mUnit) {
+            clang_disposeIndex(mIndex);
+            mIndex = 0;
+            error() << "Failed to parse" << mPath << "Can't complete";
+            return;
+        }
+    }
+    // error() << "Completing" << mPath << mParseCount;
+    assert(mParseCount >= 1 && mParseCount <= 2);
+    if (mParseCount == 1) {
+        RTags::reparseTranslationUnit(mUnit, &unsavedFile, 1);
+        if (!mUnit) {
+            clang_disposeIndex(mIndex);
+            mFinished(mPath);
+            return;
+        } else {
+            ++mParseCount;
+        }
+    }
 
     CXCodeCompleteResults *results = clang_codeCompleteAt(mUnit, mPath.constData(), mLine, mColumn,
                                                           &unsavedFile, mUnsaved.isEmpty() ? 0 : 1,
                                                           CXCodeComplete_IncludeMacros
                                                           | CXCodeComplete_IncludeCodePatterns);
-
     if (results) {
         CompletionNode *nodes = new CompletionNode[results->NumResults];
         int nodeCount = 0;
@@ -215,16 +244,35 @@ void CompletionJob::execute()
                 write<128>("%s %s", nodes[i].completion.constData(), nodes[i].signature.constData());
             }
         }
-        error() << "Wrote" << nodeCount << "completions for" << mPath << mLine << mColumn
-                << "in" << timer.elapsed() << "ms";
+
+        warning() << "Wrote" << nodeCount << "completions for"
+                  << String::format<128>("%s:%d:%d", mPath.constData(), mLine, mColumn)
+                  << "in" << timer.elapsed() << "ms" << mArgs;
+        // const unsigned diagnosticCount = clang_getNumDiagnostics(mUnit);
+        // for (unsigned i=0; i<diagnosticCount; ++i) {
+        //     CXDiagnostic diagnostic = clang_getDiagnostic(mUnit, i);
+        //     const CXDiagnosticSeverity severity = clang_getDiagnosticSeverity(diagnostic);
+        //     const String msg = RTags::eatString(clang_getDiagnosticSpelling(diagnostic));
+        //     CXFile file;
+        //     unsigned line, col;
+        //     clang_getSpellingLocation(clang_getDiagnosticLocation(diagnostic), &file, &line, &col, 0);
+
+        //     error() << i << diagnosticCount << severity << msg
+        //             << String::format<128>("%s:%d:%d", RTags::eatString(clang_getFileName(file)).constData(),
+        //                                    line, col);
+        //     clang_disposeDiagnostic(diagnostic);
+        // }
+
         delete[] nodes;
 
         //processDiagnostics(results);
 
         clang_disposeCodeCompleteResults(results);
         shared_ptr<Project> proj = project();
-        if (proj)
-            proj->addToCache(mPath, mArgs, mIndex, mUnit);
+        if (proj) {
+            // error() << "Adding to cache" << mParseCount << mPath;
+            proj->addToCache(mPath, mArgs, mIndex, mUnit, mParseCount);
+        }
     }
     mFinished(mPath);
 }

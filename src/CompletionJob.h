@@ -17,7 +17,7 @@ public:
     };
     CompletionJob(const shared_ptr<Project> &project, Type type);
     void init(CXIndex index, CXTranslationUnit unit, const Path &path, const List<String> &args,
-              int line, int column, int pos, const String &unsaved);
+              int line, int column, int pos, const String &unsaved, int parseCount);
 
     virtual void execute();
     signalslot::Signal1<Path> &finished() { return mFinished; }
@@ -30,7 +30,7 @@ private:
     CXTranslationUnit mUnit;
     Path mPath;
     List<String> mArgs;
-    int mLine, mColumn, mPos;
+    int mLine, mColumn, mPos, mParseCount;
     String mUnsaved;
     signalslot::Signal1<Path> mFinished;
     const Type mType;
