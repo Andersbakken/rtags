@@ -108,6 +108,7 @@ public:
         case Reindex:
         case RemoveFile:
         case UnloadProject:
+        case Builds:
             mFlags |= MatchRegexp;
             break;
         default:
