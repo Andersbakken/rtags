@@ -77,6 +77,7 @@ void usage(FILE *f)
 #endif
             "  --ignore-compiler|-b [arg]        Alias this compiler (Might be practical to avoid duplicated builds for things like icecc).\n"
             "  --disable-plugin|-p [arg]         Don't load this plugin\n"
+            "  --disable-esprima|-E              Don't use esprima\n"
             "  --clang-stack-size|-t [arg]       Use this much stack for clang's threads (default %d).\n", defaultStackSize);
 }
 
@@ -125,6 +126,7 @@ int main(int argc, char** argv)
         { "ignore-compiler", required_argument, 0, 'b' },
         { "disable-plugin", required_argument, 0, 'p' },
         { "watch-system-paths", no_argument, 0, 'w' },
+        { "disable-esprima", no_argument, 0, 'E' },
 #ifdef OS_Darwin
         { "filemanager-watch", no_argument, 0, 'M' },
 #else
@@ -260,6 +262,9 @@ int main(int argc, char** argv)
         case 'h':
             usage(stdout);
             return 0;
+        case 'E':
+            serverOpts.options |= Server::NoEsprima;
+            break;
         case 'm':
             serverOpts.options |= Server::AllowMultipleBuildsForSameCompiler;
             break;

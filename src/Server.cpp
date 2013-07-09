@@ -275,6 +275,8 @@ void Server::handleCompileMessage(CompileMessage *message, Connection *conn)
     conn->finish(); // nothing to wait for
     Path path = message->arguments();
     if (path.endsWith(".js") && !path.contains(' ')) {
+        if (mOptions.options & NoEsprima)
+            return;
         if (!path.isAbsolute())
             path.prepend(message->path());
         const Path srcRoot = RTags::findProjectRoot(path);

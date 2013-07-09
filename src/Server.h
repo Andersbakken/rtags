@@ -49,7 +49,8 @@ public:
         AllowMultipleBuildsForSameCompiler = 0x080,
         NoStartupCurrentProject = 0x100,
         WatchSystemPaths = 0x200,
-        NoFileManagerWatch = 0x400
+        NoFileManagerWatch = 0x400,
+        NoEsprima = 0x800
     };
     ThreadPool *threadPool() const { return mIndexerThreadPool; }
     void startQueryJob(const shared_ptr<Job> &job);
