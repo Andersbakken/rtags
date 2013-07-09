@@ -46,7 +46,7 @@ public:
         IgnorePrintfFixits = 0x010,
         UnlimitedErrors = 0x020,
         SpellChecking = 0x040,
-        AllowMultipleBuildsForSameCompiler = 0x080,
+        AllowMultipleBuilds = 0x080,
         NoStartupCurrentProject = 0x100,
         WatchSystemPaths = 0x200,
         NoFileManagerWatch = 0x400,

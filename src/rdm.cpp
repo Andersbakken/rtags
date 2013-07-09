@@ -66,7 +66,7 @@ void usage(FILE *f)
             "  --setenv|-e [arg]                 Set this environment variable (--setenv \"foobar=1\").\n"
             "  --completion-cache-size|-a [arg]  Cache this many translation units (default 0, must have at least 1 to use completion).\n"
             "  --no-current-project|-o           Don't restore the last current project on startup.\n"
-            "  --allow-multiple-builds|-m        Without this setting different flags for the same compiler will be merged for each source file.\n"
+            "  --allow-multiple-builds|-m        Without this setting different builds will be merged for each source file.\n"
             "  --unload-timer|-u [arg]           Number of minutes to wait before unloading non-current projects (disabled by default).\n"
             "  --thread-count|-j [arg]           Spawn this many threads for thread pool.\n"
             "  --watch-system-paths|-w           Watch system paths for changes.\n"
@@ -266,7 +266,7 @@ int main(int argc, char** argv)
             serverOpts.options |= Server::NoEsprima;
             break;
         case 'm':
-            serverOpts.options |= Server::AllowMultipleBuildsForSameCompiler;
+            serverOpts.options |= Server::AllowMultipleBuilds;
             break;
         case 'V':
             serverOpts.options |= Server::Validate;

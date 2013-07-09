@@ -388,17 +388,18 @@ bool Project::index(const Path &sourceFile, const Path &cc, const List<String> &
         return false;
     } else {
         List<SourceInformation::Build> &builds = sourceInformation.builds;
-        const bool allowMultiple = Server::instance()->options().options & Server::AllowMultipleBuildsForSameCompiler;
+        const bool allowMultiple = Server::instance()->options().options & Server::AllowMultipleBuilds;
         for (int j=0; j<builds.size(); ++j) {
             if (builds.at(j).compiler == compiler) {
                 if (builds.at(j).args == args) {
                     debug() << sourceFile << " is not dirty. ignoring";
                     return false;
-                } else if (!allowMultiple) {
-                    builds[j].args = args;
-                    added = true;
-                    break;
                 }
+            } else if (!allowMultiple) {
+                builds[j].compiler = compiler;
+                builds[j].args = args;
+                added = true;
+                break;
             }
         }
     }
