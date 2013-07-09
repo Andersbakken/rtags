@@ -1384,10 +1384,9 @@ References to references will be treated as references to the referenced symbol"
 (defvar rtags-completion-stream-process nil)
 (defun rtags-init-completion-stream ()
   (interactive)
-  (if (cond ((not rtags-completion-stream-process) t)
-            ((eq (process-status rtags-completion-stream-process) 'exit) t)
-            ((eq (process-status rtags-completion-stream-process) 'signal) t)
-            (t nil))
+  (if (or (not rtags-completion-stream-process)
+          (eq (process-status rtags-completion-stream-process) 'exit)
+          (eq (process-status rtags-completion-stream-process) 'signal))
       (let ((process-connection-type nil))  ; use a pipe
         (if (get-buffer "*RTags Completions*")
             (kill-buffer "*RTags Completions*"))
