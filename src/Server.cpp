@@ -1013,7 +1013,7 @@ bool Server::selectProject(const Match &match, Connection *conn)
             } else {
                 selected = it->second;
                 const Path p = match.pattern();
-                if (p.exists()) {
+                if (p.isFile()) {
                     mCurrentFile = p;
                 } else {
                     mCurrentFile.clear();
