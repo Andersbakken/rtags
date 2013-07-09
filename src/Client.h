@@ -24,7 +24,7 @@ private:
     void onSendComplete(Connection *);
 
     Connection *mConnection;
-    bool mSendComplete, mConnected;
+    bool mSendComplete;
 };
 
 #endif

@@ -8,8 +8,9 @@
 #include <unistd.h>
 
 Client::Client()
-    : mConnection(0), mSendComplete(false), mConnected(false)
-{}
+    : mConnection(0), mSendComplete(false)
+{
+}
 
 bool Client::connectToServer(const Path &path, int timeout)
 {
@@ -18,6 +19,10 @@ bool Client::connectToServer(const Path &path, int timeout)
     if (!mConnection->connectToServer(path, timeout)) {
         delete mConnection;
         mConnection = 0;
+    } else {
+        mConnection->disconnected().connect(this, &Client::onDisconnected);
+        mConnection->newMessage().connect(this, &Client::onNewMessage);
+        mConnection->sendComplete().connect(this, &Client::onSendComplete);
     }
     return mConnection;
 }
@@ -27,11 +32,6 @@ bool Client::send(const Message *msg, int timeout)
     mSendComplete = false;
     assert(msg);
     assert(mConnection);
-    if (!mConnected) {
-        mConnection->disconnected().connect(this, &Client::onDisconnected);
-        mConnection->newMessage().connect(this, &Client::onNewMessage);
-        mConnection->sendComplete().connect(this, &Client::onSendComplete);
-    }
 
     if (!mConnection->send(msg))
         return false;
