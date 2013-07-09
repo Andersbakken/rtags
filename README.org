@@ -128,10 +128,12 @@ $ cat ~/.rdmrc
 
 Installing rtags:
 
+You need to have libclang installed on your system before doing the
+following, we recommend version 3.2 or higher.
+
 #+BEGIN_SRC
 cd /path/to/rtags
 cmake .
-make 3rdparty # This step will take quite a while. It will download trunk of clang and llvm and build it
 make
 export PATH=/path/to/rtags/src:~/bin/:$PATH
 ln -s /path/to/rtags/gcc-rtags-wrapper.sh ~/bin/c++
