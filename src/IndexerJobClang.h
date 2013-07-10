@@ -14,12 +14,17 @@ public:
     IndexDataClang() : IndexData(ClangType) {}
     virtual ~IndexDataClang()
     {
+        clear();
+    }
+    void clear()
+    {
         for (int i=0; i<units.size(); ++i) {
             if (units.at(i).first)
                 clang_disposeIndex(units.at(i).first);
             if (units.at(i).second)
                 clang_disposeTranslationUnit(units.at(i).second);
         }
+        units.clear();
     }
 
     UnitList units;
