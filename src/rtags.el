@@ -1028,15 +1028,41 @@ References to references will be treated as references to the referenced symbol"
                       rtags-completion-cache-line-contents ""
                       rtags-completion-cache-file-name "")))))))
   (if rtags-completion
-      (let ((was-search dabbrev-search-these-buffers-only))
-        (condition-case nil
-            (progn
-              (setq dabbrev-search-these-buffers-only (list rtags-completion))
-              (funcall rtags-expand-function)
-              (setq dabbrev-search-these-buffers-only was-search)
-              (rtags-post-expand))
-          (error
-           (setq dabbrev-search-these-buffers-only was-search))))
+      (if (and nil ;; disable for now, can't make dabbrev do what I want
+               (> (point) (1+ (point-min)))
+               (or (string= (buffer-substring-no-properties (- (point) 2) (point)) "->")
+                   (string= (buffer-substring-no-properties (- (point) 1) (point)) ".")))
+          ;; (progn
+          ;;   (dabbrev--reset-global-variables)
+          ;;   (setq dabbrev--last-abbreviation ""
+          ;;         dabbrev--last-abbrev-location
+
+          ;;     "Initialize all global variables."
+          ;;     (setq dabbrev--last-table nil
+          ;;           dabbrev--last-abbrev-location nil
+          ;;           dabbrev--last-direction nil
+          ;;           dabbrev--last-expansion nil
+          ;;           dabbrev--last-expansion-location nil
+          ;;           dabbrev--friend-buffer-list nil
+          ;;           dabbrev--last-buffer nil
+          ;;           dabbrev--last-buffer-found nil
+          ;;           dabbrev--abbrev-char-regexp (or dabbrev-abbrev-char-regexp
+          ;;                                           "\\sw\\|\\s_")
+          ;;           dabbrev--check-other-buffers dabbrev-check-other-buffers))
+
+            (insert (with-current-buffer rtags-completion
+                      (save-excursion
+                        (goto-char (point-min))
+                        (buffer-substring-no-properties (point-min) (point-at-eol))))))
+        (let ((was-search dabbrev-search-these-buffers-only))
+          (condition-case nil
+              (progn
+                (setq dabbrev-search-these-buffers-only (list rtags-completion))
+                (funcall rtags-expand-function)
+                (setq dabbrev-search-these-buffers-only was-search)
+                (rtags-post-expand))
+            (error
+             (setq dabbrev-search-these-buffers-only was-search)))))
     (when (not (string= rtags-completion-cache-file-name ""))
       (funcall rtags-expand-function)
       (rtags-post-expand)))
