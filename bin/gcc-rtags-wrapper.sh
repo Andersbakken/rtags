@@ -2,7 +2,7 @@
 
 function followSymlink()
 {
-    python -c "import os, sys; print os.path.realpath(\"$1\")"
+    python -c "import os, sys; print(os.path.realpath(\"$1\"))"
 }
 
 rc=`which rc`
