@@ -1066,7 +1066,6 @@ References to references will be treated as references to the referenced symbol"
     (when (not (string= rtags-completion-cache-file-name ""))
       (funcall rtags-expand-function)
       (rtags-post-expand)))
-  )
 
 (defun rtags-completion-cache-is-valid ()
   (and (= (line-number-at-pos) rtags-completion-cache-line)
