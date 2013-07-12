@@ -1065,7 +1065,7 @@ References to references will be treated as references to the referenced symbol"
              (setq dabbrev-search-these-buffers-only was-search)))))
     (when (not (string= rtags-completion-cache-file-name ""))
       (funcall rtags-expand-function)
-      (rtags-post-expand)))
+      (rtags-post-expand))
   )
 
 (defun rtags-completion-cache-is-valid ()
