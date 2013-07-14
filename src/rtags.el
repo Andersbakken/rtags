@@ -178,7 +178,9 @@
 (defun rtags-index-js-file ()
   (interactive)
   (if (buffer-file-name)
-      (rtags-call-rc (buffer-file-name) "--compile" (buffer-file-name)))
+      (let ((bufname (buffer-file-name)))
+        (with-temp-buffer
+          (rtags-call-rc (buffer-file-name) "--compile" bufname))))
   t)
 
 (defun rtags-call-rc (path &rest arguments)
