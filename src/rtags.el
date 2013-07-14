@@ -178,8 +178,8 @@
 (defun rtags-index-js-file ()
   (interactive)
   (if (buffer-file-name)
-      (rtags-call-rc (buffer-file-name) "--compile" (buffer-file-name))))
-
+      (rtags-call-rc (buffer-file-name) "--compile" (buffer-file-name)))
+  t)
 
 (defun rtags-call-rc (path &rest arguments)
   (apply #'rtags-call-rc-helper path nil t arguments))
