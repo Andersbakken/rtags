@@ -670,8 +670,7 @@
 (defcustom rtags-display-current-error-as-tooltip nil
   "Display error under cursor using popup-tip (requires 'popup)"
   :type 'boolean
-  :group 'rtags
-  :require 'popup)
+  :group 'rtags)
 
 (defcustom rtags-error-timer-interval .5
   "Interval for minibuffer error timer"
