@@ -32,18 +32,18 @@
 (defvar rtags-buffer-bookmarks 0)
 
 (defface rtags-warnline
- '((((class color) (background dark)) (:background "blue"))
-   (((class color) (background light)) (:background "blue"))
-   (t (:bold t)))
- "Face used for marking error lines."
- :group 'rtags)
+  '((((class color) (background dark)) (:background "blue"))
+    (((class color) (background light)) (:background "blue"))
+    (t (:bold t)))
+  "Face used for marking error lines."
+  :group 'rtags)
 
 (defface rtags-errline
- '((((class color) (background dark)) (:background "red"))
-   (((class color) (background light)) (:background "red"))
-   (t (:bold t)))
- "Face used for marking warning lines."
- :group 'rtags)
+  '((((class color) (background dark)) (:background "red"))
+    (((class color) (background light)) (:background "red"))
+    (t (:bold t)))
+  "Face used for marking warning lines."
+  :group 'rtags)
 
 (defface rtags-fixitline
   '((((class color) (background dark)) (:background "goldenrod4"))
@@ -859,8 +859,8 @@ References to references will be treated as references to the referenced symbol"
     (with-current-buffer (rtags-get-buffer)
       (rtags-call-rc :path fn :context context :path-filter prefix "-r" arg "-l")
       (rtags-handle-completion-buffer))
-      )
     )
+  )
 
 (defun rtags-find-virtuals-at-point (&optional prefix)
   (interactive "P")
@@ -1019,7 +1019,7 @@ References to references will be treated as references to the referenced symbol"
       (if (looking-at "[A-Za-z0-9_]")
           (c-beginning-of-current-token)
         (forward-char))
-    (- (point) (point-at-bol))))
+      (- (point) (point-at-bol))))
   )
 
 (defun rtags-post-expand ()
@@ -1068,22 +1068,22 @@ References to references will be treated as references to the referenced symbol"
           ;;                                           "\\sw\\|\\s_")
           ;;           dabbrev--check-other-buffers dabbrev-check-other-buffers))
 
-            (insert (with-current-buffer rtags-completion
-                      (save-excursion
-                        (goto-char (point-min))
-                        (buffer-substring-no-properties (point-min) (point-at-eol))))))
-        (let ((was-search dabbrev-search-these-buffers-only))
-          (condition-case nil
-              (progn
-                (setq dabbrev-search-these-buffers-only (list rtags-completion))
-                (funcall rtags-expand-function)
-                (setq dabbrev-search-these-buffers-only was-search)
-                (rtags-post-expand))
-            (error
-             (setq dabbrev-search-these-buffers-only was-search)))))
-    (when (not (string= rtags-completion-cache-file-name ""))
-      (funcall rtags-expand-function)
-      (rtags-post-expand))
+          (insert (with-current-buffer rtags-completion
+                    (save-excursion
+                      (goto-char (point-min))
+                      (buffer-substring-no-properties (point-min) (point-at-eol))))))
+    (let ((was-search dabbrev-search-these-buffers-only))
+      (condition-case nil
+          (progn
+            (setq dabbrev-search-these-buffers-only (list rtags-completion))
+            (funcall rtags-expand-function)
+            (setq dabbrev-search-these-buffers-only was-search)
+            (rtags-post-expand))
+        (error
+         (setq dabbrev-search-these-buffers-only was-search)))))
+  (when (not (string= rtags-completion-cache-file-name ""))
+    (funcall rtags-expand-function)
+    (rtags-post-expand))
   )
 
 (defun rtags-completion-cache-is-valid ()
@@ -1116,10 +1116,9 @@ References to references will be treated as references to the referenced symbol"
           (let (deactivate-mark)
             (erase-buffer))))
     (save-excursion
-      ;;(message "prepared completion")
+      ;; (message "preparing completion")
       (let* ((buffer (current-buffer))
-
-             (path (buffer-file-name (buffer)))
+             (path (buffer-file-name buffer))
              (buffer-size (- (point-max) (point-min)))
              (line (line-number-at-pos))
              (column (rtags-find-symbol-start))
@@ -1170,12 +1169,12 @@ References to references will be treated as references to the referenced symbol"
     (puthash filename nil rtags-overlays)))
 
 (defun rtags-really-find-buffer (fn)
- (setq fn (file-truename fn))
- (car
-  (member-if #'(lambda (arg)
-                 (and (buffer-file-name arg)
-                      (string= fn (file-truename (buffer-file-name arg)))))
-             (buffer-list))))
+  (setq fn (file-truename fn))
+  (car
+   (member-if #'(lambda (arg)
+                  (and (buffer-file-name arg)
+                       (string= fn (file-truename (buffer-file-name arg)))))
+              (buffer-list))))
 
 (defun rtags-string-to-number (string)
   (when (stringp string)
@@ -1256,7 +1255,7 @@ References to references will be treated as references to the referenced symbol"
   (if (and rtags-last-index
            rtags-last-total
            (> rtags-last-total 0))
-           ;; (not (= rtags-last-index rtags-last-total)))
+      ;; (not (= rtags-last-index rtags-last-total)))
       (format "RTags: %d/%d %d%%%% " rtags-last-index rtags-last-total (/ (* rtags-last-index 100) rtags-last-total))
     ""))
 
@@ -1475,7 +1474,7 @@ References to references will be treated as references to the referenced symbol"
             (let ((mapped (if rtags-match-source-file-to-project (apply rtags-match-source-file-to-project (list path)))))
               (if (and mapped (length mapped)) (push (concat "--with-project=" mapped) arguments)))
             (apply #'start-process "global-update" nil rc arguments))))
-      (error (message "Got error in rtags-update-current-project")))
+    (error (message "Got error in rtags-update-current-project")))
   )
 
 (add-hook 'post-command-hook (function rtags-update-current-project))
@@ -1501,7 +1500,7 @@ References to references will be treated as references to the referenced symbol"
                     ;;(message "err-info became %S" err-info)
                     (list (car elem) (list err-info))))
                 flymake-err-info))
-)
+  )
 
 (defun rtags-stop-diagnostics ()
   (interactive)
@@ -1541,7 +1540,7 @@ References to references will be treated as references to the referenced symbol"
       (setq rtags-pending-diagnostics nil))
     (with-current-buffer (process-buffer process)
       (setq buffer-read-only nil)
-   ;;   (message "matching [%s]" output)
+      ;;   (message "matching [%s]" output)
       (let (endpos length current)
         (while (cond ((setq endpos (string-match "</checkstyle>" output))
                       (setq length 13))
@@ -1866,10 +1865,10 @@ References to references will be treated as references to the referenced symbol"
           (next-line))
         )
       (if tempbuf
-        (let ((tempbufname (format "/tmp/rtags-fixit-%s" (file-name-nondirectory path))))
-          (with-current-buffer tempbuf (write-file tempbufname))
-          (kill-buffer tempbuf)
-          (ediff path tempbufname)))
+          (let ((tempbufname (format "/tmp/rtags-fixit-%s" (file-name-nondirectory path))))
+            (with-current-buffer tempbuf (write-file tempbufname))
+            (kill-buffer tempbuf)
+            (ediff path tempbufname)))
       )
     )
   )
@@ -2018,8 +2017,8 @@ References to references will be treated as references to the referenced symbol"
 
 (defun rtags-range-visible (start end)
   if (and (>= start (window-start))
-       (<= start (window-end))
-       (<= end (window-end))))
+          (<= start (window-end))
+          (<= end (window-end))))
 
 
 (defvar rtags-cached-local-references nil)
