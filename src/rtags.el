@@ -861,7 +861,6 @@ References to references will be treated as references to the referenced symbol"
       (rtags-handle-completion-buffer))
       )
     )
-  )
 
 (defun rtags-find-virtuals-at-point (&optional prefix)
   (interactive "P")
