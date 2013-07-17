@@ -217,26 +217,21 @@ void Project::onJobFinished(const shared_ptr<IndexerJob> &job)
                 shared_ptr<IndexDataClang> clangData = static_pointer_cast<IndexDataClang>(data);
                 if (Server::instance()->options().completionCacheSize > 0)  {
                     const SourceInformation sourceInfo = job->sourceInformation();
-                    assert(sourceInfo.builds.size() == clangData->units.size());
-                    for (int i=0; i<sourceInfo.builds.size(); ++i) {
-                        LinkedList<CachedUnit*>::iterator it = findCachedUnit(sourceInfo.sourceFile, sourceInfo.builds.at(i).args);
-                        if (it != mCachedUnits.end())
-                            mCachedUnits.erase(it);
-                        if (!i && currentFile == sourceInfo.sourceFile) {
-                            shared_ptr<ReparseJob> rj(new ReparseJob(clangData->units.at(i).second,
-                                                                     clangData->units.at(i).first,
-                                                                     sourceInfo.sourceFile,
-                                                                     sourceInfo.builds.at(i).args,
-                                                                     static_pointer_cast<IndexerJobClang>(job)->contents(),
-                                                                     static_pointer_cast<Project>(shared_from_this())));
-                            Server::instance()->startIndexerJob(rj);
+                    if (currentFile == sourceInfo.sourceFile) {
+                        shared_ptr<ReparseJob> rj(new ReparseJob(clangData->unit,
+                                                                 clangData->index,
+                                                                 sourceInfo.sourceFile,
+                                                                 sourceInfo.args,
+                                                                 static_pointer_cast<IndexerJobClang>(job)->contents(),
+                                                                 static_pointer_cast<Project>(shared_from_this())));
+                        Server::instance()->startIndexerJob(rj);
 
-                        } else {
-                            addCachedUnit(sourceInfo.sourceFile, sourceInfo.builds.at(i).args,
-                                          clangData->units.at(i).first, clangData->units.at(i).second, 1);
-                        }
-                        clangData->units[i] = std::make_pair<CXIndex, CXTranslationUnit>(0, 0);
+                    } else {
+                        addCachedUnit(sourceInfo.sourceFile, sourceInfo.args,
+                                      clangData->index, clangData->unit, 1);
                     }
+                    clangData->index = 0;
+                    clangData->unit = 0;
                 } else {
                     clangData->clear();
                 }
@@ -397,32 +392,19 @@ bool Project::index(const Path &sourceFile, const Path &cc, const List<String> &
     const Path compiler = resolveCompiler(cc.canonicalized());
     SourceInformation sourceInformation = sourceInfo(Location::insertFile(sourceFile));
     const bool js = args.isEmpty() && sourceFile.endsWith(".js");
-    bool added = false;
     if (sourceInformation.isNull()) {
         sourceInformation.sourceFile = sourceFile;
+        sourceInformation.args = args;
     } else if (js) {
         debug() << sourceFile << " is not dirty. ignoring";
         return false;
+    } else if (sourceInformation.compiler == compiler && sourceInformation.args == args) {
+        debug() << sourceFile << " is not dirty. ignoring";
+        return false;
     } else {
-        List<SourceInformation::Build> &builds = sourceInformation.builds;
-        const bool allowMultiple = Server::instance()->options().options & Server::AllowMultipleBuilds;
-        for (int j=0; j<builds.size(); ++j) {
-            if (builds.at(j).compiler == compiler) {
-                if (builds.at(j).args == args) {
-                    debug() << sourceFile << " is not dirty. ignoring";
-                    return false;
-                }
-            }
-            if (!allowMultiple) {
-                builds[j].compiler = compiler;
-                builds[j].args = args;
-                added = true;
-                break;
-            }
-        }
+        sourceInformation.compiler = compiler;
+        sourceInformation.args = args;
     }
-    if (!added && !js)
-        sourceInformation.builds.append(SourceInformation::Build(compiler, args));
     index(sourceInformation, IndexerJob::Makefile);
     return true;
 }

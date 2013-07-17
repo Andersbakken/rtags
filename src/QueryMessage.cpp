@@ -3,20 +3,20 @@
 #include <rct/Serializer.h>
 
 QueryMessage::QueryMessage(Type type)
-    : ClientMessage(MessageId), mType(type), mFlags(0), mMax(-1), mMinOffset(-1), mMaxOffset(-1), mBuildIndex(0)
+    : ClientMessage(MessageId), mType(type), mFlags(0), mMax(-1), mMinOffset(-1), mMaxOffset(-1)
 {
 }
 
 void QueryMessage::encode(Serializer &serializer) const
 {
     serializer << mRaw << mQuery << mContext << mType << mFlags << mMax
-               << mMinOffset << mMaxOffset << mBuildIndex << mPathFilters << mProjects;
+               << mMinOffset << mMaxOffset << mPathFilters << mProjects;
 }
 
 void QueryMessage::decode(Deserializer &deserializer)
 {
     deserializer >> mRaw >> mQuery >> mContext >> mType >> mFlags >> mMax
-                 >> mMinOffset >> mMaxOffset >> mBuildIndex >> mPathFilters >> mProjects;
+                 >> mMinOffset >> mMaxOffset >> mPathFilters >> mProjects;
 }
 
 unsigned QueryMessage::keyFlags(unsigned queryFlags)

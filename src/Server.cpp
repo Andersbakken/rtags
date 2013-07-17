@@ -730,14 +730,8 @@ void Server::preprocessFile(const QueryMessage &query, Connection *conn)
         conn->finish();
         return;
     }
-    if (c.builds.size() <= query.buildIndex()) {
-        conn->write<512>("No build for for index %d (max %d) for %s",
-                         query.buildIndex(), c.builds.size() - 1, path.constData());
-        conn->finish();
-        return;
-    }
 
-    Preprocessor* pre = new Preprocessor(c, query.buildIndex(), conn);
+    Preprocessor* pre = new Preprocessor(c, conn);
     pre->preprocess();
 }
 
@@ -1269,8 +1263,8 @@ void Server::startCompletion(const Path &path, int line, int column, int pos, co
                 conn->finish();
             return;
         }
-        assert(!info.builds.isEmpty());
-        args = info.builds.first().args;
+        assert(!info.args.isEmpty());
+        args = info.args;
     }
 
     mActiveCompletions.insert(path);

@@ -264,13 +264,12 @@ class QueryCommand : public RCCommand
 {
 public:
     QueryCommand(QueryMessage::Type t, const String &q)
-        : type(t), query(q), extraQueryFlags(0), buildIndex(0)
+        : type(t), query(q), extraQueryFlags(0)
     {}
 
     const QueryMessage::Type type;
     const String query;
     unsigned extraQueryFlags;
-    uint8_t buildIndex;
 
     virtual bool exec(RClient *rc, Client *client)
     {
@@ -280,7 +279,6 @@ public:
         msg.setContext(rc->context());
         msg.setFlags(extraQueryFlags | rc->queryFlags());
         msg.setMax(rc->max());
-        msg.setBuildIndex(buildIndex);
         msg.setPathFilters(rc->pathFilters().toList());
         msg.setRangeFilter(rc->minOffset(), rc->maxOffset());
         msg.setProjects(rc->projects());
@@ -940,7 +938,6 @@ bool RClient::parse(int &argc, char **argv)
                 return false;
             }
             QueryCommand *cmd = addQuery(QueryMessage::PreprocessFile, p);
-            cmd->buildIndex = static_cast<uint8_t>(idx);
             break; }
 
         case RemoveFile: {

@@ -815,36 +815,31 @@ bool IndexerJobClang::handleCursor(const CXCursor &cursor, CXCursorKind kind, co
     return true;
 }
 
-bool IndexerJobClang::parse(int build)
+bool IndexerJobClang::parse()
 {
-    UnitList &units = data()->units;
-
-    CXIndex &index = units[build].first;
-    if (!index)
-        index = clang_createIndex(0, 1);
-    if (!index) {
+    assert(!data()->index);
+    data()->index = clang_createIndex(0, 1);
+    if (!data()->index) {
         abort();
         return false;
     }
-    const List<String> args = mSourceInformation.builds.at(build).args;
-    CXTranslationUnit &unit = units[build].second;
+    const List<String> args = mSourceInformation.args;
+    CXTranslationUnit &unit = data()->unit;
     assert(!unit);
 
-    mClangLines.append(String());
-    String &clangLine = mClangLines.last();
     CXUnsavedFile unsaved = { mSourceInformation.sourceFile.constData(),
                               mContents.constData(),
                               static_cast<unsigned long>(mContents.size()) };
 
     RTags::parseTranslationUnit(mSourceInformation.sourceFile, args,
-                                unit, index, clangLine,
+                                unit, data()->index, mClangLine,
                                 mFileId, &mData->dependencies, &unsaved, 1);
-    warning() << "loading unit " << clangLine << " " << (unit != 0);
+    warning() << "loading unit " << mClangLine << " " << (unit != 0);
     if (unit) {
         return !isAborted();
     }
 
-    error() << "got failure" << clangLine;
+    error() << "got failure" << mClangLine;
     const String preprocessorOnly = RTags::filterPreprocessor(mSourceInformation.sourceFile);
     if (!preprocessorOnly.isEmpty()) {
         CXUnsavedFile preprocessorOnlyUnsaved = {
@@ -852,7 +847,7 @@ bool IndexerJobClang::parse(int build)
             static_cast<unsigned long>(preprocessorOnly.size())
         };
         RTags::parseTranslationUnit(mSourceInformation.sourceFile, args,
-                                    unit, index, clangLine,
+                                    unit, data()->index, mClangLine,
                                     mFileId, &mData->dependencies, &preprocessorOnlyUnsaved, 1);
     }
     if (unit) {
@@ -915,24 +910,22 @@ static inline String xmlEscape(const String& xml)
     return strm.str();
 }
 
-bool IndexerJobClang::diagnose(int build)
+bool IndexerJobClang::diagnose()
 {
-    UnitList &units = data()->units;
-
-    if (!units.at(build).second) {
+    if (!data()->unit) {
         abort();
         return false;
     }
 
     List<String> compilationErrors;
-    const unsigned diagnosticCount = clang_getNumDiagnostics(units.at(build).second);
+    const unsigned diagnosticCount = clang_getNumDiagnostics(data()->unit);
     const unsigned options = Server::instance()->options().options;
 
     Map<uint32_t, Map<int, XmlEntry> > xmlEntries;
     const bool xmlEnabled = testLog(RTags::CompilationErrorXml);
 
     for (unsigned i=0; i<diagnosticCount; ++i) {
-        CXDiagnostic diagnostic = clang_getDiagnostic(units.at(build).second, i);
+        CXDiagnostic diagnostic = clang_getDiagnostic(data()->unit, i);
         int logLevel = INT_MAX;
         const CXDiagnosticSeverity severity = clang_getDiagnosticSeverity(diagnostic);
         switch (severity) {
@@ -1093,27 +1086,25 @@ bool IndexerJobClang::diagnose(int build)
     return !isAborted();
 }
 
-bool IndexerJobClang::visit(int build)
+bool IndexerJobClang::visit()
 {
-    UnitList &units = data()->units;
-
-    if (!units.at(build).second) {
+    if (!data()->unit) {
         abort();
         return false;
     }
-    clang_getInclusions(units.at(build).second, IndexerJobClang::inclusionVisitor, this);
+    clang_getInclusions(data()->unit, IndexerJobClang::inclusionVisitor, this);
     if (isAborted())
         return false;
 
-    clang_visitChildren(clang_getTranslationUnitCursor(units.at(build).second),
+    clang_visitChildren(clang_getTranslationUnitCursor(data()->unit),
                         IndexerJobClang::indexVisitor, this);
     if (isAborted())
         return false;
     if (testLog(VerboseDebug)) {
-        VerboseVisitorUserData u = { 0, "<VerboseVisitor " + mClangLines.at(build) + ">\n", this };
-        clang_visitChildren(clang_getTranslationUnitCursor(units.at(build).second),
+        VerboseVisitorUserData u = { 0, "<VerboseVisitor " + mClangLine + ">\n", this };
+        clang_visitChildren(clang_getTranslationUnitCursor(data()->unit),
                             IndexerJobClang::verboseVisitor, &u);
-        u.out += "</VerboseVisitor " + mClangLines.at(build) + ">";
+        u.out += "</VerboseVisitor " + mClangLine + ">";
         if (getenv("RTAGS_INDEXERJOB_DUMP_TO_FILE")) {
             char buf[1024];
             snprintf(buf, sizeof(buf), "/tmp/%s.log", mSourceInformation.sourceFile.fileName());
@@ -1130,55 +1121,35 @@ bool IndexerJobClang::visit(int build)
 
 void IndexerJobClang::index()
 {
-    UnitList &units = data()->units;
-    units.resize(sourceInformation().builds.size());
     mContents = mSourceInformation.sourceFile.readAll();
 
     if (type() == Dump) {
         assert(id() != -1);
-        for (int i=0; i<mSourceInformation.builds.size(); ++i) {
-            parse(i);
-            if (units.at(i).second) {
-                DumpUserData u = { 0, this, !(queryFlags() & QueryMessage::NoContext) };
-                clang_visitChildren(clang_getTranslationUnitCursor(units.at(i).second),
-                                    IndexerJobClang::dumpVisitor, &u);
-            }
+        parse();
+        if (data()->unit) {
+            DumpUserData u = { 0, this, !(queryFlags() & QueryMessage::NoContext) };
+            clang_visitChildren(clang_getTranslationUnitCursor(data()->unit),
+                                IndexerJobClang::dumpVisitor, &u);
         }
     } else {
-        int unitCount = 0;
-        const int buildCount = mSourceInformation.builds.size();
         mParseTime = time(0);
-        for (int i=0; i<buildCount; ++i) {
-            if (!parse(i))
-                return;
-            if (units.at(i).second)
-                ++unitCount;
-        }
+        if (!parse() || !visit() || !diagnose())
+            return;
 
-        for (int i=0; i<buildCount; ++i) {
-            if (!visit(i) || !diagnose(i))
-                return;
+        mData->message = mSourceInformation.sourceFile.toTilde();
+        if (!data()->unit) {
+            mData->message += " error";
         }
-        {
-            mData->message = mSourceInformation.sourceFile.toTilde();
-            if (buildCount > 1)
-                mData->message += String::format<16>(" (%d builds)", buildCount);
-            if (!unitCount) {
-                mData->message += " error";
-            } else if (unitCount != buildCount) {
-                mData->message += String::format<16>(" (%d errors, %d ok)", buildCount - unitCount, unitCount);
-            }
-            mData->message += String::format<16>(" in %dms. ", static_cast<int>(mTimer.elapsed()) / 1000);
-            if (unitCount) {
-                mData->message += String::format<128>("(%d syms, %d symNames, %d refs, %d deps, %d files)",
-                                                      mData->symbols.size(), mData->symbolNames.size(), mData->references.size(),
-                                                      mData->dependencies.size(), mVisitedFiles.size());
-            } else if (mData->dependencies.size()) {
-                mData->message += String::format<16>("(%d deps)", mData->dependencies.size());
-            }
-            if (type() == Dirty)
-                mData->message += " (dirty)";
+        mData->message += String::format<16>(" in %dms. ", static_cast<int>(mTimer.elapsed()) / 1000);
+        if (data()->unit) {
+            mData->message += String::format<128>("(%d syms, %d symNames, %d refs, %d deps, %d files)",
+                                                  mData->symbols.size(), mData->symbolNames.size(), mData->references.size(),
+                                                  mData->dependencies.size(), mVisitedFiles.size());
+        } else if (mData->dependencies.size()) {
+            mData->message += String::format<16>("(%d deps)", mData->dependencies.size());
         }
+        if (type() == Dirty)
+            mData->message += " (dirty)";
     }
 }
 

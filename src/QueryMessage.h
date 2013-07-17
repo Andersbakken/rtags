@@ -125,15 +125,11 @@ public:
 
     void setProjects(const List<String> &projects) { mProjects = projects; }
     List<String> projects() const { return mProjects; }
-
-    uint8_t buildIndex() const { return mBuildIndex; }
-    void setBuildIndex(uint8_t index) { mBuildIndex = index; }
 private:
     String mQuery, mContext;
     Type mType;
     unsigned mFlags;
     int mMax, mMinOffset, mMaxOffset;
-    uint8_t mBuildIndex;
     List<String> mPathFilters;
     List<String> mProjects;
 };

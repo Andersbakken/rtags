@@ -13,20 +13,12 @@ public:
     {}
 
     Path sourceFile;
-
-    struct Build
-    {
-        Build(const Path &c = Path(), const List<String> &a = List<String>())
-            : compiler(c), args(a)
-        {}
-        Path compiler;
-        List<String> args;
-    };
-    List<Build> builds;
+    Path compiler;
+    List<String> args;
 
     inline bool isJS() const
     {
-        return builds.isEmpty() && sourceFile.endsWith(".js");
+        return args.isEmpty() && compiler.isEmpty() && sourceFile.endsWith(".js");
     }
 
     time_t parsed;
@@ -38,36 +30,24 @@ public:
 
     inline String toString() const
     {
-        String out = String::format<64>("%s %s\n", sourceFile.constData(),
-                                        parsed ? ("Parsed: " +String::formatTime(parsed, String::DateTime)).constData() : "Not parsed");
-        for (int i=0; i<builds.size(); ++i) {
-            out += String::format<256>("  %s %s\n", builds.at(i).compiler.constData(),
-                                       String::join(builds.at(i).args, ' ').constData());
-        }
-        return out;
+        String ret = sourceFile;
+        if (parsed)
+            ret += " Parsed: " + String::formatTime(parsed, String::DateTime);
+        if (!isJS())
+            ret += (compiler + " " + String::join(args, ' '));
+        return ret;
     }
 };
 
 template <> inline Serializer &operator<<(Serializer &s, const SourceInformation &t)
 {
-    s << t.sourceFile << t.parsed << t.builds.size();
-    for (int i=0; i<t.builds.size(); ++i) {
-        s << t.builds.at(i).compiler << t.builds.at(i).args;
-    }
-
-
+    s << t.sourceFile << t.parsed << t.compiler << t.args;
     return s;
 }
 
 template <> inline Deserializer &operator>>(Deserializer &s, SourceInformation &t)
 {
-    s >> t.sourceFile >> t.parsed;
-    int size;
-    s >> size;
-    t.builds.resize(size);
-    for (int i=0; i<size; ++i) {
-        s >> t.builds[i].compiler >> t.builds[i].args;
-    }
+    s >> t.sourceFile >> t.parsed >> t.compiler >> t.args;
     return s;
 }
 

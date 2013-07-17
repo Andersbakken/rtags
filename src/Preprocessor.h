@@ -12,7 +12,7 @@ class Process;
 class Preprocessor : public EventReceiver
 {
 public:
-    Preprocessor(const SourceInformation &args, uint8_t buildIndex, Connection *connection);
+    Preprocessor(const SourceInformation &args, Connection *connection);
     ~Preprocessor();
 
     void preprocess();
@@ -22,7 +22,6 @@ private:
 
 private:
     const SourceInformation mArgs;
-    const uint8_t mBuildIndex;
     Connection *mConnection;
 
     Process *mProc;
