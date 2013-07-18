@@ -900,7 +900,7 @@ shared_ptr<Project> Server::setCurrentProject(const shared_ptr<Project> &project
 {
     shared_ptr<Project> old = mCurrentProject.lock();
     if (project && project != old) {
-        if (old)
+        if (old && old->fileManager)
             old->fileManager->clearFileSystemWatcher();
         mCurrentProject = project;
         FILE *f = fopen((mOptions.dataDir + ".currentProject").constData(), "w");
