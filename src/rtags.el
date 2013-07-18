@@ -1760,7 +1760,7 @@ References to references will be treated as references to the referenced symbol"
   (rtags-save-location)
   (let* ((fn (buffer-file-name))
          (alternatives (with-temp-buffer
-                         (rtags-call-rc :path fn "--local-symbols" fn "-Y")
+                         (rtags-call-rc :path fn :path-filter fn "--imenu" "--list-symbols" "-Y")
                          (eval (read (buffer-string)))))
          (match (car alternatives)))
     (if (> (length alternatives) 1)
