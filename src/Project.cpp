@@ -152,6 +152,20 @@ void Project::unload()
     }
     mJobs.clear();
     fileManager.reset();
+
+    mSymbols.clear();
+    mErrorSymbols.clear();
+    mSymbolNames.clear();
+    mUsr.clear();
+    mFiles.clear();
+    mSources.clear();
+    mVisitedFiles.clear();
+    mDependencies.clear();
+
+    for (LinkedList<CachedUnit*>::const_iterator it = mCachedUnits.begin(); it != mCachedUnits.end(); ++it) {
+        delete *it;
+    }
+    mCachedUnits.clear();
 }
 
 bool Project::match(const Match &p, bool *indexed) const
