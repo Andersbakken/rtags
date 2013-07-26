@@ -201,16 +201,21 @@ bool GccArguments::parse(String args, const Path &base)
                     mClangArgs.append("-I" + inc);
             } else if (arg.startsWith("-std") || arg == "-m32") {
                 mClangArgs.append(arg);
-            } else if (arg == "-include"
-                       || arg == "-isystem"
-                       || arg == "-iquote") {
-                if (i + 1 < s) {
-                    bool ok;
-                    Path inc = Path::resolved(split.at(++i), Path::RealPath, path, &ok);
-                    if (ok) {
-                        mClangArgs.append(arg);
-                        mClangArgs.append(inc);
-                    }
+            } else if (arg.startsWith("-include")
+                       || arg.startsWith("-isystem")
+                       || arg.startsWith("-iquote")) {
+                const int from = (arg.startsWith("-iquote") ? 7 : 8);
+                assert(args.size() >= from);
+                bool ok = false;
+                Path inc;
+                if (arg.size() > from) {
+                    inc = Path::resolved(arg.mid(from), Path::RealPath, path, &ok);
+                } else if (i + 1 < s) {
+                    inc = Path::resolved(split.at(++i), Path::RealPath, path, &ok);
+                }
+                if (ok) {
+                    mClangArgs.append(arg.left(from));
+                    mClangArgs.append(inc);
                 }
             }
         } else {
