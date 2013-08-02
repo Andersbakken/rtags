@@ -22,7 +22,6 @@ static void *Sync = &Sync;
 
 enum {
     SaveTimeout = 2000,
-    ModifiedFilesTimeout = 50,
     SyncTimeout = 2000
 };
 
@@ -78,6 +77,7 @@ bool Project::restore()
         in >> mSymbols >> mSymbolNames >> mUsr >> mDependencies >> mSources >> mVisitedFiles;
 
         DependencyMap reversedDependencies;
+        Set<uint32_t> dirty;
         // these dependencies are in the form of:
         // Path.cpp: Path.h, String.h ...
         // mDependencies are like this:
@@ -104,7 +104,7 @@ bool Project::restore()
             if (!it->second.sourceFile.isFile()) {
                 error() << it->second.sourceFile << "seems to have disappeared";
                 mSources.erase(it++);
-                mModifiedFiles.insert(it->first);
+                dirty.insert(it->first);
             } else {
                 const time_t parsed = it->second.parsed;
                 // error() << "parsed" << String::formatTime(parsed, String::DateTime) << parsed << it->second.sourceFile;
@@ -113,17 +113,17 @@ bool Project::restore()
                     assert(mDependencies.contains(it->first));
                     const Set<uint32_t> &deps = reversedDependencies[it->first];
                     for (Set<uint32_t>::const_iterator d = deps.begin(); d != deps.end(); ++d) {
-                        if (!mModifiedFiles.contains(*d) && Location::path(*d).lastModified() > parsed) {
+                        if (!dirty.contains(*d) && Location::path(*d).lastModified() > parsed) {
                             // error() << Location::path(*d).lastModified() << "is more than" << parsed;
-                            mModifiedFiles.insert(*d);
+                            dirty.insert(*d);
                         }
                     }
                 }
                 ++it;
             }
         }
-        if (!mModifiedFiles.isEmpty())
-            startDirtyJobs();
+        if (!dirty.isEmpty())
+            startDirtyJobs(dirty);
     }
 end:
     // fileManager->jsFilesChanged().connect(this, &Project::onJSFilesAdded);
@@ -413,15 +413,11 @@ bool Project::index(const Path &sourceFile, const Path &cc, const List<String> &
 void Project::onFileModified(const Path &file)
 {
     const uint32_t fileId = Location::fileId(file);
-    debug() << file << "was modified" << fileId << mModifiedFiles.contains(fileId);
-    if (!fileId || !mModifiedFiles.insert(fileId)) {
-        return;
-    }
-    if (mModifiedFiles.size() == 1 && file.isSource()) {
-        startDirtyJobs();
-    } else {
-        mModifiedFilesTimer.start(shared_from_this(), ModifiedFilesTimeout,
-                                  SingleShot, ModifiedFiles);
+    debug() << file << "was modified" << fileId;
+    if (fileId) {
+        Set<uint32_t> dirty;
+        dirty.insert(fileId);
+        startDirtyJobs(dirty);
     }
 }
 
@@ -490,9 +486,8 @@ int Project::reindex(const Match &match)
         }
         if (dirty.isEmpty())
             return 0;
-        mModifiedFiles += dirty;
     }
-    startDirtyJobs();
+    startDirtyJobs(dirty);
     return dirty.size();
 }
 
@@ -527,21 +522,20 @@ void Project::onValidateDBJobErrors(const Set<Location> &errors)
     mPreviousErrors = errors;
 }
 
-void Project::startDirtyJobs()
+void Project::startDirtyJobs(const Set<uint32_t> &dirty)
 {
     Set<uint32_t> dirtyFiles;
-    Map<Path, List<String> > toIndex;
     {
         MutexLocker lock(&mMutex);
-        std::swap(dirtyFiles, mModifiedFiles);
-        for (Set<uint32_t>::const_iterator it = dirtyFiles.begin(); it != dirtyFiles.end(); ++it) {
+        for (Set<uint32_t>::const_iterator it = dirty.begin(); it != dirty.end(); ++it) {
             const Set<uint32_t> deps = mDependencies.value(*it);
-            dirtyFiles += deps;
-            mVisitedFiles.remove(*it);
-            mVisitedFiles -= deps;
+            dirtyFiles.insert(*it);
+            if (!deps.isEmpty())
+                dirtyFiles += deps;
         }
-        mPendingDirtyFiles.unite(dirtyFiles);
+        mVisitedFiles -= dirtyFiles;
     }
+
     bool indexed = false;
     for (Set<uint32_t>::const_iterator it = dirtyFiles.begin(); it != dirtyFiles.end(); ++it) {
         const SourceInformationMap::const_iterator found = mSources.find(*it);
@@ -550,11 +544,12 @@ void Project::startDirtyJobs()
             indexed = true;
         }
     }
-    if (!indexed && !mPendingDirtyFiles.isEmpty()) {
-        RTags::dirtySymbols(mSymbols, mPendingDirtyFiles);
-        RTags::dirtySymbolNames(mSymbolNames, mPendingDirtyFiles);
-        RTags::dirtyUsr(mUsr, mPendingDirtyFiles);
-        mPendingDirtyFiles.clear();
+    if (!indexed && !dirtyFiles.isEmpty()) {
+        RTags::dirtySymbols(mSymbols, dirtyFiles);
+        RTags::dirtySymbolNames(mSymbolNames, dirtyFiles);
+        RTags::dirtyUsr(mUsr, dirtyFiles);
+    } else {
+        mPendingDirtyFiles += dirtyFiles;
     }
 }
 
@@ -826,8 +821,6 @@ void Project::timerEvent(TimerEvent *e)
                 << MemoryMonitor::usage() / (1024.0 * 1024.0) << "mb of memory";
         mSaveTimer.start(shared_from_this(), SaveTimeout, SingleShot, Save);
         mJobCounter = 0;
-    } else if (e->userData() == ModifiedFiles) {
-        startDirtyJobs();
     } else {
         assert(0 && "Unexpected timer event in Project");
         e->stop();
