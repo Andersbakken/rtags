@@ -1141,6 +1141,7 @@ void IndexerJobClang::index()
 {
     UnitList &units = data()->units;
     units.resize(sourceInformation().builds.size());
+    mContents = mSourceInformation.sourceFile.readAll();
 
     if (type() == Dump) {
         assert(id() != -1);
@@ -1156,7 +1157,6 @@ void IndexerJobClang::index()
         int unitCount = 0;
         const int buildCount = mSourceInformation.builds.size();
         mParseTime = time(0);
-        mContents = mSourceInformation.sourceFile.readAll();
         for (int i=0; i<buildCount; ++i) {
             if (!parse(i))
                 return;
