@@ -24,3 +24,4 @@ gr
 /src/librtags.so
 /src/rtags-esprima.js
 /.ninja_deps
+/compile_commands.json

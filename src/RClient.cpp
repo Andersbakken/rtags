@@ -841,17 +841,20 @@ bool RClient::parse(int &argc, char **argv)
                 projectCommands.append(cmd);
             break; }
         case LoadCompilationDatabase: {
-            Path filename;
-            if (optarg)
-                filename = optarg;
-            else
-                filename = "compile_commands.json";
-            filename.resolve(Path::MakeAbsolute);
-            if (!filename.exists()) {
-                fprintf(stderr, "%s does not seem to exist\n", filename.constData());
+            Path fileName;
+            if (optarg) {
+                fileName = optarg;
+            } else if (optind < argc && argv[optind][0] != '-') {
+                fileName = argv[optind++];
+            } else {
+                fileName = "compile_commands.json";
+            }
+            fileName.resolve(Path::MakeAbsolute);
+            if (!fileName.exists()) {
+                fprintf(stderr, "%s does not seem to exist\n", fileName.constData());
                 return false;
             }
-            addQuery(QueryMessage::LoadCompilationDatabase, filename);
+            addQuery(QueryMessage::LoadCompilationDatabase, fileName);
             break; }
         case HasFileManager: {
             Path p;
