@@ -937,7 +937,7 @@ bool RClient::parse(int &argc, char **argv)
                 fprintf(stderr, "%s is not a file\n", optarg);
                 return false;
             }
-            QueryCommand *cmd = addQuery(QueryMessage::PreprocessFile, p);
+            addQuery(QueryMessage::PreprocessFile, p);
             break; }
 
         case RemoveFile: {
