@@ -1,7 +1,6 @@
 #include "Server.h"
 
 #include "Client.h"
-#include "CompileJob.h"
 #include "CompileMessage.h"
 #include "CompletionJob.h"
 #include "CreateOutputMessage.h"
@@ -241,20 +240,20 @@ void Server::onNewMessage(Message *message, Connection *connection)
 
     switch (message->messageId()) {
     case CompileMessage::MessageId:
-        handleCompileMessage(static_cast<CompileMessage*>(message), connection);
+        handleCompileMessage(static_cast<const CompileMessage&>(*message), connection);
         break;
     case QueryMessage::MessageId:
-        handleQueryMessage(static_cast<QueryMessage*>(message), connection);
+        handleQueryMessage(static_cast<const QueryMessage&>(*message), connection);
         break;
     case CreateOutputMessage::MessageId:
-        handleCreateOutputMessage(static_cast<CreateOutputMessage*>(message), connection);
+        handleCreateOutputMessage(static_cast<const CreateOutputMessage&>(*message), connection);
         break;
     case CompletionMessage::MessageId: {
-        CompletionMessage *completionMessage = static_cast<CompletionMessage*>(message);
-        if (completionMessage->flags() & CompletionMessage::Stream) {
+        const CompletionMessage &completionMessage = static_cast<const CompletionMessage&>(*message);
+        if (completionMessage.flags() & CompletionMessage::Stream) {
             handleCompletionStream(completionMessage, connection);
         } else {
-            handleCompletionMessage(static_cast<CompletionMessage*>(message), connection);
+            handleCompletionMessage(completionMessage, connection);
         }
         break; }
     case ResponseMessage::MessageId:
@@ -271,15 +270,15 @@ void Server::onNewMessage(Message *message, Connection *connection)
         project->fileManager->reload();
 }
 
-void Server::handleCompileMessage(CompileMessage *message, Connection *conn)
+void Server::handleCompileMessage(const CompileMessage &message, Connection *conn)
 {
     conn->finish(); // nothing to wait for
-    Path path = message->arguments();
+    Path path = message.arguments();
     if (path.endsWith(".js") && !path.contains(' ')) {
         if (mOptions.options & NoEsprima)
             return;
         if (!path.isAbsolute())
-            path.prepend(message->path());
+            path.prepend(message.path());
         const Path srcRoot = RTags::findProjectRoot(path);
         if (srcRoot.isEmpty()) {
             error() << "Can't find project root for" << path;
@@ -301,109 +300,109 @@ void Server::handleCompileMessage(CompileMessage *message, Connection *conn)
             project->index(path.resolved());
         }
     } else {
-        shared_ptr<CompileJob> job(new CompileJob(*message));
-        job->argsReady().connect(this, &Server::processSourceFile);
-        mQueryThreadPool.start(job);
+        GccArguments args;
+        if (args.parse(message.arguments(), message.path()))
+            index(args, message.projects());
     }
 }
 
-void Server::handleCreateOutputMessage(CreateOutputMessage *message, Connection *conn)
+void Server::handleCreateOutputMessage(const CreateOutputMessage &message, Connection *conn)
 {
-    new LogObject(conn, message->level());
+    new LogObject(conn, message.level());
 }
 
-void Server::handleQueryMessage(QueryMessage *message, Connection *conn)
+void Server::handleQueryMessage(const QueryMessage &message, Connection *conn)
 {
-    conn->setSilent(message->flags() & QueryMessage::Silent);
-    updateProject(message->projects());
+    conn->setSilent(message.flags() & QueryMessage::Silent);
+    updateProject(message.projects());
 
-    switch (message->type()) {
+    switch (message.type()) {
     case QueryMessage::Invalid:
         assert(0);
         break;
     case QueryMessage::Builds:
-        builds(*message, conn);
+        builds(message, conn);
         break;
     case QueryMessage::IsIndexing:
-        isIndexing(*message, conn);
+        isIndexing(message, conn);
         break;
     case QueryMessage::RemoveFile:
-        removeFile(*message, conn);
+        removeFile(message, conn);
         break;
     case QueryMessage::JSON:
-        JSON(*message, conn);
+        JSON(message, conn);
         break;
     case QueryMessage::JobCount:
-        jobCount(*message, conn);
+        jobCount(message, conn);
         break;
     case QueryMessage::FixIts:
-        fixIts(*message, conn);
+        fixIts(message, conn);
         break;
     case QueryMessage::FindFile:
-        findFile(*message, conn);
+        findFile(message, conn);
         break;
     case QueryMessage::DumpFile:
-        dumpFile(*message, conn);
+        dumpFile(message, conn);
         break;
     case QueryMessage::Dependencies:
-        dependencies(*message, conn);
+        dependencies(message, conn);
         break;
     case QueryMessage::DeleteProject:
-        removeProject(*message, conn);
+        removeProject(message, conn);
         break;
     case QueryMessage::UnloadProject:
-        removeProject(*message, conn);
+        removeProject(message, conn);
         break;
     case QueryMessage::ReloadProjects:
-        reloadProjects(*message, conn);
+        reloadProjects(message, conn);
         break;
     case QueryMessage::Project:
-        project(*message, conn);
+        project(message, conn);
         break;
     case QueryMessage::LoadCompilationDatabase:
-        loadCompilationDatabase(*message, conn);
+        loadCompilationDatabase(message, conn);
         break;
     case QueryMessage::Reindex: {
-        reindex(*message, conn);
+        reindex(message, conn);
         break; }
     case QueryMessage::ClearProjects:
-        clearProjects(*message, conn);
+        clearProjects(message, conn);
         break;
     case QueryMessage::CursorInfo:
-        cursorInfo(*message, conn);
+        cursorInfo(message, conn);
         break;
     case QueryMessage::Shutdown:
-        shutdown(*message, conn);
+        shutdown(message, conn);
         break;
     case QueryMessage::FollowLocation:
-        followLocation(*message, conn);
+        followLocation(message, conn);
         break;
     case QueryMessage::ReferencesLocation:
-        referencesForLocation(*message, conn);
+        referencesForLocation(message, conn);
         break;
     case QueryMessage::ReferencesName:
-        referencesForName(*message, conn);
+        referencesForName(message, conn);
         break;
     case QueryMessage::ListSymbols:
-        listSymbols(*message, conn);
+        listSymbols(message, conn);
         break;
     case QueryMessage::FindSymbols:
-        findSymbols(*message, conn);
+        findSymbols(message, conn);
         break;
     case QueryMessage::Status:
-        status(*message, conn);
+        status(message, conn);
         break;
     case QueryMessage::IsIndexed:
-        isIndexed(*message, conn);
+        isIndexed(message, conn);
         break;
     case QueryMessage::HasFileManager:
-        hasFileManager(*message, conn);
+        hasFileManager(message, conn);
         break;
     case QueryMessage::PreprocessFile:
-        preprocessFile(*message, conn);
+        preprocessFile(message, conn);
         break;
     case QueryMessage::ReloadFileManager:
-        reloadFileManager(*message, conn);
+        reloadFileManager(message, conn);
         break;
     }
 }
@@ -786,7 +785,7 @@ void Server::startQueryJob(const shared_ptr<Job> &job)
     mQueryThreadPool.start(job);
 }
 
-void Server::processSourceFile(const GccArguments &args, const List<String> &projects)
+void Server::index(const GccArguments &args, const List<String> &projects)
 {
     if (args.lang() == GccArguments::NoLang || mOptions.ignoredCompilers.contains(args.compiler())) {
         return;
@@ -1136,48 +1135,51 @@ void Server::loadCompilationDatabase(const QueryMessage &query, Connection *conn
         conn->finish();
         return;
     }
-    
-    bool ok = true;
+
     const Value& root = parser.root();
+    bool ok = true;
     if (root.type() == Value::Type_List) {
         const List<Value>& items = root.toList();
         for (int i = 0; i < items.size(); ++i) {
             const Value& item = items.at(i);
-            if (item.type() == Value::Type_Map) {
-                const Map<String, Value>& entry = item.toMap();
-                Map<String, Value>::const_iterator entryItem = entry.begin();
-                const Map<String, Value>::const_iterator entryEnd = entry.end();
-                Path dir;
-                String args;
-                while (entryItem != entryEnd) {
-                    if (entryItem->first == "directory" && entryItem->second.type() == Value::Type_String)
-                        dir = entryItem->second.toString();
-                    else if (entryItem->first == "command" && entryItem->second.type() == Value::Type_String)
-                        args = entryItem->second.toString();
-                    ++entryItem;
-                }
-                if (!dir.isEmpty() && !args.isEmpty()) {
-                    //error() << "parsing" << args;
-                    args.replace("\\\"", "\"");
-                    shared_ptr<CompileJob> job(new CompileJob(args, dir, query.projects()));
-                    job->argsReady().connect(this, &Server::processSourceFile);
-                    mQueryThreadPool.start(job);
+            if (item.type() != Value::Type_Map) {
+                ok = false;
+                break;
+            }
+            const Map<String, Value>& entry = item.toMap();
+            Map<String, Value>::const_iterator entryItem = entry.begin();
+            const Map<String, Value>::const_iterator entryEnd = entry.end();
+            Path dir;
+            String args;
+            while (entryItem != entryEnd) {
+                if (entryItem->first == "directory" && entryItem->second.type() == Value::Type_String)
+                    dir = entryItem->second.toString();
+                else if (entryItem->first == "command" && entryItem->second.type() == Value::Type_String)
+                    args = entryItem->second.toString();
+                ++entryItem;
+            }
+            if (!dir.isEmpty() && !args.isEmpty()) {
+                //error() << "parsing" << args;
+                args.replace("\\\"", "\"");
+                GccArguments gccArgs;
+                if (gccArgs.parse(args, dir)) {
+                    index(gccArgs, query.projects());
                 } else {
                     ok = false;
+                    break;
                 }
             } else {
                 ok = false;
             }
-            if (!ok)
-                break;
         }
     } else {
         ok = false;
     }
-    if (ok)
+    if (ok) {
         conn->write("Compilation database loaded");
-    else
+    } else {
         conn->write("Invalid compilation database");
+    }
     conn->finish();
 }
 
@@ -1211,10 +1213,10 @@ void Server::builds(const QueryMessage &query, Connection *conn)
     conn->finish();
 }
 
-void Server::handleCompletionMessage(CompletionMessage *message, Connection *conn)
+void Server::handleCompletionMessage(const CompletionMessage &message, Connection *conn)
 {
-    updateProject(message->projects());
-    const Path path = message->path();
+    updateProject(message.projects());
+    const Path path = message.path();
     shared_ptr<Project> project = updateProjectForLocation(path);
 
     if (!project || !project->isValid()) {
@@ -1224,13 +1226,13 @@ void Server::handleCompletionMessage(CompletionMessage *message, Connection *con
     }
     if (mActiveCompletions.contains(path)) {
         PendingCompletion &pending = mPendingCompletions[path];
-        pending.line = message->line();
-        pending.column = message->column();
-        pending.pos = message->pos();
-        pending.contents = message->contents();
+        pending.line = message.line();
+        pending.column = message.column();
+        pending.pos = message.pos();
+        pending.contents = message.contents();
         pending.connection = conn;
     } else {
-        startCompletion(path, message->line(), message->column(), message->pos(), message->contents(), conn);
+        startCompletion(path, message.line(), message.column(), message.pos(), message.contents(), conn);
     }
 }
 
@@ -1303,7 +1305,7 @@ void Server::onCompletionStreamDisconnected(SocketClient *client)
     mCompletionStreams.remove(client);
 }
 
-void Server::handleCompletionStream(CompletionMessage *message, Connection *conn)
+void Server::handleCompletionStream(const CompletionMessage &message, Connection *conn)
 {
     SocketClient *client = conn->client();
     assert(client);

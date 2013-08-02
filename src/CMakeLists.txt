@@ -65,7 +65,6 @@ set(RTAGS_SHARED_SOURCES
 add_library(shared ${RTAGS_SHARED_SOURCES})
 
 set(RDM_SOURCES
-  CompileJob.cpp
   CompletionJob.cpp
   CursorInfo.cpp
   CursorInfoJob.cpp
