@@ -1605,6 +1605,7 @@ References to references will be treated as references to the referenced symbol"
 
 (defun rtags-buffer-status (&optional buffer)
   (let ((path (buffer-file-name buffer)))
+    (unless path (setq path default-directory))
     (with-temp-buffer
       (rtags-call-rc :path path "-T" path :noerror t)
       (goto-char (point-min))
