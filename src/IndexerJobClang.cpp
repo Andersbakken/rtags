@@ -782,24 +782,15 @@ bool IndexerJobClang::handleCursor(const CXCursor &cursor, CXCursorKind kind, co
             info.definition = clang_isCursorDefinition(cursor);
         }
         info.kind = kind;
-        const String usr = RTags::eatString(clang_getCursorUSR(cursor));
+        // apparently some function decls will give a different usr for
+        // their definition and their declaration.  Using the canonical
+        // cursor's usr allows us to join them. Check JSClassRelease in
+        // JavaScriptCore for an example.
+        const String usr = RTags::eatString(clang_getCursorUSR(clang_getCanonicalCursor(cursor)));
         if (!usr.isEmpty())
             mData->usrMap[usr].insert(location);
 
         switch (info.kind) {
-        case CXCursor_FunctionDecl: {
-            // apparently some function decls will give a different usr for
-            // their definition and their declaration.  Using the canonical
-            // cursor's usr allows us to join them. Check JSClassRelease in
-            // JavaScriptCore for an example.
-            const CXCursor canonical = clang_getCanonicalCursor(cursor);
-            if (!clang_equalCursors(canonical, cursor)) {
-                const String canonicalUsr = RTags::eatString(clang_getCursorUSR(canonical));
-                if (canonicalUsr != usr && !canonicalUsr.isEmpty()) {
-                    mData->usrMap[canonicalUsr].insert(location);
-                }
-            }
-            break; }
         case CXCursor_Constructor:
         case CXCursor_Destructor: {
             Location parentLocation = createLocation(clang_getCursorSemanticParent(cursor));
