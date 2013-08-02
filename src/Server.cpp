@@ -13,6 +13,7 @@
 #include "FollowLocationJob.h"
 #include "IndexerJob.h"
 #include "JSONJob.h"
+#include "JSONParser.h"
 #include "ListSymbolsJob.h"
 #include "LogObject.h"
 #include "Match.h"
@@ -358,6 +359,9 @@ void Server::handleQueryMessage(QueryMessage *message, Connection *conn)
         break;
     case QueryMessage::Project:
         project(*message, conn);
+        break;
+    case QueryMessage::LoadCompilationDatabase:
+        loadCompilationDatabase(*message, conn);
         break;
     case QueryMessage::Reindex: {
         reindex(*message, conn);
@@ -1119,6 +1123,61 @@ void Server::clearProjects(const QueryMessage &query, Connection *conn)
 {
     clearProjects();
     conn->write("Cleared projects");
+    conn->finish();
+}
+
+void Server::loadCompilationDatabase(const QueryMessage &query, Connection *conn)
+{
+    const Path path = query.query();
+    const String json = path.readAll();
+    JSONParser parser(json);
+    if (!parser.isValid()) {
+        conn->write("Can't parse compilation database");
+        conn->finish();
+        return;
+    }
+    
+    bool ok = true;
+    const Value& root = parser.root();
+    if (root.type() == Value::Type_List) {
+        const List<Value>& items = root.toList();
+        for (int i = 0; i < items.size(); ++i) {
+            const Value& item = items.at(i);
+            if (item.type() == Value::Type_Map) {
+                const Map<String, Value>& entry = item.toMap();
+                Map<String, Value>::const_iterator entryItem = entry.begin();
+                const Map<String, Value>::const_iterator entryEnd = entry.end();
+                Path dir;
+                String args;
+                while (entryItem != entryEnd) {
+                    if (entryItem->first == "directory" && entryItem->second.type() == Value::Type_String)
+                        dir = entryItem->second.toString();
+                    else if (entryItem->first == "command" && entryItem->second.type() == Value::Type_String)
+                        args = entryItem->second.toString();
+                    ++entryItem;
+                }
+                if (!dir.isEmpty() && !args.isEmpty()) {
+                    //error() << "parsing" << args;
+                    args.replace("\\\"", "\"");
+                    shared_ptr<CompileJob> job(new CompileJob(args, dir, query.projects()));
+                    job->argsReady().connect(this, &Server::processSourceFile);
+                    mQueryThreadPool.start(job);
+                } else {
+                    ok = false;
+                }
+            } else {
+                ok = false;
+            }
+            if (!ok)
+                break;
+        }
+    } else {
+        ok = false;
+    }
+    if (ok)
+        conn->write("Compilation database loaded");
+    else
+        conn->write("Invalid compilation database");
     conn->finish();
 }
 

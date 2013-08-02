@@ -116,6 +116,7 @@ private:
     void reloadProjects(const QueryMessage &query, Connection *conn);
     void project(const QueryMessage &query, Connection *conn);
     void clearProjects(const QueryMessage &query, Connection *conn);
+    void loadCompilationDatabase(const QueryMessage &query, Connection *conn);
     void shutdown(const QueryMessage &query, Connection *conn);
     void builds(const QueryMessage &query, Connection *conn);
     int nextId();

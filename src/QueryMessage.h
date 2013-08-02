@@ -30,6 +30,7 @@ public:
         JSON,
         JobCount,
         ListSymbols,
+        LoadCompilationDatabase,
         PreprocessFile,
         Project,
         ReferencesLocation,

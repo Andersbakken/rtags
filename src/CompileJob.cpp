@@ -6,6 +6,11 @@ CompileJob::CompileJob(const CompileMessage &message)
 {
 }
 
+CompileJob::CompileJob(const String& args, const String& path, const List<String>& projects)
+    : mArgs(args), mPath(path), mProjects(projects)
+{
+}
+
 void CompileJob::run()
 {
     GccArguments args;

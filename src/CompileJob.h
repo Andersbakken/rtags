@@ -11,6 +11,7 @@ class CompileJob : public ThreadPool::Job
 {
 public:
     CompileJob(const CompileMessage &message);
+    CompileJob(const String& args, const String& path, const List<String>& projects);
     virtual void run();
     signalslot::Signal2<const GccArguments&, const List<String> &> &argsReady() { return mArgsReady; }
 private:

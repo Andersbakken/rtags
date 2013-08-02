@@ -77,6 +77,7 @@ set(RDM_SOURCES
   GccArguments.cpp
   IndexerJob.cpp
   JSONJob.cpp
+  JSONParser.cpp
   Job.cpp
   ListSymbolsJob.cpp
   Preprocessor.cpp
@@ -127,7 +128,7 @@ target_link_libraries(rtags ${CLANG_LIBS} ${CORESERVICES_LIBRARY} ${COREFOUNDATI
 add_dependencies(rtags rct)
 
 add_executable(rdm rdm.cpp)
-target_link_libraries(rdm rtags shared)
+target_link_libraries(rdm rtags shared ${V8_LIBS})
 
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/bin)
 

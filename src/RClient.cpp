@@ -45,6 +45,7 @@ enum OptionType {
     JobCount,
     LineNumbers,
     ListSymbols,
+    LoadCompilationDatabase,
     LogFile,
     Man,
     MatchCaseInsensitive,
@@ -168,6 +169,7 @@ struct Option opts[] = {
     { IMenu, "imenu", 0, no_argument, "Use with --list-symbols to provide output for (rtags-imenu) (filter namespaces, fully qualified function names, ignore certain cursors etc)." },
     { Context, "context", 't', required_argument, "Context for current symbol (for fuzzy matching with dirty files)." }, // ### multiple context doesn't work
     { ContainingFunction, "containing-function", 'o', no_argument, "Include name of containing function in output. "},
+    { LoadCompilationDatabase, "load-compilation-database", 'J', optional_argument, "Load compilation database from JSON file" },
     { None, 0, 0, 0, 0 }
 };
 
@@ -837,6 +839,19 @@ bool RClient::parse(int &argc, char **argv)
             assert(cmd);
             if (type == QueryMessage::Project)
                 projectCommands.append(cmd);
+            break; }
+        case LoadCompilationDatabase: {
+            Path filename;
+            if (optarg)
+                filename = optarg;
+            else
+                filename = "compile_commands.json";
+            filename.resolve(Path::MakeAbsolute);
+            if (!filename.exists()) {
+                fprintf(stderr, "%s does not seem to exist\n", filename.constData());
+                return false;
+            }
+            addQuery(QueryMessage::LoadCompilationDatabase, filename);
             break; }
         case HasFileManager: {
             Path p;
