@@ -792,27 +792,27 @@ void Server::index(const GccArguments &args, const List<String> &projects)
     } else {
         srcRoot = args.projectRoot();
     }
-    List<Path> inputFiles = args.inputFiles();
     if (srcRoot.isEmpty()) {
-        error("Can't find project root for %s", String::join(inputFiles, ", ").constData());
+        error("Can't find project root for %s", String::join(args.inputFiles(), ", ").constData());
         return;
     }
 
+    List<Path> inputFiles = args.inputFiles();
     debug() << inputFiles << "in" << srcRoot;
     const int count = inputFiles.size();
-    int filtered = 0;
     if (!mOptions.excludeFilters.isEmpty()) {
-        for (int i=0; i<count; ++i) {
-            Path &p = inputFiles[i];
-            if (Filter::filter(p, mOptions.excludeFilters) == Filter::Filtered) {
-                warning() << "Filtered out" << p;
-                p.clear();
-                ++filtered;
+        int i = 0;
+        while (i < count) {
+            if (Filter::filter(inputFiles.at(i), mOptions.excludeFilters) == Filter::Filtered) {
+                debug() << "Filtered out" << inputFiles.at(i);
+                inputFiles.removeAt(i);
+            } else {
+                ++i;
             }
         }
     }
-    if (filtered == count) {
-        warning("no input file?");
+    if (inputFiles.isEmpty()) {
+        warning("no input files?");
         return;
     }
 

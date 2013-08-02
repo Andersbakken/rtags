@@ -78,6 +78,7 @@ void usage(FILE *f)
             "  --ignore-compiler|-b [arg]        Alias this compiler (Might be practical to avoid duplicated builds for things like icecc).\n"
             "  --disable-plugin|-p [arg]         Don't load this plugin\n"
             "  --disable-esprima|-E              Don't use esprima\n"
+            "  --disable-compiler-flags|-K       Don't query compiler for default flags\n"
             "  --clang-stack-size|-t [arg]       Use this much stack for clang's threads (default %d).\n", defaultStackSize);
 }
 
@@ -127,6 +128,7 @@ int main(int argc, char** argv)
         { "disable-plugin", required_argument, 0, 'p' },
         { "watch-system-paths", no_argument, 0, 'w' },
         { "disable-esprima", no_argument, 0, 'E' },
+        { "disable-compiler-flags", no_argument, 0, 'K' },
 #ifdef OS_Darwin
         { "filemanager-watch", no_argument, 0, 'M' },
 #else
@@ -213,7 +215,7 @@ int main(int argc, char** argv)
     serverOpts.socketFile = String::format<128>("%s.rdm", Path::home().constData());
     serverOpts.threadCount = ThreadPool::idealThreadCount();
     serverOpts.completionCacheSize = 0;
-    serverOpts.options = Server::Wall|Server::SpellChecking;
+    serverOpts.options = Server::Wall|Server::SpellChecking|Server::UseCompilerFlags;
 #ifdef OS_Darwin
     serverOpts.options |= Server::NoFileManagerWatch;
 #endif
@@ -262,6 +264,9 @@ int main(int argc, char** argv)
         case 'h':
             usage(stdout);
             return 0;
+        case 'K':
+            serverOpts.options &= ~Server::UseCompilerFlags;
+            break;
         case 'E':
             serverOpts.options |= Server::NoEsprima;
             break;

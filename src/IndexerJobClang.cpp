@@ -1,6 +1,7 @@
 #include "IndexerJobClang.h"
 #include "Project.h"
 #include "Server.h"
+#include "CompilerManager.h"
 
 #include "RTagsPlugin.h"
 
@@ -823,7 +824,7 @@ bool IndexerJobClang::parse()
         abort();
         return false;
     }
-    const List<String> args = mSourceInformation.args;
+    List<String> args = mSourceInformation.args + CompilerManager::flags(mSourceInformation.compiler);
     CXTranslationUnit &unit = data()->unit;
     assert(!unit);
 

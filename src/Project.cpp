@@ -395,6 +395,7 @@ bool Project::index(const Path &sourceFile, const Path &cc, const List<String> &
     if (sourceInformation.isNull()) {
         sourceInformation.sourceFile = sourceFile;
         sourceInformation.args = args;
+        sourceInformation.compiler = compiler;
     } else if (js) {
         debug() << sourceFile << " is not dirty. ignoring";
         return false;
