@@ -108,7 +108,7 @@ private:
     void onFileModified(const Path &);
     void addDependencies(const DependencyMap &hash, Set<uint32_t> &newFiles);
     void addFixIts(const DependencyMap &dependencies, const FixItMap &fixIts);
-    int syncDB();
+    void syncDB();
     void startDirtyJobs(const Set<uint32_t> &files);
     void addCachedUnit(const Path &path, const List<String> &args, CXIndex index, CXTranslationUnit unit, int parseCount);
     bool save();
@@ -142,7 +142,7 @@ private:
     };
     Map<uint32_t, PendingJob> mPendingJobs;
 
-    Timer mSaveTimer, mSyncTimer;
+    Timer mSyncTimer;
 
     StopWatch mTimer;
 

@@ -17,12 +17,10 @@
 #include <math.h>
 
 static void *ModifiedFiles = &ModifiedFiles;
-static void *Save = &Save;
 static void *Sync = &Sync;
 
 enum {
-    SaveTimeout = 2000,
-    SyncTimeout = 2000
+    SyncTimeout = 500
 };
 
 Project::Project(const Path &path)
@@ -265,7 +263,6 @@ bool Project::save()
     if (!Server::instance()->saveFileIds())
         return false;
 
-    StopWatch timer;
     Path srcPath = mPath;
     RTags::encodePath(srcPath);
     const Server::Options &options = Server::instance()->options();
@@ -285,7 +282,6 @@ bool Project::save()
     fseek(f, pos, SEEK_SET);
     out << size;
 
-    error() << "saved project" << path() << "in" << String::format<12>("%dms", timer.elapsed()).constData();
     fclose(f);
     return true;
 }
@@ -320,7 +316,6 @@ void Project::index(const SourceInformation &c, IndexerJob::Type type)
         return;
     }
     mSyncTimer.stop();
-    mSaveTimer.stop();
 
     Server::instance()->startIndexerJob(job);
 }
@@ -645,11 +640,10 @@ static inline void writeReferences(const ReferenceMap &references, SymbolMap &sy
     }
 }
 
-int Project::syncDB()
+void Project::syncDB()
 {
     if (mPendingDirtyFiles.isEmpty() && mPendingData.isEmpty())
-        return -1;
-    StopWatch watch;
+        return;
     // for (Map<uint32_t, shared_ptr<IndexData> >::iterator it = mPendingData.begin(); it != mPendingData.end(); ++it) {
     //     writeErrorSymbols(mSymbols, mErrorSymbols, it->second->errors);
     // }
@@ -685,7 +679,6 @@ int Project::syncDB()
         shared_ptr<ValidateDBJob> validate(new ValidateDBJob(static_pointer_cast<Project>(shared_from_this()), mPreviousErrors));
         Server::instance()->startQueryJob(validate);
     }
-    return watch.elapsed();
 }
 
 bool Project::isIndexed(uint32_t fileId) const
@@ -812,14 +805,16 @@ String Project::fixIts(uint32_t fileId) const
 
 void Project::timerEvent(TimerEvent *e)
 {
-    if (e->userData() == Save) {
+    if (e->userData() == Sync) {
+        StopWatch timer;
+        syncDB();
+        const int syncTime = timer.restart();
         save();
-    } else if (e->userData() == Sync) {
-        const int syncTime = syncDB();
+        const int saveTime = timer.elapsed();
         error() << "Jobs took" << (static_cast<double>(mTimer.elapsed()) / 1000.0) << "secs, syncing took"
-                << (static_cast<double>(syncTime) / 1000.0) << " secs, using"
+                << (static_cast<double>(syncTime) / 1000.0) << " secs, saving took"
+                << (static_cast<double>(saveTime) / 1000.0) << " secs, using"
                 << MemoryMonitor::usage() / (1024.0 * 1024.0) << "mb of memory";
-        mSaveTimer.start(shared_from_this(), SaveTimeout, SingleShot, Save);
         mJobCounter = 0;
     } else {
         assert(0 && "Unexpected timer event in Project");
