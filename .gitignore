@@ -25,3 +25,4 @@ gr
 /src/rtags-esprima.js
 /.ninja_deps
 /compile_commands.json
+/tests/dtlcpptest/dtlcpptest

@@ -19,3 +19,6 @@
 [submodule "src/estraverse"]
 	path = src/estraverse
 	url = https://github.com/Constellation/estraverse.git
+[submodule "src/dtl-cpp"]
+	path = src/dtl-cpp
+	url = https://code.google.com/p/dtl-cpp/
