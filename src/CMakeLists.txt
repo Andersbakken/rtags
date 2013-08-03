@@ -124,11 +124,11 @@ if (0 EQUAL 1)
 endif ()
 
 add_library(rtags SHARED ${RDM_SOURCES})
-target_link_libraries(rtags ${CLANG_LIBS} ${CORESERVICES_LIBRARY} ${COREFOUNDATION_LIBRARY} shared rct ${SYSTEM_LIBS})
+target_link_libraries(rtags ${CLANG_LIBS} ${CORESERVICES_LIBRARY} ${COREFOUNDATION_LIBRARY} shared rct ${SYSTEM_LIBS} ${V8_LIBS})
 add_dependencies(rtags rct)
 
 add_executable(rdm rdm.cpp)
-target_link_libraries(rdm rtags shared ${V8_LIBS})
+target_link_libraries(rdm rtags shared)
 
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/bin)
 
@@ -146,7 +146,7 @@ add_custom_target(OUTPUT ${PROJECT_SOURCE_DIR}/src/rtags-esprima.js
 
 add_library(rtagsesprima MODULE IndexerJobEsprima.cpp JSParser.cpp)
 add_dependencies(rtagsesprima rtags)
-target_link_libraries(rtagsesprima ${V8_LIBS} rtags)
+target_link_libraries(rtagsesprima rtags)
 
 add_library(rtagsclang MODULE IndexerJobClang.cpp)
 add_dependencies(rtagsclang rdm)
