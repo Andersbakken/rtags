@@ -799,7 +799,9 @@ return t if rtags is allowed to modify this file"
 
 (defun rtags-switch-to-completion-buffer () (interactive)
   (let ((buf (get-buffer "*RTags Completions*")))
-    (switch-to-buffer-other-window buf)))
+    (if buf
+        (switch-to-buffer-other-window buf)))
+  )
 
 (defun rtags-location-stack-forward ()
   (interactive)
