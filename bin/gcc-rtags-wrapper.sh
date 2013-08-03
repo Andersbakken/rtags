@@ -12,8 +12,6 @@ for i in `which -a "\`basename $0\`"`; do
         [ -n "$RTAGS_SERVER_FILE" ] && RTAGS_ARGS="$RTAGS_ARGS -n$RTAGS_SERVER_FILE"
         [ -n "$RTAGS_PROJECT" ] && RTAGS_ARGS="$RTAGS_ARGS --with-project=$RTAGS_PROJECT"
         [ -z "$RTAGS_COMPILE_TIMEOUT" ] && RTAGS_COMPILE_TIMEOUT=3000
-        args=`which rtags_args`
-        [ -n "$args" ] && RTAGS_ARGS="$RTAGS_ARGS `$args \"$@\"`"
 
         if [ -z "$RTAGS_DISABLED" ] && [ -x "$rc" ]; then
             $rc --timeout=$RTAGS_COMPILE_TIMEOUT $RTAGS_ARGS --silent --compile "$i" "$@" &
