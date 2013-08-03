@@ -259,8 +259,10 @@
               )
           (progn
             (goto-char (point-min))
-            (if (and (not noerror) (looking-at "Can't seem to connect to server"))
-                (error "Can't seem to connect to server. Is rdm running?")))))))
+            (when (looking-at "Can't seem to connect to server")
+              (erase-buffer)
+              (unless noerror
+                (error "Can't seem to connect to server. Is rdm running?"))))))))
   (or async (> (point-max) (point-min))))
 
 (defun rtags-index-js-file ()
@@ -1292,6 +1294,11 @@ References to references will be treated as references to the referenced symbol"
       (rtags-display-overlay overlay (point))
     )
   )
+
+(defun rtags-is-running ()
+  (interactive)
+  (with-temp-buffer
+    (rtags-call-rc "--is-indexing" :noerror t)))
 
 (defun rtags-display-overlay (overlay point)
   (let ((msg (overlay-get overlay 'rtags-error-message)))
