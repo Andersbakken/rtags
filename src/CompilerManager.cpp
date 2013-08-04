@@ -60,7 +60,12 @@ List<String> flags(const Path &compiler)
         while (j < line.size() && isspace(line.at(j)))
             ++j;
         Path path = line.mid(j);
-        if (path.isDir()) {
+        if (path.isDir()
+#ifdef OS_Darwin
+            && !path.contains("/lib/clang/")
+#endif
+            )
+        {
             path.resolve();
             path.prepend("-I");
             flags.append(path);
