@@ -1,9 +1,9 @@
 #ifndef Str_h
 #define Str_h
 
-#include <rct/Tr1.h>
 #include <clang-c/Index.h>
 #include <string.h>
+#include <memory>
 
 class Str
 {
@@ -46,7 +46,7 @@ private:
         CXString string;
         mutable int length;
     };
-    shared_ptr<Shared> mData;
+    std::shared_ptr<Shared> mData;
 };
 
 #endif

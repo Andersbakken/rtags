@@ -5,7 +5,6 @@
 #include <rct/String.h>
 #include "Location.h"
 #include <rct/Log.h>
-#include <rct/Tr1.h>
 #include "FixIt.h"
 #include <rct/Path.h>
 #include "SourceInformation.h"
