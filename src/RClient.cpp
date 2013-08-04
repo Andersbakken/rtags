@@ -257,16 +257,25 @@ static void man()
 class RCCommand
 {
 public:
+    RCCommand(unsigned int f)
+        : flags(f)
+    {}
     virtual ~RCCommand() {}
+    enum Flag {
+        None = 0x0,
+        RequiresNon0Output = 0x1
+    };
     virtual bool exec(RClient *rc, Client *client) = 0;
     virtual String description() const = 0;
+
+    const unsigned int flags;
 };
 
 class QueryCommand : public RCCommand
 {
 public:
-    QueryCommand(QueryMessage::Type t, const String &q)
-        : type(t), query(q), extraQueryFlags(0)
+    QueryCommand(QueryMessage::Type t, const String &q, unsigned int flags)
+        : RCCommand(flags), type(t), query(q), extraQueryFlags(0)
     {}
 
     const QueryMessage::Type type;
@@ -297,10 +306,10 @@ class CompletionCommand : public RCCommand
 {
 public:
     CompletionCommand(const Path &p, int l, int c)
-        : path(p), line(l), column(c), stream(false), client(0)
+        : RCCommand(0), path(p), line(l), column(c), stream(false), client(0)
     {}
     CompletionCommand()
-        : line(-1), column(-1), stream(true), client(0)
+        : RCCommand(0), line(-1), column(-1), stream(true), client(0)
     {
     }
 
@@ -397,7 +406,7 @@ public:
     enum { Default = -3 };
 
     RdmLogCommand(int level)
-        : mLevel(level)
+        : RCCommand(0), mLevel(level)
     {
     }
     virtual bool exec(RClient *rc, Client *client)
@@ -417,7 +426,7 @@ class CompileCommand : public RCCommand
 {
 public:
     CompileCommand(const Path &p, const String &a)
-        : path(p), args(a)
+        : RCCommand(0), path(p), args(a)
     {}
     const Path path;
     const String args;
@@ -447,7 +456,17 @@ RClient::~RClient()
 
 QueryCommand *RClient::addQuery(QueryMessage::Type t, const String &query)
 {
-    QueryCommand *cmd = new QueryCommand(t, query);
+    unsigned int flags = RCCommand::None;
+    switch (t) {
+    case QueryMessage::CodeCompletionEnabled:
+    case QueryMessage::IsIndexing:
+    case QueryMessage::HasFileManager:
+        flags |= RCCommand::RequiresNon0Output;
+        break;
+    default:
+        break;
+    }
+    QueryCommand *cmd = new QueryCommand(t, query, flags);
     mCommands.append(cmd);
     return cmd;
 }
@@ -462,8 +481,26 @@ void RClient::addCompile(const Path &cwd, const String &args)
     mCommands.append(new CompileCommand(cwd, args));
 }
 
+class LogMonitor : public LogOutput
+{
+public:
+    LogMonitor()
+        : LogOutput(Error), gotNon0Output(false)
+    {}
+
+    virtual void log(const char *msg, int len)
+    {
+        if (!gotNon0Output && len && msg && (len > 1 || *msg != '0'))
+            gotNon0Output = true;
+    }
+
+    bool gotNon0Output;
+};
+
 bool RClient::exec()
 {
+    LogMonitor monitor;
+
     RTags::initMessages();
 
     EventLoop::SharedPtr loop(new EventLoop);
@@ -478,8 +515,10 @@ bool RClient::exec()
 
     bool ret = true;
     const int commandCount = mCommands.size();
+    bool requiresNon0Output = false;
     for (int i=0; i<commandCount; ++i) {
         RCCommand *cmd = mCommands.at(i);
+        requiresNon0Output = cmd->flags & RCCommand::RequiresNon0Output;
         debug() << "running command " << cmd->description();
         ret = cmd->exec(this, &client);
         delete cmd;
@@ -490,7 +529,7 @@ bool RClient::exec()
         }
     }
     mCommands.clear();
-    return ret;
+    return ret && (!requiresNon0Output || monitor.gotNon0Output);
 }
 
 bool RClient::parse(int &argc, char **argv)
