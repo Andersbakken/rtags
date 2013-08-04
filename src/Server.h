@@ -57,10 +57,12 @@ public:
     void startQueryJob(const shared_ptr<Job> &job);
     void startIndexerJob(const shared_ptr<ThreadPool::Job> &job);
     struct Options {
-        Options() : options(0), threadCount(0), completionCacheSize(0), unloadTimer(0), clangStackSize(0) {}
+        Options()
+            : options(0), threadCount(0), completionCacheSize(0), unloadTimer(0), clangStackSize(0), clearCompletionCacheInterval(0)
+        {}
         Path socketFile, dataDir;
         unsigned options;
-        int threadCount, completionCacheSize, unloadTimer, clangStackSize;
+        int threadCount, completionCacheSize, unloadTimer, clangStackSize, clearCompletionCacheInterval;
         List<String> defaultArguments, excludeFilters;
         Set<Path> ignoredCompilers;
     };
@@ -76,6 +78,7 @@ private:
 
     bool isCompletionStream(Connection* conn) const;
 
+    void clearCompletionCache();
     void restoreFileIds();
     void clear();
     void onNewConnection();
@@ -167,7 +170,7 @@ private:
     Set<Path> mActiveCompletions;
 
     bool mRestoreProjects;
-    Timer mUnloadTimer;
+    Timer mUnloadTimer, mClearCompletionCacheTimer;
 
     RTagsPluginFactory mPluginFactory;
 

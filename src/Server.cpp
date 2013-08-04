@@ -47,6 +47,7 @@ Server::Server()
     sInstance = this;
 
     mUnloadTimer.timeout().connect(std::bind(&Server::onUnload, this));
+    mClearCompletionCacheTimer.timeout().connect(std::bind(&Server::clearCompletionCache, this));
 }
 
 Server::~Server()
@@ -142,6 +143,10 @@ bool Server::init(const Options &options)
         }
     }
 
+    if (mOptions.clearCompletionCacheInterval && mOptions.completionCacheSize) {
+        clearCompletionCache();
+    }
+
     return true;
 }
 
@@ -226,6 +231,9 @@ void Server::onNewMessage(Message *message, Connection *connection)
 {
     if (mOptions.unloadTimer)
         mUnloadTimer.restart(mOptions.unloadTimer * 1000 * 60, Timer::SingleShot);
+
+    if (mOptions.clearCompletionCacheInterval && mOptions.completionCacheSize && !mClearCompletionCacheTimer.isRunning())
+        mClearCompletionCacheTimer.restart(mOptions.clearCompletionCacheInterval * 1000 * 60, Timer::SingleShot);
 
     ClientMessage *m = static_cast<ClientMessage*>(message);
     const String raw = m->raw();
@@ -1373,4 +1381,20 @@ void Server::onUnload()
             it->second->unload();
         }
     }
+}
+
+Path::VisitResult clearCompletionCacheCallback(const Path &path, void *rx)
+{
+    if (path.isFile() && reinterpret_cast<RegExp*>(rx)->indexIn(path) != -1) {
+        path.rm();
+    }
+
+    return Path::Continue;
+}
+
+void Server::clearCompletionCache()
+{
+    Path path("/tmp/");
+    RegExp rx("/preamble.pch-[A-Za-z0-9][A-Za-z0-9][A-Za-z0-9][A-Za-z0-9][A-Za-z0-9][A-Za-z0-9]$");
+    path.visit(::clearCompletionCacheCallback, &rx);
 }
