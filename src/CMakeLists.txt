@@ -12,6 +12,7 @@ find_package(LibClang REQUIRED)
 include_directories(${CLANG_INCLUDE})
 
 find_package(V8)
+find_package(YAJL)
 find_package(LevelDB)
 
 add_subdirectory(rct)
@@ -76,7 +77,6 @@ set(RDM_SOURCES
   GccArguments.cpp
   IndexerJob.cpp
   JSONJob.cpp
-  JSONParser.cpp
   Job.cpp
   ListSymbolsJob.cpp
   Preprocessor.cpp
@@ -123,6 +123,7 @@ if (0 EQUAL 1)
 endif ()
 
 if (V8_FOUND EQUAL 1)
+  list(APPEND RDM_SOURCES JSONParser.cpp)
   list(APPEND SYSTEM_LIBS ${V8_LIBS})
   include_directories(${V8_INCLUDE})
 
@@ -143,6 +144,11 @@ if (V8_FOUND EQUAL 1)
   endif ()
   add_definitions(-DHAVE_V8)
   add_definitions("-DESPRIMA_JS=\"${PROJECT_SOURCE_DIR}/src/rtags-esprima.js\"")
+elseif (YAJL_FOUND EQUAL 1)
+  list(APPEND RDM_SOURCES JSONParser.cpp)
+  list(APPEND SYSTEM_LIBS ${YAJL_LIBRARY})
+  include_directories(${YAJL_INCLUDE})
+  add_definitions(-DHAVE_YAJL)
 endif ()
 
 add_library(rtags SHARED ${RDM_SOURCES})

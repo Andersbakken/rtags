@@ -1,8 +1,13 @@
 #include "JSONParser.h"
 #include <rct/Log.h>
-#include <v8.h>
+#if defined(HAVE_V8)
+#  include <v8.h>
+#elif defined(HAVE_YAJL)
+#  include <yajl/yajl_tree.h>
+#endif
 #include <assert.h>
 
+#if defined(HAVE_V8)
 static Value v8ValueToValue(v8::Handle<v8::Value> v8Value)
 {
     v8::HandleScope scope;
@@ -64,3 +69,55 @@ bool JSONParser::parse(const String& json)
     mRoot = v8ValueToValue(value);
     return isValid();
 }
+#elif defined(HAVE_YAJL)
+static Value yajlValueToValue(const yajl_val& yajlValue)
+{
+    if (!yajlValue)
+        return Value();
+    switch (yajlValue->type) {
+    case yajl_t_string:
+        return Value(String(yajlValue->u.string));
+    case yajl_t_number:
+        if (yajlValue->u.number.flags & YAJL_NUMBER_INT_VALID)
+            return Value(static_cast<int>(yajlValue->u.number.i));
+        else
+            return Value(yajlValue->u.number.d);
+    case yajl_t_true:
+        return Value(true);
+    case yajl_t_false:
+        return Value(false);
+    case yajl_t_null:
+        return Value();
+    case yajl_t_object: {
+        Map<String, Value> value;
+        const size_t len = yajlValue->u.object.len;
+        for (size_t i = 0; i < len; ++i)
+            value[String(yajlValue->u.object.keys[i])] = yajlValueToValue(yajlValue->u.object.values[i]);
+        return Value(value);
+        break; }
+    case yajl_t_array: {
+        List<Value> value;
+        const size_t len = yajlValue->u.array.len;
+        for (size_t i = 0; i < len; ++i)
+            value.append(yajlValueToValue(yajlValue->u.array.values[i]));
+        return Value(value);
+        break; }
+    case yajl_t_any:
+        assert(false);
+    }
+    return Value();
+}
+
+bool JSONParser::parse(const String& json)
+{
+    char errbuf[128];
+    yajl_val value = yajl_tree_parse(json.constData(), errbuf, sizeof(errbuf));
+    if (!value) {
+        mRoot = Value(); // just in case
+        return false;
+    }
+    mRoot = yajlValueToValue(value);
+    yajl_tree_free(value);
+    return isValid();
+}
+#endif
