@@ -1106,13 +1106,10 @@ References to references will be treated as references to the referenced symbol"
 
 (defun rtags-expand ()
   (interactive)
-  (if rtags-completion
+  (if (and rtags-completion (not rtags-ac-completion-enabled))
       (rtags-expand-internal)
-    (progn
-      (funcall rtags-expand-function)
-      (rtags-post-expand)))
+    (funcall rtags-expand-function))
   )
-
 
 (defun rtags-prepare-completion ()
   (interactive)
