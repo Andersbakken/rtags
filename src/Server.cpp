@@ -798,19 +798,20 @@ void Server::index(const GccArguments &args, const List<String> &projects)
 
     List<Path> inputFiles = args.inputFiles();
     debug() << inputFiles << "in" << srcRoot;
-    const int count = inputFiles.size();
+    int count = inputFiles.size();
     if (!mOptions.excludeFilters.isEmpty()) {
         int i = 0;
         while (i < count) {
             if (Filter::filter(inputFiles.at(i), mOptions.excludeFilters) == Filter::Filtered) {
                 debug() << "Filtered out" << inputFiles.at(i);
                 inputFiles.removeAt(i);
+                --count;
             } else {
                 ++i;
             }
         }
     }
-    if (inputFiles.isEmpty()) {
+    if (!count) {
         warning("no input files?");
         return;
     }
