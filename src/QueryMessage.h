@@ -14,6 +14,7 @@ public:
     enum { MessageId = QueryId };
     enum Type {
         Builds,
+        CodeCompletionEnabled,
         ClearProjects,
         CursorInfo,
         DeleteProject,

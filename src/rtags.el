@@ -689,6 +689,11 @@
   :group 'rtags
   :type 'boolean)
 
+(defcustom rtags-dabbrev-completion-enabled t
+  "Whether dabbrev completion is enabled"
+  :group 'rtags
+  :type 'boolean)
+
 (defcustom rtags-completion-timer-interval .1
   "Interval for completion timer"
   :group 'rtags
@@ -1104,9 +1109,18 @@ References to references will be treated as references to the referenced symbol"
        (string= (buffer-substring-no-properties (point-at-bol) (+ (point-at-bol) rtags-completion-cache-column))
                 rtags-completion-cache-line-contents)))
 
+(defun rtags-rdm-completion-enabled ()
+  (interactive)
+  (with-temp-buffer
+    (rtags-call-rc "--code-completion-enabled" :noerror t)
+    (goto-char (point-min))
+    (or (looking-at "1")
+        (looking-at "Can't seem to connect to server")))
+  )
+
 (defun rtags-expand ()
   (interactive)
-  (if (and rtags-completion (not rtags-ac-completion-enabled))
+  (if (and rtags-completion rtags-dabbrev-completion-enabled)
       (rtags-expand-internal)
     (funcall rtags-expand-function))
   )
@@ -1468,7 +1482,7 @@ References to references will be treated as references to the referenced symbol"
     )
   )
 
-(if rtags-completion-enabled
+(if (and rtags-completion-enabled (or rtags-dabbrev-completion-enabled rtags-ac-completion-enabled) (rtags-rdm-completion-enabled))
     (add-hook 'post-command-hook (function rtags-restart-completion-cache-timer))
   (remove-hook 'post-command-hook (function rtags-restart-completion-cache-timer)))
 
@@ -2111,7 +2125,7 @@ References to references will be treated as references to the referenced symbol"
     )
   )
 
-(if (and rtags-completion-enabled rtags-ac-completion-enabled (fboundp 'auto-complete-mode))
+(if (and rtags-completion-enabled rtags-ac-completion-enabled (fboundp 'auto-complete-mode) (rtags-rdm-completion-enabled))
     (add-hook 'find-file-hook 'rtags-ac-find-file-hook)
   (remove-hook 'find-file-hook 'rtags-ac-find-file-hook))
 

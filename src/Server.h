@@ -96,6 +96,7 @@ private:
     void handleCreateOutputMessage(const CreateOutputMessage &message, Connection *conn);
     void isIndexing(const QueryMessage &, Connection *conn);
     void removeFile(const QueryMessage &query, Connection *conn);
+    void codeCompletionEnabled(const QueryMessage &query, Connection *conn);
     void followLocation(const QueryMessage &query, Connection *conn);
     void cursorInfo(const QueryMessage &query, Connection *conn);
     void dependencies(const QueryMessage &query, Connection *conn);

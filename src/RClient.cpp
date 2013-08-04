@@ -14,6 +14,7 @@ enum OptionType {
     Clear,
     CodeComplete,
     CodeCompleteAt,
+    CodeCompletionEnabled,
     Compile,
     ConnectTimeout,
     ContainingFunction,
@@ -137,6 +138,7 @@ struct Option opts[] = {
     { Dependencies, "dependencies", 0, required_argument, "Dump dependencies for source file." },
     { ReloadFileManager, "reload-file-manager", 'B', no_argument, "Reload file manager." },
     { Man, "man", 0, no_argument, "Output XML for xmltoman to generate man page for rc :-)" },
+    { CodeCompletionEnabled, "code-completion-enabled", 0, no_argument, "Whether completion is enabled." },
 
     { None, 0, 0, 0, "" },
     { None, 0, 0, 0, "Command flags:" },
@@ -795,6 +797,9 @@ bool RClient::parse(int &argc, char **argv)
             break;
         case DeleteProject:
             addQuery(QueryMessage::DeleteProject, optarg);
+            break;
+        case CodeCompletionEnabled:
+            addQuery(QueryMessage::CodeCompletionEnabled);
             break;
         case UnloadProject:
             addQuery(QueryMessage::UnloadProject, optarg);

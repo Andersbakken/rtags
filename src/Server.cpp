@@ -333,6 +333,9 @@ void Server::handleQueryMessage(const QueryMessage &message, Connection *conn)
     case QueryMessage::RemoveFile:
         removeFile(message, conn);
         break;
+    case QueryMessage::CodeCompletionEnabled:
+        codeCompletionEnabled(message, conn);
+        break;
     case QueryMessage::JSON:
         JSON(message, conn);
         break;
@@ -547,6 +550,12 @@ void Server::cursorInfo(const QueryMessage &query, Connection *conn)
 
     CursorInfoJob job(loc, query, project);
     job.run(conn);
+    conn->finish();
+}
+
+void Server::codeCompletionEnabled(const QueryMessage &, Connection *conn)
+{
+    conn->write(mOptions.completionCacheSize ? "1" : "0");
     conn->finish();
 }
 
