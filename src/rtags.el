@@ -270,7 +270,7 @@
   (if (buffer-file-name)
       (let ((bufname (buffer-file-name)))
         (with-temp-buffer
-          (rtags-call-rc (buffer-file-name) "--compile" bufname))))
+          (rtags-call-rc (buffer-file-name) "--compile" bufname :noerror t))))
   t)
 
 (defvar rtags-preprocess-keymap (make-sparse-keymap))
