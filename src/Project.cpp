@@ -87,12 +87,10 @@ bool Project::restore()
             if (dir.isEmpty()) {
                 error() << "File busted" << it->first << Location::path(it->first);
                 continue;
-            } else if (!(Server::instance()->options().options & Server::WatchSystemPaths) && dir.isSystem()) {
-                continue;
-            }
-
-            if (mWatchedPaths.insert(dir))
+            } else if ((Server::instance()->options().options & Server::WatchSystemPaths
+                        || !dir.isSystem()) && mWatchedPaths.insert(dir)) {
                 mWatcher.watch(dir);
+            }
             for (Set<uint32_t>::const_iterator s = it->second.begin(); s != it->second.end(); ++s) {
                 reversedDependencies[*s].insert(it->first);
             }
@@ -670,6 +668,8 @@ void Project::syncDB()
         const Path dir = path.parentDir();
         if (dir.isEmpty()) {
             error() << "Got empty parent dir for" << path << *it;
+        } else if (!(Server::instance()->options().options & Server::WatchSystemPaths) && dir.isSystem()) {
+            continue;
         } else if (mWatchedPaths.insert(dir)) {
             mWatcher.watch(dir);
         }
