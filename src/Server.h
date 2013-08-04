@@ -87,6 +87,7 @@ private:
     void onNewMessage(Message *message, Connection *conn);
     void onConnectionDestroyed(Connection *o);
     void clearProjects();
+    void compile(const String &arguments, const Path &path, const List<String> &projects);
     void handleCompileMessage(const CompileMessage &message, Connection *conn);
     void handleCompletionMessage(const CompletionMessage &message, Connection *conn);
     void handleCompletionStream(const CompletionMessage &message, Connection *conn);
