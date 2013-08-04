@@ -2097,31 +2097,6 @@ References to references will be treated as references to the referenced symbol"
       (setq rtags-local-references-timer nil))
     (remove-hook 'post-command-hook 'rtags-restart-update-local-references-timer)))
 
-(defun rtags-code-complete-filter (process output)
-  (let ((buf (process-buffer process))
-        (deactivate-mark))
-    (with-current-buffer buf
-      (setq buffer-read-only nil)
-      (insert output))
-    )
-  )
-
-(defun rtags-code-complete-sentinel (process state)
-  )
-
-(defun rtags-code-complete ()
-  (interactive)
-  (let ((location (rtags-current-location))
-        (path (buffer-file-name))
-        (unsaved (if (buffer-modified-p) (current-buffer))))
-    (with-current-buffer (rtags-get-buffer "*RTags Completions*")
-      (rtags-call-rc :path path
-                     :async (cons 'rtags-code-complete-filter 'rtags-code-complete-sentinel)
-                     "--code-complete-at" location
-                     :unsaved unsaved))
-    )
-  )
-
 (defun rtags-ac-completions ()
   (if (get-buffer "*RTags Completions*")
       (with-current-buffer "*RTags Completions*"
