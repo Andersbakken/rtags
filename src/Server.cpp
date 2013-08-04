@@ -12,7 +12,9 @@
 #include "FollowLocationJob.h"
 #include "IndexerJob.h"
 #include "JSONJob.h"
-#include "JSONParser.h"
+#if defined(HAVE_V8) || defined(HAVE_YAJL)
+#  include "JSONParser.h"
+#endif
 #include "ListSymbolsJob.h"
 #include "LogObject.h"
 #include "Match.h"
@@ -1121,6 +1123,7 @@ void Server::clearProjects(const QueryMessage &query, Connection *conn)
 
 void Server::loadCompilationDatabase(const QueryMessage &query, Connection *conn)
 {
+#if defined(HAVE_V8) || defined(HAVE_YAJL)
     const Path path = query.query();
     const String json = path.readAll();
     JSONParser parser(json);
@@ -1174,6 +1177,9 @@ void Server::loadCompilationDatabase(const QueryMessage &query, Connection *conn
     } else {
         conn->write("Invalid compilation database");
     }
+#else
+    conn->write("No JSON parser available, need either V8 or YAJL at compile-time");
+#endif
     conn->finish();
 }
 
