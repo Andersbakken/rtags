@@ -7,9 +7,6 @@
 [submodule "src/auto-complete"]
 	path = src/auto-complete
 	url = git://github.com/auto-complete/auto-complete.git
-[submodule "src/rparser"]
-	path = src/rparser
-	url = https://github.com/Andersbakken/rparser.git
 [submodule "src/escope"]
 	path = src/escope
 	url = https://github.com/Constellation/escope.git
