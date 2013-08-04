@@ -8,7 +8,7 @@ Preprocessor::Preprocessor(const SourceInformation &args, Connection *connection
     : mArgs(args), mConnection(connection), mProc(0)
 {
     mProc = new Process;
-    mProc->finished().connect(this, &Preprocessor::onProcessFinished);
+    mProc->finished().connect(std::bind(&Preprocessor::onProcessFinished, this));
 }
 
 Preprocessor::~Preprocessor()
@@ -27,7 +27,7 @@ void Preprocessor::preprocess()
     mProc->start(mArgs.compiler, args, environ);
 }
 
-void Preprocessor::onProcessFinished(Process *)
+void Preprocessor::onProcessFinished()
 {
     mConnection->write<256>("// %s %s", mArgs.compiler.constData(),
                             String::join(mArgs.args, ' ').constData());
@@ -37,5 +37,5 @@ void Preprocessor::onProcessFinished(Process *)
         mConnection->write<1024>("/* %s */", err.constData());
     }
     mConnection->finish();
-    deleteLater();
+    EventLoop::deleteLater(EventLoop::mainEventLoop(), this);
 }

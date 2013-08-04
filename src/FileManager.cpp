@@ -7,8 +7,8 @@
 FileManager::FileManager()
     : mLastReloadTime(0)
 {
-    mWatcher.added().connect(this, &FileManager::onFileAdded);
-    mWatcher.removed().connect(this, &FileManager::onFileRemoved);
+    mWatcher.added().connect(std::bind(&FileManager::onFileAdded, this, std::placeholders::_1));
+    mWatcher.removed().connect(std::bind(&FileManager::onFileRemoved, this, std::placeholders::_1));
 }
 
 void FileManager::init(const shared_ptr<Project> &proj)
@@ -23,7 +23,7 @@ void FileManager::reload()
     shared_ptr<Project> project = mProject.lock();
     assert(project);
     shared_ptr<ScanJob> job(new ScanJob(project->path()));
-    job->finished().connectAsync(this, &FileManager::onRecurseJobFinished);
+    job->finished().connectAsync(std::bind(&FileManager::onRecurseJobFinished, this, std::placeholders::_1));
     Server::instance()->threadPool()->start(job);
 }
 

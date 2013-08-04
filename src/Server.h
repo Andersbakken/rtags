@@ -11,25 +11,25 @@
 #include "ScanJob.h"
 #include "RTagsPluginFactory.h"
 #include <rct/Connection.h>
-#include <rct/EventReceiver.h>
 #include <rct/FileSystemWatcher.h>
 #include <rct/List.h>
 #include <rct/Map.h>
 #include <rct/String.h>
+#include <rct/Timer.h>
 #include <rct/ThreadPool.h>
+#include <rct/SocketServer.h>
 
 class Connection;
 class Message;
 class ErrorMessage;
 class OutputMessage;
 class CompileMessage;
-class SocketServer;
 class GccArguments;
 class Job;
-class TimerEvent;
+class JobOutput;
 class Project;
 class IndexerJob;
-class Server : public EventReceiver
+class Server
 {
 public:
     enum { DatabaseVersion = 25 };
@@ -69,22 +69,21 @@ public:
     Path currentFile() const { MutexLocker lock(&mMutex); return mCurrentFile; }
     bool saveFileIds() const;
     RTagsPluginFactory &factory() { return mPluginFactory; }
+    void onJobOutput(JobOutput&& out);
 private:
     bool selectProject(const Match &match, Connection *conn);
     bool updateProject(const List<String> &projects);
 
     bool isCompletionStream(Connection* conn) const;
 
-    void timerEvent(TimerEvent *event);
-
     void restoreFileIds();
     void clear();
     void onNewConnection();
-    signalslot::Signal2<int, const List<String> &> &complete() { return mComplete; }
+    Signal<std::function<void(int, const List<String> &)> > &complete() { return mComplete; }
     shared_ptr<Project> setCurrentProject(const Path &path);
     shared_ptr<Project> setCurrentProject(const shared_ptr<Project> &project);
-    void event(const Event *event);
     void index(const GccArguments &args, const List<String> &projects);
+    void onUnload();
     void onNewMessage(Message *message, Connection *conn);
     void onConnectionDestroyed(Connection *o);
     void clearProjects();
@@ -131,7 +130,7 @@ private:
         return mCurrentProject.lock();
     }
     int reloadProjects();
-    void onCompletionStreamDisconnected(SocketClient *client);
+    void onCompletionStreamDisconnected(const SocketClient::SharedPtr& client);
     shared_ptr<Project> addProject(const Path &path);
     void loadProject(const shared_ptr<Project> &project);
     void onCompletionJobFinished(Path path);
@@ -143,16 +142,16 @@ private:
 
     static Server *sInstance;
     Options mOptions;
-    SocketServer *mServer;
+    SocketServer::SharedPtr mServer;
     Map<int, Connection*> mPendingLookups;
     bool mVerbose;
     int mJobId;
 
     ThreadPool *mIndexerThreadPool;
     ThreadPool mQueryThreadPool;
-    signalslot::Signal2<int, const List<String> &> mComplete;
+    Signal<std::function<void(int, const List<String> &)> > mComplete;
 
-    Map<SocketClient*, Connection*> mCompletionStreams;
+    Map<SocketClient::SharedPtr, Connection*> mCompletionStreams;
     struct PendingCompletion
     {
         PendingCompletion()

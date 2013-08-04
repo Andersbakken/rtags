@@ -10,13 +10,13 @@ class ScanJob : public ThreadPool::Job
 public:
     ScanJob(const Path &path);
     virtual void run();
-    signalslot::Signal1<Set<Path> > &finished() { return mFinished; }
+    Signal<std::function<void(Set<Path>)> > &finished() { return mFinished; }
 private:
     static Path::VisitResult visit(const Path &path, void *userData);
     Path mPath;
     const List<String> &mFilters;
     Set<Path> mPaths;
-    signalslot::Signal1<Set<Path> > mFinished;
+    Signal<std::function<void(Set<Path>)> > mFinished;
 };
 
 #endif

@@ -98,7 +98,7 @@ bool Job::writeRaw(const String &out, unsigned flags)
     if (mJobFlags & WriteBuffered) {
         enum { BufSize = 16384 };
         if (mBuffer.size() + out.size() + 1 > BufSize) {
-            EventLoop::instance()->postEvent(Server::instance(), new JobOutputEvent(shared_from_this(), mBuffer, false));
+            EventLoop::mainEventLoop()->callLaterMove(std::bind(&Server::onJobOutput, Server::instance(), std::placeholders::_1), JobOutput(shared_from_this(), mBuffer, false));
             mBuffer.clear();
             mBuffer.reserve(BufSize);
         }
@@ -106,7 +106,7 @@ bool Job::writeRaw(const String &out, unsigned flags)
             mBuffer.append('\n');
         mBuffer.append(out);
     } else {
-        EventLoop::instance()->postEvent(Server::instance(), new JobOutputEvent(shared_from_this(), out, false));
+        EventLoop::mainEventLoop()->callLaterMove(std::bind(&Server::onJobOutput, Server::instance(), std::placeholders::_1), JobOutput(shared_from_this(), out, false));
     }
     return true;
 }
@@ -200,7 +200,7 @@ void Job::run()
 {
     execute();
     if (mId != -1) {
-        EventLoop::instance()->postEvent(Server::instance(), new JobOutputEvent(shared_from_this(), mBuffer, true));
+        EventLoop::mainEventLoop()->callLaterMove(std::bind(&Server::onJobOutput, Server::instance(), std::placeholders::_1), JobOutput(shared_from_this(), mBuffer, true));
     }
 }
 

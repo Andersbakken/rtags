@@ -5,11 +5,10 @@
 #include <rct/List.h>
 #include <rct/FileSystemWatcher.h>
 #include <rct/Mutex.h>
-#include <rct/EventReceiver.h>
 #include "Location.h"
 
 class Project;
-class FileManager : public EventReceiver
+class FileManager
 {
 public:
     FileManager();
@@ -23,12 +22,13 @@ public:
     void clearFileSystemWatcher() { mWatcher.clear(); }
     Set<Path> watchedPaths() const { return mWatcher.watchedPaths(); }
     Set<Path> jsFiles() const;
-    signalslot::Signal0 &jsFilesChanged() { return mJSFilesChanged; }
+    Signal<std::function<void()> > &jsFilesChanged() { return mJSFilesChanged; }
+
 private:
     void watch(const Path &path);
     FileSystemWatcher mWatcher;
     weak_ptr<Project> mProject;
-    signalslot::Signal0 mJSFilesChanged;
+    Signal<std::function<void()> > mJSFilesChanged;
     Set<Path> mJSFiles;
     uint64_t mLastReloadTime;
     mutable Mutex mMutex;

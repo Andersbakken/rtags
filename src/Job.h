@@ -4,7 +4,7 @@
 #include <rct/ThreadPool.h>
 #include <rct/List.h>
 #include <rct/String.h>
-#include <rct/Event.h>
+#include <rct/EventLoop.h>
 #include <rct/SignalSlot.h>
 #include <rct/RegExp.h>
 #include "RTagsClang.h"
@@ -50,7 +50,7 @@ public:
     void setQueryFlags(unsigned queryFlags) { mQueryFlags = queryFlags; }
     unsigned keyFlags() const;
     bool filter(const String &val) const;
-    signalslot::Signal1<const String &> &output() { return mOutput; }
+    Signal<std::function<void(const String &)> > &output() { return mOutput; }
     shared_ptr<Project> project() const { return mProject.lock(); }
     virtual void run();
     virtual void execute() = 0;
@@ -67,7 +67,7 @@ private:
     int mId, mMinOffset, mMaxOffset;
     unsigned mJobFlags;
     unsigned mQueryFlags;
-    signalslot::Signal1<const String &> mOutput;
+    Signal<std::function<void(const String &)> > mOutput;
     weak_ptr<Project> mProject;
     List<String> *mPathFilters;
     List<RegExp> *mPathFiltersRegExp;
@@ -97,12 +97,11 @@ inline bool Job::write(const char *format, ...)
     return write(ret);
 }
 
-class JobOutputEvent : public Event
+class JobOutput
 {
 public:
-    enum { Type = 2 };
-    JobOutputEvent(const shared_ptr<Job> &j, const String &o, bool f)
-        : Event(Type), job(j), out(o), finish(f), id(j->id())
+    JobOutput(const shared_ptr<Job> &j, const String &o, bool f)
+        : job(j), out(o), finish(f), id(j->id())
     {
     }
 

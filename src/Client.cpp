@@ -20,9 +20,9 @@ bool Client::connectToServer(const Path &path, int timeout)
         delete mConnection;
         mConnection = 0;
     } else {
-        mConnection->disconnected().connect(this, &Client::onDisconnected);
-        mConnection->newMessage().connect(this, &Client::onNewMessage);
-        mConnection->sendComplete().connect(this, &Client::onSendComplete);
+        mConnection->disconnected().connect(std::bind(&Client::onDisconnected, this, std::placeholders::_1));
+        mConnection->newMessage().connect(std::bind(&Client::onNewMessage, this, std::placeholders::_1, std::placeholders::_2));
+        mConnection->sendComplete().connect(std::bind(&Client::onSendComplete, this, std::placeholders::_1));
     }
     return mConnection;
 }
@@ -35,7 +35,7 @@ bool Client::send(const Message *msg, int timeout)
 
     if (!mConnection->send(msg))
         return false;
-    EventLoop::instance()->run(timeout);
+    EventLoop::mainEventLoop()->exec(timeout);
     return mSendComplete;
 }
 
@@ -55,14 +55,14 @@ void Client::onNewMessage(Message *message, Connection *)
 void Client::onSendComplete(Connection *)
 {
     mSendComplete = true;
-    EventLoop::instance()->exit();
+    EventLoop::mainEventLoop()->quit();
 }
 
 void Client::onDisconnected(Connection *)
 {
     if (mConnection) {
-        mConnection->deleteLater();
+        EventLoop::mainEventLoop()->deleteLater(mConnection);
         mConnection = 0;
-        EventLoop::instance()->exit();
+        EventLoop::mainEventLoop()->quit();
     }
 }

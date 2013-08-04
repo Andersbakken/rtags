@@ -4,12 +4,11 @@
 #include <rct/Path.h>
 #include <rct/List.h>
 #include <rct/String.h>
-#include <rct/EventReceiver.h>
 #include "RTags.h"
 
 class Connection;
 class Process;
-class Preprocessor : public EventReceiver
+class Preprocessor
 {
 public:
     Preprocessor(const SourceInformation &args, Connection *connection);
@@ -18,7 +17,7 @@ public:
     void preprocess();
 
 private:
-    void onProcessFinished(Process *);
+    void onProcessFinished();
 
 private:
     const SourceInformation mArgs;

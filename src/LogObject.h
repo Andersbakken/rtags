@@ -4,20 +4,19 @@
 #include <rct/String.h>
 #include <rct/Log.h>
 #include <rct/Connection.h>
-#include <rct/EventReceiver.h>
 
-class LogObject : public LogOutput, public EventReceiver
+class LogObject : public LogOutput
 {
 public:
     LogObject(Connection *conn, int level)
         : LogOutput(level), mConnection(conn)
     {
-        conn->disconnected().connect(this, &LogObject::shutdown);
+        conn->disconnected().connect(std::bind(&LogObject::shutdown, this));
     }
 
-    void shutdown(Connection *)
+    void shutdown()
     {
-        deleteLater();
+        EventLoop::deleteLater(EventLoop::mainEventLoop(), this);
     }
 
     virtual void log(const char *msg, int len)

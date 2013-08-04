@@ -5,7 +5,6 @@
 #include <rct/List.h>
 #include <rct/String.h>
 #include <rct/Path.h>
-#include <rct/Event.h>
 #include <clang-c/Index.h>
 
 class CompletionJob : public Job
@@ -20,7 +19,7 @@ public:
               int line, int column, int pos, const String &unsaved, int parseCount);
 
     virtual void execute();
-    signalslot::Signal1<Path> &finished() { return mFinished; }
+    Signal<std::function<void(Path)> > &finished() { return mFinished; }
     Type type() const { return mType; }
 private:
     void processDiagnostics(CXCodeCompleteResults* results);
@@ -32,7 +31,7 @@ private:
     List<String> mArgs;
     int mLine, mColumn, mPos, mParseCount;
     String mUnsaved;
-    signalslot::Signal1<Path> mFinished;
+    Signal<std::function<void(Path)> > mFinished;
     const Type mType;
 };
 

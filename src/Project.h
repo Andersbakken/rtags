@@ -6,8 +6,8 @@
 #include <rct/LinkedList.h>
 #include "RTags.h"
 #include "Match.h"
+#include <rct/Timer.h>
 #include <rct/RegExp.h>
-#include <rct/EventReceiver.h>
 #include <rct/ReadWriteLock.h>
 #include <rct/FileSystemWatcher.h>
 #include "IndexerJob.h"
@@ -42,9 +42,8 @@ struct CachedUnit
 
 class FileManager;
 class IndexerJob;
-class TimerEvent;
 class IndexData;
-class Project : public EventReceiver
+class Project : public enable_shared_from_this<Project>
 {
 public:
     Project(const Path &path);
@@ -96,12 +95,12 @@ public:
     Set<Path> watchedPaths() const { return mWatchedPaths; }
     bool fetchFromCache(const Path &path, List<String> &args, CXIndex &index, CXTranslationUnit &unit, int *parseCount);
     void addToCache(const Path &path, const List<String> &args, CXIndex index, CXTranslationUnit unit, int parseCount);
-    void timerEvent(TimerEvent *event);
+    void onTimerFired(Timer* event);
     bool isIndexing() const { MutexLocker lock(&mMutex); return !mJobs.isEmpty(); }
     void onJSFilesAdded();
     List<std::pair<Path, List<String> > > cachedUnits() const;
 private:
-    void reloadFileManager(const Path &);
+    void reloadFileManager();
     bool initJobFromCache(const Path &path, const List<String> &args,
                           CXIndex &index, CXTranslationUnit &unit, List<String> *argsOut, int *parseCount);
     LinkedList<CachedUnit*>::iterator findCachedUnit(const Path &path, const List<String> &args);

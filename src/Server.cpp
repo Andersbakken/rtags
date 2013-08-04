@@ -26,10 +26,8 @@
 #include "StatusJob.h"
 #include <clang-c/Index.h>
 #include <rct/Connection.h>
-#include <rct/Event.h>
 #include <rct/EventLoop.h>
 #include <rct/SocketClient.h>
-#include <rct/SocketServer.h>
 #include <rct/Log.h>
 #include <rct/Message.h>
 #include <rct/Messages.h>
@@ -40,14 +38,15 @@
 #include <rct/SHA256.h>
 #include <stdio.h>
 
-void *UnloadTimer = &UnloadTimer;
 Server *Server::sInstance = 0;
 Server::Server()
-    : mServer(0), mVerbose(false), mJobId(0), mIndexerThreadPool(0), mQueryThreadPool(2),
+    : mVerbose(false), mJobId(0), mIndexerThreadPool(0), mQueryThreadPool(2),
       mRestoreProjects(false)
 {
     assert(!sInstance);
     sInstance = this;
+
+    mUnloadTimer.timeout().connect(std::bind(&Server::onUnload, this));
 }
 
 Server::~Server()
@@ -67,8 +66,7 @@ void Server::clear()
         mIndexerThreadPool = 0;
     }
     Path::rm(mOptions.socketFile);
-    delete mServer;
-    mServer = 0;
+    mServer.reset();
     mProjects.clear();
 }
 
@@ -109,12 +107,11 @@ bool Server::init(const Options &options)
     }
 
     for (int i=0; i<10; ++i) {
-        mServer = new SocketServer;
-        if (mServer->listenUnix(mOptions.socketFile)) {
+        mServer.reset(new SocketServer);
+        if (mServer->listen(mOptions.socketFile)) {
             break;
         }
-        delete mServer;
-        mServer = 0;
+        mServer.reset();
         if (!i) {
             enum { Timeout = 1000 };
             Client client;
@@ -132,7 +129,7 @@ bool Server::init(const Options &options)
     }
 
     restoreFileIds();
-    mServer->clientConnected().connect(this, &Server::onNewConnection);
+    mServer->newConnection().connect(std::bind(&Server::onNewConnection, this));
     reloadProjects();
     if (!(mOptions.options & NoStartupCurrentProject)) {
         Path current = Path(mOptions.dataDir + ".currentProject").readAll(1024);
@@ -202,12 +199,12 @@ int Server::reloadProjects()
 void Server::onNewConnection()
 {
     while (true) {
-        SocketClient *client = mServer->nextClient();
+        SocketClient::SharedPtr client = mServer->nextConnection();
         if (!client)
             break;
         Connection *conn = new Connection(client);
-        conn->newMessage().connect(this, &Server::onNewMessage);
-        conn->destroyed().connect(this, &Server::onConnectionDestroyed);
+        conn->newMessage().connect(std::bind(&Server::onNewMessage, this, std::placeholders::_1, std::placeholders::_2));
+        conn->destroyed().connect(std::bind(&Server::onConnectionDestroyed, this, std::placeholders::_1));
         // client->disconnected().connect(conn, &Connection::onLoop);
     }
 }
@@ -228,7 +225,7 @@ void Server::onConnectionDestroyed(Connection *o)
 void Server::onNewMessage(Message *message, Connection *connection)
 {
     if (mOptions.unloadTimer)
-        mUnloadTimer.start(shared_from_this(), mOptions.unloadTimer * 1000 * 60, SingleShot, UnloadTimer);
+        mUnloadTimer.restart(mOptions.unloadTimer * 1000 * 60, Timer::SingleShot);
 
     ClientMessage *m = static_cast<ClientMessage*>(message);
     const String raw = m->raw();
@@ -839,38 +836,30 @@ void Server::index(const GccArguments &args, const List<String> &projects)
     }
 }
 
-void Server::event(const Event *event)
+void Server::onJobOutput(JobOutput&& out)
 {
-    switch (event->type()) {
-    case JobOutputEvent::Type: {
-        const JobOutputEvent *e = static_cast<const JobOutputEvent*>(event);
-        Map<int, Connection*>::iterator it = mPendingLookups.find(e->id);
-        if (it == mPendingLookups.end()) {
-            error() << "Can't find connection for id" << e->id;
-            if (shared_ptr<Job> job = e->job.lock())
-                job->abort();
-            break;
-        }
-        if (!it->second->isConnected()) {
-            error() << "Connection has been disconnected";
-            if (shared_ptr<Job> job = e->job.lock())
-                job->abort();
-            break;
-        }
-        if (!e->out.isEmpty() && !it->second->write(e->out)) {
-            error() << "Failed to write to connection";
-            if (shared_ptr<Job> job = e->job.lock())
-                job->abort();
-            break;
-        }
-
-        if (e->finish && !isCompletionStream(it->second))
-            it->second->finish();
-        break; }
-    default:
-        EventReceiver::event(event);
-        break;
+    Map<int, Connection*>::iterator it = mPendingLookups.find(out.id);
+    if (it == mPendingLookups.end()) {
+        error() << "Can't find connection for id" << out.id;
+        if (shared_ptr<Job> job = out.job.lock())
+            job->abort();
+        return;
     }
+    if (!it->second->isConnected()) {
+        error() << "Connection has been disconnected";
+        if (shared_ptr<Job> job = out.job.lock())
+            job->abort();
+        return;
+    }
+    if (!out.out.isEmpty() && !it->second->write(out.out)) {
+        error() << "Failed to write to connection";
+        if (shared_ptr<Job> job = out.job.lock())
+            job->abort();
+        return;
+    }
+
+    if (out.finish && !isCompletionStream(it->second))
+        it->second->finish();
 }
 
 void Server::loadProject(const shared_ptr<Project> &project)
@@ -1185,7 +1174,7 @@ void Server::loadCompilationDatabase(const QueryMessage &query, Connection *conn
 
 void Server::shutdown(const QueryMessage &query, Connection *conn)
 {
-    EventLoop::instance()->exit();
+    EventLoop::mainEventLoop()->quit();
     conn->write("Shutting down");
     conn->finish();
 }
@@ -1277,7 +1266,7 @@ void Server::startCompletion(const Path &path, int line, int column, int pos, co
     shared_ptr<CompletionJob> job(new CompletionJob(project, isCompletionStream(conn) ? CompletionJob::Stream : CompletionJob::Sync));
     job->init(index, unit, path, args, line, column, pos, contents, parseCount);
     job->setId(nextId());
-    job->finished().connectAsync(this, &Server::onCompletionJobFinished);
+    job->finished().connectAsync(std::bind(&Server::onCompletionJobFinished, this, std::placeholders::_1));
     mPendingLookups[job->id()] = conn;
     startQueryJob(job);
 }
@@ -1296,20 +1285,20 @@ void Server::onCompletionJobFinished(Path path)
 
 bool Server::isCompletionStream(Connection* conn) const
 {
-    SocketClient *client = conn->client();
+    SocketClient::SharedPtr client = conn->client();
     return (mCompletionStreams.find(client) != mCompletionStreams.end());
 }
 
-void Server::onCompletionStreamDisconnected(SocketClient *client)
+void Server::onCompletionStreamDisconnected(const SocketClient::SharedPtr& client)
 {
     mCompletionStreams.remove(client);
 }
 
 void Server::handleCompletionStream(const CompletionMessage &message, Connection *conn)
 {
-    SocketClient *client = conn->client();
+    SocketClient::SharedPtr client = conn->client();
     assert(client);
-    client->disconnected().connect(this, &Server::onCompletionStreamDisconnected);
+    client->disconnected().connect(std::bind(&Server::onCompletionStreamDisconnected, this, std::placeholders::_1));
     mCompletionStreams[client] = conn;
 }
 
@@ -1360,15 +1349,13 @@ bool Server::saveFileIds() const
     return true;
 }
 
-void Server::timerEvent(TimerEvent *e)
+void Server::onUnload()
 {
-    if (e->userData() == UnloadTimer) {
-        MutexLocker lock(&mMutex);
-        shared_ptr<Project> cur = mCurrentProject.lock();
-        for (ProjectsMap::const_iterator it = mProjects.begin(); it != mProjects.end(); ++it) {
-            if (it->second->isValid() && it->second != cur && !it->second->isIndexing()) {
-                it->second->unload();
-            }
+    MutexLocker lock(&mMutex);
+    shared_ptr<Project> cur = mCurrentProject.lock();
+    for (ProjectsMap::const_iterator it = mProjects.begin(); it != mProjects.end(); ++it) {
+        if (it->second->isValid() && it->second != cur && !it->second->isIndexing()) {
+            it->second->unload();
         }
     }
 }

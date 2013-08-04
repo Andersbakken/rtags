@@ -26,12 +26,13 @@ enum {
 Project::Project(const Path &path)
     : mPath(path), mJobCounter(0)
 {
-    mWatcher.modified().connect(this, &Project::onFileModified);
-    mWatcher.removed().connect(this, &Project::onFileModified);
+    mWatcher.modified().connect(std::bind(&Project::onFileModified, this, std::placeholders::_1));
+    mWatcher.removed().connect(std::bind(&Project::onFileModified, this, std::placeholders::_1));
     if (Server::instance()->options().options & Server::NoFileManagerWatch) {
-        mWatcher.removed().connect(this, &Project::reloadFileManager);
-        mWatcher.added().connect(this, &Project::reloadFileManager);
+        mWatcher.removed().connect(std::bind(&Project::reloadFileManager, this));
+        mWatcher.added().connect(std::bind(&Project::reloadFileManager, this));
     }
+    mSyncTimer.timeout().connect(std::bind(&Project::onTimerFired, this, std::placeholders::_1));
 }
 
 void Project::init()
@@ -248,8 +249,7 @@ void Project::onJobFinished(const shared_ptr<IndexerJob> &job)
                   data->message.constData());
 
             if (mJobs.isEmpty()) {
-                mSyncTimer.start(shared_from_this(), job->type() == IndexerJob::Dirty ? 0 : SyncTimeout,
-                                 SingleShot, Sync);
+                mSyncTimer.restart(job->type() == IndexerJob::Dirty ? 0 : SyncTimeout, Timer::SingleShot);
             }
         }
     }
@@ -803,14 +803,14 @@ String Project::fixIts(uint32_t fileId) const
     return out;
 }
 
-void Project::timerEvent(TimerEvent *e)
+void Project::onTimerFired(Timer* timer)
 {
-    if (e->userData() == Sync) {
-        StopWatch timer;
+    if (timer == &mSyncTimer) {
+        StopWatch sw;
         syncDB();
-        const int syncTime = timer.restart();
+        const int syncTime = sw.restart();
         save();
-        const int saveTime = timer.elapsed();
+        const int saveTime = sw.elapsed();
         error() << "Jobs took" << (static_cast<double>(mTimer.elapsed()) / 1000.0) << "secs, syncing took"
                 << (static_cast<double>(syncTime) / 1000.0) << " secs, saving took"
                 << (static_cast<double>(saveTime) / 1000.0) << " secs, using"
@@ -818,7 +818,7 @@ void Project::timerEvent(TimerEvent *e)
         mJobCounter = 0;
     } else {
         assert(0 && "Unexpected timer event in Project");
-        e->stop();
+        timer->stop();
     }
 }
 void Project::onJSFilesAdded()
@@ -829,10 +829,11 @@ void Project::onJSFilesAdded()
     }
 }
 
-void Project::reloadFileManager(const Path &)
+void Project::reloadFileManager()
 {
     fileManager->reload();
 }
+
 List<std::pair<Path, List<String> > > Project::cachedUnits() const
 {
     MutexLocker lock(&mMutex);

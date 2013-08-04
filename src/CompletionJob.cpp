@@ -1,7 +1,6 @@
 #include "CompletionJob.h"
 #include "QueryMessage.h"
 #include "IndexerJob.h"
-#include <rct/EventLoop.h>
 #include "Project.h"
 #include <IndexerJobClang.h>
 #include "Server.h"

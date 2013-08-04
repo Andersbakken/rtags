@@ -316,7 +316,7 @@ public:
             CompletionMessage msg(CompletionMessage::Stream);
             msg.init(rc->argc(), rc->argv());
             msg.setProjects(rc->projects());
-            EventLoop::instance()->addFileDescriptor(STDIN_FILENO, EventLoop::Read, stdinReady, this);
+            EventLoop::eventLoop()->registerSocket(STDIN_FILENO, EventLoop::SocketRead, std::bind(&CompletionCommand::processStdin, this));
             return client->send(&msg, rc->timeout());
         } else {
             CompletionMessage msg(CompletionMessage::None, path, line, column);
@@ -330,11 +330,6 @@ public:
     virtual String description() const
     {
         return String::format<128>("CompletionMessage %s:%d:%d", path.constData(), line, column);
-    }
-
-    static void stdinReady(int fd, unsigned int flags, void* userData)
-    {
-        static_cast<CompletionCommand*>(userData)->processStdin();
     }
 
     void processStdin()
@@ -351,8 +346,8 @@ public:
         const int colon = data.indexOf(':');
         if (colon == -1) {
             error() << "Failed to match completion header" << data;
-            EventLoop::instance()->removeFileDescriptor(STDIN_FILENO);
-            EventLoop::instance()->exit();
+            EventLoop::eventLoop()->unregisterSocket(STDIN_FILENO);
+            EventLoop::eventLoop()->quit();
             return;
         }
 
@@ -360,8 +355,8 @@ public:
         const int ret = sscanf(data.constData() + colon + 1, "%d:%d:%d:%d", &line, &column, &pos, &contentsSize);
         if (ret != 4) {
             error() << "Failed to match completion header" << ret << "\n" << data;
-            EventLoop::instance()->removeFileDescriptor(STDIN_FILENO);
-            EventLoop::instance()->exit();
+            EventLoop::eventLoop()->unregisterSocket(STDIN_FILENO);
+            EventLoop::eventLoop()->quit();
             return;
         }
         String contents(contentsSize, ' ');
@@ -370,8 +365,8 @@ public:
         while (read < contentsSize) {
             const int r = fread(c + read, sizeof(char), contentsSize - read, stdin);
             if (r < 0) {
-                EventLoop::instance()->removeFileDescriptor(STDIN_FILENO);
-                EventLoop::instance()->exit();
+                EventLoop::eventLoop()->unregisterSocket(STDIN_FILENO);
+                EventLoop::eventLoop()->quit();
                 return;
             }
             read += r;
@@ -469,7 +464,9 @@ bool RClient::exec()
 {
     RTags::initMessages();
 
-    EventLoop loop;
+    EventLoop::SharedPtr loop(new EventLoop);
+    EventLoop::setMainEventLoop(loop);
+    loop->init();
 
     Client client;
     if (!client.connectToServer(mSocketFile, mConnectTimeout)) {
