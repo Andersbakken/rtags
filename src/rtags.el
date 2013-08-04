@@ -684,6 +684,11 @@
   :group 'rtags
   :type 'boolean)
 
+(defcustom rtags-ac-completion-enabled nil
+  "Whether rtags completion is using auto-complete.el"
+  :group 'rtags
+  :type 'boolean)
+
 (defcustom rtags-completion-timer-interval .1
   "Interval for completion timer"
   :group 'rtags
@@ -2117,5 +2122,25 @@ References to references will be treated as references to the referenced symbol"
     )
   )
 
+(defun rtags-ac-completions ()
+  (if (get-buffer "*RTags Completions*")
+      (with-current-buffer "*RTags Completions*"
+        (split-string (buffer-string))))
+  )
+
+(defvar rtags-ac-completions-source '((candidates . rtags-ac-completions)))
+(defun rtags-ac-find-file-hook ()
+  (interactive)
+  (when (and (or (eq major-mode 'c++-mode)
+                 (eq major-mode 'c-mode))
+             (rtags-is-indexed))
+    (setq ac-sources '(rtags-ac-completions-source))
+    (auto-complete-mode 1)
+    )
+  )
+
+(if (and rtags-completion-enabled rtags-ac-completion-enabled (fboundp 'auto-complete-mode))
+    (add-hook 'find-file-hook 'rtags-ac-find-file-hook)
+  (remove-hook 'find-file-hook 'rtags-ac-find-file-hook))
 
 (provide 'rtags)
