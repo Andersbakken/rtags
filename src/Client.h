@@ -15,9 +15,12 @@ class Client
 {
 public:
     Client();
+    ~Client();
+
     bool connectToServer(const Path &path, int connectTimeout);
     bool send(const Message *msg, int timeOut);
     Connection *connection() const { return mConnection; }
+
 private:
     void onDisconnected(Connection *);
     void onNewMessage(Message *message, Connection *);

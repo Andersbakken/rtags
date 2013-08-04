@@ -12,6 +12,11 @@ Client::Client()
 {
 }
 
+Client::~Client()
+{
+    delete mConnection;
+}
+
 bool Client::connectToServer(const Path &path, int timeout)
 {
     assert(!mConnection);
@@ -55,13 +60,12 @@ void Client::onNewMessage(Message *message, Connection *)
 void Client::onSendComplete(Connection *)
 {
     mSendComplete = true;
-    EventLoop::mainEventLoop()->quit();
 }
 
 void Client::onDisconnected(Connection *)
 {
     if (mConnection) {
-        EventLoop::mainEventLoop()->deleteLater(mConnection);
+        EventLoop::deleteLater(EventLoop::mainEventLoop(), mConnection);
         mConnection = 0;
         EventLoop::mainEventLoop()->quit();
     }

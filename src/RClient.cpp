@@ -433,7 +433,7 @@ public:
 };
 
 RClient::RClient()
-    : mQueryFlags(0), mMax(-1), mLogLevel(0), mTimeout(0),
+    : mQueryFlags(0), mMax(-1), mLogLevel(0), mTimeout(-1),
       mMinOffset(-1), mMaxOffset(-1), mConnectTimeout(DEFAULT_CONNECT_TIMEOUT), mArgc(0), mArgv(0)
 {
 }
