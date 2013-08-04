@@ -26,3 +26,4 @@ gr
 /.ninja_deps
 /compile_commands.json
 /tests/dtlcpptest/dtlcpptest
+/src/librtagsesprima.so
