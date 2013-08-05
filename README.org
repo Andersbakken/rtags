@@ -126,10 +126,21 @@ $ cat ~/.rdmrc
 --data-dir=/other/dir
 #+END_SRC
 
-Installing rtags:
+* Installing rtags
 
-You need to have libclang installed on your system before doing the
-following, we recommend version 3.2 or higher.
+There are a few prerequisites you need to have in order to build rtags
+
+1. libclang, preferrable 3.2 or higher, on Linux you may be able to use your distro package manager to install this. On OS X you can use homebrew or possibly other package managers, though see below for details if you plan to tag projects that use C++11 features (such as RTags itself). Alternatively you can grab the sources from [[http://llvm.org/releases/download.html][llvm.org]] and build it yourself.
+2. A modern compiler. This means GCC >= 4.7 or Clang >= 3.2. RTags makes extensive use of C++11 features such as variadic templates and threading utility classes from the C++ standard library.
+3. If you plan to use LLVM's compilation database to set up your projects then you'll need either [[http://lloyd.github.io/yajl/][YAJL]] or [[https://code.google.com/p/v8/][V8]] in order to enable RTags to parse the JSON formatted database file.
+
+If you plan to tag projects using C++11 features on OS X then you'll need a custom libclang, the one built throug homebrew does not support using LLVM's libc++ and the default GNU C++ standard library on OS X is too old. We've prepared a homebrew formula for this purpose, this can be found in the llvm-osx directory in the RTags checkout. This formula can be built as follows though this will overwrite any existing libclang from homebrew:
+
+#+BEGIN_SRC
+brew install <path/to/rtags/llvm.rb> --with-clang --with-libcxx
+#+END_SRC
+
+At this point you should be able to start the installation process:
 
 #+BEGIN_SRC
 cd /path/to/rtags
@@ -408,7 +419,7 @@ would be returned.
 
 * Videos
 
-Here are some videos demonstrating how to use rtags with emacs:
+Here are some videos demonstrating how to use rtags with emacs though some of these may be outdated:
 
 [[http://www.youtube.com/watch?v=Z4g05SjkQzM&list=PLAL6K6Ycnt4IwjIjWcYV9bFgcTG_4T1Y_&index=10][Set up rtags]]
 
