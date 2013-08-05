@@ -35,7 +35,6 @@
 #include <rct/Process.h>
 #include <rct/Rct.h>
 #include <rct/RegExp.h>
-#include <rct/SHA256.h>
 #include <stdio.h>
 
 Server *Server::sInstance = 0;
