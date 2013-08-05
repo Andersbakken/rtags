@@ -4,11 +4,11 @@
 
 // #define TIMINGS_ENABLED
 #ifdef TIMINGS_ENABLED
-static Mutex mutex;
+static std::mutex mutex;
 static Map<const char*, uint64_t> times;
 static void addTiming(const char *name, uint64_t usec)
 {
-    MutexLocker lock(&mutex);
+    std::lock_guard<std::mutex> lock(mutex);
     times[name] += usec;
 }
 
@@ -21,7 +21,7 @@ struct TimingNode
 
 static void dumpTimings()
 {
-    MutexLocker lock(&mutex);
+    std::lock_guard<std::mutex> lock(mutex);
     List<TimingNode> nodes;
     uint64_t tot = 0;
     for (Map<const char*, uint64_t>::const_iterator it = times.begin(); it != times.end(); ++it) {
@@ -125,7 +125,7 @@ Location IndexerJob::createLocation(uint32_t fileId, uint32_t offset, bool *bloc
 
 bool IndexerJob::abortIfStarted()
 {
-    MutexLocker lock(&mutex());
+    std::lock_guard<std::mutex> lock(mutex());
     if (mStarted)
         aborted() = true;
     return aborted();
@@ -134,7 +134,7 @@ bool IndexerJob::abortIfStarted()
 void IndexerJob::execute()
 {
     {
-        MutexLocker lock(&mutex());
+        std::lock_guard<std::mutex> lock(mutex());
         mStarted = true;
     }
     mTimer.restart();

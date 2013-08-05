@@ -302,7 +302,7 @@ CXChildVisitResult IndexerJobClang::indexVisitor(CXCursor cursor, CXCursor paren
 {
     IndexerJobClang *job = static_cast<IndexerJobClang*>(data);
     {
-        MutexLocker lock(&job->mutex());
+        std::lock_guard<std::mutex> lock(job->mutex());
         if (job->aborted())
             return CXChildVisit_Break;
     }

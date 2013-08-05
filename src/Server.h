@@ -18,6 +18,7 @@
 #include <rct/Timer.h>
 #include <rct/ThreadPool.h>
 #include <rct/SocketServer.h>
+#include <mutex>
 
 class Connection;
 class Message;
@@ -68,7 +69,7 @@ public:
     };
     bool init(const Options &options);
     const Options &options() const { return mOptions; }
-    Path currentFile() const { MutexLocker lock(&mMutex); return mCurrentFile; }
+    Path currentFile() const { std::lock_guard<std::mutex> lock(mMutex); return mCurrentFile; }
     bool saveFileIds() const;
     RTagsPluginFactory &factory() { return mPluginFactory; }
     void onJobOutput(JobOutput&& out);
@@ -131,7 +132,7 @@ private:
     shared_ptr<Project> updateProjectForLocation(const Path &path);
     shared_ptr<Project> currentProject() const
     {
-        MutexLocker lock(&mMutex);
+        std::lock_guard<std::mutex> lock(mMutex);
         return mCurrentProject.lock();
     }
     int reloadProjects();
@@ -176,7 +177,7 @@ private:
 
     Path mCurrentFile;
 
-    mutable Mutex mMutex;
+    mutable std::mutex mMutex;
 
     friend class CommandProcess;
 };

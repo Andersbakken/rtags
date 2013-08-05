@@ -143,7 +143,7 @@ bool Project::isValid() const
 
 void Project::unload()
 {
-    MutexLocker lock(&mMutex);
+    std::lock_guard<std::mutex> lock(mMutex);
     for (Map<uint32_t, shared_ptr<IndexerJob> >::const_iterator it = mJobs.begin(); it != mJobs.end(); ++it) {
         it->second->abort();
     }
@@ -195,7 +195,7 @@ void Project::onJobFinished(const shared_ptr<IndexerJob> &job)
     const Path currentFile = Server::instance()->currentFile();
     bool startPending = false;
     {
-        MutexLocker lock(&mMutex);
+        std::lock_guard<std::mutex> lock(mMutex);
 
         const uint32_t fileId = job->fileId();
         if (job->isAborted()) {
@@ -257,7 +257,7 @@ void Project::onJobFinished(const shared_ptr<IndexerJob> &job)
 
 bool Project::save()
 {
-    MutexLocker lock(&mMutex);
+    std::lock_guard<std::mutex> lock(mMutex);
     if (!Server::instance()->saveFileIds())
         return false;
 
@@ -286,7 +286,7 @@ bool Project::save()
 
 void Project::index(const SourceInformation &c, IndexerJob::Type type)
 {
-    MutexLocker locker(&mMutex);
+    std::lock_guard<std::mutex> lock(mMutex);
     static const char *fileFilter = getenv("RTAGS_FILE_FILTER");
     if (fileFilter && !strstr(c.sourceFile.constData(), fileFilter))
         return;
@@ -416,14 +416,14 @@ void Project::onFileModified(const Path &file)
 
 SourceInformationMap Project::sourceInfos() const
 {
-    MutexLocker lock(&mMutex);
+    std::lock_guard<std::mutex> lock(mMutex);
     return mSources;
 }
 
 SourceInformation Project::sourceInfo(uint32_t fileId) const
 {
     if (fileId) {
-        MutexLocker lock(&mMutex);
+        std::lock_guard<std::mutex> lock(mMutex);
         return mSources.value(fileId);
     }
     return SourceInformation();
@@ -452,7 +452,7 @@ void Project::addDependencies(const DependencyMap &deps, Set<uint32_t> &newFiles
 
 Set<uint32_t> Project::dependencies(uint32_t fileId, DependencyMode mode) const
 {
-    MutexLocker lock(&mMutex);
+    std::lock_guard<std::mutex> lock(mMutex);
     if (mode == DependsOnArg)
         return mDependencies.value(fileId);
 
@@ -469,7 +469,7 @@ int Project::reindex(const Match &match)
 {
     Set<uint32_t> dirty;
     {
-        MutexLocker lock(&mMutex);
+        std::lock_guard<std::mutex> lock(mMutex);
 
         const DependencyMap::const_iterator end = mDependencies.end();
         for (DependencyMap::const_iterator it = mDependencies.begin(); it != end; ++it) {
@@ -488,7 +488,7 @@ int Project::remove(const Match &match)
 {
     int count = 0;
     {
-        MutexLocker lock(&mMutex);
+        std::lock_guard<std::mutex> lock(mMutex);
         SourceInformationMap::iterator it = mSources.begin();
         while (it != mSources.end()) {
             if (match.match(it->second.sourceFile)) {
@@ -511,7 +511,7 @@ int Project::remove(const Match &match)
 
 void Project::onValidateDBJobErrors(const Set<Location> &errors)
 {
-    MutexLocker lock(&mMutex);
+    std::lock_guard<std::mutex> lock(mMutex);
     mPreviousErrors = errors;
 }
 
@@ -519,7 +519,7 @@ void Project::startDirtyJobs(const Set<uint32_t> &dirty)
 {
     Set<uint32_t> dirtyFiles;
     {
-        MutexLocker lock(&mMutex);
+        std::lock_guard<std::mutex> lock(mMutex);
         for (Set<uint32_t>::const_iterator it = dirty.begin(); it != dirty.end(); ++it) {
             const Set<uint32_t> deps = mDependencies.value(*it);
             dirtyFiles.insert(*it);
@@ -683,18 +683,19 @@ void Project::syncDB()
 
 bool Project::isIndexed(uint32_t fileId) const
 {
-    MutexLocker lock(&mMutex);
+    std::lock_guard<std::mutex> lock(mMutex);
     return mVisitedFiles.contains(fileId) || mSources.contains(fileId);
 }
 
 SourceInformationMap Project::sources() const
 {
-    MutexLocker lock(&mMutex);
+    std::lock_guard<std::mutex> lock(mMutex);
     return mSources;
 }
+
 DependencyMap Project::dependencies() const
 {
-    MutexLocker lock(&mMutex);
+    std::lock_guard<std::mutex> lock(mMutex);
     return mDependencies;
 }
 
@@ -760,13 +761,13 @@ bool Project::initJobFromCache(const Path &path, const List<String> &args,
 
 bool Project::fetchFromCache(const Path &path, List<String> &args, CXIndex &index, CXTranslationUnit &unit, int *parseCount)
 {
-    MutexLocker lock(&mMutex);
+    std::lock_guard<std::mutex> lock(mMutex);
     return initJobFromCache(path, List<String>(), index, unit, &args, parseCount);
 }
 
 void Project::addToCache(const Path &path, const List<String> &args, CXIndex index, CXTranslationUnit unit, int parseCount)
 {
-    MutexLocker lock(&mMutex);
+    std::lock_guard<std::mutex> lock(mMutex);
     addCachedUnit(path, args, index, unit, parseCount);
 }
 
@@ -784,7 +785,7 @@ void Project::addFixIts(const DependencyMap &visited, const FixItMap &fixIts) //
 
 String Project::fixIts(uint32_t fileId) const
 {
-    MutexLocker lock(&mMutex);
+    std::lock_guard<std::mutex> lock(mMutex);
     const FixItMap::const_iterator it = mFixIts.find(fileId);
     String out;
     if (it != mFixIts.end()) {
@@ -836,7 +837,7 @@ void Project::reloadFileManager()
 
 List<std::pair<Path, List<String> > > Project::cachedUnits() const
 {
-    MutexLocker lock(&mMutex);
+    std::lock_guard<std::mutex> lock(mMutex);
     List<std::pair<Path, List<String> > > ret;
 
     for (LinkedList<CachedUnit*>::const_iterator it = mCachedUnits.begin(); it != mCachedUnits.end(); ++it)

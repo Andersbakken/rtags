@@ -1,8 +1,6 @@
 #include "JSParser.h"
 #include <v8.h>
 #include <rct/RegExp.h>
-#include <rct/Mutex.h>
-#include <rct/MutexLocker.h>
 
 #define toCString(str) *v8::String::Utf8Value(str)
 

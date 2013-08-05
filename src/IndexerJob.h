@@ -4,7 +4,7 @@
 #include "RTags.h"
 #include "Job.h"
 #include <rct/ThreadPool.h>
-#include <rct/Mutex.h>
+#include <rct/StopWatch.h>
 
 class IndexData
 {

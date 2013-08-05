@@ -11,6 +11,8 @@
 #include <rct/ReadWriteLock.h>
 #include <rct/FileSystemWatcher.h>
 #include "IndexerJob.h"
+#include <mutex>
+#include <memory>
 
 struct CachedUnit
 {
@@ -43,7 +45,7 @@ struct CachedUnit
 class FileManager;
 class IndexerJob;
 class IndexData;
-class Project : public enable_shared_from_this<Project>
+class Project : public std::enable_shared_from_this<Project>
 {
 public:
     Project(const Path &path);
@@ -96,7 +98,7 @@ public:
     bool fetchFromCache(const Path &path, List<String> &args, CXIndex &index, CXTranslationUnit &unit, int *parseCount);
     void addToCache(const Path &path, const List<String> &args, CXIndex index, CXTranslationUnit unit, int parseCount);
     void onTimerFired(Timer* event);
-    bool isIndexing() const { MutexLocker lock(&mMutex); return !mJobs.isEmpty(); }
+    bool isIndexing() const { std::lock_guard<std::mutex> lock(mMutex); return !mJobs.isEmpty(); }
     void onJSFilesAdded();
     List<std::pair<Path, List<String> > > cachedUnits() const;
 private:
@@ -131,7 +133,7 @@ private:
 
     int mJobCounter;
 
-    mutable Mutex mMutex;
+    mutable std::mutex mMutex;
 
     Map<uint32_t, shared_ptr<IndexerJob> > mJobs;
     struct PendingJob
@@ -163,7 +165,7 @@ private:
 
 inline bool Project::visitFile(uint32_t fileId)
 {
-    MutexLocker lock(&mMutex);
+    std::lock_guard<std::mutex> lock(mMutex);
     if (mVisitedFiles.contains(fileId)) {
         return false;
     }

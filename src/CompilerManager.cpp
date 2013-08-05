@@ -1,21 +1,20 @@
 #include "CompilerManager.h"
 #include <rct/Process.h>
-#include <rct/MutexLocker.h>
 #include "Server.h"
 
-static Mutex sMutex;
+static std::mutex sMutex;
 static Map<Path, List<String> > sFlags;
 
 namespace CompilerManager {
 List<Path> compilers()
 {
-    MutexLocker lock(&sMutex);
+    std::lock_guard<std::mutex> lock(sMutex);
     return sFlags.keys();
 }
 
 List<String> flags(const Path &compiler)
 {
-    MutexLocker lock(&sMutex);
+    std::lock_guard<std::mutex> lock(sMutex);
     enum {
         Unset,
         Use,

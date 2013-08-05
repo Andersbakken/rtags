@@ -8,6 +8,7 @@
 #include <rct/SignalSlot.h>
 #include <rct/RegExp.h>
 #include "RTagsClang.h"
+#include <mutex>
 
 class CursorInfo;
 class Location;
@@ -55,13 +56,13 @@ public:
     virtual void run();
     virtual void execute() = 0;
     void run(Connection *connection);
-    bool isAborted() const { MutexLocker lock(&mMutex); return mAborted; }
-    void abort() { MutexLocker lock(&mMutex); mAborted = true; }
+    bool isAborted() const { std::lock_guard<std::mutex> lock(mMutex); return mAborted; }
+    void abort() { std::lock_guard<std::mutex> lock(mMutex); mAborted = true; }
     String context() const { return mContext; }
-    Mutex &mutex() const { return mMutex; }
+    std::mutex &mutex() const { return mMutex; }
     bool &aborted() { return mAborted; }
 private:
-    mutable Mutex mMutex;
+    mutable std::mutex mMutex;
     bool mAborted;
     bool writeRaw(const String &out, unsigned flags);
     int mId, mMinOffset, mMaxOffset;

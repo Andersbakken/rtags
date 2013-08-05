@@ -60,7 +60,7 @@ Server::~Server()
 
 void Server::clear()
 {
-    MutexLocker lock(&mMutex);
+    std::lock_guard<std::mutex> lock(mMutex);
     if (mIndexerThreadPool) {
         mIndexerThreadPool->clearBackLog();
         delete mIndexerThreadPool;
@@ -162,7 +162,7 @@ shared_ptr<Project> Server::addProject(const Path &path) // lock always held
 
 int Server::reloadProjects()
 {
-    MutexLocker lock(&mMutex);
+    std::lock_guard<std::mutex> lock(mMutex);
     mProjects.clear(); // ### could keep the ones that persist somehow
     List<Path> projects = mOptions.dataDir.files(Path::File);
     const Path home = Path::home();
@@ -297,7 +297,7 @@ void Server::compile(const String &arguments, const Path &path, const List<Strin
             return;
         }
         {
-            MutexLocker lock(&mMutex);
+            std::lock_guard<std::mutex> lock(mMutex);
 
             shared_ptr<Project> project = mProjects.value(srcRoot);
             if (!project) {
@@ -454,7 +454,7 @@ void Server::isIndexing(const QueryMessage &, Connection *conn)
 {
     ProjectsMap copy;
     {
-        MutexLocker lock(&mMutex);
+        std::lock_guard<std::mutex> lock(mMutex);
         copy = mProjects;
     }
     for (ProjectsMap::const_iterator it = copy.begin(); it != copy.end(); ++it) {
@@ -758,7 +758,7 @@ void Server::preprocessFile(const QueryMessage &query, Connection *conn)
 
 void Server::clearProjects()
 {
-    MutexLocker lock(&mMutex);
+    std::lock_guard<std::mutex> lock(mMutex);
     for (ProjectsMap::const_iterator it = mProjects.begin(); it != mProjects.end(); ++it)
         it->second->unload();
     Rct::removeDirectory(mOptions.dataDir);
@@ -839,7 +839,7 @@ void Server::index(const GccArguments &args, const List<String> &projects)
     }
 
     {
-        MutexLocker lock(&mMutex);
+        std::lock_guard<std::mutex> lock(mMutex);
 
         shared_ptr<Project> project = mProjects.value(srcRoot);
         if (!project) {
@@ -954,7 +954,7 @@ shared_ptr<Project> Server::updateProjectForLocation(const Match &match)
     if (cur && cur->match(match))
         return cur;
 
-    MutexLocker lock(&mMutex);
+    std::lock_guard<std::mutex> lock(mMutex);
     for (ProjectsMap::const_iterator it = mProjects.begin(); it != mProjects.end(); ++it) {
         if (it->second->match(match)) {
             return setCurrentProject(it->second->path());
@@ -965,7 +965,7 @@ shared_ptr<Project> Server::updateProjectForLocation(const Match &match)
 
 void Server::removeProject(const QueryMessage &query, Connection *conn)
 {
-    MutexLocker lock(&mMutex);
+    std::lock_guard<std::mutex> lock(mMutex);
     const bool unload = query.type() == QueryMessage::UnloadProject;
 
     const Match match = query.match();
@@ -994,7 +994,7 @@ void Server::reloadProjects(const QueryMessage &query, Connection *conn)
 {
     int old;
     {
-        MutexLocker lock(&mMutex);
+        std::lock_guard<std::mutex> lock(mMutex);
         old = mProjects.size();
     }
     const int cur = reloadProjects();
@@ -1004,7 +1004,7 @@ void Server::reloadProjects(const QueryMessage &query, Connection *conn)
 
 bool Server::selectProject(const Match &match, Connection *conn)
 {
-    MutexLocker lock(&mMutex);
+    std::lock_guard<std::mutex> lock(mMutex);
     shared_ptr<Project> selected;
     bool error = false;
     for (ProjectsMap::const_iterator it = mProjects.begin(); it != mProjects.end(); ++it) {
@@ -1052,7 +1052,7 @@ bool Server::updateProject(const List<String> &projects)
 
 void Server::project(const QueryMessage &query, Connection *conn)
 {
-    MutexLocker lock(&mMutex);
+    std::lock_guard<std::mutex> lock(mMutex);
     if (query.query().isEmpty()) {
         const shared_ptr<Project> current = mCurrentProject.lock();
         for (ProjectsMap::const_iterator it = mProjects.begin(); it != mProjects.end(); ++it) {
@@ -1110,7 +1110,7 @@ void Server::project(const QueryMessage &query, Connection *conn)
 
 void Server::jobCount(const QueryMessage &query, Connection *conn)
 {
-    MutexLocker lock(&mMutex);
+    std::lock_guard<std::mutex> lock(mMutex);
     if (query.query().isEmpty()) {
         conn->write<128>("Running with %d jobs", mOptions.threadCount);
     } else {
@@ -1251,7 +1251,7 @@ void Server::handleCompletionMessage(const CompletionMessage &message, Connectio
 void Server::startCompletion(const Path &path, int line, int column, int pos, const String &contents, Connection *conn)
 {
     {
-        MutexLocker lock(&mMutex);
+        std::lock_guard<std::mutex> lock(mMutex);
         mCurrentFile = path;
     }
 
@@ -1374,7 +1374,7 @@ bool Server::saveFileIds() const
 
 void Server::onUnload()
 {
-    MutexLocker lock(&mMutex);
+    std::lock_guard<std::mutex> lock(mMutex);
     shared_ptr<Project> cur = mCurrentProject.lock();
     for (ProjectsMap::const_iterator it = mProjects.begin(); it != mProjects.end(); ++it) {
         if (it->second->isValid() && it->second != cur && !it->second->isIndexing()) {

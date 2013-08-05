@@ -4,8 +4,8 @@
 #include <rct/Path.h>
 #include <rct/List.h>
 #include <rct/FileSystemWatcher.h>
-#include <rct/Mutex.h>
 #include "Location.h"
+#include <mutex>
 
 class Project;
 class FileManager
@@ -31,7 +31,7 @@ private:
     Signal<std::function<void()> > mJSFilesChanged;
     Set<Path> mJSFiles;
     uint64_t mLastReloadTime;
-    mutable Mutex mMutex;
+    mutable std::mutex mMutex;
 };
 
 #endif

@@ -31,7 +31,7 @@ void FileManager::onRecurseJobFinished(Set<Path> paths)
 {
     bool emitJS = false;
     {
-        MutexLocker lock(&mMutex); // ### is this needed now?
+        std::lock_guard<std::mutex> lock(mMutex); // ### is this needed now?
         Set<Path> old;
         std::swap(mJSFiles, old);
 
@@ -65,7 +65,7 @@ void FileManager::onFileAdded(const Path &path)
 {
     bool emitJS = false;
     {
-        MutexLocker lock(&mMutex);
+        std::lock_guard<std::mutex> lock(mMutex);
         if (path.isEmpty()) {
             error("Got empty file added here");
             return;
@@ -102,7 +102,7 @@ void FileManager::onFileAdded(const Path &path)
 
 void FileManager::onFileRemoved(const Path &path)
 {
-    MutexLocker lock(&mMutex);
+    std::lock_guard<std::mutex> lock(mMutex);
     shared_ptr<Project> project = mProject.lock();
     FilesMap &map = project->files();
     if (map.contains(path)) {
@@ -128,7 +128,7 @@ static inline bool startsWith(const Path &left, const Path &right)
 
 bool FileManager::contains(const Path &path) const
 {
-    MutexLocker lock(&mMutex);
+    std::lock_guard<std::mutex> lock(mMutex);
     shared_ptr<Project> proj = mProject.lock();
     if (!proj)
         return false;
@@ -142,9 +142,10 @@ bool FileManager::contains(const Path &path) const
 
 Set<Path> FileManager::jsFiles() const
 {
-    MutexLocker lock(&mMutex);
+    std::lock_guard<std::mutex> lock(mMutex);
     return mJSFiles;
 }
+
 void FileManager::watch(const Path &path)
 {
     if (!(Server::instance()->options().options & Server::NoFileManagerWatch)
