@@ -318,6 +318,12 @@ void Project::index(const SourceInformation &c, IndexerJob::Type type)
     Server::instance()->startIndexerJob(job);
 }
 
+static inline bool endsWith(const char *haystack, int haystackLen, const char *needle)
+{
+    const int needleLen = strlen(needle);
+    return needleLen <= haystackLen && !strcmp(haystack + haystackLen - needleLen, needle);
+}
+
 static inline Path resolveCompiler(const Path &compiler)
 {
     Path resolved;
@@ -357,7 +363,7 @@ static inline Path resolveCompiler(const Path &compiler)
                             buf[len + fnLen] = '\0';
                             if (realpath(buf, res)) {
                                 len = strlen(res);
-                                if (strcmp(res + len - 21, "/gcc-rtags-wrapper.sh") && strcmp(res + len - 6, "/icecc")) {
+                                if (!endsWith(res, len, "/gcc-rtags-wrapper.sh") && !endsWith(res, len, "/icecc")) {
                                     return Path(res, len);
                                 }
                                 // ignore if it there's another wrapper thing in the path
