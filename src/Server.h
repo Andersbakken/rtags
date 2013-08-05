@@ -153,8 +153,7 @@ private:
     bool mVerbose;
     int mJobId;
 
-    ThreadPool *mIndexerThreadPool;
-    ThreadPool mQueryThreadPool;
+    ThreadPool *mIndexerThreadPool, *mQueryThreadPool;
     Signal<std::function<void(int, const List<String> &)> > mComplete;
 
     Map<SocketClient::SharedPtr, Connection*> mCompletionStreams;

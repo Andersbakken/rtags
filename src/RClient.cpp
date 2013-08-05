@@ -504,8 +504,7 @@ bool RClient::exec()
     RTags::initMessages();
 
     EventLoop::SharedPtr loop(new EventLoop);
-    EventLoop::setMainEventLoop(loop);
-    loop->init();
+    loop->init(EventLoop::MainEventLoop);
 
     Client client;
     if (!client.connectToServer(mSocketFile, mConnectTimeout)) {

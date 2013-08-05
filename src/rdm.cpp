@@ -398,8 +398,7 @@ int main(int argc, char** argv)
     warning("Running with %d jobs", serverOpts.threadCount);
 
     EventLoop::SharedPtr loop(new EventLoop);
-    EventLoop::setMainEventLoop(loop);
-    loop->init();
+    loop->init(EventLoop::MainEventLoop);
 
     shared_ptr<Server> server(new Server);
     ::socketFile = serverOpts.socketFile;

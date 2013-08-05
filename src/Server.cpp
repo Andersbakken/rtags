@@ -39,7 +39,7 @@
 
 Server *Server::sInstance = 0;
 Server::Server()
-    : mVerbose(false), mJobId(0), mIndexerThreadPool(0), mQueryThreadPool(2),
+    : mVerbose(false), mJobId(0), mIndexerThreadPool(0), mQueryThreadPool(0),
       mRestoreProjects(false)
 {
     assert(!sInstance);
@@ -59,12 +59,16 @@ Server::~Server()
 
 void Server::clear()
 {
-    std::lock_guard<std::mutex> lock(mMutex);
-    if (mIndexerThreadPool) {
-        mIndexerThreadPool->clearBackLog();
-        delete mIndexerThreadPool;
-        mIndexerThreadPool = 0;
+    ThreadPool *indexerThreadPool = 0, *queryThreadPool = 0;
+    {
+        std::lock_guard<std::mutex> lock(mMutex);
+        std::swap(indexerThreadPool, mIndexerThreadPool);
+        std::swap(queryThreadPool, mQueryThreadPool);
     }
+
+    delete indexerThreadPool;
+    delete queryThreadPool;
+
     Path::rm(mOptions.socketFile);
     mServer.reset();
     mProjects.clear();
@@ -83,6 +87,7 @@ bool Server::init(const Options &options)
     RTags::initMessages();
 
     mIndexerThreadPool = new ThreadPool(options.threadCount, options.clangStackSize);
+    mQueryThreadPool = new ThreadPool(2);
 
     mOptions = options;
     if (options.options & NoBuiltinIncludes) {
@@ -796,7 +801,7 @@ void Server::startIndexerJob(const shared_ptr<ThreadPool::Job> &job)
 
 void Server::startQueryJob(const shared_ptr<Job> &job)
 {
-    mQueryThreadPool.start(job);
+    mQueryThreadPool->start(job);
 }
 
 void Server::index(const GccArguments &args, const List<String> &projects)
