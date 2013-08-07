@@ -14,7 +14,10 @@ public:
         Stream,
         Sync
     };
+    enum { SendThreshold = 500 };
+
     CompletionJob(const shared_ptr<Project> &project, Type type);
+
     void init(CXIndex index, CXTranslationUnit unit, const Path &path, const List<String> &args,
               int line, int column, int pos, const String &unsaved, int parseCount);
 

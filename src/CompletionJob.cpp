@@ -233,18 +233,22 @@ void CompletionJob::execute()
             node.signature.clear();
         }
         if (nodeCount) {
-            qsort(nodes, nodeCount, sizeof(CompletionNode), compareCompletionNode);
-            if (mType == Stream) {
-                write<128>("`%s %s", nodes[0].completion.constData(), nodes[0].signature.constData());
+            if (nodeCount > SendThreshold) {
+                write("`");
             } else {
-                write<128>("%s %s", nodes[0].completion.constData(), nodes[0].signature.constData());
-            }
-            for (int i=1; i<nodeCount; ++i) {
-                write<128>("%s %s", nodes[i].completion.constData(), nodes[i].signature.constData());
+                qsort(nodes, nodeCount, sizeof(CompletionNode), compareCompletionNode);
+                if (mType == Stream) {
+                    write<128>("`%s %s", nodes[0].completion.constData(), nodes[0].signature.constData());
+                } else {
+                    write<128>("%s %s", nodes[0].completion.constData(), nodes[0].signature.constData());
+                }
+                for (int i=1; i<nodeCount; ++i) {
+                    write<128>("%s %s", nodes[i].completion.constData(), nodes[i].signature.constData());
+                }
             }
         }
 
-        warning() << "Wrote" << nodeCount << "completions for"
+        warning() << "Wrote" << ((nodeCount > SendThreshold) ? -1 : nodeCount) << "completions for"
                   << String::format<128>("%s:%d:%d", mPath.constData(), mLine, mColumn)
                   << "in" << timer.elapsed() << "ms" << mArgs;
         // const unsigned diagnosticCount = clang_getNumDiagnostics(mUnit);
