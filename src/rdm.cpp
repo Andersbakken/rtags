@@ -83,7 +83,7 @@ void usage(FILE *f)
             "  --ignore-compiler|-b [arg]                 Alias this compiler (Might be practical to avoid duplicated builds for things like icecc).\n"
             "  --disable-plugin|-p [arg]                  Don't load this plugin\n"
             "  --disable-esprima|-E                       Don't use esprima\n"
-            "  --disable-compiler-flags|-K                Don't query compiler for default flags\n"
+            "  --enable-compiler-flags|-K                 Query the compiler for default flags\n"
             "  --clang-stack-size|-t [arg]                Use this much stack for clang's threads (default %d).\n", defaultStackSize);
 }
 
@@ -133,7 +133,7 @@ int main(int argc, char** argv)
         { "disable-plugin", required_argument, 0, 'p' },
         { "watch-system-paths", no_argument, 0, 'w' },
         { "disable-esprima", no_argument, 0, 'E' },
-        { "disable-compiler-flags", no_argument, 0, 'K' },
+        { "enable-compiler-flags", no_argument, 0, 'K' },
         { "clear-completion-cache-interval", required_argument, 0, 'O' },
 #ifdef OS_Darwin
         { "filemanager-watch", no_argument, 0, 'M' },
@@ -222,7 +222,7 @@ int main(int argc, char** argv)
     serverOpts.threadCount = ThreadPool::idealThreadCount();
     serverOpts.completionCacheSize = 0;
     serverOpts.clearCompletionCacheInterval = DEFAULT_COMPLETION_CACHE_CLEAR_INTERVAL;
-    serverOpts.options = Server::Wall|Server::SpellChecking|Server::UseCompilerFlags;
+    serverOpts.options = Server::Wall|Server::SpellChecking;
 #ifdef OS_Darwin
     serverOpts.options |= Server::NoFileManagerWatch;
 #endif
@@ -272,7 +272,7 @@ int main(int argc, char** argv)
             usage(stdout);
             return 0;
         case 'K':
-            serverOpts.options &= ~Server::UseCompilerFlags;
+            serverOpts.options |= Server::UseCompilerFlags;
             break;
         case 'E':
             serverOpts.options |= Server::NoEsprima;
