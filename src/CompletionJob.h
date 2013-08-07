@@ -22,7 +22,7 @@ public:
               int line, int column, int pos, const String &unsaved, int parseCount);
 
     virtual void execute();
-    Signal<std::function<void(Path)> > &finished() { return mFinished; }
+    Signal<std::function<void(Path, int)> > &finished() { return mFinished; }
     Type type() const { return mType; }
 private:
     void processDiagnostics(CXCodeCompleteResults* results);
@@ -34,7 +34,7 @@ private:
     List<String> mArgs;
     int mLine, mColumn, mPos, mParseCount;
     String mUnsaved;
-    Signal<std::function<void(Path)> > mFinished;
+    Signal<std::function<void(Path, int)> > mFinished;
     const Type mType;
 };
 

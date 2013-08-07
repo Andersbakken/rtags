@@ -139,7 +139,7 @@ private:
     void onCompletionStreamDisconnected(const SocketClient::SharedPtr& client);
     shared_ptr<Project> addProject(const Path &path);
     void loadProject(const shared_ptr<Project> &project);
-    void onCompletionJobFinished(Path path);
+    void onCompletionJobFinished(Path path, int id);
     void startCompletion(const Path &path, int line, int column, int pos, const String &contents, Connection *conn);
 
     typedef Map<Path, shared_ptr<Project> > ProjectsMap;

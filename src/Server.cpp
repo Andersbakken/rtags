@@ -1280,7 +1280,7 @@ void Server::startCompletion(const Path &path, int line, int column, int pos, co
     int parseCount = 0;
     if (!project->fetchFromCache(path, args, index, unit, &parseCount)) {
         const SourceInformation info = project->sourceInfo(fileId);
-        if (info.isNull()) {
+        if (info.isNull() || info.isJS()) {
             if (!isCompletionStream(conn))
                 conn->finish();
             return;
@@ -1293,12 +1293,12 @@ void Server::startCompletion(const Path &path, int line, int column, int pos, co
     shared_ptr<CompletionJob> job(new CompletionJob(project, isCompletionStream(conn) ? CompletionJob::Stream : CompletionJob::Sync));
     job->init(index, unit, path, args, line, column, pos, contents, parseCount);
     job->setId(nextId());
-    job->finished().connectAsync(std::bind(&Server::onCompletionJobFinished, this, std::placeholders::_1));
+    job->finished().connectAsync(std::bind(&Server::onCompletionJobFinished, this, std::placeholders::_1, std::placeholders::_2));
     mPendingLookups[job->id()] = conn;
     startQueryJob(job);
 }
 
-void Server::onCompletionJobFinished(Path path)
+void Server::onCompletionJobFinished(Path path, int id)
 {
     // error() << "Got finished for" << path;
     PendingCompletion completion = mPendingCompletions.take(path);
@@ -1308,6 +1308,7 @@ void Server::onCompletionJobFinished(Path path)
     } else {
         mActiveCompletions.remove(path);
     }
+    mPendingLookups.remove(id);
 }
 
 bool Server::isCompletionStream(Connection* conn) const

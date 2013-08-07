@@ -161,7 +161,7 @@ void CompletionJob::execute()
         RTags::reparseTranslationUnit(mUnit, &unsavedFile, 1);
         if (!mUnit) {
             clang_disposeIndex(mIndex);
-            mFinished(mPath);
+            mFinished(mPath, id());
             return;
         } else {
             ++mParseCount;
@@ -277,5 +277,5 @@ void CompletionJob::execute()
             proj->addToCache(mPath, mArgs, mIndex, mUnit, mParseCount);
         }
     }
-    mFinished(mPath);
+    mFinished(mPath, id());
 }
