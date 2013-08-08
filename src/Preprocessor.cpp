@@ -37,5 +37,5 @@ void Preprocessor::onProcessFinished()
         mConnection->write<1024>("/* %s */", err.constData());
     }
     mConnection->finish();
-    EventLoop::deleteLater(EventLoop::mainEventLoop(), this);
+    EventLoop::deleteLater(this);
 }

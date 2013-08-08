@@ -16,7 +16,7 @@ public:
 
     void shutdown()
     {
-        EventLoop::deleteLater(EventLoop::mainEventLoop(), this);
+        EventLoop::deleteLater(this);
     }
 
     virtual void log(const char *msg, int len)

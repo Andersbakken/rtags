@@ -283,7 +283,7 @@ void Server::onNewMessage(Message *message, Connection *connection)
 
 void Server::handleCompileMessage(const CompileMessage &message, Connection *conn)
 {
-    EventLoop::mainEventLoop()->callLater(std::bind(&Server::compile, this, message.arguments(), message.path(), message.projects()));
+    EventLoop::eventLoop()->callLater(std::bind(&Server::compile, this, message.arguments(), message.path(), message.projects()));
     conn->finish(); // nothing to wait for
 }
 
@@ -1206,7 +1206,7 @@ void Server::loadCompilationDatabase(const QueryMessage &query, Connection *conn
 
 void Server::shutdown(const QueryMessage &query, Connection *conn)
 {
-    EventLoop::mainEventLoop()->quit();
+    EventLoop::eventLoop()->quit();
     conn->write("Shutting down");
     conn->finish();
 }

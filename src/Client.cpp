@@ -40,7 +40,7 @@ bool Client::send(const Message *msg, int timeout)
 
     if (!mConnection->send(msg))
         return false;
-    EventLoop::mainEventLoop()->exec(timeout);
+    EventLoop::eventLoop()->exec(timeout);
     return mSendComplete;
 }
 
@@ -65,8 +65,8 @@ void Client::onSendComplete(Connection *)
 void Client::onDisconnected(Connection *)
 {
     if (mConnection) {
-        EventLoop::deleteLater(EventLoop::mainEventLoop(), mConnection);
+        EventLoop::deleteLater(mConnection);
         mConnection = 0;
-        EventLoop::mainEventLoop()->quit();
+        EventLoop::eventLoop()->quit();
     }
 }
