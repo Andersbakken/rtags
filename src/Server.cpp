@@ -1298,7 +1298,7 @@ void Server::startCompletion(const Path &path, int line, int column, int pos, co
     shared_ptr<CompletionJob> job(new CompletionJob(project, isCompletionStream(conn) ? CompletionJob::Stream : CompletionJob::Sync));
     job->init(index, unit, path, args, line, column, pos, contents, parseCount);
     job->setId(nextId());
-    job->finished().connectAsync(std::bind(&Server::onCompletionJobFinished, this, std::placeholders::_1, std::placeholders::_2));
+    job->finished().connect<EventLoop::Async>(std::bind(&Server::onCompletionJobFinished, this, std::placeholders::_1, std::placeholders::_2));
     mPendingLookups[job->id()] = conn;
     startQueryJob(job);
 }

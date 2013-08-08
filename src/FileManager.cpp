@@ -23,7 +23,7 @@ void FileManager::reload()
     shared_ptr<Project> project = mProject.lock();
     assert(project);
     shared_ptr<ScanJob> job(new ScanJob(project->path()));
-    job->finished().connectAsync(std::bind(&FileManager::onRecurseJobFinished, this, std::placeholders::_1));
+    job->finished().connect<EventLoop::Async>(std::bind(&FileManager::onRecurseJobFinished, this, std::placeholders::_1));
     Server::instance()->threadPool()->start(job);
 }
 
