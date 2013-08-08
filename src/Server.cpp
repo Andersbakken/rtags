@@ -872,21 +872,26 @@ void Server::onJobOutput(JobOutput&& out)
             job->abort();
         return;
     }
-    if (!it->second->isConnected()) {
+    Connection* conn = it->second;
+    if (!conn->isConnected()) {
         error() << "Connection has been disconnected";
         if (shared_ptr<Job> job = out.job.lock())
             job->abort();
         return;
     }
-    if (!out.out.isEmpty() && !it->second->write(out.out)) {
+    if (!out.out.isEmpty() && !conn->write(out.out)) {
         error() << "Failed to write to connection";
         if (shared_ptr<Job> job = out.job.lock())
             job->abort();
         return;
     }
 
-    if (out.finish && !isCompletionStream(it->second))
-        it->second->finish();
+    if (out.finish) {
+        if (isCompletionStream(conn))
+            mPendingLookups.erase(it);
+        else
+            it->second->finish();
+    }
 }
 
 void Server::loadProject(const shared_ptr<Project> &project)
@@ -1298,7 +1303,7 @@ void Server::startCompletion(const Path &path, int line, int column, int pos, co
     startQueryJob(job);
 }
 
-void Server::onCompletionJobFinished(Path path, int id)
+void Server::onCompletionJobFinished(Path path, int /*id*/)
 {
     // error() << "Got finished for" << path;
     PendingCompletion completion = mPendingCompletions.take(path);
@@ -1308,7 +1313,6 @@ void Server::onCompletionJobFinished(Path path, int id)
     } else {
         mActiveCompletions.remove(path);
     }
-    mPendingLookups.remove(id);
 }
 
 bool Server::isCompletionStream(Connection* conn) const
