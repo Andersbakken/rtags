@@ -1351,15 +1351,14 @@ References to references will be treated as references to the referenced symbol"
   (if rtags-update-current-error-timer
       (cancel-timer rtags-update-current-error-timer))
   (setq rtags-update-current-error-timer
-        (and (or rtags-display-current-error-as-tooltip
-                 rtags-display-current-error-as-message)
+        (and (or rtags-display-current-error-as-message
+                 rtags-display-current-error-as-tooltip)
+             (get-buffer "*RTags Diagnostics*")
              (run-with-idle-timer
               rtags-error-timer-interval
               nil
               (function rtags-display-current-error))))
   )
-
-(add-hook 'post-command-hook (function rtags-update-current-error))
 
 (defun rtags-is-rtags-overlay (overlay) (and overlay (overlay-get overlay 'rtags-error-message)))
 
@@ -1463,12 +1462,13 @@ References to references will be treated as references to the referenced symbol"
 (defvar rtags-completion-cache-timer nil)
 (defun rtags-restart-completion-cache-timer ()
   (interactive)
-  (when (or (eq major-mode 'c++-mode)
-            (eq major-mode 'c-mode))
-    (if rtags-completion-cache-timer
-        (cancel-timer rtags-completion-cache-timer))
-    (setq rtags-completion-cache-timer (run-with-idle-timer rtags-completion-timer-interval nil (function rtags-prepare-completions)))
-    )
+  (if rtags-completion-cache-timer
+      (cancel-timer rtags-completion-cache-timer))
+  (setq rtags-completion-cache-timer
+        (and (or (eq major-mode 'c++-mode)
+                 (eq major-mode 'c-mode))
+             (not (eq rtags-completion-mode 'rtags-completion-disabled))
+             (run-with-idle-timer rtags-completion-timer-interval nil (function rtags-prepare-completions))))
   )
 
 (defun rtags-ac-completions ()
@@ -1574,12 +1574,10 @@ should use `irony-get-completion-point-anywhere'."
     (setq rtags-completion-cache-timer nil))
   (if (eq rtags-completion-mode 'rtags-completion-disabled)
       (progn
-        (remove-hook 'post-command-hook (function rtags-restart-completion-cache-timer))
         (remove-hook 'find-file-hook 'rtags-ac-find-file-hook)
         (if (equal ac-sources (list rtags-ac-completions-source))
             (setq ac-sources (list ac-source-words-in-same-mode-buffers))))
     (progn
-      (add-hook 'post-command-hook (function rtags-restart-completion-cache-timer))
       (unless (eq rtags-completion-mode 'rtags-complete-with-dabbrev)
         (add-hook 'find-file-hook 'rtags-ac-find-file-hook))))
   )
@@ -1618,12 +1616,20 @@ should use `irony-get-completion-point-anywhere'."
             (push (concat "--with-project=" path) arguments)
             (let ((mapped (if rtags-match-source-file-to-project (apply rtags-match-source-file-to-project (list path)))))
               (if (and mapped (length mapped)) (push (concat "--with-project=" mapped) arguments)))
-            (apply #'start-process "global-update" nil rc arguments))))
+            (apply #'start-process "rtags-update-current-project" nil rc arguments))))
     (error (message "Got error in rtags-update-current-project")))
   )
 
-(add-hook 'post-command-hook (function rtags-update-current-project))
-;;(remove-hook 'post-command-hook (function rtags-update-current-project))
+(defun rtags-post-command-hook ()
+  (interactive)
+  (rtags-update-current-project)
+  (rtags-update-current-error)
+  (rtags-restart-completion-cache-timer)
+  (rtags-restart-update-local-references-timer)
+  )
+
+(add-hook 'post-command-hook (function rtags-post-command-hook))
+;; (remove-hook 'post-command-hook (function rtags-post-command-hook))
 
 (defun rtags-fixup-flymake-err-info ()
   (setq flymake-err-info
@@ -2206,24 +2212,18 @@ should use `irony-get-completion-point-anywhere'."
 (defvar rtags-local-references-timer nil)
 (defun rtags-restart-update-local-references-timer ()
   (interactive)
-  (when (or (eq major-mode 'c++-mode)
-            (eq major-mode 'c-mode))
-    (when rtags-local-references-timer
-      (cancel-timer rtags-local-references-timer)
-      (setq rtags-local-references-timer nil))
-    (unless (string= rtags-cached-local-references (rtags-current-location))
-      (progn
-        (rtags-clear-local-references-overlays)
-        (setq rtags-local-references-timer (run-with-idle-timer rtags-local-references-timer-interval
-                                                                nil (function rtags-update-local-references))))))
+  (if rtags-local-references-timer
+      (cancel-timer rtags-local-references-timer))
+  (setq rtags-local-references-timer
+        (and rtags-local-references-enabled
+             (or (eq major-mode 'c++-mode)
+                 (eq major-mode 'c-mode))
+             (not (string= rtags-cached-local-references (rtags-current-location)))
+             (progn
+               (rtags-clear-local-references-overlays)
+               (run-with-idle-timer rtags-local-references-timer-interval
+                                    nil (function rtags-update-local-references))))
+        )
   )
-
-(if rtags-local-references-enabled
-    (add-hook 'post-command-hook 'rtags-restart-update-local-references-timer)
-  (progn
-    (when rtags-local-references-timer
-      (cancel-timer rtags-local-references-timer)
-      (setq rtags-local-references-timer nil))
-    (remove-hook 'post-command-hook 'rtags-restart-update-local-references-timer)))
 
 (provide 'rtags)
