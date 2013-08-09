@@ -200,70 +200,76 @@
           (cons head (rtags-remove-keyword-params tail))))))
 
 (defun* rtags-call-rc (&rest arguments
-                       &key (path (buffer-file-name))
-                       unsaved
-                       async ;; nil or a cons (process-filter . sentinel)
-                       path-filter
-                       path-filter-regex
-                       range-filter
-                       (output (list t nil)) ; not supported for async
-                       context
-                       (range-min (1- (point-min)))
-                       (range-max (1- (point-max)))
-                       noerror
-                       &allow-other-keys)
+                             &key (path (buffer-file-name))
+                             unsaved
+                             async ;; nil or a cons (process-filter . sentinel)
+                             path-filter
+                             path-filter-regex
+                             range-filter
+                             (output (list t nil)) ; not supported for async
+                             context
+                             (range-min (1- (point-min)))
+                             (range-max (1- (point-max)))
+                             noerror
+                             &allow-other-keys)
   (save-excursion
     (let ((rc (rtags-executable-find "rc")) proc)
-      (and async (not (consp async)) (error "Invalid argument. async must be a cons or nil"))
-      (unless rc (error "Can't find rc"))
-      (and unsaved (not async) (error "Synchronous rc with --unsaved-file not supported"))
-      (setq arguments (rtags-remove-keyword-params arguments))
-      (setq arguments (remove-if '(lambda (arg) (not arg)) arguments))
-      (when path-filter
-        (push (concat "--path-filter=" path-filter) arguments)
-        (if rtags-path-filter-regex
-            (push "-Z" arguments)))
-      (if unsaved
-          (push (format "--unsaved-file=%s:%d"
-                        (buffer-file-name unsaved)
-                        (with-current-buffer unsaved (- (point-max) (point-min))))
-                arguments))
-      (if range-filter
-          (push (format "--range-filter=%d-%d" range-min range-max) arguments))
-      (if rtags-timeout
-          (push (format "--timeout=%d" rtags-timeout) arguments))
-      (if (and rtags-show-containing-function (not (member "-N" arguments)))
-          (push "-o" arguments))
-
-      (cond ((stringp path) (push (concat "--with-project=" path) arguments))
-            (path nil)
-            (default-directory (push (concat "--with-project=" default-directory) arguments))
-            (t nil))
-      (if context
-          (push (concat "--context=" context) arguments))
-
-      (rtags-log (concat rc " " (combine-and-quote-strings arguments)))
-      (let ((proc (cond ((and unsaved async)
-                         (let ((proc (apply #'start-process "rc" (current-buffer) rc arguments)))
-                           (with-current-buffer unsaved
-                             (process-send-region proc (point-min) (point-max)))
-                           proc))
-                        (async (apply #'start-process "rc" (current-buffer) rc arguments))
-                        ;; (unsaved (apply #'call-process-region (point-min) (point-max) rc nil output nil arguments) nil)
-                        (t (apply #'call-process rc nil output nil arguments) nil))))
-        (if proc
-            (progn
-              (set-process-query-on-exit-flag proc nil)
-              (set-process-filter proc (car async))
-              (set-process-sentinel proc (cdr async))
-              )
+      (if (not rc)
           (progn
-            (goto-char (point-min))
-            (when (looking-at "Can't seem to connect to server")
-              (erase-buffer)
-              (unless noerror
-                (error "Can't seem to connect to server. Is rdm running?"))))))))
-  (or async (> (point-max) (point-min))))
+            (unless noerror (error "Can't find rc"))
+            nil)
+        (progn
+          (and async (not (consp async)) (error "Invalid argument. async must be a cons or nil"))
+          (and unsaved (not async) (error "Synchronous rc with --unsaved-file not supported"))
+          (setq arguments (rtags-remove-keyword-params arguments))
+          (setq arguments (remove-if '(lambda (arg) (not arg)) arguments))
+          (when path-filter
+            (push (concat "--path-filter=" path-filter) arguments)
+            (if rtags-path-filter-regex
+                (push "-Z" arguments)))
+          (if unsaved
+              (push (format "--unsaved-file=%s:%d"
+                            (buffer-file-name unsaved)
+                            (with-current-buffer unsaved (- (point-max) (point-min))))
+                    arguments))
+          (if range-filter
+              (push (format "--range-filter=%d-%d" range-min range-max) arguments))
+          (if rtags-timeout
+              (push (format "--timeout=%d" rtags-timeout) arguments))
+          (if (and rtags-show-containing-function (not (member "-N" arguments)))
+              (push "-o" arguments))
+
+          (cond ((stringp path) (push (concat "--with-project=" path) arguments))
+                (path nil)
+                (default-directory (push (concat "--with-project=" default-directory) arguments))
+                (t nil))
+          (if context
+              (push (concat "--context=" context) arguments))
+
+          (rtags-log (concat rc " " (combine-and-quote-strings arguments)))
+          (let ((proc (cond ((and unsaved async)
+                             (let ((proc (apply #'start-process "rc" (current-buffer) rc arguments)))
+                               (with-current-buffer unsaved
+                                 (process-send-region proc (point-min) (point-max)))
+                               proc))
+                            (async (apply #'start-process "rc" (current-buffer) rc arguments))
+                            ;; (unsaved (apply #'call-process-region (point-min) (point-max) rc nil output nil arguments) nil)
+                            (t (apply #'call-process rc nil output nil arguments) nil))))
+            (if proc
+                (progn
+                  (set-process-query-on-exit-flag proc nil)
+                  (set-process-filter proc (car async))
+                  (set-process-sentinel proc (cdr async))
+                  )
+              (progn
+                (goto-char (point-min))
+                (when (looking-at "Can't seem to connect to server")
+                  (erase-buffer)
+                  (unless noerror
+                    (error "Can't seem to connect to server. Is rdm running?"))))))
+          (or async (> (point-max) (point-min))))))
+    )
+  )
 
 (defun rtags-index-js-file ()
   (interactive)
