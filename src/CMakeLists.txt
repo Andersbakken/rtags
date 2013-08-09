@@ -58,7 +58,6 @@ endif ()
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/bin)
 
 set(RTAGS_SHARED_SOURCES
-  Client.cpp
   CompileMessage.cpp
   CompletionMessage.cpp
   CreateOutputMessage.cpp

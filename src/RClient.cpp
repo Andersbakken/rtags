@@ -1,7 +1,8 @@
 #include "RClient.h"
-#include "CreateOutputMessage.h"
 #include "CompileMessage.h"
 #include "CompletionMessage.h"
+#include "CreateOutputMessage.h"
+#include <rct/Connection.h>
 #include <rct/EventLoop.h>
 #include <rct/Rct.h>
 #include <rct/RegExp.h>
@@ -265,7 +266,7 @@ public:
         None = 0x0,
         RequiresNon0Output = 0x1
     };
-    virtual bool exec(RClient *rc, Client *client) = 0;
+    virtual bool exec(RClient *rc, Connection *connection) = 0;
     virtual String description() const = 0;
 
     const unsigned int flags;
@@ -282,7 +283,7 @@ public:
     const String query;
     unsigned extraQueryFlags;
 
-    virtual bool exec(RClient *rc, Client *client)
+    virtual bool exec(RClient *rc, Connection *connection)
     {
         QueryMessage msg(type);
         msg.init(rc->argc(), rc->argv());
@@ -293,7 +294,7 @@ public:
         msg.setPathFilters(rc->pathFilters().toList());
         msg.setRangeFilter(rc->minOffset(), rc->maxOffset());
         msg.setProjects(rc->projects());
-        return client->send(&msg, rc->timeout());
+        return connection->send(&msg);
     }
 
     virtual String description() const
@@ -306,10 +307,10 @@ class CompletionCommand : public RCCommand
 {
 public:
     CompletionCommand(const Path &p, int l, int c)
-        : RCCommand(0), path(p), line(l), column(c), stream(false), client(0)
+        : RCCommand(0), path(p), line(l), column(c), stream(false), connection(0)
     {}
     CompletionCommand()
-        : RCCommand(0), line(-1), column(-1), stream(true), client(0)
+        : RCCommand(0), line(-1), column(-1), stream(true), connection(0)
     {
     }
 
@@ -317,24 +318,24 @@ public:
     const int line;
     const int column;
     const bool stream;
-    Client *client;
+    Connection *connection;
     String data;
 
-    virtual bool exec(RClient *rc, Client *cl)
+    virtual bool exec(RClient *rc, Connection *cl)
     {
-        client = cl;
+        connection = cl;
         if (stream) {
             CompletionMessage msg(CompletionMessage::Stream);
             msg.init(rc->argc(), rc->argv());
             msg.setProjects(rc->projects());
             EventLoop::eventLoop()->registerSocket(STDIN_FILENO, EventLoop::SocketRead, std::bind(&CompletionCommand::processStdin, this));
-            return client->send(&msg, rc->timeout());
+            return connection->send(&msg);
         } else {
             CompletionMessage msg(CompletionMessage::None, path, line, column);
             msg.init(rc->argc(), rc->argv());
             msg.setContents(rc->unsavedFiles().value(path));
             msg.setProjects(rc->projects());
-            return client->send(&msg, rc->timeout());
+            return connection->send(&msg);
         }
     }
 
@@ -396,7 +397,7 @@ public:
         const char *argv[] = { "completionStream", args.constData() };
         msg.init(2, argv);
         msg.setContents(contents);
-        client->send(&msg, -1);
+        connection->send(&msg);
     }
 };
 
@@ -409,11 +410,11 @@ public:
         : RCCommand(0), mLevel(level)
     {
     }
-    virtual bool exec(RClient *rc, Client *client)
+    virtual bool exec(RClient *rc, Connection *connection)
     {
         CreateOutputMessage msg(mLevel == Default ? rc->logLevel() : mLevel);
         msg.init(rc->argc(), rc->argv());
-        return client->send(&msg, rc->timeout());
+        return connection->send(&msg);
     }
     virtual String description() const
     {
@@ -430,12 +431,12 @@ public:
     {}
     const Path path;
     const String args;
-    virtual bool exec(RClient *rc, Client *client)
+    virtual bool exec(RClient *rc, Connection *connection)
     {
         CompileMessage msg(path, args);
         msg.init(rc->argc(), rc->argv());
         msg.setProjects(rc->projects());
-        return client->send(&msg, rc->timeout());
+        return connection->send(&msg);
     }
     virtual String description() const
     {
@@ -454,7 +455,7 @@ RClient::~RClient()
     cleanupLogging();
 }
 
-QueryCommand *RClient::addQuery(QueryMessage::Type t, const String &query)
+void RClient::addQuery(QueryMessage::Type t, const String &query)
 {
     unsigned int flags = RCCommand::None;
     switch (t) {
@@ -466,19 +467,18 @@ QueryCommand *RClient::addQuery(QueryMessage::Type t, const String &query)
     default:
         break;
     }
-    QueryCommand *cmd = new QueryCommand(t, query, flags);
+    shared_ptr<QueryCommand> cmd(new QueryCommand(t, query, flags));
     mCommands.append(cmd);
-    return cmd;
 }
 
 void RClient::addLog(int level)
 {
-    mCommands.append(new RdmLogCommand(level));
+    mCommands.append(shared_ptr<RCCommand>(new RdmLogCommand(level)));
 }
 
 void RClient::addCompile(const Path &cwd, const String &args)
 {
-    mCommands.append(new CompileCommand(cwd, args));
+    mCommands.append(shared_ptr<RCCommand>(new CompileCommand(cwd, args)));
 }
 
 class LogMonitor : public LogOutput
@@ -499,36 +499,37 @@ public:
 
 bool RClient::exec()
 {
-    LogMonitor monitor;
-
+    bool ret = true;
     RTags::initMessages();
 
     EventLoop::SharedPtr loop(new EventLoop);
     loop->init(EventLoop::MainEventLoop);
+    LogMonitor monitor;
 
-    Client client;
-    if (!client.connectToServer(mSocketFile, mConnectTimeout)) {
-        error("Can't seem to connect to server");
-        return false;
-    }
-
-    bool ret = true;
     const int commandCount = mCommands.size();
     bool requiresNon0Output = false;
     for (int i=0; i<commandCount; ++i) {
-        RCCommand *cmd = mCommands.at(i);
-        requiresNon0Output = cmd->flags & RCCommand::RequiresNon0Output;
-        debug() << "running command " << cmd->description();
-        ret = cmd->exec(this, &client);
-        delete cmd;
-        if (!ret) {
-            while (++i < commandCount)
-                delete mCommands.at(i);
+        Connection connection;
+        if (!connection.connectToServer(mSocketFile, mConnectTimeout)) {
+            error("Can't seem to connect to server");
+            ret = false;
             break;
         }
+
+        connection.newMessage().connect(std::bind(&RClient::onNewMessage, this,
+                                                  std::placeholders::_1, std::placeholders::_2));
+        connection.disconnected().connect(std::bind([](){ EventLoop::eventLoop()->quit(); }));
+
+        const shared_ptr<RCCommand> &cmd = mCommands.at(i);
+        requiresNon0Output = cmd->flags & RCCommand::RequiresNon0Output;
+        debug() << "running command " << cmd->description();
+        ret = cmd->exec(this, &connection) && loop->exec(timeout()) == 0;
+        if (!ret)
+            break;
     }
     mCommands.clear();
-    return ret && (!requiresNon0Output || monitor.gotNon0Output);
+    ret = ret && (!requiresNon0Output || monitor.gotNon0Output);
+    return ret;
 }
 
 bool RClient::parse(int &argc, char **argv)
@@ -538,7 +539,7 @@ bool RClient::parse(int &argc, char **argv)
 
     List<option> options;
     options.reserve(sizeof(opts) / sizeof(Option));
-    List<QueryCommand*> projectCommands;
+    List<std::shared_ptr<QueryCommand> > projectCommands;
 
     String shortOptionString;
     Map<int, Option*> shortOptions, longOptions;
@@ -659,7 +660,7 @@ bool RClient::parse(int &argc, char **argv)
             break;
         case CodeComplete:
             // logFile = "/tmp/rc.log";
-            mCommands.append(new CompletionCommand);
+            mCommands.append(shared_ptr<RCCommand>(new CompletionCommand));
             break;
         case Context:
             mContext = optarg;
@@ -684,7 +685,7 @@ bool RClient::parse(int &argc, char **argv)
                 serializer << path << atoi(caps[2].capture.constData()) << atoi(caps[3].capture.constData());
             }
             CompletionCommand *cmd = new CompletionCommand(path, atoi(caps[2].capture.constData()), atoi(caps[3].capture.constData()));
-            mCommands.append(cmd);
+            mCommands.append(shared_ptr<RCCommand>(cmd));
             break; }
         case AllReferences:
             mQueryFlags |= QueryMessage::AllReferences;
@@ -866,17 +867,16 @@ bool RClient::parse(int &argc, char **argv)
             default: assert(0); break;
             }
 
-            QueryCommand *cmd;
             if (optarg) {
-                cmd = addQuery(type, optarg);
+                addQuery(type, optarg);
             } else if (optind < argc && argv[optind][0] != '-') {
-                cmd = addQuery(type, argv[optind++]);
+                addQuery(type, argv[optind++]);
             } else {
-                cmd = addQuery(type);
+                addQuery(type);
             }
-            assert(cmd);
+            assert(!mCommands.isEmpty());
             if (type == QueryMessage::Project)
-                projectCommands.append(cmd);
+                projectCommands.append(std::static_pointer_cast<QueryCommand>(mCommands.back()));
             break; }
         case LoadCompilationDatabase: {
             Path fileName;
@@ -1024,7 +1024,7 @@ bool RClient::parse(int &argc, char **argv)
         // using the current buffer but rather piggy-back on --project
         const int count = projectCommands.size();
         for (int i=0; i<count; ++i) {
-            QueryCommand *cmd = projectCommands[i];
+            shared_ptr<QueryCommand> &cmd = projectCommands[i];
             if (!cmd->query.isEmpty()) {
                 cmd->extraQueryFlags |= QueryMessage::Silent;
             }
@@ -1041,4 +1041,17 @@ bool RClient::parse(int &argc, char **argv)
     mArgv = argv;
 
     return true;
+}
+
+void RClient::onNewMessage(const Message *message, Connection *)
+{
+    if (message->messageId() == ResponseMessage::MessageId) {
+        const String response = static_cast<const ResponseMessage*>(message)->data();
+        if (!response.isEmpty()) {
+            error("%s", response.constData());
+            fflush(stdout);
+        }
+    } else {
+        error("Unexpected message: %d", message->messageId());
+    }
 }

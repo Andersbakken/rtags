@@ -1,6 +1,5 @@
 #include "Server.h"
 
-#include "Client.h"
 #include "CompileMessage.h"
 #include "CompletionJob.h"
 #include "CreateOutputMessage.h"
@@ -12,6 +11,7 @@
 #include "FollowLocationJob.h"
 #include "IndexerJob.h"
 #include "JSONJob.h"
+#include "GccArguments.h"
 #if defined(HAVE_V8) || defined(HAVE_YAJL)
 #  include "JSONParser.h"
 #endif
@@ -119,10 +119,12 @@ bool Server::init(const Options &options)
         mServer.reset();
         if (!i) {
             enum { Timeout = 1000 };
-            Client client;
-            if (client.connectToServer(mOptions.socketFile, Timeout)) {
+            Connection connection;
+            if (connection.connectToServer(mOptions.socketFile, Timeout)) {
                 QueryMessage msg(QueryMessage::Shutdown);
-                client.send(&msg, Timeout);
+                connection.send(&msg);
+                connection.disconnected().connect(std::bind([](){ EventLoop::eventLoop()->quit(); }));
+                EventLoop::eventLoop()->exec(Timeout);
             }
         }
         sleep(1);

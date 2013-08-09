@@ -3,10 +3,13 @@
 
 #include <rct/List.h>
 #include <rct/String.h>
-#include "Client.h"
+#include <rct/Map.h>
+#include <rct/Path.h>
+#include "QueryMessage.h"
+
 class RCCommand;
-class Client;
 class QueryCommand;
+class Connection;
 class RClient
 {
 public:
@@ -36,8 +39,9 @@ public:
 
     int argc() const { return mArgc; }
     char **argv() const { return mArgv; }
+    void onNewMessage(const Message *message, Connection *);
 private:
-    QueryCommand *addQuery(QueryMessage::Type t, const String &query = String());
+    void addQuery(QueryMessage::Type t, const String &query = String());
 
     void addLog(int level);
     void addCompile(const Path &cwd, const String &args);
@@ -47,7 +51,7 @@ private:
     String mContext;
     Set<String> mPathFilters;
     Map<Path, String> mUnsavedFiles;
-    List<RCCommand*> mCommands;
+    List<std::shared_ptr<RCCommand> > mCommands;
     List<String> mRdmArgs;
     String mSocketFile;
     List<String> mProjects;
