@@ -842,10 +842,11 @@ bool RClient::parse(int &argc, char **argv)
         case UnloadProject:
             addQuery(QueryMessage::UnloadProject, optarg);
             break;
-        case FindProjectRoot:
-            printf("findProjectRoot [%s] => [%s]\n", optarg,
-                   RTags::findProjectRoot(optarg).constData());
-            return 0;
+        case FindProjectRoot: {
+            const Path p = Path::resolved(optarg);
+            printf("findProjectRoot [%s] => [%s]\n", p.constData(),
+                   RTags::findProjectRoot(p).constData());
+            return 0; }
         case Reindex:
         case Project:
         case FindFile:
