@@ -212,9 +212,7 @@ static inline Path findAncestor(Path path, const char *fn, unsigned flags)
     if (flags & Wildcard)
         free(direntBuf);
 
-    if (!ret.isEmpty() && !ret.endsWith('/'))
-        ret.append('/');
-    return ret;
+    return ret.ensureTrailingSlash();
 }
 
 struct Entry {
@@ -234,8 +232,6 @@ static inline Path checkEntry(const Entry *entries, const Path &path, const Path
             }
         }
         if (!p.isEmpty() && p != home) {
-            if (!p.compare("./") || !p.compare("."))
-                error() << "1" << path << "=>" << p << entries[i].name;
             return p;
         }
     }
@@ -246,6 +242,27 @@ static inline Path checkEntry(const Entry *entries, const Path &path, const Path
 Path findProjectRoot(const Path &path)
 {
     assert(path.isAbsolute());
+    const Path config = findAncestor(path, ".rtags-config", Shallow);
+    if (config.isDir()) {
+        const List<String> conf = Path(config + ".rtags-config").readAll().split('\n');
+        for (List<String>::const_iterator it = conf.begin(); it != conf.end(); ++it) {
+            const char *ch = it->constData();
+            while (*ch && isspace(*ch))
+                ++ch;
+            if (*ch && !strncmp("project: ", ch, 9)) {
+                ch += 9;
+                while (*ch && isspace(*ch))
+                    ++ch;
+                const Path p = ch;
+                if (p.isDir()) {
+                    return p.ensureTrailingSlash();
+                } else {
+                    error("Invalid project root %s", p.constData());
+                }
+            }
+        }
+    }
+
     static const Path home = Path::home();
     const Entry before[] = {
         { "GTAGS", 0 },
