@@ -718,7 +718,6 @@ bool RClient::parse(int &argc, char **argv)
             List<RegExp::Capture> caps;
             RegExp rx("^\\([0-9][0-9]*\\)-\\([0-9][0-9]*\\)$");
             if (rx.indexIn(optarg, 0, &caps) != 0 || caps.size() != 3) {
-                error() << caps.size();
                 fprintf(stderr, "Can't parse range, must be uint-uint. E.g. 1-123\n");
                 return false;
             } else {
@@ -844,7 +843,8 @@ bool RClient::parse(int &argc, char **argv)
             addQuery(QueryMessage::UnloadProject, optarg);
             break;
         case FindProjectRoot:
-            error() << "findProjectRoot" << optarg << RTags::findProjectRoot(optarg);
+            printf("findProjectRoot [%s] => [%s]\n", optarg,
+                   RTags::findProjectRoot(optarg).constData());
             return 0;
         case Reindex:
         case Project:
