@@ -64,7 +64,7 @@ void usage(FILE *f)
             "  --exclude-filter|-x [arg]                  Files to exclude from rdm, default \"" EXCLUDEFILTER_DEFAULT "\".\n"
             "  --no-rc|-N                                 Don't load any rc files.\n"
             "  --ignore-printf-fixits|-F                  Disregard any clang fixit that looks like it's trying to fix format for printf and friends.\n"
-            "  --rc-file|-c [arg]                         Use this file instead of ~/.rdmrc.\n"
+            "  --config|-c [arg]                         Use this file instead of ~/.rdmrc.\n"
             "  --data-dir|-d [arg]                        Use this directory to store persistent data (default ~/.rtags).\n"
             "  --socket-file|-n [arg]                     Use this file for the server socket (default ~/.rdm).\n"
             "  --setenv|-e [arg]                          Set this environment variable (--setenv \"foobar=1\").\n"
@@ -117,7 +117,7 @@ int main(int argc, char** argv)
         { "validate", no_argument, 0, 'V' },
         { "exclude-filter", required_argument, 0, 'x' },
         { "socket-file", required_argument, 0, 'n' },
-        { "rc-file", required_argument, 0, 'c' },
+        { "config", required_argument, 0, 'c' },
         { "no-rc", no_argument, 0, 'N' },
         { "data-dir", required_argument, 0, 'd' },
         { "ignore-printf-fixits", no_argument, 0, 'F' },
