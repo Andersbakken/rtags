@@ -297,7 +297,7 @@ Path findProjectRoot(const Path &path)
                     int r = Rct::readLine(f, line, sizeof(line));
                     if (r == -1)
                         break;
-                    char *configure = strstr(line, "/configure");
+                    char *configure = strstr(line, "/configure ");
                     if (configure) {
                         char *end = configure + 10;
                         while (--configure >= line) {
