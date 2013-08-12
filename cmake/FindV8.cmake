@@ -33,6 +33,17 @@ if (V8_INCLUDE AND V8_LIBS)
         return 0;
      }"
      V8_DISPOSE_HAS_ISOLATE)
+  check_cxx_source_compiles("
+    #define V8_USE_UNSAFE_HANDLES
+    #include <v8.h>
+
+    int main()
+    {
+        v8::Handle<v8::ObjectTemplate> globalObjectTemplate = v8::ObjectTemplate::New();
+        v8::Handle<v8::Context> ctx = v8::Context::New(0, 0, globalObjectTemplate);
+        return 0;
+     }"
+     V8_NEW_CONTEXT_TAKES_ISOLATE)
  else ()
    set(V8_FOUND 0)
  endif ()

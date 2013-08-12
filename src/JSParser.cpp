@@ -169,8 +169,12 @@ bool JSParser::init()
     v8::Handle<v8::ObjectTemplate> globalObjectTemplate = v8::ObjectTemplate::New();
     globalObjectTemplate->Set(v8::String::New("log"), v8::FunctionTemplate::New(log));
 
+#ifdef V8_NEW_CONTEXT_TAKES_ISOLATE
     v8::Handle<v8::Context> ctx = v8::Context::New(mIsolate, 0, globalObjectTemplate);
     mContext.Reset(mIsolate, ctx);
+#else
+    mContext = v8::Context::New(0, globalObjectTemplate);
+#endif
     v8::Context::Scope scope(mContext);
     assert(!mContext.IsEmpty());
 
