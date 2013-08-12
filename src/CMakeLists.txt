@@ -17,7 +17,6 @@ include_directories(${CLANG_INCLUDE})
 
 find_package(V8)
 find_package(YAJL)
-find_package(LevelDB)
 
 add_subdirectory(rct)
 include(${CMAKE_CURRENT_LIST_DIR}/rct/compiler.cmake)
@@ -92,8 +91,6 @@ set(RDM_SOURCES
   ValidateDBJob.cpp
   )
 
-set(GR_SOURCES GRParser.cpp GRTags.cpp Location.cpp RTags.cpp)
-
 include_directories(${CMAKE_CURRENT_LIST_DIR}
                     ${CORESERVICES_INCLUDE}
                     ${COREFOUNDATION_INCLUDE}
@@ -107,23 +104,6 @@ target_link_libraries(clangtest ${CLANG_LIBS} ${CORESERVICES_LIBRARY} ${COREFOUN
 add_executable(rc rc.cpp RClient.cpp)
 add_dependencies(rc rct shared)
 target_link_libraries(rc shared rct ${SYSTEM_LIBS})
-
-#if (LEVELDB_FOUND EQUAL 1)
-if (0 EQUAL 1)
-  add_definitions(-DGRTAGS)
-  add_executable(gr ${GR_SOURCES} ${RCT_SOURCES})
-  include_directories(
-    ${CORESERVICES_INCLUDE}
-    ${COREFOUNDATION_INCLUDE}
-    ${LEVELDB_INCLUDE})
-  target_link_libraries(gr
-    ${CLANG_LIBS}
-    ${SYSTEM_LIBS}
-    ${CORESERVICES_LIBRARY}
-    ${COREFOUNDATION_LIBRARY}
-    ${SYSTEM_LIBS}
-    ${LEVELDB_LIBS})
-endif ()
 
 if (V8_FOUND EQUAL 1)
   list(APPEND RDM_SOURCES JSONParser.cpp)
