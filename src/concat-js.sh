@@ -7,8 +7,8 @@ function append()
 }
 rm -f rtags-esprima.js
 # echo "if (typeof log === 'undefined') log = console.log; " > rtags-esprima.js
-append esprima/esprima.js
-append estraverse/estraverse.js
-append escope/escope.js
-append esrefactor/lib/esrefactor.js
-append rtags.js
+append $1/esprima/esprima.js
+append $1/estraverse/estraverse.js
+append $1/escope/escope.js
+append $1/esrefactor/lib/esrefactor.js
+append $1/rtags.js

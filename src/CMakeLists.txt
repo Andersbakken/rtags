@@ -114,7 +114,7 @@ if (V8_FOUND EQUAL 1)
     add_definitions(-DV8_DISPOSE_HAS_ISOLATE)
   endif ()
   add_definitions(-DHAVE_V8)
-  add_definitions("-DESPRIMA_JS=\"${PROJECT_SOURCE_DIR}/src/rtags-esprima.js\"")
+  add_definitions("-DESPRIMA_JS=\"${PROJECT_BINARY_DIR}/src/rtags-esprima.js\"")
 elseif (YAJL_FOUND EQUAL 1)
   list(APPEND RDM_SOURCES JSONParser.cpp)
   list(APPEND SYSTEM_LIBS ${YAJL_LIBRARY})
@@ -135,17 +135,17 @@ add_library(rtagsclang MODULE IndexerJobClang.cpp)
 add_dependencies(rtagsclang rdm)
 target_link_libraries(rtagsclang rtags)
 
-if (V8_FOUND EQUAL 1) 
+if (V8_FOUND EQUAL 1)
   add_library(rtagsesprima MODULE IndexerJobEsprima.cpp JSParser.cpp)
   add_dependencies(rtagsesprima rtags)
   target_link_libraries(rtagsesprima rtags)
 
-  add_custom_target(OUTPUT ${PROJECT_SOURCE_DIR}/src/rtags-esprima.js
-    COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/concat-js.sh
+  add_custom_target(rtags-esprima.js ALL
+    COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/concat-js.sh ${CMAKE_CURRENT_SOURCE_DIR}
     DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/estraverse/estraverse.js
-	    ${CMAKE_CURRENT_SOURCE_DIR}/escope/escope.js
-	    ${CMAKE_CURRENT_SOURCE_DIR}/esrefactor/lib/esrefactor.js
-	    ${CMAKE_CURRENT_SOURCE_DIR}/rtags.js
+        ${CMAKE_CURRENT_SOURCE_DIR}/escope/escope.js
+        ${CMAKE_CURRENT_SOURCE_DIR}/esrefactor/lib/esrefactor.js
+        ${CMAKE_CURRENT_SOURCE_DIR}/rtags.js
   )
 endif()
 
