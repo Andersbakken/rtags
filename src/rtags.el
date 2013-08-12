@@ -874,7 +874,6 @@ References to references will be treated as references to the referenced symbol"
   )
 
 (defun rtags-find-virtuals-at-point (&optional prefix)
-  (interactive "P")
   "List all reimplentations of function under cursor. This includes both declarations and definitions"
   (interactive "P")
   (rtags-save-location)
