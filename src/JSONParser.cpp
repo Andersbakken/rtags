@@ -51,7 +51,7 @@ static Value v8ValueToValue(v8::Handle<v8::Value> v8Value)
 
 bool JSONParser::parse(const String& json)
 {
-    v8::Isolate* isolate = v8::Isolate::GetCurrent();
+    v8::Isolate* isolate = v8::Isolate::New();
     const v8::Isolate::Scope isolateScope(isolate);
     v8::HandleScope handleScope;
 
@@ -72,6 +72,7 @@ bool JSONParser::parse(const String& json)
     v8::Handle<v8::Value> value = JSON_parse->Call(JSON, 1, &data);
 
     mRoot = v8ValueToValue(value);
+    isolate->Dispose();
     return isValid();
 }
 #elif defined(HAVE_YAJL)

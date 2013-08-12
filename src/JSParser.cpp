@@ -163,7 +163,7 @@ v8::Handle<v8::Value> jsDefine(const v8::Arguments &args)
 
 bool JSParser::init()
 {
-    mIsolate = v8::Isolate::GetCurrent();
+    mIsolate = v8::Isolate::New();
     const v8::Isolate::Scope isolateScope(mIsolate);
     v8::HandleScope handleScope;
     v8::Handle<v8::ObjectTemplate> globalObjectTemplate = v8::ObjectTemplate::New();
@@ -188,7 +188,6 @@ bool JSParser::init()
         v8::String::Utf8Value msg(message->Get());
         printf("%s:%d:%d: esprima error: %s {%d-%d}\n", ESPRIMA_JS, message->GetLineNumber(),
                message->GetStartColumn(), *msg, message->GetStartPosition(), message->GetEndPosition());
-        printf("[%s:%d]: return false;\n", __func__, __LINE__); fflush(stdout);
         return false;
     }
     script->Run();
