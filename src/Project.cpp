@@ -212,7 +212,7 @@ void Project::onJobFinished(const shared_ptr<IndexerJob> &job)
             mPendingData[fileId] = data;
             if (data->type == IndexData::ClangType) {
                 shared_ptr<IndexDataClang> clangData = static_pointer_cast<IndexDataClang>(data);
-                if (Server::instance()->options().completionCacheSize > 0)  {
+                if (Server::instance()->options().completionCacheSize > 0 && clangData->unit) {
                     const SourceInformation sourceInfo = job->sourceInformation();
                     if (currentFile == sourceInfo.sourceFile) {
                         shared_ptr<ReparseJob> rj(new ReparseJob(clangData->unit,
@@ -221,17 +221,17 @@ void Project::onJobFinished(const shared_ptr<IndexerJob> &job)
                                                                  sourceInfo.args,
                                                                  static_pointer_cast<IndexerJobClang>(job)->contents(),
                                                                  static_pointer_cast<Project>(shared_from_this())));
+                        clangData->index = 0;
+                        clangData->unit = 0;
                         Server::instance()->startIndexerJob(rj);
-
                     } else {
                         addCachedUnit(sourceInfo.sourceFile, sourceInfo.args,
                                       clangData->index, clangData->unit, 1);
+                        clangData->index = 0;
+                        clangData->unit = 0;
                     }
-                    clangData->index = 0;
-                    clangData->unit = 0;
-                } else {
-                    clangData->clear();
                 }
+                clangData->clear();
             }
 
             const int idx = mJobCounter - mJobs.size();

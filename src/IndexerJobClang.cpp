@@ -914,7 +914,6 @@ static inline String xmlEscape(const String& xml)
 bool IndexerJobClang::diagnose()
 {
     if (!data()->unit) {
-        abort();
         return false;
     }
 
@@ -1090,7 +1089,6 @@ bool IndexerJobClang::diagnose()
 bool IndexerJobClang::visit()
 {
     if (!data()->unit) {
-        abort();
         return false;
     }
     clang_getInclusions(data()->unit, IndexerJobClang::inclusionVisitor, this);
@@ -1134,8 +1132,7 @@ void IndexerJobClang::index()
         }
     } else {
         mParseTime = time(0);
-        if (!parse() || !visit() || !diagnose())
-            return;
+        parse() && visit() && diagnose();
 
         mData->message = mSourceInformation.sourceFile.toTilde();
         if (!data()->unit) {
