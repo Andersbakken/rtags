@@ -114,7 +114,7 @@
                     (setq rtags-buffer-bookmarks (+ rtags-buffer-bookmarks 1))
                     (bookmark-set (format "R_%d" rtags-buffer-bookmarks))
                     (set-buffer buf)))))
-          (next-line))
+          (forward-line))
         ))
   (setq buffer-read-only readonly)
   (rtags-mode))
@@ -365,7 +365,7 @@
                 (setq current name))
             (if (string-match "^\\([^ ]+\\)[^<]*$" line)
                 (setq projects (add-to-list 'projects (match-string 1 line))))))
-        (next-line))
+        (forward-line))
       )
     (setq project (ido-completing-read
                    (format "RTags select project (current is %s): " current)
@@ -2020,7 +2020,7 @@ should use `irony-get-completion-point-anywhere'."
                       (delete-char (- end start)) ;; may be 0
                       (insert text))))))
           ;; (message (format "got something %d to %d => [%s]" start end text))))
-          (next-line))
+          (forward-line))
         )
       (if tempbuf
           (let ((tempbufname (format "/tmp/rtags-fixit-%s" (file-name-nondirectory path))))
