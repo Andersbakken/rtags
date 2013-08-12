@@ -1,5 +1,4 @@
 #include "JSParser.h"
-#include <v8.h>
 #include <rct/RegExp.h>
 
 #define toCString(str) *v8::String::Utf8Value(str)
@@ -164,13 +163,14 @@ v8::Handle<v8::Value> jsDefine(const v8::Arguments &args)
 
 bool JSParser::init()
 {
-    mIsolate = v8::Isolate::New();
+    mIsolate = v8::Isolate::GetCurrent();
     const v8::Isolate::Scope isolateScope(mIsolate);
     v8::HandleScope handleScope;
     v8::Handle<v8::ObjectTemplate> globalObjectTemplate = v8::ObjectTemplate::New();
     globalObjectTemplate->Set(v8::String::New("log"), v8::FunctionTemplate::New(log));
 
-    mContext = v8::Context::New(0, globalObjectTemplate);
+    v8::Handle<v8::Context> ctx = v8::Context::New(mIsolate, 0, globalObjectTemplate);
+    mContext.Reset(mIsolate, ctx);
     v8::Context::Scope scope(mContext);
     assert(!mContext.IsEmpty());
 

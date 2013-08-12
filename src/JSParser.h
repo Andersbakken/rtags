@@ -8,6 +8,7 @@
 #include <rct/Map.h>
 #include <rct/Path.h>
 #include <rct/String.h>
+#define V8_USE_UNSAFE_HANDLES
 #include <v8.h>
 
 class JSParser

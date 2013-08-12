@@ -1,6 +1,7 @@
 #include "JSONParser.h"
 #include <rct/Log.h>
 #if defined(HAVE_V8)
+#  define V8_USE_UNSAFE_HANDLES
 #  include <v8.h>
 #elif defined(HAVE_YAJL)
 #  include <yajl/yajl_tree.h>
@@ -55,7 +56,7 @@ bool JSONParser::parse(const String& json)
     v8::HandleScope handleScope;
 
     v8::Handle<v8::ObjectTemplate> globalTemplate = v8::ObjectTemplate::New();
-    v8::Handle<v8::Context> context = v8::Context::New(0, globalTemplate);
+    v8::Handle<v8::Context> context = v8::Context::New(isolate, 0, globalTemplate);
     v8::Context::Scope contextScope(context);
 
     v8::Handle<v8::Object> global = context->Global();
