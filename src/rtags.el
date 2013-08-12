@@ -664,6 +664,11 @@
 
 ;; **************************** API *********************************
 
+(defcustom rtags-enabled t
+  "Whether rtags is enabled. We try to do nothing when it's not"
+  :group 'rtags
+  :type 'boolean)
+
 (defcustom rtags-error-timer-interval .5
   "Interval for minibuffer error timer"
   :group 'rtags
@@ -1622,10 +1627,11 @@ should use `irony-get-completion-point-anywhere'."
 
 (defun rtags-post-command-hook ()
   (interactive)
-  (rtags-update-current-project)
-  (rtags-update-current-error)
-  (rtags-restart-completion-cache-timer)
-  (rtags-restart-update-local-references-timer)
+  (when rtags-enabled
+    (rtags-update-current-project)
+    (rtags-update-current-error)
+    (rtags-restart-completion-cache-timer)
+    (rtags-restart-update-local-references-timer))
   )
 
 (add-hook 'post-command-hook (function rtags-post-command-hook))
