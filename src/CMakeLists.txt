@@ -110,18 +110,6 @@ if (V8_FOUND EQUAL 1)
   list(APPEND SYSTEM_LIBS ${V8_LIBS})
   include_directories(${V8_INCLUDE})
 
-  add_library(rtagsesprima MODULE IndexerJobEsprima.cpp JSParser.cpp)
-  add_dependencies(rtagsesprima rtags)
-  target_link_libraries(rtagsesprima rtags)
-
-  add_custom_target(OUTPUT ${PROJECT_SOURCE_DIR}/src/rtags-esprima.js
-    COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/concat-js.sh
-    DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/estraverse/estraverse.js
-	    ${CMAKE_CURRENT_SOURCE_DIR}/escope/escope.js
-	    ${CMAKE_CURRENT_SOURCE_DIR}/esrefactor/lib/esrefactor.js
-	    ${CMAKE_CURRENT_SOURCE_DIR}/rtags.js
-  )
-
   if (V8_DISPOSE_HAS_ISOLATE)
     add_definitions(-DV8_DISPOSE_HAS_ISOLATE)
   endif ()
@@ -146,6 +134,20 @@ set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/bin)
 add_library(rtagsclang MODULE IndexerJobClang.cpp)
 add_dependencies(rtagsclang rdm)
 target_link_libraries(rtagsclang rtags)
+
+if (V8_FOUND EQUAL 1) 
+  add_library(rtagsesprima MODULE IndexerJobEsprima.cpp JSParser.cpp)
+  add_dependencies(rtagsesprima rtags)
+  target_link_libraries(rtagsesprima rtags)
+
+  add_custom_target(OUTPUT ${PROJECT_SOURCE_DIR}/src/rtags-esprima.js
+    COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/concat-js.sh
+    DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/estraverse/estraverse.js
+	    ${CMAKE_CURRENT_SOURCE_DIR}/escope/escope.js
+	    ${CMAKE_CURRENT_SOURCE_DIR}/esrefactor/lib/esrefactor.js
+	    ${CMAKE_CURRENT_SOURCE_DIR}/rtags.js
+  )
+endif()
 
 if (NOT "${PROJECT_SOURCE_DIR}" STREQUAL "${PROJECT_BINARY_DIR}")
   file (GLOB binFiles "${PROJECT_SOURCE_DIR}/bin/*")
