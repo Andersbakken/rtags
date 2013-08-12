@@ -33,8 +33,11 @@ public:
         String ret = sourceFile;
         if (parsed)
             ret += " Parsed: " + String::formatTime(parsed, String::DateTime);
-        if (!isJS())
+        if (!isJS()) {
+            if (parsed)
+                ret += ' ';
             ret += (compiler + " " + String::join(args, ' '));
+        }
         return ret;
     }
 };
