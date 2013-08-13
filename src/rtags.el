@@ -262,10 +262,14 @@
                   )
               (progn
                 (goto-char (point-min))
-                (when (looking-at "Can't seem to connect to server")
-                  (erase-buffer)
-                  (unless noerror
-                    (error "Can't seem to connect to server. Is rdm running?"))))))
+                (cond ((looking-at "Can't seem to connect to server")
+                       (erase-buffer)
+                       (unless noerror
+                         (error "Can't seem to connect to server. Is rdm running?")))
+                      ((looking-at "Project loading")
+                       (erase-buffer)
+                       (message "Project loading..."))
+                      (t nil)))))
           (or async (> (point-max) (point-min))))))
     )
   )
