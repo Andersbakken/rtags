@@ -12,8 +12,13 @@ class FileManager
 {
 public:
     FileManager();
-    void init(const shared_ptr<Project> &proj);
-    void reload();
+    enum Mode {
+        Synchronous,
+        Asynchronous
+    };
+
+    void init(const shared_ptr<Project> &proj, Mode mode);
+    void reload(Mode mode);
     uint64_t lastReloadTime() const { return mLastReloadTime; }
     void onFileAdded(const Path &path);
     void onFileRemoved(const Path &path);

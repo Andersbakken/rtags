@@ -11,24 +11,30 @@ FileManager::FileManager()
     mWatcher.removed().connect(std::bind(&FileManager::onFileRemoved, this, std::placeholders::_1));
 }
 
-void FileManager::init(const shared_ptr<Project> &proj)
+void FileManager::init(const shared_ptr<Project> &proj, Mode mode)
 {
     mProject = proj;
-    reload();
+    reload(mode);
 }
 
-void FileManager::reload()
+void FileManager::reload(Mode mode)
 {
     mLastReloadTime = Rct::monoMs();
     shared_ptr<Project> project = mProject.lock();
     assert(project);
     shared_ptr<ScanJob> job(new ScanJob(project->path()));
-    job->finished().connect<EventLoop::Async>(std::bind(&FileManager::onRecurseJobFinished, this, std::placeholders::_1));
-    Server::instance()->threadPool()->start(job);
+    if (mode == Asynchronous) {
+        job->finished().connect<EventLoop::Async>(std::bind(&FileManager::onRecurseJobFinished, this, std::placeholders::_1));
+        Server::instance()->threadPool()->start(job);
+    } else {
+        job->finished().connect(std::bind(&FileManager::onRecurseJobFinished, this, std::placeholders::_1));
+        job->run();
+    }
 }
 
 void FileManager::onRecurseJobFinished(Set<Path> paths)
 {
+#warning this should use move for the connection
     bool emitJS = false;
     {
         std::lock_guard<std::mutex> lock(mMutex); // ### is this needed now?
@@ -73,7 +79,7 @@ void FileManager::onFileAdded(const Path &path)
         const Filter::Result res = Filter::filter(path);
         switch (res) {
         case Filter::Directory:
-            reload();
+            reload(Asynchronous);
             return;
         case Filter::Filtered:
             return;
@@ -106,7 +112,7 @@ void FileManager::onFileRemoved(const Path &path)
     shared_ptr<Project> project = mProject.lock();
     FilesMap &map = project->files();
     if (map.contains(path)) {
-        reload();
+        reload(Asynchronous);
         return;
     }
     const Path parent = path.parentDir();

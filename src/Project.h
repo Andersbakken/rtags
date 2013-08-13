@@ -8,7 +8,6 @@
 #include "Match.h"
 #include <rct/Timer.h>
 #include <rct/RegExp.h>
-#include <rct/ReadWriteLock.h>
 #include <rct/FileSystemWatcher.h>
 #include "IndexerJob.h"
 #include <mutex>
@@ -49,10 +48,22 @@ class Project : public std::enable_shared_from_this<Project>
 {
 public:
     Project(const Path &path);
-    bool isValid() const;
+    enum State {
+        Unloaded,
+        Inited,
+        Loading,
+        Loaded
+    };
+    State state() const;
     void init();
     bool restore();
+    void startPendingJobs();
 
+    enum FileManagerMode {
+        FileManager_Asynchronous,
+        FileManager_Synchronous
+    };
+    void load(FileManagerMode mode = FileManager_Asynchronous);
     void unload();
 
     shared_ptr<FileManager> fileManager;
@@ -78,7 +89,6 @@ public:
 
     bool isIndexed(uint32_t fileId) const;
 
-    void index(const SourceInformation &args, IndexerJob::Type type);
     bool index(const Path &sourceFile, const Path &compiler = Path(), const List<String> &args = List<String>());
     SourceInformationMap sourceInfos() const;
     SourceInformation sourceInfo(uint32_t fileId) const;
@@ -102,6 +112,7 @@ public:
     void onJSFilesAdded();
     List<std::pair<Path, List<String> > > cachedUnits() const;
 private:
+    void index(const SourceInformation &args, IndexerJob::Type type);
     void reloadFileManager();
     bool initJobFromCache(const Path &path, const List<String> &args,
                           CXIndex &index, CXTranslationUnit &unit, List<String> *argsOut, int *parseCount);
@@ -116,6 +127,9 @@ private:
     void onValidateDBJobErrors(const Set<Location> &errors);
 
     const Path mPath;
+    State mState;
+
+    Map<Path, std::pair<Path, List<String> > > mPendingCompiles;
 
     SymbolMap mSymbols;
     ErrorSymbolMap mErrorSymbols;

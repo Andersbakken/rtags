@@ -458,16 +458,20 @@ RClient::~RClient()
 void RClient::addQuery(QueryMessage::Type t, const String &query)
 {
     unsigned int flags = RCCommand::None;
+    unsigned int extraQueryFlags = 0;
     switch (t) {
     case QueryMessage::CodeCompletionEnabled:
     case QueryMessage::IsIndexing:
     case QueryMessage::HasFileManager:
         flags |= RCCommand::RequiresNon0Output;
         break;
+    case QueryMessage::FindFile:
+        extraQueryFlags |= QueryMessage::WaitForLoadProject;
     default:
         break;
     }
     shared_ptr<QueryCommand> cmd(new QueryCommand(t, query, flags));
+    cmd->extraQueryFlags = extraQueryFlags;
     mCommands.append(cmd);
 }
 

@@ -5,6 +5,7 @@
 #include <rct/Log.h>
 #include <rct/MemoryMonitor.h>
 #include <rct/Path.h>
+#include <rct/Thread.h>
 #include "RTags.h"
 #include <rct/ReadLocker.h>
 #include <rct/RegExp.h>
@@ -12,7 +13,6 @@
 #include "Server.h"
 #include "ValidateDBJob.h"
 #include "IndexerJobClang.h"
-#include <rct/WriteLocker.h>
 #include "ReparseJob.h"
 #include <math.h>
 
@@ -23,8 +23,28 @@ enum {
     SyncTimeout = 500
 };
 
+class RestoreThread : public Thread
+{
+public:
+    RestoreThread(const std::shared_ptr<Project> &project)
+        : mProject(project)
+    {
+        setAutoDelete(true);
+    }
+
+    virtual void run()
+    {
+        if (std::shared_ptr<Project> project = mProject.lock()) {
+            project->restore();
+            project->startPendingJobs();
+        }
+    }
+private:
+    std::weak_ptr<Project> mProject;
+};
+
 Project::Project(const Path &path)
-    : mPath(path), mJobCounter(0)
+    : mPath(path), mState(Unloaded), mJobCounter(0)
 {
     mWatcher.modified().connect(std::bind(&Project::onFileModified, this, std::placeholders::_1));
     mWatcher.removed().connect(std::bind(&Project::onFileModified, this, std::placeholders::_1));
@@ -37,21 +57,27 @@ Project::Project(const Path &path)
 
 void Project::init()
 {
-    assert(!isValid());
+    std::lock_guard<std::mutex> lock(mMutex);
+    assert(mState == Unloaded);
+    mState = Inited;
     fileManager.reset(new FileManager);
-    fileManager->init(static_pointer_cast<Project>(shared_from_this()));
+    fileManager->init(static_pointer_cast<Project>(shared_from_this()), FileManager::Asynchronous);
 }
 
 bool Project::restore()
 {
+    assert(state() == Loading);
     StopWatch timer;
     Path path = mPath;
     RTags::encodePath(path);
     const Path p = Server::instance()->options().dataDir + path;
     bool restoreError = false;
     FILE *f = fopen(p.constData(), "r");
-    if (!f)
+    if (!f) {
+        std::lock_guard<std::mutex> lock(mMutex);
+        mState = Loaded;
         return false;
+    }
 
     Deserializer in(f);
     int version;
@@ -126,19 +152,56 @@ end:
     // fileManager->jsFilesChanged().connect(this, &Project::onJSFilesAdded);
     // onJSFilesAdded();
     fclose(f);
+
     if (restoreError) {
         Path::rm(p);
-        return false;
     } else {
         error() << "Restored project" << mPath << "in" << timer.elapsed() << "ms";
     }
 
-    return true;
+    return !restoreError;
 }
 
-bool Project::isValid() const
+void Project::startPendingJobs() // lock always held
 {
-    return fileManager.get();
+    Map<Path, std::pair<Path, List<String> > > pendingCompiles;
+    {
+        std::lock_guard<std::mutex> lock(mMutex);
+        mState = Loaded;
+        pendingCompiles = std::move(mPendingCompiles);
+    }
+    for (Map<Path, std::pair<Path, List<String> > >::const_iterator it = pendingCompiles.begin(); it != pendingCompiles.end(); ++it) {
+        index(it->first, it->second.first, it->second.second);
+    }
+}
+
+Project::State Project::state() const
+{
+    std::lock_guard<std::mutex> lock(mMutex);
+    return mState;
+}
+
+void Project::load(FileManagerMode mode)
+{
+    {
+        std::lock_guard<std::mutex> lock(mMutex);
+        switch (mState) {
+        case Unloaded:
+            fileManager.reset(new FileManager);
+            fileManager->init(static_pointer_cast<Project>(shared_from_this()),
+                              mode == FileManager_Asynchronous ? FileManager::Asynchronous : FileManager::Synchronous);
+            // duplicated from init
+            break;
+        case Inited:
+            break;
+        case Loading:
+        case Loaded:
+            return;
+        }
+        mState = Loading;
+    }
+    RestoreThread *thread = new RestoreThread(shared_from_this());
+    thread->start();
 }
 
 void Project::unload()
@@ -158,11 +221,14 @@ void Project::unload()
     mSources.clear();
     mVisitedFiles.clear();
     mDependencies.clear();
+    mPendingCompiles.clear();
+    mPendingJobs.clear();
 
     for (LinkedList<CachedUnit*>::const_iterator it = mCachedUnits.begin(); it != mCachedUnits.end(); ++it) {
         delete *it;
     }
     mCachedUnits.clear();
+    mState = Unloaded;
 }
 
 bool Project::match(const Match &p, bool *indexed) const
@@ -388,6 +454,20 @@ static inline Path resolveCompiler(const Path &compiler)
 
 bool Project::index(const Path &sourceFile, const Path &cc, const List<String> &args)
 {
+    {
+        std::lock_guard<std::mutex> lock(mMutex);
+        switch (mState) {
+        case Unloaded:
+            return false;
+        case Inited:
+        case Loading:
+            mPendingCompiles[sourceFile] = std::make_pair(cc, args);
+            return true;
+        case Loaded:
+            break;
+        }
+    }
+
     const Path compiler = resolveCompiler(cc.canonicalized());
     SourceInformation sourceInformation = sourceInfo(Location::insertFile(sourceFile));
     const bool js = args.isEmpty() && sourceFile.endsWith(".js");
@@ -838,7 +918,7 @@ void Project::onJSFilesAdded()
 
 void Project::reloadFileManager()
 {
-    fileManager->reload();
+    fileManager->reload(FileManager::Asynchronous);
 }
 
 List<std::pair<Path, List<String> > > Project::cachedUnits() const

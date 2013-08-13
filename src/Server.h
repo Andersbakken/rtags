@@ -74,8 +74,8 @@ public:
     RTagsPluginFactory &factory() { return mPluginFactory; }
     void onJobOutput(JobOutput&& out);
 private:
-    bool selectProject(const Match &match, Connection *conn);
-    bool updateProject(const List<String> &projects);
+    bool selectProject(const Match &match, Connection *conn, unsigned int queryFlags);
+    bool updateProject(const List<String> &projects, unsigned int queryFlags);
 
     bool isCompletionStream(Connection* conn) const;
 
@@ -84,14 +84,13 @@ private:
     void clear();
     void onNewConnection();
     Signal<std::function<void(int, const List<String> &)> > &complete() { return mComplete; }
-    shared_ptr<Project> setCurrentProject(const Path &path);
-    shared_ptr<Project> setCurrentProject(const shared_ptr<Project> &project);
+    shared_ptr<Project> setCurrentProject(const Path &path, unsigned int queryFlags = 0);
+    shared_ptr<Project> setCurrentProject(const shared_ptr<Project> &project, unsigned int queryFlags = 0);
     void index(const GccArguments &args, const List<String> &projects);
     void onUnload();
     void onNewMessage(Message *message, Connection *conn);
     void onConnectionDestroyed(Connection *o);
     void clearProjects();
-    void compile(const String &arguments, const Path &path, const List<String> &projects);
     void handleCompileMessage(const CompileMessage &message, Connection *conn);
     void handleCompletionMessage(const CompletionMessage &message, Connection *conn);
     void handleCompletionStream(const CompletionMessage &message, Connection *conn);
@@ -128,8 +127,6 @@ private:
     int nextId();
     void reindex(const QueryMessage &query, Connection *conn);
     shared_ptr<Project> updateProjectForLocation(const Match &match);
-    shared_ptr<Project> updateProjectForLocation(const Location &location);
-    shared_ptr<Project> updateProjectForLocation(const Path &path);
     shared_ptr<Project> currentProject() const
     {
         std::lock_guard<std::mutex> lock(mMutex);
@@ -138,7 +135,6 @@ private:
     int reloadProjects();
     void onCompletionStreamDisconnected(const SocketClient::SharedPtr& client);
     shared_ptr<Project> addProject(const Path &path);
-    void loadProject(const shared_ptr<Project> &project);
     void onCompletionJobFinished(Path path, int id);
     void startCompletion(const Path &path, int line, int column, int pos, const String &contents, Connection *conn);
 
@@ -169,7 +165,6 @@ private:
     Map<Path, PendingCompletion> mPendingCompletions;
     Set<Path> mActiveCompletions;
 
-    bool mRestoreProjects;
     Timer mUnloadTimer, mClearCompletionCacheTimer;
 
     RTagsPluginFactory mPluginFactory;
