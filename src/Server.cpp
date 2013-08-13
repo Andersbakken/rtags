@@ -985,7 +985,7 @@ void Server::removeProject(const QueryMessage &query, Connection *conn)
     while (it != mProjects.end()) {
         ProjectsMap::iterator cur = it++;
         if (cur->second->match(match)) {
-            if (mCurrentProject.lock() == it->second) {
+            if (mCurrentProject.lock() == cur->second) {
                 mCurrentProject.reset();
                 unlink((mOptions.dataDir + ".currentProject").constData());
             }
