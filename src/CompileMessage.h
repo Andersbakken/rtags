@@ -11,9 +11,9 @@ class CompileMessage : public ClientMessage
 public:
     enum { MessageId = ProjectId };
 
-    CompileMessage(const Path &path = Path(), const String &args = String());
+    CompileMessage(const Path &cwd = Path(), const String &args = String());
 
-    Path path() const { return mPath; }
+    Path workingDirectory() const { return mWorkingDirectory; }
 
     String arguments() const { return mArgs; }
     void setArguments(const String &arguments) { mArgs = arguments; }
@@ -24,7 +24,7 @@ public:
     virtual void encode(Serializer &serializer) const;
     virtual void decode(Deserializer &deserializer);
 private:
-    Path mPath;
+    Path mWorkingDirectory;
     List<String> mProjects;
     String mArgs;
 };

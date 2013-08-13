@@ -1967,7 +1967,6 @@ should use `irony-get-completion-point-anywhere'."
                  (rtags-start-mode nil t)
                  ;; (setq rtags-no-otherbuffer t)
                  )))
-      ;; Should add support for putting offset in there as well, ignore it on completion and apply it at the end
       )
     )
   )

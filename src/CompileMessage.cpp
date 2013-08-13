@@ -1,17 +1,17 @@
 #include "CompileMessage.h"
 #include <rct/Serializer.h>
 
-CompileMessage::CompileMessage(const Path &path, const String &args)
-    : ClientMessage(MessageId), mPath(path), mArgs(args)
+CompileMessage::CompileMessage(const Path &cwd, const String &args)
+    : ClientMessage(MessageId), mWorkingDirectory(cwd), mArgs(args)
 {
 }
 
 void CompileMessage::encode(Serializer &serializer) const
 {
-    serializer << mRaw << mPath << mArgs << mProjects;
+    serializer << mRaw << mWorkingDirectory << mArgs << mProjects;
 }
 
 void CompileMessage::decode(Deserializer &deserializer)
 {
-    deserializer >> mRaw >> mPath >> mArgs >> mProjects;
+    deserializer >> mRaw >> mWorkingDirectory >> mArgs >> mProjects;
 }

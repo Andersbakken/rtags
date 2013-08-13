@@ -285,18 +285,19 @@ void Server::onNewMessage(Message *message, Connection *connection)
 
 void Server::handleCompileMessage(const CompileMessage &message, Connection *conn)
 {
-    EventLoop::eventLoop()->callLater(std::bind(&Server::compile, this, message.arguments(), message.path(), message.projects()));
+    EventLoop::eventLoop()->callLater(std::bind(&Server::compile, this, message.arguments(), message.workingDirectory(), message.projects()));
     conn->finish(); // nothing to wait for
 }
 
-void Server::compile(const String &arguments, const Path &path, const List<String> &projects)
+void Server::compile(const String &arguments, const Path &workingDirectory, const List<String> &projects)
 {
+    assert(workingDirectory.endsWith('/'));
     if (arguments.endsWith(".js") && !arguments.contains(' ')) {
         if (mOptions.options & NoEsprima)
             return;
         Path jsFile = arguments;
         if (!jsFile.isAbsolute())
-            jsFile.prepend(path);
+            jsFile.prepend(workingDirectory);
         const Path srcRoot = RTags::findProjectRoot(jsFile);
         if (srcRoot.isEmpty()) {
             error() << "Can't find project root for" << jsFile;
@@ -319,7 +320,7 @@ void Server::compile(const String &arguments, const Path &path, const List<Strin
         }
     } else {
         GccArguments args;
-        if (args.parse(arguments, path))
+        if (args.parse(arguments, workingDirectory))
             index(args, projects);
     }
 }

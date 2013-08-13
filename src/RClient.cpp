@@ -426,21 +426,21 @@ public:
 class CompileCommand : public RCCommand
 {
 public:
-    CompileCommand(const Path &p, const String &a)
-        : RCCommand(0), path(p), args(a)
+    CompileCommand(const Path &c, const String &a)
+        : RCCommand(0), cwd(c), args(a)
     {}
-    const Path path;
+    const Path cwd;
     const String args;
     virtual bool exec(RClient *rc, Connection *connection)
     {
-        CompileMessage msg(path, args);
+        CompileMessage msg(cwd, args);
         msg.init(rc->argc(), rc->argv());
         msg.setProjects(rc->projects());
         return connection->send(&msg);
     }
     virtual String description() const
     {
-        return ("CompileMessage " + path);
+        return ("CompileMessage " + cwd);
     }
 };
 
