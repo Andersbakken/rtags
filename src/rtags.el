@@ -1963,6 +1963,7 @@ should use `irony-get-completion-point-anywhere'."
             ((and line) (rtags-append (format ":%d" line)))
             (t nil))
       ;; (message (format "Got lines and shit %d\n[%s]" (count-lines (point-min) (point-max)) (buffer-string)))
+      (goto-char (point-min))
       (cond ((= (point-min) (point-max)) t)
             ((= (count-lines (point-min) (point-max)) 1) (rtags-goto-location (buffer-substring-no-properties (point-at-bol) (point-at-eol))))
             (t (progn
