@@ -59,11 +59,11 @@ public:
     void startIndexerJob(const shared_ptr<ThreadPool::Job> &job);
     struct Options {
         Options()
-            : options(0), threadCount(0), completionCacheSize(0), unloadTimer(0), clangStackSize(0), clearCompletionCacheInterval(0)
+            : options(0), threadCount(0), completionCacheSize(0), unloadTimer(0), clearCompletionCacheInterval(0)
         {}
         Path socketFile, dataDir;
         unsigned options;
-        int threadCount, completionCacheSize, unloadTimer, clangStackSize, clearCompletionCacheInterval;
+        int threadCount, completionCacheSize, unloadTimer, clearCompletionCacheInterval;
         List<String> defaultArguments, excludeFilters;
         Set<Path> ignoredCompilers;
     };

@@ -85,7 +85,7 @@ bool Server::init(const Options &options)
     }
     RTags::initMessages();
 
-    mIndexerThreadPool = new ThreadPool(options.threadCount, options.clangStackSize);
+    mIndexerThreadPool = new ThreadPool(options.threadCount);
     mQueryThreadPool = new ThreadPool(2);
 
     mOptions = options;
