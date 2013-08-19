@@ -927,10 +927,14 @@ bool RClient::parse(int &argc, char **argv)
                 p = argv[optind++];
             }
             if (!p.isEmpty()) {
-                p.resolve(Path::MakeAbsolute);
-                if (!p.isFile()) {
-                    fprintf(stderr, "%s is not a file\n", optarg);
-                    return false;
+                if (p == "clear" && !p.exists()) {
+
+                } else {
+                    p.resolve(Path::MakeAbsolute);
+                    if (!p.isFile() && p != "clear") {
+                        fprintf(stderr, "%s is not a file\n", optarg);
+                        return false;
+                    }
                 }
             }
             addQuery(QueryMessage::SuspendFile, p);

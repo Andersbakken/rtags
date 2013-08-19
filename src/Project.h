@@ -90,6 +90,7 @@ public:
     const Set<uint32_t> &suspendedFiles() const;
     bool toggleSuspendFile(uint32_t file);
     bool isSuspended(uint32_t file) const;
+    void clearSuspendedFiles();
 
     bool isIndexed(uint32_t fileId) const;
 

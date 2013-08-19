@@ -2197,7 +2197,32 @@ should use `irony-get-completion-point-anywhere'."
     (if buffer
         (with-temp-buffer
           (rtags-call-rc :path buffer "-X" buffer)
-          (message (buffer-string)))))
+          (if (> (point-max) (point-min))
+              (message (buffer-substring-no-properties (point-min) (1- (point-max))))
+            (message (buffer-string))))))
   )
+
+(defun rtags-clear-suspended-files()
+  (interactive)
+  (let ((buffer (buffer-file-name)))
+    (if buffer
+        (with-temp-buffer
+          (rtags-call-rc :path buffer "-X" "clear")
+          (if (> (point-max) (point-min))
+              (message (buffer-substring-no-properties (point-min) (1- (point-max))))
+            (message (buffer-string))))))
+  )
+
+(defun rtags-list-suspended-files()
+  (interactive)
+  (let ((buffer (buffer-file-name)))
+    (if buffer
+        (with-temp-buffer
+          (rtags-call-rc :path buffer "-X")
+          (if (> (point-max) (point-min))
+              (message (buffer-substring-no-properties (point-min) (1- (point-max))))
+            (message (buffer-string))))))
+  )
+
 
 (provide 'rtags)

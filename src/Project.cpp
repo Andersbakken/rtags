@@ -781,6 +781,11 @@ const Set<uint32_t> &Project::suspendedFiles() const
     return mSuspendedFiles;
 }
 
+void Project::clearSuspendedFiles()
+{
+    mSuspendedFiles.clear();
+}
+
 bool Project::toggleSuspendFile(uint32_t file)
 {
     if (!mSuspendedFiles.insert(file)) {

@@ -1279,7 +1279,7 @@ void Server::suspendFile(const QueryMessage &query, Connection *conn)
 {
     shared_ptr<Project> project;
     const Match match = query.match();
-    if (match.isEmpty()) {
+    if (match.isEmpty() || match.pattern() == "clear") {
         project = currentProject();
     } else {
         project = updateProjectForLocation(match);
@@ -1299,7 +1299,10 @@ void Server::suspendFile(const QueryMessage &query, Connection *conn)
             }
         } else {
             const Path p = query.match().pattern();
-            if (!p.isFile()) {
+            if (p == "clear") {
+                project->clearSuspendedFiles();
+                conn->write<512>("No files are suspended");
+            } else if (!p.isFile()) {
                 conn->write<512>("%s doesn't seem to exist", p.constData());
             } else {
                 const uint32_t fileId = Location::insertFile(p);
