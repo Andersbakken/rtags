@@ -339,6 +339,9 @@ void Server::handleQueryMessage(const QueryMessage &message, Connection *conn)
     case QueryMessage::Builds:
         builds(message, conn);
         break;
+    case QueryMessage::SuspendFile:
+        suspendFile(message, conn);
+        break;
     case QueryMessage::IsIndexing:
         isIndexing(message, conn);
         break;
@@ -1268,6 +1271,42 @@ void Server::builds(const QueryMessage &query, Connection *conn)
         }
     } else {
         conn->write("No project");
+    }
+    conn->finish();
+}
+
+void Server::suspendFile(const QueryMessage &query, Connection *conn)
+{
+    shared_ptr<Project> project;
+    const Match match = query.match();
+    if (match.isEmpty()) {
+        project = currentProject();
+    } else {
+        project = updateProjectForLocation(match);
+    }
+    if (!project) {
+        conn->write("No project");
+    } else if (project->state() != Project::Loaded) {
+        conn->write("Project loading");
+    } else {
+        if (match.isEmpty()) {
+            const Set<uint32_t> suspendedFiles = project->suspendedFiles();
+            if (suspendedFiles.isEmpty()) {
+                conn->write<512>("No files suspended for project %s", project->path().constData());
+            } else {
+                for (Set<uint32_t>::const_iterator it = suspendedFiles.begin(); it != suspendedFiles.end(); ++it)
+                    conn->write<512>("%s is suspended", Location::path(*it).constData());
+            }
+        } else {
+            const Path p = query.match().pattern();
+            if (!p.isFile()) {
+                conn->write<512>("%s doesn't seem to exist", p.constData());
+            } else {
+                const uint32_t fileId = Location::insertFile(p);
+                conn->write<512>("%s is no%s suspended", p.constData(),
+                                 project->toggleSuspendFile(fileId) ? "w" : " longer");
+            }
+        }
     }
     conn->finish();
 }

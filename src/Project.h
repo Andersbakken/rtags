@@ -87,6 +87,10 @@ public:
     const UsrMap &usrs() const { return mUsr; }
     UsrMap &usrs() { return mUsr; }
 
+    const Set<uint32_t> &suspendedFiles() const;
+    bool toggleSuspendFile(uint32_t file);
+    bool isSuspended(uint32_t file) const;
+
     bool isIndexed(uint32_t fileId) const;
 
     bool index(const Path &sourceFile, const Path &compiler = Path(), const List<String> &args = List<String>());
@@ -175,6 +179,7 @@ private:
     Set<uint32_t> mPendingDirtyFiles;
 
     LinkedList<CachedUnit*> mCachedUnits;
+    Set<uint32_t> mSuspendedFiles;
 };
 
 inline bool Project::visitFile(uint32_t fileId)

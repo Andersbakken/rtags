@@ -71,6 +71,7 @@ enum OptionType {
     SocketFile,
     Status,
     StripParen,
+    SuspendFile,
     Timeout,
     UnloadProject,
     UnsavedFile,
@@ -140,6 +141,7 @@ struct Option opts[] = {
     { ReloadFileManager, "reload-file-manager", 'B', no_argument, "Reload file manager." },
     { Man, "man", 0, no_argument, "Output XML for xmltoman to generate man page for rc :-)" },
     { CodeCompletionEnabled, "code-completion-enabled", 0, no_argument, "Whether completion is enabled." },
+    { SuspendFile, "suspend-file", 'X', optional_argument, "Dump suspended files (don't track changes in these files) with no arg. Otherwise toggle suspension for arg." },
 
     { None, 0, 0, 0, "" },
     { None, 0, 0, 0, "Command flags:" },
@@ -917,6 +919,22 @@ bool RClient::parse(int &argc, char **argv)
                 p.append('/');
             addQuery(QueryMessage::HasFileManager, p);
             break; }
+        case SuspendFile: {
+            Path p;
+            if (optarg) {
+                p = optarg;
+            } else if (optind < argc && argv[optind][0] != '-') {
+                p = argv[optind++];
+            }
+            if (!p.isEmpty()) {
+                p.resolve(Path::MakeAbsolute);
+                if (!p.isFile()) {
+                    fprintf(stderr, "%s is not a file\n", optarg);
+                    return false;
+                }
+            }
+            addQuery(QueryMessage::SuspendFile, p);
+            break; }
         case Compile: {
             String args = optarg;
             while (optind < argc) {
@@ -961,22 +979,7 @@ bool RClient::parse(int &argc, char **argv)
             addQuery(type, p);
             break; }
         case PreprocessFile: {
-            unsigned long long idx = 0;
             Path p = optarg;
-            if (!p.exists()) {
-                List<RegExp::Capture> caps;
-                const RegExp rx(".*_\\([0-9][0-9]*\\)$");
-                const int match = rx.indexIn(p, 0, &caps);
-                if (match != -1) {
-                    assert(caps.size() == 2);
-                    idx = caps.at(1).capture.toULongLong();
-                    if (idx > 255) {
-                        fprintf(stderr, "Invalid build index %llu (must be < 256)\n", idx);
-                        return false;
-                    }
-                    p.resize(caps.at(1).index - 1);
-                }
-            }
             p.resolve(Path::MakeAbsolute);
             if (!p.isFile()) {
                 fprintf(stderr, "%s is not a file\n", optarg);

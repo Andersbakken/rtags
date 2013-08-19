@@ -2191,4 +2191,13 @@ should use `irony-get-completion-point-anywhere'."
         )
   )
 
+(defun rtags-toggle-file-suspended()
+  (interactive)
+  (let ((buffer (buffer-file-name)))
+    (if buffer
+        (with-temp-buffer
+          (rtags-call-rc :path buffer "-X" buffer)
+          (message (buffer-string)))))
+  )
+
 (provide 'rtags)

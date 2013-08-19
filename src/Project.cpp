@@ -492,6 +492,10 @@ bool Project::index(const Path &sourceFile, const Path &cc, const List<String> &
 void Project::onFileModified(const Path &file)
 {
     const uint32_t fileId = Location::fileId(file);
+    if (mSuspendedFiles.contains(fileId)) {
+        warning() << file << "is suspended. Ignoring modification";
+        return;
+    }
     debug() << file << "was modified" << fileId;
     if (fileId) {
         Set<uint32_t> dirty;
@@ -769,8 +773,26 @@ void Project::syncDB()
 
 bool Project::isIndexed(uint32_t fileId) const
 {
-    std::lock_guard<std::mutex> lock(mMutex);
     return mVisitedFiles.contains(fileId) || mSources.contains(fileId);
+}
+
+const Set<uint32_t> &Project::suspendedFiles() const
+{
+    return mSuspendedFiles;
+}
+
+bool Project::toggleSuspendFile(uint32_t file)
+{
+    if (!mSuspendedFiles.insert(file)) {
+        mSuspendedFiles.remove(file);
+        return false;
+    }
+    return true;
+}
+
+bool Project::isSuspended(uint32_t file) const
+{
+    return mSuspendedFiles.contains(file);
 }
 
 SourceInformationMap Project::sources() const
