@@ -219,7 +219,6 @@
             nil)
         (progn
           (and async (not (consp async)) (error "Invalid argument. async must be a cons or nil"))
-          (and unsaved (not async) (error "Synchronous rc with --unsaved-file not supported"))
           (setq arguments (rtags-remove-keyword-params arguments))
           (setq arguments (remove-if '(lambda (arg) (not arg)) arguments))
           (when path-filter
@@ -252,8 +251,10 @@
                                  (process-send-region proc (point-min) (point-max)))
                                proc))
                             (async (apply #'start-process "rc" (current-buffer) rc arguments))
-                            ;; (unsaved (apply #'call-process-region (point-min) (point-max) rc nil output nil arguments) nil)
-                            (t (apply #'call-process rc nil output nil arguments) nil))))
+                            ((and unsaved (buffer-modified-p unsaved))
+                             (apply #'call-process-region (point-min) (point-max) rc output nil arguments) nil)
+                            (unsaved (apply #'call-process rc (buffer-file-name unsaved) output nil arguments) nil)
+                            (t (apply #'call-process rc (and unsaved (buffer-file-name unsaved)) output nil arguments) nil))))
             (if proc
                 (progn
                   (set-process-query-on-exit-flag proc nil)
@@ -2104,11 +2105,16 @@ should use `irony-get-completion-point-anywhere'."
 
 (defun rtags-code-complete-at ()
   (interactive)
-  (let ((path (buffer-file-name))
-        (loc (rtags-current-location))
-        (modified (buffer-modified-p)))
+  (let* ((buffer (current-buffer))
+         (modified (buffer-modified-p))
+         (text (and modified (buffer-substring-no-properties (point-min) (point-max))))
+         (path (buffer-file-name))
+         (line (line-number-at-pos))
+         (column (1+ (rtags-find-symbol-start))))
     (with-temp-buffer
-      (rtags-call-rc :path path "-o" loc :unsaved modified))
+      (if text
+          (insert text))
+      (rtags-call-rc :path path :unsaved buffer "-x" (format "%s:%d:%d" path line column)))
     )
   )
 
