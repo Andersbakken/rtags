@@ -36,7 +36,7 @@ public:
     {
         if (std::shared_ptr<Project> project = mProject.lock()) {
             project->restore();
-            project->startPendingJobs();
+            EventLoop::mainEventLoop()->callLater(std::bind(&Project::startPendingJobs, project.get()));
         }
     }
 private:
