@@ -1478,7 +1478,9 @@ References to references will be treated as references to the referenced symbol"
 (defun rtags-ac-completions ()
   (if (get-buffer "*RTags Completions*")
       (with-current-buffer "*RTags Completions*"
-        (split-string (buffer-string))))
+        (unless (string= (buffer-substring-no-properties (1+ (point-min)) (1- (point-max)))
+                         "Process RTags Completions Stream finished")
+          (split-string (buffer-string)))))
   )
 
 
