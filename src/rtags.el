@@ -1203,6 +1203,12 @@ References to references will be treated as references to the referenced symbol"
       (setq errorlist (cdr errorlist)))
     (puthash filename nil rtags-overlays)))
 
+(defun rtags-clear-diagnostics-overlays()
+  (interactive)
+  (if (buffer-file-name)
+      (rtags-overlays-remove (buffer-file-name)))
+  )
+
 (defun rtags-really-find-buffer (fn)
   (setq fn (file-truename fn))
   (car
