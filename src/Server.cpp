@@ -214,12 +214,11 @@ void Server::onNewConnection()
             break;
         Connection *conn = new Connection(client);
         conn->newMessage().connect(std::bind(&Server::onNewMessage, this, std::placeholders::_1, std::placeholders::_2));
-        conn->destroyed().connect(std::bind(&Server::onConnectionDestroyed, this, std::placeholders::_1));
-        // client->disconnected().connect(conn, &Connection::onLoop);
+        conn->disconnected().connect(std::bind(&Server::onConnectionDisconnected, this, std::placeholders::_1));
     }
 }
 
-void Server::onConnectionDestroyed(Connection *o)
+void Server::onConnectionDisconnected(Connection *o)
 {
     Map<int, Connection*>::iterator it = mPendingLookups.begin();
     const Map<int, Connection*>::const_iterator end = mPendingLookups.end();
@@ -230,6 +229,7 @@ void Server::onConnectionDestroyed(Connection *o)
             ++it;
         }
     }
+    EventLoop::deleteLater(o);
 }
 
 void Server::onNewMessage(Message *message, Connection *connection)

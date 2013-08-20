@@ -89,7 +89,7 @@ private:
     void index(const GccArguments &args, const List<String> &projects);
     void onUnload();
     void onNewMessage(Message *message, Connection *conn);
-    void onConnectionDestroyed(Connection *o);
+    void onConnectionDisconnected(Connection *o);
     void clearProjects();
     void handleCompileMessage(const CompileMessage &message, Connection *conn);
     void handleCompletionMessage(const CompletionMessage &message, Connection *conn);
