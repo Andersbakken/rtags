@@ -90,11 +90,13 @@ void ReferencesJob::execute()
                 } else if (queryFlags() & QueryMessage::FindVirtuals) {
                     // ### not supporting DeclarationOnly
                     const SymbolMap virtuals = cursorInfo.virtuals(pos, map, errors);
-                    List<RTags::SortedCursor> sortedCursors;
-                    sortedCursors.reserve(virtuals.size());
                     for (SymbolMap::const_iterator v = virtuals.begin(); v != virtuals.end(); ++v) {
                         references[v->first] = std::make_pair(v->second.isDefinition(), v->second.kind);
                     }
+                    startLocation.clear();
+                    // since one normall calls this on a declaration it kinda
+                    // doesn't work that well do the clever offset thing
+                    // underneath
                 } else {
                     const SymbolMap callers = cursorInfo.callers(pos, map, errors);
                     for (SymbolMap::const_iterator c = callers.begin(); c != callers.end(); ++c) {
