@@ -472,19 +472,19 @@ void RClient::addQuery(QueryMessage::Type t, const String &query)
     default:
         break;
     }
-    shared_ptr<QueryCommand> cmd(new QueryCommand(t, query, flags));
+    std::shared_ptr<QueryCommand> cmd(new QueryCommand(t, query, flags));
     cmd->extraQueryFlags = extraQueryFlags;
     mCommands.append(cmd);
 }
 
 void RClient::addLog(int level)
 {
-    mCommands.append(shared_ptr<RCCommand>(new RdmLogCommand(level)));
+    mCommands.append(std::shared_ptr<RCCommand>(new RdmLogCommand(level)));
 }
 
 void RClient::addCompile(const Path &cwd, const String &args)
 {
-    mCommands.append(shared_ptr<RCCommand>(new CompileCommand(cwd, args)));
+    mCommands.append(std::shared_ptr<RCCommand>(new CompileCommand(cwd, args)));
 }
 
 class LogMonitor : public LogOutput
@@ -526,7 +526,7 @@ bool RClient::exec()
                                                   std::placeholders::_1, std::placeholders::_2));
         connection.disconnected().connect(std::bind([](){ EventLoop::eventLoop()->quit(); }));
 
-        const shared_ptr<RCCommand> &cmd = mCommands.at(i);
+        const std::shared_ptr<RCCommand> &cmd = mCommands.at(i);
         requiresNon0Output = cmd->flags & RCCommand::RequiresNon0Output;
         debug() << "running command " << cmd->description();
         ret = cmd->exec(this, &connection) && loop->exec(timeout()) == 0;
@@ -666,7 +666,7 @@ bool RClient::parse(int &argc, char **argv)
             break;
         case CodeComplete:
             // logFile = "/tmp/rc.log";
-            mCommands.append(shared_ptr<RCCommand>(new CompletionCommand));
+            mCommands.append(std::shared_ptr<RCCommand>(new CompletionCommand));
             break;
         case Context:
             mContext = optarg;
@@ -691,7 +691,7 @@ bool RClient::parse(int &argc, char **argv)
                 serializer << path << atoi(caps[2].capture.constData()) << atoi(caps[3].capture.constData());
             }
             CompletionCommand *cmd = new CompletionCommand(path, atoi(caps[2].capture.constData()), atoi(caps[3].capture.constData()));
-            mCommands.append(shared_ptr<RCCommand>(cmd));
+            mCommands.append(std::shared_ptr<RCCommand>(cmd));
             break; }
         case AllReferences:
             mQueryFlags |= QueryMessage::AllReferences;
@@ -1036,7 +1036,7 @@ bool RClient::parse(int &argc, char **argv)
         // using the current buffer but rather piggy-back on --project
         const int count = projectCommands.size();
         for (int i=0; i<count; ++i) {
-            shared_ptr<QueryCommand> &cmd = projectCommands[i];
+            std::shared_ptr<QueryCommand> &cmd = projectCommands[i];
             if (!cmd->query.isEmpty()) {
                 cmd->extraQueryFlags |= QueryMessage::Silent;
             }

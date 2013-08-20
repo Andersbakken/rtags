@@ -5,7 +5,7 @@
 #include "FileManager.h"
 #include "Project.h"
 
-DependenciesJob::DependenciesJob(const QueryMessage &query, const shared_ptr<Project> &project)
+DependenciesJob::DependenciesJob(const QueryMessage &query, const std::shared_ptr<Project> &project)
     : Job(query, WriteBuffered|QuietJob, project), mFileId(Location::fileId(query.query()))
 {
 }
@@ -14,7 +14,7 @@ void DependenciesJob::execute()
 {
     if (!mFileId)
         return;
-    shared_ptr<Project> proj = project();
+    std::shared_ptr<Project> proj = project();
     if (!proj)
         return;
     const Path srcRoot = proj->path();

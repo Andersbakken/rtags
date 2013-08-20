@@ -58,13 +58,13 @@ public:
 #define NAMED_TIMING(name) do {} while (0)
 #endif
 
-IndexerJob::IndexerJob(const shared_ptr<Project> &project, Type type, const SourceInformation &sourceInformation)
+IndexerJob::IndexerJob(const std::shared_ptr<Project> &project, Type type, const SourceInformation &sourceInformation)
     : Job(0, project), mType(type), mSourceInformation(sourceInformation),
       mFileId(Location::insertFile(sourceInformation.sourceFile)), mTimer(StopWatch::Microsecond), mParseTime(0),
       mStarted(false)
 {}
 
-IndexerJob::IndexerJob(const QueryMessage &msg, const shared_ptr<Project> &project,
+IndexerJob::IndexerJob(const QueryMessage &msg, const std::shared_ptr<Project> &project,
                        const SourceInformation &sourceInformation)
     : Job(msg, WriteUnfiltered|WriteBuffered|QuietJob, project), mType(Dump), mSourceInformation(sourceInformation),
       mFileId(Location::insertFile(sourceInformation.sourceFile)), mTimer(StopWatch::Microsecond), mParseTime(0),
@@ -104,7 +104,7 @@ Location IndexerJob::createLocation(uint32_t fileId, uint32_t offset, bool *bloc
         } else if (mBlockedFiles.contains(fileId)) {
             *blocked = true;
         } else {
-            shared_ptr<Project> p = project();
+            std::shared_ptr<Project> p = project();
             if (!p) {
                 return Location();
             } else if (p->visitFile(fileId)) {
@@ -143,8 +143,8 @@ void IndexerJob::execute()
 
     index();
     if (mType != Dump) {
-        shared_ptr<Project> p = project();
+        std::shared_ptr<Project> p = project();
         if (p)
-            p->onJobFinished(static_pointer_cast<IndexerJob>(shared_from_this()));
+            p->onJobFinished(std::static_pointer_cast<IndexerJob>(shared_from_this()));
     }
 }

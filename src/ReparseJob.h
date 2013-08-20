@@ -10,7 +10,7 @@ class ReparseJob : public ThreadPool::Job
 {
 public:
     ReparseJob(CXTranslationUnit unit, const Path &path, const List<String> &args, const String &unsaved,
-               const shared_ptr<Project> &project)
+               const std::shared_ptr<Project> &project)
         : mUnit(unit), mPath(path), mArgs(args), mUnsaved(unsaved), mProject(project)
     {}
 
@@ -22,7 +22,7 @@ public:
 
         RTags::reparseTranslationUnit(mUnit, &unsaved, mUnsaved.isEmpty() ? 1 : 0);
         if (mUnit) {
-            shared_ptr<Project> project = mProject.lock();
+            std::shared_ptr<Project> project = mProject.lock();
             if (project) {
                 project->addToCache(mPath, mArgs, mUnit, 2);
                 // error() << "Did a reparse" << mPath;
@@ -38,7 +38,7 @@ private:
     const Path mPath;
     const List<String> mArgs;
     const String mUnsaved;
-    weak_ptr<Project> mProject;
+    std::weak_ptr<Project> mProject;
 };
 
 #endif

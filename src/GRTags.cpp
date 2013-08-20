@@ -231,7 +231,7 @@ void GRTags::findSymbols(const String &pattern)
 
 void GRTags::listSymbols(const String &pattern)
 {
-    shared_ptr<leveldb::Iterator> it(mDB->NewIterator(leveldb::ReadOptions()));
+    std::shared_ptr<leveldb::Iterator> it(mDB->NewIterator(leveldb::ReadOptions()));
     const char *match = pattern.isEmpty() ? 0 : pattern.constData();
     int matchSize;
     if (match) {
@@ -307,7 +307,7 @@ bool GRTags::load(const Path &db)
     }
     mPath = db;
     if (mMode != Create) {
-        shared_ptr<leveldb::Iterator> it(mDB->NewIterator(leveldb::ReadOptions()));
+        std::shared_ptr<leveldb::Iterator> it(mDB->NewIterator(leveldb::ReadOptions()));
         it->SeekToFirst();
         Map<Path, uint32_t> paths;
         leveldb::WriteBatch batch;
@@ -380,7 +380,7 @@ bool GRTags::save()
         }
     }
     if (mMode == Update) {
-        shared_ptr<leveldb::Iterator> it(mDB->NewIterator(leveldb::ReadOptions()));
+        std::shared_ptr<leveldb::Iterator> it(mDB->NewIterator(leveldb::ReadOptions()));
         it->Seek(leveldb::Slice("A", 1));
         while (it->Valid()) {
             const leveldb::Slice key = it->key();
@@ -477,7 +477,7 @@ void GRTags::dump()
     error() << "Symbols:";
     error() << delimiter;
 
-    shared_ptr<leveldb::Iterator> it(mDB->NewIterator(leveldb::ReadOptions()));
+    std::shared_ptr<leveldb::Iterator> it(mDB->NewIterator(leveldb::ReadOptions()));
     it->Seek(leveldb::Slice("A", 1));
     while (it->Valid()) {
         const leveldb::Slice key = it->key();

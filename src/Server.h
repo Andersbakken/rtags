@@ -56,8 +56,8 @@ public:
         UseCompilerFlags = 0x1000
     };
     ThreadPool *threadPool() const { return mIndexerThreadPool; }
-    void startQueryJob(const shared_ptr<Job> &job);
-    void startIndexerJob(const shared_ptr<ThreadPool::Job> &job);
+    void startQueryJob(const std::shared_ptr<Job> &job);
+    void startIndexerJob(const std::shared_ptr<ThreadPool::Job> &job);
     struct Options {
         Options()
             : options(0), threadCount(0), completionCacheSize(0), unloadTimer(0), clearCompletionCacheInterval(0)
@@ -86,8 +86,8 @@ private:
     void clear();
     void onNewConnection();
     Signal<std::function<void(int, const List<String> &)> > &complete() { return mComplete; }
-    shared_ptr<Project> setCurrentProject(const Path &path, unsigned int queryFlags = 0);
-    shared_ptr<Project> setCurrentProject(const shared_ptr<Project> &project, unsigned int queryFlags = 0);
+    std::shared_ptr<Project> setCurrentProject(const Path &path, unsigned int queryFlags = 0);
+    std::shared_ptr<Project> setCurrentProject(const std::shared_ptr<Project> &project, unsigned int queryFlags = 0);
     void index(const GccArguments &args, const List<String> &projects);
     void onUnload();
     void onNewMessage(Message *message, Connection *conn);
@@ -129,21 +129,21 @@ private:
     void suspendFile(const QueryMessage &query, Connection *conn);
     int nextId();
     void reindex(const QueryMessage &query, Connection *conn);
-    shared_ptr<Project> updateProjectForLocation(const Match &match);
-    shared_ptr<Project> currentProject() const
+    std::shared_ptr<Project> updateProjectForLocation(const Match &match);
+    std::shared_ptr<Project> currentProject() const
     {
         std::lock_guard<std::mutex> lock(mMutex);
         return mCurrentProject.lock();
     }
     int reloadProjects();
     void onCompletionStreamDisconnected(const SocketClient::SharedPtr& client);
-    shared_ptr<Project> addProject(const Path &path);
+    std::shared_ptr<Project> addProject(const Path &path);
     void onCompletionJobFinished(Path path, int id);
     void startCompletion(const Path &path, int line, int column, int pos, const String &contents, Connection *conn);
 
-    typedef Map<Path, shared_ptr<Project> > ProjectsMap;
+    typedef Map<Path, std::shared_ptr<Project> > ProjectsMap;
     ProjectsMap mProjects;
-    weak_ptr<Project> mCurrentProject;
+    std::weak_ptr<Project> mCurrentProject;
 
     static Server *sInstance;
     Options mOptions;

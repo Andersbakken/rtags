@@ -61,7 +61,7 @@ public:
     void load(FileManagerMode mode = FileManager_Asynchronous);
     void unload();
 
-    shared_ptr<FileManager> fileManager;
+    std::shared_ptr<FileManager> fileManager;
 
     Path path() const { return mPath; }
 
@@ -101,7 +101,7 @@ public:
     String fixIts(uint32_t fileId) const;
     int reindex(const Match &match);
     int remove(const Match &match);
-    void onJobFinished(const shared_ptr<IndexerJob> &job);
+    void onJobFinished(const std::shared_ptr<IndexerJob> &job);
     SourceInformationMap sources() const;
     DependencyMap dependencies() const;
     Set<Path> watchedPaths() const { return mWatchedPaths; }
@@ -149,7 +149,7 @@ private:
 
     mutable std::mutex mMutex;
 
-    Map<uint32_t, shared_ptr<IndexerJob> > mJobs;
+    Map<uint32_t, std::shared_ptr<IndexerJob> > mJobs;
     struct PendingJob
     {
         SourceInformation source;
@@ -171,7 +171,7 @@ private:
 
     Set<Location> mPreviousErrors;
 
-    Map<uint32_t, shared_ptr<IndexData> > mPendingData;
+    Map<uint32_t, std::shared_ptr<IndexData> > mPendingData;
     Set<uint32_t> mPendingDirtyFiles;
 
     LinkedList<CachedUnit*> mCachedUnits;

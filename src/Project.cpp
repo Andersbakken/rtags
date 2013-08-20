@@ -61,7 +61,7 @@ void Project::init()
     assert(mState == Unloaded);
     mState = Inited;
     fileManager.reset(new FileManager);
-    fileManager->init(static_pointer_cast<Project>(shared_from_this()), FileManager::Asynchronous);
+    fileManager->init(std::static_pointer_cast<Project>(shared_from_this()), FileManager::Asynchronous);
 }
 
 bool Project::restore()
@@ -188,7 +188,7 @@ void Project::load(FileManagerMode mode)
         switch (mState) {
         case Unloaded:
             fileManager.reset(new FileManager);
-            fileManager->init(static_pointer_cast<Project>(shared_from_this()),
+            fileManager->init(std::static_pointer_cast<Project>(shared_from_this()),
                               mode == FileManager_Asynchronous ? FileManager::Asynchronous : FileManager::Synchronous);
             // duplicated from init
             break;
@@ -207,7 +207,7 @@ void Project::load(FileManagerMode mode)
 void Project::unload()
 {
     std::lock_guard<std::mutex> lock(mMutex);
-    for (Map<uint32_t, shared_ptr<IndexerJob> >::const_iterator it = mJobs.begin(); it != mJobs.end(); ++it) {
+    for (Map<uint32_t, std::shared_ptr<IndexerJob> >::const_iterator it = mJobs.begin(); it != mJobs.end(); ++it) {
         it->second->abort();
     }
     mJobs.clear();
@@ -255,7 +255,7 @@ bool Project::match(const Match &p, bool *indexed) const
     return ret;
 }
 
-void Project::onJobFinished(const shared_ptr<IndexerJob> &job)
+void Project::onJobFinished(const std::shared_ptr<IndexerJob> &job)
 {
     PendingJob pending;
     const Path currentFile = Server::instance()->currentFile();
@@ -274,18 +274,18 @@ void Project::onJobFinished(const shared_ptr<IndexerJob> &job)
             assert(mJobs.value(fileId) == job);
             mJobs.remove(fileId);
 
-            shared_ptr<IndexData> data = job->data();
+            std::shared_ptr<IndexData> data = job->data();
             mPendingData[fileId] = data;
             if (data->type == IndexData::ClangType) {
-                shared_ptr<IndexDataClang> clangData = static_pointer_cast<IndexDataClang>(data);
+                std::shared_ptr<IndexDataClang> clangData = std::static_pointer_cast<IndexDataClang>(data);
                 if (Server::instance()->options().completionCacheSize > 0 && clangData->unit) {
                     const SourceInformation sourceInfo = job->sourceInformation();
                     if (currentFile == sourceInfo.sourceFile) {
-                        shared_ptr<ReparseJob> rj(new ReparseJob(clangData->unit,
+                        std::shared_ptr<ReparseJob> rj(new ReparseJob(clangData->unit,
                                                                  sourceInfo.sourceFile,
                                                                  sourceInfo.args,
-                                                                 static_pointer_cast<IndexerJobClang>(job)->contents(),
-                                                                 static_pointer_cast<Project>(shared_from_this())));
+                                                                 std::static_pointer_cast<IndexerJobClang>(job)->contents(),
+                                                                 std::static_pointer_cast<Project>(shared_from_this())));
                         clangData->unit = 0;
                         Server::instance()->startIndexerJob(rj);
                     } else {
@@ -353,7 +353,7 @@ void Project::index(const SourceInformation &c, IndexerJob::Type type)
     if (fileFilter && !strstr(c.sourceFile.constData(), fileFilter))
         return;
     const uint32_t fileId = Location::insertFile(c.sourceFile);
-    shared_ptr<IndexerJob> &job = mJobs[fileId];
+    std::shared_ptr<IndexerJob> &job = mJobs[fileId];
     if (job) {
         if (job->abortIfStarted()) {
             const PendingJob pending = { c, type };
@@ -361,7 +361,7 @@ void Project::index(const SourceInformation &c, IndexerJob::Type type)
         }
         return;
     }
-    shared_ptr<Project> project = static_pointer_cast<Project>(shared_from_this());
+    std::shared_ptr<Project> project = std::static_pointer_cast<Project>(shared_from_this());
 
     mSources[fileId] = c;
     mPendingData.remove(fileId);
@@ -580,7 +580,7 @@ int Project::remove(const Match &match)
             if (match.match(it->second.sourceFile)) {
                 const uint32_t fileId = Location::insertFile(it->second.sourceFile);
                 mSources.erase(it++);
-                shared_ptr<IndexerJob> job = mJobs.value(fileId);
+                std::shared_ptr<IndexerJob> job = mJobs.value(fileId);
                 if (job)
                     job->abort();
                 mPendingData.remove(fileId);
@@ -728,7 +728,7 @@ void Project::syncDB()
 {
     if (mPendingDirtyFiles.isEmpty() && mPendingData.isEmpty())
         return;
-    // for (Map<uint32_t, shared_ptr<IndexData> >::iterator it = mPendingData.begin(); it != mPendingData.end(); ++it) {
+    // for (Map<uint32_t, std::shared_ptr<IndexData> >::iterator it = mPendingData.begin(); it != mPendingData.end(); ++it) {
     //     writeErrorSymbols(mSymbols, mErrorSymbols, it->second->errors);
     // }
 
@@ -740,8 +740,8 @@ void Project::syncDB()
     }
 
     Set<uint32_t> newFiles;
-    for (Map<uint32_t, shared_ptr<IndexData> >::iterator it = mPendingData.begin(); it != mPendingData.end(); ++it) {
-        const shared_ptr<IndexData> &data = it->second;
+    for (Map<uint32_t, std::shared_ptr<IndexData> >::iterator it = mPendingData.begin(); it != mPendingData.end(); ++it) {
+        const std::shared_ptr<IndexData> &data = it->second;
         addDependencies(data->dependencies, newFiles);
         addFixIts(data->dependencies, data->fixIts);
         writeSymbols(data->symbols, mSymbols);
@@ -762,7 +762,7 @@ void Project::syncDB()
     }
     mPendingData.clear();
     if (Server::instance()->options().options & Server::Validate) {
-        shared_ptr<ValidateDBJob> validate(new ValidateDBJob(static_pointer_cast<Project>(shared_from_this()), mPreviousErrors));
+        std::shared_ptr<ValidateDBJob> validate(new ValidateDBJob(std::static_pointer_cast<Project>(shared_from_this()), mPreviousErrors));
         Server::instance()->startQueryJob(validate);
     }
 }

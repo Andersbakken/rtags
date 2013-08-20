@@ -6,10 +6,10 @@
 class IndexerJobRParser : public IndexerJob
 {
 public:
-    IndexerJobRParser(const shared_ptr<Project> &project, Type type,
+    IndexerJobRParser(const std::shared_ptr<Project> &project, Type type,
                       const SourceInformation &sourceInformation);
     IndexerJobRParser(const QueryMessage &msg,
-                      const shared_ptr<Project> &project,
+                      const std::shared_ptr<Project> &project,
                       const SourceInformation &sourceInformation);
 protected:
     virtual void index();

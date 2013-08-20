@@ -6,21 +6,21 @@
 class EsprimaPlugin : public RTagsPlugin
 {
 public:
-    virtual shared_ptr<IndexerJob> createJob(const shared_ptr<Project> &project,
+    virtual std::shared_ptr<IndexerJob> createJob(const std::shared_ptr<Project> &project,
                                              IndexerJob::Type type,
                                              const SourceInformation &sourceInformation)
     {
         if (sourceInformation.isJS())
-            return shared_ptr<IndexerJob>(new IndexerJobEsprima(project, type, sourceInformation));
-        return shared_ptr<IndexerJob>();
+            return std::shared_ptr<IndexerJob>(new IndexerJobEsprima(project, type, sourceInformation));
+        return std::shared_ptr<IndexerJob>();
     }
-    virtual shared_ptr<IndexerJob> createJob(const QueryMessage &msg,
-                                             const shared_ptr<Project> &project,
+    virtual std::shared_ptr<IndexerJob> createJob(const QueryMessage &msg,
+                                             const std::shared_ptr<Project> &project,
                                              const SourceInformation &sourceInformation)
     {
         if (sourceInformation.isJS())
-            return shared_ptr<IndexerJob>(new IndexerJobEsprima(msg, project, sourceInformation));
-        return shared_ptr<IndexerJob>();
+            return std::shared_ptr<IndexerJob>(new IndexerJobEsprima(msg, project, sourceInformation));
+        return std::shared_ptr<IndexerJob>();
     }
 };
 
@@ -31,14 +31,14 @@ RTagsPlugin *createInstance()
 }
 };
 
-IndexerJobEsprima::IndexerJobEsprima(const shared_ptr<Project> &project,
+IndexerJobEsprima::IndexerJobEsprima(const std::shared_ptr<Project> &project,
                                      Type type,
                                      const SourceInformation &sourceInformation)
     : IndexerJob(project, type, sourceInformation)
 {}
 
 IndexerJobEsprima::IndexerJobEsprima(const QueryMessage &msg,
-                                     const shared_ptr<Project> &project,
+                                     const std::shared_ptr<Project> &project,
                                      const SourceInformation &sourceInformation)
     : IndexerJob(msg, project, sourceInformation)
 {

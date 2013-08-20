@@ -31,15 +31,15 @@ public:
 class IndexerJobClang : public IndexerJob
 {
 public:
-    IndexerJobClang(const shared_ptr<Project> &project, Type type,
+    IndexerJobClang(const std::shared_ptr<Project> &project, Type type,
                     const SourceInformation &sourceInformation);
     IndexerJobClang(const QueryMessage &msg,
-                    const shared_ptr<Project> &project,
+                    const std::shared_ptr<Project> &project,
                     const SourceInformation &sourceInformation);
     static String typeName(const CXCursor &cursor);
-    virtual shared_ptr<IndexData> createIndexData() { return shared_ptr<IndexData>(new IndexDataClang); }
+    virtual std::shared_ptr<IndexData> createIndexData() { return std::shared_ptr<IndexData>(new IndexDataClang); }
 
-    shared_ptr<IndexDataClang> data() const { return static_pointer_cast<IndexDataClang>(IndexerJob::data()); }
+    std::shared_ptr<IndexDataClang> data() const { return std::static_pointer_cast<IndexDataClang>(IndexerJob::data()); }
     String contents() const { return mContents; }
 private:
     virtual void index();

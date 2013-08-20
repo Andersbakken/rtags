@@ -11,7 +11,7 @@ FileManager::FileManager()
     mWatcher.removed().connect(std::bind(&FileManager::onFileRemoved, this, std::placeholders::_1));
 }
 
-void FileManager::init(const shared_ptr<Project> &proj, Mode mode)
+void FileManager::init(const std::shared_ptr<Project> &proj, Mode mode)
 {
     mProject = proj;
     reload(mode);
@@ -20,9 +20,9 @@ void FileManager::init(const shared_ptr<Project> &proj, Mode mode)
 void FileManager::reload(Mode mode)
 {
     mLastReloadTime = Rct::monoMs();
-    shared_ptr<Project> project = mProject.lock();
+    std::shared_ptr<Project> project = mProject.lock();
     assert(project);
-    shared_ptr<ScanJob> job(new ScanJob(project->path()));
+    std::shared_ptr<ScanJob> job(new ScanJob(project->path()));
     if (mode == Asynchronous) {
         job->finished().connect<EventLoop::Move>(std::bind(&FileManager::onRecurseJobFinished, this, std::placeholders::_1));
         Server::instance()->threadPool()->start(job);
@@ -40,7 +40,7 @@ void FileManager::onRecurseJobFinished(const Set<Path> &paths)
         Set<Path> old;
         std::swap(mJSFiles, old);
 
-        shared_ptr<Project> project = mProject.lock();
+        std::shared_ptr<Project> project = mProject.lock();
         assert(project);
         FilesMap &map = project->files();
         map.clear();
@@ -86,7 +86,7 @@ void FileManager::onFileAdded(const Path &path)
             break;
         }
 
-        shared_ptr<Project> project = mProject.lock();
+        std::shared_ptr<Project> project = mProject.lock();
         assert(project);
         FilesMap &map = project->files();
         const Path parent = path.parentDir();
@@ -108,7 +108,7 @@ void FileManager::onFileAdded(const Path &path)
 void FileManager::onFileRemoved(const Path &path)
 {
     std::lock_guard<std::mutex> lock(mMutex);
-    shared_ptr<Project> project = mProject.lock();
+    std::shared_ptr<Project> project = mProject.lock();
     FilesMap &map = project->files();
     if (map.contains(path)) {
         reload(Asynchronous);
@@ -134,7 +134,7 @@ static inline bool startsWith(const Path &left, const Path &right)
 bool FileManager::contains(const Path &path) const
 {
     std::lock_guard<std::mutex> lock(mMutex);
-    shared_ptr<Project> proj = mProject.lock();
+    std::shared_ptr<Project> proj = mProject.lock();
     if (!proj)
         return false;
     if (startsWith(path, proj->path()))

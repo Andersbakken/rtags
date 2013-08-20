@@ -5,7 +5,7 @@
 #include <IndexerJobClang.h>
 #include "Server.h"
 
-CompletionJob::CompletionJob(const shared_ptr<Project> &project, Type type)
+CompletionJob::CompletionJob(const std::shared_ptr<Project> &project, Type type)
     : Job(WriteBuffered|WriteUnfiltered|QuietJob, project), mUnit(0),
       mLine(-1), mColumn(-1), mPos(-1), mParseCount(-1), mType(type)
 {
@@ -265,7 +265,7 @@ void CompletionJob::execute()
         //processDiagnostics(results);
 
         clang_disposeCodeCompleteResults(results);
-        shared_ptr<Project> proj = project();
+        std::shared_ptr<Project> proj = project();
         if (proj) {
             // error() << "Adding to cache" << mParseCount << mPath;
             proj->addToCache(mPath, mArgs, mUnit, mParseCount);

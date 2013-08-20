@@ -6,7 +6,7 @@
 #include "Project.h"
 
 const char *StatusJob::delimiter = "*********************************";
-StatusJob::StatusJob(const QueryMessage &q, const shared_ptr<Project> &project)
+StatusJob::StatusJob(const QueryMessage &q, const std::shared_ptr<Project> &project)
     : Job(q, WriteUnfiltered|QuietJob, project), query(q.query())
 {
 }
@@ -27,7 +27,7 @@ void StatusJob::execute()
             return;
     }
 
-    shared_ptr<Project> proj = project();
+    std::shared_ptr<Project> proj = project();
     if (!proj) {
         if (!matched) {
             write(alternatives);

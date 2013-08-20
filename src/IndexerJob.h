@@ -37,10 +37,10 @@ public:
         Dirty,
         Dump
     };
-    IndexerJob(const shared_ptr<Project> &project, Type type, const SourceInformation &sourceInformation);
-    IndexerJob(const QueryMessage &msg, const shared_ptr<Project> &project, const SourceInformation &sourceInformation);
+    IndexerJob(const std::shared_ptr<Project> &project, Type type, const SourceInformation &sourceInformation);
+    IndexerJob(const QueryMessage &msg, const std::shared_ptr<Project> &project, const SourceInformation &sourceInformation);
     virtual ~IndexerJob();
-    shared_ptr<IndexData> data() const { return mData; }
+    std::shared_ptr<IndexData> data() const { return mData; }
     uint32_t fileId() const { return mFileId; }
     Path path() const { return mSourceInformation.sourceFile; }
     bool abortIfStarted();
@@ -51,7 +51,7 @@ public:
 protected:
     virtual void index() = 0;
     virtual void execute();
-    virtual shared_ptr<IndexData> createIndexData() { return shared_ptr<IndexData>(new IndexData); }
+    virtual std::shared_ptr<IndexData> createIndexData() { return std::shared_ptr<IndexData>(new IndexData); }
 
     Location createLocation(uint32_t fileId, uint32_t offset, bool *blocked);
     Location createLocation(const Path &file, uint32_t offset, bool *blocked);
@@ -65,7 +65,7 @@ protected:
     const uint32_t mFileId;
 
     StopWatch mTimer;
-    shared_ptr<IndexData> mData;
+    std::shared_ptr<IndexData> mData;
 
     time_t mParseTime;
     bool mStarted;

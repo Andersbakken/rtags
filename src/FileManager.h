@@ -17,7 +17,7 @@ public:
         Asynchronous
     };
 
-    void init(const shared_ptr<Project> &proj, Mode mode);
+    void init(const std::shared_ptr<Project> &proj, Mode mode);
     void reload(Mode mode);
     uint64_t lastReloadTime() const { return mLastReloadTime; }
     void onFileAdded(const Path &path);
@@ -32,7 +32,7 @@ public:
 private:
     void watch(const Path &path);
     FileSystemWatcher mWatcher;
-    weak_ptr<Project> mProject;
+    std::weak_ptr<Project> mProject;
     Signal<std::function<void()> > mJSFilesChanged;
     Set<Path> mJSFiles;
     uint64_t mLastReloadTime;
