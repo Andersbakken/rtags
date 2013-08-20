@@ -142,9 +142,6 @@ void IndexerJob::execute()
     assert(mData);
 
     index();
-    if (mType != Dump) {
-        std::shared_ptr<Project> p = project();
-        if (p)
-            p->onJobFinished(std::static_pointer_cast<IndexerJob>(shared_from_this()));
-    }
+    IndexerJob::SharedPtr that = std::static_pointer_cast<IndexerJob>(shared_from_this());
+    mFinished(that);
 }

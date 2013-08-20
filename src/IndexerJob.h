@@ -32,6 +32,7 @@ public:
 class IndexerJob : public Job
 {
 public:
+    typedef std::shared_ptr<IndexerJob> SharedPtr;
     enum Type {
         Makefile,
         Dirty,
@@ -48,6 +49,7 @@ public:
     time_t parseTime() const { return mParseTime; }
     const Set<uint32_t> &visitedFiles() const { return mVisitedFiles; }
     Type type() const { return mType; }
+    Signal<std::function<void(IndexerJob::SharedPtr)> >& finished() { return mFinished; }
 protected:
     virtual void index() = 0;
     virtual void execute();
@@ -69,6 +71,8 @@ protected:
 
     time_t mParseTime;
     bool mStarted;
+
+    Signal<std::function<void(IndexerJob::SharedPtr)> > mFinished;
 };
 
 #endif
