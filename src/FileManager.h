@@ -22,7 +22,7 @@ public:
     uint64_t lastReloadTime() const { return mLastReloadTime; }
     void onFileAdded(const Path &path);
     void onFileRemoved(const Path &path);
-    void onRecurseJobFinished(Set<Path> mPaths);
+    void onRecurseJobFinished(const Set<Path> &mPaths);
     bool contains(const Path &path) const;
     void clearFileSystemWatcher() { mWatcher.clear(); }
     Set<Path> watchedPaths() const { return mWatcher.watchedPaths(); }

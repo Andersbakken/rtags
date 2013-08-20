@@ -24,7 +24,7 @@ void FileManager::reload(Mode mode)
     assert(project);
     shared_ptr<ScanJob> job(new ScanJob(project->path()));
     if (mode == Asynchronous) {
-        job->finished().connect<EventLoop::Async>(std::bind(&FileManager::onRecurseJobFinished, this, std::placeholders::_1));
+        job->finished().connect<EventLoop::Move>(std::bind(&FileManager::onRecurseJobFinished, this, std::placeholders::_1));
         Server::instance()->threadPool()->start(job);
     } else {
         job->finished().connect(std::bind(&FileManager::onRecurseJobFinished, this, std::placeholders::_1));
@@ -32,9 +32,8 @@ void FileManager::reload(Mode mode)
     }
 }
 
-void FileManager::onRecurseJobFinished(Set<Path> paths)
+void FileManager::onRecurseJobFinished(const Set<Path> &paths)
 {
-#warning this should use move for the connection
     bool emitJS = false;
     {
         std::lock_guard<std::mutex> lock(mMutex); // ### is this needed now?
