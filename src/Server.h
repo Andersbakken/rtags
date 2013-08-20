@@ -7,6 +7,7 @@
 #include "CompletionMessage.h"
 #include "FileManager.h"
 #include "QueryMessage.h"
+#include "RTagsClang.h"
 #include "RTags.h"
 #include "ScanJob.h"
 #include "RTagsPluginFactory.h"
@@ -73,6 +74,7 @@ public:
     bool saveFileIds() const;
     RTagsPluginFactory &factory() { return mPluginFactory; }
     void onJobOutput(JobOutput&& out);
+    CXIndex clangIndex() const { return mIndex; }
 private:
     bool selectProject(const Match &match, Connection *conn, unsigned int queryFlags);
     bool updateProject(const List<String> &projects, unsigned int queryFlags);
@@ -174,7 +176,7 @@ private:
 
     mutable std::mutex mMutex;
 
-    friend class CommandProcess;
+    CXIndex mIndex;
 };
 
 #endif

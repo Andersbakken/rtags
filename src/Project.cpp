@@ -282,18 +282,14 @@ void Project::onJobFinished(const shared_ptr<IndexerJob> &job)
                     const SourceInformation sourceInfo = job->sourceInformation();
                     if (currentFile == sourceInfo.sourceFile) {
                         shared_ptr<ReparseJob> rj(new ReparseJob(clangData->unit,
-                                                                 clangData->index,
                                                                  sourceInfo.sourceFile,
                                                                  sourceInfo.args,
                                                                  static_pointer_cast<IndexerJobClang>(job)->contents(),
                                                                  static_pointer_cast<Project>(shared_from_this())));
-                        clangData->index = 0;
                         clangData->unit = 0;
                         Server::instance()->startIndexerJob(rj);
                     } else {
-                        addCachedUnit(sourceInfo.sourceFile, sourceInfo.args,
-                                      clangData->index, clangData->unit, 1);
-                        clangData->index = 0;
+                        addCachedUnit(sourceInfo.sourceFile, sourceInfo.args, clangData->unit, 1);
                         clangData->unit = 0;
                     }
                 }
@@ -812,20 +808,16 @@ DependencyMap Project::dependencies() const
     return mDependencies;
 }
 
-void Project::addCachedUnit(const Path &path, const List<String> &args, CXIndex index,
-                            CXTranslationUnit unit, int parseCount) // lock always held
+void Project::addCachedUnit(const Path &path, const List<String> &args, CXTranslationUnit unit, int parseCount) // lock always held
 {
-    assert(index);
     assert(unit);
     const int maxCacheSize = Server::instance()->options().completionCacheSize;
     if (!maxCacheSize) {
         clang_disposeTranslationUnit(unit);
-        clang_disposeIndex(index);
         return;
     }
     CachedUnit *cachedUnit = new CachedUnit;
     cachedUnit->path = path;
-    cachedUnit->index = index;
     cachedUnit->unit = unit;
     cachedUnit->arguments = args;
     cachedUnit->parseCount = parseCount;
@@ -847,16 +839,14 @@ LinkedList<CachedUnit*>::iterator Project::findCachedUnit(const Path &path, cons
 }
 
 bool Project::initJobFromCache(const Path &path, const List<String> &args,
-                               CXIndex &index, CXTranslationUnit &unit, List<String> *argsOut,
+                               CXTranslationUnit &unit, List<String> *argsOut,
                                int *parseCount)
 {
     LinkedList<CachedUnit*>::iterator it = findCachedUnit(path, args);
     if (it != mCachedUnits.end()) {
         CachedUnit *cachedUnit = *it;
-        index = cachedUnit->index;
         unit = cachedUnit->unit;
         cachedUnit->unit = 0;
-        cachedUnit->index = 0;
         if (argsOut)
             *argsOut = cachedUnit->arguments;
         mCachedUnits.erase(it);
@@ -865,23 +855,22 @@ bool Project::initJobFromCache(const Path &path, const List<String> &args,
         delete cachedUnit;
         return true;
     }
-    index = 0;
     unit = 0;
     if (parseCount)
         *parseCount = -1;
     return false;
 }
 
-bool Project::fetchFromCache(const Path &path, List<String> &args, CXIndex &index, CXTranslationUnit &unit, int *parseCount)
+bool Project::fetchFromCache(const Path &path, List<String> &args, CXTranslationUnit &unit, int *parseCount)
 {
     std::lock_guard<std::mutex> lock(mMutex);
-    return initJobFromCache(path, List<String>(), index, unit, &args, parseCount);
+    return initJobFromCache(path, List<String>(), unit, &args, parseCount);
 }
 
-void Project::addToCache(const Path &path, const List<String> &args, CXIndex index, CXTranslationUnit unit, int parseCount)
+void Project::addToCache(const Path &path, const List<String> &args, CXTranslationUnit unit, int parseCount)
 {
     std::lock_guard<std::mutex> lock(mMutex);
-    addCachedUnit(path, args, index, unit, parseCount);
+    addCachedUnit(path, args, unit, parseCount);
 }
 
 void Project::addFixIts(const DependencyMap &visited, const FixItMap &fixIts) // lock always held

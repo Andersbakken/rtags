@@ -818,12 +818,6 @@ bool IndexerJobClang::handleCursor(const CXCursor &cursor, CXCursorKind kind, co
 
 bool IndexerJobClang::parse()
 {
-    assert(!data()->index);
-    data()->index = clang_createIndex(0, 1);
-    if (!data()->index) {
-        abort();
-        return false;
-    }
     List<String> args = mSourceInformation.args + CompilerManager::flags(mSourceInformation.compiler);
     CXTranslationUnit &unit = data()->unit;
     assert(!unit);
@@ -833,7 +827,7 @@ bool IndexerJobClang::parse()
                               static_cast<unsigned long>(mContents.size()) };
 
     RTags::parseTranslationUnit(mSourceInformation.sourceFile, args,
-                                unit, data()->index, mClangLine,
+                                unit, Server::instance()->clangIndex(), mClangLine,
                                 mFileId, &mData->dependencies, &unsaved, 1);
     warning() << "loading unit " << mClangLine << " " << (unit != 0);
     if (unit) {
@@ -848,7 +842,7 @@ bool IndexerJobClang::parse()
             static_cast<unsigned long>(preprocessorOnly.size())
         };
         RTags::parseTranslationUnit(mSourceInformation.sourceFile, args,
-                                    unit, data()->index, mClangLine,
+                                    unit, Server::instance()->clangIndex(), mClangLine,
                                     mFileId, &mData->dependencies, &preprocessorOnlyUnsaved, 1);
     }
     if (unit) {

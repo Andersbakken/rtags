@@ -10,7 +10,7 @@ class IndexDataClang : public IndexData
 {
 public:
     IndexDataClang()
-        : IndexData(ClangType), unit(0), index(0)
+        : IndexData(ClangType), unit(0)
     {}
 
     virtual ~IndexDataClang()
@@ -20,18 +20,12 @@ public:
 
     void clear()
     {
-        if (index) {
-            clang_disposeIndex(index);
-            index = 0;
-        }
-
         if (unit) {
             clang_disposeTranslationUnit(unit);
             unit = 0;
         }
     }
     CXTranslationUnit unit;
-    CXIndex index;
 };
 
 class IndexerJobClang : public IndexerJob

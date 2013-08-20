@@ -16,7 +16,7 @@
 struct CachedUnit
 {
     CachedUnit()
-        : unit(0), index(0), parseCount(0)
+        : unit(0), parseCount(0)
     {}
     ~CachedUnit()
     {
@@ -29,13 +29,8 @@ struct CachedUnit
             unit = 0;
         }
 
-        if (index) {
-            clang_disposeIndex(index);
-            index = 0;
-        }
     }
     CXTranslationUnit unit;
-    CXIndex index;
     Path path;
     List<String> arguments;
     int parseCount;
@@ -110,8 +105,8 @@ public:
     SourceInformationMap sources() const;
     DependencyMap dependencies() const;
     Set<Path> watchedPaths() const { return mWatchedPaths; }
-    bool fetchFromCache(const Path &path, List<String> &args, CXIndex &index, CXTranslationUnit &unit, int *parseCount);
-    void addToCache(const Path &path, const List<String> &args, CXIndex index, CXTranslationUnit unit, int parseCount);
+    bool fetchFromCache(const Path &path, List<String> &args, CXTranslationUnit &unit, int *parseCount);
+    void addToCache(const Path &path, const List<String> &args, CXTranslationUnit unit, int parseCount);
     void onTimerFired(Timer* event);
     bool isIndexing() const { std::lock_guard<std::mutex> lock(mMutex); return !mJobs.isEmpty(); }
     void onJSFilesAdded();
@@ -120,14 +115,14 @@ private:
     void index(const SourceInformation &args, IndexerJob::Type type);
     void reloadFileManager();
     bool initJobFromCache(const Path &path, const List<String> &args,
-                          CXIndex &index, CXTranslationUnit &unit, List<String> *argsOut, int *parseCount);
+                          CXTranslationUnit &unit, List<String> *argsOut, int *parseCount);
     LinkedList<CachedUnit*>::iterator findCachedUnit(const Path &path, const List<String> &args);
     void onFileModified(const Path &);
     void addDependencies(const DependencyMap &hash, Set<uint32_t> &newFiles);
     void addFixIts(const DependencyMap &dependencies, const FixItMap &fixIts);
     void syncDB();
     void startDirtyJobs(const Set<uint32_t> &files);
-    void addCachedUnit(const Path &path, const List<String> &args, CXIndex index, CXTranslationUnit unit, int parseCount);
+    void addCachedUnit(const Path &path, const List<String> &args, CXTranslationUnit unit, int parseCount);
     bool save();
     void onValidateDBJobErrors(const Set<Location> &errors);
 

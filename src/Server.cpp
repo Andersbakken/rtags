@@ -46,6 +46,7 @@ Server::Server()
 
     mUnloadTimer.timeout().connect(std::bind(&Server::onUnload, this));
     mClearCompletionCacheTimer.timeout().connect(std::bind(&Server::clearCompletionCache, this));
+    mIndex = clang_createIndex(0, 1);
 }
 
 Server::~Server()
@@ -54,6 +55,7 @@ Server::~Server()
     assert(sInstance == this);
     sInstance = 0;
     Messages::cleanup();
+    clang_disposeIndex(mIndex);
 }
 
 void Server::clear()
@@ -1359,11 +1361,10 @@ void Server::startCompletion(const Path &path, int line, int column, int pos, co
     if (!fileId)
         return;
 
-    CXIndex index;
     CXTranslationUnit unit;
     List<String> args;
     int parseCount = 0;
-    if (!project->fetchFromCache(path, args, index, unit, &parseCount)) {
+    if (!project->fetchFromCache(path, args, unit, &parseCount)) {
         const SourceInformation info = project->sourceInfo(fileId);
         if (info.isNull() || info.isJS()) {
             if (!isCompletionStream(conn))
@@ -1376,7 +1377,7 @@ void Server::startCompletion(const Path &path, int line, int column, int pos, co
 
     mActiveCompletions.insert(path);
     shared_ptr<CompletionJob> job(new CompletionJob(project, isCompletionStream(conn) ? CompletionJob::Stream : CompletionJob::Sync));
-    job->init(index, unit, path, args, line, column, pos, contents, parseCount);
+    job->init(unit, path, args, line, column, pos, contents, parseCount);
     job->setId(nextId());
     job->finished().connect<EventLoop::Async>(std::bind(&Server::onCompletionJobFinished, this, std::placeholders::_1, std::placeholders::_2));
     mPendingLookups[job->id()] = conn;
