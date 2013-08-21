@@ -279,9 +279,11 @@ void Server::onNewMessage(Message *message, Connection *connection)
         connection->finish();
         break;
     }
-    std::shared_ptr<Project> project = currentProject();
-    if (project && project->fileManager && (Rct::monoMs() - project->fileManager->lastReloadTime()) > 60000)
-        project->fileManager->reload(FileManager::Asynchronous);
+    if (mOptions.options & NoFileManagerWatch) {
+        std::shared_ptr<Project> project = currentProject();
+        if (project && project->fileManager && (Rct::monoMs() - project->fileManager->lastReloadTime()) > 60000)
+            project->fileManager->reload(FileManager::Asynchronous);
+    }
 }
 
 void Server::handleCompileMessage(const CompileMessage &message, Connection *conn)
