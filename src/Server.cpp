@@ -39,7 +39,7 @@
 
 Server *Server::sInstance = 0;
 Server::Server()
-    : mVerbose(false), mJobId(0), mIndexerThreadPool(0), mQueryThreadPool(0)
+    : mVerbose(false), mJobId(0), mIndexerThreadPool(0), mQueryThreadPool(0), mCurrentFileId(0)
 {
     assert(!sInstance);
     sInstance = this;
@@ -554,7 +554,7 @@ void Server::dumpFile(const QueryMessage &query, Connection *conn)
         mPendingLookups[job->id()] = conn;
         startQueryJob(job);
     } else {
-        conn->write<128>("Failed to create job for %s", c.sourceFile.constData());
+        conn->write<128>("Failed to create job for %s", c.sourceFile().constData());
         conn->finish();
     }
 }
@@ -953,13 +953,9 @@ std::shared_ptr<Project> Server::setCurrentProject(const Path &path, unsigned in
     return std::shared_ptr<Project>();
 }
 
-std::shared_ptr<Project> Server::setCurrentProject(const std::shared_ptr<Project> &project, unsigned int queryFlags)
+void Server::setupCurrentProjectFile()
 {
-    std::shared_ptr<Project> old = mCurrentProject.lock();
-    if (project && project != old) {
-        if (old && old->fileManager)
-            old->fileManager->clearFileSystemWatcher();
-        mCurrentProject = project;
+    if (std::shared_ptr<Project> project = currentProject()) {
         FILE *f = fopen((mOptions.dataDir + ".currentProject").constData(), "w");
         if (f) {
             if (!fwrite(project->path().constData(), project->path().size(), 1, f) || !fwrite("\n", 1, 1, f)) {
@@ -972,6 +968,19 @@ std::shared_ptr<Project> Server::setCurrentProject(const std::shared_ptr<Project
         } else {
             error() << "error opening" << (mOptions.dataDir + ".currentProject") << "for write";
         }
+    } else {
+        Path::rm(mOptions.dataDir + ".currentProject");
+    }
+}
+
+std::shared_ptr<Project> Server::setCurrentProject(const std::shared_ptr<Project> &project, unsigned int queryFlags)
+{
+    std::shared_ptr<Project> old = mCurrentProject.lock();
+    if (project && project != old) {
+        if (old && old->fileManager)
+            old->fileManager->clearFileSystemWatcher();
+        mCurrentProject = project;
+        setupCurrentProjectFile();
 
         Project::FileManagerMode mode = Project::FileManager_Asynchronous;
         if (queryFlags & QueryMessage::WaitForLoadProject)
@@ -1067,9 +1076,10 @@ bool Server::selectProject(const Match &match, Connection *conn, unsigned int qu
                 selected = it->second;
                 const Path p = match.pattern();
                 if (p.isFile()) {
-                    mCurrentFile = p;
+                    // ### this needs to deal with dependencies for headers
+                    mCurrentFileId = Location::fileId(p);
                 } else {
-                    mCurrentFile.clear();
+                    mCurrentFileId = 0;
                 }
             }
         }
@@ -1343,7 +1353,7 @@ void Server::startCompletion(const Path &path, int line, int column, int pos, co
 {
     {
         std::lock_guard<std::mutex> lock(mMutex);
-        mCurrentFile = path;
+        mCurrentFileId = Location::fileId(path);
     }
 
     // error() << "starting completion" << path << line << column;

@@ -42,8 +42,8 @@ public:
     IndexerJob(const QueryMessage &msg, const std::shared_ptr<Project> &project, const SourceInformation &sourceInformation);
     virtual ~IndexerJob();
     std::shared_ptr<IndexData> data() const { return mData; }
-    uint32_t fileId() const { return mFileId; }
-    Path path() const { return mSourceInformation.sourceFile; }
+    uint32_t fileId() const { return mSourceInformation.fileId; }
+    Path path() const { return mSourceInformation.sourceFile(); }
     bool abortIfStarted();
     const SourceInformation &sourceInformation() const { return mSourceInformation; }
     time_t parseTime() const { return mParseTime; }
@@ -64,7 +64,6 @@ protected:
     Map<String, uint32_t> mFileIds;
 
     SourceInformation mSourceInformation;
-    const uint32_t mFileId;
 
     StopWatch mTimer;
     std::shared_ptr<IndexData> mData;

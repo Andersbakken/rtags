@@ -822,35 +822,36 @@ bool IndexerJobClang::parse()
     CXTranslationUnit &unit = data()->unit;
     assert(!unit);
 
-    CXUnsavedFile unsaved = { mSourceInformation.sourceFile.constData(),
+    const Path sourceFile = mSourceInformation.sourceFile();
+    CXUnsavedFile unsaved = { sourceFile.constData(),
                               mContents.constData(),
                               static_cast<unsigned long>(mContents.size()) };
 
-    RTags::parseTranslationUnit(mSourceInformation.sourceFile, args,
+    RTags::parseTranslationUnit(sourceFile, args,
                                 unit, Server::instance()->clangIndex(), mClangLine,
-                                mFileId, &mData->dependencies, &unsaved, 1);
+                                mSourceInformation.fileId, &mData->dependencies, &unsaved, 1);
     warning() << "loading unit " << mClangLine << " " << (unit != 0);
     if (unit) {
         return !isAborted();
     }
 
     error() << "got failure" << mClangLine;
-    const String preprocessorOnly = RTags::filterPreprocessor(mSourceInformation.sourceFile);
+    const String preprocessorOnly = RTags::filterPreprocessor(sourceFile);
     if (!preprocessorOnly.isEmpty()) {
         CXUnsavedFile preprocessorOnlyUnsaved = {
-            mSourceInformation.sourceFile.constData(), preprocessorOnly.constData(),
+            sourceFile.constData(), preprocessorOnly.constData(),
             static_cast<unsigned long>(preprocessorOnly.size())
         };
-        RTags::parseTranslationUnit(mSourceInformation.sourceFile, args,
+        RTags::parseTranslationUnit(sourceFile, args,
                                     unit, Server::instance()->clangIndex(), mClangLine,
-                                    mFileId, &mData->dependencies, &preprocessorOnlyUnsaved, 1);
+                                    mSourceInformation.fileId, &mData->dependencies, &preprocessorOnlyUnsaved, 1);
     }
     if (unit) {
         clang_getInclusions(unit, IndexerJobClang::inclusionVisitor, this);
         clang_disposeTranslationUnit(unit);
         unit = 0;
     } else if (type() != Dump) {
-        mData->dependencies[mFileId].insert(mFileId);
+        mData->dependencies[mSourceInformation.fileId].insert(mSourceInformation.fileId);
     }
     return !isAborted();
 }
@@ -1100,7 +1101,7 @@ bool IndexerJobClang::visit()
         u.out += "</VerboseVisitor " + mClangLine + ">";
         if (getenv("RTAGS_INDEXERJOB_DUMP_TO_FILE")) {
             char buf[1024];
-            snprintf(buf, sizeof(buf), "/tmp/%s.log", mSourceInformation.sourceFile.fileName());
+            snprintf(buf, sizeof(buf), "/tmp/%s.log", mSourceInformation.sourceFile().fileName());
             FILE *f = fopen(buf, "w");
             assert(f);
             fwrite(u.out.constData(), 1, u.out.size(), f);
@@ -1114,7 +1115,8 @@ bool IndexerJobClang::visit()
 
 void IndexerJobClang::index()
 {
-    mContents = mSourceInformation.sourceFile.readAll();
+    const Path sourceFile = mSourceInformation.sourceFile();
+    mContents = sourceFile.readAll();
 
     if (type() == Dump) {
         assert(id() != -1);
@@ -1128,7 +1130,7 @@ void IndexerJobClang::index()
         mParseTime = time(0);
         parse() && visit() && diagnose();
 
-        mData->message = mSourceInformation.sourceFile.toTilde();
+        mData->message = sourceFile.toTilde();
         if (!data()->unit) {
             mData->message += " error";
         }

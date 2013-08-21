@@ -48,15 +48,15 @@ void IndexerJobEsprima::index()
 {
     JSParser parser;
     if (!parser.init()) {
-        error() << "Can't init JSParser for" << mSourceInformation.sourceFile;
+        error() << "Can't init JSParser for" << mSourceInformation.sourceFile();
         return;
     }
     if (isAborted())
         return;
     String dump;
-    if (!parser.parse(mSourceInformation.sourceFile, &mData->symbols, &mData->symbolNames,
+    if (!parser.parse(mSourceInformation.sourceFile(), &mData->symbols, &mData->symbolNames,
                       mType == Dump ? &dump : 0)) {
-        error() << "Can't parse" << mSourceInformation.sourceFile;
+        error() << "Can't parse" << mSourceInformation.sourceFile();
     }
     mParseTime = time(0);
 
@@ -81,9 +81,9 @@ void IndexerJobEsprima::index()
         mData->symbols.clear();
         mData->symbolNames.clear();
     } else {
-        mData->dependencies[mFileId].insert(mFileId);
+        mData->dependencies[mSourceInformation.fileId].insert(mSourceInformation.fileId);
         mData->message = String::format<128>("%s in %dms. (%d syms, %d symNames, %d refs)",
-                                             mSourceInformation.sourceFile.toTilde().constData(),
+                                             mSourceInformation.sourceFile().toTilde().constData(),
                                              static_cast<int>(mTimer.elapsed()) / 1000, mData->symbols.size(), mData->symbolNames.size(), mData->references.size());
     }
 }

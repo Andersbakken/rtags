@@ -59,16 +59,14 @@ public:
 #endif
 
 IndexerJob::IndexerJob(const std::shared_ptr<Project> &project, Type type, const SourceInformation &sourceInformation)
-    : Job(0, project), mType(type), mSourceInformation(sourceInformation),
-      mFileId(Location::insertFile(sourceInformation.sourceFile)), mTimer(StopWatch::Microsecond), mParseTime(0),
-      mStarted(false)
+    : Job(0, project), mType(type), mSourceInformation(sourceInformation), mTimer(StopWatch::Microsecond),
+      mParseTime(0), mStarted(false)
 {}
 
 IndexerJob::IndexerJob(const QueryMessage &msg, const std::shared_ptr<Project> &project,
                        const SourceInformation &sourceInformation)
     : Job(msg, WriteUnfiltered|WriteBuffered|QuietJob, project), mType(Dump), mSourceInformation(sourceInformation),
-      mFileId(Location::insertFile(sourceInformation.sourceFile)), mTimer(StopWatch::Microsecond), mParseTime(0),
-      mStarted(false)
+      mTimer(StopWatch::Microsecond), mParseTime(0), mStarted(false)
 {
 }
 

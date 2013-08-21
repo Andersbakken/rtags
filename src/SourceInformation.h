@@ -9,28 +9,29 @@ class SourceInformation
 {
 public:
     SourceInformation()
-        : parsed(0)
+        : fileId(0), parsed(0)
     {}
 
-    Path sourceFile;
+    uint32_t fileId;
     Path compiler;
     List<String> args;
+    time_t parsed;
 
     inline bool isJS() const
     {
-        return args.isEmpty() && compiler.isEmpty() && sourceFile.endsWith(".js");
+        return args.isEmpty() && compiler.isEmpty() && sourceFile().endsWith(".js");
     }
 
-    time_t parsed;
+    Path sourceFile() const { return Location::path(fileId); }
 
     inline bool isNull() const
     {
-        return sourceFile.isEmpty();
+        return !fileId;
     }
 
     inline String toString() const
     {
-        String ret = sourceFile;
+        String ret = sourceFile();
         if (parsed)
             ret += " Parsed: " + String::formatTime(parsed, String::DateTime);
         if (!isJS()) {
@@ -44,13 +45,13 @@ public:
 
 template <> inline Serializer &operator<<(Serializer &s, const SourceInformation &t)
 {
-    s << t.sourceFile << t.parsed << t.compiler << t.args;
+    s << t.fileId << t.parsed << t.compiler << t.args;
     return s;
 }
 
 template <> inline Deserializer &operator>>(Deserializer &s, SourceInformation &t)
 {
-    s >> t.sourceFile >> t.parsed >> t.compiler >> t.args;
+    s >> t.fileId >> t.parsed >> t.compiler >> t.args;
     return s;
 }
 

@@ -124,8 +124,8 @@ bool Project::restore()
 
         SourceInformationMap::iterator it = mSources.begin();
         while (it != mSources.end()) {
-            if (!it->second.sourceFile.isFile()) {
-                error() << it->second.sourceFile << "seems to have disappeared";
+            if (!it->second.sourceFile().isFile()) {
+                error() << it->second.sourceFile() << "seems to have disappeared";
                 mSources.erase(it++);
                 dirty.insert(it->first);
             } else {
@@ -258,7 +258,7 @@ bool Project::match(const Match &p, bool *indexed) const
 void Project::onJobFinished(const std::shared_ptr<IndexerJob> &job)
 {
     PendingJob pending;
-    const Path currentFile = Server::instance()->currentFile();
+    const uint32_t currentFileId = Server::instance()->currentFileId();
     bool startPending = false;
     {
         std::lock_guard<std::mutex> lock(mMutex);
@@ -280,16 +280,16 @@ void Project::onJobFinished(const std::shared_ptr<IndexerJob> &job)
                 std::shared_ptr<IndexDataClang> clangData = std::static_pointer_cast<IndexDataClang>(data);
                 if (Server::instance()->options().completionCacheSize > 0 && clangData->unit) {
                     const SourceInformation sourceInfo = job->sourceInformation();
-                    if (currentFile == sourceInfo.sourceFile) {
+                    if (currentFileId == sourceInfo.fileId) {
                         std::shared_ptr<ReparseJob> rj(new ReparseJob(clangData->unit,
-                                                                 sourceInfo.sourceFile,
-                                                                 sourceInfo.args,
-                                                                 std::static_pointer_cast<IndexerJobClang>(job)->contents(),
-                                                                 shared_from_this()));
+                                                                      sourceInfo.sourceFile(),
+                                                                      sourceInfo.args,
+                                                                      std::static_pointer_cast<IndexerJobClang>(job)->contents(),
+                                                                      shared_from_this()));
                         clangData->unit = 0;
                         Server::instance()->startIndexerJob(rj);
                     } else {
-                        addCachedUnit(sourceInfo.sourceFile, sourceInfo.args, clangData->unit, 1);
+                        addCachedUnit(sourceInfo.sourceFile(), sourceInfo.args, clangData->unit, 1);
                         clangData->unit = 0;
                     }
                 }
@@ -350,21 +350,20 @@ void Project::index(const SourceInformation &c, IndexerJob::Type type)
 {
     std::lock_guard<std::mutex> lock(mMutex);
     static const char *fileFilter = getenv("RTAGS_FILE_FILTER");
-    if (fileFilter && !strstr(c.sourceFile.constData(), fileFilter))
+    if (fileFilter && !strstr(c.sourceFile().constData(), fileFilter))
         return;
-    const uint32_t fileId = Location::insertFile(c.sourceFile);
-    std::shared_ptr<IndexerJob> &job = mJobs[fileId];
+    std::shared_ptr<IndexerJob> &job = mJobs[c.fileId];
     if (job) {
         if (job->abortIfStarted()) {
             const PendingJob pending = { c, type };
-            mPendingJobs[fileId] = pending;
+            mPendingJobs[c.fileId] = pending;
         }
         return;
     }
     std::shared_ptr<Project> project = shared_from_this();
 
-    mSources[fileId] = c;
-    mPendingData.remove(fileId);
+    mSources[c.fileId] = c;
+    mPendingData.remove(c.fileId);
 
     if (!mJobCounter++)
         mTimer.start();
@@ -372,7 +371,7 @@ void Project::index(const SourceInformation &c, IndexerJob::Type type)
     job = Server::instance()->factory().createJob(project, type, c);
     if (!job) {
         error() << "Failed to create job for" << c;
-        mJobs.erase(fileId);
+        mJobs.erase(c.fileId);
         return;
     }
     mSyncTimer.stop();
@@ -467,10 +466,11 @@ bool Project::index(const Path &sourceFile, const Path &cc, const List<String> &
     }
 
     const Path compiler = resolveCompiler(cc.canonicalized());
-    SourceInformation sourceInformation = sourceInfo(Location::insertFile(sourceFile));
+    uint32_t fileId = Location::insertFile(sourceFile);
+    SourceInformation sourceInformation = sourceInfo(fileId);
     const bool js = args.isEmpty() && sourceFile.endsWith(".js");
     if (sourceInformation.isNull()) {
-        sourceInformation.sourceFile = sourceFile;
+        sourceInformation.fileId = fileId;
         sourceInformation.args = args;
         sourceInformation.compiler = compiler;
     } else if (js) {
@@ -579,8 +579,8 @@ int Project::remove(const Match &match)
         std::lock_guard<std::mutex> lock(mMutex);
         SourceInformationMap::iterator it = mSources.begin();
         while (it != mSources.end()) {
-            if (match.match(it->second.sourceFile)) {
-                const uint32_t fileId = Location::insertFile(it->second.sourceFile);
+            if (match.match(it->second.sourceFile())) {
+                const uint32_t fileId = it->second.fileId;
                 mSources.erase(it++);
                 std::shared_ptr<IndexerJob> job = mJobs.value(fileId);
                 if (job)

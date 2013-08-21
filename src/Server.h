@@ -34,7 +34,7 @@ class IndexerJob;
 class Server
 {
 public:
-    enum { DatabaseVersion = 25 };
+    enum { DatabaseVersion = 26 };
 
     Server();
     ~Server();
@@ -70,7 +70,7 @@ public:
     };
     bool init(const Options &options);
     const Options &options() const { return mOptions; }
-    Path currentFile() const { std::lock_guard<std::mutex> lock(mMutex); return mCurrentFile; }
+    uint32_t currentFileId() const { std::lock_guard<std::mutex> lock(mMutex); return mCurrentFileId; }
     bool saveFileIds() const;
     RTagsPluginFactory &factory() { return mPluginFactory; }
     void onJobOutput(JobOutput&& out);
@@ -130,6 +130,7 @@ private:
     int nextId();
     void reindex(const QueryMessage &query, Connection *conn);
     std::shared_ptr<Project> updateProjectForLocation(const Match &match);
+    void setupCurrentProjectFile();
     std::shared_ptr<Project> currentProject() const
     {
         std::lock_guard<std::mutex> lock(mMutex);
@@ -172,7 +173,7 @@ private:
 
     RTagsPluginFactory mPluginFactory;
 
-    Path mCurrentFile;
+    uint32_t mCurrentFileId;
 
     mutable std::mutex mMutex;
 
