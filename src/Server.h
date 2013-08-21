@@ -130,7 +130,7 @@ private:
     int nextId();
     void reindex(const QueryMessage &query, Connection *conn);
     std::shared_ptr<Project> updateProjectForLocation(const Match &match);
-    void setupCurrentProjectFile();
+    void setupCurrentProjectFile(const std::shared_ptr<Project> &project);
     std::shared_ptr<Project> currentProject() const
     {
         std::lock_guard<std::mutex> lock(mMutex);

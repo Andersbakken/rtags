@@ -901,8 +901,10 @@ void Server::index(const GccArguments &args, const List<String> &projects)
         }
         project->load();
 
-        if (!mCurrentProject.lock())
+        if (!mCurrentProject.lock()) {
             mCurrentProject = project;
+            setupCurrentProjectFile(project);
+        }
 
         const List<String> arguments = args.clangArgs();
 
@@ -953,9 +955,9 @@ std::shared_ptr<Project> Server::setCurrentProject(const Path &path, unsigned in
     return std::shared_ptr<Project>();
 }
 
-void Server::setupCurrentProjectFile()
+void Server::setupCurrentProjectFile(const std::shared_ptr<Project> &project)
 {
-    if (std::shared_ptr<Project> project = currentProject()) {
+    if (project) {
         FILE *f = fopen((mOptions.dataDir + ".currentProject").constData(), "w");
         if (f) {
             if (!fwrite(project->path().constData(), project->path().size(), 1, f) || !fwrite("\n", 1, 1, f)) {
@@ -980,7 +982,7 @@ std::shared_ptr<Project> Server::setCurrentProject(const std::shared_ptr<Project
         if (old && old->fileManager)
             old->fileManager->clearFileSystemWatcher();
         mCurrentProject = project;
-        setupCurrentProjectFile();
+        setupCurrentProjectFile(project);
 
         Project::FileManagerMode mode = Project::FileManager_Asynchronous;
         if (queryFlags & QueryMessage::WaitForLoadProject)
@@ -1027,6 +1029,7 @@ void Server::removeProject(const QueryMessage &query, Connection *conn)
         if (cur->second->match(match)) {
             if (mCurrentProject.lock() == cur->second) {
                 mCurrentProject.reset();
+                setupCurrentProjectFile(std::shared_ptr<Project>());
                 unlink((mOptions.dataDir + ".currentProject").constData());
             }
             cur->second->unload();
