@@ -958,6 +958,7 @@ std::shared_ptr<Project> Server::setCurrentProject(const Path &path, unsigned in
 void Server::setupCurrentProjectFile(const std::shared_ptr<Project> &project)
 {
     if (project) {
+        Path::mkdir(mOptions.dataDir);
         FILE *f = fopen((mOptions.dataDir + ".currentProject").constData(), "w");
         if (f) {
             if (!fwrite(project->path().constData(), project->path().size(), 1, f) || !fwrite("\n", 1, 1, f)) {
