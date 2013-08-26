@@ -166,12 +166,19 @@ target_link_libraries(rtags
   ${SYSTEM_LIBS})
 add_dependencies(rtags rct)
 
-add_executable(rdm rdm.cpp)
+add_executable(rdm rdm.cpp
+  ${RDM_SOURCES})
 target_link_libraries(rdm
   -Lsrc/
-  rtags
+#  rtags
   shared
-  rct)
+  rct
+  -Wl,--start-group
+  ${CLANG_LIBS}
+  ${LLVM_LIBNAMES}
+  -Wl,--end-group
+  -lstdc++
+)
 
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/bin)
 
