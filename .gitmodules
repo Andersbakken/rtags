@@ -1,12 +1,12 @@
 [submodule "src/rct"]
 	path = src/rct
-	url = https://github.com/Andersbakken/rct
+	url = https://github.com/terranpro/rct
 [submodule "src/esprima"]
 	path = src/esprima
-	url = git://github.com/ariya/esprima.git
+	url = https://github.com/ariya/esprima.git
 [submodule "src/auto-complete"]
 	path = src/auto-complete
-	url = git://github.com/auto-complete/auto-complete.git
+	url = https://github.com/auto-complete/auto-complete.git
 [submodule "src/escope"]
 	path = src/escope
 	url = https://github.com/Constellation/escope.git

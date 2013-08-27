@@ -36,6 +36,7 @@
 #include <rct/Rct.h>
 #include <rct/RegExp.h>
 #include <stdio.h>
+#include <iostream>
 
 Server *Server::sInstance = 0;
 Server::Server()
@@ -284,6 +285,8 @@ void Server::onNewMessage(Message *message, Connection *connection)
 
 void Server::handleCompileMessage(const CompileMessage &message, Connection *conn)
 {
+  std::cout << __PRETTY_FUNCTION__ << "\n";
+  
     conn->finish(); // nothing to wait for
     const Path workingDirectory = message.workingDirectory();
     const String arguments = message.arguments();
@@ -317,6 +320,7 @@ void Server::handleCompileMessage(const CompileMessage &message, Connection *con
         }
     } else {
         GccArguments args;
+	std::cout << __PRETTY_FUNCTION__ << " : GccArguments Parse!\n";
         if (args.parse(arguments, workingDirectory))
             index(args, projects);
     }
