@@ -4,11 +4,11 @@
 	branch = master
 [submodule "src/esprima"]
 	path = src/esprima
-	url = git://github.com/ariya/esprima.git
+	url = https://github.com/ariya/esprima.git
 	branch = master
 [submodule "src/auto-complete"]
 	path = src/auto-complete
-	url = git://github.com/auto-complete/auto-complete.git
+	url = https://github.com/auto-complete/auto-complete.git
 	branch = master
 [submodule "src/escope"]
 	path = src/escope

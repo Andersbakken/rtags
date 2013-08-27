@@ -178,6 +178,7 @@ target_link_libraries(rdm
   ${LLVM_LIBNAMES}
   -Wl,--end-group
   -lstdc++
+  ${SYSTEM_LIBS}
 )
 
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/bin)
