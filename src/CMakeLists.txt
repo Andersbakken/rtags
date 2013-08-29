@@ -144,6 +144,7 @@ if (V8_FOUND EQUAL 1)
   target_link_libraries(rtagsesprima rtags)
 
   set(RTAGS_ESPRIMA_FILES
+      ${CMAKE_CURRENT_SOURCE_DIR}/esprima/esprima.js
       ${CMAKE_CURRENT_SOURCE_DIR}/estraverse/estraverse.js
       ${CMAKE_CURRENT_SOURCE_DIR}/escope/escope.js
       ${CMAKE_CURRENT_SOURCE_DIR}/esrefactor/lib/esrefactor.js
