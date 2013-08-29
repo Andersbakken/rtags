@@ -827,9 +827,11 @@ bool IndexerJobClang::parse()
                               mContents.constData(),
                               static_cast<unsigned long>(mContents.size()) };
 
+    StopWatch watch;
     RTags::parseTranslationUnit(sourceFile, args,
                                 unit, Server::instance()->clangIndex(), mClangLine,
                                 mSourceInformation.fileId, &mData->dependencies, &unsaved, 1);
+    data()->parseTime = watch.elapsed();
     warning() << "loading unit " << mClangLine << " " << (unit != 0);
     if (unit) {
         return !isAborted();
@@ -1086,12 +1088,16 @@ bool IndexerJobClang::visit()
     if (!data()->unit) {
         return false;
     }
+    StopWatch watch;
     clang_getInclusions(data()->unit, IndexerJobClang::inclusionVisitor, this);
+    data()->inclusionsTime = watch.restart();
     if (isAborted())
         return false;
 
     clang_visitChildren(clang_getTranslationUnitCursor(data()->unit),
                         IndexerJobClang::indexVisitor, this);
+    data()->visitTime = watch.elapsed();
+
     if (isAborted())
         return false;
     if (testLog(VerboseDebug)) {

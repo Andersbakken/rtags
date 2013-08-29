@@ -276,6 +276,7 @@ void Project::onJobFinished(const std::shared_ptr<IndexerJob> &job)
 
             std::shared_ptr<IndexData> data = job->data();
             mPendingData[fileId] = data;
+            String extra;
             if (data->type == IndexData::ClangType) {
                 std::shared_ptr<IndexDataClang> clangData = std::static_pointer_cast<IndexDataClang>(data);
                 if (Server::instance()->options().completionCacheSize > 0 && clangData->unit) {
@@ -293,6 +294,7 @@ void Project::onJobFinished(const std::shared_ptr<IndexerJob> &job)
                         clangData->unit = 0;
                     }
                 }
+                extra = String::format<16>(" %d/%d/%d", clangData->parseTime, clangData->inclusionsTime, clangData->visitTime);
                 clangData->clear();
             }
 
@@ -303,12 +305,12 @@ void Project::onJobFinished(const std::shared_ptr<IndexerJob> &job)
                 log(RTags::CompilationErrorXml, "<?xml version=\"1.0\" encoding=\"utf-8\"?><progress index=\"%d\" total=\"%d\"></progress>",
                     idx, mJobCounter);
 
-            error("[%3d%%] %d/%d %s %s.",
+            error("[%3d%%] %d/%d %s %s.%s",
                   static_cast<int>(round((double(idx) / double(mJobCounter)) * 100.0)), idx, mJobCounter,
                   String::formatTime(time(0), String::Time).constData(),
-                  data->message.constData());
+                  data->message.constData(), extra.constData());
 
-            if (mJobs.isEmpty()) {
+        if (mJobs.isEmpty()) {
                 mSyncTimer.restart(job->type() == IndexerJob::Dirty ? 0 : SyncTimeout, Timer::SingleShot);
             }
         }
