@@ -226,12 +226,13 @@ void Server::onConnectionDisconnected(Connection *o)
     const Map<int, Connection*>::const_iterator end = mPendingLookups.end();
     while (it != end) {
         if (it->second == o) {
-            mPendingLookups.erase(it++);
+            mPendingLookups.erase(it);
+            EventLoop::deleteLater(o);
+            break;
         } else {
             ++it;
         }
     }
-    EventLoop::deleteLater(o);
 }
 
 void Server::onNewMessage(Message *message, Connection *connection)
