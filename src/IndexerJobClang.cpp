@@ -76,8 +76,8 @@ void IndexerJobClang::inclusionVisitor(CXFile includedFile,
 
     const Path path = l.path();
     job->mData->symbolNames[path].insert(l);
-    const char *fn = path.fileName();
-    job->mData->symbolNames[String(fn, strlen(fn))].insert(l);
+    const String fn = path.fileName();
+    job->mData->symbolNames[fn].insert(l);
 
     const uint32_t fileId = l.fileId();
     if (!includeLen) {
@@ -599,6 +599,7 @@ void IndexerJobClang::handleInclude(const CXCursor &cursor, CXCursorKind kind, c
             {
                 String include = "#include ";
                 const Path path = refLoc.path();
+                mData->dependencies[Location::insertFile(path)].insert(sourceInformation().fileId);
                 mData->symbolNames[(include + path)].insert(location);
                 mData->symbolNames[(include + path.fileName())].insert(location);
             }
@@ -1089,13 +1090,24 @@ bool IndexerJobClang::visit()
         return false;
     }
     StopWatch watch;
-    clang_getInclusions(data()->unit, IndexerJobClang::inclusionVisitor, this);
-    data()->inclusionsTime = watch.restart();
     if (isAborted())
         return false;
 
     clang_visitChildren(clang_getTranslationUnitCursor(data()->unit),
                         IndexerJobClang::indexVisitor, this);
+
+    const uint32_t fileId = sourceInformation().fileId;
+    const Set<uint32_t> &visited = visitedFiles();
+    for (Set<uint32_t>::const_iterator it = visited.begin(); it != visited.end(); ++it) {
+        warning() << sourceInformation().sourceFile() << "parsed" << Location::path(*it);
+        data()->dependencies[*it].insert(fileId);
+    }
+
+    const Set<uint32_t> &blocked = blockedFiles();
+    for (Set<uint32_t>::const_iterator it = blocked.begin(); it != blocked.end(); ++it) {
+        warning() << sourceInformation().sourceFile() << "blocked" << Location::path(*it);
+        data()->dependencies[*it].insert(fileId);
+    }
     data()->visitTime = watch.elapsed();
 
     if (isAborted())

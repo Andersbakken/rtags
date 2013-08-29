@@ -48,6 +48,7 @@ public:
     const SourceInformation &sourceInformation() const { return mSourceInformation; }
     time_t parseTime() const { return mParseTime; }
     const Set<uint32_t> &visitedFiles() const { return mVisitedFiles; }
+    const Set<uint32_t> &blockedFiles() const { return mBlockedFiles; }
     Type type() const { return mType; }
     Signal<std::function<void(IndexerJob::SharedPtr)> >& finished() { return mFinished; }
 protected:
