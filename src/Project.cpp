@@ -483,6 +483,11 @@ bool Project::index(const Path &sourceFile, const Path &cc, const List<String> &
         sourceInformation.compiler = compiler;
         sourceInformation.args = args;
     }
+    if (sourceFile.endsWith(".js")) {
+        assert(compiler.isEmpty());
+        assert(args.isEmpty());
+    }
+
     index(sourceInformation, IndexerJob::Makefile);
     return true;
 }
