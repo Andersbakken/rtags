@@ -122,12 +122,7 @@ JSParser::~JSParser()
 {
     {
         const v8::Isolate::Scope isolateScope(mIsolate);
-#ifdef V8_DISPOSE_HAS_ISOLATE
-        if (!mParse.IsEmpty())
-            mParse.Dispose(mIsolate);
-        if (!mContext.IsEmpty())
-            mContext.Dispose(mIsolate);
-#else
+#ifndef V8_DISPOSE_HAS_ISOLATE
         if (!mParse.IsEmpty())
             mParse.Dispose();
         if (!mContext.IsEmpty())
@@ -198,46 +193,114 @@ bool JSParser::init()
     return !mParse.IsEmpty() && mParse->IsFunction();
 }
 
-bool JSParser::parse(const Path &path, SymbolMap *symbols, SymbolNameMap *symbolNames,
-                     DependencyMap *dependencies, String *ast)
+
+struct Section {
+    Section(uint32_t f = 0, uint32_t p = 0, uint32_t l = 0)
+        : fileId(f), pos(p), length(l)
+    {}
+    uint32_t fileId;
+    uint32_t pos, length;
+};
+
+struct File
 {
-    String contents = path.readAll();
-    if (contents.isEmpty()) {
-        error() << "No contents for" << path;
-        return false;
+    uint32_t fileId;
+    String contents;
+    Map<uint32_t, std::shared_ptr<File> > includes;
+    String dump(int indent = 0)
+    {
+        String ret = String::format<128>("%s%s %d bytes\n", String(indent * 2, ' ').constData(),
+                                         Location::path(fileId).constData(), contents.size());
+        for (Map<uint32_t, std::shared_ptr<File> >::const_iterator it = includes.begin(); it != includes.end(); ++it) {
+            ret += String(indent * 2, ' ') + String::format<16>("include(%d):\n", it->first) + it->second->dump(indent + 1);
+        }
+        return ret;
     }
-    const uint32_t fileId = Location::insertFile(path);
-    if (dependencies)
-        (*dependencies)[fileId].insert(fileId);
-    const int initialSize = contents.size();
 
-    const RegExp rx("^// *include( *\"\\([^\"]\\+\\)\" *)");
-    List<RegExp::Capture> caps;
-    List<Path> includes;
+    void recurse(uint32_t src, DependencyMap &dependencies, SymbolMap &symbols)
+    {
+        dependencies[fileId].insert(src);
+        for (Map<uint32_t, std::shared_ptr<File> >::const_iterator it = includes.begin(); it != includes.end(); ++it) {
+            Location loc(fileId, it->first);
+            CursorInfo &info = symbols[loc];
+            const Location refLoc(it->second->fileId, 0);
+            info.targets.insert(refLoc);
+            info.kind = CursorInfo::JSInclude;
+            info.definition = false;
+            info.symbolName = "// include('" + refLoc.path() + "')";
+            info.symbolLength = info.symbolName.size() + 2;
+            // ### this may not be right. I could know how many spaces we
+            // ### have in here
+            it->second->recurse(src, dependencies, symbols);
+        }
+    }
 
+    String read(int offset, List<Section> &sections) const
+    {
+        String ret = contents;
+        uint32_t added = 0;
+        uint32_t last = 0;
+        for (Map<uint32_t, std::shared_ptr<File> >::const_iterator it = includes.begin(); it != includes.end(); ++it) {
+            if (added + it->first > last) {
+                sections.append(Section(fileId, last + offset, (it->first + added) - last));
+            }
+            const String r = it->second->read(offset + added + it->first, sections);
+            ret.insert(it->first + added, r);
+            added += r.size();
+            last = it->first + added;
+            // printf("Setting last to %d (%d/%d) for %s after reading %s\n", last, it->first, added, Location::path(fileId).constData(),
+            //        Location::path(it->second->fileId).constData());
+        }
+        if (last < static_cast<uint32_t>(ret.size()))
+            sections.append(Section(fileId, last + offset, ret.size() - last));
+        return ret;
+    }
+};
+
+static std::shared_ptr<File> resolve(const Path &path, Set<Path> &seen)
+{
+    std::shared_ptr<File> ret(new File);
+    assert(path == path.resolved());
+    ret->fileId = Location::insertFile(path);
+    ret->contents = path.readAll();
+    const RegExp rx("// *\\(include\\)( *[\"']\\([^\"'][^\"']*\\)[\"'] *)");
     int idx = -1;
-    while ((idx = rx.indexIn(contents, idx + 1, &caps)) != -1) {
-        error() << "Found a regexp" << idx;
-        assert(caps.size() == 2);
-        Path p = caps.at(1).capture;
+    List<RegExp::Capture> caps;
+    while ((idx = rx.indexIn(ret->contents, idx + 1, &caps)) != -1) {
+        Path p = caps.at(2).capture;
         if (!p.isEmpty()) {
-            error() << p << p.isFile();
             if (!p.startsWith('/'))
                 p.prepend(path.parentDir());
             if (p.isFile()) {
                 p.resolve();
-                includes.append(p);
-                if (dependencies) {
-                    (*dependencies)[Location::insertFile(p)].insert(fileId);
+                if (seen.insert(p)) {
+                    ret->includes[idx] = resolve(p, seen);
                 }
             }
         }
     }
-    for (List<Path>::const_iterator it = includes.begin(); it != includes.end(); ++it) {
-        const String c = it->readAll();
-        contents.insert(0, c);
+    return ret;
+}
+
+bool JSParser::parse(const Path &path, SymbolMap *symbols, SymbolNameMap *symbolNames,
+                     DependencyMap *dependencies, String *ast)
+{
+    const uint32_t fileId = Location::insertFile(path);
+    Set<Path> seen;
+    seen.insert(path);
+    std::shared_ptr<File> file = resolve(path, seen);
+    // printf("%s\n", file->dump().constData());
+    List<Section> sections;
+    const String contents = file->read(0, sections);
+    if (dependencies && symbols)
+        file->recurse(fileId, *dependencies, *symbols);
+    // printf("%s\n", contents.constData());
+    for (List<Section>::const_iterator it = sections.begin(); it != sections.end(); ++it) {
+        printf("%d-%d %s\n", it->pos, it->pos + it->length - 1, Location::path(it->fileId).constData());
     }
-    const uint32_t limit = contents.size() - initialSize;
+    // FILE *f = fopen("/tmp/js.js", "w");
+    // fwrite(contents.constData(), 1, contents.size(), f);
+    // fclose(f);
 
     const v8::Isolate::Scope isolateScope(mIsolate);
     // mFileId = Location::insertFile(path);
@@ -280,8 +343,32 @@ bool JSParser::parse(const Path &path, SymbolMap *symbols, SymbolNameMap *symbol
                 Location declLoc;
                 for (int k=0; k<refCount; ++k) {
                     const v8::Handle<v8::Array> ref = get<v8::Array>(refs, k);
-                    const uint32_t off = static_cast<uint32_t>(get<v8::Number>(ref, 0)->Value());
-                    const Location loc(fileId, off);
+                    uint32_t off = static_cast<uint32_t>(get<v8::Number>(ref, 0)->Value());
+                    uint32_t fid = 0;
+                    // could binary search for it
+                    for (List<Section>::const_iterator it = sections.begin(); it != sections.end(); ++it) {
+                        const uint32_t end = it->pos + it->length;
+                        if (off < end) {
+                            fid = it->fileId;
+                            do {
+                                --it;
+                                if (it->fileId != fid)
+                                    off -= it->length;
+                            } while (it != sections.begin());
+                            break;
+                        }
+                    }
+
+                    // if (it == sections.end()) {
+                    //     printf("COULDN'T FIND SECTION FOR %d\n", off);
+                    //     for (Map<uint32_t, Section>::const_iterator it = sections.begin(); it != sections.end(); ++it) {
+                    //         printf("%d-%d %s\n", it->first, it->second.length + it->first - 1, Location::path(it->second.fileId).constData());
+                    //     }
+                    // }
+
+                    // printf("CREATING LOCATION FOR %s offset was %d became in %s,%d\n", keyString.constData(),
+                    //        old, Location::path(fid).constData(), off);
+                    const Location loc(fid, off);
                     CursorInfo &c = (*symbols)[loc];
                     c.start = loc.offset();
                     c.end = static_cast<uint32_t>(get<v8::Number>(ref, 1)->Value());
