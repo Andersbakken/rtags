@@ -93,7 +93,7 @@ function indexFile(code, file, verbose)
                 object = path;
             }
             for (var i=scopeStack.length - 1; i>=0; --i) {
-                log("Looking for " + path + " " + object + " " + i + " " + JSON.stringify(scopeStack[i].objects));
+                // log("Looking for " + path + " " + object + " " + i + " " + JSON.stringify(scopeStack[i].objects));
                 if (scopeStack[i].objects[path]) {
                     found = true;
                     // log("Found", path, "in a scope", i, scopeStack.length);
