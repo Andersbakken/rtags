@@ -350,24 +350,19 @@ bool JSParser::parse(const Path &path, SymbolMap *symbols, SymbolNameMap *symbol
                         const uint32_t end = it->pos + it->length;
                         if (off < end) {
                             fid = it->fileId;
-                            do {
+                            while (true) {
+                                if (it == sections.begin())
+                                    break;
                                 --it;
                                 if (it->fileId != fid)
                                     off -= it->length;
-                            } while (it != sections.begin());
+                            }
                             break;
                         }
                     }
 
-                    // if (it == sections.end()) {
-                    //     printf("COULDN'T FIND SECTION FOR %d\n", off);
-                    //     for (Map<uint32_t, Section>::const_iterator it = sections.begin(); it != sections.end(); ++it) {
-                    //         printf("%d-%d %s\n", it->first, it->second.length + it->first - 1, Location::path(it->second.fileId).constData());
-                    //     }
-                    // }
-
                     // printf("CREATING LOCATION FOR %s offset was %d became in %s,%d\n", keyString.constData(),
-                    //        old, Location::path(fid).constData(), off);
+                    //        static_cast<uint32_t>(get<v8::Number>(ref, 0)->Value()), Location::path(fid).constData(), off);
                     const Location loc(fid, off);
                     CursorInfo &c = (*symbols)[loc];
                     c.start = loc.offset();
