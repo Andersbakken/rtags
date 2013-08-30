@@ -55,7 +55,15 @@ function indexFile(code, file, verbose)
     {
         if (typeof offset == 'undefined')
             offset = parents.length - 1;
-        return (offset > 0 && parents[offset - 1] && parents[offset - 1].type == type);
+        if (offset > 0 && parents[offset - 1]) {
+            var t = parents[offset - 1].type;
+            if (typeof type == "string") {
+                return type === t;
+            } else {
+                return type.indexOf(t) != -1;
+            }
+        }
+        return false;
     }
 
     var scopes = [];
@@ -70,7 +78,7 @@ function indexFile(code, file, verbose)
         //     path += ' ';
         var scopeIdx = scopeStack.length - (parentScope ? 2 : 1);
         // parentScope means that the symbol itself started a scope
-        // e.g. it's a FunctionDeclaration so it should be added in
+        // e.g. it's a FunctionDeclaration/FunctionExpression so it should be added in
         // the parent scope if it's a declaration
         var found = false;
         if (declaration) {
@@ -159,8 +167,8 @@ function indexFile(code, file, verbose)
                         decl = true;
                     } else if (parentTypeIs(esprima.Syntax.VariableDeclarator) && isChild("id")) {
                         decl = true;
-                    } else if (parentTypeIs(esprima.Syntax.FunctionDeclaration)) { // it's either a parameter or the id of the function
-                        parentScope = true;
+                    } else if (parentTypeIs([esprima.Syntax.FunctionDeclaration, esprima.Syntax.FunctionExpression])) { // it's either a parameter or the id of the function
+                        parentScope = isChild("id");
                         decl = true;
                     } else {
                         // log("reference it seems", node.name, node.type, node.range, parents[parents.length - 2].name,
