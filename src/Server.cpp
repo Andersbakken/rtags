@@ -227,12 +227,12 @@ void Server::onConnectionDisconnected(Connection *o)
     while (it != end) {
         if (it->second == o) {
             mPendingLookups.erase(it);
-            EventLoop::deleteLater(o);
             break;
         } else {
             ++it;
         }
     }
+    EventLoop::deleteLater(o);
 }
 
 void Server::onNewMessage(Message *message, Connection *connection)
