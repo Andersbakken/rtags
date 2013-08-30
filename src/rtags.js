@@ -9,7 +9,7 @@ function resolveName(node)
         return resolveName(node.object) + "." + resolveName(node.property);
     } else if (node.type == "Literal") {
         return node.value;
-    } else {
+    } else if (node.type != "BinaryExpression") {
         log("Unhandled node type", node);
     }
     return "";
