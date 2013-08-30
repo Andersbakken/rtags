@@ -232,6 +232,7 @@ void Server::onConnectionDisconnected(Connection *o)
             ++it;
         }
     }
+    o->disconnected().disconnect();
     EventLoop::deleteLater(o);
 }
 
