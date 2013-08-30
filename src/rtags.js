@@ -64,13 +64,17 @@ function indexFile(code, file, verbose)
     // 0, reference
     // 1, declaration,
     // 2, declaration if unique in current scope
-    function add(path, range, declaration) {
-        if ({}[path])
-            path += ' ';
-        var scope = scopeStack[scopeStack.length - 1];
+    function add(path, range, declaration, parentScope) {
+        // log("Adding a symbol: " + path + " " + range + " " + declaration + " " + scopeStack.length);
+        // if ({}[path])
+        //     path += ' ';
+        var scopeIdx = scopeStack.length - (parentScope ? 2 : 1);
+        // parentScope means that the symbol itself started a scope
+        // e.g. it's a FunctionDeclaration so it should be added in
+        // the parent scope if it's a declaration
         var found = false;
         if (declaration) {
-            if (scope.objects[path])
+            if (scopeStack[scopeIdx].objects[path])
                 found = true;
         } else {
             var object;
@@ -81,14 +85,15 @@ function indexFile(code, file, verbose)
                 object = path;
             }
             for (var i=scopeStack.length - 1; i>=0; --i) {
+                // log("Looking for " + path + " " + object + " " + i + " " + JSON.stringify(scopeStack[i].objects));
                 if (scopeStack[i].objects[path]) {
                     found = true;
                     // log("Found", path, "in a scope", i, scopeStack.length);
-                    scope = scopeStack[i];
+                    scopeIdx = i;
                     break;
                 } else if (scopeStack[i].objects[object]) {
                     // log("Found", path, "in a scope", i, scopeStack.length);
-                    scope = scopeStack[i];
+                    scopeIdx = i;
                     break;
                 }
             }
@@ -96,11 +101,11 @@ function indexFile(code, file, verbose)
 
         if (!found) {
             range.push(true);
-            scope.objects[path] = [range];
+            scopeStack[scopeIdx].objects[path] = [range];
         } else {
-            scope.objects[path].push(range);
+            scopeStack[scopeIdx].objects[path].push(range);
         }
-        ++scope.count;
+        ++scopeStack[scopeIdx].count;
     }
 
     var byName = {};
@@ -116,6 +121,7 @@ function indexFile(code, file, verbose)
                 s.objectScope = [];
                 scopes.push(s);
                 scopeStack.push(s);
+                // log("Pushing a scope " + node.type);
             }
             if (node.type == esprima.Syntax.Program) {
                 errors = node.errors;
@@ -144,6 +150,7 @@ function indexFile(code, file, verbose)
                 if (path)
                     path += ".";
                 var decl = false;
+                var parentScope = false;
                 if (parentTypeIs(esprima.Syntax.MemberExpression) && isChild("property")) {
                     path += parents[parents.length - 2].name;
                 } else {
@@ -153,6 +160,7 @@ function indexFile(code, file, verbose)
                     } else if (parentTypeIs(esprima.Syntax.VariableDeclarator) && isChild("id")) {
                         decl = true;
                     } else if (parentTypeIs(esprima.Syntax.FunctionDeclaration)) { // it's either a parameter or the id of the function
+                        parentScope = true;
                         decl = true;
                     } else {
                         // log("reference it seems", node.name, node.type, node.range, parents[parents.length - 2].name,
@@ -162,17 +170,19 @@ function indexFile(code, file, verbose)
                     path += node.name;
                 }
                 // log("Adding an identifier", path, node.range, decl);
-                add(path, node.range, decl); // probably more of them that should pass true
+                add(path, node.range, decl, parentScope); // probably more of them that should pass true
                 // log("identifier", path, JSON.stringify(node.range));
             }
         },
         leave: function (node) {
             parents.pop();
-            if (node.addedObjectScope)
+            if (node.addedObjectScope) {
                 scopeStack[scopeStack.length - 1].objectScope.pop();
-            if (scopeManager.release(node)) // the scopeManager probably knows enough about this to provide the scopeStack
+            }
+            if (scopeManager.release(node)) { // the scopeManager probably knows enough about this to provide the scopeStack
+                // log("Popping a scope");
                 scopeStack.pop();
-
+            }
         }
     });
     scopeManager.detach();
