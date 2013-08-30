@@ -55,7 +55,7 @@ void IndexerJobEsprima::index()
         return;
     String dump;
     if (!parser.parse(mSourceInformation.sourceFile(), &mData->symbols, &mData->symbolNames,
-                      mType == Dump ? &dump : 0)) {
+                      mType == Dump ? 0 : &mData->dependencies, mType == Dump ? &dump : 0)) {
         error() << "Can't parse" << mSourceInformation.sourceFile();
     }
     mParseTime = time(0);
@@ -81,7 +81,6 @@ void IndexerJobEsprima::index()
         mData->symbols.clear();
         mData->symbolNames.clear();
     } else {
-        mData->dependencies[mSourceInformation.fileId].insert(mSourceInformation.fileId);
         mData->message = String::format<128>("%s in %dms. (%d syms, %d symNames, %d refs)",
                                              mSourceInformation.sourceFile().toTilde().constData(),
                                              static_cast<int>(mTimer.elapsed()) / 1000, mData->symbols.size(), mData->symbolNames.size(), mData->references.size());

@@ -198,13 +198,17 @@ bool JSParser::init()
     return !mParse.IsEmpty() && mParse->IsFunction();
 }
 
-bool JSParser::parse(const Path &path, SymbolMap *symbols, SymbolNameMap *symbolNames, String *ast)
+bool JSParser::parse(const Path &path, SymbolMap *symbols, SymbolNameMap *symbolNames,
+                     DependencyMap *dependencies, String *ast)
 {
     String contents = path.readAll();
     if (contents.isEmpty()) {
         error() << "No contents for" << path;
         return false;
     }
+    const uint32_t fileId = Location::insertFile(path);
+    if (dependencies)
+        (*dependencies)[fileId].insert(fileId);
     const int initialSize = contents.size();
 
     const RegExp rx("^// *include( *\"\\([^\"]\\+\\)\" *)");
@@ -213,10 +217,20 @@ bool JSParser::parse(const Path &path, SymbolMap *symbols, SymbolNameMap *symbol
 
     int idx = -1;
     while ((idx = rx.indexIn(contents, idx + 1, &caps)) != -1) {
+        error() << "Found a regexp" << idx;
         assert(caps.size() == 2);
         Path p = caps.at(1).capture;
-        if (p.isFile()) {
-            includes.append(p);
+        if (!p.isEmpty()) {
+            error() << p << p.isFile();
+            if (!p.startsWith('/'))
+                p.prepend(path.parentDir());
+            if (p.isFile()) {
+                p.resolve();
+                includes.append(p);
+                if (dependencies) {
+                    (*dependencies)[Location::insertFile(p)].insert(fileId);
+                }
+            }
         }
     }
     for (List<Path>::const_iterator it = includes.begin(); it != includes.end(); ++it) {
@@ -250,7 +264,6 @@ bool JSParser::parse(const Path &path, SymbolMap *symbols, SymbolNameMap *symbol
     // error() << result;
     v8::Handle<v8::Array> res = get<v8::Array>(result, "objects");
     if (!res.IsEmpty()) {
-        const uint32_t fileId = Location::insertFile(path);
         for (unsigned i=0; i<res->Length(); ++i) {
             v8::Handle<v8::Object> scope = get<v8::Object>(res, i);
             assert(!scope.IsEmpty());
