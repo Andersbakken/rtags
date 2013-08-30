@@ -41,7 +41,21 @@ public:
         }
         return ret;
     }
+
+    void clear()
+    {
+        fileId = 0;
+        parsed = 0;
+        args.clear();
+        compiler.clear();
+    }
 };
+
+static inline Log operator<<(Log dbg, const SourceInformation &s)
+{
+    dbg << String::format<256>("SourceInformation(%s)", s.toString().constData());
+    return dbg;
+}
 
 template <> inline Serializer &operator<<(Serializer &s, const SourceInformation &t)
 {
@@ -51,14 +65,9 @@ template <> inline Serializer &operator<<(Serializer &s, const SourceInformation
 
 template <> inline Deserializer &operator>>(Deserializer &s, SourceInformation &t)
 {
+    t.clear();
     s >> t.fileId >> t.parsed >> t.compiler >> t.args;
     return s;
-}
-
-static inline Log operator<<(Log dbg, const SourceInformation &s)
-{
-    dbg << String::format<256>("SourceInformation(%s)", s.toString().constData());
-    return dbg;
 }
 
 #endif
