@@ -10,7 +10,7 @@
 // static int count = 0;
 // static int active = 0;
 
-Job::Job(const QueryMessage &query, unsigned jobFlags, const shared_ptr<Project> &proj)
+Job::Job(const QueryMessage &query, unsigned jobFlags, const std::shared_ptr<Project> &proj)
     : mAborted(false), mId(-1), mMinOffset(query.minOffset()),
       mMaxOffset(query.maxOffset()), mJobFlags(jobFlags), mQueryFlags(query.flags()), mProject(proj),
       mPathFilters(0), mPathFiltersRegExp(0), mMax(query.max()), mConnection(0),
@@ -31,7 +31,7 @@ Job::Job(const QueryMessage &query, unsigned jobFlags, const shared_ptr<Project>
     }
 }
 
-Job::Job(unsigned jobFlags, const shared_ptr<Project> &proj)
+Job::Job(unsigned jobFlags, const std::shared_ptr<Project> &proj)
     : mAborted(false), mId(-1), mMinOffset(-1), mMaxOffset(-1), mJobFlags(jobFlags), mQueryFlags(0), mProject(proj), mPathFilters(0),
       mPathFiltersRegExp(0), mMax(-1), mConnection(0)
 {

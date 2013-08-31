@@ -32,26 +32,29 @@ public:
 class IndexerJob : public Job
 {
 public:
+    typedef std::shared_ptr<IndexerJob> SharedPtr;
     enum Type {
         Makefile,
         Dirty,
         Dump
     };
-    IndexerJob(const shared_ptr<Project> &project, Type type, const SourceInformation &sourceInformation);
-    IndexerJob(const QueryMessage &msg, const shared_ptr<Project> &project, const SourceInformation &sourceInformation);
+    IndexerJob(const std::shared_ptr<Project> &project, Type type, const SourceInformation &sourceInformation);
+    IndexerJob(const QueryMessage &msg, const std::shared_ptr<Project> &project, const SourceInformation &sourceInformation);
     virtual ~IndexerJob();
-    shared_ptr<IndexData> data() const { return mData; }
-    uint32_t fileId() const { return mFileId; }
-    Path path() const { return mSourceInformation.sourceFile; }
+    std::shared_ptr<IndexData> data() const { return mData; }
+    uint32_t fileId() const { return mSourceInformation.fileId; }
+    Path path() const { return mSourceInformation.sourceFile(); }
     bool abortIfStarted();
     const SourceInformation &sourceInformation() const { return mSourceInformation; }
     time_t parseTime() const { return mParseTime; }
     const Set<uint32_t> &visitedFiles() const { return mVisitedFiles; }
+    const Set<uint32_t> &blockedFiles() const { return mBlockedFiles; }
     Type type() const { return mType; }
+    Signal<std::function<void(IndexerJob::SharedPtr)> >& finished() { return mFinished; }
 protected:
     virtual void index() = 0;
     virtual void execute();
-    virtual shared_ptr<IndexData> createIndexData() { return shared_ptr<IndexData>(new IndexData); }
+    virtual std::shared_ptr<IndexData> createIndexData() { return std::shared_ptr<IndexData>(new IndexData); }
 
     Location createLocation(uint32_t fileId, uint32_t offset, bool *blocked);
     Location createLocation(const Path &file, uint32_t offset, bool *blocked);
@@ -62,13 +65,14 @@ protected:
     Map<String, uint32_t> mFileIds;
 
     SourceInformation mSourceInformation;
-    const uint32_t mFileId;
 
     StopWatch mTimer;
-    shared_ptr<IndexData> mData;
+    std::shared_ptr<IndexData> mData;
 
     time_t mParseTime;
     bool mStarted;
+
+    Signal<std::function<void(IndexerJob::SharedPtr)> > mFinished;
 };
 
 #endif

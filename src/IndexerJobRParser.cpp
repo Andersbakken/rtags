@@ -8,13 +8,13 @@
 #include <Literals.h>
 #include <Bind.h>
 
-IndexerJobRParser::IndexerJobRParser(const shared_ptr<Project> &project, Type type,
+IndexerJobRParser::IndexerJobRParser(const std::shared_ptr<Project> &project, Type type,
                                      const SourceInformation &sourceInformation)
     : IndexerJob(project, type, sourceInformation)
 {
 }
 
-IndexerJobRParser::IndexerJobRParser(const QueryMessage &msg, const shared_ptr<Project> &project,
+IndexerJobRParser::IndexerJobRParser(const QueryMessage &msg, const std::shared_ptr<Project> &project,
                                      const SourceInformation &sourceInformation)
     : IndexerJob(msg, project, sourceInformation)
 {

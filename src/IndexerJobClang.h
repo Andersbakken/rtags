@@ -10,7 +10,7 @@ class IndexDataClang : public IndexData
 {
 public:
     IndexDataClang()
-        : IndexData(ClangType), unit(0), index(0)
+        : IndexData(ClangType), unit(0), parseTime(0), visitTime(0)
     {}
 
     virtual ~IndexDataClang()
@@ -20,32 +20,28 @@ public:
 
     void clear()
     {
-        if (index) {
-            clang_disposeIndex(index);
-            index = 0;
-        }
-
         if (unit) {
             clang_disposeTranslationUnit(unit);
             unit = 0;
         }
+        parseTime = visitTime = 0;
     }
     CXTranslationUnit unit;
-    CXIndex index;
+    int parseTime, visitTime;
 };
 
 class IndexerJobClang : public IndexerJob
 {
 public:
-    IndexerJobClang(const shared_ptr<Project> &project, Type type,
+    IndexerJobClang(const std::shared_ptr<Project> &project, Type type,
                     const SourceInformation &sourceInformation);
     IndexerJobClang(const QueryMessage &msg,
-                    const shared_ptr<Project> &project,
+                    const std::shared_ptr<Project> &project,
                     const SourceInformation &sourceInformation);
     static String typeName(const CXCursor &cursor);
-    virtual shared_ptr<IndexData> createIndexData() { return shared_ptr<IndexData>(new IndexDataClang); }
+    virtual std::shared_ptr<IndexData> createIndexData() { return std::shared_ptr<IndexData>(new IndexDataClang); }
 
-    shared_ptr<IndexDataClang> data() const { return static_pointer_cast<IndexDataClang>(IndexerJob::data()); }
+    std::shared_ptr<IndexDataClang> data() const { return std::static_pointer_cast<IndexDataClang>(IndexerJob::data()); }
     String contents() const { return mContents; }
 private:
     virtual void index();

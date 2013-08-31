@@ -16,9 +16,9 @@ public:
     };
     enum { SendThreshold = 500 };
 
-    CompletionJob(const shared_ptr<Project> &project, Type type);
+    CompletionJob(const std::shared_ptr<Project> &project, Type type);
 
-    void init(CXIndex index, CXTranslationUnit unit, const Path &path, const List<String> &args,
+    void init(CXTranslationUnit unit, const Path &path, const List<String> &args,
               int line, int column, int pos, const String &unsaved, int parseCount);
 
     virtual void execute();
@@ -28,7 +28,6 @@ private:
     void processDiagnostics(CXCodeCompleteResults* results);
 
 private:
-    CXIndex mIndex;
     CXTranslationUnit mUnit;
     Path mPath;
     List<String> mArgs;

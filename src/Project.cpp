@@ -36,7 +36,7 @@ public:
     {
         if (std::shared_ptr<Project> project = mProject.lock()) {
             project->restore();
-            project->startPendingJobs();
+            EventLoop::mainEventLoop()->callLater(std::bind(&Project::startPendingJobs, project.get()));
         }
     }
 private:
@@ -61,7 +61,7 @@ void Project::init()
     assert(mState == Unloaded);
     mState = Inited;
     fileManager.reset(new FileManager);
-    fileManager->init(static_pointer_cast<Project>(shared_from_this()), FileManager::Asynchronous);
+    fileManager->init(shared_from_this(), FileManager::Asynchronous);
 }
 
 bool Project::restore()
@@ -124,8 +124,8 @@ bool Project::restore()
 
         SourceInformationMap::iterator it = mSources.begin();
         while (it != mSources.end()) {
-            if (!it->second.sourceFile.isFile()) {
-                error() << it->second.sourceFile << "seems to have disappeared";
+            if (!it->second.sourceFile().isFile()) {
+                error() << it->second.sourceFile() << "seems to have disappeared";
                 mSources.erase(it++);
                 dirty.insert(it->first);
             } else {
@@ -188,7 +188,7 @@ void Project::load(FileManagerMode mode)
         switch (mState) {
         case Unloaded:
             fileManager.reset(new FileManager);
-            fileManager->init(static_pointer_cast<Project>(shared_from_this()),
+            fileManager->init(shared_from_this(),
                               mode == FileManager_Asynchronous ? FileManager::Asynchronous : FileManager::Synchronous);
             // duplicated from init
             break;
@@ -207,7 +207,7 @@ void Project::load(FileManagerMode mode)
 void Project::unload()
 {
     std::lock_guard<std::mutex> lock(mMutex);
-    for (Map<uint32_t, shared_ptr<IndexerJob> >::const_iterator it = mJobs.begin(); it != mJobs.end(); ++it) {
+    for (Map<uint32_t, std::shared_ptr<IndexerJob> >::const_iterator it = mJobs.begin(); it != mJobs.end(); ++it) {
         it->second->abort();
     }
     mJobs.clear();
@@ -255,10 +255,10 @@ bool Project::match(const Match &p, bool *indexed) const
     return ret;
 }
 
-void Project::onJobFinished(const shared_ptr<IndexerJob> &job)
+void Project::onJobFinished(const std::shared_ptr<IndexerJob> &job)
 {
     PendingJob pending;
-    const Path currentFile = Server::instance()->currentFile();
+    const uint32_t currentFileId = Server::instance()->currentFileId();
     bool startPending = false;
     {
         std::lock_guard<std::mutex> lock(mMutex);
@@ -274,29 +274,27 @@ void Project::onJobFinished(const shared_ptr<IndexerJob> &job)
             assert(mJobs.value(fileId) == job);
             mJobs.remove(fileId);
 
-            shared_ptr<IndexData> data = job->data();
+            std::shared_ptr<IndexData> data = job->data();
             mPendingData[fileId] = data;
+            String extra;
             if (data->type == IndexData::ClangType) {
-                shared_ptr<IndexDataClang> clangData = static_pointer_cast<IndexDataClang>(data);
+                std::shared_ptr<IndexDataClang> clangData = std::static_pointer_cast<IndexDataClang>(data);
                 if (Server::instance()->options().completionCacheSize > 0 && clangData->unit) {
                     const SourceInformation sourceInfo = job->sourceInformation();
-                    if (currentFile == sourceInfo.sourceFile) {
-                        shared_ptr<ReparseJob> rj(new ReparseJob(clangData->unit,
-                                                                 clangData->index,
-                                                                 sourceInfo.sourceFile,
-                                                                 sourceInfo.args,
-                                                                 static_pointer_cast<IndexerJobClang>(job)->contents(),
-                                                                 static_pointer_cast<Project>(shared_from_this())));
-                        clangData->index = 0;
+                    if (currentFileId == sourceInfo.fileId) {
+                        std::shared_ptr<ReparseJob> rj(new ReparseJob(clangData->unit,
+                                                                      sourceInfo.sourceFile(),
+                                                                      sourceInfo.args,
+                                                                      std::static_pointer_cast<IndexerJobClang>(job)->contents(),
+                                                                      shared_from_this()));
                         clangData->unit = 0;
                         Server::instance()->startIndexerJob(rj);
                     } else {
-                        addCachedUnit(sourceInfo.sourceFile, sourceInfo.args,
-                                      clangData->index, clangData->unit, 1);
-                        clangData->index = 0;
+                        addCachedUnit(sourceInfo.sourceFile(), sourceInfo.args, clangData->unit, 1);
                         clangData->unit = 0;
                     }
                 }
+                extra = String::format<16>(" %d/%d", clangData->parseTime, clangData->visitTime);
                 clangData->clear();
             }
 
@@ -307,12 +305,12 @@ void Project::onJobFinished(const shared_ptr<IndexerJob> &job)
                 log(RTags::CompilationErrorXml, "<?xml version=\"1.0\" encoding=\"utf-8\"?><progress index=\"%d\" total=\"%d\"></progress>",
                     idx, mJobCounter);
 
-            error("[%3d%%] %d/%d %s %s.",
+            error("[%3d%%] %d/%d %s %s.%s",
                   static_cast<int>(round((double(idx) / double(mJobCounter)) * 100.0)), idx, mJobCounter,
                   String::formatTime(time(0), String::Time).constData(),
-                  data->message.constData());
+                  data->message.constData(), extra.constData());
 
-            if (mJobs.isEmpty()) {
+        if (mJobs.isEmpty()) {
                 mSyncTimer.restart(job->type() == IndexerJob::Dirty ? 0 : SyncTimeout, Timer::SingleShot);
             }
         }
@@ -354,21 +352,20 @@ void Project::index(const SourceInformation &c, IndexerJob::Type type)
 {
     std::lock_guard<std::mutex> lock(mMutex);
     static const char *fileFilter = getenv("RTAGS_FILE_FILTER");
-    if (fileFilter && !strstr(c.sourceFile.constData(), fileFilter))
+    if (fileFilter && !strstr(c.sourceFile().constData(), fileFilter))
         return;
-    const uint32_t fileId = Location::insertFile(c.sourceFile);
-    shared_ptr<IndexerJob> &job = mJobs[fileId];
+    std::shared_ptr<IndexerJob> &job = mJobs[c.fileId];
     if (job) {
         if (job->abortIfStarted()) {
             const PendingJob pending = { c, type };
-            mPendingJobs[fileId] = pending;
+            mPendingJobs[c.fileId] = pending;
         }
         return;
     }
-    shared_ptr<Project> project = static_pointer_cast<Project>(shared_from_this());
+    std::shared_ptr<Project> project = shared_from_this();
 
-    mSources[fileId] = c;
-    mPendingData.remove(fileId);
+    mSources[c.fileId] = c;
+    mPendingData.remove(c.fileId);
 
     if (!mJobCounter++)
         mTimer.start();
@@ -376,10 +373,12 @@ void Project::index(const SourceInformation &c, IndexerJob::Type type)
     job = Server::instance()->factory().createJob(project, type, c);
     if (!job) {
         error() << "Failed to create job for" << c;
-        mJobs.erase(fileId);
+        mJobs.erase(c.fileId);
         return;
     }
     mSyncTimer.stop();
+    if (type != IndexerJob::Dump)
+        job->finished().connect<EventLoop::Async>(std::bind(&Project::onJobFinished, this, std::placeholders::_1));
 
     Server::instance()->startIndexerJob(job);
 }
@@ -469,10 +468,11 @@ bool Project::index(const Path &sourceFile, const Path &cc, const List<String> &
     }
 
     const Path compiler = resolveCompiler(cc.canonicalized());
-    SourceInformation sourceInformation = sourceInfo(Location::insertFile(sourceFile));
+    uint32_t fileId = Location::insertFile(sourceFile);
+    SourceInformation sourceInformation = sourceInfo(fileId);
     const bool js = args.isEmpty() && sourceFile.endsWith(".js");
     if (sourceInformation.isNull()) {
-        sourceInformation.sourceFile = sourceFile;
+        sourceInformation.fileId = fileId;
         sourceInformation.args = args;
         sourceInformation.compiler = compiler;
     } else if (js) {
@@ -485,6 +485,11 @@ bool Project::index(const Path &sourceFile, const Path &cc, const List<String> &
         sourceInformation.compiler = compiler;
         sourceInformation.args = args;
     }
+    if (sourceFile.endsWith(".js")) {
+        assert(compiler.isEmpty());
+        assert(args.isEmpty());
+    }
+
     index(sourceInformation, IndexerJob::Makefile);
     return true;
 }
@@ -492,6 +497,10 @@ bool Project::index(const Path &sourceFile, const Path &cc, const List<String> &
 void Project::onFileModified(const Path &file)
 {
     const uint32_t fileId = Location::fileId(file);
+    if (mSuspendedFiles.contains(fileId)) {
+        warning() << file << "is suspended. Ignoring modification";
+        return;
+    }
     debug() << file << "was modified" << fileId;
     if (fileId) {
         Set<uint32_t> dirty;
@@ -577,10 +586,10 @@ int Project::remove(const Match &match)
         std::lock_guard<std::mutex> lock(mMutex);
         SourceInformationMap::iterator it = mSources.begin();
         while (it != mSources.end()) {
-            if (match.match(it->second.sourceFile)) {
-                const uint32_t fileId = Location::insertFile(it->second.sourceFile);
+            if (match.match(it->second.sourceFile())) {
+                const uint32_t fileId = it->second.fileId;
                 mSources.erase(it++);
-                shared_ptr<IndexerJob> job = mJobs.value(fileId);
+                std::shared_ptr<IndexerJob> job = mJobs.value(fileId);
                 if (job)
                     job->abort();
                 mPendingData.remove(fileId);
@@ -728,7 +737,7 @@ void Project::syncDB()
 {
     if (mPendingDirtyFiles.isEmpty() && mPendingData.isEmpty())
         return;
-    // for (Map<uint32_t, shared_ptr<IndexData> >::iterator it = mPendingData.begin(); it != mPendingData.end(); ++it) {
+    // for (Map<uint32_t, std::shared_ptr<IndexData> >::iterator it = mPendingData.begin(); it != mPendingData.end(); ++it) {
     //     writeErrorSymbols(mSymbols, mErrorSymbols, it->second->errors);
     // }
 
@@ -740,8 +749,8 @@ void Project::syncDB()
     }
 
     Set<uint32_t> newFiles;
-    for (Map<uint32_t, shared_ptr<IndexData> >::iterator it = mPendingData.begin(); it != mPendingData.end(); ++it) {
-        const shared_ptr<IndexData> &data = it->second;
+    for (Map<uint32_t, std::shared_ptr<IndexData> >::iterator it = mPendingData.begin(); it != mPendingData.end(); ++it) {
+        const std::shared_ptr<IndexData> &data = it->second;
         addDependencies(data->dependencies, newFiles);
         addFixIts(data->dependencies, data->fixIts);
         writeSymbols(data->symbols, mSymbols);
@@ -762,15 +771,38 @@ void Project::syncDB()
     }
     mPendingData.clear();
     if (Server::instance()->options().options & Server::Validate) {
-        shared_ptr<ValidateDBJob> validate(new ValidateDBJob(static_pointer_cast<Project>(shared_from_this()), mPreviousErrors));
+        std::shared_ptr<ValidateDBJob> validate(new ValidateDBJob(shared_from_this(), mPreviousErrors));
         Server::instance()->startQueryJob(validate);
     }
 }
 
 bool Project::isIndexed(uint32_t fileId) const
 {
-    std::lock_guard<std::mutex> lock(mMutex);
     return mVisitedFiles.contains(fileId) || mSources.contains(fileId);
+}
+
+const Set<uint32_t> &Project::suspendedFiles() const
+{
+    return mSuspendedFiles;
+}
+
+void Project::clearSuspendedFiles()
+{
+    mSuspendedFiles.clear();
+}
+
+bool Project::toggleSuspendFile(uint32_t file)
+{
+    if (!mSuspendedFiles.insert(file)) {
+        mSuspendedFiles.remove(file);
+        return false;
+    }
+    return true;
+}
+
+bool Project::isSuspended(uint32_t file) const
+{
+    return mSuspendedFiles.contains(file);
 }
 
 SourceInformationMap Project::sources() const
@@ -785,20 +817,16 @@ DependencyMap Project::dependencies() const
     return mDependencies;
 }
 
-void Project::addCachedUnit(const Path &path, const List<String> &args, CXIndex index,
-                            CXTranslationUnit unit, int parseCount) // lock always held
+void Project::addCachedUnit(const Path &path, const List<String> &args, CXTranslationUnit unit, int parseCount) // lock always held
 {
-    assert(index);
     assert(unit);
     const int maxCacheSize = Server::instance()->options().completionCacheSize;
     if (!maxCacheSize) {
         clang_disposeTranslationUnit(unit);
-        clang_disposeIndex(index);
         return;
     }
     CachedUnit *cachedUnit = new CachedUnit;
     cachedUnit->path = path;
-    cachedUnit->index = index;
     cachedUnit->unit = unit;
     cachedUnit->arguments = args;
     cachedUnit->parseCount = parseCount;
@@ -820,16 +848,14 @@ LinkedList<CachedUnit*>::iterator Project::findCachedUnit(const Path &path, cons
 }
 
 bool Project::initJobFromCache(const Path &path, const List<String> &args,
-                               CXIndex &index, CXTranslationUnit &unit, List<String> *argsOut,
+                               CXTranslationUnit &unit, List<String> *argsOut,
                                int *parseCount)
 {
     LinkedList<CachedUnit*>::iterator it = findCachedUnit(path, args);
     if (it != mCachedUnits.end()) {
         CachedUnit *cachedUnit = *it;
-        index = cachedUnit->index;
         unit = cachedUnit->unit;
         cachedUnit->unit = 0;
-        cachedUnit->index = 0;
         if (argsOut)
             *argsOut = cachedUnit->arguments;
         mCachedUnits.erase(it);
@@ -838,23 +864,22 @@ bool Project::initJobFromCache(const Path &path, const List<String> &args,
         delete cachedUnit;
         return true;
     }
-    index = 0;
     unit = 0;
     if (parseCount)
         *parseCount = -1;
     return false;
 }
 
-bool Project::fetchFromCache(const Path &path, List<String> &args, CXIndex &index, CXTranslationUnit &unit, int *parseCount)
+bool Project::fetchFromCache(const Path &path, List<String> &args, CXTranslationUnit &unit, int *parseCount)
 {
     std::lock_guard<std::mutex> lock(mMutex);
-    return initJobFromCache(path, List<String>(), index, unit, &args, parseCount);
+    return initJobFromCache(path, List<String>(), unit, &args, parseCount);
 }
 
-void Project::addToCache(const Path &path, const List<String> &args, CXIndex index, CXTranslationUnit unit, int parseCount)
+void Project::addToCache(const Path &path, const List<String> &args, CXTranslationUnit unit, int parseCount)
 {
     std::lock_guard<std::mutex> lock(mMutex);
-    addCachedUnit(path, args, index, unit, parseCount);
+    addCachedUnit(path, args, unit, parseCount);
 }
 
 void Project::addFixIts(const DependencyMap &visited, const FixItMap &fixIts) // lock always held

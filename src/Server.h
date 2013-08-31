@@ -7,6 +7,7 @@
 #include "CompletionMessage.h"
 #include "FileManager.h"
 #include "QueryMessage.h"
+#include "RTagsClang.h"
 #include "RTags.h"
 #include "ScanJob.h"
 #include "RTagsPluginFactory.h"
@@ -33,7 +34,7 @@ class IndexerJob;
 class Server
 {
 public:
-    enum { DatabaseVersion = 25 };
+    enum { DatabaseVersion = 26 };
 
     Server();
     ~Server();
@@ -55,24 +56,25 @@ public:
         UseCompilerFlags = 0x1000
     };
     ThreadPool *threadPool() const { return mIndexerThreadPool; }
-    void startQueryJob(const shared_ptr<Job> &job);
-    void startIndexerJob(const shared_ptr<ThreadPool::Job> &job);
+    void startQueryJob(const std::shared_ptr<Job> &job);
+    void startIndexerJob(const std::shared_ptr<ThreadPool::Job> &job);
     struct Options {
         Options()
-            : options(0), threadCount(0), completionCacheSize(0), unloadTimer(0), clangStackSize(0), clearCompletionCacheInterval(0)
+            : options(0), threadCount(0), completionCacheSize(0), unloadTimer(0), clearCompletionCacheInterval(0)
         {}
         Path socketFile, dataDir;
         unsigned options;
-        int threadCount, completionCacheSize, unloadTimer, clangStackSize, clearCompletionCacheInterval;
+        int threadCount, completionCacheSize, unloadTimer, clearCompletionCacheInterval;
         List<String> defaultArguments, excludeFilters;
         Set<Path> ignoredCompilers;
     };
     bool init(const Options &options);
     const Options &options() const { return mOptions; }
-    Path currentFile() const { std::lock_guard<std::mutex> lock(mMutex); return mCurrentFile; }
+    uint32_t currentFileId() const { std::lock_guard<std::mutex> lock(mMutex); return mCurrentFileId; }
     bool saveFileIds() const;
     RTagsPluginFactory &factory() { return mPluginFactory; }
     void onJobOutput(JobOutput&& out);
+    CXIndex clangIndex() const { return mIndex; }
 private:
     bool selectProject(const Match &match, Connection *conn, unsigned int queryFlags);
     bool updateProject(const List<String> &projects, unsigned int queryFlags);
@@ -84,12 +86,12 @@ private:
     void clear();
     void onNewConnection();
     Signal<std::function<void(int, const List<String> &)> > &complete() { return mComplete; }
-    shared_ptr<Project> setCurrentProject(const Path &path, unsigned int queryFlags = 0);
-    shared_ptr<Project> setCurrentProject(const shared_ptr<Project> &project, unsigned int queryFlags = 0);
+    std::shared_ptr<Project> setCurrentProject(const Path &path, unsigned int queryFlags = 0);
+    std::shared_ptr<Project> setCurrentProject(const std::shared_ptr<Project> &project, unsigned int queryFlags = 0);
     void index(const GccArguments &args, const List<String> &projects);
     void onUnload();
     void onNewMessage(Message *message, Connection *conn);
-    void onConnectionDestroyed(Connection *o);
+    void onConnectionDisconnected(Connection *o);
     void clearProjects();
     void handleCompileMessage(const CompileMessage &message, Connection *conn);
     void handleCompletionMessage(const CompletionMessage &message, Connection *conn);
@@ -124,23 +126,25 @@ private:
     void loadCompilationDatabase(const QueryMessage &query, Connection *conn);
     void shutdown(const QueryMessage &query, Connection *conn);
     void builds(const QueryMessage &query, Connection *conn);
+    void suspendFile(const QueryMessage &query, Connection *conn);
     int nextId();
     void reindex(const QueryMessage &query, Connection *conn);
-    shared_ptr<Project> updateProjectForLocation(const Match &match);
-    shared_ptr<Project> currentProject() const
+    std::shared_ptr<Project> updateProjectForLocation(const Match &match);
+    void setupCurrentProjectFile(const std::shared_ptr<Project> &project);
+    std::shared_ptr<Project> currentProject() const
     {
         std::lock_guard<std::mutex> lock(mMutex);
         return mCurrentProject.lock();
     }
     int reloadProjects();
     void onCompletionStreamDisconnected(const SocketClient::SharedPtr& client);
-    shared_ptr<Project> addProject(const Path &path);
+    std::shared_ptr<Project> addProject(const Path &path);
     void onCompletionJobFinished(Path path, int id);
     void startCompletion(const Path &path, int line, int column, int pos, const String &contents, Connection *conn);
 
-    typedef Map<Path, shared_ptr<Project> > ProjectsMap;
+    typedef Map<Path, std::shared_ptr<Project> > ProjectsMap;
     ProjectsMap mProjects;
-    weak_ptr<Project> mCurrentProject;
+    std::weak_ptr<Project> mCurrentProject;
 
     static Server *sInstance;
     Options mOptions;
@@ -169,11 +173,11 @@ private:
 
     RTagsPluginFactory mPluginFactory;
 
-    Path mCurrentFile;
+    uint32_t mCurrentFileId;
 
     mutable std::mutex mMutex;
 
-    friend class CommandProcess;
+    CXIndex mIndex;
 };
 
 #endif

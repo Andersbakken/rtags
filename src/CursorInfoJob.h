@@ -11,7 +11,7 @@ class QueryMessage;
 class CursorInfoJob : public Job
 {
 public:
-    CursorInfoJob(const Location &loc, const QueryMessage &query, const shared_ptr<Project> &proj);
+    CursorInfoJob(const Location &loc, const QueryMessage &query, const std::shared_ptr<Project> &proj);
 protected:
     virtual void execute();
 private:
