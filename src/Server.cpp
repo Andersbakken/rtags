@@ -51,6 +51,7 @@ Server::Server()
 
 Server::~Server()
 {
+    std::cout << __PRETTY_FUNCTION__ << " : Killing Server\n";
     clear();
     assert(sInstance == this);
     sInstance = 0;
@@ -1098,7 +1099,10 @@ void Server::project(const QueryMessage &query, Connection *conn)
     if (query.query().isEmpty()) {
         const shared_ptr<Project> current = mCurrentProject.lock();
         const char *states[] = { "(unloaded)", "(inited)", "(loading)", "(loaded)" };
+	std::cout << "Project count: " << mProjects.size() << "\n";
+	
         for (ProjectsMap::const_iterator it = mProjects.begin(); it != mProjects.end(); ++it) {
+	    std::cout << it->first.constData() << "\n";
             conn->write<128>("%s %s%s",
                              it->first.constData(),
                              states[it->second->state()],
