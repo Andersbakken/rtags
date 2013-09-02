@@ -80,6 +80,7 @@ bool Server::init(const Options &options)
     {
         List<Path> plugins = Rct::executablePath().parentDir().files(Path::File);
         for (int i=0; i<plugins.size(); ++i) {
+	    std::cout << "Loading plugin: " << plugins.at(i).fileName() << "\n";
             if (mPluginFactory.addPlugin(plugins.at(i))) {
                 error() << "Loaded plugin" << plugins.at(i);
             }
@@ -159,6 +160,8 @@ bool Server::init(const Options &options)
 
 shared_ptr<Project> Server::addProject(const Path &path) // lock always held
 {
+    std::cout << __PRETTY_FUNCTION__ << " : Adding path = "
+	      << path.fileName() << "\n";
     shared_ptr<Project> &project = mProjects[path];
     if (!project) {
         project.reset(new Project(path));
@@ -855,6 +858,8 @@ void Server::startQueryJob(const shared_ptr<Job> &job)
 
 void Server::index(const GccArguments &args, const List<String> &projects)
 {
+  std::cout << __PRETTY_FUNCTION__ << " : ENTER!\n";
+  
     if (args.lang() == GccArguments::NoLang || mOptions.ignoredCompilers.contains(args.compiler())) {
         return;
     }
@@ -1185,6 +1190,8 @@ void Server::loadCompilationDatabase(const QueryMessage &query, Connection *conn
 #if defined(HAVE_V8) || defined(HAVE_YAJL)
     const Path path = query.query();
     const String json = path.readAll();
+    std::cout << __PRETTY_FUNCTION__ << " json = " << json.nullTerminated()
+	      << "\n";
     JSONParser parser(json);
     if (!parser.isValid()) {
         conn->write("Can't parse compilation database");
