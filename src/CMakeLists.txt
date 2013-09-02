@@ -166,10 +166,11 @@ target_link_libraries(rtags
 add_dependencies(rtags rct)
 
 add_executable(rdm rdm.cpp
-  ${RDM_SOURCES})
+#  ${RDM_SOURCES}
+)
 target_link_libraries(rdm
   -Lsrc/
-#  rtags
+  rtags
   shared
   rct
   -Wl,--start-group
