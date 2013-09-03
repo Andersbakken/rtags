@@ -29,7 +29,16 @@ if (GAMIN_FOUND EQUAL 1)
   add_definitions(${GAMIN_CFLAGS})
 endif ()
 
+pkg_check_modules( LIBEVENT libevent libevent_pthreads )
+if (LIBEVENT_FOUND)
+  message("Found libevent: ${LIBEVENT_FOUND}")
+  message("${LIBEVENT_CFLAGS} ${LIBEVENT_LDFLAGS}")
+else ()
+  message(FATAL_ERROR "libevent library not found")
+endif()
+
 add_subdirectory(rct)
+
 include(${CMAKE_CURRENT_LIST_DIR}/rct/compiler.cmake)
 # set(RCT_INCLUDE_DIR rct)
 # include(${CMAKE_CURRENT_LIST_DIR}/rct/rct.cmake)
@@ -114,13 +123,14 @@ link_directories(${LLVM_LIBRARY_DIRS})
 
 add_executable(clangtest clangtest.c)
 target_link_libraries(clangtest
-${LLVM_LDFLAGS}
--Wl,--start-group
-${CLANG_LIBS}
-${LLVM_LIBNAMES}
--Wl,--end-group
--lstdc++
-${CORESERVICES_LIBRARY} ${COREFOUNDATION_LIBRARY} ${SYSTEM_LIBS})
+  ${LLVM_LDFLAGS}
+  -Wl,--start-group
+  ${CLANG_LIBS}
+  ${LLVM_LIBNAMES}
+  -Wl,--end-group
+  -lstdc++
+  ${CORESERVICES_LIBRARY} ${COREFOUNDATION_LIBRARY} ${SYSTEM_LIBS}
+)
 
 add_executable(rc rc.cpp RClient.cpp)
 add_dependencies(rc rct shared)
@@ -148,6 +158,7 @@ endif ()
 
 add_library(rtags SHARED ${RDM_SOURCES})
 target_link_libraries(rtags
+  rct
   -L.
   -L./rct/
   ${LLVM_LDFLAGS}
@@ -158,10 +169,8 @@ target_link_libraries(rtags
   -lstdc++
   ${CORESERVICES_LIBRARY} ${COREFOUNDATION_LIBRARY} 
   -lshared
-  -lrct
-  -L/usr/local/lib
-  -levent_pthreads
-  -levent
+#  -lrct
+  ${LIBEVENT_LDFLAGS}
   ${GAMIN_LDFLAGS}
   ${SYSTEM_LIBS})
 add_dependencies(rtags rct)
@@ -186,19 +195,17 @@ set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/bin)
 
 #add_library(rtagsclang MODULE IndexerJobClang.cpp)
 add_library(rtagsclang SHARED IndexerJobClang.cpp)
+add_dependencies(rtagsclang rct)
 add_dependencies(rtagsclang rdm)
 target_link_libraries(rtagsclang
+  rct
   -L.
   -L./rct/
   ${LLVM_LDFLAGS}
   -Wl,--start-group
-#  ${CLANG_LIBS}
-#  ${LLVM_LIBNAMES}
-${CLANG_AMAZING}
-${LLVM_LIBS}
+  ${CLANG_LDFLAGS}
   -Wl,--end-group
   -lrtags
-  -lrct
 )
 
 if (V8_FOUND EQUAL 1)
