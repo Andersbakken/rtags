@@ -4,7 +4,7 @@
 # CLANG_FOUND        - True if Clang found.
 # CLANG_INCLUDE_DIRS - where to find Clang include files
 # CLANG_LIBS         - list of clang libs
-# CLANG_AMAZING      - list w/format: -lclangAST -lclangLex...
+# CLANG_LDFLAGS      - list w/format: -lclangAST -lclangLex...
 if (NOT LLVM_INCLUDE_DIRS OR NOT LLVM_LIBRARY_DIRS)
    message(FATAL_ERROR "No LLVM and Clang support requires LLVM")
 else (NOT LLVM_INCLUDE_DIRS OR NOT LLVM_LIBRARY_DIRS)
@@ -13,7 +13,7 @@ MACRO(FIND_AND_ADD_CLANG_LIB _libname_)
 find_library(CLANG_${_libname_}_LIB ${_libname_} ${LLVM_LIBRARY_DIRS} ${CLANG_LIBRARY_DIRS})
 if (CLANG_${_libname_}_LIB)
    set(CLANG_LIBS ${CLANG_LIBS} ${CLANG_${_libname_}_LIB})
-   set(CLANG_AMAZING ${CLANG_AMAZING} "-l${_libname_}")
+   set(CLANG_LDFLAGS ${CLANG_LDFLAGS} "-l${_libname_}")
 endif (CLANG_${_libname_}_LIB)
 ENDMACRO(FIND_AND_ADD_CLANG_LIB)
 
