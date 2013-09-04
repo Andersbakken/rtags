@@ -137,8 +137,15 @@ v8::Handle<v8::Value> log(const v8::Arguments &args)
 {
     Log out(Error);
     const int length = args.Length();
+    bool pretty = false;
     for (int i=0; i<length; ++i) {
-        out << args[i];
+        if (!args[i].IsEmpty()) {
+            if (i == 0 && args[i]->IsBoolean()) {
+                pretty = args[i]->IsTrue();
+            } else if (!args[i]->IsUndefined()) {
+                out << toCString(toJSON(args[i], pretty));
+            }
+        }
     }
     return v8::Undefined();
 }

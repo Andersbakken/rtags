@@ -28,6 +28,11 @@ function indexFile(code, file, verbose)
     scopeManager.attach();
     var parents = [];
 
+    function location(range)
+    {
+        return code.substr(range[0], range[1]);
+    }
+
     function childKey(child, offset) // slow
     {
         if (typeof offset === 'undefined')
@@ -102,13 +107,14 @@ function indexFile(code, file, verbose)
             }
         }
 
+        log("Adding symbol", name, range, location(range), declaration, found, arguments[3], arguments[4], arguments[5]);
         if (!found) {
             // log("Didn't find " + name + " " + declaration);
             if (declaration == 0) {
-                // log("Returning false for ", name, range);
+                log("Returning false for ", name, location(range), range);
                 return false;
             }
-            // log("Forcing " + name + " " + declaration);
+            log("Forcing " + name + " " + declaration);
             range.push(true);
             scopeStack[scopeIdx].objects[name] = [range];
         } else {
@@ -197,9 +203,14 @@ function indexFile(code, file, verbose)
             parents.push(node);
             var name = undefined;
             var declaration = 0;
+            var range = node.range;
             // log("entering", node.type, childKey(node));
             switch (node.type) {
             case esprima.Syntax.VariableDeclarator:
+                range = node.id.range;
+                name = resolveNames();
+                declaration = 1;
+                break;
             case esprima.Syntax.FunctionExpression:
             case esprima.Syntax.FunctionDeclaration:
                 name = resolveNames();
@@ -210,8 +221,14 @@ function indexFile(code, file, verbose)
                 name = resolveNames();
                 declaration = 0;
                 break;
+            case esprima.Syntax.Property:
+                name = resolveNames();
+                declaration = 2;
+                range = node.key.range;
+                break;
             case esprima.Syntax.MemberExpression:
                 name = resolveNames();
+                range = node.property.range;
                 declaration = 2;
                 break;
             case esprima.Syntax.Identifier:
@@ -224,10 +241,12 @@ function indexFile(code, file, verbose)
                 break;
             }
             if (name) {
-                if (!addSymbol(name, node.range, declaration)) {
+                if (!addSymbol(name, range, declaration, node.type)) {
                     // log("Failed to add", node.type);
-                    scopeStack[scopeStack.length - 1].pending.push({name:name, range:node.range});
+                    scopeStack[scopeStack.length - 1].pending.push({name:name, range:range});
                 }
+            } else {
+                log("ignored", node.type, node.range);
             }
             var scope = scopeManager.acquire(node);
             if (scope) {
