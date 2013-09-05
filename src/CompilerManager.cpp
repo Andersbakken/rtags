@@ -1,7 +1,6 @@
 #include "CompilerManager.h"
 #include <rct/Process.h>
 #include "Server.h"
-#include <iostream>
 
 static std::mutex sMutex;
 static Map<Path, List<String> > sFlags;
@@ -22,10 +21,6 @@ List<String> flags(const Path &compiler)
         DontUse
     } sUseCompilerFlags = Unset;
 
-    std::cout << __PRETTY_FUNCTION__ << " : Server::instance() = "
-	      << Server::instance() << "\n";
-    std::cout << "Path compiler = " << compiler.fileName() << "\n";
-    
     if (sUseCompilerFlags == Unset)
         sUseCompilerFlags = Server::instance()->options().options & Server::UseCompilerFlags ? Use : DontUse;
 

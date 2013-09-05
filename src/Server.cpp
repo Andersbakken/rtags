@@ -36,7 +36,6 @@
 #include <rct/Rct.h>
 #include <rct/RegExp.h>
 #include <stdio.h>
-#include <iostream>
 
 Server *Server::sInstance = 0;
 Server::Server()
@@ -51,7 +50,6 @@ Server::Server()
 
 Server::~Server()
 {
-    std::cout << __PRETTY_FUNCTION__ << " : Killing Server\n";
     clear();
     assert(sInstance == this);
     sInstance = 0;
@@ -80,7 +78,6 @@ bool Server::init(const Options &options)
     {
         List<Path> plugins = Rct::executablePath().parentDir().files(Path::File);
         for (int i=0; i<plugins.size(); ++i) {
-	    std::cout << "Loading plugin: " << plugins.at(i).fileName() << "\n";
             if (mPluginFactory.addPlugin(plugins.at(i))) {
                 error() << "Loaded plugin" << plugins.at(i);
             }
@@ -160,8 +157,6 @@ bool Server::init(const Options &options)
 
 shared_ptr<Project> Server::addProject(const Path &path) // lock always held
 {
-    std::cout << __PRETTY_FUNCTION__ << " : Adding path = "
-	      << path.fileName() << "\n";
     shared_ptr<Project> &project = mProjects[path];
     if (!project) {
         project.reset(new Project(path));
@@ -289,8 +284,6 @@ void Server::onNewMessage(Message *message, Connection *connection)
 
 void Server::handleCompileMessage(const CompileMessage &message, Connection *conn)
 {
-  std::cout << __PRETTY_FUNCTION__ << "\n";
-  
     conn->finish(); // nothing to wait for
     const Path workingDirectory = message.workingDirectory();
     const String arguments = message.arguments();
@@ -324,7 +317,6 @@ void Server::handleCompileMessage(const CompileMessage &message, Connection *con
         }
     } else {
         GccArguments args;
-	std::cout << __PRETTY_FUNCTION__ << " : GccArguments Parse!\n";
         if (args.parse(arguments, workingDirectory))
             index(args, projects);
     }
@@ -858,8 +850,6 @@ void Server::startQueryJob(const shared_ptr<Job> &job)
 
 void Server::index(const GccArguments &args, const List<String> &projects)
 {
-  std::cout << __PRETTY_FUNCTION__ << " : ENTER!\n";
-  
     if (args.lang() == GccArguments::NoLang || mOptions.ignoredCompilers.contains(args.compiler())) {
         return;
     }
@@ -1104,10 +1094,8 @@ void Server::project(const QueryMessage &query, Connection *conn)
     if (query.query().isEmpty()) {
         const shared_ptr<Project> current = mCurrentProject.lock();
         const char *states[] = { "(unloaded)", "(inited)", "(loading)", "(loaded)" };
-	std::cout << "Project count: " << mProjects.size() << "\n";
 	
         for (ProjectsMap::const_iterator it = mProjects.begin(); it != mProjects.end(); ++it) {
-	    std::cout << it->first.constData() << "\n";
             conn->write<128>("%s %s%s",
                              it->first.constData(),
                              states[it->second->state()],
@@ -1190,8 +1178,7 @@ void Server::loadCompilationDatabase(const QueryMessage &query, Connection *conn
 #if defined(HAVE_V8) || defined(HAVE_YAJL)
     const Path path = query.query();
     const String json = path.readAll();
-    std::cout << __PRETTY_FUNCTION__ << " json = " << json.nullTerminated()
-	      << "\n";
+
     JSONParser parser(json);
     if (!parser.isValid()) {
         conn->write("Can't parse compilation database");
