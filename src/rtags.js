@@ -116,6 +116,7 @@ function indexFile(code, file, verbose)
             }
             log("Forcing " + name + " " + declaration);
             range.push(true);
+            range.push(declaration);
             scopeStack[scopeIdx].objects[name] = [range];
         } else {
             // log("Found " + name + " " + declaration);
