@@ -16,7 +16,8 @@ public:
     enum JSCursorKind {
         JSInvalid = 10000,
         JSDeclaration,
-        JSReference
+        JSReference,
+        JSInclude
     };
 
     enum RPCursorKind {

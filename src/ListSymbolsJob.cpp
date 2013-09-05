@@ -10,7 +10,7 @@ enum {
 };
 
 
-ListSymbolsJob::ListSymbolsJob(const QueryMessage &query, const shared_ptr<Project> &proj)
+ListSymbolsJob::ListSymbolsJob(const QueryMessage &query, const std::shared_ptr<Project> &proj)
     : Job(query, query.flags() & QueryMessage::ElispList ? ElispFlags : DefaultFlags, proj),
       string(query.query())
 {
@@ -19,7 +19,7 @@ ListSymbolsJob::ListSymbolsJob(const QueryMessage &query, const shared_ptr<Proje
 void ListSymbolsJob::execute()
 {
     Set<String> out;
-    shared_ptr<Project> proj = project();
+    std::shared_ptr<Project> proj = project();
     if (proj) {
         if (queryFlags() & QueryMessage::IMenu) {
             out = imenu(proj);
@@ -50,7 +50,7 @@ void ListSymbolsJob::execute()
     }
 }
 
-Set<String> ListSymbolsJob::imenu(const shared_ptr<Project> &project)
+Set<String> ListSymbolsJob::imenu(const std::shared_ptr<Project> &project)
 {
     Set<String> out;
 
@@ -99,7 +99,7 @@ Set<String> ListSymbolsJob::imenu(const shared_ptr<Project> &project)
     return out;
 }
 
-Set<String> ListSymbolsJob::listSymbols(const shared_ptr<Project> &project)
+Set<String> ListSymbolsJob::listSymbols(const std::shared_ptr<Project> &project)
 {
     Set<String> out;
     const bool hasFilter = Job::hasFilter();

@@ -4,7 +4,7 @@
 #include "CursorInfo.h"
 #include "Project.h"
 
-FollowLocationJob::FollowLocationJob(const Location &loc, const QueryMessage &query, const shared_ptr<Project> &project)
+FollowLocationJob::FollowLocationJob(const Location &loc, const QueryMessage &query, const std::shared_ptr<Project> &project)
     : Job(query, 0, project), location(loc)
 {
 }

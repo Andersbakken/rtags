@@ -5,7 +5,7 @@
 #include "Project.h"
 #include "QueryMessage.h"
 
-CursorInfoJob::CursorInfoJob(const Location &loc, const QueryMessage &query, const shared_ptr<Project> &proj)
+CursorInfoJob::CursorInfoJob(const Location &loc, const QueryMessage &query, const std::shared_ptr<Project> &proj)
     : Job(query, 0, proj), location(loc)
 {
 }

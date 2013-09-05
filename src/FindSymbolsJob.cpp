@@ -9,7 +9,7 @@ static inline unsigned jobFlags(unsigned queryFlags)
     return (queryFlags & QueryMessage::ElispList) ? Job::QuoteOutput|Job::QuietJob : Job::None|Job::QuietJob;
 }
 
-FindSymbolsJob::FindSymbolsJob(const QueryMessage &query, const shared_ptr<Project> &proj)
+FindSymbolsJob::FindSymbolsJob(const QueryMessage &query, const std::shared_ptr<Project> &proj)
     : Job(query, ::jobFlags(query.flags()), proj), string(query.query())
 {
 }
@@ -17,7 +17,7 @@ FindSymbolsJob::FindSymbolsJob(const QueryMessage &query, const shared_ptr<Proje
 void FindSymbolsJob::execute()
 {
     Map<Location, bool> out;
-    shared_ptr<Project> proj = project();
+    std::shared_ptr<Project> proj = project();
     if (proj) {
         const SymbolNameMap &map = proj->symbolNames();
         SymbolNameMap::const_iterator it = map.lower_bound(string);

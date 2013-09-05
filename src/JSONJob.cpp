@@ -4,7 +4,7 @@
 #include "RTags.h"
 #include "Server.h"
 
-JSONJob::JSONJob(const QueryMessage &q, const shared_ptr<Project> &project)
+JSONJob::JSONJob(const QueryMessage &q, const std::shared_ptr<Project> &project)
     : Job(q, WriteUnfiltered|QuietJob, project), match(q.match())
 {
     assert(project.get());
@@ -22,7 +22,7 @@ static String toJSON(const Location &loc, uint32_t fileId, int length, int srcRo
 
 void JSONJob::execute()
 {
-    shared_ptr<Project> proj = project();
+    std::shared_ptr<Project> proj = project();
     const Path root = proj->path();
     const DependencyMap deps = proj->dependencies();
     // error() << deps.keys();

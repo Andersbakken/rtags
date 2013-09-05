@@ -5,16 +5,15 @@
 #include <IndexerJobClang.h>
 #include "Server.h"
 
-CompletionJob::CompletionJob(const shared_ptr<Project> &project, Type type)
-    : Job(WriteBuffered|WriteUnfiltered|QuietJob, project), mIndex(0), mUnit(0),
+CompletionJob::CompletionJob(const std::shared_ptr<Project> &project, Type type)
+    : Job(WriteBuffered|WriteUnfiltered|QuietJob, project), mUnit(0),
       mLine(-1), mColumn(-1), mPos(-1), mParseCount(-1), mType(type)
 {
 }
 
-void CompletionJob::init(CXIndex index, CXTranslationUnit unit, const Path &path, const List<String> &args,
+void CompletionJob::init(CXTranslationUnit unit, const Path &path, const List<String> &args,
                          int line, int column, int pos, const String &unsaved, int parseCount)
 {
-    mIndex = index;
     mUnit = unit;
     mPath = path;
     mArgs = args;
@@ -142,15 +141,11 @@ void CompletionJob::execute()
                                   mUnsaved.isEmpty() ? 0 : mUnsaved.constData(),
                                   static_cast<unsigned long>(mUnsaved.size()) };
     if (!mUnit) {
-        assert(!mIndex);
-        mIndex = clang_createIndex(0, 1);
         String clangLine;
-        RTags::parseTranslationUnit(mPath, mArgs, mUnit, mIndex, clangLine,
+        RTags::parseTranslationUnit(mPath, mArgs, mUnit, Server::instance()->clangIndex(), clangLine,
                                     0, 0, &unsavedFile, 1);
         mParseCount = 1;
         if (!mUnit) {
-            clang_disposeIndex(mIndex);
-            mIndex = 0;
             error() << "Failed to parse" << mPath << "Can't complete";
             return;
         }
@@ -160,7 +155,6 @@ void CompletionJob::execute()
     if (mParseCount == 1) {
         RTags::reparseTranslationUnit(mUnit, &unsavedFile, 1);
         if (!mUnit) {
-            clang_disposeIndex(mIndex);
             mFinished(mPath, id());
             return;
         } else {
@@ -271,10 +265,10 @@ void CompletionJob::execute()
         //processDiagnostics(results);
 
         clang_disposeCodeCompleteResults(results);
-        shared_ptr<Project> proj = project();
+        std::shared_ptr<Project> proj = project();
         if (proj) {
             // error() << "Adding to cache" << mParseCount << mPath;
-            proj->addToCache(mPath, mArgs, mIndex, mUnit, mParseCount);
+            proj->addToCache(mPath, mArgs, mUnit, mParseCount);
         }
     }
     mFinished(mPath, id());

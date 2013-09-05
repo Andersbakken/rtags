@@ -20,7 +20,7 @@ void Preprocessor::preprocess()
 {
     List<String> args = mArgs.args;
     args.append("-E");
-    args.append(mArgs.sourceFile);
+    args.append(mArgs.sourceFile());
 
     List<String> environ;
     environ << "PATH=/usr/local/bin:/usr/bin";

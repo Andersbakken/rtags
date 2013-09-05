@@ -5,7 +5,7 @@
 #include "FileManager.h"
 #include "Project.h"
 
-FindFileJob::FindFileJob(const QueryMessage &query, const shared_ptr<Project> &project)
+FindFileJob::FindFileJob(const QueryMessage &query, const std::shared_ptr<Project> &project)
     : Job(query, WriteBuffered|QuietJob, project)
 {
     const String q = query.query();
@@ -20,7 +20,7 @@ FindFileJob::FindFileJob(const QueryMessage &query, const shared_ptr<Project> &p
 
 void FindFileJob::execute()
 {
-    shared_ptr<Project> proj = project();
+    std::shared_ptr<Project> proj = project();
     if (!proj || !proj->fileManager) {
         return;
     }

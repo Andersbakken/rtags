@@ -9,11 +9,11 @@
 class ListSymbolsJob : public Job
 {
 public:
-    ListSymbolsJob(const QueryMessage &query, const shared_ptr<Project> &proj);
+    ListSymbolsJob(const QueryMessage &query, const std::shared_ptr<Project> &proj);
 protected:
     virtual void execute();
-    Set<String> imenu(const shared_ptr<Project> &project);
-    Set<String> listSymbols(const shared_ptr<Project> &project);
+    Set<String> imenu(const std::shared_ptr<Project> &project);
+    Set<String> listSymbols(const std::shared_ptr<Project> &project);
 private:
     const String string;
 };

@@ -5,6 +5,7 @@ const char *jsKindNames[] = {
     "JSInvalid",
     "JSDeclaration",
     "JSReference",
+    "JSInclude",
     0
 };
 

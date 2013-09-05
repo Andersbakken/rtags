@@ -8,21 +8,21 @@
 class ClangPlugin : public RTagsPlugin
 {
 public:
-    virtual shared_ptr<IndexerJob> createJob(const shared_ptr<Project> &project,
+    virtual std::shared_ptr<IndexerJob> createJob(const std::shared_ptr<Project> &project,
                                              IndexerJob::Type type,
                                              const SourceInformation &sourceInformation)
     {
         if (!sourceInformation.isJS())
-            return shared_ptr<IndexerJob>(new IndexerJobClang(project, type, sourceInformation));
-        return shared_ptr<IndexerJob>();
+            return std::shared_ptr<IndexerJob>(new IndexerJobClang(project, type, sourceInformation));
+        return std::shared_ptr<IndexerJob>();
     }
-    virtual shared_ptr<IndexerJob> createJob(const QueryMessage &msg,
-                                             const shared_ptr<Project> &project,
+    virtual std::shared_ptr<IndexerJob> createJob(const QueryMessage &msg,
+                                             const std::shared_ptr<Project> &project,
                                              const SourceInformation &sourceInformation)
     {
         if (!sourceInformation.isJS())
-            return shared_ptr<IndexerJob>(new IndexerJobClang(msg, project, sourceInformation));
-        return shared_ptr<IndexerJob>();
+            return std::shared_ptr<IndexerJob>(new IndexerJobClang(msg, project, sourceInformation));
+        return std::shared_ptr<IndexerJob>();
     }
 };
 
@@ -54,13 +54,13 @@ struct VerboseVisitorUserData {
     IndexerJobClang *job;
 };
 
-IndexerJobClang::IndexerJobClang(const shared_ptr<Project> &project, Type type,
+IndexerJobClang::IndexerJobClang(const std::shared_ptr<Project> &project, Type type,
                                  const SourceInformation &sourceInformation)
     : IndexerJob(project, type, sourceInformation), mLastCursor(nullCursor)
 {
 }
 
-IndexerJobClang::IndexerJobClang(const QueryMessage &msg, const shared_ptr<Project> &project,
+IndexerJobClang::IndexerJobClang(const QueryMessage &msg, const std::shared_ptr<Project> &project,
                                  const SourceInformation &sourceInformation)
     : IndexerJob(msg, project, sourceInformation), mLastCursor(nullCursor)
 {
@@ -76,8 +76,8 @@ void IndexerJobClang::inclusionVisitor(CXFile includedFile,
 
     const Path path = l.path();
     job->mData->symbolNames[path].insert(l);
-    const char *fn = path.fileName();
-    job->mData->symbolNames[String(fn, strlen(fn))].insert(l);
+    const String fn = path.fileName();
+    job->mData->symbolNames[fn].insert(l);
 
     const uint32_t fileId = l.fileId();
     if (!includeLen) {
@@ -599,6 +599,7 @@ void IndexerJobClang::handleInclude(const CXCursor &cursor, CXCursorKind kind, c
             {
                 String include = "#include ";
                 const Path path = refLoc.path();
+                mData->dependencies[Location::insertFile(path)].insert(sourceInformation().fileId);
                 mData->symbolNames[(include + path)].insert(location);
                 mData->symbolNames[(include + path.fileName())].insert(location);
             }
@@ -818,45 +819,42 @@ bool IndexerJobClang::handleCursor(const CXCursor &cursor, CXCursorKind kind, co
 
 bool IndexerJobClang::parse()
 {
-    assert(!data()->index);
-    data()->index = clang_createIndex(0, 1);
-    if (!data()->index) {
-        abort();
-        return false;
-    }
     List<String> args = mSourceInformation.args + CompilerManager::flags(mSourceInformation.compiler);
     CXTranslationUnit &unit = data()->unit;
     assert(!unit);
 
-    CXUnsavedFile unsaved = { mSourceInformation.sourceFile.constData(),
+    const Path sourceFile = mSourceInformation.sourceFile();
+    CXUnsavedFile unsaved = { sourceFile.constData(),
                               mContents.constData(),
                               static_cast<unsigned long>(mContents.size()) };
 
-    RTags::parseTranslationUnit(mSourceInformation.sourceFile, args,
-                                unit, data()->index, mClangLine,
-                                mFileId, &mData->dependencies, &unsaved, 1);
+    StopWatch watch;
+    RTags::parseTranslationUnit(sourceFile, args,
+                                unit, Server::instance()->clangIndex(), mClangLine,
+                                mSourceInformation.fileId, &mData->dependencies, &unsaved, 1);
+    data()->parseTime = watch.elapsed();
     warning() << "loading unit " << mClangLine << " " << (unit != 0);
     if (unit) {
         return !isAborted();
     }
 
     error() << "got failure" << mClangLine;
-    const String preprocessorOnly = RTags::filterPreprocessor(mSourceInformation.sourceFile);
+    const String preprocessorOnly = RTags::filterPreprocessor(sourceFile);
     if (!preprocessorOnly.isEmpty()) {
         CXUnsavedFile preprocessorOnlyUnsaved = {
-            mSourceInformation.sourceFile.constData(), preprocessorOnly.constData(),
+            sourceFile.constData(), preprocessorOnly.constData(),
             static_cast<unsigned long>(preprocessorOnly.size())
         };
-        RTags::parseTranslationUnit(mSourceInformation.sourceFile, args,
-                                    unit, data()->index, mClangLine,
-                                    mFileId, &mData->dependencies, &preprocessorOnlyUnsaved, 1);
+        RTags::parseTranslationUnit(sourceFile, args,
+                                    unit, Server::instance()->clangIndex(), mClangLine,
+                                    mSourceInformation.fileId, &mData->dependencies, &preprocessorOnlyUnsaved, 1);
     }
     if (unit) {
         clang_getInclusions(unit, IndexerJobClang::inclusionVisitor, this);
         clang_disposeTranslationUnit(unit);
         unit = 0;
     } else if (type() != Dump) {
-        mData->dependencies[mFileId].insert(mFileId);
+        mData->dependencies[mSourceInformation.fileId].insert(mSourceInformation.fileId);
     }
     return !isAborted();
 }
@@ -1091,12 +1089,27 @@ bool IndexerJobClang::visit()
     if (!data()->unit) {
         return false;
     }
-    clang_getInclusions(data()->unit, IndexerJobClang::inclusionVisitor, this);
+    StopWatch watch;
     if (isAborted())
         return false;
 
     clang_visitChildren(clang_getTranslationUnitCursor(data()->unit),
                         IndexerJobClang::indexVisitor, this);
+
+    const uint32_t fileId = sourceInformation().fileId;
+    const Set<uint32_t> &visited = visitedFiles();
+    for (Set<uint32_t>::const_iterator it = visited.begin(); it != visited.end(); ++it) {
+        warning() << sourceInformation().sourceFile() << "parsed" << Location::path(*it);
+        data()->dependencies[*it].insert(fileId);
+    }
+
+    const Set<uint32_t> &blocked = blockedFiles();
+    for (Set<uint32_t>::const_iterator it = blocked.begin(); it != blocked.end(); ++it) {
+        warning() << sourceInformation().sourceFile() << "blocked" << Location::path(*it);
+        data()->dependencies[*it].insert(fileId);
+    }
+    data()->visitTime = watch.elapsed();
+
     if (isAborted())
         return false;
     if (testLog(VerboseDebug)) {
@@ -1106,7 +1119,7 @@ bool IndexerJobClang::visit()
         u.out += "</VerboseVisitor " + mClangLine + ">";
         if (getenv("RTAGS_INDEXERJOB_DUMP_TO_FILE")) {
             char buf[1024];
-            snprintf(buf, sizeof(buf), "/tmp/%s.log", mSourceInformation.sourceFile.fileName());
+            snprintf(buf, sizeof(buf), "/tmp/%s.log", mSourceInformation.sourceFile().fileName());
             FILE *f = fopen(buf, "w");
             assert(f);
             fwrite(u.out.constData(), 1, u.out.size(), f);
@@ -1120,7 +1133,8 @@ bool IndexerJobClang::visit()
 
 void IndexerJobClang::index()
 {
-    mContents = mSourceInformation.sourceFile.readAll();
+    const Path sourceFile = mSourceInformation.sourceFile();
+    mContents = sourceFile.readAll();
 
     if (type() == Dump) {
         assert(id() != -1);
@@ -1134,7 +1148,7 @@ void IndexerJobClang::index()
         mParseTime = time(0);
         parse() && visit() && diagnose();
 
-        mData->message = mSourceInformation.sourceFile.toTilde();
+        mData->message = sourceFile.toTilde();
         if (!data()->unit) {
             mData->message += " error";
         }

@@ -15,7 +15,7 @@ class Location;
 class QueryMessage;
 class Project;
 class Connection;
-class Job : public ThreadPool::Job, public enable_shared_from_this<Job>
+class Job : public ThreadPool::Job, public std::enable_shared_from_this<Job>
 {
 public:
     enum Flag {
@@ -26,8 +26,8 @@ public:
         QuietJob = 0x8
     };
     enum { Priority = 10 };
-    Job(const QueryMessage &msg, unsigned jobFlags, const shared_ptr<Project> &proj);
-    Job(unsigned jobFlags, const shared_ptr<Project> &project);
+    Job(const QueryMessage &msg, unsigned jobFlags, const std::shared_ptr<Project> &proj);
+    Job(unsigned jobFlags, const std::shared_ptr<Project> &project);
     ~Job();
 
     bool hasFilter() const { return mPathFilters || mPathFiltersRegExp; }
@@ -52,7 +52,7 @@ public:
     unsigned keyFlags() const;
     bool filter(const String &val) const;
     Signal<std::function<void(const String &)> > &output() { return mOutput; }
-    shared_ptr<Project> project() const { return mProject.lock(); }
+    std::shared_ptr<Project> project() const { return mProject.lock(); }
     virtual void run();
     virtual void execute() = 0;
     void run(Connection *connection);
@@ -69,7 +69,7 @@ private:
     unsigned mJobFlags;
     unsigned mQueryFlags;
     Signal<std::function<void(const String &)> > mOutput;
-    weak_ptr<Project> mProject;
+    std::weak_ptr<Project> mProject;
     List<String> *mPathFilters;
     List<RegExp> *mPathFiltersRegExp;
     int mMax;
@@ -101,12 +101,12 @@ inline bool Job::write(const char *format, ...)
 class JobOutput
 {
 public:
-    JobOutput(const shared_ptr<Job> &j, const String &o, bool f)
+    JobOutput(const std::shared_ptr<Job> &j, const String &o, bool f)
         : job(j), out(o), finish(f), id(j->id())
     {
     }
 
-    weak_ptr<Job> job;
+    std::weak_ptr<Job> job;
     const String out;
     const bool finish;
     const int id;
