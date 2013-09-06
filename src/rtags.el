@@ -974,6 +974,7 @@ References to references will be treated as references to the referenced symbol"
                       ;;          (buffer-substring-no-properties (point) (+ (point) len)) replacewith (point) (car value))
                       (delete-char len)
                       (insert replacewith)
+                      (basic-save-buffer)
                       ))
                   )
                 )
