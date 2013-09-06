@@ -76,6 +76,14 @@ public:
     const SymbolNameMap &symbolNames() const { return mSymbolNames; }
     SymbolNameMap &symbolNames() { return mSymbolNames; }
 
+    Set<Location> locations(const String &symbolName) const;
+    enum SortFlag {
+        Sort_None = 0x0,
+        Sort_DeclarationOnly = 0x1,
+        Sort_Reverse = 0x2
+    };
+    List<RTags::SortedCursor> sort(const Set<Location> &locations, unsigned int flags = Sort_None) const;
+
     const FilesMap &files() const { return mFiles; }
     FilesMap &files() { return mFiles; }
 

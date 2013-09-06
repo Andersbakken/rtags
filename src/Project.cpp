@@ -955,3 +955,49 @@ List<std::pair<Path, List<String> > > Project::cachedUnits() const
         ret.append(std::make_pair((*it)->path, (*it)->arguments));
     return ret;
 }
+
+Set<Location> Project::locations(const String &symbolName) const
+{
+    SymbolNameMap::const_iterator it = mSymbolNames.lower_bound(symbolName);
+    Set<Location> ret;
+    while (it != mSymbolNames.end() && it->first.startsWith(symbolName)) {
+        bool ok = false;
+        if (it->first.size() == symbolName.size()) {
+            ok = true;
+        } else if ((it->first.at(symbolName.size()) == '<' || it->first.at(symbolName.size()) == '(')
+                   && it->first.indexOf(")::", symbolName.size()) == -1) { // we don't want to match foobar for void foobar(int)::parm
+            ok = true;
+        }
+        if (ok)
+            ret.unite(it->second);
+        ++it;
+    }
+    return ret;
+}
+
+List<RTags::SortedCursor> Project::sort(const Set<Location> &locations, unsigned int flags) const
+{
+    List<RTags::SortedCursor> sorted;
+    sorted.reserve(locations.size());
+    for (Set<Location>::const_iterator it = locations.begin(); it != locations.end(); ++it) {
+        RTags::SortedCursor node(*it);
+        const SymbolMap::const_iterator found = mSymbols.find(*it);
+        if (found != mSymbols.end()) {
+            node.isDefinition = found->second.isDefinition();
+            if (flags & Sort_DeclarationOnly && node.isDefinition) {
+                const CursorInfo decl = found->second.bestTarget(mSymbols);
+                if (!decl.isNull())
+                    continue;
+            }
+            node.kind = found->second.kind;
+        }
+        sorted.push_back(node);
+    }
+
+    if (flags & Sort_Reverse) {
+        std::sort(sorted.begin(), sorted.end(), std::greater<RTags::SortedCursor>());
+    } else {
+        std::sort(sorted.begin(), sorted.end());
+    }
+    return sorted;
+}

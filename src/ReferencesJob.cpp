@@ -21,9 +21,8 @@ void ReferencesJob::execute()
     Location startLocation;
     Map<Location, std::pair<bool, uint16_t> > references;
     if (proj) {
-        if (!symbolName.isEmpty()) {
-            locations = proj->symbolNames().value(symbolName);
-        }
+        if (!symbolName.isEmpty())
+            locations = proj->locations(symbolName);
         if (!locations.isEmpty()) {
             const SymbolMap &map = proj->symbols();
             const ErrorSymbolMap &errorMap = proj->errorSymbols();
