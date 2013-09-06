@@ -964,7 +964,7 @@ References to references will be treated as references to the referenced symbol"
                       (setq buf (find-file-noselect (car value)))))
                   (when buf
                     (set-buffer buf)
-                    (when (run-hook-with-args-until-failure rtags-edit-hook)
+                    (when (run-hook-with-args-until-failure 'rtags-edit-hook)
                       (incf modifications)
                       (rtags-goto-offset (cdr value))
                       (if (looking-at "~")
