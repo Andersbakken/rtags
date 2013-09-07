@@ -1879,7 +1879,6 @@ should use `irony-get-completion-point-anywhere'."
   (setq mode-name "rtags-taglist")
   (use-local-map rtags-mode-map)
   (run-hooks 'rtags-taglist-mode-hook)
-  (goto-char (point-min))
   )
 
 (defun rtags-taglist-insert-category (category name)
