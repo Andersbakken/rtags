@@ -155,8 +155,8 @@ String IndexerJobClang::addNamePermutations(const CXCursor &cursor, const Locati
         type = typeName(cursor);
         break;
     }
-    if (originalKind == CXCursor_ParmDecl)
-        error() << "full:" << (buf + pos) << "type:" << type;
+    // if (originalKind == CXCursor_ParmDecl)
+    //     error() << "full:" << (buf + pos) << "type:" << type;
     if (cutoff == -1)
         cutoff = pos;
     String ret;
