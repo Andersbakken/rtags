@@ -1958,6 +1958,7 @@ should use `irony-get-completion-point-anywhere'."
         )
       )
     (when (or functions classes variables enums macros other)
+      (delete-other-windows)
       (split-window-horizontally 25) ;; setting?
       (switch-to-buffer (rtags-get-buffer))
       (erase-buffer)
@@ -1966,7 +1967,9 @@ should use `irony-get-completion-point-anywhere'."
       (rtags-taglist-insert-category variables "Variables/Fields/Parameters")
       (rtags-taglist-insert-category enums "Enums")
       (rtags-taglist-insert-category macros "Macros/Includes")
-      (rtags-taglist-insert-category other "Other"))
+      (rtags-taglist-insert-category other "Other")
+      (goto-char (point-min))
+      )
     )
   )
 

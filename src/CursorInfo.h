@@ -68,11 +68,7 @@ public:
         return changed;
     }
 
-    enum DisplayNameFlag {
-        NoDisplayNameFlags = 0x0,
-        AllowSpaces = 0x1
-    };
-    String displayName(unsigned int flags = 0) const;
+    String displayName() const;
 
     int targetRank(const CursorInfo &target) const;
 

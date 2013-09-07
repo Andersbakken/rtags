@@ -85,8 +85,8 @@ void ValidateDBJob::execute()
                         foundError = 2;
                     } else if (RTags::isSymbol(lastFileContents[offset + it->second.symbolLength])) {
                         foundError = 3;
-                    } else if (!ci.isValid(it->first)) {
-                        foundError = 4;
+                        // } else if (!ci.isValid(it->first)) {
+                        //     foundError = 4; // This doesn't entirely work right now I think
                     }
                 }
                 if (foundError) {

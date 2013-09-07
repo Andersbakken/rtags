@@ -1,3 +1,4 @@
+
 #include "CursorInfo.h"
 #include "RTagsClang.h"
 
@@ -260,43 +261,31 @@ SymbolMap CursorInfo::declarationAndDefinition(const Location &loc, const Symbol
     return cursors;
 }
 
-String CursorInfo::displayName(unsigned int flags) const
+String CursorInfo::displayName() const
 {
     switch (kind) {
-    // ### probably a lot more of these that could go in here
-    case CXCursor_InclusionDirective:
-        return symbolName;
+    case CXCursor_FunctionTemplate:
+    case CXCursor_FunctionDecl:
+    case CXCursor_CXXMethod:
+    case CXCursor_Destructor:
+    case CXCursor_Constructor: {
+        const int end = symbolName.indexOf('(');
+        if (end != -1)
+            return symbolName.left(end);
+        break; }
+    case CXCursor_FieldDecl: {
+        int colon = symbolName.indexOf(':');
+        if (colon != -1) {
+            const int end = colon + 2;
+            while (colon > 0 && RTags::isSymbol(symbolName.at(colon - 1)))
+                --colon;
+            return symbolName.left(colon + 1) + symbolName.mid(end);
+        }
+        break; }
     default:
         break;
     }
-    // int paren = symbolName.indexOf('(');
-    // int bracket = symbolName.indexOf('<');
-    int end = symbolName.indexOf('(');
-    if (end == -1) {
-        end = symbolName.indexOf('<');
-        if (end == -1)
-            end = symbolName.size();
-    }
-    int start = end;
-    while (start > 0) {
-        const char ch = symbolName.at(start - 1);
-        if (ch == ' ') {
-            if (!(flags & AllowSpaces))
-                break;
-        } else if (!RTags::isSymbol(symbolName.at(start - 1))) {
-            break;
-        }
-        --start;
-    }
-    return symbolName.mid(start, end - start);
-
-    // int end = symbolName.indexOf('(');
-    // int start = 0;
-    // if (end != -1) {
-    //     start = symbolName.lastIndexOf("::", paren);
-    //     if (start == -1) {
-    //         start = symbolName.lastIndexOf(' ');
-    // }
+    return symbolName;
 }
 
 bool CursorInfo::isValid(const Location &location) const

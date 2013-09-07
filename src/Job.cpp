@@ -143,7 +143,7 @@ bool Job::write(const Location &location, unsigned flags)
             error() << "Somehow can't find" << location << "in symbols";
         } else {
             if (displayName)
-                out += '\t' + it->second.displayName(CursorInfo::AllowSpaces);
+                out += '\t' + it->second.displayName();
             if (cursorKind)
                 out += '\t' + it->second.kindSpelling();
             if (containingFunction) {

@@ -294,7 +294,7 @@ void Project::onJobFinished(const std::shared_ptr<IndexerJob> &job)
                         clangData->unit = 0;
                     }
                 }
-                extra = String::format<16>(" %d/%d", clangData->parseTime, clangData->visitTime);
+                // extra = String::format<16>(" %d/%d", clangData->parseTime, clangData->visitTime);
                 clangData->clear();
             }
 
