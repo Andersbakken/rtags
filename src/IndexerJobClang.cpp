@@ -717,11 +717,18 @@ String IndexerJobClang::typeName(const CXCursor &cursor)
     case CXCursor_StructDecl:
     case CXCursor_UnionDecl:
     case CXCursor_TypedefDecl:
+    case CXCursor_EnumDecl:
         ret = RTags::eatString(clang_getCursorSpelling(cursor));
         break;
-    case CXCursor_FieldDecl:
-        // ### If the return value is a template type we get an empty string here
-    case CXCursor_VarDecl:
+    case CXCursor_VarDecl: {
+        const CXCursor initType = RTags::findFirstChild(cursor);
+        if (clang_getCursorKind(initType) == CXCursor_InitListExpr) {
+            ret = typeString(clang_getCursorType(initType));
+        } else {
+            ret = typeString(clang_getCursorType(cursor));
+        }
+        break; }
+    case CXCursor_FieldDecl: // ### If the return value is a template type we get an empty string here
     case CXCursor_ParmDecl:
         ret = typeString(clang_getCursorType(cursor));
         break;
