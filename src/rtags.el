@@ -146,7 +146,8 @@
   (if (get-buffer rtags-buffer-name)
       (let (target
             (win (get-buffer-window rtags-buffer-name)))
-        (if win (select-window win))
+        (if win
+            (select-window win))
         (set-buffer rtags-buffer-name)
         (when (> (count-lines (point-max) (point-min)) 1)
           (cond ((and (= (point-at-bol) (point-min)) (not next))
@@ -154,15 +155,17 @@
                  (beginning-of-line)
                  (while (looking-at "$")
                    (goto-char (1- (point))))
-                 (message "*RTags* Wrapped"))
+                 (message "%s Wrapped" rtags-buffer-name))
                 ((and (= (point-at-eol) (point-max)) next)
                  (goto-char (point-min))
                  (setq target (point-min))
-                 (message "*RTags* Wrapped"))
+                 (message "%s Wrapped" rtags-buffer-name))
                 (t
                  (goto-char (rtags-next-prev-suitable-match next))))
           (beginning-of-line)
-          (if win (rtags-select-other-window) (rtags-select))))))
+          (if win (rtags-select-other-window)
+            (rtags-select)))))
+  )
 
 (defun rtags-next-diag () (interactive) (rtags-next-prev-diag t))
 (defun rtags-previous-diag () (interactive) (rtags-next-prev-diag nil))
@@ -545,7 +548,7 @@
 
 (defun rtags-goto-location (location &optional nobookmark other-window)
   "Go to a location passed in. It can be either: file,12 or file:13:14 or plain file"
-  ;;  (message (format "rtags-goto-location \"%s\"" location))
+  ;; (message (format "rtags-goto-location \"%s\"" location))
   (when (> (length location) 0)
     (cond ((string-match "\\(.*\\):\\([0-9]+\\):\\([0-9]+\\)" location)
            (let ((line (string-to-number (match-string 2 location)))
@@ -670,6 +673,11 @@
   :group 'rtags
   :type 'boolean)
 
+(defcustom rtags-tracking nil
+  "When on automatically jump to symbol under cursor in *RTags* buffer"
+  :group 'rtags
+  :type 'boolean)
+
 (defcustom rtags-error-timer-interval .5
   "Interval for minibuffer error timer"
   :group 'rtags
@@ -702,6 +710,11 @@
 
 (defcustom rtags-local-references-timer-interval .5
   "Interval for local-references timer"
+  :group 'rtags
+  :type 'number)
+
+(defcustom rtags-tracking-timer-interval .5
+  "Interval for tracking timer"
   :group 'rtags
   :type 'number)
 
@@ -1635,13 +1648,31 @@ should use `irony-get-completion-point-anywhere'."
     (error (message "Got error in rtags-update-current-project")))
   )
 
+(defvar rtags-tracking-timer nil)
+(defun rtags-restart-tracking-timer()
+  (interactive)
+  (if rtags-tracking-timer
+      (cancel-timer rtags-tracking-timer))
+  (setq rtags-tracking-timer
+        (and rtags-tracking (string= (buffer-name) rtags-buffer-name)
+             (run-with-idle-timer
+              rtags-tracking-timer-interval
+              nil
+              (lambda ()
+                (rtags-show-in-other-window)
+                (if rtags-tracking-timer
+                    (cancel-timer rtags-tracking-timer))
+                (setq rtags-tracking-timer nil)))))
+  )
+
 (defun rtags-post-command-hook ()
   (interactive)
   (when rtags-enabled
     (rtags-update-current-project)
     (rtags-update-current-error)
     (rtags-restart-completion-cache-timer)
-    (rtags-restart-update-local-references-timer))
+    (rtags-restart-update-local-references-timer)
+    (rtags-restart-tracking-timer))
   )
 
 (add-hook 'post-command-hook (function rtags-post-command-hook))
@@ -1881,6 +1912,8 @@ should use `irony-get-completion-point-anywhere'."
   (run-hooks 'rtags-taglist-mode-hook)
   )
 
+
+;; category (list (text . (location . linenumber)))
 (defun rtags-taglist-insert-category (category name)
   (let ((max 0))
     (when category
@@ -1901,18 +1934,20 @@ should use `irony-get-completion-point-anywhere'."
 (defun rtags-taglist ()
   (interactive)
   (rtags-save-location)
-  (setq rtags-taglist-hash nil)
+  (setq rtags-taglist-locations nil)
   (let* ((fn (buffer-file-name)) functions classes variables enums macros other)
     (with-temp-buffer
-      (rtags-call-rc :path fn :path-filter fn "-F" "--cursor-kind" "--display-name" "--no-context")
+      (rtags-call-rc :path fn :path-filter fn "-F" "--cursor-kind" "--display-name" "--no-context" "-l")
       ;; (message (buffer-string))
       (unless (= (point-min) (point-max))
         (while (not (eobp))
           (let ((line (buffer-substring-no-properties (point-at-bol) (point-at-eol))))
-            (if (string-match "^\\(.*,[0-9]+\\)\t\\(.*\\)\t\\(.*\\)$" line)
-                (let ((location (match-string 1 line))
-                      (text (match-string 2 line))
-                      (type (match-string 3 line)))
+            (if (string-match "^\\(.*:\\)\\([0-9]+\\)\\(:[0-9]+:\\)\t\\(.*\\)\t\\(.*\\)$" line)
+                (let ((loc-start (match-string 1 line))
+                      (linenum (match-string 2 line))
+                      (loc-end (match-string 3 line))
+                      (text (match-string 4 line))
+                      (type (match-string 5 line)))
                   (add-to-list (cond ((or (string= type "FunctionDecl") (string= type "CXXMethod")
                                           (string= type "CXXConstructor") (string= type "CXXDestructor")) 'functions)
                                      ((or (string= type "ClassDecl") (string= type "StructDecl")) 'classes)
@@ -1920,7 +1955,7 @@ should use `irony-get-completion-point-anywhere'."
                                      ((or (string= type "EnumDecl") (string= type "EnumConstantDecl")) 'enums)
                                      ((or (string= type "macro definition") (string= type "include directive")) 'macros)
                                      (t 'other))
-                               (cons text location)))))
+                               (cons (concat text ":" linenum) (concat loc-start linenum loc-end))))))
           (forward-line))
         )
       )
@@ -1975,6 +2010,8 @@ should use `irony-get-completion-point-anywhere'."
 
 (defun rtags-show-in-other-window ()
   (interactive)
+  (setq fisk t)
+  ;; (message "About to show")
   (rtags-select t nil t))
 
 (defun rtags-select-and-remove-rtags-buffer ()
@@ -2060,8 +2097,8 @@ should use `irony-get-completion-point-anywhere'."
 
 (defun rtags-show-rtags-buffer ()
   (interactive)
-  (if (get-buffer "*RTags*")
-      (display-buffer "*RTags*")))
+  (if (get-buffer rtags-buffer-name)
+      (display-buffer rtags-buffer-name)))
 
 (defun rtags-fixit (&optional ediff buffer)
   (interactive "P")
