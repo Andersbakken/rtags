@@ -714,6 +714,7 @@ String IndexerJobClang::typeName(const CXCursor &cursor)
     case CXCursor_ClassDecl:
     case CXCursor_StructDecl:
     case CXCursor_UnionDecl:
+    case CXCursor_TypedefDecl:
         ret = RTags::eatString(clang_getCursorSpelling(cursor));
         break;
     case CXCursor_FieldDecl:
