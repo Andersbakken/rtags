@@ -79,10 +79,11 @@
 ;; assign command to keys
 (setq rtags-mode-map (make-sparse-keymap))
 (define-key rtags-mode-map (kbd "RET") 'rtags-select-other-window)
-(define-key rtags-mode-map (kbd "M-RET") 'rtags-select-and-remove-rtags-buffer)
+(define-key rtags-mode-map (kbd "M-RET") 'rtags-select)
 (define-key rtags-mode-map (kbd "ENTER") 'rtags-select-other-window)
 (define-key rtags-mode-map (kbd "M-o") 'rtags-show-in-other-window)
-(define-key rtags-mode-map (kbd "SPC") 'rtags-select)
+(define-key rtags-mode-map (kbd "s") 'rtags-show-in-other-window)
+(define-key rtags-mode-map (kbd "SPC") 'rtags-select-and-remove-rtags-buffer)
 (define-key rtags-mode-map (kbd "q") 'rtags-bury-or-delete)
 (define-key rtags-mode-map (kbd "j") 'next-line)
 (define-key rtags-mode-map (kbd "k") 'previous-line)
@@ -530,14 +531,14 @@
   (setq rtags-last-buffer (current-buffer))
   (rtags-location-stack-push))
 
-(defun rtags-find-file-or-buffer (file-or-buffer &optional otherwindow)
+(defun rtags-find-file-or-buffer (file-or-buffer &optional other-window)
   (if (file-exists-p file-or-buffer)
-      (if otherwindow
+      (if other-window
           (find-file-other-window file-or-buffer)
         (find-file file-or-buffer))
     (let ((buf (get-buffer file-or-buffer)))
       (cond ((not buf) (message "No buffer named %s" file-or-buffer))
-            (otherwindow (switch-to-buffer-other-window file-or-buffer))
+            (other-window (switch-to-buffer-other-window file-or-buffer))
             (t (switch-to-buffer file-or-buffer))))
     )
   )
@@ -1952,7 +1953,7 @@ should use `irony-get-completion-point-anywhere'."
          (bookmark (format "R_%d" line))
          (window (selected-window)))
     (cond ((eq major-mode 'rtags-taglist-mode)
-           (rtags-goto-location (cdr (assoc line rtags-taglist-locations))) nil other-window)
+           (rtags-goto-location (cdr (assoc line rtags-taglist-locations)) nil other-window))
           ((and (>= rtags-buffer-bookmarks line)
                 (member bookmark (bookmark-all-names)))
            (when other-window
