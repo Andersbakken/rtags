@@ -32,12 +32,14 @@ public:
 
     bool hasFilter() const { return mPathFilters || mPathFiltersRegExp; }
     List<String> pathFilters() const { return mPathFilters ? *mPathFilters : List<String>(); }
+    uint32_t fileFilter() const;
     int id() const { return mId; }
     void setId(int id) { mId = id; }
     enum WriteFlag {
         NoWriteFlags = 0x0,
         IgnoreMax = 0x1,
-        DontQuote = 0x2
+        DontQuote = 0x2,
+        Unfiltered = 0x4
     };
     bool write(const String &out, unsigned flags = NoWriteFlags);
     bool write(const CursorInfo &info, unsigned flags = NoWriteFlags);

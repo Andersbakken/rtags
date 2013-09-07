@@ -43,9 +43,17 @@ Job::~Job()
     delete mPathFiltersRegExp;
 }
 
+uint32_t Job::fileFilter() const
+{
+    if (mPathFilters && mPathFilters->size() == 1) {
+        return Location::fileId(mPathFilters->first());
+    }
+    return 0;
+}
+
 bool Job::write(const String &out, unsigned flags)
 {
-    if (mJobFlags & WriteUnfiltered || filter(out)) {
+    if ((mJobFlags & WriteUnfiltered) || (flags & Unfiltered) || filter(out)) {
         if ((mJobFlags & QuoteOutput) && !(flags & DontQuote)) {
             String o((out.size() * 2) + 2, '"');
             char *ch = o.data() + 1;

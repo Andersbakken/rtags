@@ -118,7 +118,7 @@ struct Option opts[] = {
     { ReferenceName, "references-name", 'R', required_argument, "Find references matching arg." },
     { ReferenceLocation, "references", 'r', required_argument, "Find references matching this location." },
     { ListSymbols, "list-symbols", 'S', optional_argument, "List symbol names matching arg." },
-    { FindSymbols, "find-symbols", 'F', required_argument, "Find symbols matching arg." },
+    { FindSymbols, "find-symbols", 'F', optional_argument, "Find symbols matching arg." },
     { CursorInfo, "cursor-info", 'U', required_argument, "Get cursor info for this location." },
     { Status, "status", 's', optional_argument, "Dump status of rdm. Arg can be symbols or symbolNames." },
     { IsIndexed, "is-indexed", 'T', required_argument, "Check if rtags knows about, and is ready to return information about, this source file." },
@@ -717,9 +717,11 @@ bool RClient::parse(int &argc, char **argv)
         case NoContext:
             mQueryFlags |= QueryMessage::NoContext;
             break;
-        case PathFilter:
-            mPathFilters.insert(optarg);
-            break;
+        case PathFilter: {
+            Path p = optarg;
+            p.resolve();
+            mPathFilters.insert(p);
+            break; }
         case RangeFilter: {
             List<RegExp::Capture> caps;
             RegExp rx("^\\([0-9][0-9]*\\)-\\([0-9][0-9]*\\)$");
@@ -857,6 +859,7 @@ bool RClient::parse(int &argc, char **argv)
         case Project:
         case FindFile:
         case ListSymbols:
+        case FindSymbols:
         case JSON:
         case Builds:
         case JobCount:
@@ -870,6 +873,7 @@ bool RClient::parse(int &argc, char **argv)
             case Status: type = QueryMessage::Status; break;
             case JSON: type = QueryMessage::JSON; break;
             case ListSymbols: type = QueryMessage::ListSymbols; break;
+            case FindSymbols: type = QueryMessage::FindSymbols; break;
             case JobCount: type = QueryMessage::JobCount; break;
             default: assert(0); break;
             }
@@ -1002,9 +1006,6 @@ bool RClient::parse(int &argc, char **argv)
             break; }
         case ReferenceName:
             addQuery(QueryMessage::ReferencesName, optarg);
-            break;
-        case FindSymbols:
-            addQuery(QueryMessage::FindSymbols, optarg);
             break;
         }
     }

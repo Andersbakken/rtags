@@ -956,21 +956,40 @@ List<std::pair<Path, List<String> > > Project::cachedUnits() const
     return ret;
 }
 
-Set<Location> Project::locations(const String &symbolName) const
+static inline bool matchSymbolName(const String &needle, const String &haystack)
 {
-    SymbolNameMap::const_iterator it = mSymbolNames.lower_bound(symbolName);
-    Set<Location> ret;
-    while (it != mSymbolNames.end() && it->first.startsWith(symbolName)) {
-        bool ok = false;
-        if (it->first.size() == symbolName.size()) {
-            ok = true;
-        } else if ((it->first.at(symbolName.size()) == '<' || it->first.at(symbolName.size()) == '(')
-                   && it->first.indexOf(")::", symbolName.size()) == -1) { // we don't want to match foobar for void foobar(int)::parm
-            ok = true;
+    if (haystack.startsWith(needle)) {
+        if (haystack.size() == needle.size()) {
+            return true;
+        } else if ((haystack.at(needle.size()) == '<' || haystack.at(needle.size()) == '(')
+                   && haystack.indexOf(")::", needle.size()) == -1) { // we don't want to match foobar for void foobar(int)::parm
+            return true;
         }
-        if (ok)
-            ret.unite(it->second);
-        ++it;
+    }
+    return false;
+}
+
+Set<Location> Project::locations(const String &symbolName, uint32_t fileId) const
+{
+    Set<Location> ret;
+    if (fileId) {
+        const SymbolMap s = symbols(fileId);
+        for (SymbolMap::const_iterator it = s.begin(); it != s.end(); ++it) {
+            if (!RTags::isReference(it->second.kind) && (symbolName.isEmpty() || matchSymbolName(symbolName, it->second.symbolName)))
+                ret.insert(it->first);
+        }
+    } else if (symbolName.isEmpty()) {
+        for (SymbolMap::const_iterator it = mSymbols.begin(); it != mSymbols.end(); ++it) {
+            if (!RTags::isReference(it->second.kind))
+                ret.insert(it->first);
+        }
+    } else {
+        SymbolNameMap::const_iterator it = mSymbolNames.lower_bound(symbolName);
+        while (it != mSymbolNames.end() && it->first.startsWith(symbolName)) {
+            if (matchSymbolName(symbolName, it->first))
+                ret.unite(it->second);
+            ++it;
+        }
     }
     return ret;
 }
@@ -1000,4 +1019,16 @@ List<RTags::SortedCursor> Project::sort(const Set<Location> &locations, unsigned
         std::sort(sorted.begin(), sorted.end());
     }
     return sorted;
+}
+
+SymbolMap Project::symbols(uint32_t fileId) const
+{
+    SymbolMap ret;
+    if (fileId) {
+        for (SymbolMap::const_iterator it = mSymbols.lower_bound(Location(fileId, 0));
+             it != mSymbols.end() && it->first.fileId() == fileId; ++it) {
+            ret[it->first] = it->second;
+        }
+    }
+    return ret;
 }

@@ -76,7 +76,8 @@ public:
     const SymbolNameMap &symbolNames() const { return mSymbolNames; }
     SymbolNameMap &symbolNames() { return mSymbolNames; }
 
-    Set<Location> locations(const String &symbolName) const;
+    Set<Location> locations(const String &symbolName, uint32_t fileId = 0) const;
+    SymbolMap symbols(uint32_t fileId) const;
     enum SortFlag {
         Sort_None = 0x0,
         Sort_DeclarationOnly = 0x1,
