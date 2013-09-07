@@ -133,23 +133,32 @@ bool Job::write(const Location &location, unsigned flags)
         }
     }
     String out = location.key(keyFlags());
-    if (queryFlags() & QueryMessage::ContainingFunction) {
+    const bool containingFunction = queryFlags() & QueryMessage::ContainingFunction;
+    const bool cursorKind = queryFlags() & QueryMessage::CursorKind;
+    const bool displayName = queryFlags() & QueryMessage::DisplayName;
+    if (containingFunction || cursorKind || displayName) {
         const SymbolMap &symbols = project()->symbols();
         SymbolMap::const_iterator it = symbols.find(location);
         if (it == symbols.end()) {
             error() << "Somehow can't find" << location << "in symbols";
         } else {
-            const uint32_t fileId = location.fileId();
-            const int offset = location.offset();
-            while (true) {
-                --it;
-                if (it->first.fileId() != fileId)
-                    break;
-                if (it->second.isDefinition() && RTags::isContainer(it->second.kind) && offset >= it->second.start && offset <= it->second.end) {
-                    out += "\tfunction: " + it->second.symbolName;
-                    break;
-                } else if (it == symbols.begin()) {
-                    break;
+            if (displayName)
+                out += '\t' + it->second.displayName(CursorInfo::AllowSpaces);
+            if (cursorKind)
+                out += '\t' + it->second.kindSpelling();
+            if (containingFunction) {
+                const uint32_t fileId = location.fileId();
+                const int offset = location.offset();
+                while (true) {
+                    --it;
+                    if (it->first.fileId() != fileId)
+                        break;
+                    if (it->second.isDefinition() && RTags::isContainer(it->second.kind) && offset >= it->second.start && offset <= it->second.end) {
+                        out += "\tfunction: " + it->second.symbolName;
+                        break;
+                    } else if (it == symbols.begin()) {
+                        break;
+                    }
                 }
             }
         }

@@ -260,8 +260,15 @@ SymbolMap CursorInfo::declarationAndDefinition(const Location &loc, const Symbol
     return cursors;
 }
 
-String CursorInfo::displayName() const
+String CursorInfo::displayName(unsigned int flags) const
 {
+    switch (kind) {
+    // ### probably a lot more of these that could go in here
+    case CXCursor_InclusionDirective:
+        return symbolName;
+    default:
+        break;
+    }
     // int paren = symbolName.indexOf('(');
     // int bracket = symbolName.indexOf('<');
     int end = symbolName.indexOf('(');
@@ -271,8 +278,16 @@ String CursorInfo::displayName() const
             end = symbolName.size();
     }
     int start = end;
-    while (start > 0 && RTags::isSymbol(symbolName.at(start - 1)))
+    while (start > 0) {
+        const char ch = symbolName.at(start - 1);
+        if (ch == ' ') {
+            if (!(flags & AllowSpaces))
+                break;
+        } else if (!RTags::isSymbol(symbolName.at(start - 1))) {
+            break;
+        }
         --start;
+    }
     return symbolName.mid(start, end - start);
 
     // int end = symbolName.indexOf('(');

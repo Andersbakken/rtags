@@ -47,26 +47,28 @@ public:
     };
 
     enum Flag {
-        NoContext = 0x00001,
-        LineNumbers = 0x00002,
-        FilterSystemIncludes = 0x00004,
-        StripParentheses = 0x00008,
-        AllReferences = 0x00010,
-        ReverseSort = 0x00020,
-        ElispList = 0x00040,
-        IMenu = 0x00080,
-        MatchRegexp = 0x00100,
-        MatchCaseInsensitive = 0x00200,
-        FindVirtuals = 0x00400,
-        Silent = 0x00800,
-        AbsolutePath = 0x01000,
-        FindFilePreferExact = 0x02000,
-        CursorInfoIncludeParents = 0x04000,
-        CursorInfoIncludeTargets = 0x08000,
-        CursorInfoIncludeReferences = 0x10000,
-        DeclarationOnly = 0x20000,
-        ContainingFunction = 0x40000,
-        WaitForLoadProject = 0x80000
+        NoContext = 0x000001,
+        LineNumbers = 0x000002,
+        FilterSystemIncludes = 0x000004,
+        StripParentheses = 0x000008,
+        AllReferences = 0x000010,
+        ReverseSort = 0x000020,
+        ElispList = 0x000040,
+        IMenu = 0x000080,
+        MatchRegexp = 0x000100,
+        MatchCaseInsensitive = 0x000200,
+        FindVirtuals = 0x000400,
+        Silent = 0x000800,
+        AbsolutePath = 0x001000,
+        FindFilePreferExact = 0x002000,
+        CursorInfoIncludeParents = 0x004000,
+        CursorInfoIncludeTargets = 0x008000,
+        CursorInfoIncludeReferences = 0x010000,
+        DeclarationOnly = 0x020000,
+        ContainingFunction = 0x040000,
+        WaitForLoadProject = 0x080000,
+        CursorKind = 0x100000,
+        DisplayName = 0x200000
     };
 
     QueryMessage(Type type = Invalid);

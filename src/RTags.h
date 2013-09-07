@@ -68,7 +68,7 @@ inline bool addTo(Container &container, const Value &value)
 
 static inline bool isSymbol(char ch)
 {
-    return (isalnum(ch) || ch == '_');
+    return (isalnum(ch) || ch == '_' || ch == '~');
 }
 
 static inline bool isOperator(char ch)

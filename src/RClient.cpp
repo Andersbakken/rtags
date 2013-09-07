@@ -24,10 +24,12 @@ enum OptionType {
     CursorInfoIncludeParents,
     CursorInfoIncludeReferences,
     CursorInfoIncludeTargets,
+    CursorKind,
     DeclarationOnly,
     DeleteProject,
     Dependencies,
     Diagnostics,
+    DisplayName,
     DumpFile,
     ElispList,
     FilterSystemHeaders,
@@ -169,6 +171,8 @@ struct Option opts[] = {
     { CursorInfoIncludeParents, "cursorinfo-include-parents", 0, no_argument, "Use to make --cursor-info include parent cursors." },
     { CursorInfoIncludeTargets, "cursorinfo-include-targets", 0, no_argument, "Use to make --cursor-info include target cursors." },
     { CursorInfoIncludeReferences, "cursorinfo-include-references", 0, no_argument, "Use to make --cursor-info include reference cursors." },
+    { CursorKind, "cursor-kind", 0, no_argument, "Include cursor kind in --find-symbols output." },
+    { DisplayName, "display-name", 0, no_argument, "Include display name in --find-symbols output." },
     { WithProject, "with-project", 0, required_argument, "Like --project but pass as a flag." },
     { DeclarationOnly, "declaration-only", 0, no_argument, "Filter out definitions (unless inline).", },
     { IMenu, "imenu", 0, no_argument, "Use with --list-symbols to provide output for (rtags-imenu) (filter namespaces, fully qualified function names, ignore certain cursors etc)." },
@@ -664,6 +668,9 @@ bool RClient::parse(int &argc, char **argv)
         case CursorInfoIncludeReferences:
             mQueryFlags |= QueryMessage::CursorInfoIncludeReferences;
             break;
+        case CursorKind:
+            mQueryFlags |= QueryMessage::CursorKind;
+            break;
         case CodeComplete:
             // logFile = "/tmp/rc.log";
             mCommands.append(std::shared_ptr<RCCommand>(new CompletionCommand));
@@ -693,6 +700,9 @@ bool RClient::parse(int &argc, char **argv)
             CompletionCommand *cmd = new CompletionCommand(path, atoi(caps[2].capture.constData()), atoi(caps[3].capture.constData()));
             mCommands.append(std::shared_ptr<RCCommand>(cmd));
             break; }
+        case DisplayName:
+            mQueryFlags |= QueryMessage::DisplayName;
+            break;
         case AllReferences:
             mQueryFlags |= QueryMessage::AllReferences;
             break;
