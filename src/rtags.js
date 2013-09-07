@@ -30,7 +30,7 @@ function indexFile(code, file, verbose)
 
     function location(range)
     {
-        return code.substr(range[0], range[1]);
+        return code.substring(range[0], range[1]);
     }
 
     function childKey(child, offset) // slow
@@ -88,7 +88,7 @@ function indexFile(code, file, verbose)
             var object;
             var idx = name.indexOf('.');
             if (idx != -1) {
-                object = name.substr(0, idx);
+                object = name.substring(0, idx);
             } else {
                 object = name;
             }
@@ -96,7 +96,7 @@ function indexFile(code, file, verbose)
                 // log("Looking for " + name + " " + object + " " + i + " " + JSON.stringify(scopeStack[i].objects));
                 if (scopeStack[i].objects[name]) {
                     found = true;
-                    // log("Found", name, "in a scope", i, scopeStack.length);
+                    log("Found", name, "in a scope", i, scopeStack.length);
                     scopeIdx = i;
                     break;
                 } else if (scopeStack[i].objects[object]) {
@@ -109,24 +109,23 @@ function indexFile(code, file, verbose)
 
         log("Adding symbol", name, range, location(range), declaration, found, arguments[3], arguments[4], arguments[5]);
         if (!found) {
-            // log("Didn't find " + name + " " + declaration);
+            log("Didn't find " + name + " " + declaration);
             if (declaration == 0) {
                 log("Returning false for ", name, location(range), range);
                 return false;
             }
             log("Forcing " + name + " " + declaration);
             range.push(true);
-            range.push(declaration);
             scopeStack[scopeIdx].objects[name] = [range];
         } else {
-            // log("Found " + name + " " + declaration);
+            log("Found " + name + " " + declaration);
             scopeStack[scopeIdx].objects[name].push(range);
         }
         ++scopeStack[scopeIdx].count;
         return true;
     }
 
-    function resolveNames()
+    function qualifiedName()
     {
         var seen = [];
         function resolveName(node)
@@ -161,7 +160,7 @@ function indexFile(code, file, verbose)
         var name = undefined;
         // if (parents[parents.length - 1].id)
         //     name = resolveName(parents[parents.length - 1].id);
-       // log("resolveNames");
+       // log("qualifiedName");
         for (var i=parents.length - 1; i>=0; --i) {
             if (parents[i].type) {
                 var done = false;
@@ -199,80 +198,150 @@ function indexFile(code, file, verbose)
         return name;
     }
 
+    function range(node, key)
+    {
+        if (!node)
+            node = parents[parents.length - 1];
+
+        switch (node.type) {
+        // case esprima.Syntax.Identifier:
+            // return node.range;
+            // case esprima.Syntax.MemberExpression:
+            //     return resolveName(node.object) + "." + resolveName(node.property);
+            // case esprima.Syntax.ObjectExpression:
+            // case esprima.Syntax.Property:
+            //     return resolveName(node.key);
+            // case esprima.Syntax.VariableDeclarator:
+        case esprima.Syntax.FunctionDeclaration:
+        case esprima.Syntax.VariableDeclarator:
+            if (node.id)
+                return range(node.id, key);
+            // case esprima.Syntax.AssignmentExpression:
+            //     return resolveName(node.left);
+            break;
+        case esprima.Syntax.Property:
+            if (key) {
+                if (node.key)
+                    return range(node.key);
+            } else if (node.value) {
+                return range(node.value);
+            }
+            //     return resolveName(node.callee);
+            break;
+        case esprima.Syntax.MemberExpression:
+            if (key) {
+                if (node.object)
+                    return range(node.object, key);
+            } else if (node.property) {
+                return range(node.property, key);
+            }
+            break;
+        case esprima.Syntax.CallExpression:
+            if (node.callee)
+                return range(node.callee, false);
+            break;
+        default:
+            break;
+            // log("Not sure how to resolve", node.type, node.range);
+        }
+        return node.range;
+   }
+
     estraverse.traverse(esrefactorContext._syntax, {
         enter: function (node) {
+            var ret = undefined;
             parents.push(node);
             var name = undefined;
             var declaration = 0;
-            var range = node.range;
             // log("entering", node.type, childKey(node));
             switch (node.type) {
             case esprima.Syntax.VariableDeclarator:
-                range = node.id.range;
-                name = resolveNames();
-                declaration = 1;
+                log("Found a declaration", qualifiedName(), node.type, range(),
+                    code.substring(range()[0], range()[1]));
+
+                // range = node.id.range;
+                // name = qualifiedName();
+                // declaration = 1;
                 break;
-            case esprima.Syntax.FunctionExpression:
+            // case esprima.Syntax.FunctionExpression:
             case esprima.Syntax.FunctionDeclaration:
-                name = resolveNames();
-                declaration = 1;
+                log("Found a declaration", qualifiedName(), node.type, range(),
+                    code.substring(range()[0], range()[1]));
+
+                // name = qualifiedName();
+                // declaration = 1;
                 break;
             case esprima.Syntax.CallExpression:
+                log("Found a reference", qualifiedName(), node.type, range(),
+                    code.substring(range()[0], range()[1]));
+                // log(true, "shit", estraverse.VisitorOption);
+                ret = estraverse.VisitorOption.Skip;
+
             // case esprima.Syntax.AssignmentExpression:
-                name = resolveNames();
-                declaration = 0;
+                // name = qualifiedName();
+                // declaration = 0;
                 break;
             case esprima.Syntax.Property:
-                name = resolveNames();
-                declaration = 2;
-                range = node.key.range;
+                log("Found a declaration", qualifiedName(), node.type, range(undefined, true),
+                    code.substring(range(undefined, true)[0], range(undefined, true)[1]));
+                // name = qualifiedName();
+                // declaration = 2;
+                // range = node.key.range;
                 break;
-            case esprima.Syntax.MemberExpression:
-                name = resolveNames();
-                range = node.property.range;
-                declaration = 2;
-                break;
+            // case esprima.Syntax.MemberExpression:
+            //     log("Found a declaration or reference", qualifiedName(), node.type, range(),
+            //         code.substring(range()[0], range()[1]));
+            //     // name = qualifiedName();
+            //     // range = node.property.range;
+            //     // declaration = 2;
+            //     break;
             case esprima.Syntax.Identifier:
-                if (parentTypeIs(esprima.Syntax.MemberExpression) && isChild("object")) {
-                    name = resolveNames();
-                    declaration = 0;
+                if (parentTypeIs(esprima.Syntax.MemberExpression)) {
+                    if (isChild("object")) {
+                        log("Found a reference", qualifiedName(), "MemberExpression.object", range(),
+                            code.substring(range()[0], range()[1]));
+                    } else if (isChild("property")) {
+                        log("Found a declaration or reference", qualifiedName(), "MemberExpression.property", range(),
+                            code.substring(range()[0], range()[1]));
+                    }
                 }
                 break;
             default:
                 break;
             }
-            if (name) {
-                if (!addSymbol(name, range, declaration, node.type)) {
-                    // log("Failed to add", node.type);
-                    scopeStack[scopeStack.length - 1].pending.push({name:name, range:range});
-                }
-            } else {
-                log("ignored", node.type, node.range);
-            }
-            var scope = scopeManager.acquire(node);
-            if (scope) {
-                scope.objects = {};
-                scope.pending = [];
-                scope.count = 0;
-                scopes.push(scope);
-                scopeStack.push(scope);
-                node.scope = true;
-                // log("Pushing a scope " + node.type);
-            }
+            // if (name) {
+            //     if (!addSymbol(name, range, declaration, node.type)) {
+            //         // log("Failed to add", node.type);
+            //         scopeStack[scopeStack.length - 1].pending.push({name:name, range:range});
+            //     }
+            // } else {
+            //     // log("ignored", node.type, node.range);
+            // }
+            // var scope = scopeManager.acquire(node);
+            // if (scope) {
+            //     scope.objects = {};
+            //     scope.pending = [];
+            //     scope.count = 0;
+            //     scopes.push(scope);
+            //     scopeStack.push(scope);
+            //     node.scope = true;
+            //     // log("Pushing a scope " + node.type);
+            // }
+            return ret;
         },
         leave: function (node) {
             // log("leaving", node.type);
             parents.pop();
-            if (node.scope) {
-                scopeManager.release(node);
-                // log("Popping a scope");
-                var pending = scopeStack[scopeStack.length - 1].pending;
-                // log("Trying out pending", pending);
-                for (var i=0; i<pending.length; ++i) {
-                    addSymbol(pending[i].name, pending[i].range, 2);
-                }
-                scopeStack.pop();
-            }
+            // if (node.scope) {
+            //     scopeManager.release(node);
+            //     // log("Popping a scope");
+            //     var pending = scopeStack[scopeStack.length - 1].pending;
+            //     // log("Trying out pending", pending);
+            //     for (var i=0; i<pending.length; ++i) {
+            //         addSymbol(pending[i].name, pending[i].range, 2);
+            //     }
+            //     scopeStack.pop();
+            // }
         }
     });
 
