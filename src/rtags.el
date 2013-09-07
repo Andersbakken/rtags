@@ -78,9 +78,10 @@
 (defvar rtags-mode-map nil)
 ;; assign command to keys
 (setq rtags-mode-map (make-sparse-keymap))
-(define-key rtags-mode-map (kbd "RET") 'rtags-select-other-buffer)
+(define-key rtags-mode-map (kbd "RET") 'rtags-select-other-window)
 (define-key rtags-mode-map (kbd "M-RET") 'rtags-select-and-remove-rtags-buffer)
-(define-key rtags-mode-map (kbd "ENTER") 'rtags-select-other-buffer)
+(define-key rtags-mode-map (kbd "ENTER") 'rtags-select-other-window)
+(define-key rtags-mode-map (kbd "M-o") 'rtags-show-in-other-window)
 (define-key rtags-mode-map (kbd "SPC") 'rtags-select)
 (define-key rtags-mode-map (kbd "q") 'rtags-bury-or-delete)
 (define-key rtags-mode-map (kbd "j") 'next-line)
@@ -160,7 +161,7 @@
                 (t
                  (goto-char (rtags-next-prev-suitable-match next))))
           (beginning-of-line)
-          (if win (rtags-select-other-buffer) (rtags-select))))))
+          (if win (rtags-select-other-window) (rtags-select))))))
 
 (defun rtags-next-diag () (interactive) (rtags-next-prev-diag t))
 (defun rtags-previous-diag () (interactive) (rtags-next-prev-diag nil))
@@ -184,7 +185,7 @@
                  (setq target (point-at-bol 0))))
           (goto-char target)
           (beginning-of-line)
-          (if win (rtags-select-other-buffer) (rtags-select))))))
+          (if win (rtags-select-other-window) (rtags-select))))))
 
 (defun rtags-executable-find (exe)
   (let ((result (if rtags-path (concat rtags-path "/bin/" exe) (executable-find exe))))
@@ -541,14 +542,14 @@
     )
   )
 
-(defun rtags-goto-location (location &optional nobookmark otherbuffer)
+(defun rtags-goto-location (location &optional nobookmark other-window)
   "Go to a location passed in. It can be either: file,12 or file:13:14 or plain file"
   ;;  (message (format "rtags-goto-location \"%s\"" location))
   (when (> (length location) 0)
     (cond ((string-match "\\(.*\\):\\([0-9]+\\):\\([0-9]+\\)" location)
            (let ((line (string-to-number (match-string 2 location)))
                  (column (string-to-number (match-string 3 location))))
-             (rtags-find-file-or-buffer (match-string 1 location) otherbuffer)
+             (rtags-find-file-or-buffer (match-string 1 location) other-window)
              (run-hooks rtags-after-find-file-hook)
              (goto-char (point-min))
              (forward-line (1- line))
@@ -557,21 +558,21 @@
              t))
           ((string-match "\\(.*\\):\\([0-9]+\\)" location)
            (let ((line (string-to-number (match-string 2 location))))
-             (rtags-find-file-or-buffer (match-string 1 location) otherbuffer)
+             (rtags-find-file-or-buffer (match-string 1 location) other-window)
              (run-hooks rtags-after-find-file-hook)
              (goto-char (point-min))
              (forward-line (1- line))
              t))
           ((string-match "\\(.*\\),\\([0-9]+\\)" location)
            (let ((offset (string-to-number (match-string 2 location))))
-             (rtags-find-file-or-buffer (match-string 1 location) otherbuffer)
+             (rtags-find-file-or-buffer (match-string 1 location) other-window)
              (run-hooks rtags-after-find-file-hook)
              (rtags-goto-offset offset)
              t))
           (t
            (if (string-match "^ +\\(.*\\)$" location)
                (setq location (match-string 1 location)))
-           (rtags-find-file-or-buffer location otherbuffer)))
+           (rtags-find-file-or-buffer location other-window)))
     (unless nobookmark (rtags-location-stack-push))
     )
   )
@@ -1077,7 +1078,7 @@ References to references will be treated as references to the referenced symbol"
           ;;           dabbrev--last-buffer-found nil
           ;;           dabbrev--abbrev-char-regexp (or dabbrev-abbrev-char-regexp
           ;;                                           "\\sw\\|\\s_")
-          ;;           dabbrev--check-other-buffers dabbrev-check-other-buffers))
+          ;;           dabbrev--check-other-windows dabbrev-check-other-windows))
 
           (insert (with-current-buffer rtags-completion
                     (save-excursion
@@ -1783,7 +1784,7 @@ should use `irony-get-completion-point-anywhere'."
            (rtags-start-mode t nil)
            (setq buffer-read-only wasreadonly)
            (when (and rtags-jump-to-first-match (not noautojump))
-             (rtags-select-other-buffer)
+             (rtags-select-other-window)
              )
            )
           )
@@ -1945,30 +1946,36 @@ should use `irony-get-completion-point-anywhere'."
     )
   )
 
-(defun rtags-select (&optional otherbuffer remove)
+(defun rtags-select (&optional other-window remove show)
   (interactive "P")
   (let* ((line (line-number-at-pos))
          (bookmark (format "R_%d" line))
          (window (selected-window)))
     (cond ((eq major-mode 'rtags-taglist-mode)
-           (rtags-goto-location (cdr (assoc line rtags-taglist-locations))) nil otherbuffer)
+           (rtags-goto-location (cdr (assoc line rtags-taglist-locations))) nil other-window)
           ((and (>= rtags-buffer-bookmarks line)
                 (member bookmark (bookmark-all-names)))
-           (when otherbuffer
+           (when other-window
              (if (= (length (window-list)) 1)
                  (split-window))
              (other-window 1))
            (bookmark-jump bookmark)
            (rtags-location-stack-push))
-          (t (rtags-goto-location (buffer-substring-no-properties (point-at-bol) (point-at-eol)) nil otherbuffer)))
+          (t (rtags-goto-location (buffer-substring-no-properties (point-at-bol) (point-at-eol)) nil other-window)))
     (if remove
-        (delete-window window))
+        (delete-window window)
+      (if show
+          (select-window window)))
     )
   )
 
-(defun rtags-select-other-buffer (&optional nototherbuffer)
+(defun rtags-select-other-window (&optional not-other-window)
   (interactive "P")
-  (rtags-select (not nototherbuffer)))
+  (rtags-select (not not-other-window)))
+
+(defun rtags-show-in-other-window ()
+  (interactive)
+  (rtags-select t nil t))
 
 (defun rtags-select-and-remove-rtags-buffer ()
   (interactive)
@@ -2124,18 +2131,18 @@ should use `irony-get-completion-point-anywhere'."
               (end (+ (string-to-number (match-string 3 cursorinfo)) 1)))
           (cons start end)))))
 
-(defvar rtags-other-buffer-window nil)
-(defun rtags-remove-other-buffer ()
+(defvar rtags-other-window-window nil)
+(defun rtags-remove-other-window ()
   (interactive)
   (let ((ret ""))
     (if (and (> (length (window-list nil nil)) 1)
-             rtags-other-buffer-window
-             (window-live-p rtags-other-buffer-window))
+             rtags-other-window-window
+             (window-live-p rtags-other-window-window))
         (progn
-          (select-window rtags-other-buffer-window)
+          (select-window rtags-other-window-window)
           (setq ret (rtags-current-location))
-          (delete-window rtags-other-buffer-window)
-          (setq rtags-other-buffer-window nil)))
+          (delete-window rtags-other-window-window)
+          (setq rtags-other-window-window nil)))
     ret))
 
 (defcustom rtags-timeout nil
@@ -2158,8 +2165,8 @@ should use `irony-get-completion-point-anywhere'."
   :group 'rtags
   :type 'function)
 
-(defcustom rtags-other-buffer-window-size-percentage 30 "Percentage size of other buffer" :group 'rtags :type 'integer)
-(defun rtags-show-target-in-other-buffer ()
+(defcustom rtags-other-window-window-size-percentage 30 "Percentage size of other buffer" :group 'rtags :type 'integer)
+(defun rtags-show-target-in-other-window ()
   (interactive)
   (let ((target (rtags-target)))
     (unless target
@@ -2170,14 +2177,14 @@ should use `irony-get-completion-point-anywhere'."
               (if (= (count-lines (point-min) (point-max)) 1)
                   (setq target (buffer-substring-no-properties (point) (- (point-max) 1))))))))
     (if target
-        (let ((other-buffer-content (rtags-remove-other-buffer))
+        (let ((other-window-content (rtags-remove-other-window))
               (win (selected-window))
-              (height (* (window-height) (- 100 rtags-other-buffer-window-size-percentage))))
-          (unless (string= target other-buffer-content)
+              (height (* (window-height) (- 100 rtags-other-window-window-size-percentage))))
+          (unless (string= target other-window-content)
             (progn
               (setq height (/ height 100))
-              (setq rtags-other-buffer-window (split-window nil height))
-              (select-window rtags-other-buffer-window)
+              (setq rtags-other-window-window (split-window nil height))
+              (select-window rtags-other-window-window)
               (rtags-goto-location target)
               (recenter-top-bottom 0)
               (select-window win)))))))
