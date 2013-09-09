@@ -346,7 +346,6 @@ bool JSParser::parse(const Path &path, SymbolMap *symbols, SymbolNameMap *symbol
                 const int refCount = refs->Length();
                 String keyString = toCString(key);
                 CursorInfo *decl = 0;
-                Map<Location, CursorInfo*> pendingRefCursors;
                 Location declLoc;
                 for (int k=0; k<refCount; ++k) {
                     const v8::Handle<v8::Array> ref = get<v8::Array>(refs, k);
@@ -377,25 +376,15 @@ bool JSParser::parse(const Path &path, SymbolMap *symbols, SymbolNameMap *symbol
                     c.end = static_cast<uint32_t>(get<v8::Number>(ref, 1)->Value());
                     c.symbolLength = c.end - c.start;
                     c.symbolName = keyString;
-                    if (ref->Length() == 3) {
+                    if (!k) {
                         (*symbolNames)[keyString].insert(loc);
                         c.kind = CursorInfo::JSDeclaration;
                         decl = &c;
                         declLoc = loc;
-                        for (Map<Location, CursorInfo*>::const_iterator it = pendingRefCursors.begin(); it != pendingRefCursors.end(); ++it) {
-                            it->second->targets.insert(declLoc);
-                            c.references.insert(it->first);
-                        }
-                        // error() << "Got a declaration" << loc << keyString << pendingRefCursors.size();
-                        pendingRefCursors.clear();
                     } else {
                         c.kind = CursorInfo::JSReference;
-                        if (decl) {
-                            decl->references.insert(loc);
-                            c.targets.insert(declLoc);
-                        } else {
-                            pendingRefCursors[loc] = &c;
-                        }
+                        decl->references.insert(loc);
+                        c.targets.insert(declLoc);
                         // error() << "Got a reference" << loc << keyString;
                     }
                 }

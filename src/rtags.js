@@ -49,11 +49,18 @@ function indexFile(code, file, verbose)
     {
         if (typeof offset == 'undefined')
             offset = parents.length - 1;
-        return (offset > 0
-                && parents[offset - 1]
-                && typeof parents[offset - 1][key] != 'undefined'
-                && offset <= parents.length
-                && parents[offset - 1][key] == parents[offset]);
+
+        if (offset > 0 && parents[offset - 1]) {
+            var p = parents[offset - 1][key];
+            if (p !== undefined) {
+                if (Array.isArray(p)) {
+                    return p.indexOf(parents[offset]) != -1;
+                } else {
+                    return p == parents[offset];
+                }
+            }
+        }
+        return false;
     }
     function parentTypeIs(type, offset)
     {
@@ -74,15 +81,12 @@ function indexFile(code, file, verbose)
     var scopes = [];
     var scopeStack = [];
 
-    // 0, only-if-found
-    // 1, declaration,
-    // 2, declaration if unique in current scope
-
-    function addSymbol(name, range, declaration)
+    // lowest rank in stack is the declaration
+    function addSymbol(name, range, declarationRank)
     {
         var scopeIdx = scopeStack.length - 1;
         var found = false;
-        if (declaration) {
+        if (declarationRank == 0) {
             found = scopeStack[scopeIdx].objects[name] !== undefined;
         } else {
             var object;
@@ -93,40 +97,39 @@ function indexFile(code, file, verbose)
                 object = name;
             }
             for (var i=scopeStack.length - 1; i>=0; --i) {
-                // log("Looking for " + name + " " + object + " " + i + " " + JSON.stringify(scopeStack[i].objects));
                 if (scopeStack[i].objects[name]) {
                     found = true;
-                    log("Found", name, "in a scope", i, scopeStack.length);
+                    // log("Found", name, "in a scope", i, scopeStack.length);
                     scopeIdx = i;
                     break;
                 } else if (scopeStack[i].objects[object]) {
-                    // log("Found", name, "in a scope", i, scopeStack.length);
+                    log("Found", name, "in a scope", i, scopeStack.length);
+                    found = true;
                     scopeIdx = i;
                     break;
                 }
             }
-        }
+         }
 
-        log("Adding symbol", name, range, location(range), declaration, found, arguments[3], arguments[4], arguments[5]);
-        if (!found) {
-            log("Didn't find " + name + " " + declaration);
-            if (declaration == 0) {
-                log("Returning false for ", name, location(range), range);
-                return false;
-            }
-            log("Forcing " + name + " " + declaration);
-            range.push(true);
-            scopeStack[scopeIdx].objects[name] = [range];
-        } else {
-            log("Found " + name + " " + declaration);
+        log("Adding symbol", name, range, location(range), found, declarationRank, parents[parents.length - 2].type, parents[parents.length - 1].type);
+        if (range.length != 2) {
+            throw new Error("Something wrong here " + name + " " + range);
+        }
+        range.push(declarationRank);
+        if (found) {
             scopeStack[scopeIdx].objects[name].push(range);
+        } else {
+            scopeStack[scopeIdx].objects[name] = [range];
         }
         ++scopeStack[scopeIdx].count;
-        return true;
     }
 
-    function qualifiedName()
+    function qualifiedName(offset, walk)
     {
+        if (offset === undefined)
+            offset = -1;
+        if (walk === undefined)
+            walk = true;
         var seen = [];
         function resolveName(node)
         {
@@ -136,12 +139,19 @@ function indexFile(code, file, verbose)
             if (node) {
                 switch (node.type) {
                 case esprima.Syntax.Identifier:
+                    node.handled = true;
                     return node.name;
+                case esprima.Syntax.Literal:
+                    node.handled = true;
+                    return node.value;
                 case esprima.Syntax.MemberExpression:
+                    if (seen.indexOf(node.object) != -1 || seen.indexOf(node.property) != -1)
+                        break;
                     return resolveName(node.object) + "." + resolveName(node.property);
                 case esprima.Syntax.ObjectExpression:
                 case esprima.Syntax.Property:
                     return resolveName(node.key);
+                    // break;
                 case esprima.Syntax.VariableDeclarator:
                 case esprima.Syntax.FunctionDeclaration:
                     return resolveName(node.id);
@@ -158,26 +168,26 @@ function indexFile(code, file, verbose)
         }
 
         var name = undefined;
-        // if (parents[parents.length - 1].id)
-        //     name = resolveName(parents[parents.length - 1].id);
-       // log("qualifiedName");
-        for (var i=parents.length - 1; i>=0; --i) {
+        var end = walk ? 0 : parents.length + offset;
+        for (var i=parents.length + offset; i>=end; --i) {
             if (parents[i].type) {
-                var done = false;
+                 var done = false;
                 switch (parents[i].type) {
                 case esprima.Syntax.FunctionExpression:
                 case esprima.Syntax.FunctionDeclaration:
                 // case esprima.Syntax.VariableDeclarator:
                     done = i < parents.length - 1;
                     break;
-                case esprima.Syntax.MemberExpression:
-                    if (i < parents.length - 1 && parents[i + 1] == parents[i].object)
-                        continue;
-                    break;
-                case esprima.Syntax.AssignmentExpression:
-                    if (i < parents.length - 1 && parents[i + 1] == parents[i].left)
-                        continue;
-                    break;
+                // case esprima.Syntax.MemberExpression:
+                //     // if (i < parents.length - 1 && parents[i + 1] == parents[i].object) {
+                //     //     log("Fisj?");
+                //     //     continue;
+                //     // }
+                //     break;
+                // case esprima.Syntax.AssignmentExpression:
+                //     // if (i < parents.length - 1 && parents[i + 1] == parents[i].left)
+                //     //     continue;
+                //     break;
                 default:
                     break;
                 }
@@ -204,20 +214,10 @@ function indexFile(code, file, verbose)
             node = parents[parents.length - 1];
 
         switch (node.type) {
-        // case esprima.Syntax.Identifier:
-            // return node.range;
-            // case esprima.Syntax.MemberExpression:
-            //     return resolveName(node.object) + "." + resolveName(node.property);
-            // case esprima.Syntax.ObjectExpression:
-            // case esprima.Syntax.Property:
-            //     return resolveName(node.key);
-            // case esprima.Syntax.VariableDeclarator:
         case esprima.Syntax.FunctionDeclaration:
         case esprima.Syntax.VariableDeclarator:
             if (node.id)
                 return range(node.id, key);
-            // case esprima.Syntax.AssignmentExpression:
-            //     return resolveName(node.left);
             break;
         case esprima.Syntax.Property:
             if (key) {
@@ -226,7 +226,6 @@ function indexFile(code, file, verbose)
             } else if (node.value) {
                 return range(node.value);
             }
-            //     return resolveName(node.callee);
             break;
         case esprima.Syntax.MemberExpression:
             if (key) {
@@ -255,93 +254,64 @@ function indexFile(code, file, verbose)
             var declaration = 0;
             // log("entering", node.type, childKey(node));
             switch (node.type) {
-            case esprima.Syntax.VariableDeclarator:
-                log("Found a declaration", qualifiedName(), node.type, range(),
-                    code.substring(range()[0], range()[1]));
-
-                // range = node.id.range;
-                // name = qualifiedName();
-                // declaration = 1;
+            case esprima.Syntax.Program:
+                node.scope = true;
                 break;
-            // case esprima.Syntax.FunctionExpression:
+            case esprima.Syntax.VariableDeclarator:
             case esprima.Syntax.FunctionDeclaration:
-                log("Found a declaration", qualifiedName(), node.type, range(),
-                    code.substring(range()[0], range()[1]));
-
-                // name = qualifiedName();
-                // declaration = 1;
+                node.scope = true;
+                addSymbol(qualifiedName(), range(), 0);
                 break;
             case esprima.Syntax.CallExpression:
-                log("Found a reference", qualifiedName(), node.type, range(),
-                    code.substring(range()[0], range()[1]));
-                // log(true, "shit", estraverse.VisitorOption);
+                addSymbol(qualifiedName(), range(), 5);
                 ret = estraverse.VisitorOption.Skip;
-
-            // case esprima.Syntax.AssignmentExpression:
-                // name = qualifiedName();
-                // declaration = 0;
                 break;
             case esprima.Syntax.Property:
-                log("Found a declaration", qualifiedName(), node.type, range(undefined, true),
-                    code.substring(range(undefined, true)[0], range(undefined, true)[1]));
-                // name = qualifiedName();
-                // declaration = 2;
-                // range = node.key.range;
+                addSymbol(qualifiedName(), range(undefined, true), 0);
                 break;
-            // case esprima.Syntax.MemberExpression:
-            //     log("Found a declaration or reference", qualifiedName(), node.type, range(),
-            //         code.substring(range()[0], range()[1]));
-            //     // name = qualifiedName();
-            //     // range = node.property.range;
-            //     // declaration = 2;
-            //     break;
             case esprima.Syntax.Identifier:
-                if (parentTypeIs(esprima.Syntax.MemberExpression)) {
-                    if (isChild("object")) {
-                        log("Found a reference", qualifiedName(), "MemberExpression.object", range(),
-                            code.substring(range()[0], range()[1]));
-                    } else if (isChild("property")) {
-                        log("Found a declaration or reference", qualifiedName(), "MemberExpression.property", range(),
-                            code.substring(range()[0], range()[1]));
+                if (!node.handled) {
+                    if (parentTypeIs(esprima.Syntax.MemberExpression)) {
+                        if (isChild("object")) {
+                            addSymbol(qualifiedName(undefined, false), range(), 5);
+                        } else if (isChild("property")) {
+                            addSymbol(qualifiedName(-2, false), range(), 3);
+                        }
+                    } else if (parentTypeIs(esprima.Syntax.Property)  && isChild("value")) {
+                        addSymbol(qualifiedName(undefined, false), range(), 5);
+                    } else if (parentTypeIs(esprima.Syntax.AssignmentExpression)  && isChild("left")) {
+                        addSymbol(qualifiedName(-2, false), range(), 3);
+                    } else if (parentTypeIs([esprima.Syntax.FunctionDeclaration, esprima.Syntax.FunctionExpression]) && isChild("params")) {
+                        addSymbol(qualifiedName(undefined, false), range(), 0);
+                    } else if (parentTypeIs([esprima.Syntax.UnaryExpression, esprima.Syntax.BinaryExpression,
+                                             esprima.Syntax.AssignmentExpression, esprima.Syntax.ReturnStatement,
+                                             esprima.Syntax.NewExpression, esprima.Syntax.UpdateExpression,
+                                             esprima.Syntax.ForInStatement])) {
+                        addSymbol(qualifiedName(undefined, false), range(), 5);
+                    } else if (parentTypeIs([esprima.Syntax.IfStatement, esprima.Syntax.WhileStatement,
+                                             esprima.Syntax.DoWhileStatement, esprima.Syntax.ForStatement]) && isChild("test")) {
+                        addSymbol(qualifiedName(undefined, false), range(), 5);
+                    } else if (parentTypeIs(esprima.Syntax.FunctionExpression)) {
+                        node.handled = true;
+                    }
+
+                    if (!node.handled) {
+                        log("Unhandled identifier", node.name, node.range, parents[parents.length - 2].type);
                     }
                 }
                 break;
             default:
                 break;
             }
-            // if (name) {
-            //     if (!addSymbol(name, range, declaration, node.type)) {
-            //         // log("Failed to add", node.type);
-            //         scopeStack[scopeStack.length - 1].pending.push({name:name, range:range});
-            //     }
-            // } else {
-            //     // log("ignored", node.type, node.range);
-            // }
-            // var scope = scopeManager.acquire(node);
-            // if (scope) {
-            //     scope.objects = {};
-            //     scope.pending = [];
-            //     scope.count = 0;
-            //     scopes.push(scope);
-            //     scopeStack.push(scope);
-            //     node.scope = true;
-            //     // log("Pushing a scope " + node.type);
-            // }
+            if (node.scope) {
+                var scope = {objects:{}, count:0, type:node.type};
+                scopeStack.push(scope);
+                scopes.push(scope);
+            }
             return ret;
         },
         leave: function (node) {
-            // log("leaving", node.type);
             parents.pop();
-            // if (node.scope) {
-            //     scopeManager.release(node);
-            //     // log("Popping a scope");
-            //     var pending = scopeStack[scopeStack.length - 1].pending;
-            //     // log("Trying out pending", pending);
-            //     for (var i=0; i<pending.length; ++i) {
-            //         addSymbol(pending[i].name, pending[i].range, 2);
-            //     }
-            //     scopeStack.pop();
-            // }
         }
     });
 
@@ -349,7 +319,12 @@ function indexFile(code, file, verbose)
 
     var ret = { objects:[] };
     for (var s=0; s<scopes.length; ++s) {
-        if (scopes[s].count) {
+        var scope = scopes[s];
+        if (scope.count) {
+            for (var name in scope.objects) {
+                scope.objects[name].sort(function(l, r) { return r[2] - l[2]; });
+            }
+
             ret.objects.push(scopes[s].objects);
             log(s, scopes[s].objects);
         }
