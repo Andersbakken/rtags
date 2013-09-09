@@ -1672,6 +1672,7 @@ should use `irony-get-completion-point-anywhere'."
     (rtags-update-current-error)
     (rtags-restart-completion-cache-timer)
     (rtags-restart-update-local-references-timer)
+    (rtags-close-taglist)
     (rtags-restart-tracking-timer))
   )
 
@@ -1905,6 +1906,7 @@ should use `irony-get-completion-point-anywhere'."
             ((eq code 'lambda)
              (if (intern-soft string complete-list) t nil))))))
 
+(defvar rtags-taglist-protected nil)
 (defvar rtags-taglist-locations nil)
 (define-derived-mode rtags-taglist-mode fundamental-mode
   (setq mode-name "rtags-taglist")
@@ -1912,6 +1914,24 @@ should use `irony-get-completion-point-anywhere'."
   (run-hooks 'rtags-taglist-mode-hook)
   )
 
+(defun rtags-close-taglist ()
+  (interactive)
+  (unless rtags-taglist-protected
+    (let ((buf (get-buffer rtags-buffer-name)))
+      (if (and buf
+               (not (eq (current-buffer) buf))
+               (eq (with-current-buffer buf major-mode) 'rtags-taglist-mode))
+          (let ((windows (window-list)))
+            (while windows
+              (when (eq (window-buffer (car windows)) buf)
+                (delete-window (car windows))
+                (setq windows nil))
+              (setq windows (cdr windows)))
+            )
+        )
+      )
+    )
+  )
 
 ;; category (list (text . (location . linenumber)))
 (defun rtags-taglist-insert-category (category name)
