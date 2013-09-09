@@ -207,7 +207,7 @@ bool GccArguments::parse(String args, const Path &base)
                     mClangArgs.append(split.at(++i));
                 }
             } else if (arg.startsWith("-isystem") || arg.startsWith("-iquote")) {
-                const int from = (arg[3] == 'q' ? 7 : 8);
+                const int from = (arg[2] == 'q' ? 7 : 8);
                 assert(args.size() >= from);
                 Path inc;
                 if (arg.size() > from) {
