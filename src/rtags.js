@@ -247,7 +247,41 @@ function indexFile(code, file, verbose)
             // log("Not sure how to resolve", node.type, node.range);
         }
         return node.range;
-   }
+    }
+
+    function declarationRank(idx)
+    {
+        if (idx === undefined)
+            idx = parents.length - 1;
+        switch (parents[idx].type) {
+        case esprima.Syntax.VariableDeclarator:
+        case esprima.Syntax.FunctionDeclaration:
+        case esprima.Syntax.FunctionExpression:
+        case esprima.Syntax.Property:
+            return 0;
+        case esprima.Syntax.MemberExpression:
+            return declarationRank(idx - 1);
+        case esprima.Syntax.AssignmentExpression:
+            return 3;
+        case esprima.Syntax.CallExpression:
+        case esprima.Syntax.UnaryExpression:
+        case esprima.Syntax.BinaryExpression: // ### ???
+        case esprima.Syntax.AssignmentExpression:
+        case esprima.Syntax.ReturnStatement:
+        case esprima.Syntax.NewExpression:
+        case esprima.Syntax.UpdateExpression:
+        case esprima.Syntax.ForInStatement:
+        case esprima.Syntax.IfStatement:
+        case esprima.Syntax.WhileStatement:
+        case esprima.Syntax.DoWhileStatement:
+        case esprima.Syntax.ForStatement:
+            return 5;
+        default:
+            log("Unhandled type for declarationRank", parents[idx].type);
+            break;
+        }
+        return 5;
+    }
 
     estraverse.traverse(esrefactorContext._syntax, {
         enter: function (node) {
@@ -263,14 +297,14 @@ function indexFile(code, file, verbose)
             case esprima.Syntax.VariableDeclarator:
             case esprima.Syntax.FunctionDeclaration:
                 node.scope = true;
-                addSymbol(qualifiedName(), range(), 0);
+                addSymbol(qualifiedName(), range(), declarationRank());
                 break;
             case esprima.Syntax.CallExpression:
-                addSymbol(qualifiedName(), range(), 5);
+                addSymbol(qualifiedName(), range(), declarationRank());
                 ret = estraverse.VisitorOption.Skip;
                 break;
             case esprima.Syntax.Property:
-                addSymbol(qualifiedName(), range(undefined, true), 0);
+                addSymbol(qualifiedName(), range(undefined, true), declarationRank());
                 break;
             case esprima.Syntax.Identifier:
                 if (!node.handled) {
@@ -278,22 +312,22 @@ function indexFile(code, file, verbose)
                         if (isChild("object")) {
                             addSymbol(qualifiedName(undefined, false), range(), 5);
                         } else if (isChild("property")) {
-                            addSymbol(qualifiedName(-2, false), range(), 3);
+                            addSymbol(qualifiedName(-2, false), range(), declarationRank(parents.length - 2));
                         }
                     } else if (parentTypeIs(esprima.Syntax.Property)  && isChild("value")) {
                         addSymbol(qualifiedName(undefined, false), range(), 5);
                     } else if (parentTypeIs(esprima.Syntax.AssignmentExpression)  && isChild("left")) {
-                        addSymbol(qualifiedName(-2, false), range(), 3);
+                        addSymbol(qualifiedName(-2, false), range(), declarationRank());
                     } else if (parentTypeIs([esprima.Syntax.FunctionDeclaration, esprima.Syntax.FunctionExpression]) && isChild("params")) {
-                        addSymbol(qualifiedName(undefined, false), range(), 0);
+                        addSymbol(qualifiedName(undefined, false), range(), declarationRank());
                     } else if (parentTypeIs([esprima.Syntax.UnaryExpression, esprima.Syntax.BinaryExpression,
                                              esprima.Syntax.AssignmentExpression, esprima.Syntax.ReturnStatement,
                                              esprima.Syntax.NewExpression, esprima.Syntax.UpdateExpression,
                                              esprima.Syntax.ForInStatement])) {
-                        addSymbol(qualifiedName(undefined, false), range(), 5);
+                        addSymbol(qualifiedName(undefined, false), range(), declarationRank)();
                     } else if (parentTypeIs([esprima.Syntax.IfStatement, esprima.Syntax.WhileStatement,
                                              esprima.Syntax.DoWhileStatement, esprima.Syntax.ForStatement]) && isChild("test")) {
-                        addSymbol(qualifiedName(undefined, false), range(), 5);
+                        addSymbol(qualifiedName(undefined, false), range(), declarationRank());
                     } else if (parentTypeIs(esprima.Syntax.FunctionExpression)) {
                         node.handled = true;
                     }
