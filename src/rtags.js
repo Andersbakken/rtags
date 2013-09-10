@@ -294,12 +294,15 @@ function indexFile(code, file, verbose)
                 case esprima.Syntax.Program:
                     node.scope = true;
                     break;
-                case esprima.Syntax.VariableDeclarator:
                 case esprima.Syntax.FunctionDeclaration:
                     node.scope = true;
                     addSymbol(qualifiedName(), range(), declarationRank());
                     break;
+                case esprima.Syntax.FunctionExpression:
+                    node.scope = true;
+                    break;
                 case esprima.Syntax.CallExpression:
+                case esprima.Syntax.VariableDeclarator:
                     addSymbol(qualifiedName(), range(), declarationRank());
                     break;
                 case esprima.Syntax.Property:
