@@ -2032,7 +2032,6 @@ should use `irony-get-completion-point-anywhere'."
 
 (defun rtags-show-in-other-window ()
   (interactive)
-  (setq fisk t)
   ;; (message "About to show")
   (rtags-select t nil t))
 
