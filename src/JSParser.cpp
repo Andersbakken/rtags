@@ -339,6 +339,7 @@ bool JSParser::parse(const Path &path, SymbolMap *symbols, SymbolNameMap *symbol
                 const v8::Handle<v8::Array> refs = get<v8::Array>(scope, key);
                 const int refCount = refs->Length();
                 String keyString = toCString(key);
+                keyString.chop(1); // all symbol names end with an extra _ so we don't collide with object properties
                 CursorInfo *decl = 0;
                 Location declLoc;
                 for (int k=0; k<refCount; ++k) {

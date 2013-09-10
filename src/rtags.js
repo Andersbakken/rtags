@@ -23,14 +23,9 @@ function indexFile(code, file, verbose)
         var parents = [];
 
         function location(range) { return code.substring(range[0], range[1]); }
-        function childKey(child, offset) // slow
+        function childKey(child) // slow
         {
-            if (typeof offset === 'undefined') {
-                offset = parents.length - 1;
-            } else if (typeof offset == 'object') {
-                offset = parents.indexOf(offset);;
-            }
-            var p = parents[offset];
+            var p = child.parent;
             for (var key in p) {
                 if (p[key] === child) {
                     return key;
@@ -38,32 +33,29 @@ function indexFile(code, file, verbose)
             }
             return "not found";
         }
-        function isChild(key, offset)
+        function isChild(key, node)
         {
-            if (typeof offset == 'undefined') {
-                offset = parents.length - 1;
-            } else if (typeof offset == 'object') {
-                offset = parents.indexOf(offset);
-            }
+            if (!node)
+                node = parents[parents.length - 1];
 
-            if (offset > 0 && parents[offset - 1]) {
-                var p = parents[offset - 1][key];
+            if (node.parent) {
+                var p = node.parent[key];
                 if (p !== undefined) {
                     if (Array.isArray(p)) {
-                        return p.indexOf(parents[offset]) != -1;
+                        return p.indexOf(node) != -1;
                     } else {
-                        return p == parents[offset];
+                        return p == node;
                     }
                 }
             }
             return false;
         }
-        function parentTypeIs(type, offset)
+        function parentTypeIs(type, node)
         {
-            if (typeof offset == 'undefined')
-                offset = parents.length - 1;
-            if (offset > 0 && parents[offset - 1]) {
-                var t = parents[offset - 1].type;
+            if (!node)
+                node = parents[parents.length - 1];
+            if (node.parent) {
+                var t = node.parent.type;
                 if (typeof type == "string") {
                     return type === t;
                 } else {
@@ -80,11 +72,14 @@ function indexFile(code, file, verbose)
         // lowest rank in stack is the declaration if <= 3
         function addSymbol(name, range, declarationRank)
         {
+            name += '_';
             var scopeIdx = scopeStack.length - 1;
             var found = false;
+            var fitte = undefined;
             while (true) {
-                if (scopeStack[scopeIdx].objects[name]) {
+                if (scopeStack[scopeIdx].objects[name] !== undefined) {
                     found = true;
+                    fitte = scopeStack[scopeIdx].objects[name];
                     break;
                 } else if (declarationRank == 0 || scopeIdx == 0) {
                     break;
@@ -102,38 +97,37 @@ function indexFile(code, file, verbose)
             ++scopeStack[scopeIdx].count;
         }
 
-        function qualifiedName(offset, walk)
+        function qualifiedName(node)
         {
-            if (offset === undefined)
-                offset = -1;
-            if (walk === undefined)
-                walk = true;
+            if (!node)
+                node = parents[parents.length - 1];
+            var orig = node;
             var seen = [];
-            function resolveName(node)
+            function resolveName(n)
             {
-                if (seen.indexOf(node) != -1)
+                if (seen.indexOf(n) != -1)
                     return undefined;
-                seen.push(node);
-                if (node) {
-                    switch (node.type) {
+                seen.push(n);
+                if (n) {
+                    switch (n.type) {
                     case esprima.Syntax.Identifier:
-                        return node.name;
+                        return n.name;
                     case esprima.Syntax.Literal:
-                        return node.value;
+                        return n.value;
                     case esprima.Syntax.MemberExpression:
-                        if (seen.indexOf(node.object) != -1 || seen.indexOf(node.property) != -1)
+                        if (seen.indexOf(n.object) != -1 || seen.indexOf(n.property) != -1)
                             break;
-                        return resolveName(node.object) + "." + resolveName(node.property);
+                        return resolveName(n.object) + "." + resolveName(n.property);
                     case esprima.Syntax.ObjectExpression:
                     case esprima.Syntax.Property:
-                        return resolveName(node.key);
+                        return resolveName(n.key);
                     case esprima.Syntax.VariableDeclarator:
                     case esprima.Syntax.FunctionDeclaration:
-                        return resolveName(node.id);
+                        return resolveName(n.id);
                     case esprima.Syntax.AssignmentExpression:
-                        return resolveName(node.left);
+                        return resolveName(n.left);
                     case esprima.Syntax.CallExpression:
-                        return resolveName(node.callee);
+                        return resolveName(n.callee);
                     default:
                         break;
                         // log("Not sure how to resolve", node.type, node.range);
@@ -143,34 +137,31 @@ function indexFile(code, file, verbose)
             }
 
             var name = undefined;
-            var end = walk ? 0 : parents.length + offset;
-            for (var i=parents.length + offset; i>=end; --i) {
-                if (parents[i].type) {
+            var prev = undefined;
+            while (node) {
+                if (node.type) {
                     var done = false;
-                    switch (parents[i].type) {
+                    switch (node.type) {
                     case esprima.Syntax.FunctionExpression:
                     case esprima.Syntax.FunctionDeclaration:
                     case esprima.Syntax.CallExpression:
                     case esprima.Syntax.AssignmentExpression:
-                        done = i < parents.length - 1;
+                        done = prev;
+                        // if (done)
+                        //     log("Stopping", orig.range, "at", name, "because of", node.type);
                         break;
-                        // case esprima.Syntax.MemberExpression:
-                        //     // if (i < parents.length - 1 && parents[i + 1] == parents[i].object) {
-                        //     //     log("Fisj?");
-                        //     //     continue;
-                        //     // }
-                        //     break;
-                        // case esprima.Syntax.AssignmentExpression:
-                        //     // if (i < parents.length - 1 && parents[i + 1] == parents[i].left)
-                        //     //     continue;
-                        //     break;
+                    case esprima.Syntax.VariableDeclarator:
+                        done = prev && prev.type != esprima.Syntax.ObjectExpression && isChild("init", prev);
+                        // if (done)
+                        //     log("Stopping", orig.range, "at", name, "because of VariableDeclarator");
+                        break;
                     default:
                         break;
                     }
                     if (done)
                         break;
 
-                    var n = resolveName(parents[i]);
+                    var n = resolveName(node);
                     if (n) {
                         if (!name) {
                             name = n;
@@ -178,7 +169,8 @@ function indexFile(code, file, verbose)
                             name = n + "." + name;
                         }
                     }
-                    // log(i, parents[i].type, done, n, name);
+                    prev = node;
+                    node = node.parent;
                 }
             }
             return name;
@@ -217,7 +209,7 @@ function indexFile(code, file, verbose)
                 break;
             case esprima.Syntax.MemberExpression:
                 if (isChild("property", node))
-                    name = qualifiedName(-2);
+                    name = qualifiedName(node.parent);
                 rank = (node.parent.parent.type == esprima.Syntax.AssignmentExpression ? 3 : 5);
                 break;
             default:
@@ -286,7 +278,8 @@ function indexFile(code, file, verbose)
                 }
 
                 ret.objects.push(scopes[s].objects);
-                log(s, scopes[s].objects);
+                if (scopes.length < 5)
+                    log(s, scopes[s].objects);
             }
         }
 
