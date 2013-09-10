@@ -34,7 +34,7 @@ class IndexerJob;
 class Server
 {
 public:
-    enum { DatabaseVersion = 27 };
+    enum { DatabaseVersion = 28 };
 
     Server();
     ~Server();

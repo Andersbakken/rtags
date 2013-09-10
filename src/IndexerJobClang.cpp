@@ -351,6 +351,18 @@ CXChildVisitResult IndexerJobClang::indexVisitor(CXCursor cursor, CXCursor paren
         case CXCursor_CXXDeleteExpr:
             job->handleReference(cursor, kind, loc, findDestructorForDelete(cursor), parent);
             break;
+        case CXCursor_CallExpr: {
+            // uglehack, see rtags/tests/nestedClassConstructorCallUgleHack/
+            const CXCursor ref = clang_getCursorReferenced(cursor);
+            if (clang_getCursorKind(ref) == CXCursor_Constructor
+                && clang_getCursorKind(job->mLastCursor) == CXCursor_TypeRef
+                && clang_getCursorKind(parent) != CXCursor_VarDecl) {
+                loc = job->createLocation(job->mLastCursor);
+                job->handleReference(job->mLastCursor, kind, loc, ref, parent);
+            } else {
+                job->handleReference(cursor, kind, loc, ref, parent);
+            }
+            break; }
         default:
             job->handleReference(cursor, kind, loc, clang_getCursorReferenced(cursor), parent);
             break;
@@ -367,37 +379,6 @@ static inline bool isImplicit(const CXCursor &cursor)
 {
     return clang_equalLocations(clang_getCursorLocation(cursor),
                                 clang_getCursorLocation(clang_getCursorSemanticParent(cursor)));
-}
-
-void IndexerJobClang::nestedClassConstructorCallUgleHack(const CXCursor &parent, CursorInfo &info,
-                                                         CXCursorKind refKind, const Location &refLoc)
-{
-    if (refKind == CXCursor_Constructor
-        && clang_getCursorKind(mLastCursor) == CXCursor_TypeRef
-        && clang_getCursorKind(parent) == CXCursor_CXXFunctionalCastExpr) {
-        const CXStringScope str = clang_getCursorSpelling(mLastCursor);
-        int start = -1;
-        const char *cstr = str.data();
-        int idx = 0;
-        while (cstr[idx]) {
-            if (start == -1 && cstr[idx] == ' ') {
-                start = idx;
-            }
-            ++idx;
-        }
-        if (start != -1) {
-            // error() << "Changed symbolLength from" << info.symbolLength << "to" << (idx - start - 1) << "for dude reffing" << refLoc;
-            info.symbolLength = idx - start - 1;
-        }
-        RTags::Filter in;
-        in.kinds.insert(CXCursor_TypeRef);
-        const List<CXCursor> typeRefs = RTags::children(parent, in);
-        for (int i=0; i<typeRefs.size(); ++i) {
-            const Location loc = createLocation(typeRefs.at(i));
-            // error() << "Added" << refLoc << "to targets for" << typeRefs.at(i);
-            mData->symbols[loc].targets.insert(refLoc);
-        }
-    }
 }
 
 void IndexerJobClang::superclassTemplateMemberFunctionUgleHack(const CXCursor &cursor, CXCursorKind kind,
@@ -547,14 +528,6 @@ void IndexerJobClang::handleReference(const CXCursor &cursor, CXCursorKind kind,
         info.symbolLength = isOperator ? end - start : refInfo.symbolLength;
         info.symbolName = refInfo.symbolName;
         info.type = clang_getCursorType(cursor).kind;
-        switch (kind) {
-        case CXCursor_CallExpr:
-            nestedClassConstructorCallUgleHack(parent, info, refKind, reffedLoc);
-            // see rtags/tests/nestedClassConstructorCallUgleHack/
-            break;
-        default:
-            break;
-        }
     }
 
     Set<Location> &val = mData->references[location];

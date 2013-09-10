@@ -85,8 +85,6 @@ private:
     void superclassTemplateMemberFunctionUgleHack(const CXCursor &cursor, CXCursorKind kind,
                                                   const Location &location, const CXCursor &ref,
                                                   const CXCursor &parent);
-    void nestedClassConstructorCallUgleHack(const CXCursor &parent, CursorInfo &info,
-                                            CXCursorKind refKind, const Location &refLoc);
 
     String mClangLine;
     CXCursor mLastCursor;
