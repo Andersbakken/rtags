@@ -32,17 +32,11 @@ Log operator<<(Log log, v8::Handle<v8::String> string)
     return log;
 }
 
-Log operator<<(Log log, v8::Handle<v8::Value> value)
+template <typename T>
+Log operator<<(Log log, const v8::Handle<T> &value)
 {
     if (!value.IsEmpty())
-        log << toCString(toJSON(value, true));
-    return log;
-}
-
-Log operator<<(Log log, v8::Handle<v8::Object> value)
-{
-    if (!value.IsEmpty())
-        log << toCString(toJSON(value, true));
+        log << toJSON(value, true);
     return log;
 }
 
@@ -349,7 +343,7 @@ bool JSParser::parse(const Path &path, SymbolMap *symbols, SymbolNameMap *symbol
                 Location declLoc;
                 for (int k=0; k<refCount; ++k) {
                     const v8::Handle<v8::Array> ref = get<v8::Array>(refs, k);
-                    // error() << "shit" << k << ref->Length();
+                    // error() << "shit" << k << ref;
                     uint32_t off = static_cast<uint32_t>(get<v8::Number>(ref, 0)->Value());
                     uint32_t fid = 0;
                     // could binary search for it
