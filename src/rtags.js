@@ -19,25 +19,17 @@ function indexFile(code, file, verbose)
         esrefactorContext.setCode(parsed);
         if (!esrefactorContext._syntax)
             throw new Error('Unable to identify anything without a syntax tree');
-        if (!esrefactorContext._scopeManager)
-            throw new Error('Unable to identify anything without a valid scope manager');
 
-        var scopeManager = esrefactorContext._scopeManager;
-        // var lookup = esrefactorContext._lookup;
-        // log(esrefactorContext._syntax);
-
-        scopeManager.attach();
         var parents = [];
 
-        function location(range)
-        {
-            return code.substring(range[0], range[1]);
-        }
-
+        function location(range) { return code.substring(range[0], range[1]); }
         function childKey(child, offset) // slow
         {
-            if (typeof offset === 'undefined')
+            if (typeof offset === 'undefined') {
                 offset = parents.length - 1;
+            } else if (typeof offset == 'object') {
+                offset = parents.indexOf(offset);;
+            }
             var p = parents[offset];
             for (var key in p) {
                 if (p[key] === child) {
@@ -48,8 +40,11 @@ function indexFile(code, file, verbose)
         }
         function isChild(key, offset)
         {
-            if (typeof offset == 'undefined')
+            if (typeof offset == 'undefined') {
                 offset = parents.length - 1;
+            } else if (typeof offset == 'object') {
+                offset = parents.indexOf(offset);
+            }
 
             if (offset > 0 && parents[offset - 1]) {
                 var p = parents[offset - 1][key];
@@ -82,45 +77,24 @@ function indexFile(code, file, verbose)
         var scopes = [];
         var scopeStack = [];
 
-        // lowest rank in stack is the declaration
+        // lowest rank in stack is the declaration if <= 3
         function addSymbol(name, range, declarationRank)
         {
             var scopeIdx = scopeStack.length - 1;
             var found = false;
-            if (declarationRank == 0) {
-                found = scopeStack[scopeIdx].objects[name] !== undefined;
-            } else {
-                // var object;
-                // var idx = name.indexOf('.');
-                // if (idx != -1) {
-                //     object = name.substring(0, idx);
-                // } else {
-                //     object = name;
-                // }
-                for (var i=scopeStack.length - 1; i>=0; --i) {
-                    if (scopeStack[i].objects[name]) {
-                        found = true;
-                        // log("Found", name, "in a scope", i, scopeStack.length);
-                        scopeIdx = i;
-                        break;
-                        // } else if (scopeStack[i].objects[object]) {
-                        //     log("Found", name, "in a scope", i, scopeStack.length);
-                        //     found = true;
-                        //     scopeIdx = i;
-                        //     break;
-                    }
+            while (true) {
+                if (scopeStack[scopeIdx].objects[name]) {
+                    found = true;
+                    break;
+                } else if (declarationRank == 0 || scopeIdx == 0) {
+                    break;
                 }
+                --scopeIdx;
             }
 
             // log("Adding symbol", name, range, location(range), found, declarationRank, parents[parents.length - 2].type, parents[parents.length - 1].type);
-            if (range.length != 2) {
-                throw new Error("Something wrong here " + name + " " + range);
-            }
             range.push(declarationRank);
             if (found) {
-                if (!scopeStack[scopeIdx].objects[name]) {
-                    log("Can't find shit here", name, object, scopeStack[scopeIdx].objects);
-                }
                 scopeStack[scopeIdx].objects[name].push(range);
             } else {
                 scopeStack[scopeIdx].objects[name] = [range];
@@ -143,10 +117,8 @@ function indexFile(code, file, verbose)
                 if (node) {
                     switch (node.type) {
                     case esprima.Syntax.Identifier:
-                        node.handled = true;
                         return node.name;
                     case esprima.Syntax.Literal:
-                        node.handled = true;
                         return node.value;
                     case esprima.Syntax.MemberExpression:
                         if (seen.indexOf(node.object) != -1 || seen.indexOf(node.property) != -1)
@@ -155,7 +127,6 @@ function indexFile(code, file, verbose)
                     case esprima.Syntax.ObjectExpression:
                     case esprima.Syntax.Property:
                         return resolveName(node.key);
-                        // break;
                     case esprima.Syntax.VariableDeclarator:
                     case esprima.Syntax.FunctionDeclaration:
                         return resolveName(node.id);
@@ -179,7 +150,8 @@ function indexFile(code, file, verbose)
                     switch (parents[i].type) {
                     case esprima.Syntax.FunctionExpression:
                     case esprima.Syntax.FunctionDeclaration:
-                        // case esprima.Syntax.VariableDeclarator:
+                    case esprima.Syntax.CallExpression:
+                    case esprima.Syntax.AssignmentExpression:
                         done = i < parents.length - 1;
                         break;
                         // case esprima.Syntax.MemberExpression:
@@ -212,62 +184,24 @@ function indexFile(code, file, verbose)
             return name;
         }
 
-        function range(node, key)
+        function indexIdentifier(node)
         {
-            if (!node)
-                node = parents[parents.length - 1];
-
-            switch (node.type) {
-            case esprima.Syntax.FunctionDeclaration:
-            case esprima.Syntax.VariableDeclarator:
-                if (node.id)
-                    return range(node.id, key);
-                break;
-            case esprima.Syntax.Property:
-                if (key) {
-                    if (node.key)
-                        return range(node.key);
-                } else if (node.value) {
-                    return range(node.value);
-                }
-                break;
-            case esprima.Syntax.MemberExpression:
-                if (key) {
-                    if (node.object)
-                        return range(node.object, key);
-                } else if (node.property) {
-                    return range(node.property, key);
-                }
-                break;
-            case esprima.Syntax.CallExpression:
-                if (node.callee)
-                    return range(node.callee, false);
-                break;
-            default:
-                break;
-                // log("Not sure how to resolve", node.type, node.range);
-            }
-            return node.range;
-        }
-
-        function declarationRank(idx)
-        {
-            if (idx === undefined)
-                idx = parents.length - 1;
-            switch (parents[idx].type) {
-            case esprima.Syntax.VariableDeclarator:
+            node.indexed = true;
+            var rank = 3;
+            var name = undefined;
+            switch (node.parent.type) {
             case esprima.Syntax.FunctionDeclaration:
             case esprima.Syntax.FunctionExpression:
+            case esprima.Syntax.VariableDeclarator:
             case esprima.Syntax.Property:
-                return 0;
-            case esprima.Syntax.MemberExpression:
-                return declarationRank(idx - 1);
+                rank = 0;
+                break;
             case esprima.Syntax.AssignmentExpression:
-                return 3;
+                rank = 3;
+                break;
             case esprima.Syntax.CallExpression:
             case esprima.Syntax.UnaryExpression:
             case esprima.Syntax.BinaryExpression: // ### ???
-            case esprima.Syntax.AssignmentExpression:
             case esprima.Syntax.ReturnStatement:
             case esprima.Syntax.NewExpression:
             case esprima.Syntax.UpdateExpression:
@@ -276,16 +210,32 @@ function indexFile(code, file, verbose)
             case esprima.Syntax.WhileStatement:
             case esprima.Syntax.DoWhileStatement:
             case esprima.Syntax.ForStatement:
-                return 5;
+            case esprima.Syntax.LogicalExpression:
+            case esprima.Syntax.ConditionalExpression:
+            case esprima.Syntax.ArrayExpression:
+                rank = 5;
+                break;
+            case esprima.Syntax.MemberExpression:
+                if (isChild("property", node))
+                    name = qualifiedName(-2);
+                rank = (node.parent.parent.type == esprima.Syntax.AssignmentExpression ? 3 : 5);
+                break;
             default:
-                log("Unhandled type for declarationRank", parents[idx].type, parents[idx - 1].type, parents[idx].range);
+                // log("Shit", node.type);
+                log("Unhandled parent", node.parent.type, node.parent.range, location(parent.range),
+                    node.range, location(node.range));
                 break;
             }
-            return 5;
+            if (name === undefined)
+                name = qualifiedName();
+            // log("Found identifier", name, node.range, parent.type, rank);
+            addSymbol(name, node.range, rank);
         }
 
         estraverse.traverse(esrefactorContext._syntax, {
             enter: function (node) {
+                if (parents.length)
+                    node.parent = parents[parents.length - 1];
                 parents.push(node);
                 var name = undefined;
                 var declaration = 0;
@@ -295,71 +245,35 @@ function indexFile(code, file, verbose)
                     node.scope = true;
                     break;
                 case esprima.Syntax.FunctionDeclaration:
+                    node.id.parent = node;
+                    indexIdentifier(node.id);
                     node.scope = true;
-                    addSymbol(qualifiedName(), range(), declarationRank());
                     break;
                 case esprima.Syntax.FunctionExpression:
                     node.scope = true;
                     break;
-                case esprima.Syntax.CallExpression:
-                case esprima.Syntax.VariableDeclarator:
-                    addSymbol(qualifiedName(), range(), declarationRank());
-                    break;
-                case esprima.Syntax.Property:
-                    addSymbol(qualifiedName(), range(undefined, true), declarationRank());
-                    break;
                 case esprima.Syntax.Identifier:
-                    if (parentTypeIs(esprima.Syntax.MemberExpression)) {
-                        log("Got call", node.range);
-                    }
-                    if (!node.handled) {
-                        if (parentTypeIs(esprima.Syntax.MemberExpression)) {
-                            if (isChild("object")) {
-                                addSymbol(qualifiedName(undefined, false), range(), 5);
-                            } else if (isChild("property")) {
-                                addSymbol(qualifiedName(-2, false), range(), declarationRank(parents.length - 2));
-                            }
-                        } else if (parentTypeIs(esprima.Syntax.Property)  && isChild("value")) {
-                            addSymbol(qualifiedName(undefined, false), range(), 5);
-                        } else if (parentTypeIs(esprima.Syntax.AssignmentExpression) && isChild("left")) {
-                            addSymbol(qualifiedName(-2, false), range(), declarationRank(parents.length - 2));
-                        } else if (parentTypeIs([esprima.Syntax.FunctionDeclaration, esprima.Syntax.FunctionExpression]) && isChild("params")) {
-                            addSymbol(qualifiedName(undefined, false), range(), 5);
-                        } else if (parentTypeIs([esprima.Syntax.UnaryExpression, esprima.Syntax.BinaryExpression,
-                                                 esprima.Syntax.AssignmentExpression, esprima.Syntax.ReturnStatement,
-                                                 esprima.Syntax.NewExpression, esprima.Syntax.UpdateExpression,
-                                                 esprima.Syntax.ForInStatement])) {
-                            addSymbol(qualifiedName(undefined, false), range(), declarationRank(parents.length - 2));
-                        } else if (parentTypeIs([esprima.Syntax.IfStatement, esprima.Syntax.WhileStatement,
-                                                 esprima.Syntax.DoWhileStatement, esprima.Syntax.ForStatement]) && isChild("test")) {
-                            addSymbol(qualifiedName(undefined, false), range(), declarationRank(parents.length - 2));
-                        } else if (parentTypeIs(esprima.Syntax.FunctionExpression)) {
-                            node.handled = true;
-                        }
-
-                        if (!node.handled) {
-                            log("Unhandled identifier", node.name, node.range, parents[parents.length - 2].type);
-                        }
-                    } else {
-                        if (parentTypeIs(esprima.Syntax.MemberExpression))
-                            log(node.range, "is already handled");
+                    if (!node.indexed) {
+                        // we need to handle the function itself as part of the previous scope
+                        indexIdentifier(node);
                     }
                     break;
                 default:
                     break;
                 }
                 if (node.scope) {
-                    var scope = {objects:{}, count:0, type:node.type};
+                    var scope = { objects:{}, count:0, type:node.type };
                     scopeStack.push(scope);
                     scopes.push(scope);
                 }
             },
             leave: function (node) {
                 parents.pop();
+                if (node.scope)
+                    scopeStack.pop();
             }
         });
 
-        scopeManager.detach();
 
         var ret = { objects:[] };
         // log(scopes.length);
@@ -376,8 +290,15 @@ function indexFile(code, file, verbose)
             }
         }
 
-        if (verbose)
+        if (verbose) {
+            estraverse.traverse(esrefactorContext._syntax, {
+                enter: function(node) {
+                    delete node.parent;
+                    delete node.indexed;
+                }
+            });
             ret.ast = esrefactorContext._syntax;
+        }
         if (errors)
             ret.errors = errors;
     } catch(err) {
