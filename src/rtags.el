@@ -11,6 +11,8 @@
 (require 'ido)
 (unless (fboundp 'libxml-parse-xml-region)
   (require 'xml))
+(unless (require 'auto-complete nil t)
+  (defvar ac-sources nil))
 
 (defvar rtags-last-buffer nil)
 (defvar rtags-path-filter nil)
