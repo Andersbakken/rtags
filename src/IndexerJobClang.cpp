@@ -1111,12 +1111,14 @@ bool IndexerJobClang::visit()
     for (Set<uint32_t>::const_iterator it = visited.begin(); it != visited.end(); ++it) {
         warning() << sourceInformation().sourceFile() << "parsed" << Location::path(*it);
         data()->dependencies[*it].insert(fileId);
+        addFileSymbol(*it);
     }
 
     const Set<uint32_t> &blocked = blockedFiles();
     for (Set<uint32_t>::const_iterator it = blocked.begin(); it != blocked.end(); ++it) {
         warning() << sourceInformation().sourceFile() << "blocked" << Location::path(*it);
         data()->dependencies[*it].insert(fileId);
+        addFileSymbol(*it);
     }
     data()->visitTime = watch.elapsed();
 
@@ -1249,4 +1251,13 @@ CXChildVisitResult IndexerJobClang::dumpVisitor(CXCursor cursor, CXCursor, CXCli
     clang_visitChildren(cursor, IndexerJobClang::dumpVisitor, userData);
     --dump->indentLevel;
     return CXChildVisit_Continue;
+}
+
+void IndexerJobClang::addFileSymbol(uint32_t file)
+{
+    const Location loc(file, 0);
+    const Path path = Location::path(file);
+    mData->symbolNames[path].insert(loc);
+    const char *fn = path.fileName();
+    mData->symbolNames[String(fn, strlen(fn))].insert(loc);
 }

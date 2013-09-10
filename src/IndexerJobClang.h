@@ -49,7 +49,7 @@ private:
     bool diagnose();
     bool visit();
     bool parse();
-
+    void addFileSymbol(uint32_t file);
     using IndexerJob::createLocation;
     inline Location createLocation(const CXSourceLocation &location, bool *blocked)
     {
