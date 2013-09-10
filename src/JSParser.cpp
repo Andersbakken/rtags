@@ -370,15 +370,18 @@ bool JSParser::parse(const Path &path, SymbolMap *symbols, SymbolNameMap *symbol
                     c.end = static_cast<uint32_t>(get<v8::Number>(ref, 1)->Value());
                     c.symbolLength = c.end - c.start;
                     c.symbolName = keyString;
-                    if (!k) {
+                    if (!k && static_cast<uint32_t>(get<v8::Number>(ref, 2)->Value()) <= 3) {
+                        // > 3 means reference even if we don't have a declaration
                         (*symbolNames)[keyString].insert(loc);
                         c.kind = CursorInfo::JSDeclaration;
                         decl = &c;
                         declLoc = loc;
                     } else {
                         c.kind = CursorInfo::JSReference;
-                        decl->references.insert(loc);
-                        c.targets.insert(declLoc);
+                        if (decl) {
+                            decl->references.insert(loc);
+                            c.targets.insert(declLoc);
+                        }
                         // error() << "Got a reference" << loc << keyString;
                     }
                 }

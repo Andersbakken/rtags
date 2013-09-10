@@ -89,24 +89,24 @@ function indexFile(code, file, verbose)
         if (declarationRank == 0) {
             found = scopeStack[scopeIdx].objects[name] !== undefined;
         } else {
-            var object;
-            var idx = name.indexOf('.');
-            if (idx != -1) {
-                object = name.substring(0, idx);
-            } else {
-                object = name;
-            }
+            // var object;
+            // var idx = name.indexOf('.');
+            // if (idx != -1) {
+            //     object = name.substring(0, idx);
+            // } else {
+            //     object = name;
+            // }
             for (var i=scopeStack.length - 1; i>=0; --i) {
                 if (scopeStack[i].objects[name]) {
                     found = true;
                     // log("Found", name, "in a scope", i, scopeStack.length);
                     scopeIdx = i;
                     break;
-                } else if (scopeStack[i].objects[object]) {
-                    log("Found", name, "in a scope", i, scopeStack.length);
-                    found = true;
-                    scopeIdx = i;
-                    break;
+                // } else if (scopeStack[i].objects[object]) {
+                //     log("Found", name, "in a scope", i, scopeStack.length);
+                //     found = true;
+                //     scopeIdx = i;
+                //     break;
                 }
             }
          }
@@ -117,6 +117,9 @@ function indexFile(code, file, verbose)
         }
         range.push(declarationRank);
         if (found) {
+            if (!scopeStack[scopeIdx].objects[name]) {
+                log("Can't find shit here", name, object, scopeStack[scopeIdx].objects);
+            }
             scopeStack[scopeIdx].objects[name].push(range);
         } else {
             scopeStack[scopeIdx].objects[name] = [range];
