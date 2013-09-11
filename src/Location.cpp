@@ -5,7 +5,7 @@
 Map<Path, uint32_t> Location::sPathsToIds;
 Map<uint32_t, Path> Location::sIdsToPaths;
 uint32_t Location::sLastId = 0;
-ReadWriteLock Location::sLock;
+std::mutex Location::sMutex;
 
 String Location::key(unsigned flags) const
 {

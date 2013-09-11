@@ -19,12 +19,6 @@ namespace RTags {
 
 enum { CompilationError = -1, CompilationErrorXml = -2 };
 
-enum DatabaseLockType {
-    Read = ReadWriteLock::Read,
-    Write = ReadWriteLock::Write,
-    Erase
-};
-
 enum UnitType {
     CompileC,
     CompileCPlusPlus
