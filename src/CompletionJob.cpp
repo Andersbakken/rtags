@@ -157,8 +157,9 @@ void CompletionJob::execute()
                                   static_cast<unsigned long>(mUnsaved.size()) };
     if (!mUnit) {
         String clangLine;
-        RTags::parseTranslationUnit(mPath, mArgs, mUnit, Server::instance()->clangIndex(), clangLine,
-                                    0, 0, &unsavedFile, 1);
+        RTags::parseTranslationUnit(mPath, mArgs, Server::instance()->options().defaultArguments,
+                                    mUnit, Server::instance()->clangIndex(),
+                                    clangLine, &unsavedFile, 1);
         mParseCount = 1;
         if (!mUnit) {
             error() << "Failed to parse" << mPath << "Can't complete";

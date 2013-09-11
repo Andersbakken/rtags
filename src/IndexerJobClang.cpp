@@ -17,6 +17,7 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 #include "Project.h"
 #include "Server.h"
 #include "CompilerManager.h"
+#include <rct/Process.h>
 
 #include "RTagsPlugin.h"
 
@@ -819,19 +820,39 @@ bool IndexerJobClang::handleCursor(const CXCursor &cursor, CXCursorKind kind, co
 
 bool IndexerJobClang::parse()
 {
-    List<String> args = mSourceInformation.args + CompilerManager::flags(mSourceInformation.compiler);
     CXTranslationUnit &unit = data()->unit;
     assert(!unit);
 
     const Path sourceFile = mSourceInformation.sourceFile();
-    CXUnsavedFile unsaved = { sourceFile.constData(),
-                              mContents.constData(),
-                              static_cast<unsigned long>(mContents.size()) };
+    // CXUnsavedFile unsaved = { sourceFile.constData(),
+    //                           mContents.constData(),
+    //                           static_cast<unsigned long>(mContents.size()) };
 
+    const List<String> &defaultArguments = Server::instance()->options().defaultArguments;
     StopWatch watch;
-    RTags::parseTranslationUnit(sourceFile, args,
-                                unit, Server::instance()->clangIndex(), mClangLine,
-                                mSourceInformation.fileId, &mData->dependencies, &unsaved, 1);
+    Process process;
+    const Path rp = Rct::executablePath().parentDir() + "rp";
+    const List<String> args = (mSourceInformation.args + CompilerManager::flags(mSourceInformation.compiler)
+                               + Server::instance()->options().defaultArguments + sourceFile);
+    const Process::ExecState state = process.exec(rp, args, 0, 0);
+    if (state != Process::Done) {
+        error() << "Failed to launch rp" << rp << String::join(args, ' ') << state << process.errorString();
+        return true;
+    }
+    const String err = process.readAllStdErr();
+    if (process.returnCode()) {
+        error() << "rp error" << args << err;
+        return true;
+    }
+    // error() << "Got stderr" << args << err;
+
+    String out = process.readAllStdOut();
+    out.chop(1);
+    unit = clang_createTranslationUnit(Server::instance()->clangIndex(), out.constData());
+    if (!Path::rm(out)) {
+        error() << "Failed to remove tempfile" << out << args;
+    }
+
     data()->parseTime = watch.elapsed();
     warning() << "loading unit " << mClangLine << " " << (unit != 0);
     if (unit) {
@@ -845,9 +866,9 @@ bool IndexerJobClang::parse()
             sourceFile.constData(), preprocessorOnly.constData(),
             static_cast<unsigned long>(preprocessorOnly.size())
         };
-        RTags::parseTranslationUnit(sourceFile, args,
+        RTags::parseTranslationUnit(sourceFile, args, defaultArguments,
                                     unit, Server::instance()->clangIndex(), mClangLine,
-                                    mSourceInformation.fileId, &mData->dependencies, &preprocessorOnlyUnsaved, 1);
+                                    &preprocessorOnlyUnsaved, 1);
     }
     if (unit) {
         clang_getInclusions(unit, IndexerJobClang::inclusionVisitor, this);

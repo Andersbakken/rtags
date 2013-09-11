@@ -18,6 +18,7 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 
 #include <rct/Path.h>
 #include <rct/List.h>
+#include <rct/Map.h>
 #include <rct/String.h>
 
 class GccArgumentsImpl;
@@ -30,6 +31,8 @@ public:
     GccArguments();
 
     bool parse(String args, const Path &base);
+    bool parse(List<String> split, const Path &base);
+
     Lang lang() const;
     void clear();
 
@@ -40,8 +43,16 @@ public:
     Path baseDirectory() const;
     Path compiler() const;
     Path projectRoot() const;
+    enum IncludeType {
+        INone,
+        IQuote,
+        ISystem,
+        Include
+    };
+    Map<Path, IncludeType> includes() const;
 private:
     List<String> mClangArgs;
+    Map<Path, IncludeType> mIncludes;
     List<Path> mInputFiles, mUnresolvedInputFiles;
     Path mBase, mCompiler;
     GccArguments::Lang mLang;

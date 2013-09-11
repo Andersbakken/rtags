@@ -104,11 +104,6 @@ static inline String trim(const char *start, int size)
 
 bool GccArguments::parse(String args, const Path &base)
 {
-    mLang = NoLang;
-    mClangArgs.clear();
-    mInputFiles.clear();
-    mBase = base;
-
     char quote = '\0';
     List<String> split;
     String old2 = args;
@@ -142,13 +137,23 @@ bool GccArguments::parse(String args, const Path &base)
         if (cur > prev)
             split.append(trim(prev, cur - prev));
     }
+    debug() << "GccArguments::parse (" << args << ") => " << split;
+    return parse(split, base);
+}
+
+bool GccArguments::parse(List<String> split, const Path &base)
+{
+    mLang = NoLang;
+    mClangArgs.clear();
+    mInputFiles.clear();
+    mBase = base;
+
     eatAutoTools(split);
 
     if (split.isEmpty()) {
         clear();
         return false;
     }
-    debug() << "GccArguments::parse (" << args << ") => " << split;
 
     Path path;
     if (split.front() == "cd" && split.size() > 3 && split.at(2) == "&&") {
@@ -223,7 +228,7 @@ bool GccArguments::parse(String args, const Path &base)
                 }
             } else if (arg.startsWith("-isystem") || arg.startsWith("-iquote")) {
                 const int from = (arg[2] == 'q' ? 7 : 8);
-                assert(args.size() >= from);
+                assert(arg.size() >= from);
                 Path inc;
                 if (arg.size() > from) {
                     bool ok = false;
@@ -341,3 +346,9 @@ Path GccArguments::projectRoot() const
     }
     return Path();
 }
+
+Map<Path, GccArguments::IncludeType> GccArguments::includes() const
+{
+    return mIncludes;
+}
+

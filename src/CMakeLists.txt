@@ -134,6 +134,9 @@ add_dependencies(rtags rct)
 add_executable(rdm rdm.cpp)
 target_link_libraries(rdm rtags shared)
 
+add_executable(rp rp.cpp)
+target_link_libraries(rp rtags shared)
+
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/bin)
 
 add_library(rtagsclang MODULE IndexerJobClang.cpp)

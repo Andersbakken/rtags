@@ -881,6 +881,7 @@ void Server::startQueryJob(const std::shared_ptr<Job> &job)
 
 void Server::index(const GccArguments &args, const List<String> &projects)
 {
+#warning need to resolve args.includes() and stick them into SourceInformation::additionalDependencies
     if (args.lang() == GccArguments::NoLang || mOptions.ignoredCompilers.contains(args.compiler())) {
         return;
     }

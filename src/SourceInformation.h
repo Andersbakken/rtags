@@ -31,6 +31,7 @@ public:
     Path compiler;
     List<String> args;
     time_t parsed;
+    Set<uint32_t> additionalDependencies;
 
     inline bool isJS() const
     {
@@ -46,7 +47,8 @@ public:
 
     inline String toString() const
     {
-        String ret = sourceFile();
+        const Path src = sourceFile();
+        String ret = src;
         if (parsed)
             ret += " Parsed: " + String::formatTime(parsed, String::DateTime);
         if (!isJS()) {
@@ -54,6 +56,7 @@ public:
                 ret += ' ';
             ret += (compiler + " " + String::join(args, ' '));
         }
+        ret += ' ' + src;
         return ret;
     }
 
@@ -74,14 +77,14 @@ static inline Log operator<<(Log dbg, const SourceInformation &s)
 
 template <> inline Serializer &operator<<(Serializer &s, const SourceInformation &t)
 {
-    s << t.fileId << t.parsed << t.compiler << t.args;
+    s << t.fileId << t.parsed << t.compiler << t.args << t.additionalDependencies;
     return s;
 }
 
 template <> inline Deserializer &operator>>(Deserializer &s, SourceInformation &t)
 {
     t.clear();
-    s >> t.fileId >> t.parsed >> t.compiler >> t.args;
+    s >> t.fileId >> t.parsed >> t.compiler >> t.args >> t.additionalDependencies;
     return s;
 }
 
