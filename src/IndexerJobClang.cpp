@@ -1082,16 +1082,17 @@ bool IndexerJobClang::visit()
     const uint32_t fileId = sourceInformation().fileId;
     const Set<uint32_t> &visited = visitedFiles();
     for (Set<uint32_t>::const_iterator it = visited.begin(); it != visited.end(); ++it) {
-        warning() << sourceInformation().sourceFile() << "parsed" << Location::path(*it);
+        if (testLog(Warning))
+            warning() << sourceInformation().sourceFile() << "parsed" << Location::path(*it);
         data()->dependencies[*it].insert(fileId);
         addFileSymbol(*it);
     }
 
     const Set<uint32_t> &blocked = blockedFiles();
     for (Set<uint32_t>::const_iterator it = blocked.begin(); it != blocked.end(); ++it) {
-        warning() << sourceInformation().sourceFile() << "blocked" << Location::path(*it);
+        if (testLog(Warning))
+            warning() << sourceInformation().sourceFile() << "blocked" << Location::path(*it);
         data()->dependencies[*it].insert(fileId);
-        addFileSymbol(*it);
     }
     data()->visitTime = watch.elapsed();
 
