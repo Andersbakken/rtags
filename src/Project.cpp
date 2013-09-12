@@ -582,6 +582,7 @@ int Project::reindex(const Match &match)
 int Project::remove(const Match &match)
 {
     int count = 0;
+    Set<uint32_t> dirty;
     {
         std::lock_guard<std::mutex> lock(mMutex);
         SourceInformationMap::iterator it = mSources.begin();
@@ -593,13 +594,15 @@ int Project::remove(const Match &match)
                 if (job)
                     job->abort();
                 mPendingData.remove(fileId);
-                mPendingJobs.remove(fileId);
+                dirty.insert(fileId);
                 ++count;
             } else {
                 ++it;
             }
         }
     }
+    if (count)
+        startDirtyJobs(dirty);
     return count;
 }
 
