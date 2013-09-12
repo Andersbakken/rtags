@@ -145,8 +145,10 @@ function indexFile(code, file, verbose)
                     case esprima.Syntax.FunctionExpression:
                     case esprima.Syntax.FunctionDeclaration:
                     case esprima.Syntax.CallExpression:
-                    case esprima.Syntax.AssignmentExpression:
                         done = prev;
+                        break;
+                    case esprima.Syntax.AssignmentExpression:
+                        done = prev && (prev.type != esprima.Syntax.ObjectExpression || node.right != prev);
                         // if (done)
                         //     log("Stopping", orig.range, "at", name, "because of", node.type);
                         break;
