@@ -734,6 +734,8 @@ void Server::status(const QueryMessage &query, Connection *conn)
         return;
     }
 
+    conn->client()->setWriteMode(SocketClient::Synchronous);
+
     StatusJob job(query, project);
     job.run(conn);
     conn->finish();
