@@ -29,6 +29,7 @@ void Preprocessor::preprocess()
 
 void Preprocessor::onProcessFinished()
 {
+    mConnection->client()->setWriteMode(SocketClient::Synchronous);
     mConnection->write<256>("// %s %s", mArgs.compiler.constData(),
                             String::join(mArgs.args, ' ').constData());
     mConnection->write(mProc->readAllStdOut());
