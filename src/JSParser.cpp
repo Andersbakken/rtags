@@ -374,6 +374,15 @@ bool JSParser::parse(const Path &path, SymbolMap *symbols, SymbolNameMap *symbol
                     if (!k && static_cast<uint32_t>(get<v8::Number>(ref, 2)->Value()) <= 3) {
                         // > 3 means reference even if we don't have a declaration
                         (*symbolNames)[keyString].insert(loc);
+                        if (keyString.contains('.')) {
+                            List<String> split = keyString.split('.');
+                            String name = split.last();
+                            (*symbolNames)[name].insert(loc);
+                            for (int i=split.size() - 2; i>0; --i) {
+                                name.prepend(split.at(i) + '.');
+                                (*symbolNames)[name].insert(loc);
+                            }
+                        }
                         c.kind = CursorInfo::JSDeclaration;
                         decl = &c;
                         declLoc = loc;
