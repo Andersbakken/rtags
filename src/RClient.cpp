@@ -1071,7 +1071,7 @@ void RClient::onNewMessage(const Message *message, Connection *)
     if (message->messageId() == ResponseMessage::MessageId) {
         const String response = static_cast<const ResponseMessage*>(message)->data();
         if (!response.isEmpty()) {
-            error("%s", response.constData());
+            fprintf(stdout, "%s\n", response.constData());
             fflush(stdout);
         }
     } else {
