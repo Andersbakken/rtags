@@ -533,7 +533,7 @@ bool RClient::exec()
         const std::shared_ptr<RCCommand> &cmd = mCommands.at(i);
         requiresNon0Output = cmd->flags & RCCommand::RequiresNon0Output;
         debug() << "running command " << cmd->description();
-        ret = cmd->exec(this, &connection) && loop->exec(timeout()) == 0;
+        ret = cmd->exec(this, &connection) && loop->exec(timeout()) == EventLoop::Success;
         if (!ret)
             break;
     }

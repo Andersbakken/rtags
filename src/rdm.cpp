@@ -15,7 +15,7 @@
 #include <cxxabi.h>
 #endif
 
-void sigSegvHandler(int signal)
+static void sigSegvHandler(int signal)
 {
     fprintf(stderr, "Caught signal %d\n", signal);
     String trace = RTags::backtrace();
@@ -28,7 +28,7 @@ void sigSegvHandler(int signal)
 
 static Path socketFile;
 
-void sigIntHandler(int)
+static void sigIntHandler(int)
 {
     unlink(socketFile.constData());
     _exit(1);
@@ -39,7 +39,7 @@ void sigIntHandler(int)
 #define XSTR(s) #s
 #define STR(s) XSTR(s)
 
-void usage(FILE *f)
+static void usage(FILE *f)
 {
     fprintf(f,
             "rdm [...options...]\n"
@@ -390,7 +390,7 @@ int main(int argc, char** argv)
         return 1;
     }
 
-    loop->exec();
+    const unsigned int ret = loop->exec();
     cleanupLogging();
-    return 0;
+    return ret == EventLoop::Success ? 0 : 1;
 }
