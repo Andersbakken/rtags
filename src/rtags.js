@@ -157,6 +157,9 @@ function indexFile(code, file, verbose)
                         // if (done)
                         //     log("Stopping", orig.range, "at", name, "because of VariableDeclarator");
                         break;
+                    case esprima.Syntax.MemberExpression:
+                        done = node.computed;
+                        break;
                     default:
                         break;
                     }
