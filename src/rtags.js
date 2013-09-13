@@ -276,7 +276,7 @@ function indexFile(code, file, verbose)
             var scope = scopes[s];
             if (scope.count) {
                 for (var name in scope.objects) {
-                    scope.objects[name].sort(function(l, r) { return l[2] - r[2]; });
+                    scope.objects[name].sort(function(l, r) { var ret = l[2] - r[2]; if (!ret) { ret = l[0] - r[0]; } return ret; });
                 }
 
                 ret.objects.push(scopes[s].objects);
