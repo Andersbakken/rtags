@@ -25,7 +25,7 @@ class IndexDataClang : public IndexData
 {
 public:
     IndexDataClang()
-        : IndexData(ClangType), unit(0), parseTime(0), visitTime(0)
+        : IndexData(ClangType), unit(0), parseTime(0), visitTime(0), saveTime(0), loadTime(0)
     {}
 
     virtual ~IndexDataClang()
@@ -39,10 +39,10 @@ public:
             clang_disposeTranslationUnit(unit);
             unit = 0;
         }
-        parseTime = visitTime = 0;
+        parseTime = visitTime = saveTime = loadTime = 0;
     }
     CXTranslationUnit unit;
-    int parseTime, visitTime;
+    int parseTime, visitTime, saveTime, loadTime;
 };
 
 class IndexerJobClang : public IndexerJob

@@ -452,6 +452,9 @@ void Server::handleQueryMessage(const QueryMessage &message, Connection *conn)
     case QueryMessage::ReloadFileManager:
         reloadFileManager(message, conn);
         break;
+    case QueryMessage::VisitFile:
+        visitFile(message, conn);
+        break;
     }
 }
 
@@ -1358,6 +1361,31 @@ void Server::suspendFile(const QueryMessage &query, Connection *conn)
             }
         }
     }
+    conn->finish();
+}
+
+void Server::visitFile(const QueryMessage &query, Connection *conn)
+{
+    std::shared_ptr<Project> project = currentProject();
+    // give current a chance first to avoid switching project when using system headers etc
+    const Path path = query.query();
+    if (!project || !project->match(path)) {
+        for (ProjectsMap::const_iterator it = mProjects.begin(); it != mProjects.end(); ++it) {
+            if (it->second->match(path)) {
+                project = it->second;
+                break;
+            }
+        }
+        if (!project) {
+            conn->write("-1");
+            conn->finish();
+            return;
+        }
+    }
+
+    const uint32_t fileId = Location::insertFile(path);
+    const bool visit = project->visitFile(fileId);
+    conn->write<16>("%d %d", fileId, visit);
     conn->finish();
 }
 

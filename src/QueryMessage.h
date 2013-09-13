@@ -58,7 +58,8 @@ public:
         Shutdown,
         Status,
         UnloadProject,
-        SuspendFile
+        SuspendFile,
+        VisitFile
     };
 
     enum Flag {

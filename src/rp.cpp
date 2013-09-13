@@ -3,6 +3,7 @@
 #include <clang-c/Index.h>
 #include <rct/Log.h>
 #include <rct/String.h>
+#include <rct/StopWatch.h>
 
 class Scope
 {
@@ -53,6 +54,7 @@ int main(int argc, char **argv)
             fprintf(stderr, "Failed to create tempfile\n");
             return 2;
         }
+        StopWatch watch;
         if (clang_saveTranslationUnit(unit, tempFile, clang_defaultSaveOptions(unit)) == CXSaveError_None) {
             printf("%s\n", tempFile);
             fprintf(stderr, "Wrote to file: %s\n", tempFile);
@@ -62,6 +64,8 @@ int main(int argc, char **argv)
             return 3;
         }
         close(fd);
+        const int elapsed = watch.elapsed();
+        printf("%d\n", elapsed);
     }
 
     return 0;

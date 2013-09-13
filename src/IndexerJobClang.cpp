@@ -846,14 +846,17 @@ bool IndexerJobClang::parse()
     }
     // error() << "Got stderr" << args << err;
 
-    String out = process.readAllStdOut();
-    out.chop(1);
-    unit = clang_createTranslationUnit(Server::instance()->clangIndex(), out.constData());
-    if (!Path::rm(out)) {
-        error() << "Failed to remove tempfile" << out << args;
+    const List<String> lines = process.readAllStdOut().split('\n');
+    // error() << lines;
+    const int beforeRestore = watch.elapsed();
+    unit = clang_createTranslationUnit(Server::instance()->clangIndex(), lines.first().constData());
+    if (!Path::rm(lines.first())) {
+        error() << "Failed to remove tempfile" << lines.first() << args;
     }
 
     data()->parseTime = watch.elapsed();
+    data()->saveTime = lines.at(1).toLongLong();
+    data()->loadTime = data()->parseTime - beforeRestore;
     warning() << "loading unit " << mClangLine << " " << (unit != 0);
     if (unit) {
         return !isAborted();
