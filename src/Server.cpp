@@ -1456,6 +1456,8 @@ void Server::restoreFileIds()
                 Location::init(pathsToIds);
             }
             fclose(f);
+        } else {
+            error() << p << "has wrong format. Got" << version << "expected" << Server::DatabaseVersion << ", can't restore anything";
         }
     }
     if (clear)
