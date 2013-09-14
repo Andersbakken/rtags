@@ -54,7 +54,7 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 
 Server *Server::sInstance = 0;
 Server::Server()
-    : mVerbose(false), mJobId(0), mIndexerThreadPool(0), mQueryThreadPool(0), mCurrentFileId(0)
+    : mVerbose(false), mJobId(0), mThreadPool(2), mCurrentFileId(0)
 {
     assert(!sInstance);
     sInstance = this;
@@ -75,16 +75,6 @@ Server::~Server()
 
 void Server::clear()
 {
-    ThreadPool *indexerThreadPool = 0, *queryThreadPool = 0;
-    {
-        std::lock_guard<std::mutex> lock(mMutex);
-        std::swap(indexerThreadPool, mIndexerThreadPool);
-        std::swap(queryThreadPool, mQueryThreadPool);
-    }
-
-    delete indexerThreadPool;
-    delete queryThreadPool;
-
     Path::rm(mOptions.socketFile);
     mServer.reset();
     mProjects.clear();
@@ -106,9 +96,6 @@ bool Server::init(const Options &options)
         }
     }
     RTags::initMessages();
-
-    mIndexerThreadPool = new ThreadPool(options.threadCount);
-    mQueryThreadPool = new ThreadPool(2);
 
     mOptions = options;
     if (options.options & NoBuiltinIncludes) {
@@ -575,15 +562,16 @@ void Server::dumpFile(const QueryMessage &query, Connection *conn)
         return;
     }
 
-    std::shared_ptr<IndexerJob> job = Server::instance()->factory().createJob(query, project, c);
-    if (job) {
-        job->setId(nextId());
-        mPendingLookups[job->id()] = conn;
-        startQueryJob(job);
-    } else {
-        conn->write<128>("Failed to create job for %s", c.sourceFile().constData());
-        conn->finish();
-    }
+#warning needs fixin
+ /*    std::shared_ptr<IndexerJob> job = Server::instance()->factory().createJob(query, project, c); */
+/*     if (job) { */
+/*         job->setId(nextId()); */
+/*         mPendingLookups[job->id()] = conn; */
+/*         mThreadPool.start(job); */
+/*     } else { */
+/*         conn->write<128>("Failed to create job for %s", c.sourceFile().constData()); */
+/*         conn->finish(); */
+/*     } */
 }
 
 void Server::cursorInfo(const QueryMessage &query, Connection *conn)
@@ -870,16 +858,6 @@ void Server::reindex(const QueryMessage &query, Connection *conn)
         conn->write("No matches");
     }
     conn->finish();
-}
-
-void Server::startIndexerJob(const std::shared_ptr<ThreadPool::Job> &job)
-{
-    mIndexerThreadPool->start(job);
-}
-
-void Server::startQueryJob(const std::shared_ptr<Job> &job)
-{
-    mQueryThreadPool->start(job);
 }
 
 void Server::index(const GccArguments &args, const List<String> &projects)
@@ -1200,14 +1178,15 @@ void Server::jobCount(const QueryMessage &query, Connection *conn)
 {
     std::lock_guard<std::mutex> lock(mMutex);
     if (query.query().isEmpty()) {
-        conn->write<128>("Running with %d jobs", mOptions.threadCount);
+        conn->write<128>("Running with %d jobs", mOptions.processCount);
     } else {
         const int jobCount = query.query().toLongLong();
         if (jobCount <= 0 || jobCount > 100) {
             conn->write<128>("Invalid job count %s (%d)", query.query().constData(), jobCount);
         } else {
-            mOptions.threadCount = jobCount;
-            mIndexerThreadPool->setConcurrentJobs(jobCount);
+            mOptions.processCount = jobCount;
+#warning needs doin
+            // mIndexerThreadPool->setConcurrentJobs(jobCount);
             conn->write<128>("Changed jobs to %d", jobCount);
         }
     }
@@ -1414,47 +1393,48 @@ void Server::handleCompletionMessage(const CompletionMessage &message, Connectio
 
 void Server::startCompletion(const Path &path, int line, int column, int pos, const String &contents, Connection *conn)
 {
-    {
-        std::lock_guard<std::mutex> lock(mMutex);
-        mCurrentFileId = Location::fileId(path);
-    }
+#warning not done
+    // {
+    //     std::lock_guard<std::mutex> lock(mMutex);
+    //     mCurrentFileId = Location::fileId(path);
+    // }
 
-    // error() << "starting completion" << path << line << column;
-    if (!mOptions.completionCacheSize) {
-        conn->finish();
-        return;
-    }
-    std::shared_ptr<Project> project = updateProjectForLocation(path);
-    if (!project || project->state() != Project::Loaded) {
-        if (!isCompletionStream(conn))
-            conn->finish();
-        return;
-    }
-    const uint32_t fileId = Location::fileId(path);
-    if (!fileId)
-        return;
+    // // error() << "starting completion" << path << line << column;
+    // if (!mOptions.completionCacheSize) {
+    //     conn->finish();
+    //     return;
+    // }
+    // std::shared_ptr<Project> project = updateProjectForLocation(path);
+    // if (!project || project->state() != Project::Loaded) {
+    //     if (!isCompletionStream(conn))
+    //         conn->finish();
+    //     return;
+    // }
+    // const uint32_t fileId = Location::fileId(path);
+    // if (!fileId)
+    //     return;
 
-    CXTranslationUnit unit;
-    List<String> args;
-    int parseCount = 0;
-    if (!project->fetchFromCache(path, args, unit, &parseCount)) {
-        const SourceInformation info = project->sourceInfo(fileId);
-        if (info.isNull() || info.isJS()) {
-            if (!isCompletionStream(conn))
-                conn->finish();
-            return;
-        }
-        assert(!info.args.isEmpty());
-        args = info.args;
-    }
+    // CXTranslationUnit unit;
+    // List<String> args;
+    // int parseCount = 0;
+    // if (!project->fetchFromCache(path, args, unit, &parseCount)) {
+    //     const SourceInformation info = project->sourceInfo(fileId);
+    //     if (info.isNull() || info.isJS()) {
+    //         if (!isCompletionStream(conn))
+    //             conn->finish();
+    //         return;
+    //     }
+    //     assert(!info.args.isEmpty());
+    //     args = info.args;
+    // }
 
-    mActiveCompletions.insert(path);
-    std::shared_ptr<CompletionJob> job(new CompletionJob(project, isCompletionStream(conn) ? CompletionJob::Stream : CompletionJob::Sync));
-    job->init(unit, path, args, line, column, pos, contents, parseCount);
-    job->setId(nextId());
-    job->finished().connect<EventLoop::Async>(std::bind(&Server::onCompletionJobFinished, this, std::placeholders::_1, std::placeholders::_2));
-    mPendingLookups[job->id()] = conn;
-    startQueryJob(job);
+    // mActiveCompletions.insert(path);
+    // std::shared_ptr<CompletionJob> job(new CompletionJob(project, isCompletionStream(conn) ? CompletionJob::Stream : CompletionJob::Sync));
+    // job->init(unit, path, args, line, column, pos, contents, parseCount);
+    // job->setId(nextId());
+    // job->finished().connect<EventLoop::Async>(std::bind(&Server::onCompletionJobFinished, this, std::placeholders::_1, std::placeholders::_2));
+    // mPendingLookups[job->id()] = conn;
+    // startQueryJob(job);
 }
 
 void Server::onCompletionJobFinished(Path path, int /*id*/)

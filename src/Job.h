@@ -30,7 +30,7 @@ class Location;
 class QueryMessage;
 class Project;
 class Connection;
-class Job : public ThreadPool::Job, public std::enable_shared_from_this<Job>
+class Job : public std::enable_shared_from_this<Job>
 {
 public:
     enum Flag {
@@ -70,9 +70,8 @@ public:
     bool filter(const String &val) const;
     Signal<std::function<void(const String &)> > &output() { return mOutput; }
     std::shared_ptr<Project> project() const { return mProject.lock(); }
-    virtual void run();
     virtual void execute() = 0;
-    void run(Connection *connection);
+    void run(Connection *connection = 0);
     bool isAborted() const { std::lock_guard<std::mutex> lock(mMutex); return mAborted; }
     void abort() { std::lock_guard<std::mutex> lock(mMutex); mAborted = true; }
     String context() const { return mContext; }

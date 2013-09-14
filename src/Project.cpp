@@ -16,20 +16,21 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 #include "Project.h"
 #include "FileManager.h"
 #include "IndexerJob.h"
-#include <rct/Rct.h>
-#include <rct/Log.h>
-#include <rct/MemoryMonitor.h>
-#include <rct/Path.h>
-#include <rct/Thread.h>
+#include "IndexerJobClang.h"
 #include "RTags.h"
-#include <rct/ReadLocker.h>
-#include <rct/RegExp.h>
+#include "ReparseJob.h"
 #include "Server.h"
 #include "Server.h"
 #include "ValidateDBJob.h"
-#include "IndexerJobClang.h"
-#include "ReparseJob.h"
+#include "WrapperJob.h"
 #include <math.h>
+#include <rct/Log.h>
+#include <rct/MemoryMonitor.h>
+#include <rct/Path.h>
+#include <rct/Rct.h>
+#include <rct/ReadLocker.h>
+#include <rct/RegExp.h>
+#include <rct/Thread.h>
 
 static void *ModifiedFiles = &ModifiedFiles;
 static void *Sync = &Sync;
@@ -302,19 +303,20 @@ void Project::onJobFinished(const std::shared_ptr<IndexerJob> &job)
             if (data->type == IndexData::ClangType) {
                 std::shared_ptr<IndexDataClang> clangData = std::static_pointer_cast<IndexDataClang>(data);
                 if (Server::instance()->options().completionCacheSize > 0 && clangData->unit) {
-                    const SourceInformation sourceInfo = job->sourceInformation();
-                    if (currentFileId == sourceInfo.fileId) {
-                        std::shared_ptr<ReparseJob> rj(new ReparseJob(clangData->unit,
-                                                                      sourceInfo.sourceFile(),
-                                                                      sourceInfo.args,
-                                                                      std::static_pointer_cast<IndexerJobClang>(job)->contents(),
-                                                                      shared_from_this()));
-                        clangData->unit = 0;
-                        Server::instance()->startIndexerJob(rj);
-                    } else {
-                        addCachedUnit(sourceInfo.sourceFile(), sourceInfo.args, clangData->unit, 1);
-                        clangData->unit = 0;
-                    }
+#warning not done
+                    // const SourceInformation sourceInfo = job->sourceInformation();
+                    // if (currentFileId == sourceInfo.fileId) {
+                    //     std::shared_ptr<ReparseJob> rj(new ReparseJob(clangData->unit,
+                    //                                                   sourceInfo.sourceFile(),
+                    //                                                   sourceInfo.args,
+                    //                                                   std::static_pointer_cast<IndexerJobClang>(job)->contents(),
+                    //                                                   shared_from_this()));
+                    //     clangData->unit = 0;
+                    //     Server::instance()->startIndexerJob(rj);
+                    // } else {
+                    //     addCachedUnit(sourceInfo.sourceFile(), sourceInfo.args, clangData->unit, 1);
+                    //     clangData->unit = 0;
+                    // }
                 }
                 extra = String::format<16>(" %d/%d/%d/%d", clangData->saveTime, clangData->loadTime, clangData->parseTime, clangData->visitTime);
                 clangData->clear();
@@ -402,7 +404,7 @@ void Project::index(const SourceInformation &c, IndexerJob::Type type)
     if (type != IndexerJob::Dump)
         job->finished().connect<EventLoop::Async>(std::bind(&Project::onJobFinished, this, std::placeholders::_1));
 
-    Server::instance()->startIndexerJob(job);
+    job->run();
 }
 
 static inline bool endsWith(const char *haystack, int haystackLen, const char *needle)
@@ -802,7 +804,7 @@ void Project::syncDB(int *dirty, int *sync)
     mPendingData.clear();
     if (Server::instance()->options().options & Server::Validate) {
         std::shared_ptr<ValidateDBJob> validate(new ValidateDBJob(shared_from_this(), mPreviousErrors));
-        Server::instance()->startQueryJob(validate);
+        Server::instance()->threadPool()->start(std::shared_ptr<WrapperJob>(new WrapperJob(0, validate)));
     }
     *sync = sw.elapsed();
 }

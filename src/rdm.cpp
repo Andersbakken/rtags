@@ -86,7 +86,7 @@ static void usage(FILE *f)
             "  --no-current-project|-o                    Don't restore the last current project on startup.\n"
             "  --allow-multiple-builds|-m                 Without this setting different builds will be merged for each source file.\n"
             "  --unload-timer|-u [arg]                    Number of minutes to wait before unloading non-current projects (disabled by default).\n"
-            "  --thread-count|-j [arg]                    Spawn this many threads for thread pool.\n"
+            "  --job-count|-j [arg]                       Spawn this many concurrent processes for indexing.\n"
             "  --watch-system-paths|-w                    Watch system paths for changes.\n"
             "  --clear-completion-cache-interval|-O [arg] Set completion cache cleanup interval in minuts. (default " STR(DEFAULT_COMPLETION_CACHE_CLEAR_INTERVAL) ")\n"
 #ifdef OS_Darwin
@@ -223,7 +223,7 @@ int main(int argc, char** argv)
 
     Server::Options serverOpts;
     serverOpts.socketFile = String::format<128>("%s.rdm", Path::home().constData());
-    serverOpts.threadCount = ThreadPool::idealThreadCount();
+    serverOpts.processCount = ThreadPool::idealThreadCount();
     serverOpts.completionCacheSize = 0;
     serverOpts.clearCompletionCacheInterval = DEFAULT_COMPLETION_CACHE_CLEAR_INTERVAL;
     serverOpts.options = Server::Wall|Server::SpellChecking;
@@ -340,8 +340,8 @@ int main(int argc, char** argv)
             }
             break; }
         case 'j':
-            serverOpts.threadCount = atoi(optarg);
-            if (serverOpts.threadCount <= 0) {
+            serverOpts.processCount = atoi(optarg);
+            if (serverOpts.processCount <= 0) {
                 fprintf(stderr, "Can't parse argument to -j %s\n", optarg);
                 return 1;
             }
@@ -391,7 +391,7 @@ int main(int argc, char** argv)
                 logLevel, logFile ? logFile : "", logFlags);
         return 1;
     }
-    warning("Running with %d jobs", serverOpts.threadCount);
+    warning("Running with %d jobs", serverOpts.processCount);
 
     EventLoop::SharedPtr loop(new EventLoop);
     loop->init(EventLoop::MainEventLoop);

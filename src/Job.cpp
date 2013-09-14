@@ -230,19 +230,14 @@ unsigned Job::keyFlags() const
     return QueryMessage::keyFlags(mQueryFlags);
 }
 
-void Job::run()
+void Job::run(Connection *connection)
 {
+    assert((mId == -1) == !connection);
+    mConnection = connection;
     execute();
     if (mId != -1) {
         EventLoop::eventLoop()->callLaterMove(std::bind(&Server::onJobOutput, Server::instance(), std::placeholders::_1),
                                               JobOutput(shared_from_this(), mBuffer, true));
     }
-}
-
-void Job::run(Connection *connection)
-{
-    assert(connection);
-    mConnection = connection;
-    execute();
     mConnection = 0;
 }

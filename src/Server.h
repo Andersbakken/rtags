@@ -70,16 +70,14 @@ public:
         NoEsprima = 0x0800,
         UseCompilerFlags = 0x1000
     };
-    ThreadPool *threadPool() const { return mIndexerThreadPool; }
-    void startQueryJob(const std::shared_ptr<Job> &job);
-    void startIndexerJob(const std::shared_ptr<ThreadPool::Job> &job);
+    ThreadPool *threadPool() { return &mThreadPool; }
     struct Options {
         Options()
-            : options(0), threadCount(0), completionCacheSize(0), unloadTimer(0), clearCompletionCacheInterval(0)
+            : options(0), processCount(0), completionCacheSize(0), unloadTimer(0), clearCompletionCacheInterval(0)
         {}
         Path socketFile, dataDir;
         unsigned options;
-        int threadCount, completionCacheSize, unloadTimer, clearCompletionCacheInterval;
+        int processCount, completionCacheSize, unloadTimer, clearCompletionCacheInterval;
         List<String> defaultArguments, excludeFilters;
         Set<Path> ignoredCompilers;
     };
@@ -169,7 +167,7 @@ private:
     bool mVerbose;
     int mJobId;
 
-    ThreadPool *mIndexerThreadPool, *mQueryThreadPool;
+    ThreadPool mThreadPool;
     Signal<std::function<void(int, const List<String> &)> > mComplete;
 
     Map<SocketClient::SharedPtr, Connection*> mCompletionStreams;
