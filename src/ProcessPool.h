@@ -21,6 +21,7 @@ public:
 private:
     void startProcess();
     void onProcessFinished(Process *proc);
+    void clear(Project *proj);
 
     struct Entry {
         uint32_t fileId;

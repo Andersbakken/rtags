@@ -64,31 +64,7 @@ void ProcessPool::cancel(uint32_t fileId)
 void ProcessPool::cancel(const std::shared_ptr<Project> &project)
 {
     assert(project);
-    {
-        Map<Process*, Entry*>::iterator it = mActive.begin();
-        while (it != mActive.end()) {
-            if (it->second->project.lock() == project) {
-                it->first->stop();
-                delete it->first; // ### is this safe
-                delete mByFileId.take(it->second->fileId);
-                mActive.erase(it++);
-            } else {
-                ++it;
-            }
-        }
-    }
-    {
-        int i = mPending.size() - 1;
-        while (i >= 0) {
-            Entry *entry = mPending.at(i);
-            if (entry->project.lock() == project) {
-                mByFileId.remove(entry->fileId);
-                delete entry;
-                mPending.erase(mPending.begin() + i);
-            }
-            --i;
-        }
-    }
+    clear(project.get());
 }
 
 void ProcessPool::startProcess()
@@ -112,7 +88,8 @@ void ProcessPool::startProcess()
             delete proc;
             delete entry;
         } else {
-            proc->finished().connect(std::bind(&ProcessPool::onProcessFinished, this));
+            proc->finished().connect(std::bind(&ProcessPool::onProcessFinished,
+                                               this, std::placeholders::_1));
             mActive[proc] = entry;
         }
     }
@@ -134,5 +111,35 @@ void ProcessPool::onProcessFinished(Process *proc)
 
 void ProcessPool::clear()
 {
+    clear(0);
+}
 
+void ProcessPool::clear(Project *proj)
+{
+    {
+        Map<Process*, Entry*>::iterator it = mActive.begin();
+        while (it != mActive.end()) {
+            if (!proj || it->second->project.lock().get()) {
+                it->first->stop();
+                delete it->first; // ### is this safe
+                delete mByFileId.take(it->second->fileId);
+                mActive.erase(it++);
+            } else {
+                ++it;
+            }
+        }
+    }
+    {
+        int i = mPending.size() - 1;
+        while (i >= 0) {
+            Entry *entry = mPending.at(i);
+            if (!proj || entry->project.lock() == project) {
+                mByFileId.remove(entry->fileId);
+                delete entry;
+                mPending.erase(mPending.begin() + i);
+            }
+            --i;
+        }
+    }
+    
 }
