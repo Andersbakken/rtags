@@ -3,20 +3,14 @@
 
 #include <rct/Map.h>
 #include <rct/Process.h>
-#include <rct/ThreadPool.h>
 // ### not meant to be threadsafe
 
 class Project;
 class ProcessPool
 {
 public:
-    ProcessPool()
-        : mCount(ThreadPool::idealThreadCount())
-    {}
-    ~ProcessPool()
-    {
-        assert(mActive.isEmpty());
-    }
+    ProcessPool();
+    ~ProcessPool();
     void setCount(int count) { mCount = count; }
     int count() const { return mCount; }
 
@@ -39,8 +33,9 @@ private:
     };
     Map<uint32_t, Entry*> mByFileId;
     Map<Process*, Entry*> mActive;
-    List<Entry*> mPending;
+    std::deque<Entry*> mPending;
     int mCount;
+    const Path mRp;
 };
 
 #endif
