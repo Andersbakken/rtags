@@ -84,6 +84,7 @@ set(RDM_SOURCES
   Job.cpp
   ListSymbolsJob.cpp
   Preprocessor.cpp
+  ProcessPool.cpp
   Project.cpp
   RTagsClang.cpp
   ReferencesJob.cpp

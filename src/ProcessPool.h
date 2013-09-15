@@ -6,36 +6,41 @@
 #include <rct/ThreadPool.h>
 // ### not meant to be threadsafe
 
+class Project;
 class ProcessPool
 {
 public:
     ProcessPool()
-        : mCount(ThreadPool::idealThreadCount()), mNextId(1)
+        : mCount(ThreadPool::idealThreadCount())
     {}
     ~ProcessPool()
     {
-        assert(mProcesses.isEmpty());
+        assert(mActive.isEmpty());
     }
     void setCount(int count) { mCount = count; }
     int count() const { return mCount; }
 
-    int start(const Path &file, const List<String> &args, const List<String> &environ = List<String>(), const Path &cwd = Path());
-    void cancel(int id);
-    Signal<std::function<void(int, Process *)> > &finished() { return mFinished; }
-    Signal<std::function<void(int, Process *)> > &readyReadStdOut() { return mReadyReadStdOut; }
-    Signal<std::function<void(int, Process *)> > &readyReadStdErr() { return mReadyReadStdErr; }
+    void add(const std::shared_ptr<Project> &project, uint32_t fileId);
+    void cancel(uint32_t fileId);
+    void cancel(const std::shared_ptr<Project> &project);
+    void clear();
 private:
-    struct Entry {
-        int id;
-        Path file;
-        List<String> args, environ;
-        Path cwd;
-    };
+    void startProcess();
+    void onProcessFinished(Process *proc);
 
-    List<Entry> mPending;
-    Map<int, Process*> mProcesses;
-    Signal<std::function<void(int, Process *)> > mFinished, mReadyReadStdOut, mReadyReadStdErr;
-    int mNextId;
+    struct Entry {
+        uint32_t fileId;
+        std::weak_ptr<Project> project;
+        enum {
+            Pending,
+            Active,
+            Readded
+        } state;
+    };
+    Map<uint32_t, Entry*> mByFileId;
+    Map<Process*, Entry*> mActive;
+    List<Entry*> mPending;
+    int mCount;
 };
 
 #endif
