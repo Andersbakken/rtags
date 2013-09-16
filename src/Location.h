@@ -71,12 +71,16 @@ public:
 
     static inline uint32_t fileId(const Path &path)
     {
+#ifdef THREAD_SAFE
         std::lock_guard<std::mutex> lock(sMutex);
+#endif
         return sPathsToIds.value(path);
     }
     static inline Path path(uint32_t id)
     {
+#ifdef THREAD_SAFE
         std::lock_guard<std::mutex> lock(sMutex);
+#endif
         return sIdsToPaths.value(id);
     }
 
@@ -84,7 +88,9 @@ public:
     {
         uint32_t ret;
         {
+#ifdef THREAD_SAFE
             std::lock_guard<std::mutex> lock(sMutex);
+#endif
             uint32_t &id = sPathsToIds[path];
             if (!id) {
                 id = ++sLastId;
@@ -102,7 +108,9 @@ public:
     inline Path path() const
     {
         if (mCachedPath.isEmpty()) {
+#ifdef THREAD_SAFE
             std::lock_guard<std::mutex> lock(sMutex);
+#endif
             mCachedPath = sIdsToPaths.value(fileId());
         }
         return mCachedPath;
@@ -234,23 +242,40 @@ public:
     }
     static Map<uint32_t, Path> idsToPaths()
     {
+#ifdef THREAD_SAFE
         std::lock_guard<std::mutex> lock(sMutex);
+#endif
         return sIdsToPaths;
     }
     static Map<Path, uint32_t> pathsToIds()
     {
+#ifdef THREAD_SAFE
         std::lock_guard<std::mutex> lock(sMutex);
+#endif
         return sPathsToIds;
     }
     static void init(const Map<Path, uint32_t> &pathsToIds)
     {
+#ifdef THREAD_SAFE
         std::lock_guard<std::mutex> lock(sMutex);
+#endif
         sPathsToIds = pathsToIds;
         sLastId = sPathsToIds.size();
         for (Map<Path, uint32_t>::const_iterator it = sPathsToIds.begin(); it != sPathsToIds.end(); ++it) {
             assert(it->second <= it->second);
             sIdsToPaths[it->second] = it->first;
         }
+    }
+
+    static void set(const Path &path, uint32_t fileId)
+    {
+#ifdef THREAD_SAFE
+        std::lock_guard<std::mutex> lock(sMutex);
+#endif
+        assert(!sPathsToIds.contains(path));
+        assert(!sIdsToPaths.contains(fileId));
+        sPathsToIds[path] = fileId;
+        sIdsToPaths[fileId] = path;
     }
 private:
     static Map<Path, uint32_t> sPathsToIds;
