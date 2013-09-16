@@ -133,7 +133,7 @@ void ProcessPool::clear(Project *proj)
         int i = mPending.size() - 1;
         while (i >= 0) {
             Entry *entry = mPending.at(i);
-            if (!proj || entry->project.lock() == project) {
+            if (!proj || entry->project.lock().get() == proj) {
                 mByFileId.remove(entry->fileId);
                 delete entry;
                 mPending.erase(mPending.begin() + i);
