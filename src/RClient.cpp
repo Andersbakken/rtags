@@ -315,7 +315,7 @@ public:
         msg.setPathFilters(rc->pathFilters().toList());
         msg.setRangeFilter(rc->minOffset(), rc->maxOffset());
         msg.setProjects(rc->projects());
-        return connection->send(std::move(msg));
+        return connection->send(msg);
     }
 
     virtual String description() const
@@ -350,13 +350,13 @@ public:
             msg.init(rc->argc(), rc->argv());
             msg.setProjects(rc->projects());
             EventLoop::eventLoop()->registerSocket(STDIN_FILENO, EventLoop::SocketRead, std::bind(&CompletionCommand::processStdin, this));
-            return connection->send(std::move(msg));
+            return connection->send(msg);
         } else {
             CompletionMessage msg(CompletionMessage::None, path, line, column);
             msg.init(rc->argc(), rc->argv());
             msg.setContents(rc->unsavedFiles().value(path));
             msg.setProjects(rc->projects());
-            return connection->send(std::move(msg));
+            return connection->send(msg);
         }
     }
 
@@ -418,7 +418,7 @@ public:
         const char *argv[] = { "completionStream", args.constData() };
         msg.init(2, argv);
         msg.setContents(contents);
-        connection->send(std::move(msg));
+        connection->send(msg);
     }
 };
 
@@ -435,7 +435,7 @@ public:
     {
         CreateOutputMessage msg(mLevel == Default ? rc->logLevel() : mLevel);
         msg.init(rc->argc(), rc->argv());
-        return connection->send(std::move(msg));
+        return connection->send(msg);
     }
     virtual String description() const
     {
@@ -457,7 +457,7 @@ public:
         CompileMessage msg(cwd, args);
         msg.init(rc->argc(), rc->argv());
         msg.setProjects(rc->projects());
-        return connection->send(std::move(msg));
+        return connection->send(msg);
     }
     virtual String description() const
     {
