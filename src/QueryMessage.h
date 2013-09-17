@@ -144,6 +144,7 @@ public:
     virtual void encode(Serializer &serializer) const;
     virtual void decode(Deserializer &deserializer);
 
+    void addProject(const Path &project) { mProjects.append(project); }
     void setProjects(const List<String> &projects) { mProjects = projects; }
     List<String> projects() const { return mProjects; }
 private:

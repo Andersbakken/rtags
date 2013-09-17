@@ -77,14 +77,14 @@ static inline Log operator<<(Log dbg, const SourceInformation &s)
 
 template <> inline Serializer &operator<<(Serializer &s, const SourceInformation &t)
 {
-    s << t.fileId << t.parsed << t.compiler << t.args << t.additionalDependencies;
+    s << t.fileId << t.parsed << t.compiler << t.args; // << t.additionalDependencies;
     return s;
 }
 
 template <> inline Deserializer &operator>>(Deserializer &s, SourceInformation &t)
 {
     t.clear();
-    s >> t.fileId >> t.parsed >> t.compiler >> t.args >> t.additionalDependencies;
+    s >> t.fileId >> t.parsed >> t.compiler >> t.args; // >> t.additionalDependencies;
     return s;
 }
 

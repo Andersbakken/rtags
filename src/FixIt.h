@@ -38,4 +38,16 @@ struct FixIt
     String text;
 };
 
+template <> inline Serializer &operator<<(Serializer &s, const FixIt &f)
+{
+    s << f.start << f.end << f.text;
+    return s;
+}
+
+template <> inline Deserializer &operator>>(Deserializer &s, FixIt &f)
+{
+    s >> f.start >> f.end >> f.text;
+    return s;
+}
+
 #endif

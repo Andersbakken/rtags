@@ -15,72 +15,55 @@
 
 #include "GccArguments.h"
 #include "RTagsClang.h"
-#include <clang-c/Index.h>
+#include "ClangIndexer.h"
 #include <rct/Log.h>
 #include <rct/String.h>
 #include <rct/StopWatch.h>
 
-class Scope
-{
-public:
-    Scope(CXIndex &index, CXTranslationUnit &unit)
-        : mIndex(index), mUnit(unit)
-    {}
-
-    ~Scope()
-    {
-        if (mIndex) {
-            clang_disposeIndex(mIndex);
-            mIndex = 0;
-        }
-        if (mUnit) {
-            clang_disposeTranslationUnit(mUnit);
-            mUnit = 0;
-        }
-    }
-private:
-    CXIndex &mIndex;
-    CXTranslationUnit &mUnit;
-};
-
 int main(int argc, char **argv)
 {
     initLogging();
-    List<String> args(argc - 1);
-    for (int i=1; i<argc - 1; ++i)
-        args[i - 1] = argv[i];
+    std::shared_ptr<EventLoop> eventLoop(new EventLoop);
+    eventLoop->init(EventLoop::MainEventLoop);
+    String sourceFile;
+    Path project;
+    List<String> args;
+    ClangIndexer::Type type = ClangIndexer::Dirty;
+    Path serverFile;
 
-    Path path(argv[argc - 1]);
-    CXIndex index = clang_createIndex(0, 1);
-    CXTranslationUnit unit = 0;
-    Scope scope(index, unit);
-    const String contents = path.readAll();
-    CXUnsavedFile unsaved = { path.constData(), contents.constData(), static_cast<unsigned long>(contents.size()) };
-    String clangLine;
-    RTags::parseTranslationUnit(argv[argc - 1], args, List<String>(), unit, index, clangLine, &unsaved, 1);
-    if (!unit) {
-        fprintf(stderr, "Failed to parse translation unit\n");
-        return 1;
+    if (argc == 1) {
+        String out;
+        Rct::readFile(stdin, out);
+        Deserializer deserializer(out);
+        uint8_t t;
+        deserializer >> serverFile >> sourceFile >> project >> args >> t;
+        type = static_cast<ClangIndexer::Type>(t);
     } else {
-        char tempFile[PATH_MAX];
-        strcpy(tempFile, "/tmp/rtags-tu-XXXXXX");
-        const int fd = mkstemp(tempFile);
-        if (fd < 0) {
-            fprintf(stderr, "Failed to create tempfile\n");
+        serverFile = String::format<128>("%s.rdm", Path::home().constData());
+        for (int i=1; i<argc - 1; ++i)
+            args[i - 1] = argv[i];
+        GccArguments a;
+        if (!a.parse(args, Path::pwd())) {
+            fprintf(stderr, "Failed to parse command line\n");
             return 2;
         }
-        StopWatch watch;
-        if (clang_saveTranslationUnit(unit, tempFile, clang_defaultSaveOptions(unit)) == CXSaveError_None) {
-            printf("%s\n", tempFile);
-            fprintf(stderr, "Wrote to file: %s\n", tempFile);
-        } else {
-            fprintf(stderr, "Failed to save translation unit\n");
-            close(fd);
-            return 3;
-        }
-        close(fd);
-        const int elapsed = watch.elapsed();
-        printf("%d\n", elapsed);
+        project = a.projectRoot();
+        sourceFile = a.inputFiles().value(0);
+        args = a.clangArgs();
+    }
+    if (sourceFile.isEmpty()) {
+        fprintf(stderr, "No sourcefile\n");
+        return 3;
+    }
+
+    ClangIndexer indexer;
+    if (!indexer.connect(serverFile)) {
+        fprintf(stderr, "Failed to connect to rdm\n");
+        return 4;
+    }
+    if (!indexer.index(type, sourceFile, project, args)) {
+        fprintf(stderr, "Failed to index %s\n", sourceFile.constData());
+        return 5;
     }
 
     return 0;

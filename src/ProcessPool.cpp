@@ -15,10 +15,12 @@ ProcessPool::~ProcessPool()
 {
 }
 
-void ProcessPool::add(const std::shared_ptr<Project> &project, uint32_t fileId)
+void ProcessPool::add(const std::shared_ptr<Project> &project, uint32_t fileId, ClangIndexer::Type type)
 {
     Entry *&entry = mByFileId[fileId];
     if (entry) {
+        if (entry->type == ClangIndexer::Dump)
+            entry->type = type; // ### ???
         if (entry->state == Entry::Active)
             entry->state = Entry::Readded;
         return;
@@ -27,6 +29,7 @@ void ProcessPool::add(const std::shared_ptr<Project> &project, uint32_t fileId)
     entry->fileId = fileId;
     entry->project = project;
     entry->state = Entry::Pending;
+    entry->type = type;
     mPending.push_back(entry);
 }
 
@@ -79,15 +82,19 @@ void ProcessPool::startProcess()
 
         Process *proc = new Process;
         const SourceInformation sourceInfo = project->sourceInfo(entry->fileId);
-        const List<String> args = (sourceInfo.args
-                                   + CompilerManager::flags(sourceInfo.compiler)
-                                   + Server::instance()->options().defaultArguments
-                                   + sourceInfo.sourceFile());
-        if (!proc->start(mRp, args)) {
+        if (!proc->start(mRp)) {
             error() << "Couldn't start rp" << proc->errorString();
             delete proc;
             delete entry;
         } else {
+            const List<String> args = (sourceInfo.args
+                                       + CompilerManager::flags(sourceInfo.compiler)
+                                       + Server::instance()->options().defaultArguments);
+            String input;
+            Serializer serializer(input);
+            serializer << Server::instance()->options().socketFile << sourceInfo.sourceFile()
+                       << project->path() << args << static_cast<uint8_t>(entry->type);
+            proc->write(input);
             proc->finished().connect(std::bind(&ProcessPool::onProcessFinished,
                                                this, std::placeholders::_1));
             mActive[proc] = entry;
@@ -141,5 +148,5 @@ void ProcessPool::clear(Project *proj)
             --i;
         }
     }
-    
+
 }

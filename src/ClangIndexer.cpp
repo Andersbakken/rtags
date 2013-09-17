@@ -3,6 +3,7 @@
 #include "VisitFileMessage.h"
 #include <rct/Connection.h>
 #include <rct/EventLoop.h>
+#include "IndexerMessage.h"
 
 static const CXSourceLocation nullLocation = clang_getNullLocation();
 static const CXCursor nullCursor = clang_getNullCursor();
@@ -28,7 +29,7 @@ ClangIndexer::ClangIndexer()
     : mType(Invalid), mUnit(0), mIndex(0), mLastCursor(nullCursor), mFileId(0), mParseTime(0),
       mVisitedFiles(0), mParseDuration(0), mVisitDuration(0)
 {
-
+    mConnection.setAutoClose(false);
 }
 
 ClangIndexer::~ClangIndexer()
@@ -39,8 +40,16 @@ ClangIndexer::~ClangIndexer()
         clang_disposeIndex(mIndex);
 }
 
-bool ClangIndexer::index(Type type, const Path &sourceFile, const List<String> &args, const String &contents)
+bool ClangIndexer::connect(const Path &serverFile)
 {
+    return mConnection.connectToServer(serverFile, 1000);
+}
+
+bool ClangIndexer::index(Type type, const Path &sourceFile, const Path &project,
+                         const List<String> &args, const String &contents)
+{
+    mProject = project;
+    assert(mConnection.isConnected());
     mContents = (contents.isEmpty() ? sourceFile.readAll() : contents);
     assert(type != Invalid);
     assert(mType == Invalid);
@@ -57,13 +66,21 @@ bool ClangIndexer::index(Type type, const Path &sourceFile, const List<String> &
     mMessage += String::format<16>(" in %dms. ", static_cast<int>(mTimer.elapsed()) / 1000);
     if (mUnit) {
         mMessage += String::format<128>("(%d syms, %d symNames, %d refs, %d deps, %d files)",
-                                              mSymbols.size(), mSymbolNames.size(), mReferences.size(),
-                                              mDependencies.size(), mVisitedFiles);
+                                        mSymbols.size(), mSymbolNames.size(), mReferences.size(),
+                                        mDependencies.size(), mVisitedFiles);
     } else if (mDependencies.size()) {
         mMessage += String::format<16>("(%d deps)", mDependencies.size());
     }
     if (mType == Dirty)
         mMessage += " (dirty)";
+    String out;
+    out.reserve(1024 * 1024 * 4); // ### could be smarter about this maybe
+    Serializer serializer(out);
+    const IndexerMessage msg(mFileId, mParseTime, std::move(mSymbols), std::move(mReferences),
+                             std::move(mSymbolNames), std::move(mDependencies), std::move(mMessage),
+                             std::move(mFixIts), std::move(mXmlDiagnostics), std::move(mVisited),
+                             mParseDuration, mVisitDuration, std::move(mLogOutput));
+    mConnection.send(msg);
     return ret;
 }
 
@@ -74,7 +91,6 @@ Location ClangIndexer::createLocation(const Path &sourceFile, unsigned start, bo
     if (!file.first) {
         bool blocked = false;
         enum { Timeout = 1000 };
-        Connection connection;
         const Path resolved = sourceFile.resolved();
         const bool diff = (resolved != sourceFile);
         if (diff) {
@@ -90,18 +106,18 @@ Location ClangIndexer::createLocation(const Path &sourceFile, unsigned start, bo
                 return Location(file.first, start);
             }
         }
-        if (connection.connectToServer(mSocketFile, Timeout)) {
-            QueryMessage msg(QueryMessage::VisitFile);
-            msg.setQuery(resolved);
-            connection.newMessage().connect([&file, &blocked](Message *msg, Connection *conn) {
-                    assert(msg->messageId() == VisitFileMessage::MessageId);
-                    const VisitFileMessage *vm = static_cast<VisitFileMessage*>(msg);
-                    file = std::make_pair(vm->fileId(), !vm->visit());
-                });
+        QueryMessage msg(QueryMessage::VisitFile);
+        msg.addProject(mProject);
+        msg.setQuery(resolved);
+        mConnection.newMessage().connect([&file, &blocked](Message *msg, Connection *conn) {
+                assert(msg->messageId() == VisitFileMessage::MessageId);
+                const VisitFileMessage *vm = static_cast<VisitFileMessage*>(msg);
+                file = std::make_pair(vm->fileId(), !vm->visit());
+                EventLoop::eventLoop()->quit();
+            });
 
-            connection.send(&msg);
-            EventLoop::eventLoop()->exec(Timeout);
-        }
+        mConnection.send(msg);
+        EventLoop::eventLoop()->exec(Timeout);
         if (!file.first) {
             error() << "Error getting fileId for" << resolved;
             exit(1);
@@ -1214,9 +1230,4 @@ void ClangIndexer::inclusionVisitor(CXFile includedFile,
                 indexer->mDependencies[fileId].insert(f);
         }
     }
-}
-
-void ClangIndexer::encode(Serializer &serializer) const
-{
-
 }

@@ -190,7 +190,6 @@ public:
     int start, end;
 };
 
-
 template <> inline Serializer &operator<<(Serializer &s, const CursorInfo &t)
 {
     s << t.symbolLength << t.symbolName << static_cast<int>(t.kind)

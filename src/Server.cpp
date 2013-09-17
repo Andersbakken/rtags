@@ -36,6 +36,8 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 #include "Preprocessor.h"
 #include "Project.h"
 #include "QueryMessage.h"
+#include "VisitFileMessage.h"
+#include "IndexerMessage.h"
 #include "RTags.h"
 #include "ReferencesJob.h"
 #include "StatusJob.h"
@@ -268,6 +270,9 @@ void Server::onNewMessage(Message *message, Connection *connection)
     case QueryMessage::MessageId:
         handleQueryMessage(static_cast<const QueryMessage&>(*message), connection);
         break;
+    case IndexerMessage::MessageId:
+        handleIndexerMessage(static_cast<const IndexerMessage&>(*message), connection);
+        break;
     case CreateOutputMessage::MessageId:
         handleCreateOutputMessage(static_cast<const CreateOutputMessage&>(*message), connection);
         break;
@@ -280,6 +285,8 @@ void Server::onNewMessage(Message *message, Connection *connection)
         }
         break; }
     case ResponseMessage::MessageId:
+    case FinishMessage::MessageId:
+    case VisitFileMessage::MessageId:
         assert(0);
         connection->finish();
         break;
@@ -338,6 +345,11 @@ void Server::handleCompileMessage(const CompileMessage &message, Connection *con
 void Server::handleCreateOutputMessage(const CreateOutputMessage &message, Connection *conn)
 {
     new LogObject(conn, message.level());
+}
+
+void Server::handleIndexerMessage(const IndexerMessage &message, Connection *conn)
+{
+    // ### need to handle indexer data
 }
 
 void Server::handleQueryMessage(const QueryMessage &message, Connection *conn)

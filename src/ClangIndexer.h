@@ -4,6 +4,7 @@
 #include <rct/StopWatch.h>
 #include <rct/Serializer.h>
 #include <rct/Path.h>
+#include <rct/Connection.h>
 #include "RTagsClang.h"
 
 class ClangIndexer
@@ -12,6 +13,8 @@ public:
     ClangIndexer();
     ~ClangIndexer();
 
+    bool connect(const Path &serverFile);
+
     enum Type {
         Invalid,
         Makefile,
@@ -19,8 +22,8 @@ public:
         Dump
     };
 
-    bool index(Type type, const Path &sourceFile, const List<String> &args, const String &contents = String());
-    void encode(Serializer &serializer) const;
+    bool index(Type type, const Path &sourceFile, const Path &project,
+               const List<String> &args, const String &contents = String());
 private:
     bool diagnose();
     bool visit();
@@ -66,6 +69,7 @@ private:
     static String typeName(const CXCursor &cursor);
     static String typeString(const CXType &type);
 
+    Path mProject;
     String mLogOutput;
     String mContents;
     List<String> mArgs;
@@ -92,6 +96,7 @@ private:
     Path mSocketFile;
     StopWatch mTimer;
     int mParseDuration, mVisitDuration;
+    Connection mConnection;
 };
 
 #endif

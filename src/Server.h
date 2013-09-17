@@ -20,6 +20,7 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 #include "CompileMessage.h"
 #include "CreateOutputMessage.h"
 #include "CompletionMessage.h"
+#include "IndexerMessage.h"
 #include "FileManager.h"
 #include "QueryMessage.h"
 #include "RTagsClang.h"
@@ -49,7 +50,7 @@ class IndexerJob;
 class Server
 {
 public:
-    enum { DatabaseVersion = 29 };
+    enum { DatabaseVersion = 28 };
 
     Server();
     ~Server();
@@ -107,6 +108,7 @@ private:
     void onConnectionDisconnected(Connection *o);
     void clearProjects();
     void handleCompileMessage(const CompileMessage &message, Connection *conn);
+    void handleIndexerMessage(const IndexerMessage &message, Connection *conn);
     void handleCompletionMessage(const CompletionMessage &message, Connection *conn);
     void handleCompletionStream(const CompletionMessage &message, Connection *conn);
     void handleQueryMessage(const QueryMessage &message, Connection *conn);
