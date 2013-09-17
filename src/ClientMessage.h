@@ -8,7 +8,7 @@ class ClientMessage : public Message
 {
 public:
     enum {
-        CompletionId = ResponseId + 1,
+        CompletionId = FinishMessageId + 32,
         QueryId,
         ProjectId,
         CreateOutputId
