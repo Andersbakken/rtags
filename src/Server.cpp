@@ -137,8 +137,7 @@ bool Server::init(const Options &options)
             enum { Timeout = 1000 };
             Connection connection;
             if (connection.connectToServer(mOptions.socketFile, Timeout)) {
-                QueryMessage msg(QueryMessage::Shutdown);
-                connection.send(&msg);
+                connection.send(QueryMessage(QueryMessage::Shutdown));
                 connection.disconnected().connect(std::bind([](){ EventLoop::eventLoop()->quit(); }));
                 EventLoop::eventLoop()->exec(Timeout);
             }
