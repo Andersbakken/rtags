@@ -518,18 +518,16 @@ bool RClient::exec()
 
     const int commandCount = mCommands.size();
     bool requiresNon0Output = false;
+    Connection connection;
+    connection.setAutoClose(false);
+    connection.newMessage().connect(std::bind(&RClient::onNewMessage, this,
+                                              std::placeholders::_1, std::placeholders::_2));
+    connection.finished().connect(std::bind([](){ EventLoop::eventLoop()->quit(); }));
+    if (!connection.connectToServer(mSocketFile, mConnectTimeout)) {
+        error("Can't seem to connect to server");
+        return false;
+    }
     for (int i=0; i<commandCount; ++i) {
-        Connection connection;
-        if (!connection.connectToServer(mSocketFile, mConnectTimeout)) {
-            error("Can't seem to connect to server");
-            ret = false;
-            break;
-        }
-
-        connection.newMessage().connect(std::bind(&RClient::onNewMessage, this,
-                                                  std::placeholders::_1, std::placeholders::_2));
-        connection.disconnected().connect(std::bind([](){ EventLoop::eventLoop()->quit(); }));
-
         const std::shared_ptr<RCCommand> &cmd = mCommands.at(i);
         requiresNon0Output = cmd->flags & RCCommand::RequiresNon0Output;
         debug() << "running command " << cmd->description();
@@ -537,6 +535,7 @@ bool RClient::exec()
         if (!ret)
             break;
     }
+    connection.client()->close();
     mCommands.clear();
     ret = ret && (!requiresNon0Output || monitor.gotNon0Output);
     return ret;
