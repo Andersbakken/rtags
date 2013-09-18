@@ -70,7 +70,7 @@ add_library(shared ${RTAGS_SHARED_SOURCES})
 
 set(RDM_SOURCES
   CompilerManager.cpp
-  CompletionJob.cpp
+  # CompletionJob.cpp
   CursorInfo.cpp
   CursorInfoJob.cpp
   DependenciesJob.cpp
@@ -79,7 +79,6 @@ set(RDM_SOURCES
   FindSymbolsJob.cpp
   FollowLocationJob.cpp
   GccArguments.cpp
-  IndexerJob.cpp
   JSONJob.cpp
   Job.cpp
   ListSymbolsJob.cpp

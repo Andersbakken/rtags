@@ -42,20 +42,22 @@ public:
         return true;
     }
 
-    std::shared_ptr<IndexerJob> createJob(const std::shared_ptr<Project> &project, IndexerJob::Type type,
-                                     const SourceInformation &sourceInformation)
+    std::shared_ptr<IndexerJob> createJob(uint64_t id, IndexType type,
+                                          const std::shared_ptr<Project> &project,
+                                          const SourceInformation &sourceInformation)
     {
         std::shared_ptr<IndexerJob> ret;
         for (int i=0; i<mPlugins.size(); ++i) {
             assert(mPlugins.at(i)->instance());
-            ret = mPlugins.at(i)->instance()->createJob(project, type, sourceInformation);
+            ret = mPlugins.at(i)->instance()->createJob(id, type, project, sourceInformation);
             if (ret)
                 break;
         }
         return ret;
     }
-    std::shared_ptr<IndexerJob> createJob(const QueryMessage &msg, const std::shared_ptr<Project> &project,
-                                     const SourceInformation &sourceInformation)
+    std::shared_ptr<IndexerJob> createJob(const QueryMessage &msg,
+                                          const std::shared_ptr<Project> &project,
+                                          const SourceInformation &sourceInformation)
     {
         std::shared_ptr<IndexerJob> ret;
         for (int i=0; i<mPlugins.size(); ++i) {

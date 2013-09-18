@@ -25,12 +25,12 @@ class IndexerMessage : public ClientMessage
 public:
     enum { MessageId = IndexerMessageId };
 
-    IndexerMessage(uint32_t fileId, uint64_t parseTime, SymbolMap &&symbols, ReferenceMap &&references,
-                   SymbolNameMap &&symbolNames, DependencyMap &&dependencies, String &&message,
-                   FixItMap &&fixIts, String &&xmlDiagnostics, Map<uint32_t, bool> &&visited,
-                   int parseDuration, int visitDuration, String &&logOutput)
-    : ClientMessage(MessageId), mFileId(fileId), mParseTime(parseTime),
-        mSymbols(symbols), mReferences(references), mSymbolNames(symbolNames),
+    IndexerMessage(uint32_t fileId, const String &project, uint64_t parseTime, SymbolMap &&symbols,
+                   ReferenceMap &&references, SymbolNameMap &&symbolNames, DependencyMap &&dependencies,
+                   String &&message, FixItMap &&fixIts, String &&xmlDiagnostics,
+                   Map<uint32_t, bool> &&visited, int parseDuration, int visitDuration, String &&logOutput)
+        : ClientMessage(MessageId), mFileId(fileId), mProject(project), mParseTime(parseTime),
+          mSymbols(symbols), mReferences(references), mSymbolNames(symbolNames),
         mDependencies(dependencies), mMessage(message), mFixIts(fixIts),
         mXmlDiagnostics(xmlDiagnostics), mVisited(visited),
         mParseDuration(parseDuration), mVisitDuration(visitDuration),
@@ -64,8 +64,10 @@ public:
     FixItMap &&takeFixIts() { return std::move(mFixIts); }
     String &&takeXmlDiagnostics() { return std::move(mXmlDiagnostics); }
     Map<uint32_t, bool> &&takeVisited() { return std::move(mVisited); }
+    String &&takeProject() { return std::move(mProject); }
 private:
     uint32_t mFileId;
+    String mProject;
     uint64_t mParseTime;
     SymbolMap mSymbols;
     ReferenceMap mReferences;

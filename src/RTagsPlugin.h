@@ -27,12 +27,13 @@ class RTagsPlugin
 {
 public:
     virtual ~RTagsPlugin() {}
-    virtual std::shared_ptr<IndexerJob> createJob(const std::shared_ptr<Project> &project,
-                                             IndexerJob::Type type,
-                                             const SourceInformation &sourceInformation) = 0;
+    virtual std::shared_ptr<IndexerJob> createJob(uint64_t id,
+                                                  IndexType type,
+                                                  const std::shared_ptr<Project> &project,
+                                                  const SourceInformation &sourceInformation) = 0;
     virtual std::shared_ptr<IndexerJob> createJob(const QueryMessage &msg,
-                                             const std::shared_ptr<Project> &project,
-                                             const SourceInformation &sourceInformation) = 0;
+                                                  const std::shared_ptr<Project> &project,
+                                                  const SourceInformation &sourceInformation) = 0;
     // add functions for completions etc
 };
 

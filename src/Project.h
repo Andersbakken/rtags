@@ -126,7 +126,7 @@ public:
     String fixIts(uint32_t fileId) const;
     int reindex(const Match &match);
     int remove(const Match &match);
-    void onJobFinished(const std::shared_ptr<IndexerJob> &job);
+    void onJobFinished(const std::shared_ptr<IndexData> &job);
     SourceInformationMap sources() const;
     DependencyMap dependencies() const;
     Set<Path> watchedPaths() const { return mWatchedPaths; }
@@ -137,7 +137,7 @@ public:
     void onJSFilesAdded();
     List<std::pair<Path, List<String> > > cachedUnits() const;
 private:
-    void index(const SourceInformation &args, IndexerJob::Type type);
+    void index(const SourceInformation &args, IndexType type);
     void reloadFileManager();
     bool initJobFromCache(const Path &path, const List<String> &args,
                           CXTranslationUnit &unit, List<String> *argsOut, int *parseCount);
@@ -178,7 +178,7 @@ private:
     struct PendingJob
     {
         SourceInformation source;
-        IndexerJob::Type type;
+        IndexType type;
     };
     Map<uint32_t, PendingJob> mPendingJobs;
 
@@ -201,17 +201,13 @@ private:
 
     LinkedList<CachedUnit*> mCachedUnits;
     Set<uint32_t> mSuspendedFiles;
+    uint64_t mNextId;
 };
 
 inline bool Project::visitFile(uint32_t fileId)
 {
     std::lock_guard<std::mutex> lock(mMutex);
-    if (mVisitedFiles.contains(fileId)) {
-        return false;
-    }
-
-    mVisitedFiles.insert(fileId);
-    return true;
+    return mVisitedFiles.insert(fileId);
 }
 
 #endif

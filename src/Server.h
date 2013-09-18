@@ -26,6 +26,7 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 #include "RTagsClang.h"
 #include "RTags.h"
 #include "ScanJob.h"
+#include "ProcessPool.h"
 #include "RTagsPluginFactory.h"
 #include <rct/Connection.h>
 #include <rct/FileSystemWatcher.h>
@@ -71,6 +72,7 @@ public:
         NoEsprima = 0x0800,
         UseCompilerFlags = 0x1000
     };
+    ProcessPool *processPool() { return &mProcessPool; }
     ThreadPool *threadPool() { return &mThreadPool; }
     struct Options {
         Options()
@@ -99,7 +101,6 @@ private:
     void restoreFileIds();
     void clear();
     void onNewConnection();
-    Signal<std::function<void(int, const List<String> &)> > &complete() { return mComplete; }
     std::shared_ptr<Project> setCurrentProject(const Path &path, unsigned int queryFlags = 0);
     std::shared_ptr<Project> setCurrentProject(const std::shared_ptr<Project> &project, unsigned int queryFlags = 0);
     void index(const GccArguments &args, const List<String> &projects);
@@ -170,7 +171,7 @@ private:
     int mJobId;
 
     ThreadPool mThreadPool;
-    Signal<std::function<void(int, const List<String> &)> > mComplete;
+    ProcessPool mProcessPool;
 
     Map<SocketClient::SharedPtr, Connection*> mCompletionStreams;
     struct PendingCompletion

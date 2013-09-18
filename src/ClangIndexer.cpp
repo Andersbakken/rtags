@@ -75,10 +75,10 @@ bool ClangIndexer::index(Type type, const Path &sourceFile, const Path &project,
     String out;
     out.reserve(1024 * 1024 * 4); // ### could be smarter about this maybe
     Serializer serializer(out);
-    const IndexerMessage msg(mFileId, mParseTime, std::move(mSymbols), std::move(mReferences),
-                             std::move(mSymbolNames), std::move(mDependencies), std::move(mMessage),
-                             std::move(mFixIts), std::move(mXmlDiagnostics), std::move(mVisited),
-                             mParseDuration, mVisitDuration, std::move(mLogOutput));
+    const IndexerMessage msg(mFileId, std::move(mProject), mParseTime, std::move(mSymbols),
+                             std::move(mReferences), std::move(mSymbolNames), std::move(mDependencies),
+                             std::move(mMessage), std::move(mFixIts), std::move(mXmlDiagnostics),
+                             std::move(mVisited), mParseDuration, mVisitDuration, std::move(mLogOutput));
     mConnection.send(msg);
     return ret;
 }

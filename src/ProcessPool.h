@@ -3,7 +3,7 @@
 
 #include <rct/Map.h>
 #include <rct/Process.h>
-#include "ClangIndexer.h"
+#include "IndexerJob.h"
 // ### not meant to be threadsafe
 
 class Project;
@@ -15,7 +15,7 @@ public:
     void setCount(int count) { mCount = count; }
     int count() const { return mCount; }
 
-    void add(const std::shared_ptr<Project> &project, uint32_t fileId, ClangIndexer::Type type);
+    void add(const std::shared_ptr<Project> &project, uint32_t fileId, IndexType type);
     void cancel(uint32_t fileId);
     void cancel(const std::shared_ptr<Project> &project);
     void clear();
@@ -27,7 +27,7 @@ private:
     struct Entry {
         uint32_t fileId;
         std::weak_ptr<Project> project;
-        ClangIndexer::Type type;
+        IndexType type;
         enum {
             Pending,
             Active,

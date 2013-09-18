@@ -17,13 +17,28 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 #define IndexerJobEsprima_h
 
 #include "IndexerJob.h"
+#include <rct/ThreadPool.h>
+#include "QueryMessage.h"
 
 class IndexerJobEsprima : public IndexerJob
 {
 public:
-    IndexerJobEsprima(const std::shared_ptr<Project> &project, Type type, const SourceInformation &sourceInformation);
-    IndexerJobEsprima(const QueryMessage &msg, const std::shared_ptr<Project> &project, const SourceInformation &sourceInformation);
-    virtual void index();
+    IndexerJobEsprima(uint64_t id, IndexType type, const std::shared_ptr<Project> &project,
+                      const SourceInformation &sourceInformation);
+    IndexerJobEsprima(const QueryMessage &msg, const std::shared_ptr<Project> &project,
+                      const SourceInformation &sourceInformation);
+    virtual void start();
+    virtual bool abort();
+    bool isAborted() const { std::unique_lock<std::mutex> lock(mMutex); return mState == Aborted; }
+    void index();
+private:
+    std::shared_ptr<IndexData> mData;
+    enum State {
+        Pending,
+        Running,
+        Aborted
+    } mState;
+    mutable std::mutex mMutex;
 };
 
 #endif

@@ -15,11 +15,11 @@ ProcessPool::~ProcessPool()
 {
 }
 
-void ProcessPool::add(const std::shared_ptr<Project> &project, uint32_t fileId, ClangIndexer::Type type)
+void ProcessPool::add(const std::shared_ptr<Project> &project, uint32_t fileId, IndexType type)
 {
     Entry *&entry = mByFileId[fileId];
     if (entry) {
-        if (entry->type == ClangIndexer::Dump)
+        if (entry->type == Dump)
             entry->type = type; // ### ???
         if (entry->state == Entry::Active)
             entry->state = Entry::Readded;

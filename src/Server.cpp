@@ -1197,8 +1197,7 @@ void Server::jobCount(const QueryMessage &query, Connection *conn)
             conn->write<128>("Invalid job count %s (%d)", query.query().constData(), jobCount);
         } else {
             mOptions.processCount = jobCount;
-#warning needs doin
-            // mIndexerThreadPool->setConcurrentJobs(jobCount);
+            mProcessPool.setCount(jobCount);
             conn->write<128>("Changed jobs to %d", jobCount);
         }
     }

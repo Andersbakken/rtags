@@ -20,74 +20,79 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 #include "Job.h"
 #include <rct/ThreadPool.h>
 #include <rct/StopWatch.h>
+#include "QueryMessage.h"
+
+enum IndexType {
+    Makefile,
+    Dirty,
+    Dump
+};
 
 class IndexData
 {
 public:
-    enum {
-        ClangType = 1
-    };
-    IndexData(int t = 0)
-        : type(t)
+    IndexData(IndexType t, uint64_t id)
+        : fileId(0), parseTime(0), aborted(false), id(id), type(t)
     {}
     virtual ~IndexData()
     {}
 
-    ReferenceMap references;
+    Set<uint32_t> visitedFiles() const
+    {
+        Set<uint32_t> ret;
+        for (Map<uint32_t, bool>::const_iterator it = visited.begin(); it != visited.end(); ++it) {
+            if (it->second)
+                ret.insert(it->first);
+        }
+        return ret;
+    }
+
+    Set<uint32_t> blockedFiles() const
+    {
+        Set<uint32_t> ret;
+        for (Map<uint32_t, bool>::const_iterator it = visited.begin(); it != visited.end(); ++it) {
+            if (!it->second)
+                ret.insert(it->first);
+        }
+        return ret;
+    }
+
+    uint32_t fileId;
+    uint64_t parseTime;
     SymbolMap symbols;
+    ReferenceMap references;
     SymbolNameMap symbolNames;
     DependencyMap dependencies;
-    String message;
     UsrMap usrMap;
+    String message;
+    String logOutput;
     FixItMap fixIts;
-    Map<uint32_t, int> errors;
-    const int type;
+    String xmlDiagnostics;
+    Map<uint32_t, bool> visited;
+    bool aborted;
+    const uint64_t id;
+    const IndexType type;
 };
 
-class IndexerJob : public Job
+class IndexerJob : public std::enable_shared_from_this<IndexerJob>
 {
 public:
-    typedef std::shared_ptr<IndexerJob> SharedPtr;
-    enum Type {
-        Makefile,
-        Dirty,
-        Dump
-    };
-    IndexerJob(const std::shared_ptr<Project> &project, Type type, const SourceInformation &sourceInformation);
-    IndexerJob(const QueryMessage &msg, const std::shared_ptr<Project> &project, const SourceInformation &sourceInformation);
-    virtual ~IndexerJob();
-    std::shared_ptr<IndexData> data() const { return mData; }
-    uint32_t fileId() const { return mSourceInformation.fileId; }
-    Path path() const { return mSourceInformation.sourceFile(); }
-    bool abortIfStarted();
-    const SourceInformation &sourceInformation() const { return mSourceInformation; }
-    time_t parseTime() const { return mParseTime; }
-    const Set<uint32_t> &visitedFiles() const { return mVisitedFiles; }
-    const Set<uint32_t> &blockedFiles() const { return mBlockedFiles; }
-    Type type() const { return mType; }
-    Signal<std::function<void(IndexerJob::SharedPtr)> >& finished() { return mFinished; }
-protected:
-    virtual void index() = 0;
-    virtual void execute();
-    virtual std::shared_ptr<IndexData> createIndexData() { return std::shared_ptr<IndexData>(new IndexData); }
+    IndexerJob(uint64_t i, IndexType t, const std::shared_ptr<Project> &p, const SourceInformation &s)
+        : id(i), type(t), project(p), sourceInformation(s)
+    {}
+    IndexerJob(const QueryMessage &q, const std::shared_ptr<Project> &p, const SourceInformation &s)
+        : id(0), type(Dump), project(p), sourceInformation(s), queryMessage(q)
+    {}
 
-    Location createLocation(uint32_t fileId, uint32_t offset, bool *blocked);
-    Location createLocation(const Path &file, uint32_t offset, bool *blocked);
-    const Type mType;
+    virtual ~IndexerJob() {}
+    virtual void start() = 0;
+    virtual bool abort() = 0; // returns true if it was aborted, false if it hadn't started yet
 
-    Set<uint32_t> mVisitedFiles, mBlockedFiles;
-
-    Map<String, uint32_t> mFileIds;
-
-    SourceInformation mSourceInformation;
-
-    StopWatch mTimer;
-    std::shared_ptr<IndexData> mData;
-
-    time_t mParseTime;
-    bool mStarted;
-
-    Signal<std::function<void(IndexerJob::SharedPtr)> > mFinished;
+    const uint64_t id;
+    const IndexType type;
+                          std::weak_ptr<Project> project;
+    const SourceInformation sourceInformation;
+    QueryMessage queryMessage;
 };
 
 #endif
