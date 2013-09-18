@@ -29,7 +29,6 @@ ClangIndexer::ClangIndexer()
     : mType(Invalid), mUnit(0), mIndex(0), mLastCursor(nullCursor), mFileId(0), mParseTime(0),
       mVisitedFiles(0), mParseDuration(0), mVisitDuration(0)
 {
-    mConnection.setAutoClose(false);
 }
 
 ClangIndexer::~ClangIndexer()
