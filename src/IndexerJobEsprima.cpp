@@ -101,6 +101,7 @@ void IndexerJobEsprima::index()
     if (isAborted())
         return;
     mData.reset(new IndexData(type, id));
+    mData->fileId = sourceInformation.fileId;
     mData->parseTime = time(0);
     if (!parser.parse(sourceInformation.sourceFile(), &mData->symbols, &mData->symbolNames,
                       type == Dump ? 0 : &mData->dependencies, type == Dump ? &mData->logOutput : 0)) {
@@ -130,6 +131,9 @@ void IndexerJobEsprima::index()
                                              sourceInformation.sourceFile().toTilde().constData(),
                                              timer.elapsed(), mData->symbols.size(),
                                              mData->symbolNames.size(), mData->references.size());
+    }
+    if (std::shared_ptr<Project> proj = project.lock()) {
+        proj->onJobFinished(mData);
     }
 }
 

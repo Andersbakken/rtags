@@ -280,6 +280,7 @@ bool Project::match(const Match &p, bool *indexed) const
 
 void Project::onJobFinished(const std::shared_ptr<IndexData> &data)
 {
+    assert(data);
     PendingJob pending;
     bool startPending = false;
     {
@@ -291,6 +292,8 @@ void Project::onJobFinished(const std::shared_ptr<IndexData> &data)
             if (job->id == data->id)
                 mJobs.remove(data->fileId);
         } else {
+            std::shared_ptr<IndexerJob> job = mJobs.value(data->fileId);
+
             mPendingData[data->fileId] = data;
             assert(mJobs.value(data->fileId)->id == data->id);
             mJobs.remove(data->fileId);
@@ -373,6 +376,7 @@ void Project::index(const SourceInformation &c, IndexType type)
         return;
     }
     ++mNextId;
+    assert(mJobs[c.fileId] == job);
     mSyncTimer.stop();
     job->start();
 }

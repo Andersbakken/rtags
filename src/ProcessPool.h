@@ -15,7 +15,8 @@ public:
     void setCount(int count) { mCount = count; }
     int count() const { return mCount; }
 
-    void add(const std::shared_ptr<Project> &project, uint32_t fileId, IndexType type);
+    void add(const std::shared_ptr<Project> &project, uint32_t fileId,
+             IndexType type, uint64_t id);
     void cancel(uint32_t fileId);
     void cancel(const std::shared_ptr<Project> &project);
     void clear();
@@ -33,6 +34,7 @@ private:
             Active,
             Readded
         } state;
+        uint64_t id;
     };
     Map<uint32_t, Entry*> mByFileId;
     Map<Process*, Entry*> mActive;

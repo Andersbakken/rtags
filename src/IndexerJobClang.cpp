@@ -65,7 +65,7 @@ IndexerJobClang::IndexerJobClang(const QueryMessage &msg, const std::shared_ptr<
 void IndexerJobClang::start()
 {
     assert(project.lock());
-    Server::instance()->processPool()->add(project.lock(), sourceInformation.fileId, type);
+    Server::instance()->processPool()->add(project.lock(), sourceInformation.fileId, type, id);
 }
 
 // ### we really should be able to return false for aborts that happened before

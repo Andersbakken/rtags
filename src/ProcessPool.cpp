@@ -15,7 +15,8 @@ ProcessPool::~ProcessPool()
 {
 }
 
-void ProcessPool::add(const std::shared_ptr<Project> &project, uint32_t fileId, IndexType type)
+void ProcessPool::add(const std::shared_ptr<Project> &project, uint32_t fileId,
+                      IndexType type, uint64_t id)
 {
     Entry *&entry = mByFileId[fileId];
     if (entry) {
@@ -90,10 +91,12 @@ void ProcessPool::startProcess()
             const List<String> args = (sourceInfo.args
                                        + CompilerManager::flags(sourceInfo.compiler)
                                        + Server::instance()->options().defaultArguments);
+            error() << "Started rp" << mRp << args;
             String input;
             Serializer serializer(input);
             serializer << Server::instance()->options().socketFile << sourceInfo.sourceFile()
-                       << project->path() << args << static_cast<uint8_t>(entry->type);
+                       << project->path() << args << static_cast<uint8_t>(entry->type)
+                       << entry->id;
             proc->write(input);
             proc->finished().connect(std::bind(&ProcessPool::onProcessFinished,
                                                this, std::placeholders::_1));
