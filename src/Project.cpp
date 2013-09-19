@@ -285,18 +285,13 @@ void Project::onJobFinished(const std::shared_ptr<IndexData> &data)
     bool startPending = false;
     {
         std::lock_guard<std::mutex> lock(mMutex);
-        if (data->aborted) {
+        std::shared_ptr<IndexerJob> job = mJobs.take(data->fileId);
+        assert(job->id == data->id);
+        if (job->isAborted()) {
             mVisitedFiles -= data->visitedFiles();
             pending = mPendingJobs.take(data->fileId, &startPending);
-            std::shared_ptr<IndexerJob> job = mJobs.value(data->fileId);
-            if (job->id == data->id)
-                mJobs.remove(data->fileId);
         } else {
-            std::shared_ptr<IndexerJob> job = mJobs.value(data->fileId);
-
             mPendingData[data->fileId] = data;
-            assert(mJobs.value(data->fileId)->id == data->id);
-            mJobs.remove(data->fileId);
             const int idx = mJobCounter - mJobs.size();
             mSources[data->fileId].parsed = data->parseTime;
             if (testLog(RTags::CompilationErrorXml)) {
@@ -588,7 +583,8 @@ int Project::remove(const Match &match)
             if (match.match(it->second.sourceFile())) {
                 const uint32_t fileId = it->second.fileId;
                 mSources.erase(it++);
-                std::shared_ptr<IndexerJob> job = mJobs.value(fileId);
+                std::shared_ptr<IndexerJob> job = mJobs.take(fileId);
+                // ### is this right?
                 if (job)
                     job->abort();
                 mPendingData.remove(fileId);

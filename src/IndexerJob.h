@@ -33,7 +33,7 @@ class IndexData
 {
 public:
     IndexData(IndexType t, uint64_t id)
-        : fileId(0), parseTime(0), aborted(false), id(id), type(t)
+        : fileId(0), parseTime(0), id(id), type(t)
     {}
     virtual ~IndexData()
     {}
@@ -70,7 +70,6 @@ public:
     FixItMap fixIts;
     String xmlDiagnostics;
     Map<uint32_t, bool> visited;
-    bool aborted;
     const uint64_t id;
     const IndexType type;
 };
