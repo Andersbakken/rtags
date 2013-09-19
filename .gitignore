@@ -27,3 +27,6 @@ gr
 /compile_commands.json
 /tests/dtlcpptest/dtlcpptest
 /src/librtagsesprima.so
+/bin/.gdb_brestore
+/bin/.gdb_brestore.txt
+/bin/rp

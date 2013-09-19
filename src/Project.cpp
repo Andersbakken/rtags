@@ -325,7 +325,7 @@ void Project::onJobFinished(const std::shared_ptr<IndexerJob> &job)
                   String::formatTime(time(0), String::Time).constData(),
                   data->message.constData(), extra.constData());
 
-        if (mJobs.isEmpty()) {
+            if (mJobs.isEmpty()) {
                 mSyncTimer.restart(job->type() == IndexerJob::Dirty ? 0 : SyncTimeout, Timer::SingleShot);
             }
         }
