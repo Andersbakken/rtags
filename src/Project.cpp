@@ -751,10 +751,14 @@ static inline void writeReferences(const ReferenceMap &references, SymbolMap &sy
     }
 }
 
-void Project::syncDB()
+void Project::syncDB(int *dirty, int *sync)
 {
-    if (mPendingDirtyFiles.isEmpty() && mPendingData.isEmpty())
+    StopWatch sw;
+    if (mPendingDirtyFiles.isEmpty() && mPendingData.isEmpty()) {
+        *dirty = 0;
+        *sync = 0;
         return;
+    }
     // for (Map<uint32_t, std::shared_ptr<IndexData> >::iterator it = mPendingData.begin(); it != mPendingData.end(); ++it) {
     //     writeErrorSymbols(mSymbols, mErrorSymbols, it->second->errors);
     // }
@@ -765,6 +769,7 @@ void Project::syncDB()
         RTags::dirtyUsr(mUsr, mPendingDirtyFiles);
         mPendingDirtyFiles.clear();
     }
+    *dirty = sw.restart();
 
     Set<uint32_t> newFiles;
     for (Map<uint32_t, std::shared_ptr<IndexData> >::iterator it = mPendingData.begin(); it != mPendingData.end(); ++it) {
@@ -792,6 +797,7 @@ void Project::syncDB()
         std::shared_ptr<ValidateDBJob> validate(new ValidateDBJob(shared_from_this(), mPreviousErrors));
         Server::instance()->startQueryJob(validate);
     }
+    *sync = sw.elapsed();
 }
 
 bool Project::isIndexed(uint32_t fileId) const
@@ -936,12 +942,14 @@ String Project::fixIts(uint32_t fileId) const
 void Project::onTimerFired(Timer* timer)
 {
     if (timer == &mSyncTimer) {
+        int dirtyTime, syncTime;
+        syncDB(&dirtyTime, &syncTime);
         StopWatch sw;
-        syncDB();
-        const int syncTime = sw.restart();
         save();
         const int saveTime = sw.elapsed();
-        error() << "Jobs took" << (static_cast<double>(mTimer.elapsed()) / 1000.0) << "secs, syncing took"
+        error() << "Jobs took" << (static_cast<double>(mTimer.elapsed()) / 1000.0)
+                << "secs, dirtying took"
+                << (static_cast<double>(dirtyTime) / 1000.0) << "secs, syncing took"
                 << (static_cast<double>(syncTime) / 1000.0) << " secs, saving took"
                 << (static_cast<double>(saveTime) / 1000.0) << " secs, using"
                 << MemoryMonitor::usage() / (1024.0 * 1024.0) << "mb of memory";
