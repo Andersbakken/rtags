@@ -16,14 +16,16 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 #include "RTags.h"
 #include "CursorInfo.h"
 #include "Server.h"
-#include <rct/StopWatch.h>
 #include "Str.h"
+#include "VisitFileMessage.h"
+#include "IndexerMessage.h"
 #include <dirent.h>
 #include <fcntl.h>
 #include <fnmatch.h>
-#include <sys/types.h>
-#include <rct/Rct.h>
 #include <rct/Messages.h>
+#include <rct/Rct.h>
+#include <rct/StopWatch.h>
+#include <sys/types.h>
 #ifdef OS_FreeBSD
 #include <sys/sysctl.h>
 #endif
@@ -426,9 +428,10 @@ void initMessages()
     Messages::registerMessage<CompletionMessage>();
     Messages::registerMessage<CompileMessage>();
     Messages::registerMessage<CreateOutputMessage>();
+    Messages::registerMessage<VisitFileMessage>();
+    Messages::registerMessage<IndexerMessage>();
 #endif
 }
-
 }
 
 #ifdef RTAGS_DEBUG_MUTEX

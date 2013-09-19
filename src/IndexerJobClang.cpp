@@ -91,6 +91,7 @@ bool IndexerJobClang::init(Path &path, List<String> &, String &data)
     serializer << Server::instance()->options().socketFile << sourceInformation.sourceFile()
                << sourceInformation.fileId << proj->path() << args
                << static_cast<uint8_t>(type) << id;
+    ::error() << "Running" << path << args;
     path = rp;
     return true;
 }
@@ -103,5 +104,6 @@ void IndexerJobClang::error(const String &err)
 
 void IndexerJobClang::finished(Process *process)
 {
-    ::error() << sourceInformation << "finished" << process->returnCode();
+    ::error() << sourceInformation << "finished" << process->returnCode()
+              << process->readAllStdErr();
 }

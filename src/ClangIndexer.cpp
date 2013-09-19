@@ -44,16 +44,20 @@ bool ClangIndexer::connect(const Path &serverFile)
     return mConnection.connectToServer(serverFile, 1000);
 }
 
-bool ClangIndexer::index(Type type, const Path &sourceFile, const Path &project,
-                         const List<String> &args, const String &contents)
+bool ClangIndexer::index(IndexType type, uint32_t fileId, const Path &project, const List<String> &args,
+                         uint64_t id, const String &contents)
 {
+    mFileId = fileId;
+    mId = id;
     mProject = project;
     assert(mConnection.isConnected());
+    const Path sourceFile = Location::path(fileId);
+    Location::set(sourceFile, fileId);
+    mFilesToIds[sourceFile] = std::make_pair(fileId, true);
     mContents = (contents.isEmpty() ? sourceFile.readAll() : contents);
     assert(type != Invalid);
     assert(mType == Invalid);
     mType = type;
-    mSourceFile = sourceFile;
     mArgs = args;
     const bool ret = parse() && visit() && diagnose();
     mParseTime = Rct::currentTimeMs();
@@ -109,6 +113,11 @@ Location ClangIndexer::createLocation(const Path &sourceFile, unsigned start, bo
         msg.addProject(mProject);
         msg.setQuery(resolved);
         mConnection.newMessage().connect([&file, &blocked](Message *msg, Connection *conn) {
+                if (msg->messageId() != VisitFileMessage::MessageId) {
+                    fprintf(stderr, "\nFucking shit %d [%s]\n", msg->messageId(),
+                            static_cast<ResponseMessage*>(msg)->data().constData());
+                    exit(2);
+                }
                 assert(msg->messageId() == VisitFileMessage::MessageId);
                 const VisitFileMessage *vm = static_cast<VisitFileMessage*>(msg);
                 file = std::make_pair(vm->fileId(), !vm->visit());
@@ -843,21 +852,22 @@ bool ClangIndexer::parse()
     assert(!mIndex);
     mIndex = clang_createIndex(0, 1);
     assert(mIndex);
-    CXUnsavedFile unsaved = { mSourceFile.constData(), mContents.constData(), static_cast<unsigned long>(mContents.size()) };
-    RTags::parseTranslationUnit(mSourceFile, mArgs, List<String>(), mUnit, mIndex, mClangLine, &unsaved, 1);
+    const Path sourceFile = Location::path(mFileId);
+    CXUnsavedFile unsaved = { sourceFile.constData(), mContents.constData(), static_cast<unsigned long>(mContents.size()) };
+    RTags::parseTranslationUnit(sourceFile, mArgs, List<String>(), mUnit, mIndex, mClangLine, &unsaved, 1);
 
     mParseTime = mTimer.elapsed();
     warning() << "loading mUnit " << mClangLine << " " << (mUnit != 0);
     if (mUnit)
         return true;
     error() << "got failure" << mClangLine;
-    const String preprocessorOnly = RTags::filterPreprocessor(mSourceFile);
+    const String preprocessorOnly = RTags::filterPreprocessor(sourceFile);
     if (!preprocessorOnly.isEmpty()) {
         CXUnsavedFile preprocessorOnlyUnsaved = {
-            mSourceFile.constData(), preprocessorOnly.constData(),
+            sourceFile.constData(), preprocessorOnly.constData(),
             static_cast<unsigned long>(preprocessorOnly.size())
         };
-        RTags::parseTranslationUnit(mSourceFile, mArgs, List<String>(),
+        RTags::parseTranslationUnit(sourceFile, mArgs, List<String>(),
                                     mUnit, mIndex, mClangLine,
                                     &preprocessorOnlyUnsaved, 1);
     }
@@ -866,10 +876,7 @@ bool ClangIndexer::parse()
         clang_disposeTranslationUnit(mUnit);
         mUnit = 0;
     } else if (mType != Dump) {
-        bool blocked;
-        mFileId = createLocation(mSourceFile, 0, &blocked).fileId();
-        if (mFileId)
-            mDependencies[mFileId].insert(mFileId);
+        mDependencies[mFileId].insert(mFileId);
     }
     return false;
 }
@@ -1110,7 +1117,7 @@ bool ClangIndexer::visit()
         u.out += "</VerboseVisitor " + mClangLine + ">";
         if (getenv("RTAGS_INDEXERJOB_DUMP_TO_FILE")) {
             char buf[1024];
-            snprintf(buf, sizeof(buf), "/tmp/%s.log", mSourceFile.constData());
+            snprintf(buf, sizeof(buf), "/tmp/%s.log", Location::path(mFileId).constData());
             FILE *f = fopen(buf, "w");
             assert(f);
             fwrite(u.out.constData(), 1, u.out.size(), f);

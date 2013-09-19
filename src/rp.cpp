@@ -23,47 +23,53 @@
 int main(int argc, char **argv)
 {
     initLogging();
+    RTags::initMessages();
     std::shared_ptr<EventLoop> eventLoop(new EventLoop);
     eventLoop->init(EventLoop::MainEventLoop);
     String sourceFile;
     Path project;
     List<String> args;
-    ClangIndexer::Type type = ClangIndexer::Dirty;
     Path serverFile;
-
-    if (argc == 1) {
-        String out;
-        Rct::readFile(stdin, out);
-        Deserializer deserializer(out);
-        uint8_t t;
-        deserializer >> serverFile >> sourceFile >> project >> args >> t;
-        type = static_cast<ClangIndexer::Type>(t);
-    } else {
-        serverFile = String::format<128>("%s.rdm", Path::home().constData());
-        for (int i=1; i<argc - 1; ++i)
-            args[i - 1] = argv[i];
-        GccArguments a;
-        if (!a.parse(args, Path::pwd())) {
-            fprintf(stderr, "Failed to parse command line\n");
-            return 2;
-        }
-        project = a.projectRoot();
-        sourceFile = a.inputFiles().value(0);
-        args = a.clangArgs();
-    }
+    uint64_t id;
+    Deserializer deserializer(stdin);
+    uint32_t fileId;
+    uint8_t type;
+    deserializer >> serverFile >> sourceFile >> fileId >> project >> args >> type >> id;
     if (sourceFile.isEmpty()) {
         fprintf(stderr, "No sourcefile\n");
         return 3;
     }
+    if (!fileId) {
+        fprintf(stderr, "Bad fileId\n");
+        return 3;
+    }
+
+    if (project.isEmpty()) {
+        fprintf(stderr, "No project\n");
+        return 4;
+    }
+
+    switch (type) {
+    case Dirty:
+    case Makefile:
+    case Dump:
+        break;
+    default:
+        fprintf(stderr, "Invalid type %d\n", type);
+        return 5;
+    }
+
+    error() << "About to start here" << sourceFile << fileId << args;
 
     ClangIndexer indexer;
     if (!indexer.connect(serverFile)) {
         fprintf(stderr, "Failed to connect to rdm\n");
-        return 4;
+        return 6;
     }
-    if (!indexer.index(type, sourceFile, project, args)) {
+
+    if (!indexer.index(static_cast<IndexType>(type), fileId, project, args, id)) {
         fprintf(stderr, "Failed to index %s\n", sourceFile.constData());
-        return 5;
+        return 7;
     }
 
     return 0;

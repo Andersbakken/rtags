@@ -38,6 +38,10 @@ public:
     {
     }
 
+    IndexerMessage()
+        : ClientMessage(MessageId), mFileId(0), mParseTime(0), mParseDuration(-1), mVisitDuration(-1)
+    {}
+
     void encode(Serializer &serializer) const
     {
         serializer << mFileId << mParseTime << mSymbols << mReferences

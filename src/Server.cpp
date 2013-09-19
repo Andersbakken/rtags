@@ -263,6 +263,8 @@ void Server::onNewMessage(Message *message, Connection *connection)
         }
     }
 
+    error() << "Got a a message" << static_cast<int>(message->messageId());
+
     switch (message->messageId()) {
     case CompileMessage::MessageId:
         handleCompileMessage(static_cast<const CompileMessage&>(*message), connection);
@@ -287,7 +289,8 @@ void Server::onNewMessage(Message *message, Connection *connection)
     case ResponseMessage::MessageId:
     case FinishMessage::MessageId:
     case VisitFileMessage::MessageId:
-        assert(0);
+        error() << "Unexpected message" << static_cast<int>(message->messageId());
+        // assert(0);
         connection->finish();
         break;
     default:
@@ -1375,7 +1378,8 @@ void Server::visitFile(const QueryMessage &query, Connection *conn)
 
     const uint32_t fileId = Location::insertFile(path);
     const bool visit = project->visitFile(fileId);
-    conn->write<16>("%d %d", fileId, visit);
+    VisitFileMessage msg(fileId, visit);
+    conn->send(msg);
     conn->finish();
 }
 

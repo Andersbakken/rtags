@@ -5,6 +5,7 @@
 #include <rct/Serializer.h>
 #include <rct/Path.h>
 #include <rct/Connection.h>
+#include "IndexerJob.h"
 #include "RTagsClang.h"
 
 class ClangIndexer
@@ -14,16 +15,8 @@ public:
     ~ClangIndexer();
 
     bool connect(const Path &serverFile);
-
-    enum Type {
-        Invalid,
-        Makefile,
-        Dirty,
-        Dump
-    };
-
-    bool index(Type type, const Path &sourceFile, const Path &project,
-               const List<String> &args, const String &contents = String());
+    bool index(IndexType type, uint32_t fileId, const Path &project,
+               const List<String> &args, uint64_t id, const String &contents = String());
 private:
     bool diagnose();
     bool visit();
@@ -73,13 +66,13 @@ private:
     String mLogOutput;
     String mContents;
     List<String> mArgs;
-    Type mType;
+    IndexType mType;
     CXTranslationUnit mUnit;
     CXIndex mIndex;
     CXCursor mLastCursor;
     uint32_t mFileId;
     uint64_t mParseTime;
-    Path mSourceFile;
+    uint64_t mId;
     String mClangLine;
     ReferenceMap mReferences;
     SymbolMap mSymbols;

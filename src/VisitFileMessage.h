@@ -25,7 +25,7 @@ class VisitFileMessage : public ClientMessage
 public:
     enum { MessageId = VisitFileId };
 
-    VisitFileMessage(uint32_t fileId, bool visit)
+    VisitFileMessage(uint32_t fileId = 0, bool visit = false)
         : ClientMessage(MessageId), mFileId(fileId), mVisit(visit)
     {
     }

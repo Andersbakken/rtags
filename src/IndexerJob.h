@@ -23,6 +23,7 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 #include "QueryMessage.h"
 
 enum IndexType {
+    Invalid,
     Makefile,
     Dirty,
     Dump
@@ -87,11 +88,11 @@ public:
     virtual ~IndexerJob() {}
     virtual void start() = 0;
     virtual bool abort() = 0; // returns true if it was aborted, false if it hadn't started yet
-    virtual bool isAborted() const;
+    virtual bool isAborted() const = 0;
 
     const uint64_t id;
     const IndexType type;
-                          std::weak_ptr<Project> project;
+    std::weak_ptr<Project> project;
     const SourceInformation sourceInformation;
     QueryMessage queryMessage;
 };
