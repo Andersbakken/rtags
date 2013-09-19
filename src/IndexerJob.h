@@ -87,6 +87,7 @@ public:
     virtual ~IndexerJob() {}
     virtual void start() = 0;
     virtual bool abort() = 0; // returns true if it was aborted, false if it hadn't started yet
+    virtual bool isAborted() const;
 
     const uint64_t id;
     const IndexType type;

@@ -20,7 +20,7 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 #include <rct/ThreadPool.h>
 #include "QueryMessage.h"
 
-class IndexerJobEsprima : public IndexerJob
+class IndexerJobEsprima : public IndexerJob, public ThreadPool::Job
 {
 public:
     IndexerJobEsprima(uint64_t id, IndexType type, const std::shared_ptr<Project> &project,
@@ -29,8 +29,10 @@ public:
                       const SourceInformation &sourceInformation);
     virtual void start();
     virtual bool abort();
-    bool isAborted() const { std::unique_lock<std::mutex> lock(mMutex); return mState == Aborted; }
-    void index();
+    virtual bool isAborted() const { std::unique_lock<std::mutex> lock(mMutex); return mState == Aborted; }
+
+    // ThreadPool::Job
+    virtual void run();
 private:
     std::shared_ptr<IndexData> mData;
     enum State {

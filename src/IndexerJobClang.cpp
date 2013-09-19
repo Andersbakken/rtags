@@ -52,26 +52,56 @@ RTagsPlugin *createInstance()
 
 IndexerJobClang::IndexerJobClang(uint64_t id, IndexType type, const std::shared_ptr<Project> &project,
                                  const SourceInformation &sourceInformation)
-    : IndexerJob(id, type, project, sourceInformation)
+    : IndexerJob(id, type, project, sourceInformation), mState(Pending)
 {
 }
 
 IndexerJobClang::IndexerJobClang(const QueryMessage &msg, const std::shared_ptr<Project> &project,
                                  const SourceInformation &sourceInformation)
-    : IndexerJob(msg, project, sourceInformation)
+    : IndexerJob(msg, project, sourceInformation), mState(Pending)
 {
 }
 
 void IndexerJobClang::start()
 {
     assert(project.lock());
-    Server::instance()->processPool()->add(project.lock(), sourceInformation.fileId, type, id);
+    Server::instance()->processPool()->add(std::static_pointer_cast<IndexerJobClang>(shared_from_this()));
 }
 
-// ### we really should be able to return false for aborts that happened before
-// ### the process was started, need a callback from ProcessPool for this
 bool IndexerJobClang::abort()
 {
-    Server::instance()->processPool()->cancel(sourceInformation.fileId);
+    if (mState == Pending)
+        return false;
+    assert(mState != Aborted);
+    mState = Aborted;
+    // ### should actually kill process maybe? If so, how about the visited files?
     return true;
+}
+
+bool IndexerJobClang::init(Path &path, List<String> &, String &data)
+{
+    assert(mState == Pending);
+    mState = Running;
+    std::shared_ptr<Project> proj = project.lock();
+    static const Path rp = Rct::executablePath().parentDir() + "rp";
+    Serializer serializer(data);
+    const List<String> args = (sourceInformation.args
+                               + CompilerManager::flags(sourceInformation.compiler)
+                               + Server::instance()->options().defaultArguments);
+    serializer << Server::instance()->options().socketFile << sourceInformation.sourceFile()
+               << sourceInformation.fileId << proj->path() << args
+               << static_cast<uint8_t>(type) << id;
+    path = rp;
+    return true;
+}
+
+void IndexerJobClang::error(const String &err)
+{
+    ::error() << "Got error trying to clang" << err << sourceInformation;
+#warning Have to resubmit or something
+}
+
+void IndexerJobClang::finished(Process *process)
+{
+    ::error() << sourceInformation << "finished" << process->returnCode();
 }

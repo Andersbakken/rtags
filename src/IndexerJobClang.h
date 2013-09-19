@@ -17,9 +17,10 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 #define IndexerJobClang_h
 
 #include "IndexerJob.h"
+#include <ProcessPool.h>
 
 class IndexerMessage;
-class IndexerJobClang : public IndexerJob
+class IndexerJobClang : public IndexerJob, public ProcessPool::Job
 {
 public:
     IndexerJobClang(uint64_t id, IndexType type, const std::shared_ptr<Project> &project,
@@ -29,6 +30,20 @@ public:
                     const SourceInformation &sourceInformation);
     virtual void start();
     virtual bool abort();
+
+    virtual bool isAborted() const { return mState == Aborted; }
+
+    // ProcessPool::Job
+    virtual bool init(Path &path, List<String> &args, String &data);
+    virtual void error(const String &error);
+    virtual void finished(Process* process);
+private:
+    enum State {
+        Pending,
+        Running,
+        Aborted
+    } mState;
+    bool mStarted;
 };
 
 #endif

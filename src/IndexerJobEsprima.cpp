@@ -46,21 +46,6 @@ RTagsPlugin *createInstance()
 }
 };
 
-class EsprimaThreadPoolJob : public ThreadPool::Job
-{
-public:
-    EsprimaThreadPoolJob(const std::shared_ptr<IndexerJobEsprima> &job)
-        : mJob(job)
-    {}
-
-    virtual void run()
-    {
-        mJob->index();
-    }
-private:
-    std::shared_ptr<IndexerJobEsprima> mJob;
-};
-
 IndexerJobEsprima::IndexerJobEsprima(uint64_t id, IndexType type, const std::shared_ptr<Project> &project,
                                      const SourceInformation &sourceInformation)
     : IndexerJob(id, type, project, sourceInformation), mState(Pending)
@@ -86,12 +71,18 @@ bool IndexerJobEsprima::abort()
 
 void IndexerJobEsprima::start()
 {
-    std::shared_ptr<ThreadPool::Job> job(new EsprimaThreadPoolJob(std::static_pointer_cast<IndexerJobEsprima>(shared_from_this())));
-    ThreadPool::instance()->start(job);
+    std::shared_ptr<IndexerJobEsprima> j = std::static_pointer_cast<IndexerJobEsprima>(shared_from_this());
+    ThreadPool::instance()->start(j);
 }
 
-void IndexerJobEsprima::index()
+void IndexerJobEsprima::run()
 {
+    assert(mState == Running);
+    {
+        std::unique_lock<std::mutex> lock(mMutex);
+        mState = Running;
+    }
+
     StopWatch timer;
     JSParser parser;
     if (!parser.init()) {
