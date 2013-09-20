@@ -61,12 +61,10 @@ IndexerJobEsprima::IndexerJobEsprima(const QueryMessage &msg,
 bool IndexerJobEsprima::abort()
 {
     std::unique_lock<std::mutex> lock(mMutex);
-    assert(mState != Aborted);
-    if (mState == Running) {
-        mState = Aborted;
-        return true;
-    }
-    return false;
+    if (mState == Pending)
+        return false;
+    mState = Aborted;
+    return true;
 }
 
 void IndexerJobEsprima::start()

@@ -72,7 +72,6 @@ bool IndexerJobClang::abort()
 {
     if (mState == Pending)
         return false;
-    assert(mState != Aborted);
     mState = Aborted;
     // ### should actually kill process maybe? If so, how about the visited files?
     return true;

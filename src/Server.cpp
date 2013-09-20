@@ -263,7 +263,7 @@ void Server::onNewMessage(Message *message, Connection *connection)
         }
     }
 
-    error() << "Got a a message" << static_cast<int>(message->messageId());
+    error() << "Got a message" << static_cast<int>(message->messageId());
 
     switch (message->messageId()) {
     case CompileMessage::MessageId:

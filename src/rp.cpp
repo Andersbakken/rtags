@@ -59,7 +59,7 @@ int main(int argc, char **argv)
         return 5;
     }
 
-    error() << "About to start here" << sourceFile << fileId << args;
+    // error() << "About to start here" << sourceFile << fileId << args;
     Location::set(sourceFile, fileId);
 
     ClangIndexer indexer;
