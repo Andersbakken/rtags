@@ -60,6 +60,7 @@ int main(int argc, char **argv)
     }
 
     error() << "About to start here" << sourceFile << fileId << args;
+    Location::set(sourceFile, fileId);
 
     ClangIndexer indexer;
     if (!indexer.connect(serverFile)) {
