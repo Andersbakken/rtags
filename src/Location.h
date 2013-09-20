@@ -1,17 +1,17 @@
 /* This file is part of RTags.
 
-RTags is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
+   RTags is free software: you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation, either version 3 of the License, or
+   (at your option) any later version.
 
-RTags is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
+   RTags is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
 
-You should have received a copy of the GNU General Public License
-along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
+   You should have received a copy of the GNU General Public License
+   along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 
 #ifndef Location_h
 #define Location_h
@@ -71,14 +71,14 @@ public:
 
     static inline uint32_t fileId(const Path &path)
     {
-#ifdef THREAD_SAFE
+#ifndef SINGLE_THREAD
         std::lock_guard<std::mutex> lock(sMutex);
 #endif
         return sPathsToIds.value(path);
     }
     static inline Path path(uint32_t id)
     {
-#ifdef THREAD_SAFE
+#ifndef SINGLE_THREAD
         std::lock_guard<std::mutex> lock(sMutex);
 #endif
         return sIdsToPaths.value(id);
@@ -88,7 +88,7 @@ public:
     {
         uint32_t ret;
         {
-#ifdef THREAD_SAFE
+#ifndef SINGLE_THREAD
             std::lock_guard<std::mutex> lock(sMutex);
 #endif
             uint32_t &id = sPathsToIds[path];
@@ -108,7 +108,7 @@ public:
     inline Path path() const
     {
         if (mCachedPath.isEmpty()) {
-#ifdef THREAD_SAFE
+#ifndef SINGLE_THREAD
             std::lock_guard<std::mutex> lock(sMutex);
 #endif
             mCachedPath = sIdsToPaths.value(fileId());
@@ -242,21 +242,21 @@ public:
     }
     static Map<uint32_t, Path> idsToPaths()
     {
-#ifdef THREAD_SAFE
+#ifndef SINGLE_THREAD
         std::lock_guard<std::mutex> lock(sMutex);
 #endif
         return sIdsToPaths;
     }
     static Map<Path, uint32_t> pathsToIds()
     {
-#ifdef THREAD_SAFE
+#ifndef SINGLE_THREAD
         std::lock_guard<std::mutex> lock(sMutex);
 #endif
         return sPathsToIds;
     }
     static void init(const Map<Path, uint32_t> &pathsToIds)
     {
-#ifdef THREAD_SAFE
+#ifndef SINGLE_THREAD
         std::lock_guard<std::mutex> lock(sMutex);
 #endif
         sPathsToIds = pathsToIds;
@@ -267,15 +267,24 @@ public:
         }
     }
 
-    static void set(const Path &path, uint32_t fileId)
+    static bool set(const Path &path, uint32_t fileId)
     {
-#ifdef THREAD_SAFE
+#ifndef SINGLE_THREAD
         std::lock_guard<std::mutex> lock(sMutex);
 #endif
-        assert(!sPathsToIds.contains(path));
-        assert(!sIdsToPaths.contains(fileId));
+        if (sPathsToIds.contains(path)) {
+            error() << "We've already set" << path << fileId << sPathsToIds.value(path);
+            return false;
+        }
+
+        // if (sIdsToPaths.contains(fileId))
+        //     error() << "We've already set" << path << fileId << sIdsToPaths.value(fileId);
+
+        // assert(!sPathsToIds.contains(path));
+        // assert(!sIdsToPaths.contains(fileId));
         sPathsToIds[path] = fileId;
         sIdsToPaths[fileId] = path;
+        return true;
     }
 private:
     static Map<Path, uint32_t> sPathsToIds;

@@ -13,6 +13,7 @@
    You should have received a copy of the GNU General Public License
    along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 
+#define SINGLE_THREAD
 #include "GccArguments.h"
 #include "RTagsClang.h"
 #include "ClangIndexer.h"
@@ -60,7 +61,8 @@ int main(int argc, char **argv)
     }
 
     // error() << "About to start here" << sourceFile << fileId << args;
-    Location::set(sourceFile, fileId);
+    if (!Location::set(sourceFile, fileId))
+        error() << "Got problems on the first one" << sourceFile;
 
     ClangIndexer indexer;
     if (!indexer.connect(serverFile)) {

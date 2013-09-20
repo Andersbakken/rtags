@@ -90,7 +90,7 @@ bool IndexerJobClang::init(Path &path, List<String> &, String &data)
     serializer << Server::instance()->options().socketFile << sourceInformation.sourceFile()
                << sourceInformation.fileId << proj->path() << args
                << static_cast<uint8_t>(type) << id;
-    ::error() << "Running" << path << args;
+    ::error() << "Running" << sourceInformation.sourceFile();
     path = rp;
     return true;
 }

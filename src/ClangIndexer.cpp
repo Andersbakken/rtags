@@ -1,3 +1,4 @@
+#define SINGLE_THREAD
 #include "ClangIndexer.h"
 #include "QueryMessage.h"
 #include "VisitFileMessage.h"
@@ -52,7 +53,6 @@ bool ClangIndexer::index(IndexType type, uint32_t fileId, const Path &project, c
     mProject = project;
     assert(mConnection.isConnected());
     const Path sourceFile = Location::path(fileId);
-    Location::set(sourceFile, fileId);
     mFilesToIds[sourceFile] = std::make_pair(fileId, true);
     mContents = (contents.isEmpty() ? sourceFile.readAll() : contents);
     assert(type != Invalid);
@@ -113,11 +113,6 @@ Location ClangIndexer::createLocation(const Path &sourceFile, unsigned start, bo
         msg.addProject(mProject);
         msg.setQuery(resolved);
         mConnection.newMessage().connect([&file, &blocked](Message *msg, Connection *conn) {
-                if (msg->messageId() != VisitFileMessage::MessageId) {
-                    fprintf(stderr, "\nFucking shit %d [%s]\n", msg->messageId(),
-                            static_cast<ResponseMessage*>(msg)->data().constData());
-                    exit(2);
-                }
                 assert(msg->messageId() == VisitFileMessage::MessageId);
                 const VisitFileMessage *vm = static_cast<VisitFileMessage*>(msg);
                 file = std::make_pair(vm->fileId(), !vm->visit());
@@ -133,6 +128,8 @@ Location ClangIndexer::createLocation(const Path &sourceFile, unsigned start, bo
         mVisited[file.first] = !file.second;
         if (file.second)
             ++mVisitedFiles;
+        // error() << "Setting a file here" << resolved << file.first << file.second;
+        assert(file.first != mFileId);
         Location::set(resolved, file.first);
         if (diff)
             mFilesToIds[resolved] = file;
