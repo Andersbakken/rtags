@@ -27,8 +27,7 @@ struct VerboseVisitorUserData {
 };
 
 ClangIndexer::ClangIndexer()
-    : mType(Invalid), mUnit(0), mIndex(0), mLastCursor(nullCursor), mFileId(0), mParseTime(0),
-      mVisitedFiles(0), mParseDuration(0), mVisitDuration(0)
+    : mUnit(0), mIndex(0), mLastCursor(nullCursor), mVisitedFiles(0), mParseDuration(0), mVisitDuration(0)
 {
 }
 
@@ -45,44 +44,37 @@ bool ClangIndexer::connect(const Path &serverFile)
     return mConnection.connectToServer(serverFile, 1000);
 }
 
-bool ClangIndexer::index(IndexType type, uint32_t fileId, const Path &project, const List<String> &args,
-                         uint64_t id, const String &contents)
+bool ClangIndexer::index(IndexType type, uint64_t id, const Path &project, uint32_t fileId,
+                         const Path &sourceFile, const List<String> &args)
 {
-    mFileId = fileId;
-    mId = id;
+    Location::set(sourceFile, fileId);
+    mData.reset(new IndexData(type, id));
+    mData->fileId = fileId;
     mProject = project;
-    assert(mConnection.isConnected());
-    const Path sourceFile = Location::path(fileId);
-    mFilesToIds[sourceFile] = std::make_pair(fileId, true);
-    mContents = (contents.isEmpty() ? sourceFile.readAll() : contents);
-    assert(type != Invalid);
-    assert(mType == Invalid);
-    mType = type;
     mArgs = args;
+    assert(mConnection.isConnected());
+    assert(!sourceFile.isEmpty());
+    mFilesToIds[sourceFile] = std::make_pair(fileId, false);
+    mContents = sourceFile.readAll();
+    assert(type != Invalid);
     const bool ret = parse() && visit() && diagnose();
-    mParseTime = Rct::currentTimeMs();
+    mData->parseTime = Rct::currentTimeMs();
 
-    mMessage = sourceFile.toTilde();
-    if (!mUnit) {
-        mMessage += " error";
-    }
-    mMessage += String::format<16>(" in %dms. ", static_cast<int>(mTimer.elapsed()) / 1000);
+    mData->message = sourceFile.toTilde();
+    if (!mUnit)
+        mData->message += " error";
+    mData->message += String::format<16>(" in %dms. ", static_cast<int>(mTimer.elapsed()) / 1000);
     if (mUnit) {
-        mMessage += String::format<128>("(%d syms, %d symNames, %d refs, %d deps, %d files)",
-                                        mSymbols.size(), mSymbolNames.size(), mReferences.size(),
-                                        mDependencies.size(), mVisitedFiles);
-    } else if (mDependencies.size()) {
-        mMessage += String::format<16>("(%d deps)", mDependencies.size());
+        mData->message += String::format<128>("(%d syms, %d symNames, %d refs, %d deps, %d files, %d blocked) (%d/%dms)",
+                                              mData->symbols.size(), mData->symbolNames.size(), mData->references.size(),
+                                              mData->dependencies.size(), mVisitedFiles, mData->visited.size() - mVisitedFiles,
+                                              mParseDuration, mVisitDuration);
+    } else if (mData->dependencies.size()) {
+        mData->message += String::format<16>("(%d deps)", mData->dependencies.size());
     }
-    if (mType == Dirty)
-        mMessage += " (dirty)";
-    String out;
-    out.reserve(1024 * 1024 * 4); // ### could be smarter about this maybe
-    Serializer serializer(out);
-    const IndexerMessage msg(mFileId, std::move(mProject), mParseTime, std::move(mSymbols),
-                             std::move(mReferences), std::move(mSymbolNames), std::move(mDependencies),
-                             std::move(mMessage), std::move(mFixIts), std::move(mXmlDiagnostics),
-                             std::move(mVisited), mParseDuration, mVisitDuration, std::move(mLogOutput));
+    if (mData->type == Dirty)
+        mData->message += " (dirty)";
+    const IndexerMessage msg(mProject, mData);
     mConnection.send(msg);
     return ret;
 }
@@ -125,11 +117,11 @@ Location ClangIndexer::createLocation(const Path &sourceFile, unsigned start, bo
             error() << "Error getting fileId for" << resolved;
             exit(1);
         }
-        mVisited[file.first] = !file.second;
+        mData->visited[file.first] = !file.second;
         if (file.second)
             ++mVisitedFiles;
         // error() << "Setting a file here" << resolved << file.first << file.second;
-        assert(file.first != mFileId);
+        assert(file.first != mData->fileId);
         Location::set(resolved, file.first);
         if (diff)
             mFilesToIds[resolved] = file;
@@ -213,7 +205,7 @@ String ClangIndexer::addNamePermutations(const CXCursor &cursor, const Location 
             char *ch = buf + pos;
             while (true) {
                 const String name(ch, sizeof(buf) - (ch - buf) - 1);
-                mSymbolNames[name].insert(location);
+                mData->symbolNames[name].insert(location);
                 if (!type.isEmpty() && (originalKind != CXCursor_ParmDecl || !strchr(ch, '('))) {
                     // We only want to add the type to the final declaration for ParmDecls
                     // e.g.
@@ -225,7 +217,7 @@ String ClangIndexer::addNamePermutations(const CXCursor &cursor, const Location 
                     // or
                     // void foo(int)::int bar
 
-                    mSymbolNames[type + name].insert(location);
+                    mData->symbolNames[type + name].insert(location);
                 }
 
                 ch = strstr(ch + 1, "::");
@@ -534,13 +526,13 @@ void ClangIndexer::handleReference(const CXCursor &cursor, CXCursorKind kind, co
     if (!reffedLoc.isValid())
         return;
 
-    CursorInfo &refInfo = mSymbols[reffedLoc];
+    CursorInfo &refInfo = mData->symbols[reffedLoc];
     if (!refInfo.symbolLength && !handleCursor(ref, refKind, reffedLoc))
         return;
 
     refInfo.references.insert(location);
 
-    CursorInfo &info = mSymbols[location];
+    CursorInfo &info = mData->symbols[location];
     info.targets.insert(reffedLoc);
 
     // We need the new cursor to replace the symbolLength. This is important
@@ -558,7 +550,7 @@ void ClangIndexer::handleReference(const CXCursor &cursor, CXCursorKind kind, co
     // The !isCursor is var decls and field decls where we set up a target even
     // if they're not considered references
 
-    if (!RTags::isCursor(info.kind) && (!info.symbolLength || info.bestTarget(mSymbols).kind == refKind)) {
+    if (!RTags::isCursor(info.kind) && (!info.symbolLength || info.bestTarget(mData->symbols).kind == refKind)) {
         CXSourceRange range = clang_getCursorExtent(cursor);
         unsigned start, end;
         clang_getSpellingLocation(clang_getRangeStart(range), 0, 0, 0, &start);
@@ -572,7 +564,7 @@ void ClangIndexer::handleReference(const CXCursor &cursor, CXCursorKind kind, co
         info.type = clang_getCursorType(cursor).kind;
     }
 
-    Set<Location> &val = mReferences[location];
+    Set<Location> &val = mData->references[location];
     val.insert(reffedLoc);
 
 }
@@ -586,7 +578,7 @@ void ClangIndexer::addOverriddenCursors(const CXCursor& cursor, const Location& 
         return;
     for (unsigned i=0; i<count; ++i) {
         Location loc = createLocation(overridden[i]);
-        CursorInfo &o = mSymbols[loc];
+        CursorInfo &o = mData->symbols[loc];
 
         //error() << "adding overridden (1) " << location << " to " << o;
         o.references.insert(location);
@@ -616,12 +608,12 @@ void ClangIndexer::handleInclude(const CXCursor &cursor, CXCursorKind kind, cons
             {
                 String include = "#include ";
                 const Path path = refLoc.path();
-                assert(mFileId);
-                mDependencies[Location::insertFile(path)].insert(mFileId);
-                mSymbolNames[(include + path)].insert(location);
-                mSymbolNames[(include + path.fileName())].insert(location);
+                assert(mData->fileId);
+                mData->dependencies[Location::insertFile(path)].insert(mData->fileId);
+                mData->symbolNames[(include + path)].insert(location);
+                mData->symbolNames[(include + path.fileName())].insert(location);
             }
-            CursorInfo &info = mSymbols[location];
+            CursorInfo &info = mData->symbols[location];
             info.targets.insert(refLoc);
             info.kind = cursor.kind;
             info.definition = false;
@@ -758,7 +750,8 @@ String ClangIndexer::typeName(const CXCursor &cursor)
 
 bool ClangIndexer::handleCursor(const CXCursor &cursor, CXCursorKind kind, const Location &location)
 {
-    CursorInfo &info = mSymbols[location];
+    // error() << "Got a cursor" << cursor;
+    CursorInfo &info = mData->symbols[location];
     if (!info.symbolLength || !RTags::isCursor(info.kind)) {
         CXStringScope name = clang_getCursorSpelling(cursor);
         const char *cstr = name.data();
@@ -786,7 +779,7 @@ bool ClangIndexer::handleCursor(const CXCursor &cursor, CXCursorKind kind, const
                 info.symbolName = "struct";
                 break;
             default:
-                mSymbols.remove(location);
+                mData->symbols.remove(location);
                 return false;
             }
         } else {
@@ -816,7 +809,7 @@ bool ClangIndexer::handleCursor(const CXCursor &cursor, CXCursorKind kind, const
         // JavaScriptCore for an example.
         const String usr = RTags::eatString(clang_getCursorUSR(clang_getCanonicalCursor(cursor)));
         if (!usr.isEmpty())
-            mUsrMap[usr].insert(location);
+            mData->usrMap[usr].insert(location);
 
         switch (info.kind) {
         case CXCursor_Constructor:
@@ -825,7 +818,7 @@ bool ClangIndexer::handleCursor(const CXCursor &cursor, CXCursorKind kind, const
             // consider doing this for only declaration/inline definition since
             // declaration and definition should know of one another
             if (parentLocation.isValid()) {
-                CursorInfo &parent = mSymbols[parentLocation];
+                CursorInfo &parent = mData->symbols[parentLocation];
                 parent.references.insert(location);
                 info.references.insert(parentLocation);
             }
@@ -849,11 +842,11 @@ bool ClangIndexer::parse()
     assert(!mIndex);
     mIndex = clang_createIndex(0, 1);
     assert(mIndex);
-    const Path sourceFile = Location::path(mFileId);
+    const Path sourceFile = Location::path(mData->fileId);
     CXUnsavedFile unsaved = { sourceFile.constData(), mContents.constData(), static_cast<unsigned long>(mContents.size()) };
     RTags::parseTranslationUnit(sourceFile, mArgs, List<String>(), mUnit, mIndex, mClangLine, &unsaved, 1);
 
-    mParseTime = mTimer.elapsed();
+    mData->parseTime = mTimer.elapsed();
     warning() << "loading mUnit " << mClangLine << " " << (mUnit != 0);
     if (mUnit)
         return true;
@@ -872,8 +865,8 @@ bool ClangIndexer::parse()
         clang_getInclusions(mUnit, ClangIndexer::inclusionVisitor, this);
         clang_disposeTranslationUnit(mUnit);
         mUnit = 0;
-    } else if (mType != Dump) {
-        mDependencies[mFileId].insert(mFileId);
+    } else if (mData->type != Dump) {
+        mData->dependencies[mData->fileId].insert(mData->fileId);
     }
     return false;
 }
@@ -932,7 +925,7 @@ bool ClangIndexer::diagnose()
 {
     if (!mUnit) {
         return false;
-    } else if (mType == Dump) {
+    } else if (mData->type == Dump) {
         return true;
     }
 
@@ -964,9 +957,7 @@ bool ClangIndexer::diagnose()
         const CXSourceLocation diagLoc = clang_getDiagnosticLocation(diagnostic);
         const Location loc = createLocation(diagLoc, 0);
         const uint32_t fileId = loc.fileId();
-        if (mVisited.value(fileId)) {
-            if (severity >= CXDiagnostic_Error)
-                ++mErrors[fileId];
+        if (mData->visited.value(fileId)) {
             const String msg = RTags::eatString(clang_getDiagnosticSpelling(diagnostic));
             if (xmlEnabled) {
                 const CXDiagnosticSeverity sev = clang_getDiagnosticSeverity(diagnostic);
@@ -1026,7 +1017,7 @@ bool ClangIndexer::diagnose()
                 clang_getSpellingLocation(clang_getRangeStart(range), &file, &line, &column, &startOffset);
 
                 const Location loc(file, startOffset);
-                if (mVisited.value(loc.fileId())) {
+                if (mData->visited.value(loc.fileId())) {
                     const char* string = clang_getCString(stringScope);
                     unsigned endOffset;
                     clang_getSpellingLocation(clang_getRangeEnd(range), 0, 0, 0, &endOffset);
@@ -1042,18 +1033,18 @@ bool ClangIndexer::diagnose()
                         }
                         entry.endOffset = endOffset;
                     }
-                    if (testLog(logLevel) || testLog(RTags::CompilationError)) {
-                        const String msg = String::format<128>("Fixit for %s: Replace %d-%d with [%s]", loc.path().constData(),
-                                                               startOffset, endOffset, string);
-                    }
-                    mFixIts[loc.fileId()].insert(FixIt(startOffset, endOffset, string));
+                    // if (testLog(logLevel) || testLog(RTags::CompilationError)) {
+                    //     const String msg = String::format<128>("Fixit for %s: Replace %d-%d with [%s]", loc.path().constData(),
+                    //                                            startOffset, endOffset, string);
+                    // }
+                    mData->fixIts[loc.fileId()].insert(FixIt(startOffset, endOffset, string));
                 }
             }
         }
 
         clang_disposeDiagnostic(diagnostic);
     }
-    mXmlDiagnostics = "<?xml version=\"1.0\" encoding=\"utf-8\"?><checkstyle>";
+    mData->xmlDiagnostics = "<?xml version=\"1.0\" encoding=\"utf-8\"?><checkstyle>";
     if (!xmlEntries.isEmpty()) {
         Map<uint32_t, Map<int, XmlEntry> >::const_iterator entry = xmlEntries.begin();
         const Map<uint32_t, Map<int, XmlEntry> >::const_iterator end = xmlEntries.end();
@@ -1061,37 +1052,37 @@ bool ClangIndexer::diagnose()
         const char* severities[] = { "none", "warning", "error", "fixit" };
 
         while (entry != end) {
-            mXmlDiagnostics += String::format<128>("<file name=\"%s\">", Location::path(entry->first).constData());
+            mData->xmlDiagnostics += String::format<128>("<file name=\"%s\">", Location::path(entry->first).constData());
             const Map<int, XmlEntry>& map = entry->second;
             Map<int, XmlEntry>::const_iterator it = map.begin();
             const Map<int, XmlEntry>::const_iterator end = map.end();
             while (it != end) {
                 const XmlEntry& entry = it->second;
-                mXmlDiagnostics += String::format("<error line=\"%d\" column=\"%d\" startOffset=\"%d\" %sseverity=\"%s\" message=\"%s\"/>",
-                                                  entry.line, entry.column, it->first,
-                                                  (entry.endOffset == -1 ? "" : String::format<32>("endOffset=\"%d\" ", entry.endOffset).constData()),
-                                                  severities[entry.type], xmlEscape(entry.message).constData());
+                mData->xmlDiagnostics += String::format("<error line=\"%d\" column=\"%d\" startOffset=\"%d\" %sseverity=\"%s\" message=\"%s\"/>",
+                                                        entry.line, entry.column, it->first,
+                                                        (entry.endOffset == -1 ? "" : String::format<32>("endOffset=\"%d\" ", entry.endOffset).constData()),
+                                                        severities[entry.type], xmlEscape(entry.message).constData());
                 ++it;
             }
-            mXmlDiagnostics += "</file>";
+            mData->xmlDiagnostics += "</file>";
             ++entry;
         }
     }
 
-    for (Map<uint32_t, bool>::const_iterator it = mVisited.begin(); it != mVisited.end(); ++it) {
+    for (Map<uint32_t, bool>::const_iterator it = mData->visited.begin(); it != mData->visited.end(); ++it) {
         if (it->second && !xmlEntries.contains(it->first)) {
             const String fn = Location::path(it->first);
-            mXmlDiagnostics += String::format("<file name=\"%s\"/>", fn.constData());
+            mData->xmlDiagnostics += String::format("<file name=\"%s\"/>", fn.constData());
         }
     }
 
-    mXmlDiagnostics += "</checkstyle>";
+    mData->xmlDiagnostics += "</checkstyle>";
     return true;
 }
 
 bool ClangIndexer::visit()
 {
-    if (!mUnit || !mFileId) {
+    if (!mUnit || !mData->fileId) {
         return false;
     }
     StopWatch watch;
@@ -1099,9 +1090,8 @@ bool ClangIndexer::visit()
     clang_visitChildren(clang_getTranslationUnitCursor(mUnit),
                         ClangIndexer::indexVisitor, this);
 
-    assert(mFileId);
-    for (Map<uint32_t, bool>::const_iterator it = mVisited.begin(); it != mVisited.end(); ++it) {
-        mDependencies[it->first].insert(mFileId);
+    for (Map<uint32_t, bool>::const_iterator it = mData->visited.begin(); it != mData->visited.end(); ++it) {
+        mData->dependencies[it->first].insert(mData->fileId);
         addFileSymbol(it->first);
     }
 
@@ -1114,7 +1104,7 @@ bool ClangIndexer::visit()
         u.out += "</VerboseVisitor " + mClangLine + ">";
         if (getenv("RTAGS_INDEXERJOB_DUMP_TO_FILE")) {
             char buf[1024];
-            snprintf(buf, sizeof(buf), "/tmp/%s.log", Location::path(mFileId).constData());
+            snprintf(buf, sizeof(buf), "/tmp/%s.log", Location::path(mData->fileId).constData());
             FILE *f = fopen(buf, "w");
             assert(f);
             fwrite(u.out.constData(), 1, u.out.size(), f);
@@ -1143,10 +1133,10 @@ CXChildVisitResult ClangIndexer::verboseVisitor(CXCursor cursor, CXCursor, CXCli
             u->out += " refs " + RTags::cursorToString(ref);
         }
 
-        if (loc.fileId() && u->indexer->mVisited.value(loc.fileId())) {
-            if (u->indexer->mReferences.contains(loc)) {
+        if (loc.fileId() && u->indexer->mData->visited.value(loc.fileId())) {
+            if (u->indexer->mData->references.contains(loc)) {
                 u->out += " used as reference\n";
-            } else if (u->indexer->mSymbols.contains(loc)) {
+            } else if (u->indexer->mData->symbols.contains(loc)) {
                 u->out += " used as cursor\n";
             } else {
                 u->out += " not used\n";
@@ -1194,7 +1184,7 @@ CXChildVisitResult ClangIndexer::dumpVisitor(CXCursor cursor, CXCursor, CXClient
             out.append("refs ");
             out.append(RTags::cursorToString(ref, RTags::AllCursorToStringFlags));
         }
-        dump->indexer->mLogOutput += out;
+        dump->indexer->mData->logOutput += out;
     }
     ++dump->indentLevel;
     clang_visitChildren(cursor, ClangIndexer::dumpVisitor, userData);
@@ -1206,9 +1196,9 @@ void ClangIndexer::addFileSymbol(uint32_t file)
 {
     const Location loc(file, 0);
     const Path path = Location::path(file);
-    mSymbolNames[path].insert(loc);
+    mData->symbolNames[path].insert(loc);
     const char *fn = path.fileName();
-    mSymbolNames[String(fn, strlen(fn))].insert(loc);
+    mData->symbolNames[String(fn, strlen(fn))].insert(loc);
 }
 
 
@@ -1222,7 +1212,7 @@ void ClangIndexer::inclusionVisitor(CXFile includedFile,
 
     const uint32_t fileId = l.fileId();
     if (!includeLen) {
-        indexer->mDependencies[fileId].insert(fileId);
+        indexer->mData->dependencies[fileId].insert(fileId);
     } else {
         for (unsigned i=0; i<includeLen; ++i) {
             CXFile originatingFile;
@@ -1230,7 +1220,7 @@ void ClangIndexer::inclusionVisitor(CXFile includedFile,
             Location loc(originatingFile, 0);
             const uint32_t f = loc.fileId();
             if (f)
-                indexer->mDependencies[fileId].insert(f);
+                indexer->mData->dependencies[fileId].insert(f);
         }
     }
 }

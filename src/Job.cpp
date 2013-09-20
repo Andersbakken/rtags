@@ -232,7 +232,7 @@ unsigned Job::keyFlags() const
 
 void Job::run(Connection *connection)
 {
-    assert((mId == -1) == !connection);
+    assert((mId != -1) == !connection);
     mConnection = connection;
     execute();
     if (mId != -1) {

@@ -352,7 +352,14 @@ void Server::handleCreateOutputMessage(const CreateOutputMessage &message, Conne
 
 void Server::handleIndexerMessage(const IndexerMessage &message, Connection *conn)
 {
-    // ### need to handle indexer data
+    std::shared_ptr<IndexData> indexData = message.data();
+    assert(indexData);
+    std::shared_ptr<Project> project = mProjects.value(message.project());
+    if (!project) {
+        error() << "Can't find project root for this IndexerMessage" << message.project() << Location::path(indexData->fileId);
+        return;
+    }
+    project->onJobFinished(indexData);
 }
 
 void Server::handleQueryMessage(const QueryMessage &message, Connection *conn)

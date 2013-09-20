@@ -19,71 +19,46 @@
 #include <rct/Message.h>
 #include <rct/String.h>
 #include "ClientMessage.h"
+#include "IndexerJob.h"
 
 class IndexerMessage : public ClientMessage
 {
 public:
     enum { MessageId = IndexerMessageId };
 
-    IndexerMessage(uint32_t fileId, const String &project, uint64_t parseTime, SymbolMap &&symbols,
-                   ReferenceMap &&references, SymbolNameMap &&symbolNames, DependencyMap &&dependencies,
-                   String &&message, FixItMap &&fixIts, String &&xmlDiagnostics,
-                   Map<uint32_t, bool> &&visited, int parseDuration, int visitDuration, String &&logOutput)
-        : ClientMessage(MessageId), mFileId(fileId), mProject(project), mParseTime(parseTime),
-          mSymbols(symbols), mReferences(references), mSymbolNames(symbolNames),
-        mDependencies(dependencies), mMessage(message), mFixIts(fixIts),
-        mXmlDiagnostics(xmlDiagnostics), mVisited(visited),
-        mParseDuration(parseDuration), mVisitDuration(visitDuration),
-        mLogOutput(logOutput)
+    IndexerMessage(const Path &project, std::shared_ptr<IndexData> &data)
+        : ClientMessage(MessageId), mProject(project), mData(data)
     {
     }
 
     IndexerMessage()
-        : ClientMessage(MessageId), mFileId(0), mParseTime(0), mParseDuration(-1), mVisitDuration(-1)
+        : ClientMessage(MessageId)
     {}
 
     void encode(Serializer &serializer) const
     {
-        serializer << mFileId << mParseTime << mSymbols << mReferences
-                   << mSymbolNames << mDependencies << mMessage << mFixIts
-                   << mXmlDiagnostics << mVisited << mParseDuration << mVisitDuration;
+        assert(mData);
+        serializer << mProject << static_cast<uint8_t>(mData->type) << mData->id
+                   << mData->fileId << mData->parseTime << mData->symbols << mData->references
+                   << mData->symbolNames << mData->dependencies << mData->usrMap << mData->message
+                   << mData->logOutput << mData->fixIts << mData->xmlDiagnostics << mData->visited;
     }
     void decode(Deserializer &deserializer)
     {
-        deserializer >> mFileId >> mParseTime >> mSymbols >> mReferences
-                     >> mSymbolNames >> mDependencies >> mMessage >> mFixIts
-                     >> mXmlDiagnostics >> mVisited >> mParseDuration >> mVisitDuration;
+        assert(!mData);
+        uint8_t type;
+        uint64_t id;
+        deserializer >> mProject >> type >> id;
+        mData.reset(new IndexData(static_cast<IndexType>(type), id));
+        deserializer >> mData->fileId >> mData->parseTime >> mData->symbols >> mData->references
+                     >> mData->symbolNames >> mData->dependencies >> mData->usrMap >> mData->message
+                     >> mData->logOutput >> mData->fixIts >> mData->xmlDiagnostics >> mData->visited;
     }
-    uint32_t fileId() const { return mFileId; }
-    uint64_t parseTime() const { return mParseTime; }
-    int parseDuration() const { return mParseDuration; }
-    int visitDuration() const { return mVisitDuration; }
-
-    // non-const
-    SymbolMap &&takeSymbols() { return std::move(mSymbols); }
-    ReferenceMap &&takeReferences() { return std::move(mReferences); }
-    SymbolNameMap &&takeSymbolNames() { return std::move(mSymbolNames); }
-    DependencyMap &&takeDependencies() { return std::move(mDependencies); }
-    String &&takeMessage() { return std::move(mMessage); }
-    FixItMap &&takeFixIts() { return std::move(mFixIts); }
-    String &&takeXmlDiagnostics() { return std::move(mXmlDiagnostics); }
-    Map<uint32_t, bool> &&takeVisited() { return std::move(mVisited); }
-    String &&takeProject() { return std::move(mProject); }
+    std::shared_ptr<IndexData> data() const { return mData; }
+    const Path &project() const { return mProject; }
 private:
-    uint32_t mFileId;
-    String mProject;
-    uint64_t mParseTime;
-    SymbolMap mSymbols;
-    ReferenceMap mReferences;
-    SymbolNameMap mSymbolNames;
-    DependencyMap mDependencies;
-    String mMessage;
-    FixItMap mFixIts;
-    String mXmlDiagnostics;
-    Map<uint32_t, bool> mVisited;
-    int mParseDuration;
-    int mVisitDuration;
-    String mLogOutput;
+    Path mProject;
+    std::shared_ptr<IndexData> mData;
 };
 
 #endif

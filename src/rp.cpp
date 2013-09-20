@@ -60,17 +60,13 @@ int main(int argc, char **argv)
         return 5;
     }
 
-    // error() << "About to start here" << sourceFile << fileId << args;
-    if (!Location::set(sourceFile, fileId))
-        error() << "Got problems on the first one" << sourceFile;
-
     ClangIndexer indexer;
     if (!indexer.connect(serverFile)) {
         fprintf(stderr, "Failed to connect to rdm\n");
         return 6;
     }
 
-    if (!indexer.index(static_cast<IndexType>(type), fileId, project, args, id)) {
+    if (!indexer.index(static_cast<IndexType>(type), id, project, fileId, sourceFile, args)) {
         fprintf(stderr, "Failed to index %s\n", sourceFile.constData());
         return 7;
     }

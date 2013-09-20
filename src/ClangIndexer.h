@@ -15,8 +15,8 @@ public:
     ~ClangIndexer();
 
     bool connect(const Path &serverFile);
-    bool index(IndexType type, uint32_t fileId, const Path &project,
-               const List<String> &args, uint64_t id, const String &contents = String());
+    bool index(IndexType type, uint64_t id, const Path &project, uint32_t fileId,
+               const Path &sourceFile, const List<String> &args);
 private:
     bool diagnose();
     bool visit();
@@ -63,28 +63,15 @@ private:
     static String typeString(const CXType &type);
 
     Path mProject;
-    String mLogOutput;
+    std::shared_ptr<IndexData> mData;
     String mContents;
     List<String> mArgs;
-    IndexType mType;
     CXTranslationUnit mUnit;
     CXIndex mIndex;
     CXCursor mLastCursor;
-    uint32_t mFileId;
-    uint64_t mParseTime;
-    uint64_t mId;
     String mClangLine;
-    ReferenceMap mReferences;
-    SymbolMap mSymbols;
-    SymbolNameMap mSymbolNames;
-    DependencyMap mDependencies;
-    String mMessage;
-    UsrMap mUsrMap;
-    FixItMap mFixIts;
-    String mXmlDiagnostics;
-    Map<uint32_t, int> mErrors;
+    // Map<uint32_t, int> mErrors;
     Map<Path, std::pair<uint32_t, bool> > mFilesToIds;
-    Map<uint32_t, bool> mVisited;
     int mVisitedFiles;
     Path mSocketFile;
     StopWatch mTimer;
