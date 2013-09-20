@@ -1,13 +1,26 @@
+/* This file is part of RTags.
+
+RTags is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+RTags is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
+
 #ifndef Location_h
 #define Location_h
 
 #include <rct/String.h>
 #include <rct/Log.h>
 #include <rct/Path.h>
-#include <rct/ReadLocker.h>
-#include <rct/ReadWriteLock.h>
 #include <rct/Serializer.h>
-#include <rct/WriteLocker.h>
+#include <mutex>
 #include <assert.h>
 #include <clang-c/Index.h>
 #include <stdio.h>
@@ -58,12 +71,12 @@ public:
 
     static inline uint32_t fileId(const Path &path)
     {
-        ReadLocker lock(&sLock);
+        std::lock_guard<std::mutex> lock(sMutex);
         return sPathsToIds.value(path);
     }
     static inline Path path(uint32_t id)
     {
-        ReadLocker lock(&sLock);
+        std::lock_guard<std::mutex> lock(sMutex);
         return sIdsToPaths.value(id);
     }
 
@@ -71,7 +84,7 @@ public:
     {
         uint32_t ret;
         {
-            WriteLocker lock(&sLock);
+            std::lock_guard<std::mutex> lock(sMutex);
             uint32_t &id = sPathsToIds[path];
             if (!id) {
                 id = ++sLastId;
@@ -89,7 +102,7 @@ public:
     inline Path path() const
     {
         if (mCachedPath.isEmpty()) {
-            ReadLocker lock(&sLock);
+            std::lock_guard<std::mutex> lock(sMutex);
             mCachedPath = sIdsToPaths.value(fileId());
         }
         return mCachedPath;
@@ -221,17 +234,17 @@ public:
     }
     static Map<uint32_t, Path> idsToPaths()
     {
-        ReadLocker lock(&sLock);
+        std::lock_guard<std::mutex> lock(sMutex);
         return sIdsToPaths;
     }
     static Map<Path, uint32_t> pathsToIds()
     {
-        ReadLocker lock(&sLock);
+        std::lock_guard<std::mutex> lock(sMutex);
         return sPathsToIds;
     }
     static void init(const Map<Path, uint32_t> &pathsToIds)
     {
-        WriteLocker lock(&sLock);
+        std::lock_guard<std::mutex> lock(sMutex);
         sPathsToIds = pathsToIds;
         sLastId = sPathsToIds.size();
         for (Map<Path, uint32_t>::const_iterator it = sPathsToIds.begin(); it != sPathsToIds.end(); ++it) {
@@ -243,7 +256,7 @@ private:
     static Map<Path, uint32_t> sPathsToIds;
     static Map<uint32_t, Path> sIdsToPaths;
     static uint32_t sLastId;
-    static ReadWriteLock sLock;
+    static std::mutex sMutex;
     mutable Path mCachedPath;
 };
 

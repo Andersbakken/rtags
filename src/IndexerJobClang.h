@@ -1,3 +1,18 @@
+/* This file is part of RTags.
+
+RTags is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+RTags is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
+
 #ifndef IndexerJobClang_h
 #define IndexerJobClang_h
 
@@ -49,7 +64,7 @@ private:
     bool diagnose();
     bool visit();
     bool parse();
-
+    void addFileSymbol(uint32_t file);
     using IndexerJob::createLocation;
     inline Location createLocation(const CXSourceLocation &location, bool *blocked)
     {
@@ -85,8 +100,6 @@ private:
     void superclassTemplateMemberFunctionUgleHack(const CXCursor &cursor, CXCursorKind kind,
                                                   const Location &location, const CXCursor &ref,
                                                   const CXCursor &parent);
-    void nestedClassConstructorCallUgleHack(const CXCursor &parent, CursorInfo &info,
-                                            CXCursorKind refKind, const Location &refLoc);
 
     String mClangLine;
     CXCursor mLastCursor;

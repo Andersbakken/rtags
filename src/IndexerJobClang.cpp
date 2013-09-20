@@ -1,3 +1,18 @@
+/* This file is part of RTags.
+
+RTags is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+RTags is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
+
 #include "IndexerJobClang.h"
 #include "Project.h"
 #include "Server.h"
@@ -155,6 +170,8 @@ String IndexerJobClang::addNamePermutations(const CXCursor &cursor, const Locati
         type = typeName(cursor);
         break;
     }
+    // if (originalKind == CXCursor_ParmDecl)
+    //     error() << "full:" << (buf + pos) << "type:" << type;
     if (cutoff == -1)
         cutoff = pos;
     String ret;
@@ -349,6 +366,18 @@ CXChildVisitResult IndexerJobClang::indexVisitor(CXCursor cursor, CXCursor paren
         case CXCursor_CXXDeleteExpr:
             job->handleReference(cursor, kind, loc, findDestructorForDelete(cursor), parent);
             break;
+        case CXCursor_CallExpr: {
+            // uglehack, see rtags/tests/nestedClassConstructorCallUgleHack/
+            const CXCursor ref = clang_getCursorReferenced(cursor);
+            if (clang_getCursorKind(ref) == CXCursor_Constructor
+                && clang_getCursorKind(job->mLastCursor) == CXCursor_TypeRef
+                && clang_getCursorKind(parent) != CXCursor_VarDecl) {
+                loc = job->createLocation(job->mLastCursor);
+                job->handleReference(job->mLastCursor, kind, loc, ref, parent);
+            } else {
+                job->handleReference(cursor, kind, loc, ref, parent);
+            }
+            break; }
         default:
             job->handleReference(cursor, kind, loc, clang_getCursorReferenced(cursor), parent);
             break;
@@ -365,37 +394,6 @@ static inline bool isImplicit(const CXCursor &cursor)
 {
     return clang_equalLocations(clang_getCursorLocation(cursor),
                                 clang_getCursorLocation(clang_getCursorSemanticParent(cursor)));
-}
-
-void IndexerJobClang::nestedClassConstructorCallUgleHack(const CXCursor &parent, CursorInfo &info,
-                                                         CXCursorKind refKind, const Location &refLoc)
-{
-    if (refKind == CXCursor_Constructor
-        && clang_getCursorKind(mLastCursor) == CXCursor_TypeRef
-        && clang_getCursorKind(parent) == CXCursor_CXXFunctionalCastExpr) {
-        const CXStringScope str = clang_getCursorSpelling(mLastCursor);
-        int start = -1;
-        const char *cstr = str.data();
-        int idx = 0;
-        while (cstr[idx]) {
-            if (start == -1 && cstr[idx] == ' ') {
-                start = idx;
-            }
-            ++idx;
-        }
-        if (start != -1) {
-            // error() << "Changed symbolLength from" << info.symbolLength << "to" << (idx - start - 1) << "for dude reffing" << refLoc;
-            info.symbolLength = idx - start - 1;
-        }
-        RTags::Filter in;
-        in.kinds.insert(CXCursor_TypeRef);
-        const List<CXCursor> typeRefs = RTags::children(parent, in);
-        for (int i=0; i<typeRefs.size(); ++i) {
-            const Location loc = createLocation(typeRefs.at(i));
-            // error() << "Added" << refLoc << "to targets for" << typeRefs.at(i);
-            mData->symbols[loc].targets.insert(refLoc);
-        }
-    }
 }
 
 void IndexerJobClang::superclassTemplateMemberFunctionUgleHack(const CXCursor &cursor, CXCursorKind kind,
@@ -545,14 +543,6 @@ void IndexerJobClang::handleReference(const CXCursor &cursor, CXCursorKind kind,
         info.symbolLength = isOperator ? end - start : refInfo.symbolLength;
         info.symbolName = refInfo.symbolName;
         info.type = clang_getCursorType(cursor).kind;
-        switch (kind) {
-        case CXCursor_CallExpr:
-            nestedClassConstructorCallUgleHack(parent, info, refKind, reffedLoc);
-            // see rtags/tests/nestedClassConstructorCallUgleHack/
-            break;
-        default:
-            break;
-        }
     }
 
     Set<Location> &val = mData->references[location];
@@ -714,11 +704,19 @@ String IndexerJobClang::typeName(const CXCursor &cursor)
     case CXCursor_ClassDecl:
     case CXCursor_StructDecl:
     case CXCursor_UnionDecl:
+    case CXCursor_TypedefDecl:
+    case CXCursor_EnumDecl:
         ret = RTags::eatString(clang_getCursorSpelling(cursor));
         break;
-    case CXCursor_FieldDecl:
-        // ### If the return value is a template type we get an empty string here
-    case CXCursor_VarDecl:
+    case CXCursor_VarDecl: {
+        const CXCursor initType = RTags::findFirstChild(cursor);
+        if (clang_getCursorKind(initType) == CXCursor_InitListExpr) {
+            ret = typeString(clang_getCursorType(initType));
+        } else {
+            ret = typeString(clang_getCursorType(cursor));
+        }
+        break; }
+    case CXCursor_FieldDecl: // ### If the return value is a template type we get an empty string here
     case CXCursor_ParmDecl:
         ret = typeString(clang_getCursorType(cursor));
         break;
@@ -1099,13 +1097,16 @@ bool IndexerJobClang::visit()
     const uint32_t fileId = sourceInformation().fileId;
     const Set<uint32_t> &visited = visitedFiles();
     for (Set<uint32_t>::const_iterator it = visited.begin(); it != visited.end(); ++it) {
-        warning() << sourceInformation().sourceFile() << "parsed" << Location::path(*it);
+        if (testLog(Warning))
+            warning() << sourceInformation().sourceFile() << "parsed" << Location::path(*it);
         data()->dependencies[*it].insert(fileId);
+        addFileSymbol(*it);
     }
 
     const Set<uint32_t> &blocked = blockedFiles();
     for (Set<uint32_t>::const_iterator it = blocked.begin(); it != blocked.end(); ++it) {
-        warning() << sourceInformation().sourceFile() << "blocked" << Location::path(*it);
+        if (testLog(Warning))
+            warning() << sourceInformation().sourceFile() << "blocked" << Location::path(*it);
         data()->dependencies[*it].insert(fileId);
     }
     data()->visitTime = watch.elapsed();
@@ -1239,4 +1240,13 @@ CXChildVisitResult IndexerJobClang::dumpVisitor(CXCursor cursor, CXCursor, CXCli
     clang_visitChildren(cursor, IndexerJobClang::dumpVisitor, userData);
     --dump->indentLevel;
     return CXChildVisit_Continue;
+}
+
+void IndexerJobClang::addFileSymbol(uint32_t file)
+{
+    const Location loc(file, 0);
+    const Path path = Location::path(file);
+    mData->symbolNames[path].insert(loc);
+    const char *fn = path.fileName();
+    mData->symbolNames[String(fn, strlen(fn))].insert(loc);
 }

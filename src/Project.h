@@ -1,3 +1,18 @@
+/* This file is part of RTags.
+
+RTags is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+RTags is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
+
 #ifndef Project_h
 #define Project_h
 
@@ -75,6 +90,15 @@ public:
 
     const SymbolNameMap &symbolNames() const { return mSymbolNames; }
     SymbolNameMap &symbolNames() { return mSymbolNames; }
+
+    Set<Location> locations(const String &symbolName, uint32_t fileId = 0) const;
+    SymbolMap symbols(uint32_t fileId) const;
+    enum SortFlag {
+        Sort_None = 0x0,
+        Sort_DeclarationOnly = 0x1,
+        Sort_Reverse = 0x2
+    };
+    List<RTags::SortedCursor> sort(const Set<Location> &locations, unsigned int flags = Sort_None) const;
 
     const FilesMap &files() const { return mFiles; }
     FilesMap &files() { return mFiles; }

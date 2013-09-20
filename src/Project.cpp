@@ -1,3 +1,18 @@
+/* This file is part of RTags.
+
+RTags is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+RTags is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
+
 #include "Project.h"
 #include "FileManager.h"
 #include "IndexerJob.h"
@@ -294,7 +309,7 @@ void Project::onJobFinished(const std::shared_ptr<IndexerJob> &job)
                         clangData->unit = 0;
                     }
                 }
-                extra = String::format<16>(" %d/%d", clangData->parseTime, clangData->visitTime);
+                // extra = String::format<16>(" %d/%d", clangData->parseTime, clangData->visitTime);
                 clangData->clear();
             }
 
@@ -582,6 +597,7 @@ int Project::reindex(const Match &match)
 int Project::remove(const Match &match)
 {
     int count = 0;
+    Set<uint32_t> dirty;
     {
         std::lock_guard<std::mutex> lock(mMutex);
         SourceInformationMap::iterator it = mSources.begin();
@@ -593,13 +609,15 @@ int Project::remove(const Match &match)
                 if (job)
                     job->abort();
                 mPendingData.remove(fileId);
-                mPendingJobs.remove(fileId);
+                dirty.insert(fileId);
                 ++count;
             } else {
                 ++it;
             }
         }
     }
+    if (count)
+        startDirtyJobs(dirty);
     return count;
 }
 
@@ -953,5 +971,82 @@ List<std::pair<Path, List<String> > > Project::cachedUnits() const
 
     for (LinkedList<CachedUnit*>::const_iterator it = mCachedUnits.begin(); it != mCachedUnits.end(); ++it)
         ret.append(std::make_pair((*it)->path, (*it)->arguments));
+    return ret;
+}
+
+static inline bool matchSymbolName(const String &needle, const String &haystack)
+{
+    if (haystack.startsWith(needle)) {
+        if (haystack.size() == needle.size()) {
+            return true;
+        } else if ((haystack.at(needle.size()) == '<' || haystack.at(needle.size()) == '(')
+                   && haystack.indexOf(")::", needle.size()) == -1) { // we don't want to match foobar for void foobar(int)::parm
+            return true;
+        }
+    }
+    return false;
+}
+
+Set<Location> Project::locations(const String &symbolName, uint32_t fileId) const
+{
+    Set<Location> ret;
+    if (fileId) {
+        const SymbolMap s = symbols(fileId);
+        for (SymbolMap::const_iterator it = s.begin(); it != s.end(); ++it) {
+            if (!RTags::isReference(it->second.kind) && (symbolName.isEmpty() || matchSymbolName(symbolName, it->second.symbolName)))
+                ret.insert(it->first);
+        }
+    } else if (symbolName.isEmpty()) {
+        for (SymbolMap::const_iterator it = mSymbols.begin(); it != mSymbols.end(); ++it) {
+            if (!RTags::isReference(it->second.kind))
+                ret.insert(it->first);
+        }
+    } else {
+        SymbolNameMap::const_iterator it = mSymbolNames.lower_bound(symbolName);
+        while (it != mSymbolNames.end() && it->first.startsWith(symbolName)) {
+            if (matchSymbolName(symbolName, it->first))
+                ret.unite(it->second);
+            ++it;
+        }
+    }
+    return ret;
+}
+
+List<RTags::SortedCursor> Project::sort(const Set<Location> &locations, unsigned int flags) const
+{
+    List<RTags::SortedCursor> sorted;
+    sorted.reserve(locations.size());
+    for (Set<Location>::const_iterator it = locations.begin(); it != locations.end(); ++it) {
+        RTags::SortedCursor node(*it);
+        const SymbolMap::const_iterator found = mSymbols.find(*it);
+        if (found != mSymbols.end()) {
+            node.isDefinition = found->second.isDefinition();
+            if (flags & Sort_DeclarationOnly && node.isDefinition) {
+                const CursorInfo decl = found->second.bestTarget(mSymbols);
+                if (!decl.isNull())
+                    continue;
+            }
+            node.kind = found->second.kind;
+        }
+        sorted.push_back(node);
+    }
+
+    if (flags & Sort_Reverse) {
+        std::sort(sorted.begin(), sorted.end(), std::greater<RTags::SortedCursor>());
+    } else {
+        std::sort(sorted.begin(), sorted.end());
+    }
+    return sorted;
+}
+
+SymbolMap Project::symbols(uint32_t fileId) const
+{
+    SymbolMap ret;
+    if (fileId) {
+        for (SymbolMap::const_iterator it = mSymbols.lower_bound(Location(fileId, 0));
+             it != mSymbols.end() && it->first.fileId() == fileId; ++it) {
+            ret[it->first] = it->second;
+        }
+    }
     return ret;
 }

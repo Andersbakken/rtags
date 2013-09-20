@@ -8,8 +8,10 @@ if (CMAKE_SYSTEM_NAME MATCHES "Linux")
   set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fpic -g -O0")
 endif ()
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=gnu++0x -g -O0")
-if (CMAKE_SYSTEM_NAME MATCHES "Darwin")
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -stdlib=libc++")
+
+if (NOT CMAKE_SYSTEM_NAME MATCHES "Darwin")
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fpic")
+  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fpic")
 endif ()
 
 find_package(LibClang REQUIRED)

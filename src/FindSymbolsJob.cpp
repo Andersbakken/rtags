@@ -1,3 +1,18 @@
+/* This file is part of RTags.
+
+RTags is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+RTags is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
+
 #include "FindSymbolsJob.h"
 #include "Server.h"
 #include <rct/Log.h>
@@ -16,59 +31,22 @@ FindSymbolsJob::FindSymbolsJob(const QueryMessage &query, const std::shared_ptr<
 
 void FindSymbolsJob::execute()
 {
-    Map<Location, bool> out;
-    std::shared_ptr<Project> proj = project();
-    if (proj) {
-        const SymbolNameMap &map = proj->symbolNames();
-        SymbolNameMap::const_iterator it = map.lower_bound(string);
-        while (it != map.end() && it->first.startsWith(string)) {
-            bool ok = false;
-            if (it->first.size() == string.size()) {
-                ok = true;
-            } else if ((it->first.at(string.size()) == '<' || it->first.at(string.size()) == '(')
-                       && it->first.indexOf(")::", string.size()) == -1) { // we don't want to match foobar for void foobar(int)::parm
-                ok = true;
-            }
-            if (ok) {
-                const Set<Location> &locations = it->second;
-                for (Set<Location>::const_iterator i = locations.begin(); i != locations.end(); ++i) {
-                    out[*i] = true;
-                }
-            }
-            ++it;
-        }
-    }
+    if (std::shared_ptr<Project> proj = project()) {
+        const uint32_t filter = fileFilter();
+        const Set<Location> locations = proj->locations(string, filter);
+        if (!locations.isEmpty()) {
+            unsigned int sortFlags = Project::Sort_None;
+            if (queryFlags() & QueryMessage::DeclarationOnly)
+                sortFlags |= Project::Sort_DeclarationOnly;
+            if (queryFlags() & QueryMessage::ReverseSort)
+                sortFlags |= Project::Sort_Reverse;
 
-    if (out.size()) {
-        const SymbolMap &map = proj->symbols();
-        List<RTags::SortedCursor> sorted;
-        sorted.reserve(out.size());
-        const bool declarationOnly = queryFlags() & QueryMessage::DeclarationOnly;
-        for (Map<Location, bool>::const_iterator it = out.begin(); it != out.end(); ++it) {
-            RTags::SortedCursor node(it->first);
-            if (it->second) {
-                const SymbolMap::const_iterator found = map.find(it->first);
-                if (found != map.end()) {
-                    node.isDefinition = found->second.isDefinition();
-                    if (declarationOnly && node.isDefinition) {
-                        CursorInfo decl = found->second.bestTarget(map);
-                        if (!decl.isNull())
-                            continue;
-                    }
-                    node.kind = found->second.kind;
-                }
+            const List<RTags::SortedCursor> sorted = proj->sort(locations, sortFlags);
+            const unsigned int writeFlags = filter ? Unfiltered : NoWriteFlags;
+            const int count = sorted.size();
+            for (int i=0; i<count; ++i) {
+                write(sorted.at(i).location, writeFlags);
             }
-            sorted.push_back(node);
-        }
-
-        if (queryFlags() & QueryMessage::ReverseSort) {
-            std::sort(sorted.begin(), sorted.end(), std::greater<RTags::SortedCursor>());
-        } else {
-            std::sort(sorted.begin(), sorted.end());
-        }
-        const int count = sorted.size();
-        for (int i=0; i<count; ++i) {
-            write(sorted.at(i).location);
         }
     }
 }

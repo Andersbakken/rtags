@@ -1,3 +1,18 @@
+/* This file is part of RTags.
+
+RTags is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+RTags is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
+
 #include <rct/EventLoop.h>
 #include <rct/Log.h>
 #include "RTags.h"
@@ -15,7 +30,7 @@
 #include <cxxabi.h>
 #endif
 
-void sigSegvHandler(int signal)
+static void sigSegvHandler(int signal)
 {
     fprintf(stderr, "Caught signal %d\n", signal);
     String trace = RTags::backtrace();
@@ -28,7 +43,7 @@ void sigSegvHandler(int signal)
 
 static Path socketFile;
 
-void sigIntHandler(int)
+static void sigIntHandler(int)
 {
     unlink(socketFile.constData());
     _exit(1);
@@ -39,7 +54,7 @@ void sigIntHandler(int)
 #define XSTR(s) #s
 #define STR(s) XSTR(s)
 
-void usage(FILE *f)
+static void usage(FILE *f)
 {
     fprintf(f,
             "rdm [...options...]\n"
@@ -390,7 +405,7 @@ int main(int argc, char** argv)
         return 1;
     }
 
-    loop->exec();
+    const unsigned int ret = loop->exec();
     cleanupLogging();
-    return 0;
+    return ret == EventLoop::Success ? 0 : 1;
 }

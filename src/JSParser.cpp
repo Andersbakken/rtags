@@ -1,3 +1,18 @@
+/* This file is part of RTags.
+
+RTags is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+RTags is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
+
 #include "JSParser.h"
 #include <rct/RegExp.h>
 
@@ -32,17 +47,11 @@ Log operator<<(Log log, v8::Handle<v8::String> string)
     return log;
 }
 
-Log operator<<(Log log, v8::Handle<v8::Value> value)
+template <typename T>
+Log operator<<(Log log, const v8::Handle<T> &value)
 {
     if (!value.IsEmpty())
-        log << toCString(toJSON(value, true));
-    return log;
-}
-
-Log operator<<(Log log, v8::Handle<v8::Object> value)
-{
-    if (!value.IsEmpty())
-        log << toCString(toJSON(value, true));
+        log << toJSON(value, true);
     return log;
 }
 
@@ -137,8 +146,15 @@ v8::Handle<v8::Value> log(const v8::Arguments &args)
 {
     Log out(Error);
     const int length = args.Length();
+    bool pretty = false;
     for (int i=0; i<length; ++i) {
-        out << args[i];
+        if (!args[i].IsEmpty()) {
+            if (i == 0 && args[i]->IsBoolean()) {
+                pretty = args[i]->IsTrue();
+            } else if (!args[i]->IsUndefined()) {
+                out << toCString(toJSON(args[i], pretty));
+            }
+        }
     }
     return v8::Undefined();
 }
@@ -338,11 +354,12 @@ bool JSParser::parse(const Path &path, SymbolMap *symbols, SymbolNameMap *symbol
                 const v8::Handle<v8::Array> refs = get<v8::Array>(scope, key);
                 const int refCount = refs->Length();
                 String keyString = toCString(key);
+                keyString.chop(1); // all symbol names end with an extra _ so we don't collide with object properties
                 CursorInfo *decl = 0;
-                Map<Location, CursorInfo*> pendingRefCursors;
                 Location declLoc;
                 for (int k=0; k<refCount; ++k) {
                     const v8::Handle<v8::Array> ref = get<v8::Array>(refs, k);
+                    // error() << "shit" << k << ref;
                     uint32_t off = static_cast<uint32_t>(get<v8::Number>(ref, 0)->Value());
                     uint32_t fid = 0;
                     // could binary search for it
@@ -369,24 +386,26 @@ bool JSParser::parse(const Path &path, SymbolMap *symbols, SymbolNameMap *symbol
                     c.end = static_cast<uint32_t>(get<v8::Number>(ref, 1)->Value());
                     c.symbolLength = c.end - c.start;
                     c.symbolName = keyString;
-                    if (ref->Length() == 3) {
+                    if (!k && static_cast<uint32_t>(get<v8::Number>(ref, 2)->Value()) <= 3) {
+                        // > 3 means reference even if we don't have a declaration
                         (*symbolNames)[keyString].insert(loc);
+                        if (keyString.contains('.')) {
+                            List<String> split = keyString.split('.');
+                            String name = split.last();
+                            (*symbolNames)[name].insert(loc);
+                            for (int i=split.size() - 2; i>0; --i) {
+                                name.prepend(split.at(i) + '.');
+                                (*symbolNames)[name].insert(loc);
+                            }
+                        }
                         c.kind = CursorInfo::JSDeclaration;
                         decl = &c;
                         declLoc = loc;
-                        for (Map<Location, CursorInfo*>::const_iterator it = pendingRefCursors.begin(); it != pendingRefCursors.end(); ++it) {
-                            it->second->targets.insert(declLoc);
-                            c.references.insert(it->first);
-                        }
-                        // error() << "Got a declaration" << loc << keyString << pendingRefCursors.size();
-                        pendingRefCursors.clear();
                     } else {
                         c.kind = CursorInfo::JSReference;
                         if (decl) {
                             decl->references.insert(loc);
                             c.targets.insert(declLoc);
-                        } else {
-                            pendingRefCursors[loc] = &c;
                         }
                         // error() << "Got a reference" << loc << keyString;
                     }

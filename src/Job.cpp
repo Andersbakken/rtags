@@ -1,3 +1,18 @@
+/* This file is part of RTags.
+
+RTags is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+RTags is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
+
 #include "Job.h"
 #include "RTags.h"
 #include <rct/EventLoop.h>
@@ -43,9 +58,17 @@ Job::~Job()
     delete mPathFiltersRegExp;
 }
 
+uint32_t Job::fileFilter() const
+{
+    if (mPathFilters && mPathFilters->size() == 1) {
+        return Location::fileId(mPathFilters->first());
+    }
+    return 0;
+}
+
 bool Job::write(const String &out, unsigned flags)
 {
-    if (mJobFlags & WriteUnfiltered || filter(out)) {
+    if ((mJobFlags & WriteUnfiltered) || (flags & Unfiltered) || filter(out)) {
         if ((mJobFlags & QuoteOutput) && !(flags & DontQuote)) {
             String o((out.size() * 2) + 2, '"');
             char *ch = o.data() + 1;
@@ -125,23 +148,32 @@ bool Job::write(const Location &location, unsigned flags)
         }
     }
     String out = location.key(keyFlags());
-    if (queryFlags() & QueryMessage::ContainingFunction) {
+    const bool containingFunction = queryFlags() & QueryMessage::ContainingFunction;
+    const bool cursorKind = queryFlags() & QueryMessage::CursorKind;
+    const bool displayName = queryFlags() & QueryMessage::DisplayName;
+    if (containingFunction || cursorKind || displayName) {
         const SymbolMap &symbols = project()->symbols();
         SymbolMap::const_iterator it = symbols.find(location);
         if (it == symbols.end()) {
             error() << "Somehow can't find" << location << "in symbols";
         } else {
-            const uint32_t fileId = location.fileId();
-            const int offset = location.offset();
-            while (true) {
-                --it;
-                if (it->first.fileId() != fileId)
-                    break;
-                if (it->second.isDefinition() && RTags::isContainer(it->second.kind) && offset >= it->second.start && offset <= it->second.end) {
-                    out += "\tfunction: " + it->second.symbolName;
-                    break;
-                } else if (it == symbols.begin()) {
-                    break;
+            if (displayName)
+                out += '\t' + it->second.displayName();
+            if (cursorKind)
+                out += '\t' + it->second.kindSpelling();
+            if (containingFunction) {
+                const uint32_t fileId = location.fileId();
+                const int offset = location.offset();
+                while (true) {
+                    --it;
+                    if (it->first.fileId() != fileId)
+                        break;
+                    if (it->second.isDefinition() && RTags::isContainer(it->second.kind) && offset >= it->second.start && offset <= it->second.end) {
+                        out += "\tfunction: " + it->second.symbolName;
+                        break;
+                    } else if (it == symbols.begin()) {
+                        break;
+                    }
                 }
             }
         }

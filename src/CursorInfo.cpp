@@ -1,3 +1,19 @@
+/* This file is part of RTags.
+
+RTags is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+RTags is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
+
+
 #include "CursorInfo.h"
 #include "RTagsClang.h"
 
@@ -262,26 +278,29 @@ SymbolMap CursorInfo::declarationAndDefinition(const Location &loc, const Symbol
 
 String CursorInfo::displayName() const
 {
-    // int paren = symbolName.indexOf('(');
-    // int bracket = symbolName.indexOf('<');
-    int end = symbolName.indexOf('(');
-    if (end == -1) {
-        end = symbolName.indexOf('<');
-        if (end == -1)
-            end = symbolName.size();
+    switch (kind) {
+    case CXCursor_FunctionTemplate:
+    case CXCursor_FunctionDecl:
+    case CXCursor_CXXMethod:
+    case CXCursor_Destructor:
+    case CXCursor_Constructor: {
+        const int end = symbolName.indexOf('(');
+        if (end != -1)
+            return symbolName.left(end);
+        break; }
+    case CXCursor_FieldDecl: {
+        int colon = symbolName.indexOf(':');
+        if (colon != -1) {
+            const int end = colon + 2;
+            while (colon > 0 && RTags::isSymbol(symbolName.at(colon - 1)))
+                --colon;
+            return symbolName.left(colon + 1) + symbolName.mid(end);
+        }
+        break; }
+    default:
+        break;
     }
-    int start = end;
-    while (start > 0 && RTags::isSymbol(symbolName.at(start - 1)))
-        --start;
-    return symbolName.mid(start, end - start);
-
-    // int end = symbolName.indexOf('(');
-    // int start = 0;
-    // if (end != -1) {
-    //     start = symbolName.lastIndexOf("::", paren);
-    //     if (start == -1) {
-    //         start = symbolName.lastIndexOf(' ');
-    // }
+    return symbolName;
 }
 
 bool CursorInfo::isValid(const Location &location) const

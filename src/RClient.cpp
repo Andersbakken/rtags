@@ -1,3 +1,18 @@
+/* This file is part of RTags.
+
+RTags is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+RTags is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
+
 #include "RClient.h"
 #include "CompileMessage.h"
 #include "CompletionMessage.h"
@@ -24,10 +39,12 @@ enum OptionType {
     CursorInfoIncludeParents,
     CursorInfoIncludeReferences,
     CursorInfoIncludeTargets,
+    CursorKind,
     DeclarationOnly,
     DeleteProject,
     Dependencies,
     Diagnostics,
+    DisplayName,
     DumpFile,
     ElispList,
     FilterSystemHeaders,
@@ -118,7 +135,7 @@ struct Option opts[] = {
     { ReferenceName, "references-name", 'R', required_argument, "Find references matching arg." },
     { ReferenceLocation, "references", 'r', required_argument, "Find references matching this location." },
     { ListSymbols, "list-symbols", 'S', optional_argument, "List symbol names matching arg." },
-    { FindSymbols, "find-symbols", 'F', required_argument, "Find symbols matching arg." },
+    { FindSymbols, "find-symbols", 'F', optional_argument, "Find symbols matching arg." },
     { CursorInfo, "cursor-info", 'U', required_argument, "Get cursor info for this location." },
     { Status, "status", 's', optional_argument, "Dump status of rdm. Arg can be symbols or symbolNames." },
     { IsIndexed, "is-indexed", 'T', required_argument, "Check if rtags knows about, and is ready to return information about, this source file." },
@@ -169,6 +186,8 @@ struct Option opts[] = {
     { CursorInfoIncludeParents, "cursorinfo-include-parents", 0, no_argument, "Use to make --cursor-info include parent cursors." },
     { CursorInfoIncludeTargets, "cursorinfo-include-targets", 0, no_argument, "Use to make --cursor-info include target cursors." },
     { CursorInfoIncludeReferences, "cursorinfo-include-references", 0, no_argument, "Use to make --cursor-info include reference cursors." },
+    { CursorKind, "cursor-kind", 0, no_argument, "Include cursor kind in --find-symbols output." },
+    { DisplayName, "display-name", 0, no_argument, "Include display name in --find-symbols output." },
     { WithProject, "with-project", 0, required_argument, "Like --project but pass as a flag." },
     { DeclarationOnly, "declaration-only", 0, no_argument, "Filter out definitions (unless inline).", },
     { IMenu, "imenu", 0, no_argument, "Use with --list-symbols to provide output for (rtags-imenu) (filter namespaces, fully qualified function names, ignore certain cursors etc)." },
@@ -296,7 +315,7 @@ public:
         msg.setPathFilters(rc->pathFilters().toList());
         msg.setRangeFilter(rc->minOffset(), rc->maxOffset());
         msg.setProjects(rc->projects());
-        return connection->send(&msg);
+        return connection->send(msg);
     }
 
     virtual String description() const
@@ -331,13 +350,13 @@ public:
             msg.init(rc->argc(), rc->argv());
             msg.setProjects(rc->projects());
             EventLoop::eventLoop()->registerSocket(STDIN_FILENO, EventLoop::SocketRead, std::bind(&CompletionCommand::processStdin, this));
-            return connection->send(&msg);
+            return connection->send(msg);
         } else {
             CompletionMessage msg(CompletionMessage::None, path, line, column);
             msg.init(rc->argc(), rc->argv());
             msg.setContents(rc->unsavedFiles().value(path));
             msg.setProjects(rc->projects());
-            return connection->send(&msg);
+            return connection->send(msg);
         }
     }
 
@@ -399,7 +418,7 @@ public:
         const char *argv[] = { "completionStream", args.constData() };
         msg.init(2, argv);
         msg.setContents(contents);
-        connection->send(&msg);
+        connection->send(msg);
     }
 };
 
@@ -416,7 +435,7 @@ public:
     {
         CreateOutputMessage msg(mLevel == Default ? rc->logLevel() : mLevel);
         msg.init(rc->argc(), rc->argv());
-        return connection->send(&msg);
+        return connection->send(msg);
     }
     virtual String description() const
     {
@@ -438,7 +457,7 @@ public:
         CompileMessage msg(cwd, args);
         msg.init(rc->argc(), rc->argv());
         msg.setProjects(rc->projects());
-        return connection->send(&msg);
+        return connection->send(msg);
     }
     virtual String description() const
     {
@@ -514,25 +533,24 @@ bool RClient::exec()
 
     const int commandCount = mCommands.size();
     bool requiresNon0Output = false;
+    Connection connection;
+    connection.newMessage().connect(std::bind(&RClient::onNewMessage, this,
+                                              std::placeholders::_1, std::placeholders::_2));
+    connection.finished().connect(std::bind([](){ EventLoop::eventLoop()->quit(); }));
+    connection.disconnected().connect(std::bind([](){ EventLoop::eventLoop()->quit(); }));
+    if (!connection.connectToServer(mSocketFile, mConnectTimeout)) {
+        error("Can't seem to connect to server");
+        return false;
+    }
     for (int i=0; i<commandCount; ++i) {
-        Connection connection;
-        if (!connection.connectToServer(mSocketFile, mConnectTimeout)) {
-            error("Can't seem to connect to server");
-            ret = false;
-            break;
-        }
-
-        connection.newMessage().connect(std::bind(&RClient::onNewMessage, this,
-                                                  std::placeholders::_1, std::placeholders::_2));
-        connection.disconnected().connect(std::bind([](){ EventLoop::eventLoop()->quit(); }));
-
         const std::shared_ptr<RCCommand> &cmd = mCommands.at(i);
         requiresNon0Output = cmd->flags & RCCommand::RequiresNon0Output;
         debug() << "running command " << cmd->description();
-        ret = cmd->exec(this, &connection) && loop->exec(timeout()) == 0;
+        ret = cmd->exec(this, &connection) && loop->exec(timeout()) == EventLoop::Success;
         if (!ret)
             break;
     }
+    connection.client()->close();
     mCommands.clear();
     ret = ret && (!requiresNon0Output || monitor.gotNon0Output);
     return ret;
@@ -664,6 +682,9 @@ bool RClient::parse(int &argc, char **argv)
         case CursorInfoIncludeReferences:
             mQueryFlags |= QueryMessage::CursorInfoIncludeReferences;
             break;
+        case CursorKind:
+            mQueryFlags |= QueryMessage::CursorKind;
+            break;
         case CodeComplete:
             // logFile = "/tmp/rc.log";
             mCommands.append(std::shared_ptr<RCCommand>(new CompletionCommand));
@@ -693,6 +714,9 @@ bool RClient::parse(int &argc, char **argv)
             CompletionCommand *cmd = new CompletionCommand(path, atoi(caps[2].capture.constData()), atoi(caps[3].capture.constData()));
             mCommands.append(std::shared_ptr<RCCommand>(cmd));
             break; }
+        case DisplayName:
+            mQueryFlags |= QueryMessage::DisplayName;
+            break;
         case AllReferences:
             mQueryFlags |= QueryMessage::AllReferences;
             break;
@@ -717,9 +741,11 @@ bool RClient::parse(int &argc, char **argv)
         case NoContext:
             mQueryFlags |= QueryMessage::NoContext;
             break;
-        case PathFilter:
-            mPathFilters.insert(optarg);
-            break;
+        case PathFilter: {
+            Path p = optarg;
+            p.resolve();
+            mPathFilters.insert(p);
+            break; }
         case RangeFilter: {
             List<RegExp::Capture> caps;
             RegExp rx("^\\([0-9][0-9]*\\)-\\([0-9][0-9]*\\)$");
@@ -857,6 +883,7 @@ bool RClient::parse(int &argc, char **argv)
         case Project:
         case FindFile:
         case ListSymbols:
+        case FindSymbols:
         case JSON:
         case Builds:
         case JobCount:
@@ -870,6 +897,7 @@ bool RClient::parse(int &argc, char **argv)
             case Status: type = QueryMessage::Status; break;
             case JSON: type = QueryMessage::JSON; break;
             case ListSymbols: type = QueryMessage::ListSymbols; break;
+            case FindSymbols: type = QueryMessage::FindSymbols; break;
             case JobCount: type = QueryMessage::JobCount; break;
             default: assert(0); break;
             }
@@ -1003,9 +1031,6 @@ bool RClient::parse(int &argc, char **argv)
         case ReferenceName:
             addQuery(QueryMessage::ReferencesName, optarg);
             break;
-        case FindSymbols:
-            addQuery(QueryMessage::FindSymbols, optarg);
-            break;
         }
     }
     if (state == Error) {
@@ -1060,7 +1085,7 @@ void RClient::onNewMessage(const Message *message, Connection *)
     if (message->messageId() == ResponseMessage::MessageId) {
         const String response = static_cast<const ResponseMessage*>(message)->data();
         if (!response.isEmpty()) {
-            error("%s", response.constData());
+            fprintf(stdout, "%s\n", response.constData());
             fflush(stdout);
         }
     } else {

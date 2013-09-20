@@ -1,3 +1,18 @@
+/* This file is part of RTags.
+
+RTags is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+RTags is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
+
 #include "GccArguments.h"
 #include <rct/Log.h>
 #include "RTags.h"
@@ -207,7 +222,7 @@ bool GccArguments::parse(String args, const Path &base)
                     mClangArgs.append(split.at(++i));
                 }
             } else if (arg.startsWith("-isystem") || arg.startsWith("-iquote")) {
-                const int from = (arg[3] == 'q' ? 7 : 8);
+                const int from = (arg[2] == 'q' ? 7 : 8);
                 assert(args.size() >= from);
                 Path inc;
                 if (arg.size() > from) {
