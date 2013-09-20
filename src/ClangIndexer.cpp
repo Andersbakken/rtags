@@ -427,8 +427,8 @@ static inline bool isImplicit(const CXCursor &cursor)
 }
 
 void ClangIndexer::superclassTemplateMemberFunctionUgleHack(const CXCursor &cursor, CXCursorKind kind,
-                                                               const Location &location, const CXCursor &ref,
-                                                               const CXCursor &parent)
+                                                            const Location &location, const CXCursor &ref,
+                                                            const CXCursor &parent)
 {
     // This is for references to superclass template functions. Awful awful
     // shit. See https://github.com/Andersbakken/rtags/issues/62 and commit
