@@ -39,31 +39,6 @@ public:
         : mData(uint64_t(offset) << 32 | fileId)
     {}
 
-    Location(const CXFile &file, uint32_t offset)
-        : mData(0)
-    {
-        if (!file) {
-            mData = (uint64_t(offset) << 32);
-            return;
-        }
-        CXString fn = clang_getFileName(file);
-        const char *cstr = clang_getCString(fn);
-        if (!cstr)
-            return;
-        const Path p = Path::resolved(cstr);
-        clang_disposeString(fn);
-        uint32_t fileId = insertFile(p);
-        mData = (uint64_t(offset) << 32) | fileId;
-    }
-    Location(const CXSourceLocation &location)
-        : mData(0)
-    {
-        CXFile file;
-        unsigned offset;
-        clang_getSpellingLocation(location, &file, 0, 0, &offset);
-        *this = Location(file, offset);
-    }
-
     inline bool operator!() const
     {
         return !mData;
@@ -84,13 +59,12 @@ public:
         return sIdsToPaths.value(id);
     }
 
+#ifndef SINGLE_THREAD
     static inline uint32_t insertFile(const Path &path)
     {
         uint32_t ret;
         {
-#ifndef SINGLE_THREAD
             std::lock_guard<std::mutex> lock(sMutex);
-#endif
             uint32_t &id = sPathsToIds[path];
             if (!id) {
                 id = ++sLastId;
@@ -101,6 +75,7 @@ public:
 
         return ret;
     }
+#endif
 
     inline uint32_t fileId() const { return uint32_t(mData); }
     inline uint32_t offset() const { return uint32_t(mData >> 32); }
@@ -118,11 +93,13 @@ public:
     inline bool isNull() const { return !mData; }
     inline bool isValid() const { return mData; }
     inline void clear() { mData = 0; mCachedPath.clear(); }
+#ifndef SINGLE_THREAD
     inline bool operator==(const String &str) const
     {
         const Location fromPath = Location::fromPathAndOffset(str);
         return operator==(fromPath);
     }
+#endif
     inline bool operator==(const Location &other) const { return mData == other.mData; }
     inline bool operator!=(const Location &other) const { return mData != other.mData; }
     inline int compare(const Location &other) const
@@ -225,6 +202,7 @@ public:
         return out;
     }
 
+#ifndef SINGLE_THREAD
     static Location fromPathAndOffset(const String &pathAndOffset)
     {
         const int comma = pathAndOffset.lastIndexOf(',');
@@ -240,6 +218,7 @@ public:
         }
         return Location(Location::insertFile(Path(pathAndOffset.left(comma))), fileId);
     }
+#endif
     static Map<uint32_t, Path> idsToPaths()
     {
 #ifndef SINGLE_THREAD
@@ -272,18 +251,17 @@ public:
 #ifndef SINGLE_THREAD
         std::lock_guard<std::mutex> lock(sMutex);
 #endif
-        if (sPathsToIds.contains(path)) {
-            error() << "We've already set" << path << fileId << sPathsToIds.value(path);
-            return false;
-        }
+        // if (sPathsToIds.contains(path)) {
+        //     error() << "We've already set" << path << fileId << sPathsToIds.value(path)
+        //             << sPathsToIds;
+        //     return false;
+        // }
 
-        // if (sIdsToPaths.contains(fileId))
-        //     error() << "We've already set" << path << fileId << sIdsToPaths.value(fileId);
-
-        // assert(!sPathsToIds.contains(path));
-        // assert(!sIdsToPaths.contains(fileId));
+        assert(!sPathsToIds.contains(path));
+        assert(!sIdsToPaths.contains(fileId));
         sPathsToIds[path] = fileId;
         sIdsToPaths[fileId] = path;
+
         return true;
     }
 private:

@@ -34,8 +34,8 @@ public:
         return std::shared_ptr<IndexerJob>();
     }
     virtual std::shared_ptr<IndexerJob> createJob(const QueryMessage &msg,
-                                             const std::shared_ptr<Project> &project,
-                                             const SourceInformation &sourceInformation)
+                                                  const std::shared_ptr<Project> &project,
+                                                  const SourceInformation &sourceInformation)
     {
         if (!sourceInformation.isJS())
             return std::shared_ptr<IndexerJob>(new IndexerJobClang(msg, project, sourceInformation));
@@ -52,13 +52,13 @@ RTagsPlugin *createInstance()
 
 IndexerJobClang::IndexerJobClang(uint64_t id, IndexType type, const std::shared_ptr<Project> &project,
                                  const SourceInformation &sourceInformation)
-    : IndexerJob(id, type, project, sourceInformation), mState(Pending)
+    : IndexerJob(id, type, project, sourceInformation), mState(Pending), mWaiting(0)
 {
 }
 
 IndexerJobClang::IndexerJobClang(const QueryMessage &msg, const std::shared_ptr<Project> &project,
                                  const SourceInformation &sourceInformation)
-    : IndexerJob(msg, project, sourceInformation), mState(Pending)
+    : IndexerJob(msg, project, sourceInformation), mState(Pending), mWaiting(0)
 {
 }
 
@@ -79,6 +79,7 @@ bool IndexerJobClang::abort()
 
 bool IndexerJobClang::init(Path &path, List<String> &, String &data)
 {
+    mWaiting = mTimer.elapsed();
     assert(mState == Pending);
     mState = Running;
     std::shared_ptr<Project> proj = project.lock();
@@ -90,7 +91,7 @@ bool IndexerJobClang::init(Path &path, List<String> &, String &data)
     serializer << Server::instance()->options().socketFile << sourceInformation.sourceFile()
                << sourceInformation.fileId << proj->path() << args
                << static_cast<uint8_t>(type) << id;
-    ::error() << "Running" << sourceInformation.sourceFile();
+    // ::error() << "Running" << sourceInformation.sourceFile();
     path = rp;
     return true;
 }
@@ -103,7 +104,7 @@ void IndexerJobClang::error(const String &err)
 
 void IndexerJobClang::finished(Process *process)
 {
-    ::error() << sourceInformation.sourceFile() << "finished" << process->returnCode();
+    ::error() << sourceInformation.sourceFile() << "finished" << process->returnCode() << mWaiting << mTimer.elapsed() << "ms";
     ::error() << process->readAllStdOut();
     ::error() << process->readAllStdErr();
 }

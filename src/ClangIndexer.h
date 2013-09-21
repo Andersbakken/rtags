@@ -36,6 +36,23 @@ private:
         }
         return Location();
     }
+    Location createLocation(CXFile file, unsigned offset, bool *blocked = 0)
+    {
+        if (blocked)
+            *blocked = false;
+        if (!file)
+            return Location();
+
+        CXString fn = clang_getFileName(file);
+        const char *cstr = clang_getCString(fn);
+        if (!cstr) {
+            clang_disposeString(fn);
+            return Location();
+        }
+        const Path p = Path::resolved(cstr);
+        clang_disposeString(fn);
+        return createLocation(p, offset, blocked);
+    }
     Location createLocation(const Path &file, unsigned start, bool *blocked);
     inline Location createLocation(const CXCursor &cursor, bool *blocked = 0)
     {
@@ -75,7 +92,7 @@ private:
     int mVisitedFiles;
     Path mSocketFile;
     StopWatch mTimer;
-    int mParseDuration, mVisitDuration;
+    int mParseDuration, mVisitDuration, mCommunicationDuration;
     Connection mConnection;
 };
 

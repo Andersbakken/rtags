@@ -289,7 +289,7 @@ void Server::onNewMessage(Message *message, Connection *connection)
     case ResponseMessage::MessageId:
     case FinishMessage::MessageId:
     case VisitFileMessage::MessageId:
-        error() << "Unexpected message" << static_cast<int>(message->messageId());
+        error() << getpid() << "Unexpected message" << static_cast<int>(message->messageId());
         // assert(0);
         connection->finish();
         break;
@@ -353,6 +353,7 @@ void Server::handleCreateOutputMessage(const CreateOutputMessage &message, Conne
 void Server::handleIndexerMessage(const IndexerMessage &message, Connection *conn)
 {
     std::shared_ptr<IndexData> indexData = message.data();
+    // error() << "Got indexer message" << message.project() << Location::path(indexData->fileId) << indexData->id;
     assert(indexData);
     std::shared_ptr<Project> project = mProjects.value(message.project());
     if (!project) {

@@ -17,7 +17,8 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 #define IndexerJobClang_h
 
 #include "IndexerJob.h"
-#include <ProcessPool.h>
+#include "ProcessPool.h"
+#include <rct/StopWatch.h>
 
 class IndexerMessage;
 class IndexerJobClang : public IndexerJob, public ProcessPool::Job
@@ -44,6 +45,8 @@ private:
         Aborted
     } mState;
     bool mStarted;
+    int mWaiting;
+    StopWatch mTimer;
 };
 
 #endif
