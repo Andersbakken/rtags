@@ -3,15 +3,6 @@ if (NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE Release)
 endif ()
 
-if (CMAKE_SYSTEM_NAME MATCHES "Linux")
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fpic -g -O0")
-  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fpic -g -O0")
-endif ()
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=gnu++0x -g -O0")
-if (CMAKE_SYSTEM_NAME MATCHES "Darwin")
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -stdlib=libc++")
-endif ()
-
 find_package(LibClang REQUIRED)
 find_package(LLVM REQUIRED)
 find_package(Clang REQUIRED)
@@ -23,13 +14,13 @@ find_package(YAJL)
 
 find_package(PkgConfig)
 
-pkg_check_modules( GAMIN gamin )
+pkg_check_modules(GAMIN gamin)
 if (GAMIN_FOUND EQUAL 1)
   set(HAVE_FAM 1)
   add_definitions(${GAMIN_CFLAGS})
 endif ()
 
-pkg_check_modules( LIBEVENT libevent libevent_pthreads )
+pkg_check_modules(LIBEVENT libevent libevent_pthreads)
 if (LIBEVENT_FOUND)
   message("Found libevent: ${LIBEVENT_FOUND}")
   message("${LIBEVENT_CFLAGS} ${LIBEVENT_LDFLAGS}")
@@ -159,17 +150,13 @@ endif ()
 add_library(rtags SHARED ${RDM_SOURCES})
 target_link_libraries(rtags
   rct
-  -L.
-  -L./rct/
   ${LLVM_LDFLAGS}
   -Wl,--start-group
   ${CLANG_LIBS}
   ${LLVM_LIBNAMES}
   -Wl,--end-group
   -lstdc++
-  ${CORESERVICES_LIBRARY} ${COREFOUNDATION_LIBRARY} 
-  -lshared
-#  -lrct
+  ${CORESERVICES_LIBRARY} ${COREFOUNDATION_LIBRARY}
   ${LIBEVENT_LDFLAGS}
   ${GAMIN_LDFLAGS}
   ${SYSTEM_LIBS})
@@ -179,7 +166,6 @@ add_executable(rdm rdm.cpp
 #  ${RDM_SOURCES}
 )
 target_link_libraries(rdm
-  -Lsrc/
   rtags
   shared
   rct
@@ -199,13 +185,11 @@ add_dependencies(rtagsclang rct)
 add_dependencies(rtagsclang rdm)
 target_link_libraries(rtagsclang
   rct
-  -L.
-  -L./rct/
   ${LLVM_LDFLAGS}
   -Wl,--start-group
   ${CLANG_LDFLAGS}
   -Wl,--end-group
-  -lrtags
+  rtags
 )
 
 if (V8_FOUND EQUAL 1)
