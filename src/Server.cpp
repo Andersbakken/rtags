@@ -98,7 +98,7 @@ bool Server::init(const Options &options)
         List<Path> plugins = dir.files(Path::File);
         Path executableDir = Rct::executablePath().resolved().parentDir();
         if (dir != executableDir)
-            plugins += Rct::executablePath().resolved().parentDir().files(Path::File);
+            plugins += executableDir.files(Path::File);
         for (int i=0; i<plugins.size(); ++i) {
             if (mPluginFactory.addPlugin(plugins.at(i))) {
                 error() << "Loaded plugin" << plugins.at(i);
