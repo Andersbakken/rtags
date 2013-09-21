@@ -93,7 +93,7 @@ void Server::clear()
 bool Server::init(const Options &options)
 {
     {
-        List<Path> plugins = Rct::executablePath().parentDir().files(Path::File);
+        List<Path> plugins = Rct::executablePath().resolved().parentDir().files(Path::File);
         for (int i=0; i<plugins.size(); ++i) {
             if (mPluginFactory.addPlugin(plugins.at(i))) {
                 error() << "Loaded plugin" << plugins.at(i);
