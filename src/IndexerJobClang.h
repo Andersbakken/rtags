@@ -104,6 +104,7 @@ private:
     String mClangLine;
     CXCursor mLastCursor;
     String mContents;
+    int mBlocked, mAllowed;
 };
 
 #endif

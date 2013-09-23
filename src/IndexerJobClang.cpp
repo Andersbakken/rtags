@@ -71,13 +71,13 @@ struct VerboseVisitorUserData {
 
 IndexerJobClang::IndexerJobClang(const std::shared_ptr<Project> &project, Type type,
                                  const SourceInformation &sourceInformation)
-    : IndexerJob(project, type, sourceInformation), mLastCursor(nullCursor)
+    : IndexerJob(project, type, sourceInformation), mLastCursor(nullCursor), mBlocked(0), mAllowed(0)
 {
 }
 
 IndexerJobClang::IndexerJobClang(const QueryMessage &msg, const std::shared_ptr<Project> &project,
                                  const SourceInformation &sourceInformation)
-    : IndexerJob(msg, project, sourceInformation), mLastCursor(nullCursor)
+    : IndexerJob(msg, project, sourceInformation), mLastCursor(nullCursor), mBlocked(0), mAllowed(0)
 {
 }
 
@@ -334,10 +334,12 @@ CXChildVisitResult IndexerJobClang::indexVisitor(CXCursor cursor, CXCursor paren
     bool blocked = false;
     Location loc = job->createLocation(cursor, &blocked);
     if (blocked) {
+        ++job->mBlocked;
         return CXChildVisit_Continue;
     } else if (loc.isNull()) {
         return CXChildVisit_Recurse;
     }
+    ++job->mAllowed;
 
     if (testLog(VerboseDebug)) {
         Log log(VerboseDebug);
@@ -1155,9 +1157,9 @@ void IndexerJobClang::index()
         }
         mData->message += String::format<16>(" in %dms. ", static_cast<int>(mTimer.elapsed()) / 1000);
         if (data()->unit) {
-            mData->message += String::format<128>("(%d syms, %d symNames, %d refs, %d deps, %d files)",
+            mData->message += String::format<128>("(%d syms, %d symNames, %d refs, %d deps, %d files) (%d/%d)",
                                                   mData->symbols.size(), mData->symbolNames.size(), mData->references.size(),
-                                                  mData->dependencies.size(), mVisitedFiles.size());
+                                                  mData->dependencies.size(), mVisitedFiles.size(), mBlocked, mAllowed);
         } else if (mData->dependencies.size()) {
             mData->message += String::format<16>("(%d deps)", mData->dependencies.size());
         }

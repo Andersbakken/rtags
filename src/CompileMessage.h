@@ -24,7 +24,7 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 class CompileMessage : public ClientMessage
 {
 public:
-    enum { MessageId = ProjectId };
+    enum { MessageId = CompileId };
 
     CompileMessage(const Path &cwd = Path(), const String &args = String());
 

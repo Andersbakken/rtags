@@ -23,13 +23,15 @@ class ClientMessage : public Message
 {
 public:
     enum {
-        CompletionId = FinishMessageId + 32,
+        CompletionId = 32,
         QueryId,
-        ProjectId,
-        CreateOutputId
+        CompileId,
+        CreateOutputId,
+        VisitFileId,
+        IndexerMessageId
     };
 
-    ClientMessage(int id) : Message(id) {}
+    ClientMessage(uint8_t id) : Message(id) {}
 
     inline void init(int argc, const char **argv)
     {
