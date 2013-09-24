@@ -230,7 +230,6 @@ void Project::unload()
 {
     std::lock_guard<std::mutex> lock(mMutex);
     for (Map<uint32_t, std::shared_ptr<IndexerJob> >::const_iterator it = mJobs.begin(); it != mJobs.end(); ++it) {
-        it->second->finished().disconnect();
         it->second->abort();
     }
     mJobs.clear();
