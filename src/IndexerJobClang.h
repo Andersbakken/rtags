@@ -53,6 +53,7 @@ public:
     IndexerJobClang(const QueryMessage &msg,
                     const std::shared_ptr<Project> &project,
                     const SourceInformation &sourceInformation);
+    ~IndexerJobClang();
     static String typeName(const CXCursor &cursor);
     virtual std::shared_ptr<IndexData> createIndexData() { return std::shared_ptr<IndexData>(new IndexDataClang); }
 
@@ -91,7 +92,7 @@ private:
     static void inclusionVisitor(CXFile included_file, CXSourceLocation *include_stack,
                                  unsigned include_len, CXClientData client_data);
 
-    bool handleCursor(const CXCursor &cursor, CXCursorKind kind, const Location &location);
+    bool handleCursor(const CXCursor &cursor, CXCursorKind kind, const Location &location, bool a);
     void handleReference(const CXCursor &cursor, CXCursorKind kind, const Location &loc,
                          const CXCursor &reference, const CXCursor &parent);
     void handleInclude(const CXCursor &cursor, CXCursorKind kind, const Location &location);

@@ -81,6 +81,12 @@ IndexerJobClang::IndexerJobClang(const QueryMessage &msg, const std::shared_ptr<
 {
 }
 
+IndexerJobClang::~IndexerJobClang()
+{
+    // if (mLogFile)
+    //     fclose(mLogFile);
+}
+
 void IndexerJobClang::inclusionVisitor(CXFile includedFile,
                                        CXSourceLocation *includeStack,
                                        unsigned includeLen,
@@ -340,6 +346,12 @@ CXChildVisitResult IndexerJobClang::indexVisitor(CXCursor cursor, CXCursor paren
         return CXChildVisit_Recurse;
     }
     ++job->mAllowed;
+    // if (job->mLogFile) {
+    //     String out;
+    //     Log(&out) << cursor;
+    //     fwrite(out.constData(), 1, out.size(), job->mLogFile);
+    //     fwrite("\n", 1, 1, job->mLogFile);
+    // }
 
     if (testLog(VerboseDebug)) {
         Log log(VerboseDebug);
@@ -351,7 +363,7 @@ CXChildVisitResult IndexerJobClang::indexVisitor(CXCursor cursor, CXCursor paren
     }
     switch (type) {
     case RTags::Cursor:
-        job->handleCursor(cursor, kind, loc);
+        job->handleCursor(cursor, kind, loc, true);
         break;
     case RTags::Include:
         job->handleInclude(cursor, kind, loc);
@@ -510,7 +522,7 @@ void IndexerJobClang::handleReference(const CXCursor &cursor, CXCursorKind kind,
         return;
 
     CursorInfo &refInfo = mData->symbols[reffedLoc];
-    if (!refInfo.symbolLength && !handleCursor(ref, refKind, reffedLoc))
+    if (!refInfo.symbolLength && !handleCursor(ref, refKind, reffedLoc, false))
         return;
 
     refInfo.references.insert(location);
@@ -730,10 +742,17 @@ String IndexerJobClang::typeName(const CXCursor &cursor)
     return ret;
 }
 
-bool IndexerJobClang::handleCursor(const CXCursor &cursor, CXCursorKind kind, const Location &location)
+bool IndexerJobClang::handleCursor(const CXCursor &cursor, CXCursorKind kind, const Location &location, bool a)
 {
     CursorInfo &info = mData->symbols[location];
     if (!info.symbolLength || !RTags::isCursor(info.kind)) {
+        // if (mLogFile) {
+        //     String out;
+        //     Log(&out) << cursor << a;
+        //     fwrite(out.constData(), 1, out.size(), mLogFile);
+        //     fwrite("\n", 1, 1, mLogFile);
+        // }
+
         CXStringScope name = clang_getCursorSpelling(cursor);
         const char *cstr = name.data();
         info.symbolLength = cstr ? strlen(cstr) : 0;
@@ -1137,6 +1156,7 @@ bool IndexerJobClang::visit()
 void IndexerJobClang::index()
 {
     const Path sourceFile = mSourceInformation.sourceFile();
+    // mLogFile = fopen(String::format("/tmp/%s.old", sourceFile.fileName()).constData(), "w");
     mContents = sourceFile.readAll();
 
     if (type() == Dump) {

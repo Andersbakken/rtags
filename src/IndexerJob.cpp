@@ -123,9 +123,11 @@ Location IndexerJob::createLocation(uint32_t fileId, uint32_t offset, bool *bloc
             } else if (p->visitFile(fileId)) {
                 if (blocked)
                     *blocked = false;
+                // fprintf(mLogFile, "WON %s\n", Location::path(fileId).constData());
                 mVisitedFiles.insert(fileId);
                 mData->errors[fileId] = 0;
             } else {
+                // fprintf(mLogFile, "LOST %s\n", Location::path(fileId).constData());
                 mBlockedFiles.insert(fileId);
                 if (blocked)
                     *blocked = true;
