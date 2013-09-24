@@ -58,6 +58,7 @@ class Project : public std::enable_shared_from_this<Project>
 {
 public:
     Project(const Path &path);
+    ~Project();
     enum State {
         Unloaded,
         Inited,

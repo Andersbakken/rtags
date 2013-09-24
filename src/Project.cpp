@@ -70,6 +70,12 @@ Project::Project(const Path &path)
     mSyncTimer.timeout().connect(std::bind(&Project::onTimerFired, this, std::placeholders::_1));
 }
 
+Project::~Project()
+{
+    unload();
+}
+
+
 void Project::init()
 {
     std::lock_guard<std::mutex> lock(mMutex);
@@ -223,6 +229,7 @@ void Project::unload()
 {
     std::lock_guard<std::mutex> lock(mMutex);
     for (Map<uint32_t, std::shared_ptr<IndexerJob> >::const_iterator it = mJobs.begin(); it != mJobs.end(); ++it) {
+        it->second->finished().disconnect();
         it->second->abort();
     }
     mJobs.clear();
