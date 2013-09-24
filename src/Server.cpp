@@ -1281,6 +1281,10 @@ void Server::loadCompilationDatabase(const QueryMessage &query, Connection *conn
 
 void Server::shutdown(const QueryMessage &query, Connection *conn)
 {
+    for (Map<Path, std::shared_ptr<Project> >::const_iterator it = mProjects.begin(); it != mProjects.end(); ++it) {
+        if (it->second)
+            it->second->unload();
+    }
     EventLoop::eventLoop()->quit();
     conn->write("Shutting down");
     conn->finish();
