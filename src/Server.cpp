@@ -97,6 +97,7 @@ bool Server::init(const Options &options)
             }
         }
     }
+    mProcessPool.setCount(options.processCount);
     RTags::initMessages();
 
     mOptions = options;

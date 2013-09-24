@@ -28,12 +28,14 @@ struct VerboseVisitorUserData {
 
 ClangIndexer::ClangIndexer()
     : mUnit(0), mIndex(0), mLastCursor(nullCursor), mVisitedFiles(1), mParseDuration(0),
-      mVisitDuration(0), mCommunicationDuration(0)
+      mVisitDuration(0), mCommunicationDuration(0), mBlocked(0), mAllowed(0), mLogFile(0)
 {
 }
 
 ClangIndexer::~ClangIndexer()
 {
+    if (mLogFile)
+        fclose(mLogFile);
     if (mUnit)
         clang_disposeTranslationUnit(mUnit);
     if (mIndex)
@@ -48,6 +50,7 @@ bool ClangIndexer::connect(const Path &serverFile)
 bool ClangIndexer::index(IndexType type, uint64_t id, const Path &project, uint32_t fileId,
                          const Path &sourceFile, const List<String> &args)
 {
+    mLogFile = fopen(String::format("/tmp/%s", sourceFile.fileName()).constData(), "w");
     Location::set(sourceFile, fileId);
     mData.reset(new IndexData(type, id));
     mData->fileId = fileId;
@@ -65,12 +68,12 @@ bool ClangIndexer::index(IndexType type, uint64_t id, const Path &project, uint3
     mData->message = sourceFile.toTilde();
     if (!mUnit)
         mData->message += " error";
-    mData->message += String::format<16>(" in %dms. ", static_cast<int>(mTimer.elapsed()) / 1000);
+    mData->message += String::format<16>(" in %dms. ", mTimer.elapsed());
     if (mUnit) {
-        mData->message += String::format<128>("(%d syms, %d symNames, %d refs, %d deps, %d files, %d blocked) (%d/%d/%dms)",
+        mData->message += String::format<128>("(%d syms, %d symNames, %d refs, %d deps, %d files, %d blocked) (%d/%d/%dms) (%d/%d)",
                                               mData->symbols.size(), mData->symbolNames.size(), mData->references.size(),
                                               mData->dependencies.size(), mVisitedFiles, mData->visited.size() - mVisitedFiles,
-                                              mParseDuration, mVisitDuration, mCommunicationDuration);
+                                              mParseDuration, mVisitDuration, mCommunicationDuration, mBlocked, mAllowed);
     } else if (mData->dependencies.size()) {
         mData->message += String::format<16>("(%d deps)", mData->dependencies.size());
     }
@@ -130,6 +133,8 @@ Location ClangIndexer::createLocation(const Path &sourceFile, unsigned start, bo
             exit(1);
         }
         mData->visited[file.first] = file.second;
+        fprintf(mLogFile, "%s %s\n", file.second ? "WON" : "LOST", resolved.constData());
+
         if (file.second)
             ++mVisitedFiles;
         // error() << "Setting a file here" << resolved << file.first << file.second;
@@ -365,9 +370,17 @@ CXChildVisitResult ClangIndexer::indexVisitor(CXCursor cursor, CXCursor parent, 
     bool blocked = false;
     Location loc = indexer->createLocation(cursor, &blocked);
     if (blocked) {
+        ++indexer->mBlocked;
         return CXChildVisit_Continue;
     } else if (loc.isNull()) {
         return CXChildVisit_Recurse;
+    }
+    ++indexer->mAllowed;
+    if (indexer->mLogFile) {
+        String out;
+        Log(&out) << cursor;
+        fwrite(out.constData(), 1, out.size(), indexer->mLogFile);
+        fwrite("\n", 1, 1, indexer->mLogFile);
     }
 
     if (testLog(VerboseDebug)) {
@@ -380,7 +393,7 @@ CXChildVisitResult ClangIndexer::indexVisitor(CXCursor cursor, CXCursor parent, 
     }
     switch (type) {
     case RTags::Cursor:
-        indexer->handleCursor(cursor, kind, loc);
+        indexer->handleCursor(cursor, kind, loc, true);
         break;
     case RTags::Include:
         indexer->handleInclude(cursor, kind, loc);
@@ -539,7 +552,7 @@ void ClangIndexer::handleReference(const CXCursor &cursor, CXCursorKind kind, co
         return;
 
     CursorInfo &refInfo = mData->symbols[reffedLoc];
-    if (!refInfo.symbolLength && !handleCursor(ref, refKind, reffedLoc))
+    if (!refInfo.symbolLength && !handleCursor(ref, refKind, reffedLoc, false))
         return;
 
     refInfo.references.insert(location);
@@ -760,11 +773,17 @@ String ClangIndexer::typeName(const CXCursor &cursor)
     return ret;
 }
 
-bool ClangIndexer::handleCursor(const CXCursor &cursor, CXCursorKind kind, const Location &location)
+bool ClangIndexer::handleCursor(const CXCursor &cursor, CXCursorKind kind, const Location &location, bool a)
 {
     // error() << "Got a cursor" << cursor;
     CursorInfo &info = mData->symbols[location];
     if (!info.symbolLength || !RTags::isCursor(info.kind)) {
+        // if (mLogFile) {
+        //     String out;
+        //     Log(&out) << cursor << a;
+        //     fwrite(out.constData(), 1, out.size(), mLogFile);
+        //     fwrite("\n", 1, 1, mLogFile);
+        // }
         CXStringScope name = clang_getCursorSpelling(cursor);
         const char *cstr = name.data();
         info.symbolLength = cstr ? strlen(cstr) : 0;

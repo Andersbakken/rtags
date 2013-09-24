@@ -60,7 +60,7 @@ private:
     }
     String addNamePermutations(const CXCursor &cursor, const Location &location);
 
-    bool handleCursor(const CXCursor &cursor, CXCursorKind kind, const Location &location);
+    bool handleCursor(const CXCursor &cursor, CXCursorKind kind, const Location &location, bool a);
     void handleReference(const CXCursor &cursor, CXCursorKind kind, const Location &loc,
                          const CXCursor &reference, const CXCursor &parent);
     void handleInclude(const CXCursor &cursor, CXCursorKind kind, const Location &location);
@@ -92,8 +92,9 @@ private:
     int mVisitedFiles;
     Path mSocketFile;
     StopWatch mTimer;
-    int mParseDuration, mVisitDuration, mCommunicationDuration;
+    int mParseDuration, mVisitDuration, mCommunicationDuration, mBlocked, mAllowed;
     Connection mConnection;
+    FILE *mLogFile;
 };
 
 #endif

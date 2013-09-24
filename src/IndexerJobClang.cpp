@@ -104,7 +104,7 @@ void IndexerJobClang::error(const String &err)
 
 void IndexerJobClang::finished(Process *process)
 {
-    ::error() << sourceInformation.sourceFile() << "finished" << process->returnCode() << mWaiting << mTimer.elapsed() << "ms";
+    // ::error() << sourceInformation.sourceFile() << "finished" << process->returnCode() << mWaiting << mTimer.elapsed() << "ms";
     ::error() << process->readAllStdOut();
     ::error() << process->readAllStdErr();
 }
