@@ -49,15 +49,15 @@ void initMessages();
 
 class CursorInfo;
 typedef Map<Location, CursorInfo> SymbolMap;
-typedef Map<uint32_t, SymbolMap> ErrorSymbolMap;
-typedef Map<String, Set<Location> > UsrMap;
+typedef Hash<uint32_t, SymbolMap> ErrorSymbolMap;
+typedef Hash<String, Set<Location> > UsrMap;
 typedef Map<Location, Set<Location> > ReferenceMap;
 typedef Map<String, Set<Location> > SymbolNameMap;
-typedef Map<uint32_t, Set<uint32_t> > DependencyMap;
-typedef Map<uint32_t, SourceInformation> SourceInformationMap;
-typedef Map<Path, Set<String> > FilesMap;
-typedef Map<uint32_t, Set<FixIt> > FixItMap;
-typedef Map<uint32_t, List<String> > DiagnosticsMap;
+typedef Hash<uint32_t, Set<uint32_t> > DependencyMap;
+typedef Hash<uint32_t, SourceInformation> SourceInformationMap;
+typedef Hash<Path, Set<String> > FilesMap;
+typedef Hash<uint32_t, Set<FixIt> > FixItMap;
+typedef Hash<uint32_t, List<String> > DiagnosticsMap;
 
 namespace RTags {
 void dirtySymbolNames(SymbolNameMap &map, const Set<uint32_t> &dirty);

@@ -232,29 +232,29 @@ public:
         }
         return Location(Location::insertFile(Path(pathAndOffset.left(comma))), fileId);
     }
-    static Map<uint32_t, Path> idsToPaths()
+    static Hash<uint32_t, Path> idsToPaths()
     {
         std::lock_guard<std::mutex> lock(sMutex);
         return sIdsToPaths;
     }
-    static Map<Path, uint32_t> pathsToIds()
+    static Hash<Path, uint32_t> pathsToIds()
     {
         std::lock_guard<std::mutex> lock(sMutex);
         return sPathsToIds;
     }
-    static void init(const Map<Path, uint32_t> &pathsToIds)
+    static void init(const Hash<Path, uint32_t> &pathsToIds)
     {
         std::lock_guard<std::mutex> lock(sMutex);
         sPathsToIds = pathsToIds;
         sLastId = sPathsToIds.size();
-        for (Map<Path, uint32_t>::const_iterator it = sPathsToIds.begin(); it != sPathsToIds.end(); ++it) {
+        for (Hash<Path, uint32_t>::const_iterator it = sPathsToIds.begin(); it != sPathsToIds.end(); ++it) {
             assert(it->second <= it->second);
             sIdsToPaths[it->second] = it->first;
         }
     }
 private:
-    static Map<Path, uint32_t> sPathsToIds;
-    static Map<uint32_t, Path> sIdsToPaths;
+    static Hash<Path, uint32_t> sPathsToIds;
+    static Hash<uint32_t, Path> sIdsToPaths;
     static uint32_t sLastId;
     static std::mutex sMutex;
     mutable Path mCachedPath;

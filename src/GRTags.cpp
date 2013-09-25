@@ -324,7 +324,7 @@ bool GRTags::load(const Path &db)
     if (mMode != Create) {
         std::shared_ptr<leveldb::Iterator> it(mDB->NewIterator(leveldb::ReadOptions()));
         it->SeekToFirst();
-        Map<Path, uint32_t> paths;
+        Hash<Path, uint32_t> paths;
         leveldb::WriteBatch batch;
         bool hasWrites = false;
         while (it->Valid()) {
@@ -375,8 +375,8 @@ bool GRTags::save()
     leveldb::WriteBatch batch;
     bool hasWrites = false;
     {
-        Map<Path, uint32_t> paths = Location::pathsToIds();
-        for (Map<Path, uint32_t>::const_iterator it = paths.begin(); it != paths.end(); ++it) {
+        Hash<Path, uint32_t> paths = Location::pathsToIds();
+        for (Hash<Path, uint32_t>::const_iterator it = paths.begin(); it != paths.end(); ++it) {
             const leveldb::Slice key(it->first.constData(), it->first.size());
             const leveldb::Slice value(reinterpret_cast<const char *>(&it->second), sizeof(it->second));
             batch.Put(key, value);
@@ -387,7 +387,7 @@ bool GRTags::save()
         char keyBuf[5];
         keyBuf[0] = ' ';
         const leveldb::Slice key(keyBuf, 5);
-        for (Map<uint32_t, time_t>::const_iterator it = mFiles.begin(); it != mFiles.end(); ++it) {
+        for (Hash<uint32_t, time_t>::const_iterator it = mFiles.begin(); it != mFiles.end(); ++it) {
             *reinterpret_cast<uint32_t*>(keyBuf + 1) = it->first;
             const leveldb::Slice value(reinterpret_cast<const char *>(&it->second), sizeof(it->second));
             batch.Put(key, value);
@@ -444,7 +444,7 @@ bool GRTags::save()
             it->Next();
         }
     }
-    for (Map<String, Map<Location, bool> >::const_iterator it = mSymbols.begin(); it != mSymbols.end(); ++it) {
+    for (Hash<String, Map<Location, bool> >::const_iterator it = mSymbols.begin(); it != mSymbols.end(); ++it) {
         String out;
         Serializer serializer(out);
         serializer << it->second;
@@ -467,20 +467,20 @@ void GRTags::dump()
 
     error() << "Locations:";
     error() << delimiter;
-    Map<Path, uint32_t> pathsToIds = Location::pathsToIds();
-    for (Map<Path, uint32_t>::const_iterator it = pathsToIds.begin(); it != pathsToIds.end(); ++it)
+    Hash<Path, uint32_t> pathsToIds = Location::pathsToIds();
+    for (Hash<Path, uint32_t>::const_iterator it = pathsToIds.begin(); it != pathsToIds.end(); ++it)
         error() << "  " << it->first << it->second;
 
     error() << delimiter;
-    Map<uint32_t, Path> idsToPaths = Location::idsToPaths();
-    for (Map<uint32_t, Path>::const_iterator it = idsToPaths.begin(); it != idsToPaths.end(); ++it)
+    Hash<uint32_t, Path> idsToPaths = Location::idsToPaths();
+    for (Hash<uint32_t, Path>::const_iterator it = idsToPaths.begin(); it != idsToPaths.end(); ++it)
         error() << "  " << it->first << it->second;
 
     error() << delimiter;
     error() << "Files:";
     error() << delimiter;
 
-    for (Map<uint32_t, time_t>::const_iterator it = mFiles.begin(); it != mFiles.end(); ++it) {
+    for (Hash<uint32_t, time_t>::const_iterator it = mFiles.begin(); it != mFiles.end(); ++it) {
         const Path path = Location::path(it->first);
         if (it->second) {
             error() << "  " << path << String::formatTime(it->second, String::DateTime);
@@ -553,11 +553,11 @@ void GRTags::paths(const String &pattern)
 
     bool foundExact = false;
     const int patternSize = pattern.size();
-    const Map<Path, uint32_t> paths = Location::pathsToIds();
+    const Hash<Path, uint32_t> paths = Location::pathsToIds();
     List<const char*> matches;
     const bool preferExact = mFlags & PreferExact;
     const int pathStart = absolute ? 0 : srcRoot.size();
-    for (Map<Path, uint32_t>::const_iterator it = paths.begin(); it != paths.end(); ++it) {
+    for (Hash<Path, uint32_t>::const_iterator it = paths.begin(); it != paths.end(); ++it) {
         const Path &out = it->first;
         bool ok = true;
         if (!all) {

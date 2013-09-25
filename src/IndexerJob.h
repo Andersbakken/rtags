@@ -40,7 +40,7 @@ public:
     String message;
     UsrMap usrMap;
     FixItMap fixIts;
-    Map<uint32_t, int> errors;
+    Hash<uint32_t, int> errors;
     const int type;
 };
 
@@ -79,7 +79,7 @@ protected:
 
     Set<uint32_t> mVisitedFiles, mBlockedFiles;
 
-    Map<String, uint32_t> mFileIds;
+    Hash<String, uint32_t> mFileIds;
 
     SourceInformation mSourceInformation;
 

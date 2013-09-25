@@ -29,7 +29,7 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 #include <rct/Connection.h>
 #include <rct/FileSystemWatcher.h>
 #include <rct/List.h>
-#include <rct/Map.h>
+#include <rct/Hash.h>
 #include <rct/String.h>
 #include <rct/Timer.h>
 #include <rct/ThreadPool.h>
@@ -157,21 +157,21 @@ private:
     void onCompletionJobFinished(Path path, int id);
     void startCompletion(const Path &path, int line, int column, int pos, const String &contents, Connection *conn);
 
-    typedef Map<Path, std::shared_ptr<Project> > ProjectsMap;
+    typedef Hash<Path, std::shared_ptr<Project> > ProjectsMap;
     ProjectsMap mProjects;
     std::weak_ptr<Project> mCurrentProject;
 
     static Server *sInstance;
     Options mOptions;
     SocketServer::SharedPtr mServer;
-    Map<int, Connection*> mPendingLookups;
+    Hash<int, Connection*> mPendingLookups;
     bool mVerbose;
     int mJobId;
 
     ThreadPool *mIndexerThreadPool, *mQueryThreadPool;
     Signal<std::function<void(int, const List<String> &)> > mComplete;
 
-    Map<SocketClient::SharedPtr, Connection*> mCompletionStreams;
+    Hash<SocketClient::SharedPtr, Connection*> mCompletionStreams;
     struct PendingCompletion
     {
         PendingCompletion()
@@ -181,7 +181,7 @@ private:
         String contents;
         Connection *connection;
     };
-    Map<Path, PendingCompletion> mPendingCompletions;
+    Hash<Path, PendingCompletion> mPendingCompletions;
     Set<Path> mActiveCompletions;
 
     Timer mUnloadTimer, mClearCompletionCacheTimer;

@@ -269,7 +269,7 @@ bool GccArguments::parse(String args, const Path &base)
         return false;
     }
 
-    static Map<Path, Path> resolvedFromPath;
+    static Hash<Path, Path> resolvedFromPath;
     Path &compiler = resolvedFromPath[split.front()];
     if (compiler.isEmpty()) {
         compiler = Process::findCommand(split.front());

@@ -17,8 +17,8 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 #include "Server.h"
 #include <rct/Rct.h>
 #include "RTags.h"
-Map<Path, uint32_t> Location::sPathsToIds;
-Map<uint32_t, Path> Location::sIdsToPaths;
+Hash<Path, uint32_t> Location::sPathsToIds;
+Hash<uint32_t, Path> Location::sIdsToPaths;
 uint32_t Location::sLastId = 0;
 std::mutex Location::sMutex;
 

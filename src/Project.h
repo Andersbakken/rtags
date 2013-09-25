@@ -154,7 +154,7 @@ private:
     const Path mPath;
     State mState;
 
-    Map<Path, std::pair<Path, List<String> > > mPendingCompiles;
+    Hash<Path, std::pair<Path, List<String> > > mPendingCompiles;
 
     SymbolMap mSymbols;
     ErrorSymbolMap mErrorSymbols;
@@ -174,13 +174,13 @@ private:
 
     mutable std::mutex mMutex;
 
-    Map<uint32_t, std::shared_ptr<IndexerJob> > mJobs;
+    Hash<uint32_t, std::shared_ptr<IndexerJob> > mJobs;
     struct PendingJob
     {
         SourceInformation source;
         IndexerJob::Type type;
     };
-    Map<uint32_t, PendingJob> mPendingJobs;
+    Hash<uint32_t, PendingJob> mPendingJobs;
 
     Timer mSyncTimer;
 
@@ -196,7 +196,7 @@ private:
 
     Set<Location> mPreviousErrors;
 
-    Map<uint32_t, std::shared_ptr<IndexData> > mPendingData;
+    Hash<uint32_t, std::shared_ptr<IndexData> > mPendingData;
     Set<uint32_t> mPendingDirtyFiles;
 
     LinkedList<CachedUnit*> mCachedUnits;

@@ -18,7 +18,7 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 
 #include <rct/List.h>
 #include <rct/String.h>
-#include <rct/Map.h>
+#include <rct/Hash.h>
 #include <rct/Path.h>
 #include "QueryMessage.h"
 
@@ -41,7 +41,7 @@ public:
     int minOffset() const { return mMinOffset; }
     int maxOffset() const { return mMaxOffset; }
 
-    const Map<Path, String> &unsavedFiles() const { return mUnsavedFiles; }
+    const Hash<Path, String> &unsavedFiles() const { return mUnsavedFiles; }
 
     const List<String> &rdmArgs() const { return mRdmArgs; }
     const List<String> &projects() const { return mProjects; }
@@ -65,7 +65,7 @@ private:
     int mMax, mLogLevel, mTimeout, mMinOffset, mMaxOffset, mConnectTimeout;
     String mContext;
     Set<String> mPathFilters;
-    Map<Path, String> mUnsavedFiles;
+    Hash<Path, String> mUnsavedFiles;
     List<std::shared_ptr<RCCommand> > mCommands;
     List<String> mRdmArgs;
     String mSocketFile;

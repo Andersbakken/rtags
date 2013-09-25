@@ -19,7 +19,7 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 #include "ClientMessage.h"
 #include <rct/Path.h>
 #include <rct/Serializer.h>
-#include <rct/Map.h>
+#include <rct/Hash.h>
 #include "Match.h"
 #include "Location.h"
 

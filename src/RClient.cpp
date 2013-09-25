@@ -566,7 +566,7 @@ bool RClient::parse(int &argc, char **argv)
     List<std::shared_ptr<QueryCommand> > projectCommands;
 
     String shortOptionString;
-    Map<int, Option*> shortOptions, longOptions;
+    Hash<int, Option*> shortOptions, longOptions;
     for (int i=0; opts[i].description; ++i) {
         if (opts[i].option != None) {
             const option opt = { opts[i].longOpt, opts[i].argument, 0, opts[i].shortOpt };

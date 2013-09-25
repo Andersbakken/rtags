@@ -20,7 +20,7 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 #include <Location.h>
 #include <CursorInfo.h>
 #include <rct/Log.h>
-#include <rct/Map.h>
+#include <rct/Hash.h>
 #include <rct/Path.h>
 #include <rct/String.h>
 #define V8_USE_UNSAFE_HANDLES

@@ -80,12 +80,12 @@ void IndexerJobEsprima::index()
         {
             Log stream(&dump);
             stream << "symbols:\n";
-            for (Map<Location, CursorInfo>::const_iterator it = mData->symbols.begin(); it != mData->symbols.end(); ++it) {
+            for (SymbolMap::const_iterator it = mData->symbols.begin(); it != mData->symbols.end(); ++it) {
                 stream << it->first << it->second.toString(0) << '\n';
             }
 
             stream << "symbolnames:\n";
-            for (Map<String, Set<Location> >::const_iterator it = mData->symbolNames.begin(); it != mData->symbolNames.end(); ++it) {
+            for (SymbolNameMap::const_iterator it = mData->symbolNames.begin(); it != mData->symbolNames.end(); ++it) {
                 stream << it->first << it->second << '\n';
             }
 

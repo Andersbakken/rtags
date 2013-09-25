@@ -941,7 +941,7 @@ bool IndexerJobClang::diagnose()
     const unsigned diagnosticCount = clang_getNumDiagnostics(data()->unit);
     const unsigned options = Server::instance()->options().options;
 
-    Map<uint32_t, Map<int, XmlEntry> > xmlEntries;
+    Hash<uint32_t, Hash<int, XmlEntry> > xmlEntries;
     const bool xmlEnabled = testLog(RTags::CompilationErrorXml);
 
     for (unsigned i=0; i<diagnosticCount; ++i) {
@@ -1071,16 +1071,16 @@ bool IndexerJobClang::diagnose()
     if (xmlEnabled) {
         logDirect(RTags::CompilationErrorXml, "<?xml version=\"1.0\" encoding=\"utf-8\"?><checkstyle>");
         if (!xmlEntries.isEmpty()) {
-            Map<uint32_t, Map<int, XmlEntry> >::const_iterator entry = xmlEntries.begin();
-            const Map<uint32_t, Map<int, XmlEntry> >::const_iterator end = xmlEntries.end();
+            Hash<uint32_t, Hash<int, XmlEntry> >::const_iterator entry = xmlEntries.begin();
+            const Hash<uint32_t, Hash<int, XmlEntry> >::const_iterator end = xmlEntries.end();
 
             const char* severities[] = { "none", "warning", "error", "fixit" };
 
             while (entry != end) {
                 log(RTags::CompilationErrorXml, "<file name=\"%s\">", Location::path(entry->first).constData());
-                const Map<int, XmlEntry>& map = entry->second;
-                Map<int, XmlEntry>::const_iterator it = map.begin();
-                const Map<int, XmlEntry>::const_iterator end = map.end();
+                const Hash<int, XmlEntry>& map = entry->second;
+                Hash<int, XmlEntry>::const_iterator it = map.begin();
+                const Hash<int, XmlEntry>::const_iterator end = map.end();
                 while (it != end) {
                     const XmlEntry& entry = it->second;
                     log(RTags::CompilationErrorXml, "<error line=\"%d\" column=\"%d\" startOffset=\"%d\" %sseverity=\"%s\" message=\"%s\"/>",
