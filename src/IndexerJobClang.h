@@ -25,7 +25,7 @@ class IndexDataClang : public IndexData
 {
 public:
     IndexDataClang()
-        : IndexData(ClangType), unit(0), parseTime(0), visitTime(0)
+        : IndexData(ClangType), unit(0)
     {}
 
     virtual ~IndexDataClang()
@@ -39,10 +39,8 @@ public:
             clang_disposeTranslationUnit(unit);
             unit = 0;
         }
-        parseTime = visitTime = 0;
     }
     CXTranslationUnit unit;
-    int parseTime, visitTime;
 };
 
 class IndexerJobClang : public IndexerJob
@@ -105,7 +103,7 @@ private:
     String mClangLine;
     CXCursor mLastCursor;
     String mContents;
-    int mBlocked, mAllowed;
+    int mParseDuration, mVisitDuration, mBlocked, mAllowed;
 };
 
 #endif

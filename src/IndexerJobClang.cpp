@@ -71,20 +71,22 @@ struct VerboseVisitorUserData {
 
 IndexerJobClang::IndexerJobClang(const std::shared_ptr<Project> &project, Type type,
                                  const SourceInformation &sourceInformation)
-    : IndexerJob(project, type, sourceInformation), mLastCursor(nullCursor), mBlocked(0), mAllowed(0)
+    : IndexerJob(project, type, sourceInformation), mLastCursor(nullCursor),
+      mParseDuration(0), mVisitDuration(0), mBlocked(0), mAllowed(0)
 {
 }
 
 IndexerJobClang::IndexerJobClang(const QueryMessage &msg, const std::shared_ptr<Project> &project,
                                  const SourceInformation &sourceInformation)
-    : IndexerJob(msg, project, sourceInformation), mLastCursor(nullCursor), mBlocked(0), mAllowed(0)
+    : IndexerJob(msg, project, sourceInformation), mLastCursor(nullCursor),
+      mParseDuration(0), mVisitDuration(0), mBlocked(0), mAllowed(0)
 {
 }
 
 IndexerJobClang::~IndexerJobClang()
 {
-    // if (mLogFile)
-    //     fclose(mLogFile);
+    if (mLogFile)
+        fclose(mLogFile);
 }
 
 void IndexerJobClang::inclusionVisitor(CXFile includedFile,
@@ -353,14 +355,16 @@ CXChildVisitResult IndexerJobClang::indexVisitor(CXCursor cursor, CXCursor paren
     //     fwrite("\n", 1, 1, job->mLogFile);
     // }
 
-    if (testLog(VerboseDebug)) {
-        Log log(VerboseDebug);
-        log << cursor;
-        CXCursor ref = clang_getCursorReferenced(cursor);
-        if (!clang_isInvalid(clang_getCursorKind(ref)) && !clang_equalCursors(ref, cursor)) {
-            log << "refs" << ref;
-        }
-    }
+    // if (testLog(VerboseDebug)) {
+    //     Log log(VerboseDebug);
+    //     log << cursor;
+    //     CXCursor ref = clang_getCursorReferenced(cursor);
+    //     if (!clang_isInvalid(clang_getCursorKind(ref)) && !clang_equalCursors(ref, cursor)) {
+    //         log << "refs" << ref;
+    //     }
+    // }
+    // if (type != RTags::Cursor)
+        return CXChildVisit_Recurse;
     switch (type) {
     case RTags::Cursor:
         job->handleCursor(cursor, kind, loc, true);
@@ -847,11 +851,12 @@ bool IndexerJobClang::parse()
                               mContents.constData(),
                               static_cast<unsigned long>(mContents.size()) };
 
-    StopWatch watch;
+    mParseDuration = mTimer.elapsed();
     RTags::parseTranslationUnit(sourceFile, args,
                                 unit, Server::instance()->clangIndex(), mClangLine,
                                 mSourceInformation.fileId, &mData->dependencies, &unsaved, 1);
-    data()->parseTime = watch.elapsed();
+    mParseDuration = mTimer.elapsed() - mParseDuration;
+    mParseTime = time(0);
     warning() << "loading unit " << mClangLine << " " << (unit != 0);
     if (unit) {
         return !isAborted();
@@ -1108,9 +1113,9 @@ bool IndexerJobClang::visit()
     if (!data()->unit) {
         return false;
     }
-    StopWatch watch;
     if (isAborted())
         return false;
+    mVisitDuration = mTimer.elapsed();
 
     clang_visitChildren(clang_getTranslationUnitCursor(data()->unit),
                         IndexerJobClang::indexVisitor, this);
@@ -1130,7 +1135,7 @@ bool IndexerJobClang::visit()
             warning() << sourceInformation().sourceFile() << "blocked" << Location::path(*it);
         data()->dependencies[*it].insert(fileId);
     }
-    data()->visitTime = watch.elapsed();
+    mVisitDuration = mTimer.elapsed() - mVisitDuration;
 
     if (isAborted())
         return false;
@@ -1156,7 +1161,7 @@ bool IndexerJobClang::visit()
 void IndexerJobClang::index()
 {
     const Path sourceFile = mSourceInformation.sourceFile();
-    // mLogFile = fopen(String::format("/tmp/%s.old", sourceFile.fileName()).constData(), "w");
+    mLogFile = fopen(String::format("/tmp/%s.old", sourceFile.fileName()).constData(), "w");
     mContents = sourceFile.readAll();
 
     if (type() == Dump) {
@@ -1168,18 +1173,18 @@ void IndexerJobClang::index()
                                 IndexerJobClang::dumpVisitor, &u);
         }
     } else {
-        mParseTime = time(0);
         parse() && visit() && diagnose();
 
         mData->message = sourceFile.toTilde();
         if (!data()->unit) {
             mData->message += " error";
         }
-        mData->message += String::format<16>(" in %dms. ", static_cast<int>(mTimer.elapsed()) / 1000);
+        mData->message += String::format<16>(" in %dms. ", mTimer.elapsed());
         if (data()->unit) {
-            mData->message += String::format<128>("(%d syms, %d symNames, %d refs, %d deps, %d files) (%d/%d)",
+            mData->message += String::format<128>("(%d syms, %d symNames, %d refs, %d deps, %d files) (%d/%dms) (%d/%d)",
                                                   mData->symbols.size(), mData->symbolNames.size(), mData->references.size(),
-                                                  mData->dependencies.size(), mVisitedFiles.size(), mBlocked, mAllowed);
+                                                  mData->dependencies.size(), mVisitedFiles.size(), mParseDuration, mVisitDuration,
+                                                  mBlocked, mAllowed);
         } else if (mData->dependencies.size()) {
             mData->message += String::format<16>("(%d deps)", mData->dependencies.size());
         }

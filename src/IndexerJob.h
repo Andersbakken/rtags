@@ -75,7 +75,7 @@ protected:
     Location createLocation(const Path &file, uint32_t offset, bool *blocked);
     const Type mType;
 
-    // FILE *mLogFile;
+    FILE *mLogFile;
 
     Set<uint32_t> mVisitedFiles, mBlockedFiles;
 
