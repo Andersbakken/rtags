@@ -61,7 +61,7 @@ private:
     Location createLocation(const Path &file, unsigned start, bool *blocked);
     String addNamePermutations(const CXCursor &cursor, const Location &location);
 
-    bool handleCursor(const CXCursor &cursor, CXCursorKind kind, const Location &location, bool a);
+    bool handleCursor(const CXCursor &cursor, CXCursorKind kind, const Location &location);
     void handleReference(const CXCursor &cursor, CXCursorKind kind, const Location &loc,
                          const CXCursor &reference, const CXCursor &parent);
     void handleInclude(const CXCursor &cursor, CXCursorKind kind, const Location &location);

@@ -387,7 +387,7 @@ CXChildVisitResult ClangIndexer::indexVisitor(CXCursor cursor, CXCursor parent, 
     }
     switch (type) {
     case RTags::Cursor:
-        indexer->handleCursor(cursor, kind, loc, true);
+        indexer->handleCursor(cursor, kind, loc);
         break;
     case RTags::Include:
         indexer->handleInclude(cursor, kind, loc);
@@ -546,7 +546,7 @@ void ClangIndexer::handleReference(const CXCursor &cursor, CXCursorKind kind, co
         return;
 
     CursorInfo &refInfo = mData->symbols[reffedLoc];
-    if (!refInfo.symbolLength && !handleCursor(ref, refKind, reffedLoc, false))
+    if (!refInfo.symbolLength && !handleCursor(ref, refKind, reffedLoc))
         return;
 
     refInfo.references.insert(location);
@@ -767,7 +767,7 @@ String ClangIndexer::typeName(const CXCursor &cursor)
     return ret;
 }
 
-bool ClangIndexer::handleCursor(const CXCursor &cursor, CXCursorKind kind, const Location &location, bool a)
+bool ClangIndexer::handleCursor(const CXCursor &cursor, CXCursorKind kind, const Location &location)
 {
     // error() << "Got a cursor" << cursor;
     CursorInfo &info = mData->symbols[location];
