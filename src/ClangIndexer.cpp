@@ -58,7 +58,6 @@ bool ClangIndexer::index(IndexType type, uint64_t id, const Path &project, uint3
     mArgs = args;
     assert(mConnection.isConnected());
     assert(!sourceFile.isEmpty());
-    mFilesToIds[sourceFile] = std::make_pair(fileId, true);
     mData->visited[fileId] = true;
     mContents = sourceFile.readAll();
     assert(type != Invalid);
@@ -92,62 +91,57 @@ bool ClangIndexer::index(IndexType type, uint64_t id, const Path &project, uint3
 
 Location ClangIndexer::createLocation(const Path &sourceFile, unsigned start, bool *blockedPtr)
 {
-    std::pair<uint32_t, bool> &file = mFilesToIds[sourceFile];
-
-    if (!file.first) {
-        // error() << "Need to create location for" << sourceFile;
-        bool blocked = false;
-        enum { Timeout = 1000 };
-        const Path resolved = sourceFile.resolved();
-        const bool diff = (resolved != sourceFile);
-        if (diff) {
-            Map<Path, std::pair<uint32_t, bool> >::const_iterator it = mFilesToIds.find(resolved);
-            if (it != mFilesToIds.end()) {
-                file.first = it->second.first;
-                file.second = it->second.second;
-                if (blockedPtr) {
-                    *blockedPtr = !file.second;
-                    if (!file.second)
-                        return Location();
-                }
-                return Location(file.first, start);
-            }
-        }
-        QueryMessage msg(QueryMessage::VisitFile);
-        msg.addProject(mProject);
-        msg.setQuery(resolved);
-        mConnection.newMessage().connect([&file, &blocked](Message *msg, Connection *conn) {
-                assert(msg->messageId() == VisitFileMessage::MessageId);
-                const VisitFileMessage *vm = static_cast<VisitFileMessage*>(msg);
-                file = std::make_pair(vm->fileId(), vm->visit());
-                // error() << "Got response for" << vm->fileId() << vm->visit();
-                EventLoop::eventLoop()->quit();
-            });
-
-        mConnection.send(msg);
-        StopWatch sw;
-        EventLoop::eventLoop()->exec(Timeout);
-        mCommunicationDuration += sw.elapsed();
-        if (!file.first) {
-            error() << "Error getting fileId for" << resolved;
-            exit(1);
-        }
-        mData->visited[file.first] = file.second;
-        fprintf(mLogFile, "%s %s\n", file.second ? "WON" : "LOST", resolved.constData());
-
-        if (file.second)
-            ++mVisitedFiles;
-        // error() << "Setting a file here" << resolved << file.first << file.second;
-        assert(file.first != mData->fileId);
-        Location::set(resolved, file.first);
-        if (diff)
-            mFilesToIds[resolved] = file;
+    uint32_t id = Location::fileId(sourceFile);
+    Path resolved;
+    if (!id) {
+        resolved = sourceFile.resolved();
+        id = Location::fileId(resolved);
+        if (id)
+            Location::set(sourceFile, id);
     }
-    if (blockedPtr) {
-        *blockedPtr = !file.second;
-        return *blockedPtr ? Location() : Location(file.first, start);
+
+    if (id) {
+        assert(mData->visited.contains(id));
+        if (blockedPtr && !mData->visited.value(id)) {
+            *blockedPtr = true;
+            return Location();
+        }
+        return Location(id, start);
     }
-    return Location(file.first, start);
+
+    enum { Timeout = 1000 };
+    QueryMessage msg(QueryMessage::VisitFile);
+    msg.addProject(mProject);
+    msg.setQuery(resolved);
+    bool visit = false;
+    mConnection.newMessage().connect([&id, &visit](Message *msg, Connection *conn) {
+            assert(msg->messageId() == VisitFileMessage::MessageId);
+            const VisitFileMessage *vm = static_cast<VisitFileMessage*>(msg);
+            visit = vm->visit();
+            id = vm->fileId();
+            EventLoop::eventLoop()->quit();
+        });
+
+    mConnection.send(msg);
+    StopWatch sw;
+    EventLoop::eventLoop()->exec(Timeout);
+    mCommunicationDuration += sw.elapsed();
+    if (!id) {
+        error() << "Error getting fileId for" << resolved;
+        exit(1);
+    }
+    mData->visited[id] = visit;
+    // fprintf(mLogFile, "%s %s\n", file.second ? "WON" : "LOST", resolved.constData());
+
+    Location::set(resolved, id);
+    if (resolved != sourceFile)
+        Location::set(sourceFile, id);
+
+    if (blockedPtr && !visit) {
+        *blockedPtr = true;
+        return Location();
+    }
+    return Location(id, start);
 }
 
 String ClangIndexer::addNamePermutations(const CXCursor &cursor, const Location &location)
@@ -967,7 +961,7 @@ bool ClangIndexer::diagnose()
     List<String> compilationErrors;
     const unsigned diagnosticCount = clang_getNumDiagnostics(mUnit);
 
-    Map<uint32_t, Map<int, XmlEntry> > xmlEntries;
+    Hash<uint32_t, Hash<int, XmlEntry> > xmlEntries;
     const bool xmlEnabled = testLog(RTags::CompilationErrorXml);
 
     for (unsigned i=0; i<diagnosticCount; ++i) {
@@ -1081,16 +1075,16 @@ bool ClangIndexer::diagnose()
     }
     mData->xmlDiagnostics = "<?xml version=\"1.0\" encoding=\"utf-8\"?><checkstyle>";
     if (!xmlEntries.isEmpty()) {
-        Map<uint32_t, Map<int, XmlEntry> >::const_iterator entry = xmlEntries.begin();
-        const Map<uint32_t, Map<int, XmlEntry> >::const_iterator end = xmlEntries.end();
+        Hash<uint32_t, Hash<int, XmlEntry> >::const_iterator entry = xmlEntries.begin();
+        const Hash<uint32_t, Hash<int, XmlEntry> >::const_iterator end = xmlEntries.end();
 
         const char* severities[] = { "none", "warning", "error", "fixit" };
 
         while (entry != end) {
             mData->xmlDiagnostics += String::format<128>("<file name=\"%s\">", Location::path(entry->first).constData());
-            const Map<int, XmlEntry>& map = entry->second;
-            Map<int, XmlEntry>::const_iterator it = map.begin();
-            const Map<int, XmlEntry>::const_iterator end = map.end();
+            const Hash<int, XmlEntry>& map = entry->second;
+            Hash<int, XmlEntry>::const_iterator it = map.begin();
+            const Hash<int, XmlEntry>::const_iterator end = map.end();
             while (it != end) {
                 const XmlEntry& entry = it->second;
                 mData->xmlDiagnostics += String::format("<error line=\"%d\" column=\"%d\" startOffset=\"%d\" %sseverity=\"%s\" message=\"%s\"/>",
@@ -1104,7 +1098,7 @@ bool ClangIndexer::diagnose()
         }
     }
 
-    for (Map<uint32_t, bool>::const_iterator it = mData->visited.begin(); it != mData->visited.end(); ++it) {
+    for (Hash<uint32_t, bool>::const_iterator it = mData->visited.begin(); it != mData->visited.end(); ++it) {
         if (it->second && !xmlEntries.contains(it->first)) {
             const String fn = Location::path(it->first);
             mData->xmlDiagnostics += String::format("<file name=\"%s\"/>", fn.constData());
@@ -1125,7 +1119,7 @@ bool ClangIndexer::visit()
     clang_visitChildren(clang_getTranslationUnitCursor(mUnit),
                         ClangIndexer::indexVisitor, this);
 
-    for (Map<uint32_t, bool>::const_iterator it = mData->visited.begin(); it != mData->visited.end(); ++it) {
+    for (Hash<uint32_t, bool>::const_iterator it = mData->visited.begin(); it != mData->visited.end(); ++it) {
         mData->dependencies[it->first].insert(mData->fileId);
         addFileSymbol(it->first);
     }

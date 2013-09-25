@@ -186,13 +186,13 @@ end:
 
 void Project::startPendingJobs() // lock always held
 {
-    Map<Path, std::pair<Path, List<String> > > pendingCompiles;
+    Hash<Path, std::pair<Path, List<String> > > pendingCompiles;
     {
         std::lock_guard<std::mutex> lock(mMutex);
         mState = Loaded;
         pendingCompiles = std::move(mPendingCompiles);
     }
-    for (Map<Path, std::pair<Path, List<String> > >::const_iterator it = pendingCompiles.begin(); it != pendingCompiles.end(); ++it) {
+    for (Hash<Path, std::pair<Path, List<String> > >::const_iterator it = pendingCompiles.begin(); it != pendingCompiles.end(); ++it) {
         index(it->first, it->second.first, it->second.second);
     }
 }
@@ -229,7 +229,7 @@ void Project::load(FileManagerMode mode)
 void Project::unload()
 {
     std::lock_guard<std::mutex> lock(mMutex);
-    for (Map<uint32_t, std::shared_ptr<IndexerJob> >::const_iterator it = mJobs.begin(); it != mJobs.end(); ++it) {
+    for (Hash<uint32_t, std::shared_ptr<IndexerJob> >::const_iterator it = mJobs.begin(); it != mJobs.end(); ++it) {
         it->second->abort();
     }
     mJobs.clear();
@@ -677,9 +677,9 @@ static inline void writeUsr(const UsrMap &usr, UsrMap &current, SymbolMap &symbo
     }
 }
 
-static inline void writeErrorSymbols(const SymbolMap &symbols, ErrorSymbolMap &errorSymbols, const Map<uint32_t, int> &errors)
+static inline void writeErrorSymbols(const SymbolMap &symbols, ErrorSymbolMap &errorSymbols, const Hash<uint32_t, int> &errors)
 {
-    for (Map<uint32_t, int>::const_iterator it = errors.begin(); it != errors.end(); ++it) {
+    for (Hash<uint32_t, int>::const_iterator it = errors.begin(); it != errors.end(); ++it) {
         if (it->second) {
             SymbolMap &symbolsForFile = errorSymbols[it->first];
             if (symbolsForFile.isEmpty()) {
@@ -737,7 +737,7 @@ void Project::syncDB(int *dirty, int *sync)
         *sync = 0;
         return;
     }
-    // for (Map<uint32_t, std::shared_ptr<IndexData> >::iterator it = mPendingData.begin(); it != mPendingData.end(); ++it) {
+    // for (Hash<uint32_t, std::shared_ptr<IndexData> >::iterator it = mPendingData.begin(); it != mPendingData.end(); ++it) {
     //     writeErrorSymbols(mSymbols, mErrorSymbols, it->second->errors);
     // }
 
@@ -750,7 +750,7 @@ void Project::syncDB(int *dirty, int *sync)
     *dirty = sw.restart();
 
     Set<uint32_t> newFiles;
-    for (Map<uint32_t, std::shared_ptr<IndexData> >::iterator it = mPendingData.begin(); it != mPendingData.end(); ++it) {
+    for (Hash<uint32_t, std::shared_ptr<IndexData> >::iterator it = mPendingData.begin(); it != mPendingData.end(); ++it) {
         const std::shared_ptr<IndexData> &data = it->second;
         addDependencies(data->dependencies, newFiles);
         addFixIts(data->dependencies, data->fixIts);

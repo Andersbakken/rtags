@@ -110,7 +110,7 @@ static Value yajlValueToValue(const yajl_val& yajlValue)
     case yajl_t_null:
         return Value();
     case yajl_t_object: {
-        Map<String, Value> value;
+        Hash<String, Value> value;
         const size_t len = yajlValue->u.object.len;
         for (size_t i = 0; i < len; ++i)
             value[String(yajlValue->u.object.keys[i])] = yajlValueToValue(yajlValue->u.object.values[i]);

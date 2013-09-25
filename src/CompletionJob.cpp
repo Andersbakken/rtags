@@ -103,14 +103,14 @@ static inline bool symbolChar(char ch)
     return isalnum(ch);
 }
 
-static inline void addToken(const char *data, int pos, int len, Map<Token, int> &tokens)
+static inline void addToken(const char *data, int pos, int len, Hash<Token, int> &tokens)
 {
     int &val = tokens[Token(data + pos, len)];
     if (!val)
         val = pos;
 }
 
-static inline void tokenize(const char *data, int size, Map<Token, int> &tokens)
+static inline void tokenize(const char *data, int size, Hash<Token, int> &tokens)
 {
     int tokenEnd = -1;
     for (int i=size - 1; i>=0; --i) {
@@ -185,10 +185,10 @@ void CompletionJob::execute()
     if (results) {
         CompletionNode *nodes = new CompletionNode[results->NumResults];
         int nodeCount = 0;
-        Map<Token, int> tokens;
+        Hash<Token, int> tokens;
         if (!mUnsaved.isEmpty()) {
             tokenize(mUnsaved.constData(), mUnsaved.size(), tokens);
-            // for (Map<Token, int>::const_iterator it = tokens.begin(); it != tokens.end(); ++it) {
+            // for (Hash<Token, int>::const_iterator it = tokens.begin(); it != tokens.end(); ++it) {
             //     error() << String(it->first.data, it->first.length) << it->second;
             // }
         }

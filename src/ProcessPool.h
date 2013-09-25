@@ -2,7 +2,7 @@
 #define ProcessPool_h
 
 #include <list>
-#include <rct/Map.h>
+#include <rct/Hash.h>
 #include <rct/Process.h>
 // ### not meant to be threadsafe
 
@@ -29,7 +29,7 @@ private:
     void onProcessFinished(Process *proc);
     void clear(Project *proj);
 
-    Map<Process*, std::shared_ptr<Job> > mActive;
+    Hash<Process*, std::shared_ptr<Job> > mActive;
     std::list<std::shared_ptr<Job> > mPending;
     int mCount;
 };

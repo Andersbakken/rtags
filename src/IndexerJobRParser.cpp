@@ -51,7 +51,7 @@ public:
     virtual bool visit(CPlusPlus::DestructorNameAST *ast);
     virtual bool visit(CPlusPlus::FunctionDeclaratorAST *ast);
 private:
-    Map<unsigned, Set<Location> > mFunctionsByHash;
+    Hash<unsigned, Set<Location> > mFunctionsByHash;
     SymbolMap mSymbols;
     IndexerJobRParser *mJob;
     int mIndent, mLastDeclaratorStart, mLastDeclaratorEnd;
@@ -91,7 +91,7 @@ Visitor::Visitor(CPlusPlus::TranslationUnit *unit, IndexerJobRParser *job)
 
 Visitor::~Visitor()
 {
-    for (Map<unsigned, Set<Location> >::const_iterator it = mFunctionsByHash.begin(); it != mFunctionsByHash.end(); ++it) {
+    for (Hash<unsigned, Set<Location> >::const_iterator it = mFunctionsByHash.begin(); it != mFunctionsByHash.end(); ++it) {
         const Set<Location> &others = it->second;
         for (Set<Location>::const_iterator sit = others.begin(); sit != others.end(); ++sit) {
             CursorInfo &ci = mSymbols[*sit];

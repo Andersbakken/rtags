@@ -18,7 +18,7 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 
 #include <rct/Path.h>
 #include <rct/List.h>
-#include <rct/Map.h>
+#include <rct/Hash.h>
 #include <rct/String.h>
 
 class GccArgumentsImpl;
@@ -49,10 +49,10 @@ public:
         ISystem,
         Include
     };
-    Map<Path, IncludeType> includes() const;
+    Hash<Path, IncludeType> includes() const;
 private:
     List<String> mClangArgs;
-    Map<Path, IncludeType> mIncludes;
+    Hash<Path, IncludeType> mIncludes;
     List<Path> mInputFiles, mUnresolvedInputFiles;
     Path mBase, mCompiler;
     GccArguments::Lang mLang;

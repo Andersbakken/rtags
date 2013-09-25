@@ -16,7 +16,7 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 #ifndef CompilerManager_h
 #define CompilerManager_h
 
-#include <rct/Map.h>
+#include <rct/Hash.h>
 #include <rct/List.h>
 #include <rct/Path.h>
 #include <rct/String.h>

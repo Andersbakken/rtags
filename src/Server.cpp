@@ -232,8 +232,8 @@ void Server::onNewConnection()
 
 void Server::onConnectionDisconnected(Connection *o)
 {
-    Map<int, Connection*>::iterator it = mPendingLookups.begin();
-    const Map<int, Connection*>::const_iterator end = mPendingLookups.end();
+    Hash<int, Connection*>::iterator it = mPendingLookups.begin();
+    const Hash<int, Connection*>::const_iterator end = mPendingLookups.end();
     while (it != end) {
         if (it->second == o) {
             mPendingLookups.erase(it);
@@ -948,7 +948,7 @@ void Server::index(const GccArguments &args, const List<String> &projects)
 
 void Server::onJobOutput(JobOutput&& out)
 {
-    Map<int, Connection*>::iterator it = mPendingLookups.find(out.id);
+    Hash<int, Connection*>::iterator it = mPendingLookups.find(out.id);
     if (it == mPendingLookups.end()) {
         error() << "Can't find connection for id" << out.id;
         if (std::shared_ptr<Job> job = out.job.lock())
@@ -1287,7 +1287,7 @@ void Server::loadCompilationDatabase(const QueryMessage &query, Connection *conn
 
 void Server::shutdown(const QueryMessage &query, Connection *conn)
 {
-    for (Map<Path, std::shared_ptr<Project> >::const_iterator it = mProjects.begin(); it != mProjects.end(); ++it) {
+    for (Hash<Path, std::shared_ptr<Project> >::const_iterator it = mProjects.begin(); it != mProjects.end(); ++it) {
         if (it->second)
             it->second->unload();
     }
@@ -1498,7 +1498,7 @@ void Server::restoreFileIds()
     bool clear = true;
     FILE *f = fopen(p.constData(), "r");
     if (f) {
-        Map<Path, uint32_t> pathsToIds;
+        Hash<Path, uint32_t> pathsToIds;
         Deserializer in(f);
         int version;
         in >> version;
@@ -1533,7 +1533,7 @@ bool Server::saveFileIds() const
         error("Can't open file %s", p.constData());
         return false;
     }
-    const Map<Path, uint32_t> pathsToIds = Location::pathsToIds();
+    const Hash<Path, uint32_t> pathsToIds = Location::pathsToIds();
     Serializer out(f);
     out << static_cast<int>(DatabaseVersion);
     const int pos = ftell(f);

@@ -274,7 +274,7 @@ bool GccArguments::parse(List<String> split, const Path &base)
         return false;
     }
 
-    static Map<Path, Path> resolvedFromPath;
+    static Hash<Path, Path> resolvedFromPath;
     Path &compiler = resolvedFromPath[split.front()];
     if (compiler.isEmpty()) {
         compiler = Process::findCommand(split.front());
@@ -347,7 +347,7 @@ Path GccArguments::projectRoot() const
     return Path();
 }
 
-Map<Path, GccArguments::IncludeType> GccArguments::includes() const
+Hash<Path, GccArguments::IncludeType> GccArguments::includes() const
 {
     return mIncludes;
 }

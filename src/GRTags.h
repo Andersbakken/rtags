@@ -18,7 +18,7 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 
 #include <rct/String.h>
 #include "Location.h"
-#include <rct/Map.h>
+#include <rct/Hash.h>
 #include <rct/Path.h>
 #include <leveldb/db.h>
 #include <leveldb/comparator.h>
@@ -55,10 +55,10 @@ private:
     int parseFiles();
     static Path::VisitResult visit(const Path &path, void *userData);
     List<String> mFilters;
-    Map<uint32_t, time_t> mFiles;
+    Hash<uint32_t, time_t> mFiles;
     // file id to last modified, time_t means currently parsing
-    Map<String, Map<Location, bool> > mSymbols;
-    // symbolName to Map<location, bool> bool == false means cursor, true means reference
+    Hash<String, Hash<Location, bool> > mSymbols;
+    // symbolName to Hash<location, bool> bool == false means cursor, true means reference
 
     leveldb::DB *mDB;
     Path mPath;

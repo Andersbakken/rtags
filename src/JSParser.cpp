@@ -222,12 +222,12 @@ struct File
 {
     uint32_t fileId;
     String contents;
-    Map<uint32_t, std::shared_ptr<File> > includes;
+    Hash<uint32_t, std::shared_ptr<File> > includes;
     String dump(int indent = 0)
     {
         String ret = String::format<128>("%s%s %d bytes\n", String(indent * 2, ' ').constData(),
                                          Location::path(fileId).constData(), contents.size());
-        for (Map<uint32_t, std::shared_ptr<File> >::const_iterator it = includes.begin(); it != includes.end(); ++it) {
+        for (Hash<uint32_t, std::shared_ptr<File> >::const_iterator it = includes.begin(); it != includes.end(); ++it) {
             ret += String(indent * 2, ' ') + String::format<16>("include(%d):\n", it->first) + it->second->dump(indent + 1);
         }
         return ret;
@@ -236,7 +236,7 @@ struct File
     void recurse(uint32_t src, DependencyMap &dependencies, SymbolMap &symbols)
     {
         dependencies[fileId].insert(src);
-        for (Map<uint32_t, std::shared_ptr<File> >::const_iterator it = includes.begin(); it != includes.end(); ++it) {
+        for (Hash<uint32_t, std::shared_ptr<File> >::const_iterator it = includes.begin(); it != includes.end(); ++it) {
             Location loc(fileId, it->first);
             CursorInfo &info = symbols[loc];
             const Location refLoc(it->second->fileId, 0);
@@ -256,7 +256,7 @@ struct File
         String ret = contents;
         uint32_t added = 0;
         uint32_t last = 0;
-        for (Map<uint32_t, std::shared_ptr<File> >::const_iterator it = includes.begin(); it != includes.end(); ++it) {
+        for (Hash<uint32_t, std::shared_ptr<File> >::const_iterator it = includes.begin(); it != includes.end(); ++it) {
             if (added + it->first > last) {
                 sections.append(Section(fileId, last + offset, (it->first + added) - last));
             }

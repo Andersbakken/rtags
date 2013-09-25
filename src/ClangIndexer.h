@@ -2,6 +2,7 @@
 #define ClangIndexer_h
 
 #include <rct/StopWatch.h>
+#include <rct/Hash.h>
 #include <rct/Serializer.h>
 #include <rct/Path.h>
 #include <rct/Connection.h>
@@ -53,11 +54,11 @@ private:
         clang_disposeString(fn);
         return createLocation(p, offset, blocked);
     }
-    Location createLocation(const Path &file, unsigned start, bool *blocked);
     inline Location createLocation(const CXCursor &cursor, bool *blocked = 0)
     {
         return createLocation(clang_getCursorLocation(cursor), blocked);
     }
+    Location createLocation(const Path &file, unsigned start, bool *blocked);
     String addNamePermutations(const CXCursor &cursor, const Location &location);
 
     bool handleCursor(const CXCursor &cursor, CXCursorKind kind, const Location &location, bool a);
@@ -87,8 +88,7 @@ private:
     CXIndex mIndex;
     CXCursor mLastCursor;
     String mClangLine;
-    // Map<uint32_t, int> mErrors;
-    Map<Path, std::pair<uint32_t, bool> > mFilesToIds;
+    // Hash<uint32_t, int> mErrors;
     int mVisitedFiles;
     Path mSocketFile;
     StopWatch mTimer;

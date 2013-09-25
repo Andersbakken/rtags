@@ -34,8 +34,8 @@ void StatusJob::execute()
         matched = true;
         if (!write(delimiter) || !write("fileids") || !write(delimiter))
             return;
-        const Map<uint32_t, Path> paths = Location::idsToPaths();
-        for (Map<uint32_t, Path>::const_iterator it = paths.begin(); it != paths.end(); ++it) {
+        const Hash<uint32_t, Path> paths = Location::idsToPaths();
+        for (Hash<uint32_t, Path>::const_iterator it = paths.begin(); it != paths.end(); ++it) {
             if (!write<256>("  %u: %s", it->first, it->second.constData()))
                 return;
         }

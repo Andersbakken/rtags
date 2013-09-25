@@ -20,6 +20,7 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 #include "Job.h"
 #include <rct/ThreadPool.h>
 #include <rct/StopWatch.h>
+#include <rct/Hash.h>
 #include "QueryMessage.h"
 
 enum IndexType {
@@ -41,7 +42,7 @@ public:
     Set<uint32_t> visitedFiles() const
     {
         Set<uint32_t> ret;
-        for (Map<uint32_t, bool>::const_iterator it = visited.begin(); it != visited.end(); ++it) {
+        for (Hash<uint32_t, bool>::const_iterator it = visited.begin(); it != visited.end(); ++it) {
             if (it->second)
                 ret.insert(it->first);
         }
@@ -51,7 +52,7 @@ public:
     Set<uint32_t> blockedFiles() const
     {
         Set<uint32_t> ret;
-        for (Map<uint32_t, bool>::const_iterator it = visited.begin(); it != visited.end(); ++it) {
+        for (Hash<uint32_t, bool>::const_iterator it = visited.begin(); it != visited.end(); ++it) {
             if (!it->second)
                 ret.insert(it->first);
         }
@@ -69,7 +70,7 @@ public:
     String logOutput;
     FixItMap fixIts;
     String xmlDiagnostics;
-    Map<uint32_t, bool> visited;
+    Hash<uint32_t, bool> visited;
     const uint64_t id;
     const IndexType type;
 };

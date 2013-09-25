@@ -18,7 +18,7 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 #include "Server.h"
 
 static std::mutex sMutex;
-static Map<Path, List<String> > sFlags;
+static Hash<Path, List<String> > sFlags;
 
 namespace CompilerManager {
 List<Path> compilers()
@@ -42,7 +42,7 @@ List<String> flags(const Path &compiler)
     if (sUseCompilerFlags == DontUse)
         return List<String>();
 
-    Map<Path, List<String> >::const_iterator it = sFlags.find(compiler);
+    Hash<Path, List<String> >::const_iterator it = sFlags.find(compiler);
     if (it != sFlags.end())
         return it->second;
 
