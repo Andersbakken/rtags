@@ -44,7 +44,6 @@ private:
         Running,
         Aborted
     } mState;
-    bool mStarted;
     int mWaiting;
     StopWatch mTimer;
 };
