@@ -75,16 +75,20 @@ struct Token
     }
     inline bool operator<(const Token &other) const
     {
+        if (!data)
+            return !other.data ? 0 : -1;
+        if (!other.data)
+            return 1;
         const int minLength = std::min(length, other.length);
-        if (minLength) {
-            const int cmp = strncmp(data, other.data, minLength);
-            if (cmp < 0)
-                return true;
-            if (cmp > 0)
-                return false;
+        int ret = memcmp(data, other.data, minLength);
+        if (!ret) {
+            if (length < other.length) {
+                ret = -1;
+            } else if (other.length < length) {
+                ret = 1;
+            }
         }
-
-        return length > other.length;
+        return ret;
     }
 
     const char *data;
