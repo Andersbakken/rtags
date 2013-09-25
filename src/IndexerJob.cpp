@@ -18,14 +18,14 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 #include "Project.h"
 
 IndexerJob::IndexerJob(const std::shared_ptr<Project> &project, Type type, const SourceInformation &sourceInformation)
-    : Job(0, project), mType(type), mSourceInformation(sourceInformation),
+    : Job(0, project), mType(type), mLogFile(0), mSourceInformation(sourceInformation),
       mParseTime(0), mStarted(false)
 {}
 
 IndexerJob::IndexerJob(const QueryMessage &msg, const std::shared_ptr<Project> &project,
                        const SourceInformation &sourceInformation)
-    : Job(msg, WriteUnfiltered|WriteBuffered|QuietJob, project), mType(Dump), mSourceInformation(sourceInformation),
-      mParseTime(0), mStarted(false)
+    : Job(msg, WriteUnfiltered|WriteBuffered|QuietJob, project), mType(Dump), mLogFile(0),
+      mSourceInformation(sourceInformation), mParseTime(0), mStarted(false)
 {
 }
 
@@ -62,11 +62,13 @@ Location IndexerJob::createLocation(uint32_t fileId, uint32_t offset, bool *bloc
             } else if (p->visitFile(fileId)) {
                 if (blocked)
                     *blocked = false;
-                fprintf(mLogFile, "WON %s\n", Location::path(fileId).constData());
+                if (mLogFile)
+                    fprintf(mLogFile, "WON %s\n", Location::path(fileId).constData());
                 mVisitedFiles.insert(fileId);
                 mData->errors[fileId] = 0;
             } else {
-                fprintf(mLogFile, "LOST %s\n", Location::path(fileId).constData());
+                if (mLogFile)
+                    fprintf(mLogFile, "LOST %s\n", Location::path(fileId).constData());
                 mBlockedFiles.insert(fileId);
                 if (blocked)
                     *blocked = true;

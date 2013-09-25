@@ -363,8 +363,6 @@ CXChildVisitResult IndexerJobClang::indexVisitor(CXCursor cursor, CXCursor paren
     //         log << "refs" << ref;
     //     }
     // }
-    // if (type != RTags::Cursor)
-        return CXChildVisit_Recurse;
     switch (type) {
     case RTags::Cursor:
         job->handleCursor(cursor, kind, loc, true);
@@ -1161,7 +1159,7 @@ bool IndexerJobClang::visit()
 void IndexerJobClang::index()
 {
     const Path sourceFile = mSourceInformation.sourceFile();
-    mLogFile = fopen(String::format("/tmp/%s.old", sourceFile.fileName()).constData(), "w");
+    // mLogFile = fopen(String::format("/tmp/%s.old", sourceFile.fileName()).constData(), "w");
     mContents = sourceFile.readAll();
 
     if (type() == Dump) {
