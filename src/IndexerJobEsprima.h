@@ -23,7 +23,7 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 class IndexerJobEsprima : public IndexerJob, public ThreadPool::Job
 {
 public:
-    IndexerJobEsprima(uint64_t id, IndexType type, const std::shared_ptr<Project> &project,
+    IndexerJobEsprima(IndexType type, const std::shared_ptr<Project> &project,
                       const SourceInformation &sourceInformation);
     IndexerJobEsprima(const QueryMessage &msg, const std::shared_ptr<Project> &project,
                       const SourceInformation &sourceInformation);

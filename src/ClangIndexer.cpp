@@ -2,6 +2,7 @@
 #include "ClangIndexer.h"
 #include "QueryMessage.h"
 #include "VisitFileMessage.h"
+#include "VisitFileResponseMessage.h"
 #include <rct/Connection.h>
 #include <rct/EventLoop.h>
 #include "IndexerMessage.h"
@@ -47,12 +48,12 @@ bool ClangIndexer::connect(const Path &serverFile)
     return mConnection.connectToServer(serverFile, 1000);
 }
 
-bool ClangIndexer::index(IndexType type, uint64_t id, const Path &project, uint32_t fileId,
+bool ClangIndexer::index(IndexType type, const Path &project, uint32_t fileId,
                          const Path &sourceFile, const List<String> &args)
 {
     mLogFile = fopen(String::format("/tmp/%s", sourceFile.fileName()).constData(), "w");
     Location::set(sourceFile, fileId);
-    mData.reset(new IndexData(type, id));
+    mData.reset(new IndexData(type));
     mData->fileId = fileId;
     mProject = project;
     mArgs = args;
@@ -110,13 +111,11 @@ Location ClangIndexer::createLocation(const Path &sourceFile, unsigned start, bo
     }
 
     enum { Timeout = 1000 };
-    QueryMessage msg(QueryMessage::VisitFile);
-    msg.addProject(mProject);
-    msg.setQuery(resolved);
+    VisitFileMessage msg(resolved, mProject, mData->fileId);
     bool visit = false;
     mConnection.newMessage().connect([&id, &visit](Message *msg, Connection *conn) {
-            assert(msg->messageId() == VisitFileMessage::MessageId);
-            const VisitFileMessage *vm = static_cast<VisitFileMessage*>(msg);
+            assert(msg->messageId() == VisitFileResponseMessage::MessageId);
+            const VisitFileResponseMessage *vm = static_cast<VisitFileResponseMessage*>(msg);
             visit = vm->visit();
             id = vm->fileId();
             EventLoop::eventLoop()->quit();

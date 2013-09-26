@@ -20,6 +20,7 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 #include "CreateOutputMessage.h"
 #include "CursorInfoJob.h"
 #include "DependenciesJob.h"
+#include "VisitFileResponseMessage.h"
 #include "Filter.h"
 #include "FindFileJob.h"
 #include "FindSymbolsJob.h"
@@ -279,6 +280,9 @@ void Server::onNewMessage(Message *message, Connection *connection)
     case CreateOutputMessage::MessageId:
         handleCreateOutputMessage(static_cast<const CreateOutputMessage&>(*message), connection);
         break;
+    case VisitFileMessage::MessageId:
+        handleVisitFileMessage(static_cast<const VisitFileMessage&>(*message), connection);
+        break;
     case CompletionMessage::MessageId: {
         const CompletionMessage &completionMessage = static_cast<const CompletionMessage&>(*message);
         if (completionMessage.flags() & CompletionMessage::Stream) {
@@ -289,7 +293,7 @@ void Server::onNewMessage(Message *message, Connection *connection)
         break; }
     case ResponseMessage::MessageId:
     case FinishMessage::MessageId:
-    case VisitFileMessage::MessageId:
+    case VisitFileResponseMessage::MessageId:
         error() << getpid() << "Unexpected message" << static_cast<int>(message->messageId());
         // assert(0);
         connection->finish();
@@ -462,9 +466,6 @@ void Server::handleQueryMessage(const QueryMessage &message, Connection *conn)
         break;
     case QueryMessage::ReloadFileManager:
         reloadFileManager(message, conn);
-        break;
-    case QueryMessage::VisitFile:
-        visitFile(message, conn);
         break;
     }
 }
@@ -1366,28 +1367,17 @@ void Server::suspendFile(const QueryMessage &query, Connection *conn)
     conn->finish();
 }
 
-void Server::visitFile(const QueryMessage &query, Connection *conn)
+void Server::handleVisitFileMessage(const VisitFileMessage &message, Connection *conn)
 {
-    std::shared_ptr<Project> project = currentProject();
-    // give current a chance first to avoid switching project when using system headers etc
-    const Path path = query.query();
-    if (!project || !project->match(path)) {
-        for (ProjectsMap::const_iterator it = mProjects.begin(); it != mProjects.end(); ++it) {
-            if (it->second->match(path)) {
-                project = it->second;
-                break;
-            }
-        }
-        if (!project) {
-            conn->write("-1");
-            conn->finish();
-            return;
-        }
-    }
+    uint32_t fileId = 0;
+    bool visit = false;
 
-    const uint32_t fileId = Location::insertFile(path);
-    const bool visit = project->visitFile(fileId);
-    VisitFileMessage msg(fileId, visit);
+    std::shared_ptr<Project> project = mProjects.value(message.project());
+    if (project) {
+        fileId = Location::insertFile(message.file());
+        visit = project->visitFile(fileId, message.id());
+    }
+    VisitFileResponseMessage msg(fileId, visit);
     conn->send(msg);
     conn->finish();
 }

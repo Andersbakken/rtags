@@ -21,12 +21,12 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 class EsprimaPlugin : public RTagsPlugin
 {
 public:
-    virtual std::shared_ptr<IndexerJob> createJob(uint64_t id, IndexType type,
+    virtual std::shared_ptr<IndexerJob> createJob(IndexType type,
                                                   const std::shared_ptr<Project> &project,
                                                   const SourceInformation &sourceInformation)
     {
         if (sourceInformation.isJS())
-            return std::shared_ptr<IndexerJobEsprima>(new IndexerJobEsprima(id, type, project, sourceInformation));
+            return std::shared_ptr<IndexerJobEsprima>(new IndexerJobEsprima(type, project, sourceInformation));
         return std::shared_ptr<IndexerJob>();
     }
     virtual std::shared_ptr<IndexerJob> createJob(const QueryMessage &msg,
@@ -46,9 +46,9 @@ RTagsPlugin *createInstance()
 }
 };
 
-IndexerJobEsprima::IndexerJobEsprima(uint64_t id, IndexType type, const std::shared_ptr<Project> &project,
+IndexerJobEsprima::IndexerJobEsprima(IndexType type, const std::shared_ptr<Project> &project,
                                      const SourceInformation &sourceInformation)
-    : IndexerJob(id, type, project, sourceInformation), mState(Pending)
+    : IndexerJob(type, project, sourceInformation), mState(Pending)
 {}
 
 IndexerJobEsprima::IndexerJobEsprima(const QueryMessage &msg,
@@ -89,7 +89,7 @@ void IndexerJobEsprima::run()
     }
     if (isAborted())
         return;
-    mData.reset(new IndexData(type, id));
+    mData.reset(new IndexData(type));
     mData->fileId = sourceInformation.fileId;
     mData->parseTime = time(0);
     if (!parser.parse(sourceInformation.sourceFile(), &mData->symbols, &mData->symbolNames,

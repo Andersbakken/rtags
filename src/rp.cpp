@@ -31,11 +31,10 @@ int main(int argc, char **argv)
     Path project;
     List<String> args;
     Path serverFile;
-    uint64_t id;
     Deserializer deserializer(stdin);
     uint32_t fileId;
     uint8_t type;
-    deserializer >> serverFile >> sourceFile >> fileId >> project >> args >> type >> id;
+    deserializer >> serverFile >> sourceFile >> fileId >> project >> args >> type;
     if (sourceFile.isEmpty()) {
         fprintf(stderr, "No sourcefile\n");
         return 3;
@@ -66,7 +65,7 @@ int main(int argc, char **argv)
         return 6;
     }
 
-    if (!indexer.index(static_cast<IndexType>(type), id, project, fileId, sourceFile, args)) {
+    if (!indexer.index(static_cast<IndexType>(type), project, fileId, sourceFile, args)) {
         fprintf(stderr, "Failed to index %s\n", sourceFile.constData());
         return 7;
     }

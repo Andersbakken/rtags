@@ -33,8 +33,8 @@ enum IndexType {
 class IndexData
 {
 public:
-    IndexData(IndexType t, uint64_t id)
-        : fileId(0), parseTime(0), id(id), type(t)
+    IndexData(IndexType t)
+        : fileId(0), parseTime(0), type(t)
     {}
     virtual ~IndexData()
     {}
@@ -71,18 +71,17 @@ public:
     FixItMap fixIts;
     String xmlDiagnostics;
     Hash<uint32_t, bool> visited;
-    const uint64_t id;
     const IndexType type;
 };
 
 class IndexerJob : public std::enable_shared_from_this<IndexerJob>
 {
 public:
-    IndexerJob(uint64_t i, IndexType t, const std::shared_ptr<Project> &p, const SourceInformation &s)
-        : id(i), type(t), project(p), sourceInformation(s)
+    IndexerJob(IndexType t, const std::shared_ptr<Project> &p, const SourceInformation &s)
+        : type(t), project(p), sourceInformation(s)
     {}
     IndexerJob(const QueryMessage &q, const std::shared_ptr<Project> &p, const SourceInformation &s)
-        : id(0), type(Dump), project(p), sourceInformation(s), queryMessage(q)
+        : type(Dump), project(p), sourceInformation(s), queryMessage(q)
     {}
 
     virtual ~IndexerJob() {}
@@ -90,11 +89,11 @@ public:
     virtual bool abort() = 0; // returns true if it was aborted, false if it hadn't started yet
     virtual bool isAborted() const = 0;
 
-    const uint64_t id;
     const IndexType type;
     std::weak_ptr<Project> project;
     const SourceInformation sourceInformation;
     QueryMessage queryMessage;
+    Set<uint32_t> visited;
 };
 
 #endif

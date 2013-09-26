@@ -48,6 +48,7 @@ class Job;
 class JobOutput;
 class Project;
 class IndexerJob;
+class VisitFileMessage;
 class Server
 {
 public:
@@ -115,6 +116,7 @@ private:
     void handleQueryMessage(const QueryMessage &message, Connection *conn);
     void handleErrorMessage(const ErrorMessage &message, Connection *conn);
     void handleCreateOutputMessage(const CreateOutputMessage &message, Connection *conn);
+    void handleVisitFileMessage(const VisitFileMessage &message, Connection *conn);
     void isIndexing(const QueryMessage &, Connection *conn);
     void removeFile(const QueryMessage &query, Connection *conn);
     void codeCompletionEnabled(const QueryMessage &query, Connection *conn);
@@ -143,7 +145,6 @@ private:
     void shutdown(const QueryMessage &query, Connection *conn);
     void builds(const QueryMessage &query, Connection *conn);
     void suspendFile(const QueryMessage &query, Connection *conn);
-    void visitFile(const QueryMessage &query, Connection *conn);
     int nextId();
     void reindex(const QueryMessage &query, Connection *conn);
     std::shared_ptr<Project> updateProjectForLocation(const Match &match);

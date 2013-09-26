@@ -18,6 +18,7 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 #include "Server.h"
 #include "Str.h"
 #include "VisitFileMessage.h"
+#include "VisitFileResponseMessage.h"
 #include "IndexerMessage.h"
 #include <dirent.h>
 #include <fcntl.h>
@@ -428,6 +429,7 @@ void initMessages()
     Messages::registerMessage<CompletionMessage>();
     Messages::registerMessage<CompileMessage>();
     Messages::registerMessage<CreateOutputMessage>();
+    Messages::registerMessage<VisitFileResponseMessage>();
     Messages::registerMessage<VisitFileMessage>();
     Messages::registerMessage<IndexerMessage>();
 #endif

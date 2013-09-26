@@ -122,7 +122,7 @@ public:
         ArgDependsOn // slow
     };
     Set<uint32_t> dependencies(uint32_t fileId, DependencyMode mode) const;
-    bool visitFile(uint32_t fileId);
+    bool visitFile(uint32_t fileId, uint64_t id);
     String fixIts(uint32_t fileId) const;
     int reindex(const Match &match);
     int remove(const Match &match);
@@ -204,10 +204,16 @@ private:
     uint64_t mNextId;
 };
 
-inline bool Project::visitFile(uint32_t fileId)
+inline bool Project::visitFile(uint32_t fileId, uint64_t id)
 {
     std::lock_guard<std::mutex> lock(mMutex);
-    return mVisitedFiles.insert(fileId);
+    if (mVisitedFiles.insert(fileId)) {
+        std::shared_ptr<IndexerJob> job = mJobs.value(id);
+        assert(job);
+        job->visited.insert(id);
+        return true;
+    }
+    return false;
 }
 
 #endif

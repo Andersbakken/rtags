@@ -27,6 +27,7 @@ public:
         QueryId,
         CompileId,
         CreateOutputId,
+        VisitFileResponseId,
         VisitFileId,
         IndexerMessageId
     };

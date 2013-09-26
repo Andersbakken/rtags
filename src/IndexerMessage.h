@@ -38,18 +38,17 @@ public:
     void encode(Serializer &serializer) const
     {
         assert(mData);
-        serializer << mProject << static_cast<uint8_t>(mData->type) << mData->id
-                   << mData->fileId << mData->parseTime << mData->symbols << mData->references
-                   << mData->symbolNames << mData->dependencies << mData->usrMap << mData->message
-                   << mData->logOutput << mData->fixIts << mData->xmlDiagnostics << mData->visited;
+        serializer << mProject << static_cast<uint8_t>(mData->type) << mData->fileId << mData->parseTime
+                   << mData->symbols << mData->references << mData->symbolNames << mData->dependencies
+                   << mData->usrMap << mData->message << mData->logOutput << mData->fixIts
+                   << mData->xmlDiagnostics << mData->visited;
     }
     void decode(Deserializer &deserializer)
     {
         assert(!mData);
         uint8_t type;
-        uint64_t id;
-        deserializer >> mProject >> type >> id;
-        mData.reset(new IndexData(static_cast<IndexType>(type), id));
+        deserializer >> mProject >> type;
+        mData.reset(new IndexData(static_cast<IndexType>(type)));
         deserializer >> mData->fileId >> mData->parseTime >> mData->symbols >> mData->references
                      >> mData->symbolNames >> mData->dependencies >> mData->usrMap >> mData->message
                      >> mData->logOutput >> mData->fixIts >> mData->xmlDiagnostics >> mData->visited;

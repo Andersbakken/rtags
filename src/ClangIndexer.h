@@ -16,7 +16,7 @@ public:
     ~ClangIndexer();
 
     bool connect(const Path &serverFile);
-    bool index(IndexType type, uint64_t id, const Path &project, uint32_t fileId,
+    bool index(IndexType type, const Path &project, uint32_t fileId,
                const Path &sourceFile, const List<String> &args);
 private:
     bool diagnose();

@@ -13,31 +13,31 @@
    You should have received a copy of the GNU General Public License
    along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 
-#ifndef VisitFileMessage_h
-#define VisitFileMessage_h
+#ifndef VisitFileResponseMessage_h
+#define VisitFileResponseMessage_h
 
 #include <rct/Message.h>
 #include <rct/String.h>
 #include "ClientMessage.h"
 
-class VisitFileMessage : public ClientMessage
+class VisitFileResponseMessage : public ClientMessage
 {
 public:
-    enum { MessageId = VisitFileId };
+    enum { MessageId = VisitFileResponseId };
 
-    VisitFileMessage(const Path &file = Path(), const Path &project = Path(), uint64_t id = 0)
-        : ClientMessage(MessageId), mFile(file), mProject(project), mId(id)
+    VisitFileResponseMessage(uint32_t fileId = 0, bool visit = false)
+        : ClientMessage(MessageId), mFileId(fileId), mVisit(visit)
     {
     }
 
-    Path project() const { return mProject; }
-    Path file() const { return mFile; }
-    uint64_t id() const { return mId; }
-    void encode(Serializer &serializer) const { serializer << mProject << mFile << mId; }
-    void decode(Deserializer &deserializer) { deserializer >> mProject >> mFile >> mId; }
+    uint32_t fileId() const { return mFileId; }
+    bool visit() const { return mVisit; }
+
+    void encode(Serializer &serializer) const { serializer << mFileId << mVisit; }
+    void decode(Deserializer &deserializer) { deserializer >> mFileId >> mVisit; }
 private:
-    Path mFile, mProject;
-    uint64_t mId;
+    uint32_t mFileId;
+    bool mVisit;
 };
 
 #endif

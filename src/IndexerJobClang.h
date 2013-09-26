@@ -24,7 +24,7 @@ class IndexerMessage;
 class IndexerJobClang : public IndexerJob, public ProcessPool::Job
 {
 public:
-    IndexerJobClang(uint64_t id, IndexType type, const std::shared_ptr<Project> &project,
+    IndexerJobClang(IndexType type, const std::shared_ptr<Project> &project,
                     const SourceInformation &sourceInformation);
     IndexerJobClang(const QueryMessage &msg,
                     const std::shared_ptr<Project> &project,

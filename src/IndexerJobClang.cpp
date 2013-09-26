@@ -24,13 +24,12 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 class ClangPlugin : public RTagsPlugin
 {
 public:
-    virtual std::shared_ptr<IndexerJob> createJob(uint64_t id,
-                                                  IndexType type,
+    virtual std::shared_ptr<IndexerJob> createJob(IndexType type,
                                                   const std::shared_ptr<Project> &project,
                                                   const SourceInformation &sourceInformation)
     {
         if (!sourceInformation.isJS())
-            return std::shared_ptr<IndexerJob>(new IndexerJobClang(id, type, project, sourceInformation));
+            return std::shared_ptr<IndexerJob>(new IndexerJobClang(type, project, sourceInformation));
         return std::shared_ptr<IndexerJob>();
     }
     virtual std::shared_ptr<IndexerJob> createJob(const QueryMessage &msg,
@@ -50,9 +49,9 @@ RTagsPlugin *createInstance()
 }
 };
 
-IndexerJobClang::IndexerJobClang(uint64_t id, IndexType type, const std::shared_ptr<Project> &project,
+IndexerJobClang::IndexerJobClang(IndexType type, const std::shared_ptr<Project> &project,
                                  const SourceInformation &sourceInformation)
-    : IndexerJob(id, type, project, sourceInformation), mState(Pending), mWaiting(0)
+    : IndexerJob(type, project, sourceInformation), mState(Pending), mWaiting(0)
 {
 }
 
@@ -90,7 +89,7 @@ bool IndexerJobClang::init(Path &path, List<String> &, String &data)
                                + Server::instance()->options().defaultArguments);
     serializer << Server::instance()->options().socketFile << sourceInformation.sourceFile()
                << sourceInformation.fileId << proj->path() << args
-               << static_cast<uint8_t>(type) << id;
+               << static_cast<uint8_t>(type);
     // ::error() << "Running" << sourceInformation.sourceFile();
     path = rp;
     return true;

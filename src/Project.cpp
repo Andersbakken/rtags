@@ -60,7 +60,7 @@ private:
 };
 
 Project::Project(const Path &path)
-    : mPath(path), mState(Unloaded), mJobCounter(0), mNextId(1)
+    : mPath(path), mState(Unloaded), mJobCounter(0)
 {
     mWatcher.modified().connect(std::bind(&Project::onFileModified, this, std::placeholders::_1));
     mWatcher.removed().connect(std::bind(&Project::onFileModified, this, std::placeholders::_1));
@@ -363,7 +363,7 @@ void Project::index(const SourceInformation &c, IndexType type)
     if (!mJobCounter++)
         mTimer.start();
 
-    job = Server::instance()->factory().createJob(mNextId, type, project, c);
+    job = Server::instance()->factory().createJob(type, project, c);
     if (!job) {
         error() << "Failed to create job for" << c;
         mJobs.erase(c.fileId);
