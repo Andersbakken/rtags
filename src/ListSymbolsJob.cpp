@@ -20,8 +20,8 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 #include "RTags.h"
 
 enum {
-    DefaultFlags = Job::WriteUnfiltered|Job::WriteBuffered|Job::QuietJob,
-    ElispFlags = DefaultFlags|Job::QuoteOutput|Job::QuietJob
+    DefaultFlags = Job::WriteUnfiltered|Job::QuietJob,
+    ElispFlags = DefaultFlags|Job::QuoteOutput
 };
 
 

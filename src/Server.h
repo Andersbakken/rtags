@@ -145,7 +145,6 @@ private:
     void shutdown(const QueryMessage &query, Connection *conn);
     void builds(const QueryMessage &query, Connection *conn);
     void suspendFile(const QueryMessage &query, Connection *conn);
-    int nextId();
     void reindex(const QueryMessage &query, Connection *conn);
     std::shared_ptr<Project> updateProjectForLocation(const Match &match);
     void setupCurrentProjectFile(const std::shared_ptr<Project> &project);
@@ -167,9 +166,7 @@ private:
     static Server *sInstance;
     Options mOptions;
     SocketServer::SharedPtr mServer;
-    Hash<int, Connection*> mPendingLookups;
     bool mVerbose;
-    int mJobId;
 
     ThreadPool mThreadPool;
     ProcessPool mProcessPool;

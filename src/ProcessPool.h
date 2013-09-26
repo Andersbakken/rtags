@@ -18,8 +18,7 @@ public:
     {
     public:
         virtual ~Job() {}
-        virtual bool init(Path &app, List<String> &Args, String &data) = 0;
-        virtual void error(const String &error) = 0;
+        virtual Process *startProcess() = 0;
         virtual void finished(Process *process) = 0;
     };
 

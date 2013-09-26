@@ -57,7 +57,7 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 
 Server *Server::sInstance = 0;
 Server::Server()
-    : mVerbose(false), mJobId(0), mThreadPool(2), mCurrentFileId(0)
+    : mVerbose(false), mThreadPool(2), mCurrentFileId(0)
 {
     assert(!sInstance);
     sInstance = this;
@@ -233,16 +233,6 @@ void Server::onNewConnection()
 
 void Server::onConnectionDisconnected(Connection *o)
 {
-    Hash<int, Connection*>::iterator it = mPendingLookups.begin();
-    const Hash<int, Connection*>::const_iterator end = mPendingLookups.end();
-    while (it != end) {
-        if (it->second == o) {
-            mPendingLookups.erase(it);
-            break;
-        } else {
-            ++it;
-        }
-    }
     o->disconnected().disconnect();
     EventLoop::deleteLater(o);
 }
@@ -470,14 +460,6 @@ void Server::handleQueryMessage(const QueryMessage &message, Connection *conn)
     }
 }
 
-int Server::nextId()
-{
-    ++mJobId;
-    if (!mJobId)
-        ++mJobId;
-    return mJobId;
-}
-
 void Server::followLocation(const QueryMessage &query, Connection *conn)
 {
     const Location loc = query.location();
@@ -565,6 +547,7 @@ void Server::findFile(const QueryMessage &query, Connection *conn)
 
 void Server::dumpFile(const QueryMessage &query, Connection *conn)
 {
+#warning not done
     const uint32_t fileId = Location::fileId(query.query());
     if (!fileId) {
         conn->write<256>("%s is not indexed", query.query().constData());
@@ -587,16 +570,14 @@ void Server::dumpFile(const QueryMessage &query, Connection *conn)
         return;
     }
 
-#warning needs fixin
- /*    std::shared_ptr<IndexerJob> job = Server::instance()->factory().createJob(query, project, c); */
-/*     if (job) { */
-/*         job->setId(nextId()); */
-/*         mPendingLookups[job->id()] = conn; */
-/*         mThreadPool.start(job); */
-/*     } else { */
-/*         conn->write<128>("Failed to create job for %s", c.sourceFile().constData()); */
-/*         conn->finish(); */
-/*     } */
+    std::shared_ptr<IndexerJob> job = Server::instance()->factory().createJob(query, project, c, conn);
+    if (job) {
+        job->start();
+        // mThreadPool.start(job);
+    } else {
+        conn->write<128>("Failed to create job for %s", c.sourceFile().constData());
+        conn->finish();
+    }
 }
 
 void Server::cursorInfo(const QueryMessage &query, Connection *conn)
@@ -944,37 +925,6 @@ void Server::index(const GccArguments &args, const List<String> &projects)
         for (int i=0; i<count; ++i) {
             project->index(inputFiles.at(i), args.compiler(), arguments);
         }
-    }
-}
-
-void Server::onJobOutput(JobOutput&& out)
-{
-    Hash<int, Connection*>::iterator it = mPendingLookups.find(out.id);
-    if (it == mPendingLookups.end()) {
-        error() << "Can't find connection for id" << out.id;
-        if (std::shared_ptr<Job> job = out.job.lock())
-            job->abort();
-        return;
-    }
-    Connection* conn = it->second;
-    if (!conn->isConnected()) {
-        error() << "Connection has been disconnected";
-        if (std::shared_ptr<Job> job = out.job.lock())
-            job->abort();
-        return;
-    }
-    if (!out.out.isEmpty() && !conn->write(out.out)) {
-        error() << "Failed to write to connection";
-        if (std::shared_ptr<Job> job = out.job.lock())
-            job->abort();
-        return;
-    }
-
-    if (out.finish) {
-        if (isCompletionStream(conn))
-            mPendingLookups.erase(it);
-        else
-            it->second->finish();
     }
 }
 

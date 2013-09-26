@@ -95,6 +95,7 @@ bool Job::write(const String &out, unsigned flags)
 
 bool Job::writeRaw(const String &out, unsigned flags)
 {
+    assert(mConnection);
     if (!(flags & IgnoreMax)) {
         switch (mMax) {
         case 0:
@@ -117,22 +118,6 @@ bool Job::writeRaw(const String &out, unsigned flags)
         return true;
     }
 
-
-    if (mJobFlags & WriteBuffered) {
-        enum { BufSize = 16384 };
-        if (mBuffer.size() + out.size() + 1 > BufSize) {
-            EventLoop::eventLoop()->callLaterMove(std::bind(&Server::onJobOutput, Server::instance(), std::placeholders::_1),
-                                                  JobOutput(shared_from_this(), mBuffer, false));
-            mBuffer.clear();
-            mBuffer.reserve(BufSize);
-        }
-        if (!mBuffer.isEmpty())
-            mBuffer.append('\n');
-        mBuffer.append(out);
-    } else {
-        EventLoop::eventLoop()->callLaterMove(std::bind(&Server::onJobOutput, Server::instance(), std::placeholders::_1),
-                                              JobOutput(shared_from_this(), out, false));
-    }
     return true;
 }
 
@@ -232,12 +217,8 @@ unsigned Job::keyFlags() const
 
 void Job::run(Connection *connection)
 {
-    assert((mId != -1) == !connection);
+    assert(connection);
     mConnection = connection;
     execute();
-    if (mId != -1) {
-        EventLoop::eventLoop()->callLaterMove(std::bind(&Server::onJobOutput, Server::instance(), std::placeholders::_1),
-                                              JobOutput(shared_from_this(), mBuffer, true));
-    }
     mConnection = 0;
 }

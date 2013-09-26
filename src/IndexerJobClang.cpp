@@ -34,10 +34,11 @@ public:
     }
     virtual std::shared_ptr<IndexerJob> createJob(const QueryMessage &msg,
                                                   const std::shared_ptr<Project> &project,
-                                                  const SourceInformation &sourceInformation)
+                                                  const SourceInformation &sourceInformation,
+                                                  Connection *conn)
     {
         if (!sourceInformation.isJS())
-            return std::shared_ptr<IndexerJob>(new IndexerJobClang(msg, project, sourceInformation));
+            return std::shared_ptr<IndexerJob>(new IndexerJobClang(msg, project, sourceInformation, conn));
         return std::shared_ptr<IndexerJob>();
     }
 };
@@ -51,13 +52,13 @@ RTagsPlugin *createInstance()
 
 IndexerJobClang::IndexerJobClang(IndexType type, const std::shared_ptr<Project> &project,
                                  const SourceInformation &sourceInformation)
-    : IndexerJob(type, project, sourceInformation), mState(Pending), mWaiting(0)
+    : IndexerJob(type, project, sourceInformation), mState(Pending), mWaiting(0), mProcess(0)
 {
 }
 
 IndexerJobClang::IndexerJobClang(const QueryMessage &msg, const std::shared_ptr<Project> &project,
-                                 const SourceInformation &sourceInformation)
-    : IndexerJob(msg, project, sourceInformation), mState(Pending), mWaiting(0)
+                                 const SourceInformation &sourceInformation, Connection *conn)
+    : IndexerJob(msg, project, sourceInformation, conn), mState(Pending), mWaiting(0)
 {
 }
 
@@ -69,36 +70,46 @@ void IndexerJobClang::start()
 
 bool IndexerJobClang::abort()
 {
-    if (mState == Pending)
+    if (mState == Pending) {
+        assert(!mProcess);
         return false;
+    }
+    if (mProcess) {
+        mProcess->stop();
+        mProcess = 0;
+    }
     mState = Aborted;
-    // ### should actually kill process maybe? If so, how about the visited files?
     return true;
 }
 
-bool IndexerJobClang::init(Path &path, List<String> &, String &data)
+Process *IndexerJobClang::startProcess()
 {
     mWaiting = mTimer.elapsed();
     assert(mState == Pending);
     mState = Running;
     std::shared_ptr<Project> proj = project.lock();
+    if (!proj)
+        return 0;
     static const Path rp = Rct::executablePath().parentDir() + "rp";
-    Serializer serializer(data);
+    String stdinData;
+    Serializer serializer(stdinData);
     const List<String> args = (sourceInformation.args
                                + CompilerManager::flags(sourceInformation.compiler)
                                + Server::instance()->options().defaultArguments);
     serializer << Server::instance()->options().socketFile << sourceInformation.sourceFile()
                << sourceInformation.fileId << proj->path() << args
                << static_cast<uint8_t>(type);
-    // ::error() << "Running" << sourceInformation.sourceFile();
-    path = rp;
-    return true;
-}
 
-void IndexerJobClang::error(const String &err)
-{
-    ::error() << "Got error trying to clang" << err << sourceInformation;
-#warning Have to resubmit or something
+    mProcess = new Process;
+    if (!mProcess->start(rp)) {
+        error() << "Couldn't start rp" << mProcess->errorString();
+#warning resubmit?
+        delete mProcess;
+        mProcess = 0;
+        return 0;
+    }
+    mProcess->write(stdinData);
+    return mProcess;
 }
 
 void IndexerJobClang::finished(Process *process)

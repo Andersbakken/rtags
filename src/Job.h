@@ -37,8 +37,7 @@ public:
         None = 0x0,
         WriteUnfiltered = 0x1,
         QuoteOutput = 0x2,
-        WriteBuffered = 0x4,
-        QuietJob = 0x8
+        QuietJob = 0x4
     };
     enum { Priority = 10 };
     Job(const QueryMessage &msg, unsigned jobFlags, const std::shared_ptr<Project> &proj);
@@ -48,8 +47,6 @@ public:
     bool hasFilter() const { return mPathFilters || mPathFiltersRegExp; }
     List<String> pathFilters() const { return mPathFilters ? *mPathFilters : List<String>(); }
     uint32_t fileFilter() const;
-    int id() const { return mId; }
-    void setId(int id) { mId = id; }
     enum WriteFlag {
         NoWriteFlags = 0x0,
         IgnoreMax = 0x1,
@@ -113,19 +110,5 @@ inline bool Job::write(const char *format, ...)
     va_end(args);
     return write(ret);
 }
-
-class JobOutput
-{
-public:
-    JobOutput(const std::shared_ptr<Job> &j, const String &o, bool f)
-        : job(j), out(o), finish(f), id(j->id())
-    {
-    }
-
-    std::weak_ptr<Job> job;
-    const String out;
-    const bool finish;
-    const int id;
-};
 
 #endif

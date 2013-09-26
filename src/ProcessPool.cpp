@@ -27,23 +27,13 @@ void ProcessPool::startProcess()
         std::shared_ptr<Job> job = mPending.front();
         mPending.pop_front();
         assert(job);
-        String data;
-        Path path;
-        List<String> args;
-        if (!job->init(path, args, data))
+        Process *proc = job->startProcess();
+        if (!proc)
             continue;
-        Process *proc = new Process;
-        if (!proc->start(path, args)) {
-            error() << "Couldn't start rp" << proc->errorString();
-            job->error(proc->errorString());
-            delete proc;
-            continue;
-        }
+        assert(proc->isRunning());
         proc->finished().connect(std::bind(&ProcessPool::onProcessFinished,
                                            this, std::placeholders::_1));
         mActive[proc] = job;
-        if (!data.isEmpty())
-            proc->write(data);
     }
 }
 

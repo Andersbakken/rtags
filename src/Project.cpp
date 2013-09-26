@@ -341,6 +341,20 @@ bool Project::save()
     return true;
 }
 
+// void Project::dump(const Path &path, const QueryMessage &Connection *conn)
+// {
+//     const uint32_t fileId = Location::fileId(fileId);
+//     SourceInformation sourceInformation = sourceInfo(fileId);
+//     if (sourceInformation.isNull()) {
+//         conn->write<64>("No source information for %s", path.constData());
+//         conn->finish();;
+//         return;
+//     }
+
+//     std::lock_guard<std::mutex> lock(mMutex);
+//     assert(conn);
+// }
+
 void Project::index(const SourceInformation &c, IndexType type)
 {
     std::lock_guard<std::mutex> lock(mMutex);

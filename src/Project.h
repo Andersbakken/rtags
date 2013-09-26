@@ -114,6 +114,7 @@ public:
 
     bool isIndexed(uint32_t fileId) const;
 
+    // void dump(const QueryMessage &query, Connection *conn);
     bool index(const Path &sourceFile, const Path &compiler = Path(), const List<String> &args = List<String>());
     SourceInformationMap sourceInfos() const;
     SourceInformation sourceInfo(uint32_t fileId) const;
@@ -174,7 +175,7 @@ private:
 
     mutable std::mutex mMutex;
 
-    Hash<uint32_t, std::shared_ptr<IndexerJob> > mJobs;
+    Hash<uint32_t, std::shared_ptr<IndexerJob> > mJobs, mDumps;
     struct PendingJob
     {
         SourceInformation source;

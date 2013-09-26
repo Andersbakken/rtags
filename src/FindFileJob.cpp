@@ -21,7 +21,7 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 #include "Project.h"
 
 FindFileJob::FindFileJob(const QueryMessage &query, const std::shared_ptr<Project> &project)
-    : Job(query, WriteBuffered|QuietJob, project)
+    : Job(query, QuietJob, project)
 {
     const String q = query.query();
     if (!q.isEmpty()) {

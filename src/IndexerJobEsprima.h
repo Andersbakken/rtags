@@ -26,7 +26,7 @@ public:
     IndexerJobEsprima(IndexType type, const std::shared_ptr<Project> &project,
                       const SourceInformation &sourceInformation);
     IndexerJobEsprima(const QueryMessage &msg, const std::shared_ptr<Project> &project,
-                      const SourceInformation &sourceInformation);
+                      const SourceInformation &sourceInformation, Connection *conn);
     virtual void start();
     virtual bool abort();
     virtual bool isAborted() const { std::unique_lock<std::mutex> lock(mMutex); return mState == Aborted; }

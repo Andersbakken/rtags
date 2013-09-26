@@ -23,6 +23,7 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 class Project;
 class QueryMessage;
 class SourceInformation;
+class Connection;
 class RTagsPlugin
 {
 public:
@@ -32,7 +33,8 @@ public:
                                                   const SourceInformation &sourceInformation) = 0;
     virtual std::shared_ptr<IndexerJob> createJob(const QueryMessage &msg,
                                                   const std::shared_ptr<Project> &project,
-                                                  const SourceInformation &sourceInformation) = 0;
+                                                  const SourceInformation &sourceInformation,
+                                                  Connection *conn) = 0;
     // add functions for completions etc
 };
 

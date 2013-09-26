@@ -28,15 +28,15 @@ public:
                     const SourceInformation &sourceInformation);
     IndexerJobClang(const QueryMessage &msg,
                     const std::shared_ptr<Project> &project,
-                    const SourceInformation &sourceInformation);
+                    const SourceInformation &sourceInformation,
+                    Connection *conn);
     virtual void start();
     virtual bool abort();
 
     virtual bool isAborted() const { return mState == Aborted; }
 
     // ProcessPool::Job
-    virtual bool init(Path &path, List<String> &args, String &data);
-    virtual void error(const String &error);
+    virtual Process *startProcess();
     virtual void finished(Process* process);
 private:
     enum State {
@@ -45,6 +45,7 @@ private:
         Aborted
     } mState;
     int mWaiting;
+    Process *mProcess;
     StopWatch mTimer;
 };
 

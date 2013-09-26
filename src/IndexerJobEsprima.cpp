@@ -31,10 +31,11 @@ public:
     }
     virtual std::shared_ptr<IndexerJob> createJob(const QueryMessage &msg,
                                                   const std::shared_ptr<Project> &project,
-                                                  const SourceInformation &sourceInformation)
+                                                  const SourceInformation &sourceInformation,
+                                                  Connection *conn)
     {
         if (sourceInformation.isJS())
-            return std::shared_ptr<IndexerJob>(new IndexerJobEsprima(msg, project, sourceInformation));
+            return std::shared_ptr<IndexerJob>(new IndexerJobEsprima(msg, project, sourceInformation, conn));
         return std::shared_ptr<IndexerJob>();
     }
 };
@@ -53,8 +54,9 @@ IndexerJobEsprima::IndexerJobEsprima(IndexType type, const std::shared_ptr<Proje
 
 IndexerJobEsprima::IndexerJobEsprima(const QueryMessage &msg,
                                      const std::shared_ptr<Project> &project,
-                                     const SourceInformation &sourceInformation)
-    : IndexerJob(msg, project, sourceInformation), mState(Pending)
+                                     const SourceInformation &sourceInformation,
+                                     Connection *conn)
+    : IndexerJob(msg, project, sourceInformation, conn), mState(Pending)
 {
 }
 
