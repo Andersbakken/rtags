@@ -9,6 +9,7 @@
 (require 'compile)
 (require 'dabbrev)
 (require 'ido)
+(require 'thingatpt)
 (unless (fboundp 'libxml-parse-xml-region)
   (require 'xml))
 (unless (require 'auto-complete nil t)
@@ -401,6 +402,7 @@
   (let ((match (rtags-find-ancestor-file pattern)))
     (if match
         (file-name-directory match))))
+
 (defun rtags-default-current-project ()
   (cond
    ((gtags-get-rootpath))
@@ -419,16 +421,7 @@
   (save-excursion
     (let ((name (if no-symbol-name nil (rtags-current-symbol-name))))
       (unless name
-        (cond
-         ((looking-at "[0-9A-Za-z_]")
-          (while (and (not (bolp)) (looking-at "[0-9A-Za-z_]"))
-            (forward-char -1))
-          (if (not (looking-at "[0-9A-Za-z_]")) (forward-char 1)))
-         (t
-          (while (looking-at "[ \t]")
-            (forward-char 1))))
-        (if (looking-at "[A-Za-z_0-9]*")
-            (setq name (buffer-substring-no-properties (match-beginning 0) (match-end 0)))))
+        (setq name (thing-at-point 'symbol t)))
       name)))
 
 (defun rtags-cursorinfo (&optional location verbose)
