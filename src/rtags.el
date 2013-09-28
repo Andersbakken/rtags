@@ -1661,7 +1661,7 @@ should use `irony-get-completion-point-anywhere'."
               rtags-tracking-timer-interval
               nil
               (lambda ()
-                (if (> (length (window-list) 1))
+                (if (> (length (window-list)) 1)
                     (rtags-show-in-other-window))
                 (if rtags-tracking-timer
                     (cancel-timer rtags-tracking-timer))
