@@ -179,7 +179,7 @@ bool Server::init(const Options &options)
 
 std::shared_ptr<Project> Server::addProject(const Path &path) // lock always held
 {
-    shared_ptr<Project> &project = mProjects[path];
+    std::shared_ptr<Project> &project = mProjects[path];
     if (!project) {
         project.reset(new Project(path));
         return project;
