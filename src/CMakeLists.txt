@@ -96,13 +96,21 @@ include_directories(${CMAKE_CURRENT_LIST_DIR}
 
 link_directories(${LLVM_LIBRARY_DIRS})
 
+if (CMAKE_SYSTEM_NAME MATCHES "Darwin")
+  set(START_GROUP "")
+  set(END_GROUP "")
+else ()
+  set(START_GROUP "-Wl,--start-group")
+  set(END_GROUP "-Wl,--end-group")
+endif ()
+
 add_executable(clangtest clangtest.c)
 target_link_libraries(clangtest
   ${LLVM_LDFLAGS}
-  -Wl,--start-group
+  ${START_GROUP}
   ${CLANG_LIBS}
   ${LLVM_LIBNAMES}
-  -Wl,--end-group
+  ${END_GROUP}
   -lstdc++
   ${CORESERVICES_LIBRARY} ${COREFOUNDATION_LIBRARY} ${SYSTEM_LIBS}
 )
@@ -136,10 +144,10 @@ target_link_libraries(rtags
   rct
   shared
   ${LLVM_LDFLAGS}
-  -Wl,--start-group
+  ${START_GROUP}
   ${CLANG_LIBS}
   ${LLVM_LIBNAMES}
-  -Wl,--end-group
+  ${END_GROUP}
   -lstdc++
   ${CORESERVICES_LIBRARY} ${COREFOUNDATION_LIBRARY}
   ${GAMIN_LDFLAGS}
@@ -153,10 +161,10 @@ target_link_libraries(rdm
   rtags
   shared
   rct
-  -Wl,--start-group
+  ${START_GROUP}
   ${CLANG_LIBS}
   ${LLVM_LIBNAMES}
-  -Wl,--end-group
+  ${END_GROUP}
   -lstdc++
   ${SYSTEM_LIBS}
 )
@@ -175,9 +183,9 @@ add_dependencies(rtagsclang rdm)
 target_link_libraries(rtagsclang
   rct
   ${LLVM_LDFLAGS}
-  -Wl,--start-group
+  ${START_GROUP}
   ${CLANG_LDFLAGS}
-  -Wl,--end-group
+  ${END_GROUP}
   -L.
   ${LRTAGS}
 )
