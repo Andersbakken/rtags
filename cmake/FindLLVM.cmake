@@ -23,10 +23,10 @@ execute_process(
 )
 
 string(REGEX REPLACE "^([0-9]+)\\.([0-9]+).*" "\\1" LLVM_VERSION_MAJOR
-	     "${LLVM_VERSION}")
+         "${LLVM_VERSION}")
 
 string(REGEX REPLACE "^([0-9]+)\\.([0-9]+).*" "\\2" LLVM_VERSION_MINOR
-	     "${LLVM_VERSION}")
+         "${LLVM_VERSION}")
 
 execute_process(
   COMMAND ${LLVM_CONFIG_EXECUTABLE} --includedir
