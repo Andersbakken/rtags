@@ -88,8 +88,10 @@ Process *IndexerJobClang::startProcess()
     assert(mState == Pending);
     mState = Running;
     std::shared_ptr<Project> proj = project.lock();
-    if (!proj)
+    if (!proj) {
+        error() << "Project disappeared" << sourceInformation;
         return 0;
+    }
     static const Path rp = Rct::executablePath().parentDir() + "rp";
     String stdinData;
     Serializer serializer(stdinData);
@@ -103,9 +105,13 @@ Process *IndexerJobClang::startProcess()
     mProcess = new Process;
     if (!mProcess->start(rp)) {
         error() << "Couldn't start rp" << mProcess->errorString();
-#warning resubmit?
         delete mProcess;
         mProcess = 0;
+        std::shared_ptr<IndexData> data(new IndexData(type));
+        data->fileId = sourceInformation.fileId;
+        data->aborted = true;
+        proj->onJobFinished(data);
+        proj->dirty(sourceInformation.sourceFile());
         return 0;
     }
     mProcess->write(stdinData);
@@ -114,7 +120,17 @@ Process *IndexerJobClang::startProcess()
 
 void IndexerJobClang::finished(Process *process)
 {
-    // ::error() << sourceInformation.sourceFile() << "finished" << process->returnCode() << mWaiting << mTimer.elapsed() << "ms";
     ::error() << process->readAllStdOut();
     ::error() << process->readAllStdErr();
+    if (process->returnCode() == -1) {
+        std::shared_ptr<Project> proj = project.lock();
+        if (proj) {
+            std::shared_ptr<IndexData> data(new IndexData(type));
+            data->fileId = sourceInformation.fileId;
+            data->aborted = true;
+            proj->onJobFinished(data);
+            // proj->dirty(sourceInformation.sourceFile());
+        }
+    }
+    // ::error() << sourceInformation.sourceFile() << "finished" << process->returnCode() << mWaiting << mTimer.elapsed() << "ms";
 }

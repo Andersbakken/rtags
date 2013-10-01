@@ -35,7 +35,7 @@ class IndexData
 {
 public:
     IndexData(IndexType t)
-        : fileId(0), parseTime(0), type(t)
+        : aborted(false), fileId(0), parseTime(0), type(t)
     {}
     virtual ~IndexData()
     {}
@@ -60,6 +60,7 @@ public:
         return ret;
     }
 
+    bool aborted;
     uint32_t fileId;
     uint64_t parseTime;
     SymbolMap symbols;

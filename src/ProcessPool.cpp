@@ -30,7 +30,7 @@ void ProcessPool::startProcess()
         Process *proc = job->startProcess();
         if (!proc)
             continue;
-        assert(proc->isRunning());
+        assert(!proc->isFinished());
         proc->finished().connect(std::bind(&ProcessPool::onProcessFinished,
                                            this, std::placeholders::_1));
         mActive[proc] = job;

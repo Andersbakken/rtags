@@ -252,15 +252,18 @@ public:
         std::lock_guard<std::mutex> lock(sMutex);
 #endif
         // if (sPathsToIds.contains(path)) {
-        //     error() << "We've already set" << path << fileId << sPathsToIds.value(path)
-        //             << sPathsToIds;
+        //     error() << "We've already set" << path << fileId << sPathsToIds.value(path);
+        //     return false;
+        // } else if (sIdsToPaths.contains(fileId)) {
+        //     error() << "We've already set" << path << fileId << sIdsToPaths.value(fileId);
         //     return false;
         // }
 
         assert(!sPathsToIds.contains(path));
-        assert(!sIdsToPaths.contains(fileId));
         sPathsToIds[path] = fileId;
-        sIdsToPaths[fileId] = path;
+        Path &p = sIdsToPaths[fileId];
+        if (p.isEmpty())
+            p = path;
 
         return true;
     }

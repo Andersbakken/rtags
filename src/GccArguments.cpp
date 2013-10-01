@@ -20,7 +20,7 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 #include "Server.h"
 
 GccArguments::GccArguments()
-    : mLang(NoLang)
+    : mLanguage(NoLanguage)
 {
 }
 
@@ -31,10 +31,10 @@ void GccArguments::clear()
     mUnresolvedInputFiles.clear();
     mBase.clear();
     mCompiler.clear();
-    mLang = NoLang;
+    mLanguage = NoLanguage;
 }
 
-static inline GccArguments::Lang guessLang(const Path &fullPath)
+static inline GccArguments::Language guessLang(const Path &fullPath)
 {
     String compiler = fullPath.fileName();
     String c;
@@ -63,7 +63,7 @@ static inline GccArguments::Lang guessLang(const Path &fullPath)
         }
     }
 
-    GccArguments::Lang lang = GccArguments::NoLang;
+    GccArguments::Language lang = GccArguments::NoLanguage;
     if (c.startsWith("g++") || c.startsWith("c++") || c.startsWith("clang++")) {
         lang = GccArguments::CPlusPlus;
     } else if (c.startsWith("gcc") || c.startsWith("cc") || c.startsWith("clang")) {
@@ -143,7 +143,7 @@ bool GccArguments::parse(String args, const Path &base)
 
 bool GccArguments::parse(List<String> split, const Path &base)
 {
-    mLang = NoLang;
+    mLanguage = NoLanguage;
     mClangArgs.clear();
     mInputFiles.clear();
     mBase = base;
@@ -172,8 +172,8 @@ bool GccArguments::parse(List<String> split, const Path &base)
         split.removeAt(0);
     }
 
-    mLang = guessLang(split.front());
-    if (mLang == NoLang) {
+    mLanguage = guessLang(split.front());
+    if (mLanguage == NoLanguage) {
         clear();
         return false;
     }
@@ -191,8 +191,8 @@ bool GccArguments::parse(List<String> split, const Path &base)
         if (arg.startsWith('-')) {
             if (arg.startsWith("-x")) {
                 String a;
-                if (arg.size() == 2 && i + 1 < s) {
-                    a = split.at(++i);
+                if (arg.size() == 2) {
+                    a = split.value(++i);
                 } else {
                     a = arg.mid(2);
                 }
@@ -203,8 +203,8 @@ bool GccArguments::parse(List<String> split, const Path &base)
                 mClangArgs.append(a);
             } else if (arg.startsWith("-D")) {
                 String a;
-                if (arg.size() == 2 && i + 1 < s) {
-                    a = (arg + split.at(++i));
+                if (arg.size() == 2) {
+                    a = (arg + split.value(++i));
                 } else {
                     a = arg;
                 }
@@ -214,8 +214,8 @@ bool GccArguments::parse(List<String> split, const Path &base)
                 bool ok = false;
                 if (arg.size() > 2) {
                     inc = Path::resolved(arg.mid(2), Path::RealPath, path, &ok);
-                } else if (i + 1 < s) {
-                    inc = Path::resolved(split.at(++i), Path::RealPath, path, &ok);
+                } else {
+                    inc = Path::resolved(split.value(++i), Path::RealPath, path, &ok);
                 }
                 if (ok)
                     mClangArgs.append("-I" + inc);
@@ -223,8 +223,9 @@ bool GccArguments::parse(List<String> split, const Path &base)
                 mClangArgs.append(arg);
             } else if (arg.startsWith("-include")) {
                 mClangArgs.append(arg);
+                Path file;
                 if (arg.size() == 8) {
-                    mClangArgs.append(split.at(++i));
+                    mClangArgs.append(split.value(++i));
                 }
             } else if (arg.startsWith("-isystem") || arg.startsWith("-iquote")) {
                 const int from = (arg[2] == 'q' ? 7 : 8);
@@ -237,7 +238,7 @@ bool GccArguments::parse(List<String> split, const Path &base)
                         inc = arg.mid(from);
                 } else if (i + 1 < s) {
                     bool ok = false;
-                    inc = Path::resolved(split.at(++i), Path::RealPath, path, &ok);
+                    inc = Path::resolved(split.value(++i), Path::RealPath, path, &ok);
                     if (!ok)
                         inc = split.at(i);
                 }
@@ -286,31 +287,6 @@ bool GccArguments::parse(List<String> split, const Path &base)
     return true;
 }
 
-GccArguments::Lang GccArguments::lang() const
-{
-    return mLang;
-}
-
-List<String> GccArguments::clangArgs() const
-{
-    return mClangArgs;
-}
-
-List<Path> GccArguments::inputFiles() const
-{
-    return mInputFiles;
-}
-
-List<Path> GccArguments::unresolvedInputFiles() const
-{
-    return mUnresolvedInputFiles;
-}
-
-Path GccArguments::baseDirectory() const
-{
-    return mBase;
-}
-
 void GccArguments::addFlags(const List<String> &extraFlags)
 {
     const int count = extraFlags.size();
@@ -322,11 +298,6 @@ void GccArguments::addFlags(const List<String> &extraFlags)
         }
         mClangArgs.append(flag);
     }
-}
-
-Path GccArguments::compiler() const
-{
-    return mCompiler;
 }
 
 Path GccArguments::projectRoot() const
@@ -345,10 +316,5 @@ Path GccArguments::projectRoot() const
         }
     }
     return Path();
-}
-
-Hash<Path, GccArguments::IncludeType> GccArguments::includes() const
-{
-    return mIncludes;
 }
 

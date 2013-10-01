@@ -62,8 +62,8 @@ private:
 Project::Project(const Path &path)
     : mPath(path), mState(Unloaded), mJobCounter(0)
 {
-    mWatcher.modified().connect(std::bind(&Project::onFileModified, this, std::placeholders::_1));
-    mWatcher.removed().connect(std::bind(&Project::onFileModified, this, std::placeholders::_1));
+    mWatcher.modified().connect(std::bind(&Project::dirty, this, std::placeholders::_1));
+    mWatcher.removed().connect(std::bind(&Project::dirty, this, std::placeholders::_1));
     if (Server::instance()->options().options & Server::NoFileManagerWatch) {
         mWatcher.removed().connect(std::bind(&Project::reloadFileManager, this));
         mWatcher.added().connect(std::bind(&Project::reloadFileManager, this));
@@ -285,9 +285,8 @@ void Project::onJobFinished(const std::shared_ptr<IndexData> &data)
     {
         std::lock_guard<std::mutex> lock(mMutex);
         std::shared_ptr<IndexerJob> job = mJobs.take(data->fileId);
-        assert(job->id == data->id);
-        if (job->isAborted()) {
-            mVisitedFiles -= data->visitedFiles();
+        if (job->isAborted() || data->aborted) {
+            mVisitedFiles -= job->visited;
             pending = mPendingJobs.take(data->fileId, &startPending);
         } else {
             mPendingData[data->fileId] = data;
@@ -500,7 +499,7 @@ bool Project::index(const Path &sourceFile, const Path &cc, const List<String> &
     return true;
 }
 
-void Project::onFileModified(const Path &file)
+void Project::dirty(const Path &file)
 {
     const uint32_t fileId = Location::fileId(file);
     if (mSuspendedFiles.contains(fileId)) {

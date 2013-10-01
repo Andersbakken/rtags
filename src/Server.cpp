@@ -868,8 +868,7 @@ void Server::reindex(const QueryMessage &query, Connection *conn)
 
 void Server::index(const GccArguments &args, const List<String> &projects)
 {
-#warning need to resolve args.includes() and stick them into SourceInformation::additionalDependencies
-    if (args.lang() == GccArguments::NoLang || mOptions.ignoredCompilers.contains(args.compiler())) {
+    if (args.language() == GccArguments::NoLanguage || mOptions.ignoredCompilers.contains(args.compiler())) {
         return;
     }
     Path srcRoot;
@@ -1096,7 +1095,7 @@ void Server::project(const QueryMessage &query, Connection *conn)
     if (query.query().isEmpty()) {
         const std::shared_ptr<Project> current = mCurrentProject.lock();
         const char *states[] = { "(unloaded)", "(inited)", "(loading)", "(loaded)" };
-	for (ProjectsMap::const_iterator it = mProjects.begin(); it != mProjects.end(); ++it) {
+    for (ProjectsMap::const_iterator it = mProjects.begin(); it != mProjects.end(); ++it) {
             conn->write<128>("%s %s%s",
                              it->first.constData(),
                              states[it->second->state()],
@@ -1326,7 +1325,7 @@ void Server::handleVisitFileMessage(const VisitFileMessage &message, Connection 
     std::shared_ptr<Project> project = mProjects.value(message.project());
     if (project) {
         fileId = Location::insertFile(message.file());
-        visit = project->visitFile(fileId, message.id());
+        visit = project->visitFile(fileId, message.fileId());
     }
     VisitFileResponseMessage msg(fileId, visit);
     conn->send(msg);

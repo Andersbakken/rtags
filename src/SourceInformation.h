@@ -31,7 +31,6 @@ public:
     Path compiler;
     List<String> args;
     time_t parsed;
-    Set<uint32_t> additionalDependencies;
 
     inline bool isJS() const
     {
@@ -77,14 +76,14 @@ static inline Log operator<<(Log dbg, const SourceInformation &s)
 
 template <> inline Serializer &operator<<(Serializer &s, const SourceInformation &t)
 {
-    s << t.fileId << t.parsed << t.compiler << t.args; // << t.additionalDependencies;
+    s << t.fileId << t.parsed << t.compiler << t.args;
     return s;
 }
 
 template <> inline Deserializer &operator>>(Deserializer &s, SourceInformation &t)
 {
     t.clear();
-    s >> t.fileId >> t.parsed >> t.compiler >> t.args; // >> t.additionalDependencies;
+    s >> t.fileId >> t.parsed >> t.compiler >> t.args;
     return s;
 }
 

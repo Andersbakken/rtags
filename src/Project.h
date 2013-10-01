@@ -137,13 +137,13 @@ public:
     bool isIndexing() const { std::lock_guard<std::mutex> lock(mMutex); return !mJobs.isEmpty(); }
     void onJSFilesAdded();
     List<std::pair<Path, List<String> > > cachedUnits() const;
+    void dirty(const Path &);
 private:
     void index(const SourceInformation &args, IndexType type);
     void reloadFileManager();
     bool initJobFromCache(const Path &path, const List<String> &args,
                           CXTranslationUnit &unit, List<String> *argsOut, int *parseCount);
     LinkedList<CachedUnit*>::iterator findCachedUnit(const Path &path, const List<String> &args);
-    void onFileModified(const Path &);
     void addDependencies(const DependencyMap &hash, Set<uint32_t> &newFiles);
     void addFixIts(const DependencyMap &dependencies, const FixItMap &fixIts);
     void syncDB(int *dirtyTime, int *syncTime);

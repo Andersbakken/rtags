@@ -26,36 +26,29 @@ class GccArgumentsImpl;
 class GccArguments
 {
 public:
-    enum Lang { NoLang, C, CPlusPlus };
+    enum Language { NoLanguage, C, CPlusPlus };
 
     GccArguments();
 
     bool parse(String args, const Path &base);
     bool parse(List<String> split, const Path &base);
 
-    Lang lang() const;
+    Language language() const { return mLanguage; }
+    bool isValid() const { return mLanguage != NoLanguage; }
     void clear();
 
     void addFlags(const List<String> &extraFlags);
-    List<String> clangArgs() const;
-    List<Path> inputFiles() const;
-    List<Path> unresolvedInputFiles() const;
-    Path baseDirectory() const;
-    Path compiler() const;
+    List<String> clangArgs() const { return mClangArgs; }
+    List<Path> inputFiles() const { return mInputFiles; }
+    List<Path> unresolvedInputFiles() const { return mUnresolvedInputFiles; }
+    Path baseDirectory() const { return mBase; }
+    Path compiler() const { return mCompiler; }
     Path projectRoot() const;
-    enum IncludeType {
-        INone,
-        IQuote,
-        ISystem,
-        Include
-    };
-    Hash<Path, IncludeType> includes() const;
 private:
     List<String> mClangArgs;
-    Hash<Path, IncludeType> mIncludes;
     List<Path> mInputFiles, mUnresolvedInputFiles;
     Path mBase, mCompiler;
-    GccArguments::Lang mLang;
+    GccArguments::Language mLanguage;
     friend class MakefileParser;
     friend class Server;
 };
