@@ -1096,7 +1096,7 @@ void Server::project(const QueryMessage &query, Connection *conn)
     if (query.query().isEmpty()) {
         const std::shared_ptr<Project> current = mCurrentProject.lock();
         const char *states[] = { "(unloaded)", "(inited)", "(loading)", "(loaded)" };
-        for (ProjectsMap::const_iterator it = mProjects.begin(); it != mProjects.end(); ++it) {
+	for (ProjectsMap::const_iterator it = mProjects.begin(); it != mProjects.end(); ++it) {
             conn->write<128>("%s %s%s",
                              it->first.constData(),
                              states[it->second->state()],
@@ -1179,6 +1179,7 @@ void Server::loadCompilationDatabase(const QueryMessage &query, Connection *conn
 #if defined(HAVE_V8) || defined(HAVE_YAJL)
     const Path path = query.query();
     const String json = path.readAll();
+
     JSONParser parser(json);
     if (!parser.isValid()) {
         conn->write("Can't parse compilation database");

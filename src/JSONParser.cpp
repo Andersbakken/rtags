@@ -87,7 +87,7 @@ bool JSONParser::parse(const String& json)
     v8::Handle<v8::Value> value = JSON_parse->Call(JSON, 1, &data);
 
     mRoot = v8ValueToValue(value);
-    isolate->Dispose();
+    //isolate->Dispose();
     return isValid();
 }
 #elif defined(HAVE_YAJL)

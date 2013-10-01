@@ -3,23 +3,17 @@ if (NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE Release)
 endif ()
 
-if (NOT CMAKE_SYSTEM_NAME MATCHES "Darwin")
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fpic")
-  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fpic")
-endif ()
-
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++0x")
-if (CMAKE_SYSTEM_NAME MATCHES "Darwin")
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -stdlib=libc++")
-endif ()
-
 find_package(LibClang REQUIRED)
+find_package(LLVM REQUIRED)
+find_package(Clang REQUIRED)
 include_directories(${CLANG_INCLUDE})
+include_directories(${LLVM_INCLUDE_DIRS} ${CLANG_INCLUDE_DIRS})
 
 find_package(V8)
 find_package(YAJL)
 
 add_subdirectory(rct)
+
 include(${CMAKE_CURRENT_LIST_DIR}/rct/compiler.cmake)
 # set(RCT_INCLUDE_DIR rct)
 # include(${CMAKE_CURRENT_LIST_DIR}/rct/rct.cmake)
@@ -100,8 +94,26 @@ include_directories(${CMAKE_CURRENT_LIST_DIR}
                     rct
                     ${CMAKE_CURRENT_BINARY_DIR}/rct/include/rct)
 
+link_directories(${LLVM_LIBRARY_DIRS})
+
+if (CMAKE_SYSTEM_NAME MATCHES "Darwin")
+  set(START_GROUP "")
+  set(END_GROUP "")
+else ()
+  set(START_GROUP "-Wl,--start-group")
+  set(END_GROUP "-Wl,--end-group")
+endif ()
+
 add_executable(clangtest clangtest.c)
-target_link_libraries(clangtest ${CLANG_LIBS} ${CORESERVICES_LIBRARY} ${COREFOUNDATION_LIBRARY} ${SYSTEM_LIBS})
+target_link_libraries(clangtest
+  ${LLVM_LDFLAGS}
+  ${START_GROUP}
+  ${CLANG_LIBS}
+  ${LLVM_LIBNAMES}
+  ${END_GROUP}
+  -lstdc++
+  ${CORESERVICES_LIBRARY} ${COREFOUNDATION_LIBRARY} ${SYSTEM_LIBS}
+)
 
 add_executable(rc rc.cpp RClient.cpp)
 add_dependencies(rc rct shared)
@@ -128,20 +140,58 @@ elseif (YAJL_FOUND EQUAL 1)
 endif ()
 
 add_library(rtags SHARED ${RDM_SOURCES})
-target_link_libraries(rtags ${CLANG_LIBS} ${CORESERVICES_LIBRARY} ${COREFOUNDATION_LIBRARY} shared rct ${SYSTEM_LIBS})
+target_link_libraries(rtags
+  rct
+  shared
+  ${LLVM_LDFLAGS}
+  ${START_GROUP}
+  ${CLANG_LIBS}
+  ${LLVM_LIBNAMES}
+  ${END_GROUP}
+  -lstdc++
+  ${CORESERVICES_LIBRARY} ${COREFOUNDATION_LIBRARY}
+  ${GAMIN_LDFLAGS}
+  ${SYSTEM_LIBS})
 add_dependencies(rtags rct)
 
-add_executable(rdm rdm.cpp)
-target_link_libraries(rdm rtags shared)
+add_executable(rdm rdm.cpp
+#  ${RDM_SOURCES}
+)
+target_link_libraries(rdm
+  rtags
+  shared
+  rct
+  ${START_GROUP}
+  ${CLANG_LIBS}
+  ${LLVM_LIBNAMES}
+  ${END_GROUP}
+  -lstdc++
+  ${SYSTEM_LIBS}
+)
 
 add_executable(rp rp.cpp ClangIndexer.cpp)
 target_link_libraries(rp rtags shared)
 
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/bin)
 
-add_library(rtagsclang MODULE IndexerJobClang.cpp)
+if (CYGWIN)
+  set(LRTAGS "-lrtags")
+else ()
+  set(LRTAGS "rtags")
+endif ()
+
+add_library(rtagsclang SHARED IndexerJobClang.cpp)
+add_dependencies(rtagsclang rct)
 add_dependencies(rtagsclang rdm)
-target_link_libraries(rtagsclang rtags)
+target_link_libraries(rtagsclang
+  rct
+  ${LLVM_LDFLAGS}
+  ${START_GROUP}
+  ${CLANG_LDFLAGS}
+  ${END_GROUP}
+  -L.
+  ${LRTAGS}
+)
 
 if (V8_FOUND EQUAL 1)
   add_library(rtagsesprima MODULE IndexerJobEsprima.cpp JSParser.cpp)

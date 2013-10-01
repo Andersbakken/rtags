@@ -1,3 +1,5 @@
+set(CMAKE_LEGACY_CYGWIN_WIN32 0)
+
 cmake_minimum_required(VERSION 2.6)
 project(rtags)
 if(NOT CMAKE_BUILD_TYPE)

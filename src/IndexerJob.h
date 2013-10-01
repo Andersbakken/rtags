@@ -18,6 +18,7 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 
 #include "RTags.h"
 #include "Job.h"
+#include <rct/Hash.h>
 #include <rct/ThreadPool.h>
 #include <rct/StopWatch.h>
 #include <rct/Hash.h>
