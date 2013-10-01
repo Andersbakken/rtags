@@ -38,15 +38,22 @@ public:
     void clear();
 
     void addFlags(const List<String> &extraFlags);
-    List<String> clangArgs() const { return mClangArgs; }
-    List<Path> inputFiles() const { return mInputFiles; }
-    List<Path> unresolvedInputFiles() const { return mUnresolvedInputFiles; }
-    Path baseDirectory() const { return mBase; }
-    Path compiler() const { return mCompiler; }
+    const List<String> &clangArgs() const { return mClangArgs; }
+    const List<Path> &inputFiles() const { return mInputFiles; }
+    const List<Path> &includePaths() const { return mIncludePaths; }
+    const List<Path> &unresolvedInputFiles() const { return mUnresolvedInputFiles; }
+    const Path &baseDirectory() const { return mBase; }
+    const Path &compiler() const { return mCompiler; }
     Path projectRoot() const;
+    struct Define {
+        String define;
+        String value;
+    };
+    const List<Define> &defines() const { return mDefines; }
 private:
     List<String> mClangArgs;
-    List<Path> mInputFiles, mUnresolvedInputFiles;
+    List<Define> mDefines;
+    List<Path> mInputFiles, mUnresolvedInputFiles, mIncludePaths;
     Path mBase, mCompiler;
     GccArguments::Language mLanguage;
     friend class MakefileParser;

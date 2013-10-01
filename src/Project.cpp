@@ -388,75 +388,7 @@ void Project::index(const SourceInformation &c, IndexType type)
     job->start();
 }
 
-static inline bool endsWith(const char *haystack, int haystackLen, const char *needle)
-{
-    const int needleLen = strlen(needle);
-    return needleLen <= haystackLen && !strcmp(haystack + haystackLen - needleLen, needle);
-}
-
-static inline Path resolveCompiler(const Path &compiler)
-{
-    Path resolved;
-    const char *linkFn;
-    const char *fn;
-    int fnLen;
-    if (compiler.isSymLink()) {
-        resolved = compiler.resolved();
-        linkFn = resolved.fileName();
-        fn = compiler.fileName(&fnLen);
-    } else {
-        linkFn = fn = compiler.fileName(&fnLen);
-    }
-    if (!strcmp(linkFn, "gcc-rtags-wrapper.sh") || !strcmp(linkFn, "icecc")) {
-        const char *path = getenv("PATH");
-        const char *last = path;
-        bool done = false;
-        bool found = false;
-        char buf[PATH_MAX];
-        while (!done) {
-            switch (*path) {
-            case '\0':
-                done = true;
-            case ':': {
-                int len = (path - last);
-                if (len > 0 && len + 2 + fnLen < static_cast<int>(sizeof(buf))) {
-                    memcpy(buf, last, len);
-                    buf[len] = '\0';
-                    if (buf[len - 1] != '/')
-                        buf[len++] = '/';
-                    strcpy(buf + len, fn);
-                    if (!access(buf, F_OK|X_OK)) {
-                        if (buf == compiler) {
-                            found = true;
-                        } else if (found) {
-                            char res[PATH_MAX];
-                            buf[len + fnLen] = '\0';
-                            if (realpath(buf, res)) {
-                                len = strlen(res);
-                                if (!endsWith(res, len, "/gcc-rtags-wrapper.sh") && !endsWith(res, len, "/icecc")) {
-                                    return Path(res, len);
-                                }
-                                // ignore if it there's another wrapper thing in the path
-                            } else {
-                                return Path(buf, len + fnLen);
-                            }
-                        }
-                    }
-                }
-                last = path + 1;
-                break; }
-            default:
-                break;
-            }
-            ++path;
-        }
-    }
-    if (resolved.isEmpty())
-        return compiler.resolved();
-    return resolved;
-}
-
-bool Project::index(const Path &sourceFile, const Path &cc, const List<String> &args)
+bool Project::index(const Path &sourceFile, const Path &compiler, const List<String> &args)
 {
     {
         std::lock_guard<std::mutex> lock(mMutex);
@@ -465,14 +397,13 @@ bool Project::index(const Path &sourceFile, const Path &cc, const List<String> &
             return false;
         case Inited:
         case Loading:
-            mPendingCompiles[sourceFile] = std::make_pair(cc, args);
+            mPendingCompiles[sourceFile] = std::make_pair(compiler, args);
             return true;
         case Loaded:
             break;
         }
     }
 
-    const Path compiler = resolveCompiler(cc.canonicalized());
     uint32_t fileId = Location::insertFile(sourceFile);
     SourceInformation sourceInformation = sourceInfo(fileId);
     const bool js = args.isEmpty() && sourceFile.endsWith(".js");

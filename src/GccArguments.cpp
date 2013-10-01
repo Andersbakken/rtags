@@ -202,12 +202,23 @@ bool GccArguments::parse(List<String> split, const Path &base)
                 mClangArgs.append("-x");
                 mClangArgs.append(a);
             } else if (arg.startsWith("-D")) {
-                String a;
+                Define define;
+                String def, a;
                 if (arg.size() == 2) {
-                    a = (arg + split.value(++i));
+                    def = split.value(++i);
+                    a = arg + def;
                 } else {
                     a = arg;
+                    def = arg.mid(2);
                 }
+                const int eq = def.indexOf('=');
+                if (eq == -1) {
+                    define.define = def;
+                } else {
+                    define.define = def.left(eq);
+                    define.value = def.mid(eq + 1);
+                }
+                mDefines.append(define);
                 mClangArgs.append(a);
             } else if (arg.startsWith("-I")) {
                 Path inc;
@@ -217,6 +228,7 @@ bool GccArguments::parse(List<String> split, const Path &base)
                 } else {
                     inc = Path::resolved(split.value(++i), Path::RealPath, path, &ok);
                 }
+                mIncludePaths.append(inc);
                 if (ok)
                     mClangArgs.append("-I" + inc);
             } else if (arg.startsWith("-std") || arg == "-m32") {
@@ -242,6 +254,7 @@ bool GccArguments::parse(List<String> split, const Path &base)
                     if (!ok)
                         inc = split.at(i);
                 }
+                // ### need to add to includepaths
                 mClangArgs.append(arg.left(from));
                 mClangArgs.append(inc);
             }
@@ -276,9 +289,28 @@ bool GccArguments::parse(List<String> split, const Path &base)
     }
 
     static Hash<Path, Path> resolvedFromPath;
-    Path &compiler = resolvedFromPath[split.front()];
+    const String &front = split.front();
+    Path &compiler = resolvedFromPath[front];
     if (compiler.isEmpty()) {
-        compiler = Process::findCommand(split.front());
+        if (!front.startsWith('/') && !front.isEmpty()) {
+            static const char* path = getenv("PATH");
+            if (path) {
+                static const List<String> paths = String(path).split(':');
+                for (List<String>::const_iterator it = paths.begin(); it != paths.end(); ++it) {
+                    bool ok;
+                    const Path ret = Path::resolved(front, Path::RealPath, *it, &ok);
+                    if (ok) {
+                        const char *fn = ret.fileName();
+                        if (strcmp(fn, "gcc-rtags-wrapper.sh") && strcmp(fn, "icecc")
+                            && !access(ret.nullTerminated(), R_OK | X_OK)) {
+                            compiler = ret;
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+        // error() << "Got compiler" << split.front() << "==>" << compiler;
         if (compiler.isEmpty()) {
             compiler = split.front();
         }

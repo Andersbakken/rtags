@@ -1,40 +1,45 @@
 /* This file is part of RTags.
 
-RTags is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
+   RTags is free software: you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation, either version 3 of the License, or
+   (at your option) any later version.
 
-RTags is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
+   RTags is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
 
-You should have received a copy of the GNU General Public License
-along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
+   You should have received a copy of the GNU General Public License
+   along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 
 #include "RTagsClang.h"
 #include "Server.h"
+#include "GccArguments.h"
+#include "CompilerManager.h"
 
 #include <iostream>
 
 #define __STDC_LIMIT_MACROS
 #define __STDC_CONSTANT_MACROS
 
+#ifdef HAVE_BACKTRACE
+#undef HAVE_BACKTRACE
+#endif
 #include <llvm/Config/config.h>
 
-// #include <llvm/Support/raw_ostream.h>
-// #include <clang/Basic/Diagnostic.h>
-// #include <clang/Basic/TargetInfo.h>
-// #include <clang/Basic/SourceManager.h>
-// #include <clang/Basic/FileManager.h>
-// #include <clang/Frontend/TextDiagnostic.h>
-
-// #include <clang/Lex/HeaderSearch.h>
-#include <clang/Lex/Preprocessor.h>
-// #include <clang/Frontend/TextDiagnosticPrinter.h>
-// #include <clang/Lex/HeaderSearchOptions.h>
 #include <clang/Frontend/CompilerInstance.h>
+#include <clang/Frontend/Utils.h>
+#include <clang/Lex/Preprocessor.h>
+#include <llvm/Support/raw_ostream.h>
+#include <llvm/ADT/StringRef.h>
+// #include <clang/Basic/Diagnostic.h>
+// #include <clang/Basic/FileManager.h>
+// #include <clang/Basic/SourceManager.h>
+#include <clang/Basic/TargetInfo.h>
+// #include <clang/Frontend/TextDiagnosticPrinter.h>
+#include <clang/Lex/HeaderSearch.h>
+#include <clang/Lex/HeaderSearchOptions.h>
 
 namespace RTags {
 String eatString(CXString str)
@@ -255,47 +260,100 @@ void reparseTranslationUnit(CXTranslationUnit &unit, CXUnsavedFile *unsaved, int
     }
 }
 
-String preprocess(const SourceInformation &sourceInfo)
+class StringOStream : public llvm::raw_ostream
 {
-    // llvm::raw_null_ostream out;
-    // clang::TextDiagnosticPrinter diagClient(out, 0);
-    // // clang::DiagnosticClient c;
-    // // clang::Diagnostic diags(&diagClient, llvm::StringRef());
-    // clang::LangOptions langOptions;
-    // const Path sourceFile = sourceInfo.sourceFile();
-    // clang::FileSystemOptions fsOptions;
-    // fsOptions.WorkingDir = sourceFile.parentDir();
-    // // clang::FileManager
-    // // SourceManager(DiagnosticsEngine &Diag, FileManager &FileMgr,
-    // //               bool UserFilesAreVolatile = false);
+public:
+    StringOStream()
+        : llvm::raw_ostream(true) // non-buffered
+    {}
+    virtual void write_impl(const char *data, size_t size)
+    {
+        mString.append(data, size);
+    }
+    virtual uint64_t current_pos() const
+    {
+        return mString.size();
+    }
+    String &&take() { return std::move(mString); }
+private:
+    String mString;
+};
 
-    // clang::DiagnosticOptions diagnosticsOptions;
-    // clang::IntrusiveRefCntPtr<clang::DiagnosticIDs> diagnosticIds;
-    // clang::DiagnosticsEngine diagnosticsEngine(diagnosticIds, &diagnosticsOptions);
-    // clang::FileManager fileManager(fsOptions);
-    // clang::SourceManager sourceManager(diagnosticsEngine, fileManager, true); // ### ???
-    // clang::IntrusiveRefCntPtr<HeaderSearchOptions> headerSearchOptions;
-    // clang::HeaderSearch headerSearch(fileManager);
-    // HeaderSearch(IntrusiveRefCntPtr<HeaderSearchOptions> HSOpts,
-    //              FileManager &FM, DiagnosticsEngine &Diags,
-    //              const LangOptions &LangOpts, const TargetInfo *Target);
-    // ~HeaderSearch();
-    
-    // clang::Preprocessor preprocessor(diags, langOptions, sourceManager, headerSearch);
-    // // TargetInfo* target = TargetInfo::CreateTargetInfo(LLVM_HOST_TRIPLE);
-    // // SourceManager sm;
-    // // FileManager fm;
-    // // HeaderSearch headers(fm);
-    // // Preprocessor pp(diags, opts, *target, sm, headers);
-    // // delete target;
-    clang::CompilerInstance compiler;
-    compiler.createFileManager();
-    compiler.createSourceManager(compiler.getFileManager());
-    compiler.createPreprocessor();
-    compiler.getPreprocessor().setPreprocessedOutput(true);
+String preprocess(const GccArguments &args)
+{
+    const List<Path> inputs = args.inputFiles();
+    if (!inputs.isEmpty()) {
+        clang::CompilerInstance compiler;
+        compiler.createFileManager();
+        assert(compiler.hasFileManager());
+        compiler.createDiagnostics();
+        assert(compiler.hasDiagnostics());
 
+        clang::FileManager &fm = compiler.getFileManager();
+        compiler.createSourceManager(fm);
+        assert(compiler.hasSourceManager());
+        clang::SourceManager &sm = compiler.getSourceManager();
+        const clang::FileEntry *file = fm.getFile(inputs.first().constData(), true); // pass openfile?
+        if (!file)
+            return String();
+        sm.createMainFileID(file);
+        clang::TargetOptions &targetOptions = compiler.getTargetOpts();
+        targetOptions.Triple = LLVM_HOST_TRIPLE;
+        compiler.setTarget(clang::TargetInfo::CreateTargetInfo(compiler.getDiagnostics(), &targetOptions));
 
-    // compiler.initPre
+        clang::HeaderSearchOptions &headerSearchOptions = compiler.getHeaderSearchOpts();
+        const List<Path> &includes = args.includePaths();
+        for (List<Path>::const_iterator it = includes.begin(); it != includes.end(); ++it) {
+            // error() << "Adding -I" << *it;
+            headerSearchOptions.AddPath(clang::StringRef(it->constData(), it->size()),
+                                        clang::frontend::Angled, false, false);
+        }
+
+        std::string predefines;
+        const List<GccArguments::Define> &defines = args.defines();
+        for (List<GccArguments::Define>::const_iterator it = defines.begin(); it != defines.end(); ++it) {
+            predefines += "#define ";
+            predefines += it->define;
+            if (!it->value.isEmpty()) {
+                predefines += ' ';
+                predefines += it->value;
+            }
+            predefines += '\n';
+            // error() << "Got define" << it->define << it->value;
+        }
+
+        List<Path> systemIncludes;
+        List<GccArguments::Define> systemDefines;
+        CompilerManager::data(args.compiler(), systemDefines, systemIncludes);
+        for (List<Path>::const_iterator it = systemIncludes.begin(); it != systemIncludes.end(); ++it) {
+            headerSearchOptions.AddPath(clang::StringRef(it->constData(), it->size()),
+                                        clang::frontend::System, false, false);
+            // error() << "Adding system path" << *it;
+        }
+
+        for (List<GccArguments::Define>::const_iterator it = systemDefines.begin(); it != systemDefines.end(); ++it) {
+            predefines += "#define ";
+            predefines += it->define;
+            if (!it->value.isEmpty()) {
+                predefines += ' ';
+                predefines += it->value;
+            }
+            predefines += '\n';
+            // error() << "Got define" << it->define << it->value;
+        }
+
+        compiler.createPreprocessor();
+        compiler.getPreprocessor().setPredefines(predefines);
+        StringOStream out;
+        clang::PreprocessorOutputOptions preprocessorOptions;
+        preprocessorOptions.ShowCPP = 1;
+
+        compiler.getDiagnosticClient().BeginSourceFile(compiler.getLangOpts(), &compiler.getPreprocessor());
+
+        clang::DoPrintPreprocessedInput(compiler.getPreprocessor(), &out, preprocessorOptions);
+        return out.take();
+    }
+    return String();
 }
 
 static CXChildVisitResult findFirstChildVisitor(CXCursor cursor, CXCursor, CXClientData data)

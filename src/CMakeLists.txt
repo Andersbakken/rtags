@@ -3,6 +3,8 @@ if (NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE Release)
 endif ()
 
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-rtti")
+
 find_package(LibClang REQUIRED)
 find_package(LLVM REQUIRED)
 find_package(Clang REQUIRED)

@@ -20,11 +20,13 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 #include <rct/List.h>
 #include <rct/Path.h>
 #include <rct/String.h>
+#include "GccArguments.h"
 
 namespace CompilerManager
 {
 List<Path> compilers();
 List<String> flags(const Path &compiler);
+void data(const Path &compiler, List<GccArguments::Define> &defines, List<Path> &includePaths);
 }
 
 #endif

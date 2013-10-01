@@ -95,10 +95,12 @@ Process *IndexerJobClang::startProcess()
     static const Path rp = Rct::executablePath().parentDir() + "rp";
     String stdinData;
     Serializer serializer(stdinData);
-    const List<String> args = (sourceInformation.args
-                               + CompilerManager::flags(sourceInformation.compiler)
-                               + Server::instance()->options().defaultArguments);
-    serializer << Server::instance()->options().socketFile << sourceInformation.sourceFile()
+    List<String> args = sourceInformation.args;
+    const Server::Options &options = Server::instance()->options();
+    if (options.options & Server::UseCompilerFlags)
+        args += CompilerManager::flags(sourceInformation.compiler);
+    args += options.defaultArguments;
+    serializer << options.socketFile << sourceInformation.sourceFile()
                << sourceInformation.fileId << proj->path() << args
                << static_cast<uint8_t>(type);
 
