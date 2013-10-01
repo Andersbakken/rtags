@@ -16,6 +16,26 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 #include "RTagsClang.h"
 #include "Server.h"
 
+#include <iostream>
+
+#define __STDC_LIMIT_MACROS
+#define __STDC_CONSTANT_MACROS
+
+#include <llvm/Config/config.h>
+
+// #include <llvm/Support/raw_ostream.h>
+// #include <clang/Basic/Diagnostic.h>
+// #include <clang/Basic/TargetInfo.h>
+// #include <clang/Basic/SourceManager.h>
+// #include <clang/Basic/FileManager.h>
+// #include <clang/Frontend/TextDiagnostic.h>
+
+// #include <clang/Lex/HeaderSearch.h>
+#include <clang/Lex/Preprocessor.h>
+// #include <clang/Frontend/TextDiagnosticPrinter.h>
+// #include <clang/Lex/HeaderSearchOptions.h>
+#include <clang/Frontend/CompilerInstance.h>
+
 namespace RTags {
 String eatString(CXString str)
 {
@@ -233,6 +253,49 @@ void reparseTranslationUnit(CXTranslationUnit &unit, CXUnsavedFile *unsaved, int
         clang_disposeTranslationUnit(unit);
         unit = 0;
     }
+}
+
+String preprocess(const SourceInformation &sourceInfo)
+{
+    // llvm::raw_null_ostream out;
+    // clang::TextDiagnosticPrinter diagClient(out, 0);
+    // // clang::DiagnosticClient c;
+    // // clang::Diagnostic diags(&diagClient, llvm::StringRef());
+    // clang::LangOptions langOptions;
+    // const Path sourceFile = sourceInfo.sourceFile();
+    // clang::FileSystemOptions fsOptions;
+    // fsOptions.WorkingDir = sourceFile.parentDir();
+    // // clang::FileManager
+    // // SourceManager(DiagnosticsEngine &Diag, FileManager &FileMgr,
+    // //               bool UserFilesAreVolatile = false);
+
+    // clang::DiagnosticOptions diagnosticsOptions;
+    // clang::IntrusiveRefCntPtr<clang::DiagnosticIDs> diagnosticIds;
+    // clang::DiagnosticsEngine diagnosticsEngine(diagnosticIds, &diagnosticsOptions);
+    // clang::FileManager fileManager(fsOptions);
+    // clang::SourceManager sourceManager(diagnosticsEngine, fileManager, true); // ### ???
+    // clang::IntrusiveRefCntPtr<HeaderSearchOptions> headerSearchOptions;
+    // clang::HeaderSearch headerSearch(fileManager);
+    // HeaderSearch(IntrusiveRefCntPtr<HeaderSearchOptions> HSOpts,
+    //              FileManager &FM, DiagnosticsEngine &Diags,
+    //              const LangOptions &LangOpts, const TargetInfo *Target);
+    // ~HeaderSearch();
+    
+    // clang::Preprocessor preprocessor(diags, langOptions, sourceManager, headerSearch);
+    // // TargetInfo* target = TargetInfo::CreateTargetInfo(LLVM_HOST_TRIPLE);
+    // // SourceManager sm;
+    // // FileManager fm;
+    // // HeaderSearch headers(fm);
+    // // Preprocessor pp(diags, opts, *target, sm, headers);
+    // // delete target;
+    clang::CompilerInstance compiler;
+    compiler.createFileManager();
+    compiler.createSourceManager(compiler.getFileManager());
+    compiler.createPreprocessor();
+    compiler.getPreprocessor().setPreprocessedOutput(true);
+
+
+    // compiler.initPre
 }
 
 static CXChildVisitResult findFirstChildVisitor(CXCursor cursor, CXCursor, CXClientData data)
