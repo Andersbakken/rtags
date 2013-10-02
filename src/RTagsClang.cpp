@@ -283,77 +283,82 @@ String preprocess(const GccArguments &args)
 {
     const List<Path> inputs = args.inputFiles();
     if (!inputs.isEmpty()) {
-        clang::CompilerInstance compiler;
-        compiler.createFileManager();
-        assert(compiler.hasFileManager());
-        compiler.createDiagnostics();
-        assert(compiler.hasDiagnostics());
-
-        clang::FileManager &fm = compiler.getFileManager();
-        compiler.createSourceManager(fm);
-        assert(compiler.hasSourceManager());
-        clang::SourceManager &sm = compiler.getSourceManager();
-        const clang::FileEntry *file = fm.getFile(inputs.first().constData(), true); // pass openfile?
-        if (!file)
-            return String();
-        sm.createMainFileID(file);
-        clang::TargetOptions &targetOptions = compiler.getTargetOpts();
-        targetOptions.Triple = LLVM_HOST_TRIPLE;
-        compiler.setTarget(clang::TargetInfo::CreateTargetInfo(compiler.getDiagnostics(), &targetOptions));
-
-        clang::HeaderSearchOptions &headerSearchOptions = compiler.getHeaderSearchOpts();
-        const List<Path> &includes = args.includePaths();
-        for (List<Path>::const_iterator it = includes.begin(); it != includes.end(); ++it) {
-            // error() << "Adding -I" << *it;
-            headerSearchOptions.AddPath(clang::StringRef(it->constData(), it->size()),
-                                        clang::frontend::Angled, false, false);
-        }
-
-        std::string predefines;
-        const List<GccArguments::Define> &defines = args.defines();
-        for (List<GccArguments::Define>::const_iterator it = defines.begin(); it != defines.end(); ++it) {
-            predefines += "#define ";
-            predefines += it->define;
-            if (!it->value.isEmpty()) {
-                predefines += ' ';
-                predefines += it->value;
-            }
-            predefines += '\n';
-            // error() << "Got define" << it->define << it->value;
-        }
-
-        List<Path> systemIncludes;
-        List<GccArguments::Define> systemDefines;
-        CompilerManager::data(args.compiler(), systemDefines, systemIncludes);
-        for (List<Path>::const_iterator it = systemIncludes.begin(); it != systemIncludes.end(); ++it) {
-            headerSearchOptions.AddPath(clang::StringRef(it->constData(), it->size()),
-                                        clang::frontend::System, false, false);
-            // error() << "Adding system path" << *it;
-        }
-
-        for (List<GccArguments::Define>::const_iterator it = systemDefines.begin(); it != systemDefines.end(); ++it) {
-            predefines += "#define ";
-            predefines += it->define;
-            if (!it->value.isEmpty()) {
-                predefines += ' ';
-                predefines += it->value;
-            }
-            predefines += '\n';
-            // error() << "Got define" << it->define << it->value;
-        }
-
-        compiler.createPreprocessor();
-        compiler.getPreprocessor().setPredefines(predefines);
-        StringOStream out;
-        clang::PreprocessorOutputOptions preprocessorOptions;
-        preprocessorOptions.ShowCPP = 1;
-
-        compiler.getDiagnosticClient().BeginSourceFile(compiler.getLangOpts(), &compiler.getPreprocessor());
-
-        clang::DoPrintPreprocessedInput(compiler.getPreprocessor(), &out, preprocessorOptions);
-        return out.take();
+        return preprocess(inputs.first(), args.compiler(), args.includePaths(), args.defines());
     }
     return String();
+}
+
+String preprocess(const Path &sourceFile, const Path &compiler,
+                  const List<Path> &includePaths, const List<GccArguments::Define> &defines)
+{
+
+    clang::CompilerInstance compilerInstance;
+    compilerInstance.createFileManager();
+    assert(compilerInstance.hasFileManager());
+    compilerInstance.createDiagnostics();
+    assert(compilerInstance.hasDiagnostics());
+
+    clang::FileManager &fm = compilerInstance.getFileManager();
+    compilerInstance.createSourceManager(fm);
+    assert(compilerInstance.hasSourceManager());
+    clang::SourceManager &sm = compilerInstance.getSourceManager();
+    const clang::FileEntry *file = fm.getFile(sourceFile.constData(), true); // pass openfile?
+    if (!file)
+        return String();
+    sm.createMainFileID(file);
+    clang::TargetOptions &targetOptions = compilerInstance.getTargetOpts();
+    targetOptions.Triple = LLVM_HOST_TRIPLE;
+    compilerInstance.setTarget(clang::TargetInfo::CreateTargetInfo(compilerInstance.getDiagnostics(), &targetOptions));
+
+    clang::HeaderSearchOptions &headerSearchOptions = compilerInstance.getHeaderSearchOpts();
+    for (List<Path>::const_iterator it = includePaths.begin(); it != includePaths.end(); ++it) {
+        // error() << "Adding -I" << *it;
+        headerSearchOptions.AddPath(clang::StringRef(it->constData(), it->size()),
+                                    clang::frontend::Angled, false, false);
+    }
+
+    std::string predefines;
+    for (List<GccArguments::Define>::const_iterator it = defines.begin(); it != defines.end(); ++it) {
+        predefines += "#define ";
+        predefines += it->define;
+        if (!it->value.isEmpty()) {
+            predefines += ' ';
+            predefines += it->value;
+        }
+        predefines += '\n';
+        // error() << "Got define" << it->define << it->value;
+    }
+
+    List<Path> systemIncludes;
+    List<GccArguments::Define> systemDefines;
+    CompilerManager::data(compiler, systemDefines, systemIncludes);
+    for (List<Path>::const_iterator it = systemIncludes.begin(); it != systemIncludes.end(); ++it) {
+        headerSearchOptions.AddPath(clang::StringRef(it->constData(), it->size()),
+                                    clang::frontend::System, false, false);
+        // error() << "Adding system path" << *it;
+    }
+
+    for (List<GccArguments::Define>::const_iterator it = systemDefines.begin(); it != systemDefines.end(); ++it) {
+        predefines += "#define ";
+        predefines += it->define;
+        if (!it->value.isEmpty()) {
+            predefines += ' ';
+            predefines += it->value;
+        }
+        predefines += '\n';
+        // error() << "Got define" << it->define << it->value;
+    }
+
+    compilerInstance.createPreprocessor();
+    compilerInstance.getPreprocessor().setPredefines(predefines);
+    StringOStream out;
+    clang::PreprocessorOutputOptions preprocessorOptions;
+    preprocessorOptions.ShowCPP = 1;
+
+    compilerInstance.getDiagnosticClient().BeginSourceFile(compilerInstance.getLangOpts(), &compilerInstance.getPreprocessor());
+
+    clang::DoPrintPreprocessedInput(compilerInstance.getPreprocessor(), &out, preprocessorOptions);
+    return out.take();
 }
 
 static CXChildVisitResult findFirstChildVisitor(CXCursor cursor, CXCursor, CXClientData data)

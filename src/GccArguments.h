@@ -20,9 +20,9 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 #include <rct/List.h>
 #include <rct/Hash.h>
 #include <rct/String.h>
+#include <rct/Serializer.h>
 
-class GccArgumentsImpl;
-
+class SourceInformation;
 class GccArguments
 {
 public:
@@ -32,6 +32,7 @@ public:
 
     bool parse(String args, const Path &base);
     bool parse(List<String> split, const Path &base);
+    void init(const SourceInformation &sourceInformation);
 
     Language language() const { return mLanguage; }
     bool isValid() const { return mLanguage != NoLanguage; }
@@ -50,6 +51,8 @@ public:
         String value;
     };
     const List<Define> &defines() const { return mDefines; }
+    void encode(Serializer &serializer) const;
+    void decode(Deserializer &deserializer);
 private:
     List<String> mClangArgs;
     List<Define> mDefines;
@@ -59,5 +62,17 @@ private:
     friend class MakefileParser;
     friend class Server;
 };
+
+template <> inline Serializer &operator<<(Serializer &s, const GccArguments &a)
+{
+    a.encode(s);
+    return s;
+}
+
+template <> inline Deserializer &operator>>(Deserializer &s, GccArguments &a)
+{
+    a.decode(s);
+    return s;
+}
 
 #endif

@@ -92,16 +92,42 @@ Process *IndexerJobClang::startProcess()
         error() << "Project disappeared" << sourceInformation;
         return 0;
     }
+    List<GccArguments::Define> defines;
+    List<Path> includePaths;
+    List<String> other;
+
+    const Server::Options &options = Server::instance()->options();
+
+    const List<String> *argPtrs[] = { &sourceInformation.args, &options.defaultArguments };
+    for (int i=0; i<2; ++i) {
+        const List<String> &args = *argPtrs[i];
+        for (List<String>::const_iterator it = args.begin(); it != args.end(); ++it) {
+            if (it->startsWith("-D")) {
+                const int eq = it->indexOf('=');
+                defines.append(GccArguments::Define());
+                GccArguments::Define &def = defines.last();
+                if (eq == -1) {
+                    def.define = it->mid(2);
+                } else {
+                    def.define = it->mid(2, eq - 2);
+                    def.value  = it->mid(eq + 1);
+                }
+            } else if (it->startsWith("-I")) {
+                includePaths.append(it->mid(2));
+            } else {
+                other.append(*it);
+            }
+        }
+    }
+
+    const Path sourceFile = sourceInformation.sourceFile();
+    // String preprocessed = RTags::preprocess(sourceFile,
+
     static const Path rp = Rct::executablePath().parentDir() + "rp";
     String stdinData;
     Serializer serializer(stdinData);
-    List<String> args = sourceInformation.args;
-    const Server::Options &options = Server::instance()->options();
-    if (options.options & Server::UseCompilerFlags)
-        args += CompilerManager::flags(sourceInformation.compiler);
-    args += options.defaultArguments;
     serializer << options.socketFile << sourceInformation.sourceFile()
-               << sourceInformation.fileId << proj->path() << args
+               << sourceInformation.fileId << proj->path()
                << static_cast<uint8_t>(type);
 
     mProcess = new Process;

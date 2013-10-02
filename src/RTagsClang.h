@@ -19,8 +19,8 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 #include "Str.h"
 #include "RTags.h"
 #include "CursorInfo.h"
+#include "GccArguments.h"
 
-class GccArguments;
 inline bool operator==(const CXCursor &l, CXCursorKind r)
 {
     return clang_getCursorKind(l) == r;
@@ -63,6 +63,10 @@ void parseTranslationUnit(const Path &sourceFile, const List<String> &args,
                           CXUnsavedFile *unsaved, int unsavedCount);
 void reparseTranslationUnit(CXTranslationUnit &unit, CXUnsavedFile *unsaved, int unsavedCount);
 String preprocess(const GccArguments &gccArgs);
+String preprocess(const Path &sourceFile,
+                  const Path &compiler,
+                  const List<Path> &includePaths,
+                  const List<GccArguments::Define> &defines);
 
 struct Filter
 {

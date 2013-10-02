@@ -18,6 +18,7 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 #include "RTags.h"
 #include <rct/Process.h>
 #include "Server.h"
+#include "SourceInformation.h"
 
 GccArguments::GccArguments()
     : mLanguage(NoLanguage)
@@ -319,6 +320,11 @@ bool GccArguments::parse(List<String> split, const Path &base)
     return true;
 }
 
+void GccArguments::init(const SourceInformation &sourceInformation)
+{
+    clear();
+}
+
 void GccArguments::addFlags(const List<String> &extraFlags)
 {
     const int count = extraFlags.size();
@@ -350,3 +356,28 @@ Path GccArguments::projectRoot() const
     return Path();
 }
 
+template <> inline Serializer &operator<<(Serializer &s, const GccArguments::Define &d)
+{
+    s << d.define << d.value;
+    return s;
+}
+
+template <> inline Deserializer &operator>>(Deserializer &s, GccArguments::Define &d)
+{
+    s >> d.define >> d.value;
+    return s;
+}
+
+void GccArguments::encode(Serializer &serializer) const
+{
+    serializer << mClangArgs << mDefines << mInputFiles << mUnresolvedInputFiles
+               << mIncludePaths << mBase << mCompiler << static_cast<uint8_t>(mLanguage);
+}
+
+void GccArguments::decode(Deserializer &deserializer)
+{
+    uint8_t language;
+    deserializer >> mClangArgs >> mDefines >> mInputFiles >> mUnresolvedInputFiles
+                 >> mIncludePaths >> mBase >> mCompiler >> language;
+    mLanguage = static_cast<Language>(language);
+}
