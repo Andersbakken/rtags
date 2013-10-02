@@ -1255,7 +1255,7 @@ void Server::loadCompilationDatabase(const QueryMessage &query, Connection *conn
     clang_CompileCommands_dispose(cmds);
     clang_CompilationDatabase_dispose(db);
     conn->write("Compilation database loaded");
-    conn->write("Finish");
+    conn->finish();
 #elif defined(HAVE_V8) || defined(HAVE_YAJL)
     const Path path = query.query();
     const String json = path.readAll();
