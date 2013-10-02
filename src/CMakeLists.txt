@@ -9,8 +9,13 @@ find_package(Clang REQUIRED)
 include_directories(${CLANG_INCLUDE})
 include_directories(${LLVM_INCLUDE_DIRS} ${CLANG_INCLUDE_DIRS})
 
+if (EXISTS ${CLANG_COMPILATION_INCLUDE})
+  add_definitions(-DHAVE_CXCOMPILATIONDATABASE)
+else ()
+  find_package(YAJL)
+endif ()
+
 find_package(V8)
-find_package(YAJL)
 
 add_subdirectory(rct)
 

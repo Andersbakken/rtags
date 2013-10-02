@@ -15,6 +15,19 @@ if (NOT EXISTS ${CLANG_INCLUDE})
   find_path(CLANG_INCLUDE clang-c/Index.h)
 endif ()
 
+find_path(CLANG_COMPILATION_INCLUDE clang-c/CXCompilationDatabase.h
+	  HINTS
+	  ${CLANG_ROOT}/include
+	  /opt/local/libexec/llvm-3.3/include
+	  /opt/local/libexec/llvm-3.2/include
+	  /opt/local/libexec/llvm-3.1/include
+	  /opt/local/libexec/llvm-3.0/include
+	  /usr/lib/llvm-3.4/include
+	  NO_DEFAULT_PATH)
+if (NOT EXISTS ${CLANG_COMPILATION_INCLUDE})
+  find_path(CLANG_COMPILATION_INCLUDE clang-c/CXCompilationDatabase.h)
+endif ()
+
 if (EXISTS ${CLANG_INCLUDE})
   if ("${CLANG_ROOT}" STREQUAL "")
 	string(REGEX REPLACE "\\/include" "" CLANG_ROOT ${CLANG_INCLUDE})
