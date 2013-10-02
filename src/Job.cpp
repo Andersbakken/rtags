@@ -26,7 +26,7 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 // static int active = 0;
 
 Job::Job(const QueryMessage &query, unsigned jobFlags, const std::shared_ptr<Project> &proj)
-    : mAborted(false), mId(-1), mMinOffset(query.minOffset()),
+    : mAborted(false), mMinOffset(query.minOffset()),
       mMaxOffset(query.maxOffset()), mJobFlags(jobFlags), mQueryFlags(query.flags()), mProject(proj),
       mPathFilters(0), mPathFiltersRegExp(0), mMax(query.max()), mConnection(0),
       mContext(query.context())
@@ -47,7 +47,7 @@ Job::Job(const QueryMessage &query, unsigned jobFlags, const std::shared_ptr<Pro
 }
 
 Job::Job(unsigned jobFlags, const std::shared_ptr<Project> &proj)
-    : mAborted(false), mId(-1), mMinOffset(-1), mMaxOffset(-1), mJobFlags(jobFlags), mQueryFlags(0), mProject(proj), mPathFilters(0),
+    : mAborted(false), mMinOffset(-1), mMaxOffset(-1), mJobFlags(jobFlags), mQueryFlags(0), mProject(proj), mPathFilters(0),
       mPathFiltersRegExp(0), mMax(-1), mConnection(0)
 {
 }
