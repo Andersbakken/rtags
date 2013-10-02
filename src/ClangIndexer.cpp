@@ -49,7 +49,8 @@ bool ClangIndexer::connect(const Path &serverFile)
 }
 
 bool ClangIndexer::index(IndexType type, const Path &project, uint32_t fileId,
-                         const Path &sourceFile, const List<String> &args)
+                         const Path &sourceFile, const String &preprocessed,
+                         const List<String> &args)
 {
     mLogFile = fopen(String::format("/tmp/%s", sourceFile.fileName()).constData(), "w");
     Location::set(sourceFile, fileId);
@@ -60,7 +61,7 @@ bool ClangIndexer::index(IndexType type, const Path &project, uint32_t fileId,
     assert(mConnection.isConnected());
     assert(!sourceFile.isEmpty());
     mData->visited[fileId] = true;
-    mContents = sourceFile.readAll();
+    mContents = preprocessed;
     assert(type != Invalid);
     const bool ret = parse() && visit() && diagnose();
     mData->parseTime = Rct::currentTimeMs();

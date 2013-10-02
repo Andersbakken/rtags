@@ -121,14 +121,19 @@ Process *IndexerJobClang::startProcess()
     }
 
     const Path sourceFile = sourceInformation.sourceFile();
-    // String preprocessed = RTags::preprocess(sourceFile,
+    const String preprocessed = RTags::preprocess(sourceFile, sourceInformation.compiler,
+                                                  includePaths, defines);
+    if (preprocessed.isEmpty()) {
+        error() << "Couldn't preprocess" << sourceFile;
+        return 0;
+    }
 
     static const Path rp = Rct::executablePath().parentDir() + "rp";
     String stdinData;
     Serializer serializer(stdinData);
     serializer << options.socketFile << sourceInformation.sourceFile()
-               << sourceInformation.fileId << proj->path()
-               << static_cast<uint8_t>(type);
+               << sourceInformation.fileId << preprocessed << other
+               << proj->path() << static_cast<uint8_t>(type);
 
     mProcess = new Process;
     if (!mProcess->start(rp)) {
