@@ -1225,7 +1225,7 @@ void Server::loadCompilationDatabase(const QueryMessage &query, Connection *conn
     const Path path = query.query();
     // ### this will ignore the actual file name, not sure how to fix that
     CXCompilationDatabase_Error err;
-    CXCompilationDatabase db = clang_CompilationDatabase_fromDirectory(path.parentDir().constData(), &err);
+    CXCompilationDatabase db = clang_CompilationDatabase_fromDirectory(path.constData(), &err);
     if (err != CXCompilationDatabase_NoError) {
         conn->write("Can't load compilation database");
         conn->finish();
@@ -1257,7 +1257,7 @@ void Server::loadCompilationDatabase(const QueryMessage &query, Connection *conn
     conn->write("Compilation database loaded");
     conn->finish();
 #elif defined(HAVE_V8) || defined(HAVE_YAJL)
-    const Path path = query.query();
+    const Path path = query.query() + "compile_commands.json";
     const String json = path.readAll();
 
     JSONParser parser(json);
