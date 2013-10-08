@@ -247,6 +247,13 @@ bool GccArguments::parse(String args, const Path &base)
                 }
                 mClangArgs.append(arg.left(from));
                 mClangArgs.append(inc);
+            } else if (arg.startsWith("-W")) {
+                const bool hasComma = arg.contains(',');
+                if (!hasComma) { // We don't want options such as -Wl,foo
+                    mClangArgs.append(arg);
+                }
+            } else if (arg == "-w") {
+                mClangArgs.append(arg);
             }
         } else {
             if (!seenCompiler) {
