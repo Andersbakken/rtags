@@ -58,7 +58,9 @@ static inline GccArguments::Lang guessLang(const Path &fullPath)
                 break;
             }
         }
+#ifdef OS_CYGWIN
 cont:
+#endif
         if (isVersion) {
             dash = compiler.lastIndexOf('-', dash - 1);
             if (dash >= 0) {
