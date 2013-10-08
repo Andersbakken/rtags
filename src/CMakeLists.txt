@@ -6,6 +6,8 @@ endif ()
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall")
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall")
 
+include(${CMAKE_SOURCE_DIR}/cmake/EnsureLibraries.cmake)
+
 find_package(LibClang REQUIRED)
 find_package(LLVM REQUIRED)
 find_package(Clang REQUIRED)
@@ -68,7 +70,8 @@ set(RTAGS_SHARED_SOURCES
   QueryMessage.cpp
   RTags.cpp)
 
-add_library(shared ${RTAGS_SHARED_SOURCES})
+add_library(shared SHARED ${RTAGS_SHARED_SOURCES})
+target_link_libraries(shared rct)
 
 set(RDM_SOURCES
   CompilerManager.cpp
@@ -167,34 +170,18 @@ add_executable(rdm rdm.cpp
 )
 target_link_libraries(rdm
   rtags
-  shared
-  ${START_GROUP}
-  ${CLANG_LIBS}
-  ${LLVM_LIBNAMES}
-  ${END_GROUP}
   -lstdc++
   ${SYSTEM_LIBS}
 )
 
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/bin)
 
-if (CYGWIN)
-  set(LRTAGS "-lrtags")
-else ()
-  set(LRTAGS "rtags")
-endif ()
-
 add_library(rtagsclang SHARED IndexerJobClang.cpp)
 add_dependencies(rtagsclang rct)
 add_dependencies(rtagsclang rdm)
 target_link_libraries(rtagsclang
   rtags
-  ${LLVM_LDFLAGS}
-  ${START_GROUP}
-  ${CLANG_LDFLAGS}
-  ${END_GROUP}
   -L.
-  ${LRTAGS}
 )
 
 if (V8_FOUND EQUAL 1)
@@ -214,6 +201,10 @@ if (V8_FOUND EQUAL 1)
                      COMMENT "Building rtags-esprima.js")
   add_custom_target(rtags-esprima ALL DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/rtags-esprima.js)
 endif()
+
+if (CYGWIN)
+  EnsureLibraries(rdm rct)
+endif ()
 
 if (NOT "${PROJECT_SOURCE_DIR}" STREQUAL "${PROJECT_BINARY_DIR}")
   file (GLOB binFiles "${PROJECT_SOURCE_DIR}/bin/*")
