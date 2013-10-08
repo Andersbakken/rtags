@@ -53,10 +53,6 @@ elseif (CMAKE_SYSTEM_NAME MATCHES "Darwin")
     # else ()
     #   set(HAVE_FSEVENTS 1)
   endif ()
-  find_library(CORESERVICES_LIBRARY CoreServices)
-  find_path(CORESERVICES_INCLUDE "CoreServices/CoreServices.h")
-  find_library(COREFOUNDATION_LIBRARY CoreFoundation)
-  find_path(COREFOUNDATION_INCLUDE "CoreFoundation/CoreFoundation.h")
 endif ()
 
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/bin)
@@ -99,8 +95,6 @@ set(RDM_SOURCES
   )
 
 include_directories(${CMAKE_CURRENT_LIST_DIR}
-                    ${CORESERVICES_INCLUDE}
-                    ${COREFOUNDATION_INCLUDE}
                     rct/include/
                     rct
                     ${CMAKE_CURRENT_BINARY_DIR}/rct/include/rct)
@@ -123,7 +117,7 @@ target_link_libraries(clangtest
   ${LLVM_LIBNAMES}
   ${END_GROUP}
   -lstdc++
-  ${CORESERVICES_LIBRARY} ${COREFOUNDATION_LIBRARY} ${SYSTEM_LIBS}
+  ${SYSTEM_LIBS}
 )
 
 add_executable(rc rc.cpp RClient.cpp)
@@ -160,8 +154,6 @@ target_link_libraries(rtags
   ${LLVM_LIBNAMES}
   ${END_GROUP}
   -lstdc++
-  ${CORESERVICES_LIBRARY} ${COREFOUNDATION_LIBRARY}
-  ${GAMIN_LDFLAGS}
   ${SYSTEM_LIBS})
 add_dependencies(rtags rct)
 
