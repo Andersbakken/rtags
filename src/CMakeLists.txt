@@ -165,7 +165,6 @@ add_executable(rdm rdm.cpp
 target_link_libraries(rdm
   rtags
   shared
-  rct
   ${START_GROUP}
   ${CLANG_LIBS}
   ${LLVM_LIBNAMES}
@@ -186,7 +185,7 @@ add_library(rtagsclang SHARED IndexerJobClang.cpp)
 add_dependencies(rtagsclang rct)
 add_dependencies(rtagsclang rdm)
 target_link_libraries(rtagsclang
-  rct
+  rtags
   ${LLVM_LDFLAGS}
   ${START_GROUP}
   ${CLANG_LDFLAGS}
