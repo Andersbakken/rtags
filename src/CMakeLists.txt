@@ -3,6 +3,9 @@ if (NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE Release)
 endif ()
 
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall")
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall")
+
 find_package(LibClang REQUIRED)
 find_package(LLVM REQUIRED)
 find_package(Clang REQUIRED)
