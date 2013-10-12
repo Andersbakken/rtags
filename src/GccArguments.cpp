@@ -50,10 +50,18 @@ static inline GccArguments::Language guessLang(const Path &fullPath)
         bool isVersion = true;
         for (int i=0; i<c.size(); ++i) {
             if ((c.at(i) < '0' || c.at(i) > '9') && c.at(i) != '.') {
+#ifdef OS_CYGWIN
+                // eat 'exe' if it exists
+                if (c.mid(i) == "exe")
+                    goto cont;
+#endif
                 isVersion = false;
                 break;
             }
         }
+#ifdef OS_CYGWIN
+cont:
+#endif
         if (isVersion) {
             dash = compiler.lastIndexOf('-', dash - 1);
             if (dash >= 0) {
@@ -168,8 +176,9 @@ bool GccArguments::parse(List<String> split, const Path &base)
     }
 
     if (split.first().endsWith("rtags-gcc-prefix.sh")) {
-        if (split.size() == 1)
+        if (split.size() == 1) {
             return false;
+        }
         split.removeAt(0);
     }
 
@@ -258,6 +267,13 @@ bool GccArguments::parse(List<String> split, const Path &base)
                 // ### need to add to includepaths
                 mClangArgs.append(arg.left(from));
                 mClangArgs.append(inc);
+            } else if (arg.startsWith("-W")) {
+                const bool hasComma = arg.contains(',');
+                if (!hasComma) { // We don't want options such as -Wl,foo
+                    mClangArgs.append(arg);
+                }
+            } else if (arg == "-w") {
+                mClangArgs.append(arg);
             }
         } else {
             if (!seenCompiler) {

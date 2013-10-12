@@ -193,7 +193,7 @@ struct Option opts[] = {
     { IMenu, "imenu", 0, no_argument, "Use with --list-symbols to provide output for (rtags-imenu) (filter namespaces, fully qualified function names, ignore certain cursors etc)." },
     { Context, "context", 't', required_argument, "Context for current symbol (for fuzzy matching with dirty files)." }, // ### multiple context doesn't work
     { ContainingFunction, "containing-function", 'o', no_argument, "Include name of containing function in output. "},
-    { LoadCompilationDatabase, "load-compilation-database", 'J', optional_argument, "Load compilation database from JSON file" },
+    { LoadCompilationDatabase, "load-compilation-database", 'J', optional_argument, "Load compile_commands.json from directory" },
     { None, 0, 0, 0, 0 }
 };
 
@@ -914,20 +914,31 @@ bool RClient::parse(int &argc, char **argv)
                 projectCommands.append(std::static_pointer_cast<QueryCommand>(mCommands.back()));
             break; }
         case LoadCompilationDatabase: {
-            Path fileName;
+            Path dir;
             if (optarg) {
-                fileName = optarg;
+                dir = optarg;
             } else if (optind < argc && argv[optind][0] != '-') {
-                fileName = argv[optind++];
+                dir = argv[optind++];
             } else {
-                fileName = "compile_commands.json";
+                dir = Path::pwd();
             }
-            fileName.resolve(Path::MakeAbsolute);
-            if (!fileName.exists()) {
-                fprintf(stderr, "%s does not seem to exist\n", fileName.constData());
+            dir.resolve(Path::MakeAbsolute);
+            if (!dir.exists()) {
+                fprintf(stderr, "%s does not seem to exist\n", dir.constData());
                 return false;
             }
-            addQuery(QueryMessage::LoadCompilationDatabase, fileName);
+            if (!dir.isDir()) {
+                fprintf(stderr, "%s is not a directory\n", dir.constData());
+                return false;
+            }
+            if (!dir.endsWith('/'))
+                dir += '/';
+            const Path file = dir + "compile_commands.json";
+            if (!file.isFile()) {
+                fprintf(stderr, "no compile_commands.json file in %s\n", dir.constData());
+                return false;
+            }
+            addQuery(QueryMessage::LoadCompilationDatabase, dir);
             break; }
         case HasFileManager: {
             Path p;

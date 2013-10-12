@@ -28,7 +28,9 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 #include "IndexerJob.h"
 #include "JSONJob.h"
 #include "GccArguments.h"
-#if defined(HAVE_V8) || defined(HAVE_YAJL)
+#if defined(HAVE_CXCOMPILATIONDATABASE)
+#  include <clang-c/CXCompilationDatabase.h>
+#elif defined(HAVE_V8) || defined(HAVE_YAJL)
 #  include "JSONParser.h"
 #endif
 #include "ListSymbolsJob.h"
@@ -1175,8 +1177,43 @@ void Server::clearProjects(const QueryMessage &query, Connection *conn)
 
 void Server::loadCompilationDatabase(const QueryMessage &query, Connection *conn)
 {
-#if defined(HAVE_V8) || defined(HAVE_YAJL)
+#if defined(HAVE_CXCOMPILATIONDATABASE)
     const Path path = query.query();
+    // ### this will ignore the actual file name, not sure how to fix that
+    CXCompilationDatabase_Error err;
+    CXCompilationDatabase db = clang_CompilationDatabase_fromDirectory(path.constData(), &err);
+    if (err != CXCompilationDatabase_NoError) {
+        conn->write("Can't load compilation database");
+        conn->finish();
+        return;
+    }
+    CXCompileCommands cmds = clang_CompilationDatabase_getAllCompileCommands(db);
+    const unsigned int sz = clang_CompileCommands_getSize(cmds);
+    for (unsigned int i = 0; i < sz; ++i) {
+        CXCompileCommand cmd = clang_CompileCommands_getCommand(cmds, i);
+        String args;
+        CXString str = clang_CompileCommand_getDirectory(cmd);
+        const String dir = clang_getCString(str);
+        clang_disposeString(str);
+        const unsigned int num = clang_CompileCommand_getNumArgs(cmd);
+        for (unsigned int j = 0; j < num; ++j) {
+            str = clang_CompileCommand_getArg(cmd, j);
+            args += clang_getCString(str);
+            clang_disposeString(str);
+            if (j < num - 1)
+                args += " ";
+        }
+        GccArguments gccArgs;
+        if (gccArgs.parse(args, dir)) {
+            index(gccArgs, query.projects());
+        }
+    }
+    clang_CompileCommands_dispose(cmds);
+    clang_CompilationDatabase_dispose(db);
+    conn->write("Compilation database loaded");
+    conn->finish();
+#elif defined(HAVE_V8) || defined(HAVE_YAJL)
+    const Path path = query.query() + "compile_commands.json";
     const String json = path.readAll();
 
     JSONParser parser(json);

@@ -88,6 +88,7 @@ void Project::init()
 
 bool Project::restore()
 {
+    bool needsSave = false;
     assert(state() == Loading);
     StopWatch timer;
     Path path = mPath;
@@ -130,17 +131,25 @@ bool Project::restore()
         // mDependencies are like this:
         // Path.h: Path.cpp, Server.cpp ...
 
-        for (DependencyMap::const_iterator it = mDependencies.begin(); it != mDependencies.end(); ++it) {
-            const Path dir = Location::path(it->first).parentDir();
-            if (dir.isEmpty()) {
-                error() << "File busted" << it->first << Location::path(it->first);
-                continue;
-            } else if ((Server::instance()->options().options & Server::WatchSystemPaths
-                        || !dir.isSystem()) && mWatchedPaths.insert(dir)) {
-                mWatcher.watch(dir);
-            }
-            for (Set<uint32_t>::const_iterator s = it->second.begin(); s != it->second.end(); ++s) {
-                reversedDependencies[*s].insert(it->first);
+        {
+            DependencyMap::iterator it = mDependencies.begin();
+            while (it != mDependencies.end()) {
+                const Path dir = Location::path(it->first).parentDir();
+                if (!dir.isDir()) {
+                    error() << "Dir doesn't exist" << it->first << Location::path(it->first);
+                    mDependencies.erase(it++);
+                    needsSave = true;
+                    continue;
+                }
+
+                if ((Server::instance()->options().options & Server::WatchSystemPaths
+                     || !dir.isSystem()) && mWatchedPaths.insert(dir)) {
+                    mWatcher.watch(dir);
+                }
+                for (Set<uint32_t>::const_iterator s = it->second.begin(); s != it->second.end(); ++s) {
+                    reversedDependencies[*s].insert(it->first);
+                }
+                ++it;
             }
         }
 
@@ -150,6 +159,7 @@ bool Project::restore()
                 error() << it->second.sourceFile() << "seems to have disappeared";
                 mSources.erase(it++);
                 dirty.insert(it->first);
+                needsSave = true;
             } else {
                 const time_t parsed = it->second.parsed;
                 // error() << "parsed" << String::formatTime(parsed, String::DateTime) << parsed << it->second.sourceFile;
@@ -167,8 +177,11 @@ bool Project::restore()
                 ++it;
             }
         }
-        if (!dirty.isEmpty())
+        if (!dirty.isEmpty()) {
             startDirtyJobs(dirty);
+        } else if (needsSave) {
+            save();
+        }
     }
 end:
     // fileManager->jsFilesChanged().connect(this, &Project::onJSFilesAdded);

@@ -4,6 +4,10 @@ if (NOT CMAKE_BUILD_TYPE)
 endif ()
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-rtti")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall")
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall")
+
+include(${CMAKE_SOURCE_DIR}/cmake/EnsureLibraries.cmake)
 
 find_package(LibClang REQUIRED)
 find_package(LLVM REQUIRED)
@@ -11,8 +15,13 @@ find_package(Clang REQUIRED)
 include_directories(${CLANG_INCLUDE})
 include_directories(${LLVM_INCLUDE_DIRS} ${CLANG_INCLUDE_DIRS})
 
+if (EXISTS ${CLANG_COMPILATION_INCLUDE})
+  add_definitions(-DHAVE_CXCOMPILATIONDATABASE)
+else ()
+  find_package(YAJL)
+endif ()
+
 find_package(V8)
-find_package(YAJL)
 
 add_subdirectory(rct)
 
@@ -45,10 +54,6 @@ elseif (CMAKE_SYSTEM_NAME MATCHES "Darwin")
     # else ()
     #   set(HAVE_FSEVENTS 1)
   endif ()
-  find_library(CORESERVICES_LIBRARY CoreServices)
-  find_path(CORESERVICES_INCLUDE "CoreServices/CoreServices.h")
-  find_library(COREFOUNDATION_LIBRARY CoreFoundation)
-  find_path(COREFOUNDATION_INCLUDE "CoreFoundation/CoreFoundation.h")
 endif ()
 
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/bin)
@@ -62,7 +67,8 @@ set(RTAGS_SHARED_SOURCES
   QueryMessage.cpp
   RTags.cpp)
 
-add_library(shared ${RTAGS_SHARED_SOURCES})
+add_library(shared SHARED ${RTAGS_SHARED_SOURCES})
+target_link_libraries(shared rct)
 
 set(RDM_SOURCES
   CompilerManager.cpp
@@ -90,8 +96,6 @@ set(RDM_SOURCES
   )
 
 include_directories(${CMAKE_CURRENT_LIST_DIR}
-                    ${CORESERVICES_INCLUDE}
-                    ${COREFOUNDATION_INCLUDE}
                     rct/include/
                     rct
                     ${CMAKE_CURRENT_BINARY_DIR}/rct/include/rct)
@@ -114,7 +118,7 @@ target_link_libraries(clangtest
   ${LLVM_LIBNAMES}
   ${END_GROUP}
   -lstdc++
-  ${CORESERVICES_LIBRARY} ${COREFOUNDATION_LIBRARY} ${SYSTEM_LIBS}
+  ${SYSTEM_LIBS}
 )
 
 add_executable(rc rc.cpp RClient.cpp)
@@ -151,8 +155,6 @@ target_link_libraries(rtags
   ${LLVM_LIBNAMES}
   ${END_GROUP}
   -lstdc++
-  ${CORESERVICES_LIBRARY} ${COREFOUNDATION_LIBRARY}
-  ${GAMIN_LDFLAGS}
   ${SYSTEM_LIBS})
 add_dependencies(rtags rct)
 
@@ -161,12 +163,6 @@ add_executable(rdm rdm.cpp
 )
 target_link_libraries(rdm
   rtags
-  shared
-  rct
-  ${START_GROUP}
-  ${CLANG_LIBS}
-  ${LLVM_LIBNAMES}
-  ${END_GROUP}
   -lstdc++
   ${SYSTEM_LIBS}
 )
@@ -176,23 +172,12 @@ target_link_libraries(rp rtags shared)
 
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/bin)
 
-if (CYGWIN)
-  set(LRTAGS "-lrtags")
-else ()
-  set(LRTAGS "rtags")
-endif ()
-
 add_library(rtagsclang SHARED IndexerJobClang.cpp)
 add_dependencies(rtagsclang rct)
 add_dependencies(rtagsclang rdm)
 target_link_libraries(rtagsclang
-  rct
-  ${LLVM_LDFLAGS}
-  ${START_GROUP}
-  ${CLANG_LDFLAGS}
-  ${END_GROUP}
+  rtags
   -L.
-  ${LRTAGS}
 )
 
 if (V8_FOUND EQUAL 1)
@@ -212,6 +197,10 @@ if (V8_FOUND EQUAL 1)
                      COMMENT "Building rtags-esprima.js")
   add_custom_target(rtags-esprima ALL DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/rtags-esprima.js)
 endif()
+
+if (CYGWIN)
+  EnsureLibraries(rdm rct)
+endif ()
 
 if (NOT "${PROJECT_SOURCE_DIR}" STREQUAL "${PROJECT_BINARY_DIR}")
   file (GLOB binFiles "${PROJECT_SOURCE_DIR}/bin/*")
