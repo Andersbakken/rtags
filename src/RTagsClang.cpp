@@ -28,10 +28,16 @@
 #endif
 #include <llvm/Config/config.h>
 
+#include <clang/Driver/ArgList.h>
+#include <clang/Driver/Compilation.h>
+#include <clang/Driver/Driver.h>
+#include <clang/Driver/ToolChain.h>
 #include <clang/Frontend/CompilerInstance.h>
 #include <clang/Frontend/Utils.h>
 #include <clang/Lex/Preprocessor.h>
 #include <llvm/Support/raw_ostream.h>
+#include <llvm/Support/Host.h>
+#include <llvm/ADT/ArrayRef.h>
 #include <llvm/ADT/StringRef.h>
 // #include <clang/Basic/Diagnostic.h>
 // #include <clang/Basic/FileManager.h>
@@ -291,7 +297,6 @@ String preprocess(const GccArguments &args)
 String preprocess(const Path &sourceFile, const Path &compiler,
                   const List<Path> &includePaths, const List<GccArguments::Define> &defines)
 {
-
     clang::CompilerInstance compilerInstance;
     compilerInstance.createFileManager();
     assert(compilerInstance.hasFileManager());
@@ -307,8 +312,41 @@ String preprocess(const Path &sourceFile, const Path &compiler,
         return String();
     sm.createMainFileID(file);
     clang::TargetOptions &targetOptions = compilerInstance.getTargetOpts();
-    targetOptions.Triple = LLVM_HOST_TRIPLE;
-    compilerInstance.setTarget(clang::TargetInfo::CreateTargetInfo(compilerInstance.getDiagnostics(), &targetOptions));
+    //targetOptions.Triple = LLVM_HOST_TRIPLE;
+    targetOptions.Triple = llvm::sys::getDefaultTargetTriple();
+    clang::DiagnosticsEngine& diags = compilerInstance.getDiagnostics();
+    compilerInstance.setTarget(clang::TargetInfo::CreateTargetInfo(diags, &targetOptions));
+
+    {
+        clang::driver::Driver driver("clang", llvm::sys::getDefaultTargetTriple(), "a.out", diags);
+        std::vector<std::string> copies; // not cool
+        std::vector<const char*> args;
+        args.push_back(compiler.constData());
+        args.push_back("-c");
+        args.push_back(sourceFile.constData());
+        for (const Path& path : includePaths) {
+            copies.push_back("-I" + path);
+        }
+        for (const GccArguments::Define& def : defines) {
+            copies.push_back("-D" + def.define);
+            if (!def.value.isEmpty())
+                copies.back() += "=" + def.value;
+        }
+        for (const std::string& str : copies) {
+            args.push_back(str.c_str());
+        }
+
+        std::unique_ptr<clang::driver::Compilation> compilation(driver.BuildCompilation(llvm::ArrayRef<const char*>(&args[0], args.size())));
+        const clang::driver::ToolChain& toolChain = compilation->getDefaultToolChain();
+        const clang::driver::InputArgList inputArgs(&args[0], &args[0] + args.size());
+        clang::driver::ArgStringList outputArgs;
+        toolChain.AddClangCXXStdlibIncludeArgs(inputArgs, outputArgs);
+        toolChain.AddCXXStdlibLibArgs(inputArgs, outputArgs);
+
+        for (const char* out : outputArgs) {
+            printf("got clang cxx arg %s\n", out);
+        }
+    }
 
     clang::HeaderSearchOptions &headerSearchOptions = compilerInstance.getHeaderSearchOpts();
     for (List<Path>::const_iterator it = includePaths.begin(); it != includePaths.end(); ++it) {
