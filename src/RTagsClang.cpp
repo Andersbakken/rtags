@@ -90,32 +90,31 @@ String cursorToString(CXCursor cursor, unsigned flags)
     if (flags & IncludeUSR)
         ret += " " + eatString(clang_getCursorUSR(cursor));
 
-    CXFile file;
-    unsigned off, line, col; //presumedLine, presumedCol, instantiationLoc, expansionLoc;
+    CXString file;
+    unsigned line, col;
     CXSourceLocation location = clang_getCursorLocation(cursor);
-    clang_getSpellingLocation(location, &file, &line, &col, &off);
-    // clang_getPresumedLocation(location, 0, &presumedLine, &presumedCol);
-    // clang_getInstantiationLocation(location, 0, 0, 0, &instantiationLoc);
-    // clang_getExpansionLocation(location, 0, 0, 0, &expansionLoc);
+    clang_getPresumedLocation(location, &file, &line, &col);
 
-    const Str fileName(clang_getFileName(file));
+    const Str fileName(file);
     if (fileName.data() && *fileName.data()) {
         ret += ' ';
         ret += fileName.data();
-        ret += ',';
-        ret += String::number(off);
+        ret += ':';
+        ret += String::number(line);
+        ret += ':';
+        ret += String::number(col);
 
-        if (flags & IncludeRange) {
-            ret += " (";
-            CXSourceRange range = clang_getCursorExtent(cursor);
-            unsigned start, end;
-            clang_getSpellingLocation(clang_getRangeStart(range), 0, 0, 0, &start);
-            clang_getSpellingLocation(clang_getRangeEnd(range), 0, 0, 0, &end);
-            ret += String::number(start);
-            ret += '-';
-            ret += String::number(end);
-            ret += ')';
-        }
+        // if (flags & IncludeRange) {
+        //     ret += " (";
+        //     CXSourceRange range = clang_getCursorExtent(cursor);
+        //     unsigned start, end;
+        //     clang_getSpellingLocation(clang_getRangeStart(range), 0, 0, 0, &start);
+        //     clang_getSpellingLocation(clang_getRangeEnd(range), 0, 0, 0, &end);
+        //     ret += String::number(start);
+        //     ret += '-';
+        //     ret += String::number(end);
+        //     ret += ')';
+        // }
 
         // if (presumedLine != line || presumedCol != col)
         //     ret += String::snprintf<32>("presumed: %d:%d", presumedLine, presumedCol);
@@ -136,8 +135,8 @@ static inline SymbolMap::const_iterator findCursorInfo(const SymbolMap &map, con
             return it;
         } else if (it != map.begin()) {
             --it;
-            if (it->first.fileId() == location.fileId()) {
-                const int off = location.offset() - it->first.offset();
+            if (it->first.fileId() == location.fileId() && location.line() == it->first.line()) {
+                const int off = location.column() - it->first.column();
                 if (it->second.symbolLength > off && (context.isEmpty() || it->second.symbolName.contains(context))) {
                     return it;
                 }
@@ -431,11 +430,11 @@ String preprocess(const Source &source)
     // FILE *f = fopen("/tmp/preprocess.cpp", "w");
     // fwrite(sourceFile.constData(), 1, sourceFile.size(), f);
 
-    // const String str = out.take();
+    const String str = out.take();
     // fwrite(str.constData(), 1, str.size(), f);
     // return str;
-    warning() << "preprocessing" << sourceFile << "took" << sw.elapsed() << "ms";
-    return out.take();
+    warning() << "preprocessing" << sourceFile << "took" << sw.elapsed() << "ms" << str.size();
+    return str;
 }
 
 static CXChildVisitResult findFirstChildVisitor(CXCursor cursor, CXCursor, CXClientData data)

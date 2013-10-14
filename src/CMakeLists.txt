@@ -84,7 +84,7 @@ set(RDM_SOURCES
   FindSymbolsJob.cpp
   FollowLocationJob.cpp
   # GccArguments.cpp
-  JSONJob.cpp
+  # JSONJob.cpp
   Job.cpp
   ListSymbolsJob.cpp
   Preprocessor.cpp
@@ -95,7 +95,7 @@ set(RDM_SOURCES
   ScanJob.cpp
   Server.cpp
   StatusJob.cpp
-  ValidateDBJob.cpp
+  # ValidateDBJob.cpp
   )
 
 include_directories(${CMAKE_CURRENT_LIST_DIR}

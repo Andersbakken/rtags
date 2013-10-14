@@ -21,7 +21,7 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 #include "ReparseJob.h"
 #include "Server.h"
 #include "Server.h"
-#include "ValidateDBJob.h"
+// #include "ValidateDBJob.h"
 #include "WrapperJob.h"
 #include <math.h>
 #include <rct/Log.h>
@@ -626,7 +626,7 @@ static inline void writeErrorSymbols(const SymbolMap &symbols, ErrorSymbolMap &e
         if (it->second) {
             SymbolMap &symbolsForFile = errorSymbols[it->first];
             if (symbolsForFile.isEmpty()) {
-                const Location loc(it->first, 0);
+                const Location loc(it->first, 1, 0);
                 SymbolMap::const_iterator sit = symbols.lower_bound(loc);
                 while (sit != symbols.end() && sit->first.fileId() == it->first) {
                     symbolsForFile[sit->first] = sit->second;
@@ -714,10 +714,11 @@ void Project::syncDB(int *dirty, int *sync)
         }
     }
     mPendingData.clear();
-    if (Server::instance()->options().options & Server::Validate) {
-        std::shared_ptr<ValidateDBJob> validate(new ValidateDBJob(shared_from_this(), mPreviousErrors));
-        Server::instance()->threadPool()->start(std::shared_ptr<WrapperJob>(new WrapperJob(0, validate)));
-    }
+#warning not done
+    // if (Server::instance()->options().options & Server::Validate) {
+    //     std::shared_ptr<ValidateDBJob> validate(new ValidateDBJob(shared_from_this(), mPreviousErrors));
+    //     Server::instance()->threadPool()->start(std::shared_ptr<WrapperJob>(new WrapperJob(0, validate)));
+    // }
     *sync = sw.elapsed();
 }
 
@@ -969,7 +970,7 @@ SymbolMap Project::symbols(uint32_t fileId) const
 {
     SymbolMap ret;
     if (fileId) {
-        for (SymbolMap::const_iterator it = mSymbols.lower_bound(Location(fileId, 0));
+        for (SymbolMap::const_iterator it = mSymbols.lower_bound(Location(fileId, 1, 0));
              it != mSymbols.end() && it->first.fileId() == fileId; ++it) {
             ret[it->first] = it->second;
         }

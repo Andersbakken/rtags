@@ -47,19 +47,20 @@ void CursorInfoJob::execute()
     }
     ciFlags |= CursorInfo::IgnoreTargets|CursorInfo::IgnoreReferences;
     if (it != map.begin() && queryFlags() & QueryMessage::CursorInfoIncludeParents) {
-        const uint32_t fileId = location.fileId();
-        const int offset = location.offset();
-        while (true) {
-            --it;
-            if (it->first.fileId() != fileId)
-                break;
-            if (it->second.isDefinition() && RTags::isContainer(it->second.kind) && offset >= it->second.start && offset <= it->second.end) {
-                write("====================");
-                write(it->first);
-                write(it->second, ciFlags);
-            }
-            if (it == map.begin())
-                break;
-        }
+#warning not done
+        // const uint32_t fileId = location.fileId();
+        // const unsigned int line = location.line();
+        // while (true) {
+        //     --it;
+        //     if (it->first.fileId() != fileId)
+        //         break;
+        //     if (it->second.isDefinition() && RTags::isContainer(it->second.kind) && offset >= it->second.start && offset <= it->second.end) {
+        //         write("====================");
+        //         write(it->first);
+        //         write(it->second, ciFlags);
+        //     }
+        //     if (it == map.begin())
+        //         break;
+        // }
     }
 }

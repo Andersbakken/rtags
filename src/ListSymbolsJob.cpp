@@ -85,7 +85,7 @@ Set<String> ListSymbolsJob::imenu(const std::shared_ptr<Project> &project)
         const uint32_t fileId = Location::fileId(file);
         if (!fileId)
             continue;
-        for (SymbolMap::const_iterator it = map.lower_bound(Location(fileId, 0));
+        for (SymbolMap::const_iterator it = map.lower_bound(Location(fileId, 1, 0));
              it != map.end() && it->first.fileId() == fileId; ++it) {
             const CursorInfo &cursorInfo = it->second;
             if (RTags::isReference(cursorInfo.kind))

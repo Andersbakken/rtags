@@ -47,12 +47,11 @@ public:
     };
 
     CursorInfo()
-        : symbolLength(0), kind(CXCursor_FirstInvalid), type(CXType_Invalid), enumValue(0), start(-1), end(-1)
+        : symbolLength(0), kind(CXCursor_FirstInvalid), type(CXType_Invalid), enumValue(0)
     {}
 
     void clear()
     {
-        start = end = -1;
         symbolLength = 0;
         kind = CXCursor_FirstInvalid;
         type = CXType_Invalid;
@@ -127,7 +126,7 @@ public:
 
     bool isEmpty() const
     {
-        return !symbolLength && targets.isEmpty() && references.isEmpty() && start == -1 && end == -1;
+        return !symbolLength && targets.isEmpty() && references.isEmpty();
     }
 
     bool unite(const CursorInfo &other)
@@ -143,11 +142,11 @@ public:
                 changed = true;
         }
 
-        if (end == -1 && start == -1 && other.start != -1 && other.end != -1) {
-            start = other.start;
-            end = other.end;
-            changed = true;
-        }
+        // if (end == -1 && start == -1 && other.start != -1 && other.end != -1) {
+        //     start = other.start;
+        //     end = other.end;
+        //     changed = true;
+        // }
 
         if (!symbolLength && other.symbolLength) {
             symbolLength = other.symbolLength;
@@ -187,13 +186,13 @@ public:
         int64_t enumValue; // only used if type == CXCursor_EnumConstantDecl
     };
     Set<Location> targets, references;
-    int start, end;
+    // int start, end;
 };
 
 template <> inline Serializer &operator<<(Serializer &s, const CursorInfo &t)
 {
     s << t.symbolLength << t.symbolName << static_cast<int>(t.kind)
-      << static_cast<int>(t.type) << t.enumValue << t.targets << t.references << t.start << t.end;
+      << static_cast<int>(t.type) << t.enumValue << t.targets << t.references; // << t.start << t.end;
     return s;
 }
 
@@ -201,7 +200,7 @@ template <> inline Deserializer &operator>>(Deserializer &s, CursorInfo &t)
 {
     int kind, type;
     s >> t.symbolLength >> t.symbolName >> kind >> type
-      >> t.enumValue >> t.targets >> t.references >> t.start >> t.end;
+      >> t.enumValue >> t.targets >> t.references; // >> t.start >> t.end;
     t.kind = static_cast<CXCursorKind>(kind);
     t.type = static_cast<CXTypeKind>(type);
     return s;

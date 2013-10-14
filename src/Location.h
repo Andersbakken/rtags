@@ -28,30 +28,31 @@
 class Location
 {
 public:
-    uint64_t mData;
+    union {
+        struct {
+            unsigned int mFileId : 19;
+            unsigned int mLine : 21;
+            unsigned int mColumn : 14;
+        } __attribute__ ((__packed__));
+        uint64_t mData;
+    };
+
     Location()
         : mData(0)
     {}
-    Location(uint64_t data)
-        : mData(data)
-    {}
-    Location(uint32_t fileId, uint32_t offset)
-        : mData(uint64_t(offset) << 32 | fileId)
+
+    Location(unsigned int fileId, unsigned int line, unsigned int col)
+        : mFileId(fileId), mLine(line), mColumn(col)
     {}
 
-    inline bool operator!() const
-    {
-        return !mData;
-    }
-
-    static inline uint32_t fileId(const Path &path)
+    static inline unsigned int fileId(const Path &path)
     {
 #ifndef SINGLE_THREAD
         std::lock_guard<std::mutex> lock(sMutex);
 #endif
         return sPathsToIds.value(path);
     }
-    static inline Path path(uint32_t id)
+    static inline Path path(unsigned int id)
     {
 #ifndef SINGLE_THREAD
         std::lock_guard<std::mutex> lock(sMutex);
@@ -60,12 +61,12 @@ public:
     }
 
 #ifndef SINGLE_THREAD
-    static inline uint32_t insertFile(const Path &path)
+    static inline unsigned int insertFile(const Path &path)
     {
-        uint32_t ret;
+        unsigned int ret;
         {
             std::lock_guard<std::mutex> lock(sMutex);
-            uint32_t &id = sPathsToIds[path];
+            unsigned int &id = sPathsToIds[path];
             if (!id) {
                 id = ++sLastId;
                 sIdsToPaths[id] = path;
@@ -77,8 +78,9 @@ public:
     }
 #endif
 
-    inline uint32_t fileId() const { return uint32_t(mData); }
-    inline uint32_t offset() const { return uint32_t(mData >> 32); }
+    inline unsigned int fileId() const { return mFileId; }
+    inline unsigned int line() const { return mLine; }
+    inline unsigned int column() const { return mColumn; }
 
     inline Path path() const
     {
@@ -90,9 +92,9 @@ public:
         }
         return mCachedPath;
     }
-    inline bool isNull() const { return !mData; }
-    inline bool isValid() const { return mData; }
-    inline void clear() { mData = 0; mCachedPath.clear(); }
+    inline bool isNull() const { return !mFileId; }
+    inline bool isValid() const { return mFileId; }
+    inline void clear() { mFileId = mLine = mColumn = 0; mCachedPath.clear(); }
 #ifndef SINGLE_THREAD
     inline bool operator==(const String &str) const
     {
@@ -104,60 +106,46 @@ public:
     inline bool operator!=(const Location &other) const { return mData != other.mData; }
     inline int compare(const Location &other) const
     {
-        int diff = other.fileId() - fileId();
+        int diff = mFileId - other.mFileId;
         if (diff < 0) {
             return -1;
         } else if (diff > 0) {
             return 1;
         }
-        diff = other.offset() - offset();
+        diff = mLine - other.mLine;
         if (diff < 0) {
             return -1;
         } else if (diff > 0) {
             return 1;
         }
-        return 0;
+        return mColumn - other.mColumn;
     }
     inline bool operator<(const Location &other) const
     {
-        const int off = other.fileId() - fileId();
-        if (off < 0) {
-            return true;
-        } else if (off > 0) {
-            return false;
-        }
-        return offset() < other.offset();
+        return compare(other) < 0;
     }
 
     inline bool operator>(const Location &other) const
     {
-        const int off = other.fileId() - fileId();
-        if (off < 0) {
-            return false;
-        } else if (off > 0) {
-            return true;
-        }
-        return offset() > other.offset();
+        return compare(other) > 0;
     }
 
-    String context(int *column = 0) const;
-    bool convertOffset(int &line, int &col) const;
+    String context() const;
 
     enum KeyFlag {
         NoFlag = 0x0,
-        Padded = 0x1,
-        ShowContext = 0x2,
-        ShowLineNumbers = 0x4
+        ShowContext = 0x1
     };
 
     String key(unsigned flags = NoFlag) const;
     bool toKey(char buf[8]) const
     {
+        assert(sizeof(buf) == sizeof(Location));
         if (isNull()) {
-            memset(buf, 0, 8);
+            memset(buf, 0, sizeof(Location));
             return false;
         } else {
-            memcpy(buf, &mData, sizeof(mData));
+            memcpy(buf, &mData, sizeof(Location));
             return true;
         }
     }
@@ -171,82 +159,76 @@ public:
 
     static Location decodeClientLocation(const String &data)
     {
-        uint32_t offset;
-        memcpy(&offset, data.constData() + data.size() - sizeof(offset), sizeof(offset));
-        const Path path(data.constData(), data.size() - sizeof(offset));
-        const uint32_t fileId = Location::fileId(path);
+        unsigned int col;
+        unsigned int line;
+        memcpy(&col, data.constData() + data.size() - sizeof(col), sizeof(col));
+        memcpy(&line, data.constData() + data.size() - sizeof(line) - sizeof(col), sizeof(line));
+        const Path path(data.constData(), data.size() - sizeof(col) - sizeof(line));
+        const unsigned int fileId = Location::fileId(path);
         if (fileId)
-            return Location(fileId, offset);
-        error("Failed to make location from [%s,%d]", path.constData(), offset);
+            return Location(fileId, line, col);
+        error("Failed to make location from [%s:%d:%d]", path.constData(), line, col);
         return Location();
     }
     static String encodeClientLocation(const String &key)
     {
-        const int lastComma = key.lastIndexOf(',');
-        if (lastComma <= 0 || lastComma + 1 >= key.size())
+        int pathLength;
+        unsigned int line, col;
+        if (sscanf(key.constData(), "%n:%d:%d", &pathLength, &line, &col) != 2)
             return String();
 
-        char *endPtr;
-        uint32_t offset = strtoull(key.constData() + lastComma + 1, &endPtr, 10);
-        if (*endPtr != '\0')
-            return String();
-        Path path = Path::resolved(key.left(lastComma));
-        String out;
+        Path path = Path::resolved(key.left(pathLength));
         {
-            out = path;
-            char buf[4];
-            memcpy(buf, &offset, sizeof(buf));
-            out += String(buf, 4);
+            char buf[8];
+            memcpy(buf, &line, sizeof(line));
+            memcpy(buf + 4, &col, sizeof(col));
+            path.append(buf, 8);
         }
 
-        return out;
+        return path;
     }
 
 #ifndef SINGLE_THREAD
-    static Location fromPathAndOffset(const String &pathAndOffset)
+    static Location fromPathAndOffset(const String &str)
     {
-        const int comma = pathAndOffset.lastIndexOf(',');
-        if (comma <= 0 || comma + 1 == pathAndOffset.size()) {
-            error("Can't create location from this: %s", pathAndOffset.constData());
+        int pathLength;
+        unsigned int line, col;
+        if (sscanf(str.constData(), "%n:%d:%d", &pathLength, &line, &col) != 2) {
+            error("Can't create location from this: %s", str.constData());
             return Location();
         }
-        bool ok;
-        const uint32_t fileId = String(pathAndOffset.constData() + comma + 1, pathAndOffset.size() - comma - 1).toULongLong(&ok);
-        if (!ok) {
-            error("Can't create location from this: %s", pathAndOffset.constData());
-            return Location();
-        }
-        return Location(Location::insertFile(Path(pathAndOffset.left(comma))), fileId);
+        const Path path = Path::resolved(str.left(pathLength));
+        return Location(Location::insertFile(path), line, col);
     }
 #endif
-    static Hash<uint32_t, Path> idsToPaths()
+    static Hash<unsigned int, Path> idsToPaths()
     {
 #ifndef SINGLE_THREAD
         std::lock_guard<std::mutex> lock(sMutex);
 #endif
         return sIdsToPaths;
     }
-    static Hash<Path, uint32_t> pathsToIds()
+    static Hash<Path, unsigned int> pathsToIds()
     {
 #ifndef SINGLE_THREAD
         std::lock_guard<std::mutex> lock(sMutex);
 #endif
         return sPathsToIds;
     }
-    static void init(const Hash<Path, uint32_t> &pathsToIds)
+    static void init(const Hash<Path, unsigned int> &pathsToIds)
     {
 #ifndef SINGLE_THREAD
         std::lock_guard<std::mutex> lock(sMutex);
 #endif
         sPathsToIds = pathsToIds;
         sLastId = sPathsToIds.size();
-        for (Hash<Path, uint32_t>::const_iterator it = sPathsToIds.begin(); it != sPathsToIds.end(); ++it) {
+        for (Hash<Path, unsigned int>::const_iterator it = sPathsToIds.begin(); it != sPathsToIds.end(); ++it) {
             assert(it->second <= it->second);
             sIdsToPaths[it->second] = it->first;
         }
     }
 
-    static bool set(const Path &path, uint32_t fileId)
+    static bool set(const Path &path, unsigned int fileId)
     {
 #ifndef SINGLE_THREAD
         std::lock_guard<std::mutex> lock(sMutex);
@@ -268,9 +250,9 @@ public:
         return true;
     }
 private:
-    static Hash<Path, uint32_t> sPathsToIds;
-    static Hash<uint32_t, Path> sIdsToPaths;
-    static uint32_t sLastId;
+    static Hash<Path, unsigned int> sPathsToIds;
+    static Hash<unsigned int, Path> sIdsToPaths;
+    static unsigned int sLastId;
     static std::mutex sMutex;
     mutable Path mCachedPath;
 };

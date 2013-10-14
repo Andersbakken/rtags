@@ -26,7 +26,7 @@
 #include "FindSymbolsJob.h"
 #include "FollowLocationJob.h"
 #include "IndexerJob.h"
-#include "JSONJob.h"
+// #include "JSONJob.h"
 #include "Source.h"
 #if defined(HAVE_CXCOMPILATIONDATABASE)
 #  include <clang-c/CXCompilationDatabase.h>
@@ -360,7 +360,7 @@ void Server::handleCreateOutputMessage(const CreateOutputMessage &message, Conne
 void Server::handleIndexerMessage(const IndexerMessage &message, Connection *conn)
 {
     std::shared_ptr<IndexData> indexData = message.data();
-    // error() << "Got indexer message" << message.project() << Location::path(indexData->fileId) << indexData->id;
+    error() << "Got indexer message" << message.project() << Location::path(indexData->fileId);
     assert(indexData);
     std::shared_ptr<Project> project = mProjects.value(message.project());
     if (!project) {
@@ -395,7 +395,7 @@ void Server::handleQueryMessage(const QueryMessage &message, Connection *conn)
         codeCompletionEnabled(message, conn);
         break;
     case QueryMessage::JSON:
-        JSON(message, conn);
+    //     JSON(message, conn);
         break;
     case QueryMessage::JobCount:
         jobCount(message, conn);
@@ -567,9 +567,7 @@ void Server::dumpFile(const QueryMessage &query, Connection *conn)
         return;
     }
 
-    Location loc(fileId, 0);
-
-    std::shared_ptr<Project> project = updateProjectForLocation(loc.path());
+    std::shared_ptr<Project> project = updateProjectForLocation(Location::path(fileId));
     if (!project || project->state() != Project::Loaded) {
         conn->write<256>("%s is not indexed", query.query().constData());
         conn->finish();
@@ -651,6 +649,7 @@ void Server::fixIts(const QueryMessage &query, Connection *conn)
     conn->finish();
 }
 
+#if 0
 void Server::JSON(const QueryMessage &query, Connection *conn)
 {
     std::shared_ptr<Project> project = currentProject();
@@ -665,6 +664,8 @@ void Server::JSON(const QueryMessage &query, Connection *conn)
     }
     conn->finish();
 }
+#endif
+#warning not done
 
 void Server::referencesForLocation(const QueryMessage &query, Connection *conn)
 {

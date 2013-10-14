@@ -18,20 +18,20 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 #include <rct/Serializer.h>
 
 QueryMessage::QueryMessage(Type type)
-    : ClientMessage(MessageId), mType(type), mFlags(0), mMax(-1), mMinOffset(-1), mMaxOffset(-1)
+    : ClientMessage(MessageId), mType(type), mFlags(0), mMax(-1), mMinLine(-1), mMaxLine(-1)
 {
 }
 
 void QueryMessage::encode(Serializer &serializer) const
 {
     serializer << mRaw << mQuery << mContext << mType << mFlags << mMax
-               << mMinOffset << mMaxOffset << mPathFilters << mProjects;
+               << mMinLine << mMaxLine << mPathFilters << mProjects;
 }
 
 void QueryMessage::decode(Deserializer &deserializer)
 {
     deserializer >> mRaw >> mQuery >> mContext >> mType >> mFlags >> mMax
-                 >> mMinOffset >> mMaxOffset >> mPathFilters >> mProjects;
+                 >> mMinLine >> mMaxLine >> mPathFilters >> mProjects;
 }
 
 unsigned QueryMessage::keyFlags(unsigned queryFlags)
@@ -39,8 +39,6 @@ unsigned QueryMessage::keyFlags(unsigned queryFlags)
     unsigned ret = Location::NoFlag;
     if (!(queryFlags & QueryMessage::NoContext))
         ret |= Location::ShowContext;
-    if (queryFlags & QueryMessage::LineNumbers)
-        ret |= Location::ShowLineNumbers;
     return ret;
 }
 

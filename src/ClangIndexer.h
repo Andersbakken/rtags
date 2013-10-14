@@ -30,15 +30,13 @@ private:
         if (blocked)
             *blocked = false;
 
-        CXFile file;
-        unsigned start;
-        clang_getSpellingLocation(location, &file, 0, 0, &start);
-        if (file) {
-            return createLocation(RTags::eatString(clang_getFileName(file)), start, blocked);
-        }
-        return Location();
+        CXString file;
+        unsigned line, col;
+        clang_getPresumedLocation(location, &file, &line, &col);
+        assert(clang_getCString(file));
+        return createLocation(RTags::eatString(file), line, col, blocked);
     }
-    Location createLocation(CXFile file, unsigned offset, bool *blocked = 0)
+    Location createLocation(CXFile file, unsigned line, unsigned col, bool *blocked = 0)
     {
         if (blocked)
             *blocked = false;
@@ -53,13 +51,13 @@ private:
         }
         const Path p = Path::resolved(cstr);
         clang_disposeString(fn);
-        return createLocation(p, offset, blocked);
+        return createLocation(p, line, col, blocked);
     }
     inline Location createLocation(const CXCursor &cursor, bool *blocked = 0)
     {
         return createLocation(clang_getCursorLocation(cursor), blocked);
     }
-    Location createLocation(const Path &file, unsigned start, bool *blocked);
+    Location createLocation(const Path &file, unsigned int line, unsigned int col, bool *blocked);
     String addNamePermutations(const CXCursor &cursor, const Location &location);
 
     bool handleCursor(const CXCursor &cursor, CXCursorKind kind, const Location &location);

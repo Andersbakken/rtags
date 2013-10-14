@@ -60,9 +60,8 @@ enum OptionType {
     IMenu,
     IsIndexed,
     IsIndexing,
-    JSON,
+    // JSON,
     JobCount,
-    LineNumbers,
     ListSymbols,
     LoadCompilationDatabase,
     LogFile,
@@ -152,7 +151,7 @@ struct Option opts[] = {
     { Compile, "compile", 'c', required_argument, "Pass compilation arguments to rdm." },
     { RemoveFile, "remove", 'D', required_argument, "Remove file from project." },
     { FindProjectRoot, "find-project-root", 0, required_argument, "Use to check behavior of find-project-root." },
-    { JSON, "json", 0, optional_argument, "Dump json about files matching arg or whole project if no argument." },
+    // { JSON, "json", 0, optional_argument, "Dump json about files matching arg or whole project if no argument." },
     { Sources, "sources", 0, optional_argument, "Dump sources for source file." },
     { Dependencies, "dependencies", 0, required_argument, "Dump dependencies for source file." },
     { ReloadFileManager, "reload-file-manager", 'B', no_argument, "Reload file manager." },
@@ -168,7 +167,6 @@ struct Option opts[] = {
     { UnsavedFile, "unsaved-file", 0, required_argument, "Pass unsaved file on command line. E.g. --unsaved-file=main.cpp:1200 then write 1200 bytes on stdin." },
     { LogFile, "log-file", 'L', required_argument, "Log to this file." },
     { NoContext, "no-context", 'N', no_argument, "Don't print context for locations." },
-    { LineNumbers, "line-numbers", 'l', no_argument, "Output line numbers instead of offsets." },
     { PathFilter, "path-filter", 'i', required_argument, "Filter out results not matching with arg." },
     { RangeFilter, "range-filter", 0, required_argument, "Filter out results not in the specified range." },
     { FilterSystemHeaders, "filter-system-headers", 'H', no_argument, "Don't exempt system headers from path filters." },
@@ -761,9 +759,6 @@ bool RClient::parse(int &argc, char **argv)
                 }
             }
             break; }
-        case LineNumbers:
-            mQueryFlags |= QueryMessage::LineNumbers;
-            break;
         case Verbose:
             ++mLogLevel;
             break;
@@ -884,7 +879,7 @@ bool RClient::parse(int &argc, char **argv)
         case FindFile:
         case ListSymbols:
         case FindSymbols:
-        case JSON:
+        // case JSON:
         case Sources:
         case JobCount:
         case Status: {
@@ -895,7 +890,7 @@ bool RClient::parse(int &argc, char **argv)
             case FindFile: type = QueryMessage::FindFile; break;
             case Sources: type = QueryMessage::Sources; break;
             case Status: type = QueryMessage::Status; break;
-            case JSON: type = QueryMessage::JSON; break;
+            // case JSON: type = QueryMessage::JSON; break;
             case ListSymbols: type = QueryMessage::ListSymbols; break;
             case FindSymbols: type = QueryMessage::FindSymbols; break;
             case JobCount: type = QueryMessage::JobCount; break;

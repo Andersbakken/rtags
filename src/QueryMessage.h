@@ -63,7 +63,6 @@ public:
 
     enum Flag {
         NoContext = 0x000001,
-        LineNumbers = 0x000002,
         FilterSystemIncludes = 0x000004,
         StripParentheses = 0x000008,
         AllReferences = 0x000010,
@@ -108,12 +107,12 @@ public:
 
     void setRangeFilter(int min, int max)
     {
-        mMinOffset = min;
-        mMaxOffset = max;
+        mMinLine = min;
+        mMaxLine = max;
     }
 
-    int minOffset() const { return mMinOffset; }
-    int maxOffset() const { return mMaxOffset; }
+    int minLine() const { return mMinLine; }
+    int maxLine() const { return mMaxLine; }
 
     int max() const { return mMax; }
     void setMax(int max) { mMax = max; }
@@ -150,7 +149,7 @@ private:
     String mQuery, mContext;
     Type mType;
     unsigned mFlags;
-    int mMax, mMinOffset, mMaxOffset;
+    int mMax, mMinLine, mMaxLine;
     List<String> mPathFilters;
     List<String> mProjects;
 };

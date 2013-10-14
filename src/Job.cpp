@@ -26,8 +26,8 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 // static int active = 0;
 
 Job::Job(const QueryMessage &query, unsigned jobFlags, const std::shared_ptr<Project> &proj)
-    : mAborted(false), mMinOffset(query.minOffset()),
-      mMaxOffset(query.maxOffset()), mJobFlags(jobFlags), mQueryFlags(query.flags()), mProject(proj),
+    : mAborted(false), mMinLine(query.minLine()),
+      mMaxLine(query.maxLine()), mJobFlags(jobFlags), mQueryFlags(query.flags()), mProject(proj),
       mPathFilters(0), mPathFiltersRegExp(0), mMax(query.max()), mConnection(0),
       mContext(query.context())
 {
@@ -47,7 +47,7 @@ Job::Job(const QueryMessage &query, unsigned jobFlags, const std::shared_ptr<Pro
 }
 
 Job::Job(unsigned jobFlags, const std::shared_ptr<Project> &proj)
-    : mAborted(false), mMinOffset(-1), mMaxOffset(-1), mJobFlags(jobFlags), mQueryFlags(0), mProject(proj), mPathFilters(0),
+    : mAborted(false), mMinLine(-1), mMaxLine(-1), mJobFlags(jobFlags), mQueryFlags(0), mProject(proj), mPathFilters(0),
       mPathFiltersRegExp(0), mMax(-1), mConnection(0)
 {
 }
@@ -125,10 +125,10 @@ bool Job::write(const Location &location, unsigned flags)
 {
     if (location.isNull())
         return false;
-    if (mMinOffset != -1) {
-        assert(mMaxOffset != -1);
-        const int offset = location.offset();
-        if (offset < mMinOffset || offset > mMaxOffset) {
+    if (mMinLine != -1) {
+        assert(mMaxLine != -1);
+        const int line = location.line();
+        if (line < mMinLine || line > mMaxLine) {
             return false;
         }
     }
@@ -147,19 +147,20 @@ bool Job::write(const Location &location, unsigned flags)
             if (cursorKind)
                 out += '\t' + it->second.kindSpelling();
             if (containingFunction) {
-                const uint32_t fileId = location.fileId();
-                const int offset = location.offset();
-                while (true) {
-                    --it;
-                    if (it->first.fileId() != fileId)
-                        break;
-                    if (it->second.isDefinition() && RTags::isContainer(it->second.kind) && offset >= it->second.start && offset <= it->second.end) {
-                        out += "\tfunction: " + it->second.symbolName;
-                        break;
-                    } else if (it == symbols.begin()) {
-                        break;
-                    }
-                }
+#warning not done
+                // const uint32_t fileId = location.fileId();
+                // const int offset = location.offset();
+                // while (true) {
+                //     --it;
+                //     if (it->first.fileId() != fileId)
+                //         break;
+                //     if (it->second.isDefinition() && RTags::isContainer(it->second.kind) && offset >= it->second.start && offset <= it->second.end) {
+                //         out += "\tfunction: " + it->second.symbolName;
+                //         break;
+                //     } else if (it == symbols.begin()) {
+                //         break;
+                //     }
+                // }
             }
         }
     }

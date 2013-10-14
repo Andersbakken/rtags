@@ -81,17 +81,23 @@ bool ClangIndexer::index(IndexType type, const Path &project, uint32_t fileId,
     if (mData->type == Dirty)
         mData->message += " (dirty)";
     const IndexerMessage msg(mProject, mData);
+    // FILE *f = fopen("/tmp/clangindex.log", "a");
+    // fprintf(f, "Writing indexer message %d\n", mData->symbols.size());
+
     mConnection.send(msg);
     if (mConnection.pendingWrite()) {
         mConnection.sendFinished().connect(std::bind(&EventLoop::quit, EventLoop::eventLoop()));
         EventLoop::eventLoop()->exec();
     }
+    // fprintf(f, "Wrote indexer message %d\n", mData->symbols.size());
+    // fclose(f);
+
     // FILE *f = fopen((String("/tmp/") + sourceFile.fileName()).constData(), "w");
     // fclose(f);
     return ret;
 }
 
-Location ClangIndexer::createLocation(const Path &sourceFile, unsigned start, bool *blockedPtr)
+Location ClangIndexer::createLocation(const Path &sourceFile, unsigned line, unsigned col, bool *blockedPtr)
 {
     uint32_t id = Location::fileId(sourceFile);
     Path resolved;
@@ -108,7 +114,7 @@ Location ClangIndexer::createLocation(const Path &sourceFile, unsigned start, bo
             *blockedPtr = true;
             return Location();
         }
-        return Location(id, start);
+        return Location(id, line, col);
     }
 
     enum { Timeout = 1000 };
@@ -127,6 +133,9 @@ Location ClangIndexer::createLocation(const Path &sourceFile, unsigned start, bo
     EventLoop::eventLoop()->exec(Timeout);
     mCommunicationDuration += sw.elapsed();
     if (!id) {
+        // FILE *f = fopen("/tmp/clangindex.log", "a");
+        // fprintf(f, "About to exit didn't get id for %s\n", resolved.constData());
+        // fclose(f);
         error() << "Error getting fileId for" << resolved;
         exit(1);
     }
@@ -141,7 +150,7 @@ Location ClangIndexer::createLocation(const Path &sourceFile, unsigned start, bo
         *blockedPtr = true;
         return Location();
     }
-    return Location(id, start);
+    return Location(id, line, col);
 }
 
 String ClangIndexer::addNamePermutations(const CXCursor &cursor, const Location &location)
@@ -353,6 +362,12 @@ struct LastCursorUpdater
 
 CXChildVisitResult ClangIndexer::indexVisitor(CXCursor cursor, CXCursor parent, CXClientData data)
 {
+    // FILE *f = fopen("/tmp/clangindex.log", "a");
+    // String str;
+    // Log(&str) << cursor;
+    // fwrite(str.constData(), 1, str.size(), f);
+    // fwrite("\n", 1, 1, f);
+    // fclose(f);
     ClangIndexer *indexer = static_cast<ClangIndexer*>(data);
     const LastCursorUpdater updater(indexer->mLastCursor, cursor);
 
@@ -474,7 +489,8 @@ void ClangIndexer::superclassTemplateMemberFunctionUgleHack(const CXCursor &curs
                         const List<CXCursor> alternatives = RTags::children(classTemplate, in);
                         switch (alternatives.size()) {
                         case 1:
-                            handleReference(cursor, kind, Location(location.fileId(), offset + 1), alternatives.first(), parent);
+                            // ### not sure this is correct with line/col
+                            handleReference(cursor, kind, Location(location.fileId(), location.line(), location.column() + 1), alternatives.first(), parent);
                             break;
                         case 0:
                             break;
@@ -570,15 +586,24 @@ void ClangIndexer::handleReference(const CXCursor &cursor, CXCursorKind kind, co
     // if they're not considered references
 
     if (!RTags::isCursor(info.kind) && (!info.symbolLength || info.bestTarget(mData->symbols).kind == refKind)) {
-        CXSourceRange range = clang_getCursorExtent(cursor);
-        unsigned start, end;
-        clang_getSpellingLocation(clang_getRangeStart(range), 0, 0, 0, &start);
-        clang_getSpellingLocation(clang_getRangeEnd(range), 0, 0, 0, &end);
-        info.start = start;
-        info.end = end;
+#warning range not done
+        // CXSourceRange range = clang_getCursorExtent(cursor);
+        // unsigned start, end;
+        // clang_getSpellingLocation(clang_getRangeStart(range), 0, 0, 0, &start);
+        // clang_getSpellingLocation(clang_getRangeEnd(range), 0, 0, 0, &end);
+        // info.start = start;
+        // info.end = end;
         info.definition = false;
         info.kind = kind;
-        info.symbolLength = isOperator ? end - start : refInfo.symbolLength;
+        if (isOperator) {
+            CXSourceRange range = clang_getCursorExtent(cursor);
+            unsigned start, end;
+            clang_getSpellingLocation(clang_getRangeStart(range), 0, 0, 0, &start);
+            clang_getSpellingLocation(clang_getRangeEnd(range), 0, 0, 0, &end);
+            info.symbolLength = end - start;
+        } else {
+            info.symbolLength = refInfo.symbolLength;
+        }
         info.symbolName = refInfo.symbolName;
         info.type = clang_getCursorType(cursor).kind;
     }
@@ -622,7 +647,7 @@ void ClangIndexer::handleInclude(const CXCursor &cursor, CXCursorKind kind, cons
     (void)kind;
     CXFile includedFile = clang_getIncludedFile(cursor);
     if (includedFile) {
-        const Location refLoc = createLocation(includedFile, 0);
+        const Location refLoc = createLocation(includedFile, 1, 0);
         if (!refLoc.isNull()) {
             {
                 String include = "#include ";
@@ -769,6 +794,28 @@ String ClangIndexer::typeName(const CXCursor &cursor)
 
 bool ClangIndexer::handleCursor(const CXCursor &cursor, CXCursorKind kind, const Location &location)
 {
+    // FILE *f = fopen("/tmp/clangindex.log", "a");
+    // String str;
+    // Log(&str) << "handleCursor" << cursor << location;
+    // fwrite(str.constData(), 1, str.size(), f);
+    // fwrite("\n", 1, 1, f);
+
+    // String fisk;
+    // {
+    //     Serializer serializer(fisk);
+    //     serializer << location;
+    // }
+    // {
+    //     Deserializer deserializer(fisk);
+    //     Location fiskefisk;
+    //     deserializer >> fiskefisk;
+    //     error() << "foobar" << location.mData << "=>" << fiskefisk.mData;
+    //     error() << "foobar" << location.mFileId << "=>" << fiskefisk.mFileId;
+    //     error() << "foobar" << location.mLine << "=>" << fiskefisk.mLine;
+    //     error() << "foobar" << location.mColumn << "=>" << fiskefisk.mColumn;
+    // }
+    // fclose(f);
+
     // error() << "Got a cursor" << cursor;
     CursorInfo &info = mData->symbols[location];
     if (!info.symbolLength || !RTags::isCursor(info.kind)) {
@@ -811,12 +858,13 @@ bool ClangIndexer::handleCursor(const CXCursor &cursor, CXCursorKind kind, const
             info.symbolName = addNamePermutations(cursor, location);
         }
 
-        CXSourceRange range = clang_getCursorExtent(cursor);
-        unsigned start, end;
-        clang_getSpellingLocation(clang_getRangeStart(range), 0, 0, 0, &start);
-        clang_getSpellingLocation(clang_getRangeEnd(range), 0, 0, 0, &end);
-        info.start = start;
-        info.end = end;
+#warning range not done
+        // CXSourceRange range = clang_getCursorExtent(cursor);
+        // unsigned start, end;
+        // clang_getSpellingLocation(clang_getRangeStart(range), 0, 0, 0, &start);
+        // clang_getSpellingLocation(clang_getRangeEnd(range), 0, 0, 0, &end);
+        // info.start = start;
+        // info.end = end;
 
         if (kind == CXCursor_EnumConstantDecl) {
 #if CINDEX_VERSION_MINOR > 1
@@ -904,14 +952,13 @@ struct XmlEntry
 {
     enum Type { None, Warning, Error, Fixit };
 
-    XmlEntry(Type t = None, const String& m = String(), int l = 0, int c = 0, int eo = -1)
-        : type(t), message(m), line(l), column(c), endOffset(eo)
+    XmlEntry(Type t = None, const String &m = String())
+        : type(t), message(m)
     {
     }
 
     Type type;
     String message;
-    int line, column, endOffset;
 };
 
 static inline String xmlEscape(const String& xml)
@@ -952,6 +999,9 @@ static inline String xmlEscape(const String& xml)
 
 bool ClangIndexer::diagnose()
 {
+    return true;
+#warning not done
+#if 0
     if (!mUnit) {
         return false;
     } else if (mData->type == Dump) {
@@ -961,7 +1011,7 @@ bool ClangIndexer::diagnose()
     List<String> compilationErrors;
     const unsigned diagnosticCount = clang_getNumDiagnostics(mUnit);
 
-    Hash<uint32_t, Hash<int, XmlEntry> > xmlEntries;
+    Map<Location, XmlEntry> xmlEntries;
     const bool xmlEnabled = testLog(RTags::CompilationErrorXml);
 
     for (unsigned i=0; i<diagnosticCount; ++i) {
@@ -1003,31 +1053,29 @@ bool ClangIndexer::diagnose()
                     break;
                 }
                 if (type != XmlEntry::None) {
-                    const unsigned rangeCount = clang_getDiagnosticNumRanges(diagnostic);
-                    if (!rangeCount) {
-                        unsigned line, column;
-                        clang_getSpellingLocation(diagLoc, 0, &line, &column, 0);
+                    xmlEntries[loc] = XmlEntry(type, msg);
+                    // const unsigned rangeCount = clang_getDiagnosticNumRanges(diagnostic);
+                    // if (!rangeCount) {
+                    //     xmlEntries[loc] = XmlEntry(type, msg);
+                    // } else {
+                    //     for (unsigned rangePos = 0; rangePos < rangeCount; ++rangePos) {
+                    //         const CXSourceRange range = clang_getDiagnosticRange(diagnostic, rangePos);
+                    //         const CXSourceLocation start = clang_getRangeStart(range);
+                    //         const CXSourceLocation end = clang_getRangeEnd(range);
 
-                        xmlEntries[fileId][loc.offset()] = XmlEntry(type, msg, line, column);
-                    } else {
-                        for (unsigned rangePos = 0; rangePos < rangeCount; ++rangePos) {
-                            const CXSourceRange range = clang_getDiagnosticRange(diagnostic, rangePos);
-                            const CXSourceLocation start = clang_getRangeStart(range);
-                            const CXSourceLocation end = clang_getRangeEnd(range);
-
-                            unsigned line, column, startOffset, endOffset;
-                            clang_getSpellingLocation(start, 0, &line, &column, &startOffset);
-                            clang_getSpellingLocation(end, 0, 0, 0, &endOffset);
-                            if (!rangePos && !startOffset && !endOffset) {
-                                // huh, range invalid? fall back to diag location
-                                clang_getSpellingLocation(diagLoc, 0, &line, &column, 0);
-                                xmlEntries[fileId][loc.offset()] = XmlEntry(type, msg, line, column);
-                                break;
-                            } else {
-                                xmlEntries[fileId][startOffset] = XmlEntry(type, msg, line, column, endOffset);
-                            }
-                        }
-                    }
+                    //         unsigned line, column, startOffset, endOffset;
+                    //         clang_getSpellingLocation(start, 0, &line, &column, &startOffset);
+                    //         clang_getSpellingLocation(end, 0, 0, 0, &endOffset);
+                    //         if (!rangePos && !startOffset && !endOffset) {
+                    //             // huh, range invalid? fall back to diag location
+                    //             // clang_getSpellingLocation(diagLoc, 0, &line, &column, 0);
+                    //             xmlEntries[loc] = XmlEntry(type, msg);
+                    //             break;
+                    //         } else {
+                    //             xmlEntries[fileId][startOffset] = XmlEntry(type, msg, line, column, endOffset);
+                    //         }
+                    //     }
+                    // }
                 }
             }
             if (testLog(logLevel) || testLog(RTags::CompilationError)) {
@@ -1106,6 +1154,7 @@ bool ClangIndexer::diagnose()
     }
 
     mData->xmlDiagnostics += "</checkstyle>";
+#endif
     return true;
 }
 
@@ -1194,14 +1243,9 @@ CXChildVisitResult ClangIndexer::dumpVisitor(CXCursor cursor, CXCursor, CXClient
         CXCursor ref = clang_getCursorReferenced(cursor);
         String out;
         out.reserve(256);
-        int col = -1;
         if (dump->showContext) {
-            out.append(loc.context(&col));
-            if (col != -1) {
-                out.append(String::format<32>(" // %d, %d: ", col, dump->indentLevel));
-            } else {
-                out.append(String::format<32>(" // %d: ", dump->indentLevel));
-            }
+            out.append(loc.context());
+            out.append(String::format<32>(" // %d, %d: ", loc.column(), dump->indentLevel));
         } else {
             out.append(String(dump->indentLevel * 2, ' '));
         }
@@ -1223,7 +1267,7 @@ CXChildVisitResult ClangIndexer::dumpVisitor(CXCursor cursor, CXCursor, CXClient
 
 void ClangIndexer::addFileSymbol(uint32_t file)
 {
-    const Location loc(file, 0);
+    const Location loc(file, 1, 0);
     const Path path = Location::path(file);
     mData->symbolNames[path].insert(loc);
     const char *fn = path.fileName();
@@ -1237,7 +1281,7 @@ void ClangIndexer::inclusionVisitor(CXFile includedFile,
                                     CXClientData userData)
 {
     ClangIndexer *indexer = static_cast<ClangIndexer*>(userData);
-    const Location l = indexer->createLocation(includedFile, 0);
+    const Location l = indexer->createLocation(includedFile, 1, 0);
 
     const uint32_t fileId = l.fileId();
     if (!includeLen) {
@@ -1246,7 +1290,7 @@ void ClangIndexer::inclusionVisitor(CXFile includedFile,
         for (unsigned i=0; i<includeLen; ++i) {
             CXFile originatingFile;
             clang_getSpellingLocation(includeStack[i], &originatingFile, 0, 0, 0);
-            const Location loc = indexer->createLocation(originatingFile, 0);
+            const Location loc = indexer->createLocation(originatingFile, 1, 0);
             const uint32_t f = loc.fileId();
             if (f)
                 indexer->mData->dependencies[fileId].insert(f);

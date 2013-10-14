@@ -125,7 +125,7 @@ private:
     void cursorInfo(const QueryMessage &query, Connection *conn);
     void dependencies(const QueryMessage &query, Connection *conn);
     void fixIts(const QueryMessage &query, Connection *conn);
-    void JSON(const QueryMessage &query, Connection *conn);
+    // void JSON(const QueryMessage &query, Connection *conn);
     void jobCount(const QueryMessage &query, Connection *conn);
     void referencesForLocation(const QueryMessage &query, Connection *conn);
     void referencesForName(const QueryMessage &query, Connection *conn);

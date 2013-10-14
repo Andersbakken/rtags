@@ -17,6 +17,7 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 #include "CursorInfo.h"
 #include "RTagsClang.h"
 
+#warning start and end is not done
 const char *jsKindNames[] = {
     "JSInvalid",
     "JSDeclaration",
@@ -53,14 +54,14 @@ String CursorInfo::toString(unsigned cursorInfoFlags, unsigned keyFlags) const
                                       "Kind: %s\n"
                                       "%s" // type
                                       "SymbolLength: %u\n"
-                                      "%s" // range
+                                      // "%s" // range
                                       "%s" // enumValue
                                       "%s", // definition
                                       symbolName.constData(),
                                       kindSpelling().constData(),
                                       kind >= JSInvalid ? "" : String::format<32>("Type: %s\n", RTags::eatString(clang_getTypeKindSpelling(type)).constData()).constData(),
                                       symbolLength,
-                                      start != -1 && end != -1 ? String::format<32>("Range: %d-%d\n", start, end).constData() : "",
+                                      // start != -1 && end != -1 ? String::format<32>("Range: %d-%d\n", start, end).constData() : "",
 #if CINDEX_VERSION_MINOR > 1
                                       kind == CXCursor_EnumConstantDecl ? String::format<32>("Enum Value: %lld\n", enumValue).constData() :
 #endif
@@ -305,38 +306,40 @@ String CursorInfo::displayName() const
 
 bool CursorInfo::isValid(const Location &location) const
 {
-    const Path p = location.path();
-    bool ret = false;
-    FILE *f = fopen(p.constData(), "r");
-    if (f && fseek(f, location.offset(), SEEK_SET) != -1) {
-        const String display = displayName();
-        // int paren = symbolName.indexOf('(');
-        // int bracket = symbolName.indexOf('<');
-        // int end = symbolName.size();
-        // if (paren != -1) {
-        //     if (bracket != -1) {
-        //         end = std::min(paren, bracket);
-        //     } else {
-        //         end = paren;
-        //     }
-        // } else if (bracket != -1) {
-        //     end = bracket;
-        // }
-        // int start = end;
-        // while (start > 0 && RTags::isSymbol(symbolName.at(start - 1)))
-        //     --start;
+#warning not done
+    return true;
+    // const Path p = location.path();
+    // bool ret = false;
+    // FILE *f = fopen(p.constData(), "r");
+    // if (f && fseek(f, location.offset(), SEEK_SET) != -1) {
+    //     const String display = displayName();
+    //     // int paren = symbolName.indexOf('(');
+    //     // int bracket = symbolName.indexOf('<');
+    //     // int end = symbolName.size();
+    //     // if (paren != -1) {
+    //     //     if (bracket != -1) {
+    //     //         end = std::min(paren, bracket);
+    //     //     } else {
+    //     //         end = paren;
+    //     //     }
+    //     // } else if (bracket != -1) {
+    //     //     end = bracket;
+    //     // }
+    //     // int start = end;
+    //     // while (start > 0 && RTags::isSymbol(symbolName.at(start - 1)))
+    //     //     --start;
 
-        char buf[1024];
-        const int length = display.size();
-        if (length && length < static_cast<int>(sizeof(buf)) - 1 && fread(buf, std::min<int>(length, sizeof(buf) - 1), 1, f)) {
-            buf[length] = '\0';
-            ret = display == buf;
-            if (!ret) {
-                error("Different:\n[%s]\n[%s]", buf, display.constData());
-            }
-        }
-    }
-    if (f)
-        fclose(f);
-    return ret;
+    //     char buf[1024];
+    //     const int length = display.size();
+    //     if (length && length < static_cast<int>(sizeof(buf)) - 1 && fread(buf, std::min<int>(length, sizeof(buf) - 1), 1, f)) {
+    //         buf[length] = '\0';
+    //         ret = display == buf;
+    //         if (!ret) {
+    //             error("Different:\n[%s]\n[%s]", buf, display.constData());
+    //         }
+    //     }
+    // }
+    // if (f)
+    //     fclose(f);
+    // return ret;
 }

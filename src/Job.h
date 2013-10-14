@@ -78,7 +78,7 @@ private:
     mutable std::mutex mMutex;
     bool mAborted;
     bool writeRaw(const String &out, unsigned flags);
-    int mMinOffset, mMaxOffset;
+    int mMinLine, mMaxLine;
     unsigned mJobFlags;
     unsigned mQueryFlags;
     Signal<std::function<void(const String &)> > mOutput;
