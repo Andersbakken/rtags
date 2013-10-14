@@ -14,7 +14,7 @@
    along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 
 #define SINGLE_THREAD
-#include "GccArguments.h"
+#include "Source.h"
 #include "RTagsClang.h"
 #include "ClangIndexer.h"
 #include <rct/Log.h>

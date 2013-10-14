@@ -118,10 +118,13 @@ inline bool Source::Define::operator==(const Source::Define &other) const
 inline String Source::Define::toString() const
 {
     String ret;
-    ret.reserve(2 + define.size() + value.size());
+    ret.reserve(2 + define.size() + value.size() + 1);
     ret += "-D";
     ret += define;
-    ret += value;
+    if (!value.isEmpty()) {
+        ret += '=';
+        ret += value;
+    }
     return ret;
 }
 

@@ -107,8 +107,7 @@ bool Server::init(const Options &options)
         mOptions.defaultArguments.append("-nostdinc++");
     } else {
         Path clangPath = Path::resolved(CLANG_INCLUDEPATH);
-        clangPath.prepend("-I");
-        mOptions.defaultArguments.append(clangPath);
+        mOptions.includePaths.append(clangPath);
     }
 
     if (options.options & UnlimitedErrors)

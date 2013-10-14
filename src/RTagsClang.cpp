@@ -15,8 +15,7 @@
 
 #include "RTagsClang.h"
 #include "Server.h"
-#include "GccArguments.h"
-
+#include <rct/StopWatch.h>
 #include <iostream>
 
 #define __STDC_LIMIT_MACROS
@@ -327,6 +326,7 @@ static std::string toString(const Source::Define &def)
 
 String preprocess(const Source &source)
 {
+    StopWatch sw;
     clang::CompilerInstance compilerInstance;
     compilerInstance.createFileManager();
     assert(compilerInstance.hasFileManager());
@@ -362,7 +362,7 @@ String preprocess(const Source &source)
     List<Path> includePaths = source.includePaths;
     List<Source::Define> defines = source.defines;
 
-#warning need to get standard defines and include paths
+    const Server::Options &options = Server::instance()->options();
     clang::HeaderSearchOptions &headerSearchOptions = compilerInstance.getHeaderSearchOpts();
     {
         clang::driver::Driver driver("clang", llvm::sys::getDefaultTargetTriple(), "a.out", diags);
@@ -372,10 +372,13 @@ String preprocess(const Source &source)
         args.push_back(compiler.constData());
         args.push_back("-c");
         args.push_back(sourceFile.constData());
-        for (const Path &path : source.includePaths) {
+        for (const Path &path : source.includePaths)
             copies.push_back("-I" + path);
-        }
+        for (const Path &path : options.includePaths)
+            copies.push_back("-I" + path);
         for (const Source::Define &def : source.defines)
+            copies.push_back(def.toString());
+        for (const Source::Define &def : options.defines)
             copies.push_back(def.toString());
         for (const std::string &str : copies)
             args.push_back(str.c_str());
@@ -397,6 +400,11 @@ String preprocess(const Source &source)
         headerSearchOptions.AddPath(clang::StringRef(it->constData(), it->size()),
                                     clang::frontend::Angled, false, false);
     }
+    for (List<Path>::const_iterator it = options.includePaths.begin(); it != options.includePaths.end(); ++it) {
+        // error() << "Adding -I" << *it;
+        headerSearchOptions.AddPath(clang::StringRef(it->constData(), it->size()),
+                                    clang::frontend::System, false, false);
+    }
 
     compilerInstance.createPreprocessor();
     std::string predefines = compilerInstance.getPreprocessor().getPredefines();
@@ -405,7 +413,11 @@ String preprocess(const Source &source)
         predefines += '\n';
         // error() << "Got define" << it->define << it->value;
     }
-
+    for (List<Source::Define>::const_iterator it = options.defines.begin(); it != options.defines.end(); ++it) {
+        predefines += toString(*it);
+        predefines += '\n';
+        // error() << "Got define" << it->define << it->value;
+    }
 
     // error() << "predefines" << compilerInstance.getPreprocessor().getPredefines();
     compilerInstance.getPreprocessor().setPredefines(predefines);
@@ -416,13 +428,14 @@ String preprocess(const Source &source)
     compilerInstance.getDiagnosticClient().BeginSourceFile(compilerInstance.getLangOpts(), &compilerInstance.getPreprocessor());
 
     clang::DoPrintPreprocessedInput(compilerInstance.getPreprocessor(), &out, preprocessorOptions);
-    FILE *f = fopen("/tmp/preprocess.cpp", "w");
+    // FILE *f = fopen("/tmp/preprocess.cpp", "w");
     // fwrite(sourceFile.constData(), 1, sourceFile.size(), f);
 
-    const String str = out.take();
-    fwrite(str.constData(), 1, str.size(), f);
-    return str;
-    // return out.take();
+    // const String str = out.take();
+    // fwrite(str.constData(), 1, str.size(), f);
+    // return str;
+    warning() << "preprocessing" << sourceFile << "took" << sw.elapsed() << "ms";
+    return out.take();
 }
 
 static CXChildVisitResult findFirstChildVisitor(CXCursor cursor, CXCursor, CXClientData data)

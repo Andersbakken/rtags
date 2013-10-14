@@ -60,7 +60,6 @@ static void usage(FILE *f)
             "rdm [...options...]\n"
             "  --help|-h                                  Display this page.\n"
             "  --include-path|-I [arg]                    Add additional include path to clang.\n"
-            "  --include|-i [arg]                         Add additional include directive to clang.\n"
             "  --define|-D [arg]                          Add additional define directive to clang.\n"
             "  --log-file|-L [arg]                        Log to this file.\n"
             "  --append|-A                                Append to log file.\n"
@@ -107,7 +106,6 @@ int main(int argc, char** argv)
     struct option opts[] = {
         { "help", no_argument, 0, 'h' },
         { "include-path", required_argument, 0, 'I' },
-        { "include", required_argument, 0, 'i' },
         { "define", required_argument, 0, 'D' },
         { "log-file", required_argument, 0, 'L' },
         { "no-builtin-includes", no_argument, 0, 'U' },
@@ -354,15 +352,19 @@ int main(int argc, char** argv)
             }
             serverOpts.defaultArguments.append("-Wlarge-by-value-copy=" + String(optarg)); // ### not quite working
             break; }
-        case 'D':
-            serverOpts.defaultArguments.append("-D" + String(optarg));
-            break;
+        case 'D': {
+            const char *eq = strchr(optarg, '=');
+            Source::Define def;
+            if (!eq) {
+                def.define = optarg;
+            } else {
+                def.define = String(optarg, eq - optarg);
+                def.value = eq + 1;
+            }
+            serverOpts.defines.append(def);
+            break; }
         case 'I':
-            serverOpts.defaultArguments.append("-I" + String(optarg));
-            break;
-        case 'i':
-            serverOpts.defaultArguments.append("-include");
-            serverOpts.defaultArguments.append(optarg);
+            serverOpts.includePaths.append(Path::resolved(optarg));
             break;
         case 'A':
             logFlags |= Log::Append;

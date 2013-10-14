@@ -27,6 +27,7 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 #include "RTags.h"
 #include "ScanJob.h"
 #include "ProcessPool.h"
+#include "Source.h"
 #include "RTagsPluginFactory.h"
 #include <rct/Connection.h>
 #include <rct/FileSystemWatcher.h>
@@ -48,7 +49,6 @@ class JobOutput;
 class Project;
 class IndexerJob;
 class VisitFileMessage;
-class Source;
 class Server
 {
 public:
@@ -83,6 +83,8 @@ public:
         unsigned options;
         int processCount, completionCacheSize, unloadTimer, clearCompletionCacheInterval;
         List<String> defaultArguments, excludeFilters;
+        List<Path> includePaths;
+        List<Source::Define> defines;
         Set<Path> ignoredCompilers;
     };
     bool init(const Options &options);
