@@ -294,6 +294,35 @@ String preprocess(const GccArguments &args)
     return String();
 }
 
+static inline void processArgs(clang::HeaderSearchOptions &headerSearchOptions,
+                               const clang::driver::ArgStringList &args)
+{
+    enum Type {
+        Pending,
+        SystemInclude
+    } type = Pending;
+    for (const char *arg : args) {
+        switch (type) {
+        case Pending:
+            if (!strcmp(arg, "-internal-isystem") || !strcmp(arg, "-internal-externc-isystem")) {
+                type = SystemInclude;
+            } else if (!strncmp("-l", arg, 2)) {
+
+            } else {
+                error() << "Unknown arg type" << arg;
+            }
+            break;
+        case SystemInclude: {
+            const Path path = Path::resolved(arg);
+            error() << "Adding system include" << path;
+            headerSearchOptions.AddPath(clang::StringRef(path.constData(), path.size()), clang::frontend::System, false, false);
+            type = Pending;
+            break; }
+        }
+        printf("got clang cxx arg %s\n", arg);
+    }
+}
+
 String preprocess(const Path &sourceFile, const Path &compiler,
                   const List<Path> &includePaths, const List<GccArguments::Define> &defines)
 {
@@ -316,7 +345,7 @@ String preprocess(const Path &sourceFile, const Path &compiler,
     targetOptions.Triple = llvm::sys::getDefaultTargetTriple();
     clang::DiagnosticsEngine& diags = compilerInstance.getDiagnostics();
     compilerInstance.setTarget(clang::TargetInfo::CreateTargetInfo(diags, &targetOptions));
-
+    clang::HeaderSearchOptions &headerSearchOptions = compilerInstance.getHeaderSearchOpts();
     {
         clang::driver::Driver driver("clang", llvm::sys::getDefaultTargetTriple(), "a.out", diags);
         std::vector<std::string> copies; // not cool
@@ -341,16 +370,15 @@ String preprocess(const Path &sourceFile, const Path &compiler,
         const clang::driver::InputArgList inputArgs(&args[0], &args[0] + args.size());
         clang::driver::ArgStringList outputArgs;
         toolChain.AddClangCXXStdlibIncludeArgs(inputArgs, outputArgs);
+        processArgs(headerSearchOptions, outputArgs);
+        toolChain.AddClangSystemIncludeArgs(inputArgs, outputArgs);
+        processArgs(headerSearchOptions, outputArgs);
         toolChain.AddCXXStdlibLibArgs(inputArgs, outputArgs);
-
-        for (const char* out : outputArgs) {
-            printf("got clang cxx arg %s\n", out);
-        }
+        processArgs(headerSearchOptions, outputArgs);
     }
 
-    clang::HeaderSearchOptions &headerSearchOptions = compilerInstance.getHeaderSearchOpts();
     for (List<Path>::const_iterator it = includePaths.begin(); it != includePaths.end(); ++it) {
-        // error() << "Adding -I" << *it;
+        error() << "Adding -I" << *it;
         headerSearchOptions.AddPath(clang::StringRef(it->constData(), it->size()),
                                     clang::frontend::Angled, false, false);
     }
@@ -367,25 +395,25 @@ String preprocess(const Path &sourceFile, const Path &compiler,
         // error() << "Got define" << it->define << it->value;
     }
 
-    List<Path> systemIncludes;
-    List<GccArguments::Define> systemDefines;
-    CompilerManager::data(compiler, systemDefines, systemIncludes);
-    for (List<Path>::const_iterator it = systemIncludes.begin(); it != systemIncludes.end(); ++it) {
-        headerSearchOptions.AddPath(clang::StringRef(it->constData(), it->size()),
-                                    clang::frontend::System, false, false);
-        // error() << "Adding system path" << *it;
-    }
+    // List<Path> systemIncludes;
+    // List<GccArguments::Define> systemDefines;
+    // CompilerManager::data(compiler, systemDefines, systemIncludes);
+    // for (List<Path>::const_iterator it = systemIncludes.begin(); it != systemIncludes.end(); ++it) {
+    //     headerSearchOptions.AddPath(clang::StringRef(it->constData(), it->size()),
+    //                                 clang::frontend::System, false, false);
+    //     error() << "Adding system path" << *it;
+    // }
 
-    for (List<GccArguments::Define>::const_iterator it = systemDefines.begin(); it != systemDefines.end(); ++it) {
-        predefines += "#define ";
-        predefines += it->define;
-        if (!it->value.isEmpty()) {
-            predefines += ' ';
-            predefines += it->value;
-        }
-        predefines += '\n';
-        // error() << "Got define" << it->define << it->value;
-    }
+    // for (List<GccArguments::Define>::const_iterator it = systemDefines.begin(); it != systemDefines.end(); ++it) {
+    //     predefines += "#define ";
+    //     predefines += it->define;
+    //     if (!it->value.isEmpty()) {
+    //         predefines += ' ';
+    //         predefines += it->value;
+    //     }
+    //     predefines += '\n';
+    //     // error() << "Got define" << it->define << it->value;
+    // }
 
     compilerInstance.createPreprocessor();
     compilerInstance.getPreprocessor().setPredefines(predefines);
@@ -396,6 +424,12 @@ String preprocess(const Path &sourceFile, const Path &compiler,
     compilerInstance.getDiagnosticClient().BeginSourceFile(compilerInstance.getLangOpts(), &compilerInstance.getPreprocessor());
 
     clang::DoPrintPreprocessedInput(compilerInstance.getPreprocessor(), &out, preprocessorOptions);
+    FILE *f = fopen("/tmp/preprocess.cpp", "w");
+    fwrite(sourceFile.constData(), 1, sourceFile.size(), f);
+
+    // const String str = out.take();
+    // fwrite(str.constData(), 1, str.size(), f);
+    // return str;
     return out.take();
 }
 
