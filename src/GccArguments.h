@@ -26,7 +26,18 @@ class SourceInformation;
 class GccArguments
 {
 public:
-    enum Language { NoLanguage, C, CPlusPlus };
+    enum Language {
+        NoLanguage,
+        C,
+        CPlusPlus,
+        CPlusPlus11,
+        CHeader,
+        CPlusPlusHeader,
+        CPlusPlus11Header
+    };
+
+    static Language guessLanguageFromCompiler(const Path &compiler);
+    static Language guessLanguageFromSourceFile(const Path &sourceFile);
 
     GccArguments();
 

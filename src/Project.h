@@ -115,7 +115,9 @@ public:
     bool isIndexed(uint32_t fileId) const;
 
     // void dump(const QueryMessage &query, Connection *conn);
-    bool index(const Path &sourceFile, const Path &compiler = Path(), const List<String> &args = List<String>());
+    bool index(const Path &sourceFile, const Path &compiler = Path(),
+               GccArguments::Language language = GccArguments::NoLanguage,
+               const List<String> &args = List<String>());
     SourceInformationMap sourceInfos() const;
     SourceInformation sourceInfo(uint32_t fileId) const;
     enum DependencyMode {
@@ -155,7 +157,17 @@ private:
     const Path mPath;
     State mState;
 
-    Hash<Path, std::pair<Path, List<String> > > mPendingCompiles;
+    struct PendingCompile
+    {
+        PendingCompile()
+            : language(GccArguments::NoLanguage)
+        {}
+
+        Path compiler;
+        List<String> arguments;
+        GccArguments::Language language;
+    };
+    Hash<Path, PendingCompile> mPendingCompiles;
 
     SymbolMap mSymbols;
     ErrorSymbolMap mErrorSymbols;

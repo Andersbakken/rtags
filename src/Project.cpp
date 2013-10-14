@@ -199,14 +199,14 @@ end:
 
 void Project::startPendingJobs() // lock always held
 {
-    Hash<Path, std::pair<Path, List<String> > > pendingCompiles;
+    Hash<Path, PendingCompile> pendingCompiles;
     {
         std::lock_guard<std::mutex> lock(mMutex);
         mState = Loaded;
         pendingCompiles = std::move(mPendingCompiles);
     }
-    for (Hash<Path, std::pair<Path, List<String> > >::const_iterator it = pendingCompiles.begin(); it != pendingCompiles.end(); ++it) {
-        index(it->first, it->second.first, it->second.second);
+    for (Hash<Path, PendingCompile>::const_iterator it = pendingCompiles.begin(); it != pendingCompiles.end(); ++it) {
+        index(it->first, it->second.compiler, it->second.language, it->second.arguments);
     }
 }
 
@@ -401,7 +401,7 @@ void Project::index(const SourceInformation &c, IndexType type)
     job->start();
 }
 
-bool Project::index(const Path &sourceFile, const Path &compiler, const List<String> &args)
+bool Project::index(const Path &sourceFile, const Path &compiler, GccArguments::Language language, const List<String> &args)
 {
     {
         std::lock_guard<std::mutex> lock(mMutex);
@@ -409,9 +409,12 @@ bool Project::index(const Path &sourceFile, const Path &compiler, const List<Str
         case Unloaded:
             return false;
         case Inited:
-        case Loading:
-            mPendingCompiles[sourceFile] = std::make_pair(compiler, args);
-            return true;
+        case Loading: {
+            PendingCompile &pending = mPendingCompiles[sourceFile];
+            pending.compiler = compiler;
+            pending.arguments = args;
+            pending.language = language;
+            return true; }
         case Loaded:
             break;
         }
@@ -419,8 +422,9 @@ bool Project::index(const Path &sourceFile, const Path &compiler, const List<Str
 
     uint32_t fileId = Location::insertFile(sourceFile);
     SourceInformation sourceInformation = sourceInfo(fileId);
-    const bool js = args.isEmpty() && sourceFile.endsWith(".js");
+    const bool js = args.isEmpty() && sourceFile.endsWith(".js") && language == GccArguments::NoLanguage;
     if (sourceInformation.isNull()) {
+        sourceInformation.language = language;
         sourceInformation.fileId = fileId;
         sourceInformation.args = args;
         sourceInformation.compiler = compiler;

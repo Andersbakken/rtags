@@ -99,30 +99,75 @@ Process *IndexerJobClang::startProcess()
     const Server::Options &options = Server::instance()->options();
 
     const List<String> *argPtrs[] = { &sourceInformation.args, &options.defaultArguments };
+    String lang;
     for (int i=0; i<2; ++i) {
         const List<String> &args = *argPtrs[i];
+        enum Mode {
+            Pending,
+            ExpectingLanguage,
+            ExpectingIncludePath
+        } mode = Pending;
         for (List<String>::const_iterator it = args.begin(); it != args.end(); ++it) {
-            if (it->startsWith("-D")) {
-                const int eq = it->indexOf('=');
-                defines.append(GccArguments::Define());
-                GccArguments::Define &def = defines.last();
-                if (eq == -1) {
-                    def.define = it->mid(2);
-                } else {
-                    def.define = it->mid(2, eq - 2);
-                    def.value  = it->mid(eq + 1);
-                }
-            } else if (it->startsWith("-I")) {
-                includePaths.append(it->mid(2));
-            } else {
+            switch (mode) {
+            case ExpectingLanguage:
+                lang = *it;
                 other.append(*it);
+                mode = Pending;
+                break;
+            case ExpectingIncludePath:
+                includePaths.append(*it);
+                mode = Pending;
+                break;
+            case Pending:
+                if (it->startsWith("-D")) {
+                    const int eq = it->indexOf('=');
+                    defines.append(GccArguments::Define());
+                    GccArguments::Define &def = defines.last();
+                    if (eq == -1) {
+                        def.define = it->mid(2);
+                    } else {
+                        def.define = it->mid(2, eq - 2);
+                        def.value  = it->mid(eq + 1);
+                    }
+                } else if (it->startsWith("-I")) {
+                    if (it->size() == 2) {
+                        mode = ExpectingIncludePath;
+                    } else {
+                        includePaths.append(it->mid(2));
+                    }
+                } else {
+                    if (*it == "-x") {
+                        mode = ExpectingLanguage;
+                    } else if (it->startsWith("-x=")) {
+                        lang = it->mid(3);
+                    }
+                    other.append(*it);
+                }
             }
         }
     }
-
+    GccArguments::Language language = GccArguments::NoLanguage;
+    if (!lang.isEmpty()) {
+        if (lang == "c++") {
+            language = GccArguments::CPlusPlus;
+        } else if (lang == "c") {
+            language = GccArguments::C;
+        }
+    }
     const Path sourceFile = sourceInformation.sourceFile();
+    if (language == GccArguments::NoLanguage)
+        language = GccArguments::guessLanguageFromSourceFile(sourceFile);
+    if (language == GccArguments::NoLanguage)
+        language = GccArguments::guessLanguageFromCompiler(sourceInformation.compiler);
+
+    if (language == GccArguments::NoLanguage) {
+        error() << "Couldn't detect language for" << sourceFile;
+        return 0;
+    }
+
+    error() << "Going with" << (language == GccArguments::CPlusPlus) << "for" << sourceFile;
     const String preprocessed = RTags::preprocess(sourceFile, sourceInformation.compiler,
-                                                  includePaths, defines);
+                                                  language, includePaths, defines);
     if (preprocessed.isEmpty()) {
         error() << "Couldn't preprocess" << sourceFile;
         return 0;

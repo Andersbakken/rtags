@@ -35,7 +35,7 @@ void GccArguments::clear()
     mLanguage = NoLanguage;
 }
 
-static inline GccArguments::Language guessLang(const Path &fullPath)
+GccArguments::Language GccArguments::guessLanguageFromCompiler(const Path &fullPath)
 {
     String compiler = fullPath.fileName();
     String c;
@@ -60,7 +60,7 @@ static inline GccArguments::Language guessLang(const Path &fullPath)
             }
         }
 #ifdef OS_CYGWIN
-cont:
+  cont:
 #endif
         if (isVersion) {
             dash = compiler.lastIndexOf('-', dash - 1);
@@ -79,6 +79,23 @@ cont:
         lang = GccArguments::C;
     }
     return lang;
+}
+
+GccArguments::Language GccArguments::guessLanguageFromSourceFile(const Path &sourceFile)
+{
+    const char *suffix = sourceFile.extension();
+    if (suffix) {
+        if (!strcasecmp(suffix, "cpp")) {
+            return CPlusPlus;
+        } else if (!strcasecmp(suffix, "cc")) {
+            return CPlusPlus;
+        } else if (!strcmp(suffix, "C")) {
+            return CPlusPlus;
+        } else if (!strcmp(suffix, "c")) {
+            return C;
+        }
+    }
+    return NoLanguage;
 }
 
 static inline void eatAutoTools(List<String> &args)
@@ -182,11 +199,7 @@ bool GccArguments::parse(List<String> split, const Path &base)
         split.removeAt(0);
     }
 
-    mLanguage = guessLang(split.front());
-    if (mLanguage == NoLanguage) {
-        clear();
-        return false;
-    }
+    mLanguage = guessLanguageFromCompiler(split.front());
 
     const int s = split.size();
     bool seenCompiler = false;
@@ -198,15 +211,19 @@ bool GccArguments::parse(List<String> split, const Path &base)
         if ((arg.startsWith('\'') && arg.endsWith('\'')) ||
             (arg.startsWith('"') && arg.endsWith('"')))
             arg = arg.mid(1, arg.size() - 2);
+        // ### is this even right?
         if (arg.startsWith('-')) {
-            if (arg.startsWith("-x")) {
-                String a;
-                if (arg.size() == 2) {
-                    a = split.value(++i);
+            if (arg == "-x") {
+                const String a = split.value(++i);
+                if (a == "c-header") {
+                    mLanguage = CHeader;
+                } else if (a == "c++-header") {
+                    mLanguage = CPlusPlusHeader;
+                } else if (a == "c") {
+                    mLanguage = C;
+                } else if (a == "c++") {
+                    mLanguage = CPlusPlus;
                 } else {
-                    a = arg.mid(2);
-                }
-                if (a == "c-header" || a == "c++-header") {
                     return false;
                 }
                 mClangArgs.append("-x");
@@ -241,11 +258,19 @@ bool GccArguments::parse(List<String> split, const Path &base)
                 mIncludePaths.append(inc);
                 if (ok)
                     mClangArgs.append("-I" + inc);
-            } else if (arg.startsWith("-std") || arg == "-m32") {
+            } else if (arg == "-m32") {
                 mClangArgs.append(arg);
+            } else if (arg.startsWith("-std=")) {
+                mClangArgs.append(arg);
+                if (arg == "-std=c++0x" || arg == "-std=c++11" || arg == "-std=gnu++0x" || arg == "-std=gnu++11") {
+                    if (mLanguage == CPlusPlusHeader) {
+                        mLanguage = CPlusPlus11Header;
+                    } else {
+                        mLanguage = CPlusPlus11;
+                    }
+                }
             } else if (arg.startsWith("-include")) {
                 mClangArgs.append(arg);
-                Path file;
                 if (arg.size() == 8) {
                     mClangArgs.append(split.value(++i));
                 }
@@ -281,6 +306,8 @@ bool GccArguments::parse(List<String> split, const Path &base)
             } else {
                 Path input = Path::resolved(arg, Path::MakeAbsolute, path);
                 if (input.isSource()) {
+                    if (mLanguage == NoLanguage)
+                        mLanguage = guessLanguageFromSourceFile(input);
                     mUnresolvedInputFiles.append(input);
                     input.resolve(Path::RealPath);
                     mInputFiles.append(input);

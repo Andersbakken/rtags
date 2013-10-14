@@ -65,6 +65,7 @@ void reparseTranslationUnit(CXTranslationUnit &unit, CXUnsavedFile *unsaved, int
 String preprocess(const GccArguments &gccArgs);
 String preprocess(const Path &sourceFile,
                   const Path &compiler,
+                  GccArguments::Language language,
                   const List<Path> &includePaths,
                   const List<GccArguments::Define> &defines);
 

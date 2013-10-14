@@ -19,16 +19,18 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 #include <rct/List.h>
 #include <rct/String.h>
 #include <rct/Path.h>
+#include "GccArguments.h"
 
 class SourceInformation
 {
 public:
     SourceInformation()
-        : fileId(0), parsed(0)
+        : fileId(0), language(GccArguments::NoLanguage), parsed(0)
     {}
 
     uint32_t fileId;
     Path compiler;
+    GccArguments::Language language;
     List<String> args;
     time_t parsed;
 
@@ -76,14 +78,16 @@ static inline Log operator<<(Log dbg, const SourceInformation &s)
 
 template <> inline Serializer &operator<<(Serializer &s, const SourceInformation &t)
 {
-    s << t.fileId << t.parsed << t.compiler << t.args;
+    s << t.fileId << static_cast<uint8_t>(t.language) << t.parsed << t.compiler << t.args;
     return s;
 }
 
 template <> inline Deserializer &operator>>(Deserializer &s, SourceInformation &t)
 {
     t.clear();
-    s >> t.fileId >> t.parsed >> t.compiler >> t.args;
+    uint8_t lang;
+    s >> t.fileId >> lang >> t.parsed >> t.compiler >> t.args;
+    t.language = static_cast<GccArguments::Language>(lang);
     return s;
 }
 

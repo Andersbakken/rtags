@@ -52,7 +52,7 @@ class VisitFileMessage;
 class Server
 {
 public:
-    enum { DatabaseVersion = 28 };
+    enum { DatabaseVersion = 29 };
 
     Server();
     ~Server();
@@ -91,7 +91,6 @@ public:
     bool saveFileIds() const;
     RTagsPluginFactory &factory() { return mPluginFactory; }
     void onJobOutput(JobOutput&& out);
-    CXIndex clangIndex() const { return mIndex; }
 private:
     bool selectProject(const Match &match, Connection *conn, unsigned int queryFlags);
     bool updateProject(const List<String> &projects, unsigned int queryFlags);
@@ -191,8 +190,6 @@ private:
     uint32_t mCurrentFileId;
 
     mutable std::mutex mMutex;
-
-    CXIndex mIndex;
 };
 
 #endif

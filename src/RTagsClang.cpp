@@ -289,7 +289,7 @@ String preprocess(const GccArguments &args)
 {
     const List<Path> inputs = args.inputFiles();
     if (!inputs.isEmpty()) {
-        return preprocess(inputs.first(), args.compiler(), args.includePaths(), args.defines());
+        return preprocess(inputs.first(), args.compiler(), args.language(), args.includePaths(), args.defines());
     }
     return String();
 }
@@ -319,11 +319,11 @@ static inline void processArgs(clang::HeaderSearchOptions &headerSearchOptions,
             type = Pending;
             break; }
         }
-        printf("got clang cxx arg %s\n", arg);
+        // printf("got clang cxx arg %s\n", arg);
     }
 }
 
-String preprocess(const Path &sourceFile, const Path &compiler,
+String preprocess(const Path &sourceFile, const Path &compiler, GccArguments::Language language,
                   const List<Path> &includePaths, const List<GccArguments::Define> &defines)
 {
     clang::CompilerInstance compilerInstance;
@@ -345,6 +345,18 @@ String preprocess(const Path &sourceFile, const Path &compiler,
     targetOptions.Triple = llvm::sys::getDefaultTargetTriple();
     clang::DiagnosticsEngine& diags = compilerInstance.getDiagnostics();
     compilerInstance.setTarget(clang::TargetInfo::CreateTargetInfo(diags, &targetOptions));
+    clang::LangOptions &langOpts = compilerInstance.getLangOpts();
+    switch (language) {
+    case GccArguments::CPlusPlus11:
+        langOpts.CPlusPlus11 = true;
+        langOpts.CPlusPlus = true;
+        break;
+    case GccArguments::CPlusPlus:
+        langOpts.CPlusPlus = true;
+        break;
+    default:
+        break;
+    }
     clang::HeaderSearchOptions &headerSearchOptions = compilerInstance.getHeaderSearchOpts();
     {
         clang::driver::Driver driver("clang", llvm::sys::getDefaultTargetTriple(), "a.out", diags);
@@ -383,18 +395,6 @@ String preprocess(const Path &sourceFile, const Path &compiler,
                                     clang::frontend::Angled, false, false);
     }
 
-    std::string predefines;
-    for (List<GccArguments::Define>::const_iterator it = defines.begin(); it != defines.end(); ++it) {
-        predefines += "#define ";
-        predefines += it->define;
-        if (!it->value.isEmpty()) {
-            predefines += ' ';
-            predefines += it->value;
-        }
-        predefines += '\n';
-        // error() << "Got define" << it->define << it->value;
-    }
-
     // List<Path> systemIncludes;
     // List<GccArguments::Define> systemDefines;
     // CompilerManager::data(compiler, systemDefines, systemIncludes);
@@ -416,6 +416,20 @@ String preprocess(const Path &sourceFile, const Path &compiler,
     // }
 
     compilerInstance.createPreprocessor();
+    std::string predefines = compilerInstance.getPreprocessor().getPredefines();
+    for (List<GccArguments::Define>::const_iterator it = defines.begin(); it != defines.end(); ++it) {
+        predefines += "#define ";
+        predefines += it->define;
+        if (!it->value.isEmpty()) {
+            predefines += ' ';
+            predefines += it->value;
+        }
+        predefines += '\n';
+        // error() << "Got define" << it->define << it->value;
+    }
+
+
+    // error() << "predefines" << compilerInstance.getPreprocessor().getPredefines();
     compilerInstance.getPreprocessor().setPredefines(predefines);
     StringOStream out;
     clang::PreprocessorOutputOptions preprocessorOptions;
@@ -425,12 +439,12 @@ String preprocess(const Path &sourceFile, const Path &compiler,
 
     clang::DoPrintPreprocessedInput(compilerInstance.getPreprocessor(), &out, preprocessorOptions);
     FILE *f = fopen("/tmp/preprocess.cpp", "w");
-    fwrite(sourceFile.constData(), 1, sourceFile.size(), f);
+    // fwrite(sourceFile.constData(), 1, sourceFile.size(), f);
 
-    // const String str = out.take();
-    // fwrite(str.constData(), 1, str.size(), f);
-    // return str;
-    return out.take();
+    const String str = out.take();
+    fwrite(str.constData(), 1, str.size(), f);
+    return str;
+    // return out.take();
 }
 
 static CXChildVisitResult findFirstChildVisitor(CXCursor cursor, CXCursor, CXClientData data)

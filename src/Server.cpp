@@ -66,7 +66,6 @@ Server::Server()
 
     mUnloadTimer.timeout().connect(std::bind(&Server::onUnload, this));
     mClearCompletionCacheTimer.timeout().connect(std::bind(&Server::clearCompletionCache, this));
-    mIndex = clang_createIndex(0, 1);
 }
 
 Server::~Server()
@@ -75,7 +74,6 @@ Server::~Server()
     assert(sInstance == this);
     sInstance = 0;
     Messages::cleanup();
-    clang_disposeIndex(mIndex);
 }
 
 void Server::clear()
@@ -337,8 +335,17 @@ void Server::handleCompileMessage(const CompileMessage &message, Connection *con
         }
     } else {
         GccArguments args;
-        if (args.parse(arguments, workingDirectory))
-            index(args, projects);
+        if (args.parse(arguments, workingDirectory)) {
+            switch (args.language()) {
+            case GccArguments::C:
+            case GccArguments::CPlusPlus:
+            case GccArguments::CPlusPlus11:
+                index(args, projects);
+                break;
+            default:
+                break;
+            }
+        }
     }
 }
 
@@ -924,7 +931,7 @@ void Server::index(const GccArguments &args, const List<String> &projects)
         const List<String> arguments = args.clangArgs();
 
         for (int i=0; i<count; ++i) {
-            project->index(inputFiles.at(i), args.compiler(), arguments);
+            project->index(inputFiles.at(i), args.compiler(), args.language(), arguments);
         }
     }
 }
