@@ -21,7 +21,9 @@ else ()
   find_package(YAJL)
 endif ()
 
-find_package(V8)
+if (RTAGS_BUILD_ESPRIMA)
+  find_package(V8)
+endif()
 
 add_subdirectory(rct)
 
