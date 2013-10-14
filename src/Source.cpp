@@ -1,41 +1,66 @@
-/* This file is part of RTags.
+#include "Source.h"
+#include "Location.h"
 
-RTags is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
-
-RTags is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
-
-#include "GccArguments.h"
-#include <rct/Log.h>
-#include "RTags.h"
-#include <rct/Process.h>
-#include "Server.h"
-#include "SourceInformation.h"
-
-GccArguments::GccArguments()
-    : mLanguage(NoLanguage)
+void Source::clear()
 {
+    fileId = compilerId = 0;
+    language = NoLanguage;
+    parsed = 0;
+
+    defines.clear();
+    includePaths.clear();
+    arguments.clear();
 }
 
-void GccArguments::clear()
+Path Source::sourceFile() const
 {
-    mClangArgs.clear();
-    mInputFiles.clear();
-    mUnresolvedInputFiles.clear();
-    mBase.clear();
-    mCompiler.clear();
-    mLanguage = NoLanguage;
+    return Location::path(fileId);
 }
 
-GccArguments::Language GccArguments::guessLanguageFromCompiler(const Path &fullPath)
+Path Source::compiler() const
+{
+    return Location::path(compilerId);
+}
+
+bool Source::compare(const Source &other) const // ignores parsed
+{
+    return (fileId == other.fileId
+            && compilerId == other.compilerId
+            && language == other.language
+            && defines == other.defines
+            && includePaths == other.includePaths
+            && arguments == other.arguments);
+}
+
+List<String> Source::toCommandLine(unsigned int mode) const
+{
+    int count = arguments.size() + defines.size() + includePaths.size();
+    if (mode & IncludeCompiler)
+        ++count;
+    if (mode & IncludeSourceFile)
+        ++count;
+    List<String> ret;
+    ret.reserve(count);
+    if (mode & IncludeCompiler)
+        ret.append(compiler());
+    for (List<Define>::const_iterator it = defines.begin(); it != defines.end(); ++it)
+        ret += it->toString();
+    for (List<Path>::const_iterator it = includePaths.begin(); it != includePaths.end(); ++it)
+        ret += ("-I" + *it);
+
+    return ret;
+}
+
+String Source::toString() const
+{
+    String ret = String::join(toCommandLine(IncludeCompiler|IncludeSourceFile), ' ');
+    if (parsed) {
+        ret += " Parsed: " + String::formatTime(parsed, String::DateTime);
+    }
+    return ret;
+}
+
+static inline Source::Language guessLanguageFromCompiler(const Path &fullPath)
 {
     String compiler = fullPath.fileName();
     String c;
@@ -72,30 +97,30 @@ GccArguments::Language GccArguments::guessLanguageFromCompiler(const Path &fullP
         }
     }
 
-    GccArguments::Language lang = GccArguments::NoLanguage;
+    Source::Language lang = Source::NoLanguage;
     if (c.startsWith("g++") || c.startsWith("c++") || c.startsWith("clang++")) {
-        lang = GccArguments::CPlusPlus;
+        lang = Source::CPlusPlus;
     } else if (c.startsWith("gcc") || c.startsWith("cc") || c.startsWith("clang")) {
-        lang = GccArguments::C;
+        lang = Source::C;
     }
     return lang;
 }
 
-GccArguments::Language GccArguments::guessLanguageFromSourceFile(const Path &sourceFile)
+static inline Source::Language guessLanguageFromSourceFile(const Path &sourceFile)
 {
     const char *suffix = sourceFile.extension();
     if (suffix) {
         if (!strcasecmp(suffix, "cpp")) {
-            return CPlusPlus;
+            return Source::CPlusPlus;
         } else if (!strcasecmp(suffix, "cc")) {
-            return CPlusPlus;
+            return Source::CPlusPlus;
         } else if (!strcmp(suffix, "C")) {
-            return CPlusPlus;
+            return Source::CPlusPlus;
         } else if (!strcmp(suffix, "c")) {
-            return C;
+            return Source::C;
         }
     }
-    return NoLanguage;
+    return Source::NoLanguage;
 }
 
 static inline void eatAutoTools(List<String> &args)
@@ -128,11 +153,11 @@ static inline String trim(const char *start, int size)
     return String(start, size);
 }
 
-bool GccArguments::parse(String args, const Path &base)
+Source Source::parse(const String &cmdLine, const Path &base, Path *unresolvedInputLocation)
 {
+    String args = cmdLine;
     char quote = '\0';
     List<String> split;
-    String old2 = args;
     {
         char *cur = args.data();
         char *prev = cur;
@@ -163,22 +188,12 @@ bool GccArguments::parse(String args, const Path &base)
         if (cur > prev)
             split.append(trim(prev, cur - prev));
     }
-    debug() << "GccArguments::parse (" << args << ") => " << split;
-    return parse(split, base);
-}
-
-bool GccArguments::parse(List<String> split, const Path &base)
-{
-    mLanguage = NoLanguage;
-    mClangArgs.clear();
-    mInputFiles.clear();
-    mBase = base;
+    debug() << "Source::parse (" << args << ") => " << split;
 
     eatAutoTools(split);
 
     if (split.isEmpty()) {
-        clear();
-        return false;
+        return Source();
     }
 
     Path path;
@@ -189,17 +204,18 @@ bool GccArguments::parse(List<String> split, const Path &base)
         path = base;
     }
     if (split.isEmpty()) {
-        return false;
+        return Source();
     }
 
     if (split.first().endsWith("rtags-gcc-prefix.sh")) {
         if (split.size() == 1) {
-            return false;
+            return Source();
         }
         split.removeAt(0);
     }
 
-    mLanguage = guessLanguageFromCompiler(split.front());
+    Source ret;
+    ret.language = guessLanguageFromCompiler(split.front());
 
     const int s = split.size();
     bool seenCompiler = false;
@@ -216,18 +232,18 @@ bool GccArguments::parse(List<String> split, const Path &base)
             if (arg == "-x") {
                 const String a = split.value(++i);
                 if (a == "c-header") {
-                    mLanguage = CHeader;
+                    ret.language = CHeader;
                 } else if (a == "c++-header") {
-                    mLanguage = CPlusPlusHeader;
+                    ret.language = CPlusPlusHeader;
                 } else if (a == "c") {
-                    mLanguage = C;
+                    ret.language = C;
                 } else if (a == "c++") {
-                    mLanguage = CPlusPlus;
+                    ret.language = CPlusPlus;
                 } else {
-                    return false;
+                    return Source();
                 }
-                mClangArgs.append("-x");
-                mClangArgs.append(a);
+                ret.arguments.append("-x");
+                ret.arguments.append(a);
             } else if (arg.startsWith("-D")) {
                 Define define;
                 String def, a;
@@ -245,8 +261,8 @@ bool GccArguments::parse(List<String> split, const Path &base)
                     define.define = def.left(eq);
                     define.value = def.mid(eq + 1);
                 }
-                mDefines.append(define);
-                mClangArgs.append(a);
+                ret.defines.append(define);
+                // ret.arguments.append(a);
             } else if (arg.startsWith("-I")) {
                 Path inc;
                 bool ok = false;
@@ -255,24 +271,25 @@ bool GccArguments::parse(List<String> split, const Path &base)
                 } else {
                     inc = Path::resolved(split.value(++i), Path::RealPath, path, &ok);
                 }
-                mIncludePaths.append(inc);
-                if (ok)
-                    mClangArgs.append("-I" + inc);
+                ret.includePaths.append(inc);
+                // if (ok)
+                //     ret.arguments.append("-I" + inc);
             } else if (arg == "-m32") {
-                mClangArgs.append(arg);
+                ret.arguments.append(arg);
             } else if (arg.startsWith("-std=")) {
-                mClangArgs.append(arg);
+                ret.arguments.append(arg);
+                // error() << "Got std" << arg;
                 if (arg == "-std=c++0x" || arg == "-std=c++11" || arg == "-std=gnu++0x" || arg == "-std=gnu++11") {
-                    if (mLanguage == CPlusPlusHeader) {
-                        mLanguage = CPlusPlus11Header;
+                    if (ret.language == CPlusPlusHeader) {
+                        ret.language = CPlusPlus11Header;
                     } else {
-                        mLanguage = CPlusPlus11;
+                        ret.language = CPlusPlus11;
                     }
                 }
             } else if (arg.startsWith("-include")) {
-                mClangArgs.append(arg);
+                ret.arguments.append(arg);
                 if (arg.size() == 8) {
-                    mClangArgs.append(split.value(++i));
+                    ret.arguments.append(split.value(++i));
                 }
             } else if (arg.startsWith("-isystem") || arg.startsWith("-iquote")) {
                 const int from = (arg[2] == 'q' ? 7 : 8);
@@ -290,48 +307,39 @@ bool GccArguments::parse(List<String> split, const Path &base)
                         inc = split.at(i);
                 }
                 // ### need to add to includepaths
-                mClangArgs.append(arg.left(from));
-                mClangArgs.append(inc);
+                ret.arguments.append(arg.left(from));
+                ret.arguments.append(inc);
             } else if (arg.startsWith("-W")) {
                 const bool hasComma = arg.contains(',');
                 if (!hasComma) { // We don't want options such as -Wl,foo
-                    mClangArgs.append(arg);
+                    ret.arguments.append(arg);
                 }
             } else if (arg == "-w") {
-                mClangArgs.append(arg);
+                ret.arguments.append(arg);
             }
         } else {
             if (!seenCompiler) {
                 seenCompiler = true;
+            } else if (ret.fileId) {
+                return Source();
             } else {
                 Path input = Path::resolved(arg, Path::MakeAbsolute, path);
                 if (input.isSource()) {
-                    if (mLanguage == NoLanguage)
-                        mLanguage = guessLanguageFromSourceFile(input);
-                    mUnresolvedInputFiles.append(input);
+                    if (ret.language == NoLanguage)
+                        ret.language = guessLanguageFromSourceFile(input);
+                    if (unresolvedInputLocation)
+                        *unresolvedInputLocation = input;
                     input.resolve(Path::RealPath);
-                    mInputFiles.append(input);
+                    ret.fileId = Location::insertFile(input);
                 }
             }
         }
     }
 
-    if (mUnresolvedInputFiles.isEmpty()) {
-        clear();
-        return false;
-    }
+    if (!ret.fileId)
+        return Source();
 
-    if (mInputFiles.isEmpty()) {
-        error("Unable to find or resolve input files");
-        const int c = mUnresolvedInputFiles.size();
-        for (int i=0; i<c; ++i) {
-            const String &input = mUnresolvedInputFiles.at(i);
-            error("  %s", input.constData());
-        }
-        clear();
-        return false;
-    }
-
+    // ### not threadsafe
     static Hash<Path, Path> resolvedFromPath;
     const String &front = split.front();
     Path &compiler = resolvedFromPath[front];
@@ -359,68 +367,6 @@ bool GccArguments::parse(List<String> split, const Path &base)
             compiler = split.front();
         }
     }
-    mCompiler = compiler;
-    return true;
-}
-
-void GccArguments::init(const SourceInformation &sourceInformation)
-{
-    clear();
-}
-
-void GccArguments::addFlags(const List<String> &extraFlags)
-{
-    const int count = extraFlags.size();
-    for (int i=0; i<count; ++i) {
-        String flag = extraFlags.at(i);
-        if (flag.startsWith("-I")) {
-            Path p = Path::resolved(flag.constData() + 2);
-            flag.replace(2, flag.size() - 2, p);
-        }
-        mClangArgs.append(flag);
-    }
-}
-
-Path GccArguments::projectRoot() const
-{
-    const List<Path> *files[] = { &mUnresolvedInputFiles, &mInputFiles };
-    for (int i=0; i<2; ++i) {
-        const List<Path> &list = *files[i];
-        for (int j=0; j<list.size(); ++j) {
-            Path src = list.at(j);
-            if (!src.isAbsolute())
-                src.prepend(mBase);
-            Path srcRoot = RTags::findProjectRoot(src);
-            if (!srcRoot.isEmpty()) {
-                return srcRoot;
-            }
-        }
-    }
-    return Path();
-}
-
-template <> inline Serializer &operator<<(Serializer &s, const GccArguments::Define &d)
-{
-    s << d.define << d.value;
-    return s;
-}
-
-template <> inline Deserializer &operator>>(Deserializer &s, GccArguments::Define &d)
-{
-    s >> d.define >> d.value;
-    return s;
-}
-
-void GccArguments::encode(Serializer &serializer) const
-{
-    serializer << mClangArgs << mDefines << mInputFiles << mUnresolvedInputFiles
-               << mIncludePaths << mBase << mCompiler << static_cast<uint8_t>(mLanguage);
-}
-
-void GccArguments::decode(Deserializer &deserializer)
-{
-    uint8_t language;
-    deserializer >> mClangArgs >> mDefines >> mInputFiles >> mUnresolvedInputFiles
-                 >> mIncludePaths >> mBase >> mCompiler >> language;
-    mLanguage = static_cast<Language>(language);
+    ret.compilerId = Location::insertFile(compiler);
+    return ret;
 }

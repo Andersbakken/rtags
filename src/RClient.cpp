@@ -26,7 +26,7 @@ enum OptionType {
     None = 0,
     AbsolutePath,
     AllReferences,
-    Builds,
+    Sources,
     Clear,
     CodeComplete,
     CodeCompleteAt,
@@ -153,7 +153,7 @@ struct Option opts[] = {
     { RemoveFile, "remove", 'D', required_argument, "Remove file from project." },
     { FindProjectRoot, "find-project-root", 0, required_argument, "Use to check behavior of find-project-root." },
     { JSON, "json", 0, optional_argument, "Dump json about files matching arg or whole project if no argument." },
-    { Builds, "builds", 0, optional_argument, "Dump builds for source file." },
+    { Sources, "sources", 0, optional_argument, "Dump sources for source file." },
     { Dependencies, "dependencies", 0, required_argument, "Dump dependencies for source file." },
     { ReloadFileManager, "reload-file-manager", 'B', no_argument, "Reload file manager." },
     { Man, "man", 0, no_argument, "Output XML for xmltoman to generate man page for rc :-)" },
@@ -885,7 +885,7 @@ bool RClient::parse(int &argc, char **argv)
         case ListSymbols:
         case FindSymbols:
         case JSON:
-        case Builds:
+        case Sources:
         case JobCount:
         case Status: {
             QueryMessage::Type type = QueryMessage::Invalid;
@@ -893,7 +893,7 @@ bool RClient::parse(int &argc, char **argv)
             case Reindex: type = QueryMessage::Reindex; break;
             case Project: type = QueryMessage::Project; break;
             case FindFile: type = QueryMessage::FindFile; break;
-            case Builds: type = QueryMessage::Builds; break;
+            case Sources: type = QueryMessage::Sources; break;
             case Status: type = QueryMessage::Status; break;
             case JSON: type = QueryMessage::JSON; break;
             case ListSymbols: type = QueryMessage::ListSymbols; break;

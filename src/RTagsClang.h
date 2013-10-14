@@ -16,10 +16,10 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 #ifndef __RTAGSCLANG_H__
 #define __RTAGSCLANG_H__
 
+#include "Source.h"
 #include "Str.h"
 #include "RTags.h"
 #include "CursorInfo.h"
-#include "GccArguments.h"
 
 inline bool operator==(const CXCursor &l, CXCursorKind r)
 {
@@ -62,12 +62,7 @@ void parseTranslationUnit(const Path &sourceFile, const List<String> &args,
                           CXTranslationUnit &unit, CXIndex index, String &clangLine,
                           CXUnsavedFile *unsaved, int unsavedCount);
 void reparseTranslationUnit(CXTranslationUnit &unit, CXUnsavedFile *unsaved, int unsavedCount);
-String preprocess(const GccArguments &gccArgs);
-String preprocess(const Path &sourceFile,
-                  const Path &compiler,
-                  GccArguments::Language language,
-                  const List<Path> &includePaths,
-                  const List<GccArguments::Define> &defines);
+String preprocess(const Source &source);
 
 struct Filter
 {
@@ -352,6 +347,5 @@ inline Log operator<<(Log dbg, CXCursorKind kind)
     dbg << RTags::eatString(clang_getCursorKindSpelling(kind));
     return dbg;
 }
-
 
 #endif /* __RTAGSCLANG_H__ */

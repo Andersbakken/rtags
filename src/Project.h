@@ -115,11 +115,8 @@ public:
     bool isIndexed(uint32_t fileId) const;
 
     // void dump(const QueryMessage &query, Connection *conn);
-    bool index(const Path &sourceFile, const Path &compiler = Path(),
-               GccArguments::Language language = GccArguments::NoLanguage,
-               const List<String> &args = List<String>());
-    SourceInformationMap sourceInfos() const;
-    SourceInformation sourceInfo(uint32_t fileId) const;
+    bool index(const Source &source);
+    Source source(uint32_t fileId) const;
     enum DependencyMode {
         DependsOnArg,
         ArgDependsOn // slow
@@ -130,7 +127,7 @@ public:
     int reindex(const Match &match);
     int remove(const Match &match);
     void onJobFinished(const std::shared_ptr<IndexData> &job);
-    SourceInformationMap sources() const;
+    SourceMap sources() const;
     DependencyMap dependencies() const;
     Set<Path> watchedPaths() const { return mWatchedPaths; }
     bool fetchFromCache(const Path &path, List<String> &args, CXTranslationUnit &unit, int *parseCount);
@@ -141,7 +138,7 @@ public:
     List<std::pair<Path, List<String> > > cachedUnits() const;
     void dirty(const Path &);
 private:
-    void index(const SourceInformation &args, IndexType type);
+    void index(const Source &args, IndexType type);
     void reloadFileManager();
     bool initJobFromCache(const Path &path, const List<String> &args,
                           CXTranslationUnit &unit, List<String> *argsOut, int *parseCount);
@@ -156,18 +153,6 @@ private:
 
     const Path mPath;
     State mState;
-
-    struct PendingCompile
-    {
-        PendingCompile()
-            : language(GccArguments::NoLanguage)
-        {}
-
-        Path compiler;
-        List<String> arguments;
-        GccArguments::Language language;
-    };
-    Hash<Path, PendingCompile> mPendingCompiles;
 
     SymbolMap mSymbols;
     ErrorSymbolMap mErrorSymbols;
@@ -190,7 +175,7 @@ private:
     Hash<uint32_t, std::shared_ptr<IndexerJob> > mJobs, mDumps;
     struct PendingJob
     {
-        SourceInformation source;
+        Source source;
         IndexType type;
     };
     Hash<uint32_t, PendingJob> mPendingJobs;
@@ -201,7 +186,7 @@ private:
 
     FileSystemWatcher mWatcher;
     DependencyMap mDependencies;
-    SourceInformationMap mSources;
+    SourceMap mSources;
 
     Set<Path> mWatchedPaths;
 

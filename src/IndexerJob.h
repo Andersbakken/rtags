@@ -79,11 +79,11 @@ public:
 class IndexerJob : public std::enable_shared_from_this<IndexerJob>
 {
 public:
-    IndexerJob(IndexType t, const std::shared_ptr<Project> &p, const SourceInformation &s)
-        : type(t), project(p), sourceInformation(s), connection(0)
+    IndexerJob(IndexType t, const std::shared_ptr<Project> &p, const Source &s)
+        : type(t), project(p), source(s), connection(0)
     {}
-    IndexerJob(const QueryMessage &q, const std::shared_ptr<Project> &p, const SourceInformation &s, Connection *conn)
-        : type(Dump), project(p), sourceInformation(s), queryMessage(q), connection(conn)
+    IndexerJob(const QueryMessage &q, const std::shared_ptr<Project> &p, const Source &s, Connection *conn)
+        : type(Dump), project(p), source(s), queryMessage(q), connection(conn)
     {}
 
     virtual ~IndexerJob() {}
@@ -93,7 +93,7 @@ public:
 
     const IndexType type;
     std::weak_ptr<Project> project;
-    const SourceInformation sourceInformation;
+    const Source source;
     QueryMessage queryMessage;
     Connection *connection;
     Set<uint32_t> visited;

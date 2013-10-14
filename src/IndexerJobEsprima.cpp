@@ -23,19 +23,19 @@ class EsprimaPlugin : public RTagsPlugin
 public:
     virtual std::shared_ptr<IndexerJob> createJob(IndexType type,
                                                   const std::shared_ptr<Project> &project,
-                                                  const SourceInformation &sourceInformation)
+                                                  const Source &source)
     {
-        if (sourceInformation.isJS())
-            return std::shared_ptr<IndexerJobEsprima>(new IndexerJobEsprima(type, project, sourceInformation));
+        if (source.language == Source::JavaScript)
+            return std::shared_ptr<IndexerJobEsprima>(new IndexerJobEsprima(type, project, source));
         return std::shared_ptr<IndexerJob>();
     }
     virtual std::shared_ptr<IndexerJob> createJob(const QueryMessage &msg,
                                                   const std::shared_ptr<Project> &project,
-                                                  const SourceInformation &sourceInformation,
+                                                  const Source &source,
                                                   Connection *conn)
     {
-        if (sourceInformation.isJS())
-            return std::shared_ptr<IndexerJob>(new IndexerJobEsprima(msg, project, sourceInformation, conn));
+        if (source.language == Source::JavaScript)
+            return std::shared_ptr<IndexerJob>(new IndexerJobEsprima(msg, project, source, conn));
         return std::shared_ptr<IndexerJob>();
     }
 };
@@ -48,15 +48,15 @@ RTagsPlugin *createInstance()
 };
 
 IndexerJobEsprima::IndexerJobEsprima(IndexType type, const std::shared_ptr<Project> &project,
-                                     const SourceInformation &sourceInformation)
-    : IndexerJob(type, project, sourceInformation), mState(Pending)
+                                     const Source &source)
+    : IndexerJob(type, project, source), mState(Pending)
 {}
 
 IndexerJobEsprima::IndexerJobEsprima(const QueryMessage &msg,
                                      const std::shared_ptr<Project> &project,
-                                     const SourceInformation &sourceInformation,
+                                     const Source &source,
                                      Connection *conn)
-    : IndexerJob(msg, project, sourceInformation, conn), mState(Pending)
+    : IndexerJob(msg, project, source, conn), mState(Pending)
 {
 }
 
@@ -86,17 +86,17 @@ void IndexerJobEsprima::run()
     StopWatch timer;
     JSParser parser;
     if (!parser.init()) {
-        error() << "Can't init JSParser for" << sourceInformation.sourceFile();
+        error() << "Can't init JSParser for" << source.sourceFile();
         return;
     }
     if (isAborted())
         return;
     mData.reset(new IndexData(type));
-    mData->fileId = sourceInformation.fileId;
+    mData->fileId = source.fileId;
     mData->parseTime = time(0);
-    if (!parser.parse(sourceInformation.sourceFile(), &mData->symbols, &mData->symbolNames,
+    if (!parser.parse(source.sourceFile(), &mData->symbols, &mData->symbolNames,
                       type == Dump ? 0 : &mData->dependencies, type == Dump ? &mData->logOutput : 0)) {
-        error() << "Can't parse" << sourceInformation.sourceFile();
+        error() << "Can't parse" << source.sourceFile();
     }
 
     if (type == Dump) {
@@ -119,7 +119,7 @@ void IndexerJobEsprima::run()
         mData->references.clear();
     } else {
         mData->message = String::format<128>("%s in %dms. (%d syms, %d symNames, %d refs)",
-                                             sourceInformation.sourceFile().toTilde().constData(),
+                                             source.sourceFile().toTilde().constData(),
                                              timer.elapsed(), mData->symbols.size(),
                                              mData->symbolNames.size(), mData->references.size());
     }

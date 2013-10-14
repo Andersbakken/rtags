@@ -19,7 +19,7 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 #include <rct/Log.h>
 #include "RTags.h"
 
-Preprocessor::Preprocessor(const SourceInformation &args, Connection *connection)
+Preprocessor::Preprocessor(const Source &args, Connection *connection)
     : mArgs(args), mConnection(connection), mProc(0)
 {
     mProc = new Process;
@@ -33,20 +33,19 @@ Preprocessor::~Preprocessor()
 
 void Preprocessor::preprocess()
 {
-    List<String> args = mArgs.args;
+    List<String> args = mArgs.toCommandLine(Source::IncludeSourceFile);
     args.append("-E");
-    args.append(mArgs.sourceFile());
 
     List<String> environ;
     environ << "PATH=/usr/local/bin:/usr/bin";
-    mProc->start(mArgs.compiler, args, environ);
+    // ### why this path?
+    mProc->start(mArgs.compiler(), args, environ);
 }
 
 void Preprocessor::onProcessFinished()
 {
     mConnection->client()->setWriteMode(SocketClient::Synchronous);
-    mConnection->write<256>("// %s %s", mArgs.compiler.constData(),
-                            String::join(mArgs.args, ' ').constData());
+    mConnection->write<256>("// %s", String::join(mArgs.toCommandLine(Source::IncludeSourceFile|Source::IncludeCompiler), ' ').constData());
     mConnection->write(mProc->readAllStdOut());
     const String err = mProc->readAllStdErr();
     if (!err.isEmpty()) {

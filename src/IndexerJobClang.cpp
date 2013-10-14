@@ -16,7 +16,6 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 #include "IndexerJobClang.h"
 #include "Project.h"
 #include "Server.h"
-#include "CompilerManager.h"
 #include <rct/Process.h>
 
 #include "RTagsPlugin.h"
@@ -26,19 +25,19 @@ class ClangPlugin : public RTagsPlugin
 public:
     virtual std::shared_ptr<IndexerJob> createJob(IndexType type,
                                                   const std::shared_ptr<Project> &project,
-                                                  const SourceInformation &sourceInformation)
+                                                  const Source &source)
     {
-        if (!sourceInformation.isJS())
-            return std::shared_ptr<IndexerJob>(new IndexerJobClang(type, project, sourceInformation));
+        if (source.language != Source::JavaScript)
+            return std::shared_ptr<IndexerJob>(new IndexerJobClang(type, project, source));
         return std::shared_ptr<IndexerJob>();
     }
     virtual std::shared_ptr<IndexerJob> createJob(const QueryMessage &msg,
                                                   const std::shared_ptr<Project> &project,
-                                                  const SourceInformation &sourceInformation,
+                                                  const Source &source,
                                                   Connection *conn)
     {
-        if (!sourceInformation.isJS())
-            return std::shared_ptr<IndexerJob>(new IndexerJobClang(msg, project, sourceInformation, conn));
+        if (source.language != Source::JavaScript)
+            return std::shared_ptr<IndexerJob>(new IndexerJobClang(msg, project, source, conn));
         return std::shared_ptr<IndexerJob>();
     }
 };
@@ -51,14 +50,14 @@ RTagsPlugin *createInstance()
 };
 
 IndexerJobClang::IndexerJobClang(IndexType type, const std::shared_ptr<Project> &project,
-                                 const SourceInformation &sourceInformation)
-    : IndexerJob(type, project, sourceInformation), mState(Pending), mWaiting(0), mProcess(0)
+                                 const Source &source)
+    : IndexerJob(type, project, source), mState(Pending), mWaiting(0), mProcess(0)
 {
 }
 
 IndexerJobClang::IndexerJobClang(const QueryMessage &msg, const std::shared_ptr<Project> &project,
-                                 const SourceInformation &sourceInformation, Connection *conn)
-    : IndexerJob(msg, project, sourceInformation, conn), mState(Pending), mWaiting(0)
+                                 const Source &source, Connection *conn)
+    : IndexerJob(msg, project, source, conn), mState(Pending), mWaiting(0)
 {
 }
 
@@ -89,95 +88,21 @@ Process *IndexerJobClang::startProcess()
     mState = Running;
     std::shared_ptr<Project> proj = project.lock();
     if (!proj) {
-        error() << "Project disappeared" << sourceInformation;
+        error() << "Project disappeared" << source;
         return 0;
     }
-    List<GccArguments::Define> defines;
-    List<Path> includePaths;
-    List<String> other;
+    const String preprocessed = RTags::preprocess(source);
 
-    const Server::Options &options = Server::instance()->options();
-
-    const List<String> *argPtrs[] = { &sourceInformation.args, &options.defaultArguments };
-    String lang;
-    for (int i=0; i<2; ++i) {
-        const List<String> &args = *argPtrs[i];
-        enum Mode {
-            Pending,
-            ExpectingLanguage,
-            ExpectingIncludePath
-        } mode = Pending;
-        for (List<String>::const_iterator it = args.begin(); it != args.end(); ++it) {
-            switch (mode) {
-            case ExpectingLanguage:
-                lang = *it;
-                other.append(*it);
-                mode = Pending;
-                break;
-            case ExpectingIncludePath:
-                includePaths.append(*it);
-                mode = Pending;
-                break;
-            case Pending:
-                if (it->startsWith("-D")) {
-                    const int eq = it->indexOf('=');
-                    defines.append(GccArguments::Define());
-                    GccArguments::Define &def = defines.last();
-                    if (eq == -1) {
-                        def.define = it->mid(2);
-                    } else {
-                        def.define = it->mid(2, eq - 2);
-                        def.value  = it->mid(eq + 1);
-                    }
-                } else if (it->startsWith("-I")) {
-                    if (it->size() == 2) {
-                        mode = ExpectingIncludePath;
-                    } else {
-                        includePaths.append(it->mid(2));
-                    }
-                } else {
-                    if (*it == "-x") {
-                        mode = ExpectingLanguage;
-                    } else if (it->startsWith("-x=")) {
-                        lang = it->mid(3);
-                    }
-                    other.append(*it);
-                }
-            }
-        }
-    }
-    GccArguments::Language language = GccArguments::NoLanguage;
-    if (!lang.isEmpty()) {
-        if (lang == "c++") {
-            language = GccArguments::CPlusPlus;
-        } else if (lang == "c") {
-            language = GccArguments::C;
-        }
-    }
-    const Path sourceFile = sourceInformation.sourceFile();
-    if (language == GccArguments::NoLanguage)
-        language = GccArguments::guessLanguageFromSourceFile(sourceFile);
-    if (language == GccArguments::NoLanguage)
-        language = GccArguments::guessLanguageFromCompiler(sourceInformation.compiler);
-
-    if (language == GccArguments::NoLanguage) {
-        error() << "Couldn't detect language for" << sourceFile;
-        return 0;
-    }
-
-    error() << "Going with" << (language == GccArguments::CPlusPlus) << "for" << sourceFile;
-    const String preprocessed = RTags::preprocess(sourceFile, sourceInformation.compiler,
-                                                  language, includePaths, defines);
     if (preprocessed.isEmpty()) {
-        error() << "Couldn't preprocess" << sourceFile;
+        error() << "Couldn't preprocess" << source.sourceFile();
         return 0;
     }
 
     static const Path rp = Rct::executablePath().parentDir() + "rp";
     String stdinData;
     Serializer serializer(stdinData);
-    serializer << options.socketFile << sourceInformation.sourceFile()
-               << sourceInformation.fileId << preprocessed << other
+    serializer << Server::instance()->options().socketFile << source.sourceFile()
+               << source.fileId << preprocessed << source.arguments
                << proj->path() << static_cast<uint8_t>(type);
 
     mProcess = new Process;
@@ -186,10 +111,10 @@ Process *IndexerJobClang::startProcess()
         delete mProcess;
         mProcess = 0;
         std::shared_ptr<IndexData> data(new IndexData(type));
-        data->fileId = sourceInformation.fileId;
+        data->fileId = source.fileId;
         data->aborted = true;
         proj->onJobFinished(data);
-        proj->dirty(sourceInformation.sourceFile());
+        proj->dirty(source.sourceFile());
         return 0;
     }
     mProcess->write(stdinData);
@@ -204,11 +129,11 @@ void IndexerJobClang::finished(Process *process)
         std::shared_ptr<Project> proj = project.lock();
         if (proj) {
             std::shared_ptr<IndexData> data(new IndexData(type));
-            data->fileId = sourceInformation.fileId;
+            data->fileId = source.fileId;
             data->aborted = true;
             proj->onJobFinished(data);
-            // proj->dirty(sourceInformation.sourceFile());
+            // proj->dirty(source.sourceFile());
         }
     }
-    // ::error() << sourceInformation.sourceFile() << "finished" << process->returnCode() << mWaiting << mTimer.elapsed() << "ms";
+    // ::error() << source.sourceFile() << "finished" << process->returnCode() << mWaiting << mTimer.elapsed() << "ms";
 }

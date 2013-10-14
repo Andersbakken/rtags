@@ -22,19 +22,15 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 
 class Project;
 class QueryMessage;
-class SourceInformation;
+class Source;
 class Connection;
 class RTagsPlugin
 {
 public:
     virtual ~RTagsPlugin() {}
-    virtual std::shared_ptr<IndexerJob> createJob(IndexType type,
-                                                  const std::shared_ptr<Project> &project,
-                                                  const SourceInformation &sourceInformation) = 0;
-    virtual std::shared_ptr<IndexerJob> createJob(const QueryMessage &msg,
-                                                  const std::shared_ptr<Project> &project,
-                                                  const SourceInformation &sourceInformation,
-                                                  Connection *conn) = 0;
+    virtual std::shared_ptr<IndexerJob> createJob(IndexType type, const std::shared_ptr<Project> &project, const Source &source) = 0;
+    virtual std::shared_ptr<IndexerJob> createJob(const QueryMessage &msg, const std::shared_ptr<Project> &project,
+                                                  const Source &source, Connection *conn) = 0;
     // add functions for completions etc
 };
 

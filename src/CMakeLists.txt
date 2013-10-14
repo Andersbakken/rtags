@@ -73,7 +73,8 @@ add_library(shared SHARED ${RTAGS_SHARED_SOURCES})
 target_link_libraries(shared rct)
 
 set(RDM_SOURCES
-  CompilerManager.cpp
+  Source.cpp
+  # CompilerManager.cpp
   # CompletionJob.cpp
   CursorInfo.cpp
   CursorInfoJob.cpp
@@ -82,7 +83,7 @@ set(RDM_SOURCES
   FindFileJob.cpp
   FindSymbolsJob.cpp
   FollowLocationJob.cpp
-  GccArguments.cpp
+  # GccArguments.cpp
   JSONJob.cpp
   Job.cpp
   ListSymbolsJob.cpp
@@ -196,7 +197,7 @@ if (V8_FOUND EQUAL 1)
   add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/rtags-esprima.js
                      DEPENDS ${RTAGS_ESPRIMA_FILES}
                      COMMAND ${CMAKE_COMMAND} -DFILES="${RTAGS_ESPRIMA_FILES}" -DTARGET="${CMAKE_CURRENT_BINARY_DIR}/rtags-esprima.js" -P "${PROJECT_SOURCE_DIR}/cmake/concat.cmake"
-                     COMMENT "Building rtags-esprima.js")
+                     COMMENT "Sourceing rtags-esprima.js")
   add_custom_target(rtags-esprima ALL DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/rtags-esprima.js)
 endif()
 

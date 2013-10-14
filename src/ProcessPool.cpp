@@ -1,9 +1,7 @@
 #include <rct/ThreadPool.h>
 #include <rct/Rct.h>
-#include "CompilerManager.h"
 #include "Server.h"
 #include "Project.h"
-#include "SourceInformation.h"
 #include "ProcessPool.h"
 
 ProcessPool::ProcessPool()

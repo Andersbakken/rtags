@@ -1,17 +1,17 @@
 /* This file is part of RTags.
 
-RTags is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
+   RTags is free software: you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation, either version 3 of the License, or
+   (at your option) any later version.
 
-RTags is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
+   RTags is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
 
-You should have received a copy of the GNU General Public License
-along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
+   You should have received a copy of the GNU General Public License
+   along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 
 #include "Server.h"
 
@@ -27,7 +27,7 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 #include "FollowLocationJob.h"
 #include "IndexerJob.h"
 #include "JSONJob.h"
-#include "GccArguments.h"
+#include "Source.h"
 #if defined(HAVE_CXCOMPILATIONDATABASE)
 #  include <clang-c/CXCompilationDatabase.h>
 #elif defined(HAVE_V8) || defined(HAVE_YAJL)
@@ -318,10 +318,10 @@ void Server::handleCompileMessage(const CompileMessage &message, Connection *con
             error() << "Can't find project root for" << jsFile;
             return;
         }
+        std::shared_ptr<Project> project;
         {
             std::lock_guard<std::mutex> lock(mMutex);
-
-            std::shared_ptr<Project> project = mProjects.value(srcRoot);
+            project = mProjects.value(srcRoot);
             if (!project) {
                 project = addProject(srcRoot);
                 assert(project);
@@ -330,17 +330,21 @@ void Server::handleCompileMessage(const CompileMessage &message, Connection *con
 
             if (!mCurrentProject.lock())
                 mCurrentProject = project;
-
-            project->index(jsFile.resolved());
         }
+
+        Source source;
+        source.language = Source::JavaScript;
+        source.fileId = Location::insertFile(jsFile);
+        project->index(source);
     } else {
-        GccArguments args;
-        if (args.parse(arguments, workingDirectory)) {
-            switch (args.language()) {
-            case GccArguments::C:
-            case GccArguments::CPlusPlus:
-            case GccArguments::CPlusPlus11:
-                index(args, projects);
+        Path unresolvedPath;
+        const Source source = Source::parse(arguments, workingDirectory, &unresolvedPath);
+        if (!source.isNull()) {
+            switch (source.language) {
+            case Source::C:
+            case Source::CPlusPlus:
+            case Source::CPlusPlus11:
+                index(source, projects, unresolvedPath);
                 break;
             default:
                 break;
@@ -376,8 +380,8 @@ void Server::handleQueryMessage(const QueryMessage &message, Connection *conn)
     case QueryMessage::Invalid:
         assert(0);
         break;
-    case QueryMessage::Builds:
-        builds(message, conn);
+    case QueryMessage::Sources:
+        sources(message, conn);
         break;
     case QueryMessage::SuspendFile:
         suspendFile(message, conn);
@@ -572,7 +576,7 @@ void Server::dumpFile(const QueryMessage &query, Connection *conn)
         conn->finish();
         return;
     }
-    const SourceInformation c = project->sourceInfo(fileId);
+    const Source c = project->source(fileId);
     if (c.isNull()) {
         conn->write<256>("%s is not indexed", query.query().constData());
         conn->finish();
@@ -826,7 +830,7 @@ void Server::preprocessFile(const QueryMessage &query, Connection *conn)
     }
 
     const uint32_t fileId = Location::fileId(path);
-    const SourceInformation c = project->sourceInfo(fileId);
+    const Source c = project->source(fileId);
     if (c.isNull()) {
         conn->write("No arguments for " + path);
         conn->finish();
@@ -875,9 +879,29 @@ void Server::reindex(const QueryMessage &query, Connection *conn)
     conn->finish();
 }
 
-void Server::index(const GccArguments &args, const List<String> &projects)
+void Server::index(const Source &source, const List<String> &projects, const Path &unresolvedPath)
 {
-    if (args.language() == GccArguments::NoLanguage || mOptions.ignoredCompilers.contains(args.compiler())) {
+    switch (source.language) {
+    case Source::NoLanguage:
+    case Source::CHeader:
+    case Source::CPlusPlusHeader:
+    case Source::CPlusPlus11Header:
+        return;
+    case Source::JavaScript:
+        if (mOptions.options & NoEsprima)
+            return;
+        break;
+    default:
+        break;
+    }
+
+    if (mOptions.ignoredCompilers.contains(source.compiler()))
+        return;
+
+    const Path sourceFile = source.sourceFile();
+
+    if (Filter::filter(sourceFile, mOptions.excludeFilters) == Filter::Filtered) {
+        debug() << "Filtered out" << sourceFile;
         return;
     }
     Path srcRoot;
@@ -886,37 +910,23 @@ void Server::index(const GccArguments &args, const List<String> &projects)
     } else if (!projects.isEmpty()) {
         srcRoot = projects.first();
     } else {
-        srcRoot = args.projectRoot();
-    }
-    if (srcRoot.isEmpty()) {
-        error("Can't find project root for %s", String::join(args.inputFiles(), ", ").constData());
-        return;
-    }
+        if (!unresolvedPath.isEmpty())
+            srcRoot = RTags::findProjectRoot(unresolvedPath);
+        if (srcRoot.isEmpty()) {
+            srcRoot = RTags::findProjectRoot(sourceFile);
+        }
 
-    List<Path> inputFiles = args.inputFiles();
-    debug() << inputFiles << "in" << srcRoot;
-    int count = inputFiles.size();
-    if (!mOptions.excludeFilters.isEmpty()) {
-        int i = 0;
-        while (i < count) {
-            if (Filter::filter(inputFiles.at(i), mOptions.excludeFilters) == Filter::Filtered) {
-                debug() << "Filtered out" << inputFiles.at(i);
-                inputFiles.removeAt(i);
-                --count;
-            } else {
-                ++i;
-            }
+        if (srcRoot.isEmpty()) {
+            error("Can't find project root for %s",  sourceFile.constData());
+            return;
         }
     }
-    if (!count) {
-        warning("no input files?");
-        return;
-    }
 
+    std::shared_ptr<Project> project;
     {
         std::lock_guard<std::mutex> lock(mMutex);
 
-        std::shared_ptr<Project> project = mProjects.value(srcRoot);
+        project = mProjects.value(srcRoot);
         if (!project) {
             project = addProject(srcRoot);
             assert(project);
@@ -927,13 +937,9 @@ void Server::index(const GccArguments &args, const List<String> &projects)
             mCurrentProject = project;
             setupCurrentProjectFile(project);
         }
-
-        const List<String> arguments = args.clangArgs();
-
-        for (int i=0; i<count; ++i) {
-            project->index(inputFiles.at(i), args.compiler(), args.language(), arguments);
-        }
     }
+    assert(project);
+    project->index(source);
 }
 
 std::shared_ptr<Project> Server::setCurrentProject(const Path &path, unsigned int queryFlags) // lock always held
@@ -1104,7 +1110,7 @@ void Server::project(const QueryMessage &query, Connection *conn)
     if (query.query().isEmpty()) {
         const std::shared_ptr<Project> current = mCurrentProject.lock();
         const char *states[] = { "(unloaded)", "(inited)", "(loading)", "(loaded)" };
-    for (ProjectsMap::const_iterator it = mProjects.begin(); it != mProjects.end(); ++it) {
+        for (ProjectsMap::const_iterator it = mProjects.begin(); it != mProjects.end(); ++it) {
             conn->write<128>("%s %s%s",
                              it->first.constData(),
                              states[it->second->state()],
@@ -1210,9 +1216,10 @@ void Server::loadCompilationDatabase(const QueryMessage &query, Connection *conn
             if (j < num - 1)
                 args += " ";
         }
-        GccArguments gccArgs;
-        if (gccArgs.parse(args, dir)) {
-            index(gccArgs, query.projects());
+        Path unresolved;
+        const Source source = Source::parse(args, dir, &unresolved);
+        if (!source.isNull()) {
+            index(source, query.projects(), unresolved);
         }
     }
     clang_CompileCommands_dispose(cmds);
@@ -1255,9 +1262,10 @@ void Server::loadCompilationDatabase(const QueryMessage &query, Connection *conn
             if (!dir.isEmpty() && !args.isEmpty()) {
                 //error() << "parsing" << args;
                 args.replace("\\\"", "\"");
-                GccArguments gccArgs;
-                if (gccArgs.parse(args, dir)) {
-                    index(gccArgs, query.projects());
+                Source source;
+                Path unresolved;
+                if (source.parse(args, dir, &unresolved)) {
+                    index(source, query.projects(), unresolved);
                 } else {
                     ok = false;
                     break;
@@ -1291,7 +1299,7 @@ void Server::shutdown(const QueryMessage &query, Connection *conn)
     conn->finish();
 }
 
-void Server::builds(const QueryMessage &query, Connection *conn)
+void Server::sources(const QueryMessage &query, Connection *conn)
 {
     const Path path = query.query();
     if (!path.isEmpty()) {
@@ -1302,7 +1310,7 @@ void Server::builds(const QueryMessage &query, Connection *conn)
             } else {
                 const uint32_t fileId = Location::fileId(path);
                 if (fileId) {
-                    const SourceInformation info = project->sourceInfo(fileId);
+                    const Source info = project->source(fileId);
                     conn->write(info.toString());
                 }
             }
@@ -1311,8 +1319,8 @@ void Server::builds(const QueryMessage &query, Connection *conn)
         if (project->state() != Project::Loaded) {
             conn->write("Project loading");
         } else {
-            const SourceInformationMap infos = project->sourceInfos();
-            for (SourceInformationMap::const_iterator it = infos.begin(); it != infos.end(); ++it) {
+            const SourceMap infos = project->sources();
+            for (SourceMap::const_iterator it = infos.begin(); it != infos.end(); ++it) {
                 conn->write(it->second.toString());
             }
         }
@@ -1426,7 +1434,7 @@ void Server::startCompletion(const Path &path, int line, int column, int pos, co
     // List<String> args;
     // int parseCount = 0;
     // if (!project->fetchFromCache(path, args, unit, &parseCount)) {
-    //     const SourceInformation info = project->sourceInfo(fileId);
+    //     const Source info = project->source(fileId);
     //     if (info.isNull() || info.isJS()) {
     //         if (!isCompletionStream(conn))
     //             conn->finish();

@@ -162,10 +162,10 @@ void StatusJob::execute()
 
     if (query.isEmpty() || !strcasecmp(query.constData(), "fileinfos")) {
         matched = true;
-        const SourceInformationMap map = proj->sources();
+        const SourceMap map = proj->sources();
         if (!write(delimiter) || !write("fileinfos") || !write(delimiter))
             return;
-        for (SourceInformationMap::const_iterator it = map.begin(); it != map.end(); ++it) {
+        for (SourceMap::const_iterator it = map.begin(); it != map.end(); ++it) {
             if (!write<512>("  %s: %s", Location::path(it->first).constData(), it->second.toString().constData()))
                 return;
         }

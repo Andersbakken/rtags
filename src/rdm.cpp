@@ -84,7 +84,7 @@ static void usage(FILE *f)
             "  --setenv|-e [arg]                          Set this environment variable (--setenv \"foobar=1\").\n"
             "  --completion-cache-size|-a [arg]           Cache this many translation units (default 0, must have at least 1 to use completion).\n"
             "  --no-current-project|-o                    Don't restore the last current project on startup.\n"
-            "  --allow-multiple-builds|-m                 Without this setting different builds will be merged for each source file.\n"
+            "  --allow-multiple-sources|-m                 Without this setting different sources will be merged for each source file.\n"
             "  --unload-timer|-u [arg]                    Number of minutes to wait before unloading non-current projects (disabled by default).\n"
             "  --job-count|-j [arg]                       Spawn this many concurrent processes for indexing.\n"
             "  --watch-system-paths|-w                    Watch system paths for changes.\n"
@@ -94,7 +94,7 @@ static void usage(FILE *f)
 #else
             "  --no-filemanager-watch|-M                  Don't use a file system watcher for filemanager.\n"
 #endif
-            "  --ignore-compiler|-b [arg]                 Alias this compiler (Might be practical to avoid duplicated builds for things like icecc).\n"
+            "  --ignore-compiler|-b [arg]                 Alias this compiler (Might be practical to avoid duplicated sources for things like icecc).\n"
             "  --disable-plugin|-p [arg]                  Don't load this plugin\n"
             "  --disable-esprima|-E                       Don't use esprima\n"
             "  --enable-compiler-flags|-K                 Query the compiler for default flags\n");
@@ -130,7 +130,7 @@ int main(int argc, char** argv)
         { "completion-cache-size", required_argument, 0, 'a' },
         { "no-spell-checking", no_argument, 0, 'l' },
         { "large-by-value-copy", required_argument, 0, 'r' },
-        { "allow-multiple-builds", no_argument, 0, 'm' },
+        { "allow-multiple-sources", no_argument, 0, 'm' },
         { "unload-timer", required_argument, 0, 'u' },
         { "no-current-project", no_argument, 0, 'o' },
         { "ignore-compiler", required_argument, 0, 'b' },
@@ -274,7 +274,7 @@ int main(int argc, char** argv)
             serverOpts.options |= Server::NoEsprima;
             break;
         case 'm':
-            serverOpts.options |= Server::AllowMultipleBuilds;
+            serverOpts.options |= Server::AllowMultipleSources;
             break;
         case 'V':
             serverOpts.options |= Server::Validate;

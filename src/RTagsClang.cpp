@@ -16,7 +16,6 @@
 #include "RTagsClang.h"
 #include "Server.h"
 #include "GccArguments.h"
-#include "CompilerManager.h"
 
 #include <iostream>
 
@@ -285,15 +284,6 @@ private:
     String mString;
 };
 
-String preprocess(const GccArguments &args)
-{
-    const List<Path> inputs = args.inputFiles();
-    if (!inputs.isEmpty()) {
-        return preprocess(inputs.first(), args.compiler(), args.language(), args.includePaths(), args.defines());
-    }
-    return String();
-}
-
 static inline void processArgs(clang::HeaderSearchOptions &headerSearchOptions,
                                const clang::driver::ArgStringList &args)
 {
@@ -314,7 +304,7 @@ static inline void processArgs(clang::HeaderSearchOptions &headerSearchOptions,
             break;
         case SystemInclude: {
             const Path path = Path::resolved(arg);
-            error() << "Adding system include" << path;
+            // error() << "Adding system include" << path;
             headerSearchOptions.AddPath(clang::StringRef(path.constData(), path.size()), clang::frontend::System, false, false);
             type = Pending;
             break; }
@@ -323,8 +313,19 @@ static inline void processArgs(clang::HeaderSearchOptions &headerSearchOptions,
     }
 }
 
-String preprocess(const Path &sourceFile, const Path &compiler, GccArguments::Language language,
-                  const List<Path> &includePaths, const List<GccArguments::Define> &defines)
+static std::string toString(const Source::Define &def)
+{
+    std::string ret;
+    ret += "#define ";
+    ret += def.define;
+    if (!def.value.isEmpty()) {
+        ret += ' ';
+        ret += def.value;
+    }
+    return ret;
+}
+
+String preprocess(const Source &source)
 {
     clang::CompilerInstance compilerInstance;
     compilerInstance.createFileManager();
@@ -336,6 +337,7 @@ String preprocess(const Path &sourceFile, const Path &compiler, GccArguments::La
     compilerInstance.createSourceManager(fm);
     assert(compilerInstance.hasSourceManager());
     clang::SourceManager &sm = compilerInstance.getSourceManager();
+    const Path sourceFile = source.sourceFile();
     const clang::FileEntry *file = fm.getFile(sourceFile.constData(), true); // pass openfile?
     if (!file)
         return String();
@@ -346,36 +348,37 @@ String preprocess(const Path &sourceFile, const Path &compiler, GccArguments::La
     clang::DiagnosticsEngine& diags = compilerInstance.getDiagnostics();
     compilerInstance.setTarget(clang::TargetInfo::CreateTargetInfo(diags, &targetOptions));
     clang::LangOptions &langOpts = compilerInstance.getLangOpts();
-    switch (language) {
-    case GccArguments::CPlusPlus11:
+    switch (source.language) {
+    case Source::CPlusPlus11:
         langOpts.CPlusPlus11 = true;
         langOpts.CPlusPlus = true;
         break;
-    case GccArguments::CPlusPlus:
+    case Source::CPlusPlus:
         langOpts.CPlusPlus = true;
         break;
     default:
         break;
     }
+    List<Path> includePaths = source.includePaths;
+    List<Source::Define> defines = source.defines;
+
+#warning need to get standard defines and include paths
     clang::HeaderSearchOptions &headerSearchOptions = compilerInstance.getHeaderSearchOpts();
     {
         clang::driver::Driver driver("clang", llvm::sys::getDefaultTargetTriple(), "a.out", diags);
         std::vector<std::string> copies; // not cool
         std::vector<const char*> args;
+        const Path compiler = source.compiler();
         args.push_back(compiler.constData());
         args.push_back("-c");
         args.push_back(sourceFile.constData());
-        for (const Path& path : includePaths) {
+        for (const Path &path : source.includePaths) {
             copies.push_back("-I" + path);
         }
-        for (const GccArguments::Define& def : defines) {
-            copies.push_back("-D" + def.define);
-            if (!def.value.isEmpty())
-                copies.back() += "=" + def.value;
-        }
-        for (const std::string& str : copies) {
+        for (const Source::Define &def : source.defines)
+            copies.push_back(def.toString());
+        for (const std::string &str : copies)
             args.push_back(str.c_str());
-        }
 
         std::unique_ptr<clang::driver::Compilation> compilation(driver.BuildCompilation(llvm::ArrayRef<const char*>(&args[0], args.size())));
         const clang::driver::ToolChain& toolChain = compilation->getDefaultToolChain();
@@ -389,41 +392,16 @@ String preprocess(const Path &sourceFile, const Path &compiler, GccArguments::La
         processArgs(headerSearchOptions, outputArgs);
     }
 
-    for (List<Path>::const_iterator it = includePaths.begin(); it != includePaths.end(); ++it) {
-        error() << "Adding -I" << *it;
+    for (List<Path>::const_iterator it = source.includePaths.begin(); it != source.includePaths.end(); ++it) {
+        // error() << "Adding -I" << *it;
         headerSearchOptions.AddPath(clang::StringRef(it->constData(), it->size()),
                                     clang::frontend::Angled, false, false);
     }
 
-    // List<Path> systemIncludes;
-    // List<GccArguments::Define> systemDefines;
-    // CompilerManager::data(compiler, systemDefines, systemIncludes);
-    // for (List<Path>::const_iterator it = systemIncludes.begin(); it != systemIncludes.end(); ++it) {
-    //     headerSearchOptions.AddPath(clang::StringRef(it->constData(), it->size()),
-    //                                 clang::frontend::System, false, false);
-    //     error() << "Adding system path" << *it;
-    // }
-
-    // for (List<GccArguments::Define>::const_iterator it = systemDefines.begin(); it != systemDefines.end(); ++it) {
-    //     predefines += "#define ";
-    //     predefines += it->define;
-    //     if (!it->value.isEmpty()) {
-    //         predefines += ' ';
-    //         predefines += it->value;
-    //     }
-    //     predefines += '\n';
-    //     // error() << "Got define" << it->define << it->value;
-    // }
-
     compilerInstance.createPreprocessor();
     std::string predefines = compilerInstance.getPreprocessor().getPredefines();
-    for (List<GccArguments::Define>::const_iterator it = defines.begin(); it != defines.end(); ++it) {
-        predefines += "#define ";
-        predefines += it->define;
-        if (!it->value.isEmpty()) {
-            predefines += ' ';
-            predefines += it->value;
-        }
+    for (List<Source::Define>::const_iterator it = source.defines.begin(); it != source.defines.end(); ++it) {
+        predefines += toString(*it);
         predefines += '\n';
         // error() << "Got define" << it->define << it->value;
     }

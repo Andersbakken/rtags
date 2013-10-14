@@ -25,10 +25,10 @@ class IndexerJobClang : public IndexerJob, public ProcessPool::Job
 {
 public:
     IndexerJobClang(IndexType type, const std::shared_ptr<Project> &project,
-                    const SourceInformation &sourceInformation);
+                    const Source &source);
     IndexerJobClang(const QueryMessage &msg,
                     const std::shared_ptr<Project> &project,
-                    const SourceInformation &sourceInformation,
+                    const Source &source,
                     Connection *conn);
     virtual void start();
     virtual bool abort();

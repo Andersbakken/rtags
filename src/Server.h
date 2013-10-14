@@ -43,12 +43,12 @@ class Message;
 class ErrorMessage;
 class OutputMessage;
 class CompileMessage;
-class GccArguments;
 class Job;
 class JobOutput;
 class Project;
 class IndexerJob;
 class VisitFileMessage;
+class Source;
 class Server
 {
 public:
@@ -66,7 +66,7 @@ public:
         IgnorePrintfFixits = 0x0010,
         UnlimitedErrors = 0x0020,
         SpellChecking = 0x0040,
-        AllowMultipleBuilds = 0x0080,
+        AllowMultipleSources = 0x0080,
         NoStartupCurrentProject = 0x0100,
         WatchSystemPaths = 0x0200,
         NoFileManagerWatch = 0x0400,
@@ -103,7 +103,7 @@ private:
     void onNewConnection();
     std::shared_ptr<Project> setCurrentProject(const Path &path, unsigned int queryFlags = 0);
     std::shared_ptr<Project> setCurrentProject(const std::shared_ptr<Project> &project, unsigned int queryFlags = 0);
-    void index(const GccArguments &args, const List<String> &projects);
+    void index(const Source &args, const List<String> &projects, const Path &unresolvedPath = Path());
     void onUnload();
     void onNewMessage(Message *message, Connection *conn);
     void onConnectionDisconnected(Connection *o);
@@ -142,7 +142,7 @@ private:
     void clearProjects(const QueryMessage &query, Connection *conn);
     void loadCompilationDatabase(const QueryMessage &query, Connection *conn);
     void shutdown(const QueryMessage &query, Connection *conn);
-    void builds(const QueryMessage &query, Connection *conn);
+    void sources(const QueryMessage &query, Connection *conn);
     void suspendFile(const QueryMessage &query, Connection *conn);
     void reindex(const QueryMessage &query, Connection *conn);
     std::shared_ptr<Project> updateProjectForLocation(const Match &match);

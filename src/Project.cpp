@@ -153,7 +153,7 @@ bool Project::restore()
             }
         }
 
-        SourceInformationMap::iterator it = mSources.begin();
+        SourceMap::iterator it = mSources.begin();
         while (it != mSources.end()) {
             if (!it->second.sourceFile().isFile()) {
                 error() << it->second.sourceFile() << "seems to have disappeared";
@@ -199,14 +199,14 @@ end:
 
 void Project::startPendingJobs() // lock always held
 {
-    Hash<Path, PendingCompile> pendingCompiles;
+    Hash<uint32_t, PendingJob> pendingJobs;
     {
         std::lock_guard<std::mutex> lock(mMutex);
         mState = Loaded;
-        pendingCompiles = std::move(mPendingCompiles);
+        pendingJobs = std::move(mPendingJobs);
     }
-    for (Hash<Path, PendingCompile>::const_iterator it = pendingCompiles.begin(); it != pendingCompiles.end(); ++it) {
-        index(it->first, it->second.compiler, it->second.language, it->second.arguments);
+    for (Hash<uint32_t, PendingJob>::const_iterator it = pendingJobs.begin(); it != pendingJobs.end(); ++it) {
+        index(it->second.source, it->second.type);
     }
 }
 
@@ -256,7 +256,6 @@ void Project::unload()
     mSources.clear();
     mVisitedFiles.clear();
     mDependencies.clear();
-    mPendingCompiles.clear();
     mPendingJobs.clear();
 
     for (LinkedList<CachedUnit*>::const_iterator it = mCachedUnits.begin(); it != mCachedUnits.end(); ++it) {
@@ -356,8 +355,8 @@ bool Project::save()
 // void Project::dump(const Path &path, const QueryMessage &Connection *conn)
 // {
 //     const uint32_t fileId = Location::fileId(fileId);
-//     SourceInformation sourceInformation = sourceInfo(fileId);
-//     if (sourceInformation.isNull()) {
+//     Source source = source(fileId);
+//     if (source.isNull()) {
 //         conn->write<64>("No source information for %s", path.constData());
 //         conn->finish();;
 //         return;
@@ -367,7 +366,7 @@ bool Project::save()
 //     assert(conn);
 // }
 
-void Project::index(const SourceInformation &c, IndexType type)
+void Project::index(const Source &c, IndexType type)
 {
     std::lock_guard<std::mutex> lock(mMutex);
     static const char *fileFilter = getenv("RTAGS_FILE_FILTER");
@@ -401,8 +400,9 @@ void Project::index(const SourceInformation &c, IndexType type)
     job->start();
 }
 
-bool Project::index(const Path &sourceFile, const Path &compiler, GccArguments::Language language, const List<String> &args)
+bool Project::index(const Source &s)
 {
+    assert(!s.isNull());
     {
         std::lock_guard<std::mutex> lock(mMutex);
         switch (mState) {
@@ -410,40 +410,22 @@ bool Project::index(const Path &sourceFile, const Path &compiler, GccArguments::
             return false;
         case Inited:
         case Loading: {
-            PendingCompile &pending = mPendingCompiles[sourceFile];
-            pending.compiler = compiler;
-            pending.arguments = args;
-            pending.language = language;
+            PendingJob &pending = mPendingJobs[s.fileId];
+            pending.source = s;
+            pending.type = Makefile;
             return true; }
         case Loaded:
             break;
         }
     }
 
-    uint32_t fileId = Location::insertFile(sourceFile);
-    SourceInformation sourceInformation = sourceInfo(fileId);
-    const bool js = args.isEmpty() && sourceFile.endsWith(".js") && language == GccArguments::NoLanguage;
-    if (sourceInformation.isNull()) {
-        sourceInformation.language = language;
-        sourceInformation.fileId = fileId;
-        sourceInformation.args = args;
-        sourceInformation.compiler = compiler;
-    } else if (js) {
-        debug() << sourceFile << " is not dirty. ignoring";
+    const Source current = source(s.fileId);
+    if (current.compare(s)) {
+        debug() << s.sourceFile() << " is not dirty. ignoring";
         return false;
-    } else if (sourceInformation.compiler == compiler && sourceInformation.args == args) {
-        debug() << sourceFile << " is not dirty. ignoring";
-        return false;
-    } else {
-        sourceInformation.compiler = compiler;
-        sourceInformation.args = args;
-    }
-    if (sourceFile.endsWith(".js")) {
-        assert(compiler.isEmpty());
-        assert(args.isEmpty());
     }
 
-    index(sourceInformation, Makefile);
+    index(s, Makefile);
     return true;
 }
 
@@ -462,19 +444,19 @@ void Project::dirty(const Path &file)
     }
 }
 
-SourceInformationMap Project::sourceInfos() const
+SourceMap Project::sources() const
 {
     std::lock_guard<std::mutex> lock(mMutex);
     return mSources;
 }
 
-SourceInformation Project::sourceInfo(uint32_t fileId) const
+Source Project::source(uint32_t fileId) const
 {
     if (fileId) {
         std::lock_guard<std::mutex> lock(mMutex);
         return mSources.value(fileId);
     }
-    return SourceInformation();
+    return Source();
 }
 
 void Project::addDependencies(const DependencyMap &deps, Set<uint32_t> &newFiles)
@@ -538,7 +520,7 @@ int Project::remove(const Match &match)
     Set<uint32_t> dirty;
     {
         std::lock_guard<std::mutex> lock(mMutex);
-        SourceInformationMap::iterator it = mSources.begin();
+        SourceMap::iterator it = mSources.begin();
         while (it != mSources.end()) {
             if (match.match(it->second.sourceFile())) {
                 const uint32_t fileId = it->second.fileId;
@@ -583,7 +565,7 @@ void Project::startDirtyJobs(const Set<uint32_t> &dirty)
 
     bool indexed = false;
     for (Set<uint32_t>::const_iterator it = dirtyFiles.begin(); it != dirtyFiles.end(); ++it) {
-        const SourceInformationMap::const_iterator found = mSources.find(*it);
+        const SourceMap::const_iterator found = mSources.find(*it);
         if (found != mSources.end()) {
             index(found->second, Dirty);
             indexed = true;
@@ -768,12 +750,6 @@ bool Project::isSuspended(uint32_t file) const
     return mSuspendedFiles.contains(file);
 }
 
-SourceInformationMap Project::sources() const
-{
-    std::lock_guard<std::mutex> lock(mMutex);
-    return mSources;
-}
-
 DependencyMap Project::dependencies() const
 {
     std::lock_guard<std::mutex> lock(mMutex);
@@ -900,9 +876,12 @@ void Project::onTimerFired(Timer* timer)
 }
 void Project::onJSFilesAdded()
 {
-    Set<Path> jsFiles = fileManager->jsFiles();
+    const Set<Path> jsFiles = fileManager->jsFiles();
     for (Set<Path>::const_iterator it = jsFiles.begin(); it != jsFiles.end(); ++it) {
-        index(*it);
+        Source source;
+        source.language = Source::JavaScript;
+        source.fileId = Location::insertFile(*it);
+        index(source);
     }
 }
 

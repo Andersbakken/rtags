@@ -22,7 +22,7 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 #include <rct/Log.h>
 #include "FixIt.h"
 #include <rct/Path.h>
-#include "SourceInformation.h"
+#include "Source.h"
 #include <assert.h>
 #include <getopt.h>
 #include <stdio.h>
@@ -32,7 +32,10 @@ class Database;
 class Project;
 namespace RTags {
 
-enum { CompilationError = -1, CompilationErrorXml = -2 };
+enum {
+    CompilationError = -1,
+    CompilationErrorXml = -2
+};
 
 enum UnitType {
     CompileC,
@@ -54,7 +57,7 @@ typedef Hash<String, Set<Location> > UsrMap;
 typedef Map<Location, Set<Location> > ReferenceMap;
 typedef Map<String, Set<Location> > SymbolNameMap;
 typedef Hash<uint32_t, Set<uint32_t> > DependencyMap;
-typedef Hash<uint32_t, SourceInformation> SourceInformationMap;
+typedef Hash<uint32_t, Source> SourceMap;
 typedef Map<Path, Set<String> > FilesMap;
 typedef Hash<uint32_t, Set<FixIt> > FixItMap;
 typedef Hash<uint32_t, List<String> > DiagnosticsMap;
@@ -65,7 +68,6 @@ void dirtySymbols(SymbolMap &map, const Set<uint32_t> &dirty);
 void dirtyUsr(UsrMap &map, const Set<uint32_t> &dirty);
 
 String backtrace(int maxFrames = -1);
-
 
 template <typename Container, typename Value>
 inline bool addTo(Container &container, const Value &value)

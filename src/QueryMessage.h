@@ -28,7 +28,7 @@ class QueryMessage : public ClientMessage
 public:
     enum { MessageId = QueryId };
     enum Type {
-        Builds,
+        Sources,
         CodeCompletionEnabled,
         ClearProjects,
         CursorInfo,
@@ -129,7 +129,7 @@ public:
         case Reindex:
         case RemoveFile:
         case UnloadProject:
-        case Builds:
+        case Sources:
             mFlags |= MatchRegexp;
             break;
         default:

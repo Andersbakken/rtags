@@ -24,9 +24,9 @@ class IndexerJobEsprima : public IndexerJob, public ThreadPool::Job
 {
 public:
     IndexerJobEsprima(IndexType type, const std::shared_ptr<Project> &project,
-                      const SourceInformation &sourceInformation);
+                      const Source &source);
     IndexerJobEsprima(const QueryMessage &msg, const std::shared_ptr<Project> &project,
-                      const SourceInformation &sourceInformation, Connection *conn);
+                      const Source &source, Connection *conn);
     virtual void start();
     virtual bool abort();
     virtual bool isAborted() const { std::unique_lock<std::mutex> lock(mMutex); return mState == Aborted; }
