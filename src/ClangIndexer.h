@@ -6,6 +6,7 @@
 #include <rct/Serializer.h>
 #include <rct/Path.h>
 #include <rct/Connection.h>
+#include <sys/stat.h>
 #include "IndexerJob.h"
 #include "RTagsClang.h"
 
@@ -34,7 +35,12 @@ private:
         unsigned line, col;
         clang_getPresumedLocation(location, &file, &line, &col);
         assert(clang_getCString(file));
-        return createLocation(RTags::eatString(file), line, col, blocked);
+        struct stat s;
+        if (!stat(clang_getCString(file), &s)) {
+            return createLocation(RTags::eatString(file), line, col, blocked);
+        }
+        clang_disposeString(file);
+        return Location();
     }
     Location createLocation(CXFile file, unsigned line, unsigned col, bool *blocked = 0)
     {
