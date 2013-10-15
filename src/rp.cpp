@@ -20,9 +20,24 @@
 #include <rct/Log.h>
 #include <rct/String.h>
 #include <rct/StopWatch.h>
+#include <signal.h>
+
+int foobar = 0;
+List<Path> fisk;
+static void sigSegvHandler(int signal)
+{
+    fprintf(stderr, "Caught signal %d (%d) %s\n", signal, foobar, String::join(fisk, "\n").constData());
+    String trace = RTags::backtrace();
+    if (!trace.isEmpty()) {
+        fprintf(stderr, "%s", trace.constData());
+    }
+    fflush(stderr);
+    _exit(1);
+}
 
 int main(int argc, char **argv)
 {
+    signal(SIGSEGV, sigSegvHandler);
     initLogging();
     RTags::initMessages();
     std::shared_ptr<EventLoop> eventLoop(new EventLoop);

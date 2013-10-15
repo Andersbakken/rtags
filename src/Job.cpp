@@ -147,20 +147,23 @@ bool Job::write(const Location &location, unsigned flags)
             if (cursorKind)
                 out += '\t' + it->second.kindSpelling();
             if (containingFunction) {
-#warning not done
-                // const uint32_t fileId = location.fileId();
-                // const int offset = location.offset();
-                // while (true) {
-                //     --it;
-                //     if (it->first.fileId() != fileId)
-                //         break;
-                //     if (it->second.isDefinition() && RTags::isContainer(it->second.kind) && offset >= it->second.start && offset <= it->second.end) {
-                //         out += "\tfunction: " + it->second.symbolName;
-                //         break;
-                //     } else if (it == symbols.begin()) {
-                //         break;
-                //     }
-                // }
+                const uint32_t fileId = location.fileId();
+                const unsigned int line = location.line();
+                const unsigned int column = location.column();
+                while (true) {
+                    --it;
+                    if (it->first.fileId() != fileId)
+                        break;
+                    if (it->second.isDefinition()
+                        && RTags::isContainer(it->second.kind)
+                        && comparePosition(line, column, it->second.startLine, it->second.startColumn) >= 0
+                        && comparePosition(line, column, it->second.endLine, it->second.endColumn) <= 0) {
+                        out += "\tfunction: " + it->second.symbolName;
+                        break;
+                    } else if (it == symbols.begin()) {
+                        break;
+                    }
+                }
             }
         }
     }

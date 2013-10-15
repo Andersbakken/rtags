@@ -99,6 +99,8 @@ bool ClangIndexer::index(IndexType type, const Path &project, uint32_t fileId,
 
 Location ClangIndexer::createLocation(const Path &sourceFile, unsigned line, unsigned col, bool *blockedPtr)
 {
+    extern List<Path> fisk;
+    extern int foobar;
     uint32_t id = Location::fileId(sourceFile);
     Path resolved;
     if (!id) {
@@ -120,16 +122,22 @@ Location ClangIndexer::createLocation(const Path &sourceFile, unsigned line, uns
     enum { Timeout = 1000 };
     VisitFileMessage msg(resolved, mProject, mData->fileId);
     bool visit = false;
+    fisk += resolved;
     mConnection.newMessage().connect([&id, &visit](Message *msg, Connection *conn) {
             assert(msg->messageId() == VisitFileResponseMessage::MessageId);
             const VisitFileResponseMessage *vm = static_cast<VisitFileResponseMessage*>(msg);
             visit = vm->visit();
             id = vm->fileId();
+            foobar = id;
+            if (!visit)
+                foobar *= -1;
+            assert(EventLoop::eventLoop());
             EventLoop::eventLoop()->quit();
         });
 
     mConnection.send(msg);
     StopWatch sw;
+    printf("Shitwhich [%s]\n", resolved.constData());
     EventLoop::eventLoop()->exec(Timeout);
     mCommunicationDuration += sw.elapsed();
     if (!id) {
@@ -380,11 +388,11 @@ CXChildVisitResult ClangIndexer::indexVisitor(CXCursor cursor, CXCursor parent, 
     bool blocked = false;
     Location loc = indexer->createLocation(cursor, &blocked);
     if (blocked) {
-        error() << "blocked" << cursor;
+        // error() << "blocked" << cursor;
         ++indexer->mBlocked;
         return CXChildVisit_Continue;
     } else if (loc.isNull()) {
-        error() << "Got null" << cursor;
+        // error() << "Got null" << cursor;
         return CXChildVisit_Recurse;
     }
     ++indexer->mAllowed;

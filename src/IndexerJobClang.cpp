@@ -113,6 +113,7 @@ Process *IndexerJobClang::startProcess()
         std::shared_ptr<IndexData> data(new IndexData(type));
         data->fileId = source.fileId;
         data->aborted = true;
+        printf("[%s:%d]: data->aborted = true;\n", __func__, __LINE__); fflush(stdout);
         proj->onJobFinished(data);
         proj->dirty(source.sourceFile());
         return 0;
@@ -131,6 +132,7 @@ void IndexerJobClang::finished(Process *process)
             std::shared_ptr<IndexData> data(new IndexData(type));
             data->fileId = source.fileId;
             data->aborted = true;
+            printf("[%s:%d]: data->aborted = true;\n", __func__, __LINE__); fflush(stdout);
             proj->onJobFinished(data);
             // proj->dirty(source.sourceFile());
         }

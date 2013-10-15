@@ -181,33 +181,32 @@ public:
     }
     static String encodeClientLocation(const String &key)
     {
-        int pathLength;
+        char path[PATH_MAX];
         unsigned int line, col;
-        if (sscanf(key.constData(), "%n:%d:%d", &pathLength, &line, &col) != 2)
+        if (sscanf(key.constData(), "%[^':']:%d:%d", path, &line, &col) != 3)
             return String();
 
-        Path path = Path::resolved(key.left(pathLength));
+        Path resolved = Path::resolved(path);
         {
             char buf[8];
             memcpy(buf, &line, sizeof(line));
             memcpy(buf + 4, &col, sizeof(col));
-            path.append(buf, 8);
+            resolved.append(buf, 8);
         }
 
-        return path;
+        return resolved;
     }
 
 #ifndef SINGLE_THREAD
     static Location fromPathAndOffset(const String &str)
     {
-        int pathLength;
+        char path[PATH_MAX];
         unsigned int line, col;
-        if (sscanf(str.constData(), "%n:%d:%d", &pathLength, &line, &col) != 2) {
-            error("Can't create location from this: %s", str.constData());
+        if (sscanf(str.constData(), "%[^':']:%d:%d", path, &line, &col) != 3)
             return Location();
-        }
-        const Path path = Path::resolved(str.left(pathLength));
-        return Location(Location::insertFile(path), line, col);
+
+        const Path resolved = Path::resolved(path);
+        return Location(Location::insertFile(resolved), line, col);
     }
 #endif
     static Hash<unsigned int, Path> idsToPaths()
