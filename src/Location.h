@@ -149,7 +149,7 @@ public:
     String key(unsigned flags = NoFlag) const;
     bool toKey(char buf[8]) const
     {
-        assert(sizeof(buf) == sizeof(Location));
+        assert(sizeof(Location) == 8);
         if (isNull()) {
             memset(buf, 0, sizeof(Location));
             return false;
