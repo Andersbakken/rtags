@@ -47,7 +47,8 @@ public:
     };
 
     CursorInfo()
-        : symbolLength(0), kind(CXCursor_FirstInvalid), type(CXType_Invalid), enumValue(0)
+        : symbolLength(0), kind(CXCursor_FirstInvalid), type(CXType_Invalid), enumValue(0),
+          startLine(-1), startColumn(-1), endLine(-1), endColumn(-1)
     {}
 
     void clear()
@@ -142,11 +143,13 @@ public:
                 changed = true;
         }
 
-        // if (end == -1 && start == -1 && other.start != -1 && other.end != -1) {
-        //     start = other.start;
-        //     end = other.end;
-        //     changed = true;
-        // }
+        if (startLine == -1 && other.startLine != -1) {
+            startLine = other.startLine;
+            startColumn = other.startColumn;
+            endLine = other.endLine;
+            endColumn = other.endColumn;
+            changed = true;
+        }
 
         if (!symbolLength && other.symbolLength) {
             symbolLength = other.symbolLength;
@@ -186,13 +189,14 @@ public:
         int64_t enumValue; // only used if type == CXCursor_EnumConstantDecl
     };
     Set<Location> targets, references;
-    // int start, end;
+    int startLine, startColumn, endLine, endColumn;
 };
 
 template <> inline Serializer &operator<<(Serializer &s, const CursorInfo &t)
 {
     s << t.symbolLength << t.symbolName << static_cast<int>(t.kind)
-      << static_cast<int>(t.type) << t.enumValue << t.targets << t.references; // << t.start << t.end;
+      << static_cast<int>(t.type) << t.enumValue << t.targets << t.references
+      << t.startLine << t.startColumn << t.endLine << t.endColumn;
     return s;
 }
 
@@ -200,7 +204,8 @@ template <> inline Deserializer &operator>>(Deserializer &s, CursorInfo &t)
 {
     int kind, type;
     s >> t.symbolLength >> t.symbolName >> kind >> type
-      >> t.enumValue >> t.targets >> t.references; // >> t.start >> t.end;
+      >> t.enumValue >> t.targets >> t.references
+      >> t.startLine >> t.startColumn >> t.endLine >> t.endColumn;
     t.kind = static_cast<CXCursorKind>(kind);
     t.type = static_cast<CXTypeKind>(type);
     return s;

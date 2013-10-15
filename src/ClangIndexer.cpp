@@ -362,6 +362,7 @@ struct LastCursorUpdater
 
 CXChildVisitResult ClangIndexer::indexVisitor(CXCursor cursor, CXCursor parent, CXClientData data)
 {
+    // error() << "indexVisitor" << cursor;
     // FILE *f = fopen("/tmp/clangindex.log", "a");
     // String str;
     // Log(&str) << cursor;
@@ -379,9 +380,11 @@ CXChildVisitResult ClangIndexer::indexVisitor(CXCursor cursor, CXCursor parent, 
     bool blocked = false;
     Location loc = indexer->createLocation(cursor, &blocked);
     if (blocked) {
+        error() << "blocked" << cursor;
         ++indexer->mBlocked;
         return CXChildVisit_Continue;
     } else if (loc.isNull()) {
+        error() << "Got null" << cursor;
         return CXChildVisit_Recurse;
     }
     ++indexer->mAllowed;
@@ -586,20 +589,22 @@ void ClangIndexer::handleReference(const CXCursor &cursor, CXCursorKind kind, co
     // if they're not considered references
 
     if (!RTags::isCursor(info.kind) && (!info.symbolLength || info.bestTarget(mData->symbols).kind == refKind)) {
-#warning range not done
-        // CXSourceRange range = clang_getCursorExtent(cursor);
-        // unsigned start, end;
-        // clang_getSpellingLocation(clang_getRangeStart(range), 0, 0, 0, &start);
-        // clang_getSpellingLocation(clang_getRangeEnd(range), 0, 0, 0, &end);
-        // info.start = start;
-        // info.end = end;
+        CXSourceRange range = clang_getCursorExtent(cursor);
+        CXSourceLocation rangeStart = clang_getRangeStart(range);
+        CXSourceLocation rangeEnd = clang_getRangeEnd(range);
+        unsigned startLine, startColumn, endLine, endColumn;
+        clang_getPresumedLocation(rangeStart, 0, &startLine, &startColumn);
+        clang_getPresumedLocation(rangeEnd, 0, &endLine, &endColumn);
+        info.startLine = startLine;
+        info.startColumn = startColumn;
+        info.endLine = endLine;
+        info.endColumn = endColumn;
         info.definition = false;
         info.kind = kind;
         if (isOperator) {
-            CXSourceRange range = clang_getCursorExtent(cursor);
             unsigned start, end;
-            clang_getSpellingLocation(clang_getRangeStart(range), 0, 0, 0, &start);
-            clang_getSpellingLocation(clang_getRangeEnd(range), 0, 0, 0, &end);
+            clang_getSpellingLocation(rangeStart, 0, 0, 0, &start);
+            clang_getSpellingLocation(rangeEnd, 0, 0, 0, &end);
             info.symbolLength = end - start;
         } else {
             info.symbolLength = refInfo.symbolLength;
@@ -794,28 +799,6 @@ String ClangIndexer::typeName(const CXCursor &cursor)
 
 bool ClangIndexer::handleCursor(const CXCursor &cursor, CXCursorKind kind, const Location &location)
 {
-    // FILE *f = fopen("/tmp/clangindex.log", "a");
-    // String str;
-    // Log(&str) << "handleCursor" << cursor << location;
-    // fwrite(str.constData(), 1, str.size(), f);
-    // fwrite("\n", 1, 1, f);
-
-    // String fisk;
-    // {
-    //     Serializer serializer(fisk);
-    //     serializer << location;
-    // }
-    // {
-    //     Deserializer deserializer(fisk);
-    //     Location fiskefisk;
-    //     deserializer >> fiskefisk;
-    //     error() << "foobar" << location.mData << "=>" << fiskefisk.mData;
-    //     error() << "foobar" << location.mFileId << "=>" << fiskefisk.mFileId;
-    //     error() << "foobar" << location.mLine << "=>" << fiskefisk.mLine;
-    //     error() << "foobar" << location.mColumn << "=>" << fiskefisk.mColumn;
-    // }
-    // fclose(f);
-
     // error() << "Got a cursor" << cursor;
     CursorInfo &info = mData->symbols[location];
     if (!info.symbolLength || !RTags::isCursor(info.kind)) {
@@ -858,13 +841,16 @@ bool ClangIndexer::handleCursor(const CXCursor &cursor, CXCursorKind kind, const
             info.symbolName = addNamePermutations(cursor, location);
         }
 
-#warning range not done
-        // CXSourceRange range = clang_getCursorExtent(cursor);
-        // unsigned start, end;
-        // clang_getSpellingLocation(clang_getRangeStart(range), 0, 0, 0, &start);
-        // clang_getSpellingLocation(clang_getRangeEnd(range), 0, 0, 0, &end);
-        // info.start = start;
-        // info.end = end;
+        CXSourceRange range = clang_getCursorExtent(cursor);
+        CXSourceLocation rangeStart = clang_getRangeStart(range);
+        CXSourceLocation rangeEnd = clang_getRangeEnd(range);
+        unsigned startLine, startColumn, endLine, endColumn;
+        clang_getPresumedLocation(rangeStart, 0, &startLine, &startColumn);
+        clang_getPresumedLocation(rangeEnd, 0, &endLine, &endColumn);
+        info.startLine = startLine;
+        info.startColumn = startColumn;
+        info.endLine = endLine;
+        info.endColumn = endColumn;
 
         if (kind == CXCursor_EnumConstantDecl) {
 #if CINDEX_VERSION_MINOR > 1
@@ -914,9 +900,10 @@ bool ClangIndexer::parse()
     StopWatch sw;
     assert(!mUnit);
     assert(!mIndex);
-    mIndex = clang_createIndex(0, 1);
+    mIndex = clang_createIndex(0, 0);
     assert(mIndex);
     const Path sourceFile = Location::path(mData->fileId);
+    error() << "mContents" << mContents.size();
     CXUnsavedFile unsaved = { sourceFile.constData(), mContents.constData(), static_cast<unsigned long>(mContents.size()) };
     RTags::parseTranslationUnit(sourceFile, mArgs, List<String>(), mUnit, mIndex, mClangLine, &unsaved, 1);
 
@@ -952,13 +939,14 @@ struct XmlEntry
 {
     enum Type { None, Warning, Error, Fixit };
 
-    XmlEntry(Type t = None, const String &m = String())
-        : type(t), message(m)
+    XmlEntry(Type t = None, const String &m = String(), int l = -1)
+        : type(t), message(m), length(-1)
     {
     }
 
     Type type;
     String message;
+    int length;
 };
 
 static inline String xmlEscape(const String& xml)
@@ -999,9 +987,6 @@ static inline String xmlEscape(const String& xml)
 
 bool ClangIndexer::diagnose()
 {
-    return true;
-#warning not done
-#if 0
     if (!mUnit) {
         return false;
     } else if (mData->type == Dump) {
@@ -1053,29 +1038,35 @@ bool ClangIndexer::diagnose()
                     break;
                 }
                 if (type != XmlEntry::None) {
-                    xmlEntries[loc] = XmlEntry(type, msg);
-                    // const unsigned rangeCount = clang_getDiagnosticNumRanges(diagnostic);
-                    // if (!rangeCount) {
-                    //     xmlEntries[loc] = XmlEntry(type, msg);
-                    // } else {
-                    //     for (unsigned rangePos = 0; rangePos < rangeCount; ++rangePos) {
-                    //         const CXSourceRange range = clang_getDiagnosticRange(diagnostic, rangePos);
-                    //         const CXSourceLocation start = clang_getRangeStart(range);
-                    //         const CXSourceLocation end = clang_getRangeEnd(range);
+                    const unsigned rangeCount = clang_getDiagnosticNumRanges(diagnostic);
+                    bool ok = false;
+                    for (unsigned rangePos = 0; rangePos < rangeCount; ++rangePos) {
+                        const CXSourceRange range = clang_getDiagnosticRange(diagnostic, rangePos);
+                        const CXSourceLocation start = clang_getRangeStart(range);
+                        const CXSourceLocation end = clang_getRangeEnd(range);
 
-                    //         unsigned line, column, startOffset, endOffset;
-                    //         clang_getSpellingLocation(start, 0, &line, &column, &startOffset);
-                    //         clang_getSpellingLocation(end, 0, 0, 0, &endOffset);
-                    //         if (!rangePos && !startOffset && !endOffset) {
-                    //             // huh, range invalid? fall back to diag location
-                    //             // clang_getSpellingLocation(diagLoc, 0, &line, &column, 0);
-                    //             xmlEntries[loc] = XmlEntry(type, msg);
-                    //             break;
-                    //         } else {
-                    //             xmlEntries[fileId][startOffset] = XmlEntry(type, msg, line, column, endOffset);
-                    //         }
-                    //     }
-                    // }
+                        unsigned startOffset, endOffset;
+                        clang_getSpellingLocation(start, 0, 0, 0, &startOffset);
+                        clang_getSpellingLocation(end, 0, 0, 0, &endOffset);
+                        if (!rangePos && !startOffset && !endOffset) {
+                            // huh, range invalid? fall back to diag location
+                            break;
+                        } else {
+                            unsigned int line, column;
+                            clang_getPresumedLocation(start, 0, &line, &column);
+                            const Location key(loc.fileId(), line, column);
+                            xmlEntries[key] = XmlEntry(type, msg, endOffset - startOffset);
+                            ok = true;
+                            break;
+                        }
+                    }
+                    if (!ok) {
+                        unsigned line, column;
+                        clang_getPresumedLocation(diagLoc, 0, &line, &column);
+                        const Location key(loc.fileId(), line, column);
+                        xmlEntries[key] = XmlEntry(type, msg);
+                        // no length
+                    }
                 }
             }
             if (testLog(logLevel) || testLog(RTags::CompilationError)) {
@@ -1087,34 +1078,40 @@ bool ClangIndexer::diagnose()
 
             const unsigned fixItCount = clang_getDiagnosticNumFixIts(diagnostic);
             for (unsigned f=0; f<fixItCount; ++f) {
-                unsigned startOffset, line, column;
-                CXFile file;
+                unsigned line, column;
+                CXString file;
+                CXStringScope fileScope(file);
                 CXSourceRange range;
                 const CXStringScope stringScope = clang_getDiagnosticFixIt(diagnostic, f, &range);
-                clang_getSpellingLocation(clang_getRangeStart(range), &file, &line, &column, &startOffset);
+                CXSourceLocation start = clang_getRangeStart(range);
+                clang_getPresumedLocation(start, &file, &line, &column);
 
-                const Location loc = createLocation(file, startOffset);
+                const Location loc = createLocation(clang_getCString(file), line, column);
                 if (mData->visited.value(loc.fileId())) {
-                    const char* string = clang_getCString(stringScope);
-                    unsigned endOffset;
-                    clang_getSpellingLocation(clang_getRangeEnd(range), 0, 0, 0, &endOffset);
-                    error("Fixit for %s: Replace %d-%d with [%s]", loc.path().constData(),
-                          startOffset, endOffset, string);
+                    unsigned int startOffset, endOffset;
+                    CXSourceLocation end = clang_getRangeEnd(range);
+                    clang_getSpellingLocation(start, 0, 0, 0, &startOffset);
+                    clang_getSpellingLocation(end, 0, 0, 0, &endOffset);
+                    const char *string = clang_getCString(stringScope);
+                    error("Fixit for %s:%d:%d:(%d) Replace with [%s]", loc.path().constData(),
+                          line, column, endOffset - startOffset, string);
                     if (xmlEnabled) {
-                        XmlEntry& entry = xmlEntries[loc.fileId()][startOffset];
+                        XmlEntry &entry = xmlEntries[Location(loc.fileId(), line, column)];
                         entry.type = XmlEntry::Fixit;
                         if (entry.message.isEmpty()) {
                             entry.message = String::format<64>("did you mean '%s'?", string);
-                            entry.line = line;
-                            entry.column = column;
                         }
-                        entry.endOffset = endOffset;
+                        entry.length = endOffset - startOffset;
                     }
                     // if (testLog(logLevel) || testLog(RTags::CompilationError)) {
                     //     const String msg = String::format<128>("Fixit for %s: Replace %d-%d with [%s]", loc.path().constData(),
                     //                                            startOffset, endOffset, string);
+                    //     if (testLog(logLevel))
+                    //         logDirect(logLevel, msg.constData());
+                    //     if (testLog(RTags::CompilationError))
+                    //         logDirect(RTags::CompilationError, msg.constData());
                     // }
-                    mData->fixIts[loc.fileId()].insert(FixIt(startOffset, endOffset, string));
+                    mData->fixIts[loc.fileId()].insert(FixIt(line, column, endOffset - startOffset, string));
                 }
             }
         }
@@ -1123,38 +1120,43 @@ bool ClangIndexer::diagnose()
     }
     mData->xmlDiagnostics = "<?xml version=\"1.0\" encoding=\"utf-8\"?><checkstyle>";
     if (!xmlEntries.isEmpty()) {
-        Hash<uint32_t, Hash<int, XmlEntry> >::const_iterator entry = xmlEntries.begin();
-        const Hash<uint32_t, Hash<int, XmlEntry> >::const_iterator end = xmlEntries.end();
+        Map<Location, XmlEntry>::const_iterator entry = xmlEntries.begin();
+        const Map<Location, XmlEntry>::const_iterator end = xmlEntries.end();
 
-        const char* severities[] = { "none", "warning", "error", "fixit" };
+        const char *severities[] = { "none", "warning", "error", "fixit" };
 
+        uint32_t lastFileId = 0;
         while (entry != end) {
-            mData->xmlDiagnostics += String::format<128>("<file name=\"%s\">", Location::path(entry->first).constData());
-            const Hash<int, XmlEntry>& map = entry->second;
-            Hash<int, XmlEntry>::const_iterator it = map.begin();
-            const Hash<int, XmlEntry>::const_iterator end = map.end();
-            while (it != end) {
-                const XmlEntry& entry = it->second;
-                mData->xmlDiagnostics += String::format("<error line=\"%d\" column=\"%d\" startOffset=\"%d\" %sseverity=\"%s\" message=\"%s\"/>",
-                                                        entry.line, entry.column, it->first,
-                                                        (entry.endOffset == -1 ? "" : String::format<32>("endOffset=\"%d\" ", entry.endOffset).constData()),
-                                                        severities[entry.type], xmlEscape(entry.message).constData());
-                ++it;
+            const Location &loc = entry->first;
+            const XmlEntry &xmlEntry = entry->second;
+            if (loc.fileId() != lastFileId) {
+                if (lastFileId)
+                    mData->xmlDiagnostics += "</file>";
+                lastFileId = loc.fileId();
+                mData->xmlDiagnostics += String::format<128>("<file name=\"%s\">", loc.path().constData());
             }
-            mData->xmlDiagnostics += "</file>";
+            mData->xmlDiagnostics += String::format("<error line=\"%d\" column=\"%d\" %ssseverity=\"%s\" message=\"%s\"/>",
+                                                    loc.line(), loc.column(),
+                                                    (xmlEntry.length <= 0 ? ""
+                                                     : String::format<32>("length=\"%d\" ", xmlEntry.length).constData()),
+                                                    severities[xmlEntry.type], xmlEscape(xmlEntry.message).constData());
             ++entry;
         }
+        if (lastFileId)
+            mData->xmlDiagnostics += "</file>";
     }
 
     for (Hash<uint32_t, bool>::const_iterator it = mData->visited.begin(); it != mData->visited.end(); ++it) {
-        if (it->second && !xmlEntries.contains(it->first)) {
-            const String fn = Location::path(it->first);
-            mData->xmlDiagnostics += String::format("<file name=\"%s\"/>", fn.constData());
+        if (it->second) {
+            const Map<Location, XmlEntry>::const_iterator x = xmlEntries.find(Location(it->first, 0, 0));
+            if (x == xmlEntries.end() || x->first.fileId() != it->first) {
+                const String fn = Location::path(it->first);
+                mData->xmlDiagnostics += String::format("<file name=\"%s\"/>", fn.constData());
+            }
         }
     }
 
     mData->xmlDiagnostics += "</checkstyle>";
-#endif
     return true;
 }
 

@@ -427,12 +427,12 @@ String preprocess(const Source &source)
     compilerInstance.getDiagnosticClient().BeginSourceFile(compilerInstance.getLangOpts(), &compilerInstance.getPreprocessor());
 
     clang::DoPrintPreprocessedInput(compilerInstance.getPreprocessor(), &out, preprocessorOptions);
-    // FILE *f = fopen("/tmp/preprocess.cpp", "w");
+    FILE *f = fopen("/tmp/preprocess.cpp", "w");
     // fwrite(sourceFile.constData(), 1, sourceFile.size(), f);
 
     const String str = out.take();
-    // fwrite(str.constData(), 1, str.size(), f);
-    // return str;
+    fwrite(str.constData(), 1, str.size(), f);
+    fclose(f);
     warning() << "preprocessing" << sourceFile << "took" << sw.elapsed() << "ms" << str.size();
     return str;
 }

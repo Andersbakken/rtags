@@ -25,6 +25,21 @@
 #include <clang-c/Index.h>
 #include <stdio.h>
 
+static inline int intCompare(unsigned int l, unsigned int r)
+{
+    if (l < r)
+        return -1;
+    if (l > r)
+        return 1;
+    return 0;
+}
+static inline int comparePosition(unsigned int lline, unsigned int lcol, unsigned int rline, unsigned int rcol)
+{
+    int ret = intCompare(lline, rline);
+    if (!ret)
+        ret = intCompare(lcol, rcol);
+    return ret;
+}
 class Location
 {
 public:
@@ -106,19 +121,13 @@ public:
     inline bool operator!=(const Location &other) const { return mData != other.mData; }
     inline int compare(const Location &other) const
     {
-        int diff = mFileId - other.mFileId;
-        if (diff < 0) {
-            return -1;
-        } else if (diff > 0) {
-            return 1;
+        int ret = intCompare(fileId(), other.fileId());
+        if (!ret) {
+            ret = intCompare(line(), other.line());
+            if (!ret)
+                ret = intCompare(column(), other.column());
         }
-        diff = mLine - other.mLine;
-        if (diff < 0) {
-            return -1;
-        } else if (diff > 0) {
-            return 1;
-        }
-        return mColumn - other.mColumn;
+        return ret;
     }
     inline bool operator<(const Location &other) const
     {

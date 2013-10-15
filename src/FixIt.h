@@ -21,32 +21,40 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 
 struct FixIt
 {
-    inline FixIt(uint32_t s = 0, uint32_t e = 0, const String &t = String())
-        : start(s), end(e), text(t)
+    inline FixIt(uint32_t l = 0, uint32_t c = 0, uint32_t len = 0, const String &t = String())
+        : line(l), column(c), length(len), text(t)
     {
     }
     inline bool operator<(const FixIt &other) const
     {
-        return start < other.start;
+        if (line < other.line)
+            return true;
+        if (line > other.line)
+            return false;
+        if (column < other.column)
+            return true;
+        if (column > other.column)
+            return false;
+        return length < other.length;
     }
     inline bool operator==(const FixIt &other) const
     {
-        return (start == other.start && end == other.end && text == other.text);
+        return (line == other.line && column == other.column && length == other.length && text == other.text);
     }
 
-    uint32_t start, end;
+    uint32_t line, column, length;
     String text;
 };
 
 template <> inline Serializer &operator<<(Serializer &s, const FixIt &f)
 {
-    s << f.start << f.end << f.text;
+    s << f.line << f.column << f.length << f.text;
     return s;
 }
 
 template <> inline Deserializer &operator>>(Deserializer &s, FixIt &f)
 {
-    s >> f.start >> f.end >> f.text;
+    s >> f.line >> f.column >> f.length >> f.text;
     return s;
 }
 

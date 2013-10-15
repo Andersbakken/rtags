@@ -52,7 +52,7 @@ class VisitFileMessage;
 class Server
 {
 public:
-    enum { DatabaseVersion = 29 };
+    enum { DatabaseVersion = 30 };
 
     Server();
     ~Server();

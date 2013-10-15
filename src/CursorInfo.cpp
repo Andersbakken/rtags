@@ -17,7 +17,6 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 #include "CursorInfo.h"
 #include "RTagsClang.h"
 
-#warning start and end is not done
 const char *jsKindNames[] = {
     "JSInvalid",
     "JSDeclaration",
@@ -54,14 +53,14 @@ String CursorInfo::toString(unsigned cursorInfoFlags, unsigned keyFlags) const
                                       "Kind: %s\n"
                                       "%s" // type
                                       "SymbolLength: %u\n"
-                                      // "%s" // range
+                                      "%s" // range
                                       "%s" // enumValue
                                       "%s", // definition
                                       symbolName.constData(),
                                       kindSpelling().constData(),
                                       kind >= JSInvalid ? "" : String::format<32>("Type: %s\n", RTags::eatString(clang_getTypeKindSpelling(type)).constData()).constData(),
                                       symbolLength,
-                                      // start != -1 && end != -1 ? String::format<32>("Range: %d-%d\n", start, end).constData() : "",
+                                      startLine != -1 ? String::format<32>("Range: %d:%d-%d:%d\n", startLine, startColumn, endLine, endColumn).constData() : "",
 #if CINDEX_VERSION_MINOR > 1
                                       kind == CXCursor_EnumConstantDecl ? String::format<32>("Enum Value: %lld\n", enumValue).constData() :
 #endif

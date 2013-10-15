@@ -57,7 +57,7 @@ private:
     {
         return createLocation(clang_getCursorLocation(cursor), blocked);
     }
-    Location createLocation(const Path &file, unsigned int line, unsigned int col, bool *blocked);
+    Location createLocation(const Path &file, unsigned int line, unsigned int col, bool *blocked = 0);
     String addNamePermutations(const CXCursor &cursor, const Location &location);
 
     bool handleCursor(const CXCursor &cursor, CXCursorKind kind, const Location &location);
