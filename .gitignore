@@ -32,3 +32,4 @@ gr
 /bin/rp
 /bin/librtagsclang.dylib
 /src/libshared.so
+/src/libshared.dylib
