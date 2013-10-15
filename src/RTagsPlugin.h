@@ -22,7 +22,7 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 
 class Project;
 class QueryMessage;
-class Source;
+struct Source;
 class Connection;
 class RTagsPlugin
 {
