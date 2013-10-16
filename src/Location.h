@@ -43,22 +43,16 @@ static inline int comparePosition(unsigned int lline, unsigned int lcol, unsigne
 class Location
 {
 public:
-    union {
-        struct {
-            unsigned int mFileId : 19;
-            unsigned int mLine : 21;
-            unsigned int mColumn : 14;
-        } __attribute__ ((__packed__));
-        uint64_t mData;
-    };
+    uint64_t mData;
 
     Location()
         : mData(0)
     {}
 
     Location(unsigned int fileId, unsigned int line, unsigned int col)
-        : mFileId(fileId), mLine(line), mColumn(col)
-    {}
+        : mData((static_cast<uint64_t>(fileId) << (64 - FileBits)) | (static_cast<uint64_t>(line) << (64 - FileBits - LineBits)) | col)
+    {
+    }
 
     static inline unsigned int fileId(const Path &path)
     {
@@ -93,9 +87,9 @@ public:
     }
 #endif
 
-    inline unsigned int fileId() const { return mFileId; }
-    inline unsigned int line() const { return mLine; }
-    inline unsigned int column() const { return mColumn; }
+    inline unsigned int fileId() const { return ((mData & FILEID_MASK) >> (64 - FileBits)); }
+    inline unsigned int line() const { return ((mData & LINE_MASK) >> (64 - FileBits - LineBits)); }
+    inline unsigned int column() const { return static_cast<unsigned int>(mData & COLUMN_MASK); }
 
     inline Path path() const
     {
@@ -107,9 +101,9 @@ public:
         }
         return mCachedPath;
     }
-    inline bool isNull() const { return !mFileId; }
-    inline bool isValid() const { return mFileId; }
-    inline void clear() { mFileId = mLine = mColumn = 0; mCachedPath.clear(); }
+    inline bool isNull() const { return !mData; }
+    inline bool isValid() const { return mData; }
+    inline void clear() { mData = 0; mCachedPath.clear(); }
 #ifndef SINGLE_THREAD
     inline bool operator==(const String &str) const
     {
@@ -263,6 +257,14 @@ private:
     static unsigned int sLastId;
     static std::mutex sMutex;
     mutable Path mCachedPath;
+    enum {
+        FileBits = 22,
+        LineBits = 21,
+        ColumnBits = 64 - FileBits - LineBits
+    };
+    static const uint64_t FILEID_MASK;
+    static const uint64_t LINE_MASK;
+    static const uint64_t COLUMN_MASK;
 };
 
 template <> inline int fixedSize(const Location &)

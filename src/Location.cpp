@@ -22,11 +22,26 @@ Hash<uint32_t, Path> Location::sIdsToPaths;
 uint32_t Location::sLastId = 0;
 std::mutex Location::sMutex;
 
+static inline uint64_t createMask(int startBit, int bitCount)
+{
+    uint64_t mask = 0;
+    for (int i=startBit; i<startBit + bitCount; ++i) {
+        mask |= (static_cast<uint64_t>(1) << i);
+    }
+    return mask;
+}
+
+const uint64_t Location::FILEID_MASK = createMask(64 - FileBits, FileBits);
+const uint64_t Location::LINE_MASK = createMask(64 - FileBits - LineBits, LineBits);
+const uint64_t Location::COLUMN_MASK = createMask(64 - FileBits - LineBits - ColumnBits, ColumnBits);
+
 String Location::key(unsigned flags) const
 {
     if (isNull())
         return String();
-    int extra = RTags::digits(mLine) + RTags::digits(mColumn) + 3;
+    const unsigned int l = line();
+    const unsigned int c = column();
+    int extra = RTags::digits(l) + RTags::digits(c) + 3;
     String ctx;
     if (flags & Location::ShowContext) {
         ctx += '\t';
@@ -39,7 +54,7 @@ String Location::key(unsigned flags) const
     String ret(p.size() + extra, '0');
 
     snprintf(ret.data(), ret.size() + extra + 1, "%s:%d:%d:%s", p.constData(),
-             mLine, mColumn, ctx.constData());
+             l, c, ctx.constData());
     return ret;
 }
 
@@ -48,7 +63,8 @@ String Location::context() const
     Path p = path();
     FILE *f = fopen(p.constData(), "r");
     if (f) {
-        for (unsigned i=1; i<mLine; ++i) {
+        const unsigned int l = line();
+        for (unsigned i=1; i<l; ++i) {
              Rct::readLine(f);
          }
 
