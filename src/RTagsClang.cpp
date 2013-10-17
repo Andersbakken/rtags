@@ -417,6 +417,7 @@ String preprocess(const Source &source)
         predefines += '\n';
         // error() << "Got define" << it->define << it->value;
     }
+    predefines += "#define __STRICT_ANSI__\n";
 
     // error() << "predefines" << compilerInstance.getPreprocessor().getPredefines();
     compilerInstance.getPreprocessor().setPredefines(predefines);
