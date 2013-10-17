@@ -22,12 +22,10 @@
 #include <rct/StopWatch.h>
 #include <signal.h>
 
-int foobar = 0;
-List<Path> fisk;
 static void sigSegvHandler(int signal)
 {
-    fprintf(stderr, "Caught signal %d (%d) %s\n", signal, foobar, String::join(fisk, "\n").constData());
-    String trace = RTags::backtrace();
+    fprintf(stderr, "Caught signal %d\n", signal);
+    const String trace = RTags::backtrace();
     if (!trace.isEmpty()) {
         fprintf(stderr, "%s", trace.constData());
     }
@@ -46,11 +44,18 @@ int main(int argc, char **argv)
     Path project;
     List<String> args;
     Path serverFile;
-    Deserializer deserializer(stdin);
+    FILE *f = stdin;
+    if (argc > 1) {
+        f = fopen(argv[1], "r");
+    }
+    Deserializer deserializer(f);
     String preprocessed;
     uint32_t fileId;
     uint8_t type;
     deserializer >> serverFile >> sourceFile >> fileId >> preprocessed >> args >> project >> type;
+    if (argc > 1)
+        fclose(f);
+    f = 0;
     if (sourceFile.isEmpty()) {
         fprintf(stderr, "No sourcefile\n");
         return 3;

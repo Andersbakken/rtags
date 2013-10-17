@@ -5,7 +5,11 @@ endif ()
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-rtti")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fstack-protector-all")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wstack-protector")
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall")
+set(CMAKE_C_FLAGS "${CMAKE_CXX_FLAGS} -fstack-protector-all")
+set(CMAKE_C_FLAGS "${CMAKE_CXX_FLAGS} -Wstack-protector")
 
 include(${CMAKE_SOURCE_DIR}/cmake/EnsureLibraries.cmake)
 

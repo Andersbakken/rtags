@@ -85,6 +85,8 @@ private:
     static String typeName(const CXCursor &cursor);
     static String typeString(const CXType &type);
 
+    void onMessage(Message *msg, Connection *conn);
+
     Path mProject;
     std::shared_ptr<IndexData> mData;
     String mContents;
@@ -94,6 +96,8 @@ private:
     CXCursor mLastCursor;
     String mClangLine;
     // Hash<uint32_t, int> mErrors;
+    uint32_t mVisitFileResponseMessageFileId;
+    bool mVisitFileResponseMessageVisit;
     int mVisitedFiles;
     Path mSocketFile;
     StopWatch mTimer;

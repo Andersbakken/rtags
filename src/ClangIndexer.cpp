@@ -28,9 +28,11 @@ struct VerboseVisitorUserData {
 };
 
 ClangIndexer::ClangIndexer()
-    : mUnit(0), mIndex(0), mLastCursor(nullCursor), mVisitedFiles(1), mParseDuration(0),
+    : mUnit(0), mIndex(0), mLastCursor(nullCursor), mVisitFileResponseMessageFileId(0),
+      mVisitFileResponseMessageVisit(0), mVisitedFiles(1), mParseDuration(0),
       mVisitDuration(0), mCommunicationDuration(0), mBlocked(0), mAllowed(0), mLogFile(0)
 {
+    mConnection.newMessage().connect(std::bind(&ClangIndexer::onMessage, this, std::placeholders::_1, std::placeholders::_2));
 }
 
 ClangIndexer::~ClangIndexer()
@@ -52,7 +54,7 @@ bool ClangIndexer::index(IndexType type, const Path &project, uint32_t fileId,
                          const Path &sourceFile, const String &preprocessed,
                          const List<String> &args)
 {
-    mLogFile = fopen(String::format("/tmp/%s", sourceFile.fileName()).constData(), "w");
+    // mLogFile = fopen(String::format("/tmp/%s", sourceFile.fileName()).constData(), "w");
     Location::set(sourceFile, fileId);
     mData.reset(new IndexData(type));
     mData->fileId = fileId;
@@ -97,10 +99,18 @@ bool ClangIndexer::index(IndexType type, const Path &project, uint32_t fileId,
     return ret;
 }
 
+void ClangIndexer::onMessage(Message *msg, Connection *conn)
+{
+    assert(msg->messageId() == VisitFileResponseMessage::MessageId);
+    const VisitFileResponseMessage *vm = static_cast<VisitFileResponseMessage*>(msg);
+    mVisitFileResponseMessageVisit = vm->visit();
+    mVisitFileResponseMessageFileId = vm->fileId();
+    assert(EventLoop::eventLoop());
+    EventLoop::eventLoop()->quit();
+}
+
 Location ClangIndexer::createLocation(const Path &sourceFile, unsigned line, unsigned col, bool *blockedPtr)
 {
-    extern List<Path> fisk;
-    extern int foobar;
     uint32_t id = Location::fileId(sourceFile);
     Path resolved;
     if (!id) {
@@ -121,40 +131,26 @@ Location ClangIndexer::createLocation(const Path &sourceFile, unsigned line, uns
 
     enum { Timeout = 1000 };
     VisitFileMessage msg(resolved, mProject, mData->fileId);
-    bool visit = false;
-    fisk += resolved;
-    mConnection.newMessage().connect([&id, &visit](Message *msg, Connection *conn) {
-            assert(msg->messageId() == VisitFileResponseMessage::MessageId);
-            const VisitFileResponseMessage *vm = static_cast<VisitFileResponseMessage*>(msg);
-            visit = vm->visit();
-            id = vm->fileId();
-            foobar = id;
-            if (!visit)
-                foobar *= -1;
-            assert(EventLoop::eventLoop());
-            EventLoop::eventLoop()->quit();
-        });
 
+    mVisitFileResponseMessageFileId = 0;
+    mVisitFileResponseMessageVisit = false;
     mConnection.send(msg);
     StopWatch sw;
-    printf("Shitwhich [%s]\n", resolved.constData());
     EventLoop::eventLoop()->exec(Timeout);
     mCommunicationDuration += sw.elapsed();
+    id = mVisitFileResponseMessageFileId;
     if (!id) {
-        // FILE *f = fopen("/tmp/clangindex.log", "a");
-        // fprintf(f, "About to exit didn't get id for %s\n", resolved.constData());
-        // fclose(f);
         error() << "Error getting fileId for" << resolved;
         exit(1);
     }
-    mData->visited[id] = visit;
+    mData->visited[id] = mVisitFileResponseMessageVisit;
     // fprintf(mLogFile, "%s %s\n", file.second ? "WON" : "LOST", resolved.constData());
 
     Location::set(resolved, id);
     if (resolved != sourceFile)
         Location::set(sourceFile, id);
 
-    if (blockedPtr && !visit) {
+    if (blockedPtr && !mVisitFileResponseMessageVisit) {
         *blockedPtr = true;
         return Location();
     }
@@ -365,7 +361,7 @@ struct LastCursorUpdater
     ~LastCursorUpdater() { mVar = mCursor; }
 
     CXCursor &mVar;
-    const CXCursor &mCursor;
+    CXCursor mCursor;
 };
 
 CXChildVisitResult ClangIndexer::indexVisitor(CXCursor cursor, CXCursor parent, CXClientData data)
@@ -911,7 +907,7 @@ bool ClangIndexer::parse()
     mIndex = clang_createIndex(0, 0);
     assert(mIndex);
     const Path sourceFile = Location::path(mData->fileId);
-    error() << "mContents" << mContents.size();
+    // error() << "mContents" << mContents.size();
     CXUnsavedFile unsaved = { sourceFile.constData(), mContents.constData(), static_cast<unsigned long>(mContents.size()) };
     RTags::parseTranslationUnit(sourceFile, mArgs, List<String>(), mUnit, mIndex, mClangLine, &unsaved, 1);
 
