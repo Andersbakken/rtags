@@ -2297,10 +2297,9 @@ should use `irony-get-completion-point-anywhere'."
       (while lines
         (let ((cur (car lines))
               (offset nil))
-          (when (string-match "\\(.*\\):\\([0-9]+\\):\\([0-9]+\\)" cur)
-            ;; (message "foobar |%s|%s|%s|" (match-string 1 cur) (match-string 2 cur) (match-string 3 cur))
-            (setq offset (rtags-offset-for-line-column (string-to-number (match-string 2 cur))
-                                                       (string-to-number (match-string 3 cur))))
+          (when (string-match "\\(.*\\),\\([0-9]+\\)" cur)
+            ;; (message "foobar |%s|%s|" (match-string 1 cur) (match-string 2 cur))
+            (setq offset (1+ (string-to-number (match-string 2 cur))))
             (cond ((> offset end) (setq lines nil))
                   ((< (+ offset symlen) start))
                   (t
