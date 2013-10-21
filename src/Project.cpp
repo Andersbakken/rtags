@@ -156,8 +156,8 @@ bool Project::restore()
         while (it != mSources.end()) {
             if (!it->second.sourceFile().isFile()) {
                 error() << it->second.sourceFile() << "seems to have disappeared";
-                mSources.erase(it++);
                 dirty.insert(it->first);
+                mSources.erase(it++);
                 needsSave = true;
             } else {
                 const time_t parsed = it->second.parsed;
