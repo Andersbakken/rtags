@@ -199,14 +199,16 @@ end:
 
 void Project::startPendingJobs() // lock always held
 {
-    Hash<uint32_t, PendingJob> pendingJobs;
+    Hash<uint32_t, JobData> pendingJobs;
     {
         std::lock_guard<std::mutex> lock(mMutex);
         mState = Loaded;
-        pendingJobs = std::move(mPendingJobs);
+        pendingJobs = std::move(mJobs);
     }
-    for (Hash<uint32_t, PendingJob>::const_iterator it = pendingJobs.begin(); it != pendingJobs.end(); ++it) {
-        index(it->second.source, it->second.type);
+    for (Hash<uint32_t, JobData>::const_iterator it = pendingJobs.begin(); it != pendingJobs.end(); ++it) {
+        assert(it->second.pendingType != Invalid);
+        assert(!it->second.pending.isNull());
+        index(it->second.pending, it->second.pendingType);
     }
 }
 
@@ -242,8 +244,9 @@ void Project::load(FileManagerMode mode)
 void Project::unload()
 {
     std::lock_guard<std::mutex> lock(mMutex);
-    for (Hash<uint32_t, std::shared_ptr<IndexerJob> >::const_iterator it = mJobs.begin(); it != mJobs.end(); ++it) {
-        it->second->abort();
+    for (Hash<uint32_t, JobData>::const_iterator it = mJobs.begin(); it != mJobs.end(); ++it) {
+        if (it->second.job)
+            it->second.job->abort();
     }
     mJobs.clear();
     fileManager.reset();
@@ -256,7 +259,6 @@ void Project::unload()
     mSources.clear();
     mVisitedFiles.clear();
     mDependencies.clear();
-    mPendingJobs.clear();
 
     for (LinkedList<CachedUnit*>::const_iterator it = mCachedUnits.begin(); it != mCachedUnits.end(); ++it) {
         delete *it;
@@ -292,36 +294,69 @@ bool Project::match(const Match &p, bool *indexed) const
 void Project::onJobFinished(const std::shared_ptr<IndexData> &data)
 {
     assert(data);
-    PendingJob pending;
-    bool startPending = false;
+    Source pending;
+    IndexType pendingType = Invalid;
     {
         std::lock_guard<std::mutex> lock(mMutex);
-        std::shared_ptr<IndexerJob> job = mJobs.take(data->fileId);
-        if (job->isAborted() || data->aborted) {
-            mVisitedFiles -= job->visited;
-            pending = mPendingJobs.take(data->fileId, &startPending);
+        Hash<uint32_t, JobData>::iterator it = mJobs.find(data->fileId);
+        if (it == mJobs.end()) {
+            // not sure if this can happen when unloading while jobs are running
+            return;
+        }
+
+        IndexData &jobData = it->second;
+        assert(jobData.job);
+        if (data->aborted) {
+            ++data.crashCount;
         } else {
-            mPendingData[data->fileId] = data;
+            data.crashCount = 0;
+        }
+
+        enum { MaxCrashCount = 5 }; // ### configurable?
+        if (data->crashCount < MaxCrashCount) {
+            if (jobData.pendingType != Invalid) {
+                std::swap(pendingType, jobData.pendingType);
+                std::swap(pending, jobData.pending);
+            } else if (data->aborted || jobData.job->isAborted()) {
+                pending = jobData.job->source;
+                pendingType = jobData.job->type;
+                if (!jobData.job->isAborted())
+                    error("%s crashed, restarting", job->source.sourceFile().constData());
+            }
+        }
+        if (pendingType != Invalid) {
+            if (data->aborted && !jobData.job->isAborted()) {
+                mPendingData[data->fileId] = data;
+                mSources[data->fileId].parsed = data->parseTime;
+                error("[%3d%%] %d/%d %s %s.",
+                      static_cast<int>(round((double(idx) / double(mJobCounter)) * 100.0)), idx, mJobCounter,
+                      String::formatTime(time(0), String::Time).constData(),
+                      data->message.constData());
+            } else {
+                error("[%3d%%] %d/%d %s %s indexing crashed.",
+                      static_cast<int>(round((double(idx) / double(mJobCounter)) * 100.0)), idx, mJobCounter,
+                      String::formatTime(time(0), String::Time).constData(),
+                      jobData.job->source.sourceFile().toTilde().constData());
+            }
+
             const int idx = mJobCounter - mJobs.size();
-            mSources[data->fileId].parsed = data->parseTime;
             if (testLog(RTags::CompilationErrorXml)) {
-                log(RTags::CompilationErrorXml, "<?xml version=\"1.0\" encoding=\"utf-8\"?><progress index=\"%d\" total=\"%d\"></progress>",
+                log(RTags::CompilationErrorXml,
+                    "<?xml version=\"1.0\" encoding=\"utf-8\"?><progress index=\"%d\" total=\"%d\"></progress>",
                     idx, mJobCounter);
                 logDirect(RTags::CompilationErrorXml, data->xmlDiagnostics);
             }
-            error("[%3d%%] %d/%d %s %s.",
-                  static_cast<int>(round((double(idx) / double(mJobCounter)) * 100.0)), idx, mJobCounter,
-                  String::formatTime(time(0), String::Time).constData(),
-                  data->message.constData());
+
         }
 
-        if (mJobs.isEmpty()) {
-            error() << job->isAborted() << data->aborted;
+        if (mJobs.isEmpty() && !startPending) {
             mSyncTimer.restart(data->type == Dirty ? 0 : SyncTimeout, Timer::SingleShot);
         }
     }
-    if (startPending)
+    if (startPending) {
         index(pending.source, pending.type);
+        --mJobCounter;
+    }
 }
 
 bool Project::save()
@@ -369,22 +404,33 @@ bool Project::save()
 
 void Project::index(const Source &c, IndexType type)
 {
-    std::lock_guard<std::mutex> lock(mMutex);
     static const char *fileFilter = getenv("RTAGS_FILE_FILTER");
     if (fileFilter && !strstr(c.sourceFile().constData(), fileFilter))
         return;
-    std::shared_ptr<IndexerJob> &job = mJobs[c.fileId];
-    if (job) {
-        if (job->abort()) {
-            const PendingJob pending = { c, type };
-            mPendingJobs[c.fileId] = pending;
+
+    std::lock_guard<std::mutex> lock(mMutex);
+    JobData &data = mJobs[c.fileId];
+    if (mState != Loaded) {
+        data.pending = c;
+        data.pendingType = type;
+        return;
+    }
+    if (data.job) {
+        if (data.job->abort()) {
+            data.pending = c;
+            data.pendingType = type;
+        } else {
+            // not started yet
+            data.job->source = c;
+            data.job->type = type;
         }
         return;
     }
     std::shared_ptr<Project> project = shared_from_this();
 
     mSources[c.fileId] = c;
-    mPendingData.remove(c.fileId);
+    data.pending.clear();
+    data.pendingType = Invalid;
 
     if (!mJobCounter++)
         mTimer.start();

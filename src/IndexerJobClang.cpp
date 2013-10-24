@@ -105,6 +105,8 @@ Process *IndexerJobClang::startProcess()
                << source.fileId << preprocessed << source.arguments
                << proj->path() << static_cast<uint8_t>(type);
 
+    // error() << "STARTING PROCESS" << source.sourceFile() << this;
+
     mProcess = new Process;
     if (!mProcess->start(rp)) {
         error() << "Couldn't start rp" << mProcess->errorString();
@@ -115,7 +117,6 @@ Process *IndexerJobClang::startProcess()
         data->aborted = true;
         printf("[%s:%d]: data->aborted = true;\n", __func__, __LINE__); fflush(stdout);
         proj->onJobFinished(data);
-        proj->dirty(source.sourceFile());
         return 0;
     }
     mProcess->write(stdinData);
@@ -124,6 +125,7 @@ Process *IndexerJobClang::startProcess()
 
 void IndexerJobClang::finished(Process *process)
 {
+    // error() << "PROCESS FINISHED" << source.sourceFile() << process->returnCode() << this;
     ::error() << process->readAllStdOut();
     ::error() << process->readAllStdErr();
     if (process->returnCode() == -1) {
@@ -134,7 +136,6 @@ void IndexerJobClang::finished(Process *process)
             data->aborted = true;
             printf("[%s:%d]: data->aborted = true;\n", __func__, __LINE__); fflush(stdout);
             proj->onJobFinished(data);
-            // proj->dirty(source.sourceFile());
         }
     }
     // ::error() << source.sourceFile() << "finished" << process->returnCode() << mWaiting << mTimer.elapsed() << "ms";

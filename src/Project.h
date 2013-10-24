@@ -172,13 +172,17 @@ private:
 
     mutable std::mutex mMutex;
 
-    Hash<uint32_t, std::shared_ptr<IndexerJob> > mJobs, mDumps;
-    struct PendingJob
-    {
-        Source source;
-        IndexType type;
+    struct JobData {
+        JobData()
+            : pendingType(Dirty), crashCount(0)
+        {}
+        Source pending;
+        IndexType pendingType;
+        int crashCount;
+        std::shared_ptr<IndexerJob> job;
     };
-    Hash<uint32_t, PendingJob> mPendingJobs;
+
+    Hash<uint32_t, JobData> mJobs;
 
     Timer mSyncTimer;
 
@@ -206,9 +210,10 @@ inline bool Project::visitFile(uint32_t fileId, uint64_t id)
 {
     std::lock_guard<std::mutex> lock(mMutex);
     if (mVisitedFiles.insert(fileId)) {
-        std::shared_ptr<IndexerJob> job = mJobs.value(id);
-        assert(job);
-        job->visited.insert(id);
+        assert(mJobs.contains(id));
+        JobData &data = mJobs[id];
+        assert(data.job);
+        data.job->visited.insert(id);
         return true;
     }
     return false;

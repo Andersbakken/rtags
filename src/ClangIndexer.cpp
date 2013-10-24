@@ -86,6 +86,12 @@ bool ClangIndexer::index(IndexType type, const Path &project, uint32_t fileId,
     // FILE *f = fopen("/tmp/clangindex.log", "a");
     // fprintf(f, "Writing indexer message %d\n", mData->symbols.size());
 
+    // if (Path::exists(String("/tmp/") + Location::path(mData->fileId).fileName())) {
+    //     error() << "Detected problem... crashing" << Location::path(mData->fileId).fileName();
+    //     Path::rm(String("/tmp/") + Location::path(mData->fileId).fileName());
+    //     sleep(1);
+    //     abort();
+    // }
     mConnection.send(msg);
     if (mConnection.pendingWrite()) {
         mConnection.sendFinished().connect(std::bind(&EventLoop::quit, EventLoop::eventLoop()));
@@ -1001,7 +1007,6 @@ bool ClangIndexer::diagnose()
     const unsigned diagnosticCount = clang_getNumDiagnostics(mUnit);
 
     Map<Location, XmlEntry> xmlEntries;
-    const bool xmlEnabled = testLog(RTags::CompilationErrorXml);
 
     for (unsigned i=0; i<diagnosticCount; ++i) {
         CXDiagnostic diagnostic = clang_getDiagnostic(mUnit, i);
@@ -1027,50 +1032,48 @@ bool ClangIndexer::diagnose()
         const uint32_t fileId = loc.fileId();
         if (mData->visited.value(fileId)) {
             const String msg = RTags::eatString(clang_getDiagnosticSpelling(diagnostic));
-            if (xmlEnabled) {
-                const CXDiagnosticSeverity sev = clang_getDiagnosticSeverity(diagnostic);
-                XmlEntry::Type type = XmlEntry::None;
-                switch (sev) {
-                case CXDiagnostic_Warning:
-                    type = XmlEntry::Warning;
-                    break;
-                case CXDiagnostic_Error:
-                case CXDiagnostic_Fatal:
-                    type = XmlEntry::Error;
-                    break;
-                default:
-                    break;
-                }
-                if (type != XmlEntry::None) {
-                    const unsigned rangeCount = clang_getDiagnosticNumRanges(diagnostic);
-                    bool ok = false;
-                    for (unsigned rangePos = 0; rangePos < rangeCount; ++rangePos) {
-                        const CXSourceRange range = clang_getDiagnosticRange(diagnostic, rangePos);
-                        const CXSourceLocation start = clang_getRangeStart(range);
-                        const CXSourceLocation end = clang_getRangeEnd(range);
+            const CXDiagnosticSeverity sev = clang_getDiagnosticSeverity(diagnostic);
+            XmlEntry::Type type = XmlEntry::None;
+            switch (sev) {
+            case CXDiagnostic_Warning:
+                type = XmlEntry::Warning;
+                break;
+            case CXDiagnostic_Error:
+            case CXDiagnostic_Fatal:
+                type = XmlEntry::Error;
+                break;
+            default:
+                break;
+            }
+            if (type != XmlEntry::None) {
+                const unsigned rangeCount = clang_getDiagnosticNumRanges(diagnostic);
+                bool ok = false;
+                for (unsigned rangePos = 0; rangePos < rangeCount; ++rangePos) {
+                    const CXSourceRange range = clang_getDiagnosticRange(diagnostic, rangePos);
+                    const CXSourceLocation start = clang_getRangeStart(range);
+                    const CXSourceLocation end = clang_getRangeEnd(range);
 
-                        unsigned startOffset, endOffset;
-                        clang_getSpellingLocation(start, 0, 0, 0, &startOffset);
-                        clang_getSpellingLocation(end, 0, 0, 0, &endOffset);
-                        if (!rangePos && !startOffset && !endOffset) {
-                            // huh, range invalid? fall back to diag location
-                            break;
-                        } else {
-                            unsigned int line, column;
-                            clang_getPresumedLocation(start, 0, &line, &column);
-                            const Location key(loc.fileId(), line, column);
-                            xmlEntries[key] = XmlEntry(type, msg, endOffset - startOffset);
-                            ok = true;
-                            break;
-                        }
-                    }
-                    if (!ok) {
-                        unsigned line, column;
-                        clang_getPresumedLocation(diagLoc, 0, &line, &column);
+                    unsigned startOffset, endOffset;
+                    clang_getSpellingLocation(start, 0, 0, 0, &startOffset);
+                    clang_getSpellingLocation(end, 0, 0, 0, &endOffset);
+                    if (!rangePos && !startOffset && !endOffset) {
+                        // huh, range invalid? fall back to diag location
+                        break;
+                    } else {
+                        unsigned int line, column;
+                        clang_getPresumedLocation(start, 0, &line, &column);
                         const Location key(loc.fileId(), line, column);
-                        xmlEntries[key] = XmlEntry(type, msg);
-                        // no length
+                        xmlEntries[key] = XmlEntry(type, msg, endOffset - startOffset);
+                        ok = true;
+                        break;
                     }
+                }
+                if (!ok) {
+                    unsigned line, column;
+                    clang_getPresumedLocation(diagLoc, 0, &line, &column);
+                    const Location key(loc.fileId(), line, column);
+                    xmlEntries[key] = XmlEntry(type, msg);
+                    // no length
                 }
             }
             if (testLog(logLevel) || testLog(RTags::CompilationError)) {
@@ -1099,14 +1102,12 @@ bool ClangIndexer::diagnose()
                     const char *string = clang_getCString(stringScope);
                     error("Fixit for %s:%d:%d:(%d) Replace with [%s]", loc.path().constData(),
                           line, column, endOffset - startOffset, string);
-                    if (xmlEnabled) {
-                        XmlEntry &entry = xmlEntries[Location(loc.fileId(), line, column)];
-                        entry.type = XmlEntry::Fixit;
-                        if (entry.message.isEmpty()) {
-                            entry.message = String::format<64>("did you mean '%s'?", string);
-                        }
-                        entry.length = endOffset - startOffset;
+                    XmlEntry &entry = xmlEntries[Location(loc.fileId(), line, column)];
+                    entry.type = XmlEntry::Fixit;
+                    if (entry.message.isEmpty()) {
+                        entry.message = String::format<64>("did you mean '%s'?", string);
                     }
+                    entry.length = endOffset - startOffset;
                     // if (testLog(logLevel) || testLog(RTags::CompilationError)) {
                     //     const String msg = String::format<128>("Fixit for %s: Replace %d-%d with [%s]", loc.path().constData(),
                     //                                            startOffset, endOffset, string);

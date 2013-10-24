@@ -91,9 +91,9 @@ public:
     virtual bool abort() = 0; // returns true if it was aborted, false if it hadn't started yet
     virtual bool isAborted() const = 0;
 
-    const IndexType type;
+    IndexType type;
     std::weak_ptr<Project> project;
-    const Source source;
+    Source source;
     QueryMessage queryMessage;
     Connection *connection;
     Set<uint32_t> visited;
