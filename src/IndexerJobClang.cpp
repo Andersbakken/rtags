@@ -105,7 +105,7 @@ Process *IndexerJobClang::startProcess()
                << source.fileId << preprocessed << source.arguments
                << proj->path() << static_cast<uint8_t>(type);
 
-    error() << "STARTING PROCESS" << source.sourceFile() << this;
+    // error() << "STARTING PROCESS" << source.sourceFile() << this;
 
     mProcess = new Process;
     if (!mProcess->start(rp)) {
@@ -115,7 +115,6 @@ Process *IndexerJobClang::startProcess()
         std::shared_ptr<IndexData> data(new IndexData(type));
         data->fileId = source.fileId;
         data->aborted = true;
-        printf("[%s:%d]: data->aborted = true;\n", __func__, __LINE__); fflush(stdout);
         proj->onJobFinished(data);
         return 0;
     }
@@ -125,7 +124,7 @@ Process *IndexerJobClang::startProcess()
 
 void IndexerJobClang::finished(Process *process)
 {
-    error() << "PROCESS FINISHED" << source.sourceFile() << process->returnCode() << this;
+    // error() << "PROCESS FINISHED" << source.sourceFile() << process->returnCode() << this;
     ::error() << process->readAllStdOut();
     ::error() << process->readAllStdErr();
     if (process->returnCode() == -1) {
@@ -134,7 +133,6 @@ void IndexerJobClang::finished(Process *process)
             std::shared_ptr<IndexData> data(new IndexData(type));
             data->fileId = source.fileId;
             data->aborted = true;
-            printf("[%s:%d]: data->aborted = true;\n", __func__, __LINE__); fflush(stdout);
             proj->onJobFinished(data);
         }
     }

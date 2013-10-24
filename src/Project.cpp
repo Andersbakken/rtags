@@ -51,8 +51,10 @@ public:
     virtual void run()
     {
         std::shared_ptr<Project> project = mProject.lock();
-        if (project && project->restore())
+        if (project) {
+            project->restore();
             EventLoop::mainEventLoop()->callLater(std::bind(&Project::startPendingJobs, project.get()));
+        }
     }
 private:
     std::weak_ptr<Project> mProject;
@@ -96,8 +98,6 @@ bool Project::restore()
     bool restoreError = false;
     FILE *f = fopen(p.constData(), "r");
     if (!f) {
-        std::lock_guard<std::mutex> lock(mMutex);
-        mState = Loaded;
         return false;
     }
 
@@ -189,8 +189,6 @@ end:
 
     if (restoreError) {
         Path::rm(p);
-        std::lock_guard<std::mutex> lock(mMutex);
-        mState = Loaded;
     } else {
         error() << "Restored project" << mPath << "in" << timer.elapsed() << "ms";
     }
@@ -407,43 +405,47 @@ bool Project::save()
 //     assert(conn);
 // }
 
-void Project::index(const Source &c, IndexType type)
+void Project::index(const Source &source, IndexType type)
 {
     static const char *fileFilter = getenv("RTAGS_FILE_FILTER");
-    if (fileFilter && !strstr(c.sourceFile().constData(), fileFilter))
+    if (fileFilter && !strstr(source.sourceFile().constData(), fileFilter))
         return;
 
     std::lock_guard<std::mutex> lock(mMutex);
-    JobData &data = mJobs[c.fileId];
+    JobData &data = mJobs[source.fileId];
     if (mState != Loaded) {
-        data.pending = c;
-        data.pendingType = type;
+        error() << "Index called at" << static_cast<int>(mState) << "time. Setting pending" << source.sourceFile();
+        data.pending = source;
+        data.pendingType = Makefile;
         return;
     }
     if (data.job) {
+        error() << "There's already something here for" << source.sourceFile();
         if (data.job->abort()) {
-            data.pending = c;
+            error() << "Aborting and setting pending" << source.sourceFile();
+            data.pending = source;
             data.pendingType = type;
         } else {
+            error() << "Not started yet, updating" << source.sourceFile();
             // not started yet
-            data.job->source = c;
+            data.job->source = source;
             data.job->type = type;
         }
         return;
     }
     std::shared_ptr<Project> project = shared_from_this();
 
-    mSources[c.fileId] = c;
+    mSources[source.fileId] = source;
     data.pending.clear();
     data.pendingType = Invalid;
 
     if (!mJobCounter++)
         mTimer.start();
 
-    data.job = Server::instance()->factory().createJob(type, project, c);
+    data.job = Server::instance()->factory().createJob(type, project, source);
     if (!data.job) {
-        error() << "Failed to create job for" << c;
-        mJobs.erase(c.fileId);
+        error() << "Failed to create job for" << source;
+        mJobs.erase(source.fileId);
         return;
     }
     ++mNextId;
@@ -454,21 +456,6 @@ void Project::index(const Source &c, IndexType type)
 bool Project::index(const Source &s)
 {
     assert(!s.isNull());
-    {
-        std::lock_guard<std::mutex> lock(mMutex);
-        switch (mState) {
-        case Unloaded:
-            return false;
-        case Inited:
-        case Loading: {
-            JobData &pending = mJobs[s.fileId];
-            pending.pending = s;
-            pending.pendingType = Makefile;
-            return true; }
-        case Loaded:
-            break;
-        }
-    }
 
     const Source current = source(s.fileId);
     if (current.compare(s)) {

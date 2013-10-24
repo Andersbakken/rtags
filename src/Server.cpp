@@ -370,7 +370,7 @@ void Server::handleCreateOutputMessage(const CreateOutputMessage &message, Conne
 void Server::handleIndexerMessage(const IndexerMessage &message, Connection *conn)
 {
     std::shared_ptr<IndexData> indexData = message.data();
-    error() << "Got indexer message" << message.project() << Location::path(indexData->fileId);
+    // error() << "Got indexer message" << message.project() << Location::path(indexData->fileId);
     assert(indexData);
     std::shared_ptr<Project> project = mProjects.value(message.project());
     if (!project) {

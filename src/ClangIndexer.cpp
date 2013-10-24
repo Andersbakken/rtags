@@ -102,6 +102,7 @@ bool ClangIndexer::index(IndexType type, const Path &project, uint32_t fileId,
         error() << "Couldn't send IndexerMessage (2)" << Location::path(mData->fileId);
         return false;
     }
+    // error() << "Must have gotten a finished" << Location::path(mData->fileId);
     // fprintf(f, "Wrote indexer message %d\n", mData->symbols.size());
     // fclose(f);
 
