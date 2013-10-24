@@ -421,7 +421,7 @@
   (save-excursion
     (let ((name (if no-symbol-name nil (rtags-current-symbol-name))))
       (unless name
-        (setq name (thing-at-point 'symbol)))
+        (setq name (substring-no-properties (thing-at-point 'symbol))))
       name)))
 
 (defun rtags-cursorinfo (&optional location verbose)
