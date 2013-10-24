@@ -848,8 +848,8 @@ void Server::preprocessFile(const QueryMessage &query, Connection *conn)
         return;
     }
 
-    Preprocessor* pre = new Preprocessor(c, conn);
-    pre->preprocess();
+    Preprocessor pre(c, conn);
+    pre.preprocess();
 }
 
 void Server::clearProjects()

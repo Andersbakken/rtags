@@ -27,18 +27,11 @@ class Preprocessor
 {
 public:
     Preprocessor(const Source &source, Connection *connection);
-    ~Preprocessor();
 
     void preprocess();
-
 private:
-    void onProcessFinished();
-
-private:
-    const Source mArgs;
+    const Source mSource;
     Connection *mConnection;
-
-    Process *mProc;
 };
 
 #endif
