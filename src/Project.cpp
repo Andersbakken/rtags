@@ -322,8 +322,10 @@ void Project::onJobFinished(const std::shared_ptr<IndexData> &indexData)
             } else if (!success) {
                 pending = jobData->job->source;
                 pendingType = jobData->job->type;
-                if (!jobData->job->isAborted())
+                if (!jobData->job->isAborted()) {
+                    // ### we should maybe wait a little before restarting or something.
                     error("%s crashed, restarting", jobData->job->source.sourceFile().constData());
+                }
             }
         }
         if (pendingType == Invalid) {
