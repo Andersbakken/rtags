@@ -65,7 +65,7 @@ bool ClangIndexer::index(IndexType type, const Path &project, uint32_t fileId,
     mData->visited[fileId] = true;
     mContents = preprocessed;
     assert(type != Invalid);
-    const bool ret = parse() && visit() && diagnose();
+    parse() && visit() && diagnose();
     mData->parseTime = Rct::currentTimeMs();
 
     mData->message = sourceFile.toTilde();
@@ -92,17 +92,22 @@ bool ClangIndexer::index(IndexType type, const Path &project, uint32_t fileId,
     //     sleep(1);
     //     abort();
     // }
-    mConnection.send(msg);
-    if (mConnection.pendingWrite()) {
-        mConnection.sendFinished().connect(std::bind(&EventLoop::quit, EventLoop::eventLoop()));
-        EventLoop::eventLoop()->exec();
+    if (!mConnection.send(msg)) {
+        error() << "Couldn't send IndexerMessage" << Location::path(mData->fileId);
+        return false;
+    }
+    mConnection.finished().connect(std::bind(&EventLoop::quit, EventLoop::eventLoop()));
+    enum { MaxTime = 5000 };
+    if (EventLoop::eventLoop()->exec(MaxTime) == EventLoop::Timeout) {
+        error() << "Couldn't send IndexerMessage (2)" << Location::path(mData->fileId);
+        return false;
     }
     // fprintf(f, "Wrote indexer message %d\n", mData->symbols.size());
     // fclose(f);
 
     // FILE *f = fopen((String("/tmp/") + sourceFile.fileName()).constData(), "w");
     // fclose(f);
-    return ret;
+    return true;
 }
 
 void ClangIndexer::onMessage(Message *msg, Connection *conn)

@@ -378,6 +378,7 @@ void Server::handleIndexerMessage(const IndexerMessage &message, Connection *con
         return;
     }
     project->onJobFinished(indexData);
+    conn->finish();
 }
 
 void Server::handleQueryMessage(const QueryMessage &message, Connection *conn)
@@ -1391,7 +1392,6 @@ void Server::handleVisitFileMessage(const VisitFileMessage &message, Connection 
     }
     VisitFileResponseMessage msg(fileId, visit);
     conn->send(msg);
-    conn->finish();
 }
 
 void Server::handleCompletionMessage(const CompletionMessage &message, Connection *conn)
