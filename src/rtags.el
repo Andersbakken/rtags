@@ -506,11 +506,12 @@
           (kill-local-variable enable-multibyte-characters)))
     (goto-char (1+ pos))))
 
-(defun rtags-current-location (&optional linecol)
-  (if linecol
-      (format "%s:%d:%d" (or (buffer-file-name) (buffer-name))
-              (line-number-at-pos) (1+ (- (point) (point-at-bol))))
-    (format "%s,%d" (or (buffer-file-name) (buffer-name)) (rtags-offset))))
+(defun rtags-current-location (&optional offset)
+  (if offset
+      (format "%s,%d" (or (buffer-file-name) (buffer-name)) (rtags-offset))
+    (format "%s:%d:%d" (or (buffer-file-name) (buffer-name))
+            (line-number-at-pos) (1+ (- (point) (point-at-bol)))))
+  )
 
 (defun rtags-log (log)
   (if rtags-rc-log-enabled
