@@ -414,19 +414,19 @@ void Project::index(const Source &source, IndexType type)
     std::lock_guard<std::mutex> lock(mMutex);
     JobData &data = mJobs[source.fileId];
     if (mState != Loaded) {
-        error() << "Index called at" << static_cast<int>(mState) << "time. Setting pending" << source.sourceFile();
+        // error() << "Index called at" << static_cast<int>(mState) << "time. Setting pending" << source.sourceFile();
         data.pending = source;
         data.pendingType = Makefile;
         return;
     }
     if (data.job) {
-        error() << "There's already something here for" << source.sourceFile();
+        // error() << "There's already something here for" << source.sourceFile();
         if (data.job->abort()) {
-            error() << "Aborting and setting pending" << source.sourceFile();
+            // error() << "Aborting and setting pending" << source.sourceFile();
             data.pending = source;
             data.pendingType = type;
         } else {
-            error() << "Not started yet, updating" << source.sourceFile();
+            // error() << "Not started yet, updating" << source.sourceFile();
             // not started yet
             data.job->source = source;
             data.job->type = type;
@@ -436,8 +436,16 @@ void Project::index(const Source &source, IndexType type)
     std::shared_ptr<Project> project = shared_from_this();
 
     mSources[source.fileId] = source;
+    const Path dir = source.sourceFile().parentDir();
+    if (dir.isEmpty()) {
+        error() << "Got empty parent dir for" << source.sourceFile();
+    } else if (mWatchedPaths.insert(dir)) {
+        mWatcher.watch(dir);
+    }
+    
     data.pending.clear();
     data.pendingType = Invalid;
+    mPendingData.remove(source.fileId);
 
     if (!mJobCounter++)
         mTimer.start();
