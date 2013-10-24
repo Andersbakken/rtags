@@ -77,11 +77,13 @@ public:
     ThreadPool *threadPool() { return &mThreadPool; }
     struct Options {
         Options()
-            : options(0), processCount(0), completionCacheSize(0), unloadTimer(0), clearCompletionCacheInterval(0)
+            : options(0), processCount(0), completionCacheSize(0),
+              unloadTimer(0), clearCompletionCacheInterval(0),
+              rpVisitFileTimeout(0), rpIndexerMessageTimeout(0)
         {}
         Path socketFile, dataDir;
         unsigned options;
-        int processCount, completionCacheSize, unloadTimer, clearCompletionCacheInterval;
+        int processCount, completionCacheSize, unloadTimer, clearCompletionCacheInterval, rpVisitFileTimeout, rpIndexerMessageTimeout;
         List<String> defaultArguments, excludeFilters;
         List<Path> includePaths;
         List<Source::Define> defines;

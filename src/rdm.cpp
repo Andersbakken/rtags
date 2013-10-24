@@ -51,6 +51,8 @@ static void sigIntHandler(int)
 
 #define EXCLUDEFILTER_DEFAULT "*/CMakeFiles/*;*/cmake*/Modules/*;*/conftest.c*;/tmp/*"
 #define DEFAULT_COMPLETION_CACHE_CLEAR_INTERVAL 60
+#define DEFAULT_RP_VISITFILE_TIMEOUT 3000
+#define DEFAULT_RP_INDEXER_MESSAGE_TIMEOUT 5000
 #define XSTR(s) #s
 #define STR(s) XSTR(s)
 
@@ -88,6 +90,9 @@ static void usage(FILE *f)
             "  --job-count|-j [arg]                       Spawn this many concurrent processes for indexing.\n"
             "  --watch-system-paths|-w                    Watch system paths for changes.\n"
             "  --clear-completion-cache-interval|-O [arg] Set completion cache cleanup interval in minuts. (default " STR(DEFAULT_COMPLETION_CACHE_CLEAR_INTERVAL) ")\n"
+            "  --rp-visit-file-timeout|-t [arg]           Timeout for rp visitfile commands in ms (0 means no timeout) (default " STR(DEFAULT_RP_VISITFILE_TIMEOUT) ")\n"
+            "  --rp-indexer-message-timeout|-T [arg]      Timeout for rp indexer-message in ms (0 means no timeout) (default " STR(DEFAULT_RP_INDEXER_MESSAGE_TIMEOUT) ")\n"
+
 #ifdef OS_Darwin
             "  --filemanager-watch|-M                     Use a file system watcher for filemanager.\n"
 #else
@@ -137,6 +142,8 @@ int main(int argc, char** argv)
         { "disable-esprima", no_argument, 0, 'E' },
         { "enable-compiler-flags", no_argument, 0, 'K' },
         { "clear-completion-cache-interval", required_argument, 0, 'O' },
+        { "rp-visit-file-timout", required_argument, 0, 't' },
+        { "rp-indexer-message-timeout", required_argument, 0, 'T' },
 #ifdef OS_Darwin
         { "filemanager-watch", no_argument, 0, 'M' },
 #else
@@ -224,6 +231,8 @@ int main(int argc, char** argv)
     serverOpts.processCount = ThreadPool::idealThreadCount();
     serverOpts.completionCacheSize = 0;
     serverOpts.clearCompletionCacheInterval = DEFAULT_COMPLETION_CACHE_CLEAR_INTERVAL;
+    serverOpts.rpVisitFileTimeout = DEFAULT_RP_VISITFILE_TIMEOUT;
+    serverOpts.rpIndexerMessageTimeout = DEFAULT_RP_INDEXER_MESSAGE_TIMEOUT;
     serverOpts.options = Server::Wall|Server::SpellChecking;
 #ifdef OS_Darwin
     serverOpts.options |= Server::NoFileManagerWatch;
@@ -252,6 +261,15 @@ int main(int argc, char** argv)
             break;
         case 'x':
             serverOpts.excludeFilters += String(optarg).split(';');
+            break;
+        case 't':
+            serverOpts.rpVisitFileTimeout = atoi(optarg);
+            if (serverOpts.rpVisitFileTimeout < 0) {
+                fprintf(stderr, "Invalid argument to -t %s\n", optarg);
+                return 1;
+            }
+            if (!serverOpts.rpVisitFileTimeout)
+                serverOpts.rpVisitFileTimeout = -1;
             break;
         case 'b':
             serverOpts.ignoredCompilers.insert(Path::resolved(optarg));

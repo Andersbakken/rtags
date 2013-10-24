@@ -103,7 +103,9 @@ Process *IndexerJobClang::startProcess()
     Serializer serializer(stdinData);
     serializer << Server::instance()->options().socketFile << source.sourceFile()
                << source.fileId << preprocessed << source.arguments
-               << proj->path() << static_cast<uint8_t>(type);
+               << proj->path() << static_cast<uint8_t>(type)
+               << Server::instance()->options().rpVisitFileTimeout
+               << Server::instance()->options().rpIndexerMessageTimeout;
 
     // error() << "STARTING PROCESS" << source.sourceFile() << this;
 

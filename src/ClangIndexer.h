@@ -20,6 +20,10 @@ public:
     bool index(IndexType type, const Path &project, uint32_t fileId,
                const Path &sourceFile, const String &preprocessed,
                const List<String> &args);
+    int visitFileTimeout() const { return mVisitFileTimeout; }
+    void setVisitFileTimeout(int visitFileTimeout) { mVisitFileTimeout = visitFileTimeout; }
+    int indexerMessageTimeout() const { return mIndexerMessageTimeout; }
+    void setIndexerMessageTimeout(int indexerMessageTimeout) { mIndexerMessageTimeout = indexerMessageTimeout; }
 private:
     bool diagnose();
     bool visit();
@@ -101,7 +105,8 @@ private:
     int mVisitedFiles;
     Path mSocketFile;
     StopWatch mTimer;
-    int mParseDuration, mVisitDuration, mCommunicationDuration, mBlocked, mAllowed;
+    int mParseDuration, mVisitDuration, mCommunicationDuration, mBlocked,
+        mAllowed, mVisitFileTimeout, mIndexerMessageTimeout;
     Connection mConnection;
     FILE *mLogFile;
 };

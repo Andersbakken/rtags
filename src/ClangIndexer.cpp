@@ -30,7 +30,8 @@ struct VerboseVisitorUserData {
 ClangIndexer::ClangIndexer()
     : mUnit(0), mIndex(0), mLastCursor(nullCursor), mVisitFileResponseMessageFileId(0),
       mVisitFileResponseMessageVisit(0), mVisitedFiles(1), mParseDuration(0),
-      mVisitDuration(0), mCommunicationDuration(0), mBlocked(0), mAllowed(0), mLogFile(0)
+      mVisitDuration(0), mCommunicationDuration(0), mBlocked(0), mAllowed(0),
+      mVisitFileTimeout(0), mIndexerMessageTimeout(0), mLogFile(0)
 {
     mConnection.newMessage().connect(std::bind(&ClangIndexer::onMessage, this, std::placeholders::_1, std::placeholders::_2));
 }
@@ -97,8 +98,7 @@ bool ClangIndexer::index(IndexType type, const Path &project, uint32_t fileId,
         return false;
     }
     mConnection.finished().connect(std::bind(&EventLoop::quit, EventLoop::eventLoop()));
-    enum { MaxTime = 5000 };
-    if (EventLoop::eventLoop()->exec(MaxTime) == EventLoop::Timeout) {
+    if (EventLoop::eventLoop()->exec(mIndexerMessageTimeout) == EventLoop::Timeout) {
         error() << "Couldn't send IndexerMessage (2)" << Location::path(mData->fileId);
         return false;
     }
@@ -141,14 +141,13 @@ Location ClangIndexer::createLocation(const Path &sourceFile, unsigned line, uns
         return Location(id, line, col);
     }
 
-    enum { Timeout = 1000 };
     VisitFileMessage msg(resolved, mProject, mData->fileId);
 
     mVisitFileResponseMessageFileId = 0;
     mVisitFileResponseMessageVisit = false;
     mConnection.send(msg);
     StopWatch sw;
-    EventLoop::eventLoop()->exec(Timeout);
+    EventLoop::eventLoop()->exec(mVisitFileTimeout);
     mCommunicationDuration += sw.elapsed();
     id = mVisitFileResponseMessageFileId;
     if (!id) {

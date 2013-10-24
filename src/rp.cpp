@@ -52,7 +52,9 @@ int main(int argc, char **argv)
     String preprocessed;
     uint32_t fileId;
     uint8_t type;
-    deserializer >> serverFile >> sourceFile >> fileId >> preprocessed >> args >> project >> type;
+    int visitFileTimeout, indexerMessageTimeout;
+    deserializer >> serverFile >> sourceFile >> fileId >> preprocessed >> args
+                 >> project >> type >> visitFileTimeout >> indexerMessageTimeout;
     if (argc > 1)
         fclose(f);
     f = 0;
@@ -85,6 +87,8 @@ int main(int argc, char **argv)
         fprintf(stderr, "Failed to connect to rdm\n");
         return 6;
     }
+    indexer.setVisitFileTimeout(visitFileTimeout);
+    indexer.setIndexerMessageTimeout(indexerMessageTimeout);
 
     if (!indexer.index(static_cast<IndexType>(type), project, fileId,
                        sourceFile, preprocessed, args)) {
