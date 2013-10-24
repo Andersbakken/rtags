@@ -50,10 +50,9 @@ public:
 
     virtual void run()
     {
-        if (std::shared_ptr<Project> project = mProject.lock()) {
-            project->restore();
+        std::shared_ptr<Project> project = mProject.lock();
+        if (project && project->restore())
             EventLoop::mainEventLoop()->callLater(std::bind(&Project::startPendingJobs, project.get()));
-        }
     }
 private:
     std::weak_ptr<Project> mProject;
@@ -190,6 +189,8 @@ end:
 
     if (restoreError) {
         Path::rm(p);
+        std::lock_guard<std::mutex> lock(mMutex);
+        mState = Loaded;
     } else {
         error() << "Restored project" << mPath << "in" << timer.elapsed() << "ms";
     }
@@ -206,8 +207,8 @@ void Project::startPendingJobs() // lock always held
         pendingJobs = std::move(mJobs);
     }
     for (Hash<uint32_t, JobData>::const_iterator it = pendingJobs.begin(); it != pendingJobs.end(); ++it) {
-        assert(it->second.pendingType != Invalid);
         assert(!it->second.pending.isNull());
+        assert(it->second.pendingType != Invalid);
         index(it->second.pending, it->second.pendingType);
     }
 }
@@ -291,72 +292,75 @@ bool Project::match(const Match &p, bool *indexed) const
     return ret;
 }
 
-void Project::onJobFinished(const std::shared_ptr<IndexData> &data)
+void Project::onJobFinished(const std::shared_ptr<IndexData> &indexData)
 {
-    assert(data);
+    assert(indexData);
     Source pending;
     IndexType pendingType = Invalid;
     {
         std::lock_guard<std::mutex> lock(mMutex);
-        Hash<uint32_t, JobData>::iterator it = mJobs.find(data->fileId);
+        const Hash<uint32_t, JobData>::iterator it = mJobs.find(indexData->fileId);
         if (it == mJobs.end()) {
             // not sure if this can happen when unloading while jobs are running
             return;
         }
 
-        IndexData &jobData = it->second;
-        assert(jobData.job);
-        if (data->aborted) {
-            ++data.crashCount;
+        JobData *jobData = &it->second;
+        assert(jobData->job);
+        const bool success = !indexData->aborted && !jobData->job->isAborted();
+        if (indexData->aborted) {
+            ++jobData->crashCount;
         } else {
-            data.crashCount = 0;
+            jobData->crashCount = 0;
         }
 
         enum { MaxCrashCount = 5 }; // ### configurable?
-        if (data->crashCount < MaxCrashCount) {
-            if (jobData.pendingType != Invalid) {
-                std::swap(pendingType, jobData.pendingType);
-                std::swap(pending, jobData.pending);
-            } else if (data->aborted || jobData.job->isAborted()) {
-                pending = jobData.job->source;
-                pendingType = jobData.job->type;
-                if (!jobData.job->isAborted())
-                    error("%s crashed, restarting", job->source.sourceFile().constData());
+        if (jobData->crashCount < MaxCrashCount) {
+            if (jobData->pendingType != Invalid) {
+                assert(jobData->job->isAborted());
+                std::swap(pendingType, jobData->pendingType);
+                std::swap(pending, jobData->pending);
+            } else if (!success) {
+                pending = jobData->job->source;
+                pendingType = jobData->job->type;
+                if (!jobData->job->isAborted())
+                    error("%s crashed, restarting", jobData->job->source.sourceFile().constData());
             }
         }
-        if (pendingType != Invalid) {
-            if (data->aborted && !jobData.job->isAborted()) {
-                mPendingData[data->fileId] = data;
-                mSources[data->fileId].parsed = data->parseTime;
-                error("[%3d%%] %d/%d %s %s.",
-                      static_cast<int>(round((double(idx) / double(mJobCounter)) * 100.0)), idx, mJobCounter,
-                      String::formatTime(time(0), String::Time).constData(),
-                      data->message.constData());
-            } else {
-                error("[%3d%%] %d/%d %s %s indexing crashed.",
-                      static_cast<int>(round((double(idx) / double(mJobCounter)) * 100.0)), idx, mJobCounter,
-                      String::formatTime(time(0), String::Time).constData(),
-                      jobData.job->source.sourceFile().toTilde().constData());
-            }
+        if (pendingType == Invalid) {
+            jobData = 0;
+            mJobs.erase(it);
 
             const int idx = mJobCounter - mJobs.size();
             if (testLog(RTags::CompilationErrorXml)) {
                 log(RTags::CompilationErrorXml,
                     "<?xml version=\"1.0\" encoding=\"utf-8\"?><progress index=\"%d\" total=\"%d\"></progress>",
                     idx, mJobCounter);
-                logDirect(RTags::CompilationErrorXml, data->xmlDiagnostics);
+                logDirect(RTags::CompilationErrorXml, indexData->xmlDiagnostics);
             }
-
-        }
-
-        if (mJobs.isEmpty() && !startPending) {
-            mSyncTimer.restart(data->type == Dirty ? 0 : SyncTimeout, Timer::SingleShot);
+            if (success) {
+                mPendingData[indexData->fileId] = indexData;
+                mSources[indexData->fileId].parsed = indexData->parseTime;
+                error("[%3d%%] %d/%d %s %s.",
+                      static_cast<int>(round((double(idx) / double(mJobCounter)) * 100.0)), idx, mJobCounter,
+                      String::formatTime(time(0), String::Time).constData(),
+                      indexData->message.constData());
+            } else {
+                assert(indexData->aborted);
+                error("[%3d%%] %d/%d %s %s indexing crashed.",
+                      static_cast<int>(round((double(idx) / double(mJobCounter)) * 100.0)), idx, mJobCounter,
+                      String::formatTime(time(0), String::Time).constData(),
+                      Location::path(indexData->fileId).toTilde().constData());
+            }
+            if (mJobs.isEmpty())
+                mSyncTimer.restart(indexData->type == Dirty ? 0 : SyncTimeout, Timer::SingleShot);
+            return;
         }
     }
-    if (startPending) {
-        index(pending.source, pending.type);
-        --mJobCounter;
-    }
+    assert(!pending.isNull());
+    assert(pendingType != Invalid);
+    index(pending, pendingType);
+    --mJobCounter;
 }
 
 bool Project::save()
@@ -435,16 +439,15 @@ void Project::index(const Source &c, IndexType type)
     if (!mJobCounter++)
         mTimer.start();
 
-    job = Server::instance()->factory().createJob(type, project, c);
-    if (!job) {
+    data.job = Server::instance()->factory().createJob(type, project, c);
+    if (!data.job) {
         error() << "Failed to create job for" << c;
         mJobs.erase(c.fileId);
         return;
     }
     ++mNextId;
-    assert(mJobs[c.fileId] == job);
     mSyncTimer.stop();
-    job->start();
+    data.job->start();
 }
 
 bool Project::index(const Source &s)
@@ -457,9 +460,9 @@ bool Project::index(const Source &s)
             return false;
         case Inited:
         case Loading: {
-            PendingJob &pending = mPendingJobs[s.fileId];
-            pending.source = s;
-            pending.type = Makefile;
+            JobData &pending = mJobs[s.fileId];
+            pending.pending = s;
+            pending.pendingType = Makefile;
             return true; }
         case Loaded:
             break;
@@ -572,10 +575,9 @@ int Project::remove(const Match &match)
             if (match.match(it->second.sourceFile())) {
                 const uint32_t fileId = it->second.fileId;
                 mSources.erase(it++);
-                std::shared_ptr<IndexerJob> job = mJobs.take(fileId);
-                // ### is this right?
-                if (job)
-                    job->abort();
+                JobData data = mJobs.take(fileId);
+                if (data.job)
+                    data.job->abort();
                 mPendingData.remove(fileId);
                 dirty.insert(fileId);
                 ++count;
