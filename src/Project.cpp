@@ -301,6 +301,7 @@ void Project::onJobFinished(const std::shared_ptr<IndexData> &indexData)
         std::lock_guard<std::mutex> lock(mMutex);
         const Hash<uint32_t, JobData>::iterator it = mJobs.find(indexData->fileId);
         if (it == mJobs.end()) {
+            error() << "Couldn't find JobData for" << Location::path(indexData->fileId);
             // not sure if this can happen when unloading while jobs are running
             return;
         }
@@ -1023,6 +1024,16 @@ SymbolMap Project::symbols(uint32_t fileId) const
              it != mSymbols.end() && it->first.fileId() == fileId; ++it) {
             ret[it->first] = it->second;
         }
+    }
+    return ret;
+}
+String Project::dumpJobs() const
+{
+    String ret;
+    std::lock_guard<std::mutex> lock(mMutex);
+    for (Hash<uint32_t, JobData>::const_iterator it = mJobs.begin(); it != mJobs.end(); ++it) {
+        ret << Location::path(it->first) << it->second.job.get() << it->second.crashCount
+            << it->second.pending << static_cast<int>(it->second.pendingType) << "\n";
     }
     return ret;
 }

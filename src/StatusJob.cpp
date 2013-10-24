@@ -180,4 +180,9 @@ void StatusJob::execute()
                 return;
         }
     }
+
+    if (query.isEmpty() || !strcasecmp(query.constData(), "jobs")) {
+        if (!write(delimiter) || !write("jobs") || !write(delimiter) << !write(proj->dumpJobs()))
+            return;
+    }
 }

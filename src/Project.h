@@ -137,6 +137,7 @@ public:
     void onJSFilesAdded();
     List<std::pair<Path, List<String> > > cachedUnits() const;
     void dirty(const Path &);
+    String dumpJobs() const;
 private:
     void index(const Source &args, IndexType type);
     void reloadFileManager();

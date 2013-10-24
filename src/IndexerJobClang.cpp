@@ -105,7 +105,7 @@ Process *IndexerJobClang::startProcess()
                << source.fileId << preprocessed << source.arguments
                << proj->path() << static_cast<uint8_t>(type);
 
-    // error() << "STARTING PROCESS" << source.sourceFile() << this;
+    error() << "STARTING PROCESS" << source.sourceFile() << this;
 
     mProcess = new Process;
     if (!mProcess->start(rp)) {
@@ -125,7 +125,7 @@ Process *IndexerJobClang::startProcess()
 
 void IndexerJobClang::finished(Process *process)
 {
-    // error() << "PROCESS FINISHED" << source.sourceFile() << process->returnCode() << this;
+    error() << "PROCESS FINISHED" << source.sourceFile() << process->returnCode() << this;
     ::error() << process->readAllStdOut();
     ::error() << process->readAllStdErr();
     if (process->returnCode() == -1) {
