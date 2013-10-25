@@ -356,6 +356,8 @@ void Project::onJobFinished(const std::shared_ptr<IndexData> &indexData)
             if (mJobs.isEmpty())
                 mSyncTimer.restart(indexData->type == Dirty ? 0 : SyncTimeout, Timer::SingleShot);
             return;
+        } else {
+            jobData->job.reset();
         }
     }
     assert(!pending.isNull());
