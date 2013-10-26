@@ -242,7 +242,9 @@ void Project::unload()
         if (it->second.job)
             it->second.job->abort();
     }
+
     mJobs.clear();
+    mDumps.clear();
     fileManager.reset();
 
     mSymbols.clear();
@@ -292,7 +294,22 @@ void Project::onJobFinished(const std::shared_ptr<IndexData> &indexData)
     IndexerJob::IndexType pendingType = IndexerJob::Invalid;
     bool syncNow = false;
     {
-        std::lock_guard<std::mutex> lock(mMutex);
+        std::unique_lock<std::mutex> lock(mMutex);
+        if (indexData->type == IndexerJob::Dump) {
+            bool found = false;
+            Connection *conn = mDumps.take(indexData->fileId, &found);
+            if (!found) {
+                error() << "Couldn't find JobData for" << Location::path(indexData->fileId);
+                return;
+            }
+            lock.unlock();
+            if (conn) {
+                conn->write(indexData->message);
+                conn->finish();
+            }
+            return;
+        }
+
         const Hash<uint32_t, JobData>::iterator it = mJobs.find(indexData->fileId);
         if (it == mJobs.end()) {
             error() << "Couldn't find JobData for" << Location::path(indexData->fileId);
@@ -397,19 +414,30 @@ bool Project::save()
     return true;
 }
 
-// void Project::dump(const Path &path, const QueryMessage &Connection *conn)
-// {
-//     const uint32_t fileId = Location::fileId(fileId);
-//     Source source = source(fileId);
-//     if (source.isNull()) {
-//         conn->write<64>("No source information for %s", path.constData());
-//         conn->finish();;
-//         return;
-//     }
+void Project::dump(const Source &source, Connection *conn)
+{
+    if (source.isNull()) {
+        conn->write<64>("No source information for %s", source.sourceFile().constData());
+        conn->finish();;
+        return;
+    }
 
-//     std::lock_guard<std::mutex> lock(mMutex);
-//     assert(conn);
-// }
+    Connection *&c = mDumps[source.fileId];
+    if (c) {
+        conn->write<64>("%s is being dumped as we speak", source.sourceFile().constData());
+        conn->finish();
+        return;
+    }
+    c = conn;
+    std::shared_ptr<IndexerJob> job = Server::instance()->factory().createJob(IndexerJob::Dump, shared_from_this(), source);
+    if (!job) {
+        mDumps.remove(source.fileId);
+        conn->write<64>("Couldn't create dump job for %s", source.sourceFile().constData());
+        conn->finish();
+        return;
+    }
+    job->start();
+}
 
 void Project::index(const Source &source, IndexerJob::IndexType type)
 {

@@ -31,10 +31,6 @@ public:
     virtual std::shared_ptr<IndexerJob> createJob(IndexerJob::IndexType type,
                                                   const std::shared_ptr<Project> &project,
                                                   const Source &source) = 0;
-    virtual std::shared_ptr<IndexerJob> createJob(const QueryMessage &msg,
-                                                  const std::shared_ptr<Project> &project,
-                                                  const Source &source,
-                                                  Connection *conn) = 0;
     // add functions for completions etc
 };
 

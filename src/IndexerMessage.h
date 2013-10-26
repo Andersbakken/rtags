@@ -40,7 +40,7 @@ public:
         assert(mData);
         serializer << mProject << static_cast<uint8_t>(mData->type) << mData->fileId << mData->parseTime
                    << mData->symbols << mData->references << mData->symbolNames << mData->dependencies
-                   << mData->usrMap << mData->message << mData->logOutput << mData->fixIts
+                   << mData->usrMap << mData->message << mData->fixIts
                    << mData->xmlDiagnostics << mData->visited;
     }
     void decode(Deserializer &deserializer)
@@ -51,7 +51,7 @@ public:
         mData.reset(new IndexData(static_cast<IndexerJob::IndexType>(type)));
         deserializer >> mData->fileId >> mData->parseTime >> mData->symbols >> mData->references
                      >> mData->symbolNames >> mData->dependencies >> mData->usrMap >> mData->message
-                     >> mData->logOutput >> mData->fixIts >> mData->xmlDiagnostics >> mData->visited;
+                     >> mData->fixIts >> mData->xmlDiagnostics >> mData->visited;
     }
     std::shared_ptr<IndexData> data() const { return mData; }
     const Path &project() const { return mProject; }

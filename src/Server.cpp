@@ -570,7 +570,6 @@ void Server::findFile(const QueryMessage &query, Connection *conn)
 
 void Server::dumpFile(const QueryMessage &query, Connection *conn)
 {
-#warning not done
     const uint32_t fileId = Location::fileId(query.query());
     if (!fileId) {
         conn->write<256>("%s is not indexed", query.query().constData());
@@ -584,21 +583,8 @@ void Server::dumpFile(const QueryMessage &query, Connection *conn)
         conn->finish();
         return;
     }
-    const Source c = project->source(fileId);
-    if (c.isNull()) {
-        conn->write<256>("%s is not indexed", query.query().constData());
-        conn->finish();
-        return;
-    }
 
-    std::shared_ptr<IndexerJob> job = Server::instance()->factory().createJob(query, project, c, conn);
-    if (job) {
-        job->start();
-        // mThreadPool.start(job);
-    } else {
-        conn->write<128>("Failed to create job for %s", c.sourceFile().constData());
-        conn->finish();
-    }
+    project->dump(project->source(fileId), conn);
 }
 
 void Server::cursorInfo(const QueryMessage &query, Connection *conn)

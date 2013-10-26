@@ -35,10 +35,7 @@ public:
     };
 
     IndexerJob(IndexType t, const std::shared_ptr<Project> &p, const Source &s)
-        : type(t), project(p), source(s), connection(0)
-    {}
-    IndexerJob(const QueryMessage &q, const std::shared_ptr<Project> &p, const Source &s, Connection *conn)
-        : type(Dump), project(p), source(s), queryMessage(q), connection(conn)
+        : type(t), project(p), source(s)
     {}
 
     virtual ~IndexerJob() {}
@@ -49,8 +46,6 @@ public:
     IndexType type;
     std::weak_ptr<Project> project;
     Source source;
-    QueryMessage queryMessage;
-    Connection *connection;
     Set<uint32_t> visited;
 };
 
@@ -91,8 +86,7 @@ public:
     SymbolNameMap symbolNames;
     DependencyMap dependencies;
     UsrMap usrMap;
-    String message;
-    String logOutput;
+    String message; // used as output for dump when type == Dump
     FixItMap fixIts;
     String xmlDiagnostics;
     Hash<uint32_t, bool> visited;

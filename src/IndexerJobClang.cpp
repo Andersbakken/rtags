@@ -31,15 +31,6 @@ public:
             return std::shared_ptr<IndexerJob>(new IndexerJobClang(type, project, source));
         return std::shared_ptr<IndexerJob>();
     }
-    virtual std::shared_ptr<IndexerJob> createJob(const QueryMessage &msg,
-                                                  const std::shared_ptr<Project> &project,
-                                                  const Source &source,
-                                                  Connection *conn)
-    {
-        if (source.language != Source::JavaScript)
-            return std::shared_ptr<IndexerJob>(new IndexerJobClang(msg, project, source, conn));
-        return std::shared_ptr<IndexerJob>();
-    }
 };
 
 extern "C" {
@@ -53,12 +44,6 @@ IndexerJobClang::IndexerJobClang(IndexerJob::IndexType type,
                                  const std::shared_ptr<Project> &project,
                                  const Source &source)
     : IndexerJob(type, project, source), mState(Pending), mWaiting(0), mProcess(0)
-{
-}
-
-IndexerJobClang::IndexerJobClang(const QueryMessage &msg, const std::shared_ptr<Project> &project,
-                                 const Source &source, Connection *conn)
-    : IndexerJob(msg, project, source, conn), mState(Pending), mWaiting(0)
 {
 }
 

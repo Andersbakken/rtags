@@ -13,7 +13,6 @@ static const CXCursor nullCursor = clang_getNullCursor();
 struct DumpUserData {
     int indentLevel;
     ClangIndexer *indexer;
-    bool showContext;
 };
 
 struct FindImplicitEqualsConstructorUserData {
@@ -69,21 +68,22 @@ bool ClangIndexer::index(IndexerJob::IndexType type, const Path &project, uint32
     assert(type != IndexerJob::Invalid);
     parse() && visit() && diagnose();
     mData->parseTime = Rct::currentTimeMs();
-
-    mData->message = sourceFile.toTilde();
-    if (!mUnit)
-        mData->message += " error";
-    mData->message += String::format<16>(" in %dms. ", mTimer.elapsed());
-    if (mUnit) {
-        mData->message += String::format<128>("(%d syms, %d symNames, %d refs, %d deps, %d files, %d blocked) (%d/%d/%dms) (%d/%d)",
-                                              mData->symbols.size(), mData->symbolNames.size(), mData->references.size(),
-                                              mData->dependencies.size(), mVisitedFiles, mData->visited.size() - mVisitedFiles,
-                                              mParseDuration, mVisitDuration, mCommunicationDuration, mBlocked, mAllowed);
-    } else if (mData->dependencies.size()) {
-        mData->message += String::format<16>("(%d deps)", mData->dependencies.size());
+    if (mData->type != IndexerJob::Dump) {
+        mData->message = sourceFile.toTilde();
+        if (!mUnit)
+            mData->message += " error";
+        mData->message += String::format<16>(" in %dms. ", mTimer.elapsed());
+        if (mUnit) {
+            mData->message += String::format<128>("(%d syms, %d symNames, %d refs, %d deps, %d files, %d blocked) (%d/%d/%dms) (%d/%d)",
+                                                  mData->symbols.size(), mData->symbolNames.size(), mData->references.size(),
+                                                  mData->dependencies.size(), mVisitedFiles, mData->visited.size() - mVisitedFiles,
+                                                  mParseDuration, mVisitDuration, mCommunicationDuration, mBlocked, mAllowed);
+        } else if (mData->dependencies.size()) {
+            mData->message += String::format<16>("(%d deps)", mData->dependencies.size());
+        }
+        if (mData->type == IndexerJob::Dirty)
+            mData->message += " (dirty)";
     }
-    if (mData->type == IndexerJob::Dirty)
-        mData->message += " (dirty)";
     const IndexerMessage msg(mProject, mData);
     // FILE *f = fopen("/tmp/clangindex.log", "a");
     // fprintf(f, "Writing indexer message %d\n", mData->symbols.size());
@@ -1176,6 +1176,13 @@ bool ClangIndexer::visit()
     if (!mUnit || !mData->fileId) {
         return false;
     }
+
+    if (mData->type == IndexerJob::Dump) {
+        DumpUserData userData = { 0, this };
+        clang_visitChildren(clang_getTranslationUnitCursor(mUnit),
+                            ClangIndexer::dumpVisitor, &userData);
+        return true;
+    }
     StopWatch watch;
 
     clang_visitChildren(clang_getTranslationUnitCursor(mUnit),
@@ -1254,23 +1261,17 @@ CXChildVisitResult ClangIndexer::dumpVisitor(CXCursor cursor, CXCursor, CXClient
     Location loc = dump->indexer->createLocation(cursor);
     if (loc.fileId()) {
         CXCursor ref = clang_getCursorReferenced(cursor);
-        String out;
-        out.reserve(256);
-        if (dump->showContext) {
-            out.append(loc.context());
-            out.append(String::format<32>(" // %d, %d: ", loc.column(), dump->indentLevel));
-        } else {
-            out.append(String(dump->indentLevel * 2, ' '));
-        }
-        out.append(RTags::cursorToString(cursor, RTags::AllCursorToStringFlags));
-        out.append(" " + typeName(cursor) + " ");
+        dump->indexer->mData->message.append(loc.context());
+        dump->indexer->mData->message.append(String::format<32>(" // %d, %d: ", loc.column(), dump->indentLevel));
+        dump->indexer->mData->message.append(RTags::cursorToString(cursor, RTags::AllCursorToStringFlags));
+        dump->indexer->mData->message.append(" " + typeName(cursor) + " ");
         if (clang_equalCursors(ref, cursor)) {
-            out.append("refs self");
+            dump->indexer->mData->message.append("refs self");
         } else if (!clang_equalCursors(ref, nullCursor)) {
-            out.append("refs ");
-            out.append(RTags::cursorToString(ref, RTags::AllCursorToStringFlags));
+            dump->indexer->mData->message.append("refs ");
+            dump->indexer->mData->message.append(RTags::cursorToString(ref, RTags::AllCursorToStringFlags));
         }
-        dump->indexer->mData->logOutput += out;
+        dump->indexer->mData->message += '\n';
     }
     ++dump->indentLevel;
     clang_visitChildren(cursor, ClangIndexer::dumpVisitor, userData);

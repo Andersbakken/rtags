@@ -114,7 +114,7 @@ public:
 
     bool isIndexed(uint32_t fileId) const;
 
-    // void dump(const QueryMessage &query, Connection *conn);
+    void dump(const Source &source, Connection *conn);
     bool index(const Source &source);
     Source source(uint32_t fileId) const;
     enum DependencyMode {
@@ -186,6 +186,7 @@ private:
     };
 
     Hash<uint32_t, JobData> mJobs;
+    Hash<uint32_t, Connection*> mDumps;
 
     Timer mSyncTimer;
 
