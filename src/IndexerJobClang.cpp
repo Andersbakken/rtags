@@ -117,7 +117,9 @@ Process *IndexerJobClang::startProcess()
         std::shared_ptr<IndexData> data(new IndexData(type));
         data->fileId = source.fileId;
         data->aborted = true;
-        proj->onJobFinished(data);
+        EventLoop::SharedPtr loop = EventLoop::eventLoop();
+        assert(loop);
+        loop->callLater([proj, data]() { proj->onJobFinished(data); });
         return 0;
     }
     mProcess->write(stdinData);
