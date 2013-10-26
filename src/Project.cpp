@@ -156,8 +156,8 @@ bool Project::restore()
         while (it != mSources.end()) {
             if (!it->second.sourceFile().isFile()) {
                 error() << it->second.sourceFile() << "seems to have disappeared";
-                mSources.erase(it++);
                 dirty.insert(it->first);
+                mSources.erase(it++);
                 needsSave = true;
             } else {
                 const time_t parsed = it->second.parsed;
@@ -295,6 +295,7 @@ void Project::onJobFinished(const std::shared_ptr<IndexData> &indexData)
     assert(indexData);
     Source pending;
     IndexType pendingType = Invalid;
+    bool syncNow = false;
     {
         std::lock_guard<std::mutex> lock(mMutex);
         const Hash<uint32_t, JobData>::iterator it = mJobs.find(indexData->fileId);
@@ -338,6 +339,12 @@ void Project::onJobFinished(const std::shared_ptr<IndexData> &indexData)
                     "<?xml version=\"1.0\" encoding=\"utf-8\"?><progress index=\"%d\" total=\"%d\"></progress>",
                     idx, mJobCounter);
                 logDirect(RTags::CompilationErrorXml, indexData->xmlDiagnostics);
+
+            error("[%3d%%] %d/%d %s %s.%s",
+                  static_cast<int>(round((double(idx) / double(mJobCounter)) * 100.0)), idx, mJobCounter,
+                  String::formatTime(time(0), String::Time).constData(),
+                  data->message.constData(), extra.constData());
+
             }
             if (success) {
                 mPendingData[indexData->fileId] = indexData;
@@ -353,17 +360,23 @@ void Project::onJobFinished(const std::shared_ptr<IndexData> &indexData)
                       String::formatTime(time(0), String::Time).constData(),
                       Location::path(indexData->fileId).toTilde().constData());
             }
-            if (mJobs.isEmpty())
+            const int syncThreshold = Server::instance()->options().syncThreshold;
+            if (mJobs.isEmpty()) {
                 mSyncTimer.restart(indexData->type == Dirty ? 0 : SyncTimeout, Timer::SingleShot);
-            return;
+            } else if (syncThreshold && mPendingData.size() >= syncThreshold) {
+                syncNow = true;
+            }
         } else {
             jobData->job.reset();
         }
     }
-    assert(!pending.isNull());
-    assert(pendingType != Invalid);
-    index(pending, pendingType);
-    --mJobCounter;
+    if (syncNow)
+        sync();
+    if (pendingType != Invalid) {
+        assert(!pending.isNull());
+        index(pending, pendingType);
+        --mJobCounter;
+    }
 }
 
 bool Project::save()
@@ -907,23 +920,30 @@ String Project::fixIts(uint32_t fileId) const
 void Project::onTimerFired(Timer* timer)
 {
     if (timer == &mSyncTimer) {
-        int dirtyTime, syncTime;
-        syncDB(&dirtyTime, &syncTime);
-        StopWatch sw;
-        save();
-        const int saveTime = sw.elapsed();
-        error() << "Jobs took" << (static_cast<double>(mTimer.elapsed()) / 1000.0)
-                << "secs, dirtying took"
-                << (static_cast<double>(dirtyTime) / 1000.0) << "secs, syncing took"
-                << (static_cast<double>(syncTime) / 1000.0) << " secs, saving took"
-                << (static_cast<double>(saveTime) / 1000.0) << " secs, using"
-                << MemoryMonitor::usage() / (1024.0 * 1024.0) << "mb of memory";
-        mJobCounter = 0;
+        sync();
     } else {
         assert(0 && "Unexpected timer event in Project");
         timer->stop();
     }
 }
+
+void Project::sync()
+{
+    mSyncTimer.stop();
+    int dirtyTime, syncTime;
+    mJobCounter -= mPendingData.size();
+    syncDB(&dirtyTime, &syncTime);
+    StopWatch sw;
+    save();
+    const int saveTime = sw.elapsed();
+    error() << "Jobs took" << (static_cast<double>(mTimer.elapsed()) / 1000.0)
+            << "secs, dirtying took"
+            << (static_cast<double>(dirtyTime) / 1000.0) << "secs, syncing took"
+            << (static_cast<double>(syncTime) / 1000.0) << " secs, saving took"
+            << (static_cast<double>(saveTime) / 1000.0) << " secs, using"
+            << MemoryMonitor::usage() / (1024.0 * 1024.0) << "mb of memory";
+}
+
 void Project::onJSFilesAdded()
 {
     const Set<Path> jsFiles = fileManager->jsFiles();
