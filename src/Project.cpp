@@ -133,21 +133,16 @@ bool Project::restore()
         {
             DependencyMap::iterator it = mDependencies.begin();
             while (it != mDependencies.end()) {
-                const Path dir = Location::path(it->first).parentDir();
-                if (!dir.isDir()) {
-                    error() << "Dir doesn't exist" << it->first << Location::path(it->first);
+                const Path file = Location::path(it->first);
+                if (!file.exists()) {
+                    error() << "File doesn't exist" << file;
                     mDependencies.erase(it++);
                     needsSave = true;
                     continue;
                 }
-
-                if ((Server::instance()->options().options & Server::WatchSystemPaths
-                     || !dir.isSystem()) && mWatchedPaths.insert(dir)) {
-                    mWatcher.watch(dir);
-                }
-                for (Set<uint32_t>::const_iterator s = it->second.begin(); s != it->second.end(); ++s) {
+                watch(file);
+                for (Set<uint32_t>::const_iterator s = it->second.begin(); s != it->second.end(); ++s)
                     reversedDependencies[*s].insert(it->first);
-                }
                 ++it;
             }
         }
@@ -447,13 +442,8 @@ void Project::index(const Source &source, IndexType type)
     std::shared_ptr<Project> project = shared_from_this();
 
     mSources[source.fileId] = source;
-    const Path dir = source.sourceFile().parentDir();
-    if (dir.isEmpty()) {
-        error() << "Got empty parent dir for" << source.sourceFile();
-    } else if (mWatchedPaths.insert(dir)) {
-        mWatcher.watch(dir);
-    }
-    
+    watch(source.sourceFile());
+
     data.pending.clear();
     data.pendingType = Invalid;
     mPendingData.remove(source.fileId);
@@ -759,15 +749,7 @@ void Project::syncDB(int *dirty, int *sync)
         writeSymbolNames(data->symbolNames, mSymbolNames);
     }
     for (Set<uint32_t>::const_iterator it = newFiles.begin(); it != newFiles.end(); ++it) {
-        const Path path = Location::path(*it);
-        const Path dir = path.parentDir();
-        if (dir.isEmpty()) {
-            error() << "Got empty parent dir for" << path << *it;
-        } else if (!(Server::instance()->options().options & Server::WatchSystemPaths) && dir.isSystem()) {
-            continue;
-        } else if (mWatchedPaths.insert(dir)) {
-            mWatcher.watch(dir);
-        }
+        watch(Location::path(*it));
     }
     mPendingData.clear();
 #warning not done
@@ -1049,4 +1031,15 @@ String Project::dumpJobs() const
             << it->second.pending << static_cast<int>(it->second.pendingType) << "\n";
     }
     return ret;
+}
+
+void Project::watch(const Path &file)
+{
+    const Path dir = file.parentDir();
+    if (dir.isEmpty()) {
+        error() << "Got empty parent dir for" << file;
+    } else if (((Server::instance()->options().options & Server::WatchSystemPaths) || !dir.isSystem())
+               && mWatchedPaths.insert(dir)) {
+        mWatcher.watch(dir);
+    }
 }

@@ -140,6 +140,7 @@ public:
     String dumpJobs() const;
 private:
     void index(const Source &args, IndexType type);
+    void watch(const Path &file);
     void reloadFileManager();
     bool initJobFromCache(const Path &path, const List<String> &args,
                           CXTranslationUnit &unit, List<String> *argsOut, int *parseCount);
