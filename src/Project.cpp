@@ -339,12 +339,6 @@ void Project::onJobFinished(const std::shared_ptr<IndexData> &indexData)
                     "<?xml version=\"1.0\" encoding=\"utf-8\"?><progress index=\"%d\" total=\"%d\"></progress>",
                     idx, mJobCounter);
                 logDirect(RTags::CompilationErrorXml, indexData->xmlDiagnostics);
-
-            error("[%3d%%] %d/%d %s %s.%s",
-                  static_cast<int>(round((double(idx) / double(mJobCounter)) * 100.0)), idx, mJobCounter,
-                  String::formatTime(time(0), String::Time).constData(),
-                  data->message.constData(), extra.constData());
-
             }
             if (success) {
                 mPendingData[indexData->fileId] = indexData;
