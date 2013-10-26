@@ -133,18 +133,14 @@ bool Project::restore()
         {
             DependencyMap::iterator it = mDependencies.begin();
             while (it != mDependencies.end()) {
-                const Path dir = Location::path(it->first).parentDir();
-                if (!dir.isDir()) {
+                const Path file = Location::path(it->first);
+                if (!file.exists()) {
                     error() << "Dir doesn't exist" << it->first << Location::path(it->first);
                     mDependencies.erase(it++);
                     needsSave = true;
                     continue;
                 }
-
-                if ((Server::instance()->options().options & Server::WatchSystemPaths
-                     || !dir.isSystem()) && mWatchedPaths.insert(dir)) {
-                    mWatcher.watch(dir);
-                }
+                watch(file);
                 for (Set<uint32_t>::const_iterator s = it->second.begin(); s != it->second.end(); ++s) {
                     reversedDependencies[*s].insert(it->first);
                 }
@@ -406,6 +402,7 @@ void Project::index(const SourceInformation &c, IndexerJob::Type type)
     std::shared_ptr<Project> project = shared_from_this();
 
     mSources[c.fileId] = c;
+    watch(c.sourceFile());
     mPendingData.remove(c.fileId);
 
     if (!mJobCounter++)
@@ -808,15 +805,7 @@ void Project::syncDB(int *dirty, int *sync)
         writeSymbolNames(data->symbolNames, mSymbolNames);
     }
     for (Set<uint32_t>::const_iterator it = newFiles.begin(); it != newFiles.end(); ++it) {
-        const Path path = Location::path(*it);
-        const Path dir = path.parentDir();
-        if (dir.isEmpty()) {
-            error() << "Got empty parent dir for" << path << *it;
-        } else if (!(Server::instance()->options().options & Server::WatchSystemPaths) && dir.isSystem()) {
-            continue;
-        } else if (mWatchedPaths.insert(dir)) {
-            mWatcher.watch(dir);
-        }
+        watch(Location::path(*it));
     }
     mPendingData.clear();
     if (Server::instance()->options().options & Server::Validate) {
@@ -1090,4 +1079,15 @@ SymbolMap Project::symbols(uint32_t fileId) const
         }
     }
     return ret;
+}
+
+void Project::watch(const Path &file)
+{
+    const Path dir = file.parentDir();
+    if (dir.isEmpty()) {
+        error() << "Got empty parent dir for" << file;
+    } else if (((Server::instance()->options().options & Server::WatchSystemPaths) || !dir.isSystem())
+               && mWatchedPaths.insert(dir)) {
+        mWatcher.watch(dir);
+    }
 }

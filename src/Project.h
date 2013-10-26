@@ -137,6 +137,7 @@ public:
     void onJSFilesAdded();
     List<std::pair<Path, List<String> > > cachedUnits() const;
 private:
+    void watch(const Path &file);
     void index(const SourceInformation &args, IndexerJob::Type type);
     void reloadFileManager();
     bool initJobFromCache(const Path &path, const List<String> &args,
