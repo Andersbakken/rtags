@@ -160,23 +160,13 @@ void StatusJob::execute()
         }
     }
 
-    if (query.isEmpty() || !strcasecmp(query.constData(), "fileinfos")) {
+    if (query.isEmpty() || !strcasecmp(query.constData(), "sources")) {
         matched = true;
         const SourceMap map = proj->sources();
-        if (!write(delimiter) || !write("fileinfos") || !write(delimiter))
+        if (!write(delimiter) || !write("sources") || !write(delimiter))
             return;
         for (SourceMap::const_iterator it = map.begin(); it != map.end(); ++it) {
             if (!write<512>("  %s: %s", Location::path(it->first).constData(), it->second.toString().constData()))
-                return;
-        }
-    }
-
-    if (query.isEmpty() || !strcasecmp(query.constData(), "cachedunits")) {
-        if (!write(delimiter) || !write("cachedunits") || !write(delimiter))
-            return;
-        const List<std::pair<Path, List<String> > > caches = proj->cachedUnits();
-        for (List<std::pair<Path, List<String> > >::const_iterator it = caches.begin(); it != caches.end(); ++it) {
-            if (!write<512>("  %s: %s", it->first.constData(), String::join(it->second, " ").constData()))
                 return;
         }
     }
