@@ -295,6 +295,7 @@ void Project::onJobFinished(const std::shared_ptr<IndexerJob> &job)
     PendingJob pending;
     const uint32_t currentFileId = Server::instance()->currentFileId();
     bool startPending = false;
+    bool syncNow = false;
     {
         std::lock_guard<std::mutex> lock(mMutex);
 
@@ -345,11 +346,16 @@ void Project::onJobFinished(const std::shared_ptr<IndexerJob> &job)
                   String::formatTime(time(0), String::Time).constData(),
                   data->message.constData(), extra.constData());
 
+            const int syncThreshold = Server::instance()->options().syncThreshold;
             if (mJobs.isEmpty()) {
                 mSyncTimer.restart(job->type() == IndexerJob::Dirty ? 0 : SyncTimeout, Timer::SingleShot);
+            } else if (syncThreshold && mPendingData.size() >= syncThreshold) {
+                syncNow = true;
             }
         }
     }
+    if (syncNow)
+        sync();
     if (startPending)
         index(pending.source, pending.type);
 }
@@ -962,23 +968,30 @@ String Project::fixIts(uint32_t fileId) const
 void Project::onTimerFired(Timer* timer)
 {
     if (timer == &mSyncTimer) {
-        int dirtyTime, syncTime;
-        syncDB(&dirtyTime, &syncTime);
-        StopWatch sw;
-        save();
-        const int saveTime = sw.elapsed();
-        error() << "Jobs took" << (static_cast<double>(mTimer.elapsed()) / 1000.0)
-                << "secs, dirtying took"
-                << (static_cast<double>(dirtyTime) / 1000.0) << "secs, syncing took"
-                << (static_cast<double>(syncTime) / 1000.0) << " secs, saving took"
-                << (static_cast<double>(saveTime) / 1000.0) << " secs, using"
-                << MemoryMonitor::usage() / (1024.0 * 1024.0) << "mb of memory";
-        mJobCounter = 0;
+        sync();
     } else {
         assert(0 && "Unexpected timer event in Project");
         timer->stop();
     }
 }
+
+void Project::sync()
+{
+    mSyncTimer.stop();
+    int dirtyTime, syncTime;
+    mJobCounter -= mPendingData.size();
+    syncDB(&dirtyTime, &syncTime);
+    StopWatch sw;
+    save();
+    const int saveTime = sw.elapsed();
+    error() << "Jobs took" << (static_cast<double>(mTimer.elapsed()) / 1000.0)
+            << "secs, dirtying took"
+            << (static_cast<double>(dirtyTime) / 1000.0) << "secs, syncing took"
+            << (static_cast<double>(syncTime) / 1000.0) << " secs, saving took"
+            << (static_cast<double>(saveTime) / 1000.0) << " secs, using"
+            << MemoryMonitor::usage() / (1024.0 * 1024.0) << "mb of memory";
+}
+
 void Project::onJSFilesAdded()
 {
     Set<Path> jsFiles = fileManager->jsFiles();

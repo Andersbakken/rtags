@@ -76,9 +76,10 @@ static void usage(FILE *f)
             "  --silent|-S                                No logging to stdout.\n"
             "  --validate|-V                              Enable validation of database on startup and after indexing.\n"
             "  --exclude-filter|-x [arg]                  Files to exclude from rdm, default \"" EXCLUDEFILTER_DEFAULT "\".\n"
+            "  --sync-threshold|-y [arg]                  Automatically sync after [arg] files indexed\n"
             "  --no-rc|-N                                 Don't load any rc files.\n"
             "  --ignore-printf-fixits|-F                  Disregard any clang fixit that looks like it's trying to fix format for printf and friends.\n"
-            "  --config|-c [arg]                         Use this file instead of ~/.rdmrc.\n"
+            "  --config|-c [arg]                          Use this file instead of ~/.rdmrc.\n"
             "  --data-dir|-d [arg]                        Use this directory to store persistent data (default ~/.rtags).\n"
             "  --socket-file|-n [arg]                     Use this file for the server socket (default ~/.rdm).\n"
             "  --setenv|-e [arg]                          Set this environment variable (--setenv \"foobar=1\").\n"
@@ -129,6 +130,7 @@ int main(int argc, char** argv)
         { "unlimited-errors", no_argument, 0, 'f' },
         { "completion-cache-size", required_argument, 0, 'a' },
         { "no-spell-checking", no_argument, 0, 'l' },
+        { "sync-threshold", required_argument, 0, 'y' },
         { "large-by-value-copy", required_argument, 0, 'r' },
         { "allow-multiple-builds", no_argument, 0, 'm' },
         { "unload-timer", required_argument, 0, 'u' },
@@ -324,6 +326,13 @@ int main(int argc, char** argv)
                 return 1;
             }
             break; }
+        case 'y':
+            serverOpts.syncThreshold = atoi(optarg);
+            if (serverOpts.syncThreshold <= 0) {
+                fprintf(stderr, "Invalid argument to -y %s\n", optarg);
+                return 1;
+            }
+            break;
         case 'a':
             serverOpts.completionCacheSize = atoi(optarg);
             if (serverOpts.completionCacheSize < 1) {

@@ -75,11 +75,12 @@ public:
     void startIndexerJob(const std::shared_ptr<ThreadPool::Job> &job);
     struct Options {
         Options()
-            : options(0), threadCount(0), completionCacheSize(0), unloadTimer(0), clearCompletionCacheInterval(0)
+            : options(0), threadCount(0), completionCacheSize(0), unloadTimer(0),
+              clearCompletionCacheInterval(0), syncThreshold(0)
         {}
         Path socketFile, dataDir;
         unsigned options;
-        int threadCount, completionCacheSize, unloadTimer, clearCompletionCacheInterval;
+        int threadCount, completionCacheSize, unloadTimer, clearCompletionCacheInterval, syncThreshold;
         List<String> defaultArguments, excludeFilters;
         Set<Path> ignoredCompilers;
     };

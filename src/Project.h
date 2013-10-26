@@ -149,6 +149,7 @@ private:
     void startDirtyJobs(const Set<uint32_t> &files);
     void addCachedUnit(const Path &path, const List<String> &args, CXTranslationUnit unit, int parseCount);
     bool save();
+    void sync();
     void onValidateDBJobErrors(const Set<Location> &errors);
 
     const Path mPath;
