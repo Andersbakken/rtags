@@ -73,9 +73,9 @@ int main(int argc, char **argv)
     }
 
     switch (type) {
-    case Dirty:
-    case Makefile:
-    case Dump:
+    case IndexerJob::Dirty:
+    case IndexerJob::Makefile:
+    case IndexerJob::Dump:
         break;
     default:
         fprintf(stderr, "Invalid type %d\n", type);
@@ -90,7 +90,7 @@ int main(int argc, char **argv)
     indexer.setVisitFileTimeout(visitFileTimeout);
     indexer.setIndexerMessageTimeout(indexerMessageTimeout);
 
-    if (!indexer.index(static_cast<IndexType>(type), project, fileId,
+    if (!indexer.index(static_cast<IndexerJob::IndexType>(type), project, fileId,
                        sourceFile, preprocessed, args)) {
         fprintf(stderr, "Failed to index %s\n", sourceFile.constData());
         return 7;

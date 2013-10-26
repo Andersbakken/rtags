@@ -42,7 +42,7 @@ public:
         return true;
     }
 
-    std::shared_ptr<IndexerJob> createJob(IndexType type,
+    std::shared_ptr<IndexerJob> createJob(IndexerJob::IndexType type,
                                           const std::shared_ptr<Project> &project,
                                           const Source &source)
     {

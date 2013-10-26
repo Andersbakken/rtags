@@ -23,7 +23,7 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 class ClangPlugin : public RTagsPlugin
 {
 public:
-    virtual std::shared_ptr<IndexerJob> createJob(IndexType type,
+    virtual std::shared_ptr<IndexerJob> createJob(IndexerJob::IndexType type,
                                                   const std::shared_ptr<Project> &project,
                                                   const Source &source)
     {
@@ -49,7 +49,8 @@ RTagsPlugin *createInstance()
 }
 };
 
-IndexerJobClang::IndexerJobClang(IndexType type, const std::shared_ptr<Project> &project,
+IndexerJobClang::IndexerJobClang(IndexerJob::IndexType type,
+                                 const std::shared_ptr<Project> &project,
                                  const Source &source)
     : IndexerJob(type, project, source), mState(Pending), mWaiting(0), mProcess(0)
 {

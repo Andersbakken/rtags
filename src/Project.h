@@ -139,7 +139,7 @@ public:
     void dirty(const Path &);
     String dumpJobs() const;
 private:
-    void index(const Source &args, IndexType type);
+    void index(const Source &args, IndexerJob::IndexType type);
     void watch(const Path &file);
     void reloadFileManager();
     bool initJobFromCache(const Path &path, const List<String> &args,
@@ -177,10 +177,10 @@ private:
 
     struct JobData {
         JobData()
-            : pendingType(Dirty), crashCount(0)
+            : pendingType(IndexerJob::Dirty), crashCount(0)
         {}
         Source pending;
-        IndexType pendingType;
+        IndexerJob::IndexType pendingType;
         int crashCount;
         std::shared_ptr<IndexerJob> job;
     };

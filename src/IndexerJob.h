@@ -24,17 +24,40 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 #include <rct/Hash.h>
 #include "QueryMessage.h"
 
-enum IndexType {
-    Invalid,
-    Makefile,
-    Dirty,
-    Dump
+class IndexerJob : public std::enable_shared_from_this<IndexerJob>
+{
+public:
+    enum IndexType {
+        Invalid,
+        Makefile,
+        Dirty,
+        Dump
+    };
+
+    IndexerJob(IndexType t, const std::shared_ptr<Project> &p, const Source &s)
+        : type(t), project(p), source(s), connection(0)
+    {}
+    IndexerJob(const QueryMessage &q, const std::shared_ptr<Project> &p, const Source &s, Connection *conn)
+        : type(Dump), project(p), source(s), queryMessage(q), connection(conn)
+    {}
+
+    virtual ~IndexerJob() {}
+    virtual void start() = 0;
+    virtual bool abort() = 0; // returns true if it was aborted, false if it hadn't started yet
+    virtual bool isAborted() const = 0;
+
+    IndexType type;
+    std::weak_ptr<Project> project;
+    Source source;
+    QueryMessage queryMessage;
+    Connection *connection;
+    Set<uint32_t> visited;
 };
 
 class IndexData
 {
 public:
-    IndexData(IndexType t)
+    IndexData(IndexerJob::IndexType t)
         : aborted(false), fileId(0), parseTime(0), type(t)
     {}
     virtual ~IndexData()
@@ -73,30 +96,7 @@ public:
     FixItMap fixIts;
     String xmlDiagnostics;
     Hash<uint32_t, bool> visited;
-    const IndexType type;
-};
-
-class IndexerJob : public std::enable_shared_from_this<IndexerJob>
-{
-public:
-    IndexerJob(IndexType t, const std::shared_ptr<Project> &p, const Source &s)
-        : type(t), project(p), source(s), connection(0)
-    {}
-    IndexerJob(const QueryMessage &q, const std::shared_ptr<Project> &p, const Source &s, Connection *conn)
-        : type(Dump), project(p), source(s), queryMessage(q), connection(conn)
-    {}
-
-    virtual ~IndexerJob() {}
-    virtual void start() = 0;
-    virtual bool abort() = 0; // returns true if it was aborted, false if it hadn't started yet
-    virtual bool isAborted() const = 0;
-
-    IndexType type;
-    std::weak_ptr<Project> project;
-    Source source;
-    QueryMessage queryMessage;
-    Connection *connection;
-    Set<uint32_t> visited;
+    const IndexerJob::IndexType type;
 };
 
 #endif

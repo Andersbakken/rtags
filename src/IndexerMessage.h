@@ -48,7 +48,7 @@ public:
         assert(!mData);
         uint8_t type;
         deserializer >> mProject >> type;
-        mData.reset(new IndexData(static_cast<IndexType>(type)));
+        mData.reset(new IndexData(static_cast<IndexerJob::IndexType>(type)));
         deserializer >> mData->fileId >> mData->parseTime >> mData->symbols >> mData->references
                      >> mData->symbolNames >> mData->dependencies >> mData->usrMap >> mData->message
                      >> mData->logOutput >> mData->fixIts >> mData->xmlDiagnostics >> mData->visited;

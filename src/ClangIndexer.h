@@ -17,7 +17,7 @@ public:
     ~ClangIndexer();
 
     bool connect(const Path &serverFile);
-    bool index(IndexType type, const Path &project, uint32_t fileId,
+    bool index(IndexerJob::IndexType type, const Path &project, uint32_t fileId,
                const Path &sourceFile, const String &preprocessed,
                const List<String> &args);
     int visitFileTimeout() const { return mVisitFileTimeout; }

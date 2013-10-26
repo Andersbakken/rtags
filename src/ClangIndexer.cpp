@@ -33,7 +33,8 @@ ClangIndexer::ClangIndexer()
       mVisitDuration(0), mCommunicationDuration(0), mBlocked(0), mAllowed(0),
       mVisitFileTimeout(0), mIndexerMessageTimeout(0), mLogFile(0)
 {
-    mConnection.newMessage().connect(std::bind(&ClangIndexer::onMessage, this, std::placeholders::_1, std::placeholders::_2));
+    mConnection.newMessage().connect(std::bind(&ClangIndexer::onMessage, this,
+                                               std::placeholders::_1, std::placeholders::_2));
 }
 
 ClangIndexer::~ClangIndexer()
@@ -51,7 +52,7 @@ bool ClangIndexer::connect(const Path &serverFile)
     return mConnection.connectToServer(serverFile, 1000);
 }
 
-bool ClangIndexer::index(IndexType type, const Path &project, uint32_t fileId,
+bool ClangIndexer::index(IndexerJob::IndexType type, const Path &project, uint32_t fileId,
                          const Path &sourceFile, const String &preprocessed,
                          const List<String> &args)
 {
@@ -65,7 +66,7 @@ bool ClangIndexer::index(IndexType type, const Path &project, uint32_t fileId,
     assert(!sourceFile.isEmpty());
     mData->visited[fileId] = true;
     mContents = preprocessed;
-    assert(type != Invalid);
+    assert(type != IndexerJob::Invalid);
     parse() && visit() && diagnose();
     mData->parseTime = Rct::currentTimeMs();
 
@@ -81,7 +82,7 @@ bool ClangIndexer::index(IndexType type, const Path &project, uint32_t fileId,
     } else if (mData->dependencies.size()) {
         mData->message += String::format<16>("(%d deps)", mData->dependencies.size());
     }
-    if (mData->type == Dirty)
+    if (mData->type == IndexerJob::Dirty)
         mData->message += " (dirty)";
     const IndexerMessage msg(mProject, mData);
     // FILE *f = fopen("/tmp/clangindex.log", "a");
@@ -943,7 +944,7 @@ bool ClangIndexer::parse()
         clang_getInclusions(mUnit, ClangIndexer::inclusionVisitor, this);
         clang_disposeTranslationUnit(mUnit);
         mUnit = 0;
-    } else if (mData->type != Dump) {
+    } else if (mData->type != IndexerJob::Dump) {
         mData->dependencies[mData->fileId].insert(mData->fileId);
     }
     mParseDuration = sw.elapsed();
@@ -1004,7 +1005,7 @@ bool ClangIndexer::diagnose()
 {
     if (!mUnit) {
         return false;
-    } else if (mData->type == Dump) {
+    } else if (mData->type == IndexerJob::Dump) {
         return true;
     }
 

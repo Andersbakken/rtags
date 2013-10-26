@@ -201,7 +201,7 @@ void Project::startPendingJobs() // lock always held
     }
     for (Hash<uint32_t, JobData>::const_iterator it = pendingJobs.begin(); it != pendingJobs.end(); ++it) {
         assert(!it->second.pending.isNull());
-        assert(it->second.pendingType != Invalid);
+        assert(it->second.pendingType != IndexerJob::Invalid);
         index(it->second.pending, it->second.pendingType);
     }
 }
@@ -289,7 +289,7 @@ void Project::onJobFinished(const std::shared_ptr<IndexData> &indexData)
 {
     assert(indexData);
     Source pending;
-    IndexType pendingType = Invalid;
+    IndexerJob::IndexType pendingType = IndexerJob::Invalid;
     bool syncNow = false;
     {
         std::lock_guard<std::mutex> lock(mMutex);
@@ -311,7 +311,7 @@ void Project::onJobFinished(const std::shared_ptr<IndexData> &indexData)
 
         enum { MaxCrashCount = 5 }; // ### configurable?
         if (jobData->crashCount < MaxCrashCount) {
-            if (jobData->pendingType != Invalid) {
+            if (jobData->pendingType != IndexerJob::Invalid) {
                 assert(jobData->job->isAborted());
                 std::swap(pendingType, jobData->pendingType);
                 std::swap(pending, jobData->pending);
@@ -324,7 +324,7 @@ void Project::onJobFinished(const std::shared_ptr<IndexData> &indexData)
                 }
             }
         }
-        if (pendingType == Invalid) {
+        if (pendingType == IndexerJob::Invalid) {
             jobData = 0;
             mJobs.erase(it);
 
@@ -351,7 +351,7 @@ void Project::onJobFinished(const std::shared_ptr<IndexData> &indexData)
             }
             const int syncThreshold = Server::instance()->options().syncThreshold;
             if (mJobs.isEmpty()) {
-                mSyncTimer.restart(indexData->type == Dirty ? 0 : SyncTimeout, Timer::SingleShot);
+                mSyncTimer.restart(indexData->type == IndexerJob::Dirty ? 0 : SyncTimeout, Timer::SingleShot);
             } else if (syncThreshold && mPendingData.size() >= syncThreshold) {
                 syncNow = true;
             }
@@ -361,7 +361,7 @@ void Project::onJobFinished(const std::shared_ptr<IndexData> &indexData)
     }
     if (syncNow)
         sync();
-    if (pendingType != Invalid) {
+    if (pendingType != IndexerJob::Invalid) {
         assert(!pending.isNull());
         index(pending, pendingType);
         --mJobCounter;
@@ -411,7 +411,7 @@ bool Project::save()
 //     assert(conn);
 // }
 
-void Project::index(const Source &source, IndexType type)
+void Project::index(const Source &source, IndexerJob::IndexType type)
 {
     static const char *fileFilter = getenv("RTAGS_FILE_FILTER");
     if (fileFilter && !strstr(source.sourceFile().constData(), fileFilter))
@@ -422,7 +422,7 @@ void Project::index(const Source &source, IndexType type)
     if (mState != Loaded) {
         // error() << "Index called at" << static_cast<int>(mState) << "time. Setting pending" << source.sourceFile();
         data.pending = source;
-        data.pendingType = Makefile;
+        data.pendingType = IndexerJob::Makefile;
         return;
     }
     if (data.job) {
@@ -445,7 +445,7 @@ void Project::index(const Source &source, IndexType type)
     watch(source.sourceFile());
 
     data.pending.clear();
-    data.pendingType = Invalid;
+    data.pendingType = IndexerJob::Invalid;
     mPendingData.remove(source.fileId);
 
     if (!mJobCounter++)
@@ -472,7 +472,7 @@ bool Project::index(const Source &s)
         return false;
     }
 
-    index(s, Makefile);
+    index(s, IndexerJob::Makefile);
     return true;
 }
 
@@ -613,7 +613,7 @@ void Project::startDirtyJobs(const Set<uint32_t> &dirty)
     for (Set<uint32_t>::const_iterator it = dirtyFiles.begin(); it != dirtyFiles.end(); ++it) {
         const SourceMap::const_iterator found = mSources.find(*it);
         if (found != mSources.end()) {
-            index(found->second, Dirty);
+            index(found->second, IndexerJob::Dirty);
             indexed = true;
         }
     }
