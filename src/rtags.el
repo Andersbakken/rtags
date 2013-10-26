@@ -418,14 +418,9 @@
    (t nil)))
 
 (defun rtags-current-symbol (&optional no-symbol-name)
-  (save-excursion
-    (if mark-active
-        (buffer-substring-no-properties (point) (mark))
-      (let ((name (if no-symbol-name nil (rtags-current-symbol-name))))
-        (unless name
-          (setq name (thing-at-point 'symbol)))
-        name)))
-  )
+  (or (and mark-active (buffer-substring-no-properties (point) (mark)))
+      (and (not no-symbol-name) (rtags-current-symbol-name))
+      (thing-at-point 'symbol)))
 
 (defun rtags-cursorinfo (&optional location verbose)
   (let ((loc (or location (rtags-current-location)))
