@@ -24,16 +24,16 @@ class ClangPlugin : public RTagsPlugin
 {
 public:
     virtual std::shared_ptr<IndexerJob> createJob(const std::shared_ptr<Project> &project,
-                                             IndexerJob::Type type,
-                                             const SourceInformation &sourceInformation)
+                                                  IndexerJob::Type type,
+                                                  const SourceInformation &sourceInformation)
     {
         if (!sourceInformation.isJS())
             return std::shared_ptr<IndexerJob>(new IndexerJobClang(project, type, sourceInformation));
         return std::shared_ptr<IndexerJob>();
     }
     virtual std::shared_ptr<IndexerJob> createJob(const QueryMessage &msg,
-                                             const std::shared_ptr<Project> &project,
-                                             const SourceInformation &sourceInformation)
+                                                  const std::shared_ptr<Project> &project,
+                                                  const SourceInformation &sourceInformation)
     {
         if (!sourceInformation.isJS())
             return std::shared_ptr<IndexerJob>(new IndexerJobClang(msg, project, sourceInformation));
