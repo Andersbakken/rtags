@@ -16,7 +16,6 @@
 #include "Server.h"
 
 #include "CompileMessage.h"
-#include "CompletionJob.h"
 #include "CreateOutputMessage.h"
 #include "CursorInfoJob.h"
 #include "DependenciesJob.h"
@@ -26,7 +25,6 @@
 #include "FindSymbolsJob.h"
 #include "FollowLocationJob.h"
 #include "IndexerJob.h"
-// #include "JSONJob.h"
 #include "Source.h"
 #if defined(HAVE_CXCOMPILATIONDATABASE)
 #  include <clang-c/CXCompilationDatabase.h>
@@ -65,7 +63,6 @@ Server::Server()
     sInstance = this;
 
     mUnloadTimer.timeout().connect(std::bind(&Server::onUnload, this));
-    mClearCompletionCacheTimer.timeout().connect(std::bind(&Server::clearCompletionCache, this));
 }
 
 Server::~Server()
@@ -170,10 +167,6 @@ bool Server::init(const Options &options)
         }
     }
 
-    if (mOptions.clearCompletionCacheInterval && mOptions.completionCacheSize) {
-        clearCompletionCache();
-    }
-
     return true;
 }
 
@@ -189,7 +182,6 @@ std::shared_ptr<Project> Server::addProject(const Path &path) // lock always hel
 
 int Server::reloadProjects()
 {
-    std::lock_guard<std::mutex> lock(mMutex);
     mProjects.clear(); // ### could keep the ones that persist somehow
     List<Path> projects = mOptions.dataDir.files(Path::File);
     const Path home = Path::home();
@@ -251,45 +243,27 @@ void Server::onNewMessage(Message *message, Connection *connection)
     if (mOptions.unloadTimer)
         mUnloadTimer.restart(mOptions.unloadTimer * 1000 * 60, Timer::SingleShot);
 
-    if (mOptions.clearCompletionCacheInterval && mOptions.completionCacheSize && !mClearCompletionCacheTimer.isRunning())
-        mClearCompletionCacheTimer.restart(mOptions.clearCompletionCacheInterval * 1000 * 60, Timer::SingleShot);
-
     ClientMessage *m = static_cast<ClientMessage*>(message);
     const String raw = m->raw();
-    if (!raw.isEmpty()) {
-        if (!isCompletionStream(connection) && message->messageId() != CompileMessage::MessageId) {
-            error() << raw;
-        } else {
-            warning() << raw;
-        }
-    }
-
-    // error() << "Got a message" << static_cast<int>(message->messageId());
 
     switch (message->messageId()) {
     case CompileMessage::MessageId:
         handleCompileMessage(static_cast<const CompileMessage&>(*message), connection);
         break;
     case QueryMessage::MessageId:
+        error() << raw;
         handleQueryMessage(static_cast<const QueryMessage&>(*message), connection);
         break;
     case IndexerMessage::MessageId:
         handleIndexerMessage(static_cast<const IndexerMessage&>(*message), connection);
         break;
     case CreateOutputMessage::MessageId:
+        error() << raw;
         handleCreateOutputMessage(static_cast<const CreateOutputMessage&>(*message), connection);
         break;
     case VisitFileMessage::MessageId:
         handleVisitFileMessage(static_cast<const VisitFileMessage&>(*message), connection);
         break;
-    case CompletionMessage::MessageId: {
-        const CompletionMessage &completionMessage = static_cast<const CompletionMessage&>(*message);
-        if (completionMessage.flags() & CompletionMessage::Stream) {
-            handleCompletionStream(completionMessage, connection);
-        } else {
-            handleCompletionMessage(completionMessage, connection);
-        }
-        break; }
     case ResponseMessage::MessageId:
     case FinishMessage::MessageId:
     case VisitFileResponseMessage::MessageId:
@@ -328,18 +302,15 @@ void Server::handleCompileMessage(const CompileMessage &message, Connection *con
             return;
         }
         std::shared_ptr<Project> project;
-        {
-            std::lock_guard<std::mutex> lock(mMutex);
-            project = mProjects.value(srcRoot);
-            if (!project) {
-                project = addProject(srcRoot);
-                assert(project);
-            }
-            project->load();
-
-            if (!mCurrentProject.lock())
-                mCurrentProject = project;
+        project = mProjects.value(srcRoot);
+        if (!project) {
+            project = addProject(srcRoot);
+            assert(project);
         }
+        project->load();
+
+        if (!mCurrentProject.lock())
+            mCurrentProject = project;
 
         Source source;
         source.language = Source::JavaScript;
@@ -401,12 +372,6 @@ void Server::handleQueryMessage(const QueryMessage &message, Connection *conn)
         break;
     case QueryMessage::RemoveFile:
         removeFile(message, conn);
-        break;
-    case QueryMessage::CodeCompletionEnabled:
-        codeCompletionEnabled(message, conn);
-        break;
-    case QueryMessage::JSON:
-    //     JSON(message, conn);
         break;
     case QueryMessage::JobCount:
         jobCount(message, conn);
@@ -509,12 +474,7 @@ void Server::followLocation(const QueryMessage &query, Connection *conn)
 
 void Server::isIndexing(const QueryMessage &, Connection *conn)
 {
-    ProjectsMap copy;
-    {
-        std::lock_guard<std::mutex> lock(mMutex);
-        copy = mProjects;
-    }
-    for (ProjectsMap::const_iterator it = copy.begin(); it != copy.end(); ++it) {
+    for (ProjectsMap::const_iterator it = mProjects.begin(); it != mProjects.end(); ++it) {
         if (it->second->isIndexing()) {
             conn->write("1");
             conn->finish();
@@ -524,7 +484,6 @@ void Server::isIndexing(const QueryMessage &, Connection *conn)
     conn->write("0");
     conn->finish();
 }
-
 
 void Server::removeFile(const QueryMessage &query, Connection *conn)
 {
@@ -611,12 +570,6 @@ void Server::cursorInfo(const QueryMessage &query, Connection *conn)
     conn->finish();
 }
 
-void Server::codeCompletionEnabled(const QueryMessage &, Connection *conn)
-{
-    conn->write(mOptions.completionCacheSize ? "1" : "0");
-    conn->finish();
-}
-
 void Server::dependencies(const QueryMessage &query, Connection *conn)
 {
     const Path path = query.query();
@@ -645,24 +598,6 @@ void Server::fixIts(const QueryMessage &query, Connection *conn)
     }
     conn->finish();
 }
-
-#if 0
-void Server::JSON(const QueryMessage &query, Connection *conn)
-{
-    std::shared_ptr<Project> project = currentProject();
-
-    if (!project) {
-        conn->write("No project");
-    } else if (project->state() != Project::Loaded) {
-        conn->write("Project loading");
-    } else {
-        JSONJob job(query, project);
-        job.run(conn);
-    }
-    conn->finish();
-}
-#endif
-#warning not done
 
 void Server::referencesForLocation(const QueryMessage &query, Connection *conn)
 {
@@ -840,7 +775,6 @@ void Server::preprocessFile(const QueryMessage &query, Connection *conn)
 
 void Server::clearProjects()
 {
-    std::lock_guard<std::mutex> lock(mMutex);
     for (ProjectsMap::const_iterator it = mProjects.begin(); it != mProjects.end(); ++it)
         it->second->unload();
     Rct::removeDirectory(mOptions.dataDir);
@@ -919,21 +853,16 @@ void Server::index(const Source &source, const List<String> &projects, const Pat
         }
     }
 
-    std::shared_ptr<Project> project;
-    {
-        std::lock_guard<std::mutex> lock(mMutex);
+    std::shared_ptr<Project> project = mProjects.value(srcRoot);
+    if (!project) {
+        project = addProject(srcRoot);
+        assert(project);
+    }
+    project->load();
 
-        project = mProjects.value(srcRoot);
-        if (!project) {
-            project = addProject(srcRoot);
-            assert(project);
-        }
-        project->load();
-
-        if (!mCurrentProject.lock()) {
-            mCurrentProject = project;
-            setupCurrentProjectFile(project);
-        }
+    if (!mCurrentProject.lock()) {
+        mCurrentProject = project;
+        setupCurrentProjectFile(project);
     }
     assert(project);
     project->index(source);
@@ -1003,7 +932,6 @@ std::shared_ptr<Project> Server::updateProjectForLocation(const Match &match)
     if (cur && cur->match(match))
         return cur;
 
-    std::lock_guard<std::mutex> lock(mMutex);
     for (ProjectsMap::const_iterator it = mProjects.begin(); it != mProjects.end(); ++it) {
         if (it->second->match(match)) {
             return setCurrentProject(it->second->path());
@@ -1014,7 +942,6 @@ std::shared_ptr<Project> Server::updateProjectForLocation(const Match &match)
 
 void Server::removeProject(const QueryMessage &query, Connection *conn)
 {
-    std::lock_guard<std::mutex> lock(mMutex);
     const bool unload = query.type() == QueryMessage::UnloadProject;
 
     const Match match = query.match();
@@ -1042,11 +969,7 @@ void Server::removeProject(const QueryMessage &query, Connection *conn)
 
 void Server::reloadProjects(const QueryMessage &query, Connection *conn)
 {
-    int old;
-    {
-        std::lock_guard<std::mutex> lock(mMutex);
-        old = mProjects.size();
-    }
+    const int old = mProjects.size();
     const int cur = reloadProjects();
     conn->write<128>("Changed from %d to %d projects", old, cur);
     conn->finish();
@@ -1054,7 +977,6 @@ void Server::reloadProjects(const QueryMessage &query, Connection *conn)
 
 bool Server::selectProject(const Match &match, Connection *conn, unsigned int queryFlags)
 {
-    std::lock_guard<std::mutex> lock(mMutex);
     std::shared_ptr<Project> selected;
     bool error = false;
     for (ProjectsMap::const_iterator it = mProjects.begin(); it != mProjects.end(); ++it) {
@@ -1103,7 +1025,6 @@ bool Server::updateProject(const List<String> &projects, unsigned int queryFlags
 
 void Server::project(const QueryMessage &query, Connection *conn)
 {
-    std::lock_guard<std::mutex> lock(mMutex);
     if (query.query().isEmpty()) {
         const std::shared_ptr<Project> current = mCurrentProject.lock();
         const char *states[] = { "(unloaded)", "(inited)", "(loading)", "(loaded)" };
@@ -1162,7 +1083,6 @@ void Server::project(const QueryMessage &query, Connection *conn)
 
 void Server::jobCount(const QueryMessage &query, Connection *conn)
 {
-    std::lock_guard<std::mutex> lock(mMutex);
     if (query.query().isEmpty()) {
         conn->write<128>("Running with %d jobs", mOptions.processCount);
     } else {
@@ -1380,106 +1300,6 @@ void Server::handleVisitFileMessage(const VisitFileMessage &message, Connection 
     conn->send(msg);
 }
 
-void Server::handleCompletionMessage(const CompletionMessage &message, Connection *conn)
-{
-    updateProject(message.projects(), 0);
-    const Path path = message.path();
-    std::shared_ptr<Project> project = updateProjectForLocation(path);
-
-    if (!project || project->state() != Project::Loaded) {
-        if (!isCompletionStream(conn))
-            conn->finish();
-        return;
-    }
-    if (mActiveCompletions.contains(path)) {
-        PendingCompletion &pending = mPendingCompletions[path];
-        pending.line = message.line();
-        pending.column = message.column();
-        pending.pos = message.pos();
-        pending.contents = message.contents();
-        pending.connection = conn;
-    } else {
-        startCompletion(path, message.line(), message.column(), message.pos(), message.contents(), conn);
-    }
-}
-
-void Server::startCompletion(const Path &path, int line, int column, int pos, const String &contents, Connection *conn)
-{
-#warning not done
-    // {
-    //     std::lock_guard<std::mutex> lock(mMutex);
-    //     mCurrentFileId = Location::fileId(path);
-    // }
-
-    // // error() << "starting completion" << path << line << column;
-    // if (!mOptions.completionCacheSize) {
-    //     conn->finish();
-    //     return;
-    // }
-    // std::shared_ptr<Project> project = updateProjectForLocation(path);
-    // if (!project || project->state() != Project::Loaded) {
-    //     if (!isCompletionStream(conn))
-    //         conn->finish();
-    //     return;
-    // }
-    // const uint32_t fileId = Location::fileId(path);
-    // if (!fileId)
-    //     return;
-
-    // CXTranslationUnit unit;
-    // List<String> args;
-    // int parseCount = 0;
-    // if (!project->fetchFromCache(path, args, unit, &parseCount)) {
-    //     const Source info = project->source(fileId);
-    //     if (info.isNull() || info.isJS()) {
-    //         if (!isCompletionStream(conn))
-    //             conn->finish();
-    //         return;
-    //     }
-    //     assert(!info.args.isEmpty());
-    //     args = info.args;
-    // }
-
-    // mActiveCompletions.insert(path);
-    // std::shared_ptr<CompletionJob> job(new CompletionJob(project, isCompletionStream(conn) ? CompletionJob::Stream : CompletionJob::Sync));
-    // job->init(unit, path, args, line, column, pos, contents, parseCount);
-    // job->setId(nextId());
-    // job->finished().connect<EventLoop::Async>(std::bind(&Server::onCompletionJobFinished, this, std::placeholders::_1, std::placeholders::_2));
-    // mPendingLookups[job->id()] = conn;
-    // startQueryJob(job);
-}
-
-void Server::onCompletionJobFinished(Path path, int /*id*/)
-{
-    // error() << "Got finished for" << path;
-    PendingCompletion completion = mPendingCompletions.take(path);
-    if (completion.line != -1) {
-        startCompletion(path, completion.line, completion.column, completion.pos, completion.contents, completion.connection);
-        // ### could the connection be deleted by now?
-    } else {
-        mActiveCompletions.remove(path);
-    }
-}
-
-bool Server::isCompletionStream(Connection* conn) const
-{
-    SocketClient::SharedPtr client = conn->client();
-    return (mCompletionStreams.find(client) != mCompletionStreams.end());
-}
-
-void Server::onCompletionStreamDisconnected(const SocketClient::SharedPtr& client)
-{
-    mCompletionStreams.remove(client);
-}
-
-void Server::handleCompletionStream(const CompletionMessage &message, Connection *conn)
-{
-    SocketClient::SharedPtr client = conn->client();
-    assert(client);
-    client->disconnected().connect(std::bind(&Server::onCompletionStreamDisconnected, this, std::placeholders::_1));
-    mCompletionStreams[client] = conn;
-}
-
 void Server::restoreFileIds()
 {
     const Path p = mOptions.dataDir + "fileids";
@@ -1535,27 +1355,10 @@ bool Server::saveFileIds() const
 
 void Server::onUnload()
 {
-    std::lock_guard<std::mutex> lock(mMutex);
     std::shared_ptr<Project> cur = mCurrentProject.lock();
     for (ProjectsMap::const_iterator it = mProjects.begin(); it != mProjects.end(); ++it) {
         if (it->second->state() != Project::Unloaded && it->second != cur && !it->second->isIndexing()) {
             it->second->unload();
         }
     }
-}
-
-Path::VisitResult clearCompletionCacheCallback(const Path &path, void *rx)
-{
-    if (path.isFile() && reinterpret_cast<RegExp*>(rx)->indexIn(path) != -1) {
-        path.rm();
-    }
-
-    return Path::Continue;
-}
-
-void Server::clearCompletionCache()
-{
-    Path path("/tmp/");
-    RegExp rx("/preamble.pch-[A-Za-z0-9][A-Za-z0-9][A-Za-z0-9][A-Za-z0-9][A-Za-z0-9][A-Za-z0-9]$");
-    path.visit(::clearCompletionCacheCallback, &rx);
 }

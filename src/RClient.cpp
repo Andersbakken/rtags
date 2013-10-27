@@ -15,7 +15,6 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 
 #include "RClient.h"
 #include "CompileMessage.h"
-#include "CompletionMessage.h"
 #include "CreateOutputMessage.h"
 #include <rct/Connection.h>
 #include <rct/EventLoop.h>
@@ -28,9 +27,6 @@ enum OptionType {
     AllReferences,
     Sources,
     Clear,
-    CodeComplete,
-    CodeCompleteAt,
-    CodeCompletionEnabled,
     Compile,
     ConnectTimeout,
     ContainingFunction,
@@ -60,7 +56,6 @@ enum OptionType {
     IMenu,
     IsIndexed,
     IsIndexing,
-    // JSON,
     JobCount,
     ListSymbols,
     LoadCompilationDatabase,
@@ -145,18 +140,14 @@ struct Option opts[] = {
     { FindFile, "path", 'P', optional_argument, "Print files matching pattern." },
     { DumpFile, "dump-file", 'd', required_argument, "Dump source file." },
     { RdmLog, "rdm-log", 'g', no_argument, "Receive logs from rdm." },
-    { CodeCompleteAt, "code-complete-at", 'x', required_argument, "Get code completion from location (must be specified with path:line:column)." },
-    { CodeComplete, "code-complete", 0, no_argument, "Get code completion from stream written to stdin." },
     { FixIts, "fixits", 0, required_argument, "Get fixits for file." },
     { Compile, "compile", 'c', required_argument, "Pass compilation arguments to rdm." },
     { RemoveFile, "remove", 'D', required_argument, "Remove file from project." },
     { FindProjectRoot, "find-project-root", 0, required_argument, "Use to check behavior of find-project-root." },
-    // { JSON, "json", 0, optional_argument, "Dump json about files matching arg or whole project if no argument." },
     { Sources, "sources", 0, optional_argument, "Dump sources for source file." },
     { Dependencies, "dependencies", 0, required_argument, "Dump dependencies for source file." },
     { ReloadFileManager, "reload-file-manager", 'B', no_argument, "Reload file manager." },
     { Man, "man", 0, no_argument, "Output XML for xmltoman to generate man page for rc :-)" },
-    { CodeCompletionEnabled, "code-completion-enabled", 0, no_argument, "Whether completion is enabled." },
     { SuspendFile, "suspend-file", 'X', optional_argument, "Dump suspended files (don't track changes in these files) with no arg. Otherwise toggle suspension for arg." },
 
     { None, 0, 0, 0, "" },
@@ -322,104 +313,6 @@ public:
     }
 };
 
-class CompletionCommand : public RCCommand
-{
-public:
-    CompletionCommand(const Path &p, int l, int c)
-        : RCCommand(0), path(p), line(l), column(c), stream(false), connection(0)
-    {}
-    CompletionCommand()
-        : RCCommand(0), line(-1), column(-1), stream(true), connection(0)
-    {
-    }
-
-    const Path path;
-    const int line;
-    const int column;
-    const bool stream;
-    Connection *connection;
-    String data;
-
-    virtual bool exec(RClient *rc, Connection *cl)
-    {
-        connection = cl;
-        if (stream) {
-            CompletionMessage msg(CompletionMessage::Stream);
-            msg.init(rc->argc(), rc->argv());
-            msg.setProjects(rc->projects());
-            EventLoop::eventLoop()->registerSocket(STDIN_FILENO, EventLoop::SocketRead, std::bind(&CompletionCommand::processStdin, this));
-            return connection->send(msg);
-        } else {
-            CompletionMessage msg(CompletionMessage::None, path, line, column);
-            msg.init(rc->argc(), rc->argv());
-            msg.setContents(rc->unsavedFiles().value(path));
-            msg.setProjects(rc->projects());
-            return connection->send(msg);
-        }
-    }
-
-    virtual String description() const
-    {
-        return String::format<128>("CompletionMessage %s:%d:%d", path.constData(), line, column);
-    }
-
-    void processStdin()
-    {
-        assert(!data.contains('\n'));
-        while (true) {
-            const int ch = getc(stdin);
-            if (ch == EOF)
-                return;
-            if (ch == '\n')
-                break;
-            data.append(static_cast<char>(ch));
-        }
-        const int colon = data.indexOf(':');
-        if (colon == -1) {
-            error() << "Failed to match completion header" << data;
-            EventLoop::eventLoop()->unregisterSocket(STDIN_FILENO);
-            EventLoop::eventLoop()->quit();
-            return;
-        }
-
-        int line, column, contentsSize, pos;
-        const int ret = sscanf(data.constData() + colon + 1, "%d:%d:%d:%d", &line, &column, &pos, &contentsSize);
-        if (ret != 4) {
-            error() << "Failed to match completion header" << ret << "\n" << data;
-            EventLoop::eventLoop()->unregisterSocket(STDIN_FILENO);
-            EventLoop::eventLoop()->quit();
-            return;
-        }
-        String contents(contentsSize, ' ');
-        int read = 0;
-        char *c = contents.data();
-        while (read < contentsSize) {
-            const int r = fread(c + read, sizeof(char), contentsSize - read, stdin);
-            if (r < 0) {
-                EventLoop::eventLoop()->unregisterSocket(STDIN_FILENO);
-                EventLoop::eventLoop()->quit();
-                return;
-            }
-            read += r;
-        }
-        Path path(data.constData(), colon);
-        data.clear();
-        if (!path.resolve(Path::MakeAbsolute)) {
-            error() << "Can't resolve" << path;
-            return;
-        }
-        // error() << path << line << column << contentsSize << pos << "\n" << contents.left(100)
-        //         << contents.right(100);
-
-        CompletionMessage msg(CompletionMessage::None, path, line, column, pos);
-        const String args = String::format<64>("%s:%d:%d:%d:%d", path.constData(), line, column, pos, contentsSize);
-        const char *argv[] = { "completionStream", args.constData() };
-        msg.init(2, argv);
-        msg.setContents(contents);
-        connection->send(msg);
-    }
-};
-
 class RdmLogCommand : public RCCommand
 {
 public:
@@ -479,7 +372,6 @@ void RClient::addQuery(QueryMessage::Type t, const String &query)
     unsigned int flags = RCCommand::None;
     unsigned int extraQueryFlags = 0;
     switch (t) {
-    case QueryMessage::CodeCompletionEnabled:
     case QueryMessage::IsIndexing:
     case QueryMessage::HasFileManager:
         flags |= RCCommand::RequiresNon0Output;
@@ -683,35 +575,9 @@ bool RClient::parse(int &argc, char **argv)
         case CursorKind:
             mQueryFlags |= QueryMessage::CursorKind;
             break;
-        case CodeComplete:
-            // logFile = "/tmp/rc.log";
-            mCommands.append(std::shared_ptr<RCCommand>(new CompletionCommand));
-            break;
         case Context:
             mContext = optarg;
             break;
-        case CodeCompleteAt: {
-            const String arg = optarg;
-            List<RegExp::Capture> caps;
-            RegExp rx("^\\(.*\\):\\([0-9][0-9]*\\):\\([0-9][0-9]*\\)$");
-            if (rx.indexIn(arg, 0, &caps) != 0 || caps.size() != 4) {
-                fprintf(stderr, "Can't decode argument for --code-complete-at [%s]\n", optarg);
-                return false;
-            }
-            const Path path = Path::resolved(caps[1].capture, Path::MakeAbsolute);
-            if (!path.exists()) {
-                fprintf(stderr, "Can't decode argument for --code-complete-at [%s]\n", optarg);
-                return false;
-            }
-
-            String out;
-            {
-                Serializer serializer(out);
-                serializer << path << atoi(caps[2].capture.constData()) << atoi(caps[3].capture.constData());
-            }
-            CompletionCommand *cmd = new CompletionCommand(path, atoi(caps[2].capture.constData()), atoi(caps[3].capture.constData()));
-            mCommands.append(std::shared_ptr<RCCommand>(cmd));
-            break; }
         case DisplayName:
             mQueryFlags |= QueryMessage::DisplayName;
             break;
@@ -863,9 +729,6 @@ bool RClient::parse(int &argc, char **argv)
         case DeleteProject:
             addQuery(QueryMessage::DeleteProject, optarg);
             break;
-        case CodeCompletionEnabled:
-            addQuery(QueryMessage::CodeCompletionEnabled);
-            break;
         case UnloadProject:
             addQuery(QueryMessage::UnloadProject, optarg);
             break;
@@ -879,7 +742,6 @@ bool RClient::parse(int &argc, char **argv)
         case FindFile:
         case ListSymbols:
         case FindSymbols:
-        // case JSON:
         case Sources:
         case JobCount:
         case Status: {
@@ -890,7 +752,6 @@ bool RClient::parse(int &argc, char **argv)
             case FindFile: type = QueryMessage::FindFile; break;
             case Sources: type = QueryMessage::Sources; break;
             case Status: type = QueryMessage::Status; break;
-            // case JSON: type = QueryMessage::JSON; break;
             case ListSymbols: type = QueryMessage::ListSymbols; break;
             case FindSymbols: type = QueryMessage::FindSymbols; break;
             case JobCount: type = QueryMessage::JobCount; break;

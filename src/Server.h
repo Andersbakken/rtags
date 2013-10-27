@@ -19,7 +19,6 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 #include "QueryMessage.h"
 #include "CompileMessage.h"
 #include "CreateOutputMessage.h"
-#include "CompletionMessage.h"
 #include "IndexerMessage.h"
 #include "FileManager.h"
 #include "QueryMessage.h"
@@ -52,7 +51,7 @@ class VisitFileMessage;
 class Server
 {
 public:
-    enum { DatabaseVersion = 30 };
+    enum { DatabaseVersion = 31 };
 
     Server();
     ~Server();
@@ -77,15 +76,13 @@ public:
     ThreadPool *threadPool() { return &mThreadPool; }
     struct Options {
         Options()
-            : options(0), processCount(0), completionCacheSize(0),
-              unloadTimer(0), clearCompletionCacheInterval(0),
-              rpVisitFileTimeout(0), rpIndexerMessageTimeout(0),
-              syncThreshold(0)
+            : options(0), processCount(0), unloadTimer(0), rpVisitFileTimeout(0),
+              rpIndexerMessageTimeout(0), syncThreshold(0)
         {}
         Path socketFile, dataDir;
         unsigned options;
-        int processCount, completionCacheSize, unloadTimer, clearCompletionCacheInterval,
-            rpVisitFileTimeout, rpIndexerMessageTimeout, syncThreshold;
+        int processCount, unloadTimer, rpVisitFileTimeout,
+            rpIndexerMessageTimeout, syncThreshold;
         List<String> defaultArguments, excludeFilters;
         List<Path> includePaths;
         List<Source::Define> defines;
@@ -93,7 +90,7 @@ public:
     };
     bool init(const Options &options);
     const Options &options() const { return mOptions; }
-    uint32_t currentFileId() const { std::lock_guard<std::mutex> lock(mMutex); return mCurrentFileId; }
+    uint32_t currentFileId() const { return mCurrentFileId; }
     bool saveFileIds() const;
     RTagsPluginFactory &factory() { return mPluginFactory; }
     void onJobOutput(JobOutput&& out);
@@ -101,9 +98,6 @@ private:
     bool selectProject(const Match &match, Connection *conn, unsigned int queryFlags);
     bool updateProject(const List<String> &projects, unsigned int queryFlags);
 
-    bool isCompletionStream(Connection* conn) const;
-
-    void clearCompletionCache();
     void restoreFileIds();
     void clear();
     void onNewConnection();
@@ -116,20 +110,16 @@ private:
     void clearProjects();
     void handleCompileMessage(const CompileMessage &message, Connection *conn);
     void handleIndexerMessage(const IndexerMessage &message, Connection *conn);
-    void handleCompletionMessage(const CompletionMessage &message, Connection *conn);
-    void handleCompletionStream(const CompletionMessage &message, Connection *conn);
     void handleQueryMessage(const QueryMessage &message, Connection *conn);
     void handleErrorMessage(const ErrorMessage &message, Connection *conn);
     void handleCreateOutputMessage(const CreateOutputMessage &message, Connection *conn);
     void handleVisitFileMessage(const VisitFileMessage &message, Connection *conn);
     void isIndexing(const QueryMessage &, Connection *conn);
     void removeFile(const QueryMessage &query, Connection *conn);
-    void codeCompletionEnabled(const QueryMessage &query, Connection *conn);
     void followLocation(const QueryMessage &query, Connection *conn);
     void cursorInfo(const QueryMessage &query, Connection *conn);
     void dependencies(const QueryMessage &query, Connection *conn);
     void fixIts(const QueryMessage &query, Connection *conn);
-    // void JSON(const QueryMessage &query, Connection *conn);
     void jobCount(const QueryMessage &query, Connection *conn);
     void referencesForLocation(const QueryMessage &query, Connection *conn);
     void referencesForName(const QueryMessage &query, Connection *conn);
@@ -153,16 +143,9 @@ private:
     void reindex(const QueryMessage &query, Connection *conn);
     std::shared_ptr<Project> updateProjectForLocation(const Match &match);
     void setupCurrentProjectFile(const std::shared_ptr<Project> &project);
-    std::shared_ptr<Project> currentProject() const
-    {
-        std::lock_guard<std::mutex> lock(mMutex);
-        return mCurrentProject.lock();
-    }
+    std::shared_ptr<Project> currentProject() const { return mCurrentProject.lock(); }
     int reloadProjects();
-    void onCompletionStreamDisconnected(const SocketClient::SharedPtr& client);
     std::shared_ptr<Project> addProject(const Path &path);
-    void onCompletionJobFinished(Path path, int id);
-    void startCompletion(const Path &path, int line, int column, int pos, const String &contents, Connection *conn);
 
     typedef Hash<Path, std::shared_ptr<Project> > ProjectsMap;
     ProjectsMap mProjects;
@@ -176,26 +159,11 @@ private:
     ThreadPool mThreadPool;
     ProcessPool mProcessPool;
 
-    Hash<SocketClient::SharedPtr, Connection*> mCompletionStreams;
-    struct PendingCompletion
-    {
-        PendingCompletion()
-            : line(-1), column(-1), pos(-1), connection(0)
-        {}
-        int line, column, pos;
-        String contents;
-        Connection *connection;
-    };
-    Hash<Path, PendingCompletion> mPendingCompletions;
-    Set<Path> mActiveCompletions;
-
-    Timer mUnloadTimer, mClearCompletionCacheTimer;
+    Timer mUnloadTimer;
 
     RTagsPluginFactory mPluginFactory;
 
     uint32_t mCurrentFileId;
-
-    mutable std::mutex mMutex;
 };
 
 #endif

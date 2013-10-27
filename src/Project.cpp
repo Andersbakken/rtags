@@ -51,7 +51,7 @@ public:
         std::shared_ptr<Project> project = mProject.lock();
         if (project) {
             restore(project);
-            project->restore(this);
+            EventLoop::mainEventLoop()->callLater(std::bind(&Project::restore, project.get(), std::placeholders::_1), this);
         }
     }
     void restore(const std::shared_ptr<Project> &project)
@@ -96,8 +96,6 @@ public:
         } else {
             error() << "Restored project" << path << "in" << timer.elapsed() << "ms";
         }
-
-        EventLoop::mainEventLoop()->callLater(std::bind(&Project::restore, project.get(), std::placeholders::_1), this);
     }
 
     std::weak_ptr<Project> mProject;
@@ -149,7 +147,7 @@ void Project::restore(RestoreThread *thread)
     mDependencies = std::move(thread->mDependencies);
     mSources = std::move(thread->mSources);
     mVisitedFiles = std::move(thread->mVisitedFiles);
-    
+
     DependencyMap reversedDependencies;
     Set<uint32_t> dirty;
     // these dependencies are in the form of:
@@ -183,17 +181,13 @@ void Project::restore(RestoreThread *thread)
             mSources.erase(it++);
             needsSave = true;
         } else {
-            const time_t parsed = it->second.parsed;
-            // error() << "parsed" << String::formatTime(parsed, String::DateTime) << parsed << it->second.sourceFile;
-            if (mDependencies.value(it->first).contains(it->first)) {
-                assert(mDependencies.value(it->first).contains(it->first));
-                assert(mDependencies.contains(it->first));
-                const Set<uint32_t> &deps = reversedDependencies[it->first];
-                for (Set<uint32_t>::const_iterator d = deps.begin(); d != deps.end(); ++d) {
-                    if (!dirty.contains(*d) && Location::path(*d).lastModified() > parsed) {
-                        // error() << Location::path(*d).lastModified() << "is more than" << parsed;
-                        dirty.insert(*d);
-                    }
+            const uint64_t parsed = it->second.parsed;
+            assert(mDependencies.value(it->first).contains(it->first));
+            const Set<uint32_t> &deps = reversedDependencies[it->first];
+            for (Set<uint32_t>::const_iterator d = deps.begin(); d != deps.end(); ++d) {
+                if (!dirty.contains(*d) && Location::path(*d).lastModifiedMs() > parsed) {
+                    // error() << Location::path(*d).lastModified() << "is more than" << parsed;
+                    dirty.insert(*d);
                 }
             }
             ++it;

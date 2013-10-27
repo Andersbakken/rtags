@@ -37,7 +37,7 @@ struct Source
         CPlusPlus11Header
     } language;
 
-    time_t parsed;
+    uint64_t parsed;
 
     struct Define {
         String define;

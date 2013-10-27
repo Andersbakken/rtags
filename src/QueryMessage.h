@@ -29,7 +29,6 @@ public:
     enum { MessageId = QueryId };
     enum Type {
         Sources,
-        CodeCompletionEnabled,
         ClearProjects,
         CursorInfo,
         DeleteProject,
@@ -43,7 +42,6 @@ public:
         Invalid,
         IsIndexed,
         IsIndexing,
-        JSON,
         JobCount,
         ListSymbols,
         LoadCompilationDatabase,

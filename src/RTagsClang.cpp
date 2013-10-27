@@ -246,9 +246,6 @@ void parseTranslationUnit(const Path &sourceFile, const List<String> &args,
 
     StopWatch sw;
     unsigned int flags = CXTranslationUnit_DetailedPreprocessingRecord;
-    if (Server::instance() && Server::instance()->options().completionCacheSize)
-        flags |= CXTranslationUnit_PrecompiledPreamble|CXTranslationUnit_CacheCompletionResults;
-
     unit = clang_parseTranslationUnit(index, sourceFile.constData(),
                                       clangArgs.data(), idx, unsaved, unsavedCount, flags);
     // error() << sourceFile << sw.elapsed();

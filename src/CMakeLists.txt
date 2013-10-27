@@ -67,7 +67,6 @@ add_definitions("-DRTAGS_BIN=\"${PROJECT_BINARY_DIR}/bin/\"")
 
 set(RTAGS_SHARED_SOURCES
   CompileMessage.cpp
-  CompletionMessage.cpp
   CreateOutputMessage.cpp
   Location.cpp
   QueryMessage.cpp
@@ -78,8 +77,6 @@ target_link_libraries(shared rct)
 
 set(RDM_SOURCES
   Source.cpp
-  # CompilerManager.cpp
-  # CompletionJob.cpp
   CursorInfo.cpp
   CursorInfoJob.cpp
   DependenciesJob.cpp
@@ -87,8 +84,6 @@ set(RDM_SOURCES
   FindFileJob.cpp
   FindSymbolsJob.cpp
   FollowLocationJob.cpp
-  # GccArguments.cpp
-  # JSONJob.cpp
   Job.cpp
   ListSymbolsJob.cpp
   Preprocessor.cpp
@@ -99,7 +94,6 @@ set(RDM_SOURCES
   ScanJob.cpp
   Server.cpp
   StatusJob.cpp
-  # ValidateDBJob.cpp
   )
 
 include_directories(${CMAKE_CURRENT_LIST_DIR}

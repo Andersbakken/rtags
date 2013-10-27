@@ -50,7 +50,6 @@ static void sigIntHandler(int)
 }
 
 #define EXCLUDEFILTER_DEFAULT "*/CMakeFiles/*;*/cmake*/Modules/*;*/conftest.c*;/tmp/*"
-#define DEFAULT_COMPLETION_CACHE_CLEAR_INTERVAL 60
 #define DEFAULT_RP_VISITFILE_TIMEOUT 3000
 #define DEFAULT_RP_INDEXER_MESSAGE_TIMEOUT 5000
 #define XSTR(s) #s
@@ -84,13 +83,11 @@ static void usage(FILE *f)
             "  --data-dir|-d [arg]                        Use this directory to store persistent data (default ~/.rtags).\n"
             "  --socket-file|-n [arg]                     Use this file for the server socket (default ~/.rdm).\n"
             "  --setenv|-e [arg]                          Set this environment variable (--setenv \"foobar=1\").\n"
-            "  --completion-cache-size|-a [arg]           Cache this many translation units (default 0, must have at least 1 to use completion).\n"
             "  --no-current-project|-o                    Don't restore the last current project on startup.\n"
             "  --allow-multiple-sources|-m                 Without this setting different sources will be merged for each source file.\n"
             "  --unload-timer|-u [arg]                    Number of minutes to wait before unloading non-current projects (disabled by default).\n"
             "  --job-count|-j [arg]                       Spawn this many concurrent processes for indexing.\n"
             "  --watch-system-paths|-w                    Watch system paths for changes.\n"
-            "  --clear-completion-cache-interval|-O [arg] Set completion cache cleanup interval in minuts. (default " STR(DEFAULT_COMPLETION_CACHE_CLEAR_INTERVAL) ")\n"
             "  --rp-visit-file-timeout|-t [arg]           Timeout for rp visitfile commands in ms (0 means no timeout) (default " STR(DEFAULT_RP_VISITFILE_TIMEOUT) ")\n"
             "  --rp-indexer-message-timeout|-T [arg]      Timeout for rp indexer-message in ms (0 means no timeout) (default " STR(DEFAULT_RP_INDEXER_MESSAGE_TIMEOUT) ")\n"
 
@@ -131,7 +128,6 @@ int main(int argc, char** argv)
         { "data-dir", required_argument, 0, 'd' },
         { "ignore-printf-fixits", no_argument, 0, 'F' },
         { "unlimited-errors", no_argument, 0, 'f' },
-        { "completion-cache-size", required_argument, 0, 'a' },
         { "no-spell-checking", no_argument, 0, 'l' },
         { "sync-threshold", required_argument, 0, 'y' },
         { "large-by-value-copy", required_argument, 0, 'r' },
@@ -143,7 +139,6 @@ int main(int argc, char** argv)
         { "watch-system-paths", no_argument, 0, 'w' },
         { "disable-esprima", no_argument, 0, 'E' },
         { "enable-compiler-flags", no_argument, 0, 'K' },
-        { "clear-completion-cache-interval", required_argument, 0, 'O' },
         { "rp-visit-file-timout", required_argument, 0, 't' },
         { "rp-indexer-message-timeout", required_argument, 0, 'T' },
 #ifdef OS_Darwin
@@ -231,8 +226,6 @@ int main(int argc, char** argv)
     Server::Options serverOpts;
     serverOpts.socketFile = String::format<128>("%s.rdm", Path::home().constData());
     serverOpts.processCount = ThreadPool::idealThreadCount();
-    serverOpts.completionCacheSize = 0;
-    serverOpts.clearCompletionCacheInterval = DEFAULT_COMPLETION_CACHE_CLEAR_INTERVAL;
     serverOpts.rpVisitFileTimeout = DEFAULT_RP_VISITFILE_TIMEOUT;
     serverOpts.rpIndexerMessageTimeout = DEFAULT_RP_INDEXER_MESSAGE_TIMEOUT;
     serverOpts.options = Server::Wall|Server::SpellChecking;
@@ -349,21 +342,6 @@ int main(int argc, char** argv)
                 return 1;
             }
             break;
-        case 'a':
-            serverOpts.completionCacheSize = atoi(optarg);
-            if (serverOpts.completionCacheSize < 1) {
-                fprintf(stderr, "Invalid argument to -a %s\n", optarg);
-                return 1;
-            }
-            break;
-        case 'O': {
-            bool ok;
-            serverOpts.clearCompletionCacheInterval = String(optarg).toULongLong(&ok);
-            if (!ok) {
-                fprintf(stderr, "Invalid argument to -O %s\n", optarg);
-                return 1;
-            }
-            break; }
         case 'j':
             serverOpts.processCount = atoi(optarg);
             if (serverOpts.processCount <= 0) {

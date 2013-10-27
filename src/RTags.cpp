@@ -426,7 +426,6 @@ void initMessages()
 {
 #ifndef GRTAGS
     Messages::registerMessage<QueryMessage>();
-    Messages::registerMessage<CompletionMessage>();
     Messages::registerMessage<CompileMessage>();
     Messages::registerMessage<CreateOutputMessage>();
     Messages::registerMessage<VisitFileResponseMessage>();

@@ -26,11 +26,6 @@
 (defvar rtags-path-face 'rtags-path "Path part")
 (defvar rtags-context-face 'rtags-context "Context part")
 (defconst rtags-buffer-name "*RTags*")
-(defvar rtags-completion nil)
-(defvar rtags-completion-cache-file-name "")
-(defvar rtags-completion-cache-line 0)
-(defvar rtags-completion-cache-column 0)
-(defvar rtags-completion-cache-line-contents "")
 (defvar rtags-last-request-not-indexed nil)
 (defvar rtags-buffer-bookmarks 0)
 
@@ -597,11 +592,11 @@
           (setq references rtags-async-filter-and-sentinel))
       (rtags-call-rc :path path switch tagname :path-filter filter)
       (rtags-reset-bookmarks)
-      (rtags-handle-completion-buffer))
+      (rtags-handle-results-buffer))
     )
   )
 
-(defun rtags-remove-completion-buffer ()
+(defun rtags-remove-results-buffer ()
   (interactive)
   (kill-buffer (current-buffer))
   (switch-to-buffer rtags-last-buffer))
@@ -692,11 +687,6 @@
   :group 'rtags
   :type 'number)
 
-(defcustom rtags-completion-timer-interval .5
-  "Interval for completion timer"
-  :group 'rtags
-  :type 'number)
-
 (defcustom rtags-local-references-enabled nil
   "Whether rtags local-references are enabled"
   :group 'rtags
@@ -782,7 +772,6 @@ return t if rtags is allowed to modify this file"
   (define-key map (kbd "C-x r <") (function rtags-find-references))
   (define-key map (kbd "C-x r [") (function rtags-location-stack-back))
   (define-key map (kbd "C-x r ]") (function rtags-location-stack-forward))
-  (define-key map (kbd "C-x r C") (function rtags-switch-to-completion-buffer))
   (define-key map (kbd "C-x r D") (function rtags-diagnostics))
   (define-key map (kbd "C-x r G") (function rtags-guess-function-at-point))
   (define-key map (kbd "C-x r p") (function rtags-set-current-project))
@@ -810,12 +799,6 @@ return t if rtags is allowed to modify this file"
 
 (defun rtags-quit-rdm () (interactive)
   (call-process (rtags-executable-find "rc") nil nil nil "--quit-rdm"))
-
-(defun rtags-switch-to-completion-buffer () (interactive)
-  (let ((buf (get-buffer "*RTags Completions*")))
-    (if buf
-        (switch-to-buffer-other-window buf)))
-  )
 
 (defun rtags-location-stack-forward ()
   (interactive)
@@ -878,7 +861,7 @@ References to references will be treated as references to the referenced symbol"
         (context (rtags-current-symbol t)))
     (with-current-buffer (rtags-get-buffer)
       (rtags-call-rc :path fn :context context :path-filter prefix "-r" arg)
-      (rtags-handle-completion-buffer))
+      (rtags-handle-results-buffer))
     )
   )
 
@@ -891,7 +874,7 @@ References to references will be treated as references to the referenced symbol"
         (context (rtags-current-symbol t)))
     (with-current-buffer (rtags-get-buffer)
       (rtags-call-rc :path fn :context context :path-filter prefix "-r" arg "-k")
-      (rtags-handle-completion-buffer))
+      (rtags-handle-results-buffer))
     )
   )
 
@@ -903,7 +886,7 @@ References to references will be treated as references to the referenced symbol"
         (context (rtags-current-symbol t)))
     (with-current-buffer (rtags-get-buffer)
       (rtags-call-rc :path fn :context context :path-filter prefix "-r" arg "-e")
-      (rtags-handle-completion-buffer))
+      (rtags-handle-results-buffer))
     )
   )
 
@@ -916,7 +899,7 @@ References to references will be treated as references to the referenced symbol"
     (if token
         (with-current-buffer (rtags-get-buffer)
           (rtags-call-rc :path fn "--declaration-only" "-F" token)
-          (rtags-handle-completion-buffer t))))
+          (rtags-handle-results-buffer t))))
   )
 
 (defun rtags-current-token ()
@@ -1040,144 +1023,6 @@ References to references will be treated as references to the referenced symbol"
           (c-beginning-of-current-token)
         (forward-char))
       (- (point) (point-at-bol))))
-  )
-
-(defun rtags-post-expand ()
-  (save-excursion
-    (let ((end (point)))
-      (backward-char)
-      (c-beginning-of-current-token)
-      (let ((sig (gethash (buffer-substring-no-properties (point) end) rtags-completion-signatures)))
-        (if sig
-            (message "%s" (combine-and-quote-strings sig "\n")))))))
-
-(defun rtags-expand-internal ()
-  (save-excursion
-    (with-current-buffer rtags-completion
-      (if (= (point-min) (point-max))
-          (setq rtags-completion nil)
-        (progn
-          (goto-char (point-min))
-          (if (looking-at "Scheduled rebuild")
-              (progn
-                (setq rtags-completion nil
-                      rtags-completion-cache-line 0
-                      rtags-completion-cache-column 0
-                      rtags-completion-cache-line-contents ""
-                      rtags-completion-cache-file-name "")))))))
-  (if rtags-completion
-      (if (and nil ;; disable for now, can't make dabbrev do what I want
-               (> (point) (1+ (point-min)))
-               (or (string= (buffer-substring-no-properties (- (point) 2) (point)) "->")
-                   (string= (buffer-substring-no-properties (- (point) 1) (point)) ".")))
-          ;; (progn
-          ;;   (dabbrev--reset-global-variables)
-          ;;   (setq dabbrev--last-abbreviation ""
-          ;;         dabbrev--last-abbrev-location
-
-          ;;     "Initialize all global variables."
-          ;;     (setq dabbrev--last-table nil
-          ;;           dabbrev--last-abbrev-location nil
-          ;;           dabbrev--last-direction nil
-          ;;           dabbrev--last-expansion nil
-          ;;           dabbrev--last-expansion-location nil
-          ;;           dabbrev--friend-buffer-list nil
-          ;;           dabbrev--last-buffer nil
-          ;;           dabbrev--last-buffer-found nil
-          ;;           dabbrev--abbrev-char-regexp (or dabbrev-abbrev-char-regexp
-          ;;                                           "\\sw\\|\\s_")
-          ;;           dabbrev--check-other-windows dabbrev-check-other-windows))
-
-          (insert (with-current-buffer rtags-completion
-                    (save-excursion
-                      (goto-char (point-min))
-                      (buffer-substring-no-properties (point-min) (point-at-eol))))))
-    (let ((was-search dabbrev-search-these-buffers-only))
-      (condition-case nil
-          (progn
-            (setq dabbrev-search-these-buffers-only (list rtags-completion))
-            (funcall rtags-expand-function)
-            (setq dabbrev-search-these-buffers-only was-search)
-            (rtags-post-expand))
-        (error
-         (setq dabbrev-search-these-buffers-only was-search)))))
-  (when (not (string= rtags-completion-cache-file-name ""))
-    (funcall rtags-expand-function)
-    (rtags-post-expand))
-  )
-
-(defun rtags-rdm-completion-enabled ()
-  (interactive)
-  (with-temp-buffer
-    (rtags-call-rc "--code-completion-enabled" :noerror t)
-    (goto-char (point-min))
-    (or (looking-at "1")
-        (looking-at "Can't seem to connect to server")))
-  )
-
-(defun rtags-expand ()
-  (interactive)
-  (if (and rtags-completion (or (eq rtags-completion-mode 'rtags-complete-with-dabbrev-and-autocomplete)
-                                (eq rtags-completion-mode 'rtags-complete-with-dabbrev)))
-      (rtags-expand-internal)
-    (funcall rtags-expand-function))
-  )
-
-(defvar rtags-completion-stream-process nil)
-(defun rtags-completion-cache-is-valid ()
-  (and (= (line-number-at-pos) rtags-completion-cache-line)
-       (= (rtags-find-symbol-start) rtags-completion-cache-column)
-       (string= (buffer-file-name (current-buffer)) rtags-completion-cache-file-name)
-       (string= (buffer-substring-no-properties (point-at-bol) (+ (point-at-bol) rtags-completion-cache-column))
-                rtags-completion-cache-line-contents)))
-
-(defun rtags-init-completion-stream ()
-  (interactive)
-  (if (or (not rtags-completion-stream-process)
-          (eq (process-status rtags-completion-stream-process) 'exit)
-          (eq (process-status rtags-completion-stream-process) 'signal))
-      (let ((process-connection-type nil))  ; use a pipe
-        (if (get-buffer "*RTags Completions*")
-            (kill-buffer "*RTags Completions*"))
-        (setq rtags-completion-stream-process (start-process
-                                               "RTags Completions Stream"
-                                               "*RTags Completions*"
-                                               (rtags-executable-find "rc")
-                                               "--code-complete"))
-        (buffer-disable-undo "*RTags Completions*")
-        (set-process-filter rtags-completion-stream-process (function rtags-completion-stream-process-filter))))
-  t)
-
-(defun rtags-prepare-completions ()
-  (interactive)
-  ;;(message "prepare completion")
-  (when rtags-completion-cache-timer
-    (cancel-timer rtags-completion-cache-timer)
-    (setq rtags-completion-cache-timer nil))
-  (when (not (rtags-completion-cache-is-valid))
-    (rtags-init-completion-stream)
-    (if (buffer-live-p rtags-completion)
-        (with-current-buffer rtags-completion
-          (let (deactivate-mark)
-            (erase-buffer))))
-    (save-excursion
-      ;; (message "preparing completion")
-      (let* ((buffer (current-buffer))
-             (path (buffer-file-name buffer))
-             (buffer-size (- (point-max) (point-min)))
-             (line (line-number-at-pos))
-             (column (rtags-find-symbol-start))
-             (header (format "%s:%d:%d:%d:%d\n" (buffer-file-name buffer) line (+ column 1) (- (point) 1) (- (point-max) (point-min)))))
-        (setq rtags-completion (get-buffer-create "*RTags Completions*")
-              rtags-completion-cache-file-name (buffer-file-name buffer)
-              rtags-completion-cache-line line
-              rtags-completion-cache-column column
-              rtags-completion-cache-line-contents (buffer-substring-no-properties (point-at-bol) (+ (point-at-bol) column)))
-        ;; (message "writing shit %s" header)
-        (process-send-string rtags-completion-stream-process header)
-        (process-send-string rtags-completion-stream-process (buffer-substring-no-properties (point-min) (point-max))))
-      )
-    )
   )
 
 (defvar rtags-diagnostics-process nil)
@@ -1423,207 +1268,6 @@ References to references will be treated as references to the referenced symbol"
       (setq current-overlays (cdr current-overlays))))
   )
 
-(defvar rtags-completion-signatures (make-hash-table :test 'equal))
-(defvar rtags-completion-buffer-pending nil)
-
-(defun rtags-completion-stream-process-filter (process output)
-  (let* ((buf (process-buffer process))
-         (process-output t)
-         (delimiter (string-match "`" output)))
-    (cond (delimiter
-           (let (deactivate-mark)
-             (with-current-buffer buf
-               (erase-buffer)
-               (setq rtags-completion-signatures (make-hash-table :test 'equal)
-                     rtags-completion-buffer-pending nil
-                     output (substring output (+ delimiter 1))))))
-          ((string= (substring output 0 (min 21 (length output))) "Scheduled rebuild of ")
-           (progn
-             (setq rtags-completion nil
-                   rtags-completion-cache-line 0
-                   rtags-completion-cache-column 0
-                   rtags-completion-cache-line-contents ""
-                   rtags-completion-cache-file-name ""
-                   process-output nil)
-             (rtags-restart-completion-cache-timer)))
-          (rtags-completion-buffer-pending
-           (setq output (concat rtags-completion-buffer-pending output)
-                 rtags-completion-buffer-pending nil))
-          (t nil))
-    (if process-output
-        (with-current-buffer buf
-          (let ((deactivate-mark) (continue t) (idx 0) (last 0))
-            (save-excursion
-              (goto-char (point-max))
-              (while continue
-                (setq idx (string-match "\n" output last))
-                (if idx
-                    (let* ((ws (string-match " " output last))
-                           (key (substring output last ws))
-                           (values (gethash key rtags-completion-signatures)))
-                      (when (and ws (< (+ ws 1) idx))
-                        (setq values (add-to-list 'values (substring output (+ ws 1) idx)))
-                        (puthash key values rtags-completion-signatures))
-                      (insert (concat key "\n"))
-                      (setq last (+ idx 1)))
-                  (progn
-                    (unless (= last (length output))
-                      (setq rtags-completion-buffer-pending (substring output last)))
-                    (setq continue nil))
-                  )
-                )
-              )
-            )
-          )
-      )
-    )
-  )
-
-(defvar rtags-completion-cache-timer nil)
-(defun rtags-restart-completion-cache-timer ()
-  (interactive)
-  (if rtags-completion-cache-timer
-      (cancel-timer rtags-completion-cache-timer))
-  (setq rtags-completion-cache-timer
-        (and (or (eq major-mode 'c++-mode)
-                 (eq major-mode 'c-mode))
-             (not (eq rtags-completion-mode 'rtags-completion-disabled))
-             (run-with-idle-timer rtags-completion-timer-interval nil (function rtags-prepare-completions))))
-  )
-
-(defun rtags-ac-completions ()
-  (if (get-buffer "*RTags Completions*")
-      (with-current-buffer "*RTags Completions*"
-        (unless (string= (buffer-substring-no-properties (1+ (point-min)) (1- (point-max)))
-                         "Process RTags Completions Stream finished")
-          (split-string (buffer-string)))))
-  )
-
-
-;; stolen from irony-mode ;; https://github.com/Sarcasm/irony-mode
-(defun rtags-irony-get-completion-point ()
-  "Return the point where the completion should start from the
-current point. If no completion can be used in the current
-context return NIL.
-
-Note: This function try to return the point only in case where it
-seems to be interesting and not too slow to show the completion
-under point. If you want to have the completion *explicitly* you
-should use `irony-get-completion-point-anywhere'."
-  ;; Try different possibilities...
-  (or
-   ;; - Object member access: '.'
-   ;; - Pointer member access: '->'
-   ;; - Scope operator: '::'
-   (if (re-search-backward "\\(?:\\.\\|->\\|::\\)\\(\\(?:[_a-zA-Z][_a-zA-Z0-9]*\\)?\\)\\=" nil t)
-       (let ((point (match-beginning 1)))
-         ;; fix floating number literals (the prefix tried to complete
-         ;; the following "3.[COMPLETE]")
-         (unless (re-search-backward "[^_a-zA-Z0-9][[:digit:]]+\\.[[:digit:]]*\\=" nil t)
-           point)))
-   ;; Initialization list (use the syntactic informations partially
-   ;; stolen from `c-show-syntactic-information')
-   ;; A::A() : [complete], [complete]
-   (if (re-search-backward "[,:]\\s-*\\(\\(?:[_a-zA-Z][_a-zA-Z0-9]*\\)?\\)\\=" nil t)
-       (let* ((point (match-beginning 1))
-              (c-parsing-error nil)
-              (syntax (if (boundp 'c-syntactic-context)
-                          c-syntactic-context
-                        (c-save-buffer-state nil (c-guess-basic-syntax)))))
-         (if (or (assoc 'member-init-intro (c-guess-basic-syntax))
-                 (assoc 'member-init-cont (c-guess-basic-syntax)))
-             ;; Check if were are in an argument list
-             ;; without this when we have:
-             ;;  A::A() : foo(bar, []
-             ;; the completion is triggered.
-             (if (eq (car (syntax-ppss)) 0) ;see [[info:elisp#Parser State]]
-                 point))))
-   ;; switch/case statements, complete after the case
-   (if (re-search-backward "[ \n\t\v\r\f;{]case\\s-+\\(\\(?:[_a-zA-Z][_a-zA-Z0-9]*\\)?\\)\\=" nil t)
-       (match-beginning 1))))
-
-;; (defun rtags-completion-prefix-point ()
-;;   (save-excursion
-;;     (goto-char (point-min))
-;;     (forward-line (1- rtags-completion-cache-line))
-;;     (forward-char rtags-completion-cache-column)
-;;     (- (point) 2)))
-
-(defconst rtags-ac-completions-source
-  '((candidates . rtags-ac-completions)
-    (prefix . rtags-irony-get-completion-point)
-    (requires . 0))
-  )
-
-;; (defconst ac-source-irony
-;;   '((candidates     . (irony-ac-candidates ac-point))
-;;     (prefix         . irony-get-completion-point)
-;;     (requires       . 0)
-;;     (candidate-face . ac-irony-candidate-face)
-;;     (selection-face . ac-irony-selection-face)
-;;     (action         . irony-ac-action)
-;;     (allow-dups)
-;;     (cache))
-
-(defun rtags-ac-post-command-hook () (interactive) (if auto-complete-mode (ac-handle-post-command)))
-(defun rtags-ac-pre-command-hook () (interactive) (if auto-complete-mode (ac-handle-pre-command)))
-(defun rtags-ac-after-save-hook () (interactive) (if auto-complete-mode (ac-clear-variables-after-save)))
-
-(defun rtags-ac-find-file-hook ()
-  (interactive)
-  (when (and (or (eq major-mode 'c++-mode)
-                 (eq major-mode 'c-mode))
-             (rtags-is-indexed))
-    (setq ac-sources '(rtags-ac-completions-source))
-    (auto-complete-mode 1)
-    (kill-local-variable 'post-command-hook)
-    (kill-local-variable 'pre-command-hook)
-    (kill-local-variable 'after-save-hook)
-    (add-hook 'post-command-hook (function rtags-ac-post-command-hook))
-    (add-hook 'pre-command-hook (function rtags-ac-pre-command-hook))
-    (add-hook 'after-save-hook (function rtags-ac-after-save-hook))
-    )
-  t)
-
-(defun rtags-update-completion-mode ()
-  (interactive)
-  (if (and rtags-completion-stream-process (eq (process-status rtags-completion-stream-process) 'run))
-      (interrupt-process rtags-completion-stream-process))
-  (if (get-buffer "*RTags Completions*")
-      (kill-buffer "*RTags Completions*"))
-  (when rtags-completion-cache-timer
-    (cancel-timer rtags-completion-cache-timer)
-    (setq rtags-completion-cache-timer nil))
-  (if (eq rtags-completion-mode 'rtags-completion-disabled)
-      (progn
-        (remove-hook 'find-file-hook 'rtags-ac-find-file-hook)
-        (if (equal ac-sources (list rtags-ac-completions-source))
-            (setq ac-sources (list ac-source-words-in-same-mode-buffers))))
-    (progn
-      (unless (eq rtags-completion-mode 'rtags-complete-with-dabbrev)
-        (add-hook 'find-file-hook 'rtags-ac-find-file-hook))))
-  )
-
-(defcustom rtags-completion-mode 'rtags-completion-disabled
-  "What to do about completion with rtags"
-  :type  '(choice
-           (const :tag "Disable completion" rtags-completion-disabled)
-           (const :tag "Enable completion with dabbrev" rtags-complete-with-dabbrev)
-           (const :tag "Enable completion with dabbrev and autocomplete" rtags-complete-with-dabbrev-and-autocomplete)
-           (const :tag "Enable completion with autocomplete" rtags-complete-with-autocomplete))
-  :group 'rtags
-  :set '(lambda (variable value)
-          (when (and (or (eq value 'rtags-complete-with-autocomplete)
-                         (eq value 'rtags-complete-with-dabbrev-and-autocomplete))
-                     (not (or (fboundp 'auto-complete-mode)
-                              (require 'auto-complete nil t))))
-            (error "You have to make auto-complete.el available to use this completion mode")
-            (setq value 'rtags-completion-disabled))
-          (custom-set-default variable value)
-          (rtags-update-completion-mode)
-          value)
-  )
-
 (defvar rtags-last-update-current-project-buffer nil)
 (defun rtags-update-current-project ()
   (interactive)
@@ -1665,7 +1309,6 @@ should use `irony-get-completion-point-anywhere'."
   (when rtags-enabled
     (rtags-update-current-project)
     (rtags-update-current-error)
-    (rtags-restart-completion-cache-timer)
     (rtags-restart-update-local-references-timer)
     (rtags-close-taglist)
     (rtags-restart-tracking-timer))
@@ -1792,7 +1435,7 @@ should use `irony-get-completion-point-anywhere'."
 (defun rtags-has-filemanager (&optional buffer)
   (rtags-buffer-status buffer))
 
-(defun rtags-handle-completion-buffer (&optional noautojump nobury)
+(defun rtags-handle-results-buffer (&optional noautojump nobury)
   (setq rtags-last-request-not-indexed nil)
   (let ((wasreadonly buffer-read-only))
     (setq buffer-read-only nil)
@@ -1854,7 +1497,7 @@ should use `irony-get-completion-point-anywhere'."
       (when (and wasempty hasline)
         (when (buffer-file-name)
           (error "Set buffer with file %s read only " (buffer-file-name)))
-        (rtags-handle-completion-buffer nil t))))
+        (rtags-handle-results-buffer nil t))))
   )
 
 (defun rtags-async-rc-sentinel (process state)
