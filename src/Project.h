@@ -169,7 +169,6 @@ private:
     Set<uint32_t> mPendingDirtyFiles;
 
     Set<uint32_t> mSuspendedFiles;
-    uint64_t mNextId;
 
     friend class RestoreThread;
 };

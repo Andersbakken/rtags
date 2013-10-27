@@ -465,7 +465,6 @@ void Project::index(const Source &source, IndexerJob::IndexType type)
         mJobs.erase(source.fileId);
         return;
     }
-    ++mNextId;
     mSyncTimer.stop();
     data.job->start();
 }
