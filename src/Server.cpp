@@ -1393,8 +1393,9 @@ void Server::onUnload()
 void Server::onMulticastReadyRead(SocketClient::SharedPtr &socket,
                                   const std::string &ip,
                                   uint16_t port,
-                                  Buffer &&buffer)
+                                  Buffer &&in)
 {
+    const Buffer buffer = std::forward<Buffer>(in);
     const int size = buffer.size();
     const unsigned char *data = buffer.data();
     if (size == 3 && data[0] == 'j') {
