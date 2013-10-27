@@ -170,7 +170,6 @@ bool Server::init(const Options &options)
                                                             std::placeholders::_2,
                                                             std::placeholders::_3,
                                                             std::placeholders::_4));
-        mMulticastSocket->writeTo(mOptions.multicastAddress, mOptions.multicastPort, "foobar");
     }
 
     if (mOptions.tcpPort) {
@@ -1403,7 +1402,7 @@ void Server::onMulticastReadyRead(SocketClient::SharedPtr &socket,
         error() << ip << "has" << jobs << "jobs";
     } else {
         Log log(Error);
-        log << "Got unexpected data from" << ip;
+        log << "Got unexpected data from" << ip << size;
         for (int i=0; i<size; ++i) {
             log << data[i];
         }
@@ -1438,6 +1437,7 @@ void Server::startNextJob()
         unsigned char buf[3];
         buf[0] = 'j';
         memcpy(buf + 1, &count, sizeof(count));
+        error() << "announcing" << mPending.size() << "jobs";
         mMulticastSocket->writeTo(mOptions.multicastAddress, mOptions.multicastPort, buf, sizeof(buf));
     }
 }
