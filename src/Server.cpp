@@ -126,7 +126,7 @@ bool Server::init(const Options &options)
         if (!i) {
             enum { Timeout = 1000 };
             Connection connection;
-            if (connection.connectToServer(mOptions.socketFile, Timeout)) {
+            if (connection.connectUnix(mOptions.socketFile, Timeout)) {
                 connection.send(QueryMessage(QueryMessage::Shutdown));
                 connection.disconnected().connect(std::bind([](){ EventLoop::eventLoop()->quit(); }));
                 connection.finished().connect(std::bind([](){ EventLoop::eventLoop()->quit(); }));
@@ -1423,6 +1423,7 @@ void Server::startNextJob()
         std::shared_ptr<IndexerJob> job = mPending.first();
         assert(job);
         if (job->startLocal()) {
+            printf("[%s:%d]: if (job->startLocal()) {\n", __FILE__, __LINE__); fflush(stdout);
             mLocalJobs.append(job);
             mPending.pop_front();
             assert(job->process);

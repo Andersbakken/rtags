@@ -428,7 +428,7 @@ bool RClient::exec()
                                               std::placeholders::_1, std::placeholders::_2));
     connection.finished().connect(std::bind([](){ EventLoop::eventLoop()->quit(); }));
     connection.disconnected().connect(std::bind([](){ EventLoop::eventLoop()->quit(); }));
-    if (!connection.connectToServer(mSocketFile, mConnectTimeout)) {
+    if (!connection.connectUnix(mSocketFile, mConnectTimeout)) {
         error("Can't seem to connect to server");
         return false;
     }

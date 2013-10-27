@@ -40,21 +40,22 @@ int main(int argc, char **argv)
     RTags::initMessages();
     std::shared_ptr<EventLoop> eventLoop(new EventLoop);
     eventLoop->init(EventLoop::MainEventLoop);
-    String sourceFile;
-    Path project;
-    List<String> args;
-    Path serverFile;
     FILE *f = stdin;
     if (argc > 1) {
         f = fopen(argv[1], "r");
     }
     Deserializer deserializer(f);
+    String destination;
+    uint16_t port;
+    Path sourceFile;
+    Source source;
     String preprocessed;
-    uint32_t fileId;
+    Path project;
     uint8_t type;
     int visitFileTimeout, indexerMessageTimeout;
-    deserializer >> serverFile >> sourceFile >> fileId >> preprocessed >> args
-                 >> project >> type >> visitFileTimeout >> indexerMessageTimeout;
+    deserializer >> destination >> port >> sourceFile >> source
+                 >> preprocessed >> project >> type
+                 >> visitFileTimeout >> indexerMessageTimeout;
     if (argc > 1)
         fclose(f);
     f = 0;
@@ -62,7 +63,7 @@ int main(int argc, char **argv)
         fprintf(stderr, "No sourcefile\n");
         return 3;
     }
-    if (!fileId) {
+    if (!source.fileId) {
         fprintf(stderr, "Bad fileId\n");
         return 3;
     }
@@ -83,17 +84,24 @@ int main(int argc, char **argv)
     }
 
     ClangIndexer indexer;
-    if (!indexer.connect(serverFile)) {
-        fprintf(stderr, "Failed to connect to rdm\n");
-        return 6;
+    if (port) {
+        if (!indexer.connect(destination, port)) {
+            fprintf(stderr, "Failed to connect to rdm %s:%d\n", destination.constData(), port);
+            return 6;
+        }
+    } else {
+        if (!indexer.connect(destination)) {
+            fprintf(stderr, "Failed to connect to rdm %s\n", destination.constData());
+            return 7;
+        }
     }
     indexer.setVisitFileTimeout(visitFileTimeout);
     indexer.setIndexerMessageTimeout(indexerMessageTimeout);
 
-    if (!indexer.index(static_cast<IndexerJob::IndexType>(type), project, fileId,
-                       sourceFile, preprocessed, args)) {
+    Location::set(sourceFile, source.fileId);
+    if (!indexer.index(static_cast<IndexerJob::IndexType>(type), source, preprocessed, project)) {
         fprintf(stderr, "Failed to index %s\n", sourceFile.constData());
-        return 7;
+        return 8;
     }
 
     return 0;

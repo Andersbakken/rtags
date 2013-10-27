@@ -17,9 +17,10 @@ public:
     ~ClangIndexer();
 
     bool connect(const Path &serverFile);
-    bool index(IndexerJob::IndexType type, const Path &project, uint32_t fileId,
-               const Path &sourceFile, const String &preprocessed,
-               const List<String> &args);
+    bool connect(const String &hostName, uint16_t port);
+
+    bool index(IndexerJob::IndexType type, const Source &source,
+               const String &preprocessed, const Path &project);
     int visitFileTimeout() const { return mVisitFileTimeout; }
     void setVisitFileTimeout(int visitFileTimeout) { mVisitFileTimeout = visitFileTimeout; }
     int indexerMessageTimeout() const { return mIndexerMessageTimeout; }
@@ -94,7 +95,7 @@ private:
     Path mProject;
     std::shared_ptr<IndexData> mData;
     String mContents;
-    List<String> mArgs;
+    Source mSource;
     CXTranslationUnit mUnit;
     CXIndex mIndex;
     CXCursor mLastCursor;

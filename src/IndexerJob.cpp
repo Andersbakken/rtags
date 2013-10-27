@@ -82,10 +82,13 @@ void IndexerJob::abort()
 
 void IndexerJob::encode(Serializer &serializer)
 {
+    const Server::Options &options = Server::instance()->options();
+    Source copy = source;
+    copy.arguments << options.defaultArguments;
     serializer << destination << port << sourceFile
-               << source << preprocessed << project << static_cast<uint8_t>(type)
-               << Server::instance()->options().rpVisitFileTimeout
-               << Server::instance()->options().rpIndexerMessageTimeout;
+               << copy << preprocessed << project
+               << static_cast<uint8_t>(type) << options.rpVisitFileTimeout
+               << options.rpIndexerMessageTimeout;
 }
 
 void IndexerJob::decode(Deserializer &deserializer)
@@ -93,8 +96,8 @@ void IndexerJob::decode(Deserializer &deserializer)
     uint8_t t;
     int ignored; // timeouts
     deserializer >> destination >> port >> sourceFile
-                 >> source >> preprocessed >> project >> t
-                 >> ignored >> ignored;
+                 >> source >> preprocessed >> project
+                 >> t >> ignored >> ignored;
     type = static_cast<IndexType>(t);
 }
 

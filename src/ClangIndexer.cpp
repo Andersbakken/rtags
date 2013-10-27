@@ -48,28 +48,29 @@ ClangIndexer::~ClangIndexer()
 
 bool ClangIndexer::connect(const Path &serverFile)
 {
-    return mConnection.connectToServer(serverFile, 1000);
+    return mConnection.connectUnix(serverFile, 1000);
 }
 
-bool ClangIndexer::index(IndexerJob::IndexType type, const Path &project, uint32_t fileId,
-                         const Path &sourceFile, const String &preprocessed,
-                         const List<String> &args)
+bool ClangIndexer::connect(const String &hostName, uint16_t port)
+{
+    return mConnection.connectTcp(hostName, port);
+}
+
+bool ClangIndexer::index(IndexerJob::IndexType type, const Source &source,
+                         const String &preprocessed, const Path &project)
 {
     // mLogFile = fopen(String::format("/tmp/%s", sourceFile.fileName()).constData(), "w");
-    Location::set(sourceFile, fileId);
     mData.reset(new IndexData(type));
-    mData->fileId = fileId;
+    mData->fileId = source.fileId;
     mProject = project;
-    mArgs = args;
     assert(mConnection.isConnected());
-    assert(!sourceFile.isEmpty());
-    mData->visited[fileId] = true;
+    mData->visited[source.fileId] = true;
     mContents = preprocessed;
     assert(type != IndexerJob::Invalid);
     parse() && visit() && diagnose();
     mData->parseTime = Rct::currentTimeMs();
     if (mData->type != IndexerJob::Dump) {
-        mData->message = sourceFile.toTilde();
+        mData->message = source.sourceFile().toTilde();
         if (!mUnit)
             mData->message += " error";
         mData->message += String::format<16>(" in %dms. ", mTimer.elapsed());
@@ -921,7 +922,7 @@ bool ClangIndexer::parse()
     const Path sourceFile = Location::path(mData->fileId);
     // error() << "mContents" << mContents.size();
     CXUnsavedFile unsaved = { sourceFile.constData(), mContents.constData(), static_cast<unsigned long>(mContents.size()) };
-    RTags::parseTranslationUnit(sourceFile, mArgs, List<String>(), mUnit, mIndex, mClangLine, &unsaved, 1);
+    RTags::parseTranslationUnit(sourceFile, mSource.arguments, List<String>(), mUnit, mIndex, mClangLine, &unsaved, 1);
 
     mData->parseTime = mTimer.elapsed();
     warning() << "loading mUnit " << mClangLine << " " << (mUnit != 0);
@@ -936,7 +937,7 @@ bool ClangIndexer::parse()
             sourceFile.constData(), preprocessorOnly.constData(),
             static_cast<unsigned long>(preprocessorOnly.size())
         };
-        RTags::parseTranslationUnit(sourceFile, mArgs, List<String>(),
+        RTags::parseTranslationUnit(sourceFile, mSource.arguments, List<String>(),
                                     mUnit, mIndex, mClangLine,
                                     &preprocessorOnlyUnsaved, 1);
     }
