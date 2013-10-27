@@ -167,7 +167,7 @@ private:
     RTagsPluginFactory mPluginFactory;
 
     uint32_t mCurrentFileId;
-    SocketClient mMulticastSocket;
+    std::shared_ptr<SocketClient> mMulticastSocket;
 };
 
 #endif

@@ -57,7 +57,7 @@
 
 Server *Server::sInstance = 0;
 Server::Server()
-    : mVerbose(false), mThreadPool(2), mCurrentFileId(0), mMulticastSocket(SocketClient::Udp)
+    : mVerbose(false), mThreadPool(2), mCurrentFileId(0)
 {
     assert(!sInstance);
     sInstance = this;
@@ -166,20 +166,21 @@ bool Server::init(const Options &options)
     }
 
     if (!mOptions.multicastAddress.isEmpty()) {
-        if (!mMulticastSocket.bind(mOptions.multicastPort)) {
+        mMulticastSocket.reset(new SocketClient(SocketClient::Udp));
+        if (!mMulticastSocket->bind(mOptions.multicastPort)) {
             error() << "Can't bind to multicast port" << mOptions.multicastPort;
             return false;
         }
-        if (!mMulticastSocket.addMembership(mOptions.multicastAddress)) {
+        if (!mMulticastSocket->addMembership(mOptions.multicastAddress)) {
             error() << "Can't add membership" << mOptions.multicastAddress;
             return false;
         }
-        mMulticastSocket.readyReadFrom().connect(std::bind(&Server::onMulticastReadyRead, this,
-                                                           std::placeholders::_1,
-                                                           std::placeholders::_2,
-                                                           std::placeholders::_3,
-                                                           std::placeholders::_4));
-        mMulticastSocket.writeTo(mOptions.multicastAddress, mOptions.multicastPort, "foobar");
+        mMulticastSocket->readyReadFrom().connect(std::bind(&Server::onMulticastReadyRead, this,
+                                                            std::placeholders::_1,
+                                                            std::placeholders::_2,
+                                                            std::placeholders::_3,
+                                                            std::placeholders::_4));
+        mMulticastSocket->writeTo(mOptions.multicastAddress, mOptions.multicastPort, "foobar");
     }
 
     return true;
