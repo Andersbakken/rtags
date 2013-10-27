@@ -29,7 +29,8 @@ public:
         CreateOutputId,
         VisitFileResponseId,
         VisitFileId,
-        IndexerMessageId
+        IndexerMessageId,
+        JobResponseId
     };
 
     ClientMessage(uint8_t id) : Message(id) {}

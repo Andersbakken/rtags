@@ -24,7 +24,6 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include "ScanJob.h"
 #ifdef HAVE_BACKTRACE
 #include <execinfo.h>
 #include <cxxabi.h>
@@ -54,6 +53,7 @@ static void sigIntHandler(int)
 #define DEFAULT_RP_INDEXER_MESSAGE_TIMEOUT 5000
 #define DEFAULT_RDM_MULTICAST_ADDRESS "237.50.50.50"
 #define DEFAULT_RDM_MULTICAST_PORT 11509 // ( 100 'r' * 114 'd') + 109 'm'
+#define DEFAULT_RDM_TCP_PORT 12526 // ( 100 'r' + (114 'd' * 109 'm')
 #define XSTR(s) #s
 #define STR(s) XSTR(s)
 
@@ -84,15 +84,15 @@ static void usage(FILE *f)
             "  --config|-c [arg]                          Use this file instead of ~/.rdmrc.\n"
             "  --data-dir|-d [arg]                        Use this directory to store persistent data (default ~/.rtags).\n"
             "  --socket-file|-n [arg]                     Use this file for the server socket (default ~/.rdm).\n"
+            "  --port|-p [arg]                            Use this port for tcp server (default " STR(DEFAULT_RDM_TCP_PORT) ")\n"
             "  --setenv|-e [arg]                          Set this environment variable (--setenv \"foobar=1\").\n"
             "  --no-current-project|-o                    Don't restore the last current project on startup.\n"
-            "  --allow-multiple-sources|-m                 Without this setting different sources will be merged for each source file.\n"
+            "  --allow-multiple-sources|-m                Without this setting different sources will be merged for each source file.\n"
             "  --unload-timer|-u [arg]                    Number of minutes to wait before unloading non-current projects (disabled by default).\n"
             "  --job-count|-j [arg]                       Spawn this many concurrent processes for indexing.\n"
             "  --watch-system-paths|-w                    Watch system paths for changes.\n"
             "  --rp-visit-file-timeout|-t [arg]           Timeout for rp visitfile commands in ms (0 means no timeout) (default " STR(DEFAULT_RP_VISITFILE_TIMEOUT) ")\n"
             "  --rp-indexer-message-timeout|-T [arg]      Timeout for rp indexer-message in ms (0 means no timeout) (default " STR(DEFAULT_RP_INDEXER_MESSAGE_TIMEOUT) ")\n"
-
 #ifdef OS_Darwin
             "  --filemanager-watch|-M                     Use a file system watcher for filemanager.\n"
 #else
@@ -101,7 +101,7 @@ static void usage(FILE *f)
             "  --ignore-compiler|-b [arg]                 Alias this compiler (Might be practical to avoid duplicated sources for things like icecc).\n"
             "  --disable-esprima|-E                       Don't use esprima\n"
             "  --multicast-address|-a [arg]               Use this address for multicast (default " DEFAULT_RDM_MULTICAST_ADDRESS "\n"
-            "  --multicast-port|-p [arg]                  Use this port for multicast (default " STR(DEFAULT_RDM_MULTICAST_PORT) "\n"
+            "  --multicast-port|-P [arg]                  Use this port for multicast (default " STR(DEFAULT_RDM_MULTICAST_PORT) "\n"
             "  --enable-compiler-flags|-K                 Query the compiler for default flags\n");
 }
 
@@ -144,7 +144,8 @@ int main(int argc, char** argv)
         { "rp-visit-file-timout", required_argument, 0, 't' },
         { "rp-indexer-message-timeout", required_argument, 0, 'T' },
         { "multicast-address", required_argument, 0, 'a' },
-        { "multicast-port", required_argument, 0, 'p' },
+        { "multicast-port", required_argument, 0, 'P' },
+        { "port", required_argument, 0, 'p' },
 #ifdef OS_Darwin
         { "filemanager-watch", no_argument, 0, 'M' },
 #else
@@ -239,7 +240,8 @@ int main(int argc, char** argv)
     serverOpts.excludeFilters = String(EXCLUDEFILTER_DEFAULT).split(';');
     serverOpts.dataDir = String::format<128>("%s.rtags", Path::home().constData());
     serverOpts.multicastAddress = DEFAULT_RDM_MULTICAST_ADDRESS;
-    serverOpts.multicastPort = DEFAULT_RDM_MULTICAST_PORT;
+    serverOpts.multicastPort = static_cast<uint16_t>(DEFAULT_RDM_MULTICAST_PORT);
+    serverOpts.tcpPort = static_cast<uint16_t>(DEFAULT_RDM_TCP_PORT);
     serverOpts.unloadTimer = 0;
 
     const char *logFile = 0;
@@ -266,9 +268,16 @@ int main(int argc, char** argv)
         case 'a':
             serverOpts.multicastAddress = optarg;
             break;
+        case 'P':
+            serverOpts.multicastPort = static_cast<uint16_t>(atoi(optarg));
+            if (!serverOpts.multicastPort) {
+                fprintf(stderr, "Invalid argument to -P %s\n", optarg);
+                return 1;
+            }
+            break;
         case 'p':
-            serverOpts.multicastPort = atoi(optarg);
-            if (serverOpts.multicastPort <= 0) {
+            serverOpts.tcpPort = static_cast<uint16_t>(atoi(optarg));
+            if (!serverOpts.tcpPort) {
                 fprintf(stderr, "Invalid argument to -p %s\n", optarg);
                 return 1;
             }

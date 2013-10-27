@@ -76,7 +76,6 @@ add_library(shared SHARED ${RTAGS_SHARED_SOURCES})
 target_link_libraries(shared rct)
 
 set(RDM_SOURCES
-  Source.cpp
   CursorInfo.cpp
   CursorInfoJob.cpp
   DependenciesJob.cpp
@@ -84,15 +83,16 @@ set(RDM_SOURCES
   FindFileJob.cpp
   FindSymbolsJob.cpp
   FollowLocationJob.cpp
+  IndexerJob.cpp
   Job.cpp
   ListSymbolsJob.cpp
   Preprocessor.cpp
-  ProcessPool.cpp
   Project.cpp
   RTagsClang.cpp
   ReferencesJob.cpp
-  ScanJob.cpp
+  ScanThread.cpp
   Server.cpp
+  Source.cpp
   StatusJob.cpp
   )
 
@@ -173,31 +173,31 @@ target_link_libraries(rp rtags shared)
 
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/bin)
 
-add_library(rtagsclang SHARED IndexerJobClang.cpp)
-add_dependencies(rtagsclang rct)
-add_dependencies(rtagsclang rdm)
-target_link_libraries(rtagsclang
-  rtags
-  -L.
-)
+# add_library(rtagsclang SHARED IndexerJobClang.cpp)
+# add_dependencies(rtagsclang rct)
+# add_dependencies(rtagsclang rdm)
+# target_link_libraries(rtagsclang
+#   rtags
+#   -L.
+# )
 
-if (V8_FOUND EQUAL 1)
-  add_library(rtagsesprima MODULE IndexerJobEsprima.cpp JSParser.cpp)
-  add_dependencies(rtagsesprima rtags)
-  target_link_libraries(rtagsesprima rtags)
+# if (V8_FOUND EQUAL 1)
+#   add_library(rtagsesprima MODULE IndexerJobEsprima.cpp JSParser.cpp)
+#   add_dependencies(rtagsesprima rtags)
+#   target_link_libraries(rtagsesprima rtags)
 
-  set(RTAGS_ESPRIMA_FILES
-      ${CMAKE_CURRENT_SOURCE_DIR}/esprima/esprima.js
-      ${CMAKE_CURRENT_SOURCE_DIR}/estraverse/estraverse.js
-      ${CMAKE_CURRENT_SOURCE_DIR}/escope/escope.js
-      ${CMAKE_CURRENT_SOURCE_DIR}/esrefactor/lib/esrefactor.js
-      ${CMAKE_CURRENT_SOURCE_DIR}/rtags.js)
-  add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/rtags-esprima.js
-                     DEPENDS ${RTAGS_ESPRIMA_FILES}
-                     COMMAND ${CMAKE_COMMAND} -DFILES="${RTAGS_ESPRIMA_FILES}" -DTARGET="${CMAKE_CURRENT_BINARY_DIR}/rtags-esprima.js" -P "${PROJECT_SOURCE_DIR}/cmake/concat.cmake"
-                     COMMENT "Sourceing rtags-esprima.js")
-  add_custom_target(rtags-esprima ALL DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/rtags-esprima.js)
-endif()
+#   set(RTAGS_ESPRIMA_FILES
+#       ${CMAKE_CURRENT_SOURCE_DIR}/esprima/esprima.js
+#       ${CMAKE_CURRENT_SOURCE_DIR}/estraverse/estraverse.js
+#       ${CMAKE_CURRENT_SOURCE_DIR}/escope/escope.js
+#       ${CMAKE_CURRENT_SOURCE_DIR}/esrefactor/lib/esrefactor.js
+#       ${CMAKE_CURRENT_SOURCE_DIR}/rtags.js)
+#   add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/rtags-esprima.js
+#                      DEPENDS ${RTAGS_ESPRIMA_FILES}
+#                      COMMAND ${CMAKE_COMMAND} -DFILES="${RTAGS_ESPRIMA_FILES}" -DTARGET="${CMAKE_CURRENT_BINARY_DIR}/rtags-esprima.js" -P "${PROJECT_SOURCE_DIR}/cmake/concat.cmake"
+#                      COMMENT "Sourceing rtags-esprima.js")
+#   add_custom_target(rtags-esprima ALL DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/rtags-esprima.js)
+# endif()
 
 if (CYGWIN)
   EnsureLibraries(rdm rct)

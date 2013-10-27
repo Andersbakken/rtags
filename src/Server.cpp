@@ -54,10 +54,11 @@
 #include <rct/Rct.h>
 #include <rct/RegExp.h>
 #include <stdio.h>
+#include <arpa/inet.h>
 
 Server *Server::sInstance = 0;
 Server::Server()
-    : mVerbose(false), mThreadPool(2), mCurrentFileId(0)
+    : mVerbose(false), mCurrentFileId(0), mLocalJobs(0)
 {
     assert(!sInstance);
     sInstance = this;
@@ -76,24 +77,13 @@ Server::~Server()
 void Server::clear()
 {
     Path::rm(mOptions.socketFile);
-    mServer.reset();
+    mUnixServer.reset();
+    mTcpServer.reset();
     mProjects.clear();
 }
 
 bool Server::init(const Options &options)
 {
-    Path dir(RTAGS_BIN);
-    dir.resolve();
-    List<Path> plugins = dir.files(Path::File);
-    Path executableDir = Rct::executablePath().resolved().parentDir();
-    if (dir != executableDir)
-        plugins += executableDir.files(Path::File);
-    for (int i=0; i<plugins.size(); ++i) {
-        if (mPluginFactory.addPlugin(plugins.at(i))) {
-            error() << "Loaded plugin" << plugins.at(i);
-        }
-    }
-    mProcessPool.setCount(options.processCount);
     RTags::initMessages();
 
     mOptions = options;
@@ -128,11 +118,11 @@ bool Server::init(const Options &options)
     }
 
     for (int i=0; i<10; ++i) {
-        mServer.reset(new SocketServer);
-        if (mServer->listen(mOptions.socketFile)) {
+        mUnixServer.reset(new SocketServer);
+        if (mUnixServer->listen(mOptions.socketFile)) {
             break;
         }
-        mServer.reset();
+        mUnixServer.reset();
         if (!i) {
             enum { Timeout = 1000 };
             Connection connection;
@@ -146,13 +136,13 @@ bool Server::init(const Options &options)
         sleep(1);
         Path::rm(mOptions.socketFile);
     }
-    if (!mServer) {
+    if (!mUnixServer) {
         error("Unable to listen on %s", mOptions.socketFile.constData());
         return false;
     }
 
     restoreFileIds();
-    mServer->newConnection().connect(std::bind(&Server::onNewConnection, this));
+    mUnixServer->newConnection().connect(std::bind(&Server::onNewConnection, this, std::placeholders::_1));
     reloadProjects();
     if (!(mOptions.options & NoStartupCurrentProject)) {
         Path current = Path(mOptions.dataDir + ".currentProject").readAll(1024);
@@ -183,6 +173,15 @@ bool Server::init(const Options &options)
         mMulticastSocket->writeTo(mOptions.multicastAddress, mOptions.multicastPort, "foobar");
     }
 
+    if (mOptions.tcpPort) {
+        mTcpServer.reset(new SocketServer);
+        if (!mTcpServer->listen(mOptions.tcpPort)) {
+            error() << "Unable to listen on port" << mOptions.tcpPort;
+            return false;
+        }
+
+        mTcpServer->newConnection().connect(std::bind(&Server::onNewConnection, this, std::placeholders::_1));
+    }
     return true;
 }
 
@@ -236,10 +235,10 @@ int Server::reloadProjects()
     return mProjects.size();
 }
 
-void Server::onNewConnection()
+void Server::onNewConnection(SocketServer *server)
 {
     while (true) {
-        SocketClient::SharedPtr client = mServer->nextConnection();
+        SocketClient::SharedPtr client = server->nextConnection();
         if (!client)
             break;
         Connection *conn = new Connection(client);
@@ -460,6 +459,9 @@ void Server::handleQueryMessage(const QueryMessage &message, Connection *conn)
         break;
     case QueryMessage::ReloadFileManager:
         reloadFileManager(message, conn);
+        break;
+    case QueryMessage::RequestJob:
+        requestJob(message, conn);
         break;
     }
 }
@@ -748,6 +750,18 @@ void Server::reloadFileManager(const QueryMessage &, Connection *conn)
     }
 }
 
+void Server::requestJob(const QueryMessage &, Connection *conn)
+{
+    // std::shared_ptr<Project> project = currentProject();
+    // if (project) {
+    //     conn->write<512>("Reloading files for %s", project->path().constData());
+    //     conn->finish();
+    //     project->fileManager->reload(FileManager::Asynchronous);
+    // } else {
+    //     conn->write("No current project");
+    //     conn->finish();
+    // }
+}
 
 void Server::hasFileManager(const QueryMessage &query, Connection *conn)
 {
@@ -1107,7 +1121,6 @@ void Server::jobCount(const QueryMessage &query, Connection *conn)
             conn->write<128>("Invalid job count %s (%d)", query.query().constData(), jobCount);
         } else {
             mOptions.processCount = jobCount;
-            mProcessPool.setCount(jobCount);
             conn->write<128>("Changed jobs to %d", jobCount);
         }
     }
@@ -1383,5 +1396,54 @@ void Server::onMulticastReadyRead(SocketClient::SharedPtr &socket,
                                   uint16_t port,
                                   Buffer &&buffer)
 {
-    error() << "got data from" << ip << "on port" << port << buffer.data();
+    const int size = buffer.size();
+    const unsigned char *data = buffer.data();
+    if (size == 3 && data[0] == 'j') {
+        const unsigned short jobs = ntohs(*reinterpret_cast<const unsigned short*>(data + 1));
+        error() << ip << "has" << jobs << "jobs";
+    } else {
+        Log log(Error);
+        log << "Got unexpected data from" << ip;
+        for (int i=0; i<size; ++i) {
+            log << data[i];
+        }
+    }
+}
+
+void Server::startJob(const std::shared_ptr<IndexerJob> &job)
+{
+    assert(job);
+    mPending.push_back(job);
+    startNextJob();
+}
+
+void Server::startNextJob()
+{
+    while (!mPending.isEmpty() && mLocalJobs.size() < mOptions.processCount) {
+        std::shared_ptr<IndexerJob> job = mPending.first();
+        assert(job);
+        if (job->startLocal()) {
+            mLocalJobs.append(job);
+            mPending.pop_front();
+            assert(job->process);
+            job->process->finished().connect(std::bind(&Server::onLocalJobFinished, this,
+                                                       std::placeholders::_1));
+        } else {
+            break;
+        }
+    }
+
+    if (!mPending.isEmpty()) {
+        const unsigned short count = htons(static_cast<unsigned short>(mPending.size()));
+        unsigned char buf[3];
+        buf[0] = 'j';
+        memcpy(buf + 1, &count, sizeof(count));
+        mMulticastSocket->writeTo(mOptions.multicastAddress, mOptions.multicastPort, buf, sizeof(buf));
+    }
+}
+
+void Server::onLocalJobFinished(Process *process)
+{
+    EventLoop::deleteLater(process);
+    startNextJob();
 }

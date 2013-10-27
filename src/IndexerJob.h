@@ -24,6 +24,7 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 #include <rct/Hash.h>
 #include "QueryMessage.h"
 
+class Process;
 class IndexerJob : public std::enable_shared_from_this<IndexerJob>
 {
 public:
@@ -34,19 +35,33 @@ public:
         Dump
     };
 
-    IndexerJob(IndexType t, const std::shared_ptr<Project> &p, const Source &s)
-        : type(t), project(p), source(s)
-    {}
+    IndexerJob(IndexType type, const Path &p, const Source &s);
+    IndexerJob();
 
-    virtual ~IndexerJob() {}
-    virtual void start() = 0;
-    virtual bool abort() = 0; // returns true if it was aborted, false if it hadn't started yet
-    virtual bool isAborted() const = 0;
+    enum State {
+        Pending,
+        Running,
+        Aborted
+    };
 
+    void preprocess();
+    bool startLocal();
+    bool update(IndexType t, const Source &s);
+    void abort();
+    void encode(Serializer &serializer);
+    void decode(Deserializer &deserializer);
+    void onProcessFinished();
+
+    State state;
+    String destination;
+    uint16_t port;
     IndexType type;
-    std::weak_ptr<Project> project;
+    String preprocessed;
+    Path project;
     Source source;
+    Path sourceFile;
     Set<uint32_t> visited;
+    Process *process;
 };
 
 class IndexData

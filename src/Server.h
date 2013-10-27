@@ -24,17 +24,13 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 #include "QueryMessage.h"
 #include "RTagsClang.h"
 #include "RTags.h"
-#include "ScanJob.h"
-#include "ProcessPool.h"
 #include "Source.h"
-#include "RTagsPluginFactory.h"
 #include <rct/Connection.h>
 #include <rct/FileSystemWatcher.h>
 #include <rct/List.h>
 #include <rct/Hash.h>
 #include <rct/String.h>
 #include <rct/Timer.h>
-#include <rct/ThreadPool.h>
 #include <rct/SocketServer.h>
 
 class Connection;
@@ -71,12 +67,10 @@ public:
         NoEsprima = 0x0800,
         UseCompilerFlags = 0x1000
     };
-    ProcessPool *processPool() { return &mProcessPool; }
-    ThreadPool *threadPool() { return &mThreadPool; }
     struct Options {
         Options()
             : options(0), processCount(0), unloadTimer(0), rpVisitFileTimeout(0),
-              rpIndexerMessageTimeout(0), syncThreshold(0), multicastPort(0)
+              rpIndexerMessageTimeout(0), syncThreshold(0), tcpPort(0), multicastPort(0)
         {}
         Path socketFile, dataDir;
         unsigned options;
@@ -86,22 +80,23 @@ public:
         List<Path> includePaths;
         List<Source::Define> defines;
         String multicastAddress;
-        uint16_t multicastPort;
+        uint16_t tcpPort, multicastPort;
         Set<Path> ignoredCompilers;
     };
     bool init(const Options &options);
     const Options &options() const { return mOptions; }
     uint32_t currentFileId() const { return mCurrentFileId; }
     bool saveFileIds() const;
-    RTagsPluginFactory &factory() { return mPluginFactory; }
     void onJobOutput(JobOutput&& out);
+    void startJob(const std::shared_ptr<IndexerJob> &job);
+    std::shared_ptr<Project> project(const Path &path) const { return mProjects.value(path); }
 private:
     bool selectProject(const Match &match, Connection *conn, unsigned int queryFlags);
     bool updateProject(const List<String> &projects, unsigned int queryFlags);
 
     void restoreFileIds();
     void clear();
-    void onNewConnection();
+    void onNewConnection(SocketServer *server);
     std::shared_ptr<Project> setCurrentProject(const Path &path, unsigned int queryFlags = 0);
     std::shared_ptr<Project> setCurrentProject(const std::shared_ptr<Project> &project, unsigned int queryFlags = 0);
     void index(const Source &args, const List<String> &projects, const Path &unresolvedPath = Path());
@@ -130,6 +125,7 @@ private:
     void isIndexed(const QueryMessage &query, Connection *conn);
     void hasFileManager(const QueryMessage &query, Connection *conn);
     void reloadFileManager(const QueryMessage &query, Connection *conn);
+    void requestJob(const QueryMessage &query, Connection *conn);
     void preprocessFile(const QueryMessage &query, Connection *conn);
     void findFile(const QueryMessage &query, Connection *conn);
     void dumpFile(const QueryMessage &query, Connection *conn);
@@ -149,6 +145,8 @@ private:
     std::shared_ptr<Project> addProject(const Path &path);
     void onMulticastReadyRead(SocketClient::SharedPtr &socket, const std::string &ip,
                               uint16_t port, Buffer &&buffer);
+    void onLocalJobFinished(Process *process);
+    void startNextJob();
 
     typedef Hash<Path, std::shared_ptr<Project> > ProjectsMap;
     ProjectsMap mProjects;
@@ -156,18 +154,14 @@ private:
 
     static Server *sInstance;
     Options mOptions;
-    SocketServer::SharedPtr mServer;
+    SocketServer::SharedPtr mUnixServer, mTcpServer;
     bool mVerbose;
-
-    ThreadPool mThreadPool;
-    ProcessPool mProcessPool;
 
     Timer mUnloadTimer;
 
-    RTagsPluginFactory mPluginFactory;
-
     uint32_t mCurrentFileId;
     std::shared_ptr<SocketClient> mMulticastSocket;
+    LinkedList<std::shared_ptr<IndexerJob> > mPending, mLocalJobs, mRemoteJobs;
 };
 
 #endif

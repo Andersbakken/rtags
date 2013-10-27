@@ -254,7 +254,7 @@ public:
 private:
     static Hash<Path, unsigned int> sPathsToIds;
     static Hash<unsigned int, Path> sIdsToPaths;
-    static unsigned int sLastId;
+    static uint32_t sLastId;
     static std::mutex sMutex;
     mutable Path mCachedPath;
     enum {

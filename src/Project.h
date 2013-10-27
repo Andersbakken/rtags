@@ -148,6 +148,7 @@ private:
         std::shared_ptr<IndexerJob> job;
     };
 
+    LinkedList<std::pair<Source, IndexerJob::IndexType> > mPending;
     Hash<uint32_t, JobData> mJobs;
     Hash<uint32_t, Connection*> mDumps;
 

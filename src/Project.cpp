@@ -16,7 +16,6 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 #include "Project.h"
 #include "FileManager.h"
 #include "IndexerJob.h"
-#include "IndexerJobClang.h"
 #include "RTags.h"
 #include "Server.h"
 #include "Server.h"
@@ -302,7 +301,7 @@ void Project::onJobFinished(const std::shared_ptr<IndexData> &indexData)
 
     JobData *jobData = &it->second;
     assert(jobData->job);
-    const bool success = !indexData->aborted && !jobData->job->isAborted();
+    const bool success = !indexData->aborted && jobData->job->state != IndexerJob::Aborted;
     if (indexData->aborted) {
         ++jobData->crashCount;
     } else {
@@ -318,7 +317,7 @@ void Project::onJobFinished(const std::shared_ptr<IndexData> &indexData)
         } else if (!success) {
             pending = jobData->job->source;
             pendingType = jobData->job->type;
-            if (!jobData->job->isAborted()) {
+            if (jobData->job->state != IndexerJob::Aborted) {
                 // ### we should maybe wait a little before restarting or something.
                 error("%s crashed, restarting", jobData->job->source.sourceFile().constData());
             }
@@ -410,14 +409,14 @@ void Project::dump(const Source &source, Connection *conn)
         return;
     }
     c = conn;
-    std::shared_ptr<IndexerJob> job = Server::instance()->factory().createJob(IndexerJob::Dump, shared_from_this(), source);
+    std::shared_ptr<IndexerJob> job(new IndexerJob(IndexerJob::Dump, mPath, source));
     if (!job) {
         mDumps.remove(source.fileId);
         conn->write<64>("Couldn't create dump job for %s", source.sourceFile().constData());
         conn->finish();
         return;
     }
-    job->start();
+    job->startLocal();
 }
 
 void Project::index(const Source &source, IndexerJob::IndexType type)
@@ -435,19 +434,13 @@ void Project::index(const Source &source, IndexerJob::IndexType type)
     }
     if (data.job) {
         // error() << "There's already something here for" << source.sourceFile();
-        if (data.job->abort()) {
+        if (!data.job->update(type, source)) {
             // error() << "Aborting and setting pending" << source.sourceFile();
             data.pending = source;
             data.pendingType = type;
-        } else {
-            // error() << "Not started yet, updating" << source.sourceFile();
-            // not started yet
-            data.job->source = source;
-            data.job->type = type;
         }
         return;
     }
-    std::shared_ptr<Project> project = shared_from_this();
 
     mSources[source.fileId] = source;
     watch(source.sourceFile());
@@ -459,14 +452,14 @@ void Project::index(const Source &source, IndexerJob::IndexType type)
     if (!mJobCounter++)
         mTimer.start();
 
-    data.job = Server::instance()->factory().createJob(type, project, source);
+    data.job.reset(new IndexerJob(type, mPath, source));
     if (!data.job) {
         error() << "Failed to create job for" << source;
         mJobs.erase(source.fileId);
         return;
     }
     mSyncTimer.stop();
-    data.job->start();
+    Server::instance()->startJob(data.job);
 }
 
 bool Project::index(const Source &s)
