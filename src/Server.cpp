@@ -57,7 +57,7 @@
 
 Server *Server::sInstance = 0;
 Server::Server()
-    : mVerbose(false), mThreadPool(2), mCurrentFileId(0)
+    : mVerbose(false), mThreadPool(2), mCurrentFileId(0), mMulticastSocket(SocketClient::Udp)
 {
     assert(!sInstance);
     sInstance = this;
@@ -82,17 +82,15 @@ void Server::clear()
 
 bool Server::init(const Options &options)
 {
-    {
-        Path dir(RTAGS_BIN);
-        dir.resolve();
-        List<Path> plugins = dir.files(Path::File);
-        Path executableDir = Rct::executablePath().resolved().parentDir();
-        if (dir != executableDir)
-            plugins += executableDir.files(Path::File);
-        for (int i=0; i<plugins.size(); ++i) {
-            if (mPluginFactory.addPlugin(plugins.at(i))) {
-                error() << "Loaded plugin" << plugins.at(i);
-            }
+    Path dir(RTAGS_BIN);
+    dir.resolve();
+    List<Path> plugins = dir.files(Path::File);
+    Path executableDir = Rct::executablePath().resolved().parentDir();
+    if (dir != executableDir)
+        plugins += executableDir.files(Path::File);
+    for (int i=0; i<plugins.size(); ++i) {
+        if (mPluginFactory.addPlugin(plugins.at(i))) {
+            error() << "Loaded plugin" << plugins.at(i);
         }
     }
     mProcessPool.setCount(options.processCount);
@@ -165,6 +163,23 @@ bool Server::init(const Options &options)
                 unlink((mOptions.dataDir + ".currentProject").constData());
             }
         }
+    }
+
+    if (!mOptions.multicastAddress.isEmpty()) {
+        if (!mMulticastSocket.bind(mOptions.multicastPort)) {
+            error() << "Can't bind to multicast port" << mOptions.multicastPort;
+            return false;
+        }
+        if (!mMulticastSocket.addMembership(mOptions.multicastAddress)) {
+            error() << "Can't add membership" << mOptions.multicastAddress;
+            return false;
+        }
+        mMulticastSocket.readyReadFrom().connect(std::bind(&Server::onMulticastReadyRead, this,
+                                                           std::placeholders::_1,
+                                                           std::placeholders::_2,
+                                                           std::placeholders::_3,
+                                                           std::placeholders::_4));
+        mMulticastSocket.writeTo(mOptions.multicastAddress, mOptions.multicastPort, "foobar");
     }
 
     return true;
@@ -1361,4 +1376,11 @@ void Server::onUnload()
             it->second->unload();
         }
     }
+}
+void Server::onMulticastReadyRead(SocketClient::SharedPtr &socket,
+                                  const std::string &ip,
+                                  uint16_t port,
+                                  Buffer &&buffer)
+{
+    error() << "got data from" << ip << "on port" << port << buffer.data();
 }

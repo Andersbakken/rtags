@@ -36,7 +36,6 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 #include <rct/Timer.h>
 #include <rct/ThreadPool.h>
 #include <rct/SocketServer.h>
-#include <mutex>
 
 class Connection;
 class Message;
@@ -77,7 +76,7 @@ public:
     struct Options {
         Options()
             : options(0), processCount(0), unloadTimer(0), rpVisitFileTimeout(0),
-              rpIndexerMessageTimeout(0), syncThreshold(0)
+              rpIndexerMessageTimeout(0), syncThreshold(0), multicastPort(0)
         {}
         Path socketFile, dataDir;
         unsigned options;
@@ -86,6 +85,8 @@ public:
         List<String> defaultArguments, excludeFilters;
         List<Path> includePaths;
         List<Source::Define> defines;
+        String multicastAddress;
+        uint16_t multicastPort;
         Set<Path> ignoredCompilers;
     };
     bool init(const Options &options);
@@ -146,6 +147,8 @@ private:
     std::shared_ptr<Project> currentProject() const { return mCurrentProject.lock(); }
     int reloadProjects();
     std::shared_ptr<Project> addProject(const Path &path);
+    void onMulticastReadyRead(SocketClient::SharedPtr &socket, const std::string &ip,
+                              uint16_t port, Buffer &&buffer);
 
     typedef Hash<Path, std::shared_ptr<Project> > ProjectsMap;
     ProjectsMap mProjects;
@@ -164,6 +167,7 @@ private:
     RTagsPluginFactory mPluginFactory;
 
     uint32_t mCurrentFileId;
+    SocketClient mMulticastSocket;
 };
 
 #endif

@@ -52,6 +52,8 @@ static void sigIntHandler(int)
 #define EXCLUDEFILTER_DEFAULT "*/CMakeFiles/*;*/cmake*/Modules/*;*/conftest.c*;/tmp/*"
 #define DEFAULT_RP_VISITFILE_TIMEOUT 3000
 #define DEFAULT_RP_INDEXER_MESSAGE_TIMEOUT 5000
+#define DEFAULT_RDM_MULTICAST_ADDRESS "237.50.50.50"
+#define DEFAULT_RDM_MULTICAST_PORT 11509 // ( 100 'r' * 114 'd') + 109 'm'
 #define XSTR(s) #s
 #define STR(s) XSTR(s)
 
@@ -97,8 +99,9 @@ static void usage(FILE *f)
             "  --no-filemanager-watch|-M                  Don't use a file system watcher for filemanager.\n"
 #endif
             "  --ignore-compiler|-b [arg]                 Alias this compiler (Might be practical to avoid duplicated sources for things like icecc).\n"
-            "  --disable-plugin|-p [arg]                  Don't load this plugin\n"
             "  --disable-esprima|-E                       Don't use esprima\n"
+            "  --multicast-address|-a [arg]               Use this address for multicast (default " DEFAULT_RDM_MULTICAST_ADDRESS "\n"
+            "  --multicast-port|-p [arg]                  Use this port for multicast (default " STR(DEFAULT_RDM_MULTICAST_PORT) "\n"
             "  --enable-compiler-flags|-K                 Query the compiler for default flags\n");
 }
 
@@ -135,12 +138,13 @@ int main(int argc, char** argv)
         { "unload-timer", required_argument, 0, 'u' },
         { "no-current-project", no_argument, 0, 'o' },
         { "ignore-compiler", required_argument, 0, 'b' },
-        { "disable-plugin", required_argument, 0, 'p' },
         { "watch-system-paths", no_argument, 0, 'w' },
         { "disable-esprima", no_argument, 0, 'E' },
         { "enable-compiler-flags", no_argument, 0, 'K' },
         { "rp-visit-file-timout", required_argument, 0, 't' },
         { "rp-indexer-message-timeout", required_argument, 0, 'T' },
+        { "multicast-address", required_argument, 0, 'a' },
+        { "multicast-port", required_argument, 0, 'p' },
 #ifdef OS_Darwin
         { "filemanager-watch", no_argument, 0, 'M' },
 #else
@@ -234,6 +238,8 @@ int main(int argc, char** argv)
 #endif
     serverOpts.excludeFilters = String(EXCLUDEFILTER_DEFAULT).split(';');
     serverOpts.dataDir = String::format<128>("%s.rtags", Path::home().constData());
+    serverOpts.multicastAddress = DEFAULT_RDM_MULTICAST_ADDRESS;
+    serverOpts.multicastPort = DEFAULT_RDM_MULTICAST_PORT;
     serverOpts.unloadTimer = 0;
 
     const char *logFile = 0;
@@ -256,6 +262,16 @@ int main(int argc, char** argv)
             break;
         case 'x':
             serverOpts.excludeFilters += String(optarg).split(';');
+            break;
+        case 'a':
+            serverOpts.multicastAddress = optarg;
+            break;
+        case 'p':
+            serverOpts.multicastPort = atoi(optarg);
+            if (serverOpts.multicastPort <= 0) {
+                fprintf(stderr, "Invalid argument to -p %s\n", optarg);
+                return 1;
+            }
             break;
         case 't':
             serverOpts.rpVisitFileTimeout = atoi(optarg);
