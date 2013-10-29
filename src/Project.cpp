@@ -519,8 +519,10 @@ bool Project::index(const Path &sourceFile, const Path &cc, const List<String> &
     } else if (sourceInformation.compiler == compiler && sourceInformation.args == args) {
         debug() << sourceFile << " is not dirty. ignoring";
         return false;
+    } else if (sourceInformation.compiler != compiler) {
+        debug() << "Different compiler. Not rebuilding";
+        return false;
     } else {
-        sourceInformation.compiler = compiler;
         sourceInformation.args = args;
     }
     if (sourceFile.endsWith(".js")) {
