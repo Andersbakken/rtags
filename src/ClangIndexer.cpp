@@ -62,6 +62,7 @@ bool ClangIndexer::index(IndexerJob::IndexType type, const Source &source,
     // mLogFile = fopen(String::format("/tmp/%s", sourceFile.fileName()).constData(), "w");
     mData.reset(new IndexData(type));
     mData->fileId = source.fileId;
+    mSource = source;
     mProject = project;
     assert(mConnection.isConnected());
     mData->visited[source.fileId] = true;
