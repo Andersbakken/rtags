@@ -1108,7 +1108,7 @@ bool ClangIndexer::diagnose()
                     clang_getSpellingLocation(start, 0, 0, 0, &startOffset);
                     clang_getSpellingLocation(end, 0, 0, 0, &endOffset);
                     const char *string = clang_getCString(stringScope);
-                    error("Fixit for %s:%d:%d:(%d) Replace with [%s]", loc.path().constData(),
+                    error("Fixit for %s:%d:%d: Replace %d chars with [%s]", loc.path().constData(),
                           line, column, endOffset - startOffset, string);
                     XmlEntry &entry = xmlEntries[Location(loc.fileId(), line, column)];
                     entry.type = XmlEntry::Fixit;
