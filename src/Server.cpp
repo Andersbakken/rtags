@@ -1400,7 +1400,7 @@ void Server::onMulticastReadyRead(SocketClient::SharedPtr &socket,
     const unsigned char *data = buffer.data();
     if (size == 3 && data[0] == 'j') {
         const unsigned short jobs = ntohs(*reinterpret_cast<const unsigned short*>(data + 1));
-        error() << ip << "has" << jobs << "jobs";
+        // error() << ip << "has" << jobs << "jobs";
     } else {
         Log log(Error);
         log << "Got unexpected data from" << ip << size;
@@ -1423,7 +1423,7 @@ void Server::startNextJob()
         std::shared_ptr<IndexerJob> job = mPending.first();
         assert(job);
         if (job->startLocal()) {
-            printf("[%s:%d]: if (job->startLocal()) {\n", __FILE__, __LINE__); fflush(stdout);
+            // printf("[%s:%d]: if (job->startLocal()) {\n", __FILE__, __LINE__); fflush(stdout);
             mLocalJobs.append(job);
             mPending.pop_front();
             assert(job->process);
@@ -1434,14 +1434,12 @@ void Server::startNextJob()
         }
     }
 
-    if (!mPending.isEmpty()) {
-        const unsigned short count = htons(static_cast<unsigned short>(mPending.size()));
-        unsigned char buf[3];
-        buf[0] = 'j';
-        memcpy(buf + 1, &count, sizeof(count));
-        error() << "announcing" << mPending.size() << "jobs";
-        mMulticastSocket->writeTo(mOptions.multicastAddress, mOptions.multicastPort, buf, sizeof(buf));
-    }
+    const unsigned short count = htons(static_cast<unsigned short>(mPending.size()));
+    unsigned char buf[3];
+    buf[0] = 'j';
+    memcpy(buf + 1, &count, sizeof(count));
+    // error() << "announcing" << mPending.size() << "jobs";
+    mMulticastSocket->writeTo(mOptions.multicastAddress, mOptions.multicastPort, buf, sizeof(buf));
 }
 
 void Server::onLocalJobFinished(Process *process)
