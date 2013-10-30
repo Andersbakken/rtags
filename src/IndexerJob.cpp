@@ -30,7 +30,8 @@ bool IndexerJob::startLocal()
     static const Path rp = Rct::executablePath().parentDir() + "rp";
     String stdinData;
     Serializer serializer(stdinData);
-    encode(serializer);
+    if (!encode(serializer))
+        return false;
 
     process = new Process;
     if (!port)
@@ -80,24 +81,29 @@ void IndexerJob::abort()
     state = Aborted;
 }
 
-void IndexerJob::encode(Serializer &serializer)
+bool IndexerJob::encode(Serializer &serializer)
 {
+    std::shared_ptr<Project> proj = Server::instance()->project(project);
+    if (!proj)
+        return false;
     const Server::Options &options = Server::instance()->options();
     Source copy = source;
     copy.arguments << options.defaultArguments;
     serializer << destination << port << sourceFile
                << copy << preprocessed << project
                << static_cast<uint8_t>(type) << options.rpVisitFileTimeout
-               << options.rpIndexerMessageTimeout;
+               << options.rpIndexerMessageTimeout
+               << proj->visitedFiles();
+    return true;
 }
 
-void IndexerJob::decode(Deserializer &deserializer)
+void IndexerJob::decode(Deserializer &deserializer, Map<Path, uint32_t> &blockedFiles)
 {
     uint8_t t;
     int ignored; // timeouts
     deserializer >> destination >> port >> sourceFile
                  >> source >> preprocessed >> project
-                 >> t >> ignored >> ignored;
+                 >> t >> ignored >> ignored >> blockedFiles;
     type = static_cast<IndexType>(t);
 }
 

@@ -1,4 +1,3 @@
-#define SINGLE_THREAD
 #include "ClangIndexer.h"
 #include "QueryMessage.h"
 #include "VisitFileMessage.h"
@@ -136,10 +135,17 @@ Location ClangIndexer::createLocation(const Path &sourceFile, unsigned line, uns
     }
 
     if (id) {
-        assert(mData->visited.contains(id));
-        if (blockedPtr && !mData->visited.value(id)) {
-            *blockedPtr = true;
-            return Location();
+        if (blockedPtr) {
+            if ((resolved.isEmpty() ? mBlockedFiles.contains(resolved) || mBlockedFiles.contains(sourceFile))) {
+                mData->visited[id] = false;
+                *blockedPtr = true;
+                return Location();
+            }
+            assert(mData->visited.contains(id));
+            if (!mData->visited.value(id)) {
+                *blockedPtr = true;
+                return Location();
+            }
         }
         return Location(id, line, col);
     }
@@ -157,7 +163,8 @@ Location ClangIndexer::createLocation(const Path &sourceFile, unsigned line, uns
         error() << "Error getting fileId for" << resolved;
         exit(1);
     }
-    mData->visited[id] = mVisitFileResponseMessageVisit;
+    if (blockedPtr)
+        mData->visited[id] = mVisitFileResponseMessageVisit;
     // fprintf(mLogFile, "%s %s\n", file.second ? "WON" : "LOST", resolved.constData());
 
     Location::set(resolved, id);
@@ -1312,4 +1319,8 @@ void ClangIndexer::inclusionVisitor(CXFile includedFile,
                 indexer->mData->dependencies[fileId].insert(f);
         }
     }
+}
+void ClangIndexer::setBlockedFiles(Map<Path, uint32_t> &&blockedFiles)
+{
+    mBlockedFiles = std::forward<Map<Path, uint32_t> >(blockedFiles);
 }

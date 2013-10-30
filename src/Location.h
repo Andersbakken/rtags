@@ -25,7 +25,7 @@
 #include <clang-c/Index.h>
 #include <stdio.h>
 
-static inline int intCompare(unsigned int l, unsigned int r)
+static inline int intCompare(uint32_t l, uint32_t r)
 {
     if (l < r)
         return -1;
@@ -33,7 +33,7 @@ static inline int intCompare(unsigned int l, unsigned int r)
         return 1;
     return 0;
 }
-static inline int comparePosition(unsigned int lline, unsigned int lcol, unsigned int rline, unsigned int rcol)
+static inline int comparePosition(uint32_t lline, uint32_t lcol, uint32_t rline, uint32_t rcol)
 {
     int ret = intCompare(lline, rline);
     if (!ret)
@@ -49,33 +49,26 @@ public:
         : mData(0)
     {}
 
-    Location(unsigned int fileId, unsigned int line, unsigned int col)
+    Location(uint32_t fileId, uint32_t line, uint32_t col)
         : mData((static_cast<uint64_t>(fileId) << (64 - FileBits)) | (static_cast<uint64_t>(line) << (64 - FileBits - LineBits)) | col)
     {
     }
 
-    static inline unsigned int fileId(const Path &path)
+    static inline uint32_t fileId(const Path &path)
     {
-#ifndef SINGLE_THREAD
-        std::lock_guard<std::mutex> lock(sMutex);
-#endif
         return sPathsToIds.value(path);
     }
-    static inline Path path(unsigned int id)
+    static inline Path path(uint32_t id)
     {
-#ifndef SINGLE_THREAD
-        std::lock_guard<std::mutex> lock(sMutex);
-#endif
         return sIdsToPaths.value(id);
     }
 
-#ifndef SINGLE_THREAD
-    static inline unsigned int insertFile(const Path &path)
+    static inline uint32_t insertFile(const Path &path)
     {
-        unsigned int ret;
+        uint32_t ret;
         {
             std::lock_guard<std::mutex> lock(sMutex);
-            unsigned int &id = sPathsToIds[path];
+            uint32_t &id = sPathsToIds[path];
             if (!id) {
                 id = ++sLastId;
                 sIdsToPaths[id] = path;
@@ -85,18 +78,14 @@ public:
 
         return ret;
     }
-#endif
 
-    inline unsigned int fileId() const { return ((mData & FILEID_MASK) >> (64 - FileBits)); }
-    inline unsigned int line() const { return ((mData & LINE_MASK) >> (64 - FileBits - LineBits)); }
-    inline unsigned int column() const { return static_cast<unsigned int>(mData & COLUMN_MASK); }
+    inline uint32_t fileId() const { return ((mData & FILEID_MASK) >> (64 - FileBits)); }
+    inline uint32_t line() const { return ((mData & LINE_MASK) >> (64 - FileBits - LineBits)); }
+    inline uint32_t column() const { return static_cast<uint32_t>(mData & COLUMN_MASK); }
 
     inline Path path() const
     {
         if (mCachedPath.isEmpty()) {
-#ifndef SINGLE_THREAD
-            std::lock_guard<std::mutex> lock(sMutex);
-#endif
             mCachedPath = sIdsToPaths.value(fileId());
         }
         return mCachedPath;
@@ -104,13 +93,11 @@ public:
     inline bool isNull() const { return !mData; }
     inline bool isValid() const { return mData; }
     inline void clear() { mData = 0; mCachedPath.clear(); }
-#ifndef SINGLE_THREAD
     inline bool operator==(const String &str) const
     {
         const Location fromPath = Location::fromPathAndOffset(str);
         return operator==(fromPath);
     }
-#endif
     inline bool operator==(const Location &other) const { return mData == other.mData; }
     inline bool operator!=(const Location &other) const { return mData != other.mData; }
     inline int compare(const Location &other) const
@@ -162,12 +149,12 @@ public:
 
     static Location decodeClientLocation(const String &data)
     {
-        unsigned int col;
-        unsigned int line;
+        uint32_t col;
+        uint32_t line;
         memcpy(&col, data.constData() + data.size() - sizeof(col), sizeof(col));
         memcpy(&line, data.constData() + data.size() - sizeof(line) - sizeof(col), sizeof(line));
         const Path path(data.constData(), data.size() - sizeof(col) - sizeof(line));
-        const unsigned int fileId = Location::fileId(path);
+        const uint32_t fileId = Location::fileId(path);
         if (fileId)
             return Location(fileId, line, col);
         error("Failed to make location from [%s:%d:%d]", path.constData(), line, col);
@@ -176,7 +163,7 @@ public:
     static String encodeClientLocation(const String &key)
     {
         char path[PATH_MAX];
-        unsigned int line, col;
+        uint32_t line, col;
         if (sscanf(key.constData(), "%[^':']:%d:%d", path, &line, &col) != 3)
             return String();
 
@@ -191,50 +178,36 @@ public:
         return resolved;
     }
 
-#ifndef SINGLE_THREAD
     static Location fromPathAndOffset(const String &str)
     {
         char path[PATH_MAX];
-        unsigned int line, col;
+        uint32_t line, col;
         if (sscanf(str.constData(), "%[^':']:%d:%d", path, &line, &col) != 3)
             return Location();
 
         const Path resolved = Path::resolved(path);
         return Location(Location::insertFile(resolved), line, col);
     }
-#endif
-    static Hash<unsigned int, Path> idsToPaths()
+    static Hash<uint32_t, Path> idsToPaths()
     {
-#ifndef SINGLE_THREAD
-        std::lock_guard<std::mutex> lock(sMutex);
-#endif
         return sIdsToPaths;
     }
-    static Hash<Path, unsigned int> pathsToIds()
+    static Hash<Path, uint32_t> pathsToIds()
     {
-#ifndef SINGLE_THREAD
-        std::lock_guard<std::mutex> lock(sMutex);
-#endif
         return sPathsToIds;
     }
-    static void init(const Hash<Path, unsigned int> &pathsToIds)
+    static void init(const Hash<Path, uint32_t> &pathsToIds)
     {
-#ifndef SINGLE_THREAD
-        std::lock_guard<std::mutex> lock(sMutex);
-#endif
         sPathsToIds = pathsToIds;
         sLastId = sPathsToIds.size();
-        for (Hash<Path, unsigned int>::const_iterator it = sPathsToIds.begin(); it != sPathsToIds.end(); ++it) {
+        for (Hash<Path, uint32_t>::const_iterator it = sPathsToIds.begin(); it != sPathsToIds.end(); ++it) {
             assert(it->second <= it->second);
             sIdsToPaths[it->second] = it->first;
         }
     }
 
-    static bool set(const Path &path, unsigned int fileId)
+    static bool set(const Path &path, uint32_t fileId)
     {
-#ifndef SINGLE_THREAD
-        std::lock_guard<std::mutex> lock(sMutex);
-#endif
         // if (sPathsToIds.contains(path)) {
         //     error() << "We've already set" << path << fileId << sPathsToIds.value(path);
         //     return false;
@@ -252,8 +225,8 @@ public:
         return true;
     }
 private:
-    static Hash<Path, unsigned int> sPathsToIds;
-    static Hash<unsigned int, Path> sIdsToPaths;
+    static Hash<Path, uint32_t> sPathsToIds;
+    static Hash<uint32_t, Path> sIdsToPaths;
     static uint32_t sLastId;
     static std::mutex sMutex;
     mutable Path mCachedPath;
