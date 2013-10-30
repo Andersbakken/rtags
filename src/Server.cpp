@@ -1400,7 +1400,7 @@ void Server::onMulticastReadyRead(SocketClient::SharedPtr &socket,
     const unsigned char *data = buffer.data();
     if (size == 3 && data[0] == 'j') {
         const unsigned short jobs = ntohs(*reinterpret_cast<const unsigned short*>(data + 1));
-        // error() << ip << "has" << jobs << "jobs";
+        error() << ip << "has" << jobs << "jobs";
     } else {
         Log log(Error);
         log << "Got unexpected data from" << ip << size;
@@ -1437,7 +1437,7 @@ void Server::startNextJob()
     unsigned char buf[3];
     buf[0] = 'j';
     memcpy(buf + 1, &count, sizeof(count));
-    // error() << "announcing" << mPending.size() << "jobs";
+    error() << "announcing" << mPending.size() << "jobs";
     mMulticastSocket->writeTo(mOptions.multicastAddress, mOptions.multicastPort, buf, sizeof(buf));
 }
 
