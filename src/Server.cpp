@@ -58,7 +58,7 @@
 
 Server *Server::sInstance = 0;
 Server::Server()
-    : mVerbose(false), mCurrentFileId(0), mLocalJobs(0)
+    : mVerbose(false), mCurrentFileId(0)
 {
     assert(!sInstance);
     sInstance = this;
@@ -1423,10 +1423,9 @@ void Server::startNextJob()
         std::shared_ptr<IndexerJob> job = mPending.first();
         assert(job);
         if (job->startLocal()) {
-            // printf("[%s:%d]: if (job->startLocal()) {\n", __FILE__, __LINE__); fflush(stdout);
-            mLocalJobs.append(job);
-            mPending.pop_front();
             assert(job->process);
+            mLocalJobs[job->process] = job;
+            mPending.pop_front();
             job->process->finished().connect(std::bind(&Server::onLocalJobFinished, this,
                                                        std::placeholders::_1));
         } else {
@@ -1444,6 +1443,7 @@ void Server::startNextJob()
 
 void Server::onLocalJobFinished(Process *process)
 {
+    mLocalJobs.remove(process);
     EventLoop::deleteLater(process);
     startNextJob();
 }
