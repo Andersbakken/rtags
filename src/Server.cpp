@@ -143,7 +143,7 @@ bool Server::init(const Options &options)
         if (!i) {
             enum { Timeout = 1000 };
             Connection connection;
-            if (connection.connectToServer(mOptions.socketFile, Timeout)) {
+            if (connection.connectUnix(mOptions.socketFile, Timeout)) {
                 connection.send(QueryMessage(QueryMessage::Shutdown));
                 connection.disconnected().connect(std::bind([](){ EventLoop::eventLoop()->quit(); }));
                 connection.finished().connect(std::bind([](){ EventLoop::eventLoop()->quit(); }));
@@ -1141,7 +1141,7 @@ void Server::project(const QueryMessage &query, Connection *conn)
     if (query.query().isEmpty()) {
         const std::shared_ptr<Project> current = mCurrentProject.lock();
         const char *states[] = { "(unloaded)", "(inited)", "(loading)", "(loaded)" };
-	for (ProjectsMap::const_iterator it = mProjects.begin(); it != mProjects.end(); ++it) {
+    for (ProjectsMap::const_iterator it = mProjects.begin(); it != mProjects.end(); ++it) {
             conn->write<128>("%s %s%s",
                              it->first.constData(),
                              states[it->second->state()],
