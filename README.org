@@ -142,7 +142,14 @@ brew install <path/to/rtags//llvm-osx/llvm.rb> --with-clang --with-libcxx
 
 Feel free to inspect the formula before installing.
 
-At this point you should be able to start the installation process:
+First of all you need to grab the git submodules:
+
+#+BEGIN_SRC
+git submodule init
+git submodule update
+#+END_SRC
+
+Now you should be able to start the build process:
 
 #+BEGIN_SRC
 cd /path/to/rtags
