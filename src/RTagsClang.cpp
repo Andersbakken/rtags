@@ -37,11 +37,7 @@
 #include <llvm/Support/Host.h>
 #include <llvm/ADT/ArrayRef.h>
 #include <llvm/ADT/StringRef.h>
-// #include <clang/Basic/Diagnostic.h>
-// #include <clang/Basic/FileManager.h>
-// #include <clang/Basic/SourceManager.h>
 #include <clang/Basic/TargetInfo.h>
-// #include <clang/Frontend/TextDiagnosticPrinter.h>
 #include <clang/Lex/HeaderSearch.h>
 #include <clang/Lex/HeaderSearchOptions.h>
 
@@ -127,9 +123,9 @@ String cursorToString(CXCursor cursor, unsigned flags)
     return ret;
 }
 
-static inline SymbolMap::const_iterator findCursorInfo(const SymbolMap &map, const Location &location, const String &context, bool scan)
+SymbolMap::const_iterator findCursorInfo(const SymbolMap &map, const Location &location, const String &context)
 {
-    if (context.isEmpty() || !scan) {
+    if (context.isEmpty()) {
         SymbolMap::const_iterator it = map.lower_bound(location);
         if (it != map.end() && it->first == location) {
             return it;
@@ -137,9 +133,8 @@ static inline SymbolMap::const_iterator findCursorInfo(const SymbolMap &map, con
             --it;
             if (it->first.fileId() == location.fileId() && location.line() == it->first.line()) {
                 const int off = location.column() - it->first.column();
-                if (it->second.symbolLength > off && (context.isEmpty() || it->second.symbolName.contains(context))) {
+                if (it->second.symbolLength > off)
                     return it;
-                }
             }
         }
         return map.end();
@@ -178,12 +173,6 @@ static inline SymbolMap::const_iterator findCursorInfo(const SymbolMap &map, con
         }
     }
     return map.end();
-}
-
-SymbolMap::const_iterator findCursorInfo(const SymbolMap &map, const Location &location, const String &context)
-{
-    const SymbolMap::const_iterator ret = findCursorInfo(map, location, context, true);
-    return ret;
 }
 
 void parseTranslationUnit(const Path &sourceFile, const List<String> &args,
