@@ -109,9 +109,9 @@ int CursorInfo::targetRank(const CursorInfo &target) const
     }
 }
 
-CursorInfo CursorInfo::bestTarget(const SymbolMap &map, const SymbolMap *errors, Location *loc) const
+CursorInfo CursorInfo::bestTarget(const SymbolMap &map, Location *loc) const
 {
-    const SymbolMap targets = targetInfos(map, errors);
+    const SymbolMap targets = targetInfos(map);
 
     SymbolMap::const_iterator best = targets.end();
     int bestRank = -1;
@@ -131,11 +131,11 @@ CursorInfo CursorInfo::bestTarget(const SymbolMap &map, const SymbolMap *errors,
     return CursorInfo();
 }
 
-SymbolMap CursorInfo::targetInfos(const SymbolMap &map, const SymbolMap *errors) const
+SymbolMap CursorInfo::targetInfos(const SymbolMap &map) const
 {
     SymbolMap ret;
     for (Set<Location>::const_iterator it = targets.begin(); it != targets.end(); ++it) {
-        SymbolMap::const_iterator found = RTags::findCursorInfo(map, *it, String(), errors);
+        SymbolMap::const_iterator found = RTags::findCursorInfo(map, *it, String());
         // ### could/should I pass symbolName as context here?
         if (found != map.end()) {
             ret[*it] = found->second;
@@ -148,11 +148,11 @@ SymbolMap CursorInfo::targetInfos(const SymbolMap &map, const SymbolMap *errors)
     return ret;
 }
 
-SymbolMap CursorInfo::referenceInfos(const SymbolMap &map, const SymbolMap *errors) const
+SymbolMap CursorInfo::referenceInfos(const SymbolMap &map) const
 {
     SymbolMap ret;
     for (Set<Location>::const_iterator it = references.begin(); it != references.end(); ++it) {
-        SymbolMap::const_iterator found = RTags::findCursorInfo(map, *it, String(), errors);
+        SymbolMap::const_iterator found = RTags::findCursorInfo(map, *it, String());
         if (found != map.end()) {
             ret[*it] = found->second;
         }
@@ -160,13 +160,13 @@ SymbolMap CursorInfo::referenceInfos(const SymbolMap &map, const SymbolMap *erro
     return ret;
 }
 
-SymbolMap CursorInfo::callers(const Location &loc, const SymbolMap &map, const SymbolMap *errors) const
+SymbolMap CursorInfo::callers(const Location &loc, const SymbolMap &map) const
 {
     SymbolMap ret;
-    const SymbolMap cursors = virtuals(loc, map, errors);
+    const SymbolMap cursors = virtuals(loc, map);
     for (SymbolMap::const_iterator c = cursors.begin(); c != cursors.end(); ++c) {
         for (Set<Location>::const_iterator it = c->second.references.begin(); it != c->second.references.end(); ++it) {
-            const SymbolMap::const_iterator found = RTags::findCursorInfo(map, *it, String(), errors);
+            const SymbolMap::const_iterator found = RTags::findCursorInfo(map, *it, String());
             if (found == map.end())
                 continue;
             if (RTags::isReference(found->second.kind)) { // is this always right?
@@ -185,12 +185,12 @@ enum Mode {
     NormalRefs
 };
 
-static inline void allImpl(const SymbolMap &map, const SymbolMap *errors, const Location &loc, const CursorInfo &info, SymbolMap &out, Mode mode, unsigned kind)
+static inline void allImpl(const SymbolMap &map, const Location &loc, const CursorInfo &info, SymbolMap &out, Mode mode, unsigned kind)
 {
     if (out.contains(loc))
         return;
     out[loc] = info;
-    const SymbolMap targets = info.targetInfos(map, errors);
+    const SymbolMap targets = info.targetInfos(map);
     for (SymbolMap::const_iterator t = targets.begin(); t != targets.end(); ++t) {
         bool ok = false;
         switch (mode) {
@@ -203,9 +203,9 @@ static inline void allImpl(const SymbolMap &map, const SymbolMap *errors, const 
             break;
         }
         if (ok)
-            allImpl(map, errors, t->first, t->second, out, mode, kind);
+            allImpl(map, t->first, t->second, out, mode, kind);
     }
-    const SymbolMap refs = info.referenceInfos(map, errors);
+    const SymbolMap refs = info.referenceInfos(map);
     for (SymbolMap::const_iterator r = refs.begin(); r != refs.end(); ++r) {
         switch (mode) {
         case NormalRefs:
@@ -213,7 +213,7 @@ static inline void allImpl(const SymbolMap &map, const SymbolMap *errors, const 
             break;
         case VirtualRefs:
             if (r->second.kind == kind) {
-                allImpl(map, errors, r->first, r->second, out, mode, kind);
+                allImpl(map, r->first, r->second, out, mode, kind);
             } else {
                 out[r->first] = r->second;
             }
@@ -224,13 +224,13 @@ static inline void allImpl(const SymbolMap &map, const SymbolMap *errors, const 
             if (r->second.isClass()
                 || r->second.kind == CXCursor_Destructor
                 || r->second.kind == CXCursor_Constructor) { // if is a constructor/destructor/class reference we want to recurse it
-                allImpl(map, errors, r->first, r->second, out, mode, kind);
+                allImpl(map, r->first, r->second, out, mode, kind);
             }
         }
     }
 }
 
-SymbolMap CursorInfo::allReferences(const Location &loc, const SymbolMap &map, const SymbolMap *errors) const
+SymbolMap CursorInfo::allReferences(const Location &loc, const SymbolMap &map) const
 {
     SymbolMap ret;
     Mode mode = NormalRefs;
@@ -247,15 +247,15 @@ SymbolMap CursorInfo::allReferences(const Location &loc, const SymbolMap &map, c
         break;
     }
 
-    allImpl(map, errors, loc, *this, ret, mode, kind);
+    allImpl(map, loc, *this, ret, mode, kind);
     return ret;
 }
 
-SymbolMap CursorInfo::virtuals(const Location &loc, const SymbolMap &map, const SymbolMap *errors) const
+SymbolMap CursorInfo::virtuals(const Location &loc, const SymbolMap &map) const
 {
     SymbolMap ret;
     ret[loc] = *this;
-    const SymbolMap s = (kind == CXCursor_CXXMethod ? allReferences(loc, map, errors) : targetInfos(map, errors));
+    const SymbolMap s = (kind == CXCursor_CXXMethod ? allReferences(loc, map) : targetInfos(map));
     for (SymbolMap::const_iterator it = s.begin(); it != s.end(); ++it) {
         if (it->second.kind == kind)
             ret[it->first] = it->second;
@@ -263,13 +263,13 @@ SymbolMap CursorInfo::virtuals(const Location &loc, const SymbolMap &map, const 
     return ret;
 }
 
-SymbolMap CursorInfo::declarationAndDefinition(const Location &loc, const SymbolMap &map, const SymbolMap *errors) const
+SymbolMap CursorInfo::declarationAndDefinition(const Location &loc, const SymbolMap &map) const
 {
     SymbolMap cursors;
     cursors[loc] = *this;
 
     Location l;
-    const CursorInfo t = bestTarget(map, errors, &l);
+    const CursorInfo t = bestTarget(map, &l);
 
     if (t.kind == kind)
         cursors[l] = t;

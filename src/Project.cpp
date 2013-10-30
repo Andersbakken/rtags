@@ -99,7 +99,6 @@ public:
 
     std::weak_ptr<Project> mProject;
     SymbolMap mSymbols;
-    ErrorSymbolMap mErrorSymbols;
     SymbolNameMap mSymbolNames;
     UsrMap mUsr;
     FilesMap mFiles;
@@ -139,7 +138,6 @@ void Project::restore(RestoreThread *thread)
     assert(state() == Loading);
 
     mSymbols = std::move(thread->mSymbols);
-    mErrorSymbols = std::move(thread->mErrorSymbols);
     mSymbolNames = std::move(thread->mSymbolNames);
     mUsr = std::move(thread->mUsr);;
     mFiles = std::move(thread->mFiles);
@@ -238,7 +236,6 @@ void Project::unload()
     fileManager.reset();
 
     mSymbols.clear();
-    mErrorSymbols.clear();
     mSymbolNames.clear();
     mUsr.clear();
     mFiles.clear();
@@ -642,25 +639,6 @@ static inline void writeUsr(const UsrMap &usr, UsrMap &current, SymbolMap &symbo
     }
 }
 
-static inline void writeErrorSymbols(const SymbolMap &symbols, ErrorSymbolMap &errorSymbols, const Hash<uint32_t, int> &errors)
-{
-    for (Hash<uint32_t, int>::const_iterator it = errors.begin(); it != errors.end(); ++it) {
-        if (it->second) {
-            SymbolMap &symbolsForFile = errorSymbols[it->first];
-            if (symbolsForFile.isEmpty()) {
-                const Location loc(it->first, 1, 0);
-                SymbolMap::const_iterator sit = symbols.lower_bound(loc);
-                while (sit != symbols.end() && sit->first.fileId() == it->first) {
-                    symbolsForFile[sit->first] = sit->second;
-                    ++sit;
-                }
-            }
-        } else {
-            errorSymbols.remove(it->first);
-        }
-    }
-}
-
 static inline void writeSymbols(SymbolMap &symbols, SymbolMap &current)
 {
     if (!symbols.isEmpty()) {
@@ -702,9 +680,6 @@ void Project::syncDB(int *dirty, int *sync)
         *sync = 0;
         return;
     }
-    // for (Hash<uint32_t, std::shared_ptr<IndexData> >::iterator it = mPendingData.begin(); it != mPendingData.end(); ++it) {
-    //     writeErrorSymbols(mSymbols, mErrorSymbols, it->second->errors);
-    // }
 
     if (!mPendingDirtyFiles.isEmpty()) {
         RTags::dirtySymbols(mSymbols, mPendingDirtyFiles);

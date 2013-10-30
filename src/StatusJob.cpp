@@ -29,7 +29,8 @@ StatusJob::StatusJob(const QueryMessage &q, const std::shared_ptr<Project> &proj
 void StatusJob::execute()
 {
     bool matched = false;
-    const char *alternatives = "fileids|dependencies|fileinfos|symbols|symbolnames|errorsymbols|watchedpaths|compilers";
+    const char *alternatives = "fileids|watchedpaths|dependencies|symbols|symbolnames|sources|jobs";
+
     if (!strcasecmp(query.constData(), "fileids")) {
         matched = true;
         if (!write(delimiter) || !write("fileids") || !write(delimiter))
@@ -118,27 +119,6 @@ void StatusJob::execute()
             write(ci);
             if (isAborted())
                 return;
-        }
-    }
-
-    if (query.isEmpty() || !strcasecmp(query.constData(), "errorsymbols")) {
-        matched = true;
-        const ErrorSymbolMap &map = proj->errorSymbols();
-        write(delimiter);
-        write("errorsymbols");
-        write(delimiter);
-        for (ErrorSymbolMap::const_iterator it = map.begin(); it != map.end(); ++it) {
-            Path file = Location::path(it->first);
-            write<128>("---------------- %s ---------------", file.constData());
-            const SymbolMap &symbols = it->second;
-            for (SymbolMap::const_iterator sit = symbols.begin(); sit != symbols.end(); ++sit) {
-                const Location loc = sit->first;
-                const CursorInfo ci = sit->second;
-                write(loc);
-                write(ci);
-                if (isAborted())
-                    return;
-            }
         }
     }
 

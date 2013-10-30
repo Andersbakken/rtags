@@ -180,40 +180,10 @@ static inline SymbolMap::const_iterator findCursorInfo(const SymbolMap &map, con
     return map.end();
 }
 
-SymbolMap::const_iterator findCursorInfo(const SymbolMap &map, const Location &location, const String &context,
-                                         const SymbolMap *errors, bool *foundInErrors)
+SymbolMap::const_iterator findCursorInfo(const SymbolMap &map, const Location &location, const String &context)
 {
-    if (foundInErrors)
-        *foundInErrors = false;
-    if (map.isEmpty() && !errors)
-        return map.end();
-    if (errors) {
-        SymbolMap::const_iterator ret = findCursorInfo(map, location, context, false);
-        if (ret != map.end()) {
-            return ret;
-        }
-        ret = findCursorInfo(*errors, location, context, false);
-        if (ret != errors->end()) {
-            if (foundInErrors)
-                *foundInErrors = true;
-            return ret;
-        }
-        // ret = findCursorInfo(*errors, location, context, true);
-        // if (ret != errors->end()) {
-        //     if (foundInErrors)
-        //         *foundInErrors = true;
-        //     return ret;
-        // }
-        // ret = findCursorInfo(map, location, context, true);
-        // if (ret != map.end()) {
-        //     return ret;
-        // }
-
-        return map.end();
-    } else {
-        const SymbolMap::const_iterator ret = findCursorInfo(map, location, context, true);
-        return ret;
-    }
+    const SymbolMap::const_iterator ret = findCursorInfo(map, location, context, true);
+    return ret;
 }
 
 void parseTranslationUnit(const Path &sourceFile, const List<String> &args,

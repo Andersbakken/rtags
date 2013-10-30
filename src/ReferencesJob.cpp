@@ -40,30 +40,21 @@ void ReferencesJob::execute()
             locations = proj->locations(symbolName);
         if (!locations.isEmpty()) {
             const SymbolMap &map = proj->symbols();
-            const ErrorSymbolMap &errorMap = proj->errorSymbols();
-            const ErrorSymbolMap::const_iterator e = symbolName.isEmpty() ? errorMap.find(locations.begin()->fileId()) : errorMap.end();
-            const SymbolMap *errors = e == errorMap.end() ? 0 : &e->second;
-
-            // ### return if e != errorMap && queryFlags() & QueryMessage::AllReferences?
 
             for (Set<Location>::const_iterator it = locations.begin(); it != locations.end(); ++it) {
                 Location pos;
                 SymbolMap::const_iterator found;
-                bool foundInError = false;
-                found = RTags::findCursorInfo(map, *it, context(), errors, &foundInError);
+                found = RTags::findCursorInfo(map, *it, context());
                 if (found == map.end())
                     continue;
                 pos = found->first;
                 if (startLocation.isNull())
                     startLocation = pos;
                 CursorInfo cursorInfo = found->second;
-                if (RTags::isReference(cursorInfo.kind)) {
-                    cursorInfo = cursorInfo.bestTarget(map, errors, &pos);
-                    if (cursorInfo.isNull() && foundInError)
-                        cursorInfo = cursorInfo.bestTarget(e->second, errors, &pos);
-                }
+                if (RTags::isReference(cursorInfo.kind))
+                    cursorInfo = cursorInfo.bestTarget(map, &pos);
                 if (queryFlags() & QueryMessage::AllReferences) {
-                    const SymbolMap all = cursorInfo.allReferences(pos, map, errors);
+                    const SymbolMap all = cursorInfo.allReferences(pos, map);
 
                     bool classRename = false;
                     switch (cursorInfo.kind) {
@@ -86,7 +77,7 @@ void ReferencesJob::execute()
                                 FoundReferences = 0x4
                             };
                             unsigned state = 0;
-                            const SymbolMap targets = a->second.targetInfos(map, errors);
+                            const SymbolMap targets = a->second.targetInfos(map);
                             for (SymbolMap::const_iterator t = targets.begin(); t != targets.end(); ++t) {
                                 if (t->second.kind != a->second.kind)
                                     state |= FoundReferences;
@@ -103,7 +94,7 @@ void ReferencesJob::execute()
                     }
                 } else if (queryFlags() & QueryMessage::FindVirtuals) {
                     // ### not supporting DeclarationOnly
-                    const SymbolMap virtuals = cursorInfo.virtuals(pos, map, errors);
+                    const SymbolMap virtuals = cursorInfo.virtuals(pos, map);
                     for (SymbolMap::const_iterator v = virtuals.begin(); v != virtuals.end(); ++v) {
                         references[v->first] = std::make_pair(v->second.isDefinition(), v->second.kind);
                     }
@@ -112,7 +103,7 @@ void ReferencesJob::execute()
                     // doesn't work that well do the clever offset thing
                     // underneath
                 } else {
-                    const SymbolMap callers = cursorInfo.callers(pos, map, errors);
+                    const SymbolMap callers = cursorInfo.callers(pos, map);
                     for (SymbolMap::const_iterator c = callers.begin(); c != callers.end(); ++c) {
                         references[c->first] = std::make_pair(false, CXCursor_FirstInvalid);
                         // For find callers we don't want to prefer definitions or do ranks on cursors

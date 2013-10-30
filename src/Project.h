@@ -62,9 +62,6 @@ public:
     const SymbolMap &symbols() const { return mSymbols; }
     SymbolMap &symbols() { return mSymbols; }
 
-    const ErrorSymbolMap &errorSymbols() const { return mErrorSymbols; }
-    ErrorSymbolMap &errorSymbols() { return mErrorSymbols; }
-
     const SymbolNameMap &symbolNames() const { return mSymbolNames; }
     SymbolNameMap &symbolNames() { return mSymbolNames; }
 
@@ -129,7 +126,6 @@ private:
     State mState;
 
     SymbolMap mSymbols;
-    ErrorSymbolMap mErrorSymbols;
     SymbolNameMap mSymbolNames;
     UsrMap mUsr;
     FilesMap mFiles;
