@@ -108,6 +108,15 @@ public:
     void onJSFilesAdded();
     void dirty(const Path &);
     String dumpJobs() const;
+    Map<Path, uint32_t> visitedFiles() const
+    {
+        Map<Path, uint32_t> ret;
+        for (Set<uint32_t>::const_iterator it = mVisitedFiles.begin(); it != mVisitedFiles.end(); ++it) {
+            ret[Location::path(*it)] = *it;
+        }
+
+        return ret;
+    }
 private:
     void restore(RestoreThread *thread);
     void index(const Source &args, IndexerJob::IndexType type);

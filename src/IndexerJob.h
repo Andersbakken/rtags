@@ -49,8 +49,8 @@ public:
     bool startLocal();
     bool update(IndexType t, const Source &s);
     void abort();
-    void encode(Serializer &serializer);
-    void decode(Deserializer &deserializer);
+    bool encode(Serializer &serializer);
+    void decode(Deserializer &deserializer, Map<Path, uint32_t> &blockedFiles);
     void onProcessFinished();
 
     State state;
