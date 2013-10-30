@@ -60,7 +60,7 @@ struct Source
         IncludeSourceFile = 0x2
     };
 
-    List<String> toCommandLine(unsigned int mode) const;
+    List<String> toCommandLine(unsigned int mode = IncludeCompiler|IncludeSourceFile) const;
     bool compare(const Source &other) const; // ignores parsed
     Path sourceFile() const;
     Path compiler() const;
