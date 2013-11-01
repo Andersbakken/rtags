@@ -166,6 +166,7 @@ bool Server::init(const Options &options)
             error() << "Can't add membership" << mOptions.multicastAddress;
             return false;
         }
+        mMulticastSocket->setMulticastLoop(false);
         mMulticastSocket->readyReadFrom().connect(std::bind(&Server::onMulticastReadyRead, this,
                                                             std::placeholders::_1,
                                                             std::placeholders::_2,
@@ -1426,11 +1427,13 @@ void Server::onMulticastReadyRead(SocketClient::SharedPtr &socket,
 
 void Server::fetchRemoteJobs(const String& ip, uint16_t port, uint16_t jobs)
 {
+    error() << "connecting to" << ip << port;
     Connection* conn = new Connection;
     if (!conn->connectTcp(ip, port)) {
         delete conn;
         return;
     }
+    error() << "asking for" << jobs << "jobs";
     conn->newMessage().connect(std::bind(&Server::onNewMessage, this, std::placeholders::_1, std::placeholders::_2));
     conn->disconnected().connect(std::bind(&Server::onConnectionDisconnected, this, std::placeholders::_1));
     conn->send(JobRequestMessage(std::max<uint16_t>(jobs, 2)));
@@ -1460,10 +1463,11 @@ void Server::startNextJob()
     }
 
     const uint16_t count = htons(static_cast<uint16_t>(mPending.size()));
+    const uint16_t tcpPort = htons(mOptions.tcpPort);
     unsigned char buf[5];
     buf[0] = 'j';
     memcpy(buf + 1, &count, sizeof(count));
-    memcpy(buf + 3, &mOptions.tcpPort, sizeof(mOptions.tcpPort));
+    memcpy(buf + 3, &tcpPort, sizeof(tcpPort));
     error() << "announcing" << mPending.size() << "jobs";
     mMulticastSocket->writeTo(mOptions.multicastAddress, mOptions.multicastPort, buf, sizeof(buf));
 }
