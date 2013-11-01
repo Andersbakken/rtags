@@ -152,8 +152,7 @@ Location ClangIndexer::createLocation(const Path &sourceFile, unsigned line, uns
                 // whether or not to index it. This is a little hairy but we
                 // have to try to optimize this process.
                 if (!mBlockedFiles.contains(sourceFile) && !mBlockedFiles.contains(resolved)) {
-                    error() << "Something wrong" << sourceFile << resolved << id
-                            << mSource.sourceFile();
+                    error() << "Something wrong" << sourceFile << resolved << id << mSource.sourceFile();
                 }
                 assert(mBlockedFiles.contains(sourceFile) || mBlockedFiles.contains(resolved));
                 mData->visited[id] = false;

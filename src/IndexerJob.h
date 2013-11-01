@@ -50,7 +50,7 @@ public:
     void abort();
     bool encode(Serializer &serializer);
     void decode(Deserializer &deserializer, Hash<Path, uint32_t> &blockedFiles);
-    void onProcessFinished(Process *p);
+    void onProcessFinished();
 
     State state;
     String destination;

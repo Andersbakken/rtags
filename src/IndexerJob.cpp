@@ -35,7 +35,7 @@ bool IndexerJob::startLocal()
 
     process = new Process;
     if (!port)
-        process->finished().connect(std::bind(&IndexerJob::onProcessFinished, this, std::placeholders::_1));
+        process->finished().connect(std::bind(&IndexerJob::onProcessFinished, this));
     if (!process->start(rp)) {
         error() << "Couldn't start rp" << process->errorString();
         delete process;
@@ -69,10 +69,8 @@ void IndexerJob::abort()
     case Pending:
         break;
     case Running:
-        if (process) {
+        if (process)
             process->kill();
-            process = 0;
-        }
         break;
     }
     state = Aborted;
@@ -104,19 +102,15 @@ void IndexerJob::decode(Deserializer &deserializer, Hash<Path, uint32_t> &blocke
     type = static_cast<IndexType>(t);
 }
 
-void IndexerJob::onProcessFinished(Process *p)
+void IndexerJob::onProcessFinished()
 {
-    if (p != process) {
-        return; // aborted jobs
-    }
-
     assert(!port);
     // error() << "PROCESS FINISHED" << source.sourceFile() << process->returnCode() << this;
     ::error() << process->readAllStdOut();
     ::error() << process->readAllStdErr();
     if (process->returnCode() == -1) {
         std::shared_ptr<Project> proj = Server::instance()->project(project);
-        if (proj && proj->state() != Project::Loaded) {
+        if (proj && proj->state() == Project::Loaded) {
             std::shared_ptr<IndexData> data(new IndexData(type));
             data->fileId = source.fileId;
             data->aborted = true;

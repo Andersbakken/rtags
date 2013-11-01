@@ -319,7 +319,13 @@ String preprocess(const Source &source)
 
     const Server::Options &options = Server::instance()->options();
     clang::HeaderSearchOptions &headerSearchOptions = compilerInstance.getHeaderSearchOpts();
-    headerSearchOptions.Sysroot = source.sysRoot();
+    Path sysRoot = source.sysRoot();
+    if (sysRoot != "/") {
+        assert(sysRoot.endsWith('/'));
+        sysRoot.chop(1);
+    }
+
+    headerSearchOptions.Sysroot = sysRoot;
     {
         clang::driver::Driver driver("clang", llvm::sys::getDefaultTargetTriple(), "a.out", diags);
         std::vector<std::string> copies; // not cool
