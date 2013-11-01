@@ -20,6 +20,7 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 #include "VisitFileMessage.h"
 #include "VisitFileResponseMessage.h"
 #include "IndexerMessage.h"
+#include "JobRequestMessage.h"
 #include <dirent.h>
 #include <fcntl.h>
 #include <fnmatch.h>
@@ -431,6 +432,7 @@ void initMessages()
     Messages::registerMessage<VisitFileResponseMessage>();
     Messages::registerMessage<VisitFileMessage>();
     Messages::registerMessage<IndexerMessage>();
+    Messages::registerMessage<JobRequestMessage>();
 #endif
 }
 }

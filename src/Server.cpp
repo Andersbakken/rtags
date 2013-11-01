@@ -1428,7 +1428,7 @@ void Server::onMulticastReadyRead(SocketClient::SharedPtr &socket,
 void Server::fetchRemoteJobs(const String& ip, uint16_t port, uint16_t jobs)
 {
     error() << "connecting to" << ip << port;
-    Connection* conn = new Connection;
+    Connection* conn = new Connection(SocketClient::Tcp);
     if (!conn->connectTcp(ip, port)) {
         delete conn;
         return;

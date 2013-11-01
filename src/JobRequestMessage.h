@@ -23,7 +23,7 @@ class JobRequestMessage : public ClientMessage
 public:
     enum { MessageId = JobRequestId };
 
-    JobRequestMessage(int numJobs)
+    JobRequestMessage(int numJobs = -1)
         : ClientMessage(MessageId), mNumJobs(numJobs)
     {
     }

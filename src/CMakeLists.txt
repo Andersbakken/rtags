@@ -70,6 +70,7 @@ set(RTAGS_SHARED_SOURCES
   CreateOutputMessage.cpp
   Location.cpp
   QueryMessage.cpp
+  JobRequestMessage.cpp
   RTags.cpp)
 
 add_library(shared SHARED ${RTAGS_SHARED_SOURCES})
@@ -85,7 +86,6 @@ set(RDM_SOURCES
   FollowLocationJob.cpp
   IndexerJob.cpp
   Job.cpp
-  JobRequestMessage.cpp
   ListSymbolsJob.cpp
   Preprocessor.cpp
   Project.cpp
