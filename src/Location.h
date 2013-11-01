@@ -20,7 +20,6 @@
 #include <rct/Log.h>
 #include <rct/Path.h>
 #include <rct/Serializer.h>
-#include <mutex>
 #include <assert.h>
 #include <clang-c/Index.h>
 #include <stdio.h>
@@ -65,18 +64,12 @@ public:
 
     static inline uint32_t insertFile(const Path &path)
     {
-        uint32_t ret;
-        {
-            std::lock_guard<std::mutex> lock(sMutex);
-            uint32_t &id = sPathsToIds[path];
-            if (!id) {
-                id = ++sLastId;
-                sIdsToPaths[id] = path;
-            }
-            ret = id;
+        uint32_t &id = sPathsToIds[path];
+        if (!id) {
+            id = ++sLastId;
+            sIdsToPaths[id] = path;
         }
-
-        return ret;
+        return id;
     }
 
     inline uint32_t fileId() const { return ((mData & FILEID_MASK) >> (64 - FileBits)); }
@@ -228,7 +221,6 @@ private:
     static Hash<Path, uint32_t> sPathsToIds;
     static Hash<uint32_t, Path> sIdsToPaths;
     static uint32_t sLastId;
-    static std::mutex sMutex;
     mutable Path mCachedPath;
     enum {
         FileBits = 22,
