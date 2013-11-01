@@ -289,6 +289,14 @@ Source Source::parse(const String &cmdLine, const Path &base, Path *unresolvedIn
                         ret.language = CPlusPlus11;
                     }
                 }
+            } else if (arg.startsWith("-isysroot")) {
+                ret.arguments.append(arg);
+                if (i + 1 < s) {
+                    ret.sysRootIndex = ret.arguments.size();
+                    Path root = split.value(++i);
+                    root.resolve();
+                    ret.arguments.append(root);
+                }
             } else if (arg.startsWith("-include")) {
                 ret.arguments.append(arg);
                 if (arg.size() == 8) {

@@ -50,6 +50,7 @@ struct Source
     List<Define> defines;
     List<Path> includePaths;
     List<String> arguments;
+    int sysRootIndex;
 
     bool isValid() const { return fileId; }
     bool isNull() const  { return !fileId; }
@@ -66,12 +67,13 @@ struct Source
     Path compiler() const;
     void clear();
     String toString() const;
+    Path sysRoot() const { return arguments.value(sysRootIndex, "/"); }
 
     static Source parse(const String &cmdLine, const Path &pwd, Path *unresolvedInputLocation = 0);
 };
 
 inline Source::Source()
-    : fileId(0), compilerId(0), language(NoLanguage), parsed(0)
+    : fileId(0), compilerId(0), language(NoLanguage), parsed(0), sysRootIndex(-1)
 {
 }
 
@@ -90,7 +92,7 @@ template <> inline Deserializer &operator>>(Deserializer &s, Source::Define &d)
 template <> inline Serializer &operator<<(Serializer &s, const Source &b)
 {
     s << b.fileId << b.compilerId << static_cast<uint8_t>(b.language) << b.parsed
-      << b.defines << b.includePaths << b.arguments;
+      << b.defines << b.includePaths << b.arguments << b.sysRootIndex;
     return s;
 }
 
@@ -99,7 +101,7 @@ template <> inline Deserializer &operator>>(Deserializer &s, Source &b)
     b.clear();
     uint8_t language;
     s >> b.fileId >> b.compilerId >> language >> b.parsed
-      >> b.defines >> b.includePaths >> b.arguments;
+      >> b.defines >> b.includePaths >> b.arguments >> b.sysRootIndex;
     b.language = static_cast<Source::Language>(language);
     return s;
 }
