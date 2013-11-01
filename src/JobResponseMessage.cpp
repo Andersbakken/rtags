@@ -38,7 +38,7 @@ void JobResponseMessage::toIndexerJob(std::shared_ptr<IndexerJob>& job, Connecti
     job->source = source;
     job->sourceFile = sourceFile;
     std::string dest;
-    conn->client()->peer(dest, job->port);
+    conn->client()->peer(&dest);
     job->destination = dest;
     job->port = port;
 }
