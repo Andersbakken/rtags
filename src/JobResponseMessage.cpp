@@ -16,15 +16,17 @@
 #include "JobResponseMessage.h"
 #include <rct/Serializer.h>
 #include <rct/Connection.h>
+#include <arpa/inet.h>
 
 void JobResponseMessage::encode(Serializer &serializer) const
 {
-    serializer << preprocessed << project << source << sourceFile;
+    serializer << preprocessed << project << source << sourceFile << htons(port);
 }
 
 void JobResponseMessage::decode(Deserializer &deserializer)
 {
-    deserializer >> preprocessed >> project >> source >> sourceFile;
+    deserializer >> preprocessed >> project >> source >> sourceFile >> port;
+    port = ntohs(port);
 }
 
 void JobResponseMessage::toIndexerJob(std::shared_ptr<IndexerJob>& job, Connection* conn) const
@@ -38,5 +40,5 @@ void JobResponseMessage::toIndexerJob(std::shared_ptr<IndexerJob>& job, Connecti
     std::string dest;
     conn->client()->peer(dest, job->port);
     job->destination = dest;
-    error() << "got indexer job for" << job->destination << ":" << job->port;
+    job->port = port;
 }

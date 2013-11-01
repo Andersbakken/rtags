@@ -1312,8 +1312,10 @@ void Server::handleJobRequestMessage(const JobRequestMessage &message, Connectio
 #warning should do a background pre-preprocess all jobs prior to this
     error() << "got a request for" << message.numJobs() << "jobs";
     while (!mPending.isEmpty()) {
-        conn->send(JobResponseMessage(*mPending.begin()));
-        mRemoteJobs.append(*mPending.begin());
+        std::shared_ptr<IndexerJob>& job = *mPending.begin();
+        error() << "sending job for" << job->sourceFile;
+        conn->send(JobResponseMessage(job, mOptions.tcpPort));
+        mRemoteJobs.append(job);
         mPending.erase(mPending.begin());
     }
 }
@@ -1420,7 +1422,6 @@ void Server::onMulticastReadyRead(SocketClient::SharedPtr &socket,
             log << "Got unexpected header in data from" << ip << *data;
             return;
         }
-        assert(*data == 'j');
         jobs = ntohs(*reinterpret_cast<const uint16_t*>(data + 1));
         tcpPort = ntohs(*reinterpret_cast<const uint16_t*>(data + 3));
         error() << ip << "has" << jobs << "jobs" << "on port" << tcpPort;
