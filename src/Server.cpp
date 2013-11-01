@@ -60,7 +60,7 @@
 
 Server *Server::sInstance = 0;
 Server::Server()
-    : mVerbose(false), mCurrentFileId(0), mLocalPending(0)
+    : mVerbose(false), mCurrentFileId(0), mRemotePending(0)
 {
     assert(!sInstance);
     sInstance = this;
@@ -1318,8 +1318,6 @@ void Server::handleJobRequestMessage(const JobRequestMessage &message, Connectio
         conn->send(JobResponseMessage(job, mOptions.tcpPort));
         mRemoteJobs.append(job);
         mPending.pop_front();
-        assert(mLocalPending > 0);
-        --mLocalPending;
         --cnt;
     }
     conn->finish();
@@ -1330,6 +1328,7 @@ void Server::handleJobResponseMessage(const JobResponseMessage &message, Connect
     std::shared_ptr<IndexerJob> job(new IndexerJob);
     message.toIndexerJob(job, conn);
     error() << "got indexer job for" << job->destination << ":" << job->port << "with preprocessed" << job->preprocessed.size();
+    assert(job->type == IndexerJob::Remote);
     startJob(job);
 }
 
@@ -1466,8 +1465,8 @@ void Server::startJob(const std::shared_ptr<IndexerJob> &job)
 {
     assert(job);
     mPending.push_back(job);
-    if (job->type != IndexerJob::Remote)
-        ++mLocalPending;
+    if (job->type == IndexerJob::Remote)
+        ++mRemotePending;
     startNextJob();
 }
 
@@ -1480,8 +1479,6 @@ void Server::startNextJob()
             assert(job->process);
             mLocalJobs[job->process] = job;
             mPending.pop_front();
-            assert(mLocalPending > 0);
-            --mLocalPending;
             job->process->finished().connect(std::bind(&Server::onLocalJobFinished, this,
                                                        std::placeholders::_1));
         } else {
@@ -1489,19 +1486,23 @@ void Server::startNextJob()
         }
     }
 
-    const uint16_t count = htons(static_cast<uint16_t>(mLocalPending));
+    const uint16_t count = htons(static_cast<uint16_t>(mPending.size() - mRemotePending));
     const uint16_t tcpPort = htons(mOptions.tcpPort);
     unsigned char buf[5];
     buf[0] = 'j';
     memcpy(buf + 1, &count, sizeof(count));
     memcpy(buf + 3, &tcpPort, sizeof(tcpPort));
-    error() << "announcing" << mLocalPending << "jobs";
+    error() << "announcing" << mPending.size() - mRemotePending << "jobs";
     mMulticastSocket->writeTo(mOptions.multicastAddress, mOptions.multicastPort, buf, sizeof(buf));
 }
 
 void Server::onLocalJobFinished(Process *process)
 {
-    mLocalJobs.remove(process);
+    Map<Process*, std::shared_ptr<IndexerJob> >::iterator it = mLocalJobs.find(process);
+    assert(it != mLocalJobs.end());
+    if (it->second->type == IndexerJob::Remote)
+        --mRemotePending;
+    mLocalJobs.erase(it);
     EventLoop::deleteLater(process);
     startNextJob();
 }
