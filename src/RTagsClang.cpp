@@ -24,13 +24,16 @@
 #ifdef HAVE_BACKTRACE
 #undef HAVE_BACKTRACE
 #endif
-#include <llvm/Config/config.h>
 
+#include <llvm/Config/config.h>
+#include <llvm-c/Core.h>
+#include <llvm-c/Target.h>
+#include <clang/CodeGen/CodeGenAction.h>
+#include <clang/Frontend/CompilerInstance.h>
 #include <clang/Driver/ArgList.h>
 #include <clang/Driver/Compilation.h>
 #include <clang/Driver/Driver.h>
 #include <clang/Driver/ToolChain.h>
-#include <clang/Frontend/CompilerInstance.h>
 #include <clang/Frontend/Utils.h>
 #include <clang/Lex/Preprocessor.h>
 #include <llvm/Support/raw_ostream.h>
@@ -277,6 +280,89 @@ static std::string toString(const Source::Define &def)
         ret += def.value;
     }
     return ret;
+}
+
+bool compile(const Path& output, const Source &source, const String& preprocessed)
+{
+    StopWatch sw;
+
+    LLVMInitializeAllTargetInfos();
+    LLVMInitializeAllTargets();
+    LLVMInitializeAllTargetMCs();
+    LLVMInitializeAllAsmPrinters();
+    LLVMInitializeAllAsmParsers();
+
+    clang::CompilerInstance compilerInstance;
+    compilerInstance.createFileManager();
+    assert(compilerInstance.hasFileManager());
+    compilerInstance.createDiagnostics();
+    assert(compilerInstance.hasDiagnostics());
+
+    clang::FileManager &fm = compilerInstance.getFileManager();
+    compilerInstance.createSourceManager(fm);
+    assert(compilerInstance.hasSourceManager());
+    clang::SourceManager &sm = compilerInstance.getSourceManager();
+
+    const Path& sourceFile = source.sourceFile();
+    clang::StringRef src(sourceFile.constData(), sourceFile.size());
+    clang::StringRef pre(preprocessed.constData(), preprocessed.size());
+    llvm::MemoryBuffer* premem = llvm::MemoryBuffer::getMemBuffer(pre, src);
+    const clang::FileEntry* preent = fm.getVirtualFile(src, preprocessed.size(), time(0));
+    sm.overrideFileContents(preent, premem);
+
+    clang::TargetOptions &targetOptions = compilerInstance.getTargetOpts();
+    targetOptions.Triple = llvm::sys::getDefaultTargetTriple();
+    clang::DiagnosticsEngine& diags = compilerInstance.getDiagnostics();
+    compilerInstance.setTarget(clang::TargetInfo::CreateTargetInfo(diags, &targetOptions));
+    clang::LangOptions &langOpts = compilerInstance.getLangOpts();
+
+    clang::InputKind ik;
+
+    switch (source.language) {
+    case Source::CPlusPlus11:
+    case Source::CPlusPlus:
+        ik = clang::IK_PreprocessedCXX;
+        break;
+    default:
+        ik = clang::IK_PreprocessedC;
+        break;
+    }
+    compilerInstance.getInvocation().setLangDefaults(langOpts, ik);
+    if (source.language == Source::CPlusPlus11)
+        langOpts.CPlusPlus11 = true;
+
+    clang::FrontendInputFile input(src, ik);
+
+    clang::FrontendOptions& feopts = compilerInstance.getFrontendOpts();
+    feopts.ProgramAction = clang::frontend::EmitObj;
+    feopts.Inputs.push_back(input);
+
+    compilerInstance.setTarget(clang::TargetInfo::CreateTargetInfo(compilerInstance.getDiagnostics(), &compilerInstance.getTargetOpts()));
+    compilerInstance.getTarget().setForcedLangOptions(langOpts);
+
+    // ### ???
+    compilerInstance.createPreprocessor();
+    clang::InitializePreprocessor(compilerInstance.getPreprocessor(),
+                                  compilerInstance.getPreprocessorOpts(),
+                                  compilerInstance.getHeaderSearchOpts(),
+                                  feopts);
+
+    //compilerInstance.getDiagnosticClient().BeginSourceFile(compilerInstance.getLangOpts(), &compilerInstance.getPreprocessor());
+
+    compilerInstance.clearOutputFiles(false);
+    clang::StringRef out(output.constData(), output.size());
+    //llvm::raw_fd_ostream* ostrm = compilerInstance.createDefaultOutputFile(true, out);
+    llvm::raw_fd_ostream* ostrm = compilerInstance.createOutputFile(out, true, true, "", "o");
+    ostrm->SetUnbuffered();
+
+    clang::EmitObjAction emitact;
+    emitact.BeginSourceFile(compilerInstance, input);
+    emitact.Execute();
+    emitact.EndSourceFile();
+
+    LLVMShutdown();
+
+    return true;
 }
 
 String preprocess(const Source &source)
