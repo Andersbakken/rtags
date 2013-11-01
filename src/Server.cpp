@@ -1443,7 +1443,10 @@ void Server::onMulticastReadyRead(SocketClient::SharedPtr &socket,
         return;
     }
     if (jobs && tcpPort) {
-        fetchRemoteJobs(ip, tcpPort, jobs);
+        assert(mLocalJobs.size() <= mOptions.processCount);
+        const uint16_t maxJobs = std::min<uint16_t>(jobs, mOptions.processCount - mLocalJobs.size());
+        if (maxJobs > 0)
+            fetchRemoteJobs(ip, tcpPort, maxJobs);
     }
 }
 
@@ -1458,7 +1461,7 @@ void Server::fetchRemoteJobs(const String& ip, uint16_t port, uint16_t jobs)
     error() << "asking for" << jobs << "jobs";
     conn->newMessage().connect(std::bind(&Server::onNewMessage, this, std::placeholders::_1, std::placeholders::_2));
     conn->disconnected().connect(std::bind(&Server::onConnectionDisconnected, this, std::placeholders::_1));
-    conn->send(JobRequestMessage(std::min<uint16_t>(jobs, 2)));
+    conn->send(JobRequestMessage(jobs));
 }
 
 void Server::startJob(const std::shared_ptr<IndexerJob> &job)
