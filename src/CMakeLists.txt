@@ -85,6 +85,7 @@ set(RDM_SOURCES
   FollowLocationJob.cpp
   IndexerJob.cpp
   Job.cpp
+  JobRequestMessage.cpp
   ListSymbolsJob.cpp
   Preprocessor.cpp
   Project.cpp

@@ -39,6 +39,7 @@
 #include "QueryMessage.h"
 #include "VisitFileMessage.h"
 #include "IndexerMessage.h"
+#include "JobRequestMessage.h"
 #include "RTags.h"
 #include "ReferencesJob.h"
 #include "StatusJob.h"
@@ -285,6 +286,9 @@ void Server::onNewMessage(Message *message, Connection *connection)
         // assert(0);
         connection->finish();
         break;
+    case JobRequestMessage::MessageId:
+        handleJobRequestMessage(static_cast<const JobRequestMessage&>(*message), connection);
+        break;
     default:
         error("Unknown message: %d", message->messageId());
         connection->finish();
@@ -458,9 +462,6 @@ void Server::handleQueryMessage(const QueryMessage &message, Connection *conn)
         break;
     case QueryMessage::ReloadFileManager:
         reloadFileManager(message, conn);
-        break;
-    case QueryMessage::RequestJob:
-        requestJob(message, conn);
         break;
     }
 }
@@ -747,19 +748,6 @@ void Server::reloadFileManager(const QueryMessage &, Connection *conn)
         conn->write("No current project");
         conn->finish();
     }
-}
-
-void Server::requestJob(const QueryMessage &, Connection *conn)
-{
-    // std::shared_ptr<Project> project = currentProject();
-    // if (project) {
-    //     conn->write<512>("Reloading files for %s", project->path().constData());
-    //     conn->finish();
-    //     project->fileManager->reload(FileManager::Asynchronous);
-    // } else {
-    //     conn->write("No current project");
-    //     conn->finish();
-    // }
 }
 
 void Server::hasFileManager(const QueryMessage &query, Connection *conn)
@@ -1314,6 +1302,12 @@ void Server::suspendFile(const QueryMessage &query, Connection *conn)
     conn->finish();
 }
 
+void Server::handleJobRequestMessage(const JobRequestMessage &message, Connection *conn)
+{
+    error() << "got a request for" << message.numJobs() << "jobs";
+    conn->finish();
+}
+
 void Server::handleVisitFileMessage(const VisitFileMessage &message, Connection *conn)
 {
     uint32_t fileId = 0;
@@ -1390,24 +1384,56 @@ void Server::onUnload()
         }
     }
 }
+
 void Server::onMulticastReadyRead(SocketClient::SharedPtr &socket,
                                   const std::string &ip,
                                   uint16_t port,
                                   Buffer &&in)
 {
+    uint16_t jobs = 0;
+    uint16_t tcpPort = 0;
+
     const Buffer buffer = std::forward<Buffer>(in);
-    const int size = buffer.size();
+    int size = buffer.size();
     const unsigned char *data = buffer.data();
-    if (size == 3 && data[0] == 'j') {
-        const unsigned short jobs = ntohs(*reinterpret_cast<const unsigned short*>(data + 1));
-        error() << ip << "has" << jobs << "jobs";
-    } else {
+    while (size >= 5) {
+        if (*data != 'j') {
+            Log log(Error);
+            log << "Got unexpected header in data from" << ip << *data;
+            return;
+        }
+        assert(*data == 'j');
+        jobs = ntohs(*reinterpret_cast<const uint16_t*>(data + 1));
+        tcpPort = ntohs(*reinterpret_cast<const uint16_t*>(data + 3));
+        error() << ip << "has" << jobs << "jobs" << "on port" << tcpPort;
+        data += 5;
+        size -= 5;
+    }
+    if (size > 0) {
         Log log(Error);
         log << "Got unexpected data from" << ip << size;
-        for (int i=0; i<size; ++i) {
-            log << data[i];
+        while (size) {
+            printf("0x%x", *(data++));
+            --size;
         }
+        printf("\n");
+        return;
     }
+    if (jobs && tcpPort) {
+        fetchRemoteJobs(ip, tcpPort, jobs);
+    }
+}
+
+void Server::fetchRemoteJobs(const String& ip, uint16_t port, uint16_t jobs)
+{
+    Connection* conn = new Connection;
+    if (!conn->connectTcp(ip, port)) {
+        delete conn;
+        return;
+    }
+    conn->newMessage().connect(std::bind(&Server::onNewMessage, this, std::placeholders::_1, std::placeholders::_2));
+    conn->disconnected().connect(std::bind(&Server::onConnectionDisconnected, this, std::placeholders::_1));
+    conn->send(JobRequestMessage(std::max<uint16_t>(jobs, 2)));
 }
 
 void Server::startJob(const std::shared_ptr<IndexerJob> &job)
@@ -1433,10 +1459,11 @@ void Server::startNextJob()
         }
     }
 
-    const unsigned short count = htons(static_cast<unsigned short>(mPending.size()));
-    unsigned char buf[3];
+    const uint16_t count = htons(static_cast<uint16_t>(mPending.size()));
+    unsigned char buf[5];
     buf[0] = 'j';
     memcpy(buf + 1, &count, sizeof(count));
+    memcpy(buf + 3, &mOptions.tcpPort, sizeof(mOptions.tcpPort));
     error() << "announcing" << mPending.size() << "jobs";
     mMulticastSocket->writeTo(mOptions.multicastAddress, mOptions.multicastPort, buf, sizeof(buf));
 }

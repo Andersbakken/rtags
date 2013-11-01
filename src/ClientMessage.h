@@ -30,6 +30,7 @@ public:
         VisitFileResponseId,
         VisitFileId,
         IndexerMessageId,
+        JobRequestId,
         JobResponseId
     };
 

@@ -53,7 +53,6 @@ public:
         ReloadFileManager,
         ReloadProjects,
         RemoveFile,
-        RequestJob,
         Shutdown,
         Status,
         UnloadProject,

@@ -43,6 +43,7 @@ class JobOutput;
 class Project;
 class IndexerJob;
 class VisitFileMessage;
+class JobRequestMessage;
 class Server
 {
 public:
@@ -110,6 +111,7 @@ private:
     void handleErrorMessage(const ErrorMessage &message, Connection *conn);
     void handleCreateOutputMessage(const CreateOutputMessage &message, Connection *conn);
     void handleVisitFileMessage(const VisitFileMessage &message, Connection *conn);
+    void handleJobRequestMessage(const JobRequestMessage &message, Connection *conn);
     void isIndexing(const QueryMessage &, Connection *conn);
     void removeFile(const QueryMessage &query, Connection *conn);
     void followLocation(const QueryMessage &query, Connection *conn);
@@ -125,7 +127,6 @@ private:
     void isIndexed(const QueryMessage &query, Connection *conn);
     void hasFileManager(const QueryMessage &query, Connection *conn);
     void reloadFileManager(const QueryMessage &query, Connection *conn);
-    void requestJob(const QueryMessage &query, Connection *conn);
     void preprocessFile(const QueryMessage &query, Connection *conn);
     void findFile(const QueryMessage &query, Connection *conn);
     void dumpFile(const QueryMessage &query, Connection *conn);
@@ -147,6 +148,7 @@ private:
                               uint16_t port, Buffer &&buffer);
     void onLocalJobFinished(Process *process);
     void startNextJob();
+    void fetchRemoteJobs(const String& ip, uint16_t port, uint16_t jobs);
 
     typedef Hash<Path, std::shared_ptr<Project> > ProjectsMap;
     ProjectsMap mProjects;
