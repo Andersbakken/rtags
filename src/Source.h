@@ -112,6 +112,13 @@ static inline Log operator<<(Log dbg, const Source &s)
     return dbg;
 }
 
+static inline Log operator<<(Log dbg, const Source::Define &def)
+{
+    dbg << def.toString();
+    return dbg;
+}
+
+
 inline bool Source::Define::operator==(const Source::Define &other) const
 {
     return define == other.define && value == other.value;
