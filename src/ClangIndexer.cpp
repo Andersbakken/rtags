@@ -27,9 +27,9 @@ struct VerboseVisitorUserData {
 
 ClangIndexer::ClangIndexer()
     : mUnit(0), mIndex(0), mLastCursor(nullCursor), mVisitFileResponseMessageFileId(0),
-      mVisitFileResponseMessageVisit(0), mVisitedFiles(1), mParseDuration(0),
-      mVisitDuration(0), mCommunicationDuration(0), mBlocked(0), mAllowed(0),
-      mVisitFileTimeout(0), mIndexerMessageTimeout(0), mLogFile(0)
+      mVisitFileResponseMessageVisit(0), mParseDuration(0),
+      mVisitDuration(0), mCommunicationDuration(0), mBlocked(0), mAllowed(0), mIndexed(1),
+      mVisitFileTimeout(0), mIndexerMessageTimeout(0), mFileIdsQueried(0), mLogFile(0)
 {
     mConnection.newMessage().connect(std::bind(&ClangIndexer::onMessage, this,
                                                std::placeholders::_1, std::placeholders::_2));
@@ -58,6 +58,10 @@ bool ClangIndexer::connect(const String &hostName, uint16_t port)
 bool ClangIndexer::index(IndexerJob::IndexType type, const Source &source,
                          const String &preprocessed, const Path &project)
 {
+    // FILE *f = fopen((String("/tmp/") + source.sourceFile().fileName()).constData(), "w");
+    // fwrite(preprocessed.constData(), 1, preprocessed.size(), f);
+    // fclose(f);
+
     // mLogFile = fopen(String::format("/tmp/%s", sourceFile.fileName()).constData(), "w");
     mData.reset(new IndexData(type));
     mData->fileId = source.fileId;
@@ -75,10 +79,12 @@ bool ClangIndexer::index(IndexerJob::IndexType type, const Source &source,
             mData->message += " error";
         mData->message += String::format<16>(" in %dms. ", mTimer.elapsed());
         if (mUnit) {
-            mData->message += String::format<128>("(%d syms, %d symNames, %d refs, %d deps, %d files, %d blocked) (%d/%d/%dms) (%d/%d)",
+            const char *format = "(%d syms, %d symNames, %d refs, %d deps, %d of %d files, cursors: %d of %d, %d queried) (%d/%d/%dms)";
+            mData->message += String::format<128>(format,
                                                   mData->symbols.size(), mData->symbolNames.size(), mData->references.size(),
-                                                  mData->dependencies.size(), mVisitedFiles, mData->visited.size() - mVisitedFiles,
-                                                  mParseDuration, mVisitDuration, mCommunicationDuration, mBlocked, mAllowed);
+                                                  mData->dependencies.size(), mIndexed, mData->visited.size(), mAllowed,
+                                                  mAllowed + mBlocked, mFileIdsQueried, mParseDuration, mVisitDuration,
+                                                  mCommunicationDuration);
         } else if (mData->dependencies.size()) {
             mData->message += String::format<16>("(%d deps)", mData->dependencies.size());
         }
@@ -86,6 +92,7 @@ bool ClangIndexer::index(IndexerJob::IndexType type, const Source &source,
             mData->message += " (dirty)";
     }
     const IndexerMessage msg(mProject, mData);
+    ++mFileIdsQueried;
     // FILE *f = fopen("/tmp/clangindex.log", "a");
     // fprintf(f, "Writing indexer message %d\n", mData->symbols.size());
 
@@ -108,8 +115,6 @@ bool ClangIndexer::index(IndexerJob::IndexType type, const Source &source,
     // fprintf(f, "Wrote indexer message %d\n", mData->symbols.size());
     // fclose(f);
 
-    // FILE *f = fopen((String("/tmp/") + sourceFile.fileName()).constData(), "w");
-    // fclose(f);
     return true;
 }
 
@@ -136,13 +141,25 @@ Location ClangIndexer::createLocation(const Path &sourceFile, unsigned line, uns
 
     if (id) {
         if (blockedPtr) {
-            if ((resolved.isEmpty() ? mBlockedFiles.contains(resolved) || mBlockedFiles.contains(sourceFile))) {
+            Hash<uint32_t, bool>::iterator it = mData->visited.find(id);
+            if (it == mData->visited.end()) {
+                // the only reason we already have an id for a file that isn't
+                // in the mData->visited is that it's blocked from the outset.
+                // The assumption is that we never will go and fetch a file id
+                // for a location without passing blockedPtr since any reference
+                // to a symbol in another file should have been preceded by that
+                // header in which case we would have to make a decision on
+                // whether or not to index it. This is a little hairy but we
+                // have to try to optimize this process.
+                if (!mBlockedFiles.contains(sourceFile) && !mBlockedFiles.contains(resolved)) {
+                    error() << "Something wrong" << sourceFile << resolved << id
+                            << mSource.sourceFile();
+                }
+                assert(mBlockedFiles.contains(sourceFile) || mBlockedFiles.contains(resolved));
                 mData->visited[id] = false;
                 *blockedPtr = true;
                 return Location();
-            }
-            assert(mData->visited.contains(id));
-            if (!mData->visited.value(id)) {
+            } else if (!it->second) {
                 *blockedPtr = true;
                 return Location();
             }
@@ -150,6 +167,7 @@ Location ClangIndexer::createLocation(const Path &sourceFile, unsigned line, uns
         return Location(id, line, col);
     }
 
+    ++mFileIdsQueried;
     VisitFileMessage msg(resolved, mProject, mData->fileId);
 
     mVisitFileResponseMessageFileId = 0;
@@ -163,8 +181,9 @@ Location ClangIndexer::createLocation(const Path &sourceFile, unsigned line, uns
         error() << "Error getting fileId for" << resolved;
         exit(1);
     }
-    if (blockedPtr)
-        mData->visited[id] = mVisitFileResponseMessageVisit;
+    mData->visited[id] = mVisitFileResponseMessageVisit;
+    if (mVisitFileResponseMessageVisit)
+        ++mIndexed;
     // fprintf(mLogFile, "%s %s\n", file.second ? "WON" : "LOST", resolved.constData());
 
     Location::set(resolved, id);
@@ -1093,7 +1112,7 @@ bool ClangIndexer::diagnose()
             }
             if (testLog(logLevel) || testLog(RTags::CompilationError)) {
                 if (testLog(logLevel))
-                    logDirect(logLevel, msg.constData());
+                    log(logLevel, "Got an error in ClangIndexer: %s", msg.constData());
                 if (testLog(RTags::CompilationError))
                     logDirect(RTags::CompilationError, msg.constData());
             }
@@ -1320,7 +1339,7 @@ void ClangIndexer::inclusionVisitor(CXFile includedFile,
         }
     }
 }
-void ClangIndexer::setBlockedFiles(Map<Path, uint32_t> &&blockedFiles)
+void ClangIndexer::setBlockedFiles(Hash<Path, uint32_t> &&blockedFiles)
 {
-    mBlockedFiles = std::forward<Map<Path, uint32_t> >(blockedFiles);
+    mBlockedFiles = std::forward<Hash<Path, uint32_t> >(blockedFiles);
 }

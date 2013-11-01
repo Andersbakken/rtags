@@ -97,7 +97,7 @@ bool IndexerJob::encode(Serializer &serializer)
     return true;
 }
 
-void IndexerJob::decode(Deserializer &deserializer, Map<Path, uint32_t> &blockedFiles)
+void IndexerJob::decode(Deserializer &deserializer, Hash<Path, uint32_t> &blockedFiles)
 {
     uint8_t t;
     int ignored; // timeouts

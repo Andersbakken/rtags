@@ -51,7 +51,7 @@ int main(int argc, char **argv)
     String preprocessed;
     Path project;
     uint8_t type;
-    Map<Path, uint32_t> blockedFiles;
+    Hash<Path, uint32_t> blockedFiles;
     int visitFileTimeout, indexerMessageTimeout;
     deserializer >> destination >> port >> sourceFile >> source
                  >> preprocessed >> project >> type

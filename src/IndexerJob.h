@@ -49,7 +49,7 @@ public:
     bool update(IndexType t, const Source &s);
     void abort();
     bool encode(Serializer &serializer);
-    void decode(Deserializer &deserializer, Map<Path, uint32_t> &blockedFiles);
+    void decode(Deserializer &deserializer, Hash<Path, uint32_t> &blockedFiles);
     void onProcessFinished();
 
     State state;
