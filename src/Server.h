@@ -167,6 +167,7 @@ private:
     std::shared_ptr<SocketClient> mMulticastSocket;
     LinkedList<std::shared_ptr<IndexerJob> > mPending, mRemoteJobs;
     Map<Process*, std::shared_ptr<IndexerJob> > mLocalJobs;
+    unsigned int mLocalPending;
 };
 
 #endif

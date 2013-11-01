@@ -32,7 +32,8 @@ public:
         Invalid,
         Makefile,
         Dirty,
-        Dump
+        Dump,
+        Remote
     };
 
     IndexerJob(IndexType type, const Path &p, const Source &s);

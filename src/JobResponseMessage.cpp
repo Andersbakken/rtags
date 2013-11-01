@@ -32,7 +32,7 @@ void JobResponseMessage::decode(Deserializer &deserializer)
 void JobResponseMessage::toIndexerJob(std::shared_ptr<IndexerJob>& job, Connection* conn) const
 {
     job->state = IndexerJob::Pending;
-    job->type = IndexerJob::Dirty;
+    job->type = IndexerJob::Remote;
     job->preprocessed = preprocessed;
     job->project = project;
     job->source = source;

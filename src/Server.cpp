@@ -60,7 +60,7 @@
 
 Server *Server::sInstance = 0;
 Server::Server()
-    : mVerbose(false), mCurrentFileId(0)
+    : mVerbose(false), mCurrentFileId(0), mLocalPending(0)
 {
     assert(!sInstance);
     sInstance = this;
@@ -1311,13 +1311,18 @@ void Server::handleJobRequestMessage(const JobRequestMessage &message, Connectio
 {
 #warning should do a background pre-preprocess all jobs prior to this
     error() << "got a request for" << message.numJobs() << "jobs";
-    while (!mPending.isEmpty()) {
+    int cnt = message.numJobs();
+    while (!mPending.isEmpty() && cnt > 0) {
         std::shared_ptr<IndexerJob>& job = *mPending.begin();
         error() << "sending job for" << job->sourceFile;
         conn->send(JobResponseMessage(job, mOptions.tcpPort));
         mRemoteJobs.append(job);
-        mPending.erase(mPending.begin());
+        mPending.pop_front();
+        assert(mLocalPending > 0);
+        --mLocalPending;
+        --cnt;
     }
+    conn->finish();
 }
 
 void Server::handleJobResponseMessage(const JobResponseMessage &message, Connection *conn)
@@ -1461,6 +1466,8 @@ void Server::startJob(const std::shared_ptr<IndexerJob> &job)
 {
     assert(job);
     mPending.push_back(job);
+    if (job->type != IndexerJob::Remote)
+        ++mLocalPending;
     startNextJob();
 }
 
@@ -1473,6 +1480,8 @@ void Server::startNextJob()
             assert(job->process);
             mLocalJobs[job->process] = job;
             mPending.pop_front();
+            assert(mLocalPending > 0);
+            --mLocalPending;
             job->process->finished().connect(std::bind(&Server::onLocalJobFinished, this,
                                                        std::placeholders::_1));
         } else {
@@ -1480,13 +1489,13 @@ void Server::startNextJob()
         }
     }
 
-    const uint16_t count = htons(static_cast<uint16_t>(mPending.size()));
+    const uint16_t count = htons(static_cast<uint16_t>(mLocalPending));
     const uint16_t tcpPort = htons(mOptions.tcpPort);
     unsigned char buf[5];
     buf[0] = 'j';
     memcpy(buf + 1, &count, sizeof(count));
     memcpy(buf + 3, &tcpPort, sizeof(tcpPort));
-    error() << "announcing" << mPending.size() << "jobs";
+    error() << "announcing" << mLocalPending << "jobs";
     mMulticastSocket->writeTo(mOptions.multicastAddress, mOptions.multicastPort, buf, sizeof(buf));
 }
 

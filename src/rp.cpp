@@ -77,6 +77,7 @@ int main(int argc, char **argv)
     case IndexerJob::Dirty:
     case IndexerJob::Makefile:
     case IndexerJob::Dump:
+    case IndexerJob::Remote:
         break;
     default:
         fprintf(stderr, "Invalid type %d\n", type);
