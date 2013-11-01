@@ -1477,6 +1477,7 @@ void Server::startNextJob()
         assert(job);
         if (job->startLocal()) {
             assert(job->process);
+            error() << "started job locally for" << job->sourceFile;
             mLocalJobs[job->process] = job;
             mPending.pop_front();
             job->process->finished().connect(std::bind(&Server::onLocalJobFinished, this,
@@ -1486,6 +1487,8 @@ void Server::startNextJob()
         }
     }
 
+    if (mRemotePending >= mPending.size() || mPending.empty())
+        return;
     const uint16_t count = htons(static_cast<uint16_t>(mPending.size() - mRemotePending));
     const uint16_t tcpPort = htons(mOptions.tcpPort);
     unsigned char buf[5];
@@ -1500,6 +1503,7 @@ void Server::onLocalJobFinished(Process *process)
 {
     Map<Process*, std::shared_ptr<IndexerJob> >::iterator it = mLocalJobs.find(process);
     assert(it != mLocalJobs.end());
+    error() << "job finished" << it->second->type << process->errorString() << process->readAllStdErr();
     if (it->second->type == IndexerJob::Remote)
         --mRemotePending;
     mLocalJobs.erase(it);

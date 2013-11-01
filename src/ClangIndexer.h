@@ -13,7 +13,7 @@
 class ClangIndexer
 {
 public:
-    ClangIndexer();
+    ClangIndexer(SocketClient::Mode mode = SocketClient::Unix);
     ~ClangIndexer();
 
     bool connect(const Path &serverFile);
