@@ -40,6 +40,7 @@
 #include "VisitFileMessage.h"
 #include "IndexerMessage.h"
 #include "JobRequestMessage.h"
+#include "JobResponseMessage.h"
 #include "RTags.h"
 #include "ReferencesJob.h"
 #include "StatusJob.h"
@@ -289,6 +290,9 @@ void Server::onNewMessage(Message *message, Connection *connection)
         break;
     case JobRequestMessage::MessageId:
         handleJobRequestMessage(static_cast<const JobRequestMessage&>(*message), connection);
+        break;
+    case JobResponseMessage::MessageId:
+        handleJobResponseMessage(static_cast<const JobResponseMessage&>(*message), connection);
         break;
     default:
         error("Unknown message: %d", message->messageId());
@@ -1305,8 +1309,21 @@ void Server::suspendFile(const QueryMessage &query, Connection *conn)
 
 void Server::handleJobRequestMessage(const JobRequestMessage &message, Connection *conn)
 {
+#warning should do a background pre-preprocess all jobs prior to this
     error() << "got a request for" << message.numJobs() << "jobs";
-    conn->finish();
+    while (!mPending.isEmpty()) {
+        conn->send(JobResponseMessage(*mPending.begin()));
+        mRemoteJobs.append(*mPending.begin());
+        mPending.erase(mPending.begin());
+    }
+}
+
+void Server::handleJobResponseMessage(const JobResponseMessage &message, Connection *conn)
+{
+    std::shared_ptr<IndexerJob> job(new IndexerJob);
+    message.toIndexerJob(job, conn);
+    error() << "got indexer job for" << job->destination << ":" << job->port << "with preprocessed" << job->preprocessed.size();
+    startJob(job);
 }
 
 void Server::handleVisitFileMessage(const VisitFileMessage &message, Connection *conn)
@@ -1436,7 +1453,7 @@ void Server::fetchRemoteJobs(const String& ip, uint16_t port, uint16_t jobs)
     error() << "asking for" << jobs << "jobs";
     conn->newMessage().connect(std::bind(&Server::onNewMessage, this, std::placeholders::_1, std::placeholders::_2));
     conn->disconnected().connect(std::bind(&Server::onConnectionDisconnected, this, std::placeholders::_1));
-    conn->send(JobRequestMessage(std::max<uint16_t>(jobs, 2)));
+    conn->send(JobRequestMessage(std::min<uint16_t>(jobs, 2)));
 }
 
 void Server::startJob(const std::shared_ptr<IndexerJob> &job)

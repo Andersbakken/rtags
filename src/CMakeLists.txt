@@ -71,6 +71,8 @@ set(RTAGS_SHARED_SOURCES
   Location.cpp
   QueryMessage.cpp
   JobRequestMessage.cpp
+  JobResponseMessage.cpp
+  Source.cpp
   RTags.cpp)
 
 add_library(shared SHARED ${RTAGS_SHARED_SOURCES})
@@ -93,7 +95,6 @@ set(RDM_SOURCES
   ReferencesJob.cpp
   ScanThread.cpp
   Server.cpp
-  Source.cpp
   StatusJob.cpp
   )
 

@@ -21,6 +21,7 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 #include "VisitFileResponseMessage.h"
 #include "IndexerMessage.h"
 #include "JobRequestMessage.h"
+#include "JobResponseMessage.h"
 #include <dirent.h>
 #include <fcntl.h>
 #include <fnmatch.h>
@@ -432,7 +433,9 @@ void initMessages()
     Messages::registerMessage<VisitFileResponseMessage>();
     Messages::registerMessage<VisitFileMessage>();
     Messages::registerMessage<IndexerMessage>();
+#warning these two shouldn't be registered here since that requires the files to exist in librtags and they're only used by rdm
     Messages::registerMessage<JobRequestMessage>();
+    Messages::registerMessage<JobResponseMessage>();
 #endif
 }
 }

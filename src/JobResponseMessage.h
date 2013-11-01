@@ -19,22 +19,40 @@
 #include <rct/Message.h>
 #include <rct/String.h>
 #include "ClientMessage.h"
+#include "IndexerJob.h"
+#include <memory>
 
-class VisitFileResponseMessage : public ClientMessage
+class Connection;
+
+class JobResponseMessage : public ClientMessage
 {
 public:
     enum { MessageId = JobResponseId };
 
-    VisitFileResponseMessage(const String &indexerJobData)
-        : ClientMessage(MessageId), mIndexerJobData(indexerJobData)
+    JobResponseMessage()
+        : ClientMessage(MessageId)
     {
     }
 
-    void encode(Serializer &serializer) const { serializer << mIndexerJobData; }
-    void decode(Deserializer &deserializer) { deserializer >> mIndexerJobData; }
-    const String &indexerJobData() const { return mIndexerJobData; }
+    JobResponseMessage(const std::shared_ptr<IndexerJob>& job)
+        : ClientMessage(MessageId)
+    {
+        preprocessed = job->preprocessed;
+        project = job->project;
+        source = job->source;
+        sourceFile = job->sourceFile;
+    }
+
+    void encode(Serializer &serializer) const;
+    void decode(Deserializer &deserializer);
+
+    void toIndexerJob(std::shared_ptr<IndexerJob>& job, Connection* conn) const;
+
 private:
-    String mIndexerJobData;
+    String preprocessed;
+    Path project;
+    Source source;
+    Path sourceFile;
 };
 
 #endif

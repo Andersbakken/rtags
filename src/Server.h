@@ -44,6 +44,7 @@ class Project;
 class IndexerJob;
 class VisitFileMessage;
 class JobRequestMessage;
+class JobResponseMessage;
 class Server
 {
 public:
@@ -112,6 +113,7 @@ private:
     void handleCreateOutputMessage(const CreateOutputMessage &message, Connection *conn);
     void handleVisitFileMessage(const VisitFileMessage &message, Connection *conn);
     void handleJobRequestMessage(const JobRequestMessage &message, Connection *conn);
+    void handleJobResponseMessage(const JobResponseMessage &message, Connection *conn);
     void isIndexing(const QueryMessage &, Connection *conn);
     void removeFile(const QueryMessage &query, Connection *conn);
     void followLocation(const QueryMessage &query, Connection *conn);
