@@ -56,27 +56,27 @@ public:
     enum Option {
         NoOptions = 0x0000,
         NoBuiltinIncludes = 0x0001,
-        Validate = 0x0002,
-        ClearProjects = 0x0004,
-        Wall = 0x0008,
-        IgnorePrintfFixits = 0x0010,
-        UnlimitedErrors = 0x0020,
-        SpellChecking = 0x0040,
-        AllowMultipleSources = 0x0080,
-        NoStartupCurrentProject = 0x0100,
-        WatchSystemPaths = 0x0200,
-        NoFileManagerWatch = 0x0400,
-        NoEsprima = 0x0800,
-        UseCompilerFlags = 0x1000
+        ClearProjects = 0x0002,
+        Wall = 0x0004,
+        IgnorePrintfFixits = 0x0008,
+        UnlimitedErrors = 0x0010,
+        SpellChecking = 0x0020,
+        AllowMultipleSources = 0x0040,
+        NoStartupCurrentProject = 0x0080,
+        WatchSystemPaths = 0x0100,
+        NoFileManagerWatch = 0x0200,
+        NoEsprima = 0x0400,
+        UseCompilerFlags = 0x0800
     };
     struct Options {
         Options()
-            : options(0), processCount(0), unloadTimer(0), rpVisitFileTimeout(0),
-              rpIndexerMessageTimeout(0), syncThreshold(0), tcpPort(0), multicastPort(0)
+            : options(0), processCount(0), preprocessCount(0), unloadTimer(0),
+              rpVisitFileTimeout(0), rpIndexerMessageTimeout(0), syncThreshold(0),
+              tcpPort(0), multicastPort(0)
         {}
         Path socketFile, dataDir;
         unsigned options;
-        int processCount, unloadTimer, rpVisitFileTimeout,
+        int processCount, preprocessCount, unloadTimer, rpVisitFileTimeout,
             rpIndexerMessageTimeout, syncThreshold;
         List<String> defaultArguments, excludeFilters;
         List<Path> includePaths;
@@ -92,6 +92,7 @@ public:
     void onJobOutput(JobOutput&& out);
     void startJob(const std::shared_ptr<IndexerJob> &job);
     std::shared_ptr<Project> project(const Path &path) const { return mProjects.value(path); }
+    void index(const Source &source, const List<String> &projects, const Path &unresolvedPath, const String &preprocessed);
 private:
     bool selectProject(const Match &match, Connection *conn, unsigned int queryFlags);
     bool updateProject(const List<String> &projects, unsigned int queryFlags);
@@ -101,12 +102,11 @@ private:
     void onNewConnection(SocketServer *server);
     std::shared_ptr<Project> setCurrentProject(const Path &path, unsigned int queryFlags = 0);
     std::shared_ptr<Project> setCurrentProject(const std::shared_ptr<Project> &project, unsigned int queryFlags = 0);
-    void index(const Source &args, const List<String> &projects, const Path &unresolvedPath = Path());
     void onUnload();
     void onNewMessage(Message *message, Connection *conn);
     void onConnectionDisconnected(Connection *o);
     void clearProjects();
-    void handleCompileMessage(const CompileMessage &message, Connection *conn);
+    void handleCompileMessage(CompileMessage &message, Connection *conn);
     void handleIndexerMessage(const IndexerMessage &message, Connection *conn);
     void handleQueryMessage(const QueryMessage &message, Connection *conn);
     void handleErrorMessage(const ErrorMessage &message, Connection *conn);
@@ -167,6 +167,7 @@ private:
     std::shared_ptr<SocketClient> mMulticastSocket;
     LinkedList<std::shared_ptr<IndexerJob> > mPending, mRemoteJobs;
     Map<Process*, std::shared_ptr<IndexerJob> > mLocalJobs;
+    ThreadPool *mThreadPool;
     unsigned int mRemotePending;
 };
 

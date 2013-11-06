@@ -142,7 +142,7 @@ void StatusJob::execute()
 
     if (query.isEmpty() || !strcasecmp(query.constData(), "sources")) {
         matched = true;
-        const SourceMap map = proj->sources();
+        const SourceMap &map = proj->sources();
         if (!write(delimiter) || !write("sources") || !write(delimiter))
             return;
         for (SourceMap::const_iterator it = map.begin(); it != map.end(); ++it) {

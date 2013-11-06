@@ -37,7 +37,6 @@ public:
     JobResponseMessage(std::shared_ptr<IndexerJob>& job, uint16_t p)
         : ClientMessage(MessageId), port(p)
     {
-        job->preprocess();
         preprocessed = job->preprocessed;
         project = job->project;
         source = job->source;

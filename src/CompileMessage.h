@@ -28,13 +28,16 @@ public:
 
     CompileMessage(const Path &cwd = Path(), const String &args = String());
 
-    Path workingDirectory() const { return mWorkingDirectory; }
+    const Path &workingDirectory() const { return mWorkingDirectory; }
+    Path &&takeWorkingDirectory() { return std::move(mWorkingDirectory); }
 
-    String arguments() const { return mArgs; }
+    const String &arguments() const { return mArgs; }
+    String &&takeArguments() { return std::move(mArgs); }
     void setArguments(const String &arguments) { mArgs = arguments; }
 
     void setProjects(const List<String> &projects) { mProjects = projects; }
-    List<String> projects() const { return mProjects; }
+    const List<String> &projects() const { return mProjects; }
+    List<String> &&takeProjects() { return std::move(mProjects); }
 
     virtual void encode(Serializer &serializer) const;
     virtual void decode(Deserializer &deserializer);

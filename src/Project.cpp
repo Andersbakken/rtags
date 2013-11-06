@@ -200,7 +200,7 @@ void Project::restore(RestoreThread *thread)
     for (Hash<uint32_t, JobData>::const_iterator it = pendingJobs.begin(); it != pendingJobs.end(); ++it) {
         assert(!it->second.pending.isNull());
         assert(it->second.pendingType != IndexerJob::Invalid);
-        index(it->second.pending, it->second.pendingType);
+        index(it->second.pending, it->second.pendingType, RTags::preprocess(it->second.pending));
     }
 }
 
@@ -273,6 +273,7 @@ void Project::onJobFinished(const std::shared_ptr<IndexData> &indexData)
 {
     assert(indexData);
     Source pending;
+    String pendingPreprocessed;
     IndexerJob::IndexType pendingType = IndexerJob::Invalid;
     bool syncNow = false;
     if (indexData->type == IndexerJob::Dump) {
@@ -311,6 +312,7 @@ void Project::onJobFinished(const std::shared_ptr<IndexData> &indexData)
             assert(jobData->job->state == IndexerJob::Aborted);
             std::swap(pendingType, jobData->pendingType);
             std::swap(pending, jobData->pending);
+            std::swap(pendingPreprocessed, jobData->pendingPreprocessed);
         } else if (!success) {
             pending = jobData->job->source;
             pendingType = jobData->job->type;
@@ -358,7 +360,7 @@ void Project::onJobFinished(const std::shared_ptr<IndexData> &indexData)
         sync();
     if (pendingType != IndexerJob::Invalid) {
         assert(!pending.isNull());
-        index(pending, pendingType);
+        index(pending, pendingType, pendingPreprocessed);
         --mJobCounter;
     }
 }
@@ -406,7 +408,7 @@ void Project::dump(const Source &source, Connection *conn)
         return;
     }
     c = conn;
-    std::shared_ptr<IndexerJob> job(new IndexerJob(IndexerJob::Dump, mPath, source));
+    std::shared_ptr<IndexerJob> job(new IndexerJob(IndexerJob::Dump, mPath, source, RTags::preprocess(source)));
     if (!job) {
         mDumps.remove(source.fileId);
         conn->write<64>("Couldn't create dump job for %s", source.sourceFile().constData());
@@ -416,7 +418,7 @@ void Project::dump(const Source &source, Connection *conn)
     job->startLocal();
 }
 
-void Project::index(const Source &source, IndexerJob::IndexType type)
+void Project::index(const Source &source, IndexerJob::IndexType type, const String &preprocessed)
 {
     static const char *fileFilter = getenv("RTAGS_FILE_FILTER");
     if (fileFilter && !strstr(source.sourceFile().constData(), fileFilter))
@@ -435,6 +437,7 @@ void Project::index(const Source &source, IndexerJob::IndexType type)
             // error() << "Aborting and setting pending" << source.sourceFile();
             data.pending = source;
             data.pendingType = type;
+            data.pendingPreprocessed = preprocessed;
         }
         return;
     }
@@ -444,12 +447,13 @@ void Project::index(const Source &source, IndexerJob::IndexType type)
 
     data.pending.clear();
     data.pendingType = IndexerJob::Invalid;
+    data.pendingPreprocessed.clear();
     mPendingData.remove(source.fileId);
 
     if (!mJobCounter++)
         mTimer.start();
 
-    data.job.reset(new IndexerJob(type, mPath, source));
+    data.job.reset(new IndexerJob(type, mPath, source, preprocessed));
     if (!data.job) {
         error() << "Failed to create job for" << source;
         mJobs.erase(source.fileId);
@@ -459,7 +463,7 @@ void Project::index(const Source &source, IndexerJob::IndexType type)
     Server::instance()->startJob(data.job);
 }
 
-bool Project::index(const Source &s)
+bool Project::index(const Source &s, const String &preprocessed)
 {
     assert(!s.isNull());
 
@@ -469,7 +473,7 @@ bool Project::index(const Source &s)
         return false;
     }
 
-    index(s, IndexerJob::Makefile);
+    index(s, IndexerJob::Makefile, preprocessed);
     return true;
 }
 
@@ -570,7 +574,6 @@ int Project::remove(const Match &match)
     return count;
 }
 
-
 void Project::startDirtyJobs(const Set<uint32_t> &dirty)
 {
     Set<uint32_t> dirtyFiles;
@@ -586,7 +589,8 @@ void Project::startDirtyJobs(const Set<uint32_t> &dirty)
     for (Set<uint32_t>::const_iterator it = dirtyFiles.begin(); it != dirtyFiles.end(); ++it) {
         const SourceMap::const_iterator found = mSources.find(*it);
         if (found != mSources.end()) {
-            index(found->second, IndexerJob::Dirty);
+#warning this preprocessing should happen in a job
+            index(found->second, IndexerJob::Dirty, RTags::preprocess(found->second));
             indexed = true;
         }
     }
@@ -792,17 +796,6 @@ void Project::sync()
             << (static_cast<double>(syncTime) / 1000.0) << " secs, saving took"
             << (static_cast<double>(saveTime) / 1000.0) << " secs, using"
             << MemoryMonitor::usage() / (1024.0 * 1024.0) << "mb of memory";
-}
-
-void Project::onJSFilesAdded()
-{
-    const Set<Path> jsFiles = fileManager->jsFiles();
-    for (Set<Path>::const_iterator it = jsFiles.begin(); it != jsFiles.end(); ++it) {
-        Source source;
-        source.language = Source::JavaScript;
-        source.fileId = Location::insertFile(*it);
-        index(source);
-    }
 }
 
 void Project::reloadFileManager()

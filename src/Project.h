@@ -88,7 +88,7 @@ public:
     bool isIndexed(uint32_t fileId) const;
 
     void dump(const Source &source, Connection *conn);
-    bool index(const Source &source);
+    bool index(const Source &source, const String &preprocessed);
     Source source(uint32_t fileId) const;
     enum DependencyMode {
         DependsOnArg,
@@ -105,7 +105,6 @@ public:
     Set<Path> watchedPaths() const { return mWatchedPaths; }
     void onTimerFired(Timer* event);
     bool isIndexing() const { return !mJobs.isEmpty(); }
-    void onJSFilesAdded();
     void dirty(const Path &);
     String dumpJobs() const;
     Hash<Path, uint32_t> visitedFiles() const
@@ -119,11 +118,9 @@ public:
     }
 private:
     void restore(RestoreThread *thread);
-    void index(const Source &args, IndexerJob::IndexType type);
+    void index(const Source &args, IndexerJob::IndexType type, const String &preprocessed);
     void watch(const Path &file);
     void reloadFileManager();
-    bool initJobFromCache(const Path &path, const List<String> &args,
-                          CXTranslationUnit &unit, List<String> *argsOut, int *parseCount);
     void addDependencies(const DependencyMap &hash, Set<uint32_t> &newFiles);
     void addFixIts(const DependencyMap &dependencies, const FixItMap &fixIts);
     void syncDB(int *dirtyTime, int *syncTime);
@@ -149,6 +146,7 @@ private:
         {}
         Source pending;
         IndexerJob::IndexType pendingType;
+        String pendingPreprocessed;
         int crashCount;
         std::shared_ptr<IndexerJob> job;
     };

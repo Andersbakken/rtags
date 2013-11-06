@@ -20,6 +20,7 @@
 #include "CursorInfoJob.h"
 #include "DependenciesJob.h"
 #include "VisitFileResponseMessage.h"
+#include "PreprocessJob.h"
 #include "Filter.h"
 #include "FindFileJob.h"
 #include "FindSymbolsJob.h"
@@ -60,9 +61,9 @@
 
 Server *Server::sInstance = 0;
 Server::Server()
-    : mVerbose(false), mCurrentFileId(0), mRemotePending(0)
+    : mVerbose(false), mCurrentFileId(0), mThreadPool(0), mRemotePending(0)
 {
-    Messages::registerMessage<JobRequestMessage>();
+   Messages::registerMessage<JobRequestMessage>();
     Messages::registerMessage<JobResponseMessage>();
 
     assert(!sInstance);
@@ -85,6 +86,8 @@ void Server::clear()
     mUnixServer.reset();
     mTcpServer.reset();
     mProjects.clear();
+    delete mThreadPool; // wait first?
+    mThreadPool = 0;
 }
 
 bool Server::init(const Options &options)
@@ -187,6 +190,8 @@ bool Server::init(const Options &options)
 
         mTcpServer->newConnection().connect(std::bind(&Server::onNewConnection, this, std::placeholders::_1));
     }
+    if (mOptions.preprocessCount)
+        mThreadPool = new ThreadPool(mOptions.preprocessCount);
     return true;
 }
 
@@ -264,25 +269,24 @@ void Server::onNewMessage(Message *message, Connection *connection)
         mUnloadTimer.restart(mOptions.unloadTimer * 1000 * 60, Timer::SingleShot);
 
     ClientMessage *m = static_cast<ClientMessage*>(message);
-    const String raw = m->raw();
 
     switch (message->messageId()) {
     case CompileMessage::MessageId:
-        handleCompileMessage(static_cast<const CompileMessage&>(*message), connection);
+        handleCompileMessage(static_cast<CompileMessage&>(*m), connection);
         break;
     case QueryMessage::MessageId:
-        error() << raw;
-        handleQueryMessage(static_cast<const QueryMessage&>(*message), connection);
+        error() << m->raw();
+        handleQueryMessage(static_cast<const QueryMessage&>(*m), connection);
         break;
     case IndexerMessage::MessageId:
-        handleIndexerMessage(static_cast<const IndexerMessage&>(*message), connection);
+        handleIndexerMessage(static_cast<const IndexerMessage&>(*m), connection);
         break;
     case CreateOutputMessage::MessageId:
-        error() << raw;
-        handleCreateOutputMessage(static_cast<const CreateOutputMessage&>(*message), connection);
+        error() << m->raw();
+        handleCreateOutputMessage(static_cast<const CreateOutputMessage&>(*m), connection);
         break;
     case VisitFileMessage::MessageId:
-        handleVisitFileMessage(static_cast<const VisitFileMessage&>(*message), connection);
+        handleVisitFileMessage(static_cast<const VisitFileMessage&>(*m), connection);
         break;
     case ResponseMessage::MessageId:
     case FinishMessage::MessageId:
@@ -292,10 +296,10 @@ void Server::onNewMessage(Message *message, Connection *connection)
         connection->finish();
         break;
     case JobRequestMessage::MessageId:
-        handleJobRequestMessage(static_cast<const JobRequestMessage&>(*message), connection);
+        handleJobRequestMessage(static_cast<const JobRequestMessage&>(*m), connection);
         break;
     case JobResponseMessage::MessageId:
-        handleJobResponseMessage(static_cast<const JobResponseMessage&>(*message), connection);
+        handleJobResponseMessage(static_cast<const JobResponseMessage&>(*m), connection);
         break;
     default:
         error("Unknown message: %d", message->messageId());
@@ -309,53 +313,16 @@ void Server::onNewMessage(Message *message, Connection *connection)
     }
 }
 
-void Server::handleCompileMessage(const CompileMessage &message, Connection *conn)
+void Server::handleCompileMessage(CompileMessage &message, Connection *conn)
 {
     conn->finish(); // nothing to wait for
-    const Path workingDirectory = message.workingDirectory();
-    const String arguments = message.arguments();
-    const List<String> projects = message.projects();
-    assert(message.workingDirectory().endsWith('/'));
-    if (arguments.endsWith(".js") && !arguments.contains(' ')) {
-        if (mOptions.options & NoEsprima)
-            return;
-        Path jsFile = arguments;
-        if (!jsFile.isAbsolute())
-            jsFile.prepend(workingDirectory);
-        const Path srcRoot = RTags::findProjectRoot(jsFile);
-        if (srcRoot.isEmpty()) {
-            error() << "Can't find project root for" << jsFile;
-            return;
-        }
-        std::shared_ptr<Project> project;
-        project = mProjects.value(srcRoot);
-        if (!project) {
-            project = addProject(srcRoot);
-            assert(project);
-        }
-        project->load();
-
-        if (!mCurrentProject.lock())
-            mCurrentProject = project;
-
-        Source source;
-        source.language = Source::JavaScript;
-        source.fileId = Location::insertFile(jsFile);
-        project->index(source);
+    std::shared_ptr<PreprocessJob> job(new PreprocessJob(message.takeArguments(),
+                                                         message.takeWorkingDirectory(),
+                                                         message.takeProjects()));
+    if (mThreadPool) {
+        mThreadPool->start(job);
     } else {
-        Path unresolvedPath;
-        const Source source = Source::parse(arguments, workingDirectory, &unresolvedPath);
-        if (!source.isNull()) {
-            switch (source.language) {
-            case Source::C:
-            case Source::CPlusPlus:
-            case Source::CPlusPlus11:
-                index(source, projects, unresolvedPath);
-                break;
-            default:
-                break;
-            }
-        }
+        job->exec();
     }
 }
 
@@ -835,7 +802,7 @@ void Server::reindex(const QueryMessage &query, Connection *conn)
     conn->finish();
 }
 
-void Server::index(const Source &source, const List<String> &projects, const Path &unresolvedPath)
+void Server::index(const Source &source, const List<String> &projects, const Path &unresolvedPath, const String &preprocessed)
 {
     switch (source.language) {
     case Source::NoLanguage:
@@ -890,7 +857,7 @@ void Server::index(const Source &source, const List<String> &projects, const Pat
         setupCurrentProjectFile(project);
     }
     assert(project);
-    project->index(source);
+    project->index(source, preprocessed);
 }
 
 std::shared_ptr<Project> Server::setCurrentProject(const Path &path, unsigned int queryFlags) // lock always held
@@ -1147,7 +1114,7 @@ void Server::loadCompilationDatabase(const QueryMessage &query, Connection *conn
         CXCompileCommand cmd = clang_CompileCommands_getCommand(cmds, i);
         String args;
         CXString str = clang_CompileCommand_getDirectory(cmd);
-        const String dir = clang_getCString(str);
+        Path dir = clang_getCString(str);
         clang_disposeString(str);
         const unsigned int num = clang_CompileCommand_getNumArgs(cmd);
         for (unsigned int j = 0; j < num; ++j) {
@@ -1157,10 +1124,14 @@ void Server::loadCompilationDatabase(const QueryMessage &query, Connection *conn
             if (j < num - 1)
                 args += " ";
         }
-        Path unresolved;
-        const Source source = Source::parse(args, dir, &unresolved);
-        if (!source.isNull()) {
-            index(source, query.projects(), unresolved);
+
+        std::shared_ptr<PreprocessJob> job(new PreprocessJob(std::move(args),
+                                                             std::move(dir),
+                                                             List<String>(query.projects())));
+        if (mThreadPool) {
+            mThreadPool->start(job);
+        } else {
+            job->exec();
         }
     }
     clang_CompileCommands_dispose(cmds);
@@ -1203,13 +1174,13 @@ void Server::loadCompilationDatabase(const QueryMessage &query, Connection *conn
             if (!dir.isEmpty() && !args.isEmpty()) {
                 //error() << "parsing" << args;
                 args.replace("\\\"", "\"");
-                Source source;
-                Path unresolved;
-                if (source.parse(args, dir, &unresolved)) {
-                    index(source, query.projects(), unresolved);
+                std::shared_ptr<PreprocessJob> job(new PreprocessJob(std::move(args),
+                                                                     std::move(dir),
+                                                                     List<String>(query.projects())));
+                if (mThreadPool) {
+                    mThreadPool->start(job);
                 } else {
-                    ok = false;
-                    break;
+                    job->exec();
                 }
             } else {
                 ok = false;
@@ -1314,7 +1285,6 @@ static const bool debugMulti = getenv("RDM_DEBUG_MULTI");
 
 void Server::handleJobRequestMessage(const JobRequestMessage &message, Connection *conn)
 {
-#warning should do a background pre-preprocess all jobs prior to this
     if (debugMulti)
         error() << "got a request for" << message.numJobs() << "jobs";
     int cnt = message.numJobs();

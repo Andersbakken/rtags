@@ -76,7 +76,6 @@ static void usage(FILE *f)
             "  --no-spell-checking|-l                     Don't pass -fspell-checking.\n"
             "  --unlimited-error|-f                       Pass -ferror-limit=0 to clang.\n"
             "  --silent|-S                                No logging to stdout.\n"
-            "  --validate|-V                              Enable validation of database on startup and after indexing.\n"
             "  --exclude-filter|-x [arg]                  Files to exclude from rdm, default \"" EXCLUDEFILTER_DEFAULT "\".\n"
             "  --sync-threshold|-y [arg]                  Automatically sync after [arg] files indexed\n"
             "  --no-rc|-N                                 Don't load any rc files.\n"
@@ -84,15 +83,16 @@ static void usage(FILE *f)
             "  --config|-c [arg]                          Use this file instead of ~/.rdmrc.\n"
             "  --data-dir|-d [arg]                        Use this directory to store persistent data (default ~/.rtags).\n"
             "  --socket-file|-n [arg]                     Use this file for the server socket (default ~/.rdm).\n"
-            "  --port|-p [arg]                            Use this port for tcp server (default " STR(DEFAULT_RDM_TCP_PORT) ")\n"
+            "  --port|-p [arg]                            Use this port for tcp server (default " STR(DEFAULT_RDM_TCP_PORT) ").\n"
             "  --setenv|-e [arg]                          Set this environment variable (--setenv \"foobar=1\").\n"
             "  --no-current-project|-o                    Don't restore the last current project on startup.\n"
             "  --allow-multiple-sources|-m                Without this setting different sources will be merged for each source file.\n"
             "  --unload-timer|-u [arg]                    Number of minutes to wait before unloading non-current projects (disabled by default).\n"
-            "  --job-count|-j [arg]                       Spawn this many concurrent processes for indexing.\n"
+            "  --job-count|-j [arg]                       Spawn this many concurrent processes for indexing (default %d).\n"
+            "  --preprocess-count|-J [arg]                Spawn this many concurrent jobs for preprocessing (default %d).\n"
             "  --watch-system-paths|-w                    Watch system paths for changes.\n"
-            "  --rp-visit-file-timeout|-t [arg]           Timeout for rp visitfile commands in ms (0 means no timeout) (default " STR(DEFAULT_RP_VISITFILE_TIMEOUT) ")\n"
-            "  --rp-indexer-message-timeout|-T [arg]      Timeout for rp indexer-message in ms (0 means no timeout) (default " STR(DEFAULT_RP_INDEXER_MESSAGE_TIMEOUT) ")\n"
+            "  --rp-visit-file-timeout|-t [arg]           Timeout for rp visitfile commands in ms (0 means no timeout) (default " STR(DEFAULT_RP_VISITFILE_TIMEOUT) ").\n"
+            "  --rp-indexer-message-timeout|-T [arg]      Timeout for rp indexer-message in ms (0 means no timeout) (default " STR(DEFAULT_RP_INDEXER_MESSAGE_TIMEOUT) ").\n"
 #ifdef OS_Darwin
             "  --filemanager-watch|-M                     Use a file system watcher for filemanager.\n"
 #else
@@ -102,7 +102,9 @@ static void usage(FILE *f)
             "  --disable-esprima|-E                       Don't use esprima\n"
             "  --multicast-address|-a [arg]               Use this address for multicast (default " DEFAULT_RDM_MULTICAST_ADDRESS "\n"
             "  --multicast-port|-P [arg]                  Use this port for multicast (default " STR(DEFAULT_RDM_MULTICAST_PORT) "\n"
-            "  --enable-compiler-flags|-K                 Query the compiler for default flags\n");
+            "  --enable-compiler-flags|-K                 Query the compiler for default flags\n",
+            ThreadPool::idealThreadCount(),
+            std::max(1, ThreadPool::idealThreadCount() / 2));
 }
 
 int main(int argc, char** argv)
@@ -119,11 +121,11 @@ int main(int argc, char** argv)
         { "no-Wall", no_argument, 0, 'W' },
         { "append", no_argument, 0, 'A' },
         { "verbose", no_argument, 0, 'v' },
-        { "thread-count", required_argument, 0, 'j' },
+        { "job-count", required_argument, 0, 'j' },
+        { "preprocess-count", required_argument, 0, 'J' },
         { "clean-slate", no_argument, 0, 'C' },
         { "enable-sighandler", no_argument, 0, 's' },
         { "silent", no_argument, 0, 'S' },
-        { "validate", no_argument, 0, 'V' },
         { "exclude-filter", required_argument, 0, 'x' },
         { "socket-file", required_argument, 0, 'n' },
         { "config", required_argument, 0, 'c' },
@@ -231,6 +233,7 @@ int main(int argc, char** argv)
     Server::Options serverOpts;
     serverOpts.socketFile = String::format<128>("%s.rdm", Path::home().constData());
     serverOpts.processCount = ThreadPool::idealThreadCount();
+    serverOpts.preprocessCount = std::max(ThreadPool::idealThreadCount() / 2, 1);
     serverOpts.rpVisitFileTimeout = DEFAULT_RP_VISITFILE_TIMEOUT;
     serverOpts.rpIndexerMessageTimeout = DEFAULT_RP_INDEXER_MESSAGE_TIMEOUT;
     serverOpts.options = Server::Wall|Server::SpellChecking;
@@ -312,9 +315,6 @@ int main(int argc, char** argv)
         case 'm':
             serverOpts.options |= Server::AllowMultipleSources;
             break;
-        case 'V':
-            serverOpts.options |= Server::Validate;
-            break;
         case 'o':
             serverOpts.options |= Server::NoStartupCurrentProject;
             break;
@@ -371,6 +371,13 @@ int main(int argc, char** argv)
             serverOpts.processCount = atoi(optarg);
             if (serverOpts.processCount <= 0) {
                 fprintf(stderr, "Can't parse argument to -j %s\n", optarg);
+                return 1;
+            }
+            break;
+        case 'J':
+            serverOpts.preprocessCount = atoi(optarg);
+            if (serverOpts.preprocessCount < 0) {
+                fprintf(stderr, "Can't parse argument to -J %s\n", optarg);
                 return 1;
             }
             break;

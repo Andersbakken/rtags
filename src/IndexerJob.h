@@ -36,7 +36,7 @@ public:
         Remote
     };
 
-    IndexerJob(IndexType type, const Path &p, const Source &s);
+    IndexerJob(IndexType type, const Path &p, const Source &s, const String &preprocessed);
     IndexerJob();
 
     enum State {
@@ -45,7 +45,6 @@ public:
         Aborted
     };
 
-    void preprocess();
     bool startLocal();
     bool update(IndexType t, const Source &s);
     void abort();
@@ -57,9 +56,9 @@ public:
     String destination;
     uint16_t port;
     IndexType type;
-    String preprocessed;
     Path project;
     Source source;
+    String preprocessed;
     Path sourceFile;
     Set<uint32_t> visited;
     Process *process;

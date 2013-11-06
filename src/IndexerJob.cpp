@@ -4,9 +4,10 @@
 #include <RTagsClang.h>
 #include "Server.h"
 
-IndexerJob::IndexerJob(IndexType t, const Path &p, const Source &s)
+IndexerJob::IndexerJob(IndexType t, const Path &p, const Source &s, const String &cpp)
     : state(Pending), destination(Server::instance()->options().socketFile),
-      port(0), type(t), project(p), source(s), sourceFile(s.sourceFile()), process(0)
+      port(0), type(t), project(p), source(s), preprocessed(cpp),
+      sourceFile(s.sourceFile()), process(0)
 {
 }
 
@@ -15,18 +16,14 @@ IndexerJob::IndexerJob()
 {
 }
 
-void IndexerJob::preprocess()
-{
-    if (preprocessed.isEmpty())
-        preprocessed = RTags::preprocess(source);
-}
-
 bool IndexerJob::startLocal()
 {
+    if (state == Aborted)
+        return false;
     assert(state == Pending);
     state = Running;
     assert(!process);
-    preprocess();
+    assert(!preprocessed.isEmpty());
     static const Path rp = Rct::executablePath().parentDir() + "rp";
     String stdinData;
     Serializer serializer(stdinData);
