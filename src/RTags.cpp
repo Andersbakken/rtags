@@ -433,9 +433,6 @@ void initMessages()
     Messages::registerMessage<VisitFileResponseMessage>();
     Messages::registerMessage<VisitFileMessage>();
     Messages::registerMessage<IndexerMessage>();
-#warning these two shouldn't be registered here since that requires the files to exist in librtags and they're only used by rdm
-    Messages::registerMessage<JobRequestMessage>();
-    Messages::registerMessage<JobResponseMessage>();
 #endif
 }
 }

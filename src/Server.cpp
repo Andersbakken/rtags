@@ -62,6 +62,9 @@ Server *Server::sInstance = 0;
 Server::Server()
     : mVerbose(false), mCurrentFileId(0), mRemotePending(0)
 {
+    Messages::registerMessage<JobRequestMessage>();
+    Messages::registerMessage<JobResponseMessage>();
+
     assert(!sInstance);
     sInstance = this;
 
