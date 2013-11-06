@@ -405,6 +405,13 @@ String preprocess(const Source &source)
 
     const Server::Options &options = Server::instance()->options();
     clang::HeaderSearchOptions &headerSearchOptions = compilerInstance.getHeaderSearchOpts();
+    Path sysRoot = source.sysRoot();
+    if (sysRoot != "/") {
+        assert(sysRoot.endsWith('/'));
+        sysRoot.chop(1);
+    }
+
+    headerSearchOptions.Sysroot = sysRoot;
     {
         clang::driver::Driver driver("clang", llvm::sys::getDefaultTargetTriple(), "a.out", diags);
         std::vector<std::string> copies; // not cool
@@ -439,12 +446,12 @@ String preprocess(const Source &source)
     for (List<Path>::const_iterator it = source.includePaths.begin(); it != source.includePaths.end(); ++it) {
         // error() << "Adding -I" << *it;
         headerSearchOptions.AddPath(clang::StringRef(it->constData(), it->size()),
-                                    clang::frontend::Angled, false, false);
+                                    clang::frontend::Angled, false, true);
     }
     for (List<Path>::const_iterator it = options.includePaths.begin(); it != options.includePaths.end(); ++it) {
         // error() << "Adding -I" << *it;
         headerSearchOptions.AddPath(clang::StringRef(it->constData(), it->size()),
-                                    clang::frontend::System, false, false);
+                                    clang::frontend::System, false, true);
     }
 
     compilerInstance.createPreprocessor();
@@ -470,12 +477,12 @@ String preprocess(const Source &source)
     compilerInstance.getDiagnosticClient().BeginSourceFile(compilerInstance.getLangOpts(), &compilerInstance.getPreprocessor());
 
     clang::DoPrintPreprocessedInput(compilerInstance.getPreprocessor(), &out, preprocessorOptions);
-    FILE *f = fopen("/tmp/preprocess.cpp", "w");
+    // FILE *f = fopen("/tmp/preprocess.cpp", "w");
     // fwrite(sourceFile.constData(), 1, sourceFile.size(), f);
 
     const String str = out.take();
-    fwrite(str.constData(), 1, str.size(), f);
-    fclose(f);
+    // fwrite(str.constData(), 1, str.size(), f);
+    // fclose(f);
     warning() << "preprocessing" << sourceFile << "took" << sw.elapsed() << "ms" << str.size();
     return str;
 }

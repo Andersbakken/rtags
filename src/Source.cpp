@@ -48,6 +48,8 @@ List<String> Source::toCommandLine(unsigned int mode) const
         ret += it->toString();
     for (List<Path>::const_iterator it = includePaths.begin(); it != includePaths.end(); ++it)
         ret += ("-I" + *it);
+    if (mode & IncludeSourceFile)
+        ret.append(sourceFile());
 
     return ret;
 }
@@ -286,6 +288,14 @@ Source Source::parse(const String &cmdLine, const Path &base, Path *unresolvedIn
                     } else {
                         ret.language = CPlusPlus11;
                     }
+                }
+            } else if (arg.startsWith("-isysroot")) {
+                ret.arguments.append(arg);
+                if (i + 1 < s) {
+                    ret.sysRootIndex = ret.arguments.size();
+                    Path root = split.value(++i);
+                    root.resolve();
+                    ret.arguments.append(root);
                 }
             } else if (arg.startsWith("-include")) {
                 ret.arguments.append(arg);

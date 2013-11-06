@@ -50,7 +50,6 @@ bool IndexerJob::update(IndexType t, const Source &s)
 {
     switch (state) {
     case Aborted:
-        assert(0);
         break;
     case Running:
         abort();
@@ -70,12 +69,8 @@ void IndexerJob::abort()
     case Pending:
         break;
     case Running:
-        if (process) {
+        if (process)
             process->kill();
-            delete process;
-            process = 0;
-            // ### probably need to disconnect signals
-        }
         break;
     }
     state = Aborted;
@@ -97,7 +92,7 @@ bool IndexerJob::encode(Serializer &serializer)
     return true;
 }
 
-void IndexerJob::decode(Deserializer &deserializer, Map<Path, uint32_t> &blockedFiles)
+void IndexerJob::decode(Deserializer &deserializer, Hash<Path, uint32_t> &blockedFiles)
 {
     uint8_t t;
     int ignored; // timeouts
@@ -115,7 +110,7 @@ void IndexerJob::onProcessFinished()
     ::error() << process->readAllStdErr();
     if (process->returnCode() == -1) {
         std::shared_ptr<Project> proj = Server::instance()->project(project);
-        if (proj || proj->state() != Project::Loaded) {
+        if (proj && proj->state() == Project::Loaded) {
             std::shared_ptr<IndexData> data(new IndexData(type));
             data->fileId = source.fileId;
             data->aborted = true;
