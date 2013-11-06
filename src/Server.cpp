@@ -1490,7 +1490,7 @@ void Server::startNextJob()
         }
     }
 
-    if (mRemotePending >= mPending.size() || mPending.empty())
+    if (mRemotePending >= static_cast<unsigned int>(mPending.size()) || mPending.empty())
         return;
     const uint16_t count = htons(static_cast<uint16_t>(mPending.size() - mRemotePending));
     const uint16_t tcpPort = htons(mOptions.tcpPort);
