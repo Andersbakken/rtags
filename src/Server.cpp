@@ -1310,14 +1310,18 @@ void Server::suspendFile(const QueryMessage &query, Connection *conn)
     conn->finish();
 }
 
+static const bool debugMulti = getenv("RDM_DEBUG_MULTI");
+
 void Server::handleJobRequestMessage(const JobRequestMessage &message, Connection *conn)
 {
 #warning should do a background pre-preprocess all jobs prior to this
-    error() << "got a request for" << message.numJobs() << "jobs";
+    if (debugMulti)
+        error() << "got a request for" << message.numJobs() << "jobs";
     int cnt = message.numJobs();
     while (!mPending.isEmpty() && cnt > 0) {
         std::shared_ptr<IndexerJob>& job = *mPending.begin();
-        error() << "sending job for" << job->sourceFile;
+        if (debugMulti)
+            error() << "sending job for" << job->sourceFile;
         conn->send(JobResponseMessage(job, mOptions.tcpPort));
         mRemoteJobs.append(job);
         mPending.pop_front();
@@ -1330,7 +1334,8 @@ void Server::handleJobResponseMessage(const JobResponseMessage &message, Connect
 {
     std::shared_ptr<IndexerJob> job(new IndexerJob);
     message.toIndexerJob(job, conn);
-    error() << "got indexer job for" << job->destination << ":" << job->port << "with preprocessed" << job->preprocessed.size();
+    if (debugMulti)
+        error() << "got indexer job for" << job->destination << ":" << job->port << "with preprocessed" << job->preprocessed.size();
     assert(job->type == IndexerJob::Remote);
     startJob(job);
 }
@@ -1431,7 +1436,8 @@ void Server::onMulticastReadyRead(SocketClient::SharedPtr &socket,
         }
         jobs = ntohs(*reinterpret_cast<const uint16_t*>(data + 1));
         tcpPort = ntohs(*reinterpret_cast<const uint16_t*>(data + 3));
-        error() << ip << "has" << jobs << "jobs" << "on port" << tcpPort;
+        if (debugMulti)
+            error() << ip << "has" << jobs << "jobs" << "on port" << tcpPort;
         data += 5;
         size -= 5;
     }
@@ -1455,13 +1461,15 @@ void Server::onMulticastReadyRead(SocketClient::SharedPtr &socket,
 
 void Server::fetchRemoteJobs(const String& ip, uint16_t port, uint16_t jobs)
 {
-    error() << "connecting to" << ip << port;
+    if (debugMulti)
+        error() << "connecting to" << ip << port;
     Connection* conn = new Connection(SocketClient::Tcp);
     if (!conn->connectTcp(ip, port)) {
         delete conn;
         return;
     }
-    error() << "asking for" << jobs << "jobs";
+    if (debugMulti)
+        error() << "asking for" << jobs << "jobs";
     conn->newMessage().connect(std::bind(&Server::onNewMessage, this, std::placeholders::_1, std::placeholders::_2));
     conn->disconnected().connect(std::bind(&Server::onConnectionDisconnected, this, std::placeholders::_1));
     conn->send(JobRequestMessage(jobs));
@@ -1483,7 +1491,8 @@ void Server::startNextJob()
         assert(job);
         if (job->startLocal()) {
             assert(job->process);
-            error() << "started job locally for" << job->sourceFile;
+            if (debugMulti)
+                error() << "started job locally for" << job->sourceFile;
             mLocalJobs[job->process] = job;
             mPending.pop_front();
             job->process->finished().connect(std::bind(&Server::onLocalJobFinished, this,
@@ -1501,7 +1510,8 @@ void Server::startNextJob()
     buf[0] = 'j';
     memcpy(buf + 1, &count, sizeof(count));
     memcpy(buf + 3, &tcpPort, sizeof(tcpPort));
-    error() << "announcing" << mPending.size() - mRemotePending << "jobs";
+    if (debugMulti)
+        error() << "announcing" << mPending.size() - mRemotePending << "jobs";
     mMulticastSocket->writeTo(mOptions.multicastAddress, mOptions.multicastPort, buf, sizeof(buf));
 }
 
@@ -1509,7 +1519,8 @@ void Server::onLocalJobFinished(Process *process)
 {
     Map<Process*, std::shared_ptr<IndexerJob> >::iterator it = mLocalJobs.find(process);
     assert(it != mLocalJobs.end());
-    error() << "job finished" << it->second->type << process->errorString() << process->readAllStdErr();
+    if (debugMulti)
+        error() << "job finished" << it->second->type << process->errorString() << process->readAllStdErr();
     if (it->second->type == IndexerJob::Remote)
         --mRemotePending;
     mLocalJobs.erase(it);
