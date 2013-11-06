@@ -1422,8 +1422,7 @@ void Server::onMulticastReadyRead(SocketClient::SharedPtr &socket,
         return;
     }
     if (jobs && tcpPort) {
-        assert(mLocalJobs.size() <= mOptions.processCount);
-        const uint16_t maxJobs = std::min<uint16_t>(jobs, mOptions.processCount - mLocalJobs.size());
+        const int maxJobs = std::min<int>(jobs, mOptions.processCount - mLocalJobs.size());
         if (maxJobs > 0)
             fetchRemoteJobs(ip, tcpPort, maxJobs);
     }
