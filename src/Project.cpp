@@ -136,7 +136,8 @@ void Project::init()
 
 void Project::restore(RestoreThread *thread)
 {
-    assert(state() == Loading);
+    if (state() != Loading)
+        return;
 
     mSymbols = std::move(thread->mSymbols);
     mSymbolNames = std::move(thread->mSymbolNames);
