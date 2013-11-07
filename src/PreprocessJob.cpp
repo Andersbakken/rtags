@@ -18,43 +18,35 @@
 #include "Server.h"
 #include "Cpp.h"
 
-PreprocessJob::PreprocessJob(String &&arguments, Path &&workingDirectory, List<String> &&projects)
-    : mAsync(true),
-      mArguments(std::forward<String>(arguments)),
-      mWorkingDirectory(std::forward<Path>(workingDirectory)),
-      mProjects(std::forward<List<String> >(projects))
+PreprocessJob::PreprocessJob(Source &&source, Path &&project)
+    : mAsync(true), mSource(std::forward<Source>(source)), mProject(std::forward<Path>(project))
 {
 }
 
 void PreprocessJob::run()
 {
-    assert(mWorkingDirectory.endsWith('/'));
-    Path unresolvedPath;
-    Source source = Source::parse(mArguments, mWorkingDirectory, &unresolvedPath);
-    if (!source.isNull()) {
-        switch (source.language) {
-        case Source::C:
-        case Source::CPlusPlus:
-        case Source::CPlusPlus11: {
-            std::shared_ptr<Cpp> cpp = RTags::preprocess(source);
-            if (!cpp) {
-                error() << "Couldn't preprocess" << source.sourceFile();
-                return;
-            }
-
-            if (mAsync) {
-                List<String> projects = std::move(mProjects);
-                EventLoop::mainEventLoop()->callLater([projects, cpp, unresolvedPath, source]() {
-                        Server::instance()->index(std::move(source), std::move(projects),
-                                                  std::move(unresolvedPath), std::move(cpp->preprocessed));
-                    });
-            } else {
-                Server::instance()->index(std::move(source), std::move(mProjects),
-                                          std::move(unresolvedPath), std::move(cpp->preprocessed));
-            }
-            break; }
-        default:
-            break;
+    switch (mSource.language) {
+    case Source::C:
+    case Source::CPlusPlus:
+    case Source::CPlusPlus11: {
+        std::shared_ptr<Cpp> cpp = RTags::preprocess(mSource);
+        if (!cpp) {
+            error() << "Couldn't preprocess" << mSource.sourceFile();
+            return;
         }
+
+        if (mAsync) {
+            Source source = std::move(mSource);
+            Path project = std::move(mProject);
+            EventLoop::mainEventLoop()->callLater([source, cpp, project]() {
+                    Server::instance()->index(source, cpp, project);
+                });
+        } else {
+            Server::instance()->index(mSource, cpp, mProject);
+        }
+        break; }
+    default:
+        assert(0);
+        break;
     }
 }

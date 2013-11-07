@@ -19,13 +19,14 @@
 #include <rct/ThreadPool.h>
 #include <rct/SignalSlot.h>
 #include "CompileMessage.h"
+#include "Source.h"
 
 class PreprocessJob : public ThreadPool::Job
 {
 public:
-    PreprocessJob(String &&arguments, Path &&workingDirectory, List<String> &&projects);
+    PreprocessJob(Source &&source, Path &&project);
     void exec()
-    {
+   {
         mAsync = false;
         run();
     }
@@ -33,9 +34,8 @@ protected:
     virtual void run();
 private:
     bool mAsync;
-    const String mArguments;
-    const Path mWorkingDirectory;
-    List<String> mProjects;
+    Source mSource;
+    Path mProject;
 };
 
 #endif

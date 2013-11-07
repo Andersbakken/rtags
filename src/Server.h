@@ -92,13 +92,15 @@ public:
     void onJobOutput(JobOutput&& out);
     void startJob(const std::shared_ptr<IndexerJob> &job);
     std::shared_ptr<Project> project(const Path &path) const { return mProjects.value(path); }
-    void index(const Source &source, const List<String> &projects, const Path &unresolvedPath, const String &preprocessed);
+    void index(const Source &source, const std::shared_ptr<Cpp> &cpp, const Path &project);
+    bool shouldIndex(const Source &source, const Path &project) const;
+    Path findProject(const Path &path, const Path &unresolvedPath, const List<String> &withProjects) const;
 private:
     bool selectProject(const Match &match, Connection *conn, unsigned int queryFlags);
     bool updateProject(const List<String> &projects, unsigned int queryFlags);
-
     void restoreFileIds();
     void clear();
+    void index(const String &arguments, const Path &pwd, const List<String> &withProjects);
     void onNewConnection(SocketServer *server);
     std::shared_ptr<Project> setCurrentProject(const Path &path, unsigned int queryFlags = 0);
     std::shared_ptr<Project> setCurrentProject(const std::shared_ptr<Project> &project, unsigned int queryFlags = 0);

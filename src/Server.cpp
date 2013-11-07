@@ -27,6 +27,7 @@
 #include "FollowLocationJob.h"
 #include "IndexerJob.h"
 #include "Source.h"
+#include "Cpp.h"
 #if defined(HAVE_CXCOMPILATIONDATABASE)
 #  include <clang-c/CXCompilationDatabase.h>
 #endif
@@ -311,17 +312,29 @@ void Server::onNewMessage(Message *message, Connection *connection)
     }
 }
 
-void Server::handleCompileMessage(CompileMessage &message, Connection *conn)
+void Server::index(const String &arguments, const Path &pwd, const List<String> &withProjects)
 {
-    conn->finish(); // nothing to wait for
-    std::shared_ptr<PreprocessJob> job(new PreprocessJob(message.takeArguments(),
-                                                         message.takeWorkingDirectory(),
-                                                         message.takeProjects()));
+    Path unresolvedPath;
+    Source source = Source::parse(arguments, pwd, &unresolvedPath);
+    if (!source.isIndexable())
+        return;
+    Path project = findProject(source.sourceFile(), unresolvedPath, withProjects);
+    if (!shouldIndex(source, project))
+        return;
+
+    std::shared_ptr<PreprocessJob> job(new PreprocessJob(std::move(source), std::move(project)));
     if (mThreadPool) {
         mThreadPool->start(job);
     } else {
         job->exec();
     }
+}
+
+
+void Server::handleCompileMessage(CompileMessage &message, Connection *conn)
+{
+    conn->finish(); // nothing to wait for
+    index(message.arguments(), message.workingDirectory(), message.projects());
 }
 
 void Server::handleCreateOutputMessage(const CreateOutputMessage &message, Connection *conn)
@@ -800,49 +813,44 @@ void Server::reindex(const QueryMessage &query, Connection *conn)
     conn->finish();
 }
 
-void Server::index(const Source &source, const List<String> &projects, const Path &unresolvedPath, const String &preprocessed)
-{
-    switch (source.language) {
-    case Source::NoLanguage:
-    case Source::CHeader:
-    case Source::CPlusPlusHeader:
-    case Source::CPlusPlus11Header:
-        return;
-    case Source::JavaScript:
-        if (mOptions.options & NoEsprima)
-            return;
-        break;
-    default:
-        break;
-    }
 
+bool Server::shouldIndex(const Source &source, const Path &srcRoot) const
+{
+    assert(source.isIndexable());
     if (mOptions.ignoredCompilers.contains(source.compiler()))
-        return;
+        return false;
 
     const Path sourceFile = source.sourceFile();
 
-    if (Filter::filter(sourceFile, mOptions.excludeFilters) == Filter::Filtered) {
-        debug() << "Filtered out" << sourceFile;
-        return;
-    }
-    Path srcRoot;
-    if (updateProject(projects, 0)) {
-        srcRoot = currentProject()->path();
-    } else if (!projects.isEmpty()) {
-        srcRoot = projects.first();
-    } else {
-        if (!unresolvedPath.isEmpty())
-            srcRoot = RTags::findProjectRoot(unresolvedPath);
-        if (srcRoot.isEmpty()) {
-            srcRoot = RTags::findProjectRoot(sourceFile);
-        }
+    if (Filter::filter(sourceFile, mOptions.excludeFilters) == Filter::Filtered)
+        return false;
 
-        if (srcRoot.isEmpty()) {
-            error("Can't find project root for %s",  sourceFile.constData());
-            return;
-        }
+    std::shared_ptr<Project> project = mProjects.value(srcRoot);
+    return (!project || !project->source(source.fileId).compare(source));
+}
+
+Path Server::findProject(const Path &path, const Path &unresolvedPath, const List<String> &withProjects) const
+{
+    std::shared_ptr<Project> current = mCurrentProject.lock();
+    if (current && (current->match(path) || (path != unresolvedPath && current->match(unresolvedPath))))
+        return current->path();
+
+    for (auto it = mProjects.begin(); it != mProjects.end(); ++it) {
+        if (it->second->match(path) || (path != unresolvedPath && it->second->match(unresolvedPath)))
+            return it->first;
     }
 
+    for (auto it = mProjects.begin(); it != mProjects.end(); ++it) {
+        for (auto p = withProjects.begin(); p != withProjects.end(); ++p) {
+            if (it->second->match(*p))
+                return it->first;
+        }
+    }
+    return RTags::findProjectRoot(path);
+}
+
+void Server::index(const Source &source, const std::shared_ptr<Cpp> &cpp, const Path &srcRoot)
+{
     std::shared_ptr<Project> project = mProjects.value(srcRoot);
     if (!project) {
         project = addProject(srcRoot);
@@ -855,7 +863,7 @@ void Server::index(const Source &source, const List<String> &projects, const Pat
         setupCurrentProjectFile(project);
     }
     assert(project);
-    project->index(source, preprocessed);
+    project->index(source, cpp->preprocessed);
 }
 
 std::shared_ptr<Project> Server::setCurrentProject(const Path &path, unsigned int queryFlags) // lock always held
@@ -1123,14 +1131,7 @@ void Server::loadCompilationDatabase(const QueryMessage &query, Connection *conn
                 args += " ";
         }
 
-        std::shared_ptr<PreprocessJob> job(new PreprocessJob(std::move(args),
-                                                             std::move(dir),
-                                                             List<String>(query.projects())));
-        if (mThreadPool) {
-            mThreadPool->start(job);
-        } else {
-            job->exec();
-        }
+        index(args, dir, query.projects());
     }
     clang_CompileCommands_dispose(cmds);
     clang_CompilationDatabase_dispose(db);

@@ -63,6 +63,7 @@ struct Source
 
     List<String> toCommandLine(unsigned int mode = IncludeCompiler|IncludeSourceFile) const;
     bool compare(const Source &other) const; // ignores parsed
+    inline bool isIndexable() const;
     Path sourceFile() const;
     Path compiler() const;
     void clear();
@@ -75,6 +76,19 @@ struct Source
 inline Source::Source()
     : fileId(0), compilerId(0), language(NoLanguage), parsed(0), sysRootIndex(-1)
 {
+}
+
+inline bool Source::isIndexable() const
+{
+    switch (language) {
+    case C:
+    case CPlusPlus:
+    case CPlusPlus11:
+        return true;
+    default:
+        break;
+    }
+    return false;
 }
 
 template <> inline Serializer &operator<<(Serializer &s, const Source::Define &d)
