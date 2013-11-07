@@ -796,6 +796,7 @@ void Project::sync()
             << (static_cast<double>(syncTime) / 1000.0) << " secs, saving took"
             << (static_cast<double>(saveTime) / 1000.0) << " secs, using"
             << MemoryMonitor::usage() / (1024.0 * 1024.0) << "mb of memory";
+    mTimer.start();
 }
 
 void Project::reloadFileManager()
