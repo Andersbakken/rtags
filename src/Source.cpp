@@ -352,9 +352,16 @@ Source Source::parse(const String &cmdLine, const Path &base, Path *unresolvedIn
 
     // ### not threadsafe
     static Hash<Path, Path> resolvedFromPath;
-    const String &front = split.front();
+    Path front = split.front();
     Path &compiler = resolvedFromPath[front];
     if (compiler.isEmpty()) {
+        if (front.startsWith('/')) {
+            Path resolved = front.resolved();
+            const char *fn = resolved.fileName();
+            if (!strcmp(fn, "gcc-rtags-wrapper.sh") || !strcmp(fn, "icecc")) {
+                front = front.fileName();
+            }
+        }
         if (!front.startsWith('/') && !front.isEmpty()) {
             static const char* path = getenv("PATH");
             if (path) {
@@ -378,6 +385,7 @@ Source Source::parse(const String &cmdLine, const Path &base, Path *unresolvedIn
             compiler = split.front();
         }
     }
+    // error() << split.front() << front << compiler;
     ret.compilerId = Location::insertFile(compiler);
     return ret;
 }
