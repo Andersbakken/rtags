@@ -29,8 +29,6 @@
 #include "Source.h"
 #if defined(HAVE_CXCOMPILATIONDATABASE)
 #  include <clang-c/CXCompilationDatabase.h>
-#elif defined(HAVE_V8) || defined(HAVE_YAJL)
-#  include "JSONParser.h"
 #endif
 #include "ListSymbolsJob.h"
 #include "LogObject.h"
@@ -1138,64 +1136,8 @@ void Server::loadCompilationDatabase(const QueryMessage &query, Connection *conn
     clang_CompilationDatabase_dispose(db);
     conn->write("Compilation database loaded");
     conn->finish();
-#elif defined(HAVE_V8) || defined(HAVE_YAJL)
-    const Path path = query.query() + "compile_commands.json";
-    const String json = path.readAll();
-
-    JSONParser parser(json);
-    if (!parser.isValid()) {
-        conn->write("Can't parse compilation database");
-        conn->finish();
-        return;
-    }
-
-    const Value& root = parser.root();
-    bool ok = true;
-    if (root.type() == Value::Type_List) {
-        const List<Value>& items = root.toList();
-        for (int i = 0; i < items.size(); ++i) {
-            const Value& item = items.at(i);
-            if (item.type() != Value::Type_Map) {
-                ok = false;
-                break;
-            }
-            const Map<String, Value>& entry = item.toMap();
-            Map<String, Value>::const_iterator entryItem = entry.begin();
-            const Map<String, Value>::const_iterator entryEnd = entry.end();
-            Path dir;
-            String args;
-            while (entryItem != entryEnd) {
-                if (entryItem->first == "directory" && entryItem->second.type() == Value::Type_String)
-                    dir = entryItem->second.toString();
-                else if (entryItem->first == "command" && entryItem->second.type() == Value::Type_String)
-                    args = entryItem->second.toString();
-                ++entryItem;
-            }
-            if (!dir.isEmpty() && !args.isEmpty()) {
-                //error() << "parsing" << args;
-                args.replace("\\\"", "\"");
-                std::shared_ptr<PreprocessJob> job(new PreprocessJob(std::move(args),
-                                                                     std::move(dir),
-                                                                     List<String>(query.projects())));
-                if (mThreadPool) {
-                    mThreadPool->start(job);
-                } else {
-                    job->exec();
-                }
-            } else {
-                ok = false;
-            }
-        }
-    } else {
-        ok = false;
-    }
-    if (ok) {
-        conn->write("Compilation database loaded");
-    } else {
-        conn->write("Invalid compilation database");
-    }
 #else
-    conn->write("No JSON parser available, need either V8 or YAJL at compile-time");
+    conn->write("No JSON parser available.");
 #endif
     conn->finish();
 }

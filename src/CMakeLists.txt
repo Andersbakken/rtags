@@ -21,8 +21,6 @@ include_directories(${LLVM_INCLUDE_DIRS} ${CLANG_INCLUDE_DIRS})
 
 if (EXISTS ${CLANG_COMPILATION_INCLUDE})
   add_definitions(-DHAVE_CXCOMPILATIONDATABASE)
-else ()
-  find_package(YAJL)
 endif ()
 
 if (RTAGS_BUILD_ESPRIMA)
@@ -130,7 +128,6 @@ add_dependencies(rc rct shared)
 target_link_libraries(rc shared rct ${SYSTEM_LIBS})
 
 if (V8_FOUND EQUAL 1)
-  list(APPEND RDM_SOURCES JSONParser.cpp)
   list(APPEND SYSTEM_LIBS ${V8_LIBS})
   include_directories(${V8_INCLUDE})
 
@@ -142,11 +139,6 @@ if (V8_FOUND EQUAL 1)
   endif ()
   add_definitions(-DHAVE_V8)
   add_definitions("-DESPRIMA_JS=\"${PROJECT_BINARY_DIR}/src/rtags-esprima.js\"")
-elseif (YAJL_FOUND EQUAL 1)
-  list(APPEND RDM_SOURCES JSONParser.cpp)
-  list(APPEND SYSTEM_LIBS ${YAJL_LIBRARY})
-  include_directories(${YAJL_INCLUDE})
-  add_definitions(-DHAVE_YAJL)
 endif ()
 
 add_library(rtags SHARED ${RDM_SOURCES})
