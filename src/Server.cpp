@@ -133,7 +133,7 @@ bool Server::init(const Options &options)
         mUnixServer.reset();
         if (!i) {
             enum { Timeout = 1000 };
-            Connection connection;
+            Connection connection(SocketClient::Unix);
             if (connection.connectUnix(mOptions.socketFile, Timeout)) {
                 connection.send(QueryMessage(QueryMessage::Shutdown));
                 connection.disconnected().connect(std::bind([](){ EventLoop::eventLoop()->quit(); }));
