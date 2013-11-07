@@ -18,6 +18,7 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 #include <rct/Process.h>
 #include <rct/Log.h>
 #include "RTagsClang.h"
+#include "Cpp.h"
 
 Preprocessor::Preprocessor(const Source &args, Connection *connection)
     : mSource(args), mConnection(connection)
@@ -26,9 +27,11 @@ Preprocessor::Preprocessor(const Source &args, Connection *connection)
 
 void Preprocessor::preprocess()
 {
-    const String preprocessed = RTags::preprocess(mSource);
-    mConnection->client()->setWriteMode(SocketClient::Synchronous);
-    mConnection->write(preprocessed);
-    mConnection->write<256>("// %s", String::join(mSource.toCommandLine(Source::IncludeSourceFile|Source::IncludeCompiler), ' ').constData());
+    std::shared_ptr<Cpp> cpp = RTags::preprocess(mSource);
+    if (cpp) {
+        mConnection->client()->setWriteMode(SocketClient::Synchronous);
+        mConnection->write(cpp->preprocessed);
+        mConnection->write<256>("// %s", String::join(mSource.toCommandLine(Source::IncludeSourceFile|Source::IncludeCompiler), ' ').constData());
+    }
     mConnection->finish();
 }

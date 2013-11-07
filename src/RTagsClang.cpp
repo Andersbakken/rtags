@@ -16,6 +16,7 @@
 #include "RTagsClang.h"
 #include "Server.h"
 #include <rct/StopWatch.h>
+#include "Cpp.h"
 #include <iostream>
 
 #define __STDC_LIMIT_MACROS
@@ -30,6 +31,7 @@
 #include <llvm-c/Target.h>
 #include <clang/CodeGen/CodeGenAction.h>
 #include <clang/Frontend/CompilerInstance.h>
+#include <clang/Frontend/TextDiagnosticBuffer.h>
 #include <clang/Driver/ArgList.h>
 #include <clang/Driver/Compilation.h>
 #include <clang/Driver/Driver.h>
@@ -225,20 +227,19 @@ void reparseTranslationUnit(CXTranslationUnit &unit, CXUnsavedFile *unsaved, int
 class StringOStream : public llvm::raw_ostream
 {
 public:
-    StringOStream()
-        : llvm::raw_ostream(true) // non-buffered
+    StringOStream(String *str)
+        : llvm::raw_ostream(true), mString(str) // non-buffered
     {}
     virtual void write_impl(const char *data, size_t size)
     {
-        mString.append(data, size);
+        mString->append(data, size);
     }
     virtual uint64_t current_pos() const
     {
-        return mString.size();
+        return mString->size();
     }
-    String &&take() { return std::move(mString); }
 private:
-    String mString;
+    String *mString;
 };
 
 static inline void processArgs(clang::HeaderSearchOptions &headerSearchOptions,
@@ -365,7 +366,7 @@ bool compile(const Path& output, const Source &source, const String& preprocesse
     return true;
 }
 
-String preprocess(const Source &source)
+std::shared_ptr<Cpp> preprocess(const Source &source)
 {
     StopWatch sw;
     clang::CompilerInstance compilerInstance;
@@ -381,12 +382,14 @@ String preprocess(const Source &source)
     const Path sourceFile = source.sourceFile();
     const clang::FileEntry *file = fm.getFile(sourceFile.constData(), true); // pass openfile?
     if (!file)
-        return String();
+        return std::shared_ptr<Cpp>();
     sm.createMainFileID(file);
     clang::TargetOptions &targetOptions = compilerInstance.getTargetOpts();
     //targetOptions.Triple = LLVM_HOST_TRIPLE;
     targetOptions.Triple = llvm::sys::getDefaultTargetTriple();
     clang::DiagnosticsEngine& diags = compilerInstance.getDiagnostics();
+    clang::TextDiagnosticBuffer diagnosticsClient;
+    diags.setClient(&diagnosticsClient, false);
     compilerInstance.setTarget(clang::TargetInfo::CreateTargetInfo(diags, &targetOptions));
     clang::LangOptions &langOpts = compilerInstance.getLangOpts();
     switch (source.language) {
@@ -470,21 +473,41 @@ String preprocess(const Source &source)
 
     // error() << "predefines" << compilerInstance.getPreprocessor().getPredefines();
     compilerInstance.getPreprocessor().setPredefines(predefines);
-    StringOStream out;
     clang::PreprocessorOutputOptions preprocessorOptions;
     preprocessorOptions.ShowCPP = 1;
 
     compilerInstance.getDiagnosticClient().BeginSourceFile(compilerInstance.getLangOpts(), &compilerInstance.getPreprocessor());
 
+    std::shared_ptr<Cpp> cpp(new Cpp);
+    StringOStream out(&cpp->preprocessed);
     clang::DoPrintPreprocessedInput(compilerInstance.getPreprocessor(), &out, preprocessorOptions);
+    struct {
+        const Cpp::Diagnostic::Type type;
+        const clang::TextDiagnosticBuffer::const_iterator begin, end;
+    } const diagnostics[] = {
+        { Cpp::Diagnostic::Note, diagnosticsClient.note_begin(), diagnosticsClient.note_end() },
+        { Cpp::Diagnostic::Warning, diagnosticsClient.warn_begin(), diagnosticsClient.warn_end() },
+        { Cpp::Diagnostic::Error, diagnosticsClient.err_begin(), diagnosticsClient.err_end() }
+    };
+    for (size_t i=0; i<sizeof(diagnostics) / sizeof(diagnostics[0]); ++i) {
+        for (auto it = diagnostics[i].begin; it != diagnostics[i].end; ++it) {
+            cpp->diagnostics.append(Cpp::Diagnostic());
+            Cpp::Diagnostic &d = cpp->diagnostics.last();
+            d.type = diagnostics[i].type;
+            d.text = it->second;
+            const clang::PresumedLoc presumedLocation = sm.getPresumedLoc(it->first);
+            const Path path = Path::resolved(presumedLocation.getFilename()); // ### do I need to resolve?
+            d.location = Location(Location::insertFile(path), presumedLocation.getLine(), presumedLocation.getColumn());
+        }
+    }
+
     // FILE *f = fopen("/tmp/preprocess.cpp", "w");
     // fwrite(sourceFile.constData(), 1, sourceFile.size(), f);
 
-    const String str = out.take();
     // fwrite(str.constData(), 1, str.size(), f);
     // fclose(f);
-    warning() << "preprocessing" << sourceFile << "took" << sw.elapsed() << "ms" << str.size();
-    return str;
+    warning() << "preprocessing" << sourceFile << "took" << sw.elapsed() << "ms" << cpp->preprocessed.size();
+    return cpp;
 }
 
 static CXChildVisitResult findFirstChildVisitor(CXCursor cursor, CXCursor, CXClientData data)

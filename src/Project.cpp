@@ -19,6 +19,7 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 #include "RTags.h"
 #include "Server.h"
 #include "Server.h"
+#include "Cpp.h"
 #include "WrapperJob.h"
 #include <math.h>
 #include <rct/Log.h>
@@ -200,7 +201,12 @@ void Project::restore(RestoreThread *thread)
     for (Hash<uint32_t, JobData>::const_iterator it = pendingJobs.begin(); it != pendingJobs.end(); ++it) {
         assert(!it->second.pending.isNull());
         assert(it->second.pendingType != IndexerJob::Invalid);
-        index(it->second.pending, it->second.pendingType, RTags::preprocess(it->second.pending));
+        std::shared_ptr<Cpp> cpp = RTags::preprocess(it->second.pending);
+        if (!cpp) {
+            error() << "Unable to preprocess" << it->second.pending.sourceFile();
+        } else {
+            index(it->second.pending, it->second.pendingType, cpp->preprocessed);
+        }
     }
 }
 
@@ -408,7 +414,14 @@ void Project::dump(const Source &source, Connection *conn)
         return;
     }
     c = conn;
-    std::shared_ptr<IndexerJob> job(new IndexerJob(IndexerJob::Dump, mPath, source, RTags::preprocess(source)));
+    std::shared_ptr<Cpp> cpp = RTags::preprocess(source);
+    if (!cpp) {
+        conn->write<64>("Unable to preprocess %s", source.sourceFile().constData());
+        conn->finish();
+        return;
+    }
+
+    std::shared_ptr<IndexerJob> job(new IndexerJob(IndexerJob::Dump, mPath, source, cpp->preprocessed));
     if (!job) {
         mDumps.remove(source.fileId);
         conn->write<64>("Couldn't create dump job for %s", source.sourceFile().constData());
@@ -590,8 +603,13 @@ void Project::startDirtyJobs(const Set<uint32_t> &dirty)
         const SourceMap::const_iterator found = mSources.find(*it);
         if (found != mSources.end()) {
 #warning this preprocessing should happen in a job
-            index(found->second, IndexerJob::Dirty, RTags::preprocess(found->second));
-            indexed = true;
+            std::shared_ptr<Cpp> cpp = RTags::preprocess(found->second);
+            if (!cpp) {
+                error() << "Couldn't preprocess" << found->second.sourceFile();
+            } else {
+                index(found->second, IndexerJob::Dirty, cpp->preprocessed);
+                indexed = true;
+            }
         }
     }
     if (!indexed && !dirtyFiles.isEmpty()) {
