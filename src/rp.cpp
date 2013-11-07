@@ -85,7 +85,7 @@ int main(int argc, char **argv)
         return 5;
     }
 
-    ClangIndexer indexer(port ? SocketClient::Tcp : SocketClient::Unix);
+    ClangIndexer indexer;
     if (port) {
         if (!indexer.connect(destination, port)) {
             fprintf(stderr, "Failed to connect to rdm %s:%d\n", destination.constData(), port);

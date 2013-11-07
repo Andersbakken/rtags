@@ -133,7 +133,7 @@ bool Server::init(const Options &options)
         mUnixServer.reset();
         if (!i) {
             enum { Timeout = 1000 };
-            Connection connection(SocketClient::Unix);
+            Connection connection;
             if (connection.connectUnix(mOptions.socketFile, Timeout)) {
                 connection.send(QueryMessage(QueryMessage::Shutdown));
                 connection.disconnected().connect(std::bind([](){ EventLoop::eventLoop()->quit(); }));
@@ -1439,7 +1439,7 @@ void Server::fetchRemoteJobs(const String& ip, uint16_t port, uint16_t jobs)
 {
     if (debugMulti)
         error() << "connecting to" << ip << port;
-    Connection* conn = new Connection(SocketClient::Tcp);
+    Connection* conn = new Connection;
     if (!conn->connectTcp(ip, port)) {
         delete conn;
         return;

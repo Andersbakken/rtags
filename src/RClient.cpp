@@ -423,7 +423,7 @@ bool RClient::exec()
 
     const int commandCount = mCommands.size();
     bool requiresNon0Output = false;
-    Connection connection(SocketClient::Unix);
+    Connection connection;
     connection.newMessage().connect(std::bind(&RClient::onNewMessage, this,
                                               std::placeholders::_1, std::placeholders::_2));
     connection.finished().connect(std::bind([](){ EventLoop::eventLoop()->quit(); }));
