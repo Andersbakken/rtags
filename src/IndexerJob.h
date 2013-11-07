@@ -62,6 +62,7 @@ public:
     Path sourceFile;
     Set<uint32_t> visited;
     Process *process;
+    Hash<Path, uint32_t> blockedFiles; // only used for remote jobs
 };
 
 class IndexData

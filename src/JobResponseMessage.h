@@ -20,6 +20,8 @@
 #include <rct/String.h>
 #include "ClientMessage.h"
 #include "IndexerJob.h"
+#include "Project.h"
+#include "Server.h"
 #include <memory>
 
 class Connection;
@@ -34,13 +36,16 @@ public:
     {
     }
 
-    JobResponseMessage(std::shared_ptr<IndexerJob>& job, uint16_t p)
+    JobResponseMessage(const std::shared_ptr<IndexerJob>& job, uint16_t p)
         : ClientMessage(MessageId), port(p)
     {
         preprocessed = job->preprocessed;
         project = job->project;
         source = job->source;
         sourceFile = job->sourceFile;
+        std::shared_ptr<Project> proj = Server::instance()->project(project);
+        assert(proj);
+        blockedFiles = proj->visitedFiles();
     }
 
     void encode(Serializer &serializer) const;
@@ -54,6 +59,7 @@ private:
     Source source;
     Path sourceFile;
     uint16_t port;
+    Hash<Path, uint32_t> blockedFiles;
 };
 
 #endif

@@ -1288,14 +1288,20 @@ void Server::handleJobRequestMessage(const JobRequestMessage &message, Connectio
     if (debugMulti)
         error() << "got a request for" << message.numJobs() << "jobs";
     int cnt = message.numJobs();
-    while (!mPending.isEmpty() && cnt > 0) {
-        std::shared_ptr<IndexerJob>& job = *mPending.begin();
-        if (debugMulti)
-            error() << "sending job for" << job->sourceFile;
-        conn->send(JobResponseMessage(job, mOptions.tcpPort));
-        mRemoteJobs.append(job);
-        mPending.pop_front();
-        --cnt;
+    auto it = mPending.begin();
+    while (it != mPending.end()) {
+        std::shared_ptr<IndexerJob>& job = *it;
+        if (job->type != IndexerJob::Remote) {
+            if (debugMulti)
+                error() << "sending job for" << job->sourceFile;
+            conn->send(JobResponseMessage(job, mOptions.tcpPort));
+            mRemoteJobs.append(job);
+            it = mPending.erase(it);
+            if (!--cnt)
+                break;
+            continue;
+        }
+        ++it;
     }
     conn->finish();
 }
@@ -1307,6 +1313,7 @@ void Server::handleJobResponseMessage(const JobResponseMessage &message, Connect
     if (debugMulti)
         error() << "got indexer job for" << job->destination << ":" << job->port << "with preprocessed" << job->preprocessed.size();
     assert(job->type == IndexerJob::Remote);
+    assert(job->state == IndexerJob::Pending);
     startJob(job);
 }
 

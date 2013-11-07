@@ -21,7 +21,6 @@ bool IndexerJob::startLocal()
     if (state == Aborted)
         return false;
     assert(state == Pending);
-    state = Running;
     assert(!process);
     assert(!preprocessed.isEmpty());
     static const Path rp = Rct::executablePath().parentDir() + "rp";
@@ -30,6 +29,7 @@ bool IndexerJob::startLocal()
     if (!encode(serializer))
         return false;
 
+    state = Running;
     process = new Process;
     if (!port)
         process->finished().connect(std::bind(&IndexerJob::onProcessFinished, this));
@@ -75,9 +75,13 @@ void IndexerJob::abort()
 
 bool IndexerJob::encode(Serializer &serializer)
 {
-    std::shared_ptr<Project> proj = Server::instance()->project(project);
-    if (!proj)
-        return false;
+    std::shared_ptr<Project> proj;
+    if (type != Remote) {
+        proj = Server::instance()->project(project);
+        if (!proj)
+            return false;
+    }
+    assert(proj || !blockedFiles.isEmpty());
     const Server::Options &options = Server::instance()->options();
     Source copy = source;
     copy.arguments << options.defaultArguments;
@@ -85,7 +89,7 @@ bool IndexerJob::encode(Serializer &serializer)
                << copy << preprocessed << project
                << static_cast<uint8_t>(type) << options.rpVisitFileTimeout
                << options.rpIndexerMessageTimeout
-               << proj->visitedFiles();
+               << (proj ? proj->visitedFiles() : blockedFiles);
     return true;
 }
 
