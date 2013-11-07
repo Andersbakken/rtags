@@ -97,8 +97,6 @@ public:
         return isEmpty();
     }
 
-    bool isValid(const Location &location) const;
-
     CursorInfo bestTarget(const SymbolMap &map, Location *loc = 0) const;
     SymbolMap targetInfos(const SymbolMap &map) const;
     SymbolMap referenceInfos(const SymbolMap &map) const;
