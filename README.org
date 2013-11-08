@@ -133,14 +133,6 @@ There are a few prerequisites you need to have in order to build rtags
 1. libclang, preferrably 3.2 or higher, on Linux you may be able to use your distro package manager to install this. On OS X you can use homebrew or possibly other package managers, though see below for details if you plan to tag projects that use C++11 features (such as RTags itself). Alternatively you can grab the sources from [[http://llvm.org/releases/download.html][llvm.org]] and build it yourself.
 2. A modern compiler. This means GCC >= 4.7 or Clang >= 3.2. RTags makes extensive use of C++11 features such as variadic templates and threading utility classes from the C++ standard library.
 
-If you plan to tag projects using C++11 features on OS X then you'll need a custom libclang, the one built through homebrew does not support using LLVM's libc++ and the default GNU C++ standard library on OS X is too old. We've prepared a homebrew formula for this purpose, this can be found in the llvm-osx directory in the RTags checkout. This formula can be built as follows though this will overwrite any existing libclang from homebrew:
-
-#+BEGIN_SRC
-brew install <path/to/rtags//llvm-osx/llvm.rb> --with-clang --with-libcxx
-#+END_SRC
-
-Feel free to inspect the formula before installing.
-
 First of all you need to grab the git submodules:
 
 #+BEGIN_SRC
@@ -176,6 +168,15 @@ call something like this:
 #+BEGIN_SRC
 (rtags-enable-standard-keybindings c-mode-base-map)
 #+END_SRC
+
+** OS X specific build step
+If you plan to tag projects using C++11 features on OS X then you'll need a custom libclang, the one built through homebrew does not support using LLVM's libc++ and the default GNU C++ standard library on OS X is too old. We've prepared a homebrew formula for this purpose, this can be found in the llvm-osx directory in the RTags checkout. This formula can be built as follows though this will overwrite any existing libclang from homebrew:
+
+#+BEGIN_SRC
+brew install <path/to/rtags//llvm-osx/llvm.rb> --with-clang --with-libcxx
+#+END_SRC
+
+Feel free to inspect the formula before installing.
 
 * Elisp
 There are lots of interactive functions to call:
