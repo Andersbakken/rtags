@@ -43,6 +43,7 @@ public:
         project = job->project;
         source = job->source;
         sourceFile = job->sourceFile;
+        id = job->id;
         std::shared_ptr<Project> proj = Server::instance()->project(project);
         assert(proj);
         blockedFiles = proj->visitedFiles();
@@ -60,6 +61,7 @@ private:
     Path sourceFile;
     uint16_t port;
     Hash<Path, uint32_t> blockedFiles;
+    uint64_t id;
 };
 
 #endif

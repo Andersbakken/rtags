@@ -21,7 +21,7 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 #include "RTags.h"
 #include "CursorInfo.h"
 
-class Cpp;
+struct Cpp;
 inline bool operator==(const CXCursor &l, CXCursorKind r)
 {
     return clang_getCursorKind(l) == r;

@@ -27,9 +27,9 @@ struct VerboseVisitorUserData {
 
 ClangIndexer::ClangIndexer()
     : mUnit(0), mIndex(0), mLastCursor(nullCursor), mVisitFileResponseMessageFileId(0),
-      mVisitFileResponseMessageVisit(0), mParseDuration(0),
-      mVisitDuration(0), mCommunicationDuration(0), mBlocked(0), mAllowed(0), mIndexed(1),
-      mVisitFileTimeout(0), mIndexerMessageTimeout(0), mFileIdsQueried(0), mLogFile(0)
+      mVisitFileResponseMessageVisit(0), mParseDuration(0), mVisitDuration(0),
+      mCommunicationDuration(0), mBlocked(0), mAllowed(0), mIndexed(1), mVisitFileTimeout(0),
+      mIndexerMessageTimeout(0), mFileIdsQueried(0), mId(0), mLogFile(0)
 {
     mConnection.newMessage().connect(std::bind(&ClangIndexer::onMessage, this,
                                                std::placeholders::_1, std::placeholders::_2));
@@ -65,6 +65,7 @@ bool ClangIndexer::index(IndexerJob::IndexType type, const Source &source,
     // mLogFile = fopen(String::format("/tmp/%s", sourceFile.fileName()).constData(), "w");
     mData.reset(new IndexData(type));
     mData->fileId = source.fileId;
+    mData->jobId = mId;
     mSource = source;
     mProject = project;
     assert(mConnection.isConnected());

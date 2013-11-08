@@ -54,6 +54,7 @@ static void sigIntHandler(int)
 #define DEFAULT_RDM_MULTICAST_ADDRESS "237.50.50.50"
 #define DEFAULT_RDM_MULTICAST_PORT 11509 // ( 100 'r' * 114 'd') + 109 'm'
 #define DEFAULT_RDM_TCP_PORT 12526 // ( 100 'r' + (114 'd' * 109 'm')
+#define DEFAULT_RESCHEDULE_TIMEOUT 10000
 #define XSTR(s) #s
 #define STR(s) XSTR(s)
 
@@ -102,7 +103,8 @@ static void usage(FILE *f)
             "  --disable-esprima|-E                       Don't use esprima\n"
             "  --multicast-address|-a [arg]               Use this address for multicast (default " DEFAULT_RDM_MULTICAST_ADDRESS "\n"
             "  --multicast-port|-P [arg]                  Use this port for multicast (default " STR(DEFAULT_RDM_MULTICAST_PORT) "\n"
-            "  --enable-compiler-flags|-K                 Query the compiler for default flags\n",
+            "  --enable-compiler-flags|-K                 Query the compiler for default flags\n"
+            "  --reschedule-timeout|-R                    Timeout for rescheduling remote jobs (default " STR(DEFAULT_RESCHEDULE_TIMEOUT) "\n",
             ThreadPool::idealThreadCount(),
             std::max(1, ThreadPool::idealThreadCount() / 2));
 }
@@ -148,6 +150,7 @@ int main(int argc, char** argv)
         { "multicast-address", required_argument, 0, 'a' },
         { "multicast-port", required_argument, 0, 'P' },
         { "port", required_argument, 0, 'p' },
+        { "reschedule-timeout", required_argument, 0, 'R' },
 #ifdef OS_Darwin
         { "filemanager-watch", no_argument, 0, 'M' },
 #else
@@ -245,6 +248,7 @@ int main(int argc, char** argv)
     serverOpts.multicastAddress = DEFAULT_RDM_MULTICAST_ADDRESS;
     serverOpts.multicastPort = static_cast<uint16_t>(DEFAULT_RDM_MULTICAST_PORT);
     serverOpts.tcpPort = static_cast<uint16_t>(DEFAULT_RDM_TCP_PORT);
+    serverOpts.rescheduleTimeout = DEFAULT_RESCHEDULE_TIMEOUT;
     serverOpts.unloadTimer = 0;
 
     const char *logFile = 0;
@@ -293,6 +297,13 @@ int main(int argc, char** argv)
             }
             if (!serverOpts.rpVisitFileTimeout)
                 serverOpts.rpVisitFileTimeout = -1;
+            break;
+        case 'R':
+            serverOpts.rescheduleTimeout = atoi(optarg);
+            if (serverOpts.rescheduleTimeout <= 0) {
+                fprintf(stderr, "Invalid argument to -R %s\n", optarg);
+                return 1;
+            }
             break;
         case 'b':
             serverOpts.ignoredCompilers.insert(Path::resolved(optarg));

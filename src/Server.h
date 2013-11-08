@@ -77,7 +77,7 @@ public:
         Path socketFile, dataDir;
         unsigned options;
         int processCount, preprocessCount, unloadTimer, rpVisitFileTimeout,
-            rpIndexerMessageTimeout, syncThreshold;
+            rpIndexerMessageTimeout, syncThreshold, rescheduleTimeout;
         List<String> defaultArguments, excludeFilters;
         List<Path> includePaths;
         List<Source::Define> defines;
@@ -105,6 +105,7 @@ private:
     std::shared_ptr<Project> setCurrentProject(const Path &path, unsigned int queryFlags = 0);
     std::shared_ptr<Project> setCurrentProject(const std::shared_ptr<Project> &project, unsigned int queryFlags = 0);
     void onUnload();
+    void onReschedule();
     void onNewMessage(Message *message, Connection *conn);
     void onConnectionDisconnected(Connection *o);
     void clearProjects();
@@ -163,11 +164,12 @@ private:
     SocketServer::SharedPtr mUnixServer, mTcpServer;
     bool mVerbose;
 
-    Timer mUnloadTimer;
+    Timer mUnloadTimer, mRescheduleTimer;
 
     uint32_t mCurrentFileId;
     std::shared_ptr<SocketClient> mMulticastSocket;
-    LinkedList<std::shared_ptr<IndexerJob> > mPending, mRemoteJobs;
+    LinkedList<std::shared_ptr<IndexerJob> > mPending;
+    std::map<uint64_t, std::shared_ptr<IndexerJob> > mProcessingJobs;
     Map<Process*, std::shared_ptr<IndexerJob> > mLocalJobs;
     ThreadPool *mThreadPool;
     unsigned int mRemotePending;

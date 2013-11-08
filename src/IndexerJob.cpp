@@ -4,15 +4,18 @@
 #include <RTagsClang.h>
 #include "Server.h"
 
+uint64_t IndexerJob::nextId = 0;
+
 IndexerJob::IndexerJob(IndexType t, const Path &p, const Source &s, const String &cpp)
     : state(Pending), destination(Server::instance()->options().socketFile),
       port(0), type(t), project(p), source(s), preprocessed(cpp),
-      sourceFile(s.sourceFile()), process(0)
+      sourceFile(s.sourceFile()), process(0), id(++nextId), started(0),
+      complete(false)
 {
 }
 
 IndexerJob::IndexerJob()
-    : state(Pending), port(0), type(Invalid), process(0)
+    : state(Pending), port(0), type(Invalid), process(0), id(0), started(0), complete(false)
 {
 }
 
@@ -89,7 +92,7 @@ bool IndexerJob::encode(Serializer &serializer)
                << copy << preprocessed << project
                << static_cast<uint8_t>(type) << options.rpVisitFileTimeout
                << options.rpIndexerMessageTimeout
-               << (proj ? proj->visitedFiles() : blockedFiles);
+               << id << (proj ? proj->visitedFiles() : blockedFiles);
     return true;
 }
 
@@ -99,7 +102,7 @@ void IndexerJob::decode(Deserializer &deserializer, Hash<Path, uint32_t> &blocke
     int ignored; // timeouts
     deserializer >> destination >> port >> sourceFile
                  >> source >> preprocessed >> project
-                 >> t >> ignored >> ignored >> blockedFiles;
+                 >> t >> ignored >> ignored >> id >> blockedFiles;
     type = static_cast<IndexType>(t);
 }
 

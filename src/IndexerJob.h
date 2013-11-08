@@ -63,13 +63,18 @@ public:
     Set<uint32_t> visited;
     Process *process;
     Hash<Path, uint32_t> blockedFiles; // only used for remote jobs
+    uint64_t id;
+    uint64_t started;
+    bool complete;
+
+    static uint64_t nextId;
 };
 
 class IndexData
 {
 public:
     IndexData(IndexerJob::IndexType t)
-        : aborted(false), fileId(0), parseTime(0), type(t)
+        : aborted(false), fileId(0), parseTime(0), jobId(0), type(t)
     {}
     virtual ~IndexData()
     {}
@@ -106,6 +111,7 @@ public:
     FixItMap fixIts;
     String xmlDiagnostics;
     Hash<uint32_t, bool> visited;
+    uint64_t jobId;
     const IndexerJob::IndexType type;
 };
 

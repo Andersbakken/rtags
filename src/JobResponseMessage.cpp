@@ -20,12 +20,12 @@
 
 void JobResponseMessage::encode(Serializer &serializer) const
 {
-    serializer << preprocessed << project << source << sourceFile << blockedFiles << htons(port);
+    serializer << preprocessed << project << source << sourceFile << blockedFiles << htons(port) << id;
 }
 
 void JobResponseMessage::decode(Deserializer &deserializer)
 {
-    deserializer >> preprocessed >> project >> source >> sourceFile >> blockedFiles >> port;
+    deserializer >> preprocessed >> project >> source >> sourceFile >> blockedFiles >> port >> id;
     port = ntohs(port);
 }
 
@@ -42,4 +42,5 @@ void JobResponseMessage::toIndexerJob(std::shared_ptr<IndexerJob>& job, Connecti
     job->destination = dest;
     job->port = port;
     job->blockedFiles = blockedFiles;
+    job->id = id;
 }

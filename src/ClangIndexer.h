@@ -26,6 +26,7 @@ public:
     int indexerMessageTimeout() const { return mIndexerMessageTimeout; }
     void setIndexerMessageTimeout(int indexerMessageTimeout) { mIndexerMessageTimeout = indexerMessageTimeout; }
     void setBlockedFiles(Hash<Path, uint32_t> &&blockedFiles);
+    void setJobId(uint64_t id) { mId = id; }
 private:
     bool diagnose();
     bool visit();
@@ -109,6 +110,7 @@ private:
     int mParseDuration, mVisitDuration, mCommunicationDuration, mBlocked, mAllowed,
         mIndexed, mVisitFileTimeout, mIndexerMessageTimeout, mFileIdsQueried;
     Connection mConnection;
+    uint64_t mId;
     FILE *mLogFile;
 };
 

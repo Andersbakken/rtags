@@ -52,11 +52,12 @@ int main(int argc, char **argv)
     Path project;
     uint8_t type;
     Hash<Path, uint32_t> blockedFiles;
+    uint64_t jobId;
     int visitFileTimeout, indexerMessageTimeout;
     deserializer >> destination >> port >> sourceFile >> source
                  >> preprocessed >> project >> type
                  >> visitFileTimeout >> indexerMessageTimeout
-                 >> blockedFiles;
+                 >> jobId >> blockedFiles;
     if (argc > 1)
         fclose(f);
     f = 0;
@@ -102,6 +103,7 @@ int main(int argc, char **argv)
     indexer.setBlockedFiles(std::move(blockedFiles));
     indexer.setVisitFileTimeout(visitFileTimeout);
     indexer.setIndexerMessageTimeout(indexerMessageTimeout);
+    indexer.setJobId(jobId);
 
     if (!indexer.index(static_cast<IndexerJob::IndexType>(type), source, preprocessed, project)) {
         fprintf(stderr, "Failed to index %s\n", sourceFile.constData());
