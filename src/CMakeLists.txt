@@ -44,7 +44,7 @@ add_definitions("-DCLANG_VERSION_MINOR=${CLANG_VERSION_MINOR}")
 add_definitions(-DOS_${CMAKE_SYSTEM_NAME})
 
 if (CMAKE_SYSTEM_NAME MATCHES "Linux")
-  set(SYSTEM_LIBS pthread rt crypto dl)
+  set(SYSTEM_LIBS pthread rt crypto m dl)
 elseif (CMAKE_SYSTEM_NAME MATCHES "FreeBSD")
   add_definitions(-D__LONG_LONG_SUPPORTED)
   set(SYSTEM_LIBS pthread crypto)
