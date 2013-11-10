@@ -55,9 +55,13 @@ bool IndexerJob::update(IndexType t, const Source &s)
         abort();
         break;
     case Pending:
-        type = t;
-        source = s;
-        return true;
+        if (std::shared_ptr<Cpp> p = RTags::preprocess(s)) {
+            type = t;
+            source = s;
+            preprocessed = p->preprocessed;
+            return true;
+        }
+        break;
     }
     return false;
 }
