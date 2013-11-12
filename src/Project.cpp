@@ -102,7 +102,6 @@ public:
     SymbolMap mSymbols;
     SymbolNameMap mSymbolNames;
     UsrMap mUsr;
-    FilesMap mFiles;
     DependencyMap mDependencies;
     SourceMap mSources;
     Set<uint32_t> mVisitedFiles;
@@ -142,7 +141,6 @@ void Project::restore(RestoreThread *thread)
     mSymbols = std::move(thread->mSymbols);
     mSymbolNames = std::move(thread->mSymbolNames);
     mUsr = std::move(thread->mUsr);;
-    mFiles = std::move(thread->mFiles);
     mDependencies = std::move(thread->mDependencies);
     mSources = std::move(thread->mSources);
     mVisitedFiles = std::move(thread->mVisitedFiles);
