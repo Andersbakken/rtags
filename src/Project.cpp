@@ -902,10 +902,17 @@ SymbolMap Project::symbols(uint32_t fileId) const
 String Project::dumpJobs() const
 {
     String ret;
+    const char *types[] = { "Invalid",
+                            "Makefile",
+                            "Dirty",
+                            "Dump",
+                            "Remote" };
+
     for (Hash<uint32_t, JobData>::const_iterator it = mJobs.begin(); it != mJobs.end(); ++it) {
-#warning this is not really right
-        ret << Location::path(it->first) << it->second.job.get() << it->second.crashCount
-            << it->second.pendingSource << static_cast<int>(it->second.pendingType) << "\n";
+        ret << Location::path(it->first) << it->second.job->source << types[it->second.job->type]
+            << it->second.crashCount
+            << (it->second.pendingType == IndexerJob::Invalid ? String() : it->second.pendingSource.toString())
+            << "\n";
     }
     return ret;
 }
