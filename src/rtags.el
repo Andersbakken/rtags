@@ -107,9 +107,7 @@
                 (let (deactivate-mark)
                   (with-current-buffer (find-file-noselect file)
                     (goto-char (point-min))
-                    (forward-line (1- line))
-                    (beginning-of-line)
-                    (forward-char (- column 1))
+                    (rtags-goto-line-col line column)
                     (setq rtags-buffer-bookmarks (+ rtags-buffer-bookmarks 1))
                     (bookmark-set (format "R_%d" rtags-buffer-bookmarks))
                     (set-buffer buf)))))
@@ -555,6 +553,13 @@
     )
   )
 
+(defun rtags-goto-line-col (line column)
+  (goto-char (point-min))
+  (forward-line (1- line))
+  (beginning-of-line)
+  (forward-char (- column 1))
+  )
+
 (defun rtags-goto-location (location &optional nobookmark other-window)
   "Go to a location passed in. It can be either: file,12 or file:13:14 or plain file"
   ;; (message (format "rtags-goto-location \"%s\"" location))
@@ -564,10 +569,7 @@
                  (column (string-to-number (match-string 3 location))))
              (rtags-find-file-or-buffer (match-string 1 location) other-window)
              (run-hooks rtags-after-find-file-hook)
-             (goto-char (point-min))
-             (forward-line (1- line))
-             (beginning-of-line)
-             (forward-char (- column 1))
+             (rtags-goto-line-col line column)
              t))
           ((string-match "\\(.*\\):\\([0-9]+\\)" location)
            (let ((line (string-to-number (match-string 2 location))))
@@ -1120,7 +1122,11 @@ References to references will be treated as references to the referenced symbol"
             (when (or (not endoffset) (= endoffset -1))
               (with-current-buffer filebuffer
                 (save-excursion
-                  (rtags-goto-offset startoffset)
+                  (if startoffset
+                      (rtags-goto-offset startoffset)
+                    (progn
+                      (rtags-goto-line-col line column)
+                      (setq startoffset (rtags-offset))))
                   (let ((rsym (rtags-current-symbol t)))
                     (when rsym
                       (setq endoffset (+ startoffset (length rsym))))))))
@@ -1929,9 +1935,8 @@ References to references will be treated as references to the referenced symbol"
 (defun rtags-offset-for-line-column (line col)
   (let (deactivate-mark)
     (save-excursion
-      (goto-char (point-min))
-      (forward-line (1- line))
-      (+ (point-at-bol) col -1)))
+      (rtags-goto-line-col line col)
+      (rtags-offset)))
   )
 
 (defun rtags-range-visible (start end)
