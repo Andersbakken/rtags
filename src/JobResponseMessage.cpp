@@ -17,15 +17,17 @@
 #include <rct/Serializer.h>
 #include <rct/Connection.h>
 #include <arpa/inet.h>
+#include "Cpp.h"
 
 void JobResponseMessage::encode(Serializer &serializer) const
 {
-    serializer << preprocessed << project << source << sourceFile << blockedFiles << htons(port) << id;
+    serializer << *cpp << project << source << sourceFile << blockedFiles << htons(port) << id;
 }
 
 void JobResponseMessage::decode(Deserializer &deserializer)
 {
-    deserializer >> preprocessed >> project >> source >> sourceFile >> blockedFiles >> port >> id;
+    cpp.reset(new Cpp);
+    deserializer >> *cpp >> project >> source >> sourceFile >> blockedFiles >> port >> id;
     port = ntohs(port);
 }
 
@@ -33,7 +35,7 @@ void JobResponseMessage::toIndexerJob(std::shared_ptr<IndexerJob>& job, Connecti
 {
     job->state = IndexerJob::Pending;
     job->type = IndexerJob::Remote;
-    job->preprocessed = preprocessed;
+    job->cpp = cpp;
     job->project = project;
     job->source = source;
     job->sourceFile = sourceFile;

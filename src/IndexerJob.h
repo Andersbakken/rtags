@@ -36,17 +36,18 @@ public:
         Remote
     };
 
-    IndexerJob(IndexType type, const Path &p, const Source &s, const String &preprocessed);
+    IndexerJob(IndexType type, const Path &p, const Source &s, const std::shared_ptr<Cpp> &preprocessed);
     IndexerJob();
 
     enum State {
         Pending,
         Running,
-        Aborted
+        Aborted,
+        Complete
     };
 
     bool startLocal();
-    bool update(IndexType t, const Source &s);
+    bool update(IndexType t, const Source &s, const std::shared_ptr<Cpp> &cpp);
     void abort();
     bool encode(Serializer &serializer);
     void decode(Deserializer &deserializer, Hash<Path, uint32_t> &blockedFiles);
@@ -58,14 +59,12 @@ public:
     IndexType type;
     Path project;
     Source source;
-    String preprocessed;
     Path sourceFile;
     Set<uint32_t> visited;
     Process *process;
     Hash<Path, uint32_t> blockedFiles; // only used for remote jobs
-    uint64_t id;
-    uint64_t started;
-    bool complete;
+    uint64_t id, started;
+    std::shared_ptr<Cpp> cpp;
 
     static uint64_t nextId;
 };

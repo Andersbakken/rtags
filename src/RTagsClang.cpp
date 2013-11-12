@@ -380,6 +380,7 @@ std::shared_ptr<Cpp> preprocess(const Source &source)
     assert(compilerInstance.hasSourceManager());
     clang::SourceManager &sm = compilerInstance.getSourceManager();
     const Path sourceFile = source.sourceFile();
+    uint64_t now = Rct::currentTimeMs();
     const clang::FileEntry *file = fm.getFile(sourceFile.constData(), true); // pass openfile?
     if (!file)
         return std::shared_ptr<Cpp>();
@@ -480,6 +481,7 @@ std::shared_ptr<Cpp> preprocess(const Source &source)
 
     std::shared_ptr<Cpp> cpp(new Cpp);
     StringOStream out(&cpp->preprocessed);
+    cpp->time = now;
     clang::DoPrintPreprocessedInput(compilerInstance.getPreprocessor(), &out, preprocessorOptions);
     struct {
         const Cpp::Diagnostic::Type type;

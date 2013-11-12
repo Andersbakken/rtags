@@ -360,7 +360,7 @@ void Server::handleIndexerMessage(const IndexerMessage &message, Connection *con
             error() << "already got a response for" << indexData->jobId;
         return;
     }
-    it->second->complete = true;
+    it->second->state = IndexerJob::Complete;
     mProcessingJobs.erase(it);
     std::shared_ptr<Project> project = mProjects.value(message.project());
     if (!project) {
@@ -878,7 +878,7 @@ void Server::index(const Source &source, const std::shared_ptr<Cpp> &cpp, const 
         setupCurrentProjectFile(project);
     }
     assert(project);
-    project->index(source, cpp->preprocessed);
+    project->index(source, cpp);
 }
 
 std::shared_ptr<Project> Server::setCurrentProject(const Path &path, unsigned int queryFlags) // lock always held
@@ -1248,7 +1248,7 @@ void Server::handleJobRequestMessage(const JobRequestMessage &message, Connectio
     while (it != mPending.end()) {
         std::shared_ptr<IndexerJob>& job = *it;
         if (job->type != IndexerJob::Remote) {
-            if (job->complete) {
+            if (job->state == IndexerJob::Complete) {
                 if (debugMulti)
                     error() << "wanted to send a remote job but job was already complete" << job->sourceFile << job->id;
                 it = mPending.erase(it);
@@ -1274,8 +1274,10 @@ void Server::handleJobResponseMessage(const JobResponseMessage &message, Connect
 {
     std::shared_ptr<IndexerJob> job(new IndexerJob);
     message.toIndexerJob(job, conn);
-    if (debugMulti)
-        error() << "got indexer job for" << job->destination << ":" << job->port << "with preprocessed" << job->preprocessed.size();
+    if (debugMulti) {
+        error() << "got indexer job for" << job->destination << ":" << job->port
+                << "with preprocessed" << job->cpp->preprocessed.size();
+    }
     assert(job->type == IndexerJob::Remote);
     assert(job->state == IndexerJob::Pending);
     startJob(job);
@@ -1364,13 +1366,13 @@ void Server::onReschedule()
     auto it = mProcessingJobs.begin();
     while (it != mProcessingJobs.end()) {
         const std::shared_ptr<IndexerJob>& job = it->second;
-        assert(!job->complete);
+        assert(job->state != IndexerJob::Complete);
         if (!job->started) {
             // local job, no need to reschedule
             ++it;
             continue;
         }
-        if (now - job->started >= mOptions.rescheduleTimeout) {
+        if (static_cast<int>(now - job->started) >= mOptions.rescheduleTimeout) {
             // this might never happen, reschedule this job
             // don't take it out of the mProcessingJobs list since the result might come back still
             if (debugMulti)
@@ -1453,7 +1455,7 @@ void Server::startNextJob()
     while (!mPending.isEmpty() && mLocalJobs.size() < mOptions.processCount) {
         std::shared_ptr<IndexerJob> job = mPending.first();
         assert(job);
-        if (job->complete) {
+        if (job->state == IndexerJob::Complete) {
             if (debugMulti)
                 error() << "wanted to start a local job but job was already complete" << job->sourceFile << job->id;
             mPending.pop_front();

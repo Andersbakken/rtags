@@ -13,12 +13,13 @@
    You should have received a copy of the GNU General Public License
    along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 
-#include "Source.h"
-#include "RTagsClang.h"
 #include "ClangIndexer.h"
+#include "Cpp.h"
+#include "RTagsClang.h"
+#include "Source.h"
 #include <rct/Log.h>
-#include <rct/String.h>
 #include <rct/StopWatch.h>
+#include <rct/String.h>
 #include <signal.h>
 
 static void sigSegvHandler(int signal)
@@ -48,14 +49,14 @@ int main(int argc, char **argv)
     uint16_t port;
     Path sourceFile;
     Source source;
-    String preprocessed;
     Path project;
     uint8_t type;
     Hash<Path, uint32_t> blockedFiles;
+    std::shared_ptr<Cpp> cpp(new Cpp);
     uint64_t jobId;
     int visitFileTimeout, indexerMessageTimeout;
     deserializer >> destination >> port >> sourceFile >> source
-                 >> preprocessed >> project >> type
+                 >> *cpp >> project >> type
                  >> visitFileTimeout >> indexerMessageTimeout
                  >> jobId >> blockedFiles;
     if (argc > 1)
@@ -105,7 +106,7 @@ int main(int argc, char **argv)
     indexer.setIndexerMessageTimeout(indexerMessageTimeout);
     indexer.setJobId(jobId);
 
-    if (!indexer.index(static_cast<IndexerJob::IndexType>(type), source, preprocessed, project)) {
+    if (!indexer.index(static_cast<IndexerJob::IndexType>(type), source, cpp, project)) {
         fprintf(stderr, "Failed to index %s\n", sourceFile.constData());
         return 8;
     }

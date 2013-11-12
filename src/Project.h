@@ -88,7 +88,7 @@ public:
     bool isIndexed(uint32_t fileId) const;
 
     void dump(const Source &source, Connection *conn);
-    bool index(const Source &source, const String &preprocessed);
+    bool index(const Source &source, const std::shared_ptr<Cpp> &cpp);
     Source source(uint32_t fileId) const;
     enum DependencyMode {
         DependsOnArg,
@@ -118,7 +118,7 @@ public:
     }
 private:
     void restore(RestoreThread *thread);
-    void index(const Source &args, IndexerJob::IndexType type, const String &preprocessed);
+    void index(const Source &args, IndexerJob::IndexType type, const std::shared_ptr<Cpp> &cpp);
     void watch(const Path &file);
     void reloadFileManager();
     void addDependencies(const DependencyMap &hash, Set<uint32_t> &newFiles);
@@ -144,9 +144,9 @@ private:
         JobData()
             : pendingType(IndexerJob::Dirty), crashCount(0)
         {}
-        Source pending;
+        Source pendingSource;
         IndexerJob::IndexType pendingType;
-        String pendingPreprocessed;
+        std::shared_ptr<Cpp> pendingCpp;
         int crashCount;
         std::shared_ptr<IndexerJob> job;
     };

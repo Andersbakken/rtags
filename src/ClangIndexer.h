@@ -10,6 +10,7 @@
 #include "IndexerJob.h"
 #include "RTagsClang.h"
 
+class Cpp;
 class ClangIndexer
 {
 public:
@@ -20,7 +21,7 @@ public:
     bool connect(const String &hostName, uint16_t port);
 
     bool index(IndexerJob::IndexType type, const Source &source,
-               const String &preprocessed, const Path &project);
+               const std::shared_ptr<Cpp> &cpp, const Path &project);
     int visitFileTimeout() const { return mVisitFileTimeout; }
     void setVisitFileTimeout(int visitFileTimeout) { mVisitFileTimeout = visitFileTimeout; }
     int indexerMessageTimeout() const { return mIndexerMessageTimeout; }
@@ -96,7 +97,6 @@ private:
 
     Path mProject;
     std::shared_ptr<IndexData> mData;
-    String mContents;
     Source mSource;
     CXTranslationUnit mUnit;
     CXIndex mIndex;
@@ -109,6 +109,7 @@ private:
     StopWatch mTimer;
     int mParseDuration, mVisitDuration, mCommunicationDuration, mBlocked, mAllowed,
         mIndexed, mVisitFileTimeout, mIndexerMessageTimeout, mFileIdsQueried;
+    std::shared_ptr<Cpp> mCpp;
     Connection mConnection;
     uint64_t mId;
     FILE *mLogFile;

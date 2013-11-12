@@ -39,7 +39,7 @@ public:
     JobResponseMessage(const std::shared_ptr<IndexerJob>& job, uint16_t p)
         : ClientMessage(MessageId), port(p)
     {
-        preprocessed = job->preprocessed;
+        cpp = job->cpp;
         project = job->project;
         source = job->source;
         sourceFile = job->sourceFile;
@@ -55,7 +55,7 @@ public:
     void toIndexerJob(std::shared_ptr<IndexerJob>& job, Connection* conn) const;
 
 private:
-    String preprocessed;
+    std::shared_ptr<Cpp> cpp;
     Path project;
     Source source;
     Path sourceFile;

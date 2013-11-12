@@ -200,13 +200,13 @@ void Project::restore(RestoreThread *thread)
         save();
     }
     for (Hash<uint32_t, JobData>::const_iterator it = pendingJobs.begin(); it != pendingJobs.end(); ++it) {
-        assert(!it->second.pending.isNull());
+        assert(!it->second.pendingSource.isNull());
         assert(it->second.pendingType != IndexerJob::Invalid);
-        std::shared_ptr<Cpp> cpp = RTags::preprocess(it->second.pending);
+        std::shared_ptr<Cpp> cpp = RTags::preprocess(it->second.pendingSource);
         if (!cpp) {
-            error() << "Unable to preprocess" << it->second.pending.sourceFile();
+            error() << "Unable to preprocess" << it->second.pendingSource.sourceFile();
         } else {
-            index(it->second.pending, it->second.pendingType, cpp->preprocessed);
+            index(it->second.pendingSource, it->second.pendingType, cpp);
         }
     }
 }
@@ -280,7 +280,7 @@ void Project::onJobFinished(const std::shared_ptr<IndexData> &indexData)
 {
     assert(indexData);
     Source pending;
-    String pendingPreprocessed;
+    std::shared_ptr<Cpp> pendingCpp;
     IndexerJob::IndexType pendingType = IndexerJob::Invalid;
     bool syncNow = false;
     if (indexData->type == IndexerJob::Dump) {
@@ -318,11 +318,12 @@ void Project::onJobFinished(const std::shared_ptr<IndexData> &indexData)
         if (jobData->pendingType != IndexerJob::Invalid) {
             assert(jobData->job->state == IndexerJob::Aborted);
             std::swap(pendingType, jobData->pendingType);
-            std::swap(pending, jobData->pending);
-            std::swap(pendingPreprocessed, jobData->pendingPreprocessed);
+            std::swap(pending, jobData->pendingSource);
+            std::swap(pendingCpp, jobData->pendingCpp);
         } else if (!success) {
             pending = jobData->job->source;
             pendingType = jobData->job->type;
+            pendingCpp = jobData->job->cpp;
             if (jobData->job->state != IndexerJob::Aborted) {
                 // ### we should maybe wait a little before restarting or something.
                 error("%s crashed, restarting", jobData->job->source.sourceFile().constData());
@@ -367,7 +368,7 @@ void Project::onJobFinished(const std::shared_ptr<IndexData> &indexData)
         sync();
     if (pendingType != IndexerJob::Invalid) {
         assert(!pending.isNull());
-        index(pending, pendingType, pendingPreprocessed);
+        index(pending, pendingType, pendingCpp);
         --mJobCounter;
     }
 }
@@ -422,7 +423,7 @@ void Project::dump(const Source &source, Connection *conn)
         return;
     }
 
-    std::shared_ptr<IndexerJob> job(new IndexerJob(IndexerJob::Dump, mPath, source, cpp->preprocessed));
+    std::shared_ptr<IndexerJob> job(new IndexerJob(IndexerJob::Dump, mPath, source, cpp));
     if (!job) {
         mDumps.remove(source.fileId);
         conn->write<64>("Couldn't create dump job for %s", source.sourceFile().constData());
@@ -432,7 +433,7 @@ void Project::dump(const Source &source, Connection *conn)
     job->startLocal();
 }
 
-void Project::index(const Source &source, IndexerJob::IndexType type, const String &preprocessed)
+void Project::index(const Source &source, IndexerJob::IndexType type, const std::shared_ptr<Cpp> &cpp)
 {
     static const char *fileFilter = getenv("RTAGS_FILE_FILTER");
     if (fileFilter && !strstr(source.sourceFile().constData(), fileFilter))
@@ -441,17 +442,18 @@ void Project::index(const Source &source, IndexerJob::IndexType type, const Stri
     JobData &data = mJobs[source.fileId];
     if (mState != Loaded) {
         // error() << "Index called at" << static_cast<int>(mState) << "time. Setting pending" << source.sourceFile();
-        data.pending = source;
+        data.pendingSource = source;
         data.pendingType = IndexerJob::Makefile;
+        data.pendingCpp = cpp;
         return;
     }
     if (data.job) {
         // error() << "There's already something here for" << source.sourceFile();
-        if (!data.job->update(type, source)) {
+        if (!data.job->update(type, source, cpp)) {
             // error() << "Aborting and setting pending" << source.sourceFile();
-            data.pending = source;
+            data.pendingSource = source;
             data.pendingType = type;
-            data.pendingPreprocessed = preprocessed;
+            data.pendingCpp = cpp;
         }
         return;
     }
@@ -459,15 +461,15 @@ void Project::index(const Source &source, IndexerJob::IndexType type, const Stri
     mSources[source.fileId] = source;
     watch(source.sourceFile());
 
-    data.pending.clear();
+    data.pendingSource.clear();
     data.pendingType = IndexerJob::Invalid;
-    data.pendingPreprocessed.clear();
+    data.pendingCpp.reset();
     mPendingData.remove(source.fileId);
 
     if (!mJobCounter++)
         mTimer.start();
 
-    data.job.reset(new IndexerJob(type, mPath, source, preprocessed));
+    data.job.reset(new IndexerJob(type, mPath, source, cpp));
     if (!data.job) {
         error() << "Failed to create job for" << source;
         mJobs.erase(source.fileId);
@@ -477,7 +479,7 @@ void Project::index(const Source &source, IndexerJob::IndexType type, const Stri
     Server::instance()->startJob(data.job);
 }
 
-bool Project::index(const Source &s, const String &preprocessed)
+bool Project::index(const Source &s, const std::shared_ptr<Cpp> &cpp)
 {
     assert(!s.isNull());
 
@@ -487,7 +489,7 @@ bool Project::index(const Source &s, const String &preprocessed)
         return false;
     }
 
-    index(s, IndexerJob::Makefile, preprocessed);
+    index(s, IndexerJob::Makefile, cpp);
     return true;
 }
 
@@ -608,7 +610,7 @@ void Project::startDirtyJobs(const Set<uint32_t> &dirty)
             if (!cpp) {
                 error() << "Couldn't preprocess" << found->second.sourceFile();
             } else {
-                index(found->second, IndexerJob::Dirty, cpp->preprocessed);
+                index(found->second, IndexerJob::Dirty, cpp);
                 indexed = true;
             }
         }
@@ -903,8 +905,9 @@ String Project::dumpJobs() const
 {
     String ret;
     for (Hash<uint32_t, JobData>::const_iterator it = mJobs.begin(); it != mJobs.end(); ++it) {
+#warning this is not really right
         ret << Location::path(it->first) << it->second.job.get() << it->second.crashCount
-            << it->second.pending << static_cast<int>(it->second.pendingType) << "\n";
+            << it->second.pendingSource << static_cast<int>(it->second.pendingType) << "\n";
     }
     return ret;
 }

@@ -3,19 +3,20 @@
 #include <rct/Process.h>
 #include <RTagsClang.h>
 #include "Server.h"
+#include "Cpp.h"
 
 uint64_t IndexerJob::nextId = 0;
 
-IndexerJob::IndexerJob(IndexType t, const Path &p, const Source &s, const String &cpp)
+IndexerJob::IndexerJob(IndexType t, const Path &p, const Source &s, const std::shared_ptr<Cpp> &c)
     : state(Pending), destination(Server::instance()->options().socketFile),
-      port(0), type(t), project(p), source(s), preprocessed(cpp),
-      sourceFile(s.sourceFile()), process(0), id(++nextId), started(0),
-      complete(false)
+      port(0), type(t), project(p), source(s), sourceFile(s.sourceFile()),
+      process(0), id(++nextId), started(0), cpp(c)
 {
+    assert(cpp);
 }
 
 IndexerJob::IndexerJob()
-    : state(Pending), port(0), type(Invalid), process(0), id(0), started(0), complete(false)
+    : state(Pending), port(0), type(Invalid), process(0), id(0), started(0)
 {
 }
 
@@ -24,8 +25,9 @@ bool IndexerJob::startLocal()
     if (state == Aborted)
         return false;
     assert(state == Pending);
+    assert(cpp);
     assert(!process);
-    assert(!preprocessed.isEmpty());
+    assert(!cpp->preprocessed.isEmpty());
     static const Path rp = Rct::executablePath().parentDir() + "rp";
     String stdinData;
     Serializer serializer(stdinData);
@@ -46,22 +48,24 @@ bool IndexerJob::startLocal()
     return true;
 }
 
-bool IndexerJob::update(IndexType t, const Source &s)
+bool IndexerJob::update(IndexType t, const Source &s, const std::shared_ptr<Cpp> &c)
 {
     switch (state) {
     case Aborted:
+        break;
+    case Complete:
+        // this shouldn't happen right?
+        assert(0);
         break;
     case Running:
         abort();
         break;
     case Pending:
-        if (std::shared_ptr<Cpp> p = RTags::preprocess(s)) {
-            type = t;
-            source = s;
-            preprocessed = p->preprocessed;
-            return true;
-        }
-        break;
+        type = t;
+        source = s;
+        assert(cpp);
+        cpp = c;
+        return true;
     }
     return false;
 }
@@ -69,6 +73,10 @@ bool IndexerJob::update(IndexType t, const Source &s)
 void IndexerJob::abort()
 {
     switch (state) {
+    case Complete:
+        // ### this should happen right?
+        assert(0);
+        break;
     case Aborted:
     case Pending:
         break;
@@ -92,8 +100,9 @@ bool IndexerJob::encode(Serializer &serializer)
     const Server::Options &options = Server::instance()->options();
     Source copy = source;
     copy.arguments << options.defaultArguments;
+    assert(cpp);
     serializer << destination << port << sourceFile
-               << copy << preprocessed << project
+               << copy << *cpp << project
                << static_cast<uint8_t>(type) << options.rpVisitFileTimeout
                << options.rpIndexerMessageTimeout
                << id << (proj ? proj->visitedFiles() : blockedFiles);
@@ -104,9 +113,12 @@ void IndexerJob::decode(Deserializer &deserializer, Hash<Path, uint32_t> &blocke
 {
     uint8_t t;
     int ignored; // timeouts
+    assert(!cpp);
+    cpp.reset(new Cpp);
     deserializer >> destination >> port >> sourceFile
-                 >> source >> preprocessed >> project
-                 >> t >> ignored >> ignored >> id >> blockedFiles;
+                 >> source >> *cpp >> project
+                 >> t >> ignored >> ignored >> id
+                 >> blockedFiles;
     type = static_cast<IndexType>(t);
 }
 

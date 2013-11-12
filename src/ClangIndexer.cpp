@@ -5,6 +5,7 @@
 #include <rct/Connection.h>
 #include <rct/EventLoop.h>
 #include "IndexerMessage.h"
+#include "Cpp.h"
 
 static const CXSourceLocation nullLocation = clang_getNullLocation();
 static const CXCursor nullCursor = clang_getNullCursor();
@@ -56,7 +57,7 @@ bool ClangIndexer::connect(const String &hostName, uint16_t port)
 }
 
 bool ClangIndexer::index(IndexerJob::IndexType type, const Source &source,
-                         const String &preprocessed, const Path &project)
+                         const std::shared_ptr<Cpp> &cpp, const Path &project)
 {
     // FILE *f = fopen((String("/tmp/") + source.sourceFile().fileName()).constData(), "w");
     // fwrite(preprocessed.constData(), 1, preprocessed.size(), f);
@@ -67,13 +68,13 @@ bool ClangIndexer::index(IndexerJob::IndexType type, const Source &source,
     mData->fileId = source.fileId;
     mData->jobId = mId;
     mSource = source;
+    mCpp = cpp;
     mProject = project;
     assert(mConnection.isConnected());
     mData->visited[source.fileId] = true;
-    mContents = preprocessed;
     assert(type != IndexerJob::Invalid);
     parse() && visit() && diagnose();
-    mData->parseTime = Rct::currentTimeMs();
+    mData->parseTime = cpp->time;
     if (mData->type != IndexerJob::Dump) {
         mData->message = source.sourceFile().toTilde();
         if (!mUnit)
@@ -948,7 +949,11 @@ bool ClangIndexer::parse()
     assert(mIndex);
     const Path sourceFile = Location::path(mData->fileId);
     // error() << "mContents" << mContents.size();
-    CXUnsavedFile unsaved = { sourceFile.constData(), mContents.constData(), static_cast<unsigned long>(mContents.size()) };
+    CXUnsavedFile unsaved = {
+        sourceFile.constData(),
+        mCpp->preprocessed.constData(),
+        static_cast<unsigned long>(mCpp->preprocessed.size())
+    };
     RTags::parseTranslationUnit(sourceFile, mSource.arguments, List<String>(), mUnit, mIndex, mClangLine, &unsaved, 1);
 
     mData->parseTime = mTimer.elapsed();
@@ -1044,23 +1049,6 @@ bool ClangIndexer::diagnose()
 
     for (unsigned i=0; i<diagnosticCount; ++i) {
         CXDiagnostic diagnostic = clang_getDiagnostic(mUnit, i);
-        int logLevel = INT_MAX;
-        const CXDiagnosticSeverity severity = clang_getDiagnosticSeverity(diagnostic);
-        switch (severity) {
-        case CXDiagnostic_Fatal:
-        case CXDiagnostic_Error:
-            logLevel = Error;
-            break;
-        case CXDiagnostic_Warning:
-            logLevel = Warning;
-            break;
-        case CXDiagnostic_Note:
-            logLevel = Debug;
-            break;
-        case CXDiagnostic_Ignored:
-            break;
-        }
-
         const CXSourceLocation diagLoc = clang_getDiagnosticLocation(diagnostic);
         const Location loc = createLocation(diagLoc, 0);
         const uint32_t fileId = loc.fileId();
@@ -1110,12 +1098,7 @@ bool ClangIndexer::diagnose()
                     // no length
                 }
             }
-            if (testLog(logLevel) || testLog(RTags::CompilationError)) {
-                if (testLog(logLevel))
-                    log(logLevel, "Got an error in ClangIndexer: %s", msg.constData());
-                if (testLog(RTags::CompilationError))
-                    logDirect(RTags::CompilationError, msg.constData());
-            }
+            // logDirect(RTags::CompilationError, msg.constData());
 
             const unsigned fixItCount = clang_getDiagnosticNumFixIts(diagnostic);
             for (unsigned f=0; f<fixItCount; ++f) {
@@ -1157,6 +1140,23 @@ bool ClangIndexer::diagnose()
 
         clang_disposeDiagnostic(diagnostic);
     }
+
+    for (List<Cpp::Diagnostic>::const_iterator it = mCpp->diagnostics.begin(); it != mCpp->diagnostics.end(); ++it) {
+        XmlEntry::Type type = XmlEntry::None;
+        switch (it->type) {
+        case Cpp::Diagnostic::Note:
+            break;
+        case Cpp::Diagnostic::Warning:
+            type = XmlEntry::Warning;
+            break;
+        case Cpp::Diagnostic::Error:
+            type = XmlEntry::Error;
+            break;
+        }
+        if (type != XmlEntry::None)
+            xmlEntries[it->location] = XmlEntry(type, it->text);
+    }
+
     mData->xmlDiagnostics = "<?xml version=\"1.0\" encoding=\"utf-8\"?><checkstyle>";
     if (!xmlEntries.isEmpty()) {
         Map<Location, XmlEntry>::const_iterator entry = xmlEntries.begin();

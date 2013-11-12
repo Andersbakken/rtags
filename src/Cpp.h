@@ -24,6 +24,7 @@
 struct Cpp
 {
     String preprocessed;
+    uint64_t time;
 
     struct Diagnostic {
         enum Type {
@@ -55,13 +56,13 @@ template <> inline Deserializer &operator>>(Deserializer &s, Cpp::Diagnostic &d)
 
 template <> inline Serializer &operator<<(Serializer &s, const Cpp &c)
 {
-    s << c.preprocessed << c.diagnostics;
+    s << c.preprocessed << c.time << c.diagnostics;
     return s;
 }
 
 template <> inline Deserializer &operator>>(Deserializer &s, Cpp &c)
 {
-    s >> c.preprocessed >> c.diagnostics;
+    s >> c.preprocessed >> c.time >> c.diagnostics;
     return s;
 }
 
