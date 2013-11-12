@@ -1174,7 +1174,7 @@ bool ClangIndexer::diagnose()
                 lastFileId = loc.fileId();
                 mData->xmlDiagnostics += String::format<128>("<file name=\"%s\">", loc.path().constData());
             }
-            mData->xmlDiagnostics += String::format("<error line=\"%d\" column=\"%d\" %ssseverity=\"%s\" message=\"%s\"/>",
+            mData->xmlDiagnostics += String::format("<error line=\"%d\" column=\"%d\" %sseverity=\"%s\" message=\"%s\"/>",
                                                     loc.line(), loc.column(),
                                                     (xmlEntry.length <= 0 ? ""
                                                      : String::format<32>("length=\"%d\" ", xmlEntry.length).constData()),
