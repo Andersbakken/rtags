@@ -155,4 +155,6 @@ void StatusJob::execute()
         if (!write(delimiter) || !write("jobs") || !write(delimiter) << !write(proj->dumpJobs()))
             return;
     }
+    if (!matched)
+        write<256>("rc -s %s", alternatives);
 }
