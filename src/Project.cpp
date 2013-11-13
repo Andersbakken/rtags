@@ -327,7 +327,7 @@ void Project::onJobFinished(const std::shared_ptr<IndexData> &indexData)
         }
     }
     if (pendingType == IndexerJob::Invalid) {
-        const int idx = mJobCounter - mJobs.size();
+        const int idx = mJobCounter - mJobs.size() + 1;
         if (testLog(RTags::CompilationErrorXml)) {
             log(RTags::CompilationErrorXml,
                 "<?xml version=\"1.0\" encoding=\"utf-8\"?><progress index=\"%d\" total=\"%d\"></progress>",
@@ -352,8 +352,8 @@ void Project::onJobFinished(const std::shared_ptr<IndexData> &indexData)
                   String::formatTime(time(0), String::Time).constData(),
                   Location::path(indexData->fileId).toTilde().constData());
         }
-            jobData = 0;
-            mJobs.erase(it);
+        jobData = 0;
+        mJobs.erase(it);
 
         const int syncThreshold = Server::instance()->options().syncThreshold;
         if (mJobs.isEmpty()) {
