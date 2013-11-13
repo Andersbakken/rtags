@@ -48,7 +48,7 @@ class JobResponseMessage;
 class Server
 {
 public:
-    enum { DatabaseVersion = 34 };
+    enum { DatabaseVersion = 35 };
 
     Server();
     ~Server();

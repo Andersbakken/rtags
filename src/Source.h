@@ -25,7 +25,7 @@ struct Source
 {
     inline Source();
 
-    uint32_t fileId, compilerId;
+    uint32_t fileId, compilerId, buildRootId;
     enum Language {
         NoLanguage,
         JavaScript,
@@ -44,7 +44,14 @@ struct Source
         String value;
 
         inline String toString() const;
-        inline bool operator==(const Define &other) const;
+        inline bool operator==(const Define &other) const { return !compare(other); }
+        inline int compare(const Source::Define &other) const
+        {
+            int cmp = define.compare(other.define);
+            if (!cmp)
+                cmp = value.compare(other.value);
+            return cmp;
+        }
     };
 
     List<Define> defines;
@@ -55,6 +62,27 @@ struct Source
     bool isValid() const { return fileId; }
     bool isNull() const  { return !fileId; }
 
+    uint64_t key() const { return key(fileId, buildRootId); }
+
+    static inline uint64_t key(uint32_t fileId, uint32_t buildRootId)
+    {
+        uint64_t ret = fileId;
+        ret <<= 32;
+        ret |= buildRootId;
+        return ret;
+    }
+    static inline void decodeKey(uint64_t key, uint32_t &fileId, uint32_t &buildRootId)
+    {
+        fileId = static_cast<uint32_t>(key >> 32);
+        buildRootId = static_cast<uint32_t>(key);
+    }
+
+    int compare(const Source &other) const;
+    bool operator==(const Source &other) const;
+    bool operator!=(const Source &other) const;
+    bool operator<(const Source &other) const;
+    bool operator>(const Source &other) const;
+
     enum CommandLineMode {
         None = 0x0,
         IncludeCompiler = 0x1,
@@ -62,9 +90,9 @@ struct Source
     };
 
     List<String> toCommandLine(unsigned int mode = IncludeCompiler|IncludeSourceFile) const;
-    bool compare(const Source &other) const; // ignores parsed
     inline bool isIndexable() const;
     Path sourceFile() const;
+    Path buildRoot() const;
     Path compiler() const;
     void clear();
     String toString() const;
@@ -74,7 +102,7 @@ struct Source
 };
 
 inline Source::Source()
-    : fileId(0), compilerId(0), language(NoLanguage), parsed(0), sysRootIndex(-1)
+    : fileId(0), compilerId(0), buildRootId(0), language(NoLanguage), parsed(0), sysRootIndex(-1)
 {
 }
 
@@ -91,6 +119,67 @@ inline bool Source::isIndexable() const
     return false;
 }
 
+inline int Source::compare(const Source &other) const
+{
+    if (fileId < other.fileId) {
+        return -1;
+    } else if (fileId > other.fileId) {
+        return 1;
+    }
+
+    if (compilerId < other.compilerId) {
+        return -1;
+    } else if (compilerId > other.compilerId) {
+        return 1;
+    }
+
+    if (int cmp = arguments.compare(other.arguments)) {
+        return cmp;
+    }
+
+    if (int cmp = defines.compare(other.defines)) {
+        return cmp;
+    }
+
+    if (int cmp = includePaths.compare(other.includePaths)) {
+        return cmp;
+    }
+
+    if (sysRootIndex < other.sysRootIndex) {
+        return -1;
+    } else if (sysRootIndex > other.sysRootIndex) {
+        return 1;
+    }
+
+    if (language < other.language) {
+        return -1;
+    } else if (language > other.language) {
+        return 1;
+    }
+
+    return 0;
+}
+
+inline bool Source::operator==(const Source &other) const
+{
+    return !compare(other);
+}
+
+inline bool Source::operator!=(const Source &other) const
+{
+    return compare(other);
+}
+
+inline bool Source::operator<(const Source &other) const
+{
+    return compare(other) < 0;
+}
+
+inline bool Source::operator>(const Source &other) const
+{
+    return compare(other) > 0;
+}
+
 template <> inline Serializer &operator<<(Serializer &s, const Source::Define &d)
 {
     s << d.define << d.value;
@@ -105,7 +194,7 @@ template <> inline Deserializer &operator>>(Deserializer &s, Source::Define &d)
 
 template <> inline Serializer &operator<<(Serializer &s, const Source &b)
 {
-    s << b.fileId << b.compilerId << static_cast<uint8_t>(b.language) << b.parsed
+    s << b.fileId << b.compilerId << b.buildRootId << static_cast<uint8_t>(b.language) << b.parsed
       << b.defines << b.includePaths << b.arguments << b.sysRootIndex;
     return s;
 }
@@ -114,7 +203,7 @@ template <> inline Deserializer &operator>>(Deserializer &s, Source &b)
 {
     b.clear();
     uint8_t language;
-    s >> b.fileId >> b.compilerId >> language >> b.parsed
+    s >> b.fileId >> b.compilerId >> b.buildRootId >> language >> b.parsed
       >> b.defines >> b.includePaths >> b.arguments >> b.sysRootIndex;
     b.language = static_cast<Source::Language>(language);
     return s;
@@ -130,12 +219,6 @@ static inline Log operator<<(Log dbg, const Source::Define &def)
 {
     dbg << def.toString();
     return dbg;
-}
-
-
-inline bool Source::Define::operator==(const Source::Define &other) const
-{
-    return define == other.define && value == other.value;
 }
 
 inline String Source::Define::toString() const

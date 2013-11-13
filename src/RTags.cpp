@@ -240,7 +240,7 @@ struct Entry {
     const unsigned flags;
 };
 
-static inline Path checkEntry(const Entry *entries, const Path &path, const Path &home)
+static inline Path checkEntries(const Entry *entries, const Path &path, const Path &home)
 {
     for (int i=0; entries[i].name; ++i) {
         Path p = findAncestor(path, entries[i].name, entries[i].flags);
@@ -259,7 +259,7 @@ static inline Path checkEntry(const Entry *entries, const Path &path, const Path
 }
 
 
-Path findProjectRoot(const Path &path)
+Path findProjectRoot(const Path &path, ProjectRootMode mode)
 {
     assert(path.isAbsolute());
     const Path config = findAncestor(path, ".rtags-config", Shallow);
@@ -301,13 +301,15 @@ Path findProjectRoot(const Path &path)
         { 0, 0 }
     };
     {
-        const Path ret = checkEntry(before, path, home);
+        const Path ret = checkEntries(before, path, home);
         if (!ret.isEmpty())
             return ret;
     }
     {
         const Path configStatus = findAncestor(path, "config.status", 0);
         if (!configStatus.isEmpty()) {
+            if (mode == BuildRoot)
+                return configStatus;
             FILE *f = fopen((configStatus + "config.status").constData(), "r");
             Path ret;
             if (f) {
@@ -344,6 +346,8 @@ Path findProjectRoot(const Path &path)
     {
         const Path cmakeCache = findAncestor(path, "CMakeCache.txt", 0);
         if (!cmakeCache.isEmpty()) {
+            if (mode == BuildRoot)
+                return cmakeCache;
             FILE *f = fopen((cmakeCache + "Makefile").constData(), "r");
             if (f) {
                 Path ret;
@@ -379,7 +383,7 @@ Path findProjectRoot(const Path &path)
     };
 
     {
-        const Path ret = checkEntry(after, path, home);
+        const Path ret = checkEntries(after, path, home);
         if (!ret.isEmpty())
             return ret;
     }

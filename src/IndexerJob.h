@@ -73,9 +73,7 @@ class IndexData
 {
 public:
     IndexData(IndexerJob::IndexType t)
-        : aborted(false), fileId(0), parseTime(0), jobId(0), type(t)
-    {}
-    virtual ~IndexData()
+        : aborted(false), parseTime(0), key(0), jobId(0), type(t)
     {}
 
     Set<uint32_t> visitedFiles() const
@@ -98,9 +96,15 @@ public:
         return ret;
     }
 
+    uint32_t fileId() const
+    {
+        uint32_t fileId, buildRootId;
+        Source::decodeKey(key, fileId, buildRootId);
+        return fileId;
+    }
+
     bool aborted;
-    uint32_t fileId;
-    uint64_t parseTime;
+    uint64_t parseTime, key;
     SymbolMap symbols;
     ReferenceMap references;
     SymbolNameMap symbolNames;

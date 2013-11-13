@@ -57,7 +57,7 @@ typedef Hash<String, Set<Location> > UsrMap;
 typedef Map<Location, Set<Location> > ReferenceMap;
 typedef Map<String, Set<Location> > SymbolNameMap;
 typedef Hash<uint32_t, Set<uint32_t> > DependencyMap;
-typedef std::multimap<uint32_t, Source> SourceMap;
+typedef Map<uint64_t, Source> SourceMap;
 typedef Map<Path, Set<String> > FilesMap;
 typedef Hash<uint32_t, Set<FixIt> > FixItMap;
 typedef Hash<uint32_t, List<String> > DiagnosticsMap;
@@ -169,7 +169,11 @@ inline int digits(int len)
 }
 
 String filterPreprocessor(const Path &path);
-Path findProjectRoot(const Path &path);
+enum ProjectRootMode {
+    SourceRoot,
+    BuildRoot
+};
+Path findProjectRoot(const Path &path, ProjectRootMode mode);
 }
 
 #define eintrwrap(VAR, BLOCK)                   \

@@ -1,9 +1,10 @@
 #include "Source.h"
 #include "Location.h"
+#include "RTags.h"
 
 void Source::clear()
 {
-    fileId = compilerId = 0;
+    fileId = compilerId = buildRootId = 0;
     language = NoLanguage;
     parsed = 0;
 
@@ -17,19 +18,14 @@ Path Source::sourceFile() const
     return Location::path(fileId);
 }
 
+Path Source::buildRoot() const
+{
+    return Location::path(buildRootId);
+}
+
 Path Source::compiler() const
 {
     return Location::path(compilerId);
-}
-
-bool Source::compare(const Source &other) const // ignores parsed
-{
-    return (fileId == other.fileId
-            && compilerId == other.compilerId
-            && language == other.language
-            && defines == other.defines
-            && includePaths == other.includePaths
-            && arguments == other.arguments);
 }
 
 List<String> Source::toCommandLine(unsigned int mode) const
@@ -57,9 +53,10 @@ List<String> Source::toCommandLine(unsigned int mode) const
 String Source::toString() const
 {
     String ret = String::join(toCommandLine(IncludeCompiler|IncludeSourceFile), ' ');
-    if (parsed) {
+    if (buildRootId)
+        ret << " Build: " << buildRoot();
+    if (parsed)
         ret += " Parsed: " + String::formatTime(parsed, String::DateTime);
-    }
     return ret;
 }
 
@@ -242,7 +239,7 @@ Source Source::parse(const String &cmdLine, const Path &base, Path *unresolvedIn
                     ret.language = C;
                 } else if (a == "c++") {
                     ret.language = CPlusPlus;
-                } else {
+                 } else {
                     return Source();
                 }
                 ret.arguments.append("-x");
@@ -327,6 +324,13 @@ Source Source::parse(const String &cmdLine, const Path &base, Path *unresolvedIn
                 }
             } else if (arg == "-w") {
                 ret.arguments.append(arg);
+            } else if (arg == "-o") {
+                if (i + 1 < s) {
+                    const Path p = Path::resolved(split.value(++i), Path::RealPath, path);
+                    const Path buildRoot = RTags::findProjectRoot(p, RTags::BuildRoot);
+                    if (buildRoot.isDir())
+                        ret.buildRootId = Location::insertFile(buildRoot);
+                }
             }
         } else {
             if (!seenCompiler) {

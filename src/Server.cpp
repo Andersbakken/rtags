@@ -353,7 +353,7 @@ void Server::handleIndexerMessage(const IndexerMessage &message, Connection *con
     assert(indexData);
     std::map<uint64_t, std::shared_ptr<IndexerJob> >::iterator it = mProcessingJobs.find(indexData->jobId);
     if (debugMulti)
-        error() << "got indexer message for job" << Location::path(indexData->fileId) << indexData->jobId;
+        error() << "got indexer message for job" << Location::path(indexData->fileId()) << indexData->jobId;
     if (it == mProcessingJobs.end()) {
         // job already processed
         if (debugMulti)
@@ -364,7 +364,7 @@ void Server::handleIndexerMessage(const IndexerMessage &message, Connection *con
     mProcessingJobs.erase(it);
     std::shared_ptr<Project> project = mProjects.value(message.project());
     if (!project) {
-        error() << "Can't find project root for this IndexerMessage" << message.project() << Location::path(indexData->fileId);
+        error() << "Can't find project root for this IndexerMessage" << message.project() << Location::path(indexData->fileId());
         return;
     }
     project->onJobFinished(indexData);
@@ -868,7 +868,7 @@ Path Server::findProject(const Path &path, const Path &unresolvedPath, const Lis
                 return it->first;
         }
     }
-    return RTags::findProjectRoot(path);
+    return RTags::findProjectRoot(path, RTags::SourceRoot);
 }
 
 void Server::index(const Source &source, const std::shared_ptr<Cpp> &cpp, const Path &srcRoot)

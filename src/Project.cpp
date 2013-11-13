@@ -141,6 +141,7 @@ void Project::restore(RestoreThread *thread)
     mUsr = std::move(thread->mUsr);;
     mDependencies = std::move(thread->mDependencies);
     mSources = std::move(thread->mSources);
+
     mVisitedFiles = std::move(thread->mVisitedFiles);
 
     DependencyMap reversedDependencies;
@@ -152,7 +153,7 @@ void Project::restore(RestoreThread *thread)
 
     bool needsSave = false;
     {
-        DependencyMap::iterator it = mDependencies.begin();
+        auto it = mDependencies.begin();
         while (it != mDependencies.end()) {
             const Path file = Location::path(it->first);
             if (!file.exists()) {
@@ -162,13 +163,13 @@ void Project::restore(RestoreThread *thread)
                 continue;
             }
             watch(file);
-            for (Set<uint32_t>::const_iterator s = it->second.begin(); s != it->second.end(); ++s)
+            for (auto s = it->second.constBegin(); s != it->second.constEnd(); ++s)
                 reversedDependencies[*s].insert(it->first);
             ++it;
         }
     }
 
-    SourceMap::iterator it = mSources.begin();
+    auto it = mSources.begin();
     while (it != mSources.end()) {
         if (!it->second.sourceFile().isFile()) {
             error() << it->second.sourceFile() << "seems to have disappeared";
@@ -179,23 +180,27 @@ void Project::restore(RestoreThread *thread)
             const uint64_t parsed = it->second.parsed;
             assert(mDependencies.value(it->first).contains(it->first));
             const Set<uint32_t> &deps = reversedDependencies[it->first];
-            for (Set<uint32_t>::const_iterator d = deps.begin(); d != deps.end(); ++d) {
-                if (!dirty.contains(*d) && Location::path(*d).lastModifiedMs() > parsed) {
-                    // error() << Location::path(*d).lastModified() << "is more than" << parsed;
-                    dirty.insert(*d);
+            for (auto d = deps.constBegin(); d != deps.constEnd(); ++d) {
+                if (Location::path(*d).lastModifiedMs() > parsed) {
+                    dirty.insert(it->second.fileId);
+                    // error() << Location::path(*d).lastModifiedMs() << "is more than" << parsed
+                    //         << it->second.sourceFile() << Location::path(*d)
+                    //         << String::formatTime(parsed / 1000)
+                    //         << String::formatTime(Location::path(*d).lastModifiedMs());
+                    break;
                 }
             }
             ++it;
         }
     }
-    Hash<uint32_t, JobData> pendingJobs = std::move(mJobs);
+    Hash<uint64_t, JobData> pendingJobs = std::move(mJobs);
     mState = Loaded;
     if (!dirty.isEmpty()) {
         startDirtyJobs(dirty);
     } else if (needsSave) {
         save();
     }
-    for (Hash<uint32_t, JobData>::const_iterator it = pendingJobs.begin(); it != pendingJobs.end(); ++it) {
+    for (auto it = pendingJobs.constBegin(); it != pendingJobs.constEnd(); ++it) {
         assert(!it->second.pendingSource.isNull());
         assert(it->second.pendingType != IndexerJob::Invalid);
         std::shared_ptr<Cpp> cpp = RTags::preprocess(it->second.pendingSource);
@@ -229,13 +234,12 @@ void Project::load(FileManagerMode mode)
 
 void Project::unload()
 {
-    for (Hash<uint32_t, JobData>::const_iterator it = mJobs.begin(); it != mJobs.end(); ++it) {
+    for (auto it = mJobs.constBegin(); it != mJobs.constEnd(); ++it) {
         if (it->second.job)
             it->second.job->abort();
     }
 
     mJobs.clear();
-    mDumps.clear();
     fileManager.reset();
 
     mSymbols.clear();
@@ -279,11 +283,12 @@ void Project::onJobFinished(const std::shared_ptr<IndexData> &indexData)
     std::shared_ptr<Cpp> pendingCpp;
     IndexerJob::IndexType pendingType = IndexerJob::Invalid;
     bool syncNow = false;
+    const uint32_t fileId = indexData->fileId();
     if (indexData->type == IndexerJob::Dump) {
         bool found = false;
-        Connection *conn = mDumps.take(indexData->fileId, &found);
+        Connection *conn = mDumps.take(indexData->key, &found);
         if (!found) {
-            error() << "Couldn't find JobData for" << Location::path(indexData->fileId);
+            error() << "Couldn't find JobData for" << Location::path(fileId);
             return;
         }
         if (conn) {
@@ -293,9 +298,9 @@ void Project::onJobFinished(const std::shared_ptr<IndexData> &indexData)
         return;
     }
 
-    const Hash<uint32_t, JobData>::iterator it = mJobs.find(indexData->fileId);
+    const auto it = mJobs.find(indexData->key);
     if (it == mJobs.end()) {
-        error() << "Couldn't find JobData for" << Location::path(indexData->fileId);
+        error() << "Couldn't find JobData for" << Location::path(fileId);
         // not sure if this can happen when unloading while jobs are running
         return;
     }
@@ -335,22 +340,21 @@ void Project::onJobFinished(const std::shared_ptr<IndexData> &indexData)
             logDirect(RTags::CompilationErrorXml, indexData->xmlDiagnostics);
         }
         if (success) {
-            mPendingData[indexData->fileId] = indexData;
-            auto it = mSources.find(indexData->fileId);
-            while (it != mSources.end() && it->first == indexData->fileId && !it->second.compare(jobData->job->source))
-                ++it;
-            assert(it != mSources.end()); // ### can this happen?
-            it->second.parsed = indexData->parseTime;
-            error("[%3d%%] %d/%d %s %s.",
-                  static_cast<int>(round((double(idx) / double(mJobCounter)) * 100.0)), idx, mJobCounter,
-                  String::formatTime(time(0), String::Time).constData(),
-                  indexData->message.constData());
+            auto src = mSources.find(indexData->key);
+            if (src != mSources.end()) {
+                mPendingData[indexData->key] = indexData;
+                src->second.parsed = indexData->parseTime;
+                error("[%3d%%] %d/%d %s %s.",
+                      static_cast<int>(round((double(idx) / double(mJobCounter)) * 100.0)), idx, mJobCounter,
+                      String::formatTime(time(0), String::Time).constData(),
+                      indexData->message.constData());
+            }
         } else {
             assert(indexData->aborted);
             error("[%3d%%] %d/%d %s %s indexing crashed.",
                   static_cast<int>(round((double(idx) / double(mJobCounter)) * 100.0)), idx, mJobCounter,
                   String::formatTime(time(0), String::Time).constData(),
-                  Location::path(indexData->fileId).toTilde().constData());
+                  Location::path(fileId).toTilde().constData());
         }
         jobData = 0;
         mJobs.erase(it);
@@ -439,11 +443,11 @@ void Project::index(const Source &source, IndexerJob::IndexType type, const std:
     if (fileFilter && !strstr(source.sourceFile().constData(), fileFilter))
         return;
 
-    JobData &data = mJobs[source.fileId];
+    const uint64_t key = source.key();
+    JobData &data = mJobs[key];
     if (mState != Loaded) {
         // error() << "Index called at" << static_cast<int>(mState) << "time. Setting pending" << source.sourceFile();
-        data.pendingSource = source;
-        data.pendingType = IndexerJob::Makefile;
+        data.pendingType = type;
         data.pendingCpp = cpp;
         return;
     }
@@ -458,30 +462,18 @@ void Project::index(const Source &source, IndexerJob::IndexType type, const std:
         return;
     }
 
-    auto it = mSources.find(source.fileId);
-    while (it != mSources.end() && it->first == source.fileId && !it->second.compare(source)) {
-        // ### check for same build directory and remove dupes? Maybe check for same compiler?
-        ++it;
-    }
-    if (it == mSources.end() || it->first != source.fileId)
-        mSources.insert(std::make_pair(source.fileId, source));
-
+    mSources[key] = source;
     watch(source.sourceFile());
 
     data.pendingSource.clear();
     data.pendingType = IndexerJob::Invalid;
     data.pendingCpp.reset();
-    mPendingData.remove(source.fileId);
+    mPendingData.remove(key);
 
     if (!mJobCounter++)
         mTimer.start();
 
     data.job.reset(new IndexerJob(type, mPath, source, cpp));
-    if (!data.job) {
-        error() << "Failed to create job for" << source;
-        mJobs.erase(source.fileId);
-        return;
-    }
     mSyncTimer.stop();
     Server::instance()->startJob(data.job);
 }
@@ -490,16 +482,9 @@ bool Project::index(const Source &source, const std::shared_ptr<Cpp> &cpp)
 {
     assert(!source.isNull());
 
-    SourceMap::const_iterator it = mSources.find(source.fileId);
-    if (it != mSources.end()) {
-        while (it->first == source.fileId && !it->second.compare(source)) {
-            // ### check for same build directory and remove dupes? Maybe check for same compiler?
-            ++it;
-        }
-        if (it != mSources.end() && it->first == source.fileId) { // found
-            debug() << source.sourceFile() << " is not dirty. ignoring";
-            return false;
-        }
+    if (hasSource(source)) {
+        debug() << source.sourceFile() << " is not dirty. ignoring";
+        return false;
     }
 
     index(source, IndexerJob::Makefile, cpp);
@@ -525,8 +510,12 @@ List<Source> Project::sources(uint32_t fileId) const
 {
     List<Source> ret;
     if (fileId) {
-        SourceMap::const_iterator it = mSources.find(fileId);
-        while (it != mSources.end() && it->first == fileId) {
+        auto it = mSources.lower_bound(fileId);
+        while (it != mSources.end()) {
+            uint32_t f, b;
+            Source::decodeKey(it->first, f, b);
+            if (f != fileId)
+                break;
             ret.append(it->second);
             ++it;
         }
@@ -538,8 +527,8 @@ void Project::addDependencies(const DependencyMap &deps, Set<uint32_t> &newFiles
 {
     StopWatch timer;
 
-    const DependencyMap::const_iterator end = deps.end();
-    for (DependencyMap::const_iterator it = deps.begin(); it != end; ++it) {
+    const auto end = deps.end();
+    for (auto it = deps.begin(); it != end; ++it) {
         Set<uint32_t> &values = mDependencies[it->first];
         if (values.isEmpty()) {
             values = it->second;
@@ -561,8 +550,8 @@ Set<uint32_t> Project::dependencies(uint32_t fileId, DependencyMode mode) const
         return mDependencies.value(fileId);
 
     Set<uint32_t> ret;
-    const DependencyMap::const_iterator end = mDependencies.end();
-    for (DependencyMap::const_iterator it = mDependencies.begin(); it != end; ++it) {
+    const auto end = mDependencies.end();
+    for (auto it = mDependencies.begin(); it != end; ++it) {
         if (it->second.contains(fileId))
             ret.insert(it->first);
     }
@@ -573,8 +562,8 @@ int Project::reindex(const Match &match)
 {
     Set<uint32_t> dirty;
 
-    const DependencyMap::const_iterator end = mDependencies.end();
-    for (DependencyMap::const_iterator it = mDependencies.begin(); it != end; ++it) {
+    const auto end = mDependencies.constEnd();
+    for (auto it = mDependencies.constBegin(); it != end; ++it) {
         if (match.isEmpty() || match.match(Location::path(it->first))) {
             dirty.insert(it->first);
         }
@@ -589,7 +578,7 @@ int Project::remove(const Match &match)
 {
     int count = 0;
     Set<uint32_t> dirty;
-    SourceMap::iterator it = mSources.begin();
+    auto it = mSources.begin();
     while (it != mSources.end()) {
         if (match.match(it->second.sourceFile())) {
             const uint32_t fileId = it->second.fileId;
@@ -612,7 +601,7 @@ int Project::remove(const Match &match)
 void Project::startDirtyJobs(const Set<uint32_t> &dirty)
 {
     Set<uint32_t> dirtyFiles;
-    for (Set<uint32_t>::const_iterator it = dirty.begin(); it != dirty.end(); ++it) {
+    for (auto it = dirty.constBegin(); it != dirty.constEnd(); ++it) {
         const Set<uint32_t> deps = mDependencies.value(*it);
         dirtyFiles.insert(*it);
         if (!deps.isEmpty())
@@ -621,8 +610,8 @@ void Project::startDirtyJobs(const Set<uint32_t> &dirty)
     mVisitedFiles -= dirtyFiles;
 
     bool indexed = false;
-    for (Set<uint32_t>::const_iterator it = dirtyFiles.begin(); it != dirtyFiles.end(); ++it) {
-        const SourceMap::const_iterator found = mSources.find(*it);
+    for (auto it = dirtyFiles.constBegin(); it != dirtyFiles.constEnd(); ++it) {
+        const auto found = mSources.find(*it);
         if (found != mSources.end()) {
 #warning this preprocessing should happen in a job
             std::shared_ptr<Cpp> cpp = RTags::preprocess(found->second);
@@ -645,8 +634,8 @@ void Project::startDirtyJobs(const Set<uint32_t> &dirty)
 
 static inline void writeSymbolNames(const SymbolNameMap &symbolNames, SymbolNameMap &current)
 {
-    SymbolNameMap::const_iterator it = symbolNames.begin();
-    const SymbolNameMap::const_iterator end = symbolNames.end();
+    auto it = symbolNames.begin();
+    const auto end = symbolNames.end();
     while (it != end) {
         Set<Location> &value = current[it->first];
         value.unite(it->second);
@@ -656,11 +645,11 @@ static inline void writeSymbolNames(const SymbolNameMap &symbolNames, SymbolName
 
 static inline void joinCursors(SymbolMap &symbols, const Set<Location> &locations)
 {
-    for (Set<Location>::const_iterator it = locations.begin(); it != locations.end(); ++it) {
-        SymbolMap::iterator c = symbols.find(*it);
-        if (c != symbols.end()) {
+    for (auto it = locations.begin(); it != locations.end(); ++it) {
+        const auto c = symbols.find(*it);
+        if (c != symbols.constEnd()) {
             CursorInfo &cursorInfo = c->second;
-            for (Set<Location>::const_iterator innerIt = locations.begin(); innerIt != locations.end(); ++innerIt) {
+            for (auto innerIt = locations.begin(); innerIt != locations.end(); ++innerIt) {
                 if (innerIt != it)
                     cursorInfo.targets.insert(*innerIt);
             }
@@ -671,8 +660,8 @@ static inline void joinCursors(SymbolMap &symbols, const Set<Location> &location
 
 static inline void writeUsr(const UsrMap &usr, UsrMap &current, SymbolMap &symbols)
 {
-    UsrMap::const_iterator it = usr.begin();
-    const UsrMap::const_iterator end = usr.end();
+    auto it = usr.begin();
+    const auto end = usr.end();
     while (it != end) {
         Set<Location> &value = current[it->first];
         int count = 0;
@@ -689,10 +678,10 @@ static inline void writeSymbols(SymbolMap &symbols, SymbolMap &current)
         if (current.isEmpty()) {
             current = symbols;
         } else {
-            SymbolMap::iterator it = symbols.begin();
-            const SymbolMap::iterator end = symbols.end();
+            auto it = symbols.begin();
+            const auto end = symbols.end();
             while (it != end) {
-                SymbolMap::iterator cur = current.find(it->first);
+                auto cur = current.find(it->first);
                 if (cur == current.end()) {
                     current[it->first] = it->second;
                 } else {
@@ -706,10 +695,10 @@ static inline void writeSymbols(SymbolMap &symbols, SymbolMap &current)
 
 static inline void writeReferences(const ReferenceMap &references, SymbolMap &symbols)
 {
-    const ReferenceMap::const_iterator end = references.end();
-    for (ReferenceMap::const_iterator it = references.begin(); it != end; ++it) {
+    const auto end = references.end();
+    for (auto it = references.begin(); it != end; ++it) {
         const Set<Location> &refs = it->second;
-        for (Set<Location>::const_iterator rit = refs.begin(); rit != refs.end(); ++rit) {
+        for (auto rit = refs.begin(); rit != refs.end(); ++rit) {
             CursorInfo &ci = symbols[*rit];
             ci.references.insert(it->first);
         }
@@ -734,7 +723,7 @@ void Project::syncDB(int *dirty, int *sync)
     *dirty = sw.restart();
 
     Set<uint32_t> newFiles;
-    for (Hash<uint32_t, std::shared_ptr<IndexData> >::iterator it = mPendingData.begin(); it != mPendingData.end(); ++it) {
+    for (auto it = mPendingData.begin(); it != mPendingData.end(); ++it) {
         const std::shared_ptr<IndexData> &data = it->second;
         addDependencies(data->dependencies, newFiles);
         addFixIts(data->dependencies, data->fixIts);
@@ -743,7 +732,7 @@ void Project::syncDB(int *dirty, int *sync)
         writeReferences(data->references, mSymbols);
         writeSymbolNames(data->symbolNames, mSymbolNames);
     }
-    for (Set<uint32_t>::const_iterator it = newFiles.begin(); it != newFiles.end(); ++it) {
+    for (auto it = newFiles.constBegin(); it != newFiles.constEnd(); ++it) {
         watch(Location::path(*it));
     }
     mPendingData.clear();
@@ -781,8 +770,8 @@ bool Project::isSuspended(uint32_t file) const
 
 void Project::addFixIts(const DependencyMap &visited, const FixItMap &fixIts) // lock always held
 {
-    for (DependencyMap::const_iterator it = visited.begin(); it != visited.end(); ++it) {
-        const FixItMap::const_iterator fit = fixIts.find(it->first);
+    for (auto it = visited.begin(); it != visited.end(); ++it) {
+        const auto fit = fixIts.find(it->first);
         if (fit == fixIts.end()) {
             mFixIts.erase(it->first);
         } else {
@@ -793,12 +782,12 @@ void Project::addFixIts(const DependencyMap &visited, const FixItMap &fixIts) //
 
 String Project::fixIts(uint32_t fileId) const
 {
-    const FixItMap::const_iterator it = mFixIts.find(fileId);
+    const auto it = mFixIts.find(fileId);
     String out;
     if (it != mFixIts.end()) {
         const Set<FixIt> &fixIts = it->second;
         if (!fixIts.isEmpty()) {
-            Set<FixIt>::const_iterator f = fixIts.end();
+            auto f = fixIts.end();
             do {
                 --f;
                 if (!out.isEmpty())
@@ -862,17 +851,17 @@ Set<Location> Project::locations(const String &symbolName, uint32_t fileId) cons
     Set<Location> ret;
     if (fileId) {
         const SymbolMap s = symbols(fileId);
-        for (SymbolMap::const_iterator it = s.begin(); it != s.end(); ++it) {
+        for (auto it = s.begin(); it != s.end(); ++it) {
             if (!RTags::isReference(it->second.kind) && (symbolName.isEmpty() || matchSymbolName(symbolName, it->second.symbolName)))
                 ret.insert(it->first);
         }
     } else if (symbolName.isEmpty()) {
-        for (SymbolMap::const_iterator it = mSymbols.begin(); it != mSymbols.end(); ++it) {
+        for (auto it = mSymbols.constBegin(); it != mSymbols.constEnd(); ++it) {
             if (!RTags::isReference(it->second.kind))
                 ret.insert(it->first);
         }
     } else {
-        SymbolNameMap::const_iterator it = mSymbolNames.lower_bound(symbolName);
+        auto it = mSymbolNames.lower_bound(symbolName);
         while (it != mSymbolNames.end() && it->first.startsWith(symbolName)) {
             if (matchSymbolName(symbolName, it->first))
                 ret.unite(it->second);
@@ -886,9 +875,9 @@ List<RTags::SortedCursor> Project::sort(const Set<Location> &locations, unsigned
 {
     List<RTags::SortedCursor> sorted;
     sorted.reserve(locations.size());
-    for (Set<Location>::const_iterator it = locations.begin(); it != locations.end(); ++it) {
+    for (auto it = locations.begin(); it != locations.end(); ++it) {
         RTags::SortedCursor node(*it);
-        const SymbolMap::const_iterator found = mSymbols.find(*it);
+        const auto found = mSymbols.find(*it);
         if (found != mSymbols.end()) {
             node.isDefinition = found->second.isDefinition();
             if (flags & Sort_DeclarationOnly && node.isDefinition) {
@@ -913,7 +902,7 @@ SymbolMap Project::symbols(uint32_t fileId) const
 {
     SymbolMap ret;
     if (fileId) {
-        for (SymbolMap::const_iterator it = mSymbols.lower_bound(Location(fileId, 1, 0));
+        for (auto it = mSymbols.lower_bound(Location(fileId, 1, 0));
              it != mSymbols.end() && it->first.fileId() == fileId; ++it) {
             ret[it->first] = it->second;
         }
@@ -929,7 +918,7 @@ String Project::dumpJobs() const
                             "Dump",
                             "Remote" };
 
-    for (Hash<uint32_t, JobData>::const_iterator it = mJobs.begin(); it != mJobs.end(); ++it) {
+    for (auto it = mJobs.begin(); it != mJobs.end(); ++it) {
         ret << Location::path(it->first) << it->second.job->source << types[it->second.job->type]
             << it->second.crashCount
             << (it->second.pendingType == IndexerJob::Invalid ? String() : it->second.pendingSource.toString())
@@ -952,7 +941,5 @@ void Project::watch(const Path &file)
 bool Project::hasSource(const Source &source) const
 {
     auto it = mSources.find(source.fileId);
-    while (it != mSources.end() && it->first == source.fileId && it->second.compare(source))
-        ++it;
-    return (it != mSources.end() && it->first == source.fileId);
+    return it != mSources.end() && it->second == source;
 }

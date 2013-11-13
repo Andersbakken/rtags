@@ -47,6 +47,7 @@ enum OptionType {
     FindFile,
     FindFilePreferExact,
     FindProjectRoot,
+    FindProjectBuildRoot,
     FindSymbols,
     FindVirtuals,
     FixIts,
@@ -144,6 +145,7 @@ struct Option opts[] = {
     { Compile, "compile", 'c', required_argument, "Pass compilation arguments to rdm." },
     { RemoveFile, "remove", 'D', required_argument, "Remove file from project." },
     { FindProjectRoot, "find-project-root", 0, required_argument, "Use to check behavior of find-project-root." },
+    { FindProjectBuildRoot, "find-project-build-root", 0, required_argument, "Use to check behavior of find-project-root for builds." },
     { Sources, "sources", 0, optional_argument, "Dump sources for source file." },
     { Dependencies, "dependencies", 0, required_argument, "Dump dependencies for source file." },
     { ReloadFileManager, "reload-file-manager", 'B', no_argument, "Reload file manager." },
@@ -735,7 +737,12 @@ bool RClient::parse(int &argc, char **argv)
         case FindProjectRoot: {
             const Path p = Path::resolved(optarg);
             printf("findProjectRoot [%s] => [%s]\n", p.constData(),
-                   RTags::findProjectRoot(p).constData());
+                   RTags::findProjectRoot(p, RTags::SourceRoot).constData());
+            return 0; }
+        case FindProjectBuildRoot: {
+            const Path p = Path::resolved(optarg);
+            printf("findProjectRoot [%s] => [%s]\n", p.constData(),
+                   RTags::findProjectRoot(p, RTags::BuildRoot).constData());
             return 0; }
         case Reindex:
         case Project:

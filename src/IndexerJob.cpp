@@ -132,7 +132,7 @@ void IndexerJob::onProcessFinished()
         std::shared_ptr<Project> proj = Server::instance()->project(project);
         if (proj && proj->state() == Project::Loaded) {
             std::shared_ptr<IndexData> data(new IndexData(type));
-            data->fileId = source.fileId;
+            data->key = source.key();
             data->aborted = true;
             EventLoop::SharedPtr loop = EventLoop::eventLoop();
             assert(loop);

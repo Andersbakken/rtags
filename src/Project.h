@@ -152,27 +152,20 @@ private:
         std::shared_ptr<IndexerJob> job;
     };
 
-    LinkedList<std::pair<Source, IndexerJob::IndexType> > mPending;
-    Hash<uint32_t, JobData> mJobs;
-    Hash<uint32_t, Connection*> mDumps;
+    // key'ed on Source::key()
+    Hash<uint64_t, JobData> mJobs;
+    Hash<uint64_t, Connection*> mDumps;
+    Hash<uint64_t, std::shared_ptr<IndexData> > mPendingData; // ### this could go into JobData
 
     Timer mSyncTimer;
-
     StopWatch mTimer;
-
     FileSystemWatcher mWatcher;
     DependencyMap mDependencies;
     SourceMap mSources;
-
     Set<Path> mWatchedPaths;
-
     FixItMap mFixIts;
 
-    Set<Location> mPreviousErrors;
-
-    Hash<uint32_t, std::shared_ptr<IndexData> > mPendingData;
     Set<uint32_t> mPendingDirtyFiles;
-
     Set<uint32_t> mSuspendedFiles;
 
     friend class RestoreThread;
