@@ -128,7 +128,7 @@ void IndexerJob::onProcessFinished()
     // error() << "PROCESS FINISHED" << source.sourceFile() << process->returnCode() << this;
     ::error() << process->readAllStdOut();
     ::error() << process->readAllStdErr();
-    if (process->returnCode() == -1) {
+    if (process->returnCode() != 0) {
         std::shared_ptr<Project> proj = Server::instance()->project(project);
         if (proj && proj->state() == Project::Loaded) {
             std::shared_ptr<IndexData> data(new IndexData(type));
