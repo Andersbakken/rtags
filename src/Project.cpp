@@ -87,8 +87,6 @@ public:
         }
         in >> mSymbols >> mSymbolNames >> mUsr >> mDependencies >> mSources >> mVisitedFiles;
   end:
-        // fileManager->jsFilesChanged().connect(this, &Project::onJSFilesAdded);
-        // onJSFilesAdded();
         fclose(f);
 
         if (restoreError) {
@@ -329,9 +327,6 @@ void Project::onJobFinished(const std::shared_ptr<IndexData> &indexData)
         }
     }
     if (pendingType == IndexerJob::Invalid) {
-        jobData = 0;
-        mJobs.erase(it);
-
         const int idx = mJobCounter - mJobs.size();
         if (testLog(RTags::CompilationErrorXml)) {
             log(RTags::CompilationErrorXml,
@@ -341,7 +336,11 @@ void Project::onJobFinished(const std::shared_ptr<IndexData> &indexData)
         }
         if (success) {
             mPendingData[indexData->fileId] = indexData;
-            mSources[indexData->fileId].parsed = indexData->parseTime;
+            auto it = mSources.find(indexData->fileId);
+            while (it != mSources.end() && it->first == indexData->fileId && !it->second.compare(jobData->job->source))
+                ++it;
+            assert(it != mSources.end()); // ### can this happen?
+            it->second.parsed = indexData->parseTime;
             error("[%3d%%] %d/%d %s %s.",
                   static_cast<int>(round((double(idx) / double(mJobCounter)) * 100.0)), idx, mJobCounter,
                   String::formatTime(time(0), String::Time).constData(),
@@ -353,6 +352,9 @@ void Project::onJobFinished(const std::shared_ptr<IndexData> &indexData)
                   String::formatTime(time(0), String::Time).constData(),
                   Location::path(indexData->fileId).toTilde().constData());
         }
+            jobData = 0;
+            mJobs.erase(it);
+
         const int syncThreshold = Server::instance()->options().syncThreshold;
         if (mJobs.isEmpty()) {
             mSyncTimer.restart(indexData->type == IndexerJob::Dirty ? 0 : SyncTimeout, Timer::SingleShot);
@@ -456,7 +458,14 @@ void Project::index(const Source &source, IndexerJob::IndexType type, const std:
         return;
     }
 
-    mSources[source.fileId] = source;
+    auto it = mSources.find(source.fileId);
+    while (it != mSources.end() && it->first == source.fileId && !it->second.compare(source)) {
+        // ### check for same build directory and remove dupes? Maybe check for same compiler?
+        ++it;
+    }
+    if (it == mSources.end() || it->first != source.fileId)
+        mSources.insert(std::make_pair(source.fileId, source));
+
     watch(source.sourceFile());
 
     data.pendingSource.clear();
@@ -477,17 +486,23 @@ void Project::index(const Source &source, IndexerJob::IndexType type, const std:
     Server::instance()->startJob(data.job);
 }
 
-bool Project::index(const Source &s, const std::shared_ptr<Cpp> &cpp)
+bool Project::index(const Source &source, const std::shared_ptr<Cpp> &cpp)
 {
-    assert(!s.isNull());
+    assert(!source.isNull());
 
-    const Source current = source(s.fileId);
-    if (current.compare(s)) {
-        debug() << s.sourceFile() << " is not dirty. ignoring";
-        return false;
+    SourceMap::const_iterator it = mSources.find(source.fileId);
+    if (it != mSources.end()) {
+        while (it->first == source.fileId && !it->second.compare(source)) {
+            // ### check for same build directory and remove dupes? Maybe check for same compiler?
+            ++it;
+        }
+        if (it != mSources.end() && it->first == source.fileId) { // found
+            debug() << source.sourceFile() << " is not dirty. ignoring";
+            return false;
+        }
     }
 
-    index(s, IndexerJob::Makefile, cpp);
+    index(source, IndexerJob::Makefile, cpp);
     return true;
 }
 
@@ -506,11 +521,17 @@ void Project::dirty(const Path &file)
     }
 }
 
-Source Project::source(uint32_t fileId) const
+List<Source> Project::sources(uint32_t fileId) const
 {
-    if (fileId)
-        return mSources.value(fileId);
-    return Source();
+    List<Source> ret;
+    if (fileId) {
+        SourceMap::const_iterator it = mSources.find(fileId);
+        while (it != mSources.end() && it->first == fileId) {
+            ret.append(it->second);
+            ++it;
+        }
+    }
+    return ret;
 }
 
 void Project::addDependencies(const DependencyMap &deps, Set<uint32_t> &newFiles)
@@ -731,7 +752,7 @@ void Project::syncDB(int *dirty, int *sync)
 
 bool Project::isIndexed(uint32_t fileId) const
 {
-    return mVisitedFiles.contains(fileId) || mSources.contains(fileId);
+    return mVisitedFiles.contains(fileId) || mSources.find(fileId) != mSources.end();
 }
 
 const Set<uint32_t> &Project::suspendedFiles() const
@@ -926,4 +947,12 @@ void Project::watch(const Path &file)
                && mWatchedPaths.insert(dir)) {
         mWatcher.watch(dir);
     }
+}
+
+bool Project::hasSource(const Source &source) const
+{
+    auto it = mSources.find(source.fileId);
+    while (it != mSources.end() && it->first == source.fileId && it->second.compare(source))
+        ++it;
+    return (it != mSources.end() && it->first == source.fileId);
 }

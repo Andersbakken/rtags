@@ -89,7 +89,8 @@ public:
 
     void dump(const Source &source, Connection *conn);
     bool index(const Source &source, const std::shared_ptr<Cpp> &cpp);
-    Source source(uint32_t fileId) const;
+    List<Source> sources(uint32_t fileId) const;
+    bool hasSource(const Source &source) const;
     enum DependencyMode {
         DependsOnArg,
         ArgDependsOn // slow

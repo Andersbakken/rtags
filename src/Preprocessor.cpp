@@ -33,5 +33,4 @@ void Preprocessor::preprocess()
         mConnection->write(cpp->preprocessed);
         mConnection->write<256>("// %s", String::join(mSource.toCommandLine(Source::IncludeSourceFile|Source::IncludeCompiler), ' ').constData());
     }
-    mConnection->finish();
 }

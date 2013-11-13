@@ -562,7 +562,11 @@ void Server::dumpFile(const QueryMessage &query, Connection *conn)
         return;
     }
 
-    project->dump(project->source(fileId), conn);
+    const List<Source> sources = project->sources(fileId);
+#warning Should have general purpose system for putting an index into a QueryMessage maybe? For this and Preprocess
+    if (!sources.isEmpty()) {
+        project->dump(sources.first(), conn);
+    }
 }
 
 void Server::cursorInfo(const QueryMessage &query, Connection *conn)
@@ -780,15 +784,18 @@ void Server::preprocessFile(const QueryMessage &query, Connection *conn)
     }
 
     const uint32_t fileId = Location::fileId(path);
-    const Source c = project->source(fileId);
-    if (c.isNull()) {
+    const List<Source> sources = project->sources(fileId);
+    if (sources.isEmpty()) {
         conn->write("No arguments for " + path);
         conn->finish();
         return;
     }
 
-    Preprocessor pre(c, conn);
-    pre.preprocess();
+    for (List<Source>::const_iterator it = sources.begin(); it != sources.end(); ++it) {
+        Preprocessor pre(*it, conn);
+        pre.preprocess();
+    }
+    conn->finish();
 }
 
 void Server::clearProjects()
@@ -841,7 +848,7 @@ bool Server::shouldIndex(const Source &source, const Path &srcRoot) const
         return false;
 
     std::shared_ptr<Project> project = mProjects.value(srcRoot);
-    return (!project || !project->source(source.fileId).compare(source));
+    return !project || !project->hasSource(source);
 }
 
 Path Server::findProject(const Path &path, const Path &unresolvedPath, const List<String> &withProjects) const
@@ -1180,8 +1187,10 @@ void Server::sources(const QueryMessage &query, Connection *conn)
             } else {
                 const uint32_t fileId = Location::fileId(path);
                 if (fileId) {
-                    const Source info = project->source(fileId);
-                    conn->write(info.toString());
+                    const List<Source> sources = project->sources(fileId);
+                    for (List<Source>::const_iterator it = sources.begin(); it != sources.end(); ++it) {
+                        conn->write(it->toString());
+                    }
                 }
             }
         }
