@@ -580,17 +580,14 @@ void Server::cursorInfo(const QueryMessage &query, Connection *conn)
 
     if (!project) {
         conn->finish();
-        return;
     } else if (project->state() != Project::Loaded) {
         conn->write("Project loading");
         conn->finish();
-        return;
+    } else {
+        CursorInfoJob job(loc, query, project);
+        job.run(conn);
+        conn->finish();
     }
-
-
-    CursorInfoJob job(loc, query, project);
-    job.run(conn);
-    conn->finish();
 }
 
 void Server::dependencies(const QueryMessage &query, Connection *conn)
