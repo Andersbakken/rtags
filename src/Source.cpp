@@ -354,18 +354,25 @@ Source Source::parse(const String &cmdLine, const Path &base, Path *unresolvedIn
 
     if (!ret.fileId)
         return Source();
+    if (!ret.buildRootId)
+        ret.buildRootId = Location::insertFile(RTags::findProjectRoot(Location::path(ret.fileId), RTags::BuildRoot));
 
     // ### not threadsafe
+    assert(EventLoop::isMainThread());
     static Hash<Path, Path> resolvedFromPath;
     Path front = split.front();
     Path &compiler = resolvedFromPath[front];
-    assert(EventLoop::isMainThread());
     if (compiler.isEmpty()) {
+        // error() << "Coming in with" << front;
         if (front.startsWith('/')) {
             Path resolved = front.resolved();
+            // error() << "got resolved to" << resolved;
             const char *fn = resolved.fileName();
             if (!strcmp(fn, "gcc-rtags-wrapper.sh") || !strcmp(fn, "icecc")) {
                 front = front.fileName();
+                // error() << "We're set at" << front;
+            } else {
+                compiler = resolved;
             }
         }
         if (!front.startsWith('/') && !front.isEmpty()) {
@@ -379,6 +386,7 @@ Source Source::parse(const String &cmdLine, const Path &base, Path *unresolvedIn
                         const char *fn = ret.fileName();
                         if (strcmp(fn, "gcc-rtags-wrapper.sh") && strcmp(fn, "icecc")
                             && !access(ret.nullTerminated(), R_OK | X_OK)) {
+                            // error() << "Found it at" << compiler;
                             compiler = ret;
                             break;
                         }
