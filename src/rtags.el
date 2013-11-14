@@ -939,7 +939,7 @@ References to references will be treated as references to the referenced symbol"
 (defun rtags-rename-symbol ()
   (interactive)
   (save-some-buffers) ;; it all kinda falls apart when buffers are unsaved
-  (let (len file pos destructor replacewith prev (modifications 0) (filesopened 0) replacements)
+  (let (location len file pos destructor replacewith prev (modifications 0) (filesopened 0) replacements)
     (save-excursion
       (if (looking-at "[0-9A-Za-z_~#]")
           (progn
@@ -961,13 +961,17 @@ References to references will be treated as references to the referenced symbol"
             (unless (equal replacewith "")
               (if destructor
                   (setq pos (- pos 1)))
+              (goto-char pos)
+              (setq location (rtags-current-location))
               (setq pos (rtags-offset pos))
               (with-temp-buffer
-                (rtags-call-rc :path file "-e" "-O" "-N" "-r" (format "%s,%d" file pos))
+                (rtags-call-rc :path file "-e" "-O" "-N" "-r" location)
                 ;; (message "Got renames %s" (buffer-string))
                 (dolist (line (split-string (buffer-string) "\n" t))
-                  (if (string-match "^\\(.*\\),\\([0-9]+\\)$" line)
-                      (add-to-list 'replacements (cons (match-string 1 line) (string-to-number (match-string 2 line))) t))))
+                  (if (string-match "^\\(.*\\):\\([0-9]+\\):\\([0-9]+\\):$" line)
+                      (add-to-list 'replacements (cons (match-string 1 line)
+                                                       (cons (string-to-number (match-string 2 line))
+                                                             (string-to-number (match-string 3 line)))) t))))
               ;; (message "Got %d replacements" (length replacements))
 
               (dolist (value replacements)
@@ -980,7 +984,7 @@ References to references will be treated as references to the referenced symbol"
                     (set-buffer buf)
                     (when (run-hook-with-args-until-failure 'rtags-edit-hook)
                       (incf modifications)
-                      (rtags-goto-offset (cdr value))
+                      (rtags-goto-line-col (cadr value) (cddr value))
                       (if (looking-at "~")
                           (forward-char))
 
@@ -988,8 +992,7 @@ References to references will be treated as references to the referenced symbol"
                       ;;          (buffer-substring-no-properties (point) (+ (point) len)) replacewith (point) (car value))
                       (delete-char len)
                       (insert replacewith)
-                      (basic-save-buffer)
-                      ))
+                      (basic-save-buffer)))
                   )
                 )
               )
