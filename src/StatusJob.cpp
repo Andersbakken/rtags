@@ -146,7 +146,7 @@ void StatusJob::execute()
         if (!write(delimiter) || !write("sources") || !write(delimiter))
             return;
         for (SourceMap::const_iterator it = map.begin(); it != map.end(); ++it) {
-            if (!write<512>("  %s: %s", Location::path(it->first).constData(), it->second.toString().constData()))
+            if (!write<512>("  %s: %s", it->second.sourceFile().constData(), it->second.toString().constData()))
                 return;
         }
     }
