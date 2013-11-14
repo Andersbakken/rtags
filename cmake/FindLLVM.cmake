@@ -9,6 +9,18 @@
 #  LLVM_MODULE_LIBS  - list of llvm libs for working with modules.
 
 find_program(LLVM_CONFIG_EXECUTABLE llvm-config DOC "llvm-config executable")
+if (NOT LLVM_CONFIG_EXECUTABLE)
+    find_program(LLVM_CONFIG_EXECUTABLE llvm-config-3.4 DOC "llvm-config-3.4 executable")
+    if (NOT LLVM_CONFIG_EXECUTABLE)
+        find_program(LLVM_CONFIG_EXECUTABLE llvm-config-3.3 DOC "llvm-config-3.3 executable")
+        if (NOT LLVM_CONFIG_EXECUTABLE)
+            find_program(LLVM_CONFIG_EXECUTABLE llvm-config-3.2 DOC "llvm-config-3.2 executable")
+            if (NOT LLVM_CONFIG_EXECUTABLE)
+                find_program(LLVM_CONFIG_EXECUTABLE llvm-config-3.1 DOC "llvm-config-3.1 executable")
+            endif ()
+        endif ()
+    endif ()
+endif ()
 
 if (LLVM_CONFIG_EXECUTABLE)
   message(STATUS "LLVM llvm-config found at: ${LLVM_CONFIG_EXECUTABLE}")
