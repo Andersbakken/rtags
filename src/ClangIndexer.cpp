@@ -1188,7 +1188,7 @@ bool ClangIndexer::diagnose()
 
     for (Hash<uint32_t, bool>::const_iterator it = mData->visited.begin(); it != mData->visited.end(); ++it) {
         if (it->second) {
-            const Map<Location, XmlEntry>::const_iterator x = xmlEntries.find(Location(it->first, 0, 0));
+            const Map<Location, XmlEntry>::const_iterator x = xmlEntries.lower_bound(Location(it->first, 0, 0));
             if (x == xmlEntries.end() || x->first.fileId() != it->first) {
                 const String fn = Location::path(it->first);
                 mData->xmlDiagnostics += String::format("<file name=\"%s\"/>", fn.constData());
