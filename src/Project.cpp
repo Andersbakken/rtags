@@ -171,23 +171,23 @@ void Project::restore(RestoreThread *thread)
 
     auto it = mSources.begin();
     while (it != mSources.end()) {
-        if (!it->second.sourceFile().isFile()) {
-            error() << it->second.sourceFile() << "seems to have disappeared";
-            dirty.insert(it->first);
+        const Source &source = it->second;
+        if (!source.sourceFile().isFile()) {
+            error() << source.sourceFile() << "seems to have disappeared";
+            dirty.insert(source.fileId);
             mSources.erase(it++);
             needsSave = true;
         } else {
-            const uint64_t parsed = it->second.parsed;
-            assert(mDependencies.value(it->first).contains(it->first));
-            const Set<uint32_t> &deps = reversedDependencies[it->first];
+            assert(mDependencies.value(source.fileId).contains(source.fileId));
+            const Set<uint32_t> &deps = reversedDependencies[source.fileId];
+            // error() << source.sourceFile() << "has" << deps.size();
             for (auto d = deps.constBegin(); d != deps.constEnd(); ++d) {
-                if (Location::path(*d).lastModifiedMs() > parsed) {
-                    dirty.insert(it->second.fileId);
-                    // error() << Location::path(*d).lastModifiedMs() << "is more than" << parsed
+                if (!dirty.contains(*d) && Location::path(*d).lastModifiedMs() > source.parsed) {
+                    dirty.insert(*d);
+                    // error() << Location::path(*d).lastModifiedMs() << "is more than" << source.parsed
                     //         << it->second.sourceFile() << Location::path(*d)
-                    //         << String::formatTime(parsed / 1000)
-                    //         << String::formatTime(Location::path(*d).lastModifiedMs());
-                    break;
+                    //         << String::formatTime(source.parsed / 1000)
+                    //         << String::formatTime(Location::path(*d).lastModifiedMs() / 1000);
                 }
             }
             ++it;
@@ -510,7 +510,7 @@ List<Source> Project::sources(uint32_t fileId) const
 {
     List<Source> ret;
     if (fileId) {
-        auto it = mSources.lower_bound(fileId);
+        auto it = mSources.lower_bound(Source::key(fileId, 0));
         while (it != mSources.end()) {
             uint32_t f, b;
             Source::decodeKey(it->first, f, b);
@@ -611,10 +611,11 @@ void Project::startDirtyJobs(const Set<uint32_t> &dirty)
 
     bool indexed = false;
     for (auto it = dirtyFiles.constBegin(); it != dirtyFiles.constEnd(); ++it) {
-        auto src = mSources.lower_bound(*it);
+        auto src = mSources.lower_bound(Source::key(*it, 0));
         while (src != mSources.end()) {
             uint32_t f, b;
             Source::decodeKey(src->first, f, b);
+            error() << "Decoded" << Location::path(f);
             if (f != *it)
                 break;
 #warning this preprocessing should happen in a job
