@@ -1393,8 +1393,6 @@ References to references will be treated as references to the referenced symbol"
                            (string-match "</progress>" output)))
           (rtags-reset-bookmarks)
           (rtags-parse-diagnostics (rtags-trim-whitespace current))))
-      (if (buffer-file-name)
-          (error "Set buffer with file %s read only " (buffer-file-name)))
       (setq buffer-read-only t)
       (when (> (length output) 0)
         (setq rtags-pending-diagnostics output)))
