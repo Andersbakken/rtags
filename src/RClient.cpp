@@ -18,6 +18,7 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 #include "CreateOutputMessage.h"
 #include <rct/Connection.h>
 #include <rct/EventLoop.h>
+#include <rct/Log.h>
 #include <rct/Rct.h>
 #include <rct/RegExp.h>
 
@@ -931,7 +932,7 @@ bool RClient::parse(int &argc, char **argv)
         return false;
     }
 
-    if (!initLogging(mLogLevel, logFile, logFlags)) {
+    if (!initLogging(argv[0], LogStderr, mLogLevel, logFile, logFlags)) {
         fprintf(stderr, "Can't initialize logging with %d %s 0x%0x\n",
                 mLogLevel, logFile.constData(), logFlags);
         return false;

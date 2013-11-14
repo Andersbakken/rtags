@@ -21,22 +21,36 @@
 #include <rct/StopWatch.h>
 #include <rct/String.h>
 #include <signal.h>
+#include <syslog.h>
 
-static void sigSegvHandler(int signal)
+static void sigHandler(int signal)
 {
-    fprintf(stderr, "Caught signal %d\n", signal);
+    error("caught signal %d\n", signal);
     const String trace = RTags::backtrace();
     if (!trace.isEmpty()) {
-        fprintf(stderr, "%s", trace.constData());
+        error("%s", trace.constData());
     }
     fflush(stderr);
+    ::closelog();
     _exit(1);
 }
 
+struct SyslogCloser
+{
+public:
+    ~SyslogCloser() { ::closelog(); }
+};
+
 int main(int argc, char **argv)
 {
-    signal(SIGSEGV, sigSegvHandler);
-    initLogging();
+    signal(SIGSEGV, sigHandler);
+    signal(SIGABRT, sigHandler);
+    signal(SIGBUS, sigHandler);
+
+    initLogging(argv[0], LogStderr|LogSyslog);
+    SyslogCloser closer;
+    (void)closer;
+
     RTags::initMessages();
     std::shared_ptr<EventLoop> eventLoop(new EventLoop);
     eventLoop->init(EventLoop::MainEventLoop);
@@ -63,16 +77,16 @@ int main(int argc, char **argv)
         fclose(f);
     f = 0;
     if (sourceFile.isEmpty()) {
-        fprintf(stderr, "No sourcefile\n");
+        error("No sourcefile\n");
         return 3;
     }
     if (!source.fileId) {
-        fprintf(stderr, "Bad fileId\n");
+        error("Bad fileId\n");
         return 3;
     }
 
     if (project.isEmpty()) {
-        fprintf(stderr, "No project\n");
+        error("No project\n");
         return 4;
     }
 
@@ -83,19 +97,19 @@ int main(int argc, char **argv)
     case IndexerJob::Remote:
         break;
     default:
-        fprintf(stderr, "Invalid type %d\n", type);
+        error("Invalid type %d\n", type);
         return 5;
     }
 
     ClangIndexer indexer;
     if (port) {
         if (!indexer.connect(destination, port)) {
-            fprintf(stderr, "Failed to connect to rdm %s:%d\n", destination.constData(), port);
+            error("Failed to connect to rdm %s:%d\n", destination.constData(), port);
             return 6;
         }
     } else {
         if (!indexer.connect(destination)) {
-            fprintf(stderr, "Failed to connect to rdm %s\n", destination.constData());
+            error("Failed to connect to rdm %s\n", destination.constData());
             return 7;
         }
     }
@@ -107,7 +121,7 @@ int main(int argc, char **argv)
     indexer.setJobId(jobId);
 
     if (!indexer.index(static_cast<IndexerJob::IndexType>(type), source, cpp, project)) {
-        fprintf(stderr, "Failed to index %s\n", sourceFile.constData());
+        error("Failed to index %s\n", sourceFile.constData());
         return 8;
     }
 
