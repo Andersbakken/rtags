@@ -36,6 +36,7 @@ public:
     int max() const { return mMax; }
     int logLevel() const { return mLogLevel; }
     int timeout() const { return mTimeout; }
+    int buildIndex() const { return mBuildIndex; }
 
     const Set<String> &pathFilters() const { return mPathFilters; }
     int minOffset() const { return mMinOffset; }
@@ -62,7 +63,7 @@ private:
     void addCompile(const Path &cwd, const String &args);
 
     unsigned mQueryFlags;
-    int mMax, mLogLevel, mTimeout, mMinOffset, mMaxOffset, mConnectTimeout;
+    int mMax, mLogLevel, mTimeout, mMinOffset, mMaxOffset, mConnectTimeout, mBuildIndex;
     String mContext;
     Set<String> mPathFilters;
     Hash<Path, String> mUnsavedFiles;

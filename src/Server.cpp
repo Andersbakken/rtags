@@ -562,10 +562,12 @@ void Server::dumpFile(const QueryMessage &query, Connection *conn)
         return;
     }
 
-    const List<Source> sources = project->sources(fileId);
-#warning Should have general purpose system for putting an index into a QueryMessage maybe? For this and Preprocess
-    if (!sources.isEmpty()) {
-        project->dump(sources.first(), conn);
+    const Source source = project->sources(fileId).value(query.buildIndex());
+    if (!source.isNull()) {
+        project->dump(source, conn);
+    } else {
+        conn->write<256>("%s build: %d not found", query.query().constData(), query.buildIndex());
+        conn->finish();
     }
 }
 
@@ -781,15 +783,11 @@ void Server::preprocessFile(const QueryMessage &query, Connection *conn)
     }
 
     const uint32_t fileId = Location::fileId(path);
-    const List<Source> sources = project->sources(fileId);
-    if (sources.isEmpty()) {
-        conn->write("No arguments for " + path);
-        conn->finish();
-        return;
-    }
-
-    for (List<Source>::const_iterator it = sources.begin(); it != sources.end(); ++it) {
-        Preprocessor pre(*it, conn);
+    const Source source = project->sources(fileId).value(query.buildIndex());
+    if (!source.isValid()) {
+        conn->write<256>("%s build: %d not found", query.query().constData(), query.buildIndex());
+    } else {
+        Preprocessor pre(source, conn);
         pre.preprocess();
     }
     conn->finish();

@@ -100,6 +100,8 @@ public:
     String query() const { return mQuery; }
     Location location() const { return Location::decodeClientLocation(mQuery); }
     void setQuery(const String &query) { mQuery = query; }
+    void setBuildIndex(int index) { mBuildIndex = index; }
+    int buildIndex() const { return mBuildIndex; }
 
     Match match() const;
 
@@ -147,7 +149,7 @@ private:
     String mQuery, mContext;
     Type mType;
     unsigned mFlags;
-    int mMax, mMinLine, mMaxLine;
+    int mMax, mMinLine, mMaxLine, mBuildIndex;
     List<String> mPathFilters;
     List<String> mProjects;
 };

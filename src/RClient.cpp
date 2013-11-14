@@ -25,7 +25,7 @@ enum OptionType {
     None = 0,
     AbsolutePath,
     AllReferences,
-    Sources,
+    BuildIndex,
     Clear,
     Compile,
     ConnectTimeout,
@@ -46,8 +46,8 @@ enum OptionType {
     FilterSystemHeaders,
     FindFile,
     FindFilePreferExact,
-    FindProjectRoot,
     FindProjectBuildRoot,
+    FindProjectRoot,
     FindSymbols,
     FindVirtuals,
     FixIts,
@@ -81,6 +81,7 @@ enum OptionType {
     ReverseSort,
     Silent,
     SocketFile,
+    Sources,
     Status,
     StripParen,
     SuspendFile,
@@ -125,7 +126,13 @@ struct Option opts[] = {
     { JobCount, "jobcount", 'j', optional_argument, "Set or query current job count." },
 
     { None, 0, 0, 0, "" },
-    { None, 0, 0, 0, "Commands:" },
+    { None, 0, 0, 0, "Indexing commands:" },
+    { Compile, "compile", 'c', required_argument, "Pass compilation arguments to rdm." },
+    { LoadCompilationDatabase, "load-compilation-database", 'J', optional_argument, "Load compile_commands.json from directory" },
+    { SuspendFile, "suspend-file", 'X', optional_argument, "Dump suspended files (don't track changes in these files) with no arg. Otherwise toggle suspension for arg." },
+
+    { None, 0, 0, 0, "" },
+    { None, 0, 0, 0, "Query commands:" },
     { FollowLocation, "follow-location", 'f', required_argument, "Follow this location." },
     { ReferenceName, "references-name", 'R', required_argument, "Find references matching arg." },
     { ReferenceLocation, "references", 'r', required_argument, "Find references matching this location." },
@@ -142,7 +149,6 @@ struct Option opts[] = {
     { DumpFile, "dump-file", 'd', required_argument, "Dump source file." },
     { RdmLog, "rdm-log", 'g', no_argument, "Receive logs from rdm." },
     { FixIts, "fixits", 0, required_argument, "Get fixits for file." },
-    { Compile, "compile", 'c', required_argument, "Pass compilation arguments to rdm." },
     { RemoveFile, "remove", 'D', required_argument, "Remove file from project." },
     { FindProjectRoot, "find-project-root", 0, required_argument, "Use to check behavior of find-project-root." },
     { FindProjectBuildRoot, "find-project-build-root", 0, required_argument, "Use to check behavior of find-project-root for builds." },
@@ -150,7 +156,6 @@ struct Option opts[] = {
     { Dependencies, "dependencies", 0, required_argument, "Dump dependencies for source file." },
     { ReloadFileManager, "reload-file-manager", 'B', no_argument, "Reload file manager." },
     { Man, "man", 0, no_argument, "Output XML for xmltoman to generate man page for rc :-)" },
-    { SuspendFile, "suspend-file", 'X', optional_argument, "Dump suspended files (don't track changes in these files) with no arg. Otherwise toggle suspension for arg." },
 
     { None, 0, 0, 0, "" },
     { None, 0, 0, 0, "Command flags:" },
@@ -183,8 +188,8 @@ struct Option opts[] = {
     { DeclarationOnly, "declaration-only", 0, no_argument, "Filter out definitions (unless inline).", },
     { IMenu, "imenu", 0, no_argument, "Use with --list-symbols to provide output for (rtags-imenu) (filter namespaces, fully qualified function names, ignore certain cursors etc)." },
     { Context, "context", 't', required_argument, "Context for current symbol (for fuzzy matching with dirty files)." }, // ### multiple context doesn't work
-    { ContainingFunction, "containing-function", 'o', no_argument, "Include name of containing function in output. "},
-    { LoadCompilationDatabase, "load-compilation-database", 'J', optional_argument, "Load compile_commands.json from directory" },
+    { ContainingFunction, "containing-function", 'o', no_argument, "Include name of containing function in output."},
+    { BuildIndex, "build-index", 0, required_argument, "For sources with multiple builds, use the arg'th." },
     { None, 0, 0, 0, 0 }
 };
 
@@ -300,6 +305,7 @@ public:
         QueryMessage msg(type);
         msg.init(rc->argc(), rc->argv());
         msg.setQuery(query);
+        msg.setBuildIndex(rc->buildIndex());
         msg.setContext(rc->context());
         msg.setFlags(extraQueryFlags | rc->queryFlags());
         msg.setMax(rc->max());
@@ -360,7 +366,7 @@ public:
 
 RClient::RClient()
     : mQueryFlags(0), mMax(-1), mLogLevel(0), mTimeout(-1),
-      mMinOffset(-1), mMaxOffset(-1), mConnectTimeout(DEFAULT_CONNECT_TIMEOUT), mArgc(0), mArgv(0)
+      mMinOffset(-1), mMaxOffset(-1), mConnectTimeout(DEFAULT_CONNECT_TIMEOUT), mBuildIndex(0), mArgc(0), mArgv(0)
 {
 }
 
@@ -639,6 +645,14 @@ bool RClient::parse(int &argc, char **argv)
         case StripParen:
             mQueryFlags |= QueryMessage::StripParentheses;
             break;
+        case BuildIndex: {
+            bool ok;
+            mBuildIndex = String(optarg).toULongLong(&ok);
+            if (!ok) {
+                fprintf(stderr, "--build-index [arg] must be >= 0\n");
+                return false;
+            }
+            break; }
         case ConnectTimeout:
             mConnectTimeout = atoi(optarg);
             if (mConnectTimeout < 0) {
