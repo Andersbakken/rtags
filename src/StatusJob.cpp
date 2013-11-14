@@ -152,6 +152,7 @@ void StatusJob::execute()
     }
 
     if (query.isEmpty() || !strcasecmp(query.constData(), "jobs")) {
+        matched = true;
         if (!write(delimiter) || !write("jobs") || !write(delimiter) << !write(proj->dumpJobs()))
             return;
     }
