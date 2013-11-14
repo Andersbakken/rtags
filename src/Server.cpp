@@ -1284,12 +1284,12 @@ void Server::handleJobResponseMessage(const JobResponseMessage &message, Connect
     std::shared_ptr<IndexerJob> job(new IndexerJob);
     message.toIndexerJob(job, conn);
     if (debugMulti) {
-        error() << "got indexer job for" << job->destination << ":" << job->port
-                << "with preprocessed" << job->cpp->preprocessed.size();
+error() << "got indexer job for" << job->destination << ":" << job->port
+        << "with preprocessed" << job->cpp->preprocessed.size();
     }
-    assert(job->type == IndexerJob::Remote);
-    assert(job->state == IndexerJob::Pending);
-    startJob(job);
+assert(job->type == IndexerJob::Remote);
+assert(job->state == IndexerJob::Pending);
+startJob(job);
 }
 
 void Server::handleVisitFileMessage(const VisitFileMessage &message, Connection *conn)
@@ -1328,7 +1328,8 @@ void Server::restoreFileIds()
             }
             fclose(f);
         } else {
-            error() << p << "has wrong format. Got" << version << "expected" << Server::DatabaseVersion << ", can't restore anything";
+            error("%s has the wrong format. Got %d, expected %d. Can't restore anything",
+                  p.constData(), version, Server::DatabaseVersion);
         }
     }
     if (clear)
