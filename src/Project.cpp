@@ -447,6 +447,7 @@ void Project::index(const Source &source, IndexerJob::IndexType type, const std:
     JobData &data = mJobs[key];
     if (mState != Loaded) {
         // error() << "Index called at" << static_cast<int>(mState) << "time. Setting pending" << source.sourceFile();
+        data.pendingSource = source;
         data.pendingType = type;
         data.pendingCpp = cpp;
         return;
@@ -615,7 +616,7 @@ void Project::startDirtyJobs(const Set<uint32_t> &dirty)
         while (src != mSources.end()) {
             uint32_t f, b;
             Source::decodeKey(src->first, f, b);
-            error() << "Decoded" << Location::path(f);
+            // error() << "Decoded" << Location::path(f);
             if (f != *it)
                 break;
 #warning this preprocessing should happen in a job
