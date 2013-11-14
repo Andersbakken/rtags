@@ -1118,22 +1118,14 @@ bool ClangIndexer::diagnose()
                     clang_getSpellingLocation(start, 0, 0, 0, &startOffset);
                     clang_getSpellingLocation(end, 0, 0, 0, &endOffset);
                     const char *string = clang_getCString(stringScope);
-                    error("Fixit for %s:%d:%d: Replace %d chars with [%s]", loc.path().constData(),
-                          line, column, endOffset - startOffset, string);
+                    error("Fixit for %s:%d:%d: Replace [%s] with [%s]", loc.path().constData(), line, column,
+                          mCpp->preprocessed.mid(startOffset, endOffset - startOffset).constData(), string);
                     XmlEntry &entry = xmlEntries[Location(loc.fileId(), line, column)];
                     entry.type = XmlEntry::Fixit;
                     if (entry.message.isEmpty()) {
                         entry.message = String::format<64>("did you mean '%s'?", string);
                     }
                     entry.length = endOffset - startOffset;
-                    // if (testLog(logLevel) || testLog(RTags::CompilationError)) {
-                    //     const String msg = String::format<128>("Fixit for %s: Replace %d-%d with [%s]", loc.path().constData(),
-                    //                                            startOffset, endOffset, string);
-                    //     if (testLog(logLevel))
-                    //         logDirect(logLevel, msg.constData());
-                    //     if (testLog(RTags::CompilationError))
-                    //         logDirect(RTags::CompilationError, msg.constData());
-                    // }
                     mData->fixIts[loc.fileId()].insert(FixIt(line, column, endOffset - startOffset, string));
                 }
             }

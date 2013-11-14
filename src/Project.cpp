@@ -799,7 +799,7 @@ String Project::fixIts(uint32_t fileId) const
                 --f;
                 if (!out.isEmpty())
                     out.append('\n');
-                out.append(String::format<32>("%d:%d(%d) %s", f->line, f->column, f->length, f->text.constData()));
+                out.append(String::format<32>("%d:%d %d %s", f->line, f->column, f->length, f->text.constData()));
 
             } while (f != fixIts.begin());
         }
