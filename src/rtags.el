@@ -1358,11 +1358,10 @@ References to references will be treated as references to the referenced symbol"
         (setq buffer-read-only nil)
         (goto-char (point-min))
         (delete-char (- (point-max) (point-min)))
-        (if (buffer-file-name)
-            (error "Set buffer with file %s read only " (buffer-file-name)))
         (setq buffer-read-only t))
       )
     )
+  (rtags-clear-diagnostics-overlays)
   )
 
 (defun rtags-trim-whitespace (str)
