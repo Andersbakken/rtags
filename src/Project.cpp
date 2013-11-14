@@ -334,10 +334,10 @@ void Project::onJobFinished(const std::shared_ptr<IndexData> &indexData)
     if (pendingType == IndexerJob::Invalid) {
         const int idx = mJobCounter - mJobs.size() + 1;
         if (testLog(RTags::CompilationErrorXml)) {
-            log(RTags::CompilationErrorXml,
-                "<?xml version=\"1.0\" encoding=\"utf-8\"?><progress index=\"%d\" total=\"%d\"></progress>",
-                idx, mJobCounter);
             logDirect(RTags::CompilationErrorXml, indexData->xmlDiagnostics);
+            log(RTags::CompilationErrorXml,
+                "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n<progress index=\"%d\" total=\"%d\"></progress>",
+                idx, mJobCounter);
         }
         if (success) {
             auto src = mSources.find(indexData->key);
