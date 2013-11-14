@@ -748,7 +748,18 @@ void Project::syncDB(int *dirty, int *sync)
 
 bool Project::isIndexed(uint32_t fileId) const
 {
-    return mVisitedFiles.contains(fileId) || mSources.find(fileId) != mSources.end();
+    if (mVisitedFiles.contains(fileId))
+        return true;
+
+    const uint64_t key = Source::key(fileId, 0);
+    auto it = mSources.lower_bound(key);
+    if (it != mSources.end()) {
+        uint32_t f, b;
+        Source::decodeKey(it->first, f, b);
+        if (f == fileId)
+            return true;
+    }
+    return false;
 }
 
 const Set<uint32_t> &Project::suspendedFiles() const
