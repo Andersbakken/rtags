@@ -327,7 +327,13 @@ Source Source::parse(const String &cmdLine, const Path &base, Path *unresolvedIn
                 ret.arguments.append(arg);
             } else if (arg == "-o") {
                 if (i + 1 < s) {
-                    const Path p = Path::resolved(split.value(++i), Path::RealPath, path);
+                    bool ok;
+                    Path p = Path::resolved(split.value(++i), Path::RealPath, path, &ok);
+                    // error() << p << ok << split.value(i) << Path::resolved(split.value(i), Path::MakeAbsolute);
+                    if (!ok && !p.isAbsolute()) {
+                        p.prepend(path); // the object file might not exist
+                        p.canonicalize();
+                    }
                     const Path buildRoot = RTags::findProjectRoot(p, RTags::BuildRoot);
                     if (buildRoot.isDir())
                         ret.buildRootId = Location::insertFile(buildRoot);
