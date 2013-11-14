@@ -10,7 +10,7 @@
 #include "IndexerJob.h"
 #include "RTagsClang.h"
 
-class Cpp;
+struct Cpp;
 class ClangIndexer
 {
 public:
