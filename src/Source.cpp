@@ -1,6 +1,7 @@
 #include "Source.h"
 #include "Location.h"
 #include "RTags.h"
+#include <rct/EventLoop.h>
 
 void Source::clear()
 {
@@ -358,6 +359,7 @@ Source Source::parse(const String &cmdLine, const Path &base, Path *unresolvedIn
     static Hash<Path, Path> resolvedFromPath;
     Path front = split.front();
     Path &compiler = resolvedFromPath[front];
+    assert(EventLoop::isMainThread());
     if (compiler.isEmpty()) {
         if (front.startsWith('/')) {
             Path resolved = front.resolved();
