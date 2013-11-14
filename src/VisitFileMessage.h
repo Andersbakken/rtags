@@ -25,19 +25,19 @@ class VisitFileMessage : public ClientMessage
 public:
     enum { MessageId = VisitFileId };
 
-    VisitFileMessage(const Path &file = Path(), const Path &project = Path(), uint32_t fileId = 0)
-        : ClientMessage(MessageId), mFile(file), mProject(project), mFileId(fileId)
+    VisitFileMessage(const Path &file = Path(), const Path &project = Path(), uint64_t key = 0)
+        : ClientMessage(MessageId), mFile(file), mProject(project), mKey(key)
     {
     }
 
     Path project() const { return mProject; }
     Path file() const { return mFile; }
-    uint64_t fileId() const { return mFileId; }
-    void encode(Serializer &serializer) const { serializer << mProject << mFile << mFileId; }
-    void decode(Deserializer &deserializer) { deserializer >> mProject >> mFile >> mFileId; }
+    uint64_t key() const { return mKey; }
+    void encode(Serializer &serializer) const { serializer << mProject << mFile << mKey; }
+    void decode(Deserializer &deserializer) { deserializer >> mProject >> mFile >> mKey; }
 private:
     Path mFile, mProject;
-    uint32_t mFileId;
+    uint64_t mKey;
 };
 
 #endif

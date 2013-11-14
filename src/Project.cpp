@@ -611,16 +611,21 @@ void Project::startDirtyJobs(const Set<uint32_t> &dirty)
 
     bool indexed = false;
     for (auto it = dirtyFiles.constBegin(); it != dirtyFiles.constEnd(); ++it) {
-        const auto found = mSources.find(*it);
-        if (found != mSources.end()) {
+        auto src = mSources.lower_bound(*it);
+        while (src != mSources.end()) {
+            uint32_t f, b;
+            Source::decodeKey(src->first, f, b);
+            if (f != *it)
+                break;
 #warning this preprocessing should happen in a job
-            std::shared_ptr<Cpp> cpp = RTags::preprocess(found->second);
+            std::shared_ptr<Cpp> cpp = RTags::preprocess(src->second);
             if (!cpp) {
-                error() << "Couldn't preprocess" << found->second.sourceFile();
+                error() << "Couldn't preprocess" << src->second.sourceFile();
             } else {
-                index(found->second, IndexerJob::Dirty, cpp);
+                index(src->second, IndexerJob::Dirty, cpp);
                 indexed = true;
             }
+            ++src;
         }
     }
     if (!indexed && !dirtyFiles.isEmpty()) {
@@ -940,6 +945,6 @@ void Project::watch(const Path &file)
 
 bool Project::hasSource(const Source &source) const
 {
-    auto it = mSources.find(source.fileId);
+    auto it = mSources.find(source.key());
     return it != mSources.end() && it->second == source;
 }

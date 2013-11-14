@@ -1300,7 +1300,7 @@ void Server::handleVisitFileMessage(const VisitFileMessage &message, Connection 
     std::shared_ptr<Project> project = mProjects.value(message.project());
     if (project) {
         fileId = Location::insertFile(message.file());
-        visit = project->visitFile(fileId, message.fileId());
+        visit = project->visitFile(fileId, message.key());
     }
     VisitFileResponseMessage msg(fileId, visit);
     conn->send(msg);
