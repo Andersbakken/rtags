@@ -84,22 +84,22 @@ static inline char *demangle(const char *str)
     return ret;
 }
 
-String backtrace(int maxFrames)
+List<String> backtrace(int maxFrames)
 {
     enum { SIZE = 1024 };
     void *stack[SIZE];
 
     int frameCount = backtrace(stack, sizeof(stack) / sizeof(void*));
     if (frameCount <= 0)
-        return String("Couldn't get stack trace");
-    String ret;
+        return List<String>();
+    List<String> ret;
     char **symbols = backtrace_symbols(stack, frameCount);
     if (symbols) {
         char frame[1024];
         for (int i=1; i<frameCount && (maxFrames < 0 || i - 1 < maxFrames); ++i) {
             char *demangled = demangle(symbols[i]);
-            snprintf(frame, sizeof(frame), "%d/%d %s\n", i, frameCount - 1, demangled ? demangled : symbols[i]);
-            ret += frame;
+            snprintf(frame, sizeof(frame), "%d/%d %s", i, frameCount - 1, demangled ? demangled : symbols[i]);
+            ret.append(frame);
             if (demangled)
                 free(demangled);
         }
@@ -108,7 +108,7 @@ String backtrace(int maxFrames)
     return ret;
 }
 #else
-String backtrace(int)
+List<String> backtrace(int)
 {
     return String();
 }
@@ -450,7 +450,13 @@ void Mutex::lock()
     while (!tryLock()) {
         usleep(10000);
         if (timer.elapsed() >= 10000) {
-            error("Couldn't acquire lock in 10 seconds\n%s", RTags::backtrace().constData());
+            error("Couldn't acquire lock in 10 seconds\n");
+            const List<String> stack = RTags::backtrace();
+            const auto it = stack.begin();
+            while (it != stack.end()) {
+                printf("%s\n", it->constData());
+                ++it;
+            }
             timer.restart();
         }
     }

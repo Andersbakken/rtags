@@ -32,9 +32,12 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 static void sigSegvHandler(int signal)
 {
     fprintf(stderr, "Caught signal %d\n", signal);
-    String trace = RTags::backtrace();
-    if (!trace.isEmpty()) {
-        fprintf(stderr, "%s", trace.constData());
+    // this is not really allowed in signal handlers but will mostly work
+    const List<String>& trace = RTags::backtrace();
+    auto it = trace.cbegin();
+    while (it != trace.end()) {
+        fprintf(stderr, "%s", it->constData());
+        ++it;
     }
     fflush(stderr);
     _exit(1);

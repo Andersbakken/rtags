@@ -25,10 +25,13 @@
 
 static void sigHandler(int signal)
 {
-    error("caught signal %d\n", signal);
-    const String trace = RTags::backtrace();
-    if (!trace.isEmpty()) {
-        error("%s", trace.constData());
+    error("Caught signal %d\n", signal);
+    // this is not really allowed in signal handlers but will mostly work
+    const List<String>& trace = RTags::backtrace();
+    auto it = trace.cbegin();
+    while (it != trace.end()) {
+        error("%s", it->constData());
+        ++it;
     }
     fflush(stderr);
     ::closelog();
