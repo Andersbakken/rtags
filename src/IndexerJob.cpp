@@ -96,7 +96,6 @@ bool IndexerJob::encode(Serializer &serializer)
         if (!proj)
             return false;
     }
-    assert(proj || !blockedFiles.isEmpty());
     const Server::Options &options = Server::instance()->options();
     Source copy = source;
     copy.arguments << options.defaultArguments;
