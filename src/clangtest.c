@@ -1,6 +1,7 @@
 #include <clang-c/Index.h>
 #include <string.h>
 #include <stdlib.h>
+#include <stdio.h>
 
 static void printString(const char *name, CXString string)
 {
