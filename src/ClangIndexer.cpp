@@ -76,6 +76,7 @@ bool ClangIndexer::index(IndexerJob::IndexType type, const Source &source,
         mData->visited[it->second] = true;
         Location::set(it->first, it->second);
     }
+    mIndexed += cpp->visited.size();
 
     mProject = project;
     assert(mConnection.isConnected());
