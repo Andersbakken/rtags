@@ -366,29 +366,44 @@ bool compile(const Path& output, const Source &source, const String& preprocesse
     return true;
 }
 
+class Compiler : public clang::CompilerInstance
+{
+public:
+    ~Compiler()
+    {
+        resetAndLeakSourceManager();
+    }
+};
+
 std::shared_ptr<Cpp> preprocess(const Source &source)
 {
     StopWatch sw;
-    clang::CompilerInstance compilerInstance;
+    Compiler compilerInstance;
     compilerInstance.createFileManager();
     assert(compilerInstance.hasFileManager());
     compilerInstance.createDiagnostics();
     assert(compilerInstance.hasDiagnostics());
-
+    clang::DiagnosticsEngine& diags = compilerInstance.getDiagnostics();
     clang::FileManager &fm = compilerInstance.getFileManager();
-    compilerInstance.createSourceManager(fm);
+    clang::SourceManager sm(diags, fm, true);
+    compilerInstance.setSourceManager(&sm);
     assert(compilerInstance.hasSourceManager());
-    clang::SourceManager &sm = compilerInstance.getSourceManager();
     const Path sourceFile = source.sourceFile();
     uint64_t now = Rct::currentTimeMs();
-    const clang::FileEntry *file = fm.getFile(sourceFile.constData(), true); // pass openfile?
-    if (!file)
+    const clang::FileEntry *file = 0;
+    for (int i=0; i<4; ++i) {
+        file = fm.getFile(sourceFile.constData(), true); // pass openfile?
+        if (file)
+            break;
+        usleep(100);
+    }
+    if (!file) {
         return std::shared_ptr<Cpp>();
+    }
     sm.createMainFileID(file);
     clang::TargetOptions &targetOptions = compilerInstance.getTargetOpts();
     //targetOptions.Triple = LLVM_HOST_TRIPLE;
     targetOptions.Triple = llvm::sys::getDefaultTargetTriple();
-    clang::DiagnosticsEngine& diags = compilerInstance.getDiagnostics();
     clang::TextDiagnosticBuffer diagnosticsClient;
     diags.setClient(&diagnosticsClient, false);
     compilerInstance.setTarget(clang::TargetInfo::CreateTargetInfo(diags, &targetOptions));
