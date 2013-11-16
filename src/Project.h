@@ -175,10 +175,12 @@ private:
 inline bool Project::visitFile(uint32_t fileId, uint64_t id)
 {
     if (mVisitedFiles.insert(fileId)) {
-        assert(mJobs.contains(id));
-        JobData &data = mJobs[id];
-        assert(data.job);
-        data.job->visited.insert(id);
+        if (id) {
+            assert(mJobs.contains(id));
+            JobData &data = mJobs[id];
+            assert(data.job);
+            data.job->visited.insert(id);
+        }
         return true;
     }
     return false;

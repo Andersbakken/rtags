@@ -449,11 +449,6 @@ void Project::index(const Source &source, const std::shared_ptr<Cpp> &cpp, Index
         return;
     }
 
-    if (type == IndexerJob::Makefile && hasSource(source)) {
-        debug() << source.sourceFile() << " is not dirty. ignoring";
-        return;
-    }
-
     if (data.job) {
         // error() << "There's already something here for" << source.sourceFile();
         if (!data.job->update(type, source, cpp)) {

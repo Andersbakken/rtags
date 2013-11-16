@@ -30,7 +30,7 @@ void PreprocessJob::run()
     case Source::C:
     case Source::CPlusPlus:
     case Source::CPlusPlus11: {
-        std::shared_ptr<Cpp> cpp = RTags::preprocess(mSource);
+        std::shared_ptr<Cpp> cpp = RTags::preprocess(mSource, Server::instance()->project(mProject));
         if (!cpp) {
             error() << "Couldn't preprocess" << mSource.sourceFile();
             return;

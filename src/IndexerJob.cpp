@@ -12,6 +12,8 @@ IndexerJob::IndexerJob(IndexType t, const Path &p, const Source &s, const std::s
       port(0), type(t), project(p), source(s), sourceFile(s.sourceFile()),
       process(0), id(++nextId), started(0), cpp(c)
 {
+    for (auto it = c->visited.begin(); it != c->visited.end(); ++it)
+        visited.insert(it->second);
     assert(cpp);
 }
 

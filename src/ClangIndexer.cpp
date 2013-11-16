@@ -72,6 +72,11 @@ bool ClangIndexer::index(IndexerJob::IndexType type, const Source &source,
     mData->jobId = mId;
     mSource = source;
     mCpp = cpp;
+    for (auto it = cpp->visited.begin(); it != cpp->visited.end(); ++it) {
+        mData->visited[it->second] = true;
+        Location::set(it->first, it->second);
+    }
+
     mProject = project;
     assert(mConnection.isConnected());
     mData->visited[source.fileId] = true;
@@ -84,11 +89,11 @@ bool ClangIndexer::index(IndexerJob::IndexType type, const Source &source,
             mData->message += " error";
         mData->message += String::format<16>(" in %dms. ", mTimer.elapsed());
         if (mUnit) {
-            const char *format = "(%d syms, %d symNames, %d refs, %d deps, %d of %d files, cursors: %d of %d, %d queried) (%d/%d/%dms)";
+            const char *format = "(%d syms, %d symNames, %d refs, %d deps, %d of %d files, cursors: %d of %d, %d queried, %d previsited) (%d/%d/%dms)";
             mData->message += String::format<128>(format,
                                                   mData->symbols.size(), mData->symbolNames.size(), mData->references.size(),
                                                   mData->dependencies.size(), mIndexed, mData->visited.size(), mAllowed,
-                                                  mAllowed + mBlocked, mFileIdsQueried, mParseDuration, mVisitDuration,
+                                                  mAllowed + mBlocked, mFileIdsQueried, cpp->visited.size(), mParseDuration, mVisitDuration,
                                                   mCommunicationDuration);
         } else if (mData->dependencies.size()) {
             mData->message += String::format<16>("(%d deps)", mData->dependencies.size());

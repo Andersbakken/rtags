@@ -17,6 +17,7 @@
 #include "Server.h"
 #include <rct/StopWatch.h>
 #include "Cpp.h"
+#include "Project.h"
 #include <iostream>
 
 #define __STDC_LIMIT_MACROS
@@ -367,6 +368,29 @@ bool compile(const Path& output, const Source &source, const String& preprocesse
     return true;
 }
 
+static inline uint32_t visitFile(const Path &path,
+                                 const std::shared_ptr<Cpp> &cpp,
+                                 const std::shared_ptr<Project> &project,
+                                 bool *blocked)
+{
+    assert(blocked);
+    *blocked = false;
+    if (!project)
+        return Location::insertFile(path);
+
+    const Map<Path, uint32_t>::const_iterator it = cpp->visited.find(path);
+    if (it != cpp->visited.end())
+        return it->second;
+
+    const uint32_t fileId = Location::insertFile(path);
+    if (!project->visitFile(fileId, 0)) {
+        *blocked = true;
+    } else {
+        cpp->visited[path] = fileId;
+    }
+    return fileId;
+}
+
 class Compiler : public clang::CompilerInstance
 {
 public:
@@ -376,7 +400,7 @@ public:
     }
 };
 
-std::shared_ptr<Cpp> preprocess(const Source &source)
+std::shared_ptr<Cpp> preprocess(const Source &source, const std::shared_ptr<Project> &project)
 {
     StopWatch sw;
     Compiler compilerInstance;
@@ -511,13 +535,18 @@ std::shared_ptr<Cpp> preprocess(const Source &source)
     };
     for (size_t i=0; i<sizeof(diagnostics) / sizeof(diagnostics[0]); ++i) {
         for (auto it = diagnostics[i].begin; it != diagnostics[i].end; ++it) {
+            const clang::PresumedLoc presumedLocation = sm.getPresumedLoc(it->first);
+            const Path path = presumedLocation.getFilename();
+            bool blocked;
+            const uint32_t fileId = visitFile(path, cpp, project, &blocked);
+            if (blocked)
+                continue;
+
             cpp->diagnostics.append(Cpp::Diagnostic());
             Cpp::Diagnostic &d = cpp->diagnostics.last();
+            d.location = Location(fileId, presumedLocation.getLine(), presumedLocation.getColumn());
             d.type = diagnostics[i].type;
             d.text = it->second;
-            const clang::PresumedLoc presumedLocation = sm.getPresumedLoc(it->first);
-            d.location = Location(Location::insertFile(presumedLocation.getFilename()),
-                                  presumedLocation.getLine(), presumedLocation.getColumn());
         }
     }
     clang::PreprocessingRecord *record = preprocessor.getPreprocessingRecord();
@@ -537,32 +566,47 @@ std::shared_ptr<Cpp> preprocess(const Source &source)
             const clang::SourceRange range = def->getSourceRange();
             if (!range.isValid())
                 break;
+
             const clang::SourceLocation begin = range.getBegin();
             const clang::PresumedLoc presumedLocation = sm.getPresumedLoc(begin);
             const char *path = presumedLocation.getFilename();
             if (!strcmp(path, "<built-in>"))
                 break;
-            const Location loc(Location::insertFile(path), presumedLocation.getLine(), presumedLocation.getColumn());
+
+            bool blocked;
+            const uint32_t fileId = visitFile(path, cpp, project, &blocked);
             const clang::IdentifierInfo *name = def->getName();
-            CursorInfo &cursor = cpp->macroCursors[loc];
-            cursor.symbolName.assign(name->getNameStart(), name->getLength());
-            cursor.symbolLength = cursor.symbolName.size();
-            cursor.kind = CXCursor_MacroDefinition;
-            cpp->macroNames[cursor.symbolName].insert(loc);
-            macroLocations[cursor.symbolName] = loc;
+            const String macroName(name->getNameStart(), name->getLength());
+            const Location loc(fileId, presumedLocation.getLine(), presumedLocation.getColumn());
+            if (!blocked) {
+                CursorInfo &cursor = cpp->macroCursors[loc];
+                cursor.symbolName = macroName;
+                cursor.symbolLength = cursor.symbolName.size();
+                cursor.kind = CXCursor_MacroDefinition;
+                cpp->macroNames[cursor.symbolName].insert(loc);
+            }
+            macroLocations[macroName] = loc;
             // error() << "Got definition" << String(name->getNameStart(), name->getLength()) << loc;
             break; }
         case clang::PreprocessedEntity::MacroExpansionKind: {
             const clang::MacroExpansion *exp = static_cast<const clang::MacroExpansion*>(entity);
             if (exp->isBuiltinMacro())
                 break;
+
             const clang::SourceRange range = exp->getSourceRange();
             if (!range.isValid())
                 break;
+
             const clang::PresumedLoc presumedLocation = sm.getPresumedLoc(range.getBegin());
             const char *path = presumedLocation.getFilename();
             if (!strcmp(path, "<built-in>"))
                 break;
+
+            bool blocked;
+            const uint32_t fileId = visitFile(path, cpp, project, &blocked);
+            if (blocked)
+                break;
+
             const clang::IdentifierInfo *name = exp->getName();
             const String macroName(name->getNameStart(), name->getLength());
             const Location defLocation = macroLocations.value(macroName);
@@ -570,12 +614,13 @@ std::shared_ptr<Cpp> preprocess(const Source &source)
                 // error() << "Bailing on" << macroName << exp->getDefinition();
                 break;
             }
-            const Location loc(Location::insertFile(path), presumedLocation.getLine(), presumedLocation.getColumn());
+            const Location loc(fileId, presumedLocation.getLine(), presumedLocation.getColumn());
             CursorInfo &cursor = cpp->macroCursors[loc];
             cursor.symbolName = macroName;
             cursor.symbolLength = cursor.symbolName.size();
             cursor.kind = CXCursor_MacroExpansion;
             CursorInfo &def = cpp->macroCursors[defLocation];
+            // ### do I have to fill in def here? Do I need to in ClangIndexer?
             def.references.insert(loc);
             cursor.targets.insert(defLocation);
             // error() << "Got expansion" << String(name->getNameStart(), name->getLength()) << loc;
