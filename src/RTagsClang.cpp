@@ -635,7 +635,7 @@ std::shared_ptr<Cpp> preprocess(const Source &source, const std::shared_ptr<Proj
 
     // fwrite(str.constData(), 1, str.size(), f);
     // fclose(f);
-    error() << "preprocessing" << sourceFile << "took" << sw.elapsed() << watch.elapsed() << "ms";
+    warning() << "preprocessing" << sourceFile << "took" << sw.elapsed() << watch.elapsed() << "ms";
 
     return cpp;
 }
