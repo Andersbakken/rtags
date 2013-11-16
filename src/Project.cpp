@@ -203,12 +203,8 @@ void Project::restore(RestoreThread *thread)
     for (auto it = pendingJobs.constBegin(); it != pendingJobs.constEnd(); ++it) {
         assert(!it->second.pendingSource.isNull());
         assert(it->second.pendingType != IndexerJob::Invalid);
-        std::shared_ptr<Cpp> cpp = RTags::preprocess(it->second.pendingSource);
-        if (!cpp) {
-            error() << "Unable to preprocess" << it->second.pendingSource.sourceFile();
-        } else {
-            index(it->second.pendingSource, it->second.pendingType, cpp);
-        }
+        assert(it->second.pendingCpp);
+        index(it->second.pendingSource, it->second.pendingCpp, it->second.pendingType);
     }
 }
 
@@ -372,7 +368,7 @@ void Project::onJobFinished(const std::shared_ptr<IndexData> &indexData)
         sync();
     if (pendingType != IndexerJob::Invalid) {
         assert(!pending.isNull());
-        index(pending, pendingType, pendingCpp);
+        index(pending, pendingCpp, pendingType);
         --mJobCounter;
     }
 }
@@ -437,7 +433,7 @@ void Project::dump(const Source &source, Connection *conn)
     job->startLocal();
 }
 
-void Project::index(const Source &source, IndexerJob::IndexType type, const std::shared_ptr<Cpp> &cpp)
+void Project::index(const Source &source, const std::shared_ptr<Cpp> &cpp, IndexerJob::IndexType type)
 {
     static const char *fileFilter = getenv("RTAGS_FILE_FILTER");
     if (fileFilter && !strstr(source.sourceFile().constData(), fileFilter))
@@ -452,6 +448,12 @@ void Project::index(const Source &source, IndexerJob::IndexType type, const std:
         data.pendingCpp = cpp;
         return;
     }
+
+    if (type == IndexerJob::Makefile && hasSource(source)) {
+        debug() << source.sourceFile() << " is not dirty. ignoring";
+        return;
+    }
+
     if (data.job) {
         // error() << "There's already something here for" << source.sourceFile();
         if (!data.job->update(type, source, cpp)) {
@@ -477,19 +479,6 @@ void Project::index(const Source &source, IndexerJob::IndexType type, const std:
     data.job.reset(new IndexerJob(type, mPath, source, cpp));
     mSyncTimer.stop();
     Server::instance()->startJob(data.job);
-}
-
-bool Project::index(const Source &source, const std::shared_ptr<Cpp> &cpp)
-{
-    assert(!source.isNull());
-
-    if (hasSource(source)) {
-        debug() << source.sourceFile() << " is not dirty. ignoring";
-        return false;
-    }
-
-    index(source, IndexerJob::Makefile, cpp);
-    return true;
 }
 
 void Project::dirty(const Path &file)
@@ -619,14 +608,8 @@ void Project::startDirtyJobs(const Set<uint32_t> &dirty)
             // error() << "Decoded" << Location::path(f);
             if (f != *it)
                 break;
-#warning this preprocessing should happen in a job
-            std::shared_ptr<Cpp> cpp = RTags::preprocess(src->second);
-            if (!cpp) {
-                error() << "Couldn't preprocess" << src->second.sourceFile();
-            } else {
-                index(src->second, IndexerJob::Dirty, cpp);
-                indexed = true;
-            }
+            Server::instance()->preprocess(Source(src->second), path(), IndexerJob::Dirty);
+            indexed = true;
             ++src;
         }
     }

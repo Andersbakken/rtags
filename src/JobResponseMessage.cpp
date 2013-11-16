@@ -18,6 +18,25 @@
 #include <rct/Connection.h>
 #include <arpa/inet.h>
 #include "Cpp.h"
+#include "Server.h"
+
+JobResponseMessage::JobResponseMessage()
+    : ClientMessage(MessageId)
+{
+}
+
+JobResponseMessage::JobResponseMessage(const std::shared_ptr<IndexerJob>& job, uint16_t p)
+    : ClientMessage(MessageId), port(p)
+{
+    cpp = job->cpp;
+    project = job->project;
+    source = job->source;
+    sourceFile = job->sourceFile;
+    id = job->id;
+    std::shared_ptr<Project> proj = Server::instance()->project(project);
+    assert(proj);
+    blockedFiles = proj->visitedFiles();
+}
 
 void JobResponseMessage::encode(Serializer &serializer) const
 {

@@ -18,8 +18,9 @@
 #include "Server.h"
 #include "Cpp.h"
 
-PreprocessJob::PreprocessJob(Source &&source, Path &&project)
-    : mAsync(true), mSource(std::forward<Source>(source)), mProject(std::forward<Path>(project))
+PreprocessJob::PreprocessJob(Source &&source, Path &&project, IndexerJob::IndexType type)
+    : mAsync(true), mSource(std::forward<Source>(source)),
+      mProject(std::forward<Path>(project)), mType(type)
 {
 }
 
@@ -38,11 +39,12 @@ void PreprocessJob::run()
         if (mAsync) {
             Source source = std::move(mSource);
             Path project = std::move(mProject);
-            EventLoop::mainEventLoop()->callLater([source, cpp, project]() {
-                    Server::instance()->index(source, cpp, project);
+            const IndexerJob::IndexType type = mType;
+            EventLoop::mainEventLoop()->callLater([source, cpp, project, type]() {
+                    Server::instance()->index(source, cpp, project, type);
                 });
         } else {
-            Server::instance()->index(mSource, cpp, mProject);
+            Server::instance()->index(mSource, cpp, mProject, mType);
         }
         break; }
     default:

@@ -20,6 +20,7 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 #include <rct/Path.h>
 #include <rct/LinkedList.h>
 #include "RTags.h"
+#include "RTagsClang.h"
 #include "Match.h"
 #include <rct/Timer.h>
 #include <rct/RegExp.h>
@@ -30,8 +31,8 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 
 class FileManager;
 class IndexerJob;
-class IndexData;
 class RestoreThread;
+class Connection;
 class Project : public std::enable_shared_from_this<Project>
 {
 public:
@@ -88,7 +89,8 @@ public:
     bool isIndexed(uint32_t fileId) const;
 
     void dump(const Source &source, Connection *conn);
-    bool index(const Source &source, const std::shared_ptr<Cpp> &cpp);
+    void index(const Source &args, const std::shared_ptr<Cpp> &cpp, IndexerJob::IndexType type);
+
     List<Source> sources(uint32_t fileId) const;
     bool hasSource(const Source &source) const;
     enum DependencyMode {
@@ -119,7 +121,6 @@ public:
     }
 private:
     void restore(RestoreThread *thread);
-    void index(const Source &args, IndexerJob::IndexType type, const std::shared_ptr<Cpp> &cpp);
     void watch(const Path &file);
     void reloadFileManager();
     void addDependencies(const DependencyMap &hash, Set<uint32_t> &newFiles);

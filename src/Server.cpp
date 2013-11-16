@@ -324,14 +324,18 @@ void Server::index(const String &arguments, const Path &pwd, const List<String> 
     if (!shouldIndex(source, project))
         return;
 
-    std::shared_ptr<PreprocessJob> job(new PreprocessJob(std::move(source), std::move(project)));
+    preprocess(std::move(source), std::move(project), IndexerJob::Makefile);
+}
+
+void Server::preprocess(Source &&source, Path &&project, IndexerJob::IndexType type)
+{
+    std::shared_ptr<PreprocessJob> job(new PreprocessJob(std::move(source), std::move(project), type));
     if (mThreadPool) {
         mThreadPool->start(job);
     } else {
         job->exec();
     }
 }
-
 
 void Server::handleCompileMessage(CompileMessage &message, Connection *conn)
 {
@@ -866,7 +870,7 @@ Path Server::findProject(const Path &path, const Path &unresolvedPath, const Lis
     return RTags::findProjectRoot(path, RTags::SourceRoot);
 }
 
-void Server::index(const Source &source, const std::shared_ptr<Cpp> &cpp, const Path &srcRoot)
+void Server::index(const Source &source, const std::shared_ptr<Cpp> &cpp, const Path &srcRoot, IndexerJob::IndexType type)
 {
     std::shared_ptr<Project> project = mProjects.value(srcRoot);
     if (!project) {
@@ -880,7 +884,7 @@ void Server::index(const Source &source, const std::shared_ptr<Cpp> &cpp, const 
         setupCurrentProjectFile(project);
     }
     assert(project);
-    project->index(source, cpp);
+    project->index(source, cpp, type);
 }
 
 std::shared_ptr<Project> Server::setCurrentProject(const Path &path, unsigned int queryFlags) // lock always held

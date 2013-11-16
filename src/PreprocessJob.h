@@ -19,14 +19,15 @@
 #include <rct/ThreadPool.h>
 #include <rct/SignalSlot.h>
 #include "CompileMessage.h"
+#include "IndexerJob.h"
 #include "Source.h"
 
 class PreprocessJob : public ThreadPool::Job
 {
 public:
-    PreprocessJob(Source &&source, Path &&project);
+    PreprocessJob(Source &&source, Path &&project, IndexerJob::IndexType type);
     void exec()
-   {
+    {
         mAsync = false;
         run();
     }
@@ -36,6 +37,7 @@ private:
     bool mAsync;
     Source mSource;
     Path mProject;
+    const IndexerJob::IndexType mType;
 };
 
 #endif

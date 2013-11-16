@@ -21,7 +21,6 @@
 #include "ClientMessage.h"
 #include "IndexerJob.h"
 #include "Project.h"
-#include "Server.h"
 #include <memory>
 
 class Connection;
@@ -31,24 +30,8 @@ class JobResponseMessage : public ClientMessage
 public:
     enum { MessageId = JobResponseId };
 
-    JobResponseMessage()
-        : ClientMessage(MessageId)
-    {
-    }
-
-    JobResponseMessage(const std::shared_ptr<IndexerJob>& job, uint16_t p)
-        : ClientMessage(MessageId), port(p)
-    {
-        cpp = job->cpp;
-        project = job->project;
-        source = job->source;
-        sourceFile = job->sourceFile;
-        id = job->id;
-        std::shared_ptr<Project> proj = Server::instance()->project(project);
-        assert(proj);
-        blockedFiles = proj->visitedFiles();
-    }
-
+    JobResponseMessage();
+    JobResponseMessage(const std::shared_ptr<IndexerJob>& job, uint16_t p);
     void encode(Serializer &serializer) const;
     void decode(Deserializer &deserializer);
 

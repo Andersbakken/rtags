@@ -17,12 +17,12 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 #define IndexerJob_h
 
 #include "RTags.h"
-#include "Job.h"
+#include "Cpp.h"
 #include <rct/Hash.h>
 #include <rct/ThreadPool.h>
 #include <rct/StopWatch.h>
 #include <rct/Hash.h>
-#include "QueryMessage.h"
+#include "Source.h"
 
 class Process;
 class IndexerJob : public std::enable_shared_from_this<IndexerJob>
