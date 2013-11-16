@@ -38,6 +38,7 @@
 #include <clang/Driver/ToolChain.h>
 #include <clang/Frontend/Utils.h>
 #include <clang/Lex/Preprocessor.h>
+#include <clang/Lex/PreprocessingRecord.h>
 #include <llvm/Support/raw_ostream.h>
 #include <llvm/Support/Host.h>
 #include <llvm/ADT/ArrayRef.h>
@@ -209,7 +210,7 @@ void parseTranslationUnit(const Path &sourceFile, const List<String> &args,
     clangLine += sourceFile;
 
     StopWatch sw;
-    unsigned int flags = CXTranslationUnit_DetailedPreprocessingRecord;
+    unsigned int flags = 0; // CXTranslationUnit_DetailedPreprocessingRecord; ### probably don't need this anymore
     unit = clang_parseTranslationUnit(index, sourceFile.constData(),
                                       clangArgs.data(), idx, unsaved, unsavedCount, flags);
     // error() << sourceFile << sw.elapsed();
@@ -497,7 +498,9 @@ std::shared_ptr<Cpp> preprocess(const Source &source)
     std::shared_ptr<Cpp> cpp(new Cpp);
     StringOStream out(&cpp->preprocessed);
     cpp->time = now;
-    clang::DoPrintPreprocessedInput(compilerInstance.getPreprocessor(), &out, preprocessorOptions);
+    clang::Preprocessor &preprocessor = compilerInstance.getPreprocessor();
+    preprocessor.createPreprocessingRecord();
+    clang::DoPrintPreprocessedInput(preprocessor, &out, preprocessorOptions);
     struct {
         const Cpp::Diagnostic::Type type;
         const clang::TextDiagnosticBuffer::const_iterator begin, end;
@@ -513,8 +516,72 @@ std::shared_ptr<Cpp> preprocess(const Source &source)
             d.type = diagnostics[i].type;
             d.text = it->second;
             const clang::PresumedLoc presumedLocation = sm.getPresumedLoc(it->first);
-            const Path path = Path::resolved(presumedLocation.getFilename()); // ### do I need to resolve?
-            d.location = Location(Location::insertFile(path), presumedLocation.getLine(), presumedLocation.getColumn());
+            d.location = Location(Location::insertFile(presumedLocation.getFilename()),
+                                  presumedLocation.getLine(), presumedLocation.getColumn());
+        }
+    }
+    clang::PreprocessingRecord *record = preprocessor.getPreprocessingRecord();
+    assert(record);
+
+    // We need this extra map because macros might be defined, then undef'ed and
+    // then redefined. In that case we need to know the "active" macro
+    // definition so the set in cpp->macroNames doesn't help us.
+
+    StopWatch watch;
+    Hash<String, Location> macroLocations;
+    for (clang::PreprocessingRecord::iterator it = record->begin(); it != record->end(); ++it) {
+        const clang::PreprocessedEntity *entity = *it;
+        switch (entity->getKind()) {
+        case clang::PreprocessedEntity::MacroDefinitionKind: {
+            const clang::MacroDefinition *def = static_cast<const clang::MacroDefinition*>(entity);
+            const clang::SourceRange range = def->getSourceRange();
+            if (!range.isValid())
+                break;
+            const clang::SourceLocation begin = range.getBegin();
+            const clang::PresumedLoc presumedLocation = sm.getPresumedLoc(begin);
+            const char *path = presumedLocation.getFilename();
+            if (!strcmp(path, "<built-in>"))
+                break;
+            const Location loc(Location::insertFile(path), presumedLocation.getLine(), presumedLocation.getColumn());
+            const clang::IdentifierInfo *name = def->getName();
+            CursorInfo &cursor = cpp->macroCursors[loc];
+            cursor.symbolName.assign(name->getNameStart(), name->getLength());
+            cursor.symbolLength = cursor.symbolName.size();
+            cursor.kind = CXCursor_MacroDefinition;
+            cpp->macroNames[cursor.symbolName].insert(loc);
+            macroLocations[cursor.symbolName] = loc;
+            // error() << "Got definition" << String(name->getNameStart(), name->getLength()) << loc;
+            break; }
+        case clang::PreprocessedEntity::MacroExpansionKind: {
+            const clang::MacroExpansion *exp = static_cast<const clang::MacroExpansion*>(entity);
+            if (exp->isBuiltinMacro())
+                break;
+            const clang::SourceRange range = exp->getSourceRange();
+            if (!range.isValid())
+                break;
+            const clang::PresumedLoc presumedLocation = sm.getPresumedLoc(range.getBegin());
+            const char *path = presumedLocation.getFilename();
+            if (!strcmp(path, "<built-in>"))
+                break;
+            const clang::IdentifierInfo *name = exp->getName();
+            const String macroName(name->getNameStart(), name->getLength());
+            const Location defLocation = macroLocations.value(macroName);
+            if (defLocation.isNull()) {
+                // error() << "Bailing on" << macroName << exp->getDefinition();
+                break;
+            }
+            const Location loc(Location::insertFile(path), presumedLocation.getLine(), presumedLocation.getColumn());
+            CursorInfo &cursor = cpp->macroCursors[loc];
+            cursor.symbolName = macroName;
+            cursor.symbolLength = cursor.symbolName.size();
+            cursor.kind = CXCursor_MacroExpansion;
+            CursorInfo &def = cpp->macroCursors[defLocation];
+            def.references.insert(loc);
+            cursor.targets.insert(defLocation);
+            // error() << "Got expansion" << String(name->getNameStart(), name->getLength()) << loc;
+            break; }
+        default:
+            break;
         }
     }
 
@@ -523,7 +590,8 @@ std::shared_ptr<Cpp> preprocess(const Source &source)
 
     // fwrite(str.constData(), 1, str.size(), f);
     // fclose(f);
-    warning() << "preprocessing" << sourceFile << "took" << sw.elapsed() << "ms" << cpp->preprocessed.size();
+    error() << "preprocessing" << sourceFile << "took" << sw.elapsed() << watch.elapsed() << "ms";
+
     return cpp;
 }
 

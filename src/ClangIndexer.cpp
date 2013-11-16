@@ -59,12 +59,15 @@ bool ClangIndexer::connect(const String &hostName, uint16_t port)
 bool ClangIndexer::index(IndexerJob::IndexType type, const Source &source,
                          const std::shared_ptr<Cpp> &cpp, const Path &project)
 {
+
     // FILE *f = fopen((String("/tmp/") + source.sourceFile().fileName()).constData(), "w");
     // fwrite(preprocessed.constData(), 1, preprocessed.size(), f);
     // fclose(f);
 
     // mLogFile = fopen(String::format("/tmp/%s", sourceFile.fileName()).constData(), "w");
     mData.reset(new IndexData(type));
+    mData->symbolNames = std::move(cpp->macroNames);
+    mData->symbols = std::move(cpp->macroCursors);
     mData->key = source.key();
     mData->jobId = mId;
     mSource = source;

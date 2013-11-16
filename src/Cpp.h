@@ -20,6 +20,7 @@
 #include <rct/String.h>
 #include <rct/List.h>
 #include <rct/Serializer.h>
+#include "RTags.h"
 
 struct Cpp
 {
@@ -38,6 +39,8 @@ struct Cpp
     };
 
     List<Diagnostic> diagnostics;
+    SymbolMap macroCursors;
+    SymbolNameMap macroNames;
 };
 
 template <> inline Serializer &operator<<(Serializer &s, const Cpp::Diagnostic &d)
@@ -56,13 +59,13 @@ template <> inline Deserializer &operator>>(Deserializer &s, Cpp::Diagnostic &d)
 
 template <> inline Serializer &operator<<(Serializer &s, const Cpp &c)
 {
-    s << c.preprocessed << c.time << c.diagnostics;
+    s << c.preprocessed << c.time << c.diagnostics << c.macroCursors << c.macroNames;
     return s;
 }
 
 template <> inline Deserializer &operator>>(Deserializer &s, Cpp &c)
 {
-    s >> c.preprocessed >> c.time >> c.diagnostics;
+    s >> c.preprocessed >> c.time >> c.diagnostics >> c.macroCursors >> c.macroNames;
     return s;
 }
 
