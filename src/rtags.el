@@ -361,9 +361,10 @@
 (defun rtags-reparse-file (&optional buffer)
   (interactive)
   (let ((file (buffer-file-name buffer)))
-    (with-temp-buffer
-      (rtags-call-rc :path file "-V" file))
-    (message (format "Dirtied %s" file))
+    (when file
+      (with-temp-buffer
+        (rtags-call-rc :path file "-V" file))
+      (message (format "Dirtied %s" file)))
     )
   )
 
