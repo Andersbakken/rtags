@@ -286,26 +286,28 @@ Path findProjectRoot(const Path &path, ProjectRootMode mode)
     }
 
     static const Path home = Path::home();
-    const Entry before[] = {
-        { "GTAGS", 0 },
-        { "CMakeLists.txt", 0 },
-        { "configure", 0 },
-        { ".git", 0 },
-        { ".svn", 0 },
-        { "*.pro", Wildcard },
-        { "scons.1", 0 },
-        { "*.scons", Wildcard },
-        { "SConstruct", 0 },
-        { "autogen.*", Wildcard },
-        { "GNUMakefile*", Wildcard },
-        { "INSTALL*", Wildcard },
-        { "README*", Wildcard },
-        { 0, 0 }
-    };
-    {
-        const Path ret = checkEntries(before, path, home);
-        if (!ret.isEmpty())
-            return ret;
+    if (mode == SourceRoot) {
+        const Entry before[] = {
+            { "GTAGS", 0 },
+            { "CMakeLists.txt", 0 },
+            { "configure", 0 },
+            { ".git", 0 },
+            { ".svn", 0 },
+            { "*.pro", Wildcard },
+            { "scons.1", 0 },
+            { "*.scons", Wildcard },
+            { "SConstruct", 0 },
+            { "autogen.*", Wildcard },
+            { "GNUMakefile*", Wildcard },
+            { "INSTALL*", Wildcard },
+            { "README*", Wildcard },
+            { 0, 0 }
+        };
+        {
+            const Path ret = checkEntries(before, path, home);
+            if (!ret.isEmpty())
+                return ret;
+        }
     }
     {
         const Path configStatus = findAncestor(path, "config.status", 0);
@@ -380,6 +382,7 @@ Path findProjectRoot(const Path &path, ProjectRootMode mode)
         }
     }
     const Entry after[] = {
+        { "build.ninja", 0 },
         { "Makefile*", Wildcard },
         { 0, 0 }
     };
@@ -389,6 +392,9 @@ Path findProjectRoot(const Path &path, ProjectRootMode mode)
         if (!ret.isEmpty())
             return ret;
     }
+
+    if (mode == BuildRoot)
+        return findProjectRoot(path, SourceRoot);
 
     return Path();
 }
