@@ -27,13 +27,20 @@
 #undef HAVE_BACKTRACE
 #endif
 
+#include <clang/Driver/Util.h>
 #include <llvm/Config/config.h>
 #include <llvm-c/Core.h>
 #include <llvm-c/Target.h>
 #include <clang/CodeGen/CodeGenAction.h>
 #include <clang/Frontend/CompilerInstance.h>
 #include <clang/Frontend/TextDiagnosticBuffer.h>
+#if CLANG_VERSION_MINOR < 4
 #include <clang/Driver/ArgList.h>
+using clang::driver::InputArgList;
+#else
+#include <llvm/Option/ArgList.h>
+using llvm::opt::InputArgList;
+#endif
 #include <clang/Driver/Compilation.h>
 #include <clang/Driver/Driver.h>
 #include <clang/Driver/ToolChain.h>
@@ -287,6 +294,10 @@ static std::string toString(const Source::Define &def)
 
 bool compile(const Path& output, const Source &source, const String& preprocessed)
 {
+    (void)output;
+    (void)source;
+    (void)preprocessed;
+#if CLANG_VERSION_MINOR < 4
     StopWatch sw;
 
     LLVMInitializeAllTargetInfos();
@@ -365,6 +376,7 @@ bool compile(const Path& output, const Source &source, const String& preprocesse
 
     LLVMShutdown();
 
+#endif
     return true;
 }
 
@@ -477,7 +489,7 @@ std::shared_ptr<Cpp> preprocess(const Source &source, const std::shared_ptr<Proj
 
         std::unique_ptr<clang::driver::Compilation> compilation(driver.BuildCompilation(llvm::ArrayRef<const char*>(&args[0], args.size())));
         const clang::driver::ToolChain& toolChain = compilation->getDefaultToolChain();
-        const clang::driver::InputArgList inputArgs(&args[0], &args[0] + args.size());
+        const InputArgList inputArgs(&args[0], &args[0] + args.size());
         clang::driver::ArgStringList outputArgs;
         toolChain.AddClangCXXStdlibIncludeArgs(inputArgs, outputArgs);
         processArgs(headerSearchOptions, outputArgs);

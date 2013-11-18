@@ -199,23 +199,22 @@ public:
         }
     }
 
-    static bool set(const Path &path, uint32_t fileId)
+    static void set(const Path &path, uint32_t fileId)
     {
-        // if (sPathsToIds.contains(path)) {
-        //     error() << "We've already set" << path << fileId << sPathsToIds.value(path);
-        //     return false;
-        // } else if (sIdsToPaths.contains(fileId)) {
-        //     error() << "We've already set" << path << fileId << sIdsToPaths.value(fileId);
-        //     return false;
-        // }
-
+#ifndef NDEBUG
+        if (sPathsToIds.contains(path)) {
+            error() << "We've already set" << path << fileId << sPathsToIds.value(path);
+            return;
+        } else if (sIdsToPaths.contains(fileId)) {
+            error() << "We've already set" << path << fileId << sIdsToPaths.value(fileId);
+            return;
+        }
+#endif
         assert(!sPathsToIds.contains(path));
         sPathsToIds[path] = fileId;
         Path &p = sIdsToPaths[fileId];
         if (p.isEmpty())
             p = path;
-
-        return true;
     }
 private:
     static Hash<Path, uint32_t> sPathsToIds;

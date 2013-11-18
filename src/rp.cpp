@@ -116,6 +116,7 @@ int main(int argc, char **argv)
             return 7;
         }
     }
+    error() << blockedFiles << sourceFile << source.fileId;
     Location::init(blockedFiles);
     Location::set(sourceFile, source.fileId);
     indexer.setBlockedFiles(std::move(blockedFiles));

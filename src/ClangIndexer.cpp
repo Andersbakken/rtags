@@ -73,8 +73,14 @@ bool ClangIndexer::index(IndexerJob::IndexType type, const Source &source,
     mSource = source;
     mCpp = cpp;
     for (auto it = cpp->visited.begin(); it != cpp->visited.end(); ++it) {
-        mData->visited[it->second] = true;
-        Location::set(it->first, it->second);
+        if (it->second != mSource.fileId) {
+            mData->visited[it->second] = true;
+            FILE *f = fopen((String("/tmp/") + source.sourceFile().fileName()).constData(), "a");
+            fprintf(f, "%s => %d (%s:%d)\n", it->first.constData(), it->second, mSource.sourceFile().constData(), mSource.fileId);
+            fclose(f);
+            fflush(f);
+            Location::set(it->first, it->second);
+        }
     }
     mIndexed += cpp->visited.size();
 
