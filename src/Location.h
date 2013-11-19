@@ -194,7 +194,6 @@ public:
         sPathsToIds = pathsToIds;
         sLastId = sPathsToIds.size();
         for (Hash<Path, uint32_t>::const_iterator it = sPathsToIds.begin(); it != sPathsToIds.end(); ++it) {
-            assert(it->second <= it->second);
             sIdsToPaths[it->second] = it->first;
         }
     }
