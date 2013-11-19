@@ -201,16 +201,6 @@ public:
 
     static void set(const Path &path, uint32_t fileId)
     {
-#ifndef NDEBUG
-        if (sPathsToIds.contains(path)) {
-            error() << "We've already set" << path << fileId << sPathsToIds.value(path);
-            return;
-        } else if (sIdsToPaths.contains(fileId)) {
-            error() << "We've already set" << path << fileId << sIdsToPaths.value(fileId);
-            return;
-        }
-#endif
-        assert(!sPathsToIds.contains(path));
         sPathsToIds[path] = fileId;
         Path &p = sIdsToPaths[fileId];
         if (p.isEmpty())
