@@ -175,6 +175,7 @@ bool Server::init(const Options &options)
             return false;
         }
         mMulticastSocket->setMulticastLoop(false);
+        mMulticastSocket->setMulticastTTL(2);
         mMulticastSocket->readyReadFrom().connect(std::bind(&Server::onMulticastReadyRead, this,
                                                             std::placeholders::_1,
                                                             std::placeholders::_2,
