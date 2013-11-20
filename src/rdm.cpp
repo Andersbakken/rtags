@@ -395,9 +395,9 @@ int main(int argc, char** argv)
 
     signal(SIGINT, sigIntHandler);
 
-    if (!initLogging(logLevel, logFile, logFlags)) {
-        fprintf(stderr, "Can't initialize logging with %d %s 0x%0x\n",
-                logLevel, logFile ? logFile : "", logFlags);
+    if (!initLogging(argv[0], LogStderr, logLevel, logFile, logFlags)) {
+        fprintf(stderr, "Can't initialize logging with %s %d %d %s 0x%0x\n",
+                argv[0], LogStderr, logLevel, logFile ? logFile : "", logFlags);
         return 1;
     }
     warning("Running with %d jobs", serverOpts.threadCount);

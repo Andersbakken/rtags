@@ -1054,9 +1054,9 @@ bool RClient::parse(int &argc, char **argv)
         return false;
     }
 
-    if (!initLogging(mLogLevel, logFile, logFlags)) {
-        fprintf(stderr, "Can't initialize logging with %d %s 0x%0x\n",
-                mLogLevel, logFile.constData(), logFlags);
+    if (!initLogging(argv[0], LogStderr, mLogLevel, logFile, logFlags)) {
+        fprintf(stderr, "Can't initialize logging with %s %d %d %s 0x%0x\n",
+                argv[0], LogStderr, mLogLevel, logFile.constData(), logFlags);
         return false;
     }
 
