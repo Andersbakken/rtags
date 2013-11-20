@@ -83,6 +83,7 @@ public:
         List<Source::Define> defines;
         String multicastAddress;
         uint16_t tcpPort, multicastPort;
+        Set<std::pair<String, uint16_t> > multicastForwards;
         Set<Path> ignoredCompilers;
     };
     bool init(const Options &options);
@@ -151,8 +152,9 @@ private:
     std::shared_ptr<Project> currentProject() const { return mCurrentProject.lock(); }
     int reloadProjects();
     std::shared_ptr<Project> addProject(const Path &path);
-    void onMulticastReadyRead(SocketClient::SharedPtr &socket, const std::string &ip,
+    void onMulticastReadyRead(const SocketClient::SharedPtr &socket, const std::string &ip,
                               uint16_t port, Buffer &&buffer);
+    void onMulticastForwardError(const SocketClient::SharedPtr &socket, SocketClient::Error);
     void onLocalJobFinished(Process *process);
     void startNextJob();
     void fetchRemoteJobs(const String& ip, uint16_t port, uint16_t jobs);
@@ -175,6 +177,8 @@ private:
     Map<Process*, std::shared_ptr<IndexerJob> > mLocalJobs;
     ThreadPool *mThreadPool;
     unsigned int mRemotePending;
+
+    Set<Connection*> mMulticastForwards;
 };
 
 #endif

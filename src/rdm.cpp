@@ -106,6 +106,7 @@ static void usage(FILE *f)
             "  --disable-esprima|-E                       Don't use esprima\n"
             "  --multicast-address|-a [arg]               Use this address for multicast (default " DEFAULT_RDM_MULTICAST_ADDRESS "\n"
             "  --multicast-port|-P [arg]                  Use this port for multicast (default " STR(DEFAULT_RDM_MULTICAST_PORT) "\n"
+            "  --multicast-forward|-O [arg]               Remote host to forward multicast packages for\n"
             "  --enable-compiler-flags|-K                 Query the compiler for default flags\n"
             "  --reschedule-timeout|-R                    Timeout for rescheduling remote jobs (default " STR(DEFAULT_RESCHEDULE_TIMEOUT) "\n",
             ThreadPool::idealThreadCount(),
@@ -152,6 +153,7 @@ int main(int argc, char** argv)
         { "rp-indexer-message-timeout", required_argument, 0, 'T' },
         { "multicast-address", required_argument, 0, 'a' },
         { "multicast-port", required_argument, 0, 'P' },
+        { "multicast-forward", required_argument, 0, 'O' },
         { "port", required_argument, 0, 'p' },
         { "reschedule-timeout", required_argument, 0, 'R' },
 #ifdef OS_Darwin
@@ -311,6 +313,23 @@ int main(int argc, char** argv)
         case 'b':
             serverOpts.ignoredCompilers.insert(Path::resolved(optarg));
             break;
+        case 'O': {
+            const char *colon = strchr(optarg, ':');
+            String address;
+            uint16_t port;
+            if (colon) {
+                address.assign(optarg, colon - optarg);
+                port = atoi(colon + 1);
+                if (!port) {
+                    fprintf(stderr, "Invalid argument to -O %s. Can't parse port\n", optarg);
+                    return 1;
+                }
+            } else {
+                address = optarg;
+                port = DEFAULT_RDM_TCP_PORT;
+            }
+            serverOpts.multicastForwards.insert(std::make_pair(address, port));
+            break; }
         case 'n':
             serverOpts.socketFile = optarg;
             break;

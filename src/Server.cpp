@@ -165,7 +165,7 @@ bool Server::init(const Options &options)
     }
 
     if (!mOptions.multicastAddress.isEmpty()) {
-        mMulticastSocket.reset(new SocketClient(SocketClient::Udp));
+        mMulticastSocket.reset(new SocketClient);
         if (!mMulticastSocket->bind(mOptions.multicastPort)) {
             error() << "Can't bind to multicast port" << mOptions.multicastPort;
             return false;
@@ -175,12 +175,25 @@ bool Server::init(const Options &options)
             return false;
         }
         mMulticastSocket->setMulticastLoop(false);
-        mMulticastSocket->setMulticastTTL(2);
+        // mMulticastSocket->setMulticastTTL(2);
+#warning add option for this
         mMulticastSocket->readyReadFrom().connect(std::bind(&Server::onMulticastReadyRead, this,
                                                             std::placeholders::_1,
                                                             std::placeholders::_2,
                                                             std::placeholders::_3,
                                                             std::placeholders::_4));
+    }
+
+    for (auto it = mOptions.multicastForwards.cbegin(); it != mOptions.multicastForwards.cend(); ++it) {
+        Connection *conn = new Connection;
+        conn->newMessage().connect(std::bind(&Server::onNewMessage, this, std::placeholders::_1, std::placeholders::_2));
+        conn->disconnected().connect(std::bind(&Server::onConnectionDisconnected, this, std::placeholders::_1));
+        if (!conn->connectTcp((*it).first, (*it).second)) {
+            error() << "Can't connect to multicast forwarding address"
+                    << String::format<128>("%s:%h", (*it).first.constData(), (*it).second);
+        } else {
+            mMulticastForwards.insert(conn);
+        }
     }
 
     if (mOptions.tcpPort) {
@@ -263,6 +276,7 @@ void Server::onConnectionDisconnected(Connection *o)
 {
     o->disconnected().disconnect();
     EventLoop::deleteLater(o);
+    mMulticastForwards.remove(o);
 }
 
 void Server::onNewMessage(Message *message, Connection *connection)
@@ -1394,7 +1408,7 @@ void Server::onReschedule()
     }
 }
 
-void Server::onMulticastReadyRead(SocketClient::SharedPtr &socket,
+void Server::onMulticastReadyRead(const SocketClient::SharedPtr &socket,
                                   const std::string &ip,
                                   uint16_t port,
                                   Buffer &&in)
@@ -1511,4 +1525,9 @@ void Server::onLocalJobFinished(Process *process)
     mLocalJobs.erase(it);
     EventLoop::deleteLater(process);
     startNextJob();
+}
+
+void Server::onMulticastForwardError(const SocketClient::SharedPtr &socket, SocketClient::Error error)
+{
+
 }
