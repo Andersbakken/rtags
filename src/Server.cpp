@@ -1221,7 +1221,7 @@ void Server::clearProjects(const QueryMessage &query, Connection *conn)
 
 void Server::loadCompilationDatabase(const QueryMessage &query, Connection *conn)
 {
-#if defined(HAVE_CXCOMPILATIONDATABASE)
+#if defined(HAVE_CXCOMPILATIONDATABASE) && CLANG_VERSION_MINOR > 2
     const Path path = query.query();
     // ### this will ignore the actual file name, not sure how to fix that
     CXCompilationDatabase_Error err;
