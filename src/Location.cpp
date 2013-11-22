@@ -20,7 +20,7 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 Hash<Path, uint32_t> Location::sPathsToIds;
 Hash<uint32_t, Path> Location::sIdsToPaths;
 uint32_t Location::sLastId = 0;
-
+std::mutex Location::sMutex;
 static inline uint64_t createMask(int startBit, int bitCount)
 {
     uint64_t mask = 0;

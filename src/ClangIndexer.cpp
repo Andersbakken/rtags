@@ -1,3 +1,4 @@
+#define RTAGS_SINGLE_THREAD
 #include "ClangIndexer.h"
 #include "QueryMessage.h"
 #include "VisitFileMessage.h"

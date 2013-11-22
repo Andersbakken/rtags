@@ -13,6 +13,7 @@
    You should have received a copy of the GNU General Public License
    along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 
+#define RTAGS_SINGLE_THREAD
 #include "ClangIndexer.h"
 #include "Cpp.h"
 #include "RTagsClang.h"

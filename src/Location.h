@@ -23,6 +23,12 @@
 #include <assert.h>
 #include <clang-c/Index.h>
 #include <stdio.h>
+#ifndef RTAGS_SINGLE_THREAD
+#include <mutex>
+#define LOCK() const std::lock_guard<std::mutex> lock(sMutex)
+#else
+#define LOCK() do {} while (0)
+#endif
 
 static inline int intCompare(uint32_t l, uint32_t r)
 {
@@ -55,15 +61,18 @@ public:
 
     static inline uint32_t fileId(const Path &path)
     {
+        LOCK();
         return sPathsToIds.value(path);
     }
     static inline Path path(uint32_t id)
     {
+        LOCK();
         return sIdsToPaths.value(id);
     }
 
     static inline uint32_t insertFile(const Path &path)
     {
+        LOCK();
         uint32_t &id = sPathsToIds[path];
         if (!id) {
             id = ++sLastId;
@@ -79,6 +88,7 @@ public:
     inline Path path() const
     {
         if (mCachedPath.isEmpty()) {
+            LOCK();
             mCachedPath = sIdsToPaths.value(fileId());
         }
         return mCachedPath;
@@ -183,14 +193,17 @@ public:
     }
     static Hash<uint32_t, Path> idsToPaths()
     {
+        LOCK();
         return sIdsToPaths;
     }
     static Hash<Path, uint32_t> pathsToIds()
     {
+        LOCK();
         return sPathsToIds;
     }
     static void init(const Hash<Path, uint32_t> &pathsToIds)
     {
+        LOCK();
         sPathsToIds = pathsToIds;
         sLastId = sPathsToIds.size();
         for (Hash<Path, uint32_t>::const_iterator it = sPathsToIds.begin(); it != sPathsToIds.end(); ++it) {
@@ -200,12 +213,14 @@ public:
 
     static void set(const Path &path, uint32_t fileId)
     {
+        LOCK();
         sPathsToIds[path] = fileId;
         Path &p = sIdsToPaths[fileId];
         if (p.isEmpty())
             p = path;
     }
 private:
+    static std::mutex sMutex;
     static Hash<Path, uint32_t> sPathsToIds;
     static Hash<uint32_t, Path> sIdsToPaths;
     static uint32_t sLastId;
