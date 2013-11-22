@@ -1496,8 +1496,8 @@ void Server::startNextJob()
             mPending.pop_front();
             job->process->finished().connect(std::bind(&Server::onLocalJobFinished, this,
                                                        std::placeholders::_1));
-        } else {
-            break;
+        } else if (job->type != IndexerJob::Remote && !project(job->project)) {
+            mPending.pop_front();
         }
     }
 
