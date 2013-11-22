@@ -313,7 +313,7 @@ void Project::onJobFinished(const std::shared_ptr<IndexData> &indexData)
     enum { MaxCrashCount = 5 }; // ### configurable?
     if (jobData->crashCount < MaxCrashCount) {
         if (jobData->pendingType != IndexerJob::Invalid) {
-            assert(jobData->job->state == IndexerJob::Aborted);
+            assert(jobData->job->state == IndexerJob::Aborted || jobData->job->state == IndexerJob::Crashed);
             std::swap(pendingType, jobData->pendingType);
             std::swap(pending, jobData->pendingSource);
             std::swap(pendingCpp, jobData->pendingCpp);
