@@ -43,6 +43,7 @@ public:
         Pending,
         Running,
         Aborted,
+        Crashed,
         Complete
     };
 

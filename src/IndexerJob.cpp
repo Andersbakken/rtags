@@ -26,7 +26,7 @@ bool IndexerJob::startLocal()
 {
     if (state == Aborted)
         return false;
-    assert(state == Pending);
+    assert(state != Running);
     assert(cpp);
     assert(!process);
     assert(!cpp->preprocessed.isEmpty());
@@ -36,7 +36,6 @@ bool IndexerJob::startLocal()
     if (!encode(serializer))
         return false;
 
-    state = Running;
     process = new Process;
     if (!port)
         process->finished().connect(std::bind(&IndexerJob::onProcessFinished, this));
@@ -44,8 +43,10 @@ bool IndexerJob::startLocal()
         error() << "Couldn't start rp" << process->errorString();
         delete process;
         process = 0;
+        state = Crashed;
         return false;
     }
+    state = Running;
     process->write(stdinData);
     return true;
 }
@@ -54,6 +55,7 @@ bool IndexerJob::update(IndexType t, const Source &s, const std::shared_ptr<Cpp>
 {
     switch (state) {
     case Aborted:
+    case Crashed:
         break;
     case Complete:
         // this shouldn't happen right?
@@ -81,6 +83,7 @@ void IndexerJob::abort()
         break;
     case Aborted:
     case Pending:
+    case Crashed:
         break;
     case Running:
         if (process)
@@ -130,6 +133,7 @@ void IndexerJob::onProcessFinished()
     ::error() << process->readAllStdOut();
     ::error() << process->readAllStdErr();
     if (process->returnCode() != 0) {
+        state = Crashed;
         std::shared_ptr<Project> proj = Server::instance()->project(project);
         if (proj && proj->state() == Project::Loaded) {
             std::shared_ptr<IndexData> data(new IndexData(type));
