@@ -399,6 +399,10 @@ static inline uint32_t visitFile(const Path &path,
         *blocked = true;
     } else {
         cpp->visited[path] = fileId;
+#warning We should find something nicer than this
+        if (cpp->visited.size() % 10 == 0) {
+            usleep(50000);
+        }
     }
     return fileId;
 }
