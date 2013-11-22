@@ -1734,7 +1734,7 @@ References to references will be treated as references to the referenced symbol"
         (setq prefer-exact (not prefer-exact)))
     (if (> (length tagname) 0)
         (setq prompt (concat (format "Find rfiles (default %s): " tagname)))
-      (setq prompt "Find file: "))
+      (setq prompt "Find rfiles: "))
     (rtags-is-indexed)
     (setq input (completing-read prompt (function rtags-filename-complete) nil nil nil 'rtags-find-file-history))
     (setq rtags-find-file-history (remove-duplicates rtags-find-file-history :from-end t :test 'equal))
