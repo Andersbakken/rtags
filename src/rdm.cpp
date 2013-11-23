@@ -72,7 +72,7 @@ static void usage(FILE *f)
             "  --append|-A                                Append to log file.\n"
             "  --verbose|-v                               Change verbosity, multiple -v's are allowed.\n"
             "  --clear-project-caches|-C                  Clear out project caches.\n"
-            "  --enable-sighandler|-s                     Enable signal handler to dump stack for crashes..\n"
+            "  --enable-sighandler|-s                     Enable signal handler to dump stack for crashes.\n"
             "                                             Note that this might not play well with clang's signal handler.\n"
             "  --clang-includepath|-P                     Use clang include paths by default.\n"
             "  --no-Wall|-W                               Don't use -Wall.\n"
@@ -81,7 +81,7 @@ static void usage(FILE *f)
             "  --unlimited-error|-f                       Pass -ferror-limit=0 to clang.\n"
             "  --silent|-S                                No logging to stdout.\n"
             "  --exclude-filter|-x [arg]                  Files to exclude from rdm, default \"" EXCLUDEFILTER_DEFAULT "\".\n"
-            "  --sync-threshold|-y [arg]                  Automatically sync after [arg] files indexed\n"
+            "  --sync-threshold|-y [arg]                  Automatically sync after [arg] files indexed.\n"
             "  --no-rc|-N                                 Don't load any rc files.\n"
             "  --ignore-printf-fixits|-F                  Disregard any clang fixit that looks like it's trying to fix format for printf and friends.\n"
             "  --config|-c [arg]                          Use this file instead of ~/.rdmrc.\n"
@@ -104,11 +104,11 @@ static void usage(FILE *f)
 #endif
             "  --ignore-compiler|-b [arg]                 Alias this compiler (Might be practical to avoid duplicated sources for things like icecc).\n"
             "  --disable-esprima|-E                       Don't use esprima\n"
-            "  --multicast-address|-a [arg]               Use this address for multicast (default " DEFAULT_RDM_MULTICAST_ADDRESS "\n"
-            "  --multicast-port|-P [arg]                  Use this port for multicast (default " STR(DEFAULT_RDM_MULTICAST_PORT) "\n"
-            "  --multicast-forward|-O [arg]               Remote host to forward multicast packages for\n"
-            "  --enable-compiler-flags|-K                 Query the compiler for default flags\n"
-            "  --reschedule-timeout|-R                    Timeout for rescheduling remote jobs (default " STR(DEFAULT_RESCHEDULE_TIMEOUT) "\n",
+            "  --multicast-address|-a [arg]               Use this address for multicast (default " DEFAULT_RDM_MULTICAST_ADDRESS ").\n"
+            "  --multicast-port|-P [arg]                  Use this port for multicast (default " STR(DEFAULT_RDM_MULTICAST_PORT) ").\n"
+            "  --multicast-forward|-O [arg]               Remote host to forward multicast packages for.\n"
+            "  --enable-compiler-flags|-K                 Query the compiler for default flags.\n"
+            "  --reschedule-timeout|-R                    Timeout for rescheduling remote jobs (default " STR(DEFAULT_RESCHEDULE_TIMEOUT) ").\n",
             ThreadPool::idealThreadCount(),
             std::max(1, ThreadPool::idealThreadCount() / 2));
 }
