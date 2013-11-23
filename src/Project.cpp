@@ -30,9 +30,6 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 #include <rct/RegExp.h>
 #include <rct/Thread.h>
 
-static void *ModifiedFiles = &ModifiedFiles;
-static void *Sync = &Sync;
-
 enum {
     SyncTimeout = 500
 };
@@ -810,7 +807,7 @@ void Project::sync()
 {
     mSyncTimer.stop();
     int dirtyTime, syncTime;
-    mJobCounter -= mPendingData.size();
+    mJobCounter = mJobs.size();
     syncDB(&dirtyTime, &syncTime);
     StopWatch sw;
     save();
