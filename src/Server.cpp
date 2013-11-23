@@ -62,7 +62,7 @@ Server *Server::sInstance = 0;
 Server::Server()
     : mVerbose(false), mCurrentFileId(0), mThreadPool(0), mRemotePending(0)
 {
-   Messages::registerMessage<JobRequestMessage>();
+    Messages::registerMessage<JobRequestMessage>();
     Messages::registerMessage<JobResponseMessage>();
 
     assert(!sInstance);
@@ -1278,7 +1278,7 @@ void Server::handleJobRequestMessage(const JobRequestMessage &message, Connectio
                 continue;
             }
             if (debugMulti)
-                error() << "sending job for" << job->sourceFile;
+                error() << "sending job for" << job->sourceFile << conn->client()->peerName();
             if (!job->started)
                 job->started = Rct::monoMs();
             mProcessingJobs[job->id] = job;
@@ -1298,12 +1298,12 @@ void Server::handleJobResponseMessage(const JobResponseMessage &message, Connect
     std::shared_ptr<IndexerJob> job(new IndexerJob);
     message.toIndexerJob(job, conn);
     if (debugMulti) {
-error() << "got indexer job for" << job->destination << ":" << job->port
-        << "with preprocessed" << job->cpp->preprocessed.size();
+        error() << "got indexer job for" << job->destination << ":" << job->port
+                << "with preprocessed" << job->cpp->preprocessed.size();
     }
-assert(job->type == IndexerJob::Remote);
-assert(job->state == IndexerJob::Pending);
-startJob(job);
+    assert(job->type == IndexerJob::Remote);
+    assert(job->state == IndexerJob::Pending);
+    startJob(job);
 }
 
 void Server::handleVisitFileMessage(const VisitFileMessage &message, Connection *conn)
