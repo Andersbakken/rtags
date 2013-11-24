@@ -1425,6 +1425,7 @@ void Server::onMulticastReadyRead(const SocketClient::SharedPtr &socket,
 void Server::handleMulticastData(const String &ip, uint16_t port, const unsigned char *data, int size)
 {
     if (!mMulticastForwards.isEmpty()) {
+#warning need to not forward if it comes from the same subnet or something.
         const MulticastForwardMessage msg(ip, port, String(reinterpret_cast<const char*>(data), size));
         for (auto it = mMulticastForwards.begin(); it != mMulticastForwards.end(); ++it) {
             if (it->second && !it->second->send(msg)) {
