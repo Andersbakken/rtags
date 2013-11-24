@@ -154,7 +154,7 @@ private:
     int reloadProjects();
     std::shared_ptr<Project> addProject(const Path &path);
     bool connectMulticastForward(const std::pair<String, uint16_t> &host);
-    void onMulticastReadyRead(const SocketClient::SharedPtr &socket, const std::string &ip,
+    void onMulticastReadyRead(const SocketClient::SharedPtr &socket, const String &ip,
                               uint16_t port, Buffer &&buffer);
     void onMulticastForwardError(const SocketClient::SharedPtr &socket, SocketClient::Error);
     void onLocalJobFinished(Process *process);

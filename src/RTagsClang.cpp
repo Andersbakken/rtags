@@ -280,9 +280,9 @@ static inline void processArgs(clang::HeaderSearchOptions &headerSearchOptions,
     }
 }
 
-static std::string toString(const Source::Define &def)
+static String toString(const Source::Define &def)
 {
-    std::string ret;
+    String ret;
     ret += "#define ";
     ret += def.define;
     if (!def.value.isEmpty()) {
@@ -399,7 +399,7 @@ static inline uint32_t visitFile(const Path &path,
         *blocked = true;
     } else {
         cpp->visited[path] = fileId;
-#warning We should find something nicer than this
+        // ### We should find something nicer than this
         if (cpp->visited.size() % 10 == 0) {
             usleep(50000);
         }
@@ -474,7 +474,7 @@ std::shared_ptr<Cpp> preprocess(const Source &source, const std::shared_ptr<Proj
     headerSearchOptions.Sysroot = sysRoot;
     {
         clang::driver::Driver driver("clang", llvm::sys::getDefaultTargetTriple(), "a.out", diags);
-        std::vector<std::string> copies; // not cool
+        std::vector<String> copies; // not cool
         std::vector<const char*> args;
         const Path compiler = source.compiler();
         args.push_back(compiler.constData());
@@ -488,8 +488,8 @@ std::shared_ptr<Cpp> preprocess(const Source &source, const std::shared_ptr<Proj
             copies.push_back(def.toString());
         for (const Source::Define &def : options.defines)
             copies.push_back(def.toString());
-        for (const std::string &str : copies)
-            args.push_back(str.c_str());
+        for (const String &str : copies)
+            args.push_back(str.constData());
 
         std::unique_ptr<clang::driver::Compilation> compilation(driver.BuildCompilation(llvm::ArrayRef<const char*>(&args[0], args.size())));
         const clang::driver::ToolChain& toolChain = compilation->getDefaultToolChain();

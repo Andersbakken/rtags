@@ -1410,7 +1410,7 @@ void Server::onReschedule()
 }
 
 void Server::onMulticastReadyRead(const SocketClient::SharedPtr &socket,
-                                  const std::string &ip,
+                                  const String &ip,
                                   uint16_t port,
                                   Buffer &&in)
 {
