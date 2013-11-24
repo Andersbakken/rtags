@@ -45,6 +45,7 @@ class Project;
 class VisitFileMessage;
 class JobRequestMessage;
 class JobResponseMessage;
+class MulticastForwardMessage;
 class Server
 {
 public:
@@ -121,6 +122,7 @@ private:
     void handleJobRequestMessage(const JobRequestMessage &message, Connection *conn);
     void handleJobResponseMessage(const JobResponseMessage &message, Connection *conn);
     void handleMulticastForward(const QueryMessage &message, Connection *conn);
+    void handleMulticastForwardMessage(const MulticastForwardMessage &message, Connection *conn);
     void isIndexing(const QueryMessage &, Connection *conn);
     void removeFile(const QueryMessage &query, Connection *conn);
     void followLocation(const QueryMessage &query, Connection *conn);
@@ -156,6 +158,7 @@ private:
     bool connectMulticastForward(const std::pair<String, uint16_t> &host);
     void onMulticastReadyRead(const SocketClient::SharedPtr &socket, const String &ip,
                               uint16_t port, Buffer &&buffer);
+    void handleMulticastData(const String &ip, uint16_t port, const unsigned char *data, int size);
     void onMulticastForwardError(const SocketClient::SharedPtr &socket, SocketClient::Error);
     void onLocalJobFinished(Process *process);
     void startNextJob();

@@ -31,7 +31,8 @@ public:
         VisitFileId,
         IndexerMessageId,
         JobRequestId,
-        JobResponseId
+        JobResponseId,
+        MulticastForwardId
     };
 
     ClientMessage(uint8_t id) : Message(id) {}

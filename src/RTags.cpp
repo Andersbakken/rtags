@@ -22,6 +22,7 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 #include "IndexerMessage.h"
 #include "JobRequestMessage.h"
 #include "JobResponseMessage.h"
+#include "MulticastForwardMessage.h"
 #include <dirent.h>
 #include <fcntl.h>
 #include <fnmatch.h>
@@ -438,14 +439,13 @@ String filterPreprocessor(const Path &path)
 
 void initMessages()
 {
-#ifndef GRTAGS
     Messages::registerMessage<QueryMessage>();
     Messages::registerMessage<CompileMessage>();
     Messages::registerMessage<CreateOutputMessage>();
     Messages::registerMessage<VisitFileResponseMessage>();
     Messages::registerMessage<VisitFileMessage>();
     Messages::registerMessage<IndexerMessage>();
-#endif
+    Messages::registerMessage<MulticastForwardMessage>();
 }
 }
 

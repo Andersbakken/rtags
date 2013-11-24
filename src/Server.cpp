@@ -41,6 +41,7 @@
 #include "IndexerMessage.h"
 #include "JobRequestMessage.h"
 #include "JobResponseMessage.h"
+#include "MulticastForwardMessage.h"
 #include "RTags.h"
 #include "ReferencesJob.h"
 #include "StatusJob.h"
@@ -290,6 +291,9 @@ void Server::onNewMessage(Message *message, Connection *connection)
     case QueryMessage::MessageId:
         error() << m->raw();
         handleQueryMessage(static_cast<const QueryMessage&>(*m), connection);
+        break;
+    case MulticastForwardMessage::MessageId:
+        handleMulticastForwardMessage(static_cast<const MulticastForwardMessage&>(*m), connection);
         break;
     case IndexerMessage::MessageId:
         handleIndexerMessage(static_cast<const IndexerMessage&>(*m), connection);
@@ -1414,12 +1418,23 @@ void Server::onMulticastReadyRead(const SocketClient::SharedPtr &socket,
                                   uint16_t port,
                                   Buffer &&in)
 {
+    const Buffer buffer = std::forward<Buffer>(in);
+    handleMulticastData(ip, port, buffer.data(), buffer.size());
+}
+
+void Server::handleMulticastData(const String &ip, uint16_t port, const unsigned char *data, int size)
+{
+    if (!mMulticastForwards.isEmpty()) {
+        const MulticastForwardMessage msg(ip, port, String(reinterpret_cast<const char*>(data), size));
+        for (auto it = mMulticastForwards.begin(); it != mMulticastForwards.end(); ++it) {
+            if (it->second && !it->second->send(msg)) {
+                error() << "Unable to forward to" << String::format<64>("%s:%d", it->first.first.constData(), it->first.second);
+            }
+        }
+    }
     uint16_t jobs = 0;
     uint16_t tcpPort = 0;
 
-    const Buffer buffer = std::forward<Buffer>(in);
-    int size = buffer.size();
-    const unsigned char *data = buffer.data();
     while (size >= 5) {
         if (*data != 'j') {
             Log log(Error);
@@ -1433,6 +1448,7 @@ void Server::onMulticastReadyRead(const SocketClient::SharedPtr &socket,
         data += 5;
         size -= 5;
     }
+
     if (size > 0) {
         Log log(Error);
         log << "Got unexpected data from" << ip << size;
@@ -1576,4 +1592,12 @@ bool Server::connectMulticastForward(const std::pair<String, uint16_t> &host)
     }
     mMulticastForwards[host] = conn;
     return true;
+}
+
+void Server::handleMulticastForwardMessage(const MulticastForwardMessage &message, Connection *conn)
+{
+    conn->finish(); // ### should I finish this?
+    const String data = message.message();
+    handleMulticastData(message.ip(), message.port(),
+                        reinterpret_cast<const unsigned char*>(data.constData()), data.size());
 }
