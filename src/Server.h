@@ -72,12 +72,12 @@ public:
         Options()
             : options(0), processCount(0), preprocessCount(0), unloadTimer(0),
               rpVisitFileTimeout(0), rpIndexerMessageTimeout(0), syncThreshold(0),
-              tcpPort(0), multicastPort(0)
+              rescheduleTimeout(0), multicastTTL(0), tcpPort(0), multicastPort(0)
         {}
         Path socketFile, dataDir;
         unsigned options;
         int processCount, preprocessCount, unloadTimer, rpVisitFileTimeout,
-            rpIndexerMessageTimeout, syncThreshold, rescheduleTimeout;
+            rpIndexerMessageTimeout, syncThreshold, rescheduleTimeout, multicastTTL;
         List<String> defaultArguments, excludeFilters;
         List<Path> includePaths;
         List<Source::Define> defines;
@@ -120,6 +120,7 @@ private:
     void handleVisitFileMessage(const VisitFileMessage &message, Connection *conn);
     void handleJobRequestMessage(const JobRequestMessage &message, Connection *conn);
     void handleJobResponseMessage(const JobResponseMessage &message, Connection *conn);
+    void handleMulticastForward(const QueryMessage &message, Connection *conn);
     void isIndexing(const QueryMessage &, Connection *conn);
     void removeFile(const QueryMessage &query, Connection *conn);
     void followLocation(const QueryMessage &query, Connection *conn);
@@ -152,6 +153,7 @@ private:
     std::shared_ptr<Project> currentProject() const { return mCurrentProject.lock(); }
     int reloadProjects();
     std::shared_ptr<Project> addProject(const Path &path);
+    bool connectMulticastForward(const std::pair<String, uint16_t> &host);
     void onMulticastReadyRead(const SocketClient::SharedPtr &socket, const std::string &ip,
                               uint16_t port, Buffer &&buffer);
     void onMulticastForwardError(const SocketClient::SharedPtr &socket, SocketClient::Error);
@@ -178,7 +180,7 @@ private:
     ThreadPool *mThreadPool;
     unsigned int mRemotePending;
 
-    Set<Connection*> mMulticastForwards;
+    Map<std::pair<String, uint16_t>, Connection*> mMulticastForwards;
 };
 
 #endif

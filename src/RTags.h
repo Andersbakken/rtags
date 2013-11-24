@@ -158,6 +158,24 @@ inline void decodePath(Path &path)
     }
 }
 
+#define DEFAULT_RDM_TCP_PORT 12526 // ( 100 'r' + (114 'd' * 109 'm')
+
+inline std::pair<String, uint16_t> parseHost(const char *arg)
+{
+    std::pair<String, uint16_t> host;
+    const char *colon = strchr(optarg, ':');
+    if (colon) {
+        host.first.assign(optarg, colon - optarg);
+        host.second = atoi(colon + 1);
+        if (!host.second)
+            host = std::make_pair<String, uint16_t>(String(), 0);
+    } else {
+        host.first = optarg;
+        host.second = DEFAULT_RDM_TCP_PORT;
+    }
+    return host;
+}
+
 inline int digits(int len)
 {
     int ret = 1;

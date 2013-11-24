@@ -175,8 +175,8 @@ bool Server::init(const Options &options)
             return false;
         }
         mMulticastSocket->setMulticastLoop(false);
-        // mMulticastSocket->setMulticastTTL(2);
-#warning add option for this
+        if (mOptions.multicastTTL)
+            mMulticastSocket->setMulticastTTL(mOptions.multicastTTL);
         mMulticastSocket->readyReadFrom().connect(std::bind(&Server::onMulticastReadyRead, this,
                                                             std::placeholders::_1,
                                                             std::placeholders::_2,
@@ -185,15 +185,7 @@ bool Server::init(const Options &options)
     }
 
     for (auto it = mOptions.multicastForwards.cbegin(); it != mOptions.multicastForwards.cend(); ++it) {
-        Connection *conn = new Connection;
-        conn->newMessage().connect(std::bind(&Server::onNewMessage, this, std::placeholders::_1, std::placeholders::_2));
-        conn->disconnected().connect(std::bind(&Server::onConnectionDisconnected, this, std::placeholders::_1));
-        if (!conn->connectTcp((*it).first, (*it).second)) {
-            error() << "Can't connect to multicast forwarding address"
-                    << String::format<128>("%s:%h", (*it).first.constData(), (*it).second);
-        } else {
-            mMulticastForwards.insert(conn);
-        }
+        connectMulticastForward(*it);
     }
 
     if (mOptions.tcpPort) {
@@ -276,7 +268,12 @@ void Server::onConnectionDisconnected(Connection *o)
 {
     o->disconnected().disconnect();
     EventLoop::deleteLater(o);
-    mMulticastForwards.remove(o);
+    for (auto it = mMulticastForwards.begin(); it != mMulticastForwards.end(); ++it) {
+        if (it->second == o) {
+            mMulticastForwards.erase(it);
+            break;
+        }
+    }
 }
 
 void Server::onNewMessage(Message *message, Connection *connection)
@@ -482,6 +479,10 @@ void Server::handleQueryMessage(const QueryMessage &message, Connection *conn)
         break;
     case QueryMessage::ReloadFileManager:
         reloadFileManager(message, conn);
+        break;
+    case QueryMessage::MulticastForward:
+    case QueryMessage::RemoveMulticastForward:
+        handleMulticastForward(message, conn);
         break;
     }
 }
@@ -1527,7 +1528,52 @@ void Server::onLocalJobFinished(Process *process)
     startNextJob();
 }
 
-void Server::onMulticastForwardError(const SocketClient::SharedPtr &socket, SocketClient::Error error)
+void Server::handleMulticastForward(const QueryMessage &message, Connection *conn)
 {
-
+    const String query = message.query();
+    if (query.isEmpty()) {
+        assert(message.type() == QueryMessage::MulticastForward);
+        for (auto it = mMulticastForwards.begin(); it != mMulticastForwards.end(); ++it) {
+            conn->write<64>("%s:%d %s", it->first.first.constData(), it->first.second,
+                            (it->second && it->second->isConnected() ? "connected" : "not connected"));
+        }
+    } else if (message.type() == QueryMessage::MulticastForward) {
+        const std::pair<String, uint16_t> host = RTags::parseHost(query.constData());
+        assert(!host.first.isEmpty());
+        if (mMulticastForwards.value(host)) {
+            conn->write<64>("Already connected to host %s:%d", host.first.constData(), host.second);
+        } else if (connectMulticastForward(host)) {
+            conn->write<64>("Connecting to host %s:%d", host.first.constData(), host.second);
+        } else {
+            conn->write<64>("Failed to connect to host %s:%d", host.first.constData(), host.second);
+        }
+    } else {
+        assert(message.type() == QueryMessage::RemoveMulticastForward);
+        const std::pair<String, uint16_t> host = RTags::parseHost(query.constData());
+        assert(!host.first.isEmpty());
+        Connection *c = mMulticastForwards.take(host);
+        if (c) {
+            conn->write<64>("Disconnecting forward to %s:%d", host.first.constData(), host.second);
+            c->finish();
+        } else {
+            conn->write<64>("No forward to %s:%d", host.first.constData(), host.second);
+        }
+    }
+    conn->finish();
+}
+bool Server::connectMulticastForward(const std::pair<String, uint16_t> &host)
+{
+    if (mMulticastForwards.value(host))
+        return true; // ### ???
+    Connection *conn = new Connection;
+    conn->newMessage().connect(std::bind(&Server::onNewMessage, this, std::placeholders::_1, std::placeholders::_2));
+    conn->disconnected().connect(std::bind(&Server::onConnectionDisconnected, this, std::placeholders::_1));
+    if (!conn->connectTcp(host.first, host.second)) {
+        error() << "Can't connect to multicast forwarding address"
+                << String::format<128>("%s:%h", host.first.constData(), host.second);
+        delete conn;
+        return false;
+    }
+    mMulticastForwards[host] = conn;
+    return true;
 }

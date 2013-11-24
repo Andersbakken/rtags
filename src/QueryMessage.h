@@ -28,7 +28,6 @@ class QueryMessage : public ClientMessage
 public:
     enum { MessageId = QueryId };
     enum Type {
-        Sources,
         ClearProjects,
         CursorInfo,
         DeleteProject,
@@ -45,6 +44,7 @@ public:
         JobCount,
         ListSymbols,
         LoadCompilationDatabase,
+        MulticastForward,
         PreprocessFile,
         Project,
         ReferencesLocation,
@@ -53,10 +53,12 @@ public:
         ReloadFileManager,
         ReloadProjects,
         RemoveFile,
+        RemoveMulticastForward,
         Shutdown,
+        Sources,
         Status,
-        UnloadProject,
-        SuspendFile
+        SuspendFile,
+        UnloadProject
     };
 
     enum Flag {

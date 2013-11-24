@@ -56,7 +56,6 @@ static void sigIntHandler(int)
 #define DEFAULT_RP_INDEXER_MESSAGE_TIMEOUT 5000
 #define DEFAULT_RDM_MULTICAST_ADDRESS "237.50.50.50"
 #define DEFAULT_RDM_MULTICAST_PORT 11509 // ( 100 'r' * 114 'd') + 109 'm'
-#define DEFAULT_RDM_TCP_PORT 12526 // ( 100 'r' + (114 'd' * 109 'm')
 #define DEFAULT_RESCHEDULE_TIMEOUT 10000
 #define XSTR(s) #s
 #define STR(s) XSTR(s)
@@ -107,6 +106,7 @@ static void usage(FILE *f)
             "  --multicast-address|-a [arg]               Use this address for multicast (default " DEFAULT_RDM_MULTICAST_ADDRESS ").\n"
             "  --multicast-port|-P [arg]                  Use this port for multicast (default " STR(DEFAULT_RDM_MULTICAST_PORT) ").\n"
             "  --multicast-forward|-O [arg]               Remote host to forward multicast packages for.\n"
+            "  --multicast-ttl|-B [arg]                   Set multicast TTL to arg.\n"
             "  --enable-compiler-flags|-K                 Query the compiler for default flags.\n"
             "  --reschedule-timeout|-R                    Timeout for rescheduling remote jobs (default " STR(DEFAULT_RESCHEDULE_TIMEOUT) ").\n",
             ThreadPool::idealThreadCount(),
@@ -154,6 +154,7 @@ int main(int argc, char** argv)
         { "multicast-address", required_argument, 0, 'a' },
         { "multicast-port", required_argument, 0, 'P' },
         { "multicast-forward", required_argument, 0, 'O' },
+        { "multicast-ttl", required_argument, 0, 'B' },
         { "port", required_argument, 0, 'p' },
         { "reschedule-timeout", required_argument, 0, 'R' },
 #ifdef OS_Darwin
@@ -314,22 +315,20 @@ int main(int argc, char** argv)
             serverOpts.ignoredCompilers.insert(Path::resolved(optarg));
             break;
         case 'O': {
-            const char *colon = strchr(optarg, ':');
-            String address;
-            uint16_t port;
-            if (colon) {
-                address.assign(optarg, colon - optarg);
-                port = atoi(colon + 1);
-                if (!port) {
-                    fprintf(stderr, "Invalid argument to -O %s. Can't parse port\n", optarg);
-                    return 1;
-                }
-            } else {
-                address = optarg;
-                port = DEFAULT_RDM_TCP_PORT;
+            const std::pair<String, uint16_t> forward = RTags::parseHost(optarg);
+            if (forward.first.isEmpty()) {
+                fprintf(stderr, "Invalid argument to -O %s.\n", optarg);
+                return 1;
             }
-            serverOpts.multicastForwards.insert(std::make_pair(address, port));
+            serverOpts.multicastForwards.insert(forward);
             break; }
+        case 'B':
+            serverOpts.multicastTTL = atoi(optarg);
+            if (serverOpts.multicastTTL <= 0) {
+                fprintf(stderr, "Invalid argument to -B %s\n", optarg);
+                return 1;
+            }
+            break;
         case 'n':
             serverOpts.socketFile = optarg;
             break;

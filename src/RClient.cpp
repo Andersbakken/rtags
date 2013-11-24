@@ -66,6 +66,7 @@ enum OptionType {
     MatchCaseInsensitive,
     MatchRegexp,
     Max,
+    MulticastForward,
     NoContext,
     PathFilter,
     PreprocessFile,
@@ -79,6 +80,7 @@ enum OptionType {
     ReloadFileManager,
     ReloadProjects,
     RemoveFile,
+    RemoveMulticastForward,
     ReverseSort,
     Silent,
     SocketFile,
@@ -157,6 +159,8 @@ struct Option opts[] = {
     { Dependencies, "dependencies", 0, required_argument, "Dump dependencies for source file." },
     { ReloadFileManager, "reload-file-manager", 'B', no_argument, "Reload file manager." },
     { Man, "man", 0, no_argument, "Output XML for xmltoman to generate man page for rc :-)" },
+    { MulticastForward, "multicast-forward", 0, optional_argument, "Set up multicast forward for host or print the active ones. " },
+    { RemoveMulticastForward, "remove-multicast-forward", 0, required_argument, "Remove multicast forward for host. " },
 
     { None, 0, 0, 0, "" },
     { None, 0, 0, 0, "Command flags:" },
@@ -645,6 +649,21 @@ bool RClient::parse(int &argc, char **argv)
             break;
         case StripParen:
             mQueryFlags |= QueryMessage::StripParentheses;
+            break;
+        case MulticastForward: {
+            const char *arg = optarg ? optarg : (optind < argc && argv[optind][0] != '-' ? argv[optind++] : 0);
+            if (arg && RTags::parseHost(arg).first.isEmpty()) {
+                fprintf(stderr, "Invalid argument to --multicast-forward %s.\n", arg);
+                return 1;
+            }
+            addQuery(QueryMessage::MulticastForward, arg);
+            break; }
+        case RemoveMulticastForward:
+            if (RTags::parseHost(optarg).first.isEmpty()) {
+                fprintf(stderr, "Invalid argument to --remove-multicast-forward %s.\n", optarg);
+                return 1;
+            }
+            addQuery(QueryMessage::RemoveMulticastForward, optarg);
             break;
         case BuildIndex: {
             bool ok;
