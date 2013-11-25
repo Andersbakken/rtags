@@ -158,7 +158,7 @@ private:
     bool connectMulticastForward(const std::pair<String, uint16_t> &host);
     void onMulticastReadyRead(const SocketClient::SharedPtr &socket, const String &ip,
                               uint16_t port, Buffer &&buffer);
-    void handleMulticastData(const String &ip, uint16_t port, const unsigned char *data, int size);
+    void handleMulticastData(const String &ip, uint16_t port, const unsigned char *data, int size, Connection *src);
     void onMulticastForwardError(const SocketClient::SharedPtr &socket, SocketClient::Error);
     void onLocalJobFinished(Process *process);
     void startNextJob();

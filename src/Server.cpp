@@ -1419,17 +1419,20 @@ void Server::onMulticastReadyRead(const SocketClient::SharedPtr &socket,
                                   Buffer &&in)
 {
     const Buffer buffer = std::forward<Buffer>(in);
-    handleMulticastData(ip, port, buffer.data(), buffer.size());
+    handleMulticastData(ip, port, buffer.data(), buffer.size(), 0);
 }
 
-void Server::handleMulticastData(const String &ip, uint16_t port, const unsigned char *data, int size)
+void Server::handleMulticastData(const String &ip, uint16_t port,
+                                 const unsigned char *data, int size, Connection *source)
 {
     if (!mMulticastForwards.isEmpty()) {
-#warning need to not forward if it comes from the same subnet or something.
         const MulticastForwardMessage msg(ip, port, String(reinterpret_cast<const char*>(data), size));
         for (auto it = mMulticastForwards.begin(); it != mMulticastForwards.end(); ++it) {
-            if (it->second && !it->second->send(msg)) {
-                error() << "Unable to forward to" << String::format<64>("%s:%d", it->first.first.constData(), it->first.second);
+            if (it->second && it->second != source && !it->second->send(msg)) {
+                error() << "Unable to forward to"
+                        << String::format<64>("%s:%d",
+                                              it->first.first.constData(),
+                                              it->first.second);
             }
         }
     }
@@ -1600,5 +1603,5 @@ void Server::handleMulticastForwardMessage(const MulticastForwardMessage &messag
     conn->finish(); // ### should I finish this?
     const String data = message.message();
     handleMulticastData(message.ip(), message.port(),
-                        reinterpret_cast<const unsigned char*>(data.constData()), data.size());
+                        reinterpret_cast<const unsigned char*>(data.constData()), data.size(), conn);
 }
