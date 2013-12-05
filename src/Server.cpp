@@ -1495,7 +1495,7 @@ void Server::handleMulticastData(const String &ip, uint16_t port,
     if (jobs && tcpPort) {
         const int maxJobs = std::min<int>(jobs, availableJobSlots());
         if (debugMulti)
-            error() << "available jobs" << jobs << availableJobSlots();
+            error("available jobs %d available %d local %d pending %d processcount %d", jobs, availableJobSlots(), mLocalJobs.size(), mPendingJobRequests.size(), mOptions.processCount);
         if (maxJobs > 0)
             fetchRemoteJobs(ip, tcpPort, maxJobs);
     }
