@@ -363,7 +363,7 @@ void Server::preprocess(Source &&source, Path &&project, IndexerJob::IndexType t
 
 void Server::handleCompileMessage(CompileMessage &message, Connection *conn)
 {
-    conn->finish(); // nothing to wait for
+    conn->close();
     index(message.arguments(), message.workingDirectory(), message.projects());
 }
 
