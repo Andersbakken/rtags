@@ -1589,8 +1589,10 @@ void Server::onLocalJobFinished(Process *process)
     assert(it != mLocalJobs.end());
     if (debugMulti)
         error() << "job finished" << it->second->type << process->errorString() << process->readAllStdErr();
-    if (it->second->type == IndexerJob::Remote)
+    if (it->second->type == IndexerJob::Remote) {
         --mRemotePending;
+        error() << "Built remote job" << it->second->sourceFile.toTilde();
+    }
     mLocalJobs.erase(it);
     EventLoop::deleteLater(process);
     startNextJob();
