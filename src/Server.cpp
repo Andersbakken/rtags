@@ -396,6 +396,11 @@ void Server::handleIndexerMessage(const IndexerMessage &message, Connection *con
         error() << "Can't find project root for this IndexerMessage" << message.project() << Location::path(indexData->fileId());
         return;
     }
+    String ip;
+    uint16_t port;
+    if (conn->client()->peer(&ip, &port))
+        indexData->message << String::format<64>(" from %s:%d", ip.constData(), port);
+
     project->onJobFinished(indexData);
     conn->finish();
 }
