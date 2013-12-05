@@ -86,7 +86,7 @@ static void usage(FILE *f)
             "  --config|-c [arg]                          Use this file instead of ~/.rdmrc.\n"
             "  --data-dir|-d [arg]                        Use this directory to store persistent data (default ~/.rtags).\n"
             "  --socket-file|-n [arg]                     Use this file for the server socket (default ~/.rdm).\n"
-            "  --port|-p [arg]                            Use this port for tcp server (default " STR(DEFAULT_RDM_TCP_PORT) ").\n"
+            "  --tcp-port|-p [arg]                        Use this port for tcp server (default " STR(DEFAULT_RDM_TCP_PORT) ").\n"
             "  --setenv|-e [arg]                          Set this environment variable (--setenv \"foobar=1\").\n"
             "  --no-current-project|-o                    Don't restore the last current project on startup.\n"
             "  --allow-multiple-sources|-m                Without this setting different sources will be merged for each source file.\n"
@@ -155,7 +155,7 @@ int main(int argc, char** argv)
         { "multicast-port", required_argument, 0, 'P' },
         { "multicast-forward", required_argument, 0, 'O' },
         { "multicast-ttl", required_argument, 0, 'B' },
-        { "port", required_argument, 0, 'p' },
+        { "tcp-port", required_argument, 0, 'p' },
         { "reschedule-timeout", required_argument, 0, 'R' },
 #ifdef OS_Darwin
         { "filemanager-watch", no_argument, 0, 'M' },
