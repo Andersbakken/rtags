@@ -207,7 +207,7 @@ bool Server::init(const Options &options)
         mTcpServer->newConnection().connect(std::bind(&Server::onNewConnection, this, std::placeholders::_1));
     }
     if (mOptions.preprocessCount)
-        mThreadPool = new ThreadPool(mOptions.preprocessCount, Thread::Idle);
+        mThreadPool = new ThreadPool(mOptions.preprocessCount);
     return true;
 }
 
