@@ -380,7 +380,8 @@ void Server::handleIndexerMessage(const IndexerMessage &message, Connection *con
             error() << "already got a response for" << indexData->jobId;
         return;
     }
-    it->second->state = IndexerJob::Complete;
+    if (it->second->state == IndexerJob::Running)
+        it->second->state = IndexerJob::Complete;
     mProcessingJobs.erase(it);
     std::shared_ptr<Project> project = mProjects.value(message.project());
     if (!project) {
