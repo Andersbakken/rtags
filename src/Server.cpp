@@ -1542,6 +1542,20 @@ void Server::startNextJob()
     if (debugMulti)
         error() << "announcing" << mPending.size() - mRemotePending << "jobs";
     mMulticastSocket->writeTo(mOptions.multicastAddress, mOptions.multicastPort, buf, sizeof(buf));
+    if (!mMulticastForwards.isEmpty()) {
+        const MulticastForwardMessage msg(String(), 0, String(reinterpret_cast<const char*>(buf), sizeof(buf)));
+        for (auto it = mMulticastForwards.begin(); it != mMulticastForwards.end(); ++it) {
+            if (it->second && !it->second->send(msg)) {
+                error() << "Unable to forward to"
+                        << String::format<64>("%s:%d",
+                                              it->first.first.constData(),
+                                              it->first.second);
+            } else if (debugMulti) {
+                error() << "forwarding jobs announcement" << mPending.size() - mRemotePending << "jobs";
+            }
+        }
+    }
+
 }
 
 void Server::onLocalJobFinished(Process *process)
@@ -1609,8 +1623,16 @@ bool Server::connectMulticastForward(const std::pair<String, uint16_t> &host)
 
 void Server::handleMulticastForwardMessage(const MulticastForwardMessage &message, Connection *conn)
 {
-    conn->finish(); // ### should I finish this?
+    if (debugMulti)
+        error() << "Received forward from" << message.ip() << message.port();
     const String data = message.message();
-    handleMulticastData(message.ip(), message.port(),
-                        reinterpret_cast<const unsigned char*>(data.constData()), data.size(), conn);
+    String ip = message.ip();
+    uint16_t port = message.port();
+    assert(ip.isEmpty() == (port == 0));
+    if (!port && !conn->client()->peer(&ip, &port)) {
+        error() << "Unable to get peer from socket";
+        return;
+    }
+    handleMulticastData(ip, port, reinterpret_cast<const unsigned char*>(data.constData()), data.size(), conn);
+    // conn->finish(); // ### should I finish this?
 }
