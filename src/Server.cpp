@@ -1620,13 +1620,13 @@ bool Server::connectMulticastForward(const std::pair<String, uint16_t> &host)
         return true; // ### ???
     Connection *conn = new Connection;
     conn->newMessage().connect(std::bind(&Server::onNewMessage, this, std::placeholders::_1, std::placeholders::_2));
-    conn->disconnected().connect(std::bind(&Server::onConnectionDisconnected, this, std::placeholders::_1));
     if (!conn->connectTcp(host.first, host.second)) {
         error() << "Can't connect to multicast forwarding address"
-                << String::format<128>("%s:%h", host.first.constData(), host.second);
+                << String::format<128>("%s:%d", host.first.constData(), host.second);
         delete conn;
         return false;
     }
+    conn->disconnected().connect(std::bind(&Server::onConnectionDisconnected, this, std::placeholders::_1));
     mMulticastForwards[host] = conn;
     return true;
 }
