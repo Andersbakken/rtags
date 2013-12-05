@@ -163,14 +163,14 @@ inline void decodePath(Path &path)
 inline std::pair<String, uint16_t> parseHost(const char *arg)
 {
     std::pair<String, uint16_t> host;
-    const char *colon = strchr(optarg, ':');
+    const char *colon = strchr(arg, ':');
     if (colon) {
-        host.first.assign(optarg, colon - optarg);
+        host.first.assign(arg, colon - arg);
         host.second = atoi(colon + 1);
         if (!host.second)
             host = std::make_pair<String, uint16_t>(String(), 0);
     } else {
-        host.first = optarg;
+        host.first = arg;
         host.second = DEFAULT_RDM_TCP_PORT;
     }
     return host;
