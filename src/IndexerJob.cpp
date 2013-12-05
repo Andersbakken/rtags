@@ -36,6 +36,7 @@ bool IndexerJob::startLocal()
     if (!encode(serializer))
         return false;
 
+    started = 0;
     process = new Process;
     if (!port)
         process->finished().connect(std::bind(&IndexerJob::onProcessFinished, this));
