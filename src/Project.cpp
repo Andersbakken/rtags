@@ -922,12 +922,17 @@ String Project::dumpJobs() const
 
 void Project::watch(const Path &file)
 {
-    const Path dir = file.parentDir();
+    Path dir = file.parentDir();
     if (dir.isEmpty()) {
         error() << "Got empty parent dir for" << file;
-    } else if (((Server::instance()->options().options & Server::WatchSystemPaths) || !dir.isSystem())
-               && mWatchedPaths.insert(dir)) {
-        mWatcher.watch(dir);
+    } else {
+        if (mWatchedPaths.contains(dir))
+            return;
+        dir.resolve();
+        if (((Server::instance()->options().options & Server::WatchSystemPaths) || !dir.isSystem())
+            && mWatchedPaths.insert(dir)) {
+            mWatcher.watch(dir);
+        }
     }
 }
 
