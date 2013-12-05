@@ -120,8 +120,16 @@ bool Server::init(const Options &options)
         mOptions.defaultArguments.append("-Wall");
     if (options.options & SpellChecking)
         mOptions.defaultArguments << "-fspell-checking";
-    error() << "using args:" << String::join(mOptions.defaultArguments, ' ') << '\n'
-            << "includepaths" << String::join(mOptions.includePaths, ' ');
+    Log l(Error);
+    l << "using args:" << String::join(mOptions.defaultArguments, ' ') << '\n';
+    if (mOptions.tcpPort || mOptions.multicastPort) {
+        if (mOptions.tcpPort)
+            l << "tcp-port:" << mOptions.tcpPort;
+        if (mOptions.multicastPort)
+            l << "multicast-port:" << mOptions.multicastPort;
+        l << '\n';
+    }
+    l << "includepaths" << String::join(mOptions.includePaths, ' ');
 
     if (mOptions.options & ClearProjects) {
         clearProjects();
