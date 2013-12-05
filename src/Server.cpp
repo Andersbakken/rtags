@@ -1514,6 +1514,7 @@ void Server::fetchRemoteJobs(const String& ip, uint16_t port, uint16_t jobs)
         error() << "asking for" << jobs << "jobs";
     conn->newMessage().connect(std::bind(&Server::onNewMessage, this, std::placeholders::_1, std::placeholders::_2));
     conn->disconnected().connect(std::bind(&Server::onConnectionDisconnected, this, std::placeholders::_1));
+    conn->finished().connect(std::bind(&Connection::close, conn));
     conn->send(JobRequestMessage(jobs));
     assert(!mPendingJobRequests.contains(conn));
     mPendingJobRequests[conn] = jobs;
