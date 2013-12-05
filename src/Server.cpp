@@ -283,6 +283,7 @@ void Server::onConnectionDisconnected(Connection *o)
             break;
         }
     }
+    mPendingJobRequests.remove(o);
 }
 
 void Server::onNewMessage(Message *message, Connection *connection)
@@ -379,7 +380,7 @@ void Server::handleIndexerMessage(const IndexerMessage &message, Connection *con
     std::shared_ptr<IndexData> indexData = message.data();
     // error() << "Got indexer message" << message.project() << Location::path(indexData->fileId);
     assert(indexData);
-    std::map<uint64_t, std::shared_ptr<IndexerJob> >::iterator it = mProcessingJobs.find(indexData->jobId);
+    auto it = mProcessingJobs.find(indexData->jobId);
     if (debugMulti)
         error() << "got indexer message for job" << Location::path(indexData->fileId()) << indexData->jobId;
     if (it == mProcessingJobs.end()) {
@@ -1441,6 +1442,15 @@ void Server::onMulticastReadyRead(const SocketClient::SharedPtr &socket,
     handleMulticastData(ip, port, buffer.data(), buffer.size(), 0);
 }
 
+inline int Server::availableJobSlots() const
+{
+    int ret = mLocalJobs.size();
+    for (auto it : mPendingJobRequests) {
+        ret += it.second;
+    }
+    return std::max(0, mOptions.processCount - ret);
+}
+
 void Server::handleMulticastData(const String &ip, uint16_t port,
                                  const unsigned char *data, int size, Connection *source)
 {
@@ -1483,7 +1493,7 @@ void Server::handleMulticastData(const String &ip, uint16_t port,
         return;
     }
     if (jobs && tcpPort) {
-        const int maxJobs = std::min<int>(jobs, mOptions.processCount - mLocalJobs.size());
+        const int maxJobs = std::min<int>(jobs, availableJobSlots());
         if (maxJobs > 0)
             fetchRemoteJobs(ip, tcpPort, maxJobs);
     }
@@ -1503,6 +1513,8 @@ void Server::fetchRemoteJobs(const String& ip, uint16_t port, uint16_t jobs)
     conn->newMessage().connect(std::bind(&Server::onNewMessage, this, std::placeholders::_1, std::placeholders::_2));
     conn->disconnected().connect(std::bind(&Server::onConnectionDisconnected, this, std::placeholders::_1));
     conn->send(JobRequestMessage(jobs));
+    assert(!mPendingJobRequests.contains(conn));
+    mPendingJobRequests[conn] = jobs;
 }
 
 void Server::startJob(const std::shared_ptr<IndexerJob> &job)
@@ -1570,7 +1582,7 @@ void Server::startNextJob()
 
 void Server::onLocalJobFinished(Process *process)
 {
-    Map<Process*, std::shared_ptr<IndexerJob> >::iterator it = mLocalJobs.find(process);
+    auto it = mLocalJobs.find(process);
     assert(it != mLocalJobs.end());
     if (debugMulti)
         error() << "job finished" << it->second->type << process->errorString() << process->readAllStdErr();

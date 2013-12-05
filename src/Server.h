@@ -164,6 +164,8 @@ private:
     void startNextJob();
     void fetchRemoteJobs(const String& ip, uint16_t port, uint16_t jobs);
 
+    int availableJobSlots() const;
+
     typedef Hash<Path, std::shared_ptr<Project> > ProjectsMap;
     ProjectsMap mProjects;
     std::weak_ptr<Project> mCurrentProject;
@@ -178,8 +180,9 @@ private:
     uint32_t mCurrentFileId;
     std::shared_ptr<SocketClient> mMulticastSocket;
     LinkedList<std::shared_ptr<IndexerJob> > mPending;
-    std::map<uint64_t, std::shared_ptr<IndexerJob> > mProcessingJobs;
-    Map<Process*, std::shared_ptr<IndexerJob> > mLocalJobs;
+    Hash<uint64_t, std::shared_ptr<IndexerJob> > mProcessingJobs;
+    Hash<Process*, std::shared_ptr<IndexerJob> > mLocalJobs;
+    Hash<Connection*, uint16_t> mPendingJobRequests;
     ThreadPool *mThreadPool;
     unsigned int mRemotePending;
 
