@@ -1313,7 +1313,8 @@ void Server::handleJobResponseMessage(const JobResponseMessage &message, Connect
     message.toIndexerJob(job, conn);
     if (debugMulti) {
         error() << "got indexer job for" << job->destination << ":" << job->port
-                << "with preprocessed" << job->cpp->preprocessed.size();
+                << "with preprocessed" << job->cpp->preprocessed.size()
+                << job->sourceFile;
     }
     assert(job->type == IndexerJob::Remote);
     assert(job->state == IndexerJob::Pending);
