@@ -25,3 +25,4 @@ for i in `which -a "\`basename $0\`"`; do
         PATH=`echo $PATH | sed -e "s,$dir/*:*,,g"`
     fi
 done
+exit 1 ### no compiler found?
