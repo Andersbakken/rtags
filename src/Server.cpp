@@ -887,11 +887,11 @@ bool Server::shouldIndex(const Source &source, const Path &srcRoot) const
 Path Server::findProject(const Path &path, const Path &unresolvedPath, const List<String> &withProjects) const
 {
     std::shared_ptr<Project> current = mCurrentProject.lock();
-    if (current && (current->match(path) || (path != unresolvedPath && current->match(unresolvedPath))))
+    if (current && (current->match(unresolvedPath) || (path != unresolvedPath && current->match(path))))
         return current->path();
 
     for (auto it = mProjects.begin(); it != mProjects.end(); ++it) {
-        if (it->second->match(path) || (path != unresolvedPath && it->second->match(unresolvedPath)))
+        if (it->second->match(unresolvedPath) || (path != unresolvedPath && it->second->match(path)))
             return it->first;
     }
 
@@ -901,7 +901,11 @@ Path Server::findProject(const Path &path, const Path &unresolvedPath, const Lis
                 return it->first;
         }
     }
-    return RTags::findProjectRoot(path, RTags::SourceRoot);
+
+    const Path root = RTags::findProjectRoot(unresolvedPath, RTags::SourceRoot);
+    if (root.isEmpty() && path != unresolvedPath)
+        return RTags::findProjectRoot(path, RTags::SourceRoot);
+    return root;
 }
 
 void Server::index(const Source &source, const std::shared_ptr<Cpp> &cpp, const Path &srcRoot, IndexerJob::IndexType type)
