@@ -271,10 +271,12 @@ void Server::onNewConnection(SocketServer *server)
         conn->newMessage().connect(std::bind(&Server::onNewMessage, this, std::placeholders::_1, std::placeholders::_2));
         conn->disconnected().connect(std::bind(&Server::onConnectionDisconnected, this, std::placeholders::_1));
 
-        String ip;
-        uint16_t port;
-        if (conn->client()->peer(&ip, &port))
-            error() << "Got connection from" << String::format<64>("%s:%d", ip.constData(), port);
+        if (debugMulti) {
+            String ip;
+            uint16_t port;
+            if (conn->client()->peer(&ip, &port))
+                error() << "Got connection from" << String::format<64>("%s:%d", ip.constData(), port);
+        }
     }
 }
 
