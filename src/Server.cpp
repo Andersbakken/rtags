@@ -270,6 +270,11 @@ void Server::onNewConnection(SocketServer *server)
         Connection *conn = new Connection(client);
         conn->newMessage().connect(std::bind(&Server::onNewMessage, this, std::placeholders::_1, std::placeholders::_2));
         conn->disconnected().connect(std::bind(&Server::onConnectionDisconnected, this, std::placeholders::_1));
+
+        String ip;
+        uint16_t port;
+        if (conn->client()->peer(&ip, &port))
+            error() << "Got connection from" << String::format<64>("%s:%d", ip.constData(), port);
     }
 }
 
@@ -279,6 +284,8 @@ void Server::onConnectionDisconnected(Connection *o)
     EventLoop::deleteLater(o);
     for (auto it = mMulticastForwards.begin(); it != mMulticastForwards.end(); ++it) {
         if (it->second == o) {
+            error() << "Disconnected from host:"
+                    << String::format<64>("%s:%d", it->first.first.constData(), it->first.second);
             mMulticastForwards.erase(it);
             break;
         }
