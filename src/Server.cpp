@@ -59,6 +59,8 @@
 #include <stdio.h>
 #include <arpa/inet.h>
 
+static const bool debugMulti = getenv("RDM_DEBUG_MULTI");
+
 Server *Server::sInstance = 0;
 Server::Server()
     : mVerbose(false), mCurrentFileId(0), mThreadPool(0), mRemotePending(0)
@@ -381,8 +383,6 @@ void Server::handleCreateOutputMessage(const CreateOutputMessage &message, Conne
 {
     new LogObject(conn, message.level());
 }
-
-static const bool debugMulti = getenv("RDM_DEBUG_MULTI");
 
 void Server::handleIndexerMessage(const IndexerMessage &message, Connection *conn)
 {
@@ -1600,7 +1600,8 @@ void Server::onLocalJobFinished(Process *process)
         error() << "job finished" << it->second->type << process->errorString() << process->readAllStdErr();
     if (it->second->type == IndexerJob::Remote) {
         --mRemotePending;
-        error() << "Built remote job" << it->second->sourceFile.toTilde();
+        error() << "Built remote job" << it->second->sourceFile.toTilde() << "for"
+                << String::format<128>("%s:%d", it->second->destination.constData(), it->second->port);
     }
     mLocalJobs.erase(it);
     EventLoop::deleteLater(process);
