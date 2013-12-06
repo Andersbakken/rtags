@@ -1762,6 +1762,13 @@ References to references will be treated as references to the referenced symbol"
       (rtags-call-rc "-K" "-P" tagname
                      (if rtags-find-file-case-insensitive "-I")
                      (if prefer-exact "-A"))
+      (and (= (point-min) (point-max))
+           (string-match "[^/]\\.\\.[^/]" tagname)
+           (rtags-call-rc "-K" "-P"
+                          (replace-regexp-in-string "\\([^/]\\)\\.\\.\\([^/]\\)" "\\1.\\2" tagname)
+                          (if rtags-find-file-case-insensitive "-I")
+                          (if prefer-exact "-A")))
+
       (cond (offset (rtags-append (format ",%d" offset)))
             ((and line column) (rtags-append (format ":%d:%d" line column)))
             ((and line) (rtags-append (format ":%d" line)))
