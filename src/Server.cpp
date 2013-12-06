@@ -1650,6 +1650,9 @@ bool Server::connectMulticastForward(const std::pair<String, uint16_t> &host)
         delete conn;
         return false;
     }
+    conn->connected().connect(std::bind([host]() {
+                error() << "Connected to forwarding address"
+                        << String::format<128>("%s:%d", host.first.constData(), host.second); }));
     conn->disconnected().connect(std::bind(&Server::onConnectionDisconnected, this, std::placeholders::_1));
     mMulticastForwards[host] = conn;
     return true;
