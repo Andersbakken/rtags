@@ -159,7 +159,7 @@ struct Option opts[] = {
     { Dependencies, "dependencies", 0, required_argument, "Dump dependencies for source file." },
     { ReloadFileManager, "reload-file-manager", 'B', no_argument, "Reload file manager." },
     { Man, "man", 0, no_argument, "Output XML for xmltoman to generate man page for rc :-)" },
-    { MulticastForward, "multicast-forward", 0, optional_argument, "Set up multicast forward for host or print the active ones. " },
+    { MulticastForward, "multicast-forward", 'x', optional_argument, "Set up multicast forward for host or print the active ones. " },
     { RemoveMulticastForward, "remove-multicast-forward", 0, required_argument, "Remove multicast forward for host. " },
 
     { None, 0, 0, 0, "" },
