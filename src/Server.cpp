@@ -85,10 +85,7 @@ Server::~Server()
 
 void Server::clear()
 {
-    Path::rm(mOptions.socketFile);
-    mUnixServer.reset();
-    mTcpServer.reset();
-    mProjects.clear();
+    stopServers();
     delete mThreadPool; // wait first?
     mThreadPool = 0;
 }
@@ -1677,7 +1674,7 @@ void Server::handleMulticastForwardMessage(const MulticastForwardMessage &messag
     // conn->finish(); // ### should I finish this?
 }
 
-void Server::cleanup()
+void Server::stopServers()
 {
     Path::rm(mOptions.socketFile);
     mUnixServer.reset();
