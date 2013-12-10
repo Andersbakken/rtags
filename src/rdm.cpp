@@ -31,6 +31,8 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 
 static void sigSegvHandler(int signal)
 {
+    if (Server *server = Server::instance())
+        server->cleanup();
     fprintf(stderr, "Caught signal %d\n", signal);
     // this is not really allowed in signal handlers but will mostly work
     const List<String>& trace = RTags::backtrace();

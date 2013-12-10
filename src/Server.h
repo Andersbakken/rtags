@@ -99,6 +99,7 @@ public:
     void preprocess(Source &&source, Path &&project, IndexerJob::IndexType type);
     bool shouldIndex(const Source &source, const Path &project) const;
     Path findProject(const Path &path, const Path &unresolvedPath, const List<String> &withProjects) const;
+    void cleanup();
 private:
     bool selectProject(const Match &match, Connection *conn, unsigned int queryFlags);
     bool updateProject(const List<String> &projects, unsigned int queryFlags);

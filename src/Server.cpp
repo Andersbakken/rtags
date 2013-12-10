@@ -1676,3 +1676,11 @@ void Server::handleMulticastForwardMessage(const MulticastForwardMessage &messag
     handleMulticastData(ip, port, reinterpret_cast<const unsigned char*>(data.constData()), data.size(), conn);
     // conn->finish(); // ### should I finish this?
 }
+
+void Server::cleanup()
+{
+    Path::rm(mOptions.socketFile);
+    mUnixServer.reset();
+    mTcpServer.reset();
+    mProjects.clear();
+}
