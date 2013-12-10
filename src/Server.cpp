@@ -1660,8 +1660,6 @@ bool Server::connectMulticastForward(const std::pair<String, uint16_t> &host)
 
 void Server::handleMulticastForwardMessage(const MulticastForwardMessage &message, Connection *conn)
 {
-    if (debugMulti)
-        error() << "Received forward from" << message.ip() << message.port();
     const String data = message.message();
     String ip = message.ip();
     uint16_t port = message.port();
@@ -1670,6 +1668,8 @@ void Server::handleMulticastForwardMessage(const MulticastForwardMessage &messag
         error() << "Unable to get peer from socket";
         return;
     }
+    if (debugMulti)
+        error() << "Received forwarded message from" << ip;
     handleMulticastData(ip, port, reinterpret_cast<const unsigned char*>(data.constData()), data.size(), conn);
     // conn->finish(); // ### should I finish this?
 }
