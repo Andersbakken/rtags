@@ -54,7 +54,7 @@ bool ClangIndexer::connect(const Path &serverFile, int timeout)
 
 bool ClangIndexer::connect(const String &hostName, uint16_t port, int timeout)
 {
-    return mConnection.connectTcp(hostName, timeout);
+    return mConnection.connectTcp(hostName, port, timeout);
 }
 
 bool ClangIndexer::index(IndexerJob::IndexType type, const Source &source,
