@@ -26,6 +26,8 @@ bool IndexerJob::startLocal()
 {
     if (state == Aborted)
         return false;
+    if (state == Running)
+        error() << "About to die" << sourceFile;
     assert(state != Running);
     assert(cpp);
     assert(!process);
