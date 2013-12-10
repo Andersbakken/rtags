@@ -134,7 +134,7 @@ int main(int argc, char** argv)
         { "clean-slate", no_argument, 0, 'C' },
         { "enable-sighandler", no_argument, 0, 's' },
         { "silent", no_argument, 0, 'S' },
-        { "exclude-filter", required_argument, 0, 'x' },
+        { "exclude-filter", required_argument, 0, 'X' },
         { "socket-file", required_argument, 0, 'n' },
         { "config", required_argument, 0, 'c' },
         { "no-rc", no_argument, 0, 'N' },
