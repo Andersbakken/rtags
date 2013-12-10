@@ -111,7 +111,7 @@ bool IndexerJob::encode(Serializer &serializer)
     serializer << destination << port << sourceFile
                << copy << *cpp << project
                << static_cast<uint8_t>(type) << options.rpVisitFileTimeout
-               << options.rpIndexerMessageTimeout
+               << options.rpIndexerMessageTimeout << options.rpConnectTimeout
                << id << (proj ? proj->visitedFiles() : blockedFiles);
     return true;
 }

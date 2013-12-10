@@ -17,8 +17,8 @@ public:
     ClangIndexer();
     ~ClangIndexer();
 
-    bool connect(const Path &serverFile);
-    bool connect(const String &hostName, uint16_t port);
+    bool connect(const Path &serverFile, int timeout);
+    bool connect(const String &hostName, uint16_t port, int timeout);
 
     bool index(IndexerJob::IndexType type, const Source &source,
                const std::shared_ptr<Cpp> &cpp, const Path &project);

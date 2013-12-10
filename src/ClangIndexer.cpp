@@ -47,14 +47,14 @@ ClangIndexer::~ClangIndexer()
         clang_disposeIndex(mIndex);
 }
 
-bool ClangIndexer::connect(const Path &serverFile)
+bool ClangIndexer::connect(const Path &serverFile, int timeout)
 {
-    return mConnection.connectUnix(serverFile, 1000);
+    return mConnection.connectUnix(serverFile, timeout);
 }
 
-bool ClangIndexer::connect(const String &hostName, uint16_t port)
+bool ClangIndexer::connect(const String &hostName, uint16_t port, int timeout)
 {
-    return mConnection.connectTcp(hostName, port);
+    return mConnection.connectTcp(hostName, timeout);
 }
 
 bool ClangIndexer::index(IndexerJob::IndexType type, const Source &source,

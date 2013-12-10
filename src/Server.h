@@ -72,13 +72,15 @@ public:
     struct Options {
         Options()
             : options(0), processCount(0), preprocessCount(0), unloadTimer(0),
-              rpVisitFileTimeout(0), rpIndexerMessageTimeout(0), syncThreshold(0),
-              rescheduleTimeout(0), multicastTTL(0), tcpPort(0), multicastPort(0)
+              rpVisitFileTimeout(0), rpIndexerMessageTimeout(0), rpConnectTimeout(0),
+              syncThreshold(0), rescheduleTimeout(0), multicastTTL(0), tcpPort(0),
+              multicastPort(0)
         {}
         Path socketFile, dataDir;
         unsigned options;
         int processCount, preprocessCount, unloadTimer, rpVisitFileTimeout,
-            rpIndexerMessageTimeout, syncThreshold, rescheduleTimeout, multicastTTL;
+            rpIndexerMessageTimeout, rpConnectTimeout, syncThreshold,
+            rescheduleTimeout, multicastTTL;
         List<String> defaultArguments, excludeFilters;
         List<Path> includePaths;
         List<Source::Define> defines;

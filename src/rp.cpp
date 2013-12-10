@@ -72,10 +72,11 @@ int main(int argc, char **argv)
     Hash<Path, uint32_t> blockedFiles;
     std::shared_ptr<Cpp> cpp(new Cpp);
     uint64_t jobId;
-    int visitFileTimeout, indexerMessageTimeout;
+    int visitFileTimeout, indexerMessageTimeout, connectTimeout;
     deserializer >> destination >> port >> sourceFile >> source
                  >> *cpp >> project >> type
                  >> visitFileTimeout >> indexerMessageTimeout
+                 >> connectTimeout
                  >> jobId >> blockedFiles;
     if (argc > 1)
         fclose(f);
@@ -107,12 +108,12 @@ int main(int argc, char **argv)
 
     ClangIndexer indexer;
     if (port) {
-        if (!indexer.connect(destination, port)) {
+        if (!indexer.connect(destination, port, connectTimeout)) {
             error("Failed to connect to rdm %s:%d\n", destination.constData(), port);
             return 6;
         }
     } else {
-        if (!indexer.connect(destination)) {
+        if (!indexer.connect(destination, connectTimeout)) {
             error("Failed to connect to rdm %s\n", destination.constData());
             return 7;
         }

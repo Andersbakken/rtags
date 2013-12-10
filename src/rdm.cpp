@@ -56,6 +56,7 @@ static void sigIntHandler(int)
 #define EXCLUDEFILTER_DEFAULT "*/CMakeFiles/*;*/cmake*/Modules/*;*/conftest.c*;/tmp/*"
 #define DEFAULT_RP_VISITFILE_TIMEOUT 3000
 #define DEFAULT_RP_INDEXER_MESSAGE_TIMEOUT 5000
+#define DEFAULT_RP_CONNECT_TIMEOUT 0 // won't time out
 #define DEFAULT_RDM_MULTICAST_ADDRESS "237.50.50.50"
 #define DEFAULT_RDM_MULTICAST_PORT 11509 // ( 100 'r' * 114 'd') + 109 'm'
 #define DEFAULT_RESCHEDULE_TIMEOUT 10000
@@ -98,6 +99,7 @@ static void usage(FILE *f)
             "  --watch-system-paths|-w                    Watch system paths for changes.\n"
             "  --rp-visit-file-timeout|-t [arg]           Timeout for rp visitfile commands in ms (0 means no timeout) (default " STR(DEFAULT_RP_VISITFILE_TIMEOUT) ").\n"
             "  --rp-indexer-message-timeout|-T [arg]      Timeout for rp indexer-message in ms (0 means no timeout) (default " STR(DEFAULT_RP_INDEXER_MESSAGE_TIMEOUT) ").\n"
+            "  --rp-connect-timeout|-O [arg]              Timeout for connection from rp to rdm in ms (0 means no timeout) (default " STR(DEFAULT_RP_CONNECT_TIMEOUT) ").\n"
 #ifdef OS_Darwin
             "  --filemanager-watch|-M                     Use a file system watcher for filemanager.\n"
 #else
@@ -153,6 +155,7 @@ int main(int argc, char** argv)
         { "enable-compiler-flags", no_argument, 0, 'K' },
         { "rp-visit-file-timout", required_argument, 0, 't' },
         { "rp-indexer-message-timeout", required_argument, 0, 'T' },
+        { "rp-connect-timeout", required_argument, 0, 'O' },
         { "multicast-address", required_argument, 0, 'a' },
         { "multicast-port", required_argument, 0, 'P' },
         { "multicast-forward", required_argument, 0, 'x' },
@@ -247,6 +250,7 @@ int main(int argc, char** argv)
     serverOpts.preprocessCount = std::max(ThreadPool::idealThreadCount() / 2, 1);
     serverOpts.rpVisitFileTimeout = DEFAULT_RP_VISITFILE_TIMEOUT;
     serverOpts.rpIndexerMessageTimeout = DEFAULT_RP_INDEXER_MESSAGE_TIMEOUT;
+    serverOpts.rpConnectTimeout = DEFAULT_RP_CONNECT_TIMEOUT;
     serverOpts.options = Server::Wall|Server::SpellChecking;
 #ifdef OS_Darwin
     serverOpts.options |= Server::NoFileManagerWatch;
@@ -305,6 +309,15 @@ int main(int argc, char** argv)
             }
             if (!serverOpts.rpVisitFileTimeout)
                 serverOpts.rpVisitFileTimeout = -1;
+            break;
+        case 'O':
+            serverOpts.rpConnectTimeout = atoi(optarg);
+            if (serverOpts.rpConnectTimeout < 0) {
+                fprintf(stderr, "Invalid argument to -O %s\n", optarg);
+                return 1;
+            }
+            if (!serverOpts.rpConnectTimeout)
+                serverOpts.rpConnectTimeout = 0;
             break;
         case 'R':
             serverOpts.rescheduleTimeout = atoi(optarg);
