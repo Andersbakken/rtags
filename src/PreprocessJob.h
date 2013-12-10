@@ -26,15 +26,9 @@ class PreprocessJob : public ThreadPool::Job
 {
 public:
     PreprocessJob(Source &&source, Path &&project, IndexerJob::IndexType type);
-    void exec()
-    {
-        mAsync = false;
-        run();
-    }
 protected:
     virtual void run();
 private:
-    bool mAsync;
     Source mSource;
     Path mProject;
     const IndexerJob::IndexType mType;

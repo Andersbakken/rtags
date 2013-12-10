@@ -470,7 +470,7 @@ void Project::index(const Source &source, const std::shared_ptr<Cpp> &cpp, Index
 
     data.job.reset(new IndexerJob(type, mPath, source, cpp));
     mSyncTimer.stop();
-    Server::instance()->startJob(data.job);
+    Server::instance()->addJob(data.job);
 }
 
 void Project::dirty(const Path &file)

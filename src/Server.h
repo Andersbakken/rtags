@@ -71,14 +71,14 @@ public:
     };
     struct Options {
         Options()
-            : options(0), processCount(0), preprocessCount(0), unloadTimer(0),
+            : options(0), jobCount(0), unloadTimer(0),
               rpVisitFileTimeout(0), rpIndexerMessageTimeout(0), rpConnectTimeout(0),
-              syncThreshold(0), rescheduleTimeout(0), multicastTTL(0), tcpPort(0),
-              multicastPort(0)
+              syncThreshold(0),
+              rescheduleTimeout(0), multicastTTL(0), tcpPort(0), multicastPort(0)
         {}
         Path socketFile, dataDir;
         unsigned options;
-        int processCount, preprocessCount, unloadTimer, rpVisitFileTimeout,
+        int jobCount, unloadTimer, rpVisitFileTimeout,
             rpIndexerMessageTimeout, rpConnectTimeout, syncThreshold,
             rescheduleTimeout, multicastTTL;
         List<String> defaultArguments, excludeFilters;
@@ -94,7 +94,7 @@ public:
     uint32_t currentFileId() const { return mCurrentFileId; }
     bool saveFileIds() const;
     void onJobOutput(JobOutput&& out);
-    void startJob(const std::shared_ptr<IndexerJob> &job);
+    void addJob(const std::shared_ptr<IndexerJob> &job);
     std::shared_ptr<Project> project(const Path &path) const { return mProjects.value(path); }
     void index(const Source &source, const std::shared_ptr<Cpp> &cpp,
                const Path &project, IndexerJob::IndexType type);
@@ -167,7 +167,11 @@ private:
     void startNextJob();
     void fetchRemoteJobs(const String& ip, uint16_t port, uint16_t jobs);
 
-    int availableJobSlots() const;
+    enum JobSlotsMode {
+        Local,
+        Remote
+    };
+    int availableJobSlots(JobSlotsMode mode) const;
 
     typedef Hash<Path, std::shared_ptr<Project> > ProjectsMap;
     ProjectsMap mProjects;
@@ -184,7 +188,7 @@ private:
     std::shared_ptr<SocketClient> mMulticastSocket;
     LinkedList<std::shared_ptr<IndexerJob> > mPending;
     Hash<uint64_t, std::shared_ptr<IndexerJob> > mProcessingJobs;
-    Hash<Process*, std::shared_ptr<IndexerJob> > mLocalJobs;
+    Hash<Process*, std::pair<std::shared_ptr<IndexerJob>, uint64_t> > mLocalJobs;
     Hash<Connection*, uint16_t> mPendingJobRequests;
     ThreadPool *mThreadPool;
     unsigned int mRemotePending;

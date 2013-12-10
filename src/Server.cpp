@@ -120,7 +120,8 @@ bool Server::init(const Options &options)
     if (options.options & SpellChecking)
         mOptions.defaultArguments << "-fspell-checking";
     Log l(Error);
-    l << "using args:" << String::join(mOptions.defaultArguments, ' ') << '\n';
+    l << "Running with" << mOptions.jobCount << "jobs, using args:"
+      << String::join(mOptions.defaultArguments, ' ') << '\n';
     if (mOptions.tcpPort || mOptions.multicastPort) {
         if (mOptions.tcpPort)
             l << "tcp-port:" << mOptions.tcpPort;
@@ -205,8 +206,7 @@ bool Server::init(const Options &options)
 
         mTcpServer->newConnection().connect(std::bind(&Server::onNewConnection, this, std::placeholders::_1));
     }
-    if (mOptions.preprocessCount)
-        mThreadPool = new ThreadPool(mOptions.preprocessCount);
+    mThreadPool = new ThreadPool(mOptions.jobCount);
     return true;
 }
 
@@ -363,11 +363,7 @@ void Server::index(const String &arguments, const Path &pwd, const List<String> 
 void Server::preprocess(Source &&source, Path &&project, IndexerJob::IndexType type)
 {
     std::shared_ptr<PreprocessJob> job(new PreprocessJob(std::move(source), std::move(project), type));
-    if (mThreadPool) {
-        mThreadPool->start(job);
-    } else {
-        job->exec();
-    }
+    mThreadPool->start(job);
 }
 
 void Server::handleCompileMessage(CompileMessage &message, Connection *conn)
@@ -930,6 +926,7 @@ void Server::index(const Source &source, const std::shared_ptr<Cpp> &cpp, const 
     }
     assert(project);
     project->index(source, cpp, type);
+    startNextJob();
 }
 
 std::shared_ptr<Project> Server::setCurrentProject(const Path &path, unsigned int queryFlags) // lock always held
@@ -1148,13 +1145,14 @@ void Server::project(const QueryMessage &query, Connection *conn)
 void Server::jobCount(const QueryMessage &query, Connection *conn)
 {
     if (query.query().isEmpty()) {
-        conn->write<128>("Running with %d jobs", mOptions.processCount);
+        conn->write<128>("Running with %d jobs", mOptions.jobCount);
     } else {
         const int jobCount = query.query().toLongLong();
         if (jobCount <= 0 || jobCount > 100) {
             conn->write<128>("Invalid job count %s (%d)", query.query().constData(), jobCount);
         } else {
-            mOptions.processCount = jobCount;
+            mOptions.jobCount = jobCount;
+            mThreadPool->setConcurrentJobs(jobCount);
             conn->write<128>("Changed jobs to %d", jobCount);
         }
     }
@@ -1334,7 +1332,7 @@ void Server::handleJobResponseMessage(const JobResponseMessage &message, Connect
     }
     assert(job->type == IndexerJob::Remote);
     assert(job->state == IndexerJob::Pending);
-    startJob(job);
+    addJob(job);
 }
 
 void Server::handleVisitFileMessage(const VisitFileMessage &message, Connection *conn)
@@ -1448,13 +1446,20 @@ void Server::onMulticastReadyRead(const SocketClient::SharedPtr &socket,
     handleMulticastData(ip, port, buffer.data(), buffer.size(), 0);
 }
 
-inline int Server::availableJobSlots() const
+/*
+  We always give atleast one job to the "process pool" but otherwise active
+  threadpool jobs take precedence over rp's
+ */
+inline int Server::availableJobSlots(JobSlotsMode mode) const
 {
+    const int count = std::max(mOptions.jobCount - mThreadPool->busyThreads(), 1);
+    if (mode == Local)
+        return count;
     int ret = mLocalJobs.size();
     for (auto it : mPendingJobRequests) {
         ret += it.second;
     }
-    return std::max(0, mOptions.processCount - ret);
+    return std::max(0, count - ret);
 }
 
 void Server::handleMulticastData(const String &ip, uint16_t port,
@@ -1499,9 +1504,11 @@ void Server::handleMulticastData(const String &ip, uint16_t port,
         return;
     }
     if (jobs && tcpPort) {
-        const int maxJobs = std::min<int>(jobs, availableJobSlots());
+        const int maxJobs = std::min<int>(jobs, availableJobSlots(Remote));
         if (debugMulti)
-            error("available jobs %d available %d local %d pending %d processcount %d", jobs, availableJobSlots(), mLocalJobs.size(), mPendingJobRequests.size(), mOptions.processCount);
+            error("available jobs %d available %d local %d pending %d processcount %d",
+                  jobs, availableJobSlots(Remote), mLocalJobs.size(), mPendingJobRequests.size(),
+                  mOptions.jobCount);
         if (maxJobs > 0)
             fetchRemoteJobs(ip, tcpPort, maxJobs);
     }
@@ -1526,7 +1533,7 @@ void Server::fetchRemoteJobs(const String& ip, uint16_t port, uint16_t jobs)
     mPendingJobRequests[conn] = jobs;
 }
 
-void Server::startJob(const std::shared_ptr<IndexerJob> &job)
+void Server::addJob(const std::shared_ptr<IndexerJob> &job)
 {
     assert(job);
     mPending.push_back(job);
@@ -1537,7 +1544,7 @@ void Server::startJob(const std::shared_ptr<IndexerJob> &job)
 
 void Server::startNextJob()
 {
-    while (!mPending.isEmpty() && mLocalJobs.size() < mOptions.processCount) {
+    while (!mPending.isEmpty() && mLocalJobs.size() < availableJobSlots(Local)) {
         std::shared_ptr<IndexerJob> job = mPending.first();
         assert(job);
         if (job->state == IndexerJob::Complete) {
@@ -1553,7 +1560,7 @@ void Server::startNextJob()
             assert(job->process);
             if (debugMulti)
                 error() << "started job locally for" << job->sourceFile << job->id;
-            mLocalJobs[job->process] = job;
+            mLocalJobs[job->process] = std::make_pair(job, Rct::monoMs());
             mPending.pop_front();
             job->process->finished().connect(std::bind(&Server::onLocalJobFinished, this,
                                                        std::placeholders::_1));
@@ -1594,11 +1601,12 @@ void Server::onLocalJobFinished(Process *process)
     auto it = mLocalJobs.find(process);
     assert(it != mLocalJobs.end());
     if (debugMulti)
-        error() << "job finished" << it->second->type << process->errorString() << process->readAllStdErr();
-    if (it->second->type == IndexerJob::Remote) {
+        error() << "job finished" << it->second.first->type << process->errorString() << process->readAllStdErr();
+    if (it->second.first->type == IndexerJob::Remote) {
         --mRemotePending;
-        error() << "Built remote job" << it->second->sourceFile.toTilde() << "for"
-                << String::format<128>("%s:%d", it->second->destination.constData(), it->second->port);
+        error() << "Built remote job" << it->second.first->sourceFile.toTilde() << "for"
+                << String::format<128>("%s:%d", it->second.first->destination.constData(), it->second.first->port)
+                << "in" << (Rct::monoMs() - it->second.second) << "ms";
     }
     mLocalJobs.erase(it);
     EventLoop::deleteLater(process);

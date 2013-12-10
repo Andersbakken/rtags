@@ -95,7 +95,6 @@ static void usage(FILE *f)
             "  --allow-multiple-sources|-m                Without this setting different sources will be merged for each source file.\n"
             "  --unload-timer|-u [arg]                    Number of minutes to wait before unloading non-current projects (disabled by default).\n"
             "  --job-count|-j [arg]                       Spawn this many concurrent processes for indexing (default %d).\n"
-            "  --preprocess-count|-J [arg]                Spawn this many concurrent jobs for preprocessing (default %d).\n"
             "  --watch-system-paths|-w                    Watch system paths for changes.\n"
             "  --rp-visit-file-timeout|-t [arg]           Timeout for rp visitfile commands in ms (0 means no timeout) (default " STR(DEFAULT_RP_VISITFILE_TIMEOUT) ").\n"
             "  --rp-indexer-message-timeout|-T [arg]      Timeout for rp indexer-message in ms (0 means no timeout) (default " STR(DEFAULT_RP_INDEXER_MESSAGE_TIMEOUT) ").\n"
@@ -113,8 +112,7 @@ static void usage(FILE *f)
             "  --multicast-ttl|-B [arg]                   Set multicast TTL to arg.\n"
             "  --enable-compiler-flags|-K                 Query the compiler for default flags.\n"
             "  --reschedule-timeout|-R                    Timeout for rescheduling remote jobs (default " STR(DEFAULT_RESCHEDULE_TIMEOUT) ").\n",
-            ThreadPool::idealThreadCount(),
-            std::max(1, ThreadPool::idealThreadCount() / 2));
+            std::max(2, ThreadPool::idealThreadCount()));
 }
 
 int main(int argc, char** argv)
@@ -132,7 +130,6 @@ int main(int argc, char** argv)
         { "append", no_argument, 0, 'A' },
         { "verbose", no_argument, 0, 'v' },
         { "job-count", required_argument, 0, 'j' },
-        { "preprocess-count", required_argument, 0, 'J' },
         { "clean-slate", no_argument, 0, 'C' },
         { "enable-sighandler", no_argument, 0, 's' },
         { "silent", no_argument, 0, 'S' },
@@ -246,8 +243,7 @@ int main(int argc, char** argv)
 
     Server::Options serverOpts;
     serverOpts.socketFile = String::format<128>("%s.rdm", Path::home().constData());
-    serverOpts.processCount = ThreadPool::idealThreadCount();
-    serverOpts.preprocessCount = std::max(ThreadPool::idealThreadCount() / 2, 1);
+    serverOpts.jobCount = std::max(2, ThreadPool::idealThreadCount());
     serverOpts.rpVisitFileTimeout = DEFAULT_RP_VISITFILE_TIMEOUT;
     serverOpts.rpIndexerMessageTimeout = DEFAULT_RP_INDEXER_MESSAGE_TIMEOUT;
     serverOpts.rpConnectTimeout = DEFAULT_RP_CONNECT_TIMEOUT;
@@ -422,16 +418,9 @@ int main(int argc, char** argv)
             }
             break;
         case 'j':
-            serverOpts.processCount = atoi(optarg);
-            if (serverOpts.processCount <= 0) {
-                fprintf(stderr, "Can't parse argument to -j %s\n", optarg);
-                return 1;
-            }
-            break;
-        case 'J':
-            serverOpts.preprocessCount = atoi(optarg);
-            if (serverOpts.preprocessCount < 0) {
-                fprintf(stderr, "Can't parse argument to -J %s\n", optarg);
+            serverOpts.jobCount = atoi(optarg);
+            if (serverOpts.jobCount < 2) {
+                fprintf(stderr, "Can't parse argument to -j %s. -j must be a positive integer >= 2\n", optarg);
                 return 1;
             }
             break;
@@ -484,7 +473,6 @@ int main(int argc, char** argv)
                 logLevel, logFile ? logFile : "", logFlags);
         return 1;
     }
-    warning("Running with %d jobs", serverOpts.processCount);
 
     EventLoop::SharedPtr loop(new EventLoop);
     loop->init(EventLoop::MainEventLoop);
