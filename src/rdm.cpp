@@ -312,8 +312,6 @@ int main(int argc, char** argv)
                 fprintf(stderr, "Invalid argument to -O %s\n", optarg);
                 return 1;
             }
-            if (!serverOpts.rpConnectTimeout)
-                serverOpts.rpConnectTimeout = 0;
             break;
         case 'R':
             serverOpts.rescheduleTimeout = atoi(optarg);
