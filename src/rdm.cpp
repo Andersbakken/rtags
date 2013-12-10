@@ -81,7 +81,7 @@ static void usage(FILE *f)
             "  --no-spell-checking|-l                     Don't pass -fspell-checking.\n"
             "  --unlimited-error|-f                       Pass -ferror-limit=0 to clang.\n"
             "  --silent|-S                                No logging to stdout.\n"
-            "  --exclude-filter|-x [arg]                  Files to exclude from rdm, default \"" EXCLUDEFILTER_DEFAULT "\".\n"
+            "  --exclude-filter|-X [arg]                  Files to exclude from rdm, default \"" EXCLUDEFILTER_DEFAULT "\".\n"
             "  --sync-threshold|-y [arg]                  Automatically sync after [arg] files indexed.\n"
             "  --no-rc|-N                                 Don't load any rc files.\n"
             "  --ignore-printf-fixits|-F                  Disregard any clang fixit that looks like it's trying to fix format for printf and friends.\n"
@@ -107,7 +107,7 @@ static void usage(FILE *f)
             "  --disable-esprima|-E                       Don't use esprima\n"
             "  --multicast-address|-a [arg]               Use this address for multicast (default " DEFAULT_RDM_MULTICAST_ADDRESS ").\n"
             "  --multicast-port|-P [arg]                  Use this port for multicast (default " STR(DEFAULT_RDM_MULTICAST_PORT) ").\n"
-            "  --multicast-forward|-O [arg]               Remote host to forward multicast packages for.\n"
+            "  --multicast-forward|-x [arg]               Remote host to forward multicast packages for.\n"
             "  --multicast-ttl|-B [arg]                   Set multicast TTL to arg.\n"
             "  --enable-compiler-flags|-K                 Query the compiler for default flags.\n"
             "  --reschedule-timeout|-R                    Timeout for rescheduling remote jobs (default " STR(DEFAULT_RESCHEDULE_TIMEOUT) ").\n",
@@ -155,7 +155,7 @@ int main(int argc, char** argv)
         { "rp-indexer-message-timeout", required_argument, 0, 'T' },
         { "multicast-address", required_argument, 0, 'a' },
         { "multicast-port", required_argument, 0, 'P' },
-        { "multicast-forward", required_argument, 0, 'O' },
+        { "multicast-forward", required_argument, 0, 'x' },
         { "multicast-ttl", required_argument, 0, 'B' },
         { "tcp-port", required_argument, 0, 'p' },
         { "reschedule-timeout", required_argument, 0, 'R' },
@@ -277,7 +277,7 @@ int main(int argc, char** argv)
         case 'S':
             logLevel = -1;
             break;
-        case 'x':
+        case 'X':
             serverOpts.excludeFilters += String(optarg).split(';');
             break;
         case 'a':
@@ -316,10 +316,10 @@ int main(int argc, char** argv)
         case 'b':
             serverOpts.ignoredCompilers.insert(Path::resolved(optarg));
             break;
-        case 'O': {
+        case 'x': {
             const std::pair<String, uint16_t> forward = RTags::parseHost(optarg);
             if (forward.first.isEmpty()) {
-                fprintf(stderr, "Invalid argument to -O %s.\n", optarg);
+                fprintf(stderr, "Invalid argument to -x %s.\n", optarg);
                 return 1;
             }
             serverOpts.multicastForwards.insert(forward);
