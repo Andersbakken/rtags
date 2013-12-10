@@ -401,6 +401,13 @@ int main(int argc, char** argv)
                 return 1;
             }
             break;
+        case 'T':
+            serverOpts.rpIndexerMessageTimeout = atoi(optarg);
+            if (serverOpts.rpIndexerMessageTimeout <= 0) {
+                fprintf(stderr, "Can't parse argument to -T %s.\n", optarg);
+                return 1;
+            }
+            break;
         case 'j':
             serverOpts.processCount = atoi(optarg);
             if (serverOpts.processCount <= 0) {
