@@ -410,7 +410,7 @@ void Server::handleIndexerMessage(const IndexerMessage &message, Connection *con
     String ip;
     uint16_t port;
     if (conn->client()->peer(&ip, &port))
-        indexData->message << String::format<64>(" from %s:%d", ip.constData(), port);
+        indexData->message << String::format<64>(" from %s", ip.constData());
 
     project->onJobFinished(indexData);
     conn->finish();
