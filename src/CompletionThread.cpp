@@ -188,9 +188,10 @@ void CompletionThread::process(const Request *request)
     if (!cache->translationUnit) {
         sw.restart();
         // ### maybe skip function bodies
-        const unsigned int flags = (CXTranslationUnit_PrecompiledPreamble
-                                    |CXTranslationUnit_CacheCompletionResults
-                                    |CXTranslationUnit_SkipFunctionBodies);
+        const unsigned int flags = clang_defaultEditingTranslationUnitOptions();
+        // (CXTranslationUnit_PrecompiledPreamble
+        // |CXTranslationUnit_CacheCompletionResults
+        // |CXTranslationUnit_SkipFunctionBodies);
         RTags::parseTranslationUnit(sourceFile, request->source.arguments,
                                     Server::instance()->options().defaultArguments,
                                     // ### can these be modified?
@@ -198,8 +199,10 @@ void CompletionThread::process(const Request *request)
                                     &unsaved, unsaved.Length ? 1 : 0,
                                     flags);
         parseTime = sw.restart();
-        for (int i=0; i<2 && cache->translationUnit; ++i) {
-            RTags::reparseTranslationUnit(cache->translationUnit, &unsaved, unsaved.Length ? 1 : 0);
+        if (cache->translationUnit) {
+            RTags::reparseTranslationUnit(cache->translationUnit,
+                                          &unsaved,
+                                          unsaved.Length ? 1 : 0);
 
         }
         reparseTime = sw.elapsed();
