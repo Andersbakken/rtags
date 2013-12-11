@@ -58,6 +58,7 @@
 #include <rct/RegExp.h>
 #include <stdio.h>
 #include <arpa/inet.h>
+#include <limits>
 
 static const bool debugMulti = getenv("RDM_DEBUG_MULTI");
 
@@ -73,6 +74,7 @@ Server::Server()
 
     mUnloadTimer.timeout().connect(std::bind(&Server::onUnload, this));
     mRescheduleTimer.timeout().connect(std::bind(&Server::onReschedule, this));
+    mReconnectForwardsTimer.timeout().connect(std::bind(&Server::reconnectForwards, this));
 }
 
 Server::~Server()
@@ -284,10 +286,13 @@ void Server::onConnectionDisconnected(Connection *o)
     o->disconnected().disconnect();
     EventLoop::deleteLater(o);
     for (auto it = mMulticastForwards.begin(); it != mMulticastForwards.end(); ++it) {
-        if (it->second == o) {
-            error() << "Disconnected from host:"
-                    << String::format<64>("%s:%d", it->first.first.constData(), it->first.second);
-            mMulticastForwards.erase(it);
+        if (it->second.connection == o) {
+            it->second.connection = 0;
+            ++it->second.failures;
+            warning() << "Disconnected from host:"
+                      << String::format<64>("%s:%d", it->first.first.constData(), it->first.second)
+                      << it->second.failures;
+            EventLoop::eventLoop()->callLater(std::bind(&Server::reconnectForwards, this));
             break;
         }
     }
@@ -1468,7 +1473,7 @@ void Server::handleMulticastData(const String &ip, uint16_t port,
     if (!mMulticastForwards.isEmpty()) {
         const MulticastForwardMessage msg(ip, port, String(reinterpret_cast<const char*>(data), size));
         for (auto it = mMulticastForwards.begin(); it != mMulticastForwards.end(); ++it) {
-            if (it->second && it->second != source && !it->second->send(msg)) {
+            if (it->second.connection && it->second.connection != source && !it->second.connection->send(msg)) {
                 error() << "Unable to forward to"
                         << String::format<64>("%s:%d",
                                               it->first.first.constData(),
@@ -1583,7 +1588,7 @@ void Server::startNextJob()
     if (!mMulticastForwards.isEmpty()) {
         const MulticastForwardMessage msg(String(), 0, String(reinterpret_cast<const char*>(buf), sizeof(buf)));
         for (auto it = mMulticastForwards.begin(); it != mMulticastForwards.end(); ++it) {
-            if (it->second && !it->second->send(msg)) {
+            if (it->second.connection && !it->second.connection->send(msg)) {
                 error() << "Unable to forward to"
                         << String::format<64>("%s:%d",
                                               it->first.first.constData(),
@@ -1617,15 +1622,16 @@ void Server::handleMulticastForward(const QueryMessage &message, Connection *con
 {
     const String query = message.query();
     if (query.isEmpty()) {
+        reconnectForwards();
         assert(message.type() == QueryMessage::MulticastForward);
         for (auto it = mMulticastForwards.begin(); it != mMulticastForwards.end(); ++it) {
             conn->write<64>("%s:%d %s", it->first.first.constData(), it->first.second,
-                            (it->second && it->second->isConnected() ? "connected" : "not connected"));
+                            (it->second.connection && it->second.connection->isConnected() ? "connected" : "not connected"));
         }
     } else if (message.type() == QueryMessage::MulticastForward) {
         const std::pair<String, uint16_t> host = RTags::parseHost(query.constData());
         assert(!host.first.isEmpty());
-        if (mMulticastForwards.value(host)) {
+        if (mMulticastForwards.value(host).connection) {
             conn->write<64>("Already connected to host %s:%d", host.first.constData(), host.second);
         } else if (connectMulticastForward(host)) {
             conn->write<64>("Connecting to host %s:%d", host.first.constData(), host.second);
@@ -1636,10 +1642,15 @@ void Server::handleMulticastForward(const QueryMessage &message, Connection *con
         assert(message.type() == QueryMessage::RemoveMulticastForward);
         const std::pair<String, uint16_t> host = RTags::parseHost(query.constData());
         assert(!host.first.isEmpty());
-        Connection *c = mMulticastForwards.take(host);
-        if (c) {
-            conn->write<64>("Disconnecting forward to %s:%d", host.first.constData(), host.second);
-            c->finish();
+        bool ok;
+        Connection *c = mMulticastForwards.take(host, &ok).connection;
+        if (ok) {
+            if (c) {
+                conn->write<64>("Disconnecting forward to %s:%d", host.first.constData(), host.second);
+                c->finish();
+            } else {
+                conn->write<64>("Removed forward to %s:%d", host.first.constData(), host.second);
+            }
         } else {
             conn->write<64>("No forward to %s:%d", host.first.constData(), host.second);
         }
@@ -1648,21 +1659,28 @@ void Server::handleMulticastForward(const QueryMessage &message, Connection *con
 }
 bool Server::connectMulticastForward(const std::pair<String, uint16_t> &host)
 {
-    if (mMulticastForwards.value(host))
-        return true; // ### ???
-    Connection *conn = new Connection;
-    conn->newMessage().connect(std::bind(&Server::onNewMessage, this, std::placeholders::_1, std::placeholders::_2));
-    if (!conn->connectTcp(host.first, host.second)) {
+    Forward &forward = mMulticastForwards[host];
+    if (forward.connection)
+        return true;
+    forward.connection = new Connection;
+    forward.lastAttempt = Rct::monoMs();
+    forward.connection->newMessage().connect(std::bind(&Server::onNewMessage, this, std::placeholders::_1, std::placeholders::_2));
+    if (!forward.connection->connectTcp(host.first, host.second)) {
         error() << "Can't connect to multicast forwarding address"
                 << String::format<128>("%s:%d", host.first.constData(), host.second);
-        delete conn;
+        delete forward.connection;
+        forward.connection = 0;
+        ++forward.failures;
+        reconnectForwards();
         return false;
     }
-    conn->connected().connect(std::bind([host]() {
+    forward.connection->connected().connect(std::bind([this, host]() {
+                auto it = mMulticastForwards.find(host);
+                if (it != mMulticastForwards.end())
+                    it->second.failures = 0;
                 error() << "Connected to forwarding address"
                         << String::format<128>("%s:%d", host.first.constData(), host.second); }));
-    conn->disconnected().connect(std::bind(&Server::onConnectionDisconnected, this, std::placeholders::_1));
-    mMulticastForwards[host] = conn;
+    forward.connection->disconnected().connect(std::bind(&Server::onConnectionDisconnected, this, std::placeholders::_1));
     return true;
 }
 
@@ -1688,4 +1706,42 @@ void Server::stopServers()
     mUnixServer.reset();
     mTcpServer.reset();
     mProjects.clear();
+}
+
+static inline uint64_t connectTime(uint64_t lastAttempt, int failures)
+{
+    uint64_t wait = 0;
+    if (failures) {
+        wait = 1000;
+        for (int i=1; i<failures; ++i) {
+            wait *= 2;
+        }
+    }
+    return lastAttempt + wait;
+}
+
+void Server::reconnectForwards()
+{
+    const uint64_t now = Rct::monoMs();
+    uint64_t least = std::numeric_limits<uint64_t>::max();
+    List<std::pair<String, uint16_t> > hosts;
+    for (auto it = mMulticastForwards.begin(); it != mMulticastForwards.end(); ++it) {
+        if (!it->second.connection) {
+            const uint64_t time = connectTime(it->second.lastAttempt, it->second.failures);
+            if (time <= now) {
+                hosts.append(it->first);
+            } else {
+                least = std::min(least, time - now);
+            }
+        }
+    }
+    if (least != std::numeric_limits<uint64_t>::max()) {
+        mReconnectForwardsTimer.restart(least, Timer::SingleShot);
+    } else {
+        mReconnectForwardsTimer.stop();
+    }
+
+    for (auto it = hosts.begin(); it != hosts.end(); ++it) {
+        connectMulticastForward(*it); // extra lookup
+    }
 }

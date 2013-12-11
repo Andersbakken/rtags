@@ -157,6 +157,7 @@ private:
     void setupCurrentProjectFile(const std::shared_ptr<Project> &project);
     std::shared_ptr<Project> currentProject() const { return mCurrentProject.lock(); }
     int reloadProjects();
+    void reconnectForwards();
     std::shared_ptr<Project> addProject(const Path &path);
     bool connectMulticastForward(const std::pair<String, uint16_t> &host);
     void onMulticastReadyRead(const SocketClient::SharedPtr &socket, const String &ip,
@@ -182,7 +183,7 @@ private:
     SocketServer::SharedPtr mUnixServer, mTcpServer;
     bool mVerbose;
 
-    Timer mUnloadTimer, mRescheduleTimer;
+    Timer mUnloadTimer, mRescheduleTimer, mReconnectForwardsTimer;
 
     uint32_t mCurrentFileId;
     std::shared_ptr<SocketClient> mMulticastSocket;
@@ -193,7 +194,15 @@ private:
     ThreadPool *mThreadPool;
     unsigned int mRemotePending;
 
-    Map<std::pair<String, uint16_t>, Connection*> mMulticastForwards;
+    struct Forward {
+        Forward()
+            : connection(0), lastAttempt(Rct::monoMs()), failures(0)
+        {}
+        Connection *connection;
+        uint64_t lastAttempt;
+        int failures;
+    };
+    Map<std::pair<String, uint16_t>, Forward> mMulticastForwards;
 };
 
 #endif
