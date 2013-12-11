@@ -43,11 +43,9 @@ private:
         unsigned line, col;
         clang_getPresumedLocation(location, &file, &line, &col);
         assert(clang_getCString(file));
-        struct stat s;
-        if (!stat(clang_getCString(file), &s)) {
+        const Path path = RTags::eatString(file);
+        if (!path.isEmpty())
             return createLocation(RTags::eatString(file), line, col, blocked);
-        }
-        clang_disposeString(file);
         return Location();
     }
     Location createLocation(CXFile file, unsigned line, unsigned col, bool *blocked = 0)
@@ -63,7 +61,7 @@ private:
             clang_disposeString(fn);
             return Location();
         }
-        const Path p = Path::resolved(cstr);
+        const Path p = mLocalJob ? Path::resolved(cstr) : Path(cstr);
         clang_disposeString(fn);
         return createLocation(p, line, col, blocked);
     }
