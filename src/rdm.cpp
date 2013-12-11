@@ -105,12 +105,10 @@ static void usage(FILE *f)
             "  --no-filemanager-watch|-M                  Don't use a file system watcher for filemanager.\n"
 #endif
             "  --ignore-compiler|-b [arg]                 Alias this compiler (Might be practical to avoid duplicated sources for things like icecc).\n"
-            "  --disable-esprima|-E                       Don't use esprima\n"
             "  --multicast-address|-a [arg]               Use this address for multicast (default " DEFAULT_RDM_MULTICAST_ADDRESS ").\n"
             "  --multicast-port|-P [arg]                  Use this port for multicast (default " STR(DEFAULT_RDM_MULTICAST_PORT) ").\n"
             "  --multicast-forward|-x [arg]               Remote host to forward multicast packages for.\n"
             "  --multicast-ttl|-B [arg]                   Set multicast TTL to arg.\n"
-            "  --enable-compiler-flags|-K                 Query the compiler for default flags.\n"
             "  --reschedule-timeout|-R                    Timeout for rescheduling remote jobs (default " STR(DEFAULT_RESCHEDULE_TIMEOUT) ").\n",
             std::max(2, ThreadPool::idealThreadCount()));
 }
@@ -124,7 +122,6 @@ int main(int argc, char** argv)
         { "include-path", required_argument, 0, 'I' },
         { "define", required_argument, 0, 'D' },
         { "log-file", required_argument, 0, 'L' },
-        { "no-builtin-includes", no_argument, 0, 'U' },
         { "setenv", required_argument, 0, 'e' },
         { "no-Wall", no_argument, 0, 'W' },
         { "append", no_argument, 0, 'A' },
@@ -148,8 +145,6 @@ int main(int argc, char** argv)
         { "no-current-project", no_argument, 0, 'o' },
         { "ignore-compiler", required_argument, 0, 'b' },
         { "watch-system-paths", no_argument, 0, 'w' },
-        { "disable-esprima", no_argument, 0, 'E' },
-        { "enable-compiler-flags", no_argument, 0, 'K' },
         { "rp-visit-file-timout", required_argument, 0, 't' },
         { "rp-indexer-message-timeout", required_argument, 0, 'T' },
         { "rp-connect-timeout", required_argument, 0, 'O' },
@@ -347,12 +342,6 @@ int main(int argc, char** argv)
         case 'h':
             usage(stdout);
             return 0;
-        case 'K':
-            serverOpts.options |= Server::UseCompilerFlags;
-            break;
-        case 'E':
-            serverOpts.options |= Server::NoEsprima;
-            break;
         case 'm':
             serverOpts.options |= Server::AllowMultipleSources;
             break;
@@ -377,9 +366,6 @@ int main(int argc, char** argv)
             break;
         case 'l':
             serverOpts.options &= ~Server::SpellChecking;
-            break;
-        case 'U':
-            serverOpts.options |= Server::NoBuiltinIncludes;
             break;
         case 'W':
             serverOpts.options &= ~Server::Wall;

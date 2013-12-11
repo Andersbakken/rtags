@@ -193,8 +193,7 @@ void CompletionThread::process(const Request *request)
         // |CXTranslationUnit_CacheCompletionResults
         // |CXTranslationUnit_SkipFunctionBodies);
         RTags::parseTranslationUnit(sourceFile, request->source.arguments,
-                                    Server::instance()->options().defaultArguments,
-                                    // ### can these be modified?
+                                    List<String>(), // we don't want -fspell-checking and friends
                                     cache->translationUnit, mIndex,
                                     &unsaved, unsaved.Length ? 1 : 0,
                                     flags);

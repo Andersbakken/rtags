@@ -57,18 +57,15 @@ public:
     static Server *instance() { return sInstance; }
     enum Option {
         NoOptions = 0x0000,
-        NoBuiltinIncludes = 0x0001,
-        ClearProjects = 0x0002,
-        Wall = 0x0004,
-        IgnorePrintfFixits = 0x0008,
-        UnlimitedErrors = 0x0010,
-        SpellChecking = 0x0020,
-        AllowMultipleSources = 0x0040,
-        NoStartupCurrentProject = 0x0080,
-        WatchSystemPaths = 0x0100,
-        NoFileManagerWatch = 0x0200,
-        NoEsprima = 0x0400,
-        UseCompilerFlags = 0x0800
+        ClearProjects = 0x0001,
+        Wall = 0x0002,
+        IgnorePrintfFixits = 0x0004,
+        UnlimitedErrors = 0x0008,
+        SpellChecking = 0x0010,
+        AllowMultipleSources = 0x0020,
+        NoStartupCurrentProject = 0x0040,
+        WatchSystemPaths = 0x0080,
+        NoFileManagerWatch = 0x0100
     };
     struct Options {
         Options()

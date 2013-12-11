@@ -106,27 +106,22 @@ bool Server::init(const Options &options)
 
     mOptions = options;
     mRescheduleTimer.restart(mOptions.rescheduleTimeout);
-    if (options.options & NoBuiltinIncludes) {
-        mOptions.defaultArguments.append("-nobuiltininc");
-        mOptions.defaultArguments.append("-nostdinc++");
-    } else {
-        Path clangPath = Path::resolved(CLANG_INCLUDEPATH);
-        mOptions.includePaths.append(clangPath);
+    Path clangPath = Path::resolved(CLANG_INCLUDEPATH);
+    mOptions.includePaths.append(clangPath);
 #ifdef OS_Darwin
-        if (clangPath.exists()) {
-            clangPath += "../../../c++/v1/";
-            clangPath.resolve();
-            if (clangPath.isDir())
-                mOptions.includePaths.append(clangPath);
-            // this seems to be the only way we get things like cstdint
-        }
-#endif
+    if (clangPath.exists()) {
+        clangPath += "../../../c++/v1/";
+        clangPath.resolve();
+        if (clangPath.isDir())
+            mOptions.includePaths.append(clangPath);
+        // this seems to be the only way we get things like cstdint
     }
+#endif
 
     if (options.options & UnlimitedErrors)
-        mOptions.defaultArguments.append("-ferror-limit=0");
+        mOptions.defaultArguments << "-ferror-limit=0";
     if (options.options & Wall)
-        mOptions.defaultArguments.append("-Wall");
+        mOptions.defaultArguments << "-Wall";
     if (options.options & SpellChecking)
         mOptions.defaultArguments << "-fspell-checking";
     Log l(Error);
