@@ -47,6 +47,7 @@ public:
 
 int main(int argc, char **argv)
 {
+    setenv("LIBCLANG_NOTHREADS", "1", 0);
     signal(SIGSEGV, sigHandler);
     signal(SIGABRT, sigHandler);
     signal(SIGBUS, sigHandler);
