@@ -447,6 +447,7 @@ CXChildVisitResult ClangIndexer::indexVisitor(CXCursor cursor, CXCursor parent, 
         return CXChildVisit_Recurse;
 
     bool blocked = false;
+
     Location loc = indexer->createLocation(cursor, &blocked);
     if (blocked) {
         // error() << "blocked" << cursor;
@@ -978,7 +979,8 @@ bool ClangIndexer::parse()
         mCpp->preprocessed.constData(),
         static_cast<unsigned long>(mCpp->preprocessed.size())
     };
-    RTags::parseTranslationUnit(sourceFile, mSource.arguments, List<String>(), mUnit, mIndex, mClangLine, &unsaved, 1);
+    RTags::parseTranslationUnit(sourceFile, mSource.arguments, List<String>(), mUnit,
+                                mIndex, &unsaved, 1, 0, &mClangLine);
 
     mData->parseTime = mTimer.elapsed();
     warning() << "loading mUnit " << mClangLine << " " << (mUnit != 0);
@@ -994,8 +996,8 @@ bool ClangIndexer::parse()
             static_cast<unsigned long>(preprocessorOnly.size())
         };
         RTags::parseTranslationUnit(sourceFile, mSource.arguments, List<String>(),
-                                    mUnit, mIndex, mClangLine,
-                                    &preprocessorOnlyUnsaved, 1);
+                                    mUnit, mIndex, &preprocessorOnlyUnsaved, 1, 0,
+                                    &mClangLine);
     }
     if (mUnit) {
         clang_getInclusions(mUnit, ClangIndexer::inclusionVisitor, this);

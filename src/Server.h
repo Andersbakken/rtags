@@ -46,6 +46,7 @@ class VisitFileMessage;
 class JobRequestMessage;
 class JobResponseMessage;
 class MulticastForwardMessage;
+class CompletionThread;
 class Server
 {
 public:
@@ -124,35 +125,39 @@ private:
     void handleVisitFileMessage(const VisitFileMessage &message, Connection *conn);
     void handleJobRequestMessage(const JobRequestMessage &message, Connection *conn);
     void handleJobResponseMessage(const JobResponseMessage &message, Connection *conn);
-    void handleMulticastForward(const QueryMessage &message, Connection *conn);
     void handleMulticastForwardMessage(const MulticastForwardMessage &message, Connection *conn);
-    void isIndexing(const QueryMessage &, Connection *conn);
-    void removeFile(const QueryMessage &query, Connection *conn);
-    void followLocation(const QueryMessage &query, Connection *conn);
+
+    // Queries
+    void clearProjects(const QueryMessage &query, Connection *conn);
+    void codeCompleteAt(const QueryMessage &query, Connection *conn);
     void cursorInfo(const QueryMessage &query, Connection *conn);
     void dependencies(const QueryMessage &query, Connection *conn);
+    void dumpFile(const QueryMessage &query, Connection *conn);
+    void findFile(const QueryMessage &query, Connection *conn);
+    void findSymbols(const QueryMessage &query, Connection *conn);
     void fixIts(const QueryMessage &query, Connection *conn);
+    void followLocation(const QueryMessage &query, Connection *conn);
+    void handleMulticastForward(const QueryMessage &message, Connection *conn);
+    void hasFileManager(const QueryMessage &query, Connection *conn);
+    void isIndexed(const QueryMessage &query, Connection *conn);
+    void isIndexing(const QueryMessage &, Connection *conn);
     void jobCount(const QueryMessage &query, Connection *conn);
+    void listSymbols(const QueryMessage &query, Connection *conn);
+    void loadCompilationDatabase(const QueryMessage &query, Connection *conn);
+    void preprocessFile(const QueryMessage &query, Connection *conn);
+    void project(const QueryMessage &query, Connection *conn);
     void referencesForLocation(const QueryMessage &query, Connection *conn);
     void referencesForName(const QueryMessage &query, Connection *conn);
-    void findSymbols(const QueryMessage &query, Connection *conn);
-    void listSymbols(const QueryMessage &query, Connection *conn);
-    void status(const QueryMessage &query, Connection *conn);
-    void isIndexed(const QueryMessage &query, Connection *conn);
-    void hasFileManager(const QueryMessage &query, Connection *conn);
+    void reindex(const QueryMessage &query, Connection *conn);
     void reloadFileManager(const QueryMessage &query, Connection *conn);
-    void preprocessFile(const QueryMessage &query, Connection *conn);
-    void findFile(const QueryMessage &query, Connection *conn);
-    void dumpFile(const QueryMessage &query, Connection *conn);
-    void removeProject(const QueryMessage &query, Connection *conn);
     void reloadProjects(const QueryMessage &query, Connection *conn);
-    void project(const QueryMessage &query, Connection *conn);
-    void clearProjects(const QueryMessage &query, Connection *conn);
-    void loadCompilationDatabase(const QueryMessage &query, Connection *conn);
+    void removeFile(const QueryMessage &query, Connection *conn);
+    void removeProject(const QueryMessage &query, Connection *conn);
     void shutdown(const QueryMessage &query, Connection *conn);
     void sources(const QueryMessage &query, Connection *conn);
+    void status(const QueryMessage &query, Connection *conn);
     void suspendFile(const QueryMessage &query, Connection *conn);
-    void reindex(const QueryMessage &query, Connection *conn);
+
     std::shared_ptr<Project> updateProjectForLocation(const Match &match);
     void setupCurrentProjectFile(const std::shared_ptr<Project> &project);
     std::shared_ptr<Project> currentProject() const { return mCurrentProject.lock(); }
@@ -203,6 +208,8 @@ private:
         int failures;
     };
     Map<std::pair<String, uint16_t>, Forward> mMulticastForwards;
+
+    CompletionThread *mCompletionThread;
 };
 
 #endif

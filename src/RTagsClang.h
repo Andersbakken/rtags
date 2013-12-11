@@ -59,8 +59,10 @@ SymbolMap::const_iterator findCursorInfo(const SymbolMap &map, const Location &l
 
 void parseTranslationUnit(const Path &sourceFile, const List<String> &args,
                           const List<String> &defaultArguments,
-                          CXTranslationUnit &unit, CXIndex index, String &clangLine,
-                          CXUnsavedFile *unsaved, int unsavedCount);
+                          CXTranslationUnit &unit, CXIndex index,
+                          CXUnsavedFile *unsaved, int unsavedCount,
+                          unsigned int translationUnitFlags = 0,
+                          String *clangLine = 0);
 void reparseTranslationUnit(CXTranslationUnit &unit, CXUnsavedFile *unsaved, int unsavedCount);
 std::shared_ptr<Cpp> preprocess(const Source &source, const std::shared_ptr<Project> &project = std::shared_ptr<Project>());
 bool compile(const Path& output, const Source &source, const String& preprocessed);

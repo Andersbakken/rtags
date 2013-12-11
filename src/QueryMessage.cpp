@@ -25,13 +25,15 @@ QueryMessage::QueryMessage(Type type)
 void QueryMessage::encode(Serializer &serializer) const
 {
     serializer << mRaw << mQuery << mContext << mType << mFlags << mMax
-               << mMinLine << mMaxLine << mBuildIndex << mPathFilters << mProjects;
+               << mMinLine << mMaxLine << mBuildIndex << mPathFilters << mProjects
+               << mUnsavedFiles;
 }
 
 void QueryMessage::decode(Deserializer &deserializer)
 {
     deserializer >> mRaw >> mQuery >> mContext >> mType >> mFlags >> mMax
-                 >> mMinLine >> mMaxLine >> mBuildIndex >> mPathFilters >> mProjects;
+                 >> mMinLine >> mMaxLine >> mBuildIndex >> mPathFilters >> mProjects
+                 >> mUnsavedFiles;
 }
 
 unsigned QueryMessage::keyFlags(unsigned queryFlags)

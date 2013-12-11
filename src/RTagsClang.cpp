@@ -191,11 +191,14 @@ SymbolMap::const_iterator findCursorInfo(const SymbolMap &map, const Location &l
 
 void parseTranslationUnit(const Path &sourceFile, const List<String> &args,
                           const List<String> &defaultArguments,
-                          CXTranslationUnit &unit, CXIndex index, String &clangLine,
-                          CXUnsavedFile *unsaved, int unsavedCount)
+                          CXTranslationUnit &unit, CXIndex index,
+                          CXUnsavedFile *unsaved, int unsavedCount,
+                          unsigned int translationUnitFlags,
+                          String *clangLine)
 
 {
-    clangLine = "clang ";
+    if (clangLine)
+        *clangLine = "clang ";
 
     int idx = 0;
     List<const char*> clangArgs(args.size() + defaultArguments.size(), 0);
@@ -209,18 +212,21 @@ void parseTranslationUnit(const Path &sourceFile, const List<String> &args,
                 continue;
 
             clangArgs[idx++] = lists[i]->at(j).constData();
-            arg.replace("\"", "\\\"");
-            clangLine += arg;
-            clangLine += ' ';
+            if (clangLine) {
+                arg.replace("\"", "\\\"");
+                *clangLine += arg;
+                *clangLine += ' ';
+            }
         }
     }
 
-    clangLine += sourceFile;
+    if (clangLine)
+        *clangLine += sourceFile;
 
     StopWatch sw;
-    unsigned int flags = 0; // CXTranslationUnit_DetailedPreprocessingRecord; ### probably don't need this anymore
     unit = clang_parseTranslationUnit(index, sourceFile.constData(),
-                                      clangArgs.data(), idx, unsaved, unsavedCount, flags);
+                                      clangArgs.data(), idx, unsaved, unsavedCount,
+                                      translationUnitFlags);
     // error() << sourceFile << sw.elapsed();
 }
 

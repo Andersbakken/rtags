@@ -1,17 +1,17 @@
 /* This file is part of RTags.
 
-RTags is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
+   RTags is free software: you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation, either version 3 of the License, or
+   (at your option) any later version.
 
-RTags is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
+   RTags is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
 
-You should have received a copy of the GNU General Public License
-along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
+   You should have received a copy of the GNU General Public License
+   along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 
 #include "RClient.h"
 #include "CompileMessage.h"
@@ -28,6 +28,7 @@ enum OptionType {
     AllReferences,
     BuildIndex,
     Clear,
+    CodeCompleteAt,
     Compile,
     ConnectTimeout,
     ContainingFunction,
@@ -69,6 +70,7 @@ enum OptionType {
     MulticastForward,
     NoContext,
     PathFilter,
+    PrepareCodeCompleteAt,
     PreprocessFile,
     Project,
     QuitRdm,
@@ -159,8 +161,10 @@ struct Option opts[] = {
     { Dependencies, "dependencies", 0, required_argument, "Dump dependencies for source file." },
     { ReloadFileManager, "reload-file-manager", 'B', no_argument, "Reload file manager." },
     { Man, "man", 0, no_argument, "Output XML for xmltoman to generate man page for rc :-)" },
-    { MulticastForward, "multicast-forward", 'x', optional_argument, "Set up multicast forward for host or print the active ones. " },
-    { RemoveMulticastForward, "remove-multicast-forward", 0, required_argument, "Remove multicast forward for host. " },
+    { MulticastForward, "multicast-forward", 'x', optional_argument, "Set up multicast forward for host or print the active ones." },
+    { RemoveMulticastForward, "remove-multicast-forward", 0, required_argument, "Remove multicast forward for host." },
+    { CodeCompleteAt, "code-complete-at", 'l', required_argument, "Code complete at location: arg is file:line:col." },
+    { PrepareCodeCompleteAt, "prepare-code-complete-at", 'b', required_argument, "Prepare code completion at location: arg is file:line:col." },
 
     { None, 0, 0, 0, "" },
     { None, 0, 0, 0, "Command flags:" },
@@ -312,6 +316,7 @@ public:
         msg.setQuery(query);
         msg.setBuildIndex(rc->buildIndex());
         msg.setContext(rc->context());
+        msg.setUnsavedFiles(rc->unsavedFiles());
         msg.setFlags(extraQueryFlags | rc->queryFlags());
         msg.setMax(rc->max());
         msg.setPathFilters(rc->pathFilters().toList());
@@ -642,6 +647,28 @@ bool RClient::parse(int &argc, char **argv)
         case Verbose:
             ++mLogLevel;
             break;
+        case PrepareCodeCompleteAt:
+        case CodeCompleteAt: {
+            const String arg = optarg;
+            List<RegExp::Capture> caps;
+            RegExp rx("^\\(.*\\):\\([0-9][0-9]*\\):\\([0-9][0-9]*\\)$");
+            if (rx.indexIn(arg, 0, &caps) != 0 || caps.size() != 4) {
+                fprintf(stderr, "Can't decode argument for --code-complete-at [%s]\n", optarg);
+                return false;
+            }
+            const Path path = Path::resolved(caps[1].capture, Path::MakeAbsolute);
+            if (!path.isFile()) {
+                fprintf(stderr, "Can't decode argument for --code-complete-at [%s]\n", optarg);
+                return false;
+            }
+
+            String out;
+            {
+                Serializer serializer(out);
+                serializer << path << atoi(caps[2].capture.constData()) << atoi(caps[3].capture.constData());
+            }
+            addQuery(opt->option == CodeCompleteAt ? QueryMessage::CodeCompleteAt : QueryMessage::PrepareCodeCompleteAt, out);
+            break; }
         case Silent:
             mLogLevel = -1;
             break;

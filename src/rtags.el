@@ -1929,7 +1929,7 @@ References to references will be treated as references to the referenced symbol"
     (with-temp-buffer
       (if text
           (insert text))
-      (rtags-call-rc :path path :unsaved buffer "-x" (format "%s:%d:%d" path line column)))
+      (rtags-call-rc :path path :unsaved buffer "-l" (format "%s:%d:%d" path line column)))
     )
   )
 

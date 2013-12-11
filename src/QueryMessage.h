@@ -29,6 +29,7 @@ public:
     enum { MessageId = QueryId };
     enum Type {
         ClearProjects,
+        CodeCompleteAt,
         CursorInfo,
         DeleteProject,
         Dependencies,
@@ -45,6 +46,7 @@ public:
         ListSymbols,
         LoadCompilationDatabase,
         MulticastForward,
+        PrepareCodeCompleteAt,
         PreprocessFile,
         Project,
         ReferencesLocation,
@@ -95,6 +97,9 @@ public:
         mPathFilters = pathFilters;
         std::sort(mPathFilters.begin(), mPathFilters.end());
     }
+
+    void setUnsavedFiles(const Hash<Path, String> &unsavedFiles) { mUnsavedFiles = unsavedFiles; }
+    const Hash<Path, String> &unsavedFiles() const { return mUnsavedFiles; }
 
     void setContext(const String &context) { mContext = context; }
     String context() const { return mContext; }
@@ -154,6 +159,7 @@ private:
     int mMax, mMinLine, mMaxLine, mBuildIndex;
     List<String> mPathFilters;
     List<String> mProjects;
+    Hash<Path, String> mUnsavedFiles;
 };
 
 DECLARE_NATIVE_TYPE(QueryMessage::Type);

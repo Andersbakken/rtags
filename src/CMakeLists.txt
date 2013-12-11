@@ -75,6 +75,7 @@ add_library(shared SHARED ${RTAGS_SHARED_SOURCES})
 target_link_libraries(shared rct)
 
 set(RDM_SOURCES
+  CompletionThread.cpp
   CursorInfo.cpp
   CursorInfoJob.cpp
   DependenciesJob.cpp

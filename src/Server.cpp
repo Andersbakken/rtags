@@ -15,6 +15,7 @@
 
 #include "Server.h"
 
+#include "CompletionThread.h"
 #include "CompileMessage.h"
 #include "CreateOutputMessage.h"
 #include "CursorInfoJob.h"
@@ -64,7 +65,7 @@ static const bool debugMulti = getenv("RDM_DEBUG_MULTI");
 
 Server *Server::sInstance = 0;
 Server::Server()
-    : mVerbose(false), mCurrentFileId(0), mThreadPool(0), mRemotePending(0)
+    : mVerbose(false), mCurrentFileId(0), mThreadPool(0), mRemotePending(0), mCompletionThread(0)
 {
     Messages::registerMessage<JobRequestMessage>();
     Messages::registerMessage<JobResponseMessage>();
@@ -79,6 +80,13 @@ Server::Server()
 
 Server::~Server()
 {
+    if (mCompletionThread) {
+        mCompletionThread->stop();
+        mCompletionThread->join();
+        delete mCompletionThread;
+        mCompletionThread = 0;
+    }
+
     clear();
     assert(sInstance == this);
     sInstance = 0;
@@ -424,6 +432,10 @@ void Server::handleQueryMessage(const QueryMessage &message, Connection *conn)
         break;
     case QueryMessage::Sources:
         sources(message, conn);
+        break;
+    case QueryMessage::CodeCompleteAt:
+    case QueryMessage::PrepareCodeCompleteAt:
+        codeCompleteAt(message, conn);
         break;
     case QueryMessage::SuspendFile:
         suspendFile(message, conn);
@@ -999,7 +1011,7 @@ std::shared_ptr<Project> Server::updateProjectForLocation(const Match &match)
         return cur;
 
     for (ProjectsMap::const_iterator it = mProjects.begin(); it != mProjects.end(); ++it) {
-        if (it->second->match(match)) {
+        if (it->second != cur && it->second->match(match)) {
             return setCurrentProject(it->second->path());
         }
     }
@@ -1746,4 +1758,38 @@ void Server::reconnectForwards()
     for (auto it = hosts.begin(); it != hosts.end(); ++it) {
         connectMulticastForward(*it); // extra lookup
     }
+}
+
+void Server::codeCompleteAt(const QueryMessage &query, Connection *conn)
+{
+    const String q = query.query();
+    Deserializer deserializer(q);
+    Path path;
+    int line, column;
+    deserializer >> path >> line >> column;
+    std::shared_ptr<Project> project = updateProjectForLocation(path);
+    if (!project) {
+        conn->write<128>("No project found for %s", path.constData());
+        conn->finish();
+        return;
+    }
+    const uint32_t fileId = Location::insertFile(path);
+    const Source source = project->sources(fileId).value(query.buildIndex());
+    if (source.isNull()) {
+        conn->write<128>("No source found for %s", path.constData());
+        conn->finish();
+        return;
+    }
+    if (!mCompletionThread) {
+        mCompletionThread = new CompletionThread(10); // ### need setting
+        mCompletionThread->start();
+    }
+
+    const Location loc(fileId, line, column);
+    unsigned int flags = CompletionThread::None;
+    if (query.type() == QueryMessage::PrepareCodeCompleteAt)
+        flags |= CompletionThread::Silent;
+    mCompletionThread->completeAt(source, loc, flags, query.unsavedFiles().value(path));
+    conn->finish();
+    error() << "Got completion" << query.type() << path << line << column;
 }
