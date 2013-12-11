@@ -76,10 +76,10 @@ bool ClangIndexer::index(IndexerJob::IndexType type, const Source &source,
     for (auto it = cpp->visited.begin(); it != cpp->visited.end(); ++it) {
         if (it->second != mSource.fileId) {
             mData->visited[it->second] = true;
-            FILE *f = fopen((String("/tmp/") + source.sourceFile().fileName()).constData(), "a");
-            fprintf(f, "%s => %d (%s:%d)\n", it->first.constData(), it->second, mSource.sourceFile().constData(), mSource.fileId);
-            fclose(f);
-            fflush(f);
+            // FILE *f = fopen((String("/tmp/") + source.sourceFile().fileName()).constData(), "a");
+            // fprintf(f, "%s => %d (%s:%d)\n", it->first.constData(), it->second, mSource.sourceFile().constData(), mSource.fileId);
+            // fclose(f);
+            // fflush(f);
             Location::set(it->first, it->second);
         }
     }
