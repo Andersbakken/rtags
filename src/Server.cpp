@@ -883,9 +883,10 @@ void Server::reindex(const QueryMessage &query, Connection *conn)
     conn->finish();
 }
 
-
 bool Server::shouldIndex(const Source &source, const Path &srcRoot) const
 {
+    if (srcRoot.isEmpty())
+        return false;
     assert(source.isIndexable());
     if (mOptions.ignoredCompilers.contains(source.compiler()))
         return false;
