@@ -1346,11 +1346,13 @@ void Server::handleVisitFileMessage(const VisitFileMessage &message, Connection 
     bool visit = false;
 
     std::shared_ptr<Project> project = mProjects.value(message.project());
+    Path resolved;
     if (project) {
-        fileId = Location::insertFile(message.file());
+        resolved = message.file().resolved();
+        fileId = Location::insertFile(resolved);
         visit = project->visitFile(fileId, message.key());
     }
-    VisitFileResponseMessage msg(fileId, visit);
+    VisitFileResponseMessage msg(fileId, resolved, visit);
     conn->send(msg);
 }
 

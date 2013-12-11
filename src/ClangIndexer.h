@@ -109,10 +109,12 @@ private:
     StopWatch mTimer;
     int mParseDuration, mVisitDuration, mCommunicationDuration, mBlocked, mAllowed,
         mIndexed, mVisitFileTimeout, mIndexerMessageTimeout, mFileIdsQueried;
+    Path mVisitFileRepsonseMessageResolved;
     std::shared_ptr<Cpp> mCpp;
     Connection mConnection;
     uint64_t mId;
     FILE *mLogFile;
+    bool mLocalJob;
 };
 
 #endif

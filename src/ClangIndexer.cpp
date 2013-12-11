@@ -31,7 +31,8 @@ ClangIndexer::ClangIndexer()
     : mUnit(0), mIndex(0), mLastCursor(nullCursor), mVisitFileResponseMessageFileId(0),
       mVisitFileResponseMessageVisit(0), mParseDuration(0), mVisitDuration(0),
       mCommunicationDuration(0), mBlocked(0), mAllowed(0), mIndexed(1), mVisitFileTimeout(0),
-      mIndexerMessageTimeout(0), mFileIdsQueried(0), mId(0), mLogFile(0)
+      mIndexerMessageTimeout(0), mFileIdsQueried(0), mId(0), mLogFile(0),
+      mLocalJob(false)
 {
     mConnection.newMessage().connect(std::bind(&ClangIndexer::onMessage, this,
                                                std::placeholders::_1, std::placeholders::_2));
@@ -49,6 +50,7 @@ ClangIndexer::~ClangIndexer()
 
 bool ClangIndexer::connect(const Path &serverFile, int timeout)
 {
+    mLocalJob = true;
     return mConnection.connectUnix(serverFile, timeout);
 }
 
@@ -142,6 +144,7 @@ void ClangIndexer::onMessage(Message *msg, Connection *conn)
     const VisitFileResponseMessage *vm = static_cast<VisitFileResponseMessage*>(msg);
     mVisitFileResponseMessageVisit = vm->visit();
     mVisitFileResponseMessageFileId = vm->fileId();
+    mVisitFileRepsonseMessageResolved = vm->resolved();
     assert(EventLoop::eventLoop());
     EventLoop::eventLoop()->quit();
 }
@@ -150,7 +153,7 @@ Location ClangIndexer::createLocation(const Path &sourceFile, unsigned line, uns
 {
     uint32_t id = Location::fileId(sourceFile);
     Path resolved;
-    if (!id) {
+    if (!id && mLocalJob) {
         resolved = sourceFile.resolved();
         id = Location::fileId(resolved);
         if (id)
@@ -170,7 +173,7 @@ Location ClangIndexer::createLocation(const Path &sourceFile, unsigned line, uns
                 // whether or not to index it. This is a little hairy but we
                 // have to try to optimize this process.
 #ifndef NDEBUG
-                if (resolved.isEmpty())
+                if (mLocalJob && resolved.isEmpty())
                     resolved = sourceFile.resolved();
 #endif
                 assert(mBlockedFiles.contains(sourceFile) || mBlockedFiles.contains(resolved));
@@ -186,6 +189,8 @@ Location ClangIndexer::createLocation(const Path &sourceFile, unsigned line, uns
     }
 
     ++mFileIdsQueried;
+    if (mLocalJob)
+        resolved = sourceFile;
     VisitFileMessage msg(resolved, mProject, mData->key);
 
     mVisitFileResponseMessageFileId = 0;
@@ -204,6 +209,8 @@ Location ClangIndexer::createLocation(const Path &sourceFile, unsigned line, uns
         ++mIndexed;
     // fprintf(mLogFile, "%s %s\n", file.second ? "WON" : "LOST", resolved.constData());
 
+    if (!mLocalJob)
+        resolved = mVisitFileRepsonseMessageResolved;
     Location::set(resolved, id);
     if (resolved != sourceFile)
         Location::set(sourceFile, id);

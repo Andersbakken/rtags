@@ -25,18 +25,20 @@ class VisitFileResponseMessage : public ClientMessage
 public:
     enum { MessageId = VisitFileResponseId };
 
-    VisitFileResponseMessage(uint32_t fileId = 0, bool visit = false)
-        : ClientMessage(MessageId), mFileId(fileId), mVisit(visit)
+    VisitFileResponseMessage(uint32_t fileId = 0, const Path &resolved = Path(), bool visit = false)
+        : ClientMessage(MessageId), mFileId(fileId), mResolved(resolved), mVisit(visit)
     {
     }
 
     uint32_t fileId() const { return mFileId; }
+    Path resolved() const { return mResolved; }
     bool visit() const { return mVisit; }
 
-    void encode(Serializer &serializer) const { serializer << mFileId << mVisit; }
-    void decode(Deserializer &deserializer) { deserializer >> mFileId >> mVisit; }
+    void encode(Serializer &serializer) const { serializer << mFileId << mResolved << mVisit; }
+    void decode(Deserializer &deserializer) { deserializer >> mFileId >> mResolved >> mVisit; }
 private:
     uint32_t mFileId;
+    Path mResolved;
     bool mVisit;
 };
 
