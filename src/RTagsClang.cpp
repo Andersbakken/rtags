@@ -278,7 +278,11 @@ static inline void processArgs(clang::HeaderSearchOptions &headerSearchOptions,
         case SystemInclude: {
             const Path path = Path::resolved(arg);
             // error() << "Adding system include" << path;
-            headerSearchOptions.AddPath(clang::StringRef(path.constData(), path.size()), clang::frontend::System, false, false);
+            headerSearchOptions.AddPath(clang::StringRef(path.constData(), path.size()), clang::frontend::System,
+#if CLANG_VERSION_MINOR < 3
+                                        false,
+#endif
+                                        false, false);
             type = Pending;
             break; }
         }
@@ -315,7 +319,12 @@ bool compile(const Path& output, const Source &source, const String& preprocesse
     clang::CompilerInstance compilerInstance;
     compilerInstance.createFileManager();
     assert(compilerInstance.hasFileManager());
+
+#if CLANG_VERSION_MINOR >= 3
     compilerInstance.createDiagnostics();
+#else
+    compilerInstance.createDiagnostics(0, 0);
+#endif
     assert(compilerInstance.hasDiagnostics());
 
     clang::FileManager &fm = compilerInstance.getFileManager();
@@ -333,7 +342,13 @@ bool compile(const Path& output, const Source &source, const String& preprocesse
     clang::TargetOptions &targetOptions = compilerInstance.getTargetOpts();
     targetOptions.Triple = llvm::sys::getDefaultTargetTriple();
     clang::DiagnosticsEngine& diags = compilerInstance.getDiagnostics();
-    compilerInstance.setTarget(clang::TargetInfo::CreateTargetInfo(diags, &targetOptions));
+    compilerInstance.setTarget(clang::TargetInfo::CreateTargetInfo(diags,
+#if CLANG_VERSION_MINOR < 3
+                                                                   targetOptions
+#else
+                                                                   &targetOptions
+#endif
+                                   ));
     clang::LangOptions &langOpts = compilerInstance.getLangOpts();
 
     clang::InputKind ik;
@@ -348,8 +363,10 @@ bool compile(const Path& output, const Source &source, const String& preprocesse
         break;
     }
     compilerInstance.getInvocation().setLangDefaults(langOpts, ik);
+#if CLANG_VERSION_MINOR >= 3
     if (source.language == Source::CPlusPlus11)
         langOpts.CPlusPlus11 = true;
+#endif
 
     clang::FrontendInputFile input(src, ik);
 
@@ -357,7 +374,13 @@ bool compile(const Path& output, const Source &source, const String& preprocesse
     feopts.ProgramAction = clang::frontend::EmitObj;
     feopts.Inputs.push_back(input);
 
-    compilerInstance.setTarget(clang::TargetInfo::CreateTargetInfo(compilerInstance.getDiagnostics(), &compilerInstance.getTargetOpts()));
+    compilerInstance.setTarget(clang::TargetInfo::CreateTargetInfo(compilerInstance.getDiagnostics(),
+#if CLANG_VERSION_MINOR < 3
+                                                                   compilerInstance.getTargetOpts()
+#else
+                                                                   &compilerInstance.getTargetOpts()
+#endif
+                                                                   ));
     compilerInstance.getTarget().setForcedLangOptions(langOpts);
 
     // ### ???
@@ -380,7 +403,9 @@ bool compile(const Path& output, const Source &source, const String& preprocesse
     emitact.Execute();
     emitact.EndSourceFile();
 
+#if CLANG_VERSION_MINOR >= 3
     LLVMShutdown();
+#endif
 
 #endif
     return true;
@@ -428,7 +453,11 @@ std::shared_ptr<Cpp> preprocess(const Source &source, const std::shared_ptr<Proj
     Compiler compilerInstance;
     compilerInstance.createFileManager();
     assert(compilerInstance.hasFileManager());
+#if CLANG_VERSION_MINOR >= 3
     compilerInstance.createDiagnostics();
+#else
+    compilerInstance.createDiagnostics(0, 0);
+#endif
     assert(compilerInstance.hasDiagnostics());
     clang::DiagnosticsEngine& diags = compilerInstance.getDiagnostics();
     clang::FileManager &fm = compilerInstance.getFileManager();
@@ -453,11 +482,19 @@ std::shared_ptr<Cpp> preprocess(const Source &source, const std::shared_ptr<Proj
     targetOptions.Triple = llvm::sys::getDefaultTargetTriple();
     clang::TextDiagnosticBuffer diagnosticsClient;
     diags.setClient(&diagnosticsClient, false);
-    compilerInstance.setTarget(clang::TargetInfo::CreateTargetInfo(diags, &targetOptions));
+    compilerInstance.setTarget(clang::TargetInfo::CreateTargetInfo(diags,
+#if CLANG_VERSION_MINOR < 3
+                                                                   targetOptions
+#else
+                                                                   &targetOptions
+#endif
+                                   ));
     clang::LangOptions &langOpts = compilerInstance.getLangOpts();
     switch (source.language) {
     case Source::CPlusPlus11:
+#if CLANG_VERSION_MINOR >= 3
         langOpts.CPlusPlus11 = true;
+#endif
         langOpts.CPlusPlus = true;
         break;
     case Source::CPlusPlus:
@@ -479,7 +516,11 @@ std::shared_ptr<Cpp> preprocess(const Source &source, const std::shared_ptr<Proj
 
     headerSearchOptions.Sysroot = sysRoot;
     {
-        clang::driver::Driver driver("clang", llvm::sys::getDefaultTargetTriple(), "a.out", diags);
+        clang::driver::Driver driver("clang", llvm::sys::getDefaultTargetTriple(), "a.out",
+#if CLANG_VERSION_MINOR < 3
+                                     true, // is_production, no idea what it means
+#endif
+                                     diags);
         std::vector<String> copies; // not cool
         std::vector<const char*> args;
         const Path compiler = source.compiler();
@@ -512,12 +553,20 @@ std::shared_ptr<Cpp> preprocess(const Source &source, const std::shared_ptr<Proj
     for (List<Path>::const_iterator it = source.includePaths.begin(); it != source.includePaths.end(); ++it) {
         // error() << "Adding -I" << *it;
         headerSearchOptions.AddPath(clang::StringRef(it->constData(), it->size()),
-                                    clang::frontend::Angled, false, true);
+                                    clang::frontend::Angled,
+#if CLANG_VERSION_MINOR < 3
+                                    false,
+#endif
+                                    false, true);
     }
     for (List<Path>::const_iterator it = options.includePaths.begin(); it != options.includePaths.end(); ++it) {
         // error() << "Adding -I" << *it;
         headerSearchOptions.AddPath(clang::StringRef(it->constData(), it->size()),
-                                    clang::frontend::System, false, true);
+                                    clang::frontend::System,
+#if CLANG_VERSION_MINOR < 3
+                                    false,
+#endif
+                                    false, true);
     }
 
     compilerInstance.createPreprocessor();
@@ -545,7 +594,11 @@ std::shared_ptr<Cpp> preprocess(const Source &source, const std::shared_ptr<Proj
     StringOStream out(&cpp->preprocessed);
     cpp->time = now;
     clang::Preprocessor &preprocessor = compilerInstance.getPreprocessor();
-    preprocessor.createPreprocessingRecord();
+    preprocessor.createPreprocessingRecord(
+#if CLANG_VERSION_MINOR < 3
+    true
+#endif
+        );
     clang::DoPrintPreprocessedInput(preprocessor, &out, preprocessorOptions);
     struct {
         const Cpp::Diagnostic::Type type;

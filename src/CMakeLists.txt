@@ -113,16 +113,16 @@ else ()
   set(END_GROUP "-Wl,--end-group")
 endif ()
 
-add_executable(clangtest clangtest.c)
-target_link_libraries(clangtest
-  ${LLVM_LDFLAGS}
-  ${START_GROUP}
-  ${CLANG_LIBS}
-  ${LLVM_LIBNAMES}
-  ${END_GROUP}
-  -lstdc++
-  ${SYSTEM_LIBS}
-)
+# add_executable(clangtest clangtest.c)
+# target_link_libraries(clangtest
+#   ${LLVM_LDFLAGS}
+#   ${START_GROUP}
+#   ${CLANG_LIBS}
+#   ${LLVM_LIBNAMES}
+#   ${END_GROUP}
+#   -lstdc++
+#   ${SYSTEM_LIBS}
+# )
 
 add_executable(rc rc.cpp RClient.cpp)
 add_dependencies(rc rct shared)

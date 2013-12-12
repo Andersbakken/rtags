@@ -140,7 +140,9 @@ private:
     void isIndexing(const QueryMessage &, Connection *conn);
     void jobCount(const QueryMessage &query, Connection *conn);
     void listSymbols(const QueryMessage &query, Connection *conn);
+#if defined(HAVE_CXCOMPILATIONDATABASE) && CLANG_VERSION_MINOR >= 3
     void loadCompilationDatabase(const QueryMessage &query, Connection *conn);
+#endif
     void preprocessFile(const QueryMessage &query, Connection *conn);
     void project(const QueryMessage &query, Connection *conn);
     void referencesForLocation(const QueryMessage &query, Connection *conn);

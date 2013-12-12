@@ -468,9 +468,11 @@ void Server::handleQueryMessage(const QueryMessage &message, Connection *conn)
     case QueryMessage::Project:
         project(message, conn);
         break;
+#if defined(HAVE_CXCOMPILATIONDATABASE) && CLANG_VERSION_MINOR >= 3
     case QueryMessage::LoadCompilationDatabase:
         loadCompilationDatabase(message, conn);
         break;
+#endif
     case QueryMessage::Reindex: {
         reindex(message, conn);
         break; }
@@ -1179,9 +1181,9 @@ void Server::clearProjects(const QueryMessage &query, Connection *conn)
     conn->finish();
 }
 
+#if defined(HAVE_CXCOMPILATIONDATABASE) && CLANG_VERSION_MINOR >= 3
 void Server::loadCompilationDatabase(const QueryMessage &query, Connection *conn)
 {
-#if defined(HAVE_CXCOMPILATIONDATABASE)
     const Path path = query.query();
     // ### this will ignore the actual file name, not sure how to fix that
     CXCompilationDatabase_Error err;
@@ -1214,11 +1216,8 @@ void Server::loadCompilationDatabase(const QueryMessage &query, Connection *conn
     clang_CompilationDatabase_dispose(db);
     conn->write("Compilation database loaded");
     conn->finish();
-#else
-    conn->write("No JSON parser available.");
-#endif
-    conn->finish();
 }
+#endif
 
 void Server::shutdown(const QueryMessage &query, Connection *conn)
 {

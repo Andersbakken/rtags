@@ -62,7 +62,9 @@ enum OptionType {
     IsIndexing,
     JobCount,
     ListSymbols,
+#if defined(HAVE_CXCOMPILATIONDATABASE) && CLANG_VERSION_MINOR >= 3
     LoadCompilationDatabase,
+#endif
     LogFile,
     Man,
     MatchCaseInsensitive,
@@ -134,7 +136,9 @@ struct Option opts[] = {
     { None, 0, 0, 0, "" },
     { None, 0, 0, 0, "Indexing commands:" },
     { Compile, "compile", 'c', required_argument, "Pass compilation arguments to rdm." },
+#if defined(HAVE_CXCOMPILATIONDATABASE) && CLANG_VERSION_MINOR >= 3
     { LoadCompilationDatabase, "load-compilation-database", 'J', optional_argument, "Load compile_commands.json from directory" },
+#endif
     { SuspendFile, "suspend-file", 'X', optional_argument, "Dump suspended files (don't track changes in these files) with no arg. Otherwise toggle suspension for arg." },
 
     { None, 0, 0, 0, "" },
@@ -853,6 +857,7 @@ bool RClient::parse(int &argc, char **argv)
             if (type == QueryMessage::Project)
                 projectCommands.append(std::static_pointer_cast<QueryCommand>(mCommands.back()));
             break; }
+#if defined(HAVE_CXCOMPILATIONDATABASE) && CLANG_VERSION_MINOR >= 3
         case LoadCompilationDatabase: {
             Path dir;
             if (optarg) {
@@ -880,6 +885,7 @@ bool RClient::parse(int &argc, char **argv)
             }
             addQuery(QueryMessage::LoadCompilationDatabase, dir);
             break; }
+#endif
         case HasFileManager: {
             Path p;
             if (optarg) {
