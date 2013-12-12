@@ -43,7 +43,11 @@ struct Source
         String define;
         String value;
 
-        inline String toString() const;
+        enum Flag {
+            None = 0x0,
+            Quote = 0x1
+        };
+        inline String toString(unsigned int flags = 0) const;
         inline bool operator==(const Define &other) const { return !compare(other); }
         inline int compare(const Source::Define &other) const
         {
@@ -221,7 +225,7 @@ static inline Log operator<<(Log dbg, const Source::Define &def)
     return dbg;
 }
 
-inline String Source::Define::toString() const
+inline String Source::Define::toString(unsigned int flags) const
 {
     String ret;
     ret.reserve(2 + define.size() + value.size() + 1);
@@ -229,7 +233,14 @@ inline String Source::Define::toString() const
     ret += define;
     if (!value.isEmpty()) {
         ret += '=';
-        ret += value;
+        if (flags & Quote) {
+            String out = value;
+            out.replace("\\", "\\\\");
+            out.replace("\"", "\\\"");
+            ret += out;
+        } else {
+            ret += value;
+        }
     }
     return ret;
 }

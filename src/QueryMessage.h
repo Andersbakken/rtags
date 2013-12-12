@@ -84,7 +84,8 @@ public:
         ContainingFunction = 0x040000,
         WaitForLoadProject = 0x080000,
         CursorKind = 0x100000,
-        DisplayName = 0x200000
+        DisplayName = 0x200000,
+        CompilationFlagsOnly = 0x400000
     };
 
     QueryMessage(Type type = Invalid);

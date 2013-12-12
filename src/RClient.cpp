@@ -30,6 +30,7 @@ enum OptionType {
     Clear,
     CodeCompleteAt,
     Compile,
+    CompilationFlagsOnly,
     ConnectTimeout,
     ContainingFunction,
     Context,
@@ -199,6 +200,7 @@ struct Option opts[] = {
     { Context, "context", 't', required_argument, "Context for current symbol (for fuzzy matching with dirty files)." }, // ### multiple context doesn't work
     { ContainingFunction, "containing-function", 'o', no_argument, "Include name of containing function in output."},
     { BuildIndex, "build-index", 0, required_argument, "For sources with multiple builds, use the arg'th." },
+    { CompilationFlagsOnly, "compilation-flags-only", 0, no_argument, "For --source, only print compilation flags." },
     { None, 0, 0, 0, 0 }
 };
 
@@ -570,6 +572,9 @@ bool RClient::parse(int &argc, char **argv)
         case IMenu:
             mQueryFlags |= QueryMessage::IMenu;
             break;
+        case CompilationFlagsOnly:
+            mQueryFlags |= QueryMessage::CompilationFlagsOnly;
+            break;
         case ContainingFunction:
             mQueryFlags |= QueryMessage::ContainingFunction;
             break;
@@ -827,10 +832,20 @@ bool RClient::parse(int &argc, char **argv)
             default: assert(0); break;
             }
 
+            const char *arg = 0;
             if (optarg) {
-                addQuery(type, optarg);
+                arg = optarg;
             } else if (optind < argc && argv[optind][0] != '-') {
-                addQuery(type, argv[optind++]);
+                arg = argv[optind++];
+            }
+            if (arg) {
+                Path p(arg);
+                if (p.exists()) {
+                    p.resolve();
+                    addQuery(type, p);
+                } else {
+                    addQuery(type, arg);
+                }
             } else {
                 addQuery(type);
             }

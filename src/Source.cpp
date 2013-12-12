@@ -42,7 +42,7 @@ List<String> Source::toCommandLine(unsigned int mode) const
         ret.append(compiler());
     ret += arguments;
     for (List<Define>::const_iterator it = defines.begin(); it != defines.end(); ++it)
-        ret += it->toString();
+        ret += it->toString(Define::Quote);
     for (List<Path>::const_iterator it = includePaths.begin(); it != includePaths.end(); ++it)
         ret += ("-I" + *it);
     if (mode & IncludeSourceFile)

@@ -1234,7 +1234,7 @@ void Server::shutdown(const QueryMessage &query, Connection *conn)
 void Server::sources(const QueryMessage &query, Connection *conn)
 {
     const Path path = query.query();
-    if (!path.isEmpty()) {
+    if (path.isFile()) {
         std::shared_ptr<Project> project = updateProjectForLocation(path);
         if (project) {
             if (project->state() != Project::Loaded) {
@@ -1244,18 +1244,37 @@ void Server::sources(const QueryMessage &query, Connection *conn)
                 if (fileId) {
                     const List<Source> sources = project->sources(fileId);
                     for (List<Source>::const_iterator it = sources.begin(); it != sources.end(); ++it) {
-                        conn->write(it->toString());
+                        if (query.flags() & QueryMessage::CompilationFlagsOnly) {
+                            conn->write<128>("%s: %s",
+                                             it->sourceFile().constData(),
+                                             String::join(it->toCommandLine(0), ' ').constData());
+                        } else {
+                            conn->write(it->toString());
+                        }
                     }
                 }
             }
+            conn->finish();
+            return;
         }
-    } else if (std::shared_ptr<Project> project = currentProject()) {
+    }
+
+    if (std::shared_ptr<Project> project = currentProject()) {
+        const Match match = query.match();
         if (project->state() != Project::Loaded) {
             conn->write("Project loading");
         } else {
             const SourceMap infos = project->sources();
             for (SourceMap::const_iterator it = infos.begin(); it != infos.end(); ++it) {
-                conn->write(it->second.toString());
+                if (match.isEmpty() || match.match(it->second.sourceFile())) {
+                    if (query.flags() & QueryMessage::CompilationFlagsOnly) {
+                        conn->write<128>("%s: %s",
+                                         it->second.sourceFile().constData(),
+                                         String::join(it->second.toCommandLine(0), ' ').constData());
+                    } else {
+                        conn->write(it->second.toString());
+                    }
+                }
             }
         }
     } else {
@@ -1464,7 +1483,7 @@ void Server::onMulticastReadyRead(const SocketClient::SharedPtr &socket,
 /*
   We always give atleast one job to the "process pool" but otherwise active
   threadpool jobs take precedence over rp's
- */
+*/
 inline int Server::availableJobSlots(JobSlotsMode mode) const
 {
     const int count = std::max(mOptions.jobCount - mThreadPool->busyThreads(), 1);
