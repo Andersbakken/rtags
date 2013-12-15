@@ -1,3 +1,18 @@
+;; This file is part of RTags.
+;;
+;; RTags is free software: you can redistribute it and/or modify
+;; it under the terms of the GNU General Public License as published by
+;; the Free Software Foundation, either version 3 of the License, or
+;; (at your option) any later version.
+;;
+;; RTags is distributed in the hope that it will be useful,
+;; but WITHOUT ANY WARRANTY; without even the implied warranty of
+;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+;; GNU General Public License for more details.
+;;
+;; You should have received a copy of the GNU General Public License
+;; along with RTags.  If not, see <http://www.gnu.org/licenses/>.
+
 (defgroup rtags nil
   "Minor mode for rtags."
   :group 'tools
@@ -1195,6 +1210,12 @@ References to references will be treated as references to the referenced symbol"
              (while body
                (rtags-parse-overlay-node (car body))
                (setq body (cdr body))))
+            ((eq (car doc) 'completions)
+             (setq body (car (cddr doc)))
+             (if (boundp 'rtags-last-completions
+                         (setq rtags-last-completions
+                               (list (cdar (cadr doc)) ;; location attribute
+                                     (eval (read (substring body 8 (- (length body) 2)))))))))
             ((eq (car doc) 'progress)
              (setq body (cadr doc))
              (while body
@@ -1341,7 +1362,9 @@ References to references will be treated as references to the referenced symbol"
     (rtags-update-current-error)
     (rtags-restart-update-local-references-timer)
     (rtags-close-taglist)
-    (rtags-restart-tracking-timer))
+    (rtags-restart-tracking-timer)
+    (if (fboundp 'rtags-update-completions)
+        (rtags-update-completions)))
   )
 
 (add-hook 'post-command-hook (function rtags-post-command-hook))
@@ -1917,21 +1940,6 @@ References to references will be treated as references to the referenced symbol"
               (rtags-goto-location target)
               (recenter-top-bottom 0)
               (select-window win)))))))
-
-(defun rtags-code-complete-at ()
-  (interactive)
-  (let* ((buffer (current-buffer))
-         (modified (buffer-modified-p))
-         (text (and modified (buffer-substring-no-properties (point-min) (point-max))))
-         (path (buffer-file-name))
-         (line (line-number-at-pos))
-         (column (1+ (rtags-find-symbol-start))))
-    (with-temp-buffer
-      (if text
-          (insert text))
-      (rtags-call-rc :path path :unsaved buffer "-l" (format "%s:%d:%d" path line column)))
-    )
-  )
 
 (defvar rtags-local-references-overlays nil)
 (defun rtags-clear-local-references-overlays()

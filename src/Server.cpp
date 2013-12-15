@@ -1802,7 +1802,9 @@ void Server::codeCompleteAt(const QueryMessage &query, Connection *conn)
     const Location loc(fileId, line, column);
     unsigned int flags = CompletionThread::None;
     if (query.type() == QueryMessage::PrepareCodeCompleteAt)
-        flags |= CompletionThread::Silent;
+        flags |= CompletionThread::Refresh;
+    if (query.flags() & QueryMessage::ElispList)
+        flags |= CompletionThread::Elisp;
     mCompletionThread->completeAt(source, loc, flags, query.unsavedFiles().value(path));
     conn->finish();
     error() << "Got completion" << query.type() << path << line << column;

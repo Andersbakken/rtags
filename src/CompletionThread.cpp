@@ -60,15 +60,6 @@ void CompletionThread::stop()
     mCondition.notify_one();
 }
 
-String CompletionThread::completeFromCache(const Location &location) const
-{
-    std::unique_lock<std::mutex> lock(mMutex);
-    const Cache *cache = mCache.value(location.fileId());
-    if (cache)
-        return cache->completions.value(location);
-    return String();
-}
-
 static inline bool isPartOfSymbol(char ch)
 {
     return isalnum(ch) || ch == '_';
@@ -169,7 +160,7 @@ void CompletionThread::process(const Request *request)
     int processTime = 0;
     Cache *&cache = mCache[request->source.fileId];
     if (!cache)
-        cache = new Cache({ 0 });
+        cache = new Cache({ 0, 0 });
     if (cache->translationUnit && cache->source != request->source) {
         clang_disposeTranslationUnit(cache->translationUnit);
         cache->translationUnit = 0;
@@ -185,7 +176,15 @@ void CompletionThread::process(const Request *request)
         static_cast<unsigned long>(request->unsaved.size())
     };
 
+    size_t hash = 0;
+    if (request->unsaved.size()) {
+        std::hash<String> h;
+        hash = h(request->unsaved);
+    }
+
     if (!cache->translationUnit) {
+        cache->completions.clear();
+        cache->unsavedHash = hash;
         sw.restart();
         // ### maybe skip function bodies
         const unsigned int flags = clang_defaultEditingTranslationUnitOptions();
@@ -195,19 +194,31 @@ void CompletionThread::process(const Request *request)
         RTags::parseTranslationUnit(sourceFile, request->source.arguments,
                                     List<String>(), // we don't want -fspell-checking and friends
                                     cache->translationUnit, mIndex,
-                                    &unsaved, unsaved.Length ? 1 : 0,
-                                    flags);
+                                    0, 0, flags);
+                                    // &unsaved, unsaved.Length ? 1 : 0, flags);
         parseTime = sw.restart();
         if (cache->translationUnit) {
-            RTags::reparseTranslationUnit(cache->translationUnit,
-                                          &unsaved,
-                                          unsaved.Length ? 1 : 0);
+            RTags::reparseTranslationUnit(cache->translationUnit, 0, 0);
+                                          // &unsaved,
+                                          // unsaved.Length ? 1 : 0);
 
         }
         reparseTime = sw.elapsed();
+        if (!cache->translationUnit)
+            return;
+    } else if (cache->unsavedHash != hash) {
+        cache->completions.clear();
+        cache->unsavedHash = hash;
+    } else if (!(request->flags & Refresh)) {
+        const auto it = cache->completions.find(request->location);
+        if (it != cache->completions.end()) {
+            error("Found completions (%d) in cache %s:%d:%d",
+                  it->second.size(), sourceFile.constData(),
+                  request->location.line(), request->location.column());
+            printCompletions(it->second, request);
+            return;
+        }
     }
-    if (!cache->translationUnit)
-        return;
 
     sw.restart();
     CXCodeCompleteResults *results = clang_codeCompleteAt(cache->translationUnit, sourceFile.constData(),
@@ -225,7 +236,6 @@ void CompletionThread::process(const Request *request)
             //     error() << String(it->first.data, it->first.length) << it->second;
             // }
         }
-        int reserve = 0;
         for (unsigned i = 0; i < results->NumResults; ++i) {
             const CXCursorKind kind = results->Results[i].CursorKind;
             if (kind == CXCursor_Destructor)
@@ -269,7 +279,6 @@ void CompletionThread::process(const Request *request)
                     node.completion.truncate(ws + 1);
                     node.signature.replace("\n", "");
                     node.distance = tokens.value(Token(node.completion.constData(), node.completion.size()), -1);
-                    reserve += node.completion.size() + node.signature.size() + 2;
                     ++nodeCount;
                     continue;
                 }
@@ -281,20 +290,11 @@ void CompletionThread::process(const Request *request)
             enum { SendThreshold = 500 };
             if (nodeCount <= SendThreshold) {
                 qsort(nodes, nodeCount, sizeof(CompletionNode), compareCompletionNode);
-                String &completions = cache->completions[request->location];
-                completions.reserve(reserve);
-                for (int i=0; i<nodeCount; ++i) {
-                    completions += nodes[i].completion;
-                    completions += ' ';
-                    completions += nodes[i].signature;
-                    completions += '\n';
-                }
-                if (!(request->flags & Silent) && testLog(RTags::CompilationErrorXml)) {
-                    // Does this need to be called in the main thread?
-                    log(RTags::CompilationErrorXml,
-                        "<completions>\n<![CDATA[%s]]></completions>\n",
-                        completions.constData());
-                }
+                List<std::pair<String, String> > &completions = cache->completions[request->location];
+                completions.reserve(nodeCount);
+                for (int i=0; i<nodeCount; ++i)
+                    completions.append(std::make_pair(nodes[i].completion, nodes[i].signature));
+                printCompletions(completions, request);
             }
         }
 
@@ -303,11 +303,33 @@ void CompletionThread::process(const Request *request)
         processTime = sw.elapsed();
         error("Processed %s, parse %d/%d, complete %d, process %d => %d completions (unsaved %d)",
               sourceFile.constData(), parseTime, reparseTime, completeTime, processTime, nodeCount, request->unsaved.size());
-
+    } else {
+        error() << "No completion results available" << request->location;
     }
 }
 
-void CompletionThread::onFileModified(const Path &path)
+void CompletionThread::printCompletions(const List<std::pair<String, String> > &completions, const Request *request)
 {
+    error() << request->flags << testLog(RTags::CompilationErrorXml) << completions.size();
+    if (!(request->flags & Refresh) && testLog(RTags::CompilationErrorXml) && !completions.isEmpty()) {
+        // Does this need to be called in the main thread?
+        log(RTags::CompilationErrorXml, "<completions location=\"%s\">![CDATA[",
+            request->location.key().constData());
 
+        if (request->flags & Elisp)
+            logDirect(RTags::CompilationErrorXml, "'(");
+        for (auto it = completions.begin(); it != completions.end(); ++it) {
+            const std::pair<String, String> &val = *it;
+            if (request->flags & Elisp) {
+                log(RTags::CompilationErrorXml, "\"%s\" \"%s\"", val.first.constData(), val.second.constData());
+            } else {
+                log(RTags::CompilationErrorXml, "%s %s\n", val.first.constData(), val.second.constData());
+            }
+        }
+        if (request->flags & Elisp) {
+            logDirect(RTags::CompilationErrorXml, ")]]</completions>\n");
+        } else {
+            logDirect(RTags::CompilationErrorXml, "]]</completions>\n");
+        }
+    }
 }

@@ -24,7 +24,6 @@
 #include "Source.h"
 #include <rct/Map.h>
 #include <rct/LinkedList.h>
-#include <rct/FileSystemWatcher.h>
 #include <clang-c/Index.h>
 
 class CompletionThread : public Thread
@@ -35,17 +34,16 @@ public:
     virtual void run();
     enum Flag {
         None = 0x0,
-        Silent = 0x1
+        Refresh = 0x1,
+        Elisp = 0x2
     };
     void completeAt(const Source &source, const Location &location, unsigned int flags, const String &unsaved);
-    String completeFromCache(const Location &location) const;
     void stop();
 private:
-    void onFileModified(const Path &path);
     struct Request;
     void process(const Request *request);
+    void printCompletions(const List<std::pair<String, String> > &completions, const Request *request);
 
-    FileSystemWatcher mWatcher;
     Set<uint32_t> mWatched;
     bool mShutdown;
     const int mCacheSize;
@@ -60,8 +58,9 @@ private:
 
     struct Cache {
         CXTranslationUnit translationUnit;
+        size_t unsavedHash;
         Source source;
-        Map<Location, String> completions;
+        Map<Location, List<std::pair<String, String> > > completions;
         // should have LRU<Location, List<std::pair<String, String> >
     };
     // this datastructure is only touched from inside the thread so it doesn't
