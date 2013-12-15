@@ -131,25 +131,6 @@ public:
     };
 
     String key(unsigned flags = NoFlag) const;
-    bool toKey(char buf[8]) const
-    {
-        assert(sizeof(Location) == 8);
-        if (isNull()) {
-            memset(buf, 0, sizeof(Location));
-            return false;
-        } else {
-            memcpy(buf, &mData, sizeof(Location));
-            return true;
-        }
-    }
-
-    static Location fromKey(const char *data)
-    {
-        Location ret;
-        memcpy(&ret.mData, data, sizeof(ret.mData));
-        return ret;
-    }
-
     static Location decodeClientLocation(const String &data)
     {
         uint32_t col;
