@@ -24,6 +24,23 @@
   :type 'boolean)
 
 (defvar rtags-last-completions nil) ;; (list "file:12:13" ("foo" "void foo(int)" "bar" "int bar"))
+
+(defun rtags-completion-prefix ()
+  (if (or (= (char-before) ?\.)
+          (and (= (char-before) ?>) (= (char-before (1- (point))) ?-))
+          (and (= (char-before) ?:) (= (char-before (1- (point))) ?:)))
+      (point)))
+
+(defun rtags-find-symbol-start () ;; returns column
+  (save-excursion
+    (when skip
+      (if (and (> (point) (point-min)) (looking-at "[ \t]"))
+          (backward-char))
+      (skip-chars-backward "[A-Za-z0-9_]"))
+    (if (rtags-completion-prefix)
+        (- (point) (point-at-bol))))
+  )
+
 (defun rtags-code-complete-at (&optional prepare)
   (interactive)
   (let* ((buffer (current-buffer))
@@ -40,14 +57,14 @@
   )
 
 (defun rtags-update-completions()
-  (if rtags-completions-enabled
-      (
+  ;; (if rtags-completions-enabled
+  ;;     (
   )
 
 (defun rtags-completion-candidates ()
   (let ((loc (format "%s:%d:%d" (or (buffer-file-name) (buffer-name))
                      (line-number-at-pos) (1+ (rtags-find-symbol-start)))))
-    (if (or (string= loc (car rtags-last-completions)) t)
+    (if (string= loc (car rtags-last-completions))
         (let ((completions (cadr rtags-last-completions))
               (completion t)
               (last nil)
@@ -61,8 +78,10 @@
           ret)))
   )
 
-;; (ac-define-source rtags-completion-source
-;;   '((init . rtags-diagnostics)
+(ac-define-source rtags-completion-source
+  '((init . rtags-diagnostics)
+    (prefix . rtags-completion-prefix)
+    (candidate . rtags-completion-candidates)))
 ;;     (prefix . ac-clang-template-prefix)
 ;;     (requires . 0)
 ;;     (action . ac-clang-template-action)

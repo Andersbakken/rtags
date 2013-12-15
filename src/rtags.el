@@ -1054,18 +1054,6 @@ References to references will be treated as references to the referenced symbol"
   (rtags-find-symbols-by-name-internal "Find rreferences" t (rtags-dir-filter))
   (setq rtags-path-filter-regex nil))
 
-(defun rtags-find-symbol-start () ;; returns column
-  (save-excursion
-    (let ((looking-at-space (looking-at "[ \t\n]")))
-      (skip-chars-backward " \t" (point-at-bol))
-      (if (and (> (point) (point-at-bol)) looking-at-space)
-          (backward-char))
-      (if (looking-at "[A-Za-z0-9_]")
-          (c-beginning-of-current-token)
-        (forward-char))
-      (- (point) (point-at-bol))))
-  )
-
 (defvar rtags-diagnostics-process nil)
 (defun rtags-apply-fixit-at-point ()
   (interactive)
