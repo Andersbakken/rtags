@@ -1638,7 +1638,7 @@ void Server::onLocalJobFinished(Process *process)
     if (it->second.first->type == IndexerJob::Remote) {
         --mRemotePending;
         error() << "Built remote job" << it->second.first->sourceFile.toTilde() << "for"
-                << String::format<128>("%s:%d", it->second.first->destination.constData(), it->second.first->port)
+                << it->second.first->destination
                 << "in" << (Rct::monoMs() - it->second.second) << "ms";
     }
     mLocalJobs.erase(it);
