@@ -33,10 +33,9 @@
 
 (defun rtags-find-symbol-start () ;; returns column
   (save-excursion
-    (when skip
-      (if (and (> (point) (point-min)) (looking-at "[ \t]"))
-          (backward-char))
-      (skip-chars-backward "[A-Za-z0-9_]"))
+    (if (and (> (point) (point-min)) (looking-at "[ \t]"))
+        (backward-char))
+    (skip-chars-backward "[A-Za-z0-9_]")
     (if (rtags-completion-prefix)
         (- (point) (point-at-bol))))
   )
@@ -62,6 +61,11 @@
   )
 
 (defun rtags-completion-candidates ()
+  (message "Candidates called at %s:%d:%d against %s"
+           (or (buffer-file-name) (buffer-name))
+           (line-number-at-pos)
+           (1+ (rtags-find-symbol-start))
+           (car rtags-last-completions))
   (let ((loc (format "%s:%d:%d" (or (buffer-file-name) (buffer-name))
                      (line-number-at-pos) (1+ (rtags-find-symbol-start)))))
     (if (string= loc (car rtags-last-completions))
@@ -78,7 +82,7 @@
           ret)))
   )
 
-(ac-define-source rtags-completion-source
+(ac-define-source rtags-completion
   '((init . rtags-diagnostics)
     (prefix . rtags-completion-prefix)
     (candidate . rtags-completion-candidates)))
@@ -88,5 +92,3 @@
 ;;     (document . ac-clang-document)
 ;;     (cache)
 ;;     (symbol . "t")))
-
-

@@ -1190,7 +1190,6 @@ References to references will be treated as references to the referenced symbol"
 
 (add-to-list 'global-mode-string '(:eval (rtags-modeline-progress)))
 (defun rtags-parse-diagnostics (output)
-  ;; (message "parsing [%s]" output)
   (let ((doc (rtags-parse-xml-string output)) body)
     (when doc
       (cond ((eq (car doc) 'checkstyle)
@@ -1199,6 +1198,7 @@ References to references will be treated as references to the referenced symbol"
                (rtags-parse-overlay-node (car body))
                (setq body (cdr body))))
             ((eq (car doc) 'completions)
+             (message "Got completions [%s]" body)
              (setq body (car (cddr doc)))
              (if (boundp 'rtags-last-completions
                          (setq rtags-last-completions
