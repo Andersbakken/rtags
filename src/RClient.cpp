@@ -87,6 +87,7 @@ enum OptionType {
     RemoveFile,
     RemoveMulticastForward,
     ReverseSort,
+    SendDiagnostics,
     Silent,
     SocketFile,
     Sources,
@@ -170,6 +171,7 @@ struct Option opts[] = {
     { RemoveMulticastForward, "remove-multicast-forward", 0, required_argument, "Remove multicast forward for host." },
     { CodeCompleteAt, "code-complete-at", 'l', required_argument, "Code complete at location: arg is file:line:col." },
     { PrepareCodeCompleteAt, "prepare-code-complete-at", 'b', required_argument, "Prepare code completion at location: arg is file:line:col." },
+    { SendDiagnostics, "send-diagnostics", 0, required_argument, "Only for debugging. Send data to all -g connections." },
 
     { None, 0, 0, 0, "" },
     { None, 0, 0, 0, "Command flags:" },
@@ -801,6 +803,9 @@ bool RClient::parse(int &argc, char **argv)
             break;
         case DeleteProject:
             addQuery(QueryMessage::DeleteProject, optarg);
+            break;
+        case SendDiagnostics:
+            addQuery(QueryMessage::SendDiagnostics, optarg);
             break;
         case UnloadProject:
             addQuery(QueryMessage::UnloadProject, optarg);

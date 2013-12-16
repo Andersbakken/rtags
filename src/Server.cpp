@@ -430,6 +430,9 @@ void Server::handleQueryMessage(const QueryMessage &message, Connection *conn)
     case QueryMessage::Sources:
         sources(message, conn);
         break;
+    case QueryMessage::SendDiagnostics:
+        sendDiagnostics(message, conn);
+        break;
     case QueryMessage::CodeCompleteAt:
     case QueryMessage::PrepareCodeCompleteAt:
         codeCompleteAt(message, conn);
@@ -1173,6 +1176,13 @@ void Server::jobCount(const QueryMessage &query, Connection *conn)
             conn->write<128>("Changed jobs to %d", jobCount);
         }
     }
+    conn->finish();
+}
+
+void Server::sendDiagnostics(const QueryMessage &query, Connection *conn)
+{
+    if (testLog(RTags::CompilationErrorXml))
+        logDirect(RTags::CompilationErrorXml, query.query());
     conn->finish();
 }
 

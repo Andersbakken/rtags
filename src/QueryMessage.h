@@ -56,6 +56,7 @@ public:
         ReloadProjects,
         RemoveFile,
         RemoveMulticastForward,
+        SendDiagnostics,
         Shutdown,
         Sources,
         Status,

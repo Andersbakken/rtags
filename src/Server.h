@@ -126,6 +126,7 @@ private:
     void handleMulticastForwardMessage(const MulticastForwardMessage &message, Connection *conn);
 
     // Queries
+    void sendDiagnostics(const QueryMessage &query, Connection *conn);
     void clearProjects(const QueryMessage &query, Connection *conn);
     void codeCompleteAt(const QueryMessage &query, Connection *conn);
     void cursorInfo(const QueryMessage &query, Connection *conn);
