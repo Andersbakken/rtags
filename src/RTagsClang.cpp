@@ -414,19 +414,34 @@ bool compile(const Path& output, const Source &source, const String& preprocesse
 static inline uint32_t visitFile(const Path &path,
                                  const std::shared_ptr<Cpp> &cpp,
                                  const std::shared_ptr<Project> &project,
+                                 Map<Path, uint32_t> &blockedCache,
                                  bool *blocked)
 {
+    assert(!path.contains(".."));
     assert(blocked);
     *blocked = false;
     if (!project)
         return Location::insertFile(path);
 
-    const Map<Path, uint32_t>::const_iterator it = cpp->visited.find(path);
-    if (it != cpp->visited.end())
-        return it->second;
+    {
+        const Map<Path, uint32_t>::const_iterator it = cpp->visited.find(path);
+        if (it != cpp->visited.end()) {
+            return it->second;
+        }
+    }
 
+    {
+        const Map<Path, uint32_t>::const_iterator it = blockedCache.find(path);
+        if (it != blockedCache.end()) {
+            return it->second;
+        }
+    }
+
+    // error() << "trying here" << path;
+    assert(!path.isEmpty());
     const uint32_t fileId = Location::insertFile(path);
     if (!project->visitFile(fileId, 0)) {
+        blockedCache[path] = fileId;
         *blocked = true;
     } else {
         cpp->visited[path] = fileId;
@@ -449,6 +464,7 @@ public:
 
 std::shared_ptr<Cpp> preprocess(const Source &source, const std::shared_ptr<Project> &project)
 {
+    Map<Path, uint32_t> blockedCache;
     StopWatch sw;
     Compiler compilerInstance;
     compilerInstance.createFileManager();
@@ -611,9 +627,11 @@ std::shared_ptr<Cpp> preprocess(const Source &source, const std::shared_ptr<Proj
     for (size_t i=0; i<sizeof(diagnostics) / sizeof(diagnostics[0]); ++i) {
         for (auto it = diagnostics[i].begin; it != diagnostics[i].end; ++it) {
             const clang::PresumedLoc presumedLocation = sm.getPresumedLoc(it->first);
-            const Path path = presumedLocation.getFilename();
+            Path path = presumedLocation.getFilename();
+            if (!path.resolve())
+                continue;
             bool blocked;
-            const uint32_t fileId = visitFile(path, cpp, project, &blocked);
+            const uint32_t fileId = visitFile(path, cpp, project, blockedCache, &blocked);
             if (blocked)
                 continue;
 
@@ -655,7 +673,7 @@ std::shared_ptr<Cpp> preprocess(const Source &source, const std::shared_ptr<Proj
             }
 
             bool blocked;
-            const uint32_t fileId = visitFile(resolved, cpp, project, &blocked);
+            const uint32_t fileId = visitFile(resolved, cpp, project, blockedCache, &blocked);
             const clang::IdentifierInfo *name = def->getName();
             const String macroName(name->getNameStart(), name->getLength());
             const Location loc(fileId, presumedLocation.getLine(), presumedLocation.getColumn());
@@ -690,7 +708,7 @@ std::shared_ptr<Cpp> preprocess(const Source &source, const std::shared_ptr<Proj
             }
 
             bool blocked;
-            const uint32_t fileId = visitFile(resolved, cpp, project, &blocked);
+            const uint32_t fileId = visitFile(resolved, cpp, project, blockedCache, &blocked);
             if (blocked)
                 break;
 
