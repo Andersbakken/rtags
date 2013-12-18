@@ -648,8 +648,14 @@ std::shared_ptr<Cpp> preprocess(const Source &source, const std::shared_ptr<Proj
             if (!strcmp(path, "<built-in>"))
                 break;
 
+            Path resolved = path;
+            if (!resolved.resolve()) {
+                // printf("Resolved didn't %s/%s\n", path, resolved.constData());
+                break;
+            }
+
             bool blocked;
-            const uint32_t fileId = visitFile(path, cpp, project, &blocked);
+            const uint32_t fileId = visitFile(resolved, cpp, project, &blocked);
             const clang::IdentifierInfo *name = def->getName();
             const String macroName(name->getNameStart(), name->getLength());
             const Location loc(fileId, presumedLocation.getLine(), presumedLocation.getColumn());
@@ -677,8 +683,14 @@ std::shared_ptr<Cpp> preprocess(const Source &source, const std::shared_ptr<Proj
             if (!strcmp(path, "<built-in>"))
                 break;
 
+            Path resolved = path;
+            if (!resolved.resolve()) {
+                // printf("Resolved didn't %s/%s\n", path, resolved.constData());
+                break;
+            }
+
             bool blocked;
-            const uint32_t fileId = visitFile(path, cpp, project, &blocked);
+            const uint32_t fileId = visitFile(resolved, cpp, project, &blocked);
             if (blocked)
                 break;
 
