@@ -371,7 +371,8 @@ void Server::index(const String &arguments, const Path &pwd, const List<String> 
 void Server::preprocess(Source &&source, Path &&project, IndexerJob::IndexType type)
 {
     std::shared_ptr<PreprocessJob> job(new PreprocessJob(std::move(source), std::move(project), type));
-    mThreadPool->start(job);
+    mPendingPreprocessJobs.append(job);
+    startPreprocessJobs();
 }
 
 void Server::handleCompileMessage(CompileMessage &message, Connection *conn)
@@ -414,6 +415,7 @@ void Server::handleIndexerMessage(const IndexerMessage &message, Connection *con
 
     project->onJobFinished(indexData);
     conn->finish();
+    startPreprocessJobs();
 }
 
 void Server::handleQueryMessage(const QueryMessage &message, Connection *conn)
@@ -1641,9 +1643,13 @@ void Server::onLocalJobFinished(Process *process)
                 << it->second.first->destination
                 << "in" << (Rct::monoMs() - it->second.second) << "ms";
     }
+    const bool removed = mProcessingJobs.erase(it->second.first->id);
     mLocalJobs.erase(it);
     EventLoop::deleteLater(process);
     startNextJob();
+    if (removed && process->returnCode() != 0) {
+        startPreprocessJobs();
+    }
 }
 
 void Server::handleMulticastForward(const QueryMessage &message, Connection *conn)
@@ -1808,4 +1814,19 @@ void Server::codeCompleteAt(const QueryMessage &query, Connection *conn)
     mCompletionThread->completeAt(source, loc, flags, query.unsavedFiles().value(path));
     conn->finish();
     error() << "Got completion" << query.type() << path << line << column;
+}
+
+int Server::startPreprocessJobs()
+{
+    int ret = 0;
+    int size = mPending.size() + mThreadPool->backlockSize() + mThreadPool->busyThreads() + mProcessingJobs.size();
+    enum { MaxPending = 50 };
+    while (size < MaxPending && !mPendingPreprocessJobs.isEmpty()) {
+        ++ret;
+        ++size;
+        std::shared_ptr<PreprocessJob> job = mPendingPreprocessJobs.front();
+        mPendingPreprocessJobs.pop_front();
+        mThreadPool->start(job);
+    }
+    return ret;
 }

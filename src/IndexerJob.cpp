@@ -40,7 +40,7 @@ bool IndexerJob::startLocal()
 
     started = 0;
     process = new Process;
-    if (!port)
+    if (type != Remote)
         process->finished().connect(std::bind(&IndexerJob::onProcessFinished, this));
     if (!process->start(rp)) {
         error() << "Couldn't start rp" << process->errorString();

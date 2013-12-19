@@ -47,6 +47,7 @@ class JobRequestMessage;
 class JobResponseMessage;
 class MulticastForwardMessage;
 class CompletionThread;
+class PreprocessJob;
 class Server
 {
 public:
@@ -170,6 +171,7 @@ private:
     void onMulticastForwardError(const SocketClient::SharedPtr &socket, SocketClient::Error);
     void onLocalJobFinished(Process *process);
     void startNextJob();
+    int startPreprocessJobs();
     void fetchRemoteJobs(const String& ip, uint16_t port, uint16_t jobs);
 
     enum JobSlotsMode {
@@ -192,6 +194,7 @@ private:
     uint32_t mCurrentFileId;
     std::shared_ptr<SocketClient> mMulticastSocket;
     LinkedList<std::shared_ptr<IndexerJob> > mPending;
+    LinkedList<std::shared_ptr<PreprocessJob> > mPendingPreprocessJobs;
     Hash<uint64_t, std::shared_ptr<IndexerJob> > mProcessingJobs;
     Hash<Process*, std::pair<std::shared_ptr<IndexerJob>, uint64_t> > mLocalJobs;
     Hash<Connection*, uint16_t> mPendingJobRequests;

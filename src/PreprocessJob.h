@@ -26,6 +26,7 @@ class PreprocessJob : public ThreadPool::Job
 {
 public:
     PreprocessJob(Source &&source, Path &&project, IndexerJob::IndexType type);
+    const Source &source() const { return mSource; }
 protected:
     virtual void run();
 private:
