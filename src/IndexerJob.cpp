@@ -28,7 +28,7 @@ bool IndexerJob::startLocal()
         return false;
     if (state == Running)
         error() << "About to die" << sourceFile;
-    assert(state != Running);
+    // assert(state != Running);
     assert(cpp);
     assert(!cpp->preprocessed.isEmpty());
     static const Path rp = Rct::executablePath().parentDir() + "rp";
