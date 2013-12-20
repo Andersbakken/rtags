@@ -55,7 +55,7 @@ static void sigIntHandler(int)
 
 #define EXCLUDEFILTER_DEFAULT "*/CMakeFiles/*;*/cmake*/Modules/*;*/conftest.c*;/tmp/*"
 #define DEFAULT_RP_VISITFILE_TIMEOUT 3000
-#define DEFAULT_RP_INDEXER_MESSAGE_TIMEOUT 5000
+#define DEFAULT_RP_INDEXER_MESSAGE_TIMEOUT 15000
 #define DEFAULT_RP_CONNECT_TIMEOUT 0 // won't time out
 #define DEFAULT_RDM_MULTICAST_ADDRESS "237.50.50.50"
 #define DEFAULT_RDM_MULTICAST_PORT 11509 // ( 100 'r' * 114 'd') + 109 'm'
