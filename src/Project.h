@@ -172,14 +172,14 @@ private:
     friend class RestoreThread;
 };
 
-inline bool Project::visitFile(uint32_t fileId, uint64_t id)
+inline bool Project::visitFile(uint32_t visitFileId, uint64_t key)
 {
-    if (mVisitedFiles.insert(fileId)) {
-        if (id) {
-            assert(mJobs.contains(id));
-            JobData &data = mJobs[id];
+    if (mVisitedFiles.insert(visitFileId)) {
+        if (key) {
+            assert(mJobs.contains(key));
+            JobData &data = mJobs[key];
             assert(data.job);
-            data.job->visited.insert(id);
+            data.job->visited.insert(visitFileId);
         }
         return true;
     }
