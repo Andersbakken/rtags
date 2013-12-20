@@ -30,7 +30,6 @@ bool IndexerJob::startLocal()
         error() << "About to die" << sourceFile;
     assert(state != Running);
     assert(cpp);
-    assert(!process);
     assert(!cpp->preprocessed.isEmpty());
     static const Path rp = Rct::executablePath().parentDir() + "rp";
     String stdinData;
