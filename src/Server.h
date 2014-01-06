@@ -96,7 +96,7 @@ public:
     void addJob(const std::shared_ptr<IndexerJob> &job);
     std::shared_ptr<Project> project(const Path &path) const { return mProjects.value(path); }
     void index(const Source &source, const std::shared_ptr<Cpp> &cpp,
-               const Path &project, IndexerJob::IndexType type);
+               const std::shared_ptr<Project> &project, IndexerJob::IndexType type);
     void preprocess(Source &&source, Path &&project, IndexerJob::IndexType type);
     bool shouldIndex(const Source &source, const Path &project) const;
     Path findProject(const Path &path, const Path &unresolvedPath, const List<String> &withProjects) const;

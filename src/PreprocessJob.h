@@ -22,16 +22,17 @@
 #include "IndexerJob.h"
 #include "Source.h"
 
+class Project;
 class PreprocessJob : public ThreadPool::Job
 {
 public:
-    PreprocessJob(Source &&source, Path &&project, IndexerJob::IndexType type);
+    PreprocessJob(Source &&source, const std::shared_ptr<Project> &project, IndexerJob::IndexType type);
     const Source &source() const { return mSource; }
 protected:
     virtual void run();
 private:
     Source mSource;
-    Path mProject;
+    std::shared_ptr<Project> mProject;
     const IndexerJob::IndexType mType;
 };
 

@@ -18,8 +18,8 @@
 #include "Server.h"
 #include "Cpp.h"
 
-PreprocessJob::PreprocessJob(Source &&source, Path &&project, IndexerJob::IndexType type)
-    : mSource(std::forward<Source>(source)), mProject(std::forward<Path>(project)), mType(type)
+PreprocessJob::PreprocessJob(Source &&source, const std::shared_ptr<Project> &project, IndexerJob::IndexType type)
+    : mSource(std::forward<Source>(source)), mProject(project), mType(type)
 {
 }
 
@@ -29,15 +29,15 @@ void PreprocessJob::run()
     case Source::C:
     case Source::CPlusPlus:
     case Source::CPlusPlus11: {
-        std::shared_ptr<Cpp> cpp = RTags::preprocess(mSource, Server::instance()->project(mProject));
+        std::shared_ptr<Cpp> cpp = RTags::preprocess(mSource, mProject);
         if (!cpp) {
             error() << "Couldn't preprocess" << mSource.sourceFile();
             return;
         }
 
         Source source = std::move(mSource);
-        Path project = std::move(mProject);
         const IndexerJob::IndexType type = mType;
+        std::shared_ptr<Project> project = std::move(mProject);
         EventLoop::mainEventLoop()->callLater([source, cpp, project, type]() {
                 Server::instance()->index(source, cpp, project, type);
             });

@@ -368,9 +368,16 @@ void Server::index(const String &arguments, const Path &pwd, const List<String> 
     preprocess(std::move(source), std::move(project), IndexerJob::Makefile);
 }
 
-void Server::preprocess(Source &&source, Path &&project, IndexerJob::IndexType type)
+void Server::preprocess(Source &&source, Path &&srcRoot, IndexerJob::IndexType type)
 {
-    std::shared_ptr<PreprocessJob> job(new PreprocessJob(std::move(source), std::move(project), type));
+    std::shared_ptr<Project> project = mProjects.value(srcRoot);
+    if (!project) {
+        project = addProject(srcRoot);
+        assert(project);
+    }
+    project->load();
+
+    std::shared_ptr<PreprocessJob> job(new PreprocessJob(std::move(source), project, type));
     mPendingPreprocessJobs.append(job);
     startPreprocessJobs();
 }
@@ -931,15 +938,9 @@ Path Server::findProject(const Path &path, const Path &unresolvedPath, const Lis
     return root;
 }
 
-void Server::index(const Source &source, const std::shared_ptr<Cpp> &cpp, const Path &srcRoot, IndexerJob::IndexType type)
+void Server::index(const Source &source, const std::shared_ptr<Cpp> &cpp,
+                   const std::shared_ptr<Project> &project, IndexerJob::IndexType type)
 {
-    std::shared_ptr<Project> project = mProjects.value(srcRoot);
-    if (!project) {
-        project = addProject(srcRoot);
-        assert(project);
-    }
-    project->load();
-
     if (!mCurrentProject.lock()) {
         mCurrentProject = project;
         setupCurrentProjectFile(project);
