@@ -98,6 +98,7 @@ public:
         ArgDependsOn // slow
     };
     Set<uint32_t> dependencies(uint32_t fileId, DependencyMode mode) const;
+    bool isValidJob(uint64_t key) { return !key || mJobs.contains(key); }
     bool visitFile(uint32_t fileId, uint64_t id);
     String fixIts(uint32_t fileId) const;
     int reindex(const Match &match);

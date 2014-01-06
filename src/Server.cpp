@@ -1385,10 +1385,11 @@ void Server::handleVisitFileMessage(const VisitFileMessage &message, Connection 
 
     std::shared_ptr<Project> project = mProjects.value(message.project());
     Path resolved;
-    if (project) {
+    const uint64_t key = message.key();
+    if (project && project->isValidJob(key)) {
         resolved = message.file().resolved();
         fileId = Location::insertFile(resolved);
-        visit = project->visitFile(fileId, message.key());
+        visit = project->visitFile(fileId, key);
     }
     VisitFileResponseMessage msg(fileId, resolved, visit);
     conn->send(msg);
