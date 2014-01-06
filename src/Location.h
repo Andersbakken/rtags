@@ -139,7 +139,9 @@ public:
         memcpy(&col, data.constData() + data.size() - sizeof(col), sizeof(col));
         memcpy(&line, data.constData() + data.size() - sizeof(line) - sizeof(col), sizeof(line));
         const Path path(data.constData(), data.size() - sizeof(col) - sizeof(line));
-        const uint32_t fileId = Location::fileId(path);
+        uint32_t fileId = Location::fileId(path);
+        if (!fileId)
+            fileId = Location::fileId(path.resolved());
         if (fileId)
             return Location(fileId, line, col);
         error("Failed to make location from [%s:%d:%d]", path.constData(), line, col);
@@ -152,7 +154,7 @@ public:
         if (sscanf(key.constData(), "%[^':']:%d:%d", path, &line, &col) != 3)
             return String();
 
-        Path resolved = Path::resolved(path);
+        Path resolved = Path::resolved(path, Path::MakeAbsolute);
         {
             char buf[8];
             memcpy(buf, &line, sizeof(line));
