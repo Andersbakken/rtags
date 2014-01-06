@@ -189,7 +189,7 @@ Location ClangIndexer::createLocation(const Path &sourceFile, unsigned line, uns
     }
 
     ++mFileIdsQueried;
-    if (mLocalJob)
+    if (!mLocalJob)
         resolved = sourceFile;
     VisitFileMessage msg(resolved, mProject, mData->key);
 
