@@ -228,11 +228,11 @@ void Project::restore(RestoreThread *thread)
     } else if (needsSave) {
         save();
     }
-    for (auto it = pendingJobs.constBegin(); it != pendingJobs.constEnd(); ++it) {
-        assert(!it->second.pendingSource.isNull());
-        assert(it->second.pendingType != IndexerJob::Invalid);
-        assert(it->second.pendingCpp);
-        index(it->second.pendingSource, it->second.pendingCpp, it->second.pendingType);
+    for (auto it : pendingJobs) {
+        assert(!it.second.pendingSource.isNull());
+        assert(it.second.pendingType != IndexerJob::Invalid);
+        assert(it.second.pendingCpp);
+        index(it.second.pendingSource, it.second.pendingCpp, it.second.pendingType);
     }
 }
 
@@ -979,5 +979,14 @@ void Project::onSynced()
     mState = Loaded;
     for (auto it : mPendingIndexData) {
         onJobFinished(it);
+    }
+    mPendingIndexData.clear();
+    Hash<uint64_t, JobData> pendingJobs = std::move(mJobs);
+
+    for (auto it : pendingJobs) {
+        assert(!it.second.pendingSource.isNull());
+        assert(it.second.pendingType != IndexerJob::Invalid);
+        assert(it.second.pendingCpp);
+        index(it.second.pendingSource, it.second.pendingCpp, it.second.pendingType);
     }
 }

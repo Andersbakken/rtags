@@ -560,8 +560,8 @@ void Server::followLocation(const QueryMessage &query, Connection *conn)
 
 void Server::isIndexing(const QueryMessage &, Connection *conn)
 {
-    for (ProjectsMap::const_iterator it = mProjects.begin(); it != mProjects.end(); ++it) {
-        if (it->second->isIndexing()) {
+    for (auto it : mProjects) {
+        if (it.second->isIndexing()) {
             conn->write("1");
             conn->finish();
             return;
@@ -862,8 +862,8 @@ void Server::preprocessFile(const QueryMessage &query, Connection *conn)
 
 void Server::clearProjects()
 {
-    for (ProjectsMap::const_iterator it = mProjects.begin(); it != mProjects.end(); ++it)
-        it->second->unload();
+    for (auto it : mProjects)
+        it.second->unload();
     Rct::removeDirectory(mOptions.dataDir);
     mCurrentProject.reset();
     unlink((mOptions.dataDir + ".currentProject").constData());
@@ -952,7 +952,7 @@ void Server::index(const Source &source, const std::shared_ptr<Cpp> &cpp,
 
 std::shared_ptr<Project> Server::setCurrentProject(const Path &path, unsigned int queryFlags) // lock always held
 {
-    ProjectsMap::iterator it = mProjects.find(path);
+    auto it = mProjects.find(path);
     if (it != mProjects.end()) {
         setCurrentProject(it->second, queryFlags);
         return it->second;
@@ -1014,9 +1014,9 @@ std::shared_ptr<Project> Server::updateProjectForLocation(const Match &match)
     if (cur && cur->match(match))
         return cur;
 
-    for (ProjectsMap::const_iterator it = mProjects.begin(); it != mProjects.end(); ++it) {
-        if (it->second != cur && it->second->match(match)) {
-            return setCurrentProject(it->second->path());
+    for (auto it : mProjects) {
+        if (it.second != cur && it.second->match(match)) {
+            return setCurrentProject(it.second->path());
         }
     }
     return std::shared_ptr<Project>();
@@ -1027,9 +1027,9 @@ void Server::removeProject(const QueryMessage &query, Connection *conn)
     const bool unload = query.type() == QueryMessage::UnloadProject;
 
     const Match match = query.match();
-    ProjectsMap::iterator it = mProjects.begin();
+    auto it = mProjects.begin();
     while (it != mProjects.end()) {
-        ProjectsMap::iterator cur = it++;
+        auto cur = it++;
         if (cur->second->match(match)) {
             if (mCurrentProject.lock() == cur->second) {
                 mCurrentProject.reset();
@@ -1061,21 +1061,21 @@ bool Server::selectProject(const Match &match, Connection *conn, unsigned int qu
 {
     std::shared_ptr<Project> selected;
     bool error = false;
-    for (ProjectsMap::const_iterator it = mProjects.begin(); it != mProjects.end(); ++it) {
-        if (it->second->match(match)) {
+    for (auto it : mProjects) {
+        if (it.second->match(match)) {
             if (error) {
                 if (conn)
-                    conn->write(it->first);
+                    conn->write(it.first);
             } else if (selected) {
                 error = true;
                 if (conn) {
                     conn->write<128>("Multiple matches for %s", match.pattern().constData());
                     conn->write(selected->path());
-                    conn->write(it->first);
+                    conn->write(it.first);
                 }
                 selected.reset();
             } else {
-                selected = it->second;
+                selected = it.second;
                 const Path p = match.pattern();
                 if (p.isFile()) {
                     // ### this needs to deal with dependencies for headers
@@ -1109,43 +1109,40 @@ void Server::project(const QueryMessage &query, Connection *conn)
 {
     if (query.query().isEmpty()) {
         const std::shared_ptr<Project> current = mCurrentProject.lock();
-        const char *states[] = { "(unloaded)", "(inited)", "(loading)", "(loaded)" };
-        for (ProjectsMap::const_iterator it = mProjects.begin(); it != mProjects.end(); ++it) {
-            conn->write<128>("%s %s%s",
-                             it->first.constData(),
-                             states[it->second->state()],
-                             it->second == current ? " <=" : "");
+        const char *states[] = { "(unloaded)", "(inited)", "(loading)", "(loaded)", "(syncing)" };
+        for (auto it : mProjects) {
+            conn->write<128>("%s %s%s", it.first.constData(), states[it.second->state()], it.second == current ? " <=" : "");
         }
     } else {
         Path selected;
         bool error = false;
         const Match match = query.match();
-        const ProjectsMap::const_iterator it = mProjects.find(match.pattern());
+        const auto it = mProjects.find(match.pattern());
         bool ok = false;
         unsigned long long index = query.query().toULongLong(&ok);
         if (it != mProjects.end()) {
             selected = it->first;
         } else {
-            for (ProjectsMap::const_iterator it = mProjects.begin(); it != mProjects.end(); ++it) {
-                assert(it->second);
+            for (auto pit : mProjects) {
+                assert(pit->second);
                 if (ok) {
                     if (!index) {
-                        selected = it->first;
+                        selected = pit.first;
                     } else {
                         --index;
                     }
                 }
-                if (it->second->match(match)) {
+                if (pit.second->match(match)) {
                     if (error) {
-                        conn->write(it->first);
+                        conn->write(pit.first);
                     } else if (!selected.isEmpty()) {
                         error = true;
                         conn->write<128>("Multiple matches for %s", match.pattern().constData());
                         conn->write(selected);
-                        conn->write(it->first);
+                        conn->write(pit.first);
                         selected.clear();
                     } else {
-                        selected = it->first;
+                        selected = pit.first;
                     }
                 }
             }
@@ -1234,9 +1231,9 @@ void Server::loadCompilationDatabase(const QueryMessage &query, Connection *conn
 
 void Server::shutdown(const QueryMessage &query, Connection *conn)
 {
-    for (Hash<Path, std::shared_ptr<Project> >::const_iterator it = mProjects.begin(); it != mProjects.end(); ++it) {
-        if (it->second)
-            it->second->unload();
+    for (auto it : mProjects) {
+        if (it.second)
+            it.second->unload();
     }
     EventLoop::eventLoop()->quit();
     conn->write("Shutting down");
@@ -1255,13 +1252,13 @@ void Server::sources(const QueryMessage &query, Connection *conn)
                 const uint32_t fileId = Location::fileId(path);
                 if (fileId) {
                     const List<Source> sources = project->sources(fileId);
-                    for (List<Source>::const_iterator it = sources.begin(); it != sources.end(); ++it) {
+                    for (auto it : sources) {
                         if (query.flags() & QueryMessage::CompilationFlagsOnly) {
                             conn->write<128>("%s: %s",
-                                             it->sourceFile().constData(),
-                                             String::join(it->toCommandLine(0), ' ').constData());
+                                             it.sourceFile().constData(),
+                                             String::join(it.toCommandLine(0), ' ').constData());
                         } else {
-                            conn->write(it->toString());
+                            conn->write(it.toString());
                         }
                     }
                 }
@@ -1277,14 +1274,14 @@ void Server::sources(const QueryMessage &query, Connection *conn)
             conn->write("Project loading");
         } else {
             const SourceMap infos = project->sources();
-            for (SourceMap::const_iterator it = infos.begin(); it != infos.end(); ++it) {
-                if (match.isEmpty() || match.match(it->second.sourceFile())) {
+            for (auto it : infos) {
+                if (match.isEmpty() || match.match(it.second.sourceFile())) {
                     if (query.flags() & QueryMessage::CompilationFlagsOnly) {
                         conn->write<128>("%s: %s",
-                                         it->second.sourceFile().constData(),
-                                         String::join(it->second.toCommandLine(0), ' ').constData());
+                                         it.second.sourceFile().constData(),
+                                         String::join(it.second.toCommandLine(0), ' ').constData());
                     } else {
-                        conn->write(it->second.toString());
+                        conn->write(it.second.toString());
                     }
                 }
             }
@@ -1314,8 +1311,8 @@ void Server::suspendFile(const QueryMessage &query, Connection *conn)
             if (suspendedFiles.isEmpty()) {
                 conn->write<512>("No files suspended for project %s", project->path().constData());
             } else {
-                for (Set<uint32_t>::const_iterator it = suspendedFiles.begin(); it != suspendedFiles.end(); ++it)
-                    conn->write<512>("%s is suspended", Location::path(*it).constData());
+                for (auto it : suspendedFiles)
+                    conn->write<512>("%s is suspended", Location::path(it).constData());
             }
         } else {
             const Path p = query.match().pattern();
@@ -1453,9 +1450,9 @@ bool Server::saveFileIds() const
 void Server::onUnload()
 {
     std::shared_ptr<Project> cur = mCurrentProject.lock();
-    for (ProjectsMap::const_iterator it = mProjects.begin(); it != mProjects.end(); ++it) {
-        if (it->second->state() != Project::Unloaded && it->second != cur && !it->second->isIndexing()) {
-            it->second->unload();
+    for (auto it : mProjects) {
+        if (it.second->state() != Project::Unloaded && it.second != cur && !it.second->isIndexing()) {
+            it.second->unload();
         }
     }
 }
