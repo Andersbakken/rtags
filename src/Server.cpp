@@ -1348,7 +1348,11 @@ void Server::handleJobRequestMessage(const JobRequestMessage &message, Connectio
     auto it = mPending.begin();
     while (it != mPending.end()) {
         std::shared_ptr<IndexerJob>& job = *it;
-        assert(!(job->flags & IndexerJob::Complete));
+        if (job->flags & IndexerJob::Complete) {
+            it = mPending.erase(it);
+            continue;
+        }
+
         if (!(job->flags & IndexerJob::FromRemote)) {
             assert(!(job->flags & (IndexerJob::Running|IndexerJob::Complete)) || job->flags & IndexerJob::Rescheduled);
             assert(!job->process);
