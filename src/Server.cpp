@@ -396,9 +396,6 @@ void Server::handleCreateOutputMessage(const CreateOutputMessage &message, Conne
 void Server::handleIndexerMessage(const IndexerMessage &message, Connection *conn)
 {
     std::shared_ptr<IndexData> indexData = message.data();
-    error() << "Got shit for"
-            << Location::path(indexData->fileId())
-            << "from" << conn->client()->peerName();
     // error() << "Got indexer message" << message.project() << Location::path(indexData->fileId);
     assert(indexData);
     auto it = mProcessingJobs.find(indexData->jobId);
