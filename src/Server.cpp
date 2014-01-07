@@ -1598,7 +1598,7 @@ void Server::startNextJob()
         std::shared_ptr<IndexerJob> job = mPending.first();
         assert(job);
         assert(job->flags & IndexerJob::Rescheduled || !(job->flags & (IndexerJob::Complete|IndexerJob::Running)));
-        if (!(job->flags & IndexerJob::FromRemote) || project(job->project)) {
+        if (job->flags & IndexerJob::FromRemote || project(job->project)) {
             if (!(job->flags & IndexerJob::FromRemote))
                 mProcessingJobs[job->id] = job;
             if (job->launchProcess()) {
