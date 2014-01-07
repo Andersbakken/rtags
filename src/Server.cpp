@@ -1659,8 +1659,9 @@ void Server::onLocalJobFinished(Process *process)
         error() << "Built remote job" << job->sourceFile.toTilde() << "for"
                 << job->destination
                 << "in" << (Rct::monoMs() - it->second.second) << "ms";
+    } else {
+        assert(!(job->flags & IndexerJob::Remote) || job->flags & IndexerJob::Rescheduled);
     }
-    assert(!(job->flags & IndexerJob::Remote) || job->flags & IndexerJob::Rescheduled);
     if (!(job->flags & IndexerJob::Aborted) && (process->returnCode() != 0 || !process->errorString().isEmpty())) {
         job->flags |= IndexerJob::Crashed;
         if (!(job->flags & IndexerJob::Remote))
