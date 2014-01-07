@@ -1124,7 +1124,7 @@ void Server::project(const QueryMessage &query, Connection *conn)
             selected = it->first;
         } else {
             for (auto pit : mProjects) {
-                assert(pit->second);
+                assert(pit.second);
                 if (ok) {
                     if (!index) {
                         selected = pit.first;
