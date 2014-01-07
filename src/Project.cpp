@@ -102,6 +102,37 @@ public:
     Set<uint32_t> mVisitedFiles;
 };
 
+class SyncThread : public Thread
+{
+public:
+    SyncThread(const std::shared_ptr<Project> &project)
+        : mProject(project)
+    {
+        setAutoDelete(true);
+    }
+
+    virtual void run()
+    {
+        if (std::shared_ptr<Project> project = mProject.lock()) {
+            int dirtyTime, syncTime;
+            project->mJobCounter = project->mJobs.size();
+            project->syncDB(&dirtyTime, &syncTime);
+            StopWatch sw;
+            project->save();
+            const int saveTime = sw.elapsed();
+            error() << "Jobs took" << (static_cast<double>(project->mTimer.elapsed()) / 1000.0)
+                    << "secs, dirtying took"
+                    << (static_cast<double>(dirtyTime) / 1000.0) << "secs, syncing took"
+                    << (static_cast<double>(syncTime) / 1000.0) << " secs, saving took"
+                    << (static_cast<double>(saveTime) / 1000.0) << " secs, using"
+                    << MemoryMonitor::usage() / (1024.0 * 1024.0) << "mb of memory";
+            project->mTimer.start();
+            EventLoop::mainEventLoop()->callLater(std::bind(&Project::onSynced, project.get()));
+        }
+    }
+    std::weak_ptr<Project> mProject;
+};
+
 Project::Project(const Path &path)
     : mPath(path), mState(Unloaded), mJobCounter(0)
 {
@@ -218,6 +249,7 @@ void Project::load(FileManagerMode mode)
         break;
     case Loading:
     case Loaded:
+    case Syncing:
         return;
     }
     mState = Loading;
@@ -271,6 +303,11 @@ bool Project::match(const Match &p, bool *indexed) const
 
 void Project::onJobFinished(const std::shared_ptr<IndexData> &indexData)
 {
+    mSyncTimer.stop();
+    if (mState == Syncing) {
+        mPendingIndexData.append(indexData);
+        return;
+    }
     assert(indexData);
     Source pending;
     std::shared_ptr<Cpp> pendingCpp;
@@ -362,7 +399,7 @@ void Project::onJobFinished(const std::shared_ptr<IndexData> &indexData)
         jobData->job.reset();
     }
     if (syncNow)
-        sync();
+        startSync();
     if (pendingType != IndexerJob::Invalid) {
         assert(!pending.isNull());
         index(pending, pendingCpp, pendingType);
@@ -796,29 +833,23 @@ String Project::fixIts(uint32_t fileId) const
 void Project::onTimerFired(Timer* timer)
 {
     if (timer == &mSyncTimer) {
-        sync();
+        startSync();
     } else {
         assert(0 && "Unexpected timer event in Project");
         timer->stop();
     }
 }
 
-void Project::sync()
+void Project::startSync()
 {
+    if (mState == Syncing) {
+        mSyncTimer.restart(SyncTimeout, Timer::SingleShot);
+        return;
+    }
+    assert(mState == Loaded);
     mSyncTimer.stop();
-    int dirtyTime, syncTime;
-    mJobCounter = mJobs.size();
-    syncDB(&dirtyTime, &syncTime);
-    StopWatch sw;
-    save();
-    const int saveTime = sw.elapsed();
-    error() << "Jobs took" << (static_cast<double>(mTimer.elapsed()) / 1000.0)
-            << "secs, dirtying took"
-            << (static_cast<double>(dirtyTime) / 1000.0) << "secs, syncing took"
-            << (static_cast<double>(syncTime) / 1000.0) << " secs, saving took"
-            << (static_cast<double>(saveTime) / 1000.0) << " secs, using"
-            << MemoryMonitor::usage() / (1024.0 * 1024.0) << "mb of memory";
-    mTimer.start();
+    SyncThread *thread = new SyncThread(shared_from_this());
+    thread->start();
 }
 
 void Project::reloadFileManager()
@@ -940,4 +971,12 @@ bool Project::hasSource(const Source &source) const
 {
     auto it = mSources.find(source.key());
     return it != mSources.end() && it->second == source;
+}
+void Project::onSynced()
+{
+    assert(mState == Syncing);
+    mState = Loaded;
+    for (auto it : mPendingIndexData) {
+        onJobFinished(it);
+    }
 }

@@ -42,7 +42,8 @@ public:
         Unloaded,
         Inited,
         Loading,
-        Loaded
+        Loaded,
+        Syncing
     };
     State state() const { return mState; }
     void init();
@@ -129,7 +130,8 @@ private:
     void syncDB(int *dirtyTime, int *syncTime);
     void startDirtyJobs(const Set<uint32_t> &files);
     bool save();
-    void sync();
+    void startSync();
+    void onSynced();
 
     const Path mPath;
     State mState;
@@ -140,6 +142,7 @@ private:
     FilesMap mFiles;
 
     Set<uint32_t> mVisitedFiles;
+    List<std::shared_ptr<IndexData> > mPendingIndexData;
 
     int mJobCounter;
 
@@ -171,6 +174,7 @@ private:
     Set<uint32_t> mSuspendedFiles;
 
     friend class RestoreThread;
+    friend class SyncThread;
 };
 
 inline bool Project::visitFile(uint32_t visitFileId, uint64_t key)
