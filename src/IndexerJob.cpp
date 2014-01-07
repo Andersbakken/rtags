@@ -29,11 +29,11 @@ IndexerJob::~IndexerJob()
 
 bool IndexerJob::launchProcess()
 {
-    if (flags & (Aborted|Running|Remote)) {
-        error() << "Restarting job" << sourceFile << "when state is" << String::format<8>("0x%x", flags);
-        return true; // ### ???
-    }
-    assert(!(flags & (Aborted|Running)));
+    // if (flags & (Aborted|Running|Remote)) {
+    //     error() << "Restarting job" << sourceFile << "when state is" << String::format<8>("0x%x", flags);
+    //     return true; // ### ???
+    // }
+    // assert(!(flags & (Aborted|Running)));
     assert(cpp);
     assert(!cpp->preprocessed.isEmpty());
     static const Path rp = Rct::executablePath().parentDir() + "rp";
@@ -44,6 +44,7 @@ bool IndexerJob::launchProcess()
     }
 
     started = 0;
+    assert(!process);
     process = new Process;
     if (!process->start(rp)) {
         error() << "Couldn't start rp" << process->errorString();

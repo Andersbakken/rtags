@@ -1345,7 +1345,8 @@ void Server::handleJobRequestMessage(const JobRequestMessage &message, Connectio
     while (it != mPending.end()) {
         std::shared_ptr<IndexerJob>& job = *it;
         if (!(job->flags & IndexerJob::FromRemote)) {
-            assert(!(job->flags & (IndexerJob::Running|IndexerJob::Complete)));
+            assert(!(job->flags & (IndexerJob::Running|IndexerJob::Complete)) || job->flags & IndexerJob::Rescheduled);
+            assert(!job->process);
             if (debugMulti)
                 error() << "sending job for" << job->sourceFile << conn->client()->peerName();
             job->started = Rct::monoMs();
@@ -1464,7 +1465,7 @@ void Server::onReschedule()
     while (it != mProcessingJobs.end()) {
         const std::shared_ptr<IndexerJob>& job = it->second;
         assert(!(job->flags & IndexerJob::Complete));
-        if (!(job->flags & IndexerJob::Remote)) {
+        if (!(job->flags & IndexerJob::Remote) || job->process) { // jobs could be both remote and local when rescheduled
             // local job, no need to reschedule
             ++it;
             continue;
@@ -1601,6 +1602,7 @@ void Server::startNextJob()
                 if (debugMulti)
                     error() << "started job locally for" << job->sourceFile << job->id;
                 mLocalJobs[job->process] = std::make_pair(job, Rct::monoMs());
+                assert(job->process);
                 job->process->finished().connect(std::bind(&Server::onLocalJobFinished, this,
                                                            std::placeholders::_1));
             } else {
