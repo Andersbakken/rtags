@@ -39,7 +39,15 @@ bool IndexerJob::launchProcess()
     // assert(!(flags & (Aborted|Running)));
     assert(cpp);
     assert(!cpp->preprocessed.isEmpty());
-    static const Path rp = Rct::executablePath().parentDir() + "rp";
+    static Path rp;
+    if (rp.isEmpty()) {
+        rp = Rct::executablePath().parentDir() + "rp";
+        if (!rp.exists()) {
+            rp = Rct::executablePath();
+            rp.resolve();
+            rp = rp.parentDir() + "rp";
+        }
+    }
     String stdinData;
     {
         Serializer serializer(stdinData);
