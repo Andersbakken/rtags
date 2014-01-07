@@ -1475,8 +1475,9 @@ void Server::onReschedule()
         if (static_cast<int>(now - job->started) >= mOptions.rescheduleTimeout) {
             // this might never happen, reschedule this job
             // don't take it out of the mProcessingJobs list since the result might come back still
-            if (debugMulti)
-                error() << "rescheduling job" << job->sourceFile << job->id;
+            // if (debugMulti)
+            error() << "rescheduling job" << job->sourceFile << job->id
+                    << "it's been" << static_cast<double>(now - job->started) / 1000.0 << "seconds";
             mPending.push_back(job);
             startNextJob();
         }

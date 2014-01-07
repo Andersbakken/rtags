@@ -847,6 +847,7 @@ void Project::startSync()
         return;
     }
     assert(mState == Loaded);
+    mState = Syncing;
     mSyncTimer.stop();
     SyncThread *thread = new SyncThread(shared_from_this());
     thread->start();
