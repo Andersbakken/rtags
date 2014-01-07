@@ -1502,13 +1502,9 @@ void Server::onMulticastReadyRead(const SocketClient::SharedPtr &socket,
     handleMulticastData(ip, port, buffer.data(), buffer.size(), 0);
 }
 
-/*
-  We always give atleast one job to the "process pool" but otherwise active
-  threadpool jobs take precedence over rp's
-*/
 inline int Server::availableJobSlots(JobSlotsMode mode) const
 {
-    const int count = std::max(mOptions.jobCount - mThreadPool->busyThreads(), 1);
+    const int count = std::max(mOptions.jobCount - mThreadPool->busyThreads(), 0);
     if (mode == Local)
         return count;
     int ret = mLocalJobs.size();
