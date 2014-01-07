@@ -16,7 +16,6 @@
 #include "RTagsClang.h"
 #include "Server.h"
 #include <rct/StopWatch.h>
-#include <rct/Hash.h>
 #include "Cpp.h"
 #include "Project.h"
 #include <iostream>
@@ -412,20 +411,9 @@ bool compile(const Path& output, const Source &source, const String& preprocesse
     return true;
 }
 
-struct CacheData
-{
-    CacheData()
-        : fileId(0), blocked(false)
-    {}
-    uint32_t fileId;
-    bool blocked;
-    Path resolved;
-};
-
-static inline uint32_t visitFile(const char *path,
+static inline uint32_t visitFile(const Path &path,
                                  const std::shared_ptr<Cpp> &cpp,
                                  const std::shared_ptr<Project> &project,
-                                 Hash<Path, CacheData> &cache,
                                  bool *blocked)
 {
     assert(blocked);
@@ -433,23 +421,21 @@ static inline uint32_t visitFile(const char *path,
     if (!project)
         return Location::insertFile(path);
 
-    CacheData &data = cache[path];
-    if (!data.fileId) {
-        Path resolved = path;
-        bool changed;
-        if (!resolved.resolve(Path::RealPath, Path(), &changed))
-            return 0;
+    const Map<Path, uint32_t>::const_iterator it = cpp->visited.find(path);
+    if (it != cpp->visited.end())
+        return it->second;
 
-        data.fileId = Location::insertFile(resolved);
-        const bool visit = project->visitFile(data.fileId, 0);
-        *blocked = data.blocked = !visit;
-        if (changed) {
-            cache[resolved] = data;
-            data.resolved = resolved;
+    const uint32_t fileId = Location::insertFile(path);
+    if (!project->visitFile(fileId, 0)) {
+        *blocked = true;
+    } else {
+        cpp->visited[path] = fileId;
+        // ### We should find something nicer than this
+        if (cpp->visited.size() % 10 == 0) {
+            usleep(50000);
         }
     }
-    assert(data.blocked || cpp->visited.contains(path) || cpp->visited.contains(Path::resolved(path)));
-    return data.fileId;
+    return fileId;
 }
 
 class Compiler : public clang::CompilerInstance
@@ -463,7 +449,6 @@ public:
 
 std::shared_ptr<Cpp> preprocess(const Source &source, const std::shared_ptr<Project> &project)
 {
-    Hash<Path, CacheData> cache;
     StopWatch sw;
     Compiler compilerInstance;
     compilerInstance.createFileManager();
@@ -611,7 +596,7 @@ std::shared_ptr<Cpp> preprocess(const Source &source, const std::shared_ptr<Proj
     clang::Preprocessor &preprocessor = compilerInstance.getPreprocessor();
     preprocessor.createPreprocessingRecord(
 #if CLANG_VERSION_MINOR < 3
-        true
+    true
 #endif
         );
     clang::DoPrintPreprocessedInput(preprocessor, &out, preprocessorOptions);
@@ -626,15 +611,20 @@ std::shared_ptr<Cpp> preprocess(const Source &source, const std::shared_ptr<Proj
     for (size_t i=0; i<sizeof(diagnostics) / sizeof(diagnostics[0]); ++i) {
         for (auto it = diagnostics[i].begin; it != diagnostics[i].end; ++it) {
             const clang::PresumedLoc presumedLocation = sm.getPresumedLoc(it->first);
+            bool ok;
+            const Path path = Path::resolved(presumedLocation.getFilename(), Path::RealPath, Path(), &ok);
+            if (!ok)
+                continue;
             bool blocked;
-            const uint32_t fileId = visitFile(presumedLocation.getFilename(), cpp, project, cache, &blocked);
-            if (!blocked) {
-                cpp->diagnostics.append(Cpp::Diagnostic());
-                Cpp::Diagnostic &d = cpp->diagnostics.last();
-                d.location = Location(fileId, presumedLocation.getLine(), presumedLocation.getColumn());
-                d.type = diagnostics[i].type;
-                d.text = it->second;
-            }
+            const uint32_t fileId = visitFile(path, cpp, project, &blocked);
+            if (blocked)
+                continue;
+
+            cpp->diagnostics.append(Cpp::Diagnostic());
+            Cpp::Diagnostic &d = cpp->diagnostics.last();
+            d.location = Location(fileId, presumedLocation.getLine(), presumedLocation.getColumn());
+            d.type = diagnostics[i].type;
+            d.text = it->second;
         }
     }
     clang::PreprocessingRecord *record = preprocessor.getPreprocessingRecord();
@@ -661,10 +651,14 @@ std::shared_ptr<Cpp> preprocess(const Source &source, const std::shared_ptr<Proj
             if (!strcmp(path, "<built-in>"))
                 break;
 
-            bool blocked;
-            const uint32_t fileId = visitFile(path, cpp, project, cache, &blocked);
-            if (!fileId)
+            Path resolved = path;
+            if (!resolved.resolve()) {
+                // printf("Resolved didn't %s/%s\n", path, resolved.constData());
                 break;
+            }
+
+            bool blocked;
+            const uint32_t fileId = visitFile(resolved, cpp, project, &blocked);
             const clang::IdentifierInfo *name = def->getName();
             const String macroName(name->getNameStart(), name->getLength());
             const Location loc(fileId, presumedLocation.getLine(), presumedLocation.getColumn());
@@ -692,9 +686,15 @@ std::shared_ptr<Cpp> preprocess(const Source &source, const std::shared_ptr<Proj
             if (!strcmp(path, "<built-in>"))
                 break;
 
+            Path resolved = path;
+            if (!resolved.resolve()) {
+                // printf("Resolved didn't %s/%s\n", path, resolved.constData());
+                break;
+            }
+
             bool blocked;
-            const uint32_t fileId = visitFile(path, cpp, project, cache, &blocked);
-            if (blocked || !fileId)
+            const uint32_t fileId = visitFile(resolved, cpp, project, &blocked);
+            if (blocked)
                 break;
 
             const clang::IdentifierInfo *name = exp->getName();
