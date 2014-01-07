@@ -29,10 +29,9 @@ IndexerJob::~IndexerJob()
 
 bool IndexerJob::launchProcess()
 {
-    if (flags & FromRemote) {
-        error() << "Starting a job for someone else" << String::format<8>("0x%x", flags) << sourceFile;
-
-    }
+    // if (flags & FromRemote) {
+    //     error() << "Starting a job for someone else" << String::format<8>("0x%x", flags) << sourceFile;
+    // }
     // if (flags & (Aborted|Running|Remote)) {
     //     error() << "Restarting job" << sourceFile << "when state is" << String::format<8>("0x%x", flags);
     //     return true; // ### ???

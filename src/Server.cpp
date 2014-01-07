@@ -1615,6 +1615,7 @@ void Server::startNextJob()
                     job->process->finished().connect(std::bind(&Server::onLocalJobFinished, this,
                                                                std::placeholders::_1));
                 } else {
+                    mLocalJobs[job->process] = std::make_pair(job, Rct::monoMs());
                     EventLoop::eventLoop()->callLater(std::bind(&Server::onLocalJobFinished, this, std::placeholders::_1), job->process);
                 }
             }
@@ -1685,8 +1686,8 @@ void Server::onLocalJobFinished(Process *process)
     mProcessingJobs.erase(job->id);
     mLocalJobs.erase(it);
     EventLoop::deleteLater(process);
-    startNextJob();
     startPreprocessJobs();
+    startNextJob();
 }
 
 void Server::handleMulticastForward(const QueryMessage &message, Connection *conn)
