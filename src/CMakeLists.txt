@@ -34,14 +34,15 @@ include(${CMAKE_CURRENT_LIST_DIR}/rct/compiler.cmake)
 # include(${CMAKE_CURRENT_LIST_DIR}/rct/rct.cmake)
 
 if (CMAKE_BUILD_TYPE MATCHES "Debug")
-  add_definitions(-DRTAGS_DEBUG)
+  add_definitions("-DRTAGS_DEBUG")
+  set(RCT_EVENTLOOP_CALLBACK_TIME_THRESHOLD 2000)
 endif ()
 
-add_definitions(-Wall)
+add_definitions("-Wall")
 add_definitions("-DCLANG_INCLUDEPATH=\"${CLANG_SYSTEM_INCLUDE}\"")
 add_definitions("-DCLANG_VERSION_MAJOR=${CLANG_VERSION_MAJOR}")
 add_definitions("-DCLANG_VERSION_MINOR=${CLANG_VERSION_MINOR}")
-add_definitions(-DOS_${CMAKE_SYSTEM_NAME})
+add_definitions("-DOS_${CMAKE_SYSTEM_NAME}")
 
 if (CMAKE_SYSTEM_NAME MATCHES "Linux")
   set(SYSTEM_LIBS pthread rt crypto m dl tinfo)
