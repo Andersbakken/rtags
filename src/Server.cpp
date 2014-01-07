@@ -407,25 +407,29 @@ void Server::handleIndexerMessage(const IndexerMessage &message, Connection *con
             error() << "already got a response for" << indexData->jobId;
         return;
     }
-    assert(!(it->second->flags & IndexerJob::FromRemote));
-    assert(it->second->flags & (IndexerJob::Running|IndexerJob::Aborted|IndexerJob::Crashed));
-    if (!(it->second->flags == (IndexerJob::Aborted|IndexerJob::Crashed))) {
-        assert(it->second->flags & IndexerJob::Running);
-        it->second->flags |= IndexerJob::Complete;
-        it->second->flags &= ~IndexerJob::Running;
-    }
+    std::shared_ptr<IndexerJob> job = it->second;
+    assert(job);
     mProcessingJobs.erase(it);
-    std::shared_ptr<Project> project = mProjects.value(message.project());
-    if (!project) {
-        error() << "Can't find project root for this IndexerMessage" << message.project() << Location::path(indexData->fileId());
-        return;
-    }
-    String ip;
-    uint16_t port;
-    if (conn->client()->peer(&ip, &port))
-        indexData->message << String::format<64>(" from %s", ip.constData());
+    assert(!(job->flags & IndexerJob::FromRemote));
+    if (!(job->flags & IndexerJob::Complete)) {
+        assert(job->flags & (IndexerJob::Running|IndexerJob::Aborted|IndexerJob::Crashed));
+        if (!(job->flags == (IndexerJob::Aborted|IndexerJob::Crashed))) {
+            assert(job->flags & IndexerJob::Running);
+            job->flags |= IndexerJob::Complete;
+            job->flags &= ~IndexerJob::Running;
+        }
+        std::shared_ptr<Project> project = mProjects.value(message.project());
+        if (!project) {
+            error() << "Can't find project root for this IndexerMessage" << message.project() << Location::path(indexData->fileId());
+            return;
+        }
+        String ip;
+        uint16_t port;
+        if (conn->client()->peer(&ip, &port))
+            indexData->message << String::format<64>(" from %s", ip.constData());
 
-    project->onJobFinished(indexData);
+        project->onJobFinished(indexData);
+    }
     conn->finish();
     startPreprocessJobs();
 }
@@ -1662,7 +1666,8 @@ void Server::onLocalJobFinished(Process *process)
     } else {
         assert(!(job->flags & IndexerJob::Remote) || job->flags & IndexerJob::Rescheduled);
     }
-    if (!(job->flags & IndexerJob::Aborted) && (process->returnCode() != 0 || !process->errorString().isEmpty())) {
+    if (!(job->flags & (IndexerJob::Aborted|IndexerJob::Complete))
+        && (process->returnCode() != 0 || !process->errorString().isEmpty())) {
         job->flags |= IndexerJob::Crashed;
         if (!(job->flags & IndexerJob::Remote))
             assert(!(job->flags & IndexerJob::Running));
