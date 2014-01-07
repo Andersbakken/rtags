@@ -52,8 +52,6 @@ bool IndexerJob::launchProcess()
     process = new Process;
     if (!process->start(rp)) {
         error() << "Couldn't start rp" << process->errorString();
-        delete process;
-        process = 0;
         return false;
     }
 

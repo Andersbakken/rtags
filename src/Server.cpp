@@ -1344,6 +1344,7 @@ void Server::handleJobRequestMessage(const JobRequestMessage &message, Connectio
     auto it = mPending.begin();
     while (it != mPending.end()) {
         std::shared_ptr<IndexerJob>& job = *it;
+        assert(!(job->flags & IndexerJob::Complete));
         if (!(job->flags & IndexerJob::FromRemote)) {
             assert(!(job->flags & (IndexerJob::Running|IndexerJob::Complete)) || job->flags & IndexerJob::Rescheduled);
             assert(!job->process);
@@ -1583,6 +1584,7 @@ void Server::fetchRemoteJobs(const String& ip, uint16_t port, uint16_t jobs)
 void Server::addJob(const std::shared_ptr<IndexerJob> &job)
 {
     assert(job);
+    assert(!(job->flags & IndexerJob::Complete));
     mPending.push_back(job);
     if (job->flags & IndexerJob::FromRemote)
         ++mRemotePending;
@@ -1594,19 +1596,23 @@ void Server::startNextJob()
     while (!mPending.isEmpty() && mLocalJobs.size() < availableJobSlots(Local)) {
         std::shared_ptr<IndexerJob> job = mPending.first();
         assert(job);
-        assert(job->flags & IndexerJob::Rescheduled || !(job->flags & (IndexerJob::Complete|IndexerJob::Running)));
-        if (job->flags & IndexerJob::FromRemote || project(job->project)) {
-            if (!(job->flags & IndexerJob::FromRemote))
-                mProcessingJobs[job->id] = job;
-            if (job->launchProcess()) {
-                if (debugMulti)
-                    error() << "started job locally for" << job->sourceFile << job->id;
-                mLocalJobs[job->process] = std::make_pair(job, Rct::monoMs());
-                assert(job->process);
-                job->process->finished().connect(std::bind(&Server::onLocalJobFinished, this,
-                                                           std::placeholders::_1));
-            } else {
-                EventLoop::eventLoop()->callLater(std::bind(&Server::onLocalJobFinished, this, std::placeholders::_1), job->process);
+        if (job->flags & IndexerJob::Complete) {
+            assert(job->flags & IndexerJob::Rescheduled);
+        } else {
+            assert(job->flags & IndexerJob::Rescheduled || !(job->flags & (IndexerJob::Complete|IndexerJob::Running)));
+            if (job->flags & IndexerJob::FromRemote || project(job->project)) {
+                if (!(job->flags & IndexerJob::FromRemote))
+                    mProcessingJobs[job->id] = job;
+                if (job->launchProcess()) {
+                    if (debugMulti)
+                        error() << "started job locally for" << job->sourceFile << job->id;
+                    mLocalJobs[job->process] = std::make_pair(job, Rct::monoMs());
+                    assert(job->process);
+                    job->process->finished().connect(std::bind(&Server::onLocalJobFinished, this,
+                                                               std::placeholders::_1));
+                } else {
+                    EventLoop::eventLoop()->callLater(std::bind(&Server::onLocalJobFinished, this, std::placeholders::_1), job->process);
+                }
             }
         }
         mPending.pop_front();
@@ -1641,9 +1647,11 @@ void Server::startNextJob()
 
 void Server::onLocalJobFinished(Process *process)
 {
+    assert(process);
     auto it = mLocalJobs.find(process);
     assert(it != mLocalJobs.end());
     std::shared_ptr<IndexerJob> &job = it->second.first;
+    assert(job->process == process);
     if (debugMulti)
         error() << "job finished" << job->flags << process->errorString() << process->readAllStdErr();
     if (job->flags & IndexerJob::FromRemote) {
@@ -1652,11 +1660,14 @@ void Server::onLocalJobFinished(Process *process)
                 << job->destination
                 << "in" << (Rct::monoMs() - it->second.second) << "ms";
     }
-    job->flags &= ~IndexerJob::Running;
+    assert(!(job->flags & IndexerJob::Remote) || job->flags & IndexerJob::Rescheduled);
     if (!(job->flags & IndexerJob::Aborted) && (process->returnCode() != 0 || !process->errorString().isEmpty())) {
         job->flags |= IndexerJob::Crashed;
+        if (!(job->flags & IndexerJob::Remote))
+            assert(!(job->flags & IndexerJob::Running));
+
         std::shared_ptr<Project> proj = project(job->project);
-        if (proj && proj->state() == Project::Loaded) {
+        if (proj && (proj->state() == Project::Loaded || proj->state() == Project::Syncing)) {
             std::shared_ptr<IndexData> data(new IndexData(job->flags));
             data->key = job->source.key();
             EventLoop::SharedPtr loop = EventLoop::eventLoop();
