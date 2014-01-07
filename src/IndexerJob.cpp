@@ -50,7 +50,7 @@ bool IndexerJob::launchProcess()
     assert(!process);
     process = new Process;
     if (!process->start(rp)) {
-        error() << "Couldn't start rp" << process->errorString();
+        error() << "Couldn't start rp" << rp << process->errorString();
         return false;
     }
 
