@@ -1345,7 +1345,7 @@ void Server::handleJobRequestMessage(const JobRequestMessage &message, Connectio
     while (it != mPending.end()) {
         std::shared_ptr<IndexerJob>& job = *it;
         if (!(job->flags & IndexerJob::FromRemote)) {
-            assert(job->flags & (IndexerJob::Running|IndexerJob::Complete));
+            assert(!(job->flags & (IndexerJob::Running|IndexerJob::Complete)));
             if (debugMulti)
                 error() << "sending job for" << job->sourceFile << conn->client()->peerName();
             job->started = Rct::monoMs();
@@ -1475,6 +1475,7 @@ void Server::onReschedule()
             // if (debugMulti)
             error() << "rescheduling job" << job->sourceFile << job->id
                     << "it's been" << static_cast<double>(now - job->started) / 1000.0 << "seconds";
+            job->flags |= IndexerJob::Rescheduled;
             mPending.push_back(job);
             startNextJob();
         }
@@ -1592,7 +1593,7 @@ void Server::startNextJob()
     while (!mPending.isEmpty() && mLocalJobs.size() < availableJobSlots(Local)) {
         std::shared_ptr<IndexerJob> job = mPending.first();
         assert(job);
-        assert(!(job->flags & (IndexerJob::Complete|IndexerJob::Running)));
+        assert(job->flags & IndexerJob::Rescheduled || !(job->flags & (IndexerJob::Complete|IndexerJob::Running)));
         if (!(job->flags & IndexerJob::FromRemote) || project(job->project)) {
             if (!(job->flags & IndexerJob::FromRemote))
                 mProcessingJobs[job->id] = job;
