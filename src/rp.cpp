@@ -69,13 +69,13 @@ int main(int argc, char **argv)
     Path sourceFile;
     Source source;
     Path project;
-    uint8_t type;
+    uint32_t flags;
     Hash<Path, uint32_t> blockedFiles;
     std::shared_ptr<Cpp> cpp(new Cpp);
     uint64_t jobId;
     int visitFileTimeout, indexerMessageTimeout, connectTimeout;
     deserializer >> destination >> port >> sourceFile >> source
-                 >> *cpp >> project >> type
+                 >> *cpp >> project >> flags
                  >> visitFileTimeout >> indexerMessageTimeout
                  >> connectTimeout
                  >> jobId >> blockedFiles;
@@ -94,17 +94,6 @@ int main(int argc, char **argv)
     if (project.isEmpty()) {
         error("No project\n");
         return 4;
-    }
-
-    switch (type) {
-    case IndexerJob::Dirty:
-    case IndexerJob::Makefile:
-    case IndexerJob::Dump:
-    case IndexerJob::Remote:
-        break;
-    default:
-        error("Invalid type %d\n", type);
-        return 5;
     }
 
     ClangIndexer indexer;
@@ -126,7 +115,7 @@ int main(int argc, char **argv)
     indexer.setIndexerMessageTimeout(indexerMessageTimeout);
     indexer.setJobId(jobId);
 
-    if (!indexer.index(static_cast<IndexerJob::IndexType>(type), source, cpp, project)) {
+    if (!indexer.index(flags, source, cpp, project)) {
         error("Failed to index %s\n", sourceFile.constData());
         return 8;
     }

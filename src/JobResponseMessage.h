@@ -45,6 +45,7 @@ private:
     uint16_t port;
     Hash<Path, uint32_t> blockedFiles;
     uint64_t id;
+    uint32_t flags;
 };
 
 #endif

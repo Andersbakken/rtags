@@ -230,9 +230,9 @@ void Project::restore(RestoreThread *thread)
     }
     for (auto it : pendingJobs) {
         assert(!it.second.pendingSource.isNull());
-        assert(it.second.pendingType != IndexerJob::Invalid);
+        assert(it.second.pendingFlags);
         assert(it.second.pendingCpp);
-        index(it.second.pendingSource, it.second.pendingCpp, it.second.pendingType);
+        index(it.second.pendingSource, it.second.pendingCpp, it.second.pendingFlags);
     }
 }
 
@@ -311,10 +311,11 @@ void Project::onJobFinished(const std::shared_ptr<IndexData> &indexData)
     assert(indexData);
     Source pending;
     std::shared_ptr<Cpp> pendingCpp;
-    IndexerJob::IndexType pendingType = IndexerJob::Invalid;
+    uint32_t pendingFlags = 0;
     bool syncNow = false;
     const uint32_t fileId = indexData->fileId();
-    if (indexData->type == IndexerJob::Dump) {
+    if (indexData->flags & IndexerJob::Dump) {
+        assert(indexData->flags == IndexerJob::Dump);
         bool found = false;
         Connection *conn = mDumps.take(indexData->key, &found);
         if (!found) {
@@ -337,8 +338,8 @@ void Project::onJobFinished(const std::shared_ptr<IndexData> &indexData)
 
     JobData *jobData = &it->second;
     assert(jobData->job);
-    const bool success = !indexData->aborted && jobData->job->state != IndexerJob::Aborted;
-    if (indexData->aborted) {
+    const bool success = !(jobData->job->flags & (IndexerJob::Aborted|IndexerJob::Crashed));
+    if (jobData->job->flags & IndexerJob::Crashed) {
         ++jobData->crashCount;
     } else {
         jobData->crashCount = 0;
@@ -346,22 +347,23 @@ void Project::onJobFinished(const std::shared_ptr<IndexData> &indexData)
 
     enum { MaxCrashCount = 5 }; // ### configurable?
     if (jobData->crashCount < MaxCrashCount) {
-        if (jobData->pendingType != IndexerJob::Invalid) {
-            assert(jobData->job->state == IndexerJob::Aborted || jobData->job->state == IndexerJob::Crashed);
-            std::swap(pendingType, jobData->pendingType);
+        if (jobData->pendingFlags) {
+            // the job was aborted
+            assert(jobData->job->flags & IndexerJob::Aborted);
+            std::swap(pendingFlags, jobData->pendingFlags);
             std::swap(pending, jobData->pendingSource);
             std::swap(pendingCpp, jobData->pendingCpp);
         } else if (!success) {
             pending = jobData->job->source;
-            pendingType = jobData->job->type;
+            pendingFlags = jobData->job->flags & IndexerJob::Type_Mask;
             pendingCpp = jobData->job->cpp;
-            if (jobData->job->state != IndexerJob::Aborted) {
+            if (jobData->job->flags & IndexerJob::Crashed) {
                 // ### we should maybe wait a little before restarting or something.
                 error("%s crashed, restarting", jobData->job->source.sourceFile().constData());
             }
         }
     }
-    if (pendingType == IndexerJob::Invalid) {
+    if (!pendingFlags) {
         const int idx = mJobCounter - mJobs.size() + 1;
         if (testLog(RTags::CompilationErrorXml)) {
             logDirect(RTags::CompilationErrorXml, indexData->xmlDiagnostics);
@@ -380,7 +382,7 @@ void Project::onJobFinished(const std::shared_ptr<IndexData> &indexData)
                       indexData->message.constData());
             }
         } else {
-            assert(indexData->aborted);
+            assert(indexData->flags & IndexerJob::Crashed);
             error("[%3d%%] %d/%d %s %s indexing crashed.",
                   static_cast<int>(round((double(idx) / double(mJobCounter)) * 100.0)), idx, mJobCounter,
                   String::formatTime(time(0), String::Time).constData(),
@@ -391,7 +393,7 @@ void Project::onJobFinished(const std::shared_ptr<IndexData> &indexData)
 
         const int syncThreshold = Server::instance()->options().syncThreshold;
         if (mJobs.isEmpty()) {
-            mSyncTimer.restart(indexData->type == IndexerJob::Dirty ? 0 : SyncTimeout, Timer::SingleShot);
+            mSyncTimer.restart(indexData->flags & IndexerJob::Dirty ? 0 : SyncTimeout, Timer::SingleShot);
         } else if (syncThreshold && mPendingData.size() >= syncThreshold) {
             syncNow = true;
         }
@@ -400,9 +402,9 @@ void Project::onJobFinished(const std::shared_ptr<IndexData> &indexData)
     }
     if (syncNow)
         startSync();
-    if (pendingType != IndexerJob::Invalid) {
+    if (pendingFlags) {
         assert(!pending.isNull());
-        index(pending, pendingCpp, pendingType);
+        index(pending, pendingCpp, pendingFlags);
         --mJobCounter;
     }
 }
@@ -458,16 +460,13 @@ void Project::dump(const Source &source, Connection *conn)
     }
 
     std::shared_ptr<IndexerJob> job(new IndexerJob(IndexerJob::Dump, mPath, source, cpp));
-    if (!job) {
-        mDumps.remove(source.fileId);
-        conn->write<64>("Couldn't create dump job for %s", source.sourceFile().constData());
+    if (!job->launchProcess()) {
+        conn->write<64>("Couldn't launch process for dump %s", source.sourceFile().constData());
         conn->finish();
-        return;
     }
-    job->startLocal();
 }
 
-void Project::index(const Source &source, const std::shared_ptr<Cpp> &cpp, IndexerJob::IndexType type)
+void Project::index(const Source &source, const std::shared_ptr<Cpp> &cpp, uint32_t flags)
 {
     static const char *fileFilter = getenv("RTAGS_FILE_FILTER");
     if (fileFilter && !strstr(source.sourceFile().constData(), fileFilter))
@@ -478,17 +477,17 @@ void Project::index(const Source &source, const std::shared_ptr<Cpp> &cpp, Index
     if (mState != Loaded) {
         // error() << "Index called at" << static_cast<int>(mState) << "time. Setting pending" << source.sourceFile();
         data.pendingSource = source;
-        data.pendingType = type;
+        data.pendingFlags = flags;
         data.pendingCpp = cpp;
         return;
     }
 
     if (data.job) {
         // error() << "There's already something here for" << source.sourceFile();
-        if (!data.job->update(type, source, cpp)) {
+        if (!data.job->update(flags, source, cpp)) {
             // error() << "Aborting and setting pending" << source.sourceFile();
             data.pendingSource = source;
-            data.pendingType = type;
+            data.pendingFlags = flags;
             data.pendingCpp = cpp;
         }
         return;
@@ -498,14 +497,14 @@ void Project::index(const Source &source, const std::shared_ptr<Cpp> &cpp, Index
     watch(source.sourceFile());
 
     data.pendingSource.clear();
-    data.pendingType = IndexerJob::Invalid;
+    data.pendingFlags = IndexerJob::None;
     data.pendingCpp.reset();
     mPendingData.remove(key);
 
     if (!mJobCounter++)
         mTimer.start();
 
-    data.job.reset(new IndexerJob(type, mPath, source, cpp));
+    data.job.reset(new IndexerJob(flags, mPath, source, cpp));
     mSyncTimer.stop();
     Server::instance()->addJob(data.job);
 }
@@ -934,19 +933,14 @@ SymbolMap Project::symbols(uint32_t fileId) const
     }
     return ret;
 }
+
 String Project::dumpJobs() const
 {
     String ret;
-    const char *types[] = { "Invalid",
-                            "Makefile",
-                            "Dirty",
-                            "Dump",
-                            "Remote" };
-
     for (auto it = mJobs.begin(); it != mJobs.end(); ++it) {
-        ret << Location::path(it->first) << it->second.job->source << types[it->second.job->type]
+        ret << Location::path(it->first) << it->second.job->source << String::format<16>("0x%x", it->second.job->flags)
             << it->second.crashCount
-            << (it->second.pendingType == IndexerJob::Invalid ? String() : it->second.pendingSource.toString())
+            << (it->second.pendingFlags ? String() : it->second.pendingSource.toString())
             << "\n";
     }
     return ret;
@@ -985,8 +979,8 @@ void Project::onSynced()
 
     for (auto it : pendingJobs) {
         assert(!it.second.pendingSource.isNull());
-        assert(it.second.pendingType != IndexerJob::Invalid);
+        assert(it.second.pendingFlags);
         assert(it.second.pendingCpp);
-        index(it.second.pendingSource, it.second.pendingCpp, it.second.pendingType);
+        index(it.second.pendingSource, it.second.pendingCpp, it.second.pendingFlags);
     }
 }

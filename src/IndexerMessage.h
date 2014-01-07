@@ -38,7 +38,7 @@ public:
     void encode(Serializer &serializer) const
     {
         assert(mData);
-        serializer << mProject << static_cast<uint8_t>(mData->type) << mData->key << mData->parseTime
+        serializer << mProject << mData->flags << mData->key << mData->parseTime
                    << mData->symbols << mData->references << mData->symbolNames << mData->dependencies
                    << mData->usrMap << mData->message << mData->fixIts
                    << mData->xmlDiagnostics << mData->visited << mData->jobId;
@@ -46,9 +46,9 @@ public:
     void decode(Deserializer &deserializer)
     {
         assert(!mData);
-        uint8_t type;
-        deserializer >> mProject >> type;
-        mData.reset(new IndexData(static_cast<IndexerJob::IndexType>(type)));
+        uint32_t flags;
+        deserializer >> mProject >> flags;
+        mData.reset(new IndexData(flags));
         deserializer >> mData->key >> mData->parseTime >> mData->symbols >> mData->references
                      >> mData->symbolNames >> mData->dependencies >> mData->usrMap >> mData->message
                      >> mData->fixIts >> mData->xmlDiagnostics >> mData->visited >> mData->jobId;

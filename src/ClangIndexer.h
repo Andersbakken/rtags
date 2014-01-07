@@ -20,7 +20,7 @@ public:
     bool connect(const Path &serverFile, int timeout);
     bool connect(const String &hostName, uint16_t port, int timeout);
 
-    bool index(IndexerJob::IndexType type, const Source &source,
+    bool index(uint32_t flags, const Source &source,
                const std::shared_ptr<Cpp> &cpp, const Path &project);
     int visitFileTimeout() const { return mVisitFileTimeout; }
     void setVisitFileTimeout(int visitFileTimeout) { mVisitFileTimeout = visitFileTimeout; }

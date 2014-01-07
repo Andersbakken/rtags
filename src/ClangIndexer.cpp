@@ -59,7 +59,7 @@ bool ClangIndexer::connect(const String &hostName, uint16_t port, int timeout)
     return mConnection.connectTcp(hostName, port, timeout);
 }
 
-bool ClangIndexer::index(IndexerJob::IndexType type, const Source &source,
+bool ClangIndexer::index(uint32_t flags, const Source &source,
                          const std::shared_ptr<Cpp> &cpp, const Path &project)
 {
 
@@ -68,7 +68,7 @@ bool ClangIndexer::index(IndexerJob::IndexType type, const Source &source,
     // fclose(f);
 
     // mLogFile = fopen(String::format("/tmp/%s", sourceFile.fileName()).constData(), "w");
-    mData.reset(new IndexData(type));
+    mData.reset(new IndexData(flags));
     mData->symbolNames = std::move(cpp->macroNames);
     mData->symbols = std::move(cpp->macroCursors);
     mData->key = source.key();
@@ -90,10 +90,9 @@ bool ClangIndexer::index(IndexerJob::IndexType type, const Source &source,
     mProject = project;
     assert(mConnection.isConnected());
     mData->visited[source.fileId] = true;
-    assert(type != IndexerJob::Invalid);
     parse() && visit() && diagnose();
     mData->parseTime = cpp->time;
-    if (mData->type != IndexerJob::Dump) {
+    if (!(mData->flags & IndexerJob::Dump)) {
         mData->message = source.sourceFile().toTilde();
         if (!mUnit)
             mData->message += " error";
@@ -108,7 +107,7 @@ bool ClangIndexer::index(IndexerJob::IndexType type, const Source &source,
         } else if (mData->dependencies.size()) {
             mData->message += String::format<16>("(%d deps)", mData->dependencies.size());
         }
-        if (mData->type == IndexerJob::Dirty)
+        if (mData->flags & IndexerJob::Dirty)
             mData->message += " (dirty)";
     }
     const IndexerMessage msg(mProject, mData);
@@ -1003,7 +1002,7 @@ bool ClangIndexer::parse()
         clang_getInclusions(mUnit, ClangIndexer::inclusionVisitor, this);
         clang_disposeTranslationUnit(mUnit);
         mUnit = 0;
-    } else if (mData->type != IndexerJob::Dump) {
+    } else if (!(mData->flags & IndexerJob::Dump)) {
         mData->dependencies[mSource.fileId].insert(mSource.fileId);
     }
     mParseDuration = sw.elapsed();
@@ -1064,7 +1063,7 @@ bool ClangIndexer::diagnose()
 {
     if (!mUnit) {
         return false;
-    } else if (mData->type == IndexerJob::Dump) {
+    } else if (mData->flags & IndexerJob::Dump) {
         return true;
     }
 
@@ -1223,7 +1222,7 @@ bool ClangIndexer::visit()
         return false;
     }
 
-    if (mData->type == IndexerJob::Dump) {
+    if (mData->flags & IndexerJob::Dump) {
         DumpUserData userData = { 0, this };
         clang_visitChildren(clang_getTranslationUnitCursor(mUnit),
                             ClangIndexer::dumpVisitor, &userData);

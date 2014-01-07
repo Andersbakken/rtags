@@ -21,11 +21,11 @@
 #include "Server.h"
 
 JobResponseMessage::JobResponseMessage()
-    : ClientMessage(MessageId)
+    : ClientMessage(MessageId), flags(0)
 {
 }
 
-JobResponseMessage::JobResponseMessage(const std::shared_ptr<IndexerJob>& job, uint16_t p)
+JobResponseMessage::JobResponseMessage(const std::shared_ptr<IndexerJob> &job, uint16_t p)
     : ClientMessage(MessageId), port(p)
 {
     cpp = job->cpp;
@@ -33,6 +33,7 @@ JobResponseMessage::JobResponseMessage(const std::shared_ptr<IndexerJob>& job, u
     source = job->source;
     sourceFile = job->sourceFile;
     id = job->id;
+    flags = job->flags;
     std::shared_ptr<Project> proj = Server::instance()->project(project);
     assert(proj);
     blockedFiles = proj->visitedFiles();
@@ -40,20 +41,20 @@ JobResponseMessage::JobResponseMessage(const std::shared_ptr<IndexerJob>& job, u
 
 void JobResponseMessage::encode(Serializer &serializer) const
 {
-    serializer << *cpp << project << source << sourceFile << blockedFiles << htons(port) << id;
+    serializer << *cpp << project << source << sourceFile << blockedFiles << port << id << flags;
 }
 
 void JobResponseMessage::decode(Deserializer &deserializer)
 {
     cpp.reset(new Cpp);
-    deserializer >> *cpp >> project >> source >> sourceFile >> blockedFiles >> port >> id;
-    port = ntohs(port);
+    deserializer >> *cpp >> project >> source >> sourceFile >> blockedFiles >> port >> id >> flags;
 }
 
 void JobResponseMessage::toIndexerJob(std::shared_ptr<IndexerJob>& job, Connection* conn) const
 {
-    job->state = IndexerJob::Pending;
-    job->type = IndexerJob::Remote;
+    job->flags = flags;
+    job->flags &= IndexerJob::Remote;
+    job->flags |= IndexerJob::FromRemote;
     job->cpp = cpp;
     job->project = project;
     job->source = source;

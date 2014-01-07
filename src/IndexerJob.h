@@ -28,36 +28,33 @@ class Process;
 class IndexerJob : public std::enable_shared_from_this<IndexerJob>
 {
 public:
-    enum IndexType {
-        Invalid,
-        Makefile,
-        Dirty,
-        Dump,
-        Remote
+    enum Flag {
+        None = 0x000,
+        Dirty = 0x001,
+        Compile = 0x002,
+        Dump = 0x004,
+        Type_Mask = Dirty|Compile|Dump,
+        FromRemote = 0x010, // this job originated on another machine, we're running it to be nice
+        Remote = 0x020, // this job represents a locally spawned index that currently runs on some other machine
+        Running = 0x100,
+        Crashed = 0x200,
+        Aborted = 0x400,
+        Complete = 0x800
     };
 
-    IndexerJob(IndexType type, const Path &p, const Source &s, const std::shared_ptr<Cpp> &preprocessed);
+    IndexerJob(unsigned int flags, const Path &p, const Source &s, const std::shared_ptr<Cpp> &preprocessed);
     IndexerJob();
+    ~IndexerJob();
 
-    enum State {
-        Pending,
-        Running,
-        Aborted,
-        Crashed,
-        Complete
-    };
-
-    bool startLocal();
-    bool update(IndexType t, const Source &s, const std::shared_ptr<Cpp> &cpp);
+    bool launchProcess();
+    bool update(unsigned int flags, const Source &s, const std::shared_ptr<Cpp> &cpp);
     void abort();
-    bool encode(Serializer &serializer);
+    void encode(Serializer &serializer);
     void decode(Deserializer &deserializer, Hash<Path, uint32_t> &blockedFiles);
-    void onProcessFinished();
 
-    State state;
+    uint32_t flags;
     String destination;
     uint16_t port;
-    IndexType type;
     Path project;
     Source source;
     Path sourceFile;
@@ -73,8 +70,8 @@ public:
 class IndexData
 {
 public:
-    IndexData(IndexerJob::IndexType t)
-        : aborted(false), parseTime(0), key(0), jobId(0), type(t)
+    IndexData(uint32_t f)
+        : parseTime(0), key(0), jobId(0), flags(f)
     {}
 
     Set<uint32_t> visitedFiles() const
@@ -104,19 +101,18 @@ public:
         return fileId;
     }
 
-    bool aborted;
     uint64_t parseTime, key;
     SymbolMap symbols;
     ReferenceMap references;
     SymbolNameMap symbolNames;
     DependencyMap dependencies;
     UsrMap usrMap;
-    String message; // used as output for dump when type == Dump
+    String message; // used as output for dump when flags & Dump
     FixItMap fixIts;
     String xmlDiagnostics;
     Hash<uint32_t, bool> visited;
     uint64_t jobId;
-    const IndexerJob::IndexType type;
+    const uint32_t flags; // indexerjobflags
 };
 
 #endif

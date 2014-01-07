@@ -90,7 +90,7 @@ public:
     bool isIndexed(uint32_t fileId) const;
 
     void dump(const Source &source, Connection *conn);
-    void index(const Source &args, const std::shared_ptr<Cpp> &cpp, IndexerJob::IndexType type);
+    void index(const Source &args, const std::shared_ptr<Cpp> &cpp, uint32_t indexerJobFlags);
 
     List<Source> sources(uint32_t fileId) const;
     bool hasSource(const Source &source) const;
@@ -148,10 +148,10 @@ private:
 
     struct JobData {
         JobData()
-            : pendingType(IndexerJob::Dirty), crashCount(0)
+            : pendingFlags(0), crashCount(0)
         {}
         Source pendingSource;
-        IndexerJob::IndexType pendingType;
+        uint32_t pendingFlags;
         std::shared_ptr<Cpp> pendingCpp;
         int crashCount;
         std::shared_ptr<IndexerJob> job;

@@ -18,8 +18,8 @@
 #include "Server.h"
 #include "Cpp.h"
 
-PreprocessJob::PreprocessJob(Source &&source, const std::shared_ptr<Project> &project, IndexerJob::IndexType type)
-    : mSource(std::forward<Source>(source)), mProject(project), mType(type)
+PreprocessJob::PreprocessJob(Source &&source, const std::shared_ptr<Project> &project, uint32_t flags)
+    : mSource(std::forward<Source>(source)), mProject(project), mFlags(flags)
 {
 }
 
@@ -36,10 +36,10 @@ void PreprocessJob::run()
         }
 
         Source source = std::move(mSource);
-        const IndexerJob::IndexType type = mType;
+        const uint32_t flags = mFlags;
         std::shared_ptr<Project> project = std::move(mProject);
-        EventLoop::mainEventLoop()->callLater([source, cpp, project, type]() {
-                Server::instance()->index(source, cpp, project, type);
+        EventLoop::mainEventLoop()->callLater([source, cpp, project, flags]() {
+                Server::instance()->index(source, cpp, project, flags);
             });
         break; }
     default:

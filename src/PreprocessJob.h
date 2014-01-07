@@ -26,14 +26,14 @@ class Project;
 class PreprocessJob : public ThreadPool::Job
 {
 public:
-    PreprocessJob(Source &&source, const std::shared_ptr<Project> &project, IndexerJob::IndexType type);
+    PreprocessJob(Source &&source, const std::shared_ptr<Project> &project, uint32_t indexerJobFlags);
     const Source &source() const { return mSource; }
 protected:
     virtual void run();
 private:
     Source mSource;
     std::shared_ptr<Project> mProject;
-    const IndexerJob::IndexType mType;
+    const uint32_t mFlags;
 };
 
 #endif
