@@ -1012,8 +1012,8 @@ References to references will be treated as references to the referenced symbol"
     (dolist (value buffers)
       (with-current-buffer value
         (basic-save-buffer)))
+    (message (format "Opened %d new files and made %d modifications" filesopened modifications)))
     )
-  (message (format "Opened %d new files and made %d modifications" filesopened modifications)))
 )
 
 (defun rtags-find-symbol (&optional prefix)
