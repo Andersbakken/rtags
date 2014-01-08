@@ -259,6 +259,7 @@ void Project::load(FileManagerMode mode)
 
 void Project::unload()
 {
+    // ### This must wait for a pending sync/load to finish. Maybe some pending state thing?
     for (auto it = mJobs.constBegin(); it != mJobs.constEnd(); ++it) {
         if (it->second.job)
             it->second.job->abort();
