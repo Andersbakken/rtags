@@ -955,7 +955,7 @@ References to references will be treated as references to the referenced symbol"
 (defun rtags-rename-symbol ()
   (interactive)
   (save-some-buffers) ;; it all kinda falls apart when buffers are unsaved
-  (let (location len file pos destructor replacewith prev (modifications 0) (filesopened 0) replacements)
+  (let (location len file pos destructor replacewith prev (modifications 0) (filesopened 0) replacements buffers)
     (save-excursion
       (if (looking-at "[0-9A-Za-z_~#]")
           (progn
@@ -998,6 +998,7 @@ References to references will be treated as references to the referenced symbol"
                       (setq buf (find-file-noselect (car value)))))
                   (when buf
                     (set-buffer buf)
+                    (add-to-list 'buffers buf)
                     (when (run-hook-with-args-until-failure 'rtags-edit-hook)
                       (incf modifications)
                       (rtags-goto-line-col (cadr value) (cddr value))
@@ -1007,16 +1008,13 @@ References to references will be treated as references to the referenced symbol"
                       ;; (message "About to replace %s with %s at %d in %s"
                       ;;          (buffer-substring-no-properties (point) (+ (point) len)) replacewith (point) (car value))
                       (delete-char len)
-                      (insert replacewith)
-                      (basic-save-buffer)))
-                  )
-                )
-              )
-            )
-        )
-      )
-    (message (format "Opened %d new files and made %d modifications" filesopened modifications)))
-  )
+                      (insert replacewith)))))))))
+    (dolist (value buffers)
+      (with-current-buffer value
+        (basic-save-buffer)))
+    )
+  (message (format "Opened %d new files and made %d modifications" filesopened modifications)))
+)
 
 (defun rtags-find-symbol (&optional prefix)
   (interactive "P")
