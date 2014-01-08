@@ -1667,9 +1667,10 @@ void Server::onLocalJobFinished(Process *process)
     } else {
         assert(!(job->flags & IndexerJob::Remote) || job->flags & IndexerJob::Rescheduled);
     }
-    if (!(job->flags & (IndexerJob::Aborted|IndexerJob::Complete))
+    if (!(job->flags & IndexerJob::Complete)
         && (process->returnCode() != 0 || !process->errorString().isEmpty())) {
-        job->flags |= IndexerJob::Crashed;
+        if (!(job->flags & IndexerJob::Aborted))
+            job->flags |= IndexerJob::Crashed;
         if (!(job->flags & IndexerJob::Remote))
             assert(!(job->flags & IndexerJob::Running));
 
