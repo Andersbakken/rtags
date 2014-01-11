@@ -33,6 +33,7 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 #include <rct/String.h>
 #include <rct/Timer.h>
 #include <rct/SocketServer.h>
+#include <mongoose/mongoose.h>
 
 class Connection;
 class Message;
@@ -73,7 +74,7 @@ public:
             : options(0), jobCount(0), unloadTimer(0),
               rpVisitFileTimeout(0), rpIndexerMessageTimeout(0), rpConnectTimeout(0),
               syncThreshold(0),
-              rescheduleTimeout(0), multicastTTL(0), tcpPort(0), multicastPort(0)
+              rescheduleTimeout(0), multicastTTL(0), tcpPort(0), multicastPort(0), httpPort(0)
         {}
         Path socketFile, dataDir;
         unsigned options;
@@ -84,7 +85,7 @@ public:
         List<Path> includePaths;
         List<Source::Define> defines;
         String multicastAddress;
-        uint16_t tcpPort, multicastPort;
+        uint16_t tcpPort, multicastPort, httpPort;
         Set<std::pair<String, uint16_t> > multicastForwards;
         Set<Path> ignoredCompilers;
     };
@@ -101,6 +102,7 @@ public:
     bool shouldIndex(const Source &source, const Path &project) const;
     Path findProject(const Path &path, const Path &unresolvedPath, const List<String> &withProjects) const;
     void stopServers();
+    int mongooseStatistics(struct mg_connection *conn);
 private:
     bool selectProject(const Match &match, Connection *conn, unsigned int queryFlags);
     bool updateProject(const List<String> &projects, unsigned int queryFlags);
@@ -213,6 +215,8 @@ private:
     Map<std::pair<String, uint16_t>, Forward> mMulticastForwards;
 
     CompletionThread *mCompletionThread;
+
+    mg_server *mWebServer;
 };
 
 #endif

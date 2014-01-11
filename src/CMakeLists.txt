@@ -97,6 +97,7 @@ set(RDM_SOURCES
   ScanThread.cpp
   Server.cpp
   StatusJob.cpp
+  mongoose/mongoose.c
   )
 
 include_directories(${CMAKE_CURRENT_LIST_DIR}

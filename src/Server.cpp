@@ -65,7 +65,7 @@ static const bool debugMulti = getenv("RDM_DEBUG_MULTI");
 
 Server *Server::sInstance = 0;
 Server::Server()
-    : mVerbose(false), mCurrentFileId(0), mThreadPool(0), mRemotePending(0), mCompletionThread(0)
+    : mVerbose(false), mCurrentFileId(0), mThreadPool(0), mRemotePending(0), mCompletionThread(0), mWebServer(0)
 {
     Messages::registerMessage<JobRequestMessage>();
     Messages::registerMessage<JobResponseMessage>();
@@ -98,6 +98,11 @@ void Server::clear()
     stopServers();
     delete mThreadPool; // wait first?
     mThreadPool = 0;
+}
+
+static int mongooseStatistics(struct mg_connection *conn)
+{
+    return Server::instance()->mongooseStatistics(conn);
 }
 
 bool Server::init(const Options &options)
@@ -212,6 +217,10 @@ bool Server::init(const Options &options)
         mTcpServer->newConnection().connect(std::bind(&Server::onNewConnection, this, std::placeholders::_1));
     }
     mThreadPool = new ThreadPool(mOptions.jobCount);
+    if (mOptions.httpPort) {
+        mWebServer = mg_create_server(this);
+        mg_add_uri_handler(mWebServer, "/stats", ::mongooseStatistics);
+    }
     return true;
 }
 
@@ -1779,6 +1788,10 @@ void Server::stopServers()
     mUnixServer.reset();
     mTcpServer.reset();
     mProjects.clear();
+    if (mWebServer) {
+        mg_destroy_server(&mWebServer);
+        assert(!mWebServer);
+    }
 }
 
 static inline uint64_t connectTime(uint64_t lastAttempt, int failures)
@@ -1868,4 +1881,9 @@ int Server::startPreprocessJobs()
         mThreadPool->start(job);
     }
     return ret;
+}
+
+int Server::mongooseStatistics(struct mg_connection *conn)
+{
+    return 0;
 }

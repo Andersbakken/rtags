@@ -26,3 +26,6 @@
 	path = src/dtl-cpp
 	url = https://code.google.com/p/dtl-cpp/
 	branch = master
+[submodule "src/mongoose"]
+	path = src/mongoose
+	url = https://github.com/cesanta/mongoose.git

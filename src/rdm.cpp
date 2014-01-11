@@ -59,6 +59,7 @@ static void sigIntHandler(int)
 #define DEFAULT_RP_CONNECT_TIMEOUT 0 // won't time out
 #define DEFAULT_RDM_MULTICAST_ADDRESS "237.50.50.50"
 #define DEFAULT_RDM_MULTICAST_PORT 11509 // ( 100 'r' * 114 'd') + 109 'm'
+#define DEFAULT_RDM_HTTP_PORT 11510 // one more
 #define DEFAULT_RESCHEDULE_TIMEOUT 10000
 #define XSTR(s) #s
 #define STR(s) XSTR(s)
@@ -109,6 +110,7 @@ static void usage(FILE *f)
             "  --multicast-port|-P [arg]                  Use this port for multicast (default " STR(DEFAULT_RDM_MULTICAST_PORT) ").\n"
             "  --multicast-forward|-x [arg]               Remote host to forward multicast packages for.\n"
             "  --multicast-ttl|-B [arg]                   Set multicast TTL to arg.\n"
+            "  --http-port|-H [arg]                       Use this port for http (default " STR(DEFAULT_RDM_HTTP_PORT) ").\n"
             "  --reschedule-timeout|-R                    Timeout for rescheduling remote jobs (default " STR(DEFAULT_RESCHEDULE_TIMEOUT) ").\n",
             std::max(2, ThreadPool::idealThreadCount()));
 }
@@ -153,6 +155,7 @@ int main(int argc, char** argv)
         { "multicast-forward", required_argument, 0, 'x' },
         { "multicast-ttl", required_argument, 0, 'B' },
         { "tcp-port", required_argument, 0, 'p' },
+        { "http-port", required_argument, 0, 'H' },
         { "reschedule-timeout", required_argument, 0, 'R' },
 #ifdef OS_Darwin
         { "filemanager-watch", no_argument, 0, 'M' },
@@ -250,6 +253,7 @@ int main(int argc, char** argv)
     serverOpts.dataDir = String::format<128>("%s.rtags", Path::home().constData());
     serverOpts.multicastAddress = DEFAULT_RDM_MULTICAST_ADDRESS;
     serverOpts.multicastPort = static_cast<uint16_t>(DEFAULT_RDM_MULTICAST_PORT);
+    serverOpts.httpPort = static_cast<uint16_t>(DEFAULT_RDM_HTTP_PORT);
     serverOpts.tcpPort = static_cast<uint16_t>(DEFAULT_RDM_TCP_PORT);
     serverOpts.rescheduleTimeout = DEFAULT_RESCHEDULE_TIMEOUT;
     serverOpts.unloadTimer = 0;
@@ -282,6 +286,13 @@ int main(int argc, char** argv)
             serverOpts.multicastPort = static_cast<uint16_t>(atoi(optarg));
             if (!serverOpts.multicastPort) {
                 fprintf(stderr, "Invalid argument to -P %s\n", optarg);
+                return 1;
+            }
+            break;
+        case 'H':
+            serverOpts.httpPort = static_cast<uint16_t>(atoi(optarg));
+            if (!serverOpts.httpPort) {
+                fprintf(stderr, "Invalid argument to -H %s\n", optarg);
                 return 1;
             }
             break;
