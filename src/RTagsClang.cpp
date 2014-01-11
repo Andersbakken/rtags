@@ -723,7 +723,7 @@ std::shared_ptr<Cpp> preprocess(const Source &source, const std::shared_ptr<Proj
     // FILE *f = fopen("/tmp/preprocess.cpp", "w");
     // fwrite(sourceFile.constData(), 1, sourceFile.size(), f);
 
-    // fwrite(str.constData(), 1, str.size(), f);
+    // fwrite(cpp->preprocessed.constData(), 1, cpp->preprocessed.size(), f);
     // fclose(f);
     warning() << "preprocessing" << sourceFile << "took" << sw.elapsed() << watch.elapsed() << "ms";
 
