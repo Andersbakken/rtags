@@ -78,9 +78,13 @@ public:
             String message(msg, len);
             SocketClient::WeakPtr weak = mSocket;
 
-            EventLoop::eventLoop()->callLater(std::bind([message,weak] {
+            EventLoop::eventLoop()->callLater(std::bind([message,weak,this] {
+                        // ### I don't understand why I need to capture this
+                        // ### here (especially since this potentially could
+                        // ### have been destroyed but it doesn't compile
+                        // ### otherwise.
                         if (SocketClient::SharedPtr socket = weak.lock()) {
-                            send(message.constData(), message.size(), socket);
+                            HttpLogObject::send(message.constData(), message.size(), socket);
                         }
                     }));
         } else {
