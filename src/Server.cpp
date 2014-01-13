@@ -61,11 +61,49 @@
 #include <arpa/inet.h>
 #include <limits>
 
+class HttpLogObject : public LogOutput
+{
+public:
+    HttpLogObject(const SocketClient::SharedPtr &socket)
+        : LogOutput(Error), mSocket(socket)
+    {}
+
+    // virtual bool testLog(int level) const
+    // {
+    //     return
+    // }
+    virtual void log(const char *msg, int len)
+    {
+        if (!EventLoop::isMainThread()) {
+            String message(msg, len);
+            SocketClient::WeakPtr weak = mSocket;
+
+            EventLoop::eventLoop()->callLater(std::bind([message,weak] {
+                        if (SocketClient::SharedPtr socket = weak.lock()) {
+                            send(message.constData(), message.size(), socket);
+                        }
+                    }));
+        } else {
+            send(msg, len, mSocket);
+        }
+    }
+    static void send(const char *msg, int len, const SocketClient::SharedPtr &socket)
+    {
+        static const unsigned char *header = reinterpret_cast<const unsigned char*>("data:");
+        static const unsigned char *crlf = reinterpret_cast<const unsigned char*>("\r\n");
+        socket->write(header, 5);
+        socket->write(reinterpret_cast<const unsigned char *>(msg), len);
+        socket->write(crlf, 2);
+    }
+private:
+    SocketClient::SharedPtr mSocket;
+};
+
 static const bool debugMulti = getenv("RDM_DEBUG_MULTI");
 
 Server *Server::sInstance = 0;
 Server::Server()
-    : mVerbose(false), mCurrentFileId(0), mThreadPool(0), mRemotePending(0), mCompletionThread(0), mWebServer(0)
+    : mVerbose(false), mCurrentFileId(0), mThreadPool(0), mRemotePending(0), mCompletionThread(0)
 {
     Messages::registerMessage<JobRequestMessage>();
     Messages::registerMessage<JobResponseMessage>();
@@ -98,11 +136,6 @@ void Server::clear()
     stopServers();
     delete mThreadPool; // wait first?
     mThreadPool = 0;
-}
-
-static int mongooseStatistics(struct mg_connection *conn)
-{
-    return Server::instance()->mongooseStatistics(conn);
 }
 
 bool Server::init(const Options &options)
@@ -218,8 +251,24 @@ bool Server::init(const Options &options)
     }
     mThreadPool = new ThreadPool(mOptions.jobCount);
     if (mOptions.httpPort) {
-        mWebServer = mg_create_server(this);
-        mg_add_uri_handler(mWebServer, "/stats", ::mongooseStatistics);
+        mHttpServer.reset(new SocketServer);
+        if (!mHttpServer->listen(mOptions.httpPort)) {
+            error() << "Unable to listen on port" << mOptions.httpPort;
+            return false;
+        }
+
+        mHttpServer->newConnection().connect(std::bind([this](){
+                    int foo = 0;
+                    while (SocketClient::SharedPtr client = mHttpServer->nextConnection()) {
+                        ++foo;
+                        mHttpClients[client] = 0;
+                        client->disconnected().connect(std::bind([this,client] { mHttpClients.remove(client); }));
+                        client->readyRead().connect(std::bind(&Server::onHttpClientReadyRead, this, std::placeholders::_1));
+                    }
+                    error() << foo;
+
+                }));
+
     }
     return true;
 }
@@ -1785,11 +1834,8 @@ void Server::stopServers()
     Path::rm(mOptions.socketFile);
     mUnixServer.reset();
     mTcpServer.reset();
+    mHttpServer.reset();
     mProjects.clear();
-    if (mWebServer) {
-        mg_destroy_server(&mWebServer);
-        assert(!mWebServer);
-    }
 }
 
 static inline uint64_t connectTime(uint64_t lastAttempt, int failures)
@@ -1881,7 +1927,26 @@ int Server::startPreprocessJobs()
     return ret;
 }
 
-int Server::mongooseStatistics(struct mg_connection *conn)
+void Server::onHttpClientReadyRead(const SocketClient::SharedPtr &socket)
 {
-    return 0;
+    error() << "Balls" << socket->buffer().size();
+    auto &log = mHttpClients[socket];
+    if (!log) {
+        static const char *requestLine = "GET /stats HTTP/1.1\r\n";
+        static const size_t len = strlen(requestLine);
+        if (socket->buffer().size() >= len) {
+            if (!memcmp(socket->buffer().data(), requestLine, len)) {
+                static const char *response = ("HTTP/1.1 200 OK\r\n"
+                                               "Cache: no-cache\r\n"
+                                               "Cache-Control: private\r\n"
+                                               "Pragma: no-cache\r\n"
+                                               "Content-Type: text/event-stream\r\n\r\n");
+                static const int responseLen = strlen(response);
+                socket->write(reinterpret_cast<const unsigned char*>(response), responseLen);
+                log.reset(new HttpLogObject(socket));
+            } else {
+                socket->close();
+            }
+        }
+    }
 }

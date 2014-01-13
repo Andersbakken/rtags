@@ -33,7 +33,6 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 #include <rct/String.h>
 #include <rct/Timer.h>
 #include <rct/SocketServer.h>
-#include <mongoose/mongoose.h>
 
 class Connection;
 class Message;
@@ -49,6 +48,7 @@ class JobResponseMessage;
 class MulticastForwardMessage;
 class CompletionThread;
 class PreprocessJob;
+class HttpLogObject;
 class Server
 {
 public:
@@ -176,6 +176,7 @@ private:
     void startNextJob();
     int startPreprocessJobs();
     void fetchRemoteJobs(const String& ip, uint16_t port, uint16_t jobs);
+    void onHttpClientReadyRead(const SocketClient::SharedPtr &socket);
 
     enum JobSlotsMode {
         Local,
@@ -189,7 +190,7 @@ private:
 
     static Server *sInstance;
     Options mOptions;
-    SocketServer::SharedPtr mUnixServer, mTcpServer;
+    SocketServer::SharedPtr mUnixServer, mTcpServer, mHttpServer;
     bool mVerbose;
 
     Timer mUnloadTimer, mRescheduleTimer, mReconnectForwardsTimer;
@@ -214,9 +215,9 @@ private:
     };
     Map<std::pair<String, uint16_t>, Forward> mMulticastForwards;
 
-    CompletionThread *mCompletionThread;
+    Hash<SocketClient::SharedPtr, std::shared_ptr<HttpLogObject> > mHttpClients;
 
-    mg_server *mWebServer;
+    CompletionThread *mCompletionThread;
 };
 
 #endif
