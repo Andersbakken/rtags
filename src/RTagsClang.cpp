@@ -504,7 +504,7 @@ std::shared_ptr<Cpp> preprocess(const Source &source, const std::shared_ptr<Proj
         break;
     }
     List<Path> includePaths = source.includePaths;
-    List<Source::Define> defines = source.defines;
+    Set<Source::Define> defines = source.defines;
 
     const Server::Options &options = Server::instance()->options();
     clang::HeaderSearchOptions &headerSearchOptions = compilerInstance.getHeaderSearchOpts();
@@ -550,18 +550,18 @@ std::shared_ptr<Cpp> preprocess(const Source &source, const std::shared_ptr<Proj
         processArgs(headerSearchOptions, outputArgs);
     }
 
-    for (List<Path>::const_iterator it = source.includePaths.begin(); it != source.includePaths.end(); ++it) {
+    for (auto inc : source.includePaths) {
         // error() << "Adding -I" << *it;
-        headerSearchOptions.AddPath(clang::StringRef(it->constData(), it->size()),
+        headerSearchOptions.AddPath(clang::StringRef(inc.constData(), inc.size()),
                                     clang::frontend::Angled,
 #if CLANG_VERSION_MINOR < 3
                                     false,
 #endif
                                     false, true);
     }
-    for (List<Path>::const_iterator it = options.includePaths.begin(); it != options.includePaths.end(); ++it) {
+    for (auto inc : options.includePaths) {
         // error() << "Adding -I" << *it;
-        headerSearchOptions.AddPath(clang::StringRef(it->constData(), it->size()),
+        headerSearchOptions.AddPath(clang::StringRef(inc.constData(), inc.size()),
                                     clang::frontend::System,
 #if CLANG_VERSION_MINOR < 3
                                     false,
@@ -571,13 +571,13 @@ std::shared_ptr<Cpp> preprocess(const Source &source, const std::shared_ptr<Proj
 
     compilerInstance.createPreprocessor();
     std::string predefines = compilerInstance.getPreprocessor().getPredefines();
-    for (List<Source::Define>::const_iterator it = source.defines.begin(); it != source.defines.end(); ++it) {
-        predefines += toString(*it);
+    for (auto def : source.defines) {
+        predefines += toString(def);
         predefines += '\n';
         // error() << "Got define" << it->define << it->value;
     }
-    for (List<Source::Define>::const_iterator it = options.defines.begin(); it != options.defines.end(); ++it) {
-        predefines += toString(*it);
+    for (auto def : options.defines) {
+        predefines += toString(def);
         predefines += '\n';
         // error() << "Got define" << it->define << it->value;
     }
@@ -596,7 +596,7 @@ std::shared_ptr<Cpp> preprocess(const Source &source, const std::shared_ptr<Proj
     clang::Preprocessor &preprocessor = compilerInstance.getPreprocessor();
     preprocessor.createPreprocessingRecord(
 #if CLANG_VERSION_MINOR < 3
-    true
+        true
 #endif
         );
     clang::DoPrintPreprocessedInput(preprocessor, &out, preprocessorOptions);
@@ -719,12 +719,17 @@ std::shared_ptr<Cpp> preprocess(const Source &source, const std::shared_ptr<Proj
             break;
         }
     }
+    const char *dumpCpp = getenv("RTAGS_DUMP_CPP");
+    if (dumpCpp && (!strcmp(dumpCpp, "1") || strstr(dumpCpp, sourceFile.fileName()))) {
+        Path out = "/tmp/";
+        out += sourceFile.fileName();
+        FILE *f = fopen(out.constData(), "w");
+        // fwrite(sourceFile.constData(), 1, sourceFile.size(), f);
 
-    // FILE *f = fopen("/tmp/preprocess.cpp", "w");
-    // fwrite(sourceFile.constData(), 1, sourceFile.size(), f);
-
-    // fwrite(cpp->preprocessed.constData(), 1, cpp->preprocessed.size(), f);
-    // fclose(f);
+        fwrite(cpp->preprocessed.constData(), 1, cpp->preprocessed.size(), f);
+        fprintf(f, "// %s\n", sourceFile.constData());
+        fclose(f);
+    }
     warning() << "preprocessing" << sourceFile << "took" << sw.elapsed() << watch.elapsed() << "ms";
 
     return cpp;

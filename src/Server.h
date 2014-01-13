@@ -52,7 +52,7 @@ class PreprocessJob;
 class Server
 {
 public:
-    enum { DatabaseVersion = 35 };
+    enum { DatabaseVersion = 36 };
 
     Server();
     ~Server();

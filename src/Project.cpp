@@ -965,8 +965,22 @@ void Project::watch(const Path &file)
 
 bool Project::hasSource(const Source &source) const
 {
-    auto it = mSources.find(source.key());
-    return it != mSources.end() && it->second == source;
+    const uint64_t key = source.key();
+    auto it = mSources.lower_bound(Source::key(source.fileId, 0));
+    while (it != mSources.end()) {
+        if (it->first == key)
+            return true;
+        uint32_t f, b;
+        Source::decodeKey(it->first, f, b);
+        if (f != source.fileId)
+            return true;
+        if (it->second.compareArguments(source)) {// similar enough that we don't want two builds
+            return true;
+        }
+        ++it;
+    }
+
+    return false;
 }
 void Project::onSynced()
 {

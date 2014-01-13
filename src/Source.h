@@ -26,6 +26,7 @@ struct Source
     inline Source();
 
     uint32_t fileId, compilerId, buildRootId;
+    size_t includePathHash;
     enum Language {
         NoLanguage,
         JavaScript,
@@ -49,6 +50,9 @@ struct Source
         };
         inline String toString(unsigned int flags = 0) const;
         inline bool operator==(const Define &other) const { return !compare(other); }
+        inline bool operator!=(const Define &other) const { return compare(other) != 0; }
+        inline bool operator<(const Define &other) const { return compare(other) < 0; }
+        inline bool operator>(const Define &other) const { return compare(other) > 0; }
         inline int compare(const Source::Define &other) const
         {
             int cmp = define.compare(other.define);
@@ -58,7 +62,7 @@ struct Source
         }
     };
 
-    List<Define> defines;
+    Set<Define> defines;
     List<Path> includePaths;
     List<String> arguments;
     int sysRootIndex;
@@ -82,6 +86,7 @@ struct Source
     }
 
     int compare(const Source &other) const;
+    bool compareArguments(const Source &other) const;
     bool operator==(const Source &other) const;
     bool operator!=(const Source &other) const;
     bool operator<(const Source &other) const;
@@ -106,7 +111,8 @@ struct Source
 };
 
 inline Source::Source()
-    : fileId(0), compilerId(0), buildRootId(0), language(NoLanguage), parsed(0), sysRootIndex(-1)
+    : fileId(0), compilerId(0), buildRootId(0), includePathHash(0),
+      language(NoLanguage), parsed(0), sysRootIndex(-1)
 {
 }
 
@@ -199,7 +205,8 @@ template <> inline Deserializer &operator>>(Deserializer &s, Source::Define &d)
 template <> inline Serializer &operator<<(Serializer &s, const Source &b)
 {
     s << b.fileId << b.compilerId << b.buildRootId << static_cast<uint8_t>(b.language) << b.parsed
-      << b.defines << b.includePaths << b.arguments << b.sysRootIndex;
+      << b.defines << b.includePaths << b.arguments << b.sysRootIndex
+      << b.includePathHash;
     return s;
 }
 
@@ -208,7 +215,8 @@ template <> inline Deserializer &operator>>(Deserializer &s, Source &b)
     b.clear();
     uint8_t language;
     s >> b.fileId >> b.compilerId >> b.buildRootId >> language >> b.parsed
-      >> b.defines >> b.includePaths >> b.arguments >> b.sysRootIndex;
+      >> b.defines >> b.includePaths >> b.arguments >> b.sysRootIndex
+      >> b.includePathHash;
     b.language = static_cast<Source::Language>(language);
     return s;
 }

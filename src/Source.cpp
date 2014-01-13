@@ -6,6 +6,7 @@
 void Source::clear()
 {
     fileId = compilerId = buildRootId = 0;
+    includePathHash = 0;
     language = NoLanguage;
     parsed = 0;
 
@@ -41,7 +42,7 @@ List<String> Source::toCommandLine(unsigned int mode) const
     if (mode & IncludeCompiler)
         ret.append(compiler());
     ret += arguments;
-    for (List<Define>::const_iterator it = defines.begin(); it != defines.end(); ++it)
+    for (Set<Define>::const_iterator it = defines.begin(); it != defines.end(); ++it)
         ret += it->toString(Define::Quote);
     for (List<Path>::const_iterator it = includePaths.begin(); it != includePaths.end(); ++it)
         ret += ("-I" + *it);
@@ -154,8 +155,28 @@ static inline String trim(const char *start, int size)
     return String(start, size);
 }
 
+static inline size_t hashIncludePaths(const List<Path> &includes, const Path &buildRoot)
+{
+    size_t hash = 0;
+    std::hash<Path> hasher;
+    for (auto inc : includes) {
+        size_t h;
+        if (!buildRoot.isEmpty() && inc.startsWith(buildRoot)) {
+            h = hasher(inc.mid(buildRoot.size()));
+        } else {
+            h = hasher(inc);
+        }
+        hash ^= h + 0x9e3779b9 + (h << 6) + (h >> 2);
+        // Bit twiddling found here:
+        // http://stackoverflow.com/questions/15741615/c-suggestions-about-a-hash-function-for-a-sequence-of-strings-where-the-order
+        // apparently from boost.
+    }
+    return hash;
+}
+
 Source Source::parse(const String &cmdLine, const Path &base, Path *unresolvedInputLocation)
 {
+    Path buildRoot;
     String args = cmdLine;
     char quote = '\0';
     List<String> split;
@@ -240,7 +261,7 @@ Source Source::parse(const String &cmdLine, const Path &base, Path *unresolvedIn
                     ret.language = C;
                 } else if (a == "c++") {
                     ret.language = CPlusPlus;
-                 } else {
+                } else {
                     return Source();
                 }
                 ret.arguments.append("-x");
@@ -255,15 +276,17 @@ Source Source::parse(const String &cmdLine, const Path &base, Path *unresolvedIn
                     a = arg;
                     def = arg.mid(2);
                 }
-                const int eq = def.indexOf('=');
-                if (eq == -1) {
-                    define.define = def;
-                } else {
-                    define.define = def.left(eq);
-                    define.value = def.mid(eq + 1);
+                if (!def.isEmpty()) {
+                    const int eq = def.indexOf('=');
+                    if (eq == -1) {
+                        define.define = def;
+                    } else {
+                        define.define = def.left(eq);
+                        define.value = def.mid(eq + 1);
+                    }
+                    ret.defines.insert(define);
+                    // ret.arguments.append(a);
                 }
-                ret.defines.append(define);
-                // ret.arguments.append(a);
             } else if (arg.startsWith("-I")) {
                 Path inc;
                 bool ok = false;
@@ -272,7 +295,8 @@ Source Source::parse(const String &cmdLine, const Path &base, Path *unresolvedIn
                 } else {
                     inc = Path::resolved(split.value(++i), Path::RealPath, path, &ok);
                 }
-                ret.includePaths.append(inc);
+                if (!inc.isEmpty())
+                    ret.includePaths.append(inc);
                 // if (ok)
                 //     ret.arguments.append("-I" + inc);
             } else if (arg == "-m32") {
@@ -334,9 +358,12 @@ Source Source::parse(const String &cmdLine, const Path &base, Path *unresolvedIn
                         p.prepend(path); // the object file might not exist
                         p.canonicalize();
                     }
-                    const Path buildRoot = RTags::findProjectRoot(p, RTags::BuildRoot);
-                    if (buildRoot.isDir())
+                    buildRoot = RTags::findProjectRoot(p, RTags::BuildRoot);
+                    if (buildRoot.isDir()) {
                         ret.buildRootId = Location::insertFile(buildRoot);
+                    } else {
+                        buildRoot.clear();
+                    }
                 }
             }
         } else {
@@ -360,8 +387,12 @@ Source Source::parse(const String &cmdLine, const Path &base, Path *unresolvedIn
 
     if (!ret.fileId)
         return Source();
-    if (!ret.buildRootId)
-        ret.buildRootId = Location::insertFile(RTags::findProjectRoot(Location::path(ret.fileId), RTags::BuildRoot));
+    if (!ret.buildRootId) {
+        buildRoot = RTags::findProjectRoot(Location::path(ret.fileId), RTags::BuildRoot);
+        ret.buildRootId = Location::insertFile(buildRoot);
+    }
+
+    ret.includePathHash = ::hashIncludePaths(ret.includePaths, buildRoot);
 
     // ### not threadsafe
     assert(EventLoop::isMainThread());
@@ -408,4 +439,13 @@ Source Source::parse(const String &cmdLine, const Path &base, Path *unresolvedIn
     // error() << split.front() << front << compiler;
     ret.compilerId = Location::insertFile(compiler);
     return ret;
+}
+
+bool Source::compareArguments(const Source &other) const
+{
+    assert(fileId == other.fileId);
+    assert(key() != other.key());
+    return (includePathHash == other.includePathHash
+            && defines == other.defines
+            && arguments == other.arguments);
 }
