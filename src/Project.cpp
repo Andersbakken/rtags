@@ -339,7 +339,8 @@ void Project::onJobFinished(const std::shared_ptr<IndexData> &indexData)
 
     JobData *jobData = &it->second;
     assert(jobData->job);
-    const bool success = !(jobData->job->flags & (IndexerJob::Aborted|IndexerJob::Crashed));
+    const bool success = jobData->job->flags & (IndexerJob::CompleteLocal|IndexerJob::CompleteRemote);
+    assert(!success || !(jobData->job->flags & (IndexerJob::Crashed|IndexerJob::Aborted)));
     if (jobData->job->flags & IndexerJob::Crashed) {
         ++jobData->crashCount;
     } else {

@@ -29,18 +29,19 @@ class IndexerJob : public std::enable_shared_from_this<IndexerJob>
 {
 public:
     enum Flag {
-        None = 0x000,
-        Dirty = 0x001,
-        Compile = 0x002,
-        Dump = 0x004,
+        None = 0x0000,
+        Dirty = 0x0001,
+        Compile = 0x0002,
+        Dump = 0x0004,
         Type_Mask = Dirty|Compile|Dump,
-        FromRemote = 0x010, // this job originated on another machine, we're running it to be nice
-        Remote = 0x020, // this job represents a locally spawned index that currently runs on some other machine
-        Rescheduled = 0x040,
-        Running = 0x100,
-        Crashed = 0x200,
-        Aborted = 0x400,
-        Complete = 0x800
+        FromRemote = 0x0010, // this job originated on another machine, we're running it to be nice
+        Remote = 0x0020, // this job represents a locally spawned index that currently runs on some other machine
+        Rescheduled = 0x0040,
+        RunningLocal = 0x0080,
+        Crashed = 0x0100,
+        Aborted = 0x0200,
+        CompleteLocal = 0x0400,
+        CompleteRemote = 0x0800
     };
 
     IndexerJob(unsigned int flags, const Path &p, const Source &s, const std::shared_ptr<Cpp> &preprocessed);

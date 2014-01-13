@@ -62,35 +62,33 @@ bool IndexerJob::launchProcess()
         return false;
     }
 
-    flags |= Running;
+    flags |= RunningLocal;
     process->write(stdinData);
     return true;
 }
 
 bool IndexerJob::update(unsigned int f, const Source &s, const std::shared_ptr<Cpp> &c)
 {
-    assert(!(flags & Complete));
+    assert(!(flags & (CompleteLocal|CompleteRemote)));
 
-    if ((flags & (Running|Remote)) == Running) {
-        abort();
-    } else if (!(flags & (Aborted|Crashed))) { // still pending
+    if (!flags & (RunningLocal|Remote)) {
         flags = f;
         source = s;
         assert(cpp);
         cpp = c;
         return true;
     }
+    abort();
     return false;
 }
 
 void IndexerJob::abort()
 {
-    assert(!(flags & Complete));
-    if (process && flags & Running) { // only kill once
+    if (process && flags & RunningLocal) { // only kill once
         process->kill();
         assert(!(flags & FromRemote)); // this is not handled
     }
-    flags &= ~Running;
+    flags &= ~RunningLocal;
     flags |= Aborted;
 }
 

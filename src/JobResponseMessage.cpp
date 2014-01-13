@@ -53,7 +53,7 @@ void JobResponseMessage::decode(Deserializer &deserializer)
 void JobResponseMessage::toIndexerJob(std::shared_ptr<IndexerJob>& job, Connection* conn) const
 {
     job->flags = flags;
-    job->flags &= IndexerJob::Remote;
+    job->flags &= ~IndexerJob::Remote;
     job->flags |= IndexerJob::FromRemote;
     job->cpp = cpp;
     job->project = project;
