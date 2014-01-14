@@ -174,6 +174,8 @@ bool Server::init(const Options &options)
             l << "tcp-port:" << mOptions.tcpPort;
         if (mOptions.multicastPort)
             l << "multicast-port:" << mOptions.multicastPort;
+        if (mOptions.httpPort)
+            l << "http-port:" << mOptions.httpPort;
         l << '\n';
     }
     l << "includepaths" << String::join(mOptions.includePaths, ' ');
