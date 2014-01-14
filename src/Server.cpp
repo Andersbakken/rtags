@@ -1469,23 +1469,22 @@ void Server::restoreFileIds()
 {
     const Path p = mOptions.dataDir + "fileids";
     bool clear = true;
-    FILE *f = fopen(p.constData(), "r");
-    if (f) {
+    const String all = p.readAll();
+    if (!all.isEmpty()) {
         Hash<Path, uint32_t> pathsToIds;
-        Deserializer in(f);
+        Deserializer in(all);
         int version;
         in >> version;
         if (version == DatabaseVersion) {
             int size;
             in >> size;
-            if (size != Rct::fileSize(f)) {
+            if (size != all.size()) {
                 error("Refusing to load corrupted file %s", p.constData());
             } else {
                 in >> pathsToIds;
                 clear = false;
                 Location::init(pathsToIds);
             }
-            fclose(f);
         } else {
             error("%s has the wrong format. Got %d, expected %d. Can't restore anything",
                   p.constData(), version, Server::DatabaseVersion);

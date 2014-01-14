@@ -59,12 +59,9 @@ public:
         RTags::encodePath(path);
         const Path p = Server::instance()->options().dataDir + path;
         bool restoreError = false;
-        FILE *f = fopen(p.constData(), "r");
-        if (!f) {
-            return;
-        }
+        const String all = p.readAll();
 
-        Deserializer in(f);
+        Deserializer in(all);
         int version;
         in >> version;
         if (version != Server::DatabaseVersion) {
@@ -75,7 +72,7 @@ public:
         {
             int fs;
             in >> fs;
-            if (fs != Rct::fileSize(f)) {
+            if (fs != all.size()) {
                 error("%s seems to be corrupted, refusing to restore %s",
                       p.constData(), path.constData());
                 restoreError = true;
@@ -84,8 +81,6 @@ public:
         }
         in >> mSymbols >> mSymbolNames >> mUsr >> mDependencies >> mSources >> mVisitedFiles;
   end:
-        fclose(f);
-
         if (restoreError) {
             Path::rm(p);
         } else {
