@@ -118,8 +118,20 @@ static inline Source::Language guessLanguageFromSourceFile(const Path &sourceFil
             return Source::CPlusPlus;
         } else if (!strcmp(suffix, "C")) {
             return Source::CPlusPlus;
+        } else if (!strcmp(suffix, "cp")) {
+            return Source::CPlusPlus;
+        } else if (!strcmp(suffix, "cxx")) {
+            return Source::CPlusPlus;
+        } else if (!strcmp(suffix, "c++")) {
+            return Source::CPlusPlus;
         } else if (!strcmp(suffix, "c")) {
             return Source::C;
+        } else if (!strcmp(suffix, "M")) {
+            return Source::ObjectiveCPlusPlus;
+        } else if (!strcmp(suffix, "mm")) {
+            return Source::ObjectiveCPlusPlus;
+        } else if (!strcmp(suffix, "m")) {
+            return Source::ObjectiveC;
         }
     }
     return Source::NoLanguage;
@@ -261,6 +273,10 @@ Source Source::parse(const String &cmdLine, const Path &base, Path *unresolvedIn
                     ret.language = C;
                 } else if (a == "c++") {
                     ret.language = CPlusPlus;
+                } else if (a == "objective-c") {
+                    ret.language = ObjectiveC;
+                } else if (a == "objective-c++") {
+                    ret.language = ObjectiveCPlusPlus;
                 } else {
                     return Source();
                 }
@@ -301,6 +317,12 @@ Source Source::parse(const String &cmdLine, const Path &base, Path *unresolvedIn
                 //     ret.arguments.append("-I" + inc);
             } else if (arg == "-m32") {
                 ret.arguments.append(arg);
+            } else if (arg == "-ansi") {
+                ret.arguments.append(arg);
+            } else if (arg == "-ObjC++") {
+                ret.language = ObjectiveCPlusPlus;
+            } else if (arg == "-ObjC") {
+                ret.language = ObjectiveC;
             } else if (arg.startsWith("-std=")) {
                 ret.arguments.append(arg);
                 // error() << "Got std" << arg;

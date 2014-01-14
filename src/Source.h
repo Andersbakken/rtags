@@ -35,7 +35,9 @@ struct Source
         CPlusPlus11,
         CHeader,
         CPlusPlusHeader,
-        CPlusPlus11Header
+        CPlusPlus11Header,
+        ObjectiveC,
+        ObjectiveCPlusPlus
     } language;
 
     uint64_t parsed;
@@ -122,6 +124,8 @@ inline bool Source::isIndexable() const
     case C:
     case CPlusPlus:
     case CPlusPlus11:
+    case ObjectiveC:
+    case ObjectiveCPlusPlus:
         return true;
     default:
         break;
