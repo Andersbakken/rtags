@@ -199,8 +199,9 @@ bool Server::init(const Options &options)
                 connection.finished().connect(std::bind([](){ EventLoop::eventLoop()->quit(); }));
                 EventLoop::eventLoop()->exec(Timeout);
             }
+        } else {
+            sleep(1);
         }
-        sleep(1);
         Path::rm(mOptions.socketFile);
     }
     if (!mUnixServer) {
