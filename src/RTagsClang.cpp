@@ -201,7 +201,7 @@ void parseTranslationUnit(const Path &sourceFile, const List<String> &args,
         *clangLine = "clang ";
 
     int idx = 0;
-    List<const char*> clangArgs(args.size() + defaultArguments.size(), 0);
+    List<const char*> clangArgs(args.size() + defaultArguments.size() + 2, 0);
 
     const List<String> *lists[] = { &args, &defaultArguments };
     for (int i=0; i<2; ++i) {
@@ -219,6 +219,8 @@ void parseTranslationUnit(const Path &sourceFile, const List<String> &args,
             }
         }
     }
+    clangArgs[idx++] = "-disable-free";
+    clangArgs[idx++] = "-disable-llvm-verifier";
 
     if (clangLine)
         *clangLine += sourceFile;
@@ -350,6 +352,7 @@ bool compile(const Path& output, const Source &source, const String& preprocesse
 #endif
                                    ));
     clang::LangOptions &langOpts = compilerInstance.getLangOpts();
+    langOpts.TraditionalCPP = true;
 
     clang::InputKind ik;
 
@@ -523,10 +526,12 @@ std::shared_ptr<Cpp> preprocess(const Source &source, const std::shared_ptr<Proj
                                      diags);
         std::vector<String> copies; // not cool
         std::vector<const char*> args;
+        args.reserve(100);
         const Path compiler = source.compiler();
         args.push_back(compiler.constData());
         args.push_back("-c");
         args.push_back(sourceFile.constData());
+        // args.push_back("-traditional-cpp");
         for (const Path &path : source.includePaths)
             copies.push_back("-I" + path);
         for (const Path &path : options.includePaths)
