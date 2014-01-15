@@ -352,7 +352,6 @@ bool compile(const Path& output, const Source &source, const String& preprocesse
 #endif
                                    ));
     clang::LangOptions &langOpts = compilerInstance.getLangOpts();
-    langOpts.TraditionalCPP = true;
 
     clang::InputKind ik;
 
@@ -493,6 +492,7 @@ std::shared_ptr<Cpp> preprocess(const Source &source, const std::shared_ptr<Proj
 #endif
                                    ));
     clang::LangOptions &langOpts = compilerInstance.getLangOpts();
+    langOpts.TraditionalCPP = true;
     switch (source.language) {
     case Source::CPlusPlus11:
 #if CLANG_VERSION_MINOR >= 3

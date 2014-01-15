@@ -234,7 +234,6 @@
 (defun rtags-is-c++-keyword (word)
   (gethash word rtags-c++-keywords))
 
-(defvar rtags-last-context nil)
 (defun* rtags-call-rc (&rest arguments
                              &key (path (buffer-file-name))
                              unsaved
@@ -248,7 +247,6 @@
                              (range-max (1- (point-max)))
                              noerror
                              &allow-other-keys)
-  (setq rtags-last-context context)
   (save-excursion
     (let ((rc (rtags-executable-find "rc")) proc)
       (if (not rc)
@@ -576,9 +574,6 @@
   (forward-line (1- line))
   (beginning-of-line)
   (forward-char (- column 1))
-  (and rtags-last-context
-       (search-forward rtags-last-context (point-at-eol) t)
-       (backward-char (length rtags-last-context)))
   )
 
 (defun rtags-goto-location (location &optional nobookmark other-window)
@@ -633,7 +628,7 @@
     (with-current-buffer (rtags-get-buffer)
       (if references
           (setq references rtags-async-filter-and-sentinel))
-      (rtags-call-rc :path path switch tagname :path-filter filter :context tagname)
+      (rtags-call-rc :path path switch tagname :path-filter filter)
       (rtags-reset-bookmarks)
       (rtags-handle-results-buffer))
     )
