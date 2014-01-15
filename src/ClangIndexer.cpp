@@ -971,7 +971,29 @@ bool ClangIndexer::parse()
     assert(!mIndex);
     mIndex = clang_createIndex(0, 0);
     assert(mIndex);
-    const Path sourceFile = Location::path(mSource.fileId);
+    Path sourceFile = Location::path(mSource.fileId);
+    const char *ext = sourceFile.extension();
+    if (ext) {
+        sourceFile.chop(strlen(ext));
+    }
+    switch (mSource.language) {
+    case Source::CPlusPlus:
+    case Source::CPlusPlus11:
+        sourceFile.append("ii");
+        break;
+    case Source::C:
+        sourceFile.append('i');
+        break;
+    case Source::ObjectiveC:
+        sourceFile.append("mi");
+        break;
+    case Source::ObjectiveCPlusPlus:
+        sourceFile.append("mii");
+        break;
+    default:
+        break;
+    }
+    Location::set(sourceFile, mSource.fileId);
     // error() << "mContents" << mContents.size();
     CXUnsavedFile unsaved = {
         sourceFile.constData(),
@@ -988,24 +1010,11 @@ bool ClangIndexer::parse()
         return true;
     }
     error() << "got failure" << mClangLine;
-    const String preprocessorOnly = RTags::filterPreprocessor(sourceFile);
-    if (!preprocessorOnly.isEmpty()) {
-        CXUnsavedFile preprocessorOnlyUnsaved = {
-            sourceFile.constData(), preprocessorOnly.constData(),
-            static_cast<unsigned long>(preprocessorOnly.size())
-        };
-        RTags::parseTranslationUnit(sourceFile, mSource.arguments, List<String>(),
-                                    mUnit, mIndex, &preprocessorOnlyUnsaved, 1, 0,
-                                    &mClangLine);
+    for (Hash<uint32_t, bool>::const_iterator it = mData->visited.begin(); it != mData->visited.end(); ++it) {
+        mData->dependencies[it->first].insert(mSource.fileId);
+        addFileSymbol(it->first);
     }
-    if (mUnit) {
-        clang_getInclusions(mUnit, ClangIndexer::inclusionVisitor, this);
-        clang_disposeTranslationUnit(mUnit);
-        mUnit = 0;
-    } else if (!(mData->flags & IndexerJob::Dump)) {
-        mData->dependencies[mSource.fileId].insert(mSource.fileId);
-    }
-    mParseDuration = sw.elapsed();
+
     return false;
 }
 

@@ -110,6 +110,25 @@ static inline Source::Language guessLanguageFromCompiler(const Path &fullPath)
 
 static inline Source::Language guessLanguageFromSourceFile(const Path &sourceFile)
 {
+      // ### We should some more of of these really
+      // .Case("cl", IK_OpenCL)
+      // .Case("cuda", IK_CUDA)
+      // .Case("c++", IK_CXX)
+      // .Case("objective-c", IK_ObjC)
+      // .Case("objective-c++", IK_ObjCXX)
+      // .Case("cpp-output", IK_PreprocessedC)
+      // .Case("assembler-with-cpp", IK_Asm)
+      // .Case("c++-cpp-output", IK_PreprocessedCXX)
+      // .Case("objective-c-cpp-output", IK_PreprocessedObjC)
+      // .Case("objc-cpp-output", IK_PreprocessedObjC)
+      // .Case("objective-c++-cpp-output", IK_PreprocessedObjCXX)
+      // .Case("objc++-cpp-output", IK_PreprocessedObjCXX)
+      // .Case("c-header", IK_C)
+      // .Case("cl-header", IK_OpenCL)
+      // .Case("objective-c-header", IK_ObjC)
+      // .Case("c++-header", IK_CXX)
+      // .Case("objective-c++-header", IK_ObjCXX)
+
     const char *suffix = sourceFile.extension();
     if (suffix) {
         if (!strcasecmp(suffix, "cpp")) {

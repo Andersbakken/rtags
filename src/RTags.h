@@ -187,7 +187,6 @@ inline int digits(int len)
     return ret;
 }
 
-String filterPreprocessor(const Path &path);
 enum ProjectRootMode {
     SourceRoot,
     BuildRoot
