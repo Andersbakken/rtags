@@ -60,6 +60,8 @@ public:
         const Path p = Server::instance()->options().dataDir + path;
         bool restoreError = false;
         const String all = p.readAll();
+        if (all.isEmpty())
+            return;
 
         Deserializer in(all);
         int version;
