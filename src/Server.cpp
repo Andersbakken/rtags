@@ -1426,6 +1426,7 @@ void Server::handleJobRequestMessage(const JobRequestMessage &message, Connectio
                 error() << "sending job for" << job->sourceFile << conn->client()->peerName();
             job->started = Rct::monoMs();
             job->flags |= IndexerJob::Remote;
+            job->flags &= ~IndexerJob::Rescheduled;
             mProcessingJobs[job->id] = job;
             conn->send(JobResponseMessage(job, mOptions.tcpPort));
             it = mPending.erase(it);
@@ -1531,6 +1532,16 @@ void Server::onUnload()
     }
 }
 
+template <typename T>
+static inline bool slowContains(const LinkedList<T> &list, const T &t)
+{
+    for (T i : list) {
+        if (i == t)
+            return true;
+    }
+    return false;
+}
+
 void Server::onReschedule()
 {
     const uint64_t now = Rct::monoMs();
@@ -1538,18 +1549,17 @@ void Server::onReschedule()
     while (it != mProcessingJobs.end()) {
         const std::shared_ptr<IndexerJob>& job = it->second;
         assert(!(job->flags & (IndexerJob::CompleteRemote|IndexerJob::CompleteLocal)));
-        if (!(job->flags & IndexerJob::Remote) || job->process) { // jobs could be both remote and local when rescheduled
-            // local job, no need to reschedule
-            ++it;
-            continue;
-        }
-        if (static_cast<int>(now - job->started) >= mOptions.rescheduleTimeout) {
+        if (!(job->flags & (IndexerJob::Rescheduled|IndexerJob::RunningLocal))
+            && job->flags & IndexerJob::Remote
+            && static_cast<int>(now - job->started) >= mOptions.rescheduleTimeout) {
+            assert(!job->process);
             // this might never happen, reschedule this job
             // don't take it out of the mProcessingJobs list since the result might come back still
             // if (debugMulti)
             error() << "rescheduling job" << job->sourceFile << job->id
                     << "it's been" << static_cast<double>(now - job->started) / 1000.0 << "seconds";
             job->flags |= IndexerJob::Rescheduled;
+            assert(!slowContains(mPending, job));
             mPending.push_back(job);
             startNextJob();
         }
@@ -1664,12 +1674,11 @@ void Server::startNextJob()
     while (!mPending.isEmpty() && mLocalJobs.size() < availableJobSlots(Local)) {
         std::shared_ptr<IndexerJob> job = mPending.first();
         assert(job);
-        if (job->flags & (IndexerJob::CompleteLocal|IndexerJob::CompleteRemote)) {
-            assert(job->flags & IndexerJob::Rescheduled);
-        } else {
+        if (!(job->flags & (IndexerJob::CompleteLocal|IndexerJob::CompleteRemote))) {
             if (job->flags & IndexerJob::FromRemote || project(job->project)) {
                 if (!(job->flags & IndexerJob::FromRemote))
                     mProcessingJobs[job->id] = job;
+                job->flags &= ~IndexerJob::Rescheduled;
                 if (job->launchProcess()) {
                     if (debugMulti)
                         error() << "started job locally for" << job->sourceFile << job->id;
@@ -1727,8 +1736,6 @@ void Server::onLocalJobFinished(Process *process)
         error() << "Built remote job" << job->sourceFile.toTilde() << "for"
                 << job->destination
                 << "in" << (Rct::monoMs() - it->second.second) << "ms";
-    } else {
-        assert(!(job->flags & IndexerJob::Remote) || job->flags & IndexerJob::Rescheduled);
     }
     if (!(job->flags & (IndexerJob::CompleteRemote|IndexerJob::CompleteLocal))
         && (process->returnCode() != 0 || !process->errorString().isEmpty())) {
