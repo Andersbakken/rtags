@@ -2,32 +2,32 @@ require 'formula'
 
 class Clang < Formula
   homepage  'http://llvm.org/'
-  url       'http://llvm.org/releases/3.3/cfe-3.3.src.tar.gz'
-  sha1      'ccd6dbf2cdb1189a028b70bcb8a22509c25c74c8'
+  url       'http://llvm.org/releases/3.4/clang-3.4.src.tar.gz'
+  sha1      'a6a3c815dd045e9c13c7ae37d2cfefe65607860d'
 
   head      'http://llvm.org/git/clang.git'
 end
 
 class CompilerRt < Formula
   homepage  'http://llvm.org/'
-  url       'http://llvm.org/releases/3.3/compiler-rt-3.3.src.tar.gz'
-  sha1      '745386ec046e3e49742e1ecb6912c560ccd0a002'
+  url       'http://llvm.org/releases/3.4/compiler-rt-3.4.src.tar.gz'
+  sha1      'd644b1e4f306f7ad35df0a134d14a1123cd9f082'
 
   head      'http://llvm.org/git/compiler-rt.git'
 end
 
 class LibCpp < Formula
   homepage 'http://llvm.org/'
-  url       'http://llvm.org/releases/3.3/libcxx-3.3.src.tar.gz'
-  sha1      '7bea00bc1031bf3bf6c248e57c1f4e0874c18c04'
+  url       'http://llvm.org/releases/3.4/libcxx-3.4.src.tar.gz'
+  sha1      'c45333dce3e6bdac2583682417c03b6bb149ceb0'
 
   head      'http://llvm.org/git/libcxx.git'
 end
 
 class Llvm < Formula
   homepage  'http://llvm.org/'
-  url       'http://llvm.org/releases/3.3/llvm-3.3.src.tar.gz'
-  sha1      'c6c22d5593419e3cb47cbcf16d967640e5cce133'
+  url       'http://llvm.org/releases/3.4/llvm-3.4.src.tar.gz'
+  sha1      '10b1fd085b45d8b19adb9a628353ce347bc136b8'
 
   head      'http://llvm.org/git/llvm.git'
 
