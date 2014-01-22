@@ -29,14 +29,6 @@ IndexerJob::~IndexerJob()
 
 bool IndexerJob::launchProcess()
 {
-    // if (flags & FromRemote) {
-    //     error() << "Starting a job for someone else" << String::format<8>("0x%x", flags) << sourceFile;
-    // }
-    // if (flags & (Aborted|Running|Remote)) {
-    //     error() << "Restarting job" << sourceFile << "when state is" << String::format<8>("0x%x", flags);
-    //     return true; // ### ???
-    // }
-    // assert(!(flags & (Aborted|Running)));
     assert(cpp);
     assert(!cpp->preprocessed.isEmpty());
     static Path rp;
@@ -126,24 +118,3 @@ void IndexerJob::decode(Deserializer &deserializer, Hash<Path, uint32_t> &blocke
                  >> flags >> ignored >> ignored >> id
                  >> blockedFiles;
 }
-
-// void IndexerJob::onProcessFinished()
-// {
-//     assert(!port);
-//     // error() << "PROCESS FINISHED" << source.sourceFile() << process->returnCode() << this;
-//     ::error() << process->readAllStdOut();
-//     ::error() << process->readAllStdErr();
-//     if (process->returnCode() != 0) {
-//         state = Crashed;
-//         std::shared_ptr<Project> proj = Server::instance()->project(project);
-//         if (proj && proj->state() == Project::Loaded) {
-//             std::shared_ptr<IndexData> data(new IndexData(type));
-//             data->key = source.key();
-//             data->aborted = true;
-//             EventLoop::SharedPtr loop = EventLoop::eventLoop();
-//             assert(loop);
-//             loop->callLater([proj, data]() { proj->onJobFinished(data); });
-//         }
-//     }
-//     // ::error() << source.sourceFile() << "finished" << process->returnCode() << mWaiting << mTimer.elapsed() << "ms";
-// }

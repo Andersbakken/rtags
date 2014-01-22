@@ -109,7 +109,7 @@ private:
     void restoreFileIds();
     void clear();
     void index(const String &arguments, const Path &pwd,
-               const List<String> &withProjects, unsigned int flags);
+               const List<String> &withProjects);
     void onNewConnection(SocketServer *server);
     std::shared_ptr<Project> setCurrentProject(const Path &path, unsigned int queryFlags = 0);
     std::shared_ptr<Project> setCurrentProject(const std::shared_ptr<Project> &project, unsigned int queryFlags = 0);

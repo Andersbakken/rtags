@@ -159,7 +159,12 @@ private:
 
     // key'ed on Source::key()
     Hash<uint64_t, JobData> mJobs;
-    Hash<uint64_t, Connection*> mDumps;
+
+    struct DumpInfo {
+        Connection *connection;
+        std::shared_ptr<IndexerJob> job;
+    };
+    Hash<uint64_t, DumpInfo> mDumps;
     Hash<uint64_t, std::shared_ptr<IndexData> > mPendingData; // ### this could go into JobData
 
     Timer mSyncTimer;

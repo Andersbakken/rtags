@@ -315,14 +315,14 @@ void Project::onJobFinished(const std::shared_ptr<IndexData> &indexData)
     if (indexData->flags & IndexerJob::Dump) {
         assert(indexData->flags == IndexerJob::Dump);
         bool found = false;
-        Connection *conn = mDumps.take(indexData->key, &found);
+        auto dump = mDumps.take(indexData->key, &found);
         if (!found) {
             error() << "Couldn't find JobData for" << Location::path(fileId);
             return;
         }
-        if (conn) {
-            conn->write(indexData->message);
-            conn->finish();
+        if (dump.connection) {
+            dump.connection->write(indexData->message);
+            dump.connection->finish();
         }
         return;
     }
@@ -447,13 +447,13 @@ void Project::dump(const Source &source, Connection *conn)
         return;
     }
 
-    Connection *&c = mDumps[source.fileId];
-    if (c) {
+    auto &dumpInfo = mDumps[source.fileId];
+    if (dumpInfo.connection) {
         conn->write<64>("%s is being dumped as we speak", source.sourceFile().constData());
         conn->finish();
         return;
     }
-    c = conn;
+    dumpInfo.connection = conn;
     std::shared_ptr<Cpp> cpp = RTags::preprocess(source);
     if (!cpp) {
         conn->write<64>("Unable to preprocess %s", source.sourceFile().constData());
@@ -461,10 +461,11 @@ void Project::dump(const Source &source, Connection *conn)
         return;
     }
 
-    std::shared_ptr<IndexerJob> job(new IndexerJob(IndexerJob::Dump, mPath, source, cpp));
-    if (!job->launchProcess()) {
+    dumpInfo.job.reset(new IndexerJob(IndexerJob::Dump, mPath, source, cpp));
+    if (!dumpInfo.job->launchProcess()) {
         conn->write<64>("Couldn't launch process for dump %s", source.sourceFile().constData());
         conn->finish();
+        mDumps.remove(source.fileId);
     }
 }
 
