@@ -571,14 +571,24 @@
     )
   )
 
+(defun rtags-find-context-on-line ()
+  (if rtags-last-context
+      (cond ((search-forward rtags-last-context (point-at-eol) t)
+             (backward-char (length rtags-last-context)))
+            ((search-backward rtags-last-context (point-at-bol) t))
+            (t)))
+  )
+
+  (and rtags-last-context
+       (search-forward rtags-last-context (point-at-bol) t)
+       (backward-char (length rtags-last-context)))
+  )
+
 (defun rtags-goto-line-col (line column)
   (goto-char (point-min))
   (forward-line (1- line))
   (beginning-of-line)
   (forward-char (- column 1))
-  (and rtags-last-context
-       (search-forward rtags-last-context (point-at-eol) t)
-       (backward-char (length rtags-last-context)))
   )
 
 (defun rtags-goto-location (location &optional nobookmark other-window)
@@ -591,6 +601,7 @@
              (rtags-find-file-or-buffer (match-string-no-properties 1 location) other-window)
              (run-hooks rtags-after-find-file-hook)
              (rtags-goto-line-col line column)
+             (rtags-find-context-on-line)
              t))
           ((string-match "\\(.*\\):\\([0-9]+\\)" location)
            (let ((line (string-to-number (match-string-no-properties 2 location))))
@@ -598,12 +609,14 @@
              (run-hooks rtags-after-find-file-hook)
              (goto-char (point-min))
              (forward-line (1- line))
+             (rtags-find-context-on-line)
              t))
           ((string-match "\\(.*\\),\\([0-9]+\\)" location)
            (let ((offset (string-to-number (match-string-no-properties 2 location))))
              (rtags-find-file-or-buffer (match-string-no-properties 1 location) other-window)
              (run-hooks rtags-after-find-file-hook)
              (rtags-goto-offset offset)
+             (rtags-find-context-on-line)
              t))
           (t
            (if (string-match "^ +\\(.*\\)$" location)
