@@ -420,7 +420,8 @@ void Server::onNewMessage(Message *message, Connection *connection)
     }
 }
 
-void Server::index(const String &arguments, const Path &pwd, const List<String> &withProjects)
+void Server::index(const String &arguments, const Path &pwd,
+                   const List<String> &withProjects, unsigned int flags)
 {
     Path unresolvedPath;
     Source source = Source::parse(arguments, pwd, &unresolvedPath);
@@ -430,7 +431,7 @@ void Server::index(const String &arguments, const Path &pwd, const List<String> 
     if (!shouldIndex(source, project))
         return;
 
-    preprocess(std::move(source), std::move(project), IndexerJob::Compile);
+    preprocess(std::move(source), std::move(project), flags);
 }
 
 void Server::preprocess(Source &&source, Path &&srcRoot, uint32_t flags)
@@ -450,7 +451,7 @@ void Server::preprocess(Source &&source, Path &&srcRoot, uint32_t flags)
 void Server::handleCompileMessage(CompileMessage &message, Connection *conn)
 {
     conn->close();
-    index(message.arguments(), message.workingDirectory(), message.projects());
+    index(message.arguments(), message.workingDirectory(), message.projects(), IndexerJob::Compile);
 }
 
 void Server::handleCreateOutputMessage(const CreateOutputMessage &message, Connection *conn)
@@ -470,6 +471,7 @@ void Server::handleIndexerMessage(const IndexerMessage &message, Connection *con
         // job already processed
         if (debugMulti)
             error() << "already got a response for" << indexData->jobId;
+        conn->finish();
         return;
     }
     std::shared_ptr<IndexerJob> job = it->second;
@@ -1296,7 +1298,7 @@ void Server::loadCompilationDatabase(const QueryMessage &query, Connection *conn
                 args += " ";
         }
 
-        index(args, dir, query.projects());
+        index(args, dir, query.projects(), IndexerJob::Compile);
     }
     clang_CompileCommands_dispose(cmds);
     clang_CompilationDatabase_dispose(db);
