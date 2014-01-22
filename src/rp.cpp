@@ -59,11 +59,22 @@ int main(int argc, char **argv)
     RTags::initMessages();
     std::shared_ptr<EventLoop> eventLoop(new EventLoop);
     eventLoop->init(EventLoop::MainEventLoop);
-    FILE *f = stdin;
+    String data;
     if (argc > 1) {
-        f = fopen(argv[1], "r");
+        data = Path(argv[1]).readAll();
+    } else {
+        int size;
+        if (!fread(&size, sizeof(size), 1, stdin)) {
+            error() << "Failed to read from stdout";
+            return 1;
+        }
+        data.resize(size);
+        if (!fread(&data[0], size, 1, stdin)) {
+            error() << "Failed to read from stdout";
+            return 2;
+        }
     }
-    Deserializer deserializer(f);
+    Deserializer deserializer(data);
     String destination;
     uint16_t port;
     Path sourceFile;
@@ -79,9 +90,6 @@ int main(int argc, char **argv)
                  >> visitFileTimeout >> indexerMessageTimeout
                  >> connectTimeout
                  >> jobId >> blockedFiles;
-    if (argc > 1)
-        fclose(f);
-    f = 0;
     if (sourceFile.isEmpty()) {
         error("No sourcefile\n");
         return 3;

@@ -63,7 +63,15 @@ bool IndexerJob::launchProcess()
     }
 
     flags |= RunningLocal;
-    process->write(stdinData);
+
+    {
+        const int size = stdinData.size();
+        String packet;
+        packet.resize(sizeof(size));
+        *reinterpret_cast<int*>(&packet[0]) = size;
+        process->write(packet);
+        process->write(stdinData);
+    }
     return true;
 }
 
