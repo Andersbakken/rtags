@@ -29,6 +29,7 @@
 #include "IndexerJob.h"
 #include "Source.h"
 #include "Cpp.h"
+#include "DumpThread.h"
 #if defined(HAVE_CXCOMPILATIONDATABASE)
 #  include <clang-c/CXCompilationDatabase.h>
 #endif
@@ -708,7 +709,11 @@ void Server::dumpFile(const QueryMessage &query, Connection *conn)
 
     const Source source = project->sources(fileId).value(query.buildIndex());
     if (!source.isNull()) {
-        project->dump(source, conn);
+        conn->disconnected().disconnect();
+        // ### this is a hack, but if the connection goes away we can't post
+        // ### events to it. We could fix this nicer but I didn't
+        DumpThread *dumpThread = new DumpThread(query, source, conn);
+        dumpThread->start();
     } else {
         conn->write<256>("%s build: %d not found", query.query().constData(), query.buildIndex());
         conn->finish();

@@ -80,6 +80,7 @@ set(RDM_SOURCES
   CursorInfo.cpp
   CursorInfoJob.cpp
   DependenciesJob.cpp
+  DumpThread.cpp
   FileManager.cpp
   FindFileJob.cpp
   FindSymbolsJob.cpp

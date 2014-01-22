@@ -32,8 +32,7 @@ public:
         None = 0x0000,
         Dirty = 0x0001,
         Compile = 0x0002,
-        Dump = 0x0004,
-        Type_Mask = Dirty|Compile|Dump,
+        Type_Mask = Dirty|Compile,
         FromRemote = 0x0010, // this job originated on another machine, we're running it to be nice
         Remote = 0x0020, // this job represents a locally spawned index that currently runs on some other machine
         Rescheduled = 0x0040,

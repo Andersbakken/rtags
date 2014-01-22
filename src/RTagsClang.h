@@ -252,6 +252,41 @@ static inline bool needsQualifiers(CXCursorKind kind)
     return false;
 }
 
+String typeName(const CXCursor &cursor);
+static inline const char *builtinTypeName(CXTypeKind kind)
+{
+    const char *ret = 0;
+    switch (kind) {
+    case CXType_Void: ret = "void"; break;
+    case CXType_Bool: ret = "bool"; break;
+    case CXType_Char_U: ret = "unsigned char"; break;
+    case CXType_UChar: ret = "unsigned char"; break;
+    case CXType_Char16: ret = "char16"; break;
+    case CXType_Char32: ret = "char32"; break;
+    case CXType_UShort: ret = "unsigned short"; break;
+    case CXType_UInt: ret = "unsigned int"; break;
+    case CXType_ULong: ret = "unsigned long"; break;
+    case CXType_ULongLong: ret = "unsigned long long"; break;
+    case CXType_UInt128: ret = "uint128"; break;
+    case CXType_Char_S: ret = "char"; break;
+    case CXType_SChar: ret = "schar"; break;
+    case CXType_WChar: ret = "wchar"; break;
+    case CXType_Short: ret = "short"; break;
+    case CXType_Int: ret = "int"; break;
+    case CXType_Long: ret = "long"; break;
+    case CXType_LongLong: ret = "long long"; break;
+    case CXType_Int128: ret = "int128"; break;
+    case CXType_Float: ret = "float"; break;
+    case CXType_Double: ret = "double"; break;
+    case CXType_LongDouble: ret = "long double"; break;
+    default:
+        break;
+    }
+    return ret;
+}
+
+String typeString(const CXType &type);
+
 struct SortedCursor
 {
     SortedCursor(const Location &loc = Location(),

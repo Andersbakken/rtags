@@ -312,21 +312,6 @@ void Project::onJobFinished(const std::shared_ptr<IndexData> &indexData)
     uint32_t pendingFlags = 0;
     bool syncNow = false;
     const uint32_t fileId = indexData->fileId();
-    if (indexData->flags & IndexerJob::Dump) {
-        assert(indexData->flags == IndexerJob::Dump);
-        bool found = false;
-        auto dump = mDumps.take(indexData->key, &found);
-        if (!found) {
-            error() << "Couldn't find JobData for" << Location::path(fileId);
-            return;
-        }
-        if (dump.connection) {
-            dump.connection->write(indexData->message);
-            dump.connection->finish();
-        }
-        return;
-    }
-
     const auto it = mJobs.find(indexData->key);
     if (it == mJobs.end()) {
         error() << "Couldn't find JobData for" << Location::path(fileId);
@@ -437,36 +422,6 @@ bool Project::save()
 
     fclose(f);
     return true;
-}
-
-void Project::dump(const Source &source, Connection *conn)
-{
-    if (source.isNull()) {
-        conn->write<64>("No source information for %s", source.sourceFile().constData());
-        conn->finish();;
-        return;
-    }
-
-    auto &dumpInfo = mDumps[source.fileId];
-    if (dumpInfo.connection) {
-        conn->write<64>("%s is being dumped as we speak", source.sourceFile().constData());
-        conn->finish();
-        return;
-    }
-    dumpInfo.connection = conn;
-    std::shared_ptr<Cpp> cpp = RTags::preprocess(source);
-    if (!cpp) {
-        conn->write<64>("Unable to preprocess %s", source.sourceFile().constData());
-        conn->finish();
-        return;
-    }
-
-    dumpInfo.job.reset(new IndexerJob(IndexerJob::Dump, mPath, source, cpp));
-    if (!dumpInfo.job->launchProcess()) {
-        conn->write<64>("Couldn't launch process for dump %s", source.sourceFile().constData());
-        conn->finish();
-        mDumps.remove(source.fileId);
-    }
 }
 
 void Project::index(const Source &source, const std::shared_ptr<Cpp> &cpp, uint32_t flags)
@@ -933,18 +888,6 @@ SymbolMap Project::symbols(uint32_t fileId) const
              it != mSymbols.end() && it->first.fileId() == fileId; ++it) {
             ret[it->first] = it->second;
         }
-    }
-    return ret;
-}
-
-String Project::dumpJobs() const
-{
-    String ret;
-    for (auto it = mJobs.begin(); it != mJobs.end(); ++it) {
-        ret << Location::path(it->first) << it->second.job->source << String::format<16>("0x%x", it->second.job->flags)
-            << it->second.crashCount
-            << (it->second.pendingFlags ? String() : it->second.pendingSource.toString())
-            << "\n";
     }
     return ret;
 }

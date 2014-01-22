@@ -92,24 +92,22 @@ bool ClangIndexer::index(uint32_t flags, const Source &source,
     mData->visited[source.fileId] = true;
     parse() && visit() && diagnose();
     mData->parseTime = cpp->time;
-    if (!(mData->flags & IndexerJob::Dump)) {
-        mData->message = source.sourceFile().toTilde();
-        if (!mUnit)
-            mData->message += " error";
-        mData->message += String::format<16>(" in %dms. ", mTimer.elapsed());
-        if (mUnit) {
-            const char *format = "(%d syms, %d symNames, %d refs, %d deps, %d of %d files, cursors: %d of %d, %d queried, %d previsited) (%d/%d/%dms)";
-            mData->message += String::format<128>(format,
-                                                  mData->symbols.size(), mData->symbolNames.size(), mData->references.size(),
-                                                  mData->dependencies.size(), mIndexed, mData->visited.size(), mAllowed,
-                                                  mAllowed + mBlocked, mFileIdsQueried, cpp->visited.size(), mParseDuration, mVisitDuration,
-                                                  mCommunicationDuration);
-        } else if (mData->dependencies.size()) {
-            mData->message += String::format<16>("(%d deps)", mData->dependencies.size());
-        }
-        if (mData->flags & IndexerJob::Dirty)
-            mData->message += " (dirty)";
+    mData->message = source.sourceFile().toTilde();
+    if (!mUnit)
+        mData->message += " error";
+    mData->message += String::format<16>(" in %dms. ", mTimer.elapsed());
+    if (mUnit) {
+        const char *format = "(%d syms, %d symNames, %d refs, %d deps, %d of %d files, cursors: %d of %d, %d queried, %d previsited) (%d/%d/%dms)";
+        mData->message += String::format<128>(format,
+                                              mData->symbols.size(), mData->symbolNames.size(), mData->references.size(),
+                                              mData->dependencies.size(), mIndexed, mData->visited.size(), mAllowed,
+                                              mAllowed + mBlocked, mFileIdsQueried, cpp->visited.size(), mParseDuration, mVisitDuration,
+                                              mCommunicationDuration);
+    } else if (mData->dependencies.size()) {
+        mData->message += String::format<16>("(%d deps)", mData->dependencies.size());
     }
+    if (mData->flags & IndexerJob::Dirty)
+        mData->message += " (dirty)";
     const IndexerMessage msg(mProject, mData);
     ++mFileIdsQueried;
     // FILE *f = fopen("/tmp/clangindex.log", "a");
@@ -279,7 +277,7 @@ String ClangIndexer::addNamePermutations(const CXCursor &cursor, const Location 
     case CXCursor_ClassTemplate:
         break;
     default:
-        type = typeName(cursor);
+        type = RTags::typeName(cursor);
         break;
     }
     // if (originalKind == CXCursor_ParmDecl)
@@ -743,129 +741,6 @@ void ClangIndexer::handleInclude(const CXCursor &cursor, CXCursorKind kind, cons
     }
 }
 
-static inline bool isInline(const CXCursor &cursor)
-{
-    switch (clang_getCursorKind(clang_getCursorLexicalParent(cursor))) {
-    case CXCursor_ClassDecl:
-    case CXCursor_ClassTemplate:
-    case CXCursor_StructDecl:
-        return true;
-    default:
-        return false;
-    }
-}
-
-const char *builtinTypeName(CXTypeKind kind)
-{
-    const char *ret = 0;
-    switch (kind) {
-    case CXType_Void: ret ="void"; break;
-    case CXType_Bool: ret ="bool"; break;
-    case CXType_Char_U: ret ="unsigned char"; break;
-    case CXType_UChar: ret ="unsigned char"; break;
-    case CXType_Char16: ret ="char16"; break;
-    case CXType_Char32: ret ="char32"; break;
-    case CXType_UShort: ret ="unsigned short"; break;
-    case CXType_UInt: ret ="unsigned int"; break;
-    case CXType_ULong: ret ="unsigned long"; break;
-    case CXType_ULongLong: ret ="unsigned long long"; break;
-    case CXType_UInt128: ret ="uint128"; break;
-    case CXType_Char_S: ret ="char"; break;
-    case CXType_SChar: ret ="schar"; break;
-    case CXType_WChar: ret ="wchar"; break;
-    case CXType_Short: ret ="short"; break;
-    case CXType_Int: ret ="int"; break;
-    case CXType_Long: ret ="long"; break;
-    case CXType_LongLong: ret ="long long"; break;
-    case CXType_Int128: ret ="int128"; break;
-    case CXType_Float: ret ="float"; break;
-    case CXType_Double: ret ="double"; break;
-    case CXType_LongDouble: ret ="long double"; break;
-    default:
-        break;
-    }
-    return ret;
-}
-
-inline String ClangIndexer::typeString(const CXType &type)
-{
-    String ret;
-    if (clang_isConstQualifiedType(type))
-        ret = "const ";
-
-    const char *builtIn = builtinTypeName(type.kind);
-    if (builtIn) {
-        ret += builtIn;
-        return ret;
-    }
-
-    if (char pointer = (type.kind == CXType_Pointer ? '*' : (type.kind == CXType_LValueReference ? '&' : 0))) {
-        const CXType pointee = clang_getPointeeType(type);
-        ret += typeString(pointee);
-        if (ret.endsWith('*') || ret.endsWith('&')) {
-            ret += pointer;
-        } else {
-            ret += ' ';
-            ret += pointer;
-        }
-        return ret;
-    }
-
-    if (type.kind == CXType_ConstantArray) {
-        ret += typeString(clang_getArrayElementType(type));
-#if CLANG_VERSION_MAJOR > 3 || (CLANG_VERSION_MAJOR == 3 && CLANG_VERSION_MINOR >= 1)
-        const long long count = clang_getNumElements(type);
-        ret += '[';
-        if (count >= 0)
-            ret += String::number(count);
-        ret += ']';
-#endif
-        return ret;
-    }
-    ret += ClangIndexer::typeName(clang_getTypeDeclaration(type));
-    if (ret.endsWith(' '))
-        ret.chop(1);
-    return ret;
-}
-
-String ClangIndexer::typeName(const CXCursor &cursor)
-{
-    String ret;
-    switch (clang_getCursorKind(cursor)) {
-    case CXCursor_FunctionTemplate:
-        // ### If the return value is a template type we get an empty string here
-    case CXCursor_FunctionDecl:
-    case CXCursor_CXXMethod:
-        ret = typeString(clang_getResultType(clang_getCursorType(cursor)));
-        break;
-    case CXCursor_ClassTemplate:
-    case CXCursor_ClassDecl:
-    case CXCursor_StructDecl:
-    case CXCursor_UnionDecl:
-    case CXCursor_TypedefDecl:
-    case CXCursor_EnumDecl:
-        ret = RTags::eatString(clang_getCursorSpelling(cursor));
-        break;
-    case CXCursor_VarDecl: {
-        const CXCursor initType = RTags::findFirstChild(cursor);
-        if (clang_getCursorKind(initType) == CXCursor_InitListExpr) {
-            ret = typeString(clang_getCursorType(initType));
-        } else {
-            ret = typeString(clang_getCursorType(cursor));
-        }
-        break; }
-    case CXCursor_FieldDecl: // ### If the return value is a template type we get an empty string here
-    case CXCursor_ParmDecl:
-        ret = typeString(clang_getCursorType(cursor));
-        break;
-    default:
-        return String();
-    }
-    if (!ret.isEmpty() && !ret.endsWith('*') && !ret.endsWith('&'))
-        ret.append(' ');
-    return ret;
-}
-
 bool ClangIndexer::handleCursor(const CXCursor &cursor, CXCursorKind kind, const Location &location)
 {
     // error() << "Got a cursor" << cursor;
@@ -1072,8 +947,6 @@ bool ClangIndexer::diagnose()
 {
     if (!mUnit) {
         return false;
-    } else if (mData->flags & IndexerJob::Dump) {
-        return true;
     }
 
     List<String> compilationErrors;
@@ -1231,12 +1104,6 @@ bool ClangIndexer::visit()
         return false;
     }
 
-    if (mData->flags & IndexerJob::Dump) {
-        DumpUserData userData = { 0, this };
-        clang_visitChildren(clang_getTranslationUnitCursor(mUnit),
-                            ClangIndexer::dumpVisitor, &userData);
-        return true;
-    }
     StopWatch watch;
 
     clang_visitChildren(clang_getTranslationUnitCursor(mUnit),
@@ -1305,32 +1172,6 @@ CXChildVisitResult ClangIndexer::verboseVisitor(CXCursor cursor, CXCursor, CXCli
     } else {
         return CXChildVisit_Recurse;
     }
-}
-
-CXChildVisitResult ClangIndexer::dumpVisitor(CXCursor cursor, CXCursor, CXClientData userData)
-{
-    DumpUserData *dump = reinterpret_cast<DumpUserData*>(userData);
-    assert(dump);
-    assert(dump->indexer);
-    Location loc = dump->indexer->createLocation(cursor);
-    if (loc.fileId()) {
-        CXCursor ref = clang_getCursorReferenced(cursor);
-        dump->indexer->mData->message.append(loc.context());
-        dump->indexer->mData->message.append(String::format<32>(" // %d, %d: ", loc.column(), dump->indentLevel));
-        dump->indexer->mData->message.append(RTags::cursorToString(cursor, RTags::AllCursorToStringFlags));
-        dump->indexer->mData->message.append(" " + typeName(cursor) + " ");
-        if (clang_equalCursors(ref, cursor)) {
-            dump->indexer->mData->message.append("refs self");
-        } else if (!clang_equalCursors(ref, nullCursor)) {
-            dump->indexer->mData->message.append("refs ");
-            dump->indexer->mData->message.append(RTags::cursorToString(ref, RTags::AllCursorToStringFlags));
-        }
-        dump->indexer->mData->message += '\n';
-    }
-    ++dump->indentLevel;
-    clang_visitChildren(cursor, ClangIndexer::dumpVisitor, userData);
-    --dump->indentLevel;
-    return CXChildVisit_Continue;
 }
 
 void ClangIndexer::addFileSymbol(uint32_t file)

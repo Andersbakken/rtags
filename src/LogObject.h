@@ -36,7 +36,8 @@ public:
 
     virtual void log(const char *msg, int len)
     {
-        mConnection->writeAsync(String(msg, len));
+        EventLoop::mainEventLoop()->callLaterMove(std::bind((bool(Connection::*)(Message&&))&Connection::send, mConnection, std::placeholders::_1),
+                                                  ResponseMessage(String(msg, len)));
     }
 
     virtual bool testLog(int level) const

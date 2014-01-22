@@ -83,13 +83,9 @@ private:
                                                   const CXCursor &parent);
     static CXChildVisitResult indexVisitor(CXCursor cursor, CXCursor parent, CXClientData client_data);
     static CXChildVisitResult verboseVisitor(CXCursor cursor, CXCursor, CXClientData userData);
-    static CXChildVisitResult dumpVisitor(CXCursor cursor, CXCursor, CXClientData userData);
 
     static void inclusionVisitor(CXFile includedFile, CXSourceLocation *includeStack,
                                  unsigned includeLen, CXClientData userData);
-
-    static String typeName(const CXCursor &cursor);
-    static String typeString(const CXType &type);
 
     void onMessage(Message *msg, Connection *conn);
 

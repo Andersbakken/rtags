@@ -89,7 +89,6 @@ public:
 
     bool isIndexed(uint32_t fileId) const;
 
-    void dump(const Source &source, Connection *conn);
     void index(const Source &args, const std::shared_ptr<Cpp> &cpp, uint32_t indexerJobFlags);
 
     List<Source> sources(uint32_t fileId) const;
@@ -111,7 +110,6 @@ public:
     void onTimerFired(Timer* event);
     bool isIndexing() const { return !mJobs.isEmpty(); }
     void dirty(const Path &);
-    String dumpJobs() const;
     Hash<Path, uint32_t> visitedFiles() const
     {
         Hash<Path, uint32_t> ret;
@@ -159,12 +157,6 @@ private:
 
     // key'ed on Source::key()
     Hash<uint64_t, JobData> mJobs;
-
-    struct DumpInfo {
-        Connection *connection;
-        std::shared_ptr<IndexerJob> job;
-    };
-    Hash<uint64_t, DumpInfo> mDumps;
     Hash<uint64_t, std::shared_ptr<IndexData> > mPendingData; // ### this could go into JobData
 
     Timer mSyncTimer;

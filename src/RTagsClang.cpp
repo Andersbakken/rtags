@@ -851,4 +851,84 @@ List<CXCursor> findChain(CXCursor parent, const List<CXCursorKind> &kinds)
     }
     return userData.ret;
 }
+
+String typeName(const CXCursor &cursor)
+{
+    String ret;
+    switch (clang_getCursorKind(cursor)) {
+    case CXCursor_FunctionTemplate:
+        // ### If the return value is a template type we get an empty string here
+    case CXCursor_FunctionDecl:
+    case CXCursor_CXXMethod:
+        ret = typeString(clang_getResultType(clang_getCursorType(cursor)));
+        break;
+    case CXCursor_ClassTemplate:
+    case CXCursor_ClassDecl:
+    case CXCursor_StructDecl:
+    case CXCursor_UnionDecl:
+    case CXCursor_TypedefDecl:
+    case CXCursor_EnumDecl:
+        ret = RTags::eatString(clang_getCursorSpelling(cursor));
+        break;
+    case CXCursor_VarDecl: {
+        const CXCursor initType = RTags::findFirstChild(cursor);
+        if (clang_getCursorKind(initType) == CXCursor_InitListExpr) {
+            ret = typeString(clang_getCursorType(initType));
+        } else {
+            ret = typeString(clang_getCursorType(cursor));
+        }
+        break; }
+    case CXCursor_FieldDecl: // ### If the return value is a template type we get an empty string here
+    case CXCursor_ParmDecl:
+        ret = typeString(clang_getCursorType(cursor));
+        break;
+    default:
+        return String();
+    }
+    if (!ret.isEmpty() && !ret.endsWith('*') && !ret.endsWith('&'))
+        ret.append(' ');
+    return ret;
+}
+
+String typeString(const CXType &type)
+{
+    String ret;
+    if (clang_isConstQualifiedType(type))
+        ret = "const ";
+
+    const char *builtIn = builtinTypeName(type.kind);
+    if (builtIn) {
+        ret += builtIn;
+        return ret;
+    }
+
+    if (char pointer = (type.kind == CXType_Pointer ? '*' : (type.kind == CXType_LValueReference ? '&' : 0))) {
+        const CXType pointee = clang_getPointeeType(type);
+        ret += typeString(pointee);
+        if (ret.endsWith('*') || ret.endsWith('&')) {
+            ret += pointer;
+        } else {
+            ret += ' ';
+            ret += pointer;
+        }
+        return ret;
+    }
+
+    if (type.kind == CXType_ConstantArray) {
+        ret += typeString(clang_getArrayElementType(type));
+#if CLANG_VERSION_MAJOR > 3 || (CLANG_VERSION_MAJOR == 3 && CLANG_VERSION_MINOR >= 1)
+        const long long count = clang_getNumElements(type);
+        ret += '[';
+        if (count >= 0)
+            ret += String::number(count);
+        ret += ']';
+#endif
+        return ret;
+    }
+    ret += typeName(clang_getTypeDeclaration(type));
+    if (ret.endsWith(' '))
+        ret.chop(1);
+    return ret;
+}
+
 }
