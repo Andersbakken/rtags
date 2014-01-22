@@ -26,7 +26,7 @@ struct Source
     inline Source();
 
     uint32_t fileId, compilerId, buildRootId;
-    size_t includePathHash;
+    uint64_t includePathHash;
     enum Language {
         NoLanguage,
         JavaScript,
@@ -67,7 +67,7 @@ struct Source
     Set<Define> defines;
     List<Path> includePaths;
     List<String> arguments;
-    int sysRootIndex;
+    int32_t sysRootIndex;
 
     bool isValid() const { return fileId; }
     bool isNull() const  { return !fileId; }
