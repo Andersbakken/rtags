@@ -579,11 +579,6 @@
             (t)))
   )
 
-  (and rtags-last-context
-       (search-forward rtags-last-context (point-at-bol) t)
-       (backward-char (length rtags-last-context)))
-  )
-
 (defun rtags-goto-line-col (line column)
   (goto-char (point-min))
   (forward-line (1- line))
