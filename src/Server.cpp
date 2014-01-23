@@ -21,6 +21,7 @@
 #include "CursorInfoJob.h"
 #include "DependenciesJob.h"
 #include "VisitFileResponseMessage.h"
+#include "JobAnnouncementMessage.h"
 #include "PreprocessJob.h"
 #include "Filter.h"
 #include "FindFileJob.h"
@@ -107,7 +108,7 @@ static const bool debugMulti = getenv("RDM_DEBUG_MULTI");
 
 Server *Server::sInstance = 0;
 Server::Server()
-    : mVerbose(false), mCurrentFileId(0), mThreadPool(0), mRemotePending(0), mCompletionThread(0)
+    : mVerbose(false), mCurrentFileId(0), mThreadPool(0), mRemotePending(0), mServerConnection(0), mCompletionThread(0)
 {
     Messages::registerMessage<JobRequestMessage>();
     Messages::registerMessage<JobResponseMessage>();
@@ -116,6 +117,7 @@ Server::Server()
     sInstance = this;
 
     mUnloadTimer.timeout().connect(std::bind(&Server::onUnload, this));
+    mConnectToServerTimer.timeout().connect(std::bind(&Server::connectToServer, this));
     mRescheduleTimer.timeout().connect(std::bind(&Server::onReschedule, this));
 }
 
@@ -390,6 +392,9 @@ void Server::onNewMessage(Message *message, Connection *connection)
         break;
     case JobResponseMessage::MessageId:
         handleJobResponseMessage(static_cast<const JobResponseMessage&>(*m), connection);
+        break;
+    case JobAnnouncementMessage::MessageId:
+        handleJobAnnouncementMessage(static_cast<const JobAnnouncementMessage&>(*m), connection);
         break;
     default:
         error("Unknown message: %d", message->messageId());
@@ -1436,6 +1441,11 @@ void Server::handleJobResponseMessage(const JobResponseMessage &message, Connect
     addJob(job);
 }
 
+void Server::handleJobAnnouncementMessage(const JobAnnouncementMessage &message, Connection *conn)
+{
+#warning gotta handle remote job announcements. This connection should also remain open
+}
+
 void Server::handleVisitFileMessage(const VisitFileMessage &message, Connection *conn)
 {
     uint32_t fileId = 0;
@@ -1679,17 +1689,15 @@ void Server::startNextJob()
         mPending.pop_front();
     }
 
-    if (mRemotePending >= static_cast<unsigned int>(mPending.size()) || mPending.empty())
+    if ((!(mOptions.options & JobServer) && !mServerConnection)
+        || mRemotePending >= static_cast<unsigned int>(mPending.size())
+        || mPending.empty()) {
         return;
-    const uint16_t count = static_cast<uint16_t>(mPending.size() - mRemotePending);
-    const uint16_t tcpPort = mOptions.tcpPort;
-    unsigned char buf[5];
-    buf[0] = 'j';
-    memcpy(buf + 1, &count, sizeof(count));
-    memcpy(buf + 3, &tcpPort, sizeof(tcpPort));
+    }
+    mServerConnection->send(JobAnnouncementMessage(static_cast<uint16_t>(mPending.size() - mRemotePending),
+                                                   mOptions.tcpPort));
     if (debugMulti)
         error() << "announcing" << mPending.size() - mRemotePending << "jobs";
-    mMulticastSocket->writeTo(mOptions.multicastAddress, mOptions.multicastPort, buf, sizeof(buf));
 }
 
 void Server::onLocalJobFinished(Process *process)
@@ -1847,4 +1855,24 @@ void Server::onHttpClientReadyRead(const SocketClient::SharedPtr &socket)
     } else {
         ::drain(socket);
     }
+}
+
+void Server::connectToServer()
+{
+    assert(!(mOptions.options & JobServer));
+    if (mServerConnection || mOptions.jobServer.first.isEmpty()) {
+        mConnectToServerTimer.stop();
+        return;
+    }
+    enum { ServerReconnectTimer = 5000 };
+    mServerConnection = new Connection;
+    mServerConnection->disconnected().connect([this](Connection *conn) {
+            EventLoop::deleteLater(mServerConnection);
+            assert(mServerConnection == conn);
+            mServerConnection = 0;
+            mConnectToServerTimer.restart(ServerReconnectTimer);
+        });
+#warning we gotta have another port to connect to here
+    // if (!mServerConnection->connect(mOptions.jobServer.first, mOptions.)
+
 }

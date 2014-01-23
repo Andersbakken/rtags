@@ -32,7 +32,7 @@ public:
         IndexerMessageId,
         JobRequestId,
         JobResponseId,
-        MulticastForwardId
+        JobAnnouncementId
     };
 
     ClientMessage(uint8_t id) : Message(id) {}

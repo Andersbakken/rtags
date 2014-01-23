@@ -46,6 +46,7 @@ class Project;
 class VisitFileMessage;
 class JobRequestMessage;
 class JobResponseMessage;
+class JobAnnouncementMessage;
 class CompletionThread;
 class PreprocessJob;
 class HttpLogObject;
@@ -127,6 +128,7 @@ private:
     void handleVisitFileMessage(const VisitFileMessage &message, Connection *conn);
     void handleJobRequestMessage(const JobRequestMessage &message, Connection *conn);
     void handleJobResponseMessage(const JobResponseMessage &message, Connection *conn);
+    void handleJobAnnouncementMessage(const JobAnnouncementMessage &message, Connection *conn);
 
     // Queries
     void sendDiagnostics(const QueryMessage &query, Connection *conn);
@@ -174,6 +176,7 @@ private:
     int startPreprocessJobs();
     void fetchRemoteJobs(const String& ip, uint16_t port, uint16_t jobs);
     void onHttpClientReadyRead(const SocketClient::SharedPtr &socket);
+    void connectToServer();
 
     enum JobSlotsMode {
         Local,
@@ -190,10 +193,9 @@ private:
     SocketServer::SharedPtr mUnixServer, mTcpServer, mHttpServer;
     bool mVerbose;
 
-    Timer mUnloadTimer, mRescheduleTimer;
+    Timer mUnloadTimer, mRescheduleTimer, mConnectToServerTimer;
 
     uint32_t mCurrentFileId;
-    std::shared_ptr<SocketClient> mMulticastSocket;
     LinkedList<std::shared_ptr<IndexerJob> > mPending;
     LinkedList<std::shared_ptr<PreprocessJob> > mPendingPreprocessJobs;
     Hash<uint64_t, std::shared_ptr<IndexerJob> > mProcessingJobs;
@@ -202,6 +204,7 @@ private:
     ThreadPool *mThreadPool;
     unsigned int mRemotePending;
     EventSourceClient mEventSource;
+    Connection *mServerConnection;
 
     Hash<SocketClient::SharedPtr, std::shared_ptr<HttpLogObject> > mHttpClients;
 
