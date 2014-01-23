@@ -415,23 +415,3 @@ void initMessages()
     Messages::registerMessage<ClientMessage>();
 }
 }
-
-#ifdef RTAGS_DEBUG_MUTEX
-void Mutex::lock()
-{
-    Timer timer;
-    while (!tryLock()) {
-        usleep(10000);
-        if (timer.elapsed() >= 10000) {
-            error("Couldn't acquire lock in 10 seconds\n");
-            const List<String> stack = RTags::backtrace();
-            const auto it = stack.begin();
-            while (it != stack.end()) {
-                printf("%s\n", it->constData());
-                ++it;
-            }
-            timer.restart();
-        }
-    }
-}
-#endif
