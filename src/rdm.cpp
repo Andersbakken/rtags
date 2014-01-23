@@ -193,6 +193,26 @@ int main(int argc, char** argv)
         bool norc = false;
         Path rcfile = Path::home() + ".rdmrc";
         opterr = 0;
+
+        char *originalArgv[argc];
+        memcpy(originalArgv, argv, sizeof(originalArgv));
+        /* getopt will molest argv by moving pointers around when it sees
+         * fit. Their idea of an optional argument is different from ours so we
+         * have to take a copy of argv before they get their sticky fingers all
+         * over it.
+         *
+         * We think this should be okay for an optional argument:
+         * -s something
+         *
+         * They only populate optarg if you do:
+         * -ssomething.
+         *
+         * We don't want to copy argv into argList before processing rc files
+         * since command line args should take precedence over things in rc
+         * files.
+         *
+         */
+
         while (true) {
             const int c = getopt_long(argc, argv, shortOptions.constData(), opts, 0);
             if (c == -1)
@@ -214,7 +234,7 @@ int main(int argc, char** argv)
             String rc = Path("/etc/rdmrc").readAll();
             if (!rc.isEmpty()) {
                 for (const String& s : rc.split('\n')) {
-                    if (!s.isEmpty() && !s.startsWith('#') && !s.startsWith(' '))
+                    if (!s.isEmpty() && !s.startsWith('#'))
                         argCopy += s.split(' ');
                 }
             }
@@ -222,7 +242,7 @@ int main(int argc, char** argv)
                 rc = rcfile.readAll();
                 if (!rc.isEmpty()) {
                     for (const String& s : rc.split('\n')) {
-                        if (!s.isEmpty() && !s.startsWith('#') && !s.startsWith(' '))
+                        if (!s.isEmpty() && !s.startsWith('#'))
                             argCopy += s.split(' ');
                     }
                 }
@@ -230,13 +250,14 @@ int main(int argc, char** argv)
             const int s = argCopy.size();
             for (int i=0; i<s; ++i) {
                 String &arg = argCopy.at(i);
-                argList.append(arg.data());
+                if (!arg.isEmpty())
+                    argList.append(arg.data());
             }
         }
-        for (int i=1; i<argc; ++i) {
-            argList.append(argv[i]);
-        }
 
+        for (int i=1; i<argc; ++i)
+            argList.append(originalArgv[i]);
+        
         optind = 1;
     }
 
@@ -265,6 +286,7 @@ int main(int argc, char** argv)
     assert(Path::home().endsWith('/'));
     int argCount = argList.size();
     char **args = argList.data();
+
     while (true) {
         const int c = getopt_long(argCount, args, shortOptions.constData(), opts, 0);
         if (c == -1)
@@ -282,8 +304,8 @@ int main(int argc, char** argv)
             break;
         case 's': {
             const char* arg = optarg;
-            if (!arg && optind < argc && argv[optind][0] != '-') {
-                arg = argv[optind++];
+            if (!arg && optind < argCount && args[optind][0] != '-') {
+                arg = args[optind++];
             }
             if (arg) {
                 serverOpts.jobServer = RTags::parseHost(arg);
