@@ -1802,6 +1802,12 @@ int Server::startPreprocessJobs()
     return ret;
 }
 
+static inline void drain(const SocketClient::SharedPtr &sock)
+{
+    Buffer data = std::move(sock->takeBuffer());
+    (void)data;
+}
+
 void Server::onHttpClientReadyRead(const SocketClient::SharedPtr &socket)
 {
     error() << "Balls" << socket->buffer().size();
@@ -1811,7 +1817,6 @@ void Server::onHttpClientReadyRead(const SocketClient::SharedPtr &socket)
         static const size_t statsLen = strlen(statsRequestLine);
         static const char *jobsRequestLine = "GET /jobs HTTP/1.1\r\n";
         static const size_t jobsLen = strlen(jobsRequestLine);
-#warning drain data from SocketClient
         int logLevel;
         const size_t len = socket->buffer().size();
         if (len >= statsLen && !memcmp(socket->buffer().data(), statsRequestLine, statsLen)) {
@@ -1819,11 +1824,13 @@ void Server::onHttpClientReadyRead(const SocketClient::SharedPtr &socket)
         } else if (len >= jobsLen && !memcmp(socket->buffer().data(), jobsRequestLine, jobsLen)) {
             if (!(mOptions.options & JobServer)) {
                 socket->close();
+                ::drain(socket);
                 return;
             }
             logLevel = RTags::JobInformation;
         } else if (len >= statsLen) {
             socket->close();
+            ::drain(socket);
             return;
         } else {
             return;
@@ -1836,5 +1843,8 @@ void Server::onHttpClientReadyRead(const SocketClient::SharedPtr &socket)
         static const int responseLen = strlen(response);
         socket->write(reinterpret_cast<const unsigned char*>(response), responseLen);
         log.reset(new HttpLogObject(logLevel, socket));
+        ::drain(socket);
+    } else {
+        ::drain(socket);
     }
 }
