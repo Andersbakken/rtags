@@ -1471,6 +1471,7 @@ void Server::handleProxyJobAnnouncementMessage(const ProxyJobAnnouncementMessage
 
 void Server::handleClientMessage(const ClientMessage &, Connection *conn)
 {
+    error() << "Got a client connected from" << conn->client()->hostName();
     mClients.insert(conn);
 }
 
