@@ -211,18 +211,18 @@ int main(int argc, char** argv)
         opterr = 1;
         argList.append(argv[0]);
         if (!norc) {
-            char *rc;
-            int size = Path("/etc/rdmrc").readAll(rc);
-            if (rc) {
-                argCopy = String(rc, size).split('\n');
-                delete[] rc;
+            String rc = Path("/etc/rdmrc").readAll();
+            if (!rc.isEmpty()) {
+                for (const String& s : rc.split('\n')) {
+                    argCopy += s.split(' ');
+                }
             }
             if (!rcfile.isEmpty()) {
-                size = rcfile.readAll(rc);
-                if (rc) {
-                    List<String> split = String(rc, size).split('\n');
-                    argCopy.append(split);
-                    delete[] rc;
+                rc = rcfile.readAll();
+                if (!rc.isEmpty()) {
+                    for (const String& s : rc.split('\n')) {
+                        argCopy += s.split(' ');
+                    }
                 }
             }
             const int s = argCopy.size();
