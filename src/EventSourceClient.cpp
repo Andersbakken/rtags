@@ -27,11 +27,13 @@ void EventSourceClient::onReadyRead(const SocketClient::SharedPtr& client, Buffe
 
     char* begin = mBuffer;
     while (char* end = strstr(begin, "\r\n")) {
-        if (!strncmp(begin, "data:", 5)) {
+        if (!mSeenHeaders && end == begin && !strncmp("\r\n", end + 2, 2)) {
+            mSeenHeaders = true;
+            begin = end + 4;
+        } else if (!strncmp(begin, "data:", 5)) {
             String string(begin + 5, end - begin - 5);
             mEvent(string);
-        } else {
-#warning read http headers before barfing
+        } else if (mSeenHeaders) {
             error() << "invalid EventSource message:" << String(begin, end - begin);
         }
         begin = end + 2;

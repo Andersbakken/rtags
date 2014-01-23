@@ -24,7 +24,9 @@
 class EventSourceClient
 {
 public:
-    EventSourceClient() : mBufferLen(0), mBuffer(0) { }
+    EventSourceClient()
+        : mBufferLen(0), mBuffer(0), mSeenHeaders(false)
+    {}
     ~EventSourceClient();
 
     bool connect(const String& host, uint16_t port, const String& path);
@@ -42,6 +44,7 @@ private:
 
     size_t mBufferLen;
     char* mBuffer;
+    bool mSeenHeaders;
 };
 
 #endif
