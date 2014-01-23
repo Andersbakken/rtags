@@ -23,6 +23,8 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 #include "JobRequestMessage.h"
 #include "JobResponseMessage.h"
 #include "JobAnnouncementMessage.h"
+#include "ClientMessage.h"
+#include "ProxyJobAnnouncementMessage.h"
 #include <dirent.h>
 #include <fcntl.h>
 #include <fnmatch.h>
@@ -409,6 +411,8 @@ void initMessages()
     Messages::registerMessage<VisitFileMessage>();
     Messages::registerMessage<IndexerMessage>();
     Messages::registerMessage<JobAnnouncementMessage>();
+    Messages::registerMessage<ProxyJobAnnouncementMessage>();
+    Messages::registerMessage<ClientMessage>();
 }
 }
 
