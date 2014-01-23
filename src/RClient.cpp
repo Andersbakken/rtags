@@ -70,7 +70,6 @@ enum OptionType {
     MatchCaseInsensitive,
     MatchRegexp,
     Max,
-    MulticastForward,
     NoContext,
     PathFilter,
     PrepareCodeCompleteAt,
@@ -85,7 +84,6 @@ enum OptionType {
     ReloadFileManager,
     ReloadProjects,
     RemoveFile,
-    RemoveMulticastForward,
     ReverseSort,
     SendDiagnostics,
     Silent,
@@ -167,8 +165,6 @@ struct Option opts[] = {
     { Dependencies, "dependencies", 0, required_argument, "Dump dependencies for source file." },
     { ReloadFileManager, "reload-file-manager", 'B', no_argument, "Reload file manager." },
     { Man, "man", 0, no_argument, "Output XML for xmltoman to generate man page for rc :-)" },
-    { MulticastForward, "multicast-forward", 'x', optional_argument, "Set up multicast forward for host or print the active ones." },
-    { RemoveMulticastForward, "remove-multicast-forward", 0, required_argument, "Remove multicast forward for host." },
     { CodeCompleteAt, "code-complete-at", 'l', required_argument, "Code complete at location: arg is file:line:col." },
     { PrepareCodeCompleteAt, "prepare-code-complete-at", 'b', required_argument, "Prepare code completion at location: arg is file:line:col." },
     { SendDiagnostics, "send-diagnostics", 0, required_argument, "Only for debugging. Send data to all -g connections." },
@@ -688,21 +684,6 @@ bool RClient::parse(int &argc, char **argv)
             break;
         case StripParen:
             mQueryFlags |= QueryMessage::StripParentheses;
-            break;
-        case MulticastForward: {
-            const char *arg = optarg ? optarg : (optind < argc && argv[optind][0] != '-' ? argv[optind++] : 0);
-            if (arg && RTags::parseHost(arg).first.isEmpty()) {
-                fprintf(stderr, "Invalid argument to --multicast-forward %s.\n", arg);
-                return 1;
-            }
-            addQuery(QueryMessage::MulticastForward, arg);
-            break; }
-        case RemoveMulticastForward:
-            if (RTags::parseHost(optarg).first.isEmpty()) {
-                fprintf(stderr, "Invalid argument to --remove-multicast-forward %s.\n", optarg);
-                return 1;
-            }
-            addQuery(QueryMessage::RemoveMulticastForward, optarg);
             break;
         case BuildIndex: {
             bool ok;

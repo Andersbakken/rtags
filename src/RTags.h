@@ -35,7 +35,8 @@ namespace RTags {
 enum {
     CompilationError = -1,
     CompilationErrorXml = -2,
-    Statistics = -3
+    Statistics = -3,
+    JobInformation = -4
 };
 
 enum UnitType {

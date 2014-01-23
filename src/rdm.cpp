@@ -69,6 +69,7 @@ static void usage(FILE *f)
     fprintf(f,
             "rdm [...options...]\n"
             "  --help|-h                                  Display this page.\n"
+            "  --server|-s [arg]                          Run as server with no arg or connect to arg as server\n"
             "  --include-path|-I [arg]                    Add additional include path to clang.\n"
             "  --define|-D [arg]                          Add additional define directive to clang.\n"
             "  --log-file|-L [arg]                        Log to this file.\n"
@@ -108,7 +109,6 @@ static void usage(FILE *f)
             "  --ignore-compiler|-b [arg]                 Alias this compiler (Might be practical to avoid duplicated sources for things like icecc).\n"
             "  --multicast-address|-a [arg]               Use this address for multicast (default " DEFAULT_RDM_MULTICAST_ADDRESS ").\n"
             "  --multicast-port|-P [arg]                  Use this port for multicast (default " STR(DEFAULT_RDM_MULTICAST_PORT) ").\n"
-            "  --multicast-forward|-x [arg]               Remote host to forward multicast packages for.\n"
             "  --multicast-ttl|-B [arg]                   Set multicast TTL to arg.\n"
             "  --http-port|-H [arg]                       Use this port for http (default " STR(DEFAULT_RDM_HTTP_PORT) ").\n"
             "  --reschedule-timeout|-R                    Timeout for rescheduling remote jobs (default " STR(DEFAULT_RESCHEDULE_TIMEOUT) ").\n",
@@ -121,6 +121,7 @@ int main(int argc, char** argv)
 
     struct option opts[] = {
         { "help", no_argument, 0, 'h' },
+        { "server", optional_argument, 0, 's' },
         { "include-path", required_argument, 0, 'I' },
         { "define", required_argument, 0, 'D' },
         { "log-file", required_argument, 0, 'L' },
@@ -130,7 +131,7 @@ int main(int argc, char** argv)
         { "verbose", no_argument, 0, 'v' },
         { "job-count", required_argument, 0, 'j' },
         { "clean-slate", no_argument, 0, 'C' },
-        { "enable-sighandler", no_argument, 0, 's' },
+        { "enable-sighandler", no_argument, 0, 'x' },
         { "silent", no_argument, 0, 'S' },
         { "exclude-filter", required_argument, 0, 'X' },
         { "socket-file", required_argument, 0, 'n' },
@@ -152,7 +153,6 @@ int main(int argc, char** argv)
         { "rp-connect-timeout", required_argument, 0, 'O' },
         { "multicast-address", required_argument, 0, 'a' },
         { "multicast-port", required_argument, 0, 'P' },
-        { "multicast-forward", required_argument, 0, 'x' },
         { "multicast-ttl", required_argument, 0, 'B' },
         { "tcp-port", required_argument, 0, 'p' },
         { "http-port", required_argument, 0, 'H' },
@@ -280,6 +280,21 @@ int main(int argc, char** argv)
         case 'X':
             serverOpts.excludeFilters += String(optarg).split(';');
             break;
+        case 's': {
+            const char* arg = optarg;
+            if (!arg && optind < argc && argv[optind][0] != '-') {
+                arg = argv[optind++];
+            }
+            if (arg) {
+                serverOpts.jobServer = RTags::parseHost(arg);
+                if (serverOpts.jobServer.first.isEmpty()) {
+                    fprintf(stderr, "Invalid argument to -s %s.\n", arg);
+                    return 1;
+                }
+            } else {
+                serverOpts.options |= Server::JobServer;
+            }
+            break; }
         case 'a':
             serverOpts.multicastAddress = optarg;
             break;
@@ -330,14 +345,6 @@ int main(int argc, char** argv)
         case 'b':
             serverOpts.ignoredCompilers.insert(Path::resolved(optarg));
             break;
-        case 'x': {
-            const std::pair<String, uint16_t> forward = RTags::parseHost(optarg);
-            if (forward.first.isEmpty()) {
-                fprintf(stderr, "Invalid argument to -x %s.\n", optarg);
-                return 1;
-            }
-            serverOpts.multicastForwards.insert(forward);
-            break; }
         case 'B':
             serverOpts.multicastTTL = atoi(optarg);
             if (serverOpts.multicastTTL <= 0) {
@@ -388,7 +395,7 @@ int main(int argc, char** argv)
         case 'e':
             putenv(optarg);
             break;
-        case 's':
+        case 'x':
             signal(SIGSEGV, sigSegvHandler);
             break;
         case 'u': {

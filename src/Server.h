@@ -17,6 +17,7 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 #define Server_h
 
 #include "QueryMessage.h"
+#include "EventSourceClient.h"
 #include "CompileMessage.h"
 #include "CreateOutputMessage.h"
 #include "IndexerMessage.h"
@@ -45,7 +46,6 @@ class Project;
 class VisitFileMessage;
 class JobRequestMessage;
 class JobResponseMessage;
-class MulticastForwardMessage;
 class CompletionThread;
 class PreprocessJob;
 class HttpLogObject;
@@ -67,7 +67,8 @@ public:
         AllowMultipleSources = 0x0020,
         NoStartupCurrentProject = 0x0040,
         WatchSystemPaths = 0x0080,
-        NoFileManagerWatch = 0x0100
+        NoFileManagerWatch = 0x0100,
+        JobServer = 0x0200
     };
     struct Options {
         Options()
@@ -86,8 +87,8 @@ public:
         List<Source::Define> defines;
         String multicastAddress;
         uint16_t tcpPort, multicastPort, httpPort;
-        Set<std::pair<String, uint16_t> > multicastForwards;
         Set<Path> ignoredCompilers;
+        std::pair<String, uint16_t> jobServer;
     };
     bool init(const Options &options);
     const Options &options() const { return mOptions; }
@@ -126,7 +127,6 @@ private:
     void handleVisitFileMessage(const VisitFileMessage &message, Connection *conn);
     void handleJobRequestMessage(const JobRequestMessage &message, Connection *conn);
     void handleJobResponseMessage(const JobResponseMessage &message, Connection *conn);
-    void handleMulticastForwardMessage(const MulticastForwardMessage &message, Connection *conn);
 
     // Queries
     void sendDiagnostics(const QueryMessage &query, Connection *conn);
@@ -139,7 +139,6 @@ private:
     void findSymbols(const QueryMessage &query, Connection *conn);
     void fixIts(const QueryMessage &query, Connection *conn);
     void followLocation(const QueryMessage &query, Connection *conn);
-    void handleMulticastForward(const QueryMessage &message, Connection *conn);
     void hasFileManager(const QueryMessage &query, Connection *conn);
     void isIndexed(const QueryMessage &query, Connection *conn);
     void isIndexing(const QueryMessage &, Connection *conn);
@@ -166,13 +165,10 @@ private:
     void setupCurrentProjectFile(const std::shared_ptr<Project> &project);
     std::shared_ptr<Project> currentProject() const { return mCurrentProject.lock(); }
     int reloadProjects();
-    void reconnectForwards();
     std::shared_ptr<Project> addProject(const Path &path);
-    bool connectMulticastForward(const std::pair<String, uint16_t> &host);
     void onMulticastReadyRead(const SocketClient::SharedPtr &socket, const String &ip,
                               uint16_t port, Buffer &&buffer);
     void handleMulticastData(const String &ip, uint16_t port, const unsigned char *data, int size, Connection *src);
-    void onMulticastForwardError(const SocketClient::SharedPtr &socket, SocketClient::Error);
     void onLocalJobFinished(Process *process);
     void startNextJob();
     int startPreprocessJobs();
@@ -194,7 +190,7 @@ private:
     SocketServer::SharedPtr mUnixServer, mTcpServer, mHttpServer;
     bool mVerbose;
 
-    Timer mUnloadTimer, mRescheduleTimer, mReconnectForwardsTimer;
+    Timer mUnloadTimer, mRescheduleTimer;
 
     uint32_t mCurrentFileId;
     std::shared_ptr<SocketClient> mMulticastSocket;
@@ -205,16 +201,7 @@ private:
     Hash<Connection*, uint16_t> mPendingJobRequests;
     ThreadPool *mThreadPool;
     unsigned int mRemotePending;
-
-    struct Forward {
-        Forward()
-            : connection(0), lastAttempt(Rct::monoMs()), failures(0)
-        {}
-        Connection *connection;
-        uint64_t lastAttempt;
-        int failures;
-    };
-    Map<std::pair<String, uint16_t>, Forward> mMulticastForwards;
+    EventSourceClient mEventSource;
 
     Hash<SocketClient::SharedPtr, std::shared_ptr<HttpLogObject> > mHttpClients;
 

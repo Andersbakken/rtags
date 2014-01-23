@@ -43,7 +43,6 @@
 #include "IndexerMessage.h"
 #include "JobRequestMessage.h"
 #include "JobResponseMessage.h"
-#include "MulticastForwardMessage.h"
 #include "RTags.h"
 #include "ReferencesJob.h"
 #include "StatusJob.h"
@@ -65,14 +64,14 @@
 class HttpLogObject : public LogOutput
 {
 public:
-    HttpLogObject(const SocketClient::SharedPtr &socket)
-        : LogOutput(Error), mSocket(socket)
+    HttpLogObject(int logLevel, const SocketClient::SharedPtr &socket)
+        : LogOutput(logLevel), mSocket(socket)
     {}
 
-    // virtual bool testLog(int level) const
-    // {
-    //     return
-    // }
+    virtual bool testLog(int level) const
+    {
+        return level == logLevel();
+    }
     virtual void log(const char *msg, int len)
     {
         if (!EventLoop::isMainThread()) {
@@ -118,7 +117,6 @@ Server::Server()
 
     mUnloadTimer.timeout().connect(std::bind(&Server::onUnload, this));
     mRescheduleTimer.timeout().connect(std::bind(&Server::onReschedule, this));
-    mReconnectForwardsTimer.timeout().connect(std::bind(&Server::reconnectForwards, this));
 }
 
 Server::~Server()
@@ -224,29 +222,25 @@ bool Server::init(const Options &options)
         }
     }
 
-    if (!mOptions.multicastAddress.isEmpty()) {
-        mMulticastSocket.reset(new SocketClient);
-        if (!mMulticastSocket->bind(mOptions.multicastPort)) {
-            error() << "Can't bind to multicast port" << mOptions.multicastPort;
-            return false;
-        }
-        if (!mMulticastSocket->addMembership(mOptions.multicastAddress)) {
-            error() << "Can't add membership" << mOptions.multicastAddress;
-            return false;
-        }
-        mMulticastSocket->setMulticastLoop(false);
-        if (mOptions.multicastTTL)
-            mMulticastSocket->setMulticastTTL(mOptions.multicastTTL);
-        mMulticastSocket->readyReadFrom().connect(std::bind(&Server::onMulticastReadyRead, this,
-                                                            std::placeholders::_1,
-                                                            std::placeholders::_2,
-                                                            std::placeholders::_3,
-                                                            std::placeholders::_4));
-    }
-
-    for (auto it = mOptions.multicastForwards.cbegin(); it != mOptions.multicastForwards.cend(); ++it) {
-        connectMulticastForward(*it);
-    }
+    // if (!mOptions.multicastAddress.isEmpty()) {
+    //     mMulticastSocket.reset(new SocketClient);
+    //     if (!mMulticastSocket->bind(mOptions.multicastPort)) {
+    //         error() << "Can't bind to multicast port" << mOptions.multicastPort;
+    //         return false;
+    //     }
+    //     if (!mMulticastSocket->addMembership(mOptions.multicastAddress)) {
+    //         error() << "Can't add membership" << mOptions.multicastAddress;
+    //         return false;
+    //     }
+    //     mMulticastSocket->setMulticastLoop(false);
+    //     if (mOptions.multicastTTL)
+    //         mMulticastSocket->setMulticastTTL(mOptions.multicastTTL);
+    //     mMulticastSocket->readyReadFrom().connect(std::bind(&Server::onMulticastReadyRead, this,
+    //                                                         std::placeholders::_1,
+    //                                                         std::placeholders::_2,
+    //                                                         std::placeholders::_3,
+    //                                                         std::placeholders::_4));
+    // }
 
     if (mOptions.tcpPort) {
         mTcpServer.reset(new SocketServer);
@@ -266,18 +260,20 @@ bool Server::init(const Options &options)
         }
 
         mHttpServer->newConnection().connect(std::bind([this](){
-                    int foo = 0;
                     while (SocketClient::SharedPtr client = mHttpServer->nextConnection()) {
-                        ++foo;
                         mHttpClients[client] = 0;
-                        client->disconnected().connect(std::bind([this,client] { mHttpClients.remove(client); }));
+                        client->disconnected().connect(std::bind([this, client] { mHttpClients.remove(client); }));
                         client->readyRead().connect(std::bind(&Server::onHttpClientReadyRead, this, std::placeholders::_1));
                     }
-                    error() << foo;
-
                 }));
 
     }
+
+    if (!mOptions.jobServer.first.isEmpty()) {
+        mEventSource.event().connect([](const String& event) { error() << "got data" << event; });
+        mEventSource.connect(mOptions.jobServer.first, mOptions.jobServer.second, "/jobs");
+    }
+
     return true;
 }
 
@@ -354,17 +350,6 @@ void Server::onConnectionDisconnected(Connection *o)
 {
     o->disconnected().disconnect();
     EventLoop::deleteLater(o);
-    for (auto it = mMulticastForwards.begin(); it != mMulticastForwards.end(); ++it) {
-        if (it->second.connection == o) {
-            it->second.connection = 0;
-            ++it->second.failures;
-            warning() << "Disconnected from host:"
-                      << String::format<64>("%s:%d", it->first.first.constData(), it->first.second)
-                      << it->second.failures;
-            EventLoop::eventLoop()->callLater(std::bind(&Server::reconnectForwards, this));
-            break;
-        }
-    }
     mPendingJobRequests.remove(o);
 }
 
@@ -382,9 +367,6 @@ void Server::onNewMessage(Message *message, Connection *connection)
     case QueryMessage::MessageId:
         error() << m->raw();
         handleQueryMessage(static_cast<const QueryMessage&>(*m), connection);
-        break;
-    case MulticastForwardMessage::MessageId:
-        handleMulticastForwardMessage(static_cast<const MulticastForwardMessage&>(*m), connection);
         break;
     case IndexerMessage::MessageId:
         handleIndexerMessage(static_cast<const IndexerMessage&>(*m), connection);
@@ -604,10 +586,6 @@ void Server::handleQueryMessage(const QueryMessage &message, Connection *conn)
         break;
     case QueryMessage::ReloadFileManager:
         reloadFileManager(message, conn);
-        break;
-    case QueryMessage::MulticastForward:
-    case QueryMessage::RemoveMulticastForward:
-        handleMulticastForward(message, conn);
         break;
     }
 }
@@ -1579,7 +1557,7 @@ void Server::onMulticastReadyRead(const SocketClient::SharedPtr &socket,
                                   Buffer &&in)
 {
     const Buffer buffer = std::forward<Buffer>(in);
-    handleMulticastData(ip, port, buffer.data(), buffer.size(), 0);
+    //handleMulticastData(ip, port, buffer.data(), buffer.size(), 0);
 }
 
 inline int Server::availableJobSlots(JobSlotsMode mode) const
@@ -1594,57 +1572,57 @@ inline int Server::availableJobSlots(JobSlotsMode mode) const
     return std::max(0, count - ret);
 }
 
-void Server::handleMulticastData(const String &ip, uint16_t port,
-                                 const unsigned char *data, int size, Connection *source)
-{
-    if (!mMulticastForwards.isEmpty()) {
-        const MulticastForwardMessage msg(ip, port, String(reinterpret_cast<const char*>(data), size));
-        for (auto it = mMulticastForwards.begin(); it != mMulticastForwards.end(); ++it) {
-            if (it->second.connection && it->second.connection != source && !it->second.connection->send(msg)) {
-                error() << "Unable to forward to"
-                        << String::format<64>("%s:%d",
-                                              it->first.first.constData(),
-                                              it->first.second);
-            }
-        }
-    }
-    uint16_t jobs = 0;
-    uint16_t tcpPort = 0;
+// void Server::handleMulticastData(const String &ip, uint16_t port,
+//                                  const unsigned char *data, int size, Connection *source)
+// {
+//     if (!mMulticastForwards.isEmpty()) {
+//         const MulticastForwardMessage msg(ip, port, String(reinterpret_cast<const char*>(data), size));
+//         for (auto it = mMulticastForwards.begin(); it != mMulticastForwards.end(); ++it) {
+//             if (it->second.connection && it->second.connection != source && !it->second.connection->send(msg)) {
+//                 error() << "Unable to forward to"
+//                         << String::format<64>("%s:%d",
+//                                               it->first.first.constData(),
+//                                               it->first.second);
+//             }
+//         }
+//     }
+//     uint16_t jobs = 0;
+//     uint16_t tcpPort = 0;
 
-    while (size >= 5) {
-        if (*data != 'j') {
-            Log log(Error);
-            log << "Got unexpected header in data from" << ip << *data;
-            return;
-        }
-        jobs = *reinterpret_cast<const uint16_t*>(data + 1);
-        tcpPort = *reinterpret_cast<const uint16_t*>(data + 3);
-        if (debugMulti)
-            error() << ip << "has" << jobs << "jobs" << "on port" << tcpPort;
-        data += 5;
-        size -= 5;
-    }
+//     while (size >= 5) {
+//         if (*data != 'j') {
+//             Log log(Error);
+//             log << "Got unexpected header in data from" << ip << *data;
+//             return;
+//         }
+//         jobs = *reinterpret_cast<const uint16_t*>(data + 1);
+//         tcpPort = *reinterpret_cast<const uint16_t*>(data + 3);
+//         if (debugMulti)
+//             error() << ip << "has" << jobs << "jobs" << "on port" << tcpPort;
+//         data += 5;
+//         size -= 5;
+//     }
 
-    if (size > 0) {
-        Log log(Error);
-        log << "Got unexpected data from" << ip << size;
-        while (size) {
-            printf("0x%x", *(data++));
-            --size;
-        }
-        printf("\n");
-        return;
-    }
-    if (jobs && tcpPort) {
-        const int maxJobs = std::min<int>(jobs, availableJobSlots(Remote));
-        if (debugMulti)
-            error("available jobs %d available %d local %d pending %d processcount %d",
-                  jobs, availableJobSlots(Remote), mLocalJobs.size(), mPendingJobRequests.size(),
-                  mOptions.jobCount);
-        if (maxJobs > 0)
-            fetchRemoteJobs(ip, tcpPort, maxJobs);
-    }
-}
+//     if (size > 0) {
+//         Log log(Error);
+//         log << "Got unexpected data from" << ip << size;
+//         while (size) {
+//             printf("0x%x", *(data++));
+//             --size;
+//         }
+//         printf("\n");
+//         return;
+//     }
+//     if (jobs && tcpPort) {
+//         const int maxJobs = std::min<int>(jobs, availableJobSlots(Remote));
+//         if (debugMulti)
+//             error("available jobs %d available %d local %d pending %d processcount %d",
+//                   jobs, availableJobSlots(Remote), mLocalJobs.size(), mPendingJobRequests.size(),
+//                   mOptions.jobCount);
+//         if (maxJobs > 0)
+//             fetchRemoteJobs(ip, tcpPort, maxJobs);
+//     }
+// }
 
 void Server::fetchRemoteJobs(const String& ip, uint16_t port, uint16_t jobs)
 {
@@ -1712,20 +1690,6 @@ void Server::startNextJob()
     if (debugMulti)
         error() << "announcing" << mPending.size() - mRemotePending << "jobs";
     mMulticastSocket->writeTo(mOptions.multicastAddress, mOptions.multicastPort, buf, sizeof(buf));
-    if (!mMulticastForwards.isEmpty()) {
-        const MulticastForwardMessage msg(String(), 0, String(reinterpret_cast<const char*>(buf), sizeof(buf)));
-        for (auto it = mMulticastForwards.begin(); it != mMulticastForwards.end(); ++it) {
-            if (it->second.connection && !it->second.connection->send(msg)) {
-                error() << "Unable to forward to"
-                        << String::format<64>("%s:%d",
-                                              it->first.first.constData(),
-                                              it->first.second);
-            } else if (debugMulti) {
-                error() << "forwarding jobs announcement" << mPending.size() - mRemotePending << "jobs";
-            }
-        }
-    }
-
 }
 
 void Server::onLocalJobFinished(Process *process)
@@ -1766,88 +1730,6 @@ void Server::onLocalJobFinished(Process *process)
     startNextJob();
 }
 
-void Server::handleMulticastForward(const QueryMessage &message, Connection *conn)
-{
-    const String query = message.query();
-    if (query.isEmpty()) {
-        reconnectForwards();
-        assert(message.type() == QueryMessage::MulticastForward);
-        for (auto it = mMulticastForwards.begin(); it != mMulticastForwards.end(); ++it) {
-            conn->write<64>("%s:%d %s", it->first.first.constData(), it->first.second,
-                            (it->second.connection && it->second.connection->isConnected() ? "connected" : "not connected"));
-        }
-    } else if (message.type() == QueryMessage::MulticastForward) {
-        const std::pair<String, uint16_t> host = RTags::parseHost(query.constData());
-        assert(!host.first.isEmpty());
-        if (mMulticastForwards.value(host).connection) {
-            conn->write<64>("Already connected to host %s:%d", host.first.constData(), host.second);
-        } else if (connectMulticastForward(host)) {
-            conn->write<64>("Connecting to host %s:%d", host.first.constData(), host.second);
-        } else {
-            conn->write<64>("Failed to connect to host %s:%d", host.first.constData(), host.second);
-        }
-    } else {
-        assert(message.type() == QueryMessage::RemoveMulticastForward);
-        const std::pair<String, uint16_t> host = RTags::parseHost(query.constData());
-        assert(!host.first.isEmpty());
-        bool ok;
-        Connection *c = mMulticastForwards.take(host, &ok).connection;
-        if (ok) {
-            if (c) {
-                conn->write<64>("Disconnecting forward to %s:%d", host.first.constData(), host.second);
-                c->finish();
-            } else {
-                conn->write<64>("Removed forward to %s:%d", host.first.constData(), host.second);
-            }
-        } else {
-            conn->write<64>("No forward to %s:%d", host.first.constData(), host.second);
-        }
-    }
-    conn->finish();
-}
-bool Server::connectMulticastForward(const std::pair<String, uint16_t> &host)
-{
-    Forward &forward = mMulticastForwards[host];
-    if (forward.connection)
-        return true;
-    forward.connection = new Connection;
-    forward.lastAttempt = Rct::monoMs();
-    forward.connection->newMessage().connect(std::bind(&Server::onNewMessage, this, std::placeholders::_1, std::placeholders::_2));
-    if (!forward.connection->connectTcp(host.first, host.second)) {
-        error() << "Can't connect to multicast forwarding address"
-                << String::format<128>("%s:%d", host.first.constData(), host.second);
-        delete forward.connection;
-        forward.connection = 0;
-        ++forward.failures;
-        reconnectForwards();
-        return false;
-    }
-    forward.connection->connected().connect(std::bind([this, host]() {
-                auto it = mMulticastForwards.find(host);
-                if (it != mMulticastForwards.end())
-                    it->second.failures = 0;
-                error() << "Connected to forwarding address"
-                        << String::format<128>("%s:%d", host.first.constData(), host.second); }));
-    forward.connection->disconnected().connect(std::bind(&Server::onConnectionDisconnected, this, std::placeholders::_1));
-    return true;
-}
-
-void Server::handleMulticastForwardMessage(const MulticastForwardMessage &message, Connection *conn)
-{
-    const String data = message.message();
-    String ip = message.ip();
-    uint16_t port = message.port();
-    assert(ip.isEmpty() == (port == 0));
-    if (!port && !conn->client()->peer(&ip, &port)) {
-        error() << "Unable to get peer from socket";
-        return;
-    }
-    if (debugMulti)
-        error() << "Received forwarded message from" << ip;
-    handleMulticastData(ip, port, reinterpret_cast<const unsigned char*>(data.constData()), data.size(), conn);
-    // conn->finish(); // ### should I finish this?
-}
-
 void Server::stopServers()
 {
     Path::rm(mOptions.socketFile);
@@ -1867,32 +1749,6 @@ static inline uint64_t connectTime(uint64_t lastAttempt, int failures)
         }
     }
     return lastAttempt + wait;
-}
-
-void Server::reconnectForwards()
-{
-    const uint64_t now = Rct::monoMs();
-    uint64_t least = std::numeric_limits<uint64_t>::max();
-    List<std::pair<String, uint16_t> > hosts;
-    for (auto it = mMulticastForwards.begin(); it != mMulticastForwards.end(); ++it) {
-        if (!it->second.connection) {
-            const uint64_t time = connectTime(it->second.lastAttempt, it->second.failures);
-            if (time <= now) {
-                hosts.append(it->first);
-            } else {
-                least = std::min(least, time - now);
-            }
-        }
-    }
-    if (least != std::numeric_limits<uint64_t>::max()) {
-        mReconnectForwardsTimer.restart(least, Timer::SingleShot);
-    } else {
-        mReconnectForwardsTimer.stop();
-    }
-
-    for (auto it = hosts.begin(); it != hosts.end(); ++it) {
-        connectMulticastForward(*it); // extra lookup
-    }
 }
 
 void Server::codeCompleteAt(const QueryMessage &query, Connection *conn)
@@ -1951,21 +1807,34 @@ void Server::onHttpClientReadyRead(const SocketClient::SharedPtr &socket)
     error() << "Balls" << socket->buffer().size();
     auto &log = mHttpClients[socket];
     if (!log) {
-        static const char *requestLine = "GET /stats HTTP/1.1\r\n";
-        static const size_t len = strlen(requestLine);
-        if (socket->buffer().size() >= len) {
-            if (!memcmp(socket->buffer().data(), requestLine, len)) {
-                static const char *response = ("HTTP/1.1 200 OK\r\n"
-                                               "Cache: no-cache\r\n"
-                                               "Cache-Control: private\r\n"
-                                               "Pragma: no-cache\r\n"
-                                               "Content-Type: text/event-stream\r\n\r\n");
-                static const int responseLen = strlen(response);
-                socket->write(reinterpret_cast<const unsigned char*>(response), responseLen);
-                log.reset(new HttpLogObject(socket));
-            } else {
+        static const char *statsRequestLine = "GET /stats HTTP/1.1\r\n";
+        static const size_t statsLen = strlen(statsRequestLine);
+        static const char *jobsRequestLine = "GET /jobs HTTP/1.1\r\n";
+        static const size_t jobsLen = strlen(jobsRequestLine);
+#warning drain data from SocketClient
+        int logLevel;
+        const size_t len = socket->buffer().size();
+        if (len >= statsLen && !memcmp(socket->buffer().data(), statsRequestLine, statsLen)) {
+            logLevel = RTags::Statistics;
+        } else if (len >= jobsLen && !memcmp(socket->buffer().data(), jobsRequestLine, jobsLen)) {
+            if (!(mOptions.options & JobServer)) {
                 socket->close();
+                return;
             }
+            logLevel = RTags::JobInformation;
+        } else if (len >= statsLen) {
+            socket->close();
+            return;
+        } else {
+            return;
         }
+        static const char *response = ("HTTP/1.1 200 OK\r\n"
+                                       "Cache: no-cache\r\n"
+                                       "Cache-Control: private\r\n"
+                                       "Pragma: no-cache\r\n"
+                                       "Content-Type: text/event-stream\r\n\r\n");
+        static const int responseLen = strlen(response);
+        socket->write(reinterpret_cast<const unsigned char*>(response), responseLen);
+        log.reset(new HttpLogObject(logLevel, socket));
     }
 }
