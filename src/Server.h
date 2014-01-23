@@ -52,7 +52,7 @@ class HttpLogObject;
 class Server
 {
 public:
-    enum { DatabaseVersion = 37 };
+    enum { DatabaseVersion = 38 };
 
     Server();
     ~Server();

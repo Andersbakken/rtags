@@ -492,9 +492,6 @@ std::shared_ptr<Cpp> preprocess(const Source &source, const std::shared_ptr<Proj
 #endif
                                    ));
     clang::LangOptions &langOpts = compilerInstance.getLangOpts();
-#ifndef OS_Darwin
-    langOpts.TraditionalCPP = true;
-#endif
     switch (source.language) {
     case Source::CPlusPlus11:
 #if CLANG_VERSION_MINOR >= 3
@@ -533,7 +530,6 @@ std::shared_ptr<Cpp> preprocess(const Source &source, const std::shared_ptr<Proj
         args.push_back(compiler.constData());
         args.push_back("-c");
         args.push_back(sourceFile.constData());
-        // args.push_back("-traditional-cpp");
         for (const Path &path : source.includePaths)
             copies.push_back("-I" + path);
         for (const Path &path : options.includePaths)
