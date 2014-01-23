@@ -18,15 +18,15 @@
 
 #include <rct/Message.h>
 #include <rct/String.h>
-#include "ClientMessage.h"
+#include "RTagsMessage.h"
 
-class VisitFileResponseMessage : public ClientMessage
+class VisitFileResponseMessage : public RTagsMessage
 {
 public:
     enum { MessageId = VisitFileResponseId };
 
     VisitFileResponseMessage(uint32_t fileId = 0, const Path &resolved = Path(), bool visit = false)
-        : ClientMessage(MessageId), mFileId(fileId), mResolved(resolved), mVisit(visit)
+        : RTagsMessage(MessageId), mFileId(fileId), mResolved(resolved), mVisit(visit)
     {
     }
 

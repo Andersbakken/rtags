@@ -17,11 +17,13 @@
 
 #include "CompletionThread.h"
 #include "CompileMessage.h"
-#include "CreateOutputMessage.h"
+#include "LogOutputMessage.h"
 #include "CursorInfoJob.h"
 #include "DependenciesJob.h"
 #include "VisitFileResponseMessage.h"
 #include "JobAnnouncementMessage.h"
+#include "ProxyJobAnnouncementMessage.h"
+#include "ClientMessage.h"
 #include "PreprocessJob.h"
 #include "Filter.h"
 #include "FindFileJob.h"
@@ -170,7 +172,7 @@ bool Server::init(const Options &options)
     Log l(Error);
     l << "Running with" << mOptions.jobCount << "jobs, using args:"
       << String::join(mOptions.defaultArguments, ' ') << '\n';
-    if (mOptions.tcpPort || mOptions.multicastPort) {
+    if (mOptions.tcpPort || mOptions.multicastPort || mOptions.httpPort) {
         if (mOptions.tcpPort)
             l << "tcp-port:" << mOptions.tcpPort;
         if (mOptions.multicastPort)
@@ -257,23 +259,23 @@ bool Server::init(const Options &options)
     if (mOptions.httpPort) {
         mHttpServer.reset(new SocketServer);
         if (!mHttpServer->listen(mOptions.httpPort)) {
-            error() << "Unable to listen on port" << mOptions.httpPort;
-            return false;
+            error() << "Unable to listen on http-port:" << mOptions.httpPort;
+            // return false;
+            mHttpServer.reset();
+        } else {
+            mHttpServer->newConnection().connect(std::bind([this](){
+                        while (SocketClient::SharedPtr client = mHttpServer->nextConnection()) {
+                            mHttpClients[client] = 0;
+                            client->disconnected().connect(std::bind([this, client] { mHttpClients.remove(client); }));
+                            client->readyRead().connect(std::bind(&Server::onHttpClientReadyRead, this, std::placeholders::_1));
+                        }
+                    }));
         }
-
-        mHttpServer->newConnection().connect(std::bind([this](){
-                    while (SocketClient::SharedPtr client = mHttpServer->nextConnection()) {
-                        mHttpClients[client] = 0;
-                        client->disconnected().connect(std::bind([this, client] { mHttpClients.remove(client); }));
-                        client->readyRead().connect(std::bind(&Server::onHttpClientReadyRead, this, std::placeholders::_1));
-                    }
-                }));
 
     }
 
     if (!mOptions.jobServer.first.isEmpty()) {
-        mEventSource.event().connect([](const String& event) { error() << "got data" << event; });
-        mEventSource.connect(mOptions.jobServer.first, mOptions.jobServer.second, "/jobs");
+        connectToServer();
     }
 
     return true;
@@ -352,6 +354,7 @@ void Server::onConnectionDisconnected(Connection *o)
 {
     o->disconnected().disconnect();
     EventLoop::deleteLater(o);
+    mClients.remove(o);
     mPendingJobRequests.remove(o);
 }
 
@@ -360,7 +363,7 @@ void Server::onNewMessage(Message *message, Connection *connection)
     if (mOptions.unloadTimer)
         mUnloadTimer.restart(mOptions.unloadTimer * 1000 * 60, Timer::SingleShot);
 
-    ClientMessage *m = static_cast<ClientMessage*>(message);
+    RTagsMessage *m = static_cast<RTagsMessage*>(message);
 
     switch (message->messageId()) {
     case CompileMessage::MessageId:
@@ -373,9 +376,9 @@ void Server::onNewMessage(Message *message, Connection *connection)
     case IndexerMessage::MessageId:
         handleIndexerMessage(static_cast<const IndexerMessage&>(*m), connection);
         break;
-    case CreateOutputMessage::MessageId:
+    case LogOutputMessage::MessageId:
         error() << m->raw();
-        handleCreateOutputMessage(static_cast<const CreateOutputMessage&>(*m), connection);
+        handleLogOutputMessage(static_cast<const LogOutputMessage&>(*m), connection);
         break;
     case VisitFileMessage::MessageId:
         handleVisitFileMessage(static_cast<const VisitFileMessage&>(*m), connection);
@@ -393,8 +396,11 @@ void Server::onNewMessage(Message *message, Connection *connection)
     case JobResponseMessage::MessageId:
         handleJobResponseMessage(static_cast<const JobResponseMessage&>(*m), connection);
         break;
-    case JobAnnouncementMessage::MessageId:
-        handleJobAnnouncementMessage(static_cast<const JobAnnouncementMessage&>(*m), connection);
+    case ProxyJobAnnouncementMessage::MessageId:
+        handleProxyJobAnnouncementMessage(static_cast<const ProxyJobAnnouncementMessage&>(*m), connection);
+        break;
+    case ClientMessage::MessageId:
+        handleClientMessage(static_cast<const ClientMessage&>(*m), connection);
         break;
     default:
         error("Unknown message: %d", message->messageId());
@@ -441,7 +447,7 @@ void Server::handleCompileMessage(CompileMessage &message, Connection *conn)
     index(message.arguments(), message.workingDirectory(), message.projects());
 }
 
-void Server::handleCreateOutputMessage(const CreateOutputMessage &message, Connection *conn)
+void Server::handleLogOutputMessage(const LogOutputMessage &message, Connection *conn)
 {
     new LogObject(conn, message.level());
 }
@@ -1441,9 +1447,31 @@ void Server::handleJobResponseMessage(const JobResponseMessage &message, Connect
     addJob(job);
 }
 
-void Server::handleJobAnnouncementMessage(const JobAnnouncementMessage &message, Connection *conn)
+void Server::handleJobAnnouncementMessage(const JobAnnouncementMessage &message)
 {
-#warning gotta handle remote job announcements. This connection should also remain open
+    const int available = availableJobSlots(Remote);
+    if (debugMulti) {
+        error("available jobs %d available %d local %d pending %d processcount %d",
+              available, availableJobSlots(Remote), mLocalJobs.size(), mPendingJobRequests.size(),
+              mOptions.jobCount);
+    }
+    const int jobs = std::min(available, message.numJobs());
+    assert(jobs);
+    fetchRemoteJobs(message.host(), message.port(), jobs);
+}
+    
+void Server::handleProxyJobAnnouncementMessage(const ProxyJobAnnouncementMessage &message, Connection *conn)
+{
+    const JobAnnouncementMessage msg(message.numJobs(), conn->client()->hostName(), message.port());
+    for (auto client : mClients) {
+        client->send(msg);
+    }
+    handleJobAnnouncementMessage(msg);
+}
+
+void Server::handleClientMessage(const ClientMessage &, Connection *conn)
+{
+    mClients.insert(conn);
 }
 
 void Server::handleVisitFileMessage(const VisitFileMessage &message, Connection *conn)
@@ -1694,8 +1722,8 @@ void Server::startNextJob()
         || mPending.empty()) {
         return;
     }
-    mServerConnection->send(JobAnnouncementMessage(static_cast<uint16_t>(mPending.size() - mRemotePending),
-                                                   mOptions.tcpPort));
+    mServerConnection->send(ProxyJobAnnouncementMessage(static_cast<uint16_t>(mPending.size() - mRemotePending),
+                                                        mOptions.tcpPort));
     if (debugMulti)
         error() << "announcing" << mPending.size() - mRemotePending << "jobs";
 }
@@ -1818,40 +1846,26 @@ static inline void drain(const SocketClient::SharedPtr &sock)
 
 void Server::onHttpClientReadyRead(const SocketClient::SharedPtr &socket)
 {
-    error() << "Balls" << socket->buffer().size();
     auto &log = mHttpClients[socket];
     if (!log) {
         static const char *statsRequestLine = "GET /stats HTTP/1.1\r\n";
         static const size_t statsLen = strlen(statsRequestLine);
-        static const char *jobsRequestLine = "GET /jobs HTTP/1.1\r\n";
-        static const size_t jobsLen = strlen(jobsRequestLine);
-        int logLevel;
         const size_t len = socket->buffer().size();
-        if (len >= statsLen && !memcmp(socket->buffer().data(), statsRequestLine, statsLen)) {
-            logLevel = RTags::Statistics;
-        } else if (len >= jobsLen && !memcmp(socket->buffer().data(), jobsRequestLine, jobsLen)) {
-            if (!(mOptions.options & JobServer)) {
-                socket->close();
+        if (len >= statsLen) {
+            if (!memcmp(socket->buffer().data(), statsRequestLine, statsLen)) {
+                static const char *response = ("HTTP/1.1 200 OK\r\n"
+                                               "Cache: no-cache\r\n"
+                                               "Cache-Control: private\r\n"
+                                               "Pragma: no-cache\r\n"
+                                               "Content-Type: text/event-stream\r\n\r\n");
+                static const int responseLen = strlen(response);
+                socket->write(reinterpret_cast<const unsigned char*>(response), responseLen);
+                log.reset(new HttpLogObject(RTags::Statistics, socket));
                 ::drain(socket);
-                return;
+            } else {
+                socket->close();
             }
-            logLevel = RTags::JobInformation;
-        } else if (len >= statsLen) {
-            socket->close();
-            ::drain(socket);
-            return;
-        } else {
-            return;
         }
-        static const char *response = ("HTTP/1.1 200 OK\r\n"
-                                       "Cache: no-cache\r\n"
-                                       "Cache-Control: private\r\n"
-                                       "Pragma: no-cache\r\n"
-                                       "Content-Type: text/event-stream\r\n\r\n");
-        static const int responseLen = strlen(response);
-        socket->write(reinterpret_cast<const unsigned char*>(response), responseLen);
-        log.reset(new HttpLogObject(logLevel, socket));
-        ::drain(socket);
     } else {
         ::drain(socket);
     }
@@ -1859,20 +1873,40 @@ void Server::onHttpClientReadyRead(const SocketClient::SharedPtr &socket)
 
 void Server::connectToServer()
 {
+    mConnectToServerTimer.stop();
     assert(!(mOptions.options & JobServer));
     if (mServerConnection || mOptions.jobServer.first.isEmpty()) {
-        mConnectToServerTimer.stop();
         return;
     }
     enum { ServerReconnectTimer = 5000 };
     mServerConnection = new Connection;
     mServerConnection->disconnected().connect([this](Connection *conn) {
+            assert(conn == mServerConnection);
+            (void)conn;
             EventLoop::deleteLater(mServerConnection);
-            assert(mServerConnection == conn);
             mServerConnection = 0;
             mConnectToServerTimer.restart(ServerReconnectTimer);
         });
-#warning we gotta have another port to connect to here
-    // if (!mServerConnection->connect(mOptions.jobServer.first, mOptions.)
+    mServerConnection->connected().connect([this](Connection *conn) {
+            assert(conn == mServerConnection);
+            (void)conn;
+            if (!mServerConnection->send(ClientMessage())) {
+                mServerConnection->close();
+                EventLoop::deleteLater(mServerConnection);
+                mServerConnection = 0;
+                mConnectToServerTimer.restart(ServerReconnectTimer);
+                error() << "Couldn't send logoutputmessage";
+            }
+        });
+    mServerConnection->newMessage().connect([this](Message *msg, Connection *conn) {
+            assert(msg->messageId() == JobAnnouncementMessage::MessageId);
+            handleJobAnnouncementMessage(static_cast<const JobAnnouncementMessage&>(*msg));
+        });
 
+    if (!mServerConnection->connectTcp(mOptions.jobServer.first, mOptions.jobServer.second)) {
+        delete mServerConnection;
+        mServerConnection = 0;
+        mConnectToServerTimer.restart(ServerReconnectTimer);
+        error() << "Failed to connect to server" << mOptions.jobServer;
+    }
 }

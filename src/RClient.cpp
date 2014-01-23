@@ -15,7 +15,7 @@
 
 #include "RClient.h"
 #include "CompileMessage.h"
-#include "CreateOutputMessage.h"
+#include "LogOutputMessage.h"
 #include <rct/Connection.h>
 #include <rct/EventLoop.h>
 #include <rct/Log.h>
@@ -346,7 +346,7 @@ public:
     }
     virtual bool exec(RClient *rc, Connection *connection)
     {
-        CreateOutputMessage msg(mLevel == Default ? rc->logLevel() : mLevel);
+        LogOutputMessage msg(mLevel == Default ? rc->logLevel() : mLevel);
         msg.init(rc->argc(), rc->argv());
         return connection->send(msg);
     }

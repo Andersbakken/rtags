@@ -17,9 +17,8 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 #define Server_h
 
 #include "QueryMessage.h"
-#include "EventSourceClient.h"
 #include "CompileMessage.h"
-#include "CreateOutputMessage.h"
+#include "LogOutputMessage.h"
 #include "IndexerMessage.h"
 #include "FileManager.h"
 #include "QueryMessage.h"
@@ -47,6 +46,8 @@ class VisitFileMessage;
 class JobRequestMessage;
 class JobResponseMessage;
 class JobAnnouncementMessage;
+class ProxyJobAnnouncementMessage;
+class ClientMessage;
 class CompletionThread;
 class PreprocessJob;
 class HttpLogObject;
@@ -124,11 +125,13 @@ private:
     void handleIndexerMessage(const IndexerMessage &message, Connection *conn);
     void handleQueryMessage(const QueryMessage &message, Connection *conn);
     void handleErrorMessage(const ErrorMessage &message, Connection *conn);
-    void handleCreateOutputMessage(const CreateOutputMessage &message, Connection *conn);
+    void handleLogOutputMessage(const LogOutputMessage &message, Connection *conn);
     void handleVisitFileMessage(const VisitFileMessage &message, Connection *conn);
     void handleJobRequestMessage(const JobRequestMessage &message, Connection *conn);
     void handleJobResponseMessage(const JobResponseMessage &message, Connection *conn);
-    void handleJobAnnouncementMessage(const JobAnnouncementMessage &message, Connection *conn);
+    void handleJobAnnouncementMessage(const JobAnnouncementMessage &message);
+    void handleProxyJobAnnouncementMessage(const ProxyJobAnnouncementMessage &message, Connection *conn);
+    void handleClientMessage(const ClientMessage &message, Connection *conn);
 
     // Queries
     void sendDiagnostics(const QueryMessage &query, Connection *conn);
@@ -203,10 +206,9 @@ private:
     Hash<Connection*, uint16_t> mPendingJobRequests;
     ThreadPool *mThreadPool;
     unsigned int mRemotePending;
-    EventSourceClient mEventSource;
     Connection *mServerConnection;
-
     Hash<SocketClient::SharedPtr, std::shared_ptr<HttpLogObject> > mHttpClients;
+    Set<Connection*> mClients;
 
     CompletionThread *mCompletionThread;
 };

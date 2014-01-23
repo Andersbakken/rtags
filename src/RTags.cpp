@@ -404,7 +404,7 @@ void initMessages()
 {
     Messages::registerMessage<QueryMessage>();
     Messages::registerMessage<CompileMessage>();
-    Messages::registerMessage<CreateOutputMessage>();
+    Messages::registerMessage<LogOutputMessage>();
     Messages::registerMessage<VisitFileResponseMessage>();
     Messages::registerMessage<VisitFileMessage>();
     Messages::registerMessage<IndexerMessage>();

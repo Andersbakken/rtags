@@ -16,14 +16,14 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 #ifndef QUERYMESSAGE_H
 #define QUERYMESSAGE_H
 
-#include "ClientMessage.h"
+#include "RTagsMessage.h"
 #include <rct/Path.h>
 #include <rct/Serializer.h>
 #include <rct/Hash.h>
 #include "Match.h"
 #include "Location.h"
 
-class QueryMessage : public ClientMessage
+class QueryMessage : public RTagsMessage
 {
 public:
     enum { MessageId = QueryId };

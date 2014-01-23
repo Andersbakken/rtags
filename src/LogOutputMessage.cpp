@@ -13,25 +13,25 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 
-#include "CreateOutputMessage.h"
+#include "LogOutputMessage.h"
 #include <rct/Serializer.h>
 
-CreateOutputMessage::CreateOutputMessage(int level)
-    : ClientMessage(MessageId), mLevel(level)
+LogOutputMessage::LogOutputMessage(int level)
+    : RTagsMessage(MessageId), mLevel(level)
 {
 }
 
-int CreateOutputMessage::level() const
+int LogOutputMessage::level() const
 {
     return mLevel;
 }
 
-void CreateOutputMessage::encode(Serializer &serializer) const
+void LogOutputMessage::encode(Serializer &serializer) const
 {
     serializer << mRaw << mLevel;
 }
 
-void CreateOutputMessage::decode(Deserializer &deserializer)
+void LogOutputMessage::decode(Deserializer &deserializer)
 {
     deserializer >> mRaw >> mLevel;
 }

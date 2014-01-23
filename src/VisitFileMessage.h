@@ -18,15 +18,15 @@
 
 #include <rct/Message.h>
 #include <rct/String.h>
-#include "ClientMessage.h"
+#include "RTagsMessage.h"
 
-class VisitFileMessage : public ClientMessage
+class VisitFileMessage : public RTagsMessage
 {
 public:
     enum { MessageId = VisitFileId };
 
     VisitFileMessage(const Path &file = Path(), const Path &project = Path(), uint64_t key = 0)
-        : ClientMessage(MessageId), mFile(file), mProject(project), mKey(key)
+        : RTagsMessage(MessageId), mFile(file), mProject(project), mKey(key)
     {
     }
 

@@ -13,28 +13,36 @@
    You should have received a copy of the GNU General Public License
    along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 
-#ifndef JOBREQUESTMESSAGE_H
-#define JOBREQUESTMESSAGE_H
+#ifndef PROXYJOBANNOUNCEMENTMESSAGE_H
+#define PROXYJOBANNOUNCEMENTMESSAGE_H
 
 #include "RTagsMessage.h"
 
-class JobRequestMessage : public RTagsMessage
+class ProxyJobAnnouncementMessage : public RTagsMessage
 {
 public:
-    enum { MessageId = JobRequestId };
+    enum { MessageId = ProxyJobAnnouncementId };
 
-    JobRequestMessage(int numJobs = -1)
-        : RTagsMessage(MessageId), mNumJobs(numJobs)
+    ProxyJobAnnouncementMessage(int jobs = 0, uint16_t port = 0)
+        : RTagsMessage(MessageId), mNumJobs(jobs), mPort(port)
     {
     }
 
     int numJobs() const { return mNumJobs; }
+    uint16_t port() const { return mPort; }
 
-    virtual void encode(Serializer &serializer) const;
-    virtual void decode(Deserializer &deserializer);
-
+    virtual void encode(Serializer &serializer) const
+    {
+        serializer << mNumJobs << mPort;
+    }
+    virtual void decode(Deserializer &deserializer)
+    {
+        deserializer >> mNumJobs >> mPort;
+    }
 private:
     int mNumJobs;
+    String mHost;
+    uint16_t mPort;
 };
 
 #endif

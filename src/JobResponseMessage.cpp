@@ -21,12 +21,12 @@
 #include "Server.h"
 
 JobResponseMessage::JobResponseMessage()
-    : ClientMessage(MessageId), flags(0)
+    : RTagsMessage(MessageId), flags(0)
 {
 }
 
 JobResponseMessage::JobResponseMessage(const std::shared_ptr<IndexerJob> &job, uint16_t p)
-    : ClientMessage(MessageId), port(p)
+    : RTagsMessage(MessageId), port(p)
 {
     cpp = job->cpp;
     project = job->project;

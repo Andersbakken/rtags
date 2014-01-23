@@ -16,52 +16,21 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 #ifndef ClientMessage_h
 #define ClientMessage_h
 
-#include <rct/Message.h>
-#include <rct/String.h>
+#include <RTagsMessage.h>
 
-class ClientMessage : public Message
+class ClientMessage : public RTagsMessage
 {
 public:
     enum {
-        CompletionId = 32,
-        QueryId,
-        CompileId,
-        CreateOutputId,
-        VisitFileResponseId,
-        VisitFileId,
-        IndexerMessageId,
-        JobRequestId,
-        JobResponseId,
-        JobAnnouncementId
+        MessageId = ClientMessageId
     };
 
-    ClientMessage(uint8_t id) : Message(id) {}
+    ClientMessage()
+        : RTagsMessage(MessageId)
+    {}
 
-    inline void init(int argc, const char **argv)
-    {
-        mRaw.reserve(256);
-        for (int i=0; i<argc; ++i) {
-            if (i > 0)
-                mRaw.append(' ');
-            const bool space = strchr(argv[i], ' ');
-            if (space)
-                mRaw.append('"');
-            mRaw.append(argv[i]);
-            if (space)
-                mRaw.append('"');
-        }
-    }
-    inline void init(int argc, char **argv)
-    {
-        init(argc, const_cast<const char**>(argv));
-    }
-
-    inline String raw() const
-    {
-        return mRaw;
-    }
-protected:
-    String mRaw;
+    virtual void encode(Serializer &) const {}
+    virtual void decode(Deserializer &) {}
 };
 
 #endif

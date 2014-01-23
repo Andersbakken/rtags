@@ -58,8 +58,8 @@ static void sigIntHandler(int)
 #define DEFAULT_RP_INDEXER_MESSAGE_TIMEOUT 15000
 #define DEFAULT_RP_CONNECT_TIMEOUT 0 // won't time out
 #define DEFAULT_RDM_MULTICAST_ADDRESS "237.50.50.50"
-#define DEFAULT_RDM_MULTICAST_PORT 11509 // ( 100 'r' * 114 'd') + 109 'm'
-#define DEFAULT_RDM_HTTP_PORT 11510 // one more
+#define DEFAULT_RDM_HTTP_PORT DEFAULT_RDM_TCP_PORT + 1
+#define DEFAULT_RDM_MULTICAST_PORT DEFAULT_RDM_HTTP_PORT + 1
 #define DEFAULT_RESCHEDULE_TIMEOUT 10000
 #define XSTR(s) #s
 #define STR(s) XSTR(s)
@@ -273,8 +273,8 @@ int main(int argc, char** argv)
 #endif
     serverOpts.excludeFilters = String(EXCLUDEFILTER_DEFAULT).split(';');
     serverOpts.dataDir = String::format<128>("%s.rtags", Path::home().constData());
-    serverOpts.multicastAddress = DEFAULT_RDM_MULTICAST_ADDRESS;
-    serverOpts.multicastPort = static_cast<uint16_t>(DEFAULT_RDM_MULTICAST_PORT);
+    // serverOpts.multicastAddress = DEFAULT_RDM_MULTICAST_ADDRESS;
+    // serverOpts.multicastPort = static_cast<uint16_t>(DEFAULT_RDM_MULTICAST_PORT);
     serverOpts.httpPort = static_cast<uint16_t>(DEFAULT_RDM_HTTP_PORT);
     serverOpts.tcpPort = static_cast<uint16_t>(DEFAULT_RDM_TCP_PORT);
     serverOpts.rescheduleTimeout = DEFAULT_RESCHEDULE_TIMEOUT;
@@ -506,8 +506,6 @@ int main(int argc, char** argv)
     ::socketFile = serverOpts.socketFile;
     if (!serverOpts.dataDir.endsWith('/'))
         serverOpts.dataDir.append('/');
-    if (!(serverOpts.options & Server::JobServer))
-        serverOpts.httpPort = 0;
     if (!server->init(serverOpts)) {
         cleanupLogging();
         return 1;

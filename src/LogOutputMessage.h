@@ -16,15 +16,15 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 #ifndef OutputMessage_h
 #define OutputMessage_h
 
-#include "ClientMessage.h"
+#include "RTagsMessage.h"
 #include <rct/String.h>
 
-class CreateOutputMessage : public ClientMessage
+class LogOutputMessage : public RTagsMessage
 {
 public:
-    enum { MessageId = CreateOutputId };
+    enum { MessageId = LogOutputId };
 
-    CreateOutputMessage(int level = 0);
+    LogOutputMessage(int level = 0);
 
     int level() const;
 

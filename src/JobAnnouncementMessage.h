@@ -16,31 +16,33 @@
 #ifndef JOBANNOUNCEMENTMESSAGE_H
 #define JOBANNOUNCEMENTMESSAGE_H
 
-#include "ClientMessage.h"
+#include "RTagsMessage.h"
 
-class JobAnnouncementMessage : public ClientMessage
+class JobAnnouncementMessage : public RTagsMessage
 {
 public:
     enum { MessageId = JobAnnouncementId };
 
-    JobAnnouncementMessage(int jobs = 0, uint16_t port = 0)
-        : ClientMessage(MessageId), mNumJobs(jobs), mPort(port)
+    JobAnnouncementMessage(int jobs = 0, const String &host = String(), uint16_t port = 0)
+        : RTagsMessage(MessageId), mNumJobs(jobs), mHost(host), mPort(port)
     {
     }
 
     int numJobs() const { return mNumJobs; }
+    String host() const { return mHost; }
     uint16_t port() const { return mPort; }
 
     virtual void encode(Serializer &serializer) const
     {
-        serializer << mNumJobs << mPort;
+        serializer << mNumJobs << mHost << mPort;
     }
     virtual void decode(Deserializer &deserializer)
     {
-        deserializer >> mNumJobs >> mPort;
+        deserializer >> mNumJobs >> mHost >> mPort;
     }
 private:
     int mNumJobs;
+    String mHost;
     uint16_t mPort;
 };
 

@@ -18,10 +18,10 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 
 #include <rct/List.h>
 #include <rct/String.h>
-#include "ClientMessage.h"
+#include "RTagsMessage.h"
 #include "RTags.h"
 
-class CompileMessage : public ClientMessage
+class CompileMessage : public RTagsMessage
 {
 public:
     enum { MessageId = CompileId };

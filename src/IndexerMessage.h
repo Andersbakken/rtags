@@ -18,21 +18,21 @@
 
 #include <rct/Message.h>
 #include <rct/String.h>
-#include "ClientMessage.h"
+#include "RTagsMessage.h"
 #include "IndexerJob.h"
 
-class IndexerMessage : public ClientMessage
+class IndexerMessage : public RTagsMessage
 {
 public:
     enum { MessageId = IndexerMessageId };
 
     IndexerMessage(const Path &project, std::shared_ptr<IndexData> &data)
-        : ClientMessage(MessageId), mProject(project), mData(data)
+        : RTagsMessage(MessageId), mProject(project), mData(data)
     {
     }
 
     IndexerMessage()
-        : ClientMessage(MessageId)
+        : RTagsMessage(MessageId)
     {}
 
     void encode(Serializer &serializer) const

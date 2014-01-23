@@ -17,7 +17,7 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 #include <rct/Serializer.h>
 
 CompileMessage::CompileMessage(const Path &cwd, const String &args)
-    : ClientMessage(MessageId), mWorkingDirectory(cwd), mArgs(args)
+    : RTagsMessage(MessageId), mWorkingDirectory(cwd), mArgs(args)
 {
 }
 
