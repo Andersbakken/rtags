@@ -484,6 +484,8 @@ int main(int argc, char** argv)
     ::socketFile = serverOpts.socketFile;
     if (!serverOpts.dataDir.endsWith('/'))
         serverOpts.dataDir.append('/');
+    if (!(serverOpts.options & Server::JobServer))
+        serverOpts.httpPort = 0;
     if (!server->init(serverOpts)) {
         cleanupLogging();
         return 1;
