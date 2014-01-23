@@ -214,22 +214,23 @@ int main(int argc, char** argv)
             String rc = Path("/etc/rdmrc").readAll();
             if (!rc.isEmpty()) {
                 for (const String& s : rc.split('\n')) {
-                    argCopy += s.split(' ');
+                    if (!s.isEmpty() && !s.startsWith('#') && !s.startsWith(' '))
+                        argCopy += s.split(' ');
                 }
             }
             if (!rcfile.isEmpty()) {
                 rc = rcfile.readAll();
                 if (!rc.isEmpty()) {
                     for (const String& s : rc.split('\n')) {
-                        argCopy += s.split(' ');
+                        if (!s.isEmpty() && !s.startsWith('#') && !s.startsWith(' '))
+                            argCopy += s.split(' ');
                     }
                 }
             }
             const int s = argCopy.size();
             for (int i=0; i<s; ++i) {
                 String &arg = argCopy.at(i);
-                if (!arg.isEmpty() && !arg.startsWith('#') && !arg.startsWith(' '))
-                    argList.append(arg.data());
+                argList.append(arg.data());
             }
         }
         for (int i=1; i<argc; ++i) {
