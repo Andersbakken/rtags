@@ -110,7 +110,9 @@ static const bool debugMulti = getenv("RDM_DEBUG_MULTI");
 
 Server *Server::sInstance = 0;
 Server::Server()
-    : mVerbose(false), mCurrentFileId(0), mThreadPool(0), mRemotePending(0), mServerConnection(0), mCompletionThread(0)
+    : mVerbose(false), mCurrentFileId(0), mThreadPool(0), mRemotePending(0),
+      mServerConnection(0), mLastJobAnnouncementCount(0), mHostName(Rct::hostName()),
+      mCompletionThread(0)
 {
     Messages::registerMessage<JobRequestMessage>();
     Messages::registerMessage<JobResponseMessage>();
@@ -459,7 +461,8 @@ void Server::handleIndexerMessage(const IndexerMessage &message, Connection *con
     assert(indexData);
     auto it = mProcessingJobs.find(indexData->jobId);
     if (debugMulti)
-        error() << "got indexer message for job" << Location::path(indexData->fileId()) << indexData->jobId;
+        error() << "got indexer message for job" << Location::path(indexData->fileId()) << indexData->jobId
+                << conn->client()->peerName();
     if (it == mProcessingJobs.end()) {
         // job already processed
         if (debugMulti)
@@ -1722,13 +1725,20 @@ void Server::startNextJob()
         mPending.pop_front();
     }
 
-    if ((!(mOptions.options & JobServer) && !mServerConnection)
-        || mRemotePending >= static_cast<unsigned int>(mPending.size())
-        || mPending.empty()) {
+    const int jobs = mPending.size() - mRemotePending;
+    if ((!(mOptions.options & JobServer) && !mServerConnection) || !jobs || jobs == mLastJobAnnouncementCount || mPending.empty()) {
+        mLastJobAnnouncementCount = jobs;
         return;
     }
-    mServerConnection->send(ProxyJobAnnouncementMessage(static_cast<uint16_t>(mPending.size() - mRemotePending),
-                                                        mOptions.tcpPort));
+    mLastJobAnnouncementCount = jobs;
+    if (mServerConnection) {
+        mServerConnection->send(ProxyJobAnnouncementMessage(jobs, mOptions.tcpPort));
+    } else {
+        const JobAnnouncementMessage msg(mPending.size() - mRemotePending, mHostName, mOptions.tcpPort);
+        for (auto client : mClients) {
+            client->send(msg);
+        }
+    }
     if (debugMulti)
         error() << "announcing" << mPending.size() - mRemotePending << "jobs";
 }

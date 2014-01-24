@@ -406,14 +406,14 @@ Path findProjectRoot(const Path &path, ProjectRootMode mode)
 
 void initMessages()
 {
-    Messages::registerMessage<QueryMessage>();
+    Messages::registerMessage<ClientMessage>();
     Messages::registerMessage<CompileMessage>();
-    Messages::registerMessage<LogOutputMessage>();
-    Messages::registerMessage<VisitFileResponseMessage>();
-    Messages::registerMessage<VisitFileMessage>();
     Messages::registerMessage<IndexerMessage>();
     Messages::registerMessage<JobAnnouncementMessage>();
+    Messages::registerMessage<LogOutputMessage>();
     Messages::registerMessage<ProxyJobAnnouncementMessage>();
-    Messages::registerMessage<ClientMessage>();
+    Messages::registerMessage<QueryMessage>();
+    Messages::registerMessage<VisitFileMessage>();
+    Messages::registerMessage<VisitFileResponseMessage>();
 }
 }
