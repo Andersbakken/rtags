@@ -47,6 +47,13 @@ CXChildVisitResult DumpThread::visitor(CXCursor cursor, CXCursor, CXClientData u
                     message.append("refs ");
                     message.append(RTags::cursorToString(ref, RTags::AllCursorToStringFlags));
                 }
+
+                CXCursor canonical = clang_getCanonicalCursor(cursor);
+                if (!clang_equalCursors(canonical, cursor) && !clang_equalCursors(canonical, nullCursor)) {
+                    message.append("canonical ");
+                    message.append(RTags::cursorToString(canonical, RTags::AllCursorToStringFlags));
+                }
+
                 that->writeToConnetion(message);
             }
         }
