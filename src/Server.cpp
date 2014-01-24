@@ -1456,8 +1456,9 @@ void Server::handleJobAnnouncementMessage(const JobAnnouncementMessage &message)
               mOptions.jobCount);
     }
     const int jobs = std::min(available, message.numJobs());
-    assert(jobs);
-    fetchRemoteJobs(message.host(), message.port(), jobs);
+    if (jobs) {
+        fetchRemoteJobs(message.host(), message.port(), jobs);
+    }
 }
     
 void Server::handleProxyJobAnnouncementMessage(const ProxyJobAnnouncementMessage &message, Connection *conn)
@@ -1668,6 +1669,8 @@ void Server::fetchRemoteJobs(const String& ip, uint16_t port, uint16_t jobs)
 {
     if (debugMulti)
         error() << "connecting to" << ip << port;
+    // Could cache these connections. We could at least use the server
+    // connection if it's the server we're connecting to.
     Connection* conn = new Connection;
     if (!conn->connectTcp(ip, port)) {
         delete conn;
