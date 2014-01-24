@@ -31,7 +31,6 @@ public:
 private:
     static CXChildVisitResult visitor(CXCursor cursor, CXCursor, CXClientData userData);
     void writeToConnetion(const String &message);
-    void finishConnection();
     const unsigned int mQueryFlags;
     const Source mSource;
     Connection *mConnection;

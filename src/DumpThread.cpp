@@ -60,7 +60,8 @@ void DumpThread::run()
     std::shared_ptr<Cpp> cpp = RTags::preprocess(mSource);
     if (!cpp) {
         writeToConnetion(String::format<128>("Failed to preprocess %s", mSource.sourceFile().constData()));
-        finishConnection();
+        EventLoop::mainEventLoop()->callLaterMove(std::bind((bool(Connection::*)(Message&&))&Connection::send, mConnection, std::placeholders::_1),
+                                                  FinishMessage());
         return;
     }
     writeToConnetion(String::format<128>("Preprocessed %s", mSource.sourceFile().constData()));
@@ -77,16 +78,12 @@ void DumpThread::run()
     }
 
     clang_disposeIndex(index);
+    EventLoop::mainEventLoop()->callLaterMove(std::bind((bool(Connection::*)(Message&&))&Connection::send, mConnection, std::placeholders::_1),
+                                              FinishMessage());
 }
 
 void DumpThread::writeToConnetion(const String &message)
 {
     EventLoop::mainEventLoop()->callLaterMove(std::bind((bool(Connection::*)(Message&&))&Connection::send, mConnection, std::placeholders::_1),
                                               ResponseMessage(message));
-}
-
-void DumpThread::finishConnection()
-{
-    EventLoop::mainEventLoop()->callLaterMove(std::bind((bool(Connection::*)(Message&&))&Connection::send, mConnection, std::placeholders::_1),
-                                              FinishMessage());
 }
