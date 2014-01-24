@@ -45,6 +45,7 @@ enum OptionType {
     Diagnostics,
     DisplayName,
     DumpFile,
+    DumpIncludeHeaders,
     ElispList,
     FilterSystemHeaders,
     FindFile,
@@ -203,6 +204,7 @@ struct Option opts[] = {
     { ContainingFunction, "containing-function", 'o', no_argument, "Include name of containing function in output."},
     { BuildIndex, "build-index", 0, required_argument, "For sources with multiple builds, use the arg'th." },
     { CompilationFlagsOnly, "compilation-flags-only", 0, no_argument, "For --source, only print compilation flags." },
+    { DumpIncludeHeaders, "dump-include-headers", 0, no_argument, "For --dump-file, also dump dependencies." },
     { None, 0, 0, 0, 0 }
 };
 
@@ -685,6 +687,9 @@ bool RClient::parse(int &argc, char **argv)
         case StripParen:
             mQueryFlags |= QueryMessage::StripParentheses;
             break;
+        case DumpIncludeHeaders:
+            mQueryFlags |= QueryMessage::DumpIncludeHeaders;
+            break;
         case BuildIndex: {
             bool ok;
             mBuildIndex = String(optarg).toULongLong(&ok);
@@ -946,8 +951,8 @@ bool RClient::parse(int &argc, char **argv)
             switch (opt->option) {
             case Dependencies: type = QueryMessage::Dependencies; break;
             case FixIts: type = QueryMessage::FixIts; break;
-            case IsIndexed: type = QueryMessage::IsIndexed; break;
             case DumpFile: type = QueryMessage::DumpFile; break;
+            case IsIndexed: type = QueryMessage::IsIndexed; break;
             default: assert(0); break;
             }
 

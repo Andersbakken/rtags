@@ -31,22 +31,24 @@ CXChildVisitResult DumpThread::visitor(CXCursor cursor, CXCursor, CXClientData u
                 fileId = Location::insertFile(resolved);
                 that->mFiles[path] = that->mFiles[resolved] = fileId;
             }
-            const Location loc(fileId, line, col);
-            String message;
-            message.reserve(256);
-            if (!(that->mQueryFlags & QueryMessage::NoContext))
-                message += loc.context();
-            message += String::format<32>(" // %d, %d: ", col, that->mIndentLevel);
-            message += RTags::cursorToString(cursor, RTags::AllCursorToStringFlags);
-            message.append(" " + RTags::typeName(cursor) + " ");
-            CXCursor ref = clang_getCursorReferenced(cursor);
-            if (clang_equalCursors(ref, cursor)) {
-                message.append("refs self");
-            } else if (!clang_equalCursors(ref, nullCursor)) {
-                message.append("refs ");
-                message.append(RTags::cursorToString(ref, RTags::AllCursorToStringFlags));
+            if (that->mQueryFlags & QueryMessage::DumpIncludeHeaders || fileId == that->mSource.fileId) {
+                const Location loc(fileId, line, col);
+                String message;
+                message.reserve(256);
+                if (!(that->mQueryFlags & QueryMessage::NoContext))
+                    message += loc.context();
+                message += String::format<32>(" // %d, %d: ", col, that->mIndentLevel);
+                message += RTags::cursorToString(cursor, RTags::AllCursorToStringFlags);
+                message.append(" " + RTags::typeName(cursor) + " ");
+                CXCursor ref = clang_getCursorReferenced(cursor);
+                if (clang_equalCursors(ref, cursor)) {
+                    message.append("refs self");
+                } else if (!clang_equalCursors(ref, nullCursor)) {
+                    message.append("refs ");
+                    message.append(RTags::cursorToString(ref, RTags::AllCursorToStringFlags));
+                }
+                that->writeToConnetion(message);
             }
-            that->writeToConnetion(message);
         }
     }
     ++that->mIndentLevel;
