@@ -277,6 +277,7 @@ bool Server::init(const Options &options)
     }
 
     if (!mOptions.jobServer.first.isEmpty()) {
+#warning need some discovery mechanism
         connectToServer();
     }
 
