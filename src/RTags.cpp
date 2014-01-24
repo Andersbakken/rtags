@@ -270,8 +270,8 @@ Path findProjectRoot(const Path &path, ProjectRootMode mode)
     const Path config = findAncestor(path, ".rtags-config", Shallow);
     if (config.isDir()) {
         const List<String> conf = Path(config + ".rtags-config").readAll().split('\n');
-        for (List<String>::const_iterator it = conf.begin(); it != conf.end(); ++it) {
-            const char *ch = it->constData();
+        for (auto line : conf) {
+            const char *ch = line.constData();
             while (*ch && isspace(*ch))
                 ++ch;
             if (*ch && !strncmp("project: ", ch, 9)) {
@@ -284,6 +284,8 @@ Path findProjectRoot(const Path &path, ProjectRootMode mode)
                 } else {
                     error("Invalid project root %s", p.constData());
                 }
+            } else if (line == "enable: false") {
+                return Path();
             }
         }
     }
