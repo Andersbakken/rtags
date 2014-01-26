@@ -345,10 +345,7 @@ void Server::onNewConnection(SocketServer *server)
         conn->disconnected().connect(std::bind(&Server::onConnectionDisconnected, this, std::placeholders::_1));
 
         if (debugMulti) {
-            String ip;
-            uint16_t port;
-            if (conn->client()->peer(&ip, &port))
-                error() << "Got connection from" << String::format<64>("%s:%d", ip.constData(), port);
+            error() << "Got connection from" << conn->client()->peerString();
         }
     }
 }
@@ -463,7 +460,7 @@ void Server::handleIndexerMessage(const IndexerMessage &message, Connection *con
     auto it = mProcessingJobs.find(indexData->jobId);
     if (debugMulti)
         error() << "got indexer message for job" << Location::path(indexData->fileId()) << indexData->jobId
-                << conn->client()->peerName();
+                << conn->client()->peerString();
     if (it == mProcessingJobs.end()) {
         // job already processed
         if (debugMulti)
@@ -476,9 +473,8 @@ void Server::handleIndexerMessage(const IndexerMessage &message, Connection *con
     mProcessingJobs.erase(it);
     assert(!(job->flags & IndexerJob::FromRemote));
 
-    String ip;
-    uint16_t port;
-    if (conn->client()->peer(&ip, &port))
+    const String ip = conn->client()->peerName();
+    if (!ip.isEmpty())
         indexData->message << String::format<64>(" from %s", ip.constData());
 
     const IndexerJob::Flag runningFlag = (ip.isEmpty() ? IndexerJob::RunningLocal : IndexerJob::Remote);
@@ -1422,7 +1418,7 @@ void Server::handleJobRequestMessage(const JobRequestMessage &message, Connectio
         if (!(job->flags & IndexerJob::FromRemote)) {
             assert(!job->process);
             if (debugMulti)
-                error() << "sending job for" << job->sourceFile << conn->client()->peerName();
+                error() << "sending job for" << job->sourceFile << conn->client()->peerString();
             job->started = Rct::monoMs();
             job->flags |= IndexerJob::Remote;
             job->flags &= ~IndexerJob::Rescheduled;
@@ -1477,7 +1473,7 @@ void Server::handleProxyJobAnnouncementMessage(const ProxyJobAnnouncementMessage
 
 void Server::handleClientMessage(const ClientMessage &, Connection *conn)
 {
-    error() << "Got a client connected from" << conn->client()->peerName();
+    error() << "Got a client connected from" << conn->client()->peerString();
     mClients.insert(conn);
 }
 
