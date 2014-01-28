@@ -341,7 +341,7 @@ void Server::onNewConnection(SocketServer *server)
         conn->newMessage().connect(std::bind(&Server::onNewMessage, this, std::placeholders::_1, std::placeholders::_2));
         conn->disconnected().connect(std::bind(&Server::onConnectionDisconnected, this, std::placeholders::_1));
 
-        if (debugMulti) {
+        if (debugMulti && !conn->client()->peerString().isEmpty()) {
             error() << "Got connection from" << conn->client()->peerString();
         }
     }
@@ -1415,7 +1415,7 @@ void Server::handleJobRequestMessage(const JobRequestMessage &message, Connectio
         if (!(job->flags & IndexerJob::FromRemote)) {
             assert(!job->process);
             if (debugMulti)
-                error() << "sending job for" << job->sourceFile << conn->client()->peerString();
+                error() << "sending job" << job->sourceFile << "to" << conn->client()->peerString();
             job->started = Rct::monoMs();
             job->flags |= IndexerJob::Remote;
             job->flags &= ~IndexerJob::Rescheduled;
