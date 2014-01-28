@@ -1449,9 +1449,9 @@ void Server::handleJobAnnouncementMessage(const JobAnnouncementMessage &message)
 {
     const int available = availableJobSlots(Remote);
     if (debugMulti) {
-        error("available jobs %d available %d local %d pending %d processcount %d",
+        error("available jobs %d available %d local %d pending %d processcount %d from %s",
               available, availableJobSlots(Remote), mLocalJobs.size(), mPendingJobRequests.size(),
-              mOptions.jobCount);
+              mOptions.jobCount, message.host().constData());
     }
     const int jobs = std::min(available, message.numJobs());
     if (jobs) {
@@ -1461,9 +1461,9 @@ void Server::handleJobAnnouncementMessage(const JobAnnouncementMessage &message)
 
 void Server::handleProxyJobAnnouncementMessage(const ProxyJobAnnouncementMessage &message, Connection *conn)
 {
-    const JobAnnouncementMessage msg(message.numJobs(), conn->client()->hostName(), message.port());
+    const JobAnnouncementMessage msg(message.numJobs(), conn->client()->peerName(), message.port());
     if (debugMulti) {
-        error() << "Sending proxy job announcement" << conn->client()->hostName() << message.port() << message.numJobs();
+        error() << "Sending proxy job announcement" << conn->client()->peerName() << message.port() << message.numJobs();
     }
     
     for (auto client : mClients) {
