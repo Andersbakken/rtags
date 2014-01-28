@@ -275,7 +275,8 @@ bool Server::init(const Options &options)
 
     }
 
-    connectToServer();
+    if (!(mOptions.options & JobServer))
+        connectToServer();
 
     return true;
 }
@@ -1456,7 +1457,7 @@ void Server::handleJobAnnouncementMessage(const JobAnnouncementMessage &message)
         fetchRemoteJobs(message.host(), message.port(), jobs);
     }
 }
-    
+
 void Server::handleProxyJobAnnouncementMessage(const ProxyJobAnnouncementMessage &message, Connection *conn)
 {
     const JobAnnouncementMessage msg(message.numJobs(), conn->client()->hostName(), message.port());
