@@ -898,7 +898,7 @@ struct XmlEntry
     enum Type { None, Warning, Error, Fixit };
 
     XmlEntry(Type t = None, const String &m = String(), int l = -1)
-        : type(t), message(m), length(-1)
+        : type(t), message(m), length(l)
     {
     }
 
