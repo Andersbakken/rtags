@@ -228,25 +228,24 @@ bool Server::init(const Options &options)
         }
     }
 
-    // if (!mOptions.multicastAddress.isEmpty()) {
-    //     mMulticastSocket.reset(new SocketClient);
-    //     if (!mMulticastSocket->bind(mOptions.multicastPort)) {
-    //         error() << "Can't bind to multicast port" << mOptions.multicastPort;
-    //         return false;
-    //     }
-    //     if (!mMulticastSocket->addMembership(mOptions.multicastAddress)) {
-    //         error() << "Can't add membership" << mOptions.multicastAddress;
-    //         return false;
-    //     }
-    //     mMulticastSocket->setMulticastLoop(false);
-    //     if (mOptions.multicastTTL)
-    //         mMulticastSocket->setMulticastTTL(mOptions.multicastTTL);
-    //     mMulticastSocket->readyReadFrom().connect(std::bind(&Server::onMulticastReadyRead, this,
-    //                                                         std::placeholders::_1,
-    //                                                         std::placeholders::_2,
-    //                                                         std::placeholders::_3,
-    //                                                         std::placeholders::_4));
-    // }
+    if (!mOptions.multicastAddress.isEmpty()) {
+        mMulticastSocket.reset(new SocketClient);
+        if (!mMulticastSocket->bind(mOptions.multicastPort)) {
+            error() << "Can't bind to multicast port" << mOptions.multicastPort;
+        }
+        if (!mMulticastSocket->addMembership(mOptions.multicastAddress)) {
+            error() << "Can't add membership" << mOptions.multicastAddress;
+            return false;
+        }
+        mMulticastSocket->setMulticastLoop(false);
+        if (mOptions.multicastTTL)
+            mMulticastSocket->setMulticastTTL(mOptions.multicastTTL);
+        mMulticastSocket->readyReadFrom().connect(std::bind(&Server::onMulticastReadyRead, this,
+                                                            std::placeholders::_1,
+                                                            std::placeholders::_2,
+                                                            std::placeholders::_3,
+                                                            std::placeholders::_4));
+    }
 
     if (mOptions.tcpPort) {
         mTcpServer.reset(new SocketServer);
@@ -276,10 +275,7 @@ bool Server::init(const Options &options)
 
     }
 
-    if (!mOptions.jobServer.first.isEmpty()) {
-#warning need some discovery mechanism
-        connectToServer();
-    }
+    connectToServer();
 
     return true;
 }
@@ -1598,7 +1594,32 @@ void Server::onMulticastReadyRead(const SocketClient::SharedPtr &socket,
                                   Buffer &&in)
 {
     const Buffer buffer = std::forward<Buffer>(in);
-    //handleMulticastData(ip, port, buffer.data(), buffer.size(), 0);
+    error() << "Got some data from multicast socket" << buffer.size();
+    const char *data = reinterpret_cast<const char*>(buffer.data());
+    if (data[0] != 's') {
+        error() << "Got unexpected multicast message";
+        return;
+    } else if (buffer.size() == 2 && data[1] == '?') { // query for server
+        if (!mServerConnection && !(mOptions.options & JobServer))
+            return;
+
+        String data;
+        Serializer serializer(data);
+        serializer.write("s", 1);
+        if (mServerConnection) {
+            serializer << mOptions.jobServer.first << mOptions.jobServer.second;
+        } else {
+            serializer << String() << mOptions.tcpPort;
+        }
+        mMulticastSocket->writeTo(mOptions.multicastAddress, mOptions.multicastPort,
+                                  reinterpret_cast<const unsigned char*>(data.constData()), data.size());
+    } else if (!(mOptions.options & JobServer) && !mOptions.jobServer.second) { // looking for server
+        Deserializer deserializer(data + 1, buffer.size() - 1);
+        deserializer >> mOptions.jobServer.first >> mOptions.jobServer.second;
+        if (mOptions.jobServer.first.isEmpty())
+            mOptions.jobServer.first = ip;
+        connectToServer();
+    }
 }
 
 inline int Server::availableJobSlots(JobSlotsMode mode) const
@@ -1612,58 +1633,6 @@ inline int Server::availableJobSlots(JobSlotsMode mode) const
     }
     return std::max(0, count - ret);
 }
-
-// void Server::handleMulticastData(const String &ip, uint16_t port,
-//                                  const unsigned char *data, int size, Connection *source)
-// {
-//     if (!mMulticastForwards.isEmpty()) {
-//         const MulticastForwardMessage msg(ip, port, String(reinterpret_cast<const char*>(data), size));
-//         for (auto it = mMulticastForwards.begin(); it != mMulticastForwards.end(); ++it) {
-//             if (it->second.connection && it->second.connection != source && !it->second.connection->send(msg)) {
-//                 error() << "Unable to forward to"
-//                         << String::format<64>("%s:%d",
-//                                               it->first.first.constData(),
-//                                               it->first.second);
-//             }
-//         }
-//     }
-//     uint16_t jobs = 0;
-//     uint16_t tcpPort = 0;
-
-//     while (size >= 5) {
-//         if (*data != 'j') {
-//             Log log(Error);
-//             log << "Got unexpected header in data from" << ip << *data;
-//             return;
-//         }
-//         jobs = *reinterpret_cast<const uint16_t*>(data + 1);
-//         tcpPort = *reinterpret_cast<const uint16_t*>(data + 3);
-//         if (debugMulti)
-//             error() << ip << "has" << jobs << "jobs" << "on port" << tcpPort;
-//         data += 5;
-//         size -= 5;
-//     }
-
-//     if (size > 0) {
-//         Log log(Error);
-//         log << "Got unexpected data from" << ip << size;
-//         while (size) {
-//             printf("0x%x", *(data++));
-//             --size;
-//         }
-//         printf("\n");
-//         return;
-//     }
-//     if (jobs && tcpPort) {
-//         const int maxJobs = std::min<int>(jobs, availableJobSlots(Remote));
-//         if (debugMulti)
-//             error("available jobs %d available %d local %d pending %d processcount %d",
-//                   jobs, availableJobSlots(Remote), mLocalJobs.size(), mPendingJobRequests.size(),
-//                   mOptions.jobCount);
-//         if (maxJobs > 0)
-//             fetchRemoteJobs(ip, tcpPort, maxJobs);
-//     }
-// }
 
 void Server::fetchRemoteJobs(const String& ip, uint16_t port, uint16_t jobs)
 {
@@ -1891,34 +1860,42 @@ void Server::connectToServer()
         return;
     }
     enum { ServerReconnectTimer = 5000 };
-    mServerConnection = new Connection;
-    mServerConnection->disconnected().connect([this](Connection *conn) {
-            assert(conn == mServerConnection);
-            (void)conn;
-            EventLoop::deleteLater(mServerConnection);
-            mServerConnection = 0;
+    if (!mOptions.jobServer.second) {
+        if (mMulticastSocket) {
+            const unsigned char query[2] = { 's', '?' };
+            mMulticastSocket->writeTo(mOptions.multicastAddress, mOptions.multicastPort, query, 2);
             mConnectToServerTimer.restart(ServerReconnectTimer);
-        });
-    mServerConnection->connected().connect([this](Connection *conn) {
-            assert(conn == mServerConnection);
-            (void)conn;
-            if (!mServerConnection->send(ClientMessage())) {
-                mServerConnection->close();
+        }
+    } else {
+        mServerConnection = new Connection;
+        mServerConnection->disconnected().connect([this](Connection *conn) {
+                assert(conn == mServerConnection);
+                (void)conn;
                 EventLoop::deleteLater(mServerConnection);
                 mServerConnection = 0;
                 mConnectToServerTimer.restart(ServerReconnectTimer);
-                error() << "Couldn't send logoutputmessage";
-            }
-        });
-    mServerConnection->newMessage().connect([this](Message *msg, Connection *conn) {
-            assert(msg->messageId() == JobAnnouncementMessage::MessageId);
-            handleJobAnnouncementMessage(static_cast<const JobAnnouncementMessage&>(*msg));
-        });
+            });
+        mServerConnection->connected().connect([this](Connection *conn) {
+                assert(conn == mServerConnection);
+                (void)conn;
+                if (!mServerConnection->send(ClientMessage())) {
+                    mServerConnection->close();
+                    EventLoop::deleteLater(mServerConnection);
+                    mServerConnection = 0;
+                    mConnectToServerTimer.restart(ServerReconnectTimer);
+                    error() << "Couldn't send logoutputmessage";
+                }
+            });
+        mServerConnection->newMessage().connect([this](Message *msg, Connection *conn) {
+                assert(msg->messageId() == JobAnnouncementMessage::MessageId);
+                handleJobAnnouncementMessage(static_cast<const JobAnnouncementMessage&>(*msg));
+            });
 
-    if (!mServerConnection->connectTcp(mOptions.jobServer.first, mOptions.jobServer.second)) {
-        delete mServerConnection;
-        mServerConnection = 0;
-        mConnectToServerTimer.restart(ServerReconnectTimer);
-        error() << "Failed to connect to server" << mOptions.jobServer;
+        if (!mServerConnection->connectTcp(mOptions.jobServer.first, mOptions.jobServer.second)) {
+            delete mServerConnection;
+            mServerConnection = 0;
+            mConnectToServerTimer.restart(ServerReconnectTimer);
+            error() << "Failed to connect to server" << mOptions.jobServer;
+        }
     }
 }

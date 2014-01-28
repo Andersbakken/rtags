@@ -273,8 +273,8 @@ int main(int argc, char** argv)
 #endif
     serverOpts.excludeFilters = String(EXCLUDEFILTER_DEFAULT).split(';');
     serverOpts.dataDir = String::format<128>("%s.rtags", Path::home().constData());
-    // serverOpts.multicastAddress = DEFAULT_RDM_MULTICAST_ADDRESS;
-    // serverOpts.multicastPort = static_cast<uint16_t>(DEFAULT_RDM_MULTICAST_PORT);
+    serverOpts.multicastAddress = DEFAULT_RDM_MULTICAST_ADDRESS;
+    serverOpts.multicastPort = static_cast<uint16_t>(DEFAULT_RDM_MULTICAST_PORT);
     serverOpts.httpPort = static_cast<uint16_t>(DEFAULT_RDM_HTTP_PORT);
     serverOpts.tcpPort = static_cast<uint16_t>(DEFAULT_RDM_TCP_PORT);
     serverOpts.rescheduleTimeout = DEFAULT_RESCHEDULE_TIMEOUT;

@@ -209,6 +209,7 @@ private:
     Connection *mServerConnection;
     Hash<SocketClient::SharedPtr, std::shared_ptr<HttpLogObject> > mHttpClients;
     Set<Connection*> mClients;
+    SocketClient::SharedPtr mMulticastSocket;
     int mLastJobAnnouncementCount;
     String mHostName;
 
