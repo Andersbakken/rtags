@@ -1857,9 +1857,8 @@ void Server::connectToServer()
 {
     mConnectToServerTimer.stop();
     assert(!(mOptions.options & JobServer));
-    if (mServerConnection || mOptions.jobServer.first.isEmpty()) {
+    if (mServerConnection)
         return;
-    }
     enum { ServerReconnectTimer = 5000 };
     if (!mOptions.jobServer.second) {
         if (mMulticastSocket) {
