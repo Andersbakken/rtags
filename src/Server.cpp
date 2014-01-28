@@ -1612,11 +1612,13 @@ void Server::onMulticastReadyRead(const SocketClient::SharedPtr &socket,
         String data;
         Serializer serializer(data);
         serializer.write("s", 1);
-        if (mServerConnection) {
+        if (mOptions.jobServer.second) {
             serializer << mOptions.jobServer.first << mOptions.jobServer.second;
         } else {
             serializer << String() << mOptions.tcpPort;
         }
+        if (debugMulti)
+            error() << ip << "wants to know about the server" << mOptions.jobServer << mOptions.tcpPort;
         mMulticastSocket->writeTo(mOptions.multicastAddress, mOptions.multicastPort,
                                   reinterpret_cast<const unsigned char*>(data.constData()), data.size());
     } else if (!(mOptions.options & JobServer) && !mOptions.jobServer.second) { // looking for server
@@ -1624,6 +1626,8 @@ void Server::onMulticastReadyRead(const SocketClient::SharedPtr &socket,
         deserializer >> mOptions.jobServer.first >> mOptions.jobServer.second;
         if (mOptions.jobServer.first.isEmpty())
             mOptions.jobServer.first = ip;
+        if (debugMulti)
+            error() << ip << "told about the server at" << mOptions.jobServer;
         connectToServer();
     }
 }
