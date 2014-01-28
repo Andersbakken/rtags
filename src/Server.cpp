@@ -114,6 +114,7 @@ Server::Server()
       mServerConnection(0), mLastJobAnnouncementCount(0), mHostName(Rct::hostName()),
       mCompletionThread(0)
 {
+    error() << "hostname" << mHostName;
     Messages::registerMessage<JobRequestMessage>();
     Messages::registerMessage<JobResponseMessage>();
 
@@ -1461,6 +1462,10 @@ void Server::handleJobAnnouncementMessage(const JobAnnouncementMessage &message)
 void Server::handleProxyJobAnnouncementMessage(const ProxyJobAnnouncementMessage &message, Connection *conn)
 {
     const JobAnnouncementMessage msg(message.numJobs(), conn->client()->hostName(), message.port());
+    if (debugMulti) {
+        error() << "Sending proxy job announcement" << conn->client()->hostName() << message.port() << message.numJobs();
+    }
+    
     for (auto client : mClients) {
         if (client != conn)
             client->send(msg);
