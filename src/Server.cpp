@@ -1855,6 +1855,7 @@ void Server::onHttpClientReadyRead(const SocketClient::SharedPtr &socket)
 
 void Server::connectToServer()
 {
+    warning() << "connectToServer";
     mConnectToServerTimer.stop();
     assert(!(mOptions.options & JobServer));
     if (mServerConnection)
@@ -1874,6 +1875,7 @@ void Server::connectToServer()
                 EventLoop::deleteLater(mServerConnection);
                 mServerConnection = 0;
                 mConnectToServerTimer.restart(ServerReconnectTimer);
+                warning() << "Disconnected from server" << conn->client()->peerName();
             });
         mServerConnection->connected().connect([this](Connection *conn) {
                 assert(conn == mServerConnection);
@@ -1884,6 +1886,8 @@ void Server::connectToServer()
                     mServerConnection = 0;
                     mConnectToServerTimer.restart(ServerReconnectTimer);
                     error() << "Couldn't send logoutputmessage";
+                } else {
+                    error() << "Connected to server" << conn->client()->peerName();
                 }
             });
         mServerConnection->newMessage().connect([this](Message *msg, Connection *conn) {
