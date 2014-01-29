@@ -114,7 +114,6 @@ Server::Server()
       mServerConnection(0), mLastJobAnnouncementCount(0), mHostName(Rct::hostName()),
       mCompletionThread(0)
 {
-    error() << "hostname" << mHostName;
     Messages::registerMessage<JobRequestMessage>();
     Messages::registerMessage<JobResponseMessage>();
 
