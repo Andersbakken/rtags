@@ -69,7 +69,8 @@ static void usage(FILE *f)
     fprintf(f,
             "rdm [...options...]\n"
             "  --help|-h                                  Display this page.\n"
-            "  --server|-s [arg]                          Run as server with no arg or connect to arg as server\n"
+            "  --server|-s [arg]                          Run as server with no arg or connect to arg as server.\n"
+            "  --no-server|-z                             Do not try to connect to a server.\n"
             "  --include-path|-I [arg]                    Add additional include path to clang.\n"
             "  --define|-D [arg]                          Add additional define directive to clang.\n"
             "  --log-file|-L [arg]                        Log to this file.\n"
@@ -122,6 +123,7 @@ int main(int argc, char** argv)
     struct option opts[] = {
         { "help", no_argument, 0, 'h' },
         { "server", optional_argument, 0, 's' },
+        { "no-server", no_argument, 0, 'z' },
         { "include-path", required_argument, 0, 'I' },
         { "define", required_argument, 0, 'D' },
         { "log-file", required_argument, 0, 'L' },
@@ -303,6 +305,10 @@ int main(int argc, char** argv)
             serverOpts.excludeFilters += String(optarg).split(';');
             break;
         case 's': {
+            if (serverOpts.options & Server::NoJobServer) {
+                fprintf(stderr, "Can't combine -s with -z\n");
+                return 1;
+            }
             const char* arg = optarg;
             if (!arg && optind < argCount && args[optind][0] != '-') {
                 arg = args[optind++];
@@ -317,6 +323,13 @@ int main(int argc, char** argv)
                 serverOpts.options |= Server::JobServer;
             }
             break; }
+        case 'z':
+            serverOpts.options |= Server::NoJobServer;
+            if (serverOpts.options & Server::JobServer || !serverOpts.jobServer.first.isEmpty()) {
+                fprintf(stderr, "Can't combine -s with -z\n");
+                return 1;
+            }
+            break;
         case 'a':
             serverOpts.multicastAddress = optarg;
             break;
@@ -506,6 +519,11 @@ int main(int argc, char** argv)
     ::socketFile = serverOpts.socketFile;
     if (!serverOpts.dataDir.endsWith('/'))
         serverOpts.dataDir.append('/');
+    if (serverOpts.options & Server::NoJobServer) {
+        serverOpts.multicastPort = 0;
+        serverOpts.multicastAddress.clear();
+    }
+
     if (!server->init(serverOpts)) {
         cleanupLogging();
         return 1;

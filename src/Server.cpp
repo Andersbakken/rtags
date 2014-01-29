@@ -1699,6 +1699,8 @@ void Server::startNextJob()
         }
         mPending.pop_front();
     }
+    if (mOptions.options & NoJobServer)
+        return;
 
     const int jobs = mPending.size() - mRemotePending;
     if ((!(mOptions.options & JobServer) && !mServerConnection) || !jobs || jobs == mLastJobAnnouncementCount || mPending.empty()) {

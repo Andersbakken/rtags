@@ -70,7 +70,8 @@ public:
         NoStartupCurrentProject = 0x0040,
         WatchSystemPaths = 0x0080,
         NoFileManagerWatch = 0x0100,
-        JobServer = 0x0200
+        JobServer = 0x0200,
+        NoJobServer = 0x0400
     };
     struct Options {
         Options()
