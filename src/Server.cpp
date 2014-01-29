@@ -1599,7 +1599,8 @@ void Server::onMulticastReadyRead(const SocketClient::SharedPtr &socket,
                                   Buffer &&in)
 {
     const Buffer buffer = std::forward<Buffer>(in);
-    // error() << "Got some data from multicast socket" << buffer.size();
+    if (debugMulti)
+        error() << "Got some data from multicast socket" << buffer.size();
     const char *data = reinterpret_cast<const char*>(buffer.data());
     if (data[0] != 's') {
         error() << "Got unexpected multicast message";
