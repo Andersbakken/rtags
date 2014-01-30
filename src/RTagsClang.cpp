@@ -219,12 +219,6 @@ void parseTranslationUnit(const Path &sourceFile, const List<String> &args,
                 // turned off) with a switch if people run with -Werror.
                 continue;
             }
-            if (dependencies && arg == "-include" && j + 1 < count) {
-                const uint32_t fileId = Location::fileId(lists[i]->at(j + 1));
-                if (fileId) {
-                    (*dependencies)[fileId].insert(fileId);
-                }
-            }
 
             clangArgs[idx++] = lists[i]->at(j).constData();
             if (clangLine) {
