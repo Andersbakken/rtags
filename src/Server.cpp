@@ -1464,7 +1464,7 @@ void Server::handleProxyJobAnnouncementMessage(const ProxyJobAnnouncementMessage
     if (debugMulti) {
         error() << "Sending proxy job announcement" << conn->client()->peerName() << message.port() << message.numJobs();
     }
-    
+
     for (auto client : mClients) {
         if (client != conn)
             client->send(msg);

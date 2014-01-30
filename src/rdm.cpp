@@ -259,7 +259,7 @@ int main(int argc, char** argv)
 
         for (int i=1; i<argc; ++i)
             argList.append(originalArgv[i]);
-        
+
         optind = 1;
     }
 
