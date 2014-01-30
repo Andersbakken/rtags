@@ -440,7 +440,7 @@ void Server::preprocess(Source &&source, Path &&srcRoot, uint32_t flags)
 
 void Server::handleCompileMessage(CompileMessage &message, Connection *conn)
 {
-    conn->close();
+    conn->finish();
     index(message.arguments(), message.workingDirectory(), message.projects());
 }
 
