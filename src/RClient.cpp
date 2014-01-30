@@ -566,10 +566,10 @@ bool RClient::parse(int &argc, char **argv)
             break;
         case Help:
             help(stdout, argv[0]);
-            return 0;
+            return false;
         case Man:
             man();
-            return 0;
+            return false;
         case SocketFile:
             mSocketFile = optarg;
             break;
@@ -800,12 +800,12 @@ bool RClient::parse(int &argc, char **argv)
             const Path p = Path::resolved(optarg);
             printf("findProjectRoot [%s] => [%s]\n", p.constData(),
                    RTags::findProjectRoot(p, RTags::SourceRoot).constData());
-            return 0; }
+            return false; }
         case FindProjectBuildRoot: {
             const Path p = Path::resolved(optarg);
             printf("findProjectRoot [%s] => [%s]\n", p.constData(),
                    RTags::findProjectRoot(p, RTags::BuildRoot).constData());
-            return 0; }
+            return false; }
         case Reindex:
         case Project:
         case FindFile:
@@ -921,7 +921,14 @@ bool RClient::parse(int &argc, char **argv)
                 args.append(' ');
                 args.append(argv[optind++]);
             }
-            addCompile(Path::pwd(), args);
+            if (args == "-") {
+                char buf[1024];
+                while (fgets(buf, sizeof(buf), stdin)) {
+                    addCompile(Path::pwd(), buf);
+                }
+            } else {
+                addCompile(Path::pwd(), args);
+            }
             break; }
         case IsIndexing:
             addQuery(QueryMessage::IsIndexing);
