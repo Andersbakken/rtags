@@ -256,7 +256,7 @@ bool Server::init(const Options &options)
 
         mTcpServer->newConnection().connect(std::bind(&Server::onNewConnection, this, std::placeholders::_1));
     }
-    mThreadPool = new ThreadPool(mOptions.jobCount);
+    mThreadPool = new ThreadPool(std::max(1, mOptions.jobCount));
     if (mOptions.httpPort) {
         mHttpServer.reset(new SocketServer);
         if (!mHttpServer->listen(mOptions.httpPort)) {
@@ -1234,11 +1234,11 @@ void Server::jobCount(const QueryMessage &query, Connection *conn)
         conn->write<128>("Running with %d jobs", mOptions.jobCount);
     } else {
         const int jobCount = query.query().toLongLong();
-        if (jobCount <= 0 || jobCount > 100) {
+        if (jobCount < 0 || jobCount > 100) {
             conn->write<128>("Invalid job count %s (%d)", query.query().constData(), jobCount);
         } else {
             mOptions.jobCount = jobCount;
-            mThreadPool->setConcurrentJobs(jobCount);
+            mThreadPool->setConcurrentJobs(std::max(1, jobCount));
             conn->write<128>("Changed jobs to %d", jobCount);
         }
     }
@@ -1414,13 +1414,17 @@ void Server::handleJobRequestMessage(const JobRequestMessage &message, Connectio
 
         if (!(job->flags & IndexerJob::FromRemote)) {
             assert(!job->process);
-            if (debugMulti)
-                error() << "sending job" << job->sourceFile << "to" << conn->client()->peerString();
-            job->started = Rct::monoMs();
             job->flags |= IndexerJob::Remote;
             job->flags &= ~IndexerJob::Rescheduled;
             mProcessingJobs[job->id] = job;
+            if (debugMulti)
+                error() << "sending job" << job->sourceFile << "to" << conn->client()->peerString();
             conn->send(JobResponseMessage(job, mOptions.tcpPort));
+            conn->sendFinished().connect([job](Connection*) {
+                    job->started = Rct::monoMs();
+                    if (debugMulti)
+                        error() << "Sent job" << job->sourceFile;
+                });
             it = mPending.erase(it);
             if (!--cnt)
                 break;

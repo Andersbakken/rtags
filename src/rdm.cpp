@@ -457,8 +457,8 @@ int main(int argc, char** argv)
             break;
         case 'j':
             serverOpts.jobCount = atoi(optarg);
-            if (serverOpts.jobCount < 2) {
-                fprintf(stderr, "Can't parse argument to -j %s. -j must be a positive integer >= 2\n", optarg);
+            if (serverOpts.jobCount < 0) {
+                fprintf(stderr, "Can't parse argument to -j %s. -j must be a positive integer.\n", optarg);
                 return 1;
             }
             break;
