@@ -194,9 +194,4 @@ enum ProjectRootMode {
 Path findProjectRoot(const Path &path, ProjectRootMode mode);
 }
 
-#define eintrwrap(VAR, BLOCK)                   \
-    do {                                        \
-        VAR = BLOCK;                            \
-    } while (VAR == -1 && errno == EINTR);
-
 #endif
