@@ -457,7 +457,7 @@ void Server::handleIndexerMessage(const IndexerMessage &message, Connection *con
     auto it = mProcessingJobs.find(indexData->jobId);
     if (debugMulti)
         error() << "got indexer message for job" << Location::path(indexData->fileId()) << indexData->jobId
-                << conn->client()->peerString();
+                << "from" << (conn->client()->peerString().isEmpty() ? String("ourselves") : conn->client()->peerString());
     if (it == mProcessingJobs.end()) {
         // job already processed
         if (debugMulti)
