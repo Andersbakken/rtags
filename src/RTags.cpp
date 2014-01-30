@@ -406,41 +406,6 @@ Path findProjectRoot(const Path &path, ProjectRootMode mode)
             }
         }
     }
-    {
-        const Path buildDotNinja = findAncestor(path, "build.ninja", 0);
-        if (!buildDotNinja.isEmpty()) {
-            if (mode == BuildRoot)
-                return buildDotNinja;
-            FILE *f = fopen(buildDotNinja + "build.ninja", "r");
-            if (f) {
-                Path ret;
-                char line[1024];
-                enum { MaxLines = 128 };
-                for (int i=0; i<MaxLines; ++i) {
-                    int r = Rct::readLine(f, line, sizeof(line));
-                    if (r == -1) {
-                        break;
-                    }
-                    if (!strncmp(line, "CMAKE_SOURCE_DIR", 16)) {
-                        char *dir = line + 16;
-                        while (*dir && (*dir == ' ' || *dir == '='))
-                            ++dir;
-                        if (dir != home) {
-                            ret = dir;
-                            ret += '/';
-                            if (!Path(ret + "CMakeLists.txt").isFile())
-                                ret.clear();
-                        }
-                        break;
-                    }
-                }
-                fclose(f);
-                if (!ret.isEmpty())
-                    return ret;
-            }
-        }
-
-    }
     const Entry after[] = {
         { "build.ninja", 0 },
         { "Makefile*", Wildcard },
