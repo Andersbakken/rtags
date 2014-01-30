@@ -19,7 +19,8 @@
 #include "Cpp.h"
 
 PreprocessJob::PreprocessJob(Source &&source, const std::shared_ptr<Project> &project, uint32_t flags)
-    : mSource(std::forward<Source>(source)), mProject(project), mFlags(flags)
+    : mSource(std::forward<Source>(source)), mProject(project), mFlags(flags),
+      mCompress(!(Server::instance()->options().options & Server::NoCompression))
 {
 }
 
@@ -29,7 +30,8 @@ void PreprocessJob::run()
     case Source::C:
     case Source::CPlusPlus:
     case Source::CPlusPlus11: {
-        std::shared_ptr<Cpp> cpp = RTags::preprocess(mSource, mProject);
+        std::shared_ptr<Cpp> cpp = RTags::preprocess(mSource, mProject,
+                                                     (mCompress ? Cpp::Preprocess_Compressed : Cpp::Preprocess_None));
         if (!cpp) {
             error() << "Couldn't preprocess" << mSource.sourceFile();
             return;

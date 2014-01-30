@@ -75,6 +75,11 @@ bool ClangIndexer::index(uint32_t flags, const Source &source,
     mData->jobId = mId;
     mSource = source;
     mCpp = cpp;
+    if (mCpp->flags & Cpp::Preprocess_Compressed) {
+        mPreprocessed = mCpp->preprocessed.uncompress();
+    } else {
+        mPreprocessed = std::move(mCpp->preprocessed);
+    }
     for (auto it = cpp->visited.begin(); it != cpp->visited.end(); ++it) {
         if (it->second != mSource.fileId) {
             mData->visited[it->second] = true;
@@ -872,8 +877,8 @@ bool ClangIndexer::parse()
     // error() << "mContents" << mContents.size();
     CXUnsavedFile unsaved = {
         sourceFile.constData(),
-        mCpp->preprocessed.constData(),
-        static_cast<unsigned long>(mCpp->preprocessed.size())
+        mPreprocessed.constData(),
+        static_cast<unsigned long>(mPreprocessed.size())
     };
     RTags::parseTranslationUnit(sourceFile, mSource.arguments, List<String>(), mUnit,
                                 mIndex, &unsaved, 1, 0, &mClangLine);
@@ -1025,7 +1030,7 @@ bool ClangIndexer::diagnose()
                     clang_getSpellingLocation(end, 0, 0, 0, &endOffset);
                     const char *string = clang_getCString(stringScope);
                     error("Fixit for %s:%d:%d: Replace [%s] with [%s]", loc.path().constData(), line, column,
-                          mCpp->preprocessed.mid(startOffset, endOffset - startOffset).constData(), string);
+                          mPreprocessed.mid(startOffset, endOffset - startOffset).constData(), string);
                     XmlEntry &entry = xmlEntries[Location(loc.fileId(), line, column)];
                     entry.type = XmlEntry::Fixit;
                     if (entry.message.isEmpty()) {

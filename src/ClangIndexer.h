@@ -105,6 +105,7 @@ private:
         mIndexed, mVisitFileTimeout, mIndexerMessageTimeout, mFileIdsQueried;
     Path mVisitFileRepsonseMessageResolved;
     std::shared_ptr<Cpp> mCpp;
+    String mPreprocessed;
     Connection mConnection;
     uint64_t mId;
     FILE *mLogFile;

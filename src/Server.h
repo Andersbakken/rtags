@@ -54,7 +54,7 @@ class HttpLogObject;
 class Server
 {
 public:
-    enum { DatabaseVersion = 38 };
+    enum { DatabaseVersion = 39 };
 
     Server();
     ~Server();
@@ -71,7 +71,8 @@ public:
         WatchSystemPaths = 0x0080,
         NoFileManagerWatch = 0x0100,
         JobServer = 0x0200,
-        NoJobServer = 0x0400
+        NoJobServer = 0x0400,
+        NoCompression = 0x0800
     };
     struct Options {
         Options()

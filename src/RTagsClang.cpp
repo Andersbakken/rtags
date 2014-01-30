@@ -19,6 +19,7 @@
 #include "Cpp.h"
 #include "Project.h"
 #include <iostream>
+#include <zlib.h>
 
 #define __STDC_LIMIT_MACROS
 #define __STDC_CONSTANT_MACROS
@@ -253,19 +254,81 @@ void reparseTranslationUnit(CXTranslationUnit &unit, CXUnsavedFile *unsaved, int
 class StringOStream : public llvm::raw_ostream
 {
 public:
-    StringOStream(String *str)
-        : llvm::raw_ostream(true), mString(str) // non-buffered
-    {}
+    StringOStream(String *str, bool compress)
+        : llvm::raw_ostream(true), mString(str), mCompress(compress), mBufferUsed(0) // non-buffered
+    {
+        if (compress) {
+            memset(&mStream, 0, sizeof(mStream));
+            if (::deflateInit(&mStream, Z_BEST_COMPRESSION) != Z_OK)
+                assert(0 && "Couldn't init compression");
+        }
+    }
+    ~StringOStream()
+    {
+        if (mCompress) {
+            ::deflateEnd(&mStream);
+        }
+    }
+    void finish()
+    {
+        if (mCompress) {
+            flush(mBuffer, mBufferUsed, Z_FINISH);
+            mBufferUsed = 0;
+        }
+    }
+    void flush(const char *data, size_t size, int flush)
+    {
+        mStream.next_in = const_cast<Bytef*>(reinterpret_cast<const Bytef*>(data));
+        mStream.avail_in = size;
+        do {
+            char buffer[sizeof(mBuffer) * 2];
+            mStream.next_out = reinterpret_cast<Bytef *>(buffer);
+            mStream.avail_out = sizeof(buffer);
+
+            const int error = ::deflate(&mStream, flush);
+            if (error != Z_OK && error != Z_STREAM_END) {
+                assert(0 && "compression error");
+            }
+
+            const int processed = sizeof(buffer) - mStream.avail_out;
+            mString->append(buffer, processed);
+        } while (!mStream.avail_out);
+    }
+
     virtual void write_impl(const char *data, size_t size)
     {
-        mString->append(data, size);
+        fuck.append(data, size);
+        if (mCompress) {
+            if (mBufferUsed + size < sizeof(mBuffer)) {
+                memcpy(mBuffer + mBufferUsed, data, size);
+                mBufferUsed += size;
+            } else {
+                if (mBufferUsed) {
+                    flush(mBuffer, mBufferUsed, Z_NO_FLUSH);
+                    mBufferUsed = 0;
+                }
+                if (size >= sizeof(mBuffer)) {
+                    flush(data, size, Z_NO_FLUSH);
+                } else {
+                    memcpy(mBuffer, data, size);
+                    mBufferUsed = size;
+                }
+            }
+        } else {
+            mString->append(data, size);
+        }
     }
     virtual uint64_t current_pos() const
     {
         return mString->size();
     }
 private:
+    String fuck;
+    z_stream mStream;
     String *mString;
+    const bool mCompress;
+    char mBuffer[1024 * 64];
+    size_t mBufferUsed;
 };
 
 static inline void processArgs(clang::HeaderSearchOptions &headerSearchOptions,
@@ -458,7 +521,9 @@ public:
     }
 };
 
-std::shared_ptr<Cpp> preprocess(const Source &source, const std::shared_ptr<Project> &project)
+std::shared_ptr<Cpp> preprocess(const Source &source,
+                                const std::shared_ptr<Project> &project,
+                                unsigned int preprocessFlags)
 {
     StopWatch sw;
     Compiler compilerInstance;
@@ -603,8 +668,9 @@ std::shared_ptr<Cpp> preprocess(const Source &source, const std::shared_ptr<Proj
     compilerInstance.getDiagnosticClient().BeginSourceFile(compilerInstance.getLangOpts(), &compilerInstance.getPreprocessor());
 
     std::shared_ptr<Cpp> cpp(new Cpp);
-    StringOStream out(&cpp->preprocessed);
+    StringOStream out(&cpp->preprocessed, preprocessFlags & Cpp::Preprocess_Compressed);
     cpp->time = now;
+    cpp->flags = preprocessFlags;
     clang::Preprocessor &preprocessor = compilerInstance.getPreprocessor();
     preprocessor.createPreprocessingRecord(
 #if CLANG_VERSION_MINOR < 3
@@ -612,6 +678,7 @@ std::shared_ptr<Cpp> preprocess(const Source &source, const std::shared_ptr<Proj
 #endif
         );
     clang::DoPrintPreprocessedInput(preprocessor, &out, preprocessorOptions);
+    out.finish();
     struct {
         const Cpp::Diagnostic::Type type;
         const clang::TextDiagnosticBuffer::const_iterator begin, end;

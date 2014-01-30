@@ -64,7 +64,9 @@ void parseTranslationUnit(const Path &sourceFile, const List<String> &args,
                           unsigned int translationUnitFlags = 0,
                           String *clangLine = 0);
 void reparseTranslationUnit(CXTranslationUnit &unit, CXUnsavedFile *unsaved, int unsavedCount);
-std::shared_ptr<Cpp> preprocess(const Source &source, const std::shared_ptr<Project> &project = std::shared_ptr<Project>());
+std::shared_ptr<Cpp> preprocess(const Source &source,
+                                const std::shared_ptr<Project> &project = std::shared_ptr<Project>(),
+                                unsigned int preprocessFlags = 0);
 bool compile(const Path& output, const Source &source, const String& preprocessed);
 
 struct Filter
