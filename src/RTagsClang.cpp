@@ -204,12 +204,27 @@ void parseTranslationUnit(const Path &sourceFile, const List<String> &args,
     List<const char*> clangArgs(args.size() + defaultArguments.size() + 2, 0);
 
     const List<String> *lists[] = { &args, &defaultArguments };
+    bool seenWError = false;
     for (int i=0; i<2; ++i) {
         const int count = lists[i]->size();
         for (int j=0; j<count; ++j) {
             String arg = lists[i]->at(j);
             if (arg.isEmpty())
                 continue;
+            if (i == 0 && !seenWError && arg == "-Werror") {
+                seenWError = true;
+            } else if (i == 1 && seenWError && arg == "-Wall") {
+                // see https://github.com/Andersbakken/rtags/issues/137 It's not
+                // entirely fair to turn on -Wall implicitly (even if it can be
+                // turned off) with a switch if people run with -Werror.
+                continue;
+            }
+            if (dependencies && arg == "-include" && j + 1 < count) {
+                const uint32_t fileId = Location::fileId(lists[i]->at(j + 1));
+                if (fileId) {
+                    (*dependencies)[fileId].insert(fileId);
+                }
+            }
 
             clangArgs[idx++] = lists[i]->at(j).constData();
             if (clangLine) {
