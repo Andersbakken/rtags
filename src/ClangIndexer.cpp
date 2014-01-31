@@ -30,7 +30,7 @@ struct VerboseVisitorUserData {
 ClangIndexer::ClangIndexer()
     : mUnit(0), mIndex(0), mLastCursor(nullCursor), mVisitFileResponseMessageFileId(0),
       mVisitFileResponseMessageVisit(0), mParseDuration(0), mVisitDuration(0),
-      mCommunicationDuration(0), mBlocked(0), mAllowed(0), mIndexed(1), mVisitFileTimeout(0),
+      mBlocked(0), mAllowed(0), mIndexed(1), mVisitFileTimeout(0),
       mIndexerMessageTimeout(0), mFileIdsQueried(0), mId(0), mLogFile(0),
       mLocalJob(false)
 {
@@ -106,8 +106,8 @@ bool ClangIndexer::index(uint32_t flags, const Source &source,
         mData->message += String::format<128>(format,
                                               mData->symbols.size(), mData->symbolNames.size(), mData->references.size(),
                                               mData->dependencies.size(), mIndexed, mData->visited.size(), mAllowed,
-                                              mAllowed + mBlocked, mFileIdsQueried, cpp->visited.size(), mParseDuration, mVisitDuration,
-                                              mCommunicationDuration);
+                                              mAllowed + mBlocked, mFileIdsQueried, cpp->visited.size(), mCpp->preprocessDuration,
+                                              mParseDuration, mVisitDuration);
     } else if (mData->dependencies.size()) {
         mData->message += String::format<16>("(%d deps)", mData->dependencies.size());
     }
@@ -198,9 +198,7 @@ Location ClangIndexer::createLocation(const Path &sourceFile, unsigned line, uns
     mVisitFileResponseMessageFileId = 0;
     mVisitFileResponseMessageVisit = false;
     mConnection.send(msg);
-    StopWatch sw;
     EventLoop::eventLoop()->exec(mVisitFileTimeout);
-    mCommunicationDuration += sw.elapsed();
     id = mVisitFileResponseMessageFileId;
     if (!id) {
         error() << "Error getting fileId for" << resolved;

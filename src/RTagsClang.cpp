@@ -713,7 +713,6 @@ std::shared_ptr<Cpp> preprocess(const Source &source,
     // then redefined. In that case we need to know the "active" macro
     // definition so the set in cpp->macroNames doesn't help us.
 
-    StopWatch watch;
     Hash<String, Location> macroLocations;
     for (clang::PreprocessingRecord::iterator it = record->begin(); it != record->end(); ++it) {
         const clang::PreprocessedEntity *entity = *it;
@@ -809,7 +808,8 @@ std::shared_ptr<Cpp> preprocess(const Source &source,
         fprintf(f, "// %s\n", sourceFile.constData());
         fclose(f);
     }
-    warning() << "preprocessing" << sourceFile << "took" << sw.elapsed() << watch.elapsed() << "ms";
+    cpp->preprocessDuration = sw.elapsed();
+    warning() << "preprocessing" << sourceFile << "took" << cpp->preprocessDuration << "ms";
 
     return cpp;
 }

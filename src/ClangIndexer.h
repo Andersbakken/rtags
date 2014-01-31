@@ -103,7 +103,7 @@ private:
     bool mVisitFileResponseMessageVisit;
     Path mSocketFile;
     StopWatch mTimer;
-    int mParseDuration, mVisitDuration, mCommunicationDuration, mBlocked, mAllowed,
+    int mParseDuration, mVisitDuration, mBlocked, mAllowed,
         mIndexed, mVisitFileTimeout, mIndexerMessageTimeout, mFileIdsQueried;
     Path mVisitFileResponseMessageResolved;
     std::shared_ptr<Cpp> mCpp;
