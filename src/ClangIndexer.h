@@ -36,19 +36,36 @@ private:
     void addFileSymbol(uint32_t file);
     inline Location createLocation(const CXSourceLocation &location, bool *blocked)
     {
-        if (blocked)
-            *blocked = false;
-
         CXString file;
         unsigned line, col;
         clang_getPresumedLocation(location, &file, &line, &col);
         const char *fn = clang_getCString(file);
         assert(fn);
         if (!*fn) {
+            if (blocked)
+                *blocked = false;
             clang_disposeString(file);
             return Location();
         }
-        return createLocation(RTags::eatString(file), line, col, blocked);
+        if (!strcmp(fn, mLastFile.constData())) {
+            clang_disposeString(file);
+            if (mLastBlocked && blocked) {
+                *blocked = true;
+                return Location();
+            } else if (blocked) {
+                *blocked = false;
+            }
+
+            return Location(mLastFileId, line, col);
+        }
+        const Path path = RTags::eatString(file);
+        const Location ret = createLocation(path, line, col, blocked);
+        if (blocked) {
+            mLastBlocked = *blocked;
+            mLastFileId = ret.fileId();
+            mLastFile = path;
+        }
+        return ret;
     }
     Location createLocation(CXFile file, unsigned line, unsigned col, bool *blocked = 0)
     {
@@ -112,6 +129,9 @@ private:
     uint64_t mId;
     FILE *mLogFile;
     bool mLocalJob;
+    uint32_t mLastFileId;
+    bool mLastBlocked;
+    Path mLastFile;
 };
 
 #endif
