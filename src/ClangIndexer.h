@@ -42,11 +42,13 @@ private:
         CXString file;
         unsigned line, col;
         clang_getPresumedLocation(location, &file, &line, &col);
-        assert(clang_getCString(file));
-        const Path path = RTags::eatString(file);
-        if (!path.isEmpty())
-            return createLocation(RTags::eatString(file), line, col, blocked);
-        return Location();
+        const char *fn = clang_getCString(file);
+        assert(fn);
+        if (!*fn) {
+            clang_disposeString(file);
+            return Location();
+        }
+        return createLocation(RTags::eatString(file), line, col, blocked);
     }
     Location createLocation(CXFile file, unsigned line, unsigned col, bool *blocked = 0)
     {
