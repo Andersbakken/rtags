@@ -72,7 +72,7 @@ public:
         NoFileManagerWatch = 0x0100,
         JobServer = 0x0200,
         NoJobServer = 0x0400,
-        NoCompression = 0x0800
+        Compression = 0x0800
     };
     struct Options {
         Options()
