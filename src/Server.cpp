@@ -1732,6 +1732,7 @@ void Server::onLocalJobFinished(Process *process)
     assert(it != mLocalJobs.end());
     std::shared_ptr<IndexerJob> &job = it->second.first;
     assert(job->process == process);
+    error() << process->readAllStdErr() << process->readAllStdOut();
     if (debugMulti)
         error() << "job finished" << job->flags << process->errorString() << process->readAllStdErr();
     if (job->flags & IndexerJob::FromRemote) {
