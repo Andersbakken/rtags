@@ -17,7 +17,6 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 #define __RTAGSCLANG_H__
 
 #include "Source.h"
-#include "Str.h"
 #include "RTags.h"
 #include "CursorInfo.h"
 

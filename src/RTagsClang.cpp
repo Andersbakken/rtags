@@ -106,10 +106,10 @@ String cursorToString(CXCursor cursor, unsigned flags)
     CXSourceLocation location = clang_getCursorLocation(cursor);
     clang_getPresumedLocation(location, &file, &line, &col);
 
-    const Str fileName(file);
-    if (fileName.data() && *fileName.data()) {
+    const char *data = clang_getCString(file);
+    if (data && *data) {
         ret += ' ';
-        ret += fileName.data();
+        ret += data;
         ret += ':';
         ret += String::number(line);
         ret += ':';
@@ -135,6 +135,7 @@ String cursorToString(CXCursor cursor, unsigned flags)
         //     ret += String::snprintf<32>("expansion: %d", expansionLoc);
 
     }
+    clang_disposeString(file);
     return ret;
 }
 

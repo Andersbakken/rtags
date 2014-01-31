@@ -16,7 +16,6 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 #include "RTags.h"
 #include "CursorInfo.h"
 #include "Server.h"
-#include "Str.h"
 #include "VisitFileMessage.h"
 #include "VisitFileResponseMessage.h"
 #include "IndexerMessage.h"
