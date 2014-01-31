@@ -103,7 +103,7 @@ private:
     StopWatch mTimer;
     int mParseDuration, mVisitDuration, mCommunicationDuration, mBlocked, mAllowed,
         mIndexed, mVisitFileTimeout, mIndexerMessageTimeout, mFileIdsQueried;
-    Path mVisitFileRepsonseMessageResolved;
+    Path mVisitFileResponseMessageResolved;
     std::shared_ptr<Cpp> mCpp;
     String mPreprocessed;
     Connection mConnection;

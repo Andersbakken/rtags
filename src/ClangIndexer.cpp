@@ -146,7 +146,7 @@ void ClangIndexer::onMessage(Message *msg, Connection *conn)
     const VisitFileResponseMessage *vm = static_cast<VisitFileResponseMessage*>(msg);
     mVisitFileResponseMessageVisit = vm->visit();
     mVisitFileResponseMessageFileId = vm->fileId();
-    mVisitFileRepsonseMessageResolved = vm->resolved();
+    mVisitFileResponseMessageResolved = vm->resolved();
     assert(EventLoop::eventLoop());
     EventLoop::eventLoop()->quit();
 }
@@ -212,7 +212,7 @@ Location ClangIndexer::createLocation(const Path &sourceFile, unsigned line, uns
     // fprintf(mLogFile, "%s %s\n", file.second ? "WON" : "LOST", resolved.constData());
 
     if (!mLocalJob)
-        resolved = mVisitFileRepsonseMessageResolved;
+        resolved = mVisitFileResponseMessageResolved;
     Location::set(resolved, id);
     if (resolved != sourceFile)
         Location::set(sourceFile, id);
