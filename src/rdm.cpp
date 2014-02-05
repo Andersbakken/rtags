@@ -111,7 +111,7 @@ static void usage(FILE *f)
             "  --multicast-address|-a [arg]               Use this address for multicast (default " DEFAULT_RDM_MULTICAST_ADDRESS ").\n"
             "  --multicast-port|-P [arg]                  Use this port for multicast (default " STR(DEFAULT_RDM_MULTICAST_PORT) ").\n"
             "  --multicast-ttl|-B [arg]                   Set multicast TTL to arg.\n"
-            "  --compression|-Z [arg]                     Compress preprocessed output before sending it to indexer. If arg is \"local\" also compress for local jobs.\n"
+            "  --compression|-Z [arg]                     Compression type. Arg should be \"always\", \"remote\" or \"none\" (\"remote\" is default).\n"
             "  --http-port|-H [arg]                       Use this port for http (default " STR(DEFAULT_RDM_HTTP_PORT) ").\n"
             "  --reschedule-timeout|-R                    Timeout for rescheduling remote jobs (default " STR(DEFAULT_RESCHEDULE_TIMEOUT) ").\n",
             std::max(2, ThreadPool::idealThreadCount()));
@@ -125,7 +125,7 @@ int main(int argc, char** argv)
         { "help", no_argument, 0, 'h' },
         { "server", optional_argument, 0, 's' },
         { "no-server", no_argument, 0, 'z' },
-        { "compression", optional_argument, 0, 'Z' },
+        { "compression", required_argument, 0, 'Z' },
         { "include-path", required_argument, 0, 'I' },
         { "define", required_argument, 0, 'D' },
         { "log-file", required_argument, 0, 'L' },
@@ -333,19 +333,14 @@ int main(int argc, char** argv)
             }
             break;
         case 'Z': {
-            const char *arg = optarg;
-            if (!arg && optind < argCount && args[optind][0] != '-') {
-                arg = args[optind++];
+            if (!strcmp(optarg, "always")) {
+                serverOpts.options |= Server::CompressionAlways;
+            } else if (!strcmp(optarg, "none")) {
+                serverOpts.options |= Server::NoCompression;
+            } else if (strcmp(optarg, "remote")) {
+                fprintf(stderr, "Invalid arg to -Z, only supports \"always\", \"remote\" or \"none\"\n");
+                return 1;
             }
-            if (arg) {
-                if (!strcmp(arg, "local")) {
-                    serverOpts.options |= Server::CompressionLocal;
-                } else {
-                    fprintf(stderr, "Invalid arg to -Z, only supports \"local\"\n");
-                    return 1;
-                }
-            }
-            serverOpts.options |= Server::Compression;
             break; }
         case 'a':
             serverOpts.multicastAddress = optarg;

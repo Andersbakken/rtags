@@ -72,8 +72,8 @@ public:
         NoFileManagerWatch = 0x0100,
         JobServer = 0x0200,
         NoJobServer = 0x0400,
-        Compression = 0x0800,
-        CompressionLocal = 0x1000
+        NoCompression = 0x0800,
+        CompressionAlways = 0x1000
 
     };
     struct Options {

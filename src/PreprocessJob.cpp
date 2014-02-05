@@ -24,7 +24,7 @@ PreprocessJob::PreprocessJob(Source &&source, const std::shared_ptr<Project> &pr
     const unsigned int options = Server::instance()->options().options;
     if (options & Server::NoJobServer) {
         mMode = Noop;
-    } else if (options & Server::CompressionLocal) {
+    } else if (options & Server::CompressionAlways) {
         mMode = Compress;
     } else {
         mMode = Preprocess;
