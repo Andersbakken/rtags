@@ -1009,6 +1009,7 @@ Path Server::findProject(const Path &path, const Path &unresolvedPath, const Lis
 void Server::index(const Source &source, const std::shared_ptr<Cpp> &cpp,
                    const std::shared_ptr<Project> &project, uint32_t flags)
 {
+    warning() << "Indexing" << source << "in" << project->path();
     if (!mCurrentProject.lock()) {
         mCurrentProject = project;
         setupCurrentProjectFile(project);
@@ -1678,6 +1679,7 @@ void Server::fetchRemoteJobs(const String& ip, uint16_t port, uint16_t jobs)
 
 void Server::addJob(const std::shared_ptr<IndexerJob> &job)
 {
+    warning() << "adding job" << job->sourceFile;
     assert(job);
     assert(!(job->flags & (IndexerJob::CompleteRemote|IndexerJob::CompleteLocal)));
     mPending.push_back(job);
