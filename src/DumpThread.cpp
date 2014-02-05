@@ -78,7 +78,7 @@ void DumpThread::run()
     CXIndex index = clang_createIndex(0, 0);
     CXTranslationUnit unit = 0;
     String clangLine;
-    RTags::parseTranslationUnit(mSource.sourceFile(), mSource.arguments, mDefaultArguments, unit,
+    RTags::parseTranslationUnit(mSource.sourceFile(), mSource.toCommandLine(Source::None), mDefaultArguments, unit,
                                 index, 0, 0, 0, &clangLine);
     writeToConnetion(String::format<128>("Indexed: %s => %s", clangLine.constData(), unit ? "success" : "failure"));
     if (unit) {
