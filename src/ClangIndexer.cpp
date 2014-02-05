@@ -850,40 +850,46 @@ bool ClangIndexer::parse()
     mIndex = clang_createIndex(0, 0);
     assert(mIndex);
     Path sourceFile = Location::path(mSource.fileId);
-    const char *ext = sourceFile.extension();
-    if (ext) {
-        sourceFile.chop(strlen(ext));
+    if (!mPreprocessed.isEmpty()) {
+        const char *ext = sourceFile.extension();
+        if (ext) {
+            sourceFile.chop(strlen(ext));
+        }
+        switch (mSource.language) {
+        case Source::CPlusPlus:
+        case Source::CPlusPlus11:
+            sourceFile.append("ii");
+            break;
+        case Source::C:
+            sourceFile.append('i');
+            break;
+        case Source::ObjectiveC:
+            sourceFile.append("mi");
+            break;
+        case Source::ObjectiveCPlusPlus:
+            sourceFile.append("mii");
+            break;
+        default:
+            break;
+        }
+        Location::set(sourceFile, mSource.fileId);
     }
-    switch (mSource.language) {
-    case Source::CPlusPlus:
-    case Source::CPlusPlus11:
-        sourceFile.append("ii");
-        break;
-    case Source::C:
-        sourceFile.append('i');
-        break;
-    case Source::ObjectiveC:
-        sourceFile.append("mi");
-        break;
-    case Source::ObjectiveCPlusPlus:
-        sourceFile.append("mii");
-        break;
-    default:
-        break;
-    }
-    Location::set(sourceFile, mSource.fileId);
     // error() << "mContents" << mContents.size();
     CXUnsavedFile unsaved = {
         sourceFile.constData(),
         mPreprocessed.constData(),
         static_cast<unsigned long>(mPreprocessed.size())
     };
-    RTags::parseTranslationUnit(sourceFile, mSource.arguments, List<String>(), mUnit,
-                                mIndex, &unsaved, 1, 0, &mClangLine);
+
+    RTags::parseTranslationUnit(sourceFile, mSource.toCommandLine(Source::None), List<String>(), mUnit,
+                                mIndex, &unsaved, mPreprocessed.isEmpty() ? 0 : 1, 0, &mClangLine);
 
     mData->parseTime = mTimer.elapsed();
     warning() << "loading mUnit " << mClangLine << " " << (mUnit != 0);
     if (mUnit) {
+        if (mPreprocessed.isEmpty()) {
+            clang_getInclusions(mUnit, ClangIndexer::inclusionVisitor, this);
+        }
         mParseDuration = sw.elapsed();
         return true;
     }
