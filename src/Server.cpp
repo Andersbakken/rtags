@@ -256,7 +256,8 @@ bool Server::init(const Options &options)
 
         mTcpServer->newConnection().connect(std::bind(&Server::onNewConnection, this, std::placeholders::_1));
     }
-    mThreadPool = new ThreadPool(std::max(1, mOptions.jobCount));
+    if (!(mOptions.options & NoJobServer))
+        mThreadPool = new ThreadPool(std::max(1, mOptions.jobCount));
     if (mOptions.httpPort) {
         mHttpServer.reset(new SocketServer);
         if (!mHttpServer->listen(mOptions.httpPort)) {
@@ -433,9 +434,18 @@ void Server::preprocess(Source &&source, Path &&srcRoot, uint32_t flags)
     }
     project->load();
 
-    std::shared_ptr<PreprocessJob> job(new PreprocessJob(std::move(source), project, flags));
-    mPendingPreprocessJobs.append(job);
-    startPreprocessJobs();
+    if (!(mOptions.options & NoJobServer)) {
+        std::shared_ptr<PreprocessJob> job(new PreprocessJob(std::move(source), project, flags));
+        mPendingPreprocessJobs.append(job);
+        startPreprocessJobs();
+    } else {
+        std::shared_ptr<Cpp> cpp(new Cpp);
+        cpp->flags = Cpp::Preprocess_None;
+        cpp->time = time(0);
+        cpp->preprocessDuration = 0;
+        index(std::move(source), cpp, project, flags);
+
+    }
 }
 
 void Server::handleCompileMessage(CompileMessage &message, Connection *conn)
@@ -490,7 +500,8 @@ void Server::handleIndexerMessage(const IndexerMessage &message, Connection *con
         project->onJobFinished(indexData);
     }
     conn->finish();
-    startPreprocessJobs();
+    if (!(mOptions.options & NoJobServer))
+        startPreprocessJobs();
 }
 
 void Server::handleQueryMessage(const QueryMessage &message, Connection *conn)
@@ -1239,7 +1250,8 @@ void Server::jobCount(const QueryMessage &query, Connection *conn)
             conn->write<128>("Invalid job count %s (%d)", query.query().constData(), jobCount);
         } else {
             mOptions.jobCount = jobCount;
-            mThreadPool->setConcurrentJobs(std::max(1, jobCount));
+            if (mThreadPool)
+                mThreadPool->setConcurrentJobs(std::max(1, jobCount));
             conn->write<128>("Changed jobs to %d", jobCount);
         }
     }
@@ -1646,7 +1658,7 @@ void Server::onMulticastReadyRead(const SocketClient::SharedPtr &socket,
 
 inline int Server::availableJobSlots(JobSlotsMode mode) const
 {
-    const int count = std::max(mOptions.jobCount - mThreadPool->busyThreads(), 0);
+    const int count = std::max(mOptions.jobCount - (mThreadPool ? mThreadPool->busyThreads() : 0), 0);
     if (mode == Local)
         return count;
     int ret = mLocalJobs.size();
@@ -1769,7 +1781,8 @@ void Server::onLocalJobFinished(Process *process)
     mProcessingJobs.erase(job->id);
     mLocalJobs.erase(it);
     EventLoop::deleteLater(process);
-    startPreprocessJobs();
+    if (!(mOptions.options & NoJobServer))
+        startPreprocessJobs();
     startNextJob();
 }
 
@@ -1832,6 +1845,8 @@ void Server::codeCompleteAt(const QueryMessage &query, Connection *conn)
 
 int Server::startPreprocessJobs()
 {
+    assert(!(mOptions.options & NoJobServer));
+    assert(mThreadPool);
     int ret = 0;
     int size = mPending.size() + mThreadPool->backlockSize() + mThreadPool->busyThreads() + mProcessingJobs.size();
     enum { MaxPending = 50 };

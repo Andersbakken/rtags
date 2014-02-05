@@ -34,11 +34,7 @@ private:
     Source mSource;
     std::shared_ptr<Project> mProject;
     const uint32_t mFlags;
-    enum Mode {
-        Compress,
-        Preprocess,
-        Noop
-    } mMode;
+    bool mCompression;
 };
 
 #endif

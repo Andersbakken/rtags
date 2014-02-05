@@ -22,50 +22,23 @@ PreprocessJob::PreprocessJob(Source &&source, const std::shared_ptr<Project> &pr
     : mSource(std::forward<Source>(source)), mProject(project), mFlags(flags)
 {
     const unsigned int options = Server::instance()->options().options;
-    if (options & Server::NoJobServer) {
-        mMode = Noop;
-    } else if (options & Server::CompressionAlways) {
-        mMode = Compress;
-    } else {
-        mMode = Preprocess;
-    }
+    assert(!(options & Server::NoJobServer));
+    mCompression = (options & Server::CompressionAlways);
 }
 
 void PreprocessJob::run()
 {
-    switch (mSource.language) {
-    case Source::C:
-    case Source::CPlusPlus:
-    case Source::CPlusPlus11: {
-        std::shared_ptr<Cpp> cpp;
-        switch (mMode) {
-        case Compress:
-            cpp = RTags::preprocess(mSource, mProject, Cpp::Preprocess_Compressed);
-            break;
-        case Preprocess:
-            cpp = RTags::preprocess(mSource, mProject, Cpp::Preprocess_None);
-            break;
-        case Noop:
-            cpp.reset(new Cpp);
-            cpp->flags = Cpp::Preprocess_None;
-            cpp->time = time(0);
-            cpp->preprocessDuration = 0;
-            break;
-        }
-        if (!cpp) {
-            error() << "Couldn't preprocess" << mSource.sourceFile();
-            return;
-        }
-
-        Source source = std::move(mSource);
-        const uint32_t flags = mFlags;
-        std::shared_ptr<Project> project = std::move(mProject);
-        EventLoop::mainEventLoop()->callLater([source, cpp, project, flags]() {
-                Server::instance()->index(source, cpp, project, flags);
-            });
-        break; }
-    default:
-        assert(0);
-        break;
+    const unsigned int cppFlags = mCompression ? Cpp::Preprocess_Compressed : Cpp::Preprocess_None;
+    std::shared_ptr<Cpp> cpp = RTags::preprocess(mSource, mProject, cppFlags);
+    if (!cpp) {
+        error() << "Couldn't preprocess" << mSource.sourceFile();
+        return;
     }
+
+    Source source = std::move(mSource);
+    const uint32_t flags = mFlags;
+    std::shared_ptr<Project> project = std::move(mProject);
+    EventLoop::mainEventLoop()->callLater([source, cpp, project, flags]() {
+            Server::instance()->index(source, cpp, project, flags);
+        });
 }
