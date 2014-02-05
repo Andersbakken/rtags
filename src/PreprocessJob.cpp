@@ -20,7 +20,7 @@
 
 PreprocessJob::PreprocessJob(Source &&source, const std::shared_ptr<Project> &project, uint32_t flags)
     : mSource(std::forward<Source>(source)), mProject(project), mFlags(flags),
-      mCompress(Server::instance()->options().options & Server::Compression)
+      mCompress(Server::instance()->options().options & Server::CompressionLocal)
 {
 }
 

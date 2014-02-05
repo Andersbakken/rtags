@@ -1416,6 +1416,13 @@ void Server::handleJobRequestMessage(const JobRequestMessage &message, Connectio
             assert(!job->process);
             job->flags |= IndexerJob::Remote;
             job->flags &= ~IndexerJob::Rescheduled;
+            if (mOptions.options & Compression && !(job->cpp->flags & Cpp::Preprocess_Compressed)) {
+                StopWatch sw;
+                job->cpp->preprocessed = job->cpp->preprocessed.compress();
+                job->cpp->flags |= Cpp::Preprocess_Compressed;
+                if (debugMulti)
+                    error() << "Compressed" << job->sourceFile << "in" << sw.elapsed() << "ms";
+            }
             mProcessingJobs[job->id] = job;
             if (debugMulti)
                 error() << "sending job" << job->sourceFile << "to" << conn->client()->peerString();

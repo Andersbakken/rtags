@@ -111,7 +111,7 @@ static void usage(FILE *f)
             "  --multicast-address|-a [arg]               Use this address for multicast (default " DEFAULT_RDM_MULTICAST_ADDRESS ").\n"
             "  --multicast-port|-P [arg]                  Use this port for multicast (default " STR(DEFAULT_RDM_MULTICAST_PORT) ").\n"
             "  --multicast-ttl|-B [arg]                   Set multicast TTL to arg.\n"
-            "  --compression|-Z                           Compress preprocessed output before sending it to indexer.\n"
+            "  --compression|-Z [arg]                     Compress preprocessed output before sending it to indexer. If arg is \"local\" also compress for local jobs.\n"
             "  --http-port|-H [arg]                       Use this port for http (default " STR(DEFAULT_RDM_HTTP_PORT) ").\n"
             "  --reschedule-timeout|-R                    Timeout for rescheduling remote jobs (default " STR(DEFAULT_RESCHEDULE_TIMEOUT) ").\n",
             std::max(2, ThreadPool::idealThreadCount()));
@@ -125,7 +125,7 @@ int main(int argc, char** argv)
         { "help", no_argument, 0, 'h' },
         { "server", optional_argument, 0, 's' },
         { "no-server", no_argument, 0, 'z' },
-        { "compression", no_argument, 0, 'Z' },
+        { "compression", optional_argument, 0, 'Z' },
         { "include-path", required_argument, 0, 'I' },
         { "define", required_argument, 0, 'D' },
         { "log-file", required_argument, 0, 'L' },
@@ -332,9 +332,21 @@ int main(int argc, char** argv)
                 return 1;
             }
             break;
-        case 'Z':
+        case 'Z': {
+            const char *arg = optarg;
+            if (!arg && optind < argCount && args[optind][0] != '-') {
+                arg = args[optind++];
+            }
+            if (arg) {
+                if (!strcmp(arg, "local")) {
+                    serverOpts.options |= Server::CompressionLocal;
+                } else {
+                    fprintf(stderr, "Invalid arg to -Z, only supports \"local\"\n");
+                    return 1;
+                }
+            }
             serverOpts.options |= Server::Compression;
-            break;
+            break; }
         case 'a':
             serverOpts.multicastAddress = optarg;
             break;
