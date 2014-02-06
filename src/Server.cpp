@@ -1431,6 +1431,8 @@ void Server::handleJobRequestMessage(const JobRequestMessage &message, Connectio
 
         if (!(job->flags & IndexerJob::FromRemote)) {
             assert(!job->process);
+#warning "we shouldn't update state for this job until we've SUCCESSFULLY sent it the receiver"
+
             job->flags |= IndexerJob::Remote;
             job->flags &= ~IndexerJob::Rescheduled;
             if (!(mOptions.options & NoCompression) && !(job->cpp->flags & Cpp::Preprocess_Compressed)) {
