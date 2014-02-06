@@ -78,7 +78,6 @@ static void usage(FILE *f)
             "  --verbose|-v                               Change verbosity, multiple -v's are allowed.\n"
             "  --clear-project-caches|-C                  Clear out project caches.\n"
             "  --disable-sighandler|-x                    Disable signal handler to dump stack for crashes.\n"
-            "                                             Note that this might not play well with clang's signal handler.\n"
             "  --clang-includepath|-P                     Use clang include paths by default.\n"
             "  --no-Wall|-W                               Don't use -Wall.\n"
             "  --Wlarge-by-value-copy|-r [arg]            Use -Wlarge-by-value-copy=[arg] when invoking clang.\n"
@@ -507,9 +506,9 @@ int main(int argc, char** argv)
             if (logLevel >= 0)
                 ++logLevel;
             break;
-        case '?':
-            usage(stderr);
-            return 1;
+        case '?': {
+            fprintf(stderr, "Run rc --help for help\n");
+            return 1; }
         }
     }
     if (optind < argCount) {
