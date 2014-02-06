@@ -111,8 +111,7 @@ static const bool debugMulti = getenv("RDM_DEBUG_MULTI");
 Server *Server::sInstance = 0;
 Server::Server()
     : mVerbose(false), mCurrentFileId(0), mThreadPool(0), mRemotePending(0),
-      mServerConnection(0), mLastJobAnnouncementCount(0), mHostName(Rct::hostName()),
-      mCompletionThread(0)
+      mServerConnection(0), mHostName(Rct::hostName()), mCompletionThread(0)
 {
     Messages::registerMessage<JobRequestMessage>();
     Messages::registerMessage<JobResponseMessage>();
@@ -1735,11 +1734,6 @@ void Server::startNextJob()
         return;
 
     const int jobs = mPending.size() - mRemotePending;
-    if ((!(mOptions.options & JobServer) && !mServerConnection) || !jobs || jobs == mLastJobAnnouncementCount || mPending.empty()) {
-        mLastJobAnnouncementCount = jobs;
-        return;
-    }
-    mLastJobAnnouncementCount = jobs;
     if (mServerConnection) {
         mServerConnection->send(ProxyJobAnnouncementMessage(jobs, mOptions.tcpPort));
     } else {
