@@ -77,7 +77,7 @@ static void usage(FILE *f)
             "  --append|-A                                Append to log file.\n"
             "  --verbose|-v                               Change verbosity, multiple -v's are allowed.\n"
             "  --clear-project-caches|-C                  Clear out project caches.\n"
-            "  --enable-sighandler|-s                     Enable signal handler to dump stack for crashes.\n"
+            "  --disable-sighandler|-x                    Disable signal handler to dump stack for crashes.\n"
             "                                             Note that this might not play well with clang's signal handler.\n"
             "  --clang-includepath|-P                     Use clang include paths by default.\n"
             "  --no-Wall|-W                               Don't use -Wall.\n"
@@ -135,7 +135,7 @@ int main(int argc, char** argv)
         { "verbose", no_argument, 0, 'v' },
         { "job-count", required_argument, 0, 'j' },
         { "clean-slate", no_argument, 0, 'C' },
-        { "enable-sighandler", no_argument, 0, 'x' },
+        { "disable-sighandler", no_argument, 0, 'x' },
         { "silent", no_argument, 0, 'S' },
         { "exclude-filter", required_argument, 0, 'X' },
         { "socket-file", required_argument, 0, 'n' },
@@ -287,6 +287,7 @@ int main(int argc, char** argv)
     const char *logFile = 0;
     unsigned logFlags = 0;
     int logLevel = 0;
+    bool sigHandler = false;
     assert(Path::home().endsWith('/'));
     int argCount = argList.size();
     char **args = argList.data();
@@ -443,7 +444,7 @@ int main(int argc, char** argv)
             putenv(optarg);
             break;
         case 'x':
-            signal(SIGSEGV, sigSegvHandler);
+            sigHandler = false;
             break;
         case 'u': {
             bool ok;
@@ -517,6 +518,8 @@ int main(int argc, char** argv)
     }
 
     signal(SIGINT, sigIntHandler);
+    if (sigHandler)
+        signal(SIGSEGV, sigSegvHandler);
 
     if (!initLogging(argv[0], LogStderr, logLevel, logFile, logFlags)) {
         fprintf(stderr, "Can't initialize logging with %d %s 0x%0x\n",

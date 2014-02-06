@@ -88,6 +88,7 @@ void IndexerJob::abort()
         process->kill();
         assert(!(flags & FromRemote)); // this is not handled
     }
+    assert(!(flags & (CompleteRemote|CompleteLocal)));
     flags &= ~RunningLocal;
     flags |= Aborted;
 }
