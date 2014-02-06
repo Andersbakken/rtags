@@ -110,6 +110,7 @@ public:
     Path findProject(const Path &path, const Path &unresolvedPath, const List<String> &withProjects) const;
     void stopServers();
     int mongooseStatistics(struct mg_connection *conn);
+    void dumpJobs(Connection *conn);
 private:
     bool selectProject(const Match &match, Connection *conn, unsigned int queryFlags);
     bool updateProject(const List<String> &projects, unsigned int queryFlags);

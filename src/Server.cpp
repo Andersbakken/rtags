@@ -1943,3 +1943,25 @@ void Server::connectToServer()
         }
     }
 }
+
+void Server::dumpJobs(Connection *conn)
+{
+    if (!mPending.isEmpty()) {
+        conn->write("Pending:");
+        for (auto job : mPending) {
+            conn->write<128>("%s: 0x%x", job->sourceFile.constData(), job->flags);
+        }
+    }
+    if (!mLocalJobs.isEmpty()) {
+        conn->write("Local:");
+        for (auto job : mLocalJobs) {
+            conn->write<128>("%s: 0x%x", job.second.first->sourceFile.constData(), job.second.first->flags);
+        }
+    }
+    if (!mProcessingJobs.isEmpty()) {
+        conn->write("Processing:");
+        for (auto job : mProcessingJobs) {
+            conn->write<128>("%s: 0x%x", job.second->sourceFile.constData(), job.second->flags);
+        }
+    }
+}

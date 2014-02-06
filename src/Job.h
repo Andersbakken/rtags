@@ -74,6 +74,7 @@ public:
     String context() const { return mContext; }
     std::mutex &mutex() const { return mMutex; }
     bool &aborted() { return mAborted; }
+    Connection *connection() const { return mConnection; }
 private:
     mutable std::mutex mMutex;
     bool mAborted;

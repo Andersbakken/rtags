@@ -29,7 +29,7 @@ StatusJob::StatusJob(const QueryMessage &q, const std::shared_ptr<Project> &proj
 void StatusJob::execute()
 {
     bool matched = false;
-    const char *alternatives = "fileids|watchedpaths|dependencies|symbols|symbolnames|sources";
+    const char *alternatives = "fileids|watchedpaths|dependencies|symbols|symbolnames|sources|jobs";
 
     if (!strcasecmp(query.constData(), "fileids")) {
         matched = true;
@@ -149,6 +149,13 @@ void StatusJob::execute()
             if (!write<512>("  %s: %s", it->second.sourceFile().constData(), it->second.toString().constData()))
                 return;
         }
+    }
+
+    if (query.isEmpty() || !strcasecmp(query.constData(), "jobs")) {
+        matched = true;
+        if (!write(delimiter) || !write("jobs") || !write(delimiter))
+            return;
+        Server::instance()->dumpJobs(connection());
     }
 
     if (!matched)
