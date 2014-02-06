@@ -468,40 +468,39 @@ void Server::handleIndexerMessage(const IndexerMessage &message, Connection *con
     if (debugMulti)
         error() << "got indexer message for job" << Location::path(indexData->fileId()) << indexData->jobId
                 << "from" << (conn->client()->peerString().isEmpty() ? String("ourselves") : conn->client()->peerString());
-    if (it == mProcessingJobs.end()) {
+    if (it != mProcessingJobs.end()) {
+        std::shared_ptr<IndexerJob> job = it->second;
+        assert(job);
+        mProcessingJobs.erase(it);
+        assert(!(job->flags & IndexerJob::FromRemote));
+
+        const String ip = conn->client()->peerName();
+        if (!ip.isEmpty())
+            indexData->message << String::format<64>(" from %s", ip.constData());
+
+        const IndexerJob::Flag runningFlag = (ip.isEmpty() ? IndexerJob::RunningLocal : IndexerJob::Remote);
+        job->flags &= ~runningFlag;
+
+        // we only care about the first job that returns
+        if (!(job->flags & (IndexerJob::CompleteLocal|IndexerJob::CompleteRemote))) {
+            if (!(job->flags == IndexerJob::Aborted))
+                job->flags |= (ip.isEmpty() ? IndexerJob::CompleteRemote : IndexerJob::CompleteLocal);
+            std::shared_ptr<Project> project = mProjects.value(message.project());
+            if (!project) {
+                error() << "Can't find project root for this IndexerMessage" << message.project() << Location::path(indexData->fileId());
+            } else {
+                project->onJobFinished(indexData);
+            }
+        }
+        if (!(mOptions.options & NoJobServer))
+            startPreprocessJobs();
+    } else {
         // job already processed
         if (debugMulti)
             error() << "already got a response for" << indexData->jobId;
-        conn->finish();
-        return;
-    }
-    std::shared_ptr<IndexerJob> job = it->second;
-    assert(job);
-    mProcessingJobs.erase(it);
-    assert(!(job->flags & IndexerJob::FromRemote));
-
-    const String ip = conn->client()->peerName();
-    if (!ip.isEmpty())
-        indexData->message << String::format<64>(" from %s", ip.constData());
-
-    const IndexerJob::Flag runningFlag = (ip.isEmpty() ? IndexerJob::RunningLocal : IndexerJob::Remote);
-    job->flags &= ~runningFlag;
-
-    // we only care about the first job that returns
-    if (!(job->flags & (IndexerJob::CompleteLocal|IndexerJob::CompleteRemote))) {
-        if (!(job->flags == IndexerJob::Aborted))
-            job->flags |= (ip.isEmpty() ? IndexerJob::CompleteRemote : IndexerJob::CompleteLocal);
-        std::shared_ptr<Project> project = mProjects.value(message.project());
-        if (!project) {
-            error() << "Can't find project root for this IndexerMessage" << message.project() << Location::path(indexData->fileId());
-            return;
-        }
-
-        project->onJobFinished(indexData);
     }
     conn->finish();
-    if (!(mOptions.options & NoJobServer))
-        startPreprocessJobs();
+    startNextJob();
 }
 
 void Server::handleQueryMessage(const QueryMessage &message, Connection *conn)
