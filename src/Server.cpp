@@ -500,6 +500,8 @@ void Server::handleIndexerMessage(const IndexerMessage &message, Connection *con
             error() << "already got a response for" << indexData->jobId;
     }
     conn->finish();
+    if (!(mOptions.options & NoJobServer))
+        startPreprocessJobs();
     startNextJob();
 }
 
