@@ -201,7 +201,7 @@ Location ClangIndexer::createLocation(const Path &sourceFile, unsigned line, uns
     EventLoop::eventLoop()->exec(mVisitFileTimeout);
     id = mVisitFileResponseMessageFileId;
     if (!id) {
-        error() << "Error getting fileId for" << resolved;
+        error() << "Error getting fileId for" << resolved << mLastCursor;
         exit(1);
     }
     mData->visited[id] = mVisitFileResponseMessageVisit;
