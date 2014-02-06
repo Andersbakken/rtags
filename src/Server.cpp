@@ -1255,6 +1255,9 @@ void Server::jobCount(const QueryMessage &query, Connection *conn)
         }
     }
     conn->finish();
+    if (!(mOptions.options & NoJobServer))
+        startPreprocessJobs();
+    startNextJob();
 }
 
 void Server::sendDiagnostics(const QueryMessage &query, Connection *conn)
