@@ -202,6 +202,14 @@ Location ClangIndexer::createLocation(const Path &sourceFile, unsigned line, uns
     id = mVisitFileResponseMessageFileId;
     if (!id) {
         error() << "Error getting fileId for" << resolved << mLastCursor;
+        error() << "Visited:";
+        for (auto it : mCpp->visited) {
+            error() << it.first;
+        }
+        error() << "Blocked:";
+        for (auto it : mBlockedFiles) {
+            error() << it.first;
+        }
         exit(1);
     }
     mData->visited[id] = mVisitFileResponseMessageVisit;
