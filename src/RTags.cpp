@@ -225,8 +225,8 @@ static inline Path findAncestor(Path path, const char *fn, unsigned flags)
                         break;
                     }
                 }
+                closedir(dir);
             }
-            closedir(dir);
             if (found && flags & Shallow)
                 break;
         }
