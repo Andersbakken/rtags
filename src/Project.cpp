@@ -256,7 +256,14 @@ void Project::load(FileManagerMode mode)
 
 void Project::unload()
 {
-    // ### This must wait for a pending sync/load to finish. Maybe some pending state thing?
+    switch (mState) {
+    case Syncing:
+    case Loading:
+        EventLoop::eventLoop()->registerTimer(std::bind(&Project::unload, this), 1000, Timer::SingleShot);
+        return;
+    default:
+        break;
+    }
     for (auto it = mJobs.constBegin(); it != mJobs.constEnd(); ++it) {
         if (it->second.job)
             it->second.job->abort();
