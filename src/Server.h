@@ -185,6 +185,7 @@ private:
     void fetchRemoteJobs(const String& ip, uint16_t port, uint16_t jobs);
     void onHttpClientReadyRead(const SocketClient::SharedPtr &socket);
     void connectToServer();
+    void startRescheduleTimer();
 
     enum JobSlotsMode {
         Local,

@@ -151,7 +151,6 @@ bool Server::init(const Options &options)
     RTags::initMessages();
 
     mOptions = options;
-    mRescheduleTimer.restart(mOptions.rescheduleTimeout);
     Path clangPath = Path::resolved(CLANG_INCLUDEPATH);
     mOptions.includePaths.append(clangPath);
 #ifdef OS_Darwin
@@ -1430,10 +1429,7 @@ void Server::handleJobRequestMessage(const JobRequestMessage &message, Connectio
 
         if (!(job->flags & IndexerJob::FromRemote)) {
             assert(!job->process);
-#warning "we shouldn't update state for this job until we've SUCCESSFULLY sent it the receiver"
 
-            job->flags |= IndexerJob::Remote;
-            job->flags &= ~IndexerJob::Rescheduled;
             if (!(mOptions.options & NoCompression) && !(job->cpp->flags & Cpp::Preprocess_Compressed)) {
                 StopWatch sw;
                 job->cpp->preprocessed = job->cpp->preprocessed.compress();
@@ -1441,15 +1437,26 @@ void Server::handleJobRequestMessage(const JobRequestMessage &message, Connectio
                 if (debugMulti)
                     error() << "Compressed" << job->sourceFile << "in" << sw.elapsed() << "ms";
             }
-            mProcessingJobs[job->id] = job;
             if (debugMulti)
                 error() << "sending job" << job->sourceFile << "to" << conn->client()->peerString();
             conn->send(JobResponseMessage(job, mOptions.tcpPort));
-            conn->sendFinished().connect([job](Connection*) {
+            conn->sendFinished().connect([job,this](Connection*) {
+                    mProcessingJobs[job->id] = job;
+                    job->flags |= IndexerJob::Remote;
+                    job->flags &= ~IndexerJob::Rescheduled;
                     job->started = Rct::monoMs();
                     if (debugMulti)
                         error() << "Sent job" << job->sourceFile;
+                    startRescheduleTimer();
                 });
+
+            auto onError = [job,this](Connection*) {
+                mPending.push_back(job);
+                job->flags &= ~IndexerJob::Rescheduled;
+            };
+            conn->disconnected().connect(onError);
+            conn->error().connect(onError);
+
             it = mPending.erase(it);
             if (!--cnt)
                 break;
@@ -1601,25 +1608,30 @@ void Server::onReschedule()
 {
     const uint64_t now = Rct::monoMs();
     auto it = mProcessingJobs.begin();
+    bool restartTimer = false;
     while (it != mProcessingJobs.end()) {
         const std::shared_ptr<IndexerJob>& job = it->second;
         assert(!(job->flags & (IndexerJob::CompleteRemote|IndexerJob::CompleteLocal)));
-        if (!(job->flags & (IndexerJob::Rescheduled|IndexerJob::RunningLocal))
-            && job->flags & IndexerJob::Remote
-            && static_cast<int>(now - job->started) >= mOptions.rescheduleTimeout) {
-            assert(!job->process);
-            // this might never happen, reschedule this job
-            // don't take it out of the mProcessingJobs list since the result might come back still
-            // if (debugMulti)
-            error() << "rescheduling job" << job->sourceFile << job->id
-                    << "it's been" << static_cast<double>(now - job->started) / 1000.0 << "seconds";
-            job->flags |= IndexerJob::Rescheduled;
-            assert(!slowContains(mPending, job));
-            mPending.push_back(job);
-            startNextJob();
+        if (!(job->flags & (IndexerJob::Rescheduled|IndexerJob::RunningLocal)) && job->flags & IndexerJob::Remote) {
+            if (static_cast<int>(now - job->started) >= mOptions.rescheduleTimeout) {
+                assert(!job->process);
+                // this might never happen, reschedule this job
+                // don't take it out of the mProcessingJobs list since the result might come back still
+                // if (debugMulti)
+                error() << "rescheduling job" << job->sourceFile << job->id
+                        << "it's been" << static_cast<double>(now - job->started) / 1000.0 << "seconds";
+                job->flags |= IndexerJob::Rescheduled;
+                assert(!slowContains(mPending, job));
+                mPending.push_back(job);
+                startNextJob();
+            } else {
+                restartTimer = true;
+            }
         }
         ++it;
     }
+    if (restartTimer)
+        startRescheduleTimer();
 }
 
 void Server::onMulticastReadyRead(const SocketClient::SharedPtr &socket,
@@ -1964,4 +1976,10 @@ void Server::dumpJobs(Connection *conn)
             conn->write<128>("%s: 0x%x", job.second->sourceFile.constData(), job.second->flags);
         }
     }
+}
+
+void Server::startRescheduleTimer()
+{
+    if (!mRescheduleTimer.isRunning())
+        mRescheduleTimer.restart(mOptions.rescheduleTimeout, Timer::SingleShot);
 }
