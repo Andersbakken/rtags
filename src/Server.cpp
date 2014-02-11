@@ -1503,6 +1503,8 @@ void Server::handleJobResponseMessage(const JobResponseMessage &message, Connect
 
 void Server::handleJobAnnouncementMessage(const JobAnnouncementMessage &message)
 {
+    if (debugMulti)
+        error() << "Getting job announcement from" << message.host();
     Remote *&remote = mRemotes[message.host()];
     if (!remote)
         remote = new Remote(message.host(), message.port());;
@@ -1996,11 +1998,11 @@ void Server::work()
         error() << "Working. Available jobs" << jobs;
     }
 
-    if (jobs <= 0)
+    if (jobs <= 0 && mOptions.options & NoJobServer)
         return;
 
     auto it = mPending.begin();
-    bool hasAnnouncables = false;
+    int announcables = 0;
     while (it != mPending.end()) {
         auto job = *it;
         assert(job);
@@ -2014,7 +2016,7 @@ void Server::work()
                 it = mPending.erase(it);
                 continue;
             }
-            hasAnnouncables = true;
+            ++announcables;
         }
 
         if (jobs > 0) {
@@ -2042,7 +2044,10 @@ void Server::work()
     if (!(mOptions.options & NoJobServer))
         return;
 
-    if (!mAnnounced && hasAnnouncables) {
+    if (debugMulti)
+        error() << "announced" << mAnnounced << announcables;
+
+    if (!mAnnounced && announcables) {
         mAnnounced = true;
         if (mServerConnection) {
             mServerConnection->send(ProxyJobAnnouncementMessage(mOptions.tcpPort));
@@ -2083,11 +2088,14 @@ void Server::work()
 
         --remoteCount;
         Connection *conn = new Connection;
+        if (debugMulti) {
+            error() << "We can grab" << jobs << "jobs, trying" << mFirstRemote->host;
+        }
         if (!conn->connectTcp(mFirstRemote->host, mFirstRemote->port)) {
             delete conn;
         } else {
             if (debugMulti)
-                error() << "asking for" << jobs << "jobs";
+                error() << "asking" << remote->host << "for" << jobs << "jobs";
             conn->newMessage().connect(std::bind(&Server::onNewMessage, this, std::placeholders::_1, std::placeholders::_2));
             conn->disconnected().connect(std::bind(&Server::onConnectionDisconnected, this, std::placeholders::_1));
             conn->finished().connect(std::bind([this, conn]() { mPendingJobRequests.remove(conn); conn->close(); EventLoop::deleteLater(conn); }));
