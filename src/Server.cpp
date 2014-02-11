@@ -2041,7 +2041,7 @@ void Server::work()
         }
     }
 
-    if (!(mOptions.options & NoJobServer))
+    if (mOptions.options & NoJobServer)
         return;
 
     if (debugMulti)
