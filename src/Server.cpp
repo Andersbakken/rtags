@@ -1859,7 +1859,7 @@ int Server::startPreprocessJobs()
     assert(!(mOptions.options & NoJobServer));
     assert(mThreadPool);
     int ret = 0;
-    int size = mPending.size() + mThreadPool->backlockSize() + mThreadPool->busyThreads() + mProcessingJobs.size();
+    int size = mPending.size() + mThreadPool->backlogSize() + mThreadPool->busyThreads() + mProcessingJobs.size();
     enum { MaxPending = 50 };
     while (size < MaxPending && !mPendingPreprocessJobs.isEmpty()) {
         ++ret;
