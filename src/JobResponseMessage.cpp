@@ -74,7 +74,6 @@ void JobResponseMessage::decode(Deserializer &deserializer)
 List<std::shared_ptr<IndexerJob> > JobResponseMessage::jobs(const String &host) const
 {
     List<std::shared_ptr<IndexerJob> > ret(mJobData.size());
-    assert(!ret.isEmpty());
     const int count = ret.size();
     for (int i=0; i<count; ++i) {
         auto &job = ret[i];
