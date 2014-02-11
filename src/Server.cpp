@@ -111,7 +111,7 @@ static const bool debugMulti = getenv("RDM_DEBUG_MULTI");
 Server *Server::sInstance = 0;
 Server::Server()
     : mVerbose(false), mCurrentFileId(0), mThreadPool(0), mServerConnection(0), mHostName(Rct::hostName()),
-      mCompletionThread(0), mFirstRemote(0), mLastRemote(0), mAnnounced(false)
+      mCompletionThread(0), mFirstRemote(0), mLastRemote(0), mAnnounced(false), mWorkPending(false)
 {
     Messages::registerMessage<JobRequestMessage>();
     Messages::registerMessage<JobResponseMessage>();
@@ -432,6 +432,7 @@ void Server::preprocess(Source &&source, Path &&srcRoot, uint32_t flags)
     }
     project->load();
 
+    WorkScope scope;
     if (mOptions.options & NoJobServer) {
         std::shared_ptr<Cpp> cpp(new Cpp);
         cpp->flags = Cpp::Preprocess_None;
@@ -441,7 +442,6 @@ void Server::preprocess(Source &&source, Path &&srcRoot, uint32_t flags)
     } else {
         std::shared_ptr<PreprocessJob> job(new PreprocessJob(std::move(source), project, flags));
         mPendingPreprocessJobs.append(job);
-        work();
     }
 }
 
@@ -458,6 +458,7 @@ void Server::handleLogOutputMessage(const LogOutputMessage &message, Connection 
 
 void Server::handleIndexerMessage(const IndexerMessage &message, Connection *conn)
 {
+    WorkScope scope;
     std::shared_ptr<IndexData> indexData = message.data();
     // error() << "Got indexer message" << message.project() << Location::path(indexData->fileId);
     assert(indexData);
@@ -495,7 +496,6 @@ void Server::handleIndexerMessage(const IndexerMessage &message, Connection *con
             error() << "already got a response for" << indexData->jobId;
     }
     conn->finish();
-    work();
 }
 
 void Server::handleQueryMessage(const QueryMessage &message, Connection *conn)
@@ -1235,6 +1235,7 @@ void Server::project(const QueryMessage &query, Connection *conn)
 
 void Server::jobCount(const QueryMessage &query, Connection *conn)
 {
+    WorkScope scope;
     if (query.query().isEmpty()) {
         conn->write<128>("Running with %d jobs", mOptions.jobCount);
     } else {
@@ -1249,7 +1250,6 @@ void Server::jobCount(const QueryMessage &query, Connection *conn)
         }
     }
     conn->finish();
-    work();
 }
 
 void Server::sendDiagnostics(const QueryMessage &query, Connection *conn)
@@ -1467,14 +1467,14 @@ void Server::handleJobRequestMessage(const JobRequestMessage &message, Connectio
 
 void Server::handleJobResponseMessage(const JobResponseMessage &message, Connection *conn)
 {
+    mPendingJobRequests.remove(conn);
     const String host = conn->client()->peerName();
     const auto jobs = message.jobs(host);
+    if (debugMulti)
+        error() << "Got jobs from" << host << jobs.size();
     for (const auto &job : jobs) {
-        if (debugMulti) {
-            error() << "got indexer job for" << job->destination << ":" << job->port
-                    << "with preprocessed" << job->cpp->preprocessed.size()
-                    << job->sourceFile;
-        }
+        if (debugMulti)
+            error() << "got indexer job with preprocessed" << job->cpp->preprocessed.size() << job->sourceFile;
         assert(job->flags & IndexerJob::FromRemote);
         addJob(job);
     }
@@ -1503,6 +1503,7 @@ void Server::handleJobResponseMessage(const JobResponseMessage &message, Connect
 
 void Server::handleJobAnnouncementMessage(const JobAnnouncementMessage &message)
 {
+    WorkScope scope;
     if (debugMulti)
         error() << "Getting job announcement from" << message.host();
     Remote *&remote = mRemotes[message.host()];
@@ -1526,7 +1527,6 @@ void Server::handleJobAnnouncementMessage(const JobAnnouncementMessage &message)
         mFirstRemote->prev = remote;
         mFirstRemote = remote;
     }
-    work();
 }
 
 void Server::handleProxyJobAnnouncementMessage(const ProxyJobAnnouncementMessage &message, Connection *conn)
@@ -1668,8 +1668,9 @@ void Server::onReschedule()
     }
     if (restartTimer)
         startRescheduleTimer();
-    if (doWork)
-        work();
+    if (doWork) {
+        WorkScope scope;
+    }
 }
 
 void Server::onMulticastReadyRead(const SocketClient::SharedPtr &socket,
@@ -1713,58 +1714,16 @@ void Server::onMulticastReadyRead(const SocketClient::SharedPtr &socket,
 
 void Server::addJob(const std::shared_ptr<IndexerJob> &job)
 {
+    WorkScope scope;
     warning() << "adding job" << job->sourceFile;
     assert(job);
     assert(!(job->flags & (IndexerJob::CompleteRemote|IndexerJob::CompleteLocal)));
     mPending.push_back(job);
-    work();
 }
-
-#if 0
-void Server::startNextJob()
-{
-    while (!mPending.isEmpty() && mLocalJobs.size() < availableJobSlots(Slots_Local)) {
-        std::shared_ptr<IndexerJob> job = mPending.first();
-        assert(job);
-        if (!(job->flags & (IndexerJob::CompleteLocal|IndexerJob::CompleteRemote))) {
-            if (job->flags & IndexerJob::FromRemote || project(job->project)) {
-                if (!(job->flags & IndexerJob::FromRemote))
-                    mProcessingJobs[job->id] = job;
-                job->flags &= ~IndexerJob::Rescheduled;
-                if (job->launchProcess()) {
-                    if (debugMulti)
-                        error() << "started job locally for" << job->sourceFile << job->id;
-                    mLocalJobs[job->process] = std::make_pair(job, Rct::monoMs());
-                    assert(job->process);
-                    job->process->finished().connect(std::bind(&Server::onLocalJobFinished, this,
-                                                               std::placeholders::_1));
-                } else {
-                    mLocalJobs[job->process] = std::make_pair(job, Rct::monoMs());
-                    EventLoop::eventLoop()->callLater(std::bind(&Server::onLocalJobFinished, this, std::placeholders::_1), job->process);
-                }
-            }
-        }
-        mPending.pop_front();
-    }
-    if (mOptions.options & NoJobServer || mAnnounced || mPending.size() <= mRemotePending)
-        return;
-    mAnnounced = true;
-
-    if (mServerConnection) {
-        mServerConnection->send(ProxyJobAnnouncementMessage(mOptions.tcpPort));
-    } else {
-        const JobAnnouncementMessage msg(mHostName, mOptions.tcpPort);
-        for (auto client : mClients) {
-            client->send(msg);
-        }
-    }
-    if (debugMulti)
-        error() << "announcing jobs";
-}
-#endif
 
 void Server::onLocalJobFinished(Process *process)
 {
+    WorkScope scope;
     assert(process);
     auto it = mLocalJobs.find(process);
     assert(it != mLocalJobs.end());
@@ -1797,7 +1756,6 @@ void Server::onLocalJobFinished(Process *process)
     mProcessingJobs.erase(job->id);
     mLocalJobs.erase(it);
     EventLoop::deleteLater(process);
-    work();
 }
 
 void Server::stopServers()
@@ -1971,6 +1929,7 @@ void Server::startRescheduleTimer()
 
 void Server::work()
 {
+    mWorkPending = false;
     int jobs = mOptions.jobCount;
     if (mThreadPool) {
         enum { MaxPending = 50 };
@@ -2104,5 +2063,22 @@ void Server::work()
             mPendingJobRequests[conn] = jobs;
             break;
         }
+    }
+}
+
+Server::WorkScope::WorkScope()
+{
+    Server *s = Server::instance();
+    assert(s);
+    work = !s->mWorkPending;
+    if (work)
+        s->mWorkPending = true;
+}
+
+Server::WorkScope::~WorkScope()
+{
+    if (work) {
+        Server *s = Server::instance();
+        s->work();
     }
 }

@@ -180,6 +180,11 @@ private:
                               uint16_t port, Buffer &&buffer);
     void handleMulticastData(const String &ip, uint16_t port, const unsigned char *data, int size, Connection *src);
     void onLocalJobFinished(Process *process);
+    struct WorkScope {
+        WorkScope();
+        ~WorkScope();
+        bool work;
+    };
     void work();
     void onHttpClientReadyRead(const SocketClient::SharedPtr &socket);
     void connectToServer();
@@ -221,6 +226,7 @@ private:
     } *mFirstRemote, *mLastRemote;
     bool mAnnounced;
     Hash<std::string, Remote *> mRemotes;
+    bool mWorkPending;
 };
 
 #endif
