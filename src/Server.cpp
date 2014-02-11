@@ -1480,22 +1480,24 @@ void Server::handleJobResponseMessage(const JobResponseMessage &message, Connect
     }
     if (message.isFinished()) {
         Remote *remote = mRemotes.take(host);
-        assert(remote);
-        assert(remote->next || mLastRemote == remote);
-        assert(remote->prev || mFirstRemote == remote);
-        if (mRemotes.isEmpty()) {
-            mFirstRemote = mLastRemote = 0;
-        } else {
-            if (remote->prev) {
-                remote->prev->next = remote->next;
-                if (!remote->next) {
-                    mLastRemote = remote->prev;
-                } else {
-                    remote->next->prev = remote->prev;
-                }
+        if (remote) {
+            assert(remote);
+            assert(remote->next || mLastRemote == remote);
+            assert(remote->prev || mFirstRemote == remote);
+            if (mRemotes.isEmpty()) {
+                mFirstRemote = mLastRemote = 0;
             } else {
-                mFirstRemote = remote->next;
-                remote->next->prev = 0;
+                if (remote->prev) {
+                    remote->prev->next = remote->next;
+                    if (!remote->next) {
+                        mLastRemote = remote->prev;
+                    } else {
+                        remote->next->prev = remote->prev;
+                    }
+                } else {
+                    mFirstRemote = remote->next;
+                    remote->next->prev = 0;
+                }
             }
         }
     }
