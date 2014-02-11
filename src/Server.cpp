@@ -110,8 +110,8 @@ static const bool debugMulti = getenv("RDM_DEBUG_MULTI");
 
 Server *Server::sInstance = 0;
 Server::Server()
-    : mVerbose(false), mCurrentFileId(0), mThreadPool(0), mRemotePending(0),
-      mServerConnection(0), mHostName(Rct::hostName()), mCompletionThread(0)
+    : mVerbose(false), mCurrentFileId(0), mThreadPool(0), mServerConnection(0), mHostName(Rct::hostName()),
+      mCompletionThread(0), mFirstRemote(0), mLastRemote(0), mAnnounced(false)
 {
     Messages::registerMessage<JobRequestMessage>();
     Messages::registerMessage<JobResponseMessage>();
@@ -432,17 +432,16 @@ void Server::preprocess(Source &&source, Path &&srcRoot, uint32_t flags)
     }
     project->load();
 
-    if (!(mOptions.options & NoJobServer)) {
-        std::shared_ptr<PreprocessJob> job(new PreprocessJob(std::move(source), project, flags));
-        mPendingPreprocessJobs.append(job);
-        startPreprocessJobs();
-    } else {
+    if (mOptions.options & NoJobServer) {
         std::shared_ptr<Cpp> cpp(new Cpp);
         cpp->flags = Cpp::Preprocess_None;
         cpp->time = time(0);
         cpp->preprocessDuration = 0;
         index(std::move(source), cpp, project, flags);
-
+    } else {
+        std::shared_ptr<PreprocessJob> job(new PreprocessJob(std::move(source), project, flags));
+        mPendingPreprocessJobs.append(job);
+        work();
     }
 }
 
@@ -490,17 +489,13 @@ void Server::handleIndexerMessage(const IndexerMessage &message, Connection *con
                 project->onJobFinished(indexData);
             }
         }
-        if (!(mOptions.options & NoJobServer))
-            startPreprocessJobs();
     } else {
         // job already processed
         if (debugMulti)
             error() << "already got a response for" << indexData->jobId;
     }
     conn->finish();
-    if (!(mOptions.options & NoJobServer))
-        startPreprocessJobs();
-    startNextJob();
+    work();
 }
 
 void Server::handleQueryMessage(const QueryMessage &message, Connection *conn)
@@ -1026,7 +1021,6 @@ void Server::index(const Source &source, const std::shared_ptr<Cpp> &cpp,
     }
     assert(project);
     project->index(source, cpp, flags);
-    startNextJob();
 }
 
 std::shared_ptr<Project> Server::setCurrentProject(const Path &path, unsigned int queryFlags) // lock always held
@@ -1255,9 +1249,7 @@ void Server::jobCount(const QueryMessage &query, Connection *conn)
         }
     }
     conn->finish();
-    if (!(mOptions.options & NoJobServer))
-        startPreprocessJobs();
-    startNextJob();
+    work();
 }
 
 void Server::sendDiagnostics(const QueryMessage &query, Connection *conn)
@@ -1418,16 +1410,14 @@ void Server::handleJobRequestMessage(const JobRequestMessage &message, Connectio
 {
     if (debugMulti)
         error() << "got a request for" << message.numJobs() << "jobs";
-    int cnt = message.numJobs();
     auto it = mPending.begin();
+    List<std::shared_ptr<IndexerJob> > jobs;
+    bool finished = false;
     while (it != mPending.end()) {
         std::shared_ptr<IndexerJob>& job = *it;
         if (job->flags & (IndexerJob::CompleteLocal|IndexerJob::CompleteRemote)) {
             it = mPending.erase(it);
-            continue;
-        }
-
-        if (!(job->flags & IndexerJob::FromRemote)) {
+        } else if (!(job->flags & IndexerJob::FromRemote)) {
             assert(!job->process);
 
             if (!(mOptions.options & NoCompression) && !(job->cpp->flags & Cpp::Preprocess_Compressed)) {
@@ -1439,65 +1429,109 @@ void Server::handleJobRequestMessage(const JobRequestMessage &message, Connectio
             }
             if (debugMulti)
                 error() << "sending job" << job->sourceFile << "to" << conn->client()->peerString();
-            conn->send(JobResponseMessage(job, mOptions.tcpPort));
-            conn->sendFinished().connect([job,this](Connection*) {
-                    mProcessingJobs[job->id] = job;
-                    job->flags |= IndexerJob::Remote;
-                    job->flags &= ~IndexerJob::Rescheduled;
-                    job->started = Rct::monoMs();
-                    if (debugMulti)
-                        error() << "Sent job" << job->sourceFile;
-                    startRescheduleTimer();
-                });
-
-            auto onError = [job,this](Connection*) {
-                mPending.push_back(job);
-                job->flags &= ~IndexerJob::Rescheduled;
-            };
-            conn->disconnected().connect(onError);
-            conn->error().connect(onError);
-
+            jobs.append(job);
             it = mPending.erase(it);
-            if (!--cnt)
+            if (jobs.size() == message.numJobs()) {
+                finished = true;
                 break;
-            continue;
+            }
+        } else {
+            ++it;
         }
-        ++it;
     }
+    conn->send(JobResponseMessage(jobs, mOptions.tcpPort, finished));
+    if (finished)
+        mAnnounced = false;
+    conn->sendFinished().connect([jobs,this](Connection*) {
+            for (auto &job : jobs) {
+                mProcessingJobs[job->id] = job;
+                job->flags |= IndexerJob::Remote;
+                job->flags &= ~IndexerJob::Rescheduled;
+                job->started = Rct::monoMs();
+                if (debugMulti)
+                    error() << "Sent job" << job->sourceFile;
+            }
+            startRescheduleTimer();
+        });
+
+    auto onError = [jobs,this](Connection*) {
+        for (auto &job : jobs) {
+            job->flags &= ~IndexerJob::Rescheduled;
+            mPending.append(job);
+        }
+    };
+    conn->disconnected().connect(onError);
+    conn->error().connect(onError);
     conn->finish();
 }
 
 void Server::handleJobResponseMessage(const JobResponseMessage &message, Connection *conn)
 {
-    std::shared_ptr<IndexerJob> job(new IndexerJob);
-    message.toIndexerJob(job, conn);
-    if (debugMulti) {
-        error() << "got indexer job for" << job->destination << ":" << job->port
-                << "with preprocessed" << job->cpp->preprocessed.size()
-                << job->sourceFile;
+    const String host = conn->client()->peerName();
+    const auto jobs = message.jobs(host);
+    for (const auto &job : jobs) {
+        if (debugMulti) {
+            error() << "got indexer job for" << job->destination << ":" << job->port
+                    << "with preprocessed" << job->cpp->preprocessed.size()
+                    << job->sourceFile;
+        }
+        assert(job->flags & IndexerJob::FromRemote);
+        addJob(job);
     }
-    assert(job->flags & IndexerJob::FromRemote);
-    addJob(job);
+    if (message.isFinished()) {
+        Remote *remote = mRemotes.take(host);
+        assert(remote);
+        assert(remote->next || mLastRemote == remote);
+        assert(remote->prev || mFirstRemote == remote);
+        if (mRemotes.isEmpty()) {
+            mFirstRemote = mLastRemote = 0;
+        } else {
+            if (remote->prev) {
+                remote->prev->next = remote->next;
+                if (!remote->next) {
+                    mLastRemote = remote->prev;
+                } else {
+                    remote->next->prev = remote->prev;
+                }
+            } else {
+                mFirstRemote = remote->next;
+                remote->next->prev = 0;
+            }
+        }
+    }
 }
 
 void Server::handleJobAnnouncementMessage(const JobAnnouncementMessage &message)
 {
-    const int available = availableJobSlots(Remote);
-    if (debugMulti) {
-        error("%d jobs announced by %s: available slots %d/%d available",
-              message.numJobs(), message.host().constData(), available, mOptions.jobCount);
+    Remote *&remote = mRemotes[message.host()];
+    if (!remote)
+        remote = new Remote(message.host(), message.port());;
+    if (!mFirstRemote) {
+        assert(!mLastRemote);
+        mFirstRemote = mLastRemote = remote;
+    } else if (remote != mFirstRemote) {
+        if (remote == mLastRemote) {
+            assert(remote->prev);
+            assert(!remote->next);
+            mLastRemote = remote->prev;
+            mLastRemote->next = 0;
+        } else if (remote->next) {
+            assert(remote->prev);
+            remote->prev->next = remote->next;
+            remote->next->prev = remote->prev;
+        }
+        remote->next = mFirstRemote;
+        mFirstRemote->prev = remote;
+        mFirstRemote = remote;
     }
-    const int jobs = std::min(available, message.numJobs());
-    if (jobs) {
-        fetchRemoteJobs(message.host(), message.port(), jobs);
-    }
+    work();
 }
 
 void Server::handleProxyJobAnnouncementMessage(const ProxyJobAnnouncementMessage &message, Connection *conn)
 {
-    const JobAnnouncementMessage msg(message.numJobs(), conn->client()->peerName(), message.port());
+    const JobAnnouncementMessage msg(conn->client()->peerName(), message.port());
     if (debugMulti) {
-        error() << "Sending proxy job announcement" << conn->client()->peerName() << message.port() << message.numJobs();
+        error() << "Sending proxy job announcement" << conn->client()->peerName() << message.port();
     }
 
     for (auto client : mClients) {
@@ -1608,6 +1642,7 @@ void Server::onReschedule()
     const uint64_t now = Rct::monoMs();
     auto it = mProcessingJobs.begin();
     bool restartTimer = false;
+    bool doWork = false;
     while (it != mProcessingJobs.end()) {
         const std::shared_ptr<IndexerJob>& job = it->second;
         assert(!(job->flags & (IndexerJob::CompleteRemote|IndexerJob::CompleteLocal)));
@@ -1622,7 +1657,7 @@ void Server::onReschedule()
                 job->flags |= IndexerJob::Rescheduled;
                 assert(!slowContains(mPending, job));
                 mPending.push_back(job);
-                startNextJob();
+                doWork = true;
             } else {
                 restartTimer = true;
             }
@@ -1631,6 +1666,8 @@ void Server::onReschedule()
     }
     if (restartTimer)
         startRescheduleTimer();
+    if (doWork)
+        work();
 }
 
 void Server::onMulticastReadyRead(const SocketClient::SharedPtr &socket,
@@ -1672,53 +1709,19 @@ void Server::onMulticastReadyRead(const SocketClient::SharedPtr &socket,
     }
 }
 
-inline int Server::availableJobSlots(JobSlotsMode mode) const
-{
-    const int count = std::max(mOptions.jobCount - (mThreadPool ? mThreadPool->busyThreads() : 0), 0);
-    if (mode == Local)
-        return count;
-    int ret = mLocalJobs.size();
-    for (auto it : mPendingJobRequests) {
-        ret += it.second;
-    }
-    return std::max(0, count - ret);
-}
-
-void Server::fetchRemoteJobs(const String& ip, uint16_t port, uint16_t jobs)
-{
-    if (debugMulti)
-        error() << "connecting to" << ip << port;
-    // Could cache these connections. We could at least use the server
-    // connection if it's the server we're connecting to.
-    Connection* conn = new Connection;
-    if (!conn->connectTcp(ip, port)) {
-        delete conn;
-        return;
-    }
-    if (debugMulti)
-        error() << "asking for" << jobs << "jobs";
-    conn->newMessage().connect(std::bind(&Server::onNewMessage, this, std::placeholders::_1, std::placeholders::_2));
-    conn->disconnected().connect(std::bind(&Server::onConnectionDisconnected, this, std::placeholders::_1));
-    conn->finished().connect(std::bind([this, conn]() { mPendingJobRequests.remove(conn); conn->close(); EventLoop::deleteLater(conn); }));
-    conn->send(JobRequestMessage(jobs));
-    assert(!mPendingJobRequests.contains(conn));
-    mPendingJobRequests[conn] = jobs;
-}
-
 void Server::addJob(const std::shared_ptr<IndexerJob> &job)
 {
     warning() << "adding job" << job->sourceFile;
     assert(job);
     assert(!(job->flags & (IndexerJob::CompleteRemote|IndexerJob::CompleteLocal)));
     mPending.push_back(job);
-    if (job->flags & IndexerJob::FromRemote)
-        ++mRemotePending;
-    startNextJob();
+    work();
 }
 
+#if 0
 void Server::startNextJob()
 {
-    while (!mPending.isEmpty() && mLocalJobs.size() < availableJobSlots(Local)) {
+    while (!mPending.isEmpty() && mLocalJobs.size() < availableJobSlots(Slots_Local)) {
         std::shared_ptr<IndexerJob> job = mPending.first();
         assert(job);
         if (!(job->flags & (IndexerJob::CompleteLocal|IndexerJob::CompleteRemote))) {
@@ -1741,21 +1744,22 @@ void Server::startNextJob()
         }
         mPending.pop_front();
     }
-    if (mOptions.options & NoJobServer)
+    if (mOptions.options & NoJobServer || mAnnounced || mPending.size() <= mRemotePending)
         return;
+    mAnnounced = true;
 
-    const int jobs = mPending.size() - mRemotePending;
     if (mServerConnection) {
-        mServerConnection->send(ProxyJobAnnouncementMessage(jobs, mOptions.tcpPort));
+        mServerConnection->send(ProxyJobAnnouncementMessage(mOptions.tcpPort));
     } else {
-        const JobAnnouncementMessage msg(mPending.size() - mRemotePending, mHostName, mOptions.tcpPort);
+        const JobAnnouncementMessage msg(mHostName, mOptions.tcpPort);
         for (auto client : mClients) {
             client->send(msg);
         }
     }
     if (debugMulti)
-        error() << "announcing" << mPending.size() - mRemotePending << "jobs";
+        error() << "announcing jobs";
 }
+#endif
 
 void Server::onLocalJobFinished(Process *process)
 {
@@ -1768,7 +1772,6 @@ void Server::onLocalJobFinished(Process *process)
     if (debugMulti)
         error() << "job finished" << job->flags << process->errorString() << process->readAllStdErr();
     if (job->flags & IndexerJob::FromRemote) {
-        --mRemotePending;
         error() << "Built remote job" << job->sourceFile.toTilde() << "for"
                 << job->destination
                 << "in" << (Rct::monoMs() - it->second.second) << "ms";
@@ -1792,9 +1795,7 @@ void Server::onLocalJobFinished(Process *process)
     mProcessingJobs.erase(job->id);
     mLocalJobs.erase(it);
     EventLoop::deleteLater(process);
-    if (!(mOptions.options & NoJobServer))
-        startPreprocessJobs();
-    startNextJob();
+    work();
 }
 
 void Server::stopServers()
@@ -1852,23 +1853,6 @@ void Server::codeCompleteAt(const QueryMessage &query, Connection *conn)
     mCompletionThread->completeAt(source, loc, flags, query.unsavedFiles().value(path));
     conn->finish();
     error() << "Got completion" << query.type() << path << line << column;
-}
-
-int Server::startPreprocessJobs()
-{
-    assert(!(mOptions.options & NoJobServer));
-    assert(mThreadPool);
-    int ret = 0;
-    int size = mPending.size() + mThreadPool->backlogSize() + mThreadPool->busyThreads() + mProcessingJobs.size();
-    enum { MaxPending = 50 };
-    while (size < MaxPending && !mPendingPreprocessJobs.isEmpty()) {
-        ++ret;
-        ++size;
-        std::shared_ptr<PreprocessJob> job = mPendingPreprocessJobs.front();
-        mPendingPreprocessJobs.pop_front();
-        mThreadPool->start(job);
-    }
-    return ret;
 }
 
 static inline void drain(const SocketClient::SharedPtr &sock)
@@ -1981,4 +1965,136 @@ void Server::startRescheduleTimer()
 {
     if (!mRescheduleTimer.isRunning())
         mRescheduleTimer.restart(mOptions.rescheduleTimeout, Timer::SingleShot);
+}
+
+void Server::work()
+{
+    int jobs = mOptions.jobCount;
+    if (mThreadPool) {
+        enum { MaxPending = 50 };
+        int pending = std::min(mPendingPreprocessJobs.size(), MaxPending - mThreadPool->backlogSize() + mThreadPool->busyThreads());
+        while (pending > 0) {
+            std::shared_ptr<PreprocessJob> job = mPendingPreprocessJobs.front();
+            mPendingPreprocessJobs.pop_front();
+            mThreadPool->start(job);
+            --pending;
+        }
+
+        jobs -= (mThreadPool->busyThreads() + mThreadPool->backlogSize());
+    }
+
+    // printf("WORK CALLED: preprocessing %d backlog %d pending preprocess %d active jobs %d pending jobs %d\n",
+    //        mThreadPool ? mThreadPool->busyThreads() : 0, mThreadPool ? mThreadPool->backlogSize() : 0,
+    //        mPendingPreprocessJobs.size(), mLocalJobs.size(), mLocalJobs.size());
+
+    jobs -= mLocalJobs.size();
+    for (auto it : mPendingJobRequests) {
+        jobs -= it.second;
+    }
+
+    if (debugMulti) {
+        error() << "Working. Available jobs" << jobs;
+    }
+
+    if (jobs <= 0)
+        return;
+
+    auto it = mPending.begin();
+    bool hasAnnouncables = false;
+    while (it != mPending.end()) {
+        auto job = *it;
+        assert(job);
+        if (job->flags & (IndexerJob::CompleteLocal|IndexerJob::CompleteRemote)) {
+            it = mPending.erase(it);
+            continue;
+        }
+
+        if (!(job->flags & IndexerJob::FromRemote)) {
+            if (!project(job->project)) {
+                it = mPending.erase(it);
+                continue;
+            }
+            hasAnnouncables = true;
+        }
+
+        if (jobs > 0) {
+            if (!(job->flags & IndexerJob::FromRemote))
+                mProcessingJobs[job->id] = job;
+            job->flags &= ~IndexerJob::Rescheduled;
+            it = mPending.erase(it);
+            --jobs;
+            if (job->launchProcess()) {
+                if (debugMulti)
+                    error() << "started job locally for" << job->sourceFile << job->id;
+                mLocalJobs[job->process] = std::make_pair(job, Rct::monoMs());
+                assert(job->process);
+                job->process->finished().connect(std::bind(&Server::onLocalJobFinished, this,
+                                                           std::placeholders::_1));
+            } else {
+                mLocalJobs[job->process] = std::make_pair(job, Rct::monoMs());
+                EventLoop::eventLoop()->callLater(std::bind(&Server::onLocalJobFinished, this, std::placeholders::_1), job->process);
+            }
+        } else {
+            ++it;
+        }
+    }
+
+    if (!(mOptions.options & NoJobServer))
+        return;
+
+    if (!mAnnounced && hasAnnouncables) {
+        mAnnounced = true;
+        if (mServerConnection) {
+            mServerConnection->send(ProxyJobAnnouncementMessage(mOptions.tcpPort));
+        } else {
+            const JobAnnouncementMessage msg(mHostName, mOptions.tcpPort);
+            for (auto client : mClients) {
+                client->send(msg);
+            }
+        }
+        if (debugMulti)
+            error() << "announcing jobs";
+    }
+
+    if (jobs <= 0)
+        return;
+
+    int remoteCount = mRemotes.size();
+    while (remoteCount) {
+        // Could cache these connections. We could at least use the server
+        // connection if it's the server we're connecting to.
+        Remote *remote = mFirstRemote;
+        if (remote != mLastRemote) {
+            if (remote == mFirstRemote) {
+                assert(!remote->prev);
+                assert(remote->next);
+                mFirstRemote = remote->next;
+                mFirstRemote->prev = 0;
+            } else {
+                assert(remote->prev);
+                remote->prev->next = remote->next;
+                remote->next->prev = remote->prev;
+            }
+            remote->next = 0;
+            remote->prev = mLastRemote;
+            mLastRemote->next = remote;
+            mLastRemote = remote;
+        }
+
+        --remoteCount;
+        Connection *conn = new Connection;
+        if (!conn->connectTcp(mFirstRemote->host, mFirstRemote->port)) {
+            delete conn;
+        } else {
+            if (debugMulti)
+                error() << "asking for" << jobs << "jobs";
+            conn->newMessage().connect(std::bind(&Server::onNewMessage, this, std::placeholders::_1, std::placeholders::_2));
+            conn->disconnected().connect(std::bind(&Server::onConnectionDisconnected, this, std::placeholders::_1));
+            conn->finished().connect(std::bind([this, conn]() { mPendingJobRequests.remove(conn); conn->close(); EventLoop::deleteLater(conn); }));
+            conn->send(JobRequestMessage(jobs));
+            assert(!mPendingJobRequests.contains(conn)); // ### is this certain?
+            mPendingJobRequests[conn] = jobs;
+            break;
+        }
+    }
 }

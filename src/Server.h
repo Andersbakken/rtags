@@ -180,18 +180,10 @@ private:
                               uint16_t port, Buffer &&buffer);
     void handleMulticastData(const String &ip, uint16_t port, const unsigned char *data, int size, Connection *src);
     void onLocalJobFinished(Process *process);
-    void startNextJob();
-    int startPreprocessJobs();
-    void fetchRemoteJobs(const String& ip, uint16_t port, uint16_t jobs);
+    void work();
     void onHttpClientReadyRead(const SocketClient::SharedPtr &socket);
     void connectToServer();
     void startRescheduleTimer();
-
-    enum JobSlotsMode {
-        Local,
-        Remote
-    };
-    int availableJobSlots(JobSlotsMode mode) const;
 
     typedef Hash<Path, std::shared_ptr<Project> > ProjectsMap;
     ProjectsMap mProjects;
@@ -211,7 +203,6 @@ private:
     Hash<Process*, std::pair<std::shared_ptr<IndexerJob>, uint64_t> > mLocalJobs;
     Hash<Connection*, uint16_t> mPendingJobRequests;
     ThreadPool *mThreadPool;
-    unsigned int mRemotePending;
     Connection *mServerConnection;
     Hash<SocketClient::SharedPtr, std::shared_ptr<HttpLogObject> > mHttpClients;
     Set<Connection*> mClients;
@@ -219,6 +210,17 @@ private:
     String mHostName;
 
     CompletionThread *mCompletionThread;
+
+    struct Remote {
+        Remote(const String &h, uint16_t p)
+            : next(0), prev(0), host(h), port(p)
+        {}
+        Remote *next, *prev;
+        std::string host;
+        uint16_t port;
+    } *mFirstRemote, *mLastRemote;
+    bool mAnnounced;
+    Hash<std::string, Remote *> mRemotes;
 };
 
 #endif

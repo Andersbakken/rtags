@@ -21,46 +21,76 @@
 #include "Server.h"
 
 JobResponseMessage::JobResponseMessage()
-    : RTagsMessage(MessageId), flags(0)
+    : RTagsMessage(MessageId), mPort(0), mFinished(false)
 {
 }
 
-JobResponseMessage::JobResponseMessage(const std::shared_ptr<IndexerJob> &job, uint16_t p)
-    : RTagsMessage(MessageId), port(p)
+JobResponseMessage::JobResponseMessage(const List<std::shared_ptr<IndexerJob> > &jobs, uint16_t p, bool finished)
+    : RTagsMessage(MessageId), mPort(p), mFinished(finished)
 {
-    cpp = job->cpp;
-    project = job->project;
-    source = job->source;
-    sourceFile = job->sourceFile;
-    id = job->id;
-    flags = job->flags;
-    std::shared_ptr<Project> proj = Server::instance()->project(project);
-    assert(proj);
-    blockedFiles = proj->visitedFiles();
+    const int count = jobs.size();
+    mJobData.resize(count);
+
+    for (int i=0; i<count; ++i) {
+        const std::shared_ptr<IndexerJob> &job = jobs[i];
+        auto &jobData = mJobData[i];
+        jobData.cpp = job->cpp;
+        jobData.project = job->project;
+        jobData.source = job->source;
+        jobData.sourceFile = job->sourceFile;
+        jobData.id = job->id;
+        jobData.flags = job->flags;
+        if (auto proj = Server::instance()->project(job->project)) {
+            // not sure if the else case should be possible
+            jobData.blockedFiles = proj->visitedFiles();
+        }
+    }
 }
 
 void JobResponseMessage::encode(Serializer &serializer) const
 {
-    serializer << *cpp << project << source << sourceFile << blockedFiles << port << id << flags;
+    serializer << mPort << mFinished << static_cast<uint32_t>(mJobData.size());
+    for (const auto &job : mJobData) {
+        serializer << *job.cpp << job.project << job.source << job.sourceFile
+                   << job.id << job.flags << job.blockedFiles;
+    }
 }
 
 void JobResponseMessage::decode(Deserializer &deserializer)
 {
-    cpp.reset(new Cpp);
-    deserializer >> *cpp >> project >> source >> sourceFile >> blockedFiles >> port >> id >> flags;
+    assert(mJobData.isEmpty());
+    uint32_t count;
+    deserializer >> mPort >> mFinished >> count;
+    mJobData.resize(count);
+
+    for (uint32_t i=0; i<count; ++i) {
+        JobData &jobData = mJobData[i];
+        jobData.cpp.reset(new Cpp);
+        deserializer >> *jobData.cpp >> jobData.project >> jobData.source >> jobData.sourceFile
+                     >> jobData.id >> jobData.flags >> jobData.blockedFiles;
+    }
 }
 
-void JobResponseMessage::toIndexerJob(std::shared_ptr<IndexerJob>& job, Connection* conn) const
+List<std::shared_ptr<IndexerJob> > JobResponseMessage::jobs(const String &host) const
 {
-    job->flags = flags;
-    job->flags &= ~IndexerJob::Remote;
-    job->flags |= IndexerJob::FromRemote;
-    job->cpp = cpp;
-    job->project = project;
-    job->source = source;
-    job->sourceFile = sourceFile;
-    job->destination = conn->client()->peerName();
-    job->port = port;
-    job->blockedFiles = blockedFiles;
-    job->id = id;
+    List<std::shared_ptr<IndexerJob> > ret(mJobData.size());
+    assert(!ret.isEmpty());
+    const int count = ret.size();
+    for (int i=0; i<count; ++i) {
+        auto &job = ret[i];
+        const auto &jobData = mJobData[i];
+        job.reset(new IndexerJob);
+        job->flags = jobData.flags;
+        job->flags &= ~IndexerJob::Remote;
+        job->flags |= IndexerJob::FromRemote;
+        job->cpp = jobData.cpp;
+        job->project = jobData.project;
+        job->source = jobData.source;
+        job->sourceFile = jobData.sourceFile;
+        job->destination = host;
+        job->port = mPort;
+        job->blockedFiles = jobData.blockedFiles;
+        job->id = jobData.id;
+    }
+    return ret;
 }

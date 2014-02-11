@@ -23,25 +23,23 @@ class JobAnnouncementMessage : public RTagsMessage
 public:
     enum { MessageId = JobAnnouncementId };
 
-    JobAnnouncementMessage(int jobs = 0, const String &host = String(), uint16_t port = 0)
-        : RTagsMessage(MessageId), mNumJobs(jobs), mHost(host), mPort(port)
+    JobAnnouncementMessage(const String &host = String(), uint16_t port = 0)
+        : RTagsMessage(MessageId), mHost(host), mPort(port)
     {
     }
 
-    int numJobs() const { return mNumJobs; }
     String host() const { return mHost; }
     uint16_t port() const { return mPort; }
 
     virtual void encode(Serializer &serializer) const
     {
-        serializer << mNumJobs << mHost << mPort;
+        serializer << mHost << mPort;
     }
     virtual void decode(Deserializer &deserializer)
     {
-        deserializer >> mNumJobs >> mHost >> mPort;
+        deserializer >> mHost >> mPort;
     }
 private:
-    int mNumJobs;
     String mHost;
     uint16_t mPort;
 };

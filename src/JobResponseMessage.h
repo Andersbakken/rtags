@@ -31,21 +31,27 @@ public:
     enum { MessageId = JobResponseId };
 
     JobResponseMessage();
-    JobResponseMessage(const std::shared_ptr<IndexerJob>& job, uint16_t p);
-    void encode(Serializer &serializer) const;
-    void decode(Deserializer &deserializer);
+    JobResponseMessage(const List<std::shared_ptr<IndexerJob> >& job, uint16_t p, bool finished);
 
-    void toIndexerJob(std::shared_ptr<IndexerJob>& job, Connection* conn) const;
+    virtual void encode(Serializer &serializer) const;
+    virtual void decode(Deserializer &deserializer);
 
+    bool isFinished() const { return mFinished; }
+    List<std::shared_ptr<IndexerJob> > jobs(const String &host) const;
 private:
-    std::shared_ptr<Cpp> cpp;
-    Path project;
-    Source source;
-    Path sourceFile;
-    uint16_t port;
-    Hash<Path, uint32_t> blockedFiles;
-    uint64_t id;
-    uint32_t flags;
+    struct JobData {
+        std::shared_ptr<Cpp> cpp;
+        Path project;
+        Source source;
+        Path sourceFile;
+        Hash<Path, uint32_t> blockedFiles;
+        uint64_t id;
+        uint32_t flags;
+    };
+
+    uint16_t mPort;
+    bool mFinished;
+    List<JobData> mJobData;
 };
 
 #endif

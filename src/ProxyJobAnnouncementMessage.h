@@ -23,25 +23,22 @@ class ProxyJobAnnouncementMessage : public RTagsMessage
 public:
     enum { MessageId = ProxyJobAnnouncementId };
 
-    ProxyJobAnnouncementMessage(int jobs = 0, uint16_t port = 0)
-        : RTagsMessage(MessageId), mNumJobs(jobs), mPort(port)
+    ProxyJobAnnouncementMessage(uint16_t port = 0)
+        : RTagsMessage(MessageId), mPort(port)
     {
     }
 
-    int numJobs() const { return mNumJobs; }
     uint16_t port() const { return mPort; }
 
     virtual void encode(Serializer &serializer) const
     {
-        serializer << mNumJobs << mPort;
+        serializer << mPort;
     }
     virtual void decode(Deserializer &deserializer)
     {
-        deserializer >> mNumJobs >> mPort;
+        deserializer >> mPort;
     }
 private:
-    int mNumJobs;
-    String mHost;
     uint16_t mPort;
 };
 
