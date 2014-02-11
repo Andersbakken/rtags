@@ -1484,9 +1484,8 @@ void Server::handleJobAnnouncementMessage(const JobAnnouncementMessage &message)
 {
     const int available = availableJobSlots(Remote);
     if (debugMulti) {
-        error("available jobs %d available %d local %d pending %d processcount %d from %s",
-              available, availableJobSlots(Remote), mLocalJobs.size(), mPendingJobRequests.size(),
-              mOptions.jobCount, message.host().constData());
+        error("%d jobs announced by %s: available slots %d/%d available",
+              message.numJobs(), message.host().constData(), available, mOptions.jobCount);
     }
     const int jobs = std::min(available, message.numJobs());
     if (jobs) {
