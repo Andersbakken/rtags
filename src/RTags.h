@@ -170,9 +170,4 @@ String filterPreprocessor(const Path &path);
 Path findProjectRoot(const Path &path);
 }
 
-#define eintrwrap(VAR, BLOCK)                   \
-    do {                                        \
-        VAR = BLOCK;                            \
-    } while (VAR == -1 && errno == EINTR);
-
 #endif
