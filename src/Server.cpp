@@ -1409,7 +1409,8 @@ void Server::suspendFile(const QueryMessage &query, Connection *conn)
 void Server::handleJobRequestMessage(const JobRequestMessage &message, Connection *conn)
 {
     if (debugMulti)
-        error() << "got a request for" << message.numJobs() << "jobs";
+        error() << "got a request for" << message.numJobs() << "jobs from" << conn->client()->peerName()
+                << mPending.size() << "potential jobs here";
     auto it = mPending.begin();
     List<std::shared_ptr<IndexerJob> > jobs;
     bool finished = true;
@@ -2010,10 +2011,9 @@ void Server::work()
     if (mOptions.options & NoJobServer)
         return;
 
-    if (debugMulti)
-        error() << "announced" << mAnnounced << announcables;
-
     if (!mAnnounced && announcables) {
+        if (debugMulti)
+            error() << "announced" << mAnnounced << announcables;
         mAnnounced = true;
         if (mServerConnection) {
             mServerConnection->send(ProxyJobAnnouncementMessage(mOptions.tcpPort));
@@ -2023,8 +2023,8 @@ void Server::work()
                 client->send(msg);
             }
         }
-        if (debugMulti)
-            error() << "announcing jobs";
+    } else if (debugMulti) {
+        error() << (mAnnounced ? "Already announced" : "Nothing to announce");
     }
 
     if (jobs <= 0)
