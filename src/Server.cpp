@@ -1982,6 +1982,8 @@ void Server::work()
             log << "remote" << ++idx << "of" << mRemotes.size() << remote->host;
         }
     }
+    if (mOptions.options & NoLocalCompiles)
+        jobs = std::min(jobs, 0);
 
     if (jobs <= 0 && mOptions.options & NoJobServer)
         return;
@@ -2031,7 +2033,7 @@ void Server::work()
 
     if (!mAnnounced && announcables) {
         if (debugMulti)
-            error() << "announced" << mAnnounced << announcables;
+            error() << "announcing because we have" << announcables << "announcables";
         mAnnounced = true;
         if (mServerConnection) {
             mServerConnection->send(ProxyJobAnnouncementMessage(mOptions.tcpPort));

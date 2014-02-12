@@ -97,6 +97,7 @@ static void usage(FILE *f)
             "  --allow-multiple-sources|-m                Without this setting different sources will be merged for each source file.\n"
             "  --unload-timer|-u [arg]                    Number of minutes to wait before unloading non-current projects (disabled by default).\n"
             "  --job-count|-j [arg]                       Spawn this many concurrent processes for indexing (default %d).\n"
+            "  --no-local-compiles|-J                     Don't run rp ever. For debugging.\n"
             "  --watch-system-paths|-w                    Watch system paths for changes.\n"
             "  --rp-visit-file-timeout|-t [arg]           Timeout for rp visitfile commands in ms (0 means no timeout) (default " STR(DEFAULT_RP_VISITFILE_TIMEOUT) ").\n"
             "  --rp-indexer-message-timeout|-T [arg]      Timeout for rp indexer-message in ms (0 means no timeout) (default " STR(DEFAULT_RP_INDEXER_MESSAGE_TIMEOUT) ").\n"
@@ -133,6 +134,7 @@ int main(int argc, char** argv)
         { "append", no_argument, 0, 'A' },
         { "verbose", no_argument, 0, 'v' },
         { "job-count", required_argument, 0, 'j' },
+        { "no-local-compiles", no_argument, 0, 'J' },
         { "clean-slate", no_argument, 0, 'C' },
         { "disable-sighandler", no_argument, 0, 'x' },
         { "silent", no_argument, 0, 'S' },
@@ -466,6 +468,9 @@ int main(int argc, char** argv)
                 fprintf(stderr, "Can't parse argument to -T %s.\n", optarg);
                 return 1;
             }
+            break;
+        case 'J':
+            serverOpts.options |= Server::NoLocalCompiles;
             break;
         case 'j':
             serverOpts.jobCount = atoi(optarg);

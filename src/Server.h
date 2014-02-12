@@ -73,8 +73,8 @@ public:
         JobServer = 0x0200,
         NoJobServer = 0x0400,
         NoCompression = 0x0800,
-        CompressionAlways = 0x1000
-
+        CompressionAlways = 0x1000,
+        NoLocalCompiles = 0x2000
     };
     struct Options {
         Options()
@@ -206,7 +206,6 @@ private:
     LinkedList<std::shared_ptr<PreprocessJob> > mPendingPreprocessJobs;
     Hash<uint64_t, std::shared_ptr<IndexerJob> > mProcessingJobs;
     Hash<Process*, std::pair<std::shared_ptr<IndexerJob>, uint64_t> > mLocalJobs;
-    Hash<Connection*, uint16_t> mPendingJobRequests;
     ThreadPool *mThreadPool;
     Connection *mServerConnection;
     Hash<SocketClient::SharedPtr, std::shared_ptr<HttpLogObject> > mHttpClients;
@@ -216,6 +215,9 @@ private:
 
     CompletionThread *mCompletionThread;
 
+    // ### these really should be in the Remote somehow. The problem is that we
+    // ### can currently have multiple for the same remote
+    Hash<Connection*, uint16_t> mPendingJobRequests;
     struct Remote {
         Remote(const String &h, uint16_t p)
             : next(0), prev(0), host(h), port(p)
