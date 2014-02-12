@@ -1545,7 +1545,7 @@ void Server::handleProxyJobAnnouncementMessage(const ProxyJobAnnouncementMessage
 {
     const JobAnnouncementMessage msg(conn->client()->peerName(), message.port());
     if (debugMulti) {
-        error() << "Sending proxy job announcement" << conn->client()->peerName() << message.port();
+        error() << "Sending proxy job announcement" << conn->client()->peerName();
     }
 
     for (auto client : mClients) {
@@ -1557,7 +1557,7 @@ void Server::handleProxyJobAnnouncementMessage(const ProxyJobAnnouncementMessage
 
 void Server::handleClientMessage(const ClientMessage &, Connection *conn)
 {
-    error() << "Got a client connected from" << conn->client()->peerString();
+    error() << "Got a client connected from" << conn->client()->peerName();
     mClients.insert(conn);
 }
 
