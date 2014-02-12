@@ -63,6 +63,7 @@ static void sigIntHandler(int)
 #define DEFAULT_RESCHEDULE_TIMEOUT 15000
 #define XSTR(s) #s
 #define STR(s) XSTR(s)
+static size_t defaultStackSize = 0;
 
 static void usage(FILE *f)
 {
@@ -114,12 +115,22 @@ static void usage(FILE *f)
             "  --compression|-Z [arg]                     Compression type. Arg should be \"always\", \"remote\" or \"none\" (\"remote\" is default).\n"
             "  --http-port|-H [arg]                       Use this port for http (default " STR(DEFAULT_RDM_HTTP_PORT) ").\n"
             "  --reschedule-timeout|-R                    Timeout for rescheduling remote jobs (default " STR(DEFAULT_RESCHEDULE_TIMEOUT) ").\n"
-            "  --thread-stack-size|-k [arg]               Set stack size for threadpool to this.\n",
-            std::max(2, ThreadPool::idealThreadCount()));
+            "  --thread-stack-size|-k [arg]               Set stack size for threadpool to this (default %zu).\n",
+            std::max(2, ThreadPool::idealThreadCount()), defaultStackSize);
 }
 
 int main(int argc, char** argv)
 {
+    {
+        pthread_attr_t attr;
+        pthread_attr_init(&attr);
+        pthread_attr_getstacksize(&attr, &defaultStackSize);
+        pthread_attr_destroy(&attr);
+        if (defaultStackSize < 1024 * 1024 * 4) { // 4 megs should be enough for everyone right?
+            defaultStackSize = 1024 * 1024 * 4;
+        }
+    }
+
     Rct::findExecutablePath(*argv);
 
     struct option opts[] = {
@@ -269,6 +280,7 @@ int main(int argc, char** argv)
     }
 
     Server::Options serverOpts;
+    serverOpts.threadStackSize = defaultStackSize;
     serverOpts.socketFile = String::format<128>("%s.rdm", Path::home().constData());
     serverOpts.jobCount = std::max(2, ThreadPool::idealThreadCount());
     serverOpts.rpVisitFileTimeout = DEFAULT_RP_VISITFILE_TIMEOUT;
