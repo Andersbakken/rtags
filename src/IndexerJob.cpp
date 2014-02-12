@@ -30,7 +30,6 @@ IndexerJob::~IndexerJob()
 bool IndexerJob::launchProcess()
 {
     assert(cpp);
-    assert(!cpp->preprocessed.isEmpty());
     static Path rp;
     if (rp.isEmpty()) {
         rp = Rct::executablePath().parentDir() + "rp";
