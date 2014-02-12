@@ -195,22 +195,26 @@ Location ClangIndexer::createLocation(const Path &sourceFile, unsigned line, uns
         resolved = sourceFile;
     VisitFileMessage msg(resolved, mProject, mData->key);
 
-    mVisitFileResponseMessageFileId = 0;
+    mVisitFileResponseMessageFileId = UINT_MAX;
     mVisitFileResponseMessageVisit = false;
     mConnection.send(msg);
+    StopWatch sw;
     EventLoop::eventLoop()->exec(mVisitFileTimeout);
-    id = mVisitFileResponseMessageFileId;
-    if (!id) {
-        error() << "Error getting fileId for" << resolved << mLastCursor;
-        error() << "Visited:";
-        for (auto it : mCpp->visited) {
-            error() << it.first;
-        }
-        error() << "Blocked:";
-        for (auto it : mBlockedFiles) {
-            error() << it.first;
+    switch (mVisitFileResponseMessageFileId) {
+    case 0:
+        // rdm told us not to bother with this compile anymore
+        exit(0);
+        break;
+    case UINT_MAX:
+        // timed out.
+        if (mVisitFileResponseMessageFileId == UINT_MAX) {
+            error() << "Error getting fileId for" << resolved << mLastCursor
+                    << sw.elapsed() << mVisitFileTimeout;
         }
         exit(1);
+    default:
+        id = mVisitFileResponseMessageFileId;
+        break;
     }
     mData->visited[id] = mVisitFileResponseMessageVisit;
     if (mVisitFileResponseMessageVisit)
