@@ -1439,10 +1439,14 @@ void Server::handleJobRequestMessage(const JobRequestMessage &message, Connectio
             ++it;
         }
     }
+    if (debugMulti) {
+        error() << "Sending" << jobs.size() << "jobs to" << conn->client()->peerName()
+                << "finished" << finished << "asked for" << message.numJobs();
+    }
     conn->send(JobResponseMessage(jobs, mOptions.tcpPort, finished));
-    if (finished)
-        mAnnounced = false;
-    conn->sendFinished().connect([jobs,this](Connection*) {
+    conn->sendFinished().connect([jobs,this,finished](Connection*) {
+            if (finished)
+                mAnnounced = false;
             for (auto &job : jobs) {
                 mProcessingJobs[job->id] = job;
                 job->flags |= IndexerJob::Remote;
