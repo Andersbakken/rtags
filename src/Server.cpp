@@ -871,17 +871,17 @@ void Server::status(const QueryMessage &query, Connection *conn)
 
 void Server::isIndexed(const QueryMessage &query, Connection *conn)
 {
-    int ret = 0;
+    String ret = "unknown";
     const Match match = query.match();
     std::shared_ptr<Project> project = updateProjectForLocation(match);
     if (project) {
         bool indexed = false;
         if (project->match(match, &indexed))
-            ret = indexed ? 1 : 2;
+            ret = indexed ? "indexed" : "managed";
     }
 
-    error("=> %d", ret);
-    conn->write<16>("%d", ret);
+    error("=> %s", ret.constData());
+    conn->write(ret);
     conn->finish();
 }
 

@@ -1474,8 +1474,8 @@ References to references will be treated as references to the referenced symbol"
     (with-temp-buffer
       (rtags-call-rc :path path "-T" path :noerror t)
       (goto-char (point-min))
-      (cond ((looking-at "1") 'rtags-indexed)
-            ((looking-at "2") 'rtags-file-managed)
+      (cond ((looking-at "indexed") 'rtags-indexed)
+            ((looking-at "managed") 'rtags-file-managed)
             (t nil))))
   )
 
