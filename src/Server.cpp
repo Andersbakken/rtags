@@ -1412,7 +1412,7 @@ void Server::handleJobRequestMessage(const JobRequestMessage &message, Connectio
         error() << "got a request for" << message.numJobs() << "jobs";
     auto it = mPending.begin();
     List<std::shared_ptr<IndexerJob> > jobs;
-    bool finished = false;
+    bool finished = true;
     while (it != mPending.end()) {
         std::shared_ptr<IndexerJob>& job = *it;
         if (job->flags & (IndexerJob::CompleteLocal|IndexerJob::CompleteRemote)) {
@@ -1432,7 +1432,7 @@ void Server::handleJobRequestMessage(const JobRequestMessage &message, Connectio
             jobs.append(job);
             it = mPending.erase(it);
             if (jobs.size() == message.numJobs()) {
-                finished = true;
+                finished = false;
                 break;
             }
         } else {
