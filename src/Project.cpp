@@ -291,7 +291,7 @@ bool Project::match(const Match &p, bool *indexed) const
     for (int i=0; i<count; ++i) {
         const Path &path = paths[i];
         const uint32_t id = Location::fileId(path);
-        if (isIndexed(id)) {
+        if (id && isIndexed(id)) {
             if (indexed)
                 *indexed = true;
             return true;

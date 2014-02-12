@@ -176,6 +176,7 @@ private:
 
 inline bool Project::visitFile(uint32_t visitFileId, uint64_t key)
 {
+    assert(visitFileId);
     if (mVisitedFiles.insert(visitFileId)) {
         if (key) {
             assert(mJobs.contains(key));
