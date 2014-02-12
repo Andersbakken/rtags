@@ -1739,7 +1739,8 @@ void Server::onLocalJobFinished(Process *process)
     assert(job->process == process);
     error() << process->readAllStdErr() << process->readAllStdOut();
     if (debugMulti)
-        error() << "job finished" << job->flags << process->errorString() << process->readAllStdErr();
+        error() << "job finished" << job->sourceFile << String::format<16>("flags: 0x%x", job->flags)
+                << process->errorString() << process->readAllStdErr();
     if (job->flags & IndexerJob::FromRemote) {
         error() << "Built remote job" << job->sourceFile.toTilde() << "for"
                 << job->destination
