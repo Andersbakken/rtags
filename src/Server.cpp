@@ -1471,7 +1471,7 @@ void Server::handleJobResponseMessage(const JobResponseMessage &message, Connect
     const String host = conn->client()->peerName();
     const auto jobs = message.jobs(host);
     if (debugMulti)
-        error() << "Got jobs from" << host << jobs.size();
+        error() << "Got jobs from" << host << jobs.size() << message.isFinished();
     for (const auto &job : jobs) {
         if (debugMulti)
             error() << "got indexer job with preprocessed" << job->cpp->preprocessed.size() << job->sourceFile;
@@ -1499,6 +1499,7 @@ void Server::handleJobResponseMessage(const JobResponseMessage &message, Connect
                     remote->next->prev = 0;
                 }
             }
+            delete remote;
         }
     }
 }
