@@ -254,8 +254,12 @@ bool Server::init(const Options &options)
 
         mTcpServer->newConnection().connect(std::bind(&Server::onNewConnection, this, std::placeholders::_1));
     }
-    if (!(mOptions.options & NoJobServer))
-        mThreadPool = new ThreadPool(std::max(1, mOptions.jobCount));
+    if (!(mOptions.options & NoJobServer)) {
+        mThreadPool = new ThreadPool(std::max(1, mOptions.jobCount),
+                                     Thread::Normal,
+                                     mOptions.threadStackSize);
+    }
+
     if (mOptions.httpPort) {
         mHttpServer.reset(new SocketServer);
         if (!mHttpServer->listen(mOptions.httpPort)) {

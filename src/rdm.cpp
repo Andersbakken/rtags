@@ -1,17 +1,17 @@
 /* This file is part of RTags.
 
-RTags is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
+   RTags is free software: you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation, either version 3 of the License, or
+   (at your option) any later version.
 
-RTags is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
+   RTags is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
 
-You should have received a copy of the GNU General Public License
-along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
+   You should have received a copy of the GNU General Public License
+   along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 
 #include <rct/EventLoop.h>
 #include <rct/Log.h>
@@ -113,7 +113,8 @@ static void usage(FILE *f)
             "  --multicast-ttl|-B [arg]                   Set multicast TTL to arg.\n"
             "  --compression|-Z [arg]                     Compression type. Arg should be \"always\", \"remote\" or \"none\" (\"remote\" is default).\n"
             "  --http-port|-H [arg]                       Use this port for http (default " STR(DEFAULT_RDM_HTTP_PORT) ").\n"
-            "  --reschedule-timeout|-R                    Timeout for rescheduling remote jobs (default " STR(DEFAULT_RESCHEDULE_TIMEOUT) ").\n",
+            "  --reschedule-timeout|-R                    Timeout for rescheduling remote jobs (default " STR(DEFAULT_RESCHEDULE_TIMEOUT) ").\n"
+            "  --thread-stack-size|-k [arg]               Set stack size for threadpool to this.\n",
             std::max(2, ThreadPool::idealThreadCount()));
 }
 
@@ -162,6 +163,7 @@ int main(int argc, char** argv)
         { "tcp-port", required_argument, 0, 'p' },
         { "http-port", required_argument, 0, 'H' },
         { "reschedule-timeout", required_argument, 0, 'R' },
+        { "thread-stack-size", required_argument, 0, 'k' },
 #ifdef OS_Darwin
         { "filemanager-watch", no_argument, 0, 'M' },
 #else
@@ -388,6 +390,13 @@ int main(int argc, char** argv)
             serverOpts.rescheduleTimeout = atoi(optarg);
             if (serverOpts.rescheduleTimeout <= 0) {
                 fprintf(stderr, "Invalid argument to -R %s\n", optarg);
+                return 1;
+            }
+            break;
+        case 'k':
+            serverOpts.threadStackSize = atoi(optarg);
+            if (serverOpts.threadStackSize < 0) {
+                fprintf(stderr, "Invalid argument to -k %s\n", optarg);
                 return 1;
             }
             break;
