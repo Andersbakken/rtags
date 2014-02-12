@@ -1573,6 +1573,8 @@ void Server::handleVisitFileMessage(const VisitFileMessage &message, Connection 
         resolved = message.file().resolved();
         fileId = Location::insertFile(resolved);
         visit = project->visitFile(fileId, key);
+    } else {
+        error() << "Refused to visit" << !!project << message.file();
     }
     VisitFileResponseMessage msg(fileId, resolved, visit);
     conn->send(msg);
