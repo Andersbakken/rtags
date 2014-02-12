@@ -1957,12 +1957,29 @@ void Server::work()
     //        mPendingPreprocessJobs.size(), mLocalJobs.size(), mLocalJobs.size());
 
     jobs -= mLocalJobs.size();
+    int pendingJobRequestCount = 0;
     for (auto it : mPendingJobRequests) {
-        jobs -= it.second;
+        pendingJobRequestCount += it.second;
     }
+    jobs -= pendingJobRequestCount;
 
     if (debugMulti) {
-        error() << "Working. Available jobs" << jobs;
+        Log log(Error);
+        log << "Working. Open slots" << std::max(0, jobs);
+        if (mThreadPool) {
+            log << "preprocessing" << mThreadPool->busyThreads()
+                << "backlog" << mThreadPool->backlogSize()
+                << "pending" << mPendingPreprocessJobs.size() << "\n";
+        }
+        log << "active jobs" << mLocalJobs.size()
+            << "pending jobs" << mPending.size()
+            << "We have" << (mAnnounced ? "announced" : "not announced") << "\n";
+
+        log << "pending job requests" << pendingJobRequestCount;
+        int idx = 0;
+        for (Remote *remote = mFirstRemote; remote; remote = remote->next) {
+            log << "remote" << ++idx << "of" << mRemotes.size() << remote->host;
+        }
     }
 
     if (jobs <= 0 && mOptions.options & NoJobServer)
