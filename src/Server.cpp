@@ -1658,8 +1658,7 @@ void Server::onReschedule()
     bool restartTimer = false;
     bool doWork = false;
     while (it != mProcessingJobs.end()) {
-        const std::shared_ptr<IndexerJob>& job = it->second;
-        if (job->flags & (IndexerJob::CompleteRemote|IndexerJob::CompleteLocal)) {
+        const std::shared_ptr<IndexerJob>& job = it->second;        if (job->flags & (IndexerJob::CompleteRemote|IndexerJob::CompleteLocal)) {
             // this can happen if we complete it while we're sending it to a
             // remote. Should fix all of these
             it = mProcessingJobs.erase(it);
