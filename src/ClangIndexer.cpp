@@ -1030,13 +1030,14 @@ bool ClangIndexer::diagnose()
 
             const unsigned fixItCount = clang_getDiagnosticNumFixIts(diagnostic);
             for (unsigned f=0; f<fixItCount; ++f) {
-                unsigned line, column;
-                CXString file;
-                CXStringScope fileScope(file);
                 CXSourceRange range;
                 const CXStringScope stringScope = clang_getDiagnosticFixIt(diagnostic, f, &range);
                 CXSourceLocation start = clang_getRangeStart(range);
+
+                unsigned line, column;
+                CXString file;
                 clang_getPresumedLocation(start, &file, &line, &column);
+                CXStringScope fileScope(file);
 
                 const Location loc = createLocation(clang_getCString(file), line, column);
                 if (mData->visited.value(loc.fileId())) {
