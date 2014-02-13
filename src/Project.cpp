@@ -806,7 +806,7 @@ void Project::onTimerFired(Timer* timer)
 
 void Project::startSync()
 {
-    if (mState == Syncing) {
+    if (mState != Syncing) {
         mSyncTimer.restart(SyncTimeout, Timer::SingleShot);
         return;
     }
