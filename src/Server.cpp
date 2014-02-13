@@ -1425,7 +1425,7 @@ void Server::handleJobRequestMessage(const JobRequestMessage &message, Connectio
         } else if (!(job->flags & IndexerJob::FromRemote)) {
             assert(!job->process);
 
-            if (!(mOptions.options & NoCompression) && !(job->cpp->flags & Cpp::Preprocess_Compressed)) {
+            if (mOptions.options & CompressionRemote && !(job->cpp->flags & Cpp::Preprocess_Compressed)) {
                 StopWatch sw;
                 job->cpp->preprocessed = job->cpp->preprocessed.compress();
                 job->cpp->flags |= Cpp::Preprocess_Compressed;

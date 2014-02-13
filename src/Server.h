@@ -72,7 +72,7 @@ public:
         NoFileManagerWatch = 0x0100,
         JobServer = 0x0200,
         NoJobServer = 0x0400,
-        NoCompression = 0x0800,
+        CompressionRemote = 0x0800,
         CompressionAlways = 0x1000,
         NoLocalCompiles = 0x2000
     };

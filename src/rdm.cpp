@@ -112,7 +112,7 @@ static void usage(FILE *f)
             "  --multicast-address|-a [arg]               Use this address for multicast (default " DEFAULT_RDM_MULTICAST_ADDRESS ").\n"
             "  --multicast-port|-P [arg]                  Use this port for multicast (default " STR(DEFAULT_RDM_MULTICAST_PORT) ").\n"
             "  --multicast-ttl|-B [arg]                   Set multicast TTL to arg.\n"
-            "  --compression|-Z [arg]                     Compression type. Arg should be \"always\", \"remote\" or \"none\" (\"remote\" is default).\n"
+            "  --compression|-Z [arg]                     Compression type. Arg should be \"always\", \"remote\" or \"none\" (\"none\" is default).\n"
             "  --http-port|-H [arg]                       Use this port for http (default " STR(DEFAULT_RDM_HTTP_PORT) ").\n"
             "  --reschedule-timeout|-R                    Timeout for rescheduling remote jobs (default " STR(DEFAULT_RESCHEDULE_TIMEOUT) ").\n"
             "  --thread-stack-size|-k [arg]               Set stack size for threadpool to this (default %zu).\n",
@@ -351,9 +351,9 @@ int main(int argc, char** argv)
         case 'Z': {
             if (!strcmp(optarg, "always")) {
                 serverOpts.options |= Server::CompressionAlways;
-            } else if (!strcmp(optarg, "none")) {
-                serverOpts.options |= Server::NoCompression;
-            } else if (strcmp(optarg, "remote")) {
+            } else if (!strcmp(optarg, "remote")) {
+                serverOpts.options |= Server::CompressionRemote;
+            } else if (strcmp(optarg, "none")) {
                 fprintf(stderr, "Invalid arg to -Z, only supports \"always\", \"remote\" or \"none\"\n");
                 return 1;
             }
