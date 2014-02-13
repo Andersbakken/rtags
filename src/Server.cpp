@@ -1659,7 +1659,12 @@ void Server::onReschedule()
     bool doWork = false;
     while (it != mProcessingJobs.end()) {
         const std::shared_ptr<IndexerJob>& job = it->second;
-        assert(!(job->flags & (IndexerJob::CompleteRemote|IndexerJob::CompleteLocal)));
+        if (job->flags & (IndexerJob::CompleteRemote|IndexerJob::CompleteLocal)) {
+            // this can happen if we complete it while we're sending it to a
+            // remote. Should fix all of these
+            it = mProcessingJobs.erase(it);
+            continue;
+        }
         if (!(job->flags & (IndexerJob::Rescheduled|IndexerJob::RunningLocal)) && job->flags & IndexerJob::Remote) {
             if (static_cast<int>(now - job->started) >= mOptions.rescheduleTimeout) {
                 assert(!job->process);
