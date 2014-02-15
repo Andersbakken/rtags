@@ -33,6 +33,10 @@
 (defvar rtags-completion-cache-line-contents "")
 (defvar rtags-last-request-not-indexed nil)
 (defvar rtags-buffer-bookmarks 0)
+(defvar rtags-rdm-includes "")
+(defvar rtags-includes-func 'rtags-dummy-includes-func)
+(defvar rtags-process-flags "--verbose")
+(defvar rtags-process nil)
 
 (defface rtags-warnline
   '((((class color) (background dark)) (:background "blue"))
@@ -2362,5 +2366,60 @@ should use `irony-get-completion-point-anywhere'."
             (message (buffer-string))))))
   )
 
+(defun rtags-dummy-includes-func()
+  "Dummy function, returns rtags-rdm-includes."
+  rtags-rdm-includes)
+
+(defun rdm-includes ()
+      (mapconcat 'identity
+		 (mapcar
+		  (lambda (item)(concat "-I" item))
+		  (rtags-includes-func)) " "))
+
+(defun rtags-command ()
+  "Shell command used to start the rtags-server process."
+  (format "%s %s %s"
+          (rtags-executable-find "rdm")
+          (rdm-includes)
+	  rtags-process-flags))
+
+(defun rtags-cancel-process ()
+  "Stop the rtags process. "
+  (if (not rtags-process)
+      (message "No rtags process running (rdm)...")
+    (delete-process rtags-process)
+    (setq rtags-process nil)
+    (kill-buffer "*rdm*")))
+
+(defun rtags-restart-process ()
+  "Restart the rtags process (rdm)."
+  (rtags-cancel-process)
+  (rtags-start-process-maybe))
+
+(defun rtags-start-process-maybe ()
+  "Launch the rtags process (rdm) if it's not already started."
+  (let ((rtags-server-executable (rtags-executable-find "rdm")))
+    (cond
+     ;; Already stated, nothing need to be done
+     ((processp rtags-process))
+     ;; Executable not found or invalid
+     ((or (null rtags-server-executable)
+	  (null (file-executable-p rtags-server-executable))
+	  (file-directory-p rtags-server-executable))
+      (error "Can't start the process `%s'. Please check the value of the variable `rtags-path'."
+	     rtags-server-executable))
+     ( t
+       (setq rtags-process (start-process-shell-command
+			    "RTags"	     ;process name
+			    "*rdm*"	     ;buffer
+			    (rtags-command))) ;command
+       (set-process-query-on-exit-flag rtags-process nil)
+       (set-process-sentinel rtags-process 'rtags-sentinel)))))
+
+(defun rtags-sentinel (process event)
+  "Watch the activity of rtags process (rdm)."
+  (let ((status (process-status process)))
+    (when (memq status '(exit signal closed failed))
+      (message "rtags process (rdm) stopped..."))
 
 (provide 'rtags)
