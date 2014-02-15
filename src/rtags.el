@@ -2,7 +2,7 @@
 
 ;; Copyright (C) 2011-2014  Jan Erik Hanssen and Anders Bakken
 
-;; Author: Jan Erik Hanssen
+;; Author: Jan Erik Hanssen <jhanssen@gmail.com>
 ;;         Anders Bakken <agbakken@gmail.com>
 ;; URL: https://github.com/Andersbakken/rtags
 
