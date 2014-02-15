@@ -2374,7 +2374,7 @@ should use `irony-get-completion-point-anywhere'."
       (mapconcat 'identity
 		 (mapcar
 		  (lambda (item)(concat "-I" item))
-		  (rtags-includes-func)) " "))
+		  (funcall rtags-includes-func)) " "))
 
 (defun rtags-command ()
   "Shell command used to start the rtags-server process."
