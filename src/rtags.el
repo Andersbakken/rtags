@@ -2420,6 +2420,6 @@ should use `irony-get-completion-point-anywhere'."
   "Watch the activity of rtags process (rdm)."
   (let ((status (process-status process)))
     (when (memq status '(exit signal closed failed))
-      (message "rtags process (rdm) stopped..."))
+      (message "rtags process (rdm) stopped..."))))
 
 (provide 'rtags)
