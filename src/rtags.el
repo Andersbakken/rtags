@@ -814,33 +814,33 @@ return t if rtags is allowed to modify this file"
   (unless map
     (setq map c-mode-base-map))
   (unless prefix
-    (setq prefix "C-x r"))
+    (setq prefix "\C-xr"))
   (ignore-errors
-    (define-key map (format "%s ." prefix) (function rtags-find-symbol-at-point))
-    (define-key map (format "%s ," prefix) (function rtags-find-references-at-point))
-    (define-key map (format "%s v" prefix) (function rtags-find-virtuals-at-point))
-    (define-key map (format "%s V" prefix) (function rtags-print-enum-value-at-point))
-    (define-key map (format "%s /" prefix) (function rtags-find-all-references-at-point))
-    (define-key map (format "%s Y" prefix) (function rtags-cycle-overlays-on-screen))
-    (define-key map (format "%s >" prefix) (function rtags-find-symbol))
-    (define-key map (format "%s <" prefix) (function rtags-find-references))
-    (define-key map (format "%s [" prefix) (function rtags-location-stack-back))
-    (define-key map (format "%s ]" prefix) (function rtags-location-stack-forward))
-    (define-key map (format "%s D" prefix) (function rtags-diagnostics))
-    (define-key map (format "%s G" prefix) (function rtags-guess-function-at-point))
-    (define-key map (format "%s p" prefix) (function rtags-set-current-project))
-    (define-key map (format "%s P" prefix) (function rtags-print-dependencies))
-    (define-key map (format "%s e" prefix) (function rtags-reparse-file))
-    (define-key map (format "%s E" prefix) (function rtags-preprocess-file))
-    (define-key map (format "%s R" prefix) (function rtags-rename-symbol))
-    (define-key map (format "%s U" prefix) (function rtags-print-cursorinfo))
-    (define-key map (format "%s O" prefix) (function rtags-goto-offset))
-    (define-key map (format "%s ;" prefix) (function rtags-find-file))
-    (define-key map (format "%s F" prefix) (function rtags-fixit))
-    (define-key map (format "%s x" prefix) (function rtags-fix-fixit-at-point))
-    (define-key map (format "%s B" prefix) (function rtags-show-rtags-buffer))
-    (define-key map (format "%s I" prefix) (function rtags-imenu))
-    (define-key map (format "%s T" prefix) (function rtags-taglist)))
+    (define-key map (concat prefix ".") (function rtags-find-symbol-at-point))
+    (define-key map (concat prefix ",") (function rtags-find-references-at-point))
+    (define-key map (concat prefix "v") (function rtags-find-virtuals-at-point))
+    (define-key map (concat prefix "V") (function rtags-print-enum-value-at-point))
+    (define-key map (concat prefix "/") (function rtags-find-all-references-at-point))
+    (define-key map (concat prefix "Y") (function rtags-cycle-overlays-on-screen))
+    (define-key map (concat prefix ">") (function rtags-find-symbol))
+    (define-key map (concat prefix "<") (function rtags-find-references))
+    (define-key map (concat prefix "[") (function rtags-location-stack-back))
+    (define-key map (concat prefix "]") (function rtags-location-stack-forward))
+    (define-key map (concat prefix "D") (function rtags-diagnostics))
+    (define-key map (concat prefix "G") (function rtags-guess-function-at-point))
+    (define-key map (concat prefix "p") (function rtags-set-current-project))
+    (define-key map (concat prefix "P") (function rtags-print-dependencies))
+    (define-key map (concat prefix "e") (function rtags-reparse-file))
+    (define-key map (concat prefix "E") (function rtags-preprocess-file))
+    (define-key map (concat prefix "R") (function rtags-rename-symbol))
+    (define-key map (concat prefix "U") (function rtags-print-cursorinfo))
+    (define-key map (concat prefix "O") (function rtags-goto-offset))
+    (define-key map (concat prefix ";") (function rtags-find-file))
+    (define-key map (concat prefix "F") (function rtags-fixit))
+    (define-key map (concat prefix "x") (function rtags-fix-fixit-at-point))
+    (define-key map (concat prefix "B") (function rtags-show-rtags-buffer))
+    (define-key map (concat prefix "I") (function rtags-imenu))
+    (define-key map (concat prefix "T") (function rtags-taglist)))
   )
 
 (if rtags-index-js-files
@@ -2047,5 +2047,63 @@ References to references will be treated as references to the referenced symbol"
             (message (buffer-string))))))
   )
 
+<<<<<<< HEAD
+=======
+(defun rtags-dummy-includes-func()
+  "Dummy function, returns rtags-rdm-includes."
+  rtags-rdm-includes)
+
+(defun rdm-includes ()
+      (mapconcat 'identity
+         (mapcar
+          (lambda (item)(concat "-I" item))
+          (funcall rtags-includes-func)) " "))
+
+(defun rtags-command ()
+  "Shell command used to start the rtags-server process."
+  (format "%s %s %s"
+          (rtags-executable-find "rdm")
+          (rdm-includes)
+      rtags-process-flags))
+
+(defun rtags-cancel-process ()
+  "Stop the rtags process. "
+  (if (not rtags-process)
+      (message "No rtags process running (rdm)...")
+    (delete-process rtags-process)
+    (setq rtags-process nil)
+    (kill-buffer "*rdm*")))
+
+(defun rtags-restart-process ()
+  "Restart the rtags process (rdm)."
+  (rtags-cancel-process)
+  (rtags-start-process-maybe))
+
+(defun rtags-start-process-maybe ()
+  "Launch the rtags process (rdm) if it's not already started."
+  (let ((rtags-server-executable (rtags-executable-find "rdm")))
+    (cond
+     ;; Already stated, nothing need to be done
+     ((processp rtags-process))
+     ;; Executable not found or invalid
+     ((or (null rtags-server-executable)
+      (null (file-executable-p rtags-server-executable))
+      (file-directory-p rtags-server-executable))
+      (error "Can't start the process `%s'. Please check the value of the variable `rtags-path'."
+         rtags-server-executable))
+     ( t
+       (setq rtags-process (start-process-shell-command
+                "RTags"	     ;process name
+                "*rdm*"	     ;buffer
+                (rtags-command))) ;command
+       (set-process-query-on-exit-flag rtags-process nil)
+       (set-process-sentinel rtags-process 'rtags-sentinel)))))
+
+(defun rtags-sentinel (process event)
+  "Watch the activity of rtags process (rdm)."
+  (let ((status (process-status process)))
+    (when (memq status '(exit signal closed failed))
+      (message "rtags process (rdm) stopped..."))))
+>>>>>>> a5bfedf... Fix issue #139. This time I think it even works.
 
 (provide 'rtags)
