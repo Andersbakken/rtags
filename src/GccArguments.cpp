@@ -110,6 +110,18 @@ static inline String trim(const char *start, int size)
     return String(start, size);
 }
 
+static inline void addIncludeArg(List<String> &clangArgs, int argLen, const List<String> &args, int &idx, const Path &cwd)
+{
+    const String &arg = args.at(idx);
+    if (arg.size() == argLen) {
+        clangArgs.append(arg);
+        clangArgs.append(Path::resolved(args.at(++idx), Path::MakeAbsolute, cwd));
+    } else {
+        clangArgs.append(arg.left(argLen));
+        clangArgs.append(Path::resolved(arg.mid(argLen), Path::MakeAbsolute, cwd));
+    }
+}
+
 bool GccArguments::parse(String args, const Path &base)
 {
     mLang = NoLang;
@@ -205,52 +217,15 @@ bool GccArguments::parse(String args, const Path &base)
                 }
                 mClangArgs.append("-x");
                 mClangArgs.append(a);
-            } else if (arg.startsWith("-D")) {
-                String a;
-                if (arg.size() == 2 && i + 1 < s) {
-                    a = (arg + split.at(++i));
-                } else {
-                    a = arg;
-                }
-                mClangArgs.append(a);
             } else if (arg.startsWith("-I")) {
-                Path inc;
-                bool ok = false;
-                if (arg.size() > 2) {
-                    inc = Path::resolved(arg.mid(2), Path::RealPath, path, &ok);
-                } else if (i + 1 < s) {
-                    inc = Path::resolved(split.at(++i), Path::RealPath, path, &ok);
-                }
-                if (ok)
-                    mClangArgs.append("-I" + inc);
-            } else if (arg.startsWith("-std") || arg == "-m32") {
-                mClangArgs.append(arg);
-            } else if (arg.startsWith("-include")) {
-                mClangArgs.append(arg);
-                if (arg.size() == 8) {
-                    mClangArgs.append(split.at(++i));
-                }
-            } else if (arg.startsWith("-isystem") || arg.startsWith("-iquote") || arg.startsWith("-cxx-isystem")) {
-                int argLen = -1;
-                switch (arg[2]) {
-                case 'q': argLen = 7; break;
-                case 's': argLen = 8; break;
-                case 'c': argLen = 12; break;
-                }
-                Path inc;
-                if (arg.size() > argLen) {
-                    inc = Path::resolved(arg.mid(argLen), Path::RealPath, path);
-                } else if (i + 1 < s) {
-                    inc = Path::resolved(split.at(++i), Path::RealPath, path);
-                }
-                mClangArgs.append(arg.left(argLen));
-                mClangArgs.append(inc);
-            } else if (arg.startsWith("-W")) {
-                const bool hasComma = arg.contains(',');
-                if (!hasComma) { // We don't want options such as -Wl,foo
-                    mClangArgs.append(arg);
-                }
-            } else if (arg == "-w") {
+                addIncludeArg(mClangArgs, 2, split, i, path);
+            } else if (arg.startsWith("-include") || arg.startsWith("-isystem")) {
+                addIncludeArg(mClangArgs, 8, split, i, path);
+            } else if (arg.startsWith("-iquote")) {
+                addIncludeArg(mClangArgs, 7, split, i, path);
+            } else if (arg.startsWith("-cxx-isystem")) {
+                addIncludeArg(mClangArgs, 12, split, i, path);
+            } else {
                 mClangArgs.append(arg);
             }
         } else {
