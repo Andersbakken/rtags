@@ -230,22 +230,20 @@ bool GccArguments::parse(String args, const Path &base)
                 if (arg.size() == 8) {
                     mClangArgs.append(split.at(++i));
                 }
-            } else if (arg.startsWith("-isystem") || arg.startsWith("-iquote")) {
-                const int from = (arg[2] == 'q' ? 7 : 8);
-                assert(args.size() >= from);
-                Path inc;
-                if (arg.size() > from) {
-                    bool ok = false;
-                    inc = Path::resolved(arg.mid(from), Path::RealPath, path, &ok);
-                    if (!ok)
-                        inc = arg.mid(from);
-                } else if (i + 1 < s) {
-                    bool ok = false;
-                    inc = Path::resolved(split.at(++i), Path::RealPath, path, &ok);
-                    if (!ok)
-                        inc = split.at(i);
+            } else if (arg.startsWith("-isystem") || arg.startsWith("-iquote") || arg.startsWith("-cxx-isystem")) {
+                int argLen = -1;
+                switch (arg[2]) {
+                case 'q': argLen = 7; break;
+                case 's': argLen = 8; break;
+                case 'c': argLen = 12; break;
                 }
-                mClangArgs.append(arg.left(from));
+                Path inc;
+                if (arg.size() > argLen) {
+                    inc = Path::resolved(arg.mid(argLen), Path::RealPath, path);
+                } else if (i + 1 < s) {
+                    inc = Path::resolved(split.at(++i), Path::RealPath, path);
+                }
+                mClangArgs.append(arg.left(argLen));
                 mClangArgs.append(inc);
             } else if (arg.startsWith("-W")) {
                 const bool hasComma = arg.contains(',');
