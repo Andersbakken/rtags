@@ -111,18 +111,18 @@ public:
     virtual void run()
     {
         if (std::shared_ptr<Project> project = mProject.lock()) {
-            int dirtyTime, syncTime;
             project->mJobCounter = project->mJobs.size();
-            project->syncDB(&dirtyTime, &syncTime);
+            Project::SyncData data = project->syncDB();
             StopWatch sw;
             project->save();
             const int saveTime = sw.elapsed();
             error() << "Jobs took" << (static_cast<double>(project->mTimer.elapsed()) / 1000.0)
                     << "secs, dirtying took"
-                    << (static_cast<double>(dirtyTime) / 1000.0) << "secs, syncing took"
-                    << (static_cast<double>(syncTime) / 1000.0) << " secs, saving took"
+                    << (static_cast<double>(data.dirtyTime) / 1000.0) << "secs, syncing took"
+                    << (static_cast<double>(data.syncTime) / 1000.0) << " secs, saving took"
                     << (static_cast<double>(saveTime) / 1000.0) << " secs, using"
-                    << MemoryMonitor::usage() / (1024.0 * 1024.0) << "mb of memory";
+                    << MemoryMonitor::usage() / (1024.0 * 1024.0) << "mb of memory"
+                    << data.symbols << "symbols" << data.symbolNames << "symbolNames";
             project->mTimer.start();
             EventLoop::mainEventLoop()->callLater(std::bind(&Project::onSynced, project.get()));
         }
@@ -615,15 +615,19 @@ void Project::startDirtyJobs(const Set<uint32_t> &dirty)
     }
 }
 
-static inline void writeSymbolNames(const SymbolNameMap &symbolNames, SymbolNameMap &current)
+static inline int writeSymbolNames(const SymbolNameMap &symbolNames, SymbolNameMap &current)
 {
+    int ret = 0;
     auto it = symbolNames.begin();
     const auto end = symbolNames.end();
     while (it != end) {
         Set<Location> &value = current[it->first];
-        value.unite(it->second);
+        int count = 0;
+        value.unite(it->second, &count);
+        ret += count;
         ++it;
     }
+    return ret;
 }
 
 static inline void joinCursors(SymbolMap &symbols, const Set<Location> &locations)
@@ -655,11 +659,13 @@ static inline void writeUsr(const UsrMap &usr, UsrMap &current, SymbolMap &symbo
     }
 }
 
-static inline void writeSymbols(SymbolMap &symbols, SymbolMap &current)
+static inline int writeSymbols(SymbolMap &symbols, SymbolMap &current)
 {
+    int ret = 0;
     if (!symbols.isEmpty()) {
         if (current.isEmpty()) {
             current = symbols;
+            ret = symbols.size();
         } else {
             auto it = symbols.begin();
             const auto end = symbols.end();
@@ -667,13 +673,16 @@ static inline void writeSymbols(SymbolMap &symbols, SymbolMap &current)
                 auto cur = current.find(it->first);
                 if (cur == current.end()) {
                     current[it->first] = it->second;
+                    ++ret;
                 } else {
-                    cur->second.unite(it->second);
+                    if (cur->second.unite(it->second))
+                        ++ret;
                 }
                 ++it;
             }
         }
     }
+    return ret;
 }
 
 static inline void writeReferences(const ReferenceMap &references, SymbolMap &symbols)
@@ -688,13 +697,13 @@ static inline void writeReferences(const ReferenceMap &references, SymbolMap &sy
     }
 }
 
-void Project::syncDB(int *dirty, int *sync)
+Project::SyncData Project::syncDB()
 {
+    SyncData ret;
+    memset(&ret, 0, sizeof(ret));
     StopWatch sw;
     if (mPendingDirtyFiles.isEmpty() && mPendingData.isEmpty()) {
-        *dirty = 0;
-        *sync = 0;
-        return;
+        return ret;
     }
 
     if (!mPendingDirtyFiles.isEmpty()) {
@@ -703,23 +712,24 @@ void Project::syncDB(int *dirty, int *sync)
         RTags::dirtyUsr(mUsr, mPendingDirtyFiles);
         mPendingDirtyFiles.clear();
     }
-    *dirty = sw.restart();
+    ret.dirtyTime = sw.restart();
 
     Set<uint32_t> newFiles;
     for (auto it = mPendingData.begin(); it != mPendingData.end(); ++it) {
         const std::shared_ptr<IndexData> &data = it->second;
         addDependencies(data->dependencies, newFiles);
         addFixIts(data->dependencies, data->fixIts);
-        writeSymbols(data->symbols, mSymbols);
+        ret.symbols += writeSymbols(data->symbols, mSymbols);
         writeUsr(data->usrMap, mUsr, mSymbols);
         writeReferences(data->references, mSymbols);
-        writeSymbolNames(data->symbolNames, mSymbolNames);
+        ret.symbolNames += writeSymbolNames(data->symbolNames, mSymbolNames);
     }
     for (auto it = newFiles.constBegin(); it != newFiles.constEnd(); ++it) {
         watch(Location::path(*it));
     }
     mPendingData.clear();
-    *sync = sw.elapsed();
+    ret.syncTime = sw.elapsed();
+    return ret;
 }
 
 bool Project::isIndexed(uint32_t fileId) const

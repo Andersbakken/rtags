@@ -125,7 +125,10 @@ private:
     void reloadFileManager();
     void addDependencies(const DependencyMap &hash, Set<uint32_t> &newFiles);
     void addFixIts(const DependencyMap &dependencies, const FixItMap &fixIts);
-    void syncDB(int *dirtyTime, int *syncTime);
+    struct SyncData {
+        int dirtyTime, syncTime, symbols, symbolNames;
+    };
+    SyncData syncDB();
     void startDirtyJobs(const Set<uint32_t> &files);
     bool save();
     void startSync();
