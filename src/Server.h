@@ -74,7 +74,8 @@ public:
         NoJobServer = 0x0400,
         CompressionRemote = 0x0800,
         CompressionAlways = 0x1000,
-        NoLocalCompiles = 0x2000
+        NoLocalCompiles = 0x2000,
+        NoNoUnknownWarningsOption = 0x4000
     };
     struct Options {
         Options()

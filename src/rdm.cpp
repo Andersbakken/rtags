@@ -108,6 +108,7 @@ static void usage(FILE *f)
 #else
             "  --no-filemanager-watch|-M                  Don't use a file system watcher for filemanager.\n"
 #endif
+            "  --no-no-unknown-warnings-option|-Y         Don't pass -Wno-unknown-warning-option\n"
             "  --ignore-compiler|-b [arg]                 Alias this compiler (Might be practical to avoid duplicated sources for things like icecc).\n"
             "  --multicast-address|-a [arg]               Use this address for multicast (default " DEFAULT_RDM_MULTICAST_ADDRESS ").\n"
             "  --multicast-port|-P [arg]                  Use this port for multicast (default " STR(DEFAULT_RDM_MULTICAST_PORT) ").\n"
@@ -163,6 +164,7 @@ int main(int argc, char** argv)
         { "allow-multiple-sources", no_argument, 0, 'm' },
         { "unload-timer", required_argument, 0, 'u' },
         { "no-current-project", no_argument, 0, 'o' },
+        { "no-no-unknown-warnings-option", no_argument, 0, 'Y' },
         { "ignore-compiler", required_argument, 0, 'b' },
         { "watch-system-paths", no_argument, 0, 'w' },
         { "rp-visit-file-timout", required_argument, 0, 't' },
@@ -431,6 +433,9 @@ int main(int argc, char** argv)
         case 'h':
             usage(stdout);
             return 0;
+        case 'Y':
+            serverOpts.options |= Server::NoNoUnknownWarningsOption;
+            break;
         case 'm':
             serverOpts.options |= Server::AllowMultipleSources;
             break;
