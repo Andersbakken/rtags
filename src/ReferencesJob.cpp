@@ -50,26 +50,26 @@ void ReferencesJob::execute()
                 pos = found->first;
                 if (startLocation.isNull())
                     startLocation = pos;
-                CursorInfo cursorInfo = found->second;
-                if (RTags::isReference(cursorInfo.kind))
-                    cursorInfo = cursorInfo.bestTarget(map, &pos);
+                std::shared_ptr<CursorInfo> cursorInfo = found->second;
+                if (RTags::isReference(cursorInfo->kind))
+                    cursorInfo = cursorInfo->bestTarget(map, &pos);
                 if (queryFlags() & QueryMessage::AllReferences) {
-                    const SymbolMap all = cursorInfo.allReferences(pos, map);
+                    const SymbolMap all = cursorInfo->allReferences(pos, map);
 
                     bool classRename = false;
-                    switch (cursorInfo.kind) {
+                    switch (cursorInfo->kind) {
                     case CXCursor_Constructor:
                     case CXCursor_Destructor:
                         classRename = true;
                         break;
                     default:
-                        classRename = cursorInfo.isClass();
+                        classRename = cursorInfo->isClass();
                         break;
                     }
 
                     for (SymbolMap::const_iterator a = all.begin(); a != all.end(); ++a) {
                         if (!classRename) {
-                            references[a->first] = std::make_pair(a->second.isDefinition(), a->second.kind);
+                            references[a->first] = std::make_pair(a->second->isDefinition(), a->second->kind);
                         } else {
                             enum State {
                                 FoundConstructor = 0x1,
@@ -77,33 +77,33 @@ void ReferencesJob::execute()
                                 FoundReferences = 0x4
                             };
                             unsigned state = 0;
-                            const SymbolMap targets = a->second.targetInfos(map);
+                            const SymbolMap targets = a->second->targetInfos(map);
                             for (SymbolMap::const_iterator t = targets.begin(); t != targets.end(); ++t) {
-                                if (t->second.kind != a->second.kind)
+                                if (t->second->kind != a->second->kind)
                                     state |= FoundReferences;
-                                if (t->second.kind == CXCursor_Constructor) {
+                                if (t->second->kind == CXCursor_Constructor) {
                                     state |= FoundConstructor;
-                                } else if (t->second.isClass()) {
+                                } else if (t->second->isClass()) {
                                     state |= FoundClass;
                                 }
                             }
                             if ((state & (FoundConstructor|FoundClass)) != FoundConstructor || !(state & FoundReferences)) {
-                                references[a->first] = std::make_pair(a->second.isDefinition(), a->second.kind);
+                                references[a->first] = std::make_pair(a->second->isDefinition(), a->second->kind);
                             }
                         }
                     }
                 } else if (queryFlags() & QueryMessage::FindVirtuals) {
                     // ### not supporting DeclarationOnly
-                    const SymbolMap virtuals = cursorInfo.virtuals(pos, map);
+                    const SymbolMap virtuals = cursorInfo->virtuals(pos, map);
                     for (SymbolMap::const_iterator v = virtuals.begin(); v != virtuals.end(); ++v) {
-                        references[v->first] = std::make_pair(v->second.isDefinition(), v->second.kind);
+                        references[v->first] = std::make_pair(v->second->isDefinition(), v->second->kind);
                     }
                     startLocation.clear();
                     // since one normall calls this on a declaration it kinda
                     // doesn't work that well do the clever offset thing
                     // underneath
                 } else {
-                    const SymbolMap callers = cursorInfo.callers(pos, map);
+                    const SymbolMap callers = cursorInfo->callers(pos, map);
                     for (SymbolMap::const_iterator c = callers.begin(); c != callers.end(); ++c) {
                         references[c->first] = std::make_pair(false, CXCursor_FirstInvalid);
                         // For find callers we don't want to prefer definitions or do ranks on cursors

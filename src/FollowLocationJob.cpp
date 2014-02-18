@@ -32,18 +32,18 @@ void FollowLocationJob::execute()
     if (it == map.end())
         return;
 
-    const CursorInfo &cursorInfo = it->second;
-    if (cursorInfo.isClass() && cursorInfo.isDefinition()) {
+    const std::shared_ptr<CursorInfo> &cursorInfo = it->second;
+    if (cursorInfo->isClass() && cursorInfo->isDefinition()) {
         return;
     }
 
     Location loc;
-    CursorInfo target = cursorInfo.bestTarget(map, &loc);
+    std::shared_ptr<CursorInfo> target = cursorInfo->bestTarget(map, &loc);
     if (!loc.isNull()) {
         // ### not respecting DeclarationOnly
-        if (cursorInfo.kind != target.kind) {
-            if (!target.isDefinition() && !target.targets.isEmpty()) {
-                switch (target.kind) {
+        if (cursorInfo->kind != target->kind) {
+            if (!target->isDefinition() && !target->targets.isEmpty()) {
+                switch (target->kind) {
                 case CXCursor_ClassDecl:
                 case CXCursor_ClassTemplate:
                 case CXCursor_StructDecl:
@@ -52,7 +52,7 @@ void FollowLocationJob::execute()
                 case CXCursor_Destructor:
                 case CXCursor_Constructor:
                 case CXCursor_FunctionTemplate:
-                    target = target.bestTarget(map, &loc);
+                    target = target->bestTarget(map, &loc);
                     break;
                 default:
                     break;
@@ -60,9 +60,9 @@ void FollowLocationJob::execute()
             }
         }
         if (!loc.isNull()) {
-            if (queryFlags() & QueryMessage::DeclarationOnly && target.isDefinition()) {
+            if (queryFlags() & QueryMessage::DeclarationOnly && target->isDefinition()) {
                 Location declLoc;
-                const CursorInfo decl = target.bestTarget(map, &declLoc);
+                const std::shared_ptr<CursorInfo> decl = target->bestTarget(map, &declLoc);
                 if (!declLoc.isNull()) {
                     write(declLoc);
                 }

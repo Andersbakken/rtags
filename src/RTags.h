@@ -52,7 +52,7 @@ void initMessages();
 }
 
 class CursorInfo;
-typedef Map<Location, CursorInfo> SymbolMap;
+typedef Map<Location, std::shared_ptr<CursorInfo> > SymbolMap;
 typedef Hash<uint32_t, SymbolMap> ErrorSymbolMap;
 typedef Hash<String, Set<Location> > UsrMap;
 typedef Map<Location, Set<Location> > ReferenceMap;

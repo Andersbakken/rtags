@@ -16,11 +16,12 @@
 #ifndef Cpp_h
 #define Cpp_h
 
-#include <Source.h>
-#include <rct/String.h>
+#include "CursorInfo.h"
+#include "RTags.h"
+#include "Source.h"
 #include <rct/List.h>
 #include <rct/Serializer.h>
-#include "RTags.h"
+#include <rct/String.h>
 
 struct Cpp
 {
@@ -67,15 +68,17 @@ template <> inline Deserializer &operator>>(Deserializer &s, Cpp::Diagnostic &d)
 
 template <> inline Serializer &operator<<(Serializer &s, const Cpp &c)
 {
-    s << c.preprocessed << c.time << c.flags << c.diagnostics << c.macroCursors
-      << c.macroNames << c.visited << c.preprocessDuration;
+    s << c.preprocessed << c.time << c.flags << c.diagnostics;
+    CursorInfo::serialize(s, c.macroCursors);
+    s << c.macroNames << c.visited << c.preprocessDuration;
     return s;
 }
 
 template <> inline Deserializer &operator>>(Deserializer &s, Cpp &c)
 {
-    s >> c.preprocessed >> c.time >> c.flags >> c.diagnostics >> c.macroCursors
-      >> c.macroNames >> c.visited >> c.preprocessDuration;
+    s >> c.preprocessed >> c.time >> c.flags >> c.diagnostics;
+    CursorInfo::deserialize(s, c.macroCursors);
+    s >> c.macroNames >> c.visited >> c.preprocessDuration;
     return s;
 }
 

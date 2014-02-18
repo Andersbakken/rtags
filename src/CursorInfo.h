@@ -24,7 +24,7 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 #include <clang-c/Index.h>
 
 class CursorInfo;
-typedef Map<Location, CursorInfo> SymbolMap;
+typedef Map<Location, std::shared_ptr<CursorInfo> > SymbolMap;
 class CursorInfo
 {
 public:
@@ -85,7 +85,7 @@ public:
 
     String displayName() const;
 
-    int targetRank(const CursorInfo &target) const;
+    int targetRank(const std::shared_ptr<CursorInfo> &target) const;
 
     bool isValid() const
     {
@@ -97,13 +97,15 @@ public:
         return isEmpty();
     }
 
-    CursorInfo bestTarget(const SymbolMap &map, Location *loc = 0) const;
+    std::shared_ptr<CursorInfo> bestTarget(const SymbolMap &map, Location *loc = 0) const;
     SymbolMap targetInfos(const SymbolMap &map) const;
     SymbolMap referenceInfos(const SymbolMap &map) const;
     SymbolMap callers(const Location &loc, const SymbolMap &map) const;
     SymbolMap allReferences(const Location &loc, const SymbolMap &map) const;
     SymbolMap virtuals(const Location &loc, const SymbolMap &map) const;
     SymbolMap declarationAndDefinition(const Location &loc, const SymbolMap &map) const;
+
+    std::shared_ptr<CursorInfo> copy() const;
 
     bool isClass() const
     {
@@ -128,49 +130,52 @@ public:
         return !symbolLength && targets.isEmpty() && references.isEmpty();
     }
 
-    bool unite(const CursorInfo &other)
+    bool unite(const std::shared_ptr<CursorInfo> &other)
     {
         bool changed = false;
-        if (targets.isEmpty() && !other.targets.isEmpty()) {
-            targets = other.targets;
+        if (targets.isEmpty() && !other->targets.isEmpty()) {
+            targets = other->targets;
             changed = true;
-        } else if (!other.targets.isEmpty()) {
+        } else if (!other->targets.isEmpty()) {
             int count = 0;
-            targets.unite(other.targets, &count);
+            targets.unite(other->targets, &count);
             if (count)
                 changed = true;
         }
 
-        if (startLine == -1 && other.startLine != -1) {
-            startLine = other.startLine;
-            startColumn = other.startColumn;
-            endLine = other.endLine;
-            endColumn = other.endColumn;
+        if (startLine == -1 && other->startLine != -1) {
+            startLine = other->startLine;
+            startColumn = other->startColumn;
+            endLine = other->endLine;
+            endColumn = other->endColumn;
             changed = true;
         }
 
-        if (!symbolLength && other.symbolLength) {
-            symbolLength = other.symbolLength;
-            kind = other.kind;
-            enumValue = other.enumValue;
-            type = other.type;
-            symbolName = other.symbolName;
+        if (!symbolLength && other->symbolLength) {
+            symbolLength = other->symbolLength;
+            kind = other->kind;
+            enumValue = other->enumValue;
+            type = other->type;
+            symbolName = other->symbolName;
             changed = true;
         }
         const int oldSize = references.size();
         if (!oldSize) {
-            references = other.references;
+            references = other->references;
             if (!references.isEmpty())
                 changed = true;
         } else {
             int inserted = 0;
-            references.unite(other.references, &inserted);
+            references.unite(other->references, &inserted);
             if (inserted)
                 changed = true;
         }
 
         return changed;
     }
+
+    static inline void serialize(Serializer &s, const SymbolMap &t);
+    static inline void deserialize(Deserializer &s, SymbolMap &t);
 
     enum Flag {
         IgnoreTargets = 0x1,
@@ -207,6 +212,27 @@ template <> inline Deserializer &operator>>(Deserializer &s, CursorInfo &t)
     t.kind = static_cast<CXCursorKind>(kind);
     t.type = static_cast<CXTypeKind>(type);
     return s;
+}
+
+inline void CursorInfo::serialize(Serializer &s, const SymbolMap &t)
+{
+    const uint32_t size = t.size();
+    s << size;
+    for (auto it : t)
+        s << it.first << *it.second;
+}
+
+inline void CursorInfo::deserialize(Deserializer &s, SymbolMap &t)
+{
+    uint32_t size;
+    s >> size;
+    t.clear();
+    while (size--) {
+        Location location;
+        std::shared_ptr<CursorInfo> cursorInfo(new CursorInfo);
+        s >> location >> *cursorInfo;
+        t[location] = cursorInfo;
+    }
 }
 
 inline Log operator<<(Log log, const CursorInfo &info)

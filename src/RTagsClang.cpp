@@ -149,7 +149,7 @@ SymbolMap::const_iterator findCursorInfo(const SymbolMap &map, const Location &l
             --it;
             if (it->first.fileId() == location.fileId() && location.line() == it->first.line()) {
                 const int off = location.column() - it->first.column();
-                if (it->second.symbolLength > off)
+                if (it->second->symbolLength > off)
                     return it;
             }
         }
@@ -168,7 +168,7 @@ SymbolMap::const_iterator findCursorInfo(const SymbolMap &map, const Location &l
                 if (b == map.begin())
                     break;
                 f = map.end();
-            } else if (f->second.symbolName.contains(context)) {
+            } else if (f->second->symbolName.contains(context)) {
                 // error() << "found it forward" << j;
                 return f;
             } else {
@@ -182,7 +182,7 @@ SymbolMap::const_iterator findCursorInfo(const SymbolMap &map, const Location &l
                 if (f == map.end())
                     break;
                 b = map.begin();
-            } else if (b->second.symbolName.contains(context)) {
+            } else if (b->second->symbolName.contains(context)) {
                 // error() << "found it backward" << j;
                 return b;
             }
@@ -742,11 +742,13 @@ std::shared_ptr<Cpp> preprocess(const Source &source,
             const String macroName(name->getNameStart(), name->getLength());
             const Location loc(fileId, presumedLocation.getLine(), presumedLocation.getColumn());
             if (!blocked) {
-                CursorInfo &cursor = cpp->macroCursors[loc];
-                cursor.symbolName = macroName;
-                cursor.symbolLength = cursor.symbolName.size();
-                cursor.kind = CXCursor_MacroDefinition;
-                cpp->macroNames[cursor.symbolName].insert(loc);
+                std::shared_ptr<CursorInfo> &cursor = cpp->macroCursors[loc];
+                if (!cursor)
+                    cursor.reset(new CursorInfo);
+                cursor->symbolName = macroName;
+                cursor->symbolLength = cursor->symbolName.size();
+                cursor->kind = CXCursor_MacroDefinition;
+                cpp->macroNames[cursor->symbolName].insert(loc);
             }
             macroLocations[macroName] = loc;
             // error() << "Got definition" << String(name->getNameStart(), name->getLength()) << loc;
@@ -784,14 +786,18 @@ std::shared_ptr<Cpp> preprocess(const Source &source,
                 break;
             }
             const Location loc(fileId, presumedLocation.getLine(), presumedLocation.getColumn());
-            CursorInfo &cursor = cpp->macroCursors[loc];
-            cursor.symbolName = macroName;
-            cursor.symbolLength = cursor.symbolName.size();
-            cursor.kind = CXCursor_MacroExpansion;
-            CursorInfo &def = cpp->macroCursors[defLocation];
+            std::shared_ptr<CursorInfo> &cursor = cpp->macroCursors[loc];
+            if (!cursor)
+                cursor.reset(new CursorInfo);
+            cursor->symbolName = macroName;
+            cursor->symbolLength = cursor->symbolName.size();
+            cursor->kind = CXCursor_MacroExpansion;
+            std::shared_ptr<CursorInfo> &def = cpp->macroCursors[defLocation];
+            if (!def)
+                def.reset(new CursorInfo);
             // ### do I have to fill in def here? Do I need to in ClangIndexer?
-            def.references.insert(loc);
-            cursor.targets.insert(defLocation);
+            def->references.insert(loc);
+            cursor->targets.insert(defLocation);
             // error() << "Got expansion" << String(name->getNameStart(), name->getLength()) << loc;
             break; }
         default:

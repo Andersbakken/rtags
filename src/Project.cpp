@@ -81,7 +81,8 @@ public:
                 goto end;
             }
         }
-        in >> mSymbols >> mSymbolNames >> mUsr >> mDependencies >> mSources >> mVisitedFiles;
+        CursorInfo::deserialize(in, mSymbols);
+        in >> mSymbolNames >> mUsr >> mDependencies >> mSources >> mVisitedFiles;
   end:
         if (restoreError) {
             Path::rm(p);
@@ -420,7 +421,9 @@ bool Project::save()
     Serializer out(f);
     out << static_cast<int>(Server::DatabaseVersion);
     const int pos = ftell(f);
-    out << static_cast<int>(0) << mSymbols << mSymbolNames << mUsr
+    out << static_cast<int>(0);
+    CursorInfo::serialize(out, mSymbols);
+    out << mSymbolNames << mUsr
         << mDependencies << mSources << mVisitedFiles;
 
     const int size = ftell(f);
@@ -635,10 +638,10 @@ static inline void joinCursors(SymbolMap &symbols, const Set<Location> &location
     for (auto it = locations.begin(); it != locations.end(); ++it) {
         const auto c = symbols.find(*it);
         if (c != symbols.constEnd()) {
-            CursorInfo &cursorInfo = c->second;
+            std::shared_ptr<CursorInfo> &cursorInfo = c->second;
             for (auto innerIt = locations.begin(); innerIt != locations.end(); ++innerIt) {
                 if (innerIt != it)
-                    cursorInfo.targets.insert(*innerIt);
+                    cursorInfo->targets.insert(*innerIt);
             }
             // ### this is filthy, we could likely think of something better
         }
@@ -675,7 +678,7 @@ static inline int writeSymbols(SymbolMap &symbols, SymbolMap &current)
                     current[it->first] = it->second;
                     ++ret;
                 } else {
-                    if (cur->second.unite(it->second))
+                    if (cur->second->unite(it->second))
                         ++ret;
                 }
                 ++it;
@@ -691,8 +694,10 @@ static inline void writeReferences(const ReferenceMap &references, SymbolMap &sy
     for (auto it = references.begin(); it != end; ++it) {
         const Set<Location> &refs = it->second;
         for (auto rit = refs.begin(); rit != refs.end(); ++rit) {
-            CursorInfo &ci = symbols[*rit];
-            ci.references.insert(it->first);
+            std::shared_ptr<CursorInfo> &ci = symbols[*rit];
+            if (!ci)
+                ci.reset(new CursorInfo);
+            ci->references.insert(it->first);
         }
     }
 }
@@ -851,12 +856,12 @@ Set<Location> Project::locations(const String &symbolName, uint32_t fileId) cons
     if (fileId) {
         const SymbolMap s = symbols(fileId);
         for (auto it = s.begin(); it != s.end(); ++it) {
-            if (!RTags::isReference(it->second.kind) && (symbolName.isEmpty() || matchSymbolName(symbolName, it->second.symbolName)))
+            if (!RTags::isReference(it->second->kind) && (symbolName.isEmpty() || matchSymbolName(symbolName, it->second->symbolName)))
                 ret.insert(it->first);
         }
     } else if (symbolName.isEmpty()) {
         for (auto it = mSymbols.constBegin(); it != mSymbols.constEnd(); ++it) {
-            if (!RTags::isReference(it->second.kind))
+            if (!RTags::isReference(it->second->kind))
                 ret.insert(it->first);
         }
     } else {
@@ -878,13 +883,13 @@ List<RTags::SortedCursor> Project::sort(const Set<Location> &locations, unsigned
         RTags::SortedCursor node(*it);
         const auto found = mSymbols.find(*it);
         if (found != mSymbols.end()) {
-            node.isDefinition = found->second.isDefinition();
+            node.isDefinition = found->second->isDefinition();
             if (flags & Sort_DeclarationOnly && node.isDefinition) {
-                const CursorInfo decl = found->second.bestTarget(mSymbols);
-                if (!decl.isNull())
+                const std::shared_ptr<CursorInfo> decl = found->second->bestTarget(mSymbols);
+                if (decl && !decl->isNull())
                     continue;
             }
-            node.kind = found->second.kind;
+            node.kind = found->second->kind;
         }
         sorted.push_back(node);
     }

@@ -85,9 +85,9 @@ String CursorInfo::toString(unsigned cursorInfoFlags, unsigned keyFlags) const
     return ret;
 }
 
-int CursorInfo::targetRank(const CursorInfo &target) const
+int CursorInfo::targetRank(const std::shared_ptr<CursorInfo> &target) const
 {
-    switch (target.kind) {
+    switch (target->kind) {
     case CXCursor_Constructor: // this one should be more than class/struct decl
         return 1;
     case CXCursor_ClassDecl:
@@ -109,16 +109,16 @@ int CursorInfo::targetRank(const CursorInfo &target) const
     }
 }
 
-CursorInfo CursorInfo::bestTarget(const SymbolMap &map, Location *loc) const
+std::shared_ptr<CursorInfo> CursorInfo::bestTarget(const SymbolMap &map, Location *loc) const
 {
     const SymbolMap targets = targetInfos(map);
 
     auto best = targets.end();
     int bestRank = -1;
     for (auto it = targets.begin(); it != targets.end(); ++it) {
-        const CursorInfo &ci = it->second;
+        const std::shared_ptr<CursorInfo> &ci = it->second;
         const int r = targetRank(ci);
-        if (r > bestRank || (r == bestRank && ci.isDefinition())) {
+        if (r > bestRank || (r == bestRank && ci->isDefinition())) {
             bestRank = r;
             best = it;
         }
@@ -128,7 +128,7 @@ CursorInfo CursorInfo::bestTarget(const SymbolMap &map, Location *loc) const
             *loc = best->first;
         return best->second;
     }
-    return CursorInfo();
+    return std::shared_ptr<CursorInfo>();
 }
 
 SymbolMap CursorInfo::targetInfos(const SymbolMap &map) const
@@ -140,7 +140,7 @@ SymbolMap CursorInfo::targetInfos(const SymbolMap &map) const
         if (found != map.end()) {
             ret[*it] = found->second;
         } else {
-            ret[*it] = CursorInfo();
+            ret[*it].reset(new CursorInfo);
             // we need this one for inclusion directives which target a
             // non-existing CursorInfo
         }
@@ -165,13 +165,13 @@ SymbolMap CursorInfo::callers(const Location &loc, const SymbolMap &map) const
     SymbolMap ret;
     const SymbolMap cursors = virtuals(loc, map);
     for (auto c = cursors.begin(); c != cursors.end(); ++c) {
-        for (auto it = c->second.references.begin(); it != c->second.references.end(); ++it) {
+        for (auto it = c->second->references.begin(); it != c->second->references.end(); ++it) {
             const auto found = RTags::findCursorInfo(map, *it, String());
             if (found == map.end())
                 continue;
-            if (RTags::isReference(found->second.kind)) { // is this always right?
+            if (RTags::isReference(found->second->kind)) { // is this always right?
                 ret[*it] = found->second;
-            } else if (kind == CXCursor_Constructor && (found->second.kind == CXCursor_VarDecl || found->second.kind == CXCursor_FieldDecl)) {
+            } else if (kind == CXCursor_Constructor && (found->second->kind == CXCursor_VarDecl || found->second->kind == CXCursor_FieldDecl)) {
                 ret[*it] = found->second;
             }
         }
@@ -185,45 +185,45 @@ enum Mode {
     NormalRefs
 };
 
-static inline void allImpl(const SymbolMap &map, const Location &loc, const CursorInfo &info, SymbolMap &out, Mode mode, unsigned kind)
+static inline void allImpl(const SymbolMap &map, const Location &loc, const std::shared_ptr<CursorInfo> &info, SymbolMap &out, Mode mode, unsigned kind)
 {
     if (out.contains(loc))
         return;
     out[loc] = info;
-    const SymbolMap targets = info.targetInfos(map);
+    const SymbolMap targets = info->targetInfos(map);
     for (auto t = targets.begin(); t != targets.end(); ++t) {
         bool ok = false;
         switch (mode) {
         case VirtualRefs:
         case NormalRefs:
-            ok = (t->second.kind == kind);
+            ok = (t->second->kind == kind);
             break;
         case ClassRefs:
-            ok = (t->second.isClass() || t->second.kind == CXCursor_Destructor || t->second.kind == CXCursor_Constructor);
+            ok = (t->second->isClass() || t->second->kind == CXCursor_Destructor || t->second->kind == CXCursor_Constructor);
             break;
         }
         if (ok)
             allImpl(map, t->first, t->second, out, mode, kind);
     }
-    const SymbolMap refs = info.referenceInfos(map);
+    const SymbolMap refs = info->referenceInfos(map);
     for (auto r = refs.begin(); r != refs.end(); ++r) {
         switch (mode) {
         case NormalRefs:
             out[r->first] = r->second;
             break;
         case VirtualRefs:
-            if (r->second.kind == kind) {
+            if (r->second->kind == kind) {
                 allImpl(map, r->first, r->second, out, mode, kind);
             } else {
                 out[r->first] = r->second;
             }
             break;
         case ClassRefs:
-            if (info.isClass()) // for class/struct we want the references inserted directly regardless and also recursed
+            if (info->isClass()) // for class/struct we want the references inserted directly regardless and also recursed
                 out[r->first] = r->second;
-            if (r->second.isClass()
-                || r->second.kind == CXCursor_Destructor
-                || r->second.kind == CXCursor_Constructor) { // if is a constructor/destructor/class reference we want to recurse it
+            if (r->second->isClass()
+                || r->second->kind == CXCursor_Destructor
+                || r->second->kind == CXCursor_Constructor) { // if is a constructor/destructor/class reference we want to recurse it
                 allImpl(map, r->first, r->second, out, mode, kind);
             }
         }
@@ -247,17 +247,17 @@ SymbolMap CursorInfo::allReferences(const Location &loc, const SymbolMap &map) c
         break;
     }
 
-    allImpl(map, loc, *this, ret, mode, kind);
+    allImpl(map, loc, copy(), ret, mode, kind);
     return ret;
 }
 
 SymbolMap CursorInfo::virtuals(const Location &loc, const SymbolMap &map) const
 {
     SymbolMap ret;
-    ret[loc] = *this;
+    ret[loc] = copy();
     const SymbolMap s = (kind == CXCursor_CXXMethod ? allReferences(loc, map) : targetInfos(map));
     for (auto it = s.begin(); it != s.end(); ++it) {
-        if (it->second.kind == kind)
+        if (it->second->kind == kind)
             ret[it->first] = it->second;
     }
     return ret;
@@ -266,12 +266,12 @@ SymbolMap CursorInfo::virtuals(const Location &loc, const SymbolMap &map) const
 SymbolMap CursorInfo::declarationAndDefinition(const Location &loc, const SymbolMap &map) const
 {
     SymbolMap cursors;
-    cursors[loc] = *this;
+    cursors[loc] = copy();
 
     Location l;
-    const CursorInfo t = bestTarget(map, &l);
+    const std::shared_ptr<CursorInfo> t = bestTarget(map, &l);
 
-    if (t.kind == kind)
+    if (t->kind == kind)
         cursors[l] = t;
     return cursors;
 }
@@ -301,4 +301,8 @@ String CursorInfo::displayName() const
         break;
     }
     return symbolName;
+}
+std::shared_ptr<CursorInfo> CursorInfo::copy() const
+{
+    return std::shared_ptr<CursorInfo>(new CursorInfo(*this));
 }

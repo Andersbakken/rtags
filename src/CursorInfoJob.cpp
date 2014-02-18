@@ -54,10 +54,10 @@ void CursorInfoJob::execute()
             --it;
             if (it->first.fileId() != fileId)
                 break;
-            if (it->second.isDefinition()
-                && RTags::isContainer(it->second.kind)
-                && comparePosition(line, column, it->second.startLine, it->second.startColumn) >= 0
-                && comparePosition(line, column, it->second.endLine, it->second.endColumn) <= 0) {
+            if (it->second->isDefinition()
+                && RTags::isContainer(it->second->kind)
+                && comparePosition(line, column, it->second->startLine, it->second->startColumn) >= 0
+                && comparePosition(line, column, it->second->endLine, it->second->endColumn) <= 0) {
                 write("====================");
                 write(it->first);
                 write(it->second, ciFlags);

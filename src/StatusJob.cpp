@@ -114,7 +114,7 @@ void StatusJob::execute()
         write(delimiter);
         for (SymbolMap::const_iterator it = map.begin(); it != map.end(); ++it) {
             const Location loc = it->first;
-            const CursorInfo ci = it->second;
+            const std::shared_ptr<CursorInfo> ci = it->second;
             write(loc);
             write(ci);
             if (isAborted())

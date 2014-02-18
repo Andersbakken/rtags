@@ -87,10 +87,10 @@ Set<String> ListSymbolsJob::imenu(const std::shared_ptr<Project> &project)
             continue;
         for (SymbolMap::const_iterator it = map.lower_bound(Location(fileId, 1, 0));
              it != map.end() && it->first.fileId() == fileId; ++it) {
-            const CursorInfo &cursorInfo = it->second;
-            if (RTags::isReference(cursorInfo.kind))
+            const std::shared_ptr<CursorInfo> &cursorInfo = it->second;
+            if (RTags::isReference(cursorInfo->kind))
                 continue;
-            switch (cursorInfo.kind) {
+            switch (cursorInfo->kind) {
             case CXCursor_VarDecl:
             case CXCursor_ParmDecl:
             case CXCursor_InclusionDirective:
@@ -99,11 +99,11 @@ Set<String> ListSymbolsJob::imenu(const std::shared_ptr<Project> &project)
             case CXCursor_ClassDecl:
             case CXCursor_StructDecl:
             case CXCursor_ClassTemplate:
-                if (!cursorInfo.isDefinition())
+                if (!cursorInfo->isDefinition())
                     break;
                 // fall through
             default: {
-                const String &symbolName = it->second.symbolName;
+                const String &symbolName = it->second->symbolName;
                 if (!string.isEmpty() && !symbolName.contains(string))
                     continue;
                 out.insert(symbolName);

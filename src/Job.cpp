@@ -143,9 +143,9 @@ bool Job::write(const Location &location, unsigned flags)
             error() << "Somehow can't find" << location << "in symbols";
         } else {
             if (displayName)
-                out += '\t' + it->second.displayName();
+                out += '\t' + it->second->displayName();
             if (cursorKind)
-                out += '\t' + it->second.kindSpelling();
+                out += '\t' + it->second->kindSpelling();
             if (containingFunction) {
                 const uint32_t fileId = location.fileId();
                 const unsigned int line = location.line();
@@ -154,11 +154,11 @@ bool Job::write(const Location &location, unsigned flags)
                     --it;
                     if (it->first.fileId() != fileId)
                         break;
-                    if (it->second.isDefinition()
-                        && RTags::isContainer(it->second.kind)
-                        && comparePosition(line, column, it->second.startLine, it->second.startColumn) >= 0
-                        && comparePosition(line, column, it->second.endLine, it->second.endColumn) <= 0) {
-                        out += "\tfunction: " + it->second.symbolName;
+                    if (it->second->isDefinition()
+                        && RTags::isContainer(it->second->kind)
+                        && comparePosition(line, column, it->second->startLine, it->second->startColumn) >= 0
+                        && comparePosition(line, column, it->second->endLine, it->second->endColumn) <= 0) {
+                        out += "\tfunction: " + it->second->symbolName;
                         break;
                     } else if (it == symbols.begin()) {
                         break;
@@ -170,12 +170,12 @@ bool Job::write(const Location &location, unsigned flags)
     return write(out);
 }
 
-bool Job::write(const CursorInfo &ci, unsigned ciflags)
+bool Job::write(const std::shared_ptr<CursorInfo> &ci, unsigned ciflags)
 {
-    if (ci.isNull())
+    if (!ci || ci->isNull())
         return false;
     const unsigned kf = keyFlags();
-    if (!write(ci.toString(ciflags, kf).constData()))
+    if (!write(ci->toString(ciflags, kf).constData()))
         return false;
     return true;
 }
