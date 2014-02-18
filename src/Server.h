@@ -68,7 +68,8 @@ public:
         WatchSystemPaths = 0x0200,
         NoFileManagerWatch = 0x0400,
         NoEsprima = 0x0800,
-        UseCompilerFlags = 0x1000
+        UseCompilerFlags = 0x1000,
+        NoNoUnknownWarningsOption = 0x2000
     };
     ThreadPool *threadPool() const { return mIndexerThreadPool; }
     void startQueryJob(const std::shared_ptr<Job> &job);

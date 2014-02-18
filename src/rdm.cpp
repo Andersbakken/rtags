@@ -97,6 +97,7 @@ static void usage(FILE *f)
 #endif
             "  --ignore-compiler|-b [arg]                 Alias this compiler (Might be practical to avoid duplicated builds for things like icecc).\n"
             "  --disable-plugin|-p [arg]                  Don't load this plugin\n"
+            "  --no-no-unknown-warnings-option|-Z         Don't pass -Wno-unknown-warning-option\n"
             "  --disable-esprima|-E                       Don't use esprima\n"
             "  --enable-compiler-flags|-K                 Query the compiler for default flags\n");
 }
@@ -135,6 +136,7 @@ int main(int argc, char** argv)
         { "allow-multiple-builds", no_argument, 0, 'm' },
         { "unload-timer", required_argument, 0, 'u' },
         { "no-current-project", no_argument, 0, 'o' },
+        { "no-no-unknown-warnings-option", no_argument, 0, 'Z' },
         { "ignore-compiler", required_argument, 0, 'b' },
         { "disable-plugin", required_argument, 0, 'p' },
         { "watch-system-paths", no_argument, 0, 'w' },
@@ -271,6 +273,9 @@ int main(int argc, char** argv)
             return 0;
         case 'K':
             serverOpts.options |= Server::UseCompilerFlags;
+            break;
+        case 'Z':
+            serverOpts.options |= Server::NoNoUnknownWarningsOption;
             break;
         case 'E':
             serverOpts.options |= Server::NoEsprima;
