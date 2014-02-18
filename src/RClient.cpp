@@ -135,7 +135,7 @@ struct Option opts[] = {
 
     { None, 0, 0, 0, "" },
     { None, 0, 0, 0, "Indexing commands:" },
-    { Compile, "compile", 'c', required_argument, "Pass compilation arguments to rdm." },
+    { Compile, "compile", 'c', optional_argument, "Pass compilation arguments to rdm." },
 #if defined(HAVE_CXCOMPILATIONDATABASE) && CLANG_VERSION_MINOR >= 3
     { LoadCompilationDatabase, "load-compilation-database", 'J', optional_argument, "Load compile_commands.json from directory" },
 #endif
