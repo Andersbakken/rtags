@@ -41,7 +41,7 @@ private:
         clang_getPresumedLocation(location, &file, &line, &col);
         const char *fn = clang_getCString(file);
         assert(fn);
-        if (!*fn) {
+        if (!*fn || !strcmp("<built-in>", fn) || !strcmp("<command line>", fn)) {
             if (blocked)
                 *blocked = false;
             clang_disposeString(file);
