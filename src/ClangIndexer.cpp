@@ -1059,7 +1059,10 @@ bool ClangIndexer::diagnose()
                     clang_getSpellingLocation(end, 0, 0, 0, &endOffset);
                     const char *string = clang_getCString(stringScope);
                     error("Fixit for %s:%d:%d: Replace [%s] with [%s]", loc.path().constData(), line, column,
-                          mPreprocessed.mid(startOffset, endOffset - startOffset).constData(), string);
+                          (mPreprocessed.isEmpty()
+                           ? String::format<16>("%d chars", endOffset - startOffset)
+                           : mPreprocessed.mid(startOffset, endOffset - startOffset)).constData(),
+                          string);
                     XmlEntry &entry = xmlEntries[Location(loc.fileId(), line, column)];
                     entry.type = XmlEntry::Fixit;
                     if (entry.message.isEmpty()) {
