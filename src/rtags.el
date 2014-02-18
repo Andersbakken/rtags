@@ -2047,24 +2047,22 @@ References to references will be treated as references to the referenced symbol"
             (message (buffer-string))))))
   )
 
-<<<<<<< HEAD
-=======
 (defun rtags-dummy-includes-func()
   "Dummy function, returns rtags-rdm-includes."
   rtags-rdm-includes)
 
 (defun rdm-includes ()
-      (mapconcat 'identity
-         (mapcar
-          (lambda (item)(concat "-I" item))
-          (funcall rtags-includes-func)) " "))
+  (mapconcat 'identity
+             (mapcar
+              (lambda (item) (concat "-I" item))
+              (funcall rtags-includes-func)) " "))
 
 (defun rtags-command ()
   "Shell command used to start the rtags-server process."
   (format "%s %s %s"
           (rtags-executable-find "rdm")
           (rdm-includes)
-      rtags-process-flags))
+          rtags-process-flags))
 
 (defun rtags-cancel-process ()
   "Stop the rtags process. "
@@ -2087,15 +2085,15 @@ References to references will be treated as references to the referenced symbol"
      ((processp rtags-process))
      ;; Executable not found or invalid
      ((or (null rtags-server-executable)
-      (null (file-executable-p rtags-server-executable))
-      (file-directory-p rtags-server-executable))
+          (null (file-executable-p rtags-server-executable))
+          (file-directory-p rtags-server-executable))
       (error "Can't start the process `%s'. Please check the value of the variable `rtags-path'."
-         rtags-server-executable))
-     ( t
+             rtags-server-executable))
+     (t
        (setq rtags-process (start-process-shell-command
-                "RTags"	     ;process name
-                "*rdm*"	     ;buffer
-                (rtags-command))) ;command
+                            "RTags"	     ;process name
+                            "*rdm*"	     ;buffer
+                            (rtags-command))) ;command
        (set-process-query-on-exit-flag rtags-process nil)
        (set-process-sentinel rtags-process 'rtags-sentinel)))))
 
@@ -2104,6 +2102,5 @@ References to references will be treated as references to the referenced symbol"
   (let ((status (process-status process)))
     (when (memq status '(exit signal closed failed))
       (message "rtags process (rdm) stopped..."))))
->>>>>>> a5bfedf... Fix issue #139. This time I think it even works.
 
 (provide 'rtags)
