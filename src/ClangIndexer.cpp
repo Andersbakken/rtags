@@ -893,8 +893,9 @@ bool ClangIndexer::parse()
         static_cast<unsigned long>(mPreprocessed.size())
     };
 
+    const unsigned int flags = mPreprocessed.isEmpty() ? CXTranslationUnit_DetailedPreprocessingRecord : 0;
     RTags::parseTranslationUnit(sourceFile, mSource.toCommandLine(Source::None), List<String>(), mUnit,
-                                mIndex, &unsaved, mPreprocessed.isEmpty() ? 0 : 1, 0, &mClangLine);
+                                mIndex, &unsaved, mPreprocessed.isEmpty() ? 0 : 1, flags, &mClangLine);
 
     mData->parseTime = mTimer.elapsed();
     warning() << "loading mUnit " << mClangLine << " " << (mUnit != 0);

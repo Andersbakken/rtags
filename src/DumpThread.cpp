@@ -79,7 +79,7 @@ void DumpThread::run()
     CXTranslationUnit unit = 0;
     String clangLine;
     RTags::parseTranslationUnit(mSource.sourceFile(), mSource.toCommandLine(Source::None), mDefaultArguments, unit,
-                                index, 0, 0, 0, &clangLine);
+                                index, 0, 0, CXTranslationUnit_DetailedPreprocessingRecord, &clangLine);
     writeToConnetion(String::format<128>("Indexed: %s => %s", clangLine.constData(), unit ? "success" : "failure"));
     if (unit) {
         clang_visitChildren(clang_getTranslationUnitCursor(unit), DumpThread::visitor, this);
