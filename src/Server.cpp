@@ -1712,7 +1712,10 @@ void Server::onMulticastReadyRead(const SocketClient::SharedPtr &socket,
         serializer.write("s", 1);
         if (mOptions.jobServer.second) {
             serializer << mOptions.jobServer.first << mOptions.jobServer.second;
+        } else if (mServerConnection) {
+            serializer << mServerConnection->client()->hostName() << mServerConnection->client()->port();
         } else {
+            assert(mOptions.options & JobServer);
             serializer << String() << mOptions.tcpPort;
         }
         if (debugMulti)
