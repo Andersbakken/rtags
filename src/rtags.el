@@ -468,7 +468,7 @@
       (and (not no-symbol-name) (rtags-current-symbol-name))
       (thing-at-point 'symbol)))
 
-(defun rtags-cursorinfo (&optional location verbose)
+(defun rtags-cursorinfo (&optional location verbose save-to-kill-ring)
   (let ((loc (or location (rtags-current-location)))
         (context (unless location (rtags-current-symbol t)))
         (path (buffer-file-name)))
@@ -478,11 +478,13 @@
                      "-U" loc
                      (if verbose "--cursorinfo-include-targets")
                      (if verbose "--cursorinfo-include-references"))
+      (if save-to-kill-ring
+          (copy-region-as-kill (point-min) (point-max)))
       (buffer-string))))
 
-(defun rtags-print-cursorinfo (&optional verbose)
+(defun rtags-print-cursorinfo (&optional prefix)
   (interactive "P")
-  (message "%s" (rtags-cursorinfo nil verbose)))
+  (message "%s" (rtags-cursorinfo nil (not prefix) (not prefix))))
 
 (defun rtags-print-dependencies (&optional buffer)
   (interactive)
