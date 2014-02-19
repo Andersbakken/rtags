@@ -61,6 +61,7 @@ public:
     template <int StaticBufSize> bool write(const char *format, ...);
     unsigned jobFlags() const { return mJobFlags; }
     void setJobFlags(unsigned flags) { mJobFlags = flags; }
+    void setJobFlag(Flag flag, bool on = true) { if (on) { mJobFlags |= flag; } else { mJobFlags &= ~flag; } }
     unsigned queryFlags() const { return mQueryFlags; }
     void setQueryFlags(unsigned queryFlags) { mQueryFlags = queryFlags; }
     unsigned keyFlags() const;
