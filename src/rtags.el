@@ -247,6 +247,7 @@
                              (range-min (1- (point-min)))
                              (range-max (1- (point-max)))
                              noerror
+                             silent-query
                              &allow-other-keys)
   (setq rtags-last-context context)
   (save-excursion
@@ -268,6 +269,8 @@
                             (buffer-file-name unsaved)
                             (with-current-buffer unsaved (- (point-max) (point-min))))
                     arguments))
+          (if silent-query
+              (push "--silent-query" arguments))
           (if range-filter
               (push (format "--range-filter=%d-%d" range-min range-max) arguments))
           (if rtags-timeout
@@ -1329,7 +1332,7 @@ References to references will be treated as references to the referenced symbol"
         (setq rtags-last-update-current-project-buffer (current-buffer))
         (let* ((rc (rtags-executable-find "rc"))
                (path (buffer-file-name))
-               (arguments (list "-T" path)))
+               (arguments (list "-T" path "--silent-query")))
           (when rc
             (push (concat "--with-project=" path) arguments)
             (let ((mapped (if rtags-match-source-file-to-project (apply rtags-match-source-file-to-project (list path)))))
@@ -1473,7 +1476,7 @@ References to references will be treated as references to the referenced symbol"
   (let ((path (buffer-file-name buffer)))
     (unless path (setq path default-directory))
     (with-temp-buffer
-      (rtags-call-rc :path path "-T" path :noerror t)
+      (rtags-call-rc :path path "-T" path :noerror t :silent-query t)
       (goto-char (point-min))
       (cond ((looking-at "indexed") 'rtags-indexed)
             ((looking-at "managed") 'rtags-file-managed)

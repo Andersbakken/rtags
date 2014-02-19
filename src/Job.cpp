@@ -31,6 +31,8 @@ Job::Job(const QueryMessage &query, unsigned jobFlags, const std::shared_ptr<Pro
       mPathFilters(0), mPathFiltersRegExp(0), mMax(query.max()), mConnection(0),
       mContext(query.context())
 {
+    if (query.flags() & QueryMessage::SilentQuery)
+        setJobFlag(QuietJob);
     const List<String> &pathFilters = query.pathFilters();
     if (!pathFilters.isEmpty()) {
         if (mQueryFlags & QueryMessage::MatchRegexp) {

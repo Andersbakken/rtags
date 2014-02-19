@@ -88,6 +88,7 @@ enum OptionType {
     ReverseSort,
     SendDiagnostics,
     Silent,
+    SilentQuery,
     SocketFile,
     Sources,
     Status,
@@ -205,6 +206,7 @@ struct Option opts[] = {
     { BuildIndex, "build-index", 0, required_argument, "For sources with multiple builds, use the arg'th." },
     { CompilationFlagsOnly, "compilation-flags-only", 0, no_argument, "For --source, only print compilation flags." },
     { DumpIncludeHeaders, "dump-include-headers", 0, no_argument, "For --dump-file, also dump dependencies." },
+    { SilentQuery, "silent-query", 0, no_argument, "Don't log this request in rdm." },
     { None, 0, 0, 0, 0 }
 };
 
@@ -689,6 +691,9 @@ bool RClient::parse(int &argc, char **argv)
             break;
         case DumpIncludeHeaders:
             mQueryFlags |= QueryMessage::DumpIncludeHeaders;
+            break;
+        case SilentQuery:
+            mQueryFlags |= QueryMessage::SilentQuery;
             break;
         case BuildIndex: {
             bool ok;

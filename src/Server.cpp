@@ -372,7 +372,6 @@ void Server::onNewMessage(Message *message, Connection *connection)
         handleCompileMessage(static_cast<CompileMessage&>(*m), connection);
         break;
     case QueryMessage::MessageId:
-        error() << m->raw();
         handleQueryMessage(static_cast<const QueryMessage&>(*m), connection);
         break;
     case IndexerMessage::MessageId:
@@ -506,6 +505,8 @@ void Server::handleIndexerMessage(const IndexerMessage &message, Connection *con
 
 void Server::handleQueryMessage(const QueryMessage &message, Connection *conn)
 {
+    if (!(message.flags() & QueryMessage::SilentQuery))
+        error() << message.raw();
     conn->setSilent(message.flags() & QueryMessage::Silent);
     updateProject(message.projects(), message.flags());
 
@@ -882,7 +883,8 @@ void Server::isIndexed(const QueryMessage &query, Connection *conn)
             ret = indexed ? "indexed" : "managed";
     }
 
-    error("=> %s", ret.constData());
+    if (!(query.flags() & QueryMessage::SilentQuery))
+        error("=> %s", ret.constData());
     conn->write(ret);
     conn->finish();
 }
@@ -905,10 +907,12 @@ void Server::hasFileManager(const QueryMessage &query, Connection *conn)
     const Path path = query.query();
     std::shared_ptr<Project> project = updateProjectForLocation(path);
     if (project && project->fileManager && (project->fileManager->contains(path) || project->match(query.match()))) {
-        error("=> 1");
+        if (!(query.flags() & QueryMessage::SilentQuery))
+            error("=> 1");
         conn->write("1");
     } else {
-        error("=> 0");
+        if (!(query.flags() & QueryMessage::SilentQuery))
+            error("=> 0");
         conn->write("0");
     }
     conn->finish();
