@@ -486,7 +486,7 @@ void Server::handleIndexerMessage(const IndexerMessage &message, Connection *con
 
         // we only care about the first job that returns
         if (!(job->flags & (IndexerJob::CompleteLocal|IndexerJob::CompleteRemote))) {
-            if (!(job->flags == IndexerJob::Aborted))
+            if (!(job->flags & IndexerJob::Aborted))
                 job->flags |= (ip.isEmpty() ? IndexerJob::CompleteRemote : IndexerJob::CompleteLocal);
             std::shared_ptr<Project> project = mProjects.value(message.project());
             if (!project) {
