@@ -138,6 +138,7 @@ First of all you need to grab the git submodules:
 #+BEGIN_SRC
 git submodule init
 git submodule update
+brew install ./llvm-osx/llvm.rb --with-clang --with-libcxx --disable-assertions
 #+END_SRC
 
 Now you should be able to start the build process:
