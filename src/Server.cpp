@@ -64,8 +64,6 @@
 #include <arpa/inet.h>
 #include <limits>
 
-std::owner_less<std::weak_ptr<int> > foo;
-
 class HttpLogObject : public LogOutput
 {
 public:
