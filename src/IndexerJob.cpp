@@ -87,6 +87,9 @@ void IndexerJob::abort()
         process->kill();
         assert(!(flags & FromRemote)); // this is not handled
     }
+    if (flags & (CompleteRemote|CompleteLocal)) {
+        error() << "Aborting a job that already is complete";
+    }
     assert(!(flags & (CompleteRemote|CompleteLocal)));
     flags &= ~RunningLocal;
     flags |= Aborted;

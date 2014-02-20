@@ -64,6 +64,8 @@
 #include <arpa/inet.h>
 #include <limits>
 
+std::owner_less<std::weak_ptr<int> > foo;
+
 class HttpLogObject : public LogOutput
 {
 public:
@@ -1664,7 +1666,8 @@ void Server::onReschedule()
     bool restartTimer = false;
     bool doWork = false;
     while (it != mProcessingJobs.end()) {
-        const std::shared_ptr<IndexerJob>& job = it->second;        if (job->flags & (IndexerJob::CompleteRemote|IndexerJob::CompleteLocal)) {
+        const std::shared_ptr<IndexerJob>& job = it->second;
+        if (job->flags & (IndexerJob::CompleteRemote|IndexerJob::CompleteLocal)) {
             // this can happen if we complete it while we're sending it to a
             // remote. Should fix all of these
             it = mProcessingJobs.erase(it);
@@ -1791,18 +1794,6 @@ void Server::stopServers()
     mTcpServer.reset();
     mHttpServer.reset();
     mProjects.clear();
-}
-
-static inline uint64_t connectTime(uint64_t lastAttempt, int failures)
-{
-    uint64_t wait = 0;
-    if (failures) {
-        wait = 1000;
-        for (int i=1; i<failures; ++i) {
-            wait *= 2;
-        }
-    }
-    return lastAttempt + wait;
 }
 
 void Server::codeCompleteAt(const QueryMessage &query, Connection *conn)
