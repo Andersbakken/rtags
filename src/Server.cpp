@@ -1705,52 +1705,44 @@ void Server::onMulticastReadyRead(const SocketClient::SharedPtr &socket,
     if (debugMulti)
         error() << "Got some data from multicast socket" << buffer.size() << ip;
     const char *data = reinterpret_cast<const char*>(buffer.data());
-    int size = buffer.size();
-    Deserializer deserializer(data, size);
-    bool query = false;
-    while (!deserializer.atEnd()) {
-        String packet;
-        deserializer >> packet;
-        if (packet == "s?") {
-            query = true;
-        } else if (!(mOptions.options & JobServer) && !mOptions.jobServer.second && !mServerConnection) {
-            Deserializer pd(packet);
-            pd >> mOptions.jobServer.first >> mOptions.jobServer.second;
-            if (mOptions.jobServer.first.isEmpty())
-                mOptions.jobServer.first = ip;
-            connectToServer();
+    const int size = buffer.size();
+    if (size == 2 && !strncmp(data, "s?", 2)) {
+        String out;
+        if (mServerConnection) {
+            if (debugMulti)
+                error() << ip << "wants to know where the server is. I am connected to"
+                        << String::format<128>("%s:%d",
+                                               mServerConnection->client()->hostName().constData(),
+                                               mServerConnection->client()->port());
+            Serializer serializer(out);
+            serializer << mServerConnection->client()->hostName() << mServerConnection->client()->port();
+        } else if (mOptions.jobServer.second) {
+            if (debugMulti)
+                error() << ip << "wants to know where the server is. I have something in options" << mOptions.jobServer;
+            Serializer serializer(out);
+            serializer << mOptions.jobServer.first << mOptions.jobServer.second;
+        } else if (mOptions.options & JobServer) {
+            if (debugMulti)
+                error() << ip << "wants to know where the server is. I am the server" << mOptions.tcpPort;
+            Serializer serializer(out);
+            serializer << String() << mOptions.tcpPort;
+        } else {
+            if (debugMulti)
+                error() << ip << "wants to know where the server is but I don't know";
+            return;
         }
-    }
-    if (query && (mServerConnection || (mOptions.options & JobServer) || mOptions.jobServer.second)) {
-        String packet;
-        {
-            Serializer serializer(packet);
-            if (mOptions.jobServer.second) {
-                if (debugMulti)
-                    error() << ip << "wants to know where the server is. I have something in options" << mOptions.jobServer;
-                serializer << mOptions.jobServer.first << mOptions.jobServer.second;
-            } else if (mServerConnection) {
-                if (debugMulti)
-                    error() << ip << "wants to know where the server is. I am connected to"
-                            << String::format<128>("%s:%d",
-                                                   mServerConnection->client()->hostName().constData(),
-                                                   mServerConnection->client()->port());
-                serializer << mServerConnection->client()->hostName() << mServerConnection->client()->port();
-            } else {
-                assert(mOptions.options & JobServer);
-                if (debugMulti)
-                    error() << ip << "wants to know where the server is. I am the server" << mOptions.tcpPort;
-                serializer << String() << mOptions.tcpPort;
-            }
-        }
-        String data;
-        Serializer serializer(data);
-        serializer << packet;
-        if (debugMulti)
-            error() << ip << "wants to know about the server sending" << data.size() << "bytes";
+        assert(!out.isEmpty());
 
         mMulticastSocket->writeTo(mOptions.multicastAddress, mOptions.multicastPort,
-                                  reinterpret_cast<const unsigned char*>(data.constData()), data.size());
+                                  reinterpret_cast<const unsigned char*>(out.constData()), out.size());
+    } else {
+        Deserializer deserializer(data, size);
+        deserializer >> mOptions.jobServer.first >> mOptions.jobServer.second;
+        if (mOptions.jobServer.first.isEmpty())
+            mOptions.jobServer.first = ip;
+        if (debugMulti)
+            error() << ip << "tells me the server is to be found at" << mOptions.jobServer;
+        connectToServer();
     }
 }
 
@@ -1889,10 +1881,8 @@ void Server::connectToServer()
     enum { ServerReconnectTimer = 5000 };
     if (!mOptions.jobServer.second) {
         if (mMulticastSocket) {
-            String data;
-            Serializer serializer(data);
-            serializer << String("s?");
-            mMulticastSocket->writeTo(mOptions.multicastAddress, mOptions.multicastPort, data);
+            const unsigned char data[] = { 's', '?' };
+            mMulticastSocket->writeTo(mOptions.multicastAddress, mOptions.multicastPort, data, 2);
             mConnectToServerTimer.restart(ServerReconnectTimer);
         }
     } else {
