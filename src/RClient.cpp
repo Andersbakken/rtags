@@ -790,7 +790,7 @@ bool RClient::parse(int &argc, char **argv)
             addLog(RTags::CompilationErrorXml);
             break;
         case QuitRdm: {
-            const char *arg;
+            const char *arg = 0;
             if (optarg) {
                 arg = optarg;
             } else if (optind < argc && argv[optind][0] != '-') {
