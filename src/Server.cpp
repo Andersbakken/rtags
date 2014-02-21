@@ -1810,7 +1810,7 @@ void Server::onLocalJobFinished(Process *process)
                 << process->errorString() << process->readAllStdErr();
     if (job->flags & IndexerJob::FromRemote) {
         error() << "Built remote job" << job->sourceFile.toTilde() << "for"
-                << job->destination
+                << job->destination << Rct::addrLookup(job->destination)
                 << "in" << (Rct::monoMs() - it->second.second) << "ms";
     }
     if (!(job->flags & (IndexerJob::CompleteRemote|IndexerJob::CompleteLocal))
