@@ -2081,24 +2081,20 @@ void Server::work()
     if (mOptions.options & NoJobServer)
         return;
 
-    if (!mAnnounced) {
+    if (!mAnnounced && announcables) {
         mAnnounced = true;
-        if (announcables) {
-            if (debugMulti)
-                error() << "announcing because we have" << announcables << "announcables";
-            if (mServerConnection) {
-                mServerConnection->send(ProxyJobAnnouncementMessage(mOptions.tcpPort));
-            } else {
-                const JobAnnouncementMessage msg(mHostName, mOptions.tcpPort);
-                for (auto client : mClients) {
-                    client->send(msg);
-                }
+        if (debugMulti)
+            error() << "announcing because we have" << announcables << "announcables";
+        if (mServerConnection) {
+            mServerConnection->send(ProxyJobAnnouncementMessage(mOptions.tcpPort));
+        } else {
+            const JobAnnouncementMessage msg(mHostName, mOptions.tcpPort);
+            for (auto client : mClients) {
+                client->send(msg);
             }
-        } else if (debugMulti) {
-            error() << "Nothing to announce";
         }
     } else if (debugMulti) {
-        error() << "Already announced";
+        error() << (mAnnounced ? "Already announced" : "Nothing to announce");
     }
 
     if (jobs <= 0)
