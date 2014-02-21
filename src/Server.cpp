@@ -560,11 +560,11 @@ void Server::handleQueryMessage(const QueryMessage &message, Connection *conn)
     case QueryMessage::Project:
         project(message, conn);
         break;
-#if defined(HAVE_CXCOMPILATIONDATABASE) && CLANG_VERSION_MINOR >= 3
     case QueryMessage::LoadCompilationDatabase:
+#if defined(HAVE_CXCOMPILATIONDATABASE) && CLANG_VERSION_MINOR >= 3
         loadCompilationDatabase(message, conn);
-        break;
 #endif
+        break;
     case QueryMessage::Reindex: {
         reindex(message, conn);
         break; }
