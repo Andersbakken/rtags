@@ -1733,7 +1733,7 @@ void Server::onMulticastReadyRead(const SocketClient::SharedPtr &socket,
             serializer << String() << mOptions.tcpPort;
         }
         if (debugMulti)
-            error() << ip << "wants to know about the server" << mOptions.jobServer << mOptions.tcpPort;
+            error() << ip << "wants to know about the server sending" << data.size() << "bytes";
         mMulticastSocket->writeTo(mOptions.multicastAddress, mOptions.multicastPort,
                                   reinterpret_cast<const unsigned char*>(data.constData()), data.size());
     } else if (!(mOptions.options & JobServer) && !mOptions.jobServer.second) { // looking for server
