@@ -1709,18 +1709,27 @@ void Server::onMulticastReadyRead(const SocketClient::SharedPtr &socket,
         error() << "Got unexpected multicast message";
         return;
     } else if (buffer.size() == 2 && data[1] == '?') { // query for server
-        if (!mServerConnection && !(mOptions.options & JobServer))
+        if (!mServerConnection && !(mOptions.options & JobServer) && !mOptions.jobServer.second)
             return;
 
         String data;
         Serializer serializer(data);
         serializer.write("s", 1);
         if (mOptions.jobServer.second) {
+            if (debugMulti)
+                error() << "ip wants to know where the server is. I have something in options" << mOptions.jobServer;
             serializer << mOptions.jobServer.first << mOptions.jobServer.second;
         } else if (mServerConnection) {
+            if (debugMulti)
+                error() << "ip wants to know where the server is. I am connected to"
+                        << String::format<128>("%s:%d",
+                                               mServerConnection->client()->hostName().constData(),
+                                               mServerConnection->client()->port());
             serializer << mServerConnection->client()->hostName() << mServerConnection->client()->port();
         } else {
             assert(mOptions.options & JobServer);
+            if (debugMulti)
+                error() << "ip wants to know where the server is. I am the server" << mOptions.tcpPort;
             serializer << String() << mOptions.tcpPort;
         }
         if (debugMulti)
