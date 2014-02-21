@@ -107,19 +107,10 @@ void IndexerJob::encode(Serializer &serializer)
     copy.defines << options.defines;
     assert(cpp);
     serializer << destination << port << sourceFile
-               << copy << *cpp << project
-               << flags << options.rpVisitFileTimeout
-               << options.rpIndexerMessageTimeout << options.rpConnectTimeout
+               << copy << *cpp << project << flags
+               << static_cast<uint32_t>(options.rpVisitFileTimeout)
+               << static_cast<uint32_t>(options.rpIndexerMessageTimeout)
+               << static_cast<uint32_t>(options.rpConnectTimeout)
+               << static_cast<bool>(options.options & Server::SuspendRPOnCrash)
                << id << (blockedFiles.isEmpty() && proj ? proj->visitedFiles() : blockedFiles);
-}
-
-void IndexerJob::decode(Deserializer &deserializer, Hash<Path, uint32_t> &blockedFiles)
-{
-    int ignored; // timeouts
-    assert(!cpp);
-    cpp.reset(new Cpp);
-    deserializer >> destination >> port >> sourceFile
-                 >> source >> *cpp >> project
-                 >> flags >> ignored >> ignored >> id
-                 >> blockedFiles;
 }

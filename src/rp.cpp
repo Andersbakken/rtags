@@ -24,8 +24,15 @@
 #include <signal.h>
 #include <syslog.h>
 
+static bool suspendOnSigSegv = false;
 static void sigHandler(int signal)
 {
+    if (signal == SIGSEGV && suspendOnSigSegv) {
+        while (true) {
+            fprintf(stderr, "rp crashed..., waiting for debugger\n%d\n", getpid());
+            sleep(1);
+        }
+    }
     error("Caught signal %d\n", signal);
     // this is not really allowed in signal handlers but will mostly work
     const List<String>& trace = RTags::backtrace();
@@ -84,12 +91,11 @@ int main(int argc, char **argv)
     Hash<Path, uint32_t> blockedFiles;
     std::shared_ptr<Cpp> cpp(new Cpp);
     uint64_t jobId;
-    int visitFileTimeout, indexerMessageTimeout, connectTimeout;
+    uint32_t visitFileTimeout, indexerMessageTimeout, connectTimeout;
     deserializer >> destination >> port >> sourceFile >> source
                  >> *cpp >> project >> flags
-                 >> visitFileTimeout >> indexerMessageTimeout
-                 >> connectTimeout
-                 >> jobId >> blockedFiles;
+                 >> visitFileTimeout >> indexerMessageTimeout >> connectTimeout
+                 >> suspendOnSigSegv >> jobId >> blockedFiles;
     if (sourceFile.isEmpty()) {
         error("No sourcefile\n");
         return 3;

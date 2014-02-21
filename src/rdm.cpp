@@ -64,6 +64,11 @@ static void sigIntHandler(int)
 #define XSTR(s) #s
 #define STR(s) XSTR(s)
 static size_t defaultStackSize = 0;
+#ifdef NDEBUG
+#define DEFAULT_SUSPEND_RP "off"
+#else
+#define DEFAULT_SUSPEND_RP "on"
+#endif
 
 static void usage(FILE *f)
 {
@@ -108,6 +113,7 @@ static void usage(FILE *f)
 #else
             "  --no-filemanager-watch|-M                  Don't use a file system watcher for filemanager.\n"
 #endif
+            "  --suspend-rp-on-crash|-q [arg]             Suspend rp in SIGSEGV handler (default " DEFAULT_SUSPEND_RP ").\n"
             "  --no-no-unknown-warnings-option|-Y         Don't pass -Wno-unknown-warning-option\n"
             "  --ignore-compiler|-b [arg]                 Alias this compiler (Might be practical to avoid duplicated sources for things like icecc).\n"
             "  --multicast-address|-a [arg]               Use this address for multicast (default " DEFAULT_RDM_MULTICAST_ADDRESS ").\n"
@@ -177,6 +183,7 @@ int main(int argc, char** argv)
         { "http-port", required_argument, 0, 'H' },
         { "reschedule-timeout", required_argument, 0, 'R' },
         { "thread-stack-size", required_argument, 0, 'k' },
+        { "suspend-rp-on-crash", required_argument, 0, 'q' },
 #ifdef OS_Darwin
         { "filemanager-watch", no_argument, 0, 'M' },
 #else
@@ -291,6 +298,9 @@ int main(int argc, char** argv)
     serverOpts.options = Server::Wall|Server::SpellChecking;
 #ifdef OS_Darwin
     serverOpts.options |= Server::NoFileManagerWatch;
+#endif
+#ifndef NDEBUG
+    serverOpts.options |= Server::SuspendRPOnCrash;
 #endif
     serverOpts.excludeFilters = String(EXCLUDEFILTER_DEFAULT).split(';');
     serverOpts.dataDir = String::format<128>("%s.rtags", Path::home().constData());
@@ -444,6 +454,16 @@ int main(int argc, char** argv)
             break;
         case 'w':
             serverOpts.options |= Server::WatchSystemPaths;
+            break;
+        case 'q':
+            if (!strcmp(optarg, "on") || !strcmp(optarg, "1")) {
+                serverOpts.options |= Server::SuspendRPOnCrash;
+            } else if (!strcmp(optarg, "off") || !strcmp(optarg, "1")) {
+                serverOpts.options &= ~Server::SuspendRPOnCrash;
+            } else {
+                fprintf(stderr, "Invalid argument to -q. Must be on, off, 1, or 0\n");
+                return 1;
+            }
             break;
         case 'M':
 #ifdef OS_Darwin

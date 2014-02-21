@@ -51,7 +51,6 @@ public:
     bool update(unsigned int flags, const Source &s, const std::shared_ptr<Cpp> &cpp);
     void abort();
     void encode(Serializer &serializer);
-    void decode(Deserializer &deserializer, Hash<Path, uint32_t> &blockedFiles);
 
     uint32_t flags;
     String destination;

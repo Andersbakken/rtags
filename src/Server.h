@@ -75,7 +75,8 @@ public:
         CompressionRemote = 0x0800,
         CompressionAlways = 0x1000,
         NoLocalCompiles = 0x2000,
-        NoNoUnknownWarningsOption = 0x4000
+        NoNoUnknownWarningsOption = 0x4000,
+        SuspendRPOnCrash = 0x8000
     };
     struct Options {
         Options()
