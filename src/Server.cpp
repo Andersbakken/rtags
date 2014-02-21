@@ -23,6 +23,7 @@
 #include "VisitFileResponseMessage.h"
 #include "JobAnnouncementMessage.h"
 #include "ProxyJobAnnouncementMessage.h"
+#include "ExitMessage.h"
 #include "ClientMessage.h"
 #include "ClientConnectedMessage.h"
 #include "PreprocessJob.h"
@@ -112,11 +113,12 @@ static const bool debugMulti = getenv("RDM_DEBUG_MULTI");
 Server *Server::sInstance = 0;
 Server::Server()
     : mVerbose(false), mCurrentFileId(0), mThreadPool(0), mServerConnection(0), mHostName(Rct::hostName()),
-      mCompletionThread(0), mFirstRemote(0), mLastRemote(0), mAnnounced(false), mWorkPending(false)
+      mCompletionThread(0), mFirstRemote(0), mLastRemote(0), mAnnounced(false), mWorkPending(false), mExitCode(0)
 {
     Messages::registerMessage<JobRequestMessage>();
     Messages::registerMessage<JobResponseMessage>();
     Messages::registerMessage<ClientConnectedMessage>();
+    Messages::registerMessage<ExitMessage>();
 
     assert(!sInstance);
     sInstance = this;
@@ -383,6 +385,9 @@ void Server::onNewMessage(Message *message, Connection *connection)
         error() << m->raw();
         handleLogOutputMessage(static_cast<const LogOutputMessage&>(*m), connection);
         break;
+    case ExitMessage::MessageId:
+        handleExitMessage(static_cast<const ExitMessage&>(*m));
+        break;
     case VisitFileMessage::MessageId:
         handleVisitFileMessage(static_cast<const VisitFileMessage&>(*m), connection);
         break;
@@ -462,6 +467,17 @@ void Server::handleCompileMessage(CompileMessage &message, Connection *conn)
 {
     conn->finish();
     index(message.arguments(), message.workingDirectory(), message.projects());
+}
+
+void Server::handleExitMessage(const ExitMessage &message)
+{
+    mExitCode = message.exitCode();
+    for (auto client : mClients) {
+        client->send(message);
+    }
+
+    EventLoop::eventLoop()->registerTimer(std::bind(&EventLoop::quit, EventLoop::eventLoop()),
+                                          1000, Timer::SingleShot);
 }
 
 void Server::handleLogOutputMessage(const LogOutputMessage &message, Connection *conn)
@@ -1330,7 +1346,15 @@ void Server::shutdown(const QueryMessage &query, Connection *conn)
         if (it.second)
             it.second->unload();
     }
-    EventLoop::eventLoop()->quit();
+    if (!query.query().isEmpty()) {
+        int exitCode;
+        Deserializer deserializer(query.query());
+        deserializer >> exitCode;
+        ExitMessage msg(exitCode);
+        handleExitMessage(msg);
+    } else {
+        EventLoop::eventLoop()->quit();
+    }
     conn->write("Shutting down");
     conn->finish();
 }

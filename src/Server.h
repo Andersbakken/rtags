@@ -48,6 +48,7 @@ class JobResponseMessage;
 class JobAnnouncementMessage;
 class ProxyJobAnnouncementMessage;
 class ClientConnectedMessage;
+class ExitMessage;
 class ClientMessage;
 class CompletionThread;
 class PreprocessJob;
@@ -114,6 +115,7 @@ public:
     void stopServers();
     int mongooseStatistics(struct mg_connection *conn);
     void dumpJobs(Connection *conn);
+    int exitCode() const { return mExitCode; }
 private:
     bool selectProject(const Match &match, Connection *conn, unsigned int queryFlags);
     bool updateProject(const List<String> &projects, unsigned int queryFlags);
@@ -129,6 +131,7 @@ private:
     void onNewMessage(Message *message, Connection *conn);
     void onConnectionDisconnected(Connection *o);
     void clearProjects();
+    void handleExitMessage(const ExitMessage &message);
     void handleCompileMessage(CompileMessage &message, Connection *conn);
     void handleIndexerMessage(const IndexerMessage &message, Connection *conn);
     void handleQueryMessage(const QueryMessage &message, Connection *conn);
@@ -233,6 +236,7 @@ private:
     bool mAnnounced;
     Hash<std::string, Remote *> mRemotes;
     bool mWorkPending;
+    int mExitCode;
 };
 
 #endif

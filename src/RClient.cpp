@@ -122,7 +122,7 @@ struct Option opts[] = {
 
     { None, 0, 0, 0, "" },
     { None, 0, 0, 0, "Rdm:" },
-    { QuitRdm, "quit-rdm", 'q', no_argument, "Tell server to shut down." },
+    { QuitRdm, "quit-rdm", 'q', optional_argument, "Tell server to shut down. If arg is broadcast:10 tell all rdm on the farm to quit with exit code 10." },
     { ConnectTimeout, "connect-timeout", 0, required_argument, "Timeout for connecting to rdm in ms (default " STR(DEFAULT_CONNECT_TIMEOUT)  ")." },
 
     { None, 0, 0, 0, "" },
@@ -789,9 +789,32 @@ bool RClient::parse(int &argc, char **argv)
         case XmlDiagnostics:
             addLog(RTags::CompilationErrorXml);
             break;
-        case QuitRdm:
-            addQuery(QueryMessage::Shutdown);
-            break;
+        case QuitRdm: {
+            const char *arg;
+            if (optarg) {
+                arg = optarg;
+            } else if (optind < argc && argv[optind][0] != '-') {
+                arg = argv[optind++];
+            }
+            if (arg) {
+                if (strncmp(arg, "broadcast:", 10)) {
+                    fprintf(stderr, "Invalid argument to -q\n");
+                    return 1;
+                }
+                bool ok;
+                const int exit = String(arg + 10).toLongLong(&ok);
+                if (!ok) {
+                    fprintf(stderr, "Invalid argument to -q\n");
+                    return 1;
+                }
+                String query;
+                Serializer serializer(query);
+                serializer << exit;
+                addQuery(QueryMessage::Shutdown, query);
+            } else {
+                addQuery(QueryMessage::Shutdown);
+            }
+            break; }
         case DeleteProject:
             addQuery(QueryMessage::DeleteProject, optarg);
             break;

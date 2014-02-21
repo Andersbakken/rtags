@@ -596,5 +596,5 @@ int main(int argc, char** argv)
 
     const unsigned int ret = loop->exec();
     cleanupLogging();
-    return ret == EventLoop::Success ? 0 : 1;
+    return ret == EventLoop::Success ? server->exitCode() : 1;
 }
