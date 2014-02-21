@@ -2097,7 +2097,7 @@ void Server::work()
                     client->send(msg);
                 }
             }
-        } else {
+        } else if (debugMulti) {
             error() << "Nothing to announce";
         }
     } else if (debugMulti) {
