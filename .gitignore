@@ -33,3 +33,5 @@ gr
 /bin/librtagsclang.dylib
 /src/libshared.so
 /src/libshared.dylib
+/src/.gdb_brestore
+/src/.gdb_brestore.txt

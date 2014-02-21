@@ -386,7 +386,7 @@ void Server::onNewMessage(Message *message, Connection *connection)
         handleLogOutputMessage(static_cast<const LogOutputMessage&>(*m), connection);
         break;
     case ExitMessage::MessageId:
-        handleExitMessage(static_cast<const ExitMessage&>(*m));
+        handleExitMessage(static_cast<const ExitMessage&>(*m), false);
         break;
     case VisitFileMessage::MessageId:
         handleVisitFileMessage(static_cast<const VisitFileMessage&>(*m), connection);
@@ -469,11 +469,18 @@ void Server::handleCompileMessage(CompileMessage &message, Connection *conn)
     index(message.arguments(), message.workingDirectory(), message.projects());
 }
 
-void Server::handleExitMessage(const ExitMessage &message)
+void Server::handleExitMessage(const ExitMessage &message, bool forward)
 {
     mExitCode = message.exitCode();
-    for (auto client : mClients) {
-        client->send(message);
+    if (mServerConnection && forward) {
+        mServerConnection->send(message);
+    } else if (!mClients.isEmpty()) {
+        for (auto client : mClients) {
+            client->send(message);
+        }
+    } else {
+        EventLoop::eventLoop()->quit();
+        return;
     }
 
     EventLoop::eventLoop()->registerTimer(std::bind(&EventLoop::quit, EventLoop::eventLoop()),
@@ -1351,7 +1358,7 @@ void Server::shutdown(const QueryMessage &query, Connection *conn)
         Deserializer deserializer(query.query());
         deserializer >> exitCode;
         ExitMessage msg(exitCode);
-        handleExitMessage(msg);
+        handleExitMessage(msg, true);
     } else {
         EventLoop::eventLoop()->quit();
     }
