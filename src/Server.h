@@ -47,6 +47,7 @@ class JobRequestMessage;
 class JobResponseMessage;
 class JobAnnouncementMessage;
 class ProxyJobAnnouncementMessage;
+class ClientConnectedMessage;
 class ClientMessage;
 class CompletionThread;
 class PreprocessJob;
@@ -137,6 +138,7 @@ private:
     void handleJobRequestMessage(const JobRequestMessage &message, Connection *conn);
     void handleJobResponseMessage(const JobResponseMessage &message, Connection *conn);
     void handleJobAnnouncementMessage(const JobAnnouncementMessage &message);
+    void handleClientConnectedMessage(const ClientConnectedMessage &message);
     void handleProxyJobAnnouncementMessage(const ProxyJobAnnouncementMessage &message, Connection *conn);
     void handleClientMessage(const ClientMessage &message, Connection *conn);
 

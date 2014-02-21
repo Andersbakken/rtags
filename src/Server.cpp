@@ -24,6 +24,7 @@
 #include "JobAnnouncementMessage.h"
 #include "ProxyJobAnnouncementMessage.h"
 #include "ClientMessage.h"
+#include "ClientConnectedMessage.h"
 #include "PreprocessJob.h"
 #include "Filter.h"
 #include "FindFileJob.h"
@@ -115,6 +116,7 @@ Server::Server()
 {
     Messages::registerMessage<JobRequestMessage>();
     Messages::registerMessage<JobResponseMessage>();
+    Messages::registerMessage<ClientConnectedMessage>();
 
     assert(!sInstance);
     sInstance = this;
@@ -347,7 +349,8 @@ void Server::onNewConnection(SocketServer *server)
         conn->disconnected().connect(std::bind(&Server::onConnectionDisconnected, this, std::placeholders::_1));
 
         if (debugMulti && !conn->client()->peerString().isEmpty()) {
-            error() << "Got connection from" << conn->client()->peerString();
+            error() << "Got connection from" << conn->client()->peerString()
+                    << Rct::addrLookup(conn->client()->peerName());
         }
     }
 }
@@ -393,6 +396,12 @@ void Server::onNewMessage(Message *message, Connection *connection)
         break;
     case JobRequestMessage::MessageId:
         handleJobRequestMessage(static_cast<const JobRequestMessage&>(*m), connection);
+        break;
+    case ClientConnectedMessage::MessageId:
+        handleClientConnectedMessage(static_cast<const ClientConnectedMessage&>(*m));
+        break;
+    case JobAnnouncementMessage::MessageId:
+        handleJobAnnouncementMessage(static_cast<const JobAnnouncementMessage&>(*m));
         break;
     case JobResponseMessage::MessageId:
         handleJobResponseMessage(static_cast<const JobResponseMessage&>(*m), connection);
@@ -470,7 +479,10 @@ void Server::handleIndexerMessage(const IndexerMessage &message, Connection *con
     auto it = mProcessingJobs.find(indexData->jobId);
     if (debugMulti)
         error() << "got indexer message for job" << Location::path(indexData->fileId()) << indexData->jobId
-                << "from" << (conn->client()->peerString().isEmpty() ? String("ourselves") : conn->client()->peerString());
+                << "from" << (conn->client()->peerString().isEmpty()
+                              ? String("ourselves")
+                              : (String::format<128>("%s %s", conn->client()->peerString().constData(),
+                                                     Rct::addrLookup(conn->client()->peerName()).constData())));
     if (it != mProcessingJobs.end()) {
         std::shared_ptr<IndexerJob> job = it->second;
         assert(job);
@@ -1420,6 +1432,7 @@ void Server::handleJobRequestMessage(const JobRequestMessage &message, Connectio
 {
     if (debugMulti)
         error() << "got a request for" << message.numJobs() << "jobs from" << conn->client()->peerName()
+                << Rct::addrLookup(conn->client()->peerName())
                 << mPending.size() << "potential jobs here";
     auto it = mPending.begin();
     List<std::shared_ptr<IndexerJob> > jobs;
@@ -1439,7 +1452,9 @@ void Server::handleJobRequestMessage(const JobRequestMessage &message, Connectio
                     error() << "Compressed" << job->sourceFile << "in" << sw.elapsed() << "ms";
             }
             if (debugMulti)
-                error() << "sending job" << job->sourceFile << "to" << conn->client()->peerString();
+                error() << "sending job" << job->sourceFile << "to" << conn->client()->peerString()
+                        << Rct::addrLookup(conn->client()->peerName());
+
             jobs.append(job);
             it = mPending.erase(it);
             if (jobs.size() == message.numJobs()) {
@@ -1452,6 +1467,7 @@ void Server::handleJobRequestMessage(const JobRequestMessage &message, Connectio
     }
     if (debugMulti) {
         error() << "Sending" << jobs.size() << "jobs to" << conn->client()->peerName()
+                << Rct::addrLookup(conn->client()->peerName())
                 << "finished" << finished << "asked for" << message.numJobs();
     }
     conn->send(JobResponseMessage(jobs, mOptions.tcpPort, finished));
@@ -1486,7 +1502,8 @@ void Server::handleJobResponseMessage(const JobResponseMessage &message, Connect
     const String host = conn->client()->peerName();
     const auto jobs = message.jobs(host);
     if (debugMulti)
-        error() << "Got jobs from" << host << jobs.size() << message.isFinished();
+        error() << "Got jobs from" << host << Rct::addrLookup(host)
+                << jobs.size() << message.isFinished();
     for (const auto &job : jobs) {
         if (debugMulti)
             error() << "got indexer job with preprocessed" << job->cpp->preprocessed.size() << job->sourceFile;
@@ -1523,7 +1540,7 @@ void Server::handleJobAnnouncementMessage(const JobAnnouncementMessage &message)
 {
     WorkScope scope;
     if (debugMulti)
-        error() << "Getting job announcement from" << message.host();
+        error() << "Getting job announcement from" << message.host() << Rct::addrLookup(message.host());
     Remote *&remote = mRemotes[message.host()];
     if (!remote)
         remote = new Remote(message.host(), message.port());;
@@ -1551,7 +1568,8 @@ void Server::handleProxyJobAnnouncementMessage(const ProxyJobAnnouncementMessage
 {
     const JobAnnouncementMessage msg(conn->client()->peerName(), message.port());
     if (debugMulti) {
-        error() << "Sending proxy job announcement" << conn->client()->peerName();
+        error() << "Sending proxy job announcement" << conn->client()->peerName()
+                << Rct::addrLookup(conn->client()->peerName());
     }
 
     for (auto client : mClients) {
@@ -1563,8 +1581,26 @@ void Server::handleProxyJobAnnouncementMessage(const ProxyJobAnnouncementMessage
 
 void Server::handleClientMessage(const ClientMessage &, Connection *conn)
 {
-    error() << "Got a client connected from" << conn->client()->peerName();
+    error() << "Got a client connected from" << conn->client()->peerName()
+            << Rct::addrLookup(conn->client()->peerName());
+
     mClients.insert(conn);
+
+    const ClientConnectedMessage msg(conn->client()->peerName());
+    for (auto client : mClients) {
+        if (client != conn)
+            client->send(msg);
+    }
+    handleClientConnectedMessage(msg);
+}
+
+void Server::handleClientConnectedMessage(const ClientConnectedMessage &msg)
+{
+    if (debugMulti) {
+        error() << "A new client joined the network" << msg.peer() << Rct::addrLookup(msg.peer());
+    }
+    mAnnounced = false;
+    work();
 }
 
 void Server::handleVisitFileMessage(const VisitFileMessage &message, Connection *conn)
@@ -1711,14 +1747,17 @@ void Server::onMulticastReadyRead(const SocketClient::SharedPtr &socket,
         if (mServerConnection) {
             if (debugMulti)
                 error() << ip << "wants to know where the server is. I am connected to"
-                        << String::format<128>("%s:%d",
-                                               mServerConnection->client()->hostName().constData(),
-                                               mServerConnection->client()->port());
+                        << String::format<128>("%s:%d %s",
+                                               mServerConnection->client()->peerName().constData(),
+                                               mServerConnection->client()->port(),
+                                               Rct::addrLookup(mServerConnection->client()->peerName()).constData());
+
             Serializer serializer(out);
-            serializer << mServerConnection->client()->hostName() << mServerConnection->client()->port();
+            serializer << mServerConnection->client()->peerName() << mServerConnection->client()->port();
         } else if (mOptions.jobServer.second) {
             if (debugMulti)
-                error() << ip << "wants to know where the server is. I have something in options" << mOptions.jobServer;
+                error() << ip << "wants to know where the server is. I have something in options" << mOptions.jobServer
+                        << Rct::addrLookup(mOptions.jobServer.first);
             Serializer serializer(out);
             serializer << mOptions.jobServer.first << mOptions.jobServer.second;
         } else if (mOptions.options & JobServer) {
@@ -1741,7 +1780,9 @@ void Server::onMulticastReadyRead(const SocketClient::SharedPtr &socket,
         if (mOptions.jobServer.first.isEmpty())
             mOptions.jobServer.first = ip;
         if (debugMulti)
-            error() << ip << "tells me the server is to be found at" << mOptions.jobServer;
+            error() << ip << "tells me the server is to be found at" << mOptions.jobServer
+                    << Rct::addrLookup(mOptions.jobServer.first);
+
         connectToServer();
     }
 }
@@ -1908,10 +1949,7 @@ void Server::connectToServer()
                     error() << "Connected to server" << conn->client()->peerName();
                 }
             });
-        mServerConnection->newMessage().connect([this](Message *msg, Connection *conn) {
-                assert(msg->messageId() == JobAnnouncementMessage::MessageId);
-                handleJobAnnouncementMessage(static_cast<const JobAnnouncementMessage&>(*msg));
-            });
+        mServerConnection->newMessage().connect(std::bind(&Server::onNewMessage, this, std::placeholders::_1, std::placeholders::_2));
 
         if (!mServerConnection->connectTcp(mOptions.jobServer.first, mOptions.jobServer.second)) {
             delete mServerConnection;
@@ -1993,7 +2031,8 @@ void Server::work()
         log << "pending job requests" << pendingJobRequestCount;
         int idx = 0;
         for (Remote *remote = mFirstRemote; remote; remote = remote->next) {
-            log << "remote" << ++idx << "of" << mRemotes.size() << remote->host;
+            log << "remote" << ++idx << "of" << mRemotes.size() << remote->host
+                << Rct::addrLookup(remote->host);
         }
     }
     if (mOptions.options & NoLocalCompiles)
@@ -2045,20 +2084,24 @@ void Server::work()
     if (mOptions.options & NoJobServer)
         return;
 
-    if (!mAnnounced && announcables) {
-        if (debugMulti)
-            error() << "announcing because we have" << announcables << "announcables";
+    if (!mAnnounced) {
         mAnnounced = true;
-        if (mServerConnection) {
-            mServerConnection->send(ProxyJobAnnouncementMessage(mOptions.tcpPort));
-        } else {
-            const JobAnnouncementMessage msg(mHostName, mOptions.tcpPort);
-            for (auto client : mClients) {
-                client->send(msg);
+        if (announcables) {
+            if (debugMulti)
+                error() << "announcing because we have" << announcables << "announcables";
+            if (mServerConnection) {
+                mServerConnection->send(ProxyJobAnnouncementMessage(mOptions.tcpPort));
+            } else {
+                const JobAnnouncementMessage msg(mHostName, mOptions.tcpPort);
+                for (auto client : mClients) {
+                    client->send(msg);
+                }
             }
+        } else {
+            error() << "Nothing to announce";
         }
     } else if (debugMulti) {
-        error() << (mAnnounced ? "Already announced" : "Nothing to announce");
+        error() << "Already announced";
     }
 
     if (jobs <= 0)
@@ -2089,13 +2132,15 @@ void Server::work()
         --remoteCount;
         Connection *conn = new Connection;
         if (debugMulti) {
-            error() << "We can grab" << jobs << "jobs, trying" << mFirstRemote->host;
+            error() << "We can grab" << jobs << "jobs, trying" << remote->host
+                    << Rct::addrLookup(remote->host);
         }
-        if (!conn->connectTcp(mFirstRemote->host, mFirstRemote->port)) {
+        if (!conn->connectTcp(remote->host, remote->port)) {
             delete conn;
         } else {
             if (debugMulti)
-                error() << "asking" << remote->host << "for" << jobs << "jobs";
+                error() << "asking" << remote->host << Rct::addrLookup(remote->host)
+                        << "for" << jobs << "jobs";
             conn->newMessage().connect(std::bind(&Server::onNewMessage, this, std::placeholders::_1, std::placeholders::_2));
             conn->disconnected().connect(std::bind(&Server::onConnectionDisconnected, this, std::placeholders::_1));
             conn->finished().connect(std::bind([this, conn]() { mPendingJobRequests.remove(conn); conn->close(); EventLoop::deleteLater(conn); }));

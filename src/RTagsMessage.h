@@ -34,7 +34,8 @@ public:
         JobResponseId,
         JobAnnouncementId,
         ProxyJobAnnouncementId,
-        ClientMessageId
+        ClientMessageId,
+        ClientConnectedId
     };
 
     RTagsMessage(uint8_t id) : Message(id) {}
