@@ -1014,7 +1014,7 @@ References to references will be treated as references to the referenced symbol"
               (setq location (rtags-current-location))
               (setq pos (rtags-offset pos))
               (with-temp-buffer
-                (rtags-call-rc :path file "-e" "-O" "-N" "-r" location)
+                (rtags-call-rc :path file "-e" "-O" "-N" "-r" location :context prev)
                 ;; (message "Got renames %s" (buffer-string))
                 (dolist (line (split-string (buffer-string) "\n" t))
                   (if (string-match "^\\(.*\\):\\([0-9]+\\):\\([0-9]+\\):$" line)
@@ -1035,6 +1035,7 @@ References to references will be treated as references to the referenced symbol"
                     (when (run-hook-with-args-until-failure 'rtags-edit-hook)
                       (incf modifications)
                       (rtags-goto-line-col (cadr value) (cddr value))
+                      (rtags-find-context-on-line)
                       (if (looking-at "~")
                           (forward-char))
 
