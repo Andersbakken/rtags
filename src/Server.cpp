@@ -1717,11 +1717,11 @@ void Server::onMulticastReadyRead(const SocketClient::SharedPtr &socket,
         serializer.write("s", 1);
         if (mOptions.jobServer.second) {
             if (debugMulti)
-                error() << "ip wants to know where the server is. I have something in options" << mOptions.jobServer;
+                error() << ip << "wants to know where the server is. I have something in options" << mOptions.jobServer;
             serializer << mOptions.jobServer.first << mOptions.jobServer.second;
         } else if (mServerConnection) {
             if (debugMulti)
-                error() << "ip wants to know where the server is. I am connected to"
+                error() << ip << "wants to know where the server is. I am connected to"
                         << String::format<128>("%s:%d",
                                                mServerConnection->client()->hostName().constData(),
                                                mServerConnection->client()->port());
@@ -1729,7 +1729,7 @@ void Server::onMulticastReadyRead(const SocketClient::SharedPtr &socket,
         } else {
             assert(mOptions.options & JobServer);
             if (debugMulti)
-                error() << "ip wants to know where the server is. I am the server" << mOptions.tcpPort;
+                error() << ip << "wants to know where the server is. I am the server" << mOptions.tcpPort;
             serializer << String() << mOptions.tcpPort;
         }
         if (debugMulti)
@@ -1739,8 +1739,10 @@ void Server::onMulticastReadyRead(const SocketClient::SharedPtr &socket,
     } else if (!(mOptions.options & JobServer) && !mOptions.jobServer.second) { // looking for server
         Deserializer deserializer(data + 1, buffer.size() - 1);
         deserializer >> mOptions.jobServer.first >> mOptions.jobServer.second;
+
         if (mOptions.jobServer.first.isEmpty())
             mOptions.jobServer.first = ip;
+
         if (debugMulti)
             error() << ip << "told about the server at" << mOptions.jobServer;
         connectToServer();
