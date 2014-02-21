@@ -1718,6 +1718,7 @@ void Server::onMulticastReadyRead(const SocketClient::SharedPtr &socket,
             pd >> mOptions.jobServer.first >> mOptions.jobServer.second;
             if (mOptions.jobServer.first.isEmpty())
                 mOptions.jobServer.first = ip;
+            connectToServer();
         }
     }
     if (query && (mServerConnection || (mOptions.options & JobServer) || mOptions.jobServer.second)) {
