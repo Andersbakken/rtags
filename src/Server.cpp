@@ -1771,7 +1771,7 @@ void Server::onMulticastReadyRead(const SocketClient::SharedPtr &socket,
 
         mMulticastSocket->writeTo(mOptions.multicastAddress, mOptions.multicastPort,
                                   reinterpret_cast<const unsigned char*>(out.constData()), out.size());
-    } else {
+    } else if (!mServerConnection && !(mOptions.options & JobServer)) {
         Deserializer deserializer(data, size);
         deserializer >> mOptions.jobServer.first >> mOptions.jobServer.second;
         if (mOptions.jobServer.first.isEmpty())
