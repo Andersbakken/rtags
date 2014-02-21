@@ -489,7 +489,7 @@ void Server::handleIndexerMessage(const IndexerMessage &message, Connection *con
 
         const String ip = conn->client()->peerName();
         if (!ip.isEmpty())
-            indexData->message << String::format<64>(" from %s", ip.constData());
+            indexData->message << String::format<64>(" from %s", Rct::addrLookup(ip).constData());
 
         const IndexerJob::Flag runningFlag = (ip.isEmpty() ? IndexerJob::RunningLocal : IndexerJob::Remote);
         job->flags &= ~runningFlag;
