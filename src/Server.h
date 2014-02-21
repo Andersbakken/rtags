@@ -131,7 +131,7 @@ private:
     void onNewMessage(Message *message, Connection *conn);
     void onConnectionDisconnected(Connection *o);
     void clearProjects();
-    void handleExitMessage(const ExitMessage &message, bool forward);
+    void handleExitMessage(const ExitMessage &message);
     void handleCompileMessage(CompileMessage &message, Connection *conn);
     void handleIndexerMessage(const IndexerMessage &message, Connection *conn);
     void handleQueryMessage(const QueryMessage &message, Connection *conn);

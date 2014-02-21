@@ -23,23 +23,25 @@ class ExitMessage : public RTagsMessage
 public:
     enum { MessageId = ExitMessageId };
 
-    ExitMessage(int exitCode = 0)
-        : RTagsMessage(MessageId), mExitCode(exitCode)
+    ExitMessage(int exitCode = 0, bool forward = false)
+        : RTagsMessage(MessageId), mExitCode(exitCode), mForward(forward)
     {
     }
 
     int exitCode() const { return mExitCode; }
+    bool forward() const { return mForward; }
 
     virtual void encode(Serializer &serializer) const
     {
-        serializer << mExitCode;
+        serializer << mExitCode << mForward;
     }
     virtual void decode(Deserializer &deserializer)
     {
-        deserializer >> mExitCode;
+        deserializer >> mExitCode >> mForward;
     }
 private:
     int mExitCode;
+    bool mForward;
 };
 
 #endif

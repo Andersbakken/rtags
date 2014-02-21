@@ -386,7 +386,7 @@ void Server::onNewMessage(Message *message, Connection *connection)
         handleLogOutputMessage(static_cast<const LogOutputMessage&>(*m), connection);
         break;
     case ExitMessage::MessageId:
-        handleExitMessage(static_cast<const ExitMessage&>(*m), false);
+        handleExitMessage(static_cast<const ExitMessage&>(*m));
         break;
     case VisitFileMessage::MessageId:
         handleVisitFileMessage(static_cast<const VisitFileMessage&>(*m), connection);
@@ -469,14 +469,20 @@ void Server::handleCompileMessage(CompileMessage &message, Connection *conn)
     index(message.arguments(), message.workingDirectory(), message.projects());
 }
 
-void Server::handleExitMessage(const ExitMessage &message, bool forward)
+void Server::handleExitMessage(const ExitMessage &message)
 {
     mExitCode = message.exitCode();
-    if (mServerConnection && forward) {
+    if (mServerConnection && message.forward()) {
         mServerConnection->send(message);
     } else if (!mClients.isEmpty()) {
+        const ExitMessage msg(mExitCode, false);
         for (auto client : mClients) {
-            client->send(message);
+            if (debugMulti) {
+                error() << "Telling" << Rct::addrLookup(client->client()->peerName())
+                        << "to shut down with status code" << message.exitCode();
+            }
+
+            client->send(msg);
         }
     } else {
         EventLoop::eventLoop()->quit();
@@ -1357,8 +1363,8 @@ void Server::shutdown(const QueryMessage &query, Connection *conn)
         int exitCode;
         Deserializer deserializer(query.query());
         deserializer >> exitCode;
-        ExitMessage msg(exitCode);
-        handleExitMessage(msg, true);
+        ExitMessage msg(exitCode, true);
+        handleExitMessage(msg);
     } else {
         EventLoop::eventLoop()->quit();
     }
