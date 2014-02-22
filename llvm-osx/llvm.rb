@@ -97,18 +97,15 @@ class Llvm < Formula
     system "make install"
 
     # install llvm python bindings
-    if python
-      unless build.head?
-        inreplace buildpath/'bindings/python/llvm/common.py', 'LLVM-3.1svn', "libLLVM-#{version}svn"
-      end
-      python.site_packages.install buildpath/'bindings/python/llvm'
+    if build.with? "python"
+      (lib+'python2.7/site-packages').install buildpath/'bindings/python/llvm'
+      (lib+'python2.7/site-packages').install buildpath/'tools/clang/bindings/python/clang' if build.include? 'with-clang'
     end
 
     # install clang tools and bindings
     cd clang_dir do
       system 'make install'
       (share/'clang/tools').install 'tools/scan-build', 'tools/scan-view'
-      python.site_packages.install 'bindings/python/clang' if python
     end if build.include? 'with-clang'
   end
 
@@ -117,9 +114,7 @@ class Llvm < Formula
   end
 
   def caveats
-    s = ''
-    s += python.standard_caveats if python
-    s += <<-EOS.undent
+    <<-EOS.undent
       Extra tools are installed in #{share}/llvm and #{share}/clang.
 
       If you already have LLVM installed, then "brew upgrade llvm" might not work.
