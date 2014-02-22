@@ -5,6 +5,8 @@ endif()
 find_path(CLANG_INCLUDE clang-c/Index.h
   HINTS
   ${CLANG_ROOT}/include
+  ${LLVM_INCLUDE_DIRS}
+  /opt/local/libexec/llvm-3.4/include
   /opt/local/libexec/llvm-3.3/include
   /opt/local/libexec/llvm-3.2/include
   /opt/local/libexec/llvm-3.1/include
@@ -18,6 +20,8 @@ endif ()
 find_path(CLANG_COMPILATION_INCLUDE clang-c/CXCompilationDatabase.h
   HINTS
   ${CLANG_ROOT}/include
+  ${LLVM_INCLUDE_DIRS}
+  /opt/local/libexec/llvm-3.4/include
   /opt/local/libexec/llvm-3.3/include
   /opt/local/libexec/llvm-3.2/include
   /opt/local/libexec/llvm-3.1/include
@@ -94,15 +98,19 @@ if (EXISTS "${CLANG_INCLUDE}/clang/${CLANG_VERSION}/include/limits.h")
   set(CLANG_SYSTEM_INCLUDE "${CLANG_INCLUDE}/clang/${CLANG_VERSION}/include/")
 else ()
   set(CLANG_SYSTEM_INCLUDE ${CLANG_LIBS})
-  string(REGEX REPLACE "\\/libclang\\.[dylibso]+$" "" CLANG_SYSTEM_INCLUDE ${CLANG_SYSTEM_INCLUDE})
+  string(FIND "${CLANG_SYSTEM_INCLUDE}" ";" SEMI)
+  if (SEMI)
+    string(SUBSTRING "${CLANG_SYSTEM_INCLUDE}" 0 ${SEMI} CLANG_SYSTEM_INCLUDE)
+  endif ()
+  string(REGEX REPLACE "\\/libclang\\.[dylibsoa]+$" "" CLANG_SYSTEM_INCLUDE ${CLANG_SYSTEM_INCLUDE})
   if (EXISTS "${CLANG_SYSTEM_INCLUDE}/clang/${CLANG_VERSION}/include/limits.h")
     set(CLANG_SYSTEM_INCLUDE "${CLANG_SYSTEM_INCLUDE}/clang/${CLANG_VERSION}/include/")
   else ()
-    set(CLANG_SYSTEM_INCLUDE "")
     if (EXISTS "${CLANG_ROOT}/lib/clang/${CLANG_VERSION}/include/limits.h")
       set(CLANG_SYSTEM_INCLUDE "${CLANG_ROOT}/lib/clang/${CLANG_VERSION}/include/")
     else ()
       message(FATAL_ERROR "Couldn't find limits.h in either ${CLANG_INCLUDE}/clang/${CLANG_VERSION}/include/ or ${CLANG_SYSTEM_INCLUDE}/clang/${CLANG_VERSION}/include/")
+      set(CLANG_SYSTEM_INCLUDE "")
     endif ()
   endif ()
 endif ()

@@ -13,9 +13,9 @@ set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wstack-protector")
 
 include(${CMAKE_SOURCE_DIR}/cmake/EnsureLibraries.cmake)
 
-find_package(LibClang REQUIRED)
 find_package(LLVM REQUIRED)
 find_package(Clang REQUIRED)
+find_package(LibClang REQUIRED)
 include_directories(${CLANG_INCLUDE})
 include_directories(${LLVM_INCLUDE_DIRS} ${CLANG_INCLUDE_DIRS})
 
