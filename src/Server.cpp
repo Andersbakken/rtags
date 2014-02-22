@@ -112,8 +112,8 @@ static const bool debugMulti = getenv("RDM_DEBUG_MULTI");
 
 Server *Server::sInstance = 0;
 Server::Server()
-    : mVerbose(false), mCurrentFileId(0), mThreadPool(0), mServerConnection(0), mHostName(Rct::hostName()),
-      mCompletionThread(0), mFirstRemote(0), mLastRemote(0), mAnnounced(false), mWorkPending(false), mExitCode(0)
+    : mVerbose(false), mCurrentFileId(0), mThreadPool(0), mServerConnection(0), mCompletionThread(0),
+      mFirstRemote(0), mLastRemote(0), mAnnounced(false), mWorkPending(false), mExitCode(0)
 {
     Messages::registerMessage<JobRequestMessage>();
     Messages::registerMessage<JobResponseMessage>();
@@ -405,7 +405,7 @@ void Server::onNewMessage(Message *message, Connection *connection)
         handleClientConnectedMessage(static_cast<const ClientConnectedMessage&>(*m));
         break;
     case JobAnnouncementMessage::MessageId:
-        handleJobAnnouncementMessage(static_cast<const JobAnnouncementMessage&>(*m));
+        handleJobAnnouncementMessage(static_cast<const JobAnnouncementMessage&>(*m), connection);
         break;
     case JobResponseMessage::MessageId:
         handleJobResponseMessage(static_cast<const JobResponseMessage&>(*m), connection);
@@ -1571,14 +1571,16 @@ void Server::handleJobResponseMessage(const JobResponseMessage &message, Connect
     }
 }
 
-void Server::handleJobAnnouncementMessage(const JobAnnouncementMessage &message)
+void Server::handleJobAnnouncementMessage(const JobAnnouncementMessage &message, Connection *conn)
 {
     WorkScope scope;
     if (debugMulti)
         error() << "Getting job announcement from" << Rct::addrLookup(message.host());
     Remote *&remote = mRemotes[message.host()];
-    if (!remote)
-        remote = new Remote(message.host(), message.port());;
+    if (!remote) {
+        const String host = message.host().isEmpty() ? conn->client()->peerName() : message.host();
+        remote = new Remote(host, message.port());;
+    }
     if (!mFirstRemote) {
         assert(!mLastRemote);
         mFirstRemote = mLastRemote = remote;
@@ -1610,7 +1612,7 @@ void Server::handleProxyJobAnnouncementMessage(const ProxyJobAnnouncementMessage
         if (client != conn)
             client->send(msg);
     }
-    handleJobAnnouncementMessage(msg);
+    handleJobAnnouncementMessage(msg, conn);
 }
 
 void Server::handleClientMessage(const ClientMessage &, Connection *conn)
@@ -2125,7 +2127,9 @@ void Server::work()
         if (mServerConnection) {
             mServerConnection->send(ProxyJobAnnouncementMessage(mOptions.tcpPort));
         } else {
-            const JobAnnouncementMessage msg(mHostName, mOptions.tcpPort);
+            // Don't pass a host name on the original announcement message,
+            // the receiver will derive it
+            const JobAnnouncementMessage msg(String(), mOptions.tcpPort);
             for (auto client : mClients) {
                 client->send(msg);
             }
@@ -2166,6 +2170,7 @@ void Server::work()
                     << Rct::addrLookup(remote->host);
         }
         if (!conn->connectTcp(remote->host, remote->port)) {
+            error() << "Failed to connect to" << remote->host << remote->port;
             delete conn;
         } else {
             if (debugMulti)

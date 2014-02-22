@@ -140,7 +140,7 @@ private:
     void handleVisitFileMessage(const VisitFileMessage &message, Connection *conn);
     void handleJobRequestMessage(const JobRequestMessage &message, Connection *conn);
     void handleJobResponseMessage(const JobResponseMessage &message, Connection *conn);
-    void handleJobAnnouncementMessage(const JobAnnouncementMessage &message);
+    void handleJobAnnouncementMessage(const JobAnnouncementMessage &message, Connection *conn);
     void handleClientConnectedMessage(const ClientConnectedMessage &message);
     void handleProxyJobAnnouncementMessage(const ProxyJobAnnouncementMessage &message, Connection *conn);
     void handleClientMessage(const ClientMessage &message, Connection *conn);
@@ -218,7 +218,6 @@ private:
     Hash<SocketClient::SharedPtr, std::shared_ptr<HttpLogObject> > mHttpClients;
     Set<Connection*> mClients;
     SocketClient::SharedPtr mMulticastSocket;
-    String mHostName;
 
     CompletionThread *mCompletionThread;
 
