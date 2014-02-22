@@ -112,7 +112,7 @@ List<String> backtrace(int maxFrames)
 #else
 List<String> backtrace(int)
 {
-    return String();
+    return List<String>();
 }
 #endif
 
