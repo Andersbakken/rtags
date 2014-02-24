@@ -590,10 +590,11 @@
 
 (defun rtags-find-context-on-line ()
   (if rtags-last-context
-      (cond ((search-forward rtags-last-context (point-at-eol) t)
-             (backward-char (length rtags-last-context)))
-            ((search-backward rtags-last-context (point-at-bol) t))
-            (t)))
+      (let ((rx (format "\\<%s\\>" rtags-last-context)))
+        (cond ((search-forward rx (point-at-eol) t)
+               (backward-char (length rtags-last-context)))
+              ((search-backward rx (point-at-bol) t))
+              (t))))
   )
 
 (defun rtags-goto-line-col (line column)
