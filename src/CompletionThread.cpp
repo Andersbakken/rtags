@@ -312,7 +312,7 @@ void CompletionThread::printCompletions(const List<std::pair<String, String> > &
     error() << request->flags << testLog(RTags::CompilationErrorXml) << completions.size();
     if (!(request->flags & Refresh) && testLog(RTags::CompilationErrorXml) && !completions.isEmpty()) {
         // Does this need to be called in the main thread?
-        log(RTags::CompilationErrorXml, "<completions location=\"%s\">![CDATA[",
+        log(RTags::CompilationErrorXml, "<?xml version=\"1.0\" encoding=\"utf-8\"?><completions location=\"%s\">![CDATA[",
             request->location.key().constData());
 
         if (request->flags & Elisp)
