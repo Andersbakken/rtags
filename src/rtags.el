@@ -42,6 +42,8 @@
 (unless (require 'auto-complete nil t)
   (defvar ac-sources nil))
 
+(defvar rtags-last-completions nil)
+(defvar rtags-last-completion-position nil) ;; cons (buffer . offset)
 (defvar rtags-last-buffer nil)
 (defvar rtags-path-filter nil)
 (defvar rtags-path-filter-regex nil)
@@ -553,10 +555,8 @@
     (goto-char (1+ pos))))
 
 (defun rtags-current-location (&optional offset)
-  (if offset
-      (format "%s,%d" (or (buffer-file-name) (buffer-name)) (rtags-offset))
-    (format "%s:%d:%d" (or (buffer-file-name) (buffer-name))
-            (line-number-at-pos) (1+ (- (point) (point-at-bol)))))
+  (format "%s:%d:%d" (or (buffer-file-name) (buffer-name))
+          (line-number-at-pos offset) (1+ (- (or offset (point)) (point-at-bol))))
   )
 
 (defun rtags-log (log)
@@ -726,6 +726,11 @@
 
 (defcustom rtags-enabled t
   "Whether rtags is enabled. We try to do nothing when it's not"
+  :group 'rtags
+  :type 'boolean)
+
+(defcustom rtags-completions-enabled nil
+  "Whether completions are enabled"
   :group 'rtags
   :type 'boolean)
 
@@ -1222,18 +1227,19 @@ References to references will be treated as references to the referenced symbol"
 (defun rtags-parse-diagnostics (output)
   (let ((doc (rtags-parse-xml-string output)) body)
     (when doc
+      ;; (message "GOT XML %s" output)
       (cond ((eq (car doc) 'checkstyle)
              (setq body (cddr doc))
              (while body
                (rtags-parse-overlay-node (car body))
                (setq body (cdr body))))
             ((eq (car doc) 'completions)
-             (message "Got completions [%s]" body)
-             (setq body (car (cddr doc)))
-             (if (boundp 'rtags-last-completions
-                         (setq rtags-last-completions
-                               (list (cdar (cadr doc)) ;; location attribute
-                                     (eval (read (substring body 8 (- (length body) 2)))))))))
+             (when rtags-completions-enabled
+               ;; (message "Got completions [%s]" body)
+               (setq body (car (cddr doc)))
+               (setq rtags-last-completions
+                     (cons (cdar (cadr doc)) ;; location attribute
+                           (list (eval (read (substring body 8 (- (length body) 2)))))))))
             ((eq (car doc) 'progress)
              (setq body (cadr doc))
              (while body
@@ -1381,7 +1387,7 @@ References to references will be treated as references to the referenced symbol"
     (rtags-restart-update-local-references-timer)
     (rtags-close-taglist)
     (rtags-restart-tracking-timer)
-    (if (fboundp 'rtags-update-completions)
+    (if rtags-completions-enabled
         (rtags-update-completions)))
   )
 
@@ -2119,6 +2125,46 @@ References to references will be treated as references to the referenced symbol"
   (let ((status (process-status process)))
     (when (memq status '(exit signal closed failed))
       (message "rtags process (rdm) stopped..."))))
+
+(defconst rtags-symbol-chars "ABCDEFGHIKLMNOPQRSTUVWXYZabcdefghiklmnopqrstuvwxyz0123456789_")
+(defun rtags-calculate-completion-point ()
+  (if (or (= (point) (point-at-eol))
+          (looking-at "[\\n A-Za-z0-9_]"))
+      (save-excursion
+        (skip-chars-backward rtags-symbol-chars)
+        (if (or (= (char-before) 46) ;; .
+                (and (= (char-before) 62) (= (char-before (1- (point))) 45)) ;; ->
+                (and (= (char-before) 58) (= (char-before (1- (point))) 58))) ;; ::
+            (point))
+        )
+    )
+  )
+
+(defun rtags-update-completions (&optional force)
+  (interactive)
+  (if (or (eq major-mode 'c++-mode)
+          (eq major-mode 'c-mode))
+      (let ((pos (rtags-calculate-completion-point)))
+        ;; (message "CHECKING UPDATE COMPLETIONS %d %d"
+        ;;          (or pos -1)
+        ;;          (or (cdr rtags-last-completion-position) -1))
+        (when (cond ((not pos) nil)
+                    (force)
+                    ((not (cdr rtags-last-completion-position)) t)
+                    ((not (= pos (cdr rtags-last-completion-position))) t)
+                    ((not (eq (current-buffer) (car rtags-last-completion-position))) t)
+                    (t nil))
+          (message "CALLING RC")
+          (setq rtags-last-completion-position (cons (current-buffer) pos))
+          (let ((path (buffer-file-name))
+                (unsaved (and (buffer-modified-p) (current-buffer)))
+                (location (rtags-current-location pos)))
+            (with-temp-buffer
+              (rtags-call-rc :path path :unsaved unsaved "-Y" "-l" location)))
+          )
+        )
+    )
+  )
 
 (provide 'rtags)
 
