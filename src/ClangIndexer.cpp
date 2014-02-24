@@ -908,7 +908,6 @@ bool ClangIndexer::parse()
     RTags::parseTranslationUnit(sourceFile, mSource.toCommandLine(Source::None), List<String>(), mUnit,
                                 mIndex, &unsaved, mPreprocessed.isEmpty() ? 0 : 1, flags, &mClangLine);
 
-    mData->parseTime = mTimer.elapsed();
     warning() << "loading mUnit " << mClangLine << " " << (mUnit != 0);
     if (mUnit) {
         if (mPreprocessed.isEmpty()) {

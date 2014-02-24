@@ -461,7 +461,7 @@ void Server::preprocess(Source &&source, Path &&srcRoot, uint32_t flags)
     if (mOptions.options & NoJobServer) {
         std::shared_ptr<Cpp> cpp(new Cpp);
         cpp->flags = Cpp::Preprocess_None;
-        cpp->time = time(0);
+        cpp->time = Rct::currentTimeMs();
         cpp->preprocessDuration = 0;
         index(std::move(source), cpp, project, flags);
     } else {
