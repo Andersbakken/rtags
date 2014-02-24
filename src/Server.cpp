@@ -533,7 +533,7 @@ void Server::handleIndexerMessage(const IndexerMessage &message, Connection *con
         // we only care about the first job that returns
         if (!(job->flags & (IndexerJob::CompleteLocal|IndexerJob::CompleteRemote))) {
             if (!(job->flags & IndexerJob::Aborted))
-                job->flags |= (ip.isEmpty() ? IndexerJob::CompleteRemote : IndexerJob::CompleteLocal);
+                job->flags |= (ip.isEmpty() ? IndexerJob::CompleteLocal : IndexerJob::CompleteRemote);
             std::shared_ptr<Project> project = mProjects.value(message.project());
             if (!project) {
                 error() << "Can't find project root for this IndexerMessage" << message.project() << Location::path(indexData->fileId());
