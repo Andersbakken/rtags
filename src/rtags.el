@@ -307,7 +307,7 @@
                                proc))
                             (async (apply #'start-process "rc" (current-buffer) rc arguments))
                             ((and unsaved (buffer-modified-p unsaved))
-                             (apply #'call-process-region (point-min) (point-max) rc output nil arguments) nil)
+                             (apply #'call-process-region (point-min) (point-max) rc nil output nil arguments) nil)
                             (unsaved (apply #'call-process rc (buffer-file-name unsaved) output nil arguments) nil)
                             (t (apply #'call-process rc (and unsaved (buffer-file-name unsaved)) output nil arguments) nil))))
             (if proc
