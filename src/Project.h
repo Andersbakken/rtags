@@ -133,6 +133,7 @@ private:
     bool save();
     void startSync();
     void onSynced();
+    void onDirtyTimeout(Timer *);
 
     const Path mPath;
     State mState;
@@ -162,7 +163,11 @@ private:
     Hash<uint64_t, JobData> mJobs;
     Hash<uint64_t, std::shared_ptr<IndexData> > mPendingData; // ### this could go into JobData
 
-    Timer mSyncTimer;
+    Timer mSyncTimer, mDirtyTimer;
+    Set<uint32_t> mDirtyFiles, mPendingDirtyFiles;
+    // mDirtyFiles are files that need to be dirtied on the next sync
+    // mPendingDirtyFiles are files that get collapsed into a single
+    // startDirtyJobs with mDirtyTimer
     StopWatch mTimer;
     FileSystemWatcher mWatcher;
     DependencyMap mDependencies;
@@ -170,22 +175,21 @@ private:
     Set<Path> mWatchedPaths;
     FixItMap mFixIts;
 
-    Set<uint32_t> mPendingDirtyFiles;
     Set<uint32_t> mSuspendedFiles;
+
+    std::mutex mMutex;
 
     friend class RestoreThread;
     friend class SyncThread;
 };
 
-    std::mutex mMutex;
-
 inline bool Project::visitFile(uint32_t visitFileId, uint64_t key)
 {
+    std::lock_guard<std::mutex> lock(mMutex);
     assert(visitFileId);
     if (mVisitedFiles.insert(visitFileId)) {
         if (key) {
             assert(mJobs.contains(key));
-    std::lock_guard<std::mutex> lock(mMutex);
             JobData &data = mJobs[key];
             assert(data.job);
             data.job->visited.insert(visitFileId);

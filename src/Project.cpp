@@ -31,7 +31,8 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 #include <rct/Thread.h>
 
 enum {
-    SyncTimeout = 500
+    SyncTimeout = 500,
+    DirtyTimeout = 100
 };
 
 class RestoreThread : public Thread
@@ -141,6 +142,7 @@ Project::Project(const Path &path)
         mWatcher.added().connect(std::bind(&Project::reloadFileManager, this));
     }
     mSyncTimer.timeout().connect(std::bind(&Project::onTimerFired, this, std::placeholders::_1));
+    mDirtyTimer.timeout().connect(std::bind(&Project::onDirtyTimeout, this, std::placeholders::_1));
 }
 
 Project::~Project()
@@ -318,7 +320,6 @@ void Project::onJobFinished(const std::shared_ptr<IndexData> &indexData)
     Source pending;
     std::shared_ptr<Cpp> pendingCpp;
     uint32_t pendingFlags = 0;
-    bool syncNow = false;
     const uint32_t fileId = indexData->fileId();
     const auto it = mJobs.find(indexData->key);
     if (it == mJobs.end()) {
@@ -330,6 +331,14 @@ void Project::onJobFinished(const std::shared_ptr<IndexData> &indexData)
     JobData *jobData = &it->second;
     assert(jobData->job);
     const bool success = jobData->job->flags & (IndexerJob::CompleteLocal|IndexerJob::CompleteRemote);
+    if (!success) {
+        error() << "No success for" << Location::path(fileId);
+        std::lock_guard<std::mutex> lock(mMutex);
+        for (auto f : jobData->job->visited) {
+            error() << "Returning files" << Location::path(f);
+            mVisitedFiles.remove(f);
+        }
+    }
     if (success && jobData->job->flags & (IndexerJob::Crashed|IndexerJob::Aborted)) {
         error() << "Could die" << String::format<8>("0x%x", jobData->job->flags);
     }
@@ -340,11 +349,15 @@ void Project::onJobFinished(const std::shared_ptr<IndexData> &indexData)
         jobData->crashCount = 0;
     }
 
+    // error() << "onJobFinished" << Location::path(fileId)
+    //         << "flags" << IndexerJob::dumpFlags(jobData->job->flags)
+    //         << "pendingFlags" << IndexerJob::dumpFlags(jobData->pendingFlags);
+
     enum { MaxCrashCount = 5 }; // ### configurable?
     if (jobData->crashCount < MaxCrashCount) {
         if (jobData->pendingFlags) {
             // the job was aborted
-            assert(jobData->job->flags & IndexerJob::Aborted);
+            // assert(jobData->job->flags & IndexerJob::Aborted);
             std::swap(pendingFlags, jobData->pendingFlags);
             std::swap(pending, jobData->pendingSource);
             std::swap(pendingCpp, jobData->pendingCpp);
@@ -390,14 +403,10 @@ void Project::onJobFinished(const std::shared_ptr<IndexData> &indexData)
         if (mJobs.isEmpty()) {
             mSyncTimer.restart(indexData->flags & IndexerJob::Dirty ? 0 : SyncTimeout, Timer::SingleShot);
         } else if (syncThreshold && mPendingData.size() >= syncThreshold) {
-            syncNow = true;
+            startSync();
         }
     } else {
         jobData->job.reset();
-    }
-    if (syncNow)
-        startSync();
-    if (pendingFlags) {
         assert(!pending.isNull());
         index(pending, pendingCpp, pendingFlags);
         --mJobCounter;
@@ -485,11 +494,15 @@ void Project::dirty(const Path &file)
         return;
     }
     debug() << file << "was modified" << fileId;
-    if (fileId) {
-        Set<uint32_t> dirty;
-        dirty.insert(fileId);
-        startDirtyJobs(dirty);
+    if (fileId && mPendingDirtyFiles.insert(fileId)) {
+        mDirtyTimer.restart(DirtyTimeout, Timer::SingleShot);
     }
+}
+
+void Project::onDirtyTimeout(Timer *)
+{
+    Set<uint32_t> dirty = std::move(mPendingDirtyFiles);
+    startDirtyJobs(dirty);
 }
 
 List<Source> Project::sources(uint32_t fileId) const
@@ -614,7 +627,7 @@ void Project::startDirtyJobs(const Set<uint32_t> &dirty)
         RTags::dirtySymbolNames(mSymbolNames, dirtyFiles);
         RTags::dirtyUsr(mUsr, dirtyFiles);
     } else {
-        mPendingDirtyFiles += dirtyFiles;
+        mDirtyFiles += dirtyFiles;
     }
 }
 
@@ -707,15 +720,15 @@ Project::SyncData Project::syncDB()
     SyncData ret;
     memset(&ret, 0, sizeof(ret));
     StopWatch sw;
-    if (mPendingDirtyFiles.isEmpty() && mPendingData.isEmpty()) {
+    if (mDirtyFiles.isEmpty() && mPendingData.isEmpty()) {
         return ret;
     }
 
-    if (!mPendingDirtyFiles.isEmpty()) {
-        RTags::dirtySymbols(mSymbols, mPendingDirtyFiles);
-        RTags::dirtySymbolNames(mSymbolNames, mPendingDirtyFiles);
-        RTags::dirtyUsr(mUsr, mPendingDirtyFiles);
-        mPendingDirtyFiles.clear();
+    if (!mDirtyFiles.isEmpty()) {
+        RTags::dirtySymbols(mSymbols, mDirtyFiles);
+        RTags::dirtySymbolNames(mSymbolNames, mDirtyFiles);
+        RTags::dirtyUsr(mUsr, mDirtyFiles);
+        mDirtyFiles.clear();
     }
     ret.dirtyTime = sw.restart();
 
@@ -939,8 +952,9 @@ bool Project::hasSource(const Source &source) const
             return true;
         uint32_t f, b;
         Source::decodeKey(it->first, f, b);
-        if (f != source.fileId)
-            return true;
+        if (f != source.fileId) {
+            break;
+        }
         if (it->second.compareArguments(source)) {// similar enough that we don't want two builds
             return true;
         }

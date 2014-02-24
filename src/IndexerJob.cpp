@@ -68,9 +68,10 @@ bool IndexerJob::launchProcess()
 
 bool IndexerJob::update(unsigned int f, const Source &s, const std::shared_ptr<Cpp> &c)
 {
+    // error() << "Updating" << s.sourceFile() << dumpFlags(flags);
     assert(!(flags & (CompleteLocal|CompleteRemote)));
 
-    if (!flags & (RunningLocal|Remote)) {
+    if (!(flags & (RunningLocal|Remote))) {
         flags = f;
         source = s;
         assert(cpp);
@@ -83,6 +84,7 @@ bool IndexerJob::update(unsigned int f, const Source &s, const std::shared_ptr<C
 
 void IndexerJob::abort()
 {
+    // error() << "Aborting job" << source.sourceFile() << !!process << dumpFlags(flags);
     if (process && flags & RunningLocal) { // only kill once
         process->kill();
         assert(!(flags & FromRemote)); // this is not handled
@@ -113,4 +115,39 @@ void IndexerJob::encode(Serializer &serializer)
                << static_cast<uint32_t>(options.rpConnectTimeout)
                << static_cast<bool>(options.options & Server::SuspendRPOnCrash)
                << id << (blockedFiles.isEmpty() && proj ? proj->visitedFiles() : blockedFiles);
+}
+String IndexerJob::dumpFlags(unsigned int flags)
+{
+    List<String> ret;
+    if (flags & Dirty) {
+        ret += "Dirty";
+    }
+    if (flags & Compile) {
+        ret += "Compile";
+    }
+    if (flags & FromRemote) {
+        ret += "FromRemote";
+    }
+    if (flags & Remote) {
+        ret += "Remote";
+    }
+    if (flags & Rescheduled) {
+        ret += "Rescheduled";
+    }
+    if (flags & RunningLocal) {
+        ret += "RunningLocal";
+    }
+    if (flags & Crashed) {
+        ret += "Crashed";
+    }
+    if (flags & Aborted) {
+        ret += "Aborted";
+    }
+    if (flags & CompleteLocal) {
+        ret += "CompleteLocal";
+    }
+    if (flags & CompleteRemote) {
+        ret += "CompleteRemote";
+    }
+    return String::join(ret, ", ");
 }

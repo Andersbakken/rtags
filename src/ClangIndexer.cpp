@@ -443,6 +443,29 @@ struct LastCursorUpdater
 
 CXChildVisitResult ClangIndexer::indexVisitor(CXCursor cursor, CXCursor parent, CXClientData data)
 {
+    ClangIndexer *indexer = static_cast<ClangIndexer*>(data);
+#if 0
+    while (Path::exists("/tmp/sleep-" + String(Location::path(indexer->mSource.fileId).fileName()))) {
+        sleep(1);
+    }
+    static int last = -1;
+    while (true) {
+        FILE *f = fopen("/tmp/counter", "r");
+        if (!f)
+            break;
+        if (f) {
+            char buf[16];
+            fread(buf, 1, sizeof(buf), f);
+            fclose(f);
+            int cur = atoi(buf);
+            if (cur > last) {
+                last = cur;
+            } else {
+                sleep(1);
+            }
+        }
+    }
+#endif
     // error() << "indexVisitor" << cursor;
     // FILE *f = fopen("/tmp/clangindex.log", "a");
     // String str;
@@ -450,7 +473,6 @@ CXChildVisitResult ClangIndexer::indexVisitor(CXCursor cursor, CXCursor parent, 
     // fwrite(str.constData(), 1, str.size(), f);
     // fwrite("\n", 1, 1, f);
     // fclose(f);
-    ClangIndexer *indexer = static_cast<ClangIndexer*>(data);
     const LastCursorUpdater updater(indexer->mLastCursor, cursor);
 
     const CXCursorKind kind = clang_getCursorKind(cursor);

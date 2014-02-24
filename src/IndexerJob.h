@@ -43,6 +43,8 @@ public:
         CompleteRemote = 0x0800
     };
 
+    static String dumpFlags(unsigned int);
+
     IndexerJob(unsigned int flags, const Path &p, const Source &s, const std::shared_ptr<Cpp> &preprocessed);
     IndexerJob();
     ~IndexerJob();
