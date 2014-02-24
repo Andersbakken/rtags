@@ -197,14 +197,10 @@ void CompletionThread::process(const Request *request)
         RTags::parseTranslationUnit(sourceFile, request->source.arguments,
                                     List<String>(), // we don't want -fspell-checking and friends
                                     cache->translationUnit, mIndex,
-                                    0, 0, flags);
-                                    // &unsaved, unsaved.Length ? 1 : 0, flags);
+                                    &unsaved, request->unsaved.size() ? 1 : 0, flags);
         parseTime = sw.restart();
         if (cache->translationUnit) {
-            RTags::reparseTranslationUnit(cache->translationUnit, 0, 0);
-                                          // &unsaved,
-                                          // unsaved.Length ? 1 : 0);
-
+            RTags::reparseTranslationUnit(cache->translationUnit, &unsaved, request->unsaved.size() ? 1 : 0);
         }
         reparseTime = sw.elapsed();
         if (!cache->translationUnit)
