@@ -290,9 +290,9 @@ void CompletionThread::process(const Request *request)
             if (nodeCount <= SendThreshold) {
                 qsort(nodes, nodeCount, sizeof(CompletionNode), compareCompletionNode);
                 List<std::pair<String, String> > &completions = cache->completions[request->location];
-                completions.reserve(nodeCount);
+                completions.resize(nodeCount);
                 for (int i=0; i<nodeCount; ++i)
-                    completions.append(std::make_pair(nodes[i].completion, nodes[i].signature));
+                    completions[i] = std::make_pair(nodes[i].completion, nodes[i].signature);
                 printCompletions(completions, request);
             }
         }
