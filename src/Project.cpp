@@ -332,10 +332,10 @@ void Project::onJobFinished(const std::shared_ptr<IndexData> &indexData)
     assert(jobData->job);
     const bool success = jobData->job->flags & (IndexerJob::CompleteLocal|IndexerJob::CompleteRemote);
     if (!success) {
-        error() << "No success for" << Location::path(fileId);
+        // error() << "No success for" << Location::path(fileId);
         std::lock_guard<std::mutex> lock(mMutex);
         for (auto f : jobData->job->visited) {
-            error() << "Returning files" << Location::path(f);
+            // error() << "Returning files" << Location::path(f);
             mVisitedFiles.remove(f);
         }
     }
