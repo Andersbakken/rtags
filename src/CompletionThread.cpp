@@ -187,7 +187,10 @@ void CompletionThread::process(const Request *request)
         cache->unsavedHash = hash;
         sw.restart();
         // ### maybe skip function bodies
-        const unsigned int flags = clang_defaultEditingTranslationUnitOptions();
+        unsigned int flags = clang_defaultEditingTranslationUnitOptions();
+        flags |= CXTranslationUnit_PrecompiledPreamble;
+        flags |= CXTranslationUnit_CacheCompletionResults;
+        flags |= CXTranslationUnit_SkipFunctionBodies;
         // (CXTranslationUnit_PrecompiledPreamble
         // |CXTranslationUnit_CacheCompletionResults
         // |CXTranslationUnit_SkipFunctionBodies);
