@@ -94,6 +94,7 @@ enum OptionType {
     Status,
     StripParen,
     SuspendFile,
+    SynchronousCompletions,
     Timeout,
     UnloadProject,
     UnsavedFile,
@@ -207,6 +208,8 @@ struct Option opts[] = {
     { CompilationFlagsOnly, "compilation-flags-only", 0, no_argument, "For --source, only print compilation flags." },
     { DumpIncludeHeaders, "dump-include-headers", 0, no_argument, "For --dump-file, also dump dependencies." },
     { SilentQuery, "silent-query", 0, no_argument, "Don't log this request in rdm." },
+    { SynchronousCompletions, "synchronous-completions", 0, no_argument, "Wait for completion results." },
+
     { None, 0, 0, 0, 0 }
 };
 
@@ -606,6 +609,9 @@ bool RClient::parse(int &argc, char **argv)
         case CursorKind:
             mQueryFlags |= QueryMessage::CursorKind;
             break;
+        case SynchronousCompletions:
+            mQueryFlags |= QueryMessage::SynchronousCompletions;
+            break;
         case Context:
             mContext = optarg;
             break;
@@ -663,7 +669,7 @@ bool RClient::parse(int &argc, char **argv)
         case CodeCompleteAt: {
             const String arg = optarg;
             List<RegExp::Capture> caps;
-            RegExp rx("^\\(.*\\):\\([0-9][0-9]*\\):\\([0-9][0-9]*\\)$");
+            RegExp rx("^\\(.*\\):\\([0-9][0-9]*\\):\\([0-9][0-9]*\\):\\?$");
             if (rx.indexIn(arg, 0, &caps) != 0 || caps.size() != 4) {
                 fprintf(stderr, "Can't decode argument for --code-complete-at [%s]\n", optarg);
                 return false;

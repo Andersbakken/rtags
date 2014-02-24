@@ -1917,9 +1917,12 @@ void Server::codeCompleteAt(const QueryMessage &query, Connection *conn)
         flags |= CompletionThread::Refresh;
     if (query.flags() & QueryMessage::ElispList)
         flags |= CompletionThread::Elisp;
-    mCompletionThread->completeAt(source, loc, flags, query.unsavedFiles().value(path));
-    conn->finish();
-    error() << "Got completion" << query.type() << path << line << column;
+    if (!(query.flags() & QueryMessage::SynchronousCompletions)) {
+        conn->finish();
+        conn = 0;
+    }
+    error() << "Got completion" << String::format("%s:%d:%d", path.constData(), line, column);
+    mCompletionThread->completeAt(source, loc, flags, query.unsavedFiles().value(path), conn);
 }
 
 static inline void drain(const SocketClient::SharedPtr &sock)

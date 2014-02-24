@@ -36,9 +36,9 @@ void CompletionThread::run()
 }
 
 void CompletionThread::completeAt(const Source &source, const Location &location,
-                                  unsigned int flags, const String &unsaved)
+                                  unsigned int flags, const String &unsaved, Connection *conn)
 {
-    Request *request = new Request({ source, location, flags, unsaved});
+    Request *request = new Request({ source, location, flags, unsaved, conn});
     std::unique_lock<std::mutex> lock(mMutex);
     auto it = mPending.begin();
     while (it != mPending.end()) {
@@ -151,7 +151,7 @@ static inline void tokenize(const char *data, int size, Map<Token, int> &tokens)
         addToken(data, 0, tokenEnd + 1, tokens);
 }
 
-void CompletionThread::process(const Request *request)
+void CompletionThread::process(Request *request)
 {
     StopWatch sw;
     int parseTime = 0;
@@ -285,16 +285,14 @@ void CompletionThread::process(const Request *request)
             node.completion.clear();
             node.signature.clear();
         }
-        if (nodeCount) {
-            enum { SendThreshold = 500 };
-            if (nodeCount <= SendThreshold) {
-                qsort(nodes, nodeCount, sizeof(CompletionNode), compareCompletionNode);
-                List<std::pair<String, String> > &completions = cache->completions[request->location];
-                completions.resize(nodeCount);
-                for (int i=0; i<nodeCount; ++i)
-                    completions[i] = std::make_pair(nodes[i].completion, nodes[i].signature);
-                printCompletions(completions, request);
-            }
+        enum { SendThreshold = 500 };
+        if (nodeCount && nodeCount <= SendThreshold) {
+            qsort(nodes, nodeCount, sizeof(CompletionNode), compareCompletionNode);
+            List<std::pair<String, String> > &completions = cache->completions[request->location];
+            completions.resize(nodeCount);
+            for (int i=0; i<nodeCount; ++i)
+                completions[i] = std::make_pair(nodes[i].completion, nodes[i].signature);
+            printCompletions(completions, request);
         }
 
         delete[] nodes;
@@ -307,28 +305,43 @@ void CompletionThread::process(const Request *request)
     }
 }
 
-void CompletionThread::printCompletions(const List<std::pair<String, String> > &completions, const Request *request)
+void CompletionThread::printCompletions(const List<std::pair<String, String> > &completions, Request *request)
 {
-    error() << request->flags << testLog(RTags::CompilationErrorXml) << completions.size();
-    if (!(request->flags & Refresh) && testLog(RTags::CompilationErrorXml) && !completions.isEmpty()) {
+    // error() << request->flags << testLog(RTags::CompilationErrorXml) << completions.size() << request->conn;
+    const bool doLog = testLog(RTags::CompilationErrorXml);
+    if (!(request->flags & Refresh) && (doLog || request->conn) && !completions.isEmpty()) {
         // Does this need to be called in the main thread?
-        log(RTags::CompilationErrorXml, "<?xml version=\"1.0\" encoding=\"utf-8\"?><completions location=\"%s\">![CDATA[",
-            request->location.key().constData());
+        String out;
+        out.reserve(16384);
+        if (doLog)
+            log(RTags::CompilationErrorXml, "<?xml version=\"1.0\" encoding=\"utf-8\"?><completions location=\"%s\">![CDATA[",
+                request->location.key().constData());
 
         if (request->flags & Elisp)
-            logDirect(RTags::CompilationErrorXml, "'(");
+            out += "'(";
         for (auto it = completions.begin(); it != completions.end(); ++it) {
             const std::pair<String, String> &val = *it;
             if (request->flags & Elisp) {
-                log(RTags::CompilationErrorXml, "\"%s\" \"%s\"", val.first.constData(), val.second.constData());
+                out += String::format<128>("\"%s\" \"%s\"", val.first.constData(), val.second.constData());
             } else {
-                log(RTags::CompilationErrorXml, "%s %s\n", val.first.constData(), val.second.constData());
+                out += String::format<128>("%s %s\n", val.first.constData(), val.second.constData());
             }
         }
-        if (request->flags & Elisp) {
-            logDirect(RTags::CompilationErrorXml, ")]]</completions>\n");
-        } else {
+        if (request->flags & Elisp)
+            out += ")";
+
+        if (doLog) {
+            logDirect(RTags::CompilationErrorXml, out);
             logDirect(RTags::CompilationErrorXml, "]]</completions>\n");
+        }
+        if (request->conn) {
+            Connection *conn = request->conn;
+            request->conn = 0;
+            EventLoop::mainEventLoop()->callLater([conn, out]() {
+                    // ### need to make sure this connection doesn't go away,
+                    // probably need to disconnect something
+                    conn->write(out); conn->finish();
+                });
         }
     }
 }

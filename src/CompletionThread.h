@@ -25,6 +25,7 @@
 #include <rct/Map.h>
 #include <rct/LinkedList.h>
 #include <clang-c/Index.h>
+#include <rct/Connection.h>
 
 class CompletionThread : public Thread
 {
@@ -37,21 +38,27 @@ public:
         Refresh = 0x1,
         Elisp = 0x2
     };
-    void completeAt(const Source &source, const Location &location, unsigned int flags, const String &unsaved);
+    void completeAt(const Source &source, const Location &location, unsigned int flags, const String &unsaved, Connection *conn);
     void stop();
 private:
     struct Request;
-    void process(const Request *request);
-    void printCompletions(const List<std::pair<String, String> > &completions, const Request *request);
+    void process(Request *request);
+    void printCompletions(const List<std::pair<String, String> > &completions, Request *request);
 
     Set<uint32_t> mWatched;
     bool mShutdown;
     const int mCacheSize;
     struct Request {
+        ~Request()
+        {
+            if (conn)
+                conn->finish();
+        }
         Source source;
         Location location;
         unsigned int flags;
         String unsaved;
+        Connection *conn;
     };
     LinkedList<Request*> mPending;
     CXIndex mIndex;

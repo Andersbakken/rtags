@@ -86,7 +86,8 @@ public:
         DisplayName = 0x0200000,
         CompilationFlagsOnly = 0x0400000,
         DumpIncludeHeaders = 0x0800000,
-        SilentQuery = 0x1000000
+        SilentQuery = 0x1000000,
+        SynchronousCompletions = 0x2000000
     };
 
     QueryMessage(Type type = Invalid);
