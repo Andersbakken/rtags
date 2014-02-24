@@ -177,12 +177,15 @@ private:
     friend class SyncThread;
 };
 
+    std::mutex mMutex;
+
 inline bool Project::visitFile(uint32_t visitFileId, uint64_t key)
 {
     assert(visitFileId);
     if (mVisitedFiles.insert(visitFileId)) {
         if (key) {
             assert(mJobs.contains(key));
+    std::lock_guard<std::mutex> lock(mMutex);
             JobData &data = mJobs[key];
             assert(data.job);
             data.job->visited.insert(visitFileId);
