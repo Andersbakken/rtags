@@ -404,6 +404,7 @@ void RClient::addQuery(QueryMessage::Type t, const String &query)
         break;
     case QueryMessage::FindFile:
         extraQueryFlags |= QueryMessage::WaitForLoadProject;
+        break;
     default:
         break;
     }
