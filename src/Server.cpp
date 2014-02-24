@@ -1866,9 +1866,9 @@ void Server::onLocalJobFinished(Process *process)
         if (proj && (proj->state() == Project::Loaded || proj->state() == Project::Syncing)) {
             std::shared_ptr<IndexData> data(new IndexData(job->flags));
             data->key = job->source.key();
-            EventLoop::SharedPtr loop = EventLoop::eventLoop();
-            assert(loop);
-            loop->callLater([proj, data]() { proj->onJobFinished(data); });
+
+            EventLoop::eventLoop()->registerTimer([data, proj](int) { proj->onJobFinished(data); }, 500, Timer::SingleShot);
+            // give it 500 ms before we try again
         }
     }
     job->process = 0;
