@@ -137,6 +137,10 @@ Server::~Server()
         mCompletionThread = 0;
     }
 
+    for (auto job : mLocalJobs) {
+        job.first->kill();
+    }
+
     clear();
     assert(sInstance == this);
     sInstance = 0;
