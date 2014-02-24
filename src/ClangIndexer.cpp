@@ -669,7 +669,7 @@ void ClangIndexer::handleReference(const CXCursor &cursor, CXCursorKind kind, co
         return;
 
     std::shared_ptr<CursorInfo> &refInfo = mData->symbols[reffedLoc];
-    if (!refInfo && !handleCursor(ref, refKind, reffedLoc))
+    if ((!refInfo || !refInfo->symbolLength) && !handleCursor(ref, refKind, reffedLoc))
         return;
 
     refInfo->references.insert(location);
