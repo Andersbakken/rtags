@@ -159,10 +159,17 @@ bool Server::init(const Options &options)
     mOptions.includePaths.append(clangPath);
 #ifdef OS_Darwin
     if (clangPath.exists()) {
-        clangPath += "../../../c++/v1/";
-        clangPath.resolve();
-        if (clangPath.isDir())
-            mOptions.includePaths.append(clangPath);
+        Path cppClangPath = clangPath + "../../../c++/v1/";
+        cppClangPath.resolve();
+        if (cppClangPath.isDir()) {
+            mOptions.includePaths.append(cppClangPath);
+        } else {
+            cppClangPath = clangPath + "../../../../include/c++/v1/";
+            cppClangPath.resolve();
+            if (cppClangPath.isDir()) {
+                mOptions.includePaths.append(cppClangPath);
+            }
+        }
         // this seems to be the only way we get things like cstdint
     }
 #endif
