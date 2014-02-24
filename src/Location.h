@@ -99,8 +99,13 @@ public:
     inline void clear() { mData = 0; mCachedPath.clear(); }
     inline bool operator==(const String &str) const
     {
-        const Location fromPath = Location::fromPathAndOffset(str);
+        const Location fromPath = Location::fromPathLineAndColumn(str);
         return operator==(fromPath);
+    }
+    inline bool operator!=(const String &str) const
+    {
+        const Location fromPath = Location::fromPathLineAndColumn(str);
+        return operator!=(fromPath);
     }
     inline bool operator==(const Location &other) const { return mData == other.mData; }
     inline bool operator!=(const Location &other) const { return mData != other.mData; }
@@ -165,7 +170,7 @@ public:
         return resolved;
     }
 
-    static Location fromPathAndOffset(const String &str)
+    static Location fromPathLineAndColumn(const String &str)
     {
         char path[PATH_MAX];
         uint32_t line, col;
