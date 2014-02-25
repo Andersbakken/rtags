@@ -3,8 +3,13 @@
 #include "Server.h"
 
 CompletionThread::CompletionThread(int cacheSize)
-    : mShutdown(false), mCacheSize(cacheSize), mIndex(0)
+    : mShutdown(false), mCacheSize(cacheSize), mDump(0), mIndex(0), mFirstCache(0), mLastCache(0)
 {
+}
+
+CompletionThread::~CompletionThread()
+{
+    Rct::deleteLinkedListNodes(mFirstCache);
 }
 
 void CompletionThread::run()
@@ -12,9 +17,10 @@ void CompletionThread::run()
     mIndex = clang_createIndex(0, 0);
     while (true) {
         Request *request = 0;
+        Dump *dump = 0;
         {
             std::unique_lock<std::mutex> lock(mMutex);
-            while (!mShutdown && mPending.isEmpty()) {
+            while (!mShutdown && mPending.isEmpty() && !mDump) {
                 mCondition.wait(lock);
             }
             if (mShutdown) {
@@ -22,14 +28,41 @@ void CompletionThread::run()
                     delete *it;
                 }
                 mPending.clear();
+                if (mDump) {
+                    std::unique_lock<std::mutex> lock(mDump->mutex);
+                    mDump->done = true;
+                    mDump->cond.notify_one();
+                    mDump = 0;
+                }
                 break;
+            } else if (mDump) {
+                std::swap(dump, mDump);
+            } else {
+                assert(!mPending.isEmpty());
+                request = mPending.takeFirst();
             }
-            assert(!mPending.isEmpty());
-            request = mPending.takeFirst();
         }
-        assert(request);
-        process(request);
-        delete request;
+        if (dump) {
+            std::unique_lock<std::mutex> lock(dump->mutex);
+            Log out(&dump->string);
+            for (Cache *cache = mFirstCache; cache; cache = cache->next) {
+                out << cache->source << "\nhash:" << cache->unsavedHash
+                    << "lastModified:" << cache->lastModified
+                    << "translationUnit:" << cache->translationUnit << "\n";
+                for (Completion *completion = cache->firstCompletion; completion; completion = completion->next) {
+                    out << "    " << completion->location.key() << "\n";
+                    for (auto c : completion->completions) {
+                        out << "      " << c.first << c.second << "\n";
+                    }
+                }
+            }
+            dump->done = true;
+            dump->cond.notify_one();
+        } else {
+            assert(request);
+            process(request);
+            delete request;
+        }
     }
     clang_disposeIndex(mIndex);
     mIndex = 0;
@@ -51,6 +84,24 @@ void CompletionThread::completeAt(const Source &source, const Location &location
     }
     mPending.push_front(request);
     mCondition.notify_one();
+}
+
+String CompletionThread::dump()
+{
+    Dump dump = { false };
+    {
+        std::unique_lock<std::mutex> lock(mMutex);
+        if (mDump)
+            return String(); // dump in progress
+
+        mDump = &dump;
+        mCondition.notify_one();
+    }
+    std::unique_lock<std::mutex> lock(dump.mutex);
+    while (!dump.done) {
+        dump.cond.wait(lock);
+    }
+    return std::move(dump.string);
 }
 
 void CompletionThread::stop()
@@ -158,9 +209,21 @@ void CompletionThread::process(Request *request)
     int reparseTime = 0;
     int completeTime = 0;
     int processTime = 0;
-    Cache *&cache = mCache[request->source.fileId];
-    if (!cache)
-        cache = new Cache({ 0, 0 });
+    Cache *&cache = mCacheMap[request->source.fileId];
+    if (cache && cache->source != request->source) {
+        delete cache;
+        cache = 0;
+    }
+    if (!cache) {
+        cache = new Cache;
+        Rct::insertLinkedListNode(cache, mFirstCache, mLastCache, mLastCache);
+        while (mCacheMap.size() > mCacheSize) {
+            Cache *c = mFirstCache;
+            Rct::removeLinkedListNode(c, mFirstCache, mLastCache);
+            mCacheMap.remove(c->source.fileId);
+            delete c;
+        }
+    }
     if (cache->translationUnit && cache->source != request->source) {
         clang_disposeTranslationUnit(cache->translationUnit);
         cache->translationUnit = 0;
@@ -177,14 +240,18 @@ void CompletionThread::process(Request *request)
     };
 
     size_t hash = 0;
+    uint64_t lastModified = 0;
     if (request->unsaved.size()) {
         std::hash<String> h;
         hash = h(request->unsaved);
+    } else {
+        lastModified = sourceFile.lastModifiedMs();
     }
 
     if (!cache->translationUnit) {
-        cache->completions.clear();
-        cache->unsavedHash = hash;
+        cache->completionsMap.clear();
+        Rct::deleteLinkedListNodes(cache->firstCompletion);
+        cache->firstCompletion = cache->lastCompletion = 0;
         sw.restart();
         // ### maybe skip function bodies
         unsigned int flags = clang_defaultEditingTranslationUnitOptions();
@@ -205,16 +272,25 @@ void CompletionThread::process(Request *request)
         reparseTime = sw.elapsed();
         if (!cache->translationUnit)
             return;
-    } else if (cache->unsavedHash != hash) {
-        cache->completions.clear();
         cache->unsavedHash = hash;
+        cache->lastModified = lastModified;
+    } else if (cache->unsavedHash != hash || cache->lastModified != lastModified) {
+        cache->completionsMap.clear();
+        Rct::deleteLinkedListNodes(cache->firstCompletion);
+        cache->firstCompletion = cache->lastCompletion = 0;
+        cache->unsavedHash = hash;
+        cache->lastModified = lastModified;
     } else if (!(request->flags & Refresh)) {
-        const auto it = cache->completions.find(request->location);
-        if (it != cache->completions.end()) {
+        const auto it = cache->completionsMap.find(request->location);
+        if (it != cache->completionsMap.end()) {
+            if (cache->completionsMap.size() > 1) {
+                Rct::removeLinkedListNode(it->second, cache->firstCompletion, cache->lastCompletion);
+                Rct::insertLinkedListNode(it->second, cache->firstCompletion, cache->lastCompletion, cache->lastCompletion);
+            }
             error("Found completions (%d) in cache %s:%d:%d",
-                  it->second.size(), sourceFile.constData(),
+                  it->second->completions.size(), sourceFile.constData(),
                   request->location.line(), request->location.column());
-            printCompletions(it->second, request);
+            printCompletions(it->second->completions, request);
             return;
         }
     }
@@ -286,22 +362,40 @@ void CompletionThread::process(Request *request)
             node.signature.clear();
         }
         enum { SendThreshold = 500 };
-        if (nodeCount && nodeCount <= SendThreshold) {
-            qsort(nodes, nodeCount, sizeof(CompletionNode), compareCompletionNode);
-            List<std::pair<String, String> > &completions = cache->completions[request->location];
-            completions.resize(nodeCount);
-            for (int i=0; i<nodeCount; ++i)
-                completions[i] = std::make_pair(nodes[i].completion, nodes[i].signature);
-            printCompletions(completions, request);
+        if (nodeCount) {
+            if (nodeCount <= SendThreshold) {
+                qsort(nodes, nodeCount, sizeof(CompletionNode), compareCompletionNode);
+                Completion *&c = cache->completionsMap[request->location];
+                if (c) {
+                    if (cache->completionsMap.size() > 1) {
+                        Rct::removeLinkedListNode(c, cache->firstCompletion, cache->lastCompletion);
+                        Rct::insertLinkedListNode(c, cache->firstCompletion, cache->lastCompletion, cache->lastCompletion);
+                    }
+                } else {
+                    enum { MaxCompletionCache = 10 }; // ### configurable?
+                    c = new Completion(request->location);
+                    Rct::insertLinkedListNode(c, cache->firstCompletion, cache->lastCompletion, cache->lastCompletion);
+                    while (cache->completionsMap.size() > MaxCompletionCache) {
+                        Completion *cc = cache->firstCompletion;
+                        Rct::removeLinkedListNode(cc, cache->firstCompletion, cache->lastCompletion);
+                        delete cc;
+                    }
+                }
+                c->completions.resize(nodeCount);
+                for (int i=0; i<nodeCount; ++i)
+                    c->completions[i] = std::make_pair(nodes[i].completion, nodes[i].signature);
+                printCompletions(c->completions, request);
+                processTime = sw.elapsed();
+                error("Processed %s, parse %d/%d, complete %d, process %d => %d completions (unsaved %d)",
+                      sourceFile.constData(), parseTime, reparseTime, completeTime, processTime, nodeCount, request->unsaved.size());
+            } else {
+                error() << "Too many results available" << request->location << nodeCount;
+            }
+            clang_disposeCodeCompleteResults(results);
+            delete[] nodes;
+        } else {
+            error() << "No completion results available" << request->location;
         }
-
-        delete[] nodes;
-        clang_disposeCodeCompleteResults(results);
-        processTime = sw.elapsed();
-        error("Processed %s, parse %d/%d, complete %d, process %d => %d completions (unsaved %d)",
-              sourceFile.constData(), parseTime, reparseTime, completeTime, processTime, nodeCount, request->unsaved.size());
-    } else {
-        error() << "No completion results available" << request->location;
     }
 }
 

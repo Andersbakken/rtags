@@ -31,6 +31,7 @@ class CompletionThread : public Thread
 {
 public:
     CompletionThread(int cacheSize);
+    ~CompletionThread();
 
     virtual void run();
     enum Flag {
@@ -40,6 +41,7 @@ public:
     };
     void completeAt(const Source &source, const Location &location, unsigned int flags, const String &unsaved, Connection *conn);
     void stop();
+    String dump();
 private:
     struct Request;
     void process(Request *request);
@@ -61,19 +63,38 @@ private:
         Connection *conn;
     };
     LinkedList<Request*> mPending;
+    struct Dump {
+        bool done;
+        std::mutex mutex;
+        std::condition_variable cond;
+        String string;
+    } *mDump;
     CXIndex mIndex;
 
+    struct Completion {
+        Completion(const Location &loc) : location(loc), next(0), prev(0) {}
+        List<std::pair<String, String> > completions;
+        const Location location;
+        Completion *next, *prev;
+    };
+
     struct Cache {
+        Cache()
+            : translationUnit(0), unsavedHash(0), lastModified(0),
+              firstCompletion(0), lastCompletion(0), next(0), prev(0)
+        {}
         CXTranslationUnit translationUnit;
         size_t unsavedHash;
+        uint64_t lastModified; // ms
         Source source;
-        Map<Location, List<std::pair<String, String> > > completions;
-        // should have LRU<Location, List<std::pair<String, String> >
+        Map<Location, Completion*> completionsMap;
+        Completion *firstCompletion, *lastCompletion;
+        Cache *next, *prev;
     };
     // this datastructure is only touched from inside the thread so it doesn't
     // need to be protected by mMutex
-    Hash<uint32_t, Cache*> mCache;
-    // LinkedList<Cache*> mCacheLRU;
+    Hash<uint32_t, Cache*> mCacheMap;
+    Cache *mFirstCache, *mLastCache;
 
     mutable std::mutex mMutex;
     std::condition_variable mCondition;
