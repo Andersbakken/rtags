@@ -1389,6 +1389,7 @@ References to references will be treated as references to the referenced symbol"
     (rtags-restart-tracking-timer)
     (if rtags-completions-enabled
         (rtags-update-completions)))
+    )
   )
 
 (add-hook 'post-command-hook (function rtags-post-command-hook))
