@@ -52,7 +52,7 @@ void CompletionThread::run()
                 for (Completion *completion = cache->firstCompletion; completion; completion = completion->next) {
                     out << "    " << completion->location.key() << "\n";
                     for (auto c : completion->completions) {
-                        out << "      " << c.first << c.second << "\n";
+                        out << "        " << c.first << c.second << "\n";
                     }
                 }
             }
