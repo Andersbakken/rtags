@@ -175,6 +175,7 @@ private:
     void removeProject(const QueryMessage &query, Connection *conn);
     void shutdown(const QueryMessage &query, Connection *conn);
     void sources(const QueryMessage &query, Connection *conn);
+    void dumpCompletions(const QueryMessage &query, Connection *conn);
     void status(const QueryMessage &query, Connection *conn);
     void suspendFile(const QueryMessage &query, Connection *conn);
 

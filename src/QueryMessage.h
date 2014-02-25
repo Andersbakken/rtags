@@ -33,6 +33,7 @@ public:
         CursorInfo,
         DeleteProject,
         Dependencies,
+        DumpCompletions,
         DumpFile,
         FindFile,
         FindSymbols,

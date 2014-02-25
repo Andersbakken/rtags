@@ -563,6 +563,9 @@ void Server::handleQueryMessage(const QueryMessage &message, Connection *conn)
     case QueryMessage::Sources:
         sources(message, conn);
         break;
+    case QueryMessage::DumpCompletions:
+        dumpCompletions(message, conn);
+        break;
     case QueryMessage::SendDiagnostics:
         sendDiagnostics(message, conn);
         break;
@@ -1427,6 +1430,16 @@ void Server::sources(const QueryMessage &query, Connection *conn)
         }
     } else {
         conn->write("No project");
+    }
+    conn->finish();
+}
+
+void Server::dumpCompletions(const QueryMessage &query, Connection *conn)
+{
+    if (mCompletionThread) {
+        conn->write(mCompletionThread->dump());
+    } else {
+        conn->write("No completions");
     }
     conn->finish();
 }
