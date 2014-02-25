@@ -2134,7 +2134,8 @@ References to references will be treated as references to the referenced symbol"
   (if (or (= (point) (point-at-eol))
           (looking-at "[\\n A-Za-z0-9_]"))
       (save-excursion
-        (skip-chars-backward rtags-symbol-chars)
+        (if (= (skip-chars-backward " ") 0)
+            (skip-chars-backward rtags-symbol-chars))
         (if (or (= (char-before) 46) ;; .
                 (and (= (char-before) 62) (= (char-before (1- (point))) 45)) ;; ->
                 (and (= (char-before) 58) (= (char-before (1- (point))) 58))) ;; ::
