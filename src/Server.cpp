@@ -137,6 +137,8 @@ Server::~Server()
         mCompletionThread = 0;
     }
 
+    Rct::deleteLinkedListNodes(mFirstRemote);
+
     for (auto job : mLocalJobs) {
         job.first->kill();
     }
@@ -1572,24 +1574,7 @@ void Server::handleJobResponseMessage(const JobResponseMessage &message, Connect
     if (message.isFinished()) {
         Remote *remote = mRemotes.take(host);
         if (remote) {
-            assert(remote);
-            assert(remote->next || mLastRemote == remote);
-            assert(remote->prev || mFirstRemote == remote);
-            if (mRemotes.isEmpty()) {
-                mFirstRemote = mLastRemote = 0;
-            } else {
-                if (remote->prev) {
-                    remote->prev->next = remote->next;
-                    if (!remote->next) {
-                        mLastRemote = remote->prev;
-                    } else {
-                        remote->next->prev = remote->prev;
-                    }
-                } else {
-                    mFirstRemote = remote->next;
-                    remote->next->prev = 0;
-                }
-            }
+            Rct::removeLinkedListNode(remote, mFirstRemote, mLastRemote);
             delete remote;
         }
     }
@@ -1604,25 +1589,10 @@ void Server::handleJobAnnouncementMessage(const JobAnnouncementMessage &message,
     if (!remote) {
         const String host = message.host().isEmpty() ? conn->client()->peerName() : message.host();
         remote = new Remote(host, message.port());;
+    } else {
+        Rct::removeLinkedListNode(remote, mFirstRemote, mLastRemote);
     }
-    if (!mFirstRemote) {
-        assert(!mLastRemote);
-        mFirstRemote = mLastRemote = remote;
-    } else if (remote != mFirstRemote) {
-        if (remote == mLastRemote) {
-            assert(remote->prev);
-            assert(!remote->next);
-            mLastRemote = remote->prev;
-            mLastRemote->next = 0;
-        } else if (remote->next) {
-            assert(remote->prev);
-            remote->prev->next = remote->next;
-            remote->next->prev = remote->prev;
-        }
-        remote->next = mFirstRemote;
-        mFirstRemote->prev = remote;
-        mFirstRemote = remote;
-    }
+    Rct::insertLinkedListNode(remote, mFirstRemote, mLastRemote);
 }
 
 void Server::handleProxyJobAnnouncementMessage(const ProxyJobAnnouncementMessage &message, Connection *conn)

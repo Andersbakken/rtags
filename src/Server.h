@@ -234,7 +234,7 @@ private:
         uint16_t port;
     } *mFirstRemote, *mLastRemote;
     bool mAnnounced;
-    Hash<std::string, Remote *> mRemotes;
+    Hash<String, Remote *> mRemotes;
     bool mWorkPending;
     int mExitCode;
 };
