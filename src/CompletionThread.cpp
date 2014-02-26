@@ -397,6 +397,7 @@ void CompletionThread::process(Request *request)
 
 void CompletionThread::printCompletions(const List<Completion::Node> &completions, Request *request)
 {
+    static List<String> cursorKindNames;
     // error() << request->flags << testLog(RTags::CompilationErrorXml) << completions.size() << request->conn;
     const bool doLog = testLog(RTags::CompilationErrorXml);
     if (!(request->flags & Refresh) && (doLog || request->conn) && !completions.isEmpty()) {
@@ -410,10 +411,21 @@ void CompletionThread::printCompletions(const List<Completion::Node> &completion
         if (request->flags & Elisp)
             out += "'(";
         for (auto val : completions) {
+            if (val.cursorKind >= cursorKindNames.size())
+                cursorKindNames.resize(val.cursorKind + 1);
+            String &kind = cursorKindNames[val.cursorKind];
+            if (kind.isEmpty())
+                kind = RTags::eatString(clang_getCursorKindSpelling(val.cursorKind));
             if (request->flags & Elisp) {
-                out += String::format<128>("\"%s\" \"%s\"", val.completion.constData(), val.signature.constData());
+                out += String::format<128>("\"%s\" \"%s\" \"%s\"",
+                                           val.completion.constData(),
+                                           val.signature.constData(),
+                                           kind.constData());
             } else {
-                out += String::format<128>("%s %s\n", val.completion.constData(), val.signature.constData());
+                out += String::format<128>("%s %s %s\n",
+                                           val.completion.constData(),
+                                           val.signature.constData(),
+                                           kind.constData());
             }
         }
         if (request->flags & Elisp)
