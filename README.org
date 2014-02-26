@@ -22,6 +22,10 @@ to improve on the current tools is because of clang
 Roberto Raggi on whose C++ parser we intended to base this project but
 he assured us clang was the way to go. The name stuck though.
 
+* Build requirements
+RTags uses C++11 features and requires a relatively new
+compiler. Gcc version >= 4.8 or clang >= 3.2 works.
+
 * Usage
 RTags is meant to be used like this:
 
