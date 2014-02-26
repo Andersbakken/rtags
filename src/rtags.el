@@ -734,6 +734,11 @@
   :group 'rtags
   :type 'boolean)
 
+(defcustom rtags-completions-timer-interval .5
+  "Interval for completions timer"
+  :group 'rtags
+  :type 'number)
+
 (defcustom rtags-tracking nil
   "When on automatically jump to symbol under cursor in *RTags* buffer"
   :group 'rtags
@@ -1388,7 +1393,7 @@ References to references will be treated as references to the referenced symbol"
     (rtags-close-taglist)
     (rtags-restart-tracking-timer)
     (if rtags-completions-enabled
-        (rtags-update-completions)))
+        (rtags-update-completions-timer))
     )
   )
 
@@ -1432,7 +1437,7 @@ References to references will be treated as references to the referenced symbol"
       (setq rtags-pending-diagnostics nil))
     (with-current-buffer (process-buffer process)
       (setq buffer-read-only nil)
-      ;;   (message "matching [%s]" output)
+      ;; (message "matching [%s]" output)
       (let (endpos length current)
         (while (cond ((setq endpos (string-match "</checkstyle>" output))
                       (setq length 13))
@@ -2145,6 +2150,19 @@ References to references will be treated as references to the referenced symbol"
     )
   )
 
+(defvar rtags-completions-timer nil)
+(defun rtags-update-completions-timer ()
+  (interactive)
+
+  (if rtags-completions-timer
+      (cancel-timer rtags-completions-timer))
+  (setq rtags-local-references-timer
+        (and rtags-completions-timer
+             (or (eq major-mode 'c++-mode) (eq major-mode 'c-mode))
+             (run-with-idle-timer rtags-completions-timer-interval
+                                  nil (function rtags-update-completions))))
+  )
+
 (defun rtags-update-completions (&optional force)
   (interactive)
   (if (or (eq major-mode 'c++-mode)
@@ -2159,7 +2177,7 @@ References to references will be treated as references to the referenced symbol"
                     ((not (= pos (cdr rtags-last-completion-position))) t)
                     ((not (eq (current-buffer) (car rtags-last-completion-position))) t)
                     (t nil))
-          ;; (message "CALLING RC %s" (if (buffer-modified-p) "yes" "no"))
+          ;; (message "CALLING RC %s" (if (buffer-modified-p) "modified" "not modified"))
           (setq rtags-last-completion-position (cons (current-buffer) pos))
           (let ((path (buffer-file-name))
                 (unsaved (and (buffer-modified-p) (current-buffer)))
