@@ -79,12 +79,6 @@
   "Face used for marking fixit lines."
   :group 'rtags)
 
-(defface rtags-local-reference
-  '((t :underline t)
-    (t (:bold t)))
-  "Face used for marking current local references under cursor."
-  :group 'rtags)
-
 (defvar rtags-font-lock-keywords
   `((,"^\\(.*:[0-9]+:[0-9]+:\\)\\(.*\\)$"
      (1 font-lock-string-face)
@@ -764,16 +758,6 @@
   :group 'rtags
   :type 'number)
 
-(defcustom rtags-local-references-enabled nil
-  "Whether rtags local-references are enabled"
-  :group 'rtags
-  :type 'boolean)
-
-(defcustom rtags-local-references-timer-interval .5
-  "Interval for local-references timer"
-  :group 'rtags
-  :type 'number)
-
 (defcustom rtags-tracking-timer-interval .5
   "Interval for tracking timer"
   :group 'rtags
@@ -1389,7 +1373,6 @@ References to references will be treated as references to the referenced symbol"
   (when rtags-enabled
     (rtags-update-current-project)
     (rtags-update-current-error)
-    (rtags-restart-update-local-references-timer)
     (rtags-close-taglist)
     (rtags-restart-tracking-timer)
     (if rtags-completions-enabled
@@ -1974,14 +1957,6 @@ References to references will be treated as references to the referenced symbol"
               (recenter-top-bottom 0)
               (select-window win)))))))
 
-(defvar rtags-local-references-overlays nil)
-(defun rtags-clear-local-references-overlays()
-  (interactive)
-  (while rtags-local-references-overlays
-    (delete-overlay (car rtags-local-references-overlays))
-    (setq rtags-local-references-overlays (cdr rtags-local-references-overlays)))
-  )
-
 (defun rtags-offset-for-line-column (line col)
   (let (deactivate-mark)
     (save-excursion
@@ -1993,58 +1968,6 @@ References to references will be treated as references to the referenced symbol"
   (and (>= start (window-start))
        (<= start (window-end))
        (<= end (window-end))))
-
-(defvar rtags-cached-local-references nil)
-(defun rtags-update-local-references ()
-  (interactive)
-  (let ((path (buffer-file-name))
-        (loc (rtags-current-location))
-        (symlen (length (rtags-current-token)))
-        (start (window-start))
-        (end (window-end))
-        (lines nil))
-    (if (= symlen 0)
-        (setq symlen 1))
-    (when (not (string= loc rtags-cached-local-references))
-      (setq rtags-cached-local-references loc)
-      (rtags-clear-local-references-overlays)
-      (with-temp-buffer
-        (rtags-call-rc :path path "-r" loc "-e" "-N" :path-filter path)
-        (setq lines (split-string (buffer-string) "\n" t)))
-      (while lines
-        (let ((cur (car lines))
-              (offset nil))
-          (when (string-match "\\(.*\\),\\([0-9]+\\)" cur)
-            ;; (message "foobar |%s|%s|" (match-string-no-properties 1 cur) (match-string-no-properties 2 cur))
-            (setq offset (1+ (string-to-number (match-string-no-properties 2 cur))))
-            (cond ((> offset end) (setq lines nil))
-                  ((< (+ offset symlen) start))
-                  (t
-                   (let ((overlay (make-overlay offset (+ offset symlen) nil t)))
-                     (overlay-put overlay 'face 'rtags-local-reference)
-                     (setq rtags-local-references-overlays (append rtags-local-references-overlays (list overlay))))))))
-        (setq lines (cdr lines)))
-      )
-    )
-  )
-
-
-(defvar rtags-local-references-timer nil)
-(defun rtags-restart-update-local-references-timer ()
-  (interactive)
-  (if rtags-local-references-timer
-      (cancel-timer rtags-local-references-timer))
-  (setq rtags-local-references-timer
-        (and rtags-local-references-enabled
-             (or (eq major-mode 'c++-mode)
-                 (eq major-mode 'c-mode))
-             (not (string= rtags-cached-local-references (rtags-current-location)))
-             (progn
-               (rtags-clear-local-references-overlays)
-               (run-with-idle-timer rtags-local-references-timer-interval
-                                    nil (function rtags-update-local-references))))
-        )
-  )
 
 (defun rtags-toggle-file-suspended()
   (interactive)
@@ -2156,7 +2079,7 @@ References to references will be treated as references to the referenced symbol"
 
   (if rtags-completions-timer
       (cancel-timer rtags-completions-timer))
-  (setq rtags-local-references-timer
+  (setq rtags-completions-timer
         (and rtags-completions-timer
              (or (eq major-mode 'c++-mode) (eq major-mode 'c-mode))
              (run-with-idle-timer rtags-completions-timer-interval
