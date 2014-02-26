@@ -39,30 +39,37 @@ class RestoreThread : public Thread
 {
 public:
     RestoreThread(const std::shared_ptr<Project> &project)
-        : mProject(project)
+        : mFinished(false), mPath(project->path())
     {
         setAutoDelete(true);
     }
 
     virtual void run()
     {
-        std::shared_ptr<Project> project = mProject.lock();
-        if (project) {
-            restore(project);
-            EventLoop::mainEventLoop()->callLater(std::bind(&Project::restore, project.get(), std::placeholders::_1), this);
+        StopWatch timer;
+        if (!restore())
+            return;
+        EventLoop::mainEventLoop()->callLater([this, &timer]() {
+                if (std::shared_ptr<Project> proj = Server::instance()->project(mPath)) {
+                    proj->restore(this);
+                    error() << "Restored project" << mPath << "in" << timer.elapsed() << "ms";
+                }
+                this->finish();
+            });
+        std::unique_lock<std::mutex> lock(mMutex);
+        while (!mFinished) {
+            mCondition.wait(lock);
         }
     }
-    void restore(const std::shared_ptr<Project> &project)
+    bool restore()
     {
-        assert(project->state() == Project::Loading);
-        StopWatch timer;
-        Path path = project->path();
+        Path path = mPath;
         RTags::encodePath(path);
         const Path p = Server::instance()->options().dataDir + path;
         bool restoreError = false;
         const String all = p.readAll();
         if (all.isEmpty())
-            return;
+            return false;
 
         Deserializer in(all);
         int version;
@@ -87,12 +94,23 @@ public:
   end:
         if (restoreError) {
             Path::rm(p);
+            return false;
         } else {
-            error() << "Restored project" << path << "in" << timer.elapsed() << "ms";
+            return true;
         }
     }
 
-    std::weak_ptr<Project> mProject;
+    void finish()
+    {
+        std::lock_guard<std::mutex> lock(mMutex);
+        mFinished = true;
+        mCondition.notify_one();
+    }
+
+    std::mutex mMutex;
+    std::condition_variable mCondition;
+    bool mFinished;
+    const Path mPath;
     SymbolMap mSymbols;
     SymbolNameMap mSymbolNames;
     UsrMap mUsr;
@@ -126,7 +144,8 @@ public:
                     << MemoryMonitor::usage() / (1024.0 * 1024.0) << "mb of memory"
                     << data.symbols << "symbols" << data.symbolNames << "symbolNames";
             project->mTimer.start();
-            EventLoop::mainEventLoop()->callLater(std::bind(&Project::onSynced, project.get()));
+            std::weak_ptr<Project> weak = project;
+            EventLoop::mainEventLoop()->callLater([weak]() { if (std::shared_ptr<Project> project = weak.lock()) project->onSynced(); });
         }
     }
     std::weak_ptr<Project> mProject;
@@ -147,6 +166,7 @@ Project::Project(const Path &path)
 
 Project::~Project()
 {
+    assert(EventLoop::isMainThread());
     unload();
 }
 
@@ -161,6 +181,7 @@ void Project::init()
 
 void Project::restore(RestoreThread *thread)
 {
+    assert(EventLoop::isMainThread());
     if (state() != Loading)
         return;
 
@@ -261,9 +282,11 @@ void Project::unload()
 {
     switch (mState) {
     case Syncing:
-    case Loading:
-        EventLoop::eventLoop()->registerTimer(std::bind(&Project::unload, this), 1000, Timer::SingleShot);
-        return;
+    case Loading: {
+        std::weak_ptr<Project> weak = shared_from_this();
+        EventLoop::eventLoop()->registerTimer([weak](int) { if (std::shared_ptr<Project> project = weak.lock()) project->unload(); },
+                                              1000, Timer::SingleShot);
+        return; }
     default:
         break;
     }
