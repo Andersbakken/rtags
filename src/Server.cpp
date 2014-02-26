@@ -544,7 +544,7 @@ void Server::handleIndexerMessage(const IndexerMessage &message, Connection *con
             if (!project) {
                 error() << "Can't find project root for this IndexerMessage" << message.project() << Location::path(indexData->fileId());
             } else {
-                project->onJobFinished(indexData);
+                project->onJobFinished(indexData, job);
             }
         }
     } else {
@@ -1854,7 +1854,8 @@ void Server::onLocalJobFinished(Process *process)
             std::shared_ptr<IndexData> data(new IndexData(job->flags));
             data->key = job->source.key();
 
-            EventLoop::eventLoop()->registerTimer([data, proj](int) { proj->onJobFinished(data); }, 500, Timer::SingleShot);
+            EventLoop::eventLoop()->registerTimer([data, job, proj](int) { proj->onJobFinished(data, job); },
+                                                  500, Timer::SingleShot);
             // give it 500 ms before we try again
         }
     }

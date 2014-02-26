@@ -335,11 +335,11 @@ bool Project::match(const Match &p, bool *indexed) const
     return ret;
 }
 
-void Project::onJobFinished(const std::shared_ptr<IndexData> &indexData)
+void Project::onJobFinished(const std::shared_ptr<IndexData> &indexData, const std::shared_ptr<IndexerJob> &job)
 {
     mSyncTimer.stop();
     if (mState == Syncing) {
-        mPendingIndexData.append(indexData);
+        mPendingIndexData.append(std::make_pair(indexData, job));
         return;
     }
     assert(indexData);
@@ -355,6 +355,8 @@ void Project::onJobFinished(const std::shared_ptr<IndexData> &indexData)
     }
 
     JobData *jobData = &it->second;
+    if (jobData->job != job)
+        return;
     assert(jobData->job);
     const bool success = jobData->job->flags & (IndexerJob::CompleteLocal|IndexerJob::CompleteRemote);
     if (!success) {
@@ -994,7 +996,7 @@ void Project::onSynced()
     assert(mState == Syncing);
     mState = Loaded;
     for (auto it : mPendingIndexData) {
-        onJobFinished(it);
+        onJobFinished(it.first, it.second);
     }
     mPendingIndexData.clear();
     Hash<uint64_t, JobData> pendingJobs = std::move(mJobs);

@@ -103,7 +103,7 @@ public:
     String fixIts(uint32_t fileId) const;
     int reindex(const Match &match);
     int remove(const Match &match);
-    void onJobFinished(const std::shared_ptr<IndexData> &job);
+    void onJobFinished(const std::shared_ptr<IndexData> &indexData, const std::shared_ptr<IndexerJob> &job);
     SourceMap sources() const { return mSources; }
     DependencyMap dependencies() const { return mDependencies; }
     Set<Path> watchedPaths() const { return mWatchedPaths; }
@@ -144,7 +144,7 @@ private:
     FilesMap mFiles;
 
     Set<uint32_t> mVisitedFiles;
-    List<std::shared_ptr<IndexData> > mPendingIndexData;
+    List<std::pair<std::shared_ptr<IndexData>, std::shared_ptr<IndexerJob> > > mPendingIndexData;
 
     int mJobCounter;
 
