@@ -188,6 +188,7 @@ private:
                               uint16_t port, Buffer &&buffer);
     void handleMulticastData(const String &ip, uint16_t port, const unsigned char *data, int size, Connection *src);
     void onLocalJobFinished(Process *process);
+    bool hasServer() const;
     struct WorkScope {
         WorkScope();
         ~WorkScope();

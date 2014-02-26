@@ -45,7 +45,6 @@ public:
 private:
     struct Request;
     void process(Request *request);
-    void printCompletions(const List<std::pair<String, String> > &completions, Request *request);
 
     Set<uint32_t> mWatched;
     bool mShutdown;
@@ -73,10 +72,18 @@ private:
 
     struct Completion {
         Completion(const Location &loc) : location(loc), next(0), prev(0) {}
-        List<std::pair<String, String> > completions;
+        struct Node {
+            String completion, signature;
+            int priority, distance;
+            CXCursorKind cursorKind;
+        };
+        List<Node> completions;
         const Location location;
         Completion *next, *prev;
     };
+
+    void printCompletions(const List<Completion::Node> &completions, Request *request);
+    static int compareCompletionNode(const void *left, const void *right);
 
     struct Cache {
         Cache()

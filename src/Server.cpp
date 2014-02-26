@@ -464,7 +464,7 @@ void Server::preprocess(Source &&source, Path &&srcRoot, uint32_t flags)
     project->load();
 
     WorkScope scope;
-    if (mOptions.options & NoJobServer) {
+    if (!hasServer()) {
         std::shared_ptr<Cpp> cpp(new Cpp);
         cpp->flags = Cpp::Preprocess_None;
         cpp->time = Rct::currentTimeMs();
@@ -2071,7 +2071,7 @@ void Server::work()
     if (mOptions.options & NoLocalCompiles)
         jobs = std::min(jobs, 0);
 
-    if (jobs <= 0 && mOptions.options & NoJobServer)
+    if (jobs <= 0 && !hasServer())
         return;
 
     auto it = mPending.begin();
@@ -2082,14 +2082,6 @@ void Server::work()
         if (job->flags & (IndexerJob::CompleteLocal|IndexerJob::CompleteRemote)) {
             it = mPending.erase(it);
             continue;
-        }
-
-        if (!(job->flags & IndexerJob::FromRemote)) {
-            if (!project(job->project)) {
-                it = mPending.erase(it);
-                continue;
-            }
-            ++announcables;
         }
 
         if (jobs > 0) {
@@ -2110,11 +2102,19 @@ void Server::work()
                 EventLoop::eventLoop()->callLater(std::bind(&Server::onLocalJobFinished, this, std::placeholders::_1), job->process);
             }
         } else {
+            if (!(job->flags & IndexerJob::FromRemote)) {
+                if (!project(job->project)) {
+                    it = mPending.erase(it);
+                    continue;
+                }
+                ++announcables;
+            }
+
             ++it;
         }
     }
 
-    if (mOptions.options & NoJobServer)
+    if (!hasServer())
         return;
 
     if (!mAnnounced && announcables) {
@@ -2199,4 +2199,12 @@ Server::WorkScope::~WorkScope()
         Server *s = Server::instance();
         s->work();
     }
+}
+bool Server::hasServer() const
+{
+    if (mOptions.options & JobServer)
+        return true;
+    if (mOptions.options & NoJobServer)
+        return false;
+    return mServerConnection;
 }

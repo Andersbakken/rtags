@@ -52,7 +52,8 @@ void CompletionThread::run()
                 for (Completion *completion = cache->firstCompletion; completion; completion = completion->next) {
                     out << "    " << completion->location.key() << "\n";
                     for (auto c : completion->completions) {
-                        out << "        " << c.first << c.second << "\n";
+                        out << "        " << c.completion << c.signature << c.priority << c.distance
+                            << RTags::eatString(clang_getCursorKindSpelling(c.cursorKind)) << "\n";
                     }
                 }
             }
@@ -116,16 +117,10 @@ static inline bool isPartOfSymbol(char ch)
     return isalnum(ch) || ch == '_';
 }
 
-struct CompletionNode
+int CompletionThread::compareCompletionNode(const void *left, const void *right)
 {
-    String completion, signature;
-    int priority, distance;
-};
-
-static int compareCompletionNode(const void *left, const void *right)
-{
-    const CompletionNode *l = reinterpret_cast<const CompletionNode*>(left);
-    const CompletionNode *r = reinterpret_cast<const CompletionNode*>(right);
+    const Completion::Node *l = reinterpret_cast<const Completion::Node*>(left);
+    const Completion::Node *r = reinterpret_cast<const Completion::Node*>(right);
     if (l->priority != r->priority)
         return l->priority < r->priority ? -1 : 1;
     if ((l->distance != -1) != (r->distance != -1))
@@ -302,7 +297,7 @@ void CompletionThread::process(Request *request)
                                                           CXCodeComplete_IncludeMacros|CXCodeComplete_IncludeCodePatterns);
     completeTime = sw.restart();
     if (results) {
-        CompletionNode *nodes = new CompletionNode[results->NumResults];
+        Completion::Node *nodes = new Completion::Node[results->NumResults];
         int nodeCount = 0;
         Map<Token, int> tokens;
         if (!request->unsaved.isEmpty()) {
@@ -322,10 +317,11 @@ void CompletionThread::process(Request *request)
                 continue;
 
             const int priority = clang_getCompletionPriority(string);
-            if (priority >= 75)
+            if (priority >= 70)
                 continue;
 
-            CompletionNode &node = nodes[nodeCount];
+            Completion::Node &node = nodes[nodeCount];
+            node.cursorKind = kind;
             node.priority = priority;
             node.signature.reserve(256);
             const int chunkCount = clang_getNumCompletionChunks(string);
@@ -364,7 +360,7 @@ void CompletionThread::process(Request *request)
         enum { SendThreshold = 500 };
         if (nodeCount) {
             if (nodeCount <= SendThreshold) {
-                qsort(nodes, nodeCount, sizeof(CompletionNode), compareCompletionNode);
+                qsort(nodes, nodeCount, sizeof(Completion::Node), compareCompletionNode);
                 Completion *&c = cache->completionsMap[request->location];
                 if (c) {
                     if (cache->completionsMap.size() > 1) {
@@ -383,7 +379,7 @@ void CompletionThread::process(Request *request)
                 }
                 c->completions.resize(nodeCount);
                 for (int i=0; i<nodeCount; ++i)
-                    c->completions[i] = std::make_pair(nodes[i].completion, nodes[i].signature);
+                    c->completions[i] = nodes[i];
                 printCompletions(c->completions, request);
                 processTime = sw.elapsed();
                 error("Processed %s, parse %d/%d, complete %d, process %d => %d completions (unsaved %d)",
@@ -399,7 +395,7 @@ void CompletionThread::process(Request *request)
     }
 }
 
-void CompletionThread::printCompletions(const List<std::pair<String, String> > &completions, Request *request)
+void CompletionThread::printCompletions(const List<Completion::Node> &completions, Request *request)
 {
     // error() << request->flags << testLog(RTags::CompilationErrorXml) << completions.size() << request->conn;
     const bool doLog = testLog(RTags::CompilationErrorXml);
@@ -413,12 +409,11 @@ void CompletionThread::printCompletions(const List<std::pair<String, String> > &
 
         if (request->flags & Elisp)
             out += "'(";
-        for (auto it = completions.begin(); it != completions.end(); ++it) {
-            const std::pair<String, String> &val = *it;
+        for (auto val : completions) {
             if (request->flags & Elisp) {
-                out += String::format<128>("\"%s\" \"%s\"", val.first.constData(), val.second.constData());
+                out += String::format<128>("\"%s\" \"%s\"", val.completion.constData(), val.signature.constData());
             } else {
-                out += String::format<128>("%s %s\n", val.first.constData(), val.second.constData());
+                out += String::format<128>("%s %s\n", val.completion.constData(), val.signature.constData());
             }
         }
         if (request->flags & Elisp)
