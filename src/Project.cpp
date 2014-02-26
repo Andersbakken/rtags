@@ -47,12 +47,13 @@ public:
     virtual void run()
     {
         StopWatch timer;
-        if (!restore())
-            return;
-        EventLoop::mainEventLoop()->callLater([this, &timer]() {
+        RestoreThread *thread = restore() ? this : 0;
+
+        EventLoop::mainEventLoop()->callLater([thread, &timer, this]() {
                 if (std::shared_ptr<Project> proj = Server::instance()->project(mPath)) {
-                    proj->restore(this);
-                    error() << "Restored project" << mPath << "in" << timer.elapsed() << "ms";
+                    proj->restore(thread);
+                    if (thread)
+                        error() << "Restored project" << mPath << "in" << timer.elapsed() << "ms";
                 }
                 this->finish();
             });
@@ -185,61 +186,63 @@ void Project::restore(RestoreThread *thread)
     if (state() != Loading)
         return;
 
-    mSymbols = std::move(thread->mSymbols);
-    mSymbolNames = std::move(thread->mSymbolNames);
-    mUsr = std::move(thread->mUsr);;
-    mDependencies = std::move(thread->mDependencies);
-    mSources = std::move(thread->mSources);
-
-    mVisitedFiles = std::move(thread->mVisitedFiles);
-
-    DependencyMap reversedDependencies;
-    Set<uint32_t> dirty;
-    // these dependencies are in the form of:
-    // Path.cpp: Path.h, String.h ...
-    // mDependencies are like this:
-    // Path.h: Path.cpp, Server.cpp ...
-
     bool needsSave = false;
-    {
-        auto it = mDependencies.begin();
-        while (it != mDependencies.end()) {
-            const Path file = Location::path(it->first);
-            if (!file.exists()) {
-                error() << "File doesn't exist" << file;
-                mDependencies.erase(it++);
-                needsSave = true;
-                continue;
-            }
-            watch(file);
-            for (auto s = it->second.constBegin(); s != it->second.constEnd(); ++s)
-                reversedDependencies[*s].insert(it->first);
-            ++it;
-        }
-    }
+    Set<uint32_t> dirty;
+   if (thread) {
+        mSymbols = std::move(thread->mSymbols);
+        mSymbolNames = std::move(thread->mSymbolNames);
+        mUsr = std::move(thread->mUsr);;
+        mDependencies = std::move(thread->mDependencies);
+        mSources = std::move(thread->mSources);
 
-    auto it = mSources.begin();
-    while (it != mSources.end()) {
-        const Source &source = it->second;
-        if (!source.sourceFile().isFile()) {
-            error() << source.sourceFile() << "seems to have disappeared";
-            dirty.insert(source.fileId);
-            mSources.erase(it++);
-            needsSave = true;
-        } else {
-            assert(mDependencies.value(source.fileId).contains(source.fileId));
-            const Set<uint32_t> &deps = reversedDependencies[source.fileId];
-            // error() << source.sourceFile() << "has" << deps.size();
-            for (auto d = deps.constBegin(); d != deps.constEnd(); ++d) {
-                if (!dirty.contains(*d) && Location::path(*d).lastModifiedMs() > source.parsed) {
-                    dirty.insert(*d);
-                    // error() << Location::path(*d).lastModifiedMs() << "is more than" << source.parsed
-                    //         << it->second.sourceFile() << Location::path(*d)
-                    //         << String::formatTime(source.parsed / 1000)
-                    //         << String::formatTime(Location::path(*d).lastModifiedMs() / 1000);
+        mVisitedFiles = std::move(thread->mVisitedFiles);
+
+        DependencyMap reversedDependencies;
+        // these dependencies are in the form of:
+        // Path.cpp: Path.h, String.h ...
+        // mDependencies are like this:
+        // Path.h: Path.cpp, Server.cpp ...
+
+        {
+            auto it = mDependencies.begin();
+            while (it != mDependencies.end()) {
+                const Path file = Location::path(it->first);
+                if (!file.exists()) {
+                    error() << "File doesn't exist" << file;
+                    mDependencies.erase(it++);
+                    needsSave = true;
+                    continue;
                 }
+                watch(file);
+                for (auto s = it->second.constBegin(); s != it->second.constEnd(); ++s)
+                    reversedDependencies[*s].insert(it->first);
+                ++it;
             }
-            ++it;
+        }
+
+        auto it = mSources.begin();
+        while (it != mSources.end()) {
+            const Source &source = it->second;
+            if (!source.sourceFile().isFile()) {
+                error() << source.sourceFile() << "seems to have disappeared";
+                dirty.insert(source.fileId);
+                mSources.erase(it++);
+                needsSave = true;
+            } else {
+                assert(mDependencies.value(source.fileId).contains(source.fileId));
+                const Set<uint32_t> &deps = reversedDependencies[source.fileId];
+                // error() << source.sourceFile() << "has" << deps.size();
+                for (auto d = deps.constBegin(); d != deps.constEnd(); ++d) {
+                    if (!dirty.contains(*d) && Location::path(*d).lastModifiedMs() > source.parsed) {
+                        dirty.insert(*d);
+                        // error() << Location::path(*d).lastModifiedMs() << "is more than" << source.parsed
+                        //         << it->second.sourceFile() << Location::path(*d)
+                        //         << String::formatTime(source.parsed / 1000)
+                        //         << String::formatTime(Location::path(*d).lastModifiedMs() / 1000);
+                    }
+                }
+                ++it;
+            }
         }
     }
     Hash<uint64_t, JobData> pendingJobs = std::move(mJobs);
