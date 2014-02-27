@@ -86,9 +86,10 @@ public:
         CursorKind = 0x0100000,
         DisplayName = 0x0200000,
         CompilationFlagsOnly = 0x0400000,
-        DumpIncludeHeaders = 0x0800000,
-        SilentQuery = 0x1000000,
-        SynchronousCompletions = 0x2000000
+        CompilationFlagsSplitLine = 0x0800000,
+        DumpIncludeHeaders = 0x1000000,
+        SilentQuery = 0x2000000,
+        SynchronousCompletions = 0x4000000
     };
 
     QueryMessage(Type type = Invalid);

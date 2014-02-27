@@ -1391,6 +1391,8 @@ void Server::shutdown(const QueryMessage &query, Connection *conn)
 void Server::sources(const QueryMessage &query, Connection *conn)
 {
     const Path path = query.query();
+    const bool flagsOnly = query.flags() & QueryMessage::CompilationFlagsOnly;
+    const bool splitLine = query.flags() & QueryMessage::CompilationFlagsSplitLine;
     if (path.isFile()) {
         std::shared_ptr<Project> project = updateProjectForLocation(path);
         if (project) {
@@ -1400,14 +1402,17 @@ void Server::sources(const QueryMessage &query, Connection *conn)
                 const uint32_t fileId = Location::fileId(path);
                 if (fileId) {
                     const List<Source> sources = project->sources(fileId);
+                    int idx = 0;
                     for (auto it : sources) {
-                        if (query.flags() & QueryMessage::CompilationFlagsOnly) {
-                            conn->write<128>("%s: %s",
-                                             it.sourceFile().constData(),
-                                             String::join(it.toCommandLine(0), ' ').constData());
+                        String out;
+                        if (sources.size() > 1)
+                            out = String::format<4>("%d: ", idx);
+                        if (flagsOnly) {
+                            out += String::join(it.toCommandLine(0), splitLine ? '\n' : ' ');
                         } else {
-                            conn->write(it.toString());
+                            out += it.toString();
                         }
+                        conn->write(out);
                     }
                 }
             }
@@ -1424,10 +1429,11 @@ void Server::sources(const QueryMessage &query, Connection *conn)
             const SourceMap infos = project->sources();
             for (auto it : infos) {
                 if (match.isEmpty() || match.match(it.second.sourceFile())) {
-                    if (query.flags() & QueryMessage::CompilationFlagsOnly) {
-                        conn->write<128>("%s: %s",
+                    if (flagsOnly) {
+                        conn->write<128>("%s%s%s",
                                          it.second.sourceFile().constData(),
-                                         String::join(it.second.toCommandLine(0), ' ').constData());
+                                         splitLine ? "\n" : ": ",
+                                         String::join(it.second.toCommandLine(0), splitLine ? '\n' : ' ').constData());
                     } else {
                         conn->write(it.second.toString());
                     }

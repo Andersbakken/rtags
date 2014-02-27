@@ -31,6 +31,7 @@ enum OptionType {
     CodeCompleteAt,
     Compile,
     CompilationFlagsOnly,
+    CompilationFlagsSplitLine,
     ConnectTimeout,
     ContainingFunction,
     Context,
@@ -208,6 +209,7 @@ struct Option opts[] = {
     { ContainingFunction, "containing-function", 'o', no_argument, "Include name of containing function in output."},
     { BuildIndex, "build-index", 0, required_argument, "For sources with multiple builds, use the arg'th." },
     { CompilationFlagsOnly, "compilation-flags-only", 0, no_argument, "For --source, only print compilation flags." },
+    { CompilationFlagsSplitLine, "compilation-flags-split-line", 0, no_argument, "For --source, print one compilation flag per line." },
     { DumpIncludeHeaders, "dump-include-headers", 0, no_argument, "For --dump-file, also dump dependencies." },
     { SilentQuery, "silent-query", 0, no_argument, "Don't log this request in rdm." },
     { SynchronousCompletions, "synchronous-completions", 0, no_argument, "Wait for completion results." },
@@ -586,6 +588,9 @@ bool RClient::parse(int &argc, char **argv)
             break;
         case CompilationFlagsOnly:
             mQueryFlags |= QueryMessage::CompilationFlagsOnly;
+            break;
+        case CompilationFlagsSplitLine:
+            mQueryFlags |= QueryMessage::CompilationFlagsSplitLine;
             break;
         case ContainingFunction:
             mQueryFlags |= QueryMessage::ContainingFunction;

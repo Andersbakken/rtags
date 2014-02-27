@@ -1494,6 +1494,17 @@ References to references will be treated as references to the referenced symbol"
             (t nil))))
   )
 
+(defun rtags-compilation-flags ()
+  (interactive)
+  (let ((path (buffer-file-name)))
+    (if path
+        (with-temp-buffer
+          (rtags-call-rc :path path "--source" path "--compilation-flags-only" "--compilation-flags-split-line")
+          (split-string (buffer-substring-no-properties (point-min) (point-max)) "\n"))
+      )
+    )
+  )
+
 (defun rtags-is-indexed (&optional buffer)
   (equal (rtags-buffer-status buffer) 'rtags-indexed))
 
