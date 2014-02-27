@@ -303,7 +303,7 @@
                             ((and unsaved (buffer-modified-p unsaved))
                              (apply #'call-process-region (point-min) (point-max) rc nil output nil arguments) nil)
                             (unsaved (apply #'call-process rc (buffer-file-name unsaved) output nil arguments) nil)
-                            (t (apply #'call-process rc (and unsaved (buffer-file-name unsaved)) output nil arguments) nil))))
+                            (t (apply #'call-process rc nil output nil arguments) nil))))
             (if proc
                 (progn
                   (set-process-query-on-exit-flag proc nil)
@@ -1485,8 +1485,7 @@ References to references will be treated as references to the referenced symbol"
 (defvar rtags-file-managed nil)
 
 (defun rtags-buffer-status (&optional buffer)
-  (let ((path (buffer-file-name buffer)))
-    (unless path (setq path default-directory))
+  (let ((path (expand-file-name (or (buffer-file-name buffer) dired-directory default-directory))))
     (with-temp-buffer
       (rtags-call-rc :path path "-T" path :noerror t :silent-query t)
       (goto-char (point-min))
