@@ -51,8 +51,13 @@ void ReferencesJob::execute()
                 if (startLocation.isNull())
                     startLocation = pos;
                 std::shared_ptr<CursorInfo> cursorInfo = found->second;
-                if (RTags::isReference(cursorInfo->kind))
+                if (!cursorInfo)
+                    continue;
+                if (RTags::isReference(cursorInfo->kind)) {
                     cursorInfo = cursorInfo->bestTarget(map, &pos);
+                    if (!cursorInfo)
+                        continue;
+                }
                 if (queryFlags() & QueryMessage::AllReferences) {
                     const SymbolMap all = cursorInfo->allReferences(pos, map);
 

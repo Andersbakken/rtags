@@ -33,13 +33,13 @@ void FollowLocationJob::execute()
         return;
 
     const std::shared_ptr<CursorInfo> &cursorInfo = it->second;
-    if (cursorInfo->isClass() && cursorInfo->isDefinition()) {
+    if (cursorInfo && cursorInfo->isClass() && cursorInfo->isDefinition()) {
         return;
     }
 
     Location loc;
     std::shared_ptr<CursorInfo> target = cursorInfo->bestTarget(map, &loc);
-    if (!loc.isNull()) {
+    if (!loc.isNull() && target) {
         // ### not respecting DeclarationOnly
         if (cursorInfo->kind != target->kind) {
             if (!target->isDefinition() && !target->targets.isEmpty()) {
