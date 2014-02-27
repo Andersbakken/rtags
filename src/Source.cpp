@@ -485,7 +485,25 @@ Source Source::parse(const String &cmdLine, const Path &base, Path *unresolvedIn
 bool Source::compareArguments(const Source &other) const
 {
     assert(fileId == other.fileId);
-    return (includePathHash == other.includePathHash
-            && defines == other.defines
-            && arguments == other.arguments);
+    if  (includePathHash != other.includePathHash || defines != other.defines)
+        return false;
+
+    auto him = other.arguments.begin();
+    for (auto me : arguments) {
+        if (me != "-g" && !me.startsWith("-O")) {
+            String h;
+            while (him != other.arguments.end()) {
+                h = *him++;
+                if (h != "-g" && !h.startsWith("-O")) {
+                    break;
+                } else {
+                    h.clear();
+                }
+            }
+            if (me != h) {
+                return false;
+            }
+        }
+    }
+    return true;
 }
