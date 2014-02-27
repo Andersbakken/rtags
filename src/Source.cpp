@@ -485,7 +485,6 @@ Source Source::parse(const String &cmdLine, const Path &base, Path *unresolvedIn
 bool Source::compareArguments(const Source &other) const
 {
     assert(fileId == other.fileId);
-    assert(key() != other.key());
     return (includePathHash == other.includePathHash
             && defines == other.defines
             && arguments == other.arguments);

@@ -975,15 +975,16 @@ bool Project::hasSource(const Source &source) const
 {
     const uint64_t key = source.key();
     auto it = mSources.lower_bound(Source::key(source.fileId, 0));
+    const bool disallowMultiple = Server::instance()->options().options & Server::DisallowMultipleSources;
     while (it != mSources.end()) {
-        if (it->first == key)
-            return true;
         uint32_t f, b;
         Source::decodeKey(it->first, f, b);
         if (f != source.fileId) {
             break;
         }
-        if (it->second.compareArguments(source)) {// similar enough that we don't want two builds
+        if (it->first == key)
+            return it->second.compareArguments(source);
+        if (disallowMultiple || it->second.compareArguments(source)) {// similar enough that we don't want two builds
             return true;
         }
         ++it;

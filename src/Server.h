@@ -68,7 +68,7 @@ public:
         IgnorePrintfFixits = 0x0004,
         UnlimitedErrors = 0x0008,
         SpellChecking = 0x0010,
-        AllowMultipleSources = 0x0020,
+        DisallowMultipleSources = 0x0020,
         NoStartupCurrentProject = 0x0040,
         WatchSystemPaths = 0x0080,
         NoFileManagerWatch = 0x0100,

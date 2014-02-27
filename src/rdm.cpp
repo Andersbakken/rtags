@@ -100,7 +100,7 @@ static void usage(FILE *f)
             "  --tcp-port|-p [arg]                        Use this port for tcp server (default " STR(DEFAULT_RDM_TCP_PORT) ").\n"
             "  --setenv|-e [arg]                          Set this environment variable (--setenv \"foobar=1\").\n"
             "  --no-current-project|-o                    Don't restore the last current project on startup.\n"
-            "  --allow-multiple-sources|-m                Without this setting different sources will be merged for each source file.\n"
+            "  --disallow-multiple-sources|-m             With this setting different sources will be merged for each source file.\n"
             "  --unload-timer|-u [arg]                    Number of minutes to wait before unloading non-current projects (disabled by default).\n"
             "  --job-count|-j [arg]                       Spawn this many concurrent processes for indexing (default %d).\n"
             "  --no-local-compiles|-J                     Don't run rp ever. For debugging.\n"
@@ -167,7 +167,7 @@ int main(int argc, char** argv)
         { "no-spell-checking", no_argument, 0, 'l' },
         { "sync-threshold", required_argument, 0, 'y' },
         { "large-by-value-copy", required_argument, 0, 'r' },
-        { "allow-multiple-sources", no_argument, 0, 'm' },
+        { "disallow-multiple-sources", no_argument, 0, 'm' },
         { "unload-timer", required_argument, 0, 'u' },
         { "no-current-project", no_argument, 0, 'o' },
         { "no-no-unknown-warnings-option", no_argument, 0, 'Y' },
@@ -447,7 +447,7 @@ int main(int argc, char** argv)
             serverOpts.options |= Server::NoNoUnknownWarningsOption;
             break;
         case 'm':
-            serverOpts.options |= Server::AllowMultipleSources;
+            serverOpts.options |= Server::DisallowMultipleSources;
             break;
         case 'o':
             serverOpts.options |= Server::NoStartupCurrentProject;
