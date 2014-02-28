@@ -60,6 +60,7 @@ public:
         Sources,
         Status,
         SuspendFile,
+        SyncProject,
         UnloadProject
     };
 

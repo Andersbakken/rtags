@@ -566,6 +566,9 @@ void Server::handleQueryMessage(const QueryMessage &message, Connection *conn)
     case QueryMessage::Invalid:
         assert(0);
         break;
+    case QueryMessage::SyncProject:
+        syncProject(message, conn);
+        break;
     case QueryMessage::Sources:
         sources(message, conn);
         break;
@@ -1491,6 +1494,16 @@ void Server::suspendFile(const QueryMessage &query, Connection *conn)
                                  project->toggleSuspendFile(fileId) ? "w" : " longer");
             }
         }
+    }
+    conn->finish();
+}
+
+void Server::syncProject(const QueryMessage &qyery, Connection *conn)
+{
+    if (std::shared_ptr<Project> project = currentProject()) {
+        project->startSync();
+    } else {
+        conn->write("No active project");
     }
     conn->finish();
 }

@@ -161,7 +161,7 @@ Project::Project(const Path &path)
         mWatcher.removed().connect(std::bind(&Project::reloadFileManager, this));
         mWatcher.added().connect(std::bind(&Project::reloadFileManager, this));
     }
-    mSyncTimer.timeout().connect(std::bind(&Project::onTimerFired, this, std::placeholders::_1));
+    mSyncTimer.timeout().connect([this](Timer *) { this->startSync(); });
     mDirtyTimer.timeout().connect(std::bind(&Project::onDirtyTimeout, this, std::placeholders::_1));
 }
 
@@ -309,6 +309,8 @@ void Project::unload()
     mVisitedFiles.clear();
     mDependencies.clear();
     mState = Unloaded;
+    mSyncTimer.stop();
+    mDirtyTimer.stop();
 }
 
 bool Project::match(const Match &p, bool *indexed) const
@@ -848,16 +850,6 @@ String Project::fixIts(uint32_t fileId) const
         }
     }
     return out;
-}
-
-void Project::onTimerFired(Timer* timer)
-{
-    if (timer == &mSyncTimer) {
-        startSync();
-    } else {
-        assert(0 && "Unexpected timer event in Project");
-        timer->stop();
-    }
 }
 
 void Project::startSync()

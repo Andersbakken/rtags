@@ -107,7 +107,6 @@ public:
     SourceMap sources() const { return mSources; }
     DependencyMap dependencies() const { return mDependencies; }
     Set<Path> watchedPaths() const { return mWatchedPaths; }
-    void onTimerFired(Timer* event);
     bool isIndexing() const { return !mJobs.isEmpty(); }
     void dirty(const Path &);
     Hash<Path, uint32_t> visitedFiles() const
@@ -119,6 +118,7 @@ public:
 
         return ret;
     }
+    void startSync();
 private:
     void restore(RestoreThread *thread);
     void watch(const Path &file);
@@ -131,7 +131,6 @@ private:
     SyncData syncDB();
     void startDirtyJobs(const Set<uint32_t> &files);
     bool save();
-    void startSync();
     void onSynced();
     void onDirtyTimeout(Timer *);
 

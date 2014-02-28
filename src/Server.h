@@ -178,6 +178,7 @@ private:
     void sources(const QueryMessage &query, Connection *conn);
     void dumpCompletions(const QueryMessage &query, Connection *conn);
     void status(const QueryMessage &query, Connection *conn);
+    void syncProject(const QueryMessage &qyery, Connection *conn);
     void suspendFile(const QueryMessage &query, Connection *conn);
 
     std::shared_ptr<Project> updateProjectForLocation(const Match &match);
