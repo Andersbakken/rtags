@@ -114,6 +114,11 @@ public:
         std::lock_guard<std::mutex> lock(mMutex);
         return mVisitedFiles;
     }
+    void encodeVisitedFiles(Serializer &serializer)
+    {
+        std::lock_guard<std::mutex> lock(mMutex);
+        serializer << mVisitedFiles;
+    }
     void startSync();
 private:
     void restore(RestoreThread *thread);

@@ -113,9 +113,14 @@ void IndexerJob::encode(Serializer &serializer)
                << static_cast<uint32_t>(options.rpVisitFileTimeout)
                << static_cast<uint32_t>(options.rpIndexerMessageTimeout)
                << static_cast<uint32_t>(options.rpConnectTimeout)
-               << static_cast<bool>(options.options & Server::SuspendRPOnCrash)
-               << id << (blockedFiles.isEmpty() && proj ? proj->visitedFiles() : blockedFiles);
+               << static_cast<bool>(options.options & Server::SuspendRPOnCrash) << id;
+    if (blockedFiles.isEmpty() && proj) {
+        proj->encodeVisitedFiles(serializer);
+    } else {
+        serializer << blockedFiles;
+    }
 }
+
 String IndexerJob::dumpFlags(unsigned int flags)
 {
     List<String> ret;

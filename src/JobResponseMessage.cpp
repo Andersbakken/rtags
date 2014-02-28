@@ -40,10 +40,6 @@ JobResponseMessage::JobResponseMessage(const List<std::shared_ptr<IndexerJob> > 
         jobData.sourceFile = job->sourceFile;
         jobData.id = job->id;
         jobData.flags = job->flags;
-        if (auto proj = Server::instance()->project(job->project)) {
-            // not sure if the else case should be possible
-            jobData.blockedFiles = proj->visitedFiles();
-        }
     }
 }
 
@@ -52,7 +48,14 @@ void JobResponseMessage::encode(Serializer &serializer) const
     serializer << mPort << mFinished << static_cast<uint32_t>(mJobData.size());
     for (const auto &job : mJobData) {
         serializer << *job.cpp << job.project << job.source << job.sourceFile
-                   << job.id << job.flags << job.blockedFiles;
+                   << job.id << job.flags;
+
+        if (auto proj = Server::instance()->project(job.project)) {
+            // not sure if the else case should be possible
+            proj->encodeVisitedFiles(serializer);
+        } else {
+            serializer << Hash<Path, uint32_t>();
+        }
     }
 }
 
