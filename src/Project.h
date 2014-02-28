@@ -111,6 +111,7 @@ public:
     void dirty(const Path &);
     Hash<Path, uint32_t> visitedFiles() const
     {
+        std::lock_guard<std::mutex> lock(mMutex);
         Hash<Path, uint32_t> ret;
         for (Set<uint32_t>::const_iterator it = mVisitedFiles.begin(); it != mVisitedFiles.end(); ++it) {
             ret[Location::path(*it)] = *it;
@@ -176,7 +177,7 @@ private:
 
     Set<uint32_t> mSuspendedFiles;
 
-    std::mutex mMutex;
+    mutable std::mutex mMutex;
 
     friend class RestoreThread;
     friend class SyncThread;
