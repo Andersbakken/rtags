@@ -16,16 +16,12 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 #ifndef Server_h
 #define Server_h
 
-#include "QueryMessage.h"
-#include "CompileMessage.h"
-#include "LogOutputMessage.h"
-#include "IndexerMessage.h"
 #include "FileManager.h"
-#include "QueryMessage.h"
 #include "RTagsClang.h"
 #include "RTags.h"
 #include "Source.h"
 #include "IndexerJob.h"
+#include "Match.h"
 #include <rct/Connection.h>
 #include <rct/FileSystemWatcher.h>
 #include <rct/List.h>
@@ -34,25 +30,28 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 #include <rct/Timer.h>
 #include <rct/SocketServer.h>
 
-class Connection;
-class Message;
-class ErrorMessage;
-class OutputMessage;
+class ClientConnectedMessage;
+class ClientMessage;
 class CompileMessage;
+class CompletionThread;
+class Connection;
+class ErrorMessage;
+class ExitMessage;
+class HttpLogObject;
+class IndexerMessage;
 class Job;
+class JobAnnouncementMessage;
 class JobOutput;
-class Project;
-class VisitFileMessage;
 class JobRequestMessage;
 class JobResponseMessage;
-class JobAnnouncementMessage;
-class ProxyJobAnnouncementMessage;
-class ClientConnectedMessage;
-class ExitMessage;
-class ClientMessage;
-class CompletionThread;
+class LogOutputMessage;
+class Message;
+class OutputMessage;
 class PreprocessJob;
-class HttpLogObject;
+class Project;
+class ProxyJobAnnouncementMessage;
+class QueryMessage;
+class VisitFileMessage;
 class Server
 {
 public:

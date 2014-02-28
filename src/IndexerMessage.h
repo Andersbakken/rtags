@@ -37,12 +37,14 @@ public:
 
     void encode(Serializer &serializer) const
     {
+        StopWatch sw;
         assert(mData);
         serializer << mProject << mData->flags << mData->key << mData->parseTime;
         CursorInfo::serialize(serializer, mData->symbols);
         serializer << mData->references << mData->symbolNames << mData->dependencies
                    << mData->usrMap << mData->message << mData->fixIts
                    << mData->xmlDiagnostics << mData->visited << mData->jobId;
+        error() << "encoding took" << sw.elapsed();
     }
     void decode(Deserializer &deserializer)
     {

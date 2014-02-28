@@ -23,7 +23,10 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 #include "JobResponseMessage.h"
 #include "JobAnnouncementMessage.h"
 #include "ClientMessage.h"
+#include "CompileMessage.h"
+#include "LogOutputMessage.h"
 #include "ProxyJobAnnouncementMessage.h"
+#include "QueryMessage.h"
 #include <dirent.h>
 #include <fcntl.h>
 #include <fnmatch.h>

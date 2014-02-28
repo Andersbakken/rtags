@@ -23,6 +23,7 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 #include <rct/SignalSlot.h>
 #include <rct/RegExp.h>
 #include "RTagsClang.h"
+#include "QueryMessage.h"
 #include <mutex>
 
 class CursorInfo;
@@ -30,7 +31,7 @@ class Location;
 class QueryMessage;
 class Project;
 class Connection;
-class Job : public std::enable_shared_from_this<Job>
+class Job
 {
 public:
     enum Flag {
