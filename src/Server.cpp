@@ -1508,7 +1508,7 @@ void Server::handleJobRequestMessage(const JobRequestMessage &message, Connectio
         std::shared_ptr<IndexerJob>& job = *it;
         if (job->flags & (IndexerJob::CompleteLocal|IndexerJob::CompleteRemote)) {
             it = mPending.erase(it);
-        } else if (!(job->flags & IndexerJob::FromRemote)) {
+        } else if (!(job->flags & IndexerJob::FromRemote) && !job->cpp->preprocessed.isEmpty()) {
             assert(!job->process);
 
             if (mOptions.options & CompressionRemote && !(job->cpp->flags & Cpp::Preprocess_Compressed)) {
