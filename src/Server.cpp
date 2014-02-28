@@ -1816,7 +1816,7 @@ void Server::onMulticastReadyRead(const SocketClient::SharedPtr &socket,
         if (mOptions.jobServer.first.isEmpty())
             mOptions.jobServer.first = ip;
         if (debugMulti)
-            error() << ip << "tells me the server is to be found at"
+            error() << Rct::addrLookup(ip) << "tells me the server is to be found at"
                     << Rct::addrLookup(mOptions.jobServer.first);
 
         connectToServer();
