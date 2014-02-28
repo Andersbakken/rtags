@@ -939,6 +939,10 @@ bool ClangIndexer::parse()
         return true;
     }
     error() << "got failure" << mClangLine;
+    FILE *f = fopen(String::format<128>("/tmp/failure-%s", mSource.sourceFile().fileName()).constData(), "w");
+    fwrite(mPreprocessed.constData(), mPreprocessed.size(), 1, f);
+    fprintf(f, "// %s\n", String::join(mSource.toCommandLine(Source::IncludeCompiler|Source::IncludeSourceFile), ' ').constData());
+    fclose(f);
     for (Hash<uint32_t, bool>::const_iterator it = mData->visited.begin(); it != mData->visited.end(); ++it) {
         mData->dependencies[it->first].insert(mSource.fileId);
         addFileSymbol(it->first);
