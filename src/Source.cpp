@@ -2,6 +2,7 @@
 #include "Location.h"
 #include "RTags.h"
 #include <rct/EventLoop.h>
+#include "Server.h"
 
 void Source::clear()
 {
@@ -482,19 +483,40 @@ Source Source::parse(const String &cmdLine, const Path &base, Path *unresolvedIn
     return ret;
 }
 
+static inline bool compareDefinesNoNDEBUG(const Set<Source::Define> &l, const Set<Source::Define> &r)
+{
+    for (auto ld : l) {
+        if (ld.define != "NDEBUG") {
+            continue;
+        } else if (!r.contains(ld)) {
+            return false;
+        }
+    }
+    return true;
+}
+
 bool Source::compareArguments(const Source &other) const
 {
     assert(fileId == other.fileId);
-    if  (includePathHash != other.includePathHash || defines != other.defines)
+    if  (includePathHash != other.includePathHash) {
         return false;
+    }
+
+    const bool separateDebugAndRelease = Server::instance()->options().options & Server::SeparateDebugAndRelease;
+    if (separateDebugAndRelease) {
+        if (defines != other.defines)
+            return false;
+    } else if (!compareDefinesNoNDEBUG(defines, other.defines)) {
+        return false;
+    }
 
     auto him = other.arguments.begin();
     for (auto me : arguments) {
-        if (me != "-g" && !me.startsWith("-O")) {
+        if (separateDebugAndRelease || (me != "-g" && !me.startsWith("-O"))) {
             String h;
             while (him != other.arguments.end()) {
                 h = *him++;
-                if (h != "-g" && !h.startsWith("-O")) {
+                if (separateDebugAndRelease || (h != "-g" && !h.startsWith("-O"))) {
                     break;
                 } else {
                     h.clear();

@@ -69,8 +69,7 @@ set(RTAGS_SHARED_SOURCES
   LogOutputMessage.cpp
   Location.cpp
   QueryMessage.cpp
-  RTags.cpp
-  Source.cpp)
+  RTags.cpp)
 
 add_library(shared SHARED ${RTAGS_SHARED_SOURCES})
 target_link_libraries(shared rct)
@@ -98,6 +97,7 @@ set(RDM_SOURCES
   ReferencesJob.cpp
   ScanThread.cpp
   Server.cpp
+  Source.cpp
   StatusJob.cpp
   )
 

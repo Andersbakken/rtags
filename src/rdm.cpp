@@ -101,6 +101,7 @@ static void usage(FILE *f)
             "  --setenv|-e [arg]                          Set this environment variable (--setenv \"foobar=1\").\n"
             "  --no-current-project|-o                    Don't restore the last current project on startup.\n"
             "  --disallow-multiple-sources|-m             With this setting different sources will be merged for each source file.\n"
+            "  --separate-debug-and-release|-E            Normally rdm doesn't consider release and debug as different builds. Pass this if you want it to.\n"
             "  --unload-timer|-u [arg]                    Number of minutes to wait before unloading non-current projects (disabled by default).\n"
             "  --job-count|-j [arg]                       Spawn this many concurrent processes for indexing (default %d).\n"
             "  --no-local-compiles|-J                     Don't run rp ever. For debugging.\n"
@@ -184,6 +185,7 @@ int main(int argc, char** argv)
         { "reschedule-timeout", required_argument, 0, 'R' },
         { "thread-stack-size", required_argument, 0, 'k' },
         { "suspend-rp-on-crash", required_argument, 0, 'q' },
+        { "separate-debug-and-release", no_argument, 0, 'E' },
 #ifdef OS_Darwin
         { "filemanager-watch", no_argument, 0, 'M' },
 #else
@@ -359,6 +361,9 @@ int main(int argc, char** argv)
                 fprintf(stderr, "Can't combine -s with -z\n");
                 return 1;
             }
+            break;
+        case 'E':
+            serverOpts.options |= Server::SeparateDebugAndRelease;
             break;
         case 'Z': {
             if (!strcmp(optarg, "always")) {
