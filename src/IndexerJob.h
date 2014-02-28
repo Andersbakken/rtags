@@ -62,7 +62,7 @@ public:
     Path sourceFile;
     Set<uint32_t> visited;
     Process *process;
-    Hash<Path, uint32_t> blockedFiles; // only used for remote jobs
+    Hash<uint32_t, Path> blockedFiles; // only used for remote jobs
     uint64_t id, started;
     std::shared_ptr<Cpp> cpp;
 

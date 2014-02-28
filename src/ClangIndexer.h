@@ -26,7 +26,6 @@ public:
     void setVisitFileTimeout(int visitFileTimeout) { mVisitFileTimeout = visitFileTimeout; }
     int indexerMessageTimeout() const { return mIndexerMessageTimeout; }
     void setIndexerMessageTimeout(int indexerMessageTimeout) { mIndexerMessageTimeout = indexerMessageTimeout; }
-    void setBlockedFiles(Hash<Path, uint32_t> &&blockedFiles);
     void setJobId(uint64_t id) { mId = id; }
 private:
     bool diagnose();
@@ -116,7 +115,6 @@ private:
     CXCursor mLastCursor;
     String mClangLine;
     uint32_t mVisitFileResponseMessageFileId;
-    Hash<Path, uint32_t> mBlockedFiles;
     bool mVisitFileResponseMessageVisit;
     Path mSocketFile;
     StopWatch mTimer;

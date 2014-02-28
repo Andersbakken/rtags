@@ -117,7 +117,7 @@ public:
     UsrMap mUsr;
     DependencyMap mDependencies;
     SourceMap mSources;
-    Set<uint32_t> mVisitedFiles;
+    Hash<uint32_t, Path> mVisitedFiles;
 };
 
 class SyncThread : public Thread
@@ -636,7 +636,9 @@ void Project::startDirtyJobs(const Set<uint32_t> &dirty)
         if (!deps.isEmpty())
             dirtyFiles += deps;
     }
-    mVisitedFiles -= dirtyFiles;
+    for (auto fileId : dirtyFiles) {
+        mVisitedFiles.remove(fileId);
+    }
 
     bool indexed = false;
     for (auto it = dirtyFiles.constBegin(); it != dirtyFiles.constEnd(); ++it) {

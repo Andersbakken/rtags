@@ -178,7 +178,6 @@ Location ClangIndexer::createLocation(const Path &sourceFile, unsigned line, uns
                 if (mLocalJob && resolved.isEmpty())
                     resolved = sourceFile.resolved();
 #endif
-                assert(mBlockedFiles.contains(sourceFile) || mBlockedFiles.contains(resolved));
                 mData->visited[id] = false;
                 *blockedPtr = true;
                 return Location();
@@ -1267,9 +1266,4 @@ void ClangIndexer::inclusionVisitor(CXFile includedFile,
                 indexer->mData->dependencies[fileId].insert(f);
         }
     }
-}
-
-void ClangIndexer::setBlockedFiles(Hash<Path, uint32_t> &&blockedFiles)
-{
-    mBlockedFiles = std::forward<Hash<Path, uint32_t> >(blockedFiles);
 }

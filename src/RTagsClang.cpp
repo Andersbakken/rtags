@@ -501,7 +501,7 @@ static inline uint32_t visitFile(const Path &path,
         return it->second;
 
     const uint32_t fileId = Location::insertFile(path);
-    if (!project->visitFile(fileId, 0)) {
+    if (!project->visitFile(fileId, path, 0)) {
         *blocked = true;
     } else {
         cpp->visited[path] = fileId;

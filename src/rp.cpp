@@ -88,7 +88,7 @@ int main(int argc, char **argv)
     Source source;
     Path project;
     uint32_t flags;
-    Hash<Path, uint32_t> blockedFiles;
+    Hash<uint32_t, Path> blockedFiles;
     std::shared_ptr<Cpp> cpp(new Cpp);
     uint64_t jobId;
     uint32_t visitFileTimeout, indexerMessageTimeout, connectTimeout;
@@ -124,7 +124,6 @@ int main(int argc, char **argv)
     }
     Location::init(blockedFiles);
     Location::set(sourceFile, source.fileId);
-    indexer.setBlockedFiles(std::move(blockedFiles));
     indexer.setVisitFileTimeout(visitFileTimeout);
     indexer.setIndexerMessageTimeout(indexerMessageTimeout);
     indexer.setJobId(jobId);

@@ -1662,7 +1662,7 @@ void Server::handleVisitFileMessage(const VisitFileMessage &message, Connection 
     if (project && project->isValidJob(key)) {
         resolved = message.file().resolved();
         fileId = Location::insertFile(resolved);
-        visit = project->visitFile(fileId, key);
+        visit = project->visitFile(fileId, resolved, key);
     }
     VisitFileResponseMessage msg(fileId, resolved, visit);
     conn->send(msg);

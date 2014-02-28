@@ -44,7 +44,7 @@ private:
         Path project;
         Source source;
         Path sourceFile;
-        Hash<Path, uint32_t> blockedFiles;
+        Hash<uint32_t, Path> blockedFiles;
         uint64_t id;
         uint32_t flags;
     };

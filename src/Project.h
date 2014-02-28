@@ -99,7 +99,7 @@ public:
     };
     Set<uint32_t> dependencies(uint32_t fileId, DependencyMode mode) const;
     bool isValidJob(uint64_t key) { return !key || mJobs.contains(key); }
-    bool visitFile(uint32_t fileId, uint64_t id);
+    bool visitFile(uint32_t fileId, const Path &path, uint64_t id);
     String fixIts(uint32_t fileId) const;
     int reindex(const Match &match);
     int remove(const Match &match);
@@ -109,15 +109,10 @@ public:
     Set<Path> watchedPaths() const { return mWatchedPaths; }
     bool isIndexing() const { return !mJobs.isEmpty(); }
     void dirty(const Path &);
-    Hash<Path, uint32_t> visitedFiles() const
+    Hash<uint32_t, Path> visitedFiles() const
     {
         std::lock_guard<std::mutex> lock(mMutex);
-        Hash<Path, uint32_t> ret;
-        for (Set<uint32_t>::const_iterator it = mVisitedFiles.begin(); it != mVisitedFiles.end(); ++it) {
-            ret[Location::path(*it)] = *it;
-        }
-
-        return ret;
+        return mVisitedFiles;
     }
     void startSync();
 private:
@@ -143,7 +138,7 @@ private:
     UsrMap mUsr;
     FilesMap mFiles;
 
-    Set<uint32_t> mVisitedFiles;
+    Hash<uint32_t, Path> mVisitedFiles;
     Hash<uint64_t, std::pair<std::shared_ptr<IndexData>, std::shared_ptr<IndexerJob> > > mPendingIndexData;
 
     int mJobCounter;
@@ -183,11 +178,13 @@ private:
     friend class SyncThread;
 };
 
-inline bool Project::visitFile(uint32_t visitFileId, uint64_t key)
+inline bool Project::visitFile(uint32_t visitFileId, const Path &path, uint64_t key)
 {
     std::lock_guard<std::mutex> lock(mMutex);
     assert(visitFileId);
-    if (mVisitedFiles.insert(visitFileId)) {
+    Path &p = mVisitedFiles[visitFileId];
+    if (p.isEmpty()) {
+        p = path;
         if (key) {
             assert(mJobs.contains(key));
             JobData &data = mJobs[key];

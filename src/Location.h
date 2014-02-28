@@ -195,8 +195,18 @@ public:
         LOCK();
         sPathsToIds = pathsToIds;
         sLastId = sPathsToIds.size();
-        for (Hash<Path, uint32_t>::const_iterator it = sPathsToIds.begin(); it != sPathsToIds.end(); ++it) {
-            sIdsToPaths[it->second] = it->first;
+        for (auto it : sPathsToIds) {
+            sIdsToPaths[it.second] = it.first;
+        }
+    }
+
+    static void init(const Hash<uint32_t, Path> &idsToPaths)
+    {
+        LOCK();
+        sIdsToPaths = idsToPaths;
+        sLastId = sIdsToPaths.size();
+        for (auto it : sIdsToPaths) {
+            sPathsToIds[it.second] = it.first;
         }
     }
 
