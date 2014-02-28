@@ -1489,9 +1489,13 @@ void Server::suspendFile(const QueryMessage &query, Connection *conn)
             } else if (!p.isFile()) {
                 conn->write<512>("%s doesn't seem to exist", p.constData());
             } else {
-                const uint32_t fileId = Location::insertFile(p);
-                conn->write<512>("%s is no%s suspended", p.constData(),
-                                 project->toggleSuspendFile(fileId) ? "w" : " longer");
+                const uint32_t fileId = Location::fileId(p);
+                if (fileId) {
+                    conn->write<512>("%s is no%s suspended", p.constData(),
+                                     project->toggleSuspendFile(fileId) ? "w" : " longer");
+                } else {
+                    conn->write<512>("%s is not indexed", p.constData());
+                }
             }
         }
     }
@@ -1660,9 +1664,12 @@ void Server::handleVisitFileMessage(const VisitFileMessage &message, Connection 
     Path resolved;
     const uint64_t key = message.key();
     if (project && project->isValidJob(key)) {
-        resolved = message.file().resolved();
-        fileId = Location::insertFile(resolved);
-        visit = project->visitFile(fileId, resolved, key);
+        bool ok;
+        resolved = message.file().resolved(Path::RealPath, Path(), &ok);
+        if (ok) {
+            fileId = Location::insertFile(resolved);
+            visit = project->visitFile(fileId, resolved, key);
+        }
     }
     VisitFileResponseMessage msg(fileId, resolved, visit);
     conn->send(msg);
