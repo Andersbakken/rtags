@@ -339,7 +339,7 @@ void Project::onJobFinished(const std::shared_ptr<IndexData> &indexData, const s
 {
     mSyncTimer.stop();
     if (mState == Syncing) {
-        mPendingIndexData.append(std::make_pair(indexData, job));
+        mPendingIndexData[indexData->key] = std::make_pair(indexData, job);
         return;
     }
     assert(indexData);
@@ -997,7 +997,7 @@ void Project::onSynced()
     assert(mState == Syncing);
     mState = Loaded;
     for (auto it : mPendingIndexData) {
-        onJobFinished(it.first, it.second);
+        onJobFinished(it.second.first, it.second.second);
     }
     mPendingIndexData.clear();
     Hash<uint64_t, JobData> pendingJobs = std::move(mJobs);

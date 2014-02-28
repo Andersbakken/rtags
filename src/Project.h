@@ -144,7 +144,7 @@ private:
     FilesMap mFiles;
 
     Set<uint32_t> mVisitedFiles;
-    List<std::pair<std::shared_ptr<IndexData>, std::shared_ptr<IndexerJob> > > mPendingIndexData;
+    Hash<uint64_t, std::pair<std::shared_ptr<IndexData>, std::shared_ptr<IndexerJob> > > mPendingIndexData;
 
     int mJobCounter;
 
