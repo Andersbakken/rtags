@@ -465,6 +465,8 @@ void Server::preprocess(Source &&source, Path &&srcRoot, uint32_t flags)
 
     WorkScope scope;
     if (!hasServer()) {
+        if (debugMulti)
+            error() << "Not preprocessing" << source.sourceFile() << "since we're not on the farm";
         std::shared_ptr<Cpp> cpp(new Cpp);
         cpp->flags = Cpp::Preprocess_None;
         cpp->time = Rct::currentTimeMs();
@@ -1546,6 +1548,10 @@ void Server::handleJobRequestMessage(const JobRequestMessage &message, Connectio
                 break;
             }
         } else {
+            if (debugMulti && job->cpp->preprocessed.isEmpty()) {
+                error() << "Didn't send job for" << job->sourceFile << "since preprocessed is empty";
+
+            }
             ++it;
         }
     }
