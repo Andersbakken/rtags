@@ -19,7 +19,7 @@
 #include <rct/Message.h>
 #include <rct/String.h>
 #include "RTagsMessage.h"
-#include "IndexerJob.h"
+#include "IndexData.h"
 
 class IndexerMessage : public RTagsMessage
 {
@@ -37,15 +37,18 @@ public:
 
     void encode(Serializer &serializer) const
     {
+        StopWatch sw;
         assert(mData);
         serializer << mProject << mData->flags << mData->key << mData->parseTime;
         CursorInfo::serialize(serializer, mData->symbols);
         serializer << mData->references << mData->symbolNames << mData->dependencies
                    << mData->usrMap << mData->message << mData->fixIts
                    << mData->xmlDiagnostics << mData->visited << mData->jobId;
+        error() << "encoding took" << sw.elapsed() << "for" << Location::path(mData->fileId());
     }
     void decode(Deserializer &deserializer)
     {
+        StopWatch sw;
         assert(!mData);
         uint32_t flags;
         deserializer >> mProject >> flags;
@@ -55,6 +58,7 @@ public:
         deserializer >> mData->references >> mData->symbolNames >> mData->dependencies
                      >> mData->usrMap >> mData->message >> mData->fixIts >> mData->xmlDiagnostics
                      >> mData->visited >> mData->jobId;
+        error() << "decoding took" << sw.elapsed() << "for" << Location::path(mData->fileId());
     }
     std::shared_ptr<IndexData> data() const { return mData; }
     const Path &project() const { return mProject; }

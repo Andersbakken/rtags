@@ -29,6 +29,7 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 #include <mutex>
 #include <memory>
 
+class IndexData;
 class FileManager;
 class IndexerJob;
 class RestoreThread;

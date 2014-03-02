@@ -11,6 +11,7 @@
 #include "RTagsClang.h"
 
 struct Cpp;
+class IndexData;
 class ClangIndexer
 {
 public:

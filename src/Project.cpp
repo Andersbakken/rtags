@@ -21,6 +21,7 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 #include "Server.h"
 #include "Cpp.h"
 #include "WrapperJob.h"
+#include "IndexData.h"
 #include <math.h>
 #include <rct/Log.h>
 #include <rct/MemoryMonitor.h>
