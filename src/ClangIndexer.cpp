@@ -135,7 +135,8 @@ bool ClangIndexer::index(uint32_t flags, const Source &source,
         error() << "Couldn't send IndexerMessage (2)" << Location::path(mSource.fileId);
         return false;
     }
-    error() << "Send took" << sw.elapsed() << "for" << Location::path(mSource.fileId);
+    if (getenv("RDM_DEBUG_INDEXERMESSAGE"))
+        error() << "Send took" << sw.elapsed() << "for" << Location::path(mSource.fileId);
     // error() << "Must have gotten a finished" << Location::path(mSource.fileId);
     // fprintf(f, "Wrote indexer message %d\n", mData->symbols.size());
     // fclose(f);

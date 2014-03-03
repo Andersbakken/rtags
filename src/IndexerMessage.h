@@ -37,6 +37,7 @@ public:
 
     void encode(Serializer &serializer) const
     {
+        static const bool debugIndexerMessage = getenv("RDM_DEBUG_INDEXERMESSAGE");
         StopWatch sw;
         assert(mData);
         serializer << mProject << mData->flags << mData->key << mData->parseTime;
@@ -44,10 +45,12 @@ public:
         serializer << mData->references << mData->symbolNames << mData->dependencies
                    << mData->usrMap << mData->message << mData->fixIts
                    << mData->xmlDiagnostics << mData->visited << mData->jobId;
-        error() << "encoding took" << sw.elapsed() << "for" << Location::path(mData->fileId());
+        if (debugIndexerMessage)
+            error() << "encoding took" << sw.elapsed() << "for" << Location::path(mData->fileId());
     }
     void decode(Deserializer &deserializer)
     {
+        static const bool debugIndexerMessage = getenv("RDM_DEBUG_INDEXERMESSAGE");
         StopWatch sw;
         assert(!mData);
         uint32_t flags;
@@ -58,7 +61,8 @@ public:
         deserializer >> mData->references >> mData->symbolNames >> mData->dependencies
                      >> mData->usrMap >> mData->message >> mData->fixIts >> mData->xmlDiagnostics
                      >> mData->visited >> mData->jobId;
-        error() << "decoding took" << sw.elapsed() << "for" << Location::path(mData->fileId());
+        if (debugIndexerMessage)
+            error() << "decoding took" << sw.elapsed() << "for" << Location::path(mData->fileId());
     }
     std::shared_ptr<IndexData> data() const { return mData; }
     const Path &project() const { return mProject; }
