@@ -742,8 +742,8 @@ static inline void writeReferences(const ReferenceMap &references, SymbolMap &sy
         for (auto rit = refs.begin(); rit != refs.end(); ++rit) {
             std::shared_ptr<CursorInfo> &ci = symbols[*rit];
             if (!ci)
-                ci.reset(new CursorInfo);
-            ci->references.insert(it->first);
+                ci = std::make_shared<CursorInfo>();
+           ci->references.insert(it->first);
         }
     }
 }

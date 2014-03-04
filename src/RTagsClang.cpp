@@ -744,7 +744,7 @@ std::shared_ptr<Cpp> preprocess(const Source &source,
             if (!blocked) {
                 std::shared_ptr<CursorInfo> &cursor = cpp->macroCursors[loc];
                 if (!cursor)
-                    cursor.reset(new CursorInfo);
+                    cursor = std::make_shared<CursorInfo>();
                 cursor->symbolName = macroName;
                 cursor->symbolLength = cursor->symbolName.size();
                 cursor->kind = CXCursor_MacroDefinition;
@@ -788,13 +788,13 @@ std::shared_ptr<Cpp> preprocess(const Source &source,
             const Location loc(fileId, presumedLocation.getLine(), presumedLocation.getColumn());
             std::shared_ptr<CursorInfo> &cursor = cpp->macroCursors[loc];
             if (!cursor)
-                cursor.reset(new CursorInfo);
+                cursor = std::make_shared<CursorInfo>();
             cursor->symbolName = macroName;
             cursor->symbolLength = cursor->symbolName.size();
             cursor->kind = CXCursor_MacroExpansion;
             std::shared_ptr<CursorInfo> &def = cpp->macroCursors[defLocation];
             if (!def)
-                def.reset(new CursorInfo);
+                def = std::make_shared<CursorInfo>();
             // ### do I have to fill in def here? Do I need to in ClangIndexer?
             def->references.insert(loc);
             cursor->targets.insert(defLocation);

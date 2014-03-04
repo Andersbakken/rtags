@@ -679,7 +679,7 @@ void ClangIndexer::handleReference(const CXCursor &cursor, CXCursorKind kind, co
 
     std::shared_ptr<CursorInfo> &info = mData->symbols[location];
     if (!info)
-        info.reset(new CursorInfo);
+        info = std::make_shared<CursorInfo>();
     info->targets.insert(reffedLoc);
 
     // We need the new cursor to replace the symbolLength. This is important
@@ -738,7 +738,7 @@ void ClangIndexer::addOverriddenCursors(const CXCursor& cursor, const Location& 
         Location loc = createLocation(overridden[i]);
         std::shared_ptr<CursorInfo> &o = mData->symbols[loc];
         if (!o)
-            o.reset(new CursorInfo);
+            o = std::make_shared<CursorInfo>();
 
         //error() << "adding overridden (1) " << location << " to " << o;
         o->references.insert(location);
@@ -775,7 +775,7 @@ void ClangIndexer::handleInclude(const CXCursor &cursor, CXCursorKind kind, cons
             }
             std::shared_ptr<CursorInfo> &info = mData->symbols[location];
             if (!info)
-                info.reset(new CursorInfo);
+                info = std::make_shared<CursorInfo>();
             info->targets.insert(refLoc);
             info->kind = cursor.kind;
             info->definition = false;
@@ -792,7 +792,7 @@ bool ClangIndexer::handleCursor(const CXCursor &cursor, CXCursorKind kind, const
     // error() << "Got a cursor" << cursor;
     std::shared_ptr<CursorInfo> &info = mData->symbols[location];
     if (!info)
-        info.reset(new CursorInfo);
+        info = std::make_shared<CursorInfo>();
 
     if (!info->symbolLength || !RTags::isCursor(info->kind)) {
         // if (mLogFile) {
@@ -872,7 +872,7 @@ bool ClangIndexer::handleCursor(const CXCursor &cursor, CXCursorKind kind, const
             if (parentLocation.isValid()) {
                 std::shared_ptr<CursorInfo> &parent = mData->symbols[parentLocation];
                 if (!parent)
-                    parent.reset(new CursorInfo);
+                    parent = std::make_shared<CursorInfo>();
                 parent->references.insert(location);
                 info->references.insert(parentLocation);
             }

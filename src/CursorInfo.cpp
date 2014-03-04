@@ -140,7 +140,7 @@ SymbolMap CursorInfo::targetInfos(const SymbolMap &map) const
         if (found != map.end()) {
             ret[*it] = found->second;
         } else {
-            ret[*it].reset(new CursorInfo);
+            ret[*it] = std::make_shared<CursorInfo>();
             // we need this one for inclusion directives which target a
             // non-existing CursorInfo
         }
@@ -304,5 +304,5 @@ String CursorInfo::displayName() const
 }
 std::shared_ptr<CursorInfo> CursorInfo::copy() const
 {
-    return std::shared_ptr<CursorInfo>(new CursorInfo(*this));
+    return std::shared_ptr<CursorInfo>(std::make_shared<CursorInfo>(*this));
 }

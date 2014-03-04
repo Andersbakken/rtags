@@ -229,9 +229,10 @@ inline void CursorInfo::deserialize(Deserializer &s, SymbolMap &t)
     t.clear();
     while (size--) {
         Location location;
-        std::shared_ptr<CursorInfo> cursorInfo(new CursorInfo);
-        s >> location >> *cursorInfo;
-        t[location] = cursorInfo;
+        s >> location;
+        std::shared_ptr<CursorInfo> &ci = t[location];
+        ci = std::make_shared<CursorInfo>();
+        s >> *ci;
     }
 }
 
