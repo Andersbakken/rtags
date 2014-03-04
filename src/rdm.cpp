@@ -49,7 +49,8 @@ static Path socketFile;
 
 static void sigIntHandler(int)
 {
-    unlink(socketFile.constData());
+    if (Server *server = Server::instance())
+        server->stopServers();
     _exit(1);
 }
 
