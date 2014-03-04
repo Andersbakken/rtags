@@ -39,11 +39,6 @@ bool IndexerJob::launchProcess()
             rp = rp.parentDir() + "rp";
         }
     }
-    String stdinData;
-    {
-        Serializer serializer(stdinData);
-        encode(serializer);
-    }
 
     started = 0;
     assert(!process);
@@ -56,12 +51,18 @@ bool IndexerJob::launchProcess()
     flags |= RunningLocal;
 
     {
+        String stdinData;
+        {
+            Serializer serializer(stdinData);
+            encode(serializer);
+        }
         const int size = stdinData.size();
-        String packet;
-        packet.resize(sizeof(size));
-        *reinterpret_cast<int*>(&packet[0]) = size;
-        process->write(packet);
+        String header;
+        header.resize(sizeof(size));
+        *reinterpret_cast<int*>(&header[0]) = size;
+        process->write(header);
         process->write(stdinData);
+        // error() << "Startingprocess" << (packet.size() + stdinData.size()) << sourceFile;
     }
     return true;
 }
@@ -108,7 +109,8 @@ void IndexerJob::encode(Serializer &serializer)
     copy.includePaths << options.includePaths;
     copy.defines << options.defines;
     assert(cpp);
-    serializer << destination << port << sourceFile
+    serializer << static_cast<uint16_t>(ProtocolVersion)
+               << destination << port << sourceFile
                << copy << *cpp << project << flags
                << static_cast<uint32_t>(options.rpVisitFileTimeout)
                << static_cast<uint32_t>(options.rpIndexerMessageTimeout)
