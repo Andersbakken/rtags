@@ -3,47 +3,27 @@ if(NOT DEFINED CLANG_ROOT)
 endif()
 
 find_path(CLANG_INCLUDE clang-c/Index.h
-          HINTS
-          ${CLANG_ROOT}/include
-          /usr/lib/llvm-3.4/include
-          /usr/lib/llvm-3.3/include
-          /usr/lib/llvm-3.2/include
-          /usr/lib/llvm-3.1/include
-          /opt/local/libexec/llvm-3.4/include
-          /opt/local/libexec/llvm-3.3/include
-          /opt/local/libexec/llvm-3.2/include
-          /opt/local/libexec/llvm-3.1/include
-          /usr/lib/llvm-3.4/include
-          NO_DEFAULT_PATH)
+  HINTS
+  ${CLANG_ROOT}/include
+  ${LLVM_INCLUDE_DIRS}
+  NO_DEFAULT_PATH)
 if (NOT EXISTS ${CLANG_INCLUDE})
   find_path(CLANG_INCLUDE clang-c/Index.h)
 endif ()
 
 find_path(CLANG_COMPILATION_INCLUDE clang-c/CXCompilationDatabase.h
-	  HINTS
-	  ${CLANG_ROOT}/include
-	  /opt/local/libexec/llvm-3.4/include
-	  /opt/local/libexec/llvm-3.3/include
-	  /opt/local/libexec/llvm-3.2/include
-	  /opt/local/libexec/llvm-3.1/include
-	  /opt/local/libexec/llvm-3.0/include
-	  /usr/lib/llvm-3.4/include
-	  NO_DEFAULT_PATH)
+  HINTS
+  ${CLANG_ROOT}/include
+  ${LLVM_INCLUDE_DIRS}
+  NO_DEFAULT_PATH)
 if (NOT EXISTS ${CLANG_COMPILATION_INCLUDE})
   find_path(CLANG_COMPILATION_INCLUDE clang-c/CXCompilationDatabase.h)
 endif ()
 
 if (EXISTS ${CLANG_INCLUDE})
   if ("${CLANG_ROOT}" STREQUAL "")
-	string(REGEX REPLACE "\\/include" "" CLANG_ROOT ${CLANG_INCLUDE})
+    string(REGEX REPLACE "\\/include" "" CLANG_ROOT ${CLANG_INCLUDE})
   endif()
-endif()
-if (EXISTS "${CLANG_ROOT}/lib/libclang.so")
-  set(CLANG_LIBS "${CLANG_ROOT}/lib/libclang.so")
-elseif (EXISTS "${CLANG_ROOT}/lib/libclang.dylib")
-  set(CLANG_LIBS "${CLANG_ROOT}/lib/libclang.dylib")
-else ()
-  find_library(CLANG_LIBS NAMES clang HINTS ${CLANG_ROOT}/lib/ ${CLANG_ROOT}/lib64/llvm/)
 endif()
 
 if (EXISTS "${CLANG_INCLUDE}/clang/Basic/Version.inc")
@@ -81,20 +61,19 @@ if (EXISTS "${CLANG_INCLUDE}/clang/${CLANG_VERSION}/include/limits.h")
   set(CLANG_SYSTEM_INCLUDE "${CLANG_INCLUDE}/clang/${CLANG_VERSION}/include/")
 else ()
   set(CLANG_SYSTEM_INCLUDE ${CLANG_LIBS})
-  string(REGEX REPLACE "\\/libclang\\.[dylibso]+$" "" CLANG_SYSTEM_INCLUDE ${CLANG_SYSTEM_INCLUDE})
+  string(FIND "${CLANG_SYSTEM_INCLUDE}" ";" SEMI)
+  if (SEMI)
+    string(SUBSTRING "${CLANG_SYSTEM_INCLUDE}" 0 ${SEMI} CLANG_SYSTEM_INCLUDE)
+  endif ()
+  string(REGEX REPLACE "\\/libclang\\.[dylibsoa]+$" "" CLANG_SYSTEM_INCLUDE ${CLANG_SYSTEM_INCLUDE})
   if (EXISTS "${CLANG_SYSTEM_INCLUDE}/clang/${CLANG_VERSION}/include/limits.h")
     set(CLANG_SYSTEM_INCLUDE "${CLANG_SYSTEM_INCLUDE}/clang/${CLANG_VERSION}/include/")
   else ()
-    set(CLANG_SYSTEM_INCLUDE "")
     if (EXISTS "${CLANG_ROOT}/lib/clang/${CLANG_VERSION}/include/limits.h")
-	set(CLANG_SYSTEM_INCLUDE "${CLANG_ROOT}/lib/clang/${CLANG_VERSION}/include/")
+      set(CLANG_SYSTEM_INCLUDE "${CLANG_ROOT}/lib/clang/${CLANG_VERSION}/include/")
     else ()
-	message(FATAL_ERROR "Couldn't find limits.h in either ${CLANG_INCLUDE}/clang/${CLANG_VERSION}/include/ or ${CLANG_SYSTEM_INCLUDE}/clang/${CLANG_VERSION}/include/")
+      set(CLANG_SYSTEM_INCLUDE "")
+      message(FATAL_ERROR "Couldn't find limits.h in either ${CLANG_INCLUDE}/clang/${CLANG_VERSION}/include/ or ${CLANG_SYSTEM_INCLUDE}/clang/${CLANG_VERSION}/include/")
     endif ()
   endif ()
 endif ()
-
-include(FindPackageHandleStandardArgs)
-find_package_handle_standard_args(CLANG DEFAULT_MSG CLANG_LIBS CLANG_INCLUDE)
-
-mark_as_advanced(CLANG_INCLUDE CLANG_LIBS)

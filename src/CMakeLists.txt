@@ -8,9 +8,9 @@ set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall")
 
 include(${CMAKE_SOURCE_DIR}/cmake/EnsureLibraries.cmake)
 
-find_package(LibClang REQUIRED)
 find_package(LLVM REQUIRED)
 find_package(Clang REQUIRED)
+find_package(LibClang REQUIRED)
 include_directories(${CLANG_INCLUDE})
 include_directories(${LLVM_INCLUDE_DIRS} ${CLANG_INCLUDE_DIRS})
 
@@ -41,12 +41,12 @@ add_definitions("-DCLANG_VERSION_MINOR=${CLANG_VERSION_MINOR}")
 add_definitions(-DOS_${CMAKE_SYSTEM_NAME})
 
 if (CMAKE_SYSTEM_NAME MATCHES "Linux")
-  set(SYSTEM_LIBS pthread rt crypto m dl tinfo)
+  set(SYSTEM_LIBS pthread rt crypto m dl)
 elseif (CMAKE_SYSTEM_NAME MATCHES "FreeBSD")
   add_definitions(-D__LONG_LONG_SUPPORTED)
   set(SYSTEM_LIBS pthread crypto)
 elseif (CMAKE_SYSTEM_NAME MATCHES "Darwin")
-  set(SYSTEM_LIBS crypto ncurses tinfo)
+  set(SYSTEM_LIBS crypto)
   find_program(SW_VER sw_vers)
   execute_process(COMMAND "${SW_VER}" -productVersion OUTPUT_VARIABLE osver)
   string(REPLACE "\n" "" osver "${osver}")
@@ -56,6 +56,7 @@ elseif (CMAKE_SYSTEM_NAME MATCHES "Darwin")
     #   set(HAVE_FSEVENTS 1)
   endif ()
 endif ()
+list(APPEND SYSTEM_LIBS ${LLVM_LDFLAGS})
 
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/bin)
 add_definitions("-DRTAGS_BIN=\"${PROJECT_BINARY_DIR}/bin/\"")
@@ -113,7 +114,6 @@ endif ()
 
 add_executable(clangtest clangtest.c)
 target_link_libraries(clangtest
-  ${LLVM_LDFLAGS}
   ${START_GROUP}
   ${CLANG_LIBS}
   ${LLVM_LIBNAMES}
@@ -150,7 +150,6 @@ add_library(rtags SHARED ${RDM_SOURCES})
 target_link_libraries(rtags
   rct
   shared
-  ${LLVM_LDFLAGS}
   ${START_GROUP}
   ${CLANG_LIBS}
   ${LLVM_LIBNAMES}
