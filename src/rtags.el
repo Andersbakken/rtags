@@ -586,9 +586,9 @@
   (if rtags-last-context
       (let ((rx (format "\\<%s\\>" rtags-last-context)))
         (cond ((looking-at rx))
-              ((search-forward rx (point-at-eol) t)
+              ((re-search-forward rx (point-at-eol) t)
                (backward-char (length rtags-last-context)))
-              ((search-backward rx (point-at-bol) t))
+              ((re-search-backward rx (point-at-bol) t))
               (t))))
   )
 
