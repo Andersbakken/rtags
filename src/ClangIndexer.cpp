@@ -103,9 +103,8 @@ bool ClangIndexer::index(uint32_t flags, const Source &source,
         mData->message += " error";
     mData->message += String::format<16>(" in %dms. ", mTimer.elapsed());
     if (mUnit) {
-        const char *format = "(%d syms, %d symNames, %d refs, %d deps, %d of %d files, cursors: %d of %d, %d queried, %d previsited) (%d/%d/%dms)";
-        mData->message += String::format<128>(format,
-                                              mData->symbols.size(), mData->symbolNames.size(), mData->references.size(),
+        const char *format = "(%d syms, %d symNames, %d deps, %d of %d files, cursors: %d of %d, %d queried, %d previsited) (%d/%d/%dms)";
+        mData->message += String::format<128>(format, mData->symbols.size(), mData->symbolNames.size(),
                                               mData->dependencies.size(), mIndexed, mData->visited.size(), mAllowed,
                                               mAllowed + mBlocked, mFileIdsQueried, cpp->visited.size(), mCpp->preprocessDuration,
                                               mParseDuration, mVisitDuration);
@@ -721,10 +720,6 @@ void ClangIndexer::handleReference(const CXCursor &cursor, CXCursorKind kind, co
         info->symbolName = refInfo->symbolName;
         info->type = clang_getCursorType(cursor).kind;
     }
-
-    Set<Location> &val = mData->references[location];
-    val.insert(reffedLoc);
-
 }
 
 void ClangIndexer::addOverriddenCursors(const CXCursor& cursor, const Location& location, List<CursorInfo*>& infos)
@@ -1218,9 +1213,7 @@ CXChildVisitResult ClangIndexer::verboseVisitor(CXCursor cursor, CXCursor, CXCli
         }
 
         if (loc.fileId() && u->indexer->mData->visited.value(loc.fileId())) {
-            if (u->indexer->mData->references.contains(loc)) {
-                u->out += " used as reference\n";
-            } else if (u->indexer->mData->symbols.contains(loc)) {
+            if (u->indexer->mData->symbols.contains(loc)) {
                 u->out += " used as cursor\n";
             } else {
                 u->out += " not used\n";

@@ -58,7 +58,6 @@ public:
 
     uint64_t parseTime, key;
     SymbolMap symbols;
-    ReferenceMap references;
     SymbolNameMap symbolNames;
     DependencyMap dependencies;
     UsrMap usrMap;

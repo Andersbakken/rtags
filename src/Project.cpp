@@ -734,20 +734,6 @@ static inline int writeSymbols(SymbolMap &symbols, SymbolMap &current)
     return ret;
 }
 
-static inline void writeReferences(const ReferenceMap &references, SymbolMap &symbols)
-{
-    const auto end = references.end();
-    for (auto it = references.begin(); it != end; ++it) {
-        const Set<Location> &refs = it->second;
-        for (auto rit = refs.begin(); rit != refs.end(); ++rit) {
-            std::shared_ptr<CursorInfo> &ci = symbols[*rit];
-            if (!ci)
-                ci = std::make_shared<CursorInfo>();
-           ci->references.insert(it->first);
-        }
-    }
-}
-
 Project::SyncData Project::syncDB()
 {
     SyncData ret;
@@ -772,7 +758,6 @@ Project::SyncData Project::syncDB()
         addFixIts(data->dependencies, data->fixIts);
         ret.symbols += writeSymbols(data->symbols, mSymbols);
         writeUsr(data->usrMap, mUsr, mSymbols);
-        writeReferences(data->references, mSymbols);
         ret.symbolNames += writeSymbolNames(data->symbolNames, mSymbolNames);
     }
     for (auto it = newFiles.constBegin(); it != newFiles.constEnd(); ++it) {
