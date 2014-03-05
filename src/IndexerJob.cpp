@@ -106,7 +106,9 @@ void IndexerJob::encode(Serializer &serializer)
     const Server::Options &options = Server::instance()->options();
     Source copy = source;
     copy.arguments << options.defaultArguments;
-    copy.includePaths << options.includePaths;
+    for (const auto &inc : options.includePaths) {
+        copy.includePaths << Source::Include(Source::Include::Type_Include, inc);
+    }
     copy.defines << options.defines;
     assert(cpp);
     serializer << static_cast<uint16_t>(ProtocolVersion)

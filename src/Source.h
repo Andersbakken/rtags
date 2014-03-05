@@ -65,7 +65,41 @@ struct Source
     };
 
     Set<Define> defines;
-    List<Path> includePaths;
+    struct Include {
+        enum Type {
+            Type_None,
+            Type_Include,
+            Type_System
+        };
+        Include(Type t = Type_None, const Path &p = Path())
+            : type(t), path(p)
+        {}
+
+        Type type;
+        Path path;
+
+        inline String toString() const
+        {
+            if (type == Type_None)
+                return String();
+            return String::format<128>("-%s%s", type == Type_System ? "isystem" : "I",
+                                       path.constData());
+        }
+
+        inline int compare(const Source::Include &other) const
+        {
+            if (type == other.type) {
+                return path.compare(other.path);
+            }
+            return type < other.type;
+        }
+
+        inline bool operator==(const Include &other) const { return !compare(other); }
+        inline bool operator!=(const Include &other) const { return compare(other) != 0; }
+        inline bool operator<(const Include &other) const { return compare(other) < 0; }
+        inline bool operator>(const Include &other) const { return compare(other) > 0; }
+    };
+    List<Include> includePaths;
     List<String> arguments;
     int32_t sysRootIndex;
 
@@ -206,6 +240,20 @@ template <> inline Deserializer &operator>>(Deserializer &s, Source::Define &d)
     return s;
 }
 
+template <> inline Serializer &operator<<(Serializer &s, const Source::Include &d)
+{
+    s << static_cast<uint8_t>(d.type) << d.path;
+    return s;
+}
+
+template <> inline Deserializer &operator>>(Deserializer &s, Source::Include &d)
+{
+    uint8_t type;
+    s >> type >> d.path;
+    d.type = static_cast<Source::Include::Type>(type);
+    return s;
+}
+
 template <> inline Serializer &operator<<(Serializer &s, const Source &b)
 {
     s << b.fileId << b.compilerId << b.buildRootId << static_cast<uint8_t>(b.language) << b.parsed
@@ -234,6 +282,12 @@ static inline Log operator<<(Log dbg, const Source &s)
 static inline Log operator<<(Log dbg, const Source::Define &def)
 {
     dbg << def.toString();
+    return dbg;
+}
+
+static inline Log operator<<(Log dbg, const Source::Include &inc)
+{
+    dbg << inc.toString();
     return dbg;
 }
 

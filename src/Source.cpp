@@ -43,10 +43,21 @@ List<String> Source::toCommandLine(unsigned int mode) const
     if (mode & IncludeCompiler)
         ret.append(compiler());
     ret += arguments;
-    for (Set<Define>::const_iterator it = defines.begin(); it != defines.end(); ++it)
-        ret += it->toString(Define::Quote);
-    for (List<Path>::const_iterator it = includePaths.begin(); it != includePaths.end(); ++it)
-        ret += ("-I" + *it);
+    for (const auto &def : defines)
+        ret += def.toString(Define::Quote);
+    for (const auto &inc : includePaths) {
+        switch (inc.type) {
+        case Source::Include::Type_None:
+            assert(0 && "Impossible impossibility");
+            break;
+        case Source::Include::Type_Include:
+            ret << ("-I" + inc.path);
+            break;
+        case Source::Include::Type_System:
+            ret << "-isystem" << inc.path;
+            break;
+        }
+    }
     if (mode & IncludeSourceFile)
         ret.append(sourceFile());
 
@@ -187,16 +198,17 @@ static inline String trim(const char *start, int size)
     return String(start, size);
 }
 
-static inline size_t hashIncludePaths(const List<Path> &includes, const Path &buildRoot)
+static inline size_t hashIncludePaths(const List<Source::Include> &includes, const Path &buildRoot)
 {
     size_t hash = 0;
     std::hash<Path> hasher;
     for (const auto &inc : includes) {
         size_t h;
-        if (!buildRoot.isEmpty() && inc.startsWith(buildRoot)) {
-            h = hasher(inc.mid(buildRoot.size()));
+        h += inc.type;
+        if (!buildRoot.isEmpty() && inc.path.startsWith(buildRoot)) {
+            h = hasher(inc.path.mid(buildRoot.size()));
         } else {
-            h = hasher(inc);
+            h = hasher(inc.path);
         }
         hash ^= h + 0x9e3779b9 + (h << 6) + (h >> 2);
         // Bit twiddling found here:
@@ -204,6 +216,22 @@ static inline size_t hashIncludePaths(const List<Path> &includes, const Path &bu
         // apparently from boost.
     }
     return hash;
+}
+
+static inline void addIncludeArg(Source &source, Source::Include::Type type, int argLen, const List<String> &args, int &idx, const Path &cwd)
+{
+    const String &arg = args.at(idx);
+    Path path;
+    if (arg.size() == argLen) {
+        source.arguments.append(arg);
+        path = Path::resolved(args.at(++idx), Path::MakeAbsolute, cwd);
+    } else {
+        source.arguments.append(arg.left(argLen));
+        path = Path::resolved(arg.mid(argLen), Path::MakeAbsolute, cwd);
+    }
+    source.arguments.append(path);
+    if (type != Source::Include::Type_None)
+        source.includePaths.append(Source::Include(type, path));
 }
 
 Source Source::parse(const String &cmdLine, const Path &base, Path *unresolvedInputLocation)
@@ -324,25 +352,21 @@ Source Source::parse(const String &cmdLine, const Path &base, Path *unresolvedIn
                     // ret.arguments.append(a);
                 }
             } else if (arg.startsWith("-I")) {
-                Path inc;
-                bool ok = false;
-                if (arg.size() > 2) {
-                    inc = Path::resolved(arg.mid(2), Path::RealPath, path, &ok);
-                } else {
-                    inc = Path::resolved(split.value(++i), Path::RealPath, path, &ok);
-                }
-                if (!inc.isEmpty())
-                    ret.includePaths.append(inc);
-                // if (ok)
-                //     ret.arguments.append("-I" + inc);
-            } else if (arg == "-m32") {
-                ret.arguments.append(arg);
-            } else if (arg == "-ansi") {
-                ret.arguments.append(arg);
+                addIncludeArg(ret, Source::Include::Type_Include, 2, split, i, path);
+            } else if (arg.startsWith("-include")) {
+                addIncludeArg(ret, Source::Include::Type_None, 8, split, i, path);
+            } else if (arg.startsWith("-isystem")) {
+                addIncludeArg(ret, Source::Include::Type_System, 8, split, i, path);
+            } else if (arg.startsWith("-iquote")) {
+                addIncludeArg(ret, Source::Include::Type_None, 7, split, i, path);
+            } else if (arg.startsWith("-cxx-isystem")) {
+                addIncludeArg(ret, Source::Include::Type_System, 12, split, i, path);
             } else if (arg == "-ObjC++") {
                 ret.language = ObjectiveCPlusPlus;
+                ret.arguments.append(arg);
             } else if (arg == "-ObjC") {
                 ret.language = ObjectiveC;
+                ret.arguments.append(arg);
             } else if (arg.startsWith("-std=")) {
                 ret.arguments.append(arg);
                 // error() << "Got std" << arg;
@@ -361,36 +385,6 @@ Source Source::parse(const String &cmdLine, const Path &base, Path *unresolvedIn
                     root.resolve();
                     ret.arguments.append(root);
                 }
-            } else if (arg.startsWith("-include")) {
-                ret.arguments.append(arg);
-                if (arg.size() == 8) {
-                    ret.arguments.append(split.value(++i));
-                }
-            } else if (arg.startsWith("-isystem") || arg.startsWith("-iquote")) {
-                const int from = (arg[2] == 'q' ? 7 : 8);
-                assert(arg.size() >= from);
-                Path inc;
-                if (arg.size() > from) {
-                    bool ok = false;
-                    inc = Path::resolved(arg.mid(from), Path::RealPath, path, &ok);
-                    if (!ok)
-                        inc = arg.mid(from);
-                } else if (i + 1 < s) {
-                    bool ok = false;
-                    inc = Path::resolved(split.value(++i), Path::RealPath, path, &ok);
-                    if (!ok)
-                        inc = split.at(i);
-                }
-                // ### need to add to includepaths
-                ret.arguments.append(arg.left(from));
-                ret.arguments.append(inc);
-            } else if (arg.startsWith("-W")) {
-                const bool hasComma = arg.contains(',');
-                if (!hasComma) { // We don't want options such as -Wl,foo
-                    ret.arguments.append(arg);
-                }
-            } else if (arg == "-w") {
-                ret.arguments.append(arg);
             } else if (arg == "-o") {
                 if (i + 1 < s) {
                     bool ok;
@@ -407,6 +401,8 @@ Source Source::parse(const String &cmdLine, const Path &base, Path *unresolvedIn
                         buildRoot.clear();
                     }
                 }
+            } else {
+                ret.arguments.append(arg);
             }
         } else {
             if (!seenCompiler) {

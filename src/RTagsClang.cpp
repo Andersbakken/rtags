@@ -298,7 +298,6 @@ public:
 
     virtual void write_impl(const char *data, size_t size)
     {
-        fuck.append(data, size);
         if (mCompress) {
             if (mBufferUsed + size < sizeof(mBuffer)) {
                 memcpy(mBuffer + mBufferUsed, data, size);
@@ -324,7 +323,6 @@ public:
         return mString->size();
     }
 private:
-    String fuck;
     z_stream mStream;
     String *mString;
     const bool mCompress;
@@ -352,7 +350,7 @@ static inline void processArgs(clang::HeaderSearchOptions &headerSearchOptions,
             break;
         case SystemInclude: {
             const Path path = Path::resolved(arg);
-            // error() << "Adding system include" << path;
+            // error() << "Adding include" << path;
             headerSearchOptions.AddPath(clang::StringRef(path.constData(), path.size()), clang::frontend::System,
 #if CLANG_VERSION_MINOR < 3
                                         false,
@@ -580,8 +578,6 @@ std::shared_ptr<Cpp> preprocess(const Source &source,
     default:
         break;
     }
-    List<Path> includePaths = source.includePaths;
-    Set<Source::Define> defines = source.defines;
 
     const Server::Options &options = Server::instance()->options();
     clang::HeaderSearchOptions &headerSearchOptions = compilerInstance.getHeaderSearchOpts();
@@ -605,8 +601,8 @@ std::shared_ptr<Cpp> preprocess(const Source &source,
         args.push_back(compiler.constData());
         args.push_back("-c");
         args.push_back(sourceFile.constData());
-        for (const Path &path : source.includePaths)
-            copies.push_back("-I" + path);
+        for (const Source::Include &inc : source.includePaths)
+            copies.push_back(inc.toString());
         for (const Path &path : options.includePaths)
             copies.push_back("-I" + path);
         for (const Source::Define &def : source.defines)
@@ -630,8 +626,8 @@ std::shared_ptr<Cpp> preprocess(const Source &source,
 
     for (const auto &inc : source.includePaths) {
         // error() << "Adding -I" << *it;
-        headerSearchOptions.AddPath(clang::StringRef(inc.constData(), inc.size()),
-                                    clang::frontend::Angled,
+        headerSearchOptions.AddPath(clang::StringRef(inc.path.constData(), inc.path.size()),
+                                    inc.type == Source::Include::Type_Include ? clang::frontend::Angled : clang::frontend::System,
 #if CLANG_VERSION_MINOR < 3
                                     false,
 #endif
@@ -640,7 +636,7 @@ std::shared_ptr<Cpp> preprocess(const Source &source,
     for (const auto &inc : options.includePaths) {
         // error() << "Adding -I" << *it;
         headerSearchOptions.AddPath(clang::StringRef(inc.constData(), inc.size()),
-                                    clang::frontend::System,
+                                    clang::frontend::Angled,
 #if CLANG_VERSION_MINOR < 3
                                     false,
 #endif
