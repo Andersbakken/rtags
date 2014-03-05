@@ -271,7 +271,7 @@ Path findProjectRoot(const Path &path, ProjectRootMode mode)
     const Path config = findAncestor(path, ".rtags-config", Shallow);
     if (config.isDir()) {
         const List<String> conf = Path(config + ".rtags-config").readAll().split('\n');
-        for (auto line : conf) {
+        for (const auto &line : conf) {
             const char *ch = line.constData();
             while (*ch && isspace(*ch))
                 ++ch;

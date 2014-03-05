@@ -253,7 +253,7 @@ void Project::restore(RestoreThread *thread)
     } else if (needsSave) {
         save();
     }
-    for (auto it : pendingJobs) {
+    for (const auto &it : pendingJobs) {
         assert(!it.second.pendingSource.isNull());
         assert(it.second.pendingFlags);
         assert(it.second.pendingCpp);
@@ -365,7 +365,7 @@ void Project::onJobFinished(const std::shared_ptr<IndexData> &indexData, const s
     if (!success) {
         // error() << "No success for" << Location::path(fileId);
         std::lock_guard<std::mutex> lock(mMutex);
-        for (auto f : jobData->job->visited) {
+        for (const auto &f : jobData->job->visited) {
             // error() << "Returning files" << Location::path(f);
             mVisitedFiles.remove(f);
         }
@@ -637,7 +637,7 @@ void Project::startDirtyJobs(const Set<uint32_t> &dirty)
         if (!deps.isEmpty())
             dirtyFiles += deps;
     }
-    for (auto fileId : dirtyFiles) {
+    for (const auto &fileId : dirtyFiles) {
         mVisitedFiles.remove(fileId);
     }
 
@@ -976,13 +976,13 @@ void Project::onSynced()
 {
     assert(mState == Syncing);
     mState = Loaded;
-    for (auto it : mPendingIndexData) {
+    for (const auto &it : mPendingIndexData) {
         onJobFinished(it.second.first, it.second.second);
     }
     mPendingIndexData.clear();
     Hash<uint64_t, JobData> pendingJobs = std::move(mJobs);
 
-    for (auto it : pendingJobs) {
+    for (const auto &it : pendingJobs) {
         assert(!it.second.pendingSource.isNull());
         assert(it.second.pendingFlags);
         assert(it.second.pendingCpp);

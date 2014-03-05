@@ -42,7 +42,7 @@ public:
         assert(mData);
         serializer << mProject << mData->flags << mData->key << mData->parseTime;
         CursorInfo::serialize(serializer, mData->symbols);
-        serializer << mData->references << mData->symbolNames << mData->dependencies
+        serializer << mData->symbolNames << mData->dependencies
                    << mData->usrMap << mData->message << mData->fixIts
                    << mData->xmlDiagnostics << mData->visited << mData->jobId;
         if (debugIndexerMessage)
@@ -58,7 +58,7 @@ public:
         mData.reset(new IndexData(flags));
         deserializer >> mData->key >> mData->parseTime;
         CursorInfo::deserialize(deserializer, mData->symbols);
-        deserializer >> mData->references >> mData->symbolNames >> mData->dependencies
+        deserializer >> mData->symbolNames >> mData->dependencies
                      >> mData->usrMap >> mData->message >> mData->fixIts >> mData->xmlDiagnostics
                      >> mData->visited >> mData->jobId;
         if (debugIndexerMessage)

@@ -218,7 +218,7 @@ inline void CursorInfo::serialize(Serializer &s, const SymbolMap &t)
 {
     const uint32_t size = t.size();
     s << size;
-    for (auto it : t)
+    for (const auto &it : t)
         s << it.first << *it.second;
 }
 

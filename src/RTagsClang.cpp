@@ -628,7 +628,7 @@ std::shared_ptr<Cpp> preprocess(const Source &source,
         processArgs(headerSearchOptions, outputArgs);
     }
 
-    for (auto inc : source.includePaths) {
+    for (const auto &inc : source.includePaths) {
         // error() << "Adding -I" << *it;
         headerSearchOptions.AddPath(clang::StringRef(inc.constData(), inc.size()),
                                     clang::frontend::Angled,
@@ -637,7 +637,7 @@ std::shared_ptr<Cpp> preprocess(const Source &source,
 #endif
                                     false, true);
     }
-    for (auto inc : options.includePaths) {
+    for (const auto &inc : options.includePaths) {
         // error() << "Adding -I" << *it;
         headerSearchOptions.AddPath(clang::StringRef(inc.constData(), inc.size()),
                                     clang::frontend::System,
@@ -649,12 +649,12 @@ std::shared_ptr<Cpp> preprocess(const Source &source,
 
     compilerInstance.createPreprocessor();
     std::string predefines = compilerInstance.getPreprocessor().getPredefines();
-    for (auto def : source.defines) {
+    for (const auto &def : source.defines) {
         predefines += toString(def);
         predefines += '\n';
         // error() << "Got define" << it->define << it->value;
     }
-    for (auto def : options.defines) {
+    for (const auto &def : options.defines) {
         predefines += toString(def);
         predefines += '\n';
         // error() << "Got define" << it->define << it->value;

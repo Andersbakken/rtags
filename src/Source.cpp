@@ -191,7 +191,7 @@ static inline size_t hashIncludePaths(const List<Path> &includes, const Path &bu
 {
     size_t hash = 0;
     std::hash<Path> hasher;
-    for (auto inc : includes) {
+    for (const auto &inc : includes) {
         size_t h;
         if (!buildRoot.isEmpty() && inc.startsWith(buildRoot)) {
             h = hasher(inc.mid(buildRoot.size()));
@@ -485,7 +485,7 @@ Source Source::parse(const String &cmdLine, const Path &base, Path *unresolvedIn
 
 static inline bool compareDefinesNoNDEBUG(const Set<Source::Define> &l, const Set<Source::Define> &r)
 {
-    for (auto ld : l) {
+    for (const auto &ld : l) {
         if (ld.define != "NDEBUG") {
             continue;
         } else if (!r.contains(ld)) {
@@ -511,7 +511,7 @@ bool Source::compareArguments(const Source &other) const
     }
 
     auto him = other.arguments.begin();
-    for (auto me : arguments) {
+    for (const auto &me : arguments) {
         if (separateDebugAndRelease || (me != "-g" && !me.startsWith("-O"))) {
             String h;
             while (him != other.arguments.end()) {

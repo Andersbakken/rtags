@@ -195,7 +195,7 @@ public:
         LOCK();
         sPathsToIds = pathsToIds;
         sLastId = sPathsToIds.size();
-        for (auto it : sPathsToIds) {
+        for (const auto &it : sPathsToIds) {
             sIdsToPaths[it.second] = it.first;
         }
     }
@@ -205,7 +205,7 @@ public:
         LOCK();
         sIdsToPaths = idsToPaths;
         sLastId = sIdsToPaths.size();
-        for (auto it : sIdsToPaths) {
+        for (const auto &it : sIdsToPaths) {
             sPathsToIds[it.second] = it.first;
         }
     }

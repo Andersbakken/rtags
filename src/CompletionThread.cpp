@@ -51,7 +51,7 @@ void CompletionThread::run()
                     << "translationUnit:" << cache->translationUnit << "\n";
                 for (Completion *completion = cache->firstCompletion; completion; completion = completion->next) {
                     out << "    " << completion->location.key() << "\n";
-                    for (auto c : completion->completions) {
+                    for (const auto &c : completion->completions) {
                         out << "        " << c.completion << c.signature << c.priority << c.distance
                             << RTags::eatString(clang_getCursorKindSpelling(c.cursorKind)) << "\n";
                     }
@@ -410,7 +410,7 @@ void CompletionThread::printCompletions(const List<Completion::Node> &completion
 
         if (request->flags & Elisp)
             out += "'(";
-        for (auto val : completions) {
+        for (const auto &val : completions) {
             if (val.cursorKind >= cursorKindNames.size())
                 cursorKindNames.resize(val.cursorKind + 1);
             String &kind = cursorKindNames[val.cursorKind];

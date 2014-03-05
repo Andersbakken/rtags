@@ -139,7 +139,7 @@ Server::~Server()
 
     Rct::deleteLinkedListNodes(mFirstRemote);
 
-    for (auto job : mLocalJobs) {
+    for (const auto &job : mLocalJobs) {
         job.first->kill();
     }
 
@@ -491,7 +491,7 @@ void Server::handleExitMessage(const ExitMessage &message)
         mServerConnection->send(message);
     } else if (!mClients.isEmpty()) {
         const ExitMessage msg(mExitCode, false);
-        for (auto client : mClients) {
+        for (const auto &client : mClients) {
             if (debugMulti) {
                 error() << "Telling" << Rct::addrLookup(client->client()->peerName())
                         << "to shut down with status code" << message.exitCode();
@@ -696,7 +696,7 @@ void Server::followLocation(const QueryMessage &query, Connection *conn)
 
 void Server::isIndexing(const QueryMessage &, Connection *conn)
 {
-    for (auto it : mProjects) {
+    for (const auto &it : mProjects) {
         if (it.second->isIndexing()) {
             conn->write("1");
             conn->finish();
@@ -1005,7 +1005,7 @@ void Server::preprocessFile(const QueryMessage &query, Connection *conn)
 
 void Server::clearProjects()
 {
-    for (auto it : mProjects)
+    for (const auto &it : mProjects)
         it.second->unload();
     Rct::removeDirectory(mOptions.dataDir);
     mCurrentProject.reset();
@@ -1157,7 +1157,7 @@ std::shared_ptr<Project> Server::updateProjectForLocation(const Match &match)
     if (cur && cur->match(match))
         return cur;
 
-    for (auto it : mProjects) {
+    for (const auto &it : mProjects) {
         if (it.second != cur && it.second->match(match)) {
             return setCurrentProject(it.second->path());
         }
@@ -1204,7 +1204,7 @@ bool Server::selectProject(const Match &match, Connection *conn, unsigned int qu
 {
     std::shared_ptr<Project> selected;
     bool error = false;
-    for (auto it : mProjects) {
+    for (const auto &it : mProjects) {
         if (it.second->match(match)) {
             if (error) {
                 if (conn)
@@ -1253,7 +1253,7 @@ void Server::project(const QueryMessage &query, Connection *conn)
     if (query.query().isEmpty()) {
         const std::shared_ptr<Project> current = mCurrentProject.lock();
         const char *states[] = { "(unloaded)", "(inited)", "(loading)", "(loaded)", "(syncing)" };
-        for (auto it : mProjects) {
+        for (const auto &it : mProjects) {
             conn->write<128>("%s %s%s", it.first.constData(), states[it.second->state()], it.second == current ? " <=" : "");
         }
     } else {
@@ -1266,7 +1266,7 @@ void Server::project(const QueryMessage &query, Connection *conn)
         if (it != mProjects.end()) {
             selected = it->first;
         } else {
-            for (auto pit : mProjects) {
+            for (const auto &pit : mProjects) {
                 assert(pit.second);
                 if (ok) {
                     if (!index) {
@@ -1376,7 +1376,7 @@ void Server::loadCompilationDatabase(const QueryMessage &query, Connection *conn
 
 void Server::shutdown(const QueryMessage &query, Connection *conn)
 {
-    for (auto it : mProjects) {
+    for (const auto &it : mProjects) {
         if (it.second)
             it.second->unload();
     }
@@ -1408,7 +1408,7 @@ void Server::sources(const QueryMessage &query, Connection *conn)
                 if (fileId) {
                     const List<Source> sources = project->sources(fileId);
                     int idx = 0;
-                    for (auto it : sources) {
+                    for (const auto &it : sources) {
                         String out;
                         if (sources.size() > 1)
                             out = String::format<4>("%d: ", idx);
@@ -1432,7 +1432,7 @@ void Server::sources(const QueryMessage &query, Connection *conn)
             conn->write("Project loading");
         } else {
             const SourceMap infos = project->sources();
-            for (auto it : infos) {
+            for (const auto &it : infos) {
                 if (match.isEmpty() || match.match(it.second.sourceFile())) {
                     if (flagsOnly) {
                         conn->write<128>("%s%s%s",
@@ -1480,7 +1480,7 @@ void Server::suspendFile(const QueryMessage &query, Connection *conn)
             if (suspendedFiles.isEmpty()) {
                 conn->write<512>("No files suspended for project %s", project->path().constData());
             } else {
-                for (auto it : suspendedFiles)
+                for (const auto &it : suspendedFiles)
                     conn->write<512>("%s is suspended", Location::path(it).constData());
             }
         } else {
@@ -1631,7 +1631,7 @@ void Server::handleProxyJobAnnouncementMessage(const ProxyJobAnnouncementMessage
         error() << "Sending proxy job announcement" << Rct::addrLookup(conn->client()->peerName());
     }
 
-    for (auto client : mClients) {
+    for (const auto &client : mClients) {
         if (client != conn)
             client->send(msg);
     }
@@ -1645,7 +1645,7 @@ void Server::handleClientMessage(const ClientMessage &, Connection *conn)
     mClients.insert(conn);
 
     const ClientConnectedMessage msg(conn->client()->peerName());
-    for (auto client : mClients) {
+    for (const auto &client : mClients) {
         if (client != conn)
             client->send(msg);
     }
@@ -1737,7 +1737,7 @@ bool Server::saveFileIds() const
 void Server::onUnload()
 {
     std::shared_ptr<Project> cur = mCurrentProject.lock();
-    for (auto it : mProjects) {
+    for (const auto &it : mProjects) {
         if (it.second->state() != Project::Unloaded && it.second != cur && !it.second->isIndexing()) {
             it.second->unload();
         }
@@ -2030,19 +2030,19 @@ void Server::dumpJobs(Connection *conn)
 {
     if (!mPending.isEmpty()) {
         conn->write("Pending:");
-        for (auto job : mPending) {
+        for (const auto &job : mPending) {
             conn->write<128>("%s: 0x%x", job->sourceFile.constData(), job->flags);
         }
     }
     if (!mLocalJobs.isEmpty()) {
         conn->write("Local:");
-        for (auto job : mLocalJobs) {
+        for (const auto &job : mLocalJobs) {
             conn->write<128>("%s: 0x%x", job.second.first->sourceFile.constData(), job.second.first->flags);
         }
     }
     if (!mProcessingJobs.isEmpty()) {
         conn->write("Processing:");
-        for (auto job : mProcessingJobs) {
+        for (const auto &job : mProcessingJobs) {
             conn->write<128>("%s: 0x%x", job.second->sourceFile.constData(), job.second->flags);
         }
     }
@@ -2077,7 +2077,7 @@ void Server::work()
 
     jobs -= mLocalJobs.size();
     int pendingJobRequestCount = 0;
-    for (auto it : mPendingJobRequests) {
+    for (const auto &it : mPendingJobRequests) {
         pendingJobRequestCount += it.second;
     }
     jobs -= pendingJobRequestCount;
@@ -2160,7 +2160,7 @@ void Server::work()
             // Don't pass a host name on the original announcement message,
             // the receiver will derive it
             const JobAnnouncementMessage msg(String(), mOptions.tcpPort);
-            for (auto client : mClients) {
+            for (const auto &client : mClients) {
                 client->send(msg);
             }
         }
