@@ -204,12 +204,12 @@ static inline size_t hashIncludePaths(const List<Source::Include> &includes, con
     std::hash<Path> hasher;
     for (const auto &inc : includes) {
         size_t h;
-        h += inc.type;
         if (!buildRoot.isEmpty() && inc.path.startsWith(buildRoot)) {
             h = hasher(inc.path.mid(buildRoot.size()));
         } else {
             h = hasher(inc.path);
         }
+        h += inc.type;
         hash ^= h + 0x9e3779b9 + (h << 6) + (h >> 2);
         // Bit twiddling found here:
         // http://stackoverflow.com/questions/15741615/c-suggestions-about-a-hash-function-for-a-sequence-of-strings-where-the-order
