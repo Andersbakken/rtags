@@ -1478,8 +1478,9 @@ References to references will be treated as references to the referenced symbol"
   (if restart
       (rtags-stop-diagnostics))
   (rtags-init-diagnostics-buffer-and-process)
-  (switch-to-buffer-other-window "*RTags Diagnostics*")
-  (other-window 1)
+  (when (called-interactively-p 'any)
+    (switch-to-buffer-other-window "*RTags Diagnostics*")
+    (other-window 1))
   )
 
 (defvar rtags-indexed nil)
