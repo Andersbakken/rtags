@@ -422,6 +422,7 @@ void Project::onJobFinished(const std::shared_ptr<IndexData> &indexData, const s
             }
         } else {
             assert(indexData->flags & IndexerJob::Crashed);
+            mPendingData[indexData->key] = indexData;
             error("[%3d%%] %d/%d %s %s indexing crashed.",
                   static_cast<int>(round((double(idx) / double(mJobCounter)) * 100.0)), idx, mJobCounter,
                   String::formatTime(time(0), String::Time).constData(),

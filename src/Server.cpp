@@ -1885,6 +1885,7 @@ void Server::onLocalJobFinished(Process *process)
         if (proj && (proj->state() == Project::Loaded || proj->state() == Project::Syncing)) {
             std::shared_ptr<IndexData> data(new IndexData(job->flags));
             data->key = job->source.key();
+            data->dependencies[job->source.fileId].insert(job->source.fileId);
 
             EventLoop::eventLoop()->registerTimer([data, job, proj](int) { proj->onJobFinished(data, job); },
                                                   500, Timer::SingleShot);

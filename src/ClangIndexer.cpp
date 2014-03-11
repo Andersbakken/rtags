@@ -204,9 +204,7 @@ Location ClangIndexer::createLocation(const Path &sourceFile, unsigned line, uns
     EventLoop::eventLoop()->exec(mVisitFileTimeout);
     switch (mVisitFileResponseMessageFileId) {
     case 0:
-        // rdm told us not to bother with this compile anymore
-        exit(0);
-        break;
+        return Location();
     case UINT_MAX:
         // timed out.
         if (mVisitFileResponseMessageFileId == UINT_MAX) {
