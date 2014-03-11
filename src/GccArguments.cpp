@@ -117,8 +117,7 @@ static inline void addIncludeArg(List<String> &clangArgs, int argLen, const List
         clangArgs.append(arg);
         clangArgs.append(Path::resolved(args.at(++idx), Path::MakeAbsolute, cwd));
     } else {
-        clangArgs.append(arg.left(argLen));
-        clangArgs.append(Path::resolved(arg.mid(argLen), Path::MakeAbsolute, cwd));
+        clangArgs.append(arg.left(argLen) + Path::resolved(arg.mid(argLen), Path::MakeAbsolute, cwd));
     }
 }
 
@@ -227,6 +226,8 @@ bool GccArguments::parse(String args, const Path &base)
                 addIncludeArg(mClangArgs, 12, split, i, path);
             } else {
                 mClangArgs.append(arg);
+                if (arg == "-target" || arg == "-o")
+                    mClangArgs.append(split.value(++i));
             }
         } else {
             if (!seenCompiler) {
