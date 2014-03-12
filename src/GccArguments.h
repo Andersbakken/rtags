@@ -40,6 +40,7 @@ public:
     Path baseDirectory() const;
     Path compiler() const;
     Path projectRoot() const;
+
 private:
     List<String> mClangArgs;
     List<Path> mInputFiles, mUnresolvedInputFiles;

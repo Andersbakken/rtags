@@ -121,6 +121,47 @@ static inline void addIncludeArg(List<String> &clangArgs, int argLen, const List
     }
 }
 
+static inline String unquote(const String& arg)
+{
+    if (arg.size() >= 2 && arg.startsWith('"') && arg.endsWith('"')) {
+        return arg.mid(1, arg.size() - 2);
+    }
+    return arg;
+}
+
+static const char* valueArgs[] = {
+    "-o",
+    "-x",
+    "--param",
+    "-imacros",
+    "-iprefix",
+    "-iwithprefix",
+    "-iwithprefixbefore",
+    "-imultilib",
+    "-isysroot",
+    "-Xpreprocessor",
+    "-Xassembler",
+    "-T",
+    "-Xlinker",
+    "-V",
+    "-b",
+    "-G",
+    "-arch",
+    "-MF",
+    "-MT",
+    "-MQ",
+    0
+};
+
+static inline bool hasValue(const String& arg)
+{
+    for (int i = 0; valueArgs[i]; ++i) {
+        if (arg == valueArgs[i])
+            return true;
+    }
+    return false;
+}
+
 bool GccArguments::parse(String args, const Path &base)
 {
     mLang = NoLang;
@@ -226,8 +267,9 @@ bool GccArguments::parse(String args, const Path &base)
                 addIncludeArg(mClangArgs, 12, split, i, path);
             } else {
                 mClangArgs.append(arg);
-                if (arg == "-target" || arg == "-o")
-                    mClangArgs.append(split.value(++i));
+                if (hasValue(arg)) {
+                    mClangArgs.append(Path::resolved(unquote(split.value(++i)), Path::MakeAbsolute, path));
+                }
             }
         } else {
             if (!seenCompiler) {
