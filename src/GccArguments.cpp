@@ -132,6 +132,7 @@ static inline String unquote(const String& arg)
 static const char* valueArgs[] = {
     "-o",
     "-x",
+    "-target",
     "--param",
     "-imacros",
     "-iprefix",
