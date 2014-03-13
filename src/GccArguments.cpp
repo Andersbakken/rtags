@@ -154,10 +154,32 @@ static const char* valueArgs[] = {
     0
 };
 
+static const char* blacklist[] = {
+    "-M",
+    "-MM",
+    "-MG",
+    "-MP",
+    "-MD",
+    "-MMD",
+    "-MF",
+    "-MT",
+    "-MQ",
+    0
+};
+
 static inline bool hasValue(const String& arg)
 {
     for (int i = 0; valueArgs[i]; ++i) {
         if (arg == valueArgs[i])
+            return true;
+    }
+    return false;
+}
+
+static inline bool isBlacklisted(const String& arg)
+{
+    for (int i = 0; blacklist[i]; i += 2) {
+        if (arg == blacklist[i])
             return true;
     }
     return false;
@@ -267,9 +289,15 @@ bool GccArguments::parse(String args, const Path &base)
             } else if (arg.startsWith("-cxx-isystem")) {
                 addIncludeArg(mClangArgs, 12, split, i, path);
             } else {
-                mClangArgs.append(arg);
-                if (hasValue(arg)) {
-                    mClangArgs.append(Path::resolved(unquote(split.value(++i)), Path::MakeAbsolute, path));
+                const bool hasVal = hasValue(arg);
+                if (!isBlacklisted(arg)) {
+                    mClangArgs.append(arg);
+                    if (hasVal) {
+                        mClangArgs.append(Path::resolved(unquote(split.value(++i)), Path::MakeAbsolute, path));
+                    }
+                } else if (hasVal) {
+                    // drop the value
+                    ++i;
                 }
             }
         } else {
