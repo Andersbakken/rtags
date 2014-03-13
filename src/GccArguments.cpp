@@ -178,7 +178,7 @@ static inline bool hasValue(const String& arg)
 
 static inline bool isBlacklisted(const String& arg)
 {
-    for (int i = 0; blacklist[i]; i += 2) {
+    for (int i = 0; blacklist[i]; ++i) {
         if (arg == blacklist[i])
             return true;
     }
