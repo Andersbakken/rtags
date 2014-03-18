@@ -372,8 +372,10 @@ void Server::onNewConnection(SocketServer *server)
 void Server::onConnectionDisconnected(Connection *o)
 {
     o->disconnected().disconnect();
+    if (mClients.remove(o)) {
+        error() << "Client disappeared" << Rct::addrLookup(o->client()->peerName());
+    }
     EventLoop::deleteLater(o);
-    mClients.remove(o);
     mPendingJobRequests.remove(o);
 }
 
