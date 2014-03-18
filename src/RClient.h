@@ -60,7 +60,13 @@ private:
     void addQuery(QueryMessage::Type t, const String &query = String());
 
     void addLog(int level);
-    void addCompile(const Path &cwd, const String &args);
+    enum EscapeMode {
+        Escape_Auto,
+        Escape_Do,
+        Escape_Dont
+    };
+
+    void addCompile(const Path &cwd, const String &args, EscapeMode escapeMode);
 
     unsigned mQueryFlags;
     int mMax, mLogLevel, mTimeout, mMinOffset, mMaxOffset, mConnectTimeout, mBuildIndex;
@@ -71,9 +77,12 @@ private:
     List<String> mRdmArgs;
     String mSocketFile;
     List<String> mProjects;
+    EscapeMode mEscapeMode;
 
     int mArgc;
     char **mArgv;
+
+    friend class CompileCommand;
 };
 
 #endif

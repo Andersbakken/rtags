@@ -33,7 +33,7 @@ Path Source::compiler() const
 
 String Source::toString() const
 {
-    String ret = String::join(toCommandLine(IncludeCompiler|IncludeSourceFile|QuoteDefines|IncludeDefines|IncludeDefines), ' ');
+    String ret = String::join(toCommandLine(IncludeCompiler|IncludeSourceFile|QuoteDefines|IncludeDefines), ' ');
     if (buildRootId)
         ret << " Build: " << buildRoot();
     if (parsed)
@@ -268,7 +268,8 @@ static inline String unquote(const String& arg)
     return arg;
 }
 
-Source Source::parse(const String &cmdLine, const Path &base, Path *unresolvedInputLocation)
+Source Source::parse(const String &cmdLine, const Path &base, unsigned int flags,
+                     Path *unresolvedInputLocation)
 {
     Path buildRoot;
     String args = cmdLine;
@@ -283,10 +284,11 @@ Source Source::parse(const String &cmdLine, const Path &base, Path *unresolvedIn
             switch (*cur) {
             case '"':
             case '\'':
-                if (quote == '\0')
+                if (quote == '\0') {
                     quote = *cur;
-                else if (*cur == quote)
+                } else if (*cur == quote) {
                     quote = '\0';
+                }
                 break;
             case ' ':
                 if (quote == '\0') {
@@ -380,8 +382,12 @@ Source Source::parse(const String &cmdLine, const Path &base, Path *unresolvedIn
                         define.define = def;
                     } else {
                         define.define = def.left(eq);
-                        define.value = unquote(def.mid(eq + 1));
+                        define.value = (flags & Escape ? unquote(def.mid(eq + 1)) : def.mid(eq + 1));
                     }
+                    warning("Parsing define: [%s] => [%s]%s[%s]", def.constData(),
+                            define.define.constData(),
+                            define.value.isEmpty() ? "" : "=",
+                            define.value.constData());
                     ret.defines.insert(define);
                 }
             } else if (arg.startsWith("-I")) {
@@ -442,8 +448,12 @@ Source Source::parse(const String &cmdLine, const Path &base, Path *unresolvedIn
                 }
             } else {
                 ret.arguments.append(arg);
-                if (hasValue(arg))
-                    ret.arguments.append(Path::resolved(unquote(split.value(++i)), Path::MakeAbsolute, path));
+                if (hasValue(arg)) {
+                    String val = split.value(++i);
+                    if (flags & Escape)
+                        val = unquote(val);
+                    ret.arguments.append(Path::resolved(val, Path::MakeAbsolute, path));
+                }
             }
         } else {
             if (!seenCompiler) {
@@ -587,7 +597,7 @@ List<String> Source::toCommandLine(unsigned int flags) const
     }
     if (flags & IncludeDefines) {
         for (const auto &def : defines)
-            ret += def.toString(flags & QuoteDefines ? Define::Quote : Define::None);
+            ret += def.toString(flags);
     }
     if (flags & IncludeIncludepaths) {
         for (const auto &inc : includePaths) {

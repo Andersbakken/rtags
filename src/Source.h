@@ -52,10 +52,6 @@ struct Source
         String define;
         String value;
 
-        enum Flag {
-            None = 0x0,
-            Quote = 0x1
-        };
         inline String toString(unsigned int flags = 0) const;
         inline bool operator==(const Define &other) const { return !compare(other); }
         inline bool operator!=(const Define &other) const { return compare(other) != 0; }
@@ -134,8 +130,9 @@ struct Source
     bool operator<(const Source &other) const;
     bool operator>(const Source &other) const;
 
+    enum { None = 0x00 }; // shared enum
+
     enum CommandLineMode {
-        None = 0x00,
         IncludeCompiler = 0x01,
         IncludeSourceFile = 0x02,
         IncludeDefines = 0x04,
@@ -153,7 +150,11 @@ struct Source
     String toString() const;
     Path sysRoot() const { return arguments.value(sysRootIndex, "/"); }
 
-    static Source parse(const String &cmdLine, const Path &pwd, Path *unresolvedInputLocation = 0);
+    enum ParseFlag {
+        Escape = 0x1
+    };
+    static Source parse(const String &cmdLine, const Path &pwd,
+                        unsigned int flags, Path *unresolvedInputLocation = 0);
 };
 
 inline Source::Source()
@@ -303,12 +304,12 @@ static inline Log operator<<(Log dbg, const Source::Include &inc)
 inline String Source::Define::toString(unsigned int flags) const
 {
     String ret;
-    ret.reserve(2 + define.size() + value.size() + 1);
+    ret.reserve(2 + define.size() + value.size() + 5);
     ret += "-D";
     ret += define;
     if (!value.isEmpty()) {
         ret += '=';
-        if (flags & Quote) {
+        if (flags & Source::QuoteDefines) {
             String out = value;
             out.replace("\\", "\\\\");
             out.replace("\"", "\\\"");

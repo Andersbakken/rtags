@@ -441,10 +441,14 @@ void Server::onNewMessage(Message *message, Connection *connection)
     }
 }
 
-void Server::index(const String &arguments, const Path &pwd, const List<String> &withProjects)
+void Server::index(const String &arguments, const Path &pwd,
+                   const List<String> &withProjects, bool escape)
 {
     Path unresolvedPath;
-    Source source = Source::parse(arguments, pwd, &unresolvedPath);
+    unsigned int flags = Source::None;
+    if (escape)
+        flags |= Source::Escape;
+    Source source = Source::parse(arguments, pwd, flags, &unresolvedPath);
     if (!source.isIndexable())
         return;
     Path project = findProject(source.sourceFile(), unresolvedPath, withProjects);
@@ -481,7 +485,7 @@ void Server::preprocess(Source &&source, Path &&srcRoot, uint32_t flags)
 void Server::handleCompileMessage(CompileMessage &message, Connection *conn)
 {
     conn->finish();
-    index(message.arguments(), message.workingDirectory(), message.projects());
+    index(message.arguments(), message.workingDirectory(), message.projects(), message.escape());
 }
 
 void Server::handleExitMessage(const ExitMessage &message)
@@ -1365,7 +1369,7 @@ void Server::loadCompilationDatabase(const QueryMessage &query, Connection *conn
                 args += " ";
         }
 
-        index(args, dir, query.projects());
+        index(args, dir, query.projects(), true);
     }
     clang_CompileCommands_dispose(cmds);
     clang_CompilationDatabase_dispose(db);
@@ -1800,14 +1804,14 @@ void Server::onMulticastReadyRead(const SocketClient::SharedPtr &socket,
 {
     const Buffer buffer = std::forward<Buffer>(in);
     if (debugMulti)
-        error() << "Got some data from multicast socket" << buffer.size() << ip;
+        error() << "Got some data from multicast socket" << buffer.size() << Rct::addrLookup(ip);
     const char *data = reinterpret_cast<const char*>(buffer.data());
     const int size = buffer.size();
     if (size == 2 && !strncmp(data, "s?", 2)) {
         String out;
         if (mServerConnection) {
             if (debugMulti)
-                error() << ip << "wants to know where the server is. I am connected to"
+                error() << Rct::addrLookup(ip) << "wants to know where the server is. I am connected to"
                         << String::format<128>("%s:%d",
                                                Rct::addrLookup(mServerConnection->client()->peerName()).constData(),
                                                mServerConnection->client()->port());
@@ -1816,7 +1820,7 @@ void Server::onMulticastReadyRead(const SocketClient::SharedPtr &socket,
             serializer << mServerConnection->client()->peerName() << mServerConnection->client()->port();
         } else if (mOptions.jobServer.second) {
             if (debugMulti)
-                error() << ip << "wants to know where the server is. I have something in options"
+                error() << Rct::addrLookup(ip) << "wants to know where the server is. I have something in options"
                         << String::format<128>("%s:%d",
                                                Rct::addrLookup(mOptions.jobServer.first).constData(),
                                                mOptions.jobServer.second);
@@ -1824,12 +1828,12 @@ void Server::onMulticastReadyRead(const SocketClient::SharedPtr &socket,
             serializer << mOptions.jobServer.first << mOptions.jobServer.second;
         } else if (mOptions.options & JobServer) {
             if (debugMulti)
-                error() << ip << "wants to know where the server is. I am the server" << mOptions.tcpPort;
+                error() << Rct::addrLookup(ip) << "wants to know where the server is. I am the server" << mOptions.tcpPort;
             Serializer serializer(out);
             serializer << String() << mOptions.tcpPort;
         } else {
             if (debugMulti)
-                error() << ip << "wants to know where the server is but I don't know";
+                error() << Rct::addrLookup(ip) << "wants to know where the server is but I don't know";
             return;
         }
         assert(!out.isEmpty());
@@ -1981,7 +1985,7 @@ void Server::onHttpClientReadyRead(const SocketClient::SharedPtr &socket)
 
 void Server::connectToServer()
 {
-    warning() << "connectToServer";
+    debug() << "connectToServer";
     mConnectToServerTimer.stop();
     assert(!(mOptions.options & JobServer));
     if (mServerConnection)

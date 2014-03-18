@@ -29,9 +29,9 @@ enum OptionType {
     BuildIndex,
     Clear,
     CodeCompleteAt,
-    Compile,
     CompilationFlagsOnly,
     CompilationFlagsSplitLine,
+    Compile,
     ConnectTimeout,
     ContainingFunction,
     Context,
@@ -49,6 +49,7 @@ enum OptionType {
     DumpFile,
     DumpIncludeHeaders,
     ElispList,
+    EscapeCompileCommands,
     FilterSystemHeaders,
     FindFile,
     FindFilePreferExact,
@@ -99,6 +100,7 @@ enum OptionType {
     SyncProject,
     SynchronousCompletions,
     Timeout,
+    UnescapeCompileCommands,
     UnloadProject,
     UnsavedFile,
     Verbose,
@@ -215,8 +217,10 @@ struct Option opts[] = {
     { DumpIncludeHeaders, "dump-include-headers", 0, no_argument, "For --dump-file, also dump dependencies." },
     { SilentQuery, "silent-query", 0, no_argument, "Don't log this request in rdm." },
     { SynchronousCompletions, "synchronous-completions", 0, no_argument, "Wait for completion results." },
+    { UnescapeCompileCommands, "unescape-compile-commands", 0, no_argument, "Escape \\'s and unquote arguments to -c." },
+    { EscapeCompileCommands, "unescape-compile-commands", 0, no_argument, "Escape \\'s and unquote arguments to -c." },
 
-    { None, 0, 0, 0, 0 }
+{ None, 0, 0, 0, 0 }
 };
 
 static void help(FILE *f, const char* app)
@@ -373,14 +377,27 @@ public:
 class CompileCommand : public RCCommand
 {
 public:
-    CompileCommand(const Path &c, const String &a)
-        : RCCommand(0), cwd(c), args(a)
+    CompileCommand(const Path &c, const String &a, RClient::EscapeMode e)
+        : RCCommand(0), cwd(c), args(a), escapeMode(e)
     {}
     const Path cwd;
     const String args;
+    const RClient::EscapeMode escapeMode;
     virtual bool exec(RClient *rc, Connection *connection)
     {
-        CompileMessage msg(cwd, args);
+        bool escape;
+        switch (rc->mEscapeMode) {
+        case RClient::Escape_Auto:
+            escape = (escapeMode == RClient::Escape_Do);
+            break;
+        case RClient::Escape_Do:
+            escape = true;
+            break;
+        case RClient::Escape_Dont:
+            escape = false;
+            break;
+        }
+        CompileMessage msg(cwd, args, escape);
         msg.init(rc->argc(), rc->argv());
         msg.setProjects(rc->projects());
         return connection->send(msg);
@@ -393,7 +410,8 @@ public:
 
 RClient::RClient()
     : mQueryFlags(0), mMax(-1), mLogLevel(0), mTimeout(-1),
-      mMinOffset(-1), mMaxOffset(-1), mConnectTimeout(DEFAULT_CONNECT_TIMEOUT), mBuildIndex(0), mArgc(0), mArgv(0)
+      mMinOffset(-1), mMaxOffset(-1), mConnectTimeout(DEFAULT_CONNECT_TIMEOUT),
+      mBuildIndex(0), mEscapeMode(Escape_Auto), mArgc(0), mArgv(0)
 {
 }
 
@@ -427,9 +445,9 @@ void RClient::addLog(int level)
     mCommands.append(std::shared_ptr<RCCommand>(new RdmLogCommand(level)));
 }
 
-void RClient::addCompile(const Path &cwd, const String &args)
+void RClient::addCompile(const Path &cwd, const String &args, EscapeMode mode)
 {
-    mCommands.append(std::shared_ptr<RCCommand>(new CompileCommand(cwd, args)));
+    mCommands.append(std::shared_ptr<RCCommand>(new CompileCommand(cwd, args, mode)));
 }
 
 class LogMonitor : public LogOutput
@@ -974,14 +992,20 @@ bool RClient::parse(int &argc, char **argv)
             if (args == "-" || args.isEmpty()) {
                 char buf[1024];
                 while (fgets(buf, sizeof(buf), stdin)) {
-                    addCompile(Path::pwd(), buf);
+                    addCompile(Path::pwd(), buf, Escape_Do);
                 }
             } else {
-                addCompile(Path::pwd(), args);
+                addCompile(Path::pwd(), args, Escape_Dont);
             }
             break; }
         case IsIndexing:
             addQuery(QueryMessage::IsIndexing);
+            break;
+        case EscapeCompileCommands:
+            mEscapeMode = Escape_Do;
+            break;
+        case UnescapeCompileCommands:
+            mEscapeMode = Escape_Dont;
             break;
         case IsIndexed:
         case DumpFile:
