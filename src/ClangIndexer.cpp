@@ -922,8 +922,12 @@ bool ClangIndexer::parse()
         static_cast<unsigned long>(mPreprocessed.size())
     };
 
+    unsigned int commandLineFlags = Source::FilterBlacklist;
+    if (mPreprocessed.isEmpty())
+        commandLineFlags |= (Source::IncludeDefines|Source::IncludeIncludepaths);
+
     const unsigned int flags = mPreprocessed.isEmpty() ? CXTranslationUnit_DetailedPreprocessingRecord : 0;
-    RTags::parseTranslationUnit(sourceFile, mSource.toCommandLine(Source::None), List<String>(), mUnit,
+    RTags::parseTranslationUnit(sourceFile, mSource.toCommandLine(commandLineFlags), List<String>(), mUnit,
                                 mIndex, &unsaved, mPreprocessed.isEmpty() ? 0 : 1, flags, &mClangLine);
 
     warning() << "loading mUnit " << mClangLine << " " << (mUnit != 0);

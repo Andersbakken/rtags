@@ -138,12 +138,13 @@ struct Source
         None = 0x00,
         IncludeCompiler = 0x01,
         IncludeSourceFile = 0x02,
-        ExcludeDefines = 0x04,
-        ExcludeIncludepaths = 0x08,
-        QuoteDefines = 0x10
+        IncludeDefines = 0x04,
+        IncludeIncludepaths = 0x08,
+        QuoteDefines = 0x10,
+        FilterBlacklist = 0x20
     };
 
-    List<String> toCommandLine(unsigned int mode = IncludeCompiler|IncludeSourceFile) const;
+    List<String> toCommandLine(unsigned int flags) const;
     inline bool isIndexable() const;
     Path sourceFile() const;
     Path buildRoot() const;

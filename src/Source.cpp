@@ -31,46 +31,9 @@ Path Source::compiler() const
     return Location::path(compilerId);
 }
 
-List<String> Source::toCommandLine(unsigned int flags) const
-{
-    int count = arguments.size() + defines.size() + includePaths.size();
-    if (flags & IncludeCompiler)
-        ++count;
-    if (flags & IncludeSourceFile)
-        ++count;
-    List<String> ret;
-    ret.reserve(count);
-    if (flags & IncludeCompiler)
-        ret.append(compiler());
-    ret += arguments;
-    if (!(flags & ExcludeDefines)) {
-        for (const auto &def : defines)
-            ret += def.toString(flags & QuoteDefines ? Define::Quote : Define::None);
-    }
-    if (!(flags & ExcludeIncludepaths)) {
-        for (const auto &inc : includePaths) {
-            switch (inc.type) {
-            case Source::Include::Type_None:
-                assert(0 && "Impossible impossibility");
-                break;
-            case Source::Include::Type_Include:
-                ret << ("-I" + inc.path);
-                break;
-            case Source::Include::Type_System:
-                ret << "-isystem" << inc.path;
-                break;
-            }
-        }
-    }
-    if (flags & IncludeSourceFile)
-        ret.append(sourceFile());
-
-    return ret;
-}
-
 String Source::toString() const
 {
-    String ret = String::join(toCommandLine(IncludeCompiler|IncludeSourceFile|QuoteDefines), ' ');
+    String ret = String::join(toCommandLine(IncludeCompiler|IncludeSourceFile|QuoteDefines|IncludeDefines|IncludeDefines), ' ');
     if (buildRootId)
         ret << " Build: " << buildRoot();
     if (parsed)
@@ -478,16 +441,9 @@ Source Source::parse(const String &cmdLine, const Path &base, Path *unresolvedIn
                     }
                 }
             } else {
-                const bool hasVal = hasValue(arg);
-                if (!isBlacklisted(arg)) {
-                    ret.arguments.append(arg);
-                    if (hasVal) {
-                        ret.arguments.append(Path::resolved(unquote(split.value(++i)), Path::MakeAbsolute, path));
-                    }
-                } else if (hasVal) {
-                    // drop the value
-                    ++i;
-                }
+                ret.arguments.append(arg);
+                if (hasValue(arg))
+                    ret.arguments.append(Path::resolved(unquote(split.value(++i)), Path::MakeAbsolute, path));
             }
         } else {
             if (!seenCompiler) {
@@ -610,3 +566,48 @@ bool Source::compareArguments(const Source &other) const
     }
     return true;
 }
+
+List<String> Source::toCommandLine(unsigned int flags) const
+{
+    int count = arguments.size() + defines.size() + includePaths.size();
+    if (flags & IncludeCompiler)
+        ++count;
+    if (flags & IncludeSourceFile)
+        ++count;
+    List<String> ret;
+    ret.reserve(count);
+    if (flags & IncludeCompiler)
+        ret.append(compiler());
+    for (int i=0; i<arguments.size(); ++i) {
+        if (!(flags & FilterBlacklist) || !isBlacklisted(arguments.at(i))) {
+            ret.append(arguments.at(i));
+        } else if (hasValue(arguments.at(i))) {
+            ++i;
+        }
+    }
+    if (flags & IncludeDefines) {
+        for (const auto &def : defines)
+            ret += def.toString(flags & QuoteDefines ? Define::Quote : Define::None);
+    }
+    if (flags & IncludeIncludepaths) {
+        for (const auto &inc : includePaths) {
+            switch (inc.type) {
+            case Source::Include::Type_None:
+                assert(0 && "Impossible impossibility");
+                break;
+            case Source::Include::Type_Include:
+                ret << ("-I" + inc.path);
+                break;
+            case Source::Include::Type_System:
+                ret << "-isystem" << inc.path;
+                break;
+            }
+        }
+    }
+    if (flags & IncludeSourceFile)
+        ret.append(sourceFile());
+
+    return ret;
+}
+
+
