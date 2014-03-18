@@ -65,7 +65,7 @@ bool ClangIndexer::index(uint32_t flags, const Source &source,
 {
 
     // FILE *f = fopen((String("/tmp/") + source.sourceFile().fileName()).constData(), "w");
-    // fwrite(preprocessed.constData(), 1, preprocessed.size(), f);
+    // fwrite(cpp->preprocessed.constData(), 1, cpp->preprocessed.size(), f);
     // fclose(f);
 
     // mLogFile = fopen(String::format("/tmp/%s", sourceFile.fileName()).constData(), "w");
@@ -888,7 +888,7 @@ bool ClangIndexer::parse()
     StopWatch sw;
     assert(!mUnit);
     assert(!mIndex);
-    mIndex = clang_createIndex(0, 0);
+    mIndex = clang_createIndex(0, 1);
     assert(mIndex);
     Path sourceFile = Location::path(mSource.fileId);
     if (!mPreprocessed.isEmpty()) {

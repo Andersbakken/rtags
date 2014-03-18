@@ -28,7 +28,6 @@ class Process;
 class IndexerJob : public std::enable_shared_from_this<IndexerJob>
 {
 public:
-    enum { ProtocolVersion = 2 };
     enum Flag {
         None = 0x0000,
         Dirty = 0x0001,

@@ -31,34 +31,38 @@ Path Source::compiler() const
     return Location::path(compilerId);
 }
 
-List<String> Source::toCommandLine(unsigned int mode) const
+List<String> Source::toCommandLine(unsigned int flags) const
 {
     int count = arguments.size() + defines.size() + includePaths.size();
-    if (mode & IncludeCompiler)
+    if (flags & IncludeCompiler)
         ++count;
-    if (mode & IncludeSourceFile)
+    if (flags & IncludeSourceFile)
         ++count;
     List<String> ret;
     ret.reserve(count);
-    if (mode & IncludeCompiler)
+    if (flags & IncludeCompiler)
         ret.append(compiler());
     ret += arguments;
-    for (const auto &def : defines)
-        ret += def.toString(Define::Quote);
-    for (const auto &inc : includePaths) {
-        switch (inc.type) {
-        case Source::Include::Type_None:
-            assert(0 && "Impossible impossibility");
-            break;
-        case Source::Include::Type_Include:
-            ret << ("-I" + inc.path);
-            break;
-        case Source::Include::Type_System:
-            ret << "-isystem" << inc.path;
-            break;
+    if (!(flags & ExcludeDefines)) {
+        for (const auto &def : defines)
+            ret += def.toString(flags & QuoteDefines ? Define::Quote : Define::None);
+    }
+    if (!(flags & ExcludeIncludepaths)) {
+        for (const auto &inc : includePaths) {
+            switch (inc.type) {
+            case Source::Include::Type_None:
+                assert(0 && "Impossible impossibility");
+                break;
+            case Source::Include::Type_Include:
+                ret << ("-I" + inc.path);
+                break;
+            case Source::Include::Type_System:
+                ret << "-isystem" << inc.path;
+                break;
+            }
         }
     }
-    if (mode & IncludeSourceFile)
+    if (flags & IncludeSourceFile)
         ret.append(sourceFile());
 
     return ret;
@@ -66,11 +70,11 @@ List<String> Source::toCommandLine(unsigned int mode) const
 
 String Source::toString() const
 {
-    String ret = String::join(toCommandLine(IncludeCompiler|IncludeSourceFile), ' ');
+    String ret = String::join(toCommandLine(IncludeCompiler|IncludeSourceFile|QuoteDefines), ' ');
     if (buildRootId)
         ret << " Build: " << buildRoot();
     if (parsed)
-        ret += " Parsed: " + String::formatTime(parsed, String::DateTime);
+        ret += " Parsed: " + String::formatTime(parsed / 1000, String::DateTime);
     return ret;
 }
 
@@ -234,6 +238,73 @@ static inline void addIncludeArg(Source &source, Source::Include::Type type, int
         source.includePaths.append(Source::Include(type, path));
 }
 
+
+static const char* valueArgs[] = {
+    "-o",
+    "-x",
+    "-target",
+    "--param",
+    "-imacros",
+    "-iprefix",
+    "-iwithprefix",
+    "-iwithprefixbefore",
+    "-imultilib",
+    "-isysroot",
+    "-Xpreprocessor",
+    "-Xassembler",
+    "-T",
+    "-Xlinker",
+    "-V",
+    "-b",
+    "-G",
+    "-arch",
+    "-MF",
+    "-MT",
+    "-MQ",
+    0
+};
+
+static const char* blacklist[] = {
+    "-M",
+    "-MM",
+    "-MG",
+    "-MP",
+    "-MD",
+    "-MMD",
+    "-MF",
+    "-MT",
+    "-MQ",
+    0
+};
+
+static inline bool hasValue(const String& arg)
+{
+    for (int i = 0; valueArgs[i]; ++i) {
+        if (arg == valueArgs[i])
+            return true;
+    }
+    return false;
+}
+
+static inline bool isBlacklisted(const String& arg)
+{
+    for (int i = 0; blacklist[i]; ++i) {
+        if (arg == blacklist[i])
+            return true;
+    }
+    return false;
+}
+
+static inline String unquote(const String& arg)
+{
+    if (arg.size() >= 4 && arg.startsWith("\\\"") && arg.endsWith("\\\"")) {
+        return arg.mid(1, arg.size() - 3) + '\"';
+    } else if (arg.size() >= 2 && arg.startsWith('"') && arg.endsWith('"')) {
+        return arg.mid(1, arg.size() - 2);
+    }
+    return arg;
+}
+
 Source Source::parse(const String &cmdLine, const Path &base, Path *unresolvedInputLocation)
 {
     Path buildRoot;
@@ -346,10 +417,9 @@ Source Source::parse(const String &cmdLine, const Path &base, Path *unresolvedIn
                         define.define = def;
                     } else {
                         define.define = def.left(eq);
-                        define.value = def.mid(eq + 1);
+                        define.value = unquote(def.mid(eq + 1));
                     }
                     ret.defines.insert(define);
-                    // ret.arguments.append(a);
                 }
             } else if (arg.startsWith("-I")) {
                 addIncludeArg(ret, Source::Include::Type_Include, 2, split, i, path);
@@ -366,6 +436,12 @@ Source Source::parse(const String &cmdLine, const Path &base, Path *unresolvedIn
                 ret.arguments.append(arg);
             } else if (arg == "-ObjC") {
                 ret.language = ObjectiveC;
+                ret.arguments.append(arg);
+            } else if (arg == "-fno-rtti") {
+                ret.flags |= NoRtti;
+                ret.arguments.append(arg);
+            } else if (arg == "-frtti") {
+                ret.flags &= ~NoRtti;
                 ret.arguments.append(arg);
             } else if (arg.startsWith("-std=")) {
                 ret.arguments.append(arg);
@@ -402,7 +478,16 @@ Source Source::parse(const String &cmdLine, const Path &base, Path *unresolvedIn
                     }
                 }
             } else {
-                ret.arguments.append(arg);
+                const bool hasVal = hasValue(arg);
+                if (!isBlacklisted(arg)) {
+                    ret.arguments.append(arg);
+                    if (hasVal) {
+                        ret.arguments.append(Path::resolved(unquote(split.value(++i)), Path::MakeAbsolute, path));
+                    }
+                } else if (hasVal) {
+                    // drop the value
+                    ++i;
+                }
             }
         } else {
             if (!seenCompiler) {

@@ -55,8 +55,6 @@ class VisitFileMessage;
 class Server
 {
 public:
-    enum { DatabaseVersion = 41 };
-
     Server();
     ~Server();
     static Server *instance() { return sInstance; }

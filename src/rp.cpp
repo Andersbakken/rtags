@@ -89,8 +89,8 @@ int main(int argc, char **argv)
     Deserializer deserializer(data);
     uint16_t protocolVersion;
     deserializer >> protocolVersion;
-    if (protocolVersion != IndexerJob::ProtocolVersion) {
-        error("Wrong protocol %d vs %d\n", protocolVersion, IndexerJob::ProtocolVersion);
+    if (protocolVersion != RTags::DatabaseVersion) {
+        error("Wrong protocol %d vs %d\n", protocolVersion, RTags::DatabaseVersion);
         return 3;
     }
     String destination;

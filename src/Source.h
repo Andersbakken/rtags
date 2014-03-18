@@ -42,6 +42,12 @@ struct Source
 
     uint64_t parsed;
 
+    enum Flag {
+        NoFlag = 0x0,
+        NoRtti = 0x1
+    };
+    uint32_t flags;
+
     struct Define {
         String define;
         String value;
@@ -129,9 +135,12 @@ struct Source
     bool operator>(const Source &other) const;
 
     enum CommandLineMode {
-        None = 0x0,
-        IncludeCompiler = 0x1,
-        IncludeSourceFile = 0x2
+        None = 0x00,
+        IncludeCompiler = 0x01,
+        IncludeSourceFile = 0x02,
+        ExcludeDefines = 0x04,
+        ExcludeIncludepaths = 0x08,
+        QuoteDefines = 0x10
     };
 
     List<String> toCommandLine(unsigned int mode = IncludeCompiler|IncludeSourceFile) const;
@@ -256,8 +265,8 @@ template <> inline Deserializer &operator>>(Deserializer &s, Source::Include &d)
 
 template <> inline Serializer &operator<<(Serializer &s, const Source &b)
 {
-    s << b.fileId << b.compilerId << b.buildRootId << static_cast<uint8_t>(b.language) << b.parsed
-      << b.defines << b.includePaths << b.arguments << b.sysRootIndex
+    s << b.fileId << b.compilerId << b.buildRootId << static_cast<uint8_t>(b.language)
+      << b.parsed << b.flags << b.defines << b.includePaths << b.arguments << b.sysRootIndex
       << b.includePathHash;
     return s;
 }
@@ -266,9 +275,8 @@ template <> inline Deserializer &operator>>(Deserializer &s, Source &b)
 {
     b.clear();
     uint8_t language;
-    s >> b.fileId >> b.compilerId >> b.buildRootId >> language >> b.parsed
-      >> b.defines >> b.includePaths >> b.arguments >> b.sysRootIndex
-      >> b.includePathHash;
+    s >> b.fileId >> b.compilerId >> b.buildRootId >> language >> b.parsed >> b.flags
+      >> b.defines >> b.includePaths >> b.arguments >> b.sysRootIndex >> b.includePathHash;
     b.language = static_cast<Source::Language>(language);
     return s;
 }

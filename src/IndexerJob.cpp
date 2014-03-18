@@ -111,7 +111,7 @@ void IndexerJob::encode(Serializer &serializer)
     }
     copy.defines << options.defines;
     assert(cpp);
-    serializer << static_cast<uint16_t>(ProtocolVersion)
+    serializer << static_cast<uint16_t>(RTags::DatabaseVersion)
                << destination << port << sourceFile
                << copy << *cpp << project << flags
                << static_cast<uint32_t>(options.rpVisitFileTimeout)

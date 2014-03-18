@@ -230,8 +230,8 @@ void parseTranslationUnit(const Path &sourceFile, const List<String> &args,
             }
         }
     }
-    clangArgs[idx++] = "-disable-free";
-    clangArgs[idx++] = "-disable-llvm-verifier";
+    // clangArgs[idx++] = "-disable-free";
+    // clangArgs[idx++] = "-disable-llvm-verifier";
 
     if (clangLine)
         *clangLine += sourceFile;
@@ -578,6 +578,9 @@ std::shared_ptr<Cpp> preprocess(const Source &source,
     default:
         break;
     }
+
+    if (source.flags & Source::NoRtti)
+        langOpts.RTTI = false;
 
     const Server::Options &options = Server::instance()->options();
     clang::HeaderSearchOptions &headerSearchOptions = compilerInstance.getHeaderSearchOpts();

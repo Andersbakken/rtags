@@ -76,8 +76,8 @@ public:
         Deserializer in(all);
         int version;
         in >> version;
-        if (version != Server::DatabaseVersion) {
-            error("Wrong database version. Expected %d, got %d for %s. Removing.", Server::DatabaseVersion, version, p.constData());
+        if (version != RTags::DatabaseVersion) {
+            error("Wrong database version. Expected %d, got %d for %s. Removing.", RTags::DatabaseVersion, version, p.constData());
             restoreError = true;
             goto end;
         }
@@ -460,7 +460,7 @@ bool Project::save()
         return false;
     }
     Serializer out(f);
-    out << static_cast<int>(Server::DatabaseVersion);
+    out << static_cast<int>(RTags::DatabaseVersion);
     const int pos = ftell(f);
     out << static_cast<int>(0);
     CursorInfo::serialize(out, mSymbols);

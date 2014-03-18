@@ -329,7 +329,7 @@ int Server::reloadProjects()
                 int version;
                 in >> version;
 
-                if (version == Server::DatabaseVersion) {
+                if (version == RTags::DatabaseVersion) {
                     int fs;
                     in >> fs;
                     if (fs != Rct::fileSize(f)) {
@@ -341,7 +341,7 @@ int Server::reloadProjects()
                     }
                 } else {
                     remove = true;
-                    error() << file << "has wrong format. Got" << version << "expected" << Server::DatabaseVersion << "Removing";
+                    error() << file << "has wrong format. Got" << version << "expected" << RTags::DatabaseVersion << "Removing";
                 }
                 fclose(f);
             }
@@ -1691,7 +1691,7 @@ void Server::restoreFileIds()
         Deserializer in(all);
         int version;
         in >> version;
-        if (version == DatabaseVersion) {
+        if (version == RTags::DatabaseVersion) {
             int size;
             in >> size;
             if (size != all.size()) {
@@ -1703,7 +1703,7 @@ void Server::restoreFileIds()
             }
         } else {
             error("%s has the wrong format. Got %d, expected %d. Can't restore anything",
-                  p.constData(), version, Server::DatabaseVersion);
+                  p.constData(), version, RTags::DatabaseVersion);
         }
     }
     if (clear)
@@ -1724,7 +1724,7 @@ bool Server::saveFileIds() const
     }
     const Hash<Path, uint32_t> pathsToIds = Location::pathsToIds();
     Serializer out(f);
-    out << static_cast<int>(DatabaseVersion);
+    out << static_cast<int>(RTags::DatabaseVersion);
     const int pos = ftell(f);
     out << static_cast<int>(0) << pathsToIds;
     const int size = ftell(f);
