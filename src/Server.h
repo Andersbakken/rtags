@@ -76,7 +76,8 @@ public:
         NoLocalCompiles = 0x02000,
         NoNoUnknownWarningsOption = 0x04000,
         SuspendRPOnCrash = 0x08000,
-        SeparateDebugAndRelease = 0x10000
+        SeparateDebugAndRelease = 0x10000,
+        ForcePreprocessing = 0x20000
     };
     struct Options {
         Options()

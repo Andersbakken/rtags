@@ -124,6 +124,7 @@ static void usage(FILE *f)
             "  --compression|-Z [arg]                     Compression type. Arg should be \"always\", \"remote\" or \"none\" (\"none\" is default).\n"
             "  --http-port|-H [arg]                       Use this port for http (default " STR(DEFAULT_RDM_HTTP_PORT) ").\n"
             "  --reschedule-timeout|-R                    Timeout for rescheduling remote jobs (default " STR(DEFAULT_RESCHEDULE_TIMEOUT) ").\n"
+            "  --force-preprocessing|-g                   Preprocess files even without using multiple hosts.\n"
             "  --thread-stack-size|-k [arg]               Set stack size for threadpool to this (default %zu).\n",
             std::max(2, ThreadPool::idealThreadCount()), defaultStackSize);
 }
@@ -187,6 +188,7 @@ int main(int argc, char** argv)
         { "thread-stack-size", required_argument, 0, 'k' },
         { "suspend-rp-on-crash", required_argument, 0, 'q' },
         { "separate-debug-and-release", no_argument, 0, 'E' },
+        { "force-preprocessing", no_argument, 0, 'g' },
 #ifdef OS_Darwin
         { "filemanager-watch", no_argument, 0, 'M' },
 #else
@@ -365,6 +367,9 @@ int main(int argc, char** argv)
             break;
         case 'E':
             serverOpts.options |= Server::SeparateDebugAndRelease;
+            break;
+        case 'g':
+            serverOpts.options |= Server::ForcePreprocessing;
             break;
         case 'Z': {
             if (!strcmp(optarg, "always")) {

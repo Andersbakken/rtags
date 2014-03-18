@@ -37,7 +37,9 @@ String Source::toString() const
     if (buildRootId)
         ret << " Build: " << buildRoot();
     if (parsed)
-        ret += " Parsed: " + String::formatTime(parsed / 1000, String::DateTime);
+        ret << " Parsed: " << String::formatTime(parsed / 1000, String::DateTime);
+    if (crc)
+        ret << " CRC: " << crc;
     return ret;
 }
 
@@ -545,6 +547,10 @@ static inline bool compareDefinesNoNDEBUG(const Set<Source::Define> &l, const Se
 bool Source::compareArguments(const Source &other) const
 {
     assert(fileId == other.fileId);
+    if (crc && other.crc) {
+        return crc == other.crc;
+    }
+
     if  (includePathHash != other.includePathHash) {
         return false;
     }

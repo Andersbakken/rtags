@@ -40,7 +40,7 @@ struct Source
         ObjectiveCPlusPlus
     } language;
 
-    uint64_t parsed;
+    uint64_t parsed, crc;
 
     enum Flag {
         NoFlag = 0x0,
@@ -159,7 +159,7 @@ struct Source
 
 inline Source::Source()
     : fileId(0), compilerId(0), buildRootId(0), includePathHash(0),
-      language(NoLanguage), parsed(0), sysRootIndex(-1)
+      language(NoLanguage), parsed(0), crc(0), sysRootIndex(-1)
 {
 }
 
@@ -268,7 +268,7 @@ template <> inline Deserializer &operator>>(Deserializer &s, Source::Include &d)
 template <> inline Serializer &operator<<(Serializer &s, const Source &b)
 {
     s << b.fileId << b.compilerId << b.buildRootId << static_cast<uint8_t>(b.language)
-      << b.parsed << b.flags << b.defines << b.includePaths << b.arguments << b.sysRootIndex
+      << b.parsed << b.crc << b.flags << b.defines << b.includePaths << b.arguments << b.sysRootIndex
       << b.includePathHash;
     return s;
 }
@@ -277,7 +277,7 @@ template <> inline Deserializer &operator>>(Deserializer &s, Source &b)
 {
     b.clear();
     uint8_t language;
-    s >> b.fileId >> b.compilerId >> b.buildRootId >> language >> b.parsed >> b.flags
+    s >> b.fileId >> b.compilerId >> b.buildRootId >> language >> b.parsed >> b.crc >> b.flags
       >> b.defines >> b.includePaths >> b.arguments >> b.sysRootIndex >> b.includePathHash;
     b.language = static_cast<Source::Language>(language);
     return s;

@@ -470,7 +470,7 @@ void Server::preprocess(Source &&source, Path &&srcRoot, uint32_t flags)
     project->load();
 
     WorkScope scope;
-    if (!hasServer()) {
+    if (!(mOptions.options & ForcePreprocessing) && !hasServer()) {
         if (debugMulti)
             error() << "Not preprocessing" << source.sourceFile() << "since we're not on the farm";
         std::shared_ptr<Cpp> cpp(new Cpp);
@@ -1096,6 +1096,11 @@ void Server::index(const Source &source, const std::shared_ptr<Cpp> &cpp,
         setupCurrentProjectFile(project);
     }
     assert(project);
+    if (!(flags & IndexerJob::Dirty) && source.crc && !shouldIndex(source, project->path())) {
+        error() << "Tossed for crc reasons" << source.sourceFile();
+        return;
+    }
+
     project->index(source, cpp, flags);
 }
 
