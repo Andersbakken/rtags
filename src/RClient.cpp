@@ -385,7 +385,7 @@ public:
     const RClient::EscapeMode escapeMode;
     virtual bool exec(RClient *rc, Connection *connection)
     {
-        bool escape;
+        bool escape = false;
         switch (rc->mEscapeMode) {
         case RClient::Escape_Auto:
             escape = (escapeMode == RClient::Escape_Do);
