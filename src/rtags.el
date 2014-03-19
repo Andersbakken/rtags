@@ -102,6 +102,8 @@
 (define-key rtags-mode-map (kbd "RET") 'rtags-select-other-window)
 (define-key rtags-mode-map (kbd "M-RET") 'rtags-select)
 (define-key rtags-mode-map (kbd "ENTER") 'rtags-select-other-window)
+(define-key rtags-mode-map [mouse-1] 'rtags-select-other-window)
+(define-key rtags-mode-map [mouse-2] 'rtags-select-other-window)
 (define-key rtags-mode-map (kbd "M-o") 'rtags-show-in-other-window)
 (define-key rtags-mode-map (kbd "s") 'rtags-show-in-other-window)
 (define-key rtags-mode-map (kbd "SPC") 'rtags-select-and-remove-rtags-buffer)
