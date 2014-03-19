@@ -1,4 +1,4 @@
-;;; rtags.el --- A front-end for rtags
+;; rtags.el --- A front-end for rtags
 
 ;; Copyright (C) 2011-2014  Jan Erik Hanssen and Anders Bakken
 
@@ -1982,12 +1982,12 @@ References to references will be treated as references to the referenced symbol"
       (error "Can't start the process `%s'. Please check the value of the variable `rtags-path'."
              rtags-server-executable))
      (t
-       (setq rtags-process (start-process-shell-command
-                            "RTags"	     ;process name
-                            "*rdm*"	     ;buffer
-                            (rtags-command))) ;command
-       (set-process-query-on-exit-flag rtags-process nil)
-       (set-process-sentinel rtags-process 'rtags-sentinel)))))
+      (setq rtags-process (start-process-shell-command
+                           "RTags"	     ;process name
+                           "*rdm*"	     ;buffer
+                           (rtags-command))) ;command
+      (set-process-query-on-exit-flag rtags-process nil)
+      (set-process-sentinel rtags-process 'rtags-sentinel)))))
 
 (defun rtags-sentinel (process event)
   "Watch the activity of rtags process (rdm)."
@@ -2069,21 +2069,21 @@ References to references will be treated as references to the referenced symbol"
         ret)
     )
   )
-  ;; (let ((loc (format "%s:%d:%d" (or (buffer-file-name) (buffer-name))
-  ;;                    (line-number-at-pos) (1+ (rtags-find-symbol-start)))))
-  ;;   (if (string= loc (car rtags-last-completions))
-  ;;       (let ((completions (cadr rtags-last-completions))
-  ;;             (completion t)
-  ;;             (last nil)
-  ;;             (ret nil))
-  ;;         (while completions
-  ;;           (if completion
-  ;;               (setq last (car completions))
-  ;;             (setq ret (append ret (list (concat last " - " (car completions))))))
-  ;;           (setq completion (not completion))
-  ;;           (setq completions (cdr completions)))
-  ;;         ret)))
-  ;; )
+;; (let ((loc (format "%s:%d:%d" (or (buffer-file-name) (buffer-name))
+;;                    (line-number-at-pos) (1+ (rtags-find-symbol-start)))))
+;;   (if (string= loc (car rtags-last-completions))
+;;       (let ((completions (cadr rtags-last-completions))
+;;             (completion t)
+;;             (last nil)
+;;             (ret nil))
+;;         (while completions
+;;           (if completion
+;;               (setq last (car completions))
+;;             (setq ret (append ret (list (concat last " - " (car completions))))))
+;;           (setq completion (not completion))
+;;           (setq completions (cdr completions)))
+;;         ret)))
+;; )
 
 (defun rtags-completion-prefix ()
   (if (or (= (char-before) ?\.)
