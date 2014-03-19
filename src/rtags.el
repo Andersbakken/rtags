@@ -421,41 +421,6 @@
     )
   )
 
-(defun rtags-find-ancestor-file (pattern)
-  "Find a file named \a file in as shallow a path as possible,
-  e.g. if there's a Makefile in /foobar/rtags/rc/Makefile and one
-  in /foobar/rtags/Makefile it will return the latter. Wildcards
-  are allowed. If multiple files match return first match. "
-  (let ((best nil)
-        (dir default-directory))
-    (while (cond ((string= dir "") nil)
-                 ((string= dir "/") nil)
-                 (t t))
-      (let ((match (file-expand-wildcards (concat dir pattern))))
-        (if match
-            (setq best (nth 0 match))))
-      (setq dir (substring dir 0 (string-match "[^/]*/?$" dir))))
-    best))
-
-(defun rtags-find-ancestor-file-directory (pattern)
-  (let ((match (rtags-find-ancestor-file pattern)))
-    (if match
-        (file-name-directory match))))
-
-(defun rtags-default-current-project ()
-  (cond
-   ((gtags-get-rootpath))
-   ((git-root-dir))
-   ((rtags-find-ancestor-file-directory "configure"))
-   ((rtags-find-ancestor-file-directory "CMakeLists.txt"))
-   ((rtags-find-ancestor-file-directory "*.pro"))
-   ((rtags-find-ancestor-file-directory "scons.1")) ;; Is this the right way to determine this?
-   ((rtags-find-ancestor-file-directory "autogen.*"))
-   ((rtags-find-ancestor-file-directory "Makefile*"))
-   ((rtags-find-ancestor-file-directory "INSTALL*"))
-   ((rtags-find-ancestor-file-directory "README*"))
-   (t nil)))
-
 (defun rtags-current-symbol (&optional no-symbol-name)
   (or (and mark-active (buffer-substring-no-properties (point) (mark)))
       (and (not no-symbol-name) (rtags-current-symbol-name))
