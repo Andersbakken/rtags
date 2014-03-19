@@ -151,7 +151,7 @@ inline bool startsWith(const List<T> &list, const T &str)
     return false;
 }
 
-inline bool isReference(unsigned kind)
+inline bool isReference(unsigned int kind)
 {
     if (kind >= CursorInfo::JSInvalid)
         return kind == CursorInfo::JSReference;
@@ -167,6 +167,21 @@ inline bool isReference(unsigned kind)
         return true;
     case CursorInfo::JSReference:
         return false;
+    default:
+        break;
+    }
+    return false;
+}
+
+inline bool isFunction(unsigned int kind)
+{
+    switch (kind) {
+    case CXCursor_FunctionTemplate:
+    case CXCursor_FunctionDecl:
+    case CXCursor_Constructor:
+    case CXCursor_Destructor:
+    case CXCursor_CXXMethod:
+        return true;
     default:
         break;
     }

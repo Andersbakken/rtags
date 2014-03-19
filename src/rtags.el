@@ -267,7 +267,7 @@
           (setq arguments (remove-if '(lambda (arg) (not arg)) arguments))
           (when path-filter
             (push (concat "--path-filter=" path-filter) arguments)
-            (if rtags-path-filter-regex
+            (if path-filter-regex
                 (push "-Z" arguments)))
           (if unsaved
               (push (format "--unsaved-file=%s:%d"
@@ -392,8 +392,6 @@
       (message (format "Dirtied %s" file)))
     )
   )
-
-;; /home/abakken/dev (loaded) <=
 
 (defun rtags-set-current-project ()
   (interactive)
@@ -597,12 +595,11 @@
     )
   )
 
-(defun rtags-find-symbols-by-name-internal (prompt references filter)
+(defun rtags-find-symbols-by-name-internal (prompt switch &optional filter regexp-filter)
   (rtags-save-location)
   (let ((tagname (if mark-active
                      (buffer-substring-no-properties (region-beginning) (region-end))
                    (rtags-current-symbol)))
-        (switch (if references "-R" "-F"))
         (path (buffer-file-name))
         input)
     (if (> (length tagname) 0)
@@ -613,7 +610,7 @@
     (if (not (equal "" input))
         (setq tagname input))
     (with-current-buffer (rtags-get-buffer)
-      (rtags-call-rc :path path switch tagname :path-filter filter :context tagname)
+      (rtags-call-rc :path path switch tagname :path-filter filter :context tagname :path-filter-regex regexp-filter)
       (rtags-reset-bookmarks)
       (rtags-handle-results-buffer))
     )
@@ -1004,11 +1001,11 @@ References to references will be treated as references to the referenced symbol"
 
 (defun rtags-find-symbol (&optional prefix)
   (interactive "P")
-  (rtags-find-symbols-by-name-internal "Find rsymbol" nil prefix))
+  (rtags-find-symbols-by-name-internal "Find rsymbol" "-F" (and prefix buffer-file-name)))
 
 (defun rtags-find-references (&optional prefix)
   (interactive "P")
-  (rtags-find-symbols-by-name-internal "Find rreferences" t prefix))
+  (rtags-find-symbols-by-name-internal "Find rreferences" "-R" (and prefix buffer-file-name)))
 
 (defun rtags-find-symbol-current-file ()
   (interactive)
@@ -1024,19 +1021,15 @@ References to references will be treated as references to the referenced symbol"
                      (string-match
                       "[^/]*/?$"
                       buffer-file-name))
-          "[^/]*/?$"))
+          "[^/]* "))
 
 (defun rtags-find-symbol-current-dir ()
   (interactive)
-  (setq rtags-path-filter-regex t)
-  (rtags-find-symbols-by-name-internal "Find rsymbol" nil (rtags-dir-filter))
-  (setq rtags-path-filter-regex nil))
+  (rtags-find-symbols-by-name-internal "Find rsymbol" "-F" (rtags-dir-filter) t))
 
 (defun rtags-find-references-current-dir ()
   (interactive)
-  (setq rtags-path-filter-regex t)
-  (rtags-find-symbols-by-name-internal "Find rreferences" t (rtags-dir-filter))
-  (setq rtags-path-filter-regex nil))
+  (rtags-find-symbols-by-name-internal "Find rreferences" (rtags-dir-filter) t))
 
 (defvar rtags-diagnostics-process nil)
 (defun rtags-apply-fixit-at-point ()

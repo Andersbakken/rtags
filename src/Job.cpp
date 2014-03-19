@@ -209,6 +209,7 @@ bool Job::filter(const String &value) const
 
     const int count = mPathFiltersRegExp->size();
     for (int i=0; i<count; ++i) {
+        error() << "Trying regexp" << mPathFiltersRegExp->at(i).pattern() << mPathFiltersRegExp->at(i).indexIn(ref) << ref;
         if (mPathFiltersRegExp->at(i).indexIn(ref) != -1)
             return true;
     }

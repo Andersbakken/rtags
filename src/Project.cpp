@@ -859,13 +859,28 @@ void Project::reloadFileManager()
     fileManager->reload(FileManager::Asynchronous);
 }
 
-static inline bool matchSymbolName(const String &needle, const String &haystack)
+static inline bool checkFunction(unsigned int kind)
 {
-    if (haystack.startsWith(needle)) {
-        if (haystack.size() == needle.size()) {
-            return true;
-        } else if ((haystack.at(needle.size()) == '<' || haystack.at(needle.size()) == '(')
-                   && haystack.indexOf(")::", needle.size()) == -1) { // we don't want to match foobar for void foobar(int)::parm
+    switch (kind) {
+    case CXCursor_VarDecl:
+    case CXCursor_ParmDecl:
+        return true;
+    default:
+        break;
+    }
+    return false;
+}
+
+static inline bool matchSymbolName(const String &needle, const String &haystack, bool checkFunction)
+{
+    int idx = checkFunction ? haystack.indexOf(")::") : -1;
+    // we generate symbols for arguments and local variables. E.g. there's a symbol with the symbolName:
+    // bool matchSymbolName(String &, String &, bool)::isFunction
+    // we don't want to match when we're searching for "matchSymbolName"
+    // so we start searching at the index of ):: if we're a function
+    while ((idx = haystack.indexOf(needle, idx + 1)) != -1) {
+        if ((!idx || !RTags::isSymbol(haystack.at(idx - 1)))
+            && (haystack.size() == needle.size() + idx || !RTags::isSymbol(haystack.at(idx + needle.size())))) {
             return true;
         }
     }
@@ -878,8 +893,10 @@ Set<Location> Project::locations(const String &symbolName, uint32_t fileId) cons
     if (fileId) {
         const SymbolMap s = symbols(fileId);
         for (auto it = s.begin(); it != s.end(); ++it) {
-            if (!RTags::isReference(it->second->kind) && (symbolName.isEmpty() || matchSymbolName(symbolName, it->second->symbolName)))
+            if (!RTags::isReference(it->second->kind)
+                && (symbolName.isEmpty() || matchSymbolName(symbolName, it->second->symbolName, checkFunction(it->second->kind)))) {
                 ret.insert(it->first);
+            }
         }
     } else if (symbolName.isEmpty()) {
         for (auto it = mSymbols.constBegin(); it != mSymbols.constEnd(); ++it) {
@@ -889,7 +906,7 @@ Set<Location> Project::locations(const String &symbolName, uint32_t fileId) cons
     } else {
         auto it = mSymbolNames.lower_bound(symbolName);
         while (it != mSymbolNames.end() && it->first.startsWith(symbolName)) {
-            if (matchSymbolName(symbolName, it->first))
+            if (matchSymbolName(symbolName, it->first, true)) // assume function
                 ret.unite(it->second);
             ++it;
         }
