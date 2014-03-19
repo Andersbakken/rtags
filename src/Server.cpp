@@ -2071,9 +2071,8 @@ void Server::work()
     mWorkPending = false;
     int jobs = mOptions.jobCount;
     if (mThreadPool) {
-        enum { MaxPending = 50 };
         int pending = std::min(mPendingPreprocessJobs.size(),
-                               MaxPending - (mThreadPool->backlogSize() + mThreadPool->busyThreads() + mPending.size()));
+                               mOptions.maxPendingPreprocessSize - (mThreadPool->backlogSize() + mThreadPool->busyThreads() + mPending.size()));
         while (pending > 0) {
             std::shared_ptr<PreprocessJob> job = mPendingPreprocessJobs.front();
             mPendingPreprocessJobs.pop_front();

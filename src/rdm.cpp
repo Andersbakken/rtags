@@ -62,6 +62,7 @@ static void sigIntHandler(int)
 #define DEFAULT_RDM_HTTP_PORT DEFAULT_RDM_TCP_PORT + 1
 #define DEFAULT_RDM_MULTICAST_PORT DEFAULT_RDM_HTTP_PORT + 1
 #define DEFAULT_RESCHEDULE_TIMEOUT 15000
+#define DEFAULT_MAX_PENDING_PREPROCESS 100
 #define XSTR(s) #s
 #define STR(s) XSTR(s)
 static size_t defaultStackSize = 0;
@@ -124,6 +125,7 @@ static void usage(FILE *f)
             "  --compression|-Z [arg]                     Compression type. Arg should be \"always\", \"remote\" or \"none\" (\"none\" is default).\n"
             "  --http-port|-H [arg]                       Use this port for http (default " STR(DEFAULT_RDM_HTTP_PORT) ").\n"
             "  --reschedule-timeout|-R                    Timeout for rescheduling remote jobs (default " STR(DEFAULT_RESCHEDULE_TIMEOUT) ").\n"
+            "  --max-pending-preprocess-size|-G           Max preprocessed translation units to keep around (default " STR(DEFAULT_MAX_PENDING_PREPROCESS) ").\n"
             "  --force-preprocessing|-g                   Preprocess files even without using multiple hosts.\n"
             "  --thread-stack-size|-k [arg]               Set stack size for threadpool to this (default %zu).\n",
             std::max(2, ThreadPool::idealThreadCount()), defaultStackSize);
@@ -189,6 +191,7 @@ int main(int argc, char** argv)
         { "suspend-rp-on-crash", required_argument, 0, 'q' },
         { "separate-debug-and-release", no_argument, 0, 'E' },
         { "force-preprocessing", no_argument, 0, 'g' },
+        { "max-pending-preprocess-size", required_argument, 0, 'G' },
 #ifdef OS_Darwin
         { "filemanager-watch", no_argument, 0, 'M' },
 #else
@@ -301,6 +304,7 @@ int main(int argc, char** argv)
     serverOpts.rpIndexerMessageTimeout = DEFAULT_RP_INDEXER_MESSAGE_TIMEOUT;
     serverOpts.rpConnectTimeout = DEFAULT_RP_CONNECT_TIMEOUT;
     serverOpts.options = Server::Wall|Server::SpellChecking;
+    serverOpts.maxPendingPreprocessSize = DEFAULT_MAX_PENDING_PREPROCESS;
 #ifdef OS_Darwin
     serverOpts.options |= Server::NoFileManagerWatch;
 #endif
@@ -388,6 +392,13 @@ int main(int argc, char** argv)
             serverOpts.multicastPort = static_cast<uint16_t>(atoi(optarg));
             if (!serverOpts.multicastPort) {
                 fprintf(stderr, "Invalid argument to -P %s\n", optarg);
+                return 1;
+            }
+            break;
+        case 'G':
+            serverOpts.maxPendingPreprocessSize = atoi(optarg);
+            if (serverOpts.maxPendingPreprocessSize <= 0) {
+                fprintf(stderr, "Invalid argument to -G %s\n", optarg);
                 return 1;
             }
             break;

@@ -84,13 +84,13 @@ public:
             : options(0), jobCount(0), unloadTimer(0),
               rpVisitFileTimeout(0), rpIndexerMessageTimeout(0), rpConnectTimeout(0),
               syncThreshold(0), rescheduleTimeout(0), multicastTTL(0), threadStackSize(0),
-              tcpPort(0), multicastPort(0), httpPort(0)
+              maxPendingPreprocessSize(0), tcpPort(0), multicastPort(0), httpPort(0)
         {}
         Path socketFile, dataDir;
         unsigned options;
         int jobCount, unloadTimer, rpVisitFileTimeout,
             rpIndexerMessageTimeout, rpConnectTimeout, syncThreshold,
-            rescheduleTimeout, multicastTTL, threadStackSize;
+            rescheduleTimeout, multicastTTL, threadStackSize, maxPendingPreprocessSize;
         List<String> defaultArguments, excludeFilters;
         List<Path> includePaths;
         List<Source::Define> defines;
