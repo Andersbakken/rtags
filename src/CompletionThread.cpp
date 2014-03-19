@@ -162,18 +162,6 @@ struct Token
     int length;
 };
 
-static inline bool symbolChar(char ch)
-{
-    switch (ch) {
-    case '_':
-    case '~':
-        return true;
-    default:
-        break;
-    }
-    return isalnum(ch);
-}
-
 static inline void addToken(const char *data, int pos, int len, Map<Token, int> &tokens)
 {
     int &val = tokens[Token(data + pos, len)];
@@ -185,7 +173,7 @@ static inline void tokenize(const char *data, int size, Map<Token, int> &tokens)
 {
     int tokenEnd = -1;
     for (int i=size - 1; i>=0; --i) {
-        if (symbolChar(data[i])) {
+        if (RTags::isSymbol(data[i])) {
             if (tokenEnd == -1)
                 tokenEnd = i;
         } else if (tokenEnd != -1) {
