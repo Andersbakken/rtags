@@ -273,7 +273,7 @@ bool Server::init(const Options &options)
 
         mTcpServer->newConnection().connect(std::bind(&Server::onNewConnection, this, std::placeholders::_1));
     }
-    if (!(mOptions.options & NoJobServer)) {
+    if ((mOptions.options & (NoJobServer|ForcePreprocessing)) != NoJobServer) {
         mThreadPool = new ThreadPool(std::max(1, mOptions.jobCount),
                                      Thread::Normal,
                                      mOptions.threadStackSize);
