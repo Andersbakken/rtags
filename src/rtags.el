@@ -131,9 +131,8 @@
               (with-current-buffer (find-file-noselect file)
                 (save-restriction
                   (widen)
-                  (goto-char (point-min))
                   (rtags-goto-line-col line column)
-                  (setq rtags-buffer-bookmarks (+ rtags-buffer-bookmarks 1))
+                  (incf rtags-buffer-bookmarks)
                   (bookmark-set (format "R_%d" rtags-buffer-bookmarks))
                   (set-buffer buf))))))
       (forward-line))))
@@ -141,7 +140,7 @@
 (defun rtags-reset-bookmarks ()
   (while (> rtags-buffer-bookmarks 0)
     (bookmark-delete (format "R_%d" rtags-buffer-bookmarks))
-    (setq rtags-buffer-bookmarks (- rtags-buffer-bookmarks 1)))
+    (decf rtags-buffer-bookmarks))
   )
 
 (defun rtags-next-match () (interactive) (rtags-next-prev-match t))
@@ -559,8 +558,7 @@
   (goto-char (point-min))
   (forward-line (1- line))
   (beginning-of-line)
-  (forward-char (- column 1))
-  )
+  (forward-char (1- column)))
 
 (defun rtags-goto-location (location &optional nobookmark other-window)
   "Go to a location passed in. It can be either: file,12 or file:13:14 or plain file"
@@ -645,11 +643,8 @@
 (defun rtags-location-stack-push ()
   (let ((bm (rtags-current-location)))
     (while (> rtags-location-stack-index 0)
-      (progn
-        (setq rtags-location-stack-index (- rtags-location-stack-index 1))
-        (pop rtags-location-stack)
-        )
-      )
+      (decf rtags-location-stack-index)
+      (pop rtags-location-stack))
     (unless (string= bm (nth 0 rtags-location-stack))
       (push bm rtags-location-stack)
       (if (> (length rtags-location-stack) rtags-max-bookmark-count)
@@ -961,7 +956,7 @@ References to references will be treated as references to the referenced symbol"
             (setq replacewith (read-from-minibuffer (format "Replace '%s' with: " prev)))
             (unless (equal replacewith "")
               (if destructor
-                  (setq pos (- pos 1)))
+                  (decf pos))
               (goto-char pos)
               (setq location (rtags-current-location))
               (setq pos (rtags-offset pos))
@@ -1477,7 +1472,9 @@ References to references will be treated as references to the referenced symbol"
         (t
          (switch-to-buffer-other-window rtags-buffer-name)
          (shrink-window-if-larger-than-buffer)
-         (goto-char (point-min))
+         (goto-char (point-max))
+         (if (= (point-at-bol) (point-max))
+             (delete-backward-char 1))
          (rtags-init-bookmarks)
          (rtags-mode)
          (when (and rtags-jump-to-first-match (not noautojump))
