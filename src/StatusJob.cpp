@@ -29,7 +29,7 @@ StatusJob::StatusJob(const QueryMessage &q, const std::shared_ptr<Project> &proj
 void StatusJob::execute()
 {
     bool matched = false;
-    const char *alternatives = "fileids|watchedpaths|dependencies|symbols|symbolnames|sources|jobs";
+    const char *alternatives = "fileids|watchedpaths|dependencies|symbols|symbolnames|sources|jobs|info";
 
     if (!strcasecmp(query.constData(), "fileids")) {
         matched = true;
@@ -156,6 +156,44 @@ void StatusJob::execute()
         if (!write(delimiter) || !write("jobs") || !write(delimiter))
             return;
         Server::instance()->dumpJobs(connection());
+    }
+
+    if (query.isEmpty() || !strcasecmp(query.constData(), "info")) {
+        matched = true;
+        if (!write(delimiter) || !write("info") || !write(delimiter))
+            return;
+        String out;
+        Log log(&out);
+#ifdef NDEBUG
+        out << "Running a release build\n";
+#else
+        out << "Running a debug build\n";
+#endif
+        const Server::Options &opt = Server::instance()->options();
+        out << "socketFile" << opt.socketFile << '\n'
+            << "dataDir" << opt.dataDir << '\n'
+            << "options" << String::format("0x%x\n", opt.options)
+            << "jobCount" << opt.jobCount << '\n'
+            << "unloadTimer" << opt.unloadTimer << '\n'
+            << "rpVisitFileTimeout" << opt.rpVisitFileTimeout << '\n'
+            << "rpIndexerMessageTimeout" << opt.rpIndexerMessageTimeout << '\n'
+            << "rpConnectTimeout" << opt.rpConnectTimeout << '\n'
+            << "rpConnectTimeout" << opt.rpConnectTimeout << '\n'
+            << "syncThreshold" << opt.syncThreshold << '\n'
+            << "rescheduleTimeout" << opt.rescheduleTimeout << '\n'
+            << "threadStackSize" << opt.threadStackSize << '\n'
+            << "maxPendingPreprocessSize" << opt.maxPendingPreprocessSize << '\n'
+            << "defaultArguments" << opt.defaultArguments << '\n'
+            << "includePaths" << opt.includePaths << '\n'
+            << "defines" << opt.defines << '\n'
+            << "multicastAddress" << opt.multicastAddress << '\n'
+            << "multicastTTL" << opt.multicastTTL << '\n'
+            << "multicastPort" << opt.multicastPort << '\n'
+            << "tcpPort" << opt.tcpPort << '\n'
+            << "httpPort" << opt.httpPort << '\n'
+            << "jobServer" << opt.jobServer << '\n'
+            << "ignoredCompilers" << opt.ignoredCompilers;
+        write(out);
     }
 
     if (!matched)
