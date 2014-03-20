@@ -2053,20 +2053,33 @@ void Server::dumpJobs(Connection *conn)
     if (!mPending.isEmpty()) {
         conn->write("Pending:");
         for (const auto &job : mPending) {
-            conn->write<128>("%s: 0x%x", job->sourceFile.constData(), job->flags);
+            conn->write<128>("%s: 0x%x %s",
+                             job->sourceFile.constData(),
+                             job->flags,
+                             IndexerJob::dumpFlags(job->flags).constData());
         }
     }
     if (!mLocalJobs.isEmpty()) {
         conn->write("Local:");
         for (const auto &job : mLocalJobs) {
-            conn->write<128>("%s: 0x%x", job.second.first->sourceFile.constData(), job.second.first->flags);
+            conn->write<128>("%s: 0x%x %s",
+                             job.second.first->sourceFile.constData(),
+                             job.second.first->flags,
+                             IndexerJob::dumpFlags(job.second.first->flags).constData());
         }
     }
     if (!mProcessingJobs.isEmpty()) {
         conn->write("Processing:");
         for (const auto &job : mProcessingJobs) {
-            conn->write<128>("%s: 0x%x", job.second->sourceFile.constData(), job.second->flags);
+            conn->write<128>("%s: 0x%x %s",
+                             job.second->sourceFile.constData(),
+                             job.second->flags,
+                             IndexerJob::dumpFlags(job.second->flags).constData());
         }
+    }
+
+    if (mThreadPool && (mThreadPool->backlogSize() || mThreadPool->busyThreads())) {
+        conn->write<128>("Preprocessing:\nactive %d pending %d", mThreadPool->busyThreads(), mThreadPool->backlogSize());
     }
 }
 
