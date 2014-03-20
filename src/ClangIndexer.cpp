@@ -756,7 +756,7 @@ void ClangIndexer::handleInclude(const CXCursor &cursor, CXCursorKind kind, cons
     (void)kind;
     CXFile includedFile = clang_getIncludedFile(cursor);
     if (includedFile) {
-        const Location refLoc = createLocation(includedFile, 1, 0);
+        const Location refLoc = createLocation(includedFile, 1, 1);
         if (!refLoc.isNull()) {
             {
                 String include = "#include ";
@@ -1236,7 +1236,7 @@ CXChildVisitResult ClangIndexer::verboseVisitor(CXCursor cursor, CXCursor, CXCli
 
 void ClangIndexer::addFileSymbol(uint32_t file)
 {
-    const Location loc(file, 1, 0);
+    const Location loc(file, 1, 1);
     const Path path = Location::path(file);
     mData->symbolNames[path].insert(loc);
     const char *fn = path.fileName();
@@ -1250,7 +1250,7 @@ void ClangIndexer::inclusionVisitor(CXFile includedFile,
                                     CXClientData userData)
 {
     ClangIndexer *indexer = static_cast<ClangIndexer*>(userData);
-    const Location l = indexer->createLocation(includedFile, 1, 0);
+    const Location l = indexer->createLocation(includedFile, 1, 1);
 
     const uint32_t fileId = l.fileId();
     if (!includeLen) {
@@ -1259,7 +1259,7 @@ void ClangIndexer::inclusionVisitor(CXFile includedFile,
         for (unsigned i=0; i<includeLen; ++i) {
             CXFile originatingFile;
             clang_getSpellingLocation(includeStack[i], &originatingFile, 0, 0, 0);
-            const Location loc = indexer->createLocation(originatingFile, 1, 0);
+            const Location loc = indexer->createLocation(originatingFile, 1, 1);
             const uint32_t f = loc.fileId();
             if (f)
                 indexer->mData->dependencies[fileId].insert(f);
