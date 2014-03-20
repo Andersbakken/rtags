@@ -554,18 +554,29 @@ bool Source::compareArguments(const Source &other) const
 {
     assert(fileId == other.fileId);
     if (crc && other.crc) {
+        error() << "Comparing crcs" << crc << other.crc;
         return crc == other.crc;
     }
 
     if  (includePathHash != other.includePathHash) {
+        if (other.crc) {
+            error() << "Different includePathHash";
+        }
         return false;
     }
 
     const bool separateDebugAndRelease = Server::instance()->options().options & Server::SeparateDebugAndRelease;
     if (separateDebugAndRelease) {
-        if (defines != other.defines)
+        if (defines != other.defines) {
+            if (other.crc) {
+                error() << "Different defines";
+            }
             return false;
+        }
     } else if (!compareDefinesNoNDEBUG(defines, other.defines)) {
+        if (other.crc) {
+            error() << "Different defines";
+        }
         return false;
     }
 
@@ -582,6 +593,9 @@ bool Source::compareArguments(const Source &other) const
                 }
             }
             if (me != h) {
+                if (other.crc) {
+                    error() << "Different flags";
+                }
                 return false;
             }
         }
@@ -631,5 +645,3 @@ List<String> Source::toCommandLine(unsigned int flags) const
 
     return ret;
 }
-
-
