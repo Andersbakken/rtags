@@ -313,6 +313,7 @@ Source Source::parse(const String &cmdLine, const Path &base, unsigned int flags
     eatAutoTools(split);
 
     if (split.isEmpty()) {
+        warning() << "Source::parse No args" << cmdLine;
         return Source();
     }
 
@@ -324,11 +325,13 @@ Source Source::parse(const String &cmdLine, const Path &base, unsigned int flags
         path = base;
     }
     if (split.isEmpty()) {
+        warning() << "Source::parse No args" << cmdLine;
         return Source();
     }
 
     if (split.first().endsWith("rtags-gcc-prefix.sh")) {
         if (split.size() == 1) {
+            warning() << "Source::parse No args" << cmdLine;
             return Source();
         }
         split.removeAt(0);
@@ -386,10 +389,10 @@ Source Source::parse(const String &cmdLine, const Path &base, unsigned int flags
                         define.define = def.left(eq);
                         define.value = (flags & Escape ? unquote(def.mid(eq + 1)) : def.mid(eq + 1));
                     }
-                    warning("Parsing define: [%s] => [%s]%s[%s]", def.constData(),
-                            define.define.constData(),
-                            define.value.isEmpty() ? "" : "=",
-                            define.value.constData());
+                    debug("Parsing define: [%s] => [%s]%s[%s]", def.constData(),
+                          define.define.constData(),
+                          define.value.isEmpty() ? "" : "=",
+                          define.value.constData());
                     ret.defines.insert(define);
                 }
             } else if (arg.startsWith("-I")) {
@@ -461,6 +464,7 @@ Source Source::parse(const String &cmdLine, const Path &base, unsigned int flags
             if (!seenCompiler) {
                 seenCompiler = true;
             } else if (ret.fileId) {
+                warning() << "Source::parse Multiple inputs" << cmdLine;
                 return Source();
             } else {
                 Path input = Path::resolved(arg, Path::MakeAbsolute, path);
@@ -476,8 +480,10 @@ Source Source::parse(const String &cmdLine, const Path &base, unsigned int flags
         }
     }
 
-    if (!ret.fileId)
+    if (!ret.fileId) {
+        warning() << "Source::parse No file for" << cmdLine;
         return Source();
+    }
     if (!ret.buildRootId) {
         buildRoot = RTags::findProjectRoot(Location::path(ret.fileId), RTags::BuildRoot);
         ret.buildRootId = Location::insertFile(buildRoot);

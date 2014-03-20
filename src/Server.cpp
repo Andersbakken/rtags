@@ -1048,19 +1048,29 @@ void Server::reindex(const QueryMessage &query, Connection *conn)
 
 bool Server::shouldIndex(const Source &source, const Path &srcRoot) const
 {
-    if (srcRoot.isEmpty())
+    if (srcRoot.isEmpty()) {
+        warning() << "Shouldn't index" << source.sourceFile() << "because of missing srcRoot";
         return false;
+    }
     assert(source.isIndexable());
-    if (mOptions.ignoredCompilers.contains(source.compiler()))
+    if (mOptions.ignoredCompilers.contains(source.compiler())) {
+        warning() << "Shouldn't index" << source.sourceFile() << "because of ignored compiler";
         return false;
+    }
 
     const Path sourceFile = source.sourceFile();
 
-    if (Filter::filter(sourceFile, mOptions.excludeFilters) == Filter::Filtered)
+    if (Filter::filter(sourceFile, mOptions.excludeFilters) == Filter::Filtered) {
+        warning() << "Shouldn't index" << source.sourceFile() << "because of exclude filter";
         return false;
+    }
 
     std::shared_ptr<Project> project = mProjects.value(srcRoot);
-    return !project || !project->hasSource(source);
+    if (project && project->hasSource(source)) {
+        warning() << "Shouldn't index" << source.sourceFile() << "because we already have indexed it";
+        return false;
+    }
+    return true;
 }
 
 Path Server::findProject(const Path &path, const Path &unresolvedPath, const List<String> &withProjects) const
