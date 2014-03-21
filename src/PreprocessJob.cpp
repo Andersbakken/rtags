@@ -17,7 +17,6 @@
 #include "RTagsClang.h"
 #include "Server.h"
 #include "Cpp.h"
-#include <zlib.h>
 
 PreprocessJob::PreprocessJob(Source &&source, const std::shared_ptr<Project> &project, uint32_t flags)
     : mSource(std::forward<Source>(source)), mProject(project), mFlags(flags)
@@ -37,8 +36,6 @@ void PreprocessJob::run()
     }
 
     Source source = std::move(mSource);
-    source.crc = crc32(0L, reinterpret_cast<const Bytef*>(cpp->preprocessed.constData()),
-                       cpp->preprocessed.size());
     const uint32_t flags = mFlags;
     std::shared_ptr<Project> project = std::move(mProject);
     EventLoop::mainEventLoop()->callLater([source, cpp, project, flags]() {

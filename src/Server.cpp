@@ -1106,11 +1106,6 @@ void Server::index(const Source &source, const std::shared_ptr<Cpp> &cpp,
         setupCurrentProjectFile(project);
     }
     assert(project);
-    if (!(flags & IndexerJob::Dirty) && source.crc && !shouldIndex(source, project->path())) {
-        error() << "Tossed for crc reasons" << source.sourceFile();
-        return;
-    }
-
     project->index(source, cpp, flags);
 }
 
