@@ -36,7 +36,7 @@ public:
 
     bool operator==(const Str &other) const { return !strcmp(data(), other.data()); }
     bool operator<(const Str &other) const { return strcmp(data(), other.data()) < 0; }
-    bool operator>(const Str &other) const { return !strcmp(data(), other.data()) > 0; }
+    bool operator>(const Str &other) const { return strcmp(data(), other.data()) > 0; }
     const char *data() const { return mData ? clang_getCString(mData->string) : 0; }
     int length() const
     {
