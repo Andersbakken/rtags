@@ -189,7 +189,7 @@ void Project::restore(RestoreThread *thread)
 
     bool needsSave = false;
     Set<uint32_t> dirty;
-   if (thread) {
+    if (thread) {
         mSymbols = std::move(thread->mSymbols);
         mSymbolNames = std::move(thread->mSymbolNames);
         mUsr = std::move(thread->mUsr);;
