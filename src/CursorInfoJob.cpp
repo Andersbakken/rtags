@@ -25,11 +25,11 @@ CursorInfoJob::CursorInfoJob(const Location &loc, const QueryMessage &query, con
 {
 }
 
-void CursorInfoJob::execute()
+int CursorInfoJob::execute()
 {
     const SymbolMap &map = project()->symbols();
     if (map.isEmpty())
-        return;
+        return 1;
     SymbolMap::const_iterator it = RTags::findCursorInfo(map, location, context());
 
     unsigned ciFlags = 0;
@@ -37,9 +37,11 @@ void CursorInfoJob::execute()
         ciFlags |= CursorInfo::IgnoreTargets;
     if (!(queryFlags() & QueryMessage::CursorInfoIncludeReferences))
         ciFlags |= CursorInfo::IgnoreReferences;
+    int ret = 1;
     if (it != map.end()) {
         write(it->first);
         write(it->second, ciFlags);
+        ret = 0;
     } else {
         it = map.lower_bound(location);
         if (it == map.end())
@@ -47,6 +49,7 @@ void CursorInfoJob::execute()
     }
     ciFlags |= CursorInfo::IgnoreTargets|CursorInfo::IgnoreReferences;
     if (it != map.begin() && queryFlags() & QueryMessage::CursorInfoIncludeParents) {
+        ret = 0;
         const uint32_t fileId = location.fileId();
         const unsigned int line = location.line();
         const unsigned int column = location.column();
@@ -67,4 +70,5 @@ void CursorInfoJob::execute()
             }
         }
     }
+    return ret;
 }

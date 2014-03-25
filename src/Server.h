@@ -120,7 +120,7 @@ private:
     bool updateProject(const List<String> &projects, unsigned int queryFlags);
     void restoreFileIds();
     void clear();
-    void index(const String &arguments, const Path &pwd,
+    bool index(const String &arguments, const Path &pwd,
                const List<String> &withProjects, bool escape);
     void onNewConnection(SocketServer *server);
     std::shared_ptr<Project> setCurrentProject(const Path &path, unsigned int queryFlags = 0);

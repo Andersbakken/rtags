@@ -30,7 +30,7 @@ ReferencesJob::ReferencesJob(const String &sym, const QueryMessage &query, const
 {
 }
 
-void ReferencesJob::execute()
+int ReferencesJob::execute()
 {
     std::shared_ptr<Project> proj = project();
     Location startLocation;
@@ -131,6 +131,7 @@ void ReferencesJob::execute()
                 --it;
                 write(it->first);
             } while (it != references.begin());
+            return 0;
         }
     } else {
         List<RTags::SortedCursor> sorted;
@@ -159,5 +160,8 @@ void ReferencesJob::execute()
             const Location &loc = sorted.at((startIndex + i) % count).location;
             write(loc);
         }
+        if (count)
+            return 0;
     }
+    return 1;
 }

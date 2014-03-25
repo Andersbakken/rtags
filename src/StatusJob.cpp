@@ -26,7 +26,7 @@ StatusJob::StatusJob(const QueryMessage &q, const std::shared_ptr<Project> &proj
 {
 }
 
-void StatusJob::execute()
+int StatusJob::execute()
 {
     bool matched = false;
     const char *alternatives = "fileids|watchedpaths|dependencies|symbols|symbolnames|sources|jobs|info";
@@ -34,75 +34,75 @@ void StatusJob::execute()
     if (!strcasecmp(query.constData(), "fileids")) {
         matched = true;
         if (!write(delimiter) || !write("fileids") || !write(delimiter))
-            return;
+            return 1;
         const Hash<uint32_t, Path> paths = Location::idsToPaths();
         for (Hash<uint32_t, Path>::const_iterator it = paths.begin(); it != paths.end(); ++it) {
             if (!write<256>("  %u: %s", it->first, it->second.constData()))
-                return;
+                return 1;
         }
         if (isAborted())
-            return;
+            return 1;
     }
 
     std::shared_ptr<Project> proj = project();
     if (!proj) {
         if (!matched)
             write(alternatives);
-        return;
+        return matched ? 0 : 1;
     }
 
     if (query.isEmpty() || !strcasecmp(query.constData(), "watchedpaths")) {
         matched = true;
         if (!write(delimiter) || !write("watchedpaths") || !write(delimiter))
-            return;
+            return 1;
         Set<Path> watched = proj->watchedPaths();
         if (!write("Indexer"))
-            return;
+            return 1;
         for (Set<Path>::const_iterator it = watched.begin(); it != watched.end(); ++it) {
             if (!write<256>("  %s", it->constData()))
-                return;
+                return 1;
         }
         if (proj->fileManager) {
             if (!write("FileManager"))
-                return;
+                return 1;
             watched = proj->fileManager->watchedPaths();
             for (Set<Path>::const_iterator it = watched.begin(); it != watched.end(); ++it) {
                 if (!write<256>("  %s", it->constData()))
-                    return;
+                    return 1;
             }
         }
         if (isAborted())
-            return;
+            return 1;
     }
 
     if (query.isEmpty() || !strcasecmp(query.constData(), "dependencies")) {
         matched = true;
         const DependencyMap map = proj->dependencies();
         if (!write(delimiter) || !write("dependencies") || !write(delimiter))
-            return;
+            return 1;
         DependencyMap depsReversed;
 
         for (DependencyMap::const_iterator it = map.begin(); it != map.end(); ++it) {
             if (!write<256>("  %s (%d) is depended on by", Location::path(it->first).constData(), it->first))
-                return;
+                return 1;
             const Set<uint32_t> &deps = it->second;
             for (Set<uint32_t>::const_iterator dit = deps.begin(); dit != deps.end(); ++dit) {
                 if (!write<256>("    %s (%d)", Location::path(*dit).constData(), *dit))
-                    return;
+                    return 1;
                 depsReversed[*dit].insert(it->first);
             }
             if (isAborted())
-                return;
+                return 1;
         }
         for (DependencyMap::const_iterator it = depsReversed.begin(); it != depsReversed.end(); ++it) {
             write<256>("  %s (%d) depends on", Location::path(it->first).constData(), it->first);
             const Set<uint32_t> &deps = it->second;
             for (Set<uint32_t>::const_iterator dit = deps.begin(); dit != deps.end(); ++dit) {
                 if (!write<256>("    %s (%d)", Location::path(*dit).constData(), *dit))
-                    return;
+                    return 1;
             }
             if (isAborted())
-                return;
+                return 1;
         }
     }
 
@@ -118,7 +118,7 @@ void StatusJob::execute()
             write(loc);
             write(ci);
             if (isAborted())
-                return;
+                return 1;
         }
     }
 
@@ -136,7 +136,7 @@ void StatusJob::execute()
                 write<1024>("    %s", loc.key().constData());
             }
             if (isAborted())
-                return;
+                return 1;
         }
     }
 
@@ -144,24 +144,24 @@ void StatusJob::execute()
         matched = true;
         const SourceMap &map = proj->sources();
         if (!write(delimiter) || !write("sources") || !write(delimiter))
-            return;
+            return 1;
         for (SourceMap::const_iterator it = map.begin(); it != map.end(); ++it) {
             if (!write<512>("  %s: %s", it->second.sourceFile().constData(), it->second.toString().constData()))
-                return;
+                return 1;
         }
     }
 
     if (query.isEmpty() || !strcasecmp(query.constData(), "jobs")) {
         matched = true;
         if (!write(delimiter) || !write("jobs") || !write(delimiter))
-            return;
+            return 1;
         Server::instance()->dumpJobs(connection());
     }
 
     if (query.isEmpty() || !strcasecmp(query.constData(), "info")) {
         matched = true;
         if (!write(delimiter) || !write("info") || !write(delimiter))
-            return;
+            return 1;
         String out;
         Log log(&out);
 #ifdef NDEBUG
@@ -196,6 +196,10 @@ void StatusJob::execute()
         write(out);
     }
 
-    if (!matched)
+    if (!matched) {
         write<256>("rc -s %s", alternatives);
+        return 1;
+    } else {
+        return 0;
+    }
 }

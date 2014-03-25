@@ -30,7 +30,7 @@ class RClient
 public:
     RClient();
     ~RClient();
-    bool exec();
+    int exec();
     bool parse(int &argc, char **argv);
 
     int max() const { return mMax; }

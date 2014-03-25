@@ -69,8 +69,8 @@ public:
     bool filter(const String &val) const;
     Signal<std::function<void(const String &)> > &output() { return mOutput; }
     std::shared_ptr<Project> project() const { return mProject.lock(); }
-    virtual void execute() = 0;
-    void run(Connection *connection = 0);
+    virtual int execute() = 0;
+    int run(Connection *connection = 0);
     bool isAborted() const { std::lock_guard<std::mutex> lock(mMutex); return mAborted; }
     void abort() { std::lock_guard<std::mutex> lock(mMutex); mAborted = true; }
     String context() const { return mContext; }

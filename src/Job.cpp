@@ -222,10 +222,11 @@ unsigned Job::keyFlags() const
     return QueryMessage::keyFlags(mQueryFlags);
 }
 
-void Job::run(Connection *connection)
+int Job::run(Connection *connection)
 {
     assert(connection);
     mConnection = connection;
-    execute();
+    const int ret = execute();
     mConnection = 0;
+    return ret;
 }

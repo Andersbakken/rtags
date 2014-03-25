@@ -25,13 +25,13 @@ DependenciesJob::DependenciesJob(const QueryMessage &query, const std::shared_pt
 {
 }
 
-void DependenciesJob::execute()
+int DependenciesJob::execute()
 {
     if (!mFileId)
-        return;
+        return 1;
     std::shared_ptr<Project> proj = project();
     if (!proj)
-        return;
+        return 2;
     const Path srcRoot = proj->path();
 
     error() << (queryFlags() & QueryMessage::FilterSystemIncludes);
@@ -61,4 +61,5 @@ void DependenciesJob::execute()
     if (!deps) {
         write<64>("%s has no dependencies", path.constData());
     }
+    return deps ? 0 : 3;
 }

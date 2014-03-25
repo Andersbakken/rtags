@@ -28,7 +28,7 @@ class CursorInfoJob : public Job
 public:
     CursorInfoJob(const Location &loc, const QueryMessage &query, const std::shared_ptr<Project> &proj);
 protected:
-    virtual void execute();
+    virtual int execute();
 private:
     const Location location;
 };

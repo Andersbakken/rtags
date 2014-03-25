@@ -26,7 +26,7 @@ class FindSymbolsJob : public Job
 public:
     FindSymbolsJob(const QueryMessage &query, const std::shared_ptr<Project> &project);
 protected:
-    virtual void execute();
+    virtual int execute();
 private:
     const String string;
 };

@@ -304,25 +304,17 @@ static void man()
 class RCCommand
 {
 public:
-    RCCommand(unsigned int f)
-        : flags(f)
-    {}
+    RCCommand() {}
     virtual ~RCCommand() {}
-    enum Flag {
-        None = 0x0,
-        RequiresNon0Output = 0x1
-    };
     virtual bool exec(RClient *rc, Connection *connection) = 0;
     virtual String description() const = 0;
-
-    const unsigned int flags;
 };
 
 class QueryCommand : public RCCommand
 {
 public:
-    QueryCommand(QueryMessage::Type t, const String &q, unsigned int flags)
-        : RCCommand(flags), type(t), query(q), extraQueryFlags(0)
+    QueryCommand(QueryMessage::Type t, const String &q)
+        : RCCommand(), type(t), query(q), extraQueryFlags(0)
     {}
 
     const QueryMessage::Type type;
@@ -357,7 +349,7 @@ public:
     enum { Default = -3 };
 
     RdmLogCommand(int level)
-        : RCCommand(0), mLevel(level)
+        : RCCommand(), mLevel(level)
     {
     }
     virtual bool exec(RClient *rc, Connection *connection)
@@ -377,7 +369,7 @@ class CompileCommand : public RCCommand
 {
 public:
     CompileCommand(const Path &c, const String &a, RClient::EscapeMode e)
-        : RCCommand(0), cwd(c), args(a), escapeMode(e)
+        : RCCommand(), cwd(c), args(a), escapeMode(e)
     {}
     const Path cwd;
     const String args;
@@ -419,23 +411,11 @@ RClient::~RClient()
     cleanupLogging();
 }
 
-void RClient::addQuery(QueryMessage::Type t, const String &query)
+void RClient::addQuery(QueryMessage::Type type, const String &query)
 {
-    unsigned int flags = RCCommand::None;
-    unsigned int extraQueryFlags = 0;
-    switch (t) {
-    case QueryMessage::IsIndexing:
-    case QueryMessage::HasFileManager:
-        flags |= RCCommand::RequiresNon0Output;
-        break;
-    case QueryMessage::FindFile:
-        extraQueryFlags |= QueryMessage::WaitForLoadProject;
-        break;
-    default:
-        break;
-    }
-    std::shared_ptr<QueryCommand> cmd(new QueryCommand(t, query, flags));
-    cmd->extraQueryFlags = extraQueryFlags;
+    std::shared_ptr<QueryCommand> cmd(new QueryCommand(type, query));
+    if (type == QueryMessage::FindFile)
+        cmd->extraQueryFlags = QueryMessage::WaitForLoadProject;
     mCommands.append(cmd);
 }
 
@@ -449,33 +429,14 @@ void RClient::addCompile(const Path &cwd, const String &args, EscapeMode mode)
     mCommands.append(std::shared_ptr<RCCommand>(new CompileCommand(cwd, args, mode)));
 }
 
-class LogMonitor : public LogOutput
+int RClient::exec()
 {
-public:
-    LogMonitor()
-        : LogOutput(Error), gotNon0Output(false)
-    {}
-
-    virtual void log(const char *msg, int len)
-    {
-        if (!gotNon0Output && len && msg && (len > 1 || *msg != '0'))
-            gotNon0Output = true;
-    }
-
-    bool gotNon0Output;
-};
-
-bool RClient::exec()
-{
-    bool ret = true;
     RTags::initMessages();
 
     EventLoop::SharedPtr loop(new EventLoop);
     loop->init(EventLoop::MainEventLoop);
-    LogMonitor monitor;
 
     const int commandCount = mCommands.size();
-    bool requiresNon0Output = false;
     Connection connection;
     connection.newMessage().connect(std::bind(&RClient::onNewMessage, this,
                                               std::placeholders::_1, std::placeholders::_2));
@@ -485,18 +446,20 @@ bool RClient::exec()
         error("Can't seem to connect to server");
         return false;
     }
+    int ret = 0;
     for (int i=0; i<commandCount; ++i) {
         const std::shared_ptr<RCCommand> &cmd = mCommands.at(i);
-        requiresNon0Output = cmd->flags & RCCommand::RequiresNon0Output;
         debug() << "running command " << cmd->description();
-        ret = cmd->exec(this, &connection) && loop->exec(timeout()) == EventLoop::Success;
-        if (!ret)
+        if (!cmd->exec(this, &connection) || loop->exec(timeout()) != EventLoop::Success) {
+            ret = 1;
             break;
+        }
     }
     if (connection.client())
         connection.client()->close();
     mCommands.clear();
-    ret = ret && (!requiresNon0Output || monitor.gotNon0Output);
+    if (!ret)
+        ret = connection.finishStatus();
     return ret;
 }
 

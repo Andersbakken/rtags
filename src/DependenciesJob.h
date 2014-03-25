@@ -25,7 +25,7 @@ class DependenciesJob : public Job
 public:
     DependenciesJob(const QueryMessage &query, const std::shared_ptr<Project> &project);
 protected:
-    virtual void execute();
+    virtual int execute();
 private:
     uint32_t mFileId;
 };

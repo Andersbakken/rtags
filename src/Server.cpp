@@ -412,7 +412,7 @@ void Server::onNewMessage(Message *message, Connection *connection)
     case VisitFileResponseMessage::MessageId:
         error() << getpid() << "Unexpected message" << static_cast<int>(message->messageId());
         // assert(0);
-        connection->finish();
+        connection->finish(1);
         break;
     case JobRequestMessage::MessageId:
         handleJobRequestMessage(static_cast<const JobRequestMessage&>(*m), connection);
@@ -434,7 +434,7 @@ void Server::onNewMessage(Message *message, Connection *connection)
         break;
     default:
         error("Unknown message: %d", message->messageId());
-        connection->finish();
+        connection->finish(1);
         break;
     }
     if (mOptions.options & NoFileManagerWatch) {
@@ -444,7 +444,7 @@ void Server::onNewMessage(Message *message, Connection *connection)
     }
 }
 
-void Server::index(const String &arguments, const Path &pwd,
+bool Server::index(const String &arguments, const Path &pwd,
                    const List<String> &withProjects, bool escape)
 {
     Path unresolvedPath;
@@ -453,12 +453,13 @@ void Server::index(const String &arguments, const Path &pwd,
         flags |= Source::Escape;
     Source source = Source::parse(arguments, pwd, flags, &unresolvedPath);
     if (!source.isIndexable())
-        return;
+        return false;
     Path project = findProject(source.sourceFile(), unresolvedPath, withProjects);
     if (!shouldIndex(source, project))
-        return;
+        return false;
 
     preprocess(std::move(source), std::move(project), IndexerJob::Compile);
+    return true;
 }
 
 void Server::preprocess(Source &&source, Path &&srcRoot, uint32_t flags)
@@ -487,8 +488,8 @@ void Server::preprocess(Source &&source, Path &&srcRoot, uint32_t flags)
 
 void Server::handleCompileMessage(CompileMessage &message, Connection *conn)
 {
-    conn->finish();
-    index(message.arguments(), message.workingDirectory(), message.projects(), message.escape());
+    const bool ret = index(message.arguments(), message.workingDirectory(), message.projects(), message.escape());
+    conn->finish(ret ? 0 : 1);
 }
 
 void Server::handleExitMessage(const ExitMessage &message)
@@ -682,23 +683,23 @@ void Server::followLocation(const QueryMessage &query, Connection *conn)
     const Location loc = query.location();
     if (loc.isNull()) {
         conn->write("Not indexed");
-        conn->finish();
+        conn->finish(1);
         return;
     }
     std::shared_ptr<Project> project = updateProjectForLocation(loc.path());
     if (!project) {
         error("No project");
-        conn->finish();
+        conn->finish(1);
         return;
     } else if (project->state() != Project::Loaded) {
         conn->write("Project loading");
-        conn->finish();
+        conn->finish(2);
         return;
     }
 
     FollowLocationJob job(loc, query, project);
-    job.run(conn);
-    conn->finish();
+    const int ret = job.run(conn);
+    conn->finish(ret);
 }
 
 void Server::isIndexing(const QueryMessage &, Connection *conn)
@@ -752,8 +753,8 @@ void Server::findFile(const QueryMessage &query, Connection *conn)
     }
 
     FindFileJob job(query, project);
-    job.run(conn);
-    conn->finish();
+    const int ret = job.run(conn);
+    conn->finish(ret);
 }
 
 void Server::dumpFile(const QueryMessage &query, Connection *conn)
@@ -801,8 +802,8 @@ void Server::cursorInfo(const QueryMessage &query, Connection *conn)
         conn->finish();
     } else {
         CursorInfoJob job(loc, query, project);
-        job.run(conn);
-        conn->finish();
+        const int ret = job.run(conn);
+        conn->finish(ret);
     }
 }
 
@@ -820,8 +821,8 @@ void Server::dependencies(const QueryMessage &query, Connection *conn)
     }
 
     DependenciesJob job(query, project);
-    job.run(conn);
-    conn->finish();
+    const int ret = job.run(conn);
+    conn->finish(ret);
 }
 
 void Server::fixIts(const QueryMessage &query, Connection *conn)
@@ -856,8 +857,8 @@ void Server::referencesForLocation(const QueryMessage &query, Connection *conn)
     }
 
     ReferencesJob job(loc, query, project);
-    job.run(conn);
-    conn->finish();
+    const int ret = job.run(conn);
+    conn->finish(ret);
 }
 
 void Server::referencesForName(const QueryMessage& query, Connection *conn)
@@ -877,8 +878,8 @@ void Server::referencesForName(const QueryMessage& query, Connection *conn)
     }
 
     ReferencesJob job(name, query, project);
-    job.run(conn);
-    conn->finish();
+    const int ret = job.run(conn);
+    conn->finish(ret);
 }
 
 void Server::findSymbols(const QueryMessage &query, Connection *conn)
@@ -898,8 +899,8 @@ void Server::findSymbols(const QueryMessage &query, Connection *conn)
     }
 
     FindSymbolsJob job(query, project);
-    job.run(conn);
-    conn->finish();
+    const int ret = job.run(conn);
+    conn->finish(ret);
 }
 
 void Server::listSymbols(const QueryMessage &query, Connection *conn)
@@ -914,8 +915,8 @@ void Server::listSymbols(const QueryMessage &query, Connection *conn)
     }
 
     ListSymbolsJob job(query, project);
-    job.run(conn);
-    conn->finish();
+    const int ret = job.run(conn);
+    conn->finish(ret);
 }
 
 void Server::status(const QueryMessage &query, Connection *conn)
@@ -935,8 +936,8 @@ void Server::status(const QueryMessage &query, Connection *conn)
     conn->client()->setWriteMode(SocketClient::Synchronous);
 
     StatusJob job(query, project);
-    job.run(conn);
-    conn->finish();
+    const int ret = job.run(conn);
+    conn->finish(ret);
 }
 
 void Server::isIndexed(const QueryMessage &query, Connection *conn)

@@ -24,17 +24,17 @@ FollowLocationJob::FollowLocationJob(const Location &loc, const QueryMessage &qu
 {
 }
 
-void FollowLocationJob::execute()
+int FollowLocationJob::execute()
 {
     const SymbolMap &map = project()->symbols();
     SymbolMap::const_iterator it = RTags::findCursorInfo(map, location, context());
 
     if (it == map.end())
-        return;
+        return 1;
 
     const std::shared_ptr<CursorInfo> &cursorInfo = it->second;
     if (cursorInfo && cursorInfo->isClass() && cursorInfo->isDefinition()) {
-        return;
+        return 2;
     }
 
     Location loc;
@@ -64,10 +64,13 @@ void FollowLocationJob::execute()
                 const std::shared_ptr<CursorInfo> decl = target->bestTarget(map, &declLoc);
                 if (!declLoc.isNull()) {
                     write(declLoc);
+                    return 0;
                 }
             } else {
                 write(loc);
+                return 0;
             }
         }
     }
+    return 1;
 }

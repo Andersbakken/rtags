@@ -31,7 +31,7 @@ ListSymbolsJob::ListSymbolsJob(const QueryMessage &query, const std::shared_ptr<
 {
 }
 
-void ListSymbolsJob::execute()
+int ListSymbolsJob::execute()
 {
     Set<String> out;
     std::shared_ptr<Project> proj = project();
@@ -63,6 +63,7 @@ void ListSymbolsJob::execute()
             write(sorted.at(i));
         }
     }
+    return out.isEmpty() ? 1 : 0;
 }
 
 Set<String> ListSymbolsJob::imenu(const std::shared_ptr<Project> &project)
