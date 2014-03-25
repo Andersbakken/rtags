@@ -49,7 +49,6 @@ enum OptionType {
     DumpFile,
     DumpIncludeHeaders,
     ElispList,
-    EscapeCompileCommands,
     FilterSystemHeaders,
     FindFile,
     FindFilePreferExact,
@@ -75,6 +74,7 @@ enum OptionType {
     MatchRegexp,
     Max,
     NoContext,
+    NoUnescapeCompileCommands,
     PathFilter,
     PrepareCodeCompleteAt,
     PreprocessFile,
@@ -217,10 +217,9 @@ struct Option opts[] = {
     { DumpIncludeHeaders, "dump-include-headers", 0, no_argument, "For --dump-file, also dump dependencies." },
     { SilentQuery, "silent-query", 0, no_argument, "Don't log this request in rdm." },
     { SynchronousCompletions, "synchronous-completions", 0, no_argument, "Wait for completion results." },
-    { UnescapeCompileCommands, "unescape-compile-commands", 0, no_argument, "Escape \\'s and unquote arguments to -c." },
-    { EscapeCompileCommands, "unescape-compile-commands", 0, no_argument, "Escape \\'s and unquote arguments to -c." },
-
-{ None, 0, 0, 0, 0 }
+    { UnescapeCompileCommands, "unescape-compile-commands", 0, no_argument, "Unescape \\'s and unquote arguments to -c." },
+    { NoUnescapeCompileCommands, "no-unescape-compile-commands", 0, no_argument, "Escape \\'s and unquote arguments to -c." },
+    { None, 0, 0, 0, 0 }
 };
 
 static void help(FILE *f, const char* app)
@@ -1001,10 +1000,10 @@ bool RClient::parse(int &argc, char **argv)
         case IsIndexing:
             addQuery(QueryMessage::IsIndexing);
             break;
-        case EscapeCompileCommands:
+        case UnescapeCompileCommands:
             mEscapeMode = Escape_Do;
             break;
-        case UnescapeCompileCommands:
+        case NoUnescapeCompileCommands:
             mEscapeMode = Escape_Dont;
             break;
         case IsIndexed:
