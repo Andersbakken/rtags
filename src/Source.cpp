@@ -190,19 +190,25 @@ static inline void addIncludeArg(Source &source, Source::Include::Type type, int
     const String &arg = args.at(idx);
     Path path;
     if (arg.size() == argLen) {
-        source.arguments.append(arg);
         path = Path::resolved(args.at(++idx), Path::MakeAbsolute, cwd);
+        if (type == Source::Include::Type_None) {
+            source.arguments.append(arg);
+            source.arguments.append(path);
+        }
     } else {
-        source.arguments.append(arg.left(argLen));
         path = Path::resolved(arg.mid(argLen), Path::MakeAbsolute, cwd);
+        if (type == Source::Include::Type_None) {
+            source.arguments.append(arg.left(argLen) + path);
+        }
     }
-    source.arguments.append(path);
-    if (type != Source::Include::Type_None)
+    if (type != Source::Include::Type_None) {
         source.includePaths.append(Source::Include(type, path));
+    }
 }
 
 
 static const char* valueArgs[] = {
+    "-I",
     "-o",
     "-x",
     "-target",
@@ -412,6 +418,12 @@ Source Source::parse(const String &cmdLine, const Path &base, unsigned int flags
             } else if (arg == "-fno-rtti") {
                 ret.flags |= NoRtti;
                 ret.arguments.append(arg);
+            } else if (arg == "-m32") {
+                ret.flags |= M32;
+                ret.arguments.append(arg);
+            } else if (arg == "-m64") {
+                ret.flags |= M64;
+                ret.arguments.append(arg);
             } else if (arg == "-frtti") {
                 ret.flags &= ~NoRtti;
                 ret.arguments.append(arg);
@@ -482,6 +494,7 @@ Source Source::parse(const String &cmdLine, const Path &base, unsigned int flags
         warning() << "Source::parse No file for" << cmdLine;
         return Source();
     }
+
     if (!ret.buildRootId) {
         buildRoot = RTags::findProjectRoot(Location::path(ret.fileId), RTags::BuildRoot);
         ret.buildRootId = Location::insertFile(buildRoot);

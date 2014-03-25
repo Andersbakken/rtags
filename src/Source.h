@@ -44,7 +44,9 @@ struct Source
 
     enum Flag {
         NoFlag = 0x0,
-        NoRtti = 0x1
+        NoRtti = 0x1,
+        M32 = 0x2,
+        M64 = 0x4
     };
     uint32_t flags;
 
