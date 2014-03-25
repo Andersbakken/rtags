@@ -1188,13 +1188,14 @@ void Server::removeProject(const QueryMessage &query, Connection *conn)
 
     const Match match = query.match();
     auto it = mProjects.begin();
+    bool found = false;
     while (it != mProjects.end()) {
         auto cur = it++;
         if (cur->second->match(match)) {
+            found = true;
             if (mCurrentProject.lock() == cur->second) {
                 mCurrentProject.reset();
                 setupCurrentProjectFile(std::shared_ptr<Project>());
-                unlink((mOptions.dataDir + ".currentProject").constData());
             }
             cur->second->unload();
             Path path = cur->first;
@@ -1205,6 +1206,9 @@ void Server::removeProject(const QueryMessage &query, Connection *conn)
                 mProjects.erase(cur);
             }
         }
+    }
+    if (!found) {
+        conn->write<128>("No projects matching %s", match.pattern().constData());
     }
     conn->finish();
 }
