@@ -1998,6 +1998,8 @@ void Server::onHttpClientReadyRead(const SocketClient::SharedPtr &socket)
 
 void Server::connectToServer()
 {
+    enum { ServerReconnectTimer = 5000 };
+
     debug() << "connectToServer" << mConnectToServerFailures;
     mConnectToServerTimer.stop();
     assert(!(mOptions.options & JobServer));
@@ -2012,14 +2014,13 @@ void Server::connectToServer()
         return;
     }
 
-
     mServerConnection = new Connection;
     mServerConnection->disconnected().connect([this](Connection *conn) {
             assert(conn == mServerConnection);
             (void)conn;
             EventLoop::deleteLater(mServerConnection);
             mServerConnection = 0;
-            mConnectToServerTimer.restart(ServerReconnectTimer);
+            mConnectToServerTimer.restart(ServerReconnectTimer * ++mConnectToServerFailures);
             warning() << "Disconnected from server" << conn->client()->peerName();
         });
     mServerConnection->connected().connect([this](Connection *conn) {
@@ -2030,7 +2031,7 @@ void Server::connectToServer()
                 mServerConnection->close();
                 EventLoop::deleteLater(mServerConnection);
                 mServerConnection = 0;
-                mConnectToServerTimer.restart(ServerReconnectTimer);
+                mConnectToServerTimer.restart(ServerReconnectTimer * ++mConnectToServerFailures);
                 error() << "Couldn't send logoutputmessage";
             } else {
                 error() << "Connected to server" << Rct::addrLookup(conn->client()->peerName());
