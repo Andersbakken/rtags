@@ -112,8 +112,9 @@ static const bool debugMulti = getenv("RDM_DEBUG_MULTI");
 
 Server *Server::sInstance = 0;
 Server::Server()
-    : mVerbose(false), mCurrentFileId(0), mThreadPool(0), mServerConnection(0), mCompletionThread(0),
-      mFirstRemote(0), mLastRemote(0), mAnnounced(false), mWorkPending(false), mExitCode(0)
+    : mVerbose(false), mConnectToServerFailures(0), mCurrentFileId(0), mThreadPool(0),
+      mServerConnection(0), mCompletionThread(0), mFirstRemote(0), mLastRemote(0),
+      mAnnounced(false), mWorkPending(false), mExitCode(0)
 {
     Messages::registerMessage<JobRequestMessage>();
     Messages::registerMessage<JobResponseMessage>();
@@ -1997,49 +1998,51 @@ void Server::onHttpClientReadyRead(const SocketClient::SharedPtr &socket)
 
 void Server::connectToServer()
 {
-    debug() << "connectToServer";
+    debug() << "connectToServer" << mConnectToServerFailures;
     mConnectToServerTimer.stop();
     assert(!(mOptions.options & JobServer));
     if (mServerConnection)
         return;
-    enum { ServerReconnectTimer = 5000 };
     if (!mOptions.jobServer.second) {
         if (mMulticastSocket) {
             const unsigned char data[] = { 's', '?' };
             mMulticastSocket->writeTo(mOptions.multicastAddress, mOptions.multicastPort, data, 2);
-            mConnectToServerTimer.restart(ServerReconnectTimer);
+            mConnectToServerTimer.restart(ServerReconnectTimer * ++mConnectToServerFailures);
         }
-    } else {
-        mServerConnection = new Connection;
-        mServerConnection->disconnected().connect([this](Connection *conn) {
-                assert(conn == mServerConnection);
-                (void)conn;
+        return;
+    }
+
+
+    mServerConnection = new Connection;
+    mServerConnection->disconnected().connect([this](Connection *conn) {
+            assert(conn == mServerConnection);
+            (void)conn;
+            EventLoop::deleteLater(mServerConnection);
+            mServerConnection = 0;
+            mConnectToServerTimer.restart(ServerReconnectTimer);
+            warning() << "Disconnected from server" << conn->client()->peerName();
+        });
+    mServerConnection->connected().connect([this](Connection *conn) {
+            mConnectToServerFailures = 0;
+            assert(conn == mServerConnection);
+            (void)conn;
+            if (!mServerConnection->send(ClientMessage())) {
+                mServerConnection->close();
                 EventLoop::deleteLater(mServerConnection);
                 mServerConnection = 0;
                 mConnectToServerTimer.restart(ServerReconnectTimer);
-                warning() << "Disconnected from server" << conn->client()->peerName();
-            });
-        mServerConnection->connected().connect([this](Connection *conn) {
-                assert(conn == mServerConnection);
-                (void)conn;
-                if (!mServerConnection->send(ClientMessage())) {
-                    mServerConnection->close();
-                    EventLoop::deleteLater(mServerConnection);
-                    mServerConnection = 0;
-                    mConnectToServerTimer.restart(ServerReconnectTimer);
-                    error() << "Couldn't send logoutputmessage";
-                } else {
-                    error() << "Connected to server" << Rct::addrLookup(conn->client()->peerName());
-                }
-            });
-        mServerConnection->newMessage().connect(std::bind(&Server::onNewMessage, this, std::placeholders::_1, std::placeholders::_2));
+                error() << "Couldn't send logoutputmessage";
+            } else {
+                error() << "Connected to server" << Rct::addrLookup(conn->client()->peerName());
+            }
+        });
+    mServerConnection->newMessage().connect(std::bind(&Server::onNewMessage, this, std::placeholders::_1, std::placeholders::_2));
 
-        if (!mServerConnection->connectTcp(mOptions.jobServer.first, mOptions.jobServer.second)) {
-            delete mServerConnection;
-            mServerConnection = 0;
-            mConnectToServerTimer.restart(ServerReconnectTimer);
-            error() << "Failed to connect to server" << mOptions.jobServer;
-        }
+    if (!mServerConnection->connectTcp(mOptions.jobServer.first, mOptions.jobServer.second)) {
+        delete mServerConnection;
+        mServerConnection = 0;
+        mConnectToServerTimer.restart(ServerReconnectTimer * ++mConnectToServerFailures);
+        error() << "Failed to connect to server" << mOptions.jobServer;
     }
 }
 

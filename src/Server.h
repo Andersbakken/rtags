@@ -209,6 +209,7 @@ private:
     bool mVerbose;
 
     Timer mUnloadTimer, mRescheduleTimer, mConnectToServerTimer;
+    int mConnectToServerFailures;
 
     uint32_t mCurrentFileId;
     LinkedList<std::shared_ptr<IndexerJob> > mPending;
