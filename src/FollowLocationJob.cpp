@@ -40,7 +40,6 @@ void FollowLocationJob::execute()
     Location loc;
     std::shared_ptr<CursorInfo> target = cursorInfo->bestTarget(map, &loc);
     if (!loc.isNull() && target) {
-        // ### not respecting DeclarationOnly
         if (cursorInfo->kind != target->kind) {
             if (!target->isDefinition() && !target->targets.isEmpty()) {
                 switch (target->kind) {
