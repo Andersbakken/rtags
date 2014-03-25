@@ -138,16 +138,22 @@ public:
             StopWatch sw;
             project->save();
             const int saveTime = sw.elapsed();
-            error() << "Jobs took" << (static_cast<double>(project->mTimer.elapsed()) / 1000.0)
-                    << "secs, dirtying took"
-                    << (static_cast<double>(data.dirtyTime) / 1000.0) << "secs, syncing took"
-                    << (static_cast<double>(data.syncTime) / 1000.0) << " secs, saving took"
-                    << (static_cast<double>(saveTime) / 1000.0) << " secs, using"
-                    << MemoryMonitor::usage() / (1024.0 * 1024.0) << "mb of memory"
-                    << data.symbols << "symbols" << data.symbolNames << "symbolNames";
+            String msg;
+            Log(&msg) << "Jobs took" << (static_cast<double>(project->mTimer.elapsed()) / 1000.0)
+                      << "secs, dirtying took"
+                      << (static_cast<double>(data.dirtyTime) / 1000.0) << "secs, syncing took"
+                      << (static_cast<double>(data.syncTime) / 1000.0) << " secs, saving took"
+                      << (static_cast<double>(saveTime) / 1000.0) << " secs, using"
+                      << MemoryMonitor::usage() / (1024.0 * 1024.0) << "mb of memory"
+                      << data.symbols << "symbols" << data.symbolNames << "symbolNames";
             project->mTimer.start();
             std::weak_ptr<Project> weak = project;
-            EventLoop::mainEventLoop()->callLater([weak]() { if (std::shared_ptr<Project> project = weak.lock()) project->onSynced(); });
+            EventLoop::mainEventLoop()->callLater([weak,msg]() {
+                    if (std::shared_ptr<Project> project = weak.lock()) {
+                        error() << msg;
+                        project->onSynced();
+                    }
+                });
         }
     }
     std::weak_ptr<Project> mProject;
