@@ -98,13 +98,19 @@ void ReferencesJob::execute()
                         }
                     }
                 } else if (queryFlags() & QueryMessage::FindVirtuals) {
-                    // ### not supporting DeclarationOnly
                     const SymbolMap virtuals = cursorInfo->virtuals(pos, map);
+                    const bool declarationOnly = queryFlags() & QueryMessage::DeclarationOnly;
                     for (SymbolMap::const_iterator v = virtuals.begin(); v != virtuals.end(); ++v) {
-                        references[v->first] = std::make_pair(v->second->isDefinition(), v->second->kind);
+                        const bool def = v->second->isDefinition();
+                        if (declarationOnly && def) {
+                            const std::shared_ptr<CursorInfo> decl = v->second->bestTarget(map);
+                            if (decl && !decl->isNull())
+                                continue;
+                        }
+                        references[v->first] = std::make_pair(def, v->second->kind);
                     }
                     startLocation.clear();
-                    // since one normall calls this on a declaration it kinda
+                    // since one normally calls this on a declaration it kinda
                     // doesn't work that well do the clever offset thing
                     // underneath
                 } else {
