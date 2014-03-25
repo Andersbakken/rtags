@@ -413,7 +413,15 @@ bool compile(const Path& output, const Source &source, const String& preprocesse
     sm.overrideFileContents(preent, premem);
 
     clang::TargetOptions &targetOptions = compilerInstance.getTargetOpts();
-    targetOptions.Triple = llvm::sys::getDefaultTargetTriple();
+    String triple = llvm::sys::getDefaultTargetTriple();
+    if (source.flags & Source::M32) {
+        if (triple.startsWith("x86_64"))
+            triple.replace(0, 6, "i386");
+    } else if (source.flags & Source::M64 && triple.startsWith("i386")) {
+        triple.replace(0, 4, "x86_64");
+    }
+
+    targetOptions.Triple = static_cast<std::string>(triple);
     clang::DiagnosticsEngine& diags = compilerInstance.getDiagnostics();
     compilerInstance.setTarget(clang::TargetInfo::CreateTargetInfo(diags,
 #if CLANG_VERSION_MINOR < 3
@@ -453,7 +461,7 @@ bool compile(const Path& output, const Source &source, const String& preprocesse
 #else
                                                                    &compilerInstance.getTargetOpts()
 #endif
-                                                                   ));
+                                   ));
     compilerInstance.getTarget().setForcedLangOptions(langOpts);
 
     // ### ???
@@ -553,8 +561,16 @@ std::shared_ptr<Cpp> preprocess(const Source &source,
     }
     sm.createMainFileID(file);
     clang::TargetOptions &targetOptions = compilerInstance.getTargetOpts();
+    String triple = llvm::sys::getDefaultTargetTriple();
+    if (source.flags & Source::M32) {
+        if (triple.startsWith("x86_64"))
+            triple.replace(0, 6, "i386");
+    } else if (source.flags & Source::M64 && triple.startsWith("i386")) {
+        triple.replace(0, 4, "x86_64");
+    }
+
     //targetOptions.Triple = LLVM_HOST_TRIPLE;
-    targetOptions.Triple = llvm::sys::getDefaultTargetTriple();
+    targetOptions.Triple = static_cast<std::string>(triple);
     clang::TextDiagnosticBuffer diagnosticsClient;
     diags.setClient(&diagnosticsClient, false);
     compilerInstance.setTarget(clang::TargetInfo::CreateTargetInfo(diags,
@@ -592,7 +608,7 @@ std::shared_ptr<Cpp> preprocess(const Source &source,
 
     headerSearchOptions.Sysroot = sysRoot;
     {
-        clang::driver::Driver driver("clang", llvm::sys::getDefaultTargetTriple(), "a.out",
+        clang::driver::Driver driver("clang", static_cast<std::string>(triple), "a.out",
 #if CLANG_VERSION_MINOR < 3
                                      true, // is_production, no idea what it means
 #endif
