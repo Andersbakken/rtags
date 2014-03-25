@@ -89,7 +89,7 @@ static inline Source::Language guessLanguageFromCompiler(const Path &fullPath)
 
 static inline Source::Language guessLanguageFromSourceFile(const Path &sourceFile)
 {
-      // ### We should some more of of these really
+      // ### We should support some more of of these really
       // .Case("cl", IK_OpenCL)
       // .Case("cuda", IK_CUDA)
       // .Case("c++", IK_CXX)
