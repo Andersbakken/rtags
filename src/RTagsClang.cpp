@@ -20,6 +20,7 @@
 #include "Project.h"
 #include <iostream>
 #include <zlib.h>
+#include "Token.h"
 
 #define __STDC_LIMIT_MACROS
 #define __STDC_CONSTANT_MACROS
@@ -139,6 +140,17 @@ String cursorToString(CXCursor cursor, unsigned flags)
     return ret;
 }
 
+static inline bool matchContext(const String &symbolName, const String &context)
+{
+    const Map<Token, int> tokens = Token::tokenize(symbolName.constData(), symbolName.size());
+    for (const auto &token : tokens) {
+        if (token.first.length == context.length() && !strncmp(token.first.data, context.constData(), token.first.length))
+            return true;
+    }
+
+    return true;
+}
+
 SymbolMap::const_iterator findCursorInfo(const SymbolMap &map, const Location &location, const String &context)
 {
     if (context.isEmpty()) {
@@ -168,7 +180,7 @@ SymbolMap::const_iterator findCursorInfo(const SymbolMap &map, const Location &l
                 if (b == map.begin())
                     break;
                 f = map.end();
-            } else if (f->second->symbolName.contains(context)) {
+            } else if (matchContext(f->second->symbolName, context)) {
                 // error() << "found it forward" << j;
                 return f;
             } else {
@@ -182,7 +194,7 @@ SymbolMap::const_iterator findCursorInfo(const SymbolMap &map, const Location &l
                 if (f == map.end())
                     break;
                 b = map.begin();
-            } else if (b->second->symbolName.contains(context)) {
+            } else if (matchContext(b->second->symbolName, context)) {
                 // error() << "found it backward" << j;
                 return b;
             }
