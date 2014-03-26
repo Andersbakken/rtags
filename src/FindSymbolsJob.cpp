@@ -51,4 +51,5 @@ int FindSymbolsJob::execute()
             }
         }
     }
+    return ret;
 }
