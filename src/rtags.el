@@ -281,6 +281,8 @@
               (push (format "--range-filter=%d-%d" range-min range-max) arguments))
           (if rtags-timeout
               (push (format "--timeout=%d" rtags-timeout) arguments))
+          (unless rtags-sort-references-by-input
+              (push "--no-sort-references-by-input" arguments))
           (if (and rtags-show-containing-function (not (member "-N" arguments)))
               (push "-o" arguments))
 
@@ -674,6 +676,11 @@
 
 (defcustom rtags-enabled t
   "Whether rtags is enabled. We try to do nothing when it's not"
+  :group 'rtags
+  :type 'boolean)
+
+(defcustom rtags-sort-references-by-input t
+  "Whether rtags sorts the references based on the input to rtags-find-references.*"
   :group 'rtags
   :type 'boolean)
 

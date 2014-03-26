@@ -74,6 +74,7 @@ enum OptionType {
     MatchRegexp,
     Max,
     NoContext,
+    NoSortReferencesByInput,
     NoUnescapeCompileCommands,
     PathFilter,
     PrepareCodeCompleteAt,
@@ -219,6 +220,7 @@ struct Option opts[] = {
     { SynchronousCompletions, "synchronous-completions", 0, no_argument, "Wait for completion results." },
     { UnescapeCompileCommands, "unescape-compile-commands", 0, no_argument, "Unescape \\'s and unquote arguments to -c." },
     { NoUnescapeCompileCommands, "no-unescape-compile-commands", 0, no_argument, "Escape \\'s and unquote arguments to -c." },
+    { NoSortReferencesByInput, "no-sort-references-by-input", 0, no_argument, "Don't sort references by input position." },
     { None, 0, 0, 0, 0 }
 };
 
@@ -968,6 +970,9 @@ bool RClient::parse(int &argc, char **argv)
             break;
         case NoUnescapeCompileCommands:
             mEscapeMode = Escape_Dont;
+            break;
+        case NoSortReferencesByInput:
+            mQueryFlags |= QueryMessage::NoSortReferencesByInput;
             break;
         case IsIndexed:
         case DumpFile:

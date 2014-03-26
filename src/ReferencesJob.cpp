@@ -147,7 +147,7 @@ int ReferencesJob::execute()
         }
         int startIndex = 0;
         const int count = sorted.size();
-        if (!startLocation.isNull()) {
+        if (!startLocation.isNull() && !(queryFlags() & QueryMessage::NoSortReferencesByInput)) {
             for (int i=0; i<count; ++i) {
                 if (sorted.at(i).location == startLocation) {
                     startIndex = i + 1;

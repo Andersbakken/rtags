@@ -90,7 +90,8 @@ public:
         CompilationFlagsSplitLine = 0x0800000,
         DumpIncludeHeaders = 0x1000000,
         SilentQuery = 0x2000000,
-        SynchronousCompletions = 0x4000000
+        SynchronousCompletions = 0x4000000,
+        NoSortReferencesByInput = 0x8000000
     };
 
     QueryMessage(Type type = Invalid);
