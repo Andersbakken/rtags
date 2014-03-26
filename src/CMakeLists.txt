@@ -23,10 +23,6 @@ if (EXISTS ${CLANG_COMPILATION_INCLUDE})
   add_definitions(-DHAVE_CXCOMPILATIONDATABASE)
 endif ()
 
-if (RTAGS_BUILD_ESPRIMA)
-  find_package(V8)
-endif()
-
 add_subdirectory(rct)
 
 include(${CMAKE_CURRENT_LIST_DIR}/rct/compiler.cmake)
@@ -131,20 +127,6 @@ add_executable(rc rc.cpp RClient.cpp)
 add_dependencies(rc rct shared)
 target_link_libraries(rc shared rct ${SYSTEM_LIBS})
 
-if (V8_FOUND EQUAL 1)
-  list(APPEND SYSTEM_LIBS ${V8_LIBS})
-  include_directories(${V8_INCLUDE})
-
-  if (V8_DISPOSE_HAS_ISOLATE)
-    add_definitions(-DV8_DISPOSE_HAS_ISOLATE)
-  endif ()
-  if (V8_NEW_CONTEXT_TAKES_ISOLATE)
-    add_definitions(-DV8_NEW_CONTEXT_TAKES_ISOLATE)
-  endif ()
-  add_definitions(-DHAVE_V8)
-  add_definitions("-DESPRIMA_JS=\"${PROJECT_BINARY_DIR}/src/rtags-esprima.js\"")
-endif ()
-
 add_library(rtags SHARED ${RDM_SOURCES})
 target_link_libraries(rtags
   rct
@@ -157,45 +139,46 @@ target_link_libraries(rtags
   ${SYSTEM_LIBS})
 add_dependencies(rtags rct)
 
-add_executable(rdm rdm.cpp
-#  ${RDM_SOURCES}
-)
-target_link_libraries(rdm
-  rtags
-  -lstdc++
-  ${SYSTEM_LIBS}
-)
-
-add_executable(rp rp.cpp ClangIndexer.cpp)
-target_link_libraries(rp rtags shared)
-
+add_executable(rdm rdm.cpp)
+target_link_libraries(rdm rtags -lstdc++ ${SYSTEM_LIBS})
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/bin)
 
-# add_library(rtagsclang SHARED IndexerJobClang.cpp)
-# add_dependencies(rtagsclang rct)
-# add_dependencies(rtagsclang rdm)
-# target_link_libraries(rtagsclang
-#   rtags
-#   -L.
-# )
+set (RP_LIBRARIES rtags shared)
+set (RP_SOURCES rp.cpp ClangIndexer.cpp)
+if (RTAGS_BUILD_ESPRIMA)
+  find_package(V8)
+  if (V8_FOUND EQUAL 1)
+    list(APPEND RP_LIBRARIES ${V8_LIBS})
+    include_directories(${V8_INCLUDE})
 
-# if (V8_FOUND EQUAL 1)
-#   add_library(rtagsesprima MODULE IndexerJobEsprima.cpp JSParser.cpp)
-#   add_dependencies(rtagsesprima rtags)
-#   target_link_libraries(rtagsesprima rtags)
+    if (V8_DISPOSE_HAS_ISOLATE)
+      add_definitions(-DV8_DISPOSE_HAS_ISOLATE)
+    endif ()
+    if (V8_NEW_CONTEXT_TAKES_ISOLATE)
+      add_definitions(-DV8_NEW_CONTEXT_TAKES_ISOLATE)
+    endif ()
+    add_definitions(-DHAVE_V8)
+    add_definitions("-DESPRIMA_JS=\"${PROJECT_BINARY_DIR}/src/rtags-esprima.js\"")
+    set(RP_SOURCES ${RP_SOURCES} JSParser.cpp)
+    add_definitions(-DRTAGS_ESPRIMA)
 
-#   set(RTAGS_ESPRIMA_FILES
-#       ${CMAKE_CURRENT_SOURCE_DIR}/esprima/esprima.js
-#       ${CMAKE_CURRENT_SOURCE_DIR}/estraverse/estraverse.js
-#       ${CMAKE_CURRENT_SOURCE_DIR}/escope/escope.js
-#       ${CMAKE_CURRENT_SOURCE_DIR}/esrefactor/lib/esrefactor.js
-#       ${CMAKE_CURRENT_SOURCE_DIR}/rtags.js)
-#   add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/rtags-esprima.js
-#                      DEPENDS ${RTAGS_ESPRIMA_FILES}
-#                      COMMAND ${CMAKE_COMMAND} -DFILES="${RTAGS_ESPRIMA_FILES}" -DTARGET="${CMAKE_CURRENT_BINARY_DIR}/rtags-esprima.js" -P "${PROJECT_SOURCE_DIR}/cmake/concat.cmake"
-#                      COMMENT "Sourceing rtags-esprima.js")
-#   add_custom_target(rtags-esprima ALL DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/rtags-esprima.js)
-# endif()
+    set(RTAGS_ESPRIMA_FILES
+      ${CMAKE_CURRENT_SOURCE_DIR}/esprima/esprima.js
+      ${CMAKE_CURRENT_SOURCE_DIR}/estraverse/estraverse.js
+      ${CMAKE_CURRENT_SOURCE_DIR}/escope/escope.js
+      ${CMAKE_CURRENT_SOURCE_DIR}/esrefactor/lib/esrefactor.js
+      ${CMAKE_CURRENT_SOURCE_DIR}/rtags.js)
+    add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/rtags-esprima.js
+      DEPENDS ${RTAGS_ESPRIMA_FILES}
+                     COMMAND ${CMAKE_COMMAND} -DFILES="${RTAGS_ESPRIMA_FILES}" -DTARGET="${CMAKE_CURRENT_BINARY_DIR}/rtags-esprima.js" -P "${PROJECT_SOURCE_DIR}/cmake/concat.cmake"
+                     COMMENT "Sourceing rtags-esprima.js")
+
+    add_custom_target(rtags-esprima ALL DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/rtags-esprima.js)
+  endif ()
+endif ()
+
+add_executable(rp ${RP_SOURCES})
+target_link_libraries(rp ${RP_LIBRARIES})
 
 if (CYGWIN)
   EnsureLibraries(rdm rct)
