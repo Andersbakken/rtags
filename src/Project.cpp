@@ -389,6 +389,7 @@ void Project::onJobFinished(const std::shared_ptr<IndexData> &indexData, const s
     //         << "flags" << IndexerJob::dumpFlags(jobData->job->flags)
     //         << "pendingFlags" << IndexerJob::dumpFlags(jobData->pendingFlags);
 
+    bool crashed = false;
     enum { MaxCrashCount = 5 }; // ### configurable?
     if (jobData->crashCount < MaxCrashCount) {
         if (jobData->pendingFlags) {
@@ -402,7 +403,7 @@ void Project::onJobFinished(const std::shared_ptr<IndexData> &indexData, const s
             pendingFlags = jobData->job->flags & IndexerJob::Type_Mask;
             pendingCpp = jobData->job->cpp;
             if (jobData->job->flags & IndexerJob::Crashed) {
-                // ### we should maybe wait a little before restarting or something.
+                crashed = true;
                 error("%s crashed, restarting", jobData->job->source.sourceFile().constData());
             }
         }
@@ -445,7 +446,19 @@ void Project::onJobFinished(const std::shared_ptr<IndexData> &indexData, const s
     } else {
         jobData->job.reset();
         assert(!pending.isNull());
-        index(pending, pendingCpp, pendingFlags);
+        enum { CrashRetryTimeout = 1500 };
+        if (crashed) {
+            jobData->stopTimer();
+            std::weak_ptr<Project> project = shared_from_this();
+            const int id = EventLoop::mainEventLoop()->registerTimer([project, pending, pendingCpp, pendingFlags](int) {
+                    if (std::shared_ptr<Project> p = project.lock()) {
+                        p->index(pending, pendingCpp, pendingFlags);
+                    }
+                }, CrashRetryTimeout, Timer::SingleShot);
+            jobData->pendingRestartTimerId = id;
+        } else {
+            index(pending, pendingCpp, pendingFlags);
+        }
         --mJobCounter;
     }
 }
@@ -488,6 +501,8 @@ void Project::index(const Source &source, const std::shared_ptr<Cpp> &cpp, uint3
 
     const uint64_t key = source.key();
     JobData &data = mJobs[key];
+    data.stopTimer();
+
     if (mState != Loaded) {
         // error() << "Index called at" << static_cast<int>(mState) << "time. Setting pending" << source.sourceFile();
         data.pendingSource = source;

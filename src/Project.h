@@ -151,12 +151,19 @@ private:
 
     struct JobData {
         JobData()
-            : pendingFlags(0), crashCount(0)
+            : pendingFlags(0), crashCount(0), pendingRestartTimerId(-1)
         {}
+        void stopTimer()
+        {
+            if (pendingRestartTimerId != -1) {
+                EventLoop::mainEventLoop()->unregisterTimer(pendingRestartTimerId);
+                pendingRestartTimerId = -1;
+            }
+        }
         Source pendingSource;
         uint32_t pendingFlags;
         std::shared_ptr<Cpp> pendingCpp;
-        int crashCount;
+        int crashCount, pendingRestartTimerId;
         std::shared_ptr<IndexerJob> job;
     };
 

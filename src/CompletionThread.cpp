@@ -236,7 +236,6 @@ void CompletionThread::process(Request *request)
         Rct::deleteLinkedListNodes(cache->firstCompletion);
         cache->firstCompletion = cache->lastCompletion = 0;
         sw.restart();
-        // ### maybe skip function bodies
         unsigned int flags = clang_defaultEditingTranslationUnitOptions();
         flags |= CXTranslationUnit_PrecompiledPreamble;
         flags |= CXTranslationUnit_CacheCompletionResults;
