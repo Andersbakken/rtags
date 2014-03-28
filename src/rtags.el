@@ -141,8 +141,7 @@
 (defun rtags-reset-bookmarks ()
   (while (> rtags-buffer-bookmarks 0)
     (bookmark-delete (format "R_%d" rtags-buffer-bookmarks))
-    (decf rtags-buffer-bookmarks))
-  )
+    (decf rtags-buffer-bookmarks)))
 
 ;;;###autoload
 (defun rtags-next-match () (interactive) (rtags-next-prev-match t))
@@ -159,8 +158,7 @@
       (when next
         (goto-char (point-min))
         (beginning-of-line)))
-    (point))
-  )
+    (point)))
 
 (defun rtags-next-prev-match (next)
   (if (get-buffer rtags-buffer-name)
@@ -184,8 +182,7 @@
                  (goto-char (rtags-next-prev-suitable-match next))))
           (beginning-of-line)
           (if win (rtags-select-other-window)
-            (rtags-select)))))
-  )
+            (rtags-select))))))
 
 ;;;###autoload
 (defun rtags-next-diag () (interactive) (rtags-next-prev-diag t))
@@ -313,8 +310,7 @@
                 (progn
                   (set-process-query-on-exit-flag proc nil)
                   (set-process-filter proc (car async))
-                  (set-process-sentinel proc (cdr async))
-                  )
+                  (set-process-sentinel proc (cdr async)))
               (progn
                 (goto-char (point-min))
                 (cond ((looking-at "Can't seem to connect to server")
@@ -325,9 +321,7 @@
                        (erase-buffer)
                        (message "Project loading..."))
                       (t nil)))))
-          (or async (> (point-max) (point-min))))))
-    )
-  )
+          (or async (> (point-max) (point-min))))))))
 
 ;;;###autoload
 (defun rtags-index-js-file ()
@@ -346,14 +340,12 @@
   (use-local-map rtags-diagnostics-mode-map)
   (if (buffer-file-name)
       (error "Set buffer with file %s read only " (buffer-file-name)))
-  (setq buffer-read-only t)
-  )
+  (setq buffer-read-only t))
 
 (defun rtags-builds (&optional file)
   (with-temp-buffer
     (rtags-call-rc :path file "--builds" file)
-    (buffer-string))
-  )
+    (buffer-string)))
 
 ;;;###autoload
 (defun rtags-preprocess-file (&optional buffer)
@@ -390,8 +382,7 @@
                     (goto-char (point-min))
                     (narrow-to-region (point-at-bol (+ start 1)) (point-at-bol (+ end 1)))))))
         (rtags-preprocess-mode))
-      (display-buffer preprocess-buffer))
-    ))
+      (display-buffer preprocess-buffer))))
 
 ;;;###autoload
 (defun rtags-reparse-file (&optional buffer)
@@ -400,9 +391,7 @@
     (when file
       (with-temp-buffer
         (rtags-call-rc :path file "-V" file))
-      (message (format "Dirtied %s" file)))
-    )
-  )
+      (message (format "Dirtied %s" file)))))
 
 ;;;###autoload
 (defun rtags-set-current-project ()
@@ -421,15 +410,12 @@
                 (setq current name))
             (if (string-match "^\\([^ ]+\\)[^<]*$" line)
                 (setq projects (add-to-list 'projects (match-string-no-properties 1 line))))))
-        (forward-line))
-      )
+        (forward-line)))
     (setq project (ido-completing-read
                    (format "RTags select project (current is %s): " current)
                    projects))
     (if project
-        (with-temp-buffer (rtags-call-rc :output nil :path t "-w" project)))
-    )
-  )
+        (with-temp-buffer (rtags-call-rc :output nil :path t "-w" project)))))
 
 (defun rtags-current-symbol (&optional no-symbol-name)
   (or (and mark-active (buffer-substring-no-properties (point) (mark)))
@@ -491,8 +477,7 @@
 (defun rtags-carriage-returns ()
   (if (rtags-buffer-is-dos)
       (1- (line-number-at-pos))
-    0)
-  )
+    0))
 
 (defun rtags-offset (&optional p)
   (let (carriagereturns)
@@ -527,8 +512,7 @@
 
 (defun rtags-current-location (&optional offset)
   (format "%s:%d:%d" (or (buffer-file-name) (buffer-name))
-          (line-number-at-pos offset) (1+ (- (or offset (point)) (point-at-bol))))
-  )
+          (line-number-at-pos offset) (1+ (- (or offset (point)) (point-at-bol)))))
 
 (defun rtags-log (log)
   (if rtags-rc-log-enabled
@@ -536,10 +520,7 @@
         (goto-char (point-max))
         (setq buffer-read-only nil)
         (insert "**********************************\n" log "\n")
-        (setq buffer-read-only t)
-        )
-    )
-  )
+        (setq buffer-read-only t))))
 
 (defvar rtags-symbol-history nil)
 
@@ -555,9 +536,7 @@
     (let ((buf (get-buffer file-or-buffer)))
       (cond ((not buf) (message "No buffer named %s" file-or-buffer))
             (other-window (switch-to-buffer-other-window file-or-buffer))
-            (t (switch-to-buffer file-or-buffer))))
-    )
-  )
+            (t (switch-to-buffer file-or-buffer))))))
 
 (defun rtags-find-context-on-line ()
   (if rtags-last-context
@@ -566,8 +545,7 @@
               ((re-search-forward rx (point-at-eol) t)
                (backward-char (length rtags-last-context)))
               ((re-search-backward rx (point-at-bol) t))
-              (t))))
-  )
+              (t)))))
 
 (defun rtags-goto-line-col (line column)
   (goto-char (point-min))
@@ -606,9 +584,7 @@
            (if (string-match "^ +\\(.*\\)$" location)
                (setq location (match-string-no-properties 1 location)))
            (rtags-find-file-or-buffer location other-window)))
-    (unless nobookmark (rtags-location-stack-push))
-    )
-  )
+    (unless nobookmark (rtags-location-stack-push))))
 
 (defun rtags-find-symbols-by-name-internal (prompt switch &optional filter regexp-filter)
   (rtags-save-location)
@@ -627,9 +603,7 @@
     (with-current-buffer (rtags-get-buffer)
       (rtags-call-rc :path path switch tagname :path-filter filter :context tagname :path-filter-regex regexp-filter)
       (rtags-reset-bookmarks)
-      (rtags-handle-results-buffer))
-    )
-  )
+      (rtags-handle-results-buffer))))
 
 ;;;###autoload
 (defun rtags-remove-results-buffer ()
@@ -664,11 +638,7 @@
     (unless (string= bm (nth 0 rtags-location-stack))
       (push bm rtags-location-stack)
       (if (> (length rtags-location-stack) rtags-max-bookmark-count)
-          (nbutlast rtags-location-stack (- (length rtags-location-stack) rtags-max-bookmark-count))
-        )
-      )
-    )
-  )
+          (nbutlast rtags-location-stack (- (length rtags-location-stack) rtags-max-bookmark-count))))))
 
 ;;;###autoload
 (defun rtags-location-stack-jump (by)
@@ -681,11 +651,7 @@
       (let ((target (+ rtags-location-stack-index by)))
         (when (and (>= target 0) (< target (length rtags-location-stack)))
           (setq rtags-location-stack-index target)
-          (rtags-goto-location (nth rtags-location-stack-index rtags-location-stack) t))
-        )
-      )
-    )
-  )
+          (rtags-goto-location (nth rtags-location-stack-index rtags-location-stack) t))))))
 
 ;; **************************** API *********************************
 
@@ -827,8 +793,7 @@ return t if rtags is allowed to modify this file"
     (define-key map (concat prefix "x") (function rtags-fix-fixit-at-point))
     (define-key map (concat prefix "B") (function rtags-show-rtags-buffer))
     (define-key map (concat prefix "I") (function rtags-imenu))
-    (define-key map (concat prefix "T") (function rtags-taglist)))
-  )
+    (define-key map (concat prefix "T") (function rtags-taglist))))
 
 (if rtags-index-js-files
     (add-hook 'find-file-hook 'rtags-index-js-file)
@@ -846,21 +811,18 @@ return t if rtags is allowed to modify this file"
 ;;;###autoload
 (defun rtags-location-stack-forward ()
   (interactive)
-  (rtags-location-stack-jump -1)
-  )
+  (rtags-location-stack-jump -1))
 
 ;;;###autoload
 (defun rtags-location-stack-back ()
   (interactive)
-  (rtags-location-stack-jump 1)
-  )
+  (rtags-location-stack-jump 1))
 
 ;;;###autoload
 (defun rtags-location-stack-reset ()
   (interactive)
   (setq rtags-location-stack nil)
-  (setq rtags-location-stack-index 0)
-  )
+  (setq rtags-location-stack-index 0))
 
 (defun rtags-target (&optional filter)
   (let ((path (buffer-file-name))
@@ -875,11 +837,7 @@ return t if rtags is allowed to modify this file"
                 ((or (string= (buffer-string) "Not indexed\n")
                      (string= (buffer-string) "Can't seem to connect to server\n"))
                  (setq rtags-last-request-not-indexed t) nil)
-                (t (buffer-substring-no-properties (point-min) (- (point-max) 1))))
-          )
-      )
-    )
-  )
+                (t (buffer-substring-no-properties (point-min) (- (point-max) 1))))))))
 
 ;; (defalias 'rtags-find-symbol-at-point 'rtags-follow-symbol-at-point)
 ;;;###autoload
@@ -892,9 +850,7 @@ If called with a prefix restrict to current buffer"
   (rtags-save-location)
   (let ((target (rtags-target prefix)))
     (if target
-        (rtags-goto-location target))
-    )
-  )
+        (rtags-goto-location target))))
 
 ;;;###autoload
 (defun rtags-find-references-at-point (&optional prefix)
@@ -909,9 +865,7 @@ References to references will be treated as references to the referenced symbol"
         (context (rtags-current-symbol t)))
     (with-current-buffer (rtags-get-buffer)
       (rtags-call-rc :path fn :context context :path-filter prefix "-r" arg)
-      (rtags-handle-results-buffer))
-    )
-  )
+      (rtags-handle-results-buffer))))
 
 ;;;###autoload
 (defun rtags-find-virtuals-at-point (&optional prefix)
@@ -923,9 +877,7 @@ References to references will be treated as references to the referenced symbol"
         (context (rtags-current-symbol t)))
     (with-current-buffer (rtags-get-buffer)
       (rtags-call-rc :path fn :context context :path-filter prefix "-r" arg "-k")
-      (rtags-handle-results-buffer))
-    )
-  )
+      (rtags-handle-results-buffer))))
 
 ;;;###autoload
 (defun rtags-find-all-references-at-point (&optional prefix)
@@ -936,9 +888,7 @@ References to references will be treated as references to the referenced symbol"
         (context (rtags-current-symbol t)))
     (with-current-buffer (rtags-get-buffer)
       (rtags-call-rc :path fn :context context :path-filter prefix "-r" arg "-e")
-      (rtags-handle-results-buffer))
-    )
-  )
+      (rtags-handle-results-buffer))))
 
 ;;;###autoload
 (defun rtags-guess-function-at-point()
@@ -950,8 +900,7 @@ References to references will be treated as references to the referenced symbol"
     (if token
         (with-current-buffer (rtags-get-buffer)
           (rtags-call-rc :path fn "--declaration-only" "-F" token)
-          (rtags-handle-results-buffer t))))
-  )
+          (rtags-handle-results-buffer t)))))
 
 (defun rtags-current-token ()
   (save-excursion
@@ -1027,8 +976,7 @@ References to references will be treated as references to the referenced symbol"
     (dolist (value buffers)
       (with-current-buffer value
         (basic-save-buffer)))
-    (message (format "Opened %d new files and made %d modifications" filesopened modifications)))
-  )
+    (message (format "Opened %d new files and made %d modifications" filesopened modifications))))
 
 ;;;###autoload
 (defun rtags-find-symbol (&optional prefix)
@@ -1106,8 +1054,7 @@ References to references will be treated as references to the referenced symbol"
 (defun rtags-clear-diagnostics-overlays()
   (interactive)
   (if (buffer-file-name)
-      (rtags-overlays-remove (buffer-file-name)))
-  )
+      (rtags-overlays-remove (buffer-file-name))))
 
 (defun rtags-really-find-buffer (fn)
   (setq fn (file-truename fn))
@@ -1174,8 +1121,7 @@ References to references will be treated as references to the referenced symbol"
                     (insert (format "%s:%d:%d: %s: %s\n" filename line column severity message)))
 
                   (setq errorlist (append errorlist (list overlay)))
-                  (puthash filename errorlist rtags-overlays))))))))
-  )
+                  (puthash filename errorlist rtags-overlays)))))))))
 
 (defun rtags-parse-overlay-node (node)
   (when (listp node)
@@ -1189,9 +1135,7 @@ References to references will be treated as references to the referenced symbol"
           (goto-char (point-min))
           (flush-lines (concat filename ":")))
         (dolist (it body)
-          (rtags-parse-overlay-error-node it filename))))
-    )
-  )
+          (rtags-parse-overlay-error-node it filename))))))
 
 (defvar rtags-last-index nil)
 (defvar rtags-last-total nil)
@@ -1233,17 +1177,11 @@ References to references will be treated as references to the referenced symbol"
                (setq body (cdr body)))
              (force-mode-line-update))
             ;;             (message "RTags: %s/%s (%s%%)" index total)))
-            (t (message "Unexpected root element %s" (car doc)))
-            )
-      )
-    )
-  )
+            (t (message "Unexpected root element %s" (car doc)))))))
 
 (defun rtags-check-overlay (overlay)
   (if (and (not (active-minibuffer-window)) (not cursor-in-echo-area))
-      (rtags-display-overlay overlay (point))
-    )
-  )
+      (rtags-display-overlay overlay (point))))
 
 ;;;###autoload
 (defun rtags-is-running ()
@@ -1257,8 +1195,7 @@ References to references will be treated as references to the referenced symbol"
       (if rtags-display-current-error-as-tooltip
           (popup-tip msg :point point)) ;; :face 'rtags-warnline)) ;;(overlay-get overlay 'face)))
       (if rtags-display-current-error-as-message
-          (message (concat "RTags: " msg)))))
-  )
+          (message (concat "RTags: " msg))))))
 
 (defvar rtags-update-current-error-timer nil)
 
@@ -1266,8 +1203,7 @@ References to references will be treated as references to the referenced symbol"
   (let ((current-overlays (overlays-at (point))))
     (setq rtags-update-current-error-timer nil)
     (while (and current-overlays (not (rtags-check-overlay (car current-overlays))))
-      (setq current-overlays (cdr current-overlays))))
-  )
+      (setq current-overlays (cdr current-overlays)))))
 
 (defun rtags-update-current-error ()
   (if rtags-update-current-error-timer
@@ -1279,8 +1215,7 @@ References to references will be treated as references to the referenced symbol"
              (run-with-idle-timer
               rtags-error-timer-interval
               nil
-              (function rtags-display-current-error))))
-  )
+              (function rtags-display-current-error)))))
 
 (defun rtags-is-rtags-overlay (overlay) (and overlay (overlay-get overlay 'rtags-error-message)))
 
@@ -1302,8 +1237,7 @@ References to references will be treated as references to the referenced symbol"
                     (car overlays))))
     (when overlay
       (setq rtags-highlighted-overlay overlay)
-      (rtags-display-overlay overlay (overlay-start overlay))))
-  )
+      (rtags-display-overlay overlay (overlay-start overlay)))))
 
 (defun rtags-fix-fixit-overlay (overlay)
   (let ((msg (overlay-get overlay 'rtags-error-message))
@@ -1316,16 +1250,14 @@ References to references will be treated as references to the referenced symbol"
           (setq insert (match-string-no-properties 1 msg))
           (rtags-goto-offset start)
           (delete-char (- end start))
-          (if insert (insert insert)))))
-  )
+          (if insert (insert insert))))))
 
 ;;;###autoload
 (defun rtags-fix-fixit-at-point ()
   (interactive)
   (let ((current-overlays (overlays-at (point))))
     (while (and current-overlays (not (rtags-fix-fixit-overlay (car current-overlays))))
-      (setq current-overlays (cdr current-overlays))))
-  )
+      (setq current-overlays (cdr current-overlays)))))
 
 (defvar rtags-last-update-current-project-buffer nil)
 ;;;###autoload
@@ -1343,8 +1275,7 @@ References to references will be treated as references to the referenced symbol"
             (let ((mapped (if rtags-match-source-file-to-project (apply rtags-match-source-file-to-project (list path)))))
               (if (and mapped (length mapped)) (push (concat "--with-project=" mapped) arguments)))
             (apply #'start-process "rtags-update-current-project" nil rc arguments))))
-    (error (message "Got error in rtags-update-current-project")))
-  )
+    (error (message "Got error in rtags-update-current-project"))))
 
 (defvar rtags-tracking-timer nil)
 ;;;###autoload
@@ -1362,8 +1293,7 @@ References to references will be treated as references to the referenced symbol"
                     (rtags-show-in-other-window))
                 (if rtags-tracking-timer
                     (cancel-timer rtags-tracking-timer))
-                (setq rtags-tracking-timer nil)))))
-  )
+                (setq rtags-tracking-timer nil))))))
 
 ;;;###autoload
 (defun rtags-post-command-hook ()
@@ -1374,9 +1304,7 @@ References to references will be treated as references to the referenced symbol"
     (rtags-close-taglist)
     (rtags-restart-tracking-timer)
     (if rtags-completions-enabled
-        (rtags-update-completions-timer))
-    )
-  )
+        (rtags-update-completions-timer))))
 
 (add-hook 'post-command-hook (function rtags-post-command-hook))
 ;; (remove-hook 'post-command-hook (function rtags-post-command-hook))
@@ -1399,8 +1327,7 @@ References to references will be treated as references to the referenced symbol"
         (goto-char (point-min))
         (delete-char (- (point-max) (point-min)))
         (setq buffer-read-only t))))
-  (rtags-clear-diagnostics-overlays)
-  )
+  (rtags-clear-diagnostics-overlays))
 
 (defun rtags-trim-whitespace (str)
   (while (string-match "\\`\n+\\|^\\s-+\\|\\s-+$\\|\n+\\'" str)
@@ -1436,9 +1363,7 @@ References to references will be treated as references to the referenced symbol"
           (rtags-parse-diagnostics (rtags-trim-whitespace current))))
       (setq buffer-read-only t)
       (when (> (length output) 0)
-        (setq rtags-pending-diagnostics output)))
-    )
-  )
+        (setq rtags-pending-diagnostics output)))))
 
 (defvar rtags-diagnostics-mode-map (make-sparse-keymap))
 (define-key rtags-diagnostics-mode-map (kbd "q") 'rtags-bury-or-delete)
@@ -1450,8 +1375,7 @@ References to references will be treated as references to the referenced symbol"
   (use-local-map rtags-diagnostics-mode-map)
   (if (buffer-file-name)
       (error "Set buffer with file %s read only " (buffer-file-name)))
-  (setq buffer-read-only t)
-  )
+  (setq buffer-read-only t))
 
 (defun rtags-init-diagnostics-buffer-and-process (&optional nodirty)
   (let ((buf (get-buffer-create "*RTags Diagnostics*")))
@@ -1465,10 +1389,7 @@ References to references will be treated as references to the referenced symbol"
         (let ((process-connection-type nil)) ;; use a pipe
           (setq rtags-diagnostics-process (start-process "RTags Diagnostics" buf (rtags-executable-find "rc") "-m"))
           (set-process-filter rtags-diagnostics-process (function rtags-diagnostics-process-filter))
-          (rtags-clear-diagnostics))
-      )
-    )
-  )
+          (rtags-clear-diagnostics)))))
 
 ;;;###autoload
 (defun rtags-diagnostics (&optional restart nodirty)
@@ -1478,8 +1399,7 @@ References to references will be treated as references to the referenced symbol"
   (rtags-init-diagnostics-buffer-and-process)
   (when (called-interactively-p 'any)
     (switch-to-buffer-other-window "*RTags Diagnostics*")
-    (other-window 1))
-  )
+    (other-window 1)))
 
 (defvar rtags-indexed nil)
 (defvar rtags-file-managed nil)
@@ -1491,8 +1411,7 @@ References to references will be treated as references to the referenced symbol"
       (goto-char (point-min))
       (cond ((looking-at "indexed") 'rtags-indexed)
             ((looking-at "managed") 'rtags-file-managed)
-            (t nil))))
-  )
+            (t nil)))))
 
 (defun rtags-compilation-flags ()
   (interactive)
@@ -1500,10 +1419,7 @@ References to references will be treated as references to the referenced symbol"
     (if path
         (with-temp-buffer
           (rtags-call-rc :path path "--source" path "--compilation-flags-only" "--compilation-flags-split-line")
-          (split-string (buffer-substring-no-properties (point-min) (point-max)) "\n"))
-      )
-    )
-  )
+          (split-string (buffer-substring-no-properties (point-min) (point-max)) "\n")))))
 
 (defun rtags-is-indexed (&optional buffer)
   (equal (rtags-buffer-status buffer) 'rtags-indexed))
@@ -1561,8 +1477,7 @@ References to references will be treated as references to the referenced symbol"
 (define-derived-mode rtags-taglist-mode fundamental-mode
   (setq mode-name "rtags-taglist")
   (use-local-map rtags-mode-map)
-  (run-hooks 'rtags-taglist-mode-hook)
-  )
+  (run-hooks 'rtags-taglist-mode-hook))
 
 (defun rtags-close-taglist ()
   (interactive)
@@ -1576,12 +1491,7 @@ References to references will be treated as references to the referenced symbol"
               (when (eq (window-buffer (car windows)) buf)
                 (delete-window (car windows))
                 (setq windows nil))
-              (setq windows (cdr windows)))
-            )
-        )
-      )
-    )
-  )
+              (setq windows (cdr windows))))))))
 
 ;; category (list (text . (location . linenumber)))
 (defun rtags-taglist-insert-category (category name)
@@ -1596,10 +1506,8 @@ References to references will be treated as references to the referenced symbol"
                (len (length text)))
           (insert " " text "\n")
           (setq max (max len max)))
-        (setq category (cdr category)))
-      )
-    max)
-  )
+        (setq category (cdr category))))
+    max))
 
 (defun rtags-taglist ()
   (interactive)
@@ -1626,9 +1534,7 @@ References to references will be treated as references to the referenced symbol"
                                      ((or (string= type "macro definition") (string= type "include directive")) 'macros)
                                      (t 'other))
                                (cons (concat text ":" linenum) (concat loc-start linenum loc-end))))))
-          (forward-line))
-        )
-      )
+          (forward-line))))
     (when (or functions classes variables enums macros other)
       (delete-other-windows)
       (let ((buf (rtags-get-buffer)) (max 0))
@@ -1645,11 +1551,7 @@ References to references will be treated as references to the referenced symbol"
           (forward-line))
         (split-window-horizontally (min (/ (frame-width) 2) (+ 2 max)))
         (switch-to-buffer buf)
-        (rtags-taglist-mode)
-        )
-      )
-    )
-  )
+        (rtags-taglist-mode)))))
 
 (defun rtags-select (&optional other-window remove show)
   (interactive "P")
@@ -1670,9 +1572,7 @@ References to references will be treated as references to the referenced symbol"
     (if remove
         (delete-window window)
       (if show
-          (select-window window)))
-    )
-  )
+          (select-window window)))))
 
 (defun rtags-select-other-window (&optional not-other-window)
   (interactive "P")
@@ -1706,8 +1606,7 @@ References to references will be treated as references to the referenced symbol"
   (while (< (point-at-eol) (point-max))
     (goto-char (point-at-eol))
     (insert txt)
-    (forward-line))
-  )
+    (forward-line)))
 
 (defvar rtags-find-file-history nil)
 (defun rtags-find-file (&optional prefix tagname)
@@ -1765,10 +1664,7 @@ References to references will be treated as references to the referenced symbol"
             (t (switch-to-buffer-other-window rtags-buffer-name)
                (shrink-window-if-larger-than-buffer)
                (rtags-init-bookmarks)
-               (rtags-mode)))
-      )
-    )
-  )
+               (rtags-mode))))))
 
 (defun rtags-show-rtags-buffer ()
   (interactive)
@@ -1807,16 +1703,12 @@ References to references will be treated as references to the referenced symbol"
                       (delete-char length) ;; may be 0
                       (insert text))))))
           ;; (message (format "got something %d to %d => [%s]" start end text))))
-          (forward-line))
-        )
+          (forward-line)))
       (if tempbuf
           (let ((tempbufname (format "/tmp/rtags-fixit-%s" (file-name-nondirectory path))))
             (with-current-buffer tempbuf (write-file tempbufname))
             (kill-buffer tempbuf)
-            (ediff path tempbufname)))
-      )
-    )
-  )
+            (ediff path tempbufname))))))
 
 (defun rtags-current-symbol-name (&optional cursorinfo)
   (unless cursorinfo
@@ -1824,9 +1716,7 @@ References to references will be treated as references to the referenced symbol"
   (let ((container (string-match "^Container:" cursorinfo))
         (symbolname (string-match "^SymbolName: \\(.*\\)$" cursorinfo)))
     (if (and symbolname (or (not container) (< symbolname container)))
-        (match-string-no-properties 1 cursorinfo))
-    )
-  )
+        (match-string-no-properties 1 cursorinfo))))
 
 (defun rtags-current-container-name (&optional cursorinfo)
   (unless cursorinfo
@@ -1906,8 +1796,7 @@ References to references will be treated as references to the referenced symbol"
   (let (deactivate-mark)
     (save-excursion
       (rtags-goto-line-col line col)
-      (rtags-offset)))
-  )
+      (rtags-offset))))
 
 (defun rtags-range-visible (start end)
   (and (>= start (window-start))
@@ -1922,8 +1811,7 @@ References to references will be treated as references to the referenced symbol"
           (rtags-call-rc :path buffer "-X" buffer)
           (if (> (point-max) (point-min))
               (message (buffer-substring-no-properties (point-min) (1- (point-max))))
-            (message (buffer-string))))))
-  )
+            (message (buffer-string)))))))
 
 (defun rtags-clear-suspended-files()
   (interactive)
@@ -1933,8 +1821,7 @@ References to references will be treated as references to the referenced symbol"
           (rtags-call-rc :path buffer "-X" "clear")
           (if (> (point-max) (point-min))
               (message (buffer-substring-no-properties (point-min) (1- (point-max))))
-            (message (buffer-string))))))
-  )
+            (message (buffer-string)))))))
 
 (defun rtags-list-suspended-files()
   (interactive)
@@ -1944,8 +1831,7 @@ References to references will be treated as references to the referenced symbol"
           (rtags-call-rc :path buffer "-X")
           (if (> (point-max) (point-min))
               (message (buffer-substring-no-properties (point-min) (1- (point-max))))
-            (message (buffer-string))))))
-  )
+            (message (buffer-string)))))))
 
 (defun rtags-dummy-includes-func()
   "Dummy function, returns rtags-rdm-includes."
@@ -2013,10 +1899,7 @@ References to references will be treated as references to the referenced symbol"
         (if (or (= (char-before) 46) ;; .
                 (and (= (char-before) 62) (= (char-before (1- (point))) 45)) ;; ->
                 (and (= (char-before) 58) (= (char-before (1- (point))) 58))) ;; ::
-            (point))
-        )
-    )
-  )
+            (point)))))
 
 (defvar rtags-completions-timer nil)
 (defun rtags-update-completions-timer ()
@@ -2027,8 +1910,7 @@ References to references will be treated as references to the referenced symbol"
         (and rtags-completions-enabled
              (or (eq major-mode 'c++-mode) (eq major-mode 'c-mode))
              (run-with-idle-timer rtags-completions-timer-interval
-                                  nil (function rtags-update-completions))))
-  )
+                                  nil (function rtags-update-completions)))))
 
 (defun rtags-update-completions (&optional force)
   (interactive)
@@ -2049,11 +1931,7 @@ References to references will be treated as references to the referenced symbol"
           (let ((path (buffer-file-name))
                 (unsaved (and (buffer-modified-p) (current-buffer)))
                 (location (rtags-current-location pos)))
-            (rtags-call-rc :path path :output 0 :unsaved unsaved "-Y" "-l" location))
-          )
-        )
-    )
-  )
+            (rtags-call-rc :path path :output 0 :unsaved unsaved "-Y" "-l" location))))))
 
 (defun rtags-completion-candidates ()
   ;; (message "Candidates called at %s:%d:%d against %s"
@@ -2074,9 +1952,7 @@ References to references will be treated as references to the referenced symbol"
                 (setq last nil))
             (setq last (car completions)))
           (setq completions (cdr completions)))
-        ret)
-    )
-  )
+        ret)))
 ;; (let ((loc (format "%s:%d:%d" (or (buffer-file-name) (buffer-name))
 ;;                    (line-number-at-pos) (1+ (rtags-find-symbol-start)))))
 ;;   (if (string= loc (car rtags-last-completions))
