@@ -90,6 +90,7 @@
       (kill-buffer name))
   (generate-new-buffer name))
 
+;;;###autoload
 (defun rtags-bury-or-delete ()
   (interactive)
   (if (> (length (window-list)) 1)
@@ -143,7 +144,9 @@
     (decf rtags-buffer-bookmarks))
   )
 
+;;;###autoload
 (defun rtags-next-match () (interactive) (rtags-next-prev-match t))
+;;;###autoload
 (defun rtags-previous-match () (interactive) (rtags-next-prev-match nil))
 
 (defun rtags-next-prev-suitable-match (next)
@@ -184,7 +187,9 @@
             (rtags-select)))))
   )
 
+;;;###autoload
 (defun rtags-next-diag () (interactive) (rtags-next-prev-diag t))
+;;;###autoload
 (defun rtags-previous-diag () (interactive) (rtags-next-prev-diag nil))
 
 (defun rtags-next-prev-diag (next)
@@ -324,6 +329,7 @@
     )
   )
 
+;;;###autoload
 (defun rtags-index-js-file ()
   (interactive)
   (if (buffer-file-name)
@@ -349,6 +355,7 @@
     (buffer-string))
   )
 
+;;;###autoload
 (defun rtags-preprocess-file (&optional buffer)
   (interactive)
   (unless buffer (setq buffer (current-buffer)))
@@ -386,6 +393,7 @@
       (display-buffer preprocess-buffer))
     ))
 
+;;;###autoload
 (defun rtags-reparse-file (&optional buffer)
   (interactive)
   (let ((file (buffer-file-name buffer)))
@@ -396,6 +404,7 @@
     )
   )
 
+;;;###autoload
 (defun rtags-set-current-project ()
   (interactive)
   (let ((projects nil)
@@ -441,10 +450,12 @@
           (copy-region-as-kill (point-min) (point-max)))
       (buffer-string))))
 
+;;;###autoload
 (defun rtags-print-cursorinfo (&optional prefix)
   (interactive "P")
   (message "%s" (rtags-cursorinfo nil (not prefix) (not prefix))))
 
+;;;###autoload
 (defun rtags-print-dependencies (&optional buffer)
   (interactive)
   (let ((dep-buffer (rtags-get-buffer))
@@ -455,6 +466,7 @@
       (rtags-call-rc :path fn "--dependencies" fn)
       (rtags-mode))))
 
+;;;###autoload
 (defun rtags-print-enum-value-at-point (&optional location)
   (interactive)
   (let ((info (rtags-cursorinfo location)))
@@ -500,6 +512,7 @@
               (+ pos carriagereturns))
           (+ (1- (point)) carriagereturns))))))
 
+;;;###autoload
 (defun rtags-goto-offset (pos)
   (interactive "NOffset: ")
   (if (rtags-buffer-is-multibyte)
@@ -618,6 +631,7 @@
     )
   )
 
+;;;###autoload
 (defun rtags-remove-results-buffer ()
   (interactive)
   (kill-buffer (current-buffer))
@@ -656,6 +670,7 @@
     )
   )
 
+;;;###autoload
 (defun rtags-location-stack-jump (by)
   (interactive)
   (setq rtags-last-context nil)
@@ -780,6 +795,7 @@ return t if rtags is allowed to modify this file"
   :group 'rtags
   :type 'boolean)
 
+;;;###autoload
 (defun rtags-enable-standard-keybindings (&optional map prefix)
   (interactive)
   (unless map
@@ -818,23 +834,28 @@ return t if rtags is allowed to modify this file"
     (add-hook 'find-file-hook 'rtags-index-js-file)
   (remove-hook 'find-file-hook 'rtags-index-js-file))
 
+;;;###autoload
 (defun rtags-print-current-location ()
   (interactive)
   (message (rtags-current-location)))
 
+;;;###autoload
 (defun rtags-quit-rdm () (interactive)
   (call-process (rtags-executable-find "rc") nil nil nil "--quit-rdm"))
 
+;;;###autoload
 (defun rtags-location-stack-forward ()
   (interactive)
   (rtags-location-stack-jump -1)
   )
 
+;;;###autoload
 (defun rtags-location-stack-back ()
   (interactive)
   (rtags-location-stack-jump 1)
   )
 
+;;;###autoload
 (defun rtags-location-stack-reset ()
   (interactive)
   (setq rtags-location-stack nil)
@@ -861,6 +882,7 @@ return t if rtags is allowed to modify this file"
   )
 
 ;; (defalias 'rtags-find-symbol-at-point 'rtags-follow-symbol-at-point)
+;;;###autoload
 (defun rtags-find-symbol-at-point (&optional prefix)
   "Find the natural target for the symbol under the cursor and moves to that location.
 For references this means to jump to the definition/declaration of the referenced symbol (it jumps to the definition if it is indexed).
@@ -874,6 +896,7 @@ If called with a prefix restrict to current buffer"
     )
   )
 
+;;;###autoload
 (defun rtags-find-references-at-point (&optional prefix)
   "Find all references to the symbol under the cursor
 If there's exactly one result jump directly to it.
@@ -890,6 +913,7 @@ References to references will be treated as references to the referenced symbol"
     )
   )
 
+;;;###autoload
 (defun rtags-find-virtuals-at-point (&optional prefix)
   "List all reimplentations of function under cursor. This includes both declarations and definitions"
   (interactive "P")
@@ -903,6 +927,7 @@ References to references will be treated as references to the referenced symbol"
     )
   )
 
+;;;###autoload
 (defun rtags-find-all-references-at-point (&optional prefix)
   (interactive "P")
   (rtags-save-location)
@@ -915,6 +940,7 @@ References to references will be treated as references to the referenced symbol"
     )
   )
 
+;;;###autoload
 (defun rtags-guess-function-at-point()
   (interactive)
   (rtags-save-location)
@@ -939,6 +965,7 @@ References to references will be treated as references to the referenced symbol"
           (forward-char))
         (buffer-substring-no-properties start (point))))))
 
+;;;###autoload
 (defun rtags-rename-symbol ()
   (interactive)
   (save-some-buffers) ;; it all kinda falls apart when buffers are unsaved
@@ -1003,18 +1030,22 @@ References to references will be treated as references to the referenced symbol"
     (message (format "Opened %d new files and made %d modifications" filesopened modifications)))
   )
 
+;;;###autoload
 (defun rtags-find-symbol (&optional prefix)
   (interactive "P")
   (rtags-find-symbols-by-name-internal "Find rsymbol" "-F" (and prefix buffer-file-name)))
 
+;;;###autoload
 (defun rtags-find-references (&optional prefix)
   (interactive "P")
   (rtags-find-symbols-by-name-internal "Find rreferences" "-R" (and prefix buffer-file-name)))
 
+;;;###autoload
 (defun rtags-find-symbol-current-file ()
   (interactive)
   (rtags-find-symbol t))
 
+;;;###autoload
 (defun rtags-find-references-current-file ()
   (interactive)
   (rtags-find-references t))
@@ -1027,15 +1058,18 @@ References to references will be treated as references to the referenced symbol"
                       buffer-file-name))
           "[^/]* "))
 
+;;;###autoload
 (defun rtags-find-symbol-current-dir ()
   (interactive)
   (rtags-find-symbols-by-name-internal "Find rsymbol" "-F" (rtags-dir-filter) t))
 
+;;;###autoload
 (defun rtags-find-references-current-dir ()
   (interactive)
   (rtags-find-symbols-by-name-internal "Find rreferences" (rtags-dir-filter) t))
 
 (defvar rtags-diagnostics-process nil)
+;;;###autoload
 (defun rtags-apply-fixit-at-point ()
   (interactive)
   (let ((line (buffer-substring-no-properties (point-at-bol) (point-at-eol))))
@@ -1068,6 +1102,7 @@ References to references will be treated as references to the referenced symbol"
       (setq errorlist (cdr errorlist)))
     (puthash filename nil rtags-overlays)))
 
+;;;###autoload
 (defun rtags-clear-diagnostics-overlays()
   (interactive)
   (if (buffer-file-name)
@@ -1210,6 +1245,7 @@ References to references will be treated as references to the referenced symbol"
     )
   )
 
+;;;###autoload
 (defun rtags-is-running ()
   (interactive)
   (with-temp-buffer
@@ -1256,6 +1292,7 @@ References to references will be treated as references to the referenced symbol"
 
 (defvar rtags-highlighted-overlay nil)
 
+;;;###autoload
 (defun rtags-cycle-overlays-on-screen ()
   (interactive)
   (let* ((overlays (rtags-overlays-on-screen))
@@ -1282,6 +1319,7 @@ References to references will be treated as references to the referenced symbol"
           (if insert (insert insert)))))
   )
 
+;;;###autoload
 (defun rtags-fix-fixit-at-point ()
   (interactive)
   (let ((current-overlays (overlays-at (point))))
@@ -1290,6 +1328,7 @@ References to references will be treated as references to the referenced symbol"
   )
 
 (defvar rtags-last-update-current-project-buffer nil)
+;;;###autoload
 (defun rtags-update-current-project ()
   (interactive)
   (condition-case nil
@@ -1308,6 +1347,7 @@ References to references will be treated as references to the referenced symbol"
   )
 
 (defvar rtags-tracking-timer nil)
+;;;###autoload
 (defun rtags-restart-tracking-timer()
   (interactive)
   (if rtags-tracking-timer
@@ -1325,6 +1365,7 @@ References to references will be treated as references to the referenced symbol"
                 (setq rtags-tracking-timer nil)))))
   )
 
+;;;###autoload
 (defun rtags-post-command-hook ()
   (interactive)
   (when rtags-enabled
@@ -1340,6 +1381,7 @@ References to references will be treated as references to the referenced symbol"
 (add-hook 'post-command-hook (function rtags-post-command-hook))
 ;; (remove-hook 'post-command-hook (function rtags-post-command-hook))
 
+;;;###autoload
 (defun rtags-stop-diagnostics ()
   (interactive)
   (if (and rtags-diagnostics-process (not (eq (process-status rtags-diagnostics-process) 'exit)))
@@ -1347,6 +1389,7 @@ References to references will be treated as references to the referenced symbol"
   (if (get-buffer "*RTags Diagnostics*")
       (kill-buffer "*RTags Diagnostics*")))
 
+;;;###autoload
 (defun rtags-clear-diagnostics ()
   (interactive)
   (when (get-buffer "*RTags Diagnostics*")
@@ -1427,6 +1470,7 @@ References to references will be treated as references to the referenced symbol"
     )
   )
 
+;;;###autoload
 (defun rtags-diagnostics (&optional restart nodirty)
   (interactive "P")
   (if restart
