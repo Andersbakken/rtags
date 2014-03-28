@@ -103,6 +103,7 @@
       (kill-buffer name))
   (generate-new-buffer name))
 
+;;;###autoload
 (defun rtags-bury-or-delete ()
   (interactive)
   (if (> (length (window-list)) 1)
@@ -157,7 +158,10 @@
     (bookmark-delete (format "R_%d" rtags-buffer-bookmarks))
     (setq rtags-buffer-bookmarks (- rtags-buffer-bookmarks 1))))
 
+;;;###autoload
 (defun rtags-next-match () (interactive) (rtags-next-prev-match t))
+
+;;;###autoload
 (defun rtags-previous-match () (interactive) (rtags-next-prev-match nil))
 
 (defun rtags-next-prev-suitable-match (next)
@@ -196,7 +200,10 @@
           (if win (rtags-select-other-window)
             (rtags-select))))))
 
+;;;###autoload
 (defun rtags-next-diag () (interactive) (rtags-next-prev-diag t))
+
+;;;###autoload
 (defun rtags-previous-diag () (interactive) (rtags-next-prev-diag nil))
 
 (defun rtags-next-prev-diag (next)
@@ -306,6 +313,7 @@
                       (t nil)))))
           (or async (> (point-max) (point-min))))))))
 
+;;;###autoload
 (defun rtags-index-js-file ()
   (interactive)
   (if (buffer-file-name)
@@ -329,6 +337,7 @@
     (rtags-call-rc :path file "--builds" file)
     (buffer-string)))
 
+;;;###autoload
 (defun rtags-preprocess-file (&optional buffer)
   (interactive)
   (unless buffer (setq buffer (current-buffer)))
@@ -365,6 +374,7 @@
         (rtags-preprocess-mode))
       (display-buffer preprocess-buffer))))
 
+;;;###autoload
 (defun rtags-reparse-file (&optional buffer)
   (interactive)
   (let ((file (buffer-file-name buffer)))
@@ -374,6 +384,7 @@
 
 ;; /home/abakken/dev (loaded) <=
 
+;;;###autoload
 (defun rtags-set-current-project ()
   (interactive)
   (let ((projects nil)
@@ -449,10 +460,12 @@
                      (if verbose "--cursorinfo-include-references"))
       (buffer-string))))
 
+;;;###autoload
 (defun rtags-print-cursorinfo (&optional verbose)
   (interactive "P")
   (message "%s" (rtags-cursorinfo nil verbose)))
 
+;;;###autoload
 (defun rtags-print-dependencies (&optional buffer)
   (interactive)
   (let ((dep-buffer (rtags-get-buffer))
@@ -462,6 +475,7 @@
     (rtags-call-rc :path fn "--dependencies" fn)
     (rtags-start-mode nil t)))
 
+;;;###autoload
 (defun rtags-print-enum-value-at-point (&optional location)
   (interactive)
   (let ((info (rtags-cursorinfo location)))
@@ -506,6 +520,7 @@
               (+ pos carriagereturns))
           (+ (1- (point)) carriagereturns))))))
 
+;;;###autoload
 (defun rtags-goto-offset (pos)
   (interactive "NOffset: ")
   (if (rtags-buffer-is-multibyte)
@@ -605,6 +620,7 @@
       (rtags-reset-bookmarks)
       (rtags-handle-completion-buffer))))
 
+;;;###autoload
 (defun rtags-remove-completion-buffer ()
   (interactive)
   (kill-buffer (current-buffer))
@@ -640,6 +656,7 @@
       (if (> (length rtags-location-stack) rtags-max-bookmark-count)
           (nbutlast rtags-location-stack (- (length rtags-location-stack) rtags-max-bookmark-count))))))
 
+;;;###autoload
 (defun rtags-location-stack-jump (by)
   (interactive)
   (let ((instack (nth rtags-location-stack-index rtags-location-stack))
@@ -760,6 +777,7 @@ return t if rtags is allowed to modify this file"
   :group 'rtags
   :type 'boolean)
 
+;;;###autoload
 (defun rtags-enable-standard-keybindings (&optional map prefix)
   (interactive)
   (unless map
@@ -797,26 +815,32 @@ return t if rtags is allowed to modify this file"
     (add-hook 'find-file-hook 'rtags-index-js-file)
   (remove-hook 'find-file-hook 'rtags-index-js-file))
 
+;;;###autoload
 (defun rtags-print-current-location ()
   (interactive)
   (message (rtags-current-location)))
 
+;;;###autoload
 (defun rtags-quit-rdm () (interactive)
   (call-process (rtags-executable-find "rc") nil nil nil "--quit-rdm"))
 
+;;;###autoload
 (defun rtags-switch-to-completion-buffer () (interactive)
   (let ((buf (get-buffer "*RTags Completions*")))
     (if buf
         (switch-to-buffer-other-window buf))))
 
+;;;###autoload
 (defun rtags-location-stack-forward ()
   (interactive)
   (rtags-location-stack-jump -1))
 
+;;;###autoload
 (defun rtags-location-stack-back ()
   (interactive)
   (rtags-location-stack-jump 1))
 
+;;;###autoload
 (defun rtags-location-stack-reset ()
   (interactive)
   (setq rtags-location-stack nil)
@@ -838,6 +862,8 @@ return t if rtags is allowed to modify this file"
                 (t (buffer-substring-no-properties (point-min) (- (point-max) 1))))))))
 
 ;; (defalias 'rtags-find-symbol-at-point 'rtags-follow-symbol-at-point)
+
+;;;###autoload
 (defun rtags-find-symbol-at-point (&optional prefix)
   "Find the natural target for the symbol under the cursor and moves to that location.
 For references this means to jump to the definition/declaration of the referenced symbol (it jumps to the definition if it is indexed).
@@ -849,6 +875,7 @@ If called with a prefix restrict to current buffer"
     (if target
         (rtags-goto-location target))))
 
+;;;###autoload
 (defun rtags-find-references-at-point (&optional prefix)
   "Find all references to the symbol under the cursor
 If there's exactly one result jump directly to it.
@@ -863,6 +890,7 @@ References to references will be treated as references to the referenced symbol"
       (rtags-call-rc :path fn :context context :path-filter prefix "-r" arg "-l")
       (rtags-handle-completion-buffer))))
 
+;;;###autoload
 (defun rtags-find-virtuals-at-point (&optional prefix)
   "List all reimplentations of function under cursor. This includes both declarations and definitions"
   (interactive "P")
@@ -874,6 +902,7 @@ References to references will be treated as references to the referenced symbol"
       (rtags-call-rc :path fn :context context :path-filter prefix "-r" arg "-k" "-l")
       (rtags-handle-completion-buffer))))
 
+;;;###autoload
 (defun rtags-find-all-references-at-point (&optional prefix)
   (interactive "P")
   (rtags-save-location)
@@ -884,6 +913,7 @@ References to references will be treated as references to the referenced symbol"
       (rtags-call-rc :path fn :context context :path-filter prefix "-r" arg "-e" "-l")
       (rtags-handle-completion-buffer))))
 
+;;;###autoload
 (defun rtags-guess-function-at-point()
   (interactive)
   (rtags-save-location)
@@ -907,6 +937,7 @@ References to references will be treated as references to the referenced symbol"
           (forward-char))
         (buffer-substring-no-properties start (point))))))
 
+;;;###autoload
 (defun rtags-rename-symbol ()
   (interactive)
   (save-some-buffers) ;; it all kinda falls apart when buffers are unsaved
@@ -962,18 +993,22 @@ References to references will be treated as references to the referenced symbol"
                       (basic-save-buffer)))))))))
     (message (format "Opened %d new files and made %d modifications" filesopened modifications))))
 
+;;;###autoload
 (defun rtags-find-symbol (&optional prefix)
   (interactive "P")
   (rtags-find-symbols-by-name-internal "Find rsymbol" nil prefix))
 
+;;;###autoload
 (defun rtags-find-references (&optional prefix)
   (interactive "P")
   (rtags-find-symbols-by-name-internal "Find rreferences" t prefix))
 
+;;;###autoload
 (defun rtags-find-symbol-current-file ()
   (interactive)
   (rtags-find-symbol t))
 
+;;;###autoload
 (defun rtags-find-references-current-file ()
   (interactive)
   (rtags-find-references t))
@@ -986,12 +1021,14 @@ References to references will be treated as references to the referenced symbol"
                       buffer-file-name))
           "[^/]*/?$"))
 
+;;;###autoload
 (defun rtags-find-symbol-current-dir ()
   (interactive)
   (setq rtags-path-filter-regex t)
   (rtags-find-symbols-by-name-internal "Find rsymbol" nil (rtags-dir-filter))
   (setq rtags-path-filter-regex nil))
 
+;;;###autoload
 (defun rtags-find-references-current-dir ()
   (interactive)
   (setq rtags-path-filter-regex t)
@@ -1072,6 +1109,7 @@ References to references will be treated as references to the referenced symbol"
     (funcall rtags-expand-function)
     (rtags-post-expand)))
 
+;;;###autoload
 (defun rtags-rdm-completion-enabled ()
   (interactive)
   (with-temp-buffer
@@ -1080,6 +1118,7 @@ References to references will be treated as references to the referenced symbol"
     (or (looking-at "1")
         (looking-at "Can't seem to connect to server"))))
 
+;;;###autoload
 (defun rtags-expand ()
   (interactive)
   (if (and rtags-completion (or (eq rtags-completion-mode 'rtags-complete-with-dabbrev-and-autocomplete)
@@ -1095,6 +1134,7 @@ References to references will be treated as references to the referenced symbol"
        (string= (buffer-substring-no-properties (point-at-bol) (+ (point-at-bol) rtags-completion-cache-column))
                 rtags-completion-cache-line-contents)))
 
+;;;###autoload
 (defun rtags-init-completion-stream ()
   (interactive)
   (if (or (not rtags-completion-stream-process)
@@ -1112,6 +1152,7 @@ References to references will be treated as references to the referenced symbol"
         (set-process-filter rtags-completion-stream-process (function rtags-completion-stream-process-filter))))
   t)
 
+;;;###autoload
 (defun rtags-prepare-completions ()
   (interactive)
   ;;(message "prepare completion")
@@ -1142,6 +1183,8 @@ References to references will be treated as references to the referenced symbol"
         (process-send-string rtags-completion-stream-process (buffer-substring-no-properties (point-min) (point-max)))))))
 
 (defvar rtags-diagnostics-process nil)
+
+;;;###autoload
 (defun rtags-apply-fixit-at-point ()
   (interactive)
   (let ((line (buffer-substring-no-properties (point-at-bol) (point-at-eol))))
@@ -1174,6 +1217,7 @@ References to references will be treated as references to the referenced symbol"
       (setq errorlist (cdr errorlist)))
     (puthash filename nil rtags-overlays)))
 
+;;;###autoload
 (defun rtags-clear-diagnostics-overlays()
   (interactive)
   (if (buffer-file-name)
@@ -1295,6 +1339,7 @@ References to references will be treated as references to the referenced symbol"
   (if (and (not (active-minibuffer-window)) (not cursor-in-echo-area))
       (rtags-display-overlay overlay (point))))
 
+;;;###autoload
 (defun rtags-is-running ()
   (interactive)
   (with-temp-buffer
@@ -1338,6 +1383,7 @@ References to references will be treated as references to the referenced symbol"
 
 (defvar rtags-highlighted-overlay nil)
 
+;;;###autoload
 (defun rtags-cycle-overlays-on-screen ()
   (interactive)
   (let* ((overlays (rtags-overlays-on-screen))
@@ -1362,6 +1408,7 @@ References to references will be treated as references to the referenced symbol"
           (delete-char (- end start))
           (if insert (insert insert))))))
 
+;;;###autoload
 (defun rtags-fix-fixit-at-point ()
   (interactive)
   (let ((current-overlays (overlays-at (point))))
@@ -1417,6 +1464,8 @@ References to references will be treated as references to the referenced symbol"
                     (setq continue nil))))))))))
 
 (defvar rtags-completion-cache-timer nil)
+
+;;;###autoload
 (defun rtags-restart-completion-cache-timer ()
   (interactive)
   (if rtags-completion-cache-timer
@@ -1499,10 +1548,14 @@ should use `irony-get-completion-point-anywhere'."
 ;;     (allow-dups)
 ;;     (cache))
 
+;;;###autoload
 (defun rtags-ac-post-command-hook () (interactive) (if auto-complete-mode (ac-handle-post-command)))
+;;;###autoload
 (defun rtags-ac-pre-command-hook () (interactive) (if auto-complete-mode (ac-handle-pre-command)))
+;;;###autoload
 (defun rtags-ac-after-save-hook () (interactive) (if auto-complete-mode (ac-clear-variables-after-save)))
 
+;;;###autoload
 (defun rtags-ac-find-file-hook ()
   (interactive)
   (when (and (or (eq major-mode 'c++-mode)
@@ -1518,6 +1571,7 @@ should use `irony-get-completion-point-anywhere'."
     (add-hook 'after-save-hook (function rtags-ac-after-save-hook)))
   t)
 
+;;;###autoload
 (defun rtags-update-completion-mode ()
   (interactive)
   (if (and rtags-completion-stream-process (eq (process-status rtags-completion-stream-process) 'run))
@@ -1556,6 +1610,8 @@ should use `irony-get-completion-point-anywhere'."
           value))
 
 (defvar rtags-last-update-current-project-buffer nil)
+
+;;;###autoload
 (defun rtags-update-current-project ()
   (interactive)
   (condition-case nil
@@ -1573,6 +1629,8 @@ should use `irony-get-completion-point-anywhere'."
     (error (message "Got error in rtags-update-current-project"))))
 
 (defvar rtags-tracking-timer nil)
+
+;;;###autoload
 (defun rtags-restart-tracking-timer()
   (interactive)
   (if rtags-tracking-timer
@@ -1589,6 +1647,7 @@ should use `irony-get-completion-point-anywhere'."
                     (cancel-timer rtags-tracking-timer))
                 (setq rtags-tracking-timer nil))))))
 
+;;;###autoload
 (defun rtags-post-command-hook ()
   (interactive)
   (when rtags-enabled
@@ -1602,6 +1661,7 @@ should use `irony-get-completion-point-anywhere'."
 (add-hook 'post-command-hook (function rtags-post-command-hook))
 ;; (remove-hook 'post-command-hook (function rtags-post-command-hook))
 
+;;;###autoload
 (defun rtags-stop-diagnostics ()
   (interactive)
   (if (and rtags-diagnostics-process (not (eq (process-status rtags-diagnostics-process) 'exit)))
@@ -1609,6 +1669,7 @@ should use `irony-get-completion-point-anywhere'."
   (if (get-buffer "*RTags Diagnostics*")
       (kill-buffer "*RTags Diagnostics*")))
 
+;;;###autoload
 (defun rtags-clear-diagnostics ()
   (interactive)
   (when (get-buffer "*RTags Diagnostics*")
@@ -1682,6 +1743,7 @@ should use `irony-get-completion-point-anywhere'."
           (set-process-filter rtags-diagnostics-process (function rtags-diagnostics-process-filter))
           (rtags-clear-diagnostics)))))
 
+;;;###autoload
 (defun rtags-diagnostics (&optional restart nodirty)
   (interactive "P")
   (if restart
@@ -1777,6 +1839,7 @@ should use `irony-get-completion-point-anywhere'."
             (flush-lines "Process finished rc" (point-min) (point-max) nil)
             (setq buffer-read-only wasreadonly)))))))
 
+;;;###autoload
 (defun rtags-standard-save-hook ()
   (interactive)
   (if (and (get-buffer "*RTags Diagnostics*") (rtags-is-indexed))
@@ -1815,6 +1878,7 @@ should use `irony-get-completion-point-anywhere'."
   (use-local-map rtags-mode-map)
   (run-hooks 'rtags-taglist-mode-hook))
 
+;;;###autoload
 (defun rtags-close-taglist ()
   (interactive)
   (unless rtags-taglist-protected
@@ -1845,6 +1909,7 @@ should use `irony-get-completion-point-anywhere'."
         (setq category (cdr category))))
     max))
 
+;;;###autoload
 (defun rtags-taglist ()
   (interactive)
   (rtags-save-location)
@@ -1889,6 +1954,7 @@ should use `irony-get-completion-point-anywhere'."
         (switch-to-buffer buf)
         (rtags-taglist-mode)))))
 
+;;;###autoload
 (defun rtags-select (&optional other-window remove show)
   (interactive "P")
   (let* ((line (line-number-at-pos))
@@ -1910,19 +1976,23 @@ should use `irony-get-completion-point-anywhere'."
       (if show
           (select-window window)))))
 
+;;;###autoload
 (defun rtags-select-other-window (&optional not-other-window)
   (interactive "P")
   (rtags-select (not not-other-window)))
 
+;;;###autoload
 (defun rtags-show-in-other-window ()
   (interactive)
   ;; (message "About to show")
   (rtags-select t nil t))
 
+;;;###autoload
 (defun rtags-select-and-remove-rtags-buffer ()
   (interactive)
   (rtags-select t t))
 
+;;;###autoload
 (defun rtags-imenu ()
   (interactive)
   (rtags-save-location)
@@ -1945,6 +2015,8 @@ should use `irony-get-completion-point-anywhere'."
     (forward-line)))
 
 (defvar rtags-find-file-history nil)
+
+;;;###autoload
 (defun rtags-find-file (&optional prefix tagname)
   (interactive "P")
   (rtags-save-location)
@@ -1995,11 +2067,13 @@ should use `irony-get-completion-point-anywhere'."
                  (shrink-window-if-larger-than-buffer)
                  (rtags-start-mode nil t)))))))
 
+;;;###autoload
 (defun rtags-show-rtags-buffer ()
   (interactive)
   (if (get-buffer rtags-buffer-name)
       (display-buffer rtags-buffer-name)))
 
+;;;###autoload
 (defun rtags-fixit (&optional ediff buffer)
   (interactive "P")
   (save-some-buffers)
@@ -2063,6 +2137,8 @@ should use `irony-get-completion-point-anywhere'."
           (cons start end)))))
 
 (defvar rtags-other-window-window nil)
+
+;;;###autoload
 (defun rtags-remove-other-window ()
   (interactive)
   (let ((ret ""))
@@ -2097,6 +2173,8 @@ should use `irony-get-completion-point-anywhere'."
   :type 'function)
 
 (defcustom rtags-other-window-window-size-percentage 30 "Percentage size of other buffer" :group 'rtags :type 'integer)
+
+;;;###autoload
 (defun rtags-show-target-in-other-window ()
   (interactive)
   (let ((target (rtags-target)))
