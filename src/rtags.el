@@ -1164,7 +1164,7 @@ References to references will be treated as references to the referenced symbol"
                (setq body (car (cddr doc)))
                (setq rtags-last-completions
                      (cons (cdar (cadr doc)) ;; location attribute
-                           (list (eval (read (substring body 8 (- (length body) 2)))))))))
+                           (list (eval (read body)))))))
             ((eq (car doc) 'progress)
              (setq body (cadr doc))
              (while body
