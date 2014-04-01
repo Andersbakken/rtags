@@ -151,11 +151,11 @@ Now you should be able to start the build process:
 cd /path/to/rtags
 cmake .
 make
-export PATH=/path/to/rtags/src:~/bin/:$PATH
-ln -s /path/to/rtags/gcc-rtags-wrapper.sh ~/bin/c++
-ln -s /path/to/rtags/gcc-rtags-wrapper.sh ~/bin/cc
-ln -s /path/to/rtags/gcc-rtags-wrapper.sh ~/bin/g++
-ln -s /path/to/rtags/gcc-rtags-wrapper.sh ~/bin/gcc
+export PATH=/path/to/rtags/bin:~/bin/:$PATH
+ln -s /path/to/rtags/bin/gcc-rtags-wrapper.sh ~/bin/c++
+ln -s /path/to/rtags/bin/gcc-rtags-wrapper.sh ~/bin/cc
+ln -s /path/to/rtags/bin/gcc-rtags-wrapper.sh ~/bin/g++
+ln -s /path/to/rtags/bin/gcc-rtags-wrapper.sh ~/bin/gcc
 rdm & # This starts the rtags daemon
 #+END_SRC
 
