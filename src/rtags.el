@@ -93,7 +93,7 @@
   :group 'rtags)
 
 (defvar rtags-font-lock-keywords
-  `((,"^\\(.*:[0-9]+:[0-9]+:\\)\\(.*\\)$"
+  `((,"^\\(.*?:[0-9]+:[0-9]+:\\)\\(.*\\)$"
      (1 font-lock-string-face)
      (2 font-lock-function-name-face))))
 
@@ -136,7 +136,7 @@
       (let ((buf (current-buffer)))
         (goto-char (point-min))
         (while (not (eobp))
-          (if (looking-at "^\\(.*\\):\\([0-9]+\\):\\([0-9]+\\)")
+          (if (looking-at "^\\(.*?\\):\\([0-9]+\\):\\([0-9]+\\)")
               (let ((file (match-string 1))
                     (line (string-to-number (match-string 2)))
                     (column (string-to-number (match-string 3))))
