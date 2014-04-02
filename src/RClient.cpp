@@ -550,7 +550,8 @@ bool RClient::exec()
         if (!ret)
             break;
     }
-    connection.client()->close();
+    if (connection.client())
+        connection.client()->close();
     mCommands.clear();
     ret = ret && (!requiresNon0Output || monitor.gotNon0Output);
     return ret;
