@@ -353,7 +353,7 @@ void CompletionThread::printCompletions(const List<Completion::Node> &completion
         String out;
         out.reserve(16384);
         if (doLog)
-            log(RTags::CompilationErrorXml, "<?xml version=\"1.0\" encoding=\"utf-8\"?><completions location=\"%s\">![CDATA[",
+            log(RTags::CompilationErrorXml, "<?xml version=\"1.0\" encoding=\"utf-8\"?><completions location=\"%s\"><![CDATA[",
                 request->location.key().constData());
 
         if (request->flags & Elisp)
@@ -381,7 +381,7 @@ void CompletionThread::printCompletions(const List<Completion::Node> &completion
 
         if (doLog) {
             logDirect(RTags::CompilationErrorXml, out);
-            logDirect(RTags::CompilationErrorXml, "]]</completions>\n");
+            logDirect(RTags::CompilationErrorXml, "]]></completions>\n");
         }
         if (request->conn) {
             Connection *conn = request->conn;
