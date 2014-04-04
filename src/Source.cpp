@@ -600,11 +600,27 @@ bool Source::compareArguments(const Source &other) const
 
 List<String> Source::toCommandLine(unsigned int flags) const
 {
+    const auto *options = Server::instance() ? &Server::instance()->options() : 0;
+    if (!options)
+        flags |= (ExcludeDefaultArguments|ExcludeDefaultDefines|ExcludeDefaultIncludePaths);
+
     int count = arguments.size() + defines.size() + includePaths.size();
     if (flags & IncludeCompiler)
         ++count;
     if (flags & IncludeSourceFile)
         ++count;
+    if (!(flags & ExcludeDefaultArguments))
+        count += options->defaultArguments.size();
+    if (flags & IncludeDefines) {
+        count += defines.size();
+        if (!(flags & ExcludeDefaultDefines))
+            count += options->includePaths.size();
+    }
+    if (flags & IncludeIncludepaths) {
+        count += includePaths.size();
+        if (!(flags & ExcludeDefaultIncludePaths))
+            count += options->defines.size();
+    }
     List<String> ret;
     ret.reserve(count);
     if (flags & IncludeCompiler)
@@ -616,9 +632,18 @@ List<String> Source::toCommandLine(unsigned int flags) const
             ++i;
         }
     }
+    if (!(flags & ExcludeDefaultArguments)) {
+        for (const auto &arg : options->defaultArguments)
+            ret.append(arg);
+    }
+
     if (flags & IncludeDefines) {
         for (const auto &def : defines)
             ret += def.toString(flags);
+        if (!(flags & ExcludeDefaultIncludePaths)) {
+            for (const auto &def : options->defines)
+                ret += def.toString(flags);
+        }
     }
     if (flags & IncludeIncludepaths) {
         for (const auto &inc : includePaths) {
@@ -633,6 +658,10 @@ List<String> Source::toCommandLine(unsigned int flags) const
                 ret << "-isystem" << inc.path;
                 break;
             }
+        }
+        if (!(flags & ExcludeDefaultIncludePaths)) {
+            for (const auto &inc : options->includePaths)
+                ret << ("-I" + inc);
         }
     }
     if (flags & IncludeSourceFile)

@@ -57,7 +57,6 @@ SymbolMap::const_iterator findCursorInfo(const SymbolMap &map, const Location &l
                                          const String &context = String());
 
 void parseTranslationUnit(const Path &sourceFile, const List<String> &args,
-                          const List<String> &defaultArguments,
                           CXTranslationUnit &unit, CXIndex index,
                           CXUnsavedFile *unsaved, int unsavedCount,
                           unsigned int translationUnitFlags = 0,

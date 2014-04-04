@@ -5,8 +5,7 @@
 #include "Server.h"
 
 DumpThread::DumpThread(const QueryMessage &queryMessage, const Source &source, Connection *conn)
-    : Thread(), mQueryFlags(queryMessage.flags()), mSource(source), mConnection(conn),
-      mDefaultArguments(Server::instance()->options().defaultArguments), mIndentLevel(0)
+    : Thread(), mQueryFlags(queryMessage.flags()), mSource(source), mConnection(conn), mIndentLevel(0)
 {
     setAutoDelete(true);
 }
@@ -78,7 +77,7 @@ void DumpThread::run()
     CXIndex index = clang_createIndex(0, 0);
     CXTranslationUnit unit = 0;
     String clangLine;
-    RTags::parseTranslationUnit(mSource.sourceFile(), mSource.toCommandLine(Source::None), mDefaultArguments, unit,
+    RTags::parseTranslationUnit(mSource.sourceFile(), mSource.toCommandLine(Source::Default), unit,
                                 index, 0, 0, CXTranslationUnit_DetailedPreprocessingRecord, &clangLine);
     writeToConnetion(String::format<128>("Indexed: %s => %s", clangLine.constData(), unit ? "success" : "failure"));
     if (unit) {

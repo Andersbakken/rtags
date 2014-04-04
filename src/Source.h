@@ -135,12 +135,16 @@ struct Source
     enum { None = 0x00 }; // shared enum
 
     enum CommandLineMode {
-        IncludeCompiler = 0x01,
-        IncludeSourceFile = 0x02,
-        IncludeDefines = 0x04,
-        IncludeIncludepaths = 0x08,
-        QuoteDefines = 0x10,
-        FilterBlacklist = 0x20
+        IncludeCompiler = 0x001,
+        IncludeSourceFile = 0x002,
+        IncludeDefines = 0x004,
+        IncludeIncludepaths = 0x008,
+        QuoteDefines = 0x010,
+        FilterBlacklist = 0x020,
+        ExcludeDefaultArguments = 0x040,
+        ExcludeDefaultIncludePaths = 0x080,
+        ExcludeDefaultDefines = 0x100,
+        Default = IncludeDefines|IncludeIncludepaths|FilterBlacklist
     };
 
     List<String> toCommandLine(unsigned int flags) const;

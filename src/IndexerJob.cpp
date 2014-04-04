@@ -105,7 +105,14 @@ void IndexerJob::encode(Serializer &serializer)
         proj = Server::instance()->project(project);
     const Server::Options &options = Server::instance()->options();
     Source copy = source;
-    copy.arguments << options.defaultArguments;
+    if (options.options & Server::Wall && copy.arguments.contains("-Werror")) {
+        for (const auto &arg : options.defaultArguments) {
+            if (arg != "-Wall")
+                copy.arguments << arg;
+        }
+    } else {
+        copy.arguments << options.defaultArguments;
+    }
     for (const auto &inc : options.includePaths) {
         copy.includePaths << Source::Include(Source::Include::Type_Include, inc);
     }

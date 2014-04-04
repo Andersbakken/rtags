@@ -34,7 +34,6 @@ private:
     const unsigned int mQueryFlags;
     const Source mSource;
     Connection *mConnection;
-    const List<String> mDefaultArguments;
     Hash<Path, uint32_t> mFiles;
     int mIndentLevel;
 };

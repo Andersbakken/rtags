@@ -30,7 +30,7 @@ CompletionThread::~CompletionThread()
 
 void CompletionThread::run()
 {
-    mIndex = clang_createIndex(0, 0);
+    mIndex = clang_createIndex(0, 1);
     while (true) {
         Request *request = 0;
         Dump *dump = 0;
@@ -148,6 +148,30 @@ int CompletionThread::compareCompletionNode(const void *left, const void *right)
 
 void CompletionThread::process(Request *request)
 {
+    // if (!request->unsaved.isEmpty()) {
+    //     int line = request->location.line();
+    //     int pos = 0;
+    //     while (line > 1) {
+    //         int p = request->unsaved.indexOf('\n', pos);
+    //         if (p == -1) {
+    //             pos = -1;
+    //             break;
+    //         }
+    //         pos = p + 1;
+    //         --line;
+    //     }
+    //     if (pos != -1) {
+    //         int end = request->unsaved.indexOf('\n', pos);
+    //         if (end == -1)
+    //             end = request->unsaved.size();
+    //         error("Completing at %s:%d:%d line: [%s]\n",
+    //               request->location.path().constData(),
+    //               request->location.line(),
+    //               request->location.column(),
+    //               request->unsaved.mid(pos, end - pos).constData());
+    //     }
+    // }
+
     StopWatch sw;
     int parseTime = 0;
     int reparseTime = 0;
@@ -204,10 +228,18 @@ void CompletionThread::process(Request *request)
         // (CXTranslationUnit_PrecompiledPreamble
         // |CXTranslationUnit_CacheCompletionResults
         // |CXTranslationUnit_SkipFunctionBodies);
-        RTags::parseTranslationUnit(sourceFile, request->source.arguments,
-                                    List<String>(), // we don't want -fspell-checking and friends
+
+        const auto &options = Server::instance()->options();
+        for (const auto &inc : options.includePaths) {
+            request->source.includePaths << Source::Include(Source::Include::Type_Include, inc);
+        }
+        request->source.defines << options.defines;
+
+        String clangLine;
+        RTags::parseTranslationUnit(sourceFile, request->source.toCommandLine(Source::Default|Source::ExcludeDefaultArguments),
                                     cache->translationUnit, mIndex,
-                                    &unsaved, request->unsaved.size() ? 1 : 0, flags);
+                                    &unsaved, request->unsaved.size() ? 1 : 0, flags, &clangLine);
+        error() << "PARSING" << clangLine;
         parseTime = sw.restart();
         if (cache->translationUnit) {
             RTags::reparseTranslationUnit(cache->translationUnit, &unsaved, request->unsaved.size() ? 1 : 0);
@@ -335,11 +367,11 @@ void CompletionThread::process(Request *request)
             } else {
                 error() << "Too many results available" << request->location << nodeCount;
             }
-            clang_disposeCodeCompleteResults(results);
             delete[] nodes;
         } else {
-            error() << "No completion results available" << request->location;
+            error() << "No completion results available" << request->location << results->NumResults;
         }
+        clang_disposeCodeCompleteResults(results);
     }
 }
 
