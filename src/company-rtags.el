@@ -13,7 +13,14 @@ symbol is preceded by \".\", \"->\" or \"::\", ignoring
 
 If `company-begin-commands' is a list, it should include `c-electric-lt-gt'
 and `c-electric-colon', for automatic completion right after \">\" and
-\":\".")
+\":\"."
+  :group 'rtags
+  :type 'boolean)
+
+(defcustom company-rtags-max-wait 100
+  "Max number of waits company-rtags will do before giving up (max wait time is (* company-rtags-max-wait company-async-wait))"
+  :group 'rtags
+  :type 'integer)
 
 (defun company-rtags--prefix ()
   (let ((symbol (company-grab-symbol)))
@@ -32,15 +39,20 @@ and `c-electric-colon', for automatic completion right after \">\" and
     (put-text-property 0 1 'meta meta text)
     text))
 
+
 (defun company-rtags--candidates (prefix)
-  (let ((old rtags-last-completions))
-    (rtags-update-completions t)
-    ;; TODO: fix the potential infinite loop here by checking rdm's availability
-    (while (eq old rtags-last-completions)
-      (sleep-for company-async-wait))
-    (let* ((results (-partition-all-in-steps 3 3 (cadr rtags-last-completions)))
-           (relevant-results (--filter (s-starts-with? prefix (car it)) results)))
-      (-map 'company-rtags--make-candidate relevant-results))))
+  (when (rtags-has-diagnostics)
+    (let ((old rtags-last-completions)
+          (maxwait company-rtags-max-wait))
+      (if (rtags-update-completions)
+          (while (and (eq old rtags-last-completions)
+                      (> maxwait 0))
+            (decf maxwait)
+            (sleep-for company-async-wait)))
+      (if rtags-last-completions
+          (let* ((results (-partition-all-in-steps 3 3 (cadr rtags-last-completions)))
+                 (relevant-results (--filter (s-starts-with? prefix (car it)) results)))
+            (-map 'company-rtags--make-candidate relevant-results))))))
 
 (defun company-rtags--meta (candidate)
   (get-text-property 0 'meta candidate))
