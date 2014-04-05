@@ -90,6 +90,13 @@
       (kill-buffer name))
   (generate-new-buffer name))
 
+(defun rtags-has-diagnostics ()
+  (and (get-buffer "*RTags Diagnostics*")
+       rtags-diagnostics-process
+       (not (eq (process-status rtags-diagnostics-process) 'exit))
+       (not (eq (process-status rtags-diagnostics-process) 'signal))))
+
+
 ;;;###autoload
 (defun rtags-bury-or-delete ()
   (interactive)
@@ -1303,8 +1310,7 @@ References to references will be treated as references to the referenced symbol"
     (rtags-update-current-error)
     (rtags-close-taglist)
     (rtags-restart-tracking-timer)
-    (if rtags-completions-enabled
-        (rtags-update-completions-timer))))
+    (rtags-update-completions-timer)))
 
 (add-hook 'post-command-hook (function rtags-post-command-hook))
 ;; (remove-hook 'post-command-hook (function rtags-post-command-hook))
@@ -1906,11 +1912,12 @@ References to references will be treated as references to the referenced symbol"
   (interactive)
   (if rtags-completions-timer
       (cancel-timer rtags-completions-timer))
-  (setq rtags-completions-timer
-        (and rtags-completions-enabled
-             (or (eq major-mode 'c++-mode) (eq major-mode 'c-mode))
-             (run-with-idle-timer rtags-completions-timer-interval
-                                  nil (function rtags-update-completions)))))
+  (if (and rtags-completions-enabled (rtags-has-diagnostics))
+      (setq rtags-completions-timer
+            (and rtags-completions-enabled
+                 (or (eq major-mode 'c++-mode) (eq major-mode 'c-mode))
+                 (run-with-idle-timer rtags-completions-timer-interval
+                                      nil (function rtags-update-completions))))))
 
 (defun rtags-update-completions (&optional force)
   (interactive)
