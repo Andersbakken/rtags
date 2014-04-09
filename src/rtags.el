@@ -1902,12 +1902,14 @@ References to references will be treated as references to the referenced symbol"
       (save-excursion
         (if (= (skip-chars-backward " ") 0)
             (skip-chars-backward rtags-symbol-chars))
-        (if (or (= (char-before) 46) ;; .
-                (= (char-before) 32) ;; ' '
-                (= (char-before) 10) ;; '\n'
-                (and (= (char-before) 62) (= (char-before (1- (point))) 45)) ;; ->
-                (and (= (char-before) 58) (= (char-before (1- (point))) 58))) ;; ::
-            (point)))))
+        (point))))
+        ;; (if (or (= (char-before) 46) ;; '.'
+        ;;         (= (char-before) 32) ;; ' '
+        ;;         (= (char-before) 59) ;; ';'
+        ;;         (= (char-before) 10) ;; '\n'
+        ;;         (and (= (char-before) 62) (= (char-before (1- (point))) 45)) ;; "->"
+        ;;         (and (= (char-before) 58) (= (char-before (1- (point))) 58))) ;; "::"
+        ;;     (point)))))
 
 (defvar rtags-completions-timer nil)
 (defun rtags-update-completions-timer ()
@@ -1921,6 +1923,9 @@ References to references will be treated as references to the referenced symbol"
                  (run-with-idle-timer rtags-completions-timer-interval
                                       nil (function rtags-update-completions))))))
 
+;; returns t if completions are good, 1 if completions are being
+;; updated and nil if completion-point is invalid or something like
+;; that
 (defun rtags-update-completions (&optional force)
   (interactive)
   (if (or (eq major-mode 'c++-mode)
@@ -1929,18 +1934,19 @@ References to references will be treated as references to the referenced symbol"
         ;; (message "CHECKING UPDATE COMPLETIONS %d %d"
         ;;          (or pos -1)
         ;;          (or (cdr rtags-last-completion-position) -1))
-        (when (cond ((not pos) nil)
-                    (force)
-                    ((not (cdr rtags-last-completion-position)) t)
-                    ((not (= pos (cdr rtags-last-completion-position))) t)
-                    ((not (eq (current-buffer) (car rtags-last-completion-position))) t)
-                    (t nil))
-          ;; (message "CALLING RC %s" (if (buffer-modified-p) "modified" "not modified"))
-          (setq rtags-last-completion-position (cons (current-buffer) pos))
-          (let ((path (buffer-file-name))
-                (unsaved (and (buffer-modified-p) (current-buffer)))
-                (location (rtags-current-location pos)))
-            (rtags-call-rc :path path :output 0 :unsaved unsaved "-Y" "-l" location))))))
+        (when (or force pos)
+          (if (or force
+                  (not (cdr rtags-last-completion-position))
+                  (not (= pos (cdr rtags-last-completion-position)))
+                  (not (eq (current-buffer) (car rtags-last-completion-position))))
+              (progn
+                (setq rtags-last-completion-position (cons (current-buffer) pos))
+                (let ((path (buffer-file-name))
+                      (unsaved (and (buffer-modified-p) (current-buffer)))
+                      (location (rtags-current-location pos)))
+                  (rtags-call-rc :path path :output 0 :unsaved unsaved "-Y" "-l" location)
+                  t))
+            1)))))
 
 (defun rtags-completion-candidates ()
   ;; (message "Candidates called at %s:%d:%d against %s"
