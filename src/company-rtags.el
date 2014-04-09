@@ -73,7 +73,8 @@ and `c-electric-colon', for automatic completion right after \">\" and
                  (not (company-in-string-or-comment))
                  (company-rtags--prefix)))
     (candidates (company-rtags--candidates arg))
-    (meta       (company-rtags--meta arg))
+    (meta (company-rtags--meta arg))
+    (sorted t)
     (annotation (company-rtags--annotation arg))))
 
 (provide 'company-rtags)
