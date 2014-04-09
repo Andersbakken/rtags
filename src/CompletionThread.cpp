@@ -337,36 +337,31 @@ void CompletionThread::process(Request *request)
             node.completion.clear();
             node.signature.clear();
         }
-        enum { SendThreshold = 500 };
         if (nodeCount) {
-            if (nodeCount <= SendThreshold) {
-                qsort(nodes, nodeCount, sizeof(Completion::Node), compareCompletionNode);
-                Completion *&c = cache->completionsMap[request->location];
-                if (c) {
-                    if (cache->completionsMap.size() > 1) {
-                        Rct::removeLinkedListNode(c, cache->firstCompletion, cache->lastCompletion);
-                        Rct::insertLinkedListNode(c, cache->firstCompletion, cache->lastCompletion, cache->lastCompletion);
-                    }
-                } else {
-                    enum { MaxCompletionCache = 10 }; // ### configurable?
-                    c = new Completion(request->location);
+            qsort(nodes, nodeCount, sizeof(Completion::Node), compareCompletionNode);
+            Completion *&c = cache->completionsMap[request->location];
+            if (c) {
+                if (cache->completionsMap.size() > 1) {
+                    Rct::removeLinkedListNode(c, cache->firstCompletion, cache->lastCompletion);
                     Rct::insertLinkedListNode(c, cache->firstCompletion, cache->lastCompletion, cache->lastCompletion);
-                    while (cache->completionsMap.size() > MaxCompletionCache) {
-                        Completion *cc = cache->firstCompletion;
-                        Rct::removeLinkedListNode(cc, cache->firstCompletion, cache->lastCompletion);
-                        delete cc;
-                    }
                 }
-                c->completions.resize(nodeCount);
-                for (int i=0; i<nodeCount; ++i)
-                    c->completions[i] = nodes[i];
-                printCompletions(c->completions, request);
-                processTime = sw.elapsed();
-                error("Processed %s, parse %d/%d, complete %d, process %d => %d completions (unsaved %d)",
-                      sourceFile.constData(), parseTime, reparseTime, completeTime, processTime, nodeCount, request->unsaved.size());
             } else {
-                error() << "Too many results available" << request->location << nodeCount;
+                enum { MaxCompletionCache = 10 }; // ### configurable?
+                c = new Completion(request->location);
+                Rct::insertLinkedListNode(c, cache->firstCompletion, cache->lastCompletion, cache->lastCompletion);
+                while (cache->completionsMap.size() > MaxCompletionCache) {
+                    Completion *cc = cache->firstCompletion;
+                    Rct::removeLinkedListNode(cc, cache->firstCompletion, cache->lastCompletion);
+                    delete cc;
+                }
             }
+            c->completions.resize(nodeCount);
+            for (int i=0; i<nodeCount; ++i)
+                c->completions[i] = nodes[i];
+            printCompletions(c->completions, request);
+            processTime = sw.elapsed();
+            error("Processed %s, parse %d/%d, complete %d, process %d => %d completions (unsaved %d)",
+                  sourceFile.constData(), parseTime, reparseTime, completeTime, processTime, nodeCount, request->unsaved.size());
             delete[] nodes;
         } else {
             error() << "No completion results available" << request->location << results->NumResults;
