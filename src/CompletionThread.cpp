@@ -392,7 +392,7 @@ void CompletionThread::printCompletions(const List<Completion::Node> &completion
             if (kind.isEmpty())
                 kind = RTags::eatString(clang_getCursorKindSpelling(val.cursorKind));
             if (request->flags & Elisp) {
-                out += String::format<128>("\"%s\" \"%s\" \"%s\"",
+                out += String::format<128>("(\"%s\" \"%s\" \"%s\")",
                                            val.completion.constData(),
                                            val.signature.constData(),
                                            kind.constData());
