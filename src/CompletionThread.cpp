@@ -65,7 +65,7 @@ void CompletionThread::run()
                 out << cache->source << "\nhash:" << cache->unsavedHash
                     << "lastModified:" << cache->lastModified
                     << "translationUnit:" << cache->translationUnit << "\n";
-                for (Completion *completion = cache->firstCompletion; completion; completion = completion->next) {
+                for (Completions *completion = cache->firstCompletion; completion; completion = completion->next) {
                     out << "    " << completion->location.key() << "\n";
                     for (const auto &c : completion->completions) {
                         out << "        " << c.completion << c.signature << c.priority << c.distance
@@ -135,8 +135,8 @@ static inline bool isPartOfSymbol(char ch)
 
 int CompletionThread::compareCompletionNode(const void *left, const void *right)
 {
-    const Completion::Node *l = reinterpret_cast<const Completion::Node*>(left);
-    const Completion::Node *r = reinterpret_cast<const Completion::Node*>(right);
+    const Completions::Node *l = reinterpret_cast<const Completions::Node*>(left);
+    const Completions::Node *r = reinterpret_cast<const Completions::Node*>(right);
     if (l->priority != r->priority)
         return l->priority < r->priority ? -1 : 1;
     if ((l->distance != -1) != (r->distance != -1))
@@ -277,7 +277,7 @@ void CompletionThread::process(Request *request)
                                                           CXCodeComplete_IncludeMacros|CXCodeComplete_IncludeCodePatterns);
     completeTime = sw.restart();
     if (results) {
-        Completion::Node *nodes = new Completion::Node[results->NumResults];
+        Completions::Node *nodes = new Completions::Node[results->NumResults];
         int nodeCount = 0;
         Map<Token, int> tokens;
         if (!request->unsaved.isEmpty()) {
@@ -300,7 +300,7 @@ void CompletionThread::process(Request *request)
             if (priority >= 70)
                 continue;
 
-            Completion::Node &node = nodes[nodeCount];
+            Completions::Node &node = nodes[nodeCount];
             node.cursorKind = kind;
             node.priority = priority;
             node.signature.reserve(256);
@@ -338,8 +338,8 @@ void CompletionThread::process(Request *request)
             node.signature.clear();
         }
         if (nodeCount) {
-            qsort(nodes, nodeCount, sizeof(Completion::Node), compareCompletionNode);
-            Completion *&c = cache->completionsMap[request->location];
+            qsort(nodes, nodeCount, sizeof(Completions::Node), compareCompletionNode);
+            Completions *&c = cache->completionsMap[request->location];
             if (c) {
                 if (cache->completionsMap.size() > 1) {
                     Rct::removeLinkedListNode(c, cache->firstCompletion, cache->lastCompletion);
@@ -347,10 +347,10 @@ void CompletionThread::process(Request *request)
                 }
             } else {
                 enum { MaxCompletionCache = 10 }; // ### configurable?
-                c = new Completion(request->location);
+                c = new Completions(request->location);
                 Rct::insertLinkedListNode(c, cache->firstCompletion, cache->lastCompletion, cache->lastCompletion);
                 while (cache->completionsMap.size() > MaxCompletionCache) {
-                    Completion *cc = cache->firstCompletion;
+                    Completions *cc = cache->firstCompletion;
                     Rct::removeLinkedListNode(cc, cache->firstCompletion, cache->lastCompletion);
                     delete cc;
                 }
@@ -370,7 +370,7 @@ void CompletionThread::process(Request *request)
     }
 }
 
-void CompletionThread::printCompletions(const List<Completion::Node> &completions, Request *request)
+void CompletionThread::printCompletions(const List<Completions::Node> &completions, Request *request)
 {
     static List<String> cursorKindNames;
     // error() << request->flags << testLog(RTags::CompilationErrorXml) << completions.size() << request->conn;

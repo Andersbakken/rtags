@@ -70,8 +70,8 @@ private:
     } *mDump;
     CXIndex mIndex;
 
-    struct Completion {
-        Completion(const Location &loc) : location(loc), next(0), prev(0) {}
+    struct Completions {
+        Completions(const Location &loc) : location(loc), next(0), prev(0) {}
         struct Node {
             String completion, signature;
             int priority, distance;
@@ -79,10 +79,10 @@ private:
         };
         List<Node> completions;
         const Location location;
-        Completion *next, *prev;
+        Completions *next, *prev;
     };
 
-    void printCompletions(const List<Completion::Node> &completions, Request *request);
+    void printCompletions(const List<Completions::Node> &completions, Request *request);
     static int compareCompletionNode(const void *left, const void *right);
 
     struct Cache {
@@ -94,8 +94,8 @@ private:
         size_t unsavedHash;
         uint64_t lastModified; // ms
         Source source;
-        Map<Location, Completion*> completionsMap;
-        Completion *firstCompletion, *lastCompletion;
+        Map<Location, Completions*> completionsMap;
+        Completions *firstCompletion, *lastCompletion;
         Cache *next, *prev;
     };
     // this datastructure is only touched from inside the thread so it doesn't
