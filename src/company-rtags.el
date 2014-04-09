@@ -47,7 +47,9 @@ and `c-electric-colon', for automatic completion right after \">\" and
                       (> maxwait 0))
             (decf maxwait)
             (sleep-for company-async-wait)))
-      (if rtags-last-completions
+      (if (and rtags-last-completions
+               (eq (current-buffer) (car rtags-last-completion-position))
+               (= (or (rtags-calculate-completion-point) -1) (cdr rtags-last-completion-position)))
           (let (results (candidates (cadr rtags-last-completions)))
             (while candidates
               (if (string-prefix-p prefix (caar candidates))
