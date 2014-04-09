@@ -1,4 +1,3 @@
-(require 'dash)
 (require 'company)
 
 (eval-when-compile (require 'rtags))
@@ -39,7 +38,6 @@ and `c-electric-colon', for automatic completion right after \">\" and
     (put-text-property 0 1 'meta meta text)
     text))
 
-
 (defun company-rtags--candidates (prefix)
   (when (rtags-has-diagnostics)
     (let ((old rtags-last-completions)
@@ -50,9 +48,12 @@ and `c-electric-colon', for automatic completion right after \">\" and
             (decf maxwait)
             (sleep-for company-async-wait)))
       (if rtags-last-completions
-          (let* ((results (-partition-all-in-steps 3 3 (cadr rtags-last-completions)))
-                 (relevant-results (--filter (s-starts-with? prefix (car it)) results)))
-            (-map 'company-rtags--make-candidate relevant-results))))))
+          (let (results (candidates (cadr rtags-last-completions)))
+            (while candidates
+              (if (string-prefix-p prefix (caar candidates))
+                  (setq results (append results (list (company-rtags--make-candidate (car candidates))))))
+              (setq candidates (cdr candidates)))
+            results)))))
 
 (defun company-rtags--meta (candidate)
   (get-text-property 0 'meta candidate))
