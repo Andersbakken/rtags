@@ -1916,12 +1916,12 @@ References to references will be treated as references to the referenced symbol"
   (interactive)
   (if rtags-completions-timer
       (cancel-timer rtags-completions-timer))
-  (if (and rtags-completions-enabled (rtags-has-diagnostics))
-      (setq rtags-completions-timer
-            (and rtags-completions-enabled
-                 (or (eq major-mode 'c++-mode) (eq major-mode 'c-mode))
-                 (run-with-idle-timer rtags-completions-timer-interval
-                                      nil (function rtags-update-completions))))))
+  (cond ((not (and rtags-completions-enabled
+                   (rtags-has-diagnostics)
+                   (or (eq major-mode 'c++-mode) (eq major-mode 'c-mode)))))
+        ((= rtags-completions-timer-interval 0) (rtags-update-completions))
+        (t (setq rtags-completions-timer (run-with-idle-timer rtags-completions-timer-interval
+                                                              nil (function rtags-update-completions))))))
 
 ;; returns t if completions are good, 1 if completions are being
 ;; updated and nil if completion-point is invalid or something like
@@ -1945,8 +1945,8 @@ References to references will be treated as references to the referenced symbol"
                       (unsaved (and (buffer-modified-p) (current-buffer)))
                       (location (rtags-current-location pos)))
                   (rtags-call-rc :path path :output 0 :unsaved unsaved "-Y" "-l" location)
-                  t))
-            1)))))
+                  1))
+            t)))))
 
 (defun rtags-completion-candidates ()
   ;; (message "Candidates called at %s:%d:%d against %s"
