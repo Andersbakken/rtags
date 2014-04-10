@@ -352,6 +352,7 @@ void CompletionThread::process(Request *request)
                 while (cache->completionsMap.size() > MaxCompletionCache) {
                     Completions *cc = cache->firstCompletion;
                     Rct::removeLinkedListNode(cc, cache->firstCompletion, cache->lastCompletion);
+                    cache->completionsMap.remove(cc->location);
                     delete cc;
                 }
             }
