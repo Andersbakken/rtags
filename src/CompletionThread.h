@@ -72,21 +72,21 @@ private:
 
     struct Completions {
         Completions(const Location &loc) : location(loc), next(0), prev(0) {}
-        struct Node {
+        struct Candidate {
             String completion, signature;
             int priority, distance;
             CXCursorKind cursorKind;
         };
-        List<Node> completions;
+        List<Candidate> candidates;
         const Location location;
         Completions *next, *prev;
     };
 
-    void printCompletions(const List<Completions::Node> &completions, Request *request);
-    static int compareCompletionNode(const void *left, const void *right);
+    void printCompletions(const List<Completions::Candidate> &completions, Request *request);
+    static int compareCompletionCandidates(const void *left, const void *right);
 
-    struct Cache {
-        Cache()
+    struct SourceFile {
+        SourceFile()
             : translationUnit(0), unsavedHash(0), lastModified(0),
               firstCompletion(0), lastCompletion(0), next(0), prev(0)
         {}
@@ -96,12 +96,12 @@ private:
         Source source;
         Map<Location, Completions*> completionsMap;
         Completions *firstCompletion, *lastCompletion;
-        Cache *next, *prev;
+        SourceFile *next, *prev;
     };
     // this datastructure is only touched from inside the thread so it doesn't
     // need to be protected by mMutex
-    Hash<uint32_t, Cache*> mCacheMap;
-    Cache *mFirstCache, *mLastCache;
+    Hash<uint32_t, SourceFile*> mCacheMap;
+    SourceFile *mFirstCache, *mLastCache;
 
     mutable std::mutex mMutex;
     std::condition_variable mCondition;

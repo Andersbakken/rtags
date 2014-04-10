@@ -61,13 +61,13 @@ void CompletionThread::run()
         if (dump) {
             std::unique_lock<std::mutex> lock(dump->mutex);
             Log out(&dump->string);
-            for (Cache *cache = mFirstCache; cache; cache = cache->next) {
+            for (SourceFile *cache = mFirstCache; cache; cache = cache->next) {
                 out << cache->source << "\nhash:" << cache->unsavedHash
                     << "lastModified:" << cache->lastModified
                     << "translationUnit:" << cache->translationUnit << "\n";
                 for (Completions *completion = cache->firstCompletion; completion; completion = completion->next) {
                     out << "    " << completion->location.key() << "\n";
-                    for (const auto &c : completion->completions) {
+                    for (const auto &c : completion->candidates) {
                         out << "        " << c.completion << c.signature << c.priority << c.distance
                             << RTags::eatString(clang_getCursorKindSpelling(c.cursorKind)) << "\n";
                     }
@@ -133,10 +133,10 @@ static inline bool isPartOfSymbol(char ch)
     return isalnum(ch) || ch == '_';
 }
 
-int CompletionThread::compareCompletionNode(const void *left, const void *right)
+int CompletionThread::compareCompletionCandidates(const void *left, const void *right)
 {
-    const Completions::Node *l = reinterpret_cast<const Completions::Node*>(left);
-    const Completions::Node *r = reinterpret_cast<const Completions::Node*>(right);
+    const Completions::Candidate *l = reinterpret_cast<const Completions::Candidate*>(left);
+    const Completions::Candidate *r = reinterpret_cast<const Completions::Candidate*>(right);
     if (l->priority != r->priority)
         return l->priority < r->priority ? -1 : 1;
     if ((l->distance != -1) != (r->distance != -1))
@@ -177,16 +177,16 @@ void CompletionThread::process(Request *request)
     int reparseTime = 0;
     int completeTime = 0;
     int processTime = 0;
-    Cache *&cache = mCacheMap[request->source.fileId];
+    SourceFile *&cache = mCacheMap[request->source.fileId];
     if (cache && cache->source != request->source) {
         delete cache;
         cache = 0;
     }
     if (!cache) {
-        cache = new Cache;
+        cache = new SourceFile;
         Rct::insertLinkedListNode(cache, mFirstCache, mLastCache, mLastCache);
         while (mCacheMap.size() > mCacheSize) {
-            Cache *c = mFirstCache;
+            SourceFile *c = mFirstCache;
             Rct::removeLinkedListNode(c, mFirstCache, mLastCache);
             mCacheMap.remove(c->source.fileId);
             delete c;
@@ -263,9 +263,9 @@ void CompletionThread::process(Request *request)
                 Rct::insertLinkedListNode(it->second, cache->firstCompletion, cache->lastCompletion, cache->lastCompletion);
             }
             error("Found completions (%d) in cache %s:%d:%d",
-                  it->second->completions.size(), sourceFile.constData(),
+                  it->second->candidates.size(), sourceFile.constData(),
                   request->location.line(), request->location.column());
-            printCompletions(it->second->completions, request);
+            printCompletions(it->second->candidates, request);
             return;
         }
     }
@@ -277,7 +277,7 @@ void CompletionThread::process(Request *request)
                                                           CXCodeComplete_IncludeMacros|CXCodeComplete_IncludeCodePatterns);
     completeTime = sw.restart();
     if (results) {
-        Completions::Node *nodes = new Completions::Node[results->NumResults];
+        Completions::Candidate *nodes = new Completions::Candidate[results->NumResults];
         int nodeCount = 0;
         Map<Token, int> tokens;
         if (!request->unsaved.isEmpty()) {
@@ -300,7 +300,7 @@ void CompletionThread::process(Request *request)
             if (priority >= 70)
                 continue;
 
-            Completions::Node &node = nodes[nodeCount];
+            Completions::Candidate &node = nodes[nodeCount];
             node.cursorKind = kind;
             node.priority = priority;
             node.signature.reserve(256);
@@ -338,7 +338,7 @@ void CompletionThread::process(Request *request)
             node.signature.clear();
         }
         if (nodeCount) {
-            qsort(nodes, nodeCount, sizeof(Completions::Node), compareCompletionNode);
+            qsort(nodes, nodeCount, sizeof(Completions::Candidate), compareCompletionCandidates);
             Completions *&c = cache->completionsMap[request->location];
             if (c) {
                 if (cache->completionsMap.size() > 1) {
@@ -356,10 +356,10 @@ void CompletionThread::process(Request *request)
                     delete cc;
                 }
             }
-            c->completions.resize(nodeCount);
+            c->candidates.resize(nodeCount);
             for (int i=0; i<nodeCount; ++i)
-                c->completions[i] = nodes[i];
-            printCompletions(c->completions, request);
+                c->candidates[i] = nodes[i];
+            printCompletions(c->candidates, request);
             processTime = sw.elapsed();
             error("Processed %s, parse %d/%d, complete %d, process %d => %d completions (unsaved %d)",
                   sourceFile.constData(), parseTime, reparseTime, completeTime, processTime, nodeCount, request->unsaved.size());
@@ -371,7 +371,7 @@ void CompletionThread::process(Request *request)
     }
 }
 
-void CompletionThread::printCompletions(const List<Completions::Node> &completions, Request *request)
+void CompletionThread::printCompletions(const List<Completions::Candidate> &completions, Request *request)
 {
     static List<String> cursorKindNames;
     // error() << request->flags << testLog(RTags::CompilationErrorXml) << completions.size() << request->conn;
