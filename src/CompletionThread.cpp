@@ -25,7 +25,7 @@ CompletionThread::CompletionThread(int cacheSize)
 
 CompletionThread::~CompletionThread()
 {
-    Rct::deleteLinkedListNodes(mFirstCache);
+    Rct::LinkedList::deleteAll(mFirstCache);
 }
 
 void CompletionThread::run()
@@ -184,10 +184,10 @@ void CompletionThread::process(Request *request)
     }
     if (!cache) {
         cache = new SourceFile;
-        Rct::insertLinkedListNode(cache, mFirstCache, mLastCache, mLastCache);
+        Rct::LinkedList::insert(cache, mFirstCache, mLastCache, mLastCache);
         while (mCacheMap.size() > mCacheSize) {
             SourceFile *c = mFirstCache;
-            Rct::removeLinkedListNode(c, mFirstCache, mLastCache);
+            Rct::LinkedList::remove(c, mFirstCache, mLastCache);
             mCacheMap.remove(c->source.fileId);
             delete c;
         }
@@ -218,7 +218,7 @@ void CompletionThread::process(Request *request)
 
     if (!cache->translationUnit) {
         cache->completionsMap.clear();
-        Rct::deleteLinkedListNodes(cache->firstCompletion);
+        Rct::LinkedList::deleteAll(cache->firstCompletion);
         cache->firstCompletion = cache->lastCompletion = 0;
         sw.restart();
         unsigned int flags = clang_defaultEditingTranslationUnitOptions();
@@ -251,17 +251,14 @@ void CompletionThread::process(Request *request)
         cache->lastModified = lastModified;
     } else if (cache->unsavedHash != hash || cache->lastModified != lastModified) {
         cache->completionsMap.clear();
-        Rct::deleteLinkedListNodes(cache->firstCompletion);
+        Rct::LinkedList::deleteAll(cache->firstCompletion);
         cache->firstCompletion = cache->lastCompletion = 0;
         cache->unsavedHash = hash;
         cache->lastModified = lastModified;
     } else if (!(request->flags & Refresh)) {
         const auto it = cache->completionsMap.find(request->location);
         if (it != cache->completionsMap.end()) {
-            if (cache->completionsMap.size() > 1) {
-                Rct::removeLinkedListNode(it->second, cache->firstCompletion, cache->lastCompletion);
-                Rct::insertLinkedListNode(it->second, cache->firstCompletion, cache->lastCompletion, cache->lastCompletion);
-            }
+            Rct::LinkedList::moveToEnd(it->second, cache->firstCompletion, cache->lastCompletion);
             error("Found completions (%d) in cache %s:%d:%d",
                   it->second->candidates.size(), sourceFile.constData(),
                   request->location.line(), request->location.column());
@@ -341,17 +338,14 @@ void CompletionThread::process(Request *request)
             qsort(nodes, nodeCount, sizeof(Completions::Candidate), compareCompletionCandidates);
             Completions *&c = cache->completionsMap[request->location];
             if (c) {
-                if (cache->completionsMap.size() > 1) {
-                    Rct::removeLinkedListNode(c, cache->firstCompletion, cache->lastCompletion);
-                    Rct::insertLinkedListNode(c, cache->firstCompletion, cache->lastCompletion, cache->lastCompletion);
-                }
+                Rct::LinkedList::moveToEnd(c, cache->firstCompletion, cache->lastCompletion);
             } else {
                 enum { MaxCompletionCache = 10 }; // ### configurable?
                 c = new Completions(request->location);
-                Rct::insertLinkedListNode(c, cache->firstCompletion, cache->lastCompletion, cache->lastCompletion);
+                Rct::LinkedList::insert(c, cache->firstCompletion, cache->lastCompletion, cache->lastCompletion);
                 while (cache->completionsMap.size() > MaxCompletionCache) {
                     Completions *cc = cache->firstCompletion;
-                    Rct::removeLinkedListNode(cc, cache->firstCompletion, cache->lastCompletion);
+                    Rct::LinkedList::remove(cc, cache->firstCompletion, cache->lastCompletion);
                     cache->completionsMap.remove(cc->location);
                     delete cc;
                 }

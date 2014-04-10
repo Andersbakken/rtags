@@ -138,7 +138,7 @@ Server::~Server()
         mCompletionThread = 0;
     }
 
-    Rct::deleteLinkedListNodes(mFirstRemote);
+    Rct::LinkedList::deleteAll(mFirstRemote);
 
     for (const auto &job : mLocalJobs) {
         job.first->kill();
@@ -1625,7 +1625,7 @@ void Server::handleJobResponseMessage(const JobResponseMessage &message, Connect
     if (message.isFinished()) {
         Remote *remote = mRemotes.take(host);
         if (remote) {
-            Rct::removeLinkedListNode(remote, mFirstRemote, mLastRemote);
+            Rct::LinkedList::remove(remote, mFirstRemote, mLastRemote);
             delete remote;
         }
     }
@@ -1641,9 +1641,9 @@ void Server::handleJobAnnouncementMessage(const JobAnnouncementMessage &message,
         const String host = message.host().isEmpty() ? conn->client()->peerName() : message.host();
         remote = new Remote(host, message.port());;
     } else {
-        Rct::removeLinkedListNode(remote, mFirstRemote, mLastRemote);
+        Rct::LinkedList::remove(remote, mFirstRemote, mLastRemote);
     }
-    Rct::insertLinkedListNode(remote, mFirstRemote, mLastRemote);
+    Rct::LinkedList::insert(remote, mFirstRemote, mLastRemote);
 }
 
 void Server::handleProxyJobAnnouncementMessage(const ProxyJobAnnouncementMessage &message, Connection *conn)
