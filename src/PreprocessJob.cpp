@@ -22,7 +22,6 @@ PreprocessJob::PreprocessJob(Source &&source, const std::shared_ptr<Project> &pr
     : mSource(std::forward<Source>(source)), mProject(project), mFlags(flags)
 {
     const unsigned int options = Server::instance()->options().options;
-    assert(!(options & Server::NoJobServer));
     mCompression = (options & Server::CompressionAlways);
 }
 

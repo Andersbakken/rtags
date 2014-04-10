@@ -78,7 +78,7 @@ static void usage(FILE *f)
             "rdm [...options...]\n"
             "  --help|-h                                  Display this page.\n"
             "  --server|-s [arg]                          Run as server with no arg or connect to arg as server.\n"
-            "  --no-server|-z                             Do not try to connect to a server.\n"
+            "  --enable-job-server|-z                     Enable job server.\n"
             "  --include-path|-I [arg]                    Add additional include path to clang.\n"
             "  --define|-D [arg]                          Add additional define directive to clang.\n"
             "  --log-file|-L [arg]                        Log to this file.\n"
@@ -148,7 +148,7 @@ int main(int argc, char** argv)
     struct option opts[] = {
         { "help", no_argument, 0, 'h' },
         { "server", optional_argument, 0, 's' },
-        { "no-server", no_argument, 0, 'z' },
+        { "enable-job-server", no_argument, 0, 'z' },
         { "compression", required_argument, 0, 'Z' },
         { "include-path", required_argument, 0, 'I' },
         { "define", required_argument, 0, 'D' },
@@ -303,7 +303,7 @@ int main(int argc, char** argv)
     serverOpts.rpVisitFileTimeout = DEFAULT_RP_VISITFILE_TIMEOUT;
     serverOpts.rpIndexerMessageTimeout = DEFAULT_RP_INDEXER_MESSAGE_TIMEOUT;
     serverOpts.rpConnectTimeout = DEFAULT_RP_CONNECT_TIMEOUT;
-    serverOpts.options = Server::Wall|Server::SpellChecking;
+    serverOpts.options = Server::Wall|Server::SpellChecking|Server::NoJobServer;
     serverOpts.maxPendingPreprocessSize = DEFAULT_MAX_PENDING_PREPROCESS;
 #ifdef OS_Darwin
     serverOpts.options |= Server::NoFileManagerWatch;
@@ -344,10 +344,7 @@ int main(int argc, char** argv)
             serverOpts.excludeFilters += String(optarg).split(';');
             break;
         case 's': {
-            if (serverOpts.options & Server::NoJobServer) {
-                fprintf(stderr, "Can't combine -s with -z\n");
-                return 1;
-            }
+            serverOpts.options &= ~Server::NoJobServer;
             const char* arg = optarg;
             if (!arg && optind < argCount && args[optind][0] != '-') {
                 arg = args[optind++];
@@ -363,11 +360,7 @@ int main(int argc, char** argv)
             }
             break; }
         case 'z':
-            serverOpts.options |= Server::NoJobServer;
-            if (serverOpts.options & Server::JobServer || !serverOpts.jobServer.first.isEmpty()) {
-                fprintf(stderr, "Can't combine -s with -z\n");
-                return 1;
-            }
+            serverOpts.options &= ~Server::NoJobServer;
             break;
         case 'E':
             serverOpts.options |= Server::SeparateDebugAndRelease;
