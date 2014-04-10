@@ -60,9 +60,9 @@ and `c-electric-colon', for automatic completion right after \">\" and
                   (maxwidth (- (window-width) (- (point) (point-at-bol)))))
               (while candidates
                 (if (string-prefix-p prefix (caar candidates))
-                    (setq results (append results (list (company-rtags--make-candidate (car candidates) maxwidth)))))
+                    (push (company-rtags--make-candidate (car candidates) maxwidth) results))
                 (setq candidates (cdr candidates)))
-              results))))))
+              (reverse results)))))))
 
 (defun company-rtags--meta (candidate)
   (get-text-property 0 'meta candidate))
