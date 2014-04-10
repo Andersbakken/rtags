@@ -308,9 +308,9 @@ int main(int argc, char** argv)
 #ifdef OS_Darwin
     serverOpts.options |= Server::NoFileManagerWatch;
 #endif
-#ifndef NDEBUG
-    serverOpts.options |= Server::SuspendRPOnCrash;
-#endif
+// #ifndef NDEBUG
+//     serverOpts.options |= Server::SuspendRPOnCrash;
+// #endif
     serverOpts.excludeFilters = String(EXCLUDEFILTER_DEFAULT).split(';');
     serverOpts.dataDir = String::format<128>("%s.rtags", Path::home().constData());
     serverOpts.multicastAddress = DEFAULT_RDM_MULTICAST_ADDRESS;
