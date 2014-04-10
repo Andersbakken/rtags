@@ -39,8 +39,6 @@
 (require 'thingatpt)
 (unless (fboundp 'libxml-parse-xml-region)
   (require 'xml))
-(unless (require 'auto-complete nil t)
-  (defvar ac-sources nil))
 
 (defvar rtags-last-completions nil)
 (defvar rtags-last-completion-position nil) ;; cons (buffer . offset)
@@ -1947,53 +1945,6 @@ References to references will be treated as references to the referenced symbol"
                   (rtags-call-rc :path path :output 0 :unsaved unsaved "-Y" "-l" location)
                   1))
             t)))))
-
-(defun rtags-completion-candidates ()
-  ;; (message "Candidates called at %s:%d:%d against %s"
-  ;;          (or (buffer-file-name) (buffer-name))
-  ;;          (line-number-at-pos)
-  ;;          (1+ (rtags-find-symbol-start))
-  ;;          (car rtags-last-completions))
-  ;; (list (list "aaaaa" "bbbbbbbbbb" "cccccccc")))
-  (if (and (eq (current-buffer) (car rtags-last-completions))
-           (= (rtags-calculate-completion-point) (cdr rtags-last-completions)))
-      (let ((ret)
-            (last)
-            (completions (cadr rtags-last-completions)))
-        (while completions
-          (if last
-              (progn
-                (setq ret (append ret (list (concat last " - " (car completions)))))
-                (setq last nil))
-            (setq last (car completions)))
-          (setq completions (cdr completions)))
-        ret)))
-;; (let ((loc (format "%s:%d:%d" (or (buffer-file-name) (buffer-name))
-;;                    (line-number-at-pos) (1+ (rtags-find-symbol-start)))))
-;;   (if (string= loc (car rtags-last-completions))
-;;       (let ((completions (cadr rtags-last-completions))
-;;             (completion t)
-;;             (last nil)
-;;             (ret nil))
-;;         (while completions
-;;           (if completion
-;;               (setq last (car completions))
-;;             (setq ret (append ret (list (concat last " - " (car completions))))))
-;;           (setq completion (not completion))
-;;           (setq completions (cdr completions)))
-;;         ret)))
-;; )
-
-(defun rtags-completion-prefix ()
-  (if (or (= (char-before) ?\.)
-          (and (= (char-before) ?>) (= (char-before (1- (point))) ?-))
-          (and (= (char-before) ?:) (= (char-before (1- (point))) ?:)))
-      (point)))
-
-(ac-define-source rtags-completion
-  '(;; (init . rtags-diagnostics)
-    ;; (prefix . rtags-completion-prefix)
-    (candidate . rtags-completion-candidates)))
 
 (provide 'rtags)
 
