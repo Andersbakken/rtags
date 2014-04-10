@@ -21,17 +21,17 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 #include "Project.h"
 
 DependenciesJob::DependenciesJob(const QueryMessage &query, const std::shared_ptr<Project> &project)
-    : Job(query, WriteBuffered|QuietJob, project), mFileId(Location::fileId(query.query()))
+    : Job(query, QuietJob, project), mFileId(Location::fileId(query.query()))
 {
 }
 
-void DependenciesJob::execute()
+int DependenciesJob::execute()
 {
     if (!mFileId)
-        return;
+        return 1;
     std::shared_ptr<Project> proj = project();
     if (!proj)
-        return;
+        return 2;
     const Path srcRoot = proj->path();
 
     error() << (queryFlags() & QueryMessage::FilterSystemIncludes);
@@ -61,4 +61,5 @@ void DependenciesJob::execute()
     if (!deps) {
         write<64>("%s has no dependencies", path.constData());
     }
+    return deps ? 0 : 3;
 }

@@ -13,22 +13,25 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 
-#include "CompletionMessage.h"
-#include "RTags.h"
-#include <rct/Serializer.h>
+#ifndef OutputMessage_h
+#define OutputMessage_h
 
+#include "RTagsMessage.h"
+#include <rct/String.h>
 
-CompletionMessage::CompletionMessage(unsigned flags, const Path &path, int line, int column, int pos)
-    : ClientMessage(MessageId), mFlags(flags), mPath(path), mLine(line), mColumn(column), mPos(pos)
+class LogOutputMessage : public RTagsMessage
 {
-}
+public:
+    enum { MessageId = LogOutputId };
 
-void CompletionMessage::encode(Serializer &serializer) const
-{
-    serializer << mRaw << mFlags << mPath << mLine << mColumn << mPos << mContents << mProjects;
-}
+    LogOutputMessage(int level = 0);
 
-void CompletionMessage::decode(Deserializer &deserializer)
-{
-    deserializer >> mRaw >> mFlags >> mPath >> mLine >> mColumn >> mPos >> mContents >> mProjects;
-}
+    int level() const;
+
+    virtual void encode(Serializer &serializer) const;
+    virtual void decode(Deserializer &deserializer);
+private:
+    int mLevel;
+};
+
+#endif

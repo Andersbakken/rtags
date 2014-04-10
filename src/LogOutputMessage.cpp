@@ -13,17 +13,25 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 
-#ifndef IndexerJobEsprima_h
-#define IndexerJobEsprima_h
+#include "LogOutputMessage.h"
+#include <rct/Serializer.h>
 
-#include "IndexerJob.h"
-
-class IndexerJobEsprima : public IndexerJob
+LogOutputMessage::LogOutputMessage(int level)
+    : RTagsMessage(MessageId), mLevel(level)
 {
-public:
-    IndexerJobEsprima(const std::shared_ptr<Project> &project, Type type, const SourceInformation &sourceInformation);
-    IndexerJobEsprima(const QueryMessage &msg, const std::shared_ptr<Project> &project, const SourceInformation &sourceInformation);
-    virtual void index();
-};
+}
 
-#endif
+int LogOutputMessage::level() const
+{
+    return mLevel;
+}
+
+void LogOutputMessage::encode(Serializer &serializer) const
+{
+    serializer << mRaw << mLevel;
+}
+
+void LogOutputMessage::decode(Deserializer &deserializer)
+{
+    deserializer >> mRaw >> mLevel;
+}

@@ -1,24 +1,24 @@
 /* This file is part of RTags.
 
-RTags is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
+   RTags is free software: you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation, either version 3 of the License, or
+   (at your option) any later version.
 
-RTags is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
+   RTags is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
 
-You should have received a copy of the GNU General Public License
-along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
+   You should have received a copy of the GNU General Public License
+   along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 
 #include "RClient.h"
 #include "CompileMessage.h"
-#include "CompletionMessage.h"
-#include "CreateOutputMessage.h"
+#include "LogOutputMessage.h"
 #include <rct/Connection.h>
 #include <rct/EventLoop.h>
+#include <rct/Log.h>
 #include <rct/Rct.h>
 #include <rct/RegExp.h>
 
@@ -26,11 +26,11 @@ enum OptionType {
     None = 0,
     AbsolutePath,
     AllReferences,
-    Builds,
+    BuildIndex,
     Clear,
-    CodeComplete,
     CodeCompleteAt,
-    CodeCompletionEnabled,
+    CompilationFlagsOnly,
+    CompilationFlagsSplitLine,
     Compile,
     ConnectTimeout,
     ContainingFunction,
@@ -45,11 +45,14 @@ enum OptionType {
     Dependencies,
     Diagnostics,
     DisplayName,
+    DumpCompletions,
     DumpFile,
+    DumpIncludeHeaders,
     ElispList,
     FilterSystemHeaders,
     FindFile,
     FindFilePreferExact,
+    FindProjectBuildRoot,
     FindProjectRoot,
     FindSymbols,
     FindVirtuals,
@@ -60,18 +63,21 @@ enum OptionType {
     IMenu,
     IsIndexed,
     IsIndexing,
-    JSON,
     JobCount,
-    LineNumbers,
     ListSymbols,
+#if defined(HAVE_CXCOMPILATIONDATABASE) && CLANG_VERSION_MINOR >= 3
     LoadCompilationDatabase,
+#endif
     LogFile,
     Man,
     MatchCaseInsensitive,
     MatchRegexp,
     Max,
     NoContext,
+    NoSortReferencesByInput,
+    NoUnescapeCompileCommands,
     PathFilter,
+    PrepareCodeCompleteAt,
     PreprocessFile,
     Project,
     QuitRdm,
@@ -84,12 +90,18 @@ enum OptionType {
     ReloadProjects,
     RemoveFile,
     ReverseSort,
+    SendDiagnostics,
     Silent,
+    SilentQuery,
     SocketFile,
+    Sources,
     Status,
     StripParen,
     SuspendFile,
+    SyncProject,
+    SynchronousCompletions,
     Timeout,
+    UnescapeCompileCommands,
     UnloadProject,
     UnsavedFile,
     Verbose,
@@ -117,7 +129,7 @@ struct Option opts[] = {
 
     { None, 0, 0, 0, "" },
     { None, 0, 0, 0, "Rdm:" },
-    { QuitRdm, "quit-rdm", 'q', no_argument, "Tell server to shut down." },
+    { QuitRdm, "quit-rdm", 'q', optional_argument, "Tell server to shut down. If arg is broadcast:10 tell all rdm on the farm to quit with exit code 10." },
     { ConnectTimeout, "connect-timeout", 0, required_argument, "Timeout for connecting to rdm in ms (default " STR(DEFAULT_CONNECT_TIMEOUT)  ")." },
 
     { None, 0, 0, 0, "" },
@@ -128,9 +140,18 @@ struct Option opts[] = {
     { UnloadProject, "unload", 'u', required_argument, "Unload project(s) matching argument." },
     { ReloadProjects, "reload-projects", 'z', no_argument, "Reload projects from projects file." },
     { JobCount, "jobcount", 'j', optional_argument, "Set or query current job count." },
+    { SyncProject, "syncproject", 0, no_argument, "Sync current project ASAP." },
 
     { None, 0, 0, 0, "" },
-    { None, 0, 0, 0, "Commands:" },
+    { None, 0, 0, 0, "Indexing commands:" },
+    { Compile, "compile", 'c', optional_argument, "Pass compilation arguments to rdm." },
+#if defined(HAVE_CXCOMPILATIONDATABASE) && CLANG_VERSION_MINOR >= 3
+    { LoadCompilationDatabase, "load-compilation-database", 'J', optional_argument, "Load compile_commands.json from directory" },
+#endif
+    { SuspendFile, "suspend-file", 'X', optional_argument, "Dump suspended files (don't track changes in these files) with no arg. Otherwise toggle suspension for arg." },
+
+    { None, 0, 0, 0, "" },
+    { None, 0, 0, 0, "Query commands:" },
     { FollowLocation, "follow-location", 'f', required_argument, "Follow this location." },
     { ReferenceName, "references-name", 'R', required_argument, "Find references matching arg." },
     { ReferenceLocation, "references", 'r', required_argument, "Find references matching this location." },
@@ -146,19 +167,18 @@ struct Option opts[] = {
     { FindFile, "path", 'P', optional_argument, "Print files matching pattern." },
     { DumpFile, "dump-file", 'd', required_argument, "Dump source file." },
     { RdmLog, "rdm-log", 'g', no_argument, "Receive logs from rdm." },
-    { CodeCompleteAt, "code-complete-at", 'x', required_argument, "Get code completion from location (must be specified with path:line:column)." },
-    { CodeComplete, "code-complete", 0, no_argument, "Get code completion from stream written to stdin." },
     { FixIts, "fixits", 0, required_argument, "Get fixits for file." },
-    { Compile, "compile", 'c', required_argument, "Pass compilation arguments to rdm." },
     { RemoveFile, "remove", 'D', required_argument, "Remove file from project." },
     { FindProjectRoot, "find-project-root", 0, required_argument, "Use to check behavior of find-project-root." },
-    { JSON, "json", 0, optional_argument, "Dump json about files matching arg or whole project if no argument." },
-    { Builds, "builds", 0, optional_argument, "Dump builds for source file." },
+    { FindProjectBuildRoot, "find-project-build-root", 0, required_argument, "Use to check behavior of find-project-root for builds." },
+    { Sources, "sources", 0, optional_argument, "Dump sources for source file." },
     { Dependencies, "dependencies", 0, required_argument, "Dump dependencies for source file." },
     { ReloadFileManager, "reload-file-manager", 'B', no_argument, "Reload file manager." },
     { Man, "man", 0, no_argument, "Output XML for xmltoman to generate man page for rc :-)" },
-    { CodeCompletionEnabled, "code-completion-enabled", 0, no_argument, "Whether completion is enabled." },
-    { SuspendFile, "suspend-file", 'X', optional_argument, "Dump suspended files (don't track changes in these files) with no arg. Otherwise toggle suspension for arg." },
+    { CodeCompleteAt, "code-complete-at", 'l', required_argument, "Code complete at location: arg is file:line:col." },
+    { PrepareCodeCompleteAt, "prepare-code-complete-at", 'b', required_argument, "Prepare code completion at location: arg is file:line:col." },
+    { SendDiagnostics, "send-diagnostics", 0, required_argument, "Only for debugging. Send data to all -g connections." },
+    { DumpCompletions, "dump-completions", 0, no_argument, "Dump cached completions." },
 
     { None, 0, 0, 0, "" },
     { None, 0, 0, 0, "Command flags:" },
@@ -168,7 +188,6 @@ struct Option opts[] = {
     { UnsavedFile, "unsaved-file", 0, required_argument, "Pass unsaved file on command line. E.g. --unsaved-file=main.cpp:1200 then write 1200 bytes on stdin." },
     { LogFile, "log-file", 'L', required_argument, "Log to this file." },
     { NoContext, "no-context", 'N', no_argument, "Don't print context for locations." },
-    { LineNumbers, "line-numbers", 'l', no_argument, "Output line numbers instead of offsets." },
     { PathFilter, "path-filter", 'i', required_argument, "Filter out results not matching with arg." },
     { RangeFilter, "range-filter", 0, required_argument, "Filter out results not in the specified range." },
     { FilterSystemHeaders, "filter-system-headers", 'H', no_argument, "Don't exempt system headers from path filters." },
@@ -192,8 +211,16 @@ struct Option opts[] = {
     { DeclarationOnly, "declaration-only", 0, no_argument, "Filter out definitions (unless inline).", },
     { IMenu, "imenu", 0, no_argument, "Use with --list-symbols to provide output for (rtags-imenu) (filter namespaces, fully qualified function names, ignore certain cursors etc)." },
     { Context, "context", 't', required_argument, "Context for current symbol (for fuzzy matching with dirty files)." }, // ### multiple context doesn't work
-    { ContainingFunction, "containing-function", 'o', no_argument, "Include name of containing function in output. "},
-    { LoadCompilationDatabase, "load-compilation-database", 'J', optional_argument, "Load compile_commands.json from directory" },
+    { ContainingFunction, "containing-function", 'o', no_argument, "Include name of containing function in output."},
+    { BuildIndex, "build-index", 0, required_argument, "For sources with multiple builds, use the arg'th." },
+    { CompilationFlagsOnly, "compilation-flags-only", 0, no_argument, "For --source, only print compilation flags." },
+    { CompilationFlagsSplitLine, "compilation-flags-split-line", 0, no_argument, "For --source, print one compilation flag per line." },
+    { DumpIncludeHeaders, "dump-include-headers", 0, no_argument, "For --dump-file, also dump dependencies." },
+    { SilentQuery, "silent-query", 0, no_argument, "Don't log this request in rdm." },
+    { SynchronousCompletions, "synchronous-completions", 0, no_argument, "Wait for completion results." },
+    { UnescapeCompileCommands, "unescape-compile-commands", 0, no_argument, "Unescape \\'s and unquote arguments to -c." },
+    { NoUnescapeCompileCommands, "no-unescape-compile-commands", 0, no_argument, "Escape \\'s and unquote arguments to -c." },
+    { NoSortReferencesByInput, "no-sort-references-by-input", 0, no_argument, "Don't sort references by input position." },
     { None, 0, 0, 0, 0 }
 };
 
@@ -279,25 +306,17 @@ static void man()
 class RCCommand
 {
 public:
-    RCCommand(unsigned int f)
-        : flags(f)
-    {}
+    RCCommand() {}
     virtual ~RCCommand() {}
-    enum Flag {
-        None = 0x0,
-        RequiresNon0Output = 0x1
-    };
     virtual bool exec(RClient *rc, Connection *connection) = 0;
     virtual String description() const = 0;
-
-    const unsigned int flags;
 };
 
 class QueryCommand : public RCCommand
 {
 public:
-    QueryCommand(QueryMessage::Type t, const String &q, unsigned int flags)
-        : RCCommand(flags), type(t), query(q), extraQueryFlags(0)
+    QueryCommand(QueryMessage::Type t, const String &q)
+        : RCCommand(), type(t), query(q), extraQueryFlags(0)
     {}
 
     const QueryMessage::Type type;
@@ -309,7 +328,9 @@ public:
         QueryMessage msg(type);
         msg.init(rc->argc(), rc->argv());
         msg.setQuery(query);
+        msg.setBuildIndex(rc->buildIndex());
         msg.setContext(rc->context());
+        msg.setUnsavedFiles(rc->unsavedFiles());
         msg.setFlags(extraQueryFlags | rc->queryFlags());
         msg.setMax(rc->max());
         msg.setPathFilters(rc->pathFilters().toList());
@@ -324,116 +345,18 @@ public:
     }
 };
 
-class CompletionCommand : public RCCommand
-{
-public:
-    CompletionCommand(const Path &p, int l, int c)
-        : RCCommand(0), path(p), line(l), column(c), stream(false), connection(0)
-    {}
-    CompletionCommand()
-        : RCCommand(0), line(-1), column(-1), stream(true), connection(0)
-    {
-    }
-
-    const Path path;
-    const int line;
-    const int column;
-    const bool stream;
-    Connection *connection;
-    String data;
-
-    virtual bool exec(RClient *rc, Connection *cl)
-    {
-        connection = cl;
-        if (stream) {
-            CompletionMessage msg(CompletionMessage::Stream);
-            msg.init(rc->argc(), rc->argv());
-            msg.setProjects(rc->projects());
-            EventLoop::eventLoop()->registerSocket(STDIN_FILENO, EventLoop::SocketRead, std::bind(&CompletionCommand::processStdin, this));
-            return connection->send(msg);
-        } else {
-            CompletionMessage msg(CompletionMessage::None, path, line, column);
-            msg.init(rc->argc(), rc->argv());
-            msg.setContents(rc->unsavedFiles().value(path));
-            msg.setProjects(rc->projects());
-            return connection->send(msg);
-        }
-    }
-
-    virtual String description() const
-    {
-        return String::format<128>("CompletionMessage %s:%d:%d", path.constData(), line, column);
-    }
-
-    void processStdin()
-    {
-        assert(!data.contains('\n'));
-        while (true) {
-            const int ch = getc(stdin);
-            if (ch == EOF)
-                return;
-            if (ch == '\n')
-                break;
-            data.append(static_cast<char>(ch));
-        }
-        const int colon = data.indexOf(':');
-        if (colon == -1) {
-            error() << "Failed to match completion header" << data;
-            EventLoop::eventLoop()->unregisterSocket(STDIN_FILENO);
-            EventLoop::eventLoop()->quit();
-            return;
-        }
-
-        int line, column, contentsSize, pos;
-        const int ret = sscanf(data.constData() + colon + 1, "%d:%d:%d:%d", &line, &column, &pos, &contentsSize);
-        if (ret != 4) {
-            error() << "Failed to match completion header" << ret << "\n" << data;
-            EventLoop::eventLoop()->unregisterSocket(STDIN_FILENO);
-            EventLoop::eventLoop()->quit();
-            return;
-        }
-        String contents(contentsSize, ' ');
-        int read = 0;
-        char *c = contents.data();
-        while (read < contentsSize) {
-            const int r = fread(c + read, sizeof(char), contentsSize - read, stdin);
-            if (r < 0) {
-                EventLoop::eventLoop()->unregisterSocket(STDIN_FILENO);
-                EventLoop::eventLoop()->quit();
-                return;
-            }
-            read += r;
-        }
-        Path path(data.constData(), colon);
-        data.clear();
-        if (!path.resolve(Path::MakeAbsolute)) {
-            error() << "Can't resolve" << path;
-            return;
-        }
-        // error() << path << line << column << contentsSize << pos << "\n" << contents.left(100)
-        //         << contents.right(100);
-
-        CompletionMessage msg(CompletionMessage::None, path, line, column, pos);
-        const String args = String::format<64>("%s:%d:%d:%d:%d", path.constData(), line, column, pos, contentsSize);
-        const char *argv[] = { "completionStream", args.constData() };
-        msg.init(2, argv);
-        msg.setContents(contents);
-        connection->send(msg);
-    }
-};
-
 class RdmLogCommand : public RCCommand
 {
 public:
     enum { Default = -3 };
 
     RdmLogCommand(int level)
-        : RCCommand(0), mLevel(level)
+        : RCCommand(), mLevel(level)
     {
     }
     virtual bool exec(RClient *rc, Connection *connection)
     {
-        CreateOutputMessage msg(mLevel == Default ? rc->logLevel() : mLevel);
+        LogOutputMessage msg(mLevel == Default ? rc->logLevel() : mLevel);
         msg.init(rc->argc(), rc->argv());
         return connection->send(msg);
     }
@@ -447,14 +370,27 @@ public:
 class CompileCommand : public RCCommand
 {
 public:
-    CompileCommand(const Path &c, const String &a)
-        : RCCommand(0), cwd(c), args(a)
+    CompileCommand(const Path &c, const String &a, RClient::EscapeMode e)
+        : RCCommand(), cwd(c), args(a), escapeMode(e)
     {}
     const Path cwd;
     const String args;
+    const RClient::EscapeMode escapeMode;
     virtual bool exec(RClient *rc, Connection *connection)
     {
-        CompileMessage msg(cwd, args);
+        bool escape = false;
+        switch (rc->mEscapeMode) {
+        case RClient::Escape_Auto:
+            escape = (escapeMode == RClient::Escape_Do);
+            break;
+        case RClient::Escape_Do:
+            escape = true;
+            break;
+        case RClient::Escape_Dont:
+            escape = false;
+            break;
+        }
+        CompileMessage msg(cwd, args, escape);
         msg.init(rc->argc(), rc->argv());
         msg.setProjects(rc->projects());
         return connection->send(msg);
@@ -467,7 +403,8 @@ public:
 
 RClient::RClient()
     : mQueryFlags(0), mMax(-1), mLogLevel(0), mTimeout(-1),
-      mMinOffset(-1), mMaxOffset(-1), mConnectTimeout(DEFAULT_CONNECT_TIMEOUT), mArgc(0), mArgv(0)
+      mMinOffset(-1), mMaxOffset(-1), mConnectTimeout(DEFAULT_CONNECT_TIMEOUT),
+      mBuildIndex(0), mEscapeMode(Escape_Auto), mArgc(0), mArgv(0)
 {
 }
 
@@ -476,23 +413,11 @@ RClient::~RClient()
     cleanupLogging();
 }
 
-void RClient::addQuery(QueryMessage::Type t, const String &query)
+void RClient::addQuery(QueryMessage::Type type, const String &query)
 {
-    unsigned int flags = RCCommand::None;
-    unsigned int extraQueryFlags = 0;
-    switch (t) {
-    case QueryMessage::CodeCompletionEnabled:
-    case QueryMessage::IsIndexing:
-    case QueryMessage::HasFileManager:
-        flags |= RCCommand::RequiresNon0Output;
-        break;
-    case QueryMessage::FindFile:
-        extraQueryFlags |= QueryMessage::WaitForLoadProject;
-    default:
-        break;
-    }
-    std::shared_ptr<QueryCommand> cmd(new QueryCommand(t, query, flags));
-    cmd->extraQueryFlags = extraQueryFlags;
+    std::shared_ptr<QueryCommand> cmd(new QueryCommand(type, query));
+    if (type == QueryMessage::FindFile)
+        cmd->extraQueryFlags = QueryMessage::WaitForLoadProject;
     mCommands.append(cmd);
 }
 
@@ -501,38 +426,19 @@ void RClient::addLog(int level)
     mCommands.append(std::shared_ptr<RCCommand>(new RdmLogCommand(level)));
 }
 
-void RClient::addCompile(const Path &cwd, const String &args)
+void RClient::addCompile(const Path &cwd, const String &args, EscapeMode mode)
 {
-    mCommands.append(std::shared_ptr<RCCommand>(new CompileCommand(cwd, args)));
+    mCommands.append(std::shared_ptr<RCCommand>(new CompileCommand(cwd, args, mode)));
 }
 
-class LogMonitor : public LogOutput
+int RClient::exec()
 {
-public:
-    LogMonitor()
-        : LogOutput(Error), gotNon0Output(false)
-    {}
-
-    virtual void log(const char *msg, int len)
-    {
-        if (!gotNon0Output && len && msg && (len > 1 || *msg != '0'))
-            gotNon0Output = true;
-    }
-
-    bool gotNon0Output;
-};
-
-bool RClient::exec()
-{
-    bool ret = true;
     RTags::initMessages();
 
     EventLoop::SharedPtr loop(new EventLoop);
     loop->init(EventLoop::MainEventLoop);
-    LogMonitor monitor;
 
     const int commandCount = mCommands.size();
-    bool requiresNon0Output = false;
     Connection connection;
     connection.newMessage().connect(std::bind(&RClient::onNewMessage, this,
                                               std::placeholders::_1, std::placeholders::_2));
@@ -542,18 +448,20 @@ bool RClient::exec()
         error("Can't seem to connect to server");
         return false;
     }
+    int ret = 0;
     for (int i=0; i<commandCount; ++i) {
         const std::shared_ptr<RCCommand> &cmd = mCommands.at(i);
-        requiresNon0Output = cmd->flags & RCCommand::RequiresNon0Output;
         debug() << "running command " << cmd->description();
-        ret = cmd->exec(this, &connection) && loop->exec(timeout()) == EventLoop::Success;
-        if (!ret)
+        if (!cmd->exec(this, &connection) || loop->exec(timeout()) != EventLoop::Success) {
+            ret = 1;
             break;
+        }
     }
     if (connection.client())
         connection.client()->close();
     mCommands.clear();
-    ret = ret && (!requiresNon0Output || monitor.gotNon0Output);
+    if (!ret)
+        ret = connection.finishStatus();
     return ret;
 }
 
@@ -652,15 +560,21 @@ bool RClient::parse(int &argc, char **argv)
             break;
         case Help:
             help(stdout, argv[0]);
-            return 0;
+            return false;
         case Man:
             man();
-            return 0;
+            return false;
         case SocketFile:
             mSocketFile = optarg;
             break;
         case IMenu:
             mQueryFlags |= QueryMessage::IMenu;
+            break;
+        case CompilationFlagsOnly:
+            mQueryFlags |= QueryMessage::CompilationFlagsOnly;
+            break;
+        case CompilationFlagsSplitLine:
+            mQueryFlags |= QueryMessage::CompilationFlagsSplitLine;
             break;
         case ContainingFunction:
             mQueryFlags |= QueryMessage::ContainingFunction;
@@ -686,35 +600,12 @@ bool RClient::parse(int &argc, char **argv)
         case CursorKind:
             mQueryFlags |= QueryMessage::CursorKind;
             break;
-        case CodeComplete:
-            // logFile = "/tmp/rc.log";
-            mCommands.append(std::shared_ptr<RCCommand>(new CompletionCommand));
+        case SynchronousCompletions:
+            mQueryFlags |= QueryMessage::SynchronousCompletions;
             break;
         case Context:
             mContext = optarg;
             break;
-        case CodeCompleteAt: {
-            const String arg = optarg;
-            List<RegExp::Capture> caps;
-            RegExp rx("^\\(.*\\):\\([0-9][0-9]*\\):\\([0-9][0-9]*\\)$");
-            if (rx.indexIn(arg, 0, &caps) != 0 || caps.size() != 4) {
-                fprintf(stderr, "Can't decode argument for --code-complete-at [%s]\n", optarg);
-                return false;
-            }
-            const Path path = Path::resolved(caps[1].capture, Path::MakeAbsolute);
-            if (!path.exists()) {
-                fprintf(stderr, "Can't decode argument for --code-complete-at [%s]\n", optarg);
-                return false;
-            }
-
-            String out;
-            {
-                Serializer serializer(out);
-                serializer << path << atoi(caps[2].capture.constData()) << atoi(caps[3].capture.constData());
-            }
-            CompletionCommand *cmd = new CompletionCommand(path, atoi(caps[2].capture.constData()), atoi(caps[3].capture.constData()));
-            mCommands.append(std::shared_ptr<RCCommand>(cmd));
-            break; }
         case DisplayName:
             mQueryFlags |= QueryMessage::DisplayName;
             break;
@@ -762,12 +653,31 @@ bool RClient::parse(int &argc, char **argv)
                 }
             }
             break; }
-        case LineNumbers:
-            mQueryFlags |= QueryMessage::LineNumbers;
-            break;
         case Verbose:
             ++mLogLevel;
             break;
+        case PrepareCodeCompleteAt:
+        case CodeCompleteAt: {
+            const String arg = optarg;
+            List<RegExp::Capture> caps;
+            RegExp rx("^\\(.*\\):\\([0-9][0-9]*\\):\\([0-9][0-9]*\\):\\?$");
+            if (rx.indexIn(arg, 0, &caps) != 0 || caps.size() != 4) {
+                fprintf(stderr, "Can't decode argument for --code-complete-at [%s]\n", optarg);
+                return false;
+            }
+            const Path path = Path::resolved(caps[1].capture, Path::MakeAbsolute);
+            if (!path.isFile()) {
+                fprintf(stderr, "Can't decode argument for --code-complete-at [%s]\n", optarg);
+                return false;
+            }
+
+            String out;
+            {
+                Serializer serializer(out);
+                serializer << path << atoi(caps[2].capture.constData()) << atoi(caps[3].capture.constData());
+            }
+            addQuery(opt->option == CodeCompleteAt ? QueryMessage::CodeCompleteAt : QueryMessage::PrepareCodeCompleteAt, out);
+            break; }
         case Silent:
             mLogLevel = -1;
             break;
@@ -777,6 +687,20 @@ bool RClient::parse(int &argc, char **argv)
         case StripParen:
             mQueryFlags |= QueryMessage::StripParentheses;
             break;
+        case DumpIncludeHeaders:
+            mQueryFlags |= QueryMessage::DumpIncludeHeaders;
+            break;
+        case SilentQuery:
+            mQueryFlags |= QueryMessage::SilentQuery;
+            break;
+        case BuildIndex: {
+            bool ok;
+            mBuildIndex = String(optarg).toULongLong(&ok);
+            if (!ok) {
+                fprintf(stderr, "--build-index [arg] must be >= 0\n");
+                return false;
+            }
+            break; }
         case ConnectTimeout:
             mConnectTimeout = atoi(optarg);
             if (mConnectTimeout < 0) {
@@ -848,6 +772,12 @@ bool RClient::parse(int &argc, char **argv)
         case ReloadFileManager:
             addQuery(QueryMessage::ReloadFileManager);
             break;
+        case SyncProject:
+            addQuery(QueryMessage::SyncProject);
+            break;
+        case DumpCompletions:
+            addQuery(QueryMessage::DumpCompletions);
+            break;
         case ReloadProjects:
             addQuery(QueryMessage::ReloadProjects);
             break;
@@ -863,14 +793,37 @@ bool RClient::parse(int &argc, char **argv)
         case XmlDiagnostics:
             addLog(RTags::CompilationErrorXml);
             break;
-        case QuitRdm:
-            addQuery(QueryMessage::Shutdown);
-            break;
+        case QuitRdm: {
+            const char *arg = 0;
+            if (optarg) {
+                arg = optarg;
+            } else if (optind < argc && argv[optind][0] != '-') {
+                arg = argv[optind++];
+            }
+            if (arg) {
+                if (strncmp(arg, "broadcast:", 10)) {
+                    fprintf(stderr, "Invalid argument to -q\n");
+                    return 1;
+                }
+                bool ok;
+                const int exit = String(arg + 10).toLongLong(&ok);
+                if (!ok) {
+                    fprintf(stderr, "Invalid argument to -q\n");
+                    return 1;
+                }
+                String query;
+                Serializer serializer(query);
+                serializer << exit;
+                addQuery(QueryMessage::Shutdown, query);
+            } else {
+                addQuery(QueryMessage::Shutdown);
+            }
+            break; }
         case DeleteProject:
             addQuery(QueryMessage::DeleteProject, optarg);
             break;
-        case CodeCompletionEnabled:
-            addQuery(QueryMessage::CodeCompletionEnabled);
+        case SendDiagnostics:
+            addQuery(QueryMessage::SendDiagnostics, optarg);
             break;
         case UnloadProject:
             addQuery(QueryMessage::UnloadProject, optarg);
@@ -878,15 +831,19 @@ bool RClient::parse(int &argc, char **argv)
         case FindProjectRoot: {
             const Path p = Path::resolved(optarg);
             printf("findProjectRoot [%s] => [%s]\n", p.constData(),
-                   RTags::findProjectRoot(p).constData());
-            return 0; }
+                   RTags::findProjectRoot(p, RTags::SourceRoot).constData());
+            return false; }
+        case FindProjectBuildRoot: {
+            const Path p = Path::resolved(optarg);
+            printf("findProjectRoot [%s] => [%s]\n", p.constData(),
+                   RTags::findProjectRoot(p, RTags::BuildRoot).constData());
+            return false; }
         case Reindex:
         case Project:
         case FindFile:
         case ListSymbols:
         case FindSymbols:
-        case JSON:
-        case Builds:
+        case Sources:
         case JobCount:
         case Status: {
             QueryMessage::Type type = QueryMessage::Invalid;
@@ -894,19 +851,28 @@ bool RClient::parse(int &argc, char **argv)
             case Reindex: type = QueryMessage::Reindex; break;
             case Project: type = QueryMessage::Project; break;
             case FindFile: type = QueryMessage::FindFile; break;
-            case Builds: type = QueryMessage::Builds; break;
+            case Sources: type = QueryMessage::Sources; break;
             case Status: type = QueryMessage::Status; break;
-            case JSON: type = QueryMessage::JSON; break;
             case ListSymbols: type = QueryMessage::ListSymbols; break;
             case FindSymbols: type = QueryMessage::FindSymbols; break;
             case JobCount: type = QueryMessage::JobCount; break;
             default: assert(0); break;
             }
 
+            const char *arg = 0;
             if (optarg) {
-                addQuery(type, optarg);
+                arg = optarg;
             } else if (optind < argc && argv[optind][0] != '-') {
-                addQuery(type, argv[optind++]);
+                arg = argv[optind++];
+            }
+            if (arg) {
+                Path p(arg);
+                if (p.exists()) {
+                    p.resolve();
+                    addQuery(type, p);
+                } else {
+                    addQuery(type, arg);
+                }
             } else {
                 addQuery(type);
             }
@@ -914,6 +880,7 @@ bool RClient::parse(int &argc, char **argv)
             if (type == QueryMessage::Project)
                 projectCommands.append(std::static_pointer_cast<QueryCommand>(mCommands.back()));
             break; }
+#if defined(HAVE_CXCOMPILATIONDATABASE) && CLANG_VERSION_MINOR >= 3
         case LoadCompilationDatabase: {
             Path dir;
             if (optarg) {
@@ -941,6 +908,7 @@ bool RClient::parse(int &argc, char **argv)
             }
             addQuery(QueryMessage::LoadCompilationDatabase, dir);
             break; }
+#endif
         case HasFileManager: {
             Path p;
             if (optarg) {
@@ -985,10 +953,26 @@ bool RClient::parse(int &argc, char **argv)
                 args.append(' ');
                 args.append(argv[optind++]);
             }
-            addCompile(Path::pwd(), args);
+            if (args == "-" || args.isEmpty()) {
+                char buf[1024];
+                while (fgets(buf, sizeof(buf), stdin)) {
+                    addCompile(Path::pwd(), buf, Escape_Do);
+                }
+            } else {
+                addCompile(Path::pwd(), args, Escape_Dont);
+            }
             break; }
         case IsIndexing:
             addQuery(QueryMessage::IsIndexing);
+            break;
+        case UnescapeCompileCommands:
+            mEscapeMode = Escape_Do;
+            break;
+        case NoUnescapeCompileCommands:
+            mEscapeMode = Escape_Dont;
+            break;
+        case NoSortReferencesByInput:
+            mQueryFlags |= QueryMessage::NoSortReferencesByInput;
             break;
         case IsIndexed:
         case DumpFile:
@@ -1015,8 +999,8 @@ bool RClient::parse(int &argc, char **argv)
             switch (opt->option) {
             case Dependencies: type = QueryMessage::Dependencies; break;
             case FixIts: type = QueryMessage::FixIts; break;
-            case IsIndexed: type = QueryMessage::IsIndexed; break;
             case DumpFile: type = QueryMessage::DumpFile; break;
+            case IsIndexed: type = QueryMessage::IsIndexed; break;
             default: assert(0); break;
             }
 
@@ -1056,8 +1040,8 @@ bool RClient::parse(int &argc, char **argv)
     }
 
     if (!initLogging(argv[0], LogStderr, mLogLevel, logFile, logFlags)) {
-        fprintf(stderr, "Can't initialize logging with %s %d %d %s 0x%0x\n",
-                argv[0], LogStderr, mLogLevel, logFile.constData(), logFlags);
+        fprintf(stderr, "Can't initialize logging with %d %s 0x%0x\n",
+                mLogLevel, logFile.constData(), logFlags);
         return false;
     }
 

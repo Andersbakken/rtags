@@ -18,23 +18,28 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 
 #include <rct/List.h>
 #include <rct/String.h>
-#include "ClientMessage.h"
+#include "RTagsMessage.h"
 #include "RTags.h"
 
-class CompileMessage : public ClientMessage
+class CompileMessage : public RTagsMessage
 {
 public:
     enum { MessageId = CompileId };
 
-    CompileMessage(const Path &cwd = Path(), const String &args = String());
+    CompileMessage(const Path &cwd = Path(), const String &args = String(), bool escape = false);
 
-    Path workingDirectory() const { return mWorkingDirectory; }
+    const Path &workingDirectory() const { return mWorkingDirectory; }
+    Path &&takeWorkingDirectory() { return std::move(mWorkingDirectory); }
 
-    String arguments() const { return mArgs; }
+    const String &arguments() const { return mArgs; }
+    String &&takeArguments() { return std::move(mArgs); }
     void setArguments(const String &arguments) { mArgs = arguments; }
 
     void setProjects(const List<String> &projects) { mProjects = projects; }
-    List<String> projects() const { return mProjects; }
+    const List<String> &projects() const { return mProjects; }
+    List<String> &&takeProjects() { return std::move(mProjects); }
+
+    bool escape() const { return mEscape; }
 
     virtual void encode(Serializer &serializer) const;
     virtual void decode(Deserializer &deserializer);
@@ -42,6 +47,7 @@ private:
     Path mWorkingDirectory;
     List<String> mProjects;
     String mArgs;
+    bool mEscape;
 };
 
 #endif

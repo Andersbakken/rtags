@@ -21,7 +21,7 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 #include "Project.h"
 
 FindFileJob::FindFileJob(const QueryMessage &query, const std::shared_ptr<Project> &project)
-    : Job(query, WriteBuffered|QuietJob, project)
+    : Job(query, QuietJob, project)
 {
     const String q = query.query();
     if (!q.isEmpty()) {
@@ -33,11 +33,11 @@ FindFileJob::FindFileJob(const QueryMessage &query, const std::shared_ptr<Projec
     }
 }
 
-void FindFileJob::execute()
+int FindFileJob::execute()
 {
     std::shared_ptr<Project> proj = project();
     if (!proj || !proj->fileManager) {
-        return;
+        return 1;
     }
     const Path srcRoot = proj->path();
 
@@ -67,6 +67,7 @@ void FindFileJob::execute()
     const int patternSize = mPattern.size();
     List<String> matches;
     const bool preferExact = queryFlags() & QueryMessage::FindFilePreferExact;
+    int ret = 1;
     while (dirit != dirs.end()) {
         const Path &dir = dirit->first;
         if (dir.size() < srcRoot.size()) {
@@ -106,11 +107,12 @@ void FindFileJob::execute()
                 break;
             }
             if (ok) {
+                ret = 0;
                 if (preferExact && !foundExact) {
                     matches.append(out);
                 } else {
                     if (!write(out))
-                        return;
+                        return 1; // ???
                 }
             }
             out.chop(key.size());
@@ -119,7 +121,10 @@ void FindFileJob::execute()
         ++dirit;
     }
     for (List<String>::const_iterator it = matches.begin(); it != matches.end(); ++it) {
-        if (!write(*it))
+        if (!write(*it)) {
+            ret = 2;
             break;
+        }
     }
+    return ret;
 }

@@ -1,103 +1,169 @@
-/* This file is part of RTags.
-
-RTags is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
-
-RTags is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
-
 #include "IndexerJob.h"
-#include <rct/StopWatch.h>
 #include "Project.h"
+#include <rct/Process.h>
+#include <RTagsClang.h>
+#include "Server.h"
+#include "Cpp.h"
 
-IndexerJob::IndexerJob(const std::shared_ptr<Project> &project, Type type, const SourceInformation &sourceInformation)
-    : Job(0, project), mType(type), mLogFile(0), mSourceInformation(sourceInformation),
-      mParseTime(0), mStarted(false)
-{}
+uint64_t IndexerJob::nextId = 0;
 
-IndexerJob::IndexerJob(const QueryMessage &msg, const std::shared_ptr<Project> &project,
-                       const SourceInformation &sourceInformation)
-    : Job(msg, WriteUnfiltered|WriteBuffered|QuietJob, project), mType(Dump), mLogFile(0),
-      mSourceInformation(sourceInformation), mParseTime(0), mStarted(false)
+IndexerJob::IndexerJob(uint32_t f, const Path &p, const Source &s, const std::shared_ptr<Cpp> &c)
+    : flags(f), destination(Server::instance()->options().socketFile),
+      port(0), project(p), source(s), sourceFile(s.sourceFile()),
+      process(0), id(++nextId), started(0), cpp(c)
+{
+    for (auto it = c->visited.begin(); it != c->visited.end(); ++it)
+        visited.insert(it->second);
+    assert(cpp);
+}
+
+IndexerJob::IndexerJob()
+    : flags(0), port(0), process(0), id(0), started(0)
 {
 }
 
 IndexerJob::~IndexerJob()
 {
+    delete process;
 }
 
-Location IndexerJob::createLocation(const Path &file, uint32_t offset, bool *blocked)
+bool IndexerJob::launchProcess()
 {
-    uint32_t &fileId = mFileIds[file];
-    if (!fileId) {
-        const Path resolved = file.resolved();
-        fileId = mFileIds[resolved] = Location::insertFile(resolved);
-    }
-    return createLocation(fileId, offset, blocked);
-}
-
-
-Location IndexerJob::createLocation(uint32_t fileId, uint32_t offset, bool *blocked)
-{
-    if (blocked)
-        *blocked = false;
-    if (!fileId)
-        return Location();
-    if (blocked) {
-        if (mVisitedFiles.contains(fileId)) {
-            *blocked = false;
-        } else if (mBlockedFiles.contains(fileId)) {
-            *blocked = true;
-        } else {
-            std::shared_ptr<Project> p = project();
-            if (!p) {
-                return Location();
-            } else if (p->visitFile(fileId)) {
-                if (blocked)
-                    *blocked = false;
-                if (mLogFile)
-                    fprintf(mLogFile, "WON %s\n", Location::path(fileId).constData());
-                mVisitedFiles.insert(fileId);
-                mData->errors[fileId] = 0;
-            } else {
-                if (mLogFile)
-                    fprintf(mLogFile, "LOST %s\n", Location::path(fileId).constData());
-                mBlockedFiles.insert(fileId);
-                if (blocked)
-                    *blocked = true;
-                return Location();
-            }
+    assert(cpp);
+    static Path rp;
+    if (rp.isEmpty()) {
+        rp = Rct::executablePath().parentDir() + "rp";
+        if (!rp.exists()) {
+            rp = Rct::executablePath();
+            rp.resolve();
+            rp = rp.parentDir() + "rp";
         }
     }
-    return Location(fileId, offset);
-}
 
-bool IndexerJob::abortIfStarted()
-{
-    std::lock_guard<std::mutex> lock(mutex());
-    if (mStarted)
-        aborted() = true;
-    return aborted();
-}
-
-void IndexerJob::execute()
-{
-    {
-        std::lock_guard<std::mutex> lock(mutex());
-        mStarted = true;
+    started = 0;
+    assert(!process);
+    process = new Process;
+    if (!process->start(rp)) {
+        error() << "Couldn't start rp" << rp << process->errorString();
+        return false;
     }
-    mTimer.restart();
-    mData = createIndexData();
-    assert(mData);
 
-    index();
-    IndexerJob::SharedPtr that = std::static_pointer_cast<IndexerJob>(shared_from_this());
-    mFinished(that);
+    flags |= RunningLocal;
+
+    {
+        String stdinData;
+        {
+            Serializer serializer(stdinData);
+            encode(serializer);
+        }
+        const int size = stdinData.size();
+        String header;
+        header.resize(sizeof(size));
+        *reinterpret_cast<int*>(&header[0]) = size;
+        process->write(header);
+        process->write(stdinData);
+        // error() << "Startingprocess" << (packet.size() + stdinData.size()) << sourceFile;
+    }
+    return true;
+}
+
+bool IndexerJob::update(unsigned int f, const Source &s, const std::shared_ptr<Cpp> &c)
+{
+    // error() << "Updating" << s.sourceFile() << dumpFlags(flags);
+    assert(!(flags & (CompleteLocal|CompleteRemote)));
+
+    if (!(flags & (RunningLocal|Remote))) {
+        flags = f;
+        source = s;
+        assert(cpp);
+        cpp = c;
+        return true;
+    }
+    abort();
+    return false;
+}
+
+void IndexerJob::abort()
+{
+    // error() << "Aborting job" << source.sourceFile() << !!process << dumpFlags(flags);
+    if (process && flags & RunningLocal) { // only kill once
+        process->kill();
+        assert(!(flags & FromRemote)); // this is not handled
+    }
+    if (flags & (CompleteRemote|CompleteLocal)) {
+        error() << "Aborting a job that already is complete";
+    }
+    assert(!(flags & (CompleteRemote|CompleteLocal)));
+    flags &= ~RunningLocal;
+    flags |= Aborted;
+}
+
+void IndexerJob::encode(Serializer &serializer)
+{
+    std::shared_ptr<Project> proj;
+    if (!(flags & FromRemote))
+        proj = Server::instance()->project(project);
+    const Server::Options &options = Server::instance()->options();
+    Source copy = source;
+    if (options.options & Server::Wall && copy.arguments.contains("-Werror")) {
+        for (const auto &arg : options.defaultArguments) {
+            if (arg != "-Wall")
+                copy.arguments << arg;
+        }
+    } else {
+        copy.arguments << options.defaultArguments;
+    }
+    for (const auto &inc : options.includePaths) {
+        copy.includePaths << Source::Include(Source::Include::Type_Include, inc);
+    }
+    copy.defines << options.defines;
+    assert(cpp);
+    serializer << static_cast<uint16_t>(RTags::DatabaseVersion)
+               << destination << port << sourceFile
+               << copy << *cpp << project << flags
+               << static_cast<uint32_t>(options.rpVisitFileTimeout)
+               << static_cast<uint32_t>(options.rpIndexerMessageTimeout)
+               << static_cast<uint32_t>(options.rpConnectTimeout)
+               << static_cast<bool>(options.options & Server::SuspendRPOnCrash) << id;
+    if (blockedFiles.isEmpty() && proj) {
+        proj->encodeVisitedFiles(serializer);
+    } else {
+        serializer << blockedFiles;
+    }
+}
+
+String IndexerJob::dumpFlags(unsigned int flags)
+{
+    List<String> ret;
+    if (flags & Dirty) {
+        ret += "Dirty";
+    }
+    if (flags & Compile) {
+        ret += "Compile";
+    }
+    if (flags & FromRemote) {
+        ret += "FromRemote";
+    }
+    if (flags & Remote) {
+        ret += "Remote";
+    }
+    if (flags & Rescheduled) {
+        ret += "Rescheduled";
+    }
+    if (flags & RunningLocal) {
+        ret += "RunningLocal";
+    }
+    if (flags & Crashed) {
+        ret += "Crashed";
+    }
+    if (flags & Aborted) {
+        ret += "Aborted";
+    }
+    if (flags & CompleteLocal) {
+        ret += "CompleteLocal";
+    }
+    if (flags & CompleteRemote) {
+        ret += "CompleteRemote";
+    }
+    return String::join(ret, ", ");
 }

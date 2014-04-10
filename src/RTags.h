@@ -22,7 +22,7 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 #include <rct/Log.h>
 #include "FixIt.h"
 #include <rct/Path.h>
-#include "SourceInformation.h"
+#include "Source.h"
 #include <assert.h>
 #include <getopt.h>
 #include <stdio.h>
@@ -32,7 +32,13 @@ class Database;
 class Project;
 namespace RTags {
 
-enum { CompilationError = -1, CompilationErrorXml = -2 };
+enum { DatabaseVersion = 45 };
+
+enum {
+    CompilationError = -1,
+    CompilationErrorXml = -2,
+    Statistics = -3
+};
 
 enum UnitType {
     CompileC,
@@ -48,14 +54,14 @@ void initMessages();
 }
 
 class CursorInfo;
-typedef Map<Location, CursorInfo> SymbolMap;
+typedef Map<Location, std::shared_ptr<CursorInfo> > SymbolMap;
 typedef Hash<uint32_t, SymbolMap> ErrorSymbolMap;
 typedef Hash<String, Set<Location> > UsrMap;
 typedef Map<Location, Set<Location> > ReferenceMap;
 typedef Map<String, Set<Location> > SymbolNameMap;
 typedef Hash<uint32_t, Set<uint32_t> > DependencyMap;
-typedef Hash<uint32_t, SourceInformation> SourceInformationMap;
-typedef Hash<Path, Set<String> > FilesMap;
+typedef Map<uint64_t, Source> SourceMap;
+typedef Map<Path, Set<String> > FilesMap;
 typedef Hash<uint32_t, Set<FixIt> > FixItMap;
 typedef Hash<uint32_t, List<String> > DiagnosticsMap;
 
@@ -64,8 +70,7 @@ void dirtySymbolNames(SymbolNameMap &map, const Set<uint32_t> &dirty);
 void dirtySymbols(SymbolMap &map, const Set<uint32_t> &dirty);
 void dirtyUsr(UsrMap &map, const Set<uint32_t> &dirty);
 
-String backtrace(int maxFrames = -1);
-
+List<String> backtrace(int maxFrames = -1);
 
 template <typename Container, typename Value>
 inline bool addTo(Container &container, const Value &value)
@@ -156,6 +161,24 @@ inline void decodePath(Path &path)
     }
 }
 
+#define DEFAULT_RDM_TCP_PORT 12526 // ( 100 'r' + (114 'd' * 109 'm')
+
+inline std::pair<String, uint16_t> parseHost(const char *arg)
+{
+    std::pair<String, uint16_t> host;
+    const char *colon = strchr(arg, ':');
+    if (colon) {
+        host.first.assign(arg, colon - arg);
+        host.second = atoi(colon + 1);
+        if (!host.second)
+            host = std::make_pair<String, uint16_t>(String(), 0);
+    } else {
+        host.first = arg;
+        host.second = DEFAULT_RDM_TCP_PORT;
+    }
+    return host;
+}
+
 inline int digits(int len)
 {
     int ret = 1;
@@ -166,8 +189,11 @@ inline int digits(int len)
     return ret;
 }
 
-String filterPreprocessor(const Path &path);
-Path findProjectRoot(const Path &path);
+enum ProjectRootMode {
+    SourceRoot,
+    BuildRoot
+};
+Path findProjectRoot(const Path &path, ProjectRootMode mode);
 }
 
 #endif

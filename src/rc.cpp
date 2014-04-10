@@ -21,5 +21,5 @@ int main(int argc, char** argv)
     if (!rc.parse(argc, argv))
         return 1;
 
-    return rc.exec() ? 0 : 1;
+    return rc.exec();
 }

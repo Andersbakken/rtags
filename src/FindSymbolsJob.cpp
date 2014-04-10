@@ -29,8 +29,9 @@ FindSymbolsJob::FindSymbolsJob(const QueryMessage &query, const std::shared_ptr<
 {
 }
 
-void FindSymbolsJob::execute()
+int FindSymbolsJob::execute()
 {
+    int ret = 2;
     if (std::shared_ptr<Project> proj = project()) {
         const uint32_t filter = fileFilter();
         const Set<Location> locations = proj->locations(string, filter);
@@ -44,9 +45,11 @@ void FindSymbolsJob::execute()
             const List<RTags::SortedCursor> sorted = proj->sort(locations, sortFlags);
             const unsigned int writeFlags = filter ? Unfiltered : NoWriteFlags;
             const int count = sorted.size();
+            ret = count ? 0 : 1;
             for (int i=0; i<count; ++i) {
                 write(sorted.at(i).location, writeFlags);
             }
         }
     }
+    return ret;
 }

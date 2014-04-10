@@ -13,27 +13,27 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 
-#include "ScanJob.h"
+#include "ScanThread.h"
 #include "Server.h"
 #include "Filter.h"
 #include "Project.h"
 
-ScanJob::ScanJob(const Path &path)
+ScanThread::ScanThread(const Path &path)
     : mPath(path), mFilters(Server::instance()->options().excludeFilters)
 {
     if (!mPath.endsWith('/'))
         mPath.append('/');
 }
 
-void ScanJob::run()
+void ScanThread::run()
 {
-    mPath.visit(&ScanJob::visit, this);
+    mPath.visit(&ScanThread::visit, this);
     mFinished(mPaths);
 }
 
-Path::VisitResult ScanJob::visit(const Path &path, void *userData)
+Path::VisitResult ScanThread::visit(const Path &path, void *userData)
 {
-    ScanJob *recurseJob = reinterpret_cast<ScanJob*>(userData);
+    ScanThread *recurseJob = reinterpret_cast<ScanThread*>(userData);
     const Filter::Result result = Filter::filter(path, recurseJob->mFilters);
     switch (result) {
     case Filter::Filtered:

@@ -16,14 +16,24 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 #include "RTags.h"
 #include "CursorInfo.h"
 #include "Server.h"
-#include <rct/StopWatch.h>
-#include "Str.h"
+#include "VisitFileMessage.h"
+#include "VisitFileResponseMessage.h"
+#include "IndexerMessage.h"
+#include "JobRequestMessage.h"
+#include "JobResponseMessage.h"
+#include "JobAnnouncementMessage.h"
+#include "ClientMessage.h"
+#include "CompileMessage.h"
+#include "LogOutputMessage.h"
+#include "ProxyJobAnnouncementMessage.h"
+#include "QueryMessage.h"
 #include <dirent.h>
 #include <fcntl.h>
 #include <fnmatch.h>
-#include <sys/types.h>
-#include <rct/Rct.h>
 #include <rct/Messages.h>
+#include <rct/Rct.h>
+#include <rct/StopWatch.h>
+#include <sys/types.h>
 #ifdef OS_FreeBSD
 #include <sys/sysctl.h>
 #endif
@@ -79,22 +89,22 @@ static inline char *demangle(const char *str)
     return ret;
 }
 
-String backtrace(int maxFrames)
+List<String> backtrace(int maxFrames)
 {
     enum { SIZE = 1024 };
     void *stack[SIZE];
 
     int frameCount = backtrace(stack, sizeof(stack) / sizeof(void*));
     if (frameCount <= 0)
-        return String("Couldn't get stack trace");
-    String ret;
+        return List<String>();
+    List<String> ret;
     char **symbols = backtrace_symbols(stack, frameCount);
     if (symbols) {
         char frame[1024];
         for (int i=1; i<frameCount && (maxFrames < 0 || i - 1 < maxFrames); ++i) {
             char *demangled = demangle(symbols[i]);
-            snprintf(frame, sizeof(frame), "%d/%d %s\n", i, frameCount - 1, demangled ? demangled : symbols[i]);
-            ret += frame;
+            snprintf(frame, sizeof(frame), "%d/%d %s", i, frameCount - 1, demangled ? demangled : symbols[i]);
+            ret.append(frame);
             if (demangled)
                 free(demangled);
         }
@@ -103,9 +113,9 @@ String backtrace(int maxFrames)
     return ret;
 }
 #else
-String backtrace(int)
+List<String> backtrace(int)
 {
-    return String();
+    return List<String>();
 }
 #endif
 
@@ -137,8 +147,7 @@ void dirtySymbols(SymbolMap &map, const Set<uint32_t> &dirty)
         if (dirty.contains(it->first.fileId())) {
             map.erase(it++);
         } else {
-            CursorInfo &cursorInfo = it->second;
-            cursorInfo.dirty(dirty);
+            it->second->dirty(dirty);
             ++it;
         }
     }
@@ -218,8 +227,8 @@ static inline Path findAncestor(Path path, const char *fn, unsigned flags)
                         break;
                     }
                 }
+                closedir(dir);
             }
-            closedir(dir);
             if (found && flags & Shallow)
                 break;
         }
@@ -235,7 +244,7 @@ struct Entry {
     const unsigned flags;
 };
 
-static inline Path checkEntry(const Entry *entries, const Path &path, const Path &home)
+static inline Path checkEntries(const Entry *entries, const Path &path, const Path &home)
 {
     for (int i=0; entries[i].name; ++i) {
         Path p = findAncestor(path, entries[i].name, entries[i].flags);
@@ -254,14 +263,16 @@ static inline Path checkEntry(const Entry *entries, const Path &path, const Path
 }
 
 
-Path findProjectRoot(const Path &path)
+Path findProjectRoot(const Path &path, ProjectRootMode mode)
 {
+    if (!path.isAbsolute())
+        error() << "GOT BAD PATH" << path;
     assert(path.isAbsolute());
     const Path config = findAncestor(path, ".rtags-config", Shallow);
     if (config.isDir()) {
         const List<String> conf = Path(config + ".rtags-config").readAll().split('\n');
-        for (List<String>::const_iterator it = conf.begin(); it != conf.end(); ++it) {
-            const char *ch = it->constData();
+        for (const auto &line : conf) {
+            const char *ch = line.constData();
             while (*ch && isspace(*ch))
                 ++ch;
             if (*ch && !strncmp("project: ", ch, 9)) {
@@ -274,35 +285,41 @@ Path findProjectRoot(const Path &path)
                 } else {
                     error("Invalid project root %s", p.constData());
                 }
+            } else if (line == "enable: false") {
+                return Path();
             }
         }
     }
 
     static const Path home = Path::home();
-    const Entry before[] = {
-        { "GTAGS", 0 },
-        { "CMakeLists.txt", 0 },
-        { "configure", 0 },
-        { ".git", 0 },
-        { ".svn", 0 },
-        { "*.pro", Wildcard },
-        { "scons.1", 0 },
-        { "*.scons", Wildcard },
-        { "SConstruct", 0 },
-        { "autogen.*", Wildcard },
-        { "GNUMakefile*", Wildcard },
-        { "INSTALL*", Wildcard },
-        { "README*", Wildcard },
-        { 0, 0 }
-    };
-    {
-        const Path ret = checkEntry(before, path, home);
-        if (!ret.isEmpty())
-            return ret;
+    if (mode == SourceRoot) {
+        const Entry before[] = {
+            { "GTAGS", 0 },
+            { "CMakeLists.txt", 0 },
+            { "configure", 0 },
+            { ".git", 0 },
+            { ".svn", 0 },
+            { "*.pro", Wildcard },
+            { "scons.1", 0 },
+            { "*.scons", Wildcard },
+            { "SConstruct", 0 },
+            { "autogen.*", Wildcard },
+            { "GNUMakefile*", Wildcard },
+            { "INSTALL*", Wildcard },
+            { "README*", Wildcard },
+            { 0, 0 }
+        };
+        {
+            const Path ret = checkEntries(before, path, home);
+            if (!ret.isEmpty())
+                return ret;
+        }
     }
     {
         const Path configStatus = findAncestor(path, "config.status", 0);
         if (!configStatus.isEmpty()) {
+            if (mode == BuildRoot)
+                return configStatus;
             FILE *f = fopen((configStatus + "config.status").constData(), "r");
             Path ret;
             if (f) {
@@ -339,7 +356,14 @@ Path findProjectRoot(const Path &path)
     {
         const Path cmakeCache = findAncestor(path, "CMakeCache.txt", 0);
         if (!cmakeCache.isEmpty()) {
+            if (mode == BuildRoot)
+                return cmakeCache;
             FILE *f = fopen((cmakeCache + "Makefile").constData(), "r");
+            bool makefile = true;
+            if (!f) {
+                f = fopen((cmakeCache + "build.ninja").constData(), "r");
+                makefile = false;
+            }
             if (f) {
                 Path ret;
                 char line[1024];
@@ -349,17 +373,32 @@ Path findProjectRoot(const Path &path)
                     if (r == -1) {
                         break;
                     }
-                    if (!strncmp(line, "CMAKE_SOURCE_DIR", 16)) {
-                        char *dir = line + 16;
-                        while (*dir && (*dir == ' ' || *dir == '='))
-                            ++dir;
-                        if (dir != home) {
-                            ret = dir;
-                            ret += '/';
-                            if (!Path(ret + "CMakeLists.txt").isFile())
-                                ret.clear();
+
+                    if (makefile) {
+                        if (!strncmp(line, "CMAKE_SOURCE_DIR", 16)) {
+                            char *dir = line + 16;
+                            while (*dir && (*dir == ' ' || *dir == '='))
+                                ++dir;
+                            if (dir != home) {
+                                ret = dir;
+                                ret += '/';
+                                if (!Path(ret + "CMakeLists.txt").isFile())
+                                    ret.clear();
+                            }
+                            break;
                         }
-                        break;
+                    } else if (!strncmp(line, "# Write statements declared in CMakeLists.txt:", 46)) {
+                        r = Rct::readLine(f, line, sizeof(line));
+                        ++i;
+                        if (r != -1) {
+                            ret = line + 2;
+                            if (ret.exists()) {
+                                ret = ret.parentDir();
+                            } else {
+                                ret.clear();
+                                break;
+                            }
+                        }
                     }
                 }
                 fclose(f);
@@ -369,78 +408,33 @@ Path findProjectRoot(const Path &path)
         }
     }
     const Entry after[] = {
+        { "build.ninja", 0 },
         { "Makefile*", Wildcard },
         { 0, 0 }
     };
 
     {
-        const Path ret = checkEntry(after, path, home);
+        const Path ret = checkEntries(after, path, home);
         if (!ret.isEmpty())
             return ret;
     }
 
+    if (mode == BuildRoot)
+        return findProjectRoot(path, SourceRoot);
+
     return Path();
-}
-
-String filterPreprocessor(const Path &path)
-{
-    String ret;
-    FILE *f = fopen(path.constData(), "r");
-    if (f) {
-        char line[1026];
-        int r;
-        while ((r = Rct::readLine(f, line, sizeof(line) - 1)) != -1) {
-            int start = 0;
-            while (start < r && isspace(line[start]))
-                ++start;
-            if (start == r || line[start] != '#')
-                continue;
-            line[r] = '\n';
-            ret.append(line, r + 1);
-
-            int end = r - 1;
-            while (end >= start && isspace(line[end]))
-                --end;
-            while ((r = Rct::readLine(f, line, sizeof(line) - 1)) != -1) {
-                line[r] = '\n';
-                ret.append(line, r + 1);
-                end = r - 1;
-                while (end >= 0 && isspace(line[end]))
-                    --end;
-                if (end < 0 || line[end] != '\\') {
-                    break;
-                }
-            }
-        }
-
-        fclose(f);
-    }
-
-    return ret;
 }
 
 void initMessages()
 {
-#ifndef GRTAGS
-    Messages::registerMessage<QueryMessage>();
-    Messages::registerMessage<CompletionMessage>();
+    Messages::registerMessage<ClientMessage>();
     Messages::registerMessage<CompileMessage>();
-    Messages::registerMessage<CreateOutputMessage>();
-#endif
+    Messages::registerMessage<IndexerMessage>();
+    Messages::registerMessage<JobAnnouncementMessage>();
+    Messages::registerMessage<LogOutputMessage>();
+    Messages::registerMessage<ProxyJobAnnouncementMessage>();
+    Messages::registerMessage<QueryMessage>();
+    Messages::registerMessage<VisitFileMessage>();
+    Messages::registerMessage<VisitFileResponseMessage>();
 }
-
 }
-
-#ifdef RTAGS_DEBUG_MUTEX
-void Mutex::lock()
-{
-    Timer timer;
-    while (!tryLock()) {
-        usleep(10000);
-        if (timer.elapsed() >= 10000) {
-            error("Couldn't acquire lock in 10 seconds\n%s", RTags::backtrace().constData());
-            timer.restart();
-        }
-    }
-}
-#endif

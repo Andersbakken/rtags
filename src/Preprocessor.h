@@ -26,19 +26,12 @@ class Process;
 class Preprocessor
 {
 public:
-    Preprocessor(const SourceInformation &args, Connection *connection);
-    ~Preprocessor();
+    Preprocessor(const Source &source, Connection *connection);
 
     void preprocess();
-
 private:
-    void onProcessFinished();
-
-private:
-    const SourceInformation mArgs;
+    const Source mSource;
     Connection *mConnection;
-
-    Process *mProc;
 };
 
 #endif

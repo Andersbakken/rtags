@@ -16,10 +16,11 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 #ifndef __RTAGSCLANG_H__
 #define __RTAGSCLANG_H__
 
-#include "Str.h"
+#include "Source.h"
 #include "RTags.h"
 #include "CursorInfo.h"
 
+struct Cpp;
 inline bool operator==(const CXCursor &l, CXCursorKind r)
 {
     return clang_getCursorKind(l) == r;
@@ -53,14 +54,18 @@ enum CursorToStringFlags {
 };
 String cursorToString(CXCursor cursor, unsigned = DefaultCursorToStringFlags);
 SymbolMap::const_iterator findCursorInfo(const SymbolMap &map, const Location &location,
-                                         const String &context = String(),
-                                         const SymbolMap *errors = 0, bool *foundInErrors = 0);
+                                         const String &context = String());
 
 void parseTranslationUnit(const Path &sourceFile, const List<String> &args,
-                          CXTranslationUnit &unit, CXIndex index, String &clangLine,
-                          uint32_t fileId, DependencyMap *dependencies,
-                          CXUnsavedFile *unsaved, int unsavedCount);
+                          CXTranslationUnit &unit, CXIndex index,
+                          CXUnsavedFile *unsaved, int unsavedCount,
+                          unsigned int translationUnitFlags = 0,
+                          String *clangLine = 0);
 void reparseTranslationUnit(CXTranslationUnit &unit, CXUnsavedFile *unsaved, int unsavedCount);
+std::shared_ptr<Cpp> preprocess(const Source &source,
+                                const std::shared_ptr<Project> &project = std::shared_ptr<Project>(),
+                                unsigned int preprocessFlags = 0);
+bool compile(const Path& output, const Source &source, const String& preprocessed);
 
 struct Filter
 {
@@ -145,7 +150,7 @@ inline bool startsWith(const List<T> &list, const T &str)
     return false;
 }
 
-inline bool isReference(unsigned kind)
+inline bool isReference(unsigned int kind)
 {
     if (kind >= CursorInfo::JSInvalid)
         return kind == CursorInfo::JSReference;
@@ -161,6 +166,21 @@ inline bool isReference(unsigned kind)
         return true;
     case CursorInfo::JSReference:
         return false;
+    default:
+        break;
+    }
+    return false;
+}
+
+inline bool isFunction(unsigned int kind)
+{
+    switch (kind) {
+    case CXCursor_FunctionTemplate:
+    case CXCursor_FunctionDecl:
+    case CXCursor_Constructor:
+    case CXCursor_Destructor:
+    case CXCursor_CXXMethod:
+        return true;
     default:
         break;
     }
@@ -246,6 +266,41 @@ static inline bool needsQualifiers(CXCursorKind kind)
     }
     return false;
 }
+
+String typeName(const CXCursor &cursor);
+static inline const char *builtinTypeName(CXTypeKind kind)
+{
+    const char *ret = 0;
+    switch (kind) {
+    case CXType_Void: ret = "void"; break;
+    case CXType_Bool: ret = "bool"; break;
+    case CXType_Char_U: ret = "unsigned char"; break;
+    case CXType_UChar: ret = "unsigned char"; break;
+    case CXType_Char16: ret = "char16"; break;
+    case CXType_Char32: ret = "char32"; break;
+    case CXType_UShort: ret = "unsigned short"; break;
+    case CXType_UInt: ret = "unsigned int"; break;
+    case CXType_ULong: ret = "unsigned long"; break;
+    case CXType_ULongLong: ret = "unsigned long long"; break;
+    case CXType_UInt128: ret = "uint128"; break;
+    case CXType_Char_S: ret = "char"; break;
+    case CXType_SChar: ret = "schar"; break;
+    case CXType_WChar: ret = "wchar"; break;
+    case CXType_Short: ret = "short"; break;
+    case CXType_Int: ret = "int"; break;
+    case CXType_Long: ret = "long"; break;
+    case CXType_LongLong: ret = "long long"; break;
+    case CXType_Int128: ret = "int128"; break;
+    case CXType_Float: ret = "float"; break;
+    case CXType_Double: ret = "double"; break;
+    case CXType_LongDouble: ret = "long double"; break;
+    default:
+        break;
+    }
+    return ret;
+}
+
+String typeString(const CXType &type);
 
 struct SortedCursor
 {
@@ -345,6 +400,5 @@ inline Log operator<<(Log dbg, CXCursorKind kind)
     dbg << RTags::eatString(clang_getCursorKindSpelling(kind));
     return dbg;
 }
-
 
 #endif /* __RTAGSCLANG_H__ */

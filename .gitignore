@@ -30,6 +30,8 @@ gr
 /bin/.gdb_brestore
 /bin/.gdb_brestore.txt
 /bin/rp
-/src/libshared.so
 /bin/librtagsclang.dylib
+/src/libshared.so
 /src/libshared.dylib
+/src/.gdb_brestore
+/src/.gdb_brestore.txt

@@ -29,7 +29,7 @@ public:
     ReferencesJob(const Location &location, const QueryMessage &query, const std::shared_ptr<Project> &project);
     ReferencesJob(const String &symbolName, const QueryMessage &query, const std::shared_ptr<Project> &project);
 protected:
-    virtual void execute();
+    virtual int execute();
 private:
     Set<Location> locations;
     const String symbolName;

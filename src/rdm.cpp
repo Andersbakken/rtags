@@ -1,17 +1,17 @@
 /* This file is part of RTags.
 
-RTags is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
+   RTags is free software: you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation, either version 3 of the License, or
+   (at your option) any later version.
 
-RTags is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
+   RTags is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
 
-You should have received a copy of the GNU General Public License
-along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
+   You should have received a copy of the GNU General Public License
+   along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 
 #include <rct/EventLoop.h>
 #include <rct/Log.h>
@@ -24,7 +24,6 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include "ScanJob.h"
 #ifdef HAVE_BACKTRACE
 #include <execinfo.h>
 #include <cxxabi.h>
@@ -32,10 +31,15 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 
 static void sigSegvHandler(int signal)
 {
+    if (Server *server = Server::instance())
+        server->stopServers();
     fprintf(stderr, "Caught signal %d\n", signal);
-    String trace = RTags::backtrace();
-    if (!trace.isEmpty()) {
-        fprintf(stderr, "%s", trace.constData());
+    // this is not really allowed in signal handlers but will mostly work
+    const List<String>& trace = RTags::backtrace();
+    auto it = trace.cbegin();
+    while (it != trace.end()) {
+        fprintf(stderr, "%s", it->constData());
+        ++it;
     }
     fflush(stderr);
     _exit(1);
@@ -45,104 +49,149 @@ static Path socketFile;
 
 static void sigIntHandler(int)
 {
-    unlink(socketFile.constData());
+    if (Server *server = Server::instance())
+        server->stopServers();
     _exit(1);
 }
 
 #define EXCLUDEFILTER_DEFAULT "*/CMakeFiles/*;*/cmake*/Modules/*;*/conftest.c*;/tmp/*"
-#define DEFAULT_COMPLETION_CACHE_CLEAR_INTERVAL 60
+#define DEFAULT_RP_VISITFILE_TIMEOUT 60000
+#define DEFAULT_RP_INDEXER_MESSAGE_TIMEOUT 60000
+#define DEFAULT_RP_CONNECT_TIMEOUT 0 // won't time out
+#define DEFAULT_RDM_MULTICAST_ADDRESS "237.50.50.50"
+#define DEFAULT_RDM_HTTP_PORT DEFAULT_RDM_TCP_PORT + 1
+#define DEFAULT_RDM_MULTICAST_PORT DEFAULT_RDM_HTTP_PORT + 1
+#define DEFAULT_RESCHEDULE_TIMEOUT 15000
+#define DEFAULT_MAX_PENDING_PREPROCESS 100
 #define XSTR(s) #s
 #define STR(s) XSTR(s)
+static size_t defaultStackSize = 0;
+#ifdef NDEBUG
+#define DEFAULT_SUSPEND_RP "off"
+#else
+#define DEFAULT_SUSPEND_RP "on"
+#endif
 
 static void usage(FILE *f)
 {
     fprintf(f,
             "rdm [...options...]\n"
             "  --help|-h                                  Display this page.\n"
+            "  --server|-s [arg]                          Run as server with no arg or connect to arg as server.\n"
+            "  --enable-job-server|-z                     Enable job server.\n"
             "  --include-path|-I [arg]                    Add additional include path to clang.\n"
-            "  --include|-i [arg]                         Add additional include directive to clang.\n"
             "  --define|-D [arg]                          Add additional define directive to clang.\n"
             "  --log-file|-L [arg]                        Log to this file.\n"
             "  --append|-A                                Append to log file.\n"
             "  --verbose|-v                               Change verbosity, multiple -v's are allowed.\n"
             "  --clear-project-caches|-C                  Clear out project caches.\n"
-            "  --enable-sighandler|-s                     Enable signal handler to dump stack for crashes..\n"
-            "                                             Note that this might not play well with clang's signal handler.\n"
+            "  --disable-sighandler|-x                    Disable signal handler to dump stack for crashes.\n"
             "  --clang-includepath|-P                     Use clang include paths by default.\n"
             "  --no-Wall|-W                               Don't use -Wall.\n"
             "  --Wlarge-by-value-copy|-r [arg]            Use -Wlarge-by-value-copy=[arg] when invoking clang.\n"
             "  --no-spell-checking|-l                     Don't pass -fspell-checking.\n"
             "  --unlimited-error|-f                       Pass -ferror-limit=0 to clang.\n"
             "  --silent|-S                                No logging to stdout.\n"
-            "  --validate|-V                              Enable validation of database on startup and after indexing.\n"
-            "  --exclude-filter|-x [arg]                  Files to exclude from rdm, default \"" EXCLUDEFILTER_DEFAULT "\".\n"
-            "  --sync-threshold|-y [arg]                  Automatically sync after [arg] files indexed\n"
+            "  --exclude-filter|-X [arg]                  Files to exclude from rdm, default \"" EXCLUDEFILTER_DEFAULT "\".\n"
+            "  --sync-threshold|-y [arg]                  Automatically sync after [arg] files indexed.\n"
             "  --no-rc|-N                                 Don't load any rc files.\n"
             "  --ignore-printf-fixits|-F                  Disregard any clang fixit that looks like it's trying to fix format for printf and friends.\n"
             "  --config|-c [arg]                          Use this file instead of ~/.rdmrc.\n"
             "  --data-dir|-d [arg]                        Use this directory to store persistent data (default ~/.rtags).\n"
             "  --socket-file|-n [arg]                     Use this file for the server socket (default ~/.rdm).\n"
+            "  --tcp-port|-p [arg]                        Use this port for tcp server (default " STR(DEFAULT_RDM_TCP_PORT) ").\n"
             "  --setenv|-e [arg]                          Set this environment variable (--setenv \"foobar=1\").\n"
-            "  --completion-cache-size|-a [arg]           Cache this many translation units (default 0, must have at least 1 to use completion).\n"
             "  --no-current-project|-o                    Don't restore the last current project on startup.\n"
-            "  --allow-multiple-builds|-m                 Without this setting different builds will be merged for each source file.\n"
+            "  --disallow-multiple-sources|-m             With this setting different sources will be merged for each source file.\n"
+            "  --separate-debug-and-release|-E            Normally rdm doesn't consider release and debug as different builds. Pass this if you want it to.\n"
             "  --unload-timer|-u [arg]                    Number of minutes to wait before unloading non-current projects (disabled by default).\n"
-            "  --thread-count|-j [arg]                    Spawn this many threads for thread pool.\n"
+            "  --job-count|-j [arg]                       Spawn this many concurrent processes for indexing (default %d).\n"
+            "  --no-local-compiles|-J                     Don't run rp ever. For debugging.\n"
             "  --watch-system-paths|-w                    Watch system paths for changes.\n"
-            "  --clear-completion-cache-interval|-O [arg] Set completion cache cleanup interval in minuts. (default " STR(DEFAULT_COMPLETION_CACHE_CLEAR_INTERVAL) ")\n"
+            "  --rp-visit-file-timeout|-t [arg]           Timeout for rp visitfile commands in ms (0 means no timeout) (default " STR(DEFAULT_RP_VISITFILE_TIMEOUT) ").\n"
+            "  --rp-indexer-message-timeout|-T [arg]      Timeout for rp indexer-message in ms (0 means no timeout) (default " STR(DEFAULT_RP_INDEXER_MESSAGE_TIMEOUT) ").\n"
+            "  --rp-connect-timeout|-O [arg]              Timeout for connection from rp to rdm in ms (0 means no timeout) (default " STR(DEFAULT_RP_CONNECT_TIMEOUT) ").\n"
 #ifdef OS_Darwin
             "  --filemanager-watch|-M                     Use a file system watcher for filemanager.\n"
 #else
             "  --no-filemanager-watch|-M                  Don't use a file system watcher for filemanager.\n"
 #endif
-            "  --ignore-compiler|-b [arg]                 Alias this compiler (Might be practical to avoid duplicated builds for things like icecc).\n"
-            "  --disable-plugin|-p [arg]                  Don't load this plugin\n"
-            "  --no-no-unknown-warnings-option|-Z         Don't pass -Wno-unknown-warning-option\n"
-            "  --disable-esprima|-E                       Don't use esprima\n"
-            "  --enable-compiler-flags|-K                 Query the compiler for default flags\n");
+            "  --suspend-rp-on-crash|-q [arg]             Suspend rp in SIGSEGV handler (default " DEFAULT_SUSPEND_RP ").\n"
+            "  --no-no-unknown-warnings-option|-Y         Don't pass -Wno-unknown-warning-option\n"
+            "  --ignore-compiler|-b [arg]                 Alias this compiler (Might be practical to avoid duplicated sources for things like icecc).\n"
+            "  --multicast-address|-a [arg]               Use this address for multicast (default " DEFAULT_RDM_MULTICAST_ADDRESS ").\n"
+            "  --multicast-port|-P [arg]                  Use this port for multicast (default " STR(DEFAULT_RDM_MULTICAST_PORT) ").\n"
+            "  --multicast-ttl|-B [arg]                   Set multicast TTL to arg.\n"
+            "  --compression|-Z [arg]                     Compression type. Arg should be \"always\", \"remote\" or \"none\" (\"none\" is default).\n"
+            "  --http-port|-H [arg]                       Use this port for http (default " STR(DEFAULT_RDM_HTTP_PORT) ").\n"
+            "  --reschedule-timeout|-R                    Timeout for rescheduling remote jobs (default " STR(DEFAULT_RESCHEDULE_TIMEOUT) ").\n"
+            "  --max-pending-preprocess-size|-G           Max preprocessed translation units to keep around (default " STR(DEFAULT_MAX_PENDING_PREPROCESS) ").\n"
+            "  --force-preprocessing|-g                   Preprocess files even without using multiple hosts.\n"
+            "  --thread-stack-size|-k [arg]               Set stack size for threadpool to this (default %zu).\n",
+            std::max(2, ThreadPool::idealThreadCount()), defaultStackSize);
 }
 
 int main(int argc, char** argv)
 {
+    {
+        pthread_attr_t attr;
+        pthread_attr_init(&attr);
+        pthread_attr_getstacksize(&attr, &defaultStackSize);
+        pthread_attr_destroy(&attr);
+        if (defaultStackSize < 1024 * 1024 * 4) { // 4 megs should be enough for everyone right?
+            defaultStackSize = 1024 * 1024 * 4;
+        }
+    }
+
     Rct::findExecutablePath(*argv);
 
     struct option opts[] = {
         { "help", no_argument, 0, 'h' },
+        { "server", optional_argument, 0, 's' },
+        { "enable-job-server", no_argument, 0, 'z' },
+        { "compression", required_argument, 0, 'Z' },
         { "include-path", required_argument, 0, 'I' },
-        { "include", required_argument, 0, 'i' },
         { "define", required_argument, 0, 'D' },
         { "log-file", required_argument, 0, 'L' },
-        { "no-builtin-includes", no_argument, 0, 'U' },
         { "setenv", required_argument, 0, 'e' },
         { "no-Wall", no_argument, 0, 'W' },
         { "append", no_argument, 0, 'A' },
         { "verbose", no_argument, 0, 'v' },
-        { "thread-count", required_argument, 0, 'j' },
+        { "job-count", required_argument, 0, 'j' },
+        { "no-local-compiles", no_argument, 0, 'J' },
         { "clean-slate", no_argument, 0, 'C' },
-        { "enable-sighandler", no_argument, 0, 's' },
+        { "disable-sighandler", no_argument, 0, 'x' },
         { "silent", no_argument, 0, 'S' },
-        { "validate", no_argument, 0, 'V' },
-        { "exclude-filter", required_argument, 0, 'x' },
+        { "exclude-filter", required_argument, 0, 'X' },
         { "socket-file", required_argument, 0, 'n' },
         { "config", required_argument, 0, 'c' },
         { "no-rc", no_argument, 0, 'N' },
         { "data-dir", required_argument, 0, 'd' },
         { "ignore-printf-fixits", no_argument, 0, 'F' },
         { "unlimited-errors", no_argument, 0, 'f' },
-        { "completion-cache-size", required_argument, 0, 'a' },
         { "no-spell-checking", no_argument, 0, 'l' },
         { "sync-threshold", required_argument, 0, 'y' },
         { "large-by-value-copy", required_argument, 0, 'r' },
-        { "allow-multiple-builds", no_argument, 0, 'm' },
+        { "disallow-multiple-sources", no_argument, 0, 'm' },
         { "unload-timer", required_argument, 0, 'u' },
         { "no-current-project", no_argument, 0, 'o' },
-        { "no-no-unknown-warnings-option", no_argument, 0, 'Z' },
+        { "no-no-unknown-warnings-option", no_argument, 0, 'Y' },
         { "ignore-compiler", required_argument, 0, 'b' },
-        { "disable-plugin", required_argument, 0, 'p' },
         { "watch-system-paths", no_argument, 0, 'w' },
-        { "disable-esprima", no_argument, 0, 'E' },
-        { "enable-compiler-flags", no_argument, 0, 'K' },
-        { "clear-completion-cache-interval", required_argument, 0, 'O' },
+        { "rp-visit-file-timout", required_argument, 0, 't' },
+        { "rp-indexer-message-timeout", required_argument, 0, 'T' },
+        { "rp-connect-timeout", required_argument, 0, 'O' },
+        { "multicast-address", required_argument, 0, 'a' },
+        { "multicast-port", required_argument, 0, 'P' },
+        { "multicast-ttl", required_argument, 0, 'B' },
+        { "tcp-port", required_argument, 0, 'p' },
+        { "http-port", required_argument, 0, 'H' },
+        { "reschedule-timeout", required_argument, 0, 'R' },
+        { "thread-stack-size", required_argument, 0, 'k' },
+        { "suspend-rp-on-crash", required_argument, 0, 'q' },
+        { "separate-debug-and-release", no_argument, 0, 'E' },
+        { "force-preprocessing", no_argument, 0, 'g' },
+        { "max-pending-preprocess-size", required_argument, 0, 'G' },
 #ifdef OS_Darwin
         { "filemanager-watch", no_argument, 0, 'M' },
 #else
@@ -179,6 +228,26 @@ int main(int argc, char** argv)
         bool norc = false;
         Path rcfile = Path::home() + ".rdmrc";
         opterr = 0;
+
+        char *originalArgv[argc];
+        memcpy(originalArgv, argv, sizeof(originalArgv));
+        /* getopt will molest argv by moving pointers around when it sees
+         * fit. Their idea of an optional argument is different from ours so we
+         * have to take a copy of argv before they get their sticky fingers all
+         * over it.
+         *
+         * We think this should be okay for an optional argument:
+         * -s something
+         *
+         * They only populate optarg if you do:
+         * -ssomething.
+         *
+         * We don't want to copy argv into argList before processing rc files
+         * since command line args should take precedence over things in rc
+         * files.
+         *
+         */
+
         while (true) {
             const int c = getopt_long(argc, argv, shortOptions.constData(), opts, 0);
             if (c == -1)
@@ -197,53 +266,68 @@ int main(int argc, char** argv)
         opterr = 1;
         argList.append(argv[0]);
         if (!norc) {
-            char *rc;
-            int size = Path("/etc/rdmrc").readAll(rc);
-            if (rc) {
-                argCopy = String(rc, size).split('\n');
-                delete[] rc;
+            String rc = Path("/etc/rdmrc").readAll();
+            if (!rc.isEmpty()) {
+                for (const String& s : rc.split('\n')) {
+                    if (!s.isEmpty() && !s.startsWith('#'))
+                        argCopy += s.split(' ');
+                }
             }
             if (!rcfile.isEmpty()) {
-                size = rcfile.readAll(rc);
-                if (rc) {
-                    List<String> split = String(rc, size).split('\n');
-                    argCopy.append(split);
-                    delete[] rc;
+                rc = rcfile.readAll();
+                if (!rc.isEmpty()) {
+                    for (const String& s : rc.split('\n')) {
+                        if (!s.isEmpty() && !s.startsWith('#'))
+                            argCopy += s.split(' ');
+                    }
                 }
             }
             const int s = argCopy.size();
             for (int i=0; i<s; ++i) {
                 String &arg = argCopy.at(i);
-                if (!arg.isEmpty() && !arg.startsWith('#') && !arg.startsWith(' '))
+                if (!arg.isEmpty())
                     argList.append(arg.data());
             }
         }
-        for (int i=1; i<argc; ++i) {
-            argList.append(argv[i]);
-        }
+
+        for (int i=1; i<argc; ++i)
+            argList.append(originalArgv[i]);
 
         optind = 1;
     }
 
     Server::Options serverOpts;
+    serverOpts.threadStackSize = defaultStackSize;
     serverOpts.socketFile = String::format<128>("%s.rdm", Path::home().constData());
-    serverOpts.threadCount = ThreadPool::idealThreadCount();
-    serverOpts.completionCacheSize = 0;
-    serverOpts.clearCompletionCacheInterval = DEFAULT_COMPLETION_CACHE_CLEAR_INTERVAL;
-    serverOpts.options = Server::Wall|Server::SpellChecking;
+    serverOpts.jobCount = std::max(2, ThreadPool::idealThreadCount());
+    serverOpts.rpVisitFileTimeout = DEFAULT_RP_VISITFILE_TIMEOUT;
+    serverOpts.rpIndexerMessageTimeout = DEFAULT_RP_INDEXER_MESSAGE_TIMEOUT;
+    serverOpts.rpConnectTimeout = DEFAULT_RP_CONNECT_TIMEOUT;
+    serverOpts.options = Server::Wall|Server::SpellChecking|Server::NoJobServer;
+    serverOpts.maxPendingPreprocessSize = DEFAULT_MAX_PENDING_PREPROCESS;
 #ifdef OS_Darwin
     serverOpts.options |= Server::NoFileManagerWatch;
 #endif
+// #ifndef NDEBUG
+//     serverOpts.options |= Server::SuspendRPOnCrash;
+// #endif
     serverOpts.excludeFilters = String(EXCLUDEFILTER_DEFAULT).split(';');
     serverOpts.dataDir = String::format<128>("%s.rtags", Path::home().constData());
+    serverOpts.multicastAddress = DEFAULT_RDM_MULTICAST_ADDRESS;
+    serverOpts.multicastPort = static_cast<uint16_t>(DEFAULT_RDM_MULTICAST_PORT);
+    serverOpts.httpPort = static_cast<uint16_t>(DEFAULT_RDM_HTTP_PORT);
+    serverOpts.tcpPort = static_cast<uint16_t>(DEFAULT_RDM_TCP_PORT);
+    serverOpts.rescheduleTimeout = DEFAULT_RESCHEDULE_TIMEOUT;
     serverOpts.unloadTimer = 0;
 
     const char *logFile = 0;
     unsigned logFlags = 0;
     int logLevel = 0;
+    bool sigHandler = false;
     assert(Path::home().endsWith('/'));
     int argCount = argList.size();
     char **args = argList.data();
+
     while (true) {
         const int c = getopt_long(argCount, args, shortOptions.constData(), opts, 0);
         if (c == -1)
@@ -256,11 +340,114 @@ int main(int argc, char** argv)
         case 'S':
             logLevel = -1;
             break;
-        case 'x':
+        case 'X':
             serverOpts.excludeFilters += String(optarg).split(';');
+            break;
+        case 's': {
+            serverOpts.options &= ~Server::NoJobServer;
+            const char* arg = optarg;
+            if (!arg && optind < argCount && args[optind][0] != '-') {
+                arg = args[optind++];
+            }
+            if (arg) {
+                serverOpts.jobServer = RTags::parseHost(arg);
+                if (serverOpts.jobServer.first.isEmpty()) {
+                    fprintf(stderr, "Invalid argument to -s %s.\n", arg);
+                    return 1;
+                }
+            } else {
+                serverOpts.options |= Server::JobServer;
+            }
+            break; }
+        case 'z':
+            serverOpts.options &= ~Server::NoJobServer;
+            break;
+        case 'E':
+            serverOpts.options |= Server::SeparateDebugAndRelease;
+            break;
+        case 'g':
+            serverOpts.options |= Server::ForcePreprocessing;
+            break;
+        case 'Z': {
+            if (!strcmp(optarg, "always")) {
+                serverOpts.options |= Server::CompressionAlways;
+            } else if (!strcmp(optarg, "remote")) {
+                serverOpts.options |= Server::CompressionRemote;
+            } else if (strcmp(optarg, "none")) {
+                fprintf(stderr, "Invalid arg to -Z, only supports \"always\", \"remote\" or \"none\"\n");
+                return 1;
+            }
+            break; }
+        case 'a':
+            serverOpts.multicastAddress = optarg;
+            break;
+        case 'P':
+            serverOpts.multicastPort = static_cast<uint16_t>(atoi(optarg));
+            if (!serverOpts.multicastPort) {
+                fprintf(stderr, "Invalid argument to -P %s\n", optarg);
+                return 1;
+            }
+            break;
+        case 'G':
+            serverOpts.maxPendingPreprocessSize = atoi(optarg);
+            if (serverOpts.maxPendingPreprocessSize <= 0) {
+                fprintf(stderr, "Invalid argument to -G %s\n", optarg);
+                return 1;
+            }
+            break;
+        case 'H':
+            serverOpts.httpPort = static_cast<uint16_t>(atoi(optarg));
+            if (!serverOpts.httpPort) {
+                fprintf(stderr, "Invalid argument to -H %s\n", optarg);
+                return 1;
+            }
+            break;
+        case 'p':
+            serverOpts.tcpPort = static_cast<uint16_t>(atoi(optarg));
+            if (!serverOpts.tcpPort) {
+                fprintf(stderr, "Invalid argument to -p %s\n", optarg);
+                return 1;
+            }
+            break;
+        case 't':
+            serverOpts.rpVisitFileTimeout = atoi(optarg);
+            if (serverOpts.rpVisitFileTimeout < 0) {
+                fprintf(stderr, "Invalid argument to -t %s\n", optarg);
+                return 1;
+            }
+            if (!serverOpts.rpVisitFileTimeout)
+                serverOpts.rpVisitFileTimeout = -1;
+            break;
+        case 'O':
+            serverOpts.rpConnectTimeout = atoi(optarg);
+            if (serverOpts.rpConnectTimeout < 0) {
+                fprintf(stderr, "Invalid argument to -O %s\n", optarg);
+                return 1;
+            }
+            break;
+        case 'R':
+            serverOpts.rescheduleTimeout = atoi(optarg);
+            if (serverOpts.rescheduleTimeout <= 0) {
+                fprintf(stderr, "Invalid argument to -R %s\n", optarg);
+                return 1;
+            }
+            break;
+        case 'k':
+            serverOpts.threadStackSize = atoi(optarg);
+            if (serverOpts.threadStackSize < 0) {
+                fprintf(stderr, "Invalid argument to -k %s\n", optarg);
+                return 1;
+            }
             break;
         case 'b':
             serverOpts.ignoredCompilers.insert(Path::resolved(optarg));
+            break;
+        case 'B':
+            serverOpts.multicastTTL = atoi(optarg);
+            if (serverOpts.multicastTTL <= 0) {
+                fprintf(stderr, "Invalid argument to -B %s\n", optarg);
+                return 1;
+            }
             break;
         case 'n':
             serverOpts.socketFile = optarg;
@@ -271,26 +458,27 @@ int main(int argc, char** argv)
         case 'h':
             usage(stdout);
             return 0;
-        case 'K':
-            serverOpts.options |= Server::UseCompilerFlags;
-            break;
-        case 'Z':
+        case 'Y':
             serverOpts.options |= Server::NoNoUnknownWarningsOption;
             break;
-        case 'E':
-            serverOpts.options |= Server::NoEsprima;
-            break;
         case 'm':
-            serverOpts.options |= Server::AllowMultipleBuilds;
-            break;
-        case 'V':
-            serverOpts.options |= Server::Validate;
+            serverOpts.options |= Server::DisallowMultipleSources;
             break;
         case 'o':
             serverOpts.options |= Server::NoStartupCurrentProject;
             break;
         case 'w':
             serverOpts.options |= Server::WatchSystemPaths;
+            break;
+        case 'q':
+            if (!strcmp(optarg, "on") || !strcmp(optarg, "1")) {
+                serverOpts.options |= Server::SuspendRPOnCrash;
+            } else if (!strcmp(optarg, "off") || !strcmp(optarg, "1")) {
+                serverOpts.options &= ~Server::SuspendRPOnCrash;
+            } else {
+                fprintf(stderr, "Invalid argument to -q. Must be on, off, 1, or 0\n");
+                return 1;
+            }
             break;
         case 'M':
 #ifdef OS_Darwin
@@ -308,9 +496,6 @@ int main(int argc, char** argv)
         case 'l':
             serverOpts.options &= ~Server::SpellChecking;
             break;
-        case 'U':
-            serverOpts.options |= Server::NoBuiltinIncludes;
-            break;
         case 'W':
             serverOpts.options &= ~Server::Wall;
             break;
@@ -320,8 +505,8 @@ int main(int argc, char** argv)
         case 'e':
             putenv(optarg);
             break;
-        case 's':
-            signal(SIGSEGV, sigSegvHandler);
+        case 'x':
+            sigHandler = false;
             break;
         case 'u': {
             bool ok;
@@ -338,25 +523,20 @@ int main(int argc, char** argv)
                 return 1;
             }
             break;
-        case 'a':
-            serverOpts.completionCacheSize = atoi(optarg);
-            if (serverOpts.completionCacheSize < 1) {
-                fprintf(stderr, "Invalid argument to -a %s\n", optarg);
+        case 'T':
+            serverOpts.rpIndexerMessageTimeout = atoi(optarg);
+            if (serverOpts.rpIndexerMessageTimeout <= 0) {
+                fprintf(stderr, "Can't parse argument to -T %s.\n", optarg);
                 return 1;
             }
             break;
-        case 'O': {
-            bool ok;
-            serverOpts.clearCompletionCacheInterval = String(optarg).toULongLong(&ok);
-            if (!ok) {
-                fprintf(stderr, "Invalid argument to -O %s\n", optarg);
-                return 1;
-            }
-            break; }
+        case 'J':
+            serverOpts.options |= Server::NoLocalCompiles;
+            break;
         case 'j':
-            serverOpts.threadCount = atoi(optarg);
-            if (serverOpts.threadCount <= 0) {
-                fprintf(stderr, "Can't parse argument to -j %s\n", optarg);
+            serverOpts.jobCount = atoi(optarg);
+            if (serverOpts.jobCount < 0) {
+                fprintf(stderr, "Can't parse argument to -j %s. -j must be a positive integer.\n", optarg);
                 return 1;
             }
             break;
@@ -368,15 +548,19 @@ int main(int argc, char** argv)
             }
             serverOpts.defaultArguments.append("-Wlarge-by-value-copy=" + String(optarg)); // ### not quite working
             break; }
-        case 'D':
-            serverOpts.defaultArguments.append("-D" + String(optarg));
-            break;
+        case 'D': {
+            const char *eq = strchr(optarg, '=');
+            Source::Define def;
+            if (!eq) {
+                def.define = optarg;
+            } else {
+                def.define = String(optarg, eq - optarg);
+                def.value = eq + 1;
+            }
+            serverOpts.defines.append(def);
+            break; }
         case 'I':
-            serverOpts.defaultArguments.append("-I" + String(optarg));
-            break;
-        case 'i':
-            serverOpts.defaultArguments.append("-include");
-            serverOpts.defaultArguments.append(optarg);
+            serverOpts.includePaths.append(Path::resolved(optarg));
             break;
         case 'A':
             logFlags |= Log::Append;
@@ -388,9 +572,9 @@ int main(int argc, char** argv)
             if (logLevel >= 0)
                 ++logLevel;
             break;
-        case '?':
-            usage(stderr);
-            return 1;
+        case '?': {
+            fprintf(stderr, "Run rc --help for help\n");
+            return 1; }
         }
     }
     if (optind < argCount) {
@@ -399,13 +583,14 @@ int main(int argc, char** argv)
     }
 
     signal(SIGINT, sigIntHandler);
+    if (sigHandler)
+        signal(SIGSEGV, sigSegvHandler);
 
     if (!initLogging(argv[0], LogStderr, logLevel, logFile, logFlags)) {
-        fprintf(stderr, "Can't initialize logging with %s %d %d %s 0x%0x\n",
-                argv[0], LogStderr, logLevel, logFile ? logFile : "", logFlags);
+        fprintf(stderr, "Can't initialize logging with %d %s 0x%0x\n",
+                logLevel, logFile ? logFile : "", logFlags);
         return 1;
     }
-    warning("Running with %d jobs", serverOpts.threadCount);
 
     EventLoop::SharedPtr loop(new EventLoop);
     loop->init(EventLoop::MainEventLoop);
@@ -414,6 +599,11 @@ int main(int argc, char** argv)
     ::socketFile = serverOpts.socketFile;
     if (!serverOpts.dataDir.endsWith('/'))
         serverOpts.dataDir.append('/');
+    if (serverOpts.options & Server::NoJobServer) {
+        serverOpts.multicastPort = 0;
+        serverOpts.multicastAddress.clear();
+    }
+
     if (!server->init(serverOpts)) {
         cleanupLogging();
         return 1;
@@ -421,5 +611,5 @@ int main(int argc, char** argv)
 
     const unsigned int ret = loop->exec();
     cleanupLogging();
-    return ret == EventLoop::Success ? 0 : 1;
+    return ret == EventLoop::Success ? server->exitCode() : 1;
 }

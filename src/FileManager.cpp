@@ -14,7 +14,7 @@ You should have received a copy of the GNU General Public License
 along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 
 #include "FileManager.h"
-#include "ScanJob.h"
+#include "ScanThread.h"
 #include "Server.h"
 #include "Filter.h"
 #include "Project.h"
@@ -37,13 +37,15 @@ void FileManager::reload(Mode mode)
     mLastReloadTime = Rct::monoMs();
     std::shared_ptr<Project> project = mProject.lock();
     assert(project);
-    std::shared_ptr<ScanJob> job(new ScanJob(project->path()));
+    ScanThread *thread = new ScanThread(project->path());
     if (mode == Asynchronous) {
-        job->finished().connect<EventLoop::Move>(std::bind(&FileManager::onRecurseJobFinished, this, std::placeholders::_1));
-        Server::instance()->threadPool()->start(job);
+        thread->setAutoDelete(true);
+        thread->finished().connect<EventLoop::Move>(std::bind(&FileManager::onRecurseJobFinished, this, std::placeholders::_1));
+        thread->start();
     } else {
-        job->finished().connect(std::bind(&FileManager::onRecurseJobFinished, this, std::placeholders::_1));
-        job->run();
+        thread->finished().connect(std::bind(&FileManager::onRecurseJobFinished, this, std::placeholders::_1));
+        thread->run();
+        delete thread;
     }
 }
 

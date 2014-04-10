@@ -17,80 +17,56 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 #define IndexerJob_h
 
 #include "RTags.h"
-#include "Job.h"
+#include "Cpp.h"
 #include <rct/Hash.h>
 #include <rct/ThreadPool.h>
 #include <rct/StopWatch.h>
+#include <rct/Hash.h>
+#include "Source.h"
 
-class IndexData
+class Process;
+class IndexerJob : public std::enable_shared_from_this<IndexerJob>
 {
 public:
-    enum {
-        ClangType = 1
+    enum Flag {
+        None = 0x0000,
+        Dirty = 0x0001,
+        Compile = 0x0002,
+        Type_Mask = Dirty|Compile,
+        FromRemote = 0x0010, // this job originated on another machine, we're running it to be nice
+        Remote = 0x0020, // this job represents a locally spawned index that currently runs on some other machine
+        Rescheduled = 0x0040,
+        RunningLocal = 0x0080,
+        Crashed = 0x0100,
+        Aborted = 0x0200,
+        CompleteLocal = 0x0400,
+        CompleteRemote = 0x0800
     };
-    IndexData(int t = 0)
-        : type(t)
-    {}
-    virtual ~IndexData()
-    {}
 
-    ReferenceMap references;
-    SymbolMap symbols;
-    SymbolNameMap symbolNames;
-    DependencyMap dependencies;
-    String message;
-    UsrMap usrMap;
-    FixItMap fixIts;
-    Hash<uint32_t, int> errors;
-    const int type;
-};
+    static String dumpFlags(unsigned int);
 
-class IndexerJob : public Job
-{
-public:
-    typedef std::shared_ptr<IndexerJob> SharedPtr;
-    enum Type {
-        Makefile,
-        Dirty,
-        Dump
-    };
-    IndexerJob(const std::shared_ptr<Project> &project, Type type, const SourceInformation &sourceInformation);
-    IndexerJob(const QueryMessage &msg, const std::shared_ptr<Project> &project, const SourceInformation &sourceInformation);
-    virtual ~IndexerJob();
-    std::shared_ptr<IndexData> data() const { return mData; }
-    uint32_t fileId() const { return mSourceInformation.fileId; }
-    Path path() const { return mSourceInformation.sourceFile(); }
-    bool abortIfStarted();
-    const SourceInformation &sourceInformation() const { return mSourceInformation; }
-    time_t parseTime() const { return mParseTime; }
-    const Set<uint32_t> &visitedFiles() const { return mVisitedFiles; }
-    const Set<uint32_t> &blockedFiles() const { return mBlockedFiles; }
-    Type type() const { return mType; }
-    Signal<std::function<void(IndexerJob::SharedPtr)> >& finished() { return mFinished; }
-protected:
-    virtual void index() = 0;
-    virtual void execute();
-    virtual std::shared_ptr<IndexData> createIndexData() { return std::shared_ptr<IndexData>(new IndexData); }
+    IndexerJob(unsigned int flags, const Path &p, const Source &s, const std::shared_ptr<Cpp> &preprocessed);
+    IndexerJob();
+    ~IndexerJob();
 
-    Location createLocation(uint32_t fileId, uint32_t offset, bool *blocked);
-    Location createLocation(const Path &file, uint32_t offset, bool *blocked);
-    const Type mType;
+    bool launchProcess();
+    bool update(unsigned int flags, const Source &s, const std::shared_ptr<Cpp> &cpp);
+    void abort();
+    void encode(Serializer &serializer);
 
-    FILE *mLogFile;
+    uint32_t flags;
+    String destination;
+    uint16_t port;
+    Path project;
+    Source source;
+    Path sourceFile;
+    Set<uint32_t> visited;
+    Process *process;
+    Hash<uint32_t, Path> blockedFiles; // only used for remote jobs
+    uint64_t id, started;
+    std::shared_ptr<Cpp> cpp;
 
-    Set<uint32_t> mVisitedFiles, mBlockedFiles;
-
-    Hash<String, uint32_t> mFileIds;
-
-    SourceInformation mSourceInformation;
-
-    StopWatch mTimer;
-    std::shared_ptr<IndexData> mData;
-
-    time_t mParseTime;
-    bool mStarted;
-
-    Signal<std::function<void(IndexerJob::SharedPtr)> > mFinished;
+    static uint64_t nextId;
 };
 
 #endif

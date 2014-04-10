@@ -17,41 +17,20 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 #include <rct/Connection.h>
 #include <rct/Process.h>
 #include <rct/Log.h>
-#include "RTags.h"
+#include "RTagsClang.h"
+#include "Cpp.h"
 
-Preprocessor::Preprocessor(const SourceInformation &args, Connection *connection)
-    : mArgs(args), mConnection(connection), mProc(0)
+Preprocessor::Preprocessor(const Source &args, Connection *connection)
+    : mSource(args), mConnection(connection)
 {
-    mProc = new Process;
-    mProc->finished().connect(std::bind(&Preprocessor::onProcessFinished, this));
-}
-
-Preprocessor::~Preprocessor()
-{
-    delete mProc;
 }
 
 void Preprocessor::preprocess()
 {
-    List<String> args = mArgs.args;
-    args.append("-E");
-    args.append(mArgs.sourceFile());
-
-    List<String> environ;
-    environ << "PATH=/usr/local/bin:/usr/bin";
-    mProc->start(mArgs.compiler, args, environ);
-}
-
-void Preprocessor::onProcessFinished()
-{
-    mConnection->client()->setWriteMode(SocketClient::Synchronous);
-    mConnection->write<256>("// %s %s", mArgs.compiler.constData(),
-                            String::join(mArgs.args, ' ').constData());
-    mConnection->write(mProc->readAllStdOut());
-    const String err = mProc->readAllStdErr();
-    if (!err.isEmpty()) {
-        mConnection->write<1024>("/* %s */", err.constData());
+    std::shared_ptr<Cpp> cpp = RTags::preprocess(mSource);
+    if (cpp) {
+        mConnection->client()->setWriteMode(SocketClient::Synchronous);
+        mConnection->write(cpp->preprocessed);
+        mConnection->write<256>("// %s", String::join(mSource.toCommandLine(Source::IncludeSourceFile|Source::IncludeCompiler), ' ').constData());
     }
-    mConnection->finish();
-    EventLoop::deleteLater(this);
 }

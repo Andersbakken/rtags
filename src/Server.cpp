@@ -1,36 +1,42 @@
 /* This file is part of RTags.
 
-RTags is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
+   RTags is free software: you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation, either version 3 of the License, or
+   (at your option) any later version.
 
-RTags is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
+   RTags is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
 
-You should have received a copy of the GNU General Public License
-along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
+   You should have received a copy of the GNU General Public License
+   along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 
 #include "Server.h"
 
+#include "CompletionThread.h"
 #include "CompileMessage.h"
-#include "CompletionJob.h"
-#include "CreateOutputMessage.h"
+#include "LogOutputMessage.h"
 #include "CursorInfoJob.h"
 #include "DependenciesJob.h"
+#include "VisitFileResponseMessage.h"
+#include "JobAnnouncementMessage.h"
+#include "ProxyJobAnnouncementMessage.h"
+#include "ExitMessage.h"
+#include "ClientMessage.h"
+#include "ClientConnectedMessage.h"
+#include "PreprocessJob.h"
 #include "Filter.h"
 #include "FindFileJob.h"
 #include "FindSymbolsJob.h"
 #include "FollowLocationJob.h"
 #include "IndexerJob.h"
-#include "JSONJob.h"
-#include "GccArguments.h"
+#include "Source.h"
+#include "Cpp.h"
+#include "DumpThread.h"
 #if defined(HAVE_CXCOMPILATIONDATABASE)
 #  include <clang-c/CXCompilationDatabase.h>
-#elif defined(HAVE_V8) || defined(HAVE_YAJL)
-#  include "JSONParser.h"
 #endif
 #include "ListSymbolsJob.h"
 #include "LogObject.h"
@@ -38,6 +44,10 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 #include "Preprocessor.h"
 #include "Project.h"
 #include "QueryMessage.h"
+#include "VisitFileMessage.h"
+#include "IndexerMessage.h"
+#include "JobRequestMessage.h"
+#include "JobResponseMessage.h"
 #include "RTags.h"
 #include "ReferencesJob.h"
 #include "StatusJob.h"
@@ -53,95 +63,156 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 #include <rct/Rct.h>
 #include <rct/RegExp.h>
 #include <stdio.h>
+#include <arpa/inet.h>
+#include <limits>
+
+class HttpLogObject : public LogOutput
+{
+public:
+    HttpLogObject(int logLevel, const SocketClient::SharedPtr &socket)
+        : LogOutput(logLevel), mSocket(socket)
+    {}
+
+    virtual bool testLog(int level) const
+    {
+        return level == logLevel();
+    }
+    virtual void log(const char *msg, int len)
+    {
+        if (!EventLoop::isMainThread()) {
+            String message(msg, len);
+            SocketClient::WeakPtr weak = mSocket;
+
+            EventLoop::eventLoop()->callLater(std::bind([message,weak,this] {
+                        // ### I don't understand why I need to capture this
+                        // ### here (especially since this potentially could
+                        // ### have been destroyed but it doesn't compile
+                        // ### otherwise.
+                        if (SocketClient::SharedPtr socket = weak.lock()) {
+                            HttpLogObject::send(message.constData(), message.size(), socket);
+                        }
+                    }));
+        } else {
+            send(msg, len, mSocket);
+        }
+    }
+    static void send(const char *msg, int len, const SocketClient::SharedPtr &socket)
+    {
+        static const unsigned char *header = reinterpret_cast<const unsigned char*>("data:");
+        static const unsigned char *crlf = reinterpret_cast<const unsigned char*>("\r\n");
+        socket->write(header, 5);
+        socket->write(reinterpret_cast<const unsigned char *>(msg), len);
+        socket->write(crlf, 2);
+    }
+private:
+    SocketClient::SharedPtr mSocket;
+};
+
+static const bool debugMulti = getenv("RDM_DEBUG_MULTI");
 
 Server *Server::sInstance = 0;
 Server::Server()
-    : mVerbose(false), mJobId(0), mIndexerThreadPool(0), mQueryThreadPool(0), mCurrentFileId(0)
+    : mVerbose(false), mConnectToServerFailures(0), mCurrentFileId(0), mThreadPool(0),
+      mServerConnection(0), mCompletionThread(0), mFirstRemote(0), mLastRemote(0),
+      mAnnounced(false), mWorkPending(false), mExitCode(0)
 {
+    Messages::registerMessage<JobRequestMessage>();
+    Messages::registerMessage<JobResponseMessage>();
+    Messages::registerMessage<ClientConnectedMessage>();
+    Messages::registerMessage<ExitMessage>();
+
     assert(!sInstance);
     sInstance = this;
 
     mUnloadTimer.timeout().connect(std::bind(&Server::onUnload, this));
-    mClearCompletionCacheTimer.timeout().connect(std::bind(&Server::clearCompletionCache, this));
-    mIndex = clang_createIndex(0, 1);
+    mConnectToServerTimer.timeout().connect(std::bind(&Server::connectToServer, this));
+    mRescheduleTimer.timeout().connect(std::bind(&Server::onReschedule, this));
 }
 
 Server::~Server()
 {
+    if (mCompletionThread) {
+        mCompletionThread->stop();
+        mCompletionThread->join();
+        delete mCompletionThread;
+        mCompletionThread = 0;
+    }
+
+    Rct::LinkedList::deleteAll(mFirstRemote);
+
+    for (const auto &job : mLocalJobs) {
+        job.first->kill();
+    }
+
     clear();
     assert(sInstance == this);
     sInstance = 0;
     Messages::cleanup();
-    clang_disposeIndex(mIndex);
 }
 
 void Server::clear()
 {
-    ThreadPool *indexerThreadPool = 0, *queryThreadPool = 0;
-    {
-        std::lock_guard<std::mutex> lock(mMutex);
-        std::swap(indexerThreadPool, mIndexerThreadPool);
-        std::swap(queryThreadPool, mQueryThreadPool);
-    }
-
-    delete indexerThreadPool;
-    delete queryThreadPool;
-
-    Path::rm(mOptions.socketFile);
-    mServer.reset();
-    mProjects.clear();
+    stopServers();
+    delete mThreadPool; // wait first?
+    mThreadPool = 0;
 }
 
 bool Server::init(const Options &options)
 {
-    {
-        Path dir(RTAGS_BIN);
-        dir.resolve();
-        List<Path> plugins = dir.files(Path::File);
-        Path executableDir = Rct::executablePath().resolved().parentDir();
-        if (dir != executableDir)
-            plugins += executableDir.files(Path::File);
-        for (int i=0; i<plugins.size(); ++i) {
-            if (mPluginFactory.addPlugin(plugins.at(i))) {
-                error() << "Loaded plugin" << plugins.at(i);
-            }
-        }
-    }
     RTags::initMessages();
 
-    mIndexerThreadPool = new ThreadPool(options.threadCount);
-    mQueryThreadPool = new ThreadPool(2);
-
     mOptions = options;
-    if (options.options & NoBuiltinIncludes) {
-        mOptions.defaultArguments.append("-nobuiltininc");
-        mOptions.defaultArguments.append("-nostdinc++");
-    } else {
-        Path clangPath = Path::resolved(CLANG_INCLUDEPATH);
-        clangPath.prepend("-I");
-        mOptions.defaultArguments.append(clangPath);
+    Path clangPath = Path::resolved(CLANG_INCLUDEPATH);
+    mOptions.includePaths.append(clangPath);
+#ifdef OS_Darwin
+    if (clangPath.exists()) {
+        Path cppClangPath = clangPath + "../../../c++/v1/";
+        cppClangPath.resolve();
+        if (cppClangPath.isDir()) {
+            mOptions.includePaths.append(cppClangPath);
+        } else {
+            cppClangPath = clangPath + "../../../../include/c++/v1/";
+            cppClangPath.resolve();
+            if (cppClangPath.isDir()) {
+                mOptions.includePaths.append(cppClangPath);
+            }
+        }
+        // this seems to be the only way we get things like cstdint
     }
+#endif
 
     if (options.options & UnlimitedErrors)
-        mOptions.defaultArguments.append("-ferror-limit=0");
+        mOptions.defaultArguments << "-ferror-limit=0";
     if (options.options & Wall)
-        mOptions.defaultArguments.append("-Wall");
+        mOptions.defaultArguments << "-Wall";
     if (options.options & SpellChecking)
         mOptions.defaultArguments << "-fspell-checking";
     if (!(options.options & NoNoUnknownWarningsOption))
         mOptions.defaultArguments.append("-Wno-unknown-warning-option");
-    error() << "using args:" << String::join(mOptions.defaultArguments, " ");
+    Log l(Error);
+    l << "Running with" << mOptions.jobCount << "jobs, using args:"
+      << String::join(mOptions.defaultArguments, ' ') << '\n';
+    if (mOptions.tcpPort || mOptions.multicastPort || mOptions.httpPort) {
+        if (mOptions.tcpPort)
+            l << "tcp-port:" << mOptions.tcpPort;
+        if (mOptions.multicastPort)
+            l << "multicast-port:" << mOptions.multicastPort;
+        if (mOptions.httpPort)
+            l << "http-port:" << mOptions.httpPort;
+        l << '\n';
+    }
+    l << "includepaths" << String::join(mOptions.includePaths, ' ');
 
     if (mOptions.options & ClearProjects) {
         clearProjects();
     }
 
     for (int i=0; i<10; ++i) {
-        mServer.reset(new SocketServer);
-        if (mServer->listen(mOptions.socketFile)) {
+        mUnixServer.reset(new SocketServer);
+        if (mUnixServer->listen(mOptions.socketFile)) {
             break;
         }
-        mServer.reset();
+        mUnixServer.reset();
         if (!i) {
             enum { Timeout = 1000 };
             Connection connection;
@@ -151,17 +222,18 @@ bool Server::init(const Options &options)
                 connection.finished().connect(std::bind([](){ EventLoop::eventLoop()->quit(); }));
                 EventLoop::eventLoop()->exec(Timeout);
             }
+        } else {
+            sleep(1);
         }
-        sleep(1);
         Path::rm(mOptions.socketFile);
     }
-    if (!mServer) {
+    if (!mUnixServer) {
         error("Unable to listen on %s", mOptions.socketFile.constData());
         return false;
     }
 
     restoreFileIds();
-    mServer->newConnection().connect(std::bind(&Server::onNewConnection, this));
+    mUnixServer->newConnection().connect(std::bind(&Server::onNewConnection, this, std::placeholders::_1));
     reloadProjects();
     if (!(mOptions.options & NoStartupCurrentProject)) {
         Path current = Path(mOptions.dataDir + ".currentProject").readAll(1024);
@@ -174,9 +246,60 @@ bool Server::init(const Options &options)
         }
     }
 
-    if (mOptions.clearCompletionCacheInterval && mOptions.completionCacheSize) {
-        clearCompletionCache();
+    if (!mOptions.multicastAddress.isEmpty()) {
+        mMulticastSocket.reset(new SocketClient);
+        if (!mMulticastSocket->bind(mOptions.multicastPort)) {
+            error() << "Can't bind to multicast port" << mOptions.multicastPort;
+        }
+        if (!mMulticastSocket->addMembership(mOptions.multicastAddress)) {
+            error() << "Can't add membership" << mOptions.multicastAddress;
+            return false;
+        }
+        mMulticastSocket->setMulticastLoop(false);
+        if (mOptions.multicastTTL)
+            mMulticastSocket->setMulticastTTL(mOptions.multicastTTL);
+        mMulticastSocket->readyReadFrom().connect(std::bind(&Server::onMulticastReadyRead, this,
+                                                            std::placeholders::_1,
+                                                            std::placeholders::_2,
+                                                            std::placeholders::_3,
+                                                            std::placeholders::_4));
     }
+
+    if (mOptions.tcpPort) {
+        mTcpServer.reset(new SocketServer);
+        if (!mTcpServer->listen(mOptions.tcpPort)) {
+            error() << "Unable to listen on port" << mOptions.tcpPort;
+            return false;
+        }
+
+        mTcpServer->newConnection().connect(std::bind(&Server::onNewConnection, this, std::placeholders::_1));
+    }
+    if ((mOptions.options & (NoJobServer|ForcePreprocessing)) != NoJobServer) {
+        mThreadPool = new ThreadPool(std::max(1, mOptions.jobCount),
+                                     Thread::Normal,
+                                     mOptions.threadStackSize);
+    }
+
+    if (mOptions.httpPort) {
+        mHttpServer.reset(new SocketServer);
+        if (!mHttpServer->listen(mOptions.httpPort)) {
+            error() << "Unable to listen on http-port:" << mOptions.httpPort;
+            // return false;
+            mHttpServer.reset();
+        } else {
+            mHttpServer->newConnection().connect(std::bind([this](){
+                        while (SocketClient::SharedPtr client = mHttpServer->nextConnection()) {
+                            mHttpClients[client] = 0;
+                            client->disconnected().connect(std::bind([this, client] { mHttpClients.remove(client); }));
+                            client->readyRead().connect(std::bind(&Server::onHttpClientReadyRead, this, std::placeholders::_1));
+                        }
+                    }));
+        }
+
+    }
+
+    if (!(mOptions.options & JobServer))
+        connectToServer();
 
     return true;
 }
@@ -193,7 +316,6 @@ std::shared_ptr<Project> Server::addProject(const Path &path) // lock always hel
 
 int Server::reloadProjects()
 {
-    std::lock_guard<std::mutex> lock(mMutex);
     mProjects.clear(); // ### could keep the ones that persist somehow
     List<Path> projects = mOptions.dataDir.files(Path::File);
     const Path home = Path::home();
@@ -208,7 +330,7 @@ int Server::reloadProjects()
                 int version;
                 in >> version;
 
-                if (version == Server::DatabaseVersion) {
+                if (version == RTags::DatabaseVersion) {
                     int fs;
                     in >> fs;
                     if (fs != Rct::fileSize(f)) {
@@ -220,7 +342,7 @@ int Server::reloadProjects()
                     }
                 } else {
                     remove = true;
-                    error() << file << "has wrong format. Got" << version << "expected" << Server::DatabaseVersion << "Removing";
+                    error() << file << "has wrong format. Got" << version << "expected" << RTags::DatabaseVersion << "Removing";
                 }
                 fclose(f);
             }
@@ -232,32 +354,30 @@ int Server::reloadProjects()
     return mProjects.size();
 }
 
-void Server::onNewConnection()
+void Server::onNewConnection(SocketServer *server)
 {
     while (true) {
-        SocketClient::SharedPtr client = mServer->nextConnection();
+        SocketClient::SharedPtr client = server->nextConnection();
         if (!client)
             break;
         Connection *conn = new Connection(client);
         conn->newMessage().connect(std::bind(&Server::onNewMessage, this, std::placeholders::_1, std::placeholders::_2));
         conn->disconnected().connect(std::bind(&Server::onConnectionDisconnected, this, std::placeholders::_1));
+
+        if (debugMulti && !conn->client()->peerString().isEmpty()) {
+            error() << "Got connection from" << Rct::addrLookup(conn->client()->peerName());
+        }
     }
 }
 
 void Server::onConnectionDisconnected(Connection *o)
 {
-    Hash<int, Connection*>::iterator it = mPendingLookups.begin();
-    const Hash<int, Connection*>::const_iterator end = mPendingLookups.end();
-    while (it != end) {
-        if (it->second == o) {
-            mPendingLookups.erase(it);
-            break;
-        } else {
-            ++it;
-        }
-    }
     o->disconnected().disconnect();
+    if (mClients.remove(o)) {
+        error() << "Client disappeared" << Rct::addrLookup(o->client()->peerName());
+    }
     EventLoop::deleteLater(o);
+    mPendingJobRequests.remove(o);
 }
 
 void Server::onNewMessage(Message *message, Connection *connection)
@@ -265,44 +385,56 @@ void Server::onNewMessage(Message *message, Connection *connection)
     if (mOptions.unloadTimer)
         mUnloadTimer.restart(mOptions.unloadTimer * 1000 * 60, Timer::SingleShot);
 
-    if (mOptions.clearCompletionCacheInterval && mOptions.completionCacheSize && !mClearCompletionCacheTimer.isRunning())
-        mClearCompletionCacheTimer.restart(mOptions.clearCompletionCacheInterval * 1000 * 60, Timer::SingleShot);
-
-    ClientMessage *m = static_cast<ClientMessage*>(message);
-    const String raw = m->raw();
-    if (!raw.isEmpty()) {
-        if (!isCompletionStream(connection) && message->messageId() != CompileMessage::MessageId) {
-            error() << raw;
-        } else {
-            warning() << raw;
-        }
-    }
+    RTagsMessage *m = static_cast<RTagsMessage*>(message);
 
     switch (message->messageId()) {
     case CompileMessage::MessageId:
-        handleCompileMessage(static_cast<const CompileMessage&>(*message), connection);
+        handleCompileMessage(static_cast<CompileMessage&>(*m), connection);
         break;
     case QueryMessage::MessageId:
-        handleQueryMessage(static_cast<const QueryMessage&>(*message), connection);
+        handleQueryMessage(static_cast<const QueryMessage&>(*m), connection);
         break;
-    case CreateOutputMessage::MessageId:
-        handleCreateOutputMessage(static_cast<const CreateOutputMessage&>(*message), connection);
+    case IndexerMessage::MessageId:
+        handleIndexerMessage(static_cast<const IndexerMessage&>(*m), connection);
         break;
-    case CompletionMessage::MessageId: {
-        const CompletionMessage &completionMessage = static_cast<const CompletionMessage&>(*message);
-        if (completionMessage.flags() & CompletionMessage::Stream) {
-            handleCompletionStream(completionMessage, connection);
-        } else {
-            handleCompletionMessage(completionMessage, connection);
-        }
-        break; }
+    case LogOutputMessage::MessageId:
+        error() << m->raw();
+        handleLogOutputMessage(static_cast<const LogOutputMessage&>(*m), connection);
+        break;
+    case ExitMessage::MessageId:
+        handleExitMessage(static_cast<const ExitMessage&>(*m));
+        break;
+    case VisitFileMessage::MessageId:
+        handleVisitFileMessage(static_cast<const VisitFileMessage&>(*m), connection);
+        break;
     case ResponseMessage::MessageId:
-        assert(0);
-        connection->finish();
+    case FinishMessage::MessageId:
+    case VisitFileResponseMessage::MessageId:
+        error() << getpid() << "Unexpected message" << static_cast<int>(message->messageId());
+        // assert(0);
+        connection->finish(1);
+        break;
+    case JobRequestMessage::MessageId:
+        handleJobRequestMessage(static_cast<const JobRequestMessage&>(*m), connection);
+        break;
+    case ClientConnectedMessage::MessageId:
+        handleClientConnectedMessage(static_cast<const ClientConnectedMessage&>(*m));
+        break;
+    case JobAnnouncementMessage::MessageId:
+        handleJobAnnouncementMessage(static_cast<const JobAnnouncementMessage&>(*m), connection);
+        break;
+    case JobResponseMessage::MessageId:
+        handleJobResponseMessage(static_cast<const JobResponseMessage&>(*m), connection);
+        break;
+    case ProxyJobAnnouncementMessage::MessageId:
+        handleProxyJobAnnouncementMessage(static_cast<const ProxyJobAnnouncementMessage&>(*m), connection);
+        break;
+    case ClientMessage::MessageId:
+        handleClientMessage(static_cast<const ClientMessage&>(*m), connection);
         break;
     default:
         error("Unknown message: %d", message->messageId());
-        connection->finish();
+        connection->finish(1);
         break;
     }
     if (mOptions.options & NoFileManagerWatch) {
@@ -312,53 +444,131 @@ void Server::onNewMessage(Message *message, Connection *connection)
     }
 }
 
-void Server::handleCompileMessage(const CompileMessage &message, Connection *conn)
+bool Server::index(const String &arguments, const Path &pwd,
+                   const List<String> &withProjects, bool escape)
 {
-    conn->finish(); // nothing to wait for
-    const Path workingDirectory = message.workingDirectory();
-    const String arguments = message.arguments();
-    const List<String> projects = message.projects();
-    assert(message.workingDirectory().endsWith('/'));
-    if (arguments.endsWith(".js") && !arguments.contains(' ')) {
-        if (mOptions.options & NoEsprima)
-            return;
-        Path jsFile = arguments;
-        if (!jsFile.isAbsolute())
-            jsFile.prepend(workingDirectory);
-        const Path srcRoot = RTags::findProjectRoot(jsFile);
-        if (srcRoot.isEmpty()) {
-            error() << "Can't find project root for" << jsFile;
-            return;
-        }
-        {
-            std::lock_guard<std::mutex> lock(mMutex);
+    Path unresolvedPath;
+    unsigned int flags = Source::None;
+    if (escape)
+        flags |= Source::Escape;
+    Source source = Source::parse(arguments, pwd, flags, &unresolvedPath);
+    if (!source.isIndexable())
+        return false;
+    Path project = findProject(source.sourceFile(), unresolvedPath, withProjects);
+    if (!shouldIndex(source, project))
+        return false;
 
-            std::shared_ptr<Project> project = mProjects.value(srcRoot);
-            if (!project) {
-                project = addProject(srcRoot);
-                assert(project);
-            }
-            project->load();
+    preprocess(std::move(source), std::move(project), IndexerJob::Compile);
+    return true;
+}
 
-            if (!mCurrentProject.lock())
-                mCurrentProject = project;
+void Server::preprocess(Source &&source, Path &&srcRoot, uint32_t flags)
+{
+    std::shared_ptr<Project> project = mProjects.value(srcRoot);
+    if (!project) {
+        project = addProject(srcRoot);
+        assert(project);
+    }
+    project->load();
 
-            project->index(jsFile.resolved());
-        }
+    WorkScope scope;
+    if (!(mOptions.options & ForcePreprocessing) && !hasServer()) {
+        if (debugMulti)
+            error() << "Not preprocessing" << source.sourceFile() << "since we're not on the farm";
+        std::shared_ptr<Cpp> cpp(new Cpp);
+        cpp->flags = Cpp::Preprocess_None;
+        cpp->time = Rct::currentTimeMs();
+        cpp->preprocessDuration = 0;
+        index(std::move(source), cpp, project, flags);
     } else {
-        GccArguments args;
-        if (args.parse(arguments, workingDirectory))
-            index(args, projects);
+        std::shared_ptr<PreprocessJob> job(new PreprocessJob(std::move(source), project, flags));
+        mPendingPreprocessJobs.append(job);
     }
 }
 
-void Server::handleCreateOutputMessage(const CreateOutputMessage &message, Connection *conn)
+void Server::handleCompileMessage(CompileMessage &message, Connection *conn)
+{
+    const bool ret = index(message.arguments(), message.workingDirectory(), message.projects(), message.escape());
+    conn->finish(ret ? 0 : 1);
+}
+
+void Server::handleExitMessage(const ExitMessage &message)
+{
+    mExitCode = message.exitCode();
+    if (mServerConnection && message.forward()) {
+        mServerConnection->send(message);
+    } else if (!mClients.isEmpty()) {
+        const ExitMessage msg(mExitCode, false);
+        for (const auto &client : mClients) {
+            if (debugMulti) {
+                error() << "Telling" << Rct::addrLookup(client->client()->peerName())
+                        << "to shut down with status code" << message.exitCode();
+            }
+
+            client->send(msg);
+        }
+    } else {
+        EventLoop::eventLoop()->quit();
+        return;
+    }
+
+    EventLoop::eventLoop()->registerTimer(std::bind(&EventLoop::quit, EventLoop::eventLoop()),
+                                          1000, Timer::SingleShot);
+}
+
+void Server::handleLogOutputMessage(const LogOutputMessage &message, Connection *conn)
 {
     new LogObject(conn, message.level());
 }
 
+void Server::handleIndexerMessage(const IndexerMessage &message, Connection *conn)
+{
+    WorkScope scope;
+    std::shared_ptr<IndexData> indexData = message.data();
+    // error() << "Got indexer message" << message.project() << Location::path(indexData->fileId);
+    assert(indexData);
+    auto it = mProcessingJobs.find(indexData->jobId);
+    if (debugMulti)
+        error() << "got indexer message for job" << Location::path(indexData->fileId()) << indexData->jobId
+                << "from" << (conn->client()->peerString().isEmpty()
+                              ? String("ourselves")
+                              : Rct::addrLookup(conn->client()->peerName()).constData());
+    if (it != mProcessingJobs.end()) {
+        std::shared_ptr<IndexerJob> job = it->second;
+        assert(job);
+        mProcessingJobs.erase(it);
+        assert(!(job->flags & IndexerJob::FromRemote));
+
+        const String ip = conn->client()->peerName();
+        if (!ip.isEmpty())
+            indexData->message << String::format<64>(" from %s", Rct::addrLookup(ip).constData());
+
+        const IndexerJob::Flag runningFlag = (ip.isEmpty() ? IndexerJob::RunningLocal : IndexerJob::Remote);
+        job->flags &= ~runningFlag;
+
+        // we only care about the first job that returns
+        if (!(job->flags & (IndexerJob::CompleteLocal|IndexerJob::CompleteRemote))) {
+            if (!(job->flags & IndexerJob::Aborted))
+                job->flags |= (ip.isEmpty() ? IndexerJob::CompleteLocal : IndexerJob::CompleteRemote);
+            std::shared_ptr<Project> project = mProjects.value(message.project());
+            if (!project) {
+                error() << "Can't find project root for this IndexerMessage" << message.project() << Location::path(indexData->fileId());
+            } else {
+                project->onJobFinished(indexData, job);
+            }
+        }
+    } else {
+        // job already processed
+        if (debugMulti)
+            error() << "already got a response for" << indexData->jobId;
+    }
+    conn->finish();
+}
+
 void Server::handleQueryMessage(const QueryMessage &message, Connection *conn)
 {
+    if (!(message.flags() & QueryMessage::SilentQuery))
+        error() << message.raw();
     conn->setSilent(message.flags() & QueryMessage::Silent);
     updateProject(message.projects(), message.flags());
 
@@ -366,8 +576,21 @@ void Server::handleQueryMessage(const QueryMessage &message, Connection *conn)
     case QueryMessage::Invalid:
         assert(0);
         break;
-    case QueryMessage::Builds:
-        builds(message, conn);
+    case QueryMessage::SyncProject:
+        syncProject(message, conn);
+        break;
+    case QueryMessage::Sources:
+        sources(message, conn);
+        break;
+    case QueryMessage::DumpCompletions:
+        dumpCompletions(message, conn);
+        break;
+    case QueryMessage::SendDiagnostics:
+        sendDiagnostics(message, conn);
+        break;
+    case QueryMessage::CodeCompleteAt:
+    case QueryMessage::PrepareCodeCompleteAt:
+        codeCompleteAt(message, conn);
         break;
     case QueryMessage::SuspendFile:
         suspendFile(message, conn);
@@ -377,12 +600,6 @@ void Server::handleQueryMessage(const QueryMessage &message, Connection *conn)
         break;
     case QueryMessage::RemoveFile:
         removeFile(message, conn);
-        break;
-    case QueryMessage::CodeCompletionEnabled:
-        codeCompletionEnabled(message, conn);
-        break;
-    case QueryMessage::JSON:
-        JSON(message, conn);
         break;
     case QueryMessage::JobCount:
         jobCount(message, conn);
@@ -412,7 +629,9 @@ void Server::handleQueryMessage(const QueryMessage &message, Connection *conn)
         project(message, conn);
         break;
     case QueryMessage::LoadCompilationDatabase:
+#if defined(HAVE_CXCOMPILATIONDATABASE) && CLANG_VERSION_MINOR >= 3
         loadCompilationDatabase(message, conn);
+#endif
         break;
     case QueryMessage::Reindex: {
         reindex(message, conn);
@@ -459,47 +678,34 @@ void Server::handleQueryMessage(const QueryMessage &message, Connection *conn)
     }
 }
 
-int Server::nextId()
-{
-    ++mJobId;
-    if (!mJobId)
-        ++mJobId;
-    return mJobId;
-}
-
 void Server::followLocation(const QueryMessage &query, Connection *conn)
 {
     const Location loc = query.location();
     if (loc.isNull()) {
         conn->write("Not indexed");
-        conn->finish();
+        conn->finish(1);
         return;
     }
     std::shared_ptr<Project> project = updateProjectForLocation(loc.path());
     if (!project) {
         error("No project");
-        conn->finish();
+        conn->finish(1);
         return;
     } else if (project->state() != Project::Loaded) {
         conn->write("Project loading");
-        conn->finish();
+        conn->finish(2);
         return;
     }
 
     FollowLocationJob job(loc, query, project);
-    job.run(conn);
-    conn->finish();
+    const int ret = job.run(conn);
+    conn->finish(ret);
 }
 
 void Server::isIndexing(const QueryMessage &, Connection *conn)
 {
-    ProjectsMap copy;
-    {
-        std::lock_guard<std::mutex> lock(mMutex);
-        copy = mProjects;
-    }
-    for (ProjectsMap::const_iterator it = copy.begin(); it != copy.end(); ++it) {
-        if (it->second->isIndexing()) {
+    for (const auto &it : mProjects) {
+        if (it.second->isIndexing()) {
             conn->write("1");
             conn->finish();
             return;
@@ -508,7 +714,6 @@ void Server::isIndexing(const QueryMessage &, Connection *conn)
     conn->write("0");
     conn->finish();
 }
-
 
 void Server::removeFile(const QueryMessage &query, Connection *conn)
 {
@@ -548,8 +753,8 @@ void Server::findFile(const QueryMessage &query, Connection *conn)
     }
 
     FindFileJob job(query, project);
-    job.run(conn);
-    conn->finish();
+    const int ret = job.run(conn);
+    conn->finish(ret);
 }
 
 void Server::dumpFile(const QueryMessage &query, Connection *conn)
@@ -561,28 +766,22 @@ void Server::dumpFile(const QueryMessage &query, Connection *conn)
         return;
     }
 
-    Location loc(fileId, 0);
-
-    std::shared_ptr<Project> project = updateProjectForLocation(loc.path());
+    std::shared_ptr<Project> project = updateProjectForLocation(Location::path(fileId));
     if (!project || project->state() != Project::Loaded) {
         conn->write<256>("%s is not indexed", query.query().constData());
         conn->finish();
         return;
     }
-    const SourceInformation c = project->sourceInfo(fileId);
-    if (c.isNull()) {
-        conn->write<256>("%s is not indexed", query.query().constData());
-        conn->finish();
-        return;
-    }
 
-    std::shared_ptr<IndexerJob> job = Server::instance()->factory().createJob(query, project, c);
-    if (job) {
-        job->setId(nextId());
-        mPendingLookups[job->id()] = conn;
-        startQueryJob(job);
+    const Source source = project->sources(fileId).value(query.buildIndex());
+    if (!source.isNull()) {
+        conn->disconnected().disconnect();
+        // ### this is a hack, but if the connection goes away we can't post
+        // ### events to it. We could fix this nicer but I didn't
+        DumpThread *dumpThread = new DumpThread(query, source, conn);
+        dumpThread->start();
     } else {
-        conn->write<128>("Failed to create job for %s", c.sourceFile().constData());
+        conn->write<256>("%s build: %d not found", query.query().constData(), query.buildIndex());
         conn->finish();
     }
 }
@@ -598,23 +797,14 @@ void Server::cursorInfo(const QueryMessage &query, Connection *conn)
 
     if (!project) {
         conn->finish();
-        return;
     } else if (project->state() != Project::Loaded) {
         conn->write("Project loading");
         conn->finish();
-        return;
+    } else {
+        CursorInfoJob job(loc, query, project);
+        const int ret = job.run(conn);
+        conn->finish(ret);
     }
-
-
-    CursorInfoJob job(loc, query, project);
-    job.run(conn);
-    conn->finish();
-}
-
-void Server::codeCompletionEnabled(const QueryMessage &, Connection *conn)
-{
-    conn->write(mOptions.completionCacheSize ? "1" : "0");
-    conn->finish();
 }
 
 void Server::dependencies(const QueryMessage &query, Connection *conn)
@@ -631,8 +821,8 @@ void Server::dependencies(const QueryMessage &query, Connection *conn)
     }
 
     DependenciesJob job(query, project);
-    job.run(conn);
-    conn->finish();
+    const int ret = job.run(conn);
+    conn->finish(ret);
 }
 
 void Server::fixIts(const QueryMessage &query, Connection *conn)
@@ -642,21 +832,6 @@ void Server::fixIts(const QueryMessage &query, Connection *conn)
         String out = project->fixIts(Location::fileId(query.query()));
         if (!out.isEmpty())
             conn->write(out);
-    }
-    conn->finish();
-}
-
-void Server::JSON(const QueryMessage &query, Connection *conn)
-{
-    std::shared_ptr<Project> project = currentProject();
-
-    if (!project) {
-        conn->write("No project");
-    } else if (project->state() != Project::Loaded) {
-        conn->write("Project loading");
-    } else {
-        JSONJob job(query, project);
-        job.run(conn);
     }
     conn->finish();
 }
@@ -682,8 +857,8 @@ void Server::referencesForLocation(const QueryMessage &query, Connection *conn)
     }
 
     ReferencesJob job(loc, query, project);
-    job.run(conn);
-    conn->finish();
+    const int ret = job.run(conn);
+    conn->finish(ret);
 }
 
 void Server::referencesForName(const QueryMessage& query, Connection *conn)
@@ -703,8 +878,8 @@ void Server::referencesForName(const QueryMessage& query, Connection *conn)
     }
 
     ReferencesJob job(name, query, project);
-    job.run(conn);
-    conn->finish();
+    const int ret = job.run(conn);
+    conn->finish(ret);
 }
 
 void Server::findSymbols(const QueryMessage &query, Connection *conn)
@@ -724,8 +899,8 @@ void Server::findSymbols(const QueryMessage &query, Connection *conn)
     }
 
     FindSymbolsJob job(query, project);
-    job.run(conn);
-    conn->finish();
+    const int ret = job.run(conn);
+    conn->finish(ret);
 }
 
 void Server::listSymbols(const QueryMessage &query, Connection *conn)
@@ -740,8 +915,8 @@ void Server::listSymbols(const QueryMessage &query, Connection *conn)
     }
 
     ListSymbolsJob job(query, project);
-    job.run(conn);
-    conn->finish();
+    const int ret = job.run(conn);
+    conn->finish(ret);
 }
 
 void Server::status(const QueryMessage &query, Connection *conn)
@@ -761,23 +936,24 @@ void Server::status(const QueryMessage &query, Connection *conn)
     conn->client()->setWriteMode(SocketClient::Synchronous);
 
     StatusJob job(query, project);
-    job.run(conn);
-    conn->finish();
+    const int ret = job.run(conn);
+    conn->finish(ret);
 }
 
 void Server::isIndexed(const QueryMessage &query, Connection *conn)
 {
-    int ret = 0;
+    String ret = "unknown";
     const Match match = query.match();
     std::shared_ptr<Project> project = updateProjectForLocation(match);
     if (project) {
         bool indexed = false;
         if (project->match(match, &indexed))
-            ret = indexed ? 1 : 2;
+            ret = indexed ? "indexed" : "managed";
     }
 
-    error("=> %d", ret);
-    conn->write<16>("%d", ret);
+    if (!(query.flags() & QueryMessage::SilentQuery))
+        error("=> %s", ret.constData());
+    conn->write(ret);
     conn->finish();
 }
 
@@ -794,16 +970,17 @@ void Server::reloadFileManager(const QueryMessage &, Connection *conn)
     }
 }
 
-
 void Server::hasFileManager(const QueryMessage &query, Connection *conn)
 {
     const Path path = query.query();
     std::shared_ptr<Project> project = updateProjectForLocation(path);
     if (project && project->fileManager && (project->fileManager->contains(path) || project->match(query.match()))) {
-        error("=> 1");
+        if (!(query.flags() & QueryMessage::SilentQuery))
+            error("=> 1");
         conn->write("1");
     } else {
-        error("=> 0");
+        if (!(query.flags() & QueryMessage::SilentQuery))
+            error("=> 0");
         conn->write("0");
     }
     conn->finish();
@@ -824,22 +1001,20 @@ void Server::preprocessFile(const QueryMessage &query, Connection *conn)
     }
 
     const uint32_t fileId = Location::fileId(path);
-    const SourceInformation c = project->sourceInfo(fileId);
-    if (c.isNull()) {
-        conn->write("No arguments for " + path);
-        conn->finish();
-        return;
+    const Source source = project->sources(fileId).value(query.buildIndex());
+    if (!source.isValid()) {
+        conn->write<256>("%s build: %d not found", query.query().constData(), query.buildIndex());
+    } else {
+        Preprocessor pre(source, conn);
+        pre.preprocess();
     }
-
-    Preprocessor* pre = new Preprocessor(c, conn);
-    pre->preprocess();
+    conn->finish();
 }
 
 void Server::clearProjects()
 {
-    std::lock_guard<std::mutex> lock(mMutex);
-    for (ProjectsMap::const_iterator it = mProjects.begin(); it != mProjects.end(); ++it)
-        it->second->unload();
+    for (const auto &it : mProjects)
+        it.second->unload();
     Rct::removeDirectory(mOptions.dataDir);
     mCurrentProject.reset();
     unlink((mOptions.dataDir + ".currentProject").constData());
@@ -873,111 +1048,72 @@ void Server::reindex(const QueryMessage &query, Connection *conn)
     conn->finish();
 }
 
-void Server::startIndexerJob(const std::shared_ptr<ThreadPool::Job> &job)
+bool Server::shouldIndex(const Source &source, const Path &srcRoot) const
 {
-    mIndexerThreadPool->start(job);
-}
-
-void Server::startQueryJob(const std::shared_ptr<Job> &job)
-{
-    mQueryThreadPool->start(job);
-}
-
-void Server::index(const GccArguments &args, const List<String> &projects)
-{
-    if (args.lang() == GccArguments::NoLang || mOptions.ignoredCompilers.contains(args.compiler())) {
-        return;
-    }
-    Path srcRoot;
-    if (updateProject(projects, 0)) {
-        srcRoot = currentProject()->path();
-    } else if (!projects.isEmpty()) {
-        srcRoot = projects.first();
-    } else {
-        srcRoot = args.projectRoot();
-    }
     if (srcRoot.isEmpty()) {
-        error("Can't find project root for %s", String::join(args.inputFiles(), ", ").constData());
-        return;
+        warning() << "Shouldn't index" << source.sourceFile() << "because of missing srcRoot";
+        return false;
+    }
+    assert(source.isIndexable());
+    if (mOptions.ignoredCompilers.contains(source.compiler())) {
+        warning() << "Shouldn't index" << source.sourceFile() << "because of ignored compiler";
+        return false;
     }
 
-    List<Path> inputFiles = args.inputFiles();
-    debug() << inputFiles << "in" << srcRoot;
-    int count = inputFiles.size();
-    if (!mOptions.excludeFilters.isEmpty()) {
-        int i = 0;
-        while (i < count) {
-            if (Filter::filter(inputFiles.at(i), mOptions.excludeFilters) == Filter::Filtered) {
-                debug() << "Filtered out" << inputFiles.at(i);
-                inputFiles.removeAt(i);
-                --count;
-            } else {
-                ++i;
-            }
-        }
-    }
-    if (!count) {
-        warning("no input files?");
-        return;
+    const Path sourceFile = source.sourceFile();
+
+    if (Filter::filter(sourceFile, mOptions.excludeFilters) == Filter::Filtered) {
+        warning() << "Shouldn't index" << source.sourceFile() << "because of exclude filter";
+        return false;
     }
 
-    {
-        std::lock_guard<std::mutex> lock(mMutex);
-
-        std::shared_ptr<Project> project = mProjects.value(srcRoot);
-        if (!project) {
-            project = addProject(srcRoot);
-            assert(project);
-        }
-        project->load();
-
-        if (!mCurrentProject.lock()) {
-            mCurrentProject = project;
-            setupCurrentProjectFile(project);
-        }
-
-        const List<String> arguments = args.clangArgs();
-
-        for (int i=0; i<count; ++i) {
-            project->index(inputFiles.at(i), args.compiler(), arguments);
-        }
+    std::shared_ptr<Project> project = mProjects.value(srcRoot);
+    if (project && project->hasSource(source)) {
+        warning() << "Shouldn't index" << source.sourceFile() << "because we already have indexed it";
+        return false;
     }
+    return true;
 }
 
-void Server::onJobOutput(JobOutput&& out)
+Path Server::findProject(const Path &path, const Path &unresolvedPath, const List<String> &withProjects) const
 {
-    Hash<int, Connection*>::iterator it = mPendingLookups.find(out.id);
-    if (it == mPendingLookups.end()) {
-        error() << "Can't find connection for id" << out.id;
-        if (std::shared_ptr<Job> job = out.job.lock())
-            job->abort();
-        return;
-    }
-    Connection* conn = it->second;
-    if (!conn->isConnected()) {
-        error() << "Connection has been disconnected";
-        if (std::shared_ptr<Job> job = out.job.lock())
-            job->abort();
-        return;
-    }
-    if (!out.out.isEmpty() && !conn->write(out.out)) {
-        error() << "Failed to write to connection";
-        if (std::shared_ptr<Job> job = out.job.lock())
-            job->abort();
-        return;
+    std::shared_ptr<Project> current = mCurrentProject.lock();
+    if (current && (current->match(unresolvedPath) || (path != unresolvedPath && current->match(path))))
+        return current->path();
+
+    for (auto it = mProjects.begin(); it != mProjects.end(); ++it) {
+        if (it->second->match(unresolvedPath) || (path != unresolvedPath && it->second->match(path)))
+            return it->first;
     }
 
-    if (out.finish) {
-        if (isCompletionStream(conn))
-            mPendingLookups.erase(it);
-        else
-            it->second->finish();
+    for (auto it = mProjects.begin(); it != mProjects.end(); ++it) {
+        for (auto p = withProjects.begin(); p != withProjects.end(); ++p) {
+            if (it->second->match(*p))
+                return it->first;
+        }
     }
+
+    const Path root = RTags::findProjectRoot(unresolvedPath, RTags::SourceRoot);
+    if (root.isEmpty() && path != unresolvedPath)
+        return RTags::findProjectRoot(path, RTags::SourceRoot);
+    return root;
+}
+
+void Server::index(const Source &source, const std::shared_ptr<Cpp> &cpp,
+                   const std::shared_ptr<Project> &project, uint32_t flags)
+{
+    warning() << "Indexing" << source << "in" << project->path();
+    if (!mCurrentProject.lock()) {
+        mCurrentProject = project;
+        setupCurrentProjectFile(project);
+    }
+    assert(project);
+    project->index(source, cpp, flags);
 }
 
 std::shared_ptr<Project> Server::setCurrentProject(const Path &path, unsigned int queryFlags) // lock always held
 {
-    ProjectsMap::iterator it = mProjects.find(path);
+    auto it = mProjects.find(path);
     if (it != mProjects.end()) {
         setCurrentProject(it->second, queryFlags);
         return it->second;
@@ -1039,10 +1175,9 @@ std::shared_ptr<Project> Server::updateProjectForLocation(const Match &match)
     if (cur && cur->match(match))
         return cur;
 
-    std::lock_guard<std::mutex> lock(mMutex);
-    for (ProjectsMap::const_iterator it = mProjects.begin(); it != mProjects.end(); ++it) {
-        if (it->second->match(match)) {
-            return setCurrentProject(it->second->path());
+    for (const auto &it : mProjects) {
+        if (it.second != cur && it.second->match(match)) {
+            return setCurrentProject(it.second->path());
         }
     }
     return std::shared_ptr<Project>();
@@ -1050,18 +1185,18 @@ std::shared_ptr<Project> Server::updateProjectForLocation(const Match &match)
 
 void Server::removeProject(const QueryMessage &query, Connection *conn)
 {
-    std::lock_guard<std::mutex> lock(mMutex);
     const bool unload = query.type() == QueryMessage::UnloadProject;
 
     const Match match = query.match();
-    ProjectsMap::iterator it = mProjects.begin();
+    auto it = mProjects.begin();
+    bool found = false;
     while (it != mProjects.end()) {
-        ProjectsMap::iterator cur = it++;
+        auto cur = it++;
         if (cur->second->match(match)) {
+            found = true;
             if (mCurrentProject.lock() == cur->second) {
                 mCurrentProject.reset();
                 setupCurrentProjectFile(std::shared_ptr<Project>());
-                unlink((mOptions.dataDir + ".currentProject").constData());
             }
             cur->second->unload();
             Path path = cur->first;
@@ -1073,16 +1208,15 @@ void Server::removeProject(const QueryMessage &query, Connection *conn)
             }
         }
     }
+    if (!found) {
+        conn->write<128>("No projects matching %s", match.pattern().constData());
+    }
     conn->finish();
 }
 
 void Server::reloadProjects(const QueryMessage &query, Connection *conn)
 {
-    int old;
-    {
-        std::lock_guard<std::mutex> lock(mMutex);
-        old = mProjects.size();
-    }
+    const int old = mProjects.size();
     const int cur = reloadProjects();
     conn->write<128>("Changed from %d to %d projects", old, cur);
     conn->finish();
@@ -1090,24 +1224,23 @@ void Server::reloadProjects(const QueryMessage &query, Connection *conn)
 
 bool Server::selectProject(const Match &match, Connection *conn, unsigned int queryFlags)
 {
-    std::lock_guard<std::mutex> lock(mMutex);
     std::shared_ptr<Project> selected;
     bool error = false;
-    for (ProjectsMap::const_iterator it = mProjects.begin(); it != mProjects.end(); ++it) {
-        if (it->second->match(match)) {
+    for (const auto &it : mProjects) {
+        if (it.second->match(match)) {
             if (error) {
                 if (conn)
-                    conn->write(it->first);
+                    conn->write(it.first);
             } else if (selected) {
                 error = true;
                 if (conn) {
                     conn->write<128>("Multiple matches for %s", match.pattern().constData());
                     conn->write(selected->path());
-                    conn->write(it->first);
+                    conn->write(it.first);
                 }
                 selected.reset();
             } else {
-                selected = it->second;
+                selected = it.second;
                 const Path p = match.pattern();
                 if (p.isFile()) {
                     // ### this needs to deal with dependencies for headers
@@ -1139,46 +1272,42 @@ bool Server::updateProject(const List<String> &projects, unsigned int queryFlags
 
 void Server::project(const QueryMessage &query, Connection *conn)
 {
-    std::lock_guard<std::mutex> lock(mMutex);
     if (query.query().isEmpty()) {
         const std::shared_ptr<Project> current = mCurrentProject.lock();
-        const char *states[] = { "(unloaded)", "(inited)", "(loading)", "(loaded)" };
-    for (ProjectsMap::const_iterator it = mProjects.begin(); it != mProjects.end(); ++it) {
-            conn->write<128>("%s %s%s",
-                             it->first.constData(),
-                             states[it->second->state()],
-                             it->second == current ? " <=" : "");
+        const char *states[] = { "(unloaded)", "(inited)", "(loading)", "(loaded)", "(syncing)" };
+        for (const auto &it : mProjects) {
+            conn->write<128>("%s %s%s", it.first.constData(), states[it.second->state()], it.second == current ? " <=" : "");
         }
     } else {
         Path selected;
         bool error = false;
         const Match match = query.match();
-        const ProjectsMap::const_iterator it = mProjects.find(match.pattern());
+        const auto it = mProjects.find(match.pattern());
         bool ok = false;
         unsigned long long index = query.query().toULongLong(&ok);
         if (it != mProjects.end()) {
             selected = it->first;
         } else {
-            for (ProjectsMap::const_iterator it = mProjects.begin(); it != mProjects.end(); ++it) {
-                assert(it->second);
+            for (const auto &pit : mProjects) {
+                assert(pit.second);
                 if (ok) {
                     if (!index) {
-                        selected = it->first;
+                        selected = pit.first;
                     } else {
                         --index;
                     }
                 }
-                if (it->second->match(match)) {
+                if (pit.second->match(match)) {
                     if (error) {
-                        conn->write(it->first);
+                        conn->write(pit.first);
                     } else if (!selected.isEmpty()) {
                         error = true;
                         conn->write<128>("Multiple matches for %s", match.pattern().constData());
                         conn->write(selected);
-                        conn->write(it->first);
+                        conn->write(pit.first);
                         selected.clear();
                     } else {
-                        selected = it->first;
+                        selected = pit.first;
                     }
                 }
             }
@@ -1198,19 +1327,27 @@ void Server::project(const QueryMessage &query, Connection *conn)
 
 void Server::jobCount(const QueryMessage &query, Connection *conn)
 {
-    std::lock_guard<std::mutex> lock(mMutex);
+    WorkScope scope;
     if (query.query().isEmpty()) {
-        conn->write<128>("Running with %d jobs", mOptions.threadCount);
+        conn->write<128>("Running with %d jobs", mOptions.jobCount);
     } else {
         const int jobCount = query.query().toLongLong();
-        if (jobCount <= 0 || jobCount > 100) {
+        if (jobCount < 0 || jobCount > 100) {
             conn->write<128>("Invalid job count %s (%d)", query.query().constData(), jobCount);
         } else {
-            mOptions.threadCount = jobCount;
-            mIndexerThreadPool->setConcurrentJobs(jobCount);
+            mOptions.jobCount = jobCount;
+            if (mThreadPool)
+                mThreadPool->setConcurrentJobs(std::max(1, jobCount));
             conn->write<128>("Changed jobs to %d", jobCount);
         }
     }
+    conn->finish();
+}
+
+void Server::sendDiagnostics(const QueryMessage &query, Connection *conn)
+{
+    if (testLog(RTags::CompilationErrorXml))
+        logDirect(RTags::CompilationErrorXml, query.query());
     conn->finish();
 }
 
@@ -1221,9 +1358,9 @@ void Server::clearProjects(const QueryMessage &query, Connection *conn)
     conn->finish();
 }
 
+#if defined(HAVE_CXCOMPILATIONDATABASE) && CLANG_VERSION_MINOR >= 3
 void Server::loadCompilationDatabase(const QueryMessage &query, Connection *conn)
 {
-#if defined(HAVE_CXCOMPILATIONDATABASE) && CLANG_VERSION_MINOR > 2
     const Path path = query.query();
     // ### this will ignore the actual file name, not sure how to fix that
     CXCompilationDatabase_Error err;
@@ -1239,7 +1376,7 @@ void Server::loadCompilationDatabase(const QueryMessage &query, Connection *conn
         CXCompileCommand cmd = clang_CompileCommands_getCommand(cmds, i);
         String args;
         CXString str = clang_CompileCommand_getDirectory(cmd);
-        const String dir = clang_getCString(str);
+        Path dir = clang_getCString(str);
         clang_disposeString(str);
         const unsigned int num = clang_CompileCommand_getNumArgs(cmd);
         for (unsigned int j = 0; j < num; ++j) {
@@ -1249,91 +1386,41 @@ void Server::loadCompilationDatabase(const QueryMessage &query, Connection *conn
             if (j < num - 1)
                 args += " ";
         }
-        GccArguments gccArgs;
-        if (gccArgs.parse(args, dir)) {
-            index(gccArgs, query.projects());
-        }
+
+        index(args, dir, query.projects(), true);
     }
     clang_CompileCommands_dispose(cmds);
     clang_CompilationDatabase_dispose(db);
     conn->write("Compilation database loaded");
     conn->finish();
-#elif defined(HAVE_V8) || defined(HAVE_YAJL)
-    const Path path = query.query() + "compile_commands.json";
-    const String json = path.readAll();
-
-    JSONParser parser(json);
-    if (!parser.isValid()) {
-        conn->write("Can't parse compilation database");
-        conn->finish();
-        return;
-    }
-
-    const Value& root = parser.root();
-    bool ok = true;
-    if (root.type() == Value::Type_List) {
-        const List<Value>& items = root.toList();
-        for (int i = 0; i < items.size(); ++i) {
-            const Value& item = items.at(i);
-            if (item.type() != Value::Type_Map) {
-                ok = false;
-                break;
-            }
-            const Map<String, Value>& entry = item.toMap();
-            Map<String, Value>::const_iterator entryItem = entry.begin();
-            const Map<String, Value>::const_iterator entryEnd = entry.end();
-            Path dir;
-            String args;
-            while (entryItem != entryEnd) {
-                if (entryItem->first == "directory" && entryItem->second.type() == Value::Type_String)
-                    dir = entryItem->second.toString();
-                else if (entryItem->first == "command" && entryItem->second.type() == Value::Type_String)
-                    args = entryItem->second.toString();
-                ++entryItem;
-            }
-            if (!dir.isEmpty() && !args.isEmpty()) {
-                //error() << "parsing" << args;
-                args.replace("\\\"", "\"");
-                GccArguments gccArgs;
-                if (gccArgs.parse(args, dir)) {
-                    index(gccArgs, query.projects());
-                } else {
-                    ok = false;
-                    break;
-                }
-            } else {
-                ok = false;
-            }
-        }
-    } else {
-        ok = false;
-    }
-    if (ok) {
-        conn->write("Compilation database loaded");
-    } else {
-        conn->write("Invalid compilation database");
-    }
-#else
-    conn->write("No JSON parser available, need either V8 or YAJL at compile-time");
-#endif
-    conn->finish();
 }
+#endif
 
 void Server::shutdown(const QueryMessage &query, Connection *conn)
 {
-    for (Hash<Path, std::shared_ptr<Project> >::const_iterator it = mProjects.begin(); it != mProjects.end(); ++it) {
-        if (it->second)
-            it->second->unload();
+    for (const auto &it : mProjects) {
+        if (it.second)
+            it.second->unload();
     }
-    EventLoop::eventLoop()->quit();
+    if (!query.query().isEmpty()) {
+        int exitCode;
+        Deserializer deserializer(query.query());
+        deserializer >> exitCode;
+        ExitMessage msg(exitCode, true);
+        handleExitMessage(msg);
+    } else {
+        EventLoop::eventLoop()->quit();
+    }
     conn->write("Shutting down");
     conn->finish();
 }
 
-void Server::builds(const QueryMessage &query, Connection *conn)
+void Server::sources(const QueryMessage &query, Connection *conn)
 {
     const Path path = query.query();
-    if (!path.isEmpty()) {
+    const bool flagsOnly = query.flags() & QueryMessage::CompilationFlagsOnly;
+    const bool splitLine = query.flags() & QueryMessage::CompilationFlagsSplitLine;
+    if (path.isFile()) {
         std::shared_ptr<Project> project = updateProjectForLocation(path);
         if (project) {
             if (project->state() != Project::Loaded) {
@@ -1341,22 +1428,57 @@ void Server::builds(const QueryMessage &query, Connection *conn)
             } else {
                 const uint32_t fileId = Location::fileId(path);
                 if (fileId) {
-                    const SourceInformation info = project->sourceInfo(fileId);
-                    conn->write(info.toString());
+                    const List<Source> sources = project->sources(fileId);
+                    int idx = 0;
+                    for (const auto &it : sources) {
+                        String out;
+                        if (sources.size() > 1)
+                            out = String::format<4>("%d: ", idx);
+                        if (flagsOnly) {
+                            out += String::join(it.toCommandLine(0), splitLine ? '\n' : ' ');
+                        } else {
+                            out += it.toString();
+                        }
+                        conn->write(out);
+                    }
                 }
             }
+            conn->finish();
+            return;
         }
-    } else if (std::shared_ptr<Project> project = currentProject()) {
+    }
+
+    if (std::shared_ptr<Project> project = currentProject()) {
+        const Match match = query.match();
         if (project->state() != Project::Loaded) {
             conn->write("Project loading");
         } else {
-            const SourceInformationMap infos = project->sourceInfos();
-            for (SourceInformationMap::const_iterator it = infos.begin(); it != infos.end(); ++it) {
-                conn->write(it->second.toString());
+            const SourceMap infos = project->sources();
+            for (const auto &it : infos) {
+                if (match.isEmpty() || match.match(it.second.sourceFile())) {
+                    if (flagsOnly) {
+                        conn->write<128>("%s%s%s",
+                                         it.second.sourceFile().constData(),
+                                         splitLine ? "\n" : ": ",
+                                         String::join(it.second.toCommandLine(0), splitLine ? '\n' : ' ').constData());
+                    } else {
+                        conn->write(it.second.toString());
+                    }
+                }
             }
         }
     } else {
         conn->write("No project");
+    }
+    conn->finish();
+}
+
+void Server::dumpCompletions(const QueryMessage &query, Connection *conn)
+{
+    if (mCompletionThread) {
+        conn->write(mCompletionThread->dump());
+    } else {
+        conn->write("No completions");
     }
     conn->finish();
 }
@@ -1380,8 +1502,8 @@ void Server::suspendFile(const QueryMessage &query, Connection *conn)
             if (suspendedFiles.isEmpty()) {
                 conn->write<512>("No files suspended for project %s", project->path().constData());
             } else {
-                for (Set<uint32_t>::const_iterator it = suspendedFiles.begin(); it != suspendedFiles.end(); ++it)
-                    conn->write<512>("%s is suspended", Location::path(*it).constData());
+                for (const auto &it : suspendedFiles)
+                    conn->write<512>("%s is suspended", Location::path(it).constData());
             }
         } else {
             const Path p = query.match().pattern();
@@ -1391,137 +1513,219 @@ void Server::suspendFile(const QueryMessage &query, Connection *conn)
             } else if (!p.isFile()) {
                 conn->write<512>("%s doesn't seem to exist", p.constData());
             } else {
-                const uint32_t fileId = Location::insertFile(p);
-                conn->write<512>("%s is no%s suspended", p.constData(),
-                                 project->toggleSuspendFile(fileId) ? "w" : " longer");
+                const uint32_t fileId = Location::fileId(p);
+                if (fileId) {
+                    conn->write<512>("%s is no%s suspended", p.constData(),
+                                     project->toggleSuspendFile(fileId) ? "w" : " longer");
+                } else {
+                    conn->write<512>("%s is not indexed", p.constData());
+                }
             }
         }
     }
     conn->finish();
 }
 
-void Server::handleCompletionMessage(const CompletionMessage &message, Connection *conn)
+void Server::syncProject(const QueryMessage &qyery, Connection *conn)
 {
-    updateProject(message.projects(), 0);
-    const Path path = message.path();
-    std::shared_ptr<Project> project = updateProjectForLocation(path);
-
-    if (!project || project->state() != Project::Loaded) {
-        if (!isCompletionStream(conn))
-            conn->finish();
-        return;
-    }
-    if (mActiveCompletions.contains(path)) {
-        PendingCompletion &pending = mPendingCompletions[path];
-        pending.line = message.line();
-        pending.column = message.column();
-        pending.pos = message.pos();
-        pending.contents = message.contents();
-        pending.connection = conn;
+    if (std::shared_ptr<Project> project = currentProject()) {
+        project->startSync();
     } else {
-        startCompletion(path, message.line(), message.column(), message.pos(), message.contents(), conn);
+        conn->write("No active project");
     }
+    conn->finish();
 }
 
-void Server::startCompletion(const Path &path, int line, int column, int pos, const String &contents, Connection *conn)
+void Server::handleJobRequestMessage(const JobRequestMessage &message, Connection *conn)
 {
-    {
-        std::lock_guard<std::mutex> lock(mMutex);
-        mCurrentFileId = Location::fileId(path);
-    }
+    if (debugMulti)
+        error() << "got a request for" << message.numJobs() << "jobs from"
+                << Rct::addrLookup(conn->client()->peerName())
+                << mPending.size() << "potential jobs here";
+    auto it = mPending.begin();
+    List<std::shared_ptr<IndexerJob> > jobs;
+    bool finished = true;
+    while (it != mPending.end()) {
+        std::shared_ptr<IndexerJob>& job = *it;
+        if (job->flags & (IndexerJob::CompleteLocal|IndexerJob::CompleteRemote)) {
+            it = mPending.erase(it);
+        } else if (!(job->flags & IndexerJob::FromRemote) && !job->cpp->preprocessed.isEmpty()) {
+            assert(!job->process);
 
-    // error() << "starting completion" << path << line << column;
-    if (!mOptions.completionCacheSize) {
-        conn->finish();
-        return;
-    }
-    std::shared_ptr<Project> project = updateProjectForLocation(path);
-    if (!project || project->state() != Project::Loaded) {
-        if (!isCompletionStream(conn))
-            conn->finish();
-        return;
-    }
-    const uint32_t fileId = Location::fileId(path);
-    if (!fileId)
-        return;
+            if (mOptions.options & CompressionRemote && !(job->cpp->flags & Cpp::Preprocess_Compressed)) {
+                StopWatch sw;
+                job->cpp->preprocessed = job->cpp->preprocessed.compress();
+                job->cpp->flags |= Cpp::Preprocess_Compressed;
+                if (debugMulti)
+                    error() << "Compressed" << job->sourceFile << "in" << sw.elapsed() << "ms";
+            }
+            if (debugMulti)
+                error() << "sending job" << job->sourceFile << "to"
+                        << Rct::addrLookup(conn->client()->peerName());
 
-    CXTranslationUnit unit;
-    List<String> args;
-    int parseCount = 0;
-    if (!project->fetchFromCache(path, args, unit, &parseCount)) {
-        const SourceInformation info = project->sourceInfo(fileId);
-        if (info.isNull() || info.isJS()) {
-            if (!isCompletionStream(conn))
-                conn->finish();
-            return;
+            jobs.append(job);
+            it = mPending.erase(it);
+            if (jobs.size() == message.numJobs()) {
+                finished = false;
+                break;
+            }
+        } else {
+            if (debugMulti && job->cpp->preprocessed.isEmpty()) {
+                error() << "Didn't send job for" << job->sourceFile << "since preprocessed is empty";
+
+            }
+            ++it;
         }
-        assert(!info.args.isEmpty());
-        args = info.args;
     }
+    if (debugMulti) {
+        error() << "Sending" << jobs.size() << "jobs to"
+                << Rct::addrLookup(conn->client()->peerName())
+                << "finished" << finished << "asked for" << message.numJobs();
+    }
+    conn->send(JobResponseMessage(jobs, mOptions.tcpPort, finished));
+    conn->sendFinished().connect([jobs,this,finished](Connection*) {
+            if (finished)
+                mAnnounced = false;
+            for (auto &job : jobs) {
+                mProcessingJobs[job->id] = job;
+                job->flags |= IndexerJob::Remote;
+                job->flags &= ~IndexerJob::Rescheduled;
+                job->started = Rct::monoMs();
+                if (debugMulti)
+                    error() << "Sent job" << job->sourceFile;
+            }
+            startRescheduleTimer();
+        });
 
-    mActiveCompletions.insert(path);
-    std::shared_ptr<CompletionJob> job(new CompletionJob(project, isCompletionStream(conn) ? CompletionJob::Stream : CompletionJob::Sync));
-    job->init(unit, path, args, line, column, pos, contents, parseCount);
-    job->setId(nextId());
-    job->finished().connect<EventLoop::Async>(std::bind(&Server::onCompletionJobFinished, this, std::placeholders::_1, std::placeholders::_2));
-    mPendingLookups[job->id()] = conn;
-    startQueryJob(job);
+    auto onError = [jobs,this](Connection*) {
+        for (auto &job : jobs) {
+            job->flags &= ~IndexerJob::Rescheduled;
+            mPending.append(job);
+        }
+    };
+    conn->disconnected().connect(onError);
+    conn->error().connect(onError);
+    conn->finish();
 }
 
-void Server::onCompletionJobFinished(Path path, int /*id*/)
+void Server::handleJobResponseMessage(const JobResponseMessage &message, Connection *conn)
 {
-    // error() << "Got finished for" << path;
-    PendingCompletion completion = mPendingCompletions.take(path);
-    if (completion.line != -1) {
-        startCompletion(path, completion.line, completion.column, completion.pos, completion.contents, completion.connection);
-        // ### could the connection be deleted by now?
+    mPendingJobRequests.remove(conn);
+    const String host = conn->client()->peerName();
+    const auto jobs = message.jobs(host);
+    if (debugMulti)
+        error() << "Got jobs from" << Rct::addrLookup(host)
+                << jobs.size() << message.isFinished();
+    for (const auto &job : jobs) {
+        if (debugMulti)
+            error() << "got indexer job with preprocessed" << job->cpp->preprocessed.size() << job->sourceFile;
+        assert(job->flags & IndexerJob::FromRemote);
+        addJob(job);
+    }
+    if (message.isFinished()) {
+        Remote *remote = mRemotes.take(host);
+        if (remote) {
+            Rct::LinkedList::remove(remote, mFirstRemote, mLastRemote);
+            delete remote;
+        }
+    }
+}
+
+void Server::handleJobAnnouncementMessage(const JobAnnouncementMessage &message, Connection *conn)
+{
+    WorkScope scope;
+    if (debugMulti)
+        error() << "Getting job announcement from" << Rct::addrLookup(message.host());
+    Remote *&remote = mRemotes[message.host()];
+    if (!remote) {
+        const String host = message.host().isEmpty() ? conn->client()->peerName() : message.host();
+        remote = new Remote(host, message.port());;
     } else {
-        mActiveCompletions.remove(path);
+        Rct::LinkedList::remove(remote, mFirstRemote, mLastRemote);
     }
+    Rct::LinkedList::insert(remote, mFirstRemote, mLastRemote);
 }
 
-bool Server::isCompletionStream(Connection* conn) const
+void Server::handleProxyJobAnnouncementMessage(const ProxyJobAnnouncementMessage &message, Connection *conn)
 {
-    SocketClient::SharedPtr client = conn->client();
-    return (mCompletionStreams.find(client) != mCompletionStreams.end());
+    const JobAnnouncementMessage msg(conn->client()->peerName(), message.port());
+    if (debugMulti) {
+        error() << "Sending proxy job announcement" << Rct::addrLookup(conn->client()->peerName());
+    }
+
+    for (const auto &client : mClients) {
+        if (client != conn)
+            client->send(msg);
+    }
+    handleJobAnnouncementMessage(msg, conn);
 }
 
-void Server::onCompletionStreamDisconnected(const SocketClient::SharedPtr& client)
+void Server::handleClientMessage(const ClientMessage &, Connection *conn)
 {
-    mCompletionStreams.remove(client);
+    error() << "Got a client connected from" << Rct::addrLookup(conn->client()->peerName());
+
+    mClients.insert(conn);
+
+    const ClientConnectedMessage msg(conn->client()->peerName());
+    for (const auto &client : mClients) {
+        if (client != conn)
+            client->send(msg);
+    }
+    handleClientConnectedMessage(msg);
 }
 
-void Server::handleCompletionStream(const CompletionMessage &message, Connection *conn)
+void Server::handleClientConnectedMessage(const ClientConnectedMessage &msg)
 {
-    SocketClient::SharedPtr client = conn->client();
-    assert(client);
-    client->disconnected().connect(std::bind(&Server::onCompletionStreamDisconnected, this, std::placeholders::_1));
-    mCompletionStreams[client] = conn;
+    if (debugMulti) {
+        error() << "A new client joined the network" << Rct::addrLookup(msg.peer());
+    }
+    mAnnounced = false;
+    work();
+}
+
+void Server::handleVisitFileMessage(const VisitFileMessage &message, Connection *conn)
+{
+    uint32_t fileId = 0;
+    bool visit = false;
+
+    std::shared_ptr<Project> project = mProjects.value(message.project());
+    Path resolved;
+    const uint64_t key = message.key();
+    if (project && project->isValidJob(key)) {
+        bool ok;
+        resolved = message.file().resolved(Path::RealPath, Path(), &ok);
+        if (ok) {
+            fileId = Location::insertFile(resolved);
+            visit = project->visitFile(fileId, resolved, key);
+        }
+    }
+    VisitFileResponseMessage msg(fileId, resolved, visit);
+    conn->send(msg);
 }
 
 void Server::restoreFileIds()
 {
     const Path p = mOptions.dataDir + "fileids";
     bool clear = true;
-    FILE *f = fopen(p.constData(), "r");
-    if (f) {
+    const String all = p.readAll();
+    if (!all.isEmpty()) {
         Hash<Path, uint32_t> pathsToIds;
-        Deserializer in(f);
+        Deserializer in(all);
         int version;
         in >> version;
-        if (version == DatabaseVersion) {
+        if (version == RTags::DatabaseVersion) {
             int size;
             in >> size;
-            if (size != Rct::fileSize(f)) {
+            if (size != all.size()) {
                 error("Refusing to load corrupted file %s", p.constData());
             } else {
                 in >> pathsToIds;
                 clear = false;
                 Location::init(pathsToIds);
             }
-            fclose(f);
         } else {
-            error() << p << "has wrong format. Got" << version << "expected" << Server::DatabaseVersion << ", can't restore anything";
+            error("%s has the wrong format. Got %d, expected %d. Can't restore anything",
+                  p.constData(), version, RTags::DatabaseVersion);
         }
     }
     if (clear)
@@ -1542,7 +1746,7 @@ bool Server::saveFileIds() const
     }
     const Hash<Path, uint32_t> pathsToIds = Location::pathsToIds();
     Serializer out(f);
-    out << static_cast<int>(DatabaseVersion);
+    out << static_cast<int>(RTags::DatabaseVersion);
     const int pos = ftell(f);
     out << static_cast<int>(0) << pathsToIds;
     const int size = ftell(f);
@@ -1554,27 +1758,525 @@ bool Server::saveFileIds() const
 
 void Server::onUnload()
 {
-    std::lock_guard<std::mutex> lock(mMutex);
     std::shared_ptr<Project> cur = mCurrentProject.lock();
-    for (ProjectsMap::const_iterator it = mProjects.begin(); it != mProjects.end(); ++it) {
-        if (it->second->state() != Project::Unloaded && it->second != cur && !it->second->isIndexing()) {
-            it->second->unload();
+    for (const auto &it : mProjects) {
+        if (it.second->state() != Project::Unloaded && it.second != cur && !it.second->isIndexing()) {
+            it.second->unload();
         }
     }
 }
 
-Path::VisitResult clearCompletionCacheCallback(const Path &path, void *rx)
+template <typename T>
+static inline bool slowContains(const LinkedList<T> &list, const T &t)
 {
-    if (path.isFile() && reinterpret_cast<RegExp*>(rx)->indexIn(path) != -1) {
-        path.rm();
+    for (T i : list) {
+        if (i == t)
+            return true;
     }
-
-    return Path::Continue;
+    return false;
 }
 
-void Server::clearCompletionCache()
+void Server::onReschedule()
 {
-    Path path("/tmp/");
-    RegExp rx("/preamble.pch-[A-Za-z0-9][A-Za-z0-9][A-Za-z0-9][A-Za-z0-9][A-Za-z0-9][A-Za-z0-9]$");
-    path.visit(::clearCompletionCacheCallback, &rx);
+    const uint64_t now = Rct::monoMs();
+    auto it = mProcessingJobs.begin();
+    bool restartTimer = false;
+    bool doWork = false;
+    while (it != mProcessingJobs.end()) {
+        const std::shared_ptr<IndexerJob>& job = it->second;
+        if (job->flags & (IndexerJob::CompleteRemote|IndexerJob::CompleteLocal)) {
+            // this can happen if we complete it while we're sending it to a
+            // remote. Should fix all of these
+            it = mProcessingJobs.erase(it);
+            continue;
+        }
+        if (!(job->flags & (IndexerJob::Rescheduled|IndexerJob::RunningLocal)) && job->flags & IndexerJob::Remote) {
+            if (static_cast<int>(now - job->started) >= mOptions.rescheduleTimeout) {
+                assert(!job->process);
+                // this might never happen, reschedule this job
+                // don't take it out of the mProcessingJobs list since the result might come back still
+                // if (debugMulti)
+                error() << "rescheduling job" << job->sourceFile << job->id
+                        << "it's been" << static_cast<double>(now - job->started) / 1000.0 << "seconds";
+                job->flags |= IndexerJob::Rescheduled;
+                assert(!slowContains(mPending, job));
+                mPending.push_back(job);
+                doWork = true;
+            } else {
+                restartTimer = true;
+            }
+        }
+        ++it;
+    }
+    if (restartTimer)
+        startRescheduleTimer();
+    if (doWork) {
+        WorkScope scope;
+    }
+}
+
+void Server::onMulticastReadyRead(const SocketClient::SharedPtr &socket,
+                                  const String &ip,
+                                  uint16_t port,
+                                  Buffer &&in)
+{
+    const Buffer buffer = std::forward<Buffer>(in);
+    if (debugMulti)
+        error() << "Got some data from multicast socket" << buffer.size() << Rct::addrLookup(ip);
+    const char *data = reinterpret_cast<const char*>(buffer.data());
+    const int size = buffer.size();
+    if (size == 2 && !strncmp(data, "s?", 2)) {
+        String out;
+        if (mServerConnection) {
+            if (debugMulti)
+                error() << Rct::addrLookup(ip) << "wants to know where the server is. I am connected to"
+                        << String::format<128>("%s:%d",
+                                               Rct::addrLookup(mServerConnection->client()->peerName()).constData(),
+                                               mServerConnection->client()->port());
+
+            Serializer serializer(out);
+            serializer << mServerConnection->client()->peerName() << mServerConnection->client()->port();
+        } else if (mOptions.jobServer.second) {
+            if (debugMulti)
+                error() << Rct::addrLookup(ip) << "wants to know where the server is. I have something in options"
+                        << String::format<128>("%s:%d",
+                                               Rct::addrLookup(mOptions.jobServer.first).constData(),
+                                               mOptions.jobServer.second);
+            Serializer serializer(out);
+            serializer << mOptions.jobServer.first << mOptions.jobServer.second;
+        } else if (mOptions.options & JobServer) {
+            if (debugMulti)
+                error() << Rct::addrLookup(ip) << "wants to know where the server is. I am the server" << mOptions.tcpPort;
+            Serializer serializer(out);
+            serializer << String() << mOptions.tcpPort;
+        } else {
+            if (debugMulti)
+                error() << Rct::addrLookup(ip) << "wants to know where the server is but I don't know";
+            return;
+        }
+        assert(!out.isEmpty());
+
+        mMulticastSocket->writeTo(mOptions.multicastAddress, mOptions.multicastPort,
+                                  reinterpret_cast<const unsigned char*>(out.constData()), out.size());
+    } else if (!mServerConnection && !(mOptions.options & JobServer)) {
+        Deserializer deserializer(data, size);
+        deserializer >> mOptions.jobServer.first >> mOptions.jobServer.second;
+        if (mOptions.jobServer.first.isEmpty())
+            mOptions.jobServer.first = ip;
+        if (debugMulti)
+            error() << Rct::addrLookup(ip) << "tells me the server is to be found at"
+                    << Rct::addrLookup(mOptions.jobServer.first);
+
+        connectToServer();
+    }
+}
+
+void Server::addJob(const std::shared_ptr<IndexerJob> &job)
+{
+    WorkScope scope;
+    warning() << "adding job" << job->sourceFile;
+    assert(job);
+    assert(!(job->flags & (IndexerJob::CompleteRemote|IndexerJob::CompleteLocal)));
+    mPending.push_back(job);
+}
+
+void Server::onLocalJobFinished(Process *process)
+{
+    WorkScope scope;
+    assert(process);
+    auto it = mLocalJobs.find(process);
+    assert(it != mLocalJobs.end());
+    std::shared_ptr<IndexerJob> &job = it->second.first;
+    assert(job->process == process);
+    error() << process->readAllStdErr() << process->readAllStdOut();
+    if (debugMulti)
+        error() << "job finished" << job->sourceFile << String::format<16>("flags: 0x%x", job->flags)
+                << process->errorString() << process->readAllStdErr();
+    if (job->flags & IndexerJob::FromRemote) {
+        error() << "Built remote job" << job->sourceFile.toTilde() << "for"
+                << Rct::addrLookup(job->destination)
+                << "in" << (Rct::monoMs() - it->second.second) << "ms";
+    }
+    if (!(job->flags & (IndexerJob::CompleteRemote|IndexerJob::CompleteLocal))
+        && (process->returnCode() != 0 || !process->errorString().isEmpty())) {
+        if (!(job->flags & IndexerJob::Aborted))
+            job->flags |= IndexerJob::Crashed;
+        job->flags &= ~IndexerJob::RunningLocal;
+
+        std::shared_ptr<Project> proj = project(job->project);
+        if (proj && (proj->state() == Project::Loaded || proj->state() == Project::Syncing)) {
+            std::shared_ptr<IndexData> data(new IndexData(job->flags));
+            data->key = job->source.key();
+            data->dependencies[job->source.fileId].insert(job->source.fileId);
+
+            EventLoop::eventLoop()->registerTimer([data, job, proj](int) { proj->onJobFinished(data, job); },
+                                                  500, Timer::SingleShot);
+            // give it 500 ms before we try again
+        }
+    }
+    job->process = 0;
+    mProcessingJobs.erase(job->id);
+    mLocalJobs.erase(it);
+    EventLoop::deleteLater(process);
+}
+
+void Server::stopServers()
+{
+    Path::rm(mOptions.socketFile);
+    mUnixServer.reset();
+    mTcpServer.reset();
+    mHttpServer.reset();
+    mProjects.clear();
+}
+
+void Server::codeCompleteAt(const QueryMessage &query, Connection *conn)
+{
+    const String q = query.query();
+    Deserializer deserializer(q);
+    Path path;
+    int line, column;
+    deserializer >> path >> line >> column;
+    std::shared_ptr<Project> project = updateProjectForLocation(path);
+    if (!project) {
+        conn->write<128>("No project found for %s", path.constData());
+        conn->finish();
+        return;
+    }
+    const uint32_t fileId = Location::insertFile(path);
+    const Source source = project->sources(fileId).value(query.buildIndex());
+    if (source.isNull()) {
+        conn->write<128>("No source found for %s", path.constData());
+        conn->finish();
+        return;
+    }
+    if (!mCompletionThread) {
+        mCompletionThread = new CompletionThread(10); // ### need setting
+        mCompletionThread->start();
+    }
+
+    const Location loc(fileId, line, column);
+    unsigned int flags = CompletionThread::None;
+    if (query.type() == QueryMessage::PrepareCodeCompleteAt)
+        flags |= CompletionThread::Refresh;
+    if (query.flags() & QueryMessage::ElispList)
+        flags |= CompletionThread::Elisp;
+    if (!(query.flags() & QueryMessage::SynchronousCompletions)) {
+        conn->finish();
+        conn = 0;
+    }
+    error() << "Got completion" << String::format("%s:%d:%d", path.constData(), line, column);
+    mCompletionThread->completeAt(source, loc, flags, query.unsavedFiles().value(path), conn);
+}
+
+static inline void drain(const SocketClient::SharedPtr &sock)
+{
+    Buffer data = std::move(sock->takeBuffer());
+    (void)data;
+}
+
+void Server::onHttpClientReadyRead(const SocketClient::SharedPtr &socket)
+{
+    auto &log = mHttpClients[socket];
+    if (!log) {
+        static const char *statsRequestLine = "GET /stats HTTP/1.1\r\n";
+        static const size_t statsLen = strlen(statsRequestLine);
+        const size_t len = socket->buffer().size();
+        if (len >= statsLen) {
+            if (!memcmp(socket->buffer().data(), statsRequestLine, statsLen)) {
+                static const char *response = ("HTTP/1.1 200 OK\r\n"
+                                               "Cache: no-cache\r\n"
+                                               "Cache-Control: private\r\n"
+                                               "Pragma: no-cache\r\n"
+                                               "Content-Type: text/event-stream\r\n\r\n");
+                static const int responseLen = strlen(response);
+                socket->write(reinterpret_cast<const unsigned char*>(response), responseLen);
+                log.reset(new HttpLogObject(RTags::Statistics, socket));
+                ::drain(socket);
+            } else {
+                socket->close();
+            }
+        }
+    } else {
+        ::drain(socket);
+    }
+}
+
+void Server::connectToServer()
+{
+    enum { ServerReconnectTimer = 5000 };
+
+    debug() << "connectToServer" << mConnectToServerFailures;
+    mConnectToServerTimer.stop();
+    assert(!(mOptions.options & JobServer));
+    if (mServerConnection)
+        return;
+    if (!mOptions.jobServer.second) {
+        if (mMulticastSocket) {
+            const unsigned char data[] = { 's', '?' };
+            mMulticastSocket->writeTo(mOptions.multicastAddress, mOptions.multicastPort, data, 2);
+            mConnectToServerTimer.restart(ServerReconnectTimer * ++mConnectToServerFailures);
+        }
+        return;
+    }
+
+    mServerConnection = new Connection;
+    mServerConnection->disconnected().connect([this](Connection *conn) {
+            assert(conn == mServerConnection);
+            (void)conn;
+            EventLoop::deleteLater(mServerConnection);
+            mServerConnection = 0;
+            mConnectToServerTimer.restart(ServerReconnectTimer * ++mConnectToServerFailures);
+            warning() << "Disconnected from server" << conn->client()->peerName();
+        });
+    mServerConnection->connected().connect([this](Connection *conn) {
+            mConnectToServerFailures = 0;
+            assert(conn == mServerConnection);
+            (void)conn;
+            if (!mServerConnection->send(ClientMessage())) {
+                mServerConnection->close();
+                EventLoop::deleteLater(mServerConnection);
+                mServerConnection = 0;
+                mConnectToServerTimer.restart(ServerReconnectTimer * ++mConnectToServerFailures);
+                error() << "Couldn't send logoutputmessage";
+            } else {
+                error() << "Connected to server" << Rct::addrLookup(conn->client()->peerName());
+            }
+        });
+    mServerConnection->newMessage().connect(std::bind(&Server::onNewMessage, this, std::placeholders::_1, std::placeholders::_2));
+
+    if (!mServerConnection->connectTcp(mOptions.jobServer.first, mOptions.jobServer.second)) {
+        delete mServerConnection;
+        mServerConnection = 0;
+        mConnectToServerTimer.restart(ServerReconnectTimer * ++mConnectToServerFailures);
+        error() << "Failed to connect to server" << mOptions.jobServer;
+    }
+}
+
+void Server::dumpJobs(Connection *conn)
+{
+    if (!mPending.isEmpty()) {
+        conn->write("Pending:");
+        for (const auto &job : mPending) {
+            conn->write<128>("%s: 0x%x %s",
+                             job->sourceFile.constData(),
+                             job->flags,
+                             IndexerJob::dumpFlags(job->flags).constData());
+        }
+    }
+    if (!mLocalJobs.isEmpty()) {
+        conn->write("Local:");
+        for (const auto &job : mLocalJobs) {
+            conn->write<128>("%s: 0x%x %s",
+                             job.second.first->sourceFile.constData(),
+                             job.second.first->flags,
+                             IndexerJob::dumpFlags(job.second.first->flags).constData());
+        }
+    }
+    if (!mProcessingJobs.isEmpty()) {
+        conn->write("Processing:");
+        for (const auto &job : mProcessingJobs) {
+            conn->write<128>("%s: 0x%x %s",
+                             job.second->sourceFile.constData(),
+                             job.second->flags,
+                             IndexerJob::dumpFlags(job.second->flags).constData());
+        }
+    }
+
+    if (mThreadPool && (mThreadPool->backlogSize() || mThreadPool->busyThreads())) {
+        conn->write<128>("Preprocessing:\nactive %d pending %d", mThreadPool->busyThreads(), mThreadPool->backlogSize());
+    }
+}
+
+void Server::startRescheduleTimer()
+{
+    if (!mRescheduleTimer.isRunning())
+        mRescheduleTimer.restart(mOptions.rescheduleTimeout, Timer::SingleShot);
+}
+
+void Server::work()
+{
+    mWorkPending = false;
+    int jobs = mOptions.jobCount;
+    if (mThreadPool) {
+        int pending = std::min(mPendingPreprocessJobs.size(),
+                               mOptions.maxPendingPreprocessSize - (mThreadPool->backlogSize() + mThreadPool->busyThreads() + mPending.size()));
+        while (pending > 0) {
+            std::shared_ptr<PreprocessJob> job = mPendingPreprocessJobs.front();
+            mPendingPreprocessJobs.pop_front();
+            mThreadPool->start(job);
+            --pending;
+        }
+
+        jobs -= (mThreadPool->busyThreads() + mThreadPool->backlogSize());
+    }
+
+    // printf("WORK CALLED: preprocessing %d backlog %d pending preprocess %d active jobs %d pending jobs %d\n",
+    //        mThreadPool ? mThreadPool->busyThreads() : 0, mThreadPool ? mThreadPool->backlogSize() : 0,
+    //        mPendingPreprocessJobs.size(), mLocalJobs.size(), mLocalJobs.size());
+
+    jobs -= mLocalJobs.size();
+    int pendingJobRequestCount = 0;
+    for (const auto &it : mPendingJobRequests) {
+        pendingJobRequestCount += it.second;
+    }
+    jobs -= pendingJobRequestCount;
+
+    if (debugMulti) {
+        Log log(Error);
+        log << "Working. Open slots" << std::max(0, jobs);
+        if (mThreadPool) {
+            log << "preprocessing" << mThreadPool->busyThreads()
+                << "backlog" << mThreadPool->backlogSize()
+                << "pending" << mPendingPreprocessJobs.size() << "\n";
+        }
+        log << "active jobs" << mLocalJobs.size()
+            << "pending jobs" << mPending.size()
+            << "We have" << (mAnnounced ? "announced" : "not announced") << "\n";
+
+        log << "pending job requests" << pendingJobRequestCount;
+        int idx = 0;
+        for (Remote *remote = mFirstRemote; remote; remote = remote->next) {
+            log << "remote" << ++idx << "of" << mRemotes.size()
+                << Rct::addrLookup(remote->host);
+        }
+    }
+    if (mOptions.options & NoLocalCompiles)
+        jobs = std::min(jobs, 0);
+
+    if (jobs <= 0 && !hasServer())
+        return;
+
+    auto it = mPending.begin();
+    int announcables = 0;
+    while (it != mPending.end()) {
+        auto job = *it;
+        assert(job);
+        if (job->flags & (IndexerJob::CompleteLocal|IndexerJob::CompleteRemote)) {
+            it = mPending.erase(it);
+            continue;
+        }
+
+        if (jobs > 0) {
+            if (!(job->flags & IndexerJob::FromRemote))
+                mProcessingJobs[job->id] = job;
+            job->flags &= ~IndexerJob::Rescheduled;
+            it = mPending.erase(it);
+            --jobs;
+            if (job->launchProcess()) {
+                if (debugMulti)
+                    error() << "started job locally for" << job->sourceFile << job->id;
+                mLocalJobs[job->process] = std::make_pair(job, Rct::monoMs());
+                assert(job->process);
+                job->process->finished().connect(std::bind(&Server::onLocalJobFinished, this,
+                                                           std::placeholders::_1));
+            } else {
+                mLocalJobs[job->process] = std::make_pair(job, Rct::monoMs());
+                EventLoop::eventLoop()->callLater(std::bind(&Server::onLocalJobFinished, this, std::placeholders::_1), job->process);
+            }
+        } else {
+            if (!(job->flags & IndexerJob::FromRemote)) {
+                if (!project(job->project)) {
+                    it = mPending.erase(it);
+                    continue;
+                }
+                ++announcables;
+            }
+
+            ++it;
+        }
+    }
+
+    if (!hasServer())
+        return;
+
+    if (!mAnnounced && announcables) {
+        mAnnounced = true;
+        if (debugMulti)
+            error() << "announcing because we have" << announcables << "announcables";
+        if (mServerConnection) {
+            mServerConnection->send(ProxyJobAnnouncementMessage(mOptions.tcpPort));
+        } else {
+            // Don't pass a host name on the original announcement message,
+            // the receiver will derive it
+            const JobAnnouncementMessage msg(String(), mOptions.tcpPort);
+            for (const auto &client : mClients) {
+                client->send(msg);
+            }
+        }
+    } else if (debugMulti) {
+        error() << (mAnnounced ? "Already announced" : "Nothing to announce");
+    }
+
+    if (jobs <= 0)
+        return;
+
+    int remoteCount = mRemotes.size();
+    while (remoteCount) {
+        // Could cache these connections. We could at least use the server
+        // connection if it's the server we're connecting to.
+        Remote *remote = mFirstRemote;
+        if (remote != mLastRemote) {
+            if (remote == mFirstRemote) {
+                assert(!remote->prev);
+                assert(remote->next);
+                mFirstRemote = remote->next;
+                mFirstRemote->prev = 0;
+            } else {
+                assert(remote->prev);
+                remote->prev->next = remote->next;
+                remote->next->prev = remote->prev;
+            }
+            remote->next = 0;
+            remote->prev = mLastRemote;
+            mLastRemote->next = remote;
+            mLastRemote = remote;
+        }
+
+        --remoteCount;
+        Connection *conn = new Connection;
+        if (debugMulti) {
+            error() << "We can grab" << jobs << "jobs, trying"
+                    << Rct::addrLookup(remote->host);
+        }
+        if (!conn->connectTcp(remote->host, remote->port)) {
+            error() << "Failed to connect to" << remote->host << remote->port;
+            delete conn;
+        } else {
+            if (debugMulti)
+                error() << "asking" << Rct::addrLookup(remote->host)
+                        << "for" << jobs << "jobs";
+            conn->newMessage().connect(std::bind(&Server::onNewMessage, this, std::placeholders::_1, std::placeholders::_2));
+            conn->disconnected().connect(std::bind(&Server::onConnectionDisconnected, this, std::placeholders::_1));
+            conn->finished().connect(std::bind([this, conn]() { mPendingJobRequests.remove(conn); conn->close(); EventLoop::deleteLater(conn); }));
+            conn->send(JobRequestMessage(jobs));
+            assert(!mPendingJobRequests.contains(conn)); // ### is this certain?
+            mPendingJobRequests[conn] = jobs;
+            break;
+        }
+    }
+}
+
+Server::WorkScope::WorkScope()
+{
+    Server *s = Server::instance();
+    assert(s);
+    work = !s->mWorkPending;
+    if (work)
+        s->mWorkPending = true;
+}
+
+Server::WorkScope::~WorkScope()
+{
+    if (work) {
+        Server *s = Server::instance();
+        s->work();
+    }
+}
+bool Server::hasServer() const
+{
+    if (mOptions.options & JobServer)
+        return true;
+    if (mOptions.options & NoJobServer)
+        return false;
+    return mServerConnection;
 }

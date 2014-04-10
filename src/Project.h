@@ -20,6 +20,7 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 #include <rct/Path.h>
 #include <rct/LinkedList.h>
 #include "RTags.h"
+#include "RTagsClang.h"
 #include "Match.h"
 #include <rct/Timer.h>
 #include <rct/RegExp.h>
@@ -28,32 +29,11 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 #include <mutex>
 #include <memory>
 
-struct CachedUnit
-{
-    CachedUnit()
-        : unit(0), parseCount(0)
-    {}
-    ~CachedUnit()
-    {
-        clear();
-    }
-    void clear()
-    {
-        if (unit) {
-            clang_disposeTranslationUnit(unit);
-            unit = 0;
-        }
-
-    }
-    CXTranslationUnit unit;
-    Path path;
-    List<String> arguments;
-    int parseCount;
-};
-
+class IndexData;
 class FileManager;
 class IndexerJob;
-class IndexData;
+class RestoreThread;
+class Connection;
 class Project : public std::enable_shared_from_this<Project>
 {
 public:
@@ -63,12 +43,11 @@ public:
         Unloaded,
         Inited,
         Loading,
-        Loaded
+        Loaded,
+        Syncing
     };
-    State state() const;
+    State state() const { return mState; }
     void init();
-    bool restore();
-    void startPendingJobs();
 
     enum FileManagerMode {
         FileManager_Asynchronous,
@@ -85,9 +64,6 @@ public:
 
     const SymbolMap &symbols() const { return mSymbols; }
     SymbolMap &symbols() { return mSymbols; }
-
-    const ErrorSymbolMap &errorSymbols() const { return mErrorSymbols; }
-    ErrorSymbolMap &errorSymbols() { return mErrorSymbols; }
 
     const SymbolNameMap &symbolNames() const { return mSymbolNames; }
     SymbolNameMap &symbolNames() { return mSymbolNames; }
@@ -114,106 +90,123 @@ public:
 
     bool isIndexed(uint32_t fileId) const;
 
-    bool index(const Path &sourceFile, const Path &compiler = Path(), const List<String> &args = List<String>());
-    SourceInformationMap sourceInfos() const;
-    SourceInformation sourceInfo(uint32_t fileId) const;
+    void index(const Source &args, const std::shared_ptr<Cpp> &cpp, uint32_t indexerJobFlags);
+
+    List<Source> sources(uint32_t fileId) const;
+    bool hasSource(const Source &source) const;
     enum DependencyMode {
         DependsOnArg,
         ArgDependsOn // slow
     };
     Set<uint32_t> dependencies(uint32_t fileId, DependencyMode mode) const;
-    bool visitFile(uint32_t fileId);
+    bool isValidJob(uint64_t key) { return !key || mJobs.contains(key); }
+    bool visitFile(uint32_t fileId, const Path &path, uint64_t id);
     String fixIts(uint32_t fileId) const;
     int reindex(const Match &match);
     int remove(const Match &match);
-    void onJobFinished(const std::shared_ptr<IndexerJob> &job);
-    SourceInformationMap sources() const;
-    DependencyMap dependencies() const;
+    void onJobFinished(const std::shared_ptr<IndexData> &indexData, const std::shared_ptr<IndexerJob> &job);
+    SourceMap sources() const { return mSources; }
+    DependencyMap dependencies() const { return mDependencies; }
     Set<Path> watchedPaths() const { return mWatchedPaths; }
-    bool fetchFromCache(const Path &path, List<String> &args, CXTranslationUnit &unit, int *parseCount);
-    void addToCache(const Path &path, const List<String> &args, CXTranslationUnit unit, int parseCount);
-    void onTimerFired(Timer* event);
-    bool isIndexing() const { std::lock_guard<std::mutex> lock(mMutex); return !mJobs.isEmpty(); }
-    void onJSFilesAdded();
-    List<std::pair<Path, List<String> > > cachedUnits() const;
+    bool isIndexing() const { return !mJobs.isEmpty(); }
+    void dirty(const Path &);
+    Hash<uint32_t, Path> visitedFiles() const
+    {
+        std::lock_guard<std::mutex> lock(mMutex);
+        return mVisitedFiles;
+    }
+    void encodeVisitedFiles(Serializer &serializer)
+    {
+        std::lock_guard<std::mutex> lock(mMutex);
+        serializer << mVisitedFiles;
+    }
+    void startSync();
 private:
+    void restore(RestoreThread *thread);
     void watch(const Path &file);
-    void index(const SourceInformation &args, IndexerJob::Type type);
     void reloadFileManager();
-    bool initJobFromCache(const Path &path, const List<String> &args,
-                          CXTranslationUnit &unit, List<String> *argsOut, int *parseCount);
-    LinkedList<CachedUnit*>::iterator findCachedUnit(const Path &path, const List<String> &args);
-    void onFileModified(const Path &);
     void addDependencies(const DependencyMap &hash, Set<uint32_t> &newFiles);
     void addFixIts(const DependencyMap &dependencies, const FixItMap &fixIts);
-    void syncDB(int *dirtyTime, int *syncTime);
+    struct SyncData {
+        int dirtyTime, syncTime, symbols, symbolNames;
+    };
+    SyncData syncDB();
     void startDirtyJobs(const Set<uint32_t> &files);
-    void addCachedUnit(const Path &path, const List<String> &args, CXTranslationUnit unit, int parseCount);
     bool save();
-    void sync();
-    void onValidateDBJobErrors(const Set<Location> &errors);
+    void onSynced();
+    void onDirtyTimeout(Timer *);
 
     const Path mPath;
     State mState;
 
-    Hash<Path, std::pair<Path, List<String> > > mPendingCompiles;
-
     SymbolMap mSymbols;
-    ErrorSymbolMap mErrorSymbols;
     SymbolNameMap mSymbolNames;
     UsrMap mUsr;
     FilesMap mFiles;
 
-    enum InitMode {
-        Normal,
-        NoValidate,
-        ForceDirty
-    };
-
-    Set<uint32_t> mVisitedFiles;
+    Hash<uint32_t, Path> mVisitedFiles;
+    Hash<uint64_t, std::pair<std::shared_ptr<IndexData>, std::shared_ptr<IndexerJob> > > mPendingIndexData;
 
     int mJobCounter;
 
-    mutable std::mutex mMutex;
-
-    Hash<uint32_t, std::shared_ptr<IndexerJob> > mJobs;
-    struct PendingJob
-    {
-        SourceInformation source;
-        IndexerJob::Type type;
+    struct JobData {
+        JobData()
+            : pendingFlags(0), crashCount(0), pendingRestartTimerId(-1)
+        {}
+        void stopTimer()
+        {
+            if (pendingRestartTimerId != -1) {
+                EventLoop::mainEventLoop()->unregisterTimer(pendingRestartTimerId);
+                pendingRestartTimerId = -1;
+            }
+        }
+        Source pendingSource;
+        uint32_t pendingFlags;
+        std::shared_ptr<Cpp> pendingCpp;
+        int crashCount, pendingRestartTimerId;
+        std::shared_ptr<IndexerJob> job;
     };
-    Hash<uint32_t, PendingJob> mPendingJobs;
 
-    Timer mSyncTimer;
+    // key'ed on Source::key()
+    Hash<uint64_t, JobData> mJobs;
+    Hash<uint64_t, std::shared_ptr<IndexData> > mPendingData; // ### this could go into JobData
 
+    Timer mSyncTimer, mDirtyTimer;
+    Set<uint32_t> mDirtyFiles, mPendingDirtyFiles;
+    // mDirtyFiles are files that need to be dirtied on the next sync
+    // mPendingDirtyFiles are files that get collapsed into a single
+    // startDirtyJobs with mDirtyTimer
     StopWatch mTimer;
-
     FileSystemWatcher mWatcher;
     DependencyMap mDependencies;
-    SourceInformationMap mSources;
-
+    SourceMap mSources;
     Set<Path> mWatchedPaths;
-
     FixItMap mFixIts;
 
-    Set<Location> mPreviousErrors;
-
-    Hash<uint32_t, std::shared_ptr<IndexData> > mPendingData;
-    Set<uint32_t> mPendingDirtyFiles;
-
-    LinkedList<CachedUnit*> mCachedUnits;
     Set<uint32_t> mSuspendedFiles;
+
+    mutable std::mutex mMutex;
+
+    friend class RestoreThread;
+    friend class SyncThread;
 };
 
-inline bool Project::visitFile(uint32_t fileId)
+inline bool Project::visitFile(uint32_t visitFileId, const Path &path, uint64_t key)
 {
     std::lock_guard<std::mutex> lock(mMutex);
-    if (mVisitedFiles.contains(fileId)) {
-        return false;
+    assert(visitFileId);
+    Path &p = mVisitedFiles[visitFileId];
+    if (p.isEmpty()) {
+        p = path;
+        if (key) {
+            assert(mJobs.contains(key));
+            JobData &data = mJobs[key];
+            assert(data.job);
+            data.job->visited.insert(visitFileId);
+        }
+        return true;
     }
-
-    mVisitedFiles.insert(fileId);
-    return true;
+    return false;
 }
 
 #endif

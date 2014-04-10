@@ -26,11 +26,13 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 // static int active = 0;
 
 Job::Job(const QueryMessage &query, unsigned jobFlags, const std::shared_ptr<Project> &proj)
-    : mAborted(false), mId(-1), mMinOffset(query.minOffset()),
-      mMaxOffset(query.maxOffset()), mJobFlags(jobFlags), mQueryFlags(query.flags()), mProject(proj),
+    : mAborted(false), mMinLine(query.minLine()),
+      mMaxLine(query.maxLine()), mJobFlags(jobFlags), mQueryFlags(query.flags()), mProject(proj),
       mPathFilters(0), mPathFiltersRegExp(0), mMax(query.max()), mConnection(0),
       mContext(query.context())
 {
+    if (query.flags() & QueryMessage::SilentQuery)
+        setJobFlag(QuietJob);
     const List<String> &pathFilters = query.pathFilters();
     if (!pathFilters.isEmpty()) {
         if (mQueryFlags & QueryMessage::MatchRegexp) {
@@ -47,7 +49,7 @@ Job::Job(const QueryMessage &query, unsigned jobFlags, const std::shared_ptr<Pro
 }
 
 Job::Job(unsigned jobFlags, const std::shared_ptr<Project> &proj)
-    : mAborted(false), mId(-1), mMinOffset(-1), mMaxOffset(-1), mJobFlags(jobFlags), mQueryFlags(0), mProject(proj), mPathFilters(0),
+    : mAborted(false), mMinLine(-1), mMaxLine(-1), mJobFlags(jobFlags), mQueryFlags(0), mProject(proj), mPathFilters(0),
       mPathFiltersRegExp(0), mMax(-1), mConnection(0)
 {
 }
@@ -95,6 +97,7 @@ bool Job::write(const String &out, unsigned flags)
 
 bool Job::writeRaw(const String &out, unsigned flags)
 {
+    assert(mConnection);
     if (!(flags & IgnoreMax)) {
         switch (mMax) {
         case 0:
@@ -117,22 +120,6 @@ bool Job::writeRaw(const String &out, unsigned flags)
         return true;
     }
 
-
-    if (mJobFlags & WriteBuffered) {
-        enum { BufSize = 16384 };
-        if (mBuffer.size() + out.size() + 1 > BufSize) {
-            EventLoop::eventLoop()->callLaterMove(std::bind(&Server::onJobOutput, Server::instance(), std::placeholders::_1),
-                                                  JobOutput(shared_from_this(), mBuffer, false));
-            mBuffer.clear();
-            mBuffer.reserve(BufSize);
-        }
-        if (!mBuffer.isEmpty())
-            mBuffer.append('\n');
-        mBuffer.append(out);
-    } else {
-        EventLoop::eventLoop()->callLaterMove(std::bind(&Server::onJobOutput, Server::instance(), std::placeholders::_1),
-                                              JobOutput(shared_from_this(), out, false));
-    }
     return true;
 }
 
@@ -140,10 +127,10 @@ bool Job::write(const Location &location, unsigned flags)
 {
     if (location.isNull())
         return false;
-    if (mMinOffset != -1) {
-        assert(mMaxOffset != -1);
-        const int offset = location.offset();
-        if (offset < mMinOffset || offset > mMaxOffset) {
+    if (mMinLine != -1) {
+        assert(mMaxLine != -1);
+        const int line = location.line();
+        if (line < mMinLine || line > mMaxLine) {
             return false;
         }
     }
@@ -158,18 +145,22 @@ bool Job::write(const Location &location, unsigned flags)
             error() << "Somehow can't find" << location << "in symbols";
         } else {
             if (displayName)
-                out += '\t' + it->second.displayName();
+                out += '\t' + it->second->displayName();
             if (cursorKind)
-                out += '\t' + it->second.kindSpelling();
+                out += '\t' + it->second->kindSpelling();
             if (containingFunction) {
                 const uint32_t fileId = location.fileId();
-                const int offset = location.offset();
+                const unsigned int line = location.line();
+                const unsigned int column = location.column();
                 while (true) {
                     --it;
                     if (it->first.fileId() != fileId)
                         break;
-                    if (it->second.isDefinition() && RTags::isContainer(it->second.kind) && offset >= it->second.start && offset <= it->second.end) {
-                        out += "\tfunction: " + it->second.symbolName;
+                    if (it->second->isDefinition()
+                        && RTags::isContainer(it->second->kind)
+                        && comparePosition(line, column, it->second->startLine, it->second->startColumn) >= 0
+                        && comparePosition(line, column, it->second->endLine, it->second->endColumn) <= 0) {
+                        out += "\tfunction: " + it->second->symbolName;
                         break;
                     } else if (it == symbols.begin()) {
                         break;
@@ -181,12 +172,12 @@ bool Job::write(const Location &location, unsigned flags)
     return write(out);
 }
 
-bool Job::write(const CursorInfo &ci, unsigned ciflags)
+bool Job::write(const std::shared_ptr<CursorInfo> &ci, unsigned ciflags)
 {
-    if (ci.isNull())
+    if (!ci || ci->isNull())
         return false;
     const unsigned kf = keyFlags();
-    if (!write(ci.toString(ciflags, kf).constData()))
+    if (!write(ci->toString(ciflags, kf).constData()))
         return false;
     return true;
 }
@@ -218,6 +209,7 @@ bool Job::filter(const String &value) const
 
     const int count = mPathFiltersRegExp->size();
     for (int i=0; i<count; ++i) {
+        error() << "Trying regexp" << mPathFiltersRegExp->at(i).pattern() << mPathFiltersRegExp->at(i).indexIn(ref) << ref;
         if (mPathFiltersRegExp->at(i).indexIn(ref) != -1)
             return true;
     }
@@ -230,19 +222,11 @@ unsigned Job::keyFlags() const
     return QueryMessage::keyFlags(mQueryFlags);
 }
 
-void Job::run()
-{
-    execute();
-    if (mId != -1) {
-        EventLoop::eventLoop()->callLaterMove(std::bind(&Server::onJobOutput, Server::instance(), std::placeholders::_1),
-                                              JobOutput(shared_from_this(), mBuffer, true));
-    }
-}
-
-void Job::run(Connection *connection)
+int Job::run(Connection *connection)
 {
     assert(connection);
     mConnection = connection;
-    execute();
+    const int ret = execute();
     mConnection = 0;
+    return ret;
 }

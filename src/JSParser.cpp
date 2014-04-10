@@ -222,13 +222,13 @@ struct File
 {
     uint32_t fileId;
     String contents;
-    Hash<uint32_t, std::shared_ptr<File> > includes;
+    Map<Location, std::shared_ptr<File> > includes;
     String dump(int indent = 0)
     {
         String ret = String::format<128>("%s%s %d bytes\n", String(indent * 2, ' ').constData(),
                                          Location::path(fileId).constData(), contents.size());
-        for (Hash<uint32_t, std::shared_ptr<File> >::const_iterator it = includes.begin(); it != includes.end(); ++it) {
-            ret += String(indent * 2, ' ') + String::format<16>("include(%d):\n", it->first) + it->second->dump(indent + 1);
+        for (const auto &file : includes) {
+            ret += String(indent * 2, ' ') + String::format<16>("include(%d:%d):\n", file.first.line(), file.first.column()) + file.second->dump(indent + 1);
         }
         return ret;
     }
@@ -236,42 +236,58 @@ struct File
     void recurse(uint32_t src, DependencyMap &dependencies, SymbolMap &symbols)
     {
         dependencies[fileId].insert(src);
-        for (Hash<uint32_t, std::shared_ptr<File> >::const_iterator it = includes.begin(); it != includes.end(); ++it) {
-            Location loc(fileId, it->first);
-            CursorInfo &info = symbols[loc];
-            const Location refLoc(it->second->fileId, 0);
-            info.targets.insert(refLoc);
-            info.kind = CursorInfo::JSInclude;
-            info.definition = false;
-            info.symbolName = "// include('" + refLoc.path() + "')";
-            info.symbolLength = info.symbolName.size() + 2;
+        for (const auto &file : includes) {
+            std::shared_ptr<CursorInfo> &info = symbols[file.first];
+            if (!info)
+                info = std::make_shared<CursorInfo>();
+            const Location refLoc(file.second->fileId, 1, 1);
+            info->targets.insert(refLoc);
+            info->kind = CursorInfo::JSInclude;
+            info->definition = false;
+            info->symbolName = "// include('" + refLoc.path() + "')";
+            info->symbolLength = info->symbolName.size() + 2;
             // ### this may not be right. I could know how many spaces we
             // ### have in here
-            it->second->recurse(src, dependencies, symbols);
+            file.second->recurse(src, dependencies, symbols);
         }
     }
 
     String read(int offset, List<Section> &sections) const
     {
-        String ret = contents;
-        uint32_t added = 0;
-        uint32_t last = 0;
-        for (Hash<uint32_t, std::shared_ptr<File> >::const_iterator it = includes.begin(); it != includes.end(); ++it) {
-            if (added + it->first > last) {
-                sections.append(Section(fileId, last + offset, (it->first + added) - last));
-            }
-            const String r = it->second->read(offset + added + it->first, sections);
-            ret.insert(it->first + added, r);
-            added += r.size();
-            last = it->first + added;
-            // printf("Setting last to %d (%d/%d) for %s after reading %s\n", last, it->first, added, Location::path(fileId).constData(),
-            //        Location::path(it->second->fileId).constData());
-        }
-        if (last < static_cast<uint32_t>(ret.size()))
-            sections.append(Section(fileId, last + offset, ret.size() - last));
-        return ret;
+        // String ret = contents;
+        // uint32_t added = 0;
+        // uint32_t lastLine = 0, lastCol = 0;
+        // for (const auto &file : includes) {
+        //     if (added + it->first > last) {
+        //         sections.append(Section(fileId, last + offset, (it->first + added) - last));
+        //     }
+        //     const String r = it->second->read(offset + added + it->first, sections);
+        //     ret.insert(it->first + added, r);
+        //     added += r.size();
+        //     last = it->first + added;
+        //     // printf("Setting last to %d (%d/%d) for %s after reading %s\n", last, it->first, added, Location::path(fileId).constData(),
+        //     //        Location::path(it->second->fileId).constData());
+        // }
+        // if (last < static_cast<uint32_t>(ret.size()))
+        //     sections.append(Section(fileId, last + offset, ret.size() - last));
+        // return ret;
     }
 };
+
+// ### should do this in a less awful way
+static inline Location locationForOffset(uint32_t fileId, const String &contents, int offset)
+{
+    int line = 1;
+    int column = -1;
+    for (int i=offset; i>=0; --i) {
+        if (contents[i] == '\n') {
+            if (column == -1)
+                column = offset - i;
+            ++line;
+        }
+    }
+    return Location(fileId, line, column);
+}
 
 static std::shared_ptr<File> resolve(const Path &path, Set<Path> &seen)
 {
@@ -290,7 +306,7 @@ static std::shared_ptr<File> resolve(const Path &path, Set<Path> &seen)
             if (p.isFile()) {
                 p.resolve();
                 if (seen.insert(p)) {
-                    ret->includes[idx] = resolve(p, seen);
+                    ret->includes[locationForOffset(ret->fileId, ret->contents, idx)] = resolve(p, seen);
                 }
             }
         }
@@ -301,6 +317,7 @@ static std::shared_ptr<File> resolve(const Path &path, Set<Path> &seen)
 bool JSParser::parse(const Path &path, SymbolMap *symbols, SymbolNameMap *symbolNames,
                      DependencyMap *dependencies, String *ast)
 {
+#if 0
     const uint32_t fileId = Location::insertFile(path);
     Set<Path> seen;
     seen.insert(path);
@@ -432,5 +449,6 @@ bool JSParser::parse(const Path &path, SymbolMap *symbols, SymbolNameMap *symbol
     }
 
     return true;
+#endif
 }
 

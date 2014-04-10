@@ -1,17 +1,17 @@
 /* This file is part of RTags.
 
-RTags is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
+   RTags is free software: you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation, either version 3 of the License, or
+   (at your option) any later version.
 
-RTags is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
+   RTags is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
 
-You should have received a copy of the GNU General Public License
-along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
+   You should have received a copy of the GNU General Public License
+   along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 
 #ifndef Location_h
 #define Location_h
@@ -20,89 +20,76 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 #include <rct/Log.h>
 #include <rct/Path.h>
 #include <rct/Serializer.h>
-#include <mutex>
 #include <assert.h>
 #include <clang-c/Index.h>
 #include <stdio.h>
+#ifndef RTAGS_SINGLE_THREAD
+#include <mutex>
+#define LOCK() const std::lock_guard<std::mutex> lock(sMutex)
+#else
+#define LOCK() do {} while (0)
+#endif
 
+static inline int intCompare(uint32_t l, uint32_t r)
+{
+    if (l < r)
+        return -1;
+    if (l > r)
+        return 1;
+    return 0;
+}
+static inline int comparePosition(uint32_t lline, uint32_t lcol, uint32_t rline, uint32_t rcol)
+{
+    int ret = intCompare(lline, rline);
+    if (!ret)
+        ret = intCompare(lcol, rcol);
+    return ret;
+}
 class Location
 {
 public:
     uint64_t mData;
+
     Location()
         : mData(0)
     {}
-    Location(uint64_t data)
-        : mData(data)
-    {}
-    Location(uint32_t fileId, uint32_t offset)
-        : mData(uint64_t(offset) << 32 | fileId)
-    {}
 
-    Location(const CXFile &file, uint32_t offset)
-        : mData(0)
+    Location(uint32_t fileId, uint32_t line, uint32_t col)
+        : mData((static_cast<uint64_t>(fileId) << (64 - FileBits)) | (static_cast<uint64_t>(line) << (64 - FileBits - LineBits)) | col)
     {
-        if (!file) {
-            mData = (uint64_t(offset) << 32);
-            return;
-        }
-        CXString fn = clang_getFileName(file);
-        const char *cstr = clang_getCString(fn);
-        if (!cstr)
-            return;
-        const Path p = Path::resolved(cstr);
-        clang_disposeString(fn);
-        uint32_t fileId = insertFile(p);
-        mData = (uint64_t(offset) << 32) | fileId;
-    }
-    Location(const CXSourceLocation &location)
-        : mData(0)
-    {
-        CXFile file;
-        unsigned offset;
-        clang_getSpellingLocation(location, &file, 0, 0, &offset);
-        *this = Location(file, offset);
-    }
-
-    inline bool operator!() const
-    {
-        return !mData;
     }
 
     static inline uint32_t fileId(const Path &path)
     {
-        std::lock_guard<std::mutex> lock(sMutex);
+        LOCK();
         return sPathsToIds.value(path);
     }
     static inline Path path(uint32_t id)
     {
-        std::lock_guard<std::mutex> lock(sMutex);
+        LOCK();
         return sIdsToPaths.value(id);
     }
 
     static inline uint32_t insertFile(const Path &path)
     {
-        uint32_t ret;
-        {
-            std::lock_guard<std::mutex> lock(sMutex);
-            uint32_t &id = sPathsToIds[path];
-            if (!id) {
-                id = ++sLastId;
-                sIdsToPaths[id] = path;
-            }
-            ret = id;
+        assert(!path.contains(".."));
+        LOCK();
+        uint32_t &id = sPathsToIds[path];
+        if (!id) {
+            id = ++sLastId;
+            sIdsToPaths[id] = path;
         }
-
-        return ret;
+        return id;
     }
 
-    inline uint32_t fileId() const { return uint32_t(mData); }
-    inline uint32_t offset() const { return uint32_t(mData >> 32); }
+    inline uint32_t fileId() const { return ((mData & FILEID_MASK) >> (64 - FileBits)); }
+    inline uint32_t line() const { return ((mData & LINE_MASK) >> (64 - FileBits - LineBits)); }
+    inline uint32_t column() const { return static_cast<uint32_t>(mData & COLUMN_MASK); }
 
     inline Path path() const
     {
         if (mCachedPath.isEmpty()) {
-            std::lock_guard<std::mutex> lock(sMutex);
+            LOCK();
             mCachedPath = sIdsToPaths.value(fileId());
         }
         return mCachedPath;
@@ -112,152 +99,139 @@ public:
     inline void clear() { mData = 0; mCachedPath.clear(); }
     inline bool operator==(const String &str) const
     {
-        const Location fromPath = Location::fromPathAndOffset(str);
+        const Location fromPath = Location::fromPathLineAndColumn(str);
         return operator==(fromPath);
+    }
+    inline bool operator!=(const String &str) const
+    {
+        const Location fromPath = Location::fromPathLineAndColumn(str);
+        return operator!=(fromPath);
     }
     inline bool operator==(const Location &other) const { return mData == other.mData; }
     inline bool operator!=(const Location &other) const { return mData != other.mData; }
     inline int compare(const Location &other) const
     {
-        int diff = other.fileId() - fileId();
-        if (diff < 0) {
-            return -1;
-        } else if (diff > 0) {
-            return 1;
+        int ret = intCompare(fileId(), other.fileId());
+        if (!ret) {
+            ret = intCompare(line(), other.line());
+            if (!ret)
+                ret = intCompare(column(), other.column());
         }
-        diff = other.offset() - offset();
-        if (diff < 0) {
-            return -1;
-        } else if (diff > 0) {
-            return 1;
-        }
-        return 0;
+        return ret;
     }
     inline bool operator<(const Location &other) const
     {
-        const int off = other.fileId() - fileId();
-        if (off < 0) {
-            return true;
-        } else if (off > 0) {
-            return false;
-        }
-        return offset() < other.offset();
+        return compare(other) < 0;
     }
 
     inline bool operator>(const Location &other) const
     {
-        const int off = other.fileId() - fileId();
-        if (off < 0) {
-            return false;
-        } else if (off > 0) {
-            return true;
-        }
-        return offset() > other.offset();
+        return compare(other) > 0;
     }
 
-    String context(int *column = 0) const;
-    bool convertOffset(int &line, int &col) const;
+    String context() const;
 
     enum KeyFlag {
         NoFlag = 0x0,
-        Padded = 0x1,
-        ShowContext = 0x2,
-        ShowLineNumbers = 0x4
+        ShowContext = 0x1
     };
 
     String key(unsigned flags = NoFlag) const;
-    bool toKey(char buf[8]) const
-    {
-        if (isNull()) {
-            memset(buf, 0, 8);
-            return false;
-        } else {
-            memcpy(buf, &mData, sizeof(mData));
-            return true;
-        }
-    }
-
-    static Location fromKey(const char *data)
-    {
-        Location ret;
-        memcpy(&ret.mData, data, sizeof(ret.mData));
-        return ret;
-    }
-
     static Location decodeClientLocation(const String &data)
     {
-        uint32_t offset;
-        memcpy(&offset, data.constData() + data.size() - sizeof(offset), sizeof(offset));
-        const Path path(data.constData(), data.size() - sizeof(offset));
-        const uint32_t fileId = Location::fileId(path);
+        uint32_t col;
+        uint32_t line;
+        memcpy(&col, data.constData() + data.size() - sizeof(col), sizeof(col));
+        memcpy(&line, data.constData() + data.size() - sizeof(line) - sizeof(col), sizeof(line));
+        const Path path(data.constData(), data.size() - sizeof(col) - sizeof(line));
+        uint32_t fileId = Location::fileId(path);
+        if (!fileId)
+            fileId = Location::fileId(path.resolved());
         if (fileId)
-            return Location(fileId, offset);
-        error("Failed to make location from [%s,%d]", path.constData(), offset);
+            return Location(fileId, line, col);
+        error("Failed to make location from [%s:%d:%d]", path.constData(), line, col);
         return Location();
     }
     static String encodeClientLocation(const String &key)
     {
-        const int lastComma = key.lastIndexOf(',');
-        if (lastComma <= 0 || lastComma + 1 >= key.size())
+        char path[PATH_MAX];
+        uint32_t line, col;
+        if (sscanf(key.constData(), "%[^':']:%d:%d", path, &line, &col) != 3)
             return String();
 
-        char *endPtr;
-        uint32_t offset = strtoull(key.constData() + lastComma + 1, &endPtr, 10);
-        if (*endPtr != '\0')
-            return String();
-        Path path = Path::resolved(key.left(lastComma));
-        String out;
+        Path resolved = Path::resolved(path, Path::MakeAbsolute);
         {
-            out = path;
-            char buf[4];
-            memcpy(buf, &offset, sizeof(buf));
-            out += String(buf, 4);
+            char buf[8];
+            memcpy(buf, &line, sizeof(line));
+            memcpy(buf + 4, &col, sizeof(col));
+            resolved.append(buf, 8);
         }
 
-        return out;
+        return resolved;
     }
 
-    static Location fromPathAndOffset(const String &pathAndOffset)
+    static Location fromPathLineAndColumn(const String &str)
     {
-        const int comma = pathAndOffset.lastIndexOf(',');
-        if (comma <= 0 || comma + 1 == pathAndOffset.size()) {
-            error("Can't create location from this: %s", pathAndOffset.constData());
+        char path[PATH_MAX];
+        uint32_t line, col;
+        if (sscanf(str.constData(), "%[^':']:%d:%d", path, &line, &col) != 3)
             return Location();
-        }
-        bool ok;
-        const uint32_t fileId = String(pathAndOffset.constData() + comma + 1, pathAndOffset.size() - comma - 1).toULongLong(&ok);
-        if (!ok) {
-            error("Can't create location from this: %s", pathAndOffset.constData());
-            return Location();
-        }
-        return Location(Location::insertFile(Path(pathAndOffset.left(comma))), fileId);
+
+        const Path resolved = Path::resolved(path);
+        return Location(Location::insertFile(resolved), line, col);
     }
     static Hash<uint32_t, Path> idsToPaths()
     {
-        std::lock_guard<std::mutex> lock(sMutex);
+        LOCK();
         return sIdsToPaths;
     }
     static Hash<Path, uint32_t> pathsToIds()
     {
-        std::lock_guard<std::mutex> lock(sMutex);
+        LOCK();
         return sPathsToIds;
     }
     static void init(const Hash<Path, uint32_t> &pathsToIds)
     {
-        std::lock_guard<std::mutex> lock(sMutex);
+        LOCK();
         sPathsToIds = pathsToIds;
         sLastId = sPathsToIds.size();
-        for (Hash<Path, uint32_t>::const_iterator it = sPathsToIds.begin(); it != sPathsToIds.end(); ++it) {
-            assert(it->second <= it->second);
-            sIdsToPaths[it->second] = it->first;
+        for (const auto &it : sPathsToIds) {
+            sIdsToPaths[it.second] = it.first;
         }
     }
+
+    static void init(const Hash<uint32_t, Path> &idsToPaths)
+    {
+        LOCK();
+        sIdsToPaths = idsToPaths;
+        sLastId = sIdsToPaths.size();
+        for (const auto &it : sIdsToPaths) {
+            sPathsToIds[it.second] = it.first;
+        }
+    }
+
+    static void set(const Path &path, uint32_t fileId)
+    {
+        LOCK();
+        sPathsToIds[path] = fileId;
+        Path &p = sIdsToPaths[fileId];
+        if (p.isEmpty())
+            p = path;
+    }
 private:
+    static std::mutex sMutex;
     static Hash<Path, uint32_t> sPathsToIds;
     static Hash<uint32_t, Path> sIdsToPaths;
     static uint32_t sLastId;
-    static std::mutex sMutex;
     mutable Path mCachedPath;
+    enum {
+        FileBits = 22,
+        LineBits = 21,
+        ColumnBits = 64 - FileBits - LineBits
+    };
+    static const uint64_t FILEID_MASK;
+    static const uint64_t LINE_MASK;
+    static const uint64_t COLUMN_MASK;
 };
 
 template <> inline int fixedSize(const Location &)

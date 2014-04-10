@@ -24,7 +24,7 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 #include <clang-c/Index.h>
 
 class CursorInfo;
-typedef Map<Location, CursorInfo> SymbolMap;
+typedef Map<Location, std::shared_ptr<CursorInfo> > SymbolMap;
 class CursorInfo
 {
 public:
@@ -47,12 +47,12 @@ public:
     };
 
     CursorInfo()
-        : symbolLength(0), kind(CXCursor_FirstInvalid), type(CXType_Invalid), enumValue(0), start(-1), end(-1)
+        : symbolLength(0), kind(CXCursor_FirstInvalid), type(CXType_Invalid), enumValue(0),
+          startLine(-1), startColumn(-1), endLine(-1), endColumn(-1)
     {}
 
     void clear()
     {
-        start = end = -1;
         symbolLength = 0;
         kind = CXCursor_FirstInvalid;
         type = CXType_Invalid;
@@ -85,7 +85,7 @@ public:
 
     String displayName() const;
 
-    int targetRank(const CursorInfo &target) const;
+    int targetRank(const std::shared_ptr<CursorInfo> &target) const;
 
     bool isValid() const
     {
@@ -97,15 +97,15 @@ public:
         return isEmpty();
     }
 
-    bool isValid(const Location &location) const;
+    std::shared_ptr<CursorInfo> bestTarget(const SymbolMap &map, Location *loc = 0) const;
+    SymbolMap targetInfos(const SymbolMap &map) const;
+    SymbolMap referenceInfos(const SymbolMap &map) const;
+    SymbolMap callers(const Location &loc, const SymbolMap &map) const;
+    SymbolMap allReferences(const Location &loc, const SymbolMap &map) const;
+    SymbolMap virtuals(const Location &loc, const SymbolMap &map) const;
+    SymbolMap declarationAndDefinition(const Location &loc, const SymbolMap &map) const;
 
-    CursorInfo bestTarget(const SymbolMap &map, const SymbolMap *errors = 0, Location *loc = 0) const;
-    SymbolMap targetInfos(const SymbolMap &map, const SymbolMap *errors = 0) const;
-    SymbolMap referenceInfos(const SymbolMap &map, const SymbolMap *errors = 0) const;
-    SymbolMap callers(const Location &loc, const SymbolMap &map, const SymbolMap *errors = 0) const;
-    SymbolMap allReferences(const Location &loc, const SymbolMap &map, const SymbolMap *errors = 0) const;
-    SymbolMap virtuals(const Location &loc, const SymbolMap &map, const SymbolMap *errors = 0) const;
-    SymbolMap declarationAndDefinition(const Location &loc, const SymbolMap &map, const SymbolMap *errors = 0) const;
+    std::shared_ptr<CursorInfo> copy() const;
 
     bool isClass() const
     {
@@ -127,50 +127,55 @@ public:
 
     bool isEmpty() const
     {
-        return !symbolLength && targets.isEmpty() && references.isEmpty() && start == -1 && end == -1;
+        return !symbolLength && targets.isEmpty() && references.isEmpty();
     }
 
-    bool unite(const CursorInfo &other)
+    bool unite(const std::shared_ptr<CursorInfo> &other)
     {
         bool changed = false;
-        if (targets.isEmpty() && !other.targets.isEmpty()) {
-            targets = other.targets;
+        if (targets.isEmpty() && !other->targets.isEmpty()) {
+            targets = other->targets;
             changed = true;
-        } else if (!other.targets.isEmpty()) {
+        } else if (!other->targets.isEmpty()) {
             int count = 0;
-            targets.unite(other.targets, &count);
+            targets.unite(other->targets, &count);
             if (count)
                 changed = true;
         }
 
-        if (end == -1 && start == -1 && other.start != -1 && other.end != -1) {
-            start = other.start;
-            end = other.end;
+        if (startLine == -1 && other->startLine != -1) {
+            startLine = other->startLine;
+            startColumn = other->startColumn;
+            endLine = other->endLine;
+            endColumn = other->endColumn;
             changed = true;
         }
 
-        if (!symbolLength && other.symbolLength) {
-            symbolLength = other.symbolLength;
-            kind = other.kind;
-            enumValue = other.enumValue;
-            type = other.type;
-            symbolName = other.symbolName;
+        if (!symbolLength && other->symbolLength) {
+            symbolLength = other->symbolLength;
+            kind = other->kind;
+            enumValue = other->enumValue;
+            type = other->type;
+            symbolName = other->symbolName;
             changed = true;
         }
         const int oldSize = references.size();
         if (!oldSize) {
-            references = other.references;
+            references = other->references;
             if (!references.isEmpty())
                 changed = true;
         } else {
             int inserted = 0;
-            references.unite(other.references, &inserted);
+            references.unite(other->references, &inserted);
             if (inserted)
                 changed = true;
         }
 
         return changed;
     }
+
+    static inline void serialize(Serializer &s, const SymbolMap &t);
+    static inline void deserialize(Deserializer &s, SymbolMap &t);
 
     enum Flag {
         IgnoreTargets = 0x1,
@@ -187,14 +192,14 @@ public:
         int64_t enumValue; // only used if type == CXCursor_EnumConstantDecl
     };
     Set<Location> targets, references;
-    int start, end;
+    int startLine, startColumn, endLine, endColumn;
 };
-
 
 template <> inline Serializer &operator<<(Serializer &s, const CursorInfo &t)
 {
     s << t.symbolLength << t.symbolName << static_cast<int>(t.kind)
-      << static_cast<int>(t.type) << t.enumValue << t.targets << t.references << t.start << t.end;
+      << static_cast<int>(t.type) << t.enumValue << t.targets << t.references
+      << t.startLine << t.startColumn << t.endLine << t.endColumn;
     return s;
 }
 
@@ -202,10 +207,33 @@ template <> inline Deserializer &operator>>(Deserializer &s, CursorInfo &t)
 {
     int kind, type;
     s >> t.symbolLength >> t.symbolName >> kind >> type
-      >> t.enumValue >> t.targets >> t.references >> t.start >> t.end;
+      >> t.enumValue >> t.targets >> t.references
+      >> t.startLine >> t.startColumn >> t.endLine >> t.endColumn;
     t.kind = static_cast<CXCursorKind>(kind);
     t.type = static_cast<CXTypeKind>(type);
     return s;
+}
+
+inline void CursorInfo::serialize(Serializer &s, const SymbolMap &t)
+{
+    const uint32_t size = t.size();
+    s << size;
+    for (const auto &it : t)
+        s << it.first << *it.second;
+}
+
+inline void CursorInfo::deserialize(Deserializer &s, SymbolMap &t)
+{
+    uint32_t size;
+    s >> size;
+    t.clear();
+    while (size--) {
+        Location location;
+        s >> location;
+        std::shared_ptr<CursorInfo> &ci = t[location];
+        ci = std::make_shared<CursorInfo>();
+        s >> *ci;
+    }
 }
 
 inline Log operator<<(Log log, const CursorInfo &info)

@@ -25,11 +25,11 @@ CursorInfoJob::CursorInfoJob(const Location &loc, const QueryMessage &query, con
 {
 }
 
-void CursorInfoJob::execute()
+int CursorInfoJob::execute()
 {
     const SymbolMap &map = project()->symbols();
     if (map.isEmpty())
-        return;
+        return 1;
     SymbolMap::const_iterator it = RTags::findCursorInfo(map, location, context());
 
     unsigned ciFlags = 0;
@@ -37,9 +37,11 @@ void CursorInfoJob::execute()
         ciFlags |= CursorInfo::IgnoreTargets;
     if (!(queryFlags() & QueryMessage::CursorInfoIncludeReferences))
         ciFlags |= CursorInfo::IgnoreReferences;
+    int ret = 1;
     if (it != map.end()) {
         write(it->first);
         write(it->second, ciFlags);
+        ret = 0;
     } else {
         it = map.lower_bound(location);
         if (it == map.end())
@@ -47,19 +49,26 @@ void CursorInfoJob::execute()
     }
     ciFlags |= CursorInfo::IgnoreTargets|CursorInfo::IgnoreReferences;
     if (it != map.begin() && queryFlags() & QueryMessage::CursorInfoIncludeParents) {
+        ret = 0;
         const uint32_t fileId = location.fileId();
-        const int offset = location.offset();
+        const unsigned int line = location.line();
+        const unsigned int column = location.column();
         while (true) {
             --it;
             if (it->first.fileId() != fileId)
                 break;
-            if (it->second.isDefinition() && RTags::isContainer(it->second.kind) && offset >= it->second.start && offset <= it->second.end) {
+            if (it->second->isDefinition()
+                && RTags::isContainer(it->second->kind)
+                && comparePosition(line, column, it->second->startLine, it->second->startColumn) >= 0
+                && comparePosition(line, column, it->second->endLine, it->second->endColumn) <= 0) {
                 write("====================");
                 write(it->first);
                 write(it->second, ciFlags);
-            }
-            if (it == map.begin())
                 break;
+            } else if (it == map.begin()) {
+                break;
+            }
         }
     }
+    return ret;
 }

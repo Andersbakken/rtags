@@ -30,12 +30,13 @@ class RClient
 public:
     RClient();
     ~RClient();
-    bool exec();
+    int exec();
     bool parse(int &argc, char **argv);
 
     int max() const { return mMax; }
     int logLevel() const { return mLogLevel; }
     int timeout() const { return mTimeout; }
+    int buildIndex() const { return mBuildIndex; }
 
     const Set<String> &pathFilters() const { return mPathFilters; }
     int minOffset() const { return mMinOffset; }
@@ -59,10 +60,16 @@ private:
     void addQuery(QueryMessage::Type t, const String &query = String());
 
     void addLog(int level);
-    void addCompile(const Path &cwd, const String &args);
+    enum EscapeMode {
+        Escape_Auto,
+        Escape_Do,
+        Escape_Dont
+    };
+
+    void addCompile(const Path &cwd, const String &args, EscapeMode escapeMode);
 
     unsigned mQueryFlags;
-    int mMax, mLogLevel, mTimeout, mMinOffset, mMaxOffset, mConnectTimeout;
+    int mMax, mLogLevel, mTimeout, mMinOffset, mMaxOffset, mConnectTimeout, mBuildIndex;
     String mContext;
     Set<String> mPathFilters;
     Hash<Path, String> mUnsavedFiles;
@@ -70,9 +77,12 @@ private:
     List<String> mRdmArgs;
     String mSocketFile;
     List<String> mProjects;
+    EscapeMode mEscapeMode;
 
     int mArgc;
     char **mArgv;
+
+    friend class CompileCommand;
 };
 
 #endif

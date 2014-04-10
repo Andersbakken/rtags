@@ -21,22 +21,26 @@ Hash<Path, uint32_t> Location::sPathsToIds;
 Hash<uint32_t, Path> Location::sIdsToPaths;
 uint32_t Location::sLastId = 0;
 std::mutex Location::sMutex;
+static inline uint64_t createMask(int startBit, int bitCount)
+{
+    uint64_t mask = 0;
+    for (int i=startBit; i<startBit + bitCount; ++i) {
+        mask |= (static_cast<uint64_t>(1) << i);
+    }
+    return mask;
+}
+
+const uint64_t Location::FILEID_MASK = createMask(64 - FileBits, FileBits);
+const uint64_t Location::LINE_MASK = createMask(64 - FileBits - LineBits, LineBits);
+const uint64_t Location::COLUMN_MASK = createMask(64 - FileBits - LineBits - ColumnBits, ColumnBits);
 
 String Location::key(unsigned flags) const
 {
     if (isNull())
         return String();
-    int extra = 0;
-    const int off = offset();
-    int line = 0, col = 0;
-    if (flags & Location::Padded) {
-        extra = 7;
-    } else if (flags & Location::ShowLineNumbers && convertOffset(line, col)) {
-        extra = RTags::digits(line) + RTags::digits(col) + 3;
-    } else {
-        flags &= ~Location::ShowLineNumbers;
-        extra = RTags::digits(off) + 1;
-    }
+    const unsigned int l = line();
+    const unsigned int c = column();
+    int extra = RTags::digits(l) + RTags::digits(c) + 3;
     String ctx;
     if (flags & Location::ShowContext) {
         ctx += '\t';
@@ -48,75 +52,25 @@ String Location::key(unsigned flags) const
 
     String ret(p.size() + extra, '0');
 
-    if (flags & Location::Padded) {
-        snprintf(ret.data(), ret.size() + extra + 1, "%s,%06d%s", p.constData(),
-                 off, ctx.constData());
-    } else if (flags & Location::ShowLineNumbers) {
-        snprintf(ret.data(), ret.size() + extra + 1, "%s:%d:%d:%s", p.constData(),
-                 line, col, ctx.constData());
-    } else {
-        snprintf(ret.data(), ret.size() + extra + 1, "%s,%d%s", p.constData(),
-                 off, ctx.constData());
-    }
+    snprintf(ret.data(), ret.size() + extra + 1, "%s:%d:%d:%s", p.constData(),
+             l, c, ctx.constData());
     return ret;
 }
 
-String Location::context(int *column) const
+String Location::context() const
 {
-    const uint32_t off = offset();
-    uint32_t o = off;
     Path p = path();
     FILE *f = fopen(p.constData(), "r");
-    if (f && !fseek(f, off, SEEK_SET)) {
-        while (o > 0) {
-            const char ch = fgetc(f);
-            if (ch == '\n' && o != off)
-                break;
-            if (fseek(f, --o, SEEK_SET) == -1) {
-                fclose(f);
-                return String();
-            }
-        }
-        char buf[1024] = { '\0' };
-        const int len = Rct::readLine(f, buf, 1023);
-        fclose(f);
-        if (column)
-            *column = (off - o - 1);
-        return String(buf, len);
-    }
-    if (f)
-        fclose(f);
-    return String();
-}
+    if (f) {
+        const unsigned int l = line();
+        for (unsigned i=1; i<l; ++i) {
+             Rct::readLine(f);
+         }
 
-bool Location::convertOffset(int &line, int &col) const
-{
-    const uint32_t off = offset();
-    Path p = path();
-    FILE *f = fopen(p.constData(), "r");
-    if (!f) {
-        line = col = -1;
-        return false;
-    }
-    line = 1;
-    int last = 0;
-    uint32_t idx = 0;
-    while (true) {
-        const int lineLen = Rct::readLine(f);
-        if (lineLen == -1) {
-            col = line = -1;
-            fclose(f);
-            return false;
-        }
-        idx += lineLen + 1;
-        // printf("lineStart %d offset %d last %d lineLen %d\n", idx, offset, last, lineLen);
-        if (idx > off) {
-            col = off - last + 1;
-            break;
-        }
-        last = idx;
-        ++line;
-    }
-    fclose(f);
-    return true;
-}
+         char buf[1024] = { '\0' };
+         const int len = Rct::readLine(f, buf, 1023);
+         fclose(f);
+         return String(buf, len);
+     }
+     return String();
+ }
