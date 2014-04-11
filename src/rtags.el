@@ -1946,6 +1946,122 @@ References to references will be treated as references to the referenced symbol"
                   1))
             t)))))
 
+(defvar rtags-completion-status 'idle
+  "Takes on the values of: idle, busy, cancel")
+
+(defun rtags-completion-candidates-async ()
+  (case rtags-completion-status
+    (idle
+     )
+    (busy
+     )
+    (cancel
+     )
+    (otherwise 
+     (message "WTF!"))))
+
+(defun rtags-completion-candidates ()
+  ;; locstr is fullpath_srcfile:row:col
+  (let ((locrx (rx (group (zero-or-more (not (any ":")))) 
+		   ":"
+		   (group (zero-or-more digit))
+		   ":"
+		   (group (zero-or-more digit))))
+	(locstr (car rtags-last-completions))
+	filefull file row col)
+
+    (when (string-match locrx locstr)
+      (setq filefull (match-string 1 locstr)
+	    row (match-string 2 locstr)
+	    col (match-string 3 locstr))
+      (setq file (file-name-nondirectory filefull))
+      (message (format "Match: %s %s %s %s" filefull file row col)))
+    
+    ;; if last completion was in this src file @ last completion pos
+    ;; build a list of completion strings of format:
+    ;; #("word" 'rtags-completion-full "void word(...)" 'rtags-completion-type "FunctionDecl")
+    (if (and (string= (buffer-name (current-buffer)) file)
+	     (rtags-calculate-completion-point)
+	     (= (rtags-calculate-completion-point) (cdr rtags-last-completion-position)))
+       (let ((completions (cadr rtags-last-completions)))
+
+	 (mapcar #'(lambda (elem)
+		     (propertize (car elem)
+				 'rtags-completion-full
+				 (second elem)
+				 'rtags-completion-type
+				 (third elem)))
+		 completions)))))
+
+;; (defun rtags-completion-prefix ()
+;;   (if (or (= (char-before) ?\.)
+;;           (and (= (char-before) ?>) (= (char-before (1- (point))) ?-))
+;;           (and (= (char-before) ?:) (= (char-before (1- (point))) ?:)))
+;;       (point)))
+
+(defun rtags-completion-document (item)
+  (get-text-property 0 'rtags-completion-full item))
+
+(defun rtags-completion-action ()
+  ;; propertized string of current/last completion is cdr of `ac-last-completion'
+  (let* ((last-compl (cdr ac-last-completion))
+	 (type (get-text-property 0 'rtags-completion-type last-compl))
+	 (tag (rtags-completion-document last-compl)))
+    (cond ((or (string= type "CXXMethod")
+	       (string= type "FunctionDecl")
+	       (string= type "FunctionTemplate"))
+	   (rtags-completion-action-function tag))
+	  (t
+	   nil))))
+
+(defun rtags-completion-action-function (tag)
+  ;; transform func sig to a list of arg signatures
+  (let ((arglist (split-string 
+		  tag 
+		  (rx (or "..." ",")) 
+		  t 
+		  (rx (or (group (zero-or-more any) "(") ")"))))
+	insertfunc inserttxt)
+
+    (cond ((featurep 'yasnippet)
+	   (setq inserttxt (mapconcat 
+			    'identity 
+			    (mapcar
+			     #'(lambda (arg)
+				 (when (string-match ".*" arg)
+				   (replace-match 
+				    (concat "${" arg "}")
+				    t t arg)))
+			     arglist)
+			    ", "))
+	   (setq insertfunc #'yas-expand-snippet))
+	  (t
+	   (setq insertfunc #'(lambda (txt) (save-excursion (insert txt)) (forward-char)))
+	   (setq inserttxt (mapconcat 'identity arglist ""))))
+    (apply insertfunc (list (concat "(" inserttxt ")")))))
+
+(defun rtags-completion-prefix ()
+  ;; shamelessly borrowed from clang-complete-async
+  (or (ac-prefix-symbol)
+      (let ((c (char-before)))
+        (when (or (eq ?\. c)
+                  ;; ->
+                  (and (eq ?> c)
+                       (eq ?- (char-before (1- (point)))))
+                  ;; ::
+                  (and (eq ?: c)
+                       (eq ?: (char-before (1- (point))))))
+          (point)))))
+
+(ac-define-source rtags-completion
+  '((init . rtags-diagnostics)
+    (prefix . rtags-completion-prefix)
+    (candidates . rtags-completion-candidates)
+    (action . rtags-completion-action)
+    (document . rtags-completion-document)
+    (requires . 0)
+    (symbol . "r")))
+
 (provide 'rtags)
 
 ;;; rtags.el ends here
