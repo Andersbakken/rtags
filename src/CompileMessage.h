@@ -35,17 +35,12 @@ public:
     String &&takeArguments() { return std::move(mArgs); }
     void setArguments(const String &arguments) { mArgs = arguments; }
 
-    void setProjects(const List<String> &projects) { mProjects = projects; }
-    const List<String> &projects() const { return mProjects; }
-    List<String> &&takeProjects() { return std::move(mProjects); }
-
     bool escape() const { return mEscape; }
 
     virtual void encode(Serializer &serializer) const;
     virtual void decode(Deserializer &deserializer);
 private:
     Path mWorkingDirectory;
-    List<String> mProjects;
     String mArgs;
     bool mEscape;
 };

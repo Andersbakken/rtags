@@ -45,7 +45,7 @@ public:
     const Hash<Path, String> &unsavedFiles() const { return mUnsavedFiles; }
 
     const List<String> &rdmArgs() const { return mRdmArgs; }
-    const List<String> &projects() const { return mProjects; }
+    const Path &currentFile() const { return mCurrentFile; }
 
     String socketFile() const { return mSocketFile; }
 
@@ -57,7 +57,7 @@ public:
     char **argv() const { return mArgv; }
     void onNewMessage(const Message *message, Connection *);
 private:
-    void addQuery(QueryMessage::Type t, const String &query = String());
+    void addQuery(QueryMessage::Type t, const String &query = String(), unsigned int extraQueryFlags = 0);
 
     void addLog(int level);
     enum EscapeMode {
@@ -76,7 +76,7 @@ private:
     List<std::shared_ptr<RCCommand> > mCommands;
     List<String> mRdmArgs;
     String mSocketFile;
-    List<String> mProjects;
+    Path mCurrentFile;
     EscapeMode mEscapeMode;
 
     int mArgc;

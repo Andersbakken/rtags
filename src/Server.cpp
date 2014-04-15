@@ -112,7 +112,7 @@ static const bool debugMulti = getenv("RDM_DEBUG_MULTI");
 
 Server *Server::sInstance = 0;
 Server::Server()
-    : mVerbose(false), mConnectToServerFailures(0), mCurrentFileId(0), mThreadPool(0),
+    : mVerbose(false), mConnectToServerFailures(0), mThreadPool(0),
       mServerConnection(0), mCompletionThread(0), mFirstRemote(0), mLastRemote(0),
       mAnnounced(false), mWorkPending(false), mExitCode(0)
 {
@@ -239,9 +239,12 @@ bool Server::init(const Options &options)
         Path current = Path(mOptions.dataDir + ".currentProject").readAll(1024);
         if (current.size() > 1) {
             current.chop(1);
-            if (!setCurrentProject(current)) {
+            const auto project = mProjects.value(current);
+            if (!project) {
                 error() << "Can't restore project" << current;
                 unlink((mOptions.dataDir + ".currentProject").constData());
+            } else {
+                setCurrentProject(project);
             }
         }
     }
@@ -444,8 +447,7 @@ void Server::onNewMessage(Message *message, Connection *connection)
     }
 }
 
-bool Server::index(const String &arguments, const Path &pwd,
-                   const List<String> &withProjects, bool escape)
+bool Server::index(const String &arguments, const Path &pwd, bool escape)
 {
     Path unresolvedPath;
     unsigned int flags = Source::None;
@@ -454,11 +456,32 @@ bool Server::index(const String &arguments, const Path &pwd,
     Source source = Source::parse(arguments, pwd, flags, &unresolvedPath);
     if (!source.isIndexable())
         return false;
-    Path project = findProject(source.sourceFile(), unresolvedPath, withProjects);
-    if (!shouldIndex(source, project))
+
+    const Path path = source.sourceFile();
+
+    std::shared_ptr<Project> current = currentProject();
+    Path root;
+    if (current && (current->match(unresolvedPath) || (path != unresolvedPath && current->match(path)))) {
+        root = current->path();
+    } else {
+        for (const auto &proj : mProjects) {
+            if (proj.second->match(unresolvedPath) || (path != unresolvedPath && proj.second->match(path))) {
+                root = proj.first;
+                break;
+            }
+        }
+    }
+
+    if (root.isEmpty()) {
+        root = RTags::findProjectRoot(unresolvedPath, RTags::SourceRoot);
+        if (root.isEmpty() && path != unresolvedPath)
+            root = RTags::findProjectRoot(path, RTags::SourceRoot);
+    }
+
+    if (!shouldIndex(source, root))
         return false;
 
-    preprocess(std::move(source), std::move(project), IndexerJob::Compile);
+    preprocess(std::move(source), std::move(root), IndexerJob::Compile);
     return true;
 }
 
@@ -488,7 +511,7 @@ void Server::preprocess(Source &&source, Path &&srcRoot, uint32_t flags)
 
 void Server::handleCompileMessage(CompileMessage &message, Connection *conn)
 {
-    const bool ret = index(message.arguments(), message.workingDirectory(), message.projects(), message.escape());
+    const bool ret = index(message.arguments(), message.workingDirectory(), message.escape());
     conn->finish(ret ? 0 : 1);
 }
 
@@ -570,7 +593,6 @@ void Server::handleQueryMessage(const QueryMessage &message, Connection *conn)
     if (!(message.flags() & QueryMessage::SilentQuery))
         error() << message.raw();
     conn->setSilent(message.flags() & QueryMessage::Silent);
-    updateProject(message.projects(), message.flags());
 
     switch (message.type()) {
     case QueryMessage::Invalid:
@@ -686,7 +708,7 @@ void Server::followLocation(const QueryMessage &query, Connection *conn)
         conn->finish(1);
         return;
     }
-    std::shared_ptr<Project> project = updateProjectForLocation(loc.path());
+    std::shared_ptr<Project> project = projectForQuery(query);
     if (!project) {
         error("No project");
         conn->finish(1);
@@ -719,7 +741,7 @@ void Server::removeFile(const QueryMessage &query, Connection *conn)
 {
     // Path path = query.path();
     const Match match = query.match();
-    std::shared_ptr<Project> project = updateProjectForLocation(match);
+    std::shared_ptr<Project> project = projectForQuery(query);
     if (!project)
         project = currentProject();
 
@@ -766,7 +788,7 @@ void Server::dumpFile(const QueryMessage &query, Connection *conn)
         return;
     }
 
-    std::shared_ptr<Project> project = updateProjectForLocation(Location::path(fileId));
+    std::shared_ptr<Project> project = projectForQuery(query);
     if (!project || project->state() != Project::Loaded) {
         conn->write<256>("%s is not indexed", query.query().constData());
         conn->finish();
@@ -793,7 +815,7 @@ void Server::cursorInfo(const QueryMessage &query, Connection *conn)
         conn->finish();
         return;
     }
-    std::shared_ptr<Project> project = updateProjectForLocation(loc.path());
+    std::shared_ptr<Project> project = projectForQuery(query);
 
     if (!project) {
         conn->finish();
@@ -810,7 +832,7 @@ void Server::cursorInfo(const QueryMessage &query, Connection *conn)
 void Server::dependencies(const QueryMessage &query, Connection *conn)
 {
     const Path path = query.query();
-    std::shared_ptr<Project> project = updateProjectForLocation(path);
+    std::shared_ptr<Project> project = projectForQuery(query);
     if (!project) {
         conn->finish();
         return;
@@ -827,7 +849,7 @@ void Server::dependencies(const QueryMessage &query, Connection *conn)
 
 void Server::fixIts(const QueryMessage &query, Connection *conn)
 {
-    std::shared_ptr<Project> project = updateProjectForLocation(query.match());
+    std::shared_ptr<Project> project = projectForQuery(query);
     if (project && project->state() == Project::Loaded) {
         String out = project->fixIts(Location::fileId(query.query()));
         if (!out.isEmpty())
@@ -844,7 +866,7 @@ void Server::referencesForLocation(const QueryMessage &query, Connection *conn)
         conn->finish();
         return;
     }
-    std::shared_ptr<Project> project = updateProjectForLocation(loc.path());
+    std::shared_ptr<Project> project = projectForQuery(query);
 
     if (!project) {
         error("No project");
@@ -944,7 +966,7 @@ void Server::isIndexed(const QueryMessage &query, Connection *conn)
 {
     String ret = "unknown";
     const Match match = query.match();
-    std::shared_ptr<Project> project = updateProjectForLocation(match);
+    std::shared_ptr<Project> project = projectForQuery(query);
     if (project) {
         bool indexed = false;
         if (project->match(match, &indexed))
@@ -973,7 +995,7 @@ void Server::reloadFileManager(const QueryMessage &, Connection *conn)
 void Server::hasFileManager(const QueryMessage &query, Connection *conn)
 {
     const Path path = query.query();
-    std::shared_ptr<Project> project = updateProjectForLocation(path);
+    std::shared_ptr<Project> project = projectForQuery(query);
     if (project && project->fileManager && (project->fileManager->contains(path) || project->match(query.match()))) {
         if (!(query.flags() & QueryMessage::SilentQuery))
             error("=> 1");
@@ -989,7 +1011,7 @@ void Server::hasFileManager(const QueryMessage &query, Connection *conn)
 void Server::preprocessFile(const QueryMessage &query, Connection *conn)
 {
     const Path path = query.query();
-    std::shared_ptr<Project> project = updateProjectForLocation(path);
+    std::shared_ptr<Project> project = projectForQuery(query);
     if (!project) {
         conn->write("No project");
         conn->finish();
@@ -1016,15 +1038,14 @@ void Server::clearProjects()
     for (const auto &it : mProjects)
         it.second->unload();
     Rct::removeDirectory(mOptions.dataDir);
-    mCurrentProject.reset();
-    unlink((mOptions.dataDir + ".currentProject").constData());
+    setCurrentProject(std::shared_ptr<Project>());
     mProjects.clear();
 }
 
 void Server::reindex(const QueryMessage &query, Connection *conn)
 {
     Match match = query.match();
-    std::shared_ptr<Project> project = updateProjectForLocation(match);
+    std::shared_ptr<Project> project = projectForQuery(query);
     if (!project) {
         project = currentProject();
         if (!project) {
@@ -1075,109 +1096,76 @@ bool Server::shouldIndex(const Source &source, const Path &srcRoot) const
     return true;
 }
 
-Path Server::findProject(const Path &path, const Path &unresolvedPath, const List<String> &withProjects) const
-{
-    std::shared_ptr<Project> current = mCurrentProject.lock();
-    if (current && (current->match(unresolvedPath) || (path != unresolvedPath && current->match(path))))
-        return current->path();
-
-    for (auto it = mProjects.begin(); it != mProjects.end(); ++it) {
-        if (it->second->match(unresolvedPath) || (path != unresolvedPath && it->second->match(path)))
-            return it->first;
-    }
-
-    for (auto it = mProjects.begin(); it != mProjects.end(); ++it) {
-        for (auto p = withProjects.begin(); p != withProjects.end(); ++p) {
-            if (it->second->match(*p))
-                return it->first;
-        }
-    }
-
-    const Path root = RTags::findProjectRoot(unresolvedPath, RTags::SourceRoot);
-    if (root.isEmpty() && path != unresolvedPath)
-        return RTags::findProjectRoot(path, RTags::SourceRoot);
-    return root;
-}
-
 void Server::index(const Source &source, const std::shared_ptr<Cpp> &cpp,
                    const std::shared_ptr<Project> &project, uint32_t flags)
 {
     warning() << "Indexing" << source << "in" << project->path();
-    if (!mCurrentProject.lock()) {
-        mCurrentProject = project;
-        setupCurrentProjectFile(project);
-    }
+    if (!currentProject())
+        setCurrentProject(project);
     assert(project);
     project->index(source, cpp, flags);
 }
 
-std::shared_ptr<Project> Server::setCurrentProject(const Path &path, unsigned int queryFlags) // lock always held
+void Server::setCurrentProject(const std::shared_ptr<Project> &project, unsigned int queryFlags)
 {
-    auto it = mProjects.find(path);
-    if (it != mProjects.end()) {
-        setCurrentProject(it->second, queryFlags);
-        return it->second;
-    }
-    return std::shared_ptr<Project>();
-}
-
-void Server::setupCurrentProjectFile(const std::shared_ptr<Project> &project)
-{
-    if (project) {
-        Path::mkdir(mOptions.dataDir);
-        FILE *f = fopen((mOptions.dataDir + ".currentProject").constData(), "w");
-        if (f) {
-            if (!fwrite(project->path().constData(), project->path().size(), 1, f) || !fwrite("\n", 1, 1, f)) {
-                error() << "error writing to" << (mOptions.dataDir + ".currentProject");
-                fclose(f);
-                unlink((mOptions.dataDir + ".currentProject").constData());
-            } else {
-                fclose(f);
-            }
-        } else {
-            error() << "error opening" << (mOptions.dataDir + ".currentProject") << "for write";
-        }
-    } else {
-        Path::rm(mOptions.dataDir + ".currentProject");
-    }
-}
-
-std::shared_ptr<Project> Server::setCurrentProject(const std::shared_ptr<Project> &project, unsigned int queryFlags)
-{
-    std::shared_ptr<Project> old = mCurrentProject.lock();
-    if (project && project != old) {
+    std::shared_ptr<Project> old = currentProject();
+    if (project != old) {
         if (old && old->fileManager)
             old->fileManager->clearFileSystemWatcher();
         mCurrentProject = project;
-        setupCurrentProjectFile(project);
-
-        Project::FileManagerMode mode = Project::FileManager_Asynchronous;
-        if (queryFlags & QueryMessage::WaitForLoadProject)
-            mode = Project::FileManager_Synchronous;
-        switch (project->state()) {
-        case Project::Loaded:
-        case Project::Inited:
-            project->fileManager->reload(FileManager::Asynchronous);
-            break;
-        default:
-            break;
+        if (project) {
+            Path::mkdir(mOptions.dataDir);
+            FILE *f = fopen((mOptions.dataDir + ".currentProject").constData(), "w");
+            if (f) {
+                if (!fwrite(project->path().constData(), project->path().size(), 1, f) || !fwrite("\n", 1, 1, f)) {
+                    error() << "error writing to" << (mOptions.dataDir + ".currentProject");
+                    fclose(f);
+                    unlink((mOptions.dataDir + ".currentProject").constData());
+                } else {
+                    fclose(f);
+                }
+            } else {
+                error() << "error opening" << (mOptions.dataDir + ".currentProject") << "for write";
+            }
+            Project::FileManagerMode mode = Project::FileManager_Asynchronous;
+            if (queryFlags & QueryMessage::WaitForLoadProject)
+                mode = Project::FileManager_Synchronous;
+            switch (project->state()) {
+            case Project::Loaded:
+            case Project::Inited:
+                project->fileManager->reload(FileManager::Asynchronous);
+                break;
+            default:
+                break;
+            }
+            project->load(mode);
+        } else {
+            Path::rm(mOptions.dataDir + ".currentProject");
         }
-        project->load(mode);
-        return project;
     }
-    return std::shared_ptr<Project>();
 }
 
-std::shared_ptr<Project> Server::updateProjectForLocation(const Match &match)
+std::shared_ptr<Project> Server::projectForQuery(const QueryMessage &query)
 {
+    Match matches[2];
+    if (query.flags() & QueryMessage::HasLocation) {
+        matches[0] = query.location().path();
+    } else {
+        matches[0] = query.match();
+    }
+    matches[1] = query.currentFile();
     std::shared_ptr<Project> cur = currentProject();
     // give current a chance first to avoid switching project when using system headers etc
-    if (cur && cur->match(match))
-        return cur;
+    for (int i=0; i<2; ++i) {
+        const Match &match = matches[i];
+        if (cur && cur->match(match))
+            return cur;
 
-    for (const auto &it : mProjects) {
-        if (it.second != cur && it.second->match(match)) {
-            return setCurrentProject(it.second->path());
+        for (const auto &it : mProjects) {
+            if (it.second != cur && it.second->match(match)) {
+                setCurrentProject(it.second, query.flags());
+                return it.second;
+            }
         }
     }
     return std::shared_ptr<Project>();
@@ -1194,9 +1182,8 @@ void Server::removeProject(const QueryMessage &query, Connection *conn)
         auto cur = it++;
         if (cur->second->match(match)) {
             found = true;
-            if (mCurrentProject.lock() == cur->second) {
-                mCurrentProject.reset();
-                setupCurrentProjectFile(std::shared_ptr<Project>());
+            if (currentProject() == cur->second) {
+                setCurrentProject(std::shared_ptr<Project>());
             }
             cur->second->unload();
             Path path = cur->first;
@@ -1222,77 +1209,29 @@ void Server::reloadProjects(const QueryMessage &query, Connection *conn)
     conn->finish();
 }
 
-bool Server::selectProject(const Match &match, Connection *conn, unsigned int queryFlags)
-{
-    std::shared_ptr<Project> selected;
-    bool error = false;
-    for (const auto &it : mProjects) {
-        if (it.second->match(match)) {
-            if (error) {
-                if (conn)
-                    conn->write(it.first);
-            } else if (selected) {
-                error = true;
-                if (conn) {
-                    conn->write<128>("Multiple matches for %s", match.pattern().constData());
-                    conn->write(selected->path());
-                    conn->write(it.first);
-                }
-                selected.reset();
-            } else {
-                selected = it.second;
-                const Path p = match.pattern();
-                if (p.isFile()) {
-                    // ### this needs to deal with dependencies for headers
-                    mCurrentFileId = Location::fileId(p);
-                } else {
-                    mCurrentFileId = 0;
-                }
-            }
-        }
-    }
-    if (selected) {
-        if (setCurrentProject(selected, queryFlags) && conn)
-            conn->write<128>("Selected project: %s for %s", selected->path().constData(), match.pattern().constData());
-        return true;
-    } else if (!error && conn) {
-        conn->write<128>("No matches for %s", match.pattern().constData());
-    }
-    return false;
-}
-
-bool Server::updateProject(const List<String> &projects, unsigned int queryFlags)
-{
-    for (int i=0; i<projects.size(); ++i) {
-        if (selectProject(projects.at(i), 0, queryFlags))
-            return true;
-    }
-    return false;
-}
-
 void Server::project(const QueryMessage &query, Connection *conn)
 {
     if (query.query().isEmpty()) {
-        const std::shared_ptr<Project> current = mCurrentProject.lock();
+        const std::shared_ptr<Project> current = currentProject();
         const char *states[] = { "(unloaded)", "(inited)", "(loading)", "(loaded)", "(syncing)" };
         for (const auto &it : mProjects) {
             conn->write<128>("%s %s%s", it.first.constData(), states[it.second->state()], it.second == current ? " <=" : "");
         }
     } else {
-        Path selected;
+        std::shared_ptr<Project> selected;
         bool error = false;
         const Match match = query.match();
         const auto it = mProjects.find(match.pattern());
         bool ok = false;
         unsigned long long index = query.query().toULongLong(&ok);
         if (it != mProjects.end()) {
-            selected = it->first;
+            selected = it->second;
         } else {
             for (const auto &pit : mProjects) {
                 assert(pit.second);
                 if (ok) {
                     if (!index) {
-                        selected = pit.first;
+                        selected = pit.second;
                     } else {
                         --index;
                     }
@@ -1300,24 +1239,23 @@ void Server::project(const QueryMessage &query, Connection *conn)
                 if (pit.second->match(match)) {
                     if (error) {
                         conn->write(pit.first);
-                    } else if (!selected.isEmpty()) {
+                    } else if (selected) {
                         error = true;
                         conn->write<128>("Multiple matches for %s", match.pattern().constData());
-                        conn->write(selected);
+                        conn->write(selected->path());
                         conn->write(pit.first);
-                        selected.clear();
+                        selected.reset();
                     } else {
-                        selected = pit.first;
+                        selected = pit.second;
                     }
                 }
             }
         }
-        if (!selected.isEmpty()) {
-            std::shared_ptr<Project> current = mCurrentProject.lock();
-            if (!current || selected != current->path()) {
-                setCurrentProject(selected);
-                conn->write<128>("Selected project: %s for %s", selected.constData(), match.pattern().constData());
-            }
+        if (selected) {
+            setCurrentProject(selected);
+            conn->write<128>("Selected project: %s for %s",
+                             selected->path().constData(),
+                             match.pattern().constData());
         } else if (!error) {
             conn->write<128>("No matches for %s", match.pattern().constData());
         }
@@ -1387,7 +1325,7 @@ void Server::loadCompilationDatabase(const QueryMessage &query, Connection *conn
                 args += " ";
         }
 
-        index(args, dir, query.projects(), true);
+        index(args, dir, true);
     }
     clang_CompileCommands_dispose(cmds);
     clang_CompilationDatabase_dispose(db);
@@ -1421,7 +1359,7 @@ void Server::sources(const QueryMessage &query, Connection *conn)
     const bool flagsOnly = query.flags() & QueryMessage::CompilationFlagsOnly;
     const bool splitLine = query.flags() & QueryMessage::CompilationFlagsSplitLine;
     if (path.isFile()) {
-        std::shared_ptr<Project> project = updateProjectForLocation(path);
+        std::shared_ptr<Project> project = projectForQuery(query);
         if (project) {
             if (project->state() != Project::Loaded) {
                 conn->write("Project loading");
@@ -1490,7 +1428,7 @@ void Server::suspendFile(const QueryMessage &query, Connection *conn)
     if (match.isEmpty() || match.pattern() == "clear") {
         project = currentProject();
     } else {
-        project = updateProjectForLocation(match);
+        project = projectForQuery(query);
     }
     if (!project) {
         conn->write("No project");
@@ -1758,7 +1696,7 @@ bool Server::saveFileIds() const
 
 void Server::onUnload()
 {
-    std::shared_ptr<Project> cur = mCurrentProject.lock();
+    std::shared_ptr<Project> cur = currentProject();
     for (const auto &it : mProjects) {
         if (it.second->state() != Project::Unloaded && it.second != cur && !it.second->isIndexing()) {
             it.second->unload();
@@ -1936,7 +1874,7 @@ void Server::codeCompleteAt(const QueryMessage &query, Connection *conn)
     Path path;
     int line, column;
     deserializer >> path >> line >> column;
-    std::shared_ptr<Project> project = updateProjectForLocation(path);
+    std::shared_ptr<Project> project = projectForQuery(query);
     if (!project) {
         conn->write<128>("No project found for %s", path.constData());
         conn->finish();

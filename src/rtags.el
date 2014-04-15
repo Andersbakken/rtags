@@ -293,9 +293,9 @@
           (if (and rtags-show-containing-function (not (member "-N" arguments)))
               (push "-o" arguments))
 
-          (cond ((stringp path) (push (concat "--with-project=" path) arguments))
+          (cond ((stringp path) (push (concat "--current-file=" path) arguments))
                 (path nil)
-                (default-directory (push (concat "--with-project=" default-directory) arguments))
+                (default-directory (push (concat "--current-file=" default-directory) arguments))
                 (t nil))
           (if (and context (not (rtags-is-c++-keyword context)))
               (push (concat "--context=" context) arguments))
@@ -1276,9 +1276,9 @@ References to references will be treated as references to the referenced symbol"
                (path (buffer-file-name))
                (arguments (list "-T" path "--silent-query")))
           (when rc
-            (push (concat "--with-project=" path) arguments)
+            (push (concat "--current-file=" path) arguments)
             (let ((mapped (if rtags-match-source-file-to-project (apply rtags-match-source-file-to-project (list path)))))
-              (if (and mapped (length mapped)) (push (concat "--with-project=" mapped) arguments)))
+              (if (and mapped (length mapped)) (push (concat "--current-file=" mapped) arguments)))
             (apply #'start-process "rtags-update-current-project" nil rc arguments))))
     (error (message "Got error in rtags-update-current-project"))))
 

@@ -101,7 +101,6 @@ public:
     };
     bool init(const Options &options);
     const Options &options() const { return mOptions; }
-    uint32_t currentFileId() const { return mCurrentFileId; }
     bool saveFileIds() const;
     void onJobOutput(JobOutput&& out);
     void addJob(const std::shared_ptr<IndexerJob> &job);
@@ -110,21 +109,16 @@ public:
                const std::shared_ptr<Project> &project, uint32_t flags);
     void preprocess(Source &&source, Path &&project, uint32_t indexerJobFlags);
     bool shouldIndex(const Source &source, const Path &project) const;
-    Path findProject(const Path &path, const Path &unresolvedPath, const List<String> &withProjects) const;
     void stopServers();
     int mongooseStatistics(struct mg_connection *conn);
     void dumpJobs(Connection *conn);
     int exitCode() const { return mExitCode; }
 private:
-    bool selectProject(const Match &match, Connection *conn, unsigned int queryFlags);
-    bool updateProject(const List<String> &projects, unsigned int queryFlags);
     void restoreFileIds();
     void clear();
-    bool index(const String &arguments, const Path &pwd,
-               const List<String> &withProjects, bool escape);
+    bool index(const String &arguments, const Path &pwd, bool escape);
     void onNewConnection(SocketServer *server);
-    std::shared_ptr<Project> setCurrentProject(const Path &path, unsigned int queryFlags = 0);
-    std::shared_ptr<Project> setCurrentProject(const std::shared_ptr<Project> &project, unsigned int queryFlags = 0);
+    void setCurrentProject(const std::shared_ptr<Project> &project, unsigned int queryFlags = 0);
     void onUnload();
     void onReschedule();
     void onNewMessage(Message *message, Connection *conn);
@@ -179,8 +173,7 @@ private:
     void syncProject(const QueryMessage &qyery, Connection *conn);
     void suspendFile(const QueryMessage &query, Connection *conn);
 
-    std::shared_ptr<Project> updateProjectForLocation(const Match &match);
-    void setupCurrentProjectFile(const std::shared_ptr<Project> &project);
+    std::shared_ptr<Project> projectForQuery(const QueryMessage &queryMessage);
     std::shared_ptr<Project> currentProject() const { return mCurrentProject.lock(); }
     int reloadProjects();
     std::shared_ptr<Project> addProject(const Path &path);
@@ -211,7 +204,6 @@ private:
     Timer mUnloadTimer, mRescheduleTimer, mConnectToServerTimer;
     int mConnectToServerFailures;
 
-    uint32_t mCurrentFileId;
     LinkedList<std::shared_ptr<IndexerJob> > mPending;
     LinkedList<std::shared_ptr<PreprocessJob> > mPendingPreprocessJobs;
     Hash<uint64_t, std::shared_ptr<IndexerJob> > mProcessingJobs;

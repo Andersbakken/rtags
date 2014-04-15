@@ -105,7 +105,7 @@ enum OptionType {
     UnloadProject,
     UnsavedFile,
     Verbose,
-    WithProject,
+    CurrentFile,
     XmlDiagnostics
 };
 
@@ -207,7 +207,7 @@ struct Option opts[] = {
     { CursorInfoIncludeReferences, "cursorinfo-include-references", 0, no_argument, "Use to make --cursor-info include reference cursors." },
     { CursorKind, "cursor-kind", 0, no_argument, "Include cursor kind in --find-symbols output." },
     { DisplayName, "display-name", 0, no_argument, "Include display name in --find-symbols output." },
-    { WithProject, "with-project", 0, required_argument, "Like --project but pass as a flag." },
+    { CurrentFile, "current-file", 0, required_argument, "Pass along which file is being edited to give rdm a better chance at picking the right project." },
     { DeclarationOnly, "declaration-only", 0, no_argument, "Filter out definitions (unless inline).", },
     { IMenu, "imenu", 0, no_argument, "Use with --list-symbols to provide output for (rtags-imenu) (filter namespaces, fully qualified function names, ignore certain cursors etc)." },
     { Context, "context", 't', required_argument, "Context for current symbol (for fuzzy matching with dirty files)." }, // ### multiple context doesn't work
@@ -335,7 +335,7 @@ public:
         msg.setMax(rc->max());
         msg.setPathFilters(rc->pathFilters().toList());
         msg.setRangeFilter(rc->minOffset(), rc->maxOffset());
-        msg.setProjects(rc->projects());
+        msg.setCurrentFile(rc->currentFile());
         return connection->send(msg);
     }
 
@@ -392,7 +392,6 @@ public:
         }
         CompileMessage msg(cwd, args, escape);
         msg.init(rc->argc(), rc->argv());
-        msg.setProjects(rc->projects());
         return connection->send(msg);
     }
     virtual String description() const
@@ -413,11 +412,10 @@ RClient::~RClient()
     cleanupLogging();
 }
 
-void RClient::addQuery(QueryMessage::Type type, const String &query)
+void RClient::addQuery(QueryMessage::Type type, const String &query, unsigned int extraQueryFlags)
 {
     std::shared_ptr<QueryCommand> cmd(new QueryCommand(type, query));
-    if (type == QueryMessage::FindFile)
-        cmd->extraQueryFlags = QueryMessage::WaitForLoadProject;
+    cmd->extraQueryFlags = extraQueryFlags;
     mCommands.append(cmd);
 }
 
@@ -752,7 +750,7 @@ bool RClient::parse(int &argc, char **argv)
         case FollowLocation:
         case CursorInfo:
         case ReferenceLocation: {
-            const String encoded = Location::encodeClientLocation(optarg);
+            const String encoded = Location::encode(optarg);
             if (encoded.isEmpty()) {
                 fprintf(stderr, "Can't resolve argument %s\n", optarg);
                 return false;
@@ -764,10 +762,10 @@ bool RClient::parse(int &argc, char **argv)
             case ReferenceLocation: type = QueryMessage::ReferencesLocation; break;
             default: assert(0); break;
             }
-            addQuery(type, encoded);
+            addQuery(type, encoded, QueryMessage::HasLocation);
             break; }
-        case WithProject:
-            mProjects.append(optarg);
+        case CurrentFile:
+            mCurrentFile.append(optarg);
             break;
         case ReloadFileManager:
             addQuery(QueryMessage::ReloadFileManager);
@@ -846,11 +844,12 @@ bool RClient::parse(int &argc, char **argv)
         case Sources:
         case JobCount:
         case Status: {
+            unsigned int extraQueryFlags = 0;
             QueryMessage::Type type = QueryMessage::Invalid;
             switch (opt->option) {
             case Reindex: type = QueryMessage::Reindex; break;
             case Project: type = QueryMessage::Project; break;
-            case FindFile: type = QueryMessage::FindFile; break;
+            case FindFile: type = QueryMessage::FindFile; extraQueryFlags = QueryMessage::WaitForLoadProject; break;
             case Sources: type = QueryMessage::Sources; break;
             case Status: type = QueryMessage::Status; break;
             case ListSymbols: type = QueryMessage::ListSymbols; break;
@@ -869,12 +868,12 @@ bool RClient::parse(int &argc, char **argv)
                 Path p(arg);
                 if (p.exists()) {
                     p.resolve();
-                    addQuery(type, p);
+                    addQuery(type, p, extraQueryFlags);
                 } else {
-                    addQuery(type, arg);
+                    addQuery(type, arg, extraQueryFlags);
                 }
             } else {
-                addQuery(type);
+                addQuery(type, String(), extraQueryFlags);
             }
             assert(!mCommands.isEmpty());
             if (type == QueryMessage::Project)

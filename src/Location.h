@@ -137,7 +137,7 @@ public:
     };
 
     String key(unsigned flags = NoFlag) const;
-    static Location decodeClientLocation(const String &data)
+    static Location decode(const String &data)
     {
         uint32_t col;
         uint32_t line;
@@ -152,7 +152,7 @@ public:
         error("Failed to make location from [%s:%d:%d]", path.constData(), line, col);
         return Location();
     }
-    static String encodeClientLocation(const String &key)
+    static String encode(const String &key)
     {
         char path[PATH_MAX];
         uint32_t line, col;
