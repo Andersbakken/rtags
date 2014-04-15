@@ -1339,6 +1339,12 @@ References to references will be treated as references to the referenced symbol"
   str)
 
 (defvar rtags-pending-diagnostics nil)
+
+;; ;; Regexp below generated w/
+;; (regexp-opt '("</checkstyle>"
+;; 	      "</progress>"
+;; 	      "</completions>"))
+
 (defun rtags-diagnostics-process-filter (process output)
   (let ((errors)
         (oldbuffer (current-buffer))
@@ -1349,22 +1355,16 @@ References to references will be treated as references to the referenced symbol"
       (setq rtags-pending-diagnostics nil))
     (with-current-buffer (process-buffer process)
       (setq buffer-read-only nil)
-      ;; (message "matching [%s]" output)
-      (let (endpos length current)
-        (while (cond ((setq endpos (string-match "</checkstyle>" output))
-                      (setq length 13))
-                     ((setq endpos (string-match "</progress>" output))
-                      (setq length 11))
-                     ((setq endpos (string-match "</completions>" output))
-                      (setq length 14))
-                     (t nil))
+      ;(message "matching [%s]" output)
+      (let ((matchrx "\\(?:</\\(?:\\(?:c\\(?:heckstyle\\|ompletions\\)\\|progress\\)>\\)\\)")
+	    endpos length current)
+        (while (string-match matchrx output)
+	  (setq endpos (match-beginning 0)
+		length (- (match-end 0) endpos))
           (setq current (substring output 0 (+ endpos length)))
           (setq output (rtags-trim-whitespace (substring output (+ endpos length))))
-          (setq endpos (or (string-match "</checkstyle>" output)
-                           (string-match "</progress>" output)
-                           (string-match "</completions>" output)))
           (rtags-reset-bookmarks)
-          (rtags-parse-diagnostics (rtags-trim-whitespace current))))
+	  (rtags-parse-diagnostics (rtags-trim-whitespace current))))
       (setq buffer-read-only t)
       (when (> (length output) 0)
         (setq rtags-pending-diagnostics output)))))
