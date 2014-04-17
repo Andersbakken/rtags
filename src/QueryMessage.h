@@ -65,33 +65,34 @@ public:
     };
 
     enum Flag {
-        NoContext = 0x0000001,
-        FilterSystemIncludes = 0x0000004,
-        StripParentheses = 0x0000008,
-        AllReferences = 0x0000010,
-        ReverseSort = 0x0000020,
-        ElispList = 0x0000040,
-        IMenu = 0x0000080,
-        MatchRegexp = 0x0000100,
-        MatchCaseInsensitive = 0x0000200,
-        FindVirtuals = 0x0000400,
-        Silent = 0x0000800,
-        AbsolutePath = 0x0001000,
-        FindFilePreferExact = 0x0002000,
-        CursorInfoIncludeParents = 0x0004000,
-        CursorInfoIncludeTargets = 0x0008000,
-        CursorInfoIncludeReferences = 0x0010000,
-        DeclarationOnly = 0x0020000,
-        ContainingFunction = 0x0040000,
-        WaitForLoadProject = 0x0080000,
-        CursorKind = 0x0100000,
-        DisplayName = 0x0200000,
-        CompilationFlagsOnly = 0x0400000,
-        CompilationFlagsSplitLine = 0x0800000,
-        DumpIncludeHeaders = 0x1000000,
-        SilentQuery = 0x2000000,
-        SynchronousCompletions = 0x4000000,
-        NoSortReferencesByInput = 0x8000000
+        NoContext = 0x00000001,
+        FilterSystemIncludes = 0x00000004,
+        StripParentheses = 0x00000008,
+        AllReferences = 0x00000010,
+        ReverseSort = 0x00000020,
+        ElispList = 0x00000040,
+        IMenu = 0x00000080,
+        MatchRegexp = 0x00000100,
+        MatchCaseInsensitive = 0x00000200,
+        FindVirtuals = 0x00000400,
+        Silent = 0x00000800,
+        AbsolutePath = 0x00001000,
+        FindFilePreferExact = 0x00002000,
+        CursorInfoIncludeParents = 0x00004000,
+        CursorInfoIncludeTargets = 0x00008000,
+        CursorInfoIncludeReferences = 0x00010000,
+        DeclarationOnly = 0x00020000,
+        ContainingFunction = 0x00040000,
+        WaitForLoadProject = 0x00080000,
+        CursorKind = 0x00100000,
+        DisplayName = 0x00200000,
+        CompilationFlagsOnly = 0x00400000,
+        CompilationFlagsSplitLine = 0x00800000,
+        DumpIncludeHeaders = 0x01000000,
+        SilentQuery = 0x02000000,
+        SynchronousCompletions = 0x04000000,
+        NoSortReferencesByInput = 0x08000000,
+        HasLocation = 0x10000000
     };
 
     QueryMessage(Type type = Invalid);
@@ -112,7 +113,7 @@ public:
     String context() const { return mContext; }
 
     String query() const { return mQuery; }
-    Location location() const { return Location::decodeClientLocation(mQuery); }
+    Location location() const { return Location::decode(mQuery); }
     void setQuery(const String &query) { mQuery = query; }
     void setBuildIndex(int index) { mBuildIndex = index; }
     int buildIndex() const { return mBuildIndex; }
@@ -156,16 +157,16 @@ public:
     virtual void encode(Serializer &serializer) const;
     virtual void decode(Deserializer &deserializer);
 
-    void addProject(const Path &project) { mProjects.append(project); }
-    void setProjects(const List<String> &projects) { mProjects = projects; }
-    List<String> projects() const { return mProjects; }
+    void addProject(const Path &project) { mCurrentFile.append(project); }
+    void setCurrentFile(const Path &currentFile) { mCurrentFile = currentFile; }
+    Path currentFile() const { return mCurrentFile; }
 private:
     String mQuery, mContext;
     Type mType;
     unsigned mFlags;
     int mMax, mMinLine, mMaxLine, mBuildIndex;
     List<String> mPathFilters;
-    List<String> mProjects;
+    Path mCurrentFile;
     Hash<Path, String> mUnsavedFiles;
 };
 

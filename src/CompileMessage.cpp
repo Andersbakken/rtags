@@ -23,10 +23,10 @@ CompileMessage::CompileMessage(const Path &cwd, const String &args, bool escape)
 
 void CompileMessage::encode(Serializer &serializer) const
 {
-    serializer << mRaw << mWorkingDirectory << mArgs << mProjects << mEscape;
+    serializer << mRaw << mWorkingDirectory << mArgs << mEscape;
 }
 
 void CompileMessage::decode(Deserializer &deserializer)
 {
-    deserializer >> mRaw >> mWorkingDirectory >> mArgs >> mProjects >> mEscape;
+    deserializer >> mRaw >> mWorkingDirectory >> mArgs >> mEscape;
 }

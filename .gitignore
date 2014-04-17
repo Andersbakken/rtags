@@ -35,3 +35,4 @@ gr
 /src/libshared.dylib
 /src/.gdb_brestore
 /src/.gdb_brestore.txt
+/.lsdev_default
