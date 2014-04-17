@@ -1340,34 +1340,29 @@ References to references will be treated as references to the referenced symbol"
 
 (defvar rtags-pending-diagnostics nil)
 
-;; ;; Regexp below generated w/
-;; (regexp-opt '("</checkstyle>"
-;; 	      "</progress>"
-;; 	      "</completions>"))
+(defconst rtags-diagnostics-process-regx
+  (regexp-opt '("</checkstyle>"
+		"</progress>"
+		"</completions>")))
 
 (defun rtags-diagnostics-process-filter (process output)
-  (let ((errors)
-        (oldbuffer (current-buffer))
-        (proc (get-process "RTags Diagnostics"))
-        (files (make-hash-table)))
-    (when rtags-pending-diagnostics
-      (setq output (concat rtags-pending-diagnostics output))
-      (setq rtags-pending-diagnostics nil))
-    (with-current-buffer (process-buffer process)
-      (setq buffer-read-only nil)
-      ;(message "matching [%s]" output)
-      (let ((matchrx "\\(?:</\\(?:\\(?:c\\(?:heckstyle\\|ompletions\\)\\|progress\\)>\\)\\)")
-	    endpos length current)
-        (while (string-match matchrx output)
-	  (setq endpos (match-beginning 0)
-		length (- (match-end 0) endpos))
-          (setq current (substring output 0 (+ endpos length)))
-          (setq output (rtags-trim-whitespace (substring output (+ endpos length))))
-          (rtags-reset-bookmarks)
-	  (rtags-parse-diagnostics (rtags-trim-whitespace current))))
-      (setq buffer-read-only t)
-      (when (> (length output) 0)
-        (setq rtags-pending-diagnostics output)))))
+  ;; Collect the xml diagnostics into "*RTags Raw*" until a closing tag is found
+  (with-current-buffer (get-buffer-create "*RTags Raw*")
+    (goto-char (point-max))
+    (insert output)
+    (goto-char (point-min))
+    (let ((matchrx rtags-diagnostics-process-regx)
+	  current endpos)
+      (while (search-forward-regexp matchrx (point-max) t)
+	(setq endpos (match-end 0))
+	(rtags-reset-bookmarks)
+	(setq current (buffer-substring-no-properties (point-min) endpos))
+	;; `rtags-parse-diagnostics' expects us to be in the process buffer
+	(with-current-buffer (process-buffer process)
+	  (setq buffer-read-only nil)
+	  (rtags-parse-diagnostics (rtags-trim-whitespace current))
+	  (setq buffer-read-only t))
+	(delete-region (point-min) endpos)))))
 
 (defvar rtags-diagnostics-mode-map (make-sparse-keymap))
 (define-key rtags-diagnostics-mode-map (kbd "q") 'rtags-bury-or-delete)
