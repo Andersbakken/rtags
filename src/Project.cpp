@@ -893,16 +893,34 @@ static inline bool checkFunction(unsigned int kind)
 
 static inline bool matchSymbolName(const String &needle, const String &haystack, bool checkFunction)
 {
-    int idx = checkFunction ? haystack.indexOf(")::") : -1;
-    // we generate symbols for arguments and local variables. E.g. there's a symbol with the symbolName:
-    // bool matchSymbolName(String &, String &, bool)::isFunction
-    // we don't want to match when we're searching for "matchSymbolName"
-    // so we start searching at the index of ):: if we're a function
-    while ((idx = haystack.indexOf(needle, idx + 1)) != -1) {
+    int start = 0;
+    int end = needle.size();
+    if (checkFunction) {
+        // we generate symbols for arguments and local variables. E.g. there's a symbol with the symbolName:
+        // bool matchSymbolName(String &, String &, bool)::isFunction
+        // we don't want to match when we're searching for "matchSymbolName"
+        // so we start searching at the index of ):: if we're a function
+        if ((start = haystack.indexOf(")::")) != -1) {
+            start += 2;
+        } else {
+            end = haystack.indexOf('(');
+            if (end == -1)
+                end = needle.size();
+            start = std::max(0, haystack.lastIndexOf("::", end));
+        }
+    }
+    while (true) {
+        const int idx = haystack.indexOf(needle, start);
+        if (idx == -1 || idx >= end) {
+            break;
+        }
+
+        // printf("idx %d\n", idx);
         if ((!idx || !RTags::isSymbol(haystack.at(idx - 1)))
             && (haystack.size() == needle.size() + idx || !RTags::isSymbol(haystack.at(idx + needle.size())))) {
             return true;
         }
+        start = idx + 1;
     }
     return false;
 }
