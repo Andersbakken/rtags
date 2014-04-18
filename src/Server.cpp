@@ -1252,10 +1252,14 @@ void Server::project(const QueryMessage &query, Connection *conn)
             }
         }
         if (selected) {
-            setCurrentProject(selected);
-            conn->write<128>("Selected project: %s for %s",
-                             selected->path().constData(),
-                             match.pattern().constData());
+            if (selected == currentProject()) {
+                conn->write<128>("%s is already the active project", selected->path().constData());
+            } else {
+                setCurrentProject(selected);
+                conn->write<128>("Selected project: %s for %s",
+                                 selected->path().constData(),
+                                 match.pattern().constData());
+            }
         } else if (!error) {
             conn->write<128>("No matches for %s", match.pattern().constData());
         }
