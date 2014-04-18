@@ -894,33 +894,28 @@ static inline bool checkFunction(unsigned int kind)
 static inline bool matchSymbolName(const String &needle, const String &haystack, bool checkFunction)
 {
     int start = 0;
-    int end = needle.size();
     if (checkFunction) {
-        // we generate symbols for arguments and local variables. E.g. there's a symbol with the symbolName:
-        // bool matchSymbolName(String &, String &, bool)::isFunction
-        // we don't want to match when we're searching for "matchSymbolName"
-        // so we start searching at the index of ):: if we're a function
-        if ((start = haystack.indexOf(")::")) != -1) {
+        // we generate symbols for arguments and local variables in functions
+        // . E.g. there's a symbol with the symbolName:
+        // bool matchSymbolName(String &, String &, bool)::checkFunction
+        // we don't want to match when we're searching for "matchSymbolName" so
+        // we start searching at the index of ):: if we're a function. That is
+        // unless you really sent in an exact match. In that case you deserve a
+        // hit.
+        if (needle == haystack)
+            return true;
+
+        start = haystack.indexOf(")::");
+        if (start != -1) {
             start += 2;
         } else {
-            end = haystack.indexOf('(');
-            if (end == -1)
-                end = needle.size();
-            start = std::max(0, haystack.lastIndexOf("::", end));
+            start = 0;
         }
     }
-    while (true) {
-        const int idx = haystack.indexOf(needle, start);
-        if (idx == -1 || idx >= end) {
-            break;
-        }
-
-        // printf("idx %d\n", idx);
-        if ((!idx || !RTags::isSymbol(haystack.at(idx - 1)))
-            && (haystack.size() == needle.size() + idx || !RTags::isSymbol(haystack.at(idx + needle.size())))) {
-            return true;
-        }
-        start = idx + 1;
+    // We automagically generate symbols with stripped argument lists
+    if (!strncmp(needle.constData(), haystack.constData() + start, needle.size())
+        && (haystack.size() - start == needle.size() || haystack.at(start + needle.size()) == '(')) {
+        return true;
     }
     return false;
 }

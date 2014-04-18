@@ -234,6 +234,50 @@ Location ClangIndexer::createLocation(const Path &sourceFile, unsigned line, uns
     return Location(id, line, col);
 }
 
+static inline void tokenize(const char *buf, int start,
+                            int *templateStart, int *templateEnd,
+                            int *sectionCount, int sections[512])
+{
+    int templateCount = 0;
+    *templateStart = *templateEnd = -1;
+    *sectionCount = 1;
+    sections[0] = start;
+    int functionStart = -1;
+    int functionEnd = -1;
+
+    int idx = start;
+    while (true) {
+        switch (buf[++idx]) {
+        case '<':
+            if (!templateCount++)
+                *templateStart = idx;
+            break;
+        case '>':
+            if (!--templateCount)
+                *templateEnd = idx;
+            break;
+        case '(':
+            if (!templateCount)
+                functionStart = idx;
+            break;
+        case ')':
+            if (!templateCount)
+                functionEnd = idx;
+            break;
+        case ':':
+            if (!templateCount && (functionStart == -1 || functionEnd != -1)) {
+                assert(buf[idx + 1] == ':');
+                sections[(*sectionCount)++] = idx + 2;
+                ++idx;
+
+            }
+            break;
+        case '\0':
+            return;
+        }
+    }
+}
+
 String ClangIndexer::addNamePermutations(const CXCursor &cursor, const Location &location)
 {
     CXCursorKind kind = clang_getCursorKind(cursor);
@@ -244,7 +288,6 @@ String ClangIndexer::addNamePermutations(const CXCursor &cursor, const Location 
     int cutoff = -1;
 
     CXCursor c = cursor;
-    bool hasTemplates = false;
     do {
         CXStringScope displayName(clang_getCursorDisplayName(c));
         const char *name = displayName.data();
@@ -254,8 +297,6 @@ String ClangIndexer::addNamePermutations(const CXCursor &cursor, const Location 
         if (!len)
             break;
 
-        if (kind == CXCursor_ClassTemplate)
-            hasTemplates = true;
         if (pos != sizeof(buf) - 1 && (pos -= 2) >= 0) {
             memset(buf + pos, ':', 2);
         }
@@ -295,49 +336,51 @@ String ClangIndexer::addNamePermutations(const CXCursor &cursor, const Location 
         type = RTags::typeName(cursor);
         break;
     }
-    // if (originalKind == CXCursor_ParmDecl)
-    //     error() << "full:" << (buf + pos) << "type:" << type;
     if (cutoff == -1)
         cutoff = pos;
+
     String ret;
-    // i == 0 --> with templates, i == 1 without templates or without EnumConstantDecl part
+    int templateStart, templateEnd, colonColonCount;
+    int colonColons[512];
+    ::tokenize(buf, pos,
+               &templateStart, &templateEnd,
+               &colonColonCount, colonColons);
+
+    // i == 0 --> with templates,
+    // i == 1 without templates or without EnumConstantDecl part
     for (int i=0; i<2; ++i) {
-        {
-            char *ch = buf + pos;
-            while (true) {
-                const String name(ch, sizeof(buf) - (ch - buf) - 1);
-                mData->symbolNames[name].insert(location);
-                if (!type.isEmpty() && (originalKind != CXCursor_ParmDecl || !strchr(ch, '('))) {
-                    // We only want to add the type to the final declaration for ParmDecls
-                    // e.g.
-                    // void foo(int)::bar
-                    // int bar
-                    //
-                    // not
-                    // int void foo(int)::bar
-                    // or
-                    // void foo(int)::int bar
+        for (int j=0; j<colonColonCount; ++j) {
+            const char *ch = buf + colonColons[j];
+            const String name(ch, sizeof(buf) - (ch - buf) - 1);
+            mData->symbolNames[name].insert(location);
+            if (!type.isEmpty() && (originalKind != CXCursor_ParmDecl || !strchr(ch, '('))) {
+                // We only want to add the type to the final declaration for ParmDecls
+                // e.g.
+                // void foo(int)::bar
+                // and
+                // int bar
+                //
+                // not
+                // int void foo(int)::bar
+                // or
+                // void foo(int)::int bar
 
-                    mData->symbolNames[type + name].insert(location);
-                }
-
-                ch = strstr(ch + 1, "::");
-
-                if (ch) {
-                    ch += 2;
-                } else {
-                    break;
-                }
+                mData->symbolNames[type + name].insert(location);
             }
         }
+
         if (i == 0) {
             // create actual symbol name that will go into CursorInfo. This doesn't include namespaces etc
-            ret.assign(buf + cutoff, sizeof(buf) - cutoff - 1);
-            if (!type.isEmpty())
-                ret.prepend(type);
+            if (!type.isEmpty()) {
+                ret = type;
+                ret.append(buf + cutoff, sizeof(buf) - cutoff - 1);
+            } else {
+                ret.assign(buf + cutoff, sizeof(buf) - cutoff - 1);
+            }
         }
 
-        if (i == 1 || (!hasTemplates && originalKind != CXCursor_EnumConstantDecl)) {
+        if (i == 1 || (templateStart == -1 && originalKind != CXCursor_EnumConstantDecl)) {
+            // nothing more to do
             break;
         }
 
@@ -362,13 +405,10 @@ String ClangIndexer::addNamePermutations(const CXCursor &cursor, const Location 
                 pos += len;
             }
         } else { // remove templates
-            assert(hasTemplates);
-            char *start = strchr(buf + pos, '<');
-            assert(start);
-            char *end = strchr(start, '>');
-            const int templateSize = (end - start) + 1;
-            assert(end);
-            memmove(buf + pos + templateSize, buf + pos, start - (buf + pos));
+            assert(templateStart != -1);
+            assert(templateEnd != -1);
+            const int templateSize = (templateEnd - templateStart) + 1;
+            memmove(buf + pos + templateSize, buf + pos, (buf + templateStart) - (buf + pos));
             pos += templateSize;
         }
     }
