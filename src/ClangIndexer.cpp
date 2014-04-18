@@ -249,12 +249,20 @@ static inline void tokenize(const char *buf, int start,
     while (true) {
         switch (buf[++idx]) {
         case '<':
-            if (!templateCount++)
-                *templateStart = idx;
+            if (idx - 8 < 0 || strncmp("operator", buf + idx - 8, 8) != 0) {
+                if (!templateCount++)
+                    *templateStart = idx;
+            } else if (buf[idx + 1] == '<') {
+                ++idx;
+            }
             break;
         case '>':
-            if (!--templateCount)
-                *templateEnd = idx;
+            if (idx - 8 < 0 || strncmp("operator", buf + idx - 8, 8) != 0) {
+                if (!--templateCount)
+                    *templateEnd = idx;
+            } else if (buf[idx + 1] == '>') {
+                ++idx;
+            }
             break;
         case '(':
             if (!templateCount)
