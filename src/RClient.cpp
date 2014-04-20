@@ -658,7 +658,7 @@ bool RClient::parse(int &argc, char **argv)
         case CodeCompleteAt: {
             const String arg = optarg;
             List<RegExp::Capture> caps;
-            RegExp rx("^\\(.*\\):\\([0-9][0-9]*\\):\\([0-9][0-9]*\\):\\?$");
+            RegExp rx("^\\(.*\\):\\([0-9][0-9]*\\):\\([0-9][0-9]*\\)");
             if (rx.indexIn(arg, 0, &caps) != 0 || caps.size() != 4) {
                 fprintf(stderr, "Can't decode argument for --code-complete-at [%s]\n", optarg);
                 return false;
