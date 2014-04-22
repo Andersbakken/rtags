@@ -36,19 +36,31 @@ private:
     void addFileSymbol(uint32_t file);
     inline Location createLocation(const CXSourceLocation &location, bool *blocked)
     {
-        CXString file;
+        CXString fileName;
         unsigned line, col;
-        clang_getPresumedLocation(location, &file, &line, &col);
-        const char *fn = clang_getCString(file);
+        if (mPreprocessed.isEmpty()) {
+            CXFile file;
+            clang_getSpellingLocation(location, &file, &line, &col, 0);
+            if (file) {
+                fileName = clang_getFileName(file);
+            } else {
+                if (blocked)
+                    *blocked = false;
+                return Location();
+            }
+        } else {
+            clang_getPresumedLocation(location, &fileName, &line, &col);
+        }
+        const char *fn = clang_getCString(fileName);
         assert(fn);
         if (!*fn || !strcmp("<built-in>", fn) || !strcmp("<command line>", fn)) {
             if (blocked)
                 *blocked = false;
-            clang_disposeString(file);
+            clang_disposeString(fileName);
             return Location();
         }
         if (!strcmp(fn, mLastFile.constData())) {
-            clang_disposeString(file);
+            clang_disposeString(fileName);
             if (mLastBlocked && blocked) {
                 *blocked = true;
                 return Location();
@@ -58,7 +70,7 @@ private:
 
             return Location(mLastFileId, line, col);
         }
-        const Path path = RTags::eatString(file);
+        const Path path = RTags::eatString(fileName);
         const Location ret = createLocation(path, line, col, blocked);
         if (blocked) {
             mLastBlocked = *blocked;

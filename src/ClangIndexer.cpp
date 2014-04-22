@@ -835,7 +835,7 @@ bool ClangIndexer::handleCursor(const CXCursor &cursor, CXCursorKind kind, const
     if (!info)
         info = std::make_shared<CursorInfo>();
 
-    if (!info->symbolLength || !RTags::isCursor(info->kind)) {
+    if (!info->symbolLength) {
         // if (mLogFile) {
         //     String out;
         //     Log(&out) << cursor << a;
