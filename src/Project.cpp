@@ -1023,6 +1023,7 @@ bool Project::hasSource(const Source &source) const
 
     return false;
 }
+
 void Project::onSynced()
 {
     assert(mState == Syncing);
@@ -1031,12 +1032,20 @@ void Project::onSynced()
         onJobFinished(it.second.first, it.second.second);
     }
     mPendingIndexData.clear();
-    Hash<uint64_t, JobData> pendingJobs = std::move(mJobs);
-
-    for (const auto &it : pendingJobs) {
-        assert(!it.second.pendingSource.isNull());
-        assert(it.second.pendingFlags);
-        assert(it.second.pendingCpp);
-        index(it.second.pendingSource, it.second.pendingCpp, it.second.pendingFlags);
+    auto it = mJobs.begin();
+    List<JobData> pending;
+    while (it != mJobs.end()) {
+        if (it->second.pendingSource.isNull()) {
+            ++it;
+        } else {
+            pending.append(it->second);
+            mJobs.erase(it++);
+        }
+    }
+    for (auto jobData : pending) {
+        assert(!jobData.pendingSource.isNull());
+        assert(jobData.pendingFlags);
+        assert(jobData.pendingCpp);
+        index(jobData.pendingSource, jobData.pendingCpp, jobData.pendingFlags);
     }
 }
