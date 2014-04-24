@@ -390,8 +390,8 @@ void Project::onJobFinished(const std::shared_ptr<IndexData> &indexData, const s
     //         << "pendingFlags" << IndexerJob::dumpFlags(jobData->pendingFlags);
 
     bool crashed = false;
-    enum { MaxCrashCount = 5 }; // ### configurable?
-    if (jobData->crashCount < MaxCrashCount) {
+    const auto &options = Server::instance()->options();
+    if (jobData->crashCount < options.maxCrashCount) {
         if (jobData->pendingFlags) {
             // the job was aborted
             // assert(jobData->job->flags & IndexerJob::Aborted);
@@ -437,10 +437,9 @@ void Project::onJobFinished(const std::shared_ptr<IndexData> &indexData, const s
         jobData = 0;
         mJobs.erase(it);
 
-        const int syncThreshold = Server::instance()->options().syncThreshold;
         if (mJobs.isEmpty()) {
             mSyncTimer.restart(indexData->flags & IndexerJob::Dirty ? 0 : SyncTimeout, Timer::SingleShot);
-        } else if (syncThreshold && mPendingData.size() >= syncThreshold) {
+        } else if (options.syncThreshold && mPendingData.size() >= options.syncThreshold) {
             startSync();
         }
     } else {
