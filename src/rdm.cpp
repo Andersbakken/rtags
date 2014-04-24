@@ -63,6 +63,7 @@ static void sigIntHandler(int)
 #define DEFAULT_RDM_MULTICAST_PORT DEFAULT_RDM_HTTP_PORT + 1
 #define DEFAULT_RESCHEDULE_TIMEOUT 15000
 #define DEFAULT_MAX_PENDING_PREPROCESS 100
+#define DEFAULT_COMPLETION_CACHE_SIZE 10
 #define DEFAULT_MAX_CRASH_COUNT 5
 #define XSTR(s) #s
 #define STR(s) XSTR(s)
@@ -129,6 +130,7 @@ static void usage(FILE *f)
             "  --max-pending-preprocess-size|-G           Max preprocessed translation units to keep around (default " STR(DEFAULT_MAX_PENDING_PREPROCESS) ").\n"
             "  --force-preprocessing|-g                   Preprocess files even without using multiple hosts.\n"
             "  --thread-stack-size|-k [arg]               Set stack size for threadpool to this (default %zu).\n"
+            "  --completion-cache-size|-i [arg]           Number of translation units to cache (default " STR(DEFAULT_COMPLETION_CACHE_SIZE) ").\n"
             "  --max-crash-count|-K [arg]                 Number of restart attempts for a translation unit when rp crashes (default " STR(DEFAULT_MAX_CRASH_COUNT) ").\n",
             std::max(2, ThreadPool::idealThreadCount()), defaultStackSize);
 }
@@ -195,6 +197,7 @@ int main(int argc, char** argv)
         { "force-preprocessing", no_argument, 0, 'g' },
         { "max-pending-preprocess-size", required_argument, 0, 'G' },
         { "max-crash-count", required_argument, 0, 'K' },
+        { "completion-cache-size", required_argument, 0, 'i' },
 #ifdef OS_Darwin
         { "filemanager-watch", no_argument, 0, 'M' },
 #else
@@ -309,6 +312,7 @@ int main(int argc, char** argv)
     serverOpts.options = Server::Wall|Server::SpellChecking|Server::NoJobServer;
     serverOpts.maxPendingPreprocessSize = DEFAULT_MAX_PENDING_PREPROCESS;
     serverOpts.maxCrashCount = DEFAULT_MAX_CRASH_COUNT;
+    serverOpts.completionCacheSize = DEFAULT_COMPLETION_CACHE_SIZE;
 #ifdef OS_Darwin
     serverOpts.options |= Server::NoFileManagerWatch;
 #endif
@@ -524,6 +528,13 @@ int main(int argc, char** argv)
             serverOpts.maxCrashCount = atoi(optarg);
             if (serverOpts.maxCrashCount <= 0) {
                 fprintf(stderr, "Invalid argument to -K %s\n", optarg);
+                return 1;
+            }
+            break;
+        case 'i':
+            serverOpts.completionCacheSize = atoi(optarg);
+            if (serverOpts.completionCacheSize <= 0) {
+                fprintf(stderr, "Invalid argument to -i %s\n", optarg);
                 return 1;
             }
             break;

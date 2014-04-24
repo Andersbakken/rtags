@@ -1891,7 +1891,7 @@ void Server::codeCompleteAt(const QueryMessage &query, Connection *conn)
         return;
     }
     if (!mCompletionThread) {
-        mCompletionThread = new CompletionThread(10); // ### need setting
+        mCompletionThread = new CompletionThread(mOptions.completionCacheSize);
         mCompletionThread->start();
     }
 
