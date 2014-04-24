@@ -1304,7 +1304,6 @@ void Server::clearProjects(const QueryMessage &query, Connection *conn)
 void Server::loadCompilationDatabase(const QueryMessage &query, Connection *conn)
 {
     const Path path = query.query();
-    // ### this will ignore the actual file name, not sure how to fix that
     CXCompilationDatabase_Error err;
     CXCompilationDatabase db = clang_CompilationDatabase_fromDirectory(path.constData(), &err);
     if (err != CXCompilationDatabase_NoError) {
@@ -1329,7 +1328,7 @@ void Server::loadCompilationDatabase(const QueryMessage &query, Connection *conn
                 args += " ";
         }
 
-        index(args, dir, true);
+        index(args, dir, false);
     }
     clang_CompileCommands_dispose(cmds);
     clang_CompilationDatabase_dispose(db);
