@@ -1877,6 +1877,7 @@ void Server::codeCompleteAt(const QueryMessage &query, Connection *conn)
     Path path;
     int line, column;
     deserializer >> path >> line >> column;
+    path.resolve();
     std::shared_ptr<Project> project = projectForQuery(query);
     if (!project) {
         conn->write<128>("No project found for %s", path.constData());
