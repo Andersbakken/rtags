@@ -16,17 +16,17 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 #include "CompileMessage.h"
 #include <rct/Serializer.h>
 
-CompileMessage::CompileMessage(const Path &cwd, const String &args, bool escape)
-    : RTagsMessage(MessageId), mWorkingDirectory(cwd), mArgs(args), mEscape(escape)
+CompileMessage::CompileMessage()
+    : RTagsMessage(MessageId), mEscape(false)
 {
 }
 
 void CompileMessage::encode(Serializer &serializer) const
 {
-    serializer << mRaw << mWorkingDirectory << mArgs << mEscape;
+    serializer << mRaw << mWorkingDirectory << mProjectRoot << mCompilationDatabaseDir << mArgs << mEscape;
 }
 
 void CompileMessage::decode(Deserializer &deserializer)
 {
-    deserializer >> mRaw >> mWorkingDirectory >> mArgs >> mEscape;
+    deserializer >> mRaw >> mWorkingDirectory >> mProjectRoot >> mCompilationDatabaseDir >> mArgs >> mEscape;
 }

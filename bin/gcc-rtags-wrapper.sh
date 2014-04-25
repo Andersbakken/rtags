@@ -10,7 +10,7 @@ for i in `which -a "\`basename $0\`"`; do
     resolved=`followSymlink $i`
     if [ `basename $resolved` != "gcc-rtags-wrapper.sh" ]; then
         [ -n "$RTAGS_SERVER_FILE" ] && RTAGS_ARGS="$RTAGS_ARGS -n$RTAGS_SERVER_FILE"
-        [ -n "$RTAGS_PROJECT" ] && RTAGS_ARGS="$RTAGS_ARGS --with-project=$RTAGS_PROJECT"
+        [ -n "$RTAGS_PROJECT" ] && RTAGS_ARGS="$RTAGS_ARGS --project-root=$RTAGS_PROJECT"
         [ -z "$RTAGS_COMPILE_TIMEOUT" ] && RTAGS_COMPILE_TIMEOUT=3000
 
         if [ -z "$RTAGS_DISABLED" ] && [ -x "$rc" ]; then

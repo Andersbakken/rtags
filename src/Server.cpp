@@ -447,7 +447,7 @@ void Server::onNewMessage(Message *message, Connection *connection)
     }
 }
 
-bool Server::index(const String &arguments, const Path &pwd, bool escape)
+bool Server::index(const String &arguments, const Path &pwd, const Path &projectRootOverride, bool escape)
 {
     Path unresolvedPath;
     unsigned int flags = Source::None;
@@ -473,9 +473,12 @@ bool Server::index(const String &arguments, const Path &pwd, bool escape)
     }
 
     if (root.isEmpty()) {
-        root = RTags::findProjectRoot(unresolvedPath, RTags::SourceRoot);
-        if (root.isEmpty() && path != unresolvedPath)
-            root = RTags::findProjectRoot(path, RTags::SourceRoot);
+        root = projectRootOverride;
+        if (root.isEmpty()) {
+            root = RTags::findProjectRoot(unresolvedPath, RTags::SourceRoot);
+            if (root.isEmpty() && path != unresolvedPath)
+                root = RTags::findProjectRoot(path, RTags::SourceRoot);
+        }
     }
 
     if (!shouldIndex(source, root))
@@ -511,7 +514,44 @@ void Server::preprocess(Source &&source, Path &&srcRoot, uint32_t flags)
 
 void Server::handleCompileMessage(CompileMessage &message, Connection *conn)
 {
-    const bool ret = index(message.arguments(), message.workingDirectory(), message.escape());
+#if defined(HAVE_CXCOMPILATIONDATABASE) && CLANG_VERSION_MINOR >= 3
+    const Path path = message.compilationDatabaseDir();
+    if (!path.isEmpty()) {
+        CXCompilationDatabase_Error err;
+        CXCompilationDatabase db = clang_CompilationDatabase_fromDirectory(path.constData(), &err);
+        if (err != CXCompilationDatabase_NoError) {
+            conn->write("Can't load compilation database");
+            conn->finish();
+            return;
+        }
+        CXCompileCommands cmds = clang_CompilationDatabase_getAllCompileCommands(db);
+        const unsigned int sz = clang_CompileCommands_getSize(cmds);
+        for (unsigned int i = 0; i < sz; ++i) {
+            CXCompileCommand cmd = clang_CompileCommands_getCommand(cmds, i);
+            String args;
+            CXString str = clang_CompileCommand_getDirectory(cmd);
+            Path dir = clang_getCString(str);
+            clang_disposeString(str);
+            const unsigned int num = clang_CompileCommand_getNumArgs(cmd);
+            for (unsigned int j = 0; j < num; ++j) {
+                str = clang_CompileCommand_getArg(cmd, j);
+                args += clang_getCString(str);
+                clang_disposeString(str);
+                if (j < num - 1)
+                    args += " ";
+            }
+
+            index(args, dir, message.projectRoot(), message.escape());
+        }
+        clang_CompileCommands_dispose(cmds);
+        clang_CompilationDatabase_dispose(db);
+        conn->write("Compilation database loaded");
+        conn->finish();
+        return;
+    }
+#endif
+    const bool ret = index(message.arguments(), message.workingDirectory(),
+                           message.projectRoot(), message.escape());
     conn->finish(ret ? 0 : 1);
 }
 
@@ -649,11 +689,6 @@ void Server::handleQueryMessage(const QueryMessage &message, Connection *conn)
         break;
     case QueryMessage::Project:
         project(message, conn);
-        break;
-    case QueryMessage::LoadCompilationDatabase:
-#if defined(HAVE_CXCOMPILATIONDATABASE) && CLANG_VERSION_MINOR >= 3
-        loadCompilationDatabase(message, conn);
-#endif
         break;
     case QueryMessage::Reindex: {
         reindex(message, conn);
@@ -1299,43 +1334,6 @@ void Server::clearProjects(const QueryMessage &query, Connection *conn)
     conn->write("Cleared projects");
     conn->finish();
 }
-
-#if defined(HAVE_CXCOMPILATIONDATABASE) && CLANG_VERSION_MINOR >= 3
-void Server::loadCompilationDatabase(const QueryMessage &query, Connection *conn)
-{
-    const Path path = query.query();
-    CXCompilationDatabase_Error err;
-    CXCompilationDatabase db = clang_CompilationDatabase_fromDirectory(path.constData(), &err);
-    if (err != CXCompilationDatabase_NoError) {
-        conn->write("Can't load compilation database");
-        conn->finish();
-        return;
-    }
-    CXCompileCommands cmds = clang_CompilationDatabase_getAllCompileCommands(db);
-    const unsigned int sz = clang_CompileCommands_getSize(cmds);
-    for (unsigned int i = 0; i < sz; ++i) {
-        CXCompileCommand cmd = clang_CompileCommands_getCommand(cmds, i);
-        String args;
-        CXString str = clang_CompileCommand_getDirectory(cmd);
-        Path dir = clang_getCString(str);
-        clang_disposeString(str);
-        const unsigned int num = clang_CompileCommand_getNumArgs(cmd);
-        for (unsigned int j = 0; j < num; ++j) {
-            str = clang_CompileCommand_getArg(cmd, j);
-            args += clang_getCString(str);
-            clang_disposeString(str);
-            if (j < num - 1)
-                args += " ";
-        }
-
-        index(args, dir, false);
-    }
-    clang_CompileCommands_dispose(cmds);
-    clang_CompilationDatabase_dispose(db);
-    conn->write("Compilation database loaded");
-    conn->finish();
-}
-#endif
 
 void Server::shutdown(const QueryMessage &query, Connection *conn)
 {

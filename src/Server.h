@@ -118,7 +118,7 @@ public:
 private:
     void restoreFileIds();
     void clear();
-    bool index(const String &arguments, const Path &pwd, bool escape);
+    bool index(const String &arguments, const Path &pwd, const Path &projectRootOverride, bool escape);
     void onNewConnection(SocketServer *server);
     void setCurrentProject(const std::shared_ptr<Project> &project, unsigned int queryFlags = 0);
     void onUnload();
@@ -156,9 +156,6 @@ private:
     void isIndexing(const QueryMessage &, Connection *conn);
     void jobCount(const QueryMessage &query, Connection *conn);
     void listSymbols(const QueryMessage &query, Connection *conn);
-#if defined(HAVE_CXCOMPILATIONDATABASE) && CLANG_VERSION_MINOR >= 3
-    void loadCompilationDatabase(const QueryMessage &query, Connection *conn);
-#endif
     void preprocessFile(const QueryMessage &query, Connection *conn);
     void project(const QueryMessage &query, Connection *conn);
     void referencesForLocation(const QueryMessage &query, Connection *conn);

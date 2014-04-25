@@ -26,22 +26,26 @@ class CompileMessage : public RTagsMessage
 public:
     enum { MessageId = CompileId };
 
-    CompileMessage(const Path &cwd = Path(), const String &args = String(), bool escape = false);
+    CompileMessage();
 
+    const Path &projectRoot() const { return mProjectRoot; }
+    void setProjectRoot(const Path &projectRoot) { mProjectRoot = projectRoot; }
     const Path &workingDirectory() const { return mWorkingDirectory; }
-    Path &&takeWorkingDirectory() { return std::move(mWorkingDirectory); }
-
+    void setWorkingDirectory(const Path &workingDirectory) { mWorkingDirectory = workingDirectory; }
+    Path compilationDatabaseDir() const { return mCompilationDatabaseDir; }
+    void setCompilationDatabaseDir(const Path &path) { mCompilationDatabaseDir = path; }
     const String &arguments() const { return mArgs; }
-    String &&takeArguments() { return std::move(mArgs); }
     void setArguments(const String &arguments) { mArgs = arguments; }
-
     bool escape() const { return mEscape; }
+    void setEscape(bool escape) { mEscape = escape; }
 
     virtual void encode(Serializer &serializer) const;
     virtual void decode(Deserializer &deserializer);
 private:
     Path mWorkingDirectory;
     String mArgs;
+    Path mProjectRoot;
+    Path mCompilationDatabaseDir;
     bool mEscape;
 };
 

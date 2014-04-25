@@ -48,9 +48,8 @@ public:
     const Path &currentFile() const { return mCurrentFile; }
 
     String socketFile() const { return mSocketFile; }
-
     String context() const { return mContext; }
-
+    Path projectRoot() const { return mProjectRoot; }
     unsigned queryFlags() const { return mQueryFlags; }
 
     int argc() const { return mArgc; }
@@ -67,6 +66,7 @@ private:
     };
 
     void addCompile(const Path &cwd, const String &args, EscapeMode escapeMode);
+    void addCompile(const Path &dir, EscapeMode escapeMode);
 
     unsigned mQueryFlags;
     int mMax, mLogLevel, mTimeout, mMinOffset, mMaxOffset, mConnectTimeout, mBuildIndex;
@@ -78,6 +78,7 @@ private:
     String mSocketFile;
     Path mCurrentFile;
     EscapeMode mEscapeMode;
+    Path mProjectRoot;
 
     int mArgc;
     char **mArgv;

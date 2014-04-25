@@ -80,6 +80,7 @@ enum OptionType {
     PrepareCodeCompleteAt,
     PreprocessFile,
     Project,
+    ProjectRoot,
     QuitRdm,
     RangeFilter,
     RdmLog,
@@ -221,6 +222,7 @@ struct Option opts[] = {
     { UnescapeCompileCommands, "unescape-compile-commands", 0, no_argument, "Unescape \\'s and unquote arguments to -c." },
     { NoUnescapeCompileCommands, "no-unescape-compile-commands", 0, no_argument, "Escape \\'s and unquote arguments to -c." },
     { NoSortReferencesByInput, "no-sort-references-by-input", 0, no_argument, "Don't sort references by input position." },
+    { ProjectRoot, "project-root", 0, required_argument, "Override project root for compile commands" },
     { None, 0, 0, 0, 0 }
 };
 
@@ -373,6 +375,11 @@ public:
     CompileCommand(const Path &c, const String &a, RClient::EscapeMode e)
         : RCCommand(), cwd(c), args(a), escapeMode(e)
     {}
+    CompileCommand(const Path &dir, RClient::EscapeMode e)
+        : RCCommand(), compilationDatabaseDir(dir), escapeMode(e)
+    {}
+
+    const Path compilationDatabaseDir;
     const Path cwd;
     const String args;
     const RClient::EscapeMode escapeMode;
@@ -390,8 +397,12 @@ public:
             escape = false;
             break;
         }
-        CompileMessage msg(cwd, args, escape);
+        CompileMessage msg;
         msg.init(rc->argc(), rc->argv());
+        msg.setWorkingDirectory(cwd);
+        msg.setEscape(escape);
+        msg.setArguments(args);
+        msg.setCompilationDatabaseDir(compilationDatabaseDir);
         return connection->send(msg);
     }
     virtual String description() const
@@ -427,6 +438,11 @@ void RClient::addLog(int level)
 void RClient::addCompile(const Path &cwd, const String &args, EscapeMode mode)
 {
     mCommands.append(std::shared_ptr<RCCommand>(new CompileCommand(cwd, args, mode)));
+}
+
+void RClient::addCompile(const Path &dir, EscapeMode mode)
+{
+    mCommands.append(std::shared_ptr<RCCommand>(new CompileCommand(dir, mode)));
 }
 
 int RClient::exec()
@@ -905,7 +921,7 @@ bool RClient::parse(int &argc, char **argv)
                 fprintf(stderr, "no compile_commands.json file in %s\n", dir.constData());
                 return false;
             }
-            addQuery(QueryMessage::LoadCompilationDatabase, dir);
+            addCompile(dir, Escape_Auto);
             break; }
 #endif
         case HasFileManager: {
@@ -925,6 +941,16 @@ bool RClient::parse(int &argc, char **argv)
             if (p.isDir())
                 p.append('/');
             addQuery(QueryMessage::HasFileManager, p);
+            break; }
+        case ProjectRoot: {
+            Path p = optarg;
+            if (!p.isDir()) {
+                fprintf(stderr, "%s does not seem to be a directory\n", optarg);
+                return false;
+            }
+
+            p.resolve(Path::MakeAbsolute);
+            mProjectRoot = p;
             break; }
         case SuspendFile: {
             Path p;
