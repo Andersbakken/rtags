@@ -39,7 +39,7 @@ class RestoreThread : public Thread
 {
 public:
     RestoreThread(const std::shared_ptr<Project> &project)
-        : mFinished(false), mPath(project->path())
+        : mFinished(false), mPath(project->path()), mWeak(project)
     {
         setAutoDelete(true);
     }
@@ -50,7 +50,7 @@ public:
         RestoreThread *thread = restore() ? this : 0;
 
         EventLoop::mainEventLoop()->callLater([thread, &timer, this]() {
-                if (std::shared_ptr<Project> proj = Server::instance()->project(mPath)) {
+                if (std::shared_ptr<Project> proj = mWeak.lock()) {
                     proj->updateContents(thread);
                     if (thread)
                         error() << "Restored project" << mPath << "in" << timer.elapsed() << "ms";
@@ -118,6 +118,7 @@ public:
     DependencyMap mDependencies;
     SourceMap mSources;
     Hash<uint32_t, Path> mVisitedFiles;
+    std::weak_ptr<Project> mWeak;
 };
 
 class SyncThread : public Thread
