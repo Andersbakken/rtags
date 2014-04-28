@@ -453,13 +453,16 @@ bool Server::index(const String &arguments, const Path &pwd, const Path &project
     unsigned int flags = Source::None;
     if (escape)
         flags |= Source::Escape;
-    List<Source> sources = Source::parse(arguments, pwd, flags, &unresolvedPath);
+    List<Path> unresolvedPaths;
+    List<Source> sources = Source::parse(arguments, pwd, flags, &unresolvedPaths);
     bool ret = false;
+    int idx = 0;
     for (Source &source : sources) {
         const Path path = source.sourceFile();
 
         std::shared_ptr<Project> current = currentProject();
         Path root;
+        const Path unresolvedPath = unresolvedPaths.at(idx++);
         if (current && (current->match(unresolvedPath) || (path != unresolvedPath && current->match(path)))) {
             root = current->path();
         } else {

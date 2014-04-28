@@ -281,7 +281,7 @@ static inline String unquote(const String& arg)
 }
 
 List<Source> Source::parse(const String &cmdLine, const Path &base, unsigned int flags,
-                           Path *unresolvedInputLocation)
+                           List<Path> *unresolvedInputLocations)
 {
     String args = cmdLine;
     char quote = '\0';
@@ -490,10 +490,10 @@ List<Source> Source::parse(const String &cmdLine, const Path &base, unsigned int
             } else {
                 Path input = Path::resolved(arg, Path::MakeAbsolute, path);
                 if (input.isSource()) {
-                    if (language == NoLanguage)
-                        language = guessLanguageFromSourceFile(input);
-                    if (unresolvedInputLocation)
-                        *unresolvedInputLocation = input;
+                    // if (language == NoLanguage)
+                    //     language = guessLanguageFromSourceFile(input);
+                    if (unresolvedInputLocations)
+                        *unresolvedInputLocations << input;
                     input.resolve(Path::RealPath);
                     inputs.append(Location::insertFile(input));
                 }
@@ -503,6 +503,8 @@ List<Source> Source::parse(const String &cmdLine, const Path &base, unsigned int
 
     if (inputs.isEmpty()) {
         warning() << "Source::parse No file for" << cmdLine;
+        if (unresolvedInputLocations)
+            unresolvedInputLocations->clear();
         return List<Source>();
     }
 

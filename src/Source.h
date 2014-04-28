@@ -160,7 +160,8 @@ struct Source
         Escape = 0x1
     };
     static List<Source> parse(const String &cmdLine, const Path &pwd,
-                              unsigned int flags, Path *unresolvedInputLocation = 0);
+                              unsigned int flags,
+                              List<Path> *unresolvedInputLocation = 0);
 };
 
 inline Source::Source()
