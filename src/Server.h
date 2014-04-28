@@ -99,6 +99,7 @@ public:
         String multicastAddress;
         uint16_t tcpPort, multicastPort, httpPort;
         Set<Path> ignoredCompilers;
+        List<std::pair<RegExp, Source::Language> > extraCompilers;
         std::pair<String, uint16_t> jobServer;
     };
     bool init(const Options &options);

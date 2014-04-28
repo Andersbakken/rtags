@@ -41,9 +41,18 @@ String Source::toString() const
     return ret;
 }
 
-static inline Source::Language guessLanguageFromCompiler(const Path &fullPath)
+static inline Source::Language guessLanguageFromCompiler(const Path &fullPath) // ### not threadsafe
 {
+    assert(EventLoop::isMainThread());
+
+    static const List<std::pair<RegExp, Source::Language> > &extraCompilers = Server::instance()->options().extraCompilers;
+    for (const auto &pair : extraCompilers) {
+        if (pair.first.indexIn(fullPath) != -1)
+            return pair.second;
+    }
+
     String compiler = fullPath.fileName();
+
     String c;
     int dash = compiler.lastIndexOf('-');
     if (dash >= 0) {
@@ -87,7 +96,8 @@ static inline Source::Language guessLanguageFromCompiler(const Path &fullPath)
     return lang;
 }
 
-static inline Source::Language guessLanguageFromSourceFile(const Path &sourceFile)
+static inline Source::Language guessLanguageFromSourceFile(const Path &sourceFile,
+                                                           Source::Language defaultLanguage)
 {
       // ### We should support some more of of these really
       // .Case("cl", IK_OpenCL)
@@ -132,7 +142,7 @@ static inline Source::Language guessLanguageFromSourceFile(const Path &sourceFil
             return Source::ObjectiveC;
         }
     }
-    return Source::NoLanguage;
+    return defaultLanguage;
 }
 
 static inline void eatAutoTools(List<String> &args)
@@ -286,7 +296,7 @@ List<Source> Source::parse(const String &cmdLine, const Path &base, unsigned int
     String args = cmdLine;
     char quote = '\0';
     List<String> split;
-    List<uint32_t> inputs;
+    List<std::pair<uint32_t, Path> > inputs;
     {
         char *cur = args.data();
         char *prev = cur;
@@ -348,6 +358,10 @@ List<Source> Source::parse(const String &cmdLine, const Path &base, unsigned int
     }
 
     Language language = guessLanguageFromCompiler(split.front());
+    if (!Source::isIndexable(language))
+        return List<Source>();
+
+    bool hasDashX = false;
     uint32_t sourceFlags = 0;
     List<String> arguments;
     Set<Define> defines;
@@ -387,6 +401,7 @@ List<Source> Source::parse(const String &cmdLine, const Path &base, unsigned int
                 } else {
                     return List<Source>();
                 }
+                hasDashX = true;
                 arguments.append("-x");
                 arguments.append(a);
             } else if (arg.startsWith("-D")) {
@@ -490,12 +505,10 @@ List<Source> Source::parse(const String &cmdLine, const Path &base, unsigned int
             } else {
                 Path input = Path::resolved(arg, Path::MakeAbsolute, path);
                 if (input.isSource()) {
-                    // if (language == NoLanguage)
-                    //     language = guessLanguageFromSourceFile(input);
                     if (unresolvedInputLocations)
                         *unresolvedInputLocations << input;
                     input.resolve(Path::RealPath);
-                    inputs.append(Location::insertFile(input));
+                    inputs.append(std::make_pair(Location::insertFile(input), input));
                 }
             }
         }
@@ -556,25 +569,25 @@ List<Source> Source::parse(const String &cmdLine, const Path &base, unsigned int
     List<Source> ret;
     if (!inputs.isEmpty()) {
         if (!buildRootId) {
-            buildRoot = RTags::findProjectRoot(Location::path(inputs.first()), RTags::BuildRoot);
+            buildRoot = RTags::findProjectRoot(inputs.first().second, RTags::BuildRoot);
             buildRootId = Location::insertFile(buildRoot);
         }
         includePathHash = ::hashIncludePaths(includePaths, buildRoot);
 
         ret.resize(inputs.size());
         int idx = 0;
-        for (const auto fileId : inputs) {
+        for (const auto input : inputs) {
             Source &source = ret[idx++];
-            source.fileId = fileId;
+            source.fileId = input.first;
             source.compilerId = compilerId;
             source.buildRootId = buildRootId;
             source.includePathHash = includePathHash;
-            source.language = language;
             source.flags = sourceFlags;
             source.defines = defines;
             source.includePaths = includePaths;
             source.arguments = arguments;
             source.sysRootIndex = sysRootIndex;
+            source.language = hasDashX ? language : guessLanguageFromSourceFile(input.second, language);
         }
     }
     return ret;

@@ -40,6 +40,8 @@ struct Source
         ObjectiveCPlusPlus
     } language;
 
+    static const char *languageName(Language language);
+
     uint64_t parsed;
 
     enum Flag {
@@ -149,6 +151,8 @@ struct Source
 
     List<String> toCommandLine(unsigned int flags) const;
     inline bool isIndexable() const;
+    static inline bool isIndexable(Language lang);
+
     Path sourceFile() const;
     Path buildRoot() const;
     Path compiler() const;
@@ -170,9 +174,31 @@ inline Source::Source()
 {
 }
 
-inline bool Source::isIndexable() const
+inline const char *Source::languageName(Language language)
 {
     switch (language) {
+    case NoLanguage: return "NoLanguage";
+    case JavaScript: return "JavaScript";
+    case C: return "C";
+    case CPlusPlus: return "CPlusPlus";
+    case CPlusPlus11: return "CPlusPlus11";
+    case CHeader: return "CHeader";
+    case CPlusPlusHeader: return "CPlusPlusHeader";
+    case CPlusPlus11Header: return "CPlusPlus11Header";
+    case ObjectiveC: return "ObjectiveC";
+    case ObjectiveCPlusPlus: return "ObjectiveCPlusPlus";
+    }
+    return "";
+}
+
+inline bool Source::isIndexable() const
+{
+    return Source::isIndexable(language);
+}
+
+inline bool Source::isIndexable(Language lang)
+{
+    switch (lang) {
     case C:
     case CPlusPlus:
     case CPlusPlus11:

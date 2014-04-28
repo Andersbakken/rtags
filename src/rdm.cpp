@@ -131,6 +131,7 @@ static void usage(FILE *f)
             "  --force-preprocessing|-g                   Preprocess files even without using multiple hosts.\n"
             "  --thread-stack-size|-k [arg]               Set stack size for threadpool to this (default %zu).\n"
             "  --completion-cache-size|-i [arg]           Number of translation units to cache (default " STR(DEFAULT_COMPLETION_CACHE_SIZE) ").\n"
+            "  --extra-compilers|-U [arg]                 Override additional \"known\" compilers. E.g. -U foobar;c++, foobar;c or foobar:objective-c or just foobar.\n"
             "  --max-crash-count|-K [arg]                 Number of restart attempts for a translation unit when rp crashes (default " STR(DEFAULT_MAX_CRASH_COUNT) ").\n",
             std::max(2, ThreadPool::idealThreadCount()), defaultStackSize);
 }
@@ -198,6 +199,7 @@ int main(int argc, char** argv)
         { "max-pending-preprocess-size", required_argument, 0, 'G' },
         { "max-crash-count", required_argument, 0, 'K' },
         { "completion-cache-size", required_argument, 0, 'i' },
+        { "extra-compilers", required_argument, 0, 'U' },
 #ifdef OS_Darwin
         { "filemanager-watch", no_argument, 0, 'M' },
 #else
@@ -351,6 +353,31 @@ int main(int argc, char** argv)
         case 'X':
             serverOpts.excludeFilters += String(optarg).split(';');
             break;
+        case 'U': {
+            Source::Language lang = Source::NoLanguage;
+            RegExp rx;
+            if (char *semiColon = strchr(optarg, ';')) {
+                for (int i=Source::NoLanguage + 1; i<=Source::ObjectiveCPlusPlus; ++i) {
+                    const char *name = Source::languageName(static_cast<Source::Language>(i));
+                    if (!strcasecmp(name, semiColon + 1)) {
+                        lang = static_cast<Source::Language>(i);
+                        break;
+                    }
+                }
+                if (lang == Source::NoLanguage) {
+                    fprintf(stderr, "Unknown language %s, available languages:\n", semiColon + 1);
+                    for (int i=Source::NoLanguage + 1; i<=Source::ObjectiveCPlusPlus; ++i) {
+                        fprintf(stderr, "  %s\n", Source::languageName(static_cast<Source::Language>(i)));
+                    }
+                    return 1;
+                }
+                rx = String(optarg, semiColon - optarg - 1);
+            } else {
+                rx = optarg;
+                lang = Source::C;
+            }
+            serverOpts.extraCompilers.append(std::make_pair(rx, lang));
+            break; }
         case 's': {
             serverOpts.options &= ~Server::NoJobServer;
             const char* arg = optarg;
