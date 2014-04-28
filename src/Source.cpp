@@ -185,24 +185,30 @@ static inline size_t hashIncludePaths(const List<Source::Include> &includes, con
     return hash;
 }
 
-static inline void addIncludeArg(Source &source, Source::Include::Type type, int argLen, const List<String> &args, int &idx, const Path &cwd)
+static inline void addIncludeArg(List<Source::Include> &includePaths,
+                                 List<String> &arguments,
+                                 Source::Include::Type type,
+                                 int argLen,
+                                 const List<String> &args,
+                                 int &idx,
+                                 const Path &cwd)
 {
     const String &arg = args.at(idx);
     Path path;
     if (arg.size() == argLen) {
         path = Path::resolved(args.at(++idx), Path::MakeAbsolute, cwd);
         if (type == Source::Include::Type_None) {
-            source.arguments.append(arg);
-            source.arguments.append(path);
+            arguments.append(arg);
+            arguments.append(path);
         }
     } else {
         path = Path::resolved(arg.mid(argLen), Path::MakeAbsolute, cwd);
         if (type == Source::Include::Type_None) {
-            source.arguments.append(arg.left(argLen) + path);
+            arguments.append(arg.left(argLen) + path);
         }
     }
     if (type != Source::Include::Type_None) {
-        source.includePaths.append(Source::Include(type, path));
+        includePaths.append(Source::Include(type, path));
     }
 }
 
@@ -277,7 +283,6 @@ static inline String unquote(const String& arg)
 List<Source> Source::parse(const String &cmdLine, const Path &base, unsigned int flags,
                            Path *unresolvedInputLocation)
 {
-    Path buildRoot;
     String args = cmdLine;
     char quote = '\0';
     List<String> split;
@@ -342,8 +347,16 @@ List<Source> Source::parse(const String &cmdLine, const Path &base, unsigned int
         split.removeAt(0);
     }
 
-    Source source;
-    source.language = guessLanguageFromCompiler(split.front());
+    Language language = guessLanguageFromCompiler(split.front());
+    uint32_t sourceFlags = 0;
+    List<String> arguments;
+    Set<Define> defines;
+    List<Include> includePaths;
+    int32_t sysRootIndex = -1;
+    uint32_t buildRootId = 0;
+    Path buildRoot;
+    uint32_t compilerId = 0;
+    uint64_t includePathHash = 0;
 
     const int s = split.size();
     bool seenCompiler = false;
@@ -360,22 +373,22 @@ List<Source> Source::parse(const String &cmdLine, const Path &base, unsigned int
             if (arg == "-x") {
                 const String a = split.value(++i);
                 if (a == "c-header") {
-                    source.language = CHeader;
+                    language = CHeader;
                 } else if (a == "c++-header") {
-                    source.language = CPlusPlusHeader;
+                    language = CPlusPlusHeader;
                 } else if (a == "c") {
-                    source.language = C;
+                    language = C;
                 } else if (a == "c++") {
-                    source.language = CPlusPlus;
+                    language = CPlusPlus;
                 } else if (a == "objective-c") {
-                    source.language = ObjectiveC;
+                    language = ObjectiveC;
                 } else if (a == "objective-c++") {
-                    source.language = ObjectiveCPlusPlus;
+                    language = ObjectiveCPlusPlus;
                 } else {
                     return List<Source>();
                 }
-                source.arguments.append("-x");
-                source.arguments.append(a);
+                arguments.append("-x");
+                arguments.append(a);
             } else if (arg.startsWith("-D")) {
                 Define define;
                 String def, a;
@@ -398,53 +411,53 @@ List<Source> Source::parse(const String &cmdLine, const Path &base, unsigned int
                           define.define.constData(),
                           define.value.isEmpty() ? "" : "=",
                           define.value.constData());
-                    source.defines.insert(define);
+                    defines.insert(define);
                 }
             } else if (arg.startsWith("-I")) {
-                addIncludeArg(source, Source::Include::Type_Include, 2, split, i, path);
+                addIncludeArg(includePaths, arguments, Source::Include::Type_Include, 2, split, i, path);
             } else if (arg.startsWith("-include")) {
-                addIncludeArg(source, Source::Include::Type_None, 8, split, i, path);
+                addIncludeArg(includePaths, arguments, Source::Include::Type_None, 8, split, i, path);
             } else if (arg.startsWith("-isystem")) {
-                addIncludeArg(source, Source::Include::Type_System, 8, split, i, path);
+                addIncludeArg(includePaths, arguments, Source::Include::Type_System, 8, split, i, path);
             } else if (arg.startsWith("-iquote")) {
-                addIncludeArg(source, Source::Include::Type_None, 7, split, i, path);
+                addIncludeArg(includePaths, arguments, Source::Include::Type_None, 7, split, i, path);
             } else if (arg.startsWith("-cxx-isystem")) {
-                addIncludeArg(source, Source::Include::Type_System, 12, split, i, path);
+                addIncludeArg(includePaths, arguments, Source::Include::Type_System, 12, split, i, path);
             } else if (arg == "-ObjC++") {
-                source.language = ObjectiveCPlusPlus;
-                source.arguments.append(arg);
+                language = ObjectiveCPlusPlus;
+                arguments.append(arg);
             } else if (arg == "-ObjC") {
-                source.language = ObjectiveC;
-                source.arguments.append(arg);
+                language = ObjectiveC;
+                arguments.append(arg);
             } else if (arg == "-fno-rtti") {
-                source.flags |= NoRtti;
-                source.arguments.append(arg);
+                sourceFlags |= NoRtti;
+                arguments.append(arg);
             } else if (arg == "-m32") {
-                source.flags |= M32;
-                source.arguments.append(arg);
+                sourceFlags |= M32;
+                arguments.append(arg);
             } else if (arg == "-m64") {
-                source.flags |= M64;
-                source.arguments.append(arg);
+                sourceFlags |= M64;
+                arguments.append(arg);
             } else if (arg == "-frtti") {
-                source.flags &= ~NoRtti;
-                source.arguments.append(arg);
+                sourceFlags &= ~NoRtti;
+                arguments.append(arg);
             } else if (arg.startsWith("-std=")) {
-                source.arguments.append(arg);
+                arguments.append(arg);
                 // error() << "Got std" << arg;
                 if (arg == "-std=c++0x" || arg == "-std=c++11" || arg == "-std=gnu++0x" || arg == "-std=gnu++11") {
-                    if (source.language == CPlusPlusHeader) {
-                        source.language = CPlusPlus11Header;
+                    if (language == CPlusPlusHeader) {
+                        language = CPlusPlus11Header;
                     } else {
-                        source.language = CPlusPlus11;
+                        language = CPlusPlus11;
                     }
                 }
             } else if (arg.startsWith("-isysroot")) {
-                source.arguments.append(arg);
+                arguments.append(arg);
                 if (i + 1 < s) {
-                    source.sysRootIndex = source.arguments.size();
+                    sysRootIndex = arguments.size();
                     Path root = split.value(++i);
                     root.resolve();
-                    source.arguments.append(root);
+                    arguments.append(root);
                 }
             } else if (arg == "-o") {
                 if (i + 1 < s) {
@@ -457,18 +470,18 @@ List<Source> Source::parse(const String &cmdLine, const Path &base, unsigned int
                     }
                     buildRoot = RTags::findProjectRoot(p, RTags::BuildRoot);
                     if (buildRoot.isDir()) {
-                        source.buildRootId = Location::insertFile(buildRoot);
+                        buildRootId = Location::insertFile(buildRoot);
                     } else {
                         buildRoot.clear();
                     }
                 }
             } else {
-                source.arguments.append(arg);
+                arguments.append(arg);
                 if (hasValue(arg)) {
                     String val = split.value(++i);
                     if (flags & Escape)
                         val = unquote(val);
-                    source.arguments.append(Path::resolved(val, Path::MakeAbsolute, path));
+                    arguments.append(Path::resolved(val, Path::MakeAbsolute, path));
                 }
             }
         } else {
@@ -477,8 +490,8 @@ List<Source> Source::parse(const String &cmdLine, const Path &base, unsigned int
             } else {
                 Path input = Path::resolved(arg, Path::MakeAbsolute, path);
                 if (input.isSource()) {
-                    if (source.language == NoLanguage)
-                        source.language = guessLanguageFromSourceFile(input);
+                    if (language == NoLanguage)
+                        language = guessLanguageFromSourceFile(input);
                     if (unresolvedInputLocation)
                         *unresolvedInputLocation = input;
                     input.resolve(Path::RealPath);
@@ -492,13 +505,6 @@ List<Source> Source::parse(const String &cmdLine, const Path &base, unsigned int
         warning() << "Source::parse No file for" << cmdLine;
         return List<Source>();
     }
-
-    if (!source.buildRootId) {
-        buildRoot = RTags::findProjectRoot(Location::path(source.fileId), RTags::BuildRoot);
-        source.buildRootId = Location::insertFile(buildRoot);
-    }
-
-    source.includePathHash = ::hashIncludePaths(source.includePaths, buildRoot);
 
     // ### not threadsafe
     assert(EventLoop::isMainThread());
@@ -542,13 +548,32 @@ List<Source> Source::parse(const String &cmdLine, const Path &base, unsigned int
             compiler = split.front();
         }
     }
+
     // error() << split.front() << front << compiler;
-    source.compilerId = Location::insertFile(compiler);
+    compilerId = Location::insertFile(compiler);
     List<Source> ret;
-    ret.reserve(inputs.size());
-    for (const auto fileId : inputs) {
-        source.fileId = fileId;
-        ret.append(source);
+    if (!inputs.isEmpty()) {
+        if (!buildRootId) {
+            buildRoot = RTags::findProjectRoot(Location::path(inputs.first()), RTags::BuildRoot);
+            buildRootId = Location::insertFile(buildRoot);
+        }
+        includePathHash = ::hashIncludePaths(includePaths, buildRoot);
+
+        ret.resize(inputs.size());
+        int idx = 0;
+        for (const auto fileId : inputs) {
+            Source &source = ret[idx++];
+            source.fileId = fileId;
+            source.compilerId = compilerId;
+            source.buildRootId = buildRootId;
+            source.includePathHash = includePathHash;
+            source.language = language;
+            source.flags = sourceFlags;
+            source.defines = defines;
+            source.includePaths = includePaths;
+            source.arguments = arguments;
+            source.sysRootIndex = sysRootIndex;
+        }
     }
     return ret;
 }
