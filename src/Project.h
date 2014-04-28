@@ -122,7 +122,7 @@ public:
     }
     void startSync();
 private:
-    void restore(RestoreThread *thread);
+    void updateContents(RestoreThread *thread);
     void watch(const Path &file);
     void reloadFileManager();
     void addDependencies(const DependencyMap &hash, Set<uint32_t> &newFiles);

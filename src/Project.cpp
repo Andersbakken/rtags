@@ -51,7 +51,7 @@ public:
 
         EventLoop::mainEventLoop()->callLater([thread, &timer, this]() {
                 if (std::shared_ptr<Project> proj = Server::instance()->project(mPath)) {
-                    proj->restore(thread);
+                    proj->updateContents(thread);
                     if (thread)
                         error() << "Restored project" << mPath << "in" << timer.elapsed() << "ms";
                 }
@@ -146,12 +146,9 @@ public:
                       << MemoryMonitor::usage() / (1024.0 * 1024.0) << "mb of memory"
                       << data.symbols << "symbols" << data.symbolNames << "symbolNames";
             project->mTimer.start();
-            std::weak_ptr<Project> weak = project;
-            EventLoop::mainEventLoop()->callLater([weak,msg]() {
-                    if (std::shared_ptr<Project> project = weak.lock()) {
-                        error() << msg;
-                        project->onSynced();
-                    }
+            EventLoop::mainEventLoop()->callLater([project,msg]() {
+                    error() << msg;
+                    project->onSynced();
                 });
         }
     }
@@ -174,7 +171,10 @@ Project::Project(const Path &path)
 Project::~Project()
 {
     assert(EventLoop::isMainThread());
-    unload();
+    for (auto it = mJobs.constBegin(); it != mJobs.constEnd(); ++it) {
+        if (it->second.job)
+            it->second.job->abort();
+    }
 }
 
 
@@ -186,7 +186,7 @@ void Project::init()
     fileManager->init(shared_from_this(), FileManager::Asynchronous);
 }
 
-void Project::restore(RestoreThread *thread)
+void Project::updateContents(RestoreThread *thread)
 {
     assert(EventLoop::isMainThread());
     if (state() != Loading)
