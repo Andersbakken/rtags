@@ -159,8 +159,8 @@ struct Source
     enum ParseFlag {
         Escape = 0x1
     };
-    static Source parse(const String &cmdLine, const Path &pwd,
-                        unsigned int flags, Path *unresolvedInputLocation = 0);
+    static List<Source> parse(const String &cmdLine, const Path &pwd,
+                              unsigned int flags, Path *unresolvedInputLocation = 0);
 };
 
 inline Source::Source()

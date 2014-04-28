@@ -453,39 +453,39 @@ bool Server::index(const String &arguments, const Path &pwd, const Path &project
     unsigned int flags = Source::None;
     if (escape)
         flags |= Source::Escape;
-    Source source = Source::parse(arguments, pwd, flags, &unresolvedPath);
-    if (!source.isIndexable())
-        return false;
+    List<Source> sources = Source::parse(arguments, pwd, flags, &unresolvedPath);
+    bool ret = false;
+    for (Source &source : sources) {
+        const Path path = source.sourceFile();
 
-    const Path path = source.sourceFile();
-
-    std::shared_ptr<Project> current = currentProject();
-    Path root;
-    if (current && (current->match(unresolvedPath) || (path != unresolvedPath && current->match(path)))) {
-        root = current->path();
-    } else {
-        for (const auto &proj : mProjects) {
-            if (proj.second->match(unresolvedPath) || (path != unresolvedPath && proj.second->match(path))) {
-                root = proj.first;
-                break;
+        std::shared_ptr<Project> current = currentProject();
+        Path root;
+        if (current && (current->match(unresolvedPath) || (path != unresolvedPath && current->match(path)))) {
+            root = current->path();
+        } else {
+            for (const auto &proj : mProjects) {
+                if (proj.second->match(unresolvedPath) || (path != unresolvedPath && proj.second->match(path))) {
+                    root = proj.first;
+                    break;
+                }
             }
         }
-    }
 
-    if (root.isEmpty()) {
-        root = projectRootOverride;
         if (root.isEmpty()) {
-            root = RTags::findProjectRoot(unresolvedPath, RTags::SourceRoot);
-            if (root.isEmpty() && path != unresolvedPath)
-                root = RTags::findProjectRoot(path, RTags::SourceRoot);
+            root = projectRootOverride;
+            if (root.isEmpty()) {
+                root = RTags::findProjectRoot(unresolvedPath, RTags::SourceRoot);
+                if (root.isEmpty() && path != unresolvedPath)
+                    root = RTags::findProjectRoot(path, RTags::SourceRoot);
+            }
+        }
+
+        if (shouldIndex(source, root)) {
+            preprocess(std::move(source), std::move(root), IndexerJob::Compile);
+            ret = true;
         }
     }
-
-    if (!shouldIndex(source, root))
-        return false;
-
-    preprocess(std::move(source), std::move(root), IndexerJob::Compile);
-    return true;
+    return ret;
 }
 
 void Server::preprocess(Source &&source, Path &&srcRoot, uint32_t flags)
