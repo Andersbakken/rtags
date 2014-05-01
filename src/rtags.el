@@ -32,7 +32,13 @@
 
 (require 'bookmark)
 (require 'cc-mode)
-(require 'cl)
+
+(if (or (> emacs-major-version 24)
+        (and (= emacs-major-version 24)
+             (>= emacs-minor-version 3)))
+    (require 'cl-lib)
+  (eval-when-compile
+    (require 'cl)))
 (require 'compile)
 (require 'dabbrev)
 (require 'ido)
@@ -273,7 +279,7 @@
         (progn
           (and async (not (consp async)) (error "Invalid argument. async must be a cons or nil"))
           (setq arguments (rtags-remove-keyword-params arguments))
-          (setq arguments (remove-if '(lambda (arg) (not arg)) arguments))
+          (setq arguments (cl-remove-if '(lambda (arg) (not arg)) arguments))
           (when path-filter
             (push (concat "--path-filter=" path-filter) arguments)
             (if path-filter-regex
@@ -603,7 +609,7 @@
         (setq prompt (concat prompt ": (default " tagname ") "))
       (setq prompt (concat prompt ": ")))
     (setq input (completing-read prompt (function rtags-symbolname-complete) nil nil nil 'rtags-symbol-history))
-    (setq rtags-symbol-history (remove-duplicates rtags-symbol-history :from-end t :test 'equal))
+    (setq rtags-symbol-history (cl-remove-duplicates rtags-symbol-history :from-end t :test 'equal))
     (if (not (equal "" input))
         (setq tagname input))
     (with-current-buffer (rtags-get-buffer)
@@ -1065,7 +1071,7 @@ References to references will be treated as references to the referenced symbol"
 (defun rtags-really-find-buffer (fn)
   (setq fn (file-truename fn))
   (car
-   (member-if #'(lambda (arg)
+   (cl-member-if #'(lambda (arg)
                   (and (buffer-file-name arg)
                        (string= fn (file-truename (buffer-file-name arg)))))
               (buffer-list))))
@@ -1229,7 +1235,7 @@ References to references will be treated as references to the referenced symbol"
   (< (overlay-start l) (overlay-start r)))
 
 (defun rtags-overlays-on-screen ()
-  (sort (remove-if-not 'rtags-is-rtags-overlay (overlays-in (window-start) (window-end))) #'rtags-overlay-comparator))
+  (sort (cl-remove-if-not 'rtags-is-rtags-overlay (overlays-in (window-start) (window-end))) #'rtags-overlay-comparator))
 
 (defvar rtags-highlighted-overlay nil)
 
@@ -1237,7 +1243,7 @@ References to references will be treated as references to the referenced symbol"
 (defun rtags-cycle-overlays-on-screen ()
   (interactive)
   (let* ((overlays (rtags-overlays-on-screen))
-         (idx (and rtags-highlighted-overlay (position rtags-highlighted-overlay overlays)))
+         (idx (and rtags-highlighted-overlay (cl-position rtags-highlighted-overlay overlays)))
          (overlay (if (and idx (< (1+ idx) (length overlays)))
                       (nth (1+ idx) overlays)
                     (car overlays))))
@@ -1439,7 +1445,7 @@ References to references will be treated as references to the referenced symbol"
          (shrink-window-if-larger-than-buffer)
          (goto-char (point-max))
          (if (= (point-at-bol) (point-max))
-             (delete-backward-char 1))
+             (delete-char -1))
          (rtags-init-bookmarks)
          (rtags-mode)
          (when (and rtags-jump-to-first-match (not noautojump))
@@ -1619,7 +1625,7 @@ References to references will be treated as references to the referenced symbol"
       (setq prompt "Find rfiles: "))
     (rtags-is-indexed)
     (setq input (completing-read prompt (function rtags-filename-complete) nil nil nil 'rtags-find-file-history))
-    (setq rtags-find-file-history (remove-duplicates rtags-find-file-history :from-end t :test 'equal))
+    (setq rtags-find-file-history (cl-remove-duplicates rtags-find-file-history :from-end t :test 'equal))
     (cond ((string-match "\\(.*\\),\\([0-9]+\\)" input)
            (progn
              (setq tagname (match-string-no-properties 1 input))
@@ -1831,9 +1837,14 @@ References to references will be treated as references to the referenced symbol"
               (message (buffer-substring-no-properties (point-min) (1- (point-max))))
             (message (buffer-string)))))))
 
+(defvar rtags-rdm-includes nil)
 (defun rtags-dummy-includes-func()
   "Dummy function, returns rtags-rdm-includes."
   rtags-rdm-includes)
+
+(defvar rtags-includes-func 'rtags-dummy-includes-func)
+(defvar rtags-process-flags "")
+(defvar rtags-process nil)
 
 (defun rdm-includes ()
   (mapconcat 'identity
