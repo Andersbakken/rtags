@@ -492,22 +492,20 @@
     0))
 
 (defun rtags-offset (&optional p)
-  (let (carriagereturns)
-    (save-excursion
-      (if p
-          (goto-char p)
-        (setq carriagereturns (rtags-carriage-returns))
-        (if (rtags-buffer-is-multibyte)
-            (let ((prev (buffer-local-value enable-multibyte-characters (current-buffer)))
-                  (loc (local-variable-p enable-multibyte-characters))
-                  (pos))
+  (save-excursion
+    (if p
+        (goto-char p)
+      (if (rtags-buffer-is-multibyte)
+          (let ((prev (buffer-local-value enable-multibyte-characters (current-buffer)))
+                (loc (local-variable-p enable-multibyte-characters))
+                (pos))
               (set-buffer-multibyte nil)
               (setq pos (1- (point)))
               (set-buffer-multibyte prev)
               (unless loc
                 (kill-local-variable enable-multibyte-characters))
-              (+ pos carriagereturns))
-          (+ (1- (point)) carriagereturns))))))
+              pos)
+          (1- (point))))))
 
 ;;;###autoload
 (defun rtags-goto-offset (pos)
