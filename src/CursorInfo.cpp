@@ -17,14 +17,6 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 #include "CursorInfo.h"
 #include "RTagsClang.h"
 
-const char *jsKindNames[] = {
-    "JSInvalid",
-    "JSDeclaration",
-    "JSReference",
-    "JSInclude",
-    0
-};
-
 const char *rKindNames[] = {
     "Invalid",
     "Function",
@@ -41,8 +33,6 @@ String CursorInfo::kindSpelling(uint16_t kind)
 {
     if (kind >= Invalid) {
         return rKindNames[kind - Invalid];
-    } else if (kind >= JSInvalid) {
-        return jsKindNames[kind - JSInvalid];
     }
     return RTags::eatString(clang_getCursorKindSpelling(static_cast<CXCursorKind>(kind)));
 }
@@ -51,14 +41,14 @@ String CursorInfo::toString(unsigned cursorInfoFlags, unsigned keyFlags) const
 {
     String ret = String::format<1024>("SymbolName: %s\n"
                                       "Kind: %s\n"
-                                      "%s" // type
+                                      "Type: %s\n" // type
                                       "SymbolLength: %u\n"
                                       "%s" // range
                                       "%s" // enumValue
                                       "%s", // definition
                                       symbolName.constData(),
                                       kindSpelling().constData(),
-                                      kind >= JSInvalid ? "" : String::format<32>("Type: %s\n", RTags::eatString(clang_getTypeKindSpelling(type)).constData()).constData(),
+                                      RTags::eatString(clang_getTypeKindSpelling(type)).constData(),
                                       symbolLength,
                                       startLine != -1 ? String::format<32>("Range: %d:%d-%d:%d\n", startLine, startColumn, endLine, endColumn).constData() : "",
 #if CINDEX_VERSION_MINOR > 1

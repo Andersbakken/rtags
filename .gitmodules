@@ -2,19 +2,3 @@
 	path = src/rct
 	url = https://github.com/Andersbakken/rct
 	branch = master
-[submodule "src/esprima"]
-	path = src/esprima
-	url = https://github.com/ariya/esprima.git
-	branch = master
-[submodule "src/escope"]
-	path = src/escope
-	url = https://github.com/Constellation/escope.git
-	branch = master
-[submodule "src/esrefactor"]
-	path = src/esrefactor
-	url = https://github.com/ariya/esrefactor.git
-	branch = master
-[submodule "src/estraverse"]
-	path = src/estraverse
-	url = https://github.com/Constellation/estraverse.git
-	branch = master

@@ -152,8 +152,6 @@ inline bool startsWith(const List<T> &list, const T &str)
 
 inline bool isReference(unsigned int kind)
 {
-    if (kind >= CursorInfo::JSInvalid)
-        return kind == CursorInfo::JSReference;
     if (clang_isReference(static_cast<CXCursorKind>(kind)))
         return true;
     switch (kind) {
@@ -164,8 +162,6 @@ inline bool isReference(unsigned int kind)
     case CXCursor_CallExpr:
     case CXCursor_CXXDeleteExpr:
         return true;
-    case CursorInfo::JSReference:
-        return false;
     default:
         break;
     }
@@ -190,7 +186,6 @@ inline bool isFunction(unsigned int kind)
 inline bool isCursor(uint16_t kind)
 {
     switch (kind) {
-    case CursorInfo::JSDeclaration:
     case CXCursor_LabelStmt:
     case CXCursor_MacroDefinition:
     case CXCursor_FunctionTemplate:
@@ -206,12 +201,6 @@ inline bool isCursor(uint16_t kind)
 static inline CursorType cursorType(uint16_t kind)
 {
     switch (kind) {
-    case CursorInfo::JSInvalid:
-        return Other;
-    case CursorInfo::JSReference:
-        return Reference;
-    case CursorInfo::JSDeclaration:
-        return Cursor;
     case CXCursor_InclusionDirective:
         return Include;
     }

@@ -29,7 +29,6 @@ struct Source
     uint64_t includePathHash;
     enum Language {
         NoLanguage,
-        JavaScript,
         C,
         CPlusPlus,
         CPlusPlus11,
@@ -178,7 +177,6 @@ inline const char *Source::languageName(Language language)
 {
     switch (language) {
     case NoLanguage: return "NoLanguage";
-    case JavaScript: return "JavaScript";
     case C: return "C";
     case CPlusPlus: return "CPlusPlus";
     case CPlusPlus11: return "CPlusPlus11";

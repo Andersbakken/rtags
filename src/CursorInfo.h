@@ -28,13 +28,6 @@ typedef Map<Location, std::shared_ptr<CursorInfo> > SymbolMap;
 class CursorInfo
 {
 public:
-    enum JSCursorKind {
-        JSInvalid = 10000,
-        JSDeclaration,
-        JSReference,
-        JSInclude
-    };
-
     enum RPCursorKind {
         Invalid = 20000,
         Function,
