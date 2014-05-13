@@ -21,8 +21,11 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 #include "Project.h"
 
 DependenciesJob::DependenciesJob(const QueryMessage &query, const std::shared_ptr<Project> &project)
-    : Job(query, QuietJob, project), mFileId(Location::fileId(query.query()))
+    : Job(query, QuietJob, project)
 {
+    Path p = query.query();
+    p.resolve();
+    mFileId = Location::fileId(p);
 }
 
 int DependenciesJob::execute()

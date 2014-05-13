@@ -869,7 +869,6 @@ void Server::cursorInfo(const QueryMessage &query, Connection *conn)
 
 void Server::dependencies(const QueryMessage &query, Connection *conn)
 {
-    const Path path = query.query();
     std::shared_ptr<Project> project = projectForQuery(query);
     if (!project) {
         conn->finish();
