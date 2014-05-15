@@ -53,7 +53,7 @@ public:
         FileManager_Asynchronous,
         FileManager_Synchronous
     };
-    void load(FileManagerMode mode = FileManager_Asynchronous);
+    bool load(FileManagerMode mode = FileManager_Asynchronous);
     void unload();
 
     std::shared_ptr<FileManager> fileManager;

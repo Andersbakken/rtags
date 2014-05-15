@@ -757,8 +757,40 @@ void Server::followLocation(const QueryMessage &query, Connection *conn)
         return;
     }
 
-    FollowLocationJob job(loc, query, project);
-    const int ret = job.run(conn);
+    int ret;
+    {
+        FollowLocationJob job(loc, query, project);
+        ret = job.run(conn);
+        if (!ret) {
+            conn->finish(ret);
+            return;
+        }
+    }
+
+    /* We will try with another project under the following circumstances:
+
+       - We didn't find anything with the current project
+       - The path in question (likely a header) does not start with the current
+         project's path (there's room for mistakes here with symlinks).
+       - The file in question does start with another project's path
+       - The other project is loaded (we will start loading it if it's not)
+    */
+
+    const Path path = loc.path();
+    if (!path.startsWith(project->path())) {
+        for (const auto &proj : mProjects) {
+            if (proj.second != project
+                && path.startsWith(proj.first)
+                && !proj.second->load(Project::FileManager_Asynchronous)) {
+                FollowLocationJob job(loc, query, proj.second);
+                const int r = job.run(conn);
+                if (!r) {
+                    ret = r;
+                    break;
+                }
+            }
+        }
+    }
     conn->finish(ret);
 }
 

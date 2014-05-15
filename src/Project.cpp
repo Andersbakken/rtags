@@ -267,7 +267,7 @@ void Project::updateContents(RestoreThread *thread)
     }
 }
 
-void Project::load(FileManagerMode mode)
+bool Project::load(FileManagerMode mode)
 {
     switch (mState) {
     case Unloaded:
@@ -281,11 +281,12 @@ void Project::load(FileManagerMode mode)
     case Loading:
     case Loaded:
     case Syncing:
-        return;
+        return false;
     }
     mState = Loading;
     RestoreThread *thread = new RestoreThread(shared_from_this());
     thread->start();
+    return true;
 }
 
 void Project::unload()
