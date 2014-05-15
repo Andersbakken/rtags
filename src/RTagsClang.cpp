@@ -56,6 +56,9 @@ using llvm::opt::InputArgList;
 #include <clang/Basic/TargetInfo.h>
 #include <clang/Lex/HeaderSearch.h>
 #include <clang/Lex/HeaderSearchOptions.h>
+#if CLANG_VERSION_MINOR >= 5
+#include <clang/Basic/LangOptions.h>
+#endif
 
 namespace RTags {
 String eatString(CXString str)
@@ -461,7 +464,11 @@ bool compile(const Path& output, const Source &source, const String& preprocesse
     compilerInstance.getTarget().setForcedLangOptions(langOpts);
 
     // ### ???
+#if CLANG_VERSION_MINOR < 5
     compilerInstance.createPreprocessor();
+#else
+    compilerInstance.createPreprocessor(clang::TU_Complete);
+#endif
     clang::InitializePreprocessor(compilerInstance.getPreprocessor(),
                                   compilerInstance.getPreprocessorOpts(),
                                   compilerInstance.getHeaderSearchOpts(),
@@ -658,7 +665,11 @@ std::shared_ptr<Cpp> preprocess(const Source &source,
                                     false, true);
     }
 
+#if CLANG_VERSION_MINOR < 5
     compilerInstance.createPreprocessor();
+#else
+    compilerInstance.createPreprocessor(clang::TU_Complete);
+#endif
     std::string predefines = compilerInstance.getPreprocessor().getPredefines();
     for (const auto &def : source.defines) {
         predefines += toString(def);
