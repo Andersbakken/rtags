@@ -51,75 +51,59 @@ void FileManager::reload(Mode mode)
 
 void FileManager::onRecurseJobFinished(const Set<Path> &paths)
 {
-    bool emitJS = false;
-    {
-        std::lock_guard<std::mutex> lock(mMutex); // ### is this needed now?
-        Set<Path> old;
-        std::swap(mJSFiles, old);
+    std::lock_guard<std::mutex> lock(mMutex); // ### is this needed now?
 
-        std::shared_ptr<Project> project = mProject.lock();
-        assert(project);
-        FilesMap &map = project->files();
-        map.clear();
-        mWatcher.clear();
-        for (Set<Path>::const_iterator it = paths.begin(); it != paths.end(); ++it) {
-            if (it->endsWith(".js"))
-                mJSFiles.insert(*it);
-            const Path parent = it->parentDir();
-            if (parent.isEmpty()) {
-                error() << "Got empty parent here" << *it;
-                continue;
-            }
-            assert(!parent.isEmpty());
-            Set<String> &dir = map[parent];
-            if (dir.isEmpty())
-                watch(parent);
-            dir.insert(it->fileName());
+    std::shared_ptr<Project> project = mProject.lock();
+    assert(project);
+    FilesMap &map = project->files();
+    map.clear();
+    mWatcher.clear();
+    for (Set<Path>::const_iterator it = paths.begin(); it != paths.end(); ++it) {
+        const Path parent = it->parentDir();
+        if (parent.isEmpty()) {
+            error() << "Got empty parent here" << *it;
+            continue;
         }
-        assert(!map.contains(""));
-        emitJS = old != mJSFiles;
+        assert(!parent.isEmpty());
+        Set<String> &dir = map[parent];
+        if (dir.isEmpty())
+            watch(parent);
+        dir.insert(it->fileName());
     }
-    if (emitJS)
-        mJSFilesChanged();
+    assert(!map.contains(""));
 }
 
 void FileManager::onFileAdded(const Path &path)
 {
-    bool emitJS = false;
-    {
-        std::lock_guard<std::mutex> lock(mMutex);
-        if (path.isEmpty()) {
-            error("Got empty file added here");
-            return;
-        }
-        const Filter::Result res = Filter::filter(path);
-        switch (res) {
-        case Filter::Directory:
-            reload(Asynchronous);
-            return;
-        case Filter::Filtered:
-            return;
-        default:
-            break;
-        }
-
-        std::shared_ptr<Project> project = mProject.lock();
-        assert(project);
-        FilesMap &map = project->files();
-        const Path parent = path.parentDir();
-        if (!parent.isEmpty()) {
-            Set<String> &dir = map[parent];
-            if (dir.isEmpty())
-                watch(parent);
-            dir.insert(path.fileName());
-            emitJS = path.endsWith(".js");
-        } else {
-            error() << "Got empty parent here" << path;
-        }
-        assert(!map.contains(Path()));
+    std::lock_guard<std::mutex> lock(mMutex);
+    if (path.isEmpty()) {
+        error("Got empty file added here");
+        return;
     }
-    if (emitJS)
-        mJSFilesChanged();
+    const Filter::Result res = Filter::filter(path);
+    switch (res) {
+    case Filter::Directory:
+        reload(Asynchronous);
+        return;
+    case Filter::Filtered:
+        return;
+    default:
+        break;
+    }
+
+    std::shared_ptr<Project> project = mProject.lock();
+    assert(project);
+    FilesMap &map = project->files();
+    const Path parent = path.parentDir();
+    if (!parent.isEmpty()) {
+        Set<String> &dir = map[parent];
+        if (dir.isEmpty())
+            watch(parent);
+        dir.insert(path.fileName());
+    } else {
+        error() << "Got empty parent here" << path;
+    }
+    assert(!map.contains(Path()));
 }
 
 void FileManager::onFileRemoved(const Path &path)
@@ -160,12 +144,6 @@ bool FileManager::contains(const Path &path) const
     if (p != path && startsWith(path, proj->path()))
         return true;
     return false;
-}
-
-Set<Path> FileManager::jsFiles() const
-{
-    std::lock_guard<std::mutex> lock(mMutex);
-    return mJSFiles;
 }
 
 void FileManager::watch(const Path &path)
