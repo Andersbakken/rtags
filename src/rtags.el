@@ -48,7 +48,6 @@
 
 (defvar rtags-last-completions nil)
 (defvar rtags-last-completion-position nil) ;; cons (buffer . offset)
-(defvar rtags-last-buffer nil)
 (defvar rtags-path-filter nil)
 (defvar rtags-path-filter-regex nil)
 (defvar rtags-range-filter nil)
@@ -534,10 +533,6 @@
 
 (defvar rtags-symbol-history nil)
 
-(defun rtags-save-location ()
-  (setq rtags-last-buffer (current-buffer))
-  (rtags-location-stack-push))
-
 (defun rtags-find-file-or-buffer (file-or-buffer &optional other-window)
   (if (file-exists-p file-or-buffer)
       (if other-window
@@ -597,7 +592,7 @@
     (unless nobookmark (rtags-location-stack-push))))
 
 (defun rtags-find-symbols-by-name-internal (prompt switch &optional filter regexp-filter)
-  (rtags-save-location)
+  (rtags-location-stack-push)
   (let ((tagname (if mark-active
                      (buffer-substring-no-properties (region-beginning) (region-end))
                    (rtags-current-symbol)))
@@ -614,12 +609,6 @@
       (rtags-call-rc :path path switch tagname :path-filter filter :context tagname :path-filter-regex regexp-filter)
       (rtags-reset-bookmarks)
       (rtags-handle-results-buffer))))
-
-;;;###autoload
-(defun rtags-remove-results-buffer ()
-  (interactive)
-  (kill-buffer (current-buffer))
-  (switch-to-buffer rtags-last-buffer))
 
 (defun rtags-symbolname-completion-get (string)
   (with-temp-buffer
@@ -857,7 +846,7 @@ For references this means to jump to the definition/declaration of the reference
 For definitions it jumps to the declaration (if there is only one) For declarations it jumps to the definition.
 If called with a prefix restrict to current buffer"
   (interactive "P")
-  (rtags-save-location)
+  (rtags-location-stack-push)
   (let ((target (rtags-target prefix)))
     (if target
         (rtags-goto-location target))))
@@ -869,7 +858,7 @@ If there's exactly one result jump directly to it.
 If there's more show a buffer with the different alternatives and jump to the first one if rtags-jump-to-first-match is true.
 References to references will be treated as references to the referenced symbol"
   (interactive "P")
-  (rtags-save-location)
+  (rtags-location-stack-push)
   (let ((arg (rtags-current-location))
         (fn (buffer-file-name))
         (context (rtags-current-symbol t)))
@@ -881,7 +870,7 @@ References to references will be treated as references to the referenced symbol"
 (defun rtags-find-virtuals-at-point (&optional prefix)
   "List all reimplentations of function under cursor. This includes both declarations and definitions"
   (interactive "P")
-  (rtags-save-location)
+  (rtags-location-stack-push)
   (let ((arg (rtags-current-location))
         (fn (buffer-file-name))
         (context (rtags-current-symbol t)))
@@ -892,7 +881,7 @@ References to references will be treated as references to the referenced symbol"
 ;;;###autoload
 (defun rtags-find-all-references-at-point (&optional prefix)
   (interactive "P")
-  (rtags-save-location)
+  (rtags-location-stack-push)
   (let ((arg (rtags-current-location))
         (fn (buffer-file-name))
         (context (rtags-current-symbol t)))
@@ -903,7 +892,7 @@ References to references will be treated as references to the referenced symbol"
 ;;;###autoload
 (defun rtags-guess-function-at-point()
   (interactive)
-  (rtags-save-location)
+  (rtags-location-stack-push)
   (let ((token (rtags-current-token))
         (fn (buffer-file-name))
         (context (rtags-current-symbol t)))
@@ -1513,7 +1502,7 @@ References to references will be treated as references to the referenced symbol"
 
 (defun rtags-taglist ()
   (interactive)
-  (rtags-save-location)
+  (rtags-location-stack-push)
   (setq rtags-taglist-locations nil)
   (let* ((fn (buffer-file-name)) functions classes variables enums macros other)
     (with-temp-buffer
@@ -1591,7 +1580,7 @@ References to references will be treated as references to the referenced symbol"
 
 (defun rtags-imenu ()
   (interactive)
-  (rtags-save-location)
+  (rtags-location-stack-push)
   (let* ((fn (buffer-file-name))
          (alternatives (with-temp-buffer
                          (rtags-call-rc :path fn :path-filter fn "--imenu" "--list-symbols" "-Y")
@@ -1613,7 +1602,7 @@ References to references will be treated as references to the referenced symbol"
 (defvar rtags-find-file-history nil)
 (defun rtags-find-file (&optional prefix tagname)
   (interactive "P")
-  (rtags-save-location)
+  (rtags-location-stack-push)
   (let ((tagname (rtags-current-symbol t)) prompt input offset line column
         (prefer-exact rtags-find-file-prefer-exact-match))
     (if prefix
