@@ -779,14 +779,18 @@ void Server::followLocation(const QueryMessage &query, Connection *conn)
     const Path path = loc.path();
     if (!path.startsWith(project->path())) {
         for (const auto &proj : mProjects) {
-            if (proj.second != project
-                && path.startsWith(proj.first)
-                && !proj.second->load(Project::FileManager_Asynchronous)) {
-                FollowLocationJob job(loc, query, proj.second);
-                const int r = job.run(conn);
-                if (!r) {
-                    ret = r;
-                    break;
+            if (proj.second != project) {
+                Path paths[] = { proj.first, proj.first };
+                paths[1].resolve();
+                for (const Path &projectPath : paths) {
+                    if (path.startsWith(projectPath) && !proj.second->load(Project::FileManager_Asynchronous)) {
+                        FollowLocationJob job(loc, query, proj.second);
+                        ret = job.run(conn);
+                        if (!ret) {
+                            conn->finish(ret);
+                            return;
+                        }
+                    }
                 }
             }
         }
