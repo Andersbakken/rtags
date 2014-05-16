@@ -52,6 +52,7 @@
 (defvar rtags-path-filter-regex nil)
 (defvar rtags-range-filter nil)
 (defvar rtags-mode-hook nil)
+(defvar rtags-diagnostics-hook nil)
 (defvar rtags-taglist-hook nil)
 (defface rtags-path nil "Path" :group 'rtags)
 (defface rtags-context nil "Context" :group 'rtags)
@@ -719,6 +720,11 @@
   :group 'rtags
   :type 'hook)
 
+(defcustom rtags-diagnostics-hook nil
+  "Run after diagnostics have been parsed"
+  :group 'rtags
+  :type 'hook)
+
 (defcustom rtags-edit-hook nil
   "Run before rtags tries to modify a buffer (from rtags-rename)
 return t if rtags is allowed to modify this file"
@@ -1083,6 +1089,7 @@ References to references will be treated as references to the referenced symbol"
            (startoffset (rtags-string-to-number (cdr (assq 'startOffset attrs))))
            (endoffset (rtags-string-to-number (cdr (assq 'endOffset attrs))))
            (severity (cdr (assq 'severity attrs)))
+           (ret)
            (message (cdr (assq 'message attrs))))
       (when (eq name 'error)
         (let ((errorlist (gethash filename rtags-overlays nil))
@@ -1109,8 +1116,8 @@ References to references will be treated as references to the referenced symbol"
                   (overlay-put overlay 'rtags-error-severity severity)
                   (overlay-put overlay 'rtags-error-start startoffset)
                   (overlay-put overlay 'rtags-error-end endoffset)
-                  (overlay-put overlay 'face (cond ((string= severity "error") 'rtags-errline)
-                                                   ((string= severity "warning") 'rtags-warnline)
+                  (overlay-put overlay 'face (cond ((string= severity "error") (setq ret 'error) 'rtags-errline)
+                                                   ((string= severity "warning") (setq ret 'warning) 'rtags-warnline)
                                                    ((string= severity "fixit") 'rtags-fixitline)
                                                    (t 'rtags-errline)))
                   (if (string= severity "fixit")
@@ -1120,13 +1127,18 @@ References to references will be treated as references to the referenced symbol"
                     (insert (format "%s:%d:%d: %s: %s\n" filename line column severity message)))
 
                   (setq errorlist (append errorlist (list overlay)))
-                  (puthash filename errorlist rtags-overlays)))))))))
+                  (puthash filename errorlist rtags-overlays))))
+          (cons ret filebuffer))))))
 
+(make-variable-buffer-local 'rtags-error-warning-count)
 (defun rtags-parse-overlay-node (node)
   (when (listp node)
     (let* ((name (car node))
            (attrs (cadr node))
            (body (cddr node))
+           (errors 0)
+           (warnings 0)
+           (buf)
            (filename (cdr (assq 'name attrs))))
       (when (eq name 'file)
         (rtags-overlays-remove filename)
@@ -1134,20 +1146,44 @@ References to references will be treated as references to the referenced symbol"
           (goto-char (point-min))
           (flush-lines (concat filename ":")))
         (dolist (it body)
-          (rtags-parse-overlay-error-node it filename))))))
+          (let ((result (rtags-parse-overlay-error-node it filename)))
+            (cond ((eq 'error (car result)) (incf errors))
+                  ((eq 'warning (car result)) (incf warnings))
+                  (t))
+            (setq buf (cdr result))))
+        (if buf
+            (with-current-buffer buf
+              (setq rtags-error-warning-count (cons errors warnings))))))))
+
 
 (defvar rtags-last-index nil)
 (defvar rtags-last-total nil)
 
-(defun rtags-modeline-progress ()
-  (if (and rtags-last-index
-           rtags-last-total
-           (> rtags-last-total 0))
-      ;; (not (= rtags-last-index rtags-last-total)))
-      (format "RTags: %d/%d %d%%%% " rtags-last-index rtags-last-total (/ (* rtags-last-index 100) rtags-last-total))
-    ""))
+(defun rtags-modeline-format-helper (type count)
+  (and (> count 0)
+       (format "%d %s%s" count type (if (> count 1) "s" ""))))
 
-(add-to-list 'global-mode-string '(:eval (rtags-modeline-progress)))
+(defun rtags-modeline()
+  (let* ((progress
+         (and rtags-last-index
+              rtags-last-total
+              (> rtags-last-total rtags-last-index)
+              (> rtags-last-total 0)
+              (format "%d/%d %d%%%%" rtags-last-index rtags-last-total (/ (* rtags-last-index 100) rtags-last-total))))
+        (errors (if rtags-error-warning-count (car rtags-error-warning-count) 0))
+        (warnings (if rtags-error-warning-count (cdr rtags-error-warning-count) 0))
+        (errorsString (rtags-modeline-format-helper "error" errors))
+        (warningsString (rtags-modeline-format-helper "warning" warnings))
+        (errors-warnings
+         (cond ((and errorsString warningsString) (concat errorsString "/" warningsString))
+               (errorsString)
+               (warningsString)
+               (t nil))))
+    (cond ((and progress errors-warnings) (format "RTags: %s %s " progress errors-warnings))
+          (progress (format "RTags: %s " progress))
+          (errors-warnings (format "RTags: %s " errors-warnings))
+          (t ""))))
+
 (defun rtags-parse-diagnostics (output)
   (let ((doc (rtags-parse-xml-string output)) body)
     (when doc
@@ -1173,10 +1209,10 @@ References to references will be treated as references to the referenced symbol"
                      ((eq (caar body) 'total)
                       (setq rtags-last-total (string-to-number (cdar body))))
                      (t (message "Unexpected element %s" (caar body))))
-               (setq body (cdr body)))
-             (force-mode-line-update))
+               (setq body (cdr body))))
             ;;             (message "RTags: %s/%s (%s%%)" index total)))
-            (t (message "Unexpected root element %s" (car doc)))))))
+             (t (message "Unexpected root element %s" (car doc))))
+      (run-hooks 'rtags-diagnostics-hook))))
 
 (defun rtags-check-overlay (overlay)
   (if (and (not (active-minibuffer-window)) (not cursor-in-echo-area))
