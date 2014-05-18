@@ -173,7 +173,7 @@ you may also pass an optional directory to -J telling rtags to load the compilat
 ninja -t commands | rc --compile
 #+END_SRC
 
-- If you use make or some other build system where it's not trivial to get a list of all compile commands then you'll likely want to make rtags intercept your compile commands. You can also do this if you just want to index all source files you compile and not have to remember to load the compilationd database or run a separate command for each project. To do this you can do the following
+- If you use make or some other build system where it's not trivial to get a list of all compile commands then you'll likely want to make rtags intercept your compile commands. You can also do this if you just want to index all source files you compile and not have to remember to load the compilation database or run a separate command for each project. To do this you can do the following
 
 #+BEGIN_SRC
 cd /path/to/rtags
