@@ -136,7 +136,6 @@ There are a few prerequisites you need to have in order to build rtags
 
 1. libclang, preferrably 3.2 or higher, on Linux you may be able to use your distro package manager to install this. On OS X you can use homebrew or possibly other package managers, though see below for details if you plan to tag projects that use C++11 features (such as RTags itself). Alternatively you can grab the sources from [[http://llvm.org/releases/download.html][llvm.org]] and build it yourself.
 2. A modern compiler. This means GCC >= 4.7 or Clang >= 3.2. RTags makes extensive use of C++11 features such as variadic templates and threading utility classes from the C++ standard library.
-3. If you plan to use LLVM's [[http://clang.llvm.org/docs/JSONCompilationDatabase.html][compilation database]] to set up your projects then you'll need either [[http://lloyd.github.io/yajl/][YAJL]] or [[https://code.google.com/p/v8/][V8]] in order to enable RTags to parse the JSON formatted database file.
 
 If you plan to tag projects using C++11 features on OS X then you'll need a custom libclang, the one built through homebrew does not support using LLVM's libc++ and the default GNU C++ standard library on OS X is too old. We've prepared a homebrew formula for this purpose, this can be found in the llvm-osx directory in the RTags checkout. This formula can be built as follows though this will overwrite any existing libclang from homebrew:
 
@@ -146,7 +145,29 @@ brew install ./llvm-osx/llvm.rb --with-clang --with-libcxx --disable-assertions
 
 Feel free to inspect the formula before installing.
 
-At this point you should be able to start the installation process:
+At this point you should be able to start the installation process. First of all you'll want to start the rdm daemon
+
+#+BEGIN_SRC
+rdm &
+#+END_SRC
+
+Now you'll need to be able to tell rtags what source files you want to index and what compilation flags they require. There are a few different ways of doing this.
+
+- Use LLVM's [[http://clang.llvm.org/docs/JSONCompilationDatabase.html][compilation database]], to do this you simply run
+
+#+BEGIN_SRC
+rc -J
+#+END_SRC
+
+you may also pass an optional directory to -J telling rtags to load the compilation database from a specific directory instead of the current one.
+
+- If you use ninja as your build tool then you can do the following
+
+#+BEGIN_SRC
+ninja -t commands | rc --compile
+#+END_SRC
+
+- If you use make or some other build system where it's not trivial to get a list of all compile commands then you'll likely want to make rtags intercept your compile commands. You can also do this if you just want to index all source files you compile and not have to remember to load the compilationd database or run a separate command for each project. To do this you can do the following
 
 #+BEGIN_SRC
 cd /path/to/rtags
@@ -157,15 +178,13 @@ ln -s /path/to/rtags/gcc-rtags-wrapper.sh ~/bin/c++
 ln -s /path/to/rtags/gcc-rtags-wrapper.sh ~/bin/cc
 ln -s /path/to/rtags/gcc-rtags-wrapper.sh ~/bin/g++
 ln -s /path/to/rtags/gcc-rtags-wrapper.sh ~/bin/gcc
-rdm & # This starts the rtags daemon
 #+END_SRC
 
 Add something like this to your .emacs:
-#+BEGIN_SRC
 
+#+BEGIN_SRC
 (add-to-list 'load-path "/path/to/rtags"))
 (require 'rtags)
-
 #+END_SRC
 
 To enable the standard keybindings (using a prefix of C-x r) you could
