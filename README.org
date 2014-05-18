@@ -167,7 +167,7 @@ rc -J
 
 you may also pass an optional directory to -J telling rtags to load the compilation database from a specific directory instead of the current one.
 
-- If you use ninja as your build tool then you can do the following
+- If you use [[http://martine.github.io/ninja/][ninja]] as your build tool then you can do the following
 
 #+BEGIN_SRC
 ninja -t commands | rc --compile
