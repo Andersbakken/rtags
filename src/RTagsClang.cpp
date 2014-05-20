@@ -1018,7 +1018,7 @@ String typeString(const CXType &type)
     if (type.kind == CXType_ConstantArray) {
         ret += typeString(clang_getArrayElementType(type));
 #if CLANG_VERSION_MAJOR > 3 || (CLANG_VERSION_MAJOR == 3 && CLANG_VERSION_MINOR >= 1)
-        const long long count = clang_getNumElements(type);
+        const uint64_t count = clang_getNumElements(type);
         ret += '[';
         if (count >= 0)
             ret += String::number(count);
