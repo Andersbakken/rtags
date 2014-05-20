@@ -393,24 +393,21 @@ String ClangIndexer::addNamePermutations(const CXCursor &cursor, const Location 
         }
 
         if (originalKind == CXCursor_EnumConstantDecl) { // remove CXCursor_EnumDecl
-            char *last = 0, *secondLast = 0;
-            char *delimiter = buf + pos;
-            while (true) {
-                secondLast = last;
-                last = delimiter;
-                delimiter = strstr(delimiter, "::");
-                if (delimiter) {
-                    delimiter += 2;
-                } else {
-                    break;
-                }
-            }
-            if (secondLast && last) {
+            // struct A { enum B { C } };
+            // Will by default generate a A::B::C symbolname.
+            // This code removes the B:: part from it
+            if (colonColonCount > 2) {
+                const char *last = buf + colonColons[colonColonCount - 1];
+                const char *secondLast = buf + colonColons[colonColonCount - 2];
                 const int len = (last - secondLast);
-                if (secondLast != buf + pos) {
-                    memmove(buf + pos + len, buf + pos, secondLast - (buf + pos));
-                }
+                memmove(buf + pos + len, buf + pos, secondLast - (buf + pos));
                 pos += len;
+                // ### We could/should just move the colon colon values but this
+                // should be pretty quick and I don't want to write the code to
+                // do it.
+                ::tokenize(buf, pos,
+                           &templateStart, &templateEnd,
+                           &colonColonCount, colonColons);
             }
         } else { // remove templates
             assert(templateStart != -1);
