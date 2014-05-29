@@ -874,8 +874,9 @@ void Server::dumpFile(const QueryMessage &query, Connection *conn)
         conn->disconnected().disconnect();
         // ### this is a hack, but if the connection goes away we can't post
         // ### events to it. We could fix this nicer but I didn't
+
         DumpThread *dumpThread = new DumpThread(query, source, conn);
-        dumpThread->start();
+        dumpThread->start(Thread::Normal, 8 * 1024 * 1024); // 8MiB stack size
     } else {
         conn->write<256>("%s build: %d not found", query.query().constData(), query.buildIndex());
         conn->finish();
