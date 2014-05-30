@@ -107,39 +107,24 @@ String cursorToString(CXCursor cursor, unsigned flags)
 
     CXString file;
     unsigned line, col;
-    CXSourceLocation location = clang_getCursorLocation(cursor);
-    clang_getPresumedLocation(location, &file, &line, &col);
+    for (int pieceIndex = 0;; ++pieceIndex) {
+        CXSourceRange range = clang_Cursor_getSpellingNameRange(cursor, pieceIndex, 0);
+        if (clang_Range_isNull(range))
+            break;
+        CXSourceLocation rangeStart = clang_getRangeStart(range);
+        clang_getPresumedLocation(rangeStart, &file, &line, &col);
 
-    const char *data = clang_getCString(file);
-    if (data && *data) {
-        ret += ' ';
-        ret += data;
-        ret += ':';
-        ret += String::number(line);
-        ret += ':';
-        ret += String::number(col);
-
-        // if (flags & IncludeRange) {
-        //     ret += " (";
-        //     CXSourceRange range = clang_getCursorExtent(cursor);
-        //     unsigned start, end;
-        //     clang_getSpellingLocation(clang_getRangeStart(range), 0, 0, 0, &start);
-        //     clang_getSpellingLocation(clang_getRangeEnd(range), 0, 0, 0, &end);
-        //     ret += String::number(start);
-        //     ret += '-';
-        //     ret += String::number(end);
-        //     ret += ')';
-        // }
-
-        // if (presumedLine != line || presumedCol != col)
-        //     ret += String::snprintf<32>("presumed: %d:%d", presumedLine, presumedCol);
-        // if (instantiationLoc != off)
-        //     ret += String::snprintf<32>("instantiation: %d", instantiationLoc);
-        // if (expansionLoc != off)
-        //     ret += String::snprintf<32>("expansion: %d", expansionLoc);
-
+        const char *data = clang_getCString(file);
+        if (data && *data) {
+            ret += ' ';
+            ret += data;
+            ret += ':';
+            ret += String::number(line);
+            ret += ':';
+            ret += String::number(col);
+        }
+        clang_disposeString(file);
     }
-    clang_disposeString(file);
     return ret;
 }
 

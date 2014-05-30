@@ -160,6 +160,7 @@ inline bool isReference(unsigned int kind)
     case CXCursor_MacroExpansion:
     case CXCursor_MemberRefExpr:
     case CXCursor_CallExpr:
+    case CXCursor_ObjCMessageExpr:
     case CXCursor_CXXDeleteExpr:
         return true;
     default:
@@ -176,6 +177,8 @@ inline bool isFunction(unsigned int kind)
     case CXCursor_Constructor:
     case CXCursor_Destructor:
     case CXCursor_CXXMethod:
+    case CXCursor_ObjCInstanceMethodDecl:
+    case CXCursor_ObjCClassMethodDecl:
         return true;
     default:
         break;
@@ -224,6 +227,10 @@ static inline bool isContainer(uint16_t kind)
     case CXCursor_ClassTemplate:
     case CXCursor_Namespace:
     case CXCursor_ClassDecl:
+    case CXCursor_ObjCInterfaceDecl:
+    case CXCursor_ObjCImplementationDecl:
+    case CXCursor_ObjCInstanceMethodDecl:
+    case CXCursor_ObjCClassMethodDecl:
     case CXCursor_StructDecl:
         return true;
     default:

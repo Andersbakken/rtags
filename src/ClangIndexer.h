@@ -98,7 +98,10 @@ private:
     }
     inline Location createLocation(const CXCursor &cursor, bool *blocked = 0)
     {
-        return createLocation(clang_getCursorLocation(cursor), blocked);
+        const CXSourceRange range = clang_Cursor_getSpellingNameRange(cursor, 0, 0);
+        if (clang_Range_isNull(range))
+            return Location();
+        return createLocation(clang_getRangeStart(range), blocked);
     }
     Location createLocation(const Path &file, unsigned int line, unsigned int col, bool *blocked = 0);
     String addNamePermutations(const CXCursor &cursor, const Location &location);
