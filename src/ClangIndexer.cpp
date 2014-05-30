@@ -712,8 +712,14 @@ void ClangIndexer::handleReference(const CXCursor &cursor, CXCursorKind kind, co
     }
 
     const Location reffedLoc = createLocation(ref);
-    if (!reffedLoc.isValid())
+    if (!reffedLoc.isValid()) {
+        if (kind == CXCursor_ObjCMessageExpr) {
+            mData->pendingReferenceMap[RTags::eatString(clang_getCursorUSR(clang_getCanonicalCursor(ref)))].insert(location);
+            // insert it, we'll hook up the target and references later
+            handleCursor(cursor, kind, location);
+        }
         return;
+    }
 
     std::shared_ptr<CursorInfo> &refInfo = mData->symbols[reffedLoc];
     if ((!refInfo || !refInfo->symbolLength) && !handleCursor(ref, refKind, reffedLoc))

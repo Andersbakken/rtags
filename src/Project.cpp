@@ -730,6 +730,64 @@ static inline void writeUsr(const UsrMap &usr, UsrMap &current, SymbolMap &symbo
     }
 }
 
+static inline void resolvePendingReferences(SymbolMap& symbols, const UsrMap& usrs, const UsrMap& refs)
+{
+    auto ref = refs.begin();
+    const auto end = refs.cend();
+    while (ref != end) {
+        auto refloc = ref->second.begin();
+        const auto locend = ref->second.end();
+        if (refloc != locend) {
+            // find the declaration
+            List<String> refUsrs;
+            {
+                String refUsr = ref->first;
+                refUsrs.append(refUsr);
+                // assume this is an implicit instance method for a property, replace the last (im) with (py)
+                const int lastIm = refUsr.lastIndexOf("(im)");
+                if (lastIm != -1) {
+                    refUsr.replace(lastIm, 4, "(py)");
+                    refUsrs.append(refUsr);
+                }
+            }
+            for (const String& refUsr : refUsrs) {
+                std::shared_ptr<CursorInfo> declInfo;
+                Location declLoc;
+                bool foundDecl = false;
+                const auto usr = usrs.find(refUsr);
+                if (usr != usrs.end()) {
+                    for (const Location& usrLoc : usr->second) {
+                        auto symbol = symbols.find(usrLoc);
+                        if (symbol != symbols.end()) {
+                            declInfo = symbol->second;
+                            if (declInfo->kind >= CXCursor_FirstDecl && declInfo->kind <= CXCursor_LastDecl) {
+                                declLoc = usrLoc;
+                                foundDecl = true;
+                                break;
+                            }
+                        }
+                    }
+                }
+                if (foundDecl) {
+                    assert(declInfo);
+                    while (refloc != locend) {
+                        declInfo->references.insert(*refloc);
+                        auto symbol = symbols.find(*refloc);
+                        if (symbol != symbols.end()) {
+                            std::shared_ptr<CursorInfo>& refInfo = symbols[*refloc];
+                            assert(refInfo);
+                            refInfo->targets.insert(declLoc);
+                        }
+                        ++refloc;
+                    }
+                    break;
+                }
+            }
+        }
+        ++ref;
+    }
+}
+
 static inline int writeSymbols(SymbolMap &symbols, SymbolMap &current)
 {
     int ret = 0;
@@ -778,6 +836,10 @@ Project::SyncData Project::syncDB()
         const std::shared_ptr<IndexData> &data = it->second;
         addDependencies(data->dependencies, newFiles);
         addFixIts(data->dependencies, data->fixIts);
+        if (!data->pendingReferenceMap.empty()) {
+            resolvePendingReferences(data->symbols, data->usrMap, data->pendingReferenceMap);
+            data->pendingReferenceMap.clear();
+        }
         ret.symbols += writeSymbols(data->symbols, mSymbols);
         writeUsr(data->usrMap, mUsr, mSymbols);
         ret.symbolNames += writeSymbolNames(data->symbolNames, mSymbolNames);

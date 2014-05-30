@@ -60,7 +60,7 @@ public:
     SymbolMap symbols;
     SymbolNameMap symbolNames;
     DependencyMap dependencies;
-    UsrMap usrMap;
+    UsrMap usrMap, pendingReferenceMap;
     String message; // used as output for dump when flags & Dump
     FixItMap fixIts;
     String xmlDiagnostics;

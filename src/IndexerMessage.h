@@ -43,7 +43,7 @@ public:
         serializer << mProject << mData->flags << mData->key << mData->parseTime;
         CursorInfo::serialize(serializer, mData->symbols);
         serializer << mData->symbolNames << mData->dependencies
-                   << mData->usrMap << mData->message << mData->fixIts
+                   << mData->usrMap << mData->pendingReferenceMap << mData->message << mData->fixIts
                    << mData->xmlDiagnostics << mData->visited << mData->jobId;
         if (debugIndexerMessage)
             error() << "encoding took" << sw.elapsed() << "for" << Location::path(mData->fileId());
@@ -59,8 +59,8 @@ public:
         deserializer >> mData->key >> mData->parseTime;
         CursorInfo::deserialize(deserializer, mData->symbols);
         deserializer >> mData->symbolNames >> mData->dependencies
-                     >> mData->usrMap >> mData->message >> mData->fixIts >> mData->xmlDiagnostics
-                     >> mData->visited >> mData->jobId;
+                     >> mData->usrMap >> mData->pendingReferenceMap >> mData->message >> mData->fixIts
+                     >> mData->xmlDiagnostics >> mData->visited >> mData->jobId;
         if (debugIndexerMessage)
             error() << "decoding took" << sw.elapsed() << "for" << Location::path(mData->fileId());
     }

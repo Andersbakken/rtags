@@ -231,6 +231,7 @@ static inline bool isContainer(uint16_t kind)
     case CXCursor_ObjCImplementationDecl:
     case CXCursor_ObjCInstanceMethodDecl:
     case CXCursor_ObjCClassMethodDecl:
+    case CXCursor_ObjCMessageExpr:
     case CXCursor_StructDecl:
         return true;
     default:
