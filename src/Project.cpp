@@ -774,7 +774,7 @@ static inline void resolvePendingReferences(SymbolMap& symbols, const UsrMap& us
                         declInfo->references.insert(*refloc);
                         auto symbol = symbols.find(*refloc);
                         if (symbol != symbols.end()) {
-                            std::shared_ptr<CursorInfo>& refInfo = symbols[*refloc];
+                            std::shared_ptr<CursorInfo>& refInfo = symbol->second;
                             assert(refInfo);
                             refInfo->targets.insert(declLoc);
                         }
