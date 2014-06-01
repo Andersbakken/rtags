@@ -1,11 +1,12 @@
 * Introduction
 
-RTags is a client/server application that indexes c/c++ code and keeps
+RTags is a client/server application that indexes C/C++ code and keeps
 a persistent in-memory database of references, declarations,
-definitions, symbolnames etc. It allows you to find symbols by name
-(including class and namespace scope). Most importantly we give you
-proper follow-symbol and find-references support. We also have neat
-little things like rename-symbol, integration with clang's "fixits"
+definitions, symbolnames etc. There's also limited support for 
+ObjC/ObjC++. It allows you to find symbols by name (including class
+and namespace scope). Most importantly we give you proper
+follow-symbol and find-references support. We also have neat little
+things like rename-symbol, integration with clang's "fixits"
 (http://clang.llvm.org/diagnostics.html). We also integrate with
 flymake using clang's vastly superior errors and warnings. Since rtags
 constantly will reindex "dirty" files you get live updating of
