@@ -8,22 +8,13 @@
 #  LLVM_LDFLAGS      - llvm linker flags
 #  LLVM_MODULE_LIBS  - list of llvm libs for working with modules.
 
-find_program(LLVM_CONFIG_EXECUTABLE llvm-config DOC "llvm-config executable")
-if (NOT LLVM_CONFIG_EXECUTABLE)
-    find_program(LLVM_CONFIG_EXECUTABLE llvm-config-3.5 DOC "llvm-config-3.5 executable")
-    if (NOT LLVM_CONFIG_EXECUTABLE)
-        find_program(LLVM_CONFIG_EXECUTABLE llvm-config-3.4 DOC "llvm-config-3.4 executable")
-        if (NOT LLVM_CONFIG_EXECUTABLE)
-            find_program(LLVM_CONFIG_EXECUTABLE llvm-config-3.3 DOC "llvm-config-3.3 executable")
-            if (NOT LLVM_CONFIG_EXECUTABLE)
-                find_program(LLVM_CONFIG_EXECUTABLE llvm-config-3.2 DOC "llvm-config-3.2 executable")
-                if (NOT LLVM_CONFIG_EXECUTABLE)
-                    find_program(LLVM_CONFIG_EXECUTABLE llvm-config-3.1 DOC "llvm-config-3.1 executable")
-                endif ()
-            endif ()
-        endif ()
-    endif ()
-endif ()
+set(llvm_config_names llvm-config  
+  llvm-config-3.5 llvm-config-mp-3.5
+  llvm-config-3.4 llvm-config-mp-3.4
+  llvm-config-3.3 llvm-config-mp-3.3
+  llvm-config-3.2 llvm-config-mp-3.2
+  llvm-config-3.1 llvm-config-mp-3.1)
+find_program(LLVM_CONFIG_EXECUTABLE NAMES ${llvm_config_names})
 
 if (LLVM_CONFIG_EXECUTABLE)
   message(STATUS "LLVM llvm-config found at: ${LLVM_CONFIG_EXECUTABLE}")

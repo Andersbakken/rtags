@@ -148,6 +148,12 @@ If you plan to tag projects using C++11 features on OS X then you'll need a cust
 brew install ./llvm-osx/llvm.rb --with-clang --with-libcxx --disable-assertions
 #+END_SRC
 
+or you can install clang and llvm from macports
+
+#+BEGIN_SRC
+sudo port install clang-3.5
+#+END_SRC
+
 Feel free to inspect the formula before installing.
 
 *RTags daemon setup*
