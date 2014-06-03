@@ -732,59 +732,42 @@ static inline void writeUsr(const UsrMap &usr, UsrMap &current, SymbolMap &symbo
 
 static inline void resolvePendingReferences(SymbolMap& symbols, const UsrMap& usrs, const UsrMap& refs)
 {
-    auto ref = refs.begin();
-    const auto end = refs.cend();
-    while (ref != end) {
-        auto refloc = ref->second.begin();
-        const auto locend = ref->second.end();
-        if (refloc != locend) {
-            // find the declaration
-            List<String> refUsrs;
-            {
-                String refUsr = ref->first;
+    for (const auto &ref : refs) {
+        assert(!ref->second.isEmpty());
+        // find the declaration
+        List<String> refUsrs;
+        {
+            String refUsr = ref.first;
+            refUsrs.append(refUsr);
+            // assume this is an implicit instance method for a property, replace the last (im) with (py)
+            const int lastIm = refUsr.lastIndexOf("(im)");
+            if (lastIm != -1) {
+                refUsr.replace(lastIm, 4, "(py)");
                 refUsrs.append(refUsr);
-                // assume this is an implicit instance method for a property, replace the last (im) with (py)
-                const int lastIm = refUsr.lastIndexOf("(im)");
-                if (lastIm != -1) {
-                    refUsr.replace(lastIm, 4, "(py)");
-                    refUsrs.append(refUsr);
-                }
             }
-            for (const String& refUsr : refUsrs) {
-                std::shared_ptr<CursorInfo> declInfo;
-                Location declLoc;
-                bool foundDecl = false;
-                const auto usr = usrs.find(refUsr);
-                if (usr != usrs.end()) {
-                    for (const Location& usrLoc : usr->second) {
-                        auto symbol = symbols.find(usrLoc);
-                        if (symbol != symbols.end()) {
-                            declInfo = symbol->second;
-                            if (declInfo->kind >= CXCursor_FirstDecl && declInfo->kind <= CXCursor_LastDecl) {
-                                declLoc = usrLoc;
-                                foundDecl = true;
-                                break;
-                            }
-                        }
-                    }
-                }
-                if (foundDecl) {
-                    assert(declInfo);
-                    while (refloc != locend) {
-                        declInfo->references.insert(*refloc);
-                        auto symbol = symbols.find(*refloc);
-                        if (symbol != symbols.end()) {
-                            std::shared_ptr<CursorInfo>& refInfo = symbol->second;
-                            assert(refInfo);
-                            refInfo->targets.insert(declLoc);
-                        }
-                        ++refloc;
-                    }
-                    break;
+        }
+        SymbolMap targets;
+        for (const String& refUsr : refUsrs) {
+            const auto usr = usrs.find(refUsr);
+            if (usr != usrs.end()) {
+                for (const Location& usrLoc : usr->second) {
+                    auto symbol = symbols.value(usrLoc);
+                    assert(symbol);
+                    if (RTags::isCursor(symbol->kind))
+                        targets[usrLoc] = symbol;
                 }
             }
         }
-        ++ref;
+        if (!targets.isEmpty()) {
+            for (const auto &r : ref.second) {
+                auto &referenceCursor = symbols[r];
+                assert(referenceCursor);
+                for (const auto &t : targets) {
+                    referenceCursor->targets.insert(t.first);
+                    t.second->references.insert(r);
+                }
+            }
+        }
     }
 }
 
@@ -832,18 +815,21 @@ Project::SyncData Project::syncDB()
     ret.dirtyTime = sw.restart();
 
     Set<uint32_t> newFiles;
+    List<UsrMap*> pendingReferences;
     for (auto it = mPendingData.begin(); it != mPendingData.end(); ++it) {
         const std::shared_ptr<IndexData> &data = it->second;
         addDependencies(data->dependencies, newFiles);
         addFixIts(data->dependencies, data->fixIts);
-        if (!data->pendingReferenceMap.empty()) {
-            resolvePendingReferences(data->symbols, data->usrMap, data->pendingReferenceMap);
-            data->pendingReferenceMap.clear();
-        }
+        if (!data->pendingReferenceMap.isEmpty())
+            pendingReferences.append(&data->pendingReferenceMap);
         ret.symbols += writeSymbols(data->symbols, mSymbols);
         writeUsr(data->usrMap, mUsr, mSymbols);
         ret.symbolNames += writeSymbolNames(data->symbolNames, mSymbolNames);
     }
+
+    for (const UsrMap *map : pendingReferences)
+        resolvePendingReferences(mSymbols, mUsr, *map);
+
     for (auto it = newFiles.constBegin(); it != newFiles.constEnd(); ++it) {
         watch(Location::path(*it));
     }

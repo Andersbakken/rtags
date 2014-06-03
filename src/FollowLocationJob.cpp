@@ -37,9 +37,24 @@ int FollowLocationJob::execute()
         return 2;
     }
 
-    Location loc;
-    std::shared_ptr<CursorInfo> target = cursorInfo->bestTarget(map, &loc);
-    if (!loc.isNull() && target) {
+    SymbolMap targets;
+    if (cursorInfo->kind == CXCursor_ObjCMessageExpr) {
+        for (const auto &loc : cursorInfo->targets) {
+            const auto target = map.value(loc);
+            if (target)
+                targets[loc] = target;
+
+        }
+    } else {
+        Location loc;
+        std::shared_ptr<CursorInfo> target = cursorInfo->bestTarget(map, &loc);
+        if (!loc.isNull() && target)
+            targets[loc] = target;
+    }
+    int ret = 1;
+    for (const auto &t : targets) {
+        auto target = t.second;
+        Location loc = t.first;
         if (cursorInfo->kind != target->kind) {
             if (!target->isDefinition() && !target->targets.isEmpty()) {
                 switch (target->kind) {
@@ -64,13 +79,13 @@ int FollowLocationJob::execute()
                 const std::shared_ptr<CursorInfo> decl = target->bestTarget(map, &declLoc);
                 if (!declLoc.isNull()) {
                     write(declLoc);
-                    return 0;
+                    ret = 0;
                 }
             } else {
                 write(loc);
-                return 0;
+                ret = 0;
             }
         }
     }
-    return 1;
+    return ret;
 }

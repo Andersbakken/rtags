@@ -853,9 +853,12 @@ For definitions it jumps to the declaration (if there is only one) For declarati
 If called with a prefix restrict to current buffer"
   (interactive "P")
   (rtags-location-stack-push)
-  (let ((target (rtags-target prefix)))
-    (if target
-        (rtags-goto-location target))))
+  (let ((arg (rtags-current-location))
+        (fn (buffer-file-name))
+        (context (rtags-current-symbol t)))
+    (with-current-buffer (rtags-get-buffer)
+      (rtags-call-rc :path fn :context context :path-filter prefix "-f" arg)
+      (rtags-handle-results-buffer))))
 
 ;;;###autoload
 (defun rtags-find-references-at-point (&optional prefix)
