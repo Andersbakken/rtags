@@ -24,14 +24,14 @@ QueryMessage::QueryMessage(Type type)
 
 void QueryMessage::encode(Serializer &serializer) const
 {
-    serializer << mRaw << mQuery << mContext << mType << mFlags << mMax
+    serializer << mRaw << mQuery << mType << mFlags << mMax
                << mMinLine << mMaxLine << mBuildIndex << mPathFilters << mCurrentFile
                << mUnsavedFiles;
 }
 
 void QueryMessage::decode(Deserializer &deserializer)
 {
-    deserializer >> mRaw >> mQuery >> mContext >> mType >> mFlags >> mMax
+    deserializer >> mRaw >> mQuery >> mType >> mFlags >> mMax
                  >> mMinLine >> mMaxLine >> mBuildIndex >> mPathFilters >> mCurrentFile
                  >> mUnsavedFiles;
 }

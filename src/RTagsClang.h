@@ -53,8 +53,7 @@ enum CursorToStringFlags {
     AllCursorToStringFlags = IncludeUSR|IncludeRange
 };
 String cursorToString(CXCursor cursor, unsigned = DefaultCursorToStringFlags);
-SymbolMap::const_iterator findCursorInfo(const SymbolMap &map, const Location &location,
-                                         const String &context = String());
+SymbolMap::const_iterator findCursorInfo(const SymbolMap &map, const Location &location);
 
 void parseTranslationUnit(const Path &sourceFile, const List<String> &args,
                           CXTranslationUnit &unit, CXIndex index,

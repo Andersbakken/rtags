@@ -48,7 +48,6 @@ public:
     const Path &currentFile() const { return mCurrentFile; }
 
     String socketFile() const { return mSocketFile; }
-    String context() const { return mContext; }
     Path projectRoot() const { return mProjectRoot; }
     unsigned queryFlags() const { return mQueryFlags; }
 
@@ -70,7 +69,6 @@ private:
 
     unsigned mQueryFlags;
     int mMax, mLogLevel, mTimeout, mMinOffset, mMaxOffset, mConnectTimeout, mBuildIndex;
-    String mContext;
     Set<String> mPathFilters;
     Hash<Path, String> mUnsavedFiles;
     List<std::shared_ptr<RCCommand> > mCommands;

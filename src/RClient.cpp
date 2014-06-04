@@ -34,7 +34,6 @@ enum OptionType {
     Compile,
     ConnectTimeout,
     ContainingFunction,
-    Context,
     CursorInfo,
     CursorInfoIncludeParents,
     CursorInfoIncludeReferences,
@@ -211,7 +210,6 @@ struct Option opts[] = {
     { CurrentFile, "current-file", 0, required_argument, "Pass along which file is being edited to give rdm a better chance at picking the right project." },
     { DeclarationOnly, "declaration-only", 0, no_argument, "Filter out definitions (unless inline).", },
     { IMenu, "imenu", 0, no_argument, "Use with --list-symbols to provide output for (rtags-imenu) (filter namespaces, fully qualified function names, ignore certain cursors etc)." },
-    { Context, "context", 't', required_argument, "Context for current symbol (for fuzzy matching with dirty files)." }, // ### multiple context doesn't work
     { ContainingFunction, "containing-function", 'o', no_argument, "Include name of containing function in output."},
     { BuildIndex, "build-index", 0, required_argument, "For sources with multiple builds, use the arg'th." },
     { CompilationFlagsOnly, "compilation-flags-only", 0, no_argument, "For --source, only print compilation flags." },
@@ -331,7 +329,6 @@ public:
         msg.init(rc->argc(), rc->argv());
         msg.setQuery(query);
         msg.setBuildIndex(rc->buildIndex());
-        msg.setContext(rc->context());
         msg.setUnsavedFiles(rc->unsavedFiles());
         msg.setFlags(extraQueryFlags | rc->queryFlags());
         msg.setMax(rc->max());
@@ -616,9 +613,6 @@ bool RClient::parse(int &argc, char **argv)
             break;
         case SynchronousCompletions:
             mQueryFlags |= QueryMessage::SynchronousCompletions;
-            break;
-        case Context:
-            mContext = optarg;
             break;
         case DisplayName:
             mQueryFlags |= QueryMessage::DisplayName;

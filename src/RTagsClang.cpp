@@ -139,53 +139,17 @@ static inline bool matchContext(const String &symbolName, const String &context)
     return true;
 }
 
-SymbolMap::const_iterator findCursorInfo(const SymbolMap &map, const Location &location, const String &context)
+SymbolMap::const_iterator findCursorInfo(const SymbolMap &map, const Location &location)
 {
-    if (context.isEmpty()) {
-        SymbolMap::const_iterator it = map.lower_bound(location);
-        if (it != map.end() && it->first == location) {
-            return it;
-        } else if (it != map.begin()) {
-            --it;
-            if (it->first.fileId() == location.fileId() && location.line() == it->first.line()) {
-                const int off = location.column() - it->first.column();
-                if (it->second->symbolLength > off)
-                    return it;
-            }
-        }
-        return map.end();
-    }
-
-    SymbolMap::const_iterator f = map.lower_bound(location);
-    if (f != map.begin() && (f == map.end() || f->first != location))
-        --f;
-    SymbolMap::const_iterator b = f;
-
-    enum { Search = 32 };
-    for (int j=0; j<Search; ++j) {
-        if (f != map.end()) {
-            if (location.fileId() != f->first.fileId()) {
-                if (b == map.begin())
-                    break;
-                f = map.end();
-            } else if (matchContext(f->second->symbolName, context)) {
-                // error() << "found it forward" << j;
-                return f;
-            } else {
-                ++f;
-            }
-        }
-
-        if (b != map.begin()) {
-            --b;
-            if (location.fileId() != b->first.fileId()) {
-                if (f == map.end())
-                    break;
-                b = map.begin();
-            } else if (matchContext(b->second->symbolName, context)) {
-                // error() << "found it backward" << j;
-                return b;
-            }
+    SymbolMap::const_iterator it = map.lower_bound(location);
+    if (it != map.end() && it->first == location) {
+        return it;
+    } else if (it != map.begin()) {
+        --it;
+        if (it->first.fileId() == location.fileId() && location.line() == it->first.line()) {
+            const int off = location.column() - it->first.column();
+            if (it->second->symbolLength > off)
+                return it;
         }
     }
     return map.end();

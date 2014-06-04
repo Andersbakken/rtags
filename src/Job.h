@@ -73,7 +73,6 @@ public:
     int run(Connection *connection = 0);
     bool isAborted() const { std::lock_guard<std::mutex> lock(mMutex); return mAborted; }
     void abort() { std::lock_guard<std::mutex> lock(mMutex); mAborted = true; }
-    String context() const { return mContext; }
     std::mutex &mutex() const { return mMutex; }
     bool &aborted() { return mAborted; }
     Connection *connection() const { return mConnection; }
@@ -91,7 +90,6 @@ private:
     int mMax;
     String mBuffer;
     Connection *mConnection;
-    const String mContext;
 };
 
 template <int StaticBufSize>

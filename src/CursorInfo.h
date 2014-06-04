@@ -28,17 +28,6 @@ typedef Map<Location, std::shared_ptr<CursorInfo> > SymbolMap;
 class CursorInfo
 {
 public:
-    enum RPCursorKind {
-        Invalid = 20000,
-        Function,
-        Class,
-        Constructor,
-        Destructor,
-        Variable,
-        Member,
-        Argument // or struct
-    };
-
     CursorInfo()
         : symbolLength(0), kind(CXCursor_FirstInvalid), type(CXType_Invalid), enumValue(0),
           startLine(-1), startColumn(-1), endLine(-1), endColumn(-1)

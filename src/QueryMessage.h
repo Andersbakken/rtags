@@ -108,9 +108,6 @@ public:
     void setUnsavedFiles(const Hash<Path, String> &unsavedFiles) { mUnsavedFiles = unsavedFiles; }
     const Hash<Path, String> &unsavedFiles() const { return mUnsavedFiles; }
 
-    void setContext(const String &context) { mContext = context; }
-    String context() const { return mContext; }
-
     String query() const { return mQuery; }
     Location location() const { return Location::decode(mQuery); }
     void setQuery(const String &query) { mQuery = query; }
@@ -160,7 +157,7 @@ public:
     void setCurrentFile(const Path &currentFile) { mCurrentFile = currentFile; }
     Path currentFile() const { return mCurrentFile; }
 private:
-    String mQuery, mContext;
+    String mQuery;
     Type mType;
     unsigned mFlags;
     int mMax, mMinLine, mMaxLine, mBuildIndex;

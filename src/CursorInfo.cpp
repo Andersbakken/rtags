@@ -17,23 +17,8 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 #include "CursorInfo.h"
 #include "RTagsClang.h"
 
-const char *rKindNames[] = {
-    "Invalid",
-    "Function",
-    "Class",
-    "Constructor",
-    "Destructor",
-    "Variable",
-    "Member",
-    "Argument",
-    0
-};
-
 String CursorInfo::kindSpelling(uint16_t kind)
 {
-    if (kind >= Invalid) {
-        return rKindNames[kind - Invalid];
-    }
     return RTags::eatString(clang_getCursorKindSpelling(static_cast<CXCursorKind>(kind)));
 }
 
@@ -125,7 +110,7 @@ SymbolMap CursorInfo::targetInfos(const SymbolMap &map) const
 {
     SymbolMap ret;
     for (auto it = targets.begin(); it != targets.end(); ++it) {
-        auto found = RTags::findCursorInfo(map, *it, String());
+        auto found = RTags::findCursorInfo(map, *it);
         // ### could/should I pass symbolName as context here?
         if (found != map.end()) {
             ret[*it] = found->second;
@@ -142,7 +127,7 @@ SymbolMap CursorInfo::referenceInfos(const SymbolMap &map) const
 {
     SymbolMap ret;
     for (auto it = references.begin(); it != references.end(); ++it) {
-        auto found = RTags::findCursorInfo(map, *it, String());
+        auto found = RTags::findCursorInfo(map, *it);
         if (found != map.end()) {
             ret[*it] = found->second;
         }
@@ -156,7 +141,7 @@ SymbolMap CursorInfo::callers(const Location &loc, const SymbolMap &map) const
     const SymbolMap cursors = virtuals(loc, map);
     for (auto c = cursors.begin(); c != cursors.end(); ++c) {
         for (auto it = c->second->references.begin(); it != c->second->references.end(); ++it) {
-            const auto found = RTags::findCursorInfo(map, *it, String());
+            const auto found = RTags::findCursorInfo(map, *it);
             if (found == map.end())
                 continue;
             if (RTags::isReference(found->second->kind)) { // is this always right?

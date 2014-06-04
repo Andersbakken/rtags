@@ -30,7 +30,7 @@ int CursorInfoJob::execute()
     const SymbolMap &map = project()->symbols();
     if (map.isEmpty())
         return 1;
-    SymbolMap::const_iterator it = RTags::findCursorInfo(map, location, context());
+    SymbolMap::const_iterator it = RTags::findCursorInfo(map, location);
 
     unsigned ciFlags = 0;
     if (!(queryFlags() & QueryMessage::CursorInfoIncludeTargets))

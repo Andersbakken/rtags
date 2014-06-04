@@ -28,8 +28,7 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 Job::Job(const QueryMessage &query, unsigned jobFlags, const std::shared_ptr<Project> &proj)
     : mAborted(false), mMinLine(query.minLine()),
       mMaxLine(query.maxLine()), mJobFlags(jobFlags), mQueryFlags(query.flags()), mProject(proj),
-      mPathFilters(0), mPathFiltersRegExp(0), mMax(query.max()), mConnection(0),
-      mContext(query.context())
+      mPathFilters(0), mPathFiltersRegExp(0), mMax(query.max()), mConnection(0)
 {
     if (query.flags() & QueryMessage::SilentQuery)
         setJobFlag(QuietJob);
