@@ -733,7 +733,7 @@ static inline void writeUsr(const UsrMap &usr, UsrMap &current, SymbolMap &symbo
 static inline void resolvePendingReferences(SymbolMap& symbols, const UsrMap& usrs, const UsrMap& refs)
 {
     for (const auto &ref : refs) {
-        assert(!ref->second.isEmpty());
+        assert(!ref.second.isEmpty());
         // find the declaration
         List<String> refUsrs;
         {

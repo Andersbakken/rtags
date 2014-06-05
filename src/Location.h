@@ -73,6 +73,7 @@ public:
     static inline uint32_t insertFile(const Path &path)
     {
         assert(!path.contains(".."));
+        assert(path.resolved() == path);
         LOCK();
         uint32_t &id = sPathsToIds[path];
         if (!id) {
