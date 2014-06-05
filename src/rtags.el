@@ -1128,8 +1128,10 @@ References to references will be treated as references to the referenced symbol"
                   ((eq 'warning (car result)) (incf warnings))
                   (t))
             (setq buf (cdr result))))
-        (with-current-buffer (or (rtags-really-find-buffer filename))
-          (setq rtags-error-warning-count (cons errors warnings)))))))
+        (let ((buf (rtags-really-find-buffer filename)))
+          (if buf
+              (with-current-buffer buf
+                (setq rtags-error-warning-count (cons errors warnings)))))))))
 
 
 (defvar rtags-last-index nil)
