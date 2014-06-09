@@ -1,4 +1,5 @@
 (require 'company)
+(require 'company-template)
 
 (eval-when-compile (require 'rtags))
 
@@ -20,6 +21,11 @@ and `c-electric-colon', for automatic completion right after \">\" and
   "Max number of waits company-rtags will do before giving up (max wait time is (* company-rtags-max-wait company-async-wait))"
   :group 'rtags
   :type 'integer)
+
+(defcustom company-rtags-insert-arguments t
+  "When non-nil, insert function arguments as a template after completion."
+  :group 'rtags
+  :type 'boolean)
 
 (defun company-rtags--prefix ()
   (let ((symbol (company-grab-symbol)))
@@ -85,6 +91,10 @@ and `c-electric-colon', for automatic completion right after \">\" and
     (candidates (company-rtags--candidates arg))
     (meta (company-rtags--meta arg))
     (sorted t)
-    (annotation (company-rtags--annotation arg))))
+    (annotation (company-rtags--annotation arg))
+    (post-completion (let ((anno (company-rtags--annotation arg)))
+                       (when (and company-rtags-insert-arguments anno)
+                         (insert anno)
+                         (company-template-c-like-templatify anno))))))
 
 (provide 'company-rtags)
