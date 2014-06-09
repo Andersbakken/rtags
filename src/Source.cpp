@@ -328,7 +328,7 @@ List<Source> Source::parse(const String &cmdLine, const Path &base, unsigned int
         if (cur > prev)
             split.append(trim(prev, cur - prev));
     }
-    debug() << "Source::parse (" << args << ") => " << split;
+    debug() << "Source::parse (" << args << ") => " << split << base;
 
     eatAutoTools(split);
 
