@@ -22,6 +22,7 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 #include "Cpp.h"
 #include "IndexData.h"
 #include <math.h>
+#include <fnmatch.h>
 #include <rct/Log.h>
 #include <rct/MemoryMonitor.h>
 #include <rct/Path.h>
@@ -1056,18 +1057,36 @@ bool Project::hasSource(const Source &source) const
     const uint64_t key = source.key();
     auto it = mSources.lower_bound(Source::key(source.fileId, 0));
     const bool disallowMultiple = Server::instance()->options().options & Server::DisallowMultipleSources;
+    bool found = false;
     while (it != mSources.end()) {
         uint32_t f, b;
         Source::decodeKey(it->first, f, b);
         if (f != source.fileId) {
             break;
         }
-        if (it->first == key)
+        found = true;
+        if (it->first == key) {
             return it->second.compareArguments(source);
+            // if the build key is the same we want to return false if the arguments have updated
+        }
         if (disallowMultiple || it->second.compareArguments(source)) {// similar enough that we don't want two builds
             return true;
         }
         ++it;
+    }
+    if (found) {
+        const Map<String, String> config = RTags::rtagsConfig(source.sourceFile());
+        if (config.contains("multi-build")) {
+            const List<String> multi = config.value("multi-build").split(';');
+            const Path sourceFile = source.sourceFile();
+            for (const auto &filter : multi) {
+                if (!fnmatch(filter.constData(), sourceFile.constData(), 0)) {
+                    // we allow multi builds for this file
+                    return false;
+                }
+            }
+            return true;
+        }
     }
 
     return false;
