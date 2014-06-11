@@ -485,6 +485,7 @@ List<Source> Source::parse(const String &cmdLine, const Path &base, unsigned int
                     }
                     buildRoot = RTags::findProjectRoot(p, RTags::BuildRoot);
                     if (buildRoot.isDir()) {
+                        buildRoot.resolve(Path::RealPath);
                         buildRootId = Location::insertFile(buildRoot);
                     } else {
                         buildRoot.clear();
@@ -570,6 +571,7 @@ List<Source> Source::parse(const String &cmdLine, const Path &base, unsigned int
     if (!inputs.isEmpty()) {
         if (!buildRootId) {
             buildRoot = RTags::findProjectRoot(inputs.first().second, RTags::BuildRoot);
+            buildRoot.resolve(Path::RealPath);
             buildRootId = Location::insertFile(buildRoot);
         }
         includePathHash = ::hashIncludePaths(includePaths, buildRoot);
