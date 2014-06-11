@@ -34,6 +34,7 @@ enum OptionType {
     Compile,
     ConnectTimeout,
     ContainingFunction,
+    CurrentFile,
     CursorInfo,
     CursorInfoIncludeParents,
     CursorInfoIncludeReferences,
@@ -64,9 +65,7 @@ enum OptionType {
     IsIndexing,
     JobCount,
     ListSymbols,
-#if defined(HAVE_CXCOMPILATIONDATABASE) && CLANG_VERSION_MINOR >= 3
     LoadCompilationDatabase,
-#endif
     LogFile,
     Man,
     MatchCaseInsensitive,
@@ -81,6 +80,7 @@ enum OptionType {
     Project,
     ProjectRoot,
     QuitRdm,
+    RTagsConfig,
     RangeFilter,
     RdmLog,
     ReferenceLocation,
@@ -105,7 +105,6 @@ enum OptionType {
     UnloadProject,
     UnsavedFile,
     Verbose,
-    CurrentFile,
     XmlDiagnostics
 };
 
@@ -220,7 +219,8 @@ struct Option opts[] = {
     { UnescapeCompileCommands, "unescape-compile-commands", 0, no_argument, "Unescape \\'s and unquote arguments to -c." },
     { NoUnescapeCompileCommands, "no-unescape-compile-commands", 0, no_argument, "Escape \\'s and unquote arguments to -c." },
     { NoSortReferencesByInput, "no-sort-references-by-input", 0, no_argument, "Don't sort references by input position." },
-    { ProjectRoot, "project-root", 0, required_argument, "Override project root for compile commands" },
+    { ProjectRoot, "project-root", 0, required_argument, "Override project root for compile commands." },
+    { RTagsConfig, "rtags-config", 0, required_argument, "Print out .rtags-config for argument." },
     { None, 0, 0, 0, 0 }
 };
 
@@ -846,6 +846,14 @@ bool RClient::parse(int &argc, char **argv)
             printf("findProjectRoot [%s] => [%s]\n", p.constData(),
                    RTags::findProjectRoot(p, RTags::BuildRoot).constData());
             return false; }
+        case RTagsConfig: {
+            const Path p = Path::resolved(optarg);
+            Map<String, String> config = RTags::rtagsConfig(p);
+            printf("rtags-config: %s:\n", p.constData());
+            for (const auto &it : config) {
+                printf("%s: \"%s\"\n", it.first.constData(), it.second.constData());
+            }
+            return false; }
         case Reindex:
         case Project:
         case FindFile:
@@ -889,8 +897,8 @@ bool RClient::parse(int &argc, char **argv)
             if (type == QueryMessage::Project)
                 projectCommands.append(std::static_pointer_cast<QueryCommand>(mCommands.back()));
             break; }
-#if defined(HAVE_CXCOMPILATIONDATABASE) && CLANG_VERSION_MINOR >= 3
         case LoadCompilationDatabase: {
+#if defined(HAVE_CXCOMPILATIONDATABASE) && CLANG_VERSION_MINOR >= 3
             Path dir;
             if (optarg) {
                 dir = optarg;
@@ -916,8 +924,8 @@ bool RClient::parse(int &argc, char **argv)
                 return false;
             }
             addCompile(dir, Escape_Auto);
-            break; }
 #endif
+            break; }
         case HasFileManager: {
             Path p;
             if (optarg) {

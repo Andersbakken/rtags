@@ -194,6 +194,12 @@ enum ProjectRootMode {
     BuildRoot
 };
 Path findProjectRoot(const Path &path, ProjectRootMode mode);
+enum FindAncestorFlag {
+    Shallow = 0x1,
+    Wildcard = 0x2
+};
+Path findAncestor(Path path, const char *fn, unsigned flags);
+Map<String, String> rtagsConfig(const Path &path);
 }
 
 #endif

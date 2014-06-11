@@ -172,13 +172,8 @@ void dirtyUsr(UsrMap &map, const Set<uint32_t> &dirty)
         }
     }
 }
-/* Same behavior as rtags-default-current-project() */
 
-enum FindAncestorFlag {
-    Shallow = 0x1,
-    Wildcard = 0x2
-};
-static inline Path findAncestor(Path path, const char *fn, unsigned flags)
+Path findAncestor(Path path, const char *fn, unsigned flags)
 {
     Path ret;
     int slash = path.size();
@@ -239,6 +234,50 @@ static inline Path findAncestor(Path path, const char *fn, unsigned flags)
     return ret.ensureTrailingSlash();
 }
 
+Map<String, String> rtagsConfig(const Path &path)
+{
+    Path dir = path.isDir() ? path : path.parentDir();
+    Map<String, String> ret;
+    if (dir.resolve()) {
+        char buf[1024];
+        struct stat statBuf;
+        while (dir.size() > 1) {
+            assert(dir.endsWith('/'));
+            snprintf(buf, sizeof(buf), "%s.rtags-config", dir.constData());
+            if (!stat(buf, &statBuf) && S_ISREG(statBuf.st_mode)) {
+                FILE *f = fopen(buf, "r");
+                if (f) {
+                    while ((fgets(buf, sizeof(buf), f))) {
+                        int len = strlen(buf);
+                        while (len > 0 && isspace(buf[len - 1]))
+                            --len;
+                        if (len) {
+                            buf[len] = '\0';
+                            String key;
+                            char *colon = strchr(buf, ':');
+                            char *value = 0;
+                            if (colon) {
+                                key.assign(buf, colon - buf);
+                                value = colon + 1;
+                                while (isspace(*value))
+                                    ++value;
+                            } else {
+                                key.assign(buf, len);
+                            }
+                            if (!key.isEmpty() && !ret.contains(key)) {
+                                ret[key] = value;
+                            }
+                        }
+                    }
+                    fclose(f);
+                }
+            }
+            dir = dir.parentDir();
+        }
+    }
+    return ret;
+}
+
 struct Entry {
     const char *name;
     const unsigned flags;
@@ -268,27 +307,11 @@ Path findProjectRoot(const Path &path, ProjectRootMode mode)
     if (!path.isAbsolute())
         error() << "GOT BAD PATH" << path;
     assert(path.isAbsolute());
-    const Path config = findAncestor(path, ".rtags-config", Shallow);
-    if (config.isDir()) {
-        const List<String> conf = Path(config + ".rtags-config").readAll().split('\n');
-        for (const auto &line : conf) {
-            const char *ch = line.constData();
-            while (*ch && isspace(*ch))
-                ++ch;
-            if (*ch && !strncmp("project: ", ch, 9)) {
-                ch += 9;
-                while (*ch && isspace(*ch))
-                    ++ch;
-                const Path p = ch;
-                if (p.isDir()) {
-                    return p.ensureTrailingSlash();
-                } else {
-                    error("Invalid project root %s", p.constData());
-                }
-            } else if (line == "enable: false") {
-                return Path();
-            }
-        }
+    const Map<String, String> config = rtagsConfig(path);
+    {
+        const Path project = config.value("project");
+        if (!project.isEmpty() && project.isDir())
+            return project.ensureTrailingSlash();
     }
 
     static const Path home = Path::home();
