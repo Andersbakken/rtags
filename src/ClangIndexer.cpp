@@ -6,7 +6,7 @@
 #include <rct/Connection.h>
 #include <rct/EventLoop.h>
 #include "IndexerMessage.h"
-#include "Cpp.h"
+#include "Unit.h"
 #include "IndexData.h"
 
 static const CXSourceLocation nullLocation = clang_getNullLocation();
@@ -29,7 +29,7 @@ struct VerboseVisitorUserData {
 };
 
 ClangIndexer::ClangIndexer()
-    : mUnit(0), mIndex(0), mLastCursor(nullCursor), mVisitFileResponseMessageFileId(0),
+    : mClangUnit(0), mIndex(0), mLastCursor(nullCursor), mVisitFileResponseMessageFileId(0),
       mVisitFileResponseMessageVisit(0), mParseDuration(0), mVisitDuration(0),
       mBlocked(0), mAllowed(0), mIndexed(1), mVisitFileTimeout(0),
       mIndexerMessageTimeout(0), mFileIdsQueried(0), mId(0), mLogFile(0),
@@ -43,8 +43,8 @@ ClangIndexer::~ClangIndexer()
 {
     if (mLogFile)
         fclose(mLogFile);
-    if (mUnit)
-        clang_disposeTranslationUnit(mUnit);
+    if (mClangUnit)
+        clang_disposeTranslationUnit(mClangUnit);
     if (mIndex)
         clang_disposeIndex(mIndex);
 }
@@ -60,53 +60,51 @@ bool ClangIndexer::connect(const String &hostName, uint16_t port, int timeout)
     return mConnection.connectTcp(hostName, port, timeout);
 }
 
-bool ClangIndexer::index(uint32_t flags, const Source &source,
-                         const std::shared_ptr<Cpp> &cpp, const Path &project)
+bool ClangIndexer::index(const std::shared_ptr<Unit> &unit, const Path &project)
 {
-
+    assert(unit);
     // FILE *f = fopen((String("/tmp/") + source.sourceFile().fileName()).constData(), "w");
-    // fwrite(cpp->preprocessed.constData(), 1, cpp->preprocessed.size(), f);
+    // fwrite(unit->preprocessed.constData(), 1, unit->preprocessed.size(), f);
     // fclose(f);
 
     // mLogFile = fopen(String::format("/tmp/%s", sourceFile.fileName()).constData(), "w");
-    mData.reset(new IndexData(flags));
-    mData->symbolNames = std::move(cpp->macroNames);
-    mData->symbols = std::move(cpp->macroCursors);
-    mData->key = source.key();
+    mData.reset(new IndexData(unit->flags));
+    mData->symbolNames = std::move(unit->macroNames);
+    mData->symbols = std::move(unit->macroCursors);
+    mData->key = unit->source.key();
     mData->jobId = mId;
-    mSource = source;
-    mCpp = cpp;
-    if (mCpp->flags & Cpp::Preprocess_Compressed) {
-        mPreprocessed = mCpp->preprocessed.uncompress();
+    mUnit = unit;
+    if (unit->flags & IndexerJob::PreprocessCompressed) {
+        mPreprocessed = unit->preprocessed.uncompress();
     } else {
-        mPreprocessed = std::move(mCpp->preprocessed);
+        mPreprocessed = std::move(unit->preprocessed);
     }
-    for (auto it = cpp->visited.begin(); it != cpp->visited.end(); ++it) {
-        if (it->second != mSource.fileId) {
+    for (auto it = unit->visited.begin(); it != unit->visited.end(); ++it) {
+        if (it->second != unit->source.fileId) {
             mData->visited[it->second] = true;
             // FILE *f = fopen((String("/tmp/") + source.sourceFile().fileName()).constData(), "a");
-            // fprintf(f, "%s => %d (%s:%d)\n", it->first.constData(), it->second, mSource.sourceFile().constData(), mSource.fileId);
+            // fprintf(f, "%s => %d (%s:%d)\n", it->first.constData(), it->second, unit->source.sourceFile().constData(), unit->source.fileId);
             // fclose(f);
             // fflush(f);
             Location::set(it->first, it->second);
         }
     }
-    mIndexed += cpp->visited.size();
+    mIndexed += unit->visited.size();
 
     mProject = project;
     assert(mConnection.isConnected());
-    mData->visited[source.fileId] = true;
+    mData->visited[unit->source.fileId] = true;
     parse() && visit() && diagnose();
-    mData->parseTime = cpp->time;
-    mData->message = source.sourceFile().toTilde();
-    if (!mUnit)
+    mData->parseTime = unit->time;
+    mData->message = unit->source.sourceFile().toTilde();
+    if (!mClangUnit)
         mData->message += " error";
     mData->message += String::format<16>(" in %dms. ", mTimer.elapsed());
-    if (mUnit) {
+    if (mClangUnit) {
         const char *format = "(%d syms, %d symNames, %d deps, %d of %d files, cursors: %d of %d, %d queried, %d previsited) (%d/%d/%dms)";
         mData->message += String::format<128>(format, mData->symbols.size(), mData->symbolNames.size(),
                                               mData->dependencies.size(), mIndexed, mData->visited.size(), mAllowed,
-                                              mAllowed + mBlocked, mFileIdsQueried, cpp->visited.size(), mCpp->preprocessDuration,
+                                              mAllowed + mBlocked, mFileIdsQueried, unit->visited.size(), unit->preprocessDuration,
                                               mParseDuration, mVisitDuration);
     } else if (mData->dependencies.size()) {
         mData->message += String::format<16>("(%d deps)", mData->dependencies.size());
@@ -118,25 +116,25 @@ bool ClangIndexer::index(uint32_t flags, const Source &source,
     // FILE *f = fopen("/tmp/clangindex.log", "a");
     // fprintf(f, "Writing indexer message %d\n", mData->symbols.size());
 
-    // if (Path::exists(String("/tmp/") + Location::path(mSource.fileId).fileName())) {
-    //     error() << "Detected problem... crashing" << Location::path(mSource.fileId).fileName();
-    //     Path::rm(String("/tmp/") + Location::path(mSource.fileId).fileName());
+    // if (Path::exists(String("/tmp/") + Location::path(unit->source.fileId).fileName())) {
+    //     error() << "Detected problem... crashing" << Location::path(unit->source.fileId).fileName();
+    //     Path::rm(String("/tmp/") + Location::path(unit->source.fileId).fileName());
     //     sleep(1);
     //     abort();
     // }
     StopWatch sw;
     if (!mConnection.send(msg)) {
-        error() << "Couldn't send IndexerMessage" << Location::path(mSource.fileId);
+        error() << "Couldn't send IndexerMessage" << Location::path(unit->source.fileId);
         return false;
     }
     mConnection.finished().connect(std::bind(&EventLoop::quit, EventLoop::eventLoop()));
     if (EventLoop::eventLoop()->exec(mIndexerMessageTimeout) == EventLoop::Timeout) {
-        error() << "Couldn't send IndexerMessage (2)" << Location::path(mSource.fileId);
+        error() << "Couldn't send IndexerMessage (2)" << Location::path(unit->source.fileId);
         return false;
     }
     if (getenv("RDM_DEBUG_INDEXERMESSAGE"))
-        error() << "Send took" << sw.elapsed() << "for" << Location::path(mSource.fileId);
-    // error() << "Must have gotten a finished" << Location::path(mSource.fileId);
+        error() << "Send took" << sw.elapsed() << "for" << Location::path(unit->source.fileId);
+    // error() << "Must have gotten a finished" << Location::path(unit->source.fileId);
     // fprintf(f, "Wrote indexer message %d\n", mData->symbols.size());
     // fclose(f);
 
@@ -492,7 +490,7 @@ CXChildVisitResult ClangIndexer::indexVisitor(CXCursor cursor, CXCursor parent, 
 {
     ClangIndexer *indexer = static_cast<ClangIndexer*>(data);
 #if 0
-    while (Path::exists("/tmp/sleep-" + String(Location::path(indexer->mSource.fileId).fileName()))) {
+    while (Path::exists("/tmp/sleep-" + String(Location::path(indexer->mUnit->source.fileId).fileName()))) {
         sleep(1);
     }
     static int last = -1;
@@ -814,8 +812,8 @@ void ClangIndexer::handleInclude(const CXCursor &cursor, CXCursorKind kind, cons
             {
                 String include = "#include ";
                 const Path path = refLoc.path();
-                assert(mSource.fileId);
-                mData->dependencies[refLoc.fileId()].insert(mSource.fileId);
+                assert(mUnit->source.fileId);
+                mData->dependencies[refLoc.fileId()].insert(mUnit->source.fileId);
                 mData->symbolNames[(include + path)].insert(location);
                 mData->symbolNames[(include + path.fileName())].insert(location);
             }
@@ -939,17 +937,17 @@ bool ClangIndexer::handleCursor(const CXCursor &cursor, CXCursorKind kind, const
 bool ClangIndexer::parse()
 {
     StopWatch sw;
-    assert(!mUnit);
+    assert(!mClangUnit);
     assert(!mIndex);
     mIndex = clang_createIndex(0, 1);
     assert(mIndex);
-    Path sourceFile = Location::path(mSource.fileId);
+    Path sourceFile = Location::path(mUnit->source.fileId);
     if (!mPreprocessed.isEmpty()) {
         const char *ext = sourceFile.extension();
         if (ext) {
             sourceFile.chop(strlen(ext));
         }
-        switch (mSource.language) {
+        switch (mUnit->source.language) {
         case Source::CPlusPlus:
         case Source::CPlusPlus11:
             sourceFile.append("ii");
@@ -966,7 +964,7 @@ bool ClangIndexer::parse()
         default:
             break;
         }
-        Location::set(sourceFile, mSource.fileId);
+        Location::set(sourceFile, mUnit->source.fileId);
     }
     // error() << "mContents" << mContents.size();
     CXUnsavedFile unsaved = {
@@ -980,24 +978,24 @@ bool ClangIndexer::parse()
         commandLineFlags |= (Source::IncludeDefines|Source::IncludeIncludepaths);
 
     const unsigned int flags = mPreprocessed.isEmpty() ? CXTranslationUnit_DetailedPreprocessingRecord : 0;
-    RTags::parseTranslationUnit(sourceFile, mSource.toCommandLine(commandLineFlags), mUnit,
+    RTags::parseTranslationUnit(sourceFile, mUnit->source.toCommandLine(commandLineFlags), mClangUnit,
                                 mIndex, &unsaved, mPreprocessed.isEmpty() ? 0 : 1, flags, &mClangLine);
 
-    warning() << "loading mUnit " << mClangLine << " " << (mUnit != 0);
-    if (mUnit) {
+    warning() << "loading mUnit " << mClangLine << " " << (mClangUnit != 0);
+    if (mClangUnit) {
         if (mPreprocessed.isEmpty()) {
-            clang_getInclusions(mUnit, ClangIndexer::inclusionVisitor, this);
+            clang_getInclusions(mClangUnit, ClangIndexer::inclusionVisitor, this);
         }
         mParseDuration = sw.elapsed();
         return true;
     }
     error() << "got failure" << mClangLine;
-    FILE *f = fopen(String::format<128>("/tmp/failure-%s", mSource.sourceFile().fileName()).constData(), "w");
+    FILE *f = fopen(String::format<128>("/tmp/failure-%s", mUnit->source.sourceFile().fileName()).constData(), "w");
     fwrite(mPreprocessed.constData(), mPreprocessed.size(), 1, f);
-    fprintf(f, "// %s\n", String::join(mSource.toCommandLine(Source::IncludeCompiler|Source::IncludeSourceFile), ' ').constData());
+    fprintf(f, "// %s\n", String::join(mUnit->source.toCommandLine(Source::IncludeCompiler|Source::IncludeSourceFile), ' ').constData());
     fclose(f);
     for (Hash<uint32_t, bool>::const_iterator it = mData->visited.begin(); it != mData->visited.end(); ++it) {
-        mData->dependencies[it->first].insert(mSource.fileId);
+        mData->dependencies[it->first].insert(mUnit->source.fileId);
         addFileSymbol(it->first);
     }
 
@@ -1056,17 +1054,17 @@ static inline String xmlEscape(const String& xml)
 
 bool ClangIndexer::diagnose()
 {
-    if (!mUnit) {
+    if (!mClangUnit) {
         return false;
     }
 
     List<String> compilationErrors;
-    const unsigned diagnosticCount = clang_getNumDiagnostics(mUnit);
+    const unsigned diagnosticCount = clang_getNumDiagnostics(mClangUnit);
 
     Map<Location, XmlEntry> xmlEntries;
 
     for (unsigned i=0; i<diagnosticCount; ++i) {
-        CXDiagnostic diagnostic = clang_getDiagnostic(mUnit, i);
+        CXDiagnostic diagnostic = clang_getDiagnostic(mClangUnit, i);
         const CXSourceLocation diagLoc = clang_getDiagnosticLocation(diagnostic);
         const Location loc = createLocation(diagLoc, 0);
         const uint32_t fileId = loc.fileId();
@@ -1155,15 +1153,15 @@ bool ClangIndexer::diagnose()
         clang_disposeDiagnostic(diagnostic);
     }
 
-    for (List<Cpp::Diagnostic>::const_iterator it = mCpp->diagnostics.begin(); it != mCpp->diagnostics.end(); ++it) {
+    for (List<Unit::Diagnostic>::const_iterator it = mUnit->diagnostics.begin(); it != mUnit->diagnostics.end(); ++it) {
         XmlEntry::Type type = XmlEntry::None;
         switch (it->type) {
-        case Cpp::Diagnostic::Note:
+        case Unit::Diagnostic::Note:
             break;
-        case Cpp::Diagnostic::Warning:
+        case Unit::Diagnostic::Warning:
             type = XmlEntry::Warning;
             break;
-        case Cpp::Diagnostic::Error:
+        case Unit::Diagnostic::Error:
             type = XmlEntry::Error;
             break;
         }
@@ -1215,17 +1213,17 @@ bool ClangIndexer::diagnose()
 
 bool ClangIndexer::visit()
 {
-    if (!mUnit || !mSource.fileId) {
+    if (!mClangUnit || !mUnit->source.fileId) {
         return false;
     }
 
     StopWatch watch;
 
-    clang_visitChildren(clang_getTranslationUnitCursor(mUnit),
+    clang_visitChildren(clang_getTranslationUnitCursor(mClangUnit),
                         ClangIndexer::indexVisitor, this);
 
     for (Hash<uint32_t, bool>::const_iterator it = mData->visited.begin(); it != mData->visited.end(); ++it) {
-        mData->dependencies[it->first].insert(mSource.fileId);
+        mData->dependencies[it->first].insert(mUnit->source.fileId);
         addFileSymbol(it->first);
     }
 
@@ -1233,12 +1231,12 @@ bool ClangIndexer::visit()
 
     if (testLog(VerboseDebug)) {
         VerboseVisitorUserData u = { 0, "<VerboseVisitor " + mClangLine + ">\n", this };
-        clang_visitChildren(clang_getTranslationUnitCursor(mUnit),
+        clang_visitChildren(clang_getTranslationUnitCursor(mClangUnit),
                             ClangIndexer::verboseVisitor, &u);
         u.out += "</VerboseVisitor " + mClangLine + ">";
         if (getenv("RTAGS_INDEXERJOB_DUMP_TO_FILE")) {
             char buf[1024];
-            snprintf(buf, sizeof(buf), "/tmp/%s.log", Location::path(mSource.fileId).fileName());
+            snprintf(buf, sizeof(buf), "/tmp/%s.log", Location::path(mUnit->source.fileId).fileName());
             FILE *f = fopen(buf, "w");
             assert(f);
             fwrite(u.out.constData(), 1, u.out.size(), f);

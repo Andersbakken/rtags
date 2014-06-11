@@ -16,7 +16,7 @@
 #include "RTagsClang.h"
 #include "Server.h"
 #include <rct/StopWatch.h>
-#include "Cpp.h"
+#include "Unit.h"
 #include "Project.h"
 #include <iostream>
 #include <zlib.h>
@@ -445,7 +445,7 @@ bool compile(const Path& output, const Source &source, const String& preprocesse
 }
 
 static inline uint32_t visitFile(const Path &path,
-                                 const std::shared_ptr<Cpp> &cpp,
+                                 const std::shared_ptr<Unit> &unit,
                                  const std::shared_ptr<Project> &project,
                                  bool *blocked)
 {
@@ -454,17 +454,17 @@ static inline uint32_t visitFile(const Path &path,
     if (!project)
         return Location::insertFile(path);
 
-    const Map<Path, uint32_t>::const_iterator it = cpp->visited.find(path);
-    if (it != cpp->visited.end())
+    const Map<Path, uint32_t>::const_iterator it = unit->visited.find(path);
+    if (it != unit->visited.end())
         return it->second;
 
     const uint32_t fileId = Location::insertFile(path);
     if (!project->visitFile(fileId, path, 0)) {
         *blocked = true;
     } else {
-        cpp->visited[path] = fileId;
+        unit->visited[path] = fileId;
         // ### We should find something nicer than this
-        if (cpp->visited.size() % 10 == 0) {
+        if (unit->visited.size() % 10 == 0) {
             usleep(50000);
         }
     }
@@ -480,9 +480,9 @@ public:
     }
 };
 
-std::shared_ptr<Cpp> preprocess(const Source &source,
-                                const std::shared_ptr<Project> &project,
-                                unsigned int preprocessFlags)
+std::shared_ptr<Unit> preprocess(const Source &source,
+                                 const std::shared_ptr<Project> &project,
+                                 unsigned int flags)
 {
     StopWatch sw;
     Compiler compilerInstance;
@@ -509,7 +509,7 @@ std::shared_ptr<Cpp> preprocess(const Source &source,
         usleep(100);
     }
     if (!file) {
-        return std::shared_ptr<Cpp>();
+        return std::shared_ptr<Unit>();
     }
     sm.createMainFileID(file);
     clang::TargetOptions &targetOptions = compilerInstance.getTargetOpts();
@@ -639,10 +639,12 @@ std::shared_ptr<Cpp> preprocess(const Source &source,
 
     compilerInstance.getDiagnosticClient().BeginSourceFile(compilerInstance.getLangOpts(), &compilerInstance.getPreprocessor());
 
-    std::shared_ptr<Cpp> cpp(new Cpp);
-    StringOStream out(&cpp->preprocessed, preprocessFlags & Cpp::Preprocess_Compressed);
-    cpp->time = now;
-    cpp->flags = preprocessFlags;
+    std::shared_ptr<Unit> unit(new Unit);
+    StringOStream out(&unit->preprocessed, flags & IndexerJob::PreprocessCompressed);
+    unit->time = now;
+    unit->flags = flags;
+    unit->source = source;
+    unit->sourceFile = sourceFile;
     clang::Preprocessor &preprocessor = compilerInstance.getPreprocessor();
     preprocessor.createPreprocessingRecord(
 #if CLANG_VERSION_MINOR < 3
@@ -652,12 +654,12 @@ std::shared_ptr<Cpp> preprocess(const Source &source,
     clang::DoPrintPreprocessedInput(preprocessor, &out, preprocessorOptions);
     out.finish();
     struct {
-        const Cpp::Diagnostic::Type type;
+        const Unit::Diagnostic::Type type;
         const clang::TextDiagnosticBuffer::const_iterator begin, end;
     } const diagnostics[] = {
-        { Cpp::Diagnostic::Note, diagnosticsClient.note_begin(), diagnosticsClient.note_end() },
-        { Cpp::Diagnostic::Warning, diagnosticsClient.warn_begin(), diagnosticsClient.warn_end() },
-        { Cpp::Diagnostic::Error, diagnosticsClient.err_begin(), diagnosticsClient.err_end() }
+        { Unit::Diagnostic::Note, diagnosticsClient.note_begin(), diagnosticsClient.note_end() },
+        { Unit::Diagnostic::Warning, diagnosticsClient.warn_begin(), diagnosticsClient.warn_end() },
+        { Unit::Diagnostic::Error, diagnosticsClient.err_begin(), diagnosticsClient.err_end() }
     };
     for (size_t i=0; i<sizeof(diagnostics) / sizeof(diagnostics[0]); ++i) {
         for (auto it = diagnostics[i].begin; it != diagnostics[i].end; ++it) {
@@ -667,12 +669,12 @@ std::shared_ptr<Cpp> preprocess(const Source &source,
             if (!ok)
                 continue;
             bool blocked;
-            const uint32_t fileId = visitFile(path, cpp, project, &blocked);
+            const uint32_t fileId = visitFile(path, unit, project, &blocked);
             if (blocked)
                 continue;
 
-            cpp->diagnostics.append(Cpp::Diagnostic());
-            Cpp::Diagnostic &d = cpp->diagnostics.last();
+            unit->diagnostics.append(Unit::Diagnostic());
+            Unit::Diagnostic &d = unit->diagnostics.last();
             d.location = Location(fileId, presumedLocation.getLine(), presumedLocation.getColumn());
             d.type = diagnostics[i].type;
             d.text = it->second;
@@ -683,7 +685,7 @@ std::shared_ptr<Cpp> preprocess(const Source &source,
 
     // We need this extra map because macros might be defined, then undef'ed and
     // then redefined. In that case we need to know the "active" macro
-    // definition so the set in cpp->macroNames doesn't help us.
+    // definition so the set in unit->macroNames doesn't help us.
 
     Hash<String, Location> macroLocations;
     for (clang::PreprocessingRecord::iterator it = record->begin(); it != record->end(); ++it) {
@@ -708,18 +710,18 @@ std::shared_ptr<Cpp> preprocess(const Source &source,
             }
 
             bool blocked;
-            const uint32_t fileId = visitFile(resolved, cpp, project, &blocked);
+            const uint32_t fileId = visitFile(resolved, unit, project, &blocked);
             const clang::IdentifierInfo *name = def->getName();
             const String macroName(name->getNameStart(), name->getLength());
             const Location loc(fileId, presumedLocation.getLine(), presumedLocation.getColumn());
             if (!blocked) {
-                std::shared_ptr<CursorInfo> &cursor = cpp->macroCursors[loc];
+                std::shared_ptr<CursorInfo> &cursor = unit->macroCursors[loc];
                 if (!cursor)
                     cursor = std::make_shared<CursorInfo>();
                 cursor->symbolName = macroName;
                 cursor->symbolLength = cursor->symbolName.size();
                 cursor->kind = CXCursor_MacroDefinition;
-                cpp->macroNames[cursor->symbolName].insert(loc);
+                unit->macroNames[cursor->symbolName].insert(loc);
             }
             macroLocations[macroName] = loc;
             // error() << "Got definition" << String(name->getNameStart(), name->getLength()) << loc;
@@ -745,7 +747,7 @@ std::shared_ptr<Cpp> preprocess(const Source &source,
             }
 
             bool blocked;
-            const uint32_t fileId = visitFile(resolved, cpp, project, &blocked);
+            const uint32_t fileId = visitFile(resolved, unit, project, &blocked);
             if (blocked)
                 break;
 
@@ -757,13 +759,13 @@ std::shared_ptr<Cpp> preprocess(const Source &source,
                 break;
             }
             const Location loc(fileId, presumedLocation.getLine(), presumedLocation.getColumn());
-            std::shared_ptr<CursorInfo> &cursor = cpp->macroCursors[loc];
+            std::shared_ptr<CursorInfo> &cursor = unit->macroCursors[loc];
             if (!cursor)
                 cursor = std::make_shared<CursorInfo>();
             cursor->symbolName = macroName;
             cursor->symbolLength = cursor->symbolName.size();
             cursor->kind = CXCursor_MacroExpansion;
-            std::shared_ptr<CursorInfo> &def = cpp->macroCursors[defLocation];
+            std::shared_ptr<CursorInfo> &def = unit->macroCursors[defLocation];
             if (!def)
                 def = std::make_shared<CursorInfo>();
             // ### do I have to fill in def here? Do I need to in ClangIndexer?
@@ -782,14 +784,14 @@ std::shared_ptr<Cpp> preprocess(const Source &source,
         FILE *f = fopen(out.constData(), "w");
         // fwrite(sourceFile.constData(), 1, sourceFile.size(), f);
 
-        fwrite(cpp->preprocessed.constData(), 1, cpp->preprocessed.size(), f);
+        fwrite(unit->preprocessed.constData(), 1, unit->preprocessed.size(), f);
         fprintf(f, "// %s\n", sourceFile.constData());
         fclose(f);
     }
-    cpp->preprocessDuration = sw.elapsed();
-    warning() << "preprocessing" << sourceFile << "took" << cpp->preprocessDuration << "ms";
+    unit->preprocessDuration = sw.elapsed();
+    warning() << "preprocessing" << sourceFile << "took" << unit->preprocessDuration << "ms";
 
-    return cpp;
+    return unit;
 }
 
 static CXChildVisitResult findFirstChildVisitor(CXCursor cursor, CXCursor, CXClientData data)

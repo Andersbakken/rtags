@@ -17,7 +17,7 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 #define IndexerJob_h
 
 #include "RTags.h"
-#include "Cpp.h"
+#include "Unit.h"
 #include <rct/Hash.h>
 #include <rct/ThreadPool.h>
 #include <rct/StopWatch.h>
@@ -40,31 +40,30 @@ public:
         Crashed = 0x0100,
         Aborted = 0x0200,
         CompleteLocal = 0x0400,
-        CompleteRemote = 0x0800
+        CompleteRemote = 0x0800,
+        PreprocessCompressed = 0x1000,
+        HighPriority = 0x2000
     };
 
     static String dumpFlags(unsigned int);
 
-    IndexerJob(unsigned int flags, const Path &p, const Source &s, const std::shared_ptr<Cpp> &preprocessed);
+    IndexerJob(const Path &project, const std::shared_ptr<Unit> &unit);
     IndexerJob();
     ~IndexerJob();
 
     bool launchProcess();
-    bool update(unsigned int flags, const Source &s, const std::shared_ptr<Cpp> &cpp);
+    bool update(const std::shared_ptr<Unit> &unit);
     void abort();
     void encode(Serializer &serializer);
 
-    uint32_t flags;
     String destination;
     uint16_t port;
     Path project;
-    Source source;
-    Path sourceFile;
     Set<uint32_t> visited;
     Process *process;
     Hash<uint32_t, Path> blockedFiles; // only used for remote jobs
     uint64_t id, started;
-    std::shared_ptr<Cpp> cpp;
+    std::shared_ptr<Unit> unit;
 
     static uint64_t nextId;
 };

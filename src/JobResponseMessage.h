@@ -40,13 +40,10 @@ public:
     List<std::shared_ptr<IndexerJob> > jobs(const String &host) const;
 private:
     struct JobData {
-        std::shared_ptr<Cpp> cpp;
+        std::shared_ptr<Unit> unit;
         Path project;
-        Source source;
-        Path sourceFile;
         Hash<uint32_t, Path> blockedFiles;
         uint64_t id;
-        uint32_t flags;
     };
 
     uint16_t mPort;

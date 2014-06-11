@@ -13,8 +13,8 @@
    You should have received a copy of the GNU General Public License
    along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 
-#ifndef Cpp_h
-#define Cpp_h
+#ifndef Unit_h
+#define Unit_h
 
 #include "CursorInfo.h"
 #include "RTags.h"
@@ -23,8 +23,11 @@
 #include <rct/Serializer.h>
 #include <rct/String.h>
 
-struct Cpp
+struct Unit
 {
+    Source source;
+    Path sourceFile;
+
     String preprocessed;
     uint64_t time;
 
@@ -39,11 +42,6 @@ struct Cpp
         Location location;
     };
 
-    enum PreprocessFlags {
-        Preprocess_None = 0x0,
-        Preprocess_Compressed = 0x1
-    };
-
     unsigned int flags;
     List<Diagnostic> diagnostics;
     SymbolMap macroCursors;
@@ -52,31 +50,31 @@ struct Cpp
     int preprocessDuration;
 };
 
-template <> inline Serializer &operator<<(Serializer &s, const Cpp::Diagnostic &d)
+template <> inline Serializer &operator<<(Serializer &s, const Unit::Diagnostic &d)
 {
     s << static_cast<uint8_t>(d.type) << d.text << d.location;
     return s;
 }
 
-template <> inline Deserializer &operator>>(Deserializer &s, Cpp::Diagnostic &d)
+template <> inline Deserializer &operator>>(Deserializer &s, Unit::Diagnostic &d)
 {
     uint8_t type;
     s >> type >> d.text >> d.location;
-    d.type = static_cast<Cpp::Diagnostic::Type>(type);
+    d.type = static_cast<Unit::Diagnostic::Type>(type);
     return s;
 }
 
-template <> inline Serializer &operator<<(Serializer &s, const Cpp &c)
+template <> inline Serializer &operator<<(Serializer &s, const Unit &c)
 {
-    s << c.preprocessed << c.time << c.flags << c.diagnostics;
+    s << c.source << c.sourceFile << c.preprocessed << c.time << c.flags << c.diagnostics;
     CursorInfo::serialize(s, c.macroCursors);
     s << c.macroNames << c.visited << c.preprocessDuration;
     return s;
 }
 
-template <> inline Deserializer &operator>>(Deserializer &s, Cpp &c)
+template <> inline Deserializer &operator>>(Deserializer &s, Unit &c)
 {
-    s >> c.preprocessed >> c.time >> c.flags >> c.diagnostics;
+    s >> c.source >> c.sourceFile >> c.preprocessed >> c.time >> c.flags >> c.diagnostics;
     CursorInfo::deserialize(s, c.macroCursors);
     s >> c.macroNames >> c.visited >> c.preprocessDuration;
     return s;

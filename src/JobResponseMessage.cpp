@@ -17,7 +17,7 @@
 #include <rct/Serializer.h>
 #include <rct/Connection.h>
 #include <arpa/inet.h>
-#include "Cpp.h"
+#include "Unit.h"
 #include "Server.h"
 
 JobResponseMessage::JobResponseMessage()
@@ -34,12 +34,9 @@ JobResponseMessage::JobResponseMessage(const List<std::shared_ptr<IndexerJob> > 
     for (int i=0; i<count; ++i) {
         const std::shared_ptr<IndexerJob> &job = jobs[i];
         auto &jobData = mJobData[i];
-        jobData.cpp = job->cpp;
+        jobData.unit = job->unit;
         jobData.project = job->project;
-        jobData.source = job->source;
-        jobData.sourceFile = job->sourceFile;
         jobData.id = job->id;
-        jobData.flags = job->flags;
     }
 }
 
@@ -47,8 +44,7 @@ void JobResponseMessage::encode(Serializer &serializer) const
 {
     serializer << mPort << mFinished << static_cast<uint32_t>(mJobData.size());
     for (const auto &job : mJobData) {
-        serializer << *job.cpp << job.project << job.source << job.sourceFile
-                   << job.id << job.flags;
+        serializer << *job.unit << job.project << job.id;
 
         if (auto proj = Server::instance()->project(job.project)) {
             // not sure if the else case should be possible
@@ -68,9 +64,9 @@ void JobResponseMessage::decode(Deserializer &deserializer)
 
     for (uint32_t i=0; i<count; ++i) {
         JobData &jobData = mJobData[i];
-        jobData.cpp.reset(new Cpp);
-        deserializer >> *jobData.cpp >> jobData.project >> jobData.source >> jobData.sourceFile
-                     >> jobData.id >> jobData.flags >> jobData.blockedFiles;
+        jobData.unit.reset(new Unit);
+        deserializer >> *jobData.unit >> jobData.project
+                     >> jobData.id >> jobData.blockedFiles;
     }
 }
 
@@ -82,13 +78,10 @@ List<std::shared_ptr<IndexerJob> > JobResponseMessage::jobs(const String &host) 
         auto &job = ret[i];
         const auto &jobData = mJobData[i];
         job.reset(new IndexerJob);
-        job->flags = jobData.flags;
-        job->flags &= ~IndexerJob::Remote;
-        job->flags |= IndexerJob::FromRemote;
-        job->cpp = jobData.cpp;
+        job->unit = jobData.unit;
+        job->unit->flags &= ~IndexerJob::Remote;
+        job->unit->flags |= IndexerJob::FromRemote;
         job->project = jobData.project;
-        job->source = jobData.source;
-        job->sourceFile = jobData.sourceFile;
         job->destination = host;
         job->port = mPort;
         job->blockedFiles = jobData.blockedFiles;

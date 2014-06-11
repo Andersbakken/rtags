@@ -108,8 +108,7 @@ public:
     void onJobOutput(JobOutput&& out);
     void addJob(const std::shared_ptr<IndexerJob> &job);
     std::shared_ptr<Project> project(const Path &path) const { return mProjects.value(path); }
-    void index(const Source &source, const std::shared_ptr<Cpp> &cpp,
-               const std::shared_ptr<Project> &project, uint32_t flags);
+    void index(const std::shared_ptr<Unit> &unit, const std::shared_ptr<Project> &project);
     void preprocess(Source &&source, Path &&project, uint32_t indexerJobFlags);
     bool shouldIndex(const Source &source, const Path &project) const;
     void stopServers();

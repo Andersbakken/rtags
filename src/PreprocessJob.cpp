@@ -16,28 +16,23 @@
 #include "PreprocessJob.h"
 #include "RTagsClang.h"
 #include "Server.h"
-#include "Cpp.h"
+#include "Unit.h"
 
 PreprocessJob::PreprocessJob(Source &&source, const std::shared_ptr<Project> &project, uint32_t flags)
     : mSource(std::forward<Source>(source)), mProject(project), mFlags(flags)
 {
-    const unsigned int options = Server::instance()->options().options;
-    mCompression = (options & Server::CompressionAlways);
 }
 
 void PreprocessJob::run()
 {
-    const unsigned int cppFlags = mCompression ? Cpp::Preprocess_Compressed : Cpp::Preprocess_None;
-    std::shared_ptr<Cpp> cpp = RTags::preprocess(mSource, mProject, cppFlags);
-    if (!cpp) {
+    std::shared_ptr<Unit> unit = RTags::preprocess(mSource, mProject, mFlags);
+    if (!unit) {
         error() << "Couldn't preprocess" << mSource.sourceFile();
         return;
     }
 
-    Source source = std::move(mSource);
-    const uint32_t flags = mFlags;
     std::shared_ptr<Project> project = std::move(mProject);
-    EventLoop::mainEventLoop()->callLater([source, cpp, project, flags]() {
-            Server::instance()->index(source, cpp, project, flags);
+    EventLoop::mainEventLoop()->callLater([unit, project]() {
+            Server::instance()->index(unit, project);
         });
 }

@@ -15,7 +15,7 @@
 
 #define RTAGS_SINGLE_THREAD
 #include "ClangIndexer.h"
-#include "Cpp.h"
+#include "Unit.h"
 #include "RTagsClang.h"
 #include "Source.h"
 #include <rct/Log.h>
@@ -95,32 +95,26 @@ int main(int argc, char **argv)
     }
     String destination;
     uint16_t port;
-    Path sourceFile;
-    Source source;
     Path project;
-    uint32_t flags;
     Hash<uint32_t, Path> blockedFiles;
-    std::shared_ptr<Cpp> cpp(new Cpp);
+    std::shared_ptr<Unit> unit(new Unit);
     uint64_t jobId;
     uint32_t visitFileTimeout, indexerMessageTimeout, connectTimeout;
     deserializer >> destination;
     deserializer >> port;
-    deserializer >> sourceFile;
-    deserializer >> source;
-    deserializer >> *cpp;
+    deserializer >> *unit;
     deserializer >> project;
-    deserializer >> flags;
     deserializer >> visitFileTimeout;
     deserializer >> indexerMessageTimeout;
     deserializer >> connectTimeout;
     deserializer >> suspendOnSigSegv;
     deserializer >> jobId;
     deserializer >> blockedFiles;
-    if (sourceFile.isEmpty()) {
+    if (unit->sourceFile.isEmpty()) {
         error("No sourcefile\n");
         return 4;
     }
-    if (!source.fileId) {
+    if (!unit->source.fileId) {
         error("Bad fileId\n");
         return 5;
     }
@@ -143,13 +137,13 @@ int main(int argc, char **argv)
         }
     }
     Location::init(blockedFiles);
-    Location::set(sourceFile, source.fileId);
+    Location::set(unit->sourceFile, unit->source.fileId);
     indexer.setVisitFileTimeout(visitFileTimeout);
     indexer.setIndexerMessageTimeout(indexerMessageTimeout);
     indexer.setJobId(jobId);
 
-    if (!indexer.index(flags, source, cpp, project)) {
-        error("Failed to index %s\n", sourceFile.constData());
+    if (!indexer.index(unit, project)) {
+        error("Failed to index %s\n", unit->sourceFile.constData());
         return 9;
     }
 

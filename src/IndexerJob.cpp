@@ -3,22 +3,21 @@
 #include <rct/Process.h>
 #include <RTagsClang.h>
 #include "Server.h"
-#include "Cpp.h"
+#include "Unit.h"
 
 uint64_t IndexerJob::nextId = 0;
 
-IndexerJob::IndexerJob(uint32_t f, const Path &p, const Source &s, const std::shared_ptr<Cpp> &c)
-    : flags(f), destination(Server::instance()->options().socketFile),
-      port(0), project(p), source(s), sourceFile(s.sourceFile()),
-      process(0), id(++nextId), started(0), cpp(c)
+IndexerJob::IndexerJob(const Path &p, const std::shared_ptr<Unit> &u)
+    : destination(Server::instance()->options().socketFile),
+      port(0), project(p), process(0), id(++nextId), started(0), unit(u)
 {
-    for (auto it = c->visited.begin(); it != c->visited.end(); ++it)
+    assert(unit);
+    for (auto it = u->visited.begin(); it != u->visited.end(); ++it)
         visited.insert(it->second);
-    assert(cpp);
 }
 
 IndexerJob::IndexerJob()
-    : flags(0), port(0), process(0), id(0), started(0)
+    : port(0), process(0), id(0), started(0)
 {
 }
 
@@ -29,7 +28,7 @@ IndexerJob::~IndexerJob()
 
 bool IndexerJob::launchProcess()
 {
-    assert(cpp);
+    assert(unit);
     static Path rp;
     if (rp.isEmpty()) {
         rp = Rct::executablePath().parentDir() + "rp";
@@ -48,7 +47,7 @@ bool IndexerJob::launchProcess()
         return false;
     }
 
-    flags |= RunningLocal;
+    unit->flags |= RunningLocal;
 
     {
         String stdinData;
@@ -67,16 +66,14 @@ bool IndexerJob::launchProcess()
     return true;
 }
 
-bool IndexerJob::update(unsigned int f, const Source &s, const std::shared_ptr<Cpp> &c)
+bool IndexerJob::update(const std::shared_ptr<Unit> &u)
 {
+    assert(u);
     // error() << "Updating" << s.sourceFile() << dumpFlags(flags);
-    assert(!(flags & (CompleteLocal|CompleteRemote)));
+    assert(!(u->flags & (CompleteLocal|CompleteRemote)));
 
-    if (!(flags & (RunningLocal|Remote))) {
-        flags = f;
-        source = s;
-        assert(cpp);
-        cpp = c;
+    if (!(u->flags & (RunningLocal|Remote))) {
+        unit = u;
         return true;
     }
     abort();
@@ -86,45 +83,45 @@ bool IndexerJob::update(unsigned int f, const Source &s, const std::shared_ptr<C
 void IndexerJob::abort()
 {
     // error() << "Aborting job" << source.sourceFile() << !!process << dumpFlags(flags);
-    if (process && flags & RunningLocal) { // only kill once
+    if (process && unit->flags & RunningLocal) { // only kill once
         process->kill();
-        assert(!(flags & FromRemote)); // this is not handled
+        assert(!(unit->flags & FromRemote)); // this is not handled
     }
-    if (flags & (CompleteRemote|CompleteLocal)) {
+    if (unit->flags & (CompleteRemote|CompleteLocal)) {
         error() << "Aborting a job that already is complete";
     }
-    assert(!(flags & (CompleteRemote|CompleteLocal)));
-    flags &= ~RunningLocal;
-    flags |= Aborted;
+    assert(!(unit->flags & (CompleteRemote|CompleteLocal)));
+    unit->flags &= ~RunningLocal;
+    unit->flags |= Aborted;
 }
 
 void IndexerJob::encode(Serializer &serializer)
 {
+    assert(unit);
     std::shared_ptr<Project> proj;
-    if (!(flags & FromRemote))
+    if (!(unit->flags & FromRemote))
         proj = Server::instance()->project(project);
     const Server::Options &options = Server::instance()->options();
-    Source copy = source;
-    if (options.options & Server::Wall && copy.arguments.contains("-Werror")) {
+    const Source oldSource = unit->source;
+    if (options.options & Server::Wall && unit->source.arguments.contains("-Werror")) {
         for (const auto &arg : options.defaultArguments) {
             if (arg != "-Wall")
-                copy.arguments << arg;
+                unit->source.arguments << arg;
         }
     } else {
-        copy.arguments << options.defaultArguments;
+        unit->source.arguments << options.defaultArguments;
     }
     for (const auto &inc : options.includePaths) {
-        copy.includePaths << Source::Include(Source::Include::Type_Include, inc);
+        unit->source.includePaths << Source::Include(Source::Include::Type_Include, inc);
     }
-    copy.defines << options.defines;
-    assert(cpp);
+    unit->source.defines << options.defines;
     serializer << static_cast<uint16_t>(RTags::DatabaseVersion)
-               << destination << port << sourceFile
-               << copy << *cpp << project << flags
+               << destination << port << *unit << project
                << static_cast<uint32_t>(options.rpVisitFileTimeout)
                << static_cast<uint32_t>(options.rpIndexerMessageTimeout)
                << static_cast<uint32_t>(options.rpConnectTimeout)
                << static_cast<bool>(options.options & Server::SuspendRPOnCrash) << id;
+    unit->source = oldSource;
     if (blockedFiles.isEmpty() && proj) {
         proj->encodeVisitedFiles(serializer);
     } else {

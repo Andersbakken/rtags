@@ -20,7 +20,7 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 #include "RTags.h"
 #include "CursorInfo.h"
 
-struct Cpp;
+struct Unit;
 inline bool operator==(const CXCursor &l, CXCursorKind r)
 {
     return clang_getCursorKind(l) == r;
@@ -61,9 +61,9 @@ void parseTranslationUnit(const Path &sourceFile, const List<String> &args,
                           unsigned int translationUnitFlags = 0,
                           String *clangLine = 0);
 void reparseTranslationUnit(CXTranslationUnit &unit, CXUnsavedFile *unsaved, int unsavedCount);
-std::shared_ptr<Cpp> preprocess(const Source &source,
+std::shared_ptr<Unit> preprocess(const Source &source,
                                 const std::shared_ptr<Project> &project = std::shared_ptr<Project>(),
-                                unsigned int preprocessFlags = 0);
+                                unsigned int flags = 0);
 bool compile(const Path& output, const Source &source, const String& preprocessed);
 
 struct Filter

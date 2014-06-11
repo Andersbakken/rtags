@@ -90,7 +90,7 @@ public:
 
     bool isIndexed(uint32_t fileId) const;
 
-    void index(const Source &args, const std::shared_ptr<Cpp> &cpp, uint32_t indexerJobFlags);
+    void index(const std::shared_ptr<Unit> &unit);
 
     List<Source> sources(uint32_t fileId) const;
     bool hasSource(const Source &source) const;
@@ -151,7 +151,7 @@ private:
 
     struct JobData {
         JobData()
-            : pendingFlags(0), crashCount(0), pendingRestartTimerId(-1)
+            : crashCount(0), pendingRestartTimerId(-1)
         {}
         void stopTimer()
         {
@@ -160,9 +160,7 @@ private:
                 pendingRestartTimerId = -1;
             }
         }
-        Source pendingSource;
-        uint32_t pendingFlags;
-        std::shared_ptr<Cpp> pendingCpp;
+        std::shared_ptr<Unit> pendingUnit;
         int crashCount, pendingRestartTimerId;
         std::shared_ptr<IndexerJob> job;
     };
