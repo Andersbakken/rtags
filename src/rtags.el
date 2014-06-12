@@ -1774,7 +1774,10 @@ References to references will be treated as references to the referenced symbol"
   :type 'function)
 
 (defcustom rtags-other-window-window-size-percentage 30 "Percentage size of other buffer" :group 'rtags :type 'integer)
-(defun rtags-show-target-in-other-window ()
+(defun rtags-show-target-in-other-window (&optional dest-window center-window)
+  "DEST-WINDOW : destination window. Can be nil; in this case the current window is split
+according to rtags-other-window-window-size-percentage.
+  CENTER-WINDOW : if true the target window is centered."
   (interactive)
   (let ((target (rtags-target)))
     (unless target
@@ -1785,17 +1788,20 @@ References to references will be treated as references to the referenced symbol"
               (if (= (count-lines (point-min) (point-max)) 1)
                   (setq target (buffer-substring-no-properties (point) (- (point-max) 1))))))))
     (if target
-        (let ((other-window-content (rtags-remove-other-window))
-              (win (selected-window))
-              (height (* (window-height) (- 100 rtags-other-window-window-size-percentage))))
-          (unless (string= target other-window-content)
-            (progn
-              (setq height (/ height 100))
-              (setq rtags-other-window-window (split-window nil height))
-              (select-window rtags-other-window-window)
-              (rtags-goto-location target)
-              (recenter-top-bottom 0)
-              (select-window win)))))))
+        (let ((win (selected-window)))
+          (if dest-window
+              (setq rtags-other-window-window dest-window)
+            (progn ; we don't have a dest-window, we'll split the current one
+              (let ((other-window-content (rtags-remove-other-window))
+                    (height (* (window-height) (- 100 rtags-other-window-window-size-percentage))))
+                (unless (string= target other-window-content)
+                  (progn
+                    (setq height (/ height 100))
+                    (setq rtags-other-window-window (split-window nil height)))))))
+          (select-window rtags-other-window-window)
+          (rtags-goto-location target)
+          (recenter-top-bottom (when (not center-window) 0))
+          (select-window win)))))
 
 (defun rtags-offset-for-line-column (line col)
   (let (deactivate-mark)
