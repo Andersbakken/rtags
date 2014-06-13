@@ -1551,9 +1551,13 @@ References to references will be treated as references to the referenced symbol"
 (defun rtags-taglist-insert-category (category name)
   (let ((max 0))
     (when category
+      (insert "\n")
       (set-mark-command nil)
-      (insert name ":\n")
-      (facemenu-set-underline)
+      (let ((start (point)) end)
+        (insert name ":")
+        (setq end (point))
+        (facemenu-set-face "header-line" start end))
+      (insert "\n\n")
       (while category
         (add-to-list 'rtags-taglist-locations (cons (line-number-at-pos) (cdar category)))
         (let* ((text (caar category))
@@ -1563,7 +1567,7 @@ References to references will be treated as references to the referenced symbol"
         (setq category (cdr category))))
     max))
 
-(defun rtags-taglist ()
+(defun rtags-taglist (&optional dest-window)
   (interactive)
   (rtags-location-stack-push)
   (setq rtags-taglist-locations nil)
@@ -1590,7 +1594,8 @@ References to references will be treated as references to the referenced symbol"
                                (cons (concat text ":" linenum) (concat loc-start linenum loc-end))))))
           (forward-line))))
     (when (or functions classes variables enums macros other)
-      (delete-other-windows)
+      (when (not dest-window)
+        (delete-other-windows))
       (let ((buf (rtags-get-buffer)) (max 0))
         (with-current-buffer buf
           (erase-buffer)
@@ -1603,9 +1608,11 @@ References to references will be treated as references to the referenced symbol"
           (setq buffer-read-only t)
           (goto-char (point-min))
           (forward-line))
-        (split-window-horizontally (min (/ (frame-width) 2) (+ 2 max)))
+        (when (not dest-window)
+          (split-window-horizontally (min (/ (frame-width) 2) (+ 2 max))))
         (switch-to-buffer buf)
-        (rtags-taglist-mode)))))
+        (rtags-taglist-mode)
+        (deactivate-mark)))))
 
 (defun rtags-select (&optional other-window remove show)
   (interactive "P")
