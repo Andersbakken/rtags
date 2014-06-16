@@ -58,11 +58,6 @@ static void sigIntHandler(int)
 #define DEFAULT_RP_VISITFILE_TIMEOUT 60000
 #define DEFAULT_RP_INDEXER_MESSAGE_TIMEOUT 60000
 #define DEFAULT_RP_CONNECT_TIMEOUT 0 // won't time out
-#define DEFAULT_RDM_MULTICAST_ADDRESS "237.50.50.50"
-#define DEFAULT_RDM_HTTP_PORT DEFAULT_RDM_TCP_PORT + 1
-#define DEFAULT_RDM_MULTICAST_PORT DEFAULT_RDM_HTTP_PORT + 1
-#define DEFAULT_RESCHEDULE_TIMEOUT 15000
-#define DEFAULT_MAX_PENDING_PREPROCESS 100
 #define DEFAULT_COMPLETION_CACHE_SIZE 10
 #define DEFAULT_MAX_CRASH_COUNT 5
 #define XSTR(s) #s
@@ -121,14 +116,6 @@ static void usage(FILE *f)
             "  --suspend-rp-on-crash|-q [arg]             Suspend rp in SIGSEGV handler (default " DEFAULT_SUSPEND_RP ").\n"
             "  --no-no-unknown-warnings-option|-Y         Don't pass -Wno-unknown-warning-option\n"
             "  --ignore-compiler|-b [arg]                 Alias this compiler (Might be practical to avoid duplicated sources for things like icecc).\n"
-            "  --multicast-address|-a [arg]               Use this address for multicast (default " DEFAULT_RDM_MULTICAST_ADDRESS ").\n"
-            "  --multicast-port|-P [arg]                  Use this port for multicast (default " STR(DEFAULT_RDM_MULTICAST_PORT) ").\n"
-            "  --multicast-ttl|-B [arg]                   Set multicast TTL to arg.\n"
-            "  --compression|-Z [arg]                     Compression type. Arg should be \"always\", \"remote\" or \"none\" (\"none\" is default).\n"
-            "  --http-port|-H [arg]                       Use this port for http (default " STR(DEFAULT_RDM_HTTP_PORT) ").\n"
-            "  --reschedule-timeout|-R                    Timeout for rescheduling remote jobs (default " STR(DEFAULT_RESCHEDULE_TIMEOUT) ").\n"
-            "  --max-pending-preprocess-size|-G           Max preprocessed translation units to keep around (default " STR(DEFAULT_MAX_PENDING_PREPROCESS) ").\n"
-            "  --force-preprocessing|-g                   Preprocess files even without using multiple hosts.\n"
             "  --thread-stack-size|-k [arg]               Set stack size for threadpool to this (default %zu).\n"
             "  --completion-cache-size|-i [arg]           Number of translation units to cache (default " STR(DEFAULT_COMPLETION_CACHE_SIZE) ").\n"
             "  --extra-compilers|-U [arg]                 Override additional \"known\" compilers. E.g. -U foobar;c++, foobar;c or foobar:objective-c or just foobar.\n"
@@ -186,17 +173,9 @@ int main(int argc, char** argv)
         { "rp-visit-file-timout", required_argument, 0, 't' },
         { "rp-indexer-message-timeout", required_argument, 0, 'T' },
         { "rp-connect-timeout", required_argument, 0, 'O' },
-        { "multicast-address", required_argument, 0, 'a' },
-        { "multicast-port", required_argument, 0, 'P' },
-        { "multicast-ttl", required_argument, 0, 'B' },
-        { "tcp-port", required_argument, 0, 'p' },
-        { "http-port", required_argument, 0, 'H' },
-        { "reschedule-timeout", required_argument, 0, 'R' },
         { "thread-stack-size", required_argument, 0, 'k' },
         { "suspend-rp-on-crash", required_argument, 0, 'q' },
         { "separate-debug-and-release", no_argument, 0, 'E' },
-        { "force-preprocessing", no_argument, 0, 'g' },
-        { "max-pending-preprocess-size", required_argument, 0, 'G' },
         { "max-crash-count", required_argument, 0, 'K' },
         { "completion-cache-size", required_argument, 0, 'i' },
         { "extra-compilers", required_argument, 0, 'U' },
@@ -311,8 +290,7 @@ int main(int argc, char** argv)
     serverOpts.rpVisitFileTimeout = DEFAULT_RP_VISITFILE_TIMEOUT;
     serverOpts.rpIndexerMessageTimeout = DEFAULT_RP_INDEXER_MESSAGE_TIMEOUT;
     serverOpts.rpConnectTimeout = DEFAULT_RP_CONNECT_TIMEOUT;
-    serverOpts.options = Server::Wall|Server::SpellChecking|Server::NoJobServer;
-    serverOpts.maxPendingPreprocessSize = DEFAULT_MAX_PENDING_PREPROCESS;
+    serverOpts.options = Server::Wall|Server::SpellChecking;
     serverOpts.maxCrashCount = DEFAULT_MAX_CRASH_COUNT;
     serverOpts.completionCacheSize = DEFAULT_COMPLETION_CACHE_SIZE;
 #ifdef OS_Darwin
@@ -323,11 +301,6 @@ int main(int argc, char** argv)
 // #endif
     serverOpts.excludeFilters = String(EXCLUDEFILTER_DEFAULT).split(';');
     serverOpts.dataDir = String::format<128>("%s.rtags", Path::home().constData());
-    serverOpts.multicastAddress = DEFAULT_RDM_MULTICAST_ADDRESS;
-    serverOpts.multicastPort = static_cast<uint16_t>(DEFAULT_RDM_MULTICAST_PORT);
-    serverOpts.httpPort = static_cast<uint16_t>(DEFAULT_RDM_HTTP_PORT);
-    serverOpts.tcpPort = static_cast<uint16_t>(DEFAULT_RDM_TCP_PORT);
-    serverOpts.rescheduleTimeout = DEFAULT_RESCHEDULE_TIMEOUT;
     serverOpts.unloadTimer = 0;
 
     const char *logFile = 0;
@@ -378,71 +351,8 @@ int main(int argc, char** argv)
             }
             serverOpts.extraCompilers.append(std::make_pair(rx, lang));
             break; }
-        case 's': {
-            serverOpts.options &= ~Server::NoJobServer;
-            const char* arg = optarg;
-            if (!arg && optind < argCount && args[optind][0] != '-') {
-                arg = args[optind++];
-            }
-            if (arg) {
-                serverOpts.jobServer = RTags::parseHost(arg);
-                if (serverOpts.jobServer.first.isEmpty()) {
-                    fprintf(stderr, "Invalid argument to -s %s.\n", arg);
-                    return 1;
-                }
-            } else {
-                serverOpts.options |= Server::JobServer;
-            }
-            break; }
-        case 'z':
-            serverOpts.options &= ~Server::NoJobServer;
-            break;
         case 'E':
             serverOpts.options |= Server::SeparateDebugAndRelease;
-            break;
-        case 'g':
-            serverOpts.options |= Server::ForcePreprocessing;
-            break;
-        case 'Z': {
-            if (!strcmp(optarg, "always")) {
-                serverOpts.options |= Server::CompressionAlways;
-            } else if (!strcmp(optarg, "remote")) {
-                serverOpts.options |= Server::CompressionRemote;
-            } else if (strcmp(optarg, "none")) {
-                fprintf(stderr, "Invalid arg to -Z, only supports \"always\", \"remote\" or \"none\"\n");
-                return 1;
-            }
-            break; }
-        case 'a':
-            serverOpts.multicastAddress = optarg;
-            break;
-        case 'P':
-            serverOpts.multicastPort = static_cast<uint16_t>(atoi(optarg));
-            if (!serverOpts.multicastPort) {
-                fprintf(stderr, "Invalid argument to -P %s\n", optarg);
-                return 1;
-            }
-            break;
-        case 'G':
-            serverOpts.maxPendingPreprocessSize = atoi(optarg);
-            if (serverOpts.maxPendingPreprocessSize <= 0) {
-                fprintf(stderr, "Invalid argument to -G %s\n", optarg);
-                return 1;
-            }
-            break;
-        case 'H':
-            serverOpts.httpPort = static_cast<uint16_t>(atoi(optarg));
-            if (!serverOpts.httpPort) {
-                fprintf(stderr, "Invalid argument to -H %s\n", optarg);
-                return 1;
-            }
-            break;
-        case 'p':
-            serverOpts.tcpPort = static_cast<uint16_t>(atoi(optarg));
-            if (!serverOpts.tcpPort) {
-                fprintf(stderr, "Invalid argument to -p %s\n", optarg);
-                return 1;
-            }
             break;
         case 't':
             serverOpts.rpVisitFileTimeout = atoi(optarg);
@@ -460,13 +370,6 @@ int main(int argc, char** argv)
                 return 1;
             }
             break;
-        case 'R':
-            serverOpts.rescheduleTimeout = atoi(optarg);
-            if (serverOpts.rescheduleTimeout <= 0) {
-                fprintf(stderr, "Invalid argument to -R %s\n", optarg);
-                return 1;
-            }
-            break;
         case 'k':
             serverOpts.threadStackSize = atoi(optarg);
             if (serverOpts.threadStackSize < 0) {
@@ -476,13 +379,6 @@ int main(int argc, char** argv)
             break;
         case 'b':
             serverOpts.ignoredCompilers.insert(Path::resolved(optarg));
-            break;
-        case 'B':
-            serverOpts.multicastTTL = atoi(optarg);
-            if (serverOpts.multicastTTL <= 0) {
-                fprintf(stderr, "Invalid argument to -B %s\n", optarg);
-                return 1;
-            }
             break;
         case 'n':
             serverOpts.socketFile = optarg;
@@ -648,17 +544,12 @@ int main(int argc, char** argv)
     ::socketFile = serverOpts.socketFile;
     if (!serverOpts.dataDir.endsWith('/'))
         serverOpts.dataDir.append('/');
-    if (serverOpts.options & Server::NoJobServer) {
-        serverOpts.multicastPort = 0;
-        serverOpts.multicastAddress.clear();
-    }
-
     if (!server->init(serverOpts)) {
         cleanupLogging();
         return 1;
     }
 
-    const unsigned int ret = loop->exec();
+    loop->exec();
     cleanupLogging();
-    return ret == EventLoop::Success ? server->exitCode() : 1;
+    return 0;
 }

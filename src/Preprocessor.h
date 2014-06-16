@@ -19,6 +19,7 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 #include <rct/Path.h>
 #include <rct/List.h>
 #include <rct/String.h>
+#include <memory>
 #include "RTags.h"
 
 class Connection;
@@ -30,8 +31,10 @@ public:
 
     void preprocess();
 private:
+    void onProcessFinished();
     const Source mSource;
     Connection *mConnection;
+    std::unique_ptr<Process> mProcess;
 };
 
 #endif

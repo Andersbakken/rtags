@@ -1,7 +1,6 @@
 #include "DumpThread.h"
 #include <rct/Connection.h>
 #include "RTagsClang.h"
-#include "Unit.h"
 #include "Server.h"
 
 DumpThread::DumpThread(const QueryMessage &queryMessage, const Source &source, Connection *conn)
@@ -65,21 +64,12 @@ CXChildVisitResult DumpThread::visitor(CXCursor cursor, CXCursor, CXClientData u
 
 void DumpThread::run()
 {
-    std::shared_ptr<Unit> unit = RTags::preprocess(mSource);
-    if (!unit) {
-        writeToConnetion(String::format<128>("Failed to preprocess %s", mSource.sourceFile().constData()));
-        EventLoop::mainEventLoop()->callLaterMove(std::bind((bool(Connection::*)(Message&&))&Connection::send, mConnection, std::placeholders::_1),
-                                                  FinishMessage());
-        return;
-    }
-    writeToConnetion(String::format<128>("Preprocessed %s", mSource.sourceFile().constData()));
-
     CXIndex index = clang_createIndex(0, 0);
     CXTranslationUnit translationUnit = 0;
     String clangLine;
     RTags::parseTranslationUnit(mSource.sourceFile(), mSource.toCommandLine(Source::Default), translationUnit,
                                 index, 0, 0, CXTranslationUnit_DetailedPreprocessingRecord, &clangLine);
-    writeToConnetion(String::format<128>("Indexed: %s => %s", clangLine.constData(), unit ? "success" : "failure"));
+    writeToConnetion(String::format<128>("Indexed: %s => %s", clangLine.constData(), translationUnit ? "success" : "failure"));
     if (translationUnit) {
         clang_visitChildren(clang_getTranslationUnitCursor(translationUnit), DumpThread::visitor, this);
         clang_disposeTranslationUnit(translationUnit);

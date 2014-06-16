@@ -21,7 +21,7 @@ public:
     bool connect(const Path &serverFile, int timeout);
     bool connect(const String &hostName, uint16_t port, int timeout);
 
-    bool index(const std::shared_ptr<Unit> &unit, const Path &project);
+    bool index(const Source &source, uint32_t flags, const Path &project);
     int visitFileTimeout() const { return mVisitFileTimeout; }
     void setVisitFileTimeout(int visitFileTimeout) { mVisitFileTimeout = visitFileTimeout; }
     int indexerMessageTimeout() const { return mIndexerMessageTimeout; }
@@ -37,18 +37,14 @@ private:
     {
         CXString fileName;
         unsigned line, col;
-        if (mPreprocessed.isEmpty()) {
-            CXFile file;
-            clang_getSpellingLocation(location, &file, &line, &col, 0);
-            if (file) {
-                fileName = clang_getFileName(file);
-            } else {
-                if (blocked)
-                    *blocked = false;
-                return Location();
-            }
+        CXFile file;
+        clang_getSpellingLocation(location, &file, &line, &col, 0);
+        if (file) {
+            fileName = clang_getFileName(file);
         } else {
-            clang_getPresumedLocation(location, &fileName, &line, &col);
+            if (blocked)
+                *blocked = false;
+            return Location();
         }
         const char *fn = clang_getCString(fileName);
         assert(fn);
@@ -91,7 +87,7 @@ private:
             clang_disposeString(fn);
             return Location();
         }
-        const Path p = mLocalJob ? Path::resolved(cstr) : Path(cstr);
+        const Path p = Path::resolved(cstr);
         clang_disposeString(fn);
         return createLocation(p, line, col, blocked);
     }
@@ -123,6 +119,7 @@ private:
     void onMessage(Message *msg, Connection *conn);
 
     Path mProject;
+    Source mSource;
     std::shared_ptr<IndexData> mData;
     CXTranslationUnit mClangUnit;
     CXIndex mIndex;
@@ -134,13 +131,9 @@ private:
     StopWatch mTimer;
     int mParseDuration, mVisitDuration, mBlocked, mAllowed,
         mIndexed, mVisitFileTimeout, mIndexerMessageTimeout, mFileIdsQueried;
-    Path mVisitFileResponseMessageResolved;
-    std::shared_ptr<Unit> mUnit;
-    String mPreprocessed;
     Connection mConnection;
     uint64_t mId;
     FILE *mLogFile;
-    bool mLocalJob;
     uint32_t mLastFileId;
     bool mLastBlocked;
     Path mLastFile;

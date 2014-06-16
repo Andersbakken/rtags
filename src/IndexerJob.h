@@ -17,53 +17,54 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 #define IndexerJob_h
 
 #include "RTags.h"
-#include "Unit.h"
 #include <rct/Hash.h>
 #include <rct/ThreadPool.h>
 #include <rct/StopWatch.h>
 #include <rct/Hash.h>
+#include <rct/Process.h>
 #include "Source.h"
 
-class Process;
+class IndexerJobProcess : public Process
+{
+public:
+    IndexerJobProcess(uint64_t id)
+        : Process(), jobId(id)
+    {}
+    const uint64_t jobId;
+};
 class IndexerJob : public std::enable_shared_from_this<IndexerJob>
 {
 public:
     enum Flag {
-        None = 0x0000,
-        Dirty = 0x0001,
-        Compile = 0x0002,
+        None = 0x000,
+        Dirty = 0x001,
+        Compile = 0x002,
         Type_Mask = Dirty|Compile,
-        FromRemote = 0x0010, // this job originated on another machine, we're running it to be nice
-        Remote = 0x0020, // this job represents a locally spawned index that currently runs on some other machine
-        Rescheduled = 0x0040,
-        RunningLocal = 0x0080,
-        Crashed = 0x0100,
-        Aborted = 0x0200,
-        CompleteLocal = 0x0400,
-        CompleteRemote = 0x0800,
-        PreprocessCompressed = 0x1000,
-        HighPriority = 0x2000
+        Running = 0x010,
+        Crashed = 0x020,
+        Aborted = 0x040,
+        Complete = 0x080,
+        HighPriority = 0x100
     };
 
     static String dumpFlags(unsigned int);
 
-    IndexerJob(const Path &project, const std::shared_ptr<Unit> &unit);
+    IndexerJob(const Source &source, uint32_t flags, const Path &project);
     IndexerJob();
-    ~IndexerJob();
 
     bool launchProcess();
-    bool update(const std::shared_ptr<Unit> &unit);
+    bool update(const Source &source, uint32_t flags);
     void abort();
-    void encode(Serializer &serializer);
+    void encode(Serializer &serializer) const;
 
     String destination;
-    uint16_t port;
+    Source source;
+    Path sourceFile;
+    uint32_t flags;
     Path project;
     Set<uint32_t> visited;
-    Process *process;
-    Hash<uint32_t, Path> blockedFiles; // only used for remote jobs
+    IndexerJobProcess *process;
     uint64_t id, started;
-    std::shared_ptr<Unit> unit;
 
     static uint64_t nextId;
 };

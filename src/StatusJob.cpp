@@ -180,18 +180,10 @@ int StatusJob::execute()
             << "rpConnectTimeout" << opt.rpConnectTimeout << '\n'
             << "rpConnectTimeout" << opt.rpConnectTimeout << '\n'
             << "syncThreshold" << opt.syncThreshold << '\n'
-            << "rescheduleTimeout" << opt.rescheduleTimeout << '\n'
             << "threadStackSize" << opt.threadStackSize << '\n'
-            << "maxPendingPreprocessSize" << opt.maxPendingPreprocessSize << '\n'
             << "defaultArguments" << opt.defaultArguments << '\n'
             << "includePaths" << opt.includePaths << '\n'
             << "defines" << opt.defines << '\n'
-            << "multicastAddress" << opt.multicastAddress << '\n'
-            << "multicastTTL" << opt.multicastTTL << '\n'
-            << "multicastPort" << opt.multicastPort << '\n'
-            << "tcpPort" << opt.tcpPort << '\n'
-            << "httpPort" << opt.httpPort << '\n'
-            << "jobServer" << opt.jobServer << '\n'
             << "ignoredCompilers" << opt.ignoredCompilers;
         write(out);
     }

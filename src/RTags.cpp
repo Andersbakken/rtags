@@ -19,13 +19,8 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 #include "VisitFileMessage.h"
 #include "VisitFileResponseMessage.h"
 #include "IndexerMessage.h"
-#include "JobRequestMessage.h"
-#include "JobResponseMessage.h"
-#include "JobAnnouncementMessage.h"
-#include "ClientMessage.h"
 #include "CompileMessage.h"
 #include "LogOutputMessage.h"
-#include "ProxyJobAnnouncementMessage.h"
 #include "QueryMessage.h"
 #include <dirent.h>
 #include <fcntl.h>
@@ -450,12 +445,9 @@ Path findProjectRoot(const Path &path, ProjectRootMode mode)
 
 void initMessages()
 {
-    Messages::registerMessage<ClientMessage>();
     Messages::registerMessage<CompileMessage>();
     Messages::registerMessage<IndexerMessage>();
-    Messages::registerMessage<JobAnnouncementMessage>();
     Messages::registerMessage<LogOutputMessage>();
-    Messages::registerMessage<ProxyJobAnnouncementMessage>();
     Messages::registerMessage<QueryMessage>();
     Messages::registerMessage<VisitFileMessage>();
     Messages::registerMessage<VisitFileResponseMessage>();

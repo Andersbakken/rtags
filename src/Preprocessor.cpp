@@ -17,20 +17,33 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 #include <rct/Connection.h>
 #include <rct/Process.h>
 #include <rct/Log.h>
-#include "RTagsClang.h"
-#include "Unit.h"
+#include "RTags.h"
 
-Preprocessor::Preprocessor(const Source &args, Connection *connection)
-    : mSource(args), mConnection(connection)
+Preprocessor::Preprocessor(const Source &source, Connection *connection)
+    : mSource(source), mConnection(connection)
 {
+    mProcess.reset(new Process);
+    mProcess->finished().connect(std::bind(&Preprocessor::onProcessFinished, this));
 }
 
 void Preprocessor::preprocess()
 {
-    std::shared_ptr<Unit> unit = RTags::preprocess(mSource);
-    if (unit) {
-        mConnection->client()->setWriteMode(SocketClient::Synchronous);
-        mConnection->write(unit->preprocessed);
-        mConnection->write<256>("// %s", String::join(mSource.toCommandLine(Source::IncludeSourceFile|Source::IncludeCompiler), ' ').constData());
+    List<String> args = mSource.toCommandLine(Source::IncludeSourceFile|Source::ExcludeDefaultArguments);
+    args.append("-E");
+
+    mProcess->start(mSource.compiler(), args);
+}
+
+void Preprocessor::onProcessFinished()
+{
+    mConnection->client()->setWriteMode(SocketClient::Synchronous);
+    const unsigned int flags = Source::IncludeSourceFile|Source::IncludeCompiler|Source::ExcludeDefaultArguments;
+    mConnection->write<256>("// %s", String::join(mSource.toCommandLine(flags), ' ').constData());
+    mConnection->write(mProcess->readAllStdOut());
+    const String err = mProcess->readAllStdErr();
+    if (!err.isEmpty()) {
+        mConnection->write<1024>("/* %s */", err.constData());
     }
+    mConnection->finish();
+    EventLoop::deleteLater(this);
 }
