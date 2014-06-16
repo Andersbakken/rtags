@@ -278,170 +278,171 @@ private:
     size_t mBufferUsed;
 };
 
-static inline void processArgs(clang::HeaderSearchOptions &headerSearchOptions,
-                               const clang::driver::ArgStringList &args)
+// static inline void processArgs(clang::HeaderSearchOptions &headerSearchOptions,
+//                                const clang::driver::ArgStringList &args)
+// {
+//     enum Type {
+//         Pending,
+//         SystemInclude
+//     } type = Pending;
+//     for (const char *arg : args) {
+//         switch (type) {
+//         case Pending:
+//             if (!strcmp(arg, "-internal-isystem") || !strcmp(arg, "-internal-externc-isystem")) {
+//                 type = SystemInclude;
+//             } else if (!strncmp("-l", arg, 2)) {
+
+//             } else {
+//                 error() << "Unknown arg type" << arg;
+//             }
+//             break;
+//         case SystemInclude: {
+//             const Path path = Path::resolved(arg);
+//             // error() << "Adding include" << path;
+//             headerSearchOptions.AddPath(clang::StringRef(path.constData(), path.size()), clang::frontend::System,
+// #if CLANG_VERSION_MINOR < 3
+//                                         false,
+// #endif
+//                                         false, false);
+//             type = Pending;
+//             break; }
+//         }
+//         // printf("got clang cxx arg %s\n", arg);
+//     }
+// }
+
+// static String toString(const Source::Define &def)
+// {
+//     String ret;
+//     ret += "#define ";
+//     ret += def.define;
+//     if (!def.value.isEmpty()) {
+//         ret += ' ';
+//         ret += def.value;
+//     }
+//     return ret;
+// }
+
+bool compile(const Path& /* output */, const Source &/* source */, const String& /* preprocessed */)
 {
-    enum Type {
-        Pending,
-        SystemInclude
-    } type = Pending;
-    for (const char *arg : args) {
-        switch (type) {
-        case Pending:
-            if (!strcmp(arg, "-internal-isystem") || !strcmp(arg, "-internal-externc-isystem")) {
-                type = SystemInclude;
-            } else if (!strncmp("-l", arg, 2)) {
+    return false;
+//     (void)output;
+//     (void)source;
+//     (void)preprocessed;
+// #if CLANG_VERSION_MINOR < 4
+//     StopWatch sw;
 
-            } else {
-                error() << "Unknown arg type" << arg;
-            }
-            break;
-        case SystemInclude: {
-            const Path path = Path::resolved(arg);
-            // error() << "Adding include" << path;
-            headerSearchOptions.AddPath(clang::StringRef(path.constData(), path.size()), clang::frontend::System,
-#if CLANG_VERSION_MINOR < 3
-                                        false,
-#endif
-                                        false, false);
-            type = Pending;
-            break; }
-        }
-        // printf("got clang cxx arg %s\n", arg);
-    }
-}
+//     LLVMInitializeAllTargetInfos();
+//     LLVMInitializeAllTargets();
+//     LLVMInitializeAllTargetMCs();
+//     LLVMInitializeAllAsmPrinters();
+//     LLVMInitializeAllAsmParsers();
 
-static String toString(const Source::Define &def)
-{
-    String ret;
-    ret += "#define ";
-    ret += def.define;
-    if (!def.value.isEmpty()) {
-        ret += ' ';
-        ret += def.value;
-    }
-    return ret;
-}
+//     clang::CompilerInstance compilerInstance;
+//     compilerInstance.createFileManager();
+//     assert(compilerInstance.hasFileManager());
 
-bool compile(const Path& output, const Source &source, const String& preprocessed)
-{
-    (void)output;
-    (void)source;
-    (void)preprocessed;
-#if CLANG_VERSION_MINOR < 4
-    StopWatch sw;
+// #if CLANG_VERSION_MINOR >= 3
+//     compilerInstance.createDiagnostics();
+// #else
+//     compilerInstance.createDiagnostics(0, 0);
+// #endif
+//     assert(compilerInstance.hasDiagnostics());
 
-    LLVMInitializeAllTargetInfos();
-    LLVMInitializeAllTargets();
-    LLVMInitializeAllTargetMCs();
-    LLVMInitializeAllAsmPrinters();
-    LLVMInitializeAllAsmParsers();
+//     clang::FileManager &fm = compilerInstance.getFileManager();
+//     compilerInstance.createSourceManager(fm);
+//     assert(compilerInstance.hasSourceManager());
+//     clang::SourceManager &sm = compilerInstance.getSourceManager();
 
-    clang::CompilerInstance compilerInstance;
-    compilerInstance.createFileManager();
-    assert(compilerInstance.hasFileManager());
+//     const Path& sourceFile = source.sourceFile();
+//     clang::StringRef src(sourceFile.constData(), sourceFile.size());
+//     clang::StringRef pre(preprocessed.constData(), preprocessed.size());
+//     llvm::MemoryBuffer* premem = llvm::MemoryBuffer::getMemBuffer(pre, src);
+//     const clang::FileEntry* preent = fm.getVirtualFile(src, preprocessed.size(), time(0));
+//     sm.overrideFileContents(preent, premem);
 
-#if CLANG_VERSION_MINOR >= 3
-    compilerInstance.createDiagnostics();
-#else
-    compilerInstance.createDiagnostics(0, 0);
-#endif
-    assert(compilerInstance.hasDiagnostics());
+//     clang::TargetOptions &targetOptions = compilerInstance.getTargetOpts();
+//     String triple = llvm::sys::getDefaultTargetTriple();
+//     if (source.flags & Source::M32) {
+//         if (triple.startsWith("x86_64"))
+//             triple.replace(0, 6, "i386");
+//     } else if (source.flags & Source::M64 && triple.startsWith("i386")) {
+//         triple.replace(0, 4, "x86_64");
+//     }
 
-    clang::FileManager &fm = compilerInstance.getFileManager();
-    compilerInstance.createSourceManager(fm);
-    assert(compilerInstance.hasSourceManager());
-    clang::SourceManager &sm = compilerInstance.getSourceManager();
+//     targetOptions.Triple = static_cast<std::string>(triple);
+//     clang::DiagnosticsEngine& diags = compilerInstance.getDiagnostics();
+//     compilerInstance.setTarget(clang::TargetInfo::CreateTargetInfo(diags,
+// #if CLANG_VERSION_MINOR < 3
+//                                                                    targetOptions
+// #else
+//                                                                    &targetOptions
+// #endif
+//                                    ));
+//     clang::LangOptions &langOpts = compilerInstance.getLangOpts();
 
-    const Path& sourceFile = source.sourceFile();
-    clang::StringRef src(sourceFile.constData(), sourceFile.size());
-    clang::StringRef pre(preprocessed.constData(), preprocessed.size());
-    llvm::MemoryBuffer* premem = llvm::MemoryBuffer::getMemBuffer(pre, src);
-    const clang::FileEntry* preent = fm.getVirtualFile(src, preprocessed.size(), time(0));
-    sm.overrideFileContents(preent, premem);
+//     clang::InputKind ik;
 
-    clang::TargetOptions &targetOptions = compilerInstance.getTargetOpts();
-    String triple = llvm::sys::getDefaultTargetTriple();
-    if (source.flags & Source::M32) {
-        if (triple.startsWith("x86_64"))
-            triple.replace(0, 6, "i386");
-    } else if (source.flags & Source::M64 && triple.startsWith("i386")) {
-        triple.replace(0, 4, "x86_64");
-    }
+//     switch (source.language) {
+//     case Source::CPlusPlus11:
+//     case Source::CPlusPlus:
+//         ik = clang::IK_PreprocessedCXX;
+//         break;
+//     default:
+//         ik = clang::IK_PreprocessedC;
+//         break;
+//     }
+//     compilerInstance.getInvocation().setLangDefaults(langOpts, ik);
+// #if CLANG_VERSION_MINOR >= 3
+//     if (source.language == Source::CPlusPlus11)
+//         langOpts.CPlusPlus11 = true;
+// #endif
 
-    targetOptions.Triple = static_cast<std::string>(triple);
-    clang::DiagnosticsEngine& diags = compilerInstance.getDiagnostics();
-    compilerInstance.setTarget(clang::TargetInfo::CreateTargetInfo(diags,
-#if CLANG_VERSION_MINOR < 3
-                                                                   targetOptions
-#else
-                                                                   &targetOptions
-#endif
-                                   ));
-    clang::LangOptions &langOpts = compilerInstance.getLangOpts();
+//     clang::FrontendInputFile input(src, ik);
 
-    clang::InputKind ik;
+//     clang::FrontendOptions& feopts = compilerInstance.getFrontendOpts();
+//     feopts.ProgramAction = clang::frontend::EmitObj;
+//     feopts.Inputs.push_back(input);
 
-    switch (source.language) {
-    case Source::CPlusPlus11:
-    case Source::CPlusPlus:
-        ik = clang::IK_PreprocessedCXX;
-        break;
-    default:
-        ik = clang::IK_PreprocessedC;
-        break;
-    }
-    compilerInstance.getInvocation().setLangDefaults(langOpts, ik);
-#if CLANG_VERSION_MINOR >= 3
-    if (source.language == Source::CPlusPlus11)
-        langOpts.CPlusPlus11 = true;
-#endif
+//     compilerInstance.setTarget(clang::TargetInfo::CreateTargetInfo(compilerInstance.getDiagnostics(),
+// #if CLANG_VERSION_MINOR < 3
+//                                                                    compilerInstance.getTargetOpts()
+// #else
+//                                                                    &compilerInstance.getTargetOpts()
+// #endif
+//                                    ));
+//     compilerInstance.getTarget().setForcedLangOptions(langOpts);
 
-    clang::FrontendInputFile input(src, ik);
+//     // ### ???
+// #if CLANG_VERSION_MINOR < 5
+//     compilerInstance.createPreprocessor();
+// #else
+//     compilerInstance.createPreprocessor(clang::TU_Complete);
+// #endif
+//     clang::InitializePreprocessor(compilerInstance.getPreprocessor(),
+//                                   compilerInstance.getPreprocessorOpts(),
+//                                   compilerInstance.getHeaderSearchOpts(),
+//                                   feopts);
 
-    clang::FrontendOptions& feopts = compilerInstance.getFrontendOpts();
-    feopts.ProgramAction = clang::frontend::EmitObj;
-    feopts.Inputs.push_back(input);
+//     //compilerInstance.getDiagnosticClient().BeginSourceFile(compilerInstance.getLangOpts(), &compilerInstance.getPreprocessor());
 
-    compilerInstance.setTarget(clang::TargetInfo::CreateTargetInfo(compilerInstance.getDiagnostics(),
-#if CLANG_VERSION_MINOR < 3
-                                                                   compilerInstance.getTargetOpts()
-#else
-                                                                   &compilerInstance.getTargetOpts()
-#endif
-                                   ));
-    compilerInstance.getTarget().setForcedLangOptions(langOpts);
+//     compilerInstance.clearOutputFiles(false);
+//     clang::StringRef out(output.constData(), output.size());
+//     //llvm::raw_fd_ostream* ostrm = compilerInstance.createDefaultOutputFile(true, out);
+//     llvm::raw_fd_ostream* ostrm = compilerInstance.createOutputFile(out, true, true, "", "o");
+//     ostrm->SetUnbuffered();
 
-    // ### ???
-#if CLANG_VERSION_MINOR < 5
-    compilerInstance.createPreprocessor();
-#else
-    compilerInstance.createPreprocessor(clang::TU_Complete);
-#endif
-    clang::InitializePreprocessor(compilerInstance.getPreprocessor(),
-                                  compilerInstance.getPreprocessorOpts(),
-                                  compilerInstance.getHeaderSearchOpts(),
-                                  feopts);
+//     clang::EmitObjAction emitact;
+//     emitact.BeginSourceFile(compilerInstance, input);
+//     emitact.Execute();
+//     emitact.EndSourceFile();
 
-    //compilerInstance.getDiagnosticClient().BeginSourceFile(compilerInstance.getLangOpts(), &compilerInstance.getPreprocessor());
+// #if CLANG_VERSION_MINOR >= 3
+//     LLVMShutdown();
+// #endif
 
-    compilerInstance.clearOutputFiles(false);
-    clang::StringRef out(output.constData(), output.size());
-    //llvm::raw_fd_ostream* ostrm = compilerInstance.createDefaultOutputFile(true, out);
-    llvm::raw_fd_ostream* ostrm = compilerInstance.createOutputFile(out, true, true, "", "o");
-    ostrm->SetUnbuffered();
-
-    clang::EmitObjAction emitact;
-    emitact.BeginSourceFile(compilerInstance, input);
-    emitact.Execute();
-    emitact.EndSourceFile();
-
-#if CLANG_VERSION_MINOR >= 3
-    LLVMShutdown();
-#endif
-
-#endif
-    return true;
+// #endif
+//     return true;
 }
 
 static inline uint32_t visitFile(const Path &path,
@@ -480,318 +481,319 @@ public:
     }
 };
 
-std::shared_ptr<Unit> preprocess(const Source &source,
-                                 const std::shared_ptr<Project> &project,
-                                 unsigned int flags)
+std::shared_ptr<Unit> preprocess(const Source &/* source */,
+                                 const std::shared_ptr<Project> &/* project */,
+                                 unsigned int /* flags */)
 {
-    StopWatch sw;
-    Compiler compilerInstance;
-    compilerInstance.createFileManager();
-    assert(compilerInstance.hasFileManager());
-#if CLANG_VERSION_MINOR >= 3
-    compilerInstance.createDiagnostics();
-#else
-    compilerInstance.createDiagnostics(0, 0);
-#endif
-    assert(compilerInstance.hasDiagnostics());
-    clang::DiagnosticsEngine& diags = compilerInstance.getDiagnostics();
-    clang::FileManager &fm = compilerInstance.getFileManager();
-    clang::SourceManager sm(diags, fm, true);
-    compilerInstance.setSourceManager(&sm);
-    assert(compilerInstance.hasSourceManager());
-    const Path sourceFile = source.sourceFile();
-    uint64_t now = Rct::currentTimeMs();
-    const clang::FileEntry *file = 0;
-    for (int i=0; i<4; ++i) {
-        file = fm.getFile(sourceFile.constData(), true); // pass openfile?
-        if (file)
-            break;
-        usleep(100);
-    }
-    if (!file) {
-        return std::shared_ptr<Unit>();
-    }
-    sm.createMainFileID(file);
-    clang::TargetOptions &targetOptions = compilerInstance.getTargetOpts();
-    String triple = llvm::sys::getDefaultTargetTriple();
-    if (source.flags & Source::M32) {
-        if (triple.startsWith("x86_64"))
-            triple.replace(0, 6, "i386");
-    } else if (source.flags & Source::M64 && triple.startsWith("i386")) {
-        triple.replace(0, 4, "x86_64");
-    }
+    return std::shared_ptr<Unit>();
+//     StopWatch sw;
+//     Compiler compilerInstance;
+//     compilerInstance.createFileManager();
+//     assert(compilerInstance.hasFileManager());
+// #if CLANG_VERSION_MINOR >= 3
+//     compilerInstance.createDiagnostics();
+// #else
+//     compilerInstance.createDiagnostics(0, 0);
+// #endif
+//     assert(compilerInstance.hasDiagnostics());
+//     clang::DiagnosticsEngine& diags = compilerInstance.getDiagnostics();
+//     clang::FileManager &fm = compilerInstance.getFileManager();
+//     clang::SourceManager sm(diags, fm, true);
+//     compilerInstance.setSourceManager(&sm);
+//     assert(compilerInstance.hasSourceManager());
+//     const Path sourceFile = source.sourceFile();
+//     uint64_t now = Rct::currentTimeMs();
+//     const clang::FileEntry *file = 0;
+//     for (int i=0; i<4; ++i) {
+//         file = fm.getFile(sourceFile.constData(), true); // pass openfile?
+//         if (file)
+//             break;
+//         usleep(100);
+//     }
+//     if (!file) {
+//         return std::shared_ptr<Unit>();
+//     }
+//     sm.createMainFileID(file);
+//     clang::TargetOptions &targetOptions = compilerInstance.getTargetOpts();
+//     String triple = llvm::sys::getDefaultTargetTriple();
+//     if (source.flags & Source::M32) {
+//         if (triple.startsWith("x86_64"))
+//             triple.replace(0, 6, "i386");
+//     } else if (source.flags & Source::M64 && triple.startsWith("i386")) {
+//         triple.replace(0, 4, "x86_64");
+//     }
 
-    //targetOptions.Triple = LLVM_HOST_TRIPLE;
-    targetOptions.Triple = static_cast<std::string>(triple);
-    clang::TextDiagnosticBuffer diagnosticsClient;
-    diags.setClient(&diagnosticsClient, false);
-    compilerInstance.setTarget(clang::TargetInfo::CreateTargetInfo(diags,
-#if CLANG_VERSION_MINOR < 3
-                                                                   targetOptions
-#else
-                                                                   &targetOptions
-#endif
-                                   ));
-    clang::LangOptions &langOpts = compilerInstance.getLangOpts();
-    switch (source.language) {
-    case Source::CPlusPlus11:
-#if CLANG_VERSION_MINOR >= 3
-        langOpts.CPlusPlus11 = true;
-#endif
-        langOpts.CPlusPlus = true;
-        break;
-    case Source::CPlusPlus:
-        langOpts.CPlusPlus = true;
-        break;
-    default:
-        break;
-    }
+//     //targetOptions.Triple = LLVM_HOST_TRIPLE;
+//     targetOptions.Triple = static_cast<std::string>(triple);
+//     clang::TextDiagnosticBuffer diagnosticsClient;
+//     diags.setClient(&diagnosticsClient, false);
+//     compilerInstance.setTarget(clang::TargetInfo::CreateTargetInfo(diags,
+// #if CLANG_VERSION_MINOR < 3
+//                                                                    targetOptions
+// #else
+//                                                                    &targetOptions
+// #endif
+//                                    ));
+//     clang::LangOptions &langOpts = compilerInstance.getLangOpts();
+//     switch (source.language) {
+//     case Source::CPlusPlus11:
+// #if CLANG_VERSION_MINOR >= 3
+//         langOpts.CPlusPlus11 = true;
+// #endif
+//         langOpts.CPlusPlus = true;
+//         break;
+//     case Source::CPlusPlus:
+//         langOpts.CPlusPlus = true;
+//         break;
+//     default:
+//         break;
+//     }
 
-    if (source.flags & Source::NoRtti)
-        langOpts.RTTI = false;
+//     if (source.flags & Source::NoRtti)
+//         langOpts.RTTI = false;
 
-    const Server::Options &options = Server::instance()->options();
-    clang::HeaderSearchOptions &headerSearchOptions = compilerInstance.getHeaderSearchOpts();
-    Path sysRoot = source.sysRoot();
-    if (sysRoot != "/") {
-        assert(sysRoot.endsWith('/'));
-        sysRoot.chop(1);
-    }
+//     const Server::Options &options = Server::instance()->options();
+//     clang::HeaderSearchOptions &headerSearchOptions = compilerInstance.getHeaderSearchOpts();
+//     Path sysRoot = source.sysRoot();
+//     if (sysRoot != "/") {
+//         assert(sysRoot.endsWith('/'));
+//         sysRoot.chop(1);
+//     }
 
-    headerSearchOptions.Sysroot = sysRoot;
-    {
-        clang::driver::Driver driver("clang", static_cast<std::string>(triple), "a.out",
-#if CLANG_VERSION_MINOR < 3
-                                     true, // is_production, no idea what it means
-#endif
-                                     diags);
-        std::vector<String> copies; // not cool
-        std::vector<const char*> args;
-        args.reserve(100);
-        const Path compiler = source.compiler();
-        args.push_back(compiler.constData());
-        args.push_back("-c");
-        args.push_back(sourceFile.constData());
-        for (const Source::Include &inc : source.includePaths)
-            copies.push_back(inc.toString());
-        for (const Path &path : options.includePaths)
-            copies.push_back("-I" + path);
-        for (const Source::Define &def : source.defines)
-            copies.push_back(def.toString());
-        for (const Source::Define &def : options.defines)
-            copies.push_back(def.toString());
-        for (const String &str : copies)
-            args.push_back(str.constData());
+//     headerSearchOptions.Sysroot = sysRoot;
+//     {
+//         clang::driver::Driver driver("clang", static_cast<std::string>(triple), "a.out",
+// #if CLANG_VERSION_MINOR < 3
+//                                      true, // is_production, no idea what it means
+// #endif
+//                                      diags);
+//         std::vector<String> copies; // not cool
+//         std::vector<const char*> args;
+//         args.reserve(100);
+//         const Path compiler = source.compiler();
+//         args.push_back(compiler.constData());
+//         args.push_back("-c");
+//         args.push_back(sourceFile.constData());
+//         for (const Source::Include &inc : source.includePaths)
+//             copies.push_back(inc.toString());
+//         for (const Path &path : options.includePaths)
+//             copies.push_back("-I" + path);
+//         for (const Source::Define &def : source.defines)
+//             copies.push_back(def.toString());
+//         for (const Source::Define &def : options.defines)
+//             copies.push_back(def.toString());
+//         for (const String &str : copies)
+//             args.push_back(str.constData());
 
-        std::unique_ptr<clang::driver::Compilation> compilation(driver.BuildCompilation(llvm::ArrayRef<const char*>(&args[0], args.size())));
-        const clang::driver::ToolChain& toolChain = compilation->getDefaultToolChain();
-        const InputArgList inputArgs(&args[0], &args[0] + args.size());
-        clang::driver::ArgStringList outputArgs;
-        toolChain.AddClangCXXStdlibIncludeArgs(inputArgs, outputArgs);
-        processArgs(headerSearchOptions, outputArgs);
-        toolChain.AddClangSystemIncludeArgs(inputArgs, outputArgs);
-        processArgs(headerSearchOptions, outputArgs);
-        toolChain.AddCXXStdlibLibArgs(inputArgs, outputArgs);
-        processArgs(headerSearchOptions, outputArgs);
-    }
+//         std::unique_ptr<clang::driver::Compilation> compilation(driver.BuildCompilation(llvm::ArrayRef<const char*>(&args[0], args.size())));
+//         const clang::driver::ToolChain& toolChain = compilation->getDefaultToolChain();
+//         const InputArgList inputArgs(&args[0], &args[0] + args.size());
+//         clang::driver::ArgStringList outputArgs;
+//         toolChain.AddClangCXXStdlibIncludeArgs(inputArgs, outputArgs);
+//         processArgs(headerSearchOptions, outputArgs);
+//         toolChain.AddClangSystemIncludeArgs(inputArgs, outputArgs);
+//         processArgs(headerSearchOptions, outputArgs);
+//         toolChain.AddCXXStdlibLibArgs(inputArgs, outputArgs);
+//         processArgs(headerSearchOptions, outputArgs);
+//     }
 
-    for (const auto &inc : source.includePaths) {
-        // error() << "Adding -I" << *it;
-        headerSearchOptions.AddPath(clang::StringRef(inc.path.constData(), inc.path.size()),
-                                    inc.type == Source::Include::Type_Include ? clang::frontend::Angled : clang::frontend::System,
-#if CLANG_VERSION_MINOR < 3
-                                    false,
-#endif
-                                    false, true);
-    }
-    for (const auto &inc : options.includePaths) {
-        // error() << "Adding -I" << *it;
-        headerSearchOptions.AddPath(clang::StringRef(inc.constData(), inc.size()),
-                                    clang::frontend::Angled,
-#if CLANG_VERSION_MINOR < 3
-                                    false,
-#endif
-                                    false, true);
-    }
+//     for (const auto &inc : source.includePaths) {
+//         // error() << "Adding -I" << *it;
+//         headerSearchOptions.AddPath(clang::StringRef(inc.path.constData(), inc.path.size()),
+//                                     inc.type == Source::Include::Type_Include ? clang::frontend::Angled : clang::frontend::System,
+// #if CLANG_VERSION_MINOR < 3
+//                                     false,
+// #endif
+//                                     false, true);
+//     }
+//     for (const auto &inc : options.includePaths) {
+//         // error() << "Adding -I" << *it;
+//         headerSearchOptions.AddPath(clang::StringRef(inc.constData(), inc.size()),
+//                                     clang::frontend::Angled,
+// #if CLANG_VERSION_MINOR < 3
+//                                     false,
+// #endif
+//                                     false, true);
+//     }
 
-#if CLANG_VERSION_MINOR < 5
-    compilerInstance.createPreprocessor();
-#else
-    compilerInstance.createPreprocessor(clang::TU_Complete);
-#endif
-    std::string predefines = compilerInstance.getPreprocessor().getPredefines();
-    for (const auto &def : source.defines) {
-        predefines += toString(def);
-        predefines += '\n';
-        // error() << "Got define" << it->define << it->value;
-    }
-    for (const auto &def : options.defines) {
-        predefines += toString(def);
-        predefines += '\n';
-        // error() << "Got define" << it->define << it->value;
-    }
-    predefines += "#define __STRICT_ANSI__\n";
+// #if CLANG_VERSION_MINOR < 5
+//     compilerInstance.createPreprocessor();
+// #else
+//     compilerInstance.createPreprocessor(clang::TU_Complete);
+// #endif
+//     std::string predefines = compilerInstance.getPreprocessor().getPredefines();
+//     for (const auto &def : source.defines) {
+//         predefines += toString(def);
+//         predefines += '\n';
+//         // error() << "Got define" << it->define << it->value;
+//     }
+//     for (const auto &def : options.defines) {
+//         predefines += toString(def);
+//         predefines += '\n';
+//         // error() << "Got define" << it->define << it->value;
+//     }
+//     predefines += "#define __STRICT_ANSI__\n";
 
-    // error() << "predefines" << compilerInstance.getPreprocessor().getPredefines();
-    compilerInstance.getPreprocessor().setPredefines(predefines);
-    clang::PreprocessorOutputOptions preprocessorOptions;
-    preprocessorOptions.ShowCPP = 1;
+//     // error() << "predefines" << compilerInstance.getPreprocessor().getPredefines();
+//     compilerInstance.getPreprocessor().setPredefines(predefines);
+//     clang::PreprocessorOutputOptions preprocessorOptions;
+//     preprocessorOptions.ShowCPP = 1;
 
-    compilerInstance.getDiagnosticClient().BeginSourceFile(compilerInstance.getLangOpts(), &compilerInstance.getPreprocessor());
+//     compilerInstance.getDiagnosticClient().BeginSourceFile(compilerInstance.getLangOpts(), &compilerInstance.getPreprocessor());
 
-    std::shared_ptr<Unit> unit(new Unit);
-    StringOStream out(&unit->preprocessed, flags & IndexerJob::PreprocessCompressed);
-    unit->time = now;
-    unit->flags = flags;
-    unit->source = source;
-    unit->sourceFile = sourceFile;
-    clang::Preprocessor &preprocessor = compilerInstance.getPreprocessor();
-    preprocessor.createPreprocessingRecord(
-#if CLANG_VERSION_MINOR < 3
-        true
-#endif
-        );
-    clang::DoPrintPreprocessedInput(preprocessor, &out, preprocessorOptions);
-    out.finish();
-    struct {
-        const Unit::Diagnostic::Type type;
-        const clang::TextDiagnosticBuffer::const_iterator begin, end;
-    } const diagnostics[] = {
-        { Unit::Diagnostic::Note, diagnosticsClient.note_begin(), diagnosticsClient.note_end() },
-        { Unit::Diagnostic::Warning, diagnosticsClient.warn_begin(), diagnosticsClient.warn_end() },
-        { Unit::Diagnostic::Error, diagnosticsClient.err_begin(), diagnosticsClient.err_end() }
-    };
-    for (size_t i=0; i<sizeof(diagnostics) / sizeof(diagnostics[0]); ++i) {
-        for (auto it = diagnostics[i].begin; it != diagnostics[i].end; ++it) {
-            const clang::PresumedLoc presumedLocation = sm.getPresumedLoc(it->first);
-            bool ok;
-            const Path path = Path::resolved(presumedLocation.getFilename(), Path::RealPath, Path(), &ok);
-            if (!ok)
-                continue;
-            bool blocked;
-            const uint32_t fileId = visitFile(path, unit, project, &blocked);
-            if (blocked)
-                continue;
+//     std::shared_ptr<Unit> unit(new Unit);
+//     StringOStream out(&unit->preprocessed, flags & IndexerJob::PreprocessCompressed);
+//     unit->time = now;
+//     unit->flags = flags;
+//     unit->source = source;
+//     unit->sourceFile = sourceFile;
+//     clang::Preprocessor &preprocessor = compilerInstance.getPreprocessor();
+//     preprocessor.createPreprocessingRecord(
+// #if CLANG_VERSION_MINOR < 3
+//         true
+// #endif
+//         );
+//     clang::DoPrintPreprocessedInput(preprocessor, &out, preprocessorOptions);
+//     out.finish();
+//     struct {
+//         const Unit::Diagnostic::Type type;
+//         const clang::TextDiagnosticBuffer::const_iterator begin, end;
+//     } const diagnostics[] = {
+//         { Unit::Diagnostic::Note, diagnosticsClient.note_begin(), diagnosticsClient.note_end() },
+//         { Unit::Diagnostic::Warning, diagnosticsClient.warn_begin(), diagnosticsClient.warn_end() },
+//         { Unit::Diagnostic::Error, diagnosticsClient.err_begin(), diagnosticsClient.err_end() }
+//     };
+//     for (size_t i=0; i<sizeof(diagnostics) / sizeof(diagnostics[0]); ++i) {
+//         for (auto it = diagnostics[i].begin; it != diagnostics[i].end; ++it) {
+//             const clang::PresumedLoc presumedLocation = sm.getPresumedLoc(it->first);
+//             bool ok;
+//             const Path path = Path::resolved(presumedLocation.getFilename(), Path::RealPath, Path(), &ok);
+//             if (!ok)
+//                 continue;
+//             bool blocked;
+//             const uint32_t fileId = visitFile(path, unit, project, &blocked);
+//             if (blocked)
+//                 continue;
 
-            unit->diagnostics.append(Unit::Diagnostic());
-            Unit::Diagnostic &d = unit->diagnostics.last();
-            d.location = Location(fileId, presumedLocation.getLine(), presumedLocation.getColumn());
-            d.type = diagnostics[i].type;
-            d.text = it->second;
-        }
-    }
-    clang::PreprocessingRecord *record = preprocessor.getPreprocessingRecord();
-    assert(record);
+//             unit->diagnostics.append(Unit::Diagnostic());
+//             Unit::Diagnostic &d = unit->diagnostics.last();
+//             d.location = Location(fileId, presumedLocation.getLine(), presumedLocation.getColumn());
+//             d.type = diagnostics[i].type;
+//             d.text = it->second;
+//         }
+//     }
+//     clang::PreprocessingRecord *record = preprocessor.getPreprocessingRecord();
+//     assert(record);
 
-    // We need this extra map because macros might be defined, then undef'ed and
-    // then redefined. In that case we need to know the "active" macro
-    // definition so the set in unit->macroNames doesn't help us.
+//     // We need this extra map because macros might be defined, then undef'ed and
+//     // then redefined. In that case we need to know the "active" macro
+//     // definition so the set in unit->macroNames doesn't help us.
 
-    Hash<String, Location> macroLocations;
-    for (clang::PreprocessingRecord::iterator it = record->begin(); it != record->end(); ++it) {
-        const clang::PreprocessedEntity *entity = *it;
-        switch (entity->getKind()) {
-        case clang::PreprocessedEntity::MacroDefinitionKind: {
-            const clang::MacroDefinition *def = static_cast<const clang::MacroDefinition*>(entity);
-            const clang::SourceRange range = def->getSourceRange();
-            if (!range.isValid())
-                break;
+//     Hash<String, Location> macroLocations;
+//     for (clang::PreprocessingRecord::iterator it = record->begin(); it != record->end(); ++it) {
+//         const clang::PreprocessedEntity *entity = *it;
+//         switch (entity->getKind()) {
+//         case clang::PreprocessedEntity::MacroDefinitionKind: {
+//             const clang::MacroDefinition *def = static_cast<const clang::MacroDefinition*>(entity);
+//             const clang::SourceRange range = def->getSourceRange();
+//             if (!range.isValid())
+//                 break;
 
-            const clang::SourceLocation begin = range.getBegin();
-            const clang::PresumedLoc presumedLocation = sm.getPresumedLoc(begin);
-            const char *path = presumedLocation.getFilename();
-            if (!strcmp(path, "<built-in>"))
-                break;
+//             const clang::SourceLocation begin = range.getBegin();
+//             const clang::PresumedLoc presumedLocation = sm.getPresumedLoc(begin);
+//             const char *path = presumedLocation.getFilename();
+//             if (!strcmp(path, "<built-in>"))
+//                 break;
 
-            Path resolved = path;
-            if (!resolved.resolve()) {
-                // printf("Resolved didn't %s/%s\n", path, resolved.constData());
-                break;
-            }
+//             Path resolved = path;
+//             if (!resolved.resolve()) {
+//                 // printf("Resolved didn't %s/%s\n", path, resolved.constData());
+//                 break;
+//             }
 
-            bool blocked;
-            const uint32_t fileId = visitFile(resolved, unit, project, &blocked);
-            const clang::IdentifierInfo *name = def->getName();
-            const String macroName(name->getNameStart(), name->getLength());
-            const Location loc(fileId, presumedLocation.getLine(), presumedLocation.getColumn());
-            if (!blocked) {
-                std::shared_ptr<CursorInfo> &cursor = unit->macroCursors[loc];
-                if (!cursor)
-                    cursor = std::make_shared<CursorInfo>();
-                cursor->symbolName = macroName;
-                cursor->symbolLength = cursor->symbolName.size();
-                cursor->kind = CXCursor_MacroDefinition;
-                unit->macroNames[cursor->symbolName].insert(loc);
-            }
-            macroLocations[macroName] = loc;
-            // error() << "Got definition" << String(name->getNameStart(), name->getLength()) << loc;
-            break; }
-        case clang::PreprocessedEntity::MacroExpansionKind: {
-            const clang::MacroExpansion *exp = static_cast<const clang::MacroExpansion*>(entity);
-            if (exp->isBuiltinMacro())
-                break;
+//             bool blocked;
+//             const uint32_t fileId = visitFile(resolved, unit, project, &blocked);
+//             const clang::IdentifierInfo *name = def->getName();
+//             const String macroName(name->getNameStart(), name->getLength());
+//             const Location loc(fileId, presumedLocation.getLine(), presumedLocation.getColumn());
+//             if (!blocked) {
+//                 std::shared_ptr<CursorInfo> &cursor = unit->macroCursors[loc];
+//                 if (!cursor)
+//                     cursor = std::make_shared<CursorInfo>();
+//                 cursor->symbolName = macroName;
+//                 cursor->symbolLength = cursor->symbolName.size();
+//                 cursor->kind = CXCursor_MacroDefinition;
+//                 unit->macroNames[cursor->symbolName].insert(loc);
+//             }
+//             macroLocations[macroName] = loc;
+//             // error() << "Got definition" << String(name->getNameStart(), name->getLength()) << loc;
+//             break; }
+//         case clang::PreprocessedEntity::MacroExpansionKind: {
+//             const clang::MacroExpansion *exp = static_cast<const clang::MacroExpansion*>(entity);
+//             if (exp->isBuiltinMacro())
+//                 break;
 
-            const clang::SourceRange range = exp->getSourceRange();
-            if (!range.isValid())
-                break;
+//             const clang::SourceRange range = exp->getSourceRange();
+//             if (!range.isValid())
+//                 break;
 
-            const clang::PresumedLoc presumedLocation = sm.getPresumedLoc(range.getBegin());
-            const char *path = presumedLocation.getFilename();
-            if (!strcmp(path, "<built-in>"))
-                break;
+//             const clang::PresumedLoc presumedLocation = sm.getPresumedLoc(range.getBegin());
+//             const char *path = presumedLocation.getFilename();
+//             if (!strcmp(path, "<built-in>"))
+//                 break;
 
-            Path resolved = path;
-            if (!resolved.resolve()) {
-                // printf("Resolved didn't %s/%s\n", path, resolved.constData());
-                break;
-            }
+//             Path resolved = path;
+//             if (!resolved.resolve()) {
+//                 // printf("Resolved didn't %s/%s\n", path, resolved.constData());
+//                 break;
+//             }
 
-            bool blocked;
-            const uint32_t fileId = visitFile(resolved, unit, project, &blocked);
-            if (blocked)
-                break;
+//             bool blocked;
+//             const uint32_t fileId = visitFile(resolved, unit, project, &blocked);
+//             if (blocked)
+//                 break;
 
-            const clang::IdentifierInfo *name = exp->getName();
-            const String macroName(name->getNameStart(), name->getLength());
-            const Location defLocation = macroLocations.value(macroName);
-            if (defLocation.isNull()) {
-                // error() << "Bailing on" << macroName << exp->getDefinition();
-                break;
-            }
-            const Location loc(fileId, presumedLocation.getLine(), presumedLocation.getColumn());
-            std::shared_ptr<CursorInfo> &cursor = unit->macroCursors[loc];
-            if (!cursor)
-                cursor = std::make_shared<CursorInfo>();
-            cursor->symbolName = macroName;
-            cursor->symbolLength = cursor->symbolName.size();
-            cursor->kind = CXCursor_MacroExpansion;
-            std::shared_ptr<CursorInfo> &def = unit->macroCursors[defLocation];
-            if (!def)
-                def = std::make_shared<CursorInfo>();
-            // ### do I have to fill in def here? Do I need to in ClangIndexer?
-            def->references.insert(loc);
-            cursor->targets.insert(defLocation);
-            // error() << "Got expansion" << String(name->getNameStart(), name->getLength()) << loc;
-            break; }
-        default:
-            break;
-        }
-    }
-    const char *dumpCpp = getenv("RTAGS_DUMP_CPP");
-    if (dumpCpp && (!strcmp(dumpCpp, "1") || strstr(dumpCpp, sourceFile.fileName()))) {
-        Path out = "/tmp/";
-        out += sourceFile.fileName();
-        FILE *f = fopen(out.constData(), "w");
-        // fwrite(sourceFile.constData(), 1, sourceFile.size(), f);
+//             const clang::IdentifierInfo *name = exp->getName();
+//             const String macroName(name->getNameStart(), name->getLength());
+//             const Location defLocation = macroLocations.value(macroName);
+//             if (defLocation.isNull()) {
+//                 // error() << "Bailing on" << macroName << exp->getDefinition();
+//                 break;
+//             }
+//             const Location loc(fileId, presumedLocation.getLine(), presumedLocation.getColumn());
+//             std::shared_ptr<CursorInfo> &cursor = unit->macroCursors[loc];
+//             if (!cursor)
+//                 cursor = std::make_shared<CursorInfo>();
+//             cursor->symbolName = macroName;
+//             cursor->symbolLength = cursor->symbolName.size();
+//             cursor->kind = CXCursor_MacroExpansion;
+//             std::shared_ptr<CursorInfo> &def = unit->macroCursors[defLocation];
+//             if (!def)
+//                 def = std::make_shared<CursorInfo>();
+//             // ### do I have to fill in def here? Do I need to in ClangIndexer?
+//             def->references.insert(loc);
+//             cursor->targets.insert(defLocation);
+//             // error() << "Got expansion" << String(name->getNameStart(), name->getLength()) << loc;
+//             break; }
+//         default:
+//             break;
+//         }
+//     }
+//     const char *dumpCpp = getenv("RTAGS_DUMP_CPP");
+//     if (dumpCpp && (!strcmp(dumpCpp, "1") || strstr(dumpCpp, sourceFile.fileName()))) {
+//         Path out = "/tmp/";
+//         out += sourceFile.fileName();
+//         FILE *f = fopen(out.constData(), "w");
+//         // fwrite(sourceFile.constData(), 1, sourceFile.size(), f);
 
-        fwrite(unit->preprocessed.constData(), 1, unit->preprocessed.size(), f);
-        fprintf(f, "// %s\n", sourceFile.constData());
-        fclose(f);
-    }
-    unit->preprocessDuration = sw.elapsed();
-    warning() << "preprocessing" << sourceFile << "took" << unit->preprocessDuration << "ms";
+//         fwrite(unit->preprocessed.constData(), 1, unit->preprocessed.size(), f);
+//         fprintf(f, "// %s\n", sourceFile.constData());
+//         fclose(f);
+//     }
+//     unit->preprocessDuration = sw.elapsed();
+//     warning() << "preprocessing" << sourceFile << "took" << unit->preprocessDuration << "ms";
 
-    return unit;
+//     return unit;
 }
 
 static CXChildVisitResult findFirstChildVisitor(CXCursor cursor, CXCursor, CXClientData data)
