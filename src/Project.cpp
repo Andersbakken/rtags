@@ -326,6 +326,7 @@ bool Project::match(const Match &p, bool *indexed) const
     paths[1].resolve();
     const int count = paths[1].compare(paths[0]) ? 2 : 1;
     bool ret = false;
+    const Path resolvedPath = mPath.resolved();;
     for (int i=0; i<count; ++i) {
         const Path &path = paths[i];
         const uint32_t id = Location::fileId(path);
@@ -333,7 +334,7 @@ bool Project::match(const Match &p, bool *indexed) const
             if (indexed)
                 *indexed = true;
             return true;
-        } else if (mFiles.contains(path) || p.match(mPath)) {
+        } else if (mFiles.contains(path) || p.match(mPath) || p.match(resolvedPath)) {
             if (!indexed)
                 return true;
             ret = true;
