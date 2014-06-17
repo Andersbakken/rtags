@@ -977,7 +977,8 @@ bool RClient::parse(int &argc, char **argv)
         case Compile: {
             String args = optarg;
             while (optind < argc) {
-                args.append(' ');
+                if (!args.isEmpty())
+                    args.append(' ');
                 args.append(argv[optind++]);
             }
             if (args == "-" || args.isEmpty()) {
