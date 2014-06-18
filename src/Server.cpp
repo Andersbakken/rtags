@@ -370,6 +370,8 @@ bool Server::index(const String &arguments, const Path &pwd, const Path &project
                 assert(project);
             }
             project->load();
+            if (!mCurrentProject.lock())
+                mCurrentProject = project;
             project->index(source, IndexerJob::Compile);
             ret = true;
         }
