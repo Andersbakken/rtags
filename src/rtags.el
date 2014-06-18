@@ -310,7 +310,10 @@
                                proc))
                             (async (apply #'start-process "rc" (current-buffer) rc arguments))
                             ((and unsaved (buffer-modified-p unsaved))
-                             (apply #'call-process-region (point-min) (point-max) rc nil output nil arguments) nil)
+                             (let ((output-buffer (current-buffer)))
+                               (with-current-buffer unsaved
+                                 (apply #'call-process-region (point-min) (point-max) rc
+                                        nil output-buffer nil arguments) nil)))
                             (unsaved (apply #'call-process rc (buffer-file-name unsaved) output nil arguments) nil)
                             (t (apply #'call-process rc nil output nil arguments) nil))))
             (if proc
@@ -809,12 +812,15 @@ return t if rtags is allowed to modify this file"
   (setq rtags-location-stack nil)
   (setq rtags-location-stack-index 0))
 
-(defun rtags-target (&optional filter)
+(defun rtags-target (&optional filter declaration-only)
   (let ((path (buffer-file-name))
-        (location (rtags-current-location)))
+        (location (rtags-current-location))
+        (unsaved (and (buffer-modified-p) (current-buffer))))
     (if path
         (with-temp-buffer
-          (rtags-call-rc :path path "-N" "-f" location :path-filter filter :noerror t)
+          (if declaration-only
+              (rtags-call-rc :path path "--declaration-only" "-N" "-f" location :path-filter filter :noerror t :unsaved unsaved)
+            (rtags-call-rc :path path "-N" "-f" location :path-filter filter :noerror t :unsaved unsaved))
           (setq rtags-last-request-not-indexed nil)
           (cond ((= (point-min) (point-max))
                  (message "RTags: No target") nil)
@@ -822,6 +828,12 @@ return t if rtags is allowed to modify this file"
                      (string= (buffer-string) "Can't seem to connect to server\n"))
                  (setq rtags-last-request-not-indexed t) nil)
                 (t (buffer-substring-no-properties (point-min) (- (point-max) 1))))))))
+
+(defun rtags-target-declaration-first ()
+  "First try to find the declaration of the item (using --declaration-only),
+then try to find anything about the item."
+  (let ((target (or (rtags-target nil t) (rtags-target))))
+    target))
 
 ;; (defalias 'rtags-find-symbol-at-point 'rtags-follow-symbol-at-point)
 ;;;###autoload
@@ -1745,6 +1757,17 @@ References to references will be treated as references to the referenced symbol"
               (end (+ (string-to-number (match-string-no-properties 3 cursorinfo)) 1)))
           (cons start end)))))
 
+(defun rtags-decode-range (cursorinfo)
+  "Decode range from the CURSORINFO provided and return a list with 2 coordinates:
+ (line1 col1 line2 col2)"
+  (if (string-match "^Range: \\([0-9]+\\):\\([0-9]+\\)-\\([0-9]+\\):\\([0-9]+\\)$"
+                    cursorinfo)
+      (let ((line1 (string-to-number (match-string-no-properties 1 cursorinfo)))
+            (col1 (string-to-number (match-string-no-properties 2 cursorinfo)))
+            (line2 (string-to-number (match-string-no-properties 3 cursorinfo)))
+            (col2 (string-to-number (match-string-no-properties 4 cursorinfo))))
+        (list line1 col1 line2 col2))))
+
 (defvar rtags-other-window-window nil)
 (defun rtags-remove-other-window ()
   (interactive)
@@ -1780,12 +1803,15 @@ References to references will be treated as references to the referenced symbol"
   :type 'function)
 
 (defcustom rtags-other-window-window-size-percentage 30 "Percentage size of other buffer" :group 'rtags :type 'integer)
-(defun rtags-show-target-in-other-window (&optional dest-window center-window)
+(defun rtags-show-target-in-other-window (&optional dest-window center-window
+                                                    try-declaration-first)
   "DEST-WINDOW : destination window. Can be nil; in this case the current window is split
 according to rtags-other-window-window-size-percentage.
-  CENTER-WINDOW : if true the target window is centered."
+  CENTER-WINDOW : if true the target window is centered.
+  TRY-DECLARATION-FIRST : first try to find the declaration of the item, then the
+definition."
   (interactive)
-  (let ((target (rtags-target)))
+  (let ((target (if try-declaration-first (rtags-target-declaration-first) (rtags-target))))
     (unless target
       (let ((token (rtags-current-token)))
         (if token
