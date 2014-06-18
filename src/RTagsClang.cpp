@@ -96,17 +96,6 @@ String cursorToString(CXCursor cursor, unsigned flags)
     return ret;
 }
 
-static inline bool matchContext(const String &symbolName, const String &context)
-{
-    const Map<Token, int> tokens = Token::tokenize(symbolName.constData(), symbolName.size());
-    for (const auto &token : tokens) {
-        if (token.first.length == context.length() && !strncmp(token.first.data, context.constData(), token.first.length))
-            return true;
-    }
-
-    return true;
-}
-
 SymbolMap::const_iterator findCursorInfo(const SymbolMap &map, const Location &location)
 {
     SymbolMap::const_iterator it = map.lower_bound(location);
