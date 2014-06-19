@@ -24,14 +24,6 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 #include <rct/Process.h>
 #include "Source.h"
 
-class IndexerJobProcess : public Process
-{
-public:
-    IndexerJobProcess(uint64_t id)
-        : Process(), jobId(id)
-    {}
-    const uint64_t jobId;
-};
 class IndexerJob : public std::enable_shared_from_this<IndexerJob>
 {
 public:
@@ -63,10 +55,8 @@ public:
     uint32_t flags;
     Path project;
     Set<uint32_t> visited;
-    IndexerJobProcess *process;
-    uint64_t id, started;
-
-    static uint64_t nextId;
+    Process *process;
+    uint64_t started;
 };
 
 #endif

@@ -510,15 +510,8 @@ void Project::index(const Source &source, uint32_t flags)
         return;
     }
 
-    if (data.job) {
-        // error() << "There's already something here for" << sourceFile;
-        if (!data.job->update(source, flags)) {
-            // error() << "Aborting and setting pending" << sourceFile;
-            data.pendingSource = source;
-            data.pendingFlags = flags;
-        }
+    if (data.job && data.job->update(source, flags))
         return;
-    }
 
     mSources[key] = source;
     watch(sourceFile);

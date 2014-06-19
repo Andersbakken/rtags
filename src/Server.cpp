@@ -154,7 +154,7 @@ bool Server::init(const Options &options)
     }
 #endif
 
-    if (options.options & UnlimitedErrors)
+    if (!(options.options & NoUnlimitedErrors))
         mOptions.defaultArguments << "-ferror-limit=0";
     if (options.options & Wall)
         mOptions.defaultArguments << "-Wall";
@@ -432,7 +432,7 @@ void Server::handleIndexerMessage(const IndexerMessage &message, Connection *con
     std::shared_ptr<IndexData> indexData = message.data();
     // error() << "Got indexer message" << message.project() << Location::path(indexData->fileId);
     assert(indexData);
-    auto it = mActiveJobs.find(indexData->jobId);
+    auto it = mActiveJobs.find(indexData->pid);
     if (it != mActiveJobs.end()) {
         std::shared_ptr<IndexerJob> job = it->second;
         assert(job);
@@ -1424,15 +1424,12 @@ void Server::addJob(const std::shared_ptr<IndexerJob> &job)
     startJobs();
 }
 
-void Server::onLocalJobFinished(Process *process)
+void Server::onJobFinished(Process *process, const std::shared_ptr<IndexerJob> &job)
 {
     assert(process);
-    const uint64_t jobId = static_cast<IndexerJobProcess*>(process)->jobId;
-    auto it = mActiveJobs.find(jobId);
-    if (it != mActiveJobs.end()) {
-        std::shared_ptr<IndexerJob> &job = it->second;
+    error() << process->readAllStdErr() << process->readAllStdOut();
+    if (job) {
         assert(job->process == process);
-        error() << process->readAllStdErr() << process->readAllStdOut();
         assert(!(job->flags & IndexerJob::Complete));
         job->flags &= ~IndexerJob::Running;
         if (process->returnCode() != 0 && !(job->flags & IndexerJob::Aborted)) {
@@ -1449,7 +1446,6 @@ void Server::onLocalJobFinished(Process *process)
             }
         }
         job->process = 0;
-        mActiveJobs.erase(it);
     }
     EventLoop::deleteLater(process);
     startJobs();
@@ -1529,12 +1525,11 @@ void Server::startJobs()
         std::shared_ptr<IndexerJob> job = mPendingJobs.front();
         mPendingJobs.erase(mPendingJobs.begin());
         if (mProjects.contains(job->project)) {
-            mActiveJobs[job->id] = job;
             if (job->launchProcess()) {
-                job->process->finished().connect(std::bind(&Server::onLocalJobFinished, this,
-                                                           std::placeholders::_1));
+                mActiveJobs[job->process->pid()] = job;
+                job->process->finished().connect(std::bind(&Server::onProcessFinished, this, std::placeholders::_1));
             } else {
-                EventLoop::eventLoop()->callLater(std::bind(&Server::onLocalJobFinished, this, std::placeholders::_1), job->process);
+                onJobFinished(job->process, job);
             }
             assert(job->process);
         }

@@ -4,17 +4,15 @@
 #include <RTagsClang.h>
 #include "Server.h"
 
-uint64_t IndexerJob::nextId = 0;
-
 IndexerJob::IndexerJob(const Source &s, uint32_t f, const Path &p)
     : destination(Server::instance()->options().socketFile),
       source(s), sourceFile(s.sourceFile()), flags(f),
-      project(p), process(0), id(++nextId), started(0)
+      project(p), process(0), started(0)
 {
 }
 
 IndexerJob::IndexerJob()
-    : process(0), id(0), started(0)
+    : process(0), started(0)
 {
 }
 
@@ -32,7 +30,7 @@ bool IndexerJob::launchProcess()
 
     started = 0;
     assert(!process);
-    process = new IndexerJobProcess(id);
+    process = new Process;
     if (!process->start(rp)) {
         error() << "Couldn't start rp" << rp << process->errorString();
         return false;
@@ -109,7 +107,7 @@ void IndexerJob::encode(Serializer &serializer) const
                << static_cast<uint32_t>(options.rpVisitFileTimeout)
                << static_cast<uint32_t>(options.rpIndexerMessageTimeout)
                << static_cast<uint32_t>(options.rpConnectTimeout)
-               << static_cast<bool>(options.options & Server::SuspendRPOnCrash) << id;
+               << static_cast<bool>(options.options & Server::SuspendRPOnCrash);
     assert(proj);
     proj->encodeVisitedFiles(serializer);
 }

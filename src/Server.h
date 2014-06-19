@@ -54,13 +54,12 @@ public:
         ClearProjects = 0x0001,
         Wall = 0x0002,
         IgnorePrintfFixits = 0x0004,
-        UnlimitedErrors = 0x0008,
+        NoUnlimitedErrors = 0x0008,
         SpellChecking = 0x0010,
         DisallowMultipleSources = 0x0020,
         NoStartupCurrentProject = 0x0040,
         WatchSystemPaths = 0x0080,
         NoFileManagerWatch = 0x0100,
-        NoLocalCompiles = 0x0200,
         NoNoUnknownWarningsOption = 0x0400,
         SuspendRPOnCrash = 0x0800,
         SeparateDebugAndRelease = 0x1000
@@ -146,7 +145,21 @@ private:
     std::shared_ptr<Project> currentProject() const { return mCurrentProject.lock(); }
     int reloadProjects();
     std::shared_ptr<Project> addProject(const Path &path);
-    void onLocalJobFinished(Process *process);
+    void onProcessFinished(Process *process)
+    {
+        assert(process->pid() > 0);
+        auto it = mActiveJobs.find(process->pid());
+        std::shared_ptr<IndexerJob> job;
+        if (it != mActiveJobs.end() && it->second->process == process) {
+            job = it->second;
+            mActiveJobs.erase(it);
+        }
+
+        onJobFinished(process, job);
+    }
+
+    void onJobFinished(Process *process, const std::shared_ptr<IndexerJob> &job);
+
     bool hasServer() const;
     void onHttpClientReadyRead(const SocketClient::SharedPtr &socket);
     void connectToServer();
@@ -164,7 +177,7 @@ private:
     Timer mUnloadTimer;
 
     LinkedList<std::shared_ptr<IndexerJob> > mPendingJobs;
-    Hash<uint64_t, std::shared_ptr<IndexerJob> > mActiveJobs;
+    Hash<pid_t, std::shared_ptr<IndexerJob> > mActiveJobs;
 
     CompletionThread *mCompletionThread;
 };

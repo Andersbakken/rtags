@@ -87,7 +87,7 @@ static void usage(FILE *f)
             "  --no-Wall|-W                               Don't use -Wall.\n"
             "  --Wlarge-by-value-copy|-r [arg]            Use -Wlarge-by-value-copy=[arg] when invoking clang.\n"
             "  --no-spell-checking|-l                     Don't pass -fspell-checking.\n"
-            "  --unlimited-error|-f                       Pass -ferror-limit=0 to clang.\n"
+            "  --no-unlimited-error|-f                    Don't pass -ferror-limit=0 to clang.\n"
             "  --silent|-S                                No logging to stdout.\n"
             "  --exclude-filter|-X [arg]                  Files to exclude from rdm, default \"" EXCLUDEFILTER_DEFAULT "\".\n"
             "  --sync-threshold|-y [arg]                  Automatically sync after [arg] files indexed.\n"
@@ -103,7 +103,6 @@ static void usage(FILE *f)
             "  --separate-debug-and-release|-E            Normally rdm doesn't consider release and debug as different builds. Pass this if you want it to.\n"
             "  --unload-timer|-u [arg]                    Number of minutes to wait before unloading non-current projects (disabled by default).\n"
             "  --job-count|-j [arg]                       Spawn this many concurrent processes for indexing (default %d).\n"
-            "  --no-local-compiles|-J                     Don't run rp ever. For debugging.\n"
             "  --watch-system-paths|-w                    Watch system paths for changes.\n"
             "  --rp-visit-file-timeout|-t [arg]           Timeout for rp visitfile commands in ms (0 means no timeout) (default " STR(DEFAULT_RP_VISITFILE_TIMEOUT) ").\n"
             "  --rp-indexer-message-timeout|-T [arg]      Timeout for rp indexer-message in ms (0 means no timeout) (default " STR(DEFAULT_RP_INDEXER_MESSAGE_TIMEOUT) ").\n"
@@ -150,7 +149,6 @@ int main(int argc, char** argv)
         { "append", no_argument, 0, 'A' },
         { "verbose", no_argument, 0, 'v' },
         { "job-count", required_argument, 0, 'j' },
-        { "no-local-compiles", no_argument, 0, 'J' },
         { "clean-slate", no_argument, 0, 'C' },
         { "disable-sighandler", no_argument, 0, 'x' },
         { "silent", no_argument, 0, 'S' },
@@ -160,7 +158,7 @@ int main(int argc, char** argv)
         { "no-rc", no_argument, 0, 'N' },
         { "data-dir", required_argument, 0, 'd' },
         { "ignore-printf-fixits", no_argument, 0, 'F' },
-        { "unlimited-errors", no_argument, 0, 'f' },
+        { "no-unlimited-errors", no_argument, 0, 'f' },
         { "no-spell-checking", no_argument, 0, 'l' },
         { "sync-threshold", required_argument, 0, 'y' },
         { "large-by-value-copy", required_argument, 0, 'r' },
@@ -422,7 +420,7 @@ int main(int argc, char** argv)
             serverOpts.options |= Server::IgnorePrintfFixits;
             break;
         case 'f':
-            serverOpts.options |= Server::UnlimitedErrors;
+            serverOpts.options |= Server::NoUnlimitedErrors;
             break;
         case 'l':
             serverOpts.options &= ~Server::SpellChecking;
@@ -474,9 +472,6 @@ int main(int argc, char** argv)
                 fprintf(stderr, "Can't parse argument to -T %s.\n", optarg);
                 return 1;
             }
-            break;
-        case 'J':
-            serverOpts.options |= Server::NoLocalCompiles;
             break;
         case 'j':
             serverOpts.jobCount = atoi(optarg);

@@ -98,7 +98,6 @@ int main(int argc, char **argv)
     Path sourceFile;
     uint32_t flags;
     Hash<uint32_t, Path> blockedFiles;
-    uint64_t jobId;
     uint32_t visitFileTimeout, indexerMessageTimeout, connectTimeout;
     deserializer >> destination;
     deserializer >> project;
@@ -109,7 +108,6 @@ int main(int argc, char **argv)
     deserializer >> indexerMessageTimeout;
     deserializer >> connectTimeout;
     deserializer >> suspendOnSigSegv;
-    deserializer >> jobId;
     deserializer >> blockedFiles;
     if (sourceFile.isEmpty()) {
         error("No sourcefile\n");
@@ -134,7 +132,6 @@ int main(int argc, char **argv)
     Location::set(sourceFile, source.fileId);
     indexer.setVisitFileTimeout(visitFileTimeout);
     indexer.setIndexerMessageTimeout(indexerMessageTimeout);
-    indexer.setJobId(jobId);
 
     if (!indexer.index(source, flags, project)) {
         error("Failed to index %s\n", sourceFile.constData());
