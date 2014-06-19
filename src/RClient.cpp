@@ -32,6 +32,7 @@ enum OptionType {
     CompilationFlagsOnly,
     CompilationFlagsSplitLine,
     Compile,
+    CompileUpdate,
     ConnectTimeout,
     ContainingFunction,
     CurrentFile,
@@ -144,6 +145,7 @@ struct Option opts[] = {
     { None, 0, 0, 0, "" },
     { None, 0, 0, 0, "Indexing commands:" },
     { Compile, "compile", 'c', optional_argument, "Pass compilation arguments to rdm." },
+    { CompileUpdate, "compile-update", 't', required_argument, "Update compilation unit with contents written using --unsaved-file." },
 #if defined(HAVE_CXCOMPILATIONDATABASE) && CLANG_VERSION_MINOR >= 3
     { LoadCompilationDatabase, "load-compilation-database", 'J', optional_argument, "Load compile_commands.json from directory" },
 #endif
@@ -375,7 +377,11 @@ public:
     CompileCommand(const Path &dir, RClient::EscapeMode e)
         : RCCommand(), compilationDatabaseDir(dir), escapeMode(e)
     {}
+    CompileCommand(const Path &s)
+        : RCCommand(), sourceFile(s), escapeMode(RClient::Escape_Auto)
+    {}
 
+    const Path sourceFile;
     const Path compilationDatabaseDir;
     const Path cwd;
     const String args;
@@ -396,10 +402,16 @@ public:
         }
         CompileMessage msg;
         msg.init(rc->argc(), rc->argv());
-        msg.setWorkingDirectory(cwd);
-        msg.setEscape(escape);
-        msg.setArguments(args);
-        msg.setCompilationDatabaseDir(compilationDatabaseDir);
+        if (sourceFile.isEmpty()) {
+            msg.setWorkingDirectory(cwd);
+            msg.setEscape(escape);
+            msg.setArguments(args);
+            msg.setCompilationDatabaseDir(compilationDatabaseDir);
+        } else {
+            msg.setSourceFile(sourceFile);
+            msg.setBuildIndex(rc->buildIndex());
+            msg.setContents(rc->unsavedFiles()[sourceFile]);
+        }
         return connection->send(msg);
     }
     virtual String description() const
@@ -435,6 +447,11 @@ void RClient::addLog(int level)
 void RClient::addCompile(const Path &cwd, const String &args, EscapeMode mode)
 {
     mCommands.append(std::shared_ptr<RCCommand>(new CompileCommand(cwd, args, mode)));
+}
+
+void RClient::addCompileUpdate(const Path &path)
+{
+    mCommands.append(std::shared_ptr<RCCommand>(new CompileCommand(path)));
 }
 
 void RClient::addCompile(const Path &dir, EscapeMode mode)
@@ -989,6 +1006,15 @@ bool RClient::parse(int &argc, char **argv)
             } else {
                 addCompile(Path::pwd(), args, Escape_Dont);
             }
+            break; }
+        case CompileUpdate: {
+            Path file = Path::resolved(optarg);
+            if (!file.isFile()) {
+                fprintf(stderr, "%s does not seem to be a file.", optarg);
+                return false;
+            }
+
+            addCompileUpdate(file);
             break; }
         case IsIndexing:
             addQuery(QueryMessage::IsIndexing);
