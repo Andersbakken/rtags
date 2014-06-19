@@ -8,7 +8,7 @@ IndexerJob::IndexerJob(const Source &s, uint32_t f,
                        const Path &p, const Hash<Path, String> &u)
     : destination(Server::instance()->options().socketFile),
       source(s), sourceFile(s.sourceFile()), flags(f),
-      project(p), process(0), started(0), unsavedFiles(u)
+      project(p), process(0), unsavedFiles(u), started(0)
 {
 }
 
