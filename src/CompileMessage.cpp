@@ -17,38 +17,16 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 #include <rct/Serializer.h>
 
 CompileMessage::CompileMessage()
-    : RTagsMessage(MessageId), mEscape(false), mBuildIndex(0)
+    : RTagsMessage(MessageId), mEscape(false)
 {
 }
 
-enum { Compile = 1, Update };
 void CompileMessage::encode(Serializer &serializer) const
 {
-    serializer << mRaw;
-    if (mSourceFile.isEmpty()) {
-        serializer << static_cast<uint8_t>(Compile)
-                   << mWorkingDirectory << mProjectRoot << mCompilationDatabaseDir
-                   << mArgs << mEscape;
-    } else {
-        serializer << static_cast<uint8_t>(Update)
-                   << mSourceFile << mBuildIndex << mContents;
-    }
+    serializer << mRaw << mWorkingDirectory << mProjectRoot << mCompilationDatabaseDir << mArgs << mEscape;
 }
 
 void CompileMessage::decode(Deserializer &deserializer)
 {
-    deserializer >> mRaw;
-    uint8_t type;
-    deserializer >> type;
-    switch (type) {
-    case Compile:
-        deserializer >> mWorkingDirectory >> mProjectRoot >> mCompilationDatabaseDir >> mArgs >> mEscape;
-        break;
-    case Update:
-        deserializer >> mSourceFile >> mBuildIndex >> mContents;
-        break;
-    default:
-        error() << "Invalid CompileMessage" << type;
-        break;
-    }
+    deserializer >> mRaw >> mWorkingDirectory >> mProjectRoot >> mCompilationDatabaseDir >> mArgs >> mEscape;
 }

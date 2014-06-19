@@ -492,7 +492,7 @@ bool Project::save()
     return true;
 }
 
-void Project::index(const Source &source, uint32_t flags)
+void Project::index(const Source &source, uint32_t flags, const Hash<Path, String> &unsavedFiles)
 {
     const Path sourceFile = source.sourceFile();
     static const char *fileFilter = getenv("RTAGS_FILE_FILTER");
@@ -522,7 +522,7 @@ void Project::index(const Source &source, uint32_t flags)
     if (!mJobCounter++)
         mTimer.start();
 
-    data.job.reset(new IndexerJob(source, flags, mPath));
+    data.job.reset(new IndexerJob(source, flags, mPath, unsavedFiles));
     mSyncTimer.stop();
     Server::instance()->addJob(data.job);
 }
@@ -598,7 +598,7 @@ Set<uint32_t> Project::dependencies(uint32_t fileId, DependencyMode mode) const
     return ret;
 }
 
-int Project::reindex(const Match &match)
+int Project::reindex(const Match &match, const Hash<Path, String> &unsavedFiles)
 {
     Set<uint32_t> dirty;
 
@@ -610,7 +610,7 @@ int Project::reindex(const Match &match)
     }
     if (dirty.isEmpty())
         return 0;
-    startDirtyJobs(dirty);
+    startDirtyJobs(dirty, unsavedFiles);
     return dirty.size();
 }
 
@@ -638,7 +638,8 @@ int Project::remove(const Match &match)
     return count;
 }
 
-void Project::startDirtyJobs(const Set<uint32_t> &dirty)
+void Project::startDirtyJobs(const Set<uint32_t> &dirty,
+                             const Hash<Path, String> &unsavedFiles)
 {
     Set<uint32_t> dirtyFiles;
     for (auto it = dirty.constBegin(); it != dirty.constEnd(); ++it) {
@@ -660,7 +661,7 @@ void Project::startDirtyJobs(const Set<uint32_t> &dirty)
             // error() << "Decoded" << Location::path(f);
             if (f != *it)
                 break;
-            index(src->second, IndexerJob::Dirty);
+            index(src->second, IndexerJob::Dirty, unsavedFiles);
             indexed = true;
             ++src;
         }

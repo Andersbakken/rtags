@@ -26,6 +26,7 @@ public:
     void setVisitFileTimeout(int visitFileTimeout) { mVisitFileTimeout = visitFileTimeout; }
     int indexerMessageTimeout() const { return mIndexerMessageTimeout; }
     void setIndexerMessageTimeout(int indexerMessageTimeout) { mIndexerMessageTimeout = indexerMessageTimeout; }
+    void setUnsavedFiles(const Hash<Path, String> &unsavedFiles) { mUnsavedFiles = unsavedFiles; }
 private:
     bool diagnose();
     bool visit();
@@ -130,6 +131,7 @@ private:
     StopWatch mTimer;
     int mParseDuration, mVisitDuration, mBlocked, mAllowed,
         mIndexed, mVisitFileTimeout, mIndexerMessageTimeout, mFileIdsQueried;
+    Hash<Path, String> mUnsavedFiles;
     Connection mConnection;
     FILE *mLogFile;
     uint32_t mLastFileId;

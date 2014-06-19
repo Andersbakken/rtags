@@ -99,6 +99,7 @@ int main(int argc, char **argv)
     uint32_t flags;
     Hash<uint32_t, Path> blockedFiles;
     uint32_t visitFileTimeout, indexerMessageTimeout, connectTimeout;
+    Hash<Path, String> unsavedFiles;
     deserializer >> destination;
     deserializer >> project;
     deserializer >> source;
@@ -108,6 +109,7 @@ int main(int argc, char **argv)
     deserializer >> indexerMessageTimeout;
     deserializer >> connectTimeout;
     deserializer >> suspendOnSigSegv;
+    deserializer >> unsavedFiles;
     deserializer >> blockedFiles;
     if (sourceFile.isEmpty()) {
         error("No sourcefile\n");
@@ -131,6 +133,7 @@ int main(int argc, char **argv)
     Location::init(blockedFiles);
     Location::set(sourceFile, source.fileId);
     indexer.setVisitFileTimeout(visitFileTimeout);
+    indexer.setUnsavedFiles(unsavedFiles);
     indexer.setIndexerMessageTimeout(indexerMessageTimeout);
 
     if (!indexer.index(source, flags, project)) {

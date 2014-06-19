@@ -913,8 +913,17 @@ bool ClangIndexer::parse()
     const Path sourceFile = Location::path(mSource.fileId);
     const unsigned int commandLineFlags = Source::FilterBlacklist|Source::IncludeDefines|Source::IncludeIncludepaths;
     const unsigned int flags = CXTranslationUnit_DetailedPreprocessingRecord;
+    List<CXUnsavedFile> unsavedFiles(mUnsavedFiles.size());
+    int unsavedIndex = 0;
+    for (const auto &it : mUnsavedFiles) {
+        unsavedFiles[unsavedIndex++] = {
+            it.first.constData(),
+            it.second.constData(),
+            static_cast<unsigned long>(it.second.size())
+        };
+    }
     RTags::parseTranslationUnit(sourceFile, mSource.toCommandLine(commandLineFlags), mClangUnit,
-                                mIndex, 0, 0, flags, &mClangLine);
+                                mIndex, &unsavedFiles[0], unsavedIndex, flags, &mClangLine);
 
     warning() << "loading unit " << mClangLine << " " << (mClangUnit != 0);
     if (mClangUnit) {

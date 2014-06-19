@@ -39,13 +39,6 @@ public:
     bool escape() const { return mEscape; }
     void setEscape(bool escape) { mEscape = escape; }
 
-    Path sourceFile() const { return mSourceFile; }
-    void setSourceFile(const Path &sourceFile) { mSourceFile = sourceFile; }
-    int buildIndex() const { return mBuildIndex; }
-    void setBuildIndex(int index) { mBuildIndex = index; }
-    String contents() const { return mContents; }
-    void setContents(const String &contents) { mContents = contents; }
-
     virtual void encode(Serializer &serializer) const;
     virtual void decode(Deserializer &deserializer);
 private:
@@ -54,10 +47,6 @@ private:
     Path mProjectRoot;
     Path mCompilationDatabaseDir;
     bool mEscape;
-
-    Path mSourceFile;
-    int mBuildIndex;
-    String mContents;
 };
 
 #endif
