@@ -5,7 +5,7 @@
 #include "Server.h"
 
 IndexerJob::IndexerJob(const Source &s, uint32_t f,
-                       const Path &p, const Hash<Path, String> &u)
+                       const Path &p, const UnsavedFiles &u)
     : destination(Server::instance()->options().socketFile),
       source(s), sourceFile(s.sourceFile()), flags(f),
       project(p), unsavedFiles(u), process(0), started(0)

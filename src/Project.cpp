@@ -492,7 +492,7 @@ bool Project::save()
     return true;
 }
 
-void Project::index(const Source &source, uint32_t flags, const Hash<Path, String> &unsavedFiles)
+void Project::index(const Source &source, uint32_t flags, const UnsavedFiles &unsavedFiles)
 {
     const Path sourceFile = source.sourceFile();
     static const char *fileFilter = getenv("RTAGS_FILE_FILTER");
@@ -598,7 +598,7 @@ Set<uint32_t> Project::dependencies(uint32_t fileId, DependencyMode mode) const
     return ret;
 }
 
-int Project::reindex(const Match &match, const Hash<Path, String> &unsavedFiles)
+int Project::reindex(const Match &match, const UnsavedFiles &unsavedFiles)
 {
     Set<uint32_t> dirty;
 
@@ -639,7 +639,7 @@ int Project::remove(const Match &match)
 }
 
 void Project::startDirtyJobs(const Set<uint32_t> &dirty,
-                             const Hash<Path, String> &unsavedFiles)
+                             const UnsavedFiles &unsavedFiles)
 {
     Set<uint32_t> dirtyFiles;
     for (auto it = dirty.constBegin(); it != dirty.constEnd(); ++it) {

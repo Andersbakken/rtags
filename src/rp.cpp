@@ -99,7 +99,7 @@ int main(int argc, char **argv)
     uint32_t flags;
     Hash<uint32_t, Path> blockedFiles;
     uint32_t visitFileTimeout, indexerMessageTimeout, connectTimeout;
-    Hash<Path, String> unsavedFiles;
+    UnsavedFiles unsavedFiles;
     deserializer >> destination;
     deserializer >> project;
     deserializer >> source;

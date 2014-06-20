@@ -42,7 +42,7 @@ public:
     int minOffset() const { return mMinOffset; }
     int maxOffset() const { return mMaxOffset; }
 
-    const Hash<Path, String> &unsavedFiles() const { return mUnsavedFiles; }
+    const UnsavedFiles &unsavedFiles() const { return mUnsavedFiles; }
 
     const List<String> &rdmArgs() const { return mRdmArgs; }
     const Path &currentFile() const { return mCurrentFile; }
@@ -70,7 +70,7 @@ private:
     unsigned mQueryFlags;
     int mMax, mLogLevel, mTimeout, mMinOffset, mMaxOffset, mConnectTimeout, mBuildIndex;
     Set<String> mPathFilters;
-    Hash<Path, String> mUnsavedFiles;
+    UnsavedFiles mUnsavedFiles;
     List<std::shared_ptr<RCCommand> > mCommands;
     List<String> mRdmArgs;
     String mSocketFile;

@@ -91,7 +91,7 @@ public:
     bool isIndexed(uint32_t fileId) const;
 
     void index(const Source &source, uint32_t flags,
-               const Hash<Path, String> &unsavedFiles = Hash<Path, String>());
+               const UnsavedFiles &unsavedFiles = UnsavedFiles());
 
     List<Source> sources(uint32_t fileId) const;
     bool hasSource(const Source &source) const;
@@ -103,7 +103,7 @@ public:
     bool isValidJob(uint64_t key) { return !key || mJobs.contains(key); }
     bool visitFile(uint32_t fileId, const Path &path, uint64_t id);
     String fixIts(uint32_t fileId) const;
-    int reindex(const Match &match, const Hash<Path, String> &unsavedFiles);
+    int reindex(const Match &match, const UnsavedFiles &unsavedFiles);
     int remove(const Match &match);
     void onJobFinished(const std::shared_ptr<IndexData> &indexData, const std::shared_ptr<IndexerJob> &job);
     SourceMap sources() const { return mSources; }
@@ -133,7 +133,7 @@ private:
     };
     SyncData syncDB();
     void startDirtyJobs(const Set<uint32_t> &files,
-                        const Hash<Path, String> &unsavedFiles = Hash<Path, String>());
+                        const UnsavedFiles &unsavedFiles = UnsavedFiles());
     bool save();
     void onSynced();
     void onDirtyTimeout(Timer *);

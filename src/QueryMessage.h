@@ -17,6 +17,7 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 #define QUERYMESSAGE_H
 
 #include "RTagsMessage.h"
+#include "RTags.h"
 #include <rct/Path.h>
 #include <rct/Serializer.h>
 #include <rct/Hash.h>
@@ -105,8 +106,8 @@ public:
         std::sort(mPathFilters.begin(), mPathFilters.end());
     }
 
-    void setUnsavedFiles(const Hash<Path, String> &unsavedFiles) { mUnsavedFiles = unsavedFiles; }
-    const Hash<Path, String> &unsavedFiles() const { return mUnsavedFiles; }
+    void setUnsavedFiles(const UnsavedFiles &unsavedFiles) { mUnsavedFiles = unsavedFiles; }
+    const UnsavedFiles &unsavedFiles() const { return mUnsavedFiles; }
 
     String query() const { return mQuery; }
     Location location() const { return Location::decode(mQuery); }
@@ -163,7 +164,7 @@ private:
     int mMax, mMinLine, mMaxLine, mBuildIndex;
     List<String> mPathFilters;
     Path mCurrentFile;
-    Hash<Path, String> mUnsavedFiles;
+    UnsavedFiles mUnsavedFiles;
 };
 
 DECLARE_NATIVE_TYPE(QueryMessage::Type);

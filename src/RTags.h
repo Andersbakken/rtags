@@ -64,6 +64,7 @@ typedef Map<uint64_t, Source> SourceMap;
 typedef Map<Path, Set<String> > FilesMap;
 typedef Hash<uint32_t, Set<FixIt> > FixItMap;
 typedef Hash<uint32_t, List<String> > DiagnosticsMap;
+typedef Hash<Path, String> UnsavedFiles;
 
 namespace RTags {
 void dirtySymbolNames(SymbolNameMap &map, const Set<uint32_t> &dirty);
