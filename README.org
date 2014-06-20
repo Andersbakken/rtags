@@ -329,12 +329,12 @@ stack. Jump back and forward in this stack
 For functions that return more than one match, jump to the
 next/previous one.
 
-(rtags-preprocess-file)
 #+BEGIN_SRC
+(rtags-preprocess-file)
+#+END_SRC
 Preprocess current file according to known C(XX)Flags and show the
 result in a buffer. If region is active only display the
 preprocessed output for that region.
-#+END_SRC
 
 #+BEGIN_SRC
 (rtags-print-cursorinfo)
