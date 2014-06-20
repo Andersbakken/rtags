@@ -312,14 +312,17 @@
                                (with-current-buffer unsaved
                                  (process-send-region proc (point-min) (point-max)))
                                proc))
-                            (async (apply #'start-process "rc" (current-buffer) rc arguments))
+                            (async
+                             (apply #'start-process "rc" (current-buffer) rc arguments))
                             ((and unsaved (buffer-modified-p unsaved))
                              (let ((output-buffer (current-buffer)))
                                (with-current-buffer unsaved
                                  (apply #'call-process-region (point-min) (point-max) rc
                                         nil output-buffer nil arguments) nil)))
-                            (unsaved (apply #'call-process rc (buffer-file-name unsaved) output nil arguments) nil)
-                            (t (apply #'call-process rc nil output nil arguments) nil))))
+                            (unsaved
+                             (apply #'call-process rc (buffer-file-name unsaved) output nil arguments) nil)
+                            (t
+                             (apply #'call-process rc nil output nil arguments) nil))))
             (if proc
                 (progn
                   (set-process-query-on-exit-flag proc nil)
@@ -399,13 +402,36 @@
       (display-buffer preprocess-buffer))))
 
 ;;;###autoload
-(defun rtags-reparse-file (&optional buffer)
+(defun rtags-reparse-file (&optional buffer wait-reparsing)
+  "WAIT-REPARSING : t to wait for reparsing to finish, nil for async (no waiting). :fixme: add a timeout"
   (interactive)
   (let ((file (buffer-file-name buffer)))
     (when file
       (with-temp-buffer
-        (rtags-call-rc :path file "-V" file))
-      (message (format "Dirtied %s" file)))))
+        (if (buffer-modified-p buffer)
+            (progn
+              (rtags-call-rc :path file :unsaved (or buffer (current-buffer)) "-V" file)
+              (when wait-reparsing
+                (message "Reparsing buffer")
+                ;; Wait for the server to start working.
+                (while (not (rtags-is-working))
+                  (sleep-for 0.3))
+                ;; Wait for the file to become indexed.
+                (while (rtags-is-working)
+                  (sleep-for 0.3))))
+          (progn
+            (rtags-call-rc :path file "-V" file)
+            (message (format "Dirtied %s" file))))))))
+
+
+(defun rtags-reparse-file-if-needed (&optional buffer)
+  "Reparse file if it's not saved.
+BUFFER : the buffer to be checked and reparsed, if it's nil, use current buffer"
+  (interactive)
+  (let ((unsaved (and (buffer-modified-p buffer) (or buffer (current-buffer)))))
+    (when unsaved
+      (rtags-reparse-file unsaved t))))
+
 
 ;;;###autoload
 (defun rtags-maybe-reparse-file (&optional buffer)
@@ -444,9 +470,11 @@
       (and (not no-symbol-name) (rtags-current-symbol-name))
       (thing-at-point 'symbol)))
 
-(defun rtags-cursorinfo (&optional location verbose save-to-kill-ring)
+(defun rtags-cursorinfo (&key no-reparse &optional location verbose save-to-kill-ring)
   (let ((loc (or location (rtags-current-location)))
         (path (buffer-file-name)))
+    (when (not no-reparse)
+      (rtags-reparse-file-if-needed))
     (with-temp-buffer
       (rtags-call-rc :path path
                      "-U" loc
@@ -858,26 +886,29 @@ return t if rtags is allowed to modify this file"
   (or (string= string "Not indexed\n")
       (string= string "Can't seem to connect to server\n")))
 
-(defun rtags-target (&optional filter declaration-only)
+(defun rtags-target (&optional filter declaration-only dont-reparse)
+  "DONT-REPARSE : do not reparse file even if it appears as modified."
   (let ((path (buffer-file-name))
         (location (rtags-current-location))
         (unsaved (and (buffer-modified-p) (current-buffer))))
-    (if path
-        (with-temp-buffer
-          (if declaration-only
-              (rtags-call-rc :path path "--declaration-only" "-N" "-f" location :path-filter filter :noerror t :unsaved unsaved)
-            (rtags-call-rc :path path "-N" "-f" location :path-filter filter :noerror t :unsaved unsaved))
-          (setq rtags-last-request-not-indexed nil)
-          (cond ((= (point-min) (point-max))
-                 (message "RTags: No target") nil)
-                ((rtags-not-indexed/connected-message-p (buffer-string))
-                 (setq rtags-last-request-not-indexed t) nil)
-                (t (buffer-substring-no-properties (point-min) (- (point-max) 1))))))))
+    (when path
+      (unless dont-reparse
+        (rtags-reparse-file-if-needed))
+      (with-temp-buffer
+        (if declaration-only
+            (rtags-call-rc :path path "--declaration-only" "-N" "-f" location :path-filter filter :noerror t :unsaved unsaved)
+          (rtags-call-rc :path path "-N" "-f" location :path-filter filter :noerror t :unsaved unsaved))
+        (setq rtags-last-request-not-indexed nil)
+        (cond ((= (point-min) (point-max))
+               (message "RTags: No target") nil)
+              ((rtags-not-indexed/connected-message-p (buffer-string))
+               (setq rtags-last-request-not-indexed t) nil)
+              (t (buffer-substring-no-properties (point-min) (- (point-max) 1))))))))
 
 (defun rtags-target-declaration-first ()
   "First try to find the declaration of the item (using --declaration-only),
 then try to find anything about the item."
-  (let ((target (or (rtags-target nil t) (rtags-target))))
+  (let ((target (or (rtags-target nil t) (rtags-target nil nil t))))
     target))
 
 ;; (defalias 'rtags-find-symbol-at-point 'rtags-follow-symbol-at-point)
@@ -891,6 +922,7 @@ If called with a prefix restrict to current buffer"
   (rtags-location-stack-push)
   (let ((arg (rtags-current-location))
         (fn (buffer-file-name)))
+    (rtags-reparse-file-if-needed)
     (with-current-buffer (rtags-get-buffer)
       (rtags-call-rc :path fn :path-filter prefix "-f" arg)
       (rtags-handle-results-buffer))))
@@ -905,6 +937,7 @@ References to references will be treated as references to the referenced symbol"
   (rtags-location-stack-push)
   (let ((arg (rtags-current-location))
         (fn (buffer-file-name)))
+    (rtags-reparse-file-if-needed)
     (with-current-buffer (rtags-get-buffer)
       (rtags-call-rc :path fn :path-filter prefix "-r" arg)
       (rtags-handle-results-buffer))))
@@ -916,6 +949,7 @@ References to references will be treated as references to the referenced symbol"
   (rtags-location-stack-push)
   (let ((arg (rtags-current-location))
         (fn (buffer-file-name)))
+    (rtags-reparse-file-if-needed)
     (with-current-buffer (rtags-get-buffer)
       (rtags-call-rc :path fn :path-filter prefix "-r" arg "-k")
       (rtags-handle-results-buffer))))
@@ -926,6 +960,7 @@ References to references will be treated as references to the referenced symbol"
   (rtags-location-stack-push)
   (let ((arg (rtags-current-location))
         (fn (buffer-file-name)))
+    (rtags-reparse-file-if-needed)
     (with-current-buffer (rtags-get-buffer)
       (rtags-call-rc :path fn :path-filter prefix "-r" arg "-e")
       (rtags-handle-results-buffer))))
@@ -937,9 +972,11 @@ References to references will be treated as references to the referenced symbol"
   (let ((token (rtags-current-token))
         (fn (buffer-file-name)))
     (if token
-        (with-current-buffer (rtags-get-buffer)
-          (rtags-call-rc :path fn "--declaration-only" "-F" token)
-          (rtags-handle-results-buffer t)))))
+        (progn
+          (rtags-reparse-file-if-needed)
+          (with-current-buffer (rtags-get-buffer)
+            (rtags-call-rc :path fn "--declaration-only" "-F" token)
+            (rtags-handle-results-buffer t))))))
 
 (defun rtags-current-token ()
   (save-excursion
@@ -1482,6 +1519,18 @@ References to references will be treated as references to the referenced symbol"
         (with-temp-buffer
           (rtags-call-rc :path path "--source" path "--compilation-flags-only" "--compilation-flags-split-line")
           (split-string (buffer-substring-no-properties (point-min) (point-max)) "\n")))))
+
+
+(defun rtags-is-working (&optional buffer)
+  (let ((path (expand-file-name (or (buffer-file-name buffer) dired-directory default-directory))))
+    (with-temp-buffer
+      (rtags-call-rc "-s" "jobs" :output (list t t))
+      (let ((text (buffer-substring-no-properties (point-min) (point-max))))
+        ;;(message "text=%s" text)
+        (cond ((string-match "Dirty" text) t)
+              ((string-match "jobs" text) nil) ; 'jobs' without 'dirty' = not working
+              (t t))))))
+
 
 (defun rtags-is-indexed (&optional buffer)
   (equal (rtags-buffer-status buffer) 'rtags-indexed))
