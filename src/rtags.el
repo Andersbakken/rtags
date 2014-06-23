@@ -46,6 +46,8 @@
 (unless (fboundp 'libxml-parse-xml-region)
   (require 'xml))
 
+(setq rtags-popup-available (require 'popup nil t))
+
 (defvar rtags-last-completions nil)
 (defvar rtags-last-completion-position nil) ;; cons (buffer . offset)
 (defvar rtags-path-filter nil)
@@ -458,7 +460,7 @@ BUFFER : the buffer to be checked and reparsed, if it's nil, use current buffer"
       (and (not no-symbol-name) (rtags-current-symbol-name))
       (thing-at-point 'symbol)))
 
-(defun rtags-cursorinfo (&key no-reparse &optional location verbose save-to-kill-ring)
+(defun rtags-cursorinfo (&optional location verbose save-to-kill-ring no-reparse)
   (let ((loc (or location (rtags-current-location)))
         (path (buffer-file-name)))
     (when (not no-reparse)
@@ -706,6 +708,11 @@ BUFFER : the buffer to be checked and reparsed, if it's nil, use current buffer"
   :type 'boolean
   :group 'rtags)
 
+(defcustom rtags-display-summary-as-tooltip rtags-popup-available
+  "Display help / summary text using popup-tip (requires 'popup)"
+  :type 'boolean
+  :group 'rtags)
+
 (defcustom rtags-error-timer-interval .5
   "Interval for minibuffer error timer"
   :group 'rtags
@@ -840,13 +847,15 @@ return t if rtags is allowed to modify this file"
   (setq rtags-location-stack nil)
   (setq rtags-location-stack-index 0))
 
-(defun rtags-target (&optional filter declaration-only dont-reparse)
-  "DONT-REPARSE : do not reparse file even if it appears as modified."
+(defun rtags-target (&optional filter declaration-only no-reparse no-error)
+  "NO-REPARSE : do not reparse file even if it appears as modified.
+NO-ERROR : don't display errors (useful if rtags-target is called multiple times with
+different parameters"
   (let ((path (buffer-file-name))
         (location (rtags-current-location)))
     (if path
         (progn
-          (when (not dont-reparse)
+          (when (not no-reparse)
             (rtags-reparse-file-if-needed))
           (with-temp-buffer
             (if declaration-only
@@ -854,7 +863,7 @@ return t if rtags is allowed to modify this file"
               (rtags-call-rc :path path "-N" "-f" location :path-filter filter :noerror t))
             (setq rtags-last-request-not-indexed nil)
             (cond ((= (point-min) (point-max))
-                   (message "RTags: No target") nil)
+                   (when (not no-error) (message "RTags: No target")) nil)
                   ((or (string= (buffer-string) "Not indexed\n")
                        (string= (buffer-string) "Can't seem to connect to server\n"))
                    (setq rtags-last-request-not-indexed t) nil)
@@ -863,7 +872,8 @@ return t if rtags is allowed to modify this file"
 (defun rtags-target-declaration-first ()
   "First try to find the declaration of the item (using --declaration-only),
 then try to find anything about the item."
-  (let ((target (or (rtags-target nil t) (rtags-target nil nil t))))
+  (let ((target (or (rtags-target nil t nil t)
+                    (rtags-target nil nil t))))
     target))
 
 ;; (defalias 'rtags-find-symbol-at-point 'rtags-follow-symbol-at-point)
@@ -1807,8 +1817,8 @@ References to references will be treated as references to the referenced symbol"
           (cons start end)))))
 
 (defun rtags-decode-range (cursorinfo)
-  "Decode range from the CURSORINFO provided and return a list with 2 coordinates:
- (line1 col1 line2 col2)"
+  "Decode range from the CURSORINFO (e.g. 5:1-10:3) and return a list with 2 coordinates:
+\(line1 col1 line2 col2)"
   (if (string-match "^Range: \\([0-9]+\\):\\([0-9]+\\)-\\([0-9]+\\):\\([0-9]+\\)$"
                     cursorinfo)
       (let ((line1 (string-to-number (match-string-no-properties 1 cursorinfo)))
@@ -1856,8 +1866,8 @@ References to references will be treated as references to the referenced symbol"
                                                     try-declaration-first)
   "DEST-WINDOW : destination window. Can be nil; in this case the current window is split
 according to rtags-other-window-window-size-percentage.
-  CENTER-WINDOW : if true the target window is centered.
-  TRY-DECLARATION-FIRST : first try to find the declaration of the item, then the
+CENTER-WINDOW : if true the target window is centered.
+TRY-DECLARATION-FIRST : first try to find the declaration of the item, then the
 definition."
   (interactive)
   (let ((target (if try-declaration-first (rtags-target-declaration-first) (rtags-target))))
@@ -2038,6 +2048,58 @@ definition."
                   (rtags-call-rc :path path :output 0 :unsaved unsaved "-Y" "-l" location)
                   1))
             t)))))
+
+
+(defun rtags-get-summary-text (&optional max-no-lines)
+  "Return a text describing the item at point: for functions it is the declaration
+\(including the parameters names) if available or the first MAX-NO-LINES (default 5) lines
+of the definition; for variables is the definition, etc.
+
+Return nil if it can't get any info about the item."
+  (interactive)
+  ;; try first with --declaration-only
+  (let ((target (rtags-target-declaration-first)))
+    (when target
+      (let* ((range (rtags-decode-range (rtags-cursorinfo target nil nil t)))
+             (line1 (first range))
+             (line2 (third range))
+             symbol-text pos1 pos2)
+        (when (null max-no-lines)
+          (setq max-no-lines 5))
+        (when (> (- line2 line1) max-no-lines)
+          (setq range (list line1 (second range) (+ line1 max-no-lines) 1)))
+        (when (string-match "\\(.*\\):\\([0-9]+\\):\\([0-9]+\\)" target)
+          (let* ((file-or-buffer (match-string-no-properties 1 target))
+                 (buf (get-file-buffer file-or-buffer))
+                 old-buf)
+            (when (null buf)
+              (setq old-buf (current-buffer))
+              (find-file file-or-buffer)
+              (setq buf (current-buffer))
+              (switch-to-buffer old-buf))
+            (with-current-buffer buf
+              (save-excursion
+                (rtags-goto-line-col (first range) (second range))
+                (setq pos1 (point))
+                (rtags-goto-line-col (third range) (fourth range))
+                (setq pos2 (point))
+                (setq symbol-text (buffer-substring-no-properties pos1 pos2))))))
+        symbol-text))))
+
+
+(defun rtags-display-summary ()
+  "Display a short text describing the item at point (see rtags-get-summary-text for
+details).
+
+If rtags-display-summary-as-tooltip is t, a tooltip is displayed."
+  (interactive)
+  (let ((summary (rtags-get-summary-text)))
+    (when (null summary)
+      (setq summary "No information for symbol"))
+    (if rtags-display-summary-as-tooltip
+        (popup-tip summary)
+      (message "%s" summary))))
+
 
 (provide 'rtags)
 
