@@ -310,17 +310,14 @@
                                (with-current-buffer unsaved
                                  (process-send-region proc (point-min) (point-max)))
                                proc))
-                            (async
-                             (apply #'start-process "rc" (current-buffer) rc arguments))
+                            (async (apply #'start-process "rc" (current-buffer) rc arguments))
                             ((and unsaved (buffer-modified-p unsaved))
                              (let ((output-buffer (current-buffer)))
                                (with-current-buffer unsaved
                                  (apply #'call-process-region (point-min) (point-max) rc
                                         nil output-buffer nil arguments) nil)))
-                            (unsaved
-                             (apply #'call-process rc (buffer-file-name unsaved) output nil arguments) nil)
-                            (t
-                             (apply #'call-process rc nil output nil arguments) nil))))
+                            (unsaved (apply #'call-process rc (buffer-file-name unsaved) output nil arguments) nil)
+                            (t (apply #'call-process rc nil output nil arguments) nil))))
             (if proc
                 (progn
                   (set-process-query-on-exit-flag proc nil)
@@ -403,6 +400,7 @@
 (defun rtags-reparse-file (&optional buffer wait-reparsing)
   "WAIT-REPARSING : t to wait for reparsing to finish, nil for async (no waiting).
 :fixme: add a timeout"
+  (interactive)
   (let ((file (buffer-file-name buffer)))
     (when file
       (with-temp-buffer
