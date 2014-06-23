@@ -405,8 +405,8 @@
 
 ;;;###autoload
 (defun rtags-reparse-file (&optional buffer wait-reparsing)
-  "WAIT-REPARSING : t to wait for reparsing to finish, nil for async (no waiting). :fixme: add a timeout"
-  (interactive)
+  "WAIT-REPARSING : t to wait for reparsing to finish, nil for async (no waiting).
+:fixme: add a timeout"
   (let ((file (buffer-file-name buffer)))
     (when file
       (with-temp-buffer
@@ -428,8 +428,8 @@
 
 (defun rtags-reparse-file-if-needed (&optional buffer)
   "Reparse file if it's not saved.
+
 BUFFER : the buffer to be checked and reparsed, if it's nil, use current buffer"
-  (interactive)
   (let ((unsaved (and (buffer-modified-p buffer) (or buffer (current-buffer)))))
     (when unsaved
       (rtags-reparse-file unsaved t))))
@@ -913,8 +913,8 @@ return t if rtags is allowed to modify this file"
               (t (buffer-substring-no-properties (point-min) (- (point-max) 1))))))))
 
 (defun rtags-target-declaration-first ()
-  "First try to find the declaration of the item (using --declaration-only),
-then try to find anything about the item."
+  "First try to find the declaration of the item (using --declaration-only), then try
+to find anything about the item."
   (let ((target (or (rtags-target nil t nil t)
                     (rtags-target nil nil t))))
     target))
@@ -2117,7 +2117,6 @@ definition."
 of the definition; for variables is the definition, etc.
 
 Return nil if it can't get any info about the item."
-  (interactive)
   ;; try first with --declaration-only
   (let ((target (rtags-target-declaration-first)))
     (when target
