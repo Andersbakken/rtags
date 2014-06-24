@@ -18,15 +18,7 @@ public:
     ClangIndexer();
     ~ClangIndexer();
 
-    bool connect(const Path &serverFile, int timeout);
-    bool connect(const String &hostName, uint16_t port, int timeout);
-
-    bool index(const Source &source, uint32_t flags, const Path &project);
-    int visitFileTimeout() const { return mVisitFileTimeout; }
-    void setVisitFileTimeout(int visitFileTimeout) { mVisitFileTimeout = visitFileTimeout; }
-    int indexerMessageTimeout() const { return mIndexerMessageTimeout; }
-    void setIndexerMessageTimeout(int indexerMessageTimeout) { mIndexerMessageTimeout = indexerMessageTimeout; }
-    void setUnsavedFiles(const UnsavedFiles &unsavedFiles) { mUnsavedFiles = unsavedFiles; }
+    bool exec(const String &data);
 private:
     bool diagnose();
     bool visit();
@@ -120,6 +112,7 @@ private:
 
     Path mProject;
     Source mSource;
+    Path mSourceFile;
     std::shared_ptr<IndexData> mData;
     CXTranslationUnit mClangUnit;
     CXIndex mIndex;

@@ -24,9 +24,9 @@
 #include <syslog.h>
 
 #ifdef NDEBUG
-static bool suspendOnSigSegv = false;
+bool suspendOnSigSegv = false;
 #else
-static bool suspendOnSigSegv = true;
+bool suspendOnSigSegv = true;
 #endif
 
 static void sigHandler(int signal)
@@ -85,60 +85,10 @@ int main(int argc, char **argv)
             return 2;
         }
     }
-    Deserializer deserializer(data);
-    uint16_t protocolVersion;
-    deserializer >> protocolVersion;
-    if (protocolVersion != RTags::DatabaseVersion) {
-        error("Wrong protocol %d vs %d\n", protocolVersion, RTags::DatabaseVersion);
-        return 3;
-    }
-    String destination;
-    Path project;
-    Source source;
-    Path sourceFile;
-    uint32_t flags;
-    Hash<uint32_t, Path> blockedFiles;
-    uint32_t visitFileTimeout, indexerMessageTimeout, connectTimeout;
-    UnsavedFiles unsavedFiles;
-    deserializer >> destination;
-    deserializer >> project;
-    deserializer >> source;
-    deserializer >> sourceFile;
-    deserializer >> flags;
-    deserializer >> visitFileTimeout;
-    deserializer >> indexerMessageTimeout;
-    deserializer >> connectTimeout;
-    deserializer >> suspendOnSigSegv;
-    deserializer >> unsavedFiles;
-    deserializer >> blockedFiles;
-    if (sourceFile.isEmpty()) {
-        error("No sourcefile\n");
-        return 4;
-    }
-    if (!source.fileId) {
-        error("Bad fileId\n");
-        return 5;
-    }
-
-    if (project.isEmpty()) {
-        error("No project\n");
-        return 6;
-    }
-
     ClangIndexer indexer;
-    if (!indexer.connect(destination, connectTimeout)) {
-        error("Failed to connect to rdm %s\n", destination.constData());
-        return 8;
-    }
-    Location::init(blockedFiles);
-    Location::set(sourceFile, source.fileId);
-    indexer.setVisitFileTimeout(visitFileTimeout);
-    indexer.setUnsavedFiles(unsavedFiles);
-    indexer.setIndexerMessageTimeout(indexerMessageTimeout);
-
-    if (!indexer.index(source, flags, project)) {
-        error("Failed to index %s\n", sourceFile.constData());
-        return 9;
+    if (!indexer.exec(data)) {
+        error() << "ClangIndexer error";
+        return 3;
     }
 
     return 0;

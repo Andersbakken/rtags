@@ -47,30 +47,74 @@ ClangIndexer::~ClangIndexer()
         clang_disposeIndex(mIndex);
 }
 
-bool ClangIndexer::connect(const Path &serverFile, int timeout)
+bool ClangIndexer::exec(const String &data)
 {
-    return mConnection.connectUnix(serverFile, timeout);
-}
+    Deserializer deserializer(data);
+    uint16_t protocolVersion;
+    deserializer >> protocolVersion;
+    if (protocolVersion != RTags::DatabaseVersion) {
+        error("Wrong protocol %d vs %d", protocolVersion, RTags::DatabaseVersion);
+        return false;
+    }
+    String serverFile;
+    uint32_t flags;
+    uint32_t connectTimeout;
+    extern bool suspendOnSigSegv;
+    Hash<uint32_t, Path> blockedFiles;
 
-bool ClangIndexer::connect(const String &hostName, uint16_t port, int timeout)
-{
-    return mConnection.connectTcp(hostName, port, timeout);
-}
+    deserializer >> serverFile;
+    deserializer >> mProject;
+    deserializer >> mSource;
+    deserializer >> mSourceFile;
+    deserializer >> flags;
+    deserializer >> mVisitFileTimeout;
+    deserializer >> mIndexerMessageTimeout;
+    deserializer >> connectTimeout;
+    deserializer >> suspendOnSigSegv;
+    deserializer >> mUnsavedFiles;
+    uint32_t dirtySize;
+    deserializer >> dirtySize;
+    const uint64_t parseTime = Rct::currentTimeMs();
 
-bool ClangIndexer::index(const Source &source, uint32_t flags, const Path &project)
-{
-    // mLogFile = fopen(String::format("/tmp/%s", sourceFile.fileName()).constData(), "w");
+    while (dirtySize-- > 0) {
+        Path dirty;
+        deserializer >> dirty;
+        if (!mUnsavedFiles.contains(dirty)) {
+            mUnsavedFiles[dirty] = dirty.readAll();
+        }
+    }
+
+    deserializer >> blockedFiles;
+    if (mSourceFile.isEmpty()) {
+        error("No sourcefile");
+        return false;
+    }
+    if (!mSource.fileId) {
+        error("Bad fileId");
+        return false;
+    }
+
+    if (mProject.isEmpty()) {
+        error("No project");
+        return false;
+    }
+
+    Location::init(blockedFiles);
+    Location::set(mSourceFile, mSource.fileId);
+    if (!mConnection.connectUnix(serverFile, connectTimeout)) {
+        error("Failed to connect to rdm on %s (%dms timeout)", serverFile.constData(), connectTimeout);
+        return false;
+    }
+    // mLogFile = fopen(String::format("/tmp/%s", mSourceFile.fileName()).constData(), "w");
     mData.reset(new IndexData(flags));
-    mData->key = source.key();
+    mData->parseTime = parseTime;
+    mData->key = mSource.key();
     mData->pid = getpid();
 
-    mProject = project;
     assert(mConnection.isConnected());
-    mData->visited[source.fileId] = true;
-    mSource = source;
+    mData->visited[mSource.fileId] = true;
     parse() && visit() && diagnose();
-    mData->parseTime = Rct::currentTimeMs();
-    mData->message = source.sourceFile().toTilde();
+    mData->message = mSourceFile.toTilde();
     if (!mClangUnit)
         mData->message += " error";
     mData->message += String::format<16>(" in %dms. ", mTimer.elapsed());
@@ -98,17 +142,17 @@ bool ClangIndexer::index(const Source &source, uint32_t flags, const Path &proje
     // }
     StopWatch sw;
     if (!mConnection.send(msg)) {
-        error() << "Couldn't send IndexerMessage" << Location::path(source.fileId);
+        error() << "Couldn't send IndexerMessage" << mSourceFile;
         return false;
     }
     mConnection.finished().connect(std::bind(&EventLoop::quit, EventLoop::eventLoop()));
     if (EventLoop::eventLoop()->exec(mIndexerMessageTimeout) == EventLoop::Timeout) {
-        error() << "Couldn't send IndexerMessage (2)" << Location::path(source.fileId);
+        error() << "Couldn't send IndexerMessage (2)" << mSourceFile;
         return false;
     }
     if (getenv("RDM_DEBUG_INDEXERMESSAGE"))
-        error() << "Send took" << sw.elapsed() << "for" << Location::path(source.fileId);
-    // error() << "Must have gotten a finished" << Location::path(source.fileId);
+        error() << "Send took" << sw.elapsed() << "for" << mSourceFile;
+    // error() << "Must have gotten a finished" << mSourceFile;
     // fprintf(f, "Wrote indexer message %d\n", mData->symbols.size());
     // fclose(f);
 
@@ -458,28 +502,6 @@ struct LastCursorUpdater
 CXChildVisitResult ClangIndexer::indexVisitor(CXCursor cursor, CXCursor parent, CXClientData data)
 {
     ClangIndexer *indexer = static_cast<ClangIndexer*>(data);
-#if 0
-    while (Path::exists("/tmp/sleep-" + String(Location::path(indexer->mSource.fileId).fileName()))) {
-        sleep(1);
-    }
-    static int last = -1;
-    while (true) {
-        FILE *f = fopen("/tmp/counter", "r");
-        if (!f)
-            break;
-        if (f) {
-            char buf[16];
-            fread(buf, 1, sizeof(buf), f);
-            fclose(f);
-            int cur = atoi(buf);
-            if (cur > last) {
-                last = cur;
-            } else {
-                sleep(1);
-            }
-        }
-    }
-#endif
     // error() << "indexVisitor" << cursor;
     // FILE *f = fopen("/tmp/clangindex.log", "a");
     // String str;
@@ -910,10 +932,9 @@ bool ClangIndexer::parse()
     assert(!mIndex);
     mIndex = clang_createIndex(0, 1);
     assert(mIndex);
-    const Path sourceFile = Location::path(mSource.fileId);
     const unsigned int commandLineFlags = Source::FilterBlacklist|Source::IncludeDefines|Source::IncludeIncludepaths;
     const unsigned int flags = CXTranslationUnit_DetailedPreprocessingRecord;
-    List<CXUnsavedFile> unsavedFiles(mUnsavedFiles.size());
+    List<CXUnsavedFile> unsavedFiles(mUnsavedFiles.size() + 1);
     int unsavedIndex = 0;
     for (const auto &it : mUnsavedFiles) {
         unsavedFiles[unsavedIndex++] = {
@@ -922,7 +943,8 @@ bool ClangIndexer::parse()
             static_cast<unsigned long>(it.second.size())
         };
     }
-    RTags::parseTranslationUnit(sourceFile, mSource.toCommandLine(commandLineFlags), mClangUnit,
+
+    RTags::parseTranslationUnit(mSourceFile, mSource.toCommandLine(commandLineFlags), mClangUnit,
                                 mIndex, &unsavedFiles[0], unsavedIndex, flags, &mClangLine);
 
     warning() << "loading unit " << mClangLine << " " << (mClangUnit != 0);

@@ -492,7 +492,8 @@ bool Project::save()
     return true;
 }
 
-void Project::index(const Source &source, uint32_t flags, const UnsavedFiles &unsavedFiles)
+void Project::index(const Source &source, uint32_t flags,
+                    const UnsavedFiles &unsavedFiles, const Set<uint32_t> &dirty)
 {
     const Path sourceFile = source.sourceFile();
     static const char *fileFilter = getenv("RTAGS_FILE_FILTER");
@@ -522,7 +523,7 @@ void Project::index(const Source &source, uint32_t flags, const UnsavedFiles &un
     if (!mJobCounter++)
         mTimer.start();
 
-    data.job.reset(new IndexerJob(source, flags, mPath, unsavedFiles));
+    data.job.reset(new IndexerJob(source, flags, mPath, unsavedFiles, dirty));
     mSyncTimer.stop();
     Server::instance()->addJob(data.job);
 }
@@ -661,7 +662,7 @@ void Project::startDirtyJobs(const Set<uint32_t> &dirty,
             // error() << "Decoded" << Location::path(f);
             if (f != *it)
                 break;
-            index(src->second, IndexerJob::Dirty, unsavedFiles);
+            index(src->second, IndexerJob::Dirty, unsavedFiles, dirty);
             indexed = true;
             ++src;
         }

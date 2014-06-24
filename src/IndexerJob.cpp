@@ -4,11 +4,14 @@
 #include <RTagsClang.h>
 #include "Server.h"
 
-IndexerJob::IndexerJob(const Source &s, uint32_t f,
-                       const Path &p, const UnsavedFiles &u)
+IndexerJob::IndexerJob(const Source &s,
+                       uint32_t f,
+                       const Path &p,
+                       const UnsavedFiles &u,
+                       const Set<uint32_t> &d)
     : destination(Server::instance()->options().socketFile),
       source(s), sourceFile(s.sourceFile()), flags(f),
-      project(p), unsavedFiles(u), process(0), started(0)
+      project(p), unsavedFiles(u), dirty(d), process(0), started(0)
 {
 }
 
@@ -109,7 +112,10 @@ void IndexerJob::encode(Serializer &serializer) const
                << static_cast<uint32_t>(options.rpIndexerMessageTimeout)
                << static_cast<uint32_t>(options.rpConnectTimeout)
                << static_cast<bool>(options.options & Server::SuspendRPOnCrash)
-               << unsavedFiles;
+               << unsavedFiles << static_cast<uint32_t>(dirty.size());
+    for (uint32_t fileId : dirty) {
+        serializer << Location::path(fileId);
+    }
     assert(proj);
     proj->encodeVisitedFiles(serializer);
 }

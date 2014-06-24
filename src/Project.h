@@ -91,7 +91,8 @@ public:
     bool isIndexed(uint32_t fileId) const;
 
     void index(const Source &source, uint32_t flags,
-               const UnsavedFiles &unsavedFiles = UnsavedFiles());
+               const UnsavedFiles &unsavedFiles = UnsavedFiles(),
+               const Set<uint32_t> &dirty = Set<uint32_t>());
 
     List<Source> sources(uint32_t fileId) const;
     bool hasSource(const Source &source) const;

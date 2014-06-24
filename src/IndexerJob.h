@@ -41,8 +41,11 @@ public:
 
     static String dumpFlags(unsigned int);
 
-    IndexerJob(const Source &source, uint32_t flags,
-               const Path &project, const UnsavedFiles &unsavedFiles);
+    IndexerJob(const Source &source,
+               uint32_t flags,
+               const Path &project,
+               const UnsavedFiles &unsavedFiles,
+               const Set<uint32_t> &dirty);
     IndexerJob();
 
     bool launchProcess();
@@ -56,7 +59,7 @@ public:
     uint32_t flags;
     Path project;
     UnsavedFiles unsavedFiles;
-    Set<uint32_t> visited;
+    Set<uint32_t> dirty, visited;
     Process *process;
     uint64_t started;
 };
