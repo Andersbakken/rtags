@@ -274,14 +274,11 @@ void Server::onNewConnection(SocketServer *server)
             break;
         Connection *conn = new Connection(client);
         conn->newMessage().connect(std::bind(&Server::onNewMessage, this, std::placeholders::_1, std::placeholders::_2));
-        conn->disconnected().connect(std::bind([conn]() { EventLoop::deleteLater(conn); }));
+        conn->disconnected().connect(std::bind([conn]() {
+                    conn->disconnected().disconnect();
+                    EventLoop::deleteLater(conn);
+                }));
     }
-}
-
-void Server::onConnectionDisconnected(Connection *o)
-{
-    o->disconnected().disconnect();
-    EventLoop::deleteLater(o);
 }
 
 void Server::onNewMessage(Message *message, Connection *connection)

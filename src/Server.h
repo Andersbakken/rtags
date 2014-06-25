@@ -100,7 +100,6 @@ private:
     void setCurrentProject(const std::shared_ptr<Project> &project, unsigned int queryFlags = 0);
     void onUnload();
     void onNewMessage(Message *message, Connection *conn);
-    void onConnectionDisconnected(Connection *o);
     void clearProjects();
     void handleCompileMessage(CompileMessage &message, Connection *conn);
     void handleIndexerMessage(const IndexerMessage &message, Connection *conn);
