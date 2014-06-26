@@ -401,19 +401,24 @@
   "WAIT-REPARSING : t to wait for reparsing to finish, nil for async (no waiting).
 :fixme: add a timeout"
   (interactive)
+  (when (null buffer)
+    (setq buffer (current-buffer)))
   (let ((file (buffer-file-name buffer)))
-    (when file
+    ;;(when (null (rtags-buffer-status buffer))
+      ;;(message ":debug: file not indexed"))
+    (when (and file (rtags-buffer-status buffer))
       (with-temp-buffer
         (if (buffer-modified-p buffer)
             (progn
-              (rtags-call-rc :path file :unsaved (or buffer (current-buffer)) "-V" file)
+              (rtags-call-rc :path file :unsaved buffer "-V" file)
               (when wait-reparsing
                 (message "Reparsing buffer")
+                ;;(message ":debug: reparsing file %s" file)
                 ;; Wait for the server to start working.
-                (while (not (rtags-is-working))
+                (while (not (rtags-is-working buffer))
                   (sleep-for 0.3))
                 ;; Wait for the file to become indexed.
-                (while (rtags-is-working)
+                (while (rtags-is-working buffer)
                   (sleep-for 0.3))))
           (progn
             (rtags-call-rc :path file "-V" file)
@@ -1486,9 +1491,10 @@ References to references will be treated as references to the referenced symbol"
 (defun rtags-is-working (&optional buffer)
   (let ((path (expand-file-name (or (buffer-file-name buffer) dired-directory default-directory))))
     (with-temp-buffer
-      (rtags-call-rc "-s" "jobs" :output (list t t))
+      ;;(message ":debug: rtags-is-working: buffer=%s, path=%s" buffer path)
+      (rtags-call-rc :path path "-s" "jobs" :output (list t t))
       (let ((text (buffer-substring-no-properties (point-min) (point-max))))
-        ;;(message "text=%s" text)
+        ;;(message ":debug: text=%s" text)
         (cond ((string-match "Dirty" text) t)
               ((string-match "jobs" text) nil) ; 'jobs' without 'dirty' = not working
               (t t))))))
