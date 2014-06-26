@@ -420,14 +420,19 @@
                 ;;(message ":debug: reparsing file %s" file)
                 ;; Wait for the server to start working.
                 (while (not (rtags-is-working buffer))
-                  (sleep-for 0.3))
+                  (sleep-for 0.4))
                 ;; Wait for the file to become indexed.
                 (while (rtags-is-working buffer)
-                  (sleep-for 0.3))))
+                  (sleep-for 0.4))))
           (progn
             (rtags-call-rc :path file "-V" file)
             (message (format "Dirtied %s" file))))))))
 
+
+;; assoc list containing unsaved buffers and their modification ticks
+;; (to avoid reparsing unsaved files if there were no changes since last parsing)
+;; :fixme: - remove buffers from list on save
+(defvar rtags-unsaved-buffers-ticks nil)
 
 (defun rtags-reparse-file-if-needed (&optional buffer)
   "Reparse file if it's not saved.
@@ -435,7 +440,21 @@
 BUFFER : the buffer to be checked and reparsed, if it's nil, use current buffer"
   (let ((unsaved (and (buffer-modified-p buffer) (or buffer (current-buffer)))))
     (when unsaved
-      (rtags-reparse-file unsaved t))))
+      ;; check ticks since the last save to avoid parsing the file multiple times
+      ;; if it has not been modified
+      (let ((current-ticks (buffer-modified-tick unsaved))
+            (old-ticks (cdr (assoc unsaved rtags-unsaved-buffers-ticks))))
+        ;; reparsing this dirty file for the first time
+        ;; or if it was modified since last reparsing
+        ;;(message ":debug: buffer=%s, old-ticks=%s, current-ticks=%s"
+                 ;;unsaved old-ticks current-ticks)
+        (if (or (null old-ticks) (/= current-ticks old-ticks))
+            (progn
+              (rtags-reparse-file unsaved t)
+              (add-to-list 'rtags-unsaved-buffers-ticks (cons unsaved current-ticks)))
+          (progn ;; else update ticks
+            (let ((item (assoc unsaved rtags-unsaved-buffers-ticks)))
+              (setf (cdr item) current-ticks))))))))
 
 
 ;;;###autoload
@@ -1536,7 +1555,7 @@ References to references will be treated as references to the referenced symbol"
   (let ((path (expand-file-name (or (buffer-file-name buffer) dired-directory default-directory))))
     (with-temp-buffer
       ;;(message ":debug: rtags-is-working: buffer=%s, path=%s" buffer path)
-      (rtags-call-rc :path path "-s" "jobs" :output (list t t))
+      (rtags-call-rc :path path "-s" "jobs" :output (list t t) :silent-query t)
       (let ((text (buffer-substring-no-properties (point-min) (point-max))))
         ;;(message ":debug: text=%s" text)
         (cond ((string-match "Dirty" text) t)
