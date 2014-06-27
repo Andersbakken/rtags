@@ -30,7 +30,7 @@ protected:
     Set<String> imenu(const std::shared_ptr<Project> &project);
     Set<String> listSymbols(const std::shared_ptr<Project> &project);
 private:
-    const String string;
+    String string;
 };
 
 #endif

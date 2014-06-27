@@ -142,37 +142,6 @@ set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/bin)
 
 set (RP_LIBRARIES rtags shared)
 set (RP_SOURCES rp.cpp ClangIndexer.cpp)
-if (RTAGS_BUILD_ESPRIMA)
-  find_package(V8)
-  if (V8_FOUND EQUAL 1)
-    list(APPEND RP_LIBRARIES ${V8_LIBS})
-    include_directories(${V8_INCLUDE})
-
-    if (V8_DISPOSE_HAS_ISOLATE)
-      add_definitions(-DV8_DISPOSE_HAS_ISOLATE)
-    endif ()
-    if (V8_NEW_CONTEXT_TAKES_ISOLATE)
-      add_definitions(-DV8_NEW_CONTEXT_TAKES_ISOLATE)
-    endif ()
-    add_definitions(-DHAVE_V8)
-    add_definitions("-DESPRIMA_JS=\"${PROJECT_BINARY_DIR}/src/rtags-esprima.js\"")
-    set(RP_SOURCES ${RP_SOURCES} JSParser.cpp)
-    add_definitions(-DRTAGS_ESPRIMA)
-
-    set(RTAGS_ESPRIMA_FILES
-      ${CMAKE_CURRENT_SOURCE_DIR}/esprima/esprima.js
-      ${CMAKE_CURRENT_SOURCE_DIR}/estraverse/estraverse.js
-      ${CMAKE_CURRENT_SOURCE_DIR}/escope/escope.js
-      ${CMAKE_CURRENT_SOURCE_DIR}/esrefactor/lib/esrefactor.js
-      ${CMAKE_CURRENT_SOURCE_DIR}/rtags.js)
-    add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/rtags-esprima.js
-      DEPENDS ${RTAGS_ESPRIMA_FILES}
-                     COMMAND ${CMAKE_COMMAND} -DFILES="${RTAGS_ESPRIMA_FILES}" -DTARGET="${CMAKE_CURRENT_BINARY_DIR}/rtags-esprima.js" -P "${PROJECT_SOURCE_DIR}/cmake/concat.cmake"
-                     COMMENT "Sourceing rtags-esprima.js")
-
-    add_custom_target(rtags-esprima ALL DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/rtags-esprima.js)
-  endif ()
-endif ()
 
 add_executable(rp ${RP_SOURCES})
 target_link_libraries(rp ${RP_LIBRARIES})

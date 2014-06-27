@@ -120,15 +120,45 @@ Set<String> ListSymbolsJob::listSymbols(const std::shared_ptr<Project> &project)
     Set<String> out;
     const bool hasFilter = Job::hasFilter();
     const bool stripParentheses = queryFlags() & QueryMessage::StripParentheses;
+    const bool wildcard = queryFlags() & QueryMessage::WildcardSymbolNames && (string.contains('*') || string.contains('?'));
+    const bool caseInsensitive = queryFlags() & QueryMessage::MatchCaseInsensitive;
+    const String::CaseSensitivity cs = caseInsensitive ? String::CaseInsensitive : String::CaseSensitive;
+    String lowerBound;
+    // error() << "SHOBA" << wildcard << string;
+    if (wildcard) {
+        if (!string.endsWith('*'))
+            string.append('*');
+        if (!caseInsensitive) {
+            for (int i=0; i<string.size(); ++i) {
+                if (string.at(i) == '?' || string.at(i) == '*') {
+                    lowerBound = string.left(i);
+                    break;
+                }
+            }
+        }
+    } else if (!caseInsensitive) {
+        lowerBound = string;
+    }
 
     const SymbolNameMap &map = project->symbolNames();
-    SymbolNameMap::const_iterator it = string.isEmpty() ? map.begin() : map.lower_bound(string);
+    SymbolNameMap::const_iterator it = string.isEmpty() || caseInsensitive ? map.begin() : map.lower_bound(lowerBound);
     int count = 0;
     while (it != map.end()) {
         const String &entry = it->first;
         ++it;
-        if (!string.isEmpty() && !entry.startsWith(string))
-            break;
+        if (!string.isEmpty()) {
+            if (wildcard) {
+                if (!Rct::wildCmp(string.constData(), entry.constData(), cs)) {
+                    continue;
+                }
+            } else if (!entry.startsWith(string, cs)) {
+                if (!caseInsensitive) {
+                    break;
+                } else {
+                    continue;
+                }
+            }
+        }
         bool ok = true;
         if (hasFilter) {
             ok = false;

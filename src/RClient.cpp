@@ -105,6 +105,7 @@ enum OptionType {
     UnloadProject,
     UnsavedFile,
     Verbose,
+    WildcardSymbolNames,
     XmlDiagnostics
 };
 
@@ -221,6 +222,7 @@ struct Option opts[] = {
     { NoSortReferencesByInput, "no-sort-references-by-input", 0, no_argument, "Don't sort references by input position." },
     { ProjectRoot, "project-root", 0, required_argument, "Override project root for compile commands." },
     { RTagsConfig, "rtags-config", 0, required_argument, "Print out .rtags-config for argument." },
+    { WildcardSymbolNames, "wildcard-symbol-names", 'a', no_argument, "Expand * like wildcards in --list-symbols" },
     { None, 0, 0, 0, 0 }
 };
 
@@ -646,6 +648,9 @@ bool RClient::parse(int &argc, char **argv)
             p.resolve();
             mPathFilters.insert(p);
             break; }
+        case WildcardSymbolNames:
+            mQueryFlags |= QueryMessage::WildcardSymbolNames;
+            break;
         case RangeFilter: {
             List<RegExp::Capture> caps;
             RegExp rx("^\\([0-9][0-9]*\\)-\\([0-9][0-9]*\\)$");

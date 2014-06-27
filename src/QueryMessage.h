@@ -92,7 +92,8 @@ public:
         SilentQuery = 0x02000000,
         SynchronousCompletions = 0x04000000,
         NoSortReferencesByInput = 0x08000000,
-        HasLocation = 0x10000000
+        HasLocation = 0x10000000,
+        WildcardSymbolNames = 0x20000000
     };
 
     QueryMessage(Type type = Invalid);
