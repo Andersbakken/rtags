@@ -62,7 +62,8 @@ public:
         NoFileManagerWatch = 0x0100,
         NoNoUnknownWarningsOption = 0x0400,
         SuspendRPOnCrash = 0x0800,
-        SeparateDebugAndRelease = 0x1000
+        SeparateDebugAndRelease = 0x1000,
+        AllowPedantic = 0x2000
     };
     struct Options {
         Options()

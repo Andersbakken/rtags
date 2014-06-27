@@ -85,6 +85,7 @@ static void usage(FILE *f)
             "  --disable-sighandler|-x                    Disable signal handler to dump stack for crashes.\n"
             "  --clang-includepath|-P                     Use clang include paths by default.\n"
             "  --no-Wall|-W                               Don't use -Wall.\n"
+            "  --allow-Wpedantic|-P                       Don't strip out -Wpedantic. This can cause problems in certain projects.\n"
             "  --Wlarge-by-value-copy|-r [arg]            Use -Wlarge-by-value-copy=[arg] when invoking clang.\n"
             "  --no-spell-checking|-l                     Don't pass -fspell-checking.\n"
             "  --no-unlimited-error|-f                    Don't pass -ferror-limit=0 to clang.\n"
@@ -177,6 +178,7 @@ int main(int argc, char** argv)
         { "max-crash-count", required_argument, 0, 'K' },
         { "completion-cache-size", required_argument, 0, 'i' },
         { "extra-compilers", required_argument, 0, 'U' },
+        { "--allow-Wpedantic", no_argument, 0, 'P' },
 #ifdef OS_Darwin
         { "filemanager-watch", no_argument, 0, 'M' },
 #else
@@ -427,6 +429,9 @@ int main(int argc, char** argv)
             break;
         case 'W':
             serverOpts.options &= ~Server::Wall;
+            break;
+        case 'P':
+            serverOpts.options |= Server::AllowPedantic;
             break;
         case 'C':
             serverOpts.options |= Server::ClearProjects;

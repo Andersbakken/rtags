@@ -101,6 +101,14 @@ void IndexerJob::encode(Serializer &serializer) const
     } else {
         copy.arguments << options.defaultArguments;
     }
+
+    if (!(options.options & Server::AllowPedantic)) {
+        const int idx = copy.arguments.indexOf("-Wpedantic");
+        if (idx != -1) {
+            copy.arguments.removeAt(idx);
+        }
+    }
+
     for (const auto &inc : options.includePaths) {
         copy.includePaths << Source::Include(Source::Include::Type_Include, inc);
     }
