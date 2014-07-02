@@ -178,7 +178,7 @@ int main(int argc, char** argv)
         { "max-crash-count", required_argument, 0, 'K' },
         { "completion-cache-size", required_argument, 0, 'i' },
         { "extra-compilers", required_argument, 0, 'U' },
-        { "--allow-Wpedantic", no_argument, 0, 'P' },
+        { "allow-Wpedantic", no_argument, 0, 'P' },
 #ifdef OS_Darwin
         { "filemanager-watch", no_argument, 0, 'M' },
 #else
