@@ -1,0 +1,349 @@
+.TH RC 7
+
+.SH NAME
+rc \- RTags client
+
+.SH SYNOPSIS
+.B rc [options]
+
+.B rc [\-\-help|\-h]
+
+.SH DESCRIPTION
+RTags client.
+
+.SH OPTIONS
+
+.SS RDM options
+
+.TP
+.BR \-\-quit\-rdm|\-q\ [\fIarg\fR]
+Tell server to shut down. If \fIarg\fR is broadcast:10 tell all rdm on the farm to quit with exit code 10.
+
+.TP
+.BR \-\-connect\-timeout\ \fItimeout\fR
+Timeout for connecting to rdm in ms (default 1000).
+
+.SS Project management
+
+.TP
+.BR \-\-clear|\-C
+Clear projects.
+
+.TP
+.BR \-\-project|\-w\ [\fIname\fR]
+If specified, select project matching \fIname\fR if unique, otherwise list all projects.
+
+.TP
+.BR \-\-delete\-project|\-W\ [\fIname\fR]
+Delete all projects matching regexp.
+
+.TP
+.BR \-\-unload|\-u\ [\fIarg\fR]
+Unload project(s) matching argument.
+
+.TP
+.BR \-\-reload\-projects|\-z
+Reload projects from projects file.
+
+.TP
+.BR \-\-jobcount|\-j\ [\fIn\fR]
+Set or query current job count.
+
+.TP
+.BR \-\-syncproject
+Synchronize current project ASAP.
+
+
+.SS Indexing
+
+.TP
+.BR \-\-compile|\-c\ [\fIargs\fR]
+Pass compilation arguments to rdm.
+
+.TP
+.BR \-\-load\-compilation\-database|\-J\ [\fIjson\fR]
+Load compile_commands.json from directory
+
+.TP
+.BR \-\-suspend\-file|\-X\ [\fIarg\fR]
+Dump suspended files (don't track changes in these files) with no arg. Otherwise toggle suspension for arg.
+
+
+.SS Querying
+
+.TP
+.BR \-\-follow\-location|\-f\ \fIlocation\fR
+Follow this location.
+
+.TP
+.BR \-\-references\-name|\-R\ \fIarg\fR
+Find references matching arg.
+
+.TP
+.BR \-\-references|\-r\ \fIlocation\fR
+Find references matching this location.
+
+.TP
+.BR \-\-list\-symbols|\-S\ [\fIpattern\fR]
+List symbol names matching \fIpattern\fR.
+
+.TP
+.BR \-\-find\-symbols|\-F\ \fIarg\fR
+Find symbols matching arg.
+
+.TP
+.BR \-\-cursor\-info|\-U\ \fIlocation\fR
+Get cursor info for this location.
+
+.TP
+.BR \-\-status|\-s\ [\fIarg\fR]                     Dump status of rdm. Arg can be symbols or symbolNames.
+
+.TP
+.BR \-\-is\-indexed|\-T\ [\fIfile\fR]
+Check if rtags knows about, and is ready to return information about, this source file.
+
+.TP
+.BR \-\-is\-indexing
+Check if rtags is currently indexing files.
+
+.TP
+.BR \-\-has\-filemanager\ [\fIoptional\fR]
+Check if rtags has info about files in this directory.
+
+.TP
+.BR \-\-preprocess|\-E\ [\fIfile\fR]
+Preprocess file.
+
+.TP
+.BR \-\-reindex|\-V\ [\fIpattern\fR]
+Reindex all files or all files matching \fIpattern\fR.
+
+.TP
+.BR \-\-path|\-P\ [\fIpattern\fR]
+Print files matching pattern.
+
+.TP
+.BR \-\-dump\-file|\-d\ \fIfile\fR
+Dump source file.
+
+.TP
+.BR \-\-rdm\-log|\-g
+Receive logs from rdm.
+
+.TP
+.BR \-\-fixits\ \fIfile\fR
+Get fixits for file.
+
+.TP
+.BR \-\-remove|\-D\ \fIfile\fR
+Remove file from project.
+
+.TP
+.BR \-\-find\-project\-root\ [\fIarg\fR]
+Use to check behavior of find\-project\-root.
+
+.TP
+.BR \-\-find\-project\-build\-root\ [\fIarg\fR]
+Use to check behavior of find\-project\-root for builds.
+
+.TP
+.BR \-\-sources\ \fIfile\fR
+Dump sources for source file.
+
+.TP
+.BR \-\-dependencies\ \fIfile\fR
+Dump dependencies for source file.
+
+.TP
+.BR \-\-reload\-file\-manager|\-B
+Reload file manager.
+
+.TP
+.BR \-\-man
+Output XML for xmltoman to generate man page for rc :\-)
+
+.TP
+.BR \-\-code\-complete\-at|\-l\ \fIlocation\fR
+Code complete at location: arg is file:line:col.
+
+.TP
+.BR \-\-prepare\-code\-complete\-at|\-b\ \fIlocation\fR
+Prepare code completion at location: arg is file:line:col.
+
+.TP
+.BR \-\-send\-diagnostics\ [\fIarg\fR]
+Only for debugging. Send data to all \-g connections.
+
+.TP
+.BR \-\-dump\-completions
+Dump cached completions.
+
+
+.SS Common
+
+
+.TP
+.BR \-\-strip\-paren|\-p
+Strip parens in various contexts.
+
+.TP
+.BR \-\-max|\-M\ \fIlines\fR
+Max lines of output for queries.
+
+.TP
+.BR \-\-reverse\-sort|\-O
+Sort output reversed.
+
+.TP
+.BR \-\-unsaved\-file\ \fIfile\fR
+Pass unsaved file on command line. E.g. \-\-unsaved\-file=main.cpp:1200 then write 1200 bytes on stdin.
+
+.TP
+.BR \-\-log\-file|\-L\ \fIfile\fR
+Log to this file.
+
+.TP
+.BR \-\-no\-context|\-N
+Don't print context for locations.
+
+.TP
+.BR \-\-path\-filter|\-i\ \fIpattern\fR
+Filter out results not matching \fIpattern\fR.
+
+.TP
+.BR \-\-range\-filter\ [\fIarg\fR]
+Filter out results not in the specified range.
+
+.TP
+.BR \-\-filter\-system\-headers|\-H
+Don't exempt system headers from path filters.
+
+.TP
+.BR \-\-all\-references|\-e
+Include definitions/declarations/constructors/destructors for references. Used for rename symbol.
+
+.TP
+.BR \-\-elisp\-list|\-Y
+Output elisp: (list "one" "two" ...).
+
+.TP
+.BR \-\-diagnostics|\-G
+Receive continual diagnostics from rdm.
+
+.TP
+.BR \-\-xml\-diagnostics|\-m
+Receive continual XML formatted diagnostics from rdm.
+
+.TP
+.BR \-\-match\-regexp|\-Z
+Treat various text patterns as regexps (\-P, \-i, \-V).
+
+.TP
+.BR \-\-match\-icase|\-I
+Match case insensitively
+
+.TP
+.BR \-\-absolute\-path|\-K
+Print files with absolute path.
+
+.TP
+.BR \-\-socket\-file|\-n\ [\fIfile\fR]
+Use this socket file (default ~/.rdm).
+
+.TP
+.BR \-\-timeout|\-y\ \fItimeout\fR
+Max time in ms to wait for job to finish (default no timeout).
+
+.TP
+.BR \-\-find\-virtuals|\-k
+Use in combinations with \-R or \-r to show other implementations of this function.
+
+.TP
+.BR \-\-find\-file\-prefer\-exact|\-A
+Use to make \-\-find\-file prefer exact matches over partial matches.
+
+.TP
+.BR \-\-cursorinfo\-include\-parents
+Use to make \-\-cursor\-info include parent cursors.
+
+.TP
+.BR \-\-cursorinfo\-include\-targets
+Use to make \-\-cursor\-info include target cursors.
+
+.TP
+.BR \-\-cursorinfo\-include\-references
+Use to make \-\-cursor\-info include reference cursors.
+
+.TP
+.BR \-\-cursor\-kind
+Include cursor kind in \-\-find\-symbols output.
+
+.TP
+.BR \-\-display\-name
+Include display name in \-\-find\-symbols output.
+
+.TP
+.BR \-\-current\-file\ \fIfile\fR
+Pass along which file is being edited to give rdm a better chance at picking the right project.
+
+.TP
+.BR \-\-declaration\-only
+Filter out definitions (unless inline).
+
+.TP
+.BR \-\-imenu
+Use with \-\-list\-symbols to provide output for (rtags\-imenu) (filter namespaces, fully qualified function names, ignore certain cursors etc).
+
+.TP
+.BR \-\-containing\-function|\-o
+Include name of containing function in output.
+
+.TP
+.BR \-\-build\-index\ [\fIarg\fR]
+For sources with multiple builds, use the arg'th.
+
+.TP
+.BR \-\-compilation\-flags\-only
+For \-\-source, only print compilation flags.
+
+.TP
+.BR \-\-compilation\-flags\-split\-line
+For \-\-source, print one compilation flag per line.
+
+.TP
+.BR \-\-dump\-include\-headers
+For \-\-dump\-file, also dump dependencies.
+
+.TP
+.BR \-\-silent\-query
+Don't log this request in rdm.
+
+.TP
+.BR \-\-synchronous\-completions
+Wait for completion results.
+
+.TP
+.BR \-\-unescape\-compile\-commands
+Unescape \'s and unquote arguments to \-c.
+
+.TP
+.BR \-\-no\-unescape\-compile\-commands
+Escape \'s and unquote arguments to \-c.
+
+.TP
+.BR \-\-no\-sort\-references\-by\-input
+Don't sort references by input position.
+
+.TP
+.BR \-\-project\-root\ [\fIarg\fR]
+Override project root for compile commands.
+
+.TP
+.BR \-\-rtags\-config\ [\fIarg\fR]
+Print out .rtags\-config for argument.
+
+
+.SH EXAMPLES
+.SH ENVIRONMENT
+.SH SEE ALSO
+
