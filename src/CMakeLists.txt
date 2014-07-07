@@ -168,4 +168,6 @@ install(CODE "message(\"Installing rtags...\")")
 install(TARGETS rdm rc rp RUNTIME DESTINATION bin COMPONENT rtags)
 install(TARGETS rtags shared LIBRARY DESTINATION lib COMPONENT rtags)
 install(FILES ../bin/cc_prefix.sh ../bin/gcc-rtags-hook.sh ../bin/gcc-rtags-wrapper.sh DESTINATION bin)
+install(FILES ../man/rc.7 ../man/rdm.7 DESTINATION share/man/man7/)
+
 
