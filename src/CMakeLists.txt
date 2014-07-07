@@ -163,3 +163,9 @@ if (CMAKE_SYSTEM_NAME MATCHES "Darwin")
   add_custom_command(TARGET rc POST_BUILD
     COMMAND ${CMAKE_CURRENT_LIST_DIR}/fix-dylib.sh ${PROJECT_BINARY_DIR} ${PROJECT_BINARY_DIR}/bin/rc)
 endif ()
+
+install(CODE "message(\"Installing rtags...\")")
+install(TARGETS rdm rc rp RUNTIME DESTINATION bin COMPONENT rtags)
+install(TARGETS rtags shared LIBRARY DESTINATION lib COMPONENT rtags)
+install(FILES ../bin/cc_prefix.sh ../bin/gcc-rtags-hook.sh ../bin/gcc-rtags-wrapper.sh DESTINATION bin)
+
