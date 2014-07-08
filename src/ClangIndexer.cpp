@@ -7,6 +7,7 @@
 #include <rct/EventLoop.h>
 #include "IndexerMessage.h"
 #include "IndexData.h"
+#include <unistd.h>
 
 static const CXSourceLocation nullLocation = clang_getNullLocation();
 static const CXCursor nullCursor = clang_getNullCursor();
@@ -59,6 +60,7 @@ bool ClangIndexer::exec(const String &data)
     String serverFile;
     uint32_t flags;
     uint32_t connectTimeout;
+    int32_t niceValue;
     extern bool suspendOnSigSegv;
     Hash<uint32_t, Path> blockedFiles;
 
@@ -70,8 +72,10 @@ bool ClangIndexer::exec(const String &data)
     deserializer >> mVisitFileTimeout;
     deserializer >> mIndexerMessageTimeout;
     deserializer >> connectTimeout;
+    deserializer >> niceValue;
     deserializer >> suspendOnSigSegv;
     deserializer >> mUnsavedFiles;
+
     uint32_t dirtySize;
     deserializer >> dirtySize;
     const uint64_t parseTime = Rct::currentTimeMs();
@@ -85,6 +89,14 @@ bool ClangIndexer::exec(const String &data)
     }
 
     deserializer >> blockedFiles;
+
+    if (niceValue != INT_MIN) {
+        errno = 0;
+        if (nice(niceValue) == -1) {
+            error() << "Failed to nice rp" << strerror(errno);
+        }
+    }
+
     if (mSourceFile.isEmpty()) {
         error("No sourcefile");
         return false;

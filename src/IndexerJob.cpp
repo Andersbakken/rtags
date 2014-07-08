@@ -119,6 +119,7 @@ void IndexerJob::encode(Serializer &serializer) const
                << static_cast<uint32_t>(options.rpVisitFileTimeout)
                << static_cast<uint32_t>(options.rpIndexerMessageTimeout)
                << static_cast<uint32_t>(options.rpConnectTimeout)
+               << static_cast<int32_t>(options.rpNiceValue)
                << static_cast<bool>(options.options & Server::SuspendRPOnCrash)
                << unsavedFiles << static_cast<uint32_t>(dirty.size());
     for (uint32_t fileId : dirty) {

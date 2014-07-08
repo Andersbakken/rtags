@@ -69,13 +69,14 @@ public:
         Options()
             : options(0), jobCount(0), unloadTimer(0),
               rpVisitFileTimeout(0), rpIndexerMessageTimeout(0), rpConnectTimeout(0),
-              syncThreshold(0), threadStackSize(0), maxCrashCount(0), completionCacheSize(0)
+              rpNiceValue(0), syncThreshold(0), threadStackSize(0), maxCrashCount(0),
+              completionCacheSize(0)
         {}
         Path socketFile, dataDir;
         unsigned options;
         int jobCount, unloadTimer, rpVisitFileTimeout,
-            rpIndexerMessageTimeout, rpConnectTimeout, syncThreshold,
-            threadStackSize, maxCrashCount, completionCacheSize;
+            rpIndexerMessageTimeout, rpConnectTimeout, rpNiceValue,
+            syncThreshold, threadStackSize, maxCrashCount, completionCacheSize;
         List<String> defaultArguments, excludeFilters;
         List<Path> includePaths;
         List<Source::Define> defines;

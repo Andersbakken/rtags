@@ -108,6 +108,7 @@ static void usage(FILE *f)
             "  --rp-visit-file-timeout|-t [arg]           Timeout for rp visitfile commands in ms (0 means no timeout) (default " STR(DEFAULT_RP_VISITFILE_TIMEOUT) ").\n"
             "  --rp-indexer-message-timeout|-T [arg]      Timeout for rp indexer-message in ms (0 means no timeout) (default " STR(DEFAULT_RP_INDEXER_MESSAGE_TIMEOUT) ").\n"
             "  --rp-connect-timeout|-O [arg]              Timeout for connection from rp to rdm in ms (0 means no timeout) (default " STR(DEFAULT_RP_CONNECT_TIMEOUT) ").\n"
+            "  --rp-nice-value|-a [arg]                   Nice value to use for rp (nice(2)) (default -1, e.g. not nicing).\n"
 #ifdef OS_Darwin
             "  --filemanager-watch|-M                     Use a file system watcher for filemanager.\n"
 #else
@@ -172,6 +173,7 @@ int main(int argc, char** argv)
         { "rp-visit-file-timeout", required_argument, 0, 't' },
         { "rp-indexer-message-timeout", required_argument, 0, 'T' },
         { "rp-connect-timeout", required_argument, 0, 'O' },
+        { "rp-nice-value", required_argument, 0, 'a' },
         { "thread-stack-size", required_argument, 0, 'k' },
         { "suspend-rp-on-crash", required_argument, 0, 'q' },
         { "separate-debug-and-release", no_argument, 0, 'E' },
@@ -290,6 +292,7 @@ int main(int argc, char** argv)
     serverOpts.rpVisitFileTimeout = DEFAULT_RP_VISITFILE_TIMEOUT;
     serverOpts.rpIndexerMessageTimeout = DEFAULT_RP_INDEXER_MESSAGE_TIMEOUT;
     serverOpts.rpConnectTimeout = DEFAULT_RP_CONNECT_TIMEOUT;
+    serverOpts.rpNiceValue = INT_MIN;
     serverOpts.options = Server::Wall|Server::SpellChecking;
     serverOpts.maxCrashCount = DEFAULT_MAX_CRASH_COUNT;
     serverOpts.completionCacheSize = DEFAULT_COMPLETION_CACHE_SIZE;
@@ -478,6 +481,14 @@ int main(int argc, char** argv)
                 return 1;
             }
             break;
+        case 'a': {
+            bool ok;
+            serverOpts.rpNiceValue = String(optarg).toLong(&ok);
+            if (!ok) {
+                fprintf(stderr, "Can't parse argument to -a %s.\n", optarg);
+                return 1;
+            }
+            break; }
         case 'j':
             serverOpts.jobCount = atoi(optarg);
             if (serverOpts.jobCount < 0) {
