@@ -169,7 +169,7 @@ int main(int argc, char** argv)
         { "no-no-unknown-warnings-option", no_argument, 0, 'Y' },
         { "ignore-compiler", required_argument, 0, 'b' },
         { "watch-system-paths", no_argument, 0, 'w' },
-        { "rp-visit-file-timout", required_argument, 0, 't' },
+        { "rp-visit-file-timeout", required_argument, 0, 't' },
         { "rp-indexer-message-timeout", required_argument, 0, 'T' },
         { "rp-connect-timeout", required_argument, 0, 'O' },
         { "thread-stack-size", required_argument, 0, 'k' },
