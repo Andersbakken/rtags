@@ -93,6 +93,8 @@ private:
     Location createLocation(const Path &file, unsigned int line, unsigned int col, bool *blocked = 0);
     String addNamePermutations(const CXCursor &cursor, const Location &location);
 
+    CXCursor resolveAutoTypeRef(const CXCursor &cursor) const;
+
     bool handleCursor(const CXCursor &cursor, CXCursorKind kind, const Location &location);
     void handleReference(const CXCursor &cursor, CXCursorKind kind, const Location &loc,
                          const CXCursor &reference, const CXCursor &parent);
