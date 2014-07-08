@@ -403,6 +403,14 @@
       (message (format "Dirtied %s" file)))))
 
 ;;;###autoload
+(defun rtags-maybe-reparse-file (&optional buffer)
+  (interactive)
+  (let ((file (buffer-file-name buffer)))
+    (when file
+      (with-temp-buffer
+        (rtags-call-rc :path file "-x" file)))))
+
+;;;###autoload
 (defun rtags-set-current-project ()
   (interactive)
   (let ((projects nil)
