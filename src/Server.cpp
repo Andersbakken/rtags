@@ -514,9 +514,10 @@ void Server::handleQueryMessage(const QueryMessage &message, Connection *conn)
     case QueryMessage::Project:
         project(message, conn);
         break;
-    case QueryMessage::Reindex: {
+    case QueryMessage::Reindex:
+    case QueryMessage::CheckReindex:
         reindex(message, conn);
-        break; }
+        break;
     case QueryMessage::ClearProjects:
         clearProjects(message, conn);
         break;
@@ -954,7 +955,7 @@ void Server::reindex(const QueryMessage &query, Connection *conn)
         }
     }
 
-    const int count = project->reindex(match, query.unsavedFiles());
+    const int count = project->reindex(match, query.type(), query.unsavedFiles());
     // error() << count << query.query();
     if (count) {
         conn->write<128>("Dirtied %d files", count);

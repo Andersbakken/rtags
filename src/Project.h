@@ -17,17 +17,18 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 #define Project_h
 
 #include "CursorInfo.h"
-#include <rct/Path.h>
-#include <rct/LinkedList.h>
+#include "IndexerJob.h"
+#include "Match.h"
+#include "QueryMessage.h"
 #include "RTags.h"
 #include "RTagsClang.h"
-#include "Match.h"
-#include <rct/Timer.h>
-#include <rct/RegExp.h>
-#include <rct/FileSystemWatcher.h>
-#include "IndexerJob.h"
-#include <mutex>
 #include <memory>
+#include <mutex>
+#include <rct/FileSystemWatcher.h>
+#include <rct/LinkedList.h>
+#include <rct/Path.h>
+#include <rct/RegExp.h>
+#include <rct/Timer.h>
 
 class IndexData;
 class FileManager;
@@ -104,7 +105,7 @@ public:
     bool isValidJob(uint64_t key) { return !key || mJobs.contains(key); }
     bool visitFile(uint32_t fileId, const Path &path, uint64_t id);
     String fixIts(uint32_t fileId) const;
-    int reindex(const Match &match, const UnsavedFiles &unsavedFiles);
+    int reindex(const Match &match, QueryMessage::Type type, const UnsavedFiles &unsavedFiles);
     int remove(const Match &match);
     void onJobFinished(const std::shared_ptr<IndexData> &indexData, const std::shared_ptr<IndexerJob> &job);
     SourceMap sources() const { return mSources; }

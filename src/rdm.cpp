@@ -114,6 +114,7 @@ static void usage(FILE *f)
 #else
             "  --no-filemanager-watch|-M                  Don't use a file system watcher for filemanager.\n"
 #endif
+            "  --no-filesystem-watcher|-B                 Disable file system watching altogether. Reindexing has to happen manually.\n"
             "  --suspend-rp-on-crash|-q [arg]             Suspend rp in SIGSEGV handler (default " DEFAULT_SUSPEND_RP ").\n"
             "  --no-no-unknown-warnings-option|-Y         Don't pass -Wno-unknown-warning-option\n"
             "  --ignore-compiler|-b [arg]                 Alias this compiler (Might be practical to avoid duplicated sources for things like icecc).\n"
@@ -186,6 +187,7 @@ int main(int argc, char** argv)
 #else
         { "no-filemanager-watch", no_argument, 0, 'M' },
 #endif
+        { "no-filesystem-watcher", no_argument, 0, 'B' },
         { 0, 0, 0, 0 }
     };
     const String shortOptions = Rct::shortOptions(opts);
@@ -420,6 +422,9 @@ int main(int argc, char** argv)
 #else
             serverOpts.options |= Server::NoFileManagerWatch;
 #endif
+            break;
+        case 'B':
+            serverOpts.options |= Server::NoFileSystemWatch;
             break;
         case 'F':
             serverOpts.options |= Server::IgnorePrintfFixits;

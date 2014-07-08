@@ -159,8 +159,10 @@ public:
 Project::Project(const Path &path)
     : mPath(path), mState(Unloaded), mJobCounter(0)
 {
-    mWatcher.modified().connect(std::bind(&Project::dirty, this, std::placeholders::_1));
-    mWatcher.removed().connect(std::bind(&Project::dirty, this, std::placeholders::_1));
+    if (!(Server::instance()->options().options & Server::NoFileSystemWatch)) {
+        mWatcher.modified().connect(std::bind(&Project::dirty, this, std::placeholders::_1));
+        mWatcher.removed().connect(std::bind(&Project::dirty, this, std::placeholders::_1));
+    }
     if (Server::instance()->options().options & Server::NoFileManagerWatch) {
         mWatcher.removed().connect(std::bind(&Project::reloadFileManager, this));
         mWatcher.added().connect(std::bind(&Project::reloadFileManager, this));
@@ -599,14 +601,39 @@ Set<uint32_t> Project::dependencies(uint32_t fileId, DependencyMode mode) const
     return ret;
 }
 
-int Project::reindex(const Match &match, const UnsavedFiles &unsavedFiles)
+int Project::reindex(const Match &match, QueryMessage::Type type, const UnsavedFiles &unsavedFiles)
 {
     Set<uint32_t> dirty;
 
-    const auto end = mDependencies.constEnd();
-    for (auto it = mDependencies.constBegin(); it != end; ++it) {
-        if (match.isEmpty() || match.match(Location::path(it->first))) {
-            dirty.insert(it->first);
+    if (type == QueryMessage::Reindex) {
+        const auto end = mDependencies.constEnd();
+        for (auto it = mDependencies.constBegin(); it != end; ++it) {
+            if (match.isEmpty() || match.match(Location::path(it->first))) {
+                dirty.insert(it->first);
+            }
+        }
+    } else {
+        assert(type == QueryMessage::CheckReindex);
+        DependencyMap reversedDependencies;
+        // these dependencies are in the form of:
+        // Path.cpp: Path.h, String.h ...
+        // mDependencies are like this:
+        // Path.h: Path.cpp, Server.cpp ...
+
+        {
+            for (const auto &it : mDependencies) {
+                for (const auto &s : it.second) {
+                    reversedDependencies[s].insert(it.first);
+                }
+            }
+        }
+
+        for (const auto &source : mSources) {
+            for (const auto &d : reversedDependencies[source.second.fileId]) {
+                if (!dirty.contains(d) && Location::path(d).lastModifiedMs() > source.second.parsed) {
+                    dirty.insert(d);
+                }
+            }
         }
     }
     if (dirty.isEmpty())

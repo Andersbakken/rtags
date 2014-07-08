@@ -27,6 +27,7 @@ enum OptionType {
     AbsolutePath,
     AllReferences,
     BuildIndex,
+    CheckReindex,
     Clear,
     CodeCompleteAt,
     CompilationFlagsOnly,
@@ -164,6 +165,7 @@ struct Option opts[] = {
     { HasFileManager, "has-filemanager", 0, optional_argument, "Check if rtags has info about files in this directory." },
     { PreprocessFile, "preprocess", 'E', required_argument, "Preprocess file." },
     { Reindex, "reindex", 'V', optional_argument, "Reindex all files or all files matching pattern." },
+    { CheckReindex, "check-reindex", 'x', optional_argument, "Check if reindexing is necessary for all files matching pattern." },
     { FindFile, "path", 'P', optional_argument, "Print files matching pattern." },
     { DumpFile, "dump-file", 'd', required_argument, "Dump source file." },
     { RdmLog, "rdm-log", 'g', no_argument, "Receive logs from rdm." },
@@ -859,6 +861,7 @@ bool RClient::parse(int &argc, char **argv)
                 printf("%s: \"%s\"\n", it.first.constData(), it.second.constData());
             }
             return false; }
+        case CheckReindex:
         case Reindex:
         case Project:
         case FindFile:
@@ -870,6 +873,7 @@ bool RClient::parse(int &argc, char **argv)
             unsigned int extraQueryFlags = 0;
             QueryMessage::Type type = QueryMessage::Invalid;
             switch (opt->option) {
+            case CheckReindex: type = QueryMessage::CheckReindex; break;
             case Reindex: type = QueryMessage::Reindex; break;
             case Project: type = QueryMessage::Project; break;
             case FindFile: type = QueryMessage::FindFile; extraQueryFlags = QueryMessage::WaitForLoadProject; break;

@@ -60,6 +60,7 @@ public:
         NoStartupCurrentProject = 0x0040,
         WatchSystemPaths = 0x0080,
         NoFileManagerWatch = 0x0100,
+        NoFileSystemWatch = 0x0200,
         NoNoUnknownWarningsOption = 0x0400,
         SuspendRPOnCrash = 0x0800,
         SeparateDebugAndRelease = 0x1000,

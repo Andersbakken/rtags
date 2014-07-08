@@ -29,6 +29,7 @@ class QueryMessage : public RTagsMessage
 public:
     enum { MessageId = QueryId };
     enum Type {
+        CheckReindex,
         ClearProjects,
         CodeCompleteAt,
         CursorInfo,
