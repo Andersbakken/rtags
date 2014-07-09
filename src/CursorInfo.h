@@ -156,8 +156,10 @@ public:
         return changed;
     }
 
-    static inline void serialize(Serializer &s, const SymbolMap &t);
-    static inline void deserialize(Deserializer &s, SymbolMap &t);
+    template <typename T>
+    static inline void serialize(T &s, const SymbolMap &t);
+    template <typename T>
+    static inline void deserialize(T &s, SymbolMap &t);
 
     enum Flag {
         IgnoreTargets = 0x1,
@@ -196,7 +198,8 @@ template <> inline Deserializer &operator>>(Deserializer &s, CursorInfo &t)
     return s;
 }
 
-inline void CursorInfo::serialize(Serializer &s, const SymbolMap &t)
+template <typename T>
+inline void CursorInfo::serialize(T &s, const SymbolMap &t)
 {
     const uint32_t size = t.size();
     s << size;
@@ -204,7 +207,8 @@ inline void CursorInfo::serialize(Serializer &s, const SymbolMap &t)
         s << it.first << *it.second;
 }
 
-inline void CursorInfo::deserialize(Deserializer &s, SymbolMap &t)
+template <typename T>
+inline void CursorInfo::deserialize(T &s, SymbolMap &t)
 {
     uint32_t size;
     s >> size;

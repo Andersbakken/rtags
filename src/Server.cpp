@@ -28,6 +28,7 @@
 #include "IndexerJob.h"
 #include "Source.h"
 #include "DumpThread.h"
+#include "DataFile.h"
 #if defined(HAVE_CXCOMPILATIONDATABASE)
 #  include <clang-c/CXCompilationDatabase.h>
 #endif
@@ -1346,30 +1347,17 @@ void Server::handleVisitFileMessage(const VisitFileMessage &message, Connection 
 void Server::restoreFileIds()
 {
     const Path p = mOptions.dataDir + "fileids";
-    bool clear = true;
-    const String all = p.readAll();
-    if (!all.isEmpty()) {
+    DataFile fileIdsFile(mOptions.dataDir + "fileids");
+    if (fileIdsFile.open(DataFile::Read)) {
         Hash<Path, uint32_t> pathsToIds;
-        Deserializer in(all);
-        int version;
-        in >> version;
-        if (version == RTags::DatabaseVersion) {
-            int size;
-            in >> size;
-            if (size != all.size()) {
-                error("Refusing to load corrupted file %s", p.constData());
-            } else {
-                in >> pathsToIds;
-                clear = false;
-                Location::init(pathsToIds);
-            }
-        } else {
-            error("%s has the wrong format. Got %d, expected %d. Can't restore anything",
-                  p.constData(), version, RTags::DatabaseVersion);
+        fileIdsFile >> pathsToIds;
+        Location::init(pathsToIds);
+    } else {
+        if (!fileIdsFile.error().isEmpty()) {
+            error("Can't restore file ids: %s", fileIdsFile.error().constData());
         }
-    }
-    if (clear)
         clearProjects();
+    }
 }
 
 bool Server::saveFileIds()
@@ -1377,25 +1365,18 @@ bool Server::saveFileIds()
     const uint32_t lastId = Location::lastId();
     if (mLastFileId == lastId)
         return true;
-    if (!Path::mkdir(mOptions.dataDir)) {
-        error("Can't create directory [%s]", mOptions.dataDir.constData());
-        return false;
-    }
-    const Path p = mOptions.dataDir + "fileids";
-    FILE *f = fopen(p.constData(), "w");
-    if (!f) {
-        error("Can't open file %s", p.constData());
+    DataFile fileIdsFile(mOptions.dataDir + "fileids");
+    if (!fileIdsFile.open(DataFile::Write)) {
+        error("Can't save file ids: %s", fileIdsFile.error().constData());
         return false;
     }
     const Hash<Path, uint32_t> pathsToIds = Location::pathsToIds();
-    Serializer out(f);
-    out << static_cast<int>(RTags::DatabaseVersion);
-    const int pos = ftell(f);
-    out << static_cast<int>(0) << pathsToIds;
-    const int size = ftell(f);
-    fseek(f, pos, SEEK_SET);
-    out << size;
-    fclose(f);
+    fileIdsFile << pathsToIds;
+    if (!fileIdsFile.flush()) {
+        error("Can't save file ids: %s", fileIdsFile.error().constData());
+        return false;
+    }
+
     mLastFileId = lastId;
     return true;
 }

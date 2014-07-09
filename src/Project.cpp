@@ -15,6 +15,7 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 
 #include "Project.h"
 #include "FileManager.h"
+#include "DataFile.h"
 #include "IndexerJob.h"
 #include "RTags.h"
 #include "Server.h"
@@ -67,38 +68,16 @@ public:
         Path path = mPath;
         RTags::encodePath(path);
         const Path p = Server::instance()->options().dataDir + path;
-        bool restoreError = false;
-        const String all = p.readAll();
-        if (all.isEmpty())
-            return false;
-
-        Deserializer in(all);
-        int version;
-        in >> version;
-        if (version != RTags::DatabaseVersion) {
-            error("Wrong database version. Expected %d, got %d for %s. Removing.", RTags::DatabaseVersion, version, p.constData());
-            restoreError = true;
-            goto end;
-        }
-        {
-            int fs;
-            in >> fs;
-            if (fs != all.size()) {
-                error("%s seems to be corrupted, refusing to restore %s",
-                      p.constData(), path.constData());
-                restoreError = true;
-                goto end;
-            }
-        }
-        CursorInfo::deserialize(in, mSymbols);
-        in >> mSymbolNames >> mUsr >> mDependencies >> mSources >> mVisitedFiles;
-  end:
-        if (restoreError) {
+        DataFile file(p);
+        if (!file.open(DataFile::Read)) {
+            error("Restore error %s: %s", mPath.constData(), file.error().constData());
             Path::rm(p);
             return false;
-        } else {
-            return true;
         }
+
+        CursorInfo::deserialize(file, mSymbols);
+        file >> mSymbolNames >> mUsr >> mDependencies >> mSources >> mVisitedFiles;
+        return true;
     }
 
     void finish()
@@ -467,24 +446,19 @@ bool Project::save()
     RTags::encodePath(srcPath);
     const Server::Options &options = Server::instance()->options();
     const Path p = options.dataDir + srcPath;
-    FILE *f = fopen(p.constData(), "w");
-    if (!f) {
-        error("Can't open file %s", p.constData());
+    DataFile file(p);
+    if (!file.open(DataFile::Write)) {
+        error("Save error %s: %s", p.constData(), file.error().constData());
         return false;
     }
-    Serializer out(f);
-    out << static_cast<int>(RTags::DatabaseVersion);
-    const int pos = ftell(f);
-    out << static_cast<int>(0);
-    CursorInfo::serialize(out, mSymbols);
-    out << mSymbolNames << mUsr
-        << mDependencies << mSources << mVisitedFiles;
+    CursorInfo::serialize(file, mSymbols);
+    file << mSymbolNames << mUsr
+         << mDependencies << mSources << mVisitedFiles;
+    if (!file.flush()) {
+        error("Save error %s: %s", p.constData(), file.error().constData());
+        return false;
+    }
 
-    const int size = ftell(f);
-    fseek(f, pos, SEEK_SET);
-    out << size;
-
-    fclose(f);
     return true;
 }
 
@@ -1154,18 +1128,18 @@ String Project::sync()
     for (auto it = newFiles.constBegin(); it != newFiles.constEnd(); ++it) {
         watch(Location::path(*it));
     }
-    mPendingData.clear();
     const int syncTime = sw.restart();
     save();
     const int saveTime = sw.elapsed();
-    String msg;
-    Log(&msg) << "Jobs took" << (static_cast<double>(mTimer.elapsed()) / 1000.0)
-              << "secs, dirtying took"
-              << (static_cast<double>(dirtyTime) / 1000.0) << "secs, syncing took"
-              << (static_cast<double>(syncTime) / 1000.0) << " secs, saving took"
-              << (static_cast<double>(saveTime) / 1000.0) << " secs, using"
-              << MemoryMonitor::usage() / (1024.0 * 1024.0) << "mb of memory"
-              << symbols << "symbols" << symbolNames << "symbolNames";
+    double timerElapsed = (mTimer.elapsed() / 1000.0);
+    const double averageJobTime = timerElapsed / mPendingData.size();
+    mPendingData.clear();
+    const String msg = String::format<1024>("Jobs took %.2fs, (average %.2fs), dirtying took %.2fs, "
+                                            "syncing took %.2fs, saving took %.2fs. We're using %lldmb of memory. "
+                                            "%d symbols, %d symbolNames",
+                                            timerElapsed, averageJobTime, dirtyTime / 1000.0, syncTime / 1000.0,
+                                            saveTime / 1000.0, MemoryMonitor::usage() / (1024 * 1024),
+                                            symbols, symbolNames);
     mTimer.start();
     return msg;
 }
