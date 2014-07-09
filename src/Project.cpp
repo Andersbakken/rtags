@@ -347,6 +347,8 @@ void Project::onJobFinished(const std::shared_ptr<IndexData> &indexData, const s
     if (mState == Syncing) {
         mPendingIndexData[indexData->key] = std::make_pair(indexData, job);
         return;
+    } else if (mState != Loaded) {
+        return;
     }
     assert(indexData);
     Source pendingSource;
@@ -355,7 +357,6 @@ void Project::onJobFinished(const std::shared_ptr<IndexData> &indexData, const s
     const auto it = mJobs.find(indexData->key);
     if (it == mJobs.end()) {
         error() << "Couldn't find JobData for" << Location::path(fileId);
-        // not sure if this can happen when unloading while jobs are running
         return;
     }
 
