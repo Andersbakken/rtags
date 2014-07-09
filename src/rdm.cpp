@@ -105,6 +105,7 @@ static void usage(FILE *f)
 #else
             "  --no-filemanager-watch|-M                  Don't use a file system watcher for filemanager.\n"
 #endif
+            "  --start-suspended|-Q                       Start out suspended (no reindexing enabled).\n"
             "  --no-filesystem-watcher|-B                 Disable file system watching altogether. Reindexing has to happen manually.\n"
             "  --suspend-rp-on-crash|-q [arg]             Suspend rp in SIGSEGV handler (default " DEFAULT_SUSPEND_RP ").\n"
             "  --no-no-unknown-warnings-option|-Y         Don't pass -Wno-unknown-warning-option\n"
@@ -168,6 +169,7 @@ int main(int argc, char** argv)
         { "rp-nice-value", required_argument, 0, 'a' },
         { "thread-stack-size", required_argument, 0, 'k' },
         { "suspend-rp-on-crash", required_argument, 0, 'q' },
+        { "start-suspended", no_argument, 0, 'Q' },
         { "separate-debug-and-release", no_argument, 0, 'E' },
         { "max-crash-count", required_argument, 0, 'K' },
         { "completion-cache-size", required_argument, 0, 'i' },
@@ -349,6 +351,9 @@ int main(int argc, char** argv)
             break; }
         case 'E':
             serverOpts.options |= Server::SeparateDebugAndRelease;
+            break;
+        case 'Q':
+            serverOpts.options |= Server::StartSuspended;
             break;
         case 't':
             serverOpts.rpVisitFileTimeout = atoi(optarg);
@@ -554,7 +559,6 @@ int main(int argc, char** argv)
     }
 
     loop->exec();
-    printf("[%s:%d]: loop->exec();\n", __FILE__, __LINE__); fflush(stdout);
     cleanupLogging();
     return 0;
 }

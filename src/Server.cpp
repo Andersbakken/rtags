@@ -102,7 +102,7 @@ private:
 
 Server *Server::sInstance = 0;
 Server::Server()
-    : mVerbose(false), mLastFileId(0), mCompletionThread(0)
+    : mSuspended(false), mVerbose(false), mLastFileId(0), mCompletionThread(0)
 {
     assert(!sInstance);
     sInstance = this;
@@ -137,6 +137,7 @@ bool Server::init(const Options &options)
     RTags::initMessages();
 
     mOptions = options;
+    mSuspended = (options.options & StartSuspended);
     Path clangPath = Path::resolved(CLANG_INCLUDEPATH);
     mOptions.includePaths.append(clangPath);
 #ifdef OS_Darwin
@@ -480,8 +481,8 @@ void Server::handleQueryMessage(const QueryMessage &message, Connection *conn)
     case QueryMessage::PrepareCodeCompleteAt:
         codeCompleteAt(message, conn);
         break;
-    case QueryMessage::SuspendFile:
-        suspendFile(message, conn);
+    case QueryMessage::Suspend:
+        suspend(message, conn);
         break;
     case QueryMessage::IsIndexing:
         isIndexing(message, conn);
@@ -1273,21 +1274,44 @@ void Server::dumpCompletions(const QueryMessage &query, Connection *conn)
     conn->finish();
 }
 
-void Server::suspendFile(const QueryMessage &query, Connection *conn)
+void Server::suspend(const QueryMessage &query, Connection *conn)
 {
-    std::shared_ptr<Project> project;
-    const Match match = query.match();
-    if (match.isEmpty() || match.pattern() == "clear") {
-        project = currentProject();
-    } else {
-        project = projectForQuery(query);
+    const Path p = query.match().pattern();
+    enum Mode {
+        List,
+        All,
+        Clear,
+        File
+    } mode = List;
+    if (p == "clear") {
+        mode = Clear;
+    } else if (p == "all") {
+        mode = All;
+    } else if (!p.isEmpty()) {
+        mode = File;
     }
-    if (!project) {
-        conn->write("No project");
-    } else if (project->state() != Project::Loaded) {
-        conn->write("Project loading");
+
+    std::shared_ptr<Project> project;
+    if (mode == File) {
+        project = projectForQuery(query);
     } else {
-        if (match.isEmpty()) {
+        project = currentProject();
+    }
+    switch (mode) {
+    case All:
+        mSuspended = true;
+        conn->write("All files are suspended.");
+        break;
+    case Clear:
+        mSuspended = false;
+        if (project && project->state() == Project::Loaded)
+            project->clearSuspendedFiles();
+        conn->write("No files suspended.");
+        break;
+    case List:
+        if (mSuspended)
+            conn->write("All files are suspended.");
+        if (project && project->state() == Project::Loaded) {
             const Set<uint32_t> suspendedFiles = project->suspendedFiles();
             if (suspendedFiles.isEmpty()) {
                 conn->write<512>("No files suspended for project %s", project->path().constData());
@@ -1295,23 +1319,25 @@ void Server::suspendFile(const QueryMessage &query, Connection *conn)
                 for (const auto &it : suspendedFiles)
                     conn->write<512>("%s is suspended", Location::path(it).constData());
             }
+        }
+        break;
+    case File:
+        if (!project) {
+            conn->write("No project");
+        } else if (project->state() != Project::Loaded) {
+            conn->write("Project loading");
+        } else if (!p.isFile()) {
+            conn->write<512>("%s doesn't seem to exist", p.constData());
         } else {
-            const Path p = query.match().pattern();
-            if (p == "clear") {
-                project->clearSuspendedFiles();
-                conn->write<512>("No files are suspended");
-            } else if (!p.isFile()) {
-                conn->write<512>("%s doesn't seem to exist", p.constData());
+            const uint32_t fileId = Location::fileId(p);
+            if (fileId) {
+                conn->write<512>("%s is no%s suspended", p.constData(),
+                                 project->toggleSuspendFile(fileId) ? "w" : " longer");
             } else {
-                const uint32_t fileId = Location::fileId(p);
-                if (fileId) {
-                    conn->write<512>("%s is no%s suspended", p.constData(),
-                                     project->toggleSuspendFile(fileId) ? "w" : " longer");
-                } else {
-                    conn->write<512>("%s is not indexed", p.constData());
-                }
+                conn->write<512>("%s is not indexed", p.constData());
             }
         }
+        break;
     }
     conn->finish();
 }

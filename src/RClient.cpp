@@ -98,7 +98,7 @@ enum OptionType {
     Sources,
     Status,
     StripParen,
-    SuspendFile,
+    Suspend,
     SyncProject,
     SynchronousCompletions,
     Timeout,
@@ -149,7 +149,7 @@ struct Option opts[] = {
 #if defined(HAVE_CXCOMPILATIONDATABASE) && CLANG_VERSION_MINOR >= 3
     { LoadCompilationDatabase, "load-compilation-database", 'J', optional_argument, "Load compile_commands.json from directory" },
 #endif
-    { SuspendFile, "suspend-file", 'X', optional_argument, "Dump suspended files (don't track changes in these files) with no arg. Otherwise toggle suspension for arg." },
+    { Suspend, "suspend", 'X', optional_argument, "Dump suspended files (don't track changes in these files) with no arg. Otherwise toggle suspension for arg." },
 
     { None, 0, 0, 0, "" },
     { None, 0, 0, 0, "Query commands:" },
@@ -963,7 +963,7 @@ bool RClient::parse(int &argc, char **argv)
             p.resolve(Path::MakeAbsolute);
             mProjectRoot = p;
             break; }
-        case SuspendFile: {
+        case Suspend: {
             Path p;
             if (optarg) {
                 p = optarg;
@@ -971,17 +971,15 @@ bool RClient::parse(int &argc, char **argv)
                 p = argv[optind++];
             }
             if (!p.isEmpty()) {
-                if (p == "clear" && !p.exists()) {
-
-                } else {
+                if (p != "clear" && p != "all") {
                     p.resolve(Path::MakeAbsolute);
-                    if (!p.isFile() && p != "clear") {
+                    if (!p.isFile()) {
                         fprintf(stderr, "%s is not a file\n", optarg);
                         return false;
                     }
                 }
             }
-            addQuery(QueryMessage::SuspendFile, p);
+            addQuery(QueryMessage::Suspend, p);
             break; }
         case Compile: {
             String args = optarg;

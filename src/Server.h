@@ -64,7 +64,8 @@ public:
         NoNoUnknownWarningsOption = 0x0400,
         SuspendRPOnCrash = 0x0800,
         SeparateDebugAndRelease = 0x1000,
-        AllowPedantic = 0x2000
+        AllowPedantic = 0x2000,
+        StartSuspended = 0x4000
     };
     struct Options {
         Options()
@@ -86,6 +87,7 @@ public:
     };
     bool init(const Options &options);
     const Options &options() const { return mOptions; }
+    bool suspended() const { return mSuspended; }
     bool saveFileIds();
     void onJobOutput(JobOutput&& out);
     void addJob(const std::shared_ptr<IndexerJob> &job);
@@ -141,7 +143,7 @@ private:
     void dumpCompletions(const QueryMessage &query, Connection *conn);
     void status(const QueryMessage &query, Connection *conn);
     void syncProject(const QueryMessage &qyery, Connection *conn);
-    void suspendFile(const QueryMessage &query, Connection *conn);
+    void suspend(const QueryMessage &query, Connection *conn);
 
     std::shared_ptr<Project> projectForQuery(const QueryMessage &queryMessage);
     std::shared_ptr<Project> currentProject() const { return mCurrentProject.lock(); }
@@ -173,6 +175,7 @@ private:
 
     static Server *sInstance;
     Options mOptions;
+    bool mSuspended;
     SocketServer::SharedPtr mUnixServer;
     bool mVerbose;
 

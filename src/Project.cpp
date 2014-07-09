@@ -183,51 +183,53 @@ void Project::updateContents(RestoreThread *thread)
 
         mVisitedFiles = std::move(thread->mVisitedFiles);
 
-        DependencyMap reversedDependencies;
-        // these dependencies are in the form of:
-        // Path.cpp: Path.h, String.h ...
-        // mDependencies are like this:
-        // Path.h: Path.cpp, Server.cpp ...
+        if (!Server::instance()->suspended()) {
+            DependencyMap reversedDependencies;
+            // these dependencies are in the form of:
+            // Path.cpp: Path.h, String.h ...
+            // mDependencies are like this:
+            // Path.h: Path.cpp, Server.cpp ...
 
-        {
-            auto it = mDependencies.begin();
-            while (it != mDependencies.end()) {
-                const Path file = Location::path(it->first);
-                if (!file.exists()) {
-                    error() << "File doesn't exist" << file;
-                    mDependencies.erase(it++);
-                    needsSave = true;
-                    continue;
-                }
-                watch(file);
-                for (auto s = it->second.constBegin(); s != it->second.constEnd(); ++s)
-                    reversedDependencies[*s].insert(it->first);
-                ++it;
-            }
-        }
-
-        auto it = mSources.begin();
-        while (it != mSources.end()) {
-            const Source &source = it->second;
-            if (!source.sourceFile().isFile()) {
-                error() << source.sourceFile() << "seems to have disappeared";
-                dirty.insert(source.fileId);
-                mSources.erase(it++);
-                needsSave = true;
-            } else {
-                assert(mDependencies.value(source.fileId).contains(source.fileId));
-                const Set<uint32_t> &deps = reversedDependencies[source.fileId];
-                // error() << source.sourceFile() << "has" << deps.size();
-                for (auto d = deps.constBegin(); d != deps.constEnd(); ++d) {
-                    if (!dirty.contains(*d) && Location::path(*d).lastModifiedMs() > source.parsed) {
-                        dirty.insert(*d);
-                        // error() << Location::path(*d).lastModifiedMs() << "is more than" << source.parsed
-                        //         << it->second.sourceFile() << Location::path(*d)
-                        //         << String::formatTime(source.parsed / 1000)
-                        //         << String::formatTime(Location::path(*d).lastModifiedMs() / 1000);
+            {
+                auto it = mDependencies.begin();
+                while (it != mDependencies.end()) {
+                    const Path file = Location::path(it->first);
+                    if (!file.exists()) {
+                        error() << "File doesn't exist" << file;
+                        mDependencies.erase(it++);
+                        needsSave = true;
+                        continue;
                     }
+                    watch(file);
+                    for (auto s = it->second.constBegin(); s != it->second.constEnd(); ++s)
+                        reversedDependencies[*s].insert(it->first);
+                    ++it;
                 }
-                ++it;
+            }
+
+            auto it = mSources.begin();
+            while (it != mSources.end()) {
+                const Source &source = it->second;
+                if (!source.sourceFile().isFile()) {
+                    error() << source.sourceFile() << "seems to have disappeared";
+                    dirty.insert(source.fileId);
+                    mSources.erase(it++);
+                    needsSave = true;
+                } else {
+                    assert(mDependencies.value(source.fileId).contains(source.fileId));
+                    const Set<uint32_t> &deps = reversedDependencies[source.fileId];
+                    // error() << source.sourceFile() << "has" << deps.size();
+                    for (auto d = deps.constBegin(); d != deps.constEnd(); ++d) {
+                        if (!dirty.contains(*d) && Location::path(*d).lastModifiedMs() > source.parsed) {
+                            dirty.insert(*d);
+                            // error() << Location::path(*d).lastModifiedMs() << "is more than" << source.parsed
+                            //         << it->second.sourceFile() << Location::path(*d)
+                            //         << String::formatTime(source.parsed / 1000)
+                            //         << String::formatTime(Location::path(*d).lastModifiedMs() / 1000);
+                        }
+                    }
+                    ++it;
+                }
             }
         }
     }
@@ -494,11 +496,15 @@ void Project::index(const Source &source, uint32_t flags,
     if (data.job && data.job->update(source, flags))
         return;
 
+    const bool existed = mSources.contains(key);
     mSources[key] = source;
     watch(sourceFile);
 
     data.pendingSource.clear();
     mPendingData.remove(key);
+
+    if (Server::instance()->suspended() && existed && (flags & IndexerJob::Compile))
+        return;
 
     if (!mJobCounter++)
         mTimer.start();
@@ -511,7 +517,7 @@ void Project::index(const Source &source, uint32_t flags,
 void Project::dirty(const Path &file)
 {
     const uint32_t fileId = Location::fileId(file);
-    if (mSuspendedFiles.contains(fileId)) {
+    if (Server::instance()->suspended() || mSuspendedFiles.contains(fileId)) {
         warning() << file << "is suspended. Ignoring modification";
         return;
     }
