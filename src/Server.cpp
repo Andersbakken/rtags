@@ -101,7 +101,7 @@ private:
 
 Server *Server::sInstance = 0;
 Server::Server()
-    : mVerbose(false), mCompletionThread(0)
+    : mVerbose(false), mLastFileId(0), mCompletionThread(0)
 {
     assert(!sInstance);
     sInstance = this;
@@ -125,6 +125,7 @@ Server::~Server()
     }
 
     stopServers();
+    mProjects.clear(); // need to be destroyed before sInstance is set to 0
     assert(sInstance == this);
     sInstance = 0;
     Messages::cleanup();
@@ -1317,7 +1318,9 @@ void Server::suspendFile(const QueryMessage &query, Connection *conn)
 void Server::syncProject(const QueryMessage &qyery, Connection *conn)
 {
     if (std::shared_ptr<Project> project = currentProject()) {
-        project->startSync();
+        if (!project->startSync(Project::Sync_Synchronous))
+            project->startSync(Project::Sync_Asynchronous);
+
     } else {
         conn->write("No active project");
     }
@@ -1369,8 +1372,11 @@ void Server::restoreFileIds()
         clearProjects();
 }
 
-bool Server::saveFileIds() const
+bool Server::saveFileIds()
 {
+    const uint32_t lastId = Location::lastId();
+    if (mLastFileId == lastId)
+        return true;
     if (!Path::mkdir(mOptions.dataDir)) {
         error("Can't create directory [%s]", mOptions.dataDir.constData());
         return false;
@@ -1390,6 +1396,7 @@ bool Server::saveFileIds() const
     fseek(f, pos, SEEK_SET);
     out << size;
     fclose(f);
+    mLastFileId = lastId;
     return true;
 }
 

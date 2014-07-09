@@ -133,26 +133,15 @@ public:
     virtual void run()
     {
         if (std::shared_ptr<Project> project = mProject.lock()) {
-            project->mJobCounter = project->mJobs.size();
-            Project::SyncData data = project->syncDB();
-            StopWatch sw;
-            project->save();
-            const int saveTime = sw.elapsed();
-            String msg;
-            Log(&msg) << "Jobs took" << (static_cast<double>(project->mTimer.elapsed()) / 1000.0)
-                      << "secs, dirtying took"
-                      << (static_cast<double>(data.dirtyTime) / 1000.0) << "secs, syncing took"
-                      << (static_cast<double>(data.syncTime) / 1000.0) << " secs, saving took"
-                      << (static_cast<double>(saveTime) / 1000.0) << " secs, using"
-                      << MemoryMonitor::usage() / (1024.0 * 1024.0) << "mb of memory"
-                      << data.symbols << "symbols" << data.symbolNames << "symbolNames";
-            project->mTimer.start();
-            EventLoop::mainEventLoop()->callLater([project,msg]() {
-                    error() << msg;
+            const String msg = project->sync();
+            EventLoop::mainEventLoop()->callLater([project, msg]() {
+                    if (!msg.isEmpty())
+                        error() << msg;
                     project->onSynced();
                 });
         }
     }
+
     std::weak_ptr<Project> mProject;
 };
 
@@ -169,7 +158,7 @@ Project::Project(const Path &path)
         mWatcher.removed().connect(std::bind(&Project::reloadFileManager, this));
         mWatcher.added().connect(std::bind(&Project::reloadFileManager, this));
     }
-    mSyncTimer.timeout().connect([this](Timer *) { this->startSync(); });
+    mSyncTimer.timeout().connect([this](Timer *) { this->startSync(Sync_Asynchronous); });
     mDirtyTimer.timeout().connect(std::bind(&Project::onDirtyTimeout, this, std::placeholders::_1));
 }
 
@@ -181,7 +170,6 @@ Project::~Project()
             it->second.job->abort();
     }
 }
-
 
 void Project::init()
 {
@@ -309,6 +297,10 @@ void Project::unload()
             it->second.job->abort();
     }
 
+    const String msg = sync();
+    if (!msg.isEmpty())
+        error() << msg;
+
     mJobs.clear();
     fileManager.reset();
 
@@ -379,8 +371,6 @@ void Project::onJobFinished(const std::shared_ptr<IndexData> &indexData, const s
             // error() << "Returning files" << Location::path(f);
             mVisitedFiles.remove(f);
         }
-    } if (success && jobData->job->flags & (IndexerJob::Crashed|IndexerJob::Aborted)) {
-        error() << "Could die" << String::format<8>("0x%x", jobData->job->flags);
     }
     // assert(!success || !(jobData->job->flags & (IndexerJob::Crashed|IndexerJob::Aborted)));
     if (jobData->job->flags & IndexerJob::Crashed) {
@@ -443,7 +433,7 @@ void Project::onJobFinished(const std::shared_ptr<IndexData> &indexData, const s
         if (mJobs.isEmpty()) {
             mSyncTimer.restart(indexData->flags & IndexerJob::Dirty ? 0 : SyncTimeout, Timer::SingleShot);
         } else if (options.syncThreshold && mPendingData.size() >= options.syncThreshold) {
-            startSync();
+            startSync(Sync_Asynchronous);
         }
     } else {
         jobData->job.reset();
@@ -468,8 +458,9 @@ void Project::onJobFinished(const std::shared_ptr<IndexData> &indexData, const s
 
 bool Project::save()
 {
-    if (!Server::instance()->saveFileIds())
+    if (!Server::instance()->saveFileIds()) {
         return false;
+    }
 
     Path srcPath = mPath;
     RTags::encodePath(srcPath);
@@ -830,47 +821,6 @@ static inline int writeSymbols(SymbolMap &symbols, SymbolMap &current)
     return ret;
 }
 
-Project::SyncData Project::syncDB()
-{
-    SyncData ret;
-    memset(&ret, 0, sizeof(ret));
-    StopWatch sw;
-    if (mDirtyFiles.isEmpty() && mPendingData.isEmpty()) {
-        return ret;
-    }
-
-    if (!mDirtyFiles.isEmpty()) {
-        RTags::dirtySymbols(mSymbols, mDirtyFiles);
-        RTags::dirtySymbolNames(mSymbolNames, mDirtyFiles);
-        RTags::dirtyUsr(mUsr, mDirtyFiles);
-        mDirtyFiles.clear();
-    }
-    ret.dirtyTime = sw.restart();
-
-    Set<uint32_t> newFiles;
-    List<UsrMap*> pendingReferences;
-    for (auto it = mPendingData.begin(); it != mPendingData.end(); ++it) {
-        const std::shared_ptr<IndexData> &data = it->second;
-        addDependencies(data->dependencies, newFiles);
-        addFixIts(data->dependencies, data->fixIts);
-        if (!data->pendingReferenceMap.isEmpty())
-            pendingReferences.append(&data->pendingReferenceMap);
-        ret.symbols += writeSymbols(data->symbols, mSymbols);
-        writeUsr(data->usrMap, mUsr, mSymbols);
-        ret.symbolNames += writeSymbolNames(data->symbolNames, mSymbolNames);
-    }
-
-    for (const UsrMap *map : pendingReferences)
-        resolvePendingReferences(mSymbols, mUsr, *map);
-
-    for (auto it = newFiles.constBegin(); it != newFiles.constEnd(); ++it) {
-        watch(Location::path(*it));
-    }
-    mPendingData.clear();
-    ret.syncTime = sw.elapsed();
-    return ret;
-}
-
 bool Project::isIndexed(uint32_t fileId) const
 {
     if (mVisitedFiles.contains(fileId))
@@ -943,17 +893,26 @@ String Project::fixIts(uint32_t fileId) const
     return out;
 }
 
-void Project::startSync()
+bool Project::startSync(SyncMode mode)
 {
     if (mState != Loaded) {
-        mSyncTimer.restart(SyncTimeout, Timer::SingleShot);
-        return;
+        if (mode == Sync_Asynchronous)
+            mSyncTimer.restart(SyncTimeout, Timer::SingleShot);
+        return false;
     }
     assert(mState == Loaded);
     mState = Syncing;
     mSyncTimer.stop();
-    SyncThread *thread = new SyncThread(shared_from_this());
-    thread->start();
+    if (mode == Sync_Synchronous) {
+        const String msg = sync();
+        if (!msg.isEmpty())
+            error() << msg;
+        onSynced();
+    } else {
+        SyncThread *thread = new SyncThread(shared_from_this());
+        thread->start();
+    }
+    return true;
 }
 
 void Project::reloadFileManager()
@@ -1088,7 +1047,9 @@ bool Project::hasSource(const Source &source) const
 {
     const uint64_t key = source.key();
     auto it = mSources.lower_bound(Source::key(source.fileId, 0));
-    const bool disallowMultiple = Server::instance()->options().options & Server::DisallowMultipleSources;
+    const auto &options = Server::instance()->options();
+    const bool disallowMultiple = options.options & Server::DisallowMultipleSources;
+    const bool ignoreExistingFiles = options.options & Server::NoFileSystemWatch;
     bool found = false;
     while (it != mSources.end()) {
         uint32_t f, b;
@@ -1097,6 +1058,12 @@ bool Project::hasSource(const Source &source) const
             break;
         }
         found = true;
+        if (ignoreExistingFiles) {
+            // When we're not watching the file system, we ignore
+            // updating compiles. This means that you always have to
+            // do check-reindex to build existing files!
+            return true;
+        }
         if (it->first == key) {
             return it->second.compareArguments(source);
             // if the build key is the same we want to return false if the arguments have updated
@@ -1147,4 +1114,57 @@ void Project::onSynced()
         assert(jobData.pendingFlags);
         index(jobData.pendingSource, jobData.pendingFlags);
     }
+}
+
+String Project::sync()
+{
+    mJobCounter = mJobs.size();
+    StopWatch sw;
+    if (mDirtyFiles.isEmpty() && mPendingData.isEmpty()) {
+        return String();
+    }
+
+    if (!mDirtyFiles.isEmpty()) {
+        RTags::dirtySymbols(mSymbols, mDirtyFiles);
+        RTags::dirtySymbolNames(mSymbolNames, mDirtyFiles);
+        RTags::dirtyUsr(mUsr, mDirtyFiles);
+        mDirtyFiles.clear();
+    }
+    const int dirtyTime = sw.restart();
+
+    Set<uint32_t> newFiles;
+    List<UsrMap*> pendingReferences;
+    int symbols = 0;
+    int symbolNames = 0;
+    for (auto it = mPendingData.begin(); it != mPendingData.end(); ++it) {
+        const std::shared_ptr<IndexData> &data = it->second;
+        addDependencies(data->dependencies, newFiles);
+        addFixIts(data->dependencies, data->fixIts);
+        if (!data->pendingReferenceMap.isEmpty())
+            pendingReferences.append(&data->pendingReferenceMap);
+        symbols += writeSymbols(data->symbols, mSymbols);
+        writeUsr(data->usrMap, mUsr, mSymbols);
+        symbolNames += writeSymbolNames(data->symbolNames, mSymbolNames);
+    }
+
+    for (const UsrMap *map : pendingReferences)
+        resolvePendingReferences(mSymbols, mUsr, *map);
+
+    for (auto it = newFiles.constBegin(); it != newFiles.constEnd(); ++it) {
+        watch(Location::path(*it));
+    }
+    mPendingData.clear();
+    const int syncTime = sw.restart();
+    save();
+    const int saveTime = sw.elapsed();
+    String msg;
+    Log(&msg) << "Jobs took" << (static_cast<double>(mTimer.elapsed()) / 1000.0)
+              << "secs, dirtying took"
+              << (static_cast<double>(dirtyTime) / 1000.0) << "secs, syncing took"
+              << (static_cast<double>(syncTime) / 1000.0) << " secs, saving took"
+              << (static_cast<double>(saveTime) / 1000.0) << " secs, using"
+              << MemoryMonitor::usage() / (1024.0 * 1024.0) << "mb of memory"
+              << symbols << "symbols" << symbolNames << "symbolNames";
+    mTimer.start();
+    return msg;
 }

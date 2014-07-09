@@ -70,6 +70,12 @@ public:
         return sIdsToPaths.value(id);
     }
 
+    static uint32_t lastId()
+    {
+        LOCK();
+        return sLastId;
+    }
+
     static inline uint32_t insertFile(const Path &path)
     {
         assert(!path.contains(".."));

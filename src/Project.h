@@ -123,17 +123,18 @@ public:
         std::lock_guard<std::mutex> lock(mMutex);
         serializer << mVisitedFiles;
     }
-    void startSync();
+    enum SyncMode {
+        Sync_Asynchronous,
+        Sync_Synchronous
+    };
+    bool startSync(SyncMode mode);
+    String sync();
 private:
     void updateContents(RestoreThread *thread);
     void watch(const Path &file);
     void reloadFileManager();
     void addDependencies(const DependencyMap &hash, Set<uint32_t> &newFiles);
     void addFixIts(const DependencyMap &dependencies, const FixItMap &fixIts);
-    struct SyncData {
-        int dirtyTime, syncTime, symbols, symbolNames;
-    };
-    SyncData syncDB();
     void startDirtyJobs(const Set<uint32_t> &files,
                         const UnsavedFiles &unsavedFiles = UnsavedFiles());
     bool save();

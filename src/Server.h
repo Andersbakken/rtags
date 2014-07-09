@@ -86,7 +86,7 @@ public:
     };
     bool init(const Options &options);
     const Options &options() const { return mOptions; }
-    bool saveFileIds() const;
+    bool saveFileIds();
     void onJobOutput(JobOutput&& out);
     void addJob(const std::shared_ptr<IndexerJob> &job);
     std::shared_ptr<Project> project(const Path &path) const { return mProjects.value(path); }
@@ -175,6 +175,8 @@ private:
     Options mOptions;
     SocketServer::SharedPtr mUnixServer;
     bool mVerbose;
+
+    uint32_t mLastFileId;
 
     Timer mUnloadTimer;
 
