@@ -45,15 +45,6 @@ static void sigSegvHandler(int signal)
     _exit(1);
 }
 
-static Path socketFile;
-
-static void sigIntHandler(int)
-{
-    if (Server *server = Server::instance())
-        server->stopServers();
-    _exit(1);
-}
-
 #define EXCLUDEFILTER_DEFAULT "*/CMakeFiles/*;*/cmake*/Modules/*;*/conftest.c*;/tmp/*"
 #define DEFAULT_RP_VISITFILE_TIMEOUT 60000
 #define DEFAULT_RP_INDEXER_MESSAGE_TIMEOUT 60000
@@ -543,7 +534,6 @@ int main(int argc, char** argv)
         return 1;
     }
 
-    signal(SIGINT, sigIntHandler);
     if (sigHandler)
         signal(SIGSEGV, sigSegvHandler);
 
@@ -554,18 +544,17 @@ int main(int argc, char** argv)
     }
 
     EventLoop::SharedPtr loop(new EventLoop);
-    loop->init(EventLoop::MainEventLoop);
+    loop->init(EventLoop::MainEventLoop|EventLoop::EnableSigIntHandler);
 
     std::shared_ptr<Server> server(new Server);
-    ::socketFile = serverOpts.socketFile;
-    if (!serverOpts.dataDir.endsWith('/'))
-        serverOpts.dataDir.append('/');
+    serverOpts.dataDir = serverOpts.dataDir.ensureTrailingSlash();
     if (!server->init(serverOpts)) {
         cleanupLogging();
         return 1;
     }
 
     loop->exec();
+    printf("[%s:%d]: loop->exec();\n", __FILE__, __LINE__); fflush(stdout);
     cleanupLogging();
     return 0;
 }

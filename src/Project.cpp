@@ -70,13 +70,20 @@ public:
         const Path p = Server::instance()->options().dataDir + path;
         DataFile file(p);
         if (!file.open(DataFile::Read)) {
-            error("Restore error %s: %s", mPath.constData(), file.error().constData());
+            if (!file.error().isEmpty())
+                error("Restore error %s: %s", mPath.constData(), file.error().constData());
             Path::rm(p);
             return false;
         }
 
         CursorInfo::deserialize(file, mSymbols);
         file >> mSymbolNames >> mUsr >> mDependencies >> mSources >> mVisitedFiles;
+        for (const auto &source : mSources) {
+            mDependencies[source.second.fileId].insert(source.second.fileId);
+            // if we save before finishing a sync we may have saved mSources
+            // without ever having parsed them, if so they won't depend on
+            // anything. Make sure they depend on themselves
+        }
         return true;
     }
 
@@ -143,6 +150,7 @@ Project::Project(const Path &path)
 
 Project::~Project()
 {
+    unload();
     assert(EventLoop::isMainThread());
     for (auto it = mJobs.constBegin(); it != mJobs.constEnd(); ++it) {
         if (it->second.job)
@@ -262,6 +270,8 @@ bool Project::load(FileManagerMode mode)
 void Project::unload()
 {
     switch (mState) {
+    case Unloaded:
+        return;
     case Syncing:
     case Loading: {
         std::weak_ptr<Project> weak = shared_from_this();
@@ -1133,13 +1143,13 @@ String Project::sync()
     const int saveTime = sw.elapsed();
     double timerElapsed = (mTimer.elapsed() / 1000.0);
     const double averageJobTime = timerElapsed / mPendingData.size();
-    mPendingData.clear();
-    const String msg = String::format<1024>("Jobs took %.2fs, (average %.2fs), dirtying took %.2fs, "
+    const String msg = String::format<1024>("Jobs took %.2fs, %sdirtying took %.2fs, "
                                             "syncing took %.2fs, saving took %.2fs. We're using %lldmb of memory. "
-                                            "%d symbols, %d symbolNames",
-                                            timerElapsed, averageJobTime, dirtyTime / 1000.0, syncTime / 1000.0,
-                                            saveTime / 1000.0, MemoryMonitor::usage() / (1024 * 1024),
+                                            "%d symbols, %d symbolNames", timerElapsed,
+                                            mPendingData.size() > 1 ? String::format("(avg %.2fs), ", averageJobTime).constData() : "",
+                                            dirtyTime / 1000.0, syncTime / 1000.0, saveTime / 1000.0, MemoryMonitor::usage() / (1024 * 1024),
                                             symbols, symbolNames);
+    mPendingData.clear();
     mTimer.start();
     return msg;
 }

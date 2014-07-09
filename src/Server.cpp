@@ -167,7 +167,7 @@ bool Server::init(const Options &options)
     Log l(Error);
     l << "Running with" << mOptions.jobCount << "jobs, using args:"
       << String::join(mOptions.defaultArguments, ' ') << '\n';
-    l << "includepaths" << String::join(mOptions.includePaths, ' ');
+    l << "Includepaths:" << String::join(mOptions.includePaths, ' ');
 
     if (mOptions.options & ClearProjects) {
         clearProjects();
