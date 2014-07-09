@@ -30,7 +30,11 @@ public:
         Flag_CaseInsensitive = 0x4
     };
 
-    inline Match(const String &pattern = String(), unsigned flags = Flag_StringMatch)
+    inline Match()
+        : mFlags(0)
+    {}
+
+    inline Match(const String &pattern, unsigned flags = Flag_StringMatch)
         : mFlags(flags)
     {
         if (flags & Flag_RegExp)

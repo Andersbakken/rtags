@@ -159,11 +159,13 @@ public:
 Project::Project(const Path &path)
     : mPath(path), mState(Unloaded), mJobCounter(0)
 {
-    if (!(Server::instance()->options().options & Server::NoFileSystemWatch)) {
+    const auto &options = Server::instance()->options();
+
+    if (!(options.options & Server::NoFileSystemWatch)) {
         mWatcher.modified().connect(std::bind(&Project::dirty, this, std::placeholders::_1));
         mWatcher.removed().connect(std::bind(&Project::dirty, this, std::placeholders::_1));
     }
-    if (Server::instance()->options().options & Server::NoFileManagerWatch) {
+    if (!(options.options & Server::NoFileManagerWatch)) {
         mWatcher.removed().connect(std::bind(&Project::reloadFileManager, this));
         mWatcher.added().connect(std::bind(&Project::reloadFileManager, this));
     }
@@ -601,6 +603,21 @@ Set<uint32_t> Project::dependencies(uint32_t fileId, DependencyMode mode) const
     return ret;
 }
 
+static inline bool dirtyFile(const Match &match, uint32_t fileId, uint64_t parseTime, Set<uint32_t> *dirty)
+{
+    if (dirty->contains(fileId))
+        return true;
+    bool ret = false;
+    const Path path = Location::path(fileId);
+    if (match.isEmpty() || match.match(path)) {
+        ret = true;
+        if (path.lastModifiedMs() > parseTime) {
+            dirty->insert(fileId);
+        }
+    }
+    return ret;
+}
+
 int Project::reindex(const Match &match, QueryMessage::Type type, const UnsavedFiles &unsavedFiles)
 {
     Set<uint32_t> dirty;
@@ -628,11 +645,11 @@ int Project::reindex(const Match &match, QueryMessage::Type type, const UnsavedF
             }
         }
 
+        // If the source matches all dependees are considered, regardless of match
         for (const auto &source : mSources) {
+            const Match dependeeMatch = dirtyFile(match, source.second.fileId, source.second.parsed, &dirty) ? match : Match();
             for (const auto &d : reversedDependencies[source.second.fileId]) {
-                if (!dirty.contains(d) && Location::path(d).lastModifiedMs() > source.second.parsed) {
-                    dirty.insert(d);
-                }
+                dirtyFile(dependeeMatch, d, source.second.parsed, &dirty);
             }
         }
     }
@@ -686,7 +703,6 @@ void Project::startDirtyJobs(const Set<uint32_t> &dirty,
         while (src != mSources.end()) {
             uint32_t f, b;
             Source::decodeKey(src->first, f, b);
-            // error() << "Decoded" << Location::path(f);
             if (f != *it)
                 break;
             index(src->second, IndexerJob::Dirty, unsavedFiles, dirty);
