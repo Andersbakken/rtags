@@ -40,7 +40,6 @@ public:
         mFile = 0;
         delete mSerializer;
         mSerializer = 0;
-        ::error() << "moved shit from" << mTempFilePath << "to" << mPath;
         if (rename(mTempFilePath.constData(), mPath.constData())) {
             Path::rm(mTempFilePath);
             mError = String::format<128>("rename error: %d %s", errno, strerror(errno));
