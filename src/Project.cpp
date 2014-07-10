@@ -30,6 +30,7 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 #include <rct/ReadLocker.h>
 #include <rct/RegExp.h>
 #include <rct/Thread.h>
+#include <memory>
 
 enum {
     SyncTimeout = 500,
@@ -131,14 +132,122 @@ public:
     std::weak_ptr<Project> mProject;
 };
 
+class Dirty
+{
+public:
+    virtual ~Dirty() {}
+    virtual Set<uint32_t> dirtied() const = 0;
+    virtual bool isDirty(const Source &source) = 0;
+};
+
+class SimpleDirty : public Dirty
+{
+public:
+    void init(const Set<uint32_t> &dirty, const DependencyMap &dependencies)
+    {
+        for (auto fileId : dirty) {
+            mDirty.insert(fileId);
+            mDirty += dependencies.value(fileId);
+        }
+    }
+
+    virtual Set<uint32_t> dirtied() const
+    {
+        return mDirty;
+    }
+
+    virtual bool isDirty(const Source &source)
+    {
+        return mDirty.contains(source.fileId);
+    }
+
+    Set<uint32_t> mDirty;
+};
+
+class UpdateContentsDirtyBase : public Dirty
+{
+public:
+    virtual Set<uint32_t> dirtied() const
+    {
+        return mDirty;
+    }
+    void insertDirtyFile(uint32_t fileId)
+    {
+        mDirty.insert(fileId);
+    }
+    Set<uint32_t> mDirty;
+};
+
+class SuspendedDirty : public UpdateContentsDirtyBase
+{
+public:
+    bool isDirty(const Source &)
+    {
+        return false;
+    }
+};
+
+class IfModifiedDirty : public UpdateContentsDirtyBase
+{
+public:
+    IfModifiedDirty(const DependencyMap &dependencies, const Match &match = Match())
+        : mDependencies(dependencies), mMatch(match)
+    {
+        for (auto it : mDependencies) {
+            const uint32_t dependee = it.first;
+            const Set<uint32_t> &dependents = it.second;
+            for (auto dependent : dependents) {
+                mReversedDependencies[dependent].insert(dependee);
+            }
+        }
+        // mReversedDependencies are in the form of:
+        //   Path.cpp: Path.h, String.h ...
+        // mDependencies are like this:
+        //   Path.h: Path.cpp, Server.cpp ...
+    }
+
+    virtual bool isDirty(const Source &source)
+    {
+        bool ret = false;
+        if (mMatch.isEmpty() || mMatch.match(source.sourceFile())) {
+            for (auto it : mReversedDependencies[source.fileId]) {
+                const uint64_t depLastModified = lastModified(it);
+                if (!depLastModified || depLastModified > source.parsed) {
+                    // dependency is gone
+                    ret = true;
+                    insertDirtyFile(it);
+                }
+            }
+            if (ret)
+                mDirty.insert(source.fileId);
+
+            assert(!ret || mDirty.contains(source.fileId));
+        }
+        return ret;
+    }
+
+    inline uint64_t lastModified(uint32_t fileId)
+    {
+        uint64_t &time = mLastModified[fileId];
+        if (!time) {
+            time = Location::path(fileId).lastModifiedMs();
+        }
+        return time;
+    }
+
+    DependencyMap mDependencies, mReversedDependencies;
+    Match mMatch;
+    Hash<uint32_t, uint64_t> mLastModified;
+};
+
 Project::Project(const Path &path)
     : mPath(path), mState(Unloaded), mJobCounter(0)
 {
     const auto &options = Server::instance()->options();
 
     if (!(options.options & Server::NoFileSystemWatch)) {
-        mWatcher.modified().connect(std::bind(&Project::dirty, this, std::placeholders::_1));
-        mWatcher.removed().connect(std::bind(&Project::dirty, this, std::placeholders::_1));
+        mWatcher.modified().connect(std::bind(&Project::onFileModifiedOrRemoved, this, std::placeholders::_1));
+        mWatcher.removed().connect(std::bind(&Project::onFileModifiedOrRemoved, this, std::placeholders::_1));
     }
     if (!(options.options & Server::NoFileManagerWatch)) {
         mWatcher.removed().connect(std::bind(&Project::reloadFileManager, this));
@@ -173,7 +282,7 @@ void Project::updateContents(RestoreThread *thread)
         return;
 
     bool needsSave = false;
-    Set<uint32_t> dirty;
+    std::unique_ptr<UpdateContentsDirtyBase> dirty;
     if (thread) {
         mSymbols = std::move(thread->mSymbols);
         mSymbolNames = std::move(thread->mSymbolNames);
@@ -182,64 +291,30 @@ void Project::updateContents(RestoreThread *thread)
         mSources = std::move(thread->mSources);
 
         mVisitedFiles = std::move(thread->mVisitedFiles);
+        if (Server::instance()->suspended()) {
+            dirty.reset(new SuspendedDirty);
+        } else {
+            dirty.reset(new IfModifiedDirty(mDependencies));
+        }
 
-        if (!Server::instance()->suspended()) {
-            DependencyMap reversedDependencies;
-            // these dependencies are in the form of:
-            // Path.cpp: Path.h, String.h ...
-            // mDependencies are like this:
-            // Path.h: Path.cpp, Server.cpp ...
-
-            {
-                auto it = mDependencies.begin();
-                while (it != mDependencies.end()) {
-                    const Path file = Location::path(it->first);
-                    if (!file.exists()) {
-                        error() << "File doesn't exist" << file;
-                        mDependencies.erase(it++);
-                        needsSave = true;
-                        continue;
-                    }
-                    watch(file);
-                    for (auto s = it->second.constBegin(); s != it->second.constEnd(); ++s)
-                        reversedDependencies[*s].insert(it->first);
-                    ++it;
-                }
-            }
-
-            auto it = mSources.begin();
-            while (it != mSources.end()) {
-                const Source &source = it->second;
-                if (!source.sourceFile().isFile()) {
-                    error() << source.sourceFile() << "seems to have disappeared";
-                    dirty.insert(source.fileId);
-                    mSources.erase(it++);
-                    needsSave = true;
-                } else {
-                    assert(mDependencies.value(source.fileId).contains(source.fileId));
-                    const Set<uint32_t> &deps = reversedDependencies[source.fileId];
-                    // error() << source.sourceFile() << "has" << deps.size();
-                    for (auto d = deps.constBegin(); d != deps.constEnd(); ++d) {
-                        if (!dirty.contains(*d) && Location::path(*d).lastModifiedMs() > source.parsed) {
-                            dirty.insert(*d);
-                            // error() << Location::path(*d).lastModifiedMs() << "is more than" << source.parsed
-                            //         << it->second.sourceFile() << Location::path(*d)
-                            //         << String::formatTime(source.parsed / 1000)
-                            //         << String::formatTime(Location::path(*d).lastModifiedMs() / 1000);
-                        }
-                    }
-                    ++it;
-                }
+        auto it = mSources.begin();
+        while (it != mSources.end()) {
+            const Source &source = it->second;
+            if (!source.sourceFile().isFile()) {
+                error() << source.sourceFile() << "seems to have disappeared";
+                dirty.get()->insertDirtyFile(source.fileId);
+                mSources.erase(it++);
+                needsSave = true;
+            } else {
+                ++it;
             }
         }
     }
     Hash<uint64_t, JobData> pendingJobs = std::move(mJobs);
     mState = Loaded;
-    if (!dirty.isEmpty()) {
-        startDirtyJobs(dirty);
-    } else if (needsSave) {
+    if ((!dirty || !startDirtyJobs(dirty.get())) && needsSave)
         save();
-    }
+
     for (const auto &it : pendingJobs) {
         assert(!it.second.pendingSource.isNull());
         assert(it.second.pendingFlags);
@@ -514,23 +589,27 @@ void Project::index(const Source &source, uint32_t flags,
     Server::instance()->addJob(data.job);
 }
 
-void Project::dirty(const Path &file)
+void Project::onFileModifiedOrRemoved(const Path &file)
 {
     const uint32_t fileId = Location::fileId(file);
+    debug() << file << "was modified" << fileId;
+    if (!fileId)
+        return;
     if (Server::instance()->suspended() || mSuspendedFiles.contains(fileId)) {
         warning() << file << "is suspended. Ignoring modification";
         return;
     }
-    debug() << file << "was modified" << fileId;
-    if (fileId && mPendingDirtyFiles.insert(fileId)) {
+    if (mPendingDirtyFiles.insert(fileId)) {
         mDirtyTimer.restart(DirtyTimeout, Timer::SingleShot);
     }
 }
 
 void Project::onDirtyTimeout(Timer *)
 {
-    Set<uint32_t> dirty = std::move(mPendingDirtyFiles);
-    startDirtyJobs(dirty);
+    Set<uint32_t> dirtyFiles = std::move(mPendingDirtyFiles);
+    SimpleDirty dirty;
+    dirty.init(dirtyFiles, mDependencies);
+    startDirtyJobs(&dirty);
 }
 
 List<Source> Project::sources(uint32_t fileId) const
@@ -585,60 +664,27 @@ Set<uint32_t> Project::dependencies(uint32_t fileId, DependencyMode mode) const
     return ret;
 }
 
-static inline bool dirtyFile(const Match &match, uint32_t fileId, uint64_t parseTime, Set<uint32_t> *dirty)
+int Project::reindex(const Match &match, const QueryMessage &query)
 {
-    if (dirty->contains(fileId))
-        return true;
-    bool ret = false;
-    const Path path = Location::path(fileId);
-    if (match.isEmpty() || match.match(path)) {
-        ret = true;
-        if (path.lastModifiedMs() > parseTime) {
-            dirty->insert(fileId);
-        }
-    }
-    return ret;
-}
+    if (query.type() == QueryMessage::Reindex) {
+        Set<uint32_t> dirtyFiles;
 
-int Project::reindex(const Match &match, QueryMessage::Type type, const UnsavedFiles &unsavedFiles)
-{
-    Set<uint32_t> dirty;
-
-    if (type == QueryMessage::Reindex) {
         const auto end = mDependencies.constEnd();
         for (auto it = mDependencies.constBegin(); it != end; ++it) {
-            if (match.isEmpty() || match.match(Location::path(it->first))) {
-                dirty.insert(it->first);
+            if (!dirtyFiles.contains(it->first) && (match.isEmpty() || match.match(Location::path(it->first)))) {
+                dirtyFiles.insert(it->first);
             }
         }
+        if (dirtyFiles.isEmpty())
+            return 0;
+        SimpleDirty dirty;
+        dirty.init(dirtyFiles, mDependencies);
+        return startDirtyJobs(&dirty, query.unsavedFiles());
     } else {
-        assert(type == QueryMessage::CheckReindex);
-        DependencyMap reversedDependencies;
-        // these dependencies are in the form of:
-        // Path.cpp: Path.h, String.h ...
-        // mDependencies are like this:
-        // Path.h: Path.cpp, Server.cpp ...
-
-        {
-            for (const auto &it : mDependencies) {
-                for (const auto &s : it.second) {
-                    reversedDependencies[s].insert(it.first);
-                }
-            }
-        }
-
-        // If the source matches all dependees are considered, regardless of match
-        for (const auto &source : mSources) {
-            const Match dependeeMatch = dirtyFile(match, source.second.fileId, source.second.parsed, &dirty) ? match : Match();
-            for (const auto &d : reversedDependencies[source.second.fileId]) {
-                dirtyFile(dependeeMatch, d, source.second.parsed, &dirty);
-            }
-        }
+        assert(query.type() == QueryMessage::CheckReindex);
+        IfModifiedDirty dirty(mDependencies, match);
+        return startDirtyJobs(&dirty, query.unsavedFiles());
     }
-    if (dirty.isEmpty())
-        return 0;
-    startDirtyJobs(dirty, unsavedFiles);
-    return dirty.size();
 }
 
 int Project::remove(const Match &match)
@@ -660,45 +706,37 @@ int Project::remove(const Match &match)
             ++it;
         }
     }
-    if (count)
-        startDirtyJobs(dirty);
+    if (count) {
+        RTags::dirtySymbols(mSymbols, dirty);
+        RTags::dirtySymbolNames(mSymbolNames, dirty);
+        RTags::dirtyUsr(mUsr, dirty);
+    }
     return count;
 }
 
-void Project::startDirtyJobs(const Set<uint32_t> &dirty,
-                             const UnsavedFiles &unsavedFiles)
+int Project::startDirtyJobs(Dirty *dirty, const UnsavedFiles &unsavedFiles)
 {
-    Set<uint32_t> dirtyFiles;
-    for (auto it = dirty.constBegin(); it != dirty.constEnd(); ++it) {
-        const Set<uint32_t> deps = mDependencies.value(*it);
-        dirtyFiles.insert(*it);
-        if (!deps.isEmpty())
-            dirtyFiles += deps;
+    int indexed = 0;
+    for (auto &source : mSources) {
+        if (dirty->isDirty(source.second)) {
+            index(source.second, IndexerJob::Dirty, unsavedFiles);
+            ++indexed;
+        }
     }
+    const Set<uint32_t> dirtyFiles = dirty->dirtied();
     for (const auto &fileId : dirtyFiles) {
         mVisitedFiles.remove(fileId);
     }
 
-    bool indexed = false;
-    for (auto it = dirtyFiles.constBegin(); it != dirtyFiles.constEnd(); ++it) {
-        auto src = mSources.lower_bound(Source::key(*it, 0));
-        while (src != mSources.end()) {
-            uint32_t f, b;
-            Source::decodeKey(src->first, f, b);
-            if (f != *it)
-                break;
-            index(src->second, IndexerJob::Dirty, unsavedFiles, dirty);
-            indexed = true;
-            ++src;
-        }
-    }
     if (!indexed && !dirtyFiles.isEmpty()) {
+        // this is for the case where we've removed a file
         RTags::dirtySymbols(mSymbols, dirtyFiles);
         RTags::dirtySymbolNames(mSymbolNames, dirtyFiles);
         RTags::dirtyUsr(mUsr, dirtyFiles);
     } else {
         mDirtyFiles += dirtyFiles;
     }
+    return indexed;
 }
 
 static inline int writeSymbolNames(const SymbolNameMap &symbolNames, SymbolNameMap &current)

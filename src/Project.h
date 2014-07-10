@@ -35,6 +35,7 @@ class FileManager;
 class IndexerJob;
 class RestoreThread;
 class Connection;
+class Dirty;
 class Project : public std::enable_shared_from_this<Project>
 {
 public:
@@ -105,14 +106,14 @@ public:
     bool isValidJob(uint64_t key) { return !key || mJobs.contains(key); }
     bool visitFile(uint32_t fileId, const Path &path, uint64_t id);
     String fixIts(uint32_t fileId) const;
-    int reindex(const Match &match, QueryMessage::Type type, const UnsavedFiles &unsavedFiles);
+    int reindex(const Match &match, const QueryMessage &query);
     int remove(const Match &match);
     void onJobFinished(const std::shared_ptr<IndexData> &indexData, const std::shared_ptr<IndexerJob> &job);
     SourceMap sources() const { return mSources; }
     DependencyMap dependencies() const { return mDependencies; }
     Set<Path> watchedPaths() const { return mWatchedPaths; }
     bool isIndexing() const { return !mJobs.isEmpty(); }
-    void dirty(const Path &);
+    void onFileModifiedOrRemoved(const Path &);
     Hash<uint32_t, Path> visitedFiles() const
     {
         std::lock_guard<std::mutex> lock(mMutex);
@@ -135,8 +136,7 @@ private:
     void reloadFileManager();
     void addDependencies(const DependencyMap &hash, Set<uint32_t> &newFiles);
     void addFixIts(const DependencyMap &dependencies, const FixItMap &fixIts);
-    void startDirtyJobs(const Set<uint32_t> &files,
-                        const UnsavedFiles &unsavedFiles = UnsavedFiles());
+    int startDirtyJobs(Dirty *dirty, const UnsavedFiles &unsavedFiles = UnsavedFiles());
     bool save();
     void onSynced();
     void onDirtyTimeout(Timer *);

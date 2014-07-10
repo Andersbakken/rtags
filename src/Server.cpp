@@ -958,7 +958,7 @@ void Server::reindex(const QueryMessage &query, Connection *conn)
         }
     }
 
-    const int count = project->reindex(match, query.type(), query.unsavedFiles());
+    const int count = project->reindex(match, query);
     // error() << count << query.query();
     if (count) {
         conn->write<128>("Dirtied %d files", count);
