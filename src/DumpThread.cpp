@@ -35,7 +35,16 @@ CXChildVisitResult DumpThread::visitor(CXCursor cursor, CXCursor, CXClientData u
                 message.reserve(256);
                 if (!(that->mQueryFlags & QueryMessage::NoContext))
                     message += loc.context();
-                message += String::format<32>(" // %d, %d: ", col, that->mIndentLevel);
+
+                CXSourceRange range = clang_getCursorExtent(cursor);
+                CXSourceLocation rangeEnd = clang_getRangeEnd(range);
+                unsigned endLine, endColumn;
+                clang_getPresumedLocation(rangeEnd, 0, &endLine, &endColumn);
+                if (endLine == line) {
+                    message += String::format<32>(" // %d-%d, %d: ", col, endColumn, that->mIndentLevel);
+                } else {
+                    message += String::format<32>(" // %d-%d:%d, %d: ", col, endLine, endColumn, that->mIndentLevel);
+                }
                 message += RTags::cursorToString(cursor, RTags::AllCursorToStringFlags);
                 message.append(" " + RTags::typeName(cursor) + " ");
                 CXCursor ref = clang_getCursorReferenced(cursor);
