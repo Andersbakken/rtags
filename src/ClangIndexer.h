@@ -25,7 +25,7 @@ private:
     bool parse();
 
     void addFileSymbol(uint32_t file);
-    inline Location createLocation(const CXSourceLocation &location, bool *blocked)
+    inline Location createLocation(const CXSourceLocation &location, bool *blocked = 0)
     {
         CXString fileName;
         unsigned line, col;
@@ -96,8 +96,9 @@ private:
     CXCursor resolveAutoTypeRef(const CXCursor &cursor) const;
 
     bool handleCursor(const CXCursor &cursor, CXCursorKind kind, const Location &location);
-    void handleReference(const CXCursor &cursor, CXCursorKind kind, const Location &loc,
-                         const CXCursor &reference, const CXCursor &parent);
+    std::shared_ptr<CursorInfo> handleReference(const CXCursor &cursor, CXCursorKind kind,
+                                                const Location &loc, const CXCursor &reference,
+                                                const CXCursor &parent);
     void handleInclude(const CXCursor &cursor, CXCursorKind kind, const Location &location);
     Location findByUSR(const CXCursor &cursor, CXCursorKind kind, const Location &loc) const;
     void addOverriddenCursors(const CXCursor& cursor, const Location& location, List<CursorInfo*>& infos);
