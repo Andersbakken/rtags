@@ -336,6 +336,33 @@ void Project::updateContents(RestoreThread *thread)
             dirty.reset(new IfModifiedDirty(mDependencies));
         }
 
+        {
+            auto it = mDependencies.begin();
+
+            while (it != mDependencies.end()) {
+                const Path path = Location::path(it->first);
+                if (!path.isFile()) {
+                    error() << path << "seems to have disappeared";
+                    dirty.get()->insertDirtyFile(it->first);
+
+                    const Set<uint32_t> &dependents = it->second;
+                    for (auto dependent : dependents) {
+                        // we don't have a file to compare with to
+                        // know whether the source is parsed after the
+                        // file was removed... so, force sources
+                        // dirty.
+                        dirty.get()->insertDirtyFile(dependent);
+                    }
+
+                    mDependencies.erase(it++);
+                    needsSave = true;
+                }
+                else {
+                    ++it;
+                }
+            }
+        }
+
         auto it = mSources.begin();
         while (it != mSources.end()) {
             const Source &source = it->second;
