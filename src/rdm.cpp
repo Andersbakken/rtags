@@ -90,7 +90,7 @@ static void usage(FILE *f)
             "  --socket-file|-n [arg]                     Use this file for the server socket (default ~/.rdm).\n"
             "  --tcp-port|-p [arg]                        Use this port for tcp server (default " STR(DEFAULT_RDM_TCP_PORT) ").\n"
             "  --setenv|-e [arg]                          Set this environment variable (--setenv \"foobar=1\").\n"
-            "  --no-current-project|-o                    Don't restore the last current project on startup.\n"
+            "  --no-startup-project|-o                    Don't restore the last current project on startup.\n"
             "  --disallow-multiple-sources|-m             With this setting different sources will be merged for each source file.\n"
             "  --separate-debug-and-release|-E            Normally rdm doesn't consider release and debug as different builds. Pass this if you want it to.\n"
             "  --unload-timer|-u [arg]                    Number of minutes to wait before unloading non-current projects (disabled by default).\n"
@@ -159,7 +159,7 @@ int main(int argc, char** argv)
         { "large-by-value-copy", required_argument, 0, 'r' },
         { "disallow-multiple-sources", no_argument, 0, 'm' },
         { "unload-timer", required_argument, 0, 'u' },
-        { "no-current-project", no_argument, 0, 'o' },
+        { "no-startup-project", no_argument, 0, 'o' },
         { "no-no-unknown-warnings-option", no_argument, 0, 'Y' },
         { "ignore-compiler", required_argument, 0, 'b' },
         { "watch-system-paths", no_argument, 0, 'w' },
