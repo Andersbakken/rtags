@@ -2,8 +2,8 @@ require 'formula'
 
 class Clang < Formula
   homepage  'http://llvm.org/'
-  url       'http://llvm.org/releases/3.4/clang-3.4.src.tar.gz'
-  sha1      'a6a3c815dd045e9c13c7ae37d2cfefe65607860d'
+  url       'http://llvm.org/releases/3.4.2/cfe-3.4.2.src.tar.gz'
+  sha1      'add5420b10c3c3a38c4dc2322f8b64ba0a5def97'
 
   head      'http://llvm.org/git/clang.git'
 end
@@ -18,16 +18,16 @@ end
 
 class LibCpp < Formula
   homepage 'http://llvm.org/'
-  url       'http://llvm.org/releases/3.4/libcxx-3.4.src.tar.gz'
-  sha1      'c45333dce3e6bdac2583682417c03b6bb149ceb0'
+  url       'http://llvm.org/releases/3.4.2/libcxx-3.4.2.src.tar.gz'
+  sha1      '7daa55bd1e9d87c3657d08d14d6f83566e6a1c04'
 
   head      'http://llvm.org/git/libcxx.git'
 end
 
 class Llvm < Formula
   homepage  'http://llvm.org/'
-  url       'http://llvm.org/releases/3.4/llvm-3.4.src.tar.gz'
-  sha1      '10b1fd085b45d8b19adb9a628353ce347bc136b8'
+  url       'http://llvm.org/releases/3.4.2/llvm-3.4.2.src.tar.gz'
+  sha1      'c5287384d0b95ecb0fd7f024be2cdfb60cd94bc9'
 
   head      'http://llvm.org/git/llvm.git'
 
