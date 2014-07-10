@@ -117,6 +117,7 @@ int StatusJob::execute()
             const std::shared_ptr<CursorInfo> ci = it->second;
             write(loc);
             write(ci);
+            write("------------------------");
             if (isAborted())
                 return 1;
         }
