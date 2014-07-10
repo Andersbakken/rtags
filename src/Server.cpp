@@ -371,7 +371,7 @@ bool Server::index(const String &arguments, const Path &pwd, const Path &project
             }
             project->load();
             if (!mCurrentProject.lock())
-                mCurrentProject = project;
+                setCurrentProject(project);
             project->index(source, IndexerJob::Compile);
             ret = true;
         }
