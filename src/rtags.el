@@ -294,8 +294,8 @@
               (push (format "--timeout=%d" rtags-timeout) arguments))
           (unless rtags-sort-references-by-input
               (push "--no-sort-references-by-input" arguments))
-          (if rtags-wildcard-symbol-names
-            (push "--wildcard-symbol-names" arguments))
+          ;; (if rtags-wildcard-symbol-names
+          ;;     (push "--wildcard-symbol-names" arguments))
           (if (and rtags-show-containing-function (not (member "-N" arguments)))
               (push "-o" arguments))
 
