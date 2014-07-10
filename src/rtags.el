@@ -987,13 +987,14 @@ References to references will be treated as references to the referenced symbol"
                     (when (run-hook-with-args-until-failure 'rtags-edit-hook)
                       (incf modifications)
                       (rtags-goto-line-col (cadr value) (cddr value))
-                      (if (looking-at "~")
-                          (forward-char))
+                      (when (cond ((looking-at "~") (forward-char))
+                                  ((looking-at "auto ") nil)
+                                  (t))
 
                       ;; (message "About to replace %s with %s at %d in %s"
                       ;;          (buffer-substring-no-properties (point) (+ (point) len)) replacewith (point) (car value))
-                      (delete-char len)
-                      (insert replacewith)))))))))
+                        (delete-char len)
+                        (insert replacewith))))))))))
     (dolist (value buffers)
       (with-current-buffer value
         (basic-save-buffer)))
