@@ -142,10 +142,11 @@ There are a few prerequisites you need to have in order to build rtags
 
 *C++11 on OS X*
 
-If you plan to tag projects using C++11 features on OS X then you'll need a custom libclang, the one built through homebrew does not support using LLVM's libc++ and the default GNU C++ standard library on OS X is too old. We've prepared a homebrew formula for this purpose, this can be found in the llvm-osx directory in the RTags checkout. This formula can be built as follows though this will overwrite any existing libclang from homebrew:
+If you plan to tag projects using C++11 features on OS X then you'll need a custom libclang, the default one built through homebrew does not support using LLVM's [[http://libcxx.llvm.org/][libc++]]. You'll need to install one from homebrew-versions instead and explicitly tell it to enable libc++. For LLVM 3.4 the following works:
 
 #+BEGIN_SRC
-brew install ./llvm-osx/llvm.rb --with-clang --with-libcxx --disable-assertions
+$ brew tap homebrew/versions
+$ brew install llvm34 --with-libcxx --with-clang --disable-assertions --rtti
 #+END_SRC
 
 or you can install clang and llvm from macports
