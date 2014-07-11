@@ -49,15 +49,18 @@ class Llvm < Formula
       raise 'The Python bindings need the shared library.'
     end
 
-    Clang.new("clang").brew do
+    spec = build.head? ? :head : :stable
+    path = Pathname.new(__FILE__).expand_path
+
+    Clang.new("clang", path, spec).brew do
       clang_dir.install Dir['*']
     end if build.include? 'with-clang'
 
-    CompilerRt.new("compiler-rt").brew do
+    CompilerRt.new("compiler-rt", path, spec).brew do
       (buildpath/'projects/compiler-rt').install Dir['*']
     end if build.include? 'with-asan'
 
-    LibCpp.new("libcxx").brew do
+    LibCpp.new("libcxx", path, spec).brew do
       (buildpath/'projects/libcxx').install Dir['*']
     end if build.include? 'with-libcxx'
 
