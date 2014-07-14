@@ -1,0 +1,25 @@
+language: cpp
+
+compiler: gcc
+
+before_install:
+    - git submodule update --init --recursive
+
+install:
+    - sudo add-apt-repository -y ppa:ubuntu-toolchain-r/test
+    - sudo apt-get update -qq
+    - sudo apt-get install -qq libclang1 llvm-3.4-dev libclang-common-3.4-dev libclang-3.4-dev clang-3.4-dev
+    - if [ "$CXX" = "g++" ]; then sudo apt-get install -qq g++-4.8; fi
+    - if [ "$CXX" = "g++" ]; then export CXX="g++-4.8" CC="gcc-4.8"; fi
+    - if [ "$CXX" == "clang++" ]; then export CXX="clang++-3.4" CC="clang-3.4" CXXFLAGS="-stdlib=libc++"; fi
+
+before_script:
+    - mkdir build
+    - cd build
+    - cmake ..
+
+script: make
+
+os:
+    - linux
+    - osx
