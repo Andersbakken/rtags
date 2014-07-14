@@ -132,13 +132,20 @@ Server::~Server()
     Messages::cleanup();
 }
 
+#if not defined CLANG_INCLUDEPATH
+#error CLANG_INCLUDEPATH not defined during CMake generation
+#else
+#define TO_STR(x) #x
+#define CLANG_INCLUDEPATH_STR TO_STR(CLANG_INCLUDEPATH)
+#endif
+
 bool Server::init(const Options &options)
 {
     RTags::initMessages();
 
     mOptions = options;
     mSuspended = (options.options & StartSuspended);
-    Path clangPath = Path::resolved(CLANG_INCLUDEPATH);
+    Path clangPath = Path::resolved(CLANG_INCLUDEPATH_STR);
     mOptions.includePaths.append(clangPath);
 #ifdef OS_Darwin
     if (clangPath.exists()) {
@@ -151,6 +158,9 @@ bool Server::init(const Options &options)
             cppClangPath.resolve();
             if (cppClangPath.isDir()) {
                 mOptions.includePaths.append(cppClangPath);
+            } else {
+                error("Unable to find libc++ include path (.../c++/v1) near " CLANG_INCLUDEPATH_STR );
+                return false;
             }
         }
         // this seems to be the only way we get things like cstdint
@@ -412,7 +422,7 @@ void Server::handleCompileMessage(CompileMessage &message, Connection *conn)
         }
         clang_CompileCommands_dispose(cmds);
         clang_CompilationDatabase_dispose(db);
-        conn->write("Compilation database loaded");
+        conn->write("[Server] Compilation database loaded");
         conn->finish();
         return;
     }
@@ -430,7 +440,7 @@ void Server::handleLogOutputMessage(const LogOutputMessage &message, Connection 
 void Server::handleIndexerMessage(const IndexerMessage &message, Connection *conn)
 {
     std::shared_ptr<IndexData> indexData = message.data();
-    // error() << "Got indexer message" << message.project() << Location::path(indexData->fileId);
+    // error() << "Got indexer message" << message.project() << Location::path(indexData->fileId());
     assert(indexData);
     auto it = mActiveJobs.find(indexData->pid);
     if (it != mActiveJobs.end()) {

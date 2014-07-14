@@ -404,6 +404,9 @@ public:
         msg.setEscape(escape);
         msg.setArguments(args);
         msg.setCompilationDatabaseDir(compilationDatabaseDir);
+        if (!rc->projectRoot().isEmpty())
+            msg.setProjectRoot(rc->projectRoot());
+
         return connection->send(msg);
     }
     virtual String description() const

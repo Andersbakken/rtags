@@ -99,24 +99,24 @@ static inline Source::Language guessLanguageFromCompiler(const Path &fullPath) /
 static inline Source::Language guessLanguageFromSourceFile(const Path &sourceFile,
                                                            Source::Language defaultLanguage)
 {
-      // ### We should support some more of of these really
-      // .Case("cl", IK_OpenCL)
-      // .Case("cuda", IK_CUDA)
-      // .Case("c++", IK_CXX)
-      // .Case("objective-c", IK_ObjC)
-      // .Case("objective-c++", IK_ObjCXX)
-      // .Case("cpp-output", IK_PreprocessedC)
-      // .Case("assembler-with-cpp", IK_Asm)
-      // .Case("c++-cpp-output", IK_PreprocessedCXX)
-      // .Case("objective-c-cpp-output", IK_PreprocessedObjC)
-      // .Case("objc-cpp-output", IK_PreprocessedObjC)
-      // .Case("objective-c++-cpp-output", IK_PreprocessedObjCXX)
-      // .Case("objc++-cpp-output", IK_PreprocessedObjCXX)
-      // .Case("c-header", IK_C)
-      // .Case("cl-header", IK_OpenCL)
-      // .Case("objective-c-header", IK_ObjC)
-      // .Case("c++-header", IK_CXX)
-      // .Case("objective-c++-header", IK_ObjCXX)
+    // ### We should support some more of of these really
+    // .Case("cl", IK_OpenCL)
+    // .Case("cuda", IK_CUDA)
+    // .Case("c++", IK_CXX)
+    // .Case("objective-c", IK_ObjC)
+    // .Case("objective-c++", IK_ObjCXX)
+    // .Case("cpp-output", IK_PreprocessedC)
+    // .Case("assembler-with-cpp", IK_Asm)
+    // .Case("c++-cpp-output", IK_PreprocessedCXX)
+    // .Case("objective-c-cpp-output", IK_PreprocessedObjC)
+    // .Case("objc-cpp-output", IK_PreprocessedObjC)
+    // .Case("objective-c++-cpp-output", IK_PreprocessedObjCXX)
+    // .Case("objc++-cpp-output", IK_PreprocessedObjCXX)
+    // .Case("c-header", IK_C)
+    // .Case("cl-header", IK_OpenCL)
+    // .Case("objective-c-header", IK_ObjC)
+    // .Case("c++-header", IK_CXX)
+    // .Case("objective-c++-header", IK_ObjCXX)
 
     const char *suffix = sourceFile.extension();
     if (suffix) {
@@ -430,6 +430,10 @@ List<Source> Source::parse(const String &cmdLine, const Path &base, unsigned int
                 }
             } else if (arg.startsWith("-I")) {
                 addIncludeArg(includePaths, arguments, Source::Include::Type_Include, 2, split, i, path);
+#ifdef OS_Darwin
+            } else if (arg.startsWith("-F")) { // Framework include
+                addIncludeArg(includePaths, arguments, Source::Include::Type_Framework, 2, split, i, path);
+#endif
             } else if (arg.startsWith("-include")) {
                 addIncludeArg(includePaths, arguments, Source::Include::Type_None, 8, split, i, path);
             } else if (arg.startsWith("-isystem")) {
@@ -700,8 +704,11 @@ List<String> Source::toCommandLine(unsigned int flags) const
             case Source::Include::Type_Include:
                 ret << ("-I" + inc.path);
                 break;
+            case Source::Include::Type_Framework:
+                ret << ("-F" + inc.path);
+                break;
             case Source::Include::Type_System:
-                ret << "-isystem" << inc.path;
+                ret << "-isystem " << inc.path;
                 break;
             }
         }
