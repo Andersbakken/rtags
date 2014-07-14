@@ -135,7 +135,8 @@ Server::~Server()
 #if not defined CLANG_INCLUDEPATH
 #error CLANG_INCLUDEPATH not defined during CMake generation
 #else
-#define TO_STR(x) #x
+#define TO_STR1(x) #x
+#define TO_STR(x)  TO_STR1(x)
 #define CLANG_INCLUDEPATH_STR TO_STR(CLANG_INCLUDEPATH)
 #endif
 
