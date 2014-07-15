@@ -573,7 +573,7 @@ bool Project::index(const Source &source, uint32_t flags, Dirty *dirty, const Un
         return true;
     }
 
-    if (data.job && (data.job->update(source, flags) || dirty->isDirty(data.job)))
+    if (data.job && (data.job->update(source, flags) || (dirty && dirty->isDirty(data.job))))
         return false;
 
     const bool existed = mSources.contains(key);
