@@ -209,8 +209,17 @@ public:
     virtual bool isDirty(const Source &source)
     {
         bool ret = false;
+
+        if (mDirty.contains(source.fileId)) {
+            return true;
+        }
+
         if (mMatch.isEmpty() || mMatch.match(source.sourceFile())) {
             for (auto it : mReversedDependencies[source.fileId]) {
+                if (mDirty.contains(it)) {
+                    ret = true;
+                    continue;
+                }
                 const uint64_t depLastModified = lastModified(it);
                 if (!depLastModified || depLastModified > source.parsed) {
                     // dependency is gone
