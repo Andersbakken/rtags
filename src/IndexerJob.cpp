@@ -32,12 +32,11 @@ bool IndexerJob::launchProcess()
         }
     }
 
-    started = Rct::currentTimeMs();
+    started = 0;
     assert(!process);
     process = new Process;
     if (!process->start(rp)) {
         error() << "Couldn't start rp" << rp << process->errorString();
-        started = 0;
         return false;
     }
 

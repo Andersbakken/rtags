@@ -136,12 +136,8 @@ class Dirty
 {
 public:
     virtual ~Dirty() {}
-    const Set<uint32_t> &dirtied() const { return mDirty; }
+    virtual Set<uint32_t> dirtied() const = 0;
     virtual bool isDirty(const Source &source) = 0;
-    virtual bool isDirty(const std::shared_ptr<IndexerJob> &job) const = 0;
-    void insertDirtyFile(uint32_t fileId) { mDirty.insert(fileId); }
-protected:
-    Set<uint32_t> mDirty;
 };
 
 class SimpleDirty : public Dirty
@@ -165,28 +161,37 @@ public:
         return mDirty.contains(source.fileId);
     }
 
-    virtual bool isDirty(const std::shared_ptr<IndexerJob> &) const { return true; }
+    Set<uint32_t> mDirty;
 };
 
-class SuspendedDirty : public Dirty
+class UpdateContentsDirtyBase : public Dirty
 {
 public:
-    virtual bool isDirty(const Source &)
+    virtual Set<uint32_t> dirtied() const
     {
-        return false;
+        return mDirty;
     }
-    virtual bool isDirty(const std::shared_ptr<IndexerJob> &) const
+    void insertDirtyFile(uint32_t fileId)
     {
-        assert(0);
+        mDirty.insert(fileId);
+    }
+    Set<uint32_t> mDirty;
+};
+
+class SuspendedDirty : public UpdateContentsDirtyBase
+{
+public:
+    bool isDirty(const Source &)
+    {
         return false;
     }
 };
 
-class IfModifiedDirty : public Dirty
+class IfModifiedDirty : public UpdateContentsDirtyBase
 {
 public:
     IfModifiedDirty(const DependencyMap &dependencies, const Match &match = Match())
-        : mDependencies(dependencies), mMatch(match), mLastDependencyModified(0)
+        : mDependencies(dependencies), mMatch(match)
     {
         for (auto it : mDependencies) {
             const uint32_t dependee = it.first;
@@ -207,11 +212,6 @@ public:
         if (mMatch.isEmpty() || mMatch.match(source.sourceFile())) {
             for (auto it : mReversedDependencies[source.fileId]) {
                 const uint64_t depLastModified = lastModified(it);
-                if (!depLastModified) {
-                    mLastDependencyModified = Rct::currentTimeMs();
-                } else {
-                    mLastDependencyModified = std::max(mLastDependencyModified, depLastModified);
-                }
                 if (!depLastModified || depLastModified > source.parsed) {
                     // dependency is gone
                     ret = true;
@@ -226,11 +226,6 @@ public:
         return ret;
     }
 
-    virtual bool isDirty(const std::shared_ptr<IndexerJob> &job) const
-    {
-        return job->started >= mLastDependencyModified;
-    }
-
     inline uint64_t lastModified(uint32_t fileId)
     {
         uint64_t &time = mLastModified[fileId];
@@ -242,7 +237,6 @@ public:
 
     DependencyMap mDependencies, mReversedDependencies;
     Match mMatch;
-    uint64_t mLastDependencyModified;
     Hash<uint32_t, uint64_t> mLastModified;
 };
 
@@ -288,7 +282,7 @@ void Project::updateContents(RestoreThread *thread)
         return;
 
     bool needsSave = false;
-    std::unique_ptr<Dirty> dirty;
+    std::unique_ptr<UpdateContentsDirtyBase> dirty;
     if (thread) {
         mSymbols = std::move(thread->mSymbols);
         mSymbolNames = std::move(thread->mSymbolNames);
@@ -555,12 +549,13 @@ bool Project::save()
     return true;
 }
 
-bool Project::index(const Source &source, uint32_t flags, Dirty *dirty, const UnsavedFiles &unsavedFiles)
+void Project::index(const Source &source, uint32_t flags,
+                    const UnsavedFiles &unsavedFiles, const Set<uint32_t> &dirty)
 {
     const Path sourceFile = source.sourceFile();
     static const char *fileFilter = getenv("RTAGS_FILE_FILTER");
     if (fileFilter && !strstr(sourceFile.constData(), fileFilter))
-        return false;
+        return;
 
     const uint64_t key = source.key();
     JobData &data = mJobs[key];
@@ -570,11 +565,11 @@ bool Project::index(const Source &source, uint32_t flags, Dirty *dirty, const Un
         // error() << "Index called at" << static_cast<int>(mState) << "time. Setting pending" << sourceFile;
         data.pendingSource = source;
         data.pendingFlags = flags;
-        return true;
+        return;
     }
 
-    if (data.job && (data.job->update(source, flags) || (dirty && dirty->isDirty(data.job))))
-        return false;
+    if (data.job && data.job->update(source, flags))
+        return;
 
     const bool existed = mSources.contains(key);
     mSources[key] = source;
@@ -584,15 +579,14 @@ bool Project::index(const Source &source, uint32_t flags, Dirty *dirty, const Un
     mPendingData.remove(key);
 
     if (Server::instance()->suspended() && existed && (flags & IndexerJob::Compile))
-        return false;
+        return;
 
     if (!mJobCounter++)
         mTimer.start();
 
-    data.job.reset(new IndexerJob(source, flags, mPath, unsavedFiles, dirty ? dirty->dirtied() : Set<uint32_t>()));
+    data.job.reset(new IndexerJob(source, flags, mPath, unsavedFiles, dirty));
     mSyncTimer.stop();
     Server::instance()->addJob(data.job);
-    return true;
 }
 
 void Project::onFileModifiedOrRemoved(const Path &file)
@@ -724,8 +718,10 @@ int Project::startDirtyJobs(Dirty *dirty, const UnsavedFiles &unsavedFiles)
 {
     int indexed = 0;
     for (auto &source : mSources) {
-        if (dirty->isDirty(source.second) && index(source.second, IndexerJob::Dirty, dirty, unsavedFiles))
+        if (dirty->isDirty(source.second)) {
+            index(source.second, IndexerJob::Dirty, unsavedFiles);
             ++indexed;
+        }
     }
     const Set<uint32_t> dirtyFiles = dirty->dirtied();
     for (const auto &fileId : dirtyFiles) {
