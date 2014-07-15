@@ -430,6 +430,10 @@ List<Source> Source::parse(const String &cmdLine, const Path &base, unsigned int
                 }
             } else if (arg.startsWith("-I")) {
                 addIncludeArg(includePaths, arguments, Source::Include::Type_Include, 2, split, i, path);
+#ifdef OS_Darwin
+	    } else if (arg.startsWith("-F")) { // Framework include
+                addIncludeArg(includePaths, arguments, Source::Include::Type_Framework, 2, split, i, path);
+#endif
             } else if (arg.startsWith("-include")) {
                 addIncludeArg(includePaths, arguments, Source::Include::Type_None, 8, split, i, path);
             } else if (arg.startsWith("-isystem")) {
@@ -700,8 +704,11 @@ List<String> Source::toCommandLine(unsigned int flags) const
             case Source::Include::Type_Include:
                 ret << ("-I" + inc.path);
                 break;
+            case Source::Include::Type_Framework:
+                ret << ("-F" + inc.path);
+                break;
             case Source::Include::Type_System:
-                ret << "-isystem" << inc.path;
+                ret << "-isystem " << inc.path;
                 break;
             }
         }

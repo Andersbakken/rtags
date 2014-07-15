@@ -54,7 +54,7 @@ bool IndexerJob::launchProcess()
         *reinterpret_cast<int*>(&header[0]) = size;
         process->write(header);
         process->write(stdinData);
-        // error() << "Startingprocess" << (packet.size() + stdinData.size()) << sourceFile;
+        // error() << "Startingprocess" << (header.size() + stdinData.size()) << sourceFile;
     }
     return true;
 }
