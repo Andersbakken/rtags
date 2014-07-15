@@ -77,7 +77,6 @@ void FileManager::onFileAdded(const Path &path)
 {
     std::lock_guard<std::mutex> lock(mMutex);
     if (path.isEmpty()) {
-        error("Got empty file added here");
         return;
     }
     const Filter::Result res = Filter::filter(path);
