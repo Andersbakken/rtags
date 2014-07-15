@@ -130,7 +130,7 @@ struct Option opts[] = {
 
     { None, 0, 0, 0, "" },
     { None, 0, 0, 0, "Rdm:" },
-    { QuitRdm, "quit-rdm", 'q', optional_argument, "Tell server to shut down. If arg is broadcast:10 tell all rdm on the farm to quit with exit code 10." },
+    { QuitRdm, "quit-rdm", 'q', no_argument, "Tell server to shut down with optional exit code as argument." },
     { ConnectTimeout, "connect-timeout", 0, required_argument, "Timeout for connecting to rdm in ms (default " STR(DEFAULT_CONNECT_TIMEOUT)  ")." },
 
     { None, 0, 0, 0, "" },
@@ -819,12 +819,8 @@ bool RClient::parse(int &argc, char **argv)
                 arg = argv[optind++];
             }
             if (arg) {
-                if (strncmp(arg, "broadcast:", 10)) {
-                    fprintf(stderr, "Invalid argument to -q\n");
-                    return 1;
-                }
                 bool ok;
-                const int exit = String(arg + 10).toLongLong(&ok);
+                const int exit = String(arg).toLongLong(&ok);
                 if (!ok) {
                     fprintf(stderr, "Invalid argument to -q\n");
                     return 1;

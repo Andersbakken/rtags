@@ -133,7 +133,6 @@ int main(int argc, char** argv)
 
     struct option opts[] = {
         { "help", no_argument, 0, 'h' },
-        { "server", optional_argument, 0, 's' },
         { "enable-job-server", no_argument, 0, 'z' },
         { "compression", required_argument, 0, 'Z' },
         { "include-path", required_argument, 0, 'I' },
