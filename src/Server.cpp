@@ -1554,7 +1554,6 @@ void Server::startJobs()
             } else {
                 onJobFinished(job->process, job);
             }
-            assert(job->process);
         }
     }
 }
