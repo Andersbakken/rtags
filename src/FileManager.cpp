@@ -24,6 +24,7 @@ FileManager::FileManager()
 {
     mWatcher.added().connect(std::bind(&FileManager::onFileAdded, this, std::placeholders::_1));
     mWatcher.removed().connect(std::bind(&FileManager::onFileRemoved, this, std::placeholders::_1));
+    mScanTimer.timeout().connect(std::bind(&FileManager::startScanThread, this, std::placeholders::_1));
 }
 
 void FileManager::init(const std::shared_ptr<Project> &proj, Mode mode)
@@ -38,12 +39,9 @@ void FileManager::reload(Mode mode)
     std::shared_ptr<Project> project = mProject.lock();
     assert(project);
     if (mode == Asynchronous) {
-        ScanThread *thread = new ScanThread(project->path());
-        thread->setAutoDelete(true);
-        thread->finished().connect<EventLoop::Move>(std::bind(&FileManager::onRecurseJobFinished, this, std::placeholders::_1));
-        thread->start();
+        mScanTimer.restart(5000, Timer::SingleShot);
     } else {
-        Set<Path> paths = ScanThread::paths(project->path());
+        const Set<Path> paths = ScanThread::paths(project->path());
         onRecurseJobFinished(paths);
     }
 }
@@ -65,8 +63,7 @@ void FileManager::onRecurseJobFinished(const Set<Path> &paths)
         }
         assert(!parent.isEmpty());
         Set<String> &dir = map[parent];
-        if (dir.isEmpty())
-            watch(parent);
+        watch(parent);
         dir.insert(it->fileName());
     }
     assert(!map.contains(""));
@@ -74,6 +71,7 @@ void FileManager::onRecurseJobFinished(const Set<Path> &paths)
 
 void FileManager::onFileAdded(const Path &path)
 {
+    // error() << "File added" << path;
     std::lock_guard<std::mutex> lock(mMutex);
     if (path.isEmpty()) {
         return;
@@ -81,6 +79,7 @@ void FileManager::onFileAdded(const Path &path)
     const Filter::Result res = Filter::filter(path);
     switch (res) {
     case Filter::Directory:
+        watch(path);
         reload(Asynchronous);
         return;
     case Filter::Filtered:
@@ -95,17 +94,18 @@ void FileManager::onFileAdded(const Path &path)
     const Path parent = path.parentDir();
     if (!parent.isEmpty()) {
         Set<String> &dir = map[parent];
-        if (dir.isEmpty())
-            watch(parent);
+        watch(parent);
         dir.insert(path.fileName());
     } else {
         error() << "Got empty parent here" << path;
+        reload(Asynchronous);
     }
     assert(!map.contains(Path()));
 }
 
 void FileManager::onFileRemoved(const Path &path)
 {
+    // error() << "File removed" << path;
     std::lock_guard<std::mutex> lock(mMutex);
     std::shared_ptr<Project> project = mProject.lock();
     FilesMap &map = project->files();
@@ -150,4 +150,13 @@ void FileManager::watch(const Path &path)
         && !path.contains("/.git/") && !path.contains("/.svn/") && !path.contains("/.cvs/")) {
         mWatcher.watch(path);
     }
+}
+void FileManager::startScanThread(Timer *)
+{
+    std::shared_ptr<Project> project = mProject.lock();
+    assert(project);
+    ScanThread *thread = new ScanThread(project->path());
+    thread->setAutoDelete(true);
+    thread->finished().connect<EventLoop::Move>(std::bind(&FileManager::onRecurseJobFinished, this, std::placeholders::_1));
+    thread->start();
 }

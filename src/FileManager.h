@@ -17,6 +17,7 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 #define FileManager_h
 
 #include <rct/Path.h>
+#include <rct/Timer.h>
 #include <rct/List.h>
 #include <rct/FileSystemWatcher.h>
 #include "Location.h"
@@ -41,9 +42,10 @@ public:
     bool contains(const Path &path) const;
     void clearFileSystemWatcher() { mWatcher.clear(); }
     Set<Path> watchedPaths() const { return mWatcher.watchedPaths(); }
-
 private:
+    void startScanThread(Timer *);
     void watch(const Path &path);
+    Timer mScanTimer;
     FileSystemWatcher mWatcher;
     std::weak_ptr<Project> mProject;
     uint64_t mLastReloadTime;
