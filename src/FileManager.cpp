@@ -37,15 +37,14 @@ void FileManager::reload(Mode mode)
     mLastReloadTime = Rct::monoMs();
     std::shared_ptr<Project> project = mProject.lock();
     assert(project);
-    ScanThread *thread = new ScanThread(project->path());
     if (mode == Asynchronous) {
+        ScanThread *thread = new ScanThread(project->path());
         thread->setAutoDelete(true);
         thread->finished().connect<EventLoop::Move>(std::bind(&FileManager::onRecurseJobFinished, this, std::placeholders::_1));
         thread->start();
     } else {
-        thread->finished().connect(std::bind(&FileManager::onRecurseJobFinished, this, std::placeholders::_1));
-        thread->run();
-        delete thread;
+        Set<Path> paths = ScanThread::paths(project->path());
+        onRecurseJobFinished(paths);
     }
 }
 

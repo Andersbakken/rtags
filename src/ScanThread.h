@@ -26,11 +26,10 @@ public:
     ScanThread(const Path &path);
     virtual void run();
     Signal<std::function<void(Set<Path>)> > &finished() { return mFinished; }
+    static Set<Path> paths(const Path &path, const List<String> &filters = List<String>());
 private:
-    static Path::VisitResult visit(const Path &path, void *userData);
     Path mPath;
     const List<String> &mFilters;
-    Set<Path> mPaths;
     Signal<std::function<void(Set<Path>)> > mFinished;
 };
 
