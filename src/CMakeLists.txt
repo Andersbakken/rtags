@@ -72,28 +72,28 @@ add_library(shared SHARED ${RTAGS_SHARED_SOURCES})
 target_link_libraries(shared rct)
 
 set(RDM_SOURCES
-  CompletionThread.cpp
-  CursorInfo.cpp
-  CursorInfoJob.cpp
-  DependenciesJob.cpp
-  DumpThread.cpp
-  EventSourceClient.cpp
-  FileManager.cpp
-  FindFileJob.cpp
-  FindSymbolsJob.cpp
-  FollowLocationJob.cpp
-  IndexerJob.cpp
-  Job.cpp
-  ListSymbolsJob.cpp
-  Preprocessor.cpp
-  Project.cpp
-  RTagsClang.cpp
-  ReferencesJob.cpp
-  ScanThread.cpp
-  Server.cpp
-  Source.cpp
-  StatusJob.cpp
-  )
+    CompilerManager.cpp
+    CompletionThread.cpp
+    CursorInfo.cpp
+    CursorInfoJob.cpp
+    DependenciesJob.cpp
+    DumpThread.cpp
+    EventSourceClient.cpp
+    FileManager.cpp
+    FindFileJob.cpp
+    FindSymbolsJob.cpp
+    FollowLocationJob.cpp
+    IndexerJob.cpp
+    Job.cpp
+    ListSymbolsJob.cpp
+    Preprocessor.cpp
+    Project.cpp
+    RTagsClang.cpp
+    ReferencesJob.cpp
+    ScanThread.cpp
+    Server.cpp
+    Source.cpp
+    StatusJob.cpp)
 
 include_directories(${CMAKE_CURRENT_LIST_DIR}
                     rct/include/

@@ -19,6 +19,7 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 #include "Server.h"
 #include <clang-c/Index.h>
 #include "Project.h"
+#include "CompilerManager.h"
 
 const char *StatusJob::delimiter = "*********************************";
 StatusJob::StatusJob(const QueryMessage &q, const std::shared_ptr<Project> &project)
@@ -29,7 +30,7 @@ StatusJob::StatusJob(const QueryMessage &q, const std::shared_ptr<Project> &proj
 int StatusJob::execute()
 {
     bool matched = false;
-    const char *alternatives = "fileids|watchedpaths|dependencies|symbols|symbolnames|sources|jobs|info";
+    const char *alternatives = "fileids|watchedpaths|dependencies|symbols|symbolnames|sources|jobs|info|compilers";
 
     if (!strcasecmp(query.constData(), "fileids")) {
         matched = true;
@@ -157,6 +158,25 @@ int StatusJob::execute()
         if (!write(delimiter) || !write("jobs") || !write(delimiter))
             return 1;
         Server::instance()->dumpJobs(connection());
+    }
+
+    if (query.isEmpty() || !strcasecmp(query.constData(), "compilers")) {
+        matched = true;
+        if (!write(delimiter) || !write("compilers") || !write(delimiter))
+            return 1;
+        for (const Path &compiler : CompilerManager::compilers()) {
+            Set<Source::Define> defines;
+            List<Source::Include> includePaths;
+            CompilerManager::data(compiler, &defines, &includePaths);
+            write(compiler);
+            write("  Defines:");
+            for (const auto &it : defines)
+                write<512>("    %s", it.toString().constData());
+            write("  Includepaths:");
+            for (const auto &it : includePaths)
+                write<512>("    %s", it.toString().constData());
+            write("");
+        }
     }
 
     if (query.isEmpty() || !strcasecmp(query.constData(), "info")) {

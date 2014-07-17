@@ -176,6 +176,8 @@ bool Server::init(const Options &options)
         mOptions.defaultArguments << "-fspell-checking";
     if (!(options.options & NoNoUnknownWarningsOption))
         mOptions.defaultArguments.append("-Wno-unknown-warning-option");
+    mOptions.defaultArguments << "-nobuiltininc";
+    mOptions.defaultArguments << "-nostdinc++";
     Log l(Error);
     l << "Running with" << mOptions.jobCount << "jobs, using args:"
       << String::join(mOptions.defaultArguments, ' ') << '\n';

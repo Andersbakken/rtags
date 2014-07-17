@@ -3,6 +3,7 @@
 #include <rct/Process.h>
 #include <RTagsClang.h>
 #include "Server.h"
+#include "CompilerManager.h"
 
 IndexerJob::IndexerJob(const Source &s,
                        uint32_t f,
@@ -108,6 +109,8 @@ void IndexerJob::encode(Serializer &serializer) const
             copy.arguments.removeAt(idx);
         }
     }
+
+    CompilerManager::data(copy.compiler(), 0, &copy.includePaths);
 
     for (const auto &inc : options.includePaths) {
         copy.includePaths << Source::Include(Source::Include::Type_Include, inc);

@@ -23,6 +23,9 @@
 #include <assert.h>
 #include <clang-c/Index.h>
 #include <stdio.h>
+#if defined(OS_Linux)
+#include <linux/limits.h>
+#endif
 #ifndef RTAGS_SINGLE_THREAD
 #include <mutex>
 #define LOCK() const std::lock_guard<std::mutex> lock(sMutex)
