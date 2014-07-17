@@ -708,7 +708,7 @@ List<String> Source::toCommandLine(unsigned int flags) const
                 ret << ("-F" + inc.path);
                 break;
             case Source::Include::Type_System:
-                ret << "-isystem " << inc.path;
+                ret << "-isystem" << inc.path;
                 break;
             }
         }
