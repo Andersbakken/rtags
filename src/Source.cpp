@@ -33,7 +33,7 @@ Path Source::compiler() const
 
 String Source::toString() const
 {
-    String ret = String::join(toCommandLine(IncludeCompiler|IncludeSourceFile|QuoteDefines|IncludeDefines), ' ');
+    String ret = String::join(toCommandLine(IncludeCompiler|IncludeSourceFile|IncludeIncludepaths|QuoteDefines|IncludeDefines), ' ');
     if (buildRootId)
         ret << " Build: " << buildRoot();
     if (parsed)
@@ -358,9 +358,6 @@ List<Source> Source::parse(const String &cmdLine, const Path &base, unsigned int
     }
 
     Language language = guessLanguageFromCompiler(split.front());
-    if (!Source::isIndexable(language))
-        return List<Source>();
-
     bool hasDashX = false;
     uint32_t sourceFlags = 0;
     List<String> arguments;
@@ -526,6 +523,11 @@ List<Source> Source::parse(const String &cmdLine, const Path &base, unsigned int
         return List<Source>();
     }
 
+    if (!isIndexable(language)) {
+        warning() << "Source::parse We can't index this" << language;
+        return List<Source>();
+    }
+
     // ### not threadsafe
     assert(EventLoop::isMainThread());
     static Hash<Path, Path> resolvedFromPath;
@@ -654,25 +656,8 @@ List<String> Source::toCommandLine(unsigned int flags) const
     if (!options)
         flags |= (ExcludeDefaultArguments|ExcludeDefaultDefines|ExcludeDefaultIncludePaths);
 
-    int count = arguments.size() + defines.size() + includePaths.size();
-    if (flags & IncludeCompiler)
-        ++count;
-    if (flags & IncludeSourceFile)
-        ++count;
-    if (!(flags & ExcludeDefaultArguments))
-        count += options->defaultArguments.size();
-    if (flags & IncludeDefines) {
-        count += defines.size();
-        if (!(flags & ExcludeDefaultDefines))
-            count += options->includePaths.size();
-    }
-    if (flags & IncludeIncludepaths) {
-        count += includePaths.size();
-        if (!(flags & ExcludeDefaultIncludePaths))
-            count += options->defines.size();
-    }
     List<String> ret;
-    ret.reserve(count);
+    ret.reserve(64);
     if (flags & IncludeCompiler)
         ret.append(compiler());
     for (int i=0; i<arguments.size(); ++i) {
