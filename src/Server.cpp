@@ -147,18 +147,18 @@ bool Server::init(const Options &options)
     mOptions = options;
     mSuspended = (options.options & StartSuspended);
     Path clangPath = Path::resolved(CLANG_INCLUDEPATH_STR);
-    mOptions.includePaths.append(clangPath);
+    mOptions.includePaths.append(Source::Include(Source::Include::Type_System, clangPath));
 #ifdef OS_Darwin
     if (clangPath.exists()) {
         Path cppClangPath = clangPath + "../../../c++/v1/";
         cppClangPath.resolve();
         if (cppClangPath.isDir()) {
-            mOptions.includePaths.append(cppClangPath);
+            mOptions.includePaths.append(Source::Include(Source::Include::Type_System, cppClangPath));
         } else {
             cppClangPath = clangPath + "../../../../include/c++/v1/";
             cppClangPath.resolve();
             if (cppClangPath.isDir()) {
-                mOptions.includePaths.append(cppClangPath);
+                mOptions.includePaths.append(Source::Include(Source::Include::Type_System, cppClangPath));
             } else {
                 error("Unable to find libc++ include path (.../c++/v1) near " CLANG_INCLUDEPATH_STR );
                 return false;
@@ -181,7 +181,9 @@ bool Server::init(const Options &options)
     Log l(Error);
     l << "Running with" << mOptions.jobCount << "jobs, using args:"
       << String::join(mOptions.defaultArguments, ' ') << '\n';
-    l << "Includepaths:" << String::join(mOptions.includePaths, ' ');
+    l << "Includepaths:";
+    for (const auto &inc : mOptions.includePaths)
+        l << inc.toString();
 
     if (mOptions.options & ClearProjects) {
         clearProjects();

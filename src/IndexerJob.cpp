@@ -113,7 +113,7 @@ void IndexerJob::encode(Serializer &serializer) const
     CompilerManager::data(copy.compiler(), 0, &copy.includePaths);
 
     for (const auto &inc : options.includePaths) {
-        copy.includePaths << Source::Include(Source::Include::Type_Include, inc);
+        copy.includePaths << inc;
     }
     copy.defines << options.defines;
     assert(!sourceFile.isEmpty());

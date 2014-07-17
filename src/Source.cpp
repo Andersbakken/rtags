@@ -698,8 +698,22 @@ List<String> Source::toCommandLine(unsigned int flags) const
             }
         }
         if (!(flags & ExcludeDefaultIncludePaths)) {
-            for (const auto &inc : options->includePaths)
-                ret << ("-I" + inc);
+            for (const auto &inc : options->includePaths) {
+                switch (inc.type) {
+                case Source::Include::Type_None:
+                    assert(0 && "Impossible impossibility");
+                    break;
+                case Source::Include::Type_Include:
+                    ret << ("-I" + inc.path);
+                    break;
+                case Source::Include::Type_Framework:
+                    ret << ("-F" + inc.path);
+                    break;
+                case Source::Include::Type_System:
+                    ret << "-isystem" << inc.path;
+                    break;
+                }
+            }
         }
     }
     if (flags & IncludeSourceFile)

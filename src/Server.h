@@ -80,7 +80,7 @@ public:
             rpIndexerMessageTimeout, rpConnectTimeout, rpNiceValue,
             syncThreshold, threadStackSize, maxCrashCount, completionCacheSize;
         List<String> defaultArguments, excludeFilters;
-        List<Path> includePaths;
+        List<Source::Include> includePaths;
         List<Source::Define> defines;
         Set<Path> ignoredCompilers;
         List<std::pair<RegExp, Source::Language> > extraCompilers;

@@ -262,7 +262,7 @@ void CompletionThread::process(Request *request)
 
         const auto &options = Server::instance()->options();
         for (const auto &inc : options.includePaths) {
-            request->source.includePaths << Source::Include(Source::Include::Type_Include, inc);
+            request->source.includePaths << inc;
         }
         request->source.defines << options.defines;
 

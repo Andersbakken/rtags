@@ -984,6 +984,9 @@ bool ClangIndexer::parse()
 
     debug() << "CI::parse: " << mSource.toCommandLine(commandLineFlags) << "\n";
 
+    // for (const auto it : mSource.toCommandLine(commandLineFlags)) {
+    //     error("[%s]", it.constData());
+    // }
     RTags::parseTranslationUnit(mSourceFile, mSource.toCommandLine(commandLineFlags), mClangUnit,
                                 mIndex, &unsavedFiles[0], unsavedIndex, flags, &mClangLine);
 

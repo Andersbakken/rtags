@@ -68,6 +68,7 @@ static void usage(FILE *f)
             "  --server|-s [arg]                          Run as server with no arg or connect to arg as server.\n"
             "  --enable-job-server|-z                     Enable job server.\n"
             "  --include-path|-I [arg]                    Add additional include path to clang.\n"
+            "  --isystem|-s [arg]                         Add additional system include path to clang.\n"
             "  --define|-D [arg]                          Add additional define directive to clang.\n"
             "  --log-file|-L [arg]                        Log to this file.\n"
             "  --append|-A                                Append to log file.\n"
@@ -136,6 +137,7 @@ int main(int argc, char** argv)
         { "enable-job-server", no_argument, 0, 'z' },
         { "compression", required_argument, 0, 'Z' },
         { "include-path", required_argument, 0, 'I' },
+        { "isystem", required_argument, 0, 's' },
         { "define", required_argument, 0, 'D' },
         { "log-file", required_argument, 0, 'L' },
         { "setenv", required_argument, 0, 'e' },
@@ -516,7 +518,10 @@ int main(int argc, char** argv)
             serverOpts.defines.append(def);
             break; }
         case 'I':
-            serverOpts.includePaths.append(Path::resolved(optarg));
+            serverOpts.includePaths.append(Source::Include(Source::Include::Type_Include, Path::resolved(optarg)));
+            break;
+        case 's':
+            serverOpts.includePaths.append(Source::Include(Source::Include::Type_System, Path::resolved(optarg)));
             break;
         case 'A':
             logFlags |= Log::Append;
