@@ -268,7 +268,6 @@ Project::Project(const Path &path)
 
 Project::~Project()
 {
-    unload();
     assert(EventLoop::isMainThread());
     for (auto it = mJobs.constBegin(); it != mJobs.constEnd(); ++it) {
         if (it->second.job)
