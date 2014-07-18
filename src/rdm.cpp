@@ -114,6 +114,7 @@ static void usage(FILE *f)
             "  --thread-stack-size|-k [arg]               Set stack size for threadpool to this (default %zu).\n"
             "  --completion-cache-size|-i [arg]           Number of translation units to cache (default " STR(DEFAULT_COMPLETION_CACHE_SIZE) ").\n"
             "  --extra-compilers|-U [arg]                 Override additional \"known\" compilers. E.g. -U foobar;c++, foobar;c or foobar:objective-c or just foobar.\n"
+            "  --enable-compiler-manager|-R               Query compilers for their actual include paths instead of letting clang use its own.\n"
             "  --max-crash-count|-K [arg]                 Number of restart attempts for a translation unit when rp crashes (default " STR(DEFAULT_MAX_CRASH_COUNT) ").\n",
             std::max(2, ThreadPool::idealThreadCount()), defaultStackSize);
 }
@@ -176,6 +177,7 @@ int main(int argc, char** argv)
         { "completion-cache-size", required_argument, 0, 'i' },
         { "extra-compilers", required_argument, 0, 'U' },
         { "allow-Wpedantic", no_argument, 0, 'P' },
+        { "enable-compiler-manager", no_argument, 0, 'R' },
 #ifdef OS_Darwin
         { "filemanager-watch", no_argument, 0, 'M' },
 #else
@@ -393,6 +395,9 @@ int main(int argc, char** argv)
             return 0;
         case 'Y':
             serverOpts.options |= Server::NoNoUnknownWarningsOption;
+            break;
+        case 'R':
+            serverOpts.options |= Server::EnableCompilerManager;
             break;
         case 'm':
             serverOpts.options |= Server::DisallowMultipleSources;

@@ -110,7 +110,8 @@ void IndexerJob::encode(Serializer &serializer) const
         }
     }
 
-    CompilerManager::data(copy.compiler(), 0, &copy.includePaths);
+    if (options.options & Server::EnableCompilerManager)
+        CompilerManager::data(copy.compiler(), 0, &copy.includePaths);
 
     for (const auto &inc : options.includePaths) {
         copy.includePaths << inc;

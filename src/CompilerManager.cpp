@@ -65,18 +65,17 @@ void data(const Path &c, Set<Source::Define> *defines, List<Source::Include> *in
             if (i == 0) {
                 args << "-v" << "-x" << "c++" << "-E" << "-dM" << "-";
             } else {
-                if (i == 0)
-                    args << "-v" << "-E" << "-dM" << "-";
+                args << "-v" << "-E" << "-dM" << "-";
             }
             proc.exec(c, args, environ);
             assert(proc.isFinished());
             if (!proc.returnCode()) {
-                out = proc.readAllStdOut().split('\n');
-                err = proc.readAllStdErr().split('\n');
+                out << proc.readAllStdOut().split('\n');
+                err << proc.readAllStdErr().split('\n');
                 break;
             } else if (i == 1) {
-                out = proc.readAllStdOut().split('\n');
-                err = proc.readAllStdErr().split('\n');
+                out << proc.readAllStdOut().split('\n');
+                err << proc.readAllStdErr().split('\n');
             }
         }
         for (int i=0; i<out.size(); ++i) {
@@ -100,18 +99,20 @@ void data(const Path &c, Set<Source::Define> *defines, List<Source::Include> *in
             int j = 0;
             while (j < line.size() && isspace(line.at(j)))
                 ++j;
-            Path path = line.mid(j);
-            if (path.isDir()
-#ifdef OS_Darwin
-                && !path.contains("/lib/clang/")
-#endif
-                )
-            {
+            int end = line.lastIndexOf(" (framework directory)");
+            Source::Include::Type type = Source::Include::Type::Type_Include;
+            if (end != -1) {
+                end = end - j;
+                type = Source::Include::Type_Framework;
+            }
+            Path path = line.mid(j, end);
+            // error() << "looking at" << line << path << path.isDir();
+            if (path.isDir()) {
                 path.resolve();
-                compiler.includePaths.append(Source::Include(Source::Include::Type_System, path));
+                compiler.includePaths.append(Source::Include(type, path));
             }
         }
-        // warning() << compiler << "got\n" << String::join(flags, "\n");
+        // error() << c << "got\n" << compiler.includePaths;
 
     }
     if (defines)

@@ -65,7 +65,8 @@ public:
         SuspendRPOnCrash = 0x0800,
         SeparateDebugAndRelease = 0x1000,
         AllowPedantic = 0x2000,
-        StartSuspended = 0x4000
+        StartSuspended = 0x4000,
+        EnableCompilerManager = 0x8000
     };
     struct Options {
         Options()
