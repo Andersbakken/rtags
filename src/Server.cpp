@@ -178,6 +178,28 @@ bool Server::init(const Options &options)
         mOptions.defaultArguments.append("-Wno-unknown-warning-option");
     mOptions.defaultArguments << "-nobuiltininc";
     mOptions.defaultArguments << "-nostdinc++";
+    mOptions.defaultArguments << "-mno-sse";
+    mOptions.defaultArguments << "-mno-sse2";
+    mOptions.defaultArguments << "-mno-sse3";
+    // http://clang.llvm.org/compatibility.html#vector_builtins
+    const char *gccBuiltIntVectorFunctionDefines[] = {
+        "__builtin_ia32_rolhi",
+        "__builtin_ia32_pause",
+        "__builtin_ia32_addcarryx_u32",
+        "__builtin_ia32_bsrsi",
+        "__builtin_ia32_rdpmc",
+        "__builtin_ia32_rdtsc",
+        "__builtin_ia32_rdtscp",
+        "__builtin_ia32_rolqi",
+        "__builtin_ia32_rorqi",
+        "__builtin_ia32_rorhi",
+        "__builtin_ia32_rolhi",
+        0
+    };
+    for (int i=0; gccBuiltIntVectorFunctionDefines[i]; ++i) {
+        mOptions.defines << Source::Define(String::format<128>("%s(...)", gccBuiltIntVectorFunctionDefines[i]));
+    }
+
     Log l(Error);
     l << "Running with" << mOptions.jobCount << "jobs, using args:"
       << String::join(mOptions.defaultArguments, ' ') << '\n';

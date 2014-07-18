@@ -52,6 +52,9 @@ struct Source
     uint32_t flags;
 
     struct Define {
+        Define(const String &def = String(), const String &val = String())
+            : define(def), value(val)
+        {}
         String define;
         String value;
 
