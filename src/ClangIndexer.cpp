@@ -923,7 +923,7 @@ bool ClangIndexer::handleCursor(const CXCursor &cursor, CXCursorKind kind, const
                 //         << createLocation(mLastCursor)
                 //         << clang_Range_isNull(range)
                 //         << createLocation(clang_getCursorLocation(mLastCursor));
-                auto info = handleReference(mLastCursor, CXCursor_TypeRef,
+                auto info = handleReference(mLastCursor, clang_getCursorKind(mLastCursor),
                                             createLocation(clang_getCursorLocation(mLastCursor)),
                                             clang_getCursorReferenced(typeRef), nullCursor);
                 if (info) {
@@ -1318,6 +1318,7 @@ static CXChildVisitResult resolveAutoTypeRefVisitor(CXCursor cursor, CXCursor, C
     ++userData->index;
     switch (kind) {
     case CXCursor_TypeRef:
+    case CXCursor_TemplateRef:
         // error() << "Found typeRef" << cursor;
         userData->ref = cursor;
         return CXChildVisit_Break;
