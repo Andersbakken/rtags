@@ -325,6 +325,7 @@ Path findProjectRoot(const Path &path, ProjectRootMode mode)
             { "GNUMakefile*", Wildcard },
             { "INSTALL*", Wildcard },
             { "README*", Wildcard },
+            { "compile_commands.json", 0 },
             { 0, 0 }
         };
         {
