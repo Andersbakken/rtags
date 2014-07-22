@@ -164,7 +164,7 @@ public:
     Set<uint32_t> mDirty;
 };
 
-class UpdateContentsDirtyBase : public Dirty
+class ComplexDirty : public Dirty
 {
 public:
     virtual Set<uint32_t> dirtied() const
@@ -175,10 +175,20 @@ public:
     {
         mDirty.insert(fileId);
     }
+    inline uint64_t lastModified(uint32_t fileId)
+    {
+        uint64_t &time = mLastModified[fileId];
+        if (!time) {
+            time = Location::path(fileId).lastModifiedMs();
+        }
+        return time;
+    }
+
+    Hash<uint32_t, uint64_t> mLastModified;
     Set<uint32_t> mDirty;
 };
 
-class SuspendedDirty : public UpdateContentsDirtyBase
+class SuspendedDirty : public ComplexDirty
 {
 public:
     bool isDirty(const Source &)
@@ -187,7 +197,7 @@ public:
     }
 };
 
-class IfModifiedDirty : public UpdateContentsDirtyBase
+class IfModifiedDirty : public ComplexDirty
 {
 public:
     IfModifiedDirty(const DependencyMap &dependencies, const Match &match = Match())
@@ -210,16 +220,8 @@ public:
     {
         bool ret = false;
 
-        if (mDirty.contains(source.fileId)) {
-            return true;
-        }
-
         if (mMatch.isEmpty() || mMatch.match(source.sourceFile())) {
             for (auto it : mReversedDependencies[source.fileId]) {
-                if (mDirty.contains(it)) {
-                    ret = true;
-                    continue;
-                }
                 const uint64_t depLastModified = lastModified(it);
                 if (!depLastModified || depLastModified > source.parsed) {
                     // dependency is gone
@@ -235,18 +237,43 @@ public:
         return ret;
     }
 
-    inline uint64_t lastModified(uint32_t fileId)
-    {
-        uint64_t &time = mLastModified[fileId];
-        if (!time) {
-            time = Location::path(fileId).lastModifiedMs();
-        }
-        return time;
-    }
-
     DependencyMap mDependencies, mReversedDependencies;
     Match mMatch;
-    Hash<uint32_t, uint64_t> mLastModified;
+};
+
+
+class WatcherDirty : public ComplexDirty
+{
+public:
+    WatcherDirty(const DependencyMap &dependencies, const Set<uint32_t> &modified)
+    {
+        for (auto it : modified) {
+            mModified[it] = dependencies.value(it);
+        }
+    }
+
+    virtual bool isDirty(const Source &source)
+    {
+        bool ret = false;
+
+        for (auto it : mModified) {
+            const auto &deps = it.second;
+            if (deps.contains(source.fileId)) {
+                const uint64_t depLastModified = lastModified(it.first);
+                if (!depLastModified || depLastModified > source.parsed) {
+                    // dependency is gone
+                    ret = true;
+                    insertDirtyFile(it.first);
+                }
+            }
+        }
+
+        if (ret)
+            insertDirtyFile(source.fileId);
+        return ret;
+    }
+
+    DependencyMap mModified;
 };
 
 Project::Project(const Path &path)
@@ -290,7 +317,7 @@ void Project::updateContents(RestoreThread *thread)
         return;
 
     bool needsSave = false;
-    std::unique_ptr<UpdateContentsDirtyBase> dirty;
+    std::unique_ptr<ComplexDirty> dirty;
     if (thread) {
         mSymbols = std::move(thread->mSymbols);
         mSymbolNames = std::move(thread->mSymbolNames);
@@ -615,8 +642,7 @@ void Project::onFileModifiedOrRemoved(const Path &file)
 void Project::onDirtyTimeout(Timer *)
 {
     Set<uint32_t> dirtyFiles = std::move(mPendingDirtyFiles);
-    SimpleDirty dirty;
-    dirty.init(dirtyFiles, mDependencies);
+    WatcherDirty dirty(mDependencies, dirtyFiles);
     startDirtyJobs(&dirty);
 }
 
