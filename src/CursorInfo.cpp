@@ -111,7 +111,6 @@ SymbolMap CursorInfo::targetInfos(const SymbolMap &map) const
     SymbolMap ret;
     for (auto it = targets.begin(); it != targets.end(); ++it) {
         auto found = RTags::findCursorInfo(map, *it);
-        // ### could/should I pass symbolName as context here?
         if (found != map.end()) {
             ret[*it] = found->second;
         } else {
