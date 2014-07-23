@@ -36,8 +36,9 @@
 (if (or (> emacs-major-version 24)
         (and (= emacs-major-version 24)
              (>= emacs-minor-version 3)))
-    (require 'cl-lib)
-  (defalias 'defun* 'cl-defun) ;; cl-lib has own namespace now
+    (progn 
+      (require 'cl-lib)
+      (defalias 'defun* 'cl-defun)) ;; cl-lib has own namespace now
   (eval-when-compile
     (require 'cl)))
 (require 'compile)
