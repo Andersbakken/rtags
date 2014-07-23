@@ -24,7 +24,7 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 #include <rct/Process.h>
 #include "Source.h"
 
-class IndexerJob : public std::enable_shared_from_this<IndexerJob>
+class IndexerJob
 {
 public:
     enum Flag {
@@ -44,16 +44,15 @@ public:
     IndexerJob(const Source &source,
                uint32_t flags,
                const Path &project,
-               const UnsavedFiles &unsavedFiles,
-               const Set<uint32_t> &dirty);
+               const UnsavedFiles &unsavedFiles = UnsavedFiles(),
+               const Set<uint32_t> &dirty = Set<uint32_t>());
     IndexerJob();
 
     bool launchProcess();
-    bool update(const Source &source, uint32_t flags);
+    bool update(const std::shared_ptr<IndexerJob> &job);
     void abort();
     void encode(Serializer &serializer) const;
 
-    String destination;
     Source source;
     Path sourceFile;
     uint32_t flags;
@@ -61,7 +60,6 @@ public:
     UnsavedFiles unsavedFiles;
     Set<uint32_t> dirty, visited;
     Process *process;
-    uint64_t started;
 };
 
 #endif

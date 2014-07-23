@@ -10,14 +10,13 @@ IndexerJob::IndexerJob(const Source &s,
                        const Path &p,
                        const UnsavedFiles &u,
                        const Set<uint32_t> &d)
-    : destination(Server::instance()->options().socketFile),
-      source(s), sourceFile(s.sourceFile()), flags(f),
-      project(p), unsavedFiles(u), dirty(d), process(0), started(0)
+    : source(s), sourceFile(s.sourceFile()), flags(f),
+      project(p), unsavedFiles(u), dirty(d), process(0)
 {
 }
 
 IndexerJob::IndexerJob()
-    : process(0), started(0)
+    : process(0)
 {
 }
 
@@ -33,7 +32,6 @@ bool IndexerJob::launchProcess()
         }
     }
 
-    started = 0;
     assert(!process);
     process = new Process;
     if (!process->start(rp)) {
@@ -60,15 +58,18 @@ bool IndexerJob::launchProcess()
     return true;
 }
 
-bool IndexerJob::update(const Source &s, uint32_t f)
+bool IndexerJob::update(const std::shared_ptr<IndexerJob> &job)
 {
     // error() << "Updating" << s.sourceFile() << dumpFlags(flags);
     assert(!(flags & Complete));
 
     if (!(flags & Running)) {
-        source = s;
+        source = job->source;
+        flags = job->flags;
+        unsavedFiles = job->unsavedFiles;
+        dirty = job->dirty;
+        assert(visited.isEmpty());
         assert(sourceFile == source.sourceFile());
-        flags = f;
         return true;
     }
     abort();
@@ -119,7 +120,8 @@ void IndexerJob::encode(Serializer &serializer) const
     copy.defines << options.defines;
     assert(!sourceFile.isEmpty());
     serializer << static_cast<uint16_t>(RTags::DatabaseVersion)
-               << destination << project << copy << sourceFile << flags
+               << Server::instance()->options().socketFile
+               << project << copy << sourceFile << flags
                << static_cast<uint32_t>(options.rpVisitFileTimeout)
                << static_cast<uint32_t>(options.rpIndexerMessageTimeout)
                << static_cast<uint32_t>(options.rpConnectTimeout)

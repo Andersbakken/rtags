@@ -351,9 +351,11 @@ void Project::updateContents(RestoreThread *thread)
         save();
 
     for (const auto &it : pendingJobs) {
-        assert(!it.second.pendingSource.isNull());
-        assert(it.second.pendingFlags);
-        index(it.second.pendingSource, it.second.pendingFlags);
+        assert(it.second.pendingJob);
+        if (!hasSource(it.second.pendingJob->source)) {
+            const auto job = std::move(it.second.pendingJob);
+            index(job);
+        }
     }
 }
 
@@ -452,8 +454,7 @@ void Project::onJobFinished(const std::shared_ptr<IndexData> &indexData, const s
         return;
     }
     assert(indexData);
-    Source pendingSource;
-    uint32_t pendingFlags = 0;
+    std::shared_ptr<IndexerJob> pendingJob;
     const uint32_t fileId = indexData->fileId();
     const auto it = mJobs.find(indexData->key);
     if (it == mJobs.end()) {
@@ -461,49 +462,43 @@ void Project::onJobFinished(const std::shared_ptr<IndexData> &indexData, const s
         return;
     }
 
-    JobData *jobData = &it->second;
-    if (jobData->job != job)
+    JobData &jobData = it->second;
+    if (jobData.job != job)
         return;
-    assert(jobData->job);
-    const bool success = jobData->job->flags & IndexerJob::Complete;
+    assert(jobData.job);
+    const bool success = jobData.job->flags & IndexerJob::Complete;
     if (!success) {
         // error() << "No success for" << Location::path(fileId);
         std::lock_guard<std::mutex> lock(mMutex);
-        for (const auto &f : jobData->job->visited) {
+        for (const auto &f : jobData.job->visited) {
             // error() << "Returning files" << Location::path(f);
             mVisitedFiles.remove(f);
         }
     }
     // assert(!success || !(jobData->job->flags & (IndexerJob::Crashed|IndexerJob::Aborted)));
-    if (jobData->job->flags & IndexerJob::Crashed) {
-        ++jobData->crashCount;
+    if (jobData.job->flags & IndexerJob::Crashed) {
+        ++jobData.crashCount;
     } else {
-        jobData->crashCount = 0;
+        jobData.crashCount = 0;
     }
-
-    // error() << "onJobFinished" << Location::path(fileId)
-    //         << "flags" << IndexerJob::dumpFlags(jobData->job->flags)
-    //         << "pendingFlags" << IndexerJob::dumpFlags(jobData->pendingFlags);
 
     bool crashed = false;
     const auto &options = Server::instance()->options();
-    if (jobData->crashCount < options.maxCrashCount) {
-        if (jobData->pendingFlags) {
-            assert(!jobData->pendingSource.isNull());
-            // the job was aborted
-            // assert(jobData->job->flags & IndexerJob::Aborted);
-            std::swap(pendingSource, jobData->pendingSource);
-            std::swap(pendingFlags, jobData->pendingFlags);
+    if (jobData.crashCount < options.maxCrashCount) {
+        if (jobData.pendingJob) {
+            std::swap(pendingJob, jobData.pendingJob);
         } else if (!success) {
-            pendingSource = jobData->job->source;
-            pendingFlags = jobData->job->flags & IndexerJob::Type_Mask;
-            if (jobData->job->flags & IndexerJob::Crashed) {
+            // relaunch the same job
+            if (jobData.job->flags & IndexerJob::Crashed) {
                 crashed = true;
-                error("%s crashed, restarting", jobData->job->source.sourceFile().constData());
+                error("%s crashed, restarting", jobData.job->source.sourceFile().constData());
             }
+            pendingJob = jobData.job;
+            pendingJob->flags &= ~IndexerJob::Type_Mask;
+            pendingJob->visited.clear();
         }
     }
-    if (!pendingFlags) {
+    if (!pendingJob) {
         const int idx = mJobCounter - mJobs.size() + 1;
         if (testLog(RTags::CompilationErrorXml)) {
             logDirect(RTags::CompilationErrorXml, indexData->xmlDiagnostics);
@@ -514,7 +509,7 @@ void Project::onJobFinished(const std::shared_ptr<IndexData> &indexData, const s
         if (success) {
             auto src = mSources.find(indexData->key);
             if (src != mSources.end()) {
-                mPendingData[indexData->key] = indexData;
+                mIndexData[indexData->key] = indexData;
                 src->second.parsed = indexData->parseTime;
                 error("[%3d%%] %d/%d %s %s.",
                       static_cast<int>(round((double(idx) / double(mJobCounter)) * 100.0)), idx, mJobCounter,
@@ -523,36 +518,32 @@ void Project::onJobFinished(const std::shared_ptr<IndexData> &indexData, const s
             }
         } else {
             assert(indexData->flags & IndexerJob::Crashed);
-            mPendingData[indexData->key] = indexData;
+            mIndexData[indexData->key] = indexData;
             error("[%3d%%] %d/%d %s %s indexing crashed.",
                   static_cast<int>(round((double(idx) / double(mJobCounter)) * 100.0)), idx, mJobCounter,
                   String::formatTime(time(0), String::Time).constData(),
                   Location::path(fileId).toTilde().constData());
         }
-        jobData = 0;
         mJobs.erase(it);
 
         if (mJobs.isEmpty()) {
             mSyncTimer.restart(indexData->flags & IndexerJob::Dirty ? 0 : SyncTimeout, Timer::SingleShot);
-        } else if (options.syncThreshold && mPendingData.size() >= options.syncThreshold) {
+        } else if (options.syncThreshold && mIndexData.size() >= options.syncThreshold) {
             startSync(Sync_Asynchronous);
         }
     } else {
-        jobData->job.reset();
-        assert(pendingFlags);
-        assert(!pendingSource.isNull());
+        jobData.job.reset();
         enum { CrashRetryTimeout = 1500 }; // ### should be configurable
         if (crashed) {
-            jobData->stopTimer();
+            jobData.stopTimer();
             std::weak_ptr<Project> project = shared_from_this();
-            const int id = EventLoop::mainEventLoop()->registerTimer([project, pendingSource, pendingFlags](int) {
-                    if (std::shared_ptr<Project> p = project.lock()) {
-                        p->index(pendingSource, pendingFlags);
-                    }
+            const int id = EventLoop::mainEventLoop()->registerTimer([project, pendingJob](int) {
+                    if (std::shared_ptr<Project> p = project.lock())
+                        p->index(pendingJob);
                 }, CrashRetryTimeout, Timer::SingleShot);
-            jobData->pendingRestartTimerId = id;
+            jobData.pendingRestartTimerId = id;
         } else {
-            index(pendingSource, pendingFlags);
+            index(pendingJob);
         }
         --mJobCounter;
     }
@@ -584,44 +575,42 @@ bool Project::save()
     return true;
 }
 
-void Project::index(const Source &source, uint32_t flags,
-                    const UnsavedFiles &unsavedFiles, const Set<uint32_t> &dirty)
+void Project::index(const std::shared_ptr<IndexerJob> &job)
 {
-    const Path sourceFile = source.sourceFile();
+    const Path sourceFile = job->sourceFile;
     static const char *fileFilter = getenv("RTAGS_FILE_FILTER");
-    if (fileFilter && !strstr(sourceFile.constData(), fileFilter))
+    if (fileFilter && !strstr(job->sourceFile.constData(), fileFilter))
         return;
 
-    const uint64_t key = source.key();
+    const uint64_t key = job->source.key();
     JobData &data = mJobs[key];
     data.stopTimer();
 
     if (mState != Loaded) {
         // error() << "Index called at" << static_cast<int>(mState) << "time. Setting pending" << sourceFile;
-        data.pendingSource = source;
-        data.pendingFlags = flags;
+        data.pendingJob = job;
         return;
     }
 
-    if (data.job && data.job->update(source, flags))
+    if (data.job && data.job->update(job))
         return;
 
     const bool existed = mSources.contains(key);
-    mSources[key] = source;
+    mSources[key] = job->source;
     watch(sourceFile);
 
-    data.pendingSource.clear();
-    mPendingData.remove(key);
+    assert(!data.pendingJob);
+    mIndexData.remove(key);
 
-    if (Server::instance()->suspended() && existed && (flags & IndexerJob::Compile))
+    if (Server::instance()->suspended() && existed && (job->flags & IndexerJob::Compile))
         return;
 
-    if (!mJobCounter++)
+    if (!data.job && !mJobCounter++)
         mTimer.start();
 
-    data.job.reset(new IndexerJob(source, flags, mPath, unsavedFiles, dirty));
+    data.job = job;
     mSyncTimer.stop();
-    Server::instance()->addJob(data.job);
+    Server::instance()->addJob(job);
 }
 
 void Project::onFileModifiedOrRemoved(const Path &file)
@@ -733,7 +722,7 @@ int Project::remove(const Match &match)
             JobData data = mJobs.take(fileId);
             if (data.job)
                 data.job->abort();
-            mPendingData.remove(fileId);
+            mIndexData.remove(fileId);
             dirty.insert(fileId);
             ++count;
         } else {
@@ -753,7 +742,7 @@ int Project::startDirtyJobs(Dirty *dirty, const UnsavedFiles &unsavedFiles)
     int indexed = 0;
     for (auto &source : mSources) {
         if (dirty->isDirty(source.second)) {
-            index(source.second, IndexerJob::Dirty, unsavedFiles);
+            index(std::shared_ptr<IndexerJob>(new IndexerJob(source.second, IndexerJob::Dirty, mPath, unsavedFiles)));
             ++indexed;
         }
     }
@@ -1162,20 +1151,11 @@ void Project::onSynced()
         onJobFinished(it.second.first, it.second.second);
     }
     mPendingIndexData.clear();
-    auto it = mJobs.begin();
-    List<JobData> pending;
-    while (it != mJobs.end()) {
-        if (!it->second.pendingFlags) {
-            ++it;
-        } else {
-            pending.append(it->second);
-            mJobs.erase(it++);
+    for (auto &jobData : mJobs) {
+        if (jobData.second.pendingJob) {
+            const auto job = std::move(jobData.second.pendingJob);
+            index(job);
         }
-    }
-    for (auto jobData : pending) {
-        assert(!jobData.pendingSource.isNull());
-        assert(jobData.pendingFlags);
-        index(jobData.pendingSource, jobData.pendingFlags);
     }
 }
 
@@ -1183,7 +1163,7 @@ String Project::sync()
 {
     mJobCounter = mJobs.size();
     StopWatch sw;
-    if (mDirtyFiles.isEmpty() && mPendingData.isEmpty()) {
+    if (mDirtyFiles.isEmpty() && mIndexData.isEmpty()) {
         return String();
     }
 
@@ -1199,7 +1179,7 @@ String Project::sync()
     List<UsrMap*> pendingReferences;
     int symbols = 0;
     int symbolNames = 0;
-    for (auto it = mPendingData.begin(); it != mPendingData.end(); ++it) {
+    for (auto it = mIndexData.begin(); it != mIndexData.end(); ++it) {
         const std::shared_ptr<IndexData> &data = it->second;
         addDependencies(data->dependencies, newFiles);
         addFixIts(data->dependencies, data->fixIts);
@@ -1220,14 +1200,14 @@ String Project::sync()
     save();
     const int saveTime = sw.elapsed();
     double timerElapsed = (mTimer.elapsed() / 1000.0);
-    const double averageJobTime = timerElapsed / mPendingData.size();
+    const double averageJobTime = timerElapsed / mIndexData.size();
     const String msg = String::format<1024>("Jobs took %.2fs, %sdirtying took %.2fs, "
                                             "syncing took %.2fs, saving took %.2fs. We're using %lldmb of memory. "
                                             "%d symbols, %d symbolNames", timerElapsed,
-                                            mPendingData.size() > 1 ? String::format("(avg %.2fs), ", averageJobTime).constData() : "",
+                                            mIndexData.size() > 1 ? String::format("(avg %.2fs), ", averageJobTime).constData() : "",
                                             dirtyTime / 1000.0, syncTime / 1000.0, saveTime / 1000.0, MemoryMonitor::usage() / (1024 * 1024),
                                             symbols, symbolNames);
-    mPendingData.clear();
+    mIndexData.clear();
     mTimer.start();
     return msg;
 }

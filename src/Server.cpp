@@ -411,7 +411,7 @@ bool Server::index(const String &arguments, const Path &pwd, const Path &project
             project->load();
             if (!mCurrentProject.lock())
                 setCurrentProject(project);
-            project->index(source, IndexerJob::Compile);
+            project->index(std::shared_ptr<IndexerJob>(new IndexerJob(source, IndexerJob::Compile, root)));
             ret = true;
         }
     }
