@@ -613,6 +613,25 @@ static inline bool compareDefinesNoNDEBUG(const Set<Source::Define> &l, const Se
     return true;
 }
 
+static bool nextArg(List<String>::const_iterator &it,
+                    const List<String>::const_iterator end,
+                    bool separateDebugAndRelease)
+{
+    while (it != end) {
+        if (isBlacklisted(*it)) {
+            const bool val = hasValue(*it);
+            ++it;
+            if (val && it != end)
+                ++it;
+        } else if (!separateDebugAndRelease && (*it == "-g" || it->startsWith("-O"))) {
+            ++it;
+        } else {
+            break;
+        }
+    }
+    return it != end;
+}
+
 bool Source::compareArguments(const Source &other) const
 {
     assert(fileId == other.fileId);
@@ -623,31 +642,28 @@ bool Source::compareArguments(const Source &other) const
 
     const bool separateDebugAndRelease = Server::instance()->options().options & Server::SeparateDebugAndRelease;
     if (separateDebugAndRelease) {
-        if (defines != other.defines) {
+        if (defines != other.defines)
             return false;
-        }
     } else if (!compareDefinesNoNDEBUG(defines, other.defines)) {
         return false;
     }
 
+    auto me = arguments.begin();
+    const auto myEnd = arguments.end();
     auto him = other.arguments.begin();
-    for (const auto &me : arguments) {
-        if (separateDebugAndRelease || (me != "-g" && !me.startsWith("-O"))) {
-            String h;
-            while (him != other.arguments.end()) {
-                h = *him++;
-                if (separateDebugAndRelease || (h != "-g" && !h.startsWith("-O"))) {
-                    break;
-                } else {
-                    h.clear();
-                }
-            }
-            if (me != h) {
-                return false;
-            }
-        }
+    const auto hisEnd = other.arguments.end();
+
+    while (me != him) {
+        if (!nextArg(me, myEnd, separateDebugAndRelease))
+            break;
+        if (!nextArg(him, hisEnd, separateDebugAndRelease))
+            return false;
+        if (*me != *him)
+            return false;
+        ++me;
+        ++him;
     }
-    return true;
+    return him == hisEnd || !nextArg(him, hisEnd, separateDebugAndRelease);
 }
 
 List<String> Source::toCommandLine(unsigned int flags) const
