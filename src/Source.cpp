@@ -381,7 +381,10 @@ List<Source> Source::parse(const String &cmdLine, const Path &base, unsigned int
             arg = arg.mid(1, arg.size() - 2);
         // ### is this even right?
         if (arg.startsWith('-')) {
-            if (arg == "-x") {
+            if (arg == "-E") {
+                warning() << "Preprocessing, ignore" << cmdLine;
+                return List<Source>();
+            } else if (arg == "-x") {
                 const String a = split.value(++i);
                 if (a == "c-header") {
                     language = CHeader;
