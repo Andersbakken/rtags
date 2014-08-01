@@ -1,4 +1,4 @@
 [submodule "src/rct"]
 	path = src/rct
-	url = https://github.com/Andersbakken/rct
+	url = https://github.com/farva/rct
 	branch = master
