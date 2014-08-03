@@ -1,4 +1,4 @@
-[[https://travis-ci.org/Andersbakken/rtags][https://travis-ci.org/Andersbakken/rct.svg?branch=master]]
+[[https://travis-ci.org/Andersbakken/rtags][https://travis-ci.org/Andersbakken/rtags.svg?branch=master]]
 
 * Introduction
 
