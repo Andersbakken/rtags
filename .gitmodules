@@ -2,3 +2,4 @@
 	path = src/rct
 	url = https://github.com/farva/rct
 	branch = master
+        ignore = dirty
