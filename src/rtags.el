@@ -36,7 +36,7 @@
 (if (or (> emacs-major-version 24)
         (and (= emacs-major-version 24)
              (>= emacs-minor-version 3)))
-    (progn 
+    (progn
       (require 'cl-lib)
       (defalias 'defun* 'cl-defun)) ;; cl-lib has own namespace now
   (eval-when-compile
@@ -851,7 +851,7 @@ return t if rtags is allowed to modify this file"
   (setq rtags-location-stack nil)
   (setq rtags-location-stack-index 0))
 
-(defun not-indexed/connected-message-p (string)
+(defun rtags-not-indexed/connected-message-p (string)
   (or (string= string "Not indexed\n")
       (string= string "Can't seem to connect to server\n")))
 
@@ -864,7 +864,7 @@ return t if rtags is allowed to modify this file"
           (setq rtags-last-request-not-indexed nil)
           (cond ((= (point-min) (point-max))
                  (message "RTags: No target") nil)
-                ((not-indexed/connected-message-p (buffer-string))
+                ((rtags-not-indexed/connected-message-p (buffer-string))
                  (setq rtags-last-request-not-indexed t) nil)
                 (t (buffer-substring-no-properties (point-min) (- (point-max) 1))))))))
 
@@ -1484,7 +1484,7 @@ References to references will be treated as references to the referenced symbol"
          (message "RTags: No results") nil)
         ((= (count-lines (point-min) (point-max)) 1)
          (let ((string (buffer-string)))
-           (if (not-indexed/connected-message-p string)
+           (if (rtags-not-indexed/connected-message-p string)
                (progn
                  (setq rtags-last-request-not-indexed t)
                  nil)
