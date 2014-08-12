@@ -992,7 +992,7 @@ References to references will be treated as references to the referenced symbol"
                     (when (run-hook-with-args-until-failure 'rtags-edit-hook)
                       (incf modifications)
                       (rtags-goto-line-col (cadr value) (cddr value))
-                      (when (cond ((looking-at "~") (forward-char))
+                      (when (cond ((looking-at "~") (forward-char) t)
                                   ((looking-at "auto ") nil)
                                   (t))
 
