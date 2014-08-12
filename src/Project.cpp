@@ -325,6 +325,10 @@ void Project::updateContents(RestoreThread *thread)
         mDependencies = std::move(thread->mDependencies);
         mSources = std::move(thread->mSources);
 
+        for (const auto& dep : mDependencies) {
+            watch(Location::path(dep.first));
+        }
+
         mVisitedFiles = std::move(thread->mVisitedFiles);
         if (Server::instance()->suspended()) {
             dirty.reset(new SuspendedDirty);
