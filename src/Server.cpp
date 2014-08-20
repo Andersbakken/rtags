@@ -1518,7 +1518,7 @@ void Server::codeCompleteAt(const QueryMessage &query, Connection *conn)
     path.resolve();
     std::shared_ptr<Project> project = projectForQuery(query);
     if (!project) {
-        conn->write<128>("No project found for %s", path.constData());
+        error("No project found for %s", path.constData());
         conn->finish();
         return;
     }
@@ -1534,7 +1534,7 @@ void Server::codeCompleteAt(const QueryMessage &query, Connection *conn)
         }
 
         if (source.isNull()) {
-            conn->write<128>("No source found for %s", path.constData());
+            error("No source found for %s", path.constData());
             conn->finish();
             return;
         }

@@ -445,7 +445,8 @@ void CompletionThread::printCompletions(const List<Completions::Candidate> &comp
             EventLoop::mainEventLoop()->callLater([conn, out]() {
                     // ### need to make sure this connection doesn't go away,
                     // probably need to disconnect something
-                    conn->write(out); conn->finish();
+                    conn->write(out);
+                    conn->finish();
                 });
         }
     }
