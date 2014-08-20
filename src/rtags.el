@@ -1103,6 +1103,7 @@ References to references will be treated as references to the referenced symbol"
       (car (xml-parse-region (point-min) (point-max))))))
 
 (defun rtags-parse-overlay-error-node (node filename)
+  ;; (message "parsing nodes %s" filename)
   (when (listp node)
     (let* ((name (car node))
            (attrs (cadr node))
@@ -1164,6 +1165,7 @@ References to references will be treated as references to the referenced symbol"
            (filename (cdr (assq 'name attrs))))
       (when (eq name 'file)
         (rtags-overlays-remove filename)
+        ;; (message "removing overlays %s" filename)
         (save-excursion
           (goto-char (point-min))
           (flush-lines (concat filename ":")))
