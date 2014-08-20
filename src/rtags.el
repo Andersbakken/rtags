@@ -2006,6 +2006,7 @@ References to references will be treated as references to the referenced symbol"
                   (not (eq (current-buffer) (car rtags-last-completion-position))))
               (progn
                 (setq rtags-last-completion-position (cons (current-buffer) pos))
+                (setq rtags-last-completions nil)
                 (let ((path (buffer-file-name))
                       (unsaved (and (buffer-modified-p) (current-buffer)))
                       (location (rtags-current-location pos)))
