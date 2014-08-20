@@ -1395,8 +1395,8 @@ References to references will be treated as references to the referenced symbol"
 
 (defconst rtags-diagnostics-process-regx
   (regexp-opt '("</checkstyle>"
-        "</progress>"
-        "</completions>")))
+                "</progress>"
+                "</completions>")))
 
 (defun rtags-diagnostics-process-filter (process output)
   ;; Collect the xml diagnostics into "*RTags Raw*" until a closing tag is found
@@ -1404,18 +1404,16 @@ References to references will be treated as references to the referenced symbol"
     (goto-char (point-max))
     (insert output)
     (goto-char (point-min))
-    (let ((matchrx rtags-diagnostics-process-regx)
-      current endpos)
+    (let ((matchrx rtags-diagnostics-process-regx) current endpos)
       (while (search-forward-regexp matchrx (point-max) t)
-    (setq endpos (match-end 0))
-    (rtags-reset-bookmarks)
-    (setq current (buffer-substring-no-properties (point-min) endpos))
-    ;; `rtags-parse-diagnostics' expects us to be in the process buffer
-    (with-current-buffer (process-buffer process)
-      (setq buffer-read-only nil)
-      (rtags-parse-diagnostics (rtags-trim-whitespace current))
-      (setq buffer-read-only t))
-    (delete-region (point-min) endpos)))))
+        (setq endpos (match-end 0))
+        (setq current (buffer-substring-no-properties (point-min) endpos))
+        ;; `rtags-parse-diagnostics' expects us to be in the process buffer
+        (with-current-buffer (process-buffer process)
+          (setq buffer-read-only nil)
+          (rtags-parse-diagnostics (rtags-trim-whitespace current))
+          (setq buffer-read-only t))
+        (delete-region (point-min) endpos)))))
 
 (defvar rtags-diagnostics-mode-map (make-sparse-keymap))
 (define-key rtags-diagnostics-mode-map (kbd "q") 'rtags-bury-or-delete)
