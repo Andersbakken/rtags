@@ -50,23 +50,24 @@ public:
     ~Server();
     static Server *instance() { return sInstance; }
     enum Option {
-        NoOptions = 0x0000,
-        ClearProjects = 0x0001,
-        Wall = 0x0002,
-        IgnorePrintfFixits = 0x0004,
-        NoUnlimitedErrors = 0x0008,
-        SpellChecking = 0x0010,
-        DisallowMultipleSources = 0x0020,
-        NoStartupCurrentProject = 0x0040,
-        WatchSystemPaths = 0x0080,
-        NoFileManagerWatch = 0x0100,
-        NoFileSystemWatch = 0x0200,
-        NoNoUnknownWarningsOption = 0x0400,
-        SuspendRPOnCrash = 0x0800,
-        SeparateDebugAndRelease = 0x1000,
-        AllowPedantic = 0x2000,
-        StartSuspended = 0x4000,
-        EnableCompilerManager = 0x8000
+        NoOptions = 0x00000,
+        ClearProjects = 0x00001,
+        Wall = 0x00002,
+        IgnorePrintfFixits = 0x00004,
+        NoUnlimitedErrors = 0x00008,
+        SpellChecking = 0x00010,
+        DisallowMultipleSources = 0x00020,
+        NoStartupCurrentProject = 0x00040,
+        WatchSystemPaths = 0x00080,
+        NoFileManagerWatch = 0x00100,
+        NoFileSystemWatch = 0x00200,
+        NoNoUnknownWarningsOption = 0x00400,
+        SuspendRPOnCrash = 0x00800,
+        SeparateDebugAndRelease = 0x01000,
+        AllowPedantic = 0x02000,
+        StartSuspended = 0x04000,
+        EnableCompilerManager = 0x08000,
+        EnableNDEBUG = 0x10000
     };
     struct Options {
         Options()

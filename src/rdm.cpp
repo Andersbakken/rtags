@@ -106,6 +106,7 @@ static void usage(FILE *f)
 #else
             "  --no-filemanager-watch|-M                  Don't use a file system watcher for filemanager.\n"
 #endif
+            "  --enable-NDEBUG|-g                         Don't remove -DNDEBUG from compile lines.\n"
             "  --start-suspended|-Q                       Start out suspended (no reindexing enabled).\n"
             "  --no-filesystem-watcher|-B                 Disable file system watching altogether. Reindexing has to happen manually.\n"
             "  --suspend-rp-on-crash|-q [arg]             Suspend rp in SIGSEGV handler (default " DEFAULT_SUSPEND_RP ").\n"
@@ -178,6 +179,7 @@ int main(int argc, char** argv)
         { "extra-compilers", required_argument, 0, 'U' },
         { "allow-Wpedantic", no_argument, 0, 'P' },
         { "enable-compiler-manager", no_argument, 0, 'R' },
+        { "enable-NDEBUG", no_argument, 0, 'g' },
 #ifdef OS_Darwin
         { "filemanager-watch", no_argument, 0, 'M' },
 #else
@@ -354,6 +356,9 @@ int main(int argc, char** argv)
             break; }
         case 'E':
             serverOpts.options |= Server::SeparateDebugAndRelease;
+            break;
+        case 'g':
+            serverOpts.options |= Server::EnableNDEBUG;
             break;
         case 'Q':
             serverOpts.options |= Server::StartSuspended;

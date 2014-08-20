@@ -108,6 +108,9 @@ String IndexerJob::encode() const
             copy.includePaths << inc;
         }
         copy.defines << options.defines;
+        if (!(options.options & Server::EnableNDEBUG)) {
+            copy.defines.remove(Source::Define("NDEBUG"));
+        }
         assert(!sourceFile.isEmpty());
         serializer << static_cast<uint16_t>(RTags::DatabaseVersion)
                    << Server::instance()->options().socketFile
