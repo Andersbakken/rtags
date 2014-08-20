@@ -94,10 +94,10 @@ void CompletionThread::completeAt(const Source &source, const Location &location
     while (it != mPending.end()) {
         if ((*it)->source == source) {
             delete *it;
-            it = mPending.erase(it);
-        } else {
-            ++it;
+            mPending.erase(it);
+            break;
         }
+        ++it;
     }
     mPending.push_front(request);
     mCondition.notify_one();
