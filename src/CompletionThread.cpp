@@ -270,7 +270,7 @@ void CompletionThread::process(Request *request)
         RTags::parseTranslationUnit(sourceFile, request->source.toCommandLine(Source::Default|Source::ExcludeDefaultArguments),
                                     cache->translationUnit, mIndex,
                                     &unsaved, request->unsaved.size() ? 1 : 0, flags, &clangLine);
-        error() << "PARSING" << clangLine;
+        // error() << "PARSING" << clangLine;
         parseTime = sw.restart();
         if (cache->translationUnit) {
             RTags::reparseTranslationUnit(cache->translationUnit, &unsaved, request->unsaved.size() ? 1 : 0);
