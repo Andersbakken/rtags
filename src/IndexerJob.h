@@ -51,7 +51,7 @@ public:
     bool launchProcess();
     bool update(const std::shared_ptr<IndexerJob> &job);
     void abort();
-    void encode(Serializer &serializer) const;
+    String encode() const;
 
     Source source;
     Path sourceFile;

@@ -40,21 +40,7 @@ bool IndexerJob::launchProcess()
     }
 
     flags |= Running;
-
-    {
-        String stdinData;
-        {
-            Serializer serializer(stdinData);
-            encode(serializer);
-        }
-        const int size = stdinData.size();
-        String header;
-        header.resize(sizeof(size));
-        *reinterpret_cast<int*>(&header[0]) = size;
-        process->write(header);
-        process->write(stdinData);
-        // error() << "Startingprocess" << (header.size() + stdinData.size()) << sourceFile;
-    }
+    process->write(encode());
     return true;
 }
 
@@ -90,49 +76,56 @@ void IndexerJob::abort()
     flags |= Aborted;
 }
 
-void IndexerJob::encode(Serializer &serializer) const
+String IndexerJob::encode() const
 {
-    std::shared_ptr<Project> proj = Server::instance()->project(project);
-    const Server::Options &options = Server::instance()->options();
-    Source copy = source;
-    if (options.options & Server::Wall && source.arguments.contains("-Werror")) {
-        for (const auto &arg : options.defaultArguments) {
-            if (arg != "-Wall")
-                copy.arguments << arg;
+    String ret;
+    {
+        Serializer serializer(ret);
+        serializer << static_cast<int>(0);
+        std::shared_ptr<Project> proj = Server::instance()->project(project);
+        const Server::Options &options = Server::instance()->options();
+        Source copy = source;
+        if (options.options & Server::Wall && source.arguments.contains("-Werror")) {
+            for (const auto &arg : options.defaultArguments) {
+                if (arg != "-Wall")
+                    copy.arguments << arg;
+            }
+        } else {
+            copy.arguments << options.defaultArguments;
         }
-    } else {
-        copy.arguments << options.defaultArguments;
-    }
 
-    if (!(options.options & Server::AllowPedantic)) {
-        const int idx = copy.arguments.indexOf("-Wpedantic");
-        if (idx != -1) {
-            copy.arguments.removeAt(idx);
+        if (!(options.options & Server::AllowPedantic)) {
+            const int idx = copy.arguments.indexOf("-Wpedantic");
+            if (idx != -1) {
+                copy.arguments.removeAt(idx);
+            }
         }
-    }
 
-    if (options.options & Server::EnableCompilerManager)
-        CompilerManager::data(copy.compiler(), 0, &copy.includePaths);
+        if (options.options & Server::EnableCompilerManager)
+            CompilerManager::data(copy.compiler(), 0, &copy.includePaths);
 
-    for (const auto &inc : options.includePaths) {
-        copy.includePaths << inc;
+        for (const auto &inc : options.includePaths) {
+            copy.includePaths << inc;
+        }
+        copy.defines << options.defines;
+        assert(!sourceFile.isEmpty());
+        serializer << static_cast<uint16_t>(RTags::DatabaseVersion)
+                   << Server::instance()->options().socketFile
+                   << project << copy << sourceFile << flags
+                   << static_cast<uint32_t>(options.rpVisitFileTimeout)
+                   << static_cast<uint32_t>(options.rpIndexerMessageTimeout)
+                   << static_cast<uint32_t>(options.rpConnectTimeout)
+                   << static_cast<int32_t>(options.rpNiceValue)
+                   << static_cast<bool>(options.options & Server::SuspendRPOnCrash)
+                   << unsavedFiles << static_cast<uint32_t>(dirty.size());
+        for (uint32_t fileId : dirty) {
+            serializer << Location::path(fileId);
+        }
+        assert(proj);
+        proj->encodeVisitedFiles(serializer);
     }
-    copy.defines << options.defines;
-    assert(!sourceFile.isEmpty());
-    serializer << static_cast<uint16_t>(RTags::DatabaseVersion)
-               << Server::instance()->options().socketFile
-               << project << copy << sourceFile << flags
-               << static_cast<uint32_t>(options.rpVisitFileTimeout)
-               << static_cast<uint32_t>(options.rpIndexerMessageTimeout)
-               << static_cast<uint32_t>(options.rpConnectTimeout)
-               << static_cast<int32_t>(options.rpNiceValue)
-               << static_cast<bool>(options.options & Server::SuspendRPOnCrash)
-               << unsavedFiles << static_cast<uint32_t>(dirty.size());
-    for (uint32_t fileId : dirty) {
-        serializer << Location::path(fileId);
-    }
-    assert(proj);
-    proj->encodeVisitedFiles(serializer);
+    *reinterpret_cast<int*>(&ret[0]) = ret.size() - sizeof(int);
+    return ret;
 }
 
 String IndexerJob::dumpFlags(unsigned int flags)
