@@ -1523,11 +1523,21 @@ void Server::codeCompleteAt(const QueryMessage &query, Connection *conn)
         return;
     }
     const uint32_t fileId = Location::insertFile(path);
-    const Source source = project->sources(fileId).value(query.buildIndex());
+    Source source = project->sources(fileId).value(query.buildIndex());
     if (source.isNull()) {
-        conn->write<128>("No source found for %s", path.constData());
-        conn->finish();
-        return;
+        for (uint32_t dep : project->dependencies(fileId, Project::DependsOnArg)) {
+            source = project->sources(dep).value(query.buildIndex());
+            if (!source.isNull()) {
+                source.fileId = fileId;
+                break;
+            }
+        }
+
+        if (source.isNull()) {
+            conn->write<128>("No source found for %s", path.constData());
+            conn->finish();
+            return;
+        }
     }
     if (!mCompletionThread) {
         mCompletionThread = new CompletionThread(mOptions.completionCacheSize);
