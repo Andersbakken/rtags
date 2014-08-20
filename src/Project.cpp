@@ -743,19 +743,23 @@ int Project::remove(const Match &match)
 
 int Project::startDirtyJobs(Dirty *dirty, const UnsavedFiles &unsavedFiles)
 {
-    int indexed = 0;
-    for (auto &source : mSources) {
+    List<Source> toIndex;
+    for (const auto &source : mSources) {
         if (dirty->isDirty(source.second)) {
-            index(std::shared_ptr<IndexerJob>(new IndexerJob(source.second, IndexerJob::Dirty, mPath, unsavedFiles)));
-            ++indexed;
+            toIndex << source.second;
         }
     }
     const Set<uint32_t> dirtyFiles = dirty->dirtied();
+
     for (const auto &fileId : dirtyFiles) {
         mVisitedFiles.remove(fileId);
     }
 
-    if (!indexed && !dirtyFiles.isEmpty()) {
+    for (const auto &source : toIndex) {
+        index(std::shared_ptr<IndexerJob>(new IndexerJob(source, IndexerJob::Dirty, mPath, unsavedFiles)));
+    }
+
+    if (!toIndex.size() && !dirtyFiles.isEmpty()) {
         // this is for the case where we've removed a file
         RTags::dirtySymbols(mSymbols, dirtyFiles);
         RTags::dirtySymbolNames(mSymbolNames, dirtyFiles);
@@ -763,7 +767,7 @@ int Project::startDirtyJobs(Dirty *dirty, const UnsavedFiles &unsavedFiles)
     } else {
         mDirtyFiles += dirtyFiles;
     }
-    return indexed;
+    return toIndex.size();
 }
 
 static inline int writeSymbolNames(const SymbolNameMap &symbolNames, SymbolNameMap &current)
