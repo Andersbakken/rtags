@@ -2109,7 +2109,8 @@ definition."
                 (let ((path (buffer-file-name))
                       (unsaved (and (buffer-modified-p) (current-buffer)))
                       (location (rtags-current-location pos)))
-                  (rtags-call-rc :path path :output 0 :unsaved unsaved "-Y" "-l" location)
+                  (with-temp-buffer
+                    (rtags-call-rc :path path :output 0 :unsaved unsaved "-Y" "-l" location :noerror t))
                   1))
             t)))))
 
