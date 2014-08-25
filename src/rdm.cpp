@@ -34,13 +34,8 @@ static void sigSegvHandler(int signal)
     if (Server *server = Server::instance())
         server->stopServers();
     fprintf(stderr, "Caught signal %d\n", signal);
-    // this is not really allowed in signal handlers but will mostly work
-    const List<String>& trace = RTags::backtrace();
-    auto it = trace.cbegin();
-    while (it != trace.end()) {
-        fprintf(stderr, "%s", it->constData());
-        ++it;
-    }
+    const String trace = Rct::backtrace();
+    fprintf(stderr, "%s\n", trace.constData());
     fflush(stderr);
     _exit(1);
 }
