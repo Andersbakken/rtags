@@ -39,12 +39,8 @@ static void sigHandler(int signal)
     }
     error("Caught signal %d\n", signal);
     // this is not really allowed in signal handlers but will mostly work
-    const List<String>& trace = RTags::backtrace();
-    auto it = trace.cbegin();
-    while (it != trace.end()) {
-        error("%s", it->constData());
-        ++it;
-    }
+    const String trace = Rct::backtrace();
+    fprintf(stderr, "%s\n", trace.constData());
     fflush(stderr);
     ::closelog();
     _exit(1);
