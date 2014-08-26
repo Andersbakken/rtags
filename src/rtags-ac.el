@@ -95,7 +95,7 @@
 
     ;; for yasnippet, wrap each elem in arg list with ${}
     ;; 'int arg' => ${int arg}
-    (cond ((not (featurep 'yasnippet))
+    (cond ((featurep 'yasnippet)
 	   (setq inserttxt (mapconcat #'(lambda (arg) 
 					  (format "%s%s%s" "${" arg "}"))
 				      arglist
