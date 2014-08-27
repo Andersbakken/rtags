@@ -30,6 +30,11 @@
            (match-string 2 ,locstr)
            (match-string 3 ,locstr))))
 
+(defun rtags-ac-trim-leading-trailing-whitespace (argstr)
+  (replace-regexp-in-string 
+   (rx (one-or-more blank) string-end) "" 
+   (replace-regexp-in-string (rx string-start (one-or-more blank)) "" argstr)))
+
 (defun rtags-ac-candidates ()
   ;; locstr is fullpath_srcfile:row#:col#
   (let* ((locstr (or (and rtags-last-completions
@@ -76,33 +81,30 @@
           (t
            nil))))
 
-(defun rtags-ac-action-function (tag)
-  ;; transform func sig to a list of arg signatures
-  (let ((arglist (split-string
-                  tag
-                  (rx (or "..." ","))
-                  t
-                  (rx (or (group (zero-or-more any) "(")
-                          (group ")" (zero-or-more any))))))
-        insertfunc inserttxt)
+(defun rtags-ac-action-function (origtag)
+  ;; grab only inside the func arg list: int func( int x, int y )
+  ;;                                              ^............^
+  (let* ((tag (replace-regexp-in-string 
+	       (rx (zero-or-more any) "(") "" 
+	       (replace-regexp-in-string (rx ")" (zero-or-more any)) "" origtag)))
+	 (arglist (mapcar #'rtags-ac-trim-leading-trailing-whitespace
+			  (split-string tag
+					(rx (or ","))
+					t)))
+	 insertfunc inserttxt)
 
     ;; for yasnippet, wrap each elem in arg list with ${}
     ;; 'int arg' => ${int arg}
     (cond ((featurep 'yasnippet)
-           (setq inserttxt (mapconcat
-                            'identity
-                            (mapcar
-                             #'(lambda (arg)
-                                 (when (string-match ".*" arg)
-                                   (replace-match
-                                    (concat "${" arg "}")
-                                    t t arg)))
-                             arglist)
-                            ", "))
+	   (setq inserttxt (mapconcat #'(lambda (arg) 
+					  (format "%s%s%s" "${" arg "}"))
+				      arglist
+				      ", "))
            (setq insertfunc #'yas-expand-snippet))
+	  ;; if no yasnippet, just dump the signature
           (t
            (setq insertfunc #'(lambda (txt) (save-excursion (insert txt)) (forward-char)))
-           (setq inserttxt (mapconcat 'identity arglist ""))))
+           (setq inserttxt (mapconcat 'identity arglist ", "))))
     (apply insertfunc (list (concat "(" inserttxt ")")))))
 
 (defun rtags-ac-prefix ()
