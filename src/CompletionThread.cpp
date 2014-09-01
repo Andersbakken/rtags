@@ -299,9 +299,7 @@ void CompletionThread::process(Request *request)
     }
 
     sw.restart();
-    const unsigned int completionFlags = (CXCodeComplete_IncludeMacros
-                                          |CXCodeComplete_IncludeCodePatterns
-                                          |CXCodeComplete_IncludeBriefComments);
+    const unsigned int completionFlags = (CXCodeComplete_IncludeMacros|CXCodeComplete_IncludeCodePatterns);
 
     CXCodeCompleteResults *results = clang_codeCompleteAt(cache->translationUnit, sourceFile.constData(),
                                                           request->location.line(), request->location.column(),
