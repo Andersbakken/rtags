@@ -49,7 +49,6 @@
 #include <rct/SocketClient.h>
 #include <rct/Log.h>
 #include <rct/Message.h>
-#include <rct/Messages.h>
 #include <rct/Path.h>
 #include <rct/Process.h>
 #include <rct/Rct.h>
@@ -129,7 +128,7 @@ Server::~Server()
     mProjects.clear(); // need to be destroyed before sInstance is set to 0
     assert(sInstance == this);
     sInstance = 0;
-    Messages::cleanup();
+    Message::cleanup();
 }
 
 #if not defined CLANG_INCLUDEPATH
@@ -220,14 +219,14 @@ bool Server::init(const Options &options)
         }
         mUnixServer.reset();
         if (!i) {
-            enum { Timeout = 1000 };
-            Connection connection;
-            if (connection.connectUnix(mOptions.socketFile, Timeout)) {
-                connection.send(QueryMessage(QueryMessage::Shutdown));
-                connection.disconnected().connect(std::bind([](){ EventLoop::eventLoop()->quit(); }));
-                connection.finished().connect(std::bind([](){ EventLoop::eventLoop()->quit(); }));
-                EventLoop::eventLoop()->exec(Timeout);
-            }
+            // enum { Timeout = 1000 };
+            // Connection connection;
+            // if (connection.connectUnix(mOptions.socketFile, Timeout)) {
+            //     connection.send(QueryMessage(QueryMessage::Shutdown));
+            //     connection.disconnected().connect(std::bind([](){ EventLoop::eventLoop()->quit(); }));
+            //     connection.finished().connect(std::bind([](){ EventLoop::eventLoop()->quit(); }));
+            //     EventLoop::eventLoop()->exec(Timeout);
+            // }
         } else {
             sleep(1);
         }
@@ -350,7 +349,7 @@ void Server::onNewMessage(Message *message, Connection *connection)
     case ResponseMessage::MessageId:
     case FinishMessage::MessageId:
     case VisitFileResponseMessage::MessageId:
-        error() << getpid() << "Unexpected message" << static_cast<int>(message->messageId());
+        error() << "Unexpected message" << static_cast<int>(message->messageId());
         // assert(0);
         connection->finish(1);
         break;
