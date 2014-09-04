@@ -34,13 +34,8 @@ static void sigSegvHandler(int signal)
     if (Server *server = Server::instance())
         server->stopServers();
     fprintf(stderr, "Caught signal %d\n", signal);
-    // this is not really allowed in signal handlers but will mostly work
-    const List<String>& trace = RTags::backtrace();
-    auto it = trace.cbegin();
-    while (it != trace.end()) {
-        fprintf(stderr, "%s", it->constData());
-        ++it;
-    }
+    const String trace = Rct::backtrace();
+    fprintf(stderr, "%s\n", trace.constData());
     fflush(stderr);
     _exit(1);
 }
@@ -68,6 +63,7 @@ static void usage(FILE *f)
             "  --server|-s [arg]                          Run as server with no arg or connect to arg as server.\n"
             "  --enable-job-server|-z                     Enable job server.\n"
             "  --include-path|-I [arg]                    Add additional include path to clang.\n"
+            "  --isystem|-s [arg]                         Add additional system include path to clang.\n"
             "  --define|-D [arg]                          Add additional define directive to clang.\n"
             "  --log-file|-L [arg]                        Log to this file.\n"
             "  --append|-A                                Append to log file.\n"
@@ -105,6 +101,7 @@ static void usage(FILE *f)
 #else
             "  --no-filemanager-watch|-M                  Don't use a file system watcher for filemanager.\n"
 #endif
+            "  --enable-NDEBUG|-g                         Don't remove -DNDEBUG from compile lines.\n"
             "  --start-suspended|-Q                       Start out suspended (no reindexing enabled).\n"
             "  --no-filesystem-watcher|-B                 Disable file system watching altogether. Reindexing has to happen manually.\n"
             "  --suspend-rp-on-crash|-q [arg]             Suspend rp in SIGSEGV handler (default " DEFAULT_SUSPEND_RP ").\n"
@@ -113,6 +110,7 @@ static void usage(FILE *f)
             "  --thread-stack-size|-k [arg]               Set stack size for threadpool to this (default %zu).\n"
             "  --completion-cache-size|-i [arg]           Number of translation units to cache (default " STR(DEFAULT_COMPLETION_CACHE_SIZE) ").\n"
             "  --extra-compilers|-U [arg]                 Override additional \"known\" compilers. E.g. -U foobar;c++, foobar;c or foobar:objective-c or just foobar.\n"
+            "  --enable-compiler-manager|-R               Query compilers for their actual include paths instead of letting clang use its own.\n"
             "  --max-crash-count|-K [arg]                 Number of restart attempts for a translation unit when rp crashes (default " STR(DEFAULT_MAX_CRASH_COUNT) ").\n",
             std::max(2, ThreadPool::idealThreadCount()), defaultStackSize);
 }
@@ -133,10 +131,10 @@ int main(int argc, char** argv)
 
     struct option opts[] = {
         { "help", no_argument, 0, 'h' },
-        { "server", optional_argument, 0, 's' },
         { "enable-job-server", no_argument, 0, 'z' },
         { "compression", required_argument, 0, 'Z' },
         { "include-path", required_argument, 0, 'I' },
+        { "isystem", required_argument, 0, 's' },
         { "define", required_argument, 0, 'D' },
         { "log-file", required_argument, 0, 'L' },
         { "setenv", required_argument, 0, 'e' },
@@ -175,6 +173,8 @@ int main(int argc, char** argv)
         { "completion-cache-size", required_argument, 0, 'i' },
         { "extra-compilers", required_argument, 0, 'U' },
         { "allow-Wpedantic", no_argument, 0, 'P' },
+        { "enable-compiler-manager", no_argument, 0, 'R' },
+        { "enable-NDEBUG", no_argument, 0, 'g' },
 #ifdef OS_Darwin
         { "filemanager-watch", no_argument, 0, 'M' },
 #else
@@ -352,6 +352,9 @@ int main(int argc, char** argv)
         case 'E':
             serverOpts.options |= Server::SeparateDebugAndRelease;
             break;
+        case 'g':
+            serverOpts.options |= Server::EnableNDEBUG;
+            break;
         case 'Q':
             serverOpts.options |= Server::StartSuspended;
             break;
@@ -392,6 +395,9 @@ int main(int argc, char** argv)
             return 0;
         case 'Y':
             serverOpts.options |= Server::NoNoUnknownWarningsOption;
+            break;
+        case 'R':
+            serverOpts.options |= Server::EnableCompilerManager;
             break;
         case 'm':
             serverOpts.options |= Server::DisallowMultipleSources;
@@ -517,7 +523,10 @@ int main(int argc, char** argv)
             serverOpts.defines.append(def);
             break; }
         case 'I':
-            serverOpts.includePaths.append(Path::resolved(optarg));
+            serverOpts.includePaths.append(Source::Include(Source::Include::Type_Include, Path::resolved(optarg)));
+            break;
+        case 's':
+            serverOpts.includePaths.append(Source::Include(Source::Include::Type_System, Path::resolved(optarg)));
             break;
         case 'A':
             logFlags |= Log::Append;

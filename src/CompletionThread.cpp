@@ -94,10 +94,10 @@ void CompletionThread::completeAt(const Source &source, const Location &location
     while (it != mPending.end()) {
         if ((*it)->source == source) {
             delete *it;
-            it = mPending.erase(it);
-        } else {
-            ++it;
+            mPending.erase(it);
+            break;
         }
+        ++it;
     }
     mPending.push_front(request);
     mCondition.notify_one();
@@ -262,7 +262,7 @@ void CompletionThread::process(Request *request)
 
         const auto &options = Server::instance()->options();
         for (const auto &inc : options.includePaths) {
-            request->source.includePaths << Source::Include(Source::Include::Type_Include, inc);
+            request->source.includePaths << inc;
         }
         request->source.defines << options.defines;
 
@@ -270,7 +270,7 @@ void CompletionThread::process(Request *request)
         RTags::parseTranslationUnit(sourceFile, request->source.toCommandLine(Source::Default|Source::ExcludeDefaultArguments),
                                     cache->translationUnit, mIndex,
                                     &unsaved, request->unsaved.size() ? 1 : 0, flags, &clangLine);
-        error() << "PARSING" << clangLine;
+        // error() << "PARSING" << clangLine;
         parseTime = sw.restart();
         if (cache->translationUnit) {
             RTags::reparseTranslationUnit(cache->translationUnit, &unsaved, request->unsaved.size() ? 1 : 0);
@@ -299,9 +299,7 @@ void CompletionThread::process(Request *request)
     }
 
     sw.restart();
-    const unsigned int completionFlags = (CXCodeComplete_IncludeMacros
-                                          |CXCodeComplete_IncludeCodePatterns
-                                          |CXCodeComplete_IncludeBriefComments);
+    const unsigned int completionFlags = (CXCodeComplete_IncludeMacros|CXCodeComplete_IncludeCodePatterns);
 
     CXCodeCompleteResults *results = clang_codeCompleteAt(cache->translationUnit, sourceFile.constData(),
                                                           request->location.line(), request->location.column(),
@@ -445,7 +443,8 @@ void CompletionThread::printCompletions(const List<Completions::Candidate> &comp
             EventLoop::mainEventLoop()->callLater([conn, out]() {
                     // ### need to make sure this connection doesn't go away,
                     // probably need to disconnect something
-                    conn->write(out); conn->finish();
+                    conn->write(out);
+                    conn->finish();
                 });
         }
     }

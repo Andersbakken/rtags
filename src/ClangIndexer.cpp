@@ -923,7 +923,7 @@ bool ClangIndexer::handleCursor(const CXCursor &cursor, CXCursorKind kind, const
                 //         << createLocation(mLastCursor)
                 //         << clang_Range_isNull(range)
                 //         << createLocation(clang_getCursorLocation(mLastCursor));
-                auto info = handleReference(mLastCursor, CXCursor_TypeRef,
+                auto info = handleReference(mLastCursor, clang_getCursorKind(mLastCursor),
                                             createLocation(clang_getCursorLocation(mLastCursor)),
                                             clang_getCursorReferenced(typeRef), nullCursor);
                 if (info) {
@@ -984,6 +984,9 @@ bool ClangIndexer::parse()
 
     debug() << "CI::parse: " << mSource.toCommandLine(commandLineFlags) << "\n";
 
+    // for (const auto it : mSource.toCommandLine(commandLineFlags)) {
+    //     error("[%s]", it.constData());
+    // }
     RTags::parseTranslationUnit(mSourceFile, mSource.toCommandLine(commandLineFlags), mClangUnit,
                                 mIndex, &unsavedFiles[0], unsavedIndex, flags, &mClangLine);
 
@@ -1150,7 +1153,7 @@ bool ClangIndexer::diagnose()
         clang_disposeDiagnostic(diagnostic);
     }
 
-    mData->xmlDiagnostics = "<?xml version=\"1.0\" encoding=\"utf-8\"?><checkstyle>";
+    mData->xmlDiagnostics = "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n  <checkstyle>";
     if (!xmlEntries.isEmpty()) {
         Map<Location, XmlEntry>::const_iterator entry = xmlEntries.begin();
         const Map<Location, XmlEntry>::const_iterator end = xmlEntries.end();
@@ -1163,11 +1166,11 @@ bool ClangIndexer::diagnose()
             const XmlEntry &xmlEntry = entry->second;
             if (loc.fileId() != lastFileId) {
                 if (lastFileId)
-                    mData->xmlDiagnostics += "</file>";
+                    mData->xmlDiagnostics += "\n    </file>";
                 lastFileId = loc.fileId();
-                mData->xmlDiagnostics += String::format<128>("<file name=\"%s\">", loc.path().constData());
+                mData->xmlDiagnostics += String::format<128>("\n    <file name=\"%s\">", loc.path().constData());
             }
-            mData->xmlDiagnostics += String::format("<error line=\"%d\" column=\"%d\" %sseverity=\"%s\" message=\"%s\"/>",
+            mData->xmlDiagnostics += String::format("\n      <error line=\"%d\" column=\"%d\" %sseverity=\"%s\" message=\"%s\"/>",
                                                     loc.line(), loc.column(),
                                                     (xmlEntry.length <= 0 ? ""
                                                      : String::format<32>("length=\"%d\" ", xmlEntry.length).constData()),
@@ -1175,7 +1178,7 @@ bool ClangIndexer::diagnose()
             ++entry;
         }
         if (lastFileId)
-            mData->xmlDiagnostics += "</file>";
+            mData->xmlDiagnostics += "\n    </file>";
     }
 
     for (Hash<uint32_t, bool>::const_iterator it = mData->visited.begin(); it != mData->visited.end(); ++it) {
@@ -1183,12 +1186,12 @@ bool ClangIndexer::diagnose()
             const Map<Location, XmlEntry>::const_iterator x = xmlEntries.lower_bound(Location(it->first, 0, 0));
             if (x == xmlEntries.end() || x->first.fileId() != it->first) {
                 const String fn = Location::path(it->first);
-                mData->xmlDiagnostics += String::format("<file name=\"%s\"/>", fn.constData());
+                mData->xmlDiagnostics += String::format("\n    <file name=\"%s\"/>", fn.constData());
             }
         }
     }
 
-    mData->xmlDiagnostics += "</checkstyle>";
+    mData->xmlDiagnostics += "\n  </checkstyle>";
     return true;
 }
 
@@ -1315,6 +1318,7 @@ static CXChildVisitResult resolveAutoTypeRefVisitor(CXCursor cursor, CXCursor, C
     ++userData->index;
     switch (kind) {
     case CXCursor_TypeRef:
+    case CXCursor_TemplateRef:
         // error() << "Found typeRef" << cursor;
         userData->ref = cursor;
         return CXChildVisit_Break;

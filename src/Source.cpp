@@ -33,7 +33,7 @@ Path Source::compiler() const
 
 String Source::toString() const
 {
-    String ret = String::join(toCommandLine(IncludeCompiler|IncludeSourceFile|QuoteDefines|IncludeDefines), ' ');
+    String ret = String::join(toCommandLine(IncludeCompiler|IncludeSourceFile|IncludeIncludepaths|QuoteDefines|IncludeDefines), ' ');
     if (buildRootId)
         ret << " Build: " << buildRoot();
     if (parsed)
@@ -99,24 +99,24 @@ static inline Source::Language guessLanguageFromCompiler(const Path &fullPath) /
 static inline Source::Language guessLanguageFromSourceFile(const Path &sourceFile,
                                                            Source::Language defaultLanguage)
 {
-      // ### We should support some more of of these really
-      // .Case("cl", IK_OpenCL)
-      // .Case("cuda", IK_CUDA)
-      // .Case("c++", IK_CXX)
-      // .Case("objective-c", IK_ObjC)
-      // .Case("objective-c++", IK_ObjCXX)
-      // .Case("cpp-output", IK_PreprocessedC)
-      // .Case("assembler-with-cpp", IK_Asm)
-      // .Case("c++-cpp-output", IK_PreprocessedCXX)
-      // .Case("objective-c-cpp-output", IK_PreprocessedObjC)
-      // .Case("objc-cpp-output", IK_PreprocessedObjC)
-      // .Case("objective-c++-cpp-output", IK_PreprocessedObjCXX)
-      // .Case("objc++-cpp-output", IK_PreprocessedObjCXX)
-      // .Case("c-header", IK_C)
-      // .Case("cl-header", IK_OpenCL)
-      // .Case("objective-c-header", IK_ObjC)
-      // .Case("c++-header", IK_CXX)
-      // .Case("objective-c++-header", IK_ObjCXX)
+    // ### We should support some more of of these really
+    // .Case("cl", IK_OpenCL)
+    // .Case("cuda", IK_CUDA)
+    // .Case("c++", IK_CXX)
+    // .Case("objective-c", IK_ObjC)
+    // .Case("objective-c++", IK_ObjCXX)
+    // .Case("cpp-output", IK_PreprocessedC)
+    // .Case("assembler-with-cpp", IK_Asm)
+    // .Case("c++-cpp-output", IK_PreprocessedCXX)
+    // .Case("objective-c-cpp-output", IK_PreprocessedObjC)
+    // .Case("objc-cpp-output", IK_PreprocessedObjC)
+    // .Case("objective-c++-cpp-output", IK_PreprocessedObjCXX)
+    // .Case("objc++-cpp-output", IK_PreprocessedObjCXX)
+    // .Case("c-header", IK_C)
+    // .Case("cl-header", IK_OpenCL)
+    // .Case("objective-c-header", IK_ObjC)
+    // .Case("c++-header", IK_CXX)
+    // .Case("objective-c++-header", IK_ObjCXX)
 
     const char *suffix = sourceFile.extension();
     if (suffix) {
@@ -358,9 +358,6 @@ List<Source> Source::parse(const String &cmdLine, const Path &base, unsigned int
     }
 
     Language language = guessLanguageFromCompiler(split.front());
-    if (!Source::isIndexable(language))
-        return List<Source>();
-
     bool hasDashX = false;
     uint32_t sourceFlags = 0;
     List<String> arguments;
@@ -384,7 +381,10 @@ List<Source> Source::parse(const String &cmdLine, const Path &base, unsigned int
             arg = arg.mid(1, arg.size() - 2);
         // ### is this even right?
         if (arg.startsWith('-')) {
-            if (arg == "-x") {
+            if (arg == "-E") {
+                warning() << "Preprocessing, ignore" << cmdLine;
+                return List<Source>();
+            } else if (arg == "-x") {
                 const String a = split.value(++i);
                 if (a == "c-header") {
                     language = CHeader;
@@ -431,7 +431,7 @@ List<Source> Source::parse(const String &cmdLine, const Path &base, unsigned int
             } else if (arg.startsWith("-I")) {
                 addIncludeArg(includePaths, arguments, Source::Include::Type_Include, 2, split, i, path);
 #ifdef OS_Darwin
-	    } else if (arg.startsWith("-F")) { // Framework include
+            } else if (arg.startsWith("-F")) { // Framework include
                 addIncludeArg(includePaths, arguments, Source::Include::Type_Framework, 2, split, i, path);
 #endif
             } else if (arg.startsWith("-include")) {
@@ -526,6 +526,11 @@ List<Source> Source::parse(const String &cmdLine, const Path &base, unsigned int
         return List<Source>();
     }
 
+    if (!isIndexable(language)) {
+        warning() << "Source::parse We can't index this" << language;
+        return List<Source>();
+    }
+
     // ### not threadsafe
     assert(EventLoop::isMainThread());
     static Hash<Path, Path> resolvedFromPath;
@@ -611,6 +616,25 @@ static inline bool compareDefinesNoNDEBUG(const Set<Source::Define> &l, const Se
     return true;
 }
 
+static bool nextArg(List<String>::const_iterator &it,
+                    const List<String>::const_iterator end,
+                    bool separateDebugAndRelease)
+{
+    while (it != end) {
+        if (isBlacklisted(*it)) {
+            const bool val = hasValue(*it);
+            ++it;
+            if (val && it != end)
+                ++it;
+        } else if (!separateDebugAndRelease && (*it == "-g" || it->startsWith("-O"))) {
+            ++it;
+        } else {
+            break;
+        }
+    }
+    return it != end;
+}
+
 bool Source::compareArguments(const Source &other) const
 {
     assert(fileId == other.fileId);
@@ -621,31 +645,28 @@ bool Source::compareArguments(const Source &other) const
 
     const bool separateDebugAndRelease = Server::instance()->options().options & Server::SeparateDebugAndRelease;
     if (separateDebugAndRelease) {
-        if (defines != other.defines) {
+        if (defines != other.defines)
             return false;
-        }
     } else if (!compareDefinesNoNDEBUG(defines, other.defines)) {
         return false;
     }
 
+    auto me = arguments.begin();
+    const auto myEnd = arguments.end();
     auto him = other.arguments.begin();
-    for (const auto &me : arguments) {
-        if (separateDebugAndRelease || (me != "-g" && !me.startsWith("-O"))) {
-            String h;
-            while (him != other.arguments.end()) {
-                h = *him++;
-                if (separateDebugAndRelease || (h != "-g" && !h.startsWith("-O"))) {
-                    break;
-                } else {
-                    h.clear();
-                }
-            }
-            if (me != h) {
-                return false;
-            }
-        }
+    const auto hisEnd = other.arguments.end();
+
+    while (me != him) {
+        if (!nextArg(me, myEnd, separateDebugAndRelease))
+            break;
+        if (!nextArg(him, hisEnd, separateDebugAndRelease))
+            return false;
+        if (*me != *him)
+            return false;
+        ++me;
+        ++him;
     }
-    return true;
+    return him == hisEnd || !nextArg(him, hisEnd, separateDebugAndRelease);
 }
 
 List<String> Source::toCommandLine(unsigned int flags) const
@@ -654,25 +675,8 @@ List<String> Source::toCommandLine(unsigned int flags) const
     if (!options)
         flags |= (ExcludeDefaultArguments|ExcludeDefaultDefines|ExcludeDefaultIncludePaths);
 
-    int count = arguments.size() + defines.size() + includePaths.size();
-    if (flags & IncludeCompiler)
-        ++count;
-    if (flags & IncludeSourceFile)
-        ++count;
-    if (!(flags & ExcludeDefaultArguments))
-        count += options->defaultArguments.size();
-    if (flags & IncludeDefines) {
-        count += defines.size();
-        if (!(flags & ExcludeDefaultDefines))
-            count += options->includePaths.size();
-    }
-    if (flags & IncludeIncludepaths) {
-        count += includePaths.size();
-        if (!(flags & ExcludeDefaultIncludePaths))
-            count += options->defines.size();
-    }
     List<String> ret;
-    ret.reserve(count);
+    ret.reserve(64);
     if (flags & IncludeCompiler)
         ret.append(compiler());
     for (int i=0; i<arguments.size(); ++i) {
@@ -713,8 +717,22 @@ List<String> Source::toCommandLine(unsigned int flags) const
             }
         }
         if (!(flags & ExcludeDefaultIncludePaths)) {
-            for (const auto &inc : options->includePaths)
-                ret << ("-I" + inc);
+            for (const auto &inc : options->includePaths) {
+                switch (inc.type) {
+                case Source::Include::Type_None:
+                    assert(0 && "Impossible impossibility");
+                    break;
+                case Source::Include::Type_Include:
+                    ret << ("-I" + inc.path);
+                    break;
+                case Source::Include::Type_Framework:
+                    ret << ("-F" + inc.path);
+                    break;
+                case Source::Include::Type_System:
+                    ret << "-isystem" << inc.path;
+                    break;
+                }
+            }
         }
     }
     if (flags & IncludeSourceFile)

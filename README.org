@@ -1,8 +1,10 @@
+[[https://travis-ci.org/Andersbakken/rtags][https://travis-ci.org/Andersbakken/rtags.svg?branch=master]]
+
 * Introduction
 
 RTags is a client/server application that indexes C/C++ code and keeps
 a persistent in-memory database of references, declarations,
-definitions, symbolnames etc. There's also limited support for 
+definitions, symbolnames etc. There's also limited support for
 ObjC/ObjC++. It allows you to find symbols by name (including class
 and namespace scope). Most importantly we give you proper
 follow-symbol and find-references support. We also have neat little
@@ -482,7 +484,7 @@ Here are some videos demonstrating how to use rtags with emacs though some of th
 
 * Disclaimer
 
-RTags is still in development and is not the most stable piece of
+RTags is still under development and is not the most stable piece of
 software you'll ever find. We crash sometimes (though admittedly
 mostly inside clang). We're constantly working to improve on it.
 

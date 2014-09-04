@@ -49,7 +49,6 @@
 #include <rct/SocketClient.h>
 #include <rct/Log.h>
 #include <rct/Message.h>
-#include <rct/Messages.h>
 #include <rct/Path.h>
 #include <rct/Process.h>
 #include <rct/Rct.h>
@@ -129,7 +128,7 @@ Server::~Server()
     mProjects.clear(); // need to be destroyed before sInstance is set to 0
     assert(sInstance == this);
     sInstance = 0;
-    Messages::cleanup();
+    Message::cleanup();
 }
 
 #if not defined CLANG_INCLUDEPATH
@@ -147,18 +146,21 @@ bool Server::init(const Options &options)
     mOptions = options;
     mSuspended = (options.options & StartSuspended);
     Path clangPath = Path::resolved(CLANG_INCLUDEPATH_STR);
-    mOptions.includePaths.append(clangPath);
+    mOptions.includePaths.append(Source::Include(Source::Include::Type_System, clangPath));
 #ifdef OS_Darwin
     if (clangPath.exists()) {
         Path cppClangPath = clangPath + "../../../c++/v1/";
         cppClangPath.resolve();
         if (cppClangPath.isDir()) {
-            mOptions.includePaths.append(cppClangPath);
+            mOptions.includePaths.append(Source::Include(Source::Include::Type_System, cppClangPath));
         } else {
             cppClangPath = clangPath + "../../../../include/c++/v1/";
             cppClangPath.resolve();
             if (cppClangPath.isDir()) {
-                mOptions.includePaths.append(cppClangPath);
+                mOptions.includePaths.append(Source::Include(Source::Include::Type_System, cppClangPath));
+            } else {
+                error("Unable to find libc++ include path (.../c++/v1) near " CLANG_INCLUDEPATH_STR );
+                return false;
             }
 	    else {
 	      error("Unable to find libc++ include path (.../c++/v1) near " CLANG_INCLUDEPATH_STR );
@@ -178,10 +180,38 @@ bool Server::init(const Options &options)
         mOptions.defaultArguments << "-fspell-checking";
     if (!(options.options & NoNoUnknownWarningsOption))
         mOptions.defaultArguments.append("-Wno-unknown-warning-option");
+    if (mOptions.options & EnableCompilerManager) {
+        mOptions.defaultArguments << "-nobuiltininc";
+        mOptions.defaultArguments << "-nostdinc++";
+        mOptions.defaultArguments << "-mno-sse";
+        mOptions.defaultArguments << "-mno-sse2";
+        mOptions.defaultArguments << "-mno-sse3";
+        // http://clang.llvm.org/compatibility.html#vector_builtins
+        const char *gccBuiltIntVectorFunctionDefines[] = {
+            "__builtin_ia32_rolhi",
+            "__builtin_ia32_pause",
+            "__builtin_ia32_addcarryx_u32",
+            "__builtin_ia32_bsrsi",
+            "__builtin_ia32_rdpmc",
+            "__builtin_ia32_rdtsc",
+            "__builtin_ia32_rdtscp",
+            "__builtin_ia32_rolqi",
+            "__builtin_ia32_rorqi",
+            "__builtin_ia32_rorhi",
+            "__builtin_ia32_rolhi",
+            0
+        };
+        for (int i=0; gccBuiltIntVectorFunctionDefines[i]; ++i) {
+            mOptions.defines << Source::Define(String::format<128>("%s(...)", gccBuiltIntVectorFunctionDefines[i]));
+        }
+    }
+
     Log l(Error);
     l << "Running with" << mOptions.jobCount << "jobs, using args:"
       << String::join(mOptions.defaultArguments, ' ') << '\n';
-    l << "Includepaths:" << String::join(mOptions.includePaths, ' ');
+    l << "Includepaths:";
+    for (const auto &inc : mOptions.includePaths)
+        l << inc.toString();
 
     if (mOptions.options & ClearProjects) {
         clearProjects();
@@ -194,14 +224,14 @@ bool Server::init(const Options &options)
         }
         mUnixServer.reset();
         if (!i) {
-            enum { Timeout = 1000 };
-            Connection connection;
-            if (connection.connectUnix(mOptions.socketFile, Timeout)) {
-                connection.send(QueryMessage(QueryMessage::Shutdown));
-                connection.disconnected().connect(std::bind([](){ EventLoop::eventLoop()->quit(); }));
-                connection.finished().connect(std::bind([](){ EventLoop::eventLoop()->quit(); }));
-                EventLoop::eventLoop()->exec(Timeout);
-            }
+            // enum { Timeout = 1000 };
+            // Connection connection;
+            // if (connection.connectUnix(mOptions.socketFile, Timeout)) {
+            //     connection.send(QueryMessage(QueryMessage::Shutdown));
+            //     connection.disconnected().connect(std::bind([](){ EventLoop::eventLoop()->quit(); }));
+            //     connection.finished().connect(std::bind([](){ EventLoop::eventLoop()->quit(); }));
+            //     EventLoop::eventLoop()->exec(Timeout);
+            // }
         } else {
             sleep(1);
         }
@@ -324,7 +354,7 @@ void Server::onNewMessage(Message *message, Connection *connection)
     case ResponseMessage::MessageId:
     case FinishMessage::MessageId:
     case VisitFileResponseMessage::MessageId:
-        error() << getpid() << "Unexpected message" << static_cast<int>(message->messageId());
+        error() << "Unexpected message" << static_cast<int>(message->messageId());
         // assert(0);
         connection->finish(1);
         break;
@@ -385,7 +415,7 @@ bool Server::index(const String &arguments, const Path &pwd, const Path &project
             project->load();
             if (!mCurrentProject.lock())
                 setCurrentProject(project);
-            project->index(source, IndexerJob::Compile);
+            project->index(std::shared_ptr<IndexerJob>(new IndexerJob(source, IndexerJob::Compile, root)));
             ret = true;
         }
     }
@@ -1492,16 +1522,26 @@ void Server::codeCompleteAt(const QueryMessage &query, Connection *conn)
     path.resolve();
     std::shared_ptr<Project> project = projectForQuery(query);
     if (!project) {
-        conn->write<128>("No project found for %s", path.constData());
+        error("No project found for %s", path.constData());
         conn->finish();
         return;
     }
     const uint32_t fileId = Location::insertFile(path);
-    const Source source = project->sources(fileId).value(query.buildIndex());
+    Source source = project->sources(fileId).value(query.buildIndex());
     if (source.isNull()) {
-        conn->write<128>("No source found for %s", path.constData());
-        conn->finish();
-        return;
+        for (uint32_t dep : project->dependencies(fileId, Project::DependsOnArg)) {
+            source = project->sources(dep).value(query.buildIndex());
+            if (!source.isNull()) {
+                source.fileId = fileId;
+                break;
+            }
+        }
+
+        if (source.isNull()) {
+            error("No source found for %s", path.constData());
+            conn->finish();
+            return;
+        }
     }
     if (!mCompletionThread) {
         mCompletionThread = new CompletionThread(mOptions.completionCacheSize);
@@ -1556,7 +1596,6 @@ void Server::startJobs()
             } else {
                 onJobFinished(job->process, job);
             }
-            assert(job->process);
         }
     }
 }

@@ -19,22 +19,19 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 #include "Project.h"
 
 ScanThread::ScanThread(const Path &path)
-    : mPath(path), mFilters(Server::instance()->options().excludeFilters)
+    : Thread(), mPath(path), mFilters(Server::instance()->options().excludeFilters)
 {
-    if (!mPath.endsWith('/'))
-        mPath.append('/');
 }
 
-void ScanThread::run()
-{
-    mPath.visit(&ScanThread::visit, this);
-    mFinished(mPaths);
-}
+struct UserData {
+    Set<Path> paths;
+    const List<String> &filters;
+};
 
-Path::VisitResult ScanThread::visit(const Path &path, void *userData)
+static Path::VisitResult visit(const Path &path, void *userData)
 {
-    ScanThread *recurseJob = reinterpret_cast<ScanThread*>(userData);
-    const Filter::Result result = Filter::filter(path, recurseJob->mFilters);
+    UserData *u = reinterpret_cast<UserData*>(userData);
+    const Filter::Result result = Filter::filter(path, u->filters);
     switch (result) {
     case Filter::Filtered:
         return Path::Continue;
@@ -44,8 +41,22 @@ Path::VisitResult ScanThread::visit(const Path &path, void *userData)
         return Path::Recurse;
     case Filter::File:
     case Filter::Source:
-        recurseJob->mPaths.insert(path);
+        u->paths.insert(path);
         break;
     }
     return Path::Continue;
 }
+
+Set<Path> ScanThread::paths(const Path &path, const List<String> &filters)
+{
+    UserData userData = { Set<Path>(), filters };
+    path.visit(&::visit, &userData);
+    return userData.paths;
+}
+
+void ScanThread::run()
+{
+    mFinished(paths(mPath, mFilters));
+}
+
+

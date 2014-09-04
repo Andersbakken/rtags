@@ -32,7 +32,7 @@ class Database;
 class Project;
 namespace RTags {
 
-enum { DatabaseVersion = 48 };
+enum { DatabaseVersion = 49 };
 
 enum {
     CompilationError = -1,
@@ -70,8 +70,6 @@ namespace RTags {
 void dirtySymbolNames(SymbolNameMap &map, const Set<uint32_t> &dirty);
 void dirtySymbols(SymbolMap &map, const Set<uint32_t> &dirty);
 void dirtyUsr(UsrMap &map, const Set<uint32_t> &dirty);
-
-List<String> backtrace(int maxFrames = -1);
 
 template <typename Container, typename Value>
 inline bool addTo(Container &container, const Value &value)

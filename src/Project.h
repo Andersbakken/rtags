@@ -92,10 +92,7 @@ public:
 
     bool isIndexed(uint32_t fileId) const;
 
-    void index(const Source &source, uint32_t flags,
-               const UnsavedFiles &unsavedFiles = UnsavedFiles(),
-               const Set<uint32_t> &dirty = Set<uint32_t>());
-
+    void index(const std::shared_ptr<IndexerJob> &job);
     List<Source> sources(uint32_t fileId) const;
     bool hasSource(const Source &source) const;
     enum DependencyMode {
@@ -156,7 +153,7 @@ private:
 
     struct JobData {
         JobData()
-            : pendingFlags(0), crashCount(0), pendingRestartTimerId(-1)
+            : crashCount(0), pendingRestartTimerId(-1)
         {}
         void stopTimer()
         {
@@ -165,15 +162,13 @@ private:
                 pendingRestartTimerId = -1;
             }
         }
-        Source pendingSource;
-        uint32_t pendingFlags;
         int crashCount, pendingRestartTimerId;
-        std::shared_ptr<IndexerJob> job;
+        std::shared_ptr<IndexerJob> job, pendingJob;
     };
 
     // key'ed on Source::key()
     Hash<uint64_t, JobData> mJobs;
-    Hash<uint64_t, std::shared_ptr<IndexData> > mPendingData; // ### this could go into JobData
+    Hash<uint64_t, std::shared_ptr<IndexData> > mIndexData;
 
     Timer mSyncTimer, mDirtyTimer;
     Set<uint32_t> mDirtyFiles, mPendingDirtyFiles;

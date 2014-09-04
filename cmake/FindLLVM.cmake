@@ -9,11 +9,11 @@
 #  LLVM_MODULE_LIBS  - list of llvm libs for working with modules.
 
 set(llvm_config_names llvm-config  
-  llvm-config-3.5 llvm-config-mp-3.5
-  llvm-config-3.4 llvm-config-mp-3.4
-  llvm-config-3.3 llvm-config-mp-3.3
-  llvm-config-3.2 llvm-config-mp-3.2
-  llvm-config-3.1 llvm-config-mp-3.1)
+  llvm-config35 llvm-config-3.5 llvm-config-mp-3.5
+  llvm-config34 llvm-config-3.4 llvm-config-mp-3.4
+  llvm-config33 llvm-config-3.3 llvm-config-mp-3.3
+  llvm-config32 llvm-config-3.2 llvm-config-mp-3.2
+  llvm-config31 llvm-config-3.1 llvm-config-mp-3.1)
 find_program(LLVM_CONFIG_EXECUTABLE NAMES ${llvm_config_names})
 
 if (LLVM_CONFIG_EXECUTABLE)

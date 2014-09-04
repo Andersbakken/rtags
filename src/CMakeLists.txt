@@ -3,6 +3,16 @@ if (NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE Release)
 endif ()
 
+SET(CMAKE_SKIP_BUILD_RPATH            FALSE)
+SET(CMAKE_BUILD_WITH_INSTALL_RPATH    FALSE)
+SET(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
+
+# Set RPATH when installing to a custom (non-system) directory
+LIST(FIND CMAKE_PLATFORM_IMPLICIT_LINK_DIRECTORIES "${CMAKE_INSTALL_PREFIX}/lib" isSystemDir)
+IF("${isSystemDir}" STREQUAL "-1")
+  SET(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/lib")
+ENDIF("${isSystemDir}" STREQUAL "-1")
+
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-rtti")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fstack-protector-all")
@@ -72,28 +82,28 @@ add_library(shared SHARED ${RTAGS_SHARED_SOURCES})
 target_link_libraries(shared rct)
 
 set(RDM_SOURCES
-  CompletionThread.cpp
-  CursorInfo.cpp
-  CursorInfoJob.cpp
-  DependenciesJob.cpp
-  DumpThread.cpp
-  EventSourceClient.cpp
-  FileManager.cpp
-  FindFileJob.cpp
-  FindSymbolsJob.cpp
-  FollowLocationJob.cpp
-  IndexerJob.cpp
-  Job.cpp
-  ListSymbolsJob.cpp
-  Preprocessor.cpp
-  Project.cpp
-  RTagsClang.cpp
-  ReferencesJob.cpp
-  ScanThread.cpp
-  Server.cpp
-  Source.cpp
-  StatusJob.cpp
-  )
+    CompilerManager.cpp
+    CompletionThread.cpp
+    CursorInfo.cpp
+    CursorInfoJob.cpp
+    DependenciesJob.cpp
+    DumpThread.cpp
+    EventSourceClient.cpp
+    FileManager.cpp
+    FindFileJob.cpp
+    FindSymbolsJob.cpp
+    FollowLocationJob.cpp
+    IndexerJob.cpp
+    Job.cpp
+    ListSymbolsJob.cpp
+    Preprocessor.cpp
+    Project.cpp
+    RTagsClang.cpp
+    ReferencesJob.cpp
+    ScanThread.cpp
+    Server.cpp
+    Source.cpp
+    StatusJob.cpp)
 
 include_directories(${CMAKE_CURRENT_LIST_DIR}
                     rct/include/
