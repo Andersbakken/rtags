@@ -57,6 +57,14 @@
 #include <arpa/inet.h>
 #include <limits>
 
+#if not defined CLANG_INCLUDEPATH
+#error CLANG_INCLUDEPATH not defined during CMake generation
+#else
+#define TO_STR1(x) #x
+#define TO_STR(x)  TO_STR1(x)
+#define CLANG_INCLUDEPATH_STR TO_STR(CLANG_INCLUDEPATH)
+#endif
+
 class HttpLogObject : public LogOutput
 {
 public:
@@ -146,8 +154,8 @@ bool Server::init(const Options &options)
     if (!(options.flag(NoNoUnknownWarningsOption)))
         mOptions.defaultArguments.append("-Wno-unknown-warning-option");
 
-#ifndef OS_Darwin   // this causes problems on MacOS+clang
     if (mOptions.options & EnableCompilerManager) {
+#ifndef OS_Darwin   // this causes problems on MacOS+clang
         // http://clang.llvm.org/compatibility.html#vector_builtins
         const char *gccBuiltIntVectorFunctionDefines[] = {
             "__builtin_ia32_rolhi",
@@ -166,8 +174,11 @@ bool Server::init(const Options &options)
         for (int i=0; gccBuiltIntVectorFunctionDefines[i]; ++i) {
             mOptions.defines << Source::Define(String::format<128>("%s(...)", gccBuiltIntVectorFunctionDefines[i]));
         }
-    }
 #endif
+    } else {
+        const Path clangPath = Path::resolved(CLANG_INCLUDEPATH_STR);
+        mOptions.includePaths.append(Source::Include(Source::Include::Type_System, clangPath));
+    }
 
     Log l(Error);
     l << "Running with" << mOptions.jobCount << "jobs, using args:"
