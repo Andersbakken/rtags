@@ -417,23 +417,24 @@
   "Reparse file if it's not saved.
 
 BUFFER : the buffer to be checked and reparsed, if it's nil, use current buffer"
-  (let ((unsaved (and (buffer-modified-p buffer) (or buffer (current-buffer)))))
-    (when unsaved
-      ;; check ticks since the last save to avoid parsing the file multiple times
-      ;; if it has not been modified
-      (let ((current-ticks (buffer-modified-tick unsaved))
-            (old-ticks (cdr (assoc unsaved rtags-unsaved-buffers-ticks))))
-        ;; reparsing this dirty file for the first time
-        ;; or if it was modified since last reparsing
-        ;;(message ":debug: buffer=%s, old-ticks=%s, current-ticks=%s"
-                 ;;unsaved old-ticks current-ticks)
-        (if (or (null old-ticks) (/= current-ticks old-ticks))
-            (progn
-              (rtags-reparse-file unsaved t)
-              (add-to-list 'rtags-unsaved-buffers-ticks (cons unsaved current-ticks)))
-          (progn ;; else update ticks
-            (let ((item (assoc unsaved rtags-unsaved-buffers-ticks)))
-              (setf (cdr item) current-ticks))))))))
+  (when rtags-enable-unsaved-reparsing
+    (let ((unsaved (and (buffer-modified-p buffer) (or buffer (current-buffer)))))
+      (when unsaved
+        ;; check ticks since the last save to avoid parsing the file multiple times
+        ;; if it has not been modified
+        (let ((current-ticks (buffer-modified-tick unsaved))
+              (old-ticks (cdr (assoc unsaved rtags-unsaved-buffers-ticks))))
+          ;; reparsing this dirty file for the first time
+          ;; or if it was modified since last reparsing
+          ;;(message ":debug: buffer=%s, old-ticks=%s, current-ticks=%s"
+          ;;unsaved old-ticks current-ticks)
+          (if (or (null old-ticks) (/= current-ticks old-ticks))
+              (progn
+                (rtags-reparse-file unsaved t)
+                (add-to-list 'rtags-unsaved-buffers-ticks (cons unsaved current-ticks)))
+            (progn ;; else update ticks
+              (let ((item (assoc unsaved rtags-unsaved-buffers-ticks)))
+                (setf (cdr item) current-ticks)))))))))
 
 
 ;;;###autoload
@@ -1895,6 +1896,11 @@ References to references will be treated as references to the referenced symbol"
   "Max amount of ms to wait for operation to finish"
   :group 'rtags
   :type 'integer)
+
+(defcustom rtags-enable-unsaved-reparsing t
+  "Whether rtags will reparse unsaved buffers as needed"
+  :group 'rtags
+  :type 'boolean)
 
 (defcustom rtags-find-file-case-insensitive nil
   "Treat files case-insensitively"
