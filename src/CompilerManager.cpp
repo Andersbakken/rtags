@@ -23,59 +23,89 @@ struct Compiler {
         : inited(false)
     {}
     bool inited;
-    List<Source::Include> includePaths;
+
+    // There are three include-path-limiting options:
+    //   1. -nostdinc      -- disables all default system include paths
+    //                        Example: <string.h> (stuff under /usr/include, etc.)
+    //   2. -nostdinc++    -- disables C++ standard include path
+    //                        Example: <vector> (stuff under /usr/lib/c++/v1)
+    //   3. -nobuiltininc  -- (clang only?) disables compiler-provided includes
+    //                        Example: limits.h, float.h
+
     Set<Source::Define> defines;
+    List<Source::Include> includePaths;
+    List<Source::Include> stdincxxPaths;
+    List<Source::Include> builtinPaths;
 };
 static Hash<Path, Compiler> sCompilers;
 
 namespace CompilerManager {
+
 List<Path> compilers()
 {
     std::lock_guard<std::mutex> lock(sMutex);
     return sCompilers.keys();
 }
 
-List<String> flags(const Path &compiler)
-{
-    Set<Source::Define> defines;
-    List<Source::Include> includePaths;
-    data(compiler, &defines, &includePaths);
-    List<String> flags;
-    flags.reserve(defines.size() + includePaths.size());
-    for (const auto &it : defines)
-        flags.append(it.toString());
-    for (const auto &it : includePaths)
-        flags.append(it.toString());
-    return flags;
-}
-
-void data(const Path &c, Set<Source::Define> *defines, List<Source::Include> *includePaths)
+void applyToSource(Source &source, bool defines, bool incPaths)
 {
     std::lock_guard<std::mutex> lock(sMutex);
-    Compiler &compiler = sCompilers[c];
+    Path cpath = source.compiler();
+    Compiler &compiler = sCompilers[cpath];
     if (!compiler.inited) {
         compiler.inited = true;
 
+        List<String> overrides;
         List<String> out, err;
-        for (int i=0; i<2; ++i) {
+        List<String> args;
+        List<String> environ({"RTAGS_DISABLED=1"});
+        args << "-x" << "c++" << "-v" << "-E" << "-dM" << "-";
+
+        for (int i=0; i<4; /* see below */) {
             Process proc;
-            List<String> args;
-            List<String> environ;
-            environ << "RTAGS_DISABLED=1";
-            if (i == 0) {
-                args << "-v" << "-x" << "c++" << "-E" << "-dM" << "-";
-            } else {
-                args << "-v" << "-E" << "-dM" << "-";
-            }
-            proc.exec(c, args, environ);
+            proc.exec(cpath, args, environ);
             assert(proc.isFinished());
             if (!proc.returnCode()) {
                 out << proc.readAllStdOut().split('\n');
                 err << proc.readAllStdErr().split('\n');
-                break;
-            } else if (i == 1) {
-                out << proc.readAllStdOut().split('\n');
-                err << proc.readAllStdErr().split('\n');
+
+                // proc success. What's next?
+                switch(i) {
+                case 0:
+                    // C++ ok .. see which path is controlled by -nostdinc++
+                    args.prepend("-nostdinc++");
+                    err << "@@@@\n"; // magic separator
+                    i = 2;
+                    break;
+
+                case 1:
+                    // "-x c++" not ok. Goto -nobuiltininc.
+                    err << "@@@@\n";  // magic separator
+                    args.prepend("-nobuiltininc");
+                    i = 3;
+                    break;
+
+                case 2:
+                    args.removeFirst(); // clear -nostdinc++
+                    err << "@@@@\n";  // magic separator
+                    args.prepend("-nobuiltininc");
+                    i = 3;
+                    break;
+
+                default:
+                    err << "@@@@\n";  // magic separator
+                    i = 4;
+                    break;
+                }
+            }
+            else if (i == 0) {
+                // Strip -x c++ and try again
+                args.removeFirst();
+                args.removeFirst();
+            }
+            else {
+                error() << "CompilerManager: Cannot extract standard include paths.\n";
+                return;
             }
         }
         for (int i=0; i<out.size(); ++i) {
@@ -94,30 +124,73 @@ void data(const Path &c, Set<Source::Define> *defines, List<Source::Include> *in
             }
         }
 
+        enum { eNormal, eNoStdInc, eNoBuiltin } mode = eNormal;
+        List<Source::Include> copy;
         for (int i=0; i<err.size(); ++i) {
             const String &line = err.at(i);
+            if (line.startsWith("@@@@"))  // magic separator
+            {
+                if (mode == eNoStdInc) {
+                    // What's left in copy are the std c++ paths
+                    compiler.stdincxxPaths = copy;
+                    mode = eNoBuiltin;
+                }
+                else if (mode == eNoBuiltin) {
+                    // What's left in copy are the builtin paths
+                    compiler.builtinPaths = copy;
+                    // Set the includePaths exclusive of stdinc/builtin
+                    for (auto inc : compiler.stdincxxPaths)
+                        compiler.includePaths.remove(inc);
+                    for (auto inc : compiler.builtinPaths)
+                        compiler.includePaths.remove(inc);
+                    break; // we're done
+                }
+                else {
+                    mode = eNoStdInc;
+                }
+                copy = compiler.includePaths;
+            }
             int j = 0;
             while (j < line.size() && isspace(line.at(j)))
                 ++j;
             int end = line.lastIndexOf(" (framework directory)");
-            Source::Include::Type type = Source::Include::Type::Type_Include;
+            Source::Include::Type type = Source::Include::Type::Type_System;
             if (end != -1) {
                 end = end - j;
-                type = Source::Include::Type_Framework;
+                type = Source::Include::Type_SystemFramework;
             }
             Path path = line.mid(j, end);
             // error() << "looking at" << line << path << path.isDir();
             if (path.isDir()) {
                 path.resolve();
-                compiler.includePaths.append(Source::Include(type, path));
+                if (mode == eNormal) {
+                    compiler.includePaths.append(Source::Include(type, path));
+                }
+                else {
+                    copy.remove(Source::Include(type, path));
+                }
             }
         }
-        // error() << c << "got\n" << compiler.includePaths;
-
+        debug() << "[CompilerManager]" << cpath << "got includepaths\n" << compiler.includePaths;
+        debug() << "StdInc++: " << compiler.stdincxxPaths << "\nBuiltin: " << compiler.builtinPaths;
+        debug() << "[CompilerManager] returning.\n";
     }
     if (defines)
-        *defines << compiler.defines;
-    if (includePaths)
-        *includePaths << compiler.includePaths;
+        source.defines << compiler.defines;
+    if (incPaths) {
+        if (!source.arguments.contains("-nostdinc")) {
+            source.includePaths << compiler.includePaths;
+            if (!source.arguments.contains("-nostdinc++"))
+                source.includePaths << compiler.stdincxxPaths;
+            if (!source.arguments.contains("-nobuiltininc"))
+                source.includePaths << compiler.builtinPaths;
+        }
+        else if (!strncmp("clang", cpath.fileName(), 5)) {
+            // Module.map causes errors when -nostdinc is used, as it
+            // can't find some mappings to compiler provided headers
+            source.arguments.append("-fno-modules");
+        }
+    }
 }
-}
+
+} // namespace CompilerManager

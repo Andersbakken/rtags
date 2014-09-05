@@ -131,61 +131,23 @@ Server::~Server()
     Message::cleanup();
 }
 
-#if not defined CLANG_INCLUDEPATH
-#error CLANG_INCLUDEPATH not defined during CMake generation
-#else
-#define TO_STR1(x) #x
-#define TO_STR(x)  TO_STR1(x)
-#define CLANG_INCLUDEPATH_STR TO_STR(CLANG_INCLUDEPATH)
-#endif
-
 bool Server::init(const Options &options)
 {
     RTags::initMessages();
 
     mOptions = options;
-    mSuspended = (options.options & StartSuspended);
-    Path clangPath = Path::resolved(CLANG_INCLUDEPATH_STR);
-    mOptions.includePaths.append(Source::Include(Source::Include::Type_System, clangPath));
-#ifdef OS_Darwin
-    if (clangPath.exists()) {
-        Path cppClangPath = clangPath + "../../../c++/v1/";
-        cppClangPath.resolve();
-        if (cppClangPath.isDir()) {
-            mOptions.includePaths.append(Source::Include(Source::Include::Type_System, cppClangPath));
-        } else {
-            cppClangPath = clangPath + "../../../../include/c++/v1/";
-            cppClangPath.resolve();
-            if (cppClangPath.isDir()) {
-                mOptions.includePaths.append(Source::Include(Source::Include::Type_System, cppClangPath));
-            } else {
-                error("Unable to find libc++ include path (.../c++/v1) near " CLANG_INCLUDEPATH_STR );
-                return false;
-            }
-	    else {
-	      error("Unable to find libc++ include path (.../c++/v1) near " CLANG_INCLUDEPATH_STR );
-	      return false;
-	    }
-	      
-        }
-        // this seems to be the only way we get things like cstdint
-    }
-#endif
-
-    if (!(options.options & NoUnlimitedErrors))
+    mSuspended = (options.flag(StartSuspended));
+    if (!(options.flag(NoUnlimitedErrors)))
         mOptions.defaultArguments << "-ferror-limit=0";
-    if (options.options & Wall)
+    if (options.flag(Wall))
         mOptions.defaultArguments << "-Wall";
-    if (options.options & SpellChecking)
+    if (options.flag(SpellChecking))
         mOptions.defaultArguments << "-fspell-checking";
-    if (!(options.options & NoNoUnknownWarningsOption))
+    if (!(options.flag(NoNoUnknownWarningsOption)))
         mOptions.defaultArguments.append("-Wno-unknown-warning-option");
+
+#ifndef OS_Darwin   // this causes problems on MacOS+clang
     if (mOptions.options & EnableCompilerManager) {
-        mOptions.defaultArguments << "-nobuiltininc";
-        mOptions.defaultArguments << "-nostdinc++";
-        mOptions.defaultArguments << "-mno-sse";
-        mOptions.defaultArguments << "-mno-sse2";
-        mOptions.defaultArguments << "-mno-sse3";
         // http://clang.llvm.org/compatibility.html#vector_builtins
         const char *gccBuiltIntVectorFunctionDefines[] = {
             "__builtin_ia32_rolhi",
@@ -205,6 +167,7 @@ bool Server::init(const Options &options)
             mOptions.defines << Source::Define(String::format<128>("%s(...)", gccBuiltIntVectorFunctionDefines[i]));
         }
     }
+#endif
 
     Log l(Error);
     l << "Running with" << mOptions.jobCount << "jobs, using args:"

@@ -85,7 +85,7 @@ String IndexerJob::encode() const
         std::shared_ptr<Project> proj = Server::instance()->project(project);
         const Server::Options &options = Server::instance()->options();
         Source copy = source;
-        if (options.options & Server::Wall && source.arguments.contains("-Werror")) {
+        if (options.flag(Server::Wall) && source.arguments.contains("-Werror")) {
             for (const auto &arg : options.defaultArguments) {
                 if (arg != "-Wall")
                     copy.arguments << arg;
@@ -94,21 +94,21 @@ String IndexerJob::encode() const
             copy.arguments << options.defaultArguments;
         }
 
-        if (!(options.options & Server::AllowPedantic)) {
+        if (!(options.flag(Server::AllowPedantic))) {
             const int idx = copy.arguments.indexOf("-Wpedantic");
             if (idx != -1) {
                 copy.arguments.removeAt(idx);
             }
         }
 
-        if (options.options & Server::EnableCompilerManager)
-            CompilerManager::data(copy.compiler(), 0, &copy.includePaths);
+        if (options.flag(Server::EnableCompilerManager))
+            CompilerManager::applyToSource(copy, false, true);
 
         for (const auto &inc : options.includePaths) {
             copy.includePaths << inc;
         }
         copy.defines << options.defines;
-        if (!(options.options & Server::EnableNDEBUG)) {
+        if (!(options.flag(Server::EnableNDEBUG))) {
             copy.defines.remove(Source::Define("NDEBUG"));
         }
         assert(!sourceFile.isEmpty());

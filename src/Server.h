@@ -86,6 +86,8 @@ public:
         List<Source::Define> defines;
         Set<Path> ignoredCompilers;
         List<std::pair<RegExp, Source::Language> > extraCompilers;
+
+        inline bool flag(enum Option o) const { return 0 != (options & o); }
     };
     bool init(const Options &options);
     const Options &options() const { return mOptions; }

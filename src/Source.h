@@ -78,7 +78,8 @@ struct Source
             Type_None,
             Type_Include,
             Type_Framework,
-            Type_System
+            Type_System,
+            Type_SystemFramework,
         };
         Include(Type t = Type_None, const Path &p = Path())
             : type(t), path(p)
@@ -93,6 +94,7 @@ struct Source
             case Type_Include: return String::format<128>("-I%s", path.constData());
             case Type_Framework: return String::format<128>("-F%s", path.constData());
             case Type_System: return String::format<128>("-isystem %s", path.constData());
+            case Type_SystemFramework: return String::format<128>("-iframework %s", path.constData());
             case Type_None: break;
             }
             return String();

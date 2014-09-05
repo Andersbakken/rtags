@@ -237,8 +237,10 @@ static const char* valueArgs[] = {
     "-isysroot",
     "-Xpreprocessor",
     "-Xassembler",
-    "-T",
     "-Xlinker",
+    "-Xclang",
+    "-Xanalyzer",
+    "-T",
     "-V",
     "-b",
     "-G",
@@ -431,8 +433,25 @@ List<Source> Source::parse(const String &cmdLine, const Path &base, unsigned int
             } else if (arg.startsWith("-I")) {
                 addIncludeArg(includePaths, arguments, Source::Include::Type_Include, 2, split, i, path);
 #ifdef OS_Darwin
-            } else if (arg.startsWith("-F")) { // Framework include
+            } else if (arg == "-arch") {
+                // Limit -arch to a single format i368/x86_64. Darwin allows
+                // mutliple -arch options to build a combined binary.  However,
+                // libclang (the indexer) will fail if it gets more than one; it
+                // only allows one 'job', in clang parlance, per invocation. It
+                // quietly returns a null CXTranslationUnit and is very
+                // difficult to see why indexing failed (ie. debug)
+                if (!arguments.contains(arg)) {
+                    arguments.append(arg);
+                    arguments.append(split.value(++i));
+                } else {
+                    warning() << "[Source::parse] Removing additional -arch argument(s) to allow indexing.";
+                }
+
+            // Framework includes
+            } else if (arg.startsWith("-F")) {
                 addIncludeArg(includePaths, arguments, Source::Include::Type_Framework, 2, split, i, path);
+            } else if (arg.startsWith("-iframework")) {
+                addIncludeArg(includePaths, arguments, Source::Include::Type_SystemFramework, 11, split, i, path);
 #endif
             } else if (arg.startsWith("-include")) {
                 addIncludeArg(includePaths, arguments, Source::Include::Type_None, 8, split, i, path);
@@ -714,6 +733,9 @@ List<String> Source::toCommandLine(unsigned int flags) const
             case Source::Include::Type_System:
                 ret << "-isystem " << inc.path;
                 break;
+            case Source::Include::Type_SystemFramework:
+                ret << "-iframework " << inc.path;
+                break;
             }
         }
         if (!(flags & ExcludeDefaultIncludePaths)) {
@@ -729,7 +751,10 @@ List<String> Source::toCommandLine(unsigned int flags) const
                     ret << ("-F" + inc.path);
                     break;
                 case Source::Include::Type_System:
-                    ret << "-isystem" << inc.path;
+                    ret << "-isystem " << inc.path;
+                    break;
+                case Source::Include::Type_SystemFramework:
+                    ret << "-iframework " << inc.path;
                     break;
                 }
             }

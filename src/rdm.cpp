@@ -58,61 +58,65 @@ static size_t defaultStackSize = 0;
 static void usage(FILE *f)
 {
     fprintf(f,
-            "rdm [...options...]\n"
+            "\nUsage: rdm [...options...]\n\n"
             "  --help|-h                                  Display this page.\n"
-            "  --server|-s [arg]                          Run as server with no arg or connect to arg as server.\n"
-            "  --enable-job-server|-z                     Enable job server.\n"
-            "  --include-path|-I [arg]                    Add additional include path to clang.\n"
-            "  --isystem|-s [arg]                         Add additional system include path to clang.\n"
-            "  --define|-D [arg]                          Add additional define directive to clang.\n"
-            "  --log-file|-L [arg]                        Log to this file.\n"
+
+            "\nServer options:\n"
             "  --append|-A                                Append to log file.\n"
-            "  --verbose|-v                               Change verbosity, multiple -v's are allowed.\n"
             "  --clear-project-caches|-C                  Clear out project caches.\n"
-            "  --disable-sighandler|-x                    Disable signal handler to dump stack for crashes.\n"
-            "  --clang-includepath|-P                     Use clang include paths by default.\n"
-            "  --no-Wall|-W                               Don't use -Wall.\n"
-            "  --allow-Wpedantic|-P                       Don't strip out -Wpedantic. This can cause problems in certain projects.\n"
-            "  --Wlarge-by-value-copy|-r [arg]            Use -Wlarge-by-value-copy=[arg] when invoking clang.\n"
-            "  --no-spell-checking|-l                     Don't pass -fspell-checking.\n"
-            "  --no-unlimited-error|-f                    Don't pass -ferror-limit=0 to clang.\n"
-            "  --silent|-S                                No logging to stdout.\n"
-            "  --exclude-filter|-X [arg]                  Files to exclude from rdm, default \"" EXCLUDEFILTER_DEFAULT "\".\n"
-            "  --sync-threshold|-y [arg]                  Automatically sync after [arg] files indexed.\n"
-            "  --no-rc|-N                                 Don't load any rc files.\n"
-            "  --ignore-printf-fixits|-F                  Disregard any clang fixit that looks like it's trying to fix format for printf and friends.\n"
+            "  --completion-cache-size|-i [arg]           Number of translation units to cache (default " STR(DEFAULT_COMPLETION_CACHE_SIZE) ").\n"
             "  --config|-c [arg]                          Use this file instead of ~/.rdmrc.\n"
             "  --data-dir|-d [arg]                        Use this directory to store persistent data (default ~/.rtags).\n"
-            "  --socket-file|-n [arg]                     Use this file for the server socket (default ~/.rdm).\n"
-            "  --tcp-port|-p [arg]                        Use this port for tcp server (default " STR(DEFAULT_RDM_TCP_PORT) ").\n"
-            "  --setenv|-e [arg]                          Set this environment variable (--setenv \"foobar=1\").\n"
-            "  --no-startup-project|-o                    Don't restore the last current project on startup.\n"
+            "  --disable-sighandler|-x                    Disable signal handler to dump stack for crashes.\n"
             "  --disallow-multiple-sources|-m             With this setting different sources will be merged for each source file.\n"
-            "  --separate-debug-and-release|-E            Normally rdm doesn't consider release and debug as different builds. Pass this if you want it to.\n"
-            "  --unload-timer|-u [arg]                    Number of minutes to wait before unloading non-current projects (disabled by default).\n"
-            "  --job-count|-j [arg]                       Spawn this many concurrent processes for indexing (default %d).\n"
-            "  --watch-system-paths|-w                    Watch system paths for changes.\n"
-            "  --rp-visit-file-timeout|-t [arg]           Timeout for rp visitfile commands in ms (0 means no timeout) (default " STR(DEFAULT_RP_VISITFILE_TIMEOUT) ").\n"
-            "  --rp-indexer-message-timeout|-T [arg]      Timeout for rp indexer-message in ms (0 means no timeout) (default " STR(DEFAULT_RP_INDEXER_MESSAGE_TIMEOUT) ").\n"
-            "  --rp-connect-timeout|-O [arg]              Timeout for connection from rp to rdm in ms (0 means no timeout) (default " STR(DEFAULT_RP_CONNECT_TIMEOUT) ").\n"
-            "  --rp-nice-value|-a [arg]                   Nice value to use for rp (nice(2)) (default -1, e.g. not nicing).\n"
+            "  --enable-NDEBUG|-g                         Don't remove -DNDEBUG from compile lines.\n"
+            "  --enable-compiler-manager|-R               Query compilers for their actual include paths instead of letting clang use its own.\n"
+            "  --enable-job-server|-z                     Enable job server.\n"
+            "  --exclude-filter|-X [arg]                  Files to exclude from rdm, default \"" EXCLUDEFILTER_DEFAULT "\".\n"
+            "  --extra-compilers|-U [arg]                 Override additional \"known\" compilers. E.g. -U foobar;c++, foobar;c or foobar:objective-c or just foobar.\n"
+
 #ifdef OS_Darwin
             "  --filemanager-watch|-M                     Use a file system watcher for filemanager.\n"
-#else
+#endif
+
+            "  --job-count|-j [arg]                       Spawn this many concurrent processes for indexing (default %d).\n"
+            "  --log-file|-L [arg]                        Log to this file.\n"
+
+#ifndef OS_Darwin
             "  --no-filemanager-watch|-M                  Don't use a file system watcher for filemanager.\n"
 #endif
-            "  --enable-NDEBUG|-g                         Don't remove -DNDEBUG from compile lines.\n"
-            "  --start-suspended|-Q                       Start out suspended (no reindexing enabled).\n"
             "  --no-filesystem-watcher|-B                 Disable file system watching altogether. Reindexing has to happen manually.\n"
+            "  --no-rc|-N                                 Don't load any rc files.\n"
+            "  --no-startup-project|-o                    Don't restore the last current project on startup.\n"
+            "  --rp-connect-timeout|-O [arg]              Timeout for connection from rp to rdm in ms (0 means no timeout) (default " STR(DEFAULT_RP_CONNECT_TIMEOUT) ").\n"
+            "  --rp-indexer-message-timeout|-T [arg]      Timeout for rp indexer-message in ms (0 means no timeout) (default " STR(DEFAULT_RP_INDEXER_MESSAGE_TIMEOUT) ").\n"
+            "  --rp-nice-value|-a [arg]                   Nice value to use for rp (nice(2)) (default -1, e.g. not nicing).\n"
+            "  --rp-visit-file-timeout|-t [arg]           Timeout for rp visitfile commands in ms (0 means no timeout) (default " STR(DEFAULT_RP_VISITFILE_TIMEOUT) ").\n"
+            "  --separate-debug-and-release|-E            Normally rdm doesn't consider release and debug as different builds. Pass this if you want it to.\n"
+            "  --setenv|-e [arg]                          Set this environment variable (--setenv \"foobar=1\").\n"
+            "  --silent|-S                                No logging to stdout.\n"
+            "  --socket-file|-n [arg]                     Use this file for the server socket (default ~/.rdm).\n"
+            "  --start-suspended|-Q                       Start out suspended (no reindexing enabled).\n"
             "  --suspend-rp-on-crash|-q [arg]             Suspend rp in SIGSEGV handler (default " DEFAULT_SUSPEND_RP ").\n"
-            "  --no-no-unknown-warnings-option|-Y         Don't pass -Wno-unknown-warning-option\n"
-            "  --ignore-compiler|-b [arg]                 Alias this compiler (Might be practical to avoid duplicated sources for things like icecc).\n"
+            "  --sync-threshold|-y [arg]                  Automatically sync after [arg] files indexed.\n"
+            "  --tcp-port|-p [arg]                        Use this port for tcp server (default " STR(DEFAULT_RDM_TCP_PORT) ").\n"
             "  --thread-stack-size|-k [arg]               Set stack size for threadpool to this (default %zu).\n"
-            "  --completion-cache-size|-i [arg]           Number of translation units to cache (default " STR(DEFAULT_COMPLETION_CACHE_SIZE) ").\n"
-            "  --extra-compilers|-U [arg]                 Override additional \"known\" compilers. E.g. -U foobar;c++, foobar;c or foobar:objective-c or just foobar.\n"
-            "  --enable-compiler-manager|-R               Query compilers for their actual include paths instead of letting clang use its own.\n"
-            "  --max-crash-count|-K [arg]                 Number of restart attempts for a translation unit when rp crashes (default " STR(DEFAULT_MAX_CRASH_COUNT) ").\n",
-            std::max(2, ThreadPool::idealThreadCount()), defaultStackSize);
+            "  --unload-timer|-u [arg]                    Number of minutes to wait before unloading non-current projects (disabled by default).\n"
+            "  --verbose|-v                               Change verbosity, multiple -v's are allowed.\n"
+            "  --watch-system-paths|-w                    Watch system paths for changes.\n"
+
+            "\nCompiling/Indexing options:\n"
+            "  --allow-Wpedantic|-P                       Don't strip out -Wpedantic. This can cause problems in certain projects.\n"
+            "  --define|-D [arg]                          Add additional define directive to clang.\n"
+            "  --ignore-printf-fixits|-F                  Disregard any clang fixit that looks like it's trying to fix format for printf and friends.\n"
+            "  --include-path|-I [arg]                    Add additional include path to clang.\n"
+            "  --isystem|-s [arg]                         Add additional system include path to clang.\n"
+            "  --no-Wall|-W                               Don't use -Wall.\n"
+            "  --no-no-unknown-warnings-option|-Y         Don't pass -Wno-unknown-warning-option\n"
+            "  --no-spell-checking|-l                     Don't pass -fspell-checking.\n"
+            "  --no-unlimited-error|-f                    Don't pass -ferror-limit=0 to clang.\n"
+            "  --Wlarge-by-value-copy|-r [arg]            Use -Wlarge-by-value-copy=[arg] when invoking clang.\n"
+            , std::max(2, ThreadPool::idealThreadCount()), defaultStackSize);
 }
 
 int main(int argc, char** argv)
@@ -131,8 +135,8 @@ int main(int argc, char** argv)
 
     struct option opts[] = {
         { "help", no_argument, 0, 'h' },
-        { "enable-job-server", no_argument, 0, 'z' },
-        { "compression", required_argument, 0, 'Z' },
+        { "enable-job-server", no_argument, 0, 'z' }, // FIXME: not bound
+        { "compression", required_argument, 0, 'Z' }, // FIXME: not bound
         { "include-path", required_argument, 0, 'I' },
         { "isystem", required_argument, 0, 's' },
         { "define", required_argument, 0, 'D' },
@@ -551,7 +555,10 @@ int main(int argc, char** argv)
     if (sigHandler)
         signal(SIGSEGV, sigSegvHandler);
 
-    if (!initLogging(argv[0], LogStderr, logLevel, logFile, logFlags)) {
+    // Shell-expand logFile
+    Path logPath(logFile); logPath.resolve();
+
+    if (!initLogging(argv[0], LogStderr, logLevel, logPath.constData(), logFlags)) {
         fprintf(stderr, "Can't initialize logging with %d %s 0x%0x\n",
                 logLevel, logFile ? logFile : "", logFlags);
         return 1;

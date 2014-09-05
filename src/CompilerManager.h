@@ -25,8 +25,7 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 namespace CompilerManager
 {
 List<Path> compilers();
-List<String> flags(const Path &compiler);
-void data(const Path &compiler, Set<Source::Define> *defines, List<Source::Include> *includePaths);
+void applyToSource(Source &source, bool defines, bool incPaths);
 }
 
 #endif
