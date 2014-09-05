@@ -97,13 +97,11 @@ void applyToSource(Source &source, bool defines, bool incPaths)
                     i = 4;
                     break;
                 }
-            }
-            else if (i == 0) {
+            } else if (i == 0) {
                 // Strip -x c++ and try again
                 args.removeFirst();
                 args.removeFirst();
-            }
-            else {
+            } else {
                 error() << "CompilerManager: Cannot extract standard include paths.\n";
                 return;
             }
