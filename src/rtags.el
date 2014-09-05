@@ -1154,12 +1154,10 @@ References to references will be treated as references to the referenced symbol"
   (when (stringp string)
     (string-to-number string)))
 
-(defun rtags-parse-xml-string (xml)
-  (with-temp-buffer
-    (insert xml)
-    (if (fboundp 'libxml-parse-xml-region)
-        (libxml-parse-xml-region (point-min) (point-max))
-      (car (xml-parse-region (point-min) (point-max))))))
+(defun rtags-parse-xml ()
+  (if (fboundp 'libxml-parse-xml-region)
+      (libxml-parse-xml-region (point-min) (point-max))
+    (car (xml-parse-region (point-min) (point-max)))))
 
 (defun rtags-parse-overlay-error-node (node filename)
   ;; (message "parsing nodes %s" filename)
@@ -1268,10 +1266,10 @@ References to references will be treated as references to the referenced symbol"
           (errors-warnings (format "RTags: %s " errors-warnings))
           (t ""))))
 
-(defun rtags-parse-diagnostics (output)
-  (let ((doc (rtags-parse-xml-string output)) body)
+(defun rtags-parse-diagnostics ()
+  (let ((doc (rtags-parse-xml)) body)
     (when doc
-      ;; (message "GOT XML %s" output)
+      ;;(message "GOT XML %s" output)
       (cond ((eq (car doc) 'checkstyle)
              (setq body (cddr doc))
              (while body
@@ -1447,10 +1445,11 @@ References to references will be treated as references to the referenced symbol"
         (setq buffer-read-only t))))
   (rtags-clear-diagnostics-overlays))
 
-(defun rtags-trim-whitespace (str)
-  (while (string-match "\\`\n+\\|^\\s-+\\|\\s-+$\\|\n+\\'" str)
-    (setq str (replace-match "" t t str)))
-  str)
+(defun rtags-trim-whitespace ()
+  "Trim initial whitespace from the *RTags Raw* buffer (so libxml parsing doesn't fail)"
+  (goto-char (point-min))
+  (if (search-forward-regexp "\\`\n+\\|^\\s-+\\|\\s-+$\\|\n+\\'" (point-max) t)
+      (replace-match "" t t)))
 
 (defconst rtags-diagnostics-process-regx
   (regexp-opt '("</checkstyle>"
@@ -1461,18 +1460,24 @@ References to references will be treated as references to the referenced symbol"
   ;; Collect the xml diagnostics into "*RTags Raw*" until a closing tag is found
   (with-current-buffer (get-buffer-create "*RTags Raw*")
     (goto-char (point-max))
-    (insert output)
-    (goto-char (point-min))
-    (let ((matchrx rtags-diagnostics-process-regx) current endpos)
-      (while (search-forward-regexp matchrx (point-max) t)
-        (setq endpos (match-end 0))
-        (setq current (buffer-substring-no-properties (point-min) endpos))
-        ;; `rtags-parse-diagnostics' expects us to be in the process buffer
-        (with-current-buffer (process-buffer process)
-          (setq buffer-read-only nil)
-          (rtags-parse-diagnostics (rtags-trim-whitespace current))
-          (setq buffer-read-only t))
-        (delete-region (point-min) endpos)))))
+    (let ((matchrx rtags-diagnostics-process-regx)
+	  endpos)
+      (insert output)
+      ;; only try to process xml diagnostics if we detect an end condition
+      (when (string-match (rx (or "</" "[es]>")) output)
+	(goto-char (point-min))
+	(while (search-forward-regexp matchrx (point-max) t)
+	  (setq endpos (match-end 0))
+	  ;; narrow to one xml result (incase multiple results come in together)
+	  (narrow-to-region (point-min) endpos)
+	  ;; trim any whitespace from the beginning of the region
+	  ;; otherwise `libxml-parse-xml-region' might fail
+	  (rtags-trim-whitespace)
+	  ;; now try to parse the xml
+	  (rtags-parse-diagnostics)
+	  ;; this region is done - remove it and continue processing
+	  (delete-region (point-min) (point-max))
+	  (widen))))))
 
 (defvar rtags-diagnostics-mode-map (make-sparse-keymap))
 (define-key rtags-diagnostics-mode-map (kbd "q") 'rtags-bury-or-delete)
