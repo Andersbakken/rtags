@@ -787,6 +787,11 @@ BUFFER : the buffer to be checked and reparsed, if it's nil, use current buffer"
   :group 'rtags
   :type 'hook)
 
+(defcustom rtags-completions-hook nil
+  "Run after completions have been parsed"
+  :group 'rtags
+  :type 'hook)
+
 (defcustom rtags-edit-hook nil
   "Run before rtags tries to modify a buffer (from rtags-rename)
 return t if rtags is allowed to modify this file"
@@ -1273,15 +1278,21 @@ References to references will be treated as references to the referenced symbol"
       (cond ((eq (car doc) 'checkstyle)
              (setq body (cddr doc))
              (while body
-               (rtags-parse-overlay-node (car body))
-               (setq body (cdr body))))
+	       (with-current-buffer "*RTags Diagnostics*"
+		 (setq buffer-read-only nil)
+		 (rtags-parse-overlay-node (car body))
+		 (setq buffer-read-only t)
+		 (setq body (cdr body)))))
             ((eq (car doc) 'completions)
              (when rtags-completions-enabled
                ;; (message "Got completions [%s]" body)
                (setq body (car (cddr doc)))
                (setq rtags-last-completions
                      (cons (cdar (cadr doc)) ;; location attribute
-                           (list (eval (read body)))))))
+                           (list (eval (read body)))))
+	       ;; run hook where last completion request took place
+	       (with-current-buffer (car rtags-last-completion-position)
+		(run-hooks 'rtags-completions-hook))))
             ((eq (car doc) 'progress)
              (setq body (cadr doc))
              (while body
@@ -1420,7 +1431,8 @@ References to references will be treated as references to the referenced symbol"
     (rtags-update-current-error)
     (rtags-close-taglist)
     (rtags-restart-tracking-timer)
-    (rtags-update-completions-timer)))
+    ;(rtags-update-completions-timer)
+    ))
 
 (add-hook 'post-command-hook (function rtags-post-command-hook))
 ;; (remove-hook 'post-command-hook (function rtags-post-command-hook))
