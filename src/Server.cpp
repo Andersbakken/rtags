@@ -49,7 +49,6 @@
 #include <rct/SocketClient.h>
 #include <rct/Log.h>
 #include <rct/Message.h>
-#include <rct/Messages.h>
 #include <rct/Path.h>
 #include <rct/Process.h>
 #include <rct/Rct.h>
@@ -57,6 +56,14 @@
 #include <stdio.h>
 #include <arpa/inet.h>
 #include <limits>
+
+#if not defined CLANG_INCLUDEPATH
+#error CLANG_INCLUDEPATH not defined during CMake generation
+#else
+#define TO_STR1(x) #x
+#define TO_STR(x)  TO_STR1(x)
+#define CLANG_INCLUDEPATH_STR TO_STR(CLANG_INCLUDEPATH)
+#endif
 
 class HttpLogObject : public LogOutput
 {
@@ -75,11 +82,10 @@ public:
             String message(msg, len);
             SocketClient::WeakPtr weak = mSocket;
 
-            EventLoop::eventLoop()->callLater(std::bind([message,weak,this] {
-                        // ### I don't understand why I need to capture this
-                        // ### here (especially since this potentially could
-                        // ### have been destroyed but it doesn't compile
-                        // ### otherwise.
+            EventLoop::eventLoop()->callLater(std::bind([message, weak, this] {
+                        // ### At some point (with some version of GCC) this
+                        // ### lambda wouldn't compile unless "this" was
+                        // ### captured.
                         if (SocketClient::SharedPtr socket = weak.lock()) {
                             HttpLogObject::send(message.constData(), message.size(), socket);
                         }
@@ -129,59 +135,26 @@ Server::~Server()
     mProjects.clear(); // need to be destroyed before sInstance is set to 0
     assert(sInstance == this);
     sInstance = 0;
-    Messages::cleanup();
+    Message::cleanup();
 }
-
-#if not defined CLANG_INCLUDEPATH
-#error CLANG_INCLUDEPATH not defined during CMake generation
-#else
-#define TO_STR1(x) #x
-#define TO_STR(x)  TO_STR1(x)
-#define CLANG_INCLUDEPATH_STR TO_STR(CLANG_INCLUDEPATH)
-#endif
 
 bool Server::init(const Options &options)
 {
     RTags::initMessages();
 
     mOptions = options;
-    mSuspended = (options.options & StartSuspended);
-    Path clangPath = Path::resolved(CLANG_INCLUDEPATH_STR);
-    mOptions.includePaths.append(Source::Include(Source::Include::Type_System, clangPath));
-#ifdef OS_Darwin
-    if (clangPath.exists()) {
-        Path cppClangPath = clangPath + "../../../c++/v1/";
-        cppClangPath.resolve();
-        if (cppClangPath.isDir()) {
-            mOptions.includePaths.append(Source::Include(Source::Include::Type_System, cppClangPath));
-        } else {
-            cppClangPath = clangPath + "../../../../include/c++/v1/";
-            cppClangPath.resolve();
-            if (cppClangPath.isDir()) {
-                mOptions.includePaths.append(Source::Include(Source::Include::Type_System, cppClangPath));
-            } else {
-                error("Unable to find libc++ include path (.../c++/v1) near " CLANG_INCLUDEPATH_STR );
-                return false;
-            }
-        }
-        // this seems to be the only way we get things like cstdint
-    }
-#endif
-
-    if (!(options.options & NoUnlimitedErrors))
+    mSuspended = (options.flag(StartSuspended));
+    if (!(options.flag(NoUnlimitedErrors)))
         mOptions.defaultArguments << "-ferror-limit=0";
-    if (options.options & Wall)
+    if (options.flag(Wall))
         mOptions.defaultArguments << "-Wall";
-    if (options.options & SpellChecking)
+    if (options.flag(SpellChecking))
         mOptions.defaultArguments << "-fspell-checking";
-    if (!(options.options & NoNoUnknownWarningsOption))
+    if (!(options.flag(NoNoUnknownWarningsOption)))
         mOptions.defaultArguments.append("-Wno-unknown-warning-option");
+
     if (mOptions.options & EnableCompilerManager) {
-        mOptions.defaultArguments << "-nobuiltininc";
-        mOptions.defaultArguments << "-nostdinc++";
-        mOptions.defaultArguments << "-mno-sse";
-        mOptions.defaultArguments << "-mno-sse2";
-        mOptions.defaultArguments << "-mno-sse3";
+#ifndef OS_Darwin   // this causes problems on MacOS+clang
         // http://clang.llvm.org/compatibility.html#vector_builtins
         const char *gccBuiltIntVectorFunctionDefines[] = {
             "__builtin_ia32_rolhi",
@@ -200,6 +173,10 @@ bool Server::init(const Options &options)
         for (int i=0; gccBuiltIntVectorFunctionDefines[i]; ++i) {
             mOptions.defines << Source::Define(String::format<128>("%s(...)", gccBuiltIntVectorFunctionDefines[i]));
         }
+#endif
+    } else {
+        const Path clangPath = Path::resolved(CLANG_INCLUDEPATH_STR);
+        mOptions.includePaths.append(Source::Include(Source::Include::Type_System, clangPath));
     }
 
     Log l(Error);
@@ -220,14 +197,14 @@ bool Server::init(const Options &options)
         }
         mUnixServer.reset();
         if (!i) {
-            enum { Timeout = 1000 };
-            Connection connection;
-            if (connection.connectUnix(mOptions.socketFile, Timeout)) {
-                connection.send(QueryMessage(QueryMessage::Shutdown));
-                connection.disconnected().connect(std::bind([](){ EventLoop::eventLoop()->quit(); }));
-                connection.finished().connect(std::bind([](){ EventLoop::eventLoop()->quit(); }));
-                EventLoop::eventLoop()->exec(Timeout);
-            }
+            // enum { Timeout = 1000 };
+            // Connection connection;
+            // if (connection.connectUnix(mOptions.socketFile, Timeout)) {
+            //     connection.send(QueryMessage(QueryMessage::Shutdown));
+            //     connection.disconnected().connect(std::bind([](){ EventLoop::eventLoop()->quit(); }));
+            //     connection.finished().connect(std::bind([](){ EventLoop::eventLoop()->quit(); }));
+            //     EventLoop::eventLoop()->exec(Timeout);
+            // }
         } else {
             sleep(1);
         }
@@ -350,7 +327,7 @@ void Server::onNewMessage(Message *message, Connection *connection)
     case ResponseMessage::MessageId:
     case FinishMessage::MessageId:
     case VisitFileResponseMessage::MessageId:
-        error() << getpid() << "Unexpected message" << static_cast<int>(message->messageId());
+        error() << "Unexpected message" << static_cast<int>(message->messageId());
         // assert(0);
         connection->finish(1);
         break;

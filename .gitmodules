@@ -1,4 +1,4 @@
 [submodule "src/rct"]
-	path = src/rct
-	url = https://github.com/Andersbakken/rct
-	branch = master
+        path = src/rct
+        url = https://github.com/Andersbakken/rct
+        branch = master

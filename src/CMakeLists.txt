@@ -3,6 +3,16 @@ if (NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE Release)
 endif ()
 
+SET(CMAKE_SKIP_BUILD_RPATH            FALSE)
+SET(CMAKE_BUILD_WITH_INSTALL_RPATH    FALSE)
+SET(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
+
+# Set RPATH when installing to a custom (non-system) directory
+LIST(FIND CMAKE_PLATFORM_IMPLICIT_LINK_DIRECTORIES "${CMAKE_INSTALL_PREFIX}/lib" isSystemDir)
+IF("${isSystemDir}" STREQUAL "-1")
+  SET(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/lib")
+ENDIF("${isSystemDir}" STREQUAL "-1")
+
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-rtti")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fstack-protector-all")
@@ -71,7 +81,7 @@ set(RTAGS_SHARED_SOURCES
 add_library(shared SHARED ${RTAGS_SHARED_SOURCES})
 target_link_libraries(shared rct)
 
-set(RDM_SOURCES
+set(RTAGS_SOURCES
     CompilerManager.cpp
     CompletionThread.cpp
     CursorInfo.cpp
@@ -124,7 +134,7 @@ add_executable(rc rc.cpp RClient.cpp)
 add_dependencies(rc rct shared)
 target_link_libraries(rc shared rct ${SYSTEM_LIBS})
 
-add_library(rtags SHARED ${RDM_SOURCES})
+add_library(rtags SHARED ${RTAGS_SOURCES})
 target_link_libraries(rtags
   rct
   shared

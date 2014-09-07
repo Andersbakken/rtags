@@ -25,7 +25,6 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 #include <dirent.h>
 #include <fcntl.h>
 #include <fnmatch.h>
-#include <rct/Messages.h>
 #include <rct/Rct.h>
 #include <rct/StopWatch.h>
 #include <sys/types.h>
@@ -370,11 +369,11 @@ Path findProjectRoot(const Path &path, ProjectRootMode mode)
 
 void initMessages()
 {
-    Messages::registerMessage<CompileMessage>();
-    Messages::registerMessage<IndexerMessage>();
-    Messages::registerMessage<LogOutputMessage>();
-    Messages::registerMessage<QueryMessage>();
-    Messages::registerMessage<VisitFileMessage>();
-    Messages::registerMessage<VisitFileResponseMessage>();
+    Message::registerMessage<CompileMessage>();
+    Message::registerMessage<IndexerMessage>();
+    Message::registerMessage<LogOutputMessage>();
+    Message::registerMessage<QueryMessage>();
+    Message::registerMessage<VisitFileMessage>();
+    Message::registerMessage<VisitFileResponseMessage>();
 }
 }
