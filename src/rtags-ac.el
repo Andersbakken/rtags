@@ -31,8 +31,8 @@
            (match-string 3 ,locstr))))
 
 (defun rtags-ac-trim-leading-trailing-whitespace (argstr)
-  (replace-regexp-in-string 
-   (rx (one-or-more blank) string-end) "" 
+  (replace-regexp-in-string
+   (rx (one-or-more blank) string-end) ""
    (replace-regexp-in-string (rx string-start (one-or-more blank)) "" argstr)))
 
 (defun rtags-ac-candidates ()
@@ -55,7 +55,7 @@
     ;; #("word" 'rtags-ac-full "void word(int x)" 'rtags-ac-type "FunctionDecl")
     (if (and (string= (buffer-name (current-buffer)) file)
              complpt
-	     (cdr-safe rtags-last-completion-position)
+             (cdr-safe rtags-last-completion-position)
              (= complpt (cdr rtags-last-completion-position)))
         (mapcar #'(lambda (elem)
                     (propertize (car elem)
@@ -65,7 +65,7 @@
       ;; else forcefully update completions if the compl pos has changed
       ;; checking compl pos helps keep the process buffer from getting slammed
       (rtags-update-completions (not (= (or complpt -1)
-					(or (cdr-safe rtags-last-completion-position) -1))))
+                                        (or (cdr-safe rtags-last-completion-position) -1))))
       ;; return nil as `ac-update-greedy' expects us to return a list or nil
       nil)))
 
@@ -87,24 +87,24 @@
 (defun rtags-ac-action-function (origtag)
   ;; grab only inside the func arg list: int func( int x, int y )
   ;;                                              ^............^
-  (let* ((tag (replace-regexp-in-string 
-	       (rx (zero-or-more any) "(") "" 
-	       (replace-regexp-in-string (rx ")" (zero-or-more any)) "" origtag)))
-	 (arglist (mapcar #'rtags-ac-trim-leading-trailing-whitespace
-			  (split-string tag
-					(rx (or ","))
-					t)))
-	 insertfunc inserttxt)
+  (let* ((tag (replace-regexp-in-string
+               (rx (zero-or-more any) "(") ""
+               (replace-regexp-in-string (rx ")" (zero-or-more any)) "" origtag)))
+         (arglist (mapcar #'rtags-ac-trim-leading-trailing-whitespace
+                          (split-string tag
+                                        (rx (or ","))
+                                        t)))
+         insertfunc inserttxt)
 
     ;; for yasnippet, wrap each elem in arg list with ${}
     ;; 'int arg' => ${int arg}
     (cond ((featurep 'yasnippet)
-	   (setq inserttxt (mapconcat #'(lambda (arg) 
-					  (format "%s%s%s" "${" arg "}"))
-				      arglist
-				      ", "))
+           (setq inserttxt (mapconcat #'(lambda (arg)
+                                          (format "%s%s%s" "${" arg "}"))
+                                      arglist
+                                      ", "))
            (setq insertfunc #'yas-expand-snippet))
-	  ;; if no yasnippet, just dump the signature
+          ;; if no yasnippet, just dump the signature
           (t
            (setq insertfunc #'(lambda (txt) (save-excursion (insert txt)) (forward-char)))
            (setq inserttxt (mapconcat 'identity arglist ", "))))
