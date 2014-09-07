@@ -55,6 +55,7 @@
     ;; #("word" 'rtags-ac-full "void word(int x)" 'rtags-ac-type "FunctionDecl")
     (if (and (string= (buffer-name (current-buffer)) file)
              complpt
+	     (cdr-safe rtags-last-completion-position)
              (= complpt (cdr rtags-last-completion-position)))
         (mapcar #'(lambda (elem)
                     (propertize (car elem)
