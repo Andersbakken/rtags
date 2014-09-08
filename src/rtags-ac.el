@@ -55,15 +55,18 @@
     ;; #("word" 'rtags-ac-full "void word(int x)" 'rtags-ac-type "FunctionDecl")
     (if (and (string= (buffer-name (current-buffer)) file)
              complpt
+	     (cdr-safe rtags-last-completion-position)
              (= complpt (cdr rtags-last-completion-position)))
         (mapcar #'(lambda (elem)
                     (propertize (car elem)
                                 'rtags-ac-full (cadr elem)
                                 'rtags-ac-type (caddr elem)))
                 (cadr rtags-last-completions))
-      ;; else forcefully update completions
+      ;; else forcefully update completions if the compl pos has changed
+      ;; checking compl pos helps keep the process buffer from getting slammed
+      (rtags-update-completions (not (= (or complpt -1)
+					(or (cdr-safe rtags-last-completion-position) -1))))
       ;; return nil as `ac-update-greedy' expects us to return a list or nil
-      (rtags-update-completions t)
       nil)))
 
 (defun rtags-ac-document (item)
@@ -120,8 +123,17 @@
                        (eq ?: (char-before (1- (point))))))
           (point)))))
 
+(defun rtags-ac-init ()
+  (unless rtags-diagnostics-process
+    (rtags-diagnostics)))
+
+(defun rtags-ac-completions-hook ()
+  (ac-start))
+
+(add-hook 'rtags-completions-hook 'rtags-ac-completions-hook)
+
 (ac-define-source rtags
-  '((init . rtags-diagnostics)
+  '((init . rtags-ac-init)
     (prefix . rtags-ac-prefix)
     (candidates . rtags-ac-candidates)
     (action . rtags-ac-action)

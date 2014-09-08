@@ -77,7 +77,7 @@ and `c-electric-colon', for automatic completion right after \">\" and
   (let ((meta (company-rtags--meta candidate)))
     (cond
      ((null meta) nil)
-     ((string-match "\\((.*)\\'\\)" meta)
+     ((string-match "\\((.*)\\)" meta)
       (match-string 1 meta)))))
 
 (defun company-rtags (command &optional arg &rest ignored)
