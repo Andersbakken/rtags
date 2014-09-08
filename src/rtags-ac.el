@@ -128,7 +128,7 @@
     (rtags-diagnostics)))
 
 (defun rtags-ac-completions-hook ()
-  (ac-complete-rtags))
+  (ac-start))
 
 (add-hook 'rtags-completions-hook 'rtags-ac-completions-hook)
 
