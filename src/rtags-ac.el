@@ -81,6 +81,9 @@
                (string= type "FunctionDecl")
                (string= type "FunctionTemplate"))
            (rtags-ac-action-function tag))
+	  ((or (string= type "Namespace")
+	       (string= type "NamespaceAlias"))
+	   (rtags-ac-action-namespace tag))
           (t
            nil))))
 
@@ -109,6 +112,9 @@
            (setq insertfunc #'(lambda (txt) (save-excursion (insert txt)) (forward-char)))
            (setq inserttxt (mapconcat 'identity arglist ", "))))
     (apply insertfunc (list (concat "(" inserttxt ")")))))
+
+(defun rtags-ac-action-namespace (origtag)
+  (insert "::"))
 
 (defun rtags-ac-prefix ()
   ;; shamelessly borrowed from clang-complete-async
