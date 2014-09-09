@@ -276,7 +276,7 @@
           (if rtags-timeout
               (push (format "--timeout=%d" rtags-timeout) arguments))
           (unless rtags-sort-references-by-input
-              (push "--no-sort-references-by-input" arguments))
+            (push "--no-sort-references-by-input" arguments))
           ;; (if rtags-wildcard-symbol-names
           ;;     (push "--wildcard-symbol-names" arguments))
           (if (and rtags-show-containing-function (not (member "-N" arguments)))
@@ -388,7 +388,7 @@
     (setq buffer (current-buffer)))
   (let ((file (buffer-file-name buffer)))
     ;;(when (null (rtags-buffer-status buffer))
-      ;;(message ":debug: file not indexed"))
+    ;;(message ":debug: file not indexed"))
     (when (and file (rtags-buffer-status buffer))
       (with-temp-buffer
         (if (buffer-modified-p buffer)
@@ -539,13 +539,13 @@ BUFFER : the buffer to be checked and reparsed, if it's nil, use current buffer"
           (let ((prev (buffer-local-value enable-multibyte-characters (current-buffer)))
                 (loc (local-variable-p enable-multibyte-characters))
                 (pos))
-              (set-buffer-multibyte nil)
-              (setq pos (1- (point)))
-              (set-buffer-multibyte prev)
-              (unless loc
-                (kill-local-variable enable-multibyte-characters))
-              pos)
-          (1- (point))))))
+            (set-buffer-multibyte nil)
+            (setq pos (1- (point)))
+            (set-buffer-multibyte prev)
+            (unless loc
+              (kill-local-variable enable-multibyte-characters))
+            pos)
+        (1- (point))))))
 
 ;;;###autoload
 (defun rtags-goto-offset (pos)
@@ -1060,8 +1060,8 @@ References to references will be treated as references to the referenced symbol"
                                   ((looking-at "auto ") nil)
                                   (t))
 
-                      ;; (message "About to replace %s with %s at %d in %s"
-                      ;;          (buffer-substring-no-properties (point) (+ (point) len)) replacewith (point) (car value))
+                        ;; (message "About to replace %s with %s at %d in %s"
+                        ;;          (buffer-substring-no-properties (point) (+ (point) len)) replacewith (point) (car value))
                         (delete-char len)
                         (insert replacewith))))))))))
     (dolist (value buffers)
@@ -1151,9 +1151,9 @@ References to references will be treated as references to the referenced symbol"
   (setq fn (file-truename fn))
   (car
    (cl-member-if #'(lambda (arg)
-                  (and (buffer-file-name arg)
-                       (string= fn (file-truename (buffer-file-name arg)))))
-              (buffer-list))))
+                     (and (buffer-file-name arg)
+                          (string= fn (file-truename (buffer-file-name arg)))))
+                 (buffer-list))))
 
 (defun rtags-string-to-number (string)
   (when (stringp string)
@@ -1252,20 +1252,20 @@ References to references will be treated as references to the referenced symbol"
 
 (defun rtags-modeline()
   (let* ((progress
-         (and rtags-last-index
-              rtags-last-total
-              (> rtags-last-total rtags-last-index)
-              (> rtags-last-total 0)
-              (format "%d/%d %d%%%%" rtags-last-index rtags-last-total (/ (* rtags-last-index 100) rtags-last-total))))
-        (errors (if rtags-error-warning-count (car rtags-error-warning-count) 0))
-        (warnings (if rtags-error-warning-count (cdr rtags-error-warning-count) 0))
-        (errorsString (rtags-modeline-format-helper "error" errors))
-        (warningsString (rtags-modeline-format-helper "warning" warnings))
-        (errors-warnings
-         (cond ((and errorsString warningsString) (concat errorsString "/" warningsString))
-               (errorsString)
-               (warningsString)
-               (t nil))))
+          (and rtags-last-index
+               rtags-last-total
+               (> rtags-last-total rtags-last-index)
+               (> rtags-last-total 0)
+               (format "%d/%d %d%%%%" rtags-last-index rtags-last-total (/ (* rtags-last-index 100) rtags-last-total))))
+         (errors (if rtags-error-warning-count (car rtags-error-warning-count) 0))
+         (warnings (if rtags-error-warning-count (cdr rtags-error-warning-count) 0))
+         (errorsString (rtags-modeline-format-helper "error" errors))
+         (warningsString (rtags-modeline-format-helper "warning" warnings))
+         (errors-warnings
+          (cond ((and errorsString warningsString) (concat errorsString "/" warningsString))
+                (errorsString)
+                (warningsString)
+                (t nil))))
     (cond ((and progress errors-warnings) (format "RTags: %s %s " progress errors-warnings))
           (progress (format "RTags: %s " progress))
           (errors-warnings (format "RTags: %s " errors-warnings))
@@ -1278,11 +1278,11 @@ References to references will be treated as references to the referenced symbol"
       (cond ((eq (car doc) 'checkstyle)
              (setq body (cddr doc))
              (while body
-	       (with-current-buffer "*RTags Diagnostics*"
-		 (setq buffer-read-only nil)
-		 (rtags-parse-overlay-node (car body))
-		 (setq buffer-read-only t)
-		 (setq body (cdr body)))))
+               (with-current-buffer "*RTags Diagnostics*"
+                 (setq buffer-read-only nil)
+                 (rtags-parse-overlay-node (car body))
+                 (setq buffer-read-only t)
+                 (setq body (cdr body)))))
             ((eq (car doc) 'completions)
              (when rtags-completions-enabled
                ;; (message "Got completions [%s]" body)
@@ -1290,9 +1290,9 @@ References to references will be treated as references to the referenced symbol"
                (setq rtags-last-completions
                      (cons (cdar (cadr doc)) ;; location attribute
                            (list (eval (read body)))))
-	       ;; run hook where last completion request took place
-	       (with-current-buffer (car rtags-last-completion-position)
-		(run-hooks 'rtags-completions-hook))))
+               ;; run hook where last completion request took place
+               (with-current-buffer (car rtags-last-completion-position)
+                 (run-hooks 'rtags-completions-hook))))
             ((eq (car doc) 'progress)
              (setq body (cadr doc))
              (while body
@@ -1304,7 +1304,7 @@ References to references will be treated as references to the referenced symbol"
                      (t (message "Unexpected element %s" (caar body))))
                (setq body (cdr body))))
             ;;             (message "RTags: %s/%s (%s%%)" index total)))
-             (t (message "Unexpected root element %s" (car doc))))
+            (t (message "Unexpected root element %s" (car doc))))
       (run-hooks 'rtags-diagnostics-hook))))
 
 (defun rtags-check-overlay (overlay)
@@ -1431,7 +1431,7 @@ References to references will be treated as references to the referenced symbol"
     (rtags-update-current-error)
     (rtags-close-taglist)
     (rtags-restart-tracking-timer)
-    ;(rtags-update-completions-timer)
+    ;;(rtags-update-completions-timer)
     ))
 
 (add-hook 'post-command-hook (function rtags-post-command-hook))
@@ -1473,23 +1473,23 @@ References to references will be treated as references to the referenced symbol"
   (with-current-buffer (get-buffer-create "*RTags Raw*")
     (goto-char (point-max))
     (let ((matchrx rtags-diagnostics-process-regx)
-	  endpos)
+          endpos)
       (insert output)
       ;; only try to process xml diagnostics if we detect an end condition
       (when (string-match (rx (or "</" "[es]>")) output)
-	(goto-char (point-min))
-	(while (search-forward-regexp matchrx (point-max) t)
-	  (setq endpos (match-end 0))
-	  ;; narrow to one xml result (incase multiple results come in together)
-	  (narrow-to-region (point-min) endpos)
-	  ;; trim any whitespace from the beginning of the region
-	  ;; otherwise `libxml-parse-xml-region' might fail
-	  (rtags-trim-whitespace)
-	  ;; now try to parse the xml
-	  (rtags-parse-diagnostics)
-	  ;; this region is done - remove it and continue processing
-	  (delete-region (point-min) (point-max))
-	  (widen))))))
+        (goto-char (point-min))
+        (while (search-forward-regexp matchrx (point-max) t)
+          (setq endpos (match-end 0))
+          ;; narrow to one xml result (incase multiple results come in together)
+          (narrow-to-region (point-min) endpos)
+          ;; trim any whitespace from the beginning of the region
+          ;; otherwise `libxml-parse-xml-region' might fail
+          (rtags-trim-whitespace)
+          ;; now try to parse the xml
+          (rtags-parse-diagnostics)
+          ;; this region is done - remove it and continue processing
+          (delete-region (point-min) (point-max))
+          (widen))))))
 
 (defvar rtags-diagnostics-mode-map (make-sparse-keymap))
 (define-key rtags-diagnostics-mode-map (kbd "q") 'rtags-bury-or-delete)
@@ -2089,13 +2089,13 @@ definition."
         (if (= (skip-chars-backward " ") 0)
             (skip-chars-backward rtags-symbol-chars))
         (point))))
-        ;; (if (or (= (char-before) 46) ;; '.'
-        ;;         (= (char-before) 32) ;; ' '
-        ;;         (= (char-before) 59) ;; ';'
-        ;;         (= (char-before) 10) ;; '\n'
-        ;;         (and (= (char-before) 62) (= (char-before (1- (point))) 45)) ;; "->"
-        ;;         (and (= (char-before) 58) (= (char-before (1- (point))) 58))) ;; "::"
-        ;;     (point)))))
+;; (if (or (= (char-before) 46) ;; '.'
+;;         (= (char-before) 32) ;; ' '
+;;         (= (char-before) 59) ;; ';'
+;;         (= (char-before) 10) ;; '\n'
+;;         (and (= (char-before) 62) (= (char-before (1- (point))) 45)) ;; "->"
+;;         (and (= (char-before) 58) (= (char-before (1- (point))) 58))) ;; "::"
+;;     (point)))))
 
 (defvar rtags-completions-timer nil)
 (defun rtags-update-completions-timer ()
