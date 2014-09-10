@@ -2079,6 +2079,7 @@ definition."
                            "RTags"	     ;process name
                            "*rdm*"	     ;buffer
                            (rtags-command))) ;command
+      (and rtags-autostart-diagnostics (rtags-diagnostics))
       (set-process-query-on-exit-flag rtags-process nil)
       (set-process-sentinel rtags-process 'rtags-sentinel)))))
 
