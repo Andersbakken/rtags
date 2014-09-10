@@ -306,16 +306,18 @@
                   (set-process-query-on-exit-flag proc nil)
                   (set-process-filter proc (car async))
                   (set-process-sentinel proc (cdr async)))
-              (progn
-                (goto-char (point-min))
-                (cond ((looking-at "Can't seem to connect to server")
-                       (erase-buffer)
-                       (unless noerror
-                         (error "Can't seem to connect to server. Is rdm running?")))
-                      ((looking-at "Project loading")
-                       (erase-buffer)
-                       (message "Project loading..."))
-                      (t nil)))))
+              (goto-char (point-min))
+              (and (cond ((looking-at "Can't seem to connect to server")
+                          (erase-buffer)
+                          (unless noerror
+                            (error "Can't seem to connect to server. Is rdm running?"))
+                          nil)
+                         ((looking-at "Project loading")
+                          (erase-buffer)
+                          (message "Project loading...")
+                          t)
+                         (t))
+                   rtags-autostart-diagnostics (rtags-diagnostics))))
           (or async (> (point-max) (point-min))))))))
 
 ;;;###autoload
@@ -709,6 +711,11 @@ BUFFER : the buffer to be checked and reparsed, if it's nil, use current buffer"
 
 (defcustom rtags-enabled t
   "Whether rtags is enabled. We try to do nothing when it's not"
+  :group 'rtags
+  :type 'boolean)
+
+(defcustom rtags-autostart-diagnostics nil
+  "Whether rtags automatically will restart diagnostics"
   :group 'rtags
   :type 'boolean)
 
