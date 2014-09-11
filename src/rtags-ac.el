@@ -81,9 +81,9 @@
                (string= type "FunctionDecl")
                (string= type "FunctionTemplate"))
            (rtags-ac-action-function tag))
-	  ((or (string= type "Namespace")
-	       (string= type "NamespaceAlias"))
-	   (rtags-ac-action-namespace tag))
+          ((or (string= type "Namespace")
+               (string= type "NamespaceAlias"))
+           (rtags-ac-action-namespace tag))
           (t
            nil))))
 
