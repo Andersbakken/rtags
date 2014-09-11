@@ -24,6 +24,11 @@
       ":"
       (group (zero-or-more digit))))
 
+(defcustom rtags-ac-expand-functions t
+  "Whether to expand function parameter lists in auto-complete mode"
+  :group 'rtags
+  :type 'boolean)
+
 (defmacro rtags-parse-location (locstr)
   `(when (string-match rtags-location-regx ,locstr)
      (list (match-string 1 ,locstr)
@@ -80,7 +85,7 @@
     (cond ((or (string= type "CXXMethod")
                (string= type "FunctionDecl")
                (string= type "FunctionTemplate"))
-           (rtags-ac-action-function tag))
+           (and rtags-ac-expand-functions (rtags-ac-action-function tag)))
           ((or (string= type "Namespace")
                (string= type "NamespaceAlias"))
            (rtags-ac-action-namespace tag))
