@@ -327,9 +327,6 @@ void CompletionThread::process(Request *request)
 
             const int priority = clang_getCompletionPriority(string);
 
-            if (priority >= 70 && kind != CXCursor_Namespace)
-                continue;
-
             Completions::Candidate &node = nodes[nodeCount];
             node.cursorKind = kind;
             node.priority = priority;
