@@ -17,6 +17,19 @@ else (NOT LLVM_INCLUDE_DIRS OR NOT LLVM_LIBRARY_DIRS)
     endif (CLANG_${_libname_}_LIB)
   endmacro()
 
+  execute_process(
+  COMMAND clang --version
+  OUTPUT_VARIABLE CLANG_VERSION
+  OUTPUT_STRIP_TRAILING_WHITESPACE
+)
+string(REGEX REPLACE ".*([0-9]+)\\.([0-9]+)\\.([0-9]+).*" "\\1" CLANG_VERSION_MAJOR
+"${CLANG_VERSION}")
+
+string(REGEX REPLACE ".*([0-9]+)\\.([0-9]+)\\.([0-9]+).*" "\\2" CLANG_VERSION_MINOR
+"${CLANG_VERSION}")
+    message(STATUS "CLANG MAJOR-VERSION: ${CLANG_VERSION_MAJOR}")
+    message(STATUS "CLANG MINOR-VERSION: ${CLANG_VERSION_MINOR}")
+
   # Clang shared library provides just the limited C interface, so it
   # can not be used.  We look for the static libraries.
   # FIND_AND_ADD_CLANG_LIB(clangFrontend)
@@ -49,7 +62,11 @@ else (NOT LLVM_INCLUDE_DIRS OR NOT LLVM_LIBRARY_DIRS)
   find_and_add_clang_lib(clangLex)
   find_and_add_clang_lib(clangParse)
   find_and_add_clang_lib(clangRewrite)
-  find_and_add_clang_lib(clangRewriteCore)
+  # In clang 3.5.0 clangRewriteCore no longer exists
+  if (NOT (CLANG_VERSION_MAJOR GREATER 2 AND
+      CLANG_VERSION_MINOR GREATER 4))
+      find_and_add_clang_lib(clangRewriteCore)
+  endif()
   find_and_add_clang_lib(clangRewriteFrontend)
   find_and_add_clang_lib(clangSema)
   find_and_add_clang_lib(clangSerialization)
