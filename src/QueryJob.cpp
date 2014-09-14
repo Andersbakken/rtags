@@ -26,7 +26,7 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 // static int active = 0;
 
 QueryJob::QueryJob(const std::shared_ptr<QueryMessage> &query, unsigned jobFlags, const std::shared_ptr<Project> &proj)
-    : mAborted(false), mLinesWritten(0), mJobFlags(jobFlags), mProject(proj), mPathFilters(0),
+    : mAborted(false), mLinesWritten(0), mQueryMessage(query), mJobFlags(jobFlags), mProject(proj), mPathFilters(0),
       mPathFiltersRegExp(0), mConnection(0)
 {
     assert(query);
@@ -48,7 +48,7 @@ QueryJob::QueryJob(const std::shared_ptr<QueryMessage> &query, unsigned jobFlags
 }
 
 QueryJob::QueryJob(unsigned jobFlags, const std::shared_ptr<Project> &proj)
-    : mAborted(false), mJobFlags(jobFlags), mProject(proj), mPathFilters(0),
+    : mAborted(false), mLinesWritten(0), mJobFlags(jobFlags), mProject(proj), mPathFilters(0),
       mPathFiltersRegExp(0), mConnection(0)
 {
 }
