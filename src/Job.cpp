@@ -26,15 +26,15 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 // static int active = 0;
 
 Job::Job(const std::shared_ptr<QueryMessage> &query, unsigned jobFlags, const std::shared_ptr<Project> &proj)
-    : mAborted(false), mMinLine(query->minLine()),
-      mMaxLine(query->maxLine()), mJobFlags(jobFlags), mQueryFlags(query->flags()), mProject(proj),
-      mPathFilters(0), mPathFiltersRegExp(0), mMax(query->max()), mConnection(0)
+    : mAborted(false), mLinesWritten(0), mJobFlags(jobFlags), mProject(proj), mPathFilters(0),
+      mPathFiltersRegExp(0), mConnection(0)
 {
+    assert(query);
     if (query->flags() & QueryMessage::SilentQuery)
         setJobFlag(QuietJob);
     const List<String> &pathFilters = query->pathFilters();
     if (!pathFilters.isEmpty()) {
-        if (mQueryFlags & QueryMessage::MatchRegexp) {
+        if (query->flags() & QueryMessage::MatchRegexp) {
             mPathFiltersRegExp = new List<RegExp>();
             const int size = pathFilters.size();
             mPathFiltersRegExp->reserve(size);
@@ -48,8 +48,8 @@ Job::Job(const std::shared_ptr<QueryMessage> &query, unsigned jobFlags, const st
 }
 
 Job::Job(unsigned jobFlags, const std::shared_ptr<Project> &proj)
-    : mAborted(false), mMinLine(-1), mMaxLine(-1), mJobFlags(jobFlags), mQueryFlags(0), mProject(proj), mPathFilters(0),
-      mPathFiltersRegExp(0), mMax(-1), mConnection(0)
+    : mAborted(false), mJobFlags(jobFlags), mProject(proj), mPathFilters(0),
+      mPathFiltersRegExp(0), mConnection(0)
 {
 }
 
@@ -98,14 +98,12 @@ bool Job::writeRaw(const String &out, unsigned flags)
 {
     assert(mConnection);
     if (!(flags & IgnoreMax)) {
-        switch (mMax) {
-        case 0:
-        case -1:
-            break;
-        default:
-            --mMax;
-            break;
+        const int max = mQueryMessage->max();
+        if (max != -1 && mLinesWritten == max) {
+            return false;
         }
+        assert(mLinesWritten < max);
+        ++mLinesWritten;
     }
 
     if (!(mJobFlags & QuietJob))
@@ -126,10 +124,14 @@ bool Job::write(const Location &location, unsigned flags)
 {
     if (location.isNull())
         return false;
-    if (mMinLine != -1) {
-        assert(mMaxLine != -1);
+    const int minLine = mQueryMessage ? mQueryMessage->minLine() : -1;
+    if (minLine != -1) {
+        assert(mQueryMessage);
+        assert(mQueryMessage->maxLine() != -1);
+        const int maxLine = mQueryMessage->maxLine();
+        assert(maxLine != -1);
         const int line = location.line();
-        if (line < mMinLine || line > mMaxLine) {
+        if (line < minLine || line > maxLine) {
             return false;
         }
     }
@@ -183,14 +185,14 @@ bool Job::write(const std::shared_ptr<CursorInfo> &ci, unsigned ciflags)
 
 bool Job::filter(const String &value) const
 {
-    if (!mPathFilters && !mPathFiltersRegExp && !(mQueryFlags & QueryMessage::FilterSystemIncludes))
+    if (!mPathFilters && !mPathFiltersRegExp && !(queryFlags() & QueryMessage::FilterSystemIncludes))
         return true;
 
     const char *val = value.constData();
     while (*val && isspace(*val))
         ++val;
 
-    if (mQueryFlags & QueryMessage::FilterSystemIncludes && Path::isSystem(val))
+    if (queryFlags() & QueryMessage::FilterSystemIncludes && Path::isSystem(val))
         return false;
 
     if (!mPathFilters && !mPathFiltersRegExp)
@@ -215,11 +217,6 @@ bool Job::filter(const String &value) const
     return false;
 }
 
-
-unsigned Job::keyFlags() const
-{
-    return QueryMessage::keyFlags(mQueryFlags);
-}
 
 int Job::run(Connection *connection)
 {

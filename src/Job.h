@@ -63,9 +63,8 @@ public:
     unsigned jobFlags() const { return mJobFlags; }
     void setJobFlags(unsigned flags) { mJobFlags = flags; }
     void setJobFlag(Flag flag, bool on = true) { if (on) { mJobFlags |= flag; } else { mJobFlags &= ~flag; } }
-    unsigned queryFlags() const { return mQueryFlags; }
-    void setQueryFlags(unsigned queryFlags) { mQueryFlags = queryFlags; }
-    unsigned keyFlags() const;
+    unsigned queryFlags() const { return mQueryMessage ? mQueryMessage->flags() : 0; }
+    unsigned keyFlags() const { return QueryMessage::keyFlags(queryFlags()); }
     bool filter(const String &val) const;
     Signal<std::function<void(const String &)> > &output() { return mOutput; }
     std::shared_ptr<Project> project() const { return mProject.lock(); }
@@ -79,15 +78,14 @@ public:
 private:
     mutable std::mutex mMutex;
     bool mAborted;
+    int mLinesWritten;
     bool writeRaw(const String &out, unsigned flags);
-    int mMinLine, mMaxLine;
+    std::shared_ptr<QueryMessage> mQueryMessage;
     unsigned mJobFlags;
-    unsigned mQueryFlags;
     Signal<std::function<void(const String &)> > mOutput;
     std::weak_ptr<Project> mProject;
     List<String> *mPathFilters;
     List<RegExp> *mPathFiltersRegExp;
-    int mMax;
     String mBuffer;
     Connection *mConnection;
 };
