@@ -13,7 +13,7 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 
-#include "Job.h"
+#include "QueryJob.h"
 #include "RTags.h"
 #include <rct/EventLoop.h>
 #include "Server.h"
@@ -25,7 +25,7 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 // static int count = 0;
 // static int active = 0;
 
-Job::Job(const std::shared_ptr<QueryMessage> &query, unsigned jobFlags, const std::shared_ptr<Project> &proj)
+QueryJob::QueryJob(const std::shared_ptr<QueryMessage> &query, unsigned jobFlags, const std::shared_ptr<Project> &proj)
     : mAborted(false), mLinesWritten(0), mJobFlags(jobFlags), mProject(proj), mPathFilters(0),
       mPathFiltersRegExp(0), mConnection(0)
 {
@@ -47,19 +47,19 @@ Job::Job(const std::shared_ptr<QueryMessage> &query, unsigned jobFlags, const st
     }
 }
 
-Job::Job(unsigned jobFlags, const std::shared_ptr<Project> &proj)
+QueryJob::QueryJob(unsigned jobFlags, const std::shared_ptr<Project> &proj)
     : mAborted(false), mJobFlags(jobFlags), mProject(proj), mPathFilters(0),
       mPathFiltersRegExp(0), mConnection(0)
 {
 }
 
-Job::~Job()
+QueryJob::~QueryJob()
 {
     delete mPathFilters;
     delete mPathFiltersRegExp;
 }
 
-uint32_t Job::fileFilter() const
+uint32_t QueryJob::fileFilter() const
 {
     if (mPathFilters && mPathFilters->size() == 1) {
         return Location::fileId(mPathFilters->first());
@@ -67,7 +67,7 @@ uint32_t Job::fileFilter() const
     return 0;
 }
 
-bool Job::write(const String &out, unsigned flags)
+bool QueryJob::write(const String &out, unsigned flags)
 {
     if ((mJobFlags & WriteUnfiltered) || (flags & Unfiltered) || filter(out)) {
         if ((mJobFlags & QuoteOutput) && !(flags & DontQuote)) {
@@ -94,7 +94,7 @@ bool Job::write(const String &out, unsigned flags)
     return true;
 }
 
-bool Job::writeRaw(const String &out, unsigned flags)
+bool QueryJob::writeRaw(const String &out, unsigned flags)
 {
     assert(mConnection);
     if (!(flags & IgnoreMax)) {
@@ -120,7 +120,7 @@ bool Job::writeRaw(const String &out, unsigned flags)
     return true;
 }
 
-bool Job::write(const Location &location, unsigned flags)
+bool QueryJob::write(const Location &location, unsigned flags)
 {
     if (location.isNull())
         return false;
@@ -173,7 +173,7 @@ bool Job::write(const Location &location, unsigned flags)
     return write(out);
 }
 
-bool Job::write(const std::shared_ptr<CursorInfo> &ci, unsigned ciflags)
+bool QueryJob::write(const std::shared_ptr<CursorInfo> &ci, unsigned ciflags)
 {
     if (!ci || ci->isNull())
         return false;
@@ -183,7 +183,7 @@ bool Job::write(const std::shared_ptr<CursorInfo> &ci, unsigned ciflags)
     return true;
 }
 
-bool Job::filter(const String &value) const
+bool QueryJob::filter(const String &value) const
 {
     if (!mPathFilters && !mPathFiltersRegExp && !(queryFlags() & QueryMessage::FilterSystemIncludes))
         return true;
@@ -218,7 +218,7 @@ bool Job::filter(const String &value) const
 }
 
 
-int Job::run(Connection *connection)
+int QueryJob::run(Connection *connection)
 {
     assert(connection);
     mConnection = connection;

@@ -20,7 +20,7 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 #include "Project.h"
 
 FollowLocationJob::FollowLocationJob(const Location &loc, const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Project> &project)
-    : Job(query, 0, project), location(loc)
+    : QueryJob(query, 0, project), location(loc)
 {
 }
 

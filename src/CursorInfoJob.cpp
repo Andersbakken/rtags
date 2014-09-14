@@ -21,7 +21,7 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 #include "QueryMessage.h"
 
 CursorInfoJob::CursorInfoJob(const Location &loc, const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Project> &proj)
-    : Job(query, 0, proj), location(loc)
+    : QueryJob(query, 0, proj), location(loc)
 {
 }
 

@@ -19,9 +19,9 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 #include <rct/String.h>
 #include <rct/List.h>
 #include "QueryMessage.h"
-#include "Job.h"
+#include "QueryJob.h"
 
-class ListSymbolsJob : public Job
+class ListSymbolsJob : public QueryJob
 {
 public:
     ListSymbolsJob(const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Project> &proj);

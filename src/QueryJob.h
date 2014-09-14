@@ -31,7 +31,7 @@ class Location;
 class QueryMessage;
 class Project;
 class Connection;
-class Job
+class QueryJob
 {
 public:
     enum Flag {
@@ -41,9 +41,9 @@ public:
         QuietJob = 0x4
     };
     enum { Priority = 10 };
-    Job(const std::shared_ptr<QueryMessage> &msg, unsigned jobFlags, const std::shared_ptr<Project> &proj);
-    Job(unsigned jobFlags, const std::shared_ptr<Project> &project);
-    ~Job();
+    QueryJob(const std::shared_ptr<QueryMessage> &msg, unsigned jobFlags, const std::shared_ptr<Project> &proj);
+    QueryJob(unsigned jobFlags, const std::shared_ptr<Project> &project);
+    ~QueryJob();
 
     bool hasFilter() const { return mPathFilters || mPathFiltersRegExp; }
     List<String> pathFilters() const { return mPathFilters ? *mPathFilters : List<String>(); }
@@ -91,7 +91,7 @@ private:
 };
 
 template <int StaticBufSize>
-inline bool Job::write(unsigned flags, const char *format, ...)
+inline bool QueryJob::write(unsigned flags, const char *format, ...)
 {
     va_list args;
     va_start(args, format);
@@ -101,7 +101,7 @@ inline bool Job::write(unsigned flags, const char *format, ...)
 }
 
 template <int StaticBufSize>
-inline bool Job::write(const char *format, ...)
+inline bool QueryJob::write(const char *format, ...)
 {
     va_list args;
     va_start(args, format);

@@ -94,10 +94,10 @@ set(RTAGS_SOURCES
     FindSymbolsJob.cpp
     FollowLocationJob.cpp
     IndexerJob.cpp
-    Job.cpp
     ListSymbolsJob.cpp
     Preprocessor.cpp
     Project.cpp
+    QueryJob.cpp
     RTagsClang.cpp
     ReferencesJob.cpp
     ScanThread.cpp

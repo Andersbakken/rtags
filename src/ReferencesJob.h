@@ -17,13 +17,13 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 #define ReferencesJob_h
 
 #include <rct/String.h>
-#include "Job.h"
+#include "QueryJob.h"
 #include <rct/List.h>
 #include "Location.h"
 #include "RTags.h"
 
 class CursorInfo;
-class ReferencesJob : public Job
+class ReferencesJob : public QueryJob
 {
 public:
     ReferencesJob(const Location &location, const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Project> &project);

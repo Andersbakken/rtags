@@ -17,12 +17,12 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 #define JSONJob_h
 
 #include <rct/String.h>
-#include "Job.h"
+#include "QueryJob.h"
 #include "RTags.h"
 #include "Match.h"
 
 class QueryMessage;
-class JSONJob : public Job
+class JSONJob : public QueryJob
 {
 public:
     JSONJob(const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Project> &project);

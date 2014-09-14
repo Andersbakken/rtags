@@ -19,11 +19,11 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 #include <rct/String.h>
 #include <rct/List.h>
 #include "RTagsClang.h"
-#include "Job.h"
+#include "QueryJob.h"
 #include "Location.h"
 
 class QueryMessage;
-class CursorInfoJob : public Job
+class CursorInfoJob : public QueryJob
 {
 public:
     CursorInfoJob(const Location &loc, const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Project> &proj);

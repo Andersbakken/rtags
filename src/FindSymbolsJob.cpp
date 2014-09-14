@@ -21,11 +21,11 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 
 static inline unsigned jobFlags(unsigned queryFlags)
 {
-    return (queryFlags & QueryMessage::ElispList) ? Job::QuoteOutput|Job::QuietJob : Job::None|Job::QuietJob;
+    return (queryFlags & QueryMessage::ElispList) ? QueryJob::QuoteOutput|QueryJob::QuietJob : QueryJob::None|QueryJob::QuietJob;
 }
 
 FindSymbolsJob::FindSymbolsJob(const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Project> &proj)
-    : Job(query, ::jobFlags(query->flags()), proj), string(query->query())
+    : QueryJob(query, ::jobFlags(query->flags()), proj), string(query->query())
 {
 }
 

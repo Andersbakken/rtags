@@ -20,13 +20,13 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 #include "Project.h"
 
 ReferencesJob::ReferencesJob(const Location &loc, const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Project> &proj)
-    : Job(query, 0, proj)
+    : QueryJob(query, 0, proj)
 {
     locations.insert(loc);
 }
 
 ReferencesJob::ReferencesJob(const String &sym, const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Project> &proj)
-    : Job(query, 0, proj), symbolName(sym)
+    : QueryJob(query, 0, proj), symbolName(sym)
 {
 }
 

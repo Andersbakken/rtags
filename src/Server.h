@@ -35,7 +35,7 @@ class CompletionThread;
 class Connection;
 class ErrorMessage;
 class IndexerMessage;
-class Job;
+class QueryJob;
 class JobOutput;
 class LogOutputMessage;
 class Message;

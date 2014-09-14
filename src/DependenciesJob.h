@@ -16,11 +16,11 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 #ifndef DependenciesJob_h
 #define DependenciesJob_h
 
-#include "Job.h"
+#include "QueryJob.h"
 #include "QueryMessage.h"
 
 class Project;
-class DependenciesJob : public Job
+class DependenciesJob : public QueryJob
 {
 public:
     DependenciesJob(const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Project> &project);

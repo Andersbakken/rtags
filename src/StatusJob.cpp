@@ -23,7 +23,7 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 
 const char *StatusJob::delimiter = "*********************************";
 StatusJob::StatusJob(const std::shared_ptr<QueryMessage> &q, const std::shared_ptr<Project> &project)
-    : Job(q, WriteUnfiltered|QuietJob, project), query(q->query())
+    : QueryJob(q, WriteUnfiltered|QuietJob, project), query(q->query())
 {
 }
 
