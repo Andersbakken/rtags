@@ -102,7 +102,7 @@ bool QueryJob::writeRaw(const String &out, unsigned flags)
         if (max != -1 && mLinesWritten == max) {
             return false;
         }
-        assert(mLinesWritten < max);
+        assert(mLinesWritten < max || max == -1);
         ++mLinesWritten;
     }
 
