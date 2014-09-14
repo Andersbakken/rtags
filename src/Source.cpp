@@ -206,7 +206,7 @@ static inline void addIncludeArg(List<Source::Include> &includePaths,
     const String &arg = args.at(idx);
     Path path;
     if (arg.size() == argLen) {
-        path = Path::resolved(args.at(++idx), Path::MakeAbsolute, cwd);
+        path = Path::resolved(args.value(++idx), Path::MakeAbsolute, cwd);
         if (type == Source::Include::Type_None) {
             arguments.append(arg);
             arguments.append(path);
