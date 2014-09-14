@@ -22,8 +22,8 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 #include "CompilerManager.h"
 
 const char *StatusJob::delimiter = "*********************************";
-StatusJob::StatusJob(const QueryMessage &q, const std::shared_ptr<Project> &project)
-    : Job(q, WriteUnfiltered|QuietJob, project), query(q.query())
+StatusJob::StatusJob(const std::shared_ptr<QueryMessage> &q, const std::shared_ptr<Project> &project)
+    : Job(q, WriteUnfiltered|QuietJob, project), query(q->query())
 {
 }
 

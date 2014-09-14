@@ -24,7 +24,7 @@ class QueryMessage;
 class StatusJob : public Job
 {
 public:
-    StatusJob(const QueryMessage &query, const std::shared_ptr<Project> &project);
+    StatusJob(const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Project> &project);
     static const char *delimiter;
 protected:
     virtual int execute();

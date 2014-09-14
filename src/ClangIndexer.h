@@ -111,7 +111,7 @@ private:
     static void inclusionVisitor(CXFile includedFile, CXSourceLocation *includeStack,
                                  unsigned includeLen, CXClientData userData);
 
-    void onMessage(Message *msg, Connection *conn);
+    void onMessage(const std::shared_ptr<Message> &msg, Connection *conn);
 
     Path mProject;
     Source mSource;

@@ -25,7 +25,7 @@ class QueryMessage;
 class JSONJob : public Job
 {
 public:
-    JSONJob(const QueryMessage &query, const std::shared_ptr<Project> &project);
+    JSONJob(const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Project> &project);
 protected:
     virtual void execute();
 private:

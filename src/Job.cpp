@@ -25,14 +25,14 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 // static int count = 0;
 // static int active = 0;
 
-Job::Job(const QueryMessage &query, unsigned jobFlags, const std::shared_ptr<Project> &proj)
-    : mAborted(false), mMinLine(query.minLine()),
-      mMaxLine(query.maxLine()), mJobFlags(jobFlags), mQueryFlags(query.flags()), mProject(proj),
-      mPathFilters(0), mPathFiltersRegExp(0), mMax(query.max()), mConnection(0)
+Job::Job(const std::shared_ptr<QueryMessage> &query, unsigned jobFlags, const std::shared_ptr<Project> &proj)
+    : mAborted(false), mMinLine(query->minLine()),
+      mMaxLine(query->maxLine()), mJobFlags(jobFlags), mQueryFlags(query->flags()), mProject(proj),
+      mPathFilters(0), mPathFiltersRegExp(0), mMax(query->max()), mConnection(0)
 {
-    if (query.flags() & QueryMessage::SilentQuery)
+    if (query->flags() & QueryMessage::SilentQuery)
         setJobFlag(QuietJob);
-    const List<String> &pathFilters = query.pathFilters();
+    const List<String> &pathFilters = query->pathFilters();
     if (!pathFilters.isEmpty()) {
         if (mQueryFlags & QueryMessage::MatchRegexp) {
             mPathFiltersRegExp = new List<RegExp>();

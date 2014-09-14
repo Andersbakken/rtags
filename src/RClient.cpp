@@ -1110,10 +1110,10 @@ bool RClient::parse(int &argc, char **argv)
     return true;
 }
 
-void RClient::onNewMessage(const Message *message, Connection *)
+void RClient::onNewMessage(const std::shared_ptr<Message> &message, Connection *)
 {
     if (message->messageId() == ResponseMessage::MessageId) {
-        const String response = static_cast<const ResponseMessage*>(message)->data();
+        const String response = std::static_pointer_cast<ResponseMessage>(message)->data();
         if (!response.isEmpty()) {
             fprintf(stdout, "%s\n", response.constData());
             fflush(stdout);

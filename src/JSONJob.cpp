@@ -19,7 +19,7 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 #include "RTags.h"
 #include "Server.h"
 
-JSONJob::JSONJob(const QueryMessage &q, const std::shared_ptr<Project> &project)
+JSONJob::JSONJob(const std::shared_ptr<QueryMessage> &q, const std::shared_ptr<Project> &project)
     : Job(q, WriteUnfiltered|QuietJob, project), match(q.match())
 {
     assert(project.get());

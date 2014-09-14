@@ -25,9 +25,9 @@ enum {
 };
 
 
-ListSymbolsJob::ListSymbolsJob(const QueryMessage &query, const std::shared_ptr<Project> &proj)
-    : Job(query, query.flags() & QueryMessage::ElispList ? ElispFlags : DefaultFlags, proj),
-      string(query.query())
+ListSymbolsJob::ListSymbolsJob(const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Project> &proj)
+    : Job(query, query->flags() & QueryMessage::ElispList ? ElispFlags : DefaultFlags, proj),
+      string(query->query())
 {
 }
 

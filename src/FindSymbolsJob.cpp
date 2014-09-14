@@ -24,8 +24,8 @@ static inline unsigned jobFlags(unsigned queryFlags)
     return (queryFlags & QueryMessage::ElispList) ? Job::QuoteOutput|Job::QuietJob : Job::None|Job::QuietJob;
 }
 
-FindSymbolsJob::FindSymbolsJob(const QueryMessage &query, const std::shared_ptr<Project> &proj)
-    : Job(query, ::jobFlags(query.flags()), proj), string(query.query())
+FindSymbolsJob::FindSymbolsJob(const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Project> &proj)
+    : Job(query, ::jobFlags(query->flags()), proj), string(query->query())
 {
 }
 

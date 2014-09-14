@@ -25,7 +25,7 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 class FollowLocationJob : public Job
 {
 public:
-    FollowLocationJob(const Location &loc, const QueryMessage &query, const std::shared_ptr<Project> &project);
+    FollowLocationJob(const Location &loc, const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Project> &project);
 protected:
     virtual int execute();
 private:

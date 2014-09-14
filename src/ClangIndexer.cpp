@@ -171,10 +171,10 @@ bool ClangIndexer::exec(const String &data)
     return true;
 }
 
-void ClangIndexer::onMessage(Message *msg, Connection *conn)
+void ClangIndexer::onMessage(const std::shared_ptr<Message> &msg, Connection *conn)
 {
     assert(msg->messageId() == VisitFileResponseMessage::MessageId);
-    const VisitFileResponseMessage *vm = static_cast<VisitFileResponseMessage*>(msg);
+    const std::shared_ptr<VisitFileResponseMessage> vm = std::static_pointer_cast<VisitFileResponseMessage>(msg);
     mVisitFileResponseMessageVisit = vm->visit();
     mVisitFileResponseMessageFileId = vm->fileId();
     assert(EventLoop::eventLoop());

@@ -103,7 +103,7 @@ public:
     bool isValidJob(uint64_t key) { return !key || mJobs.contains(key); }
     bool visitFile(uint32_t fileId, const Path &path, uint64_t id);
     String fixIts(uint32_t fileId) const;
-    int reindex(const Match &match, const QueryMessage &query);
+    int reindex(const Match &match, const std::shared_ptr<QueryMessage> &query);
     int remove(const Match &match);
     void onJobFinished(const std::shared_ptr<IndexData> &indexData, const std::shared_ptr<IndexerJob> &job);
     SourceMap sources() const { return mSources; }

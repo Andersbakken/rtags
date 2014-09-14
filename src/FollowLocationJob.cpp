@@ -19,7 +19,7 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 #include "CursorInfo.h"
 #include "Project.h"
 
-FollowLocationJob::FollowLocationJob(const Location &loc, const QueryMessage &query, const std::shared_ptr<Project> &project)
+FollowLocationJob::FollowLocationJob(const Location &loc, const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Project> &project)
     : Job(query, 0, project), location(loc)
 {
 }

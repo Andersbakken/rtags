@@ -41,7 +41,7 @@ public:
         QuietJob = 0x4
     };
     enum { Priority = 10 };
-    Job(const QueryMessage &msg, unsigned jobFlags, const std::shared_ptr<Project> &proj);
+    Job(const std::shared_ptr<QueryMessage> &msg, unsigned jobFlags, const std::shared_ptr<Project> &proj);
     Job(unsigned jobFlags, const std::shared_ptr<Project> &project);
     ~Job();
 

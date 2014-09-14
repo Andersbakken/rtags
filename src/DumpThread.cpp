@@ -3,8 +3,8 @@
 #include "RTagsClang.h"
 #include "Server.h"
 
-DumpThread::DumpThread(const QueryMessage &queryMessage, const Source &source, Connection *conn)
-    : Thread(), mQueryFlags(queryMessage.flags()), mSource(source), mConnection(conn), mIndentLevel(0)
+DumpThread::DumpThread(const std::shared_ptr<QueryMessage> &queryMessage, const Source &source, Connection *conn)
+    : Thread(), mQueryFlags(queryMessage->flags()), mSource(source), mConnection(conn), mIndentLevel(0)
 {
     setAutoDelete(true);
 }

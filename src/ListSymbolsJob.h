@@ -24,7 +24,7 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 class ListSymbolsJob : public Job
 {
 public:
-    ListSymbolsJob(const QueryMessage &query, const std::shared_ptr<Project> &proj);
+    ListSymbolsJob(const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Project> &proj);
 protected:
     virtual int execute();
     Set<String> imenu(const std::shared_ptr<Project> &project);

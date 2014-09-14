@@ -24,7 +24,7 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 class FindSymbolsJob : public Job
 {
 public:
-    FindSymbolsJob(const QueryMessage &query, const std::shared_ptr<Project> &project);
+    FindSymbolsJob(const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Project> &project);
 protected:
     virtual int execute();
 private:

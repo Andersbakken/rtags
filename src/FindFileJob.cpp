@@ -20,12 +20,12 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 #include "FileManager.h"
 #include "Project.h"
 
-FindFileJob::FindFileJob(const QueryMessage &query, const std::shared_ptr<Project> &project)
+FindFileJob::FindFileJob(const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Project> &project)
     : Job(query, QuietJob, project)
 {
-    const String q = query.query();
+    const String q = query->query();
     if (!q.isEmpty()) {
-        if (query.flags() & QueryMessage::MatchRegexp) {
+        if (query->flags() & QueryMessage::MatchRegexp) {
             mRegExp = q;
         } else {
             mPattern = q;

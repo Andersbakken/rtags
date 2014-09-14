@@ -20,10 +20,10 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 #include "FileManager.h"
 #include "Project.h"
 
-DependenciesJob::DependenciesJob(const QueryMessage &query, const std::shared_ptr<Project> &project)
+DependenciesJob::DependenciesJob(const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Project> &project)
     : Job(query, QuietJob, project)
 {
-    Path p = query.query();
+    Path p = query->query();
     p.resolve();
     mFileId = Location::fileId(p);
 }

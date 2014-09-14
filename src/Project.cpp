@@ -718,9 +718,9 @@ Set<uint32_t> Project::dependencies(uint32_t fileId, DependencyMode mode) const
     return ret;
 }
 
-int Project::reindex(const Match &match, const QueryMessage &query)
+int Project::reindex(const Match &match, const std::shared_ptr<QueryMessage> &query)
 {
-    if (query.type() == QueryMessage::Reindex) {
+    if (query->type() == QueryMessage::Reindex) {
         Set<uint32_t> dirtyFiles;
 
         const auto end = mDependencies.constEnd();
@@ -733,11 +733,11 @@ int Project::reindex(const Match &match, const QueryMessage &query)
             return 0;
         SimpleDirty dirty;
         dirty.init(dirtyFiles, mDependencies);
-        return startDirtyJobs(&dirty, query.unsavedFiles());
+        return startDirtyJobs(&dirty, query->unsavedFiles());
     } else {
-        assert(query.type() == QueryMessage::CheckReindex);
+        assert(query->type() == QueryMessage::CheckReindex);
         IfModifiedDirty dirty(mDependencies, match);
-        return startDirtyJobs(&dirty, query.unsavedFiles());
+        return startDirtyJobs(&dirty, query->unsavedFiles());
     }
 }
 
