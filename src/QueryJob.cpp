@@ -97,7 +97,7 @@ bool QueryJob::write(const String &out, unsigned flags)
 bool QueryJob::writeRaw(const String &out, unsigned flags)
 {
     assert(mConnection);
-    if (!(flags & IgnoreMax)) {
+    if (!(flags & IgnoreMax) && mQueryMessage) {
         const int max = mQueryMessage->max();
         if (max != -1 && mLinesWritten == max) {
             return false;
