@@ -26,7 +26,7 @@ class IndexData
 {
 public:
     IndexData(uint32_t f)
-        : parseTime(0), key(0), pid(0), flags(f)
+        : parseTime(0), key(0), id(0), flags(f)
     {}
 
     Set<uint32_t> visitedFiles() const
@@ -65,7 +65,7 @@ public:
     FixItMap fixIts;
     String xmlDiagnostics;
     Hash<uint32_t, bool> visited;
-    pid_t pid;
+    uint64_t id;
     const uint32_t flags; // indexerjobflags
 };
 

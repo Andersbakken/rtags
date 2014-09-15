@@ -94,6 +94,7 @@ set(RTAGS_SOURCES
     FindSymbolsJob.cpp
     FollowLocationJob.cpp
     IndexerJob.cpp
+    JobScheduler.cpp
     ListSymbolsJob.cpp
     Preprocessor.cpp
     Project.cpp

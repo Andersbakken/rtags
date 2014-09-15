@@ -37,6 +37,7 @@
 #include "Match.h"
 #include "Preprocessor.h"
 #include "Project.h"
+#include "JobScheduler.h"
 #include "QueryMessage.h"
 #include "VisitFileMessage.h"
 #include "IndexerMessage.h"
@@ -125,12 +126,6 @@ Server::~Server()
         mCompletionThread = 0;
     }
 
-    for (const auto &job : mActiveJobs) {
-        if (Process *process = job.second->process) {
-            process->kill();
-        }
-    }
-
     stopServers();
     mProjects.clear(); // need to be destroyed before sInstance is set to 0
     assert(sInstance == this);
@@ -214,6 +209,8 @@ bool Server::init(const Options &options)
         error("Unable to listen on %s", mOptions.socketFile.constData());
         return false;
     }
+
+    mJobScheduler.reset(new JobScheduler(mOptions.jobCount));
 
     restoreFileIds();
     mUnixServer->newConnection().connect(std::bind(&Server::onNewConnection, this, std::placeholders::_1));
@@ -445,29 +442,31 @@ void Server::handleLogOutputMessage(const std::shared_ptr<LogOutputMessage> &mes
 
 void Server::handleIndexerMessage(const std::shared_ptr<IndexerMessage> &message, Connection *conn)
 {
-    std::shared_ptr<IndexData> indexData = message->data();
-    // error() << "Got indexer message" << message->project() << Location::path(indexData->fileId());
-    assert(indexData);
-    auto it = mActiveJobs.find(indexData->pid);
-    if (it != mActiveJobs.end()) {
-        std::shared_ptr<IndexerJob> job = it->second;
-        assert(job);
-        mActiveJobs.erase(it);
+    mJobScheduler->handleIndexerMessage(message);
 
-        job->flags &= ~IndexerJob::Running;
+    // std::shared_ptr<IndexData> indexData = message->data();
+    // // error() << "Got indexer message" << message->project() << Location::path(indexData->fileId());
+    // assert(indexData);
+    // auto it = mActiveJobs.find(indexData->pid);
+    // if (it != mActiveJobs.end()) {
+    //     std::shared_ptr<IndexerJob> job = it->second;
+    //     assert(job);
+    //     mActiveJobs.erase(it);
 
-        // we only care about the first job that returns
-        if (!(job->flags & IndexerJob::Complete)) {
-            if (!(job->flags & IndexerJob::Aborted))
-                job->flags |= IndexerJob::Complete;
-            std::shared_ptr<Project> project = mProjects.value(message->project());
-            if (!project) {
-                error() << "Can't find project root for this IndexerMessage" << message->project() << Location::path(indexData->fileId());
-            } else {
-                project->onJobFinished(indexData, job);
-            }
-        }
-    }
+    //     job->flags &= ~IndexerJob::Running;
+
+    //     // we only care about the first job that returns
+    //     if (!(job->flags & IndexerJob::Complete)) {
+    //         if (!(job->flags & IndexerJob::Aborted))
+    //             job->flags |= IndexerJob::Complete;
+    //         std::shared_ptr<Project> project = mProjects.value(message->project());
+    //         if (!project) {
+    //             error() << "Can't find project root for this IndexerMessage" << message->project() << Location::path(indexData->fileId());
+    //         } else {
+    //             project->onJobFinished(indexData, job);
+    //         }
+    //     }
+    // }
     conn->finish();
 }
 
@@ -1191,6 +1190,7 @@ void Server::jobCount(const std::shared_ptr<QueryMessage> &query, Connection *co
             conn->write<128>("Invalid job count %s (%d)", query->query().constData(), jobCount);
         } else {
             mOptions.jobCount = jobCount;
+            mJobScheduler->setMaxJobs(jobCount);
             conn->write<128>("Changed jobs to %d", jobCount);
         }
     }
@@ -1377,7 +1377,7 @@ void Server::handleVisitFileMessage(const std::shared_ptr<VisitFileMessage> &mes
 
     std::shared_ptr<Project> project = mProjects.value(message->project());
     const uint64_t key = message->key();
-    if (project && project->isValidJob(key)) {
+    if (project && project->isActiveJob(key)) {
         assert(message->file() == message->file().resolved());
         fileId = Location::insertFile(message->file());
         visit = project->visitFile(fileId, message->file(), key);
@@ -1443,41 +1443,41 @@ static inline bool slowContains(const LinkedList<T> &list, const T &t)
     return false;
 }
 
-void Server::addJob(const std::shared_ptr<IndexerJob> &job)
-{
-    warning() << "adding job" << job->sourceFile;
-    assert(job);
-    assert(!(job->flags & IndexerJob::Complete));
-    mPendingJobs.push_back(job);
-    startJobs();
-}
+// void Server::addJob(const std::shared_ptr<IndexerJob> &job)
+// {
+//     warning() << "adding job" << job->sourceFile;
+//     assert(job);
+//     assert(!(job->flags & IndexerJob::Complete));
+//     mPendingJobs.push_back(job);
+//     startJobs();
+// }
 
-void Server::onJobFinished(Process *process, const std::shared_ptr<IndexerJob> &job)
-{
-    assert(process);
-    error() << process->readAllStdErr() << process->readAllStdOut();
-    if (job) {
-        assert(job->process == process);
-        assert(!(job->flags & IndexerJob::Complete));
-        job->flags &= ~IndexerJob::Running;
-        if (process->returnCode() != 0 && !(job->flags & IndexerJob::Aborted)) {
-            job->flags |= IndexerJob::Crashed;
-            std::shared_ptr<Project> proj = project(job->project);
-            if (proj) {
-                std::shared_ptr<IndexData> data(new IndexData(job->flags));
-                data->key = job->source.key();
-                data->dependencies[job->source.fileId].insert(job->source.fileId);
+// void Server::onJobFinished(Process *process, const std::shared_ptr<IndexerJob> &job)
+// {
+//     assert(process);
+//     error() << process->readAllStdErr() << process->readAllStdOut();
+//     if (job) {
+//         assert(job->process == process);
+//         assert(!(job->flags & IndexerJob::Complete));
+//         job->flags &= ~IndexerJob::Running;
+//         if (process->returnCode() != 0 && !(job->flags & IndexerJob::Aborted)) {
+//             job->flags |= IndexerJob::Crashed;
+//             std::shared_ptr<Project> proj = project(job->project);
+//             if (proj) {
+//                 std::shared_ptr<IndexData> data(new IndexData(job->flags));
+//                 data->key = job->source.key();
+//                 data->dependencies[job->source.fileId].insert(job->source.fileId);
 
-                EventLoop::eventLoop()->registerTimer([data, job, proj](int) { proj->onJobFinished(data, job); },
-                                                      500, Timer::SingleShot);
-                // give it 500 ms before we try again
-            }
-        }
-        job->process = 0;
-    }
-    EventLoop::deleteLater(process);
-    startJobs();
-}
+//                 EventLoop::eventLoop()->registerTimer([data, job, proj](int) { proj->onJobFinished(data, job); },
+//                                                       500, Timer::SingleShot);
+//                 // give it 500 ms before we try again
+//             }
+//         }
+//         job->process = 0;
+//     }
+//     EventLoop::deleteLater(process);
+//     startJobs();
+// }
 
 void Server::stopServers()
 {
@@ -1537,38 +1537,5 @@ void Server::codeCompleteAt(const std::shared_ptr<QueryMessage> &query, Connecti
 
 void Server::dumpJobs(Connection *conn)
 {
-    if (!mPendingJobs.isEmpty()) {
-        conn->write("Pending:");
-        for (const auto &job : mPendingJobs) {
-            conn->write<128>("%s: 0x%x %s",
-                             job->sourceFile.constData(),
-                             job->flags,
-                             IndexerJob::dumpFlags(job->flags).constData());
-        }
-    }
-    if (!mActiveJobs.isEmpty()) {
-        conn->write("Active:");
-        for (const auto &job : mActiveJobs) {
-            conn->write<128>("%s: 0x%x %s",
-                             job.second->sourceFile.constData(),
-                             job.second->flags,
-                             IndexerJob::dumpFlags(job.second->flags).constData());
-        }
-    }
-}
-
-void Server::startJobs()
-{
-    while (!mPendingJobs.isEmpty() && mActiveJobs.size() < mOptions.jobCount) {
-        std::shared_ptr<IndexerJob> job = mPendingJobs.front();
-        mPendingJobs.erase(mPendingJobs.begin());
-        if (mProjects.contains(job->project)) {
-            if (job->launchProcess()) {
-                mActiveJobs[job->process->pid()] = job;
-                job->process->finished().connect(std::bind(&Server::onProcessFinished, this, std::placeholders::_1));
-            } else {
-                onJobFinished(job->process, job);
-            }
-        }
-    }
+    mJobScheduler->dump(conn);
 }

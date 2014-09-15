@@ -5,75 +5,15 @@
 #include "Server.h"
 #include "CompilerManager.h"
 
+uint64_t IndexerJob::sNextId = 1;
 IndexerJob::IndexerJob(const Source &s,
                        uint32_t f,
                        const Path &p,
                        const UnsavedFiles &u,
                        const Set<uint32_t> &d)
-    : source(s), sourceFile(s.sourceFile()), flags(f),
-      project(p), unsavedFiles(u), dirty(d), process(0)
+    : id(sNextId++), source(s), sourceFile(s.sourceFile()), flags(f),
+      project(p), unsavedFiles(u), dirty(d), crashCount(0)
 {
-}
-
-IndexerJob::IndexerJob()
-    : process(0)
-{
-}
-
-bool IndexerJob::launchProcess()
-{
-    static Path rp;
-    if (rp.isEmpty()) {
-        rp = Rct::executablePath().parentDir() + "rp";
-        if (!rp.exists()) {
-            rp = Rct::executablePath();
-            rp.resolve();
-            rp = rp.parentDir() + "rp";
-        }
-    }
-
-    assert(!process);
-    process = new Process;
-    if (!process->start(rp)) {
-        error() << "Couldn't start rp" << rp << process->errorString();
-        return false;
-    }
-
-    flags |= Running;
-    process->write(encode());
-    return true;
-}
-
-bool IndexerJob::update(const std::shared_ptr<IndexerJob> &job)
-{
-    // error() << "Updating" << s.sourceFile() << dumpFlags(flags);
-    assert(!(flags & Complete));
-
-    if (!(flags & Running)) {
-        source = job->source;
-        flags = job->flags;
-        unsavedFiles = job->unsavedFiles;
-        dirty = job->dirty;
-        assert(visited.isEmpty());
-        assert(sourceFile == source.sourceFile());
-        return true;
-    }
-    abort();
-    return false;
-}
-
-void IndexerJob::abort()
-{
-    // error() << "Aborting job" << source.sourceFile() << !!process << dumpFlags(flags);
-    if (process && flags & Running) { // only kill once
-        process->kill();
-    }
-    if (flags & Complete) {
-        error() << "Aborting a job that already is complete";
-    }
-    assert(!(flags & Complete));
-    flags &= ~Running;
-    flags |= Aborted;
 }
 
 String IndexerJob::encode() const
@@ -81,7 +21,7 @@ String IndexerJob::encode() const
     String ret;
     {
         Serializer serializer(ret);
-        serializer << static_cast<int>(0);
+        serializer << static_cast<int>(0); // for size
         std::shared_ptr<Project> proj = Server::instance()->project(project);
         const Server::Options &options = Server::instance()->options();
         Source copy = source;
@@ -132,7 +72,7 @@ String IndexerJob::encode() const
         }
         assert(!sourceFile.isEmpty());
         serializer << static_cast<uint16_t>(RTags::DatabaseVersion)
-                   << Server::instance()->options().socketFile
+                   << id << Server::instance()->options().socketFile
                    << project << copy << sourceFile << flags
                    << static_cast<uint32_t>(options.rpVisitFileTimeout)
                    << static_cast<uint32_t>(options.rpIndexerMessageTimeout)
@@ -170,9 +110,6 @@ String IndexerJob::dumpFlags(unsigned int flags)
     }
     if (flags & Complete) {
         ret += "Complete";
-    }
-    if (flags & HighPriority) {
-        ret += "HighPriority";
     }
 
     return String::join(ret, ", ");

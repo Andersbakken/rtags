@@ -57,6 +57,7 @@ bool ClangIndexer::exec(const String &data)
         error("Wrong protocol %d vs %d", protocolVersion, RTags::DatabaseVersion);
         return false;
     }
+    uint64_t id;
     String serverFile;
     uint32_t flags;
     uint32_t connectTimeout;
@@ -64,6 +65,7 @@ bool ClangIndexer::exec(const String &data)
     extern bool suspendOnSigSegv;
     Hash<uint32_t, Path> blockedFiles;
 
+    deserializer >> id;
     deserializer >> serverFile;
     deserializer >> mProject;
     deserializer >> mSource;
@@ -121,7 +123,7 @@ bool ClangIndexer::exec(const String &data)
     mData.reset(new IndexData(flags));
     mData->parseTime = parseTime;
     mData->key = mSource.key();
-    mData->pid = getpid();
+    mData->id = id;
 
     assert(mConnection.isConnected());
     mData->visited[mSource.fileId] = true;

@@ -43,6 +43,7 @@ class OutputMessage;
 class Project;
 class QueryMessage;
 class VisitFileMessage;
+class JobScheduler;
 class Server
 {
 public:
@@ -67,7 +68,8 @@ public:
         AllowPedantic = 0x02000,
         StartSuspended = 0x04000,
         EnableCompilerManager = 0x08000,
-        EnableNDEBUG = 0x10000
+        EnableNDEBUG = 0x10000,
+        NoProgress = 0x20000
     };
     struct Options {
         Options()
@@ -95,7 +97,7 @@ public:
     bool suspended() const { return mSuspended; }
     bool saveFileIds();
     void onJobOutput(JobOutput&& out);
-    void addJob(const std::shared_ptr<IndexerJob> &job);
+    // void addJob(const std::shared_ptr<IndexerJob> &job);
     std::shared_ptr<Project> project(const Path &path) const { return mProjects.value(path); }
     // void index(const Source &source, const Path &project, uint32_t flags);
     // void index(const std::shared_ptr<Unit> &unit, const std::shared_ptr<Project> &project);
@@ -103,8 +105,9 @@ public:
     void stopServers();
     int mongooseStatistics(struct mg_connection *conn);
     void dumpJobs(Connection *conn);
+    std::shared_ptr<JobScheduler> jobScheduler() const { return mJobScheduler; }
 private:
-    void restoreFileIds();
+   void restoreFileIds();
     bool index(const String &arguments, const Path &pwd, const Path &projectRootOverride, bool escape);
     void onNewConnection(SocketServer *server);
     void setCurrentProject(const std::shared_ptr<Project> &project, unsigned int queryFlags = 0);
@@ -154,20 +157,6 @@ private:
     std::shared_ptr<Project> currentProject() const { return mCurrentProject.lock(); }
     int reloadProjects();
     std::shared_ptr<Project> addProject(const Path &path);
-    void onProcessFinished(Process *process)
-    {
-        assert(process->pid() > 0);
-        auto it = mActiveJobs.find(process->pid());
-        std::shared_ptr<IndexerJob> job;
-        if (it != mActiveJobs.end() && it->second->process == process) {
-            job = it->second;
-            mActiveJobs.erase(it);
-        }
-
-        onJobFinished(process, job);
-    }
-
-    void onJobFinished(Process *process, const std::shared_ptr<IndexerJob> &job);
 
     bool hasServer() const;
     void onHttpClientReadyRead(const SocketClient::SharedPtr &socket);
@@ -188,8 +177,7 @@ private:
 
     Timer mUnloadTimer;
 
-    LinkedList<std::shared_ptr<IndexerJob> > mPendingJobs;
-    Hash<pid_t, std::shared_ptr<IndexerJob> > mActiveJobs;
+    std::shared_ptr<JobScheduler> mJobScheduler;
 
     CompletionThread *mCompletionThread;
 };

@@ -99,13 +99,12 @@ static void usage(FILE *f)
             "  --start-suspended|-Q                       Start out suspended (no reindexing enabled).\n"
             "  --suspend-rp-on-crash|-q [arg]             Suspend rp in SIGSEGV handler (default " DEFAULT_SUSPEND_RP ").\n"
             "  --sync-threshold|-y [arg]                  Automatically sync after [arg] files indexed.\n"
-            "  --tcp-port|-p [arg]                        Use this port for tcp server (default " STR(DEFAULT_RDM_TCP_PORT) ").\n"
             "  --thread-stack-size|-k [arg]               Set stack size for threadpool to this (default %zu).\n"
             "  --unload-timer|-u [arg]                    Number of minutes to wait before unloading non-current projects (disabled by default).\n"
             "  --verbose|-v                               Change verbosity, multiple -v's are allowed.\n"
             "  --watch-system-paths|-w                    Watch system paths for changes.\n"
             "  --block-argument|-G [arg]                  Block this argument from being passed to clang. E.g. rdm --block-argument -fno-inline\n"
-
+            "  --no-progress|-p                           Don't report compilation progress in xml output.\n"
             "\nCompiling/Indexing options:\n"
             "  --allow-Wpedantic|-P                       Don't strip out -Wpedantic. This can cause problems in certain projects.\n"
             "  --define|-D [arg]                          Add additional define directive to clang.\n"
@@ -181,6 +180,7 @@ int main(int argc, char** argv)
         { "allow-Wpedantic", no_argument, 0, 'P' },
         { "enable-compiler-manager", no_argument, 0, 'R' },
         { "enable-NDEBUG", no_argument, 0, 'g' },
+        { "no-progress", no_argument, 0, 'p' },
 #ifdef OS_Darwin
         { "filemanager-watch", no_argument, 0, 'M' },
 #else
@@ -404,6 +404,9 @@ int main(int argc, char** argv)
             return 0;
         case 'Y':
             serverOpts.options |= Server::NoNoUnknownWarningsOption;
+            break;
+        case 'p':
+            serverOpts.options |= Server::NoProgress;
             break;
         case 'R':
             serverOpts.options |= Server::EnableCompilerManager;

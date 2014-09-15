@@ -100,16 +100,17 @@ public:
         ArgDependsOn // slow
     };
     Set<uint32_t> dependencies(uint32_t fileId, DependencyMode mode) const;
-    bool isValidJob(uint64_t key) { return !key || mJobs.contains(key); }
-    bool visitFile(uint32_t fileId, const Path &path, uint64_t id);
+    bool isActiveJob(uint64_t key) { return !key || mActiveJobs.contains(key); }
+    inline bool visitFile(uint32_t fileId, const Path &path, uint64_t id);
+    inline void releaseFileIds(const Set<uint32_t> &fileIds);
     String fixIts(uint32_t fileId) const;
     int reindex(const Match &match, const std::shared_ptr<QueryMessage> &query);
     int remove(const Match &match);
-    void onJobFinished(const std::shared_ptr<IndexData> &indexData, const std::shared_ptr<IndexerJob> &job);
+    void onJobFinished(const std::shared_ptr<IndexerJob> &job, const std::shared_ptr<IndexData> &indexData);
     SourceMap sources() const { return mSources; }
     DependencyMap dependencies() const { return mDependencies; }
     Set<Path> watchedPaths() const { return mWatchedPaths; }
-    bool isIndexing() const { return !mJobs.isEmpty(); }
+    bool isIndexing() const { return !mActiveJobs.isEmpty(); }
     void onFileModifiedOrRemoved(const Path &);
     Hash<uint32_t, Path> visitedFiles() const
     {
@@ -147,28 +148,14 @@ private:
     FilesMap mFiles;
 
     Hash<uint32_t, Path> mVisitedFiles;
-    Hash<uint64_t, std::pair<std::shared_ptr<IndexData>, std::shared_ptr<IndexerJob> > > mPendingIndexData;
+    Hash<uint64_t, std::pair<std::shared_ptr<IndexerJob>, std::shared_ptr<IndexData> > > mPendingIndexData;
 
     int mJobCounter;
 
-    struct JobData {
-        JobData()
-            : crashCount(0), pendingRestartTimerId(-1)
-        {}
-        void stopTimer()
-        {
-            if (pendingRestartTimerId != -1) {
-                EventLoop::mainEventLoop()->unregisterTimer(pendingRestartTimerId);
-                pendingRestartTimerId = -1;
-            }
-        }
-        int crashCount, pendingRestartTimerId;
-        std::shared_ptr<IndexerJob> job, pendingJob;
-    };
-
     // key'ed on Source::key()
-    Hash<uint64_t, JobData> mJobs;
     Hash<uint64_t, std::shared_ptr<IndexData> > mIndexData;
+    Hash<uint64_t, std::shared_ptr<IndexerJob> > mActiveJobs;
+    List<std::shared_ptr<IndexerJob> > mPendingJobs;
 
     Timer mSyncTimer, mDirtyTimer;
     Set<uint32_t> mDirtyFiles, mPendingDirtyFiles;
@@ -198,14 +185,25 @@ inline bool Project::visitFile(uint32_t visitFileId, const Path &path, uint64_t 
     if (p.isEmpty()) {
         p = path;
         if (key) {
-            assert(mJobs.contains(key));
-            JobData &data = mJobs[key];
-            assert(data.job);
-            data.job->visited.insert(visitFileId);
+            assert(mActiveJobs.contains(key));
+            std::shared_ptr<IndexerJob> &job = mActiveJobs[key];
+            assert(job);
+            job->visited.insert(visitFileId);
         }
         return true;
     }
     return false;
+}
+
+inline void Project::releaseFileIds(const Set<uint32_t> &fileIds)
+{
+    if (!fileIds.isEmpty()) {
+        std::lock_guard<std::mutex> lock(mMutex);
+        for (const auto &f : fileIds) {
+            // error() << "Returning files" << Location::path(f);
+            mVisitedFiles.remove(f);
+        }
+    }
 }
 
 #endif

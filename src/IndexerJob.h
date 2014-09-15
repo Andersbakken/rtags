@@ -35,8 +35,7 @@ public:
         Running = 0x010,
         Crashed = 0x020,
         Aborted = 0x040,
-        Complete = 0x080,
-        HighPriority = 0x100
+        Complete = 0x080
     };
 
     static String dumpFlags(unsigned int);
@@ -46,20 +45,18 @@ public:
                const Path &project,
                const UnsavedFiles &unsavedFiles = UnsavedFiles(),
                const Set<uint32_t> &dirty = Set<uint32_t>());
-    IndexerJob();
-
-    bool launchProcess();
-    bool update(const std::shared_ptr<IndexerJob> &job);
-    void abort();
     String encode() const;
 
+    uint64_t id;
     Source source;
     Path sourceFile;
     uint32_t flags;
     Path project;
     UnsavedFiles unsavedFiles;
     Set<uint32_t> dirty, visited;
-    Process *process;
+    int crashCount;
+private:
+    static uint64_t sNextId;
 };
 
 #endif
