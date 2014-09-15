@@ -197,14 +197,14 @@ bool Server::init(const Options &options)
         }
         mUnixServer.reset();
         if (!i) {
-            // enum { Timeout = 1000 };
-            // Connection connection;
-            // if (connection.connectUnix(mOptions.socketFile, Timeout)) {
-            //     connection.send(QueryMessage(QueryMessage::Shutdown));
-            //     connection.disconnected().connect(std::bind([](){ EventLoop::eventLoop()->quit(); }));
-            //     connection.finished().connect(std::bind([](){ EventLoop::eventLoop()->quit(); }));
-            //     EventLoop::eventLoop()->exec(Timeout);
-            // }
+            enum { Timeout = 1000 };
+            Connection connection;
+            if (connection.connectUnix(mOptions.socketFile, Timeout)) {
+                connection.send(QueryMessage(QueryMessage::Shutdown));
+                connection.disconnected().connect(std::bind([](){ EventLoop::eventLoop()->quit(); }));
+                connection.finished().connect(std::bind([](){ EventLoop::eventLoop()->quit(); }));
+                EventLoop::eventLoop()->exec(Timeout);
+            }
         } else {
             sleep(1);
         }
