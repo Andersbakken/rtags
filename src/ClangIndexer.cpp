@@ -1006,7 +1006,7 @@ bool ClangIndexer::parse()
     RTags::parseTranslationUnit(mSourceFile, mSource.toCommandLine(commandLineFlags), mClangUnit,
                                 mIndex, &unsavedFiles[0], unsavedIndex, flags, &mClangLine);
 
-    warning() << "CI::parse loading unit " << mClangLine << " " << (mClangUnit != 0);
+    warning() << "CI::parse loading unit:" << mClangLine << " " << (mClangUnit != 0);
     if (mClangUnit) {
         clang_getInclusions(mClangUnit, ClangIndexer::inclusionVisitor, this);
         mParseDuration = sw.elapsed();
