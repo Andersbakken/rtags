@@ -120,6 +120,7 @@ private:
     Path mSourceFile;
     std::shared_ptr<IndexData> mData;
     CXTranslationUnit mClangUnit;
+    bool mLoadedFromCache;
     CXIndex mIndex;
     CXCursor mLastCursor;
     String mClangLine;
