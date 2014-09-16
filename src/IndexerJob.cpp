@@ -72,7 +72,8 @@ String IndexerJob::encode() const
         }
         assert(!sourceFile.isEmpty());
         serializer << static_cast<uint16_t>(RTags::DatabaseVersion)
-                   << id << Server::instance()->options().socketFile
+                   << id << options.socketFile
+                   << (options.astCache > 0 ? options.dataDir + "astcache/" : String())
                    << project << copy << sourceFile << flags
                    << static_cast<uint32_t>(options.rpVisitFileTimeout)
                    << static_cast<uint32_t>(options.rpIndexerMessageTimeout)

@@ -62,7 +62,6 @@ static void usage(FILE *f)
             "  --help|-h                                  Display this page.\n"
 
             "\nServer options:\n"
-            "  --append|-A                                Append to log file.\n"
             "  --clear-project-caches|-C                  Clear out project caches.\n"
             "  --completion-cache-size|-i [arg]           Number of translation units to cache (default " STR(DEFAULT_COMPLETION_CACHE_SIZE) ").\n"
             "  --config|-c [arg]                          Use this file instead of ~/.rdmrc.\n"
@@ -105,6 +104,7 @@ static void usage(FILE *f)
             "  --watch-system-paths|-w                    Watch system paths for changes.\n"
             "  --block-argument|-G [arg]                  Block this argument from being passed to clang. E.g. rdm --block-argument -fno-inline\n"
             "  --no-progress|-p                           Don't report compilation progress in xml output.\n"
+            "  --cache-AST|-A [maxsize]                   Cache this many AST units in $DATA_DIR/astcache.\n"
             "\nCompiling/Indexing options:\n"
             "  --allow-Wpedantic|-P                       Don't strip out -Wpedantic. This can cause problems in certain projects.\n"
             "  --define|-D [arg]                          Add additional define directive to clang.\n"
@@ -143,7 +143,7 @@ int main(int argc, char** argv)
         { "log-file", required_argument, 0, 'L' },
         { "setenv", required_argument, 0, 'e' },
         { "no-Wall", no_argument, 0, 'W' },
-        { "append", no_argument, 0, 'A' },
+        { "cache-AST", required_argument, 0, 'A' },
         { "verbose", no_argument, 0, 'v' },
         { "job-count", required_argument, 0, 'j' },
         { "clean-slate", no_argument, 0, 'C' },
@@ -540,9 +540,14 @@ int main(int argc, char** argv)
         case 's':
             serverOpts.includePaths.append(Source::Include(Source::Include::Type_System, Path::resolved(optarg)));
             break;
-        case 'A':
-            logFlags |= Log::Append;
-            break;
+        case 'A': {
+            bool ok;
+            serverOpts.astCache = String(optarg).toLongLong(&ok);
+            if (!ok || serverOpts.astCache < 0) {
+                fprintf(stderr, "Invalid arg to --cache-AST %s\n", optarg);
+                return 1;
+            }
+            break; }
         case 'L':
             logFile = optarg;
             break;

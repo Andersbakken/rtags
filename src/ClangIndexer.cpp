@@ -1,4 +1,5 @@
 #define RTAGS_SINGLE_THREAD
+#include <rct/SHA256.h>
 #include "ClangIndexer.h"
 #include "QueryMessage.h"
 #include "VisitFileMessage.h"
@@ -67,6 +68,7 @@ bool ClangIndexer::exec(const String &data)
 
     deserializer >> id;
     deserializer >> serverFile;
+    deserializer >> mASTCacheDir;
     deserializer >> mProject;
     deserializer >> mSource;
     deserializer >> mSourceFile;
@@ -159,15 +161,7 @@ bool ClangIndexer::exec(const String &data)
         mData->message += " (dirty)";
     const IndexerMessage msg(mProject, mData);
     ++mFileIdsQueried;
-    // FILE *f = fopen("/tmp/clangindex.log", "a");
-    // fprintf(f, "Writing indexer message %d\n", mData->symbols.size());
 
-    // if (Path::exists(String("/tmp/") + Location::path(source.fileId).fileName())) {
-    //     error() << "Detected problem... crashing" << Location::path(source.fileId).fileName();
-    //     Path::rm(String("/tmp/") + Location::path(source.fileId).fileName());
-    //     sleep(1);
-    //     abort();
-    // }
     StopWatch sw;
     if (!mConnection.send(msg)) {
         error() << "Couldn't send IndexerMessage" << mSourceFile;
@@ -175,14 +169,79 @@ bool ClangIndexer::exec(const String &data)
     }
     mConnection.finished().connect(std::bind(&EventLoop::quit, EventLoop::eventLoop()));
     if (EventLoop::eventLoop()->exec(mIndexerMessageTimeout) == EventLoop::Timeout) {
-        error() << "Couldn't send IndexerMessage (2)" << mSourceFile;
+        error() << "Timed out sending IndexerMessage" << mSourceFile;
         return false;
     }
     if (getenv("RDM_DEBUG_INDEXERMESSAGE"))
         error() << "Send took" << sw.elapsed() << "for" << mSourceFile;
-    // error() << "Must have gotten a finished" << mSourceFile;
-    // fprintf(f, "Wrote indexer message %d\n", mData->symbols.size());
-    // fclose(f);
+
+    if (mClangUnit && !mASTCacheDir.isEmpty() && Path::mkdir(mASTCacheDir, Path::Recursive)) {
+        Path outFile = mSourceFile;
+        RTags::encodePath(outFile);
+        outFile.prepend(mASTCacheDir);
+        error() << "About to save" << outFile << mSourceFile;
+        if (clang_saveTranslationUnit(mClangUnit, outFile.constData(), clang_defaultSaveOptions(mClangUnit)) != CXSaveError_None) {
+            error() << "Failed to save translation unit to" << outFile;
+            return true;
+        }
+        FILE *manifest = fopen((outFile + ".manifest").constData(), "w");
+        if (!manifest) {
+            error() << "Failed to write manifest" << errno << strerror(errno);
+            Path::rm(outFile);
+            return true;
+        }
+
+        Serializer serializer(manifest);
+        const Set<uint32_t> &deps = mData->dependencies[mSource.fileId];
+        assert(deps.contains(mSource.fileId));
+        serializer << mSourceFile << mSource << deps.size();
+        auto serialize = [this, &serializer](uint32_t file) {
+            const Path path = Location::path(file);
+            serializer << path;
+            String sha;
+            const String unsavedContents = mUnsavedFiles.value(path);
+            if (unsavedContents.isEmpty()) {
+                FILE *f = fopen(path.constData(), "r");
+                if (!f) {
+                    error() << "Failed to serialize" << path;
+                    return false;
+                }
+                SHA256 sha256;
+                char buf[16384];
+                while (true) {
+                    const int r = fread(buf, sizeof(char), sizeof(buf), f);
+                    if (r == -1) {
+                        error() << "Failed to serialize" << path;
+                        fclose(f);
+                        return false;
+                    } else if (r > 0) {
+                        sha256.update(buf, r);
+                    }
+                    if (r < static_cast<int>(sizeof(buf)))
+                        break;
+                }
+
+                fclose(f);
+            } else {
+                sha = SHA256::hash(unsavedContents);
+            }
+            serializer << sha;
+            return true;
+        };
+
+        bool ok = serialize(mSource.fileId);
+        if (ok) {
+            for (uint32_t dep : deps) {
+                if (!serialize(dep)) {
+                    ok = false;
+                    break;
+                }
+            }
+        }
+        if (!ok) {
+            fclose(manifest);
+        }
+    }
 
     return true;
 }

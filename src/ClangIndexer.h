@@ -123,7 +123,7 @@ private:
     String mClangLine;
     uint32_t mVisitFileResponseMessageFileId;
     bool mVisitFileResponseMessageVisit;
-    Path mSocketFile;
+    Path mSocketFile, mASTCacheDir;
     StopWatch mTimer;
     int mParseDuration, mVisitDuration, mBlocked, mAllowed,
         mIndexed, mVisitFileTimeout, mIndexerMessageTimeout, mFileIdsQueried;

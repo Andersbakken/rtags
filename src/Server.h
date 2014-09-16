@@ -76,13 +76,13 @@ public:
             : options(0), jobCount(0), unloadTimer(0),
               rpVisitFileTimeout(0), rpIndexerMessageTimeout(0), rpConnectTimeout(0),
               rpNiceValue(0), syncThreshold(0), threadStackSize(0), maxCrashCount(0),
-              completionCacheSize(0)
+              completionCacheSize(0), astCache(0)
         {}
         Path socketFile, dataDir;
         unsigned options;
         int jobCount, unloadTimer, rpVisitFileTimeout,
             rpIndexerMessageTimeout, rpConnectTimeout, rpNiceValue,
-            syncThreshold, threadStackSize, maxCrashCount, completionCacheSize;
+            syncThreshold, threadStackSize, maxCrashCount, completionCacheSize, astCache;
         List<String> defaultArguments, excludeFilters;
         Set<String> blockedArguments;
         List<Source::Include> includePaths;
