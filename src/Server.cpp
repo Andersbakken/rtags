@@ -443,30 +443,6 @@ void Server::handleLogOutputMessage(const std::shared_ptr<LogOutputMessage> &mes
 void Server::handleIndexerMessage(const std::shared_ptr<IndexerMessage> &message, Connection *conn)
 {
     mJobScheduler->handleIndexerMessage(message);
-
-    // std::shared_ptr<IndexData> indexData = message->data();
-    // // error() << "Got indexer message" << message->project() << Location::path(indexData->fileId());
-    // assert(indexData);
-    // auto it = mActiveJobs.find(indexData->pid);
-    // if (it != mActiveJobs.end()) {
-    //     std::shared_ptr<IndexerJob> job = it->second;
-    //     assert(job);
-    //     mActiveJobs.erase(it);
-
-    //     job->flags &= ~IndexerJob::Running;
-
-    //     // we only care about the first job that returns
-    //     if (!(job->flags & IndexerJob::Complete)) {
-    //         if (!(job->flags & IndexerJob::Aborted))
-    //             job->flags |= IndexerJob::Complete;
-    //         std::shared_ptr<Project> project = mProjects.value(message->project());
-    //         if (!project) {
-    //             error() << "Can't find project root for this IndexerMessage" << message->project() << Location::path(indexData->fileId());
-    //         } else {
-    //             project->onJobFinished(indexData, job);
-    //         }
-    //     }
-    // }
     conn->finish();
 }
 
@@ -1010,15 +986,6 @@ bool Server::shouldIndex(const Source &source, const Path &srcRoot) const
     return true;
 }
 
-// void Server::index(const std::shared_ptr<Unit> &unit, const std::shared_ptr<Project> &project)
-// {
-//     warning() << "Indexing" << source << "in" << project->path();
-//     if (!currentProject())
-//         setCurrentProject(project);
-//     assert(project);
-//     project->index(unit);
-// }
-
 void Server::setCurrentProject(const std::shared_ptr<Project> &project, unsigned int queryFlags)
 {
     std::shared_ptr<Project> old = currentProject();
@@ -1442,42 +1409,6 @@ static inline bool slowContains(const LinkedList<T> &list, const T &t)
     }
     return false;
 }
-
-// void Server::addJob(const std::shared_ptr<IndexerJob> &job)
-// {
-//     warning() << "adding job" << job->sourceFile;
-//     assert(job);
-//     assert(!(job->flags & IndexerJob::Complete));
-//     mPendingJobs.push_back(job);
-//     startJobs();
-// }
-
-// void Server::onJobFinished(Process *process, const std::shared_ptr<IndexerJob> &job)
-// {
-//     assert(process);
-//     error() << process->readAllStdErr() << process->readAllStdOut();
-//     if (job) {
-//         assert(job->process == process);
-//         assert(!(job->flags & IndexerJob::Complete));
-//         job->flags &= ~IndexerJob::Running;
-//         if (process->returnCode() != 0 && !(job->flags & IndexerJob::Aborted)) {
-//             job->flags |= IndexerJob::Crashed;
-//             std::shared_ptr<Project> proj = project(job->project);
-//             if (proj) {
-//                 std::shared_ptr<IndexData> data(new IndexData(job->flags));
-//                 data->key = job->source.key();
-//                 data->dependencies[job->source.fileId].insert(job->source.fileId);
-
-//                 EventLoop::eventLoop()->registerTimer([data, job, proj](int) { proj->onJobFinished(data, job); },
-//                                                       500, Timer::SingleShot);
-//                 // give it 500 ms before we try again
-//             }
-//         }
-//         job->process = 0;
-//     }
-//     EventLoop::deleteLater(process);
-//     startJobs();
-// }
 
 void Server::stopServers()
 {

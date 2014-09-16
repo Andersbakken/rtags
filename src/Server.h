@@ -97,10 +97,7 @@ public:
     bool suspended() const { return mSuspended; }
     bool saveFileIds();
     void onJobOutput(JobOutput&& out);
-    // void addJob(const std::shared_ptr<IndexerJob> &job);
     std::shared_ptr<Project> project(const Path &path) const { return mProjects.value(path); }
-    // void index(const Source &source, const Path &project, uint32_t flags);
-    // void index(const std::shared_ptr<Unit> &unit, const std::shared_ptr<Project> &project);
     bool shouldIndex(const Source &source, const Path &project) const;
     void stopServers();
     int mongooseStatistics(struct mg_connection *conn);
