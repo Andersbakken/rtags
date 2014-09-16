@@ -78,6 +78,20 @@ bool ClangIndexer::exec(const String &data)
     deserializer >> suspendOnSigSegv;
     deserializer >> mUnsavedFiles;
 
+#if 0
+    while (true) {
+        FILE *f = fopen((String("/tmp/stop_") + mSourceFile.fileName()).constData(), "r+");
+        if (f) {
+            fseek(f, 0, SEEK_END);
+            fprintf(f, "Waiting ... %d\n", getpid());
+            fclose(f);
+            sleep(1);
+        } else {
+            break;
+        }
+    }
+#endif
+
     uint32_t dirtySize;
     deserializer >> dirtySize;
     const uint64_t parseTime = Rct::currentTimeMs();
