@@ -251,7 +251,7 @@ static const char* valueArgs[] = {
     0
 };
 
-static const char* blacklist[] = {
+static const char *blacklist[] = {
     "-M",
     "-MM",
     "-MG",
@@ -271,10 +271,12 @@ static inline bool hasValue(const String &arg)
             return true;
     }
 
-    const Set<String> &blockedArguments = Server::instance()->options().blockedArguments;
-    for (const String &blockedArg : blockedArguments) {
-        if (blockedArg.endsWith('=') && blockedArg.startsWith(arg)) {
-            return true;
+    if (Server *server = Server::instance()) {
+        const Set<String> &blockedArguments = server->options().blockedArguments;
+        for (const String &blockedArg : blockedArguments) {
+            if (blockedArg.endsWith('=') && blockedArg.startsWith(arg)) {
+                return true;
+            }
         }
     }
 
