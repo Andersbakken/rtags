@@ -590,10 +590,12 @@ void Project::index(const std::shared_ptr<IndexerJob> &job)
     if (ref) {
         releaseFileIds(ref->visited);
         Server::instance()->jobScheduler()->abort(ref);
+        --mJobCounter;
     }
     ref = job;
 
-    mIndexData.remove(key);
+    if (mIndexData.remove(key))
+        --mJobCounter;
 
     if (!mJobCounter++)
         mTimer.start();
