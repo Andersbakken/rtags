@@ -82,6 +82,7 @@ public:
             rpIndexerMessageTimeout, rpConnectTimeout, rpNiceValue,
             syncThreshold, threadStackSize, maxCrashCount, completionCacheSize;
         List<String> defaultArguments, excludeFilters;
+        Set<String> blockedArguments;
         List<Source::Include> includePaths;
         List<Source::Define> defines;
         Set<Path> ignoredCompilers;

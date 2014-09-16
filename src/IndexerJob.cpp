@@ -94,7 +94,7 @@ String IndexerJob::encode() const
             copy.arguments << options.defaultArguments;
         }
 
-        if (!(options.flag(Server::AllowPedantic))) {
+        if (!options.flag(Server::AllowPedantic)) {
             const int idx = copy.arguments.indexOf("-Wpedantic");
             if (idx != -1) {
                 copy.arguments.removeAt(idx);
@@ -103,6 +103,25 @@ String IndexerJob::encode() const
 
         if (options.flag(Server::EnableCompilerManager))
             CompilerManager::applyToSource(copy, false, true);
+
+        for (const String &blocked : options.blockedArguments) {
+            if (blocked.endsWith("=")) {
+                const String arg = blocked.left(blocked.size() - 1);
+                const int idx = copy.arguments.indexOf(arg);
+                if (idx != -1) {
+                    const int count = idx + 1 < copy.arguments.size() ? 2 : 1;
+                    // error() << "removed args" << copy.arguments.at(idx)
+                    //         << copy.arguments.at(idx + count - 1);
+                    copy.arguments.remove(idx, count);
+                }
+            } else {
+                const int idx = copy.arguments.indexOf(blocked);
+                if (idx != -1) {
+                    // error() << "removed arg" << copy.arguments.at(idx);
+                    copy.arguments.removeAt(idx);
+                }
+            }
+        }
 
         for (const auto &inc : options.includePaths) {
             copy.includePaths << inc;

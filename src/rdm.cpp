@@ -104,6 +104,7 @@ static void usage(FILE *f)
             "  --unload-timer|-u [arg]                    Number of minutes to wait before unloading non-current projects (disabled by default).\n"
             "  --verbose|-v                               Change verbosity, multiple -v's are allowed.\n"
             "  --watch-system-paths|-w                    Watch system paths for changes.\n"
+            "  --block-argument|-G [arg]                  Block this argument from being passed to clang. E.g. rdm --block-argument -fno-inline\n"
 
             "\nCompiling/Indexing options:\n"
             "  --allow-Wpedantic|-P                       Don't strip out -Wpedantic. This can cause problems in certain projects.\n"
@@ -156,6 +157,7 @@ int main(int argc, char** argv)
         { "data-dir", required_argument, 0, 'd' },
         { "ignore-printf-fixits", no_argument, 0, 'F' },
         { "no-unlimited-errors", no_argument, 0, 'f' },
+        { "block-argument", required_argument, 0, 'G' },
         { "no-spell-checking", no_argument, 0, 'l' },
         { "sync-threshold", required_argument, 0, 'y' },
         { "large-by-value-copy", required_argument, 0, 'r' },
@@ -327,6 +329,9 @@ int main(int argc, char** argv)
             break;
         case 'X':
             serverOpts.excludeFilters += String(optarg).split(';');
+            break;
+        case 'G':
+            serverOpts.blockedArguments << optarg;
             break;
         case 'U': {
             Source::Language lang = Source::NoLanguage;

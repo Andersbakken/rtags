@@ -264,12 +264,20 @@ static const char* blacklist[] = {
     0
 };
 
-static inline bool hasValue(const String& arg)
+static inline bool hasValue(const String &arg)
 {
     for (int i = 0; valueArgs[i]; ++i) {
         if (arg == valueArgs[i])
             return true;
     }
+
+    const Set<String> &blockedArguments = Server::instance()->options().blockedArguments;
+    for (const String &blockedArg : blockedArguments) {
+        if (blockedArg.endsWith('=') && blockedArg.startsWith(arg)) {
+            return true;
+        }
+    }
+
     return false;
 }
 
