@@ -141,10 +141,14 @@ void parseTranslationUnit(const Path &sourceFile, const List<String> &args,
     if (clangLine)
         *clangLine += sourceFile;
 
-    StopWatch sw;
-    unit = clang_parseTranslationUnit(index, sourceFile.constData(),
-                                      clangArgs.data(), idx, unsaved, unsavedCount,
-                                      translationUnitFlags);
+    // StopWatch sw;
+    for (int i=0; i<3; ++i) {
+        auto error = clang_parseTranslationUnit2(index, sourceFile.constData(),
+                                                 clangArgs.data(), idx, unsaved, unsavedCount,
+                                                 translationUnitFlags, &unit);
+        if (error != CXError_Crashed)
+            break;
+    }
     // error() << sourceFile << sw.elapsed();
 }
 
