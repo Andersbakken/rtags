@@ -18,6 +18,7 @@ JobScheduler::~JobScheduler()
 
 void JobScheduler::add(const std::shared_ptr<IndexerJob> &job)
 {
+    assert(!(job->flags & ~IndexerJob::Type_Mask));
     std::shared_ptr<Node> node(new Node({ job, 0 }));
     node->job = job;
     if (job->flags & IndexerJob::Dirty) {
@@ -53,40 +54,38 @@ void JobScheduler::startJobs()
         }
 
         Process *process = new Process;
-        if (!process->start(rp)) {
+        List<String> arguments;
+        for (int i=logLevel(); i>0; --i)
+            arguments << "-v";
+        if (!process->start(rp, arguments)) {
             error() << "Couldn't start rp" << rp << process->errorString();
             delete process;
+            node->job->flags |= IndexerJob::Crashed;
             jobFinished(node->job, createData(node->job));
             rp.clear(); // in case rp was missing for a moment and we fell back to searching $PATH
             continue;
         }
         process->finished().connect([this](Process *proc) {
                 EventLoop::deleteLater(proc);
-                auto node = mActiveByProcess.take(proc).lock();
+                auto node = mActiveByProcess.take(proc);
                 assert(!node || node->process == proc);
+                const String stdErr = proc->readAllStdErr();
+                const String stdOut = proc->readAllStdOut();
+                if (!stdOut.isEmpty() || !stdErr.isEmpty()) {
+                    error() << (node ? node->job->sourceFile : String("Orphaned process")) << stdErr << stdOut;
+                }
+
                 if (node) {
                     assert(node->process == proc);
                     node->process = 0;
+                    assert(!(node->job->flags & IndexerJob::Aborted));
                     if (!(node->job->flags & IndexerJob::Complete) && proc->returnCode() != 0) {
                         auto nodeById = mActiveById.take(node->job->id);
                         assert(nodeById);
                         assert(nodeById == node);
                         // job failed, probably no IndexerMessage coming
-                        if (!(node->job->flags & IndexerJob::Aborted)) {
-                            const auto &options = Server::instance()->options();
-                            node->job->flags |= IndexerJob::Crashed;
-                            if (++node->job->crashCount > options.maxCrashCount) {
-                                jobFinished(node->job, createData(node->job));
-                            } else if (std::shared_ptr<Project> project = Server::instance()->project(node->job->project)) {
-                                project->releaseFileIds(node->job->visited);
-                                std::shared_ptr<IndexerJob> retry(new IndexerJob(node->job->source,
-                                                                                 node->job->flags & (IndexerJob::Dirty|IndexerJob::Compile),
-                                                                                 project->path(), node->job->unsavedFiles));
-                                retry->crashCount = node->job->crashCount;
-                                EventLoop::eventLoop()->registerTimer([retry, this](int) { add(retry); }, 500, Timer::SingleShot); // give it 500 ms before we try again
-                            }
-                        }
-                        // if we abort we don't expect to get a Project::jobFinished for it
+                        node->job->flags |= IndexerJob::Crashed;
+                        jobFinished(node->job, createData(node->job));
                     }
                 }
                 startJobs();
@@ -94,6 +93,7 @@ void JobScheduler::startJobs()
 
 
         node->process = process;
+        assert(!(node->job->flags & ~IndexerJob::Type_Mask));
         node->job->flags |= IndexerJob::Running;
         process->write(node->job->encode());
         mActiveByProcess[process] = node;
@@ -109,13 +109,12 @@ void JobScheduler::handleIndexerMessage(const std::shared_ptr<IndexerMessage> &m
         debug() << "Got IndexerMessage for unknown job";
         return;
     }
-    node->process = 0;
     jobFinished(node->job, data);
-    assert(node.use_count() == 1);
 }
 
 void JobScheduler::jobFinished(const std::shared_ptr<IndexerJob> &job, const std::shared_ptr<IndexData> &data)
 {
+    assert(!(job->flags & IndexerJob::Aborted));
     assert(job);
     assert(data);
     std::shared_ptr<Project> project = Server::instance()->project(job->project);
@@ -123,10 +122,19 @@ void JobScheduler::jobFinished(const std::shared_ptr<IndexerJob> &job, const std
         return;
 
     job->flags &= ~IndexerJob::Running;
-    if (!(job->flags & (IndexerJob::Aborted|IndexerJob::Crashed))) {
+    if (!(job->flags & IndexerJob::Crashed)) {
         job->flags |= IndexerJob::Complete;
+    } else {
+        ++job->crashCount;
+        const auto &options = Server::instance()->options();
+        assert(job->crashCount <= options.maxCrashCount);
+        if (job->crashCount < options.maxCrashCount) {
+            project->releaseFileIds(job->visited);
+            job->flags &= ~IndexerJob::Crashed;
+            EventLoop::eventLoop()->registerTimer([job, this](int) { add(job); }, 500, Timer::SingleShot); // give it 500 ms before we try again
+            return;
+        }
     }
-
     project->onJobFinished(job, data);
 }
 
@@ -157,10 +165,14 @@ void JobScheduler::abort(const std::shared_ptr<IndexerJob> &job)
     job->flags |= IndexerJob::Aborted;
     job->flags &= ~IndexerJob::Running;
     auto node = mActiveById.take(job->id);
-    if (!node) // if it's pending we will just not start it when it's ready due to the Aborted flag
+    if (!node) {// if it's pending we will just not start it when it's ready due to the Aborted flag
+        // error() << "aborting" << job->sourceFile << "no node";
         return;
+    }
     if (node->process) {
+        // error() << "Killing process" << node->process;
         node->process->kill();
+        mActiveByProcess.remove(node->process);
     }
 }
 std::shared_ptr<IndexData> JobScheduler::createData(const std::shared_ptr<IndexerJob> &job)

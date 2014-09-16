@@ -47,7 +47,7 @@ private:
 
     int mMaxJobs;
     EmbeddedLinkedList<std::shared_ptr<Node> > mPendingJobs;
-    Hash<Process *, std::weak_ptr<Node> > mActiveByProcess;
+    Hash<Process *, std::shared_ptr<Node> > mActiveByProcess;
     Hash<uint64_t, std::shared_ptr<Node> > mActiveById;
 };
 
