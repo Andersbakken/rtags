@@ -142,6 +142,7 @@ void parseTranslationUnit(const Path &sourceFile, const List<String> &args,
         *clangLine += sourceFile;
 
     // StopWatch sw;
+#if CINDEX_VERSION_MINOR >= 23
     for (int i=0; i<3; ++i) {
         auto error = clang_parseTranslationUnit2(index, sourceFile.constData(),
                                                  clangArgs.data(), idx, unsaved, unsavedCount,
@@ -149,6 +150,11 @@ void parseTranslationUnit(const Path &sourceFile, const List<String> &args,
         if (error != CXError_Crashed)
             break;
     }
+#else
+    unit = clang_parseTranslationUnit(index, sourceFile.constData(),
+                                      clangArgs.data(), idx, unsaved, unsavedCount,
+                                      translationUnitFlags);
+#endif
     // error() << sourceFile << sw.elapsed();
 }
 

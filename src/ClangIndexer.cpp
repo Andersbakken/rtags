@@ -1082,10 +1082,17 @@ bool ClangIndexer::loadFromCache()
     }
 
     {
+#if CINDEX_VERSION_MINOR >= 23
         auto response = clang_createTranslationUnit2(mIndex, file.constData(), &mClangUnit);
+#else
+        mClangUnit = clang_createTranslationUnit(mIndex, file.constData());
+#endif
         if (!mClangUnit) {
             warning() << "Discarding cached AST unit" << file << manifestFile
-                      << "because the AST failed to load" << response
+                      << "because the AST failed to load"
+#if CINDEX_VERSION_MINOR >= 23
+                      << response
+#endif
                       << sw.elapsed();
             Path::rm(file);
             Path::rm(manifestFile);
