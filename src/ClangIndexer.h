@@ -23,6 +23,8 @@ private:
     bool diagnose();
     bool visit();
     bool parse();
+    bool loadFromCache();
+    String shaFile(const Path &path) const;
 
     void addFileSymbol(uint32_t file);
     inline Location createLocation(const CXSourceLocation &location, bool *blocked = 0)

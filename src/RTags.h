@@ -33,6 +33,7 @@ class Project;
 namespace RTags {
 
 enum { DatabaseVersion = 49 };
+enum { ASTManifestVersion = 1 };
 
 enum {
     CompilationError = -1,

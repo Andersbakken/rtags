@@ -6,6 +6,7 @@
 #include "VisitFileResponseMessage.h"
 #include <rct/Connection.h>
 #include <rct/EventLoop.h>
+#include "RTags.h"
 #include "IndexerMessage.h"
 #include "IndexData.h"
 #include <unistd.h>
@@ -194,38 +195,13 @@ bool ClangIndexer::exec(const String &data)
         Serializer serializer(manifest);
         const Set<uint32_t> &deps = mData->dependencies[mSource.fileId];
         assert(deps.contains(mSource.fileId));
-        serializer << mSourceFile << mSource << deps.size();
+        serializer << static_cast<uint8_t>(RTags::ASTManifestVersion) << mSource << deps.size();
         auto serialize = [this, &serializer](uint32_t file) {
             const Path path = Location::path(file);
-            serializer << path;
-            String sha;
-            const String unsavedContents = mUnsavedFiles.value(path);
-            if (unsavedContents.isEmpty()) {
-                FILE *f = fopen(path.constData(), "r");
-                if (!f) {
-                    error() << "Failed to serialize" << path;
-                    return false;
-                }
-                SHA256 sha256;
-                char buf[16384];
-                while (true) {
-                    const int r = fread(buf, sizeof(char), sizeof(buf), f);
-                    if (r == -1) {
-                        error() << "Failed to serialize" << path;
-                        fclose(f);
-                        return false;
-                    } else if (r > 0) {
-                        sha256.update(buf, r);
-                    }
-                    if (r < static_cast<int>(sizeof(buf)))
-                        break;
-                }
-
-                fclose(f);
-            } else {
-                sha = SHA256::hash(unsavedContents);
-            }
-            serializer << sha;
+            const String sha = shaFile(path);
+            if (sha.isEmpty())
+                return false;
+            serializer << path << sha;
             return true;
         };
 
@@ -1038,6 +1014,75 @@ bool ClangIndexer::handleCursor(const CXCursor &cursor, CXCursorKind kind, const
     return true;
 }
 
+bool ClangIndexer::loadFromCache()
+{
+    StopWatch sw;
+    if (mASTCacheDir.isEmpty())
+        return false;
+
+    Path file = mSourceFile;
+    RTags::encodePath(file);
+    file.prepend(mASTCacheDir);
+    if (!file.isFile())
+        return false;
+    const Path manifestFile = file + ".manifest";
+    const String data = manifestFile.readAll();
+    if (data.isEmpty())
+        return false;
+
+    Deserializer deserializer(data);
+    uint8_t version;
+    deserializer >> version;
+    if (version != RTags::ASTManifestVersion) {
+        error() << "Discarding cached AST unit" << file << manifestFile
+                << "because of version mismatch" << version << RTags::ASTManifestVersion
+                << sw.elapsed();
+        Path::rm(file);
+        Path::rm(manifestFile);
+        return false;
+    }
+
+    Source source;
+    deserializer >> source;
+    if (source != mSource) {
+        error() << "Discarding cached AST unit" << file << manifestFile
+                << "because of version mismatch" << version << RTags::ASTManifestVersion
+                << sw.elapsed();
+        Path::rm(file);
+        Path::rm(manifestFile);
+        return false;
+    }
+
+    int depsCount;
+    deserializer >> depsCount;
+    while (depsCount--) {
+        Path p;
+        String sha;
+        deserializer >> p >> sha;
+        if (shaFile(p) != sha) {
+            error() << "Discarding cached AST unit" << file << manifestFile
+                    << "because of different sha for" << p
+                    << sw.elapsed();
+            Path::rm(file);
+            Path::rm(manifestFile);
+            return false;
+        }
+    }
+
+    auto response = clang_createTranslationUnit2(mIndex, file.constData(), &mClangUnit);
+    if (!mClangUnit) {
+        error() << "Discarding cached AST unit" << file << manifestFile
+                << "because the AST failed to load" << response
+                << sw.elapsed();
+        Path::rm(file);
+        Path::rm(manifestFile);
+        return false;
+    }
+
+    error() << "loaded it from AST" << file << sw.elapsed();
+    return true;
+}
+
 bool ClangIndexer::parse()
 {
     StopWatch sw;
@@ -1045,27 +1090,29 @@ bool ClangIndexer::parse()
     assert(!mIndex);
     mIndex = clang_createIndex(0, 1);
     assert(mIndex);
-    const unsigned int commandLineFlags = Source::FilterBlacklist|Source::IncludeDefines|Source::IncludeIncludepaths;
-    const unsigned int flags = CXTranslationUnit_DetailedPreprocessingRecord;
-    List<CXUnsavedFile> unsavedFiles(mUnsavedFiles.size() + 1);
-    int unsavedIndex = 0;
-    for (const auto &it : mUnsavedFiles) {
-        unsavedFiles[unsavedIndex++] = {
-            it.first.constData(),
-            it.second.constData(),
-            static_cast<unsigned long>(it.second.size())
-        };
+    if (!loadFromCache()) {
+        const unsigned int commandLineFlags = Source::FilterBlacklist|Source::IncludeDefines|Source::IncludeIncludepaths;
+        const unsigned int flags = CXTranslationUnit_DetailedPreprocessingRecord;
+        List<CXUnsavedFile> unsavedFiles(mUnsavedFiles.size() + 1);
+        int unsavedIndex = 0;
+        for (const auto &it : mUnsavedFiles) {
+            unsavedFiles[unsavedIndex++] = {
+                it.first.constData(),
+                it.second.constData(),
+                static_cast<unsigned long>(it.second.size())
+            };
+        }
+
+        debug() << "CI::parse: " << mSource.toCommandLine(commandLineFlags) << "\n";
+
+        // for (const auto it : mSource.toCommandLine(commandLineFlags)) {
+        //     error("[%s]", it.constData());
+        // }
+        RTags::parseTranslationUnit(mSourceFile, mSource.toCommandLine(commandLineFlags), mClangUnit,
+                                    mIndex, &unsavedFiles[0], unsavedIndex, flags, &mClangLine);
+
+        warning() << "CI::parse loading unit:" << mClangLine << " " << (mClangUnit != 0);
     }
-
-    debug() << "CI::parse: " << mSource.toCommandLine(commandLineFlags) << "\n";
-
-    // for (const auto it : mSource.toCommandLine(commandLineFlags)) {
-    //     error("[%s]", it.constData());
-    // }
-    RTags::parseTranslationUnit(mSourceFile, mSource.toCommandLine(commandLineFlags), mClangUnit,
-                                mIndex, &unsavedFiles[0], unsavedIndex, flags, &mClangLine);
-
-    warning() << "CI::parse loading unit:" << mClangLine << " " << (mClangUnit != 0);
     if (mClangUnit) {
         clang_getInclusions(mClangUnit, ClangIndexer::inclusionVisitor, this);
         mParseDuration = sw.elapsed();
@@ -1444,4 +1491,33 @@ CXCursor ClangIndexer::resolveAutoTypeRef(const CXCursor &cursor) const
     }
     // error() << "Need to find type for" << cursor << child;
     return nullCursor;
+}
+String ClangIndexer::shaFile(const Path &path) const
+{
+    const String unsavedContents = mUnsavedFiles.value(path);
+    if (!unsavedContents.isEmpty())
+        return SHA256::hash(unsavedContents);
+
+    FILE *f = fopen(path.constData(), "r");
+    if (!f) {
+        error() << "Failed to serialize" << path;
+        return String();
+    }
+    SHA256 sha256;
+    char buf[16384];
+    while (true) {
+        const int r = fread(buf, sizeof(char), sizeof(buf), f);
+        if (r == -1) {
+            error() << "Failed to serialize" << path;
+            fclose(f);
+            return String();
+        } else if (r > 0) {
+            sha256.update(buf, r);
+        }
+        if (r < static_cast<int>(sizeof(buf)))
+            break;
+    }
+
+    fclose(f);
+    return sha256.hash();
 }
