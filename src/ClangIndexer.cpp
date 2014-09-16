@@ -148,11 +148,10 @@ bool ClangIndexer::exec(const String &data)
     mData->message = mSourceFile.toTilde();
     if (!mClangUnit)
         mData->message += " error";
-    mData->message += String::format<16>(" in %dms. ", mTimer.elapsed());
+    mData->message += String::format<16>(" in %dms%s. ", mTimer.elapsed(), mLoadedFromCache ? " (cached)" : "");
     if (mClangUnit) {
-        const char *format = "(%s%d syms, %d symNames, %d deps, %d of %d files, cursors: %d of %d, %d queried) (%d/%dms)";
-        mData->message += String::format<128>(format, mLoadedFromCache ? "cache " : "",
-                                              mData->symbols.size(), mData->symbolNames.size(),
+        const char *format = "(%d syms, %d symNames, %d deps, %d of %d files, cursors: %d of %d, %d queried) (%d/%dms)";
+        mData->message += String::format<128>(format, mData->symbols.size(), mData->symbolNames.size(),
                                               mData->dependencies.size(), mIndexed, mData->visited.size(), mAllowed,
                                               mAllowed + mBlocked, mFileIdsQueried,
                                               mParseDuration, mVisitDuration);
