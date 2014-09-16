@@ -42,7 +42,7 @@ class RestoreThread : public Thread
 {
 public:
     RestoreThread(const std::shared_ptr<Project> &project)
-        : mFinished(false), mPath(project->path()), mWeak(project)
+        : mPath(project->path()), mWeak(project)
     {
         setAutoDelete(true);
     }
@@ -51,20 +51,27 @@ public:
     {
         StopWatch timer;
         RestoreThread *thread = restore() ? this : 0;
+        std::mutex mutex;
+        std::condition_variable condition;
+        bool finished = false;
 
-        EventLoop::mainEventLoop()->callLater([thread, &timer, this]() {
+        EventLoop::mainEventLoop()->callLater([this, thread, &timer, &mutex, &condition, &finished]() {
                 if (std::shared_ptr<Project> proj = mWeak.lock()) {
                     proj->updateContents(thread);
                     if (thread)
                         error() << "Restored project" << mPath << "in" << timer.elapsed() << "ms";
                 }
-                this->finish();
+                std::unique_lock<std::mutex> lock(mutex);
+                finished = true;
+                condition.notify_one();
             });
-        std::unique_lock<std::mutex> lock(mMutex);
-        while (!mFinished) {
-            mCondition.wait(lock);
+
+        std::unique_lock<std::mutex> lock(mutex);
+        while (!finished) {
+            condition.wait(lock);
         }
     }
+
     bool restore()
     {
         Path path = mPath;
@@ -89,16 +96,6 @@ public:
         return true;
     }
 
-    void finish()
-    {
-        std::lock_guard<std::mutex> lock(mMutex);
-        mFinished = true;
-        mCondition.notify_one();
-    }
-
-    std::mutex mMutex;
-    std::condition_variable mCondition;
-    bool mFinished;
     const Path mPath;
     SymbolMap mSymbols;
     SymbolNameMap mSymbolNames;
