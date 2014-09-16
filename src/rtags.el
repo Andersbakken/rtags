@@ -1510,7 +1510,11 @@ References to references will be treated as references to the referenced symbol"
       (error "Set buffer with file %s read only " (buffer-file-name)))
   (setq buffer-read-only t))
 
-(defun rtags-init-diagnostics-buffer-and-process (&optional nodirty)
+;;;###autoload
+(defun rtags-diagnostics (&optional restart nodirty)
+  (interactive "P")
+  (if restart
+      (rtags-stop-diagnostics))
   (let ((buf (get-buffer-create "*RTags Diagnostics*")))
     (unless nodirty (rtags-reparse-file))
     (with-current-buffer buf
@@ -1522,14 +1526,7 @@ References to references will be treated as references to the referenced symbol"
         (let ((process-connection-type nil)) ;; use a pipe
           (setq rtags-diagnostics-process (start-process "RTags Diagnostics" buf (rtags-executable-find "rc") "-m"))
           (set-process-filter rtags-diagnostics-process (function rtags-diagnostics-process-filter))
-          (rtags-clear-diagnostics)))))
-
-;;;###autoload
-(defun rtags-diagnostics (&optional restart nodirty)
-  (interactive "P")
-  (if restart
-      (rtags-stop-diagnostics))
-  (rtags-init-diagnostics-buffer-and-process)
+          (rtags-clear-diagnostics))))
   (when (called-interactively-p 'any)
     (switch-to-buffer-other-window "*RTags Diagnostics*")
     (other-window 1)))
