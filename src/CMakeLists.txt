@@ -33,6 +33,8 @@ if (EXISTS ${CLANG_COMPILATION_INCLUDE})
   add_definitions(-DHAVE_CXCOMPILATIONDATABASE)
 endif ()
 
+set(RCT_STATIC 1)
+set(RCT_NO_INSTALL 1)
 add_subdirectory(rct)
 
 include(${CMAKE_CURRENT_LIST_DIR}/rct/compiler.cmake)
@@ -78,7 +80,7 @@ set(RTAGS_SHARED_SOURCES
   QueryMessage.cpp
   RTags.cpp)
 
-add_library(shared SHARED ${RTAGS_SHARED_SOURCES})
+add_library(shared STATIC ${RTAGS_SHARED_SOURCES})
 target_link_libraries(shared rct)
 
 set(RTAGS_SOURCES
@@ -135,7 +137,7 @@ add_executable(rc rc.cpp RClient.cpp)
 add_dependencies(rc rct shared)
 target_link_libraries(rc shared rct ${SYSTEM_LIBS})
 
-add_library(rtags SHARED ${RTAGS_SOURCES})
+add_library(rtags STATIC ${RTAGS_SOURCES})
 target_link_libraries(rtags
   rct
   shared
@@ -151,8 +153,8 @@ add_executable(rdm rdm.cpp)
 target_link_libraries(rdm rtags -lstdc++ ${SYSTEM_LIBS})
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/bin)
 
-set (RP_LIBRARIES rtags shared)
-set (RP_SOURCES rp.cpp ClangIndexer.cpp)
+set(RP_LIBRARIES rtags shared)
+set(RP_SOURCES rp.cpp ClangIndexer.cpp)
 
 add_executable(rp ${RP_SOURCES})
 target_link_libraries(rp ${RP_LIBRARIES})
@@ -168,17 +170,10 @@ if (NOT "${PROJECT_SOURCE_DIR}" STREQUAL "${PROJECT_BINARY_DIR}")
   file (COPY ${binFiles} DESTINATION "${PROJECT_BINARY_DIR}/bin")
 endif ()
 
-if (CMAKE_SYSTEM_NAME MATCHES "Darwin")
-  add_custom_command(TARGET rdm POST_BUILD
-    COMMAND ${CMAKE_CURRENT_LIST_DIR}/fix-dylib.sh ${PROJECT_BINARY_DIR} ${PROJECT_BINARY_DIR}/bin/rdm)
-  add_custom_command(TARGET rc POST_BUILD
-    COMMAND ${CMAKE_CURRENT_LIST_DIR}/fix-dylib.sh ${PROJECT_BINARY_DIR} ${PROJECT_BINARY_DIR}/bin/rc)
-endif ()
 
 install(CODE "message(\"Installing rtags...\")")
 install(TARGETS rdm rc rp RUNTIME DESTINATION bin COMPONENT rtags)
-install(TARGETS rtags shared LIBRARY DESTINATION lib COMPONENT rtags)
-install(FILES ../bin/cc_prefix.sh ../bin/gcc-rtags-hook.sh ../bin/gcc-rtags-wrapper.sh
+#install(TARGETS rtags shared LIBRARY DESTINATION lib ARCHIVE DESTINATION lib COMPONENT rtags)
         DESTINATION bin
         PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE)
 install(FILES ../man/rc.7 ../man/rdm.7 DESTINATION share/man/man7/)
