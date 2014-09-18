@@ -173,7 +173,4 @@ endif ()
 
 install(CODE "message(\"Installing rtags...\")")
 install(TARGETS rdm rc rp RUNTIME DESTINATION bin COMPONENT rtags)
-#install(TARGETS rtags shared LIBRARY DESTINATION lib ARCHIVE DESTINATION lib COMPONENT rtags)
-        DESTINATION bin
-        PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE)
 install(FILES ../man/rc.7 ../man/rdm.7 DESTINATION share/man/man7/)
