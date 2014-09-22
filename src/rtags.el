@@ -885,7 +885,8 @@ return t if rtags is allowed to modify this file"
 
 ;;;###autoload
 (defun rtags-quit-rdm () (interactive)
-  (call-process (rtags-executable-find "rc") nil nil nil "--quit-rdm"))
+  (call-process (rtags-executable-find "rc") nil nil nil "--quit-rdm")
+  (setq rtags-process nil))
 
 ;;;###autoload
 (defun rtags-location-stack-forward ()
