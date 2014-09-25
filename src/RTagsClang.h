@@ -20,6 +20,7 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 #include "RTags.h"
 #include "CursorInfo.h"
 #define __STDC_CONSTANT_MACROS
+#define __STDC_LIMIT_MACROS
 #include <clang/Basic/Version.h>
 
 struct Unit;
