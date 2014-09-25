@@ -23,11 +23,11 @@ set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wstack-protector")
 
 include(${CMAKE_SOURCE_DIR}/cmake/EnsureLibraries.cmake)
 
-find_package(LLVM REQUIRED)
+# find_package(LLVM REQUIRED)
 find_package(Clang REQUIRED)
 find_package(LibClang REQUIRED)
 include_directories(${CLANG_INCLUDE})
-include_directories(${LLVM_INCLUDE_DIRS} ${CLANG_INCLUDE_DIRS})
+# include_directories(${LLVM_INCLUDE_DIRS} ${CLANG_INCLUDE_DIRS})
 
 if (EXISTS ${CLANG_COMPILATION_INCLUDE})
   add_definitions(-DHAVE_CXCOMPILATIONDATABASE)
@@ -68,7 +68,7 @@ elseif (CMAKE_SYSTEM_NAME MATCHES "Darwin")
     #   set(HAVE_FSEVENTS 1)
   endif ()
 endif ()
-list(APPEND SYSTEM_LIBS ${LLVM_LDFLAGS})
+# list(APPEND SYSTEM_LIBS ${LLVM_LDFLAGS})
 
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/bin)
 add_definitions("-DRTAGS_BIN=\"${PROJECT_BINARY_DIR}/bin/\"")
@@ -113,7 +113,7 @@ include_directories(${CMAKE_CURRENT_LIST_DIR}
                     rct
                     ${CMAKE_CURRENT_BINARY_DIR}/rct/include/rct)
 
-link_directories(${LLVM_LIBRARY_DIRS})
+# link_directories(${LLVM_LIBRARY_DIRS})
 
 if (CMAKE_SYSTEM_NAME MATCHES "Darwin")
   set(START_GROUP "")
@@ -143,7 +143,7 @@ target_link_libraries(rtags
   shared
   ${START_GROUP}
   ${CLANG_LIBS}
-  ${LLVM_LIBNAMES}
+  # ${LLVM_LIBNAMES}
   ${END_GROUP}
   -lstdc++
   ${SYSTEM_LIBS})
