@@ -14,15 +14,14 @@
    along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 
 #include "RClient.h"
-#include <clang/Basic/Version.h>
 #include "CompileMessage.h"
 #include "LogOutputMessage.h"
 #include <rct/Connection.h>
 #include <rct/EventLoop.h>
 #include <rct/Log.h>
 #include <rct/Rct.h>
+#include "RTagsClang.h"
 #include <rct/RegExp.h>
-
 enum OptionType {
     None = 0,
     AbsolutePath,

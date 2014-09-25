@@ -19,6 +19,8 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 #include "Source.h"
 #include "RTags.h"
 #include "CursorInfo.h"
+#define __STDC_CONSTANT_MACROS
+#include <clang/Basic/Version.h>
 
 struct Unit;
 inline bool operator==(const CXCursor &l, CXCursorKind r)
