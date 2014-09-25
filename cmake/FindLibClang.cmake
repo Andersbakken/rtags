@@ -1,30 +1,62 @@
-if(NOT DEFINED CLANG_ROOT)
+if (NOT DEFINED CLANG_ROOT)
   set(CLANG_ROOT $ENV{CLANG_ROOT})
-endif()
+endif ()
 
-find_path(CLANG_INCLUDE clang-c/Index.h
-  HINTS
-  ${CLANG_ROOT}/include
-  ${LLVM_INCLUDE_DIRS}
-  NO_DEFAULT_PATH)
+set(llvm_config_names
+  llvm-config
+  llvm-config35
+  llvm-config-3.5
+  llvm-config-mp-3.5
+  llvm-config34
+  llvm-config-3.4
+  llvm-config-mp-3.4
+  llvm-config33
+  llvm-config-3.3
+  llvm-config-mp-3.3
+  llvm-config32
+  llvm-config-3.2
+  llvm-config-mp-3.2
+  llvm-config31
+  llvm-config-3.1
+  llvm-config-mp-3.1)
+find_program(LLVM_CONFIG_EXECUTABLE NAMES ${llvm_config_names})
+
+if (LLVM_CONFIG_EXECUTABLE)
+  message(STATUS "LLVM llvm-config found at: ${LLVM_CONFIG_EXECUTABLE}")
+else ()
+  message(FATAL_ERROR "Could NOT find LLVM executable.")
+endif ()
+
 if (NOT EXISTS ${CLANG_INCLUDE})
-  find_path(CLANG_INCLUDE clang-c/Index.h)
+  find_path(CLANG_INCLUDE clang-c/Index.h HINTS ${CLANG_ROOT}/include NO_DEFAULT_PATH)
+  if (NOT EXISTS ${CLANG_INCLUDE})
+    execute_process(COMMAND ${LLVM_CONFIG_EXECUTABLE} --includedir OUTPUT_VARIABLE CLANG_INCLUDE OUTPUT_STRIP_TRAILING_WHITESPACE)
+    if (NOT EXISTS ${CLANG_INCLUDE})
+      find_path(CLANG_INCLUDE clang-c/Index.h)
+      if (NOT EXISTS ${CLANG_INCLUDE})
+        message(FATAL_ERROR "Could NOT find clang include path. You can maybe fix this by setting CLANG_INCLUDE in your shell or as a cmake variable.")
+      endif ()
+    endif ()
+  endif ()
 endif ()
 
-find_path(CLANG_COMPILATION_INCLUDE clang-c/CXCompilationDatabase.h
-  HINTS
-  ${CLANG_ROOT}/include
-  ${LLVM_INCLUDE_DIRS}
-  NO_DEFAULT_PATH)
-if (NOT EXISTS ${CLANG_COMPILATION_INCLUDE})
-  find_path(CLANG_COMPILATION_INCLUDE clang-c/CXCompilationDatabase.h)
+if (NOT EXISTS ${CLANG_LIBS})
+  find_library(CLANG_LIBS NAMES clang libclang ${CLANG_ROOT}/lib NO_DEFAULT_PATH)
+  if (NOT EXISTS ${CLANG_LIBS})
+    execute_process(COMMAND ${LLVM_CONFIG_EXECUTABLE} --libdir OUTPUT_VARIABLE CLANG_LIBS OUTPUT_STRIP_TRAILING_WHITESPACE)
+    if (NOT EXISTS ${CLANG_LIBS})
+      if (NOT EXISTS ${CLANG_LIBS})
+        find_library(CLANG_LIBS NAMES clang libclang)
+        if (NOT EXISTS ${CLANG_LIBS})
+          message(FATAL_ERROR "Could NOT find clang libraries. You can maybe fix this by setting CLANG_LIBS in your shell or as a cmake variable.")
+        endif ()
+      endif ()
+    else ()
+      set (CLANG_LIBDIR "${CLANG_LIBS}")
+      set (CLANG_LIBS "-L${CLANG_LIBS}" "-lclang")
+    endif ()
+  endif ()
 endif ()
-
-if (EXISTS ${CLANG_INCLUDE})
-  if ("${CLANG_ROOT}" STREQUAL "")
-    string(REGEX REPLACE "\\/include" "" CLANG_ROOT ${CLANG_INCLUDE})
-  endif()
-endif()
 
 if (EXISTS "${CLANG_INCLUDE}/clang/Basic/Version.inc")
   file(READ "${CLANG_INCLUDE}/clang/Basic/Version.inc" CLANG_VERSION_DATA)
@@ -55,12 +87,10 @@ if ("${CLANG_VERSION}" STREQUAL "")
   message(FATAL_ERROR "Unable to parse ClangVersion from ${CLANG_INCLUDE}/clang/Basic/Version.inc")
 endif ()
 
-message("Using Clang version ${CLANG_VERSION} from ${CLANG_INCLUDE}/clang-c/")
-
 if (EXISTS "${CLANG_INCLUDE}/clang/${CLANG_VERSION}/include/limits.h")
   set(CLANG_SYSTEM_INCLUDE "${CLANG_INCLUDE}/clang/${CLANG_VERSION}/include/")
 else ()
-  set(CLANG_SYSTEM_INCLUDE ${CLANG_LIBS})
+  set(CLANG_SYSTEM_INCLUDE ${CLANG_LIBDIR})
   string(FIND "${CLANG_SYSTEM_INCLUDE}" ";" SEMI)
   if (SEMI)
     string(SUBSTRING "${CLANG_SYSTEM_INCLUDE}" 0 ${SEMI} CLANG_SYSTEM_INCLUDE)
@@ -76,3 +106,6 @@ else ()
     endif ()
   endif ()
 endif ()
+
+message("Using Clang version ${CLANG_VERSION} from ${CLANG_INCLUDE}/clang-c/")
+

@@ -24,10 +24,24 @@ set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wstack-protector")
 include(${CMAKE_SOURCE_DIR}/cmake/EnsureLibraries.cmake)
 
 # find_package(LLVM REQUIRED)
-find_package(Clang REQUIRED)
-find_package(LibClang REQUIRED)
+# find_package(Clang REQUIRED)
+if (NOT DEFINED CLANG_LIBS)
+  set(CLANG_LIBS $ENV{CLANG_LIBS})
+endif()
+
+if (NOT DEFINED CLANG_INCLUDE)
+  set(CLANG_LIBS $ENV{CLANG_INCLUDE})
+endif()
+
+if (NOT DEFINED CLANG_SYSTEM_INCLUDE)
+  set(CLANG_LIBS $ENV{CLANG_SYSTEM_INCLUDE})
+endif()
+
+if (NOT DEFINED CLANG_LIBS OR NOT DEFINED CLANG_INCLUDE)
+  find_package(LibClang REQUIRED)
+endif ()
+
 include_directories(${CLANG_INCLUDE})
-# include_directories(${LLVM_INCLUDE_DIRS} ${CLANG_INCLUDE_DIRS})
 
 if (EXISTS ${CLANG_COMPILATION_INCLUDE})
   add_definitions(-DHAVE_CXCOMPILATIONDATABASE)
@@ -48,8 +62,6 @@ endif ()
 
 add_definitions("-Wall")
 add_definitions("-DCLANG_INCLUDEPATH=${CLANG_SYSTEM_INCLUDE}")
-add_definitions("-DCLANG_VERSION_MAJOR=${CLANG_VERSION_MAJOR}")
-add_definitions("-DCLANG_VERSION_MINOR=${CLANG_VERSION_MINOR}")
 add_definitions("-DOS_${CMAKE_SYSTEM_NAME}")
 
 if (CMAKE_SYSTEM_NAME MATCHES "Linux")

@@ -29,8 +29,8 @@
 #include "Source.h"
 #include "DumpThread.h"
 #include "DataFile.h"
-#if defined(HAVE_CXCOMPILATIONDATABASE)
-#  include <clang-c/CXCompilationDatabase.h>
+#if CLANG_VERSION_MAJOR > 3 || (CLANG_VERSION_MAJOR == 3 && CLANG_VERSION_MINOR > 3)
+#include <clang-c/CXCompilationDatabase.h>
 #endif
 #include "ListSymbolsJob.h"
 #include "LogObject.h"
@@ -394,7 +394,7 @@ bool Server::index(const String &arguments, const Path &pwd, const Path &project
 
 void Server::handleCompileMessage(const std::shared_ptr<CompileMessage> &message, Connection *conn)
 {
-#if defined(HAVE_CXCOMPILATIONDATABASE) && CLANG_VERSION_MINOR >= 3
+#if CLANG_VERSION_MAJOR > 3 || (CLANG_VERSION_MAJOR == 3 && CLANG_VERSION_MINOR > 3)
     const Path path = message->compilationDatabaseDir();
     if (!path.isEmpty()) {
         CXCompilationDatabase_Error err;

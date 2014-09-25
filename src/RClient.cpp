@@ -14,6 +14,7 @@
    along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 
 #include "RClient.h"
+#include <clang/Basic/Version.h>
 #include "CompileMessage.h"
 #include "LogOutputMessage.h"
 #include <rct/Connection.h>
@@ -146,7 +147,7 @@ struct Option opts[] = {
     { None, 0, 0, 0, "" },
     { None, 0, 0, 0, "Indexing commands:" },
     { Compile, "compile", 'c', optional_argument, "Pass compilation arguments to rdm." },
-#if defined(HAVE_CXCOMPILATIONDATABASE) && CLANG_VERSION_MINOR >= 3
+#if CLANG_VERSION_MAJOR > 3 || (CLANG_VERSION_MAJOR == 3 && CLANG_VERSION_MINOR > 3)
     { LoadCompilationDatabase, "load-compilation-database", 'J', optional_argument, "Load compile_commands.json from directory" },
 #endif
     { Suspend, "suspend", 'X', optional_argument, "Dump suspended files (don't track changes in these files) with no arg. Otherwise toggle suspension for arg." },
@@ -906,7 +907,7 @@ bool RClient::parse(int &argc, char **argv)
                 projectCommands.append(std::static_pointer_cast<QueryCommand>(mCommands.back()));
             break; }
         case LoadCompilationDatabase: {
-#if defined(HAVE_CXCOMPILATIONDATABASE) && CLANG_VERSION_MINOR >= 3
+#if CLANG_VERSION_MAJOR > 3 || (CLANG_VERSION_MAJOR == 3 && CLANG_VERSION_MINOR > 3)
             Path dir;
             if (optarg) {
                 dir = optarg;
