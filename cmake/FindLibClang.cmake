@@ -111,5 +111,5 @@ else ()
   endif ()
 endif ()
 
-message("     Using Clang version ${CLANG_VERSION} from ${CLANG_INCLUDE}/clang-c/")
+message("-- Using Clang version ${CLANG_VERSION} from ${CLANG_INCLUDE}/clang-c/")
 
