@@ -28,7 +28,7 @@ public:
     JobScheduler(int maxJobs);
     ~JobScheduler();
     int maxJobs() const { return mMaxJobs; }
-    void setMaxJobs(int maxJobs) { mMaxJobs = maxJobs; }
+    void setMaxJobs(int maxJobs) { mMaxJobs = maxJobs; startJobs(); }
 
     void add(const std::shared_ptr<IndexerJob> &job);
     void handleIndexerMessage(const std::shared_ptr<IndexerMessage> &message);
