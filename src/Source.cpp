@@ -647,7 +647,6 @@ static inline bool advance(Set<Source::Define>::const_iterator &it, const Set<So
 
 static inline bool compareDefinesNoNDEBUG(const Set<Source::Define> &l, const Set<Source::Define> &r)
 {
-    error() << l << r;
     auto lit = l.begin();
     auto rit = r.begin();
     while (true) {
