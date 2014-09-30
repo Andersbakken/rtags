@@ -13,20 +13,20 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 
-#include "CompileMessage.h"
+#include "IndexMessage.h"
 #include <rct/Serializer.h>
 
-CompileMessage::CompileMessage()
+IndexMessage::IndexMessage()
     : RTagsMessage(MessageId), mEscape(false)
 {
 }
 
-void CompileMessage::encode(Serializer &serializer) const
+void IndexMessage::encode(Serializer &serializer) const
 {
     serializer << mRaw << mWorkingDirectory << mProjectRoot << mCompilationDatabaseDir << mArgs << mEscape;
 }
 
-void CompileMessage::decode(Deserializer &deserializer)
+void IndexMessage::decode(Deserializer &deserializer)
 {
     deserializer >> mRaw >> mWorkingDirectory >> mProjectRoot >> mCompilationDatabaseDir >> mArgs >> mEscape;
 }

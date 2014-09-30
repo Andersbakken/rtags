@@ -19,7 +19,7 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 #include "VisitFileMessage.h"
 #include "VisitFileResponseMessage.h"
 #include "IndexerMessage.h"
-#include "CompileMessage.h"
+#include "IndexMessage.h"
 #include "LogOutputMessage.h"
 #include "QueryMessage.h"
 #include <dirent.h>
@@ -369,7 +369,7 @@ Path findProjectRoot(const Path &path, ProjectRootMode mode)
 
 void initMessages()
 {
-    Message::registerMessage<CompileMessage>();
+    Message::registerMessage<IndexMessage>();
     Message::registerMessage<IndexerMessage>();
     Message::registerMessage<LogOutputMessage>();
     Message::registerMessage<QueryMessage>();

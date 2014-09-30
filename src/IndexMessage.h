@@ -13,20 +13,20 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 
-#ifndef CompileMessage_h
-#define CompileMessage_h
+#ifndef IndexMessage_h
+#define IndexMessage_h
 
 #include <rct/List.h>
 #include <rct/String.h>
 #include "RTagsMessage.h"
 #include "RTags.h"
 
-class CompileMessage : public RTagsMessage
+class IndexMessage : public RTagsMessage
 {
 public:
     enum { MessageId = CompileId };
 
-    CompileMessage();
+    IndexMessage();
 
     const Path &projectRoot() const { return mProjectRoot; }
     void setProjectRoot(const Path &projectRoot) { mProjectRoot = projectRoot; }

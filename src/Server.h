@@ -30,7 +30,7 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 #include <rct/Timer.h>
 #include <rct/SocketServer.h>
 
-class CompileMessage;
+class IndexMessage;
 class CompletionThread;
 class Connection;
 class ErrorMessage;
@@ -111,7 +111,7 @@ private:
     void onUnload();
     void onNewMessage(const std::shared_ptr<Message> &message, Connection *conn);
     void clearProjects();
-    void handleCompileMessage(const std::shared_ptr<CompileMessage> &message, Connection *conn);
+    void handleIndexMessage(const std::shared_ptr<IndexMessage> &message, Connection *conn);
     void handleIndexerMessage(const std::shared_ptr<IndexerMessage> &message, Connection *conn);
     void handleQueryMessage(const std::shared_ptr<QueryMessage> &message, Connection *conn);
     void handleErrorMessage(const std::shared_ptr<ErrorMessage> &message, Connection *conn);

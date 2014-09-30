@@ -14,7 +14,7 @@
    along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 
 #include "RClient.h"
-#include "CompileMessage.h"
+#include "IndexMessage.h"
 #include "LogOutputMessage.h"
 #include <rct/Connection.h>
 #include <rct/EventLoop.h>
@@ -398,7 +398,7 @@ public:
             escape = false;
             break;
         }
-        CompileMessage msg;
+        IndexMessage msg;
         msg.init(rc->argc(), rc->argv());
         msg.setWorkingDirectory(cwd);
         msg.setEscape(escape);
@@ -411,7 +411,7 @@ public:
     }
     virtual String description() const
     {
-        return ("CompileMessage " + cwd);
+        return ("IndexMessage " + cwd);
     }
 };
 

@@ -16,7 +16,7 @@
 #include "Server.h"
 
 #include "CompletionThread.h"
-#include "CompileMessage.h"
+#include "IndexMessage.h"
 #include "LogOutputMessage.h"
 #include "CursorInfoJob.h"
 #include "DependenciesJob.h"
@@ -305,8 +305,8 @@ void Server::onNewMessage(const std::shared_ptr<Message> &message, Connection *c
     std::shared_ptr<RTagsMessage> m = std::static_pointer_cast<RTagsMessage>(message);
 
     switch (message->messageId()) {
-    case CompileMessage::MessageId:
-        handleCompileMessage(std::static_pointer_cast<CompileMessage>(m), connection);
+    case IndexMessage::MessageId:
+        handleIndexMessage(std::static_pointer_cast<IndexMessage>(m), connection);
         break;
     case QueryMessage::MessageId:
         handleQueryMessage(std::static_pointer_cast<QueryMessage>(m), connection);
@@ -392,7 +392,7 @@ bool Server::index(const String &arguments, const Path &pwd, const Path &project
     return ret;
 }
 
-void Server::handleCompileMessage(const std::shared_ptr<CompileMessage> &message, Connection *conn)
+void Server::handleIndexMessage(const std::shared_ptr<IndexMessage> &message, Connection *conn)
 {
 #if CLANG_VERSION_MAJOR > 3 || (CLANG_VERSION_MAJOR == 3 && CLANG_VERSION_MINOR > 3)
     const Path path = message->compilationDatabaseDir();

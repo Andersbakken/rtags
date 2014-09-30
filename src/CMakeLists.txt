@@ -84,7 +84,7 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/bin)
 add_definitions("-DRTAGS_BIN=\"${PROJECT_BINARY_DIR}/bin/\"")
 
 set(RTAGS_SHARED_SOURCES
-  CompileMessage.cpp
+  IndexMessage.cpp
   LogOutputMessage.cpp
   Location.cpp
   QueryMessage.cpp
