@@ -94,7 +94,6 @@ public:
 
     void index(const std::shared_ptr<IndexerJob> &job);
     List<Source> sources(uint32_t fileId) const;
-    bool hasSource(const Source &source) const;
     enum DependencyMode {
         DependsOnArg,
         ArgDependsOn // slow

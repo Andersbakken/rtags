@@ -47,7 +47,8 @@ struct Source
         NoFlag = 0x0,
         NoRtti = 0x1,
         M32 = 0x2,
-        M64 = 0x4
+        M64 = 0x4,
+        Active = 0x8
     };
     uint32_t flags;
 

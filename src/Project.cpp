@@ -294,10 +294,7 @@ Project::Project(const Path &path)
 Project::~Project()
 {
     assert(EventLoop::isMainThread());
-    for (const auto &job : mActiveJobs) {
-        assert(job.second);
-        Server::instance()->jobScheduler()->abort(job.second);
-    }
+    assert(mActiveJobs.isEmpty());
 }
 
 void Project::init()
@@ -381,9 +378,7 @@ void Project::updateContents(RestoreThread *thread)
 
     for (const auto &job : pendingJobs) {
         assert(job);
-        if (!hasSource(job->source)) {
-            index(job);
-        }
+        index(job);
     }
 }
 
@@ -423,6 +418,7 @@ void Project::unload()
     default:
         break;
     }
+    save(); // we always save since sources very likely had their Enabledness changed
     for (const auto &job : mActiveJobs) {
         assert(job.second);
         Server::instance()->jobScheduler()->abort(job.second);
@@ -566,6 +562,25 @@ bool Project::save()
     return true;
 }
 
+static inline void markActive(SourceMap::iterator start, uint32_t buildId, const SourceMap::iterator end)
+{
+    const uint32_t fileId = start->second.fileId;
+    while (start != end) {
+        uint32_t f, b;
+        Source::decodeKey(start->first, f, b);
+        if (f != fileId)
+            break;
+
+        if (b == buildId) {
+            start->second.flags |= Source::Active;;
+        } else {
+            start->second.flags &= ~Source::Active;
+        }
+        ++start;
+    }
+}
+
+
 void Project::index(const std::shared_ptr<IndexerJob> &job)
 {
     const Path sourceFile = job->sourceFile;
@@ -584,7 +599,63 @@ void Project::index(const std::shared_ptr<IndexerJob> &job)
     if (Server::instance()->suspended() && mSources.contains(key) && (job->flags & IndexerJob::Compile)) {
         return;
     }
-    mSources[key] = job->source;
+
+    if (job->flags & IndexerJob::Compile) {
+        const auto &options = Server::instance()->options();
+        if (options.options & Server::NoFileSystemWatch) {
+            auto it = mSources.lower_bound(Source::key(job->source.fileId, 0));
+            if (it != mSources.end()) {
+                uint32_t f, b;
+                Source::decodeKey(it->first, f, b);
+                if (f == job->source.fileId) {
+                    // When we're not watching the file system, we ignore
+                    // updating compiles. This means that you always have to
+                    // do check-reindex to build existing files!
+                    return;
+                }
+            }
+        } else {
+            auto cur = mSources.find(key);
+            if (cur != mSources.end()) {
+                if (!(cur->second.flags & Source::Active))
+                    markActive(mSources.lower_bound(Source::key(job->source.fileId, 0)), cur->second.buildRootId, mSources.end());
+                if (cur->second.compareArguments(job->source)) {
+                    // no updates
+                    return;
+                }
+            } else {
+                auto it = mSources.lower_bound(Source::key(job->source.fileId, 0));
+                const auto start = it;
+                const bool disallowMultiple = options.options & Server::DisallowMultipleSources;
+                bool unsetActive = false;
+                while (it != mSources.end()) {
+                    uint32_t f, b;
+                    Source::decodeKey(it->first, f, b);
+                    if (f != job->source.fileId)
+                        break;
+
+                    if (it->second.compareArguments(job->source)) {
+                        markActive(start, b, mSources.end());
+                        // no updates
+                        return;
+                    } else if (disallowMultiple) {
+                        mSources.erase(it++);
+                        continue;
+                    }
+                    unsetActive = true;
+                    ++it;
+                }
+                if (unsetActive) {
+                    assert(!disallowMultiple);
+                    markActive(start, 0, mSources.end());
+                }
+            }
+        }
+    }
+
+    Source &src = mSources[key];
+    src = job->source;
+    src.flags |= Source::Active;
 
     std::shared_ptr<IndexerJob> &ref = mActiveJobs[key];
     if (ref) {
@@ -734,7 +805,7 @@ int Project::startDirtyJobs(Dirty *dirty, const UnsavedFiles &unsavedFiles)
 {
     List<Source> toIndex;
     for (const auto &source : mSources) {
-        if (dirty->isDirty(source.second)) {
+        if (source.second.flags & Source::Active && dirty->isDirty(source.second)) {
             toIndex << source.second;
         }
     }
@@ -1090,54 +1161,6 @@ void Project::watch(const Path &file)
             mWatcher.watch(dir);
         }
     }
-}
-
-bool Project::hasSource(const Source &source) const
-{
-    const uint64_t key = source.key();
-    auto it = mSources.lower_bound(Source::key(source.fileId, 0));
-    const auto &options = Server::instance()->options();
-    const bool disallowMultiple = options.options & Server::DisallowMultipleSources;
-    const bool ignoreExistingFiles = options.options & Server::NoFileSystemWatch;
-    bool found = false;
-    while (it != mSources.end()) {
-        uint32_t f, b;
-        Source::decodeKey(it->first, f, b);
-        if (f != source.fileId) {
-            break;
-        }
-        found = true;
-        if (ignoreExistingFiles) {
-            // When we're not watching the file system, we ignore
-            // updating compiles. This means that you always have to
-            // do check-reindex to build existing files!
-            return true;
-        }
-        if (it->first == key) {
-            return it->second.compareArguments(source);
-            // if the build key is the same we want to return false if the arguments have updated
-        }
-        if (disallowMultiple || it->second.compareArguments(source)) {// similar enough that we don't want two builds
-            return true;
-        }
-        ++it;
-    }
-    if (found) {
-        const Map<String, String> config = RTags::rtagsConfig(source.sourceFile());
-        if (config.contains("multi-build")) {
-            const List<String> multi = config.value("multi-build").split(';');
-            const Path sourceFile = source.sourceFile();
-            for (const auto &filter : multi) {
-                if (!fnmatch(filter.constData(), sourceFile.constData(), 0)) {
-                    // we allow multi builds for this file
-                    return false;
-                }
-            }
-            return true;
-        }
-    }
-
-    return false;
 }
 
 void Project::onSynced()

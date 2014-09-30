@@ -127,6 +127,10 @@ Server::~Server()
     }
 
     stopServers();
+    for (const auto project : mProjects) {
+        project.second->unload();
+        // need to save updated Source::Enabled
+    }
     mProjects.clear(); // need to be destroyed before sInstance is set to 0
     assert(sInstance == this);
     sInstance = 0;
@@ -978,11 +982,6 @@ bool Server::shouldIndex(const Source &source, const Path &srcRoot) const
         return false;
     }
 
-    std::shared_ptr<Project> project = mProjects.value(srcRoot);
-    if (project && project->hasSource(source)) {
-        warning() << "Shouldn't index" << source.sourceFile() << "because we already have indexed it";
-        return false;
-    }
     return true;
 }
 
