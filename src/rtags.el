@@ -714,6 +714,11 @@ BUFFER : the buffer to be checked and reparsed, if it's nil, use current buffer"
   :group 'rtags
   :type 'boolean)
 
+(defcustom rtags-diagnostics-use-pipe t
+  "If diagnostics can use a pipe. If you're running emacs in cygwin you might have to set this to nil"
+  :group 'rtags
+  :type 'boolean)
+
 (defcustom rtags-autostart-diagnostics nil
   "Whether rtags automatically will restart diagnostics"
   :group 'rtags
@@ -1524,7 +1529,7 @@ References to references will be treated as references to the referenced symbol"
               ((eq (process-status rtags-diagnostics-process) 'exit) t)
               ((eq (process-status rtags-diagnostics-process) 'signal) t)
               (t nil))
-        (let ((process-connection-type nil)) ;; use a pipe
+        (let ((process-connection-type (not rtags-diagnostics-use-pipe))) ;; use a pipe if rtags-diagnostics-use-pipe is t
           (setq rtags-diagnostics-process (start-process "RTags Diagnostics" buf (rtags-executable-find "rc") "-m"))
           (set-process-filter rtags-diagnostics-process (function rtags-diagnostics-process-filter))
           (rtags-clear-diagnostics))))
