@@ -26,9 +26,18 @@ Preprocessor::Preprocessor(const Source &source, Connection *connection)
     mProcess->finished().connect(std::bind(&Preprocessor::onProcessFinished, this));
 }
 
+enum {
+    Flags = (Source::IncludeSourceFile
+             | Source::ExcludeDefaultArguments
+             | Source::ExcludeDefaultIncludePaths
+             | Source::ExcludeDefaultDefines
+             | Source::IncludeIncludepaths
+             | Source::IncludeDefines)
+};
+
 void Preprocessor::preprocess()
 {
-    List<String> args = mSource.toCommandLine(Source::IncludeSourceFile|Source::ExcludeDefaultArguments);
+    List<String> args = mSource.toCommandLine(Flags);
     args.append("-E");
 
     mProcess->start(mSource.compiler(), args);
@@ -37,7 +46,7 @@ void Preprocessor::preprocess()
 void Preprocessor::onProcessFinished()
 {
     mConnection->client()->setWriteMode(SocketClient::Synchronous);
-    const unsigned int flags = Source::IncludeSourceFile|Source::IncludeCompiler|Source::ExcludeDefaultArguments;
+    const unsigned int flags = (Flags | Source::IncludeCompiler);
     mConnection->write<256>("// %s", String::join(mSource.toCommandLine(flags), ' ').constData());
     mConnection->write(mProcess->readAllStdOut());
     const String err = mProcess->readAllStdErr();
