@@ -22,6 +22,12 @@ CXChildVisitResult DumpThread::visitor(CXCursor cursor, CXCursor, CXClientData u
         unsigned line, col;
         clang_getPresumedLocation(location, &file, &line, &col);
         Path path = RTags::eatString(file);
+        String message;
+        message.reserve(256);
+        CXSourceRange range = clang_getCursorExtent(cursor);
+        CXSourceLocation rangeEnd = clang_getRangeEnd(range);
+        unsigned endLine, endColumn;
+        clang_getPresumedLocation(rangeEnd, 0, &endLine, &endColumn);
         if (!path.isEmpty()) {
             uint32_t &fileId = that->mFiles[path];
             if (!fileId) {
@@ -31,44 +37,43 @@ CXChildVisitResult DumpThread::visitor(CXCursor cursor, CXCursor, CXClientData u
             }
             if (that->mQueryFlags & QueryMessage::DumpIncludeHeaders || fileId == that->mSource.fileId) {
                 const Location loc(fileId, line, col);
-                String message;
-                message.reserve(256);
-                if (!(that->mQueryFlags & QueryMessage::NoContext))
-                    message += loc.context();
-
-                CXSourceRange range = clang_getCursorExtent(cursor);
-                CXSourceLocation rangeEnd = clang_getRangeEnd(range);
-                unsigned endLine, endColumn;
-                clang_getPresumedLocation(rangeEnd, 0, &endLine, &endColumn);
-                if (endLine == line) {
-                    message += String::format<32>(" // %d-%d, %d: ", col, endColumn, that->mIndentLevel);
-                } else {
-                    message += String::format<32>(" // %d-%d:%d, %d: ", col, endLine, endColumn, that->mIndentLevel);
+                if (!(that->mQueryFlags & QueryMessage::NoContext)) {
+                    if (line == endLine) {
+                        message += Rct::colorize(loc.context(), Rct::AnsiColor_Green, col - 1, endColumn - col);
+                    } else {
+                        message += loc.context();
+                    }
                 }
-                message += RTags::cursorToString(cursor, RTags::AllCursorToStringFlags);
-                message.append(" " + RTags::typeName(cursor) + " ");
-                CXCursor ref = clang_getCursorReferenced(cursor);
-                if (clang_equalCursors(ref, cursor)) {
-                    message.append("refs self");
-                } else if (!clang_equalCursors(ref, nullCursor)) {
-                    message.append("refs ");
-                    message.append(RTags::cursorToString(ref, RTags::AllCursorToStringFlags));
-                }
-
-                CXCursor canonical = clang_getCanonicalCursor(cursor);
-                if (!clang_equalCursors(canonical, cursor) && !clang_equalCursors(canonical, nullCursor)) {
-                    message.append("canonical ");
-                    message.append(RTags::cursorToString(canonical, RTags::AllCursorToStringFlags));
-                }
-
-                that->writeToConnetion(message);
             }
         }
+
+        if (endLine == line) {
+            message += String::format<32>(" // %d-%d, %d: ", col, endColumn, that->mIndentLevel);
+        } else {
+            message += String::format<32>(" // %d-%d:%d, %d: ", col, endLine, endColumn, that->mIndentLevel);
+        }
+        message += RTags::cursorToString(cursor, RTags::AllCursorToStringFlags);
+        message.append(" " + RTags::typeName(cursor) + " ");
+        CXCursor ref = clang_getCursorReferenced(cursor);
+        if (clang_equalCursors(ref, cursor)) {
+            message.append("refs self");
+        } else if (!clang_equalCursors(ref, nullCursor)) {
+            message.append("refs ");
+            message.append(RTags::cursorToString(ref, RTags::AllCursorToStringFlags));
+        }
+
+        CXCursor canonical = clang_getCanonicalCursor(cursor);
+        if (!clang_equalCursors(canonical, cursor) && !clang_equalCursors(canonical, nullCursor)) {
+            message.append("canonical ");
+            message.append(RTags::cursorToString(canonical, RTags::AllCursorToStringFlags));
+        }
+
+        that->writeToConnetion(message);
     }
     ++that->mIndentLevel;
     clang_visitChildren(cursor, DumpThread::visitor, userData);
     --that->mIndentLevel;
-    return CXChildVisit_Continue;
+    return CXChildVisit_Recurse;
 }
 
 void DumpThread::run()
