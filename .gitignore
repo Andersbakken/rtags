@@ -33,3 +33,4 @@ compile_commands.json
 /.lsdev_default
 /tests/186/
 /install_manifest.txt
+/build/
