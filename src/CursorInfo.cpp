@@ -138,10 +138,13 @@ SymbolMap CursorInfo::callers(const Location &loc, const SymbolMap &map) const
 {
     SymbolMap ret;
     const SymbolMap cursors = virtuals(loc, map);
+    const bool isClazz = isClass();
     for (auto c = cursors.begin(); c != cursors.end(); ++c) {
         for (auto it = c->second->references.begin(); it != c->second->references.end(); ++it) {
             const auto found = RTags::findCursorInfo(map, *it);
             if (found == map.end())
+                continue;
+            if (isClazz && found->second->kind == CXCursor_CallExpr)
                 continue;
             if (RTags::isReference(found->second->kind)) { // is this always right?
                 ret[*it] = found->second;
