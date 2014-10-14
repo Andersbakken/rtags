@@ -75,7 +75,7 @@ String cursorToString(CXCursor cursor, unsigned flags)
 
     CXString file;
     unsigned line, col;
-    for (int pieceIndex = 0;; ++pieceIndex) {
+    for (int pieceIndex = 0; true; ++pieceIndex) {
         CXSourceRange range = clang_Cursor_getSpellingNameRange(cursor, pieceIndex, 0);
         if (clang_Range_isNull(range))
             break;

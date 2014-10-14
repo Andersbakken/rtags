@@ -316,7 +316,7 @@ void Project::updateContents(RestoreThread *thread)
     if (thread) {
         mSymbols = std::move(thread->mSymbols);
         mSymbolNames = std::move(thread->mSymbolNames);
-        mUsr = std::move(thread->mUsr);;
+        mUsr = std::move(thread->mUsr);
         mDependencies = std::move(thread->mDependencies);
         mSources = std::move(thread->mSources);
 
@@ -449,7 +449,7 @@ bool Project::match(const Match &p, bool *indexed) const
     paths[1].resolve();
     const int count = paths[1].compare(paths[0]) ? 2 : 1;
     bool ret = false;
-    const Path resolvedPath = mPath.resolved();;
+    const Path resolvedPath = mPath.resolved();
     for (int i=0; i<count; ++i) {
         const Path &path = paths[i];
         const uint32_t id = Location::fileId(path);
@@ -572,7 +572,7 @@ static inline void markActive(SourceMap::iterator start, uint32_t buildId, const
             break;
 
         if (b == buildId) {
-            start->second.flags |= Source::Active;;
+            start->second.flags |= Source::Active;
         } else {
             start->second.flags &= ~Source::Active;
         }

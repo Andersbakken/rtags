@@ -756,13 +756,13 @@ std::shared_ptr<CursorInfo> ClangIndexer::handleReference(const CXCursor &cursor
         // For constructors they happen to be the only thing we have that
         // actually refs the constructor and not the class so we have to keep
         // them for that.
-        return std::shared_ptr<CursorInfo>();;
+        return std::shared_ptr<CursorInfo>();
     }
 
     switch (refKind) {
     case CXCursor_Constructor:
         if (isImplicit(ref))
-            return std::shared_ptr<CursorInfo>();;
+            return std::shared_ptr<CursorInfo>();
         break;
     case CXCursor_CXXMethod:
     case CXCursor_FunctionDecl:
@@ -773,7 +773,7 @@ std::shared_ptr<CursorInfo> ClangIndexer::handleReference(const CXCursor &cursor
             const int len = strlen(data);
             if (len > 8 && !strncmp(data, "operator", 8) && !isalnum(data[8]) && data[8] != '_') {
                 if (isImplicit(ref))
-                    return std::shared_ptr<CursorInfo>();; // eat implicit operator calls
+                    return std::shared_ptr<CursorInfo>(); // eat implicit operator calls
                 isOperator = true;
             }
         }
@@ -789,12 +789,12 @@ std::shared_ptr<CursorInfo> ClangIndexer::handleReference(const CXCursor &cursor
             // insert it, we'll hook up the target and references later
             handleCursor(cursor, kind, location);
         }
-        return std::shared_ptr<CursorInfo>();;
+        return std::shared_ptr<CursorInfo>();
     }
 
     std::shared_ptr<CursorInfo> &refInfo = mData->symbols[reffedLoc];
     if ((!refInfo || !refInfo->symbolLength) && !handleCursor(ref, refKind, reffedLoc))
-        return std::shared_ptr<CursorInfo>();;
+        return std::shared_ptr<CursorInfo>();
 
     refInfo->references.insert(location);
 
@@ -1195,7 +1195,7 @@ static inline String xmlEscape(const String& xml)
     std::ostringstream strm;
     const char* ch = xml.constData();
     bool done = false;
-    for (;;) {
+    while (true) {
         switch (*ch) {
         case '\0':
             done = true;
