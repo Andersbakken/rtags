@@ -871,6 +871,7 @@ return t if rtags is allowed to modify this file"
     (define-key map (concat prefix "E") (function rtags-preprocess-file))
     (define-key map (concat prefix "R") (function rtags-rename-symbol))
     (define-key map (concat prefix "U") (function rtags-display-summary))
+    (define-key map (concat prefix "S") (function rtags-display-summary))
     (define-key map (concat prefix "O") (function rtags-goto-offset))
     (define-key map (concat prefix ";") (function rtags-find-file))
     (define-key map (concat prefix "F") (function rtags-fixit))
