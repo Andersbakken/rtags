@@ -1039,8 +1039,10 @@ References to references will be treated as references to the referenced symbol"
             (while (looking-at "[0-9A-Za-z_~#]")
               (forward-char))
             (setq prev (buffer-substring-no-properties pos (point)))
-            (setq len (- (point) pos))
-            (setq replacewith (read-from-minibuffer (format "Replace '%s' with: " prev)))
+            (if (string= prev "auto")
+                (setq prev nil)
+              (setq len (- (point) pos)))
+            (setq replacewith (read-from-minibuffer (if prev (format "Replace '%s' with: " prev) "Replace with: ")))
             (unless (equal replacewith "")
               (if destructor
                   (decf pos))
@@ -1075,6 +1077,9 @@ References to references will be treated as references to the referenced symbol"
 
                         ;; (message "About to replace %s with %s at %d in %s"
                         ;;          (buffer-substring-no-properties (point) (+ (point) len)) replacewith (point) (car value))
+                        (unless len ;; renaming auto, take the length from the first symbol that should be
+                          (setq len (length (thing-at-point 'symbol))))
+
                         (delete-char len)
                         (insert replacewith))))))))))
     (dolist (value buffers)
