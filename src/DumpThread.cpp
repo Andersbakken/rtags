@@ -73,7 +73,7 @@ CXChildVisitResult DumpThread::visitor(CXCursor cursor, CXCursor, CXClientData u
     ++that->mIndentLevel;
     clang_visitChildren(cursor, DumpThread::visitor, userData);
     --that->mIndentLevel;
-    return CXChildVisit_Recurse;
+    return CXChildVisit_Continue;
 }
 
 void DumpThread::run()
