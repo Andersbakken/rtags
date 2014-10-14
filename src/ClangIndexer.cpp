@@ -990,7 +990,7 @@ bool ClangIndexer::handleCursor(const CXCursor &cursor, CXCursorKind kind, const
                 //         << createLocation(mLastCursor)
                 //         << clang_Range_isNull(range)
                 //         << createLocation(clang_getCursorLocation(mLastCursor));
-                auto info = handleReference(mLastCursor, clang_getCursorKind(mLastCursor),
+                auto info = handleReference(mLastCursor, CXCursor_TypeRef,
                                             createLocation(clang_getCursorLocation(mLastCursor)),
                                             clang_getCursorReferenced(typeRef), nullCursor);
                 if (info) {
