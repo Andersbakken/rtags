@@ -17,7 +17,7 @@ bool EventSourceClient::connect(const String& host, uint16_t port, const String&
     return true;
 }
 
-void EventSourceClient::onReadyRead(const SocketClient::SharedPtr& client, Buffer&& buffer)
+void EventSourceClient::onReadyRead(const SocketClient::SharedPtr& /*client*/, Buffer&& buffer)
 {
     Buffer buf = std::move(buffer);
     mBufferLen += buf.size();

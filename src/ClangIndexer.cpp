@@ -238,7 +238,7 @@ bool ClangIndexer::exec(const String &data)
     return true;
 }
 
-void ClangIndexer::onMessage(const std::shared_ptr<Message> &msg, Connection *conn)
+void ClangIndexer::onMessage(const std::shared_ptr<Message> &msg, Connection */*conn*/)
 {
     assert(msg->messageId() == VisitFileResponseMessage::MessageId);
     const std::shared_ptr<VisitFileResponseMessage> vm = std::static_pointer_cast<VisitFileResponseMessage>(msg);
@@ -672,7 +672,7 @@ static inline bool isImplicit(const CXCursor &cursor)
 }
 
 void ClangIndexer::superclassTemplateMemberFunctionUgleHack(const CXCursor &cursor, CXCursorKind kind,
-                                                            const Location &location, const CXCursor &ref,
+                                                            const Location &location, const CXCursor &/*ref*/,
                                                             const CXCursor &parent)
 {
     // This is for references to superclass template functions. Awful awful

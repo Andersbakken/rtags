@@ -161,7 +161,7 @@ void parseTranslationUnit(const Path &sourceFile, const List<String> &args,
 void reparseTranslationUnit(CXTranslationUnit &unit, CXUnsavedFile *unsaved, int unsavedCount)
 {
     assert(unit);
-    if (clang_reparseTranslationUnit(unit, 0, unsaved, clang_defaultReparseOptions(unit)) != 0) {
+    if (clang_reparseTranslationUnit(unit, unsavedCount, unsaved, clang_defaultReparseOptions(unit)) != 0) {
         clang_disposeTranslationUnit(unit);
         unit = 0;
     }

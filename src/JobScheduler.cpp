@@ -19,7 +19,7 @@ JobScheduler::~JobScheduler()
 void JobScheduler::add(const std::shared_ptr<IndexerJob> &job)
 {
     assert(!(job->flags & ~IndexerJob::Type_Mask));
-    std::shared_ptr<Node> node(new Node({ job, 0 }));
+    std::shared_ptr<Node> node(new Node({ job, 0, 0, 0 }));
     node->job = job;
     if (job->flags & IndexerJob::Dirty) {
         mPendingJobs.prepend(node);

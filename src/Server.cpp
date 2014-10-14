@@ -1080,7 +1080,7 @@ void Server::removeProject(const std::shared_ptr<QueryMessage> &query, Connectio
     conn->finish();
 }
 
-void Server::reloadProjects(const std::shared_ptr<QueryMessage> &query, Connection *conn)
+void Server::reloadProjects(const std::shared_ptr<QueryMessage> &/*query*/, Connection *conn)
 {
     const int old = mProjects.size();
     const int cur = reloadProjects();
@@ -1170,14 +1170,14 @@ void Server::sendDiagnostics(const std::shared_ptr<QueryMessage> &query, Connect
     conn->finish();
 }
 
-void Server::clearProjects(const std::shared_ptr<QueryMessage> &query, Connection *conn)
+void Server::clearProjects(const std::shared_ptr<QueryMessage> &/*query*/, Connection *conn)
 {
     clearProjects();
     conn->write("Cleared projects");
     conn->finish();
 }
 
-void Server::shutdown(const std::shared_ptr<QueryMessage> &query, Connection *conn)
+void Server::shutdown(const std::shared_ptr<QueryMessage> &/*query*/, Connection *conn)
 {
     for (const auto &it : mProjects) {
         if (it.second)
@@ -1246,7 +1246,7 @@ void Server::sources(const std::shared_ptr<QueryMessage> &query, Connection *con
     conn->finish();
 }
 
-void Server::dumpCompletions(const std::shared_ptr<QueryMessage> &query, Connection *conn)
+void Server::dumpCompletions(const std::shared_ptr<QueryMessage> &/*query*/, Connection *conn)
 {
     if (mCompletionThread) {
         conn->write(mCompletionThread->dump());
@@ -1324,7 +1324,7 @@ void Server::suspend(const std::shared_ptr<QueryMessage> &query, Connection *con
     conn->finish();
 }
 
-void Server::syncProject(const std::shared_ptr<QueryMessage> &qyery, Connection *conn)
+void Server::syncProject(const std::shared_ptr<QueryMessage> &/*query*/, Connection *conn)
 {
     if (std::shared_ptr<Project> project = currentProject()) {
         if (!project->startSync(Project::Sync_Synchronous))
