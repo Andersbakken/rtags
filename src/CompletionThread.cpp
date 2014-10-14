@@ -105,7 +105,8 @@ void CompletionThread::completeAt(const Source &source, const Location &location
 
 String CompletionThread::dump()
 {
-    Dump dump = { false };
+    Dump dump;
+    dump.done = false;
     {
         std::unique_lock<std::mutex> lock(mMutex);
         if (mDump)

@@ -120,7 +120,7 @@ bool QueryJob::writeRaw(const String &out, unsigned flags)
     return true;
 }
 
-bool QueryJob::write(const Location &location, unsigned flags)
+bool QueryJob::write(const Location &location, unsigned /* flags */)
 {
     if (location.isNull())
         return false;
