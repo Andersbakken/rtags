@@ -139,9 +139,10 @@
     (goto-char (point-min))
     (while (not (eobp))
       (if (looking-at "^\\(.*?\\):\\([0-9]+\\):\\([0-9]+\\)")
-          (let ((file (match-string-no-properties 1))
-                (line (string-to-number (match-string-no-properties 2)))
-                (column (string-to-number (match-string-no-properties 3))))
+          (let* ((file (match-string-no-properties 1))
+                 (had-buffer (get-file-buffer file))
+                 (line (string-to-number (match-string-no-properties 2)))
+                 (column (string-to-number (match-string-no-properties 3))))
             (let (deactivate-mark)
               (with-current-buffer (find-file-noselect file)
                 (save-restriction
@@ -149,7 +150,9 @@
                   (rtags-goto-line-col line column)
                   (incf rtags-buffer-bookmarks)
                   (bookmark-set (format "R_%d" rtags-buffer-bookmarks))
-                  (set-buffer buf))))))
+                  (set-buffer buf)
+                  (unless had-buffer
+                    (kill-buffer (get-file-buffer file))))))))
       (forward-line))))
 
 (defun rtags-reset-bookmarks ()
