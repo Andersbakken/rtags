@@ -135,7 +135,8 @@
   (setq buffer-read-only t))
 
 (defun rtags-init-bookmarks()
-  (let ((buf (current-buffer)))
+  (let ((buf (current-buffer))
+        (opened-files))
     (goto-char (point-min))
     (while (not (eobp))
       (if (looking-at "^\\(.*?\\):\\([0-9]+\\):\\([0-9]+\\)")
@@ -150,10 +151,13 @@
                   (rtags-goto-line-col line column)
                   (incf rtags-buffer-bookmarks)
                   (bookmark-set (format "R_%d" rtags-buffer-bookmarks))
-                  (set-buffer buf)
                   (unless had-buffer
-                    (kill-buffer (get-file-buffer file))))))))
-      (forward-line))))
+                    (push (current-buffer) opened-files))
+                  (set-buffer buf))))))
+      (forward-line))
+    (while opened-files
+      (kill-buffer (car opened-files))
+      (setq opened-files (cdr opened-files)))))
 
 (defun rtags-reset-bookmarks ()
   (while (> rtags-buffer-bookmarks 0)
