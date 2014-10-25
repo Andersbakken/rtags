@@ -263,7 +263,7 @@ Location ClangIndexer::createLocation(const Path &sourceFile, unsigned line, uns
             usleep(50000);
         }
         if (!ok)
-            break;
+            return Location();
         id = Location::fileId(resolved);
         if (id)
             Location::set(sourceFile, id);
