@@ -34,6 +34,7 @@
 (require 'cc-mode)
 
 (if (or (> emacs-major-version 24)
+    (< emacs-major-version 23)
         (and (= emacs-major-version 24)
              (>= emacs-minor-version 3)))
     (progn
@@ -244,6 +245,14 @@
         (if (keywordp head) (rtags-remove-keyword-params (cdr tail))
           (cons head (rtags-remove-keyword-params tail))))))
 
+
+(defun rtags-combine-strings (list)
+  (let (ret)
+    (while list
+      (setq ret (if ret (car list) (concat ret " " (car list))))
+      (setq list (cdr list)))
+    ret))
+
 (defun* rtags-call-rc (&rest arguments
                              &key (path (buffer-file-name))
                              unsaved
@@ -294,7 +303,7 @@
                 (default-directory (push (concat "--current-file=" default-directory) arguments))
                 (t nil))
 
-          (rtags-log (concat rc " " (combine-and-quote-strings arguments)))
+          (rtags-log (concat rc " " (rtags-combine-strings arguments)))
           (let ((proc (cond ((and unsaved async)
                              (let ((proc (apply #'start-process "rc" (current-buffer) rc arguments)))
                                (with-current-buffer unsaved
