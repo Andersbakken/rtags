@@ -253,11 +253,22 @@ Location ClangIndexer::createLocation(const Path &sourceFile, unsigned line, uns
     uint32_t id = Location::fileId(sourceFile);
     Path resolved;
     if (!id) {
-        resolved = sourceFile.resolved();
+        bool ok;
+        for (int i=0; i<4; ++i) {
+            resolved = sourceFile.resolved(Path::RealPath, Path(), &ok);
+            // if ok is false it means the file is gone, in case this happens
+            // during a git pull or something we'll give it a couple of chances.
+            if (ok)
+                break;
+            usleep(50000);
+        }
+        if (!ok)
+            break;
         id = Location::fileId(resolved);
         if (id)
             Location::set(sourceFile, id);
     }
+    assert(!resolved.contains("/../"));
 
     if (id) {
         if (blockedPtr) {
