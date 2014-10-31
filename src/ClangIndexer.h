@@ -108,7 +108,7 @@ private:
         return createLocation(clang_getRangeStart(range), blocked);
     }
     Location createLocation(const Path &file, unsigned int line, unsigned int col, bool *blocked = 0);
-    String addNamePermutations(const CXCursor &cursor, const Location &location);
+    String addNamePermutations(const CXCursor &cursor, const Location &location, String typeOverride);
 
     CXCursor resolveAutoTypeRef(const CXCursor &cursor) const;
 
