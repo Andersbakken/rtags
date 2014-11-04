@@ -66,6 +66,7 @@ public:
     };
 
     enum Flag {
+        NoFlag = 0x00000000,
         NoContext = 0x00000001,
         FilterSystemIncludes = 0x00000004,
         StripParentheses = 0x00000008,
@@ -150,6 +151,16 @@ public:
         }
     }
 
+    void setFlag(Flag flag, bool on = true)
+    {
+        if (on) {
+            mFlags |= flag;
+        } else {
+            mFlags &= ~flag;
+        }
+    }
+
+    static Flag flagFromString(const String &string);
     static unsigned keyFlags(unsigned queryFlags);
     inline unsigned keyFlags() const { return keyFlags(mFlags); }
 

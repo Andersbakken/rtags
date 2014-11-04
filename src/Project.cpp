@@ -529,10 +529,10 @@ void Project::onJobFinished(const std::shared_ptr<IndexerJob> &job, const std::s
               Location::path(fileId).toTilde().constData());
     }
 
-    if (mActiveJobs.isEmpty()) {
-        mSyncTimer.restart(indexData->flags & IndexerJob::Dirty ? 0 : SyncTimeout, Timer::SingleShot);
-    } else if (options.syncThreshold && mIndexData.size() >= options.syncThreshold) {
+    if (options.syncThreshold && mIndexData.size() >= options.syncThreshold) {
         startSync(Sync_Asynchronous);
+    } else if (mActiveJobs.isEmpty()) {
+        mSyncTimer.restart(indexData->flags & IndexerJob::Dirty ? 0 : SyncTimeout, Timer::SingleShot);
     }
 }
 
@@ -1015,6 +1015,8 @@ String Project::fixIts(uint32_t fileId) const
 
 bool Project::startSync(SyncMode mode)
 {
+    if (!Server::instance()->options().tests.isEmpty())
+        mode = Sync_Synchronous;
     if (mState != Loaded) {
         if (mode == Sync_Asynchronous)
             mSyncTimer.restart(SyncTimeout, Timer::SingleShot);

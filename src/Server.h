@@ -76,23 +76,26 @@ public:
             : options(0), jobCount(0), unloadTimer(0),
               rpVisitFileTimeout(0), rpIndexerMessageTimeout(0), rpConnectTimeout(0),
               rpNiceValue(0), syncThreshold(0), threadStackSize(0), maxCrashCount(0),
-              completionCacheSize(0), astCache(0)
+              completionCacheSize(0), astCache(0), testTimeout(60 * 1000 * 5)
         {}
         Path socketFile, dataDir;
         unsigned options;
         int jobCount, unloadTimer, rpVisitFileTimeout,
             rpIndexerMessageTimeout, rpConnectTimeout, rpNiceValue,
-            syncThreshold, threadStackSize, maxCrashCount, completionCacheSize, astCache;
+            syncThreshold, threadStackSize, maxCrashCount, completionCacheSize, astCache,
+            testTimeout;
         List<String> defaultArguments, excludeFilters;
         Set<String> blockedArguments;
         List<Source::Include> includePaths;
         List<Source::Define> defines;
+        List<Path> tests;
         Set<Path> ignoredCompilers;
         List<std::pair<RegExp, Source::Language> > extraCompilers;
 
         inline bool flag(enum Option o) const { return 0 != (options & o); }
     };
     bool init(const Options &options);
+    bool runTests();
     const Options &options() const { return mOptions; }
     bool suspended() const { return mSuspended; }
     bool saveFileIds();
@@ -177,6 +180,8 @@ private:
     std::shared_ptr<JobScheduler> mJobScheduler;
 
     CompletionThread *mCompletionThread;
+
+    Signal<std::function<void()> > mIndexerMessageReceived;
 };
 
 #endif

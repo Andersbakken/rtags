@@ -35,6 +35,9 @@ void FileManager::init(const std::shared_ptr<Project> &proj, Mode mode)
 
 void FileManager::reload(Mode mode)
 {
+    if (!Server::instance()->options().tests.isEmpty())
+        mode = Synchronous;
+
     mLastReloadTime = Rct::monoMs();
     std::shared_ptr<Project> project = mProject.lock();
     assert(project);

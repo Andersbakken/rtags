@@ -1,0 +1,11 @@
+{
+    "sources": [ "-I. main.cpp" ],
+    "tests": {
+        "simple": {
+            "type": "follow-location",
+            "flags": [ "no-context" ],
+            "location": "main.cpp:8:6:",
+            "output": [ "main.cpp:1:6:" ]
+        }
+    }
+}

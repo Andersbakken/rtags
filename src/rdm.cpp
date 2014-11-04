@@ -63,6 +63,8 @@ static void usage(FILE *f)
 
             "\nServer options:\n"
             "  --clear-project-caches|-C                  Clear out project caches.\n"
+            "  --test|-J [arg]                            Run this test.\n"
+            "  --test-timeout|-z [arg]                    Timeout for test to complete.\n"
             "  --completion-cache-size|-i [arg]           Number of translation units to cache (default " STR(DEFAULT_COMPLETION_CACHE_SIZE) ").\n"
             "  --config|-c [arg]                          Use this file instead of ~/.rdmrc.\n"
             "  --data-dir|-d [arg]                        Use this directory to store persistent data (default ~/.rtags).\n"
@@ -89,7 +91,7 @@ static void usage(FILE *f)
             "  --rp-connect-timeout|-O [arg]              Timeout for connection from rp to rdm in ms (0 means no timeout) (default " STR(DEFAULT_RP_CONNECT_TIMEOUT) ").\n"
             "  --rp-indexer-message-timeout|-T [arg]      Timeout for rp indexer-message in ms (0 means no timeout) (default " STR(DEFAULT_RP_INDEXER_MESSAGE_TIMEOUT) ").\n"
             "  --rp-nice-value|-a [arg]                   Nice value to use for rp (nice(2)) (default -1, e.g. not nicing).\n"
-            "  --rp-visit-file-timeout|-t [arg]           Timeout for rp visitfile commands in ms (0 means no timeout) (default " STR(DEFAULT_RP_VISITFILE_TIMEOUT) ").\n"
+            "  --rp-visit-file-timeout|-J [arg]           Timeout for rp visitfile commands in ms (0 means no timeout) (default " STR(DEFAULT_RP_VISITFILE_TIMEOUT) ").\n"
             "  --separate-debug-and-release|-E            Normally rdm doesn't consider release and debug as different builds. Pass this if you want it to.\n"
             "  --setenv|-e [arg]                          Set this environment variable (--setenv \"foobar=1\").\n"
             "  --silent|-S                                No logging to stdout.\n"
@@ -143,6 +145,8 @@ int main(int argc, char** argv)
         { "cache-AST", required_argument, 0, 'A' },
         { "verbose", no_argument, 0, 'v' },
         { "job-count", required_argument, 0, 'j' },
+        { "test", required_argument, 0, 't' },
+        { "test-timeout", required_argument, 0, 'z' },
         { "clean-slate", no_argument, 0, 'C' },
         { "disable-sighandler", no_argument, 0, 'x' },
         { "silent", no_argument, 0, 'S' },
@@ -163,7 +167,7 @@ int main(int argc, char** argv)
         { "no-no-unknown-warnings-option", no_argument, 0, 'Y' },
         { "ignore-compiler", required_argument, 0, 'b' },
         { "watch-system-paths", no_argument, 0, 'w' },
-        { "rp-visit-file-timeout", required_argument, 0, 't' },
+        { "rp-visit-file-timeout", required_argument, 0, 'J' },
         { "rp-indexer-message-timeout", required_argument, 0, 'T' },
         { "rp-connect-timeout", required_argument, 0, 'O' },
         { "rp-nice-value", required_argument, 0, 'a' },
@@ -364,10 +368,10 @@ int main(int argc, char** argv)
         case 'Q':
             serverOpts.options |= Server::StartSuspended;
             break;
-        case 't':
+        case 'J':
             serverOpts.rpVisitFileTimeout = atoi(optarg);
             if (serverOpts.rpVisitFileTimeout < 0) {
-                fprintf(stderr, "Invalid argument to -t %s\n", optarg);
+                fprintf(stderr, "Invalid argument to -J %s\n", optarg);
                 return 1;
             }
             if (!serverOpts.rpVisitFileTimeout)
@@ -389,6 +393,21 @@ int main(int argc, char** argv)
             break;
         case 'b':
             serverOpts.ignoredCompilers.insert(Path::resolved(optarg));
+            break;
+        case 't': {
+            Path test(optarg);
+            if (!test.resolve() || !test.isFile()) {
+                fprintf(stderr, "%s doesn't seem to be a file\n", optarg);
+                return 1;
+            }
+            serverOpts.tests += test;
+            break; }
+        case 'z':
+            serverOpts.testTimeout = atoi(optarg);
+            if (serverOpts.testTimeout <= 0) {
+                fprintf(stderr, "Invalid argument to -z %s\n", optarg);
+                return 1;
+            }
             break;
         case 'n':
             serverOpts.socketFile = optarg;
@@ -553,7 +572,7 @@ int main(int argc, char** argv)
                 ++logLevel;
             break;
         case '?': {
-            fprintf(stderr, "Run rc --help for help\n");
+            fprintf(stderr, "Run rdm --help for help\n");
             return 1; }
         }
     }
@@ -578,10 +597,36 @@ int main(int argc, char** argv)
     loop->init(EventLoop::MainEventLoop|EventLoop::EnableSigIntHandler);
 
     std::shared_ptr<Server> server(new Server);
+    if (!serverOpts.tests.isEmpty()) {
+        char buf[1024];
+        Path path;
+        while (true) {
+            strcpy(buf, "/tmp/rtags-test-XXXXXX");
+            if (!mkdtemp(buf)) {
+                fprintf(stderr, "Failed to mkdtemp (%d)\n", errno);
+                return 1;
+            }
+            path = buf;
+            path.resolve();
+            break;
+        }
+        serverOpts.dataDir = path;
+        strcpy(buf, "/tmp/rtags-sock-XXXXXX");
+        if (!mkstemp(buf)) {
+            fprintf(stderr, "Failed to mkstemp (%d)\n", errno);
+            return 1;
+        }
+        serverOpts.socketFile = buf;
+        serverOpts.socketFile.resolve();
+    }
     serverOpts.dataDir = serverOpts.dataDir.ensureTrailingSlash();
     if (!server->init(serverOpts)) {
         cleanupLogging();
         return 1;
+    }
+
+    if (!serverOpts.tests.isEmpty()) {
+        return server->runTests() ? 0 : 1;
     }
 
     loop->exec();

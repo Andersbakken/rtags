@@ -46,6 +46,7 @@
 #include "StatusJob.h"
 #include <clang-c/Index.h>
 #include <rct/Connection.h>
+#include <rct/Value.h>
 #include <rct/EventLoop.h>
 #include <rct/SocketClient.h>
 #include <rct/Log.h>
@@ -191,6 +192,7 @@ bool Server::init(const Options &options)
 
     for (int i=0; i<10; ++i) {
         mUnixServer.reset(new SocketServer);
+        warning() << "listening" << mOptions.socketFile;
         if (mUnixServer->listen(mOptions.socketFile)) {
             break;
         }
@@ -404,8 +406,10 @@ void Server::handleIndexMessage(const std::shared_ptr<IndexMessage> &message, Co
         CXCompilationDatabase_Error err;
         CXCompilationDatabase db = clang_CompilationDatabase_fromDirectory(path.constData(), &err);
         if (err != CXCompilationDatabase_NoError) {
-            conn->write("Can't load compilation database");
-            conn->finish();
+            if (conn) {
+                conn->write("Can't load compilation database");
+                conn->finish();
+            }
             return;
         }
         CXCompileCommands cmds = clang_CompilationDatabase_getAllCompileCommands(db);
@@ -429,14 +433,17 @@ void Server::handleIndexMessage(const std::shared_ptr<IndexMessage> &message, Co
         }
         clang_CompileCommands_dispose(cmds);
         clang_CompilationDatabase_dispose(db);
-        conn->write("[Server] Compilation database loaded");
-        conn->finish();
+        if (conn) {
+            conn->write("[Server] Compilation database loaded");
+            conn->finish();
+        }
         return;
     }
 #endif
     const bool ret = index(message->arguments(), message->workingDirectory(),
                            message->projectRoot(), message->escape());
-    conn->finish(ret ? 0 : 1);
+    if (conn)
+        conn->finish(ret ? 0 : 1);
 }
 
 void Server::handleLogOutputMessage(const std::shared_ptr<LogOutputMessage> &message, Connection *conn)
@@ -448,6 +455,7 @@ void Server::handleIndexerMessage(const std::shared_ptr<IndexerMessage> &message
 {
     mJobScheduler->handleIndexerMessage(message);
     conn->finish();
+    mIndexerMessageReceived();
 }
 
 void Server::handleQueryMessage(const std::shared_ptr<QueryMessage> &message, Connection *conn)
@@ -1468,4 +1476,197 @@ void Server::codeCompleteAt(const std::shared_ptr<QueryMessage> &query, Connecti
 void Server::dumpJobs(Connection *conn)
 {
     mJobScheduler->dump(conn);
+}
+
+class TestConnection : public Connection
+{
+public:
+    TestConnection(const Path &workingDirectory)
+        : Connection(), mIsFinished(false), mWorkingDirectory(workingDirectory)
+    {}
+    virtual bool send(const Message &message)
+    {
+        if (message.messageId() == Message::FinishMessageId) {
+            mIsFinished = true;
+            finished()(this, 0);
+        } else if (message.messageId() == Message::ResponseId) {
+            String response = reinterpret_cast<const ResponseMessage &>(message).data();
+            if (response.startsWith(mWorkingDirectory)) {
+                response.remove(0, mWorkingDirectory.size());
+            }
+            mOutput.append(response);
+        }
+        return true;
+    }
+    List<String> output() const { return mOutput; }
+    bool isFinished() const { return mIsFinished; }
+private:
+    bool mIsFinished;
+    List<String> mOutput;
+    const Path mWorkingDirectory;
+};
+
+bool Server::runTests()
+{
+    assert(!mOptions.tests.isEmpty());
+    bool ret = true;
+    int sourceCount = 0;
+    mIndexerMessageReceived.connect([&sourceCount]() {
+            // error() << "Got a finish" << sourceCount;
+            assert(sourceCount > 0);
+            if (!--sourceCount) {
+                EventLoop::eventLoop()->quit();
+            }
+        });
+    for (const auto &file : mOptions.tests) {
+        const String fileContents = file.readAll();
+        if (fileContents.isEmpty()) {
+            error() << "Failed to open file" << file;
+            ret = false;
+            continue;
+        }
+        bool ok = true;
+        const Value value = Value::fromJSON(fileContents, &ok);
+        if (!ok || !value.isMap()) {
+            error() << "Failed to parse json" << file << ok << value.type() << value;
+            ret = false;
+            continue;
+        }
+        const Map<String, Value> tests = value.operator[]<Map<String, Value> >("tests");
+        if (tests.isEmpty()) {
+            error() << "Invalid test" << file;
+            ret = false;
+            continue;
+        }
+        const List<Value> sources = value.operator[]<List<Value> >("sources");
+        if (sources.isEmpty()) {
+            error() << "Invalid test" << file;
+            ret = false;
+            continue;
+        }
+        const Path workingDirectory = file.parentDir();
+        const Path projectRoot = RTags::findProjectRoot(workingDirectory, RTags::SourceRoot);
+        if (projectRoot.isEmpty()) {
+            error() << "Can't find project root" << workingDirectory;
+            ret = false;
+            continue;
+        }
+        for (const auto &source : sources) {
+            if (!source.isString()) {
+                error() << "Invalid source" << source;
+                ret = false;
+                continue;
+            }
+            if (!index("clang " + source.convert<String>(), workingDirectory, workingDirectory, false)) {
+                error() << "Failed to index" << ("clang " + source.convert<String>()) << workingDirectory;
+                ret = false;
+                continue;
+            }
+            ++sourceCount;
+        }
+        mOptions.syncThreshold = sourceCount;
+        EventLoop::eventLoop()->exec(mOptions.testTimeout);
+        if (sourceCount) {
+            error() << "Timed out waiting for sources to compile";
+            sourceCount = 0;
+            ret = false;
+            continue;
+        }
+
+        for (const auto &test : tests) {
+            if (!test.second.isMap()) {
+                error() << "Invalid test" << test.second.type();
+                ret = false;
+                continue;
+            }
+            const String type = test.second.operator[]<String>("type");
+            if (type.isEmpty()) {
+                error() << "Invalid test. No type";
+                ret = false;
+                continue;
+            }
+            std::shared_ptr<QueryMessage> query;
+            if (type == "follow-location") {
+                const String location = Location::encode(test.second.operator[]<String>("location"), workingDirectory);
+                if (location.isEmpty()) {
+                    error() << "Invalid test. Invalid location";
+                    ret = false;
+                    continue;
+                }
+                query.reset(new QueryMessage(QueryMessage::FollowLocation));
+                query->setQuery(location);
+            } else if (type == "references") {
+                const String location = Location::encode(test.second.operator[]<String>("location"), workingDirectory);
+                if (location.isEmpty()) {
+                    error() << "Invalid test. Invalid location";
+                    ret = false;
+                    continue;
+                }
+                query.reset(new QueryMessage(QueryMessage::ReferencesLocation));
+                query->setQuery(location);
+            } else if (type == "references-name") {
+                const String name = test.second.operator[]<String>("name");
+                if (name.isEmpty()) {
+                    error() << "Invalid test. Invalid name";
+                    ret = false;
+                    continue;
+                }
+                query.reset(new QueryMessage(QueryMessage::ReferencesLocation));
+                query->setQuery(name);
+            } else {
+                error() << "Unknown test" << type;
+                ret = false;
+                continue;
+            }
+            const List<Value> flags = test.second.operator[]<List<Value> >("flags");
+            for (const auto &flag : flags) {
+                if (!flag.isString()) {
+                    error() << "Invalid flag";
+                    ret = false;
+                } else {
+                    const QueryMessage::Flag f = QueryMessage::flagFromString(flag.convert<String>());
+                    if (f == QueryMessage::NoFlag) {
+                        error() << "Invalid flag";
+                        ret = false;
+                        continue;
+                    }
+                    query->setFlag(f);
+                }
+            }
+            TestConnection conn(workingDirectory);
+            query->setFlag(QueryMessage::SilentQuery);
+            handleQueryMessage(query, &conn);
+            if (!conn.isFinished()) {
+                error() << "Query failed";
+                ret = false;
+                continue;
+            }
+
+            const Value out = test.second["output"];
+            if (!out.isList()) {
+                error() << "Invalid output";
+                ret = false;
+                continue;
+            }
+            List<String> output;
+            for (auto it=out.listBegin(); it != out.listEnd(); ++it) {
+                if (!it->isString()) {
+                    error() << "Invalid output";
+                    ret = false;
+                    continue;
+                }
+                output.append(it->convert<String>());
+            }
+            if (output != conn.output()) {
+                error() << "Test failed. Expected:";
+                error() << output;
+                error() << "Got:";
+                error() << conn.output();
+                ret = false;
+            } else {
+                error() << "Test passed";
+            }
+        }
+    }
+    return ret;
 }

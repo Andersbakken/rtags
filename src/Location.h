@@ -162,14 +162,14 @@ public:
         error("Failed to make location from [%s:%d:%d]", path.constData(), line, col);
         return Location();
     }
-    static String encode(const String &key)
+    static String encode(const String &key, const Path &pwd = Path())
     {
         char path[PATH_MAX];
         uint32_t line, col;
         if (sscanf(key.constData(), "%[^':']:%d:%d", path, &line, &col) != 3)
             return String();
 
-        Path resolved = Path::resolved(path, Path::MakeAbsolute);
+        Path resolved = Path::resolved(path, Path::MakeAbsolute, pwd);
         {
             char buf[8];
             memcpy(buf, &line, sizeof(line));
@@ -180,14 +180,14 @@ public:
         return resolved;
     }
 
-    static Location fromPathLineAndColumn(const String &str)
+    static Location fromPathLineAndColumn(const String &str, const Path &pwd = Path())
     {
         char path[PATH_MAX];
         uint32_t line, col;
         if (sscanf(str.constData(), "%[^':']:%d:%d", path, &line, &col) != 3)
             return Location();
 
-        const Path resolved = Path::resolved(path);
+        const Path resolved = Path::resolved(path, Path::RealPath, pwd);
         return Location(Location::insertFile(resolved), line, col);
     }
     static Hash<uint32_t, Path> idsToPaths()
