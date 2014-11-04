@@ -474,6 +474,9 @@ void Server::handleQueryMessage(const std::shared_ptr<QueryMessage> &message, Co
     case QueryMessage::Sources:
         sources(message, conn);
         break;
+    case QueryMessage::GenerateTest:
+        generateTest(message, conn);
+        break;
     case QueryMessage::DumpCompletions:
         dumpCompletions(message, conn);
         break;
@@ -705,6 +708,82 @@ void Server::dumpFile(const std::shared_ptr<QueryMessage> &query, Connection *co
 
         DumpThread *dumpThread = new DumpThread(query, source, conn);
         dumpThread->start(Thread::Normal, 8 * 1024 * 1024); // 8MiB stack size
+    } else {
+        conn->write<256>("%s build: %d not found", query->query().constData(), query->buildIndex());
+        conn->finish();
+    }
+}
+
+void Server::generateTest(const std::shared_ptr<QueryMessage> &query, Connection *conn)
+{
+    const uint32_t fileId = Location::fileId(query->query());
+    if (!fileId) {
+        conn->write<256>("%s is not indexed", query->query().constData());
+        conn->finish();
+        return;
+    }
+
+    std::shared_ptr<Project> project = projectForQuery(query);
+    if (!project || project->state() != Project::Loaded) {
+        conn->write<256>("%s is not indexed", query->query().constData());
+        conn->finish();
+        return;
+    }
+
+    const Source source = project->sources(fileId).value(query->buildIndex());
+    if (!source.isNull()) {
+        enum CommandLineMode {
+            IncludeCompiler = 0x001,
+            IncludeSourceFile = 0x002,
+            IncludeDefines = 0x004,
+            IncludeIncludepaths = 0x008,
+            QuoteDefines = 0x010,
+            FilterBlacklist = 0x020,
+            ExcludeDefaultArguments = 0x040,
+            ExcludeDefaultIncludePaths = 0x080,
+            ExcludeDefaultDefines = 0x100,
+            Default = IncludeDefines|IncludeIncludepaths|FilterBlacklist
+        };
+
+        const unsigned int flags = (Source::Default
+                                    |Source::ExcludeDefaultDefines
+                                    |Source::ExcludeDefaultIncludePaths
+                                    |Source::ExcludeDefaultArguments);
+
+        const Path root = source.sourceFile().parentDir().ensureTrailingSlash();
+        List<String> compile = source.toCommandLine(flags);
+        for (auto &ref : compile) {
+            const int idx = ref.indexOf(root);
+            if (idx != -1)
+                ref.remove(idx, root.size());
+        }
+        compile.append(source.sourceFile().fileName());
+
+        Value out;
+        out["sources"] = (List<Value>() << String::join(compile, ' '));
+
+        List<Value> tests;
+
+        const SymbolMap &map = project->symbols();
+        List<Value> noContextFlags;
+        noContextFlags.append("no-context");
+        auto it = map.lower_bound(Location(source.fileId, 0, 0));
+        while (it != map.end() && it->first.fileId() == source.fileId) {
+            Location loc;
+            if (it->second->bestTarget(map, &loc) && loc.fileId() == source.fileId) {
+                Map<String, Value> test;
+                test["type"] = "follow-location";
+                test["flags"] = noContextFlags;
+                test["location"] = String::format<128>("%s:%d:%d:", it->first.path().fileName(), it->first.line(), it->first.column());
+                List<Value> output;
+                output.append(String::format<128>("%s:%d:%d:", loc.path().fileName(), loc.line(), loc.column()));
+                test["output"] = output;
+                tests.append(test);
+            }
+            ++it;
+        }
+        out["tests"] = tests;
+        conn->finish(out.toJSON(true));
     } else {
         conn->write<256>("%s build: %d not found", query->query().constData(), query->buildIndex());
         conn->finish();
@@ -1527,12 +1606,13 @@ bool Server::runTests()
         }
         bool ok = true;
         const Value value = Value::fromJSON(fileContents, &ok);
+        warning() << "parsed json" << value.type() << fileContents.size();
         if (!ok || !value.isMap()) {
             error() << "Failed to parse json" << file << ok << value.type() << value;
             ret = false;
             continue;
         }
-        const Map<String, Value> tests = value.operator[]<Map<String, Value> >("tests");
+        const List<Value> tests = value.operator[]<List<Value> >("tests");
         if (tests.isEmpty()) {
             error() << "Invalid test" << file;
             ret = false;
@@ -1544,6 +1624,7 @@ bool Server::runTests()
             ret = false;
             continue;
         }
+        warning() << sources.size() << "sources and" << tests.size() << "tests";
         const Path workingDirectory = file.parentDir();
         const Path projectRoot = RTags::findProjectRoot(workingDirectory, RTags::SourceRoot);
         if (projectRoot.isEmpty()) {
@@ -1573,13 +1654,17 @@ bool Server::runTests()
             continue;
         }
 
+        int passes = 0;
+        int failures = 0;
+        int idx = -1;
         for (const auto &test : tests) {
-            if (!test.second.isMap()) {
-                error() << "Invalid test" << test.second.type();
+            ++idx;
+            if (!test.isMap()) {
+                error() << "Invalid test" << test.type();
                 ret = false;
                 continue;
             }
-            const String type = test.second.operator[]<String>("type");
+            const String type = test.operator[]<String>("type");
             if (type.isEmpty()) {
                 error() << "Invalid test. No type";
                 ret = false;
@@ -1587,7 +1672,7 @@ bool Server::runTests()
             }
             std::shared_ptr<QueryMessage> query;
             if (type == "follow-location") {
-                const String location = Location::encode(test.second.operator[]<String>("location"), workingDirectory);
+                const String location = Location::encode(test.operator[]<String>("location"), workingDirectory);
                 if (location.isEmpty()) {
                     error() << "Invalid test. Invalid location";
                     ret = false;
@@ -1596,7 +1681,7 @@ bool Server::runTests()
                 query.reset(new QueryMessage(QueryMessage::FollowLocation));
                 query->setQuery(location);
             } else if (type == "references") {
-                const String location = Location::encode(test.second.operator[]<String>("location"), workingDirectory);
+                const String location = Location::encode(test.operator[]<String>("location"), workingDirectory);
                 if (location.isEmpty()) {
                     error() << "Invalid test. Invalid location";
                     ret = false;
@@ -1605,7 +1690,7 @@ bool Server::runTests()
                 query.reset(new QueryMessage(QueryMessage::ReferencesLocation));
                 query->setQuery(location);
             } else if (type == "references-name") {
-                const String name = test.second.operator[]<String>("name");
+                const String name = test.operator[]<String>("name");
                 if (name.isEmpty()) {
                     error() << "Invalid test. Invalid name";
                     ret = false;
@@ -1618,7 +1703,7 @@ bool Server::runTests()
                 ret = false;
                 continue;
             }
-            const List<Value> flags = test.second.operator[]<List<Value> >("flags");
+            const List<Value> flags = test.operator[]<List<Value> >("flags");
             for (const auto &flag : flags) {
                 if (!flag.isString()) {
                     error() << "Invalid flag";
@@ -1642,7 +1727,7 @@ bool Server::runTests()
                 continue;
             }
 
-            const Value out = test.second["output"];
+            const Value out = test["output"];
             if (!out.isList()) {
                 error() << "Invalid output";
                 ret = false;
@@ -1658,15 +1743,18 @@ bool Server::runTests()
                 output.append(it->convert<String>());
             }
             if (output != conn.output()) {
-                error() << "Test failed. Expected:";
+                error() << "Test" << idx << "failed. Expected:";
                 error() << output;
                 error() << "Got:";
                 error() << conn.output();
                 ret = false;
+                ++failures;
             } else {
-                error() << "Test passed";
+                warning() << "Test passed";
+                ++passes;
             }
         }
+        error() << passes << "passes" << failures << "failures" << (tests.size() - failures - passes) << "invalid";
     }
     return ret;
 }

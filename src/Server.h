@@ -128,6 +128,7 @@ private:
     void cursorInfo(const std::shared_ptr<QueryMessage> &query, Connection *conn);
     void dependencies(const std::shared_ptr<QueryMessage> &query, Connection *conn);
     void dumpFile(const std::shared_ptr<QueryMessage> &query, Connection *conn);
+    void generateTest(const std::shared_ptr<QueryMessage> &query, Connection *conn);
     void findFile(const std::shared_ptr<QueryMessage> &query, Connection *conn);
     void findSymbols(const std::shared_ptr<QueryMessage> &query, Connection *conn);
     void fixIts(const std::shared_ptr<QueryMessage> &query, Connection *conn);

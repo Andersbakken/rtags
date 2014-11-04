@@ -59,6 +59,7 @@ enum OptionType {
     FindVirtuals,
     FixIts,
     FollowLocation,
+    GenerateTest,
     HasFileManager,
     Help,
     IMenu,
@@ -168,6 +169,7 @@ struct Option opts[] = {
     { CheckReindex, "check-reindex", 'x', optional_argument, "Check if reindexing is necessary for all files matching pattern." },
     { FindFile, "path", 'P', optional_argument, "Print files matching pattern." },
     { DumpFile, "dump-file", 'd', required_argument, "Dump source file." },
+    { GenerateTest, "generate-test", 0, required_argument, "Generate a test for a given source file." },
     { RdmLog, "rdm-log", 'g', no_argument, "Receive logs from rdm." },
     { FixIts, "fixits", 0, required_argument, "Get fixits for file." },
     { RemoveFile, "remove", 'D', required_argument, "Remove file from project." },
@@ -1011,6 +1013,7 @@ bool RClient::parse(int &argc, char **argv)
         case IsIndexed:
         case DumpFile:
         case Dependencies:
+        case GenerateTest:
         case FixIts: {
             Path p = optarg;
             if (!p.exists()) {
@@ -1032,6 +1035,7 @@ bool RClient::parse(int &argc, char **argv)
             p.resolve();
             QueryMessage::Type type = QueryMessage::Invalid;
             switch (opt->option) {
+            case GenerateTest: type = QueryMessage::GenerateTest; break;
             case Dependencies: type = QueryMessage::Dependencies; break;
             case FixIts: type = QueryMessage::FixIts; break;
             case DumpFile: type = QueryMessage::DumpFile; break;
