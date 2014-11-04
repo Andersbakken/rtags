@@ -1,0 +1,9 @@
+{
+    sources: [ "-I. main.cpp" ],
+    tests: {
+        "simple": {
+            "command": { "follow-symbol", "main.cpp,20" ],
+            "output": [ "main.cpp,10" ]
+        }
+    }
+}
