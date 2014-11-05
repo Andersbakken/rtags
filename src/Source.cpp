@@ -250,6 +250,7 @@ static const char* valueArgs[] = {
     "-MF",
     "-MT",
     "-MQ",
+    "-gcc-toolchain",
     0
 };
 
@@ -263,6 +264,7 @@ static const char *blacklist[] = {
     "-MF",
     "-MT",
     "-MQ",
+    "-gcc-toolchain",
     0
 };
 
