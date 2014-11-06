@@ -740,6 +740,11 @@ BUFFER : the buffer to be checked and reparsed, if it's nil, use current buffer"
   :group 'rtags
   :type 'boolean)
 
+(defcustom rtags-spellcheck-enabled t
+  "Whether rtags does syntax checking with overlays etc to mark errors, warnings and fixups"
+  :group 'rtags
+  :type 'boolean)
+
 (defcustom rtags-sort-references-by-input t
   "Whether rtags sorts the references based on the input to rtags-find-references.*"
   :group 'rtags
@@ -1311,13 +1316,14 @@ References to references will be treated as references to the referenced symbol"
     (when doc
       ;;(message "GOT XML %s" output)
       (cond ((eq (car doc) 'checkstyle)
-             (setq body (cddr doc))
-             (while body
-               (with-current-buffer "*RTags Diagnostics*"
-                 (setq buffer-read-only nil)
-                 (rtags-parse-overlay-node (car body))
-                 (setq buffer-read-only t)
-                 (setq body (cdr body)))))
+             (when rtags-spellcheck-enabled
+               (setq body (cddr doc))
+               (while body
+                 (with-current-buffer "*RTags Diagnostics*"
+                   (setq buffer-read-only nil)
+                   (rtags-parse-overlay-node (car body))
+                   (setq buffer-read-only t)
+                   (setq body (cdr body))))))
             ((eq (car doc) 'completions)
              (when rtags-completions-enabled
                ;; (message "Got completions [%s]" body)
