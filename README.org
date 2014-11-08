@@ -133,15 +133,14 @@ $ cat ~/.rdmrc
 #+END_SRC
 
 * Installing rtags
-
-*Prerequisites*
+** Prerequisites
 
 There are a few prerequisites you need to have in order to build rtags
 
 1. libclang, preferrably 3.2 or higher, on Linux you may be able to use your distro package manager to install this. On OS X you can use homebrew or possibly other package managers, though see below for details if you plan to tag projects that use C++11 features (such as RTags itself). Alternatively you can grab the sources from [[http://llvm.org/releases/download.html][llvm.org]] and build it yourself.
 2. A modern compiler. This means GCC >= 4.7 or Clang >= 3.2. RTags makes extensive use of C++11 features such as variadic templates and threading utility classes from the C++ standard library.
 
-*C++11 on OS X*
+** C++11 on OS X
 
 If you plan to tag projects using C++11 features on OS X then you'll need a custom libclang, the default one built through homebrew does not support using LLVM's [[http://libcxx.llvm.org/][libc++]]. You'll need to install one from homebrew-versions instead and explicitly tell it to enable libc++. For LLVM 3.4 the following works:
 
@@ -158,7 +157,7 @@ sudo port install clang-3.5
 
 Feel free to inspect the formula before installing.
 
-*RTags daemon setup*
+** RTags daemon setup
 
 At this point you should be able to start the installation process. First of all you'll want to start the rdm daemon
 
@@ -195,7 +194,7 @@ ln -s /path/to/rtags/gcc-rtags-wrapper.sh ~/bin/g++
 ln -s /path/to/rtags/gcc-rtags-wrapper.sh ~/bin/gcc
 #+END_SRC
 
-*Emacs setup*
+** Emacs setup
 
 Add something like this to your .emacs:
 
