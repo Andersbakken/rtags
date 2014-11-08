@@ -76,8 +76,7 @@ it is like this:
 $ ln -s /path/to/rtags/bin/gcc-rtags-wrapper.sh /somewhere/that/is/in/your/path/before/usr/bin/gcc
 $ ln -s /path/to/rtags/bin/gcc-rtags-wrapper.sh /somewhere/that/is/in/your/path/before/usr/bin/c++
 $ ln -s /path/to/rtags/bin/gcc-rtags-wrapper.sh /somewhere/that/is/in/your/path/before/usr/bin/cc
-$ ln -s /path/to/rtags/bin/gcc-rtags-wrapper.sh
-/somewhere/that/is/in/your/path/before/usr/bin/g++
+$ ln -s /path/to/rtags/bin/gcc-rtags-wrapper.sh /somewhere/that/is/in/your/path/before/usr/bin/g++
 
 #+END_SRC
 E.g.
