@@ -1,6 +1,6 @@
 #!/bin/bash
 
-if [ "RTAGS_GCC_WRAPPER" = "1" ]; then
+if [ "$RTAGS_GCC_WRAPPER" = "1" ]; then
     echo 1>&2 "Recursive invocation of gcc-rtags-wrapper.sh detected"
     exit 1
 fi
