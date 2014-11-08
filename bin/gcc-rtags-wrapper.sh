@@ -26,7 +26,7 @@ for i in $(which -a "$(basename "$0")"); do
         [ -z "$RTAGS_COMPILE_TIMEOUT" ] && RTAGS_COMPILE_TIMEOUT=3000
 
         if [ -z "$RTAGS_DISABLED" ] && [ -x "$rc" ]; then
-            $rc --timeout="$RTAGS_COMPILE_TIMEOUT" "$RTAGS_ARGS" --silent --compile "$i" "$@" &
+            $rc --timeout="$RTAGS_COMPILE_TIMEOUT" $RTAGS_ARGS --silent --compile "$i" "$@" &
             disown &>/dev/null # rc might be finished by now and if so disown will yell at us
         fi
         [ "$RTAGS_RMAKE" ] && exit 0
