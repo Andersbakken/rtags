@@ -139,6 +139,7 @@ There are a few prerequisites you need to have in order to build rtags
 
 1. libclang, preferrably 3.2 or higher, on Linux you may be able to use your distro package manager to install this. On OS X you can use homebrew or possibly other package managers, though see below for details if you plan to tag projects that use C++11 features (such as RTags itself). Alternatively you can grab the sources from [[http://llvm.org/releases/download.html][llvm.org]] and build it yourself.
 2. A modern compiler. This means GCC >= 4.7 or Clang >= 3.2. RTags makes extensive use of C++11 features such as variadic templates and threading utility classes from the C++ standard library.
+3. CMake (>= 2.8), the build system used by RTags.
 
 ** C++11 on OS X
 
@@ -156,6 +157,25 @@ sudo port install clang-3.5
 #+END_SRC
 
 Feel free to inspect the formula before installing.
+
+** Building RTags
+
+To build RTags, you need to checkout the repository's submodules, and run CMake.
+
+#+BEGIN_SRC
+$ git submodule init
+$ git submodule update
+#+END_SRC
+
+We recommend building in a separate directory to keep the build files separate from the source, but you can run =cmake= in the source tree if you prefer.
+#+BEGIN_SRC
+$ mkdir build
+$ cd build
+$ cmake ..
+$ make
+$ make install
+#+END_SRC
+If you want to configure the build interactively, run =ccmake= (CMake with an ncurses UI) instead of =cmake=.
 
 ** RTags daemon setup
 
