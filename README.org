@@ -89,9 +89,9 @@ $ which -a gcc | xargs file
 
 This script will essentially stick itself in the middle of your
 compiles and notify RTags that you want this file indexed and then
-invoke the next entry in the $PATH that matches $0. This is a similar
-approach to the one taken by distributed build systems like icecream
-(https://github.com/icecc/icecream).
+invoke the next entry in the =$PATH= that matches =$0=. This is a
+similar approach to the one taken by distributed build systems like
+icecream (https://github.com/icecc/icecream).
 
 RTags will group source files into projects based on some heuristics.
 
@@ -123,8 +123,8 @@ eventually finished and nobody wants that. We're looking into better
 options.
 
 The location of this data is by default ~/.rtags but can be overridden
-by passing --data-dir /other/dir to rdm or putting something like this
-in your ~/.rdmrc:
+by passing =--data-dir /other/dir= to rdm or putting something like
+this in your ~/.rdmrc:
 
 #+BEGIN_SRC
 $ cat ~/.rdmrc
@@ -242,7 +242,7 @@ Add something like this to your .emacs:
 (require 'rtags)
 #+END_SRC
 
-To enable the standard keybindings (using a prefix of C-x r) you could
+To enable the standard keybindings (using a prefix of =C-x r=) you could
 call something like this:
 
 #+BEGIN_SRC
@@ -263,8 +263,8 @@ of variables/parameters with constructors it goes to the constructor
 in question.  If you pass a prefix argument, limit to current source
 file, if you pass a prefix argument and have narrowed the current
 file, limit to the narrowed region. This prefix argument is the same
-for: rtags-find-references-at-point, rtags-find-symbol,
-rtags-find-references
+for: =rtags-find-references-at-point=, =rtags-find-symbol=,
+=rtags-find-references=
 
 #+BEGIN_SRC
 (rtags-find-references-at-point)
@@ -412,7 +412,7 @@ debugging. Unless we have bugs it should not be necessary.
 #+BEGIN_SRC
 (rtags-show-rtags-buffer)
 #+END_SRC
-Switch to *RTags* buffer. This is the buffer where a number of
+Switch to =*RTags*= buffer. This is the buffer where a number of
 functions display their alternatives when they have more than one
 match.
 
@@ -421,12 +421,12 @@ Variables:
 #+BEGIN_SRC
 rtags-path
 #+END_SRC
-Path to rc/rdm if they're not in $PATH.
+Path to rc/rdm if they're not in =$PATH=.
 
 #+BEGIN_SRC
 rtags-jump-to-first-match
 #+END_SRC
-Similar to compilation-auto-jump-to-first-error. Whether to jump to
+Similar to =compilation-auto-jump-to-first-error=. Whether to jump to
 the first match automatically when there's more than one.
 
 #+BEGIN_SRC
@@ -438,11 +438,11 @@ Whether to match files case-insensitively
 rtags-find-file-prefer-exact-match
 #+END_SRC
 Whether to exclude partial matches for file names when an exact
-match is found. E.g.
-/foobar.cpp
-/bar.cpp
-If rtags-find-file-prefer-exact-match is t a query for bar.cpp
-would only return /bar.cpp, otherwise both foobar.cpp and bar.cpp
+match is found.  E.g.
+=/foobar.cpp=
+=/bar.cpp=
+If =rtags-find-file-prefer-exact-match= is =t= a query for =bar.cpp=
+would only return =/bar.cpp=, otherwise both =foobar.cpp= and =bar.cpp=
 would be returned.
 
 - Fall back to other taggers:
