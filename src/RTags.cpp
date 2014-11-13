@@ -240,6 +240,7 @@ Path findProjectRoot(const Path &path, ProjectRootMode mode)
             { "configure", 0 },
             { ".git", 0 },
             { ".svn", 0 },
+            { ".bzr", 0 },
             { "*.pro", Wildcard },
             { "scons.1", 0 },
             { "*.scons", Wildcard },
