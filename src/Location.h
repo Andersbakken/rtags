@@ -58,7 +58,7 @@ public:
     {}
 
     Location(uint32_t fileId, uint32_t line, uint32_t col)
-        : mData((static_cast<uint64_t>(fileId) << (64 - FileBits)) | (static_cast<uint64_t>(line) << (64 - FileBits - LineBits)) | col)
+        : mData((static_cast<uint64_t>(col) << (FileBits + LineBits)) | (static_cast<uint64_t>(line) << (FileBits)) | fileId)
     {
     }
 
@@ -92,9 +92,9 @@ public:
         return id;
     }
 
-    inline uint32_t fileId() const { return ((mData & FILEID_MASK) >> (64 - FileBits)); }
-    inline uint32_t line() const { return ((mData & LINE_MASK) >> (64 - FileBits - LineBits)); }
-    inline uint32_t column() const { return static_cast<uint32_t>(mData & COLUMN_MASK); }
+    inline uint32_t fileId() const { return static_cast<uint32_t>(mData & FILEID_MASK); }
+    inline uint32_t line() const { return static_cast<uint32_t>((mData & LINE_MASK) >> FileBits); }
+    inline uint32_t column() const { return static_cast<uint32_t>((mData & COLUMN_MASK) >> (FileBits + LineBits)); }
 
     inline Path path() const
     {

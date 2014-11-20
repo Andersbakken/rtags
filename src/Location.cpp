@@ -30,9 +30,9 @@ static inline uint64_t createMask(int startBit, int bitCount)
     return mask;
 }
 
-const uint64_t Location::FILEID_MASK = createMask(64 - FileBits, FileBits);
-const uint64_t Location::LINE_MASK = createMask(64 - FileBits - LineBits, LineBits);
-const uint64_t Location::COLUMN_MASK = createMask(64 - FileBits - LineBits - ColumnBits, ColumnBits);
+const uint64_t Location::FILEID_MASK = createMask(0, FileBits);
+const uint64_t Location::LINE_MASK = createMask(FileBits, LineBits);
+const uint64_t Location::COLUMN_MASK = createMask(FileBits + LineBits, ColumnBits);
 
 String Location::key(unsigned flags) const
 {
