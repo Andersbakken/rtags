@@ -143,9 +143,8 @@ Set<String> ListSymbolsJob::listSymbols(const std::shared_ptr<Project> &project)
     const SymbolNameMap &map = project->symbolNames();
     SymbolNameMap::const_iterator it = string.isEmpty() || caseInsensitive ? map.begin() : map.lower_bound(lowerBound);
     int count = 0;
-    while (it != map.end()) {
+    for (; it != map.end(); ++it) {
         const String &entry = it->first;
-        ++it;
         if (!string.isEmpty()) {
             if (wildcard) {
                 if (!Rct::wildCmp(string.constData(), entry.constData(), cs)) {
