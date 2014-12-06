@@ -11,7 +11,7 @@ for i in $(which -a "$(basename "$0")"); do
     max=10
     while [ $max -gt 0 -a -L "$filename" ]; do
         max=$((max - 1))
-        link=$(readlink "$i")
+        link=$(readlink "$filename")
         if echo "$link" | grep --quiet "^/"; then
             filename="$link"
         else
