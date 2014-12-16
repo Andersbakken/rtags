@@ -244,10 +244,10 @@ private:
     static const uint64_t COLUMN_MASK;
 };
 
-template <> inline int fixedSize(const Location &)
+template <> struct FixedSize<Location>
 {
-    return sizeof(uint64_t);
-}
+    static constexpr size_t value = sizeof(Location::mData);
+};
 
 template <> inline Serializer &operator<<(Serializer &s, const Location &t)
 {
