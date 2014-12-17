@@ -44,7 +44,6 @@
     (require 'cl)))
 (require 'compile)
 (require 'dabbrev)
-(require 'ido)
 (require 'thingatpt)
 (unless (fboundp 'libxml-parse-xml-region)
   (require 'xml))
@@ -481,7 +480,7 @@ BUFFER : the buffer to be checked and reparsed, if it's nil, use current buffer"
             (if (string-match "^\\([^ ]+\\)[^<]*$" line)
                 (setq projects (add-to-list 'projects (match-string-no-properties 1 line))))))
         (forward-line)))
-    (setq project (ido-completing-read
+    (setq project (completing-read
                    (format "RTags select project (current is %s): " current)
                    projects))
     (if project
@@ -1784,7 +1783,7 @@ References to references will be treated as references to the referenced symbol"
                          (eval (read (buffer-string)))))
          (match (car alternatives)))
     (if (> (length alternatives) 1)
-        (setq match (ido-completing-read "Symbol: " alternatives)))
+        (setq match (completing-read "Symbol: " alternatives)))
     (if match
         (rtags-goto-location (with-temp-buffer (rtags-call-rc :path fn "-F" match :path-filter fn) (buffer-string)))
       (message "RTags: No symbols"))))
