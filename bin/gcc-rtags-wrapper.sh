@@ -5,6 +5,7 @@ if [ "$RTAGS_GCC_WRAPPER" = "1" ]; then
     exit 1
 fi
 
+# tup support
 pushd . >/dev/null
 if pwd | grep --quiet /.tup/mnt/@tupjob-; then
     cd "/${PWD#*/.tup/mnt/@tupjob-*/}"
