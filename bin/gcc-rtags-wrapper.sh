@@ -5,6 +5,11 @@ if [ "$RTAGS_GCC_WRAPPER" = "1" ]; then
     exit 1
 fi
 
+pushd . >/dev/null
+if pwd | grep -q /.tup/mnt/@tupjob-; then
+    cd "/${PWD#*/.tup/mnt/@tupjob-*/}"
+fi
+
 rc=$(which rc)
 for i in $(which -a "$(basename "$0")"); do
     filename="$i"
@@ -32,6 +37,7 @@ for i in $(which -a "$(basename "$0")"); do
         [ "$RTAGS_RMAKE" ] && exit 0
 
         export RTAGS_GCC_WRAPPER=1
+        popd >/dev/null
         "$i" "$@"
         exit $?
     else
