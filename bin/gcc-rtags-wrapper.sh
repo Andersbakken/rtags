@@ -6,8 +6,9 @@ if [ "$RTAGS_GCC_WRAPPER" = "1" ]; then
 fi
 
 pushd . >/dev/null
-if pwd | grep -q /.tup/mnt/@tupjob-; then
+if pwd | grep --quiet /.tup/mnt/@tupjob-; then
     cd "/${PWD#*/.tup/mnt/@tupjob-*/}"
+    cd "$(pwd | sed 's|/build-[^/]*/|/|')"
 fi
 
 rc=$(which rc)
