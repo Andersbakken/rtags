@@ -466,7 +466,7 @@ int RClient::exec()
     connection.disconnected().connect(std::bind([](){ EventLoop::eventLoop()->quit(); }));
     if (!connection.connectUnix(mSocketFile, mConnectTimeout)) {
         error("Can't seem to connect to server");
-        return false;
+        return 1;
     }
     int ret = 0;
     for (int i=0; i<commandCount; ++i) {
