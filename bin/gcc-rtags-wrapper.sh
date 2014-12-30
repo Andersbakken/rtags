@@ -6,11 +6,33 @@ if [ "$RTAGS_GCC_WRAPPER" = "1" ]; then
 fi
 
 # tup support
+
+function eliminateTupVariant
+{
+    topDir="$PWD"
+    while [ "$PWD" != / -a ! -e ../.tup -a ! -e .tup ]; do
+        cd ..
+    done
+
+    if [ -e tup.config ]; then
+        configDir=$PWD
+        cd ..
+        echo "$PWD${topDir#$configDir}"
+    else
+        echo "$topDir"
+    fi
+}
+
 pushd . >/dev/null
 if pwd | grep --quiet /.tup/mnt/@tupjob-; then
+    # get out from the tup virtual filesystem
     cd "/${PWD#*/.tup/mnt/@tupjob-*/}"
-    cd "$(pwd | sed 's|/build-[^/]*/|/|')"
+
+    # get out from the tup variant directory (if any)
+    cd "$(eliminateTupVariant)"
 fi
+
+# tup support end
 
 rc=$(which rc)
 for i in $(which -a "$(basename "$0")"); do
