@@ -634,6 +634,8 @@ List<Source> Source::parse(const String &cmdLine, const Path &base, unsigned int
             source.language = hasDashX ? language : guessLanguageFromSourceFile(input.second, language);
         }
     }
+    if (testLog(Warning))
+        warning() << "Parsed Source(s) successfully:" << ret;
     return ret;
 }
 // returns false if at end
