@@ -78,7 +78,7 @@ public:
               rpNiceValue(0), syncThreshold(0), threadStackSize(0), maxCrashCount(0),
               completionCacheSize(0), astCache(0), testTimeout(60 * 1000 * 5)
         {}
-        Path socketFile, dataDir;
+        Path socketFile, dataDir, argTransform;
         unsigned options;
         int jobCount, unloadTimer, rpVisitFileTimeout,
             rpIndexerMessageTimeout, rpConnectTimeout, rpNiceValue,

@@ -348,9 +348,28 @@ void Server::onNewMessage(const std::shared_ptr<Message> &message, Connection *c
 
 bool Server::index(const String &arguments, const Path &pwd, const Path &projectRootOverride, unsigned int flags)
 {
-    Path unresolvedPath;
     List<Path> unresolvedPaths;
-    List<Source> sources = Source::parse(arguments, pwd, flags, &unresolvedPaths);
+    List<Source> sources;
+    bool parse = true;
+    if (!mOptions.argTransform.isEmpty()) {
+        Process process;
+        if (process.exec(mOptions.argTransform, List<String>() << arguments) == Process::Done) {
+            if (process.returnCode() != 0) {
+                warning() << "--arg-transform returned" << process.returnCode() << "for" << arguments;
+                return false;
+            }
+            const String stdOut = process.readAllStdOut();
+            if (stdOut != arguments) {
+                warning() << "Changed\n" << arguments << "\nto\n" << stdOut;
+                parse = false;
+                sources = Source::parse(stdOut, pwd, flags, &unresolvedPaths);
+            }
+        }
+    }
+
+    if (!parse)
+        sources = Source::parse(arguments, pwd, flags, &unresolvedPaths);
+
     bool ret = false;
     int idx = 0;
     for (Source &source : sources) {

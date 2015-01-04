@@ -117,6 +117,7 @@ static void usage(FILE *f)
             "  --no-spell-checking|-l                     Don't pass -fspell-checking.\n"
             "  --no-unlimited-error|-f                    Don't pass -ferror-limit=0 to clang.\n"
             "  --Wlarge-by-value-copy|-r [arg]            Use -Wlarge-by-value-copy=[arg] when invoking clang.\n"
+            "  --arg-transform|-V [arg]                   Use arg to transform arguments. [arg] should be a executable with (execv(3)).\n"
             , std::max(2, ThreadPool::idealThreadCount()), defaultStackSize);
 }
 
@@ -188,6 +189,7 @@ int main(int argc, char** argv)
         { "no-filemanager-watch", no_argument, 0, 'M' },
 #endif
         { "no-filesystem-watcher", no_argument, 0, 'B' },
+        { "arg-transform", required_argument, 0, 'V' },
         { 0, 0, 0, 0 }
     };
     const String shortOptions = Rct::shortOptions(opts);
@@ -456,7 +458,15 @@ int main(int argc, char** argv)
         case 'B':
             serverOpts.options |= Server::NoFileSystemWatch;
             break;
-        case 'F':
+        case 'V':
+            serverOpts.argTransform = Process::findCommand(optarg);
+            if (strlen(optarg) && serverOpts.argTransform.isEmpty()) {
+                fprintf(stderr, "Invalid argument to -V. Can't resolve %s", optarg);
+                return 1;
+            }
+
+            break;
+      case 'F':
             serverOpts.options |= Server::IgnorePrintfFixits;
             break;
         case 'f':
