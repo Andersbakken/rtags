@@ -238,6 +238,7 @@ Path findProjectRoot(const Path &path, ProjectRootMode mode)
             { "GTAGS", 0 },
             { "CMakeLists.txt", 0 },
             { "configure", 0 },
+            { ".tup", 0 },
             { ".git", 0 },
             { ".svn", 0 },
             { ".bzr", 0 },
