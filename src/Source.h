@@ -143,8 +143,6 @@ struct Source
     bool operator<(const Source &other) const;
     bool operator>(const Source &other) const;
 
-    enum { None = 0x00 }; // shared enum
-
     enum CommandLineMode {
         IncludeCompiler = 0x001,
         IncludeSourceFile = 0x002,
@@ -170,6 +168,7 @@ struct Source
     Path sysRoot() const { return arguments.value(sysRootIndex, "/"); }
 
     enum ParseFlag {
+        None = 0x0,
         Escape = 0x1
     };
     static List<Source> parse(const String &cmdLine, const Path &pwd,

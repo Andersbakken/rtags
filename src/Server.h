@@ -107,8 +107,9 @@ public:
     void dumpJobs(Connection *conn);
     std::shared_ptr<JobScheduler> jobScheduler() const { return mJobScheduler; }
 private:
-   void restoreFileIds();
-    bool index(const String &arguments, const Path &pwd, const Path &projectRootOverride, bool escape);
+    void restoreFileIds();
+    bool index(const String &arguments, const Path &pwd,
+               const Path &projectRootOverride, unsigned int sourceFlags = 0);
     void onNewConnection(SocketServer *server);
     void setCurrentProject(const std::shared_ptr<Project> &project, unsigned int queryFlags = 0);
     void onUnload();
