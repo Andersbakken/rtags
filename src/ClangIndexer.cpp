@@ -29,16 +29,6 @@
 static const CXSourceLocation nullLocation = clang_getNullLocation();
 static const CXCursor nullCursor = clang_getNullCursor();
 
-struct DumpUserData {
-    int indentLevel;
-    ClangIndexer *indexer;
-};
-
-struct FindImplicitEqualsConstructorUserData {
-    CXCursor &ref;
-    bool &success;
-};
-
 struct VerboseVisitorUserData {
     int indent;
     String out;
