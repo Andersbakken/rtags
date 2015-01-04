@@ -828,8 +828,8 @@ std::shared_ptr<CursorInfo> ClangIndexer::handleReference(const CXCursor &cursor
         CXSourceLocation rangeStart = clang_getRangeStart(range);
         CXSourceLocation rangeEnd = clang_getRangeEnd(range);
         unsigned startLine, startColumn, endLine, endColumn;
-        clang_getPresumedLocation(rangeStart, 0, &startLine, &startColumn);
-        clang_getPresumedLocation(rangeEnd, 0, &endLine, &endColumn);
+        clang_getSpellingLocation(rangeStart, 0, &startLine, &startColumn, 0);
+        clang_getSpellingLocation(rangeEnd, 0, &endLine, &endColumn, 0);
         info->startLine = startLine;
         info->startColumn = startColumn;
         info->endLine = endLine;
@@ -986,8 +986,8 @@ bool ClangIndexer::handleCursor(const CXCursor &cursor, CXCursorKind kind, const
         CXSourceLocation rangeStart = clang_getRangeStart(range);
         CXSourceLocation rangeEnd = clang_getRangeEnd(range);
         unsigned startLine, startColumn, endLine, endColumn;
-        clang_getPresumedLocation(rangeStart, 0, &startLine, &startColumn);
-        clang_getPresumedLocation(rangeEnd, 0, &endLine, &endColumn);
+        clang_getSpellingLocation(rangeStart, 0, &startLine, &startColumn, 0);
+        clang_getSpellingLocation(rangeEnd, 0, &endLine, &endColumn, 0);
         info->startLine = startLine;
         info->startColumn = startColumn;
         info->endLine = endLine;
@@ -1278,7 +1278,7 @@ bool ClangIndexer::diagnose()
                         break;
                     } else {
                         unsigned int line, column;
-                        clang_getPresumedLocation(start, 0, &line, &column);
+                        clang_getSpellingLocation(start, 0, &line, &column, 0);
                         const Location key(loc.fileId(), line, column);
                         xmlEntries[key] = XmlEntry(type, msg, endOffset - startOffset);
                         ok = true;
@@ -1287,7 +1287,7 @@ bool ClangIndexer::diagnose()
                 }
                 if (!ok) {
                     unsigned line, column;
-                    clang_getPresumedLocation(diagLoc, 0, &line, &column);
+                    clang_getSpellingLocation(diagLoc, 0, &line, &column, 0);
                     const Location key(loc.fileId(), line, column);
                     xmlEntries[key] = XmlEntry(type, msg);
                     // no length
@@ -1302,11 +1302,13 @@ bool ClangIndexer::diagnose()
                 CXSourceLocation start = clang_getRangeStart(range);
 
                 unsigned line, column;
-                CXString file;
-                clang_getPresumedLocation(start, &file, &line, &column);
-                CXStringScope fileScope(file);
+                CXFile file;
+                clang_getSpellingLocation(start, &file, &line, &column, 0);
+                if (!file)
+                    continue;
+                CXStringScope fileName(clang_getFileName(file));
 
-                const Location loc = createLocation(clang_getCString(file), line, column);
+                const Location loc = createLocation(clang_getCString(fileName), line, column);
                 if (mData->visited.value(loc.fileId())) {
                     unsigned int startOffset, endOffset;
                     CXSourceLocation end = clang_getRangeEnd(range);
