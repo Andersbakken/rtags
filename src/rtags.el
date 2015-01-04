@@ -1751,7 +1751,7 @@ References to references will be treated as references to the referenced symbol"
                 (member bookmark (bookmark-all-names)))
            (when other-window
              (if (= (length (window-list)) 1)
-                 (split-window))
+                 (funcall rtags-split-window-function))
              (other-window 1))
            (bookmark-jump bookmark)
            (rtags-location-stack-push))
@@ -1981,7 +1981,16 @@ References to references will be treated as references to the referenced symbol"
   :group 'rtags
   :type 'function)
 
-(defcustom rtags-other-window-window-size-percentage 30 "Percentage size of other buffer" :group 'rtags :type 'integer)
+(defcustom rtags-other-window-window-size-percentage 30
+  "Percentage size of other buffer"
+  :group 'rtags
+  :type 'integer)
+
+(defcustom rtags-split-window-function 'split-window
+  "Function to split window. default is 'split-window"
+  :group 'rtags
+  :type 'function)
+
 (defun rtags-show-target-in-other-window (&optional dest-window center-window
                                                     try-declaration-first)
   "DEST-WINDOW : destination window. Can be nil; in this case the current window is split
@@ -2008,7 +2017,7 @@ definition."
                 (unless (string= target other-window-content)
                   (progn
                     (setq height (/ height 100))
-                    (setq rtags-other-window-window (split-window nil height)))))))
+                    (setq rtags-other-window-window (funcall rtags-split-window-function nil height)))))))
           (select-window rtags-other-window-window)
           (rtags-goto-location target)
           (recenter-top-bottom (when (not center-window) 0))
