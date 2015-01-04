@@ -15,6 +15,7 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 
 #include "Project.h"
 #include "FileManager.h"
+#include "Diagnostic.h"
 #include "DataFile.h"
 #include "IndexerJob.h"
 #include "RTags.h"
@@ -506,7 +507,7 @@ void Project::onJobFinished(const std::shared_ptr<IndexerJob> &job, const std::s
 
     const int idx = mJobCounter - mActiveJobs.size();
     if (testLog(RTags::CompilationErrorXml)) {
-        logDirect(RTags::CompilationErrorXml, indexData->xmlDiagnostics);
+        logDirect(RTags::CompilationErrorXml, Diagnostic::format(indexData->diagnostics));
         if (!(options.options & Server::NoProgress)) {
             log(RTags::CompilationErrorXml,
                 "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n<progress index=\"%d\" total=\"%d\"></progress>",

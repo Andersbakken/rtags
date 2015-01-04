@@ -63,7 +63,7 @@ public:
     UsrMap usrMap, pendingReferenceMap;
     String message; // used as output for dump when flags & Dump
     FixItMap fixIts;
-    String xmlDiagnostics;
+    DiagnosticsMap diagnostics;
     Hash<uint32_t, bool> visited;
     uint64_t id;
     const uint32_t flags; // indexerjobflags

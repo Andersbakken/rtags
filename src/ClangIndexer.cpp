@@ -16,12 +16,14 @@
 #define RTAGS_SINGLE_THREAD
 #include <rct/SHA256.h>
 #include "ClangIndexer.h"
+#include "Diagnostic.h"
 #include "QueryMessage.h"
 #include "VisitFileMessage.h"
 #include "VisitFileResponseMessage.h"
 #include <rct/Connection.h>
 #include <rct/EventLoop.h>
 #include "RTags.h"
+#include "Diagnostic.h"
 #include "IndexerMessage.h"
 #include "IndexData.h"
 #include <unistd.h>
@@ -1181,56 +1183,6 @@ bool ClangIndexer::parse()
     return false;
 }
 
-struct XmlEntry
-{
-    enum Type { None, Warning, Error, Fixit, Skipped };
-
-    XmlEntry(Type t = None, const String &m = String(), int l = -1)
-        : type(t), message(m), length(l)
-    {
-    }
-
-    Type type;
-    String message;
-    int length;
-};
-
-static inline String xmlEscape(const String& xml)
-{
-    if (xml.isEmpty())
-        return xml;
-
-    std::ostringstream strm;
-    const char* ch = xml.constData();
-    bool done = false;
-    while (true) {
-        switch (*ch) {
-        case '\0':
-            done = true;
-            break;
-        case '"':
-            strm << "\\\"";
-            break;
-        case '<':
-            strm << "&lt;";
-            break;
-        case '>':
-            strm << "&gt;";
-            break;
-        case '&':
-            strm << "&amp;";
-            break;
-        default:
-            strm << *ch;
-            break;
-        }
-        if (done)
-            break;
-        ++ch;
-    }
-    return strm.str();
-}
-
 bool ClangIndexer::diagnose()
 {
     if (!mClangUnit) {
@@ -1240,8 +1192,6 @@ bool ClangIndexer::diagnose()
     List<String> compilationErrors;
     const unsigned diagnosticCount = clang_getNumDiagnostics(mClangUnit);
 
-    Map<Location, XmlEntry> xmlEntries;
-
     for (unsigned i=0; i<diagnosticCount; ++i) {
         CXDiagnostic diagnostic = clang_getDiagnostic(mClangUnit, i);
         const CXSourceLocation diagLoc = clang_getDiagnosticLocation(diagnostic);
@@ -1250,19 +1200,19 @@ bool ClangIndexer::diagnose()
         if (mData->visited.value(fileId)) {
             const String msg = RTags::eatString(clang_getDiagnosticSpelling(diagnostic));
             const CXDiagnosticSeverity sev = clang_getDiagnosticSeverity(diagnostic);
-            XmlEntry::Type type = XmlEntry::None;
+            Diagnostic::Type type = Diagnostic::None;
             switch (sev) {
             case CXDiagnostic_Warning:
-                type = XmlEntry::Warning;
+                type = Diagnostic::Warning;
                 break;
             case CXDiagnostic_Error:
             case CXDiagnostic_Fatal:
-                type = XmlEntry::Error;
+                type = Diagnostic::Error;
                 break;
             default:
                 break;
             }
-            if (type != XmlEntry::None) {
+            if (type != Diagnostic::None) {
                 const unsigned rangeCount = clang_getDiagnosticNumRanges(diagnostic);
                 bool ok = false;
                 for (unsigned rangePos = 0; rangePos < rangeCount; ++rangePos) {
@@ -1280,7 +1230,7 @@ bool ClangIndexer::diagnose()
                         unsigned int line, column;
                         clang_getSpellingLocation(start, 0, &line, &column, 0);
                         const Location key(loc.fileId(), line, column);
-                        xmlEntries[key] = XmlEntry(type, msg, endOffset - startOffset);
+                        mData->diagnostics[key] = Diagnostic(type, msg, endOffset - startOffset);
                         ok = true;
                         break;
                     }
@@ -1289,7 +1239,7 @@ bool ClangIndexer::diagnose()
                     unsigned line, column;
                     clang_getSpellingLocation(diagLoc, 0, &line, &column, 0);
                     const Location key(loc.fileId(), line, column);
-                    xmlEntries[key] = XmlEntry(type, msg);
+                    mData->diagnostics[key] = Diagnostic(type, msg);
                     // no length
                 }
             }
@@ -1317,8 +1267,8 @@ bool ClangIndexer::diagnose()
                     const char *string = clang_getCString(stringScope);
                     error("Fixit for %s:%d:%d: Replace %d characters with [%s]", loc.path().constData(),
                           line, column, endOffset - startOffset, string);
-                    XmlEntry &entry = xmlEntries[Location(loc.fileId(), line, column)];
-                    entry.type = XmlEntry::Fixit;
+                    Diagnostic &entry = mData->diagnostics[Location(loc.fileId(), line, column)];
+                    entry.type = Diagnostic::Fixit;
                     if (entry.message.isEmpty()) {
                         entry.message = String::format<64>("did you mean '%s'?", string);
                     }
@@ -1344,11 +1294,11 @@ bool ClangIndexer::diagnose()
 
                         unsigned line, column, startOffset, endOffset;
                         clang_getSpellingLocation(start, 0, &line, &column, &startOffset);
-                        XmlEntry &entry = xmlEntries[Location(loc.fileId(), line, column)];
-                        if (entry.type == XmlEntry::None) {
+                        Diagnostic &entry = mData->diagnostics[Location(loc.fileId(), line, column)];
+                        if (entry.type == Diagnostic::None) {
                             CXSourceLocation end = clang_getRangeEnd(skipped->ranges[i]);
                             clang_getSpellingLocation(end, 0, 0, 0, &endOffset);
-                            entry.type = XmlEntry::Skipped;
+                            entry.type = Diagnostic::Skipped;
                             entry.length = endOffset - startOffset;
                             // error() << line << column << startOffset << endOffset;
                         }
@@ -1360,40 +1310,13 @@ bool ClangIndexer::diagnose()
                 }
             }
 #endif
-            const Map<Location, XmlEntry>::const_iterator x = xmlEntries.lower_bound(loc);
-            if (x == xmlEntries.end() || x->first.fileId() != it->first) {
-                xmlEntries[loc] = XmlEntry();
+            const Map<Location, Diagnostic>::const_iterator x = mData->diagnostics.lower_bound(loc);
+            if (x == mData->diagnostics.end() || x->first.fileId() != it->first) {
+                mData->diagnostics[loc] = Diagnostic();
             }
         }
     }
 
-    mData->xmlDiagnostics = "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n  <checkstyle>";
-    if (!xmlEntries.isEmpty()) {
-        const char *severities[] = { "none", "warning", "error", "fixit", "skipped" };
-        uint32_t lastFileId = 0;
-
-        for (const auto &entry : xmlEntries) {
-            const Location &loc = entry.first;
-            const XmlEntry &xmlEntry = entry.second;
-            if (loc.fileId() != lastFileId) {
-                if (lastFileId)
-                    mData->xmlDiagnostics += "\n    </file>";
-                lastFileId = loc.fileId();
-                mData->xmlDiagnostics += String::format<128>("\n    <file name=\"%s\">", loc.path().constData());
-            }
-            if (xmlEntry.type != XmlEntry::None) {
-                mData->xmlDiagnostics += String::format("\n      <error line=\"%d\" column=\"%d\" %sseverity=\"%s\" message=\"%s\"/>",
-                                                        loc.line(), loc.column(),
-                                                        (xmlEntry.length <= 0 ? ""
-                                                         : String::format<32>("length=\"%d\" ", xmlEntry.length).constData()),
-                                                        severities[xmlEntry.type], xmlEscape(xmlEntry.message).constData());
-            }
-        }
-        if (lastFileId)
-            mData->xmlDiagnostics += "\n    </file>";
-    }
-
-    mData->xmlDiagnostics += "\n  </checkstyle>";
     return true;
 }
 

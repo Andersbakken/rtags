@@ -99,6 +99,7 @@ set(RTAGS_SOURCES
     CursorInfo.cpp
     CursorInfoJob.cpp
     DependenciesJob.cpp
+    Diagnostic.cpp
     DumpThread.cpp
     EventSourceClient.cpp
     FileManager.cpp

@@ -19,6 +19,7 @@
 #include "CursorInfo.h"
 #include "IndexData.h"
 #include "RTagsMessage.h"
+#include "Diagnostic.h"
 #include <rct/Message.h>
 #include <rct/Serializer.h>
 #include <rct/String.h>
@@ -46,7 +47,7 @@ public:
         CursorInfo::serialize(serializer, mData->symbols);
         serializer << mData->symbolNames << mData->dependencies
                    << mData->usrMap << mData->pendingReferenceMap << mData->message << mData->fixIts
-                   << mData->xmlDiagnostics << mData->visited << mData->id;
+                   << mData->diagnostics << mData->visited << mData->id;
         if (debugIndexerMessage)
             error() << "encoding took" << sw.elapsed() << "for" << Location::path(mData->fileId());
     }
@@ -62,7 +63,7 @@ public:
         CursorInfo::deserialize(deserializer, mData->symbols);
         deserializer >> mData->symbolNames >> mData->dependencies
                      >> mData->usrMap >> mData->pendingReferenceMap >> mData->message >> mData->fixIts
-                     >> mData->xmlDiagnostics >> mData->visited >> mData->id;
+                     >> mData->diagnostics >> mData->visited >> mData->id;
         if (debugIndexerMessage)
             error() << "decoding took" << sw.elapsed() << "for" << Location::path(mData->fileId());
     }
