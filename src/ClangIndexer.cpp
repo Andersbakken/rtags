@@ -1183,7 +1183,7 @@ bool ClangIndexer::parse()
 
 struct XmlEntry
 {
-    enum Type { None, Warning, Error, Fixit };
+    enum Type { None, Warning, Error, Fixit, Skipped };
 
     XmlEntry(Type t = None, const String &m = String(), int l = -1)
         : type(t), message(m), length(l)
@@ -1331,42 +1331,66 @@ bool ClangIndexer::diagnose()
         clang_disposeDiagnostic(diagnostic);
     }
 
+    for (Hash<uint32_t, bool>::const_iterator it = mData->visited.begin(); it != mData->visited.end(); ++it) {
+        if (it->second) {
+            const Location loc(it->first, 0, 0);
+#if CINDEX_VERSION_MINOR >= 21
+            CXFile file = clang_getFile(mClangUnit, loc.path().constData());
+            if (file) {
+                if (CXSourceRangeList *skipped = clang_getSkippedRanges(mClangUnit, file)) {
+                    const unsigned count = skipped->count;
+                    for (unsigned i=0; i<count; ++i) {
+                        CXSourceLocation start = clang_getRangeStart(skipped->ranges[i]);
+
+                        unsigned line, column, startOffset, endOffset;
+                        clang_getSpellingLocation(start, 0, &line, &column, &startOffset);
+                        XmlEntry &entry = xmlEntries[Location(loc.fileId(), line, column)];
+                        if (entry.type == XmlEntry::None) {
+                            CXSourceLocation end = clang_getRangeEnd(skipped->ranges[i]);
+                            clang_getSpellingLocation(end, 0, 0, 0, &endOffset);
+                            entry.type = XmlEntry::Skipped;
+                            entry.length = endOffset - startOffset;
+                            // error() << line << column << startOffset << endOffset;
+                        }
+                    }
+
+                    clang_disposeSourceRangeList(skipped);
+                    if (count)
+                        continue;
+                }
+            }
+#endif
+            const Map<Location, XmlEntry>::const_iterator x = xmlEntries.lower_bound(loc);
+            if (x == xmlEntries.end() || x->first.fileId() != it->first) {
+                xmlEntries[loc] = XmlEntry();
+            }
+        }
+    }
+
     mData->xmlDiagnostics = "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n  <checkstyle>";
     if (!xmlEntries.isEmpty()) {
-        Map<Location, XmlEntry>::const_iterator entry = xmlEntries.begin();
-        const Map<Location, XmlEntry>::const_iterator end = xmlEntries.end();
-
-        const char *severities[] = { "none", "warning", "error", "fixit" };
-
+        const char *severities[] = { "none", "warning", "error", "fixit", "skipped" };
         uint32_t lastFileId = 0;
-        while (entry != end) {
-            const Location &loc = entry->first;
-            const XmlEntry &xmlEntry = entry->second;
+
+        for (const auto &entry : xmlEntries) {
+            const Location &loc = entry.first;
+            const XmlEntry &xmlEntry = entry.second;
             if (loc.fileId() != lastFileId) {
                 if (lastFileId)
                     mData->xmlDiagnostics += "\n    </file>";
                 lastFileId = loc.fileId();
                 mData->xmlDiagnostics += String::format<128>("\n    <file name=\"%s\">", loc.path().constData());
             }
-            mData->xmlDiagnostics += String::format("\n      <error line=\"%d\" column=\"%d\" %sseverity=\"%s\" message=\"%s\"/>",
-                                                    loc.line(), loc.column(),
-                                                    (xmlEntry.length <= 0 ? ""
-                                                     : String::format<32>("length=\"%d\" ", xmlEntry.length).constData()),
-                                                    severities[xmlEntry.type], xmlEscape(xmlEntry.message).constData());
-            ++entry;
+            if (xmlEntry.type != XmlEntry::None) {
+                mData->xmlDiagnostics += String::format("\n      <error line=\"%d\" column=\"%d\" %sseverity=\"%s\" message=\"%s\"/>",
+                                                        loc.line(), loc.column(),
+                                                        (xmlEntry.length <= 0 ? ""
+                                                         : String::format<32>("length=\"%d\" ", xmlEntry.length).constData()),
+                                                        severities[xmlEntry.type], xmlEscape(xmlEntry.message).constData());
+            }
         }
         if (lastFileId)
             mData->xmlDiagnostics += "\n    </file>";
-    }
-
-    for (Hash<uint32_t, bool>::const_iterator it = mData->visited.begin(); it != mData->visited.end(); ++it) {
-        if (it->second) {
-            const Map<Location, XmlEntry>::const_iterator x = xmlEntries.lower_bound(Location(it->first, 0, 0));
-            if (x == xmlEntries.end() || x->first.fileId() != it->first) {
-                const String fn = Location::path(it->first);
-                mData->xmlDiagnostics += String::format("\n    <file name=\"%s\"/>", fn.constData());
-            }
-        }
     }
 
     mData->xmlDiagnostics += "\n  </checkstyle>";

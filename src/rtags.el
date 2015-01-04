@@ -87,6 +87,12 @@
   "Face used for marking fixit lines."
   :group 'rtags)
 
+(defface rtags-skippedline
+  '((((class color) (background dark)) (:background "darkgray"))
+    (((class color) (background light)) (:background "lightgray")))
+  "Face used for marking skipped lines."
+  :group 'rtags)
+
 (defvar rtags-font-lock-keywords
   `((,"^\\(.*?:[0-9]+:[0-9]+:\\)\\(.*\\)$"
      (1 font-lock-string-face)
@@ -1211,10 +1217,13 @@ References to references will be treated as references to the referenced symbol"
            (line (rtags-string-to-number (cdr (assq 'line attrs))))
            (column (rtags-string-to-number (cdr (assq 'column attrs))))
            (startoffset (rtags-string-to-number (cdr (assq 'startOffset attrs))))
-           (endoffset (rtags-string-to-number (cdr (assq 'endOffset attrs))))
+           (length (rtags-string-to-number (cdr (assq 'length attrs))))
+           (endoffset (or (rtags-string-to-number (cdr (assq 'endOffset attrs)))
+                          (and startoffset length (+ startoffset length))))
            (severity (cdr (assq 'severity attrs)))
            (ret)
            (message (cdr (assq 'message attrs))))
+      ;; (message "%d|%d|%d" (or startoffset -1) (or endoffset -1) (or length -1))
       (when (eq name 'error)
         (let ((errorlist (gethash filename rtags-overlays nil))
               (filebuffer (rtags-really-find-buffer filename)))
@@ -1227,9 +1236,11 @@ References to references will be treated as references to the referenced symbol"
                     (progn
                       (rtags-goto-line-col line column)
                       (setq startoffset (rtags-offset))))
-                  (let ((rsym (rtags-current-symbol t)))
-                    (when rsym
-                      (setq endoffset (+ startoffset (length rsym))))))))
+                  (if length
+                      (setq endoffset (+ startoffset length))
+                    (let ((rsym (rtags-current-symbol t)))
+                      (when rsym
+                        (setq endoffset (+ startoffset (length rsym)))))))))
 
             (if (and startoffset endoffset filebuffer)
                 (let ((overlay (make-overlay (1+ startoffset)
@@ -1240,15 +1251,18 @@ References to references will be treated as references to the referenced symbol"
                   (overlay-put overlay 'rtags-error-severity severity)
                   (overlay-put overlay 'rtags-error-start startoffset)
                   (overlay-put overlay 'rtags-error-end endoffset)
+                  ;; (message "Got overlay %d %d %d %s" startoffset endoffset length severity)
                   (overlay-put overlay 'face (cond ((string= severity "error") (setq ret 'error) 'rtags-errline)
                                                    ((string= severity "warning") (setq ret 'warning) 'rtags-warnline)
                                                    ((string= severity "fixit") 'rtags-fixitline)
+                                                   ((string= severity "skipped") 'rtags-skippedline)
                                                    (t 'rtags-errline)))
                   (if (string= severity "fixit")
                       (progn
                         (overlay-put overlay 'priority 1)
                         (insert (format "%s:%d:%d: fixit: %d-%d: %s\n" filename line column startoffset endoffset message)))
-                    (insert (format "%s:%d:%d: %s: %s\n" filename line column severity message)))
+                    (if (> (length message) 0)
+                        (insert (format "%s:%d:%d: %s: %s\n" filename line column severity message))))
 
                   (setq errorlist (append errorlist (list overlay)))
                   (puthash filename errorlist rtags-overlays))))
@@ -1275,7 +1289,7 @@ References to references will be treated as references to the referenced symbol"
             (cond ((eq 'error (car result)) (incf errors))
                   ((eq 'warning (car result)) (incf warnings))
                   (t))
-            (setq buf (cdr result))))
+            (setq buf (cdr result)))) ;; no need to set this every time
         (let ((buf (rtags-really-find-buffer filename)))
           (if buf
               (with-current-buffer buf
@@ -1359,7 +1373,7 @@ References to references will be treated as references to the referenced symbol"
 
 (defun rtags-display-overlay (overlay point)
   (let ((msg (overlay-get overlay 'rtags-error-message)))
-    (when (stringp msg)
+    (when (> (length msg) 0)
       (if rtags-display-current-error-as-tooltip
           (popup-tip msg :point point)) ;; :face 'rtags-warnline)) ;;(overlay-get overlay 'face)))
       (if rtags-display-current-error-as-message
