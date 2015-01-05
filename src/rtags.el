@@ -611,7 +611,8 @@ BUFFER : the buffer to be checked and reparsed, if it's nil, use current buffer"
   (goto-char (point-min))
   (forward-line (1- line))
   (beginning-of-line)
-  (forward-char (1- column)))
+  (if (>= (- (point-at-eol) (point)) column)
+      (forward-char (1- column))))
 
 (defun rtags-goto-location (location &optional nobookmark other-window)
   "Go to a location passed in. It can be either: file,12 or file:13:14 or plain file"
