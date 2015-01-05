@@ -28,6 +28,7 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 #include <rct/Log.h>
 #include <rct/MemoryMonitor.h>
 #include <rct/Path.h>
+#include <rct/Value.h>
 #include <rct/Rct.h>
 #include <rct/ReadLocker.h>
 #include <rct/RegExp.h>
@@ -1231,4 +1232,21 @@ String Project::sync()
     mIndexData.clear();
     mTimer.start();
     return msg;
+}
+
+String Project::toCompilationDatabase() const
+{
+    const unsigned int flags = (Source::IncludeCompiler | Source::IncludeSourceFile | Source::IncludeDefines
+                                | Source::IncludeIncludepaths | Source::QuoteDefines | Source::FilterBlacklist);
+    Value ret(List<Value>(mSources.size()));
+    int i = 0;
+    for (const auto &source : mSources) {
+        Value unit;
+        unit["directory"] = source.second.directory;
+        unit["file"] = source.second.sourceFile();
+        unit["command"] = source.second.toCommandLine(flags);
+        ret[i++] = unit;
+    }
+
+    return ret.toJSON(true);
 }

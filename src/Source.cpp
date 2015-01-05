@@ -622,6 +622,7 @@ List<Source> Source::parse(const String &cmdLine, const Path &base, unsigned int
         int idx = 0;
         for (const auto input : inputs) {
             Source &source = ret[idx++];
+            source.directory = path;
             source.fileId = input.first;
             source.compilerId = compilerId;
             source.buildRootId = buildRootId;

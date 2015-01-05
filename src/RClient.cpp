@@ -46,6 +46,7 @@ enum OptionType {
     Dependencies,
     Diagnostics,
     DisplayName,
+    DumpCompilationDatabase,
     DumpCompletions,
     DumpFile,
     DumpIncludeHeaders,
@@ -183,6 +184,7 @@ struct Option opts[] = {
     { PrepareCodeCompleteAt, "prepare-code-complete-at", 'b', required_argument, "Prepare code completion at location: arg is file:line:col." },
     { SendDiagnostics, "send-diagnostics", 0, required_argument, "Only for debugging. Send data to all -g connections." },
     { DumpCompletions, "dump-completions", 0, no_argument, "Dump cached completions." },
+    { DumpCompilationDatabase, "dump-compilation-database", 0, no_argument, "Dump compilation database for project." },
 
     { None, 0, 0, 0, "" },
     { None, 0, 0, 0, "Command flags:" },
@@ -797,6 +799,9 @@ bool RClient::parse(int &argc, char **argv)
             break;
         case DumpCompletions:
             addQuery(QueryMessage::DumpCompletions);
+            break;
+        case DumpCompilationDatabase:
+            addQuery(QueryMessage::DumpCompilationDatabase);
             break;
         case ReloadProjects:
             addQuery(QueryMessage::ReloadProjects);

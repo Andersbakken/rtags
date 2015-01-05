@@ -117,6 +117,7 @@ struct Source
     List<Include> includePaths;
     List<String> arguments;
     int32_t sysRootIndex;
+    Path directory;
 
     bool isValid() const { return fileId; }
     bool isNull() const  { return !fileId; }
@@ -309,7 +310,7 @@ template <> inline Serializer &operator<<(Serializer &s, const Source &b)
 {
     s << b.fileId << b.compilerId << b.buildRootId << static_cast<uint8_t>(b.language)
       << b.parsed << b.flags << b.defines << b.includePaths << b.arguments << b.sysRootIndex
-      << b.includePathHash;
+      << b.directory << b.includePathHash;
     return s;
 }
 
@@ -318,7 +319,8 @@ template <> inline Deserializer &operator>>(Deserializer &s, Source &b)
     b.clear();
     uint8_t language;
     s >> b.fileId >> b.compilerId >> b.buildRootId >> language >> b.parsed >> b.flags
-      >> b.defines >> b.includePaths >> b.arguments >> b.sysRootIndex >> b.includePathHash;
+      >> b.defines >> b.includePaths >> b.arguments >> b.sysRootIndex >> b.directory
+      >> b.includePathHash;
     b.language = static_cast<Source::Language>(language);
     return s;
 }

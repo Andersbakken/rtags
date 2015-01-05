@@ -496,6 +496,9 @@ void Server::handleQueryMessage(const std::shared_ptr<QueryMessage> &message, Co
     case QueryMessage::DumpCompletions:
         dumpCompletions(message, conn);
         break;
+    case QueryMessage::DumpCompilationDatabase:
+        dumpCompilationDatabase(message, conn);
+        break;
     case QueryMessage::SendDiagnostics:
         sendDiagnostics(message, conn);
         break;
@@ -1356,6 +1359,26 @@ void Server::dumpCompletions(const std::shared_ptr<QueryMessage> &/*query*/, Con
     } else {
         conn->write("No completions");
     }
+    conn->finish();
+}
+
+void Server::dumpCompilationDatabase(const std::shared_ptr<QueryMessage> &query, Connection *conn)
+{
+    std::shared_ptr<Project> project = projectForQuery(query);
+    if (!project)
+        project = currentProject();
+    if (!project) {
+        conn->write("No current project");
+        conn->finish(1);
+        return;
+    }
+    if (project->state() != Project::Loaded) {
+        conn->write("Project loading");
+        conn->finish(1);
+        return;
+    }
+
+    conn->write(project->toCompilationDatabase());
     conn->finish();
 }
 

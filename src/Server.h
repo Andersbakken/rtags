@@ -151,6 +151,7 @@ private:
     void shutdown(const std::shared_ptr<QueryMessage> &query, Connection *conn);
     void sources(const std::shared_ptr<QueryMessage> &query, Connection *conn);
     void dumpCompletions(const std::shared_ptr<QueryMessage> &query, Connection *conn);
+    void dumpCompilationDatabase(const std::shared_ptr<QueryMessage> &query, Connection *conn);
     void status(const std::shared_ptr<QueryMessage> &query, Connection *conn);
     void syncProject(const std::shared_ptr<QueryMessage> &qyery, Connection *conn);
     void suspend(const std::shared_ptr<QueryMessage> &query, Connection *conn);

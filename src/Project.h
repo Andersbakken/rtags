@@ -108,6 +108,7 @@ public:
     void onJobFinished(const std::shared_ptr<IndexerJob> &job, const std::shared_ptr<IndexData> &indexData);
     SourceMap sources() const { return mSources; }
     DependencyMap dependencies() const { return mDependencies; }
+    String toCompilationDatabase() const;
     Set<Path> watchedPaths() const { return mWatchedPaths; }
     bool isIndexing() const { return !mActiveJobs.isEmpty(); }
     void onFileModifiedOrRemoved(const Path &);

@@ -35,6 +35,7 @@ public:
         CursorInfo,
         DeleteProject,
         Dependencies,
+        DumpCompilationDatabase,
         DumpCompletions,
         DumpFile,
         FindFile,
