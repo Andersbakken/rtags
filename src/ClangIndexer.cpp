@@ -1431,6 +1431,7 @@ struct ResolveAutoTypeRefUserData
 {
     CXCursor ref;
     int index;
+    Set<String> *seen;
     // List<CXCursorKind> chain;
 };
 
@@ -1438,10 +1439,12 @@ static CXChildVisitResult resolveAutoTypeRefVisitor(CXCursor cursor, CXCursor, C
 {
     ResolveAutoTypeRefUserData *userData = reinterpret_cast<ResolveAutoTypeRefUserData*>(data);
     const CXCursorKind kind = clang_getCursorKind(cursor);
+    const String usr = RTags::eatString(clang_getCursorUSR(cursor));
+    if (!userData->seen->insert(usr)) {
+        return CXChildVisit_Break;
+    }
     // userData->chain.append(kind);
     // error() << "Got here" << cursor << userData->chain;
-    if (++userData->index >= 10)
-        return CXChildVisit_Break;
     switch (kind) {
     case CXCursor_TypeRef:
     case CXCursor_TemplateRef:
@@ -1456,7 +1459,7 @@ static CXChildVisitResult resolveAutoTypeRefVisitor(CXCursor cursor, CXCursor, C
         case CXCursor_VarDecl:
         case CXCursor_FunctionDecl:
         case CXCursor_CXXMethod: {
-            ResolveAutoTypeRefUserData u = { nullCursor, 0 }; //, List<CXCursorKind>() };
+            ResolveAutoTypeRefUserData u = { nullCursor, 0, userData->seen }; //, List<CXCursorKind>() };
             clang_visitChildren(ref, resolveAutoTypeRefVisitor, &u);
             // error() << "Visited for typeRef" << u.ref
             //         << clang_isInvalid(clang_getCursorKind(u.ref))
@@ -1484,7 +1487,8 @@ static CXChildVisitResult resolveAutoTypeRefVisitor(CXCursor cursor, CXCursor, C
 CXCursor ClangIndexer::resolveAutoTypeRef(const CXCursor &cursor) const
 {
     assert(clang_getCursorKind(cursor) == CXCursor_VarDecl);
-    ResolveAutoTypeRefUserData userData = { nullCursor, 0 }; //, List<CXCursorKind>() };
+    Set<String> seen;
+    ResolveAutoTypeRefUserData userData = { nullCursor, 0, &seen }; //, List<CXCursorKind>() };
     clang_visitChildren(cursor, resolveAutoTypeRefVisitor, &userData);
     if (userData.index > 1) {
         if (!clang_equalCursors(userData.ref, nullCursor)) {
