@@ -367,7 +367,7 @@ bool Server::index(const String &arguments, const Path &pwd, const Path &project
         }
     }
 
-    if (!parse)
+    if (parse)
         sources = Source::parse(arguments, pwd, flags, &unresolvedPaths);
 
     bool ret = false;
