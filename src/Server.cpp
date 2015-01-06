@@ -23,6 +23,7 @@
 #include "VisitFileResponseMessage.h"
 #include "Filter.h"
 #include "FindFileJob.h"
+#include "RClient.h"
 #include "FindSymbolsJob.h"
 #include "FollowLocationJob.h"
 #include "IndexerJob.h"
@@ -199,7 +200,7 @@ bool Server::init(const Options &options)
         mUnixServer.reset();
         if (!i) {
             enum { Timeout = 1000 };
-            Connection connection;
+            Connection connection(RClient::NumOptions);
             if (connection.connectUnix(mOptions.socketFile, Timeout)) {
                 connection.send(QueryMessage(QueryMessage::Shutdown));
                 connection.disconnected().connect(std::bind([](){ EventLoop::eventLoop()->quit(); }));
@@ -294,7 +295,7 @@ void Server::onNewConnection(SocketServer *server)
         SocketClient::SharedPtr client = server->nextConnection();
         if (!client)
             break;
-        Connection *conn = new Connection(client);
+        Connection *conn = new Connection(client, RClient::NumOptions);
         conn->newMessage().connect(std::bind(&Server::onNewMessage, this, std::placeholders::_1, std::placeholders::_2));
         conn->disconnected().connect(std::bind([conn]() {
                     conn->disconnected().disconnect();
@@ -1600,7 +1601,7 @@ class TestConnection : public Connection
 {
 public:
     TestConnection(const Path &workingDirectory)
-        : Connection(), mIsFinished(false), mWorkingDirectory(workingDirectory)
+        : Connection(RClient::NumOptions), mIsFinished(false), mWorkingDirectory(workingDirectory)
     {}
     virtual bool send(const Message &message)
     {

@@ -146,8 +146,8 @@ private:
     int mParseDuration, mVisitDuration, mBlocked, mAllowed,
         mIndexed, mVisitFileTimeout, mIndexerMessageTimeout, mFileIdsQueried;
     UnsavedFiles mUnsavedFiles;
-    Connection mConnection;
     FILE *mLogFile;
+    Connection mConnection;
     uint32_t mLastFileId;
     bool mLastBlocked;
     Path mLastFile;
