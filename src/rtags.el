@@ -1616,7 +1616,7 @@ References to references will be treated as references to the referenced symbol"
   (let ((path (buffer-file-name buffer)))
     (cond ((not path) nil)
           ((tramp-tramp-file-p path) nil)
-          (equal (rtags-buffer-status buffer) 'rtags-indexed))))
+          ((equal (rtags-buffer-status buffer) 'rtags-indexed)))))
 
 (defun rtags-has-filemanager (&optional buffer)
   (rtags-buffer-status buffer))
