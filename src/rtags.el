@@ -1613,7 +1613,10 @@ References to references will be treated as references to the referenced symbol"
 
 
 (defun rtags-is-indexed (&optional buffer)
-  (equal (rtags-buffer-status buffer) 'rtags-indexed))
+  (let ((path (buffer-file-name buffer)))
+    (cond ((not path) nil)
+          ((string-match "^/ssh:" path) nil)
+          (equal (rtags-buffer-status buffer) 'rtags-indexed))))
 
 (defun rtags-has-filemanager (&optional buffer)
   (rtags-buffer-status buffer))
