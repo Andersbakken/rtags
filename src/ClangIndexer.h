@@ -118,7 +118,7 @@ private:
                                                 const CXCursor &parent);
     void handleInclude(const CXCursor &cursor, CXCursorKind kind, const Location &location);
     Location findByUSR(const CXCursor &cursor, CXCursorKind kind, const Location &loc) const;
-    void addOverriddenCursors(const CXCursor& cursor, const Location& location, List<CursorInfo*>& infos);
+    void addOverriddenCursors(const CXCursor &cursor, const Location &location, List<Location> &locations);
     void superclassTemplateMemberFunctionUgleHack(const CXCursor &cursor, CXCursorKind kind,
                                                   const Location &location, const CXCursor &ref,
                                                   const CXCursor &parent);
@@ -129,6 +129,8 @@ private:
                                  unsigned includeLen, CXClientData userData);
 
     void onMessage(const std::shared_ptr<Message> &msg, Connection *conn);
+
+    int symbolLength(CXCursorKind kind, const CXCursor &cursor) const;
 
     Path mProject;
     Source mSource;
