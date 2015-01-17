@@ -741,6 +741,7 @@ std::shared_ptr<CursorInfo> ClangIndexer::handleReference(const CXCursor &cursor
                                                           const Location &location, const CXCursor &ref,
                                                           const CXCursor &parent)
 {
+#if 0
     // error() << "handleReference" << cursor << kind << location << ref;
     const CXCursorKind refKind = clang_getCursorKind(ref);
     if (clang_isInvalid(refKind)) {
@@ -871,10 +872,12 @@ std::shared_ptr<CursorInfo> ClangIndexer::handleReference(const CXCursor &cursor
     info->type = clang_getCursorType(cursor).kind;
 
     return info;
+#endif
 }
 
 void ClangIndexer::addOverriddenCursors(const CXCursor &cursor, const Location &location, List<Location> &locations)
 {
+#if 0
     CXCursor *overridden;
     unsigned count;
     clang_getOverriddenCursors(cursor, &overridden, &count);
@@ -896,165 +899,166 @@ void ClangIndexer::addOverriddenCursors(const CXCursor &cursor, const Location &
         locations.removeLast();
     }
     clang_disposeOverriddenCursors(overridden);
+#endif
 }
 
 void ClangIndexer::handleInclude(const CXCursor &cursor, CXCursorKind kind, const Location &location)
 {
-    assert(kind == CXCursor_InclusionDirective);
-    (void)kind;
-    CXFile includedFile = clang_getIncludedFile(cursor);
-    if (includedFile) {
-        const Location refLoc = createLocation(includedFile, 1, 1);
-        if (!refLoc.isNull()) {
-            {
-                String include = "#include ";
-                const Path path = refLoc.path();
-                assert(mSource.fileId);
-                mData->dependencies[refLoc.fileId()].insert(mSource.fileId);
-                mData->symbolNames[(include + path)].insert(location);
-                mData->symbolNames[(include + path.fileName())].insert(location);
-            }
-            std::shared_ptr<CursorInfo> &info = mData->symbols[location];
-            if (!info) {
-                // error() << "made info handleInclude" << location;
-                info = std::make_shared<CursorInfo>();
-                info->kind = clang_getCursorKind(cursor);
-                info->definition = false;
-                // this fails for things like:
-                // # include    <foobar.h>
-                info->symbolName = "#include " + RTags::eatString(clang_getCursorDisplayName(cursor));
-                info->symbolLength = info->symbolName.size() + 2;
-            }
-            mData->targets[location][refLoc] = CursorInfo::createTargetsValue(static_cast<CXCursorKind>(info->kind), info->definition);
+    // assert(kind == CXCursor_InclusionDirective);
+    // (void)kind;
+    // CXFile includedFile = clang_getIncludedFile(cursor);
+    // if (includedFile) {
+    //     const Location refLoc = createLocation(includedFile, 1, 1);
+    //     if (!refLoc.isNull()) {
+    //         {
+    //             String include = "#include ";
+    //             const Path path = refLoc.path();
+    //             assert(mSource.fileId);
+    //             mData->dependencies[refLoc.fileId()].insert(mSource.fileId);
+    //             mData->symbolNames[(include + path)].insert(location);
+    //             mData->symbolNames[(include + path.fileName())].insert(location);
+    //         }
+    //         std::shared_ptr<CursorInfo> &info = mData->symbols[location];
+    //         if (!info) {
+    //             // error() << "made info handleInclude" << location;
+    //             info = std::make_shared<CursorInfo>();
+    //             info->kind = clang_getCursorKind(cursor);
+    //             info->definition = false;
+    //             // this fails for things like:
+    //             // # include    <foobar.h>
+    //             info->symbolName = "#include " + RTags::eatString(clang_getCursorDisplayName(cursor));
+    //             info->symbolLength = info->symbolName.size() + 2;
+    //         }
+    //         mData->targets[location][refLoc] = CursorInfo::createTargetsValue(static_cast<CXCursorKind>(info->kind), info->definition);
 
-        }
-    }
+    //     }
+    // }
 }
 
 bool ClangIndexer::handleCursor(const CXCursor &cursor, CXCursorKind kind, const Location &location)
 {
-    // error() << "Got a cursor" << cursor;
-    std::shared_ptr<CursorInfo> &info = mData->symbols[location];
-    if (!info) {
-        info = std::make_shared<CursorInfo>();
-    } else if (info->symbolLength) {
-        return true;
-    }
+//     // error() << "Got a cursor" << cursor;
+//     std::shared_ptr<CursorInfo> &info = mData->symbols[location];
+//     if (!info) {
+//         info = std::make_shared<CursorInfo>();
+//     } else if (info->symbolLength) {
+//         return true;
+//     }
 
-    // if (mLogFile) {
-    //     String out;
-    //     Log(&out) << cursor << a;
-    //     fwrite(out.constData(), 1, out.size(), mLogFile);
-    //     fwrite("\n", 1, 1, mLogFile);
-    // }
-    CXStringScope name = clang_getCursorSpelling(cursor);
-    const char *cstr = name.data();
-    info->symbolLength = cstr ? strlen(cstr) : 0;
-    info->type = clang_getCursorType(cursor).kind;
-    if (!info->symbolLength) {
-        // this is for these constructs:
-        // typedef struct {
-        //    int a;
-        // } foobar;
-        //
-        // We end up not getting a spelling for the cursor
+//     // if (mLogFile) {
+//     //     String out;
+//     //     Log(&out) << cursor << a;
+//     //     fwrite(out.constData(), 1, out.size(), mLogFile);
+//     //     fwrite("\n", 1, 1, mLogFile);
+//     // }
+//     CXStringScope name = clang_getCursorSpelling(cursor);
+//     const char *cstr = name.data();
+//     info->symbolLength = cstr ? strlen(cstr) : 0;
+//     info->type = clang_getCursorType(cursor).kind;
+//     if (!info->symbolLength) {
+//         // this is for these constructs:
+//         // typedef struct {
+//         //    int a;
+//         // } foobar;
+//         //
+//         // We end up not getting a spelling for the cursor
 
-        switch (kind) {
-        case CXCursor_ClassDecl:
-            info->symbolLength = 5;
-            info->symbolName = "class";
-            break;
-        case CXCursor_UnionDecl:
-            info->symbolLength = 5;
-            info->symbolName = "union";
-            break;
-        case CXCursor_StructDecl:
-            info->symbolLength = 6;
-            info->symbolName = "struct";
-            break;
-        default:
-            mData->symbols.remove(location);
-            return false;
-        }
-    } else {
-        String typeOverride;
-        if (kind == CXCursor_VarDecl) {
-            const CXCursor typeRef = resolveAutoTypeRef(cursor);
-            if (!clang_equalCursors(typeRef, nullCursor)) {
-                // const CXSourceRange range = clang_Cursor_getSpellingNameRange(mLastCursor, 0, 0);
-                // error() << "Found" << typeRef << "for" << cursor << mLastCursor
-                //         << createLocation(mLastCursor)
-                //         << clang_Range_isNull(range)
-                //         << createLocation(clang_getCursorLocation(mLastCursor));
-                auto refInfo = handleReference(mLastCursor, CXCursor_TypeRef,
-                                               createLocation(clang_getCursorLocation(mLastCursor)),
-                                               clang_getCursorReferenced(typeRef), nullCursor);
-                if (refInfo) {
-                    // the type is read from the cursor passed in and that won't
-                    // be correct in this case
-                    refInfo->type = clang_getCursorType(typeRef).kind;
-                    refInfo->symbolLength = 4;
-                    typeOverride = refInfo->symbolName;
-                    refInfo->symbolName += " (auto)";
-                    refInfo->endLine = info->startLine;
-                    refInfo->endColumn = info->startColumn + 4;
-                }
-            }
-        }
+//         switch (kind) {
+//         case CXCursor_ClassDecl:
+//             info->symbolLength = 5;
+//             info->symbolName = "class";
+//             break;
+//         case CXCursor_UnionDecl:
+//             info->symbolLength = 5;
+//             info->symbolName = "union";
+//             break;
+//         case CXCursor_StructDecl:
+//             info->symbolLength = 6;
+//             info->symbolName = "struct";
+//             break;
+//         default:
+//             mData->symbols.remove(location);
+//             return false;
+//         }
+//     } else {
+//         String typeOverride;
+//         if (kind == CXCursor_VarDecl) {
+//             const CXCursor typeRef = resolveAutoTypeRef(cursor);
+//             if (!clang_equalCursors(typeRef, nullCursor)) {
+//                 // const CXSourceRange range = clang_Cursor_getSpellingNameRange(mLastCursor, 0, 0);
+//                 // error() << "Found" << typeRef << "for" << cursor << mLastCursor
+//                 //         << createLocation(mLastCursor)
+//                 //         << clang_Range_isNull(range)
+//                 //         << createLocation(clang_getCursorLocation(mLastCursor));
+//                 auto refInfo = handleReference(mLastCursor, CXCursor_TypeRef,
+//                                                createLocation(clang_getCursorLocation(mLastCursor)),
+//                                                clang_getCursorReferenced(typeRef), nullCursor);
+//                 if (refInfo) {
+//                     // the type is read from the cursor passed in and that won't
+//                     // be correct in this case
+//                     refInfo->type = clang_getCursorType(typeRef).kind;
+//                     refInfo->symbolLength = 4;
+//                     typeOverride = refInfo->symbolName;
+//                     refInfo->symbolName += " (auto)";
+//                     refInfo->endLine = info->startLine;
+//                     refInfo->endColumn = info->startColumn + 4;
+//                 }
+//             }
+//         }
 
-        info->symbolName = addNamePermutations(cursor, location, typeOverride);
-    }
+//         info->symbolName = addNamePermutations(cursor, location, typeOverride);
+//     }
 
-    CXSourceRange range = clang_getCursorExtent(cursor);
-    CXSourceLocation rangeStart = clang_getRangeStart(range);
-    CXSourceLocation rangeEnd = clang_getRangeEnd(range);
-    unsigned startLine, startColumn, endLine, endColumn;
-    clang_getSpellingLocation(rangeStart, 0, &startLine, &startColumn, 0);
-    clang_getSpellingLocation(rangeEnd, 0, &endLine, &endColumn, 0);
-    info->startLine = startLine;
-    info->startColumn = startColumn;
-    info->endLine = endLine;
-    info->endColumn = endColumn;
+//     CXSourceRange range = clang_getCursorExtent(cursor);
+//     CXSourceLocation rangeStart = clang_getRangeStart(range);
+//     CXSourceLocation rangeEnd = clang_getRangeEnd(range);
+//     unsigned startLine, startColumn, endLine, endColumn;
+//     clang_getSpellingLocation(rangeStart, 0, &startLine, &startColumn, 0);
+//     clang_getSpellingLocation(rangeEnd, 0, &endLine, &endColumn, 0);
+//     info->startLine = startLine;
+//     info->startColumn = startColumn;
+//     info->endLine = endLine;
+//     info->endColumn = endColumn;
 
-    if (kind == CXCursor_EnumConstantDecl) {
-#if CINDEX_VERSION_MINOR > 1
-        info->enumValue = clang_getEnumConstantDeclValue(cursor);
-#else
-        info->definition = 1;
-#endif
-    } else {
-        info->definition = clang_isCursorDefinition(cursor);
-    }
-    info->kind = kind;
-    // apparently some function decls will give a different usr for
-    // their definition and their declaration.  Using the canonical
-    // cursor's usr allows us to join them. Check JSClassRelease in
-    // JavaScriptCore for an example.
-    const String usr = RTags::eatString(clang_getCursorUSR(clang_getCanonicalCursor(cursor)));
-    if (!usr.isEmpty())
-        mData->usrs[usr][location] = CursorInfo::createTargetsValue(kind, info->definition);
+//     if (kind == CXCursor_EnumConstantDecl) {
+// #if CINDEX_VERSION_MINOR > 1
+//         info->enumValue = clang_getEnumConstantDeclValue(cursor);
+// #else
+//         info->definition = 1;
+// #endif
+//     } else {
+//         info->definition = clang_isCursorDefinition(cursor);
+//     }
+//     info->kind = kind;
+//     // apparently some function decls will give a different usr for
+//     // their definition and their declaration.  Using the canonical
+//     // cursor's usr allows us to join them. Check JSClassRelease in
+//     // JavaScriptCore for an example.
+//     const String usr = RTags::eatString(clang_getCursorUSR(clang_getCanonicalCursor(cursor)));
+//     if (!usr.isEmpty())
+//         mData->usrs[usr][location] = CursorInfo::createTargetsValue(kind, info->definition);
 
-    switch (info->kind) {
-    case CXCursor_Constructor:
-    case CXCursor_Destructor: {
-        Location parentLocation = createLocation(clang_getCursorSemanticParent(cursor));
-        // consider doing this for only declaration/inline definition since
-        // declaration and definition should know of one another
-        if (parentLocation.isValid()) {
-            mData->references[parentLocation].insert(location);
-            mData->references[location].insert(parentLocation);
-        }
-        break; }
-    case CXCursor_CXXMethod: {
-        List<Location> locations;
-        locations.append(location);
-        addOverriddenCursors(cursor, location, locations);
-        break; }
-    default:
-        break;
-    }
+//     switch (info->kind) {
+//     case CXCursor_Constructor:
+//     case CXCursor_Destructor: {
+//         Location parentLocation = createLocation(clang_getCursorSemanticParent(cursor));
+//         // consider doing this for only declaration/inline definition since
+//         // declaration and definition should know of one another
+//         if (parentLocation.isValid()) {
+//             mData->references[parentLocation].insert(location);
+//             mData->references[location].insert(parentLocation);
+//         }
+//         break; }
+//     case CXCursor_CXXMethod: {
+//         List<Location> locations;
+//         locations.append(location);
+//         addOverriddenCursors(cursor, location, locations);
+//         break; }
+//     default:
+//         break;
+//     }
 
-    return true;
+//     return true;
 }
 
 bool ClangIndexer::loadFromCache()
