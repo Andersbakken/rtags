@@ -22,7 +22,61 @@
 #include <rct/Rct.h>
 #include "RTagsClang.h"
 #include <rct/RegExp.h>
-#include "RPage.h"
+#include "Table.h"
+
+void hexdump(void *pAddressIn, long  lSize)
+{
+    char szBuf[100];
+    long lIndent = 1;
+    long lOutLen, lIndex, lIndex2, lOutLen2;
+    long lRelPos;
+    struct { char *pData; unsigned long lSize; } buf;
+    unsigned char *pTmp,ucTmp;
+    unsigned char *pAddress = (unsigned char *)pAddressIn;
+
+    buf.pData   = (char *)pAddress;
+    buf.lSize   = lSize;
+
+    while (buf.lSize > 0)
+    {
+        pTmp     = (unsigned char *)buf.pData;
+        lOutLen  = (int)buf.lSize;
+        if (lOutLen > 16)
+            lOutLen = 16;
+
+        // create a 64-character formatted output line:
+        sprintf(szBuf, " >                            "
+                "                      "
+                "    %08lX", pTmp-pAddress);
+        lOutLen2 = lOutLen;
+
+        for(lIndex = 1+lIndent, lIndex2 = 53-15+lIndent, lRelPos = 0;
+            lOutLen2;
+            lOutLen2--, lIndex += 2, lIndex2++
+            )
+        {
+            ucTmp = *pTmp++;
+
+            sprintf(szBuf + lIndex, "%02X ", (unsigned short)ucTmp);
+            if(!isprint(ucTmp))  ucTmp = '.'; // nonprintable char
+            szBuf[lIndex2] = ucTmp;
+
+            if (!(++lRelPos & 3))     // extra blank after 4 bytes
+            {  lIndex++; szBuf[lIndex+2] = ' '; }
+        }
+
+        if (!(lRelPos & 3)) lIndex--;
+
+        szBuf[lIndex  ]   = '<';
+        szBuf[lIndex+1]   = ' ';
+
+        printf("%s\n", szBuf);
+
+        buf.pData   += lOutLen;
+        buf.lSize   -= lOutLen;
+    }
+}
+
 
 struct Option {
     const RClient::OptionType option;
@@ -572,11 +626,17 @@ bool RClient::parse(int &argc, char **argv)
             break; }
         case WildcardSymbolNames: {
             Map<int, int> foobar;
-            foobar[1] = 2;
+            foobar[1] = 20;
             foobar[100] = 3;
             foobar[1000] = 4;
-            String data = Table<int, int>::create(foobar);
-            // mQueryFlags |= QueryMessage::WildcardSymbolNames;
+            const String data = Table<int, int>::create(foobar);
+            // hexdump(data.data(), data.size());
+            // printf("%d\n", data.size());
+            Table<int, int> tbl(data.constData(), data.size());
+
+            error() << /* tbl.count() << tbl.valueAt(0) <<  */tbl.value(1);
+            return 0;
+            mQueryFlags |= QueryMessage::WildcardSymbolNames;
             break; }
         case RangeFilter: {
             List<RegExp::Capture> caps;
