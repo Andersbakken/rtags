@@ -22,6 +22,7 @@
 #include <rct/Rct.h>
 #include "RTagsClang.h"
 #include <rct/RegExp.h>
+#include "RPage.h"
 
 struct Option {
     const RClient::OptionType option;
@@ -569,9 +570,14 @@ bool RClient::parse(int &argc, char **argv)
             p.resolve();
             mPathFilters.insert(p);
             break; }
-        case WildcardSymbolNames:
-            mQueryFlags |= QueryMessage::WildcardSymbolNames;
-            break;
+        case WildcardSymbolNames: {
+            Map<int, int> foobar;
+            foobar[1] = 2;
+            foobar[100] = 3;
+            foobar[1000] = 4;
+            String data = Table<int, int>::create(foobar);
+            // mQueryFlags |= QueryMessage::WildcardSymbolNames;
+            break; }
         case RangeFilter: {
             List<RegExp::Capture> caps;
             RegExp rx("^\\([0-9][0-9]*\\)-\\([0-9][0-9]*\\)$");
