@@ -630,9 +630,15 @@ bool RClient::parse(int &argc, char **argv)
             foobar[100] = 3;
             foobar[1000] = 4;
             const String data = Table<int, int>::create(foobar);
+            FILE *f = fopen("/tmp/foobar.data", "w");
+            fwrite(data.constData(), 1, data.size(), f);
+            fclose(f);
             // hexdump(data.data(), data.size());
             // printf("%d\n", data.size());
-            Table<int, int> tbl(data.constData(), data.size());
+            // Table<int, int> tbl(data.constData(), data.size());
+            Table<int, int> tbl;
+            if (!tbl.load("/tmp/foobar.data"))
+                exit(1);
 
             error() << /* tbl.count() << tbl.valueAt(0) <<  */tbl.value(1);
             return 0;

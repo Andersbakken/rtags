@@ -17,6 +17,9 @@
    along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 
 #include <assert.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <sys/mman.h>
 #include <rct/Serializer.h>
 #include <functional>
 
@@ -39,19 +42,55 @@ template <typename Key, typename Value>
 class Table
 {
 public:
-    Table(const char *pointer, size_t size)
-        : mPointer(pointer), mSize(size), mCount(*reinterpret_cast<const size_t*>(pointer)),
-          mKeySize(*reinterpret_cast<const size_t*>(pointer + sizeof(size_t)))
+    Table()
+        : mPointer(0), mSize(0), mCount(0), mKeySize(0), mFD(-1)
+    {}
+
+    void init(const char *pointer, size_t size)
     {
+        mPointer = pointer;
+        mSize = size;
+        mCount = *reinterpret_cast<const size_t*>(mPointer);
+        mKeySize = *reinterpret_cast<const size_t*>(mPointer + sizeof(size_t));
+    }
+
+    bool load(const Path &path)
+    {
+        const size_t fs = path.fileSize();
+        if (!fs)
+            return false;
+        eintrwrap(mFD, open(path.constData(), O_RDONLY));
+        if (mFD == -1)
+            return false;
+
+        const char *pointer = reinterpret_cast<const char*>(mmap(0, fs, PROT_READ, MAP_PRIVATE, mFD, 0));
+        // error() << errno;//  << mPointer;
+        if (pointer == MAP_FAILED) {
+            close(mFD);
+            mFD = -1;
+            return false;
+        }
+
+        init(pointer, fs);
+        return true;
+    }
+
+    ~Table()
+    {
+        if (mFD != -1) {
+            assert(mPointer);
+            munmap(const_cast<char*>(mPointer), mSize);
+            close(mFD);
+        }
     }
 
     Value value(const Key &key) const
     {
         bool match;
         const int idx = lowerBound(key, &match);
-        error() << "value" << idx << key << match;
+        // error() << "value" << idx << key << match;
         if (match)
-            return value(idx);
+            return valueAt(idx);
         return Value();
     }
 
@@ -112,20 +151,20 @@ public:
         serializer << static_cast<size_t>(0); // keysize
 
         auto encodePair = [&out, &valuesSerializer, &values, &valuesOffset](const char *keyData, size_t keySize, const Value &value)
-        {
-            // printf("encoding a key %d [%x, %x]\n", *reinterpret_cast<const int*>(keyData),
-            //        keyData[0], keyData[1]);
-            out.append(keyData, keySize);
-            if (const size_t size = FixedSize<Value>::value) {
-                // error() << "Encoding a value" << value;
-                out.append(reinterpret_cast<const char*>(&value), size);
-            } else {
-                values.append(reinterpret_cast<const char*>(&valuesOffset), sizeof(valuesOffset));
-                const int old = values.size();
-                valuesSerializer << value;
-                valuesOffset += (values.size() - old);
-            }
-        };
+            {
+                // printf("encoding a key %d [%x, %x]\n", *reinterpret_cast<const int*>(keyData),
+                //        keyData[0], keyData[1]);
+                out.append(keyData, keySize);
+                if (const size_t size = FixedSize<Value>::value) {
+                    // error() << "Encoding a value" << value;
+                    out.append(reinterpret_cast<const char*>(&value), size);
+                } else {
+                    values.append(reinterpret_cast<const char*>(&valuesOffset), sizeof(valuesOffset));
+                    const int old = values.size();
+                    valuesSerializer << value;
+                    valuesOffset += (values.size() - old);
+                }
+            };
 
         if (!FixedSize<Key>::value) {
             List<String> keys(map.size());
@@ -196,9 +235,10 @@ private:
     }
 
     const char *mPointer;
-    const size_t mSize;
-    const size_t mCount;
-    const size_t mKeySize;
+    size_t mSize;
+    size_t mCount;
+    size_t mKeySize;
+    int mFD;
 };
 
 #endif
