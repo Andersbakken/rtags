@@ -88,7 +88,7 @@ public:
             return false;
         }
 
-        file >> mSymbolNames >> mSources >> mVisitedFiles;
+        file >> mSymbolNames >> mSources >> mVisitedFiles >> mWatched;
         return true;
     }
 
@@ -96,6 +96,7 @@ public:
     SymbolNameMap mSymbolNames;
     SourceMap mSources;
     Hash<uint32_t, Path> mVisitedFiles;
+    Set<Path> mWatched;
     std::weak_ptr<Project> mWeak;
 };
 
@@ -310,8 +311,8 @@ void Project::updateContents(RestoreThread *thread)
         mSymbolNames = std::move(thread->mSymbolNames);
         mSources = std::move(thread->mSources);
 
-        for (const auto& dep : mDependencies) {
-            watch(Location::path(dep.first));
+        for (const auto &file : thread->mWatched) {
+            watch(file);
         }
 
         mVisitedFiles = std::move(thread->mVisitedFiles);
@@ -421,9 +422,7 @@ void Project::unload()
     mActiveJobs.clear();
     fileManager.reset();
 
-    mSymbols.clear();
     mSymbolNames.clear();
-    mUsr.clear();
     mFiles.clear();
     mSources.clear();
     mVisitedFiles.clear();
@@ -541,8 +540,7 @@ bool Project::save()
         error("Save error %s: %s", p.constData(), file.error().constData());
         return false;
     }
-    CursorInfo::serialize(file, mSymbols);
-    file << mSources << mVisitedFiles;
+    file << mSymbolNames << mSources << mVisitedFiles << mWatcher.watchedPaths();
     if (!file.flush()) {
         error("Save error %s: %s", p.constData(), file.error().constData());
         return false;
@@ -762,9 +760,7 @@ int Project::remove(const Match &match)
         }
     }
     if (count) {
-        RTags::dirtySymbols(mSymbols, dirty);
         RTags::dirtySymbolNames(mSymbolNames, dirty);
-        RTags::dirtyUsr(mUsr, dirty);
     }
     return count;
 }
@@ -789,9 +785,7 @@ int Project::startDirtyJobs(Dirty *dirty, const UnsavedFiles &unsavedFiles)
 
     if (!toIndex.size() && !dirtyFiles.isEmpty()) {
         // this is for the case where we've removed a file
-        RTags::dirtySymbols(mSymbols, dirtyFiles);
         RTags::dirtySymbolNames(mSymbolNames, dirtyFiles);
-        RTags::dirtyUsr(mUsr, dirtyFiles);
     } else {
         mDirtyFiles += dirtyFiles;
     }
@@ -809,102 +803,6 @@ static inline int writeSymbolNames(const SymbolNameMap &symbolNames, SymbolNameM
         value.unite(it->second, &count);
         ret += count;
         ++it;
-    }
-    return ret;
-}
-
-static inline void joinCursors(SymbolMap &symbols, const Set<Location> &locations)
-{
-    for (auto it = locations.begin(); it != locations.end(); ++it) {
-        const auto c = symbols.find(*it);
-        if (c != symbols.constEnd()) {
-            std::shared_ptr<CursorInfo> &cursorInfo = c->second;
-            for (auto innerIt = locations.begin(); innerIt != locations.end(); ++innerIt) {
-                if (innerIt != it)
-                    cursorInfo->targets.insert(*innerIt);
-            }
-            // ### this is filthy, we could likely think of something better
-        }
-    }
-}
-
-static inline void writeUsr(const UsrMap &usr, UsrMap &current, SymbolMap &symbols)
-{
-    auto it = usr.begin();
-    const auto end = usr.end();
-    while (it != end) {
-        Set<Location> &value = current[it->first];
-        int count = 0;
-        value.unite(it->second, &count);
-        if (count && value.size() > 1)
-            joinCursors(symbols, value);
-        ++it;
-    }
-}
-
-static inline void resolvePendingReferences(SymbolMap& symbols, const UsrMap& usrs, const UsrMap& refs)
-{
-    for (const auto &ref : refs) {
-        assert(!ref.second.isEmpty());
-        // find the declaration
-        List<String> refUsrs;
-        {
-            String refUsr = ref.first;
-            refUsrs.append(refUsr);
-            // assume this is an implicit instance method for a property, replace the last (im) with (py)
-            const int lastIm = refUsr.lastIndexOf("(im)");
-            if (lastIm != -1) {
-                refUsr.replace(lastIm, 4, "(py)");
-                refUsrs.append(refUsr);
-            }
-        }
-        SymbolMap targets;
-        for (const String& refUsr : refUsrs) {
-            const auto usr = usrs.find(refUsr);
-            if (usr != usrs.end()) {
-                for (const Location& usrLoc : usr->second) {
-                    auto symbol = symbols.value(usrLoc);
-                    assert(symbol);
-                    if (RTags::isCursor(symbol->kind))
-                        targets[usrLoc] = symbol;
-                }
-            }
-        }
-        if (!targets.isEmpty()) {
-            for (const auto &r : ref.second) {
-                auto &referenceCursor = symbols[r];
-                assert(referenceCursor);
-                for (const auto &t : targets) {
-                    referenceCursor->targets.insert(t.first);
-                    t.second->references.insert(r);
-                }
-            }
-        }
-    }
-}
-
-static inline int writeSymbols(SymbolMap &symbols, SymbolMap &current)
-{
-    int ret = 0;
-    if (!symbols.isEmpty()) {
-        if (current.isEmpty()) {
-            current = symbols;
-            ret = symbols.size();
-        } else {
-            auto it = symbols.begin();
-            const auto end = symbols.end();
-            while (it != end) {
-                auto cur = current.find(it->first);
-                if (cur == current.end()) {
-                    current[it->first] = it->second;
-                    ++ret;
-                } else {
-                    if (cur->second->unite(it->second))
-                        ++ret;
-                }
-                ++it;
-            }
-        }
     }
     return ret;
 }
@@ -1058,6 +956,8 @@ static inline bool matchSymbolName(const String &needle, const String &haystack,
 
 Set<Location> Project::locations(const String &symbolName, uint32_t fileId) const
 {
+#warning not done
+#if 0
     Set<Location> ret;
     if (fileId) {
         const SymbolMap s = symbols(fileId);
@@ -1081,10 +981,13 @@ Set<Location> Project::locations(const String &symbolName, uint32_t fileId) cons
         }
     }
     return ret;
+#endif
 }
 
 List<RTags::SortedCursor> Project::sort(const Set<Location> &locations, unsigned int flags) const
 {
+#warning not done
+#if 0
     List<RTags::SortedCursor> sorted;
     sorted.reserve(locations.size());
     for (auto it = locations.begin(); it != locations.end(); ++it) {
@@ -1108,10 +1011,13 @@ List<RTags::SortedCursor> Project::sort(const Set<Location> &locations, unsigned
         std::sort(sorted.begin(), sorted.end());
     }
     return sorted;
+#endif
 }
 
 SymbolMap Project::symbols(uint32_t fileId) const
 {
+#warning not done
+#if 0
     SymbolMap ret;
     if (fileId) {
         for (auto it = mSymbols.lower_bound(Location(fileId, 1, 0));
@@ -1120,6 +1026,7 @@ SymbolMap Project::symbols(uint32_t fileId) const
         }
     }
     return ret;
+#endif
 }
 
 void Project::watch(const Path &file)
@@ -1190,6 +1097,7 @@ String Project::sync()
                                             symbolNames);
     mIndexData.clear();
     mTimer.start();
+    return msg;
 }
 
 String Project::toCompilationDatabase() const
@@ -1208,3 +1116,65 @@ String Project::toCompilationDatabase() const
 
     return ret.toJSON(true);
 }
+Path Project::sourceFilePath(uint32_t fileId, const String &type) const
+{
+    return RTags::encodeSourceFilePath(Server::instance()->options().dataDir, mPath, fileId) + type;
+}
+
+Cursor Project::findCursor(const Table<Location, Cursor> &tbl, const Location &location) const
+{
+    bool exact = false;
+    const int idx = tbl.find(location, &exact);
+    Cursor ret;
+    if (idx != -1) {
+        ret = tbl.valueAt(idx);
+        if (!exact && (ret.location.fileId() != location.fileId()
+                       || ret.location.line() != location.line()
+                       || (location.column() - ret.location.column() <= ret.symbolLength))) {
+            ret = Cursor();
+        }
+    }
+    return ret;
+}
+Cursor Project::findCursor(const Location &location) const
+{
+    auto cursors = openCursors(location.fileId());
+    if (!cursors)
+        return Cursor();
+
+    const Cursor cursor = findCursor(*cursors, location);
+    return cursor;
+}
+
+Location Project::findTarget(const Location &location) const
+{
+    auto cursor = findCursor(location);
+    if (cursor.isClass() && cursor.isDefinition())
+        return Location();
+
+    Location targetLocation;
+    switch (cursor.kind) {
+    case CXCursor_ClassDecl:
+    case CXCursor_ClassTemplate:
+    case CXCursor_StructDecl:
+    case CXCursor_FunctionDecl:
+    case CXCursor_CXXMethod:
+    case CXCursor_Destructor:
+    case CXCursor_Constructor:
+    case CXCursor_FunctionTemplate:
+#warning need to look up usr etc
+    default:
+        const auto targetsDb = openTargets(location.fileId());
+        if (!targetsDb)
+            return Location();
+        targetLocation = RTags::bestTarget(targetsDb->value(cursor.location));
+        break;
+    }
+    // Cursor targetCursor = project()->findCursor(targetLocation);
+    //     if (!targetCursor.isNull() && targetCursor.kind != cursor.kind && !targetCursor.isDefinition()) {
+
+    //     }
+
+    return targetLocation;
+}
+

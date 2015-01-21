@@ -159,7 +159,7 @@ bool ClangIndexer::exec(const String &data)
     String err;
     StopWatch sw;
     int writeDuration = -1;
-    if (!mClangUnit || !writeFiles(RTags::encodeSourceFilePath(dataDir, mProject, mSource.key()), err)) {
+    if (!mClangUnit || !writeFiles(RTags::encodeSourceFilePath(dataDir, mProject, mSource.fileId), err)) {
         mData->message += " error";
         if (!err.isEmpty())
             mData->message += (' ' + err);
@@ -566,7 +566,7 @@ CXChildVisitResult ClangIndexer::indexVisitor(CXCursor cursor, CXCursor parent, 
 
     const CXCursorKind kind = clang_getCursorKind(cursor);
     const RTags::CursorType type = RTags::cursorType(kind);
-    if (type == RTags::Other)
+    if (type == RTags::Type_Other)
         return CXChildVisit_Recurse;
 
     bool blocked = false;
@@ -597,13 +597,13 @@ CXChildVisitResult ClangIndexer::indexVisitor(CXCursor cursor, CXCursor parent, 
         }
     }
     switch (type) {
-    case RTags::Cursor:
+    case RTags::Type_Cursor:
         indexer->handleCursor(cursor, kind, loc);
         break;
-    case RTags::Include:
+    case RTags::Type_Include:
         indexer->handleInclude(cursor, kind, loc);
         break;
-    case RTags::Reference:
+    case RTags::Type_Reference:
         switch (kind) {
         case CXCursor_OverloadedDeclRef: {
             const int count = clang_getNumOverloadedDecls(cursor);
@@ -632,7 +632,7 @@ CXChildVisitResult ClangIndexer::indexVisitor(CXCursor cursor, CXCursor parent, 
             break;
         }
         break;
-    case RTags::Other:
+    case RTags::Type_Other:
         assert(0);
         break;
     }
@@ -823,10 +823,16 @@ bool ClangIndexer::handleReference(const CXCursor &cursor, CXCursorKind kind,
     CXSourceRange range = clang_getCursorExtent(cursor);
     CXSourceLocation rangeStart = clang_getRangeStart(range);
     CXSourceLocation rangeEnd = clang_getRangeEnd(range);
-    clang_getSpellingLocation(rangeStart, 0, &c.startLine, &c.startColumn, 0);
-    clang_getSpellingLocation(rangeEnd, 0, &c.endLine, &c.endColumn, 0);
+    unsigned startLine, startColumn, endLine, endColumn;
+    clang_getSpellingLocation(rangeStart, 0, &startLine, &startColumn, 0);
+    clang_getSpellingLocation(rangeEnd, 0, &endLine, &endColumn, 0);
+    c.startLine = startLine;
+    c.endLine = endLine;
+    c.startColumn = startColumn;
+    c.endColumn = endColumn;
     c.definition = false;
     c.kind = kind;
+    c.location = location;
     if (isOperator) {
         unsigned start, end;
         clang_getSpellingLocation(rangeStart, 0, 0, 0, &start);
@@ -894,6 +900,7 @@ void ClangIndexer::handleInclude(const CXCursor &cursor, CXCursorKind kind, cons
             c.symbolName = "#include " + RTags::eatString(clang_getCursorDisplayName(cursor));
             c.kind = cursor.kind;
             c.symbolLength = c.symbolName.size() + 2;
+            c.location = location;
             mTargets[location][refLoc] = 0; // ### what targets value to create for this?
             // this fails for things like:
             // # include    <foobar.h>
@@ -920,6 +927,7 @@ bool ClangIndexer::handleCursor(const CXCursor &cursor, CXCursorKind kind, const
     const char *cstr = name.data();
     c.symbolLength = cstr ? strlen(cstr) : 0;
     c.type = clang_getCursorType(cursor).kind;
+    c.location = location;
     if (!c.symbolLength) {
         // this is for these constructs:
         // typedef struct {
@@ -979,8 +987,13 @@ bool ClangIndexer::handleCursor(const CXCursor &cursor, CXCursorKind kind, const
     const CXSourceRange range = clang_getCursorExtent(cursor);
     const CXSourceLocation rangeStart = clang_getRangeStart(range);
     const CXSourceLocation rangeEnd = clang_getRangeEnd(range);
-    clang_getSpellingLocation(rangeStart, 0, &c.startLine, &c.startColumn, 0);
-    clang_getSpellingLocation(rangeEnd, 0, &c.endLine, &c.endColumn, 0);
+    unsigned startLine, startColumn, endLine, endColumn;
+    clang_getSpellingLocation(rangeStart, 0, &startLine, &startColumn, 0);
+    clang_getSpellingLocation(rangeEnd, 0, &endLine, &endColumn, 0);
+    c.startLine = startLine;
+    c.endLine = endLine;
+    c.startColumn = startColumn;
+    c.endColumn = endColumn;
 
     if (kind == CXCursor_EnumConstantDecl) {
 #if CINDEX_VERSION_MINOR > 1
@@ -1089,6 +1102,15 @@ bool ClangIndexer::writeFiles(const Path &root, String &error)
             error = "Failed to write usrs";
             return false;
         }
+        FILE *f = fopen((root + "info").constData(), "w");
+        if (!f)
+            return false;
+
+        fprintf(f, "%s\n%s\n%d cursors\n",
+                mSourceFile.constData(),
+                String::join(mSource.toCommandLine(Source::Default|Source::IncludeCompiler|Source::IncludeSourceFile), " ").constData(),
+                mCursors.size());
+        fclose(f);
     }
 
     return true;

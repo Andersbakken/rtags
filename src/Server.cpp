@@ -738,6 +738,8 @@ void Server::dumpFile(const std::shared_ptr<QueryMessage> &query, Connection *co
 
 void Server::generateTest(const std::shared_ptr<QueryMessage> &query, Connection *conn)
 {
+#warning not done
+#if 0
     const uint32_t fileId = Location::fileId(query->query());
     if (!fileId) {
         conn->write<256>("%s is not indexed", query->query().constData());
@@ -810,6 +812,7 @@ void Server::generateTest(const std::shared_ptr<QueryMessage> &query, Connection
         conn->write<256>("%s build: %d not found", query->query().constData(), query->buildIndex());
         conn->finish();
     }
+#endif
 }
 
 void Server::cursorInfo(const std::shared_ptr<QueryMessage> &query, Connection *conn)

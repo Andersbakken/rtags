@@ -36,13 +36,13 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 
 namespace RTags {
 
-Path encodeSourceFilePath(const Path &dataDir, const Path &project, uint64_t build)
+Path encodeSourceFilePath(const Path &dataDir, const Path &project, uint32_t fileId)
 {
     std::ostringstream str;
     str << dataDir.ref();
     Path p = project;
     encodePath(p);
-    str << p.ref() << '/' << build << '/';
+    str << p.ref() << '/' << fileId << '/';
     return Path(str.str());
 }
 

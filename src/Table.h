@@ -234,7 +234,9 @@ private:
     inline static T read(const char *data)
     {
         if (FixedSize<T>::value) {
-            return *reinterpret_cast<const T*>(data);
+            T t = T();
+            memcpy(&t, data, FixedSize<T>::value);
+            return t;
         }
         Deserializer deserializer(data, INT_MAX);
         T t;

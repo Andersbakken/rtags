@@ -69,7 +69,7 @@ typedef Hash<uint32_t, Set<FixIt> > FixItMap;
 typedef Hash<Path, String> UnsavedFiles;
 
 namespace RTags {
-Path encodeSourceFilePath(const Path &dataDir, const Path &project, uint64_t build);
+Path encodeSourceFilePath(const Path &dataDir, const Path &project, uint32_t fileId);
 void dirtySymbolNames(SymbolNameMap &map, const Set<uint32_t> &dirty);
 
 template <typename Container, typename Value>
@@ -241,7 +241,19 @@ inline int targetRank(CXCursorKind kind)
         return 2;
     }
 }
-
+inline Location bestTarget(const Map<Location, uint16_t> &targets)
+{
+    Location ret;
+    int bestRank = -1;
+    for (auto t : targets) {
+        const int rank = targetRank(targetsValueKind(t.second));
+        if (rank > bestRank || (rank == bestRank && targetsValueIsDefinition(t.second))) {
+            ret = t.first;
+            bestRank = rank;
+        }
+    }
+    return ret;
+}
 }
 
 #endif

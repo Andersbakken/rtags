@@ -68,6 +68,40 @@ public:
 
     Set<Location> locations(const String &symbolName, uint32_t fileId = 0) const;
     SymbolMap symbols(uint32_t fileId) const;
+
+    template <typename Key, typename Value>
+    std::shared_ptr<Table<Key, Value> > openTable(uint32_t fileId, const String &type) const
+    {
+        const Path path = sourceFilePath(fileId, type);
+        std::shared_ptr<Table<Key, Value> > ret(new Table<Key, Value>);
+        if (!ret->load(path))
+            ret.reset();
+        return ret;
+    }
+
+    std::shared_ptr<Table<uint32_t, Set<uint32_t> > > openDeps(uint32_t fileId) const
+    {
+        return openTable<uint32_t, Set<uint32_t> >(fileId, "deps");
+    }
+    std::shared_ptr<Table<Location, Cursor> > openCursors(uint32_t fileId) const
+    {
+        return openTable<Location, Cursor>(fileId, "cursors");
+    }
+    std::shared_ptr<Table<Location, Map<Location, uint16_t> > > openTargets(uint32_t fileId) const
+    {
+        return openTable<Location, Map<Location, uint16_t> >(fileId, "targets");
+    }
+    std::shared_ptr<Table<String, Set<Location> > > openUsrs(uint32_t fileId) const
+    {
+        return openTable<String, Set<Location> >(fileId, "src");
+    }
+
+    Cursor findCursor(const Table<Location, Cursor> &map, const Location &location) const;
+    Cursor findCursor(const Location &location) const;
+    Location findTarget(const Location &location) const;
+
+    Path sourceFilePath(uint32_t fileId, const String &type) const;
+
     enum SortFlag {
         Sort_None = 0x0,
         Sort_DeclarationOnly = 0x1,
@@ -100,7 +134,6 @@ public:
     int remove(const Match &match);
     void onJobFinished(const std::shared_ptr<IndexerJob> &job, const std::shared_ptr<IndexData> &indexData);
     SourceMap sources() const { return mSources; }
-    DependencyMap dependencies(uint32_t fileId) const;
     String toCompilationDatabase() const;
     Set<Path> watchedPaths() const { return mWatchedPaths; }
     bool isIndexing() const { return !mActiveJobs.isEmpty(); }

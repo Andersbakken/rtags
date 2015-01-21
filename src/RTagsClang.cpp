@@ -96,22 +96,6 @@ String cursorToString(CXCursor cursor, unsigned flags)
     return ret;
 }
 
-Cursor findCursor(const Table<Location, Cursor> &tbl, const Location &location)
-{
-    bool exact = false;
-    const int idx = tbl.find(location, &exact);
-    Cursor ret;
-    if (idx != -1) {
-        ret = tbl.valueAt(idx);
-        if (!exact && (ret.location.fileId() != location.fileId()
-                       || ret.location.line() != location.line()
-                       || (location.column() - ret.location.column() <= ret.symbolLength))) {
-            ret = Cursor();
-        }
-    }
-    return ret;
-}
-
 void parseTranslationUnit(const Path &sourceFile, const List<String> &args,
                           CXTranslationUnit &unit, CXIndex index,
                           CXUnsavedFile *unsaved, int unsavedCount,
