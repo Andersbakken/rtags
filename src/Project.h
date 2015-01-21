@@ -69,33 +69,33 @@ public:
     Set<Location> locations(const String &symbolName, uint32_t fileId = 0) const;
 
     template <typename Key, typename Value>
-    std::shared_ptr<Table<Key, Value> > openTable(uint32_t fileId, const String &type) const
+    std::shared_ptr<FileMap<Key, Value> > openFileMap(uint32_t fileId, const String &type) const
     {
         const Path path = sourceFilePath(fileId, type);
-        std::shared_ptr<Table<Key, Value> > ret(new Table<Key, Value>);
+        std::shared_ptr<FileMap<Key, Value> > ret(new FileMap<Key, Value>);
         if (!ret->load(path))
             ret.reset();
         return ret;
     }
 
-    std::shared_ptr<Table<uint32_t, Set<uint32_t> > > openDeps(uint32_t fileId) const
+    std::shared_ptr<FileMap<uint32_t, Set<uint32_t> > > openDeps(uint32_t fileId) const
     {
-        return openTable<uint32_t, Set<uint32_t> >(fileId, "deps");
+        return openFileMap<uint32_t, Set<uint32_t> >(fileId, "deps");
     }
-    std::shared_ptr<Table<Location, Cursor> > openCursors(uint32_t fileId) const
+    std::shared_ptr<FileMap<Location, Cursor> > openCursors(uint32_t fileId) const
     {
-        return openTable<Location, Cursor>(fileId, "cursors");
+        return openFileMap<Location, Cursor>(fileId, "cursors");
     }
-    std::shared_ptr<Table<Location, Map<Location, uint16_t> > > openTargets(uint32_t fileId) const
+    std::shared_ptr<FileMap<Location, Map<Location, uint16_t> > > openTargets(uint32_t fileId) const
     {
-        return openTable<Location, Map<Location, uint16_t> >(fileId, "targets");
+        return openFileMap<Location, Map<Location, uint16_t> >(fileId, "targets");
     }
-    std::shared_ptr<Table<String, Set<Location> > > openUsrs(uint32_t fileId) const
+    std::shared_ptr<FileMap<String, Set<Location> > > openUsrs(uint32_t fileId) const
     {
-        return openTable<String, Set<Location> >(fileId, "usrs");
+        return openFileMap<String, Set<Location> >(fileId, "usrs");
     }
 
-    Cursor findCursor(const Table<Location, Cursor> &map, const Location &location) const;
+    Cursor findCursor(const FileMap<Location, Cursor> &map, const Location &location) const;
     Cursor findCursor(const Location &location) const;
     Location findTarget(const Location &location) const { return findTarget(findCursor(location)); }
     Location findTarget(const Cursor &cursor) const;

@@ -20,7 +20,7 @@
 #include "QueryMessage.h"
 #include "VisitFileMessage.h"
 #include "VisitFileResponseMessage.h"
-#include "Table.h"
+#include "FileMap.h"
 #include <rct/Connection.h>
 #include <rct/EventLoop.h>
 #include "RTags.h"
@@ -1089,15 +1089,15 @@ bool ClangIndexer::writeFiles(const Path &root, String &error)
         String unitRoot = root;
         unitRoot << unit.first;
         Path::mkdir(unitRoot, Path::Recursive);
-        if (!Table<Location, Cursor>::write(unitRoot + "/cursors", unit.second->cursors)) {
+        if (!FileMap<Location, Cursor>::write(unitRoot + "/cursors", unit.second->cursors)) {
             error = "Failed to write cursors";
             return false;
         }
-        if (!Table<Location, Map<Location, uint16_t> >::write(unitRoot + "/targets", unit.second->targets)) {
+        if (!FileMap<Location, Map<Location, uint16_t> >::write(unitRoot + "/targets", unit.second->targets)) {
             error = "Failed to write targets";
             return false;
         }
-        if (!Table<String, Set<Location> >::write(unitRoot + "/usrs", unit.second->usrs)) {
+        if (!FileMap<String, Set<Location> >::write(unitRoot + "/usrs", unit.second->usrs)) {
             error = "Failed to write usrs";
             return false;
         }

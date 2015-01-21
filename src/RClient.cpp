@@ -22,7 +22,7 @@
 #include <rct/Rct.h>
 #include "RTagsClang.h"
 #include <rct/RegExp.h>
-#include "Table.h"
+#include "FileMap.h"
 #include <rct/StopWatch.h>
 
 
@@ -578,8 +578,8 @@ bool RClient::parse(int &argc, char **argv)
             foobar[100] = 3;
             foobar[1000] = 4;
 
-            const String data = Table<int, int>::encode(foobar);
-            Table<int, int> tbl;
+            const String data = FileMap<int, int>::encode(foobar);
+            FileMap<int, int> tbl;
             tbl.init(data.constData(), data.size());
             bool exact;
             int idx = tbl.lowerBound(20, &exact);
@@ -599,14 +599,14 @@ bool RClient::parse(int &argc, char **argv)
 
             // foobar[1] = "11111111";
             // foobar[2] = "22222222";
-            // const String data = Table<uint64_t, String>::create(foobar);
+            // const String data = FileMap<uint64_t, String>::create(foobar);
             // FILE *f = fopen("/tmp/foobar.data", "w");
             // fwrite(data.constData(), 1, data.size(), f);
             // fclose(f);
             // // hexdump(data.data(), data.size());
             // // printf("%d\n", data.size());
-            // // Table<int, int> tbl(data.constData(), data.size());
-            // Table<uint64_t, String> tbl;
+            // // FileMap<int, int> tbl(data.constData(), data.size());
+            // FileMap<uint64_t, String> tbl;
             // if (!tbl.load("/tmp/foobar.data"))
             //     exit(1);
 

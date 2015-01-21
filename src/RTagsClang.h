@@ -16,7 +16,7 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 #ifndef __RTAGSCLANG_H__
 #define __RTAGSCLANG_H__
 
-#include "Table.h"
+#include "FileMap.h"
 #include "Source.h"
 #include "RTags.h"
 #include "Cursor.h"

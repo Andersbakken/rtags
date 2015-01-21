@@ -44,10 +44,10 @@ template <> inline int compare(const Location &l, const Location &r)
 }
 
 template <typename Key, typename Value>
-class Table
+class FileMap
 {
 public:
-    Table()
+    FileMap()
         : mPointer(0), mSize(0), mCount(0), mKeySize(0), mFD(-1)
     {}
 
@@ -61,6 +61,8 @@ public:
 
     bool load(const Path &path)
     {
+        static int count = 0;
+        printf("%d\n", ++count);
         const size_t fs = path.fileSize();
         if (!fs)
             return false;
@@ -80,7 +82,7 @@ public:
         return true;
     }
 
-    ~Table()
+    ~FileMap()
     {
         if (mFD != -1) {
             assert(mPointer);

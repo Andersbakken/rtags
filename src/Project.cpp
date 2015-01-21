@@ -310,12 +310,13 @@ void Project::updateContents(RestoreThread *thread)
     if (thread) {
         mSymbolNames = std::move(thread->mSymbolNames);
         mSources = std::move(thread->mSources);
+        mVisitedFiles = std::move(thread->mVisitedFiles);
+        mDependencies = std::move(thread->mDependencies);
 
         for (const auto& dep : mDependencies) {
             watch(Location::path(dep.first));
         }
 
-        mVisitedFiles = std::move(thread->mVisitedFiles);
         if (Server::instance()->suspended()) {
             dirty.reset(new SuspendedDirty);
         } else {
@@ -1083,6 +1084,7 @@ String Project::sync()
         const std::shared_ptr<IndexData> &data = it->second;
         addFixIts(data->visited, data->fixIts);
         addDependencies(data->dependencies, newFiles);
+        error() << data->dependencies.size() << Location::path(data->fileId());
         symbolNames += writeSymbolNames(data->symbolNames, mSymbolNames);
     }
 
@@ -1126,7 +1128,7 @@ Path Project::sourceFilePath(uint32_t fileId, const String &type) const
     return RTags::encodeSourceFilePath(Server::instance()->options().dataDir, mPath, fileId) + type;
 }
 
-Cursor Project::findCursor(const Table<Location, Cursor> &tbl, const Location &location) const
+Cursor Project::findCursor(const FileMap<Location, Cursor> &tbl, const Location &location) const
 {
     // for (int i=0; i<tbl.count(); ++i) {
     //     error() << i << tbl.keyAt(i);
@@ -1186,10 +1188,11 @@ Location Project::findTarget(const Cursor &cursor) const
     case CXCursor_FunctionTemplate: {
         Set<uint32_t> files;
         if (cursor.isDefinition()) {
-            files = dependencies(cursor.location.fileId(), DependsOnArg);
-        } else {
             files = dependencies(cursor.location.fileId(), ArgDependsOn);
+        } else {
+            files = dependencies(cursor.location.fileId(), DependsOnArg);
         }
+        // error() << files << cursor.location;
         const Set<Cursor> cursors = findByUsr(files, cursor.usr);
         for (const auto &c : cursors) {
             if (cursor.isDefinition() != c.isDefinition()) {
@@ -1214,6 +1217,7 @@ Set<Cursor> Project::findByUsr(const Set<uint32_t> &files, const String &usr) co
     Set<Cursor> ret;
     for (uint32_t fileId : files) {
         auto usrs = openUsrs(fileId);
+        // error() << usrs << Location::path(fileId);
         if (usrs) {
             for (const Location &loc : usrs->value(usr)) {
                 const Cursor c = findCursor(loc);
