@@ -96,7 +96,7 @@ public:
 
     int count() const { return mCount; }
 
-    Key key(size_t index) const
+    Key keyAt(size_t index) const
     {
         const char *ptr = (dataSegment() + (entrySize() * index));
         return read<Key>(ptr);
@@ -119,7 +119,7 @@ public:
 
         do {
             const int mid = lower + ((upper - lower) / 2);
-            const int cmp = compare<Key>(k, key(mid));
+            const int cmp = compare<Key>(k, keyAt(mid));
             if (cmp < 0) {
                 upper = mid - 1;
             } else if (cmp > 0) {
@@ -131,7 +131,7 @@ public:
             }
         } while (lower <= upper);
 
-        if (lower == static_cast<int>(mCount) || compare(k, key(lower)) < 0)
+        if (lower == static_cast<int>(mCount) || compare(k, keyAt(lower)) < 0)
             --lower;
         if (match)
             *match = false;
