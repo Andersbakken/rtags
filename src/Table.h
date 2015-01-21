@@ -112,7 +112,7 @@ public:
         const size_t offset = read<size_t>(data);
         return read<Value>(mPointer + offset);
     }
-    size_t lowerBound(const Key &k, bool *match) const
+    size_t lowerBound(const Key &k, bool *match = 0) const
     {
         int lower = 0;
         int upper = mCount - 1;
@@ -152,14 +152,11 @@ public:
 
         auto encodePair = [&out, &valuesSerializer, &values, &valuesOffset](const char *keyData, size_t keySize, const Value &value)
             {
-                // printf("encoding a key %d [%x, %x]\n", *reinterpret_cast<const int*>(keyData),
-                //        keyData[0], keyData[1]);
                 out.append(keyData, keySize);
                 if (const size_t size = FixedSize<Value>::value) {
-                    // error() << "Encoding a value" << value;
                     out.append(reinterpret_cast<const char*>(&value), size);
                 } else {
-                    values.append(reinterpret_cast<const char*>(&valuesOffset), sizeof(valuesOffset));
+                    out.append(reinterpret_cast<const char *>(&valuesOffset), sizeof(valuesOffset));
                     const int old = values.size();
                     valuesSerializer << value;
                     valuesOffset += (values.size() - old);
@@ -185,6 +182,7 @@ public:
             }
             valuesOffset = sizeof(size_t) + sizeof(size_t) + (entrySize * map.size());
             out.reserve(valuesOffset);
+            idx = 0;
             for (const auto &pair : map) {
                 memset(buf, 0, sizeof(buf));
                 const String &str = keys[idx++];
