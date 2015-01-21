@@ -39,8 +39,6 @@ private:
     bool diagnose();
     bool visit();
     bool parse();
-    bool loadFromCache();
-    String shaFile(const Path &path) const;
 
     void addFileSymbol(uint32_t file);
     int symbolLength(CXCursorKind kind, const CXCursor &cursor) const;
@@ -145,13 +143,12 @@ private:
     Path mSourceFile;
     std::shared_ptr<IndexData> mData;
     CXTranslationUnit mClangUnit;
-    bool mLoadedFromCache;
     CXIndex mIndex;
     CXCursor mLastCursor;
     String mClangLine;
     uint32_t mVisitFileResponseMessageFileId;
     bool mVisitFileResponseMessageVisit;
-    Path mSocketFile, mASTCacheDir;
+    Path mSocketFile;
     StopWatch mTimer;
     int mParseDuration, mVisitDuration, mBlocked, mAllowed,
         mIndexed, mVisitFileTimeout, mIndexerMessageTimeout, mFileIdsQueried;
