@@ -132,14 +132,14 @@ public:
             }
         } while (lower <= upper);
 
-        if (lower == static_cast<int>(mCount) || compare(k, keyAt(lower)) < 0)
-            --lower;
+        if (lower == static_cast<int>(mCount))
+            lower = -1;
         if (match)
             *match = false;
         return lower;
     }
 
-    static String create(const Map<Key, Value> &map)
+    static String encode(const Map<Key, Value> &map)
     {
         String out;
         Serializer serializer(out);
@@ -220,7 +220,7 @@ public:
         if (!f)
             return false;
 
-        const String data = create(map);
+        const String data = encode(map);
         const bool ret = fwrite(data.constData(), data.size(), 1, f);
         fclose(f);
         if (!ret)
