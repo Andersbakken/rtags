@@ -16,7 +16,6 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 #include "CursorInfoJob.h"
 #include "RTags.h"
 #include "Server.h"
-#include "CursorInfo.h"
 #include "Project.h"
 #include "QueryMessage.h"
 
@@ -27,6 +26,8 @@ CursorInfoJob::CursorInfoJob(const Location &loc, const std::shared_ptr<QueryMes
 
 int CursorInfoJob::execute()
 {
+#warning not done
+#if 0
     const SymbolMap &map = project()->symbols();
     if (map.isEmpty())
         return 1;
@@ -71,4 +72,5 @@ int CursorInfoJob::execute()
         }
     }
     return ret;
+#endif
 }

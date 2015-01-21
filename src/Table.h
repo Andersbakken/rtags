@@ -21,6 +21,7 @@
 #include <fcntl.h>
 #include <sys/mman.h>
 #include <rct/Serializer.h>
+#include "Location.h"
 #include <functional>
 
 template <typename T> inline static int compare(const T &l, const T &r)
@@ -87,7 +88,7 @@ public:
     Value value(const Key &key) const
     {
         bool match;
-        const int idx = lowerBound(key, &match);
+        const int idx = find(key, &match);
         // error() << "value" << idx << key << match;
         if (match)
             return valueAt(idx);
@@ -112,7 +113,7 @@ public:
         const size_t offset = read<size_t>(data);
         return read<Value>(mPointer + offset);
     }
-    size_t lowerBound(const Key &k, bool *match = 0) const
+    size_t find(const Key &k, bool *match = 0) const
     {
         int lower = 0;
         int upper = mCount - 1;

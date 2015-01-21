@@ -16,7 +16,6 @@
 #ifndef IndexerMessage_h
 #define IndexerMessage_h
 
-#include "CursorInfo.h"
 #include "IndexData.h"
 #include "RTagsMessage.h"
 #include "Diagnostic.h"

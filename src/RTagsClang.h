@@ -16,9 +16,10 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 #ifndef __RTAGSCLANG_H__
 #define __RTAGSCLANG_H__
 
+#include "Table.h"
 #include "Source.h"
 #include "RTags.h"
-#include "CursorInfo.h"
+#include "Cursor.h"
 #define __STDC_CONSTANT_MACROS
 #define __STDC_LIMIT_MACROS
 #include <clang/Basic/Version.h>
@@ -56,7 +57,7 @@ enum CursorToStringFlags {
     AllCursorToStringFlags = IncludeUSR|IncludeRange
 };
 String cursorToString(CXCursor cursor, unsigned = DefaultCursorToStringFlags);
-SymbolMap::const_iterator findCursorInfo(const SymbolMap &map, const Location &location);
+Cursor findCursor(const Table<Location, Cursor> &map, const Location &location);
 
 void parseTranslationUnit(const Path &sourceFile, const List<String> &args,
                           CXTranslationUnit &unit, CXIndex index,
@@ -203,16 +204,16 @@ static inline CursorType cursorType(uint16_t kind)
 {
     switch (kind) {
     case CXCursor_InclusionDirective:
-        return Include;
+        return Type_Include;
     }
     if (clang_isStatement(static_cast<CXCursorKind>(kind))) {
-        return Other;
+        return Type_Other;
     } else if (RTags::isCursor(kind)) {
-        return Cursor;
+        return Type_Cursor;
     } else if (RTags::isReference(kind)) {
-        return Reference;
+        return Type_Reference;
     }
-    return Other;
+    return Type_Other;
 }
 
 static inline bool isContainer(uint16_t kind)

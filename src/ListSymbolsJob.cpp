@@ -68,7 +68,9 @@ int ListSymbolsJob::execute()
 
 Set<String> ListSymbolsJob::imenu(const std::shared_ptr<Project> &project)
 {
+#warning not done
     Set<String> out;
+#if 0
 
     const SymbolMap &map = project->symbols();
     const List<String> paths = pathFilters();
@@ -112,6 +114,7 @@ Set<String> ListSymbolsJob::imenu(const std::shared_ptr<Project> &project)
             }
         }
     }
+#endif
     return out;
 }
 

@@ -14,7 +14,6 @@ You should have received a copy of the GNU General Public License
 along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 
 #include "RTags.h"
-#include "CursorInfo.h"
 #include "Server.h"
 #include "VisitFileMessage.h"
 #include "VisitFileResponseMessage.h"
@@ -50,39 +49,6 @@ Path encodeSourceFilePath(const Path &dataDir, const Path &project, uint64_t bui
 void dirtySymbolNames(SymbolNameMap &map, const Set<uint32_t> &dirty)
 {
     SymbolNameMap::iterator it = map.begin();
-    while (it != map.end()) {
-        Set<Location> &locations = it->second;
-        Set<Location>::iterator i = locations.begin();
-        while (i != locations.end()) {
-            if (dirty.contains(i->fileId())) {
-                locations.erase(i++);
-            } else {
-                ++i;
-            }
-        }
-        if (locations.isEmpty()) {
-            map.erase(it++);
-        } else {
-            ++it;
-        }
-    }
-}
-
-void dirtySymbols(SymbolMap &map, const Set<uint32_t> &dirty)
-{
-    SymbolMap::iterator it = map.begin();
-    while (it != map.end()) {
-        if (dirty.contains(it->first.fileId())) {
-            map.erase(it++);
-        } else {
-            it->second->dirty(dirty);
-            ++it;
-        }
-    }
-}
-void dirtyUsr(UsrMap &map, const Set<uint32_t> &dirty)
-{
-    UsrMap::iterator it = map.begin();
     while (it != map.end()) {
         Set<Location> &locations = it->second;
         Set<Location>::iterator i = locations.begin();

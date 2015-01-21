@@ -1,5 +1,5 @@
-#ifndef Cursor_h
-#define Cursor_h
+#ifndef RTagsCursor_h
+#define RTagsCursor_h
 
 /* This file is part of RTags.
 
@@ -26,7 +26,7 @@ struct Cursor
 {
     Cursor()
         : symbolLength(0), kind(CXCursor_FirstInvalid), type(CXType_Invalid), enumValue(0),
-          startLine(0), startColumn(0), endLine(0), endColumn(0)
+          startLine(-1), startColumn(-1), endLine(-1), endColumn(-1)
     {}
 
     Location location;
@@ -38,7 +38,7 @@ struct Cursor
         bool definition;
         int64_t enumValue; // only used if type == CXCursor_EnumConstantDecl
     };
-    unsigned startLine, startColumn, endLine, endColumn;
+    int startLine, startColumn, endLine, endColumn;
 
     bool isNull() const { return !symbolLength; }
 
@@ -57,6 +57,15 @@ struct Cursor
     }
 
     inline bool isDefinition() const { return kind == CXCursor_EnumConstantDecl || definition; }
+
+    enum Flag {
+        IgnoreTargets = 0x1,
+        IgnoreReferences = 0x2,
+        DefaultFlags = 0x0
+    };
+    String toString(unsigned cursorInfoFlags = DefaultFlags, unsigned keyFlags = 0) const;
+    String kindSpelling() const { return kindSpelling(kind); }
+    static String kindSpelling(uint16_t kind);
 };
 
 

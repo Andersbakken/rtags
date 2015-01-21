@@ -88,22 +88,12 @@ public:
             return false;
         }
 
-        CursorInfo::deserialize(file, mSymbols);
-        file >> mSymbolNames >> mUsr >> mDependencies >> mSources >> mVisitedFiles;
-        for (const auto &source : mSources) {
-            mDependencies[source.second.fileId].insert(source.second.fileId);
-            // if we save before finishing a sync we may have saved mSources
-            // without ever having parsed them, if so they won't depend on
-            // anything. Make sure they depend on themselves
-        }
+        file >> mSymbolNames >> mSources >> mVisitedFiles;
         return true;
     }
 
     const Path mPath;
-    SymbolMap mSymbols;
     SymbolNameMap mSymbolNames;
-    UsrMap mUsr;
-    DependencyMap mDependencies;
     SourceMap mSources;
     Hash<uint32_t, Path> mVisitedFiles;
     std::weak_ptr<Project> mWeak;
@@ -317,10 +307,7 @@ void Project::updateContents(RestoreThread *thread)
     bool needsSave = false;
     std::unique_ptr<ComplexDirty> dirty;
     if (thread) {
-        mSymbols = std::move(thread->mSymbols);
         mSymbolNames = std::move(thread->mSymbolNames);
-        mUsr = std::move(thread->mUsr);
-        mDependencies = std::move(thread->mDependencies);
         mSources = std::move(thread->mSources);
 
         for (const auto& dep : mDependencies) {
@@ -716,27 +703,6 @@ List<Source> Project::sources(uint32_t fileId) const
     return ret;
 }
 
-void Project::addDependencies(const DependencyMap &deps, Set<uint32_t> &newFiles)
-{
-    StopWatch timer;
-
-    const auto end = deps.end();
-    for (auto it = deps.begin(); it != end; ++it) {
-        Set<uint32_t> &values = mDependencies[it->first];
-        if (values.isEmpty()) {
-            values = it->second;
-        } else {
-            values.unite(it->second);
-        }
-        if (newFiles.isEmpty()) {
-            newFiles = it->second;
-        } else {
-            newFiles.unite(it->second);
-        }
-        newFiles.insert(it->first);
-    }
-}
-
 Set<uint32_t> Project::dependencies(uint32_t fileId, DependencyMode mode) const
 {
     if (mode == DependsOnArg)
@@ -983,14 +949,19 @@ bool Project::isSuspended(uint32_t file) const
     return mSuspendedFiles.contains(file);
 }
 
-void Project::addFixIts(const DependencyMap &visited, const FixItMap &fixIts) // lock always held
+void Project::addFixIts(const Hash<uint32_t, bool> &visited,
+                        const FixItMap &fixIts,
+                        Set<uint32_t> &newFiles)
 {
-    for (auto it = visited.begin(); it != visited.end(); ++it) {
-        const auto fit = fixIts.find(it->first);
-        if (fit == fixIts.end()) {
-            mFixIts.erase(it->first);
-        } else {
-            mFixIts[it->first] = fit->second;
+    for (auto v : visited) {
+        if (v.second) {
+            newFiles.insert(v.first);
+            const auto fit = fixIts.find(v.first);
+            if (fit == fixIts.end()) {
+                mFixIts.erase(v.first);
+            } else {
+                mFixIts[v.first] = fit->second;
+            }
         }
     }
 }
@@ -1183,8 +1154,6 @@ void Project::onSynced()
 
 String Project::sync()
 {
-    return String();
-#if 0
     mJobCounter = mActiveJobs.size();
     StopWatch sw;
     if (mDirtyFiles.isEmpty() && mIndexData.isEmpty()) {
@@ -1192,30 +1161,18 @@ String Project::sync()
     }
 
     if (!mDirtyFiles.isEmpty()) {
-        RTags::dirtySymbols(mSymbols, mDirtyFiles);
         RTags::dirtySymbolNames(mSymbolNames, mDirtyFiles);
-        RTags::dirtyUsr(mUsr, mDirtyFiles);
         mDirtyFiles.clear();
     }
     const int dirtyTime = sw.restart();
 
     Set<uint32_t> newFiles;
-    List<UsrMap*> pendingReferences;
-    int symbols = 0;
     int symbolNames = 0;
     for (auto it = mIndexData.begin(); it != mIndexData.end(); ++it) {
         const std::shared_ptr<IndexData> &data = it->second;
-        addDependencies(data->dependencies, newFiles);
-        addFixIts(data->dependencies, data->fixIts);
-        if (!data->pendingReferenceMap.isEmpty())
-            pendingReferences.append(&data->pendingReferenceMap);
-        symbols += writeSymbols(data->symbols, mSymbols);
-        writeUsr(data->usrMap, mUsr, mSymbols);
+        addFixIts(data->visited, data->fixIts, newFiles);
         symbolNames += writeSymbolNames(data->symbolNames, mSymbolNames);
     }
-
-    for (const UsrMap *map : pendingReferences)
-        resolvePendingReferences(mSymbols, mUsr, *map);
 
     for (auto it = newFiles.constBegin(); it != newFiles.constEnd(); ++it) {
         watch(Location::path(*it));
@@ -1227,13 +1184,12 @@ String Project::sync()
     const double averageJobTime = timerElapsed / mIndexData.size();
     const String msg = String::format<1024>("Jobs took %.2fs, %sdirtying took %.2fs, "
                                             "syncing took %.2fs, saving took %.2fs. We're using %lldmb of memory. "
-                                            "%d symbols, %d symbolNames", timerElapsed,
+                                            "%d symbolNames", timerElapsed,
                                             mIndexData.size() > 1 ? String::format("(avg %.2fs), ", averageJobTime).constData() : "",
                                             dirtyTime / 1000.0, syncTime / 1000.0, saveTime / 1000.0, MemoryMonitor::usage() / (1024 * 1024),
-                                            symbols, symbolNames);
+                                            symbolNames);
     mIndexData.clear();
     mTimer.start();
-#endif
 }
 
 String Project::toCompilationDatabase() const

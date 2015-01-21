@@ -26,7 +26,6 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 #include "QueryMessage.h"
 #include <mutex>
 
-class CursorInfo;
 class Location;
 class QueryMessage;
 class Project;
@@ -55,7 +54,6 @@ public:
         Unfiltered = 0x4
     };
     bool write(const String &out, unsigned flags = NoWriteFlags);
-    bool write(const std::shared_ptr<CursorInfo> &info, unsigned flags = NoWriteFlags);
     bool write(const Location &location, unsigned flags = NoWriteFlags);
 
     template <int StaticBufSize> bool write(unsigned flags, const char *format, ...);

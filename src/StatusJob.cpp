@@ -14,7 +14,6 @@ You should have received a copy of the GNU General Public License
 along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 
 #include "StatusJob.h"
-#include "CursorInfo.h"
 #include "RTags.h"
 #include "Server.h"
 #include <clang-c/Index.h>
@@ -76,6 +75,8 @@ int StatusJob::execute()
             return 1;
     }
 
+#warning not done
+#if 0
     if (query.isEmpty() || !strcasecmp(query.constData(), "dependencies")) {
         matched = true;
         const DependencyMap map = proj->dependencies();
@@ -123,6 +124,7 @@ int StatusJob::execute()
                 return 1;
         }
     }
+#endif
 
     if (query.isEmpty() || !strcasecmp(query.constData(), "symbolnames")) {
         matched = true;

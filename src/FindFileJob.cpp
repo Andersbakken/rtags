@@ -16,7 +16,6 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 #include "FindFileJob.h"
 #include "RTags.h"
 #include "Server.h"
-#include "CursorInfo.h"
 #include "FileManager.h"
 #include "Project.h"
 

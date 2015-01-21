@@ -46,10 +46,10 @@ enum UnitType {
     CompileCPlusPlus
 };
 enum CursorType {
-    Include,
-    Cursor,
-    Reference,
-    Other
+    Type_Include,
+    Type_Cursor,
+    Type_Reference,
+    Type_Other
 };
 void initMessages();
 }
@@ -71,8 +71,6 @@ typedef Hash<Path, String> UnsavedFiles;
 namespace RTags {
 Path encodeSourceFilePath(const Path &dataDir, const Path &project, uint64_t build);
 void dirtySymbolNames(SymbolNameMap &map, const Set<uint32_t> &dirty);
-void dirtySymbols(SymbolMap &map, const Set<uint32_t> &dirty);
-void dirtyUsr(UsrMap &map, const Set<uint32_t> &dirty);
 
 template <typename Container, typename Value>
 inline bool addTo(Container &container, const Value &value)

@@ -16,7 +16,6 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 #include "ReferencesJob.h"
 #include "Server.h"
 #include "RTags.h"
-#include "CursorInfo.h"
 #include "Project.h"
 
 ReferencesJob::ReferencesJob(const Location &loc, const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Project> &proj)
@@ -32,6 +31,8 @@ ReferencesJob::ReferencesJob(const String &sym, const std::shared_ptr<QueryMessa
 
 int ReferencesJob::execute()
 {
+#warning not done
+#if 0
     std::shared_ptr<Project> proj = project();
     Location startLocation;
     Map<Location, std::pair<bool, uint16_t> > references;
@@ -164,4 +165,5 @@ int ReferencesJob::execute()
             return 0;
     }
     return 1;
+#endif
 }

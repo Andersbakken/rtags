@@ -97,7 +97,6 @@ target_link_libraries(shared rct)
 set(RTAGS_SOURCES
     CompilerManager.cpp
     CompletionThread.cpp
-    CursorInfo.cpp
     CursorInfoJob.cpp
     DependenciesJob.cpp
     Diagnostic.cpp

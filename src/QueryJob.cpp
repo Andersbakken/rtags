@@ -17,7 +17,6 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 #include "RTags.h"
 #include <rct/EventLoop.h>
 #include "Server.h"
-#include "CursorInfo.h"
 #include <rct/RegExp.h>
 #include "QueryMessage.h"
 #include "Project.h"
@@ -140,6 +139,8 @@ bool QueryJob::write(const Location &location, unsigned /* flags */)
     const bool cursorKind = queryFlags() & QueryMessage::CursorKind;
     const bool displayName = queryFlags() & QueryMessage::DisplayName;
     if (containingFunction || cursorKind || displayName) {
+#warning not done
+#if 0
         const SymbolMap &symbols = project()->symbols();
         SymbolMap::const_iterator it = symbols.find(location);
         if (it == symbols.end()) {
@@ -169,18 +170,9 @@ bool QueryJob::write(const Location &location, unsigned /* flags */)
                 }
             }
         }
+#endif
     }
     return write(out);
-}
-
-bool QueryJob::write(const std::shared_ptr<CursorInfo> &ci, unsigned ciflags)
-{
-    if (!ci || ci->isNull())
-        return false;
-    const unsigned kf = keyFlags();
-    if (!write(ci->toString(ciflags, kf).constData()))
-        return false;
-    return true;
 }
 
 bool QueryJob::filter(const String &value) const

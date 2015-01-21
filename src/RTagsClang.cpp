@@ -46,16 +46,16 @@ String cursorToString(CXCursor cursor, unsigned flags)
         return ret;
 
     switch (RTags::cursorType(kind)) {
-    case Reference:
+    case Type_Reference:
         ret += " r";
         break;
-    case Cursor:
+    case Type_Cursor:
         ret += " c";
         break;
-    case Other:
+    case Type_Other:
         ret += " o";
         break;
-    case Include:
+    case Type_Include:
         ret += " i";
         break;
     }
@@ -96,20 +96,20 @@ String cursorToString(CXCursor cursor, unsigned flags)
     return ret;
 }
 
-SymbolMap::const_iterator findCursorInfo(const SymbolMap &map, const Location &location)
+Cursor findCursor(const Table<Location, Cursor> &tbl, const Location &location)
 {
-    SymbolMap::const_iterator it = map.lower_bound(location);
-    if (it != map.end() && it->first == location) {
-        return it;
-    } else if (it != map.begin()) {
-        --it;
-        if (it->first.fileId() == location.fileId() && location.line() == it->first.line()) {
-            const int off = location.column() - it->first.column();
-            if (it->second->symbolLength > off)
-                return it;
+    bool exact = false;
+    const int idx = tbl.find(location, &exact);
+    Cursor ret;
+    if (idx != -1) {
+        ret = tbl.valueAt(idx);
+        if (!exact && (ret.location.fileId() != location.fileId()
+                       || ret.location.line() != location.line()
+                       || (location.column() - ret.location.column() <= ret.symbolLength))) {
+            ret = Cursor();
         }
     }
-    return map.end();
+    return ret;
 }
 
 void parseTranslationUnit(const Path &sourceFile, const List<String> &args,

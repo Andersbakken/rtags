@@ -16,7 +16,6 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 #include "FollowLocationJob.h"
 #include "RTags.h"
 #include "Server.h"
-#include "CursorInfo.h"
 #include "Project.h"
 
 FollowLocationJob::FollowLocationJob(const Location &loc, const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Project> &project)
@@ -26,6 +25,9 @@ FollowLocationJob::FollowLocationJob(const Location &loc, const std::shared_ptr<
 
 int FollowLocationJob::execute()
 {
+#warning not done
+#if 0
+
     const SymbolMap &map = project()->symbols();
     SymbolMap::const_iterator it = RTags::findCursorInfo(map, location);
 
@@ -89,4 +91,5 @@ int FollowLocationJob::execute()
         }
     }
     return ret;
+#endif
 }

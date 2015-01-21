@@ -16,7 +16,6 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 #ifndef Project_h
 #define Project_h
 
-#include "CursorInfo.h"
 #include "IndexerJob.h"
 #include "Match.h"
 #include "QueryMessage.h"
@@ -64,9 +63,6 @@ public:
 
     bool match(const Match &match, bool *indexed = 0) const;
 
-    const SymbolMap &symbols() const { return mSymbols; }
-    SymbolMap &symbols() { return mSymbols; }
-
     const SymbolNameMap &symbolNames() const { return mSymbolNames; }
     SymbolNameMap &symbolNames() { return mSymbolNames; }
 
@@ -81,9 +77,6 @@ public:
 
     const FilesMap &files() const { return mFiles; }
     FilesMap &files() { return mFiles; }
-
-    const UsrMap &usrs() const { return mUsr; }
-    UsrMap &usrs() { return mUsr; }
 
     const Set<uint32_t> &suspendedFiles() const;
     bool toggleSuspendFile(uint32_t file);
@@ -107,7 +100,7 @@ public:
     int remove(const Match &match);
     void onJobFinished(const std::shared_ptr<IndexerJob> &job, const std::shared_ptr<IndexData> &indexData);
     SourceMap sources() const { return mSources; }
-    DependencyMap dependencies() const { return mDependencies; }
+    DependencyMap dependencies(uint32_t fileId) const;
     String toCompilationDatabase() const;
     Set<Path> watchedPaths() const { return mWatchedPaths; }
     bool isIndexing() const { return !mActiveJobs.isEmpty(); }
@@ -132,8 +125,9 @@ private:
     void updateContents(RestoreThread *thread);
     void watch(const Path &file);
     void reloadFileManager();
-    void addDependencies(const DependencyMap &hash, Set<uint32_t> &newFiles);
-    void addFixIts(const DependencyMap &dependencies, const FixItMap &fixIts);
+    void addFixIts(const Hash<uint32_t, bool> &visited,
+                   const FixItMap &fixIts,
+                   Set<uint32_t> &newFiles);
     int startDirtyJobs(Dirty *dirty, const UnsavedFiles &unsavedFiles = UnsavedFiles());
     bool save();
     void onSynced();
@@ -142,9 +136,7 @@ private:
     const Path mPath;
     State mState;
 
-    SymbolMap mSymbols;
     SymbolNameMap mSymbolNames;
-    UsrMap mUsr;
     FilesMap mFiles;
 
     Hash<uint32_t, Path> mVisitedFiles;
