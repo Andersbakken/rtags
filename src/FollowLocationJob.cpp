@@ -27,20 +27,27 @@ FollowLocationJob::FollowLocationJob(const Location &loc,
 
 int FollowLocationJob::execute()
 {
-    Location loc = project()->findTarget(location);
-    int ret = 1;
-    if (!loc.isNull()) {
-        auto target = project()->findCursor(loc);
-        if (queryFlags() & QueryMessage::DeclarationOnly && target.isDefinition()) {
-            const Location declLoc = project()->findTarget(loc);
-            if (!declLoc.isNull()) {
-                write(declLoc);
-                ret = 0;
-            }
-        } else {
-            write(loc);
-            ret = 0;
+    const Cursor cursor = project()->findCursor(location);
+    if (cursor.isNull())
+        return 1;
+
+    const Location targetLocation = project()->findTarget(cursor);
+    if (targetLocation.isNull())
+        return 1;
+    const Cursor target = project()->findCursor(targetLocation);
+
+    if (cursor.usr == target.usr) {
+        write(target.location);
+        return 0;
+    }
+
+    if (queryFlags() & QueryMessage::DeclarationOnly ? target.isDefinition() : !target.isDefinition()) {
+        const Location otherLoc = project()->findTarget(target.location);
+        if (!otherLoc.isNull()) {
+            write(otherLoc);
+            return 0;
         }
     }
-    return ret;
+    write(target.location);
+    return 0;
 }

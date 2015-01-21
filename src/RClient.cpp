@@ -573,44 +573,57 @@ bool RClient::parse(int &argc, char **argv)
             mPathFilters.insert(p);
             break; }
         case WildcardSymbolNames: {
-            // Map<int, int> foobar;
+            Map<int, int> foobar;
             // foobar[1] = 20;
-            // foobar[100] = 3;
-            // foobar[1000] = 4;
+            foobar[100] = 3;
+            foobar[1000] = 4;
 
-            String val = "value";
-            Map<uint64_t, String> foobar;
-            for (uint64_t i=0; i<100000; ++i) {
-                foobar[i] = val;
-            }
+            const String data = Table<int, int>::encode(foobar);
+            Table<int, int> tbl;
+            tbl.init(data.constData(), data.size());
+            bool exact;
+            int idx = tbl.lowerBound(20, &exact);
+            error() << idx << exact;
+            idx = tbl.lowerBound(101, &exact);
+            error() << idx << exact;
+            idx = tbl.lowerBound(1001, &exact);
+            error() << idx << exact;
+            exit(0);
 
-            foobar[1] = "11111111";
-            foobar[2] = "22222222";
-            const String data = Table<uint64_t, String>::create(foobar);
-            FILE *f = fopen("/tmp/foobar.data", "w");
-            fwrite(data.constData(), 1, data.size(), f);
-            fclose(f);
-            // hexdump(data.data(), data.size());
-            // printf("%d\n", data.size());
-            // Table<int, int> tbl(data.constData(), data.size());
-            Table<uint64_t, String> tbl;
-            if (!tbl.load("/tmp/foobar.data"))
-                exit(1);
 
-            // error() << tbl.keyAt(0);
-            // error() << tbl.valueAt(0);
-            // error() << tbl.keyAt(1);
-            // error() << tbl.valueAt(1);
-            // printf("%d\n", tbl.count());
-            // error() << tbl.keyAt(0) << tbl"fosk";
-            StopWatch sw;
-            for (int i=0; i<100000; ++i) {
-                val = tbl.value(i);
-            }
-            int elapsed = sw.elapsed();
-            error() << elapsed << val;
-            sw.restart();
-            error() << tbl.value(2) << sw.elapsed() << tbl.valueAt(0);
+            // String val = "value";
+            // Map<uint64_t, String> foobar;
+            // for (uint64_t i=0; i<100000; ++i) {
+            //     foobar[i] = val;
+            // }
+
+            // foobar[1] = "11111111";
+            // foobar[2] = "22222222";
+            // const String data = Table<uint64_t, String>::create(foobar);
+            // FILE *f = fopen("/tmp/foobar.data", "w");
+            // fwrite(data.constData(), 1, data.size(), f);
+            // fclose(f);
+            // // hexdump(data.data(), data.size());
+            // // printf("%d\n", data.size());
+            // // Table<int, int> tbl(data.constData(), data.size());
+            // Table<uint64_t, String> tbl;
+            // if (!tbl.load("/tmp/foobar.data"))
+            //     exit(1);
+
+            // // error() << tbl.keyAt(0);
+            // // error() << tbl.valueAt(0);
+            // // error() << tbl.keyAt(1);
+            // // error() << tbl.valueAt(1);
+            // // printf("%d\n", tbl.count());
+            // // error() << tbl.keyAt(0) << tbl"fosk";
+            // StopWatch sw;
+            // for (int i=0; i<100000; ++i) {
+            //     val = tbl.value(i);
+            // }
+            // int elapsed = sw.elapsed();
+            // error() << elapsed << val;
+            // sw.restart();
+            // error() << tbl.value(2) << sw.elapsed() << tbl.valueAt(0);
             // for (int i=0; i<tbl.count(); ++i) {
             //     printf("%d: [%s][%s]\n", i, tbl.keyAt(i).constData(), tbl.valueAt(i).constData());
             // }

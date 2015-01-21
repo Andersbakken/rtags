@@ -88,7 +88,7 @@ public:
             return false;
         }
 
-        file >> mSymbolNames >> mSources >> mVisitedFiles >> mWatched;
+        file >> mSymbolNames >> mSources >> mVisitedFiles >> mDependencies;
         return true;
     }
 
@@ -96,7 +96,7 @@ public:
     SymbolNameMap mSymbolNames;
     SourceMap mSources;
     Hash<uint32_t, Path> mVisitedFiles;
-    Set<Path> mWatched;
+    DependencyMap mDependencies;
     std::weak_ptr<Project> mWeak;
 };
 
@@ -311,8 +311,8 @@ void Project::updateContents(RestoreThread *thread)
         mSymbolNames = std::move(thread->mSymbolNames);
         mSources = std::move(thread->mSources);
 
-        for (const auto &file : thread->mWatched) {
-            watch(file);
+        for (const auto& dep : mDependencies) {
+            watch(Location::path(dep.first));
         }
 
         mVisitedFiles = std::move(thread->mVisitedFiles);
@@ -540,7 +540,7 @@ bool Project::save()
         error("Save error %s: %s", p.constData(), file.error().constData());
         return false;
     }
-    file << mSymbolNames << mSources << mVisitedFiles << mWatcher.watchedPaths();
+    file << mSymbolNames << mSources << mVisitedFiles << mDependencies;
     if (!file.flush()) {
         error("Save error %s: %s", p.constData(), file.error().constData());
         return false;
@@ -715,6 +715,27 @@ Set<uint32_t> Project::dependencies(uint32_t fileId, DependencyMode mode) const
     return ret;
 }
 
+void Project::addDependencies(const DependencyMap &deps, Set<uint32_t> &newFiles)
+{
+    StopWatch timer;
+
+    const auto end = deps.end();
+    for (auto it = deps.begin(); it != end; ++it) {
+        Set<uint32_t> &values = mDependencies[it->first];
+        if (values.isEmpty()) {
+            values = it->second;
+        } else {
+            values.unite(it->second);
+        }
+        if (newFiles.isEmpty()) {
+            newFiles = it->second;
+        } else {
+            newFiles.unite(it->second);
+        }
+        newFiles.insert(it->first);
+    }
+}
+
 int Project::reindex(const Match &match, const std::shared_ptr<QueryMessage> &query)
 {
     if (query->type() == QueryMessage::Reindex) {
@@ -847,13 +868,10 @@ bool Project::isSuspended(uint32_t file) const
     return mSuspendedFiles.contains(file);
 }
 
-void Project::addFixIts(const Hash<uint32_t, bool> &visited,
-                        const FixItMap &fixIts,
-                        Set<uint32_t> &newFiles)
-{
+void Project::addFixIts(const Hash<uint32_t, bool> &visited, const FixItMap &fixIts)
+                        {
     for (auto v : visited) {
         if (v.second) {
-            newFiles.insert(v.first);
             const auto fit = fixIts.find(v.first);
             if (fit == fixIts.end()) {
                 mFixIts.erase(v.first);
@@ -982,6 +1000,7 @@ Set<Location> Project::locations(const String &symbolName, uint32_t fileId) cons
     }
     return ret;
 #endif
+    return Set<Location>();
 }
 
 List<RTags::SortedCursor> Project::sort(const Set<Location> &locations, unsigned int flags) const
@@ -1011,21 +1030,6 @@ List<RTags::SortedCursor> Project::sort(const Set<Location> &locations, unsigned
         std::sort(sorted.begin(), sorted.end());
     }
     return sorted;
-#endif
-}
-
-SymbolMap Project::symbols(uint32_t fileId) const
-{
-#warning not done
-#if 0
-    SymbolMap ret;
-    if (fileId) {
-        for (auto it = mSymbols.lower_bound(Location(fileId, 1, 0));
-             it != mSymbols.end() && it->first.fileId() == fileId; ++it) {
-            ret[it->first] = it->second;
-        }
-    }
-    return ret;
 #endif
 }
 
@@ -1077,7 +1081,8 @@ String Project::sync()
     int symbolNames = 0;
     for (auto it = mIndexData.begin(); it != mIndexData.end(); ++it) {
         const std::shared_ptr<IndexData> &data = it->second;
-        addFixIts(data->visited, data->fixIts, newFiles);
+        addFixIts(data->visited, data->fixIts);
+        addDependencies(data->dependencies, newFiles);
         symbolNames += writeSymbolNames(data->symbolNames, mSymbolNames);
     }
 
@@ -1123,19 +1128,35 @@ Path Project::sourceFilePath(uint32_t fileId, const String &type) const
 
 Cursor Project::findCursor(const Table<Location, Cursor> &tbl, const Location &location) const
 {
+    // for (int i=0; i<tbl.count(); ++i) {
+    //     error() << i << tbl.keyAt(i);
+    // }
+
     bool exact = false;
-    const int idx = tbl.find(location, &exact);
-    Cursor ret;
-    if (idx != -1) {
-        ret = tbl.valueAt(idx);
-        if (!exact && (ret.location.fileId() != location.fileId()
-                       || ret.location.line() != location.line()
-                       || (location.column() - ret.location.column() <= ret.symbolLength))) {
-            ret = Cursor();
-        }
+    int idx = tbl.lowerBound(location, &exact);
+    // error() << (idx == -1 ? Location() : tbl.keyAt(idx)) << exact << idx;
+    if (exact)
+        return tbl.valueAt(idx);
+    switch (idx) {
+    case 0:
+        return Cursor();
+    case -1:
+        idx = tbl.count() - 1;
+        break;
+    default:
+        --idx;
+        break;
+    }
+
+    const Cursor &ret = tbl.valueAt(idx);
+    if (ret.location.fileId() != location.fileId()
+        || ret.location.line() != location.line()
+        || (location.column() - ret.location.column() >= ret.symbolLength)) {
+        return Cursor();
     }
     return ret;
 }
+
 Cursor Project::findCursor(const Location &location) const
 {
     auto cursors = openCursors(location.fileId());
@@ -1146,9 +1167,10 @@ Cursor Project::findCursor(const Location &location) const
     return cursor;
 }
 
-Location Project::findTarget(const Location &location) const
+Location Project::findTarget(const Cursor &cursor) const
 {
-    auto cursor = findCursor(location);
+    if (cursor.isNull())
+        return Location();
     if (cursor.isClass() && cursor.isDefinition())
         return Location();
 
@@ -1164,31 +1186,43 @@ Location Project::findTarget(const Location &location) const
     case CXCursor_FunctionTemplate: {
         Set<uint32_t> files;
         if (cursor.isDefinition()) {
-
+            files = dependencies(cursor.location.fileId(), DependsOnArg);
         } else {
-
+            files = dependencies(cursor.location.fileId(), ArgDependsOn);
         }
-
-        // break;
+        const Set<Cursor> cursors = findByUsr(files, cursor.usr);
+        for (const auto &c : cursors) {
+            if (cursor.isDefinition() != c.isDefinition()) {
+                targetLocation = c.location;
+                break;
+            }
+        }
+        break; }
     default:
-        const auto targetsDb = openTargets(location.fileId());
+        const auto targetsDb = openTargets(cursor.location.fileId());
         if (!targetsDb)
             return Location();
         targetLocation = RTags::bestTarget(targetsDb->value(cursor.location));
         break;
     }
-    // Cursor targetCursor = project()->findCursor(targetLocation);
-    //     if (!targetCursor.isNull() && targetCursor.kind != cursor.kind && !targetCursor.isDefinition()) {
-
-    //     }
 
     return targetLocation;
 }
 
-Set<Cursor> Project::findByUsr(const Set<uint32_t> &files, const String &usr)
+Set<Cursor> Project::findByUsr(const Set<uint32_t> &files, const String &usr) const
 {
-
-
+    Set<Cursor> ret;
+    for (uint32_t fileId : files) {
+        auto usrs = openUsrs(fileId);
+        if (usrs) {
+            for (const Location &loc : usrs->value(usr)) {
+                const Cursor c = findCursor(loc);
+                if (!c.isNull())
+                    ret.insert(c);
+            }
+        }
+    }
+    return ret;
 }
 
 

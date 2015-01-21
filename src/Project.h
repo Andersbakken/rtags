@@ -67,7 +67,6 @@ public:
     SymbolNameMap &symbolNames() { return mSymbolNames; }
 
     Set<Location> locations(const String &symbolName, uint32_t fileId = 0) const;
-    SymbolMap symbols(uint32_t fileId) const;
 
     template <typename Key, typename Value>
     std::shared_ptr<Table<Key, Value> > openTable(uint32_t fileId, const String &type) const
@@ -93,13 +92,14 @@ public:
     }
     std::shared_ptr<Table<String, Set<Location> > > openUsrs(uint32_t fileId) const
     {
-        return openTable<String, Set<Location> >(fileId, "src");
+        return openTable<String, Set<Location> >(fileId, "usrs");
     }
 
     Cursor findCursor(const Table<Location, Cursor> &map, const Location &location) const;
     Cursor findCursor(const Location &location) const;
-    Location findTarget(const Location &location) const;
-    Set<Cursor> findByUsr(const Set<uint32_t> &files, const String &usr);
+    Location findTarget(const Location &location) const { return findTarget(findCursor(location)); }
+    Location findTarget(const Cursor &cursor) const;
+    Set<Cursor> findByUsr(const Set<uint32_t> &files, const String &usr) const;
 
     Path sourceFilePath(uint32_t fileId, const String &type) const;
 
@@ -159,9 +159,8 @@ private:
     void updateContents(RestoreThread *thread);
     void watch(const Path &file);
     void reloadFileManager();
-    void addFixIts(const Hash<uint32_t, bool> &visited,
-                   const FixItMap &fixIts,
-                   Set<uint32_t> &newFiles);
+    void addDependencies(const DependencyMap &deps, Set<uint32_t> &newFiles);
+    void addFixIts(const Hash<uint32_t, bool> &visited, const FixItMap &fixIts);
     int startDirtyJobs(Dirty *dirty, const UnsavedFiles &unsavedFiles = UnsavedFiles());
     bool save();
     void onSynced();

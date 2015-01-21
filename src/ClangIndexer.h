@@ -134,10 +134,24 @@ private:
 
     void onMessage(const std::shared_ptr<Message> &msg, Connection *conn);
 
-    Map<Location, Cursor> mCursors;
-    Map<Location, Map<Location, uint16_t> > mTargets;
-    Map<uint32_t, Set<uint32_t> > mDependencies;
-    Map<String, Set<Location> > mUsrs;
+    struct Unit {
+        Map<Location, Cursor> cursors;
+        Map<Location, Map<Location, uint16_t> > targets;
+        Map<String, Set<Location> > usrs;
+    };
+
+    std::shared_ptr<Unit> unit(uint32_t fileId)
+    {
+        std::shared_ptr<Unit> &unit = mUnits[fileId];
+        if (!unit)
+            unit.reset(new Unit);
+        return unit;
+    }
+    std::shared_ptr<Unit> unit(const Location &loc) { return unit(loc.fileId()); }
+
+    Cursor findCursor(const Location &location, bool *ok) const;
+
+    Hash<uint32_t, std::shared_ptr<Unit> > mUnits;
 
     Path mProject;
     Source mSource;

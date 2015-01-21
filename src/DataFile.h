@@ -57,7 +57,7 @@ public:
     {
         assert(!mFile);
         if (mode == Write) {
-            if (!Path::mkdir(mPath.parentDir()))
+            if (!Path::mkdir(mPath.parentDir(), Path::Recursive))
                 return false;
             mTempFilePath = mPath + "XXXXXX";
             const int ret = mkstemp(&mTempFilePath[0]);

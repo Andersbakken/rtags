@@ -54,11 +54,8 @@ enum CursorType {
 void initMessages();
 }
 
-class CursorInfo;
 struct Diagnostic;
 typedef Map<Location, Diagnostic> DiagnosticsMap;
-typedef Map<Location, std::shared_ptr<CursorInfo> > SymbolMap;
-typedef Hash<uint32_t, SymbolMap> ErrorSymbolMap;
 typedef Hash<String, Set<Location> > UsrMap;
 typedef Map<Location, Set<Location> > ReferenceMap;
 typedef Map<String, Set<Location> > SymbolNameMap;

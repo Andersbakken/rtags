@@ -26,7 +26,11 @@
 
 template <typename T> inline static int compare(const T &l, const T &r)
 {
-    return l - r;
+    if (l < r)
+        return -1;
+    if (l > r)
+        return 1;
+    return 0;
 }
 
 template <> inline int compare(const String &l, const String &r)
@@ -36,7 +40,7 @@ template <> inline int compare(const String &l, const String &r)
 
 template <> inline int compare(const Location &l, const Location &r)
 {
-    return l.mData - r.mData;
+    return l.compare(r);
 }
 
 template <typename Key, typename Value>
@@ -85,11 +89,13 @@ public:
         }
     }
 
-    Value value(const Key &key) const
+    Value value(const Key &key, bool *matched = 0) const
     {
         bool match;
-        const int idx = find(key, &match);
+        const int idx = lowerBound(key, &match);
         // error() << "value" << idx << key << match;
+        if (matched)
+            *matched = match;
         if (match)
             return valueAt(idx);
         return Value();
@@ -113,7 +119,7 @@ public:
         const size_t offset = read<size_t>(data);
         return read<Value>(mPointer + offset);
     }
-    size_t find(const Key &k, bool *match = 0) const
+    size_t lowerBound(const Key &k, bool *match = 0) const
     {
         int lower = 0;
         int upper = mCount - 1;

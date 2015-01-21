@@ -61,6 +61,7 @@ public:
     FixItMap fixIts;
     SymbolNameMap symbolNames;
     DiagnosticsMap diagnostics;
+    DependencyMap dependencies;
     Hash<uint32_t, bool> visited;
     uint64_t id;
     const uint32_t flags; // indexerjobflags

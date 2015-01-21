@@ -38,12 +38,13 @@ namespace RTags {
 
 Path encodeSourceFilePath(const Path &dataDir, const Path &project, uint32_t fileId)
 {
-    std::ostringstream str;
-    str << dataDir.ref();
+    String str = dataDir;
     Path p = project;
     encodePath(p);
-    str << p.ref() << '/' << fileId << '/';
-    return Path(str.str());
+    str << p << '/';
+    if (fileId)
+        str << fileId << '/';
+    return str;
 }
 
 void dirtySymbolNames(SymbolNameMap &map, const Set<uint32_t> &dirty)
