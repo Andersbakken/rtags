@@ -99,6 +99,7 @@ public:
     Cursor findCursor(const Table<Location, Cursor> &map, const Location &location) const;
     Cursor findCursor(const Location &location) const;
     Location findTarget(const Location &location) const;
+    Set<Cursor> findByUsr(const Set<uint32_t> &files, const String &usr);
 
     Path sourceFilePath(uint32_t fileId, const String &type) const;
 

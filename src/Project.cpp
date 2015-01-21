@@ -1161,8 +1161,15 @@ Location Project::findTarget(const Location &location) const
     case CXCursor_CXXMethod:
     case CXCursor_Destructor:
     case CXCursor_Constructor:
-    case CXCursor_FunctionTemplate:
-#warning need to look up usr etc
+    case CXCursor_FunctionTemplate: {
+        Set<uint32_t> files;
+        if (cursor.isDefinition()) {
+
+        } else {
+
+        }
+
+        // break;
     default:
         const auto targetsDb = openTargets(location.fileId());
         if (!targetsDb)
@@ -1177,4 +1184,11 @@ Location Project::findTarget(const Location &location) const
 
     return targetLocation;
 }
+
+Set<Cursor> Project::findByUsr(const Set<uint32_t> &files, const String &usr)
+{
+
+
+}
+
 
