@@ -912,8 +912,12 @@ bool RClient::parse(int &argc, char **argv)
                 return false;
             }
             if (!dir.isDir()) {
-                fprintf(stderr, "%s is not a directory\n", dir.constData());
-                return false;
+                if (dir.isFile() && dir.endsWith("/compile_commands.json")) {
+                    dir = dir.parentDir();
+                } else {
+                    fprintf(stderr, "%s is not a directory\n", dir.constData());
+                    return false;
+                }
             }
             if (!dir.endsWith('/'))
                 dir += '/';
