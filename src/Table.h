@@ -23,17 +23,17 @@
 #include <rct/Serializer.h>
 #include <functional>
 
-template <typename T> inline static int compare(T l, T r)
+template <typename T> inline static int compare(const T &l, const T &r)
 {
     return l - r;
 }
 
-inline static int compare(const String &l, const String &r)
+template <> inline int compare(const String &l, const String &r)
 {
     return l.compare(r);
 }
 
-inline static int compare(const Location &l, const Location &r)
+template <> inline int compare(const Location &l, const Location &r)
 {
     return l.mData - r.mData;
 }
