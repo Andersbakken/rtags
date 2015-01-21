@@ -23,59 +23,7 @@
 #include "RTagsClang.h"
 #include <rct/RegExp.h>
 #include "Table.h"
-
-void hexdump(void *pAddressIn, long  lSize)
-{
-    char szBuf[100];
-    long lIndent = 1;
-    long lOutLen, lIndex, lIndex2, lOutLen2;
-    long lRelPos;
-    struct { char *pData; unsigned long lSize; } buf;
-    unsigned char *pTmp,ucTmp;
-    unsigned char *pAddress = (unsigned char *)pAddressIn;
-
-    buf.pData   = (char *)pAddress;
-    buf.lSize   = lSize;
-
-    while (buf.lSize > 0)
-    {
-        pTmp     = (unsigned char *)buf.pData;
-        lOutLen  = (int)buf.lSize;
-        if (lOutLen > 16)
-            lOutLen = 16;
-
-        // create a 64-character formatted output line:
-        sprintf(szBuf, " >                            "
-                "                      "
-                "    %08lX", pTmp-pAddress);
-        lOutLen2 = lOutLen;
-
-        for(lIndex = 1+lIndent, lIndex2 = 53-15+lIndent, lRelPos = 0;
-            lOutLen2;
-            lOutLen2--, lIndex += 2, lIndex2++
-            )
-        {
-            ucTmp = *pTmp++;
-
-            sprintf(szBuf + lIndex, "%02X ", (unsigned short)ucTmp);
-            if(!isprint(ucTmp))  ucTmp = '.'; // nonprintable char
-            szBuf[lIndex2] = ucTmp;
-
-            if (!(++lRelPos & 3))     // extra blank after 4 bytes
-            {  lIndex++; szBuf[lIndex+2] = ' '; }
-        }
-
-        if (!(lRelPos & 3)) lIndex--;
-
-        szBuf[lIndex  ]   = '<';
-        szBuf[lIndex+1]   = ' ';
-
-        printf("%s\n", szBuf);
-
-        buf.pData   += lOutLen;
-        buf.lSize   -= lOutLen;
-    }
-}
+#include <rct/StopWatch.h>
 
 
 struct Option {
@@ -625,22 +573,48 @@ bool RClient::parse(int &argc, char **argv)
             mPathFilters.insert(p);
             break; }
         case WildcardSymbolNames: {
-            Map<int, int> foobar;
-            foobar[1] = 20;
-            foobar[100] = 3;
-            foobar[1000] = 4;
-            const String data = Table<int, int>::create(foobar);
+            // Map<int, int> foobar;
+            // foobar[1] = 20;
+            // foobar[100] = 3;
+            // foobar[1000] = 4;
+
+            String val = "value";
+            Map<uint64_t, String> foobar;
+            for (uint64_t i=0; i<100000; ++i) {
+                foobar[i] = val;
+            }
+
+            foobar[1] = "11111111";
+            foobar[2] = "22222222";
+            const String data = Table<uint64_t, String>::create(foobar);
             FILE *f = fopen("/tmp/foobar.data", "w");
             fwrite(data.constData(), 1, data.size(), f);
             fclose(f);
             // hexdump(data.data(), data.size());
             // printf("%d\n", data.size());
             // Table<int, int> tbl(data.constData(), data.size());
-            Table<int, int> tbl;
+            Table<uint64_t, String> tbl;
             if (!tbl.load("/tmp/foobar.data"))
                 exit(1);
 
-            error() << /* tbl.count() << tbl.valueAt(0) <<  */tbl.value(1);
+            // error() << tbl.keyAt(0);
+            // error() << tbl.valueAt(0);
+            // error() << tbl.keyAt(1);
+            // error() << tbl.valueAt(1);
+            // printf("%d\n", tbl.count());
+            // error() << tbl.keyAt(0) << tbl"fosk";
+            StopWatch sw;
+            for (int i=0; i<100000; ++i) {
+                val = tbl.value(i);
+            }
+            int elapsed = sw.elapsed();
+            error() << elapsed << val;
+            sw.restart();
+            error() << tbl.value(2) << sw.elapsed() << tbl.valueAt(0);
+            // for (int i=0; i<tbl.count(); ++i) {
+            //     printf("%d: [%s][%s]\n", i, tbl.keyAt(i).constData(), tbl.valueAt(i).constData());
+            // }
+
             return 0;
             mQueryFlags |= QueryMessage::WildcardSymbolNames;
             break; }

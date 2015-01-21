@@ -24,6 +24,7 @@
 #include <sys/stat.h>
 #include "IndexerJob.h"
 #include "RTagsClang.h"
+#include "Cursor.h"
 
 struct Unit;
 class IndexData;
@@ -112,16 +113,17 @@ private:
 
     CXCursor resolveAutoTypeRef(const CXCursor &cursor) const;
 
-    bool handleCursor(const CXCursor &cursor, CXCursorKind kind, const Location &location);
-    std::shared_ptr<CursorInfo> handleReference(const CXCursor &cursor, CXCursorKind kind,
-                                                const Location &loc, const CXCursor &reference,
-                                                const CXCursor &parent);
+    bool handleCursor(const CXCursor &cursor, CXCursorKind kind,
+                      const Location &location, Cursor **cursorPtr = 0);
+    bool handleReference(const CXCursor &cursor, CXCursorKind kind,
+                         const Location &loc, const CXCursor &reference,
+                         const CXCursor &parent, Cursor **cursorPtr = 0);
     void handleInclude(const CXCursor &cursor, CXCursorKind kind, const Location &location);
     Location findByUSR(const CXCursor &cursor, CXCursorKind kind, const Location &loc) const;
-    void addOverriddenCursors(const CXCursor &cursor, const Location &location, List<Location> &locations);
-    void superclassTemplateMemberFunctionUgleHack(const CXCursor &cursor, CXCursorKind kind,
+    void addOverriddenCursors(const CXCursor& cursor, const Location& location, List<CursorInfo*>& infos);
+    bool superclassTemplateMemberFunctionUgleHack(const CXCursor &cursor, CXCursorKind kind,
                                                   const Location &location, const CXCursor &ref,
-                                                  const CXCursor &parent);
+                                                  const CXCursor &parent, Cursor **cursorPtr = 0);
     static CXChildVisitResult indexVisitor(CXCursor cursor, CXCursor parent, CXClientData client_data);
     static CXChildVisitResult verboseVisitor(CXCursor cursor, CXCursor, CXClientData userData);
 
@@ -130,7 +132,10 @@ private:
 
     void onMessage(const std::shared_ptr<Message> &msg, Connection *conn);
 
-    int symbolLength(CXCursorKind kind, const CXCursor &cursor) const;
+    Map<Location, Cursor> mCursors;
+    Map<Location, Map<Location, uint16_t> > mTargets;
+    Map<String, Set<Location> > mSymbolNames;
+    Map<uint32_t, Set<uint32_t> > mDependencies;
 
     Path mProject;
     Source mSource;
