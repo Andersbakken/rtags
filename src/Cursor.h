@@ -24,11 +24,12 @@
 struct Cursor
 {
     Cursor()
-        : symbolLength(0), kind(CXCursor_FirstInvalid), type(CXType_Invalid), enumValue(0)
+        : symbolLength(0), kind(CXCursor_FirstInvalid), type(CXType_Invalid), enumValue(0),
+          startLine(0), startColumn(0), endLine(0), endColumn(0)
     {}
 
     Location location;
-    String symbolName;
+    String symbolName, usr;
     uint16_t symbolLength;
     CXCursorKind kind;
     CXTypeKind type;
@@ -36,29 +37,11 @@ struct Cursor
         bool definition;
         int64_t enumValue; // only used if type == CXCursor_EnumConstantDecl
     };
-    int32_t startLine, startColumn, endLine, endColumn;
+    unsigned startLine, startColumn, endLine, endColumn;
 
     bool isNull() const { return !symbolLength; }
 
-    enum { DefinitionBit = 0x1000 };
-    static CXCursorKind targetsValueKind(uint16_t val)
-    {
-        return static_cast<CXCursorKind>(val & ~DefinitionBit);
-    }
-    static bool targetsValueIsDefinition(uint16_t val)
-    {
-        return val & DefinitionBit;
-    }
-    static uint16_t createTargetsValue(CXCursorKind kind, bool definition)
-    {
-        return (kind | (definition ? DefinitionBit : 0));
-    }
-    static uint16_t createTargetsValue(const CXCursor &cursor)
-    {
-        return createTargetsValue(clang_getCursorKind(cursor), clang_isCursorDefinition(cursor));
-    }
-
-    uint16_t targetsValue() const { return createTargetsValue(kind, isDefinition()); }
+    uint16_t targetsValue() const;
     bool isClass() const
     {
         switch (kind) {

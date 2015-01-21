@@ -43,6 +43,7 @@ private:
     String shaFile(const Path &path) const;
 
     void addFileSymbol(uint32_t file);
+    int symbolLength(CXCursorKind kind, const CXCursor &cursor) const;
     inline Location createLocation(const CXSourceLocation &location, bool *blocked = 0)
     {
         CXString fileName;
@@ -120,7 +121,9 @@ private:
                          const CXCursor &parent, Cursor **cursorPtr = 0);
     void handleInclude(const CXCursor &cursor, CXCursorKind kind, const Location &location);
     Location findByUSR(const CXCursor &cursor, CXCursorKind kind, const Location &loc) const;
-    void addOverriddenCursors(const CXCursor& cursor, const Location& location, List<CursorInfo*>& infos);
+    void addOverriddenCursors(const CXCursor &cursor,
+                              const Location &location,
+                              List<Location> &locations);
     bool superclassTemplateMemberFunctionUgleHack(const CXCursor &cursor, CXCursorKind kind,
                                                   const Location &location, const CXCursor &ref,
                                                   const CXCursor &parent, Cursor **cursorPtr = 0);
@@ -134,8 +137,8 @@ private:
 
     Map<Location, Cursor> mCursors;
     Map<Location, Map<Location, uint16_t> > mTargets;
-    Map<String, Set<Location> > mSymbolNames;
     Map<uint32_t, Set<uint32_t> > mDependencies;
+    Map<String, Set<Location> > mUsrs;
 
     Path mProject;
     Source mSource;

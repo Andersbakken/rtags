@@ -201,6 +201,48 @@ enum FindAncestorFlag {
 };
 Path findAncestor(Path path, const char *fn, unsigned flags);
 Map<String, String> rtagsConfig(const Path &path);
+
+enum { DefinitionBit = 0x1000 };
+inline CXCursorKind targetsValueKind(uint16_t val)
+{
+    return static_cast<CXCursorKind>(val & ~DefinitionBit);
+}
+inline bool targetsValueIsDefinition(uint16_t val)
+{
+    return val & DefinitionBit;
+}
+inline uint16_t createTargetsValue(CXCursorKind kind, bool definition)
+{
+    return (kind | (definition ? DefinitionBit : 0));
+}
+inline uint16_t createTargetsValue(const CXCursor &cursor)
+{
+    return createTargetsValue(clang_getCursorKind(cursor), clang_isCursorDefinition(cursor));
+}
+inline int targetRank(CXCursorKind kind)
+{
+    switch (kind) {
+    case CXCursor_Constructor: // this one should be more than class/struct decl
+        return 1;
+    case CXCursor_ClassDecl:
+    case CXCursor_StructDecl:
+    case CXCursor_ClassTemplate:
+        return 0;
+    case CXCursor_FieldDecl:
+    case CXCursor_VarDecl:
+    case CXCursor_FunctionDecl:
+    case CXCursor_CXXMethod:
+        // functiondecl and cxx method must be more than cxx
+        // CXCursor_FunctionTemplate. Since constructors for templatatized
+        // objects seem to come out as function templates
+        return 3;
+    case CXCursor_MacroDefinition:
+        return 4;
+    default:
+        return 2;
+    }
+}
+
 }
 
 #endif

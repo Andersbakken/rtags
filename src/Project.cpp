@@ -1183,6 +1183,8 @@ void Project::onSynced()
 
 String Project::sync()
 {
+    return String();
+#if 0
     mJobCounter = mActiveJobs.size();
     StopWatch sw;
     if (mDirtyFiles.isEmpty() && mIndexData.isEmpty()) {
@@ -1231,7 +1233,7 @@ String Project::sync()
                                             symbols, symbolNames);
     mIndexData.clear();
     mTimer.start();
-    return msg;
+#endif
 }
 
 String Project::toCompilationDatabase() const

@@ -179,7 +179,6 @@ std::shared_ptr<IndexData> JobScheduler::createData(const std::shared_ptr<Indexe
 {
     std::shared_ptr<IndexData> data(new IndexData(job->flags));
     data->key = job->source.key();
-    data->dependencies[job->source.fileId].insert(job->source.fileId);
     return data;
 
 }
