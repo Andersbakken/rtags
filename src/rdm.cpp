@@ -290,7 +290,7 @@ int main(int argc, char** argv)
 
     Server::Options serverOpts;
     serverOpts.threadStackSize = defaultStackSize;
-    serverOpts.socketFile = String::format<128>("%s.rdm", Path::home().constData());
+    serverOpts.socketFile = String::format<128>("%s.rdm.file", Path::home().constData());
     serverOpts.jobCount = std::max(2, ThreadPool::idealThreadCount());
     serverOpts.rpVisitFileTimeout = DEFAULT_RP_VISITFILE_TIMEOUT;
     serverOpts.rpIndexerMessageTimeout = DEFAULT_RP_INDEXER_MESSAGE_TIMEOUT;
@@ -306,7 +306,7 @@ int main(int argc, char** argv)
 //     serverOpts.options |= Server::SuspendRPOnCrash;
 // #endif
     serverOpts.excludeFilters = String(EXCLUDEFILTER_DEFAULT).split(';');
-    serverOpts.dataDir = String::format<128>("%s.rtags", Path::home().constData());
+    serverOpts.dataDir = String::format<128>("%s.rtags-file", Path::home().constData());
     serverOpts.unloadTimer = 0;
 
     const char *logFile = 0;
