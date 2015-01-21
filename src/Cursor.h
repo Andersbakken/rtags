@@ -20,6 +20,7 @@
 #include <stdint.h>
 #include "Location.h"
 #include <rct/String.h>
+#include <rct/Serializer.h>
 
 struct Cursor
 {
@@ -56,7 +57,29 @@ struct Cursor
     }
 
     inline bool isDefinition() const { return kind == CXCursor_EnumConstantDecl || definition; }
-
 };
+
+
+template <> inline Serializer &operator<<(Serializer &s, const Cursor &t)
+{
+    s << t.location << t.symbolName << t.usr << t.symbolLength
+      << static_cast<uint16_t>(t.kind) << static_cast<uint16_t>(t.type)
+      << t.enumValue << t.startLine << t.startColumn << t.endLine << t.endColumn;
+    return s;
+}
+
+template <> inline Deserializer &operator>>(Deserializer &s, Cursor &t)
+{
+    uint16_t kind, type;
+    s >> t.location >> t.symbolName >> t.usr >> t.symbolLength
+      >> kind >> type >> t.enumValue >> t.startLine
+      >> t.startColumn >> t.endLine >> t.endColumn;
+
+    t.kind = static_cast<CXCursorKind>(kind);
+    t.type = static_cast<CXTypeKind>(type);
+    return s;
+}
+
+
 
 #endif

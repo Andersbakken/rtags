@@ -39,6 +39,7 @@ private:
     bool diagnose();
     bool visit();
     bool parse();
+    bool writeFiles(const Path &root, String &error);
 
     void addFileSymbol(uint32_t file);
     int symbolLength(CXCursorKind kind, const CXCursor &cursor) const;

@@ -20,6 +20,7 @@
 #include "QueryMessage.h"
 #include "VisitFileMessage.h"
 #include "VisitFileResponseMessage.h"
+#include "Table.h"
 #include <rct/Connection.h>
 #include <rct/EventLoop.h>
 #include "RTags.h"
@@ -68,15 +69,16 @@ bool ClangIndexer::exec(const String &data)
         return false;
     }
     uint64_t id;
-    String serverFile;
+    String socketFile;
     uint32_t flags;
     uint32_t connectTimeout;
     int32_t niceValue;
     extern bool suspendOnSigSegv;
     Hash<uint32_t, Path> blockedFiles;
+    String dataDir;
 
     deserializer >> id;
-    deserializer >> serverFile;
+    deserializer >> socketFile;
     deserializer >> mProject;
     deserializer >> mSource;
     deserializer >> mSourceFile;
@@ -87,6 +89,7 @@ bool ClangIndexer::exec(const String &data)
     deserializer >> niceValue;
     deserializer >> suspendOnSigSegv;
     deserializer >> mUnsavedFiles;
+    deserializer >> dataDir;
 
 #if 0
     while (true) {
@@ -139,8 +142,8 @@ bool ClangIndexer::exec(const String &data)
 
     Location::init(blockedFiles);
     Location::set(mSourceFile, mSource.fileId);
-    if (!mConnection.connectUnix(serverFile, connectTimeout)) {
-        error("Failed to connect to rdm on %s (%dms timeout)", serverFile.constData(), connectTimeout);
+    if (!mConnection.connectUnix(socketFile, connectTimeout)) {
+        error("Failed to connect to rdm on %s (%dms timeout)", socketFile.constData(), connectTimeout);
         return false;
     }
     // mLogFile = fopen(String::format("/tmp/%s", mSourceFile.fileName()).constData(), "w");
@@ -153,15 +156,23 @@ bool ClangIndexer::exec(const String &data)
     mData->visited[mSource.fileId] = true;
     parse() && visit() && diagnose();
     mData->message = mSourceFile.toTilde();
-    if (!mClangUnit)
+    String err;
+    StopWatch sw;
+    int writeDuration = -1;
+    if (!mClangUnit || !writeFiles(RTags::encodeSourceFilePath(dataDir, mProject, mSource.key()), err)) {
         mData->message += " error";
+        if (!err.isEmpty())
+            mData->message += (' ' + err);
+    } else {
+        writeDuration = sw.elapsed();
+    }
     mData->message += String::format<16>(" in %lldms. ", mTimer.elapsed());
     if (mClangUnit) {
-        const char *format = "(%d syms, %d symNames, %d deps, %d of %d files, cursors: %d of %d, %d queried) (%d/%dms)";
+        const char *format = "(%d syms, %d symNames, %d deps, %d of %d files, cursors: %d of %d, %d queried) (%d/%d/%dms)";
         mData->message += String::format<128>(format, mCursors.size(), mData->symbolNames.size(),
                                               mDependencies.size(), mIndexed, mData->visited.size(), mAllowed,
                                               mAllowed + mBlocked, mFileIdsQueried,
-                                              mParseDuration, mVisitDuration);
+                                              mParseDuration, mVisitDuration, writeDuration);
     } else if (mDependencies.size()) {
         mData->message += String::format<16>("(%d deps)", mDependencies.size());
     }
@@ -170,7 +181,7 @@ bool ClangIndexer::exec(const String &data)
     const IndexerMessage msg(mProject, mData);
     ++mFileIdsQueried;
 
-    StopWatch sw;
+    sw.restart();
     if (!mConnection.send(msg)) {
         error() << "Couldn't send IndexerMessage" << mSourceFile;
         return false;
@@ -1052,6 +1063,35 @@ bool ClangIndexer::parse()
     }
 
     return false;
+}
+
+bool ClangIndexer::writeFiles(const Path &root, String &error)
+{
+    if (!Path::mkdir(root, Path::Recursive)) {
+        error = String::format<128>("Failed to create directory: %s", root.constData());
+        return false;
+    }
+
+    {
+        if (!Table<uint32_t, Set<uint32_t> >::write(root + "deps", mDependencies)) {
+            error = "Failed to write dependencies";
+            return false;
+        }
+        if (!Table<Location, Cursor>::write(root + "cursors", mCursors)) {
+            error = "Failed to write cursors";
+            return false;
+        }
+        if (!Table<Location, Map<Location, uint16_t> >::write(root + "targets", mTargets)) {
+            error = "Failed to write targets";
+            return false;
+        }
+        if (!Table<String, Set<Location> >::write(root + "usrs", mUsrs)) {
+            error = "Failed to write usrs";
+            return false;
+        }
+    }
+
+    return true;
 }
 
 bool ClangIndexer::diagnose()

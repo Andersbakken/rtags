@@ -252,15 +252,17 @@ std::shared_ptr<Project> Server::addProject(const Path &path) // lock always hel
 int Server::reloadProjects()
 {
     mProjects.clear(); // ### could keep the ones that persist somehow
-    List<Path> projects = mOptions.dataDir.files(Path::File);
+    List<Path> projects = mOptions.dataDir.files(Path::Directory);
     const Path home = Path::home();
     for (int i=0; i<projects.size(); ++i) {
         Path file = projects.at(i);
         Path p = file.mid(mOptions.dataDir.size());
+        if (p.endsWith('/'))
+            p.chop(1);
         RTags::decodePath(p);
         if (p.isDir()) {
             bool remove = false;
-            if (FILE *f = fopen(file.constData(), "r")) {
+            if (FILE *f = fopen((file + "project").constData(), "r")) {
                 Deserializer in(f);
                 int version;
                 in >> version;

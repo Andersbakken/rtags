@@ -37,6 +37,16 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 
 namespace RTags {
 
+Path encodeSourceFilePath(const Path &dataDir, const Path &project, uint64_t build)
+{
+    std::ostringstream str;
+    str << dataDir.ref();
+    Path p = project;
+    encodePath(p);
+    str << p.ref() << '/' << build << '/';
+    return Path(str.str());
+}
+
 void dirtySymbolNames(SymbolNameMap &map, const Set<uint32_t> &dirty)
 {
     SymbolNameMap::iterator it = map.begin();

@@ -137,6 +137,7 @@ public:
             *match = false;
         return lower;
     }
+
     static String create(const Map<Key, Value> &map)
     {
         String out;
@@ -207,6 +208,23 @@ public:
         if (!FixedSize<Value>::value)
             out += values;
         return out;
+    }
+
+    static bool write(const Path &path, const Map<Key, Value> &map)
+    {
+        FILE *f = fopen(path.constData(), "w");
+        if (!f && Path::mkdir(path.parentDir(), Path::Recursive)) {
+            f = fopen(path.constData(), "w");
+        }
+        if (!f)
+            return false;
+
+        const String data = create(map);
+        const bool ret = fwrite(data.constData(), data.size(), 1, f);
+        fclose(f);
+        if (!ret)
+            unlink(data.constData());
+        return ret;
     }
 private:
     const char *dataSegment() const { return mPointer + sizeof(size_t) + sizeof(size_t); }

@@ -78,6 +78,7 @@ public:
     {
         Path path = mPath;
         RTags::encodePath(path);
+        path += "/project";
         const Path p = Server::instance()->options().dataDir + path;
         DataFile file(p);
         if (!file.open(DataFile::Read)) {
@@ -547,15 +548,14 @@ bool Project::save()
     Path srcPath = mPath;
     RTags::encodePath(srcPath);
     const Server::Options &options = Server::instance()->options();
-    const Path p = options.dataDir + srcPath;
+    const Path p = options.dataDir + srcPath + "/project";
     DataFile file(p);
     if (!file.open(DataFile::Write)) {
         error("Save error %s: %s", p.constData(), file.error().constData());
         return false;
     }
     CursorInfo::serialize(file, mSymbols);
-    file << mSymbolNames << mUsr
-         << mDependencies << mSources << mVisitedFiles;
+    file << mSources << mVisitedFiles;
     if (!file.flush()) {
         error("Save error %s: %s", p.constData(), file.error().constData());
         return false;

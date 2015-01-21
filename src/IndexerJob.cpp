@@ -72,14 +72,20 @@ String IndexerJob::encode() const
         }
         assert(!sourceFile.isEmpty());
         serializer << static_cast<uint16_t>(RTags::DatabaseVersion)
-                   << id << options.socketFile
-                   << project << copy << sourceFile << flags
+                   << id
+                   << options.socketFile
+                   << project
+                   << copy
+                   << sourceFile
+                   << flags
                    << static_cast<uint32_t>(options.rpVisitFileTimeout)
                    << static_cast<uint32_t>(options.rpIndexerMessageTimeout)
                    << static_cast<uint32_t>(options.rpConnectTimeout)
                    << static_cast<int32_t>(options.rpNiceValue)
                    << static_cast<bool>(options.options & Server::SuspendRPOnCrash)
-                   << unsavedFiles << static_cast<uint32_t>(dirty.size());
+                   << unsavedFiles
+                   << options.dataDir
+                   << static_cast<uint32_t>(dirty.size());
         for (uint32_t fileId : dirty) {
             serializer << Location::path(fileId);
         }
