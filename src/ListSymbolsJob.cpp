@@ -1,17 +1,17 @@
 /* This file is part of RTags.
 
-RTags is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
+   RTags is free software: you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation, either version 3 of the License, or
+   (at your option) any later version.
 
-RTags is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
+   RTags is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
 
-You should have received a copy of the GNU General Public License
-along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
+   You should have received a copy of the GNU General Public License
+   along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 
 #include "ListSymbolsJob.h"
 #include "Server.h"
@@ -19,15 +19,10 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 #include <rct/Log.h>
 #include "RTags.h"
 
-enum {
-    DefaultFlags = QueryJob::WriteUnfiltered|QueryJob::QuietJob,
-    ElispFlags = DefaultFlags|QueryJob::QuoteOutput
-};
-
+enum { DefaultFlags = QueryJob::WriteUnfiltered | QueryJob::QuietJob, ElispFlags = DefaultFlags | QueryJob::QuoteOutput };
 
 ListSymbolsJob::ListSymbolsJob(const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Project> &proj)
-    : QueryJob(query, query->flags() & QueryMessage::ElispList ? ElispFlags : DefaultFlags, proj),
-      string(query->query())
+    : QueryJob(query, query->flags() & QueryMessage::ElispList ? ElispFlags : DefaultFlags, proj), string(query->query())
 {
 }
 
@@ -38,7 +33,8 @@ int ListSymbolsJob::execute()
     if (proj) {
         if (queryFlags() & QueryMessage::IMenu) {
             out = imenu(proj);
-        } else {
+        }
+        else {
             out = listSymbols(proj);
         }
     }
@@ -46,20 +42,22 @@ int ListSymbolsJob::execute()
     const bool elispList = queryFlags() & QueryMessage::ElispList;
 
     if (elispList) {
-        write("(list", IgnoreMax|DontQuote);
+        write("(list", IgnoreMax | DontQuote);
         for (Set<String>::const_iterator it = out.begin(); it != out.end(); ++it) {
             write(*it);
         }
-        write(")", IgnoreMax|DontQuote);
-    } else {
+        write(")", IgnoreMax | DontQuote);
+    }
+    else {
         List<String> sorted = out.toList();
         if (queryFlags() & QueryMessage::ReverseSort) {
             std::sort(sorted.begin(), sorted.end(), std::greater<String>());
-        } else {
+        }
+        else {
             std::sort(sorted.begin(), sorted.end());
         }
         const int count = sorted.size();
-        for (int i=0; i<count; ++i) {
+        for (int i = 0; i < count; ++i) {
             write(sorted.at(i));
         }
     }
@@ -120,7 +118,9 @@ Set<String> ListSymbolsJob::imenu(const std::shared_ptr<Project> &project)
 
 Set<String> ListSymbolsJob::listSymbols(const std::shared_ptr<Project> &project)
 {
+#warning not done
     Set<String> out;
+#if 0
     const bool hasFilter = QueryJob::hasFilter();
     const bool stripParentheses = queryFlags() & QueryMessage::StripParentheses;
     const bool wildcard = queryFlags() & QueryMessage::WildcardSymbolNames && (string.contains('*') || string.contains('?'));
@@ -185,5 +185,6 @@ Set<String> ListSymbolsJob::listSymbols(const std::shared_ptr<Project> &project)
         if (!(++count % 100) && isAborted())
             break;
     }
+#endif
     return out;
 }

@@ -59,7 +59,6 @@ public:
     uint64_t parseTime, key;
     String message; // used as output for dump when flags & Dump
     FixItMap fixIts;
-    SymbolNameMap symbolNames;
     DiagnosticsMap diagnostics;
     DependencyMap dependencies;
     Hash<uint32_t, bool> visited;

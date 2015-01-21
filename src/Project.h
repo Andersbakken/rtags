@@ -43,9 +43,7 @@ public:
     enum State {
         Unloaded,
         Inited,
-        Loading,
-        Loaded,
-        Syncing
+        Loaded
     };
     State state() const { return mState; }
     void init();
@@ -63,9 +61,6 @@ public:
 
     bool match(const Match &match, bool *indexed = 0) const;
 
-    const SymbolNameMap &symbolNames() const { return mSymbolNames; }
-    SymbolNameMap &symbolNames() { return mSymbolNames; }
-
     Set<Location> locations(const String &symbolName, uint32_t fileId = 0) const;
 
     template <typename Key, typename Value>
@@ -81,6 +76,10 @@ public:
     std::shared_ptr<FileMap<uint32_t, Set<uint32_t> > > openDeps(uint32_t fileId) const
     {
         return openFileMap<uint32_t, Set<uint32_t> >(fileId, "deps");
+    }
+    std::shared_ptr<FileMap<String, Set<Location> > > openSymbolNames(uint32_t fileId) const
+    {
+        return openFileMap<String, Set<Location> >(fileId, "symnames");
     }
     std::shared_ptr<FileMap<Location, Cursor> > openCursors(uint32_t fileId) const
     {
@@ -149,12 +148,6 @@ public:
         std::lock_guard<std::mutex> lock(mMutex);
         serializer << mVisitedFiles;
     }
-    enum SyncMode {
-        Sync_Asynchronous,
-        Sync_Synchronous
-    };
-    bool startSync(SyncMode mode);
-    String sync();
 private:
     void updateContents(RestoreThread *thread);
     void watch(const Path &file);
@@ -163,30 +156,23 @@ private:
     void addFixIts(const Hash<uint32_t, bool> &visited, const FixItMap &fixIts);
     int startDirtyJobs(Dirty *dirty, const UnsavedFiles &unsavedFiles = UnsavedFiles());
     bool save();
-    void onSynced();
     void onDirtyTimeout(Timer *);
 
     const Path mPath;
+    Path mProjectFilePath;
     State mState;
 
-    SymbolNameMap mSymbolNames;
     FilesMap mFiles;
 
     Hash<uint32_t, Path> mVisitedFiles;
-    Hash<uint64_t, std::pair<std::shared_ptr<IndexerJob>, std::shared_ptr<IndexData> > > mPendingIndexData;
-
-    int mJobCounter;
+    int mJobCounter, mJobsStarted;
 
     // key'ed on Source::key()
-    Hash<uint64_t, std::shared_ptr<IndexData> > mIndexData;
     Hash<uint64_t, std::shared_ptr<IndexerJob> > mActiveJobs;
-    List<std::shared_ptr<IndexerJob> > mPendingJobs;
 
-    Timer mSyncTimer, mDirtyTimer;
-    Set<uint32_t> mDirtyFiles, mPendingDirtyFiles;
-    // mDirtyFiles are files that need to be dirtied on the next sync
-    // mPendingDirtyFiles are files that get collapsed into a single
-    // startDirtyJobs with mDirtyTimer
+    Timer mDirtyTimer;
+    Set<uint32_t> mPendingDirtyFiles;
+
     StopWatch mTimer;
     FileSystemWatcher mWatcher;
     DependencyMap mDependencies;
@@ -197,9 +183,6 @@ private:
     Set<uint32_t> mSuspendedFiles;
 
     mutable std::mutex mMutex;
-
-    friend class RestoreThread;
-    friend class SyncThread;
 };
 
 inline bool Project::visitFile(uint32_t visitFileId, const Path &path, uint64_t key)

@@ -168,12 +168,14 @@ bool ClangIndexer::exec(const String &data)
     }
     mData->message += String::format<16>(" in %lldms. ", mTimer.elapsed());
     int cursorCount = 0;
+    int symbolNameCount = 0;
     for (const auto &unit : mUnits) {
         cursorCount += unit.second->cursors.size();
+        symbolNameCount += unit.second->symbolNames.size();
     }
     if (mClangUnit) {
         const char *format = "(%d syms, %d symNames, %d deps, %d of %d files, cursors: %d of %d, %d queried) (%d/%d/%dms)";
-        mData->message += String::format<128>(format, cursorCount, mData->symbolNames.size(),
+        mData->message += String::format<128>(format, cursorCount, symbolNameCount,
                                               mData->dependencies.size(), mIndexed, mData->visited.size(), mAllowed,
                                               mAllowed + mBlocked, mFileIdsQueried,
                                               mParseDuration, mVisitDuration, writeDuration);
@@ -430,7 +432,7 @@ String ClangIndexer::addNamePermutations(const CXCursor &cursor, const Location 
         for (int j=0; j<colonColonCount; ++j) {
             const char *ch = buf + colonColons[j];
             const String name(ch, sizeof(buf) - (ch - buf) - 1);
-            mData->symbolNames[name].insert(location);
+            unit(location.fileId())->symbolNames[name].insert(location);
             if (!type.isEmpty() && (originalKind != CXCursor_ParmDecl || !strchr(ch, '('))) {
                 // We only want to add the type to the final declaration for ParmDecls
                 // e.g.
@@ -443,7 +445,7 @@ String ClangIndexer::addNamePermutations(const CXCursor &cursor, const Location 
                 // or
                 // void foo(int)::int bar
 
-                mData->symbolNames[type + name].insert(location);
+                unit(location.fileId())->symbolNames[type + name].insert(location);
             }
         }
 
@@ -892,16 +894,16 @@ void ClangIndexer::handleInclude(const CXCursor &cursor, CXCursorKind kind, cons
     if (includedFile) {
         const Location refLoc = createLocation(includedFile, 1, 1);
         if (!refLoc.isNull()) {
-            {
-                String include = "#include ";
-                const Path path = refLoc.path();
-                assert(mSource.fileId);
-                mData->dependencies[refLoc.fileId()].insert(mSource.fileId);
-                mData->symbolNames[(include + path)].insert(location);
-                mData->symbolNames[(include + path.fileName())].insert(location);
-            }
             Cursor &c = unit(location)->cursors[location];
-            assert(c.isNull());
+            if (!c.isNull())
+                return;
+
+            String include = "#include ";
+            const Path path = refLoc.path();
+            assert(mSource.fileId);
+            mData->dependencies[refLoc.fileId()].insert(mSource.fileId);
+            unit(location.fileId())->symbolNames[(include + path)].insert(location);
+            unit(location.fileId())->symbolNames[(include + path.fileName())].insert(location);
             c.symbolName = "#include " + RTags::eatString(clang_getCursorDisplayName(cursor));
             c.kind = cursor.kind;
             c.symbolLength = c.symbolName.size() + 2;
@@ -1099,6 +1101,10 @@ bool ClangIndexer::writeFiles(const Path &root, String &error)
         }
         if (!FileMap<String, Set<Location> >::write(unitRoot + "/usrs", unit.second->usrs)) {
             error = "Failed to write usrs";
+            return false;
+        }
+        if (!FileMap<String, Set<Location> >::write(unitRoot + "/symnames", unit.second->symbolNames)) {
+            error = "Failed to write symbolNames";
             return false;
         }
     }
@@ -1334,11 +1340,10 @@ void ClangIndexer::addFileSymbol(uint32_t file)
 {
     const Location loc(file, 1, 1);
     const Path path = Location::path(file);
-    mData->symbolNames[path].insert(loc);
+    unit(loc.fileId())->symbolNames[path].insert(loc);
     const char *fn = path.fileName();
-    mData->symbolNames[String(fn, strlen(fn))].insert(loc);
+    unit(loc.fileId())->symbolNames[fn].insert(loc);
 }
-
 
 void ClangIndexer::inclusionVisitor(CXFile includedFile,
                                     CXSourceLocation *includeStack,

@@ -124,7 +124,6 @@ int StatusJob::execute()
                 return 1;
         }
     }
-#endif
 
     if (query.isEmpty() || !strcasecmp(query.constData(), "symbolnames")) {
         matched = true;
@@ -143,6 +142,7 @@ int StatusJob::execute()
                 return 1;
         }
     }
+#endif
 
     if (query.isEmpty() || !strcasecmp(query.constData(), "sources")) {
         matched = true;
@@ -204,7 +204,6 @@ int StatusJob::execute()
             << "rpIndexerMessageTimeout" << opt.rpIndexerMessageTimeout << '\n'
             << "rpConnectTimeout" << opt.rpConnectTimeout << '\n'
             << "rpConnectTimeout" << opt.rpConnectTimeout << '\n'
-            << "syncThreshold" << opt.syncThreshold << '\n'
             << "threadStackSize" << opt.threadStackSize << '\n'
             << "defaultArguments" << opt.defaultArguments << '\n'
             << "includePaths" << opt.includePaths << '\n'

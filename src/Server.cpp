@@ -487,9 +487,6 @@ void Server::handleQueryMessage(const std::shared_ptr<QueryMessage> &message, Co
     case QueryMessage::Invalid:
         assert(0);
         break;
-    case QueryMessage::SyncProject:
-        syncProject(message, conn);
-        break;
     case QueryMessage::Sources:
         sources(message, conn);
         break;
@@ -1456,18 +1453,6 @@ void Server::suspend(const std::shared_ptr<QueryMessage> &query, Connection *con
     conn->finish();
 }
 
-void Server::syncProject(const std::shared_ptr<QueryMessage> &/*query*/, Connection *conn)
-{
-    if (std::shared_ptr<Project> project = currentProject()) {
-        if (!project->startSync(Project::Sync_Synchronous))
-            project->startSync(Project::Sync_Asynchronous);
-
-    } else {
-        conn->write("No active project");
-    }
-    conn->finish();
-}
-
 void Server::handleVisitFileMessage(const std::shared_ptr<VisitFileMessage> &message, Connection *conn)
 {
     uint32_t fileId = 0;
@@ -1475,13 +1460,16 @@ void Server::handleVisitFileMessage(const std::shared_ptr<VisitFileMessage> &mes
 
     std::shared_ptr<Project> project = mProjects.value(message->project());
     const uint64_t key = message->key();
+    bool save = false;
     if (project && project->isActiveJob(key)) {
         assert(message->file() == message->file().resolved());
-        fileId = Location::insertFile(message->file());
+        fileId = Location::insertFile(message->file(), &save);
         visit = project->visitFile(fileId, message->file(), key);
     }
     VisitFileResponseMessage msg(fileId, visit);
     conn->send(msg);
+    if (save)
+        saveFileIds();
 }
 
 void Server::restoreFileIds()
@@ -1690,7 +1678,6 @@ bool Server::runTests()
             }
             ++sourceCount;
         }
-        mOptions.syncThreshold = sourceCount;
         EventLoop::eventLoop()->exec(mOptions.testTimeout);
         if (sourceCount) {
             error() << "Timed out waiting for sources to compile";

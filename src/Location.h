@@ -79,15 +79,19 @@ public:
         return sLastId;
     }
 
-    static inline uint32_t insertFile(const Path &path)
+    static inline uint32_t insertFile(const Path &path, bool *inserted = 0)
     {
         assert(!path.contains(".."));
         assert(path.resolved() == path);
         LOCK();
         uint32_t &id = sPathsToIds[path];
         if (!id) {
+            if (inserted)
+                *inserted = true;
             id = ++sLastId;
             sIdsToPaths[id] = path;
+        } else if (inserted) {
+            *inserted = false;
         }
         return id;
     }

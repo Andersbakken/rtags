@@ -58,7 +58,6 @@ struct Diagnostic;
 typedef Map<Location, Diagnostic> DiagnosticsMap;
 typedef Hash<String, Set<Location> > UsrMap;
 typedef Map<Location, Set<Location> > ReferenceMap;
-typedef Map<String, Set<Location> > SymbolNameMap;
 typedef Hash<uint32_t, Set<uint32_t> > DependencyMap;
 typedef Map<uint64_t, Source> SourceMap;
 typedef Map<Path, Set<String> > FilesMap;
@@ -67,7 +66,6 @@ typedef Hash<Path, String> UnsavedFiles;
 
 namespace RTags {
 Path encodeSourceFilePath(const Path &dataDir, const Path &project, uint32_t fileId);
-void dirtySymbolNames(SymbolNameMap &map, const Set<uint32_t> &dirty);
 
 template <typename Container, typename Value>
 inline bool addTo(Container &container, const Value &value)

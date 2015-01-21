@@ -41,8 +41,8 @@ public:
     {
         assert(mData);
         serializer << mProject << mData->flags << mData->key << mData->parseTime
-                   << mData->message << mData->fixIts << mData->symbolNames
-                   << mData->dependencies << mData->diagnostics << mData->visited << mData->id;
+                   << mData->message << mData->fixIts << mData->dependencies
+                   << mData->diagnostics << mData->visited << mData->id;
     }
     void decode(Deserializer &deserializer)
     {
@@ -51,7 +51,7 @@ public:
         deserializer >> mProject >> flags;
         mData.reset(new IndexData(flags));
         deserializer >> mData->key >> mData->parseTime
-                     >> mData->message >> mData->fixIts >> mData->symbolNames
+                     >> mData->message >> mData->fixIts
                      >> mData->dependencies >> mData->diagnostics
                      >> mData->visited >> mData->id;
     }

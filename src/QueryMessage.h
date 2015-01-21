@@ -62,7 +62,6 @@ public:
         Sources,
         Status,
         Suspend,
-        SyncProject,
         UnloadProject,
         GenerateTest
     };

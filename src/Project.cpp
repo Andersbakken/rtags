@@ -35,94 +35,7 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 #include <rct/Thread.h>
 #include <memory>
 
-enum {
-    SyncTimeout = 500,
-    DirtyTimeout = 100
-};
-
-class RestoreThread : public Thread
-{
-public:
-    RestoreThread(const std::shared_ptr<Project> &project)
-        : mPath(project->path()), mWeak(project)
-    {
-        setAutoDelete(true);
-    }
-
-    virtual void run()
-    {
-        StopWatch timer;
-        RestoreThread *thread = restore() ? this : 0;
-        std::mutex mutex;
-        std::condition_variable condition;
-        bool finished = false;
-
-        EventLoop::mainEventLoop()->callLater([this, thread, &timer, &mutex, &condition, &finished]() {
-                if (std::shared_ptr<Project> proj = mWeak.lock()) {
-                    proj->updateContents(thread);
-                    if (thread)
-                        error() << "Restored project" << mPath << "in" << timer.elapsed() << "ms";
-                }
-                std::unique_lock<std::mutex> lock(mutex);
-                finished = true;
-                condition.notify_one();
-            });
-
-        std::unique_lock<std::mutex> lock(mutex);
-        while (!finished) {
-            condition.wait(lock);
-        }
-    }
-
-    bool restore()
-    {
-        Path path = mPath;
-        RTags::encodePath(path);
-        path += "/project";
-        const Path p = Server::instance()->options().dataDir + path;
-        DataFile file(p);
-        if (!file.open(DataFile::Read)) {
-            if (!file.error().isEmpty())
-                error("Restore error %s: %s", mPath.constData(), file.error().constData());
-            Path::rm(p);
-            return false;
-        }
-
-        file >> mSymbolNames >> mSources >> mVisitedFiles >> mDependencies;
-        return true;
-    }
-
-    const Path mPath;
-    SymbolNameMap mSymbolNames;
-    SourceMap mSources;
-    Hash<uint32_t, Path> mVisitedFiles;
-    DependencyMap mDependencies;
-    std::weak_ptr<Project> mWeak;
-};
-
-class SyncThread : public Thread
-{
-public:
-    SyncThread(const std::shared_ptr<Project> &project)
-        : mProject(project)
-    {
-        setAutoDelete(true);
-    }
-
-    virtual void run()
-    {
-        if (std::shared_ptr<Project> project = mProject.lock()) {
-            const String msg = project->sync();
-            EventLoop::mainEventLoop()->callLater([project, msg]() {
-                    if (!msg.isEmpty())
-                        error() << msg;
-                    project->onSynced();
-                });
-        }
-    }
-
-    std::weak_ptr<Project> mProject;
-};
+enum { DirtyTimeout = 100 };
 
 class Dirty
 {
@@ -269,9 +182,13 @@ public:
 };
 
 Project::Project(const Path &path)
-    : mPath(path), mState(Unloaded), mJobCounter(0)
+    : mPath(path), mState(Unloaded), mJobCounter(0), mJobsStarted(0)
 {
-    const auto &options = Server::instance()->options();
+    Path srcPath = mPath;
+    RTags::encodePath(srcPath);
+    const Server::Options &options = Server::instance()->options();
+    mProjectFilePath = options.dataDir + srcPath + "/project";
+    
 
     if (!(options.options & Server::NoFileSystemWatch)) {
         mWatcher.modified().connect(std::bind(&Project::onFileModifiedOrRemoved, this, std::placeholders::_1));
@@ -281,7 +198,6 @@ Project::Project(const Path &path)
         mWatcher.removed().connect(std::bind(&Project::reloadFileManager, this));
         mWatcher.added().connect(std::bind(&Project::reloadFileManager, this));
     }
-    mSyncTimer.timeout().connect([this](Timer *) { this->startSync(Sync_Asynchronous); });
     mDirtyTimer.timeout().connect(std::bind(&Project::onDirtyTimeout, this, std::placeholders::_1));
 }
 
@@ -299,81 +215,6 @@ void Project::init()
     fileManager->init(shared_from_this(), FileManager::Asynchronous);
 }
 
-void Project::updateContents(RestoreThread *thread)
-{
-    assert(EventLoop::isMainThread());
-    if (state() != Loading)
-        return;
-
-    bool needsSave = false;
-    std::unique_ptr<ComplexDirty> dirty;
-    if (thread) {
-        mSymbolNames = std::move(thread->mSymbolNames);
-        mSources = std::move(thread->mSources);
-        mVisitedFiles = std::move(thread->mVisitedFiles);
-        mDependencies = std::move(thread->mDependencies);
-
-        for (const auto& dep : mDependencies) {
-            watch(Location::path(dep.first));
-        }
-
-        if (Server::instance()->suspended()) {
-            dirty.reset(new SuspendedDirty);
-        } else {
-            dirty.reset(new IfModifiedDirty(mDependencies));
-        }
-
-        {
-            auto it = mDependencies.begin();
-
-            while (it != mDependencies.end()) {
-                const Path path = Location::path(it->first);
-                if (!path.isFile()) {
-                    error() << path << "seems to have disappeared";
-                    dirty.get()->insertDirtyFile(it->first);
-
-                    const Set<uint32_t> &dependents = it->second;
-                    for (auto dependent : dependents) {
-                        // we don't have a file to compare with to
-                        // know whether the source is parsed after the
-                        // file was removed... so, force sources
-                        // dirty.
-                        dirty.get()->insertDirtyFile(dependent);
-                    }
-
-                    mDependencies.erase(it++);
-                    needsSave = true;
-                }
-                else {
-                    ++it;
-                }
-            }
-        }
-
-        auto it = mSources.begin();
-        while (it != mSources.end()) {
-            const Source &source = it->second;
-            if (!source.sourceFile().isFile()) {
-                error() << source.sourceFile() << "seems to have disappeared";
-                dirty.get()->insertDirtyFile(source.fileId);
-                mSources.erase(it++);
-                needsSave = true;
-            } else {
-                ++it;
-            }
-        }
-    }
-    List<std::shared_ptr<IndexerJob> > pendingJobs = std::move(mPendingJobs);
-    mState = Loaded;
-    if ((!dirty || !startDirtyJobs(dirty.get())) && needsSave)
-        save();
-
-    for (const auto &job : pendingJobs) {
-        assert(job);
-        index(job);
-    }
-}
-
 bool Project::load(FileManagerMode mode)
 {
     switch (mState) {
@@ -385,51 +226,97 @@ bool Project::load(FileManagerMode mode)
         break;
     case Inited:
         break;
-    case Loading:
     case Loaded:
-    case Syncing:
         return false;
     }
-    mState = Loading;
-    RestoreThread *thread = new RestoreThread(shared_from_this());
-    thread->start();
+    mState = Loaded;
+    DataFile file(mProjectFilePath);
+    if (!file.open(DataFile::Read)) {
+        if (!file.error().isEmpty())
+            error("Restore error %s: %s", mPath.constData(), file.error().constData());
+        Path::rm(mProjectFilePath);
+        return false;
+    }
+
+    file >> mSources >> mVisitedFiles >> mDependencies;
+
+    for (const auto& dep : mDependencies) {
+        watch(Location::path(dep.first));
+    }
+
+    bool needsSave = false;
+    std::unique_ptr<ComplexDirty> dirty;
+
+    if (Server::instance()->suspended()) {
+        dirty.reset(new SuspendedDirty);
+    } else {
+        dirty.reset(new IfModifiedDirty(mDependencies));
+    }
+
+    {
+        auto it = mDependencies.begin();
+
+        while (it != mDependencies.end()) {
+            const Path path = Location::path(it->first);
+            if (!path.isFile()) {
+                error() << path << "seems to have disappeared";
+                dirty.get()->insertDirtyFile(it->first);
+
+                const Set<uint32_t> &dependents = it->second;
+                for (auto dependent : dependents) {
+                    // we don't have a file to compare with to
+                    // know whether the source is parsed after the
+                    // file was removed... so, force sources
+                    // dirty.
+                    dirty.get()->insertDirtyFile(dependent);
+                }
+
+                mDependencies.erase(it++);
+                needsSave = true;
+            }
+            else {
+                ++it;
+            }
+        }
+    }
+
+    auto it = mSources.begin();
+    while (it != mSources.end()) {
+        const Source &source = it->second;
+        if (!source.sourceFile().isFile()) {
+            error() << source.sourceFile() << "seems to have disappeared";
+            dirty.get()->insertDirtyFile(source.fileId);
+            mSources.erase(it++);
+            needsSave = true;
+        } else {
+            ++it;
+        }
+    }
+
+    if (needsSave)
+        save();
+    startDirtyJobs(dirty.get());
     return true;
 }
 
 void Project::unload()
 {
-    switch (mState) {
-    case Unloaded:
+    if (mState == Unloaded)
         return;
-    case Syncing:
-    case Loading: {
-        std::weak_ptr<Project> weak = shared_from_this();
-        EventLoop::eventLoop()->registerTimer([weak](int) { if (std::shared_ptr<Project> project = weak.lock()) project->unload(); },
-                                              1000, Timer::SingleShot);
-        return; }
-    default:
-        break;
-    }
     save(); // we always save since sources very likely had their Enabledness changed
     for (const auto &job : mActiveJobs) {
         assert(job.second);
         Server::instance()->jobScheduler()->abort(job.second);
     }
 
-    const String msg = sync();
-    if (!msg.isEmpty())
-        error() << msg;
-
     mActiveJobs.clear();
     fileManager.reset();
 
-    mSymbolNames.clear();
     mFiles.clear();
     mSources.clear();
     mVisitedFiles.clear();
     mDependencies.clear();
     mState = Unloaded;
-    mSyncTimer.stop();
     mDirtyTimer.stop();
 }
 
@@ -460,11 +347,7 @@ bool Project::match(const Match &p, bool *indexed) const
 
 void Project::onJobFinished(const std::shared_ptr<IndexerJob> &job, const std::shared_ptr<IndexData> &indexData)
 {
-    mSyncTimer.stop();
-    if (mState == Syncing) {
-        mPendingIndexData[indexData->key] = std::make_pair(job, indexData);
-        return;
-    } else if (mState != Loaded) {
+    if (mState != Loaded) {
         return;
     }
     assert(indexData);
@@ -504,7 +387,10 @@ void Project::onJobFinished(const std::shared_ptr<IndexerJob> &job, const std::s
         }
     }
 
-    mIndexData[indexData->key] = indexData;
+    Set<uint32_t> newFiles;
+    int symbolNames = 0;
+    addFixIts(indexData->visited, indexData->fixIts);
+    addDependencies(indexData->dependencies, newFiles);
     if (success) {
         src->second.parsed = indexData->parseTime;
         error("[%3d%%] %d/%d %s %s.",
@@ -519,31 +405,30 @@ void Project::onJobFinished(const std::shared_ptr<IndexerJob> &job, const std::s
               Location::path(fileId).toTilde().constData());
     }
 
-    if (options.syncThreshold && mIndexData.size() >= options.syncThreshold) {
-        startSync(Sync_Asynchronous);
-    } else if (mActiveJobs.isEmpty()) {
-        mSyncTimer.restart(indexData->flags & IndexerJob::Dirty ? 0 : SyncTimeout, Timer::SingleShot);
+    save();
+    if (mActiveJobs.isEmpty()) {
+        double timerElapsed = (mTimer.elapsed() / 1000.0);
+        const double averageJobTime = timerElapsed / mJobsStarted;
+        const String msg = String::format<1024>("Jobs took %.2fs%s. We're using %lldmb of memory. ",
+                                                timerElapsed, mJobsStarted > 1 ? String::format(", (avg %.2fs)", averageJobTime).constData() : "",
+                                                MemoryMonitor::usage() / (1024 * 1024), symbolNames);
+        error() << msg;
+        mJobsStarted = mJobCounter = 0;
+
+        // error() << "Finished this
     }
 }
 
 bool Project::save()
 {
-    if (!Server::instance()->saveFileIds()) {
-        return false;
-    }
-
-    Path srcPath = mPath;
-    RTags::encodePath(srcPath);
-    const Server::Options &options = Server::instance()->options();
-    const Path p = options.dataDir + srcPath + "/project";
-    DataFile file(p);
+    DataFile file(mProjectFilePath);
     if (!file.open(DataFile::Write)) {
-        error("Save error %s: %s", p.constData(), file.error().constData());
+        error("Save error %s: %s", mProjectFilePath.constData(), file.error().constData());
         return false;
     }
-    file << mSymbolNames << mSources << mVisitedFiles << mDependencies;
+    file << mSources << mVisitedFiles << mDependencies;
     if (!file.flush()) {
-        error("Save error %s: %s", p.constData(), file.error().constData());
+        error("Save error %s: %s", mProjectFilePath.constData(), file.error().constData());
         return false;
     }
 
@@ -579,10 +464,6 @@ void Project::index(const std::shared_ptr<IndexerJob> &job)
         return;
     }
 
-    if (mState != Loaded) {
-        mPendingJobs.append(job);
-        return;
-    }
     const uint64_t key = job->source.key();
     if (Server::instance()->suspended() && mSources.contains(key) && (job->flags & IndexerJob::Compile)) {
         return;
@@ -653,13 +534,11 @@ void Project::index(const std::shared_ptr<IndexerJob> &job)
     }
     ref = job;
 
-    if (mIndexData.remove(key))
-        --mJobCounter;
-
-    if (!mJobCounter++)
+    ++mJobsStarted;
+    if (!mJobCounter++) {
         mTimer.start();
+    }
 
-    mSyncTimer.stop();
     Server::instance()->jobScheduler()->add(job);
 }
 
@@ -774,16 +653,13 @@ int Project::remove(const Match &match)
                 releaseFileIds(job->visited);
                 Server::instance()->jobScheduler()->abort(job);
             }
-            mIndexData.remove(fileId);
             dirty.insert(fileId);
             ++count;
         } else {
             ++it;
         }
     }
-    if (count) {
-        RTags::dirtySymbolNames(mSymbolNames, dirty);
-    }
+#warning need to remove FileMap files
     return count;
 }
 
@@ -805,28 +681,7 @@ int Project::startDirtyJobs(Dirty *dirty, const UnsavedFiles &unsavedFiles)
         index(std::shared_ptr<IndexerJob>(new IndexerJob(source, IndexerJob::Dirty, mPath, unsavedFiles)));
     }
 
-    if (!toIndex.size() && !dirtyFiles.isEmpty()) {
-        // this is for the case where we've removed a file
-        RTags::dirtySymbolNames(mSymbolNames, dirtyFiles);
-    } else {
-        mDirtyFiles += dirtyFiles;
-    }
     return toIndex.size();
-}
-
-static inline int writeSymbolNames(const SymbolNameMap &symbolNames, SymbolNameMap &current)
-{
-    int ret = 0;
-    auto it = symbolNames.begin();
-    const auto end = symbolNames.end();
-    while (it != end) {
-        Set<Location> &value = current[it->first];
-        int count = 0;
-        value.unite(it->second, &count);
-        ret += count;
-        ++it;
-    }
-    return ret;
 }
 
 bool Project::isIndexed(uint32_t fileId) const
@@ -901,30 +756,6 @@ String Project::fixIts(uint32_t fileId) const
         }
     }
     return out;
-}
-
-bool Project::startSync(SyncMode mode)
-{
-    if (!Server::instance()->options().tests.isEmpty())
-        mode = Sync_Synchronous;
-    if (mState != Loaded) {
-        if (mode == Sync_Asynchronous)
-            mSyncTimer.restart(SyncTimeout, Timer::SingleShot);
-        return false;
-    }
-    assert(mState == Loaded);
-    mState = Syncing;
-    mSyncTimer.stop();
-    if (mode == Sync_Synchronous) {
-        const String msg = sync();
-        if (!msg.isEmpty())
-            error() << msg;
-        onSynced();
-    } else {
-        SyncThread *thread = new SyncThread(shared_from_this());
-        thread->start();
-    }
-    return true;
 }
 
 void Project::reloadFileManager()
@@ -1048,63 +879,6 @@ void Project::watch(const Path &file)
             mWatcher.watch(dir);
         }
     }
-}
-
-void Project::onSynced()
-{
-    assert(mState == Syncing);
-    mState = Loaded;
-    for (const auto &it : mPendingIndexData) {
-        onJobFinished(it.second.first, it.second.second);
-    }
-    mPendingIndexData.clear();
-    for (const auto &job : mPendingJobs) {
-        index(job);
-    }
-    mPendingJobs.clear();
-}
-
-String Project::sync()
-{
-    mJobCounter = mActiveJobs.size();
-    StopWatch sw;
-    if (mDirtyFiles.isEmpty() && mIndexData.isEmpty()) {
-        return String();
-    }
-
-    if (!mDirtyFiles.isEmpty()) {
-        RTags::dirtySymbolNames(mSymbolNames, mDirtyFiles);
-        mDirtyFiles.clear();
-    }
-    const int dirtyTime = sw.restart();
-
-    Set<uint32_t> newFiles;
-    int symbolNames = 0;
-    for (auto it = mIndexData.begin(); it != mIndexData.end(); ++it) {
-        const std::shared_ptr<IndexData> &data = it->second;
-        addFixIts(data->visited, data->fixIts);
-        addDependencies(data->dependencies, newFiles);
-        error() << data->dependencies.size() << Location::path(data->fileId());
-        symbolNames += writeSymbolNames(data->symbolNames, mSymbolNames);
-    }
-
-    for (auto it = newFiles.constBegin(); it != newFiles.constEnd(); ++it) {
-        watch(Location::path(*it));
-    }
-    const int syncTime = sw.restart();
-    save();
-    const int saveTime = sw.elapsed();
-    double timerElapsed = (mTimer.elapsed() / 1000.0);
-    const double averageJobTime = timerElapsed / mIndexData.size();
-    const String msg = String::format<1024>("Jobs took %.2fs, %sdirtying took %.2fs, "
-                                            "syncing took %.2fs, saving took %.2fs. We're using %lldmb of memory. "
-                                            "%d symbolNames", timerElapsed,
-                                            mIndexData.size() > 1 ? String::format("(avg %.2fs), ", averageJobTime).constData() : "",
-                                            dirtyTime / 1000.0, syncTime / 1000.0, saveTime / 1000.0, MemoryMonitor::usage() / (1024 * 1024),
-                                            symbolNames);
-    mIndexData.clear();
-    mTimer.start();
-    return msg;
 }
 
 String Project::toCompilationDatabase() const

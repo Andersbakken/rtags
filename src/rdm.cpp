@@ -98,7 +98,6 @@ static void usage(FILE *f)
             "  --socket-file|-n [arg]                     Use this file for the server socket (default ~/.rdm).\n"
             "  --start-suspended|-Q                       Start out suspended (no reindexing enabled).\n"
             "  --suspend-rp-on-crash|-q [arg]             Suspend rp in SIGSEGV handler (default " DEFAULT_SUSPEND_RP ").\n"
-            "  --sync-threshold|-y [arg]                  Automatically sync after [arg] files indexed.\n"
             "  --thread-stack-size|-k [arg]               Set stack size for threadpool to this (default %zu).\n"
             "  --unload-timer|-u [arg]                    Number of minutes to wait before unloading non-current projects (disabled by default).\n"
             "  --verbose|-v                               Change verbosity, multiple -v's are allowed.\n"
@@ -159,7 +158,6 @@ int main(int argc, char** argv)
         { "no-unlimited-errors", no_argument, 0, 'f' },
         { "block-argument", required_argument, 0, 'G' },
         { "no-spell-checking", no_argument, 0, 'l' },
-        { "sync-threshold", required_argument, 0, 'y' },
         { "large-by-value-copy", required_argument, 0, 'r' },
         { "disallow-multiple-sources", no_argument, 0, 'm' },
         { "unload-timer", required_argument, 0, 'u' },
@@ -508,13 +506,6 @@ int main(int argc, char** argv)
             serverOpts.completionCacheSize = atoi(optarg);
             if (serverOpts.completionCacheSize <= 0) {
                 fprintf(stderr, "Invalid argument to -i %s\n", optarg);
-                return 1;
-            }
-            break;
-        case 'y':
-            serverOpts.syncThreshold = atoi(optarg);
-            if (serverOpts.syncThreshold <= 0) {
-                fprintf(stderr, "Invalid argument to -y %s\n", optarg);
                 return 1;
             }
             break;

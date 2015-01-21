@@ -47,26 +47,6 @@ Path encodeSourceFilePath(const Path &dataDir, const Path &project, uint32_t fil
     return str;
 }
 
-void dirtySymbolNames(SymbolNameMap &map, const Set<uint32_t> &dirty)
-{
-    SymbolNameMap::iterator it = map.begin();
-    while (it != map.end()) {
-        Set<Location> &locations = it->second;
-        Set<Location>::iterator i = locations.begin();
-        while (i != locations.end()) {
-            if (dirty.contains(i->fileId())) {
-                locations.erase(i++);
-            } else {
-                ++i;
-            }
-        }
-        if (locations.isEmpty()) {
-            map.erase(it++);
-        } else {
-            ++it;
-        }
-    }
-}
 
 Path findAncestor(Path path, const char *fn, unsigned flags)
 {

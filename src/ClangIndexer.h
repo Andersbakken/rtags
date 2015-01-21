@@ -138,6 +138,7 @@ private:
         Map<Location, Cursor> cursors;
         Map<Location, Map<Location, uint16_t> > targets;
         Map<String, Set<Location> > usrs;
+        Map<String, Set<Location> > symbolNames;
     };
 
     std::shared_ptr<Unit> unit(uint32_t fileId)

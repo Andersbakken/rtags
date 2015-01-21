@@ -57,7 +57,6 @@ struct Option opts[] = {
     { RClient::UnloadProject, "unload", 'u', required_argument, "Unload project(s) matching argument." },
     { RClient::ReloadProjects, "reload-projects", 'z', no_argument, "Reload projects from projects file." },
     { RClient::JobCount, "jobcount", 'j', optional_argument, "Set or query current job count." },
-    { RClient::SyncProject, "syncproject", 0, no_argument, "Sync current project ASAP." },
 
     { RClient::None, 0, 0, 0, "" },
     { RClient::None, 0, 0, 0, "Indexing commands:" },
@@ -764,9 +763,6 @@ bool RClient::parse(int &argc, char **argv)
             break;
         case ReloadFileManager:
             addQuery(QueryMessage::ReloadFileManager);
-            break;
-        case SyncProject:
-            addQuery(QueryMessage::SyncProject);
             break;
         case DumpCompletions:
             addQuery(QueryMessage::DumpCompletions);
