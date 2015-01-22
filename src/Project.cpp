@@ -848,21 +848,21 @@ Set<Location> Project::locations(const String &symbolName, uint32_t fileId) cons
 
 List<RTags::SortedCursor> Project::sort(const Set<Location> &locations, unsigned int flags) const
 {
-#warning not done
-#if 0
     List<RTags::SortedCursor> sorted;
     sorted.reserve(locations.size());
     for (auto it = locations.begin(); it != locations.end(); ++it) {
         RTags::SortedCursor node(*it);
-        const auto found = mSymbols.find(*it);
-        if (found != mSymbols.end()) {
-            node.isDefinition = found->second->isDefinition();
+        const Cursor cursor = findCursor(*it);
+        if (!cursor.isNull()) {
+            node.isDefinition = cursor.isDefinition();
             if (flags & Sort_DeclarationOnly && node.isDefinition) {
-                const std::shared_ptr<CursorInfo> decl = found->second->bestTarget(mSymbols);
-                if (decl && !decl->isNull())
+                const Cursor decl = findCursor(findTarget(cursor));
+                if (!decl.isNull() && !decl.isDefinition()) {
+                    assert(decl.usr == cursor.usr);
                     continue;
+                }
             }
-            node.kind = found->second->kind;
+            node.kind = cursor.kind;
         }
         sorted.push_back(node);
     }
@@ -873,7 +873,6 @@ List<RTags::SortedCursor> Project::sort(const Set<Location> &locations, unsigned
         std::sort(sorted.begin(), sorted.end());
     }
     return sorted;
-#endif
 }
 
 void Project::watch(const Path &file)
