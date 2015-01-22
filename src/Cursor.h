@@ -65,6 +65,7 @@ struct Cursor
     };
     String toString(unsigned cursorInfoFlags = DefaultFlags, unsigned keyFlags = 0) const;
     String kindSpelling() const { return kindSpelling(kind); }
+    String displayName() const;
     static String kindSpelling(uint16_t kind);
 
     bool operator<(const Cursor &other) const { return location < other.location; }

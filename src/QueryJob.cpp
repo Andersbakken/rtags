@@ -139,38 +139,36 @@ bool QueryJob::write(const Location &location, unsigned /* flags */)
     const bool cursorKind = queryFlags() & QueryMessage::CursorKind;
     const bool displayName = queryFlags() & QueryMessage::DisplayName;
     if (containingFunction || cursorKind || displayName) {
-#warning not done
-#if 0
-        const SymbolMap &symbols = project()->symbols();
-        SymbolMap::const_iterator it = symbols.find(location);
-        if (it == symbols.end()) {
+        int idx;
+        Cursor cursor = project()->findCursor(location, &idx);
+        if (cursor.isNull()) {
             error() << "Somehow can't find" << location << "in symbols";
         } else {
             if (displayName)
-                out += '\t' + it->second->displayName();
+                out += '\t' + cursor.displayName();
             if (cursorKind)
-                out += '\t' + it->second->kindSpelling();
+                out += '\t' + cursor.kindSpelling();
             if (containingFunction) {
                 const uint32_t fileId = location.fileId();
                 const unsigned int line = location.line();
                 const unsigned int column = location.column();
-                while (true) {
-                    --it;
-                    if (it->first.fileId() != fileId)
-                        break;
-                    if (it->second->isDefinition()
-                        && RTags::isContainer(it->second->kind)
-                        && comparePosition(line, column, it->second->startLine, it->second->startColumn) >= 0
-                        && comparePosition(line, column, it->second->endLine, it->second->endColumn) <= 0) {
-                        out += "\tfunction: " + it->second->symbolName;
-                        break;
-                    } else if (it == symbols.begin()) {
-                        break;
+                auto fileMap = project()->openCursors(location.fileId());
+                if (fileMap) {
+                    while (idx > 0) {
+                        cursor = fileMap->valueAt(--idx);
+                        if (cursor.location.fileId() != fileId)
+                            break;
+                        if (cursor.isDefinition()
+                            && RTags::isContainer(cursor.kind)
+                            && comparePosition(line, column, cursor.startLine, cursor.startColumn) >= 0
+                            && comparePosition(line, column, cursor.endLine, cursor.endColumn) <= 0) {
+                            out += "\tfunction: " + cursor.symbolName;
+                            break;
+                        }
                     }
                 }
             }
         }
-#endif
     }
     return write(out);
 }

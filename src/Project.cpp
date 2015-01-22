@@ -919,8 +919,10 @@ Path Project::sourceFilePath(uint32_t fileId, const String &type) const
     return RTags::encodeSourceFilePath(Server::instance()->options().dataDir, mPath, fileId) + type;
 }
 
-Cursor Project::findCursor(const Location &location) const
+Cursor Project::findCursor(const Location &location, int *index) const
 {
+    if (index)
+        *index = -1;
     if (location.isNull())
         return Cursor();
     auto cursors = openCursors(location.fileId());
@@ -929,8 +931,11 @@ Cursor Project::findCursor(const Location &location) const
 
     bool exact = false;
     int idx = cursors->lowerBound(location, &exact);
-    if (exact)
+    if (exact) {
+        if (index)
+            *index = idx;
         return cursors->valueAt(idx);
+    }
     switch (idx) {
     case 0:
         return Cursor();
@@ -948,6 +953,8 @@ Cursor Project::findCursor(const Location &location) const
         || (location.column() - ret.location.column() >= ret.symbolLength)) {
         return Cursor();
     }
+    if (index)
+        *index = idx;
     return ret;
 }
 
