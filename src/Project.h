@@ -73,10 +73,6 @@ public:
         return ret;
     }
 
-    std::shared_ptr<FileMap<uint32_t, Set<uint32_t> > > openDeps(uint32_t fileId) const
-    {
-        return openFileMap<uint32_t, Set<uint32_t> >(fileId, "deps");
-    }
     std::shared_ptr<FileMap<String, Set<Location> > > openSymbolNames(uint32_t fileId) const
     {
         return openFileMap<String, Set<Location> >(fileId, "symnames");

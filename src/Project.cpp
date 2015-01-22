@@ -188,7 +188,7 @@ Project::Project(const Path &path)
     RTags::encodePath(srcPath);
     const Server::Options &options = Server::instance()->options();
     mProjectFilePath = options.dataDir + srcPath + "/project";
-    
+
 
     if (!(options.options & Server::NoFileSystemWatch)) {
         mWatcher.modified().connect(std::bind(&Project::onFileModifiedOrRemoved, this, std::placeholders::_1));
@@ -806,33 +806,45 @@ static inline bool matchSymbolName(const String &needle, const String &haystack,
 
 Set<Location> Project::locations(const String &symbolName, uint32_t fileId) const
 {
-#warning not done
-#if 0
     Set<Location> ret;
-    if (fileId) {
-        const SymbolMap s = symbols(fileId);
-        for (auto it = s.begin(); it != s.end(); ++it) {
-            if (!RTags::isReference(it->second->kind)
-                && (symbolName.isEmpty() || matchSymbolName(symbolName, it->second->symbolName, checkFunction(it->second->kind)))) {
-                ret.insert(it->first);
+    auto processCursor = [&ret, &symbolName, this](uint32_t fileId) {
+        auto s = openCursors(fileId);
+        if (!s)
+            return;
+        const int count = s->count();
+        for (int i=0; i<count; ++i) {
+            const Cursor c = s->valueAt(i);
+            if (!RTags::isReference(c.kind)
+                && (symbolName.isEmpty() || matchSymbolName(symbolName, c.symbolName, checkFunction(c.kind)))) {
+                ret.insert(s->keyAt(i));
             }
         }
+    };
+
+    if (fileId) {
+        processCursor(fileId);
     } else if (symbolName.isEmpty()) {
-        for (auto it = mSymbols.constBegin(); it != mSymbols.constEnd(); ++it) {
-            if (!RTags::isReference(it->second->kind))
-                ret.insert(it->first);
+        for (const auto &dep : mDependencies) {
+            processCursor(dep.first);
         }
     } else {
-        auto it = mSymbolNames.lower_bound(symbolName);
-        while (it != mSymbolNames.end() && it->first.startsWith(symbolName)) {
-            if (matchSymbolName(symbolName, it->first, true)) // assume function
-                ret.unite(it->second);
-            ++it;
+        for (const auto &dep : mDependencies) {
+            auto symNames = openSymbolNames(dep.first);
+            if (symNames) {
+                int idx = symNames->lowerBound(symbolName);
+                const int count = symNames->count();
+                while (idx < count) {
+                    const String s = symNames->keyAt(idx);
+                    if (!s.startsWith(symbolName))
+                        break;
+                    if (matchSymbolName(symbolName, s, true)) // assume function
+                        ret.unite(symNames->valueAt(idx));
+                    ++idx;
+                }
+            }
         }
     }
     return ret;
-#endif
-    return Set<Location>();
 }
 
 List<RTags::SortedCursor> Project::sort(const Set<Location> &locations, unsigned int flags) const
