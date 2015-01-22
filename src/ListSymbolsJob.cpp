@@ -66,11 +66,7 @@ int ListSymbolsJob::execute()
 
 Set<String> ListSymbolsJob::imenu(const std::shared_ptr<Project> &project)
 {
-#warning not done
     Set<String> out;
-#if 0
-
-    const SymbolMap &map = project->symbols();
     const List<String> paths = pathFilters();
     if (paths.isEmpty()) {
         error() << "--imenu must take path filters";
@@ -86,12 +82,15 @@ Set<String> ListSymbolsJob::imenu(const std::shared_ptr<Project> &project)
         const uint32_t fileId = Location::fileId(file);
         if (!fileId)
             continue;
-        for (SymbolMap::const_iterator it = map.lower_bound(Location(fileId, 1, 0));
-             it != map.end() && it->first.fileId() == fileId; ++it) {
-            const std::shared_ptr<CursorInfo> &cursorInfo = it->second;
-            if (RTags::isReference(cursorInfo->kind))
+        auto cursors = project->openCursors(fileId);
+        if (!cursors)
+            continue;
+        const int count = cursors->count();
+        for (int j=0; j<count; ++j) {
+            const Cursor &cursor = cursors->valueAt(j);
+            if (RTags::isReference(cursor.kind))
                 continue;
-            switch (cursorInfo->kind) {
+            switch (cursor.kind) {
             case CXCursor_VarDecl:
             case CXCursor_ParmDecl:
             case CXCursor_InclusionDirective:
@@ -100,11 +99,11 @@ Set<String> ListSymbolsJob::imenu(const std::shared_ptr<Project> &project)
             case CXCursor_ClassDecl:
             case CXCursor_StructDecl:
             case CXCursor_ClassTemplate:
-                if (!cursorInfo->isDefinition())
+                if (!cursor.isDefinition())
                     break;
                 // fall through
             default: {
-                const String &symbolName = it->second->symbolName;
+                const String &symbolName = cursor.symbolName;
                 if (!string.isEmpty() && !symbolName.contains(string))
                     continue;
                 out.insert(symbolName);
@@ -112,15 +111,12 @@ Set<String> ListSymbolsJob::imenu(const std::shared_ptr<Project> &project)
             }
         }
     }
-#endif
     return out;
 }
 
 Set<String> ListSymbolsJob::listSymbols(const std::shared_ptr<Project> &project)
 {
-#warning not done
     Set<String> out;
-#if 0
     const bool hasFilter = QueryJob::hasFilter();
     const bool stripParentheses = queryFlags() & QueryMessage::StripParentheses;
     const bool wildcard = queryFlags() & QueryMessage::WildcardSymbolNames && (string.contains('*') || string.contains('?'));
@@ -143,48 +139,63 @@ Set<String> ListSymbolsJob::listSymbols(const std::shared_ptr<Project> &project)
         lowerBound = string;
     }
 
-    const SymbolNameMap &map = project->symbolNames();
-    SymbolNameMap::const_iterator it = string.isEmpty() || caseInsensitive ? map.begin() : map.lower_bound(lowerBound);
-    int count = 0;
-    for (; it != map.end(); ++it) {
-        const String &entry = it->first;
-        if (!string.isEmpty()) {
-            if (wildcard) {
-                if (!Rct::wildCmp(string.constData(), entry.constData(), cs)) {
-                    continue;
-                }
-            } else if (!entry.startsWith(string, cs)) {
-                if (!caseInsensitive) {
-                    break;
-                } else {
-                    continue;
-                }
+    const DependencyMap &deps = project->dependencies();
+    int total = 0;
+    for (const auto &dep : deps) {
+        auto symNames = project->openSymbolNames(dep.first);
+        if (!symNames)
+            continue;
+        const int count = symNames->count();
+        // error() << "Looking at" << count << Location::path(dep.first)
+        //         << lowerBound << string;
+        int idx = 0;
+        if (!lowerBound.isEmpty()) {
+            idx = symNames->lowerBound(lowerBound);
+            if (idx == -1) {
+                continue;
             }
         }
-        bool ok = true;
-        if (hasFilter) {
-            ok = false;
-            const Set<Location> &locations = it->second;
-            for (Set<Location>::const_iterator i = locations.begin(); i != locations.end(); ++i) {
-                if (filter(i->path())) {
-                    ok = true;
-                    break;
+
+        for (int i=idx; i<count; ++i) {
+            const String &entry = symNames->keyAt(i);
+            // error() << i << count << entry;
+            if (!string.isEmpty()) {
+                if (wildcard) {
+                    if (!Rct::wildCmp(string.constData(), entry.constData(), cs)) {
+                        continue;
+                    }
+                } else if (!entry.startsWith(string, cs)) {
+                    if (caseInsensitive) {
+                        continue;
+                    } else {
+                        break;
+                    }
                 }
             }
-        }
-        if (ok) {
-            const int paren = entry.indexOf('(');
-            if (paren == -1) {
-                out.insert(entry);
-            } else {
-                out.insert(entry.left(paren));
-                if (!stripParentheses)
+            bool ok = true;
+            if (hasFilter) {
+                ok = false;
+                const Set<Location> &locations = symNames->valueAt(i);
+                for (Set<Location>::const_iterator it = locations.begin(); it != locations.end(); ++it) {
+                    if (filter(it->path())) {
+                        ok = true;
+                        break;
+                    }
+                }
+            }
+            if (ok) {
+                const int paren = entry.indexOf('(');
+                if (paren == -1) {
                     out.insert(entry);
+                } else {
+                    out.insert(entry.left(paren));
+                    if (!stripParentheses)
+                        out.insert(entry);
+                }
             }
+            if (!(++total % 100) && isAborted())
+                break;
         }
-        if (!(++count % 100) && isAborted())
-            break;
     }
-#endif
     return out;
 }

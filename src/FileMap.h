@@ -19,6 +19,7 @@
 #include <assert.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+#include <sys/file.h>
 #include <sys/mman.h>
 #include <rct/Serializer.h>
 #include "Location.h"
@@ -61,18 +62,19 @@ public:
 
     bool load(const Path &path)
     {
-        static int count = 0;
-        printf("%d\n", ++count);
         const size_t fs = path.fileSize();
         if (!fs)
             return false;
         eintrwrap(mFD, open(path.constData(), O_RDONLY));
         if (mFD == -1)
             return false;
+        int ret;
+        eintrwrap(ret, flock(mFD, LOCK_EX));
 
         const char *pointer = reinterpret_cast<const char*>(mmap(0, fs, PROT_READ, MAP_PRIVATE, mFD, 0));
         // error() << errno;//  << mPointer;
         if (pointer == MAP_FAILED) {
+            eintrwrap(ret, flock(mFD, LOCK_UN));
             close(mFD);
             mFD = -1;
             return false;
@@ -87,7 +89,9 @@ public:
         if (mFD != -1) {
             assert(mPointer);
             munmap(const_cast<char*>(mPointer), mSize);
-            close(mFD);
+            int ret;
+            eintrwrap(ret, flock(mFD, LOCK_UN));
+            eintrwrap(ret, close(mFD));
         }
     }
 
@@ -221,15 +225,21 @@ public:
 
     static bool write(const Path &path, const Map<Key, Value> &map)
     {
-        FILE *f = fopen(path.constData(), "w");
+        FILE *f = fopen(path.constData(), "w+");
         if (!f && Path::mkdir(path.parentDir(), Path::Recursive)) {
-            f = fopen(path.constData(), "w");
+            f = fopen(path.constData(), "w+");
         }
         if (!f)
             return false;
+        int err;
+        const int fd = fileno(f);
+        eintrwrap(err, flock(fd, LOCK_EX));
 
         const String data = encode(map);
         const bool ret = fwrite(data.constData(), data.size(), 1, f);
+        if (ret)
+            eintrwrap(err, ftruncate(fd, data.size()));
+        eintrwrap(err, flock(fd, LOCK_UN));
         fclose(f);
         if (!ret)
             unlink(data.constData());

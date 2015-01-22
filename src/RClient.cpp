@@ -572,22 +572,42 @@ bool RClient::parse(int &argc, char **argv)
             mPathFilters.insert(p);
             break; }
         case WildcardSymbolNames: {
-            Map<int, int> foobar;
-            // foobar[1] = 20;
-            foobar[100] = 3;
-            foobar[1000] = 4;
+            // Map<int, int> foobar;
+            // // foobar[1] = 20;
+            // foobar[100] = 3;
+            // foobar[1000] = 4;
 
-            const String data = FileMap<int, int>::encode(foobar);
-            FileMap<int, int> tbl;
+            // const String data = FileMap<int, int>::encode(foobar);
+            // FileMap<int, int> tbl;
+            // tbl.init(data.constData(), data.size());
+            // bool exact;
+            // int idx = tbl.lowerBound(20, &exact);
+            // error() << idx << exact;
+            // idx = tbl.lowerBound(101, &exact);
+            // error() << idx << exact;
+            // idx = tbl.lowerBound(1001, &exact);
+            // error() << idx << exact;
+            // exit(0);
+
+            Map<String, String> map;
+            map["a"] = "1";
+            map["loop"] = "2";
+            map["main()"] = "3";
+            map["zzz"] = "4";
+
+            const String data = FileMap<String, String>::encode(map);
+            FileMap<String, String> tbl;
             tbl.init(data.constData(), data.size());
+            for (int i=0; i<tbl.count(); ++i) {
+                printf("%d: %s\n", i, tbl.keyAt(i).constData());
+            }
+
+            int idx;
             bool exact;
-            int idx = tbl.lowerBound(20, &exact);
+            idx = tbl.lowerBound("main", &exact);
             error() << idx << exact;
-            idx = tbl.lowerBound(101, &exact);
+            idx = tbl.lowerBound("uuu", &exact);
             error() << idx << exact;
-            idx = tbl.lowerBound(1001, &exact);
-            error() << idx << exact;
-            exit(0);
 
 
             // String val = "value";

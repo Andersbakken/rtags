@@ -1079,7 +1079,8 @@ bool ClangIndexer::parse()
     error() << "Failed to parse" << mClangLine;
     for (Hash<uint32_t, bool>::const_iterator it = mData->visited.begin(); it != mData->visited.end(); ++it) {
         mData->dependencies[it->first].insert(mSource.fileId);
-        addFileSymbol(it->first);
+        if (it->second)
+            addFileSymbol(it->first);
     }
 
     return false;

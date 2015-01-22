@@ -1201,7 +1201,7 @@ void Server::project(const std::shared_ptr<QueryMessage> &query, Connection *con
 {
     if (query->query().isEmpty()) {
         const std::shared_ptr<Project> current = currentProject();
-        const char *states[] = { "(unloaded)", "(inited)", "(loading)", "(loaded)", "(syncing)" };
+        const char *states[] = { "(unloaded)", "(inited)", "(loaded)" };
         for (const auto &it : mProjects) {
             conn->write<128>("%s %s%s", it.first.constData(), states[it.second->state()], it.second == current ? " <=" : "");
         }

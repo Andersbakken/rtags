@@ -107,7 +107,6 @@ public:
         Status,
         StripParen,
         Suspend,
-        SyncProject,
         SynchronousCompletions,
         Timeout,
         UnescapeCompileCommands,

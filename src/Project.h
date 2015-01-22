@@ -126,6 +126,7 @@ public:
         ArgDependsOn // slow
     };
     Set<uint32_t> dependencies(uint32_t fileId, DependencyMode mode) const;
+    const DependencyMap &dependencies() const { return mDependencies; }
     bool isActiveJob(uint64_t key) { return !key || mActiveJobs.contains(key); }
     inline bool visitFile(uint32_t fileId, const Path &path, uint64_t id);
     inline void releaseFileIds(const Set<uint32_t> &fileIds);
