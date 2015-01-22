@@ -597,6 +597,7 @@ Set<uint32_t> Project::dependencies(uint32_t fileId, DependencyMode mode) const
 
 void Project::addDependencies(const DependencyMap &deps, Set<uint32_t> &newFiles)
 {
+#warning we probably never lose old dependencies
     StopWatch timer;
 
     const auto end = deps.end();
@@ -642,7 +643,6 @@ int Project::reindex(const Match &match, const std::shared_ptr<QueryMessage> &qu
 int Project::remove(const Match &match)
 {
     int count = 0;
-    Set<uint32_t> dirty;
     auto it = mSources.begin();
     while (it != mSources.end()) {
         if (match.match(it->second.sourceFile())) {
@@ -653,13 +653,12 @@ int Project::remove(const Match &match)
                 releaseFileIds(job->visited);
                 Server::instance()->jobScheduler()->abort(job);
             }
-            dirty.insert(fileId);
             ++count;
+            unlink(sourceFilePath(fileId, String()).constData());
         } else {
             ++it;
         }
     }
-#warning need to remove FileMap files
     return count;
 }
 
