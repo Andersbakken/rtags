@@ -90,7 +90,6 @@ public:
         return openFileMap<String, Set<Location> >(fileId, "usrs");
     }
 
-    Cursor findCursor(const FileMap<Location, Cursor> &map, const Location &location) const;
     Cursor findCursor(const Location &location) const;
     Location findTarget(const Location &location) const { return findTarget(findCursor(location)); }
     Location findTarget(const Cursor &cursor) const;

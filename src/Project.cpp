@@ -913,45 +913,36 @@ Path Project::sourceFilePath(uint32_t fileId, const String &type) const
     return RTags::encodeSourceFilePath(Server::instance()->options().dataDir, mPath, fileId) + type;
 }
 
-Cursor Project::findCursor(const FileMap<Location, Cursor> &tbl, const Location &location) const
+Cursor Project::findCursor(const Location &location) const
 {
-    // for (int i=0; i<tbl.count(); ++i) {
-    //     error() << i << tbl.keyAt(i);
-    // }
+    if (location.isNull())
+        return Cursor();
+    auto cursors = openCursors(location.fileId());
+    if (!cursors)
+        return Cursor();
 
     bool exact = false;
-    int idx = tbl.lowerBound(location, &exact);
-    // error() << (idx == -1 ? Location() : tbl.keyAt(idx)) << exact << idx;
+    int idx = cursors->lowerBound(location, &exact);
     if (exact)
-        return tbl.valueAt(idx);
+        return cursors->valueAt(idx);
     switch (idx) {
     case 0:
         return Cursor();
     case -1:
-        idx = tbl.count() - 1;
+        idx = cursors->count() - 1;
         break;
     default:
         --idx;
         break;
     }
 
-    const Cursor &ret = tbl.valueAt(idx);
+    const Cursor &ret = cursors->valueAt(idx);
     if (ret.location.fileId() != location.fileId()
         || ret.location.line() != location.line()
         || (location.column() - ret.location.column() >= ret.symbolLength)) {
         return Cursor();
     }
     return ret;
-}
-
-Cursor Project::findCursor(const Location &location) const
-{
-    auto cursors = openCursors(location.fileId());
-    if (!cursors)
-        return Cursor();
-
-    const Cursor cursor = findCursor(*cursors, location);
-    return cursor;
 }
 
 Location Project::findTarget(const Cursor &cursor) const
