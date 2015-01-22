@@ -145,7 +145,7 @@ public:
         serializer << mVisitedFiles;
     }
 private:
-    void updateContents(RestoreThread *thread);
+    void removeDependencies(uint32_t fileId);
     void watch(const Path &file);
     void reloadFileManager();
     void addDependencies(const DependencyMap &deps, Set<uint32_t> &newFiles);

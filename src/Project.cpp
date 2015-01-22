@@ -390,6 +390,7 @@ void Project::onJobFinished(const std::shared_ptr<IndexerJob> &job, const std::s
     Set<uint32_t> newFiles;
     int symbolNames = 0;
     addFixIts(indexData->visited, indexData->fixIts);
+    removeDependencies(indexData->fileId());
     addDependencies(indexData->dependencies, newFiles);
     if (success) {
         src->second.parsed = indexData->parseTime;
@@ -595,11 +596,16 @@ Set<uint32_t> Project::dependencies(uint32_t fileId, DependencyMode mode) const
     return ret;
 }
 
+void Project::removeDependencies(uint32_t fileId)
+{
+    mDependencies.remove(fileId);
+    for (auto it = mDependencies.begin(); it != mDependencies.end(); ++it) {
+        it->second.remove(fileId);
+    }
+}
+
 void Project::addDependencies(const DependencyMap &deps, Set<uint32_t> &newFiles)
 {
-#warning we probably never lose old dependencies
-    StopWatch timer;
-
     const auto end = deps.end();
     for (auto it = deps.begin(); it != end; ++it) {
         Set<uint32_t> &values = mDependencies[it->first];
@@ -653,6 +659,7 @@ int Project::remove(const Match &match)
                 releaseFileIds(job->visited);
                 Server::instance()->jobScheduler()->abort(job);
             }
+            removeDependencies(fileId);
             ++count;
             unlink(sourceFilePath(fileId, String()).constData());
         } else {
