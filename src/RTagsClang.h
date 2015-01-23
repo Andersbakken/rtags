@@ -19,7 +19,7 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 #include "FileMap.h"
 #include "Source.h"
 #include "RTags.h"
-#include "Cursor.h"
+#include "Symbol.h"
 #define __STDC_CONSTANT_MACROS
 #define __STDC_LIMIT_MACROS
 #include <clang/Basic/Version.h>

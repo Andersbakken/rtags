@@ -140,7 +140,7 @@ bool QueryJob::write(const Location &location, unsigned /* flags */)
     const bool displayName = queryFlags() & QueryMessage::DisplayName;
     if (containingFunction || cursorKind || displayName) {
         int idx;
-        Cursor cursor = project()->findCursor(location, &idx);
+        Symbol cursor = project()->findSymbol(location, &idx);
         if (cursor.isNull()) {
             error() << "Somehow can't find" << location << "in symbols";
         } else {
@@ -152,7 +152,7 @@ bool QueryJob::write(const Location &location, unsigned /* flags */)
                 const uint32_t fileId = location.fileId();
                 const unsigned int line = location.line();
                 const unsigned int column = location.column();
-                auto fileMap = project()->openCursors(location.fileId());
+                auto fileMap = project()->openSymbols(location.fileId());
                 if (fileMap) {
                     while (idx > 0) {
                         cursor = fileMap->valueAt(--idx);
@@ -173,7 +173,7 @@ bool QueryJob::write(const Location &location, unsigned /* flags */)
     return write(out);
 }
 
-bool QueryJob::write(const Cursor &cursor, unsigned cflags)
+bool QueryJob::write(const Symbol &cursor, unsigned cflags)
 {
     if (cursor.isNull())
         return false;

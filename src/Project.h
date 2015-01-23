@@ -77,9 +77,9 @@ public:
     {
         return openFileMap<String, Set<Location> >(fileId, "symnames");
     }
-    std::shared_ptr<FileMap<Location, Cursor> > openCursors(uint32_t fileId) const
+    std::shared_ptr<FileMap<Location, Symbol> > openSymbols(uint32_t fileId) const
     {
-        return openFileMap<Location, Cursor>(fileId, "cursors");
+        return openFileMap<Location, Symbol>(fileId, "symbols");
     }
     std::shared_ptr<FileMap<Location, Map<Location, uint16_t> > > openTargets(uint32_t fileId) const
     {
@@ -90,19 +90,19 @@ public:
         return openFileMap<String, Set<Location> >(fileId, "usrs");
     }
 
-    Cursor findCursor(const Location &location, int *index = 0) const;
-    Map<Location, uint16_t> findTargets(const Location &location) const { return findTargets(findCursor(location)); }
-    Map<Location, uint16_t> findTargets(const Cursor &cursor) const;
+    Symbol findSymbol(const Location &location, int *index = 0) const;
+    Map<Location, uint16_t> findTargets(const Location &location) const { return findTargets(findSymbol(location)); }
+    Map<Location, uint16_t> findTargets(const Symbol &cursor) const;
     Location findTarget(const Location &location) const { return RTags::bestTarget(findTargets(location)); }
-    Location findTarget(const Cursor &cursor) const { return RTags::bestTarget(findTargets(cursor)); }
-    Set<Cursor> findAllReferences(const Location &location) const { return findAllReferences(findCursor(location)); }
-    Set<Cursor> findAllReferences(const Cursor &cursor) const;
-    Set<Cursor> findCallers(const Location &location) const { return findCallers(findCursor(location)); }
-    Set<Cursor> findCallers(const Cursor &cursor) const;
-    Set<Cursor> findVirtuals(const Location &location) const { return findVirtuals(findCursor(location)); }
-    Set<Cursor> findVirtuals(const Cursor &cursor) const;
+    Location findTarget(const Symbol &cursor) const { return RTags::bestTarget(findTargets(cursor)); }
+    Set<Symbol> findAllReferences(const Location &location) const { return findAllReferences(findSymbol(location)); }
+    Set<Symbol> findAllReferences(const Symbol &cursor) const;
+    Set<Symbol> findCallers(const Location &location) const { return findCallers(findSymbol(location)); }
+    Set<Symbol> findCallers(const Symbol &cursor) const;
+    Set<Symbol> findVirtuals(const Location &location) const { return findVirtuals(findSymbol(location)); }
+    Set<Symbol> findVirtuals(const Symbol &cursor) const;
 
-    Set<Cursor> findByUsr(const Set<uint32_t> &files, const String &usr) const;
+    Set<Symbol> findByUsr(const Set<uint32_t> &files, const String &usr) const;
 
     Path sourceFilePath(uint32_t fileId, const String &type) const;
 

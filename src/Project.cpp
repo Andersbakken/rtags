@@ -814,12 +814,12 @@ Set<Location> Project::locations(const String &symbolName, uint32_t fileId) cons
 {
     Set<Location> ret;
     auto processCursor = [&ret, &symbolName, this](uint32_t fileId) {
-        auto s = openCursors(fileId);
+        auto s = openSymbols(fileId);
         if (!s)
             return;
         const int count = s->count();
         for (int i=0; i<count; ++i) {
-            const Cursor c = s->valueAt(i);
+            const Symbol c = s->valueAt(i);
             if (!RTags::isReference(c.kind)
                 && (symbolName.isEmpty() || matchSymbolName(symbolName, c.symbolName, checkFunction(c.kind)))) {
                 ret.insert(s->keyAt(i));
@@ -859,11 +859,11 @@ List<RTags::SortedCursor> Project::sort(const Set<Location> &locations, unsigned
     sorted.reserve(locations.size());
     for (auto it = locations.begin(); it != locations.end(); ++it) {
         RTags::SortedCursor node(*it);
-        const Cursor cursor = findCursor(*it);
+        const Symbol cursor = findSymbol(*it);
         if (!cursor.isNull()) {
             node.isDefinition = cursor.isDefinition();
             if (flags & Sort_DeclarationOnly && node.isDefinition) {
-                const Cursor decl = findCursor(findTarget(cursor));
+                const Symbol decl = findSymbol(findTarget(cursor));
                 if (!decl.isNull() && !decl.isDefinition()) {
                     assert(decl.usr == cursor.usr);
                     continue;
@@ -919,15 +919,15 @@ Path Project::sourceFilePath(uint32_t fileId, const String &type) const
     return RTags::encodeSourceFilePath(Server::instance()->options().dataDir, mPath, fileId) + type;
 }
 
-Cursor Project::findCursor(const Location &location, int *index) const
+Symbol Project::findSymbol(const Location &location, int *index) const
 {
     if (index)
         *index = -1;
     if (location.isNull())
-        return Cursor();
-    auto cursors = openCursors(location.fileId());
+        return Symbol();
+    auto cursors = openSymbols(location.fileId());
     if (!cursors)
-        return Cursor();
+        return Symbol();
 
     bool exact = false;
     int idx = cursors->lowerBound(location, &exact);
@@ -938,7 +938,7 @@ Cursor Project::findCursor(const Location &location, int *index) const
     }
     switch (idx) {
     case 0:
-        return Cursor();
+        return Symbol();
     case -1:
         idx = cursors->count() - 1;
         break;
@@ -947,18 +947,18 @@ Cursor Project::findCursor(const Location &location, int *index) const
         break;
     }
 
-    const Cursor &ret = cursors->valueAt(idx);
+    const Symbol &ret = cursors->valueAt(idx);
     if (ret.location.fileId() != location.fileId()
         || ret.location.line() != location.line()
         || (location.column() - ret.location.column() >= ret.symbolLength)) {
-        return Cursor();
+        return Symbol();
     }
     if (index)
         *index = idx;
     return ret;
 }
 
-Map<Location, uint16_t> Project::findTargets(const Cursor &cursor) const
+Map<Location, uint16_t> Project::findTargets(const Symbol &cursor) const
 {
     Map<Location, uint16_t> ret;
     if (cursor.isNull())
@@ -982,7 +982,7 @@ Map<Location, uint16_t> Project::findTargets(const Cursor &cursor) const
             files = dependencies(cursor.location.fileId(), DependsOnArg);
         }
         // error() << files << cursor.location;
-        const Set<Cursor> cursors = findByUsr(files, cursor.usr);
+        const Set<Symbol> cursors = findByUsr(files, cursor.usr);
         for (const auto &c : cursors) {
             if (cursor.isDefinition() != c.isDefinition()) {
                 ret.insert(c.location, c.targetsValue());
@@ -999,15 +999,15 @@ Map<Location, uint16_t> Project::findTargets(const Cursor &cursor) const
     return ret;
 }
 
-Set<Cursor> Project::findByUsr(const Set<uint32_t> &files, const String &usr) const
+Set<Symbol> Project::findByUsr(const Set<uint32_t> &files, const String &usr) const
 {
-    Set<Cursor> ret;
+    Set<Symbol> ret;
     for (uint32_t fileId : files) {
         auto usrs = openUsrs(fileId);
         // error() << usrs << Location::path(fileId);
         if (usrs) {
             for (const Location &loc : usrs->value(usr)) {
-                const Cursor c = findCursor(loc);
+                const Symbol c = findSymbol(loc);
                 if (!c.isNull())
                     ret.insert(c);
             }
@@ -1017,11 +1017,11 @@ Set<Cursor> Project::findByUsr(const Set<uint32_t> &files, const String &usr) co
 }
 
 #if 0
-Set<Cursor> CursorInfo::referenceInfos(const Set<Cursor> &map) const
+Set<Symbol> CursorInfo::referenceInfos(const Set<Symbol> &map) const
 {
-    Set<Cursor> ret;
+    Set<Symbol> ret;
     for (auto it = references.begin(); it != references.end(); ++it) {
-        auto found = RTags::findCursorInfo(map, *it);
+        auto found = RTags::findSymbolInfo(map, *it);
         if (found != map.end()) {
             ret[*it] = found->second;
         }
@@ -1030,15 +1030,15 @@ Set<Cursor> CursorInfo::referenceInfos(const Set<Cursor> &map) const
 }
 #endif
 
-Set<Cursor> Project::findCallers(const Cursor &cursor) const
+Set<Symbol> Project::findCallers(const Symbol &cursor) const
 {
-    Set<Cursor> ret;
-    const Set<Cursor> cursors = findVirtuals(cursor);
+    Set<Symbol> ret;
+    const Set<Symbol> cursors = findVirtuals(cursor);
     const bool isClazz = cursor.isClass();
     for (auto c = cursors.begin(); c != cursors.end(); ++c) {
 
         // for (auto it = c->second->references.begin(); it != c->second->references.end(); ++it) {
-        //     const auto found = RTags::findCursorInfo(map, *it);
+        //     const auto found = RTags::findSymbolInfo(map, *it);
         //     if (found == map.end())
         //         continue;
         //     if (isClazz && found->second->kind == CXCursor_CallExpr)
@@ -1060,12 +1060,12 @@ enum Mode {
     NormalRefs
 };
 
-static inline void allImpl(const Set<Cursor> &map, const Location &loc, const std::shared_ptr<CursorInfo> &info, Set<Cursor> &out, Mode mode, unsigned kind)
+static inline void allImpl(const Set<Symbol> &map, const Location &loc, const std::shared_ptr<CursorInfo> &info, Set<Symbol> &out, Mode mode, unsigned kind)
 {
     if (out.contains(loc))
         return;
     out[loc] = info;
-    const Set<Cursor> targets = info->targetInfos(map);
+    const Set<Symbol> targets = info->targetInfos(map);
     for (auto t = targets.begin(); t != targets.end(); ++t) {
         bool ok = false;
         switch (mode) {
@@ -1080,7 +1080,7 @@ static inline void allImpl(const Set<Cursor> &map, const Location &loc, const st
         if (ok)
             allImpl(map, t->first, t->second, out, mode, kind);
     }
-    const Set<Cursor> refs = info->referenceInfos(map);
+    const Set<Symbol> refs = info->referenceInfos(map);
     for (auto r = refs.begin(); r != refs.end(); ++r) {
         switch (mode) {
         case NormalRefs:
@@ -1106,7 +1106,7 @@ static inline void allImpl(const Set<Cursor> &map, const Location &loc, const st
 }
 #endif
 
-static void addReferences(const Cursor &cursor, Map<Location, Cursor> &cursors,
+static void addReferences(const Symbol &cursor, Map<Location, Symbol> &cursors,
                           const Set<uint32_t> &files,
                           const std::shared_ptr<Project> &project)
 {
@@ -1128,7 +1128,7 @@ static void addReferences(const Cursor &cursor, Map<Location, Cursor> &cursors,
             for (const auto &target : targets->valueAt(i)) {
                 if (target.first == cursor.location) {
                     if (cursors.contains(target.first)) {
-                        auto c = project->findCursor(target.first);
+                        auto c = project->findSymbol(target.first);
                         if (!c.isNull()) {
                             cursors[target.first] = c;
                             if (!c.isReference()) {
@@ -1143,9 +1143,9 @@ static void addReferences(const Cursor &cursor, Map<Location, Cursor> &cursors,
     }
 }
 
-Set<Cursor> Project::findAllReferences(const Cursor &loc) const
+Set<Symbol> Project::findAllReferences(const Symbol &loc) const
 {
-    // Set<Cursor> ret;
+    // Set<Symbol> ret;
     // Mode mode = NormalRefs;
     // switch (kind) {
     // case CXCursor_Constructor:
@@ -1161,17 +1161,17 @@ Set<Cursor> Project::findAllReferences(const Cursor &loc) const
     // }
 
     // allImpl(map, loc, copy(), ret, mode, kind);
-    Set<Cursor> ret;
+    Set<Symbol> ret;
     return ret;
 }
 #if 0
 #endif
 
-Set<Cursor> Project::findVirtuals(const Cursor &cursor) const
+Set<Symbol> Project::findVirtuals(const Symbol &cursor) const
 {
-    // Set<Cursor> ret;
+    // Set<Symbol> ret;
     // ret[loc] = copy();
-    // const Set<Cursor> s = (kind == CXCursor_CXXMethod ? allReferences(loc, map) : targetInfos(map));
+    // const Set<Symbol> s = (kind == CXCursor_CXXMethod ? allReferences(loc, map) : targetInfos(map));
     // for (auto it = s.begin(); it != s.end(); ++it) {
     //     if (it->second->kind == kind)
     //         ret[it->first] = it->second;
@@ -1180,7 +1180,7 @@ Set<Cursor> Project::findVirtuals(const Cursor &cursor) const
 }
 
 
-// Set<Location> Project::findReferences(const Cursor &cursor, uint32_t queryFlags) const
+// Set<Location> Project::findReferences(const Symbol &cursor, uint32_t queryFlags) const
 // {
 //     if (queryFlags & QueryMessage::AllReferences) {
 

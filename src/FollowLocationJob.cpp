@@ -27,14 +27,14 @@ FollowLocationJob::FollowLocationJob(const Location &loc,
 
 int FollowLocationJob::execute()
 {
-    const Cursor cursor = project()->findCursor(location);
+    const Symbol cursor = project()->findSymbol(location);
     if (cursor.isNull())
         return 1;
 
     const Location targetLocation = project()->findTarget(cursor);
     if (targetLocation.isNull())
         return 1;
-    const Cursor target = project()->findCursor(targetLocation);
+    const Symbol target = project()->findSymbol(targetLocation);
 
     if (cursor.usr == target.usr) {
         write(target.location);

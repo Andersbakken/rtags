@@ -41,7 +41,7 @@ int ReferencesJob::execute()
         for (Set<Location>::const_iterator it = locations.begin(); it != locations.end(); ++it) {
             Location pos;
             SymbolMap::const_iterator found;
-            found = RTags::findCursorInfo(map, *it);
+            found = RTags::findSymbolInfo(map, *it);
             if (found == map.end())
                 continue;
             pos = found->first;

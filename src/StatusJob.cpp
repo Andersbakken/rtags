@@ -113,13 +113,13 @@ int StatusJob::execute()
         write(delimiter);
 
         for (const auto &dep : deps) {
-            auto cursors = proj->openCursors(dep.first);
+            auto cursors = proj->openSymbols(dep.first);
             if (!cursors)
                 continue;
             const int count = cursors->count();
             for (int i=0; i<count; ++i) {
                 const Location loc = cursors->keyAt(i);
-                const Cursor c = cursors->valueAt(i);
+                const Symbol c = cursors->valueAt(i);
                 write(loc);
                 write(c);
                 write("------------------------");

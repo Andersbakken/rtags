@@ -82,12 +82,12 @@ Set<String> ListSymbolsJob::imenu(const std::shared_ptr<Project> &project)
         const uint32_t fileId = Location::fileId(file);
         if (!fileId)
             continue;
-        auto cursors = project->openCursors(fileId);
+        auto cursors = project->openSymbols(fileId);
         if (!cursors)
             continue;
         const int count = cursors->count();
         for (int j=0; j<count; ++j) {
-            const Cursor &cursor = cursors->valueAt(j);
+            const Symbol &cursor = cursors->valueAt(j);
             if (RTags::isReference(cursor.kind))
                 continue;
             switch (cursor.kind) {

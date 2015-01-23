@@ -14,18 +14,18 @@
    You should have received a copy of the GNU General Public License
    along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 
-#include "Cursor.h"
+#include "Symbol.h"
 #include "RTags.h"
 #include "RTagsClang.h"
 #include "Project.h"
 
-uint16_t Cursor::targetsValue() const
+uint16_t Symbol::targetsValue() const
 {
     return RTags::createTargetsValue(kind, isDefinition());
 }
 
 
-String Cursor::toString(unsigned cursorInfoFlags, unsigned keyFlags, const std::shared_ptr<Project> &project) const
+String Symbol::toString(unsigned cursorInfoFlags, unsigned keyFlags, const std::shared_ptr<Project> &project) const
 {
     String ret = String::format<1024>("SymbolName: %s\n"
                                       "Kind: %s\n"
@@ -72,12 +72,12 @@ String Cursor::toString(unsigned cursorInfoFlags, unsigned keyFlags, const std::
     return ret;
 }
 
-String Cursor::kindSpelling(uint16_t kind)
+String Symbol::kindSpelling(uint16_t kind)
 {
     return RTags::eatString(clang_getCursorKindSpelling(static_cast<CXCursorKind>(kind)));
 }
 
-String Cursor::displayName() const
+String Symbol::displayName() const
 {
     switch (kind) {
     case CXCursor_FunctionTemplate:
@@ -104,7 +104,7 @@ String Cursor::displayName() const
     return symbolName;
 }
 
-bool Cursor::isReference() const
+bool Symbol::isReference() const
 {
     return RTags::isReference(kind);
 }

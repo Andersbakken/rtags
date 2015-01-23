@@ -653,7 +653,7 @@ static inline bool isImplicit(const CXCursor &cursor)
 
 bool ClangIndexer::superclassTemplateMemberFunctionUgleHack(const CXCursor &cursor, CXCursorKind kind,
                                                             const Location &location, const CXCursor &/*ref*/,
-                                                            const CXCursor &parent, Cursor **cursorPtr)
+                                                            const CXCursor &parent, Symbol **cursorPtr)
 {
     // This is for references to superclass template functions. Awful awful
     // shit. See https://github.com/Andersbakken/rtags/issues/62 and commit
@@ -719,7 +719,7 @@ bool ClangIndexer::superclassTemplateMemberFunctionUgleHack(const CXCursor &curs
 
 bool ClangIndexer::handleReference(const CXCursor &cursor, CXCursorKind kind,
                                    const Location &location, const CXCursor &ref,
-                                   const CXCursor &parent, Cursor **cursorPtr)
+                                   const CXCursor &parent, Symbol **cursorPtr)
 {
     if (cursorPtr)
         *cursorPtr = 0;
@@ -782,7 +782,7 @@ bool ClangIndexer::handleReference(const CXCursor &cursor, CXCursorKind kind,
     }
 
     bool reffedCursorFound;
-    auto reffedCursor = findCursor(reffedLoc, &reffedCursorFound);
+    auto reffedCursor = findSymbol(reffedLoc, &reffedCursorFound);
     Map<Location, uint16_t> &targets = unit(location.fileId())->targets[location];
     uint16_t refTargetValue;
     if (reffedCursorFound) {
@@ -791,7 +791,7 @@ bool ClangIndexer::handleReference(const CXCursor &cursor, CXCursorKind kind,
         refTargetValue = RTags::createTargetsValue(refKind, clang_isCursorDefinition(ref));
     }
     targets[reffedLoc] = refTargetValue;
-    Cursor &c = unit(location)->cursors[location];
+    Symbol &c = unit(location)->cursors[location];
     if (cursorPtr)
         *cursorPtr = &c;
 
@@ -894,7 +894,7 @@ void ClangIndexer::handleInclude(const CXCursor &cursor, CXCursorKind kind, cons
     if (includedFile) {
         const Location refLoc = createLocation(includedFile, 1, 1);
         if (!refLoc.isNull()) {
-            Cursor &c = unit(location)->cursors[location];
+            Symbol &c = unit(location)->cursors[location];
             if (!c.isNull())
                 return;
 
@@ -915,10 +915,10 @@ void ClangIndexer::handleInclude(const CXCursor &cursor, CXCursorKind kind, cons
     }
 }
 
-bool ClangIndexer::handleCursor(const CXCursor &cursor, CXCursorKind kind, const Location &location, Cursor **cursorPtr)
+bool ClangIndexer::handleCursor(const CXCursor &cursor, CXCursorKind kind, const Location &location, Symbol **cursorPtr)
 {
     // error() << "Got a cursor" << cursor;
-    Cursor &c = unit(location)->cursors[location];
+    Symbol &c = unit(location)->cursors[location];
     if (cursorPtr)
         *cursorPtr = &c;
     if (!c.isNull())
@@ -972,7 +972,7 @@ bool ClangIndexer::handleCursor(const CXCursor &cursor, CXCursorKind kind, const
                 //         << createLocation(mLastCursor)
                 //         << clang_Range_isNull(range)
                 //         << createLocation(clang_getCursorLocation(mLastCursor));
-                Cursor *cursorPtr = 0;
+                Symbol *cursorPtr = 0;
                 if (handleReference(mLastCursor, CXCursor_TypeRef,
                                     createLocation(clang_getCursorLocation(mLastCursor)),
                                     clang_getCursorReferenced(typeRef), nullCursor, &cursorPtr)) {
@@ -1088,7 +1088,7 @@ bool ClangIndexer::writeFiles(const Path &root, String &error)
         String unitRoot = root;
         unitRoot << unit.first;
         Path::mkdir(unitRoot, Path::Recursive);
-        if (!FileMap<Location, Cursor>::write(unitRoot + "/cursors", unit.second->cursors)) {
+        if (!FileMap<Location, Symbol>::write(unitRoot + "/symbols", unit.second->cursors)) {
             error = "Failed to write cursors";
             return false;
         }
@@ -1477,12 +1477,12 @@ int ClangIndexer::symbolLength(CXCursorKind kind, const CXCursor &cursor) const
     return 0;
 }
 
-Cursor ClangIndexer::findCursor(const Location &location, bool *ok) const
+Symbol ClangIndexer::findSymbol(const Location &location, bool *ok) const
 {
-    Cursor ret;
+    Symbol ret;
     auto it = mUnits.find(location.fileId());
     if (it != mUnits.end()) {
-        ret = it->second->cursors.value(location, Cursor(), ok);
+        ret = it->second->cursors.value(location, Symbol(), ok);
     } else if (ok) {
         *ok = false;
     }

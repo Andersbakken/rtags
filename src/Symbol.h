@@ -23,9 +23,9 @@
 #include <rct/Serializer.h>
 
 class Project;
-struct Cursor
+struct Symbol
 {
-    Cursor()
+    Symbol()
         : symbolLength(0), kind(CXCursor_FirstInvalid), type(CXType_Invalid), enumValue(0),
           startLine(-1), startColumn(-1), endLine(-1), endColumn(-1)
     {}
@@ -72,11 +72,11 @@ struct Cursor
     String displayName() const;
     static String kindSpelling(uint16_t kind);
 
-    bool operator<(const Cursor &other) const { return location < other.location; }
+    bool operator<(const Symbol &other) const { return location < other.location; }
 };
 
 
-template <> inline Serializer &operator<<(Serializer &s, const Cursor &t)
+template <> inline Serializer &operator<<(Serializer &s, const Symbol &t)
 {
     s << t.location << t.parent << t.symbolName << t.usr << t.symbolLength
       << static_cast<uint16_t>(t.kind) << static_cast<uint16_t>(t.type)
@@ -84,7 +84,7 @@ template <> inline Serializer &operator<<(Serializer &s, const Cursor &t)
     return s;
 }
 
-template <> inline Deserializer &operator>>(Deserializer &s, Cursor &t)
+template <> inline Deserializer &operator>>(Deserializer &s, Symbol &t)
 {
     uint16_t kind, type;
     s >> t.location >> t.parent >> t.symbolName >> t.usr

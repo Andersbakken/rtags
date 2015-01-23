@@ -87,7 +87,7 @@ set(RTAGS_SHARED_SOURCES
   IndexMessage.cpp
   LogOutputMessage.cpp
   Location.cpp
-  Cursor.cpp
+  Symbol.cpp
   QueryMessage.cpp
   RTags.cpp)
 

@@ -24,7 +24,7 @@
 #include <sys/stat.h>
 #include "IndexerJob.h"
 #include "RTagsClang.h"
-#include "Cursor.h"
+#include "Symbol.h"
 
 struct Unit;
 class IndexData;
@@ -114,10 +114,10 @@ private:
     CXCursor resolveAutoTypeRef(const CXCursor &cursor) const;
 
     bool handleCursor(const CXCursor &cursor, CXCursorKind kind,
-                      const Location &location, Cursor **cursorPtr = 0);
+                      const Location &location, Symbol **cursorPtr = 0);
     bool handleReference(const CXCursor &cursor, CXCursorKind kind,
                          const Location &loc, const CXCursor &reference,
-                         const CXCursor &parent, Cursor **cursorPtr = 0);
+                         const CXCursor &parent, Symbol **cursorPtr = 0);
     void handleInclude(const CXCursor &cursor, CXCursorKind kind, const Location &location);
     Location findByUSR(const CXCursor &cursor, CXCursorKind kind, const Location &loc) const;
     void addOverriddenCursors(const CXCursor &cursor,
@@ -125,7 +125,7 @@ private:
                               List<Location> &locations);
     bool superclassTemplateMemberFunctionUgleHack(const CXCursor &cursor, CXCursorKind kind,
                                                   const Location &location, const CXCursor &ref,
-                                                  const CXCursor &parent, Cursor **cursorPtr = 0);
+                                                  const CXCursor &parent, Symbol **cursorPtr = 0);
     static CXChildVisitResult indexVisitor(CXCursor cursor, CXCursor parent, CXClientData client_data);
     static CXChildVisitResult verboseVisitor(CXCursor cursor, CXCursor, CXClientData userData);
 
@@ -135,7 +135,7 @@ private:
     void onMessage(const std::shared_ptr<Message> &msg, Connection *conn);
 
     struct Unit {
-        Map<Location, Cursor> cursors;
+        Map<Location, Symbol> cursors;
         Map<Location, Map<Location, uint16_t> > targets;
         Map<String, Set<Location> > usrs;
         Map<String, Set<Location> > symbolNames;
@@ -150,7 +150,7 @@ private:
     }
     std::shared_ptr<Unit> unit(const Location &loc) { return unit(loc.fileId()); }
 
-    Cursor findCursor(const Location &location, bool *ok) const;
+    Symbol findSymbol(const Location &location, bool *ok) const;
 
     Hash<uint32_t, std::shared_ptr<Unit> > mUnits;
 
