@@ -17,6 +17,7 @@
 #include "Cursor.h"
 #include "RTags.h"
 #include "RTagsClang.h"
+#include "Project.h"
 
 uint16_t Cursor::targetsValue() const
 {
@@ -24,7 +25,7 @@ uint16_t Cursor::targetsValue() const
 }
 
 
-String Cursor::toString(unsigned cursorInfoFlags, unsigned keyFlags) const
+String Cursor::toString(unsigned cursorInfoFlags, unsigned keyFlags, const std::shared_ptr<Project> &project) const
 {
     String ret = String::format<1024>("SymbolName: %s\n"
                                       "Kind: %s\n"
@@ -43,22 +44,31 @@ String Cursor::toString(unsigned cursorInfoFlags, unsigned keyFlags) const
 #endif
                                       "",
                                       isDefinition() ? "Definition\n" : "");
+    if (!(cursorInfoFlags & IgnoreTargets) && project) {
+        auto targets = project->findTargets(*this);
+        if (targets.size()) {
+            ret.append("Targets:\n");
+            auto best = RTags::bestTarget(targets);
+            ret.append(String::format<128>("    %s\n", best.key(keyFlags).constData()));
 
-    // if (!targets.isEmpty() && !(cursorInfoFlags & IgnoreTargets)) {
-    //     ret.append("Targets:\n");
-    //     for (auto tit = targets.begin(); tit != targets.end(); ++tit) {
-    //         const Location &l = *tit;
-    //         ret.append(String::format<128>("    %s\n", l.key(keyFlags).constData()));
-    //     }
-    // }
+            for (auto tit = targets.begin(); tit != targets.end(); ++tit) {
+                const Location &l = tit->first;
+                if (l != best)
+                    ret.append(String::format<128>("    %s\n", l.key(keyFlags).constData()));
+            }
+        }
+    }
 
-    // if (!references.isEmpty() && !(cursorInfoFlags & IgnoreReferences)) {
-    //     ret.append("References:\n");
-    //     for (auto rit = references.begin(); rit != references.end(); ++rit) {
-    //         const Location &l = *rit;
-    //         ret.append(String::format<128>("    %s\n", l.key(keyFlags).constData()));
-    //     }
-    // }
+    if (!(cursorInfoFlags & IgnoreReferences) && project) {
+        auto references = project->findCallers(*this);
+        if (references.size()) {
+            ret.append("References:\n");
+            for (const auto &r : references) {
+                ret.append(String::format<128>("    %s\n", r.location.key(keyFlags).constData()));
+            }
+        }
+    }
+
     return ret;
 }
 
@@ -92,4 +102,9 @@ String Cursor::displayName() const
         break;
     }
     return symbolName;
+}
+
+bool Cursor::isReference() const
+{
+    return RTags::isReference(kind);
 }

@@ -91,8 +91,17 @@ public:
     }
 
     Cursor findCursor(const Location &location, int *index = 0) const;
-    Location findTarget(const Location &location) const { return findTarget(findCursor(location)); }
-    Location findTarget(const Cursor &cursor) const;
+    Map<Location, uint16_t> findTargets(const Location &location) const { return findTargets(findCursor(location)); }
+    Map<Location, uint16_t> findTargets(const Cursor &cursor) const;
+    Location findTarget(const Location &location) const { return RTags::bestTarget(findTargets(location)); }
+    Location findTarget(const Cursor &cursor) const { return RTags::bestTarget(findTargets(cursor)); }
+    Set<Cursor> findAllReferences(const Location &location) const { return findAllReferences(findCursor(location)); }
+    Set<Cursor> findAllReferences(const Cursor &cursor) const;
+    Set<Cursor> findCallers(const Location &location) const { return findCallers(findCursor(location)); }
+    Set<Cursor> findCallers(const Cursor &cursor) const;
+    Set<Cursor> findVirtuals(const Location &location) const { return findVirtuals(findCursor(location)); }
+    Set<Cursor> findVirtuals(const Cursor &cursor) const;
+
     Set<Cursor> findByUsr(const Set<uint32_t> &files, const String &usr) const;
 
     Path sourceFilePath(uint32_t fileId, const String &type) const;

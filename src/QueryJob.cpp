@@ -173,6 +173,15 @@ bool QueryJob::write(const Location &location, unsigned /* flags */)
     return write(out);
 }
 
+bool QueryJob::write(const Cursor &cursor, unsigned cflags)
+{
+    if (cursor.isNull())
+        return false;
+
+    const unsigned kf = keyFlags();
+    return write(cursor.toString(cflags, kf));
+}
+
 bool QueryJob::filter(const String &value) const
 {
     if (!mPathFilters && !mPathFiltersRegExp && !(queryFlags() & QueryMessage::FilterSystemIncludes))

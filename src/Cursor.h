@@ -22,6 +22,7 @@
 #include <rct/String.h>
 #include <rct/Serializer.h>
 
+class Project;
 struct Cursor
 {
     Cursor()
@@ -29,7 +30,7 @@ struct Cursor
           startLine(-1), startColumn(-1), endLine(-1), endColumn(-1)
     {}
 
-    Location location;
+    Location location, parent; // parent is location of struct/class decl/def for member functions/constructors/destructors
     String symbolName, usr;
     uint16_t symbolLength;
     CXCursorKind kind;
@@ -55,6 +56,7 @@ struct Cursor
         }
         return false;
     }
+    bool isReference() const;
 
     inline bool isDefinition() const { return kind == CXCursor_EnumConstantDecl || definition; }
 
@@ -63,7 +65,9 @@ struct Cursor
         IgnoreReferences = 0x2,
         DefaultFlags = 0x0
     };
-    String toString(unsigned cursorInfoFlags = DefaultFlags, unsigned keyFlags = 0) const;
+    String toString(unsigned cursorInfoFlags = DefaultFlags,
+                    unsigned keyFlags = 0,
+                    const std::shared_ptr<Project> &project = std::shared_ptr<Project>()) const;
     String kindSpelling() const { return kindSpelling(kind); }
     String displayName() const;
     static String kindSpelling(uint16_t kind);
@@ -74,7 +78,7 @@ struct Cursor
 
 template <> inline Serializer &operator<<(Serializer &s, const Cursor &t)
 {
-    s << t.location << t.symbolName << t.usr << t.symbolLength
+    s << t.location << t.parent << t.symbolName << t.usr << t.symbolLength
       << static_cast<uint16_t>(t.kind) << static_cast<uint16_t>(t.type)
       << t.enumValue << t.startLine << t.startColumn << t.endLine << t.endColumn;
     return s;
@@ -83,9 +87,9 @@ template <> inline Serializer &operator<<(Serializer &s, const Cursor &t)
 template <> inline Deserializer &operator>>(Deserializer &s, Cursor &t)
 {
     uint16_t kind, type;
-    s >> t.location >> t.symbolName >> t.usr >> t.symbolLength
-      >> kind >> type >> t.enumValue >> t.startLine
-      >> t.startColumn >> t.endLine >> t.endColumn;
+    s >> t.location >> t.parent >> t.symbolName >> t.usr
+      >> t.symbolLength >> kind >> type >> t.enumValue
+      >> t.startLine >> t.startColumn >> t.endLine >> t.endColumn;
 
     t.kind = static_cast<CXCursorKind>(kind);
     t.type = static_cast<CXTypeKind>(type);

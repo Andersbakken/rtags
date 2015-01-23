@@ -30,6 +30,7 @@ class Location;
 class QueryMessage;
 class Project;
 class Connection;
+class Cursor;
 class QueryJob
 {
 public:
@@ -54,6 +55,7 @@ public:
         Unfiltered = 0x4
     };
     bool write(const String &out, unsigned flags = NoWriteFlags);
+    bool write(const Cursor &cursor, unsigned flags = NoWriteFlags);
     bool write(const Location &location, unsigned flags = NoWriteFlags);
 
     template <int StaticBufSize> bool write(unsigned flags, const char *format, ...);

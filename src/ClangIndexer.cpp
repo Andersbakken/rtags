@@ -1021,21 +1021,17 @@ bool ClangIndexer::handleCursor(const CXCursor &cursor, CXCursorKind kind, const
         unit(location)->usrs[c.usr].insert(location);
 
     switch (c.kind) {
-    case CXCursor_Constructor:
-    case CXCursor_Destructor: {
-        Location parentLocation = createLocation(clang_getCursorSemanticParent(cursor));
-        // consider doing this for only declaration/inline definition since
-        // declaration and definition should know of one another
-        if (parentLocation.isValid()) {
-            unit(parentLocation)->targets[parentLocation][location] = c.targetsValue();
-            unit(location)->targets[location][parentLocation] = RTags::createTargetsValue(cursor);
-        }
-        break; }
     case CXCursor_CXXMethod: {
         List<Location> locations;
         locations.append(location);
         addOverriddenCursors(cursor, location, locations);
+        c.parent = createLocation(clang_getCursorSemanticParent(cursor));
         break; }
+    // fall through
+    case CXCursor_Constructor:
+    case CXCursor_Destructor:
+        c.parent = createLocation(clang_getCursorSemanticParent(cursor));
+        break;
     default:
         break;
     }

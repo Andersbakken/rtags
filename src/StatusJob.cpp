@@ -75,16 +75,14 @@ int StatusJob::execute()
             return 1;
     }
 
-#warning not done
-#if 0
+    const DependencyMap deps = proj->dependencies();
     if (query.isEmpty() || !strcasecmp(query.constData(), "dependencies")) {
         matched = true;
-        const DependencyMap map = proj->dependencies();
         if (!write(delimiter) || !write("dependencies") || !write(delimiter))
             return 1;
         DependencyMap depsReversed;
 
-        for (DependencyMap::const_iterator it = map.begin(); it != map.end(); ++it) {
+        for (DependencyMap::const_iterator it = deps.begin(); it != deps.end(); ++it) {
             if (!write<256>("  %s (%d) is depended on by", Location::path(it->first).constData(), it->first))
                 return 1;
             const Set<uint32_t> &deps = it->second;
@@ -108,41 +106,50 @@ int StatusJob::execute()
         }
     }
 
-    if (query.isEmpty() || !strcasecmp(query.constData(), "symbols")) {
+    if (query.isEmpty() || !strcasecmp(query.constData(), "symbols") || !strcasecmp(query.constData(), "cursors")) {
         matched = true;
-        const SymbolMap &map = proj->symbols();
         write(delimiter);
         write("symbols");
         write(delimiter);
-        for (SymbolMap::const_iterator it = map.begin(); it != map.end(); ++it) {
-            const Location loc = it->first;
-            const std::shared_ptr<CursorInfo> ci = it->second;
-            write(loc);
-            write(ci);
-            write("------------------------");
-            if (isAborted())
-                return 1;
+
+        for (const auto &dep : deps) {
+            auto cursors = proj->openCursors(dep.first);
+            if (!cursors)
+                continue;
+            const int count = cursors->count();
+            for (int i=0; i<count; ++i) {
+                const Location loc = cursors->keyAt(i);
+                const Cursor c = cursors->valueAt(i);
+                write(loc);
+                write(c);
+                write("------------------------");
+                if (isAborted())
+                    return 1;
+            }
         }
     }
 
     if (query.isEmpty() || !strcasecmp(query.constData(), "symbolnames")) {
         matched = true;
-        const SymbolNameMap &map = proj->symbolNames();
         write(delimiter);
         write("symbolnames");
         write(delimiter);
-        for (SymbolNameMap::const_iterator it = map.begin(); it != map.end(); ++it) {
-            write<128>("  %s", it->first.constData());
-            const Set<Location> &locations = it->second;
-            for (Set<Location>::const_iterator lit = locations.begin(); lit != locations.end(); ++lit) {
-                const Location &loc = *lit;
-                write<1024>("    %s", loc.key().constData());
+        for (const auto &dep : deps) {
+            auto symNames = proj->openSymbolNames(dep.first);
+            if (!symNames)
+                continue;
+            const int count = symNames->count();
+            for (int i=0; i<count; ++i) {
+                write<128>("  %s", symNames->keyAt(i).constData());
+                for (const Location &loc : symNames->valueAt(i)) {
+                    write<1024>("    %s", loc.key().constData());
+                }
+                write("------------------------");
+                if (isAborted())
+                    return 1;
             }
-            if (isAborted())
-                return 1;
         }
     }
-#endif
 
     if (query.isEmpty() || !strcasecmp(query.constData(), "sources")) {
         matched = true;
