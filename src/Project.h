@@ -73,34 +73,55 @@ public:
         return ret;
     }
 
+    enum FileMapType {
+        Symbols,
+        SymbolNames,
+        Targets,
+        Usrs
+    };
+    static String fileMapName(FileMapType type)
+    {
+        switch (type) {
+        case Symbols:
+            return "symbols";
+        case SymbolNames:
+            return "symnames";
+        case Targets:
+            return "targets";
+        case Usrs:
+            return "usrs";
+        }
+        return String();
+    }
+
     std::shared_ptr<FileMap<String, Set<Location> > > openSymbolNames(uint32_t fileId) const
     {
-        return openFileMap<String, Set<Location> >(fileId, "symnames");
+        return openFileMap<String, Set<Location> >(fileId, fileMapName(SymbolNames));
     }
     std::shared_ptr<FileMap<Location, Symbol> > openSymbols(uint32_t fileId) const
     {
-        return openFileMap<Location, Symbol>(fileId, "symbols");
+        return openFileMap<Location, Symbol>(fileId, fileMapName(Symbols));
     }
     std::shared_ptr<FileMap<Location, Map<Location, uint16_t> > > openTargets(uint32_t fileId) const
     {
-        return openFileMap<Location, Map<Location, uint16_t> >(fileId, "targets");
+        return openFileMap<Location, Map<Location, uint16_t> >(fileId, fileMapName(Targets));
     }
     std::shared_ptr<FileMap<String, Set<Location> > > openUsrs(uint32_t fileId) const
     {
-        return openFileMap<String, Set<Location> >(fileId, "usrs");
+        return openFileMap<String, Set<Location> >(fileId, fileMapName(Usrs));
     }
 
     Symbol findSymbol(const Location &location, int *index = 0) const;
     Map<Location, uint16_t> findTargets(const Location &location) const { return findTargets(findSymbol(location)); }
-    Map<Location, uint16_t> findTargets(const Symbol &cursor) const;
+    Map<Location, uint16_t> findTargets(const Symbol &symbol) const;
     Location findTarget(const Location &location) const { return RTags::bestTarget(findTargets(location)); }
-    Location findTarget(const Symbol &cursor) const { return RTags::bestTarget(findTargets(cursor)); }
+    Location findTarget(const Symbol &symbol) const { return RTags::bestTarget(findTargets(symbol)); }
     Set<Symbol> findAllReferences(const Location &location) const { return findAllReferences(findSymbol(location)); }
-    Set<Symbol> findAllReferences(const Symbol &cursor) const;
+    Set<Symbol> findAllReferences(const Symbol &symbol) const;
     Set<Symbol> findCallers(const Location &location) const { return findCallers(findSymbol(location)); }
-    Set<Symbol> findCallers(const Symbol &cursor) const;
+    Set<Symbol> findCallers(const Symbol &symbol) const;
     Set<Symbol> findVirtuals(const Location &location) const { return findVirtuals(findSymbol(location)); }
-    Set<Symbol> findVirtuals(const Symbol &cursor) const;
+    Set<Symbol> findVirtuals(const Symbol &symbol) const;
 
     Set<Symbol> findByUsr(const Set<uint32_t> &files, const String &usr) const;
 
@@ -111,7 +132,7 @@ public:
         Sort_DeclarationOnly = 0x1,
         Sort_Reverse = 0x2
     };
-    List<RTags::SortedCursor> sort(const Set<Location> &locations, unsigned int flags = Sort_None) const;
+    List<RTags::SortedSymbol> sort(const Set<Location> &locations, unsigned int flags = Sort_None) const;
 
     const FilesMap &files() const { return mFiles; }
     FilesMap &files() { return mFiles; }

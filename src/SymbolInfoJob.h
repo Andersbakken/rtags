@@ -13,8 +13,8 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 
-#ifndef CursorInfoJob_h
-#define CursorInfoJob_h
+#ifndef SymbolInfoJob_h
+#define SymbolInfoJob_h
 
 #include <rct/String.h>
 #include <rct/List.h>
@@ -23,10 +23,10 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 #include "Location.h"
 
 class QueryMessage;
-class CursorInfoJob : public QueryJob
+class SymbolInfoJob : public QueryJob
 {
 public:
-    CursorInfoJob(const Location &loc, const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Project> &proj);
+    SymbolInfoJob(const Location &loc, const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Project> &proj);
 protected:
     virtual int execute();
 private:

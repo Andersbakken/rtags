@@ -82,15 +82,15 @@ Set<String> ListSymbolsJob::imenu(const std::shared_ptr<Project> &project)
         const uint32_t fileId = Location::fileId(file);
         if (!fileId)
             continue;
-        auto cursors = project->openSymbols(fileId);
-        if (!cursors)
+        auto symbols = project->openSymbols(fileId);
+        if (!symbols)
             continue;
-        const int count = cursors->count();
+        const int count = symbols->count();
         for (int j=0; j<count; ++j) {
-            const Symbol &cursor = cursors->valueAt(j);
-            if (RTags::isReference(cursor.kind))
+            const Symbol &symbol = symbols->valueAt(j);
+            if (RTags::isReference(symbol.kind))
                 continue;
-            switch (cursor.kind) {
+            switch (symbol.kind) {
             case CXCursor_VarDecl:
             case CXCursor_ParmDecl:
             case CXCursor_InclusionDirective:
@@ -99,11 +99,11 @@ Set<String> ListSymbolsJob::imenu(const std::shared_ptr<Project> &project)
             case CXCursor_ClassDecl:
             case CXCursor_StructDecl:
             case CXCursor_ClassTemplate:
-                if (!cursor.isDefinition())
+                if (!symbol.isDefinition())
                     break;
                 // fall through
             default: {
-                const String &symbolName = cursor.symbolName;
+                const String &symbolName = symbol.symbolName;
                 if (!string.isEmpty() && !symbolName.contains(string))
                     continue;
                 out.insert(symbolName);

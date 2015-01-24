@@ -170,11 +170,11 @@ bool ClangIndexer::exec(const String &data)
     int cursorCount = 0;
     int symbolNameCount = 0;
     for (const auto &unit : mUnits) {
-        cursorCount += unit.second->cursors.size();
+        cursorCount += unit.second->symbols.size();
         symbolNameCount += unit.second->symbolNames.size();
     }
     if (mClangUnit) {
-        const char *format = "(%d syms, %d symNames, %d deps, %d of %d files, cursors: %d of %d, %d queried) (%d/%d/%dms)";
+        const char *format = "(%d syms, %d symNames, %d deps, %d of %d files, symbols: %d of %d, %d queried) (%d/%d/%dms)";
         mData->message += String::format<128>(format, cursorCount, symbolNameCount,
                                               mData->dependencies.size(), mIndexed, mData->visited.size(), mAllowed,
                                               mAllowed + mBlocked, mFileIdsQueried,
@@ -450,7 +450,7 @@ String ClangIndexer::addNamePermutations(const CXCursor &cursor, const Location 
         }
 
         if (i == 0) {
-            // create actual symbol name that will go into CursorInfo. This doesn't include namespaces etc
+            // create actual symbol name that will go into SymbolInfo. This doesn't include namespaces etc
             if (!type.isEmpty()) {
                 ret = type;
                 ret.append(buf + cutoff, sizeof(buf) - cutoff - 1);
@@ -708,7 +708,7 @@ bool ClangIndexer::superclassTemplateMemberFunctionUgleHack(const CXCursor &curs
         case 0:
             break;
         default:
-            warning() << "Can't decide which of these cursors are right for me"
+            warning() << "Can't decide which of these symbols are right for me"
                       << cursor << alternatives
                       << "Need to parse types";
             break;
@@ -791,7 +791,7 @@ bool ClangIndexer::handleReference(const CXCursor &cursor, CXCursorKind kind,
         refTargetValue = RTags::createTargetsValue(refKind, clang_isCursorDefinition(ref));
     }
     targets[reffedLoc] = refTargetValue;
-    Symbol &c = unit(location)->cursors[location];
+    Symbol &c = unit(location)->symbols[location];
     if (cursorPtr)
         *cursorPtr = &c;
 
@@ -849,7 +849,7 @@ bool ClangIndexer::handleReference(const CXCursor &cursor, CXCursorKind kind,
         c.symbolLength = reffedCursorFound ? reffedCursor.symbolLength : symbolLength(refKind, ref);
     }
     if (!c.symbolLength) {
-        unit(location)->cursors.remove(location);
+        unit(location)->symbols.remove(location);
         if (cursorPtr)
             *cursorPtr = 0;
         return false;
@@ -894,7 +894,7 @@ void ClangIndexer::handleInclude(const CXCursor &cursor, CXCursorKind kind, cons
     if (includedFile) {
         const Location refLoc = createLocation(includedFile, 1, 1);
         if (!refLoc.isNull()) {
-            Symbol &c = unit(location)->cursors[location];
+            Symbol &c = unit(location)->symbols[location];
             if (!c.isNull())
                 return;
 
@@ -918,7 +918,7 @@ void ClangIndexer::handleInclude(const CXCursor &cursor, CXCursorKind kind, cons
 bool ClangIndexer::handleCursor(const CXCursor &cursor, CXCursorKind kind, const Location &location, Symbol **cursorPtr)
 {
     // error() << "Got a cursor" << cursor;
-    Symbol &c = unit(location)->cursors[location];
+    Symbol &c = unit(location)->symbols[location];
     if (cursorPtr)
         *cursorPtr = &c;
     if (!c.isNull())
@@ -957,7 +957,7 @@ bool ClangIndexer::handleCursor(const CXCursor &cursor, CXCursorKind kind, const
             c.symbolName = "struct";
             break;
         default:
-            unit(location)->cursors.remove(location);
+            unit(location)->symbols.remove(location);
             if (cursorPtr)
                 *cursorPtr = 0;
             return false;
@@ -1088,8 +1088,8 @@ bool ClangIndexer::writeFiles(const Path &root, String &error)
         String unitRoot = root;
         unitRoot << unit.first;
         Path::mkdir(unitRoot, Path::Recursive);
-        if (!FileMap<Location, Symbol>::write(unitRoot + "/symbols", unit.second->cursors)) {
-            error = "Failed to write cursors";
+        if (!FileMap<Location, Symbol>::write(unitRoot + "/symbols", unit.second->symbols)) {
+            error = "Failed to write symbols";
             return false;
         }
         if (!FileMap<Location, Map<Location, uint16_t> >::write(unitRoot + "/targets", unit.second->targets)) {
@@ -1314,7 +1314,7 @@ CXChildVisitResult ClangIndexer::verboseVisitor(CXCursor cursor, CXCursor, CXCli
         }
 
         if (loc.fileId() && u->indexer->mData->visited.value(loc.fileId())) {
-            if (u->indexer->unit(loc)->cursors.contains(loc)) {
+            if (u->indexer->unit(loc)->symbols.contains(loc)) {
                 u->out += " used as cursor\n";
             } else {
                 u->out += " not used\n";
@@ -1482,7 +1482,7 @@ Symbol ClangIndexer::findSymbol(const Location &location, bool *ok) const
     Symbol ret;
     auto it = mUnits.find(location.fileId());
     if (it != mUnits.end()) {
-        ret = it->second->cursors.value(location, Symbol(), ok);
+        ret = it->second->symbols.value(location, Symbol(), ok);
     } else if (ok) {
         *ok = false;
     }

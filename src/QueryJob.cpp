@@ -119,7 +119,7 @@ bool QueryJob::writeRaw(const String &out, unsigned flags)
     return true;
 }
 
-bool QueryJob::write(const Location &location, unsigned /* flags */)
+bool QueryJob::write(const Location &location, unsigned flags)
 {
     if (location.isNull())
         return false;
@@ -140,14 +140,14 @@ bool QueryJob::write(const Location &location, unsigned /* flags */)
     const bool displayName = queryFlags() & QueryMessage::DisplayName;
     if (containingFunction || cursorKind || displayName) {
         int idx;
-        Symbol cursor = project()->findSymbol(location, &idx);
-        if (cursor.isNull()) {
+        Symbol symbol = project()->findSymbol(location, &idx);
+        if (symbol.isNull()) {
             error() << "Somehow can't find" << location << "in symbols";
         } else {
             if (displayName)
-                out += '\t' + cursor.displayName();
+                out += '\t' + symbol.displayName();
             if (cursorKind)
-                out += '\t' + cursor.kindSpelling();
+                out += '\t' + symbol.kindSpelling();
             if (containingFunction) {
                 const uint32_t fileId = location.fileId();
                 const unsigned int line = location.line();
@@ -155,14 +155,14 @@ bool QueryJob::write(const Location &location, unsigned /* flags */)
                 auto fileMap = project()->openSymbols(location.fileId());
                 if (fileMap) {
                     while (idx > 0) {
-                        cursor = fileMap->valueAt(--idx);
-                        if (cursor.location.fileId() != fileId)
+                        symbol = fileMap->valueAt(--idx);
+                        if (symbol.location.fileId() != fileId)
                             break;
-                        if (cursor.isDefinition()
-                            && RTags::isContainer(cursor.kind)
-                            && comparePosition(line, column, cursor.startLine, cursor.startColumn) >= 0
-                            && comparePosition(line, column, cursor.endLine, cursor.endColumn) <= 0) {
-                            out += "\tfunction: " + cursor.symbolName;
+                        if (symbol.isDefinition()
+                            && RTags::isContainer(symbol.kind)
+                            && comparePosition(line, column, symbol.startLine, symbol.startColumn) >= 0
+                            && comparePosition(line, column, symbol.endLine, symbol.endColumn) <= 0) {
+                            out += "\tfunction: " + symbol.symbolName;
                             break;
                         }
                     }
@@ -170,16 +170,16 @@ bool QueryJob::write(const Location &location, unsigned /* flags */)
             }
         }
     }
-    return write(out);
+    return write(out, flags);
 }
 
-bool QueryJob::write(const Symbol &cursor, unsigned cflags)
+bool QueryJob::write(const Symbol &symbol, unsigned cflags)
 {
-    if (cursor.isNull())
+    if (symbol.isNull())
         return false;
 
     const unsigned kf = keyFlags();
-    return write(cursor.toString(cflags, kf));
+    return write(symbol.toString(0, kf, project()), cflags);
 }
 
 bool QueryJob::filter(const String &value) const

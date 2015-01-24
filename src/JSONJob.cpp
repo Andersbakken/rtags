@@ -14,7 +14,7 @@ You should have received a copy of the GNU General Public License
 along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 
 #include "JSONJob.h"
-#include "CursorInfo.h"
+#include "SymbolInfo.h"
 #include "Project.h"
 #include "RTags.h"
 #include "Server.h"
@@ -60,7 +60,7 @@ void JSONJob::execute()
             SymbolMap::const_iterator sit = map.lower_bound(loc);
             while (sit != map.end() && sit->first.fileId() == it->first) {
                 Location targetLocation;
-                CursorInfo target = sit->second.bestTarget(map, 0, &targetLocation);
+                SymbolInfo target = sit->second.bestTarget(map, 0, &targetLocation);
                 const String type = sit->second.kindSpelling();
                 if (firstSymbol) {
                     firstSymbol = false;

@@ -57,6 +57,7 @@ struct Symbol
         return false;
     }
     bool isReference() const;
+    bool isContainer() const;
 
     inline bool isDefinition() const { return kind == CXCursor_EnumConstantDecl || definition; }
 

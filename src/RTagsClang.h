@@ -296,9 +296,9 @@ static inline const char *builtinTypeName(CXTypeKind kind)
 
 String typeString(const CXType &type);
 
-struct SortedCursor
+struct SortedSymbol
 {
-    SortedCursor(const Location &loc = Location(),
+    SortedSymbol(const Location &loc = Location(),
                  bool definition = false,
                  uint16_t k = CXCursor_FirstInvalid)
         : location(loc), isDefinition(definition), kind(k)
@@ -336,7 +336,7 @@ struct SortedCursor
         return val;
     }
 
-    bool operator<(const SortedCursor &other) const
+    bool operator<(const SortedSymbol &other) const
     {
         const int me = rank();
         const int him = other.rank();
@@ -348,7 +348,7 @@ struct SortedCursor
             return me > him;
         return location < other.location;
     }
-    bool operator>(const SortedCursor &other) const
+    bool operator>(const SortedSymbol &other) const
     {
         const int me = rank();
         const int him = other.rank();

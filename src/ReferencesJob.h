@@ -22,7 +22,7 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 #include "Location.h"
 #include "RTags.h"
 
-class CursorInfo;
+class SymbolInfo;
 class ReferencesJob : public QueryJob
 {
 public:

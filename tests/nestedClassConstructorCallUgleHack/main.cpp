@@ -33,7 +33,7 @@ int main()
 /*
   The problem is the following. When invoked on a namespaced or nested class,
   CallExprs to constructors point to the first class or namespace in the chain.
-  What we need to do is to replace the cursor with the last TypeRef before the
+  What we need to do is to replace the symbol with the last TypeRef before the
   CallExpr since this one will have the correct extent.
 
   B::C c2(12); // 12, 4: DeclStmt o  main.cpp,221 (221-233-233-233)

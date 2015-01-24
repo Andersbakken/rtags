@@ -1,17 +1,17 @@
 /* This file is part of RTags.
 
-RTags is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
+   RTags is free software: you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation, either version 3 of the License, or
+   (at your option) any later version.
 
-RTags is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
+   RTags is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
 
-You should have received a copy of the GNU General Public License
-along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
+   You should have received a copy of the GNU General Public License
+   along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 
 #include "Project.h"
 #include "FileManager.h"
@@ -731,7 +731,7 @@ bool Project::isSuspended(uint32_t file) const
 }
 
 void Project::addFixIts(const Hash<uint32_t, bool> &visited, const FixItMap &fixIts)
-                        {
+{
     for (auto v : visited) {
         if (v.second) {
             const auto fit = fixIts.find(v.first);
@@ -853,29 +853,29 @@ Set<Location> Project::locations(const String &symbolName, uint32_t fileId) cons
     return ret;
 }
 
-List<RTags::SortedCursor> Project::sort(const Set<Location> &locations, unsigned int flags) const
+List<RTags::SortedSymbol> Project::sort(const Set<Location> &locations, unsigned int flags) const
 {
-    List<RTags::SortedCursor> sorted;
+    List<RTags::SortedSymbol> sorted;
     sorted.reserve(locations.size());
     for (auto it = locations.begin(); it != locations.end(); ++it) {
-        RTags::SortedCursor node(*it);
-        const Symbol cursor = findSymbol(*it);
-        if (!cursor.isNull()) {
-            node.isDefinition = cursor.isDefinition();
+        RTags::SortedSymbol node(*it);
+        const Symbol symbol = findSymbol(*it);
+        if (!symbol.isNull()) {
+            node.isDefinition = symbol.isDefinition();
             if (flags & Sort_DeclarationOnly && node.isDefinition) {
-                const Symbol decl = findSymbol(findTarget(cursor));
+                const Symbol decl = findSymbol(findTarget(symbol));
                 if (!decl.isNull() && !decl.isDefinition()) {
-                    assert(decl.usr == cursor.usr);
+                    assert(decl.usr == symbol.usr);
                     continue;
                 }
             }
-            node.kind = cursor.kind;
+            node.kind = symbol.kind;
         }
         sorted.push_back(node);
     }
 
     if (flags & Sort_Reverse) {
-        std::sort(sorted.begin(), sorted.end(), std::greater<RTags::SortedCursor>());
+        std::sort(sorted.begin(), sorted.end(), std::greater<RTags::SortedSymbol>());
     } else {
         std::sort(sorted.begin(), sorted.end());
     }
@@ -925,29 +925,29 @@ Symbol Project::findSymbol(const Location &location, int *index) const
         *index = -1;
     if (location.isNull())
         return Symbol();
-    auto cursors = openSymbols(location.fileId());
-    if (!cursors)
+    auto symbols = openSymbols(location.fileId());
+    if (!symbols)
         return Symbol();
 
     bool exact = false;
-    int idx = cursors->lowerBound(location, &exact);
+    int idx = symbols->lowerBound(location, &exact);
     if (exact) {
         if (index)
             *index = idx;
-        return cursors->valueAt(idx);
+        return symbols->valueAt(idx);
     }
     switch (idx) {
     case 0:
         return Symbol();
     case -1:
-        idx = cursors->count() - 1;
+        idx = symbols->count() - 1;
         break;
     default:
         --idx;
         break;
     }
 
-    const Symbol &ret = cursors->valueAt(idx);
+    const Symbol &ret = symbols->valueAt(idx);
     if (ret.location.fileId() != location.fileId()
         || ret.location.line() != location.line()
         || (location.column() - ret.location.column() >= ret.symbolLength)) {
@@ -958,15 +958,15 @@ Symbol Project::findSymbol(const Location &location, int *index) const
     return ret;
 }
 
-Map<Location, uint16_t> Project::findTargets(const Symbol &cursor) const
+Map<Location, uint16_t> Project::findTargets(const Symbol &symbol) const
 {
     Map<Location, uint16_t> ret;
-    if (cursor.isNull())
+    if (symbol.isNull())
         return ret;
-    if (cursor.isClass() && cursor.isDefinition())
+    if (symbol.isClass() && symbol.isDefinition())
         return ret;
 
-    switch (cursor.kind) {
+    switch (symbol.kind) {
     case CXCursor_ClassDecl:
     case CXCursor_ClassTemplate:
     case CXCursor_StructDecl:
@@ -976,23 +976,23 @@ Map<Location, uint16_t> Project::findTargets(const Symbol &cursor) const
     case CXCursor_Constructor:
     case CXCursor_FunctionTemplate: {
         Set<uint32_t> files;
-        if (cursor.isDefinition()) {
-            files = dependencies(cursor.location.fileId(), ArgDependsOn);
+        if (symbol.isDefinition()) {
+            files = dependencies(symbol.location.fileId(), ArgDependsOn);
         } else {
-            files = dependencies(cursor.location.fileId(), DependsOnArg);
+            files = dependencies(symbol.location.fileId(), DependsOnArg);
         }
-        // error() << files << cursor.location;
-        const Set<Symbol> cursors = findByUsr(files, cursor.usr);
-        for (const auto &c : cursors) {
-            if (cursor.isDefinition() != c.isDefinition()) {
+        // error() << files << symbol.location;
+        const Set<Symbol> symbols = findByUsr(files, symbol.usr);
+        for (const auto &c : symbols) {
+            if (symbol.isDefinition() != c.isDefinition()) {
                 ret.insert(c.location, c.targetsValue());
                 break;
             }
         }
         break; }
     default:
-        if (const auto targetsDb = openTargets(cursor.location.fileId()))
-            ret = targetsDb->value(cursor.location);
+        if (const auto targetsDb = openTargets(symbol.location.fileId()))
+            ret = targetsDb->value(symbol.location);
         break;
     }
 
@@ -1030,25 +1030,78 @@ Set<Symbol> CursorInfo::referenceInfos(const Set<Symbol> &map) const
 }
 #endif
 
-Set<Symbol> Project::findCallers(const Symbol &cursor) const
+template <typename Key, typename Value>
+class FileMapCache
 {
-    Set<Symbol> ret;
-    const Set<Symbol> cursors = findVirtuals(cursor);
-    const bool isClazz = cursor.isClass();
-    for (auto c = cursors.begin(); c != cursors.end(); ++c) {
+public:
+    FileMapCache(const Project *p, const String &t)
+        : project(p), type(t)
+    {}
 
-        // for (auto it = c->second->references.begin(); it != c->second->references.end(); ++it) {
-        //     const auto found = RTags::findSymbolInfo(map, *it);
-        //     if (found == map.end())
-        //         continue;
-        //     if (isClazz && found->second->kind == CXCursor_CallExpr)
-        //         continue;
-        //     if (RTags::isReference(found->second->kind)) { // is this always right?
-        //         ret[*it] = found->second;
-        //     } else if (kind == CXCursor_Constructor && (found->second->kind == CXCursor_VarDecl || found->second->kind == CXCursor_FieldDecl)) {
-        //         ret[*it] = found->second;
-        //     }
-        // }
+    std::shared_ptr<FileMap<Key, Value> > open(uint32_t fileId)
+    {
+        if (cache.contains(fileId))
+            return cache[fileId];
+        auto ret = project->openFileMap<Key, Value>(fileId, type);
+        cache[fileId] = ret;
+        return ret;
+    }
+
+    Map<uint32_t, std::shared_ptr<FileMap<Key, Value> > > cache;
+
+    const Project *project;
+    const String type;
+};
+
+Set<Symbol> Project::findCallers(const Symbol &symbol) const
+{
+    if (symbol.isNull())
+        return Set<Symbol>();
+
+    Set<Symbol> inputs;
+    inputs.insert(symbol);
+    if (symbol.isClass()) {
+        inputs.unite(findByUsr(dependencies(symbol.location.fileId(), ArgDependsOn), symbol.usr));
+    } else if (!symbol.isReference()) {
+        const Symbol target = findSymbol(findTarget(symbol));
+        if (!target.isNull())
+            inputs.insert(target);
+        inputs.unite(findVirtuals(symbol));
+    }
+    FileMapCache<Location, Symbol> symbolsCache(this, fileMapName(Symbols));
+    FileMapCache<Location, Map<Location, uint16_t> > targetsCache(this, fileMapName(Targets));
+    const bool isClazz = symbol.isClass();
+    Set<Symbol> ret;
+    for (const Symbol &input : inputs) {
+        for (const auto &dep : dependencies(input.location.fileId(), DependsOnArg)) {
+            auto targets = targetsCache.open(dep);
+            if (!targets)
+                continue;
+            const int count = targets->count();
+            for (int i=0; i<count; ++i) {
+                for (const std::pair<Location, uint16_t> &reference : targets->valueAt(i)) {
+                    error() << "Comparing" << reference.first << "with" << input.location;
+                    const CXCursorKind refKind = RTags::targetsValueKind(reference.second);
+                    if (reference.first == input.location) {
+                        if (isClazz && refKind == CXCursor_CallExpr) {
+                            printf("[%s:%d]: if (isClazz && reference.second == CXCursor_CallExpr) {\n", __FILE__, __LINE__); fflush(stdout);
+                            continue;
+                        }
+                        if (RTags::isReference(refKind)
+                            || (symbol.kind == CXCursor_Constructor
+                                && (refKind == CXCursor_VarDecl || refKind == CXCursor_FieldDecl))) {
+                            const Symbol sym = findSymbol(reference.first);
+                            if (!sym.isNull())
+                                ret.insert(sym);
+                        } else if (!RTags::isReference(refKind)) {
+                            printf("[%s:%d]: } else if (!RTags::isReference(reference.second)) {\n", __FILE__, __LINE__); fflush(stdout);
+                        } else {
+                            printf("[%s:%d]: \n", __FILE__, __LINE__); fflush(stdout);
+                        }
+                    }
+                }
+            }
+        }
     }
     return ret;
 }
@@ -1106,7 +1159,7 @@ static inline void allImpl(const Set<Symbol> &map, const Location &loc, const st
 }
 #endif
 
-static void addReferences(const Symbol &cursor, Map<Location, Symbol> &cursors,
+static void addReferences(const Symbol &symbol, Map<Location, Symbol> &symbols,
                           const Set<uint32_t> &files,
                           const std::shared_ptr<Project> &project)
 {
@@ -1126,13 +1179,13 @@ static void addReferences(const Symbol &cursor, Map<Location, Symbol> &cursors,
         const int count = targets->count();
         for (int i=0; i<count; ++i) {
             for (const auto &target : targets->valueAt(i)) {
-                if (target.first == cursor.location) {
-                    if (cursors.contains(target.first)) {
+                if (target.first == symbol.location) {
+                    if (symbols.contains(target.first)) {
                         auto c = project->findSymbol(target.first);
                         if (!c.isNull()) {
-                            cursors[target.first] = c;
+                            symbols[target.first] = c;
                             if (!c.isReference()) {
-                                addReferences(c, cursors, project->dependencies(target.first.fileId(), Project::DependsOnArg), project);
+                                addReferences(c, symbols, project->dependencies(target.first.fileId(), Project::DependsOnArg), project);
                             }
                         }
                     }
@@ -1167,7 +1220,7 @@ Set<Symbol> Project::findAllReferences(const Symbol &loc) const
 #if 0
 #endif
 
-Set<Symbol> Project::findVirtuals(const Symbol &cursor) const
+Set<Symbol> Project::findVirtuals(const Symbol &symbol) const
 {
     // Set<Symbol> ret;
     // ret[loc] = copy();
@@ -1180,7 +1233,7 @@ Set<Symbol> Project::findVirtuals(const Symbol &cursor) const
 }
 
 
-// Set<Location> Project::findReferences(const Symbol &cursor, uint32_t queryFlags) const
+// Set<Location> Project::findReferences(const Symbol &symbol, uint32_t queryFlags) const
 // {
 //     if (queryFlags & QueryMessage::AllReferences) {
 

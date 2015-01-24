@@ -18,7 +18,7 @@
 #include "CompletionThread.h"
 #include "IndexMessage.h"
 #include "LogOutputMessage.h"
-#include "CursorInfoJob.h"
+#include "SymbolInfoJob.h"
 #include "DependenciesJob.h"
 #include "VisitFileResponseMessage.h"
 #include "Filter.h"
@@ -549,7 +549,7 @@ void Server::handleQueryMessage(const std::shared_ptr<QueryMessage> &message, Co
     case QueryMessage::ClearProjects:
         clearProjects(message, conn);
         break;
-    case QueryMessage::CursorInfo:
+    case QueryMessage::SymbolInfo:
         cursorInfo(message, conn);
         break;
     case QueryMessage::Shutdown:
@@ -827,7 +827,7 @@ void Server::cursorInfo(const std::shared_ptr<QueryMessage> &query, Connection *
         conn->write("Project loading");
         conn->finish();
     } else {
-        CursorInfoJob job(loc, query, project);
+        SymbolInfoJob job(loc, query, project);
         const int ret = job.run(conn);
         conn->finish(ret);
     }

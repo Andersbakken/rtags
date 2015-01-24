@@ -73,7 +73,7 @@ struct Option opts[] = {
     { RClient::ReferenceLocation, "references", 'r', required_argument, "Find references matching this location." },
     { RClient::ListSymbols, "list-symbols", 'S', optional_argument, "List symbol names matching arg." },
     { RClient::FindSymbols, "find-symbols", 'F', optional_argument, "Find symbols matching arg." },
-    { RClient::CursorInfo, "cursor-info", 'U', required_argument, "Get cursor info for this location." },
+    { RClient::SymbolInfo, "symbol-info", 'U', required_argument, "Get cursor info for this location." },
     { RClient::Status, "status", 's', optional_argument, "Dump status of rdm. Arg can be symbols or symbolNames." },
     { RClient::IsIndexed, "is-indexed", 'T', required_argument, "Check if rtags knows about, and is ready to return information about, this source file." },
     { RClient::IsIndexing, "is-indexing", 0, no_argument, "Check if rtags is currently indexing files." },
@@ -121,14 +121,14 @@ struct Option opts[] = {
     { RClient::Timeout, "timeout", 'y', required_argument, "Max time in ms to wait for job to finish (default no timeout)." },
     { RClient::FindVirtuals, "find-virtuals", 'k', no_argument, "Use in combinations with -R or -r to show other implementations of this function." },
     { RClient::FindFilePreferExact, "find-file-prefer-exact", 'A', no_argument, "Use to make --find-file prefer exact matches over partial matches." },
-    { RClient::CursorInfoIncludeParents, "cursorinfo-include-parents", 0, no_argument, "Use to make --cursor-info include parent cursors." },
-    { RClient::CursorInfoIncludeTargets, "cursorinfo-include-targets", 0, no_argument, "Use to make --cursor-info include target cursors." },
-    { RClient::CursorInfoIncludeReferences, "cursorinfo-include-references", 0, no_argument, "Use to make --cursor-info include reference cursors." },
+    { RClient::SymbolInfoIncludeParents, "symbol-info-include-parents", 0, no_argument, "Use to make --symbol-info include parent symbols." },
+    { RClient::SymbolInfoIncludeTargets, "symbol-info-include-targets", 0, no_argument, "Use to make --symbol-info include target symbols." },
+    { RClient::SymbolInfoIncludeReferences, "symbol-info-include-references", 0, no_argument, "Use to make --symbol-info include reference symbols." },
     { RClient::CursorKind, "cursor-kind", 0, no_argument, "Include cursor kind in --find-symbols output." },
     { RClient::DisplayName, "display-name", 0, no_argument, "Include display name in --find-symbols output." },
     { RClient::CurrentFile, "current-file", 0, required_argument, "Pass along which file is being edited to give rdm a better chance at picking the right project." },
     { RClient::DeclarationOnly, "declaration-only", 0, no_argument, "Filter out definitions (unless inline).", },
-    { RClient::IMenu, "imenu", 0, no_argument, "Use with --list-symbols to provide output for (rtags-imenu) (filter namespaces, fully qualified function names, ignore certain cursors etc)." },
+    { RClient::IMenu, "imenu", 0, no_argument, "Use with --list-symbols to provide output for (rtags-imenu) (filter namespaces, fully qualified function names, ignore certain symbols etc)." },
     { RClient::ContainingFunction, "containing-function", 'o', no_argument, "Include name of containing function in output."},
     { RClient::BuildIndex, "build-index", 0, required_argument, "For sources with multiple builds, use the arg'th." },
     { RClient::CompilationFlagsOnly, "compilation-flags-only", 0, no_argument, "For --source, only print compilation flags." },
@@ -524,14 +524,14 @@ bool RClient::parse(int &argc, char **argv)
         case FindFilePreferExact:
             mQueryFlags |= QueryMessage::FindFilePreferExact;
             break;
-        case CursorInfoIncludeParents:
-            mQueryFlags |= QueryMessage::CursorInfoIncludeParents;
+        case SymbolInfoIncludeParents:
+            mQueryFlags |= QueryMessage::SymbolInfoIncludeParents;
             break;
-        case CursorInfoIncludeTargets:
-            mQueryFlags |= QueryMessage::CursorInfoIncludeTargets;
+        case SymbolInfoIncludeTargets:
+            mQueryFlags |= QueryMessage::SymbolInfoIncludeTargets;
             break;
-        case CursorInfoIncludeReferences:
-            mQueryFlags |= QueryMessage::CursorInfoIncludeReferences;
+        case SymbolInfoIncludeReferences:
+            mQueryFlags |= QueryMessage::SymbolInfoIncludeReferences;
             break;
         case CursorKind:
             mQueryFlags |= QueryMessage::CursorKind;
@@ -762,7 +762,7 @@ bool RClient::parse(int &argc, char **argv)
             mUnsavedFiles[path] = contents;
             break; }
         case FollowLocation:
-        case CursorInfo:
+        case SymbolInfo:
         case ReferenceLocation: {
             const String encoded = Location::encode(optarg);
             if (encoded.isEmpty()) {
@@ -772,7 +772,7 @@ bool RClient::parse(int &argc, char **argv)
             QueryMessage::Type type = QueryMessage::Invalid;
             switch (opt->option) {
             case FollowLocation: type = QueryMessage::FollowLocation; break;
-            case CursorInfo: type = QueryMessage::CursorInfo; break;
+            case SymbolInfo: type = QueryMessage::SymbolInfo; break;
             case ReferenceLocation: type = QueryMessage::ReferencesLocation; break;
             default: assert(0); break;
             }

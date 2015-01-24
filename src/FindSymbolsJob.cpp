@@ -42,7 +42,7 @@ int FindSymbolsJob::execute()
             if (queryFlags() & QueryMessage::ReverseSort)
                 sortFlags |= Project::Sort_Reverse;
 
-            const List<RTags::SortedCursor> sorted = proj->sort(locations, sortFlags);
+            const List<RTags::SortedSymbol> sorted = proj->sort(locations, sortFlags);
             const unsigned int writeFlags = filter ? Unfiltered : NoWriteFlags;
             const int count = sorted.size();
             ret = count ? 0 : 1;

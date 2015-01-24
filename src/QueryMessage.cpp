@@ -81,12 +81,12 @@ QueryMessage::Flag QueryMessage::flagFromString(const String &string)
         return AbsolutePath;
     } else if (string == "find-file-prefer-exact") {
         return FindFilePreferExact;
-    } else if (string == "cursor-info-include-parents") {
-        return CursorInfoIncludeParents;
-    } else if (string == "cursor-info-include-targets") {
-        return CursorInfoIncludeTargets;
-    } else if (string == "cursor-info-include-references") {
-        return CursorInfoIncludeReferences;
+    } else if (string == "symbol-info-include-parents") {
+        return SymbolInfoIncludeParents;
+    } else if (string == "symbol-info-include-targets") {
+        return SymbolInfoIncludeTargets;
+    } else if (string == "symbol-info-include-references") {
+        return SymbolInfoIncludeReferences;
     } else if (string == "declaration-only") {
         return DeclarationOnly;
     } else if (string == "containing-function") {

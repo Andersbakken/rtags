@@ -497,7 +497,7 @@ BUFFER : the buffer to be checked and reparsed, if it's nil, use current buffer"
       (and (not no-symbol-name) (rtags-current-symbol-name))
       (thing-at-point 'symbol)))
 
-(defun rtags-cursorinfo (&optional location verbose save-to-kill-ring no-reparse)
+(defun rtags-symbol-info (&optional location verbose save-to-kill-ring no-reparse)
   (let ((loc (or location (rtags-current-location)))
         (path (buffer-file-name)))
     (when (not no-reparse)
@@ -505,16 +505,20 @@ BUFFER : the buffer to be checked and reparsed, if it's nil, use current buffer"
     (with-temp-buffer
       (rtags-call-rc :path path
                      "-U" loc
-                     (if verbose "--cursorinfo-include-targets")
-                     (if verbose "--cursorinfo-include-references"))
+                     (if verbose "--symbol-info-include-targets")
+                     (if verbose "--symbol-info-include-references"))
       (if save-to-kill-ring
           (copy-region-as-kill (point-min) (point-max)))
       (buffer-string))))
 
+(defalias 'rtags-symbol-info 'rtags-cursorinfo)
+
 ;;;###autoload
-(defun rtags-print-cursorinfo (&optional prefix)
+(defun rtags-print-symbol-info (&optional prefix)
   (interactive "P")
-  (message "%s" (rtags-cursorinfo nil (not prefix) (not prefix))))
+  (message "%s" (rtags-symbol-info nil (not prefix) (not prefix))))
+
+(defalias 'rtags-symbol-info 'rtags-print-cursorinfo)
 
 ;;;###autoload
 (defun rtags-print-dependencies (&optional buffer)
@@ -530,14 +534,14 @@ BUFFER : the buffer to be checked and reparsed, if it's nil, use current buffer"
 ;;;###autoload
 (defun rtags-print-enum-value-at-point (&optional location)
   (interactive)
-  (let ((info (rtags-cursorinfo location)))
+  (let ((info (rtags-symbol-info location)))
     (cond ((string-match "^Enum Value: \\([0-9]+\\) *$" info)
            (let ((enumval (match-string-no-properties 1 info)))
              (message "%s - %s - 0x%X" (rtags-current-symbol-name info) enumval (string-to-number enumval))))
           ((string-match "^Type: Enum *$" info)
            (let ((target (rtags-target)))
              (when target
-               (setq info (rtags-cursorinfo target))
+               (setq info (rtags-symbol-info target))
                (if (string-match "^Enum Value: \\([0-9]+\\) *$" info)
                    (let ((enumval (match-string-no-properties 1 info)))
                      (message "%s - %s - 0x%X" (rtags-current-symbol-name info) enumval (string-to-number enumval)))))))
@@ -1915,39 +1919,39 @@ References to references will be treated as references to the referenced symbol"
             (kill-buffer tempbuf)
             (ediff path tempbufname))))))
 
-(defun rtags-current-symbol-name (&optional cursorinfo)
-  (unless cursorinfo
-    (setq cursorinfo (rtags-cursorinfo)))
-  (let ((container (string-match "^Container:" cursorinfo))
-        (symbolname (string-match "^SymbolName: \\(.*\\)$" cursorinfo)))
+(defun rtags-current-symbol-name (&optional symbol-info)
+  (unless symbol-info
+    (setq symbol-info (rtags-symbol-info)))
+  (let ((container (string-match "^Container:" symbol-info))
+        (symbolname (string-match "^SymbolName: \\(.*\\)$" symbol-info)))
     (if (and symbolname (or (not container) (< symbolname container)))
-        (match-string-no-properties 1 cursorinfo))))
+        (match-string-no-properties 1 symbol-info))))
 
-(defun rtags-current-container-name (&optional cursorinfo)
-  (unless cursorinfo
-    (setq cursorinfo (rtags-cursorinfo)))
-  (let* ((container (string-match "^Container:" cursorinfo))
-         (symbolname (string-match "^SymbolName: \\(.*\\)$" cursorinfo (if container container 0))))
+(defun rtags-current-container-name (&optional symbol-info)
+  (unless symbol-info
+    (setq symbol-info (rtags-symbol-info)))
+  (let* ((container (string-match "^Container:" symbol-info))
+         (symbolname (string-match "^SymbolName: \\(.*\\)$" symbol-info (if container container 0))))
     (if container
-        (match-string-no-properties 1 cursorinfo)
+        (match-string-no-properties 1 symbol-info)
       nil)))
 
 (defun rtags-cursor-extent (&optional location)
-  (let ((cursorinfo (rtags-cursorinfo location)))
-    (if (string-match "^Range: \\([0-9]+\\)-\\([0-9]+\\)$" cursorinfo)
-        (let ((start (+ (string-to-number (match-string-no-properties 2 cursorinfo)) 1))
-              (end (+ (string-to-number (match-string-no-properties 3 cursorinfo)) 1)))
+  (let ((symbol-info (rtags-symbol-info location)))
+    (if (string-match "^Range: \\([0-9]+\\)-\\([0-9]+\\)$" symbol-info)
+        (let ((start (+ (string-to-number (match-string-no-properties 2 symbol-info)) 1))
+              (end (+ (string-to-number (match-string-no-properties 3 symbol-info)) 1)))
           (cons start end)))))
 
-(defun rtags-decode-range (cursorinfo)
-  "Decode range from the CURSORINFO (e.g. 5:1-10:3) and return a list with 2 coordinates:
+(defun rtags-decode-range (symbol-info)
+  "Decode range from the SYMBOL-INFO (e.g. 5:1-10:3) and return a list with 2 coordinates:
 \(line1 col1 line2 col2)"
   (if (string-match "^Range: \\([0-9]+\\):\\([0-9]+\\)-\\([0-9]+\\):\\([0-9]+\\)$"
-                    cursorinfo)
-      (let ((line1 (string-to-number (match-string-no-properties 1 cursorinfo)))
-            (col1 (string-to-number (match-string-no-properties 2 cursorinfo)))
-            (line2 (string-to-number (match-string-no-properties 3 cursorinfo)))
-            (col2 (string-to-number (match-string-no-properties 4 cursorinfo))))
+                    symbol-info)
+      (let ((line1 (string-to-number (match-string-no-properties 1 symbol-info)))
+            (col1 (string-to-number (match-string-no-properties 2 symbol-info)))
+            (line2 (string-to-number (match-string-no-properties 3 symbol-info)))
+            (col2 (string-to-number (match-string-no-properties 4 symbol-info))))
         (list line1 col1 line2 col2))))
 
 (defvar rtags-other-window-window nil)
@@ -2211,7 +2215,7 @@ Return nil if it can't get any info about the item."
   ;; try first with --declaration-only
   (let ((target (rtags-target-declaration-first)))
     (when target
-      (let ((range (rtags-decode-range (rtags-cursorinfo target nil nil t))))
+      (let ((range (rtags-decode-range (rtags-symbol-info target nil nil t))))
         (when range
           (let* ((line1 (first range))
                  (line2 (third range))

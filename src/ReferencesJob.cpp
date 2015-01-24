@@ -47,7 +47,7 @@ int ReferencesJob::execute()
             pos = found->first;
             if (startLocation.isNull())
                 startLocation = pos;
-            std::shared_ptr<CursorInfo> cursorInfo = found->second;
+            std::shared_ptr<SymbolInfo> cursorInfo = found->second;
             if (!cursorInfo)
                 continue;
             if (RTags::isReference(cursorInfo->kind)) {
@@ -100,7 +100,7 @@ int ReferencesJob::execute()
                 for (SymbolMap::const_iterator v = virtuals.begin(); v != virtuals.end(); ++v) {
                     const bool def = v->second->isDefinition();
                     if (declarationOnly && def) {
-                        const std::shared_ptr<CursorInfo> decl = v->second->bestTarget(map);
+                        const std::shared_ptr<SymbolInfo> decl = v->second->bestTarget(map);
                         if (decl && !decl->isNull())
                             continue;
                     }
@@ -114,7 +114,7 @@ int ReferencesJob::execute()
                 const SymbolMap callers = cursorInfo->callers(pos, map);
                 for (SymbolMap::const_iterator c = callers.begin(); c != callers.end(); ++c) {
                     references[c->first] = std::make_pair(false, CXCursor_FirstInvalid);
-                    // For find callers we don't want to prefer definitions or do ranks on cursors
+                    // For find callers we don't want to prefer definitions or do ranks on symbols
                 }
             }
         }
@@ -130,14 +130,14 @@ int ReferencesJob::execute()
             return 0;
         }
     } else {
-        List<RTags::SortedCursor> sorted;
+        List<RTags::SortedSymbol> sorted;
         sorted.reserve(references.size());
         for (Map<Location, std::pair<bool, uint16_t> >::const_iterator it = references.begin();
              it != references.end(); ++it) {
-            sorted.append(RTags::SortedCursor(it->first, it->second.first, it->second.second));
+            sorted.append(RTags::SortedSymbol(it->first, it->second.first, it->second.second));
         }
         if (queryFlags() & QueryMessage::ReverseSort) {
-            std::sort(sorted.begin(), sorted.end(), std::greater<RTags::SortedCursor>());
+            std::sort(sorted.begin(), sorted.end(), std::greater<RTags::SortedSymbol>());
         } else {
             std::sort(sorted.begin(), sorted.end());
         }

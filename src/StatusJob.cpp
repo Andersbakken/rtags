@@ -29,7 +29,7 @@ StatusJob::StatusJob(const std::shared_ptr<QueryMessage> &q, const std::shared_p
 int StatusJob::execute()
 {
     bool matched = false;
-    const char *alternatives = "fileids|watchedpaths|dependencies|symbols|symbolnames|sources|jobs|info|compilers";
+    const char *alternatives = "fileids|watchedpaths|dependencies|cursors|symbols|targets|symbolnames|sources|jobs|info|compilers";
 
     if (!strcasecmp(query.constData(), "fileids")) {
         matched = true;
@@ -113,15 +113,39 @@ int StatusJob::execute()
         write(delimiter);
 
         for (const auto &dep : deps) {
-            auto cursors = proj->openSymbols(dep.first);
-            if (!cursors)
+            auto symbols = proj->openSymbols(dep.first);
+            if (!symbols)
                 continue;
-            const int count = cursors->count();
+            const int count = symbols->count();
             for (int i=0; i<count; ++i) {
-                const Location loc = cursors->keyAt(i);
-                const Symbol c = cursors->valueAt(i);
+                const Location loc = symbols->keyAt(i);
+                const Symbol c = symbols->valueAt(i);
                 write(loc);
                 write(c);
+                write("------------------------");
+                if (isAborted())
+                    return 1;
+            }
+        }
+    }
+
+    if (query.isEmpty() || !strcasecmp(query.constData(), "targets")) {
+        matched = true;
+        write(delimiter);
+        write("targets");
+        write(delimiter);
+        for (const auto &dep : deps) {
+            auto targets = proj->openTargets(dep.first);
+            if (!targets)
+                continue;
+            const int count = targets->count();
+            for (int i=0; i<count; ++i) {
+                write<128>("  %s:%d", targets->keyAt(i).key(keyFlags()).constData(), i);
+                for (const auto &target : targets->valueAt(i)) {
+                    write<1024>("    %s\t%s(%d)", target.first.key(keyFlags()).constData(),
+                                Symbol::kindSpelling(RTags::targetsValueKind(target.second)).constData(),
+                                RTags::targetsValueKind(target.second));
+                }
                 write("------------------------");
                 if (isAborted())
                     return 1;
