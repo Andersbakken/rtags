@@ -1448,6 +1448,7 @@ References to references will be treated as references to the referenced symbol"
   (interactive)
   (condition-case nil
       (when (and (buffer-file-name)
+                 (file-exists-p (buffer-file-name))
                  (not (eq (current-buffer) rtags-last-update-current-project-buffer)))
         (setq rtags-last-update-current-project-buffer (current-buffer))
         (let* ((rc (rtags-executable-find "rc"))
@@ -1458,7 +1459,8 @@ References to references will be treated as references to the referenced symbol"
             (let ((mapped (if rtags-match-source-file-to-project (apply rtags-match-source-file-to-project (list path)))))
               (if (and mapped (length mapped)) (push (concat "--current-file=" mapped) arguments)))
             (apply #'start-process "rtags-update-current-project" nil rc arguments))))
-    (error (message "Got error in rtags-update-current-project"))))
+    (error (message "Got error in rtags-update-current-project")))
+  t)
 
 (defvar rtags-tracking-timer nil)
 ;;;###autoload
