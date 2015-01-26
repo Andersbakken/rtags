@@ -88,7 +88,7 @@
   :group 'rtags)
 
 (defface rtags-skippedline
-  '((((class color) (background dark)) (:background "darkgray"))
+  '((((class color) (background dark)) (:background "lightgray"))
     (((class color) (background light)) (:background "lightgray")))
   "Face used for marking skipped lines."
   :group 'rtags)
