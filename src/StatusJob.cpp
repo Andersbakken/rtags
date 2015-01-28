@@ -140,11 +140,10 @@ int StatusJob::execute()
                 continue;
             const int count = targets->count();
             for (int i=0; i<count; ++i) {
-                write<128>("  %s:%d", targets->keyAt(i).key(keyFlags()).constData(), i);
+                write<128>("  %s", targets->keyAt(i).key(keyFlags()).constData());
                 for (const auto &target : targets->valueAt(i)) {
-                    write<1024>("    %s\t%s(%d)", target.first.key(keyFlags()).constData(),
-                                Symbol::kindSpelling(RTags::targetsValueKind(target.second)).constData(),
-                                RTags::targetsValueKind(target.second));
+                    write<1024>("    %s\t\t%s", target.first.key(keyFlags()).constData(),
+                                Symbol::kindSpelling(RTags::targetsValueKind(target.second)).constData());
                 }
                 write("------------------------");
                 if (isAborted())
