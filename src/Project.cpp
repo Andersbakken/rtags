@@ -1074,29 +1074,29 @@ Set<Symbol> Project::findCallers(const Symbol &symbol) const
     Set<Symbol> ret;
     for (const Symbol &input : inputs) {
         for (const auto &dep : dependencies(input.location.fileId(), DependsOnArg)) {
+            // error() << "Looking at file" << Location::path(dep) << "for input" << input.location;
             auto targets = targetsCache.open(dep);
             if (!targets)
                 continue;
             const int count = targets->count();
             for (int i=0; i<count; ++i) {
+                const Symbol refSymbol = findSymbol(targets->keyAt(i));
                 for (const std::pair<Location, uint16_t> &reference : targets->valueAt(i)) {
-                    error() << "Comparing" << reference.first << "with" << input.location;
-                    const CXCursorKind refKind = RTags::targetsValueKind(reference.second);
+                    // error() << "Comparing" << reference.first << targets->keyAt(i) << "with" << input.location;
                     if (reference.first == input.location) {
-                        if (isClazz && refKind == CXCursor_CallExpr) {
-                            printf("[%s:%d]: if (isClazz && reference.second == CXCursor_CallExpr) {\n", __FILE__, __LINE__); fflush(stdout);
+                        if (isClazz && refSymbol.kind == CXCursor_CallExpr) {
                             continue;
                         }
-                        if (RTags::isReference(refKind)
+                        if (RTags::isReference(refSymbol.kind)
                             || (symbol.kind == CXCursor_Constructor
-                                && (refKind == CXCursor_VarDecl || refKind == CXCursor_FieldDecl))) {
-                            const Symbol sym = findSymbol(reference.first);
-                            if (!sym.isNull())
-                                ret.insert(sym);
-                        } else if (!RTags::isReference(refKind)) {
-                            printf("[%s:%d]: } else if (!RTags::isReference(reference.second)) {\n", __FILE__, __LINE__); fflush(stdout);
-                        } else {
-                            printf("[%s:%d]: \n", __FILE__, __LINE__); fflush(stdout);
+                                && (refSymbol.kind == CXCursor_VarDecl || refSymbol.kind == CXCursor_FieldDecl))) {
+                            assert(!refSymbol.isNull());
+                            ret.insert(refSymbol);
+                        // } else if (!RTags::isReference(refSymbol.kind)) {
+                        //     error() << "Got refKind" << Symbol::kindSpelling(refSymbol.kind);
+                        //     printf("[%s:%d]: } else if (!RTags::isReference(reference.second)) {\n", __FILE__, __LINE__); fflush(stdout);
+                        // } else {
+                        //     printf("[%s:%d]: \n", __FILE__, __LINE__); fflush(stdout);
                         }
                     }
                 }
