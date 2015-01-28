@@ -127,6 +127,11 @@ public:
     }
     size_t lowerBound(const Key &k, bool *match = 0) const
     {
+        if (!mCount) {
+            if (match)
+                *match = false;
+            return -1;
+        }
         int lower = 0;
         int upper = mCount - 1;
 
