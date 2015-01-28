@@ -1230,6 +1230,7 @@ Set<Symbol> Project::findVirtuals(const Symbol &symbol) const
     //         ret[it->first] = it->second;
     // }
     // return ret;
+    return Set<Symbol>();
 }
 
 
