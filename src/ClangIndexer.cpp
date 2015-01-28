@@ -1085,6 +1085,7 @@ bool ClangIndexer::parse()
 bool ClangIndexer::writeFiles(const Path &root, String &error)
 {
     for (const auto &unit : mUnits) {
+        assert(mData->visited.value(unit.first));
         String unitRoot = root;
         unitRoot << unit.first;
         Path::mkdir(unitRoot, Path::Recursive);
