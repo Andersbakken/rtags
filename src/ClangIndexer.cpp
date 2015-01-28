@@ -1088,6 +1088,10 @@ bool ClangIndexer::writeFiles(const Path &root, String &error)
         String unitRoot = root;
         unitRoot << unit.first;
         Path::mkdir(unitRoot, Path::Recursive);
+        // ::error() << "Writing file" << Location::path(unit.first) << unitRoot << unit.second->symbols.size()
+        //           << unit.second->targets.size()
+        //           << unit.second->usrs.size()
+        //           << unit.second->symbolNames.size();
         if (!FileMap<Location, Symbol>::write(unitRoot + "/symbols", unit.second->symbols)) {
             error = "Failed to write symbols";
             return false;
@@ -1272,7 +1276,8 @@ bool ClangIndexer::visit()
 
     for (Hash<uint32_t, bool>::const_iterator it = mData->visited.begin(); it != mData->visited.end(); ++it) {
         mData->dependencies[it->first].insert(mSource.fileId);
-        addFileSymbol(it->first);
+        if (it->second)
+            addFileSymbol(it->first);
     }
 
     mVisitDuration = watch.elapsed();
