@@ -173,13 +173,12 @@ bool QueryJob::write(const Location &location, unsigned flags)
     return write(out, flags);
 }
 
-bool QueryJob::write(const Symbol &symbol, unsigned cflags)
+bool QueryJob::write(const Symbol &symbol, unsigned cflags, unsigned int flags)
 {
     if (symbol.isNull())
         return false;
 
-    const unsigned kf = keyFlags();
-    return write(symbol.toString(0, kf, project()), cflags);
+    return write(symbol.toString(cflags, keyFlags(), project()), flags);
 }
 
 bool QueryJob::filter(const String &value) const

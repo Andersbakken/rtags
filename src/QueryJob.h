@@ -55,7 +55,7 @@ public:
         Unfiltered = 0x4
     };
     bool write(const String &out, unsigned flags = NoWriteFlags);
-    bool write(const Symbol &symbol, unsigned flags = NoWriteFlags);
+    bool write(const Symbol &symbol, unsigned cursorInfoFlags = 0, unsigned flags = NoWriteFlags);
     bool write(const Location &location, unsigned flags = NoWriteFlags);
 
     template <int StaticBufSize> bool write(unsigned flags, const char *format, ...);
