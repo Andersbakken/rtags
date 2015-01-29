@@ -58,6 +58,7 @@ public:
         ReloadProjects,
         RemoveFile,
         SendDiagnostics,
+        SetBuffers,
         Shutdown,
         Sources,
         Status,

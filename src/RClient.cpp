@@ -98,6 +98,7 @@ struct Option opts[] = {
     { RClient::SendDiagnostics, "send-diagnostics", 0, required_argument, "Only for debugging. Send data to all -g connections." },
     { RClient::DumpCompletions, "dump-completions", 0, no_argument, "Dump cached completions." },
     { RClient::DumpCompilationDatabase, "dump-compilation-database", 0, no_argument, "Dump compilation database for project." },
+    { RClient::SetBuffers, "set-buffers", 0, optional_argument, "Set active buffers (list of filenames for active buffers in editor)." },
 
     { RClient::None, 0, 0, 0, "" },
     { RClient::None, 0, 0, 0, "Command flags:" },
@@ -898,6 +899,33 @@ bool RClient::parse(int &argc, char **argv)
             assert(!mCommands.isEmpty());
             if (type == QueryMessage::Project)
                 projectCommands.append(std::static_pointer_cast<QueryCommand>(mCommands.back()));
+            break; }
+        case SetBuffers: {
+            const char *arg = 0;
+            if (optarg) {
+                arg = optarg;
+            } else if (optind < argc && (argv[optind][0] != '-' || !strcmp(argv[optind], "-"))) {
+                arg = argv[optind++];
+            }
+            List<Path> paths;
+            auto add = [&paths](const char *p) {
+                Path path(p);
+                if (path.resolve() && path.isFile()) {
+                    paths.append(path);
+                    return true;
+                }
+                fprintf(stderr, "\"%s\" doesn't seem to be a file.\n", p);
+                return false;
+            };
+            if (!arg || !strcmp(arg, "-")) {
+                char buf[1024];
+                while (fgets(buf, sizeof(buf), stdin)) {
+                    if (!add(buf))
+                        return false;
+                }
+            } else if (!add(arg)) {
+                return false;
+            }
             break; }
         case LoadCompilationDatabase: {
 #if CLANG_VERSION_MAJOR > 3 || (CLANG_VERSION_MAJOR == 3 && CLANG_VERSION_MINOR > 3)
