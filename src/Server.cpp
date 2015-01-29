@@ -585,6 +585,9 @@ void Server::handleQueryMessage(const std::shared_ptr<QueryMessage> &message, Co
     case QueryMessage::ReloadFileManager:
         reloadFileManager(message, conn);
         break;
+    case QueryMessage::SetBuffers:
+        setBuffers(message, conn);
+        break;
     }
 }
 
@@ -1449,6 +1452,26 @@ void Server::suspend(const std::shared_ptr<QueryMessage> &query, Connection *con
             }
         }
         break;
+    }
+    conn->finish();
+}
+
+void Server::setBuffers(const std::shared_ptr<QueryMessage> &query, Connection *conn)
+{
+    const String encoded = query->query();
+    if (encoded.isEmpty()) {
+        for (uint32_t fileId : mActiveBuffers) {
+            conn->write(Location::path(fileId));
+        }
+    } else {
+        Deserializer deserializer(encoded);
+        List<Path> paths;
+        deserializer >> paths;
+        mActiveBuffers.clear();
+        for (const Path &path : paths) {
+            mActiveBuffers << Location::insertFile(path);
+        }
+        conn->write<32>("Added %d buffers", mActiveBuffers.size());
     }
     conn->finish();
 }

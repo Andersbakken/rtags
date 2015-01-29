@@ -106,6 +106,8 @@ public:
     int mongooseStatistics(struct mg_connection *conn);
     void dumpJobs(Connection *conn);
     std::shared_ptr<JobScheduler> jobScheduler() const { return mJobScheduler; }
+    const Set<uint32_t> &activeBuffers() const { return mActiveBuffers; }
+    bool isActiveBuffer(uint32_t fileId) const { return mActiveBuffers.contains(fileId); }
 private:
     void restoreFileIds();
     bool index(const String &arguments, const Path &pwd,
@@ -154,6 +156,7 @@ private:
     void dumpCompilationDatabase(const std::shared_ptr<QueryMessage> &query, Connection *conn);
     void status(const std::shared_ptr<QueryMessage> &query, Connection *conn);
     void suspend(const std::shared_ptr<QueryMessage> &query, Connection *conn);
+    void setBuffers(const std::shared_ptr<QueryMessage> &query, Connection *conn);
 
     std::shared_ptr<Project> projectForQuery(const std::shared_ptr<QueryMessage> &queryMessage);
     std::shared_ptr<Project> currentProject() const { return mCurrentProject.lock(); }
@@ -182,6 +185,7 @@ private:
     std::shared_ptr<JobScheduler> mJobScheduler;
 
     CompletionThread *mCompletionThread;
+    Set<uint32_t> mActiveBuffers;
 
     Signal<std::function<void()> > mIndexerMessageReceived;
 };

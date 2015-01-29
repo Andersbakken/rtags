@@ -907,25 +907,38 @@ bool RClient::parse(int &argc, char **argv)
             } else if (optind < argc && (argv[optind][0] != '-' || !strcmp(argv[optind], "-"))) {
                 arg = argv[optind++];
             }
-            List<Path> paths;
-            auto add = [&paths](const char *p) {
-                Path path(p);
-                if (path.resolve() && path.isFile()) {
-                    paths.append(path);
-                    return true;
-                }
-                fprintf(stderr, "\"%s\" doesn't seem to be a file.\n", p);
-                return false;
-            };
-            if (!arg || !strcmp(arg, "-")) {
-                char buf[1024];
-                while (fgets(buf, sizeof(buf), stdin)) {
-                    if (!add(buf))
+            String encoded;
+            if (arg) {
+                List<Path> paths;
+                auto addBuffer = [&paths](const String &p) {
+                    if (p.isEmpty())
                         return false;
+                    Path path(p);
+                    if (path.resolve() && path.isFile()) {
+                        paths.append(path);
+                        return true;
+                    }
+                    fprintf(stderr, "\"%s\" doesn't seem to be a file.\n", p.constData());
+                    return false;
+                };
+
+                if (!strcmp(arg, "-")) {
+                    char buf[1024];
+                    while (fgets(buf, sizeof(buf), stdin)) {
+                        if (!addBuffer(buf))
+                            return false;
+                    }
+                } else {
+                    for (const String &buffer : String(arg).split(';')) {
+                        if (!addBuffer(buffer)) {
+                            return false;
+                        }
+                    }
                 }
-            } else if (!add(arg)) {
-                return false;
+                Serializer serializer(encoded);
+                serializer << paths;
             }
+            addQuery(QueryMessage::SetBuffers, encoded);
             break; }
         case LoadCompilationDatabase: {
 #if CLANG_VERSION_MAJOR > 3 || (CLANG_VERSION_MAJOR == 3 && CLANG_VERSION_MINOR > 3)
