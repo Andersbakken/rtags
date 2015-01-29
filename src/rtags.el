@@ -34,7 +34,7 @@
 (require 'cc-mode)
 
 (if (or (> emacs-major-version 24)
-    (< emacs-major-version 23)
+        (< emacs-major-version 23)
         (and (= emacs-major-version 24)
              (>= emacs-minor-version 3)))
     (progn
@@ -315,7 +315,8 @@
                                  (process-send-region proc (point-min) (point-max)))
                                proc))
                             (async (apply #'start-process "rc" (current-buffer) rc arguments))
-                            ((and unsaved (buffer-modified-p unsaved))
+                            ((and unsaved (or (buffer-modified-p unsaved)
+                                              (not (buffer-file-name unsaved))))
                              (let ((output-buffer (current-buffer)))
                                (with-current-buffer unsaved
                                  (apply #'call-process-region (point-min) (point-max) rc
@@ -2259,6 +2260,19 @@ If rtags-display-summary-as-tooltip is t, a tooltip is displayed."
         (popup-tip summary)
       (message "%s" summary))))
 
+
+(defun rtags-set-buffers (buffers)
+  (with-temp-buffer
+    (mapc (function (lambda (x)
+                      (let ((name (buffer-file-name x)))
+                        (if name
+                            (insert name "\n"))))) buffers)
+    (rtags-call-rc :unsaved (current-buffer) "--set-buffers" "-")))
+
+(defun rtags-kill-buffer-hook ()
+  (rtags-set-buffers (cdr (buffer-list))))
+
+;; (defun rtags-find-file-hook ())
 
 (provide 'rtags)
 
