@@ -822,7 +822,7 @@ bool ClangIndexer::handleReference(const CXCursor &cursor, CXCursorKind kind,
                 best = it;
             }
         }
-        if (best != targets.end() && best->first != location) // another target is better
+        if (best != targets.end() && best->first != reffedLoc) // another target is better
             return true;
     }
 
