@@ -863,7 +863,7 @@ List<RTags::SortedSymbol> Project::sort(const Set<Location> &locations, unsigned
         if (!symbol.isNull()) {
             node.isDefinition = symbol.isDefinition();
             if (flags & Sort_DeclarationOnly && node.isDefinition) {
-                const Symbol decl = findSymbol(findTarget(symbol));
+                const Symbol decl = findTarget(symbol);
                 if (!decl.isNull() && !decl.isDefinition()) {
                     assert(decl.usr == symbol.usr);
                     continue;
@@ -958,9 +958,9 @@ Symbol Project::findSymbol(const Location &location, int *index) const
     return ret;
 }
 
-Map<Location, uint16_t> Project::findTargets(const Symbol &symbol) const
+Set<Symbol> Project::findTargets(const Symbol &symbol) const
 {
-    Map<Location, uint16_t> ret;
+    Set<Symbol> ret;
     if (symbol.isNull())
         return ret;
     if (symbol.isClass() && symbol.isDefinition())
@@ -982,28 +982,51 @@ Map<Location, uint16_t> Project::findTargets(const Symbol &symbol) const
             files = dependencies(symbol.location.fileId(), DependsOnArg);
         }
         // error() << files << symbol.location;
-        const Set<Symbol> symbols = findByUsr(files, symbol.usr);
+        const Set<Symbol> symbols = findByUsr(symbol.usr, files);
         for (const auto &c : symbols) {
             if (symbol.isDefinition() != c.isDefinition()) {
-                ret.insert(c.location, c.targetsValue());
+                ret.insert(c);
                 break;
             }
         }
         break; }
     default:
-        if (const auto targetsDb = openTargets(symbol.location.fileId()))
-            ret = targetsDb->value(symbol.location);
+        if (const auto targetsDb = openTargets(symbol.location.fileId())) {
+            for (const auto &usrkind : targetsDb->value(symbol.location)) {
+                ret.unite(findByUsr(usrkind.first, symbol.location.fileId()));
+            }
+        }
         break;
     }
 
     return ret;
 }
 
-Set<Symbol> Project::findByUsr(const Set<uint32_t> &files, const String &usr) const
+Set<Symbol> Project::findByUsr(const String &usr, const Set<uint32_t> &files) const
 {
     Set<Symbol> ret;
     for (uint32_t fileId : files) {
         auto usrs = openUsrs(fileId);
+        // error() << usrs << Location::path(fileId);
+        if (usrs) {
+            for (const Location &loc : usrs->value(usr)) {
+                const Symbol c = findSymbol(loc);
+                if (!c.isNull())
+                    ret.insert(c);
+            }
+        }
+    }
+    return ret;
+}
+
+Set<Symbol> Project::findByUsr(const String &usr, uint32_t fileId) const
+{
+    if (fileId)
+        return findByUsr(usr, dependencies(fileId, ArgDependsOn));
+
+    Set<Symbol> ret;
+    for (const auto &dep : mDependencies) {
+        auto usrs = openUsrs(dep.first);
         // error() << usrs << Location::path(fileId);
         if (usrs) {
             for (const Location &loc : usrs->value(usr)) {
@@ -1061,15 +1084,15 @@ Set<Symbol> Project::findCallers(const Symbol &symbol) const
     Set<Symbol> inputs;
     inputs.insert(symbol);
     if (symbol.isClass()) {
-        inputs.unite(findByUsr(dependencies(symbol.location.fileId(), ArgDependsOn), symbol.usr));
+        inputs.unite(findByUsr(symbol.usr, dependencies(symbol.location.fileId(), ArgDependsOn)));
     } else if (!symbol.isReference()) {
-        const Symbol target = findSymbol(findTarget(symbol));
+        const Symbol target = findTarget(symbol);
         if (!target.isNull())
             inputs.insert(target);
         inputs.unite(findVirtuals(symbol));
     }
     FileMapCache<Location, Symbol> symbolsCache(this, fileMapName(Symbols));
-    FileMapCache<Location, Map<Location, uint16_t> > targetsCache(this, fileMapName(Targets));
+    FileMapCache<Location, Map<String, uint16_t> > targetsCache(this, fileMapName(Targets));
     const bool isClazz = symbol.isClass();
     Set<Symbol> ret;
     for (const Symbol &input : inputs) {
@@ -1081,22 +1104,25 @@ Set<Symbol> Project::findCallers(const Symbol &symbol) const
             const int count = targets->count();
             for (int i=0; i<count; ++i) {
                 const Symbol refSymbol = findSymbol(targets->keyAt(i));
-                for (const std::pair<Location, uint16_t> &reference : targets->valueAt(i)) {
+                for (const std::pair<String, uint16_t> &usrKind : targets->valueAt(i)) {
                     // error() << "Comparing" << reference.first << targets->keyAt(i) << "with" << input.location;
-                    if (reference.first == input.location) {
-                        if (isClazz && refSymbol.kind == CXCursor_CallExpr) {
-                            continue;
-                        }
-                        if (RTags::isReference(refSymbol.kind)
-                            || (symbol.kind == CXCursor_Constructor
-                                && (refSymbol.kind == CXCursor_VarDecl || refSymbol.kind == CXCursor_FieldDecl))) {
-                            assert(!refSymbol.isNull());
-                            ret.insert(refSymbol);
-                        // } else if (!RTags::isReference(refSymbol.kind)) {
-                        //     error() << "Got refKind" << Symbol::kindSpelling(refSymbol.kind);
-                        //     printf("[%s:%d]: } else if (!RTags::isReference(reference.second)) {\n", __FILE__, __LINE__); fflush(stdout);
-                        // } else {
-                        //     printf("[%s:%d]: \n", __FILE__, __LINE__); fflush(stdout);
+                    for (const auto &ref : findByUsr(usrKind.first, refSymbol.location.fileId())) {
+                        if (ref.location == input.location) {
+                            if (isClazz && refSymbol.kind == CXCursor_CallExpr) {
+                                break;
+                            }
+                            if (RTags::isReference(refSymbol.kind)
+                                || (symbol.kind == CXCursor_Constructor
+                                    && (refSymbol.kind == CXCursor_VarDecl || refSymbol.kind == CXCursor_FieldDecl))) {
+                                assert(!refSymbol.isNull());
+                                ret.insert(refSymbol);
+                                break;
+                                // } else if (!RTags::isReference(refSymbol.kind)) {
+                                //     error() << "Got refKind" << Symbol::kindSpelling(refSymbol.kind);
+                                //     printf("[%s:%d]: } else if (!RTags::isReference(reference.second)) {\n", __FILE__, __LINE__); fflush(stdout);
+                                // } else {
+                                //     printf("[%s:%d]: \n", __FILE__, __LINE__); fflush(stdout);
+                            }
                         }
                     }
                 }
@@ -1159,11 +1185,12 @@ static inline void allImpl(const Set<Symbol> &map, const Location &loc, const st
 }
 #endif
 
+#if 0
 static void addReferences(const Symbol &symbol, Map<Location, Symbol> &symbols,
                           const Set<uint32_t> &files,
                           const std::shared_ptr<Project> &project)
 {
-    Map<uint32_t, std::shared_ptr<FileMap<Location, Map<Location, uint16_t> > > > seen;
+    Map<uint32_t, std::shared_ptr<FileMap<Location, Map<String, uint16_t> > > > seen;
     auto openDB = [&seen, &project](uint32_t fileId) {
         auto it = seen.find(fileId);
         if (it != seen.end())
@@ -1195,6 +1222,7 @@ static void addReferences(const Symbol &symbol, Map<Location, Symbol> &symbols,
         }
     }
 }
+#endif
 
 Set<Symbol> Project::findAllReferences(const Symbol &loc) const
 {

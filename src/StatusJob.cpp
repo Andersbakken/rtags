@@ -141,9 +141,11 @@ int StatusJob::execute()
             const int count = targets->count();
             for (int i=0; i<count; ++i) {
                 write<128>("  %s", targets->keyAt(i).key(keyFlags()).constData());
-                for (const auto &target : targets->valueAt(i)) {
-                    write<1024>("    %s\t\t%s", target.first.key(keyFlags()).constData(),
-                                Symbol::kindSpelling(RTags::targetsValueKind(target.second)).constData());
+                for (const auto &usr : targets->valueAt(i)) {
+                    for (const auto &t : proj->findByUsr(usr.first, dep.first)) {
+                        write<1024>("    %s\t\t%s", t.location.key(keyFlags()).constData(),
+                                    Symbol::kindSpelling(RTags::targetsValueKind(usr.second)).constData());
+                    }
                 }
                 write("------------------------");
                 if (isAborted())

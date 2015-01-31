@@ -49,12 +49,11 @@ String Symbol::toString(unsigned cursorInfoFlags, unsigned keyFlags, const std::
         if (targets.size()) {
             ret.append("Targets:\n");
             auto best = RTags::bestTarget(targets);
-            ret.append(String::format<128>("    %s\n", best.key(keyFlags).constData()));
+            ret.append(String::format<128>("    %s\n", best.location.key(keyFlags).constData()));
 
-            for (auto tit = targets.begin(); tit != targets.end(); ++tit) {
-                const Location &l = tit->first;
-                if (l != best)
-                    ret.append(String::format<128>("    %s\n", l.key(keyFlags).constData()));
+            for (const auto &tit : targets) {
+                if (tit.location != best.location)
+                    ret.append(String::format<128>("    %s\n", tit.location.key(keyFlags).constData()));
             }
         }
     }

@@ -102,9 +102,9 @@ public:
     {
         return openFileMap<Location, Symbol>(fileId, fileMapName(Symbols));
     }
-    std::shared_ptr<FileMap<Location, Map<Location, uint16_t> > > openTargets(uint32_t fileId) const
+    std::shared_ptr<FileMap<Location, Map<String, uint16_t> > > openTargets(uint32_t fileId) const
     {
-        return openFileMap<Location, Map<Location, uint16_t> >(fileId, fileMapName(Targets));
+        return openFileMap<Location, Map<String, uint16_t> >(fileId, fileMapName(Targets));
     }
     std::shared_ptr<FileMap<String, Set<Location> > > openUsrs(uint32_t fileId) const
     {
@@ -112,10 +112,10 @@ public:
     }
 
     Symbol findSymbol(const Location &location, int *index = 0) const;
-    Map<Location, uint16_t> findTargets(const Location &location) const { return findTargets(findSymbol(location)); }
-    Map<Location, uint16_t> findTargets(const Symbol &symbol) const;
-    Location findTarget(const Location &location) const { return RTags::bestTarget(findTargets(location)); }
-    Location findTarget(const Symbol &symbol) const { return RTags::bestTarget(findTargets(symbol)); }
+    Set<Symbol> findTargets(const Location &location) const { return findTargets(findSymbol(location)); }
+    Set<Symbol> findTargets(const Symbol &symbol) const;
+    Symbol findTarget(const Location &location) const { return RTags::bestTarget(findTargets(location)); }
+    Symbol findTarget(const Symbol &symbol) const { return RTags::bestTarget(findTargets(symbol)); }
     Set<Symbol> findAllReferences(const Location &location) const { return findAllReferences(findSymbol(location)); }
     Set<Symbol> findAllReferences(const Symbol &symbol) const;
     Set<Symbol> findCallers(const Location &location) const { return findCallers(findSymbol(location)); }
@@ -123,7 +123,8 @@ public:
     Set<Symbol> findVirtuals(const Location &location) const { return findVirtuals(findSymbol(location)); }
     Set<Symbol> findVirtuals(const Symbol &symbol) const;
 
-    Set<Symbol> findByUsr(const Set<uint32_t> &files, const String &usr) const;
+    Set<Symbol> findByUsr(const String &usr, const Set<uint32_t> &files) const;
+    Set<Symbol> findByUsr(const String &usr, uint32_t fileId = 0) const;
 
     Path sourceFilePath(uint32_t fileId, const String &type) const;
 

@@ -783,14 +783,16 @@ bool ClangIndexer::handleReference(const CXCursor &cursor, CXCursorKind kind,
 
     bool reffedCursorFound;
     auto reffedCursor = findSymbol(reffedLoc, &reffedCursorFound);
-    Map<Location, uint16_t> &targets = unit(location.fileId())->targets[location];
+    Map<String, uint16_t> &targets = unit(location.fileId())->targets[location];
     uint16_t refTargetValue;
     if (reffedCursorFound) {
         refTargetValue = reffedCursor.targetsValue();
     } else {
         refTargetValue = RTags::createTargetsValue(refKind, clang_isCursorDefinition(ref));
     }
-    targets[reffedLoc] = refTargetValue;
+
+    const String refUsr = RTags::eatString(clang_getCursorUSR(clang_getCanonicalCursor(ref)));
+    targets[refUsr] = refTargetValue;
     Symbol &c = unit(location)->symbols[location];
     if (cursorPtr)
         *cursorPtr = &c;
@@ -822,7 +824,7 @@ bool ClangIndexer::handleReference(const CXCursor &cursor, CXCursorKind kind,
                 best = it;
             }
         }
-        if (best != targets.end() && best->first != reffedLoc) // another target is better
+        if (best != targets.end() && best->first != refUsr) // another target is better
             return true;
     }
 
@@ -872,11 +874,21 @@ void ClangIndexer::addOverriddenCursors(const CXCursor &cursor, const Location &
         if (loc.isNull())
             continue;
 
+        auto locCursor = unit(loc)->symbols.value(loc);
+        if (locCursor.usr.isEmpty())
+            error() << "Didn't get usr" << loc;
+        // assert(!locCursor.usr.isEmpty());
+
         //error() << "adding overridden (1) " << location << " to " << o;
         const uint16_t targetsValue = RTags::createTargetsValue(overridden[i]);
-        unit(location)->targets[location][loc] = targetsValue;
+        unit(location)->targets[location][locCursor.usr] = targetsValue;
         for (const auto &l : locations) {
-            unit(loc)->targets[loc][l] = targetsValue;
+            auto lCursor = unit(l)->symbols.value(l);
+            if (lCursor.usr.isEmpty()) {
+                error() << "no usr" << l;
+            }
+            // assert(!lCursor.usr.isEmpty());
+            unit(loc)->targets[loc][lCursor.usr] = targetsValue;
         }
 
         locations.append(loc);
@@ -908,7 +920,7 @@ void ClangIndexer::handleInclude(const CXCursor &cursor, CXCursorKind kind, cons
             c.kind = cursor.kind;
             c.symbolLength = c.symbolName.size() + 2;
             c.location = location;
-            unit(location)->targets[location][refLoc] = 0; // ### what targets value to create for this?
+            unit(location)->targets[location][refLoc.path()] = 0; // ### what targets value to create for this?
             // this fails for things like:
             // # include    <foobar.h>
         }
@@ -1097,7 +1109,7 @@ bool ClangIndexer::writeFiles(const Path &root, String &error)
             error = "Failed to write symbols";
             return false;
         }
-        if (!FileMap<Location, Map<Location, uint16_t> >::write(unitRoot + "/targets", unit.second->targets)) {
+        if (!FileMap<Location, Map<String, uint16_t> >::write(unitRoot + "/targets", unit.second->targets)) {
             error = "Failed to write targets";
             return false;
         }

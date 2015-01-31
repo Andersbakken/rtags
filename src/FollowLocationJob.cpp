@@ -31,10 +31,9 @@ int FollowLocationJob::execute()
     if (symbol.isNull())
         return 1;
 
-    const Location targetLocation = project()->findTarget(symbol);
-    if (targetLocation.isNull())
+    const auto target = project()->findTarget(symbol);
+    if (target.isNull())
         return 1;
-    const Symbol target = project()->findSymbol(targetLocation);
 
     if (symbol.usr == target.usr) {
         write(target.location);
@@ -42,9 +41,9 @@ int FollowLocationJob::execute()
     }
 
     if (queryFlags() & QueryMessage::DeclarationOnly ? target.isDefinition() : !target.isDefinition()) {
-        const Location otherLoc = project()->findTarget(target.location);
-        if (!otherLoc.isNull()) {
-            write(otherLoc);
+        const auto other = project()->findTarget(target);
+        if (!other.isNull()) {
+            write(other.location);
             return 0;
         }
     }

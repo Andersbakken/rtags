@@ -65,20 +65,18 @@ public:
         const size_t fs = path.fileSize();
         if (!fs)
             return false;
-        eintrwrap(mFD, open(path.constData(), O_RDONLY));
+        mFD = open(path, O_RDONLY);
         if (mFD == -1)
             return false;
-        int ret;
-        eintrwrap(ret, flock(mFD, LOCK_EX));
 
         const char *pointer = reinterpret_cast<const char*>(mmap(0, fs, PROT_READ, MAP_PRIVATE, mFD, 0));
         // error() << errno;//  << mPointer;
         if (pointer == MAP_FAILED) {
-            eintrwrap(ret, flock(mFD, LOCK_UN));
-            close(mFD);
+            close(path, mFD);
             mFD = -1;
             return false;
         }
+        mPath = path;
 
         init(pointer, fs);
         return true;
@@ -89,9 +87,7 @@ public:
         if (mFD != -1) {
             assert(mPointer);
             munmap(const_cast<char*>(mPointer), mSize);
-            int ret;
-            eintrwrap(ret, flock(mFD, LOCK_UN));
-            eintrwrap(ret, close(mFD));
+            close(mPath, mFD);
         }
     }
 
@@ -230,27 +226,52 @@ public:
 
     static bool write(const Path &path, const Map<Key, Value> &map)
     {
-        FILE *f = fopen(path.constData(), "w+");
-        if (!f && Path::mkdir(path.parentDir(), Path::Recursive)) {
-            f = fopen(path.constData(), "w+");
-        }
-        if (!f)
-            return false;
-        int err;
-        const int fd = fileno(f);
-        eintrwrap(err, flock(fd, LOCK_EX));
-
         const String data = encode(map);
-        const bool ret = fwrite(data.constData(), data.size(), 1, f);
-        if (ret)
-            eintrwrap(err, ftruncate(fd, data.size()));
-        eintrwrap(err, flock(fd, LOCK_UN));
-        fclose(f);
+        int fd = open(path, O_WRONLY);
+        if (fd == -1)
+            return false;
+
+        const bool ret = ::write(fd, data.constData(), data.size()) == data.size();
+        close(path, fd);
         if (!ret)
             unlink(data.constData());
         return ret;
     }
 private:
+    static Hash<Path, int> &lockMap()
+    {
+        static Hash<Path, int> sFileLocks;
+        return sFileLocks;
+    }
+    static int open(const Path &path, int mode)
+    {
+        int fd;
+        eintrwrap(fd, open(path.constData(), mode));
+        if (fd == -1 && Path::mkdir(path.parentDir(), Path::Recursive)) {
+            eintrwrap(fd, open(path.constData(), mode));
+        }
+        if (fd != -1) {
+            auto locks = lockMap();
+            int &ref = lockMap()[path];
+            if (!ref++) {
+                int err;
+                eintrwrap(err, flock(fd, LOCK_EX));
+            }
+        }
+        return fd;
+    }
+
+    static void close(const Path &path, int fd)
+    {
+        assert(fd != -1);
+        auto locks = lockMap();
+        auto it = locks.find(path);
+        assert(it != locks.end());
+        if (!--it->second)
+            locks.erase(it);
+        ::close(fd);
+    }
+
     const char *dataSegment() const { return mPointer + sizeof(size_t) + sizeof(size_t); }
 
     template <typename T>
@@ -281,6 +302,7 @@ private:
     size_t mCount;
     size_t mKeySize;
     int mFD;
+    Path mPath;
 };
 
 #endif

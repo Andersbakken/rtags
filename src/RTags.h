@@ -17,14 +17,15 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 #define RTags_h
 
 #include "rct-config.h"
-#include <rct/String.h>
-#include "Location.h"
-#include <rct/Log.h>
 #include "FixIt.h"
-#include <rct/Path.h>
+#include "Location.h"
 #include "Source.h"
+#include "Symbol.h"
 #include <assert.h>
 #include <getopt.h>
+#include <rct/Log.h>
+#include <rct/Path.h>
+#include <rct/String.h>
 #include <stdio.h>
 #include <typeinfo>
 
@@ -236,14 +237,14 @@ inline int targetRank(CXCursorKind kind)
         return 2;
     }
 }
-inline Location bestTarget(const Map<Location, uint16_t> &targets)
+inline Symbol bestTarget(const Set<Symbol> &targets)
 {
-    Location ret;
+    Symbol ret;
     int bestRank = -1;
     for (auto t : targets) {
-        const int rank = targetRank(targetsValueKind(t.second));
-        if (rank > bestRank || (rank == bestRank && targetsValueIsDefinition(t.second))) {
-            ret = t.first;
+        const int rank = targetRank(t.kind);
+        if (rank > bestRank || (rank == bestRank && t.isDefinition())) {
+            ret = t;
             bestRank = rank;
         }
     }

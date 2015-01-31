@@ -18,6 +18,7 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 
 #include <stdint.h>
 #include <rct/String.h>
+#include <rct/Serializer.h>
 
 struct FixIt
 {

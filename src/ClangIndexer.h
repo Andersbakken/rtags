@@ -136,7 +136,7 @@ private:
 
     struct Unit {
         Map<Location, Symbol> symbols;
-        Map<Location, Map<Location, uint16_t> > targets;
+        Map<Location, Map<String, uint16_t> > targets;
         Map<String, Set<Location> > usrs;
         Map<String, Set<Location> > symbolNames;
     };
