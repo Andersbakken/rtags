@@ -31,91 +31,90 @@ ReferencesJob::ReferencesJob(const String &sym, const std::shared_ptr<QueryMessa
 
 int ReferencesJob::execute()
 {
-#if 0
     std::shared_ptr<Project> proj = project();
-    Location startLocation;
+    if (!proj)
+        return 1;
     Map<Location, std::pair<bool, uint16_t> > references;
-    if (proj) {
-        if (!symbolName.isEmpty())
-            locations = proj->locations(symbolName);
-        for (Set<Location>::const_iterator it = locations.begin(); it != locations.end(); ++it) {
-            Location pos;
-            SymbolMap::const_iterator found;
-            found = RTags::findSymbolInfo(map, *it);
-            if (found == map.end())
-                continue;
-            pos = found->first;
-            if (startLocation.isNull())
-                startLocation = pos;
-            std::shared_ptr<SymbolInfo> cursorInfo = found->second;
-            if (!cursorInfo)
-                continue;
-            if (RTags::isReference(cursorInfo->kind)) {
-                cursorInfo = cursorInfo->bestTarget(map, &pos);
-                if (!cursorInfo)
-                    continue;
+    if (!symbolName.isEmpty())
+        locations = proj->locations(symbolName);
+    Location startLocation;
+    for (const auto it = locations.begin(); it != locations.end(); ++it) {
+        const Location pos = it->first;
+        if (it == locations.begin())
+            startLocation = pos;
+        Symbol cursor = findSymbol(pos);
+        if (cursor.isNull())
+            continue;
+        if (cursor.isReference())
+            cursor = bestTarget(cursor);
+        if (cursor.isNull())
+            continue;
+        if (queryFlags() & QueryMessage::AllReferences) {
+#if 0
+            const SymbolMap all = cursorInfo->allReferences(pos, map);
+
+            bool classRename = false;
+            switch (cursorInfo->kind) {
+            case CXCursor_Constructor:
+            case CXCursor_Destructor:
+                classRename = true;
+                break;
+            default:
+                classRename = cursorInfo->isClass();
+                break;
             }
-            if (queryFlags() & QueryMessage::AllReferences) {
-                const SymbolMap all = cursorInfo->allReferences(pos, map);
 
-                bool classRename = false;
-                switch (cursorInfo->kind) {
-                case CXCursor_Constructor:
-                case CXCursor_Destructor:
-                    classRename = true;
-                    break;
-                default:
-                    classRename = cursorInfo->isClass();
-                    break;
-                }
-
-                for (SymbolMap::const_iterator a = all.begin(); a != all.end(); ++a) {
-                    if (!classRename) {
+            for (SymbolMap::const_iterator a = all.begin(); a != all.end(); ++a) {
+                if (!classRename) {
+                    references[a->first] = std::make_pair(a->second->isDefinition(), a->second->kind);
+                } else {
+                    enum State {
+                        FoundConstructor = 0x1,
+                        FoundClass = 0x2,
+                        FoundReferences = 0x4
+                    };
+                    unsigned state = 0;
+                    const SymbolMap targets = a->second->targetInfos(map);
+                    for (SymbolMap::const_iterator t = targets.begin(); t != targets.end(); ++t) {
+                        if (t->second->kind != a->second->kind)
+                            state |= FoundReferences;
+                        if (t->second->kind == CXCursor_Constructor) {
+                            state |= FoundConstructor;
+                        } else if (t->second->isClass()) {
+                            state |= FoundClass;
+                        }
+                    }
+                    if ((state & (FoundConstructor|FoundClass)) != FoundConstructor || !(state & FoundReferences)) {
                         references[a->first] = std::make_pair(a->second->isDefinition(), a->second->kind);
-                    } else {
-                        enum State {
-                            FoundConstructor = 0x1,
-                            FoundClass = 0x2,
-                            FoundReferences = 0x4
-                        };
-                        unsigned state = 0;
-                        const SymbolMap targets = a->second->targetInfos(map);
-                        for (SymbolMap::const_iterator t = targets.begin(); t != targets.end(); ++t) {
-                            if (t->second->kind != a->second->kind)
-                                state |= FoundReferences;
-                            if (t->second->kind == CXCursor_Constructor) {
-                                state |= FoundConstructor;
-                            } else if (t->second->isClass()) {
-                                state |= FoundClass;
-                            }
-                        }
-                        if ((state & (FoundConstructor|FoundClass)) != FoundConstructor || !(state & FoundReferences)) {
-                            references[a->first] = std::make_pair(a->second->isDefinition(), a->second->kind);
-                        }
                     }
                 }
-            } else if (queryFlags() & QueryMessage::FindVirtuals) {
-                const SymbolMap virtuals = cursorInfo->virtuals(pos, map);
-                const bool declarationOnly = queryFlags() & QueryMessage::DeclarationOnly;
-                for (SymbolMap::const_iterator v = virtuals.begin(); v != virtuals.end(); ++v) {
-                    const bool def = v->second->isDefinition();
-                    if (declarationOnly && def) {
-                        const std::shared_ptr<SymbolInfo> decl = v->second->bestTarget(map);
-                        if (decl && !decl->isNull())
-                            continue;
-                    }
-                    references[v->first] = std::make_pair(def, v->second->kind);
-                }
-                startLocation.clear();
-                // since one normally calls this on a declaration it kinda
-                // doesn't work that well do the clever offset thing
-                // underneath
-            } else {
-                const SymbolMap callers = cursorInfo->callers(pos, map);
-                for (SymbolMap::const_iterator c = callers.begin(); c != callers.end(); ++c) {
-                    references[c->first] = std::make_pair(false, CXCursor_FirstInvalid);
-                    // For find callers we don't want to prefer definitions or do ranks on symbols
-                }
+            }
+#endif
+        } else if (queryFlags() & QueryMessage::FindVirtuals) {
+            const Set<Symbol> virtuals = proj->findVirtuals(cursor);
+            const bool declarationOnly = queryFlags() & QueryMessage::DeclarationOnly;
+            for (const auto &symbol : virtuals) {
+                const bool def = symbol.isDefinition();
+                if (!declarationOnly || !def)
+                    references.insert(symbol);
+            }
+            startLocation.clear();
+            // since one normally calls this on a declaration it kinda
+            // doesn't work that well to do the clever offset thing
+            // underneath
+        } else {
+            const Set<Symbol> symbols = proj->findCallers(pos);
+            const bool declarationOnly = queryFlags() & QueryMessage::DeclarationOnly;
+            for (const auto &symbol : symbols) {
+                const bool def = symbol.isDefinition();
+                if (!declarationOnly || !def)
+                    references[symbol.locations] = std::make_pair(false, );
+            }
+
+            const SymbolMap callers = cursorInfo->callers(pos, map);
+            for (SymbolMap::const_iterator c = callers.begin(); c != callers.end(); ++c) {
+                references[c->first] = std::make_pair(false, CXCursor_FirstInvalid);
+                // For find callers we don't want to prefer definitions or do ranks on symbols
             }
         }
     }
@@ -160,5 +159,4 @@ int ReferencesJob::execute()
             return 0;
     }
     return 1;
-#endif
 }
