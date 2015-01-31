@@ -28,6 +28,8 @@ QueryJob::QueryJob(const std::shared_ptr<QueryMessage> &query, unsigned jobFlags
     : mAborted(false), mLinesWritten(0), mQueryMessage(query), mJobFlags(jobFlags), mProject(proj), mPathFilters(0),
       mPathFiltersRegExp(0), mConnection(0)
 {
+    if (mProject)
+        mProject->beginScope();
     assert(query);
     if (query->flags() & QueryMessage::SilentQuery)
         setJobFlag(QuietJob);
@@ -50,10 +52,14 @@ QueryJob::QueryJob(unsigned jobFlags, const std::shared_ptr<Project> &proj)
     : mAborted(false), mLinesWritten(0), mJobFlags(jobFlags), mProject(proj), mPathFilters(0),
       mPathFiltersRegExp(0), mConnection(0)
 {
+    if (mProject)
+        mProject->beginScope();
 }
 
 QueryJob::~QueryJob()
 {
+    if (mProject)
+        mProject->endScope();
     delete mPathFilters;
     delete mPathFiltersRegExp;
 }

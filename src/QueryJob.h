@@ -67,7 +67,7 @@ public:
     unsigned keyFlags() const { return QueryMessage::keyFlags(queryFlags()); }
     bool filter(const String &val) const;
     Signal<std::function<void(const String &)> > &output() { return mOutput; }
-    std::shared_ptr<Project> project() const { return mProject.lock(); }
+    std::shared_ptr<Project> project() const { return mProject; }
     virtual int execute() = 0;
     int run(Connection *connection = 0);
     bool isAborted() const { std::lock_guard<std::mutex> lock(mMutex); return mAborted; }
@@ -83,7 +83,7 @@ private:
     std::shared_ptr<QueryMessage> mQueryMessage;
     unsigned mJobFlags;
     Signal<std::function<void(const String &)> > mOutput;
-    std::weak_ptr<Project> mProject;
+    std::shared_ptr<Project> mProject;
     List<String> *mPathFilters;
     List<RegExp> *mPathFiltersRegExp;
     String mBuffer;
