@@ -810,7 +810,7 @@ static inline bool matchSymbolName(const String &needle, const String &haystack,
     return false;
 }
 
-Set<Location> Project::locations(const String &symbolName, uint32_t fileId) const
+Set<Location> Project::locations(const String &symbolName, uint32_t fileId)
 {
     Set<Location> ret;
     auto processCursor = [&ret, &symbolName, this](uint32_t fileId) {
@@ -853,7 +853,7 @@ Set<Location> Project::locations(const String &symbolName, uint32_t fileId) cons
     return ret;
 }
 
-List<RTags::SortedSymbol> Project::sort(const Set<Location> &locations, unsigned int flags) const
+List<RTags::SortedSymbol> Project::sort(const Set<Location> &locations, unsigned int flags)
 {
     List<RTags::SortedSymbol> sorted;
     sorted.reserve(locations.size());
@@ -919,7 +919,7 @@ Path Project::sourceFilePath(uint32_t fileId, const String &type) const
     return RTags::encodeSourceFilePath(Server::instance()->options().dataDir, mPath, fileId) + type;
 }
 
-Symbol Project::findSymbol(const Location &location, int *index) const
+Symbol Project::findSymbol(const Location &location, int *index)
 {
     if (index)
         *index = -1;
@@ -958,7 +958,7 @@ Symbol Project::findSymbol(const Location &location, int *index) const
     return ret;
 }
 
-Set<Symbol> Project::findTargets(const Symbol &symbol) const
+Set<Symbol> Project::findTargets(const Symbol &symbol)
 {
     Set<Symbol> ret;
     if (symbol.isNull())
@@ -1002,7 +1002,7 @@ Set<Symbol> Project::findTargets(const Symbol &symbol) const
     return ret;
 }
 
-Set<Symbol> Project::findByUsr(const String &usr, const Set<uint32_t> &files) const
+Set<Symbol> Project::findByUsr(const String &usr, const Set<uint32_t> &files)
 {
     Set<Symbol> ret;
     for (uint32_t fileId : files) {
@@ -1019,7 +1019,7 @@ Set<Symbol> Project::findByUsr(const String &usr, const Set<uint32_t> &files) co
     return ret;
 }
 
-Set<Symbol> Project::findByUsr(const String &usr, uint32_t fileId) const
+Set<Symbol> Project::findByUsr(const String &usr, uint32_t fileId)
 {
     if (fileId)
         return findByUsr(usr, dependencies(fileId, ArgDependsOn));
@@ -1040,7 +1040,7 @@ Set<Symbol> Project::findByUsr(const String &usr, uint32_t fileId) const
 }
 
 #if 0
-Set<Symbol> CursorInfo::referenceInfos(const Set<Symbol> &map) const
+Set<Symbol> CursorInfo::referenceInfos(const Set<Symbol> &map)
 {
     Set<Symbol> ret;
     for (auto it = references.begin(); it != references.end(); ++it) {
@@ -1053,30 +1053,7 @@ Set<Symbol> CursorInfo::referenceInfos(const Set<Symbol> &map) const
 }
 #endif
 
-template <typename Key, typename Value>
-class FileMapCache
-{
-public:
-    FileMapCache(const Project *p, const String &t)
-        : project(p), type(t)
-    {}
-
-    std::shared_ptr<FileMap<Key, Value> > open(uint32_t fileId)
-    {
-        if (cache.contains(fileId))
-            return cache[fileId];
-        auto ret = project->openFileMap<Key, Value>(fileId, type);
-        cache[fileId] = ret;
-        return ret;
-    }
-
-    Map<uint32_t, std::shared_ptr<FileMap<Key, Value> > > cache;
-
-    const Project *project;
-    const String type;
-};
-
-Set<Symbol> Project::findCallers(const Symbol &symbol) const
+Set<Symbol> Project::findCallers(const Symbol &symbol)
 {
     if (symbol.isNull())
         return Set<Symbol>();
@@ -1091,14 +1068,12 @@ Set<Symbol> Project::findCallers(const Symbol &symbol) const
             inputs.insert(target);
         inputs.unite(findVirtuals(symbol));
     }
-    FileMapCache<Location, Symbol> symbolsCache(this, fileMapName(Symbols));
-    FileMapCache<Location, Map<String, uint16_t> > targetsCache(this, fileMapName(Targets));
     const bool isClazz = symbol.isClass();
     Set<Symbol> ret;
     for (const Symbol &input : inputs) {
         for (const auto &dep : dependencies(input.location.fileId(), DependsOnArg)) {
             // error() << "Looking at file" << Location::path(dep) << "for input" << input.location;
-            auto targets = targetsCache.open(dep);
+            auto targets = openTargets(dep);
             if (!targets)
                 continue;
             const int count = targets->count();
@@ -1224,7 +1199,7 @@ static void addReferences(const Symbol &symbol, Map<Location, Symbol> &symbols,
 }
 #endif
 
-Set<Symbol> Project::findAllReferences(const Symbol &loc) const
+Set<Symbol> Project::findAllReferences(const Symbol &loc)
 {
     // Set<Symbol> ret;
     // Mode mode = NormalRefs;
@@ -1248,7 +1223,7 @@ Set<Symbol> Project::findAllReferences(const Symbol &loc) const
 #if 0
 #endif
 
-Set<Symbol> Project::findVirtuals(const Symbol &symbol) const
+Set<Symbol> Project::findVirtuals(const Symbol &symbol)
 {
     // Set<Symbol> ret;
     // ret[loc] = copy();

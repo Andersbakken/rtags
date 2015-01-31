@@ -61,16 +61,21 @@ public:
 
     bool match(const Match &match, bool *indexed = 0) const;
 
-    Set<Location> locations(const String &symbolName, uint32_t fileId = 0) const;
+    Set<Location> locations(const String &symbolName, uint32_t fileId = 0);
 
     template <typename Key, typename Value>
-    std::shared_ptr<FileMap<Key, Value> > openFileMap(uint32_t fileId, const String &type) const
+    std::shared_ptr<FileMap<Key, Value> > openFileMap(uint32_t fileId, const String &type,
+                                                      Hash<uint32_t, std::shared_ptr<FileMap<Key, Value> > > &cache)
     {
+        auto it = cache.find(fileId);
+        if (it != cache.end())
+            return it->second;
         const Path path = sourceFilePath(fileId, type);
-        std::shared_ptr<FileMap<Key, Value> > ret(new FileMap<Key, Value>);
-        if (!ret->load(path))
-            ret.reset();
-        return ret;
+        auto &ref = cache[fileId];
+        ref.reset(new FileMap<Key, Value>);
+        if (!ref->load(path))
+            ref.reset();
+        return ref;
     }
 
     enum FileMapType {
@@ -94,37 +99,45 @@ public:
         return String();
     }
 
-    std::shared_ptr<FileMap<String, Set<Location> > > openSymbolNames(uint32_t fileId) const
+    std::shared_ptr<FileMap<String, Set<Location> > > openSymbolNames(uint32_t fileId)
     {
-        return openFileMap<String, Set<Location> >(fileId, fileMapName(SymbolNames));
+        assert(!mFileMapScopes.isEmpty());
+        return openFileMap<String, Set<Location> >(fileId, fileMapName(SymbolNames),
+                                                   mFileMapScopes.last()->symbolNames);
     }
-    std::shared_ptr<FileMap<Location, Symbol> > openSymbols(uint32_t fileId) const
+    std::shared_ptr<FileMap<Location, Symbol> > openSymbols(uint32_t fileId)
     {
-        return openFileMap<Location, Symbol>(fileId, fileMapName(Symbols));
+        assert(!mFileMapScopes.isEmpty());
+        return openFileMap<Location, Symbol>(fileId, fileMapName(Symbols),
+                                             mFileMapScopes.last()->symbols);
     }
-    std::shared_ptr<FileMap<Location, Map<String, uint16_t> > > openTargets(uint32_t fileId) const
+    std::shared_ptr<FileMap<Location, Map<String, uint16_t> > > openTargets(uint32_t fileId)
     {
-        return openFileMap<Location, Map<String, uint16_t> >(fileId, fileMapName(Targets));
+        assert(!mFileMapScopes.isEmpty());
+        return openFileMap<Location, Map<String, uint16_t> >(fileId, fileMapName(Targets),
+                                                             mFileMapScopes.last()->targets);
     }
-    std::shared_ptr<FileMap<String, Set<Location> > > openUsrs(uint32_t fileId) const
+    std::shared_ptr<FileMap<String, Set<Location> > > openUsrs(uint32_t fileId)
     {
-        return openFileMap<String, Set<Location> >(fileId, fileMapName(Usrs));
+        assert(!mFileMapScopes.isEmpty());
+        return openFileMap<String, Set<Location> >(fileId, fileMapName(Usrs),
+                                                   mFileMapScopes.last()->usrs);
     }
 
-    Symbol findSymbol(const Location &location, int *index = 0) const;
-    Set<Symbol> findTargets(const Location &location) const { return findTargets(findSymbol(location)); }
-    Set<Symbol> findTargets(const Symbol &symbol) const;
-    Symbol findTarget(const Location &location) const { return RTags::bestTarget(findTargets(location)); }
-    Symbol findTarget(const Symbol &symbol) const { return RTags::bestTarget(findTargets(symbol)); }
-    Set<Symbol> findAllReferences(const Location &location) const { return findAllReferences(findSymbol(location)); }
-    Set<Symbol> findAllReferences(const Symbol &symbol) const;
-    Set<Symbol> findCallers(const Location &location) const { return findCallers(findSymbol(location)); }
-    Set<Symbol> findCallers(const Symbol &symbol) const;
-    Set<Symbol> findVirtuals(const Location &location) const { return findVirtuals(findSymbol(location)); }
-    Set<Symbol> findVirtuals(const Symbol &symbol) const;
+    Symbol findSymbol(const Location &location, int *index = 0);
+    Set<Symbol> findTargets(const Location &location) { return findTargets(findSymbol(location)); }
+    Set<Symbol> findTargets(const Symbol &symbol);
+    Symbol findTarget(const Location &location) { return RTags::bestTarget(findTargets(location)); }
+    Symbol findTarget(const Symbol &symbol) { return RTags::bestTarget(findTargets(symbol)); }
+    Set<Symbol> findAllReferences(const Location &location) { return findAllReferences(findSymbol(location)); }
+    Set<Symbol> findAllReferences(const Symbol &symbol);
+    Set<Symbol> findCallers(const Location &location) { return findCallers(findSymbol(location)); }
+    Set<Symbol> findCallers(const Symbol &symbol);
+    Set<Symbol> findVirtuals(const Location &location) { return findVirtuals(findSymbol(location)); }
+    Set<Symbol> findVirtuals(const Symbol &symbol);
 
-    Set<Symbol> findByUsr(const String &usr, const Set<uint32_t> &files) const;
-    Set<Symbol> findByUsr(const String &usr, uint32_t fileId = 0) const;
+    Set<Symbol> findByUsr(const String &usr, const Set<uint32_t> &files);
+    Set<Symbol> findByUsr(const String &usr, uint32_t fileId = 0);
 
     Path sourceFilePath(uint32_t fileId, const String &type) const;
 
@@ -133,7 +146,7 @@ public:
         Sort_DeclarationOnly = 0x1,
         Sort_Reverse = 0x2
     };
-    List<RTags::SortedSymbol> sort(const Set<Location> &locations, unsigned int flags = Sort_None) const;
+    List<RTags::SortedSymbol> sort(const Set<Location> &locations, unsigned int flags = Sort_None);
 
     const FilesMap &files() const { return mFiles; }
     FilesMap &files() { return mFiles; }
@@ -175,6 +188,9 @@ public:
         std::lock_guard<std::mutex> lock(mMutex);
         serializer << mVisitedFiles;
     }
+
+    void beginScope() { mFileMapScopes.append(std::shared_ptr<FileMapScope>(new FileMapScope)); }
+    void endScope() { mFileMapScopes.removeLast(); }
 private:
     void removeDependencies(uint32_t fileId);
     void watch(const Path &file);
@@ -184,6 +200,15 @@ private:
     int startDirtyJobs(Dirty *dirty, const UnsavedFiles &unsavedFiles = UnsavedFiles());
     bool save();
     void onDirtyTimeout(Timer *);
+
+    struct FileMapScope {
+        Hash<uint32_t, std::shared_ptr<FileMap<String, Set<Location> > > > symbolNames;
+        Hash<uint32_t, std::shared_ptr<FileMap<Location, Symbol> > > symbols;
+        Hash<uint32_t, std::shared_ptr<FileMap<Location, Map<String, uint16_t> > > > targets;
+        Hash<uint32_t, std::shared_ptr<FileMap<String, Set<Location> > > > usrs;
+    };
+
+    List<std::shared_ptr<FileMapScope> > mFileMapScopes;
 
     const Path mPath;
     Path mProjectFilePath;
