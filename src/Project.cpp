@@ -1010,13 +1010,17 @@ Set<Symbol> Project::findByUsr(const String &usr, const Set<uint32_t> &files)
     Set<Symbol> ret;
     for (uint32_t fileId : files) {
         auto usrs = openUsrs(fileId);
-        // error() << usrs << Location::path(fileId);
+        // error() << usrs << Location::path(fileId) << usr;
         if (usrs) {
             for (const Location &loc : usrs->value(usr)) {
+                // error() << "got a loc" << loc;
                 const Symbol c = findSymbol(loc);
                 if (!c.isNull())
                     ret.insert(c);
             }
+            // for (int i=0; i<usrs->count(); ++i) {
+            //     error() << i << usrs->count() << usrs->keyAt(i) << usrs->valueAt(i);
+            // }
         }
     }
     return ret;
@@ -1030,7 +1034,6 @@ Set<Symbol> Project::findByUsr(const String &usr, uint32_t fileId, DependencyMod
     Set<Symbol> ret;
     for (const auto &dep : mDependencies) {
         auto usrs = openUsrs(dep.first);
-        // error() << usrs << Location::path(fileId);
         if (usrs) {
             for (const Location &loc : usrs->value(usr)) {
                 const Symbol c = findSymbol(loc);
@@ -1054,7 +1057,7 @@ static Set<Symbol> findRefererences(const Symbol &in,
         s = in;
     }
 
-    error() << s.location;
+    // error() << "findRefererences" << s.location;
     switch (s.kind) {
     case CXCursor_CXXMethod:
         inputs = project->findVirtuals(s);
@@ -1098,21 +1101,10 @@ static Set<Symbol> findRefererences(const Symbol &in,
                 const Symbol refSymbol = project->findSymbol(targets->keyAt(i));
                 for (const std::pair<String, uint16_t> &usrKind : targets->valueAt(i)) {
                     // error() << "Comparing" << reference.first << targets->keyAt(i) << "with" << input.location;
-                    bool done = false;
-                    for (const auto &ref : project->findByUsr(usrKind.first, refSymbol.location.fileId(), depMode)) {
-                        if (ref.location == input.location) {
-                            // if (isClazz && refSymbol.kind == CXCursor_CallExpr) {
-                            //     break;
-                            // }
-                            if (filter(input, refSymbol)) {
-                                ret.insert(refSymbol);
-                                done = true;
-                                break;
-                            }
-                        }
-                    }
-                    if (done)
+                    if (usrKind.first == input.usr && filter(input, refSymbol)) {
+                        ret.insert(refSymbol);
                         break;
+                    }
                 }
             }
         }
