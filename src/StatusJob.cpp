@@ -142,9 +142,10 @@ int StatusJob::execute()
             for (int i=0; i<count; ++i) {
                 write<128>("  %s", targets->keyAt(i).key(keyFlags()).constData());
                 for (const auto &usr : targets->valueAt(i)) {
+                    write<1024>("    %s\t\t%s", usr.first.constData(),
+                                Symbol::kindSpelling(RTags::targetsValueKind(usr.second)).constData());
                     for (const auto &t : proj->findByUsr(usr.first, dep.first, Project::ArgDependsOn)) {
-                        write<1024>("    %s\t\t%s", t.location.key(keyFlags()).constData(),
-                                    Symbol::kindSpelling(RTags::targetsValueKind(usr.second)).constData());
+                        write<1024>("      %s", t.location.key(keyFlags()).constData());
                     }
                 }
                 write("------------------------");

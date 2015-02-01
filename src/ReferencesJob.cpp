@@ -59,47 +59,8 @@ int ReferencesJob::execute()
                     references[symbol.location] = std::make_pair(def, symbol.kind);
                 }
             }
-#if 0
-            const SymbolMap all = cursorInfo->allReferences(pos, map);
-
-            bool classRename = false;
-            switch (cursorInfo->kind) {
-            case CXCursor_Constructor:
-            case CXCursor_Destructor:
-                classRename = true;
-                break;
-            default:
-                classRename = cursorInfo->isClass();
-                break;
-            }
-
-            for (SymbolMap::const_iterator a = all.begin(); a != all.end(); ++a) {
-                if (!classRename) {
-                    references[a->first] = std::make_pair(a->second->isDefinition(), a->second->kind);
-                } else {
-                    enum State {
-                        FoundConstructor = 0x1,
-                        FoundClass = 0x2,
-                        FoundReferences = 0x4
-                    };
-                    unsigned state = 0;
-                    const SymbolMap targets = a->second->targetInfos(map);
-                    for (SymbolMap::const_iterator t = targets.begin(); t != targets.end(); ++t) {
-                        if (t->second->kind != a->second->kind)
-                            state |= FoundReferences;
-                        if (t->second->kind == CXCursor_Constructor) {
-                            state |= FoundConstructor;
-                        } else if (t->second->isClass()) {
-                            state |= FoundClass;
-                        }
-                    }
-                    if ((state & (FoundConstructor|FoundClass)) != FoundConstructor || !(state & FoundReferences)) {
-                        references[a->first] = std::make_pair(a->second->isDefinition(), a->second->kind);
-                    }
-                }
-            }
-#endif
         } else if (queryFlags() & QueryMessage::FindVirtuals) {
+            printf("[%s:%d]: } else if (queryFlags() & QueryMessage::FindVirtuals) {\n", __FILE__, __LINE__); fflush(stdout);
             const Set<Symbol> virtuals = proj->findVirtuals(cursor);
             const bool declarationOnly = queryFlags() & QueryMessage::DeclarationOnly;
             for (const auto &symbol : virtuals) {

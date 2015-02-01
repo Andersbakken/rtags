@@ -73,7 +73,7 @@ String Symbol::toString(unsigned cursorInfoFlags, unsigned keyFlags, const std::
 
 String Symbol::kindSpelling(uint16_t kind)
 {
-    return kind ? RTags::eatString(clang_getCursorKindSpelling(static_cast<CXCursorKind>(kind))) : String();
+    return kind ? RTags::eatString(clang_getCursorKindSpelling(static_cast<CXCursorKind>(kind))) : String("<none>");
 }
 
 String Symbol::displayName() const

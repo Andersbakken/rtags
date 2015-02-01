@@ -1045,10 +1045,39 @@ Set<Symbol> Project::findByUsr(const String &usr, uint32_t fileId, DependencyMod
     return ret;
 }
 
+static Set<Symbol> findRefererences(const Set<Symbol> &inputs,
+                                    const std::shared_ptr<Project> &project,
+                                    std::function<bool(const Symbol &, const Symbol &, Set<Symbol> &)> filter)
+{
+
+    Set<Symbol> ret;
+    // const bool isClazz = s.isClass();
+    for (const Symbol &input : inputs) {
+        for (const auto &dep : project->dependencies(input.location.fileId(), Project::DependsOnArg)) {
+            // error() << "Looking at file" << Location::path(dep) << "for input" << input.location;
+            auto targets = project->openTargets(dep);
+            if (targets) {
+                const int count = targets->count();
+                for (int i=0; i<count; ++i) {
+                    const Symbol refSymbol = project->findSymbol(targets->keyAt(i));
+                    for (const std::pair<String, uint16_t> &usrKind : targets->valueAt(i)) {
+                        warning() << "Comparing" << usrKind.first << "with" << input.usr << "for" << input.location;
+                        if (usrKind.first == input.usr && filter(input, refSymbol, ret)) {
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+    }
+    return ret;
+}
+
 static Set<Symbol> findRefererences(const Symbol &in,
                                     const std::shared_ptr<Project> &project,
-                                    std::function<bool(const Symbol &, const Symbol &)> filter)
+                                    std::function<bool(const Symbol &, const Symbol &, Set<Symbol> &)> filter)
 {
+    error() << "Calling findRefererences" << in.location;
     Set<Symbol> inputs;
     Symbol s;
     if (in.isReference()) {
@@ -1084,44 +1113,17 @@ static Set<Symbol> findRefererences(const Symbol &in,
     case CXCursor_FirstInvalid:
         return Set<Symbol>();
     }
-
-    assert(!s.isNull());
-
-    Set<Symbol> ret;
-    // const bool isClazz = s.isClass();
-    Project::DependencyMode depMode = Project::DependsOnArg;
-    for (const Symbol &input : inputs) {
-        for (const auto &dep : project->dependencies(input.location.fileId(), depMode)) {
-            warning() << "Looking at file" << Location::path(dep) << "for input" << input.location;
-            auto targets = project->openTargets(dep);
-            if (targets) {
-                const int count = targets->count();
-                for (int i=0; i<count; ++i) {
-                    const Symbol refSymbol = project->findSymbol(targets->keyAt(i));
-                    for (const std::pair<String, uint16_t> &usrKind : targets->valueAt(i)) {
-                        warning() << "Comparing" << usrKind.first << "with" << input.usr << "for" << input.location;
-                        if (usrKind.first == input.usr && filter(input, refSymbol)) {
-                            ret.insert(refSymbol);
-                            break;
-                        }
-                    }
-                }
-            }
-        }
-    }
-    return ret;
+    return findRefererences(inputs, project, filter);
 }
+
 
 Set<Symbol> Project::findCallers(const Symbol &symbol)
 {
     const bool isClazz = symbol.isClass();
-    return ::findRefererences(symbol, shared_from_this(), [isClazz](const Symbol &input, const Symbol &ref) {
-            // if (ref.location == inputLocation) {
-            //     if (isClazz && refSymbol.kind == CXCursor_CallExpr) {
-            //         break;
-            //     }
+    return ::findRefererences(symbol, shared_from_this(), [isClazz](const Symbol &input, const Symbol &ref, Set<Symbol> &refs) {
             if (RTags::isReference(ref.kind)
                 || (input.kind == CXCursor_Constructor && (ref.kind == CXCursor_VarDecl || ref.kind == CXCursor_FieldDecl))) {
+                refs.insert(ref);
                 return true;
             }
             return false;
@@ -1130,44 +1132,23 @@ Set<Symbol> Project::findCallers(const Symbol &symbol)
 
 Set<Symbol> Project::findAllReferences(const Symbol &symbol)
 {
-    printf("[%s:%d]: Set<Symbol> Project::findAllReferences(const Symbol &symbol)\n", __FILE__, __LINE__); fflush(stdout);
-    return ::findRefererences(symbol, shared_from_this(), [](const Symbol &input, const Symbol &ref) {
-            return true;
-            // if (ref.location == inputLocation) {
-            //     if (isClazz && refSymbol.kind == CXCursor_CallExpr) {
-            //         break;
-            //     }
-            // if (RTags::isReference(ref.kind)
-            //     || (input.kind == CXCursor_Constructor && (ref.kind == CXCursor_VarDecl || ref.kind == CXCursor_FieldDecl))) {
-            //     return true;
-            // }
-            // return false;
+    return ::findRefererences(symbol, shared_from_this(), [](const Symbol &, const Symbol &ref, Set<Symbol> &refs) {
+            refs.insert(ref);
+            return false;
         });
-    // Set<Symbol> ret;
-    // Mode mode = NormalRefs;
-    // switch (kind) {
-    // case CXCursor_Constructor:
-    // case CXCursor_Destructor:
-    //     mode = ClassRefs;
-    //     break;
-    // case CXCursor_CXXMethod:
-    //     mode = VirtualRefs;
-    //     break;
-    // default:
-    //     mode = isClass() ? ClassRefs : VirtualRefs;
-    //     break;
-    // }
-
-    // allImpl(map, loc, copy(), ret, mode, kind);
-    Set<Symbol> ret;
-    return ret;
 }
 
 Set<Symbol> Project::findVirtuals(const Symbol &symbol)
 {
-    assert(symbol.kind == CXCursor_CXXMethod);
-    Set<Symbol> ret = ::findRefererences(symbol, shared_from_this(), [](const Symbol &input, const Symbol &ref) {
-            return ref.kind == CXCursor_CXXMethod;
+    // we have to call the findRefererences that takes a set to avoid endless recursion
+    Set<Symbol> inputs;
+    inputs.insert(symbol);
+    Set<Symbol> ret = ::findRefererences(inputs, shared_from_this(), [](const Symbol &, const Symbol &ref, Set<Symbol> &refs) {
+            // error() << "considering" << ref.location << ref.kindSpelling();
+            if (ref.kind == CXCursor_CXXMethod) {
+                refs.insert(ref);
+            }
+            return false;
         });
     ret.insert(symbol);
     return ret;
