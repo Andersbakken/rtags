@@ -584,8 +584,11 @@ List<Source> Project::sources(uint32_t fileId) const
 
 Set<uint32_t> Project::dependencies(uint32_t fileId, DependencyMode mode) const
 {
-    if (mode == DependsOnArg)
-        return mDependencies.value(fileId);
+    if (mode == DependsOnArg) {
+        auto deps = mDependencies.value(fileId);
+        deps.insert(fileId);
+        return deps;
+    }
 
     Set<uint32_t> ret;
     const auto end = mDependencies.end();
