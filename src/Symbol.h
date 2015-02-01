@@ -30,7 +30,7 @@ struct Symbol
           startLine(-1), startColumn(-1), endLine(-1), endColumn(-1)
     {}
 
-    Location location, parent; // parent is location of struct/class decl/def for member functions/constructors/destructors
+    Location location;
     String symbolName, usr;
     uint16_t symbolLength;
     CXCursorKind kind;
@@ -79,7 +79,7 @@ struct Symbol
 
 template <> inline Serializer &operator<<(Serializer &s, const Symbol &t)
 {
-    s << t.location << t.parent << t.symbolName << t.usr << t.symbolLength
+    s << t.location << t.symbolName << t.usr << t.symbolLength
       << static_cast<uint16_t>(t.kind) << static_cast<uint16_t>(t.type)
       << t.enumValue << t.startLine << t.startColumn << t.endLine << t.endColumn;
     return s;
@@ -88,9 +88,9 @@ template <> inline Serializer &operator<<(Serializer &s, const Symbol &t)
 template <> inline Deserializer &operator>>(Deserializer &s, Symbol &t)
 {
     uint16_t kind, type;
-    s >> t.location >> t.parent >> t.symbolName >> t.usr
-      >> t.symbolLength >> kind >> type >> t.enumValue
-      >> t.startLine >> t.startColumn >> t.endLine >> t.endColumn;
+    s >> t.location >> t.symbolName >> t.usr >> t.symbolLength
+      >> kind >> type >> t.enumValue >> t.startLine >> t.startColumn
+      >> t.endLine >> t.endColumn;
 
     t.kind = static_cast<CXCursorKind>(kind);
     t.type = static_cast<CXTypeKind>(type);

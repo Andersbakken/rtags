@@ -987,7 +987,7 @@ Set<Symbol> Project::findTargets(const Symbol &symbol)
         // error() << files << symbol.location;
         const Set<Symbol> symbols = findByUsr(symbol.usr, files);
         for (const auto &c : symbols) {
-            if (symbol.isDefinition() != c.isDefinition()) {
+            if (symbol.isDefinition() != c.isDefinition() && symbol.kind == c.kind) {
                 ret.insert(c);
                 break;
             }
@@ -1092,18 +1092,18 @@ static Set<Symbol> findRefererences(const Symbol &in,
     Project::DependencyMode depMode = Project::DependsOnArg;
     for (const Symbol &input : inputs) {
         for (const auto &dep : project->dependencies(input.location.fileId(), depMode)) {
-            error() << "Looking at file" << Location::path(dep) << "for input" << input.location;
+            warning() << "Looking at file" << Location::path(dep) << "for input" << input.location;
             auto targets = project->openTargets(dep);
-            if (!targets)
-                continue;
-            const int count = targets->count();
-            for (int i=0; i<count; ++i) {
-                const Symbol refSymbol = project->findSymbol(targets->keyAt(i));
-                for (const std::pair<String, uint16_t> &usrKind : targets->valueAt(i)) {
-                    // error() << "Comparing" << reference.first << targets->keyAt(i) << "with" << input.location;
-                    if (usrKind.first == input.usr && filter(input, refSymbol)) {
-                        ret.insert(refSymbol);
-                        break;
+            if (targets) {
+                const int count = targets->count();
+                for (int i=0; i<count; ++i) {
+                    const Symbol refSymbol = project->findSymbol(targets->keyAt(i));
+                    for (const std::pair<String, uint16_t> &usrKind : targets->valueAt(i)) {
+                        warning() << "Comparing" << usrKind.first << "with" << input.usr << "for" << input.location;
+                        if (usrKind.first == input.usr && filter(input, refSymbol)) {
+                            ret.insert(refSymbol);
+                            break;
+                        }
                     }
                 }
             }

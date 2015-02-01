@@ -876,7 +876,7 @@ void ClangIndexer::addOverriddenCursors(const CXCursor &cursor, const Location &
 
         auto locCursor = unit(loc)->symbols.value(loc);
         if (locCursor.usr.isEmpty())
-            error() << "Didn't get usr" << loc;
+            error() << "Didn't get usr" << locCursor.isNull();
         // assert(!locCursor.usr.isEmpty());
 
         //error() << "adding overridden (1) " << location << " to " << o;
@@ -1037,13 +1037,15 @@ bool ClangIndexer::handleCursor(const CXCursor &cursor, CXCursorKind kind, const
         List<Location> locations;
         locations.append(location);
         addOverriddenCursors(cursor, location, locations);
-        c.parent = createLocation(clang_getCursorSemanticParent(cursor));
+        // c.parentUsr = RTags::eatString(clang_getCursorUSR(clang_getCanonicalCursor(clang_getCursorSemanticParent(cursor))));
         break; }
-    // fall through
+        // fall through
     case CXCursor_Constructor:
-    case CXCursor_Destructor:
-        c.parent = createLocation(clang_getCursorSemanticParent(cursor));
-        break;
+    case CXCursor_Destructor: {
+        const String usr = RTags::eatString(clang_getCursorUSR(clang_getCanonicalCursor(clang_getCursorSemanticParent(cursor))));
+        unit(location.fileId())->targets[location][usr] = 0; // make a 0-value target for class/struct-decl
+        // error() << "Added a target for" << location << "to" << usr;
+        break; }
     default:
         break;
     }
