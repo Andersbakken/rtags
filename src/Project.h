@@ -124,6 +124,13 @@ public:
                                                    mFileMapScopes.last()->usrs);
     }
 
+    enum DependencyMode {
+        DependsOnArg,
+        ArgDependsOn // slow
+    };
+    Set<uint32_t> dependencies(uint32_t fileId, DependencyMode mode) const;
+    const DependencyMap &dependencies() const { return mDependencies; }
+
     Symbol findSymbol(const Location &location, int *index = 0);
     Set<Symbol> findTargets(const Location &location) { return findTargets(findSymbol(location)); }
     Set<Symbol> findTargets(const Symbol &symbol);
@@ -137,7 +144,7 @@ public:
     Set<Symbol> findVirtuals(const Symbol &symbol);
 
     Set<Symbol> findByUsr(const String &usr, const Set<uint32_t> &files);
-    Set<Symbol> findByUsr(const String &usr, uint32_t fileId = 0);
+    Set<Symbol> findByUsr(const String &usr, uint32_t fileId, DependencyMode mode);
 
     Path sourceFilePath(uint32_t fileId, const String &type) const;
 
@@ -160,12 +167,6 @@ public:
 
     void index(const std::shared_ptr<IndexerJob> &job);
     List<Source> sources(uint32_t fileId) const;
-    enum DependencyMode {
-        DependsOnArg,
-        ArgDependsOn // slow
-    };
-    Set<uint32_t> dependencies(uint32_t fileId, DependencyMode mode) const;
-    const DependencyMap &dependencies() const { return mDependencies; }
     bool isActiveJob(uint64_t key) { return !key || mActiveJobs.contains(key); }
     inline bool visitFile(uint32_t fileId, const Path &path, uint64_t id);
     inline void releaseFileIds(const Set<uint32_t> &fileIds);

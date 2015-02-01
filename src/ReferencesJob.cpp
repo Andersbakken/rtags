@@ -34,22 +34,31 @@ int ReferencesJob::execute()
     std::shared_ptr<Project> proj = project();
     if (!proj)
         return 1;
+    Set<Symbol> refs;
     Map<Location, std::pair<bool, uint16_t> > references;
     if (!symbolName.isEmpty())
         locations = proj->locations(symbolName);
+    const bool declarationOnly = queryFlags() & QueryMessage::DeclarationOnly;
     Location startLocation;
-    for (const auto it = locations.begin(); it != locations.end(); ++it) {
-        const Location pos = it->first;
-        if (it == locations.begin())
+    for (auto it = locations.begin(); it != locations.end(); ++it) {
+        const Location pos = *it;
+        if (it == locations.begin() && !(queryFlags() & QueryMessage::NoSortReferencesByInput))
             startLocation = pos;
-        Symbol cursor = findSymbol(pos);
+        Symbol cursor = proj->findSymbol(pos);
         if (cursor.isNull())
             continue;
         if (cursor.isReference())
-            cursor = bestTarget(cursor);
+            cursor = proj->findTarget(cursor);
         if (cursor.isNull())
             continue;
         if (queryFlags() & QueryMessage::AllReferences) {
+            const Set<Symbol> all = proj->findAllReferences(cursor);
+            for (const auto &symbol : all) {
+                const bool def = symbol.isDefinition();
+                if (!declarationOnly || !def) {
+                    references[symbol.location] = std::make_pair(def, symbol.kind);
+                }
+            }
 #if 0
             const SymbolMap all = cursorInfo->allReferences(pos, map);
 
@@ -96,7 +105,7 @@ int ReferencesJob::execute()
             for (const auto &symbol : virtuals) {
                 const bool def = symbol.isDefinition();
                 if (!declarationOnly || !def)
-                    references.insert(symbol);
+                    references[symbol.location] = std::make_pair(def, symbol.kind);
             }
             startLocation.clear();
             // since one normally calls this on a declaration it kinda
@@ -108,13 +117,7 @@ int ReferencesJob::execute()
             for (const auto &symbol : symbols) {
                 const bool def = symbol.isDefinition();
                 if (!declarationOnly || !def)
-                    references[symbol.locations] = std::make_pair(false, );
-            }
-
-            const SymbolMap callers = cursorInfo->callers(pos, map);
-            for (SymbolMap::const_iterator c = callers.begin(); c != callers.end(); ++c) {
-                references[c->first] = std::make_pair(false, CXCursor_FirstInvalid);
-                // For find callers we don't want to prefer definitions or do ranks on symbols
+                    references[symbol.location] = std::make_pair(false, CXCursor_FirstInvalid);
             }
         }
     }
@@ -142,7 +145,7 @@ int ReferencesJob::execute()
         }
         int startIndex = 0;
         const int count = sorted.size();
-        if (!startLocation.isNull() && !(queryFlags() & QueryMessage::NoSortReferencesByInput)) {
+        if (!startLocation.isNull()) {
             for (int i=0; i<count; ++i) {
                 if (sorted.at(i).location == startLocation) {
                     startIndex = i + 1;

@@ -97,6 +97,12 @@ template <> inline Deserializer &operator>>(Deserializer &s, Symbol &t)
     return s;
 }
 
+static inline Log operator<<(Log dbg, const Symbol &symbol)
+{
+    const String out = "Symbol(" + symbol.toString() + ")";
+    return (dbg << out);
+}
+
 
 
 #endif

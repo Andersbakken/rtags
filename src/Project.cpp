@@ -993,7 +993,7 @@ Set<Symbol> Project::findTargets(const Symbol &symbol)
     default:
         if (const auto targetsDb = openTargets(symbol.location.fileId())) {
             for (const auto &usrkind : targetsDb->value(symbol.location)) {
-                ret.unite(findByUsr(usrkind.first, symbol.location.fileId()));
+                ret.unite(findByUsr(usrkind.first, symbol.location.fileId(), Project::ArgDependsOn));
             }
         }
         break;
@@ -1019,10 +1019,10 @@ Set<Symbol> Project::findByUsr(const String &usr, const Set<uint32_t> &files)
     return ret;
 }
 
-Set<Symbol> Project::findByUsr(const String &usr, uint32_t fileId)
+Set<Symbol> Project::findByUsr(const String &usr, uint32_t fileId, DependencyMode mode)
 {
     if (fileId)
-        return findByUsr(usr, dependencies(fileId, ArgDependsOn));
+        return findByUsr(usr, dependencies(fileId, mode));
 
     Set<Symbol> ret;
     for (const auto &dep : mDependencies) {
@@ -1039,67 +1039,77 @@ Set<Symbol> Project::findByUsr(const String &usr, uint32_t fileId)
     return ret;
 }
 
-#if 0
-Set<Symbol> CursorInfo::referenceInfos(const Set<Symbol> &map)
+static Set<Symbol> findRefererences(const Symbol &in,
+                                    const std::shared_ptr<Project> &project,
+                                    std::function<bool(const Symbol &, const Symbol &)> filter)
 {
-    Set<Symbol> ret;
-    for (auto it = references.begin(); it != references.end(); ++it) {
-        auto found = RTags::findSymbolInfo(map, *it);
-        if (found != map.end()) {
-            ret[*it] = found->second;
-        }
-    }
-    return ret;
-}
-#endif
-
-Set<Symbol> Project::findCallers(const Symbol &symbol)
-{
-    if (symbol.isNull())
-        return Set<Symbol>();
-
     Set<Symbol> inputs;
-    inputs.insert(symbol);
-    if (symbol.isClass()) {
-        inputs.unite(findByUsr(symbol.usr, dependencies(symbol.location.fileId(), ArgDependsOn)));
-    } else if (!symbol.isReference()) {
-        const Symbol target = findTarget(symbol);
-        if (!target.isNull())
-            inputs.insert(target);
-        inputs.unite(findVirtuals(symbol));
+    Symbol s;
+    if (in.isReference()) {
+        s = project->findTarget(in);
+    } else {
+        s = in;
     }
-    const bool isClazz = symbol.isClass();
+
+    error() << s.location;
+    switch (s.kind) {
+    case CXCursor_CXXMethod:
+        inputs = project->findVirtuals(s);
+        break;
+    case CXCursor_FunctionTemplate:
+    case CXCursor_FunctionDecl:
+    case CXCursor_ClassTemplate:
+    case CXCursor_ClassDecl:
+    case CXCursor_StructDecl:
+    case CXCursor_UnionDecl:
+    case CXCursor_TypedefDecl:
+    case CXCursor_Namespace:
+    case CXCursor_Constructor:
+    case CXCursor_Destructor:
+    case CXCursor_ConversionFunction:
+    case CXCursor_NamespaceAlias: {
+        const uint32_t fileId = s.isDefinition() ? s.location.fileId() : 0;
+        inputs = project->findByUsr(s.usr, fileId, Project::DependsOnArg);
+        error() << inputs.size();
+        break; }
+    default:
+        inputs.insert(s);
+        break;
+    case CXCursor_FirstInvalid:
+        return Set<Symbol>();
+    }
+
+    assert(!s.isNull());
+
     Set<Symbol> ret;
+    // const bool isClazz = s.isClass();
+    Project::DependencyMode depMode = Project::DependsOnArg;
     for (const Symbol &input : inputs) {
-        for (const auto &dep : dependencies(input.location.fileId(), DependsOnArg)) {
-            // error() << "Looking at file" << Location::path(dep) << "for input" << input.location;
-            auto targets = openTargets(dep);
+        for (const auto &dep : project->dependencies(input.location.fileId(), depMode)) {
+            error() << "Looking at file" << Location::path(dep) << "for input" << input.location;
+            auto targets = project->openTargets(dep);
             if (!targets)
                 continue;
             const int count = targets->count();
             for (int i=0; i<count; ++i) {
-                const Symbol refSymbol = findSymbol(targets->keyAt(i));
+                const Symbol refSymbol = project->findSymbol(targets->keyAt(i));
                 for (const std::pair<String, uint16_t> &usrKind : targets->valueAt(i)) {
                     // error() << "Comparing" << reference.first << targets->keyAt(i) << "with" << input.location;
-                    for (const auto &ref : findByUsr(usrKind.first, refSymbol.location.fileId())) {
+                    bool done = false;
+                    for (const auto &ref : project->findByUsr(usrKind.first, refSymbol.location.fileId(), depMode)) {
                         if (ref.location == input.location) {
-                            if (isClazz && refSymbol.kind == CXCursor_CallExpr) {
-                                break;
-                            }
-                            if (RTags::isReference(refSymbol.kind)
-                                || (symbol.kind == CXCursor_Constructor
-                                    && (refSymbol.kind == CXCursor_VarDecl || refSymbol.kind == CXCursor_FieldDecl))) {
-                                assert(!refSymbol.isNull());
+                            // if (isClazz && refSymbol.kind == CXCursor_CallExpr) {
+                            //     break;
+                            // }
+                            if (filter(input, refSymbol)) {
                                 ret.insert(refSymbol);
+                                done = true;
                                 break;
-                                // } else if (!RTags::isReference(refSymbol.kind)) {
-                                //     error() << "Got refKind" << Symbol::kindSpelling(refSymbol.kind);
-                                //     printf("[%s:%d]: } else if (!RTags::isReference(reference.second)) {\n", __FILE__, __LINE__); fflush(stdout);
-                                // } else {
-                                //     printf("[%s:%d]: \n", __FILE__, __LINE__); fflush(stdout);
                             }
                         }
                     }
+                    if (done)
+                        break;
                 }
             }
         }
@@ -1107,100 +1117,37 @@ Set<Symbol> Project::findCallers(const Symbol &symbol)
     return ret;
 }
 
-#if 0
-enum Mode {
-    ClassRefs,
-    VirtualRefs,
-    NormalRefs
-};
-
-static inline void allImpl(const Set<Symbol> &map, const Location &loc, const std::shared_ptr<CursorInfo> &info, Set<Symbol> &out, Mode mode, unsigned kind)
+Set<Symbol> Project::findCallers(const Symbol &symbol)
 {
-    if (out.contains(loc))
-        return;
-    out[loc] = info;
-    const Set<Symbol> targets = info->targetInfos(map);
-    for (auto t = targets.begin(); t != targets.end(); ++t) {
-        bool ok = false;
-        switch (mode) {
-        case VirtualRefs:
-        case NormalRefs:
-            ok = (t->second->kind == kind);
-            break;
-        case ClassRefs:
-            ok = (t->second->isClass() || t->second->kind == CXCursor_Destructor || t->second->kind == CXCursor_Constructor);
-            break;
-        }
-        if (ok)
-            allImpl(map, t->first, t->second, out, mode, kind);
-    }
-    const Set<Symbol> refs = info->referenceInfos(map);
-    for (auto r = refs.begin(); r != refs.end(); ++r) {
-        switch (mode) {
-        case NormalRefs:
-            out[r->first] = r->second;
-            break;
-        case VirtualRefs:
-            if (r->second->kind == kind) {
-                allImpl(map, r->first, r->second, out, mode, kind);
-            } else {
-                out[r->first] = r->second;
+    const bool isClazz = symbol.isClass();
+    return ::findRefererences(symbol, shared_from_this(), [isClazz](const Symbol &input, const Symbol &ref) {
+            // if (ref.location == inputLocation) {
+            //     if (isClazz && refSymbol.kind == CXCursor_CallExpr) {
+            //         break;
+            //     }
+            if (RTags::isReference(ref.kind)
+                || (input.kind == CXCursor_Constructor && (ref.kind == CXCursor_VarDecl || ref.kind == CXCursor_FieldDecl))) {
+                return true;
             }
-            break;
-        case ClassRefs:
-            if (info->isClass()) // for class/struct we want the references inserted directly regardless and also recursed
-                out[r->first] = r->second;
-            if (r->second->isClass()
-                || r->second->kind == CXCursor_Destructor
-                || r->second->kind == CXCursor_Constructor) { // if is a constructor/destructor/class reference we want to recurse it
-                allImpl(map, r->first, r->second, out, mode, kind);
-            }
-        }
-    }
+            return false;
+        });
 }
-#endif
 
-#if 0
-static void addReferences(const Symbol &symbol, Map<Location, Symbol> &symbols,
-                          const Set<uint32_t> &files,
-                          const std::shared_ptr<Project> &project)
+Set<Symbol> Project::findAllReferences(const Symbol &symbol)
 {
-    Map<uint32_t, std::shared_ptr<FileMap<Location, Map<String, uint16_t> > > > seen;
-    auto openDB = [&seen, &project](uint32_t fileId) {
-        auto it = seen.find(fileId);
-        if (it != seen.end())
-            return it->second;
-        auto db = project->openTargets(fileId);
-        seen[fileId] = db;
-        return db;
-    };
-    for (uint32_t file : files) {
-        auto targets = openDB(file);
-        if (!targets)
-            continue;
-        const int count = targets->count();
-        for (int i=0; i<count; ++i) {
-            for (const auto &target : targets->valueAt(i)) {
-                if (target.first == symbol.location) {
-                    if (symbols.contains(target.first)) {
-                        auto c = project->findSymbol(target.first);
-                        if (!c.isNull()) {
-                            symbols[target.first] = c;
-                            if (!c.isReference()) {
-                                addReferences(c, symbols, project->dependencies(target.first.fileId(), Project::DependsOnArg), project);
-                            }
-                        }
-                    }
-                    break;
-                }
-            }
-        }
-    }
-}
-#endif
-
-Set<Symbol> Project::findAllReferences(const Symbol &loc)
-{
+    printf("[%s:%d]: Set<Symbol> Project::findAllReferences(const Symbol &symbol)\n", __FILE__, __LINE__); fflush(stdout);
+    return ::findRefererences(symbol, shared_from_this(), [](const Symbol &input, const Symbol &ref) {
+            return true;
+            // if (ref.location == inputLocation) {
+            //     if (isClazz && refSymbol.kind == CXCursor_CallExpr) {
+            //         break;
+            //     }
+            // if (RTags::isReference(ref.kind)
+            //     || (input.kind == CXCursor_Constructor && (ref.kind == CXCursor_VarDecl || ref.kind == CXCursor_FieldDecl))) {
+            //     return true;
+            // }
+            // return false;
+        });
     // Set<Symbol> ret;
     // Mode mode = NormalRefs;
     // switch (kind) {
@@ -1220,31 +1167,14 @@ Set<Symbol> Project::findAllReferences(const Symbol &loc)
     Set<Symbol> ret;
     return ret;
 }
-#if 0
-#endif
 
 Set<Symbol> Project::findVirtuals(const Symbol &symbol)
 {
-    // Set<Symbol> ret;
-    // ret[loc] = copy();
-    // const Set<Symbol> s = (kind == CXCursor_CXXMethod ? allReferences(loc, map) : targetInfos(map));
-    // for (auto it = s.begin(); it != s.end(); ++it) {
-    //     if (it->second->kind == kind)
-    //         ret[it->first] = it->second;
-    // }
-    // return ret;
-    return Set<Symbol>();
+    assert(symbol.kind == CXCursor_CXXMethod);
+    Set<Symbol> ret = ::findRefererences(symbol, shared_from_this(), [](const Symbol &input, const Symbol &ref) {
+            return ref.kind == CXCursor_CXXMethod;
+        });
+    ret.insert(symbol);
+    return ret;
 }
 
-
-// Set<Location> Project::findReferences(const Symbol &symbol, uint32_t queryFlags) const
-// {
-//     if (queryFlags & QueryMessage::AllReferences) {
-
-//     } else if (queryFlags & QueryMessage::FindVirtuals) {
-
-//     } else {
-
-
-//     }
-// }
