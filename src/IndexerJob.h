@@ -31,18 +31,18 @@ public:
         None = 0x000,
         Dirty = 0x001,
         Compile = 0x002,
-        Type_Mask = Dirty|Compile,
         Running = 0x010,
         Crashed = 0x020,
         Aborted = 0x040,
-        Complete = 0x080
+        Complete = 0x080,
+        Type_Mask = Dirty|Compile
     };
 
     static String dumpFlags(unsigned int);
 
     IndexerJob(const Source &source,
                uint32_t flags,
-               const Path &project,
+               const std::shared_ptr<Project> &project,
                const UnsavedFiles &unsavedFiles = UnsavedFiles(),
                const Set<uint32_t> &dirty = Set<uint32_t>());
     String encode() const;
@@ -52,6 +52,7 @@ public:
     Path sourceFile;
     uint32_t flags;
     Path project;
+    int priority;
     UnsavedFiles unsavedFiles;
     Set<uint32_t> dirty, visited;
     int crashCount;

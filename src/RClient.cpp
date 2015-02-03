@@ -925,7 +925,10 @@ bool RClient::parse(int &argc, char **argv)
                 if (!strcmp(arg, "-")) {
                     char buf[1024];
                     while (fgets(buf, sizeof(buf), stdin)) {
-                        if (!addBuffer(buf))
+                        String arg(buf);
+                        if (arg.endsWith('\n'))
+                            arg.chop(1);
+                        if (!addBuffer(arg))
                             return false;
                     }
                 } else {

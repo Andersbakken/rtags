@@ -686,8 +686,10 @@ int Project::startDirtyJobs(Dirty *dirty, const UnsavedFiles &unsavedFiles)
         mVisitedFiles.remove(fileId);
     }
 
+    Server *server = Server::instance();
     for (const auto &source : toIndex) {
-        index(std::shared_ptr<IndexerJob>(new IndexerJob(source, IndexerJob::Dirty, mPath, unsavedFiles)));
+        std::shared_ptr<IndexerJob> job(new IndexerJob(source, IndexerJob::Dirty, shared_from_this(), unsavedFiles));
+        index(job);
     }
 
     return toIndex.size();

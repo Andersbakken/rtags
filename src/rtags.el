@@ -285,7 +285,7 @@
             (push (concat "--path-filter=" path-filter) arguments)
             (if path-filter-regex
                 (push "-Z" arguments)))
-          (if unsaved
+          (if (buffer-file-name unsaved)
               (push (format "--unsaved-file=%s:%d"
                             (buffer-file-name unsaved)
                             (with-current-buffer unsaved (- (point-max) (point-min))))
@@ -312,6 +312,7 @@
           (let ((proc (cond ((and unsaved async)
                              (let ((proc (apply #'start-process "rc" (current-buffer) rc arguments)))
                                (with-current-buffer unsaved
+;;                                 (rtags-log (buffer-substring-no-properties (point-min) (point-max)))
                                  (process-send-region proc (point-min) (point-max)))
                                proc))
                             (async (apply #'start-process "rc" (current-buffer) rc arguments))
@@ -2267,12 +2268,23 @@ If rtags-display-summary-as-tooltip is t, a tooltip is displayed."
                       (let ((name (buffer-file-name x)))
                         (if name
                             (insert name "\n"))))) buffers)
+    ;; (message "files: %s" (combine-and-quote-strings (split-string (buffer-substring-no-properties (point-min) (point-max)) "\n" t)) "|")
     (rtags-call-rc :unsaved (current-buffer) "--set-buffers" "-")))
 
 (defun rtags-kill-buffer-hook ()
-  (rtags-set-buffers (cdr (buffer-list))))
+  (when (buffer-file-name)
+    (rtags-set-buffers (cdr (buffer-list))))
+  t)
+(add-hook 'kill-buffer-hook 'rtags-kill-buffer-hook)
 
-;; (defun rtags-find-file-hook ())
+(defun rtags-find-file-hook ()
+  (when (buffer-file-name)
+    (rtags-set-buffers (buffer-list)))
+    ;; (let ((bufs (buffer-list)))
+    ;;   (push (current-buffer) bufs)
+    ;;   (rtags-set-buffers bufs)))
+  t)
+(add-hook 'find-file-hook 'rtags-find-file-hook)
 
 (provide 'rtags)
 

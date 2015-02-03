@@ -8,12 +8,26 @@
 uint64_t IndexerJob::sNextId = 1;
 IndexerJob::IndexerJob(const Source &s,
                        uint32_t f,
-                       const Path &p,
+                       const std::shared_ptr<Project> &p,
                        const UnsavedFiles &u,
                        const Set<uint32_t> &d)
     : id(sNextId++), source(s), sourceFile(s.sourceFile()), flags(f),
-      project(p), unsavedFiles(u), dirty(d), crashCount(0)
+      project(p->path()), priority(0), unsavedFiles(u), dirty(d), crashCount(0)
 {
+    if (flags & Dirty)
+        ++priority;
+    Server *server = Server::instance();
+    assert(server);
+    if (server->isActiveBuffer(source.fileId)) {
+        priority += 4;
+    } else {
+        for (uint32_t dep : p->dependencies(source.fileId, Project::ArgDependsOn)) {
+            if (server->isActiveBuffer(dep)) {
+                priority += 2;
+                break;
+            }
+        }
+    }
 }
 
 String IndexerJob::encode() const

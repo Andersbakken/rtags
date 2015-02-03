@@ -21,10 +21,15 @@ void JobScheduler::add(const std::shared_ptr<IndexerJob> &job)
     assert(!(job->flags & ~IndexerJob::Type_Mask));
     std::shared_ptr<Node> node(new Node({ job, 0, 0, 0 }));
     node->job = job;
-    if (job->flags & IndexerJob::Dirty) {
+    if (mPendingJobs.isEmpty() || job->priority > mPendingJobs.first()->job->priority) {
         mPendingJobs.prepend(node);
     } else {
-        mPendingJobs.append(node);
+        std::shared_ptr<Node> after = mPendingJobs.last();
+        while (job->priority > after->job->priority) {
+            after = after->prev;
+        }
+        assert(after);
+        mPendingJobs.insert(node, after);
     }
     startJobs();
 }
