@@ -40,9 +40,11 @@ use the command line client rc.
 
 E.g.
 #+BEGIN_SRC
-$ rc --follow-location Job.cpp,400
-/home/abakken/dev/rtags/src/Job.h,2186      List<RegExp> *mPathFiltersRegExp;
+$ rc --follow-location Job.cpp:20:10
+/home/abakken/dev/rtags/src/Job.h:10:18      List<RegExp> *mPathFiltersRegExp;
 #+END_SRC
+
+A location has the format of file:line:column.
 
 We maintain a set of elisp bindings so you don't acually have to call
 this yourself but we feel that this architecture allows us to add
