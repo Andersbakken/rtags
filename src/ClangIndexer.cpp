@@ -1112,6 +1112,10 @@ static inline Map<Location, Set<String> > convertTargets(const Map<Location, Map
 bool ClangIndexer::writeFiles(const Path &root, String &error)
 {
     for (const auto &unit : mUnits) {
+        if (!mData->visited.value(unit.first)) {
+            ::error() << "Wanting to write something for" << Location::path(unit.first) << "but we didn't visit it" << mSource.sourceFile;
+            continue;
+        }
         assert(mData->visited.value(unit.first));
         String unitRoot = root;
         unitRoot << unit.first;

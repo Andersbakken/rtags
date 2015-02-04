@@ -31,6 +31,9 @@ ReferencesJob::ReferencesJob(const String &sym, const std::shared_ptr<QueryMessa
 
 int ReferencesJob::execute()
 {
+    enum { Rename = (QueryMessage::ReverseSort|QueryMessage::AllReferences) };
+    const bool rename = (queryFlags() & Rename) == Rename;
+
     std::shared_ptr<Project> proj = project();
     if (!proj)
         return 1;
@@ -44,24 +47,38 @@ int ReferencesJob::execute()
         const Location pos = *it;
         if (it == locations.begin() && !(queryFlags() & QueryMessage::NoSortReferencesByInput))
             startLocation = pos;
-        Symbol cursor = proj->findSymbol(pos);
-        if (cursor.isNull())
+        Symbol sym = proj->findSymbol(pos);
+        if (sym.isNull())
             continue;
-        if (cursor.isReference())
-            cursor = proj->findTarget(cursor);
-        if (cursor.isNull())
+        if (sym.isReference())
+            sym = proj->findTarget(sym);
+        if (sym.isNull())
             continue;
-        if (queryFlags() & QueryMessage::AllReferences) {
-            const Set<Symbol> all = proj->findAllReferences(cursor);
-            for (const auto &symbol : all) {
-                const bool def = symbol.isDefinition();
-                if (!declarationOnly || !def) {
-                    references[symbol.location] = std::make_pair(def, symbol.kind);
+        if (rename && (sym.kind == CXCursor_Constructor || sym.kind == CXCursor_Destructor)) {
+            const Set<Symbol> targets = proj->findTargets(sym);
+            sym.clear();
+            for (const Symbol &c : targets) {
+                if (c.isClass()) {
+                    sym = c;
+                    if (c.isDefinition())
+                        break;
                 }
             }
+            if (sym.isNull())
+                continue;
+        }
+        if (queryFlags() & QueryMessage::AllReferences) {
+            const Set<Symbol> all = proj->findAllReferences(sym);
+            for (const auto &symbol : all) {
+                if (!rename && sym.isClass() && (symbol.kind == CXCursor_Constructor || symbol.kind == CXCursor_Destructor))
+                    continue;
+                const bool def = symbol.isDefinition();
+                if (def && declarationOnly)
+                    continue;
+                references[symbol.location] = std::make_pair(def, symbol.kind);
+            }
         } else if (queryFlags() & QueryMessage::FindVirtuals) {
-            printf("[%s:%d]: } else if (queryFlags() & QueryMessage::FindVirtuals) {\n", __FILE__, __LINE__); fflush(stdout);
-            const Set<Symbol> virtuals = proj->findVirtuals(cursor);
+            const Set<Symbol> virtuals = proj->findVirtuals(sym);
             const bool declarationOnly = queryFlags() & QueryMessage::DeclarationOnly;
             for (const auto &symbol : virtuals) {
                 const bool def = symbol.isDefinition();
@@ -82,8 +99,7 @@ int ReferencesJob::execute()
             }
         }
     }
-    enum { Rename = (QueryMessage::ReverseSort|QueryMessage::AllReferences) };
-    if ((queryFlags() & Rename) == Rename) {
+    if (rename) {
         if (!references.isEmpty()) {
             Map<Location, std::pair<bool, uint16_t> >::const_iterator it = references.end();
             do {

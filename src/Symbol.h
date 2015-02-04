@@ -42,6 +42,17 @@ struct Symbol
     int startLine, startColumn, endLine, endColumn;
 
     bool isNull() const { return !symbolLength; }
+    void clear()
+    {
+        location.clear();
+        symbolName.clear();
+        usr.clear();
+        symbolLength = 0;
+        kind = CXCursor_FirstInvalid;
+        type = CXType_Invalid;
+        enumValue = 0;
+        startLine = startColumn = endLine = endColumn = -1;
+    }
 
     uint16_t targetsValue() const;
     bool isClass() const

@@ -1076,7 +1076,8 @@ static Set<Symbol> findRefererences(const Set<Symbol> &inputs,
 
 static Set<Symbol> findRefererences(const Symbol &in,
                                     const std::shared_ptr<Project> &project,
-                                    std::function<bool(const Symbol &, const Symbol &, Set<Symbol> &)> filter)
+                                    std::function<bool(const Symbol &, const Symbol &, Set<Symbol> &)> filter,
+                                    Set<Symbol> *inputsPtr = 0)
 {
     error() << "Calling findRefererences" << in.location;
     Set<Symbol> inputs;
@@ -1104,7 +1105,9 @@ static Set<Symbol> findRefererences(const Symbol &in,
     case CXCursor_Destructor:
     case CXCursor_ConversionFunction:
     case CXCursor_NamespaceAlias: {
-        const uint32_t fileId = s.isDefinition() ? s.location.fileId() : 0;
+        // const uint32_t fileId = s.isDefinition() ? s.location.fileId() : 0;
+#warning this is probably not right
+        const uint32_t fileId = 0;
         inputs = project->findByUsr(s.usr, fileId, Project::DependsOnArg);
         error() << inputs.size();
         break; }
@@ -1114,9 +1117,10 @@ static Set<Symbol> findRefererences(const Symbol &in,
     case CXCursor_FirstInvalid:
         return Set<Symbol>();
     }
+    if (inputsPtr)
+        *inputsPtr = inputs;
     return findRefererences(inputs, project, filter);
 }
-
 
 Set<Symbol> Project::findCallers(const Symbol &symbol)
 {
@@ -1133,10 +1137,13 @@ Set<Symbol> Project::findCallers(const Symbol &symbol)
 
 Set<Symbol> Project::findAllReferences(const Symbol &symbol)
 {
-    return ::findRefererences(symbol, shared_from_this(), [](const Symbol &, const Symbol &ref, Set<Symbol> &refs) {
+    Set<Symbol> inputs;
+    Set<Symbol> ret = ::findRefererences(symbol, shared_from_this(), [](const Symbol &, const Symbol &ref, Set<Symbol> &refs) {
             refs.insert(ref);
             return false;
-        });
+        }, &inputs);
+    ret.unite(inputs);
+    return ret;
 }
 
 Set<Symbol> Project::findVirtuals(const Symbol &symbol)
