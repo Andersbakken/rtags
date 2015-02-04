@@ -988,7 +988,7 @@ Set<Symbol> Project::findTargets(const Symbol &symbol)
         // error() << files << symbol.location;
         const Set<Symbol> symbols = findByUsr(symbol.usr, files);
         for (const auto &c : symbols) {
-            if (symbol.isDefinition() != c.isDefinition() && symbol.kind == c.kind) {
+            if (symbol.kind == c.kind && symbol.isDefinition() != c.isDefinition()) {
                 ret.insert(c);
                 break;
             }
@@ -1148,17 +1148,27 @@ Set<Symbol> Project::findAllReferences(const Symbol &symbol)
 
 Set<Symbol> Project::findVirtuals(const Symbol &symbol)
 {
+    if (symbol.kind != CXCursor_CXXMethod)
+        return Set<Symbol>();
+
     // we have to call the findRefererences that takes a set to avoid endless recursion
     Set<Symbol> inputs;
     inputs.insert(symbol);
-    Set<Symbol> ret = ::findRefererences(inputs, shared_from_this(), [](const Symbol &, const Symbol &ref, Set<Symbol> &refs) {
-            // error() << "considering" << ref.location << ref.kindSpelling();
-            if (ref.kind == CXCursor_CXXMethod) {
-                refs.insert(ref);
-            }
-            return false;
-        });
     ret.insert(symbol);
+    Set<Symbol> ret;
+    bool done;
+    do {
+        const Set<Symbol> r = ::findRefererences(inputs, shared_from_this(), [](const Symbol &, const Symbol &ref, Set<Symbol> &refs) {
+                // error() << "considering" << ref.location << ref.kindSpelling();
+                if (ref.kind == CXCursor_CXXMethod) {
+                    refs.insert(ref);
+                }
+                return false;
+            });
+        for (const Symbol &s : r) {
+            // if (ret.insert
+        }
+    } while (!done);
     return ret;
 }
 

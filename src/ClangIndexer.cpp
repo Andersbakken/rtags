@@ -33,6 +33,11 @@
 static const CXSourceLocation nullLocation = clang_getNullLocation();
 static const CXCursor nullCursor = clang_getNullCursor();
 
+static inline String usr(const CXCursor &cursor)
+{
+    return RTags::eatString(clang_getCursorUSR(clang_getCanonicalCursor(clang_getCursorSemanticParent(cursor))));
+}
+
 struct VerboseVisitorUserData {
     int indent;
     String out;
@@ -791,7 +796,7 @@ bool ClangIndexer::handleReference(const CXCursor &cursor, CXCursorKind kind,
         refTargetValue = RTags::createTargetsValue(refKind, clang_isCursorDefinition(ref));
     }
 
-    const String refUsr = RTags::eatString(clang_getCursorUSR(clang_getCanonicalCursor(ref)));
+    const String refUsr = usr(ref);
     targets[refUsr] = refTargetValue;
     Symbol &c = unit(location)->symbols[location];
     if (cursorPtr)
@@ -862,7 +867,7 @@ bool ClangIndexer::handleReference(const CXCursor &cursor, CXCursorKind kind,
 }
 
 
-void ClangIndexer::addOverriddenCursors(const CXCursor &cursor, const Location &location, List<Location> &locations)
+void ClangIndexer::addOverriddenCursors(const CXCursor &cursor, const Location &location)
 {
     CXCursor *overridden;
     unsigned count;
@@ -874,26 +879,19 @@ void ClangIndexer::addOverriddenCursors(const CXCursor &cursor, const Location &
         if (loc.isNull())
             continue;
 
+        // error() << location << "got" << i << count << loc;
+
+        String usr;
         auto locCursor = unit(loc)->symbols.value(loc);
-        if (locCursor.usr.isEmpty())
-            error() << "Didn't get usr" << locCursor.isNull();
+        if (locCursor.isNull()) {
+            usr = ::usr(overridden[i]);
+        } else {
+            usr = locCursor.usr;
+        }
         // assert(!locCursor.usr.isEmpty());
 
         //error() << "adding overridden (1) " << location << " to " << o;
-        const uint16_t targetsValue = RTags::createTargetsValue(overridden[i]);
-        unit(location)->targets[location][locCursor.usr] = targetsValue;
-        for (const auto &l : locations) {
-            auto lCursor = unit(l)->symbols.value(l);
-            if (lCursor.usr.isEmpty()) {
-                error() << "no usr" << l;
-            }
-            // assert(!lCursor.usr.isEmpty());
-            unit(loc)->targets[loc][lCursor.usr] = targetsValue;
-        }
-
-        locations.append(loc);
-        addOverriddenCursors(overridden[i], loc, locations);
-        locations.removeLast();
+        unit(location)->targets[location][usr] = 0;
     }
     clang_disposeOverriddenCursors(overridden);
 }
@@ -1028,24 +1026,18 @@ bool ClangIndexer::handleCursor(const CXCursor &cursor, CXCursorKind kind, const
     // their definition and their declaration.  Using the canonical
     // cursor's usr allows us to join them. Check JSClassRelease in
     // JavaScriptCore for an example.
-    c.usr = RTags::eatString(clang_getCursorUSR(clang_getCanonicalCursor(cursor)));
+    c.usr = usr(cursor);
     if (!c.usr.isEmpty())
         unit(location)->usrs[c.usr].insert(location);
 
     switch (c.kind) {
-    case CXCursor_CXXMethod: {
-        List<Location> locations;
-        locations.append(location);
-        addOverriddenCursors(cursor, location, locations);
-        // c.parentUsr = RTags::eatString(clang_getCursorUSR(clang_getCanonicalCursor(clang_getCursorSemanticParent(cursor))));
-        break; }
-        // fall through
+    case CXCursor_CXXMethod:
+        addOverriddenCursors(cursor, location);
+        break;
     case CXCursor_Constructor:
-    case CXCursor_Destructor: {
-        const String usr = RTags::eatString(clang_getCursorUSR(clang_getCanonicalCursor(clang_getCursorSemanticParent(cursor))));
-        unit(location.fileId())->targets[location][usr] = 0; // make a 0-value target for class/struct-decl
-        // error() << "Added a target for" << location << "to" << usr;
-        break; }
+    case CXCursor_Destructor:
+        unit(location.fileId())->targets[location][usr(cursor)] = 0;
+        break;
     default:
         break;
     }
@@ -1113,7 +1105,11 @@ bool ClangIndexer::writeFiles(const Path &root, String &error)
 {
     for (const auto &unit : mUnits) {
         if (!mData->visited.value(unit.first)) {
-            ::error() << "Wanting to write something for" << Location::path(unit.first) << "but we didn't visit it" << mSource.sourceFile;
+            ::error() << "Wanting to write something for" << Location::path(unit.first) << "but we didn't visit it" << mSource.sourceFile()
+                      << unit.second->targets.size()
+                      << unit.second->usrs.size()
+                      << unit.second->symbolNames.size()
+                      << unit.second->symbols.size();
             continue;
         }
         assert(mData->visited.value(unit.first));
@@ -1414,7 +1410,7 @@ static CXChildVisitResult resolveAutoTypeRefVisitor(CXCursor cursor, CXCursor, C
 {
     ResolveAutoTypeRefUserData *userData = reinterpret_cast<ResolveAutoTypeRefUserData*>(data);
     const CXCursorKind kind = clang_getCursorKind(cursor);
-    const String usr = RTags::eatString(clang_getCursorUSR(cursor));
+    const String usr = ::usr(cursor);
     if (!userData->seen->insert(usr)) {
         return CXChildVisit_Break;
     }
