@@ -111,11 +111,11 @@ public:
         return openFileMap<Location, Symbol>(fileId, fileMapName(Symbols),
                                              mFileMapScopes.last()->symbols);
     }
-    std::shared_ptr<FileMap<Location, Map<String, uint16_t> > > openTargets(uint32_t fileId)
+    std::shared_ptr<FileMap<Location, Set<String> > > openTargets(uint32_t fileId)
     {
         assert(!mFileMapScopes.isEmpty());
-        return openFileMap<Location, Map<String, uint16_t> >(fileId, fileMapName(Targets),
-                                                             mFileMapScopes.last()->targets);
+        return openFileMap<Location, Set<String> >(fileId, fileMapName(Targets),
+                                                   mFileMapScopes.last()->targets);
     }
     std::shared_ptr<FileMap<String, Set<Location> > > openUsrs(uint32_t fileId)
     {
@@ -205,7 +205,7 @@ private:
     struct FileMapScope {
         Hash<uint32_t, std::shared_ptr<FileMap<String, Set<Location> > > > symbolNames;
         Hash<uint32_t, std::shared_ptr<FileMap<Location, Symbol> > > symbols;
-        Hash<uint32_t, std::shared_ptr<FileMap<Location, Map<String, uint16_t> > > > targets;
+        Hash<uint32_t, std::shared_ptr<FileMap<Location, Set<String> > > > targets;
         Hash<uint32_t, std::shared_ptr<FileMap<String, Set<Location> > > > usrs;
     };
 

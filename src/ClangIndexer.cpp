@@ -1096,6 +1096,19 @@ bool ClangIndexer::parse()
     return false;
 }
 
+static inline Map<Location, Set<String> > convertTargets(const Map<Location, Map<String, uint16_t> > &in)
+{
+    Map<Location, Set<String> > ret;
+    for (const auto &v : in) {
+        Set<String> &usrs = ret[v.first];
+        for (const auto &u : v.second) {
+            usrs.insert(u.first);
+        }
+
+    }
+    return ret;
+}
+
 bool ClangIndexer::writeFiles(const Path &root, String &error)
 {
     for (const auto &unit : mUnits) {
@@ -1111,7 +1124,7 @@ bool ClangIndexer::writeFiles(const Path &root, String &error)
             error = "Failed to write symbols";
             return false;
         }
-        if (!FileMap<Location, Map<String, uint16_t> >::write(unitRoot + "/targets", unit.second->targets)) {
+        if (!FileMap<Location, Set<String> >::write(unitRoot + "/targets", convertTargets(unit.second->targets))) {
             error = "Failed to write targets";
             return false;
         }

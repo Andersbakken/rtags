@@ -686,7 +686,6 @@ int Project::startDirtyJobs(Dirty *dirty, const UnsavedFiles &unsavedFiles)
         mVisitedFiles.remove(fileId);
     }
 
-    Server *server = Server::instance();
     for (const auto &source : toIndex) {
         std::shared_ptr<IndexerJob> job(new IndexerJob(source, IndexerJob::Dirty, shared_from_this(), unsavedFiles));
         index(job);
@@ -997,8 +996,8 @@ Set<Symbol> Project::findTargets(const Symbol &symbol)
         break; }
     default:
         if (const auto targetsDb = openTargets(symbol.location.fileId())) {
-            for (const auto &usrkind : targetsDb->value(symbol.location)) {
-                ret.unite(findByUsr(usrkind.first, symbol.location.fileId(), Project::ArgDependsOn));
+            for (const auto &usr : targetsDb->value(symbol.location)) {
+                ret.unite(findByUsr(usr, symbol.location.fileId(), Project::ArgDependsOn));
             }
         }
         break;
@@ -1062,9 +1061,9 @@ static Set<Symbol> findRefererences(const Set<Symbol> &inputs,
                 const int count = targets->count();
                 for (int i=0; i<count; ++i) {
                     const Symbol refSymbol = project->findSymbol(targets->keyAt(i));
-                    for (const std::pair<String, uint16_t> &usrKind : targets->valueAt(i)) {
-                        warning() << "Comparing" << usrKind.first << "with" << input.usr << "for" << input.location;
-                        if (usrKind.first == input.usr && filter(input, refSymbol, ret)) {
+                    for (const String &usr : targets->valueAt(i)) {
+                        warning() << "Comparing" << usr << "with" << input.usr << "for" << input.location;
+                        if (usr == input.usr && filter(input, refSymbol, ret)) {
                             break;
                         }
                     }
