@@ -1046,14 +1046,19 @@ Set<Symbol> Project::findByUsr(const String &usr, uint32_t fileId, DependencyMod
     return ret;
 }
 
+enum FilterResult {
+    Continue,
+    Break
+};
 static Set<Symbol> findRefererences(const Set<Symbol> &inputs,
                                     const std::shared_ptr<Project> &project,
-                                    std::function<bool(const Symbol &, const Symbol &, Set<Symbol> &)> filter)
+                                    std::function<FilterResult(const Symbol &, const Symbol &, Set<Symbol> &)> filter)
 {
 
     Set<Symbol> ret;
     // const bool isClazz = s.isClass();
     for (const Symbol &input : inputs) {
+        // error() << "Calling findRefererences" << input.location;
         for (const auto &dep : project->dependencies(input.location.fileId(), Project::DependsOnArg)) {
             // error() << "Looking at file" << Location::path(dep) << "for input" << input.location;
             auto targets = project->openTargets(dep);
@@ -1063,7 +1068,7 @@ static Set<Symbol> findRefererences(const Set<Symbol> &inputs,
                     const Symbol refSymbol = project->findSymbol(targets->keyAt(i));
                     for (const String &usr : targets->valueAt(i)) {
                         warning() << "Comparing" << usr << "with" << input.usr << "for" << input.location;
-                        if (usr == input.usr && filter(input, refSymbol, ret)) {
+                        if (usr == input.usr && filter(input, refSymbol, ret) == Break) {
                             break;
                         }
                     }
@@ -1076,10 +1081,9 @@ static Set<Symbol> findRefererences(const Set<Symbol> &inputs,
 
 static Set<Symbol> findRefererences(const Symbol &in,
                                     const std::shared_ptr<Project> &project,
-                                    std::function<bool(const Symbol &, const Symbol &, Set<Symbol> &)> filter,
+                                    std::function<FilterResult(const Symbol &, const Symbol &, Set<Symbol> &)> filter,
                                     Set<Symbol> *inputsPtr = 0)
 {
-    error() << "Calling findRefererences" << in.location;
     Set<Symbol> inputs;
     Symbol s;
     if (in.isReference()) {
@@ -1129,9 +1133,9 @@ Set<Symbol> Project::findCallers(const Symbol &symbol)
             if (RTags::isReference(ref.kind)
                 || (input.kind == CXCursor_Constructor && (ref.kind == CXCursor_VarDecl || ref.kind == CXCursor_FieldDecl))) {
                 refs.insert(ref);
-                return true;
+                return Break;
             }
-            return false;
+            return Continue;
         });
 }
 
@@ -1140,7 +1144,7 @@ Set<Symbol> Project::findAllReferences(const Symbol &symbol)
     Set<Symbol> inputs;
     Set<Symbol> ret = ::findRefererences(symbol, shared_from_this(), [](const Symbol &, const Symbol &ref, Set<Symbol> &refs) {
             refs.insert(ref);
-            return false;
+            return Continue;
         }, &inputs);
     ret.unite(inputs);
     return ret;
@@ -1152,21 +1156,33 @@ Set<Symbol> Project::findVirtuals(const Symbol &symbol)
         return Set<Symbol>();
 
     // we have to call the findRefererences that takes a set to avoid endless recursion
-    Set<Symbol> inputs;
-    inputs.insert(symbol);
-    ret.insert(symbol);
     Set<Symbol> ret;
+    ret.insert(symbol);
+    auto addTarget = [&ret, this](const Symbol &sym) {
+        const Symbol target = findTarget(sym);
+        if (!target.isNull()) {
+            assert(target.usr == sym.usr);
+            assert(target.kind == sym.kind);
+            assert(target.isDefinition() != sym.isDefinition());
+            ret.insert(target);
+        }
+    };
+    addTarget(symbol);
     bool done;
     do {
-        const Set<Symbol> r = ::findRefererences(inputs, shared_from_this(), [](const Symbol &, const Symbol &ref, Set<Symbol> &refs) {
+        const Set<Symbol> r = ::findRefererences(ret, shared_from_this(), [](const Symbol &input, const Symbol &ref, Set<Symbol> &refs) {
                 // error() << "considering" << ref.location << ref.kindSpelling();
                 if (ref.kind == CXCursor_CXXMethod) {
                     refs.insert(ref);
                 }
-                return false;
+                return Continue;
             });
+        done = true;
         for (const Symbol &s : r) {
-            // if (ret.insert
+            if (ret.insert(s)) {
+                addTarget(s);
+                done = false;
+            }
         }
     } while (!done);
     return ret;

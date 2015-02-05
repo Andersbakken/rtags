@@ -1412,7 +1412,8 @@ static CXChildVisitResult resolveAutoTypeRefVisitor(CXCursor cursor, CXCursor, C
 {
     ResolveAutoTypeRefUserData *userData = reinterpret_cast<ResolveAutoTypeRefUserData*>(data);
     const CXCursorKind kind = clang_getCursorKind(cursor);
-    const String usr = ::usr(cursor);
+    const Location loc = ::usr(cursor);
+#error this must key on location, not usr
     if (!userData->seen->insert(usr)) {
         return CXChildVisit_Break;
     }
