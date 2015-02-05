@@ -35,7 +35,9 @@ static const CXCursor nullCursor = clang_getNullCursor();
 
 static inline String usr(const CXCursor &cursor)
 {
-    return RTags::eatString(clang_getCursorUSR(clang_getCanonicalCursor(clang_getCursorSemanticParent(cursor))));
+    const String ret = RTags::eatString(clang_getCursorUSR(clang_getCanonicalCursor(cursor)));
+    assert(!ret.isEmpty());
+    return ret;
 }
 
 struct VerboseVisitorUserData {
@@ -1036,7 +1038,7 @@ bool ClangIndexer::handleCursor(const CXCursor &cursor, CXCursorKind kind, const
         break;
     case CXCursor_Constructor:
     case CXCursor_Destructor:
-        unit(location.fileId())->targets[location][usr(cursor)] = 0;
+        unit(location.fileId())->targets[location][usr(clang_getCursorSemanticParent(cursor))] = 0;
         break;
     default:
         break;
