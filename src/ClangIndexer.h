@@ -42,7 +42,7 @@ private:
     bool writeFiles(const Path &root, String &error);
 
     void addFileSymbol(uint32_t file);
-    int symbolLength(CXCursorKind kind, const CXCursor &cursor) const;
+    int symbolLength(CXCursorKind kind, const CXCursor &cursor);
     inline Location createLocation(const CXSourceLocation &location, bool *blocked = 0)
     {
         CXString fileName;
@@ -111,7 +111,7 @@ private:
     Location createLocation(const Path &file, unsigned int line, unsigned int col, bool *blocked = 0);
     String addNamePermutations(const CXCursor &cursor, const Location &location, String typeOverride);
 
-    CXCursor resolveAutoTypeRef(const CXCursor &cursor) const;
+    CXCursor resolveAutoTypeRef(const CXCursor &cursor);
 
     bool handleCursor(const CXCursor &cursor, CXCursorKind kind,
                       const Location &location, Symbol **cursorPtr = 0);
@@ -126,6 +126,8 @@ private:
                                                   const CXCursor &parent, Symbol **cursorPtr = 0);
     static CXChildVisitResult indexVisitor(CXCursor cursor, CXCursor parent, CXClientData client_data);
     static CXChildVisitResult verboseVisitor(CXCursor cursor, CXCursor, CXClientData userData);
+    static CXChildVisitResult resolveAutoTypeRefVisitor(CXCursor cursor, CXCursor, CXClientData data);
+
 
     static void inclusionVisitor(CXFile includedFile, CXSourceLocation *includeStack,
                                  unsigned includeLen, CXClientData userData);
