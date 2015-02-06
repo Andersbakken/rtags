@@ -196,7 +196,7 @@ private:
     void removeDependencies(uint32_t fileId);
     void watch(const Path &file);
     void reloadFileManager();
-    void addDependencies(const DependencyMap &deps, Set<uint32_t> &newFiles);
+    void addDependencies(const DependencyMap &deps);
     void addFixIts(const Hash<uint32_t, bool> &visited, const FixItMap &fixIts);
     int startDirtyJobs(Dirty *dirty, const UnsavedFiles &unsavedFiles = UnsavedFiles());
     bool save();

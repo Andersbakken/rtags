@@ -240,7 +240,7 @@ bool Project::load(FileManagerMode mode)
 
     file >> mSources >> mVisitedFiles >> mDependencies;
 
-    for (const auto& dep : mDependencies) {
+    for (const auto &dep : mDependencies) {
         watch(Location::path(dep.first));
     }
 
@@ -387,11 +387,10 @@ void Project::onJobFinished(const std::shared_ptr<IndexerJob> &job, const std::s
         }
     }
 
-    Set<uint32_t> newFiles;
     int symbolNames = 0;
     addFixIts(indexData->visited, indexData->fixIts);
     removeDependencies(indexData->fileId());
-    addDependencies(indexData->dependencies, newFiles);
+    addDependencies(indexData->dependencies);
     if (success) {
         src->second.parsed = indexData->parseTime;
         error("[%3d%%] %d/%d %s %s.",
@@ -607,22 +606,24 @@ void Project::removeDependencies(uint32_t fileId)
     }
 }
 
-void Project::addDependencies(const DependencyMap &deps, Set<uint32_t> &newFiles)
+void Project::addDependencies(const DependencyMap &deps)
 {
+    Set<uint32_t> files;
     const auto end = deps.end();
     for (auto it = deps.begin(); it != end; ++it) {
         Set<uint32_t> &values = mDependencies[it->first];
         if (values.isEmpty()) {
+            files.unite(it->second);
             values = it->second;
         } else {
-            values.unite(it->second);
+            for (const uint32_t file : it->second) {
+                if (values.insert(file))
+                    files.insert(file);
+            }
         }
-        if (newFiles.isEmpty()) {
-            newFiles = it->second;
-        } else {
-            newFiles.unite(it->second);
-        }
-        newFiles.insert(it->first);
+    }
+    for (uint32_t file : files) {
+        watch(Location::path(file));
     }
 }
 
