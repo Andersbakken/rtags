@@ -883,13 +883,7 @@ void ClangIndexer::addOverriddenCursors(const CXCursor &cursor, const Location &
 
         // error() << location << "got" << i << count << loc;
 
-        String usr;
-        auto locCursor = unit(loc)->symbols.value(loc);
-        if (locCursor.isNull()) {
-            usr = ::usr(overridden[i]);
-        } else {
-            usr = locCursor.usr;
-        }
+        const String usr = ::usr(overridden[i]);
         // assert(!locCursor.usr.isEmpty());
 
         //error() << "adding overridden (1) " << location << " to " << o;
