@@ -6,7 +6,7 @@
 class TestClass
 {
 public:
-    static int someFunction(const std::string& ting);
+    static int someFunction(const std::string &ting);
     static bool someOtherFunction(int hepp);
 };
 
