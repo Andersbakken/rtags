@@ -674,6 +674,7 @@ int Project::remove(const Match &match)
 
 int Project::startDirtyJobs(Dirty *dirty, const UnsavedFiles &unsavedFiles)
 {
+    const JobScheduler::JobScope scope(Server::instance()->jobScheduler());
     List<Source> toIndex;
     for (const auto &source : mSources) {
         if (source.second.flags & Source::Active && dirty->isDirty(source.second)) {

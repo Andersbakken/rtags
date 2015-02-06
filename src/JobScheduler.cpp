@@ -3,7 +3,7 @@
 #include "Server.h"
 
 JobScheduler::JobScheduler(int maxJobs)
-    : mMaxJobs(maxJobs)
+    : mMaxJobs(maxJobs), mProcrastination(0)
 {}
 
 JobScheduler::~JobScheduler()
@@ -31,7 +31,8 @@ void JobScheduler::add(const std::shared_ptr<IndexerJob> &job)
         assert(after);
         mPendingJobs.insert(node, after);
     }
-    startJobs();
+    if (!mProcrastination)
+        startJobs();
 }
 
 void JobScheduler::startJobs()

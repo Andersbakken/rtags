@@ -30,6 +30,24 @@ public:
     int maxJobs() const { return mMaxJobs; }
     void setMaxJobs(int maxJobs) { mMaxJobs = maxJobs; startJobs(); }
 
+    struct JobScope {
+        JobScope(const std::shared_ptr<JobScheduler> &scheduler)
+            : mScheduler(scheduler)
+        {
+            assert(mScheduler);
+            ++mScheduler->mProcrastination;
+        }
+
+        ~JobScope()
+        {
+            if (!--mScheduler->mProcrastination)
+                mScheduler->startJobs();
+        }
+
+    private:
+        const std::shared_ptr<JobScheduler> mScheduler;
+    };
+
     void add(const std::shared_ptr<IndexerJob> &job);
     void handleIndexerMessage(const std::shared_ptr<IndexerMessage> &message);
     void dump(Connection *conn);
@@ -45,7 +63,7 @@ private:
         std::shared_ptr<Node> next, prev;
     };
 
-    int mMaxJobs;
+    int mMaxJobs, mProcrastination;
     EmbeddedLinkedList<std::shared_ptr<Node> > mPendingJobs;
     Hash<Process *, std::shared_ptr<Node> > mActiveByProcess;
     Hash<uint64_t, std::shared_ptr<Node> > mActiveById;
