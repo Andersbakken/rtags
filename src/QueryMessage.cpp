@@ -83,10 +83,10 @@ QueryMessage::Flag QueryMessage::flagFromString(const String &string)
         return FindFilePreferExact;
     } else if (string == "symbol-info-include-parents") {
         return SymbolInfoIncludeParents;
-    } else if (string == "symbol-info-include-targets") {
-        return SymbolInfoIncludeTargets;
-    } else if (string == "symbol-info-include-references") {
-        return SymbolInfoIncludeReferences;
+    } else if (string == "symbol-info-exclude-targets") {
+        return SymbolInfoExcludeTargets;
+    } else if (string == "symbol-info-exclude-references") {
+        return SymbolInfoExcludeReferences;
     } else if (string == "declaration-only") {
         return DeclarationOnly;
     } else if (string == "containing-function") {

@@ -507,8 +507,8 @@ BUFFER : the buffer to be checked and reparsed, if it's nil, use current buffer"
     (with-temp-buffer
       (rtags-call-rc :path path
                      "-U" loc
-                     (if verbose "--symbol-info-include-targets")
-                     (if verbose "--symbol-info-include-references"))
+                     (unless verbose "--symbol-info-exclude-targets")
+                     (unless verbose "--symbol-info-exclude-references"))
       (if save-to-kill-ring
           (copy-region-as-kill (point-min) (point-max)))
       (buffer-string))))

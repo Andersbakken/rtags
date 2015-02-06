@@ -123,8 +123,8 @@ struct Option opts[] = {
     { RClient::FindVirtuals, "find-virtuals", 'k', no_argument, "Use in combinations with -R or -r to show other implementations of this function." },
     { RClient::FindFilePreferExact, "find-file-prefer-exact", 'A', no_argument, "Use to make --find-file prefer exact matches over partial matches." },
     { RClient::SymbolInfoIncludeParents, "symbol-info-include-parents", 0, no_argument, "Use to make --symbol-info include parent symbols." },
-    { RClient::SymbolInfoIncludeTargets, "symbol-info-include-targets", 0, no_argument, "Use to make --symbol-info include target symbols." },
-    { RClient::SymbolInfoIncludeReferences, "symbol-info-include-references", 0, no_argument, "Use to make --symbol-info include reference symbols." },
+    { RClient::SymbolInfoExcludeTargets, "symbol-info-exclude-targets", 0, no_argument, "Use to make --symbol-info exclude target symbols." },
+    { RClient::SymbolInfoExcludeReferences, "symbol-info-exclude-references", 0, no_argument, "Use to make --symbol-info exclude reference symbols." },
     { RClient::CursorKind, "cursor-kind", 0, no_argument, "Include cursor kind in --find-symbols output." },
     { RClient::DisplayName, "display-name", 0, no_argument, "Include display name in --find-symbols output." },
     { RClient::CurrentFile, "current-file", 0, required_argument, "Pass along which file is being edited to give rdm a better chance at picking the right project." },
@@ -528,11 +528,11 @@ bool RClient::parse(int &argc, char **argv)
         case SymbolInfoIncludeParents:
             mQueryFlags |= QueryMessage::SymbolInfoIncludeParents;
             break;
-        case SymbolInfoIncludeTargets:
-            mQueryFlags |= QueryMessage::SymbolInfoIncludeTargets;
+        case SymbolInfoExcludeTargets:
+            mQueryFlags |= QueryMessage::SymbolInfoExcludeTargets;
             break;
-        case SymbolInfoIncludeReferences:
-            mQueryFlags |= QueryMessage::SymbolInfoIncludeReferences;
+        case SymbolInfoExcludeReferences:
+            mQueryFlags |= QueryMessage::SymbolInfoExcludeReferences;
             break;
         case CursorKind:
             mQueryFlags |= QueryMessage::CursorKind;
