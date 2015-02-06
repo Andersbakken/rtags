@@ -1060,9 +1060,13 @@ static Set<Symbol> findRefererences(const Set<Symbol> &inputs,
     Set<Symbol> ret;
     // const bool isClazz = s.isClass();
     for (const Symbol &input : inputs) {
-        // error() << "Calling findRefererences" << input.location;
-        for (const auto &dep : project->dependencies(input.location.fileId(), Project::DependsOnArg)) {
-            // error() << "Looking at file" << Location::path(dep) << "for input" << input.location;
+        error() << "Calling findRefererences" << input.location;
+        Set<uint32_t> deps = project->dependencies(input.location.fileId(), Project::DependsOnArg);
+        if (input.kind == CXCursor_CXXMethod) { // ### could store whether it's virtual
+            deps.unite(project->dependencies(input.location.fileId(), Project::ArgDependsOn));
+        }
+        for (const auto &dep : deps) {
+            error() << "Looking at file" << Location::path(dep) << "for input" << input.location;
             auto targets = project->openTargets(dep);
             if (targets) {
                 const int count = targets->count();
@@ -1170,10 +1174,25 @@ Set<Symbol> Project::findVirtuals(const Symbol &symbol)
         }
     };
     addTarget(symbol);
+    for (auto &sym : ret) {
+        auto targets = openTargets(sym.location.fileId());
+        // if (targets) {
+        //     for (targets->value(sym.location);
+        //     for (const String &usr
+        //     Set<Symbol> symbols = findByUsr(
+        //     const Symbol c = findSymbol(loc);
+        //         if (!c.isNull())
+        //             ret.insert(c);
+        //     }
+        // }
+
+        // auto targets =
+    }
+
     bool done;
     do {
         const Set<Symbol> r = ::findRefererences(ret, shared_from_this(), [](const Symbol &, const Symbol &ref, Set<Symbol> &refs) {
-                // error() << "considering" << ref.location << ref.kindSpelling();
+                error() << "considering" << ref.location << ref.kindSpelling();
                 if (ref.kind == CXCursor_CXXMethod) {
                     refs.insert(ref);
                 }
