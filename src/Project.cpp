@@ -1171,7 +1171,7 @@ Set<Symbol> Project::findVirtuals(const Symbol &symbol)
     addTarget(symbol);
     bool done;
     do {
-        const Set<Symbol> r = ::findRefererences(ret, shared_from_this(), [](const Symbol &input, const Symbol &ref, Set<Symbol> &refs) {
+        const Set<Symbol> r = ::findRefererences(ret, shared_from_this(), [](const Symbol &, const Symbol &ref, Set<Symbol> &refs) {
                 // error() << "considering" << ref.location << ref.kindSpelling();
                 if (ref.kind == CXCursor_CXXMethod) {
                     refs.insert(ref);
