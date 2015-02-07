@@ -54,6 +54,10 @@ static inline String xmlEscape(const String& xml)
 
 String Diagnostic::format(const DiagnosticsMap &diagnostics)
 {
+    Server *server = Server::instance();
+    assert(server);
+    if (server->activeBuffers().isEmpty())
+        server = 0;
     String xmlDiagnostics = "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n  <checkstyle>";
     if (!diagnostics.isEmpty()) {
         const char *severities[] = { "none", "warning", "error", "fixit", "skipped" };
@@ -61,6 +65,8 @@ String Diagnostic::format(const DiagnosticsMap &diagnostics)
 
         for (const auto &entry : diagnostics) {
             const Location &loc = entry.first;
+            if (server && !server->isActiveBuffer(loc.fileId()))
+                continue;
             const Diagnostic &diagnostic = entry.second;
             if (loc.fileId() != lastFileId) {
                 if (lastFileId)
