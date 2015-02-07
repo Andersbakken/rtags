@@ -1170,6 +1170,7 @@ Set<Symbol> Project::findVirtuals(const Symbol &symbol)
             for (const String &usr : targets->value(sym.location)) {
                 for (const Symbol &symbol : findByUsr(usr, sym.location.fileId(), ArgDependsOn)) {
                     if (ret.insert(symbol)) {
+                        error() << "inserted one target for" << sym.location << symbol.location;
                         findTargets(symbol);
                     }
                 }
@@ -1186,6 +1187,7 @@ Set<Symbol> Project::findVirtuals(const Symbol &symbol)
             });
         for (const Symbol &s : r) {
             if (ret.insert(s)) {
+                error() << "inserted one reference for" << sym.location << s.location;
                 addTargets(s);
             }
         }
