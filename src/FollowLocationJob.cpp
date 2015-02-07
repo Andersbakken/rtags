@@ -31,6 +31,18 @@ int FollowLocationJob::execute()
     if (symbol.isNull())
         return 1;
 
+    if (queryFlags() & QueryMessage::AllTargets) {
+        auto targets = project()->openTargets(location.fileId());
+        if (targets) {
+            const Set<String> usrs = targets->value(location);
+            for (const String &usr : usrs) {
+                for (const Symbol &s : project()->findByUsr(usr, location.fileId(), Project::ArgDependsOn)) {
+                    write(s.location);
+                }
+            }
+        }
+    }
+
     const auto target = project()->findTarget(symbol);
     if (target.isNull())
         return 1;

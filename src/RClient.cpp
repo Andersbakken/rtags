@@ -112,6 +112,7 @@ struct Option opts[] = {
     { RClient::RangeFilter, "range-filter", 0, required_argument, "Filter out results not in the specified range." },
     { RClient::FilterSystemHeaders, "filter-system-headers", 'H', no_argument, "Don't exempt system headers from path filters." },
     { RClient::AllReferences, "all-references", 'e', no_argument, "Include definitions/declarations/constructors/destructors for references. Used for rename symbol." },
+    { RClient::AllTargets, "all-targets", 0, no_argument, "Print all targets for -f. Used for debugging." },
     { RClient::ElispList, "elisp-list", 'Y', no_argument, "Output elisp: (list \"one\" \"two\" ...)." },
     { RClient::Diagnostics, "diagnostics", 'G', no_argument, "Receive continual diagnostics from rdm." },
     { RClient::XmlDiagnostics, "xml-diagnostics", 'm', no_argument, "Receive continual XML formatted diagnostics from rdm." },
@@ -545,6 +546,9 @@ bool RClient::parse(int &argc, char **argv)
             break;
         case AllReferences:
             mQueryFlags |= QueryMessage::AllReferences;
+            break;
+        case AllTargets:
+            mQueryFlags |= QueryMessage::AllTargets;
             break;
         case MatchCaseInsensitive:
             mQueryFlags |= QueryMessage::MatchCaseInsensitive;
