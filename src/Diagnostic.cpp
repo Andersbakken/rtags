@@ -15,6 +15,7 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 
 #include "Diagnostic.h"
 #include "RTags.h"
+#include "Server.h"
 
 static inline String xmlEscape(const String& xml)
 {
