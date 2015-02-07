@@ -33,7 +33,8 @@ String Symbol::toString(unsigned cursorInfoFlags, unsigned keyFlags, const std::
                                       "SymbolLength: %u\n"
                                       "%s" // range
                                       "%s" // enumValue
-                                      "%s", // definition
+                                      "%s" // definition
+                                      "%s", // usr
                                       symbolName.constData(),
                                       kindSpelling().constData(),
                                       RTags::eatString(clang_getTypeKindSpelling(type)).constData(),
@@ -43,9 +44,10 @@ String Symbol::toString(unsigned cursorInfoFlags, unsigned keyFlags, const std::
                                       kind == CXCursor_EnumConstantDecl ? String::format<32>("Enum Value: %lld\n", enumValue).constData() :
 #endif
                                       "",
-                                      isDefinition() ? "Definition\n" : "");
+                                      isDefinition() ? "Definition\n" : "",
+                                      usr.isEmpty() ? "" : String::format<64>("Usr: %s\n", usr.constData()).constData());
     if (!(cursorInfoFlags & IgnoreTargets) && project) {
-        auto targets = project->findTargets(*this);
+  auto targets = project->findTargets(*this);
         if (targets.size()) {
             ret.append("Targets:\n");
             auto best = RTags::bestTarget(targets);
