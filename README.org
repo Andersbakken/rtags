@@ -158,7 +158,7 @@ LLVM 3.4 the following works:
 
 #+BEGIN_SRC
 $ brew tap homebrew/versions
-$ brew install llvm34 --with-libcxx --with-clang --disable-assertions --rtti
+$ brew install llvm35 --with-libcxx --with-clang --disable-assertions --rtti
 #+END_SRC
 
 or you can install clang and llvm from macports
