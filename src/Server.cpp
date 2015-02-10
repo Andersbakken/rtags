@@ -738,8 +738,6 @@ void Server::dumpFile(const std::shared_ptr<QueryMessage> &query, Connection *co
 
 void Server::generateTest(const std::shared_ptr<QueryMessage> &query, Connection *conn)
 {
-#warning not done
-#if 0
     const uint32_t fileId = Location::fileId(query->query());
     if (!fileId) {
         conn->write<256>("%s is not indexed", query->query().constData());
@@ -788,23 +786,27 @@ void Server::generateTest(const std::shared_ptr<QueryMessage> &query, Connection
 
         List<Value> tests;
 
-        const SymbolMap &map = project->symbols();
         List<Value> noContextFlags;
         noContextFlags.append("no-context");
-        auto it = map.lower_bound(Location(source.fileId, 0, 0));
-        while (it != map.end() && it->first.fileId() == source.fileId) {
-            Location loc;
-            if (it->second->bestTarget(map, &loc) && loc.fileId() == source.fileId) {
-                Map<String, Value> test;
-                test["type"] = "follow-location";
-                test["flags"] = noContextFlags;
-                test["location"] = String::format<128>("%s:%d:%d:", it->first.path().fileName(), it->first.line(), it->first.column());
-                List<Value> output;
-                output.append(String::format<128>("%s:%d:%d:", loc.path().fileName(), loc.line(), loc.column()));
-                test["output"] = output;
-                tests.append(test);
+        for (const auto &dep : project->dependencies()) {
+            auto symbols = project->openSymbols(dep.first);
+            if (!symbols)
+                continue;
+            const int count = symbols->count();
+            for (int i=0; i<count; ++i) {
+                const Location loc = symbols->keyAt(i);
+                const Symbol target = project->findTarget(loc);
+                if (!target.isNull()) {
+                    Map<String, Value> test;
+                    test["type"] = "follow-location";
+                    test["flags"] = noContextFlags;
+                    test["location"] = loc.key();
+                    List<Value> output;
+                    output.append(target.location.key());
+                    test["output"] = output;
+                    tests.append(test);
+                }
             }
-            ++it;
         }
         out["tests"] = tests;
         conn->finish(out.toJSON(true));
@@ -812,7 +814,6 @@ void Server::generateTest(const std::shared_ptr<QueryMessage> &query, Connection
         conn->write<256>("%s build: %d not found", query->query().constData(), query->buildIndex());
         conn->finish();
     }
-#endif
 }
 
 void Server::cursorInfo(const std::shared_ptr<QueryMessage> &query, Connection *conn)
