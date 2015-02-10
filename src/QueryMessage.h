@@ -97,7 +97,8 @@ public:
         SynchronousCompletions = 0x04000000,
         NoSortReferencesByInput = 0x08000000,
         HasLocation = 0x10000000,
-        WildcardSymbolNames = 0x20000000
+        WildcardSymbolNames = 0x20000000,
+        NoColor = 0x40000000
     };
 
     QueryMessage(Type type = Invalid);

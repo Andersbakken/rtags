@@ -139,14 +139,15 @@ public:
         return compare(other) > 0;
     }
 
-    String context() const;
-
     enum KeyFlag {
         NoFlag = 0x0,
-        ShowContext = 0x1
+        ShowContext = 0x1,
+        NoColor = 0x2
     };
 
     String key(unsigned flags = NoFlag) const;
+    String context(unsigned flags) const;
+
     static Location decode(const String &data)
     {
         uint32_t col;

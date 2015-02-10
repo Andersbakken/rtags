@@ -80,6 +80,7 @@ public:
         MatchCaseInsensitive,
         MatchRegexp,
         Max,
+        NoColor,
         NoContext,
         NoSortReferencesByInput,
         NoUnescapeCompileCommands,

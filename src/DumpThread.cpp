@@ -18,6 +18,9 @@ CXChildVisitResult DumpThread::visitor(CXCursor cursor, CXCursor, CXClientData u
     assert(that);
     CXSourceLocation location = clang_getCursorLocation(cursor);
     if (!clang_equalLocations(location, nullLocation)) {
+        unsigned locationFlags = 0;
+        if (that->mQueryFlags & QueryMessage::NoColor)
+            locationFlags |= Location::NoColor;
         CXString file;
         unsigned line, col;
         clang_getPresumedLocation(location, &file, &line, &col);
@@ -39,9 +42,9 @@ CXChildVisitResult DumpThread::visitor(CXCursor cursor, CXCursor, CXClientData u
                 const Location loc(fileId, line, col);
                 if (!(that->mQueryFlags & QueryMessage::NoContext)) {
                     if (line == endLine) {
-                        message += Rct::colorize(loc.context(), Rct::AnsiColor_Green, col - 1, endColumn - col);
+                        message += Rct::colorize(loc.context(locationFlags), Rct::AnsiColor_Green, col - 1, endColumn - col);
                     } else {
-                        message += loc.context();
+                        message += loc.context(locationFlags);
                     }
                 }
             }
