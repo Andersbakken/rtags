@@ -144,6 +144,7 @@ struct Option opts[] = {
     { RClient::ProjectRoot, "project-root", 0, required_argument, "Override project root for compile commands." },
     { RClient::RTagsConfig, "rtags-config", 0, required_argument, "Print out .rtags-config for argument." },
     { RClient::WildcardSymbolNames, "wildcard-symbol-names", 'a', no_argument, "Expand * like wildcards in --list-symbols" },
+    { RClient::NoColor, "no-color", 0, no_argument, "Don't colorize context. " },
     { RClient::None, 0, 0, 0, 0 }
 };
 
@@ -491,6 +492,10 @@ bool RClient::parse(int &argc, char **argv)
         const Option *opt = (idx == -1 ? shortOptions.value(c) : longOptions.value(idx));
         assert(opt);
 
+        if (!isatty(STDOUT_FILENO)) {
+            mQueryFlags |= QueryMessage::NoColor;
+        }
+
         switch (opt->option) {
         case None:
         case NumOptions:
@@ -510,6 +515,9 @@ bool RClient::parse(int &argc, char **argv)
             break;
         case CompilationFlagsOnly:
             mQueryFlags |= QueryMessage::CompilationFlagsOnly;
+            break;
+        case NoColor:
+            mQueryFlags |= QueryMessage::NoColor;
             break;
         case CompilationFlagsSplitLine:
             mQueryFlags |= QueryMessage::CompilationFlagsSplitLine;

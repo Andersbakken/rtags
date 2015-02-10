@@ -39,8 +39,10 @@ void QueryMessage::decode(Deserializer &deserializer)
 unsigned QueryMessage::keyFlags(unsigned queryFlags)
 {
     unsigned ret = Location::NoFlag;
-    if (!(queryFlags & QueryMessage::NoContext))
+    if (!(queryFlags & NoContext))
         ret |= Location::ShowContext;
+    if (queryFlags & NoColor)
+        ret |= Location::NoColor;
     return ret;
 }
 
@@ -113,6 +115,10 @@ QueryMessage::Flag QueryMessage::flagFromString(const String &string)
         return HasLocation;
     } else if (string == "wildcard-symbol-names") {
         return WildcardSymbolNames;
+    } else if (string == "no-color") {
+        return NoColor;
+    } else if (string == "all-targets") {
+        return AllTargets;
     }
     return NoFlag;
 }

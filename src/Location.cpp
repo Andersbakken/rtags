@@ -44,7 +44,7 @@ String Location::key(unsigned flags) const
     String ctx;
     if (flags & Location::ShowContext) {
         ctx += '\t';
-        ctx += context();
+        ctx += context(flags);
         extra += ctx.size();
     }
 
@@ -57,20 +57,33 @@ String Location::key(unsigned flags) const
     return ret;
 }
 
-String Location::context() const
+String Location::context(unsigned flags) const
 {
-    Path p = path();
-    FILE *f = fopen(p.constData(), "r");
+    String ret;
+    FILE *f = fopen(path().constData(), "r");
     if (f) {
         const unsigned int l = line();
         for (unsigned i=1; i<l; ++i) {
-             Rct::readLine(f);
-         }
+            Rct::readLine(f);
+        }
 
-         char buf[1024] = { '\0' };
-         const int len = Rct::readLine(f, buf, 1023);
-         fclose(f);
-         return String(buf, len);
-     }
-     return String();
- }
+        char buf[1024] = { '\0' };
+        const int len = Rct::readLine(f, buf, 1023);
+        fclose(f);
+        ret.assign(buf, len);
+        // error() << "foobar" << ret << bool(flags & NoColor);
+        if (!(flags & NoColor)) {
+            const int col = column() - 1;
+            int end = col;
+            while (ret.size() > end && (isalnum(ret.at(end)) || ret.at(end) == '_'))
+                ++end;
+            static const char *color = "\x1b[32;1m"; // dark yellow
+            static const char *resetColor = "\x1b[0;0m";
+            // error() << "foobar"<< end << col << ret.size();
+            ret.insert(end, resetColor);
+            ret.insert(col, color);
+            // printf("[%s]\n", ret.constData());
+        }
+    }
+    return ret;
+}
