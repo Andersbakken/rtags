@@ -36,7 +36,8 @@ static const CXCursor nullCursor = clang_getNullCursor();
 static inline String usr(const CXCursor &cursor)
 {
     const String ret = RTags::eatString(clang_getCursorUSR(clang_getCanonicalCursor(cursor)));
-    assert(!ret.isEmpty());
+    // if (ret.isEmpty())
+    //     error() << "got empty" << cursor;
     return ret;
 }
 
@@ -799,6 +800,7 @@ bool ClangIndexer::handleReference(const CXCursor &cursor, CXCursorKind kind,
     }
 
     const String refUsr = usr(ref);
+    assert(!refUsr.isEmpty());
     targets[refUsr] = refTargetValue;
     Symbol &c = unit(location)->symbols[location];
     if (cursorPtr)
@@ -884,6 +886,7 @@ void ClangIndexer::addOverriddenCursors(const CXCursor &cursor, const Location &
         // error() << location << "got" << i << count << loc;
 
         const String usr = ::usr(overridden[i]);
+        assert(!usr.isEmpty());
         // assert(!locCursor.usr.isEmpty());
 
         //error() << "adding overridden (1) " << location << " to " << o;
@@ -1032,6 +1035,7 @@ bool ClangIndexer::handleCursor(const CXCursor &cursor, CXCursorKind kind, const
         break;
     case CXCursor_Constructor:
     case CXCursor_Destructor:
+        assert(!usr(clang_getCursorSemanticParent(cursor)).isEmpty());
         unit(location.fileId())->targets[location][usr(clang_getCursorSemanticParent(cursor))] = 0;
         break;
     default:
