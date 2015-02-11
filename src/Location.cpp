@@ -75,6 +75,8 @@ String Location::context(unsigned flags) const
         if (!(flags & NoColor)) {
             const int col = column() - 1;
             int end = col;
+            if (ret.at(end) == '~')
+                ++end;
             while (ret.size() > end && (isalnum(ret.at(end)) || ret.at(end) == '_'))
                 ++end;
             static const char *color = "\x1b[32;1m"; // dark yellow
