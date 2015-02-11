@@ -55,15 +55,23 @@ int ReferencesJob::execute()
         if (sym.isNull())
             continue;
         if (rename && (sym.kind == CXCursor_Constructor || sym.kind == CXCursor_Destructor)) {
-            const Set<Symbol> targets = proj->findTargets(sym);
+            const Location loc = sym.location;
             sym.clear();
-            for (const Symbol &c : targets) {
-                if (c.isClass()) {
-                    sym = c;
-                    if (c.isDefinition())
-                        break;
+            auto targets = proj->openTargets(loc.fileId());
+            sym.clear();
+            if (targets) {
+                const Set<String> usrs = targets->value(loc);
+                for (const String &usr : usrs) {
+                    for (const Symbol &s : proj->findByUsr(usr, loc.fileId(), Project::ArgDependsOn)) {
+                        if (s.isClass()) {
+                            sym = s;
+                            if (s.isDefinition())
+                                break;
+                        }
+                    }
                 }
             }
+
             if (sym.isNull())
                 continue;
         }
