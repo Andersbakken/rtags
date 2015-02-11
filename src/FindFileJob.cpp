@@ -43,14 +43,15 @@ int FindFileJob::execute()
 
     enum Mode {
         All,
+        FilePath,
         RegExp,
-        Pattern
+        Pattern,
     } mode = All;
     String::CaseSensitivity cs = String::CaseSensitive;
     if (mRegExp.isValid()) {
         mode = RegExp;
     } else if (!mPattern.isEmpty()) {
-        mode = Pattern;
+        mode = mPattern[0] == '/' ? FilePath : Pattern;
     }
     if (queryFlags() & QueryMessage::MatchCaseInsensitive)
         cs = String::CaseInsensitive;
@@ -88,6 +89,7 @@ int FindFileJob::execute()
             case RegExp:
                 ok = mRegExp.indexIn(out) != -1;
                 break;
+            case FilePath:
             case Pattern:
                 if (!preferExact) {
                     ok = out.contains(mPattern, cs);
@@ -103,6 +105,12 @@ int FindFileJob::execute()
                     } else {
                         ok = !foundExact && out.contains(mPattern, cs);
                     }
+                }
+                if (!ok && mode == FilePath) {
+                    Path p(out);
+                    p.resolve();
+                    if (p == mPattern)
+                        ok = true;
                 }
                 break;
             }
