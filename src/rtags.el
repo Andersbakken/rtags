@@ -2278,6 +2278,7 @@ If rtags-display-summary-as-tooltip is t, a tooltip is displayed."
 (add-hook 'kill-buffer-hook 'rtags-kill-buffer-hook)
 
 (defun rtags-find-file-hook ()
+  (interactive)
   (when (buffer-file-name)
     (rtags-set-buffers (buffer-list)))
     ;; (let ((bufs (buffer-list)))
