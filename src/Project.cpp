@@ -1116,7 +1116,7 @@ static Set<Symbol> findReferences(const Symbol &in,
 #warning this is probably not right
         const uint32_t fileId = 0;
         inputs = project->findByUsr(s.usr, fileId, Project::DependsOnArg);
-        error() << inputs.size();
+        // error() << inputs.size();
         break; }
     default:
         inputs.insert(s);
@@ -1171,7 +1171,7 @@ Set<Symbol> Project::findVirtuals(const Symbol &symbol)
                 for (const Symbol &symbol : findByUsr(usr, sym.location.fileId(), ArgDependsOn)) {
                     if (ret.insert(symbol)) {
                         error() << "inserted one target for" << sym.location << symbol.location;
-                        findTargets(symbol);
+                        addTargets(symbol);
                     }
                 }
             }
@@ -1190,6 +1190,10 @@ Set<Symbol> Project::findVirtuals(const Symbol &symbol)
                 error() << "inserted one reference for" << sym.location << s.location;
                 addTargets(s);
             }
+        }
+        const Symbol target = findTarget(sym);
+        if (!target.isNull() && ret.insert(target)) {
+            addTargets(target);
         }
     };
     addTargets(symbol);
