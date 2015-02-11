@@ -47,7 +47,7 @@ String Symbol::toString(unsigned cursorInfoFlags, unsigned keyFlags, const std::
                                       isDefinition() ? "Definition\n" : "",
                                       usr.isEmpty() ? "" : String::format<64>("Usr: %s\n", usr.constData()).constData());
     if (!(cursorInfoFlags & IgnoreTargets) && project) {
-  auto targets = project->findTargets(*this);
+        auto targets = project->findTargets(*this);
         if (targets.size()) {
             ret.append("Targets:\n");
             auto best = RTags::bestTarget(targets);
@@ -60,7 +60,7 @@ String Symbol::toString(unsigned cursorInfoFlags, unsigned keyFlags, const std::
         }
     }
 
-    if (!(cursorInfoFlags & IgnoreReferences) && project) {
+    if (!(cursorInfoFlags & IgnoreReferences) && project && !isReference()) {
         auto references = project->findCallers(*this);
         if (references.size()) {
             ret.append("References:\n");
