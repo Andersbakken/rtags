@@ -259,7 +259,7 @@ bool Project::load(FileManagerMode mode)
         while (it != mDependencies.end()) {
             const Path path = Location::path(it->first);
             if (!path.isFile()) {
-                error() << path << "seems to have disappeared";
+                warning() << path << "seems to have disappeared";
                 dirty.get()->insertDirtyFile(it->first);
 
                 const Set<uint32_t> &dependents = it->second;
@@ -284,7 +284,7 @@ bool Project::load(FileManagerMode mode)
     while (it != mSources.end()) {
         const Source &source = it->second;
         if (!source.sourceFile().isFile()) {
-            error() << source.sourceFile() << "seems to have disappeared";
+            warning() << source.sourceFile() << "seems to have disappeared";
             dirty.get()->insertDirtyFile(source.fileId);
             mSources.erase(it++);
             needsSave = true;
@@ -1144,12 +1144,22 @@ Set<Symbol> Project::findCallers(const Symbol &symbol)
 
 Set<Symbol> Project::findAllReferences(const Symbol &symbol)
 {
+    if (symbol.isNull())
+        return Set<Symbol>();
+
     Set<Symbol> inputs;
-    Set<Symbol> ret = ::findReferences(symbol, shared_from_this(), [](const Symbol &, const Symbol &ref, Set<Symbol> &refs) {
-            refs.insert(ref);
-            return Continue;
-        }, &inputs);
-    ret.unite(inputs);
+    inputs.insert(symbol);
+#warning this needs to pass 0 if we have externs/forward declarations
+    inputs.unite(findByUsr(symbol.usr, symbol.location.fileId(), DependsOnArg));
+    Set<Symbol> ret = inputs;
+    for (const auto &input : inputs) {
+        Set<Symbol> inputLocations;
+        ret.unite(::findReferences(input, shared_from_this(), [](const Symbol &, const Symbol &ref, Set<Symbol> &refs) {
+                    refs.insert(ref);
+                    return Continue;
+                }, &inputLocations));
+        ret.unite(inputLocations);
+    }
     return ret;
 }
 
@@ -1170,7 +1180,7 @@ Set<Symbol> Project::findVirtuals(const Symbol &symbol)
             for (const String &usr : targets->value(sym.location)) {
                 for (const Symbol &symbol : findByUsr(usr, sym.location.fileId(), ArgDependsOn)) {
                     if (ret.insert(symbol)) {
-                        error() << "inserted one target for" << sym.location << symbol.location;
+                        // error() << "inserted one target for" << sym.location << symbol.location;
                         addTargets(symbol);
                     }
                 }
@@ -1187,7 +1197,7 @@ Set<Symbol> Project::findVirtuals(const Symbol &symbol)
             });
         for (const Symbol &s : r) {
             if (ret.insert(s)) {
-                error() << "inserted one reference for" << sym.location << s.location;
+                // error() << "inserted one reference for" << sym.location << s.location;
                 addTargets(s);
             }
         }
