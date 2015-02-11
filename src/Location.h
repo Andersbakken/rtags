@@ -51,14 +51,14 @@ static inline int comparePosition(uint32_t lline, uint32_t lcol, uint32_t rline,
 class Location
 {
 public:
-    uint64_t mData;
+    uint64_t value;
 
     Location()
-        : mData(0)
+        : value(0)
     {}
 
     Location(uint32_t fileId, uint32_t line, uint32_t col)
-        : mData((static_cast<uint64_t>(col) << (FileBits + LineBits)) | (static_cast<uint64_t>(line) << (FileBits)) | fileId)
+        : value((static_cast<uint64_t>(col) << (FileBits + LineBits)) | (static_cast<uint64_t>(line) << (FileBits)) | fileId)
     {
     }
 
@@ -92,9 +92,9 @@ public:
         return id;
     }
 
-    inline uint32_t fileId() const { return static_cast<uint32_t>(mData & FILEID_MASK); }
-    inline uint32_t line() const { return static_cast<uint32_t>((mData & LINE_MASK) >> FileBits); }
-    inline uint32_t column() const { return static_cast<uint32_t>((mData & COLUMN_MASK) >> (FileBits + LineBits)); }
+    inline uint32_t fileId() const { return static_cast<uint32_t>(value & FILEID_MASK); }
+    inline uint32_t line() const { return static_cast<uint32_t>((value & LINE_MASK) >> FileBits); }
+    inline uint32_t column() const { return static_cast<uint32_t>((value & COLUMN_MASK) >> (FileBits + LineBits)); }
 
     inline Path path() const
     {
@@ -104,9 +104,9 @@ public:
         }
         return mCachedPath;
     }
-    inline bool isNull() const { return !mData; }
-    inline bool isValid() const { return mData; }
-    inline void clear() { mData = 0; mCachedPath.clear(); }
+    inline bool isNull() const { return !value; }
+    inline bool isValid() const { return value; }
+    inline void clear() { value = 0; mCachedPath.clear(); }
     inline bool operator==(const String &str) const
     {
         const Location fromPath = Location::fromPathLineAndColumn(str);
@@ -117,8 +117,8 @@ public:
         const Location fromPath = Location::fromPathLineAndColumn(str);
         return operator!=(fromPath);
     }
-    inline bool operator==(const Location &other) const { return mData == other.mData; }
-    inline bool operator!=(const Location &other) const { return mData != other.mData; }
+    inline bool operator==(const Location &other) const { return value == other.value; }
+    inline bool operator!=(const Location &other) const { return value != other.value; }
     inline int compare(const Location &other) const
     {
         int ret = intCompare(fileId(), other.fileId());
@@ -247,12 +247,12 @@ private:
 
 template <> struct FixedSize<Location>
 {
-    static constexpr size_t value = sizeof(Location::mData);
+    static constexpr size_t value = sizeof(Location::value);
 };
 
 template <> inline Serializer &operator<<(Serializer &s, const Location &t)
 {
-    s.write(reinterpret_cast<const char*>(&t.mData), sizeof(uint64_t));
+    s.write(reinterpret_cast<const char*>(&t.value), sizeof(uint64_t));
     return s;
 }
 
