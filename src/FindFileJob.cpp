@@ -39,27 +39,28 @@ int FindFileJob::execute()
         return 1;
     }
     const Path srcRoot = proj->path();
+    assert(srcRoot.endsWith('/'));
 
     enum Mode {
         All,
+        FilePath,
         RegExp,
-        Pattern
+        Pattern,
     } mode = All;
     String::CaseSensitivity cs = String::CaseSensitive;
     if (mRegExp.isValid()) {
         mode = RegExp;
     } else if (!mPattern.isEmpty()) {
-        mode = Pattern;
+        mode = mPattern[0] == '/' ? FilePath : Pattern;
     }
     if (queryFlags() & QueryMessage::MatchCaseInsensitive)
         cs = String::CaseInsensitive;
 
     String out;
     out.reserve(PATH_MAX);
-    if (queryFlags() & QueryMessage::AbsolutePath) {
+    const bool absolutePath = queryFlags() & QueryMessage::AbsolutePath;
+    if (absolutePath)
         out.append(srcRoot);
-        assert(srcRoot.endsWith('/'));
-    }
     const FilesMap& dirs = proj->files();
     FilesMap::const_iterator dirit = dirs.begin();
     bool foundExact = false;
@@ -87,6 +88,7 @@ int FindFileJob::execute()
             case RegExp:
                 ok = mRegExp.indexIn(out) != -1;
                 break;
+            case FilePath:
             case Pattern:
                 if (!preferExact) {
                     ok = out.contains(mPattern, cs);
@@ -103,15 +105,26 @@ int FindFileJob::execute()
                         ok = !foundExact && out.contains(mPattern, cs);
                     }
                 }
+                if (!ok && mode == FilePath) {
+                    Path p(out);
+                    if (!absolutePath)
+                        p.prepend(srcRoot);
+                    p.resolve();
+                    if (p == mPattern)
+                        ok = true;
+                }
                 break;
             }
             if (ok) {
                 ret = 0;
+
+                Path matched = out;
+                if (absolutePath)
+                    matched.resolve();
                 if (preferExact && !foundExact) {
-                    matches.append(out);
-                } else {
-                    if (!write(out))
-                        return 1; // ???
+                    matches.append(matched);
+                } else if (!write(matched)) {
+                    return 1; // ???
                 }
             }
             out.chop(key.size());
