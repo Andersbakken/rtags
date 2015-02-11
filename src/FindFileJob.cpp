@@ -40,6 +40,7 @@ int FindFileJob::execute()
         return 1;
     }
     const Path srcRoot = proj->path();
+    assert(srcRoot.endsWith('/'));
 
     enum Mode {
         All,
@@ -58,10 +59,9 @@ int FindFileJob::execute()
 
     String out;
     out.reserve(PATH_MAX);
-    if (queryFlags() & QueryMessage::AbsolutePath) {
+    const bool absolutePath = queryFlags() & QueryMessage::AbsolutePath;
+    if (absolutePath)
         out.append(srcRoot);
-        assert(srcRoot.endsWith('/'));
-    }
     const FilesMap& dirs = proj->files();
     FilesMap::const_iterator dirit = dirs.begin();
     bool foundExact = false;
@@ -108,6 +108,8 @@ int FindFileJob::execute()
                 }
                 if (!ok && mode == FilePath) {
                     Path p(out);
+                    if (!absolutePath)
+                        p.prepend(srcRoot);
                     p.resolve();
                     if (p == mPattern)
                         ok = true;
@@ -116,11 +118,14 @@ int FindFileJob::execute()
             }
             if (ok) {
                 ret = 0;
+
+                Path matched = out;
+                if (absolutePath)
+                    matched.resolve();
                 if (preferExact && !foundExact) {
-                    matches.append(out);
-                } else {
-                    if (!write(out))
-                        return 1; // ???
+                    matches.append(matched);
+                } else if (!write(matched)) {
+                    return 1; // ???
                 }
             }
             out.chop(key.size());
