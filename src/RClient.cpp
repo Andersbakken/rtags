@@ -819,7 +819,7 @@ bool RClient::parse(int &argc, char **argv)
             }
             if (arg) {
                 Path p(arg);
-                if (c != FindFile && p.exists()) {
+                if (opt->option != FindFile && p.exists()) {
                     p.resolve();
                     addQuery(type, p, extraQueryFlags);
                 } else {
