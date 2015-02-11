@@ -70,6 +70,7 @@ public:
         IsIndexed,
         IsIndexing,
         JobCount,
+        ListBuffers,
         ListSymbols,
         LoadCompilationDatabase,
         LogFile,

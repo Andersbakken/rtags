@@ -99,6 +99,7 @@ struct Option opts[] = {
     { RClient::DumpCompletions, "dump-completions", 0, no_argument, "Dump cached completions." },
     { RClient::DumpCompilationDatabase, "dump-compilation-database", 0, no_argument, "Dump compilation database for project." },
     { RClient::SetBuffers, "set-buffers", 0, optional_argument, "Set active buffers (list of filenames for active buffers in editor)." },
+    { RClient::ListBuffers, "list-buffers", 0, optional_argument, "List active buffers." },
 
     { RClient::None, 0, 0, 0, "" },
     { RClient::None, 0, 0, 0, "Command flags:" },
@@ -836,6 +837,9 @@ bool RClient::parse(int &argc, char **argv)
             if (type == QueryMessage::Project)
                 projectCommands.append(std::static_pointer_cast<QueryCommand>(mCommands.back()));
             break; }
+        case ListBuffers:
+            addQuery(QueryMessage::SetBuffers);
+            break;
         case SetBuffers: {
             const char *arg = 0;
             if (optarg) {
