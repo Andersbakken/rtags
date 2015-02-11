@@ -2266,7 +2266,7 @@ If rtags-display-summary-as-tooltip is t, a tooltip is displayed."
   (with-temp-buffer
     (mapc (function (lambda (x)
                       (let ((name (buffer-file-name x)))
-                        (if name
+                        (if (and name (file-exists-p name))
                             (insert name "\n"))))) buffers)
     ;; (message "files: %s" (combine-and-quote-strings (split-string (buffer-substring-no-properties (point-min) (point-max)) "\n" t)) "|")
     (rtags-call-rc :unsaved (current-buffer) "--set-buffers" "-")))
