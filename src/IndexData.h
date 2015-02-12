@@ -58,9 +58,10 @@ public:
 
     uint64_t parseTime, key;
     String message; // used as output for dump when flags & Dump
-    FixItMap fixIts;
-    DiagnosticsMap diagnostics;
-    DependencyMap dependencies;
+    FixIts fixIts;
+    Diagnostics diagnostics;
+    Dependencies dependencies;
+    Declarations declarations; // function declarations and forward declaration
     Hash<uint32_t, bool> visited;
     uint64_t id;
     const uint32_t flags; // indexerjobflags

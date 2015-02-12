@@ -48,7 +48,7 @@ public:
 class SimpleDirty : public Dirty
 {
 public:
-    void init(const Set<uint32_t> &dirty, const DependencyMap &dependencies)
+    void init(const Set<uint32_t> &dirty, const Dependencies &dependencies)
     {
         for (auto fileId : dirty) {
             mDirty.insert(fileId);
@@ -105,7 +105,7 @@ public:
 class IfModifiedDirty : public ComplexDirty
 {
 public:
-    IfModifiedDirty(const DependencyMap &dependencies, const Match &match = Match())
+    IfModifiedDirty(const Dependencies &dependencies, const Match &match = Match())
         : mDependencies(dependencies), mMatch(match)
     {
         for (auto it : mDependencies) {
@@ -142,7 +142,7 @@ public:
         return ret;
     }
 
-    DependencyMap mDependencies, mReversedDependencies;
+    Dependencies mDependencies, mReversedDependencies;
     Match mMatch;
 };
 
@@ -150,7 +150,7 @@ public:
 class WatcherDirty : public ComplexDirty
 {
 public:
-    WatcherDirty(const DependencyMap &dependencies, const Set<uint32_t> &modified)
+    WatcherDirty(const Dependencies &dependencies, const Set<uint32_t> &modified)
     {
         for (auto it : modified) {
             mModified[it] = dependencies.value(it);
@@ -178,8 +178,26 @@ public:
         return ret;
     }
 
-    DependencyMap mModified;
+    Dependencies mModified;
 };
+
+// template <typename Key, typename Value>
+// static void update(Hash<Key, Set<Value> &current, Hash<Key, Set<Value> &updates)
+// {
+//     if (current.isEmpty()) {
+//         current = updates;
+//         return;
+//     }
+
+//     for (auto &u : updates) {
+//         auto &cur = current[u.first];
+//         if (cur.isEmpty()) {
+//             cur = std::move(u.second);
+//         } else {
+//             cur.unite(u.second);
+//         }
+//     }
+// }
 
 Project::Project(const Path &path)
     : mPath(path), mState(Unloaded), mJobCounter(0), mJobsStarted(0)
@@ -238,7 +256,7 @@ bool Project::load(FileManagerMode mode)
         return false;
     }
 
-    file >> mSources >> mVisitedFiles >> mDependencies;
+    file >> mSources >> mVisitedFiles >> mDependencies >> mDeclarations;
 
     for (const auto &dep : mDependencies) {
         watch(Location::path(dep.first));
@@ -388,9 +406,14 @@ void Project::onJobFinished(const std::shared_ptr<IndexerJob> &job, const std::s
     }
 
     int symbolNames = 0;
-    addFixIts(indexData->visited, indexData->fixIts);
-    removeDependencies(indexData->fileId());
-    addDependencies(indexData->dependencies);
+    Set<uint32_t> visited;
+    for (const auto &pair : indexData->visited) {
+        if (pair.second)
+            visited.insert(pair.first);
+    }
+    updateFixIts(visited, indexData->fixIts);
+    updateDependencies(visited, indexData->dependencies);
+    updateDeclarations(visited, indexData->declarations);
     if (success) {
         src->second.parsed = indexData->parseTime;
         error("[%3d%%] %d/%d %s %s.",
@@ -426,7 +449,7 @@ bool Project::save()
         error("Save error %s: %s", mProjectFilePath.constData(), file.error().constData());
         return false;
     }
-    file << mSources << mVisitedFiles << mDependencies;
+    file << mSources << mVisitedFiles << mDependencies << mDeclarations;
     if (!file.flush()) {
         error("Save error %s: %s", mProjectFilePath.constData(), file.error().constData());
         return false;
@@ -435,7 +458,7 @@ bool Project::save()
     return true;
 }
 
-static inline void markActive(SourceMap::iterator start, uint32_t buildId, const SourceMap::iterator end)
+static inline void markActive(Sources::iterator start, uint32_t buildId, const Sources::iterator end)
 {
     const uint32_t fileId = start->second.fileId;
     while (start != end) {
@@ -598,16 +621,11 @@ Set<uint32_t> Project::dependencies(uint32_t fileId, DependencyMode mode) const
     return ret;
 }
 
-void Project::removeDependencies(uint32_t fileId)
+void Project::updateDependencies(const Set<uint32_t> &visited, Dependencies &deps)
 {
-    mDependencies.remove(fileId);
-    for (auto it = mDependencies.begin(); it != mDependencies.end(); ++it) {
-        it->second.remove(fileId);
+    for (uint32_t file : visited) {
+        removeDependencies(file);
     }
-}
-
-void Project::addDependencies(const DependencyMap &deps)
-{
     Set<uint32_t> files;
     const auto end = deps.end();
     for (auto it = deps.begin(); it != end; ++it) {
@@ -624,6 +642,26 @@ void Project::addDependencies(const DependencyMap &deps)
     }
     for (uint32_t file : files) {
         watch(Location::path(file));
+    }
+}
+
+void Project::updateDeclarations(const Set<uint32_t> &visited, Declarations &declarations)
+{
+    auto it = mDeclarations.begin();
+    while (it != mDeclarations.end()) {
+        if (it->second.remove([&visited](uint32_t key) { return visited.contains(key); }) && it->second.isEmpty()) {
+            mDeclarations.erase(it++);
+        } else {
+            ++it;
+        }
+    }
+    for (auto &u : declarations) {
+        auto &cur = mDeclarations[u.first];
+        if (cur.isEmpty()) {
+            cur = std::move(u.second);
+        } else {
+            cur.unite(u.second);
+        }
     }
 }
 
@@ -736,16 +774,14 @@ bool Project::isSuspended(uint32_t file) const
     return mSuspendedFiles.contains(file);
 }
 
-void Project::addFixIts(const Hash<uint32_t, bool> &visited, const FixItMap &fixIts)
+void Project::updateFixIts(const Set<uint32_t> &visited, FixIts &fixIts)
 {
     for (auto v : visited) {
-        if (v.second) {
-            const auto fit = fixIts.find(v.first);
-            if (fit == fixIts.end()) {
-                mFixIts.erase(v.first);
-            } else {
-                mFixIts[v.first] = fit->second;
-            }
+        const auto fit = fixIts.find(v);
+        if (fit == fixIts.end()) {
+            mFixIts.erase(v);
+        } else {
+            mFixIts[v] = fit->second;
         }
     }
 }

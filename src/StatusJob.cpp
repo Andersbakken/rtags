@@ -29,7 +29,7 @@ StatusJob::StatusJob(const std::shared_ptr<QueryMessage> &q, const std::shared_p
 int StatusJob::execute()
 {
     bool matched = false;
-    const char *alternatives = "fileids|watchedpaths|dependencies|cursors|symbols|targets|symbolnames|sources|jobs|info|compilers";
+    const char *alternatives = "fileids|watchedpaths|dependencies|cursors|symbols|targets|symbolnames|sources|jobs|info|compilers|declarations";
 
     if (!strcasecmp(query.constData(), "fileids")) {
         matched = true;
@@ -75,14 +75,14 @@ int StatusJob::execute()
             return 1;
     }
 
-    const DependencyMap deps = proj->dependencies();
+    const Dependencies deps = proj->dependencies();
     if (query.isEmpty() || !strcasecmp(query.constData(), "dependencies")) {
         matched = true;
         if (!write(delimiter) || !write("dependencies") || !write(delimiter))
             return 1;
-        DependencyMap depsReversed;
+        Dependencies depsReversed;
 
-        for (DependencyMap::const_iterator it = deps.begin(); it != deps.end(); ++it) {
+        for (Dependencies::const_iterator it = deps.begin(); it != deps.end(); ++it) {
             if (!write<256>("  %s (%d) is depended on by", Location::path(it->first).constData(), it->first))
                 return 1;
             const Set<uint32_t> &deps = it->second;
@@ -94,7 +94,7 @@ int StatusJob::execute()
             if (isAborted())
                 return 1;
         }
-        for (DependencyMap::const_iterator it = depsReversed.begin(); it != depsReversed.end(); ++it) {
+        for (Dependencies::const_iterator it = depsReversed.begin(); it != depsReversed.end(); ++it) {
             write<256>("  %s (%d) depends on", Location::path(it->first).constData(), it->first);
             const Set<uint32_t> &deps = it->second;
             for (Set<uint32_t>::const_iterator dit = deps.begin(); dit != deps.end(); ++dit) {
@@ -180,10 +180,10 @@ int StatusJob::execute()
 
     if (query.isEmpty() || !strcasecmp(query.constData(), "sources")) {
         matched = true;
-        const SourceMap &map = proj->sources();
+        const Sources &map = proj->sources();
         if (!write(delimiter) || !write("sources") || !write(delimiter))
             return 1;
-        for (SourceMap::const_iterator it = map.begin(); it != map.end(); ++it) {
+        for (Sources::const_iterator it = map.begin(); it != map.end(); ++it) {
             if (!write<512>("  %s: %s", it->second.sourceFile().constData(), it->second.toString().constData()))
                 return 1;
         }
@@ -244,6 +244,16 @@ int StatusJob::execute()
             << "defines" << opt.defines << '\n'
             << "ignoredCompilers" << opt.ignoredCompilers;
         write(out);
+    }
+
+    if (query.isEmpty() || !strcasecmp(query.constData(), "declarations")) {
+        for (const auto &it : proj->declarations()) {
+            write(it.first);
+            for (uint32_t file : it.second) {
+                write<128>("  %s", Location::path(file).constData());
+            }
+        }
+        matched = true;
     }
 
     if (!matched) {

@@ -33,7 +33,7 @@ struct Diagnostic
     String message;
     int length;
 
-    static String format(const DiagnosticsMap &diagnostics);
+    static String format(const Diagnostics &diagnostics);
 };
 
 template <> inline Serializer &operator<<(Serializer &s, const Diagnostic &d)

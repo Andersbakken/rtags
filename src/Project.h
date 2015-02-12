@@ -129,7 +129,8 @@ public:
         ArgDependsOn // slow
     };
     Set<uint32_t> dependencies(uint32_t fileId, DependencyMode mode) const;
-    const DependencyMap &dependencies() const { return mDependencies; }
+    const Dependencies &dependencies() const { return mDependencies; }
+    const Declarations &declarations() const { return mDeclarations; }
 
     Symbol findSymbol(const Location &location, int *index = 0);
     Set<Symbol> findTargets(const Location &location) { return findTargets(findSymbol(location)); }
@@ -155,8 +156,8 @@ public:
     };
     List<RTags::SortedSymbol> sort(const Set<Location> &locations, unsigned int flags = Sort_None);
 
-    const FilesMap &files() const { return mFiles; }
-    FilesMap &files() { return mFiles; }
+    const Files &files() const { return mFiles; }
+    Files &files() { return mFiles; }
 
     const Set<uint32_t> &suspendedFiles() const;
     bool toggleSuspendFile(uint32_t file);
@@ -174,7 +175,7 @@ public:
     int reindex(const Match &match, const std::shared_ptr<QueryMessage> &query);
     int remove(const Match &match);
     void onJobFinished(const std::shared_ptr<IndexerJob> &job, const std::shared_ptr<IndexData> &indexData);
-    SourceMap sources() const { return mSources; }
+    Sources sources() const { return mSources; }
     String toCompilationDatabase() const;
     Set<Path> watchedPaths() const { return mWatchedPaths; }
     bool isIndexing() const { return !mActiveJobs.isEmpty(); }
@@ -196,8 +197,9 @@ private:
     void removeDependencies(uint32_t fileId);
     void watch(const Path &file);
     void reloadFileManager();
-    void addDependencies(const DependencyMap &deps);
-    void addFixIts(const Hash<uint32_t, bool> &visited, const FixItMap &fixIts);
+    void updateDependencies(const Set<uint32_t> &visited, Dependencies &deps);
+    void updateDeclarations(const Set<uint32_t> &visited, Declarations &declarations);
+    void updateFixIts(const Set<uint32_t> &visited, FixIts &fixIts);
     int startDirtyJobs(Dirty *dirty, const UnsavedFiles &unsavedFiles = UnsavedFiles());
     bool save();
     void onDirtyTimeout(Timer *);
@@ -215,7 +217,7 @@ private:
     Path mProjectFilePath;
     State mState;
 
-    FilesMap mFiles;
+    Files mFiles;
 
     Hash<uint32_t, Path> mVisitedFiles;
     int mJobCounter, mJobsStarted;
@@ -228,10 +230,11 @@ private:
 
     StopWatch mTimer;
     FileSystemWatcher mWatcher;
-    DependencyMap mDependencies;
-    SourceMap mSources;
+    Dependencies mDependencies;
+    Declarations mDeclarations;
+    Sources mSources;
     Set<Path> mWatchedPaths;
-    FixItMap mFixIts;
+    FixIts mFixIts;
 
     Set<uint32_t> mSuspendedFiles;
 
@@ -266,5 +269,14 @@ inline void Project::releaseFileIds(const Set<uint32_t> &fileIds)
         }
     }
 }
+
+inline void Project::removeDependencies(uint32_t fileId)
+{
+    mDependencies.remove(fileId);
+    for (auto it = mDependencies.begin(); it != mDependencies.end(); ++it) {
+        it->second.remove(fileId);
+    }
+}
+
 
 #endif

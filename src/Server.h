@@ -98,7 +98,6 @@ public:
     bool runTests();
     const Options &options() const { return mOptions; }
     bool suspended() const { return mSuspended; }
-    bool saveFileIds();
     void onJobOutput(JobOutput&& out);
     std::shared_ptr<Project> project(const Path &path) const { return mProjects.value(path); }
     bool shouldIndex(const Source &source, const Path &project) const;
@@ -109,6 +108,7 @@ public:
     const Set<uint32_t> &activeBuffers() const { return mActiveBuffers; }
     bool isActiveBuffer(uint32_t fileId) const { return mActiveBuffers.contains(fileId); }
 private:
+    bool saveFileIds();
     void restoreFileIds();
     bool index(const String &arguments, const Path &pwd,
                const Path &projectRootOverride, unsigned int sourceFlags = 0);
@@ -188,6 +188,8 @@ private:
     Set<uint32_t> mActiveBuffers;
 
     Signal<std::function<void()> > mIndexerMessageReceived;
+
+    friend void saveFileIds();
 };
 
 #endif

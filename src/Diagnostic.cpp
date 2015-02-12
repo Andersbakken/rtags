@@ -53,7 +53,7 @@ static inline String xmlEscape(const String& xml)
     return strm.str();
 }
 
-String Diagnostic::format(const DiagnosticsMap &diagnostics)
+String Diagnostic::format(const Diagnostics &diagnostics)
 {
     Server *server = Server::instance();
     assert(server);

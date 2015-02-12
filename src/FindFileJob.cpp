@@ -61,8 +61,8 @@ int FindFileJob::execute()
     const bool absolutePath = queryFlags() & QueryMessage::AbsolutePath;
     if (absolutePath)
         out.append(srcRoot);
-    const FilesMap& dirs = proj->files();
-    FilesMap::const_iterator dirit = dirs.begin();
+    const Files& dirs = proj->files();
+    Files::const_iterator dirit = dirs.begin();
     bool foundExact = false;
     const int patternSize = mPattern.size();
     List<String> matches;

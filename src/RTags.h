@@ -56,13 +56,12 @@ void initMessages();
 }
 
 struct Diagnostic;
-typedef Map<Location, Diagnostic> DiagnosticsMap;
-typedef Hash<String, Set<Location> > UsrMap;
-typedef Map<Location, Set<Location> > ReferenceMap;
-typedef Hash<uint32_t, Set<uint32_t> > DependencyMap;
-typedef Map<uint64_t, Source> SourceMap;
-typedef Map<Path, Set<String> > FilesMap;
-typedef Hash<uint32_t, Set<FixIt> > FixItMap;
+typedef Map<Location, Diagnostic> Diagnostics;
+typedef Hash<uint32_t, Set<uint32_t> > Dependencies;
+typedef Hash<String, Set<uint32_t> > Declarations;
+typedef Map<uint64_t, Source> Sources;
+typedef Map<Path, Set<String> > Files;
+typedef Hash<uint32_t, Set<FixIt> > FixIts;
 typedef Hash<Path, String> UnsavedFiles;
 
 namespace RTags {

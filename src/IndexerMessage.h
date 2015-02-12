@@ -42,7 +42,8 @@ public:
         assert(mData);
         serializer << mProject << mData->flags << mData->key << mData->parseTime
                    << mData->message << mData->fixIts << mData->dependencies
-                   << mData->diagnostics << mData->visited << mData->id;
+                   << mData->diagnostics << mData->visited << mData->declarations
+                   << mData->id;
     }
     void decode(Deserializer &deserializer)
     {
@@ -53,7 +54,7 @@ public:
         deserializer >> mData->key >> mData->parseTime
                      >> mData->message >> mData->fixIts
                      >> mData->dependencies >> mData->diagnostics
-                     >> mData->visited >> mData->id;
+                     >> mData->visited >> mData->declarations >> mData->id;
     }
     std::shared_ptr<IndexData> data() const { return mData; }
     const Path &project() const { return mProject; }

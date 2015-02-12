@@ -79,21 +79,30 @@ public:
         return sLastId;
     }
 
-    static inline uint32_t insertFile(const Path &path, bool *inserted = 0)
+    static inline uint32_t insertFile(const Path &path)
     {
+        bool save = false;
+        (void)save;
         assert(!path.contains(".."));
         assert(path.resolved() == path);
-        LOCK();
-        uint32_t &id = sPathsToIds[path];
-        if (!id) {
-            if (inserted)
-                *inserted = true;
-            id = ++sLastId;
-            sIdsToPaths[id] = path;
-        } else if (inserted) {
-            *inserted = false;
+        uint32_t ret;
+        {
+            LOCK();
+            uint32_t &id = sPathsToIds[path];
+            if (!id) {
+                id = ++sLastId;
+                sIdsToPaths[id] = path;
+                save = true;
+            }
+            ret = id;
         }
-        return id;
+#ifndef RTAGS_SINGLE_THREAD
+        extern void saveFileIds();
+        if (save)
+            saveFileIds();
+#endif
+
+        return ret;
     }
 
     inline uint32_t fileId() const { return static_cast<uint32_t>(value & FILEID_MASK); }
@@ -193,7 +202,10 @@ public:
             return Location();
 
         const Path resolved = Path::resolved(path, Path::RealPath, pwd);
-        return Location(Location::insertFile(resolved), line, col);
+        const uint32_t fileId = Location::fileId(resolved);
+        if (!fileId)
+            return Location();
+        return Location(fileId, line, col);
     }
     static Hash<uint32_t, Path> idsToPaths()
     {

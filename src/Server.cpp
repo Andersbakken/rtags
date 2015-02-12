@@ -109,6 +109,12 @@ private:
     SocketClient::SharedPtr mSocket;
 };
 
+void saveFileIds()
+{
+    assert(Server::instance());
+    Server::instance()->saveFileIds();
+}
+
 Server *Server::sInstance = 0;
 Server::Server()
     : mSuspended(false), mVerbose(false), mLastFileId(0), mCompletionThread(0)
@@ -188,6 +194,7 @@ bool Server::init(const Options &options)
         l << inc.toString();
 
     if (mOptions.options & ClearProjects) {
+        printf("[%s:%d]: clearProjects();\n", __FILE__, __LINE__); fflush(stdout);
         clearProjects();
     }
 
@@ -239,7 +246,7 @@ bool Server::init(const Options &options)
     return true;
 }
 
-std::shared_ptr<Project> Server::addProject(const Path &path) // lock always held
+std::shared_ptr<Project> Server::addProject(const Path &path)
 {
     std::shared_ptr<Project> &project = mProjects[path];
     if (!project) {
@@ -255,7 +262,7 @@ int Server::reloadProjects()
     List<Path> projects = mOptions.dataDir.files(Path::Directory);
     const Path home = Path::home();
     for (int i=0; i<projects.size(); ++i) {
-        Path file = projects.at(i);
+        const Path &file = projects.at(i);
         Path p = file.mid(mOptions.dataDir.size());
         if (p.endsWith('/'))
             p.chop(1);
@@ -1042,6 +1049,7 @@ void Server::preprocessFile(const std::shared_ptr<QueryMessage> &query, Connecti
 
 void Server::clearProjects()
 {
+    printf("[%s:%d]: void Server::clearProjects()\n", __FILE__, __LINE__); fflush(stdout);
     for (const auto &it : mProjects)
         it.second->unload();
     Rct::removeDirectory(mOptions.dataDir);
@@ -1339,7 +1347,7 @@ void Server::sources(const std::shared_ptr<QueryMessage> &query, Connection *con
         if (project->state() != Project::Loaded) {
             conn->write("Project loading");
         } else {
-            const SourceMap infos = project->sources();
+            const Sources infos = project->sources();
             for (const auto &it : infos) {
                 if (match.isEmpty() || match.match(it.second.sourceFile())) {
                     if (flagsOnly) {
@@ -1484,16 +1492,13 @@ void Server::handleVisitFileMessage(const std::shared_ptr<VisitFileMessage> &mes
 
     std::shared_ptr<Project> project = mProjects.value(message->project());
     const uint64_t key = message->key();
-    bool save = false;
     if (project && project->isActiveJob(key)) {
         assert(message->file() == message->file().resolved());
-        fileId = Location::insertFile(message->file(), &save);
+        fileId = Location::insertFile(message->file());
         visit = project->visitFile(fileId, message->file(), key);
     }
     VisitFileResponseMessage msg(fileId, visit);
     conn->send(msg);
-    if (save)
-        saveFileIds();
 }
 
 void Server::restoreFileIds()

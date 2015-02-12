@@ -139,7 +139,7 @@ Set<String> ListSymbolsJob::listSymbols(const std::shared_ptr<Project> &project)
         lowerBound = string;
     }
 
-    const DependencyMap &deps = project->dependencies();
+    const Dependencies &deps = project->dependencies();
     int total = 0;
     for (const auto &dep : deps) {
         auto symNames = project->openSymbolNames(dep.first);

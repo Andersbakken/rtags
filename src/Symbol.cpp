@@ -24,6 +24,17 @@ uint16_t Symbol::targetsValue() const
     return RTags::createTargetsValue(kind, isDefinition());
 }
 
+static inline const char *linkageSpelling(CXLinkageKind kind)
+{
+    switch (kind) {
+    case CXLinkage_Invalid: return "Invalid";
+    case CXLinkage_NoLinkage: return "No Linkage";
+    case CXLinkage_Internal: return "Internal";
+    case CXLinkage_UniqueExternal: return "Unique External";
+    case CXLinkage_External: return "External";
+    }
+    return "";
+}
 
 String Symbol::toString(unsigned cursorInfoFlags, unsigned keyFlags, const std::shared_ptr<Project> &project) const
 {
@@ -34,6 +45,7 @@ String Symbol::toString(unsigned cursorInfoFlags, unsigned keyFlags, const std::
                                       "%s" // range
                                       "%s" // enumValue
                                       "%s" // definition
+                                      "Linkage: %s"
                                       "%s", // usr
                                       symbolName.constData(),
                                       kindSpelling().constData(),
@@ -45,6 +57,7 @@ String Symbol::toString(unsigned cursorInfoFlags, unsigned keyFlags, const std::
 #endif
                                       "",
                                       isDefinition() ? "Definition\n" : "",
+                                      linkageSpelling(linkage),
                                       usr.isEmpty() ? "" : String::format<64>("Usr: %s\n", usr.constData()).constData());
     if (!(cursorInfoFlags & IgnoreTargets) && project) {
         auto targets = project->findTargets(*this);

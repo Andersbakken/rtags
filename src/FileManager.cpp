@@ -55,7 +55,7 @@ void FileManager::onRecurseJobFinished(const Set<Path> &paths)
 
     std::shared_ptr<Project> project = mProject.lock();
     assert(project);
-    FilesMap &map = project->files();
+    Files &map = project->files();
     map.clear();
     mWatcher.clear();
     for (Set<Path>::const_iterator it = paths.begin(); it != paths.end(); ++it) {
@@ -93,7 +93,7 @@ void FileManager::onFileAdded(const Path &path)
 
     std::shared_ptr<Project> project = mProject.lock();
     assert(project);
-    FilesMap &map = project->files();
+    Files &map = project->files();
     const Path parent = path.parentDir();
     if (!parent.isEmpty()) {
         Set<String> &dir = map[parent];
@@ -111,7 +111,7 @@ void FileManager::onFileRemoved(const Path &path)
     // error() << "File removed" << path;
     std::lock_guard<std::mutex> lock(mMutex);
     std::shared_ptr<Project> project = mProject.lock();
-    FilesMap &map = project->files();
+    Files &map = project->files();
     if (map.contains(path)) {
         reload(Asynchronous);
         return;

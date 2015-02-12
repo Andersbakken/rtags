@@ -36,8 +36,8 @@ static const CXCursor nullCursor = clang_getNullCursor();
 static inline String usr(const CXCursor &cursor)
 {
     const String ret = RTags::eatString(clang_getCursorUSR(clang_getCanonicalCursor(cursor)));
-    // if (ret.isEmpty())
-    //     error() << "got empty" << cursor;
+    if (ret.isEmpty())
+        error() << "got empty" << cursor;
     return ret;
 }
 
@@ -1021,13 +1021,18 @@ bool ClangIndexer::handleCursor(const CXCursor &cursor, CXCursorKind kind, const
         c.definition = clang_isCursorDefinition(cursor);
     }
     c.kind = kind;
+    c.linkage = clang_getCursorLinkage(cursor);
     // apparently some function decls will give a different usr for
     // their definition and their declaration.  Using the canonical
     // cursor's usr allows us to join them. Check JSClassRelease in
     // JavaScriptCore for an example.
     c.usr = usr(cursor);
-    if (!c.usr.isEmpty())
+    if (!c.usr.isEmpty()) {
         unit(location)->usrs[c.usr].insert(location);
+        if (c.linkage == CXLinkage_External && !c.isDefinition()) {
+            mData->declarations[c.usr].insert(location.fileId());
+        }
+    }
 
     switch (c.kind) {
     case CXCursor_CXXMethod:
