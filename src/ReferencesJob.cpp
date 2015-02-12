@@ -39,8 +39,11 @@ int ReferencesJob::execute()
         return 1;
     Set<Symbol> refs;
     Map<Location, std::pair<bool, uint16_t> > references;
-    if (!symbolName.isEmpty())
-        locations = proj->locations(symbolName);
+    if (!symbolName.isEmpty()) {
+        for (const auto &sym : proj->findSymbols(symbolName)) {
+            locations.insert(sym.location);
+        }
+    }
     const bool declarationOnly = queryFlags() & QueryMessage::DeclarationOnly;
     Location startLocation;
     for (auto it = locations.begin(); it != locations.end(); ++it) {

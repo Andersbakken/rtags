@@ -34,7 +34,7 @@ int FindSymbolsJob::execute()
     int ret = 2;
     if (std::shared_ptr<Project> proj = project()) {
         const uint32_t filter = fileFilter();
-        const Set<Location> locations = proj->locations(string, filter);
+        const Set<Symbol> locations = proj->findSymbols(string, filter);
         if (!locations.isEmpty()) {
             unsigned int sortFlags = Project::Sort_None;
             if (queryFlags() & QueryMessage::DeclarationOnly)

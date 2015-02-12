@@ -61,8 +61,6 @@ public:
 
     bool match(const Match &match, bool *indexed = 0) const;
 
-    Set<Location> locations(const String &symbolName, uint32_t fileId = 0);
-
     template <typename Key, typename Value>
     std::shared_ptr<FileMap<Key, Value> > openFileMap(uint32_t fileId, const String &type,
                                                       Hash<uint32_t, std::shared_ptr<FileMap<Key, Value> > > &cache)
@@ -132,6 +130,7 @@ public:
     const Dependencies &dependencies() const { return mDependencies; }
     const Declarations &declarations() const { return mDeclarations; }
 
+    Set<Symbol> findSymbols(const String &symbolName, uint32_t fileId = 0);
     Symbol findSymbol(const Location &location, int *index = 0);
     Set<Symbol> findTargets(const Location &location) { return findTargets(findSymbol(location)); }
     Set<Symbol> findTargets(const Symbol &symbol);
@@ -144,7 +143,6 @@ public:
     Set<Symbol> findVirtuals(const Location &location) { return findVirtuals(findSymbol(location)); }
     Set<Symbol> findVirtuals(const Symbol &symbol);
 
-    Set<Symbol> findByUsr(const String &usr, const Set<uint32_t> &files);
     Set<Symbol> findByUsr(const String &usr, uint32_t fileId, DependencyMode mode);
 
     Path sourceFilePath(uint32_t fileId, const String &type) const;
@@ -154,7 +152,7 @@ public:
         Sort_DeclarationOnly = 0x1,
         Sort_Reverse = 0x2
     };
-    List<RTags::SortedSymbol> sort(const Set<Location> &locations, unsigned int flags = Sort_None);
+    List<RTags::SortedSymbol> sort(const Set<Symbol> &symbols, unsigned int flags = Sort_None);
 
     const Files &files() const { return mFiles; }
     Files &files() { return mFiles; }

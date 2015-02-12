@@ -852,9 +852,9 @@ static inline bool matchSymbolName(const String &needle, const String &haystack,
     return false;
 }
 
-Set<Location> Project::locations(const String &symbolName, uint32_t fileId)
+Set<Symbol> Project::findSymbols(const String &symbolName, uint32_t fileId)
 {
-    Set<Location> ret;
+    Set<Symbol> ret;
     auto processCursor = [&ret, &symbolName, this](uint32_t fileId) {
         auto s = openSymbols(fileId);
         if (!s)
@@ -864,7 +864,7 @@ Set<Location> Project::locations(const String &symbolName, uint32_t fileId)
             const Symbol c = s->valueAt(i);
             if (!RTags::isReference(c.kind)
                 && (symbolName.isEmpty() || matchSymbolName(symbolName, c.symbolName, checkFunction(c.kind)))) {
-                ret.insert(s->keyAt(i));
+                ret.insert(s->valueAt(i));
             }
         }
     };
@@ -885,8 +885,13 @@ Set<Location> Project::locations(const String &symbolName, uint32_t fileId)
                     const String s = symNames->keyAt(idx);
                     if (!s.startsWith(symbolName))
                         break;
-                    if (matchSymbolName(symbolName, s, true)) // assume function
-                        ret.unite(symNames->valueAt(idx));
+                    if (matchSymbolName(symbolName, s, true)) {// assume function
+                        for (const auto &loc : symNames->valueAt(idx)) {
+                            const Symbol s = findSymbol(loc);
+                            if (!s.isNull())
+                                ret.insert(s);
+                        }
+                    }
                     ++idx;
                 }
             }
@@ -895,13 +900,12 @@ Set<Location> Project::locations(const String &symbolName, uint32_t fileId)
     return ret;
 }
 
-List<RTags::SortedSymbol> Project::sort(const Set<Location> &locations, unsigned int flags)
+List<RTags::SortedSymbol> Project::sort(const Set<Symbol> &symbols, unsigned int flags)
 {
     List<RTags::SortedSymbol> sorted;
-    sorted.reserve(locations.size());
-    for (auto it = locations.begin(); it != locations.end(); ++it) {
-        RTags::SortedSymbol node(*it);
-        const Symbol symbol = findSymbol(*it);
+    sorted.reserve(symbols.size());
+    for (const Symbol &symbol : symbols) {
+        RTags::SortedSymbol node(symbol.location);
         if (!symbol.isNull()) {
             node.isDefinition = symbol.isDefinition();
             if (flags & Sort_DeclarationOnly && node.isDefinition) {
@@ -1017,14 +1021,7 @@ Set<Symbol> Project::findTargets(const Symbol &symbol)
     case CXCursor_Destructor:
     case CXCursor_Constructor:
     case CXCursor_FunctionTemplate: {
-        Set<uint32_t> files;
-        if (symbol.isDefinition()) {
-            files = dependencies(symbol.location.fileId(), ArgDependsOn);
-        } else {
-            files = dependencies(symbol.location.fileId(), DependsOnArg);
-        }
-        // error() << files << symbol.location;
-        const Set<Symbol> symbols = findByUsr(symbol.usr, files);
+        const Set<Symbol> symbols = findByUsr(symbol.usr, symbol.location.fileId(), symbol.isDefinition() ? ArgDependsOn : DependsOnArg);
         for (const auto &c : symbols) {
             if (symbol.kind == c.kind && symbol.isDefinition() != c.isDefinition()) {
                 ret.insert(c);
@@ -1044,40 +1041,36 @@ Set<Symbol> Project::findTargets(const Symbol &symbol)
     return ret;
 }
 
-Set<Symbol> Project::findByUsr(const String &usr, const Set<uint32_t> &files)
-{
-    Set<Symbol> ret;
-    for (uint32_t fileId : files) {
-        auto usrs = openUsrs(fileId);
-        // error() << usrs << Location::path(fileId) << usr;
-        if (usrs) {
-            for (const Location &loc : usrs->value(usr)) {
-                // error() << "got a loc" << loc;
-                const Symbol c = findSymbol(loc);
-                if (!c.isNull())
-                    ret.insert(c);
-            }
-            // for (int i=0; i<usrs->count(); ++i) {
-            //     error() << i << usrs->count() << usrs->keyAt(i) << usrs->valueAt(i);
-            // }
-        }
-    }
-    return ret;
-}
-
 Set<Symbol> Project::findByUsr(const String &usr, uint32_t fileId, DependencyMode mode)
 {
-    if (fileId)
-        return findByUsr(usr, dependencies(fileId, mode));
-
+    assert(fileId);
     Set<Symbol> ret;
-    for (const auto &dep : mDependencies) {
-        auto usrs = openUsrs(dep.first);
-        if (usrs) {
-            for (const Location &loc : usrs->value(usr)) {
-                const Symbol c = findSymbol(loc);
-                if (!c.isNull())
-                    ret.insert(c);
+    if (mDeclarations.contains(usr)) {
+        assert(!mDeclarations.value(usr).isEmpty());
+        for (const auto &dep : mDependencies) {
+            auto usrs = openUsrs(dep.first);
+            if (usrs) {
+                for (const Location &loc : usrs->value(usr)) {
+                    const Symbol c = findSymbol(loc);
+                    if (!c.isNull())
+                        ret.insert(c);
+                }
+            }
+        }
+    } else {
+        for (uint32_t file : dependencies(fileId, mode)) {
+            auto usrs = openUsrs(file);
+            // error() << usrs << Location::path(file) << usr;
+            if (usrs) {
+                for (const Location &loc : usrs->value(usr)) {
+                    // error() << "got a loc" << loc;
+                    const Symbol c = findSymbol(loc);
+                    if (!c.isNull())
+                        ret.insert(c);
+                }
+                // for (int i=0; i<usrs->count(); ++i) {
+                //     error() << i << usrs->count() << usrs->keyAt(i) << usrs->valueAt(i);
+                // }
             }
         }
     }
@@ -1147,13 +1140,9 @@ static Set<Symbol> findReferences(const Symbol &in,
     case CXCursor_Constructor:
     case CXCursor_Destructor:
     case CXCursor_ConversionFunction:
-    case CXCursor_NamespaceAlias: {
-        // const uint32_t fileId = s.isDefinition() ? s.location.fileId() : 0;
-#warning this is probably not right
-        const uint32_t fileId = 0;
-        inputs = project->findByUsr(s.usr, fileId, Project::DependsOnArg);
-        // error() << inputs.size();
-        break; }
+    case CXCursor_NamespaceAlias:
+        inputs = project->findByUsr(s.usr, s.location.fileId(), s.isDefinition() ? Project::ArgDependsOn : Project::DependsOnArg);
+        break;
     default:
         inputs.insert(s);
         break;
@@ -1185,7 +1174,6 @@ Set<Symbol> Project::findAllReferences(const Symbol &symbol)
 
     Set<Symbol> inputs;
     inputs.insert(symbol);
-#warning this needs to pass 0 if we have externs/forward declarations
     inputs.unite(findByUsr(symbol.usr, symbol.location.fileId(), DependsOnArg));
     Set<Symbol> ret = inputs;
     for (const auto &input : inputs) {
