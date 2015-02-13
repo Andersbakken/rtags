@@ -58,6 +58,7 @@
 (defvar rtags-mode-hook nil)
 (defvar rtags-diagnostics-hook nil)
 (defvar rtags-taglist-hook nil)
+(defvar rtags-inhibit-find-file-hook nil)
 (defface rtags-path nil "Path" :group 'rtags)
 (defface rtags-context nil "Context" :group 'rtags)
 (defvar rtags-path-face 'rtags-path "Path part")
@@ -110,6 +111,9 @@
        (not (eq (process-status rtags-diagnostics-process) 'exit))
        (not (eq (process-status rtags-diagnostics-process) 'signal))))
 
+
+(defun rtags-init-inhibit ()
+  (setq rtags-inhibit-find-file-hook (or rtags-inhibit-find-file-hook 0)))
 
 ;;;###autoload
 (defun rtags-bury-or-delete ()
@@ -656,6 +660,7 @@ BUFFER : the buffer to be checked and reparsed, if it's nil, use current buffer"
     (if (not (equal "" input))
         (setq tagname input))
     (with-current-buffer (rtags-get-buffer)
+      (rtags-init-inhibit)
       (rtags-call-rc :path path switch tagname :path-filter filter :path-filter-regex regexp-filter (if rtags-symbolnames-case-insensitive "-I"))
       (rtags-reset-bookmarks)
       (rtags-handle-results-buffer))))
@@ -968,6 +973,7 @@ If called with a prefix restrict to current buffer"
         (fn (buffer-file-name)))
     (rtags-reparse-file-if-needed)
     (with-current-buffer (rtags-get-buffer)
+      (rtags-init-inhibit)
       (rtags-call-rc :path fn :path-filter prefix "-f" arg)
       (rtags-handle-results-buffer))))
 
@@ -983,6 +989,7 @@ References to references will be treated as references to the referenced symbol"
         (fn (buffer-file-name)))
     (rtags-reparse-file-if-needed)
     (with-current-buffer (rtags-get-buffer)
+      (rtags-init-inhibit)
       (rtags-call-rc :path fn :path-filter prefix "-r" arg)
       (rtags-handle-results-buffer))))
 
@@ -995,6 +1002,7 @@ References to references will be treated as references to the referenced symbol"
         (fn (buffer-file-name)))
     (rtags-reparse-file-if-needed)
     (with-current-buffer (rtags-get-buffer)
+      (rtags-init-inhibit)
       (rtags-call-rc :path fn :path-filter prefix "-r" arg "-k")
       (rtags-handle-results-buffer))))
 
@@ -1006,6 +1014,7 @@ References to references will be treated as references to the referenced symbol"
         (fn (buffer-file-name)))
     (rtags-reparse-file-if-needed)
     (with-current-buffer (rtags-get-buffer)
+      (rtags-init-inhibit)
       (rtags-call-rc :path fn :path-filter prefix "-r" arg "-e")
       (rtags-handle-results-buffer))))
 
@@ -1019,6 +1028,7 @@ References to references will be treated as references to the referenced symbol"
         (progn
           (rtags-reparse-file-if-needed)
           (with-current-buffer (rtags-get-buffer)
+            (rtags-init-inhibit)
             (rtags-call-rc :path fn "--declaration-only" "-F" token)
             (rtags-handle-results-buffer t))))))
 
@@ -1633,7 +1643,11 @@ References to references will be treated as references to the referenced symbol"
          (rtags-init-bookmarks)
          (rtags-mode)
          (when (and rtags-jump-to-first-match (not noautojump))
-           (rtags-select-other-window)))))
+           (rtags-select-other-window))))
+  (when rtags-inhibit-find-file-hook
+    (if (> rtags-inhibit-find-file-hook 0)
+        (rtags-set-buffers (buffer-list)))
+    (setq rtags-inhibit-find-file-hook nil)))
 
 (defun rtags-filename-complete (string predicate code)
   (let ((complete-list (make-vector 63 0)))
@@ -2245,6 +2259,7 @@ If rtags-display-summary-as-tooltip is t, a tooltip is displayed."
 
 
 (defun rtags-set-buffers (buffers)
+  ;; (message "calling-set-buffers %d" (length buffers))
   (with-temp-buffer
     (mapc (function (lambda (x)
                       (let ((name (buffer-file-name x)))
@@ -2255,14 +2270,18 @@ If rtags-display-summary-as-tooltip is t, a tooltip is displayed."
 
 (defun rtags-kill-buffer-hook ()
   (when (buffer-file-name)
-    (rtags-set-buffers (cdr (buffer-list))))
+    (if rtags-inhibit-find-file-hook
+        (decf rtags-inhibit-find-file-hook)
+      (rtags-set-buffers (cdr (buffer-list)))))
   t)
 (add-hook 'kill-buffer-hook 'rtags-kill-buffer-hook)
 
 (defun rtags-find-file-hook ()
   (interactive)
   (when (buffer-file-name)
-    (rtags-set-buffers (buffer-list)))
+    (if rtags-inhibit-find-file-hook
+        (incf rtags-inhibit-find-file-hook)
+      (rtags-set-buffers (buffer-list))))
     ;; (let ((bufs (buffer-list)))
     ;;   (push (current-buffer) bufs)
     ;;   (rtags-set-buffers bufs)))
