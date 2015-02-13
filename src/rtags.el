@@ -341,15 +341,6 @@
                    rtags-autostart-diagnostics (rtags-diagnostics))))
           (or async (> (point-max) (point-min))))))))
 
-;;;###autoload
-(defun rtags-index-js-file ()
-  (interactive)
-  (if (buffer-file-name)
-      (let ((bufname (buffer-file-name)))
-        (with-temp-buffer
-          (rtags-call-rc (buffer-file-name) "--compile" bufname :noerror t))))
-  t)
-
 (defvar rtags-preprocess-keymap (make-sparse-keymap))
 (define-key rtags-preprocess-keymap (kbd "q") 'rtags-bury-or-delete)
 (set-keymap-parent rtags-preprocess-keymap c++-mode-map)
@@ -867,11 +858,6 @@ return t if rtags is allowed to modify this file"
   :group 'rtags
   :type 'boolean)
 
-(defcustom rtags-index-js-files nil
-  "If t, automatically index all js files that are opened"
-  :group 'rtags
-  :type 'boolean)
-
 ;;;###autoload
 (defun rtags-enable-standard-keybindings (&optional map prefix)
   (interactive)
@@ -906,10 +892,6 @@ return t if rtags is allowed to modify this file"
     (define-key map (concat prefix "B") (function rtags-show-rtags-buffer))
     (define-key map (concat prefix "I") (function rtags-imenu))
     (define-key map (concat prefix "T") (function rtags-taglist))))
-
-(if rtags-index-js-files
-    (add-hook 'find-file-hook 'rtags-index-js-file)
-  (remove-hook 'find-file-hook 'rtags-index-js-file))
 
 ;;;###autoload
 (defun rtags-print-current-location ()
