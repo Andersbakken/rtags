@@ -45,7 +45,7 @@ String Symbol::toString(unsigned cursorInfoFlags, unsigned keyFlags, const std::
                                       "%s" // range
                                       "%s" // enumValue
                                       "%s" // definition
-                                      "Linkage: %s"
+                                      "Linkage: %s\n"
                                       "%s", // usr
                                       symbolName.constData(),
                                       kindSpelling().constData(),

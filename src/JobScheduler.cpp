@@ -80,7 +80,7 @@ void JobScheduler::startJobs()
                 const String stdErr = proc->readAllStdErr();
                 const String stdOut = proc->readAllStdOut();
                 if (!stdOut.isEmpty() || !stdErr.isEmpty()) {
-                    error() << (node ? node->job->sourceFile : String("Orphaned process")) << stdErr << stdOut;
+                    error() << (node ? node->job->sourceFile : String("Orphaned process")) << '\n' << stdErr << stdOut;
                 }
 
                 if (node) {

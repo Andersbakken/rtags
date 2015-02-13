@@ -194,7 +194,6 @@ bool Server::init(const Options &options)
         l << inc.toString();
 
     if (mOptions.options & ClearProjects) {
-        printf("[%s:%d]: clearProjects();\n", __FILE__, __LINE__); fflush(stdout);
         clearProjects();
     }
 
@@ -1049,7 +1048,6 @@ void Server::preprocessFile(const std::shared_ptr<QueryMessage> &query, Connecti
 
 void Server::clearProjects()
 {
-    printf("[%s:%d]: void Server::clearProjects()\n", __FILE__, __LINE__); fflush(stdout);
     for (const auto &it : mProjects)
         it.second->unload();
     Rct::removeDirectory(mOptions.dataDir);

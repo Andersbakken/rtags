@@ -35,10 +35,7 @@ static const CXCursor nullCursor = clang_getNullCursor();
 
 static inline String usr(const CXCursor &cursor)
 {
-    const String ret = RTags::eatString(clang_getCursorUSR(clang_getCanonicalCursor(cursor)));
-    if (ret.isEmpty())
-        error() << "got empty" << cursor;
-    return ret;
+    return RTags::eatString(clang_getCursorUSR(clang_getCanonicalCursor(cursor)));
 }
 
 struct VerboseVisitorUserData {
@@ -778,6 +775,11 @@ bool ClangIndexer::handleReference(const CXCursor &cursor, CXCursorKind kind,
         break;
     }
 
+    const String refUsr = usr(ref);
+    if (refUsr.isEmpty()) {
+        return false;
+    }
+
     const Location reffedLoc = createLocation(ref);
     if (!reffedLoc.isValid()) {
         // ### THIS IS NOT SOLVED
@@ -789,6 +791,7 @@ bool ClangIndexer::handleReference(const CXCursor &cursor, CXCursorKind kind,
         return false;
     }
 
+
     bool reffedCursorFound;
     auto reffedCursor = findSymbol(reffedLoc, &reffedCursorFound);
     Map<String, uint16_t> &targets = unit(location.fileId())->targets[location];
@@ -799,7 +802,6 @@ bool ClangIndexer::handleReference(const CXCursor &cursor, CXCursorKind kind,
         refTargetValue = RTags::createTargetsValue(refKind, clang_isCursorDefinition(ref));
     }
 
-    const String refUsr = usr(ref);
     assert(!refUsr.isEmpty());
     targets[refUsr] = refTargetValue;
     Symbol &c = unit(location)->symbols[location];
@@ -926,12 +928,14 @@ void ClangIndexer::handleInclude(const CXCursor &cursor, CXCursorKind kind, cons
 
 bool ClangIndexer::handleCursor(const CXCursor &cursor, CXCursorKind kind, const Location &location, Symbol **cursorPtr)
 {
+    const String usr = ::usr(cursor);
     // error() << "Got a cursor" << cursor;
     Symbol &c = unit(location)->symbols[location];
     if (cursorPtr)
         *cursorPtr = &c;
     if (!c.isNull())
         return true;
+
 
     // if (mLogFile) {
     //     String out;
@@ -944,6 +948,7 @@ bool ClangIndexer::handleCursor(const CXCursor &cursor, CXCursorKind kind, const
     c.symbolLength = cstr ? strlen(cstr) : 0;
     c.type = clang_getCursorType(cursor).kind;
     c.location = location;
+    c.usr = usr;
     if (!c.symbolLength) {
         // this is for these constructs:
         // typedef struct {
@@ -1026,12 +1031,9 @@ bool ClangIndexer::handleCursor(const CXCursor &cursor, CXCursorKind kind, const
     // their definition and their declaration.  Using the canonical
     // cursor's usr allows us to join them. Check JSClassRelease in
     // JavaScriptCore for an example.
-    c.usr = usr(cursor);
-    if (!c.usr.isEmpty()) {
-        unit(location)->usrs[c.usr].insert(location);
-        if (c.linkage == CXLinkage_External && !c.isDefinition()) {
-            mData->declarations[c.usr].insert(location.fileId());
-        }
+    unit(location)->usrs[c.usr].insert(location);
+    if (c.linkage == CXLinkage_External && !c.isDefinition()) {
+        mData->declarations[c.usr].insert(location.fileId());
     }
 
     switch (c.kind) {
@@ -1040,8 +1042,8 @@ bool ClangIndexer::handleCursor(const CXCursor &cursor, CXCursorKind kind, const
         break;
     case CXCursor_Constructor:
     case CXCursor_Destructor:
-        assert(!usr(clang_getCursorSemanticParent(cursor)).isEmpty());
-        unit(location.fileId())->targets[location][usr(clang_getCursorSemanticParent(cursor))] = 0;
+        assert(!::usr(clang_getCursorSemanticParent(cursor)).isEmpty());
+        unit(location.fileId())->targets[location][::usr(clang_getCursorSemanticParent(cursor))] = 0;
         break;
     default:
         break;
