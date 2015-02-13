@@ -880,8 +880,12 @@ Set<Symbol> Project::findSymbols(const String &symbolName, uint32_t fileId)
             auto symNames = openSymbolNames(dep.first);
             if (symNames) {
                 int idx = symNames->lowerBound(symbolName);
+                if (idx == -1) {
+                    continue;
+                }
                 const int count = symNames->count();
-                while (idx < count) {
+                assert(idx < count);
+                do {
                     const String s = symNames->keyAt(idx);
                     if (!s.startsWith(symbolName))
                         break;
@@ -892,8 +896,7 @@ Set<Symbol> Project::findSymbols(const String &symbolName, uint32_t fileId)
                                 ret.insert(s);
                         }
                     }
-                    ++idx;
-                }
+                } while (++idx < count);
             }
         }
     }
