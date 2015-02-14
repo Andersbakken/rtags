@@ -1751,11 +1751,11 @@ References to references will be treated as references to the referenced symbol"
            (rtags-location-stack-push))
           (t
            (rtags-goto-location (buffer-substring-no-properties (point-at-bol) (point-at-eol)) nil other-window)
-           (bookmark-set bookmark))))
-  (if remove
-      (delete-window window)
-    (if show
-        (select-window window))))
+           (bookmark-set bookmark)))
+    (if remove
+        (delete-window window)
+      (if show
+          (select-window window)))))
 
 (defun rtags-select-other-window (&optional not-other-window)
   (interactive "P")
