@@ -145,29 +145,22 @@
   (setq buffer-read-only t))
 
 (defun rtags-init-bookmarks()
-  (let ((buf (current-buffer))
-        (opened-files))
+  (save-excursion
     (goto-char (point-min))
     (while (not (eobp))
-      (if (looking-at "^\\(.*?\\):\\([0-9]+\\):\\([0-9]+\\)")
-          (let* ((file (match-string-no-properties 1))
-                 (had-buffer (get-file-buffer file))
-                 (line (string-to-number (match-string-no-properties 2)))
-                 (column (string-to-number (match-string-no-properties 3))))
+      (when (looking-at "^\\(.*?\\):\\([0-9]+\\):\\([0-9]+\\)")
+        (incf rtags-buffer-bookmarks)
+        (let* ((buffer (get-file-buffer (match-string-no-properties 1)))
+               (line (and buffer (string-to-number (match-string-no-properties 2))))
+               (column (and buffer (string-to-number (match-string-no-properties 3)))))
+          (when buffer
             (let (deactivate-mark)
-              (with-current-buffer (find-file-noselect file)
+              (with-current-buffer buffer
                 (save-restriction
                   (widen)
                   (rtags-goto-line-col line column)
-                  (incf rtags-buffer-bookmarks)
-                  (bookmark-set (format "R_%d" rtags-buffer-bookmarks))
-                  (unless had-buffer
-                    (push (current-buffer) opened-files))
-                  (set-buffer buf))))))
-      (forward-line))
-    (while opened-files
-      (kill-buffer (car opened-files))
-      (setq opened-files (cdr opened-files)))))
+                  (bookmark-set (format "R_%d" rtags-buffer-bookmarks))))))
+          (forward-line))))))
 
 (defun rtags-reset-bookmarks ()
   (while (> rtags-buffer-bookmarks 0)
@@ -193,7 +186,7 @@
 
 (defun rtags-next-prev-match (next)
   (if (get-buffer rtags-buffer-name)
-      (let (target
+      (let ((target)
             (win (get-buffer-window rtags-buffer-name)))
         (if win
             (select-window win))
@@ -662,7 +655,6 @@ BUFFER : the buffer to be checked and reparsed, if it's nil, use current buffer"
     (with-current-buffer (rtags-get-buffer)
       (rtags-init-inhibit)
       (rtags-call-rc :path path switch tagname :path-filter filter :path-filter-regex regexp-filter (if rtags-symbolnames-case-insensitive "-I"))
-      (rtags-reset-bookmarks)
       (rtags-handle-results-buffer))))
 
 (defun rtags-symbolname-completion-get (string)
@@ -911,8 +903,8 @@ return t if rtags is allowed to modify this file"
 
 ;;;###autoload
 (defun rtags-quit-rdm () (interactive)
-  (call-process (rtags-executable-find "rc") nil nil nil "--quit-rdm")
-  (setq rtags-process nil))
+       (call-process (rtags-executable-find "rc") nil nil nil "--quit-rdm")
+       (setq rtags-process nil))
 
 ;;;###autoload
 (defun rtags-location-stack-forward ()
@@ -1777,7 +1769,9 @@ References to references will be treated as references to the referenced symbol"
              (other-window 1))
            (bookmark-jump bookmark)
            (rtags-location-stack-push))
-          (t (rtags-goto-location (buffer-substring-no-properties (point-at-bol) (point-at-eol)) nil other-window)))
+          (t
+           (rtags-goto-location (buffer-substring-no-properties (point-at-bol) (point-at-eol)) nil other-window)
+           (bookmark-set bookmark)))
     (if remove
         (delete-window window)
       (if show
