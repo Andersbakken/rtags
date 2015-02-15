@@ -71,7 +71,7 @@ String cursorToString(CXCursor cursor, unsigned flags)
         ret += " def";
 
     if (flags & IncludeUSR)
-        ret += " " + eatString(clang_getCursorUSR(cursor));
+        ret += " " + eatString(clang_getCursorUSR(clang_getCanonicalCursor(cursor)));
 
     CXString file;
     unsigned line, col;
