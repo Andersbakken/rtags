@@ -41,11 +41,7 @@ CXChildVisitResult DumpThread::visitor(CXCursor cursor, CXCursor, CXClientData u
             if (that->mQueryFlags & QueryMessage::DumpIncludeHeaders || fileId == that->mSource.fileId) {
                 const Location loc(fileId, line, col);
                 if (!(that->mQueryFlags & QueryMessage::NoContext)) {
-                    if (line == endLine) {
-                        message += Rct::colorize(loc.context(locationFlags), Rct::AnsiColor_Green, col - 1, endColumn - col);
-                    } else {
-                        message += loc.context(locationFlags);
-                    }
+                    message += loc.context(locationFlags);
                 }
             }
         }
