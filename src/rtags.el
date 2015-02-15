@@ -497,14 +497,10 @@ BUFFER : the buffer to be checked and reparsed, if it's nil, use current buffer"
           (copy-region-as-kill (point-min) (point-max)))
       (buffer-string))))
 
-(defalias 'rtags-symbol-info 'rtags-cursorinfo)
-
 ;;;###autoload
 (defun rtags-print-symbol-info (&optional prefix)
   (interactive "P")
   (message "%s" (rtags-symbol-info nil (not prefix) (not prefix))))
-
-(defalias 'rtags-symbol-info 'rtags-print-cursorinfo)
 
 ;;;###autoload
 (defun rtags-print-dependencies (&optional buffer)
