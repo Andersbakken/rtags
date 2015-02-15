@@ -800,6 +800,11 @@ BUFFER : the buffer to be checked and reparsed, if it's nil, use current buffer"
   :group 'rtags
   :type 'function)
 
+(defcustom rtags-is-indexable 'rtags-is-indexable-default
+  "What function to call for expansions"
+  :group 'rtags
+  :type 'function)
+
 (defcustom rtags-after-find-file-hook nil
   "Run after rtags has jumped to a location possibly in a new file"
   :group 'rtags
@@ -855,6 +860,14 @@ return t if rtags is allowed to modify this file"
   "If t, pass -o to rc to include containing function"
   :group 'rtags
   :type 'boolean)
+
+;;;###autoload
+(defun rtags-is-indexable-default (buffer)
+  (let ((filename (buffer-file-name buffer)))
+    (if filename
+        (let ((suffix (and (string-match "\.\\([^.]+\\)$" filename) (match-string 1 filename))))
+          (or (not suffix)
+              (and (member (downcase suffix) (list "cpp" "h" "cc" "c" "cp" "cxx" "m" "mm" "tcc" "txx" "moc" "hxx" "hh")) t))))))
 
 ;;;###autoload
 (defun rtags-enable-standard-keybindings (&optional map prefix)
@@ -2237,14 +2250,12 @@ If rtags-display-summary-as-tooltip is t, a tooltip is displayed."
         (popup-tip summary)
       (message "%s" summary))))
 
-
 (defun rtags-set-buffers (buffers)
   ;; (message "calling-set-buffers %d" (length buffers))
   (with-temp-buffer
     (mapc (function (lambda (x)
-                      (let ((name (buffer-file-name x)))
-                        (if (and name (file-exists-p name))
-                            (insert name "\n"))))) buffers)
+                      (if (funcall rtags-is-indexable x)
+                          (insert (buffer-file-name x) "\n")))) buffers)
     ;; (message "files: %s" (combine-and-quote-strings (split-string (buffer-substring-no-properties (point-min) (point-max)) "\n" t)) "|")
     (rtags-call-rc :unsaved (current-buffer) "--set-buffers" "-")))
 
