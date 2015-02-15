@@ -1041,6 +1041,7 @@ void Server::clearProjects()
     Rct::removeDirectory(mOptions.dataDir);
     setCurrentProject(std::shared_ptr<Project>());
     mProjects.clear();
+    saveFileIds();
 }
 
 void Server::reindex(const std::shared_ptr<QueryMessage> &query, Connection *conn)
