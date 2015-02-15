@@ -723,7 +723,7 @@ bool ClangIndexer::superclassTemplateMemberFunctionUgleHack(const CXCursor &curs
 }
 
 bool ClangIndexer::handleReference(const CXCursor &cursor, CXCursorKind kind,
-                                   const Location &location, const CXCursor &ref,
+                                   const Location &location, CXCursor ref,
                                    const CXCursor &parent, Symbol **cursorPtr)
 {
     if (cursorPtr)
@@ -752,6 +752,17 @@ bool ClangIndexer::handleReference(const CXCursor &cursor, CXCursorKind kind,
         return false;
     }
 
+    Location refLoc = createLocation(ref);
+    if (!refLoc.isValid()) {
+        // ### THIS IS NOT SOLVED
+        // if (kind == CXCursor_ObjCMessageExpr) {
+        //    mData->pendingReferenceMap[RTags::eatString(clang_getCursorUSR(clang_getCanonicalCursor(ref)))].insert(location);
+        //     // insert it, we'll hook up the target and references later
+        //     return handleCursor(cursor, kind, location, cursorPtr);
+        // }
+        return false;
+    }
+
     switch (refKind) {
     case CXCursor_Constructor:
         if (isImplicit(ref))
@@ -760,6 +771,11 @@ bool ClangIndexer::handleReference(const CXCursor &cursor, CXCursorKind kind,
     case CXCursor_CXXMethod:
     case CXCursor_FunctionDecl:
     case CXCursor_FunctionTemplate: {
+        const CXCursor general = clang_getSpecializedCursorTemplate(ref);
+        if (!clang_Cursor_isNull(general) && createLocation(general) == refLoc) {
+            ref = general;
+        }
+
         CXStringScope scope = clang_getCursorDisplayName(ref);
         const char *data = scope.data();
         if (data) {
@@ -780,20 +796,8 @@ bool ClangIndexer::handleReference(const CXCursor &cursor, CXCursorKind kind,
         return false;
     }
 
-    const Location reffedLoc = createLocation(ref);
-    if (!reffedLoc.isValid()) {
-        // ### THIS IS NOT SOLVED
-        // if (kind == CXCursor_ObjCMessageExpr) {
-        //    mData->pendingReferenceMap[RTags::eatString(clang_getCursorUSR(clang_getCanonicalCursor(ref)))].insert(location);
-        //     // insert it, we'll hook up the target and references later
-        //     return handleCursor(cursor, kind, location, cursorPtr);
-        // }
-        return false;
-    }
-
-
     bool reffedCursorFound;
-    auto reffedCursor = findSymbol(reffedLoc, &reffedCursorFound);
+    auto reffedCursor = findSymbol(refLoc, &reffedCursorFound);
     Map<String, uint16_t> &targets = unit(location.fileId())->targets[location];
     uint16_t refTargetValue;
     if (reffedCursorFound) {

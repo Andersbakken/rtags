@@ -116,7 +116,7 @@ private:
     bool handleCursor(const CXCursor &cursor, CXCursorKind kind,
                       const Location &location, Symbol **cursorPtr = 0);
     bool handleReference(const CXCursor &cursor, CXCursorKind kind,
-                         const Location &loc, const CXCursor &reference,
+                         const Location &loc, CXCursor reference,
                          const CXCursor &parent, Symbol **cursorPtr = 0);
     void handleInclude(const CXCursor &cursor, CXCursorKind kind, const Location &location);
     Location findByUSR(const CXCursor &cursor, CXCursorKind kind, const Location &loc) const;
