@@ -767,13 +767,14 @@ bool ClangIndexer::handleReference(const CXCursor &cursor, CXCursorKind kind,
     case CXCursor_Constructor:
     case CXCursor_CXXMethod:
     case CXCursor_FunctionDecl:
+    case CXCursor_Destructor:
     case CXCursor_FunctionTemplate: {
         const CXCursor general = clang_getSpecializedCursorTemplate(ref);
         if (!clang_Cursor_isNull(general) && createLocation(general) == refLoc) {
             ref = general;
         }
 
-        if (refKind == CXCursor_Constructor) {
+        if (refKind == CXCursor_Constructor || refKind == CXCursor_Destructor) {
             if (isImplicit(ref))
                 return false;
         } else {
