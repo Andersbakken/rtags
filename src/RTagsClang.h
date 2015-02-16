@@ -386,7 +386,7 @@ private:
 
 inline Log operator<<(Log dbg, CXCursor cursor)
 {
-    dbg << RTags::cursorToString(cursor);
+    dbg << RTags::cursorToString(cursor, RTags::AllCursorToStringFlags);
     return dbg;
 }
 
