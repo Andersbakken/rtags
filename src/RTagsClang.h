@@ -54,7 +54,8 @@ enum CursorToStringFlags {
     IncludeUSR = 0x1,
     IncludeRange = 0x2,
     DefaultCursorToStringFlags = IncludeRange,
-    AllCursorToStringFlags = IncludeUSR|IncludeRange
+    IncludeSpecializedUsr = 0x4,
+    AllCursorToStringFlags = IncludeUSR|IncludeRange|IncludeSpecializedUsr
 };
 String cursorToString(CXCursor cursor, unsigned = DefaultCursorToStringFlags);
 

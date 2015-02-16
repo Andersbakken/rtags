@@ -70,8 +70,22 @@ String cursorToString(CXCursor cursor, unsigned flags)
     if (clang_isCursorDefinition(cursor))
         ret += " def";
 
-    if (flags & IncludeUSR)
-        ret += " " + eatString(clang_getCursorUSR(clang_getCanonicalCursor(cursor)));
+    if (flags & IncludeUSR) {
+        const String usr = eatString(clang_getCursorUSR(clang_getCanonicalCursor(cursor)));
+        if (!usr.isEmpty()) {
+            ret += " " + usr;
+        }
+    }
+
+    if (flags & IncludeSpecializedUsr) {
+        const CXCursor general = clang_getSpecializedCursorTemplate(cursor);
+        if (!clang_Cursor_isNull(general)) {
+            const String usr = eatString(clang_getCursorUSR(clang_getCanonicalCursor(general)));
+            if (!usr.isEmpty()) {
+                ret += " " + usr;
+            }
+        }
+    }
 
     CXString file;
     unsigned line, col;
