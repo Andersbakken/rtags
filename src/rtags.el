@@ -2257,7 +2257,7 @@ If rtags-display-summary-as-tooltip is t, a tooltip is displayed."
 
 (defun rtags-kill-buffer-hook ()
   (when (buffer-file-name)
-    (rtags-set-buffers (cdr (buffer-list))))
+    (rtags-set-buffers (remove (current-buffer) (buffer-list))))
   t)
 (add-hook 'kill-buffer-hook 'rtags-kill-buffer-hook)
 
