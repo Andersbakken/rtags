@@ -765,9 +765,6 @@ bool ClangIndexer::handleReference(const CXCursor &cursor, CXCursorKind kind,
 
     switch (refKind) {
     case CXCursor_Constructor:
-        if (isImplicit(ref))
-            return false;
-        break;
     case CXCursor_CXXMethod:
     case CXCursor_FunctionDecl:
     case CXCursor_FunctionTemplate: {
@@ -776,14 +773,19 @@ bool ClangIndexer::handleReference(const CXCursor &cursor, CXCursorKind kind,
             ref = general;
         }
 
-        CXStringScope scope = clang_getCursorDisplayName(ref);
-        const char *data = scope.data();
-        if (data) {
-            const int len = strlen(data);
-            if (len > 8 && !strncmp(data, "operator", 8) && !isalnum(data[8]) && data[8] != '_') {
-                if (isImplicit(ref))
-                    return false; // eat implicit operator calls
-                isOperator = true;
+        if (refKind == CXCursor_Constructor) {
+            if (isImplicit(ref))
+                return false;
+        } else {
+            CXStringScope scope = clang_getCursorDisplayName(ref);
+            const char *data = scope.data();
+            if (data) {
+                const int len = strlen(data);
+                if (len > 8 && !strncmp(data, "operator", 8) && !isalnum(data[8]) && data[8] != '_') {
+                    if (isImplicit(ref))
+                        return false; // eat implicit operator calls
+                    isOperator = true;
+                }
             }
         }
         break; }
