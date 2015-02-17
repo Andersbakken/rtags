@@ -155,8 +155,8 @@
                 (save-restriction
                   (widen)
                   (rtags-goto-line-col line column)
-                  (bookmark-set (format "R_%d" rtags-buffer-bookmarks))))))
-          (forward-line))))))
+                  (bookmark-set (format "R_%d" rtags-buffer-bookmarks))))))))
+          (forward-line))))
 
 (defun rtags-reset-bookmarks ()
   (while (> rtags-buffer-bookmarks 0)
@@ -1861,7 +1861,6 @@ References to references will be treated as references to the referenced symbol"
             ((= (count-lines (point-min) (point-max)) 1) (rtags-goto-location (buffer-substring-no-properties (point-at-bol) (point-at-eol))))
             (t (switch-to-buffer-other-window rtags-buffer-name)
                (shrink-window-if-larger-than-buffer)
-               (rtags-init-bookmarks)
                (rtags-mode))))))
 
 (defun rtags-show-rtags-buffer ()
