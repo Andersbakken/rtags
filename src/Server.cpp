@@ -923,18 +923,17 @@ void Server::findSymbols(const std::shared_ptr<QueryMessage> &query, Connection 
 
     std::shared_ptr<Project> project = currentProject();
 
+    int ret = 0;
     if (!project) {
+        ret = 1;
         error("No project");
-        conn->finish();
-        return;
     } else if (project->state() != Project::Loaded) {
+        ret = 1;
         conn->write("Project loading");
-        conn->finish();
-        return;
+    } else {
+        FindSymbolsJob job(query, project);
+        ret = job.run(conn);
     }
-
-    FindSymbolsJob job(query, project);
-    const int ret = job.run(conn);
     conn->finish(ret);
 }
 
