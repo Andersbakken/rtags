@@ -613,6 +613,7 @@ Set<uint32_t> Project::dependencies(uint32_t fileId, DependencyMode mode) const
     }
 
     Set<uint32_t> ret;
+    ret.insert(fileId);
     const auto end = mDependencies.end();
     for (auto it = mDependencies.begin(); it != end; ++it) {
         if (it->second.contains(fileId))
