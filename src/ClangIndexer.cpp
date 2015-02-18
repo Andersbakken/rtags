@@ -630,7 +630,8 @@ CXChildVisitResult ClangIndexer::indexVisitor(CXCursor cursor, CXCursor parent, 
             // uglehack, see rtags/tests/nestedClassConstructorCallUgleHack/
             const CXCursor ref = clang_getCursorReferenced(cursor);
             if (clang_getCursorKind(ref) == CXCursor_Constructor
-                && clang_getCursorKind(indexer->mLastCursor) == CXCursor_TypeRef
+                && (clang_getCursorKind(indexer->mLastCursor) == CXCursor_TypeRef
+                    || clang_getCursorKind(indexer->mLastCursor) == CXCursor_TemplateRef)
                 && clang_getCursorKind(parent) != CXCursor_VarDecl) {
                 loc = indexer->createLocation(indexer->mLastCursor);
                 indexer->handleReference(indexer->mLastCursor, kind, loc, ref, parent);
@@ -739,7 +740,7 @@ bool ClangIndexer::handleReference(const CXCursor &cursor, CXCursorKind kind,
                                       || refKind == CXCursor_ConversionFunction
                                       || refKind == CXCursor_FunctionDecl
                                       || refKind == CXCursor_FunctionTemplate)) {
-        // these are bullshit, for this construct:
+        // These are bullshit. for this construct:
         // foo.bar();
         // the position of the cursor is at the foo, not the bar.
         // They are not interesting for followLocation, renameSymbol or find
@@ -847,10 +848,10 @@ bool ClangIndexer::handleReference(const CXCursor &cursor, CXCursorKind kind,
                 best = it;
             }
         }
-        if (best != targets.end() && best->first != refUsr) // another target is better
+        if (best != targets.end() && best->first != refUsr) { // another target is better
             return true;
+        }
     }
-
 
     CXSourceRange range = clang_getCursorExtent(cursor);
     CXSourceLocation rangeStart = clang_getRangeStart(range);
