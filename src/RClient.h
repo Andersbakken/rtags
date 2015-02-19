@@ -48,6 +48,7 @@ public:
         DeleteProject,
         Dependencies,
         Diagnostics,
+        DiagnosticsOnlyActiveBuffers,
         DisplayName,
         DumpCompilationDatabase,
         DumpCompletions,
@@ -144,6 +145,7 @@ public:
     String socketFile() const { return mSocketFile; }
     Path projectRoot() const { return mProjectRoot; }
     unsigned queryFlags() const { return mQueryFlags; }
+    unsigned int logFlags() const { return mLogFlags; }
 
     int argc() const { return mArgc; }
     char **argv() const { return mArgv; }
@@ -161,7 +163,7 @@ private:
     void addCompile(const Path &cwd, const String &args, EscapeMode escapeMode);
     void addCompile(const Path &dir, EscapeMode escapeMode);
 
-    unsigned mQueryFlags;
+    unsigned int mQueryFlags, mLogFlags;
     int mMax, mLogLevel, mTimeout, mMinOffset, mMaxOffset, mConnectTimeout, mBuildIndex;
     Set<String> mPathFilters;
     UnsavedFiles mUnsavedFiles;
