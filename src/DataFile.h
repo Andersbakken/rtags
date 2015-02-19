@@ -42,7 +42,7 @@ public:
         mSerializer = 0;
         if (rename(mTempFilePath.constData(), mPath.constData())) {
             Path::rm(mTempFilePath);
-            mError = String::format<128>("rename error: %d %s", errno, strerror(errno));
+            mError = String::format<128>("rename error: %d %s", errno, Rct::strerror().constData());
             return false;
         }
         return true;
@@ -62,12 +62,12 @@ public:
             mTempFilePath = mPath + "XXXXXX";
             const int ret = mkstemp(&mTempFilePath[0]);
             if (ret == -1) {
-                mError = String::format<128>("mkstemp failure %d (%s)", errno, strerror(errno));
+                mError = String::format<128>("mkstemp failure %d (%s)", errno, Rct::strerror().constData());
                 return false;
             }
             mFile = fdopen(ret, "w");
             if (!mFile) {
-                mError = String::format<128>("fdopen failure %d (%s)", errno, strerror(errno));
+                mError = String::format<128>("fdopen failure %d (%s)", errno, Rct::strerror().constData());
                 close(ret);
                 return false;
             }

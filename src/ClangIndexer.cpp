@@ -120,7 +120,7 @@ bool ClangIndexer::exec(const String &data)
     if (niceValue != INT_MIN) {
         errno = 0;
         if (nice(niceValue) == -1) {
-            error() << "Failed to nice rp" << strerror(errno);
+            error() << "Failed to nice rp" << Rct::strerror();
         }
     }
 
@@ -196,7 +196,7 @@ bool ClangIndexer::exec(const String &data)
         }
         FILE *manifest = fopen((outFile + ".manifest").constData(), "w");
         if (!manifest) {
-            error() << "Failed to write manifest" << errno << strerror(errno);
+            error() << "Failed to write manifest" << errno << Rct::strerror();
             Path::rm(outFile);
             return true;
         }
