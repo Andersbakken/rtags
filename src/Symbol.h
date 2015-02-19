@@ -42,7 +42,7 @@ struct Symbol
     };
     int startLine, startColumn, endLine, endColumn;
 
-    bool isNull() const { return !symbolLength; }
+    bool isNull() const { return location.isNull(); }
     void clear()
     {
         location.clear();

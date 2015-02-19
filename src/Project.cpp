@@ -1049,6 +1049,12 @@ Set<Symbol> Project::findByUsr(const String &usr, uint32_t fileId, DependencyMod
 {
     assert(fileId);
     Set<Symbol> ret;
+    if (usr.startsWith("/")) {
+        Symbol sym;
+        sym.location = Location(Location::fileId(usr), 1, 1);
+        ret.insert(sym);
+        return ret;
+    }
     if (mDeclarations.contains(usr)) {
         assert(!mDeclarations.value(usr).isEmpty());
         for (const auto &dep : mDependencies) {
