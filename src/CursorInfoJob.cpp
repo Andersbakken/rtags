@@ -32,7 +32,7 @@ int CursorInfoJob::execute()
         return 1;
     SymbolMap::const_iterator it = RTags::findCursorInfo(map, location);
 
-    unsigned ciFlags = 0;
+    unsigned int ciFlags = 0;
     if (!(queryFlags() & QueryMessage::CursorInfoIncludeTargets))
         ciFlags |= CursorInfo::IgnoreTargets;
     if (!(queryFlags() & QueryMessage::CursorInfoIncludeReferences))

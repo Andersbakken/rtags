@@ -166,7 +166,7 @@ public:
         IgnoreReferences = 0x2,
         DefaultFlags = 0x0
     };
-    String toString(unsigned cursorInfoFlags = DefaultFlags, unsigned keyFlags = 0) const;
+    String toString(unsigned int cursorInfoFlags = DefaultFlags, unsigned int keyFlags = 0) const;
     uint16_t symbolLength; // this is just the symbol name length e.g. foo => 3
     String symbolName; // this is fully qualified Foobar::Barfoo::foo
     uint16_t kind;

@@ -141,7 +141,7 @@ public:
 
     String socketFile() const { return mSocketFile; }
     Path projectRoot() const { return mProjectRoot; }
-    unsigned queryFlags() const { return mQueryFlags; }
+    unsigned int queryFlags() const { return mQueryFlags; }
 
     int argc() const { return mArgc; }
     char **argv() const { return mArgv; }
@@ -159,7 +159,7 @@ private:
     void addCompile(const Path &cwd, const String &args, EscapeMode escapeMode);
     void addCompile(const Path &dir, EscapeMode escapeMode);
 
-    unsigned mQueryFlags;
+    unsigned int mQueryFlags;
     int mMax, mLogLevel, mTimeout, mMinOffset, mMaxOffset, mConnectTimeout, mBuildIndex;
     Set<String> mPathFilters;
     UnsavedFiles mUnsavedFiles;

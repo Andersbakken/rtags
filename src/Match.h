@@ -34,7 +34,7 @@ public:
         : mFlags(0)
     {}
 
-    inline Match(const String &pattern, unsigned flags = Flag_StringMatch)
+    inline Match(const String &pattern, unsigned int flags = Flag_StringMatch)
         : mFlags(flags)
     {
         if (flags & Flag_RegExp)
@@ -42,7 +42,7 @@ public:
         mPattern = pattern;
     }
 
-    unsigned flags() const { return mFlags; }
+    unsigned int flags() const { return mFlags; }
 
     inline Match(const RegExp &regExp)
         : mRegExp(regExp), mPattern(regExp.pattern()), mFlags(Flag_RegExp)
@@ -83,7 +83,7 @@ public:
 private:
     RegExp mRegExp;
     String mPattern;
-    unsigned mFlags;
+    unsigned int mFlags;
 };
 
 inline Log operator<<(Log log, const Match &match)

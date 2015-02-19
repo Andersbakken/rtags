@@ -241,7 +241,7 @@ public:
 
     const QueryMessage::Type type;
     const String query;
-    unsigned extraQueryFlags;
+    unsigned int extraQueryFlags;
 
     virtual bool exec(RClient *rc, Connection *connection)
     {
@@ -461,7 +461,7 @@ bool RClient::parse(int &argc, char **argv)
     }
 
     Path logFile;
-    unsigned logFlags = 0;
+    unsigned int logFlags = 0;
 
     enum State {
         Parsing,

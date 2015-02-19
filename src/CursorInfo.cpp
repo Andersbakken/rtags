@@ -22,7 +22,7 @@ String CursorInfo::kindSpelling(uint16_t kind)
     return RTags::eatString(clang_getCursorKindSpelling(static_cast<CXCursorKind>(kind)));
 }
 
-String CursorInfo::toString(unsigned cursorInfoFlags, unsigned keyFlags) const
+String CursorInfo::toString(unsigned int cursorInfoFlags, unsigned int keyFlags) const
 {
     String ret = String::format<1024>("SymbolName: %s\n"
                                       "Kind: %s\n"
@@ -162,7 +162,7 @@ enum Mode {
     NormalRefs
 };
 
-static inline void allImpl(const SymbolMap &map, const Location &loc, const std::shared_ptr<CursorInfo> &info, SymbolMap &out, Mode mode, unsigned kind)
+static inline void allImpl(const SymbolMap &map, const Location &loc, const std::shared_ptr<CursorInfo> &info, SymbolMap &out, Mode mode, unsigned int kind)
 {
     if (out.contains(loc))
         return;

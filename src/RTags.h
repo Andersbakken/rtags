@@ -199,7 +199,7 @@ enum FindAncestorFlag {
     Shallow = 0x1,
     Wildcard = 0x2
 };
-Path findAncestor(Path path, const char *fn, unsigned flags);
+Path findAncestor(Path path, const char *fn, unsigned int flags);
 Map<String, String> rtagsConfig(const Path &path);
 }
 

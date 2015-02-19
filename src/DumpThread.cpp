@@ -18,18 +18,18 @@ CXChildVisitResult DumpThread::visitor(CXCursor cursor, CXCursor, CXClientData u
     assert(that);
     CXSourceLocation location = clang_getCursorLocation(cursor);
     if (!clang_equalLocations(location, nullLocation)) {
-        unsigned locationFlags = 0;
+        unsigned int locationFlags = 0;
         if (that->mQueryFlags & QueryMessage::NoColor)
             locationFlags |= Location::NoColor;
         CXString file;
-        unsigned line, col;
+        unsigned int line, col;
         clang_getPresumedLocation(location, &file, &line, &col);
         Path path = RTags::eatString(file);
         String message;
         message.reserve(256);
         CXSourceRange range = clang_getCursorExtent(cursor);
         CXSourceLocation rangeEnd = clang_getRangeEnd(range);
-        unsigned endLine, endColumn;
+        unsigned int endLine, endColumn;
         clang_getPresumedLocation(rangeEnd, 0, &endLine, &endColumn);
         if (!path.isEmpty()) {
             uint32_t &fileId = that->mFiles[path];

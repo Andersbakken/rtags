@@ -135,8 +135,8 @@ public:
     int max() const { return mMax; }
     void setMax(int max) { mMax = max; }
 
-    unsigned flags() const { return mFlags; }
-    void setFlags(unsigned flags)
+    unsigned int flags() const { return mFlags; }
+    void setFlags(unsigned int flags)
     {
         mFlags = flags;
         switch (mType) {
@@ -164,8 +164,8 @@ public:
     }
 
     static Flag flagFromString(const String &string);
-    static unsigned keyFlags(unsigned queryFlags);
-    inline unsigned keyFlags() const { return keyFlags(mFlags); }
+    static unsigned int keyFlags(unsigned int queryFlags);
+    inline unsigned int keyFlags() const { return keyFlags(mFlags); }
 
     virtual void encode(Serializer &serializer) const;
     virtual void decode(Deserializer &deserializer);
@@ -176,7 +176,7 @@ public:
 private:
     String mQuery;
     Type mType;
-    unsigned mFlags;
+    unsigned int mFlags;
     int mMax, mMinLine, mMaxLine, mBuildIndex;
     List<String> mPathFilters;
     Path mCurrentFile;

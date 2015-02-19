@@ -36,7 +36,7 @@ String eatString(CXString str)
     return ret;
 }
 
-String cursorToString(CXCursor cursor, unsigned flags)
+String cursorToString(CXCursor cursor, unsigned int flags)
 {
     const CXCursorKind kind = clang_getCursorKind(cursor);
     String ret;
@@ -74,7 +74,7 @@ String cursorToString(CXCursor cursor, unsigned flags)
         ret += " " + eatString(clang_getCursorUSR(cursor));
 
     CXString file;
-    unsigned line, col;
+    unsigned int line, col;
     for (int pieceIndex = 0; true; ++pieceIndex) {
         CXSourceRange range = clang_Cursor_getSpellingNameRange(cursor, pieceIndex, 0);
         if (clang_Range_isNull(range))

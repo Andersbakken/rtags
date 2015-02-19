@@ -36,9 +36,9 @@ void QueryMessage::decode(Deserializer &deserializer)
                  >> mUnsavedFiles;
 }
 
-unsigned QueryMessage::keyFlags(unsigned queryFlags)
+unsigned int QueryMessage::keyFlags(unsigned int queryFlags)
 {
-    unsigned ret = Location::NoFlag;
+    unsigned int ret = Location::NoFlag;
     if (!(queryFlags & NoContext))
         ret |= Location::ShowContext;
     if (queryFlags & NoColor)
@@ -48,7 +48,7 @@ unsigned QueryMessage::keyFlags(unsigned queryFlags)
 
 Match QueryMessage::match() const
 {
-    unsigned flags = Match::Flag_StringMatch;
+    unsigned int flags = Match::Flag_StringMatch;
     if (mFlags & MatchRegexp)
         flags |= Match::Flag_RegExp;
 

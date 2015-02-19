@@ -91,7 +91,7 @@ void dirtyUsr(UsrMap &map, const Set<uint32_t> &dirty)
     }
 }
 
-Path findAncestor(Path path, const char *fn, unsigned flags)
+Path findAncestor(Path path, const char *fn, unsigned int flags)
 {
     Path ret;
     int slash = path.size();
@@ -198,7 +198,7 @@ Map<String, String> rtagsConfig(const Path &path)
 
 struct Entry {
     const char *name;
-    const unsigned flags;
+    const unsigned int flags;
 };
 
 static inline Path checkEntries(const Entry *entries, const Path &path, const Path &home)

@@ -81,7 +81,7 @@ int ReferencesJob::execute()
                                 FoundClass = 0x2,
                                 FoundReferences = 0x4
                             };
-                            unsigned state = 0;
+                            unsigned int state = 0;
                             const SymbolMap targets = a->second->targetInfos(map);
                             for (SymbolMap::const_iterator t = targets.begin(); t != targets.end(); ++t) {
                                 if (t->second->kind != a->second->kind)

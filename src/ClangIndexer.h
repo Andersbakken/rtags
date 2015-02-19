@@ -45,7 +45,7 @@ private:
     inline Location createLocation(const CXSourceLocation &location, bool *blocked = 0)
     {
         CXString fileName;
-        unsigned line, col;
+        unsigned int line, col;
         CXFile file;
         clang_getSpellingLocation(location, &file, &line, &col, 0);
         if (file) {
@@ -83,7 +83,7 @@ private:
         }
         return ret;
     }
-    Location createLocation(CXFile file, unsigned line, unsigned col, bool *blocked = 0)
+    Location createLocation(CXFile file, unsigned int line, unsigned int col, bool *blocked = 0)
     {
         if (blocked)
             *blocked = false;
