@@ -79,7 +79,7 @@ public:
               completionCacheSize(0), testTimeout(60 * 1000 * 5)
         {}
         Path socketFile, dataDir, argTransform;
-        unsigned options;
+        unsigned int options;
         int jobCount, unloadTimer, rpVisitFileTimeout,
             rpIndexerMessageTimeout, rpConnectTimeout, rpNiceValue,
             threadStackSize, maxCrashCount, completionCacheSize,

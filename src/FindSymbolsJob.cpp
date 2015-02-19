@@ -19,7 +19,7 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 #include "RTagsClang.h"
 #include "Project.h"
 
-static inline unsigned jobFlags(unsigned queryFlags)
+static inline unsigned int jobFlags(unsigned int queryFlags)
 {
     return (queryFlags & QueryMessage::ElispList) ? QueryJob::QuoteOutput|QueryJob::QuietJob : QueryJob::None|QueryJob::QuietJob;
 }

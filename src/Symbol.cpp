@@ -36,7 +36,7 @@ static inline const char *linkageSpelling(CXLinkageKind kind)
     return "";
 }
 
-String Symbol::toString(unsigned cursorInfoFlags, unsigned keyFlags, const std::shared_ptr<Project> &project) const
+String Symbol::toString(unsigned int cursorInfoFlags, unsigned int keyFlags, const std::shared_ptr<Project> &project) const
 {
     String ret = String::format<1024>("SymbolName: %s\n"
                                       "Kind: %s\n"

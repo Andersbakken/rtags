@@ -24,7 +24,7 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 // static int count = 0;
 // static int active = 0;
 
-QueryJob::QueryJob(const std::shared_ptr<QueryMessage> &query, unsigned jobFlags, const std::shared_ptr<Project> &proj)
+QueryJob::QueryJob(const std::shared_ptr<QueryMessage> &query, unsigned int jobFlags, const std::shared_ptr<Project> &proj)
     : mAborted(false), mLinesWritten(0), mQueryMessage(query), mJobFlags(jobFlags), mProject(proj), mPathFilters(0),
       mPathFiltersRegExp(0), mConnection(0)
 {
@@ -48,7 +48,7 @@ QueryJob::QueryJob(const std::shared_ptr<QueryMessage> &query, unsigned jobFlags
     }
 }
 
-QueryJob::QueryJob(unsigned jobFlags, const std::shared_ptr<Project> &proj)
+QueryJob::QueryJob(unsigned int jobFlags, const std::shared_ptr<Project> &proj)
     : mAborted(false), mLinesWritten(0), mJobFlags(jobFlags), mProject(proj), mPathFilters(0),
       mPathFiltersRegExp(0), mConnection(0)
 {
@@ -72,7 +72,7 @@ uint32_t QueryJob::fileFilter() const
     return 0;
 }
 
-bool QueryJob::write(const String &out, unsigned flags)
+bool QueryJob::write(const String &out, unsigned int flags)
 {
     if ((mJobFlags & WriteUnfiltered) || (flags & Unfiltered) || filter(out)) {
         if ((mJobFlags & QuoteOutput) && !(flags & DontQuote)) {
@@ -99,7 +99,7 @@ bool QueryJob::write(const String &out, unsigned flags)
     return true;
 }
 
-bool QueryJob::writeRaw(const String &out, unsigned flags)
+bool QueryJob::writeRaw(const String &out, unsigned int flags)
 {
     assert(mConnection);
     if (!(flags & IgnoreMax) && mQueryMessage) {
@@ -125,7 +125,7 @@ bool QueryJob::writeRaw(const String &out, unsigned flags)
     return true;
 }
 
-bool QueryJob::write(const Location &location, unsigned flags)
+bool QueryJob::write(const Location &location, unsigned int flags)
 {
     if (location.isNull())
         return false;
@@ -179,7 +179,7 @@ bool QueryJob::write(const Location &location, unsigned flags)
     return write(out, flags);
 }
 
-bool QueryJob::write(const Symbol &symbol, unsigned cflags, unsigned int flags)
+bool QueryJob::write(const Symbol &symbol, unsigned int cflags, unsigned int flags)
 {
     if (symbol.isNull())
         return false;

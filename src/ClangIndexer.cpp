@@ -218,7 +218,7 @@ void ClangIndexer::onMessage(const std::shared_ptr<Message> &msg, Connection */*
     EventLoop::eventLoop()->quit();
 }
 
-Location ClangIndexer::createLocation(const Path &sourceFile, unsigned line, unsigned col, bool *blockedPtr)
+Location ClangIndexer::createLocation(const Path &sourceFile, unsigned int line, unsigned int col, bool *blockedPtr)
 {
     uint32_t id = Location::fileId(sourceFile);
     Path resolved;
@@ -682,7 +682,7 @@ bool ClangIndexer::superclassTemplateMemberFunctionUgleHack(const CXCursor &curs
 
     const CXSourceRange range = clang_getCursorExtent(cursor);
     const CXSourceLocation end = clang_getRangeEnd(range);
-    unsigned offset;
+    unsigned int offset;
     clang_getSpellingLocation(end, 0, 0, 0, &offset);
 
     String name;
@@ -856,7 +856,7 @@ bool ClangIndexer::handleReference(const CXCursor &cursor, CXCursorKind kind,
     CXSourceRange range = clang_getCursorExtent(cursor);
     CXSourceLocation rangeStart = clang_getRangeStart(range);
     CXSourceLocation rangeEnd = clang_getRangeEnd(range);
-    unsigned startLine, startColumn, endLine, endColumn;
+    unsigned int startLine, startColumn, endLine, endColumn;
     clang_getSpellingLocation(rangeStart, 0, &startLine, &startColumn, 0);
     clang_getSpellingLocation(rangeEnd, 0, &endLine, &endColumn, 0);
     c.startLine = startLine;
@@ -867,7 +867,7 @@ bool ClangIndexer::handleReference(const CXCursor &cursor, CXCursorKind kind,
     c.kind = kind;
     c.location = location;
     if (isOperator) {
-        unsigned start, end;
+        unsigned int start, end;
         clang_getSpellingLocation(rangeStart, 0, 0, 0, &start);
         clang_getSpellingLocation(rangeEnd, 0, 0, 0, &end);
         c.symbolLength = end - start;
@@ -889,11 +889,11 @@ bool ClangIndexer::handleReference(const CXCursor &cursor, CXCursorKind kind,
 void ClangIndexer::addOverriddenCursors(const CXCursor &cursor, const Location &location)
 {
     CXCursor *overridden;
-    unsigned count;
+    unsigned int count;
     clang_getOverriddenCursors(cursor, &overridden, &count);
     if (!overridden)
         return;
-    for (unsigned i=0; i<count; ++i) {
+    for (unsigned int i=0; i<count; ++i) {
         const Location loc = createLocation(overridden[i]);
         if (loc.isNull())
             continue;
@@ -1021,7 +1021,7 @@ bool ClangIndexer::handleCursor(const CXCursor &cursor, CXCursorKind kind, const
     const CXSourceRange range = clang_getCursorExtent(cursor);
     const CXSourceLocation rangeStart = clang_getRangeStart(range);
     const CXSourceLocation rangeEnd = clang_getRangeEnd(range);
-    unsigned startLine, startColumn, endLine, endColumn;
+    unsigned int startLine, startColumn, endLine, endColumn;
     clang_getSpellingLocation(rangeStart, 0, &startLine, &startColumn, 0);
     clang_getSpellingLocation(rangeEnd, 0, &endLine, &endColumn, 0);
     c.startLine = startLine;
@@ -1181,9 +1181,9 @@ bool ClangIndexer::diagnose()
     }
 
     List<String> compilationErrors;
-    const unsigned diagnosticCount = clang_getNumDiagnostics(mClangUnit);
+    const unsigned int diagnosticCount = clang_getNumDiagnostics(mClangUnit);
 
-    for (unsigned i=0; i<diagnosticCount; ++i) {
+    for (unsigned int i=0; i<diagnosticCount; ++i) {
         CXDiagnostic diagnostic = clang_getDiagnostic(mClangUnit, i);
         const CXSourceLocation diagLoc = clang_getDiagnosticLocation(diagnostic);
         const Location loc = createLocation(diagLoc, 0);
@@ -1204,14 +1204,14 @@ bool ClangIndexer::diagnose()
                 break;
             }
             if (type != Diagnostic::None) {
-                const unsigned rangeCount = clang_getDiagnosticNumRanges(diagnostic);
+                const unsigned int rangeCount = clang_getDiagnosticNumRanges(diagnostic);
                 bool ok = false;
-                for (unsigned rangePos = 0; rangePos < rangeCount; ++rangePos) {
+                for (unsigned int rangePos = 0; rangePos < rangeCount; ++rangePos) {
                     const CXSourceRange range = clang_getDiagnosticRange(diagnostic, rangePos);
                     const CXSourceLocation start = clang_getRangeStart(range);
                     const CXSourceLocation end = clang_getRangeEnd(range);
 
-                    unsigned startOffset, endOffset;
+                    unsigned int startOffset, endOffset;
                     clang_getSpellingLocation(start, 0, 0, 0, &startOffset);
                     clang_getSpellingLocation(end, 0, 0, 0, &endOffset);
                     if (!rangePos && !startOffset && !endOffset) {
@@ -1227,7 +1227,7 @@ bool ClangIndexer::diagnose()
                     }
                 }
                 if (!ok) {
-                    unsigned line, column;
+                    unsigned int line, column;
                     clang_getSpellingLocation(diagLoc, 0, &line, &column, 0);
                     const Location key(loc.fileId(), line, column);
                     mData->diagnostics[key] = Diagnostic(type, msg);
@@ -1236,13 +1236,13 @@ bool ClangIndexer::diagnose()
             }
             // logDirect(RTags::CompilationError, msg.constData());
 
-            const unsigned fixItCount = clang_getDiagnosticNumFixIts(diagnostic);
-            for (unsigned f=0; f<fixItCount; ++f) {
+            const unsigned int fixItCount = clang_getDiagnosticNumFixIts(diagnostic);
+            for (unsigned int f=0; f<fixItCount; ++f) {
                 CXSourceRange range;
                 const CXStringScope stringScope = clang_getDiagnosticFixIt(diagnostic, f, &range);
                 CXSourceLocation start = clang_getRangeStart(range);
 
-                unsigned line, column;
+                unsigned int line, column;
                 CXFile file;
                 clang_getSpellingLocation(start, &file, &line, &column, 0);
                 if (!file)
@@ -1279,11 +1279,11 @@ bool ClangIndexer::diagnose()
             CXFile file = clang_getFile(mClangUnit, loc.path().constData());
             if (file) {
                 if (CXSourceRangeList *skipped = clang_getSkippedRanges(mClangUnit, file)) {
-                    const unsigned count = skipped->count;
-                    for (unsigned i=0; i<count; ++i) {
+                    const unsigned int count = skipped->count;
+                    for (unsigned int i=0; i<count; ++i) {
                         CXSourceLocation start = clang_getRangeStart(skipped->ranges[i]);
 
-                        unsigned line, column, startOffset, endOffset;
+                        unsigned int line, column, startOffset, endOffset;
                         clang_getSpellingLocation(start, 0, &line, &column, &startOffset);
                         Diagnostic &entry = mData->diagnostics[Location(loc.fileId(), line, column)];
                         if (entry.type == Diagnostic::None) {
@@ -1397,7 +1397,7 @@ void ClangIndexer::addFileSymbol(uint32_t file)
 
 void ClangIndexer::inclusionVisitor(CXFile includedFile,
                                     CXSourceLocation *includeStack,
-                                    unsigned includeLen,
+                                    unsigned int includeLen,
                                     CXClientData userData)
 {
     ClangIndexer *indexer = static_cast<ClangIndexer*>(userData);
@@ -1407,7 +1407,7 @@ void ClangIndexer::inclusionVisitor(CXFile includedFile,
     if (!includeLen) {
         indexer->mData->dependencies[fileId].insert(fileId);
     } else {
-        for (unsigned i=0; i<includeLen; ++i) {
+        for (unsigned int i=0; i<includeLen; ++i) {
             CXFile originatingFile;
             clang_getSpellingLocation(includeStack[i], &originatingFile, 0, 0, 0);
             const Location loc = indexer->createLocation(originatingFile, 1, 1);

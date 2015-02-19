@@ -78,8 +78,8 @@ struct Symbol
         IgnoreReferences = 0x2,
         DefaultFlags = 0x0
     };
-    String toString(unsigned cursorInfoFlags = DefaultFlags,
-                    unsigned keyFlags = 0,
+    String toString(unsigned int cursorInfoFlags = DefaultFlags,
+                    unsigned int keyFlags = 0,
                     const std::shared_ptr<Project> &project = std::shared_ptr<Project>()) const;
     String kindSpelling() const { return kindSpelling(kind); }
     String displayName() const;

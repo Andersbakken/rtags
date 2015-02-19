@@ -158,8 +158,8 @@ public:
         NoColor = 0x2
     };
 
-    String key(unsigned flags = NoFlag) const;
-    String context(unsigned flags) const;
+    String key(unsigned int flags = NoFlag) const;
+    String context(unsigned int flags) const;
 
     static Location decode(const String &data)
     {

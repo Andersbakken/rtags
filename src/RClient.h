@@ -144,7 +144,7 @@ public:
 
     String socketFile() const { return mSocketFile; }
     Path projectRoot() const { return mProjectRoot; }
-    unsigned queryFlags() const { return mQueryFlags; }
+    unsigned int queryFlags() const { return mQueryFlags; }
     unsigned int logFlags() const { return mLogFlags; }
 
     int argc() const { return mArgc; }

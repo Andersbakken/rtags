@@ -41,8 +41,8 @@ public:
         QuietJob = 0x4
     };
     enum { Priority = 10 };
-    QueryJob(const std::shared_ptr<QueryMessage> &msg, unsigned jobFlags, const std::shared_ptr<Project> &proj);
-    QueryJob(unsigned jobFlags, const std::shared_ptr<Project> &project);
+    QueryJob(const std::shared_ptr<QueryMessage> &msg, unsigned int jobFlags, const std::shared_ptr<Project> &proj);
+    QueryJob(unsigned int jobFlags, const std::shared_ptr<Project> &project);
     ~QueryJob();
 
     bool hasFilter() const { return mPathFilters || mPathFiltersRegExp; }
@@ -54,17 +54,17 @@ public:
         DontQuote = 0x2,
         Unfiltered = 0x4
     };
-    bool write(const String &out, unsigned flags = NoWriteFlags);
-    bool write(const Symbol &symbol, unsigned cursorInfoFlags = 0, unsigned flags = NoWriteFlags);
-    bool write(const Location &location, unsigned flags = NoWriteFlags);
+    bool write(const String &out, unsigned int flags = NoWriteFlags);
+    bool write(const Symbol &symbol, unsigned int cursorInfoFlags = 0, unsigned int flags = NoWriteFlags);
+    bool write(const Location &location, unsigned int flags = NoWriteFlags);
 
-    template <int StaticBufSize> bool write(unsigned flags, const char *format, ...);
+    template <int StaticBufSize> bool write(unsigned int flags, const char *format, ...);
     template <int StaticBufSize> bool write(const char *format, ...);
-    unsigned jobFlags() const { return mJobFlags; }
-    void setJobFlags(unsigned flags) { mJobFlags = flags; }
+    unsigned int jobFlags() const { return mJobFlags; }
+    void setJobFlags(unsigned int flags) { mJobFlags = flags; }
     void setJobFlag(Flag flag, bool on = true) { if (on) { mJobFlags |= flag; } else { mJobFlags &= ~flag; } }
-    unsigned queryFlags() const { return mQueryMessage ? mQueryMessage->flags() : 0; }
-    unsigned keyFlags() const { return QueryMessage::keyFlags(queryFlags()); }
+    unsigned int queryFlags() const { return mQueryMessage ? mQueryMessage->flags() : 0; }
+    unsigned int keyFlags() const { return QueryMessage::keyFlags(queryFlags()); }
     bool filter(const String &val) const;
     Signal<std::function<void(const String &)> > &output() { return mOutput; }
     std::shared_ptr<Project> project() const { return mProject; }
@@ -79,9 +79,9 @@ private:
     mutable std::mutex mMutex;
     bool mAborted;
     int mLinesWritten;
-    bool writeRaw(const String &out, unsigned flags);
+    bool writeRaw(const String &out, unsigned int flags);
     std::shared_ptr<QueryMessage> mQueryMessage;
-    unsigned mJobFlags;
+    unsigned int mJobFlags;
     Signal<std::function<void(const String &)> > mOutput;
     std::shared_ptr<Project> mProject;
     List<String> *mPathFilters;
@@ -91,7 +91,7 @@ private:
 };
 
 template <int StaticBufSize>
-inline bool QueryJob::write(unsigned flags, const char *format, ...)
+inline bool QueryJob::write(unsigned int flags, const char *format, ...)
 {
     va_list args;
     va_start(args, format);

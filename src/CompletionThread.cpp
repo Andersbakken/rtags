@@ -316,7 +316,7 @@ void CompletionThread::process(Request *request)
             //     error() << String(it->first.data, it->first.length) << it->second;
             // }
         }
-        for (unsigned i = 0; i < results->NumResults; ++i) {
+        for (unsigned int i = 0; i < results->NumResults; ++i) {
             const CXCursorKind kind = results->Results[i].CursorKind;
             if (kind == CXCursor_Destructor)
                 continue;

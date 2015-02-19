@@ -57,7 +57,7 @@ enum CursorToStringFlags {
     IncludeSpecializedUsr = 0x4,
     AllCursorToStringFlags = IncludeUSR|IncludeRange|IncludeSpecializedUsr
 };
-String cursorToString(CXCursor cursor, unsigned = DefaultCursorToStringFlags);
+String cursorToString(CXCursor cursor, unsigned int = DefaultCursorToStringFlags);
 
 void parseTranslationUnit(const Path &sourceFile, const List<String> &args,
                           CXTranslationUnit &unit, CXIndex index,
@@ -269,8 +269,8 @@ static inline const char *builtinTypeName(CXTypeKind kind)
     switch (kind) {
     case CXType_Void: ret = "void"; break;
     case CXType_Bool: ret = "bool"; break;
-    case CXType_Char_U: ret = "unsigned char"; break;
-    case CXType_UChar: ret = "unsigned char"; break;
+    case CXType_Char_U: ret = "unsigned int char"; break;
+    case CXType_UChar: ret = "unsigned int char"; break;
     case CXType_Char16: ret = "char16"; break;
     case CXType_Char32: ret = "char32"; break;
     case CXType_UShort: ret = "unsigned short"; break;

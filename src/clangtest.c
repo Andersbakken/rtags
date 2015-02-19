@@ -15,14 +15,14 @@ static void printString(const char *name, CXString string)
 static void printCursor(CXCursor cursor)
 {
     CXFile file;
-    unsigned off, line, col;
+    unsigned int off, line, col;
     CXSourceLocation location = clang_getCursorLocation(cursor);
     clang_getSpellingLocation(location, &file, &line, &col, &off);
     CXString fileName = clang_getFileName(file);
     const char *fileNameCStr = clang_getCString(fileName);
     if (fileNameCStr) {
         CXSourceRange range = clang_getCursorExtent(cursor);
-        unsigned start, end;
+        unsigned int start, end;
         clang_getSpellingLocation(clang_getRangeStart(range), 0, 0, 0, &start);
         clang_getSpellingLocation(clang_getRangeEnd(range), 0, 0, 0, &end);
         printf("%s:%d:%d (%d, %d-%d) ", fileNameCStr, line, col, off, start, end);
@@ -73,11 +73,11 @@ int main(int argc, char **argv)
         int indent = 0;
         clang_visitChildren(clang_getTranslationUnitCursor(unit), visit, &indent);
 
-        const unsigned diagnosticCount = clang_getNumDiagnostics(unit);
-        unsigned i;
+        const unsigned int diagnosticCount = clang_getNumDiagnostics(unit);
+        unsigned int i;
         for (i=0; i<diagnosticCount; ++i) {
             CXDiagnostic diagnostic = clang_getDiagnostic(unit, i);
-            const unsigned diagnosticOptions = (CXDiagnostic_DisplaySourceLocation|
+            const unsigned int diagnosticOptions = (CXDiagnostic_DisplaySourceLocation|
                                                 CXDiagnostic_DisplayColumn|
                                                 CXDiagnostic_DisplaySourceRanges|
                                                 CXDiagnostic_DisplayOption|

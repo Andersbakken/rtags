@@ -308,7 +308,7 @@ int main(int argc, char** argv)
     serverOpts.unloadTimer = 0;
 
     const char *logFile = 0;
-    unsigned logFlags = 0;
+    unsigned int logFlags = 0;
     int logLevel = 0;
     bool sigHandler = false;
     assert(Path::home().endsWith('/'));

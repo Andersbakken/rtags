@@ -26,7 +26,7 @@ SymbolInfoJob::SymbolInfoJob(const Location &loc, const std::shared_ptr<QueryMes
 
 int SymbolInfoJob::execute()
 {
-    unsigned ciFlags = 0;
+    unsigned int ciFlags = 0;
     if (queryFlags() & QueryMessage::SymbolInfoExcludeTargets)
         ciFlags |= Symbol::IgnoreTargets;
     if (queryFlags() & QueryMessage::SymbolInfoExcludeReferences)
