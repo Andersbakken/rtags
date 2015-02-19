@@ -1,5 +1,5 @@
-#ifndef Table_h
-#define Table_h
+#ifndef FileMap_h
+#define FileMap_h
 
 /* This file is part of RTags.
 
@@ -22,6 +22,7 @@
 #include <sys/file.h>
 #include <sys/mman.h>
 #include <rct/Serializer.h>
+#include <rct/Rct.h>
 #include "Location.h"
 #include <functional>
 
@@ -60,20 +61,32 @@ public:
         mKeySize = *reinterpret_cast<const size_t*>(mPointer + sizeof(size_t));
     }
 
-    bool load(const Path &path)
+    bool load(const Path &path, String *error = 0)
     {
         const size_t fs = path.fileSize();
         if (!fs)
             return false;
         eintrwrap(mFD, open(path.constData(), O_RDONLY));
-        if (mFD == -1)
+        if (mFD == -1) {
+            if (error)
+                *error = Rct::strError();
             return false;
+        }
         int ret;
         eintrwrap(ret, flock(mFD, LOCK_EX));
+        if (ret != 0) {
+            if (error)
+                *error = Rct::strError();
+            close(mFD);
+            mFD = -1;
+            return false;
+        }
 
         const char *pointer = reinterpret_cast<const char*>(mmap(0, fs, PROT_READ, MAP_PRIVATE, mFD, 0));
         // error() << errno;//  << mPointer;
         if (pointer == MAP_FAILED) {
+            if (error)
+                *error = Rct::strError();
             eintrwrap(ret, flock(mFD, LOCK_UN));
             close(mFD);
             mFD = -1;

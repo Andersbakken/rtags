@@ -226,35 +226,39 @@ private:
             }
             const Path path = project->sourceFilePath(Project::fileMapName(type), fileId);
             std::shared_ptr<FileMap<Key, Value> > fileMap(new FileMap<Key, Value>);
-            if (fileMap->load(path)) {
+            String err;
+            if (fileMap->load(path, &err)) {
                 cache[fileId] = fileMap;
                 std::shared_ptr<LRUEntry> entry(new LRUEntry(type, fileId));
                 entryList.append(entry);
+                entryMap[entry->key] = entry;
                 if (++openedFiles > max) {
                     const std::shared_ptr<LRUEntry> e = entryList.takeFirst();
                     assert(e);
                     entryMap.remove(e->key);
-                    switch (type) {
+                    switch (e->key.type) {
                     case SymbolNames:
-                        assert(symbolNames.contains(fileId));
-                        symbolNames.remove(fileId);
+                        assert(symbolNames.contains(e->key.fileId));
+                        symbolNames.remove(e->key.fileId);
                         break;
                     case Symbols:
-                        assert(symbols.contains(fileId));
-                        symbols.remove(fileId);
+                        assert(symbols.contains(e->key.fileId));
+                        symbols.remove(e->key.fileId);
                         break;
                     case Targets:
-                        assert(targets.contains(fileId));
-                        targets.remove(fileId);
+                        assert(targets.contains(e->key.fileId));
+                        targets.remove(e->key.fileId);
                         break;
                     case Usrs:
-                        assert(usrs.contains(fileId));
-                        usrs.remove(fileId);
+                        assert(usrs.contains(e->key.fileId));
+                        usrs.remove(e->key.fileId);
                         break;
                     }
                     --openedFiles;
                 }
                 assert(openedFiles <= max);
+            } else {
+                error() << "Failed to open" << path << err;
             }
             return fileMap;
         }
