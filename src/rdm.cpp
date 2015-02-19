@@ -573,8 +573,11 @@ int main(int argc, char** argv)
         return 1;
     }
 
-    if (sigHandler)
+    if (sigHandler) {
         signal(SIGSEGV, sigSegvHandler);
+        signal(SIGILL, sigSegvHandler);
+        signal(SIGABRT, sigSegvHandler);
+    }
 
     // Shell-expand logFile
     Path logPath(logFile); logPath.resolve();
