@@ -704,7 +704,7 @@ int Project::remove(const Match &match)
             }
             removeDependencies(fileId);
             ++count;
-            unlink(sourceFilePath(fileId, String()).constData());
+            unlink(sourceFilePath(String(), fileId).constData());
         } else {
             ++it;
         }
@@ -964,7 +964,8 @@ String Project::toCompilationDatabase() const
 
     return ret.toJSON(true);
 }
-Path Project::sourceFilePath(uint32_t fileId, const String &type) const
+
+Path Project::sourceFilePath(const String &type, uint32_t fileId) const
 {
     return RTags::encodeSourceFilePath(Server::instance()->options().dataDir, mPath, fileId) + type;
 }
@@ -1244,3 +1245,14 @@ Set<Symbol> Project::findVirtuals(const Symbol &symbol)
     return ret;
 }
 
+void Project::beginScope()
+{
+    assert(!mFileMapScope);
+    mFileMapScope.reset(new FileMapScope(shared_from_this(), Server::instance()->options().maxFileMapScopeCacheSize));
+}
+
+void Project::endScope()
+{
+    assert(mFileMapScope);
+    mFileMapScope.reset();
+}

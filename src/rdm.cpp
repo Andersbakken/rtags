@@ -42,6 +42,7 @@ static void sigSegvHandler(int signal)
 
 #define EXCLUDEFILTER_DEFAULT "*/CMakeFiles/*;*/cmake*/Modules/*;*/conftest.c*;/tmp/*"
 #define DEFAULT_RP_VISITFILE_TIMEOUT 60000
+#define DEFAULT_RDM_MAX_FILE_MAP_CACHE_SIZE 500
 #define DEFAULT_RP_INDEXER_MESSAGE_TIMEOUT 60000
 #define DEFAULT_RP_CONNECT_TIMEOUT 0 // won't time out
 #define DEFAULT_COMPLETION_CACHE_SIZE 10
@@ -115,6 +116,7 @@ static void usage(FILE *f)
             "  --no-spell-checking|-l                     Don't pass -fspell-checking.\n"
             "  --no-unlimited-error|-f                    Don't pass -ferror-limit=0 to clang.\n"
             "  --Wlarge-by-value-copy|-r [arg]            Use -Wlarge-by-value-copy=[arg] when invoking clang.\n"
+            "  --max-file-map-cache-size|-y [arg]         Max files to cache per query (Should not exceed maximum number of open file descriptors allowed per process) (default " STR(DEFAULT_RDM_MAX_FILE_MAP_CACHE_SIZE) ").\n"
             "  --arg-transform|-V [arg]                   Use arg to transform arguments. [arg] should be a executable with (execv(3)).\n"
             , std::max(2, ThreadPool::idealThreadCount()), defaultStackSize);
 }
@@ -180,6 +182,7 @@ int main(int argc, char** argv)
         { "enable-compiler-manager", no_argument, 0, 'R' },
         { "enable-NDEBUG", no_argument, 0, 'g' },
         { "no-progress", no_argument, 0, 'p' },
+        { "max-file-map-cache-size", required_argument, 0, 'y' },
 #ifdef OS_Darwin
         { "filemanager-watch", no_argument, 0, 'M' },
 #else
@@ -293,6 +296,7 @@ int main(int argc, char** argv)
     serverOpts.rpVisitFileTimeout = DEFAULT_RP_VISITFILE_TIMEOUT;
     serverOpts.rpIndexerMessageTimeout = DEFAULT_RP_INDEXER_MESSAGE_TIMEOUT;
     serverOpts.rpConnectTimeout = DEFAULT_RP_CONNECT_TIMEOUT;
+    serverOpts.maxFileMapScopeCacheSize = DEFAULT_RDM_MAX_FILE_MAP_CACHE_SIZE;
     serverOpts.rpNiceValue = INT_MIN;
     serverOpts.options = Server::Wall|Server::SpellChecking;
     serverOpts.maxCrashCount = DEFAULT_MAX_CRASH_COUNT;
@@ -375,6 +379,13 @@ int main(int argc, char** argv)
             }
             if (!serverOpts.rpVisitFileTimeout)
                 serverOpts.rpVisitFileTimeout = -1;
+            break;
+        case 'y':
+            serverOpts.maxFileMapScopeCacheSize = atoi(optarg);
+            if (serverOpts.maxFileMapScopeCacheSize <= 0) {
+                fprintf(stderr, "Invalid argument to -y %s\n", optarg);
+                return 1;
+            }
             break;
         case 'O':
             serverOpts.rpConnectTimeout = atoi(optarg);

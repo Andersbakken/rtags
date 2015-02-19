@@ -24,6 +24,7 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 #include <memory>
 #include <mutex>
 #include <rct/FileSystemWatcher.h>
+#include <rct/EmbeddedLinkedList.h>
 #include <rct/LinkedList.h>
 #include <rct/Path.h>
 #include <rct/RegExp.h>
@@ -61,21 +62,6 @@ public:
 
     bool match(const Match &match, bool *indexed = 0) const;
 
-    template <typename Key, typename Value>
-    std::shared_ptr<FileMap<Key, Value> > openFileMap(uint32_t fileId, const String &type,
-                                                      Hash<uint32_t, std::shared_ptr<FileMap<Key, Value> > > &cache)
-    {
-        auto it = cache.find(fileId);
-        if (it != cache.end())
-            return it->second;
-        const Path path = sourceFilePath(fileId, type);
-        auto &ref = cache[fileId];
-        ref.reset(new FileMap<Key, Value>);
-        if (!ref->load(path))
-            ref.reset();
-        return ref;
-    }
-
     enum FileMapType {
         Symbols,
         SymbolNames,
@@ -96,30 +82,25 @@ public:
         }
         return String();
     }
-
     std::shared_ptr<FileMap<String, Set<Location> > > openSymbolNames(uint32_t fileId)
     {
-        assert(!mFileMapScopes.isEmpty());
-        return openFileMap<String, Set<Location> >(fileId, fileMapName(SymbolNames),
-                                                   mFileMapScopes.last()->symbolNames);
+        assert(mFileMapScope);
+        return mFileMapScope->openFileMap<String, Set<Location> >(SymbolNames, fileId, mFileMapScope->symbolNames);
     }
     std::shared_ptr<FileMap<Location, Symbol> > openSymbols(uint32_t fileId)
     {
-        assert(!mFileMapScopes.isEmpty());
-        return openFileMap<Location, Symbol>(fileId, fileMapName(Symbols),
-                                             mFileMapScopes.last()->symbols);
+        assert(mFileMapScope);
+        return mFileMapScope->openFileMap<Location, Symbol>(Symbols, fileId, mFileMapScope->symbols);
     }
     std::shared_ptr<FileMap<Location, Set<String> > > openTargets(uint32_t fileId)
     {
-        assert(!mFileMapScopes.isEmpty());
-        return openFileMap<Location, Set<String> >(fileId, fileMapName(Targets),
-                                                   mFileMapScopes.last()->targets);
+        assert(mFileMapScope);
+        return mFileMapScope->openFileMap<Location, Set<String> >(Targets, fileId, mFileMapScope->targets);
     }
     std::shared_ptr<FileMap<String, Set<Location> > > openUsrs(uint32_t fileId)
     {
-        assert(!mFileMapScopes.isEmpty());
-        return openFileMap<String, Set<Location> >(fileId, fileMapName(Usrs),
-                                                   mFileMapScopes.last()->usrs);
+        assert(mFileMapScope);
+        return mFileMapScope->openFileMap<String, Set<Location> >(Usrs, fileId, mFileMapScope->usrs);
     }
 
     enum DependencyMode {
@@ -145,7 +126,7 @@ public:
 
     Set<Symbol> findByUsr(const String &usr, uint32_t fileId, DependencyMode mode);
 
-    Path sourceFilePath(uint32_t fileId, const String &type) const;
+    Path sourceFilePath(const String &type, uint32_t fileId) const;
 
     enum SortFlag {
         Sort_None = 0x0,
@@ -189,8 +170,8 @@ public:
         serializer << mVisitedFiles;
     }
 
-    void beginScope() { mFileMapScopes.append(std::shared_ptr<FileMapScope>(new FileMapScope)); }
-    void endScope() { mFileMapScopes.removeLast(); }
+    void beginScope();
+    void endScope();
 private:
     void removeDependencies(uint32_t fileId);
     void watch(const Path &file);
@@ -203,13 +184,94 @@ private:
     void onDirtyTimeout(Timer *);
 
     struct FileMapScope {
+        FileMapScope(const std::shared_ptr<Project> &proj, int m)
+            : project(proj), openedFiles(0), max(m)
+        {}
+
+        struct LRUKey {
+            FileMapType type;
+            uint32_t fileId;
+            bool operator<(const LRUKey &other) const
+            {
+                return fileId < other.fileId || (fileId == other.fileId && type < other.type);
+            }
+        };
+        struct LRUEntry {
+            LRUEntry(FileMapType t, uint32_t f)
+                : key({ t, f })
+            {}
+            const LRUKey key;
+
+            std::shared_ptr<LRUEntry> next, prev;
+        };
+
+        void poke(FileMapType t, uint32_t f)
+        {
+            const LRUKey key = { t, f };
+            auto ptr = entryMap.value(key);
+            assert(ptr);
+            entryList.remove(ptr);
+            entryList.append(ptr);
+        }
+        void add(FileMapType t, uint32_t f);
+
+        template <typename Key, typename Value>
+        std::shared_ptr<FileMap<Key, Value> > openFileMap(FileMapType type, uint32_t fileId,
+                                                          Hash<uint32_t, std::shared_ptr<FileMap<Key, Value> > > &cache)
+        {
+            auto it = cache.find(fileId);
+            if (it != cache.end()) {
+                poke(type, fileId);
+                return it->second;
+            }
+            const Path path = project->sourceFilePath(Project::fileMapName(type), fileId);
+            std::shared_ptr<FileMap<Key, Value> > fileMap(new FileMap<Key, Value>);
+            if (fileMap->load(path)) {
+                cache[fileId] = fileMap;
+                std::shared_ptr<LRUEntry> entry(new LRUEntry(type, fileId));
+                entryList.append(entry);
+                if (++openedFiles > max) {
+                    const std::shared_ptr<LRUEntry> e = entryList.takeFirst();
+                    assert(e);
+                    entryMap.remove(e->key);
+                    switch (type) {
+                    case SymbolNames:
+                        assert(symbolNames.contains(fileId));
+                        symbolNames.remove(fileId);
+                        break;
+                    case Symbols:
+                        assert(symbols.contains(fileId));
+                        symbols.remove(fileId);
+                        break;
+                    case Targets:
+                        assert(targets.contains(fileId));
+                        targets.remove(fileId);
+                        break;
+                    case Usrs:
+                        assert(usrs.contains(fileId));
+                        usrs.remove(fileId);
+                        break;
+                    }
+                    --openedFiles;
+                }
+                assert(openedFiles <= max);
+            }
+            return fileMap;
+        }
+
         Hash<uint32_t, std::shared_ptr<FileMap<String, Set<Location> > > > symbolNames;
         Hash<uint32_t, std::shared_ptr<FileMap<Location, Symbol> > > symbols;
         Hash<uint32_t, std::shared_ptr<FileMap<Location, Set<String> > > > targets;
         Hash<uint32_t, std::shared_ptr<FileMap<String, Set<Location> > > > usrs;
+        std::shared_ptr<Project> project;
+        int openedFiles;
+        const int max;
+
+        EmbeddedLinkedList<std::shared_ptr<LRUEntry> > entryList;
+        Map<LRUKey, std::shared_ptr<LRUEntry> > entryMap;
     };
 
-    List<std::shared_ptr<FileMapScope> > mFileMapScopes;
+    std::shared_ptr<FileMapScope> mFileMapScope;
 
     const Path mPath;
     Path mProjectFilePath;
