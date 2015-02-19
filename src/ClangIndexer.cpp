@@ -127,7 +127,7 @@ bool ClangIndexer::exec(const String &data)
     if (niceValue != INT_MIN) {
         errno = 0;
         if (nice(niceValue) == -1) {
-            error() << "Failed to nice rp" << strerror(errno);
+            error() << "Failed to nice rp" << Rct::strerror();
         }
     }
 

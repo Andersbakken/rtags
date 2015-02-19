@@ -695,7 +695,7 @@ bool RClient::parse(int &argc, char **argv)
             const int r = fread(contents.data(), 1, bytes, stdin);
             if (r != bytes) {
                 fprintf(stderr, "Read error %d (%s). Got %d, expected %d\n",
-                        errno, strerror(errno), r, bytes);
+                        errno, Rct::strerror(errno).constData(), r, bytes);
                 return false;
             }
             mUnsavedFiles[path] = contents;
