@@ -60,17 +60,13 @@ int ReferencesJob::execute()
         if (rename && (sym.kind == CXCursor_Constructor || sym.kind == CXCursor_Destructor)) {
             const Location loc = sym.location;
             sym.clear();
-            auto targets = proj->openTargets(loc.fileId());
-            sym.clear();
-            if (targets) {
-                const Set<String> usrs = targets->value(loc);
-                for (const String &usr : usrs) {
-                    for (const Symbol &s : proj->findByUsr(usr, loc.fileId(), Project::ArgDependsOn)) {
-                        if (s.isClass()) {
-                            sym = s;
-                            if (s.isDefinition())
-                                break;
-                        }
+            const Set<String> usrs = proj->findTargetUsrs(loc);
+            for (const String &usr : usrs) {
+                for (const Symbol &s : proj->findByUsr(usr, loc.fileId(), Project::ArgDependsOn)) {
+                    if (s.isClass()) {
+                        sym = s;
+                        if (s.isDefinition())
+                            break;
                     }
                 }
             }

@@ -32,13 +32,10 @@ int FollowLocationJob::execute()
         return 1;
 
     if (queryFlags() & QueryMessage::AllTargets) {
-        auto targets = project()->openTargets(location.fileId());
-        if (targets) {
-            const Set<String> usrs = targets->value(location);
-            for (const String &usr : usrs) {
-                for (const Symbol &s : project()->findByUsr(usr, location.fileId(), Project::ArgDependsOn)) {
-                    write(s.location);
-                }
+        const Set<String> usrs = project()->findTargetUsrs(location);
+        for (const String &usr : usrs) {
+            for (const Symbol &s : project()->findByUsr(usr, location.fileId(), Project::ArgDependsOn)) {
+                write(s.location);
             }
         }
     }

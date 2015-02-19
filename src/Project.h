@@ -92,10 +92,10 @@ public:
         assert(mFileMapScope);
         return mFileMapScope->openFileMap<Location, Symbol>(Symbols, fileId, mFileMapScope->symbols);
     }
-    std::shared_ptr<FileMap<Location, Set<String> > > openTargets(uint32_t fileId)
+    std::shared_ptr<FileMap<String, Set<Location> > > openTargets(uint32_t fileId)
     {
         assert(mFileMapScope);
-        return mFileMapScope->openFileMap<Location, Set<String> >(Targets, fileId, mFileMapScope->targets);
+        return mFileMapScope->openFileMap<String, Set<Location> >(Targets, fileId, mFileMapScope->targets);
     }
     std::shared_ptr<FileMap<String, Set<Location> > > openUsrs(uint32_t fileId)
     {
@@ -123,6 +123,7 @@ public:
     Set<Symbol> findCallers(const Symbol &symbol);
     Set<Symbol> findVirtuals(const Location &location) { return findVirtuals(findSymbol(location)); }
     Set<Symbol> findVirtuals(const Symbol &symbol);
+    Set<String> findTargetUsrs(const Location &loc);
 
     Set<Symbol> findByUsr(const String &usr, uint32_t fileId, DependencyMode mode);
 
@@ -265,8 +266,7 @@ private:
 
         Hash<uint32_t, std::shared_ptr<FileMap<String, Set<Location> > > > symbolNames;
         Hash<uint32_t, std::shared_ptr<FileMap<Location, Symbol> > > symbols;
-        Hash<uint32_t, std::shared_ptr<FileMap<Location, Set<String> > > > targets;
-        Hash<uint32_t, std::shared_ptr<FileMap<String, Set<Location> > > > usrs;
+        Hash<uint32_t, std::shared_ptr<FileMap<String, Set<Location> > > > targets, usrs;
         std::shared_ptr<Project> project;
         int openedFiles;
         const int max;

@@ -170,14 +170,14 @@ int StatusJob::execute()
                 continue;
             const int count = targets->count();
             for (int i=0; i<count; ++i) {
-                write<128>("  %s", targets->keyAt(i).key(keyFlags()).constData());
-                for (const auto &usr : targets->valueAt(i)) {
-                    write<1024>("    %s", usr.constData());
-                    for (const auto &t : proj->findByUsr(usr, dep.first, Project::ArgDependsOn)) {
-                        write<1024>("      %s\t%s", t.location.key(keyFlags()).constData(),
-                                    t.kindSpelling().constData());
-
-                    }
+                const String usr = targets->keyAt(i);
+                write<128>("  %s", usr.constData());
+                for (const auto &t : proj->findByUsr(usr, dep.first, Project::ArgDependsOn)) {
+                    write<1024>("      %s\t%s", t.location.key(keyFlags()).constData(),
+                                t.kindSpelling().constData());
+                }
+                for (const auto &location : targets->valueAt(i)) {
+                    write<1024>("    %s", location.key(keyFlags()).constData());
                 }
                 write("------------------------");
                 if (isAborted())

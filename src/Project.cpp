@@ -1035,10 +1035,8 @@ Set<Symbol> Project::findTargets(const Symbol &symbol)
         }
         break; }
     default:
-        if (const auto targetsDb = openTargets(symbol.location.fileId())) {
-            for (const auto &usr : targetsDb->value(symbol.location)) {
-                ret.unite(findByUsr(usr, symbol.location.fileId(), Project::ArgDependsOn));
-            }
+        for (const String &usr : findTargetUsrs(symbol.location)) {
+            ret.unite(findByUsr(usr, symbol.location.fileId(), Project::ArgDependsOn));
         }
         break;
     }
@@ -1106,18 +1104,10 @@ static Set<Symbol> findReferences(const Set<Symbol> &inputs,
             auto targets = project->openTargets(dep);
             if (targets) {
                 const int count = targets->count();
-                for (int i=0; i<count; ++i) {
-                    Symbol refSymbol;
-                    for (const String &usr : targets->valueAt(i)) {
-                        //warning() << "Comparing" << usr << "with" << input.usr << "for" << input.location;
-                        if (usr == input.usr) {
-                            if (refSymbol.isNull()) {
-                                refSymbol = project->findSymbol(targets->keyAt(i));
-                            }
-                            if (filter(input, refSymbol, ret) == Break) {
-                                break;
-                            }
-                        }
+                const Set<Location> locations = targets->value(input.usr);
+                for (const auto &loc : locations) {
+                    if (filter(input, project->findSymbol(loc), ret) == Break) {
+                        break;
                     }
                 }
             }
@@ -1214,14 +1204,11 @@ Set<Symbol> Project::findVirtuals(const Symbol &symbol)
         if (sym.isNull())
             return;
         assert(!sym.isNull());
-        auto targets = openTargets(sym.location.fileId());
-        if (targets) {
-            for (const String &usr : targets->value(sym.location)) {
-                for (const Symbol &symbol : findByUsr(usr, sym.location.fileId(), ArgDependsOn)) {
-                    if (ret.insert(symbol)) {
-                        // error() << "inserted one target for" << sym.location << symbol.location;
-                        addTargets(symbol);
-                    }
+        for (const String &usr : findTargetUsrs(sym.location)) {
+            for (const Symbol &symbol : findByUsr(usr, sym.location.fileId(), ArgDependsOn)) {
+                if (ret.insert(symbol)) {
+                    // error() << "inserted one target for" << sym.location << symbol.location;
+                    addTargets(symbol);
                 }
             }
         }
@@ -1247,6 +1234,20 @@ Set<Symbol> Project::findVirtuals(const Symbol &symbol)
     };
     addTargets(symbol);
     return ret;
+}
+
+Set<String> Project::findTargetUsrs(const Location &loc)
+{
+    Set<String> usrs;
+    auto targets = openTargets(loc.fileId());
+    if (targets) {
+        const int count = targets->count();
+        for (int i=0; i<count; ++i) {
+            if (targets->valueAt(i).contains(loc))
+                usrs.insert(targets->keyAt(i));
+        }
+    }
+    return usrs;
 }
 
 void Project::beginScope()
