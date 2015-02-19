@@ -1096,11 +1096,10 @@ static Set<Symbol> findReferences(const Set<Symbol> &inputs,
                                   const std::shared_ptr<Project> &project,
                                   std::function<FilterResult(const Symbol &, const Symbol &, Set<Symbol> &)> filter)
 {
-
     Set<Symbol> ret;
     // const bool isClazz = s.isClass();
     for (const Symbol &input : inputs) {
-        warning() << "Calling findReferences" << input.location;
+        //warning() << "Calling findReferences" << input.location;
         const Set<uint32_t> deps = project->dependencies(input.location.fileId(), Project::DependsOnArg);
         for (const auto &dep : deps) {
             // error() << "Looking at file" << Location::path(dep) << "for input" << input.location;
@@ -1108,11 +1107,16 @@ static Set<Symbol> findReferences(const Set<Symbol> &inputs,
             if (targets) {
                 const int count = targets->count();
                 for (int i=0; i<count; ++i) {
-                    const Symbol refSymbol = project->findSymbol(targets->keyAt(i));
+                    Symbol refSymbol;
                     for (const String &usr : targets->valueAt(i)) {
-                        warning() << "Comparing" << usr << "with" << input.usr << "for" << input.location;
-                        if (usr == input.usr && filter(input, refSymbol, ret) == Break) {
-                            break;
+                        //warning() << "Comparing" << usr << "with" << input.usr << "for" << input.location;
+                        if (usr == input.usr) {
+                            if (refSymbol.isNull()) {
+                                refSymbol = project->findSymbol(targets->keyAt(i));
+                            }
+                            if (filter(input, refSymbol, ret) == Break) {
+                                break;
+                            }
                         }
                     }
                 }
