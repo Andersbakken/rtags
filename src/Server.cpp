@@ -957,15 +957,8 @@ void Server::status(const std::shared_ptr<QueryMessage> &query, Connection *conn
 {
     std::shared_ptr<Project> project = currentProject();
 
-    if (!project) {
-        error("No project");
-        conn->finish();
-        return;
-    } else if (project->state() != Project::Loaded) {
-        conn->write("Project loading");
-        conn->finish();
-        return;
-    }
+    if (project && project->state() != Project::Loaded)
+        project.reset();
 
     conn->client()->setWriteMode(SocketClient::Synchronous);
 

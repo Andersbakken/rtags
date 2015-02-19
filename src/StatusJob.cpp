@@ -44,6 +44,36 @@ int StatusJob::execute()
             return 1;
     }
 
+    if (query.isEmpty() || !strcasecmp(query.constData(), "info")) {
+        matched = true;
+        if (!write(delimiter) || !write("info") || !write(delimiter))
+            return 1;
+        String out;
+        Log log(&out);
+#ifdef NDEBUG
+        out << "Running a release build\n";
+#else
+        out << "Running a debug build\n";
+#endif
+        const Server::Options &opt = Server::instance()->options();
+        out << "socketFile" << opt.socketFile << '\n'
+            << "dataDir" << opt.dataDir << '\n'
+            << "options" << String::format("0x%x\n", opt.options)
+            << "jobCount" << opt.jobCount << '\n'
+            << "unloadTimer" << opt.unloadTimer << '\n'
+            << "rpVisitFileTimeout" << opt.rpVisitFileTimeout << '\n'
+            << "rpIndexerMessageTimeout" << opt.rpIndexerMessageTimeout << '\n'
+            << "rpConnectTimeout" << opt.rpConnectTimeout << '\n'
+            << "rpConnectTimeout" << opt.rpConnectTimeout << '\n'
+            << "threadStackSize" << opt.threadStackSize << '\n'
+            << "defaultArguments" << opt.defaultArguments << '\n'
+            << "includePaths" << opt.includePaths << '\n'
+            << "defines" << opt.defines << '\n'
+            << "ignoredCompilers" << opt.ignoredCompilers;
+        write(out);
+    }
+
+
     std::shared_ptr<Project> proj = project();
     if (!proj) {
         if (!matched)
@@ -215,35 +245,6 @@ int StatusJob::execute()
                 write<512>("    %s", it.toString().constData());
             write("");
         }
-    }
-
-    if (query.isEmpty() || !strcasecmp(query.constData(), "info")) {
-        matched = true;
-        if (!write(delimiter) || !write("info") || !write(delimiter))
-            return 1;
-        String out;
-        Log log(&out);
-#ifdef NDEBUG
-        out << "Running a release build\n";
-#else
-        out << "Running a debug build\n";
-#endif
-        const Server::Options &opt = Server::instance()->options();
-        out << "socketFile" << opt.socketFile << '\n'
-            << "dataDir" << opt.dataDir << '\n'
-            << "options" << String::format("0x%x\n", opt.options)
-            << "jobCount" << opt.jobCount << '\n'
-            << "unloadTimer" << opt.unloadTimer << '\n'
-            << "rpVisitFileTimeout" << opt.rpVisitFileTimeout << '\n'
-            << "rpIndexerMessageTimeout" << opt.rpIndexerMessageTimeout << '\n'
-            << "rpConnectTimeout" << opt.rpConnectTimeout << '\n'
-            << "rpConnectTimeout" << opt.rpConnectTimeout << '\n'
-            << "threadStackSize" << opt.threadStackSize << '\n'
-            << "defaultArguments" << opt.defaultArguments << '\n'
-            << "includePaths" << opt.includePaths << '\n'
-            << "defines" << opt.defines << '\n'
-            << "ignoredCompilers" << opt.ignoredCompilers;
-        write(out);
     }
 
     if (query.isEmpty() || !strcasecmp(query.constData(), "declarations")) {
