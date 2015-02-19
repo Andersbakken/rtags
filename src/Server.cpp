@@ -99,10 +99,10 @@ public:
     }
     static void send(const char *msg, int len, const SocketClient::SharedPtr &socket)
     {
-        static const unsigned int char *header = reinterpret_cast<const unsigned int char*>("data:");
-        static const unsigned int char *crlf = reinterpret_cast<const unsigned int char*>("\r\n");
+        static const unsigned char *header = reinterpret_cast<const unsigned char*>("data:");
+        static const unsigned char *crlf = reinterpret_cast<const unsigned char*>("\r\n");
         socket->write(header, 5);
-        socket->write(reinterpret_cast<const unsigned int char *>(msg), len);
+        socket->write(reinterpret_cast<const unsigned char *>(msg), len);
         socket->write(crlf, 2);
     }
 private:

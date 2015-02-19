@@ -269,8 +269,8 @@ static inline const char *builtinTypeName(CXTypeKind kind)
     switch (kind) {
     case CXType_Void: ret = "void"; break;
     case CXType_Bool: ret = "bool"; break;
-    case CXType_Char_U: ret = "unsigned int char"; break;
-    case CXType_UChar: ret = "unsigned int char"; break;
+    case CXType_Char_U: ret = "unsigned char"; break;
+    case CXType_UChar: ret = "unsigned char"; break;
     case CXType_Char16: ret = "char16"; break;
     case CXType_Char32: ret = "char32"; break;
     case CXType_UShort: ret = "unsigned short"; break;
