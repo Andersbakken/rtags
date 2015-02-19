@@ -69,14 +69,14 @@ public:
         eintrwrap(mFD, open(path.constData(), O_RDONLY));
         if (mFD == -1) {
             if (error)
-                *error = Rct::strError();
+                *error = Rct::strerror();
             return false;
         }
         int ret;
         eintrwrap(ret, flock(mFD, LOCK_EX));
         if (ret != 0) {
             if (error)
-                *error = Rct::strError();
+                *error = Rct::strerror();
             close(mFD);
             mFD = -1;
             return false;
@@ -86,7 +86,7 @@ public:
         // error() << errno;//  << mPointer;
         if (pointer == MAP_FAILED) {
             if (error)
-                *error = Rct::strError();
+                *error = Rct::strerror();
             eintrwrap(ret, flock(mFD, LOCK_UN));
             close(mFD);
             mFD = -1;
