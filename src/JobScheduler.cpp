@@ -52,7 +52,6 @@ void JobScheduler::startJobs()
     }
 
     const int max = std::max(mMaxJobs, mLowPriorityMaxJobs);
-    printf("[%s:%d]: %d %d %d %d\n", __FILE__, __LINE__, mPendingJobs.size(), mActiveByProcess.size(), mMaxJobs, mLowPriorityMaxJobs); fflush(stdout);
     while (mActiveByProcess.size() < max && !mPendingJobs.isEmpty()) {
         std::shared_ptr<Node> node = mPendingJobs.first();
         assert(node);
