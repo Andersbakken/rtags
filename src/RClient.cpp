@@ -852,14 +852,13 @@ bool RClient::parse(int &argc, char **argv)
                 List<Path> paths;
                 auto addBuffer = [&paths](const String &p) {
                     if (p.isEmpty())
-                        return false;
+                        return;
                     Path path(p);
                     if (path.resolve() && path.isFile()) {
                         paths.append(path);
-                        return true;
+                    } else {
+                        fprintf(stderr, "\"%s\" doesn't seem to be a file.\n", p.constData());
                     }
-                    fprintf(stderr, "\"%s\" doesn't seem to be a file.\n", p.constData());
-                    return false;
                 };
 
                 if (!strcmp(arg, "-")) {
@@ -868,14 +867,11 @@ bool RClient::parse(int &argc, char **argv)
                         String arg(buf);
                         if (arg.endsWith('\n'))
                             arg.chop(1);
-                        if (!addBuffer(arg))
-                            return false;
+                        addBuffer(arg);
                     }
                 } else {
                     for (const String &buffer : String(arg).split(';')) {
-                        if (!addBuffer(buffer)) {
-                            return false;
-                        }
+                        addBuffer(buffer);
                     }
                 }
                 Serializer serializer(encoded);
