@@ -1086,13 +1086,9 @@ Set<Symbol> Project::findByUsr(const String &usr, uint32_t fileId, DependencyMod
     return ret;
 }
 
-enum FilterResult {
-    Continue,
-    Break
-};
 static Set<Symbol> findReferences(const Set<Symbol> &inputs,
                                   const std::shared_ptr<Project> &project,
-                                  std::function<FilterResult(const Symbol &, const Symbol &, Set<Symbol> &)> filter)
+                                  std::function<bool(const Symbol &, const Symbol &)> filter)
 {
     Set<Symbol> ret;
     // const bool isClazz = s.isClass();
@@ -1103,12 +1099,12 @@ static Set<Symbol> findReferences(const Set<Symbol> &inputs,
             // error() << "Looking at file" << Location::path(dep) << "for input" << input.location;
             auto targets = project->openTargets(dep);
             if (targets) {
-                const int count = targets->count();
                 const Set<Location> locations = targets->value(input.usr);
+                // error() << "Got locations for usr" << input.usr << locations;
                 for (const auto &loc : locations) {
-                    if (filter(input, project->findSymbol(loc), ret) == Break) {
-                        break;
-                    }
+                    auto sym = project->findSymbol(loc);
+                    if (filter(input, sym))
+                        ret.insert(sym);
                 }
             }
         }
@@ -1118,7 +1114,7 @@ static Set<Symbol> findReferences(const Set<Symbol> &inputs,
 
 static Set<Symbol> findReferences(const Symbol &in,
                                   const std::shared_ptr<Project> &project,
-                                  std::function<FilterResult(const Symbol &, const Symbol &, Set<Symbol> &)> filter,
+                                  std::function<bool(const Symbol &, const Symbol &)> filter,
                                   Set<Symbol> *inputsPtr = 0)
 {
     Set<Symbol> inputs;
@@ -1162,13 +1158,12 @@ static Set<Symbol> findReferences(const Symbol &in,
 Set<Symbol> Project::findCallers(const Symbol &symbol)
 {
     const bool isClazz = symbol.isClass();
-    return ::findReferences(symbol, shared_from_this(), [isClazz](const Symbol &input, const Symbol &ref, Set<Symbol> &refs) {
+    return ::findReferences(symbol, shared_from_this(), [isClazz](const Symbol &input, const Symbol &ref) {
             if (RTags::isReference(ref.kind)
                 || (input.kind == CXCursor_Constructor && (ref.kind == CXCursor_VarDecl || ref.kind == CXCursor_FieldDecl))) {
-                refs.insert(ref);
-                return Break;
+                return true;
             }
-            return Continue;
+            return false;
         });
 }
 
@@ -1183,9 +1178,8 @@ Set<Symbol> Project::findAllReferences(const Symbol &symbol)
     Set<Symbol> ret = inputs;
     for (const auto &input : inputs) {
         Set<Symbol> inputLocations;
-        ret.unite(::findReferences(input, shared_from_this(), [](const Symbol &, const Symbol &ref, Set<Symbol> &refs) {
-                    refs.insert(ref);
-                    return Continue;
+        ret.unite(::findReferences(input, shared_from_this(), [](const Symbol &, const Symbol &) {
+                    return true;
                 }, &inputLocations));
         ret.unite(inputLocations);
     }
@@ -1214,12 +1208,12 @@ Set<Symbol> Project::findVirtuals(const Symbol &symbol)
         }
         Set<Symbol> symSet;
         symSet << sym;
-        const Set<Symbol> r = ::findReferences(symSet, shared_from_this(), [](const Symbol &, const Symbol &ref, Set<Symbol> &refs) {
+        const Set<Symbol> r = ::findReferences(symSet, shared_from_this(), [](const Symbol &, const Symbol &ref) {
                 // error() << "considering" << ref.location << ref.kindSpelling();
                 if (ref.kind == CXCursor_CXXMethod) {
-                    refs.insert(ref);
+                    return true;
                 }
-                return Continue;
+                return false;
             });
         for (const Symbol &s : r) {
             if (ret.insert(s)) {
