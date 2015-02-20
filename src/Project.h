@@ -68,7 +68,7 @@ public:
         Targets,
         Usrs
     };
-    static String fileMapName(FileMapType type)
+    static const char *fileMapName(FileMapType type)
     {
         switch (type) {
         case Symbols:
@@ -80,7 +80,7 @@ public:
         case Usrs:
             return "usrs";
         }
-        return String();
+        return 0;
     }
     std::shared_ptr<FileMap<String, Set<Location> > > openSymbolNames(uint32_t fileId)
     {
@@ -127,7 +127,7 @@ public:
 
     Set<Symbol> findByUsr(const String &usr, uint32_t fileId, DependencyMode mode);
 
-    Path sourceFilePath(const String &type, uint32_t fileId) const;
+    Path sourceFilePath(uint32_t fileId, const char *path = "") const;
 
     enum SortFlag {
         Sort_None = 0x0,
@@ -225,7 +225,7 @@ private:
                 poke(type, fileId);
                 return it->second;
             }
-            const Path path = project->sourceFilePath(Project::fileMapName(type), fileId);
+            const Path path = project->sourceFilePath(fileId, Project::fileMapName(type));
             std::shared_ptr<FileMap<Key, Value> > fileMap(new FileMap<Key, Value>);
             String err;
             if (fileMap->load(path, &err)) {
@@ -343,11 +343,9 @@ inline void Project::removeDependencies(uint32_t fileId)
     }
 }
 
-inline Path Project::sourceFilePath(const String &type, uint32_t fileId) const
+inline Path Project::sourceFilePath(uint32_t fileId, const char *type) const
 {
-    Path ret = mSourceFilePathBase;
-    ret << fileId << '/' << type;
-    return ret;
+    return String::format<1024>("%s%d/%s", mSourceFilePathBase.constData(), fileId, type);
 }
 
 #endif

@@ -687,7 +687,7 @@ int Project::remove(const Match &match)
             }
             removeDependencies(fileId);
             ++count;
-            unlink(sourceFilePath(String(), fileId).constData());
+            unlink(sourceFilePath(fileId).constData());
         } else {
             ++it;
         }
