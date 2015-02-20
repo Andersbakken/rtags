@@ -955,7 +955,7 @@ Symbol Project::findSymbol(const Location &location, int *index)
     if (location.isNull())
         return Symbol();
     auto symbols = openSymbols(location.fileId());
-    if (!symbols)
+    if (!symbols || !symbols->count())
         return Symbol();
 
     bool exact = false;
