@@ -59,31 +59,39 @@ String Location::key(unsigned int flags) const
 
 String Location::context(unsigned int flags) const
 {
+    const String code = path().readAll();
     String ret;
-    FILE *f = fopen(path().constData(), "r");
-    if (f) {
-        const unsigned int l = line();
-        for (unsigned int i=1; i<l; ++i) {
-            Rct::readLine(f);
+    if (!code.isEmpty()) {
+        unsigned int l = line();
+        if (!l)
+            return String();
+        const char *ch = code.constData();
+        while (--l) {
+            ch = strchr(ch, '\n');
+            if (!ch)
+                return String();
+            ++ch;
         }
+        const char *end = strchr(ch, '\n');
+        if (!end)
+            return String();
 
-        char buf[1024] = { '\0' };
-        const int len = Rct::readLine(f, buf, 1023);
-        fclose(f);
-        ret.assign(buf, len);
+        ret.assign(ch, end - ch);
         // error() << "foobar" << ret << bool(flags & NoColor);
         if (!(flags & NoColor)) {
             const int col = column() - 1;
-            int end = col;
-            if (ret.at(end) == '~')
-                ++end;
-            while (ret.size() > end && (isalnum(ret.at(end)) || ret.at(end) == '_'))
-                ++end;
-            static const char *color = "\x1b[32;1m"; // dark yellow
-            static const char *resetColor = "\x1b[0;0m";
-            // error() << "foobar"<< end << col << ret.size();
-            ret.insert(end, resetColor);
-            ret.insert(col, color);
+            if (col + 1 < ret.size()) {
+                int last = col;
+                if (ret.at(last) == '~')
+                    ++last;
+                while (ret.size() > last && (isalnum(ret.at(last)) || ret.at(last) == '_'))
+                    ++last;
+                static const char *color = "\x1b[32;1m"; // dark yellow
+                static const char *resetColor = "\x1b[0;0m";
+                // error() << "foobar"<< end << col << ret.size();
+                ret.insert(last, resetColor);
+                ret.insert(col, color);
+            }
             // printf("[%s]\n", ret.constData());
         }
     }
