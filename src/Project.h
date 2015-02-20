@@ -259,7 +259,8 @@ private:
                 }
                 assert(openedFiles <= max);
             } else {
-                error() << "Failed to open" << path << err;
+                error() << "Failed to open" << path << Location::path(fileId) << err;
+                fileMap.reset();
             }
             return fileMap;
         }
