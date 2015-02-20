@@ -1106,8 +1106,11 @@ static Set<Symbol> findReferences(const Symbol &in,
     // error() << "findReferences" << s.location;
     switch (s.kind) {
     case CXCursor_CXXMethod:
-        inputs = project->findVirtuals(s);
-        break;
+        if (s.flags & Symbol::VirtualMethod) {
+            inputs = project->findVirtuals(s);
+            break;
+        }
+        // fall through
     case CXCursor_FunctionTemplate:
     case CXCursor_FunctionDecl:
     case CXCursor_ClassTemplate:

@@ -38,6 +38,21 @@ static inline const char *linkageSpelling(CXLinkageKind kind)
 
 String Symbol::toString(unsigned int cursorInfoFlags, unsigned int keyFlags, const std::shared_ptr<Project> &project) const
 {
+    static auto flagsToString = [](unsigned int flags)
+    {
+        List<String> ret;
+        if (flags & PureVirtualMethod) {
+            ret << "pure virtual";
+        } else if (flags & VirtualMethod) {
+            ret << "virtual";
+        }
+        if (flags & ConstMethod)
+            ret << "const";
+        if (flags & StaticMethod)
+            ret << "static";
+        return String::join(ret, ", ");
+    };
+
     String ret = String::format<1024>("SymbolName: %s\n"
                                       "Kind: %s\n"
                                       "Type: %s\n" // type
@@ -46,6 +61,7 @@ String Symbol::toString(unsigned int cursorInfoFlags, unsigned int keyFlags, con
                                       "%s" // enumValue
                                       "%s" // definition
                                       "Linkage: %s\n"
+                                      "%s" // flags
                                       "%s", // usr
                                       symbolName.constData(),
                                       kindSpelling().constData(),
@@ -58,6 +74,7 @@ String Symbol::toString(unsigned int cursorInfoFlags, unsigned int keyFlags, con
                                       "",
                                       isDefinition() ? "Definition\n" : "",
                                       linkageSpelling(linkage),
+                                      flagsToString(flags).constData(),
                                       usr.isEmpty() ? "" : String::format<64>("Usr: %s\n", usr.constData()).constData());
     if (!(cursorInfoFlags & IgnoreTargets) && project) {
         auto targets = project->findTargets(*this);

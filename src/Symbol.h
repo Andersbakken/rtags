@@ -27,7 +27,7 @@ struct Symbol
 {
     Symbol()
         : symbolLength(0), kind(CXCursor_FirstInvalid), type(CXType_Invalid), linkage(CXLinkage_Invalid),
-          enumValue(0), startLine(-1), startColumn(-1), endLine(-1), endColumn(-1)
+          flags(None), enumValue(0), startLine(-1), startColumn(-1), endLine(-1), endColumn(-1)
     {}
 
     Location location;
@@ -36,6 +36,14 @@ struct Symbol
     CXCursorKind kind;
     CXTypeKind type;
     CXLinkageKind linkage;
+    enum Flag {
+        None = 0x0,
+        VirtualMethod = 0x1,
+        PureVirtualMethod = 0x2|VirtualMethod,
+        StaticMethod = 0x4,
+        ConstMethod = 0x8
+    };
+    uint8_t flags;
     union {
         bool definition;
         int64_t enumValue; // only used if type == CXCursor_EnumConstantDecl
@@ -73,7 +81,7 @@ struct Symbol
 
     inline bool isDefinition() const { return kind == CXCursor_EnumConstantDecl || definition; }
 
-    enum Flag {
+    enum ToStringFlag {
         IgnoreTargets = 0x1,
         IgnoreReferences = 0x2,
         DefaultFlags = 0x0
@@ -93,7 +101,7 @@ template <> inline Serializer &operator<<(Serializer &s, const Symbol &t)
 {
     s << t.location << t.symbolName << t.usr << t.symbolLength
       << static_cast<uint16_t>(t.kind) << static_cast<uint16_t>(t.type)
-      << static_cast<uint8_t>(t.linkage) << t.enumValue << t.startLine
+      << static_cast<uint8_t>(t.linkage) << t.flags << t.enumValue << t.startLine
       << t.startColumn << t.endLine << t.endColumn;
     return s;
 }
@@ -103,8 +111,8 @@ template <> inline Deserializer &operator>>(Deserializer &s, Symbol &t)
     uint16_t kind, type;
     uint8_t linkage;
     s >> t.location >> t.symbolName >> t.usr >> t.symbolLength
-      >> kind >> type >> linkage >> t.enumValue >> t.startLine >> t.startColumn
-      >> t.endLine >> t.endColumn;
+      >> kind >> type >> linkage >> t.flags >> t.enumValue >> t.startLine
+      >> t.startColumn >> t.endLine >> t.endColumn;
 
     t.kind = static_cast<CXCursorKind>(kind);
     t.type = static_cast<CXTypeKind>(type);

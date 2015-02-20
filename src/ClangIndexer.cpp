@@ -1051,6 +1051,15 @@ bool ClangIndexer::handleCursor(const CXCursor &cursor, CXCursorKind kind, const
 
     switch (c.kind) {
     case CXCursor_CXXMethod:
+        if (clang_CXXMethod_isPureVirtual(cursor)) {
+            c.flags |= Symbol::PureVirtualMethod;
+        } else if (clang_CXXMethod_isVirtual(cursor)) {
+            c.flags |= Symbol::VirtualMethod;
+        }
+        if (clang_CXXMethod_isStatic(cursor))
+            c.flags |= Symbol::StaticMethod;
+        if (clang_CXXMethod_isConst(cursor))
+            c.flags |= Symbol::ConstMethod;
         addOverriddenCursors(cursor, location);
         break;
     case CXCursor_Constructor:
