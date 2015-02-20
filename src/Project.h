@@ -214,7 +214,6 @@ private:
             entryList.remove(ptr);
             entryList.append(ptr);
         }
-        void add(FileMapType t, uint32_t f);
 
         template <typename Key, typename Value>
         std::shared_ptr<FileMap<Key, Value> > openFileMap(FileMapType type, uint32_t fileId,
