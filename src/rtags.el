@@ -2252,7 +2252,7 @@ If rtags-display-summary-as-tooltip is t, a tooltip is displayed."
                       (if (funcall rtags-is-indexable x)
                           (insert (buffer-file-name x) "\n")))) buffers)
     ;; (message "files: %s" (combine-and-quote-strings (split-string (buffer-substring-no-properties (point-min) (point-max)) "\n" t)) "|")
-    (rtags-call-rc :silent-query t :path t :unsaved (current-buffer) "--set-buffers" "-")))
+    (rtags-call-rc :noerror t :silent-query t :path t :unsaved (current-buffer) "--set-buffers" "-")))
 
 (defun rtags-kill-buffer-hook ()
   (when (buffer-file-name)
