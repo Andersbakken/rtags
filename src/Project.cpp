@@ -182,7 +182,8 @@ public:
 };
 
 Project::Project(const Path &path)
-    : mPath(path), mState(Unloaded), mJobCounter(0), mJobsStarted(0)
+    : mPath(path), mSourceFilePathBase(RTags::encodeSourceFilePath(Server::instance()->options().dataDir, path)),
+      mState(Unloaded), mJobCounter(0), mJobsStarted(0)
 {
     Path srcPath = mPath;
     RTags::encodePath(srcPath);
@@ -945,11 +946,6 @@ String Project::toCompilationDatabase() const
     }
 
     return ret.toJSON(true);
-}
-
-Path Project::sourceFilePath(const String &type, uint32_t fileId) const
-{
-    return RTags::encodeSourceFilePath(Server::instance()->options().dataDir, mPath, fileId) + type;
 }
 
 Symbol Project::findSymbol(const Location &location, int *index)

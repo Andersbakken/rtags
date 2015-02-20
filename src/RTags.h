@@ -64,7 +64,7 @@ typedef Hash<uint32_t, Set<FixIt> > FixIts;
 typedef Hash<Path, String> UnsavedFiles;
 
 namespace RTags {
-Path encodeSourceFilePath(const Path &dataDir, const Path &project, uint32_t fileId);
+Path encodeSourceFilePath(const Path &dataDir, const Path &project, uint32_t fileId = 0);
 
 template <typename Container, typename Value>
 inline bool addTo(Container &container, const Value &value)

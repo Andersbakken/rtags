@@ -277,7 +277,7 @@ private:
 
     std::shared_ptr<FileMapScope> mFileMapScope;
 
-    const Path mPath;
+    const Path mPath, mSourceFilePathBase;
     Path mProjectFilePath;
     State mState;
 
@@ -342,5 +342,11 @@ inline void Project::removeDependencies(uint32_t fileId)
     }
 }
 
+inline Path Project::sourceFilePath(const String &type, uint32_t fileId) const
+{
+    Path ret = mSourceFilePathBase;
+    ret << fileId << '/' << type;
+    return ret;
+}
 
 #endif
