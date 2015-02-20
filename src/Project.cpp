@@ -181,24 +181,6 @@ public:
     Dependencies mModified;
 };
 
-// template <typename Key, typename Value>
-// static void update(Hash<Key, Set<Value> &current, Hash<Key, Set<Value> &updates)
-// {
-//     if (current.isEmpty()) {
-//         current = updates;
-//         return;
-//     }
-
-//     for (auto &u : updates) {
-//         auto &cur = current[u.first];
-//         if (cur.isEmpty()) {
-//             cur = std::move(u.second);
-//         } else {
-//             cur.unite(u.second);
-//         }
-//     }
-// }
-
 Project::Project(const Path &path)
     : mPath(path), mState(Unloaded), mJobCounter(0), mJobsStarted(0)
 {
