@@ -25,10 +25,12 @@
 class JobScheduler
 {
 public:
-    JobScheduler(int maxJobs);
+    JobScheduler(int maxJobs, int lowPriorityMax);
     ~JobScheduler();
     int maxJobs() const { return mMaxJobs; }
+    int lowPriorityMaxJobs() const { return mLowPriorityMaxJobs; }
     void setMaxJobs(int maxJobs) { mMaxJobs = maxJobs; startJobs(); }
+    void setLowPriorityMax(int max) { mLowPriorityMaxJobs = max; startJobs(); }
 
     struct JobScope {
         JobScope(const std::shared_ptr<JobScheduler> &scheduler)
@@ -53,6 +55,7 @@ public:
     void dump(Connection *conn);
     void abort(const std::shared_ptr<IndexerJob> &job);
 private:
+    enum { HighPriority = 5 };
     void jobFinished(const std::shared_ptr<IndexerJob> &job, const std::shared_ptr<IndexData> &data);
 
     static std::shared_ptr<IndexData> createData(const std::shared_ptr<IndexerJob> &job);
@@ -63,7 +66,7 @@ private:
         std::shared_ptr<Node> next, prev;
     };
 
-    int mMaxJobs, mProcrastination;
+    int mMaxJobs, mLowPriorityMaxJobs, mProcrastination;
     EmbeddedLinkedList<std::shared_ptr<Node> > mPendingJobs;
     Hash<Process *, std::shared_ptr<Node> > mActiveByProcess;
     Hash<uint64_t, std::shared_ptr<Node> > mActiveById;

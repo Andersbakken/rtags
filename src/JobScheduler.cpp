@@ -2,8 +2,8 @@
 #include "Project.h"
 #include "Server.h"
 
-JobScheduler::JobScheduler(int maxJobs)
-    : mMaxJobs(maxJobs), mProcrastination(0)
+JobScheduler::JobScheduler(int maxJobs, int lowPriorityMaxJobs)
+    : mMaxJobs(maxJobs), mLowPriorityMaxJobs(lowPriorityMaxJobs), mProcrastination(0)
 {}
 
 JobScheduler::~JobScheduler()
@@ -51,15 +51,23 @@ void JobScheduler::startJobs()
         }
     }
 
-    while (mActiveByProcess.size() < mMaxJobs && !mPendingJobs.isEmpty()) {
-        std::shared_ptr<Node> node = mPendingJobs.takeFirst();
+    const int max = std::max(mMaxJobs, mLowPriorityMaxJobs);
+    printf("[%s:%d]: %d %d %d %d\n", __FILE__, __LINE__, mPendingJobs.size(), mActiveByProcess.size(), mMaxJobs, mLowPriorityMaxJobs); fflush(stdout);
+    while (mActiveByProcess.size() < max && !mPendingJobs.isEmpty()) {
+        std::shared_ptr<Node> node = mPendingJobs.first();
         assert(node);
         assert(node->job);
         assert(!(node->job->flags & (IndexerJob::Running|IndexerJob::Complete|IndexerJob::Crashed)));
         if (node->job->flags & IndexerJob::Aborted) {
+            mPendingJobs.takeFirst();
             debug() << node->job->sourceFile << "was aborted, discarding";
             continue;
         }
+
+        if (node->job->priority < HighPriority && mActiveByProcess.size() >= mLowPriorityMaxJobs) {
+            break;
+        }
+        mPendingJobs.takeFirst();
 
         Process *process = new Process;
         List<String> arguments;

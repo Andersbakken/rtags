@@ -56,7 +56,7 @@ struct Option opts[] = {
     { RClient::DeleteProject, "delete-project", 'W', required_argument, "Delete all projects matching regexp." },
     { RClient::UnloadProject, "unload", 'u', required_argument, "Unload project(s) matching argument." },
     { RClient::ReloadProjects, "reload-projects", 'z', no_argument, "Reload projects from projects file." },
-    { RClient::JobCount, "jobcount", 'j', optional_argument, "Set or query current job count." },
+    { RClient::JobCount, "jobcount", 'j', optional_argument, "Set or query current job count. (Prefix with l to set low-priority-job-count)." },
 
     { RClient::None, 0, 0, 0, "" },
     { RClient::None, 0, 0, 0, "Indexing commands:" },

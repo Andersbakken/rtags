@@ -64,7 +64,7 @@ static void usage(FILE *f)
 
             "\nServer options:\n"
             "  --clear-project-caches|-C                  Clear out project caches.\n"
-            "  --test|-J [arg]                            Run this test.\n"
+            "  --test|-t [arg]                            Run this test.\n"
             "  --test-timeout|-z [arg]                    Timeout for test to complete.\n"
             "  --completion-cache-size|-i [arg]           Number of translation units to cache (default " STR(DEFAULT_COMPLETION_CACHE_SIZE) ").\n"
             "  --config|-c [arg]                          Use this file instead of ~/.rdmrc.\n"
@@ -81,6 +81,7 @@ static void usage(FILE *f)
 #endif
 
             "  --job-count|-j [arg]                       Spawn this many concurrent processes for indexing (default %d).\n"
+            "  --low-priority-job-count|-J [arg]          Allow this many concurrent low-priority jobs (default half of --job-count).\n"
             "  --log-file|-L [arg]                        Log to this file.\n"
 
 #ifndef OS_Darwin
@@ -92,7 +93,7 @@ static void usage(FILE *f)
             "  --rp-connect-timeout|-O [arg]              Timeout for connection from rp to rdm in ms (0 means no timeout) (default " STR(DEFAULT_RP_CONNECT_TIMEOUT) ").\n"
             "  --rp-indexer-message-timeout|-T [arg]      Timeout for rp indexer-message in ms (0 means no timeout) (default " STR(DEFAULT_RP_INDEXER_MESSAGE_TIMEOUT) ").\n"
             "  --rp-nice-value|-a [arg]                   Nice value to use for rp (nice(2)) (default -1, e.g. not nicing).\n"
-            "  --rp-visit-file-timeout|-J [arg]           Timeout for rp visitfile commands in ms (0 means no timeout) (default " STR(DEFAULT_RP_VISITFILE_TIMEOUT) ").\n"
+            "  --rp-visit-file-timeout|-Z [arg]           Timeout for rp visitfile commands in ms (0 means no timeout) (default " STR(DEFAULT_RP_VISITFILE_TIMEOUT) ").\n"
             "  --separate-debug-and-release|-E            Normally rdm doesn't consider release and debug as different builds. Pass this if you want it to.\n"
             "  --setenv|-e [arg]                          Set this environment variable (--setenv \"foobar=1\").\n"
             "  --silent|-S                                No logging to stdout.\n"
@@ -146,6 +147,7 @@ int main(int argc, char** argv)
         { "cache-AST", required_argument, 0, 'A' },
         { "verbose", no_argument, 0, 'v' },
         { "job-count", required_argument, 0, 'j' },
+        { "low-priority-job-count", required_argument, 0, 'J' },
         { "test", required_argument, 0, 't' },
         { "test-timeout", required_argument, 0, 'z' },
         { "clean-slate", no_argument, 0, 'C' },
@@ -167,7 +169,7 @@ int main(int argc, char** argv)
         { "no-no-unknown-warnings-option", no_argument, 0, 'Y' },
         { "ignore-compiler", required_argument, 0, 'b' },
         { "watch-system-paths", no_argument, 0, 'w' },
-        { "rp-visit-file-timeout", required_argument, 0, 'J' },
+        { "rp-visit-file-timeout", required_argument, 0, 'Z' },
         { "rp-indexer-message-timeout", required_argument, 0, 'T' },
         { "rp-connect-timeout", required_argument, 0, 'O' },
         { "rp-nice-value", required_argument, 0, 'a' },
@@ -293,6 +295,7 @@ int main(int argc, char** argv)
     serverOpts.threadStackSize = defaultStackSize;
     serverOpts.socketFile = String::format<128>("%s.rdm.file", Path::home().constData());
     serverOpts.jobCount = std::max(2, ThreadPool::idealThreadCount());
+    serverOpts.lowPriorityJobCount = -1;
     serverOpts.rpVisitFileTimeout = DEFAULT_RP_VISITFILE_TIMEOUT;
     serverOpts.rpIndexerMessageTimeout = DEFAULT_RP_INDEXER_MESSAGE_TIMEOUT;
     serverOpts.rpConnectTimeout = DEFAULT_RP_CONNECT_TIMEOUT;
@@ -371,10 +374,10 @@ int main(int argc, char** argv)
         case 'Q':
             serverOpts.options |= Server::StartSuspended;
             break;
-        case 'J':
+        case 'Z':
             serverOpts.rpVisitFileTimeout = atoi(optarg);
             if (serverOpts.rpVisitFileTimeout < 0) {
-                fprintf(stderr, "Invalid argument to -J %s\n", optarg);
+                fprintf(stderr, "Invalid argument to -Z %s\n", optarg);
                 return 1;
             }
             if (!serverOpts.rpVisitFileTimeout)
@@ -542,6 +545,13 @@ int main(int argc, char** argv)
                 return 1;
             }
             break;
+        case 'J':
+            serverOpts.lowPriorityJobCount = atoi(optarg);
+            if (serverOpts.lowPriorityJobCount < 0) {
+                fprintf(stderr, "Can't parse argument to -J %s. -J must be a positive integer.\n", optarg);
+                return 1;
+            }
+            break;
         case 'r': {
             int large = atoi(optarg);
             if (large <= 0) {
@@ -582,6 +592,12 @@ int main(int argc, char** argv)
     if (optind < argCount) {
         fprintf(stderr, "rdm: unexpected option -- '%s'\n", args[optind]);
         return 1;
+    }
+
+    if (serverOpts.lowPriorityJobCount == -1) {
+        serverOpts.lowPriorityJobCount = std::max(1, serverOpts.jobCount / 2);
+    } else {
+        serverOpts.lowPriorityJobCount = std::min(serverOpts.lowPriorityJobCount, serverOpts.jobCount);
     }
 
     if (sigHandler) {

@@ -73,7 +73,7 @@ public:
     };
     struct Options {
         Options()
-            : options(0), jobCount(0), unloadTimer(0),
+            : options(0), jobCount(0), lowPriorityJobCount(0), unloadTimer(0),
               rpVisitFileTimeout(0), rpIndexerMessageTimeout(0), rpConnectTimeout(0),
               rpNiceValue(0), threadStackSize(0), maxCrashCount(0),
               completionCacheSize(0), testTimeout(60 * 1000 * 5),
@@ -81,7 +81,7 @@ public:
         {}
         Path socketFile, dataDir, argTransform;
         unsigned int options;
-        int jobCount, unloadTimer, rpVisitFileTimeout,
+        int jobCount, lowPriorityJobCount, unloadTimer, rpVisitFileTimeout,
             rpIndexerMessageTimeout, rpConnectTimeout, rpNiceValue,
             threadStackSize, maxCrashCount, completionCacheSize,
             testTimeout, maxFileMapScopeCacheSize;

@@ -223,7 +223,7 @@ bool Server::init(const Options &options)
         return false;
     }
 
-    mJobScheduler.reset(new JobScheduler(mOptions.jobCount));
+    mJobScheduler.reset(new JobScheduler(mOptions.jobCount, mOptions.lowPriorityJobCount));
 
     restoreFileIds();
     mUnixServer->newConnection().connect(std::bind(&Server::onNewConnection, this, std::placeholders::_1));
@@ -1260,16 +1260,23 @@ void Server::project(const std::shared_ptr<QueryMessage> &query, Connection *con
 
 void Server::jobCount(const std::shared_ptr<QueryMessage> &query, Connection *conn)
 {
-    if (query->query().isEmpty()) {
-        conn->write<128>("Running with %d jobs", mOptions.jobCount);
+    String q = query->query();
+    if (q.isEmpty()) {
+        conn->write<128>("Running with %d/%d jobs", mOptions.jobCount, mOptions.lowPriorityJobCount);
     } else {
-        const int jobCount = query->query().toLongLong();
+        const bool low = q.startsWith("l") || q.startsWith("-");
+        int &jobs = low ? mOptions.lowPriorityJobCount : mOptions.jobCount;
+        if (low)
+            q.remove(0, 1);
+        const int jobCount = q.toLongLong();
         if (jobCount < 0 || jobCount > 100) {
             conn->write<128>("Invalid job count %s (%d)", query->query().constData(), jobCount);
         } else {
-            mOptions.jobCount = jobCount;
-            mJobScheduler->setMaxJobs(jobCount);
-            conn->write<128>("Changed jobs to %d", jobCount);
+            jobs = jobCount;
+            mOptions.lowPriorityJobCount = std::min(mOptions.lowPriorityJobCount, mOptions.jobCount);
+            mJobScheduler->setMaxJobs(mOptions.jobCount);
+            mJobScheduler->setLowPriorityMax(mOptions.lowPriorityJobCount);
+            conn->write<128>("Changed jobs to %d/%d", mOptions.jobCount, mOptions.lowPriorityJobCount);
         }
     }
     conn->finish();
