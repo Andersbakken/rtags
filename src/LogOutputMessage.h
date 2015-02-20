@@ -24,30 +24,24 @@ class LogOutputMessage : public RTagsMessage
 public:
     enum { MessageId = LogOutputId };
 
-    enum Flag {
-        None = 0x0,
-        ActiveBuffersOnly = 0x1
-    };
-    LogOutputMessage(int level = 0, unsigned int flags = None)
-        : RTagsMessage(MessageId), mLevel(level), mFlags(flags)
+    LogOutputMessage(int level = 0)
+        : RTagsMessage(MessageId), mLevel(level)
     {
     }
 
     int level() const { return mLevel; }
-    unsigned int flags() const { return mFlags; }
 
     void encode(Serializer &serializer) const
     {
-        serializer << mRaw << mLevel << mFlags;
+        serializer << mRaw << mLevel;
     }
 
     void decode(Deserializer &deserializer)
     {
-        deserializer >> mRaw >> mLevel >> mFlags;
+        deserializer >> mRaw >> mLevel;
     }
 private:
     int mLevel;
-    unsigned int mFlags;
 };
 
 #endif

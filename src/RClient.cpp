@@ -116,7 +116,6 @@ struct Option opts[] = {
     { RClient::AllTargets, "all-targets", 0, no_argument, "Print all targets for -f. Used for debugging." },
     { RClient::ElispList, "elisp-list", 'Y', no_argument, "Output elisp: (list \"one\" \"two\" ...)." },
     { RClient::Diagnostics, "diagnostics", 'G', no_argument, "Receive continual diagnostics from rdm." },
-    { RClient::DiagnosticsOnlyActiveBuffers, "diagnostics-only-active-buffers", 0, no_argument, "Only receive diagnostics from active buffers." },
     { RClient::XmlDiagnostics, "xml-diagnostics", 'm', no_argument, "Receive continual XML formatted diagnostics from rdm." },
     { RClient::MatchRegexp, "match-regexp", 'Z', no_argument, "Treat various text patterns as regexps (-P, -i, -V)." },
     { RClient::MatchCaseInsensitive, "match-icase", 'I', no_argument, "Match case insensitively" },
@@ -281,7 +280,7 @@ public:
     }
     virtual bool exec(RClient *rc, Connection *connection)
     {
-        LogOutputMessage msg(mLevel == Default ? rc->logLevel() : mLevel, rc->logFlags());
+        LogOutputMessage msg(mLevel == Default ? rc->logLevel() : mLevel);
         msg.init(rc->argc(), rc->argv());
         return connection->send(msg);
     }
@@ -338,7 +337,7 @@ public:
 };
 
 RClient::RClient()
-    : mQueryFlags(0), mLogFlags(0), mMax(-1), mLogLevel(0), mTimeout(-1),
+    : mQueryFlags(0), mMax(-1), mLogLevel(0), mTimeout(-1),
       mMinOffset(-1), mMaxOffset(-1), mConnectTimeout(DEFAULT_CONNECT_TIMEOUT),
       mBuildIndex(0), mEscapeMode(Escape_Auto), mArgc(0), mArgv(0)
 {
@@ -737,9 +736,6 @@ bool RClient::parse(int &argc, char **argv)
             break;
         case RdmLog:
             addLog(RdmLogCommand::Default);
-            break;
-        case DiagnosticsOnlyActiveBuffers:
-            mLogFlags |= LogOutputMessage::ActiveBuffersOnly;
             break;
         case Diagnostics:
             addLog(RTags::CompilationError);
