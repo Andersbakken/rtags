@@ -48,7 +48,7 @@
 (unless (fboundp 'libxml-parse-xml-region)
   (require 'xml))
 
-(setq rtags-popup-available (require 'popup nil t))
+(defconst rtags-popup-available (require 'popup nil t))
 
 (defvar rtags-last-completions nil)
 (defvar rtags-last-completion-position nil) ;; cons (buffer . offset)
@@ -65,6 +65,155 @@
 (defconst rtags-buffer-name "*RTags*")
 (defvar rtags-last-request-not-indexed nil)
 (defvar rtags-buffer-bookmarks 0)
+(defvar rtags-diagnostics-process nil)
+
+(defun rtags-is-indexable-default (buffer)
+  (let ((filename (buffer-file-name buffer)))
+    (if filename
+        (let ((suffix (and (string-match "\.\\([^.]+\\)$" filename) (match-string 1 filename))))
+          (or (not suffix)
+              (and (member (downcase suffix) (list "cpp" "h" "cc" "c" "cp" "cxx" "m" "mm" "tcc" "txx" "moc" "hxx" "hh")) t))))))
+
+(defcustom rtags-enabled t
+  "Whether rtags is enabled. We try to do nothing when it's not"
+  :group 'rtags
+  :type 'boolean)
+
+(defcustom rtags-diagnostics-use-pipe t
+  "If diagnostics can use a pipe. If you're running emacs in cygwin you might have to set this to nil"
+  :group 'rtags
+  :type 'boolean)
+
+(defcustom rtags-autostart-diagnostics nil
+  "Whether rtags automatically will restart diagnostics"
+  :group 'rtags
+  :type 'boolean)
+
+(defcustom rtags-spellcheck-enabled t
+  "Whether rtags does syntax checking with overlays etc to mark errors, warnings and fixups"
+  :group 'rtags
+  :type 'boolean)
+
+(defcustom rtags-sort-references-by-input t
+  "Whether rtags sorts the references based on the input to rtags-find-references.*"
+  :group 'rtags
+  :type 'boolean)
+
+(defcustom rtags-completions-enabled nil
+  "Whether completions are enabled"
+  :group 'rtags
+  :type 'boolean)
+
+(defcustom rtags-completions-timer-interval .5
+  "Interval for completions timer"
+  :group 'rtags
+  :type 'number)
+
+(defcustom rtags-wildcard-symbol-names t
+  "Allow use of * and ? to match symbol names"
+  :group 'rtags
+  :type 'boolean)
+
+(defcustom rtags-tracking nil
+  "When on automatically jump to symbol under cursor in *RTags* buffer"
+  :group 'rtags
+  :type 'boolean)
+
+(defcustom rtags-error-timer-interval .5
+  "Interval for minibuffer error timer"
+  :group 'rtags
+  :type 'number)
+
+(defcustom rtags-display-current-error-as-message t
+  "Display error under cursor using (message)"
+  :type 'boolean
+  :group 'rtags)
+
+(defcustom rtags-display-current-error-as-tooltip nil
+  "Display error under cursor using popup-tip (requires 'popup)"
+  :type 'boolean
+  :group 'rtags)
+
+(defcustom rtags-display-summary-as-tooltip rtags-popup-available
+  "Display help / summary text using popup-tip (requires 'popup)"
+  :type 'boolean
+  :group 'rtags)
+
+(defcustom rtags-error-timer-interval .5
+  "Interval for minibuffer error timer"
+  :group 'rtags
+  :type 'number)
+
+(defcustom rtags-tracking-timer-interval .5
+  "Interval for tracking timer"
+  :group 'rtags
+  :type 'number)
+
+(defcustom rtags-expand-function '(lambda () (dabbrev-expand nil))
+  "What function to call for expansions"
+  :group 'rtags
+  :type 'function)
+
+(defcustom rtags-is-indexable 'rtags-is-indexable-default
+  "What function to call for expansions"
+  :group 'rtags
+  :type 'function)
+
+(defcustom rtags-after-find-file-hook nil
+  "Run after rtags has jumped to a location possibly in a new file"
+  :group 'rtags
+  :type 'hook)
+
+(defcustom rtags-mode-hook nil
+  "Run when rtags-mode is started"
+  :group 'rtags
+  :type 'hook)
+
+(defcustom rtags-diagnostics-hook nil
+  "Run after diagnostics have been parsed"
+  :group 'rtags
+  :type 'hook)
+
+(defcustom rtags-completions-hook nil
+  "Run after completions have been parsed"
+  :group 'rtags
+  :type 'hook)
+
+(defcustom rtags-edit-hook nil
+  "Run before rtags tries to modify a buffer (from rtags-rename)
+return t if rtags is allowed to modify this file"
+  :group 'rtags
+  :type 'hook)
+
+(defcustom rtags-jump-to-first-match t
+  "If t, jump to first match"
+  :group 'rtags
+  :type 'boolean)
+
+(defcustom rtags-timeout nil
+  "Max amount of ms to wait before timing out requests"
+  :group 'rtags
+  :type 'integer)
+
+(defcustom rtags-path nil
+  "Path to rtags executables"
+  :group 'rtags
+  :type 'string)
+
+(defcustom rtags-max-bookmark-count 100
+  "How many bookmarks to keep in stack"
+  :group 'rtags
+  :type 'integer)
+
+(defcustom rtags-rc-log-enabled nil
+  "If t, log rc commands and responses"
+  :group 'rtags
+  :type 'boolean)
+
+(defcustom rtags-show-containing-function nil
+  "If t, pass -o to rc to include containing function"
+  :group 'rtags
+  :type 'boolean)
 
 (defface rtags-warnline
   '((((class color) (background dark)) (:background "blue"))
@@ -341,7 +490,7 @@
 (set-keymap-parent rtags-preprocess-keymap c++-mode-map)
 (define-derived-mode rtags-preprocess-mode c++-mode
   (setq mode-name "rtags-preprocess")
-  (use-local-map rtags-diagnostics-mode-map)
+  (use-local-map rtags-preprocess-mode-map)
   (if (buffer-file-name)
       (error "Set buffer with file %s read only " (buffer-file-name)))
   (setq buffer-read-only t))
@@ -716,155 +865,6 @@ BUFFER : the buffer to be checked and reparsed, if it's nil, use current buffer"
 
 ;; **************************** API *********************************
 
-(defcustom rtags-enabled t
-  "Whether rtags is enabled. We try to do nothing when it's not"
-  :group 'rtags
-  :type 'boolean)
-
-(defcustom rtags-diagnostics-use-pipe t
-  "If diagnostics can use a pipe. If you're running emacs in cygwin you might have to set this to nil"
-  :group 'rtags
-  :type 'boolean)
-
-(defcustom rtags-autostart-diagnostics nil
-  "Whether rtags automatically will restart diagnostics"
-  :group 'rtags
-  :type 'boolean)
-
-(defcustom rtags-spellcheck-enabled t
-  "Whether rtags does syntax checking with overlays etc to mark errors, warnings and fixups"
-  :group 'rtags
-  :type 'boolean)
-
-(defcustom rtags-sort-references-by-input t
-  "Whether rtags sorts the references based on the input to rtags-find-references.*"
-  :group 'rtags
-  :type 'boolean)
-
-(defcustom rtags-completions-enabled nil
-  "Whether completions are enabled"
-  :group 'rtags
-  :type 'boolean)
-
-(defcustom rtags-completions-timer-interval .5
-  "Interval for completions timer"
-  :group 'rtags
-  :type 'number)
-
-(defcustom rtags-wildcard-symbol-names t
-  "Allow use of * and ? to match symbol names"
-  :group 'rtags
-  :type 'boolean)
-
-(defcustom rtags-tracking nil
-  "When on automatically jump to symbol under cursor in *RTags* buffer"
-  :group 'rtags
-  :type 'boolean)
-
-(defcustom rtags-error-timer-interval .5
-  "Interval for minibuffer error timer"
-  :group 'rtags
-  :type 'number)
-
-(defcustom rtags-display-current-error-as-message t
-  "Display error under cursor using (message)"
-  :type 'boolean
-  :group 'rtags)
-
-(defcustom rtags-display-current-error-as-tooltip nil
-  "Display error under cursor using popup-tip (requires 'popup)"
-  :type 'boolean
-  :group 'rtags)
-
-(defcustom rtags-display-summary-as-tooltip rtags-popup-available
-  "Display help / summary text using popup-tip (requires 'popup)"
-  :type 'boolean
-  :group 'rtags)
-
-(defcustom rtags-error-timer-interval .5
-  "Interval for minibuffer error timer"
-  :group 'rtags
-  :type 'number)
-
-(defcustom rtags-tracking-timer-interval .5
-  "Interval for tracking timer"
-  :group 'rtags
-  :type 'number)
-
-(defcustom rtags-expand-function '(lambda () (dabbrev-expand nil))
-  "What function to call for expansions"
-  :group 'rtags
-  :type 'function)
-
-(defcustom rtags-is-indexable 'rtags-is-indexable-default
-  "What function to call for expansions"
-  :group 'rtags
-  :type 'function)
-
-(defcustom rtags-after-find-file-hook nil
-  "Run after rtags has jumped to a location possibly in a new file"
-  :group 'rtags
-  :type 'hook)
-
-(defcustom rtags-mode-hook nil
-  "Run when rtags-mode is started"
-  :group 'rtags
-  :type 'hook)
-
-(defcustom rtags-diagnostics-hook nil
-  "Run after diagnostics have been parsed"
-  :group 'rtags
-  :type 'hook)
-
-(defcustom rtags-completions-hook nil
-  "Run after completions have been parsed"
-  :group 'rtags
-  :type 'hook)
-
-(defcustom rtags-edit-hook nil
-  "Run before rtags tries to modify a buffer (from rtags-rename)
-return t if rtags is allowed to modify this file"
-  :group 'rtags
-  :type 'hook)
-
-(defcustom rtags-jump-to-first-match t
-  "If t, jump to first match"
-  :group 'rtags
-  :type 'boolean)
-
-(defcustom rtags-timeout nil
-  "Max amount of ms to wait before timing out requests"
-  :group 'rtags
-  :type 'integer)
-
-(defcustom rtags-path nil
-  "Path to rtags executables"
-  :group 'rtags
-  :type 'string)
-
-(defcustom rtags-max-bookmark-count 100
-  "How many bookmarks to keep in stack"
-  :group 'rtags
-  :type 'integer)
-
-(defcustom rtags-rc-log-enabled nil
-  "If t, log rc commands and responses"
-  :group 'rtags
-  :type 'boolean)
-
-(defcustom rtags-show-containing-function nil
-  "If t, pass -o to rc to include containing function"
-  :group 'rtags
-  :type 'boolean)
-
-;;;###autoload
-(defun rtags-is-indexable-default (buffer)
-  (let ((filename (buffer-file-name buffer)))
-    (if filename
-        (let ((suffix (and (string-match "\.\\([^.]+\\)$" filename) (match-string 1 filename))))
-          (or (not suffix)
-              (and (member (downcase suffix) (list "cpp" "h" "cc" "c" "cp" "cxx" "m" "mm" "tcc" "txx" "moc" "hxx" "hh")) t))))))
-
 ;;;###autoload
 (defun rtags-enable-standard-keybindings (&optional map prefix)
   (interactive)
@@ -1142,7 +1142,6 @@ References to references will be treated as references to the referenced symbol"
   (interactive)
   (rtags-find-symbols-by-name-internal "Find rreferences" (rtags-dir-filter) t))
 
-(defvar rtags-diagnostics-process nil)
 ;;;###autoload
 (defun rtags-apply-fixit-at-point ()
   (interactive)
