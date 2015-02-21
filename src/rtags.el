@@ -247,6 +247,51 @@ return t if rtags is allowed to modify this file"
      (1 font-lock-string-face)
      (2 font-lock-function-name-face))))
 
+(defcustom rtags-timeout nil
+  "Max amount of ms to wait for operation to finish"
+  :group 'rtags
+  :type 'integer)
+
+(defcustom rtags-enable-unsaved-reparsing t
+  "Whether rtags will reparse unsaved buffers as needed"
+  :group 'rtags
+  :type 'boolean)
+
+(defcustom rtags-find-file-case-insensitive nil
+  "Treat files case-insensitively"
+  :group 'rtags
+  :type 'boolean)
+
+(defcustom rtags-symbolnames-case-insensitive nil
+  "Treat symbol names case-insensitively"
+  :group 'rtags
+  :type 'boolean)
+
+(defcustom rtags-symbolnames-case-insensitive nil
+  "Treat symbol names case insensitively"
+  :group 'rtags
+  :type 'boolean)
+
+(defcustom rtags-find-file-prefer-exact-match t
+  "Jump directly to files that exactly match the filename for rtags-find-file"
+  :group 'rtags
+  :type 'boolean)
+
+(defcustom rtags-match-source-file-to-project nil
+  "Function to match source file to a build directory"
+  :group 'rtags
+  :type 'function)
+
+(defcustom rtags-other-window-window-size-percentage 30
+  "Percentage size of other buffer"
+  :group 'rtags
+  :type 'integer)
+
+(defcustom rtags-split-window-function 'split-window
+  "Function to split window. default is 'split-window"
+  :group 'rtags
+  :type 'function)
+
 (defun rtags-get-buffer (&optional name)
   (unless name (setq name rtags-buffer-name))
   (if (get-buffer name)
@@ -538,72 +583,6 @@ return t if rtags is allowed to modify this file"
       (display-buffer preprocess-buffer))))
 
 ;;;###autoload
-(defun rtags-reparse-file (&optional buffer wait-reparsing)
-  "WAIT-REPARSING : t to wait for reparsing to finish, nil for async (no waiting).
-:fixme: add a timeout"
-  (interactive)
-  (when (null buffer)
-    (setq buffer (current-buffer)))
-  (let ((file (buffer-file-name buffer)))
-    ;;(when (null (rtags-buffer-status buffer))
-    ;;(message ":debug: file not indexed"))
-    (when (and file (rtags-buffer-status buffer))
-      (with-temp-buffer
-        (if (buffer-modified-p buffer)
-            (progn
-              (rtags-call-rc :path file :unsaved buffer "-V" file)
-              (when wait-reparsing
-                (message "Reparsing buffer")
-                ;;(message ":debug: reparsing file %s" file)
-                ;; Wait for the server to start working.
-                (while (not (rtags-is-working buffer))
-                  (sleep-for 0.4))
-                ;; Wait for the file to become indexed.
-                (while (rtags-is-working buffer)
-                  (sleep-for 0.4))))
-          (progn
-            (rtags-call-rc :path file "-V" file)
-            (message (format "Dirtied %s" file))))))))
-
-
-;; assoc list containing unsaved buffers and their modification ticks
-;; (to avoid reparsing unsaved files if there were no changes since last parsing)
-;; :fixme: - remove buffers from list on save
-(defvar rtags-unsaved-buffers-ticks nil)
-
-(defun rtags-reparse-file-if-needed (&optional buffer)
-  "Reparse file if it's not saved.
-
-BUFFER : the buffer to be checked and reparsed, if it's nil, use current buffer"
-  (when rtags-enable-unsaved-reparsing
-    (let ((unsaved (and (buffer-modified-p buffer) (or buffer (current-buffer)))))
-      (when unsaved
-        ;; check ticks since the last save to avoid parsing the file multiple times
-        ;; if it has not been modified
-        (let ((current-ticks (buffer-modified-tick unsaved))
-              (old-ticks (cdr (assoc unsaved rtags-unsaved-buffers-ticks))))
-          ;; reparsing this dirty file for the first time
-          ;; or if it was modified since last reparsing
-          ;;(message ":debug: buffer=%s, old-ticks=%s, current-ticks=%s"
-          ;;unsaved old-ticks current-ticks)
-          (if (or (null old-ticks) (/= current-ticks old-ticks))
-              (progn
-                (rtags-reparse-file unsaved t)
-                (add-to-list 'rtags-unsaved-buffers-ticks (cons unsaved current-ticks)))
-            (progn ;; else update ticks
-              (let ((item (assoc unsaved rtags-unsaved-buffers-ticks)))
-                (setf (cdr item) current-ticks)))))))))
-
-
-;;;###autoload
-(defun rtags-maybe-reparse-file (&optional buffer)
-  (interactive)
-  (let ((file (buffer-file-name buffer)))
-    (when file
-      (with-temp-buffer
-        (rtags-call-rc :path file "-x" file)))))
-
-;;;###autoload
 (defun rtags-set-current-project ()
   (interactive)
   (let ((projects nil)
@@ -779,65 +758,6 @@ BUFFER : the buffer to be checked and reparsed, if it's nil, use current buffer"
            (rtags-find-file-or-buffer location other-window)))
     (unless nobookmark (rtags-location-stack-push))))
 
-(defun rtags-find-symbols-by-name-internal (prompt switch &optional filter regexp-filter)
-  (rtags-location-stack-push)
-  (let ((tagname (if mark-active
-                     (buffer-substring-no-properties (region-beginning) (region-end))
-                   (rtags-current-symbol)))
-        (path (buffer-file-name))
-        input)
-    (if (> (length tagname) 0)
-        (setq prompt (concat prompt ": (default " tagname ") "))
-      (setq prompt (concat prompt ": ")))
-    (setq input (completing-read-default prompt (function rtags-symbolname-complete) nil nil nil 'rtags-symbol-history))
-    (setq rtags-symbol-history (cl-remove-duplicates rtags-symbol-history :from-end t :test 'equal))
-    (if (not (equal "" input))
-        (setq tagname input))
-    (with-current-buffer (rtags-get-buffer)
-      (rtags-call-rc :path path switch tagname :path-filter filter :path-filter-regex regexp-filter (if rtags-symbolnames-case-insensitive "-I"))
-      (rtags-handle-results-buffer))))
-
-(defun rtags-symbolname-completion-get (string)
-  (with-temp-buffer
-    (rtags-call-rc "-Y" "-S" string (if rtags-symbolnames-case-insensitive "-I"))
-    (rtags-log (buffer-string))
-    (eval (read (buffer-string)))))
-
-(defun rtags-symbolname-completion-exactmatch (string)
-  (with-temp-buffer
-    (rtags-call-rc "-N" "-F" string)
-    (> (point-max) (point-min))))
-
-(defun rtags-symbolname-complete (string predicate code)
-  ;; (message "CALLED %s %s %s"
-  ;;          string predicate
-  ;;          (cond ((eq code nil) "nil")
-  ;;                ((eq code t) "t")
-  ;;                ((eq code 'lambda) "lambda")))
-
-  (cond ((null code)
-         (let* ((alternatives (rtags-symbolname-completion-get string))
-                (attempt (try-completion string alternatives predicate)))
-           ;; (message "%s %d %d %s %s" string (length alternatives)
-           ;;          (if rtags-wildcard-symbol-names 1 0)
-           ;;          attempt
-           ;;          (and (string-match '\\*' string) "yes"))
-
-           ;; (if (and rtags-wildcard-symbol-names
-           ;;          (not attempt)
-           ;;          (> (length alternatives) 0)
-           ;;          (string-match "\\*" string))
-           ;;     (progn
-           ;;       (message "RETURNING STRING")
-           ;;       string)
-           ;;   attempt)))
-           attempt))
-        ((eq code t)
-         (rtags-symbolname-completion-get string))
-        ((eq code 'lambda)
-         (rtags-symbolname-completion-exactmatch string))
-        (t nil)))
-
 (defvar rtags-location-stack-index 0)
 (defvar rtags-location-stack nil)
 
@@ -904,11 +824,6 @@ BUFFER : the buffer to be checked and reparsed, if it's nil, use current buffer"
 (defun rtags-print-current-location ()
   (interactive)
   (message (rtags-current-location)))
-
-;;;###autoload
-(defun rtags-quit-rdm () (interactive)
-       (call-process (rtags-executable-find "rc") nil nil nil "--quit-rdm")
-       (setq rtags-process nil))
 
 ;;;###autoload
 (defun rtags-location-stack-forward ()
@@ -1257,6 +1172,7 @@ References to references will be treated as references to the referenced symbol"
                   (puthash filename errorlist rtags-overlays))))
           (cons ret filebuffer))))))
 
+(defvar rtags-error-warning-count nil)
 (make-variable-buffer-local 'rtags-error-warning-count)
 (defun rtags-parse-overlay-node (node)
   (when (listp node)
@@ -1429,26 +1345,6 @@ References to references will be treated as references to the referenced symbol"
   (let ((current-overlays (overlays-at (point))))
     (while (and current-overlays (not (rtags-fix-fixit-overlay (car current-overlays))))
       (setq current-overlays (cdr current-overlays)))))
-
-(defvar rtags-last-update-current-project-buffer nil)
-;;;###autoload
-(defun rtags-update-current-project ()
-  (interactive)
-  (condition-case nil
-      (when (and (buffer-file-name)
-                 (file-exists-p (buffer-file-name))
-                 (not (eq (current-buffer) rtags-last-update-current-project-buffer)))
-        (setq rtags-last-update-current-project-buffer (current-buffer))
-        (let* ((rc (rtags-executable-find "rc"))
-               (path (buffer-file-name))
-               (arguments (list "-T" path "--silent-query")))
-          (when rc
-            (push (concat "--current-file=" path) arguments)
-            (let ((mapped (if rtags-match-source-file-to-project (apply rtags-match-source-file-to-project (list path)))))
-              (if (and mapped (length mapped)) (push (concat "--current-file=" mapped) arguments)))
-            (apply #'start-process "rtags-update-current-project" nil rc arguments))))
-    (error (message "Got error in rtags-update-current-project")))
-  t)
 
 (defvar rtags-tracking-timer nil)
 ;;;###autoload
@@ -1955,50 +1851,25 @@ References to references will be treated as references to the referenced symbol"
           (setq rtags-other-window-window nil)))
     ret))
 
-(defcustom rtags-timeout nil
-  "Max amount of ms to wait for operation to finish"
-  :group 'rtags
-  :type 'integer)
-
-(defcustom rtags-enable-unsaved-reparsing t
-  "Whether rtags will reparse unsaved buffers as needed"
-  :group 'rtags
-  :type 'boolean)
-
-(defcustom rtags-find-file-case-insensitive nil
-  "Treat files case-insensitively"
-  :group 'rtags
-  :type 'boolean)
-
-(defcustom rtags-symbolnames-case-insensitive nil
-  "Treat symbol names case-insensitively"
-  :group 'rtags
-  :type 'boolean)
-
-(defcustom rtags-symbolnames-case-insensitive nil
-  "Treat symbol names case insensitively"
-  :group 'rtags
-  :type 'boolean)
-
-(defcustom rtags-find-file-prefer-exact-match t
-  "Jump directly to files that exactly match the filename for rtags-find-file"
-  :group 'rtags
-  :type 'boolean)
-
-(defcustom rtags-match-source-file-to-project nil
-  "Function to match source file to a build directory"
-  :group 'rtags
-  :type 'function)
-
-(defcustom rtags-other-window-window-size-percentage 30
-  "Percentage size of other buffer"
-  :group 'rtags
-  :type 'integer)
-
-(defcustom rtags-split-window-function 'split-window
-  "Function to split window. default is 'split-window"
-  :group 'rtags
-  :type 'function)
+(defvar rtags-last-update-current-project-buffer nil)
+;;;###autoload
+(defun rtags-update-current-project ()
+  (interactive)
+  (condition-case nil
+      (when (and (buffer-file-name)
+                 (file-exists-p (buffer-file-name))
+                 (not (eq (current-buffer) rtags-last-update-current-project-buffer)))
+        (setq rtags-last-update-current-project-buffer (current-buffer))
+        (let* ((rc (rtags-executable-find "rc"))
+               (path (buffer-file-name))
+               (arguments (list "-T" path "--silent-query")))
+          (when rc
+            (push (concat "--current-file=" path) arguments)
+            (let ((mapped (if rtags-match-source-file-to-project (apply rtags-match-source-file-to-project (list path)))))
+              (if (and mapped (length mapped)) (push (concat "--current-file=" mapped) arguments)))
+            (apply #'start-process "rtags-update-current-project" nil rc arguments))))
+    (error (message "Got error in rtags-update-current-project")))
+  t)
 
 (defun rtags-show-target-in-other-window (&optional dest-window center-window
                                                     try-declaration-first)
@@ -2031,6 +1902,65 @@ definition."
           (rtags-goto-location target)
           (recenter-top-bottom (when (not center-window) 0))
           (select-window win)))))
+
+(defun rtags-find-symbols-by-name-internal (prompt switch &optional filter regexp-filter)
+  (rtags-location-stack-push)
+  (let ((tagname (if mark-active
+                     (buffer-substring-no-properties (region-beginning) (region-end))
+                   (rtags-current-symbol)))
+        (path (buffer-file-name))
+        input)
+    (if (> (length tagname) 0)
+        (setq prompt (concat prompt ": (default " tagname ") "))
+      (setq prompt (concat prompt ": ")))
+    (setq input (completing-read-default prompt (function rtags-symbolname-complete) nil nil nil 'rtags-symbol-history))
+    (setq rtags-symbol-history (cl-remove-duplicates rtags-symbol-history :from-end t :test 'equal))
+    (if (not (equal "" input))
+        (setq tagname input))
+    (with-current-buffer (rtags-get-buffer)
+      (rtags-call-rc :path path switch tagname :path-filter filter :path-filter-regex regexp-filter (if rtags-symbolnames-case-insensitive "-I"))
+      (rtags-handle-results-buffer))))
+
+(defun rtags-symbolname-completion-get (string)
+  (with-temp-buffer
+    (rtags-call-rc "-Y" "-S" string (if rtags-symbolnames-case-insensitive "-I"))
+    (rtags-log (buffer-string))
+    (eval (read (buffer-string)))))
+
+(defun rtags-symbolname-completion-exactmatch (string)
+  (with-temp-buffer
+    (rtags-call-rc "-N" "-F" string)
+    (> (point-max) (point-min))))
+
+(defun rtags-symbolname-complete (string predicate code)
+  ;; (message "CALLED %s %s %s"
+  ;;          string predicate
+  ;;          (cond ((eq code nil) "nil")
+  ;;                ((eq code t) "t")
+  ;;                ((eq code 'lambda) "lambda")))
+
+  (cond ((null code)
+         (let* ((alternatives (rtags-symbolname-completion-get string))
+                (attempt (try-completion string alternatives predicate)))
+           ;; (message "%s %d %d %s %s" string (length alternatives)
+           ;;          (if rtags-wildcard-symbol-names 1 0)
+           ;;          attempt
+           ;;          (and (string-match '\\*' string) "yes"))
+
+           ;; (if (and rtags-wildcard-symbol-names
+           ;;          (not attempt)
+           ;;          (> (length alternatives) 0)
+           ;;          (string-match "\\*" string))
+           ;;     (progn
+           ;;       (message "RETURNING STRING")
+           ;;       string)
+           ;;   attempt)))
+           attempt))
+        ((eq code t)
+         (rtags-symbolname-completion-get string))
+        ((eq code 'lambda)
+         (rtags-symbolname-completion-exactmatch string))
+        (t nil)))
 
 (defun rtags-offset-for-line-column (line col)
   (let (deactivate-mark)
@@ -2081,6 +2011,12 @@ definition."
 (defvar rtags-includes-func 'rtags-dummy-includes-func)
 (defvar rtags-process-flags "")
 (defvar rtags-process nil)
+
+;;;###autoload
+(defun rtags-quit-rdm ()
+  (interactive)
+  (call-process (rtags-executable-find "rc") nil nil nil "--quit-rdm")
+  (setq rtags-process nil))
 
 (defun rdm-includes ()
   (mapconcat 'identity
@@ -2152,6 +2088,72 @@ definition."
 ;;         (and (= (char-before) 62) (= (char-before (1- (point))) 45)) ;; "->"
 ;;         (and (= (char-before) 58) (= (char-before (1- (point))) 58))) ;; "::"
 ;;     (point)))))
+
+
+;;;###autoload
+(defun rtags-reparse-file (&optional buffer wait-reparsing)
+  "WAIT-REPARSING : t to wait for reparsing to finish, nil for async (no waiting).
+:fixme: add a timeout"
+  (interactive)
+  (when (null buffer)
+    (setq buffer (current-buffer)))
+  (let ((file (buffer-file-name buffer)))
+    ;;(when (null (rtags-buffer-status buffer))
+    ;;(message ":debug: file not indexed"))
+    (when (and file (rtags-buffer-status buffer))
+      (with-temp-buffer
+        (if (buffer-modified-p buffer)
+            (progn
+              (rtags-call-rc :path file :unsaved buffer "-V" file)
+              (when wait-reparsing
+                (message "Reparsing buffer")
+                ;;(message ":debug: reparsing file %s" file)
+                ;; Wait for the server to start working.
+                (while (not (rtags-is-working buffer))
+                  (sleep-for 0.4))
+                ;; Wait for the file to become indexed.
+                (while (rtags-is-working buffer)
+                  (sleep-for 0.4))))
+          (progn
+            (rtags-call-rc :path file "-V" file)
+            (message (format "Dirtied %s" file))))))))
+
+
+;; assoc list containing unsaved buffers and their modification ticks
+;; (to avoid reparsing unsaved files if there were no changes since last parsing)
+;; :fixme: - remove buffers from list on save
+(defvar rtags-unsaved-buffers-ticks nil)
+
+(defun rtags-reparse-file-if-needed (&optional buffer)
+  "Reparse file if it's not saved.
+
+BUFFER : the buffer to be checked and reparsed, if it's nil, use current buffer"
+  (when rtags-enable-unsaved-reparsing
+    (let ((unsaved (and (buffer-modified-p buffer) (or buffer (current-buffer)))))
+      (when unsaved
+        ;; check ticks since the last save to avoid parsing the file multiple times
+        ;; if it has not been modified
+        (let ((current-ticks (buffer-modified-tick unsaved))
+              (old-ticks (cdr (assoc unsaved rtags-unsaved-buffers-ticks))))
+          ;; reparsing this dirty file for the first time
+          ;; or if it was modified since last reparsing
+          ;;(message ":debug: buffer=%s, old-ticks=%s, current-ticks=%s"
+          ;;unsaved old-ticks current-ticks)
+          (if (or (null old-ticks) (/= current-ticks old-ticks))
+              (progn
+                (rtags-reparse-file unsaved t)
+                (add-to-list 'rtags-unsaved-buffers-ticks (cons unsaved current-ticks)))
+            (progn ;; else update ticks
+              (let ((item (assoc unsaved rtags-unsaved-buffers-ticks)))
+                (setf (cdr item) current-ticks)))))))))
+
+;;;###autoload
+(defun rtags-maybe-reparse-file (&optional buffer)
+  (interactive)
+  (let ((file (buffer-file-name buffer)))
+    (when file
+      (with-temp-buffer
+        (rtags-call-rc :path file "-x" file)))))
 
 (defvar rtags-completions-timer nil)
 (defun rtags-update-completions-timer ()
