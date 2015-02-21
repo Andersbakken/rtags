@@ -1169,34 +1169,40 @@ Set<Symbol> Project::findAllReferences(const Symbol &symbol)
 
 Set<Symbol> Project::findVirtuals(const Symbol &symbol)
 {
-    if (symbol.kind != CXCursor_CXXMethod)
+    if (symbol.kind != CXCursor_CXXMethod || !(symbol.flags & Symbol::VirtualMethod))
         return Set<Symbol>();
 
-    Symbol parent;
-    for (const String &usr : findTargetUsrs(symbol.location)) {
-        const Set<Symbol> syms = findByUsr(usr, symbol.location.fileId(), ArgDependsOn);
-        for (const Symbol &sym : syms) {
-            if (findTargetUsrs(sym.location).isEmpty()) {
-                parent = sym;
-                break;
+    const Symbol parent = [this](const Symbol &symbol) {
+        error() << "symbol is" << symbol;
+        for (const String &usr : findTargetUsrs(symbol.location)) {
+            const Set<Symbol> syms = findByUsr(usr, symbol.location.fileId(), ArgDependsOn);
+            error() << "Found some usrs" << usr;
+            for (const Symbol &sym : syms) {
+                error() << "Trying symbol" << sym << findTargetUsrs(sym.location).size();
+                if (findTargetUsrs(sym.location).isEmpty()) {
+                    return sym;
+                }
             }
         }
-        if (!parent.isNull())
-            break;
-    }
+        return symbol;
+    }(symbol);
 
-    if (parent.isNull())
-        return Set<Symbol>();
+    assert(!parent.isNull());
 
     Set<Symbol> symSet;
     symSet.insert(parent);
-    return ::findReferences(symSet, shared_from_this(), [](const Symbol &, const Symbol &ref) {
+    Set<Symbol> ret = ::findReferences(symSet, shared_from_this(), [](const Symbol &, const Symbol &ref) {
             // error() << "considering" << ref.location << ref.kindSpelling();
             if (ref.kind == CXCursor_CXXMethod) {
                 return true;
             }
             return false;
         });
+    ret.insert(parent);
+    const Symbol target = findTarget(parent);
+    if (!target.isNull())
+        ret.insert(target);
+    return ret;
 }
 
 Set<String> Project::findTargetUsrs(const Location &loc)
