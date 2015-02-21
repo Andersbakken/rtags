@@ -190,8 +190,8 @@ private:
         {}
         ~FileMapScope()
         {
-            error("%d hits, %d misses (%2.f%%) %d removals",
-                  hits, misses, (hits + misses ? (static_cast<double>(hits) / static_cast<double>(misses)) * 100.0 : 0), removals);
+            warning("%d hits, %d misses (%2.f%%) %d removals",
+                    hits, misses, (hits + misses ? (static_cast<double>(hits) / static_cast<double>(misses)) * 100.0 : 0), removals);
         }
 
         struct LRUKey {
