@@ -41,16 +41,21 @@ String Symbol::toString(unsigned int cursorInfoFlags, unsigned int keyFlags, con
     static auto flagsToString = [](unsigned int flags)
     {
         List<String> ret;
-        if (flags & PureVirtualMethod) {
-            ret << "pure virtual";
+        if ((flags & PureVirtualMethod) == PureVirtualMethod) {
+            ret << "Pure Virtual";
         } else if (flags & VirtualMethod) {
-            ret << "virtual";
+            ret << "Virtual";
         }
-        if (flags & ConstMethod)
-            ret << "const";
-        if (flags & StaticMethod)
-            ret << "static";
-        return String::join(ret, ", ");
+        if (flags & ConstMethod) {
+            ret << "Const";
+        } else if (flags & StaticMethod) {
+            ret << "Static";
+        }
+        if (ret.isEmpty())
+            return String();
+        String joined = String::join(ret, ", ");
+        joined += '\n';
+        return joined;
     };
 
     String ret = String::format<1024>("SymbolName: %s\n"
