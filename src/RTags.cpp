@@ -235,13 +235,13 @@ Path findProjectRoot(const Path &path, ProjectRootMode mode)
     static const Path home = Path::home();
     if (mode == SourceRoot) {
         const Entry before[] = {
-            { "GTAGS", 0 },
-            { "CMakeLists.txt", 0 },
-            { "configure", 0 },
-            { ".tup", 0 },
             { ".git", 0 },
             { ".svn", 0 },
             { ".bzr", 0 },
+            { ".tup", 0 },
+            { "GTAGS", 0 },
+            { "configure", 0 },
+            { "CMakeLists.txt", 0 },
             { "*.pro", Wildcard },
             { "scons.1", 0 },
             { "*.scons", Wildcard },
