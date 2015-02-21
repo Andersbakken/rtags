@@ -888,24 +888,22 @@ bool ClangIndexer::handleReference(const CXCursor &cursor, CXCursorKind kind,
 
 void ClangIndexer::addOverriddenCursors(const CXCursor &cursor, const Location &location)
 {
+    // error() << "addOverriddenCursors" << cursor << location;
     CXCursor *overridden;
     unsigned int count;
     clang_getOverriddenCursors(cursor, &overridden, &count);
     if (!overridden)
         return;
     for (unsigned int i=0; i<count; ++i) {
-        const Location loc = createLocation(overridden[i]);
-        if (loc.isNull())
-            continue;
-
         // error() << location << "got" << i << count << loc;
 
         const String usr = ::usr(overridden[i]);
         assert(!usr.isEmpty());
         // assert(!locCursor.usr.isEmpty());
 
-        //error() << "adding overridden (1) " << location << " to " << o;
+        // error() << location << "targets" << overridden[i];
         unit(location)->targets[location][usr] = 0;
+        addOverriddenCursors(overridden[i], location);
     }
     clang_disposeOverriddenCursors(overridden);
 }

@@ -1172,43 +1172,31 @@ Set<Symbol> Project::findVirtuals(const Symbol &symbol)
     if (symbol.kind != CXCursor_CXXMethod)
         return Set<Symbol>();
 
-    // we have to call the findRefererences that takes a set to avoid endless recursion
-    Set<Symbol> ret;
-    ret.insert(symbol);
-    std::function<void(const Symbol &)> addTargets = [&ret, this, &addTargets](const Symbol &sym) {
-        if (sym.isNull())
-            return;
-        assert(!sym.isNull());
-        for (const String &usr : findTargetUsrs(sym.location)) {
-            for (const Symbol &symbol : findByUsr(usr, sym.location.fileId(), ArgDependsOn)) {
-                if (ret.insert(symbol)) {
-                    // error() << "inserted one target for" << sym.location << symbol.location;
-                    addTargets(symbol);
-                }
+    Symbol parent;
+    for (const String &usr : findTargetUsrs(symbol.location)) {
+        const Set<Symbol> syms = findByUsr(usr, symbol.location.fileId(), ArgDependsOn);
+        for (const Symbol &sym : syms) {
+            if (findTargetUsrs(sym.location).isEmpty()) {
+                parent = sym;
+                break;
             }
         }
-        Set<Symbol> symSet;
-        symSet << sym;
-        const Set<Symbol> r = ::findReferences(symSet, shared_from_this(), [](const Symbol &, const Symbol &ref) {
-                // error() << "considering" << ref.location << ref.kindSpelling();
-                if (ref.kind == CXCursor_CXXMethod) {
-                    return true;
-                }
-                return false;
-            });
-        for (const Symbol &s : r) {
-            if (ret.insert(s)) {
-                // error() << "inserted one reference for" << sym.location << s.location;
-                addTargets(s);
+        if (!parent.isNull())
+            break;
+    }
+
+    if (parent.isNull())
+        return Set<Symbol>();
+
+    Set<Symbol> symSet;
+    symSet.insert(parent);
+    return ::findReferences(symSet, shared_from_this(), [](const Symbol &, const Symbol &ref) {
+            // error() << "considering" << ref.location << ref.kindSpelling();
+            if (ref.kind == CXCursor_CXXMethod) {
+                return true;
             }
-        }
-        const Symbol target = findTarget(sym);
-        if (!target.isNull() && ret.insert(target)) {
-            addTargets(target);
-        }
-    };
-    addTargets(symbol);
-    return ret;
+            return false;
+        });
 }
 
 Set<String> Project::findTargetUsrs(const Location &loc)
