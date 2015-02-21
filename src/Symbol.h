@@ -76,6 +76,17 @@ struct Symbol
         }
         return false;
     }
+    bool isConstructorOrDestructor() const
+    {
+        switch (kind) {
+        case CXCursor_Constructor:
+        case CXCursor_Destructor:
+            return true;
+        default:
+            break;
+        }
+        return false;
+    }
     bool isReference() const;
     bool isContainer() const;
 

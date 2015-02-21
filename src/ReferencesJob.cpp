@@ -57,7 +57,7 @@ int ReferencesJob::execute()
             sym = proj->findTarget(sym);
         if (sym.isNull())
             continue;
-        if (rename && (sym.kind == CXCursor_Constructor || sym.kind == CXCursor_Destructor)) {
+        if (rename && sym.isConstructorOrDestructor()) {
             const Location loc = sym.location;
             sym.clear();
             const Set<String> usrs = proj->findTargetUsrs(loc);
@@ -77,7 +77,7 @@ int ReferencesJob::execute()
         if (queryFlags() & QueryMessage::AllReferences) {
             const Set<Symbol> all = proj->findAllReferences(sym);
             for (const auto &symbol : all) {
-                if (!rename && sym.isClass() && (symbol.kind == CXCursor_Constructor || symbol.kind == CXCursor_Destructor))
+                if (!rename && sym.isClass() && symbol.isConstructorOrDestructor())
                     continue;
                 const bool def = symbol.isDefinition();
                 if (def && declarationOnly)
