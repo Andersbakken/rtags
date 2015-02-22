@@ -152,7 +152,7 @@ static inline void eatAutoTools(List<String> &args)
     List<String> copy = args;
     for (int i=0; i<args.size(); ++i) {
         const String &arg = args.at(i);
-        if (arg.endsWith("cc") || arg.endsWith("g++") || arg.endsWith("c++") || arg == "cd") {
+        if (!arg.startsWith("-") && (arg.endsWith("cc") || arg.endsWith("g++") || arg.endsWith("c++") || arg == "cd")) {
             if (i) {
                 args.erase(args.begin(), args.begin() + i);
                 if (testLog(Debug)) {
