@@ -31,9 +31,7 @@ ReferencesJob::ReferencesJob(const String &sym, const std::shared_ptr<QueryMessa
 
 int ReferencesJob::execute()
 {
-    enum { Rename = (QueryMessage::ReverseSort|QueryMessage::AllReferences) };
-    const bool rename = (queryFlags() & Rename) == Rename;
-
+    const bool rename = queryFlags() & QueryMessage::Rename;
     std::shared_ptr<Project> proj = project();
     if (!proj)
         return 1;
@@ -108,11 +106,9 @@ int ReferencesJob::execute()
     }
     if (rename) {
         if (!references.isEmpty()) {
-            Map<Location, std::pair<bool, uint16_t> >::const_iterator it = references.end();
-            do {
-                --it;
-                write(it->first);
-            } while (it != references.begin());
+            for (const auto &it : references) {
+                write(it.first);
+            }
             return 0;
         }
     } else {

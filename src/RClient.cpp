@@ -105,6 +105,7 @@ struct Option opts[] = {
     { RClient::StripParen, "strip-paren", 'p', no_argument, "Strip parens in various contexts." },
     { RClient::Max, "max", 'M', required_argument, "Max lines of output for queries." },
     { RClient::ReverseSort, "reverse-sort", 'O', no_argument, "Sort output reversed." },
+    { RClient::Rename, "rename", 0, no_argument, "Used for --find-references to indicate that we're using the results to rename symbols." },
     { RClient::UnsavedFile, "unsaved-file", 0, required_argument, "Pass unsaved file on command line. E.g. --unsaved-file=main.cpp:1200 then write 1200 bytes on stdin." },
     { RClient::LogFile, "log-file", 'L', required_argument, "Log to this file." },
     { RClient::NoContext, "no-context", 'N', no_argument, "Don't print context for locations." },
@@ -569,6 +570,9 @@ bool RClient::parse(int &argc, char **argv)
             break;
         case ReverseSort:
             mQueryFlags |= QueryMessage::ReverseSort;
+            break;
+        case Rename:
+            mQueryFlags |= QueryMessage::Rename;
             break;
         case ElispList:
             mQueryFlags |= QueryMessage::ElispList;

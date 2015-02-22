@@ -97,6 +97,7 @@ public:
         ReloadFileManager,
         ReloadProjects,
         RemoveFile,
+        Rename,
         ReverseSort,
         SendDiagnostics,
         SetBuffers,
