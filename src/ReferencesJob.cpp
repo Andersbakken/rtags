@@ -77,6 +77,8 @@ int ReferencesJob::execute()
             for (const auto &symbol : all) {
                 if (!rename && sym.isClass() && symbol.isConstructorOrDestructor())
                     continue;
+                if (rename && symbol.kind == CXCursor_MacroExpansion && sym.kind != CXCursor_MacroDefinition)
+                    continue;
                 const bool def = symbol.isDefinition();
                 if (def && declarationOnly)
                     continue;
