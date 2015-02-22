@@ -189,6 +189,7 @@ Path findProjectRoot(const Path &path, ProjectRootMode mode)
             return project.ensureTrailingSlash();
     }
 
+    Path ret;
     static const Path home = Path::home();
     if (mode == SourceRoot) {
         const Entry before[] = {
@@ -211,11 +212,13 @@ Path findProjectRoot(const Path &path, ProjectRootMode mode)
             { 0, 0 }
         };
         {
-            const Path ret = checkEntries(before, path, home);
-            if (!ret.isEmpty())
-                return ret;
+            const Path e = checkEntries(before, path, home);
+            if (!e.isEmpty() && (e.size() < ret.size() || ret.isEmpty()))
+                ret = e;
         }
     }
+    if (!ret.isEmpty())
+        return ret;
     {
         const Path configStatus = findAncestor(path, "config.status", 0);
         if (!configStatus.isEmpty()) {
@@ -315,10 +318,13 @@ Path findProjectRoot(const Path &path, ProjectRootMode mode)
     };
 
     {
-        const Path ret = checkEntries(after, path, home);
-        if (!ret.isEmpty())
-            return ret;
+        const Path e = checkEntries(after, path, home);
+        if (!e.isEmpty() && (e.size() < ret.size() || ret.isEmpty()))
+            ret = e;
     }
+
+    if (!ret.isEmpty())
+        return ret;
 
     if (mode == BuildRoot)
         return findProjectRoot(path, SourceRoot);
