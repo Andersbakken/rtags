@@ -1477,6 +1477,7 @@ References to references will be treated as references to the referenced symbol"
             ((looking-at "managed") 'rtags-file-managed)
             (t nil)))))
 
+;;;###autoload
 (defun rtags-compilation-flags ()
   (interactive)
   (let ((path (buffer-file-name)))
@@ -1563,6 +1564,7 @@ References to references will be treated as references to the referenced symbol"
   (use-local-map rtags-mode-map)
   (run-hooks 'rtags-taglist-mode-hook))
 
+;;;###autoload
 (defun rtags-close-taglist ()
   (interactive)
   (unless rtags-taglist-protected
@@ -1597,6 +1599,7 @@ References to references will be treated as references to the referenced symbol"
         (setq category (cdr category))))
     max))
 
+;;;###autoload
 (defun rtags-taglist (&optional dest-window)
   (interactive)
   (rtags-location-stack-push)
@@ -1644,6 +1647,7 @@ References to references will be treated as references to the referenced symbol"
         (rtags-taglist-mode)
         (deactivate-mark)))))
 
+;;;###autoload
 (defun rtags-select (&optional other-window remove show)
   (interactive "P")
   (let* ((line (line-number-at-pos))
@@ -1667,19 +1671,23 @@ References to references will be treated as references to the referenced symbol"
       (if show
           (select-window window)))))
 
+;;;###autoload
 (defun rtags-select-other-window (&optional not-other-window)
   (interactive "P")
   (rtags-select (not not-other-window)))
 
+;;;###autoload
 (defun rtags-show-in-other-window ()
   (interactive)
   ;; (message "About to show")
   (rtags-select t nil t))
 
+;;;###autoload
 (defun rtags-select-and-remove-rtags-buffer ()
   (interactive)
   (rtags-select t t))
 
+;;;###autoload
 (defun rtags-imenu ()
   (interactive)
   (rtags-location-stack-push)
@@ -1702,6 +1710,7 @@ References to references will be treated as references to the referenced symbol"
     (forward-line)))
 
 (defvar rtags-find-file-history nil)
+;;;###autoload
 (defun rtags-find-file (&optional prefix tagname)
   (interactive "P")
   (rtags-location-stack-push)
@@ -1758,11 +1767,13 @@ References to references will be treated as references to the referenced symbol"
                (shrink-window-if-larger-than-buffer)
                (rtags-mode))))))
 
+;;;###autoload
 (defun rtags-show-rtags-buffer ()
   (interactive)
   (if (get-buffer rtags-buffer-name)
       (display-buffer rtags-buffer-name)))
 
+;;;###autoload
 (defun rtags-fixit (&optional ediff buffer)
   (interactive "P")
   (save-some-buffers)
@@ -1838,6 +1849,7 @@ References to references will be treated as references to the referenced symbol"
         (list line1 col1 line2 col2))))
 
 (defvar rtags-other-window-window nil)
+;;;###autoload
 (defun rtags-remove-other-window ()
   (interactive)
   (let ((ret ""))
@@ -1871,6 +1883,7 @@ References to references will be treated as references to the referenced symbol"
     (error (message "Got error in rtags-update-current-project")))
   t)
 
+;;;###autoload
 (defun rtags-show-target-in-other-window (&optional dest-window center-window
                                                     try-declaration-first)
   "DEST-WINDOW : destination window. Can be nil; in this case the current window is split
@@ -1973,6 +1986,7 @@ definition."
        (<= start (window-end))
        (<= end (window-end))))
 
+;;;###autoload
 (defun rtags-toggle-file-suspended()
   (interactive)
   (let ((buffer (buffer-file-name)))
@@ -1983,6 +1997,7 @@ definition."
               (message (buffer-substring-no-properties (point-min) (1- (point-max))))
             (message (buffer-string)))))))
 
+;;;###autoload
 (defun rtags-clear-suspended-files()
   (interactive)
   (let ((buffer (buffer-file-name)))
@@ -1993,6 +2008,7 @@ definition."
               (message (buffer-substring-no-properties (point-min) (1- (point-max))))
             (message (buffer-string)))))))
 
+;;;###autoload
 (defun rtags-list-suspended-files()
   (interactive)
   (let ((buffer (buffer-file-name)))
@@ -2039,12 +2055,14 @@ definition."
     (setq rtags-process nil)
     (kill-buffer "*rdm*")))
 
+;;;###autoload
 (defun rtags-restart-process ()
   (interactive)
   "Restart the rtags process (rdm)."
   (rtags-cancel-process)
   (rtags-start-process-maybe))
 
+;;;###autoload
 (defun rtags-start-process-maybe ()
   "Launch the rtags process (rdm) if it's not already started."
   (interactive)
@@ -2156,6 +2174,7 @@ BUFFER : the buffer to be checked and reparsed, if it's nil, use current buffer"
         (rtags-call-rc :path file "-x" file)))))
 
 (defvar rtags-completions-timer nil)
+;;;###autoload
 (defun rtags-update-completions-timer ()
   (interactive)
   (if rtags-completions-timer
@@ -2170,6 +2189,7 @@ BUFFER : the buffer to be checked and reparsed, if it's nil, use current buffer"
 ;; returns t if completions are good, 1 if completions are being
 ;; updated and nil if completion-point is invalid or something like
 ;; that
+;;;###autoload
 (defun rtags-update-completions (&optional force)
   (interactive)
   (if (or (eq major-mode 'c++-mode)
@@ -2233,6 +2253,7 @@ Return nil if it can't get any info about the item."
           )))))
 
 
+;;;###autoload
 (defun rtags-display-summary ()
   "Display a short text describing the item at point (see rtags-get-summary-text for
 details).
