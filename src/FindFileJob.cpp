@@ -63,6 +63,9 @@ int FindFileJob::execute()
     if (absolutePath)
         out.append(srcRoot);
     const FilesMap& dirs = proj->files();
+    if (dirs.isEmpty())
+        proj->fileManager->reload(FileManager::Synchronous);
+
     FilesMap::const_iterator dirit = dirs.begin();
     bool foundExact = false;
     const int patternSize = mPattern.size();
