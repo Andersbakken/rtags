@@ -110,8 +110,6 @@ private:
     Location createLocation(const Path &file, unsigned int line, unsigned int col, bool *blocked = 0);
     String addNamePermutations(const CXCursor &cursor, const Location &location, String typeOverride);
 
-    CXCursor resolveAutoTypeRef(const CXCursor &cursor) const;
-
     bool handleCursor(const CXCursor &cursor, CXCursorKind kind, const Location &location);
     std::shared_ptr<CursorInfo> handleReference(const CXCursor &cursor, CXCursorKind kind,
                                                 const Location &loc, const CXCursor &reference,

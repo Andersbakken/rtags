@@ -167,6 +167,83 @@ void reparseTranslationUnit(CXTranslationUnit &unit, CXUnsavedFile *unsaved, int
     }
 }
 
+struct ResolveAutoTypeRefUserData
+{
+    CXCursor ref;
+    int index;
+    Set<String> *seen;
+    // List<CXCursorKind> chain;
+};
+
+static CXChildVisitResult resolveAutoTypeRefVisitor(CXCursor cursor, CXCursor, CXClientData data)
+{
+    ResolveAutoTypeRefUserData *userData = reinterpret_cast<ResolveAutoTypeRefUserData*>(data);
+    const CXCursorKind kind = clang_getCursorKind(cursor);
+    const String usr = RTags::eatString(clang_getCursorUSR(cursor));
+    if (!userData->seen->insert(usr)) {
+        return CXChildVisit_Break;
+    }
+    // userData->chain.append(kind);
+    // error() << "Got here" << cursor << userData->chain;
+    switch (kind) {
+    case CXCursor_TypeRef:
+    case CXCursor_TemplateRef:
+        // error() << "Found typeRef" << cursor;
+        userData->ref = cursor;
+        return CXChildVisit_Break;
+    case CXCursor_DeclRefExpr:
+    case CXCursor_UnexposedExpr: {
+        CXCursor ref = clang_getCursorReferenced(cursor);
+        // error() << "got unexposed expr ref" << ref;
+        switch (clang_getCursorKind(ref)) {
+        case CXCursor_VarDecl:
+        case CXCursor_FunctionDecl:
+        case CXCursor_CXXMethod: {
+            ResolveAutoTypeRefUserData u = { clang_getNullCursor(), 0, userData->seen }; //, List<CXCursorKind>() };
+            clang_visitChildren(ref, resolveAutoTypeRefVisitor, &u);
+            // error() << "Visited for typeRef" << u.ref
+            //         << clang_isInvalid(clang_getCursorKind(u.ref))
+            //         << u.chain;
+            if (!clang_equalCursors(u.ref, clang_getNullCursor())) {
+                userData->ref = u.ref;
+                return CXChildVisit_Break;
+            }
+            if (userData->index + u.index > 10)
+                return CXChildVisit_Break;
+            break; }
+        default:
+            break;
+        }
+        break; }
+    case CXCursor_ParmDecl:
+        // nothing to find here
+        return CXChildVisit_Break;
+    default:
+        break;
+    }
+    return CXChildVisit_Recurse;
+}
+
+CXCursor resolveAutoTypeRef(const CXCursor &cursor)
+{
+    assert(clang_getCursorKind(cursor) == CXCursor_VarDecl);
+    Set<String> seen;
+    ResolveAutoTypeRefUserData userData = { clang_getNullCursor(), 0, &seen }; //, List<CXCursorKind>() };
+    clang_visitChildren(cursor, resolveAutoTypeRefVisitor, &userData);
+    if (userData.index > 1) {
+        if (!clang_equalCursors(userData.ref, clang_getNullCursor())) {
+            // error() << "Fixed cursor for" << cursor << userData.ref;
+            // << userData.chain;
+            return userData.ref;
+            // } else {
+            //     error() << "Couldn't fix cursor for" << cursor << userData.ref;
+            //             // << userData.chain;
+        }
+    }
+    // error() << "Need to find type for" << cursor << child;
+    return clang_getNullCursor();
+}
+
 static CXChildVisitResult findFirstChildVisitor(CXCursor cursor, CXCursor, CXClientData data)
 {
     *reinterpret_cast<CXCursor*>(data) = cursor;
