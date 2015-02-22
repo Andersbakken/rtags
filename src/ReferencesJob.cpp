@@ -32,6 +32,7 @@ ReferencesJob::ReferencesJob(const String &sym, const std::shared_ptr<QueryMessa
 
 int ReferencesJob::execute()
 {
+    const bool rename = queryFlags() & QueryMessage::Rename;
     std::shared_ptr<Project> proj = project();
     Location startLocation;
     Map<Location, std::pair<bool, uint16_t> > references;
@@ -73,6 +74,10 @@ int ReferencesJob::execute()
                     }
 
                     for (SymbolMap::const_iterator a = all.begin(); a != all.end(); ++a) {
+                        if (rename && a->second->kind == CXCursor_MacroExpansion && cursorInfo->kind != CXCursor_MacroDefinition) {
+                            // see issue #281
+                            continue;
+                        }
                         if (!classRename) {
                             references[a->first] = std::make_pair(a->second->isDefinition(), a->second->kind);
                         } else {
@@ -123,14 +128,11 @@ int ReferencesJob::execute()
             }
         }
     }
-    enum { Rename = (QueryMessage::ReverseSort|QueryMessage::AllReferences) };
-    if ((queryFlags() & Rename) == Rename) {
+    if (rename) {
         if (!references.isEmpty()) {
-            Map<Location, std::pair<bool, uint16_t> >::const_iterator it = references.end();
-            do {
-                --it;
-                write(it->first);
-            } while (it != references.begin());
+            for (const auto &it : references) {
+                write(it.first);
+            }
             return 0;
         }
     } else {
