@@ -1395,9 +1395,12 @@ void ClangIndexer::addFileSymbol(uint32_t file)
 {
     const Location loc(file, 1, 1);
     const Path path = Location::path(file);
-    unit(loc.fileId())->symbolNames[path].insert(loc);
+    auto ref = unit(loc.fileId());
+    ref->symbolNames[path].insert(loc);
     const char *fn = path.fileName();
-    unit(loc.fileId())->symbolNames[fn].insert(loc);
+    ref->symbolNames[fn].insert(loc);
+    Symbol &sym = ref->symbols[loc];
+    sym.location = loc;
 }
 
 void ClangIndexer::inclusionVisitor(CXFile includedFile,
