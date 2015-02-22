@@ -947,7 +947,6 @@ bool ClangIndexer::handleCursor(const CXCursor &cursor, CXCursorKind kind, const
     if (!c.isNull())
         return true;
 
-
     // if (mLogFile) {
     //     String out;
     //     Log(&out) << cursor << a;
@@ -990,7 +989,7 @@ bool ClangIndexer::handleCursor(const CXCursor &cursor, CXCursorKind kind, const
     } else {
         String typeOverride;
         if (kind == CXCursor_VarDecl) {
-            const CXCursor typeRef = resolveAutoTypeRef(cursor);
+            const CXCursor typeRef = RTags::resolveAutoTypeRef(cursor);
             if (!clang_equalCursors(typeRef, nullCursor)) {
                 // const CXSourceRange range = clang_Cursor_getSpellingNameRange(mLastCursor, 0, 0);
                 // error() << "Found" << typeRef << "for" << cursor << mLastCursor
@@ -1426,88 +1425,11 @@ void ClangIndexer::inclusionVisitor(CXFile includedFile,
     }
 }
 
-struct ResolveAutoTypeRefUserData
-{
-    CXCursor ref;
-    int index;
-    Set<Location> *seen;
-    ClangIndexer *indexer;
-    // List<CXCursorKind> chain;
-};
-
-CXChildVisitResult ClangIndexer::resolveAutoTypeRefVisitor(CXCursor cursor, CXCursor, CXClientData data)
-{
-    ResolveAutoTypeRefUserData *userData = reinterpret_cast<ResolveAutoTypeRefUserData*>(data);
-    const Location loc = userData->indexer->createLocation(cursor);
-    if (!userData->seen->insert(loc)) {
-        return CXChildVisit_Break;
-    }
-    // userData->chain.append(kind);
-    // error() << "Got here" << cursor << userData->chain;
-    const CXCursorKind kind = clang_getCursorKind(cursor);
-    switch (kind) {
-    case CXCursor_TypeRef:
-    case CXCursor_TemplateRef:
-        // error() << "Found typeRef" << cursor;
-        userData->ref = cursor;
-        return CXChildVisit_Break;
-    case CXCursor_DeclRefExpr:
-    case CXCursor_UnexposedExpr: {
-        CXCursor ref = clang_getCursorReferenced(cursor);
-        // error() << "got unexposed expr ref" << ref;
-        switch (clang_getCursorKind(ref)) {
-        case CXCursor_VarDecl:
-        case CXCursor_FunctionDecl:
-        case CXCursor_CXXMethod: {
-            ResolveAutoTypeRefUserData u = { nullCursor, 0, userData->seen, userData->indexer }; //, List<CXCursorKind>() };
-            clang_visitChildren(ref, resolveAutoTypeRefVisitor, &u);
-            // error() << "Visited for typeRef" << u.ref
-            //         << clang_isInvalid(clang_getCursorKind(u.ref))
-            //         << u.chain;
-            if (!clang_equalCursors(u.ref, nullCursor)) {
-                userData->ref = u.ref;
-                return CXChildVisit_Break;
-            }
-            if (userData->index + u.index > 10)
-                return CXChildVisit_Break;
-            break; }
-        default:
-            break;
-        }
-        break; }
-    case CXCursor_ParmDecl:
-        // nothing to find here
-        return CXChildVisit_Break;
-    default:
-        break;
-    }
-    return CXChildVisit_Recurse;
-}
-
-CXCursor ClangIndexer::resolveAutoTypeRef(const CXCursor &cursor)
-{
-    assert(clang_getCursorKind(cursor) == CXCursor_VarDecl);
-    Set<Location> seen;
-    ResolveAutoTypeRefUserData userData = { nullCursor, 0, &seen, this }; //, List<CXCursorKind>() };
-    clang_visitChildren(cursor, resolveAutoTypeRefVisitor, &userData);
-    if (userData.index > 1) {
-        if (!clang_equalCursors(userData.ref, nullCursor)) {
-            // error() << "Fixed cursor for" << cursor << userData.ref;
-            // << userData.chain;
-            return userData.ref;
-            // } else {
-            //     error() << "Couldn't fix cursor for" << cursor << userData.ref;
-            //             // << userData.chain;
-        }
-    }
-    // error() << "Need to find type for" << cursor << child;
-    return nullCursor;
-}
 
 int ClangIndexer::symbolLength(CXCursorKind kind, const CXCursor &cursor)
 {
     if (kind == CXCursor_VarDecl) {
-        const CXCursor typeRef = resolveAutoTypeRef(cursor);
+        const CXCursor typeRef = RTags::resolveAutoTypeRef(cursor);
         if (!clang_equalCursors(typeRef, nullCursor)) {
             return 4;
         }

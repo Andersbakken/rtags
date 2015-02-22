@@ -65,6 +65,7 @@ void parseTranslationUnit(const Path &sourceFile, const List<String> &args,
                           unsigned int translationUnitFlags = 0,
                           String *clangLine = 0);
 void reparseTranslationUnit(CXTranslationUnit &unit, CXUnsavedFile *unsaved, int unsavedCount);
+CXCursor resolveAutoTypeRef(const CXCursor &cursor);
 
 struct Filter
 {

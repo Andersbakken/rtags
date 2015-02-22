@@ -111,8 +111,6 @@ private:
     Location createLocation(const Path &file, unsigned int line, unsigned int col, bool *blocked = 0);
     String addNamePermutations(const CXCursor &cursor, const Location &location, String typeOverride);
 
-    CXCursor resolveAutoTypeRef(const CXCursor &cursor);
-
     bool handleCursor(const CXCursor &cursor, CXCursorKind kind,
                       const Location &location, Symbol **cursorPtr = 0);
     bool handleReference(const CXCursor &cursor, CXCursorKind kind,
