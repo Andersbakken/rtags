@@ -17,6 +17,7 @@
 #include "Server.h"
 #include <rct/StopWatch.h>
 #include "Project.h"
+#include <rct/Hash.h>
 #include <iostream>
 #include <zlib.h>
 #include "Token.h"
@@ -169,16 +170,16 @@ struct ResolveAutoTypeRefUserData
 {
     CXCursor ref;
     int index;
-    Set<String> *seen;
+    Hash<CXCursor, bool> *seen;
     // List<CXCursorKind> chain;
 };
 
 static CXChildVisitResult resolveAutoTypeRefVisitor(CXCursor cursor, CXCursor, CXClientData data)
 {
     ResolveAutoTypeRefUserData *userData = reinterpret_cast<ResolveAutoTypeRefUserData*>(data);
+    // error() << "Got cursor" << cursor << userData->index;
     const CXCursorKind kind = clang_getCursorKind(cursor);
-    const String usr = RTags::eatString(clang_getCursorUSR(cursor));
-    if (!userData->seen->insert(usr)) {
+    if (!userData->seen->insert(cursor, true)) {
         return CXChildVisit_Break;
     }
     // userData->chain.append(kind);
@@ -224,8 +225,9 @@ static CXChildVisitResult resolveAutoTypeRefVisitor(CXCursor cursor, CXCursor, C
 
 CXCursor resolveAutoTypeRef(const CXCursor &cursor)
 {
+    error() << "resolving" << cursor;
     assert(clang_getCursorKind(cursor) == CXCursor_VarDecl);
-    Set<String> seen;
+    Hash<CXCursor, bool> seen;
     ResolveAutoTypeRefUserData userData = { clang_getNullCursor(), 0, &seen }; //, List<CXCursorKind>() };
     clang_visitChildren(cursor, resolveAutoTypeRefVisitor, &userData);
     if (userData.index > 1) {
@@ -238,7 +240,7 @@ CXCursor resolveAutoTypeRef(const CXCursor &cursor)
             //             // << userData.chain;
         }
     }
-    // error() << "Need to find type for" << cursor << child;
+    // error() << "Need to find type for" << cursor;
     return clang_getNullCursor();
 }
 

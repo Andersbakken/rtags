@@ -53,6 +53,12 @@ CXChildVisitResult DumpThread::visitor(CXCursor cursor, CXCursor, CXClientData u
         }
         message += RTags::cursorToString(cursor, RTags::AllCursorToStringFlags);
         message.append(" " + RTags::typeName(cursor) + " ");
+        if (clang_getCursorKind(cursor) == CXCursor_VarDecl) {
+            const CXCursor autoResolved = RTags::resolveAutoTypeRef(cursor);
+            if (!clang_equalCursors(autoResolved, nullCursor)) {
+                message += " auto resolves to " + RTags::cursorToString(autoResolved, RTags::AllCursorToStringFlags);
+            }
+        }
         CXCursor ref = clang_getCursorReferenced(cursor);
         if (clang_equalCursors(ref, cursor)) {
             message.append("refs self");

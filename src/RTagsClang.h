@@ -46,6 +46,14 @@ inline bool operator!=(CXCursorKind l, const CXCursor &r)
 inline Log operator<<(Log dbg, CXCursor cursor);
 inline Log operator<<(Log dbg, CXCursorKind kind);
 
+static inline bool operator==(const CXCursor &l, const CXCursor &r) { return clang_equalCursors(l, r); };
+namespace std {
+template <> struct hash<CXCursor> : public unary_function<CXCursor, size_t>
+{
+    size_t operator()(const CXCursor &value) const { return clang_hashCursor(value); }
+};
+}
+
 namespace RTags {
 
 String eatString(CXString str);
