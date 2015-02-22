@@ -240,7 +240,7 @@ CXCursor resolveAutoTypeRef(const CXCursor &cursor)
             //             // << userData.chain;
         }
     }
-    // error() << "Need to find type for" << cursor << child;
+    // error() << "Need to find type for" << cursor;
     return clang_getNullCursor();
 }
 
