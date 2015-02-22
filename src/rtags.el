@@ -724,9 +724,7 @@ return t if rtags is allowed to modify this file"
 (defun rtags-goto-line-col (line column)
   (goto-char (point-min))
   (forward-line (1- line))
-  (beginning-of-line)
-  (if (>= (- (point-at-eol) (point)) column)
-      (forward-char (1- column))))
+  (move-to-column (1- column)))
 
 (defun rtags-goto-location (location &optional nobookmark other-window)
   "Go to a location passed in. It can be either: file,12 or file:13:14 or plain file"
