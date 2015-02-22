@@ -429,7 +429,7 @@ return t if rtags is allowed to modify this file"
 (defun rtags-combine-strings (list)
   (let (ret)
     (while list
-      (setq ret (if ret (car list) (concat ret " " (car list))))
+      (setq ret (or (and ret (concat ret " " (car list))) (car list)))
       (setq list (cdr list)))
     ret))
 
@@ -938,70 +938,53 @@ References to references will be treated as references to the referenced symbol"
 (defun rtags-rename-symbol ()
   (interactive)
   (save-some-buffers) ;; it all kinda falls apart when buffers are unsaved
-  (let (location len file pos destructor replacewith prev (modifications 0) (filesopened 0) replacements buffers)
+  (let* ((prev (let ((token (rtags-current-token)))
+                 (cond ((string= token "auto") nil)
+                       ((string-match "^~" token) (substring token 1))
+                       (token)
+                       (t (error "Not sure what to rename")))))
+         (len (and prev (length prev)))
+         (file (buffer-file-name))
+         (replacewith (read-from-minibuffer (if len (format "Replace '%s' with: " prev) "Replace with: ")))
+         (modifications 0)
+         (filesopened 0)
+         (location (rtags-current-location))
+         replacements)
     (save-excursion
-      (if (looking-at "[0-9A-Za-z_~#]")
-          (progn
-            (while (and (> (point) (point-min)) (looking-at "[0-9A-Za-z_~#]"))
-              (backward-char))
-            (if (not (looking-at "[0-9A-Za-z_~#]"))
-                (forward-char))
-            (setq file (buffer-file-name (current-buffer)))
-            (setq pos (point))
-            (if (looking-at "~")
-                (progn
-                  (setq pos (+ pos 1))
-                  (setq destructor t)))
-            (while (looking-at "[0-9A-Za-z_~#]")
-              (forward-char))
-            (setq prev (buffer-substring-no-properties pos (point)))
-            (if (string= prev "auto")
-                (setq prev nil)
-              (setq len (- (point) pos)))
-            (setq replacewith (read-from-minibuffer (if prev (format "Replace '%s' with: " prev) "Replace with: ")))
-            (unless (equal replacewith "")
-              (if destructor
-                  (decf pos))
-              (goto-char pos)
-              (setq location (rtags-current-location))
-              (setq pos (rtags-offset pos))
-              (with-temp-buffer
-                (rtags-call-rc :path file "-e" "-O" "-N" "-r" location)
-                ;; (message "Got renames %s" (buffer-string))
-                (dolist (line (split-string (buffer-string) "\n" t))
-                  (if (string-match "^\\(.*\\):\\([0-9]+\\):\\([0-9]+\\):$" line)
-                      (add-to-list 'replacements (cons (match-string-no-properties 1 line)
-                                                       (cons (string-to-number (match-string-no-properties 2 line))
-                                                             (string-to-number (match-string-no-properties 3 line)))) t))))
-              ;; (message "Got %d replacements" (length replacements))
-
-              (dolist (value replacements)
-                (let ((buf (find-buffer-visiting (car value))))
-                  (unless buf
-                    (progn
-                      (incf filesopened)
-                      (setq buf (find-file-noselect (car value)))))
-                  (when buf
-                    (set-buffer buf)
-                    (add-to-list 'buffers buf)
-                    (when (run-hook-with-args-until-failure 'rtags-edit-hook)
-                      (incf modifications)
-                      (rtags-goto-line-col (cadr value) (cddr value))
-                      (when (cond ((looking-at "~") (forward-char) t)
-                                  ((looking-at "auto ") nil)
-                                  (t))
-
-                        ;; (message "About to replace %s with %s at %d in %s"
-                        ;;          (buffer-substring-no-properties (point) (+ (point) len)) replacewith (point) (car value))
-                        (unless len ;; renaming auto, take the length from the first symbol that should be
-                          (setq len (length (thing-at-point 'symbol))))
-
-                        (delete-char len)
-                        (insert replacewith))))))))))
-    (dolist (value buffers)
-      (with-current-buffer value
-        (basic-save-buffer)))
-    (message (format "Opened %d new files and made %d modifications" filesopened modifications))))
+      (if (equal replacewith "")
+          (error "You have to replace with something"))
+      (with-temp-buffer
+        (rtags-call-rc :path file "-e" "--rename" "-N" "-r" location)
+        (message "Got renames %s" (buffer-string))
+        (dolist (line (split-string (buffer-string) "\n" t))
+          (if (string-match "^\\(.*\\):\\([0-9]+\\):\\([0-9]+\\):$" line)
+              (let* ((filename (match-string-no-properties 1 line))
+                     (buf (or (find-buffer-visiting filename)
+                              (and (incf filesopened) (find-file-noselect filename)))))
+                (unless buf
+                  (error "Can't open file %s" (car value)))
+                (with-current-buffer buf
+                  (save-excursion
+                    (rtags-goto-line-col (string-to-number (match-string-no-properties 2 line))
+                                         (string-to-number (match-string-no-properties 3 line)))
+                    (when (cond ((looking-at (concat "~" prev)) (forward-char) t)
+                                ((looking-at "auto ") nil)
+                                ((looking-at prev))
+                                (t (error "Rename gone awry. Refusing to rename %s (%s) to %s"
+                                          (rtags-current-token)
+                                          (rtags-current-location)
+                                          replacewith)))
+                      (add-to-list 'replacements (cons (current-buffer) (point))))))))))
+      (dolist (value replacements)
+        (with-current-buffer (car value)
+          (when (run-hook-with-args-until-failure 'rtags-edit-hook)
+            (incf modifications)
+            (goto-char (cdr value))
+            ;; (message "about to insert at %s" (rtags-current-location))
+            (delete-char (or len (length (rtags-current-token))))
+            (insert replacewith)
+            (basic-save-buffer))))
+      (message (format "Opened %d new files and made %d modifications" filesopened modifications)))))
 
 ;;;###autoload
 (defun rtags-find-symbol (&optional prefix)
