@@ -1181,7 +1181,8 @@ void Server::removeProject(const std::shared_ptr<QueryMessage> &query, Connectio
             conn->write<128>("%s project: %s", unload ? "Unloaded" : "Deleted", path.constData());
             if (!unload) {
                 RTags::encodePath(path);
-                Path::rm(mOptions.dataDir + path);
+                Rct::removeDirectory(mOptions.dataDir + path);
+                warning() << "Deleted" << (mOptions.dataDir + path);
                 mProjects.erase(cur);
             }
         }
