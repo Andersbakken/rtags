@@ -41,20 +41,7 @@ class Project : public std::enable_shared_from_this<Project>
 public:
     Project(const Path &path);
     ~Project();
-    enum State {
-        Unloaded,
-        Inited,
-        Loaded
-    };
-    State state() const { return mState; }
-    void init();
-
-    enum FileManagerMode {
-        FileManager_Asynchronous,
-        FileManager_Synchronous
-    };
-    bool load(FileManagerMode mode = FileManager_Asynchronous);
-    void unload();
+    bool init();
 
     std::shared_ptr<FileManager> fileManager;
 
@@ -288,7 +275,6 @@ private:
 
     const Path mPath, mSourceFilePathBase;
     Path mProjectFilePath;
-    State mState;
 
     Files mFiles;
 

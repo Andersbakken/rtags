@@ -101,7 +101,6 @@ static void usage(FILE *f)
             "  --start-suspended|-Q                       Start out suspended (no reindexing enabled).\n"
             "  --suspend-rp-on-crash|-q [arg]             Suspend rp in SIGSEGV handler (default " DEFAULT_SUSPEND_RP ").\n"
             "  --thread-stack-size|-k [arg]               Set stack size for threadpool to this (default %zu).\n"
-            "  --unload-timer|-u [arg]                    Number of minutes to wait before unloading non-current projects (disabled by default).\n"
             "  --verbose|-v                               Change verbosity, multiple -v's are allowed.\n"
             "  --watch-system-paths|-w                    Watch system paths for changes.\n"
             "  --block-argument|-G [arg]                  Block this argument from being passed to clang. E.g. rdm --block-argument -fno-inline\n"
@@ -164,7 +163,6 @@ int main(int argc, char** argv)
         { "no-spell-checking", no_argument, 0, 'l' },
         { "large-by-value-copy", required_argument, 0, 'r' },
         { "disallow-multiple-sources", no_argument, 0, 'm' },
-        { "unload-timer", required_argument, 0, 'u' },
         { "no-startup-project", no_argument, 0, 'o' },
         { "no-no-unknown-warnings-option", no_argument, 0, 'Y' },
         { "ignore-compiler", required_argument, 0, 'b' },
@@ -312,7 +310,6 @@ int main(int argc, char** argv)
 // #endif
     serverOpts.excludeFilters = String(EXCLUDEFILTER_DEFAULT).split(';');
     serverOpts.dataDir = String::format<128>("%s.rtags-file", Path::home().constData());
-    serverOpts.unloadTimer = 0;
 
     const char *logFile = 0;
     unsigned int logFlags = 0;
@@ -501,14 +498,6 @@ int main(int argc, char** argv)
         case 'x':
             sigHandler = false;
             break;
-        case 'u': {
-            bool ok;
-            serverOpts.unloadTimer = static_cast<int>(String(optarg).toULongLong(&ok));
-            if (!ok) {
-                fprintf(stderr, "Invalid argument to --unload-timer %s\n", optarg);
-                return 1;
-            }
-            break; }
         case 'K':
             serverOpts.maxCrashCount = atoi(optarg);
             if (serverOpts.maxCrashCount <= 0) {

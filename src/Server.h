@@ -73,7 +73,7 @@ public:
     };
     struct Options {
         Options()
-            : options(0), jobCount(0), lowPriorityJobCount(0), unloadTimer(0),
+            : options(0), jobCount(0), lowPriorityJobCount(0),
               rpVisitFileTimeout(0), rpIndexerMessageTimeout(0), rpConnectTimeout(0),
               rpNiceValue(0), threadStackSize(0), maxCrashCount(0),
               completionCacheSize(0), testTimeout(60 * 1000 * 5),
@@ -81,7 +81,7 @@ public:
         {}
         Path socketFile, dataDir, argTransform;
         unsigned int options;
-        int jobCount, lowPriorityJobCount, unloadTimer, rpVisitFileTimeout,
+        int jobCount, lowPriorityJobCount, rpVisitFileTimeout,
             rpIndexerMessageTimeout, rpConnectTimeout, rpNiceValue,
             threadStackSize, maxCrashCount, completionCacheSize,
             testTimeout, maxFileMapScopeCacheSize;
@@ -114,8 +114,7 @@ private:
     bool index(const String &arguments, const Path &pwd,
                const Path &projectRootOverride, unsigned int sourceFlags = 0);
     void onNewConnection(SocketServer *server);
-    void setCurrentProject(const std::shared_ptr<Project> &project, unsigned int queryFlags = 0);
-    void onUnload();
+    void setCurrentProject(const std::shared_ptr<Project> &project);
     void onNewMessage(const std::shared_ptr<Message> &message, Connection *conn);
     void clearProjects();
     void handleIndexMessage(const std::shared_ptr<IndexMessage> &message, Connection *conn);
@@ -180,8 +179,6 @@ private:
     bool mVerbose;
 
     uint32_t mLastFileId;
-
-    Timer mUnloadTimer;
 
     std::shared_ptr<JobScheduler> mJobScheduler;
 

@@ -114,7 +114,6 @@ public:
         SynchronousCompletions,
         Timeout,
         UnescapeCompileCommands,
-        UnloadProject,
         UnsavedFile,
         Verbose,
         WildcardSymbolNames,

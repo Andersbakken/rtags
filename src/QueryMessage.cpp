@@ -93,8 +93,6 @@ QueryMessage::Flag QueryMessage::flagFromString(const String &string)
         return DeclarationOnly;
     } else if (string == "containing-function") {
         return ContainingFunction;
-    } else if (string == "wait-for-load-project") {
-        return WaitForLoadProject;
     } else if (string == "cursor-kind") {
         return CursorKind;
     } else if (string == "display-name") {

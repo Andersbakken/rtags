@@ -63,7 +63,6 @@ public:
         Sources,
         Status,
         Suspend,
-        UnloadProject,
         GenerateTest
     };
 
@@ -87,7 +86,7 @@ public:
         SymbolInfoExcludeReferences = 0x00010000,
         DeclarationOnly = 0x00020000,
         ContainingFunction = 0x00040000,
-        WaitForLoadProject = 0x00080000,
+        AllTargets = 0x00080000,
         CursorKind = 0x00100000,
         DisplayName = 0x00200000,
         CompilationFlagsOnly = 0x00400000,
@@ -98,8 +97,7 @@ public:
         NoSortReferencesByInput = 0x08000000,
         HasLocation = 0x10000000,
         WildcardSymbolNames = 0x20000000,
-        NoColor = 0x40000000,
-        AllTargets = 0x80000000
+        NoColor = 0x40000000
     };
 
     QueryMessage(Type type = Invalid);
@@ -146,7 +144,6 @@ public:
         case DeleteProject:
         case Reindex:
         case RemoveFile:
-        case UnloadProject:
         case Sources:
             mFlags |= MatchRegexp;
             break;

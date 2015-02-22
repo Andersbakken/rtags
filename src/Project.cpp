@@ -183,13 +183,12 @@ public:
 
 Project::Project(const Path &path)
     : mPath(path), mSourceFilePathBase(RTags::encodeSourceFilePath(Server::instance()->options().dataDir, path)),
-      mState(Unloaded), mJobCounter(0), mJobsStarted(0)
+      mJobCounter(0), mJobsStarted(0)
 {
     Path srcPath = mPath;
     RTags::encodePath(srcPath);
     const Server::Options &options = Server::instance()->options();
     mProjectFilePath = options.dataDir + srcPath + "/project";
-
 
     if (!(options.options & Server::NoFileSystemWatch)) {
         mWatcher.modified().connect(std::bind(&Project::onFileModifiedOrRemoved, this, std::placeholders::_1));
@@ -204,33 +203,18 @@ Project::Project(const Path &path)
 
 Project::~Project()
 {
+    for (const auto &job : mActiveJobs) {
+        assert(job.second);
+        Server::instance()->jobScheduler()->abort(job.second);
+    }
+
     assert(EventLoop::isMainThread());
     assert(mActiveJobs.isEmpty());
+    mDirtyTimer.stop();
 }
 
-void Project::init()
+bool Project::init()
 {
-    assert(mState == Unloaded);
-    mState = Inited;
-    fileManager.reset(new FileManager);
-    fileManager->init(shared_from_this(), FileManager::Asynchronous);
-}
-
-bool Project::load(FileManagerMode mode)
-{
-    switch (mState) {
-    case Unloaded:
-        fileManager.reset(new FileManager);
-        fileManager->init(shared_from_this(),
-                          mode == FileManager_Asynchronous ? FileManager::Asynchronous : FileManager::Synchronous);
-        // duplicated from init
-        break;
-    case Inited:
-        break;
-    case Loaded:
-        return false;
-    }
-    mState = Loaded;
     DataFile file(mProjectFilePath);
     if (!file.open(DataFile::Read)) {
         if (!file.error().isEmpty())
@@ -238,6 +222,9 @@ bool Project::load(FileManagerMode mode)
         Path::rm(mProjectFilePath);
         return false;
     }
+
+    fileManager.reset(new FileManager);
+    fileManager->init(shared_from_this(), FileManager::Asynchronous);
 
     file >> mSources >> mVisitedFiles >> mDependencies >> mDeclarations;
 
@@ -300,27 +287,6 @@ bool Project::load(FileManagerMode mode)
     return true;
 }
 
-void Project::unload()
-{
-    if (mState == Unloaded)
-        return;
-    save(); // we always save since sources very likely had their Enabledness changed
-    for (const auto &job : mActiveJobs) {
-        assert(job.second);
-        Server::instance()->jobScheduler()->abort(job.second);
-    }
-
-    mActiveJobs.clear();
-    fileManager.reset();
-
-    mFiles.clear();
-    mSources.clear();
-    mVisitedFiles.clear();
-    mDependencies.clear();
-    mState = Unloaded;
-    mDirtyTimer.stop();
-}
-
 bool Project::match(const Match &p, bool *indexed) const
 {
     Path paths[] = { p.pattern(), p.pattern() };
@@ -348,9 +314,6 @@ bool Project::match(const Match &p, bool *indexed) const
 
 void Project::onJobFinished(const std::shared_ptr<IndexerJob> &job, const std::shared_ptr<IndexData> &indexData)
 {
-    if (mState != Loaded) {
-        return;
-    }
     assert(indexData);
     std::shared_ptr<IndexerJob> restart;
     const uint32_t fileId = indexData->fileId();

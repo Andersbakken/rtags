@@ -54,7 +54,6 @@ struct Option opts[] = {
     { RClient::Clear, "clear", 'C', no_argument, "Clear projects." },
     { RClient::Project, "project", 'w', optional_argument, "With arg, select project matching that if unique, otherwise list all projects." },
     { RClient::DeleteProject, "delete-project", 'W', required_argument, "Delete all projects matching regexp." },
-    { RClient::UnloadProject, "unload", 'u', required_argument, "Unload project(s) matching argument." },
     { RClient::ReloadProjects, "reload-projects", 'z', no_argument, "Reload projects from projects file." },
     { RClient::JobCount, "jobcount", 'j', optional_argument, "Set or query current job count. (Prefix with l to set low-priority-job-count)." },
 
@@ -771,9 +770,6 @@ bool RClient::parse(int &argc, char **argv)
         case SendDiagnostics:
             addQuery(QueryMessage::SendDiagnostics, optarg);
             break;
-        case UnloadProject:
-            addQuery(QueryMessage::UnloadProject, optarg);
-            break;
         case FindProjectRoot: {
             const Path p = Path::resolved(optarg);
             printf("findProjectRoot [%s] => [%s]\n", p.constData(),
@@ -807,7 +803,7 @@ bool RClient::parse(int &argc, char **argv)
             case CheckReindex: type = QueryMessage::CheckReindex; break;
             case Reindex: type = QueryMessage::Reindex; break;
             case Project: type = QueryMessage::Project; break;
-            case FindFile: type = QueryMessage::FindFile; extraQueryFlags = QueryMessage::WaitForLoadProject; break;
+            case FindFile: type = QueryMessage::FindFile; break;
             case Sources: type = QueryMessage::Sources; break;
             case Status: type = QueryMessage::Status; break;
             case ListSymbols: type = QueryMessage::ListSymbols; break;

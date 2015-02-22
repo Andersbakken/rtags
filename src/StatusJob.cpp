@@ -60,7 +60,6 @@ int StatusJob::execute()
             << "dataDir" << opt.dataDir << '\n'
             << "options" << String::format("0x%x\n", opt.options)
             << "jobCount" << opt.jobCount << '\n'
-            << "unloadTimer" << opt.unloadTimer << '\n'
             << "rpVisitFileTimeout" << opt.rpVisitFileTimeout << '\n'
             << "rpIndexerMessageTimeout" << opt.rpIndexerMessageTimeout << '\n'
             << "rpConnectTimeout" << opt.rpConnectTimeout << '\n'
