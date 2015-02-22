@@ -130,8 +130,16 @@ int ReferencesJob::execute()
     }
     if (rename) {
         if (!references.isEmpty()) {
-            for (const auto &it : references) {
-                write(it.first);
+            if (queryFlags() & QueryMessage::ReverseSort) {
+                Map<Location, std::pair<bool, uint16_t> >::const_iterator it = references.end();
+                do {
+                    --it;
+                    write(it->first);
+                } while (it != references.begin());
+            } else {
+                for (const auto &it : references) {
+                    write(it.first);
+                }
             }
             return 0;
         }
