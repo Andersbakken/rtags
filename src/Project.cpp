@@ -205,14 +205,6 @@ Project::~Project()
 
 bool Project::init()
 {
-    DataFile file(mProjectFilePath);
-    if (!file.open(DataFile::Read)) {
-        if (!file.error().isEmpty())
-            error("Restore error %s: %s", mPath.constData(), file.error().constData());
-        Path::rm(mProjectFilePath);
-        return false;
-    }
-
     const Server::Options &options = Server::instance()->options();
     fileManager.reset(new FileManager);
     if (!(options.options & Server::NoFileSystemWatch)) {
@@ -225,6 +217,14 @@ bool Project::init()
     }
     fileManager->init(shared_from_this(), FileManager::Asynchronous);
     mDirtyTimer.timeout().connect(std::bind(&Project::onDirtyTimeout, this, std::placeholders::_1));
+
+    DataFile file(mProjectFilePath);
+    if (!file.open(DataFile::Read)) {
+        if (!file.error().isEmpty())
+            error("Restore error %s: %s", mPath.constData(), file.error().constData());
+        Path::rm(mProjectFilePath);
+        return false;
+    }
 
     file >> mSources >> mVisitedFiles >> mDependencies >> mDeclarations;
 
