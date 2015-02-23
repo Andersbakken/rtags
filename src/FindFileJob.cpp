@@ -62,7 +62,7 @@ int FindFileJob::execute()
     if (absolutePath)
         out.append(srcRoot);
     const Files& dirs = proj->files();
-    if (dirs.isEmpty())
+    if (dirs.isEmpty() && proj && proj->fileManager)
         proj->fileManager->reload(FileManager::Synchronous);
     Files::const_iterator dirit = dirs.begin();
     bool foundExact = false;

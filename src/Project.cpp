@@ -189,17 +189,6 @@ Project::Project(const Path &path)
     RTags::encodePath(srcPath);
     const Server::Options &options = Server::instance()->options();
     mProjectFilePath = options.dataDir + srcPath + "/project";
-
-    fileManager.reset(new FileManager);
-    if (!(options.options & Server::NoFileSystemWatch)) {
-        mWatcher.modified().connect(std::bind(&Project::onFileModifiedOrRemoved, this, std::placeholders::_1));
-        mWatcher.removed().connect(std::bind(&Project::onFileModifiedOrRemoved, this, std::placeholders::_1));
-    }
-    if (!(options.options & Server::NoFileManagerWatch)) {
-        mWatcher.removed().connect(std::bind(&Project::reloadFileManager, this));
-        mWatcher.added().connect(std::bind(&Project::reloadFileManager, this));
-    }
-    mDirtyTimer.timeout().connect(std::bind(&Project::onDirtyTimeout, this, std::placeholders::_1));
 }
 
 Project::~Project()
@@ -224,7 +213,18 @@ bool Project::init()
         return false;
     }
 
+    const Server::Options &options = Server::instance()->options();
+    fileManager.reset(new FileManager);
+    if (!(options.options & Server::NoFileSystemWatch)) {
+        mWatcher.modified().connect(std::bind(&Project::onFileModifiedOrRemoved, this, std::placeholders::_1));
+        mWatcher.removed().connect(std::bind(&Project::onFileModifiedOrRemoved, this, std::placeholders::_1));
+    }
+    if (!(options.options & Server::NoFileManagerWatch)) {
+        mWatcher.removed().connect(std::bind(&Project::reloadFileManager, this));
+        mWatcher.added().connect(std::bind(&Project::reloadFileManager, this));
+    }
     fileManager->init(shared_from_this(), FileManager::Asynchronous);
+    mDirtyTimer.timeout().connect(std::bind(&Project::onDirtyTimeout, this, std::placeholders::_1));
 
     file >> mSources >> mVisitedFiles >> mDependencies >> mDeclarations;
 
