@@ -190,6 +190,7 @@ Project::Project(const Path &path)
     const Server::Options &options = Server::instance()->options();
     mProjectFilePath = options.dataDir + srcPath + "/project";
 
+    fileManager.reset(new FileManager);
     if (!(options.options & Server::NoFileSystemWatch)) {
         mWatcher.modified().connect(std::bind(&Project::onFileModifiedOrRemoved, this, std::placeholders::_1));
         mWatcher.removed().connect(std::bind(&Project::onFileModifiedOrRemoved, this, std::placeholders::_1));
@@ -223,7 +224,6 @@ bool Project::init()
         return false;
     }
 
-    fileManager.reset(new FileManager);
     fileManager->init(shared_from_this(), FileManager::Asynchronous);
 
     file >> mSources >> mVisitedFiles >> mDependencies >> mDeclarations;
@@ -755,6 +755,7 @@ String Project::fixIts(uint32_t fileId) const
 
 void Project::reloadFileManager()
 {
+    assert(fileManager);
     fileManager->reload(FileManager::Asynchronous);
 }
 
