@@ -179,9 +179,11 @@ struct ResolveAutoTypeRefUserData
 static CXChildVisitResult resolveAutoTypeRefVisitor(CXCursor cursor, CXCursor, CXClientData data)
 {
     ResolveAutoTypeRefUserData *userData = reinterpret_cast<ResolveAutoTypeRefUserData*>(data);
+    ++userData->index;
     // error() << "Got cursor" << cursor << userData->index;
     const CXCursorKind kind = clang_getCursorKind(cursor);
     if (!userData->seen->insert(cursor, true)) {
+        // error() << "I've seen" << cursor << "before";
         return CXChildVisit_Break;
     }
     // userData->chain.append(kind);
@@ -189,7 +191,7 @@ static CXChildVisitResult resolveAutoTypeRefVisitor(CXCursor cursor, CXCursor, C
     switch (kind) {
     case CXCursor_TypeRef:
     case CXCursor_TemplateRef:
-        // error() << "Found typeRef" << cursor;
+        // error() << "Found typeRef" << cursor << userData->index;
         userData->ref = cursor;
         return CXChildVisit_Break;
     case CXCursor_DeclRefExpr:
@@ -206,6 +208,7 @@ static CXChildVisitResult resolveAutoTypeRefVisitor(CXCursor cursor, CXCursor, C
             //         << clang_isInvalid(clang_getCursorKind(u.ref))
             //         << u.chain;
             if (!clang_equalCursors(u.ref, clang_getNullCursor())) {
+                ++userData->index;
                 userData->ref = u.ref;
                 return CXChildVisit_Break;
             }
@@ -227,22 +230,13 @@ static CXChildVisitResult resolveAutoTypeRefVisitor(CXCursor cursor, CXCursor, C
 
 CXCursor resolveAutoTypeRef(const CXCursor &cursor)
 {
-    error() << "resolving" << cursor;
+    // error() << "resolving" << cursor;
     assert(clang_getCursorKind(cursor) == CXCursor_VarDecl);
     Hash<CXCursor, bool> seen;
     ResolveAutoTypeRefUserData userData = { clang_getNullCursor(), 0, &seen }; //, List<CXCursorKind>() };
     clang_visitChildren(cursor, resolveAutoTypeRefVisitor, &userData);
-    if (userData.index > 1) {
-        if (!clang_equalCursors(userData.ref, clang_getNullCursor())) {
-            // error() << "Fixed cursor for" << cursor << userData.ref;
-            // << userData.chain;
-            return userData.ref;
-            // } else {
-            //     error() << "Couldn't fix cursor for" << cursor << userData.ref;
-            //             // << userData.chain;
-        }
-    }
-    // error() << "Need to find type for" << cursor;
+    if (userData.index > 1)
+        return userData.ref;
     return clang_getNullCursor();
 }
 
