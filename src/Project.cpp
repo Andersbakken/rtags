@@ -199,7 +199,6 @@ Project::~Project()
     }
 
     assert(EventLoop::isMainThread());
-    assert(mActiveJobs.isEmpty());
     mDirtyTimer.stop();
 }
 
