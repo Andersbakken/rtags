@@ -19,6 +19,7 @@
 #include <rct/Connection.h>
 #include <rct/EventLoop.h>
 #include <rct/Log.h>
+#include <rct/QuitMessage.h>
 #include <rct/Rct.h>
 #include "RTagsClang.h"
 #include <rct/RegExp.h>
@@ -269,6 +270,26 @@ public:
     }
 };
 
+class QuitCommand : public RCCommand
+{
+public:
+    QuitCommand(int exit)
+        : RCCommand(), mExitCode(exit)
+    {}
+
+    virtual bool exec(RClient *, Connection *connection)
+    {
+        const QuitMessage msg(mExitCode);
+        return connection->send(msg);
+    }
+    virtual String description() const
+    {
+        return String::format<32>("QuitMessage(%d)", mExitCode);
+    }
+private:
+    const int mExitCode;
+};
+
 class RdmLogCommand : public RCCommand
 {
 public:
@@ -352,6 +373,12 @@ void RClient::addQuery(QueryMessage::Type type, const String &query, unsigned in
 {
     std::shared_ptr<QueryCommand> cmd(new QueryCommand(type, query));
     cmd->extraQueryFlags = extraQueryFlags;
+    mCommands.append(cmd);
+}
+
+void RClient::addQuitCommand(int exitCode)
+{
+    std::shared_ptr<QuitCommand> cmd(new QuitCommand(exitCode));
     mCommands.append(cmd);
 }
 
@@ -753,20 +780,16 @@ bool RClient::parse(int &argc, char **argv)
             } else if (optind < argc && argv[optind][0] != '-') {
                 arg = argv[optind++];
             }
+            int exit = 0;
             if (arg) {
                 bool ok;
-                const int exit = String(arg).toLongLong(&ok);
+                exit = String(arg).toLongLong(&ok);
                 if (!ok) {
                     fprintf(stderr, "Invalid argument to -q\n");
                     return 1;
                 }
-                String query;
-                Serializer serializer(query);
-                serializer << exit;
-                addQuery(QueryMessage::Shutdown, query);
-            } else {
-                addQuery(QueryMessage::Shutdown);
             }
+            addQuitCommand(exit);
             break; }
         case DeleteProject:
             addQuery(QueryMessage::DeleteProject, optarg);

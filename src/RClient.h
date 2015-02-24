@@ -150,6 +150,7 @@ public:
     void onNewMessage(const std::shared_ptr<Message> &message, Connection *);
 private:
     void addQuery(QueryMessage::Type t, const String &query = String(), unsigned int extraQueryFlags = 0);
+    void addQuitCommand(int exitCode);
 
     void addLog(int level);
     enum EscapeMode {

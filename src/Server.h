@@ -108,6 +108,7 @@ public:
     std::shared_ptr<JobScheduler> jobScheduler() const { return mJobScheduler; }
     const Set<uint32_t> &activeBuffers() const { return mActiveBuffers; }
     bool isActiveBuffer(uint32_t fileId) const { return mActiveBuffers.contains(fileId); }
+    int exitCode() const { return mExitCode; }
 private:
     bool saveFileIds();
     void restoreFileIds();
@@ -150,7 +151,6 @@ private:
     void reloadProjects(const std::shared_ptr<QueryMessage> &query, Connection *conn);
     void removeFile(const std::shared_ptr<QueryMessage> &query, Connection *conn);
     void removeProject(const std::shared_ptr<QueryMessage> &query, Connection *conn);
-    void shutdown(const std::shared_ptr<QueryMessage> &query, Connection *conn);
     void sources(const std::shared_ptr<QueryMessage> &query, Connection *conn);
     void dumpCompletions(const std::shared_ptr<QueryMessage> &query, Connection *conn);
     void dumpCompilationDatabase(const std::shared_ptr<QueryMessage> &query, Connection *conn);
@@ -177,6 +177,8 @@ private:
     bool mSuspended;
     SocketServer::SharedPtr mUnixServer;
     bool mVerbose;
+
+    int mExitCode;
 
     uint32_t mLastFileId;
 

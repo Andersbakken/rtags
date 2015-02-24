@@ -59,7 +59,6 @@ public:
         RemoveFile,
         SendDiagnostics,
         SetBuffers,
-        Shutdown,
         Sources,
         Status,
         Suspend,

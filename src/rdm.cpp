@@ -642,5 +642,5 @@ int main(int argc, char** argv)
 
     loop->exec();
     cleanupLogging();
-    return 0;
+    return server->exitCode();
 }
