@@ -24,10 +24,6 @@
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
-#ifdef HAVE_BACKTRACE
-#include <execinfo.h>
-#include <cxxabi.h>
-#endif
 
 static void sigSegvHandler(int signal)
 {
