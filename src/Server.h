@@ -106,6 +106,7 @@ public:
     int mongooseStatistics(struct mg_connection *conn);
     void dumpJobs(Connection *conn);
     std::shared_ptr<JobScheduler> jobScheduler() const { return mJobScheduler; }
+    int exitCode() const { return mExitCode; }
 private:
     void restoreFileIds();
     bool index(const String &arguments, const Path &pwd,
@@ -148,7 +149,6 @@ private:
     void reloadProjects(const std::shared_ptr<QueryMessage> &query, Connection *conn);
     void removeFile(const std::shared_ptr<QueryMessage> &query, Connection *conn);
     void removeProject(const std::shared_ptr<QueryMessage> &query, Connection *conn);
-    void shutdown(const std::shared_ptr<QueryMessage> &query, Connection *conn);
     void sources(const std::shared_ptr<QueryMessage> &query, Connection *conn);
     void dumpCompletions(const std::shared_ptr<QueryMessage> &query, Connection *conn);
     void dumpCompilationDatabase(const std::shared_ptr<QueryMessage> &query, Connection *conn);
@@ -175,6 +175,8 @@ private:
     bool mSuspended;
     SocketServer::SharedPtr mUnixServer;
     bool mVerbose;
+
+    int mExitCode;
 
     uint32_t mLastFileId;
 

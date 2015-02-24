@@ -42,6 +42,7 @@ public:
         FindSymbols,
         FixIts,
         FollowLocation,
+        GenerateTest,
         HasFileManager,
         Invalid,
         IsIndexed,
@@ -58,13 +59,11 @@ public:
         ReloadProjects,
         RemoveFile,
         SendDiagnostics,
-        Shutdown,
         Sources,
         Status,
         Suspend,
         SyncProject,
-        UnloadProject,
-        GenerateTest
+        UnloadProject
     };
 
     enum Flag {

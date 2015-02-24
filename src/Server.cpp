@@ -59,6 +59,7 @@
 #include <stdio.h>
 #include <arpa/inet.h>
 #include <limits>
+#include <rct/QuitMessage.h>
 
 #if not defined CLANG_INCLUDEPATH
 #error CLANG_INCLUDEPATH not defined during CMake generation
@@ -111,7 +112,7 @@ private:
 
 Server *Server::sInstance = 0;
 Server::Server()
-    : mSuspended(false), mVerbose(false), mLastFileId(0), mCompletionThread(0)
+    : mSuspended(false), mVerbose(false), mExitCode(0), mLastFileId(0), mCompletionThread(0)
 {
     assert(!sInstance);
     sInstance = this;
@@ -202,7 +203,7 @@ bool Server::init(const Options &options)
             enum { Timeout = 1000 };
             Connection connection(RClient::NumOptions);
             if (connection.connectUnix(mOptions.socketFile, Timeout)) {
-                connection.send(QueryMessage(QueryMessage::Shutdown));
+                connection.send(QuitMessage());
                 connection.disconnected().connect(std::bind([](){ EventLoop::eventLoop()->quit(); }));
                 connection.finished().connect(std::bind([](){ EventLoop::eventLoop()->quit(); }));
                 EventLoop::eventLoop()->exec(Timeout);
@@ -313,20 +314,26 @@ void Server::onNewMessage(const std::shared_ptr<Message> &message, Connection *c
 
     switch (message->messageId()) {
     case IndexMessage::MessageId:
-        handleIndexMessage(std::static_pointer_cast<IndexMessage>(m), connection);
+        handleIndexMessage(std::static_pointer_cast<IndexMessage>(message), connection);
         break;
     case QueryMessage::MessageId:
-        handleQueryMessage(std::static_pointer_cast<QueryMessage>(m), connection);
+        handleQueryMessage(std::static_pointer_cast<QueryMessage>(message), connection);
+        break;
+    case QuitMessage::MessageId:
+        mExitCode = std::static_pointer_cast<QuitMessage>(message)->exitCode();
+        EventLoop::eventLoop()->quit();
+        connection->finish("Shutting down");
         break;
     case IndexerMessage::MessageId:
-        handleIndexerMessage(std::static_pointer_cast<IndexerMessage>(m), connection);
+        handleIndexerMessage(std::static_pointer_cast<IndexerMessage>(message), connection);
         break;
-    case LogOutputMessage::MessageId:
-        error() << m->raw();
-        handleLogOutputMessage(std::static_pointer_cast<LogOutputMessage>(m), connection);
-        break;
+    case LogOutputMessage::MessageId: {
+        auto msg = std::static_pointer_cast<LogOutputMessage>(message);
+        error() << msg->raw();
+        handleLogOutputMessage(msg, connection);
+        break; }
     case VisitFileMessage::MessageId:
-        handleVisitFileMessage(std::static_pointer_cast<VisitFileMessage>(m), connection);
+        handleVisitFileMessage(std::static_pointer_cast<VisitFileMessage>(message), connection);
         break;
     case ResponseMessage::MessageId:
     case FinishMessage::MessageId:
@@ -552,9 +559,6 @@ void Server::handleQueryMessage(const std::shared_ptr<QueryMessage> &message, Co
         break;
     case QueryMessage::CursorInfo:
         cursorInfo(message, conn);
-        break;
-    case QueryMessage::Shutdown:
-        shutdown(message, conn);
         break;
     case QueryMessage::FollowLocation:
         followLocation(message, conn);
@@ -1282,17 +1286,6 @@ void Server::clearProjects(const std::shared_ptr<QueryMessage> &/*query*/, Conne
 {
     clearProjects();
     conn->write("Cleared projects");
-    conn->finish();
-}
-
-void Server::shutdown(const std::shared_ptr<QueryMessage> &/*query*/, Connection *conn)
-{
-    for (const auto &it : mProjects) {
-        if (it.second)
-            it.second->unload();
-    }
-    EventLoop::eventLoop()->quit();
-    conn->write("Shutting down");
     conn->finish();
 }
 
