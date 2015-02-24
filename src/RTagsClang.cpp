@@ -241,7 +241,6 @@ CXCursor resolveAutoTypeRef(const CXCursor &cursor)
     clang_visitChildren(cursor, resolveAutoTypeRefVisitor, &userData);
     if (userData.followedRef)
         return userData.ref;
-    }
     return clang_getNullCursor();
 }
 
