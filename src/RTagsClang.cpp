@@ -181,6 +181,7 @@ static CXChildVisitResult resolveAutoTypeRefVisitor(CXCursor cursor, CXCursor, C
     // error() << "Got cursor" << cursor << userData->index;
     const CXCursorKind kind = clang_getCursorKind(cursor);
     if (!userData->seen->insert(cursor, true)) {
+        // error() << "I've seen" << cursor << "before";
         return CXChildVisit_Break;
     }
     // userData->chain.append(kind);
@@ -188,7 +189,7 @@ static CXChildVisitResult resolveAutoTypeRefVisitor(CXCursor cursor, CXCursor, C
     switch (kind) {
     case CXCursor_TypeRef:
     case CXCursor_TemplateRef:
-        // error() << "Found typeRef" << cursor;
+        // error() << "Found typeRef" << cursor << userData->index;
         userData->ref = cursor;
         return CXChildVisit_Break;
     case CXCursor_DeclRefExpr:
@@ -211,6 +212,7 @@ static CXChildVisitResult resolveAutoTypeRefVisitor(CXCursor cursor, CXCursor, C
             //         << clang_isInvalid(clang_getCursorKind(u.ref))
             //         << u.chain;
             if (!clang_equalCursors(u.ref, clang_getNullCursor())) {
+                ++userData->index;
                 userData->ref = u.ref;
                 return CXChildVisit_Break;
             }
@@ -237,7 +239,7 @@ CXCursor resolveAutoTypeRef(const CXCursor &cursor)
     Hash<CXCursor, bool> seen;
     ResolveAutoTypeRefUserData userData = { clang_getNullCursor(), 0, false, &seen }; //, List<CXCursorKind>() };
     clang_visitChildren(cursor, resolveAutoTypeRefVisitor, &userData);
-    if (userData.followedRef && !clang_equalCursors(userData.ref, clang_getNullCursor())) {
+    if (userData.followedRef)
         return userData.ref;
     }
     return clang_getNullCursor();

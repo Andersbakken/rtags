@@ -179,7 +179,6 @@ private:
     bool mVerbose;
 
     int mExitCode;
-
     uint32_t mLastFileId;
 
     std::shared_ptr<JobScheduler> mJobScheduler;

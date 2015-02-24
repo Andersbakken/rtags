@@ -29,10 +29,10 @@ class QueryMessage : public RTagsMessage
 public:
     enum { MessageId = QueryId };
     enum Type {
+        GenerateTest,
         CheckReindex,
         ClearProjects,
         CodeCompleteAt,
-        SymbolInfo,
         DeleteProject,
         Dependencies,
         DumpCompilationDatabase,
@@ -62,7 +62,7 @@ public:
         Sources,
         Status,
         Suspend,
-        GenerateTest
+        SymbolInfo
     };
 
     enum Flag {
