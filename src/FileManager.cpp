@@ -54,7 +54,8 @@ void FileManager::onRecurseJobFinished(const Set<Path> &paths)
     std::lock_guard<std::mutex> lock(mMutex); // ### is this needed now?
 
     std::shared_ptr<Project> project = mProject.lock();
-    assert(project);
+    if (!project)
+        return;
     Files &map = project->files();
     map.clear();
     mWatcher.clear();
