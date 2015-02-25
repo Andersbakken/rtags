@@ -1027,7 +1027,7 @@ bool ClangIndexer::handleCursor(const CXCursor &cursor, CXCursorKind kind, const
     c.endColumn = endColumn;
 
     if (kind == CXCursor_EnumConstantDecl) {
-#if CINDEX_VERSION_MINOR > 1
+#if CINDEX_VERSION > CINDEX_VERSION_ENCODE(0, 1)
         c.enumValue = clang_getEnumConstantDeclValue(cursor);
 #else
         c.definition = 1;
@@ -1055,8 +1055,10 @@ bool ClangIndexer::handleCursor(const CXCursor &cursor, CXCursorKind kind, const
         }
         if (clang_CXXMethod_isStatic(cursor))
             c.flags |= Symbol::StaticMethod;
+#if CINDEX_VERSION >= CINDEX_VERSION_ENCODE(0, 24)
         if (clang_CXXMethod_isConst(cursor))
             c.flags |= Symbol::ConstMethod;
+#endif
         addOverriddenCursors(cursor, location);
         break;
     case CXCursor_Constructor:
