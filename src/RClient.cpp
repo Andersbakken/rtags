@@ -989,7 +989,7 @@ bool RClient::parse(int &argc, char **argv)
                 args.append(argv[optind++]);
             }
             if (args == "-" || args.isEmpty()) {
-                char buf[1024];
+                char buf[16384];
                 while (fgets(buf, sizeof(buf), stdin)) {
                     addCompile(Path::pwd(), buf, Escape_Do);
                 }
