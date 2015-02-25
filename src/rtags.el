@@ -265,11 +265,6 @@ return t if rtags is allowed to modify this file"
   :group 'rtags
   :type 'boolean)
 
-(defcustom rtags-match-source-file-to-project nil
-  "Function to match source file to a build directory"
-  :group 'rtags
-  :type 'function)
-
 (defcustom rtags-other-window-window-size-percentage 30
   "Percentage size of other buffer"
   :group 'rtags
@@ -1835,21 +1830,14 @@ References to references will be treated as references to the referenced symbol"
 ;;;###autoload
 (defun rtags-update-current-project ()
   (interactive)
-  (condition-case nil
-      (when (and (buffer-file-name)
-                 (file-exists-p (buffer-file-name))
-                 (not (eq (current-buffer) rtags-last-update-current-project-buffer)))
-        (setq rtags-last-update-current-project-buffer (current-buffer))
-        (let* ((rc (rtags-executable-find "rc"))
-               (path (buffer-file-name))
-               (arguments (list "-T" path "--silent-query")))
-          (when rc
-            (push (concat "--current-file=" path) arguments)
-            (let ((mapped (if rtags-match-source-file-to-project (apply rtags-match-source-file-to-project (list path)))))
-              (if (and mapped (length mapped)) (push (concat "--current-file=" mapped) arguments)))
-            (apply #'start-process "rtags-update-current-project" nil rc arguments))))
-    (error (message "Got error in rtags-update-current-project")))
-  t)
+  (unless (eq (current-buffer) rtags-last-update-current-project-buffer)
+    (setq rtags-last-update-current-project-buffer (current-buffer))
+    (let* ((rc (rtags-executable-find "rc"))
+           (path (or (buffer-file-name) default-directory))
+           (arguments (list "-T" path))) ;; "--silent-query")))
+      (when rc
+        (apply #'start-process "rtags-update-current-project" nil rc arguments))))
+    t)
 
 ;;;###autoload
 (defun rtags-show-target-in-other-window (&optional dest-window center-window

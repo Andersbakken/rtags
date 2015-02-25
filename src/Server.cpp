@@ -1144,10 +1144,14 @@ std::shared_ptr<Project> Server::projectForQuery(const std::shared_ptr<QueryMess
     } else {
         matches[0] = query->match();
     }
-    matches[1] = query->currentFile();
     std::shared_ptr<Project> cur = currentProject();
     // give current a chance first to avoid switching project when using system headers etc
-    for (int i=0; i<2; ++i) {
+    int count = 1;
+    if (!query->currentFile().isEmpty()) {
+        matches[1] = query->currentFile();
+        count = 2;
+    }
+    for (int i=0; i<count; ++i) {
         const Match &match = matches[i];
         if (cur && cur->match(match))
             return cur;
