@@ -35,7 +35,7 @@ int FollowLocationJob::execute()
         const Set<String> usrs = project()->findTargetUsrs(location);
         for (const String &usr : usrs) {
             for (const Symbol &s : project()->findByUsr(usr, location.fileId(), Project::ArgDependsOn)) {
-                write(s.location);
+                write(s.toString());
             }
         }
     }
