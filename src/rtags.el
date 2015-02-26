@@ -132,6 +132,11 @@
   :type 'boolean
   :group 'rtags)
 
+(defcustom rtags-tooltips-enabled rtags-popup-available
+  "Display help / summary text when hovering over symbols."
+  :type 'boolean
+  :group 'rtags)
+
 (defcustom rtags-error-timer-interval .5
   "Interval for minibuffer error timer"
   :group 'rtags
@@ -2211,18 +2216,32 @@ Return nil if it can't get any info about the item."
 
 
 ;;;###autoload
-(defun rtags-display-summary ()
+(defun rtags-display-summary (&optional hide-empty)
   "Display a short text describing the item at point (see rtags-get-summary-text for
 details).
 
 If rtags-display-summary-as-tooltip is t, a tooltip is displayed."
   (interactive)
   (let ((summary (rtags-get-summary-text)))
-    (when (null summary)
-      (setq summary "No information for symbol"))
-    (if rtags-display-summary-as-tooltip
-        (popup-tip summary)
-      (message "%s" summary))))
+    (when (or summary (not hide-empty))
+      (when (null summary)
+        (setq summary "No information for symbol"))
+      (if rtags-display-summary-as-tooltip
+          (popup-tip summary)
+        (message "%s" summary)))))
+
+(defun rtags-display-tooltip-function (event)
+  (interactive)
+  (when (and (funcall rtags-is-indexable (current-buffer))
+             (eventp event))
+    (let ((pos (posn-point (event-end event))))
+      (when pos
+        (save-excursion
+          (goto-char pos)
+          (rtags-display-summary t)
+          t)))))
+
+(if rtags-tooltips-enabled (add-hook 'tooltip-functions 'rtags-display-tooltip-function))
 
 
 (provide 'rtags)
