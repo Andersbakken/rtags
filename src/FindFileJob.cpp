@@ -45,8 +45,9 @@ int FindFileJob::execute()
         All,
         FilePath,
         RegExp,
-        Pattern,
+        Pattern
     } mode = All;
+
     String::CaseSensitivity cs = String::CaseSensitive;
     if (mRegExp.isValid()) {
         mode = RegExp;
