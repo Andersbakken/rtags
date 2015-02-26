@@ -109,7 +109,8 @@ private:
         return createLocation(clang_getRangeStart(range), blocked);
     }
     Location createLocation(const Path &file, unsigned int line, unsigned int col, bool *blocked = 0);
-    String addNamePermutations(const CXCursor &cursor, const Location &location, String typeOverride);
+    String addNamePermutations(const CXCursor &cursor, const Location &location,
+                               String typeOverride, RTags::CursorType cursorType);
 
     bool handleCursor(const CXCursor &cursor, CXCursorKind kind,
                       const Location &location, Symbol **cursorPtr = 0);

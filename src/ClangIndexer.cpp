@@ -359,7 +359,8 @@ static inline void tokenize(const char *buf, int start,
     }
 }
 
-String ClangIndexer::addNamePermutations(const CXCursor &cursor, const Location &location, String type)
+String ClangIndexer::addNamePermutations(const CXCursor &cursor, const Location &location,
+                                         String type, RTags::CursorType cursorType)
 {
     CXCursorKind kind = clang_getCursorKind(cursor);
     const CXCursorKind originalKind = kind;
@@ -425,6 +426,16 @@ String ClangIndexer::addNamePermutations(const CXCursor &cursor, const Location 
         cutoff = pos;
 
     String ret;
+    if (cursorType == RTags::Type_Reference) {
+        if (!type.isEmpty()) {
+            ret = type;
+            ret.append(buf + cutoff, sizeof(buf) - cutoff - 1);
+        } else {
+            ret.assign(buf + cutoff, sizeof(buf) - cutoff - 1);
+        }
+        return ret;
+    }
+
     int templateStart, templateEnd, colonColonCount;
     int colonColons[512];
     ::tokenize(buf, pos,
@@ -866,6 +877,8 @@ bool ClangIndexer::handleReference(const CXCursor &cursor, CXCursorKind kind,
     c.definition = false;
     c.kind = kind;
     c.location = location;
+    c.symbolName = reffedCursorFound ? reffedCursor.symbolName : addNamePermutations(ref, refLoc, String(), RTags::Type_Reference);
+
     if (isOperator) {
         unsigned int start, end;
         clang_getSpellingLocation(rangeStart, 0, 0, 0, &start);
@@ -1012,7 +1025,7 @@ bool ClangIndexer::handleCursor(const CXCursor &cursor, CXCursorKind kind, const
             }
         }
 
-        c.symbolName = addNamePermutations(cursor, location, typeOverride);
+        c.symbolName = addNamePermutations(cursor, location, typeOverride, RTags::Type_Cursor);
     }
 
     const CXSourceRange range = clang_getCursorExtent(cursor);
