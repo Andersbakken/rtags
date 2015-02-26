@@ -958,6 +958,14 @@ Set<Symbol> Project::findTargets(const Symbol &symbol)
     if (symbol.isClass() && symbol.isDefinition())
         return ret;
 
+    auto sameKind = [&symbol](CXCursorKind kind) {
+        if (kind == symbol.kind)
+            return true;
+        if (symbol.isClass())
+            return kind == CXCursor_ClassDecl || kind == CXCursor_StructDecl;
+        return false;
+    };
+
     switch (symbol.kind) {
     case CXCursor_ClassDecl:
     case CXCursor_ClassTemplate:
@@ -969,7 +977,7 @@ Set<Symbol> Project::findTargets(const Symbol &symbol)
     case CXCursor_FunctionTemplate: {
         const Set<Symbol> symbols = findByUsr(symbol.usr, symbol.location.fileId(), symbol.isDefinition() ? ArgDependsOn : DependsOnArg);
         for (const auto &c : symbols) {
-            if (symbol.kind == c.kind && symbol.isDefinition() != c.isDefinition()) {
+            if (sameKind(c.kind) && symbol.isDefinition() != c.isDefinition()) {
                 ret.insert(c);
                 break;
             }
