@@ -39,9 +39,9 @@ String IndexerJob::encode() const
         std::shared_ptr<Project> proj = Server::instance()->project(project);
         const Server::Options &options = Server::instance()->options();
         Source copy = source;
-        if (options.flag(Server::Wall) && source.arguments.contains("-Werror")) {
+        if ((options.flag(Server::Weverything) || options.flag(Server::Wall)) && source.arguments.contains("-Werror")) {
             for (const auto &arg : options.defaultArguments) {
-                if (arg != "-Wall")
+                if (arg != "-Wall" && arg != "-Weverything")
                     copy.arguments << arg;
             }
         } else {

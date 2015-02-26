@@ -150,6 +150,8 @@ bool Server::init(const Options &options)
         mOptions.defaultArguments << "-ferror-limit=0";
     if (options.flag(Wall))
         mOptions.defaultArguments << "-Wall";
+    if (options.flag(Weverything))
+        mOptions.defaultArguments << "-Weverything";
     if (options.flag(SpellChecking))
         mOptions.defaultArguments << "-fspell-checking";
     if (!(options.flag(NoNoUnknownWarningsOption)))

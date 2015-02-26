@@ -107,6 +107,7 @@ static void usage(FILE *f)
             "  --ignore-printf-fixits|-F                  Disregard any clang fixit that looks like it's trying to fix format for printf and friends.\n"
             "  --include-path|-I [arg]                    Add additional include path to clang.\n"
             "  --isystem|-s [arg]                         Add additional system include path to clang.\n"
+            "  --Weverything|-u                           Use -Weverything.\n"
             "  --no-Wall|-W                               Don't use -Wall.\n"
             "  --no-no-unknown-warnings-option|-Y         Don't pass -Wno-unknown-warning-option\n"
             "  --no-spell-checking|-l                     Don't pass -fspell-checking.\n"
@@ -139,6 +140,7 @@ int main(int argc, char** argv)
         { "log-file", required_argument, 0, 'L' },
         { "setenv", required_argument, 0, 'e' },
         { "no-Wall", no_argument, 0, 'W' },
+        { "Weverything", no_argument, 0, 'u' },
         { "cache-AST", required_argument, 0, 'A' },
         { "verbose", no_argument, 0, 'v' },
         { "job-count", required_argument, 0, 'j' },
@@ -481,6 +483,9 @@ int main(int argc, char** argv)
             break;
         case 'W':
             serverOpts.options &= ~Server::Wall;
+            break;
+        case 'u':
+            serverOpts.options |= Server::Weverything;
             break;
         case 'P':
             serverOpts.options |= Server::AllowPedantic;

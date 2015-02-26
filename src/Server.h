@@ -69,7 +69,8 @@ public:
         StartSuspended = 0x04000,
         EnableCompilerManager = 0x08000,
         EnableNDEBUG = 0x10000,
-        NoProgress = 0x20000
+        NoProgress = 0x20000,
+        Weverything = 0x40000
     };
     struct Options {
         Options()
