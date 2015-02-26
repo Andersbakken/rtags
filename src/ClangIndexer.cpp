@@ -530,6 +530,7 @@ static inline CXCursor findDestructorForDelete(const CXCursor &deleteStatement)
     case CXCursor_ParmDecl:
     case CXCursor_CXXMethod:
     case CXCursor_FunctionDecl:
+    case CXCursor_ConversionFunction:
         break;
     default:
         if (!clang_isInvalid(kind)) {
