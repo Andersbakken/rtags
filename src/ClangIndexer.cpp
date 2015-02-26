@@ -1265,11 +1265,16 @@ bool ClangIndexer::diagnose()
                     const char *string = clang_getCString(stringScope);
                     assert(string);
                     if (!*string) {
-                        error("Fixit for %s Remove %d characters",
-                              loc.key(0).constData(), endOffset - startOffset);
+                        error("Fixit for %s Remove %d character%s",
+                              loc.key(0).constData(), endOffset - startOffset,
+                              endOffset - startOffset > 1 ? "s" : "");
+                    } else if (endOffset == startOffset) {
+                        error("Fixit for %s Insert \"%s\"",
+                              loc.key(0).constData(), string);
                     } else {
-                        error("Fixit for %s Replace %d characters with [%s]",
-                              loc.key(0).constData(), endOffset - startOffset, string);
+                        error("Fixit for %s Replace %d character%s with \"%s\"",
+                              loc.key(0).constData(), endOffset - startOffset,
+                              endOffset - startOffset > 1 ? "s" : "", string);
                     }
                     Diagnostic &entry = mData->diagnostics[Location(loc.fileId(), line, column)];
                     entry.type = Diagnostic::Fixit;
