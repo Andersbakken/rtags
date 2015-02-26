@@ -50,10 +50,12 @@ String Location::key(unsigned int flags) const
 
     const Path p = path();
 
-    String ret(p.size() + extra, '0');
+    String ret(p.size() + extra, ' ');
 
-    snprintf(ret.data(), ret.size() + extra + 1, "%s:%d:%d:%s", p.constData(),
-             l, c, ctx.constData());
+    const int w = snprintf(ret.data(), ret.size() + extra + 1, "%s:%d:%d:", p.constData(), l, c);
+    if (!ctx.isEmpty()) {
+        memcpy(ret.data() + w, ctx.constData(), ctx.size());
+    }
     return ret;
 }
 
