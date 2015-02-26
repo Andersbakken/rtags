@@ -1831,14 +1831,15 @@ References to references will be treated as references to the referenced symbol"
 ;;;###autoload
 (defun rtags-update-current-project ()
   (interactive)
-  (unless (eq (current-buffer) rtags-last-update-current-project-buffer)
+  (when (and (not (eq (current-buffer) rtags-last-update-current-project-buffer))
+             (file-directory-p default-directory))
     (setq rtags-last-update-current-project-buffer (current-buffer))
     (let* ((rc (rtags-executable-find "rc"))
            (path (or (buffer-file-name) default-directory))
-           (arguments (list "-T" path))) ;; "--silent-query")))
+           (arguments (list "-T" path "--silent-query")))
       (when rc
         (apply #'start-process "rtags-update-current-project" nil rc arguments))))
-    t)
+  t)
 
 ;;;###autoload
 (defun rtags-show-target-in-other-window (&optional dest-window center-window
