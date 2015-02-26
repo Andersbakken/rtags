@@ -1263,8 +1263,14 @@ bool ClangIndexer::diagnose()
                     clang_getSpellingLocation(start, 0, 0, 0, &startOffset);
                     clang_getSpellingLocation(end, 0, 0, 0, &endOffset);
                     const char *string = clang_getCString(stringScope);
-                    error("Fixit for %s:%d:%d: Replace %d characters with [%s]", loc.path().constData(),
-                          line, column, endOffset - startOffset, string);
+                    assert(string);
+                    if (!*string) {
+                        error("Fixit for %s Remove %d characters",
+                              loc.key(0).constData(), endOffset - startOffset);
+                    } else {
+                        error("Fixit for %s Replace %d characters with [%s]",
+                              loc.key(0).constData(), endOffset - startOffset, string);
+                    }
                     Diagnostic &entry = mData->diagnostics[Location(loc.fileId(), line, column)];
                     entry.type = Diagnostic::Fixit;
                     if (entry.message.isEmpty()) {
