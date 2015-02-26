@@ -1092,7 +1092,8 @@ bool ClangIndexer::parse()
         };
     }
 
-    debug() << "CI::parse: " << mSource.toCommandLine(commandLineFlags) << "\n";
+    if (testLog(Debug))
+        debug() << "CI::parse: " << mSource.toCommandLine(commandLineFlags) << "\n";
 
     // for (const auto it : mSource.toCommandLine(commandLineFlags)) {
     //     error("[%s]", it.constData());

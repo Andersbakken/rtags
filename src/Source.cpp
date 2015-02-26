@@ -207,15 +207,28 @@ static inline void addIncludeArg(List<Source::Include> &includePaths,
 {
     const String &arg = args.at(idx);
     Path path;
+    auto fixPCHPath = [&path, cwd]() {
+        if (!path.exists()) {
+            for (const char *suffix : { ".gch", ".pch" }) {
+                const Path p = Path::resolved(path + suffix, Path::MakeAbsolute, cwd);
+                if (p.exists()) {
+                    path = p.mid(0, p.size() - 4);
+                    break;
+                }
+            }
+        }
+    };
     if (arg.size() == argLen) {
         path = Path::resolved(args.value(++idx), Path::MakeAbsolute, cwd);
         if (type == Source::Include::Type_None) {
+            fixPCHPath();
             arguments.append(arg);
             arguments.append(path);
         }
     } else {
         path = Path::resolved(arg.mid(argLen), Path::MakeAbsolute, cwd);
         if (type == Source::Include::Type_None) {
+            fixPCHPath();
             arguments.append(arg.left(argLen) + path);
         }
     }
@@ -732,6 +745,33 @@ bool Source::compareArguments(const Source &other) const
     return false;
 }
 
+static inline bool isPch(const Path &path)
+{
+    if (path.isFile()) {
+        static const unsigned char pch[][8] = {
+            { 0x43, 0x50, 0x43, 0x48, 0x01, 0x0c, 0x00, 0x00 }, // clang pch
+            { 0x67, 0x70, 0x63, 0x68, 0x43, 0x30, 0x31, 0x34 }, // gcc c-header pch
+            { 0x67, 0x70, 0x63, 0x68, 0x2b, 0x30, 0x31, 0x34 } // gcc c++-header pch
+        };
+        const String contents = path.readAll(8);
+        if (contents.size() == 8) {
+            for (const unsigned char *p : pch) {
+                if (!memcmp(contents.constData(), p, 8)) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    for (const char *suffix : { ".gch", ".pch" }) {
+        const Path p = path + suffix;
+        if (p.exists())
+            return true;
+    }
+    return false;
+}
+
 List<String> Source::toCommandLine(unsigned int flags) const
 {
     const auto *options = Server::instance() ? &Server::instance()->options() : 0;
@@ -742,10 +782,23 @@ List<String> Source::toCommandLine(unsigned int flags) const
     ret.reserve(64);
     if (flags & IncludeCompiler)
         ret.append(compiler());
+
     for (int i=0; i<arguments.size(); ++i) {
-        if (!(flags & FilterBlacklist) || !isBlacklisted(arguments.at(i))) {
-            ret.append(arguments.at(i));
-        } else if (hasValue(arguments.at(i))) {
+        const String &arg = arguments.at(i);
+        const bool hasValue = ::hasValue(arg);
+        bool skip = false;
+        if (flags & FilterBlacklist) {
+            if (isBlacklisted(arg)) {
+                skip = true;
+            } else if (arg == "-include") {
+                skip = isPch(arguments.value(i + 1));
+            }
+        }
+        if (!skip) {
+            ret.append(arg);
+            if (hasValue)
+                ret.append(arguments.value(++i));
+        } else if (hasValue) {
             ++i;
         }
     }
