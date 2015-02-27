@@ -127,10 +127,6 @@ private:
     static CXChildVisitResult verboseVisitor(CXCursor cursor, CXCursor, CXClientData userData);
     static CXChildVisitResult resolveAutoTypeRefVisitor(CXCursor cursor, CXCursor, CXClientData data);
 
-
-    static void inclusionVisitor(CXFile includedFile, CXSourceLocation *includeStack,
-                                 unsigned int includeLen, CXClientData userData);
-
     void onMessage(const std::shared_ptr<Message> &msg, Connection *conn);
 
     struct Unit {

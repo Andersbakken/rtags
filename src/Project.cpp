@@ -225,7 +225,7 @@ bool Project::init()
         return false;
     }
 
-    file >> mSources >> mVisitedFiles >> mDependencies >> mDeclarations;
+    file >> mSources >> mVisitedFiles >> mDependencies >> mReverseDependencies >> mDeclarations;
 
     for (const auto &dep : mDependencies) {
         watch(Location::path(dep.first));
@@ -357,7 +357,7 @@ void Project::onJobFinished(const std::shared_ptr<IndexerJob> &job, const std::s
             visited.insert(pair.first);
     }
     updateFixIts(visited, indexData->fixIts);
-    updateDependencies(visited, indexData->dependencies);
+    updateDependencies(visited, indexData->dependencies, indexData->reverseDependencies);
     updateDeclarations(visited, indexData->declarations);
     if (success) {
         src->second.parsed = indexData->parseTime;
@@ -394,7 +394,7 @@ bool Project::save()
         error("Save error %s: %s", mProjectFilePath.constData(), file.error().constData());
         return false;
     }
-    file << mSources << mVisitedFiles << mDependencies << mDeclarations;
+    file << mSources << mVisitedFiles << mDependencies << mReverseDependencies << mDeclarations;
     if (!file.flush()) {
         error("Save error %s: %s", mProjectFilePath.constData(), file.error().constData());
         return false;
@@ -551,38 +551,56 @@ List<Source> Project::sources(uint32_t fileId) const
 
 Set<uint32_t> Project::dependencies(uint32_t fileId, DependencyMode mode) const
 {
-    if (mode == DependsOnArg) {
-        auto deps = mDependencies.value(fileId);
-        deps.insert(fileId);
-        return deps;
-    }
-
-    Set<uint32_t> ret;
-    ret.insert(fileId);
-    const auto end = mDependencies.end();
-    for (auto it = mDependencies.begin(); it != end; ++it) {
-        if (it->second.contains(fileId))
-            ret.insert(it->first);
-    }
-    return ret;
+    const Dependencies& from = (mode == DependsOnArg) ? mDependencies : mReverseDependencies;
+    Set<uint32_t> deps;
+    std::function<void(uint32_t)> makeDeps = [&](uint32_t fileId) {
+        const auto it = from.find(fileId);
+        if (it == from.end())
+            return;
+        for (uint32_t f : it->second) {
+            if (deps.insert(f)) {
+                makeDeps(f);
+            }
+        }
+    };
+    deps.insert(fileId);
+    makeDeps(fileId);
+    return deps;
 }
 
-void Project::updateDependencies(const Set<uint32_t> &visited, Dependencies &deps)
+void Project::updateDependencies(const Set<uint32_t> &visited, Dependencies &deps, Dependencies &revDeps)
 {
     for (uint32_t file : visited) {
         removeDependencies(file);
     }
     Set<uint32_t> files;
-    const auto end = deps.end();
-    for (auto it = deps.begin(); it != end; ++it) {
-        Set<uint32_t> &values = mDependencies[it->first];
-        if (values.isEmpty()) {
-            files.unite(it->second);
-            values = it->second;
-        } else {
-            for (const uint32_t file : it->second) {
-                if (values.insert(file))
-                    files.insert(file);
+    {
+        const auto end = deps.end();
+        for (auto it = deps.begin(); it != end; ++it) {
+            Set<uint32_t> &values = mDependencies[it->first];
+            if (values.isEmpty()) {
+                files.unite(it->second);
+                values = it->second;
+            } else {
+                for (const uint32_t file : it->second) {
+                    if (values.insert(file))
+                        files.insert(file);
+                }
+            }
+        }
+    }
+    {
+        const auto end = revDeps.end();
+        for (auto it = revDeps.begin(); it != end; ++it) {
+            Set<uint32_t> &values = mReverseDependencies[it->first];
+            if (values.isEmpty()) {
+                files.unite(it->second);
+                values = it->second;
+            } else {
+                for (const uint32_t file : it->second) {
+                    if (values.insert(file))
+                        files.insert(file);
+                }
             }
         }
     }

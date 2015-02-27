@@ -939,6 +939,8 @@ void ClangIndexer::handleInclude(const CXCursor &cursor, CXCursorKind kind, cons
             assert(mSource.fileId);
             unit(location.fileId())->symbolNames[(include + path)].insert(location);
             unit(location.fileId())->symbolNames[(include + path.fileName())].insert(location);
+            mData->dependencies[refLoc.fileId()].insert(location.fileId());
+            mData->reverseDependencies[location.fileId()].insert(refLoc.fileId());
             c.symbolName = "#include " + RTags::eatString(clang_getCursorDisplayName(cursor));
             c.kind = cursor.kind;
             c.symbolLength = c.symbolName.size() + 2;
@@ -1118,13 +1120,15 @@ bool ClangIndexer::parse()
 
     warning() << "CI::parse loading unit:" << mClangLine << " " << (mClangUnit != 0);
     if (mClangUnit) {
-        clang_getInclusions(mClangUnit, ClangIndexer::inclusionVisitor, this);
+        mData->dependencies[mSource.fileId].insert(mSource.fileId);
+        mData->reverseDependencies[mSource.fileId].insert(mSource.fileId);
         mParseDuration = sw.elapsed();
         return true;
     }
     error() << "Failed to parse" << mClangLine;
     for (Hash<uint32_t, bool>::const_iterator it = mData->visited.begin(); it != mData->visited.end(); ++it) {
         mData->dependencies[it->first].insert(mSource.fileId);
+        mData->reverseDependencies[mSource.fileId].insert(it->first);
         if (it->second)
             addFileSymbol(it->first);
     }
@@ -1356,7 +1360,6 @@ bool ClangIndexer::visit()
                         ClangIndexer::indexVisitor, this);
 
     for (Hash<uint32_t, bool>::const_iterator it = mData->visited.begin(); it != mData->visited.end(); ++it) {
-        mData->dependencies[it->first].insert(mSource.fileId);
         if (it->second)
             addFileSymbol(it->first);
     }
@@ -1430,30 +1433,6 @@ void ClangIndexer::addFileSymbol(uint32_t file)
     Symbol &sym = ref->symbols[loc];
     sym.location = loc;
 }
-
-void ClangIndexer::inclusionVisitor(CXFile includedFile,
-                                    CXSourceLocation *includeStack,
-                                    unsigned int includeLen,
-                                    CXClientData userData)
-{
-    ClangIndexer *indexer = static_cast<ClangIndexer*>(userData);
-    const Location l = indexer->createLocation(includedFile, 1, 1);
-
-    const uint32_t fileId = l.fileId();
-    if (!includeLen) {
-        indexer->mData->dependencies[fileId].insert(fileId);
-    } else {
-        for (unsigned int i=0; i<includeLen; ++i) {
-            CXFile originatingFile;
-            clang_getSpellingLocation(includeStack[i], &originatingFile, 0, 0, 0);
-            const Location loc = indexer->createLocation(originatingFile, 1, 1);
-            const uint32_t f = loc.fileId();
-            if (f)
-                indexer->mData->dependencies[fileId].insert(f);
-        }
-    }
-}
-
 
 int ClangIndexer::symbolLength(CXCursorKind kind, const CXCursor &cursor)
 {

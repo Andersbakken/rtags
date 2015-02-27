@@ -164,7 +164,7 @@ private:
     void removeDependencies(uint32_t fileId);
     void watch(const Path &file);
     void reloadFileManager();
-    void updateDependencies(const Set<uint32_t> &visited, Dependencies &deps);
+    void updateDependencies(const Set<uint32_t> &visited, Dependencies &deps, Dependencies &revDeps);
     void updateDeclarations(const Set<uint32_t> &visited, Declarations &declarations);
     void updateFixIts(const Set<uint32_t> &visited, FixIts &fixIts);
     int startDirtyJobs(Dirty *dirty, const UnsavedFiles &unsavedFiles = UnsavedFiles());
@@ -289,7 +289,7 @@ private:
 
     StopWatch mTimer;
     FileSystemWatcher mWatcher;
-    Dependencies mDependencies;
+    Dependencies mDependencies, mReverseDependencies;
     Declarations mDeclarations;
     Sources mSources;
     Set<Path> mWatchedPaths;
@@ -333,6 +333,12 @@ inline void Project::removeDependencies(uint32_t fileId)
 {
     mDependencies.remove(fileId);
     for (auto it = mDependencies.begin(); it != mDependencies.end(); ++it) {
+        it->second.remove(fileId);
+    }
+
+#warning this could be better
+    mReverseDependencies.remove(fileId);
+    for (auto it = mReverseDependencies.begin(); it != mReverseDependencies.end(); ++it) {
         it->second.remove(fileId);
     }
 }

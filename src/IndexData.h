@@ -60,7 +60,7 @@ public:
     String message; // used as output for dump when flags & Dump
     FixIts fixIts;
     Diagnostics diagnostics;
-    Dependencies dependencies;
+    Dependencies dependencies, reverseDependencies;
     Declarations declarations; // function declarations and forward declaration
     Hash<uint32_t, bool> visited;
     uint64_t id;
