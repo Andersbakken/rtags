@@ -44,10 +44,9 @@ int ReferencesJob::execute()
     }
     const bool declarationOnly = queryFlags() & QueryMessage::DeclarationOnly;
     Location startLocation;
+    bool first = true;
     for (auto it = locations.begin(); it != locations.end(); ++it) {
         const Location pos = *it;
-        if (it == locations.begin() && !(queryFlags() & QueryMessage::NoSortReferencesByInput))
-            startLocation = pos;
         Symbol sym = proj->findSymbol(pos);
         if (sym.isNull())
             continue;
@@ -55,6 +54,11 @@ int ReferencesJob::execute()
             sym = proj->findTarget(sym);
         if (sym.isNull())
             continue;
+        if (first && !(queryFlags() & QueryMessage::NoSortReferencesByInput)) {
+            first = false;
+            startLocation = sym.location;
+        }
+
         if (rename && sym.isConstructorOrDestructor()) {
             const Location loc = sym.location;
             sym.clear();
