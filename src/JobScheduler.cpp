@@ -145,8 +145,12 @@ void JobScheduler::jobFinished(const std::shared_ptr<IndexerJob> &job, const std
         assert(job->crashCount <= options.maxCrashCount);
         if (job->crashCount < options.maxCrashCount) {
             project->releaseFileIds(job->visited);
-            job->flags &= ~IndexerJob::Crashed;
-            EventLoop::eventLoop()->registerTimer([job, this](int) { add(job); }, 500, Timer::SingleShot); // give it 500 ms before we try again
+            EventLoop::eventLoop()->registerTimer([job, this](int) {
+                    if (!(job->flags & IndexerJob::Aborted)) {
+                        job->flags &= ~IndexerJob::Crashed;
+                        add(job);
+                    }
+                }, 500, Timer::SingleShot); // give it 500 ms before we try again
             return;
         }
     }
