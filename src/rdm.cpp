@@ -77,7 +77,7 @@ static void usage(FILE *f)
 #endif
 
             "  --job-count|-j [arg]                       Spawn this many concurrent processes for indexing (default %d).\n"
-            "  --low-priority-job-count|-J [arg]          Allow this many concurrent low-priority jobs (default half of --job-count).\n"
+            "  --low-priority-job-count|-J [arg]          Allow this many concurrent low-priority jobs (default same as --job-count).\n"
             "  --log-file|-L [arg]                        Log to this file.\n"
 
 #ifndef OS_Darwin
@@ -585,7 +585,7 @@ int main(int argc, char** argv)
     }
 
     if (serverOpts.lowPriorityJobCount == -1) {
-        serverOpts.lowPriorityJobCount = std::max(1, serverOpts.jobCount / 2);
+        serverOpts.lowPriorityJobCount = serverOpts.jobCount;
     } else {
         serverOpts.lowPriorityJobCount = std::min(serverOpts.lowPriorityJobCount, serverOpts.jobCount);
     }
