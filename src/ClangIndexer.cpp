@@ -937,7 +937,6 @@ void ClangIndexer::handleInclude(const CXCursor &cursor, CXCursorKind kind, cons
             String include = "#include ";
             const Path path = refLoc.path();
             assert(mSource.fileId);
-            mData->dependencies[refLoc.fileId()].insert(mSource.fileId);
             unit(location.fileId())->symbolNames[(include + path)].insert(location);
             unit(location.fileId())->symbolNames[(include + path.fileName())].insert(location);
             c.symbolName = "#include " + RTags::eatString(clang_getCursorDisplayName(cursor));
@@ -947,8 +946,10 @@ void ClangIndexer::handleInclude(const CXCursor &cursor, CXCursorKind kind, cons
             unit(location)->targets[location][refLoc.path()] = 0; // ### what targets value to create for this?
             // this fails for things like:
             // # include    <foobar.h>
+            return;
         }
     }
+    error() << "couldn't create included file" << cursor;
 }
 
 bool ClangIndexer::handleCursor(const CXCursor &cursor, CXCursorKind kind, const Location &location, Symbol **cursorPtr)
