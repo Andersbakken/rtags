@@ -104,35 +104,17 @@ int StatusJob::execute()
             return 1;
     }
 
-    const Dependencies deps = proj->dependencies();
+    const Dependencies &deps = proj->dependencies();
     if (query.isEmpty() || !strcasecmp(query.constData(), "dependencies")) {
         matched = true;
         if (!write(delimiter) || !write("dependencies") || !write(delimiter))
             return 1;
-        Dependencies depsReversed;
 
-        for (Dependencies::const_iterator it = deps.begin(); it != deps.end(); ++it) {
-            if (!write<256>("  %s (%d) is depended on by", Location::path(it->first).constData(), it->first))
-                return 1;
-            const Set<uint32_t> &deps = it->second;
-            for (Set<uint32_t>::const_iterator dit = deps.begin(); dit != deps.end(); ++dit) {
-                if (!write<256>("    %s (%d)", Location::path(*dit).constData(), *dit))
-                    return 1;
-                depsReversed[*dit].insert(it->first);
-            }
-            if (isAborted())
-                return 1;
+        for (auto it : deps) {
+            write(proj->dumpDependencies(it.first));
         }
-        for (Dependencies::const_iterator it = depsReversed.begin(); it != depsReversed.end(); ++it) {
-            write<256>("  %s (%d) depends on", Location::path(it->first).constData(), it->first);
-            const Set<uint32_t> &deps = it->second;
-            for (Set<uint32_t>::const_iterator dit = deps.begin(); dit != deps.end(); ++dit) {
-                if (!write<256>("    %s (%d)", Location::path(*dit).constData(), *dit))
-                    return 1;
-            }
-            if (isAborted())
-                return 1;
-        }
+        if (isAborted())
+            return 1;
     }
 
     if (query.isEmpty() || !strcasecmp(query.constData(), "symbols") || !strcasecmp(query.constData(), "cursors")) {

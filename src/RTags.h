@@ -33,7 +33,7 @@ class Database;
 class Project;
 namespace RTags {
 
-enum { DatabaseVersion = 59 };
+enum { DatabaseVersion = 60 };
 
 enum {
     CompilationError = -1,
@@ -56,7 +56,9 @@ void initMessages();
 
 struct Diagnostic;
 typedef Map<Location, Diagnostic> Diagnostics;
-typedef Hash<uint32_t, Set<uint32_t> > Dependencies;
+struct DependencyNode;
+typedef List<std::pair<uint32_t, uint32_t> > Includes;
+typedef Hash<uint32_t, DependencyNode*> Dependencies;
 typedef Hash<String, Set<uint32_t> > Declarations;
 typedef Map<uint64_t, Source> Sources;
 typedef Map<Path, Set<String> > Files;

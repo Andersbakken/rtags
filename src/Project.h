@@ -36,6 +36,23 @@ class IndexerJob;
 class RestoreThread;
 class Connection;
 class Dirty;
+struct DependencyNode
+{
+    DependencyNode(uint32_t f)
+        : fileId(f)
+    {}
+
+    void include(DependencyNode *dependee)
+    {
+        assert(!includes.contains(dependee->fileId) || includes.value(dependee->fileId) == dependee);
+        includes[dependee->fileId] = dependee;
+        assert(!dependee->dependents.contains(fileId) || dependee->dependents.value(fileId) == this);
+        dependee->dependents[fileId] = this;
+    }
+
+    Dependencies dependents, includes;
+    uint32_t fileId;
+};
 class Project : public std::enable_shared_from_this<Project>
 {
 public:
@@ -94,8 +111,10 @@ public:
         DependsOnArg,
         ArgDependsOn // slow
     };
+
     Set<uint32_t> dependencies(uint32_t fileId, DependencyMode mode) const;
-    const Dependencies &dependencies() const { return mDependencies; }
+    String dumpDependencies(uint32_t fileId) const;
+    const Hash<uint32_t, DependencyNode*> &dependencies() const { return mDependencies; }
     const Declarations &declarations() const { return mDeclarations; }
 
     Set<Symbol> findSymbols(const String &symbolName, uint32_t fileId = 0);
@@ -164,7 +183,7 @@ private:
     void removeDependencies(uint32_t fileId);
     void watch(const Path &file);
     void reloadFileManager();
-    void updateDependencies(const Set<uint32_t> &visited, Dependencies &deps, Dependencies &revDeps);
+    void updateDependencies(const Set<uint32_t> &visited, const Includes &includes);
     void updateDeclarations(const Set<uint32_t> &visited, Declarations &declarations);
     void updateFixIts(const Set<uint32_t> &visited, FixIts &fixIts);
     int startDirtyJobs(Dirty *dirty, const UnsavedFiles &unsavedFiles = UnsavedFiles());
@@ -289,12 +308,12 @@ private:
 
     StopWatch mTimer;
     FileSystemWatcher mWatcher;
-    Dependencies mDependencies, mReverseDependencies;
     Declarations mDeclarations;
     Sources mSources;
     Set<Path> mWatchedPaths;
     FixIts mFixIts;
 
+    Hash<uint32_t, DependencyNode*> mDependencies;
     Set<uint32_t> mSuspendedFiles;
 
     mutable std::mutex mMutex;
@@ -326,20 +345,6 @@ inline void Project::releaseFileIds(const Set<uint32_t> &fileIds)
             // error() << "Returning files" << Location::path(f);
             mVisitedFiles.remove(f);
         }
-    }
-}
-
-inline void Project::removeDependencies(uint32_t fileId)
-{
-    mDependencies.remove(fileId);
-    for (auto it = mDependencies.begin(); it != mDependencies.end(); ++it) {
-        it->second.remove(fileId);
-    }
-
-#warning this could be better
-    mReverseDependencies.remove(fileId);
-    for (auto it = mReverseDependencies.begin(); it != mReverseDependencies.end(); ++it) {
-        it->second.remove(fileId);
     }
 }
 

@@ -41,9 +41,9 @@ public:
     {
         assert(mData);
         serializer << mProject << mData->flags << mData->key << mData->parseTime
-                   << mData->message << mData->fixIts << mData->dependencies
-                   << mData->reverseDependencies << mData->diagnostics
-                   << mData->visited << mData->declarations << mData->id;
+                   << mData->message << mData->fixIts << mData->includes
+                   << mData->diagnostics << mData->visited
+                   << mData->declarations << mData->id;
     }
     void decode(Deserializer &deserializer)
     {
@@ -51,11 +51,9 @@ public:
         uint32_t flags;
         deserializer >> mProject >> flags;
         mData.reset(new IndexData(flags));
-        deserializer >> mData->key >> mData->parseTime
-                     >> mData->message >> mData->fixIts
-                     >> mData->dependencies >> mData->reverseDependencies
-                     >> mData->diagnostics >> mData->visited
-                     >> mData->declarations >> mData->id;
+        deserializer >> mData->key >> mData->parseTime >> mData->message >> mData->fixIts
+                     >> mData->includes >> mData->diagnostics
+                     >> mData->visited >> mData->declarations >> mData->id;
     }
     std::shared_ptr<IndexData> data() const { return mData; }
     const Path &project() const { return mProject; }

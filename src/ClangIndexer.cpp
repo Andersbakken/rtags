@@ -179,13 +179,11 @@ bool ClangIndexer::exec(const String &data)
         symbolNameCount += unit.second->symbolNames.size();
     }
     if (mClangUnit) {
-        const char *format = "(%d syms, %d symNames, %d deps, %d of %d files, symbols: %d of %d, %d queried) (%d/%d/%dms)";
+        const char *format = "(%d syms, %d symNames, %d includes, %d of %d files, symbols: %d of %d, %d queried) (%d/%d/%dms)";
         mData->message += String::format<128>(format, cursorCount, symbolNameCount,
-                                              mData->dependencies.size(), mIndexed, mData->visited.size(), mAllowed,
+                                              mData->includes.size(), mIndexed, mData->visited.size(), mAllowed,
                                               mAllowed + mBlocked, mFileIdsQueried,
                                               mParseDuration, mVisitDuration, writeDuration);
-    } else if (mData->dependencies.size()) {
-        mData->message += String::format<16>("(%d deps)", mData->dependencies.size());
     }
     if (mData->flags & IndexerJob::Dirty)
         mData->message += " (dirty)";
@@ -939,8 +937,7 @@ void ClangIndexer::handleInclude(const CXCursor &cursor, CXCursorKind kind, cons
             assert(mSource.fileId);
             unit(location.fileId())->symbolNames[(include + path)].insert(location);
             unit(location.fileId())->symbolNames[(include + path.fileName())].insert(location);
-            mData->dependencies[refLoc.fileId()].insert(location.fileId());
-            mData->reverseDependencies[location.fileId()].insert(refLoc.fileId());
+            mData->includes.push_back(std::make_pair(location.fileId(), refLoc.fileId()));
             c.symbolName = "#include " + RTags::eatString(clang_getCursorDisplayName(cursor));
             c.kind = cursor.kind;
             c.symbolLength = c.symbolName.size() + 2;
@@ -1120,19 +1117,10 @@ bool ClangIndexer::parse()
 
     warning() << "CI::parse loading unit:" << mClangLine << " " << (mClangUnit != 0);
     if (mClangUnit) {
-        mData->dependencies[mSource.fileId].insert(mSource.fileId);
-        mData->reverseDependencies[mSource.fileId].insert(mSource.fileId);
         mParseDuration = sw.elapsed();
         return true;
     }
     error() << "Failed to parse" << mClangLine;
-    for (Hash<uint32_t, bool>::const_iterator it = mData->visited.begin(); it != mData->visited.end(); ++it) {
-        mData->dependencies[it->first].insert(mSource.fileId);
-        mData->reverseDependencies[mSource.fileId].insert(it->first);
-        if (it->second)
-            addFileSymbol(it->first);
-    }
-
     return false;
 }
 

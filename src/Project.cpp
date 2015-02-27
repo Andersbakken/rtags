@@ -48,11 +48,11 @@ public:
 class SimpleDirty : public Dirty
 {
 public:
-    void init(const Set<uint32_t> &dirty, const Dependencies &dependencies)
+    void init(const Set<uint32_t> &dirty, const std::shared_ptr<Project> &project)
     {
         for (auto fileId : dirty) {
             mDirty.insert(fileId);
-            mDirty += dependencies.value(fileId);
+            mDirty += project->dependencies(fileId, Project::DependsOnArg);
         }
     }
 
@@ -105,20 +105,9 @@ public:
 class IfModifiedDirty : public ComplexDirty
 {
 public:
-    IfModifiedDirty(const Dependencies &dependencies, const Match &match = Match())
-        : mDependencies(dependencies), mMatch(match)
+    IfModifiedDirty(const std::shared_ptr<Project> &project, const Match &match = Match())
+        : mProject(project), mMatch(match)
     {
-        for (auto it : mDependencies) {
-            const uint32_t dependee = it.first;
-            const Set<uint32_t> &dependents = it.second;
-            for (auto dependent : dependents) {
-                mReversedDependencies[dependent].insert(dependee);
-            }
-        }
-        // mReversedDependencies are in the form of:
-        //   Path.cpp: Path.h, String.h ...
-        // mDependencies are like this:
-        //   Path.h: Path.cpp, Server.cpp ...
     }
 
     virtual bool isDirty(const Source &source)
@@ -126,7 +115,7 @@ public:
         bool ret = false;
 
         if (mMatch.isEmpty() || mMatch.match(source.sourceFile())) {
-            for (auto it : mReversedDependencies[source.fileId]) {
+            for (auto it : mProject->dependencies(source.fileId, Project::ArgDependsOn)) {
                 const uint64_t depLastModified = lastModified(it);
                 if (!depLastModified || depLastModified > source.parsed) {
                     // dependency is gone
@@ -142,7 +131,7 @@ public:
         return ret;
     }
 
-    Dependencies mDependencies, mReversedDependencies;
+    std::shared_ptr<Project> mProject;
     Match mMatch;
 };
 
@@ -150,10 +139,10 @@ public:
 class WatcherDirty : public ComplexDirty
 {
 public:
-    WatcherDirty(const Dependencies &dependencies, const Set<uint32_t> &modified)
+    WatcherDirty(const std::shared_ptr<Project> &project, const Set<uint32_t> &modified)
     {
         for (auto it : modified) {
-            mModified[it] = dependencies.value(it);
+            mModified[it] = project->dependencies(it, Project::DependsOnArg);
         }
     }
 
@@ -178,8 +167,53 @@ public:
         return ret;
     }
 
-    Dependencies mModified;
+    Hash<uint32_t, Set<uint32_t> > mModified;
 };
+
+static void loadDependencies(DataFile &file, Dependencies &dependencies)
+{
+    int size;
+    file >> size;
+    for (int i=0; i<size; ++i) {
+        uint32_t fileId;
+        file >> fileId;
+        dependencies[fileId] = new DependencyNode(fileId);
+    }
+    for (int i=0; i<size; ++i) {
+        int links;
+        file >> links;
+        if (links) {
+            uint32_t dependee;
+            file >> dependee;
+            DependencyNode *ee = dependencies[dependee];
+            assert(ee);
+            for (int i=0; i<links; ++i) {
+                uint32_t dependent;
+                file >> dependent;
+                DependencyNode *ent = dependencies[dependent];
+                assert(ent);
+                ent->include(ee);
+            }
+        }
+    }
+}
+
+static void saveDependencies(DataFile &file, const Dependencies &dependencies)
+{
+    file << dependencies.size();
+    for (const auto &it : dependencies) {
+        file << it.first;
+    }
+    for (const auto &it : dependencies) {
+        file << it.second->dependents.size();
+        if (!it.second->dependents.isEmpty()) {
+            file << it.first;
+            for (const auto &dep : it.second->dependents) {
+                file << dep.first;
+            }
+        }
+    }
+}
 
 Project::Project(const Path &path)
     : mPath(path), mSourceFilePathBase(RTags::encodeSourceFilePath(Server::instance()->options().dataDir, path)),
@@ -197,6 +231,7 @@ Project::~Project()
         assert(job.second);
         Server::instance()->jobScheduler()->abort(job.second);
     }
+    mDependencies.deleteAll();
 
     assert(EventLoop::isMainThread());
     mDirtyTimer.stop();
@@ -225,7 +260,8 @@ bool Project::init()
         return false;
     }
 
-    file >> mSources >> mVisitedFiles >> mDependencies >> mReverseDependencies >> mDeclarations;
+    file >> mSources >> mVisitedFiles >> mDeclarations;
+    loadDependencies(file, mDependencies);
 
     for (const auto &dep : mDependencies) {
         watch(Location::path(dep.first));
@@ -237,19 +273,18 @@ bool Project::init()
     if (Server::instance()->suspended()) {
         dirty.reset(new SuspendedDirty);
     } else {
-        dirty.reset(new IfModifiedDirty(mDependencies));
+        dirty.reset(new IfModifiedDirty(shared_from_this()));
     }
 
     {
-        auto it = mDependencies.begin();
-
-        while (it != mDependencies.end()) {
-            const Path path = Location::path(it->first);
+        List<uint32_t> removed;
+        for (auto it : mDependencies) {
+            const Path path = Location::path(it.first);
             if (!path.isFile()) {
                 warning() << path << "seems to have disappeared";
-                dirty.get()->insertDirtyFile(it->first);
+                dirty.get()->insertDirtyFile(it.first);
 
-                const Set<uint32_t> &dependents = it->second;
+                const Set<uint32_t> dependents = dependencies(it.first, DependsOnArg);
                 for (auto dependent : dependents) {
                     // we don't have a file to compare with to
                     // know whether the source is parsed after the
@@ -257,13 +292,12 @@ bool Project::init()
                     // dirty.
                     dirty.get()->insertDirtyFile(dependent);
                 }
-
-                mDependencies.erase(it++);
+                removed << it.first;
                 needsSave = true;
             }
-            else {
-                ++it;
-            }
+        }
+        for (uint32_t r : removed) {
+            removeDependencies(r);
         }
     }
 
@@ -357,7 +391,7 @@ void Project::onJobFinished(const std::shared_ptr<IndexerJob> &job, const std::s
             visited.insert(pair.first);
     }
     updateFixIts(visited, indexData->fixIts);
-    updateDependencies(visited, indexData->dependencies, indexData->reverseDependencies);
+    updateDependencies(visited, indexData->includes);
     updateDeclarations(visited, indexData->declarations);
     if (success) {
         src->second.parsed = indexData->parseTime;
@@ -394,7 +428,8 @@ bool Project::save()
         error("Save error %s: %s", mProjectFilePath.constData(), file.error().constData());
         return false;
     }
-    file << mSources << mVisitedFiles << mDependencies << mReverseDependencies << mDeclarations;
+    file << mSources << mVisitedFiles << mDeclarations;
+    saveDependencies(file, mDependencies);
     if (!file.flush()) {
         error("Save error %s: %s", mProjectFilePath.constData(), file.error().constData());
         return false;
@@ -528,7 +563,7 @@ void Project::onFileModifiedOrRemoved(const Path &file)
 void Project::onDirtyTimeout(Timer *)
 {
     Set<uint32_t> dirtyFiles = std::move(mPendingDirtyFiles);
-    WatcherDirty dirty(mDependencies, dirtyFiles);
+    WatcherDirty dirty(shared_from_this(), dirtyFiles);
     startDirtyJobs(&dirty);
 }
 
@@ -551,58 +586,49 @@ List<Source> Project::sources(uint32_t fileId) const
 
 Set<uint32_t> Project::dependencies(uint32_t fileId, DependencyMode mode) const
 {
-    const Dependencies& from = (mode == DependsOnArg) ? mDependencies : mReverseDependencies;
-    Set<uint32_t> deps;
-    std::function<void(uint32_t)> makeDeps = [&](uint32_t fileId) {
-        const auto it = from.find(fileId);
-        if (it == from.end())
-            return;
-        for (uint32_t f : it->second) {
-            if (deps.insert(f)) {
-                makeDeps(f);
+    Set<uint32_t> ret;
+    ret.insert(fileId);
+    std::function<void(uint32_t)> fill = [&](uint32_t fileId) {
+        if (DependencyNode *node = mDependencies.value(fileId)) {
+            const auto &nodes = (mode == ArgDependsOn ? node->includes : node->dependents);
+            for (const auto &it : nodes) {
+                if (ret.insert(it.first))
+                    fill(it.first);
             }
         }
     };
-    deps.insert(fileId);
-    makeDeps(fileId);
-    return deps;
+    fill(fileId);
+    return ret;
 }
 
-void Project::updateDependencies(const Set<uint32_t> &visited, Dependencies &deps, Dependencies &revDeps)
+void Project::removeDependencies(uint32_t fileId)
 {
+    if (DependencyNode *node = mDependencies.take(fileId)) {
+        for (auto it : node->includes)
+            it.second->dependents.remove(fileId);
+        for (auto it : node->dependents)
+            it.second->includes.remove(fileId);
+        delete node;
+    }
+}
+
+void Project::updateDependencies(const Set<uint32_t> &visited, const Includes &includes)
+{
+    // ### this probably deletes and recreates the same nodes very very often
     for (uint32_t file : visited) {
         removeDependencies(file);
     }
     Set<uint32_t> files;
-    {
-        const auto end = deps.end();
-        for (auto it = deps.begin(); it != end; ++it) {
-            Set<uint32_t> &values = mDependencies[it->first];
-            if (values.isEmpty()) {
-                files.unite(it->second);
-                values = it->second;
-            } else {
-                for (const uint32_t file : it->second) {
-                    if (values.insert(file))
-                        files.insert(file);
-                }
-            }
-        }
-    }
-    {
-        const auto end = revDeps.end();
-        for (auto it = revDeps.begin(); it != end; ++it) {
-            Set<uint32_t> &values = mReverseDependencies[it->first];
-            if (values.isEmpty()) {
-                files.unite(it->second);
-                values = it->second;
-            } else {
-                for (const uint32_t file : it->second) {
-                    if (values.insert(file))
-                        files.insert(file);
-                }
-            }
-        }
+    for (const auto &it : includes) {
+        DependencyNode *&includer = mDependencies[it.first];
+        DependencyNode *&inclusiary = mDependencies[it.second];
+        files.insert(it.first);
+        files.insert(it.second);
+        if (!includer)
+            includer = new DependencyNode(it.first);
+        if (!inclusiary)
+            inclusiary = new DependencyNode(it.second);
+        includer->include(inclusiary);
     }
     for (uint32_t file : files) {
         watch(Location::path(file));
@@ -643,11 +669,11 @@ int Project::reindex(const Match &match, const std::shared_ptr<QueryMessage> &qu
         if (dirtyFiles.isEmpty())
             return 0;
         SimpleDirty dirty;
-        dirty.init(dirtyFiles, mDependencies);
+        dirty.init(dirtyFiles, shared_from_this());
         return startDirtyJobs(&dirty, query->unsavedFiles());
     } else {
         assert(query->type() == QueryMessage::CheckReindex);
-        IfModifiedDirty dirty(mDependencies, match);
+        IfModifiedDirty dirty(shared_from_this(), match);
         return startDirtyJobs(&dirty, query->unsavedFiles());
     }
 }
@@ -1220,4 +1246,50 @@ void Project::endScope()
 {
     assert(mFileMapScope);
     mFileMapScope.reset();
+}
+
+String Project::dumpDependencies(uint32_t fileId) const
+{
+    String ret;
+
+    DependencyNode *node = mDependencies.value(fileId);
+    if (!node)
+        return String::format<128>("Can't find node for %s", Location::path(fileId).constData());
+
+    if (!node->includes.isEmpty()) {
+        ret += String::format<256>("  %s includes:\n", Location::path(fileId).constData());
+        for (const auto &include : node->includes) {
+            ret += String::format<256>("    %s\n", Location::path(include.first).constData());
+        }
+    }
+    if (!node->dependents.isEmpty()) {
+        ret += String::format<256>("  %s is included by:\n", Location::path(fileId).constData());
+        for (const auto &include : node->dependents) {
+            ret += String::format<256>("    %s\n", Location::path(include.first).constData());
+        }
+    }
+
+    bool first = true;
+    for (auto dep : dependencies(fileId, Project::ArgDependsOn)) {
+        if (dep == fileId)
+            continue;
+        if (first) {
+            first = false;
+            ret += String::format<256>("  %s depends on:\n", Location::path(fileId).constData());
+        }
+        ret += String::format<256>("    %s\n", Location::path(dep).constData());
+    }
+
+    first = true;
+    for (auto dep : dependencies(fileId, Project::DependsOnArg)) {
+        if (dep == fileId)
+            continue;
+        if (first) {
+            first = false;
+            ret += String::format<256>("  %s is depended on by:\n", Location::path(fileId).constData());
+        }
+        ret += String::format<256>("    %s\n", Location::path(dep).constData());
+    }
+
+    return ret;
 }
