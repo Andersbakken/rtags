@@ -67,6 +67,13 @@
 (defvar rtags-buffer-bookmarks 0)
 (defvar rtags-diagnostics-process nil)
 
+(defun rtags-is-indexable-default (buffer)
+  (let ((filename (buffer-file-name buffer)))
+    (if filename
+        (let ((suffix (and (string-match "\.\\([^.]+\\)$" filename) (match-string 1 filename))))
+          (or (not suffix)
+              (and (member (downcase suffix) (list "cpp" "h" "cc" "c" "cp" "cxx" "m" "mm" "tcc" "txx" "moc" "hxx" "hh")) t))))))
+
 (defcustom rtags-enabled t
   "Whether rtags is enabled. We try to do nothing when it's not"
   :group 'rtags
@@ -161,6 +168,11 @@
   "Run when rtags-mode is started"
   :group 'rtags
   :type 'hook)
+
+(defcustom rtags-is-indexable 'rtags-is-indexable-default
+  "What function to call for expansions"
+  :group 'rtags
+  :type 'function)
 
 (defcustom rtags-diagnostics-hook nil
   "Run after diagnostics have been parsed"
