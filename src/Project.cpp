@@ -16,7 +16,6 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 #include "Project.h"
 #include "FileManager.h"
 #include "Diagnostic.h"
-#include "DataFile.h"
 #include "IndexerJob.h"
 #include "RTags.h"
 #include "Server.h"
@@ -33,6 +32,7 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 #include <rct/ReadLocker.h>
 #include <rct/RegExp.h>
 #include <rct/Thread.h>
+#include <rct/DataFile.h>
 #include <memory>
 
 enum {
@@ -79,7 +79,7 @@ public:
         Path path = mPath;
         RTags::encodePath(path);
         const Path p = Server::instance()->options().dataDir + path;
-        DataFile file(p);
+        DataFile file(p, RTags::DatabaseVersion);
         if (!file.open(DataFile::Read)) {
             if (!file.error().isEmpty())
                 error("Restore error %s: %s", mPath.constData(), file.error().constData());
@@ -548,7 +548,7 @@ bool Project::save()
     RTags::encodePath(srcPath);
     const Server::Options &options = Server::instance()->options();
     const Path p = options.dataDir + srcPath;
-    DataFile file(p);
+    DataFile file(p, RTags::DatabaseVersion);
     if (!file.open(DataFile::Write)) {
         error("Save error %s: %s", p.constData(), file.error().constData());
         return false;
