@@ -29,7 +29,6 @@
 #include "IndexerJob.h"
 #include "Source.h"
 #include "DumpThread.h"
-#include "DataFile.h"
 #if CLANG_VERSION_MAJOR > 3 || (CLANG_VERSION_MAJOR == 3 && CLANG_VERSION_MINOR > 3)
 #include <clang-c/CXCompilationDatabase.h>
 #endif
@@ -47,6 +46,7 @@
 #include "StatusJob.h"
 #include <clang-c/Index.h>
 #include <rct/Connection.h>
+#include <rct/DataFile.h>
 #include <rct/Value.h>
 #include <rct/EventLoop.h>
 #include <rct/SocketClient.h>
@@ -1414,7 +1414,7 @@ void Server::handleVisitFileMessage(const std::shared_ptr<VisitFileMessage> &mes
 void Server::restoreFileIds()
 {
     const Path p = mOptions.dataDir + "fileids";
-    DataFile fileIdsFile(mOptions.dataDir + "fileids");
+    DataFile fileIdsFile(mOptions.dataDir + "fileids", RTags::DatabaseVersion);
     if (fileIdsFile.open(DataFile::Read)) {
         Hash<Path, uint32_t> pathsToIds;
         fileIdsFile >> pathsToIds;
@@ -1432,7 +1432,7 @@ bool Server::saveFileIds()
     const uint32_t lastId = Location::lastId();
     if (mLastFileId == lastId)
         return true;
-    DataFile fileIdsFile(mOptions.dataDir + "fileids");
+    DataFile fileIdsFile(mOptions.dataDir + "fileids", RTags::DatabaseVersion);
     if (!fileIdsFile.open(DataFile::Write)) {
         error("Can't save file ids: %s", fileIdsFile.error().constData());
         return false;

@@ -16,7 +16,6 @@
 #include "Project.h"
 #include "FileManager.h"
 #include "Diagnostic.h"
-#include "DataFile.h"
 #include "IndexerJob.h"
 #include "RTags.h"
 #include "Server.h"
@@ -33,6 +32,7 @@
 #include <rct/ReadLocker.h>
 #include <rct/RegExp.h>
 #include <rct/Thread.h>
+#include <rct/DataFile.h>
 #include <memory>
 
 enum { DirtyTimeout = 100 };
@@ -252,7 +252,7 @@ bool Project::init()
     fileManager->init(shared_from_this(), FileManager::Asynchronous);
     mDirtyTimer.timeout().connect(std::bind(&Project::onDirtyTimeout, this, std::placeholders::_1));
 
-    DataFile file(mProjectFilePath);
+    DataFile file(mProjectFilePath, RTags::DatabaseVersion);
     if (!file.open(DataFile::Read)) {
         if (!file.error().isEmpty())
             error("Restore error %s: %s", mPath.constData(), file.error().constData());
@@ -423,7 +423,7 @@ void Project::onJobFinished(const std::shared_ptr<IndexerJob> &job, const std::s
 
 bool Project::save()
 {
-    DataFile file(mProjectFilePath);
+    DataFile file(mProjectFilePath, RTags::DatabaseVersion);
     if (!file.open(DataFile::Write)) {
         error("Save error %s: %s", mProjectFilePath.constData(), file.error().constData());
         return false;
