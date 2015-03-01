@@ -49,8 +49,8 @@ unsigned int QueryMessage::keyFlags(unsigned int queryFlags)
 Match QueryMessage::match() const
 {
     unsigned int flags = Match::Flag_StringMatch;
-    if (mFlags & MatchRegexp)
-        flags |= Match::Flag_RegExp;
+    if (mFlags & MatchRegex)
+        flags |= Match::Flag_Regex;
 
     return Match(mQuery, flags);
 }
@@ -72,7 +72,7 @@ QueryMessage::Flag QueryMessage::flagFromString(const String &string)
     } else if (string == "imenu") {
         return IMenu;
     } else if (string == "match-regexp") {
-        return MatchRegexp;
+        return MatchRegex;
     } else if (string == "match-case-insensitive") {
         return MatchCaseInsensitive;
     } else if (string == "find-virtuals") {

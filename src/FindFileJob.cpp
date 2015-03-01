@@ -25,8 +25,8 @@ FindFileJob::FindFileJob(const std::shared_ptr<QueryMessage> &query, const std::
 {
     const String q = query->query();
     if (!q.isEmpty()) {
-        if (query->flags() & QueryMessage::MatchRegexp) {
-            mRegExp = q;
+        if (query->flags() & QueryMessage::MatchRegex) {
+            mRegex = q.ref();
         } else {
             mPattern = q;
         }
@@ -45,12 +45,12 @@ int FindFileJob::execute()
     enum Mode {
         All,
         FilePath,
-        RegExp,
+        Regex,
         Pattern,
     } mode = All;
     String::CaseSensitivity cs = String::CaseSensitive;
-    if (mRegExp.isValid()) {
-        mode = RegExp;
+    if (queryFlags() & QueryMessage::MatchRegex) {
+        mode = Regex;
     } else if (!mPattern.isEmpty()) {
         mode = mPattern[0] == '/' ? FilePath : Pattern;
     }
@@ -89,8 +89,8 @@ int FindFileJob::execute()
             case All:
                 ok = true;
                 break;
-            case RegExp:
-                ok = mRegExp.indexIn(out) != -1;
+            case Regex:
+                ok = Rct::contains(out, mRegex);
                 break;
             case FilePath:
             case Pattern:

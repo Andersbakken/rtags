@@ -21,7 +21,7 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 #include <rct/String.h>
 #include <rct/EventLoop.h>
 #include <rct/SignalSlot.h>
-#include <rct/RegExp.h>
+#include <regex>
 #include "RTagsClang.h"
 #include "QueryMessage.h"
 #include <mutex>
@@ -45,7 +45,7 @@ public:
     QueryJob(unsigned int jobFlags, const std::shared_ptr<Project> &project);
     ~QueryJob();
 
-    bool hasFilter() const { return mPathFilters || mPathFiltersRegExp; }
+    bool hasFilter() const { return mPathFilters || mPathFiltersRegex; }
     List<String> pathFilters() const { return mPathFilters ? *mPathFilters : List<String>(); }
     uint32_t fileFilter() const;
     enum WriteFlag {
@@ -85,7 +85,7 @@ private:
     Signal<std::function<void(const String &)> > mOutput;
     std::weak_ptr<Project> mProject;
     List<String> *mPathFilters;
-    List<RegExp> *mPathFiltersRegExp;
+    List<std::regex> *mPathFiltersRegex;
     String mBuffer;
     Connection *mConnection;
 };

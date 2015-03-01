@@ -90,7 +90,7 @@ public:
         List<Source::Define> defines;
         List<Path> tests;
         Set<Path> ignoredCompilers;
-        List<std::pair<RegExp, Source::Language> > extraCompilers;
+        List<std::pair<std::regex, Source::Language> > extraCompilers;
 
         inline bool flag(enum Option o) const { return 0 != (options & o); }
     };

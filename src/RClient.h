@@ -78,7 +78,7 @@ public:
         LogFile,
         Man,
         MatchCaseInsensitive,
-        MatchRegexp,
+        MatchRegex,
         Max,
         NoColor,
         NoContext,

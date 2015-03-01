@@ -18,7 +18,7 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 #include <rct/EventLoop.h>
 #include "Server.h"
 #include "CursorInfo.h"
-#include <rct/RegExp.h>
+#include <regex>
 #include "QueryMessage.h"
 #include "Project.h"
 
@@ -27,19 +27,19 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 
 QueryJob::QueryJob(const std::shared_ptr<QueryMessage> &query, unsigned int jobFlags, const std::shared_ptr<Project> &proj)
     : mAborted(false), mLinesWritten(0), mQueryMessage(query), mJobFlags(jobFlags), mProject(proj), mPathFilters(0),
-      mPathFiltersRegExp(0), mConnection(0)
+      mPathFiltersRegex(0), mConnection(0)
 {
     assert(query);
     if (query->flags() & QueryMessage::SilentQuery)
         setJobFlag(QuietJob);
     const List<String> &pathFilters = query->pathFilters();
     if (!pathFilters.isEmpty()) {
-        if (query->flags() & QueryMessage::MatchRegexp) {
-            mPathFiltersRegExp = new List<RegExp>();
+        if (query->flags() & QueryMessage::MatchRegex) {
+            mPathFiltersRegex = new List<std::regex>();
             const int size = pathFilters.size();
-            mPathFiltersRegExp->reserve(size);
+            mPathFiltersRegex->reserve(size);
             for (int i=0; i<size; ++i) {
-                mPathFiltersRegExp->append(pathFilters.at(i));
+                mPathFiltersRegex->append(std::regex(pathFilters.at(i).ref()));
             }
         } else {
             mPathFilters = new List<String>(pathFilters);
@@ -49,14 +49,14 @@ QueryJob::QueryJob(const std::shared_ptr<QueryMessage> &query, unsigned int jobF
 
 QueryJob::QueryJob(unsigned int jobFlags, const std::shared_ptr<Project> &proj)
     : mAborted(false), mLinesWritten(0), mJobFlags(jobFlags), mProject(proj), mPathFilters(0),
-      mPathFiltersRegExp(0), mConnection(0)
+      mPathFiltersRegex(0), mConnection(0)
 {
 }
 
 QueryJob::~QueryJob()
 {
     delete mPathFilters;
-    delete mPathFiltersRegExp;
+    delete mPathFiltersRegex;
 }
 
 uint32_t QueryJob::fileFilter() const
@@ -185,7 +185,7 @@ bool QueryJob::write(const std::shared_ptr<CursorInfo> &ci, unsigned int ciflags
 
 bool QueryJob::filter(const String &value) const
 {
-    if (!mPathFilters && !mPathFiltersRegExp && !(queryFlags() & QueryMessage::FilterSystemIncludes))
+    if (!mPathFilters && !mPathFiltersRegex && !(queryFlags() & QueryMessage::FilterSystemIncludes))
         return true;
 
     const char *val = value.constData();
@@ -195,10 +195,10 @@ bool QueryJob::filter(const String &value) const
     if (queryFlags() & QueryMessage::FilterSystemIncludes && Path::isSystem(val))
         return false;
 
-    if (!mPathFilters && !mPathFiltersRegExp)
+    if (!mPathFilters && !mPathFiltersRegex)
         return true;
 
-    assert(!mPathFilters != !mPathFiltersRegExp);
+    assert(!mPathFilters != !mPathFiltersRegex);
     String copy;
     const String &ref = (val != value.constData() ? copy : value);
     if (val != value.constData())
@@ -206,12 +206,11 @@ bool QueryJob::filter(const String &value) const
     if (mPathFilters)
         return RTags::startsWith(*mPathFilters, ref);
 
-    assert(mPathFiltersRegExp);
+    assert(mPathFiltersRegex);
 
-    const int count = mPathFiltersRegExp->size();
+    const int count = mPathFiltersRegex->size();
     for (int i=0; i<count; ++i) {
-        error() << "Trying regexp" << mPathFiltersRegExp->at(i).pattern() << mPathFiltersRegExp->at(i).indexIn(ref) << ref;
-        if (mPathFiltersRegExp->at(i).indexIn(ref) != -1)
+        if (std::regex_search(ref.constData(), mPathFiltersRegex->at(i)))
             return true;
     }
     return false;

@@ -21,7 +21,7 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 #include "RTagsClang.h"
 #include "QueryJob.h"
 #include "Location.h"
-#include <rct/RegExp.h>
+#include <regex>
 
 class FindFileJob : public QueryJob
 {
@@ -31,7 +31,7 @@ protected:
     virtual int execute();
 private:
     String mPattern;
-    RegExp mRegExp;
+    std::regex mRegex;
 };
 
 #endif

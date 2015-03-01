@@ -30,9 +30,9 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 #include <rct/Value.h>
 #include <rct/Rct.h>
 #include <rct/ReadLocker.h>
-#include <rct/RegExp.h>
 #include <rct/Thread.h>
 #include <rct/DataFile.h>
+#include <regex>
 #include <memory>
 
 enum {
