@@ -55,10 +55,10 @@
 #include <rct/Path.h>
 #include <rct/Process.h>
 #include <rct/Rct.h>
-#include <rct/RegExp.h>
 #include <stdio.h>
 #include <arpa/inet.h>
 #include <limits>
+#include <regex>
 #include <rct/QuitMessage.h>
 
 #if not defined CLANG_INCLUDEPATH

@@ -27,7 +27,7 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 #include <rct/EmbeddedLinkedList.h>
 #include <rct/LinkedList.h>
 #include <rct/Path.h>
-#include <rct/RegExp.h>
+#include <regex>
 #include <rct/Timer.h>
 
 class IndexData;

@@ -337,7 +337,7 @@ int main(int argc, char** argv)
             break;
         case 'U': {
             Source::Language lang = Source::NoLanguage;
-            RegExp rx;
+            std::regex rx;
             if (char *semiColon = strchr(optarg, ';')) {
                 for (int i=Source::NoLanguage + 1; i<=Source::ObjectiveCPlusPlus; ++i) {
                     const char *name = Source::languageName(static_cast<Source::Language>(i));
@@ -353,7 +353,7 @@ int main(int argc, char** argv)
                     }
                     return 1;
                 }
-                rx = String(optarg, semiColon - optarg - 1);
+                rx = std::string(optarg, semiColon - optarg - 1);
             } else {
                 rx = optarg;
                 lang = Source::C;

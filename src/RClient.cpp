@@ -22,10 +22,9 @@
 #include <rct/QuitMessage.h>
 #include <rct/Rct.h>
 #include "RTagsClang.h"
-#include <rct/RegExp.h>
 #include "FileMap.h"
 #include <rct/StopWatch.h>
-
+#include <regex>
 
 struct Option {
     const RClient::OptionType option;
@@ -54,7 +53,7 @@ struct Option opts[] = {
     { RClient::None, 0, 0, 0, "Project management:" },
     { RClient::Clear, "clear", 'C', no_argument, "Clear projects." },
     { RClient::Project, "project", 'w', optional_argument, "With arg, select project matching that if unique, otherwise list all projects." },
-    { RClient::DeleteProject, "delete-project", 'W', required_argument, "Delete all projects matching regexp." },
+    { RClient::DeleteProject, "delete-project", 'W', required_argument, "Delete all projects matching regex." },
     { RClient::ReloadProjects, "reload-projects", 'z', no_argument, "Reload projects from projects file." },
     { RClient::JobCount, "jobcount", 'j', optional_argument, "Set or query current job count. (Prefix with l to set low-priority-job-count)." },
 
@@ -118,7 +117,7 @@ struct Option opts[] = {
     { RClient::ElispList, "elisp-list", 'Y', no_argument, "Output elisp: (list \"one\" \"two\" ...)." },
     { RClient::Diagnostics, "diagnostics", 'G', no_argument, "Receive continual diagnostics from rdm." },
     { RClient::XmlDiagnostics, "xml-diagnostics", 'm', no_argument, "Receive continual XML formatted diagnostics from rdm." },
-    { RClient::MatchRegexp, "match-regexp", 'Z', no_argument, "Treat various text patterns as regexps (-P, -i, -V)." },
+    { RClient::MatchRegex, "match-regexp", 'Z', no_argument, "Treat various text patterns as regexps (-P, -i, -V)." },
     { RClient::MatchCaseInsensitive, "match-icase", 'I', no_argument, "Match case insensitively" },
     { RClient::AbsolutePath, "absolute-path", 'K', no_argument, "Print files with absolute path." },
     { RClient::SocketFile, "socket-file", 'n', required_argument, "Use this socket file (default ~/.rdm)." },
@@ -589,8 +588,8 @@ bool RClient::parse(int &argc, char **argv)
         case MatchCaseInsensitive:
             mQueryFlags |= QueryMessage::MatchCaseInsensitive;
             break;
-        case MatchRegexp:
-            mQueryFlags |= QueryMessage::MatchRegexp;
+        case MatchRegex:
+            mQueryFlags |= QueryMessage::MatchRegex;
             break;
         case AbsolutePath:
             mQueryFlags |= QueryMessage::AbsolutePath;
@@ -619,14 +618,14 @@ bool RClient::parse(int &argc, char **argv)
             mQueryFlags |= QueryMessage::WildcardSymbolNames;
             break; }
         case RangeFilter: {
-            List<RegExp::Capture> caps;
-            RegExp rx("^\\([0-9][0-9]*\\)-\\([0-9][0-9]*\\)$");
-            if (rx.indexIn(optarg, 0, &caps) != 0 || caps.size() != 3) {
+            std::cmatch caps;
+            std::regex rx("^([0-9]+)-([0-9]+*)$");
+            if (!Rct::contains(optarg, rx, &caps) || caps.size() != 3) {
                 fprintf(stderr, "Can't parse range, must be uint-uint. E.g. 1-123\n");
                 return false;
             } else {
-                mMinOffset = atoi(caps.at(1).capture.constData());
-                mMaxOffset = atoi(caps.at(2).capture.constData());
+                mMinOffset = atoi(caps.str(1).c_str());
+                mMaxOffset = atoi(caps.str(2).c_str());
                 if (mMaxOffset <= mMinOffset || mMinOffset < 0) {
                     fprintf(stderr, "Invalid range (%d-%d), must be uint-uint. E.g. 1-123\n", mMinOffset, mMaxOffset);
                     return false;
@@ -638,14 +637,13 @@ bool RClient::parse(int &argc, char **argv)
             break;
         case PrepareCodeCompleteAt:
         case CodeCompleteAt: {
-            const String arg = optarg;
-            List<RegExp::Capture> caps;
-            RegExp rx("^\\(.*\\):\\([0-9][0-9]*\\):\\([0-9][0-9]*\\)");
-            if (rx.indexIn(arg, 0, &caps) != 0 || caps.size() != 4) {
+            std::cmatch caps;
+            std::regex rx("^(.*):([0-9]+):([0-9]+)");
+            if (!Rct::contains(optarg, rx, &caps) || caps.size() != 4) {
                 fprintf(stderr, "Can't decode argument for --code-complete-at [%s]\n", optarg);
                 return false;
             }
-            const Path path = Path::resolved(caps[1].capture, Path::MakeAbsolute);
+            const Path path = Path::resolved(caps.str(1), Path::MakeAbsolute);
             if (!path.isFile()) {
                 fprintf(stderr, "Can't decode argument for --code-complete-at [%s]\n", optarg);
                 return false;
@@ -654,7 +652,7 @@ bool RClient::parse(int &argc, char **argv)
             String out;
             {
                 Serializer serializer(out);
-                serializer << path << atoi(caps[2].capture.constData()) << atoi(caps[3].capture.constData());
+                serializer << path << atoi(caps.str(2).c_str()) << atoi(caps.str(3).c_str());
             }
             addQuery(opt->option == CodeCompleteAt ? QueryMessage::CodeCompleteAt : QueryMessage::PrepareCodeCompleteAt, out);
             break; }

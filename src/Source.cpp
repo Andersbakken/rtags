@@ -47,9 +47,9 @@ static inline Source::Language guessLanguageFromCompiler(const Path &fullPath) /
 {
     assert(EventLoop::isMainThread());
 
-    static const List<std::pair<RegExp, Source::Language> > &extraCompilers = Server::instance()->options().extraCompilers;
+    static const List<std::pair<std::regex, Source::Language> > &extraCompilers = Server::instance()->options().extraCompilers;
     for (const auto &pair : extraCompilers) {
-        if (pair.first.indexIn(fullPath) != -1)
+        if (Rct::contains(fullPath, pair.first))
             return pair.second;
     }
 

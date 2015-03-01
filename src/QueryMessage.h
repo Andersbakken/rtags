@@ -74,7 +74,7 @@ public:
         ReverseSort = 0x00000020,
         ElispList = 0x00000040,
         IMenu = 0x00000080,
-        MatchRegexp = 0x00000100,
+        MatchRegex = 0x00000100,
         MatchCaseInsensitive = 0x00000200,
         FindVirtuals = 0x00000400,
         Silent = 0x00000800,
@@ -145,7 +145,7 @@ public:
         case Reindex:
         case RemoveFile:
         case Sources:
-            mFlags |= MatchRegexp;
+            mFlags |= MatchRegex;
             break;
         default:
             break;
