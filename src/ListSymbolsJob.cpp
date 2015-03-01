@@ -114,6 +114,22 @@ Set<String> ListSymbolsJob::imenu(const std::shared_ptr<Project> &project)
     return out;
 }
 
+static inline bool isFunctionVariable(const String &entry)
+{
+    assert(entry.contains('('));
+    const int endParen = entry.lastIndexOf(')');
+    assert(endParen != -1);
+    const char *p = entry.constData() + endParen;
+    if (*++p == ':' && *++p == ':') {
+        while (*++p) {
+            if (!RTags::isSymbol(*p))
+                return false;
+        }
+        return true;
+    }
+    return false;
+}
+
 Set<String> ListSymbolsJob::listSymbols(const std::shared_ptr<Project> &project)
 {
     Set<String> out;
@@ -188,7 +204,8 @@ Set<String> ListSymbolsJob::listSymbols(const std::shared_ptr<Project> &project)
                 if (paren == -1) {
                     out.insert(entry);
                 } else {
-                    out.insert(entry.left(paren));
+                    if (!isFunctionVariable(entry))
+                        out.insert(entry.left(paren));
                     if (!stripParentheses)
                         out.insert(entry);
                 }
