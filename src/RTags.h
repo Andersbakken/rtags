@@ -33,7 +33,7 @@ class Database;
 class Project;
 namespace RTags {
 
-enum { DatabaseVersion = 61 };
+enum { DatabaseVersion = 62 };
 
 enum {
     CompilationError = -1,
