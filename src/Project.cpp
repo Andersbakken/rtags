@@ -615,11 +615,12 @@ void Project::removeDependencies(uint32_t fileId)
 void Project::updateDependencies(const Set<uint32_t> &visited, const Includes &includes)
 {
     // ### this probably deletes and recreates the same nodes very very often
+    Set<uint32_t> files;
     for (uint32_t file : visited) {
         removeDependencies(file);
         mDependencies[file] = new DependencyNode(file);
+        files.insert(file);
     }
-    Set<uint32_t> files;
     for (const auto &it : includes) {
         DependencyNode *&includer = mDependencies[it.first];
         DependencyNode *&inclusiary = mDependencies[it.second];
