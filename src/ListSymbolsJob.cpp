@@ -148,7 +148,6 @@ Set<String> ListSymbolsJob::listSymbols(const std::shared_ptr<Project> &project)
         && !string.endsWith('*'))
         string += '*';
 
-    error() << "foobar" << string;
     project->findSymbols(string, inserter, queryFlags());
     return out;
 }
