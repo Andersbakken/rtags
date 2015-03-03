@@ -1,17 +1,17 @@
 /* This file is part of RTags.
 
-RTags is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
+   RTags is free software: you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation, either version 3 of the License, or
+   (at your option) any later version.
 
-RTags is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
+   RTags is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
 
-You should have received a copy of the GNU General Public License
-along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
+   You should have received a copy of the GNU General Public License
+   along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 
 #ifndef Project_h
 #define Project_h
@@ -109,7 +109,7 @@ public:
 
     enum DependencyMode {
         DependsOnArg,
-        ArgDependsOn // slow
+        ArgDependsOn
     };
 
     Set<uint32_t> dependencies(uint32_t fileId, DependencyMode mode) const;
@@ -117,7 +117,16 @@ public:
     const Hash<uint32_t, DependencyNode*> &dependencies() const { return mDependencies; }
     const Declarations &declarations() const { return mDeclarations; }
 
-    Set<Symbol> findSymbols(const String &symbolName, uint32_t fileId = 0);
+    enum SymbolMatchType {
+        Exact,
+        Wildcard,
+        StartsWith
+    };
+    void findSymbols(const String &symbolName,
+                     const std::function<void(SymbolMatchType, const String &, const Set<Location> &)> &func,
+                     unsigned int queryFlags,
+                     uint32_t fileFilter = 0);
+
     Symbol findSymbol(const Location &location, int *index = 0);
     Set<Symbol> findTargets(const Location &location) { return findTargets(findSymbol(location)); }
     Set<Symbol> findTargets(const Symbol &symbol);

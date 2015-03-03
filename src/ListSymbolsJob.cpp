@@ -114,105 +114,41 @@ Set<String> ListSymbolsJob::imenu(const std::shared_ptr<Project> &project)
     return out;
 }
 
-static inline bool isFunctionVariable(const String &entry)
-{
-    assert(entry.contains('('));
-    const int endParen = entry.lastIndexOf(')');
-    assert(endParen != -1);
-    const char *p = entry.constData() + endParen;
-    if (*++p == ':' && *++p == ':') {
-        while (*++p) {
-            if (!RTags::isSymbol(*p))
-                return false;
-        }
-        return true;
-    }
-    return false;
-}
-
 Set<String> ListSymbolsJob::listSymbols(const std::shared_ptr<Project> &project)
 {
-    Set<String> out;
     const bool hasFilter = QueryJob::hasFilter();
     const bool stripParentheses = queryFlags() & QueryMessage::StripParentheses;
-    const bool wildcard = queryFlags() & QueryMessage::WildcardSymbolNames && (string.contains('*') || string.contains('?'));
-    const bool caseInsensitive = queryFlags() & QueryMessage::MatchCaseInsensitive;
-    const String::CaseSensitivity cs = caseInsensitive ? String::CaseInsensitive : String::CaseSensitive;
-    String lowerBound;
-    // error() << "SHOBA" << wildcard << string;
-    if (wildcard) {
-        if (!string.endsWith('*'))
-            string.append('*');
-        if (!caseInsensitive) {
-            for (int i=0; i<string.size(); ++i) {
-                if (string.at(i) == '?' || string.at(i) == '*') {
-                    lowerBound = string.left(i);
+    Set<String> out;
+    auto inserter = [this, hasFilter, stripParentheses, &out](Project::SymbolMatchType,
+                                                              const String &string,
+                                                              const Set<Location> &locations) {
+        if (hasFilter) {
+            bool ok = false;
+            for (const auto &l : locations) {
+                if (filter(l.path())) {
+                    ok = true;
                     break;
                 }
             }
+            if (!ok)
+                return;
         }
-    } else if (!caseInsensitive) {
-        lowerBound = string;
-    }
+        const int paren = string.indexOf('(');
+        if (paren == -1) {
+            out.insert(string);
+        } else {
+            if (!RTags::isFunctionVariable(string))
+                out.insert(string.left(paren));
+            if (!stripParentheses)
+                out.insert(string);
+        }
+    };
+    if (queryFlags() & QueryMessage::WildcardSymbolNames
+        && (string.contains('*') || string.contains('?'))
+        && !string.endsWith('*'))
+        string += '*';
 
-    const Dependencies &deps = project->dependencies();
-    int total = 0;
-    for (const auto &dep : deps) {
-        auto symNames = project->openSymbolNames(dep.first);
-        if (!symNames)
-            continue;
-        const int count = symNames->count();
-        // error() << "Looking at" << count << Location::path(dep.first)
-        //         << lowerBound << string;
-        int idx = 0;
-        if (!lowerBound.isEmpty()) {
-            idx = symNames->lowerBound(lowerBound);
-            if (idx == -1) {
-                continue;
-            }
-        }
-
-        for (int i=idx; i<count; ++i) {
-            const String &entry = symNames->keyAt(i);
-            // error() << i << count << entry;
-            if (!string.isEmpty()) {
-                if (wildcard) {
-                    if (!Rct::wildCmp(string.constData(), entry.constData(), cs)) {
-                        continue;
-                    }
-                } else if (!entry.startsWith(string, cs)) {
-                    if (caseInsensitive) {
-                        continue;
-                    } else {
-                        break;
-                    }
-                }
-            }
-            bool ok = true;
-            if (hasFilter) {
-                ok = false;
-                const Set<Location> &locations = symNames->valueAt(i);
-                for (Set<Location>::const_iterator it = locations.begin(); it != locations.end(); ++it) {
-                    if (filter(it->path())) {
-                        ok = true;
-                        break;
-                    }
-                }
-            }
-            if (ok) {
-                const int paren = entry.indexOf('(');
-                if (paren == -1) {
-                    out.insert(entry);
-                } else {
-                    if (!isFunctionVariable(entry))
-                        out.insert(entry.left(paren));
-                    if (!stripParentheses)
-                        out.insert(entry);
-                }
-            }
-            if (!(++total % 100) && isAborted())
-                break;
-        }
-    }
+    error() << "foobar" << string;
+    project->findSymbols(string, inserter, queryFlags());
     return out;
 }

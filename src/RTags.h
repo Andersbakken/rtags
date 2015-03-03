@@ -81,6 +81,22 @@ static inline bool isSymbol(char ch)
     return (isalnum(ch) || ch == '_' || ch == '~');
 }
 
+static inline bool isFunctionVariable(const String &entry)
+{
+    assert(entry.contains('('));
+    const int endParen = entry.lastIndexOf(')');
+    assert(endParen != -1);
+    const char *p = entry.constData() + endParen;
+    if (*++p == ':' && *++p == ':') {
+        while (*++p) {
+            if (!RTags::isSymbol(*p))
+                return false;
+        }
+        return true;
+    }
+    return false;
+}
+
 static inline bool isOperator(char ch)
 {
     switch (ch) {

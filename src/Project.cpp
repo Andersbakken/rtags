@@ -807,96 +807,75 @@ void Project::reloadFileManager()
     fileManager->reload(FileManager::Asynchronous);
 }
 
-static inline bool checkFunction(unsigned int kind)
+void Project::findSymbols(const String &string,
+                          const std::function<void(SymbolMatchType, const String &, const Set<Location> &)> &inserter,
+                          unsigned int queryFlags,
+                          uint32_t fileFilter)
 {
-    switch (kind) {
-    case CXCursor_VarDecl:
-    case CXCursor_ParmDecl:
-        return true;
-    default:
-        break;
-    }
-    return false;
-}
-
-static inline bool matchSymbolName(const String &needle, const String &haystack, bool checkFunction)
-{
-    int start = 0;
-    if (checkFunction) {
-        // we generate symbols for arguments and local variables in functions
-        // . E.g. there's a symbol with the symbolName:
-        // bool matchSymbolName(String &, String &, bool)::checkFunction
-        // we don't want to match when we're searching for "matchSymbolName" so
-        // we start searching at the index of ):: if we're a function. That is
-        // unless you really sent in an exact match. In that case you deserve a
-        // hit.
-        if (needle == haystack)
-            return true;
-
-        start = haystack.indexOf(")::");
-        if (start != -1) {
-            start += 2;
-        } else {
-            start = 0;
-        }
-    }
-    // We automagically generate symbols with stripped argument lists
-    if (!strncmp(needle.constData(), haystack.constData() + start, needle.size())
-        && (haystack.size() - start == needle.size() || haystack.at(start + needle.size()) == '(')) {
-        return true;
-    }
-    return false;
-}
-
-Set<Symbol> Project::findSymbols(const String &symbolName, uint32_t fileId)
-{
-    Set<Symbol> ret;
-    auto processCursor = [&ret, &symbolName, this](uint32_t fileId) {
-        auto s = openSymbols(fileId);
-        if (!s)
-            return;
-        const int count = s->count();
-        for (int i=0; i<count; ++i) {
-            const Symbol c = s->valueAt(i);
-            if (!RTags::isReference(c.kind)
-                && (symbolName.isEmpty() || matchSymbolName(symbolName, c.symbolName, checkFunction(c.kind)))) {
-                ret.insert(s->valueAt(i));
+    const bool wildcard = queryFlags & QueryMessage::WildcardSymbolNames && (string.contains('*') || string.contains('?'));
+    const bool caseInsensitive = queryFlags & QueryMessage::MatchCaseInsensitive;
+    const String::CaseSensitivity cs = caseInsensitive ? String::CaseInsensitive : String::CaseSensitive;
+    String lowerBound;
+    if (wildcard) {
+        if (!caseInsensitive) {
+            for (int i=0; i<string.size(); ++i) {
+                if (string.at(i) == '?' || string.at(i) == '*') {
+                    lowerBound = string.left(i);
+                    break;
+                }
             }
+        }
+    } else if (!caseInsensitive) {
+        lowerBound = string;
+    }
+
+    auto processFile = [this, &lowerBound, &string, wildcard, cs, inserter](uint32_t file) {
+        auto symNames = openSymbolNames(file);
+        if (!symNames)
+            return;
+        const int count = symNames->count();
+        // error() << "Looking at" << count << Location::path(dep.first)
+        //         << lowerBound << string;
+        int idx = 0;
+        if (!lowerBound.isEmpty()) {
+            idx = symNames->lowerBound(lowerBound);
+            if (idx == -1) {
+                return;
+            }
+        }
+
+        for (int i=idx; i<count; ++i) {
+            const String &entry = symNames->keyAt(i);
+            // error() << i << count << entry;
+            SymbolMatchType type = Exact;
+            if (!string.isEmpty()) {
+                if (wildcard) {
+                    if (!Rct::wildCmp(string.constData(), entry.constData(), cs)) {
+                        continue;
+                    }
+                    type = Wildcard;
+                } else if (!entry.startsWith(string, cs)) {
+                    if (cs == String::CaseInsensitive) {
+                        continue;
+                    } else {
+                        break;
+                    }
+                    type = StartsWith;
+                } else if (entry.size() != string.size()) {
+                    type = StartsWith;
+                }
+            }
+            inserter(type, entry, symNames->valueAt(i));
         }
     };
 
-    if (fileId) {
-        processCursor(fileId);
-    } else if (symbolName.isEmpty()) {
-        for (const auto &dep : mDependencies) {
-            processCursor(dep.first);
-        }
+    if (fileFilter) {
+        processFile(fileFilter);
     } else {
         for (const auto &dep : mDependencies) {
-            auto symNames = openSymbolNames(dep.first);
-            if (symNames) {
-                int idx = symNames->lowerBound(symbolName);
-                if (idx == -1) {
-                    continue;
-                }
-                const int count = symNames->count();
-                assert(idx < count);
-                do {
-                    const String s = symNames->keyAt(idx);
-                    if (!s.startsWith(symbolName))
-                        break;
-                    if (matchSymbolName(symbolName, s, true)) {// assume function
-                        for (const auto &loc : symNames->valueAt(idx)) {
-                            const Symbol s = findSymbol(loc);
-                            if (!s.isNull())
-                                ret.insert(s);
-                        }
-                    }
-                } while (++idx < count);
-            }
+            processFile(dep.first);
         }
     }
-    return ret;
 }
 
 List<RTags::SortedSymbol> Project::sort(const Set<Symbol> &symbols, unsigned int flags)

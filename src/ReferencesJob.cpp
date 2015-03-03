@@ -1,17 +1,17 @@
 /* This file is part of RTags.
 
-RTags is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
+   RTags is free software: you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation, either version 3 of the License, or
+   (at your option) any later version.
 
-RTags is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
+   RTags is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
 
-You should have received a copy of the GNU General Public License
-along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
+   You should have received a copy of the GNU General Public License
+   along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 
 #include "ReferencesJob.h"
 #include "Server.h"
@@ -38,9 +38,21 @@ int ReferencesJob::execute()
     Set<Symbol> refs;
     Map<Location, std::pair<bool, uint16_t> > references;
     if (!symbolName.isEmpty()) {
-        for (const auto &sym : proj->findSymbols(symbolName)) {
-            locations.insert(sym.location);
-        }
+        const bool hasFilter = QueryJob::hasFilter();
+        auto inserter = [this, hasFilter](Project::SymbolMatchType type, const String &string, const Set<Location> &locs) {
+            if (type == Project::StartsWith) {
+                const int paren = string.indexOf('(');
+                if (paren == -1 || paren != symbolName.size() || RTags::isFunctionVariable(string))
+                    return;
+            }
+
+            for (const auto &l : locs) {
+                if (!hasFilter || filter(l.path())) {
+                    locations.insert(l);
+                }
+            }
+        };
+        proj->findSymbols(symbolName, inserter, queryFlags());
     }
     const bool declarationOnly = queryFlags() & QueryMessage::DeclarationOnly;
     Location startLocation;

@@ -33,16 +33,29 @@ int FindSymbolsJob::execute()
 {
     int ret = 2;
     if (std::shared_ptr<Project> proj = project()) {
+        Set<Symbol> symbols;
         const uint32_t filter = fileFilter();
-        const Set<Symbol> locations = proj->findSymbols(string, filter);
-        if (!locations.isEmpty()) {
+        auto inserter = [proj, this, &symbols](Project::SymbolMatchType type, const String &symbolName, const Set<Location> &locations) {
+            if (type == Project::StartsWith) {
+                const int paren = symbolName.indexOf('(');
+                if (paren == -1 || paren != string.size() || RTags::isFunctionVariable(symbolName))
+                    return;
+            }
+            for (const auto &it : locations) {
+                const Symbol sym = proj->findSymbol(it);
+                if (!sym.isNull())
+                    symbols.insert(sym);
+            }
+        };
+        proj->findSymbols(string, inserter, queryFlags());
+        if (!symbols.isEmpty()) {
             unsigned int sortFlags = Project::Sort_None;
             if (queryFlags() & QueryMessage::DeclarationOnly)
                 sortFlags |= Project::Sort_DeclarationOnly;
             if (queryFlags() & QueryMessage::ReverseSort)
                 sortFlags |= Project::Sort_Reverse;
 
-            const List<RTags::SortedSymbol> sorted = proj->sort(locations, sortFlags);
+            const List<RTags::SortedSymbol> sorted = proj->sort(symbols, sortFlags);
             const unsigned int writeFlags = filter ? Unfiltered : NoWriteFlags;
             const int count = sorted.size();
             ret = count ? 0 : 1;
