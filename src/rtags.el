@@ -349,13 +349,12 @@ return t if rtags is allowed to modify this file"
                 (save-restriction
                   (widen)
                   (rtags-goto-line-col line column)
-                  (bookmark-set (format "R_%d" rtags-buffer-bookmarks))))))))
+                  (bookmark-set (format "RTags_%d" rtags-buffer-bookmarks))))))))
           (forward-line))))
 
 (defun rtags-reset-bookmarks ()
-  (while (> rtags-buffer-bookmarks 0)
-    (bookmark-delete (format "R_%d" rtags-buffer-bookmarks))
-    (decf rtags-buffer-bookmarks)))
+  (setq rtags-buffer-bookmarks 0)
+  (mapcar '(lambda (bookmark) (when (string-match "^RTags_" bookmark) (bookmark-delete bookmark))) (bookmark-all-names)))
 
 ;;;###autoload
 (defun rtags-next-match () (interactive) (rtags-next-prev-match t))
@@ -1633,7 +1632,7 @@ References to references will be treated as references to the referenced symbol"
 (defun rtags-select (&optional other-window remove show)
   (interactive "P")
   (let* ((line (line-number-at-pos))
-         (bookmark (format "R_%d" line))
+         (bookmark (format "RTags_%d" line))
          (window (selected-window)))
     (cond ((eq major-mode 'rtags-taglist-mode)
            (rtags-goto-location (cdr (assoc line rtags-taglist-locations)) nil other-window))
