@@ -37,11 +37,12 @@ struct Symbol
     CXTypeKind type;
     CXLinkageKind linkage;
     enum Flag {
-        None = 0x0,
-        VirtualMethod = 0x1,
-        PureVirtualMethod = 0x2|VirtualMethod,
-        StaticMethod = 0x4,
-        ConstMethod = 0x8
+        None = 0x00,
+        VirtualMethod = 0x01,
+        PureVirtualMethod = 0x02|VirtualMethod,
+        StaticMethod = 0x04,
+        ConstMethod = 0x08,
+        Variadic = 0x10
     };
     uint8_t flags;
     union {

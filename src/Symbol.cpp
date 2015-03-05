@@ -51,6 +51,10 @@ String Symbol::toString(unsigned int cursorInfoFlags, unsigned int keyFlags, con
         } else if (flags & StaticMethod) {
             ret << "Static";
         }
+
+        if (flags & Variadic) {
+            ret << "Variadic";
+        }
         if (ret.isEmpty())
             return String();
         String joined = String::join(ret, ", ");
