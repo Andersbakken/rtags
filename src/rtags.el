@@ -2094,7 +2094,7 @@ definition."
     ;;(message ":debug: file not indexed"))
     (when (and file (rtags-buffer-status buffer))
       (with-temp-buffer
-        (if (buffer-modified-p buffer)
+        (if (and rtags-enable-unsaved-reparsing) (buffer-modified-p buffer)
             (progn
               (rtags-call-rc :path file :unsaved buffer "-V" file)
               (when wait-reparsing
@@ -2106,9 +2106,8 @@ definition."
                 ;; Wait for the file to become indexed.
                 (while (rtags-is-working buffer)
                   (sleep-for 0.4))))
-          (progn
             (rtags-call-rc :path file "-V" file)
-            (message (format "Dirtied %s" file))))))))
+            (message (format "Dirtied %s" file)))))))
 
 
 ;; assoc list containing unsaved buffers and their modification ticks
