@@ -1430,17 +1430,18 @@ References to references will be treated as references to the referenced symbol"
   (if restart
       (rtags-stop-diagnostics))
   (let ((buf (get-buffer-create "*RTags Diagnostics*")))
-    (unless nodirty (rtags-reparse-file))
-    (with-current-buffer buf
-      (rtags-diagnostics-mode))
-    (if (cond ((not rtags-diagnostics-process) t)
-              ((eq (process-status rtags-diagnostics-process) 'exit) t)
-              ((eq (process-status rtags-diagnostics-process) 'signal) t)
-              (t nil))
-        (let ((process-connection-type (not rtags-diagnostics-use-pipe))) ;; use a pipe if rtags-diagnostics-use-pipe is t
-          (setq rtags-diagnostics-process (start-process "RTags Diagnostics" buf (rtags-executable-find "rc") "-m"))
-          (set-process-filter rtags-diagnostics-process (function rtags-diagnostics-process-filter))
-          (rtags-clear-diagnostics))))
+    (when (cond ((not rtags-diagnostics-process) t)
+                ((eq (process-status rtags-diagnostics-process) 'exit) t)
+                ((eq (process-status rtags-diagnostics-process) 'signal) t)
+                (t nil))
+      (with-current-buffer buf
+        (rtags-diagnostics-mode))
+      (unless nodirty
+        (rtags-reparse-file))
+      (let ((process-connection-type (not rtags-diagnostics-use-pipe))) ;; use a pipe if rtags-diagnostics-use-pipe is t
+        (setq rtags-diagnostics-process (start-process "RTags Diagnostics" buf (rtags-executable-find "rc") "-m"))
+        (set-process-filter rtags-diagnostics-process (function rtags-diagnostics-process-filter))
+        (rtags-clear-diagnostics))))
   (when (called-interactively-p 'any)
     (switch-to-buffer-other-window "*RTags Diagnostics*")
     (other-window 1)))
@@ -2093,7 +2094,7 @@ definition."
     ;;(message ":debug: file not indexed"))
     (when (and file (rtags-buffer-status buffer))
       (with-temp-buffer
-        (if (buffer-modified-p buffer)
+        (if (and rtags-enable-unsaved-reparsing) (buffer-modified-p buffer)
             (progn
               (rtags-call-rc :path file :unsaved buffer "-V" file)
               (when wait-reparsing
@@ -2105,9 +2106,8 @@ definition."
                 ;; Wait for the file to become indexed.
                 (while (rtags-is-working buffer)
                   (sleep-for 0.4))))
-          (progn
             (rtags-call-rc :path file "-V" file)
-            (message (format "Dirtied %s" file))))))))
+            (message (format "Dirtied %s" file)))))))
 
 
 ;; assoc list containing unsaved buffers and their modification ticks
