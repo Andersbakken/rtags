@@ -55,7 +55,21 @@ for i in $(which -a "$(basename "$0")"); do
         [ -z "$RTAGS_COMPILE_TIMEOUT" ] && RTAGS_COMPILE_TIMEOUT=3000
 
         if [ -z "$RTAGS_DISABLED" ] && [ -x "$rc" ]; then
-            $rc --timeout="$RTAGS_COMPILE_TIMEOUT" $RTAGS_ARGS --silent --compile "$i" "$@" &
+            case $(basename "$i") in
+                mpicc)
+                    ecc=cc
+                    flags="$(mpicc -show|cut -d ' ' -f 2-) -DMPICH_NO_ATTR_TYPE_TAGS"
+                    ;;
+                mpicxx)
+                    cc=c++
+                    flags="$(mpicxx -show|cut -d ' ' -f 2-) -DMPICH_NO_ATTR_TYPE_TAGS"
+                    ;;
+                *)
+                    cc="$i"
+                    flags=""
+                    ;;
+            esac
+            $rc --timeout=$RTAGS_COMPILE_TIMEOUT $RTAGS_ARGS --silent --compile "$cc" $flags "$@" &
             disown &>/dev/null # rc might be finished by now and if so disown will yell at us
         fi
         [ "$RTAGS_RMAKE" ] && exit 0
