@@ -39,6 +39,8 @@ if (NOT DEFINED CLANG_LIBS OR NOT DEFINED CLANG_INCLUDE OR NOT DEFINED CLANG_SYS
   find_package(LibClang REQUIRED)
 endif ()
 
+find_package(Curses REQUIRED)
+
 include_directories(${CLANG_INCLUDE})
 
 if (EXISTS ${CLANG_COMPILATION_INCLUDE})
@@ -63,12 +65,12 @@ add_definitions("-DCLANG_INCLUDEPATH=${CLANG_SYSTEM_INCLUDE}")
 add_definitions("-DOS_${CMAKE_SYSTEM_NAME}")
 
 if (CMAKE_SYSTEM_NAME MATCHES "Linux")
-  set(SYSTEM_LIBS curses)
+  set(SYSTEM_LIBS ${CURSES_CURSES_LIBRARY})
 elseif (CMAKE_SYSTEM_NAME MATCHES "FreeBSD")
   add_definitions(-D__LONG_LONG_SUPPORTED)
-  set(SYSTEM_LIBS curses)
+  set(SYSTEM_LIBS ${CURSES_CURSES_LIBRARY})
 elseif (CMAKE_SYSTEM_NAME MATCHES "Darwin")
-  set(SYSTEM_LIBS curses)
+  set(SYSTEM_LIBS ${CURSES_CURSES_LIBRARY})
   find_program(SW_VER sw_vers)
   execute_process(COMMAND "${SW_VER}" -productVersion OUTPUT_VARIABLE osver)
   string(REPLACE "\n" "" osver "${osver}")
