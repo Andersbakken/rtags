@@ -52,8 +52,6 @@ set(RCT_NO_INSTALL 1)
 add_subdirectory(rct)
 
 include(${CMAKE_CURRENT_LIST_DIR}/rct/compiler.cmake)
-# set(RCT_INCLUDE_DIR rct)
-# include(${CMAKE_CURRENT_LIST_DIR}/rct/rct.cmake)
 
 if (CMAKE_BUILD_TYPE MATCHES "Debug")
   add_definitions("-DRTAGS_DEBUG")
@@ -64,36 +62,26 @@ add_definitions("-Wall")
 add_definitions("-DCLANG_INCLUDEPATH=${CLANG_SYSTEM_INCLUDE}")
 add_definitions("-DOS_${CMAKE_SYSTEM_NAME}")
 
-if (CMAKE_SYSTEM_NAME MATCHES "Linux")
-  set(SYSTEM_LIBS ${CURSES_CURSES_LIBRARY})
-elseif (CMAKE_SYSTEM_NAME MATCHES "FreeBSD")
+if (CMAKE_SYSTEM_NAME MATCHES "FreeBSD")
   add_definitions(-D__LONG_LONG_SUPPORTED)
-  set(SYSTEM_LIBS ${CURSES_CURSES_LIBRARY})
-elseif (CMAKE_SYSTEM_NAME MATCHES "Darwin")
-  set(SYSTEM_LIBS ${CURSES_CURSES_LIBRARY})
-  find_program(SW_VER sw_vers)
-  execute_process(COMMAND "${SW_VER}" -productVersion OUTPUT_VARIABLE osver)
-  string(REPLACE "\n" "" osver "${osver}")
-  if (${osver} VERSION_LESS "10.7")
-    message("OS X ${osver} is too old for FSEvents, falling back to kqueue")
-    # else ()
-    #   set(HAVE_FSEVENTS 1)
-  endif ()
 endif ()
-# list(APPEND SYSTEM_LIBS ${LLVM_LDFLAGS})
 
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/bin)
 add_definitions("-DRTAGS_BIN=\"${PROJECT_BINARY_DIR}/bin/\"")
 
-set(RTAGS_SHARED_SOURCES
+set(RTAGS_SOURCES
   IndexMessage.cpp
   Location.cpp
   Symbol.cpp
   QueryMessage.cpp
   RTags.cpp)
 
-add_library(shared STATIC ${RTAGS_SHARED_SOURCES})
-target_link_libraries(shared rct)
+add_library(rtags STATIC ${RTAGS_SOURCES})
+
+include_directories(${CMAKE_CURRENT_LIST_DIR}
+                    rct/include/
+                    rct
+                    ${CMAKE_CURRENT_BINARY_DIR}/rct/include/rct)
 
 set(RTAGS_SOURCES
     CompilerManager.cpp
@@ -120,13 +108,6 @@ set(RTAGS_SOURCES
     Source.cpp
     StatusJob.cpp)
 
-include_directories(${CMAKE_CURRENT_LIST_DIR}
-                    rct/include/
-                    rct
-                    ${CMAKE_CURRENT_BINARY_DIR}/rct/include/rct)
-
-# link_directories(${LLVM_LIBRARY_DIRS})
-
 if (CMAKE_SYSTEM_NAME MATCHES "Darwin")
   set(START_GROUP "")
   set(END_GROUP "")
@@ -135,41 +116,44 @@ else ()
   set(END_GROUP "-Wl,--end-group")
 endif ()
 
-# add_executable(clangtest clangtest.c)
-# target_link_libraries(clangtest
-#   ${START_GROUP}
-#   ${CLANG_LIBS}
-#   ${LLVM_LIBNAMES}
-#   ${END_GROUP}
-#   -lstdc++
-#   ${SYSTEM_LIBS}
-# )
-
 add_executable(rc rc.cpp RClient.cpp)
-add_dependencies(rc rct shared)
-target_link_libraries(rc shared rct ${SYSTEM_LIBS})
+target_link_libraries(rc rtags rct)
 
-add_library(rtags STATIC ${RTAGS_SOURCES})
-target_link_libraries(rtags
-  rct
-  shared
-  ${START_GROUP}
-  ${CLANG_LIBS}
-  # ${LLVM_LIBNAMES}
-  ${END_GROUP}
-  -lstdc++
-  ${SYSTEM_LIBS})
-add_dependencies(rtags rct)
+set(RTAGS_CLANG_LIBRARIES rtags rct ${START_GROUP} ${CLANG_LIBS} ${END_GROUP} -lstdc++ ${CURSES_CURSES_LIBRARY})
+set(RTAGS_CLANG_SOURCES RTagsClang.cpp Source.cpp)
 
-add_executable(rdm rdm.cpp)
-target_link_libraries(rdm rtags -lstdc++ ${SYSTEM_LIBS})
+add_executable(rdm
+               rdm.cpp
+               CompilerManager.cpp
+               CompletionThread.cpp
+               SymbolInfoJob.cpp
+               DependenciesJob.cpp
+               Diagnostic.cpp
+               DumpThread.cpp
+               EventSourceClient.cpp
+               FileManager.cpp
+               FindFileJob.cpp
+               FindSymbolsJob.cpp
+               FollowLocationJob.cpp
+               IndexerJob.cpp
+               JobScheduler.cpp
+               ListSymbolsJob.cpp
+               Preprocessor.cpp
+               Project.cpp
+               QueryJob.cpp
+               ReferencesJob.cpp
+               ScanThread.cpp
+               Server.cpp
+               StatusJob.cpp
+               Symbol.cpp
+               ${RTAGS_CLANG_SOURCES})
+
+target_link_libraries(rdm ${RTAGS_CLANG_LIBRARIES})
+
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/bin)
 
-set(RP_LIBRARIES rtags shared)
-set(RP_SOURCES rp.cpp ClangIndexer.cpp)
-
-add_executable(rp ${RP_SOURCES})
-target_link_libraries(rp ${RP_LIBRARIES})
+add_executable(rp rp.cpp ClangIndexer.cpp ${RTAGS_CLANG_SOURCES})
+target_link_libraries(rp ${RTAGS_CLANG_LIBRARIES})
 
 if (CYGWIN)
   EnsureLibraries(rdm rct)
@@ -181,7 +165,6 @@ if (NOT "${PROJECT_SOURCE_DIR}" STREQUAL "${PROJECT_BINARY_DIR}")
   message("Copying files from ${PROJECT_SOURCE_DIR}/bin to ${PROJECT_BINARY_DIR}/bin")
   file (COPY ${binFiles} DESTINATION "${PROJECT_BINARY_DIR}/bin")
 endif ()
-
 
 install(CODE "message(\"Installing rtags...\")")
 install(TARGETS rdm rc rp RUNTIME DESTINATION bin COMPONENT rtags)

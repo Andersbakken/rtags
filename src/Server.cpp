@@ -69,6 +69,11 @@
 #define CLANG_INCLUDEPATH_STR TO_STR(CLANG_INCLUDEPATH)
 #endif
 
+const Server::Options *serverOptions()
+{
+    return Server::instance() ? &Server::instance()->options() : 0;
+}
+
 class HttpLogObject : public LogOutput
 {
 public:

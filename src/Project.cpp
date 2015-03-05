@@ -37,6 +37,19 @@
 
 enum { DirtyTimeout = 100 };
 
+Set<Symbol> findTargets(const std::shared_ptr<Project> &project, const Symbol &symbol)
+{
+    assert(project);
+    return project->findTargets(symbol);
+}
+
+Set<Symbol> findCallers(const std::shared_ptr<Project> &project, const Symbol &symbol)
+{
+    assert(project);
+    return project->findCallers(symbol);
+}
+
+
 class Dirty
 {
 public:

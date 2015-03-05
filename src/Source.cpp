@@ -4,6 +4,8 @@
 #include <rct/EventLoop.h>
 #include "Server.h"
 
+extern const Server::Options *serverOptions();
+
 void Source::clear()
 {
     fileId = compilerId = buildRootId = 0;
@@ -47,10 +49,11 @@ static inline Source::Language guessLanguageFromCompiler(const Path &fullPath) /
 {
     assert(EventLoop::isMainThread());
 
-    static const List<std::pair<std::regex, Source::Language> > &extraCompilers = Server::instance()->options().extraCompilers;
-    for (const auto &pair : extraCompilers) {
-        if (Rct::contains(fullPath, pair.first))
-            return pair.second;
+    if (const auto *opts = serverOptions()) {
+        for (const auto &pair : opts->extraCompilers) {
+            if (Rct::contains(fullPath, pair.first))
+                return pair.second;
+        }
     }
 
     String compiler = fullPath.fileName();
@@ -288,9 +291,8 @@ static inline bool hasValue(const String &arg)
             return true;
     }
 
-    if (Server *server = Server::instance()) {
-        const Set<String> &blockedArguments = server->options().blockedArguments;
-        for (const String &blockedArg : blockedArguments) {
+    if (const auto *opts = serverOptions()) {
+        for (const String &blockedArg : opts->blockedArguments) {
             if (blockedArg.endsWith('=') && blockedArg.startsWith(arg)) {
                 return true;
             }
@@ -712,7 +714,8 @@ bool Source::compareArguments(const Source &other) const
         return false;
     }
 
-    const bool separateDebugAndRelease = Server::instance()->options().options & Server::SeparateDebugAndRelease;
+    const Server::Options *opts = serverOptions();
+    const bool separateDebugAndRelease = opts && opts->options & Server::SeparateDebugAndRelease;
     if (separateDebugAndRelease) {
         if (defines != other.defines) {
             return false;
@@ -774,7 +777,7 @@ static inline bool isPch(const Path &path)
 
 List<String> Source::toCommandLine(unsigned int flags) const
 {
-    const auto *options = Server::instance() ? &Server::instance()->options() : 0;
+    const Server::Options *options = serverOptions();
     if (!options)
         flags |= (ExcludeDefaultArguments|ExcludeDefaultDefines|ExcludeDefaultIncludePaths);
 

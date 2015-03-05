@@ -22,6 +22,7 @@
 #include <rct/String.h>
 #include <signal.h>
 #include <syslog.h>
+#include "Server.h"
 
 // #ifdef NDEBUG
 bool suspendOnSigSegv = false;
@@ -45,6 +46,18 @@ static void sigHandler(int signal)
     ::closelog();
     _exit(1);
 }
+
+const Server::Options *serverOptions()
+{
+    return 0;
+}
+
+void saveFileIds()
+{}
+
+Set<Symbol> findTargets(const std::shared_ptr<Project> &, const Symbol &) { return Set<Symbol>(); }
+Set<Symbol> findCallers(const std::shared_ptr<Project> &, const Symbol &) { return Set<Symbol>(); }
+
 
 struct SyslogCloser
 {
