@@ -58,7 +58,6 @@ void saveFileIds()
 Set<Symbol> findTargets(const std::shared_ptr<Project> &, const Symbol &) { return Set<Symbol>(); }
 Set<Symbol> findCallers(const std::shared_ptr<Project> &, const Symbol &) { return Set<Symbol>(); }
 
-
 struct SyslogCloser
 {
 public:
