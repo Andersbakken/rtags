@@ -354,7 +354,7 @@ return t if rtags is allowed to modify this file"
 
 (defun rtags-reset-bookmarks ()
   (setq rtags-buffer-bookmarks 0)
-  (mapcar '(lambda (bookmark) (when (string-match "^RTags_" bookmark) (bookmark-delete bookmark))) (bookmark-all-names)))
+  (mapcar (lambda (bookmark) (when (string-match "^RTags_" bookmark) (bookmark-delete bookmark))) (bookmark-all-names)))
 
 ;;;###autoload
 (defun rtags-next-match () (interactive) (rtags-next-prev-match t))
