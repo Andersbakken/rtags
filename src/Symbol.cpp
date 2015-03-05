@@ -27,11 +27,11 @@ uint16_t Symbol::targetsValue() const
 static inline const char *linkageSpelling(CXLinkageKind kind)
 {
     switch (kind) {
-    case CXLinkage_Invalid: return "Invalid";
-    case CXLinkage_NoLinkage: return "No Linkage";
-    case CXLinkage_Internal: return "Internal";
-    case CXLinkage_UniqueExternal: return "Unique External";
-    case CXLinkage_External: return "External";
+    case CXLinkage_Invalid: return "";
+    case CXLinkage_NoLinkage: return "Linkage: No Linkage\n";
+    case CXLinkage_Internal: return "Linkage: Internal\n";
+    case CXLinkage_UniqueExternal: return "Linkage: Unique External\n";
+    case CXLinkage_External: return "Linkage: External\n";
     }
     return "";
 }
@@ -65,7 +65,7 @@ String Symbol::toString(unsigned int cursorInfoFlags, unsigned int keyFlags, con
                                       "%s" // range
                                       "%s" // enumValue
                                       "%s" // definition
-                                      "Linkage: %s\n"
+                                      "%s" // linkage
                                       "%s" // flags
                                       "%s", // usr
                                       symbolName.constData(),
