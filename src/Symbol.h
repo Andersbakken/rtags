@@ -44,6 +44,7 @@ struct Symbol
         ConstMethod = 0x08,
         Variadic = 0x10
     };
+    String briefComment, xmlComment;
     uint8_t flags;
     union {
         bool definition;
@@ -62,6 +63,8 @@ struct Symbol
         type = CXType_Invalid;
         enumValue = 0;
         flags = 0;
+        briefComment.clear();
+        xmlComment.clear();
         startLine = startColumn = endLine = endColumn = -1;
     }
 
@@ -114,8 +117,8 @@ template <> inline Serializer &operator<<(Serializer &s, const Symbol &t)
 {
     s << t.location << t.symbolName << t.usr << t.symbolLength
       << static_cast<uint16_t>(t.kind) << static_cast<uint16_t>(t.type)
-      << static_cast<uint8_t>(t.linkage) << t.flags << t.enumValue << t.startLine
-      << t.startColumn << t.endLine << t.endColumn;
+      << static_cast<uint8_t>(t.linkage) << t.flags << t.briefComment << t.xmlComment
+      << t.enumValue << t.startLine << t.startColumn << t.endLine << t.endColumn;
     return s;
 }
 
@@ -124,7 +127,8 @@ template <> inline Deserializer &operator>>(Deserializer &s, Symbol &t)
     uint16_t kind, type;
     uint8_t linkage;
     s >> t.location >> t.symbolName >> t.usr >> t.symbolLength
-      >> kind >> type >> linkage >> t.flags >> t.enumValue >> t.startLine
+      >> kind >> type >> linkage >> t.flags >> t.briefComment
+      >> t.xmlComment >> t.enumValue >> t.startLine
       >> t.startColumn >> t.endLine >> t.endColumn;
 
     t.kind = static_cast<CXCursorKind>(kind);

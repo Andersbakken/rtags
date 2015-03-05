@@ -1060,6 +1060,12 @@ bool ClangIndexer::handleCursor(const CXCursor &cursor, CXCursorKind kind, const
         mData->declarations[c.usr].insert(location.fileId());
     }
 
+    const CXComment comment = clang_Cursor_getParsedComment(cursor);
+    if (clang_Comment_getKind(comment) != CXComment_Null) {
+        c.briefComment = RTags::eatString(clang_Cursor_getBriefCommentText(cursor));
+        c.xmlComment = RTags::eatString(clang_FullComment_getAsXML(comment));
+    }
+
     switch (c.kind) {
     case CXCursor_CXXMethod:
         if (clang_CXXMethod_isPureVirtual(cursor)) {

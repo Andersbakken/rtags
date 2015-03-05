@@ -71,7 +71,9 @@ String Symbol::toString(unsigned int cursorInfoFlags, unsigned int keyFlags, con
                                       "%s" // definition
                                       "%s" // linkage
                                       "%s" // flags
-                                      "%s", // usr
+                                      "%s" // usr
+                                      "%s" // briefComment
+                                      "%s", // xmlComment
                                       symbolName.constData(),
                                       kindSpelling().constData(),
                                       RTags::eatString(clang_getTypeKindSpelling(type)).constData(),
@@ -84,7 +86,9 @@ String Symbol::toString(unsigned int cursorInfoFlags, unsigned int keyFlags, con
                                       isDefinition() ? "Definition\n" : "",
                                       linkageSpelling(linkage),
                                       flagsToString(flags).constData(),
-                                      usr.isEmpty() ? "" : String::format<64>("Usr: %s\n", usr.constData()).constData());
+                                      usr.isEmpty() ? "" : String::format<64>("Usr: %s\n", usr.constData()).constData(),
+                                      briefComment.isEmpty() ? "" : String::format<1024>("Brief comment: %s\n", briefComment.constData()).constData(),
+                                      xmlComment.isEmpty() ? "" : String::format<16384>("Xml comment: %s\n", xmlComment.constData()).constData());
     if (!(cursorInfoFlags & IgnoreTargets) && project) {
         extern Set<Symbol> findTargets(const std::shared_ptr<Project> &, const Symbol &);
         auto targets = findTargets(project, *this);
