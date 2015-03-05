@@ -1430,14 +1430,13 @@ References to references will be treated as references to the referenced symbol"
   (if restart
       (rtags-stop-diagnostics))
   (let ((buf (get-buffer-create "*RTags Diagnostics*")))
+    (unless nodirty (rtags-reparse-file))
     (with-current-buffer buf
       (rtags-diagnostics-mode))
     (if (cond ((not rtags-diagnostics-process) t)
               ((eq (process-status rtags-diagnostics-process) 'exit) t)
               ((eq (process-status rtags-diagnostics-process) 'signal) t)
               (t nil))
-        (unless nodirty
-          (rtags-reparse-file))
         (let ((process-connection-type (not rtags-diagnostics-use-pipe))) ;; use a pipe if rtags-diagnostics-use-pipe is t
           (setq rtags-diagnostics-process (start-process "RTags Diagnostics" buf (rtags-executable-find "rc") "-m"))
           (set-process-filter rtags-diagnostics-process (function rtags-diagnostics-process-filter))
