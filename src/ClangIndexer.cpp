@@ -1073,12 +1073,15 @@ bool ClangIndexer::handleCursor(const CXCursor &cursor, CXCursorKind kind, const
         if (clang_CXXMethod_isConst(cursor))
             c.flags |= Symbol::ConstMethod;
 #endif
+
+        addOverriddenCursors(cursor, location);
+        // fall through
+    case CXCursor_FunctionDecl:
+    case CXCursor_FunctionTemplate:
 #if CINDEX_VERSION >= CINDEX_VERSION_ENCODE(0, 19)
         if (clang_Cursor_isVariadic(cursor))
             c.flags |= Symbol::Variadic;
 #endif
-
-        addOverriddenCursors(cursor, location);
         break;
     case CXCursor_Constructor:
     case CXCursor_Destructor:
