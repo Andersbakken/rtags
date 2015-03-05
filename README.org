@@ -25,7 +25,7 @@ Roberto Raggi on whose C++ parser we intended to base this project but
 he assured us clang was the way to go. The name stuck though.
 
 * TLDR Quickstart
-  -Build RTags, start rdm, index some files, call rc
+  Build RTags, start rdm, index some files, (rtags-follow-symbol-at-point)
 #+BEGIN_SRC
 $ cd rtags
 $ cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_EXPORT_COMPILE_COMMANDS=1
