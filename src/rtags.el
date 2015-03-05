@@ -611,6 +611,7 @@ return t if rtags is allowed to modify this file"
       (thing-at-point 'symbol)))
 
 (defun rtags-symbol-info (&optional location verbose save-to-kill-ring no-reparse)
+  (interactive)
   (let ((loc (or location (rtags-current-location)))
         (path (buffer-file-name)))
     (when (not no-reparse)
@@ -622,6 +623,8 @@ return t if rtags is allowed to modify this file"
                      (unless verbose "--symbol-info-exclude-references"))
       (if save-to-kill-ring
           (copy-region-as-kill (point-min) (point-max)))
+      (if (called-interactively-p)
+          (message (buffer-string)))
       (buffer-string))))
 
 ;;;###autoload
@@ -807,7 +810,7 @@ return t if rtags is allowed to modify this file"
     (define-key map (concat prefix "e") (function rtags-reparse-file))
     (define-key map (concat prefix "E") (function rtags-preprocess-file))
     (define-key map (concat prefix "R") (function rtags-rename-symbol))
-    (define-key map (concat prefix "U") (function rtags-display-summary))
+    (define-key map (concat prefix "M") (function rtags-symbol-info))
     (define-key map (concat prefix "S") (function rtags-display-summary))
     (define-key map (concat prefix "O") (function rtags-goto-offset))
     (define-key map (concat prefix ";") (function rtags-find-file))
