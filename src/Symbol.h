@@ -61,6 +61,7 @@ struct Symbol
         kind = CXCursor_FirstInvalid;
         type = CXType_Invalid;
         enumValue = 0;
+        flags = 0;
         startLine = startColumn = endLine = endColumn = -1;
     }
 
