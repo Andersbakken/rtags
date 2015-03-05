@@ -22,6 +22,7 @@
 #include <rct/String.h>
 #include <signal.h>
 #include <syslog.h>
+#include "Server.h"
 
 // #ifdef NDEBUG
 bool suspendOnSigSegv = false;
@@ -44,6 +45,11 @@ static void sigHandler(int signal)
     fflush(stderr);
     ::closelog();
     _exit(1);
+}
+
+const Server::Options *serverOptions()
+{
+    return 0;
 }
 
 struct SyslogCloser
