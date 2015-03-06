@@ -174,7 +174,8 @@ public:
     String toCompilationDatabase() const;
     Set<Path> watchedPaths() const { return mWatchedPaths; }
     bool isIndexing() const { return !mActiveJobs.isEmpty(); }
-    void onFileModifiedOrRemoved(const Path &);
+    void onFileModified(const Path &);
+    void onFileRemoved(const Path &);
     Hash<uint32_t, Path> visitedFiles() const
     {
         std::lock_guard<std::mutex> lock(mMutex);

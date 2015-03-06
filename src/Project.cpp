@@ -255,8 +255,8 @@ bool Project::init()
     const Server::Options &options = Server::instance()->options();
     fileManager.reset(new FileManager);
     if (!(options.options & Server::NoFileSystemWatch)) {
-        mWatcher.modified().connect(std::bind(&Project::onFileModifiedOrRemoved, this, std::placeholders::_1));
-        mWatcher.removed().connect(std::bind(&Project::onFileModifiedOrRemoved, this, std::placeholders::_1));
+        mWatcher.modified().connect(std::bind(&Project::onFileModified, this, std::placeholders::_1));
+        mWatcher.removed().connect(std::bind(&Project::onFileRemoved, this, std::placeholders::_1));
     }
     if (!(options.options & Server::NoFileManagerWatch)) {
         mWatcher.removed().connect(std::bind(&Project::reloadFileManager, this));
@@ -558,7 +558,7 @@ void Project::index(const std::shared_ptr<IndexerJob> &job)
     Server::instance()->jobScheduler()->add(job);
 }
 
-void Project::onFileModifiedOrRemoved(const Path &file)
+void Project::onFileModified(const Path &file)
 {
     const uint32_t fileId = Location::fileId(file);
     debug() << file << "was modified" << fileId;
@@ -572,6 +572,27 @@ void Project::onFileModifiedOrRemoved(const Path &file)
         mDirtyTimer.restart(DirtyTimeout, Timer::SingleShot);
     }
 }
+
+void Project::onFileRemoved(const Path &file)
+{
+    const uint32_t fileId = Location::fileId(file);
+    debug() << file << "was removed" << fileId;
+    if (!fileId)
+        return;
+    removeDependencies(fileId);
+    Rct::removeDirectory(Project::sourceFilePath(fileId));
+    mSources.remove(fileId);
+    save();
+
+    if (Server::instance()->suspended() || mSuspendedFiles.contains(fileId)) {
+        warning() << file << "is suspended. Ignoring modification";
+        return;
+    }
+    if (mPendingDirtyFiles.insert(fileId)) {
+        mDirtyTimer.restart(DirtyTimeout, Timer::SingleShot);
+    }
+}
+
 
 void Project::onDirtyTimeout(Timer *)
 {
