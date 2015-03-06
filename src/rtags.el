@@ -774,14 +774,29 @@ return t if rtags is allowed to modify this file"
 ;;;###autoload
 (defun rtags-location-stack-jump (by)
   (interactive)
-  (let ((instack (nth rtags-location-stack-index rtags-location-stack))
+  (let (;; copy of repeat-on-final-keystroke functionality from repeat.el
+        (repeat-char
+         (if (eq repeat-on-final-keystroke t)
+	     last-command-event
+           (car (memq last-command-event
+                      (listify-key-sequence
+                       repeat-on-final-keystroke)))))
+        (instack (nth rtags-location-stack-index rtags-location-stack))
         (cur (rtags-current-location)))
     (if (not (string= instack cur))
         (rtags-goto-location instack t)
       (let ((target (+ rtags-location-stack-index by)))
         (when (and (>= target 0) (< target (length rtags-location-stack)))
           (setq rtags-location-stack-index target)
-          (rtags-goto-location (nth rtags-location-stack-index rtags-location-stack) t))))))
+          (rtags-goto-location (nth rtags-location-stack-index rtags-location-stack) t))))
+    (when repeat-char
+      (set-transient-map
+       (let ((map (make-sparse-keymap)))
+         (define-key map (vector repeat-char)
+           `(lambda ()
+             (interactive)
+             (rtags-location-stack-jump ,by)))
+         map)))))
 
 ;; **************************** API *********************************
 
