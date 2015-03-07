@@ -1144,7 +1144,7 @@ References to references will be treated as references to the referenced symbol"
                       (when rsym
                         (setq endoffset (+ startoffset (length rsym)))))))))
 
-            (when ((and (not endoffset) startoffset))
+            (when (and (not endoffset) startoffset)
               (setq endoffset (1+ startoffset)))
 
             (if (and startoffset filebuffer)
