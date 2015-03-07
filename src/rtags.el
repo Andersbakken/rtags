@@ -1144,7 +1144,10 @@ References to references will be treated as references to the referenced symbol"
                       (when rsym
                         (setq endoffset (+ startoffset (length rsym)))))))))
 
-            (if (and startoffset endoffset filebuffer)
+            (when ((and (not endoffset) startoffset))
+              (setq endoffset (1+ startoffset)))
+
+            (if (and startoffset filebuffer)
                 (let ((overlay (make-overlay (1+ startoffset)
                                              (cond ((= startoffset endoffset) (+ startoffset 2))
                                                    (t (1+ endoffset)))
