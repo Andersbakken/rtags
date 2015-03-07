@@ -47,6 +47,7 @@
 (require 'thingatpt)
 (unless (fboundp 'libxml-parse-xml-region)
   (require 'xml))
+(require 'repeat)
 
 (defconst rtags-popup-available (require 'popup nil t))
 
