@@ -775,11 +775,12 @@ return t if rtags is allowed to modify this file"
 (defun rtags-location-stack-jump (by)
   (interactive)
   (let (;; copy of repeat-on-final-keystroke functionality from repeat.el
-        (repeat-char (and (boundp 'repeat-on-final-keystroke)
-                          (if repeat-on-final-keystroke
-                              last-command-event
-                            (car (memq last-command-event
-                                       (listify-key-sequence repeat-on-final-keystroke))))))
+        (repeat-char
+         (if (eq repeat-on-final-keystroke t)
+         last-command-event
+           (car (memq last-command-event
+                      (listify-key-sequence
+                       repeat-on-final-keystroke)))))
         (instack (nth rtags-location-stack-index rtags-location-stack))
         (cur (rtags-current-location)))
     (if (not (string= instack cur))
@@ -793,8 +794,8 @@ return t if rtags is allowed to modify this file"
        (let ((map (make-sparse-keymap)))
          (define-key map (vector repeat-char)
            `(lambda ()
-              (interactive)
-              (rtags-location-stack-jump ,by)))
+             (interactive)
+             (rtags-location-stack-jump ,by)))
          map)))))
 
 ;; **************************** API *********************************
