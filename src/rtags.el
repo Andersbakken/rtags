@@ -47,6 +47,7 @@
 (require 'thingatpt)
 (unless (fboundp 'libxml-parse-xml-region)
   (require 'xml))
+(require 'repeat)
 
 (defconst rtags-popup-available (require 'popup nil t))
 
@@ -777,7 +778,7 @@ return t if rtags is allowed to modify this file"
   (let (;; copy of repeat-on-final-keystroke functionality from repeat.el
         (repeat-char
          (if (eq repeat-on-final-keystroke t)
-	     last-command-event
+         last-command-event
            (car (memq last-command-event
                       (listify-key-sequence
                        repeat-on-final-keystroke)))))
@@ -1144,7 +1145,10 @@ References to references will be treated as references to the referenced symbol"
                       (when rsym
                         (setq endoffset (+ startoffset (length rsym)))))))))
 
-            (if (and startoffset endoffset filebuffer)
+            (when ((and (not endoffset) startoffset))
+              (setq endoffset (1+ startoffset)))
+
+            (if (and startoffset filebuffer)
                 (let ((overlay (make-overlay (1+ startoffset)
                                              (cond ((= startoffset endoffset) (+ startoffset 2))
                                                    (t (1+ endoffset)))
