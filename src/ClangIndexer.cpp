@@ -523,6 +523,7 @@ static inline CXCursor findDestructorForDelete(const CXCursor &deleteStatement)
     const CXCursor var = clang_getCursorReferenced(child);
     kind = clang_getCursorKind(var);
     switch (kind) {
+    case CXCursor_ObjCIvarDecl:
     case CXCursor_VarDecl:
     case CXCursor_FieldDecl:
     case CXCursor_ParmDecl:
