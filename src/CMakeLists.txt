@@ -41,7 +41,7 @@ endif ()
 
 find_package(Curses REQUIRED)
 
-include_directories(${CLANG_INCLUDE})
+include_directories(${CLANG_INCLUDE} ${LLVM_INCLUDE} ${CLANG_BUILD_INCLUDE})
 
 if (EXISTS ${CLANG_COMPILATION_INCLUDE})
   add_definitions(-DHAVE_CXCOMPILATIONDATABASE)
