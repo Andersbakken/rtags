@@ -2,7 +2,7 @@
 
 * Introduction
 RTags is a client/server application that indexes C/C++ code and keeps
-a persistent in-memory database of references, declarations,
+a persistent file-based database of references, declarations,
 definitions, symbolnames etc. There's also limited support for
 ObjC/ObjC++. It allows you to find symbols by name (including nested
 class and namespace scope). Most importantly we give you proper
