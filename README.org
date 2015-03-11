@@ -100,17 +100,12 @@ $ make install
 If you want to configure the build interactively, run =ccmake= (CMake
 with an ncurses UI) instead of =cmake=.
 
-
-
-
-
-
-
-
-
-
-
-
+If you're building with hand-compiled llvm and clang trees, use:
+#+BEGIN_SRC
+$ cmake -DCLANG_ROOT=[clang source tree]
+        -DLLVM_INCLUDE=[llvm source tree /include] \
+        -DCLANG_BUILD_INCLUDE=[clang build directory /include] ..
+#+END_SRC
 
 RTags uses C++11 features and requires a relatively new
 compiler. Gcc version >= 4.8 or clang >= 3.2 works.
