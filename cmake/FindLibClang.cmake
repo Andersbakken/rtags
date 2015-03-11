@@ -4,6 +4,12 @@ endif ()
 
 set(llvm_config_names
   llvm-config
+  llvm-config37
+  llvm-config-3.7
+  llvm-config-mp-3.7
+  llvm-config36
+  llvm-config-3.6
+  llvm-config-mp-3.6
   llvm-config35
   llvm-config-3.5
   llvm-config-mp-3.5
