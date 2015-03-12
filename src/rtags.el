@@ -351,7 +351,7 @@ return t if rtags is allowed to modify this file"
                   (widen)
                   (rtags-goto-line-col line column)
                   (bookmark-set (format "RTags_%d" rtags-buffer-bookmarks))))))))
-          (forward-line))))
+      (forward-line))))
 
 (defun rtags-reset-bookmarks ()
   (setq rtags-buffer-bookmarks 0)
@@ -778,7 +778,7 @@ return t if rtags is allowed to modify this file"
   (let (;; copy of repeat-on-final-keystroke functionality from repeat.el
         (repeat-char
          (if (eq repeat-on-final-keystroke t)
-         last-command-event
+             last-command-event
            (car (memq last-command-event
                       (listify-key-sequence
                        repeat-on-final-keystroke)))))
@@ -2294,7 +2294,7 @@ If rtags-display-summary-as-tooltip is t, a tooltip is displayed."
 (defun rtags-find-file-hook ()
   (interactive)
   (when (buffer-file-name)
-      (rtags-set-buffers (buffer-list)))
+    (rtags-set-buffers (buffer-list)))
   t)
 (add-hook 'find-file-hook 'rtags-find-file-hook)
 
