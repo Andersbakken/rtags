@@ -38,19 +38,17 @@ public:
 
     void encode(Serializer &serializer) const
     {
-        serializer << mProject << mIndexerJobFlags << mKey << mParseTime
-                   << mMessage << mFixIts << mIncludes
-                   << mDiagnostics << mFiles
-                   << mDeclarations << mId;
-    }
-    void decode(Deserializer &deserializer)
-    {
-        deserializer >> mProject >> mIndexerJobFlags
-                     >> mKey >> mParseTime >> mMessage >> mFixIts
-                     >> mIncludes >> mDiagnostics
-                     >> mFiles >> mDeclarations >> mId;
+        serializer << mProject << mParseTime << mKey << mId << mIndexerJobFlags
+                   << mMessage << mFixIts << mIncludes << mDiagnostics << mFiles
+                   << mDeclarations << mErrorHeaders;
     }
 
+    void decode(Deserializer &deserializer)
+    {
+        deserializer >> mProject >> mParseTime >> mKey >> mId >> mIndexerJobFlags
+                     >> mMessage >> mFixIts >> mIncludes >> mDiagnostics
+                     >> mFiles >> mDeclarations >> mErrorHeaders;
+    }
 
     Set<uint32_t> visitedFiles() const
     {
@@ -81,32 +79,39 @@ public:
 
     const Path &project() const { return mProject; }
     void setProject(const Path &project) { mProject = project; }
+
     uint64_t id() const { return mId; }
     void setId(uint64_t id) { mId = id; }
+
     uint64_t parseTime() const { return mParseTime; }
     void setParseTime(uint64_t parseTime) { mParseTime = parseTime; }
+
     uint32_t indexerJobFlags() const { return mIndexerJobFlags; }
     void setIndexerJobFlags(uint32_t flags) { mIndexerJobFlags = flags; }
+
     uint64_t key() const { return mKey; }
     void setKey(uint64_t key) { mKey = key; }
+
     const String &message() const { return mMessage; }
     void setMessage(const String &msg) { mMessage = msg; }
+
     FixIts &fixIts() { return mFixIts; }
     Diagnostics &diagnostics() { return mDiagnostics; }
     Includes &includes() { return mIncludes; }
     Declarations &declarations() { return mDeclarations; }
     Hash<uint32_t, bool> &files() { return mFiles; }
+    Set<uint32_t> &errorHeaders() { return mErrorHeaders; }
 private:
     Path mProject;
-    uint64_t mParseTime, mKey;
+    uint64_t mParseTime, mKey, mId;
+    uint32_t mIndexerJobFlags; // indexerjobflags
     String mMessage; // used as output for dump when flags & Dump
     FixIts mFixIts;
     Diagnostics mDiagnostics;
     Includes mIncludes;
     Declarations mDeclarations; // function declarations and forward declaration
     Hash<uint32_t, bool> mFiles;
-    uint64_t mId;
-    uint32_t mIndexerJobFlags; // indexerjobflags
+    Set<uint32_t> mErrorHeaders;
 };
 
 #endif
