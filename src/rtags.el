@@ -995,7 +995,7 @@ References to references will be treated as references to the referenced symbol"
                      (buf (or (find-buffer-visiting filename)
                               (and (incf filesopened) (find-file-noselect filename)))))
                 (unless buf
-                  (error "Can't open file %s" (car value)))
+                  (error "Can't open file %s" filename))
                 (with-current-buffer buf
                   (save-excursion
                     (rtags-goto-line-col (string-to-number (match-string-no-properties 2 line))
