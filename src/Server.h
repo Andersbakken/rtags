@@ -34,7 +34,7 @@ class IndexMessage;
 class CompletionThread;
 class Connection;
 class ErrorMessage;
-class IndexerMessage;
+class IndexDataMessage;
 class QueryJob;
 class JobOutput;
 class LogOutputMessage;
@@ -75,7 +75,7 @@ public:
     struct Options {
         Options()
             : options(0), jobCount(0), lowPriorityJobCount(0),
-              rpVisitFileTimeout(0), rpIndexerMessageTimeout(0), rpConnectTimeout(0),
+              rpVisitFileTimeout(0), rpIndexDataMessageTimeout(0), rpConnectTimeout(0),
               rpNiceValue(0), threadStackSize(0), maxCrashCount(0),
               completionCacheSize(0), testTimeout(60 * 1000 * 5),
               maxFileMapScopeCacheSize(512)
@@ -83,7 +83,7 @@ public:
         Path socketFile, dataDir, argTransform;
         unsigned int options;
         int jobCount, lowPriorityJobCount, rpVisitFileTimeout,
-            rpIndexerMessageTimeout, rpConnectTimeout, rpNiceValue,
+            rpIndexDataMessageTimeout, rpConnectTimeout, rpNiceValue,
             threadStackSize, maxCrashCount, completionCacheSize,
             testTimeout, maxFileMapScopeCacheSize;
         List<String> defaultArguments, excludeFilters;
@@ -120,7 +120,7 @@ private:
     void onNewMessage(const std::shared_ptr<Message> &message, Connection *conn);
     void clearProjects();
     void handleIndexMessage(const std::shared_ptr<IndexMessage> &message, Connection *conn);
-    void handleIndexerMessage(const std::shared_ptr<IndexerMessage> &message, Connection *conn);
+    void handleIndexDataMessage(const std::shared_ptr<IndexDataMessage> &message, Connection *conn);
     void handleQueryMessage(const std::shared_ptr<QueryMessage> &message, Connection *conn);
     void handleErrorMessage(const std::shared_ptr<ErrorMessage> &message, Connection *conn);
     void handleLogOutputMessage(const std::shared_ptr<LogOutputMessage> &message, Connection *conn);
@@ -187,7 +187,7 @@ private:
     CompletionThread *mCompletionThread;
     Set<uint32_t> mActiveBuffers;
 
-    Signal<std::function<void()> > mIndexerMessageReceived;
+    Signal<std::function<void()> > mIndexDataMessageReceived;
 
     friend void saveFileIds();
 };

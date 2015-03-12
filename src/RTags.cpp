@@ -17,7 +17,7 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 #include "Server.h"
 #include "VisitFileMessage.h"
 #include "VisitFileResponseMessage.h"
-#include "IndexerMessage.h"
+#include "IndexDataMessage.h"
 #include "IndexMessage.h"
 #include "LogOutputMessage.h"
 #include "QueryMessage.h"
@@ -335,7 +335,7 @@ Path findProjectRoot(const Path &path, ProjectRootMode mode)
 void initMessages()
 {
     Message::registerMessage<IndexMessage>();
-    Message::registerMessage<IndexerMessage>();
+    Message::registerMessage<IndexDataMessage>();
     Message::registerMessage<LogOutputMessage>();
     Message::registerMessage<QueryMessage>();
     Message::registerMessage<VisitFileMessage>();

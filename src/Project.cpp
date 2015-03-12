@@ -21,7 +21,6 @@
 #include "Server.h"
 #include "Server.h"
 #include "JobScheduler.h"
-#include "IndexData.h"
 #include <math.h>
 #include <fnmatch.h>
 #include <rct/Log.h>
@@ -358,12 +357,11 @@ bool Project::match(const Match &p, bool *indexed) const
     return ret;
 }
 
-void Project::onJobFinished(const std::shared_ptr<IndexerJob> &job, const std::shared_ptr<IndexData> &indexData)
+void Project::onJobFinished(const std::shared_ptr<IndexerJob> &job, const std::shared_ptr<IndexDataMessage> &msg)
 {
-    assert(indexData);
     std::shared_ptr<IndexerJob> restart;
-    const uint32_t fileId = indexData->fileId();
-    auto j = mActiveJobs.take(indexData->key);
+    const uint32_t fileId = msg->fileId();
+    auto j = mActiveJobs.take(msg->key());
     if (!j) {
         error() << "Couldn't find JobData for" << Location::path(fileId);
         return;
@@ -381,7 +379,7 @@ void Project::onJobFinished(const std::shared_ptr<IndexerJob> &job, const std::s
         releaseFileIds(job->visited);
     }
 
-    auto src = mSources.find(indexData->key);
+    auto src = mSources.find(msg->key());
     if (src == mSources.end()) {
         error() << "Can't find source for" << Location::path(fileId);
         return;
@@ -389,7 +387,7 @@ void Project::onJobFinished(const std::shared_ptr<IndexerJob> &job, const std::s
 
     const int idx = mJobCounter - mActiveJobs.size();
     if (testLog(RTags::CompilationErrorXml)) {
-        logDirect(RTags::CompilationErrorXml, Diagnostic::format(indexData->diagnostics));
+        logDirect(RTags::CompilationErrorXml, Diagnostic::format(msg->diagnostics()));
         if (!(options.options & Server::NoProgress)) {
             log(RTags::CompilationErrorXml,
                 "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n<progress index=\"%d\" total=\"%d\"></progress>",
@@ -398,22 +396,18 @@ void Project::onJobFinished(const std::shared_ptr<IndexerJob> &job, const std::s
     }
 
     int symbolNames = 0;
-    Set<uint32_t> visited;
-    for (const auto &pair : indexData->visited) {
-        if (pair.second)
-            visited.insert(pair.first);
-    }
-    updateFixIts(visited, indexData->fixIts);
-    updateDependencies(visited, indexData->includes);
-    updateDeclarations(visited, indexData->declarations);
+    Set<uint32_t> visited = msg->visitedFiles();
+    updateFixIts(visited, msg->fixIts());
+    updateDependencies(visited, msg->includes());
+    updateDeclarations(visited, msg->declarations());
     if (success) {
-        src->second.parsed = indexData->parseTime;
+        src->second.parsed = msg->parseTime();
         error("[%3d%%] %d/%d %s %s. (priority %d)",
               static_cast<int>(round((double(idx) / double(mJobCounter)) * 100.0)), idx, mJobCounter,
               String::formatTime(time(0), String::Time).constData(),
-              indexData->message.constData(), job->priority);
+              msg->message().constData(), job->priority);
     } else {
-        assert(indexData->flags & IndexerJob::Crashed);
+        assert(msg->flags() & IndexerJob::Crashed);
         error("[%3d%%] %d/%d %s %s indexing crashed.",
               static_cast<int>(round((double(idx) / double(mJobCounter)) * 100.0)), idx, mJobCounter,
               String::formatTime(time(0), String::Time).constData(),

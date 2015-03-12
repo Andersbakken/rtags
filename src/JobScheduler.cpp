@@ -76,7 +76,7 @@ void JobScheduler::startJobs()
             error() << "Couldn't start rp" << rp << process->errorString();
             delete process;
             node->job->flags |= IndexerJob::Crashed;
-            jobFinished(node->job, createData(node->job));
+            jobFinished(node->job, std::shared_ptr<IndexDataMessage>(new IndexDataMessage(node->job)));
             rp.clear(); // in case rp was missing for a moment and we fell back to searching $PATH
             continue;
         }
@@ -98,9 +98,9 @@ void JobScheduler::startJobs()
                         auto nodeById = mActiveById.take(node->job->id);
                         assert(nodeById);
                         assert(nodeById == node);
-                        // job failed, probably no IndexerMessage coming
+                        // job failed, probably no IndexDataMessage coming
                         node->job->flags |= IndexerJob::Crashed;
-                        jobFinished(node->job, createData(node->job));
+                        jobFinished(node->job, std::shared_ptr<IndexDataMessage>(new IndexDataMessage(node->job)));
                     }
                 }
                 startJobs();
@@ -116,22 +116,21 @@ void JobScheduler::startJobs()
     }
 }
 
-void JobScheduler::handleIndexerMessage(const std::shared_ptr<IndexerMessage> &message)
+void JobScheduler::handleIndexDataMessage(const std::shared_ptr<IndexDataMessage> &message)
 {
-    std::shared_ptr<IndexData> data = message->data();
-    auto node = mActiveById.take(data->id);
+    auto node = mActiveById.take(message->id());
     if (!node) {
-        debug() << "Got IndexerMessage for unknown job";
+        debug() << "Got IndexDataMessage for unknown job";
         return;
     }
-    jobFinished(node->job, data);
+    jobFinished(node->job, message);
 }
 
-void JobScheduler::jobFinished(const std::shared_ptr<IndexerJob> &job, const std::shared_ptr<IndexData> &data)
+void JobScheduler::jobFinished(const std::shared_ptr<IndexerJob> &job, const std::shared_ptr<IndexDataMessage> &message)
 {
     assert(!(job->flags & IndexerJob::Aborted));
     assert(job);
-    assert(data);
+    assert(message);
     std::shared_ptr<Project> project = Server::instance()->project(job->project);
     if (!project)
         return;
@@ -154,7 +153,7 @@ void JobScheduler::jobFinished(const std::shared_ptr<IndexerJob> &job, const std
             return;
         }
     }
-    project->onJobFinished(job, data);
+    project->onJobFinished(job, message);
 }
 
 void JobScheduler::dump(Connection *conn)
@@ -193,11 +192,4 @@ void JobScheduler::abort(const std::shared_ptr<IndexerJob> &job)
         node->process->kill();
         mActiveByProcess.remove(node->process);
     }
-}
-std::shared_ptr<IndexData> JobScheduler::createData(const std::shared_ptr<IndexerJob> &job)
-{
-    std::shared_ptr<IndexData> data(new IndexData(job->flags));
-    data->key = job->source.key();
-    return data;
-
 }

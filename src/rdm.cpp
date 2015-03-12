@@ -293,7 +293,7 @@ int main(int argc, char** argv)
     serverOpts.jobCount = std::max(2, ThreadPool::idealThreadCount());
     serverOpts.lowPriorityJobCount = -1;
     serverOpts.rpVisitFileTimeout = DEFAULT_RP_VISITFILE_TIMEOUT;
-    serverOpts.rpIndexerMessageTimeout = DEFAULT_RP_INDEXER_MESSAGE_TIMEOUT;
+    serverOpts.rpIndexDataMessageTimeout = DEFAULT_RP_INDEXER_MESSAGE_TIMEOUT;
     serverOpts.rpConnectTimeout = DEFAULT_RP_CONNECT_TIMEOUT;
     serverOpts.maxFileMapScopeCacheSize = DEFAULT_RDM_MAX_FILE_MAP_CACHE_SIZE;
     serverOpts.rpNiceValue = INT_MIN;
@@ -514,8 +514,8 @@ int main(int argc, char** argv)
             }
             break;
         case 'T':
-            serverOpts.rpIndexerMessageTimeout = atoi(optarg);
-            if (serverOpts.rpIndexerMessageTimeout <= 0) {
+            serverOpts.rpIndexDataMessageTimeout = atoi(optarg);
+            if (serverOpts.rpIndexDataMessageTimeout <= 0) {
                 fprintf(stderr, "Can't parse argument to -T %s.\n", optarg);
                 return 1;
             }

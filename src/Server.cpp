@@ -40,7 +40,7 @@
 #include "JobScheduler.h"
 #include "QueryMessage.h"
 #include "VisitFileMessage.h"
-#include "IndexerMessage.h"
+#include "IndexDataMessage.h"
 #include "RTags.h"
 #include "ReferencesJob.h"
 #include "StatusJob.h"
@@ -332,8 +332,8 @@ void Server::onNewMessage(const std::shared_ptr<Message> &message, Connection *c
         EventLoop::eventLoop()->quit();
         connection->finish("Shutting down");
         break;
-    case IndexerMessage::MessageId:
-        handleIndexerMessage(std::static_pointer_cast<IndexerMessage>(message), connection);
+    case IndexDataMessage::MessageId:
+        handleIndexDataMessage(std::static_pointer_cast<IndexDataMessage>(message), connection);
         break;
     case LogOutputMessage::MessageId: {
         auto msg = std::static_pointer_cast<LogOutputMessage>(message);
@@ -482,11 +482,11 @@ void Server::handleLogOutputMessage(const std::shared_ptr<LogOutputMessage> &mes
     new LogObject(conn, message->level());
 }
 
-void Server::handleIndexerMessage(const std::shared_ptr<IndexerMessage> &message, Connection *conn)
+void Server::handleIndexDataMessage(const std::shared_ptr<IndexDataMessage> &message, Connection *conn)
 {
-    mJobScheduler->handleIndexerMessage(message);
+    mJobScheduler->handleIndexDataMessage(message);
     conn->finish();
-    mIndexerMessageReceived();
+    mIndexDataMessageReceived();
 }
 
 void Server::handleQueryMessage(const std::shared_ptr<QueryMessage> &message, Connection *conn)
@@ -1550,7 +1550,7 @@ bool Server::runTests()
     assert(!mOptions.tests.isEmpty());
     bool ret = true;
     int sourceCount = 0;
-    mIndexerMessageReceived.connect([&sourceCount]() {
+    mIndexDataMessageReceived.connect([&sourceCount]() {
             // error() << "Got a finish" << sourceCount;
             assert(sourceCount > 0);
             if (!--sourceCount) {

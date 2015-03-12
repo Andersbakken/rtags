@@ -61,7 +61,7 @@ int StatusJob::execute()
             << "options" << String::format("0x%x\n", opt.options)
             << "jobCount" << opt.jobCount << '\n'
             << "rpVisitFileTimeout" << opt.rpVisitFileTimeout << '\n'
-            << "rpIndexerMessageTimeout" << opt.rpIndexerMessageTimeout << '\n'
+            << "rpIndexDataMessageTimeout" << opt.rpIndexDataMessageTimeout << '\n'
             << "rpConnectTimeout" << opt.rpConnectTimeout << '\n'
             << "rpConnectTimeout" << opt.rpConnectTimeout << '\n'
             << "threadStackSize" << opt.threadStackSize << '\n'

@@ -30,7 +30,7 @@
 #include <regex>
 #include <rct/Timer.h>
 
-class IndexData;
+class IndexDataMessage;
 class FileManager;
 class IndexerJob;
 class RestoreThread;
@@ -169,7 +169,7 @@ public:
     String fixIts(uint32_t fileId) const;
     int reindex(const Match &match, const std::shared_ptr<QueryMessage> &query);
     int remove(const Match &match);
-    void onJobFinished(const std::shared_ptr<IndexerJob> &job, const std::shared_ptr<IndexData> &indexData);
+    void onJobFinished(const std::shared_ptr<IndexerJob> &job, const std::shared_ptr<IndexDataMessage> &msg);
     Sources sources() const { return mSources; }
     String toCompilationDatabase() const;
     Set<Path> watchedPaths() const { return mWatchedPaths; }

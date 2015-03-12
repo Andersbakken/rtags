@@ -25,8 +25,6 @@
 #include <rct/EventLoop.h>
 #include "RTags.h"
 #include "Diagnostic.h"
-#include "IndexerMessage.h"
-#include "IndexData.h"
 #include "RClient.h"
 #include <unistd.h>
 
@@ -48,7 +46,7 @@ ClangIndexer::ClangIndexer()
     : mClangUnit(0), mIndex(0), mLastCursor(nullCursor), mVisitFileResponseMessageFileId(0),
       mVisitFileResponseMessageVisit(0), mParseDuration(0), mVisitDuration(0),
       mBlocked(0), mAllowed(0), mIndexed(1), mVisitFileTimeout(0),
-      mIndexerMessageTimeout(0), mFileIdsQueried(0), mLogFile(0), mConnection(RClient::NumOptions)
+      mIndexDataMessageTimeout(0), mFileIdsQueried(0), mLogFile(0), mConnection(RClient::NumOptions)
 {
     mConnection.newMessage().connect(std::bind(&ClangIndexer::onMessage, this,
                                                std::placeholders::_1, std::placeholders::_2));
@@ -89,7 +87,7 @@ bool ClangIndexer::exec(const String &data)
     deserializer >> mSourceFile;
     deserializer >> flags;
     deserializer >> mVisitFileTimeout;
-    deserializer >> mIndexerMessageTimeout;
+    deserializer >> mIndexDataMessageTimeout;
     deserializer >> connectTimeout;
     deserializer >> niceValue;
     deserializer >> suspendOnSigSegv;
@@ -152,26 +150,27 @@ bool ClangIndexer::exec(const String &data)
         return false;
     }
     // mLogFile = fopen(String::format("/tmp/%s", mSourceFile.fileName()).constData(), "w");
-    mData.reset(new IndexData(flags));
-    mData->parseTime = parseTime;
-    mData->key = mSource.key();
-    mData->id = id;
+    mIndexDataMessage.setProject(mProject);
+    mIndexDataMessage.setFlags(flags);
+    mIndexDataMessage.setParseTime(parseTime);
+    mIndexDataMessage.setKey(mSource.key());
+    mIndexDataMessage.setId(id);
 
     assert(mConnection.isConnected());
-    mData->visited[mSource.fileId] = true;
+    mIndexDataMessage.visited()[mSource.fileId] = true;
     parse() && visit() && diagnose();
-    mData->message = mSourceFile.toTilde();
+    String message = mSourceFile.toTilde();
     String err;
     StopWatch sw;
     int writeDuration = -1;
     if (!mClangUnit || !writeFiles(RTags::encodeSourceFilePath(dataDir, mProject, 0), err)) {
-        mData->message += " error";
+        message += " error";
         if (!err.isEmpty())
-            mData->message += (' ' + err);
+            message += (' ' + err);
     } else {
         writeDuration = sw.elapsed();
     }
-    mData->message += String::format<16>(" in %lldms. ", mTimer.elapsed());
+    message += String::format<16>(" in %lldms. ", mTimer.elapsed());
     int cursorCount = 0;
     int symbolNameCount = 0;
     for (const auto &unit : mUnits) {
@@ -180,24 +179,25 @@ bool ClangIndexer::exec(const String &data)
     }
     if (mClangUnit) {
         const char *format = "(%d syms, %d symNames, %d includes, %d of %d files, symbols: %d of %d, %d queried) (%d/%d/%dms)";
-        mData->message += String::format<128>(format, cursorCount, symbolNameCount,
-                                              mData->includes.size(), mIndexed, mData->visited.size(), mAllowed,
-                                              mAllowed + mBlocked, mFileIdsQueried,
-                                              mParseDuration, mVisitDuration, writeDuration);
+        message += String::format<128>(format, cursorCount, symbolNameCount,
+                                       mIndexDataMessage.includes().size(), mIndexed,
+                                       mIndexDataMessage.visited().size(), mAllowed,
+                                       mAllowed + mBlocked, mFileIdsQueried,
+                                       mParseDuration, mVisitDuration, writeDuration);
     }
-    if (mData->flags & IndexerJob::Dirty)
-        mData->message += " (dirty)";
-    const IndexerMessage msg(mProject, mData);
+    if (mIndexDataMessage.flags() & IndexerJob::Dirty)
+        message += " (dirty)";
     ++mFileIdsQueried;
 
+    mIndexDataMessage.setMessage(message);
     sw.restart();
-    if (!mConnection.send(msg)) {
-        error() << "Couldn't send IndexerMessage" << mSourceFile;
+    if (!mConnection.send(mIndexDataMessage)) {
+        error() << "Couldn't send IndexDataMessage" << mSourceFile;
         return false;
     }
     mConnection.finished().connect(std::bind(&EventLoop::quit, EventLoop::eventLoop()));
-    if (EventLoop::eventLoop()->exec(mIndexerMessageTimeout) == EventLoop::Timeout) {
-        error() << "Timed out sending IndexerMessage" << mSourceFile;
+    if (EventLoop::eventLoop()->exec(mIndexDataMessageTimeout) == EventLoop::Timeout) {
+        error() << "Timed out sending IndexDataMessage" << mSourceFile;
         return false;
     }
     if (getenv("RDM_DEBUG_INDEXERMESSAGE"))
@@ -240,10 +240,10 @@ Location ClangIndexer::createLocation(const Path &sourceFile, unsigned int line,
 
     if (id) {
         if (blockedPtr) {
-            Hash<uint32_t, bool>::iterator it = mData->visited.find(id);
-            if (it == mData->visited.end()) {
+            Hash<uint32_t, bool>::iterator it = mIndexDataMessage.visited().find(id);
+            if (it == mIndexDataMessage.visited().end()) {
                 // the only reason we already have an id for a file that isn't
-                // in the mData->visited is that it's blocked from the outset.
+                // in the mIndexDataMessage.mVisited is that it's blocked from the outset.
                 // The assumption is that we never will go and fetch a file id
                 // for a location without passing blockedPtr since any reference
                 // to a symbol in another file should have been preceded by that
@@ -254,7 +254,7 @@ Location ClangIndexer::createLocation(const Path &sourceFile, unsigned int line,
                 if (resolved.isEmpty())
                     resolved = sourceFile.resolved();
 #endif
-                mData->visited[id] = false;
+                mIndexDataMessage.visited()[id] = false;
                 *blockedPtr = true;
                 return Location();
             } else if (!it->second) {
@@ -266,7 +266,7 @@ Location ClangIndexer::createLocation(const Path &sourceFile, unsigned int line,
     }
 
     ++mFileIdsQueried;
-    VisitFileMessage msg(resolved, mProject, mData->key);
+    VisitFileMessage msg(resolved, mProject, mIndexDataMessage.key());
 
     mVisitFileResponseMessageFileId = UINT_MAX;
     mVisitFileResponseMessageVisit = false;
@@ -287,7 +287,7 @@ Location ClangIndexer::createLocation(const Path &sourceFile, unsigned int line,
         id = mVisitFileResponseMessageFileId;
         break;
     }
-    mData->visited[id] = mVisitFileResponseMessageVisit;
+    mIndexDataMessage.visited()[id] = mVisitFileResponseMessageVisit;
     if (mVisitFileResponseMessageVisit)
         ++mIndexed;
     // fprintf(mLogFile, "%s %s\n", file.second ? "WON" : "LOST", resolved.constData());
@@ -768,7 +768,7 @@ bool ClangIndexer::handleReference(const CXCursor &cursor, CXCursorKind kind,
     if (!refLoc.isValid()) {
         // ### THIS IS NOT SOLVED
         // if (kind == CXCursor_ObjCMessageExpr) {
-        //    mData->pendingReferenceMap[RTags::eatString(clang_getCursorUSR(clang_getCanonicalCursor(ref)))].insert(location);
+        //    mIndexDataMessage.mPendingReferenceMap[RTags::eatString(clang_getCursorUSR(clang_getCanonicalCursor(ref)))].insert(location);
         //     // insert it, we'll hook up the target and references later
         //     return handleCursor(cursor, kind, location, cursorPtr);
         // }
@@ -938,7 +938,7 @@ void ClangIndexer::handleInclude(const CXCursor &cursor, CXCursorKind kind, cons
             assert(mSource.fileId);
             unit(location.fileId())->symbolNames[(include + path)].insert(location);
             unit(location.fileId())->symbolNames[(include + path.fileName())].insert(location);
-            mData->includes.push_back(std::make_pair(location.fileId(), refLoc.fileId()));
+            mIndexDataMessage.includes().push_back(std::make_pair(location.fileId(), refLoc.fileId()));
             c.symbolName = "#include " + RTags::eatString(clang_getCursorDisplayName(cursor));
             c.kind = cursor.kind;
             c.symbolLength = c.symbolName.size() + 2;
@@ -1058,7 +1058,7 @@ bool ClangIndexer::handleCursor(const CXCursor &cursor, CXCursorKind kind, const
     // JavaScriptCore for an example.
     unit(location)->usrs[c.usr].insert(location);
     if (c.linkage == CXLinkage_External && !c.isDefinition()) {
-        mData->declarations[c.usr].insert(location.fileId());
+        mIndexDataMessage.declarations()[c.usr].insert(location.fileId());
     }
 
     const CXComment comment = clang_Cursor_getParsedComment(cursor);
@@ -1153,7 +1153,7 @@ static inline Map<String, Set<Location> > convertTargets(const Map<Location, Map
 bool ClangIndexer::writeFiles(const Path &root, String &error)
 {
     for (const auto &unit : mUnits) {
-        if (!mData->visited.value(unit.first)) {
+        if (!mIndexDataMessage.visited().value(unit.first)) {
             ::error() << "Wanting to write something for" << Location::path(unit.first) << "but we didn't visit it" << mSource.sourceFile()
                       << unit.second->targets.size()
                       << unit.second->usrs.size()
@@ -1161,7 +1161,7 @@ bool ClangIndexer::writeFiles(const Path &root, String &error)
                       << unit.second->symbols.size();
             continue;
         }
-        assert(mData->visited.value(unit.first));
+        assert(mIndexDataMessage.mVisited.value(unit.first));
         String unitRoot = root;
         unitRoot << unit.first;
         Path::mkdir(unitRoot, Path::Recursive);
@@ -1217,7 +1217,7 @@ bool ClangIndexer::diagnose()
         const CXSourceLocation diagLoc = clang_getDiagnosticLocation(diagnostic);
         const Location loc = createLocation(diagLoc, 0);
         const uint32_t fileId = loc.fileId();
-        if (mData->visited.value(fileId)) {
+        if (mIndexDataMessage.visited().value(fileId)) {
             const String msg = RTags::eatString(clang_getDiagnosticSpelling(diagnostic));
             const CXDiagnosticSeverity sev = clang_getDiagnosticSeverity(diagnostic);
             Diagnostic::Type type = Diagnostic::None;
@@ -1250,7 +1250,7 @@ bool ClangIndexer::diagnose()
                         unsigned int line, column;
                         clang_getSpellingLocation(start, 0, &line, &column, 0);
                         const Location key(loc.fileId(), line, column);
-                        mData->diagnostics[key] = Diagnostic(type, msg, endOffset - startOffset);
+                        mIndexDataMessage.diagnostics()[key] = Diagnostic(type, msg, endOffset - startOffset);
                         ok = true;
                         break;
                     }
@@ -1259,7 +1259,7 @@ bool ClangIndexer::diagnose()
                     unsigned int line, column;
                     clang_getSpellingLocation(diagLoc, 0, &line, &column, 0);
                     const Location key(loc.fileId(), line, column);
-                    mData->diagnostics[key] = Diagnostic(type, msg);
+                    mIndexDataMessage.diagnostics()[key] = Diagnostic(type, msg);
                     // no length
                 }
             }
@@ -1279,7 +1279,7 @@ bool ClangIndexer::diagnose()
                 CXStringScope fileName(clang_getFileName(file));
 
                 const Location loc = createLocation(clang_getCString(fileName), line, column);
-                if (mData->visited.value(loc.fileId())) {
+                if (mIndexDataMessage.visited().value(loc.fileId())) {
                     unsigned int startOffset, endOffset;
                     CXSourceLocation end = clang_getRangeEnd(range);
                     clang_getSpellingLocation(start, 0, 0, 0, &startOffset);
@@ -1298,13 +1298,13 @@ bool ClangIndexer::diagnose()
                               loc.key(0).constData(), endOffset - startOffset,
                               endOffset - startOffset > 1 ? "s" : "", string);
                     }
-                    Diagnostic &entry = mData->diagnostics[Location(loc.fileId(), line, column)];
+                    Diagnostic &entry = mIndexDataMessage.diagnostics()[Location(loc.fileId(), line, column)];
                     entry.type = Diagnostic::Fixit;
                     if (entry.message.isEmpty()) {
                         entry.message = String::format<64>("did you mean '%s'?", string);
                     }
                     entry.length = endOffset - startOffset;
-                    mData->fixIts[loc.fileId()].insert(FixIt(line, column, endOffset - startOffset, string));
+                    mIndexDataMessage.fixIts()[loc.fileId()].insert(FixIt(line, column, endOffset - startOffset, string));
                 }
             }
         }
@@ -1312,7 +1312,7 @@ bool ClangIndexer::diagnose()
         clang_disposeDiagnostic(diagnostic);
     }
 
-    for (Hash<uint32_t, bool>::const_iterator it = mData->visited.begin(); it != mData->visited.end(); ++it) {
+    for (Hash<uint32_t, bool>::const_iterator it = mIndexDataMessage.visited().begin(); it != mIndexDataMessage.visited().end(); ++it) {
         if (it->second) {
             const Location loc(it->first, 0, 0);
 #if CINDEX_VERSION_MINOR >= 21
@@ -1325,7 +1325,7 @@ bool ClangIndexer::diagnose()
 
                         unsigned int line, column, startOffset, endOffset;
                         clang_getSpellingLocation(start, 0, &line, &column, &startOffset);
-                        Diagnostic &entry = mData->diagnostics[Location(loc.fileId(), line, column)];
+                        Diagnostic &entry = mIndexDataMessage.diagnostics()[Location(loc.fileId(), line, column)];
                         if (entry.type == Diagnostic::None) {
                             CXSourceLocation end = clang_getRangeEnd(skipped->ranges[i]);
                             clang_getSpellingLocation(end, 0, 0, 0, &endOffset);
@@ -1341,9 +1341,9 @@ bool ClangIndexer::diagnose()
                 }
             }
 #endif
-            const Map<Location, Diagnostic>::const_iterator x = mData->diagnostics.lower_bound(loc);
-            if (x == mData->diagnostics.end() || x->first.fileId() != it->first) {
-                mData->diagnostics[loc] = Diagnostic();
+            const Map<Location, Diagnostic>::const_iterator x = mIndexDataMessage.diagnostics().lower_bound(loc);
+            if (x == mIndexDataMessage.diagnostics().end() || x->first.fileId() != it->first) {
+                mIndexDataMessage.diagnostics()[loc] = Diagnostic();
             }
         }
     }
@@ -1362,7 +1362,7 @@ bool ClangIndexer::visit()
     clang_visitChildren(clang_getTranslationUnitCursor(mClangUnit),
                         ClangIndexer::indexVisitor, this);
 
-    for (Hash<uint32_t, bool>::const_iterator it = mData->visited.begin(); it != mData->visited.end(); ++it) {
+    for (Hash<uint32_t, bool>::const_iterator it = mIndexDataMessage.visited().begin(); it != mIndexDataMessage.visited().end(); ++it) {
         if (it->second)
             addFileSymbol(it->first);
     }
@@ -1405,7 +1405,7 @@ CXChildVisitResult ClangIndexer::verboseVisitor(CXCursor cursor, CXCursor, CXCli
             u->out += " refs " + RTags::cursorToString(ref);
         }
 
-        if (loc.fileId() && u->indexer->mData->visited.value(loc.fileId())) {
+        if (loc.fileId() && u->indexer->mIndexDataMessage.visited().value(loc.fileId())) {
             if (u->indexer->unit(loc)->symbols.contains(loc)) {
                 u->out += " used as cursor\n";
             } else {

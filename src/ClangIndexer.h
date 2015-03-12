@@ -22,12 +22,12 @@
 #include <rct/Path.h>
 #include <rct/Connection.h>
 #include <sys/stat.h>
+#include "IndexDataMessage.h"
 #include "IndexerJob.h"
 #include "RTagsClang.h"
 #include "Symbol.h"
 
 struct Unit;
-class IndexData;
 class ClangIndexer
 {
 public:
@@ -152,7 +152,7 @@ private:
     Path mProject;
     Source mSource;
     Path mSourceFile;
-    std::shared_ptr<IndexData> mData;
+    IndexDataMessage mIndexDataMessage;
     CXTranslationUnit mClangUnit;
     CXIndex mIndex;
     CXCursor mLastCursor;
@@ -162,7 +162,7 @@ private:
     Path mSocketFile;
     StopWatch mTimer;
     int mParseDuration, mVisitDuration, mBlocked, mAllowed,
-        mIndexed, mVisitFileTimeout, mIndexerMessageTimeout, mFileIdsQueried;
+        mIndexed, mVisitFileTimeout, mIndexDataMessageTimeout, mFileIdsQueried;
     UnsavedFiles mUnsavedFiles;
     FILE *mLogFile;
     Connection mConnection;

@@ -93,7 +93,7 @@ String IndexerJob::encode() const
                    << sourceFile
                    << flags
                    << static_cast<uint32_t>(options.rpVisitFileTimeout)
-                   << static_cast<uint32_t>(options.rpIndexerMessageTimeout)
+                   << static_cast<uint32_t>(options.rpIndexDataMessageTimeout)
                    << static_cast<uint32_t>(options.rpConnectTimeout)
                    << static_cast<int32_t>(options.rpNiceValue)
                    << static_cast<bool>(options.options & Server::SuspendRPOnCrash)

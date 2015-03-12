@@ -17,7 +17,7 @@
 #define JobScheduler_h
 
 #include "IndexerJob.h"
-#include "IndexerMessage.h"
+#include "IndexDataMessage.h"
 #include <memory>
 #include <rct/EmbeddedLinkedList.h>
 #include <rct/Connection.h>
@@ -51,14 +51,12 @@ public:
     };
 
     void add(const std::shared_ptr<IndexerJob> &job);
-    void handleIndexerMessage(const std::shared_ptr<IndexerMessage> &message);
+    void handleIndexDataMessage(const std::shared_ptr<IndexDataMessage> &message);
     void dump(Connection *conn);
     void abort(const std::shared_ptr<IndexerJob> &job);
 private:
     enum { HighPriority = 5 };
-    void jobFinished(const std::shared_ptr<IndexerJob> &job, const std::shared_ptr<IndexData> &data);
-
-    static std::shared_ptr<IndexData> createData(const std::shared_ptr<IndexerJob> &job);
+    void jobFinished(const std::shared_ptr<IndexerJob> &job, const std::shared_ptr<IndexDataMessage> &message);
     void startJobs();
     struct Node {
         std::shared_ptr<IndexerJob> job;
