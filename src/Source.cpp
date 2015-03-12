@@ -590,7 +590,7 @@ List<Source> Source::parse(const String &cmdLine, const Path &base, unsigned int
             Path resolved = front.resolved();
             // error() << "got resolved to" << resolved;
             const char *fn = resolved.fileName();
-            if (!strcmp(fn, "gcc-rtags-wrapper.sh") || !strcmp(fn, "icecc")) {
+            if (!strcmp(fn, "gcc-rtags-wrapper.sh") || !strcmp(fn, "icecc") || !strcmp(fn, "plastc")) {
                 front = front.fileName();
                 // error() << "We're set at" << front;
             } else {
