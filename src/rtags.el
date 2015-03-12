@@ -791,13 +791,14 @@ return t if rtags is allowed to modify this file"
           (setq rtags-location-stack-index target)
           (rtags-goto-location (nth rtags-location-stack-index rtags-location-stack) t))))
     (when repeat-char
-      (set-transient-map
        (let ((map (make-sparse-keymap)))
          (define-key map (vector repeat-char)
            `(lambda ()
-             (interactive)
-             (rtags-location-stack-jump ,by)))
-         map)))))
+              (interactive)
+              (rtags-location-stack-jump ,by)))
+         (if (fboundp 'set-transient-map)
+             (set-transient-map map)
+           (set-temporary-overlay-map map))))))
 
 ;; **************************** API *********************************
 
