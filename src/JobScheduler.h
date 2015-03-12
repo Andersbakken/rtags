@@ -22,15 +22,11 @@
 #include <rct/EmbeddedLinkedList.h>
 #include <rct/Connection.h>
 
-class JobScheduler
+class JobScheduler : public std::enable_shared_from_this<JobScheduler>
 {
 public:
-    JobScheduler(int maxJobs, int lowPriorityMax);
+    JobScheduler();
     ~JobScheduler();
-    int maxJobs() const { return mMaxJobs; }
-    int lowPriorityMaxJobs() const { return mLowPriorityMaxJobs; }
-    void setMaxJobs(int maxJobs) { mMaxJobs = maxJobs; startJobs(); }
-    void setLowPriorityMax(int max) { mLowPriorityMaxJobs = max; startJobs(); }
 
     struct JobScope {
         JobScope(const std::shared_ptr<JobScheduler> &scheduler)
@@ -54,6 +50,8 @@ public:
     void handleIndexDataMessage(const std::shared_ptr<IndexDataMessage> &message);
     void dump(Connection *conn);
     void abort(const std::shared_ptr<IndexerJob> &job);
+    void clearHeaderError(uint32_t file);
+    Set<uint32_t> headerErrors() const { return mHeaderErrors; }
 private:
     enum { HighPriority = 5 };
     void jobFinished(const std::shared_ptr<IndexerJob> &job, const std::shared_ptr<IndexDataMessage> &message);
@@ -63,8 +61,12 @@ private:
         Process *process;
         std::shared_ptr<Node> next, prev;
     };
+    uint32_t hasHeaderError(DependencyNode *node, Set<uint32_t> &seen) const;
+    uint32_t hasHeaderError(uint32_t file, const std::shared_ptr<Project> &project) const;
 
-    int mMaxJobs, mLowPriorityMaxJobs, mProcrastination;
+    int mProcrastination;
+    Set<uint32_t> mHeaderErrors;
+    Set<uint64_t> mHeaderErrorJobIds;
     EmbeddedLinkedList<std::shared_ptr<Node> > mPendingJobs;
     Hash<Process *, std::shared_ptr<Node> > mActiveByProcess;
     Hash<uint64_t, std::shared_ptr<Node> > mActiveById;

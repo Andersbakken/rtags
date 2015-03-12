@@ -19,6 +19,7 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 #include <clang-c/Index.h>
 #include "Project.h"
 #include "CompilerManager.h"
+#include "JobScheduler.h"
 
 const char *StatusJob::delimiter = "*********************************";
 StatusJob::StatusJob(const std::shared_ptr<QueryMessage> &q, const std::shared_ptr<Project> &project)
@@ -29,7 +30,7 @@ StatusJob::StatusJob(const std::shared_ptr<QueryMessage> &q, const std::shared_p
 int StatusJob::execute()
 {
     bool matched = false;
-    const char *alternatives = "fileids|watchedpaths|dependencies|cursors|symbols|targets|symbolnames|sources|jobs|info|compilers|declarations";
+    const char *alternatives = "fileids|watchedpaths|dependencies|cursors|symbols|targets|symbolnames|sources|jobs|info|compilers|declarations|headererrors";
 
     if (!strcasecmp(query.constData(), "fileids")) {
         matched = true;
@@ -38,6 +39,18 @@ int StatusJob::execute()
         const Hash<uint32_t, Path> paths = Location::idsToPaths();
         for (Hash<uint32_t, Path>::const_iterator it = paths.begin(); it != paths.end(); ++it) {
             if (!write<256>("  %u: %s", it->first, it->second.constData()))
+                return 1;
+        }
+        if (isAborted())
+            return 1;
+    }
+
+    if (!strcasecmp(query.constData(), "headererrors")) {
+        matched = true;
+        if (!write(delimiter) || !write("headererrors") || !write(delimiter))
+            return 1;
+        for (auto err : Server::instance()->jobScheduler()->headerErrors()) {
+            if (!write(Location::path(err)))
                 return 1;
         }
         if (isAborted())

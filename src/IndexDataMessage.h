@@ -40,14 +40,14 @@ public:
     {
         serializer << mProject << mParseTime << mKey << mId << mIndexerJobFlags
                    << mMessage << mFixIts << mIncludes << mDiagnostics << mFiles
-                   << mDeclarations << mErrorHeaders;
+                   << mDeclarations << mHeaderErrors;
     }
 
     void decode(Deserializer &deserializer)
     {
         deserializer >> mProject >> mParseTime >> mKey >> mId >> mIndexerJobFlags
                      >> mMessage >> mFixIts >> mIncludes >> mDiagnostics
-                     >> mFiles >> mDeclarations >> mErrorHeaders;
+                     >> mFiles >> mDeclarations >> mHeaderErrors;
     }
 
     Set<uint32_t> visitedFiles() const
@@ -100,7 +100,7 @@ public:
     Includes &includes() { return mIncludes; }
     Declarations &declarations() { return mDeclarations; }
     Hash<uint32_t, bool> &files() { return mFiles; }
-    Set<uint32_t> &errorHeaders() { return mErrorHeaders; }
+    Set<uint32_t> &errorHeaders() { return mHeaderErrors; }
 private:
     Path mProject;
     uint64_t mParseTime, mKey, mId;
@@ -111,7 +111,7 @@ private:
     Includes mIncludes;
     Declarations mDeclarations; // function declarations and forward declaration
     Hash<uint32_t, bool> mFiles;
-    Set<uint32_t> mErrorHeaders;
+    Set<uint32_t> mHeaderErrors;
 };
 
 #endif

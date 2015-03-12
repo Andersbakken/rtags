@@ -1203,9 +1203,31 @@ bool ClangIndexer::diagnose()
         const CXSourceLocation diagLoc = clang_getDiagnosticLocation(diagnostic);
         const Location loc = createLocation(diagLoc, 0);
         const uint32_t fileId = loc.fileId();
+        const CXDiagnosticSeverity sev = clang_getDiagnosticSeverity(diagnostic);
+        // error() << "Got a dude" << clang_getCursor(mClangUnit, diagLoc) << fileId << mSource.fileId
+        //         << sev << CXDiagnostic_Error;
+        if (fileId != mSource.fileId && sev >= CXDiagnostic_Error && !mIndexDataMessage.errorHeaders().contains(fileId)) {
+            const CXCursor cursor = clang_getCursor(mClangUnit, diagLoc);
+            // error() << "Got a dude" << cursor;
+            bool headerError;
+            // We don't treat inclusions or code inside a macro expansion as a
+            // header error
+            if (clang_getCursorKind(cursor) == CXCursor_InclusionDirective) {
+                headerError = false;
+            } else {
+                CXFile expFile, spellingFile;
+                unsigned expLine, expColumn, spellingLine, spellingColumn;
+                clang_getExpansionLocation(diagLoc, &expFile, &expLine, &expColumn, 0);
+                clang_getSpellingLocation(diagLoc, &spellingFile, &spellingLine, &spellingColumn, 0);
+                headerError = (expLine == spellingLine && expColumn == spellingColumn && clang_File_isEqual(expFile, spellingFile));
+                // error() << headerError << cursor;
+            }
+            if (headerError) {
+                mIndexDataMessage.errorHeaders().insert(fileId);
+            }
+        }
         if (mIndexDataMessage.files().value(fileId)) {
             const String msg = RTags::eatString(clang_getDiagnosticSpelling(diagnostic));
-            const CXDiagnosticSeverity sev = clang_getDiagnosticSeverity(diagnostic);
             Diagnostic::Type type = Diagnostic::None;
             switch (sev) {
             case CXDiagnostic_Warning:

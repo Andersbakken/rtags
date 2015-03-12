@@ -74,7 +74,7 @@ public:
     };
     struct Options {
         Options()
-            : options(0), jobCount(0), lowPriorityJobCount(0),
+            : options(0), jobCount(0), lowPriorityJobCount(0), headerErrorJobCount(0),
               rpVisitFileTimeout(0), rpIndexDataMessageTimeout(0), rpConnectTimeout(0),
               rpNiceValue(0), threadStackSize(0), maxCrashCount(0),
               completionCacheSize(0), testTimeout(60 * 1000 * 5),
@@ -82,9 +82,9 @@ public:
         {}
         Path socketFile, dataDir, argTransform;
         unsigned int options;
-        int jobCount, lowPriorityJobCount, rpVisitFileTimeout,
-            rpIndexDataMessageTimeout, rpConnectTimeout, rpNiceValue,
-            threadStackSize, maxCrashCount, completionCacheSize,
+        int jobCount, lowPriorityJobCount, headerErrorJobCount,
+            rpVisitFileTimeout, rpIndexDataMessageTimeout, rpConnectTimeout,
+            rpNiceValue, threadStackSize, maxCrashCount, completionCacheSize,
             testTimeout, maxFileMapScopeCacheSize;
         List<String> defaultArguments, excludeFilters;
         Set<String> blockedArguments;
@@ -181,14 +181,11 @@ private:
 
     int mExitCode;
     uint32_t mLastFileId;
-
     std::shared_ptr<JobScheduler> mJobScheduler;
-
     CompletionThread *mCompletionThread;
     Set<uint32_t> mActiveBuffers;
 
     Signal<std::function<void()> > mIndexDataMessageReceived;
-
     friend void saveFileIds();
 };
 

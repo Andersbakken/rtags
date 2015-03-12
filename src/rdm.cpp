@@ -78,6 +78,7 @@ static void usage(FILE *f)
 
             "  --job-count|-j [arg]                       Spawn this many concurrent processes for indexing (default %d).\n"
             "  --low-priority-job-count|-J [arg]          Allow this many concurrent low-priority jobs (default same as --job-count).\n"
+            "  --header-error-job-count|-H [arg]          Allow this many concurrent header error jobs (default std::max(1, --job-count / 2)).\n"
             "  --log-file|-L [arg]                        Log to this file.\n"
 
 #ifndef OS_Darwin
@@ -145,6 +146,7 @@ int main(int argc, char** argv)
         { "verbose", no_argument, 0, 'v' },
         { "job-count", required_argument, 0, 'j' },
         { "low-priority-job-count", required_argument, 0, 'J' },
+        { "header-error-job-count", required_argument, 0, 'H' },
         { "test", required_argument, 0, 't' },
         { "test-timeout", required_argument, 0, 'z' },
         { "clean-slate", no_argument, 0, 'C' },
@@ -292,6 +294,7 @@ int main(int argc, char** argv)
     serverOpts.socketFile = String::format<128>("%s.rdm.file", Path::home().constData());
     serverOpts.jobCount = std::max(2, ThreadPool::idealThreadCount());
     serverOpts.lowPriorityJobCount = -1;
+    serverOpts.headerErrorJobCount = -1;
     serverOpts.rpVisitFileTimeout = DEFAULT_RP_VISITFILE_TIMEOUT;
     serverOpts.rpIndexDataMessageTimeout = DEFAULT_RP_INDEXER_MESSAGE_TIMEOUT;
     serverOpts.rpConnectTimeout = DEFAULT_RP_CONNECT_TIMEOUT;
@@ -542,6 +545,13 @@ int main(int argc, char** argv)
                 return 1;
             }
             break;
+        case 'H':
+            serverOpts.headerErrorJobCount = atoi(optarg);
+            if (serverOpts.headerErrorJobCount < 0) {
+                fprintf(stderr, "Can't parse argument to -H %s. -J must be a positive integer.\n", optarg);
+                return 1;
+            }
+            break;
         case 'r': {
             int large = atoi(optarg);
             if (large <= 0) {
@@ -588,6 +598,12 @@ int main(int argc, char** argv)
         serverOpts.lowPriorityJobCount = serverOpts.jobCount;
     } else {
         serverOpts.lowPriorityJobCount = std::min(serverOpts.lowPriorityJobCount, serverOpts.jobCount);
+    }
+
+    if (serverOpts.headerErrorJobCount == -1) {
+        serverOpts.headerErrorJobCount = std::max(1, serverOpts.jobCount / 2);
+    } else {
+        serverOpts.headerErrorJobCount = std::min(serverOpts.headerErrorJobCount, serverOpts.jobCount);
     }
 
     if (sigHandler) {

@@ -228,7 +228,7 @@ bool Server::init(const Options &options)
         return false;
     }
 
-    mJobScheduler.reset(new JobScheduler(mOptions.jobCount, mOptions.lowPriorityJobCount));
+    mJobScheduler.reset(new JobScheduler);
 
     restoreFileIds();
     mUnixServer->newConnection().connect(std::bind(&Server::onNewConnection, this, std::placeholders::_1));
@@ -1210,9 +1210,10 @@ void Server::jobCount(const std::shared_ptr<QueryMessage> &query, Connection *co
     if (q.isEmpty()) {
         conn->write<128>("Running with %d/%d jobs", mOptions.jobCount, mOptions.lowPriorityJobCount);
     } else {
-        const bool low = q.startsWith("l") || q.startsWith("-");
-        int &jobs = low ? mOptions.lowPriorityJobCount : mOptions.jobCount;
-        if (low)
+        const bool low = q.startsWith("l");
+        const bool header = q.startsWith('h');
+        int &jobs = low ? mOptions.lowPriorityJobCount : header ? mOptions.headerErrorJobCount : mOptions.jobCount;
+        if (low || header)
             q.remove(0, 1);
         const int jobCount = q.toLongLong();
         if (jobCount < 0 || jobCount > 100) {
@@ -1220,8 +1221,7 @@ void Server::jobCount(const std::shared_ptr<QueryMessage> &query, Connection *co
         } else {
             jobs = jobCount;
             mOptions.lowPriorityJobCount = std::min(mOptions.lowPriorityJobCount, mOptions.jobCount);
-            mJobScheduler->setMaxJobs(mOptions.jobCount);
-            mJobScheduler->setLowPriorityMax(mOptions.lowPriorityJobCount);
+            mOptions.headerErrorJobCount = std::min(mOptions.headerErrorJobCount, mOptions.jobCount);
             conn->write<128>("Changed jobs to %d/%d", mOptions.jobCount, mOptions.lowPriorityJobCount);
         }
     }
