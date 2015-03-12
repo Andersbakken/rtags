@@ -1091,10 +1091,19 @@ References to references will be treated as references to the referenced symbol"
     (puthash filename nil rtags-overlays)))
 
 ;;;###autoload
-(defun rtags-clear-diagnostics-overlays()
+(defun rtags-clear-diagnostics-overlays(&optional buf)
   (interactive)
-  (if (buffer-file-name)
-      (rtags-overlays-remove (buffer-file-name))))
+  (let ((fn (buffer-file-name buf)))
+    (when fn
+      (rtags-overlays-remove fn))))
+
+(defun rtags-clear-all-diagnostics-overlays()
+  (interactive)
+  (maphash (lambda (filename errorlist)
+             (while (and errorlist (listp errorlist))
+               (delete-overlay (car errorlist))
+               (setq errorlist (cdr errorlist)))) rtags-overlays)
+  (setq rtags-overlays (make-hash-table :test 'equal)))
 
 (defun rtags-really-find-buffer (fn)
   (setq fn (file-truename fn))
@@ -1399,7 +1408,7 @@ References to references will be treated as references to the referenced symbol"
         (goto-char (point-min))
         (delete-char (- (point-max) (point-min)))
         (setq buffer-read-only t))))
-  (rtags-clear-diagnostics-overlays))
+  (rtags-clear-all-diagnostics-overlays))
 
 (defun rtags-trim-whitespace ()
   "Trim initial whitespace from the *RTags Raw* buffer (so libxml parsing doesn't fail)"
@@ -1447,6 +1456,11 @@ References to references will be treated as references to the referenced symbol"
       (error "Set buffer with file %s read only " (buffer-file-name)))
   (setq buffer-read-only t))
 
+(defun rtags-diagnostics-sentinel (process event)
+  (let ((status (process-status process)))
+    (when (memq status '(exit signal closed failed))
+      (rtags-clear-diagnostics))))
+
 ;;;###autoload
 (defun rtags-diagnostics (&optional restart nodirty)
   (interactive "P")
@@ -1464,6 +1478,7 @@ References to references will be treated as references to the referenced symbol"
       (let ((process-connection-type (not rtags-diagnostics-use-pipe))) ;; use a pipe if rtags-diagnostics-use-pipe is t
         (setq rtags-diagnostics-process (start-process "RTags Diagnostics" buf (rtags-executable-find "rc") "-m"))
         (set-process-filter rtags-diagnostics-process (function rtags-diagnostics-process-filter))
+        (set-process-sentinel rtags-diagnostics-process 'rtags-diagnostics-sentinel)
         (rtags-clear-diagnostics))))
   (when (called-interactively-p 'any)
     (switch-to-buffer-other-window "*RTags Diagnostics*")
