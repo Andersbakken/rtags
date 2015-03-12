@@ -9,10 +9,9 @@ uint64_t IndexerJob::sNextId = 1;
 IndexerJob::IndexerJob(const Source &s,
                        uint32_t f,
                        const std::shared_ptr<Project> &p,
-                       const UnsavedFiles &u,
-                       const Set<uint32_t> &d)
+                       const UnsavedFiles &u)
     : id(sNextId++), source(s), sourceFile(s.sourceFile()), flags(f),
-      project(p->path()), priority(0), unsavedFiles(u), dirty(d), crashCount(0)
+      project(p->path()), priority(0), unsavedFiles(u), crashCount(0)
 {
     if (flags & Dirty)
         ++priority;
@@ -98,11 +97,7 @@ String IndexerJob::encode() const
                    << static_cast<int32_t>(options.rpNiceValue)
                    << static_cast<bool>(options.options & Server::SuspendRPOnCrash)
                    << unsavedFiles
-                   << options.dataDir
-                   << static_cast<uint32_t>(dirty.size());
-        for (uint32_t fileId : dirty) {
-            serializer << Location::path(fileId);
-        }
+                   << options.dataDir;
         assert(proj);
         proj->encodeVisitedFiles(serializer);
     }

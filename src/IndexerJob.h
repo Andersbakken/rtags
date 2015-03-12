@@ -43,8 +43,7 @@ public:
     IndexerJob(const Source &source,
                uint32_t flags,
                const std::shared_ptr<Project> &project,
-               const UnsavedFiles &unsavedFiles = UnsavedFiles(),
-               const Set<uint32_t> &dirty = Set<uint32_t>());
+               const UnsavedFiles &unsavedFiles = UnsavedFiles());
     String encode() const;
 
     uint64_t id;
@@ -54,7 +53,7 @@ public:
     Path project;
     int priority;
     UnsavedFiles unsavedFiles;
-    Set<uint32_t> dirty, visited;
+    Set<uint32_t> visited;
     int crashCount;
 private:
     static uint64_t sNextId;
