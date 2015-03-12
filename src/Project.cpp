@@ -407,7 +407,7 @@ void Project::onJobFinished(const std::shared_ptr<IndexerJob> &job, const std::s
               String::formatTime(time(0), String::Time).constData(),
               msg->message().constData(), job->priority);
     } else {
-        assert(msg->flags() & IndexerJob::Crashed);
+        assert(msg->indexerJobFlags() & IndexerJob::Crashed);
         error("[%3d%%] %d/%d %s %s indexing crashed.",
               static_cast<int>(round((double(idx) / double(mJobCounter)) * 100.0)), idx, mJobCounter,
               String::formatTime(time(0), String::Time).constData(),

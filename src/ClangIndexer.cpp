@@ -151,13 +151,13 @@ bool ClangIndexer::exec(const String &data)
     }
     // mLogFile = fopen(String::format("/tmp/%s", mSourceFile.fileName()).constData(), "w");
     mIndexDataMessage.setProject(mProject);
-    mIndexDataMessage.setFlags(flags);
+    mIndexDataMessage.setIndexerJobFlags(flags);
     mIndexDataMessage.setParseTime(parseTime);
     mIndexDataMessage.setKey(mSource.key());
     mIndexDataMessage.setId(id);
 
     assert(mConnection.isConnected());
-    mIndexDataMessage.visited()[mSource.fileId] = true;
+    mIndexDataMessage.files()[mSource.fileId] = true;
     parse() && visit() && diagnose();
     String message = mSourceFile.toTilde();
     String err;
@@ -181,11 +181,11 @@ bool ClangIndexer::exec(const String &data)
         const char *format = "(%d syms, %d symNames, %d includes, %d of %d files, symbols: %d of %d, %d queried) (%d/%d/%dms)";
         message += String::format<128>(format, cursorCount, symbolNameCount,
                                        mIndexDataMessage.includes().size(), mIndexed,
-                                       mIndexDataMessage.visited().size(), mAllowed,
+                                       mIndexDataMessage.files().size(), mAllowed,
                                        mAllowed + mBlocked, mFileIdsQueried,
                                        mParseDuration, mVisitDuration, writeDuration);
     }
-    if (mIndexDataMessage.flags() & IndexerJob::Dirty)
+    if (mIndexDataMessage.indexerJobFlags() & IndexerJob::Dirty)
         message += " (dirty)";
     ++mFileIdsQueried;
 
@@ -240,8 +240,8 @@ Location ClangIndexer::createLocation(const Path &sourceFile, unsigned int line,
 
     if (id) {
         if (blockedPtr) {
-            Hash<uint32_t, bool>::iterator it = mIndexDataMessage.visited().find(id);
-            if (it == mIndexDataMessage.visited().end()) {
+            Hash<uint32_t, bool>::iterator it = mIndexDataMessage.files().find(id);
+            if (it == mIndexDataMessage.files().end()) {
                 // the only reason we already have an id for a file that isn't
                 // in the mIndexDataMessage.mVisited is that it's blocked from the outset.
                 // The assumption is that we never will go and fetch a file id
@@ -254,7 +254,7 @@ Location ClangIndexer::createLocation(const Path &sourceFile, unsigned int line,
                 if (resolved.isEmpty())
                     resolved = sourceFile.resolved();
 #endif
-                mIndexDataMessage.visited()[id] = false;
+                mIndexDataMessage.files()[id] = false;
                 *blockedPtr = true;
                 return Location();
             } else if (!it->second) {
@@ -287,7 +287,7 @@ Location ClangIndexer::createLocation(const Path &sourceFile, unsigned int line,
         id = mVisitFileResponseMessageFileId;
         break;
     }
-    mIndexDataMessage.visited()[id] = mVisitFileResponseMessageVisit;
+    mIndexDataMessage.files()[id] = mVisitFileResponseMessageVisit;
     if (mVisitFileResponseMessageVisit)
         ++mIndexed;
     // fprintf(mLogFile, "%s %s\n", file.second ? "WON" : "LOST", resolved.constData());
@@ -1153,7 +1153,7 @@ static inline Map<String, Set<Location> > convertTargets(const Map<Location, Map
 bool ClangIndexer::writeFiles(const Path &root, String &error)
 {
     for (const auto &unit : mUnits) {
-        if (!mIndexDataMessage.visited().value(unit.first)) {
+        if (!mIndexDataMessage.files().value(unit.first)) {
             ::error() << "Wanting to write something for" << Location::path(unit.first) << "but we didn't visit it" << mSource.sourceFile()
                       << unit.second->targets.size()
                       << unit.second->usrs.size()
@@ -1161,7 +1161,7 @@ bool ClangIndexer::writeFiles(const Path &root, String &error)
                       << unit.second->symbols.size();
             continue;
         }
-        assert(mIndexDataMessage.mVisited.value(unit.first));
+        assert(mIndexDataMessage.files().value(unit.first));
         String unitRoot = root;
         unitRoot << unit.first;
         Path::mkdir(unitRoot, Path::Recursive);
@@ -1217,7 +1217,7 @@ bool ClangIndexer::diagnose()
         const CXSourceLocation diagLoc = clang_getDiagnosticLocation(diagnostic);
         const Location loc = createLocation(diagLoc, 0);
         const uint32_t fileId = loc.fileId();
-        if (mIndexDataMessage.visited().value(fileId)) {
+        if (mIndexDataMessage.files().value(fileId)) {
             const String msg = RTags::eatString(clang_getDiagnosticSpelling(diagnostic));
             const CXDiagnosticSeverity sev = clang_getDiagnosticSeverity(diagnostic);
             Diagnostic::Type type = Diagnostic::None;
@@ -1279,7 +1279,7 @@ bool ClangIndexer::diagnose()
                 CXStringScope fileName(clang_getFileName(file));
 
                 const Location loc = createLocation(clang_getCString(fileName), line, column);
-                if (mIndexDataMessage.visited().value(loc.fileId())) {
+                if (mIndexDataMessage.files().value(loc.fileId())) {
                     unsigned int startOffset, endOffset;
                     CXSourceLocation end = clang_getRangeEnd(range);
                     clang_getSpellingLocation(start, 0, 0, 0, &startOffset);
@@ -1312,7 +1312,7 @@ bool ClangIndexer::diagnose()
         clang_disposeDiagnostic(diagnostic);
     }
 
-    for (Hash<uint32_t, bool>::const_iterator it = mIndexDataMessage.visited().begin(); it != mIndexDataMessage.visited().end(); ++it) {
+    for (Hash<uint32_t, bool>::const_iterator it = mIndexDataMessage.files().begin(); it != mIndexDataMessage.files().end(); ++it) {
         if (it->second) {
             const Location loc(it->first, 0, 0);
 #if CINDEX_VERSION_MINOR >= 21
@@ -1362,7 +1362,7 @@ bool ClangIndexer::visit()
     clang_visitChildren(clang_getTranslationUnitCursor(mClangUnit),
                         ClangIndexer::indexVisitor, this);
 
-    for (Hash<uint32_t, bool>::const_iterator it = mIndexDataMessage.visited().begin(); it != mIndexDataMessage.visited().end(); ++it) {
+    for (Hash<uint32_t, bool>::const_iterator it = mIndexDataMessage.files().begin(); it != mIndexDataMessage.files().end(); ++it) {
         if (it->second)
             addFileSymbol(it->first);
     }
@@ -1405,7 +1405,7 @@ CXChildVisitResult ClangIndexer::verboseVisitor(CXCursor cursor, CXCursor, CXCli
             u->out += " refs " + RTags::cursorToString(ref);
         }
 
-        if (loc.fileId() && u->indexer->mIndexDataMessage.visited().value(loc.fileId())) {
+        if (loc.fileId() && u->indexer->mIndexDataMessage.files().value(loc.fileId())) {
             if (u->indexer->unit(loc)->symbols.contains(loc)) {
                 u->out += " used as cursor\n";
             } else {

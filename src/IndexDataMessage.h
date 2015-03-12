@@ -29,33 +29,33 @@ public:
     enum { MessageId = IndexDataMessageId };
 
     IndexDataMessage(const std::shared_ptr<IndexerJob> &job)
-        : RTagsMessage(MessageId), mParseTime(0), mKey(job->source.key()), mId(0), mFlags(job->flags)
+        : RTagsMessage(MessageId), mParseTime(0), mKey(job->source.key()), mId(0), mIndexerJobFlags(job->flags)
     {}
 
     IndexDataMessage()
-        : RTagsMessage(MessageId), mParseTime(0), mKey(0), mId(0), mFlags(0)
+        : RTagsMessage(MessageId), mParseTime(0), mKey(0), mId(0), mIndexerJobFlags(0)
     {}
 
     void encode(Serializer &serializer) const
     {
-        serializer << mProject << mFlags << mKey << mParseTime
+        serializer << mProject << mIndexerJobFlags << mKey << mParseTime
                    << mMessage << mFixIts << mIncludes
-                   << mDiagnostics << mVisited
+                   << mDiagnostics << mFiles
                    << mDeclarations << mId;
     }
     void decode(Deserializer &deserializer)
     {
-        deserializer >> mProject >> mFlags
+        deserializer >> mProject >> mIndexerJobFlags
                      >> mKey >> mParseTime >> mMessage >> mFixIts
                      >> mIncludes >> mDiagnostics
-                     >> mVisited >> mDeclarations >> mId;
+                     >> mFiles >> mDeclarations >> mId;
     }
 
 
     Set<uint32_t> visitedFiles() const
     {
         Set<uint32_t> ret;
-        for (Hash<uint32_t, bool>::const_iterator it = mVisited.begin(); it != mVisited.end(); ++it) {
+        for (Hash<uint32_t, bool>::const_iterator it = mFiles.begin(); it != mFiles.end(); ++it) {
             if (it->second)
                 ret.insert(it->first);
         }
@@ -65,7 +65,7 @@ public:
     Set<uint32_t> blockedFiles() const
     {
         Set<uint32_t> ret;
-        for (Hash<uint32_t, bool>::const_iterator it = mVisited.begin(); it != mVisited.end(); ++it) {
+        for (Hash<uint32_t, bool>::const_iterator it = mFiles.begin(); it != mFiles.end(); ++it) {
             if (!it->second)
                 ret.insert(it->first);
         }
@@ -85,8 +85,8 @@ public:
     void setId(uint64_t id) { mId = id; }
     uint64_t parseTime() const { return mParseTime; }
     void setParseTime(uint64_t parseTime) { mParseTime = parseTime; }
-    uint32_t flags() const { return mFlags; }
-    void setFlags(uint32_t flags) { mFlags = flags; }
+    uint32_t indexerJobFlags() const { return mIndexerJobFlags; }
+    void setIndexerJobFlags(uint32_t flags) { mIndexerJobFlags = flags; }
     uint64_t key() const { return mKey; }
     void setKey(uint64_t key) { mKey = key; }
     const String &message() const { return mMessage; }
@@ -95,7 +95,7 @@ public:
     Diagnostics &diagnostics() { return mDiagnostics; }
     Includes &includes() { return mIncludes; }
     Declarations &declarations() { return mDeclarations; }
-    Hash<uint32_t, bool> &visited() { return mVisited; }
+    Hash<uint32_t, bool> &files() { return mFiles; }
 private:
     Path mProject;
     uint64_t mParseTime, mKey;
@@ -104,9 +104,9 @@ private:
     Diagnostics mDiagnostics;
     Includes mIncludes;
     Declarations mDeclarations; // function declarations and forward declaration
-    Hash<uint32_t, bool> mVisited;
+    Hash<uint32_t, bool> mFiles;
     uint64_t mId;
-    uint32_t mFlags; // indexerjobflags
+    uint32_t mIndexerJobFlags; // indexerjobflags
 };
 
 #endif
