@@ -1189,6 +1189,22 @@ bool ClangIndexer::writeFiles(const Path &root, String &error)
     return true;
 }
 
+static inline bool compareFile(CXFile l, CXFile r)
+{
+    CXString fnl = clang_getFileName(l);
+    CXString fnr = clang_getFileName(r);
+    const char *cstrl = clang_getCString(fnl);
+    const char *cstrr = clang_getCString(fnr);
+    bool ret = false;
+    if (cstrl && cstrr && !strcmp(cstrl, cstrr)) {
+        ret = true;
+    }
+
+    clang_disposeString(fnl);
+    clang_disposeString(fnr);
+    return ret;
+}
+
 bool ClangIndexer::diagnose()
 {
     if (!mClangUnit) {
@@ -1219,7 +1235,7 @@ bool ClangIndexer::diagnose()
                 unsigned expLine, expColumn, spellingLine, spellingColumn;
                 clang_getExpansionLocation(diagLoc, &expFile, &expLine, &expColumn, 0);
                 clang_getSpellingLocation(diagLoc, &spellingFile, &spellingLine, &spellingColumn, 0);
-                headerError = (expLine == spellingLine && expColumn == spellingColumn && clang_File_isEqual(expFile, spellingFile));
+                headerError = (expLine == spellingLine && expColumn == spellingColumn && compareFile(expFile, spellingFile));
                 // error() << headerError << cursor;
             }
             if (headerError) {
