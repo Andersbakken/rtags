@@ -321,6 +321,20 @@ static inline String unquote(const String& arg)
     return arg;
 }
 
+static inline bool isCompilerWrapper(const char *fileName)
+{
+    const char *wrappers[] = {
+        "gcc-rtags-wrapper.sh",
+        "icecc",
+        "plastc"
+    };
+    for (const char *wrapper : wrappers) {
+        if (!strcmp(wrapper, fileName))
+            return true;
+    }
+    return false;
+}
+
 List<Source> Source::parse(const String &cmdLine, const Path &base, unsigned int flags,
                            List<Path> *unresolvedInputLocations)
 {
@@ -590,7 +604,7 @@ List<Source> Source::parse(const String &cmdLine, const Path &base, unsigned int
             Path resolved = front.resolved();
             // error() << "got resolved to" << resolved;
             const char *fn = resolved.fileName();
-            if (!strcmp(fn, "gcc-rtags-wrapper.sh") || !strcmp(fn, "icecc") || !strcmp(fn, "plastc")) {
+            if (isCompilerWrapper(fn)) {
                 front = front.fileName();
                 // error() << "We're set at" << front;
             } else {
@@ -606,8 +620,7 @@ List<Source> Source::parse(const String &cmdLine, const Path &base, unsigned int
                     const Path p = Path::resolved(front, Path::RealPath, *it, &ok);
                     if (ok) {
                         const char *fn = p.fileName();
-                        if (strcmp(fn, "gcc-rtags-wrapper.sh") && strcmp(fn, "icecc")
-                            && !access(p.nullTerminated(), R_OK | X_OK)) {
+                        if (!isCompilerWrapper(fn) && !access(p.nullTerminated(), R_OK | X_OK)) {
                             // error() << "Found it at" << compiler;
                             compiler = p;
                             break;
