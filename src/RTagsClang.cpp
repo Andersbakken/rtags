@@ -22,9 +22,6 @@
 #include <zlib.h>
 #include "Token.h"
 
-#define __STDC_LIMIT_MACROS
-#define __STDC_CONSTANT_MACROS
-
 #ifdef HAVE_BACKTRACE
 #undef HAVE_BACKTRACE
 #endif

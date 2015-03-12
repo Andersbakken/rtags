@@ -61,12 +61,12 @@
 #include <regex>
 #include <rct/QuitMessage.h>
 
-#if not defined CLANG_INCLUDEPATH
-#error CLANG_INCLUDEPATH not defined during CMake generation
+#if not defined CLANG_LIBDIR
+#error CLANG_LIBDIR not defined during CMake generation
 #else
 #define TO_STR1(x) #x
 #define TO_STR(x)  TO_STR1(x)
-#define CLANG_INCLUDEPATH_STR TO_STR(CLANG_INCLUDEPATH)
+#define CLANG_LIBDIR_STR TO_STR(CLANG_LIBDIR)
 #endif
 
 const Server::Options *serverOptions()
@@ -184,8 +184,11 @@ bool Server::init(const Options &options)
         }
 #endif
     } else {
-        const Path clangPath = Path::resolved(CLANG_INCLUDEPATH_STR);
-        mOptions.includePaths.append(Source::Include(Source::Include::Type_System, clangPath));
+        const Path clangPath = Path::resolved(CLANG_LIBDIR_STR);
+
+        Path systemInclude = clangPath.ensureTrailingSlash();
+        systemInclude << "clang/" << CLANG_VERSION_STRING << "/include/";
+        mOptions.includePaths.append(Source::Include(Source::Include::Type_System, systemInclude));
     }
 
     Log l(Error);

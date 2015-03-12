@@ -100,12 +100,53 @@ $ make install
 If you want to configure the build interactively, run =ccmake= (CMake
 with an ncurses UI) instead of =cmake=.
 
-If you're building with hand-compiled llvm and clang trees, use:
+* Finding clang
+  RTags needs three pieces of information about libclang. All of these
+  can be provided to cmake by way of an environment variable or a cmake
+  variable. If not provided we will try to find llvm-config and
+  interrogate it for the information. You can tell rtags which
+  llvm-config to use like this:
 #+BEGIN_SRC
-$ cmake -DCLANG_ROOT=[clang source tree]
-        -DLLVM_INCLUDE=[llvm source tree /include] \
-        -DCLANG_BUILD_INCLUDE=[clang build directory /include] ..
+  LLVM_CONFIG=/path/to/llvm-config cmake .
 #+END_SRC
+  or
+#+BEGIN_SRC
+  cmake -DLLVM_CONFIG=/path/to/llvm-config .
+#+END_SRC
+  If you don't we will look for variations of the llvm-config
+  executable name in your $PATH.
+
+  The three things we need are:
+  1. CLANG_CXXFLAGS
+     Usually something like this:
+#+BEGIN_SRC
+     $ llvm-config --cxxflags
+     -I/usr/local/Cellar/llvm35/3.5.1/lib/llvm-3.5/include  -DNDEBUG -D_GNU_SOURCE -D__STDC_CONSTANT_MACROS -D__STDC_FORMAT_MACROS -D__STDC_LIMIT_MACROS -O3  -std=c++11 -fvisibility-inlines-hidden -fno-exceptions -fno-common -Woverloaded-virtual -Wcast-qual
+#+END_SRC
+  2. CLANG_LIBDIR
+     Usually something like this:
+#+BEGIN_SRC
+     $ llvm-config --libdir
+     /usr/local/Cellar/llvm35/3.5.1/lib/llvm-3.5/lib
+#+END_SRC
+     We need this to locate clang's system headers and we will assume
+     that they are located in:
+     ${CLANG_LIBDIR}/clang/CLANG_VERSION_STRING/include (/usr/local/Cellar/llvm35/3.5.1/lib/llvm-3.5/lib/clang/3.5.1/include)
+     There should be headers like stdarg.h and limits.h in this
+     directory.
+
+  2. CLANG_LIBS
+     Usually something like this:
+#+BEGIN_SRC
+     -L/usr/local/Cellar/llvm35/3.5.1/lib/llvm-3.5/lib -lclang
+#+END_SRC
+     Unless specified we will take try to find these libraries using
+     cmake's find_library features and/or assuming that they there
+     will be a libclang.(so|dylib) in ${CLANG_LIBDIR}
+
+Like with LLVM_CONFIG these variables can be override as a cmake
+variable (cmake -DCLANG_LIBDIR=...) or an environment variable
+(CLANG_LIBDIR=... cmake)
 
 RTags uses C++11 features and requires a relatively new
 compiler. Gcc version >= 4.8 or clang >= 3.2 works.
