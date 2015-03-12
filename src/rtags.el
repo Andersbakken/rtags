@@ -2116,20 +2116,19 @@ definition."
     ;;(message ":debug: file not indexed"))
     (when (and file (rtags-buffer-status buffer))
       (with-temp-buffer
-        (if (and rtags-enable-unsaved-reparsing) (buffer-modified-p buffer)
-            (progn
-              (rtags-call-rc :path file :unsaved buffer "-V" file)
-              (when wait-reparsing
-                (message "Reparsing buffer")
-                ;;(message ":debug: reparsing file %s" file)
-                ;; Wait for the server to start working.
-                (while (not (rtags-is-working buffer))
-                  (sleep-for 0.4))
-                ;; Wait for the file to become indexed.
-                (while (rtags-is-working buffer)
-                  (sleep-for 0.4))))
-            (rtags-call-rc :path file "-V" file)
-            (message (format "Dirtied %s" file)))))))
+        (when (and rtags-enable-unsaved-reparsing (buffer-modified-p buffer))
+          (rtags-call-rc :path file :unsaved buffer "-V" file)
+          (when wait-reparsing
+            (message "Reparsing buffer")
+            ;;(message ":debug: reparsing file %s" file)
+            ;; Wait for the server to start working.
+            (while (not (rtags-is-working buffer))
+              (sleep-for 0.4))
+            ;; Wait for the file to become indexed.
+            (while (rtags-is-working buffer)
+              (sleep-for 0.4))))
+        (rtags-call-rc :path file "-V" file)
+        (message (format "Dirtied %s" file))))))
 
 
 ;; assoc list containing unsaved buffers and their modification ticks
