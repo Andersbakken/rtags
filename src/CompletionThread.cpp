@@ -14,6 +14,7 @@
    along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 
 #include "CompletionThread.h"
+#include "RTagsLogOutput.h"
 #include "RTagsClang.h"
 #include "Server.h"
 #include "Token.h"
@@ -396,55 +397,101 @@ void CompletionThread::process(Request *request)
     }
 }
 
+struct Output
+{
+    void send(const String &string)
+    {
+        if (connection) {
+            connection->write(string);
+            connection->finish();
+        } else {
+            output->log(string.constData(), string.size());
+        }
+    }
+    std::shared_ptr<LogOutput> output;
+    std::shared_ptr<Connection> connection;
+    bool xml;
+};
+
 void CompletionThread::printCompletions(const List<Completions::Candidate> &completions, Request *request)
 {
     static List<String> cursorKindNames;
     // error() << request->flags << testLog(RTags::CompilationErrorXml) << completions.size() << request->conn;
-    const bool doLog = testLog(RTags::CompilationErrorXml);
-    if (!(request->flags & Refresh) && (doLog || request->conn) && !completions.isEmpty()) {
-        // Does this need to be called in the main thread?
-        String out;
-        out.reserve(16384);
-        if (doLog)
-            log(RTags::CompilationErrorXml, "<?xml version=\"1.0\" encoding=\"utf-8\"?><completions location=\"%s\"><![CDATA[",
-                request->location.key().constData());
+    List<std::shared_ptr<Output> > outputs;
+    bool xml = false;
+    bool elisp = false;
+    if (request->conn) {
+        std::shared_ptr<Output> output(new Output);
+        output->connection = request->conn;
+        output->xml = !(request->flags & Elisp);
+        outputs.append(output);
+        if (request->flags & Elisp) {
+            elisp = true;
+        } else {
+            xml = true;
+        }
+        request->conn.reset();
+    }
+    log([&xml, &elisp, &outputs](const std::shared_ptr<LogOutput> &output) {
+            // error() << "Got a dude" << output->testLog(RTags::CompilationErrorXml);
+            if (output->testLog(RTags::CompilationErrorXml)) {
+                auto out = std::static_pointer_cast<RTagsLogOutput>(output);
+                std::shared_ptr<Output> output(new Output);
+                output->output = out;
+                if (out->flags() & RTagsLogOutput::ElispList) {
+                    output->xml = false;
+                    elisp = true;
+                } else {
+                    output->xml = true;
+                    xml = true;
+                }
+                outputs.append(output);
+            }
+        });
 
-        if (request->flags & Elisp)
-            out += "'(";
+    if (!(request->flags & Refresh) && !outputs.isEmpty() && !completions.isEmpty()) {
+        String xmlOut, elispOut;
+        if (xml) {
+            xmlOut.reserve(16384);
+            xmlOut << String::format<128>("<?xml version=\"1.0\" encoding=\"utf-8\"?><completions location=\"%s\"><![CDATA[",
+                                          request->location.key().constData());
+        }
+        if (elisp) {
+            elispOut.reserve(16384);
+            elispOut += String::format<256>("(list 'completions (list \"%s\" (list", request->location.key().constData());
+        }
         for (const auto &val : completions) {
             if (val.cursorKind >= cursorKindNames.size())
                 cursorKindNames.resize(val.cursorKind + 1);
             String &kind = cursorKindNames[val.cursorKind];
             if (kind.isEmpty())
                 kind = RTags::eatString(clang_getCursorKindSpelling(val.cursorKind));
-            if (request->flags & Elisp) {
-                out += String::format<128>("(\"%s\" \"%s\" \"%s\")",
-                                           val.completion.constData(),
-                                           val.signature.constData(),
-                                           kind.constData());
-            } else {
-                out += String::format<128>("%s %s %s\n",
-                                           val.completion.constData(),
-                                           val.signature.constData(),
-                                           kind.constData());
+            if (xml) {
+                xmlOut += String::format<128>(" %s %s %s\n",
+                                              val.completion.constData(),
+                                              val.signature.constData(),
+                                              kind.constData());
+            }
+            if (elisp) {
+                elispOut += String::format<128>(" (list \"%s\" \"%s\" \"%s\")",
+                                                val.completion.constData(),
+                                                val.signature.constData(),
+                                                kind.constData());
             }
         }
-        if (request->flags & Elisp)
-            out += ")";
+        if (elisp)
+            elispOut += ")))";
+        if (xml)
+            xmlOut += "]]></completions>\n";
 
-        if (doLog) {
-            logDirect(RTags::CompilationErrorXml, out);
-            logDirect(RTags::CompilationErrorXml, "]]></completions>\n");
-        }
-        if (request->conn) {
-            std::shared_ptr<Connection> conn = request->conn;
-            request->conn.reset();
-            EventLoop::mainEventLoop()->callLater([conn, out]() {
-                    // ### need to make sure this connection doesn't go away,
-                    // probably need to disconnect something
-                    conn->write(out);
-                    conn->finish();
-                });
-        }
+        EventLoop::mainEventLoop()->callLater([outputs, xmlOut, elispOut]() {
+                for (auto &it : outputs) {
+                    if (it->xml) {
+                        it->send(xmlOut);
+                    } else {
+                        it->send(elispOut);
+                    }
+                }
+            });
     }
 }

@@ -16,6 +16,7 @@
 #include "RClient.h"
 #include "IndexMessage.h"
 #include "LogOutputMessage.h"
+#include "RTagsLogOutput.h"
 #include <rct/Connection.h>
 #include <rct/EventLoop.h>
 #include <rct/Log.h>
@@ -300,7 +301,11 @@ public:
     }
     virtual bool exec(RClient *rc, const std::shared_ptr<Connection> &connection)
     {
-        LogOutputMessage msg(mLevel == Default ? rc->logLevel() : mLevel);
+        unsigned int flags = RTagsLogOutput::None;
+        if (rc->queryFlags() & QueryMessage::ElispList)
+            flags |= RTagsLogOutput::ElispList;
+        const int level = mLevel == Default ? rc->logLevel() : mLevel;
+        LogOutputMessage msg(level, flags);
         msg.init(rc->argc(), rc->argv());
         return connection->send(msg);
     }

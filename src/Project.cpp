@@ -21,6 +21,7 @@
 #include "Server.h"
 #include "Server.h"
 #include "JobScheduler.h"
+#include "RTagsLogOutput.h"
 #include <math.h>
 #include <fnmatch.h>
 #include <rct/Log.h>
@@ -33,6 +34,7 @@
 #include <rct/DataFile.h>
 #include <regex>
 #include <memory>
+#include "LogOutputMessage.h"
 
 enum { DirtyTimeout = 100 };
 
@@ -386,13 +388,30 @@ void Project::onJobFinished(const std::shared_ptr<IndexerJob> &job, const std::s
     }
 
     const int idx = mJobCounter - mActiveJobs.size();
-    if (testLog(RTags::CompilationErrorXml)) {
-        logDirect(RTags::CompilationErrorXml, Diagnostic::format(msg->diagnostics()));
-        if (!(options.options & Server::NoProgress)) {
-            log(RTags::CompilationErrorXml,
-                "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n<progress index=\"%d\" total=\"%d\"></progress>",
-                idx, mJobCounter);
-        }
+    if (!msg->diagnostics().isEmpty() || !(options.options & Server::NoProgress)) {
+        log([msg, &options, idx, this](const std::shared_ptr<LogOutput> &output) {
+                if (output->testLog(RTags::CompilationErrorXml)) {
+                    Diagnostic::Format format = Diagnostic::XML;
+                    if (std::static_pointer_cast<RTagsLogOutput>(output)->flags() & RTagsLogOutput::ElispList) {
+                        // I know this is RTagsLogOutput because it returned
+                        // true for testLog(RTags::CompilationErrorXml)
+                        format = Diagnostic::Elisp;
+                    }
+                    if (!msg->diagnostics().isEmpty()) {
+                        output->log(Diagnostic::format(msg->diagnostics(), format));
+                    }
+                    if (!(options.options & Server::NoProgress)) {
+                        if (format == Diagnostic::XML) {
+                            output->log("<?xml version=\"1.0\" encoding=\"utf-8\"?>\n<progress index=\"%d\" total=\"%d\"></progress>",
+                                        idx, mJobCounter);
+                        } else {
+                            output->log("(list 'progress %d %d)", idx, mJobCounter);
+                        }
+                    }
+                }
+            });
+
+        // RTags::CompilationErrorXml, Diagnostic::format(msg->diagnostics()));
     }
 
     int symbolNames = 0;

@@ -33,7 +33,7 @@
 #include <clang-c/CXCompilationDatabase.h>
 #endif
 #include "ListSymbolsJob.h"
-#include "LogObject.h"
+#include "RTagsLogOutput.h"
 #include "Match.h"
 #include "Preprocessor.h"
 #include "Project.h"
@@ -74,17 +74,13 @@ const Server::Options *serverOptions()
     return Server::instance() ? &Server::instance()->options() : 0;
 }
 
-class HttpLogObject : public LogOutput
+class HttpLogOutput : public RTagsLogOutput
 {
 public:
-    HttpLogObject(int logLevel, const SocketClient::SharedPtr &socket)
-        : LogOutput(logLevel), mSocket(socket)
+    HttpLogOutput(int logLevel, const SocketClient::SharedPtr &socket)
+        : RTagsLogOutput(logLevel, 0), mSocket(socket)
     {}
 
-    virtual bool testLog(int level) const
-    {
-        return level == logLevel();
-    }
     virtual void log(const char *msg, int len)
     {
         if (!EventLoop::isMainThread()) {
@@ -96,7 +92,7 @@ public:
                         // ### lambda wouldn't compile unless "this" was
                         // ### captured.
                         if (SocketClient::SharedPtr socket = weak.lock()) {
-                            HttpLogObject::send(message.constData(), message.size(), socket);
+                            HttpLogOutput::send(message.constData(), message.size(), socket);
                         }
                     }));
         } else {
@@ -484,7 +480,7 @@ void Server::handleIndexMessage(const std::shared_ptr<IndexMessage> &message, co
 
 void Server::handleLogOutputMessage(const std::shared_ptr<LogOutputMessage> &message, const std::shared_ptr<Connection> &conn)
 {
-    std::shared_ptr<LogObject> log(new LogObject(conn, message->level()));
+    std::shared_ptr<RTagsLogOutput> log(new RTagsLogOutput(message->level(), message->flags(), conn));
     log->add();
 }
 
@@ -1515,7 +1511,7 @@ void Server::codeCompleteAt(const std::shared_ptr<QueryMessage> &query, const st
         c->finish();
         c.reset();
     }
-    error() << "Got completion" << String::format("%s:%d:%d", path.constData(), line, column);
+    error() << "Got completion request for" << String::format("%s:%d:%d", path.constData(), line, column);
     mCompletionThread->completeAt(source, loc, flags, query->unsavedFiles().value(path), c);
 }
 
@@ -1532,7 +1528,7 @@ public:
           mIsFinished(false), mWorkingDirectory(workingDirectory)
     {
 #warning gotta fix this
-        // mConnection->aboutToSend().connect([this](const Message &message) {
+        // mConnection->aboutToSend().connect([this](const std::shared_ptr<Connection> &, const Message &message) {
         //         if (message.messageId() == Message::FinishMessageId) {
         //             mIsFinished = true;
         //         } else if (message.messageId() == Message::ResponseId) {
@@ -1548,10 +1544,6 @@ public:
     List<String> output() const { return mOutput; }
     bool isFinished() const { return mIsFinished; }
     std::shared_ptr<Connection> connection() const { return mConnection; }
-    void onMessage(const Message *msg)
-    {
-
-    }
 private:
     std::shared_ptr<Connection> mConnection;
     bool mIsFinished;

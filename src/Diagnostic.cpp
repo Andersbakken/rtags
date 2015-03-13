@@ -53,40 +53,82 @@ static inline String xmlEscape(const String& xml)
     return strm.str();
 }
 
-String Diagnostic::format(const Diagnostics &diagnostics)
+static inline const String elispEscape(const String &data)
+{
+    String ret = data;
+    ret.replace("\"", "\\\"");
+    ret.replace("\n", "\\n"); // ### this could be done more efficiently
+    return ret;
+}
+
+String Diagnostic::format(const Diagnostics &diagnostics, Format format)
 {
     Server *server = Server::instance();
     assert(server);
     if (server->activeBuffers().isEmpty())
         server = 0;
-    String xmlDiagnostics = "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n  <checkstyle>";
-    if (!diagnostics.isEmpty()) {
-        const char *severities[] = { "none", "warning", "error", "fixit", "skipped" };
-        uint32_t lastFileId = 0;
+    String ret;
 
-        for (const auto &entry : diagnostics) {
-            const Location &loc = entry.first;
-            if (server && !server->isActiveBuffer(loc.fileId()))
-                continue;
-            const Diagnostic &diagnostic = entry.second;
-            if (loc.fileId() != lastFileId) {
-                if (lastFileId)
-                    xmlDiagnostics += "\n    </file>";
-                lastFileId = loc.fileId();
-                xmlDiagnostics += String::format<128>("\n    <file name=\"%s\">", loc.path().constData());
-            }
-            if (diagnostic.type != Diagnostic::None) {
-                xmlDiagnostics += String::format("\n      <error line=\"%d\" column=\"%d\" %sseverity=\"%s\" message=\"%s\"/>",
-                                                 loc.line(), loc.column(),
-                                                 (diagnostic.length <= 0 ? ""
-                                                  : String::format<32>("length=\"%d\" ", diagnostic.length).constData()),
-                                                 severities[diagnostic.type], xmlEscape(diagnostic.message).constData());
-            }
-        }
-        if (lastFileId)
-            xmlDiagnostics += "\n    </file>";
+    const char *severities[] = { "none", "warning", "error", "fixit", "skipped" };
+    uint32_t lastFileId = 0;
+
+    static const char *header[] = {
+        "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n  <checkstyle>",
+        "(list 'checkstyle "
+    };
+    static const char *startFile[] = {
+        "\n    <file name=\"%s\">",
+        "(cons \"%s\" (list"
+    };
+    static const char *endFile[] = {
+        "\n    </file>",
+        "))"
+    };
+    static const char *trailer[] = {
+        "\n  </checkstyle>",
+        ")"
+    };
+    std::function<String(const Location &, const Diagnostic &)> formatDiagnostic;
+    if (format == XML) {
+        formatDiagnostic = [severities](const Location &loc, const Diagnostic &diagnostic) {
+            return String::format("\n      <error line=\"%d\" column=\"%d\" %sseverity=\"%s\" message=\"%s\"/>",
+                                  loc.line(), loc.column(),
+                                  (diagnostic.length <= 0 ? ""
+                                   : String::format<32>("length=\"%d\" ", diagnostic.length).constData()),
+                                  severities[diagnostic.type], xmlEscape(diagnostic.message).constData());
+        };
+    } else {
+        formatDiagnostic = [severities](const Location &loc, const Diagnostic &diagnostic) {
+            return String::format<256>(" (list %d %d %s '%s \"%s\")",
+                                       loc.line(), loc.column(),
+                                       diagnostic.length > 0 ? String::number(diagnostic.length).constData() : "nil",
+                                       severities[diagnostic.type],
+                                       elispEscape(diagnostic.message).constData());
+        };
     }
+    bool first = true;
+    for (const auto &entry : diagnostics) {
+        const Location &loc = entry.first;
+        if (server && !server->isActiveBuffer(loc.fileId()))
+            continue;
+        if (first) {
+            ret = header[format];
+            first = false;
+        }
+        const Diagnostic &diagnostic = entry.second;
+        if (loc.fileId() != lastFileId) {
+            if (lastFileId)
+                ret << endFile[format];
+            lastFileId = loc.fileId();
+            ret << String::format<256>(startFile[format], loc.path().constData());
+        }
+        if (diagnostic.type != Diagnostic::None) {
+            ret << formatDiagnostic(loc, diagnostic);
+        }
+    }
+    if (lastFileId)
+        ret << endFile[format];
 
-    xmlDiagnostics += "\n  </checkstyle>";
-    return xmlDiagnostics;
+    ret << trailer[format];
+    return ret;
 }
