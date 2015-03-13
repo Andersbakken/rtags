@@ -291,7 +291,7 @@ int main(int argc, char** argv)
 
     Server::Options serverOpts;
     serverOpts.threadStackSize = defaultStackSize;
-    serverOpts.socketFile = String::format<128>("%s.rdm.file", Path::home().constData());
+    serverOpts.socketFile = String::format<128>("%s.rdm", Path::home().constData());
     serverOpts.jobCount = std::max(2, ThreadPool::idealThreadCount());
     serverOpts.lowPriorityJobCount = -1;
     serverOpts.headerErrorJobCount = -1;
@@ -310,7 +310,7 @@ int main(int argc, char** argv)
 //     serverOpts.options |= Server::SuspendRPOnCrash;
 // #endif
     serverOpts.excludeFilters = String(EXCLUDEFILTER_DEFAULT).split(';');
-    serverOpts.dataDir = String::format<128>("%s.rtags-file", Path::home().constData());
+    serverOpts.dataDir = String::format<128>("%s.rtags", Path::home().constData());
 
     const char *logFile = 0;
     unsigned int logFlags = 0;
@@ -319,6 +319,7 @@ int main(int argc, char** argv)
     assert(Path::home().endsWith('/'));
     int argCount = argList.size();
     char **args = argList.data();
+    bool defaultDataDir = true;
 
     while (true) {
         const int c = getopt_long(argCount, args, shortOptions.constData(), opts, 0);
@@ -424,6 +425,7 @@ int main(int argc, char** argv)
             serverOpts.socketFile = optarg;
             break;
         case 'd':
+            defaultDataDir = false;
             serverOpts.dataDir = String::format<128>("%s", Path::resolved(optarg).constData());
             break;
         case 'h':
@@ -646,6 +648,14 @@ int main(int argc, char** argv)
         }
         serverOpts.socketFile = buf;
         serverOpts.socketFile.resolve();
+    }
+    if (defaultDataDir) {
+        Path migration = String::format<128>("%s.rtags-file", Path::home().constData());
+        if (migration.isDir()) {
+            Rct::removeDirectory(serverOpts.dataDir);
+            rename(migration.constData(), serverOpts.dataDir.constData());
+            error() << "Migrated datadir from ~/.rtags-file ~/.rtags";
+        }
     }
     serverOpts.dataDir = serverOpts.dataDir.ensureTrailingSlash();
     if (!server->init(serverOpts)) {
