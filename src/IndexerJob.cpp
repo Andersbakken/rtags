@@ -59,20 +59,21 @@ String IndexerJob::encode() const
 
         for (const String &blocked : options.blockedArguments) {
             if (blocked.endsWith("=")) {
-                const String arg = blocked.left(blocked.size() - 1);
-                const int idx = copy.arguments.indexOf(arg);
-                if (idx != -1) {
-                    const int count = idx + 1 < copy.arguments.size() ? 2 : 1;
-                    // error() << "removed args" << copy.arguments.at(idx)
-                    //         << copy.arguments.at(idx + count - 1);
-                    copy.arguments.remove(idx, count);
+                int i = 0;
+                while (i<copy.arguments.size()) {
+                    if (copy.arguments.at(i).startsWith(blocked)) {
+                        // error() << "Removing" << copy.arguments.at(i);
+                        copy.arguments.remove(i, 1);
+                    } else if (!strncmp(blocked.constData(), copy.arguments.at(i).constData(), blocked.size() - 1)) {
+                        const int count = i + 1 < copy.arguments.size() ? 2 : 1;
+                        // error() << "Removing" << copy.arguments.mid(i, count);
+                        copy.arguments.remove(i, count);
+                    } else {
+                        ++i;
+                    }
                 }
             } else {
-                const int idx = copy.arguments.indexOf(blocked);
-                if (idx != -1) {
-                    // error() << "removed arg" << copy.arguments.at(idx);
-                    copy.arguments.removeAt(idx);
-                }
+                copy.arguments.remove(blocked);
             }
         }
 
