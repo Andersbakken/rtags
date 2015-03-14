@@ -26,12 +26,7 @@ public:
     LogObject(Connection *conn, int level)
         : LogOutput(level), mConnection(conn)
     {
-        conn->disconnected().connect(std::bind(&LogObject::shutdown, this));
-    }
-
-    void shutdown()
-    {
-        EventLoop::deleteLater(this);
+        conn->disconnected().connect(std::bind(&LogOutput::remove, this));
     }
 
     virtual void log(const char *msg, int len)

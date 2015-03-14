@@ -479,7 +479,8 @@ void Server::handleIndexMessage(const std::shared_ptr<IndexMessage> &message, Co
 
 void Server::handleLogOutputMessage(const std::shared_ptr<LogOutputMessage> &message, Connection *conn)
 {
-    new LogObject(conn, message->level());
+    std::shared_ptr<LogObject> log(new LogObject(conn, message->level()));
+    log->add();
 }
 
 void Server::handleIndexDataMessage(const std::shared_ptr<IndexDataMessage> &message, Connection *conn)
