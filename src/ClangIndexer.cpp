@@ -46,10 +46,11 @@ ClangIndexer::ClangIndexer()
     : mClangUnit(0), mIndex(0), mLastCursor(nullCursor), mVisitFileResponseMessageFileId(0),
       mVisitFileResponseMessageVisit(0), mParseDuration(0), mVisitDuration(0),
       mBlocked(0), mAllowed(0), mIndexed(1), mVisitFileTimeout(0),
-      mIndexDataMessageTimeout(0), mFileIdsQueried(0), mLogFile(0), mConnection(RClient::NumOptions)
+      mIndexDataMessageTimeout(0), mFileIdsQueried(0), mLogFile(0),
+      mConnection(Connection::create(RClient::NumOptions))
 {
-    mConnection.newMessage().connect(std::bind(&ClangIndexer::onMessage, this,
-                                               std::placeholders::_1, std::placeholders::_2));
+    mConnection->newMessage().connect(std::bind(&ClangIndexer::onMessage, this,
+                                                std::placeholders::_1, std::placeholders::_2));
 }
 
 ClangIndexer::~ClangIndexer()
@@ -131,7 +132,7 @@ bool ClangIndexer::exec(const String &data)
     }
 
     Location::set(mSourceFile, mSource.fileId);
-    if (!mConnection.connectUnix(socketFile, connectTimeout)) {
+    if (!mConnection->connectUnix(socketFile, connectTimeout)) {
         error("Failed to connect to rdm on %s (%dms timeout)", socketFile.constData(), connectTimeout);
         return false;
     }
@@ -142,7 +143,7 @@ bool ClangIndexer::exec(const String &data)
     mIndexDataMessage.setKey(mSource.key());
     mIndexDataMessage.setId(id);
 
-    assert(mConnection.isConnected());
+    assert(mConnection->isConnected());
     mIndexDataMessage.files()[mSource.fileId] = true;
     parse() && visit() && diagnose();
     String message = mSourceFile.toTilde();
@@ -177,11 +178,11 @@ bool ClangIndexer::exec(const String &data)
 
     mIndexDataMessage.setMessage(message);
     sw.restart();
-    if (!mConnection.send(mIndexDataMessage)) {
+    if (!mConnection->send(mIndexDataMessage)) {
         error() << "Couldn't send IndexDataMessage" << mSourceFile;
         return false;
     }
-    mConnection.finished().connect(std::bind(&EventLoop::quit, EventLoop::eventLoop()));
+    mConnection->finished().connect(std::bind(&EventLoop::quit, EventLoop::eventLoop()));
     if (EventLoop::eventLoop()->exec(mIndexDataMessageTimeout) == EventLoop::Timeout) {
         error() << "Timed out sending IndexDataMessage" << mSourceFile;
         return false;
@@ -192,7 +193,7 @@ bool ClangIndexer::exec(const String &data)
     return true;
 }
 
-void ClangIndexer::onMessage(const std::shared_ptr<Message> &msg, Connection */*conn*/)
+void ClangIndexer::onMessage(const std::shared_ptr<Message> &msg, const std::shared_ptr<Connection> &/*conn*/)
 {
     assert(msg->messageId() == VisitFileResponseMessage::MessageId);
     const std::shared_ptr<VisitFileResponseMessage> vm = std::static_pointer_cast<VisitFileResponseMessage>(msg);
@@ -256,7 +257,7 @@ Location ClangIndexer::createLocation(const Path &sourceFile, unsigned int line,
 
     mVisitFileResponseMessageFileId = UINT_MAX;
     mVisitFileResponseMessageVisit = false;
-    mConnection.send(msg);
+    mConnection->send(msg);
     StopWatch sw;
     EventLoop::eventLoop()->exec(mVisitFileTimeout);
     switch (mVisitFileResponseMessageFileId) {

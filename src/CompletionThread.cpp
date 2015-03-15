@@ -86,7 +86,7 @@ void CompletionThread::run()
 }
 
 void CompletionThread::completeAt(const Source &source, const Location &location,
-                                  unsigned int flags, const String &unsaved, Connection *conn)
+                                  unsigned int flags, const String &unsaved, const std::shared_ptr<Connection> &conn)
 {
     Request *request = new Request({ source, location, flags, unsaved, conn});
     std::unique_lock<std::mutex> lock(mMutex);
@@ -437,8 +437,8 @@ void CompletionThread::printCompletions(const List<Completions::Candidate> &comp
             logDirect(RTags::CompilationErrorXml, "]]></completions>\n");
         }
         if (request->conn) {
-            Connection *conn = request->conn;
-            request->conn = 0;
+            std::shared_ptr<Connection> conn = request->conn;
+            request->conn.reset();
             EventLoop::mainEventLoop()->callLater([conn, out]() {
                     // ### need to make sure this connection doesn't go away,
                     // probably need to disconnect something

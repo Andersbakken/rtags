@@ -26,7 +26,7 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 
 QueryJob::QueryJob(const std::shared_ptr<QueryMessage> &query, unsigned int jobFlags, const std::shared_ptr<Project> &proj)
     : mAborted(false), mLinesWritten(0), mQueryMessage(query), mJobFlags(jobFlags), mProject(proj), mPathFilters(0),
-      mPathFiltersRegex(0), mConnection(0)
+      mPathFiltersRegex(0)
 {
     if (mProject)
         mProject->beginScope();
@@ -221,7 +221,7 @@ bool QueryJob::filter(const String &value) const
 }
 
 
-int QueryJob::run(Connection *connection)
+int QueryJob::run(const std::shared_ptr<Connection> &connection)
 {
     assert(connection);
     mConnection = connection;

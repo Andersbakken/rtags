@@ -39,7 +39,7 @@ public:
         Refresh = 0x1,
         Elisp = 0x2
     };
-    void completeAt(const Source &source, const Location &location, unsigned int flags, const String &unsaved, Connection *conn);
+    void completeAt(const Source &source, const Location &location, unsigned int flags, const String &unsaved, const std::shared_ptr<Connection> &conn);
     void stop();
     String dump();
 private:
@@ -59,7 +59,7 @@ private:
         Location location;
         unsigned int flags;
         String unsaved;
-        Connection *conn;
+        std::shared_ptr<Connection> conn;
     };
     LinkedList<Request*> mPending;
     struct Dump {

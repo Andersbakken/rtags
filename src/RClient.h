@@ -147,7 +147,7 @@ public:
 
     int argc() const { return mArgc; }
     char **argv() const { return mArgv; }
-    void onNewMessage(const std::shared_ptr<Message> &message, Connection *);
+    void onNewMessage(const std::shared_ptr<Message> &message, const std::shared_ptr<Connection> &);
 private:
     void addQuery(QueryMessage::Type t, const String &query = String(), unsigned int extraQueryFlags = 0);
     void addQuitCommand(int exitCode);

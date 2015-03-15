@@ -26,14 +26,14 @@ class Connection;
 class DumpThread : public Thread
 {
 public:
-    DumpThread(const std::shared_ptr<QueryMessage> &queryMessage, const Source &source, Connection *conn);
+    DumpThread(const std::shared_ptr<QueryMessage> &queryMessage, const Source &source, const std::shared_ptr<Connection> &conn);
     virtual void run();
 private:
     static CXChildVisitResult visitor(CXCursor cursor, CXCursor, CXClientData userData);
     void writeToConnetion(const String &message);
     const unsigned int mQueryFlags;
     const Source mSource;
-    Connection *mConnection;
+    const std::shared_ptr<Connection> &mConnection;
     Hash<Path, uint32_t> mFiles;
     int mIndentLevel;
 };

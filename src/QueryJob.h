@@ -69,12 +69,12 @@ public:
     Signal<std::function<void(const String &)> > &output() { return mOutput; }
     std::shared_ptr<Project> project() const { return mProject; }
     virtual int execute() = 0;
-    int run(Connection *connection = 0);
+    int run(const std::shared_ptr<Connection> &connection = 0);
     bool isAborted() const { std::lock_guard<std::mutex> lock(mMutex); return mAborted; }
     void abort() { std::lock_guard<std::mutex> lock(mMutex); mAborted = true; }
     std::mutex &mutex() const { return mMutex; }
     bool &aborted() { return mAborted; }
-    Connection *connection() const { return mConnection; }
+    const std::shared_ptr<Connection> &connection() const { return mConnection; }
 private:
     mutable std::mutex mMutex;
     bool mAborted;
@@ -87,7 +87,7 @@ private:
     List<String> *mPathFilters;
     List<std::regex> *mPathFiltersRegex;
     String mBuffer;
-    Connection *mConnection;
+    std::shared_ptr<Connection> mConnection;
 };
 
 template <int StaticBufSize>

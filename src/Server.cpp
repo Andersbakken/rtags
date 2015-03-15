@@ -211,11 +211,11 @@ bool Server::init(const Options &options)
         mUnixServer.reset();
         if (!i) {
             enum { Timeout = 1000 };
-            Connection connection(RClient::NumOptions);
-            if (connection.connectUnix(mOptions.socketFile, Timeout)) {
-                connection.send(QuitMessage());
-                connection.disconnected().connect(std::bind([](){ EventLoop::eventLoop()->quit(); }));
-                connection.finished().connect(std::bind([](){ EventLoop::eventLoop()->quit(); }));
+            std::shared_ptr<Connection> connection = Connection::create(RClient::NumOptions);
+            if (connection->connectUnix(mOptions.socketFile, Timeout)) {
+                connection->send(QuitMessage());
+                connection->disconnected().connect(std::bind([](){ EventLoop::eventLoop()->quit(); }));
+                connection->finished().connect(std::bind([](){ EventLoop::eventLoop()->quit(); }));
                 EventLoop::eventLoop()->exec(Timeout);
             }
         } else {
@@ -307,18 +307,23 @@ void Server::onNewConnection(SocketServer *server)
 {
     while (true) {
         SocketClient::SharedPtr client = server->nextConnection();
-        if (!client)
+        if (!client) {
             break;
-        Connection *conn = new Connection(client, RClient::NumOptions);
+        }
+        std::shared_ptr<Connection> conn = Connection::create(client, RClient::NumOptions);
         conn->newMessage().connect(std::bind(&Server::onNewMessage, this, std::placeholders::_1, std::placeholders::_2));
-        conn->disconnected().connect(std::bind([conn]() {
-                    conn->disconnected().disconnect();
-                    EventLoop::deleteLater(conn);
+        mConnections.insert(conn);
+        std::weak_ptr<Connection> weak = conn;
+        conn->disconnected().connect(std::bind([this, weak]() {
+                    if (std::shared_ptr<Connection> c = weak.lock()) {
+                        c->disconnected().disconnect();
+                        mConnections.remove(c);
+                    }
                 }));
     }
 }
 
-void Server::onNewMessage(const std::shared_ptr<Message> &message, Connection *connection)
+void Server::onNewMessage(const std::shared_ptr<Message> &message, const std::shared_ptr<Connection> &connection)
 {
     switch (message->messageId()) {
     case IndexMessage::MessageId:
@@ -429,7 +434,7 @@ bool Server::index(const String &arguments, const Path &pwd, const Path &project
     return ret;
 }
 
-void Server::handleIndexMessage(const std::shared_ptr<IndexMessage> &message, Connection *conn)
+void Server::handleIndexMessage(const std::shared_ptr<IndexMessage> &message, const std::shared_ptr<Connection> &conn)
 {
 #if CLANG_VERSION_MAJOR > 3 || (CLANG_VERSION_MAJOR == 3 && CLANG_VERSION_MINOR > 3)
     const Path path = message->compilationDatabaseDir();
@@ -477,20 +482,20 @@ void Server::handleIndexMessage(const std::shared_ptr<IndexMessage> &message, Co
         conn->finish(ret ? 0 : 1);
 }
 
-void Server::handleLogOutputMessage(const std::shared_ptr<LogOutputMessage> &message, Connection *conn)
+void Server::handleLogOutputMessage(const std::shared_ptr<LogOutputMessage> &message, const std::shared_ptr<Connection> &conn)
 {
     std::shared_ptr<LogObject> log(new LogObject(conn, message->level()));
     log->add();
 }
 
-void Server::handleIndexDataMessage(const std::shared_ptr<IndexDataMessage> &message, Connection *conn)
+void Server::handleIndexDataMessage(const std::shared_ptr<IndexDataMessage> &message, const std::shared_ptr<Connection> &conn)
 {
     mJobScheduler->handleIndexDataMessage(message);
     conn->finish();
     mIndexDataMessageReceived();
 }
 
-void Server::handleQueryMessage(const std::shared_ptr<QueryMessage> &message, Connection *conn)
+void Server::handleQueryMessage(const std::shared_ptr<QueryMessage> &message, const std::shared_ptr<Connection> &conn)
 {
     if (!(message->flags() & QueryMessage::SilentQuery))
         error() << message->raw();
@@ -598,7 +603,7 @@ void Server::handleQueryMessage(const std::shared_ptr<QueryMessage> &message, Co
     }
 }
 
-void Server::followLocation(const std::shared_ptr<QueryMessage> &query, Connection *conn)
+void Server::followLocation(const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Connection> &conn)
 {
     const Location loc = query->location();
     if (loc.isNull()) {
@@ -654,7 +659,7 @@ void Server::followLocation(const std::shared_ptr<QueryMessage> &query, Connecti
     conn->finish(ret);
 }
 
-void Server::isIndexing(const std::shared_ptr<QueryMessage> &, Connection *conn)
+void Server::isIndexing(const std::shared_ptr<QueryMessage> &, const std::shared_ptr<Connection> &conn)
 {
     for (const auto &it : mProjects) {
         if (it.second->isIndexing()) {
@@ -667,7 +672,7 @@ void Server::isIndexing(const std::shared_ptr<QueryMessage> &, Connection *conn)
     conn->finish();
 }
 
-void Server::removeFile(const std::shared_ptr<QueryMessage> &query, Connection *conn)
+void Server::removeFile(const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Connection> &conn)
 {
     // Path path = query->path();
     const Match match = query->match();
@@ -691,7 +696,7 @@ void Server::removeFile(const std::shared_ptr<QueryMessage> &query, Connection *
     conn->finish();
 }
 
-void Server::findFile(const std::shared_ptr<QueryMessage> &query, Connection *conn)
+void Server::findFile(const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Connection> &conn)
 {
     std::shared_ptr<Project> project = currentProject();
     if (!project) {
@@ -705,7 +710,7 @@ void Server::findFile(const std::shared_ptr<QueryMessage> &query, Connection *co
     conn->finish(ret);
 }
 
-void Server::dumpFile(const std::shared_ptr<QueryMessage> &query, Connection *conn)
+void Server::dumpFile(const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Connection> &conn)
 {
     const uint32_t fileId = Location::fileId(query->query());
     if (!fileId) {
@@ -735,7 +740,7 @@ void Server::dumpFile(const std::shared_ptr<QueryMessage> &query, Connection *co
     }
 }
 
-void Server::generateTest(const std::shared_ptr<QueryMessage> &query, Connection *conn)
+void Server::generateTest(const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Connection> &conn)
 {
     const uint32_t fileId = Location::fileId(query->query());
     if (!fileId) {
@@ -815,7 +820,7 @@ void Server::generateTest(const std::shared_ptr<QueryMessage> &query, Connection
     }
 }
 
-void Server::cursorInfo(const std::shared_ptr<QueryMessage> &query, Connection *conn)
+void Server::cursorInfo(const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Connection> &conn)
 {
     const Location loc = query->location();
     if (loc.isNull()) {
@@ -833,7 +838,7 @@ void Server::cursorInfo(const std::shared_ptr<QueryMessage> &query, Connection *
     }
 }
 
-void Server::dependencies(const std::shared_ptr<QueryMessage> &query, Connection *conn)
+void Server::dependencies(const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Connection> &conn)
 {
     std::shared_ptr<Project> project = projectForQuery(query);
     if (!project) {
@@ -846,7 +851,7 @@ void Server::dependencies(const std::shared_ptr<QueryMessage> &query, Connection
     conn->finish(ret);
 }
 
-void Server::fixIts(const std::shared_ptr<QueryMessage> &query, Connection *conn)
+void Server::fixIts(const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Connection> &conn)
 {
     std::shared_ptr<Project> project = projectForQuery(query);
     if (project) {
@@ -857,7 +862,7 @@ void Server::fixIts(const std::shared_ptr<QueryMessage> &query, Connection *conn
     conn->finish();
 }
 
-void Server::referencesForLocation(const std::shared_ptr<QueryMessage> &query, Connection *conn)
+void Server::referencesForLocation(const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Connection> &conn)
 {
     const Location loc = query->location();
     if (loc.isNull()) {
@@ -878,7 +883,7 @@ void Server::referencesForLocation(const std::shared_ptr<QueryMessage> &query, C
     conn->finish(ret);
 }
 
-void Server::referencesForName(const std::shared_ptr<QueryMessage> &query, Connection *conn)
+void Server::referencesForName(const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Connection> &conn)
 {
     const String name = query->query();
 
@@ -895,7 +900,7 @@ void Server::referencesForName(const std::shared_ptr<QueryMessage> &query, Conne
     conn->finish(ret);
 }
 
-void Server::findSymbols(const std::shared_ptr<QueryMessage> &query, Connection *conn)
+void Server::findSymbols(const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Connection> &conn)
 {
     const String partial = query->query();
 
@@ -912,7 +917,7 @@ void Server::findSymbols(const std::shared_ptr<QueryMessage> &query, Connection 
     conn->finish(ret);
 }
 
-void Server::listSymbols(const std::shared_ptr<QueryMessage> &query, Connection *conn)
+void Server::listSymbols(const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Connection> &conn)
 {
     const String partial = query->query();
 
@@ -928,7 +933,7 @@ void Server::listSymbols(const std::shared_ptr<QueryMessage> &query, Connection 
     conn->finish(ret);
 }
 
-void Server::status(const std::shared_ptr<QueryMessage> &query, Connection *conn)
+void Server::status(const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Connection> &conn)
 {
     conn->client()->setWriteMode(SocketClient::Synchronous);
 
@@ -937,7 +942,7 @@ void Server::status(const std::shared_ptr<QueryMessage> &query, Connection *conn
     conn->finish(ret);
 }
 
-void Server::isIndexed(const std::shared_ptr<QueryMessage> &query, Connection *conn)
+void Server::isIndexed(const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Connection> &conn)
 {
     String ret = "unknown";
     const Match match = query->match();
@@ -954,7 +959,7 @@ void Server::isIndexed(const std::shared_ptr<QueryMessage> &query, Connection *c
     conn->finish();
 }
 
-void Server::reloadFileManager(const std::shared_ptr<QueryMessage> &, Connection *conn)
+void Server::reloadFileManager(const std::shared_ptr<QueryMessage> &, const std::shared_ptr<Connection> &conn)
 {
     std::shared_ptr<Project> project = currentProject();
     if (project) {
@@ -967,7 +972,7 @@ void Server::reloadFileManager(const std::shared_ptr<QueryMessage> &, Connection
     }
 }
 
-void Server::hasFileManager(const std::shared_ptr<QueryMessage> &query, Connection *conn)
+void Server::hasFileManager(const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Connection> &conn)
 {
     const Path path = query->query();
     std::shared_ptr<Project> project = projectForQuery(query);
@@ -983,7 +988,7 @@ void Server::hasFileManager(const std::shared_ptr<QueryMessage> &query, Connecti
     conn->finish();
 }
 
-void Server::preprocessFile(const std::shared_ptr<QueryMessage> &query, Connection *conn)
+void Server::preprocessFile(const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Connection> &conn)
 {
     const Path path = query->query();
     std::shared_ptr<Project> project = projectForQuery(query);
@@ -1012,7 +1017,7 @@ void Server::clearProjects()
     saveFileIds();
 }
 
-void Server::reindex(const std::shared_ptr<QueryMessage> &query, Connection *conn)
+void Server::reindex(const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Connection> &conn)
 {
     Match match = query->match();
     std::shared_ptr<Project> project = projectForQuery(query);
@@ -1114,7 +1119,7 @@ std::shared_ptr<Project> Server::projectForQuery(const std::shared_ptr<QueryMess
     return std::shared_ptr<Project>();
 }
 
-void Server::removeProject(const std::shared_ptr<QueryMessage> &query, Connection *conn)
+void Server::removeProject(const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Connection> &conn)
 {
     const Match match = query->match();
     auto it = mProjects.begin();
@@ -1140,7 +1145,7 @@ void Server::removeProject(const std::shared_ptr<QueryMessage> &query, Connectio
     conn->finish();
 }
 
-void Server::reloadProjects(const std::shared_ptr<QueryMessage> &/*query*/, Connection *conn)
+void Server::reloadProjects(const std::shared_ptr<QueryMessage> &/*query*/, const std::shared_ptr<Connection> &conn)
 {
     const int old = mProjects.size();
     const int cur = reloadProjects();
@@ -1148,7 +1153,7 @@ void Server::reloadProjects(const std::shared_ptr<QueryMessage> &/*query*/, Conn
     conn->finish();
 }
 
-void Server::project(const std::shared_ptr<QueryMessage> &query, Connection *conn)
+void Server::project(const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Connection> &conn)
 {
     if (query->query().isEmpty()) {
         const std::shared_ptr<Project> current = currentProject();
@@ -1205,7 +1210,7 @@ void Server::project(const std::shared_ptr<QueryMessage> &query, Connection *con
     conn->finish();
 }
 
-void Server::jobCount(const std::shared_ptr<QueryMessage> &query, Connection *conn)
+void Server::jobCount(const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Connection> &conn)
 {
     String q = query->query();
     if (q.isEmpty()) {
@@ -1229,21 +1234,21 @@ void Server::jobCount(const std::shared_ptr<QueryMessage> &query, Connection *co
     conn->finish();
 }
 
-void Server::sendDiagnostics(const std::shared_ptr<QueryMessage> &query, Connection *conn)
+void Server::sendDiagnostics(const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Connection> &conn)
 {
     if (testLog(RTags::CompilationErrorXml))
         logDirect(RTags::CompilationErrorXml, query->query());
     conn->finish();
 }
 
-void Server::clearProjects(const std::shared_ptr<QueryMessage> &/*query*/, Connection *conn)
+void Server::clearProjects(const std::shared_ptr<QueryMessage> &/*query*/, const std::shared_ptr<Connection> &conn)
 {
     clearProjects();
     conn->write("Cleared projects");
     conn->finish();
 }
 
-void Server::sources(const std::shared_ptr<QueryMessage> &query, Connection *conn)
+void Server::sources(const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Connection> &conn)
 {
     const Path path = query->query();
     const bool flagsOnly = query->flags() & QueryMessage::CompilationFlagsOnly;
@@ -1293,7 +1298,7 @@ void Server::sources(const std::shared_ptr<QueryMessage> &query, Connection *con
     conn->finish();
 }
 
-void Server::dumpCompletions(const std::shared_ptr<QueryMessage> &/*query*/, Connection *conn)
+void Server::dumpCompletions(const std::shared_ptr<QueryMessage> &/*query*/, const std::shared_ptr<Connection> &conn)
 {
     if (mCompletionThread) {
         conn->write(mCompletionThread->dump());
@@ -1303,7 +1308,7 @@ void Server::dumpCompletions(const std::shared_ptr<QueryMessage> &/*query*/, Con
     conn->finish();
 }
 
-void Server::dumpCompilationDatabase(const std::shared_ptr<QueryMessage> &query, Connection *conn)
+void Server::dumpCompilationDatabase(const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Connection> &conn)
 {
     std::shared_ptr<Project> project = projectForQuery(query);
     if (!project)
@@ -1318,7 +1323,7 @@ void Server::dumpCompilationDatabase(const std::shared_ptr<QueryMessage> &query,
     conn->finish();
 }
 
-void Server::suspend(const std::shared_ptr<QueryMessage> &query, Connection *conn)
+void Server::suspend(const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Connection> &conn)
 {
     const Path p = query->match().pattern();
     enum Mode {
@@ -1384,7 +1389,7 @@ void Server::suspend(const std::shared_ptr<QueryMessage> &query, Connection *con
     conn->finish();
 }
 
-void Server::setBuffers(const std::shared_ptr<QueryMessage> &query, Connection *conn)
+void Server::setBuffers(const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Connection> &conn)
 {
     const String encoded = query->query();
     if (encoded.isEmpty()) {
@@ -1404,7 +1409,7 @@ void Server::setBuffers(const std::shared_ptr<QueryMessage> &query, Connection *
     conn->finish();
 }
 
-void Server::handleVisitFileMessage(const std::shared_ptr<VisitFileMessage> &message, Connection *conn)
+void Server::handleVisitFileMessage(const std::shared_ptr<VisitFileMessage> &message, const std::shared_ptr<Connection> &conn)
 {
     uint32_t fileId = 0;
     bool visit = false;
@@ -1463,7 +1468,7 @@ void Server::stopServers()
     mUnixServer.reset();
 }
 
-void Server::codeCompleteAt(const std::shared_ptr<QueryMessage> &query, Connection *conn)
+void Server::codeCompleteAt(const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Connection> &conn)
 {
     const String q = query->query();
     Deserializer deserializer(q);
@@ -1505,42 +1510,50 @@ void Server::codeCompleteAt(const std::shared_ptr<QueryMessage> &query, Connecti
         flags |= CompletionThread::Refresh;
     if (query->flags() & QueryMessage::ElispList)
         flags |= CompletionThread::Elisp;
+    std::shared_ptr<Connection> c = conn;
     if (!(query->flags() & QueryMessage::SynchronousCompletions)) {
-        conn->finish();
-        conn = 0;
+        c->finish();
+        c.reset();
     }
     error() << "Got completion" << String::format("%s:%d:%d", path.constData(), line, column);
-    mCompletionThread->completeAt(source, loc, flags, query->unsavedFiles().value(path), conn);
+    mCompletionThread->completeAt(source, loc, flags, query->unsavedFiles().value(path), c);
 }
 
-void Server::dumpJobs(Connection *conn)
+void Server::dumpJobs(const std::shared_ptr<Connection> &conn)
 {
     mJobScheduler->dump(conn);
 }
 
-class TestConnection : public Connection
+class TestConnection
 {
 public:
     TestConnection(const Path &workingDirectory)
-        : Connection(RClient::NumOptions), mIsFinished(false), mWorkingDirectory(workingDirectory)
-    {}
-    virtual bool send(const Message &message)
+        : mConnection(Connection::create(RClient::NumOptions)),
+          mIsFinished(false), mWorkingDirectory(workingDirectory)
     {
-        if (message.messageId() == Message::FinishMessageId) {
-            mIsFinished = true;
-            finished()(this, 0);
-        } else if (message.messageId() == Message::ResponseId) {
-            String response = reinterpret_cast<const ResponseMessage &>(message).data();
-            if (response.startsWith(mWorkingDirectory)) {
-                response.remove(0, mWorkingDirectory.size());
-            }
-            mOutput.append(response);
-        }
-        return true;
+#warning gotta fix this
+        // mConnection->aboutToSend().connect([this](const Message &message) {
+        //         if (message.messageId() == Message::FinishMessageId) {
+        //             mIsFinished = true;
+        //         } else if (message.messageId() == Message::ResponseId) {
+        //             String response = reinterpret_cast<const ResponseMessage &>(message).data();
+        //             if (response.startsWith(mWorkingDirectory)) {
+        //                 response.remove(0, mWorkingDirectory.size());
+        //             }
+        //             mOutput.append(response);
+        //         }
+        //         return true;
+        //     });
     }
     List<String> output() const { return mOutput; }
     bool isFinished() const { return mIsFinished; }
+    std::shared_ptr<Connection> connection() const { return mConnection; }
+    void onMessage(const Message *msg)
+    {
+
+    }
 private:
+    std::shared_ptr<Connection> mConnection;
     bool mIsFinished;
     List<String> mOutput;
     const Path mWorkingDirectory;
@@ -1678,9 +1691,10 @@ bool Server::runTests()
                     query->setFlag(f);
                 }
             }
+
             TestConnection conn(workingDirectory);
             query->setFlag(QueryMessage::SilentQuery);
-            handleQueryMessage(query, &conn);
+            handleQueryMessage(query, conn.connection());
             if (!conn.isFinished()) {
                 error() << "Query failed";
                 ret = false;

@@ -127,7 +127,7 @@ private:
     static CXChildVisitResult verboseVisitor(CXCursor cursor, CXCursor, CXClientData userData);
     static CXChildVisitResult resolveAutoTypeRefVisitor(CXCursor cursor, CXCursor, CXClientData data);
 
-    void onMessage(const std::shared_ptr<Message> &msg, Connection *conn);
+    void onMessage(const std::shared_ptr<Message> &msg, const std::shared_ptr<Connection> &conn);
 
     struct Unit {
         Map<Location, Symbol> symbols;
@@ -165,7 +165,7 @@ private:
         mIndexed, mVisitFileTimeout, mIndexDataMessageTimeout, mFileIdsQueried;
     UnsavedFiles mUnsavedFiles;
     FILE *mLogFile;
-    Connection mConnection;
+    std::shared_ptr<Connection> mConnection;
     uint32_t mLastFileId;
     bool mLastBlocked;
     Path mLastFile;

@@ -48,7 +48,7 @@ public:
 
     void add(const std::shared_ptr<IndexerJob> &job);
     void handleIndexDataMessage(const std::shared_ptr<IndexDataMessage> &message);
-    void dump(Connection *conn);
+    void dump(const std::shared_ptr<Connection> &conn);
     void abort(const std::shared_ptr<IndexerJob> &job);
     void clearHeaderError(uint32_t file);
     Set<uint32_t> headerErrors() const { return mHeaderErrors; }

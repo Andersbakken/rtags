@@ -23,7 +23,7 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 class LogObject : public LogOutput
 {
 public:
-    LogObject(Connection *conn, int level)
+    LogObject(const std::shared_ptr<Connection> &conn, int level)
         : LogOutput(level), mConnection(conn)
     {
         conn->disconnected().connect(std::bind(&LogOutput::remove, this));
@@ -42,7 +42,7 @@ public:
         return LogOutput::testLog(level);
     }
 private:
-    Connection *mConnection;
+    const std::shared_ptr<Connection> &mConnection;
 };
 
 #endif

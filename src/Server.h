@@ -105,7 +105,7 @@ public:
     bool shouldIndex(const Source &source, const Path &project) const;
     void stopServers();
     int mongooseStatistics(struct mg_connection *conn);
-    void dumpJobs(Connection *conn);
+    void dumpJobs(const std::shared_ptr<Connection> &conn);
     std::shared_ptr<JobScheduler> jobScheduler() const { return mJobScheduler; }
     const Set<uint32_t> &activeBuffers() const { return mActiveBuffers; }
     bool isActiveBuffer(uint32_t fileId) const { return mActiveBuffers.contains(fileId); }
@@ -117,47 +117,47 @@ private:
                const Path &projectRootOverride, unsigned int sourceFlags = 0);
     void onNewConnection(SocketServer *server);
     void setCurrentProject(const std::shared_ptr<Project> &project);
-    void onNewMessage(const std::shared_ptr<Message> &message, Connection *conn);
+    void onNewMessage(const std::shared_ptr<Message> &message, const std::shared_ptr<Connection> &conn);
     void clearProjects();
-    void handleIndexMessage(const std::shared_ptr<IndexMessage> &message, Connection *conn);
-    void handleIndexDataMessage(const std::shared_ptr<IndexDataMessage> &message, Connection *conn);
-    void handleQueryMessage(const std::shared_ptr<QueryMessage> &message, Connection *conn);
-    void handleErrorMessage(const std::shared_ptr<ErrorMessage> &message, Connection *conn);
-    void handleLogOutputMessage(const std::shared_ptr<LogOutputMessage> &message, Connection *conn);
-    void handleVisitFileMessage(const std::shared_ptr<VisitFileMessage> &message, Connection *conn);
+    void handleIndexMessage(const std::shared_ptr<IndexMessage> &message, const std::shared_ptr<Connection> &conn);
+    void handleIndexDataMessage(const std::shared_ptr<IndexDataMessage> &message, const std::shared_ptr<Connection> &conn);
+    void handleQueryMessage(const std::shared_ptr<QueryMessage> &message, const std::shared_ptr<Connection> &conn);
+    void handleErrorMessage(const std::shared_ptr<ErrorMessage> &message, const std::shared_ptr<Connection> &conn);
+    void handleLogOutputMessage(const std::shared_ptr<LogOutputMessage> &message, const std::shared_ptr<Connection> &conn);
+    void handleVisitFileMessage(const std::shared_ptr<VisitFileMessage> &message, const std::shared_ptr<Connection> &conn);
 
     // Queries
-    void sendDiagnostics(const std::shared_ptr<QueryMessage> &query, Connection *conn);
-    void clearProjects(const std::shared_ptr<QueryMessage> &query, Connection *conn);
-    void codeCompleteAt(const std::shared_ptr<QueryMessage> &query, Connection *conn);
-    void cursorInfo(const std::shared_ptr<QueryMessage> &query, Connection *conn);
-    void dependencies(const std::shared_ptr<QueryMessage> &query, Connection *conn);
-    void dumpFile(const std::shared_ptr<QueryMessage> &query, Connection *conn);
-    void generateTest(const std::shared_ptr<QueryMessage> &query, Connection *conn);
-    void findFile(const std::shared_ptr<QueryMessage> &query, Connection *conn);
-    void findSymbols(const std::shared_ptr<QueryMessage> &query, Connection *conn);
-    void fixIts(const std::shared_ptr<QueryMessage> &query, Connection *conn);
-    void followLocation(const std::shared_ptr<QueryMessage> &query, Connection *conn);
-    void hasFileManager(const std::shared_ptr<QueryMessage> &query, Connection *conn);
-    void isIndexed(const std::shared_ptr<QueryMessage> &query, Connection *conn);
-    void isIndexing(const std::shared_ptr<QueryMessage> &, Connection *conn);
-    void jobCount(const std::shared_ptr<QueryMessage> &query, Connection *conn);
-    void listSymbols(const std::shared_ptr<QueryMessage> &query, Connection *conn);
-    void preprocessFile(const std::shared_ptr<QueryMessage> &query, Connection *conn);
-    void project(const std::shared_ptr<QueryMessage> &query, Connection *conn);
-    void referencesForLocation(const std::shared_ptr<QueryMessage> &query, Connection *conn);
-    void referencesForName(const std::shared_ptr<QueryMessage> &query, Connection *conn);
-    void reindex(const std::shared_ptr<QueryMessage> &query, Connection *conn);
-    void reloadFileManager(const std::shared_ptr<QueryMessage> &query, Connection *conn);
-    void reloadProjects(const std::shared_ptr<QueryMessage> &query, Connection *conn);
-    void removeFile(const std::shared_ptr<QueryMessage> &query, Connection *conn);
-    void removeProject(const std::shared_ptr<QueryMessage> &query, Connection *conn);
-    void sources(const std::shared_ptr<QueryMessage> &query, Connection *conn);
-    void dumpCompletions(const std::shared_ptr<QueryMessage> &query, Connection *conn);
-    void dumpCompilationDatabase(const std::shared_ptr<QueryMessage> &query, Connection *conn);
-    void status(const std::shared_ptr<QueryMessage> &query, Connection *conn);
-    void suspend(const std::shared_ptr<QueryMessage> &query, Connection *conn);
-    void setBuffers(const std::shared_ptr<QueryMessage> &query, Connection *conn);
+    void sendDiagnostics(const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Connection> &conn);
+    void clearProjects(const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Connection> &conn);
+    void codeCompleteAt(const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Connection> &conn);
+    void cursorInfo(const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Connection> &conn);
+    void dependencies(const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Connection> &conn);
+    void dumpFile(const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Connection> &conn);
+    void generateTest(const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Connection> &conn);
+    void findFile(const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Connection> &conn);
+    void findSymbols(const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Connection> &conn);
+    void fixIts(const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Connection> &conn);
+    void followLocation(const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Connection> &conn);
+    void hasFileManager(const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Connection> &conn);
+    void isIndexed(const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Connection> &conn);
+    void isIndexing(const std::shared_ptr<QueryMessage> &, const std::shared_ptr<Connection> &conn);
+    void jobCount(const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Connection> &conn);
+    void listSymbols(const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Connection> &conn);
+    void preprocessFile(const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Connection> &conn);
+    void project(const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Connection> &conn);
+    void referencesForLocation(const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Connection> &conn);
+    void referencesForName(const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Connection> &conn);
+    void reindex(const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Connection> &conn);
+    void reloadFileManager(const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Connection> &conn);
+    void reloadProjects(const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Connection> &conn);
+    void removeFile(const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Connection> &conn);
+    void removeProject(const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Connection> &conn);
+    void sources(const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Connection> &conn);
+    void dumpCompletions(const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Connection> &conn);
+    void dumpCompilationDatabase(const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Connection> &conn);
+    void status(const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Connection> &conn);
+    void suspend(const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Connection> &conn);
+    void setBuffers(const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Connection> &conn);
 
     std::shared_ptr<Project> projectForQuery(const std::shared_ptr<QueryMessage> &queryMessage);
     std::shared_ptr<Project> currentProject() const { return mCurrentProject.lock(); }
@@ -184,6 +184,7 @@ private:
     std::shared_ptr<JobScheduler> mJobScheduler;
     CompletionThread *mCompletionThread;
     Set<uint32_t> mActiveBuffers;
+    Set<std::shared_ptr<Connection> > mConnections;
 
     Signal<std::function<void()> > mIndexDataMessageReceived;
     friend void saveFileIds();

@@ -233,7 +233,7 @@ class RCCommand
 public:
     RCCommand() {}
     virtual ~RCCommand() {}
-    virtual bool exec(RClient *rc, Connection *connection) = 0;
+    virtual bool exec(RClient *rc, const std::shared_ptr<Connection> &connection) = 0;
     virtual String description() const = 0;
 };
 
@@ -248,7 +248,7 @@ public:
     const String query;
     unsigned int extraQueryFlags;
 
-    virtual bool exec(RClient *rc, Connection *connection)
+    virtual bool exec(RClient *rc, const std::shared_ptr<Connection> &connection)
     {
         QueryMessage msg(type);
         msg.init(rc->argc(), rc->argv());
@@ -276,7 +276,7 @@ public:
         : RCCommand(), mExitCode(exit)
     {}
 
-    virtual bool exec(RClient *, Connection *connection)
+    virtual bool exec(RClient *, const std::shared_ptr<Connection> &connection)
     {
         const QuitMessage msg(mExitCode);
         return connection->send(msg);
@@ -298,7 +298,7 @@ public:
         : RCCommand(), mLevel(level)
     {
     }
-    virtual bool exec(RClient *rc, Connection *connection)
+    virtual bool exec(RClient *rc, const std::shared_ptr<Connection> &connection)
     {
         LogOutputMessage msg(mLevel == Default ? rc->logLevel() : mLevel);
         msg.init(rc->argc(), rc->argv());
@@ -325,7 +325,7 @@ public:
     const Path cwd;
     const String args;
     const RClient::EscapeMode escapeMode;
-    virtual bool exec(RClient *rc, Connection *connection)
+    virtual bool exec(RClient *rc, const std::shared_ptr<Connection> &connection)
     {
         bool escape = false;
         switch (rc->mEscapeMode) {
@@ -404,12 +404,12 @@ int RClient::exec()
     loop->init(EventLoop::MainEventLoop);
 
     const int commandCount = mCommands.size();
-    Connection connection(NumOptions);
-    connection.newMessage().connect(std::bind(&RClient::onNewMessage, this,
+    std::shared_ptr<Connection> connection = Connection::create(NumOptions);
+    connection->newMessage().connect(std::bind(&RClient::onNewMessage, this,
                                               std::placeholders::_1, std::placeholders::_2));
-    connection.finished().connect(std::bind([](){ EventLoop::eventLoop()->quit(); }));
-    connection.disconnected().connect(std::bind([](){ EventLoop::eventLoop()->quit(); }));
-    if (!connection.connectUnix(mSocketFile, mConnectTimeout)) {
+    connection->finished().connect(std::bind([](){ EventLoop::eventLoop()->quit(); }));
+    connection->disconnected().connect(std::bind([](){ EventLoop::eventLoop()->quit(); }));
+    if (!connection->connectUnix(mSocketFile, mConnectTimeout)) {
         error("Can't seem to connect to server");
         return 1;
     }
@@ -417,16 +417,16 @@ int RClient::exec()
     for (int i=0; i<commandCount; ++i) {
         const std::shared_ptr<RCCommand> &cmd = mCommands.at(i);
         debug() << "running command " << cmd->description();
-        if (!cmd->exec(this, &connection) || loop->exec(timeout()) != EventLoop::Success) {
+        if (!cmd->exec(this, connection) || loop->exec(timeout()) != EventLoop::Success) {
             ret = 1;
             break;
         }
     }
-    if (connection.client())
-        connection.client()->close();
+    if (connection->client())
+        connection->client()->close();
     mCommands.clear();
     if (!ret)
-        ret = connection.finishStatus();
+        ret = connection->finishStatus();
     return ret;
 }
 
@@ -1112,7 +1112,7 @@ bool RClient::parse(int &argc, char **argv)
     return true;
 }
 
-void RClient::onNewMessage(const std::shared_ptr<Message> &message, Connection *)
+void RClient::onNewMessage(const std::shared_ptr<Message> &message, const std::shared_ptr<Connection> &)
 {
     if (message->messageId() == ResponseMessage::MessageId) {
         const String response = std::static_pointer_cast<ResponseMessage>(message)->data();

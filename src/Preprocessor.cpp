@@ -19,7 +19,7 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 #include <rct/Log.h>
 #include "RTags.h"
 
-Preprocessor::Preprocessor(const Source &source, Connection *connection)
+Preprocessor::Preprocessor(const Source &source, const std::shared_ptr<Connection> &connection)
     : mSource(source), mConnection(connection)
 {
     mProcess.reset(new Process);

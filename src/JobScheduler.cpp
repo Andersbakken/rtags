@@ -216,7 +216,7 @@ void JobScheduler::jobFinished(const std::shared_ptr<IndexerJob> &job, const std
     project->onJobFinished(job, message);
 }
 
-void JobScheduler::dump(Connection *conn)
+void JobScheduler::dump(const std::shared_ptr<Connection> &conn)
 {
     if (!mPendingJobs.isEmpty()) {
         conn->write("Pending:");
