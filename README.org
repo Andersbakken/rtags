@@ -63,7 +63,7 @@ If you plan to tag projects using C++11 features on OS X then you'll
 need a custom libclang, the default one built through homebrew does
 not support using LLVM's [[http://libcxx.llvm.org/][libc++]]. You'll need to install one from
 homebrew-versions instead and explicitly tell it to enable libc++. For
-LLVM 3.4 the following works:
+LLVM 3.5 the following works:
 
 #+BEGIN_SRC
 $ brew tap homebrew/versions
