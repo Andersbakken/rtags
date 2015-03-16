@@ -624,7 +624,7 @@ return t if rtags is allowed to modify this file"
                      (unless verbose "--symbol-info-exclude-references"))
       (if save-to-kill-ring
           (copy-region-as-kill (point-min) (point-max)))
-      (if (called-interactively-p)
+      (if (called-interactively-p 'any)
           (message (buffer-string)))
       (buffer-string))))
 
