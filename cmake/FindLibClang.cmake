@@ -55,5 +55,5 @@ if (NOT CLANG_LIBS)
 endif ()
 
 execute_process(COMMAND ${LLVM_CONFIG} --version OUTPUT_VARIABLE CLANG_VERSION OUTPUT_STRIP_TRAILING_WHITESPACE)
-message("-- Using Clang ${CLANG_VERSION} from ${CLANG_LIBDIR} with libs ${CLANG_LIBS} and cxxflags ${CLANG_CXXFLAGS}")
+message("-- Using Clang ${CLANG_VERSION} from ${CLANG_LIBDIR} with LIBS ${CLANG_LIBS} and CXXFLAGS ${CLANG_CXXFLAGS}")
 
