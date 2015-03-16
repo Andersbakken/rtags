@@ -120,7 +120,7 @@ void FileManager::onFileRemoved(const Path &path)
     const Path parent = path.parentDir();
     if (map.contains(parent)) {
         Set<String> &dir = map[parent];
-        dir.remove(path.fileName());
+        dir.remove(String(path.fileName()));
         if (dir.isEmpty()) {
             mWatcher.unwatch(parent);
             map.remove(parent);
