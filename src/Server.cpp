@@ -1531,7 +1531,7 @@ public:
                 if (message->messageId() == Message::FinishMessageId) {
                     mIsFinished = true;
                 } else if (message->messageId() == Message::ResponseId) {
-                    String response = reinterpret_cast<const ResponseMessage &>(message).data();
+                    String response = reinterpret_cast<const ResponseMessage *>(message)->data();
                     if (response.startsWith(mWorkingDirectory)) {
                         response.remove(0, mWorkingDirectory.size());
                     }
