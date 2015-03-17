@@ -525,8 +525,11 @@ void Project::onJobFinished(const std::shared_ptr<IndexerJob> &job, const std::s
 
     const int idx = mJobCounter - mActiveJobs.size();
     if (!msg->diagnostics().isEmpty() || options.options & Server::Progress) {
-        log([msg, &options, idx, this](const std::shared_ptr<LogOutput> &output) {
+        Set<uint32_t> newDiagnostics;
+        bool gotDiagnostics = false;
+        log([&](const std::shared_ptr<LogOutput> &output) {
                 if (output->testLog(RTags::CompilationErrorXml)) {
+                    gotDiagnostics = true;
                     DiagnosticsFormat format = Diagnostics_XML;
                     if (std::static_pointer_cast<RTagsLogOutput>(output)->flags() & RTagsLogOutput::ElispList) {
                         // I know this is RTagsLogOutput because it returned
@@ -534,7 +537,8 @@ void Project::onJobFinished(const std::shared_ptr<IndexerJob> &job, const std::s
                         format = Diagnostics_Elisp;
                     }
                     if (!msg->diagnostics().isEmpty()) {
-                        output->log(formatDiagnostics(msg->diagnostics(), format, mHadDiagnostics));
+                        newDiagnostics = mHadDiagnostics;
+                        output->log(formatDiagnostics(msg->diagnostics(), format, newDiagnostics));
                     }
                     if (options.options & Server::Progress) {
                         if (format == Diagnostics_XML) {
@@ -546,6 +550,9 @@ void Project::onJobFinished(const std::shared_ptr<IndexerJob> &job, const std::s
                     }
                 }
             });
+        if (gotDiagnostics) {
+            mHadDiagnostics = newDiagnostics;
+        }
 
         // RTags::CompilationErrorXml, Diagnostic::format(msg->diagnostics()));
     }
