@@ -52,6 +52,7 @@ public:
     uint32_t flags;
     Path project;
     int priority;
+    enum { HeaderError = -1 };
     UnsavedFiles unsavedFiles;
     Set<uint32_t> visited;
     int crashCount;

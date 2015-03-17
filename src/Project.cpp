@@ -557,10 +557,13 @@ void Project::onJobFinished(const std::shared_ptr<IndexerJob> &job, const std::s
     updateDeclarations(visited, msg->declarations());
     if (success) {
         src->second.parsed = msg->parseTime();
-        error("[%3d%%] %d/%d %s %s. (priority %d)",
+        error("[%3d%%] %d/%d %s %s. (%s)",
               static_cast<int>(round((double(idx) / double(mJobCounter)) * 100.0)), idx, mJobCounter,
               String::formatTime(time(0), String::Time).constData(),
-              msg->message().constData(), job->priority);
+              msg->message().constData(),
+              (job->priority == IndexerJob::HeaderError
+               ? "header-error"
+               : String::format<16>("priority %d", job->priority).constData()));
     } else {
         assert(msg->indexerJobFlags() & IndexerJob::Crashed);
         error("[%3d%%] %d/%d %s %s indexing crashed.",

@@ -134,6 +134,7 @@ void JobScheduler::startJobs()
             continue;
         }
         if (headerError) {
+            node->job->priority = IndexerJob::HeaderError;
             warning() << "Letting" << node->job->sourceFile << "go even with a headerheader error from" << Location::path(headerError);
             mHeaderErrorJobIds.insert(node->job->id);
         }
