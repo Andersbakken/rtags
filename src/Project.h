@@ -189,6 +189,7 @@ public:
 
     void beginScope();
     void endScope();
+    void dirty(uint32_t fileId);
 private:
     void removeDependencies(uint32_t fileId);
     void watch(const Path &file);
@@ -283,6 +284,7 @@ private:
                 assert(openedFiles <= max);
             } else {
                 error() << "Failed to open" << path << Location::path(fileId) << err;
+                project->dirty(fileId);
                 fileMap.reset();
             }
             return fileMap;

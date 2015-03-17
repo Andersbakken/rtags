@@ -1462,3 +1462,12 @@ String Project::dumpDependencies(uint32_t fileId) const
 
     return ret;
 }
+
+void Project::dirty(uint32_t fileId)
+{
+    SimpleDirty dirty;
+    Set<uint32_t> dirtyFiles;
+    dirtyFiles.insert(fileId);
+    dirty.init(dirtyFiles, shared_from_this());
+    startDirtyJobs(&dirty);
+}
