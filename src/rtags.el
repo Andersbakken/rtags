@@ -1399,9 +1399,9 @@ References to references will be treated as references to the referenced symbol"
 
 (defun rtags-diagnostics-process-filter (process output)
   ;; Collect the diagnostics into "*RTags Raw*" until a newline is found
-  (with-current-buffer (get-buffer-create "*BALLS*")
-    (goto-char (point-max))
-    (insert "\n--------------------\n" output))
+  ;; (with-current-buffer (get-buffer-create "*BALLS*")
+  ;;   (goto-char (point-max))
+  ;;   (insert "\n--------------------\n" output))
   (with-current-buffer (get-buffer-create "*RTags Raw*")
     (goto-char (point-max))
     (insert output))
