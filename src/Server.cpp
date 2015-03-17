@@ -1527,19 +1527,17 @@ public:
         : mConnection(Connection::create(RClient::NumOptions)),
           mIsFinished(false), mWorkingDirectory(workingDirectory)
     {
-#warning gotta fix this
-        // mConnection->aboutToSend().connect([this](const std::shared_ptr<Connection> &, const Message &message) {
-        //         if (message.messageId() == Message::FinishMessageId) {
-        //             mIsFinished = true;
-        //         } else if (message.messageId() == Message::ResponseId) {
-        //             String response = reinterpret_cast<const ResponseMessage &>(message).data();
-        //             if (response.startsWith(mWorkingDirectory)) {
-        //                 response.remove(0, mWorkingDirectory.size());
-        //             }
-        //             mOutput.append(response);
-        //         }
-        //         return true;
-        //     });
+        mConnection->aboutToSend().connect([this](const std::shared_ptr<Connection> &, const Message *message) {
+                if (message->messageId() == Message::FinishMessageId) {
+                    mIsFinished = true;
+                } else if (message->messageId() == Message::ResponseId) {
+                    String response = reinterpret_cast<const ResponseMessage &>(message).data();
+                    if (response.startsWith(mWorkingDirectory)) {
+                        response.remove(0, mWorkingDirectory.size());
+                    }
+                    mOutput.append(response);
+                }
+            });
     }
     List<String> output() const { return mOutput; }
     bool isFinished() const { return mIsFinished; }
