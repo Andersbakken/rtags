@@ -310,6 +310,8 @@ private:
     Hash<uint32_t, Path> mVisitedFiles;
     int mJobCounter, mJobsStarted;
 
+    Set<uint32_t> mHadDiagnostics;
+
     // key'ed on Source::key()
     Hash<uint64_t, std::shared_ptr<IndexerJob> > mActiveJobs;
 

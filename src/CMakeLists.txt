@@ -88,7 +88,6 @@ set(RTAGS_SOURCES
     CompletionThread.cpp
     SymbolInfoJob.cpp
     DependenciesJob.cpp
-    Diagnostic.cpp
     DumpThread.cpp
     EventSourceClient.cpp
     FileManager.cpp
@@ -128,7 +127,6 @@ add_executable(rdm
                CompletionThread.cpp
                SymbolInfoJob.cpp
                DependenciesJob.cpp
-               Diagnostic.cpp
                DumpThread.cpp
                EventSourceClient.cpp
                FileManager.cpp

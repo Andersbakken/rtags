@@ -32,12 +32,6 @@ struct Diagnostic
     Type type;
     String message;
     int length;
-
-    enum Format {
-        XML,
-        Elisp
-    };
-    static String format(const Diagnostics &diagnostics, Format format);
 };
 
 template <> inline Serializer &operator<<(Serializer &s, const Diagnostic &d)

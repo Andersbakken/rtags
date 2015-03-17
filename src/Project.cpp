@@ -359,6 +359,142 @@ bool Project::match(const Match &p, bool *indexed) const
     return ret;
 }
 
+static inline String xmlEscape(const String& xml)
+{
+    if (xml.isEmpty())
+        return xml;
+
+    std::ostringstream strm;
+    const char* ch = xml.constData();
+    bool done = false;
+    while (true) {
+        switch (*ch) {
+        case '\0':
+            done = true;
+            break;
+        case '"':
+            strm << "\\\"";
+            break;
+        case '<':
+            strm << "&lt;";
+            break;
+        case '>':
+            strm << "&gt;";
+            break;
+        case '&':
+            strm << "&amp;";
+            break;
+        default:
+            strm << *ch;
+            break;
+        }
+        if (done)
+            break;
+        ++ch;
+    }
+    return strm.str();
+}
+
+static inline const String elispEscape(const String &data)
+{
+    String ret = data;
+    ret.replace("\"", "\\\"");
+    ret.replace("\n", "\\n"); // ### this could be done more efficiently
+    return ret;
+}
+
+enum DiagnosticsFormat {
+    Diagnostics_XML,
+    Diagnostics_Elisp
+};
+
+static String formatDiagnostics(const Diagnostics &diagnostics, DiagnosticsFormat format, Set<uint32_t> &hadDiagnostics)
+{
+    Server *server = Server::instance();
+    assert(server);
+    if (server->activeBuffers().isEmpty())
+        server = 0;
+    String ret;
+
+    const char *severities[] = { "none", "warning", "error", "fixit", "skipped" };
+    uint32_t lastFileId = 0;
+
+    static const char *header[] = {
+        "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n  <checkstyle>",
+        "(list 'checkstyle "
+    };
+    static const char *fileEmpty[] = {
+        "\n    <file name=\"%s\">\n    </file>",
+        "(cons \"%s\" nil)"
+    };
+    static const char *startFile[] = {
+        "\n    <file name=\"%s\">",
+        "(cons \"%s\" (list"
+    };
+    static const char *endFile[] = {
+        "\n    </file>",
+        "))"
+    };
+    static const char *trailer[] = {
+        "\n  </checkstyle>",
+        ")"
+    };
+    std::function<String(const Location &, const Diagnostic &)> formatDiagnostic;
+    if (format == Diagnostics_XML) {
+        formatDiagnostic = [severities](const Location &loc, const Diagnostic &diagnostic) {
+            return String::format("\n      <error line=\"%d\" column=\"%d\" %sseverity=\"%s\" message=\"%s\"/>",
+                                  loc.line(), loc.column(),
+                                  (diagnostic.length <= 0 ? ""
+                                   : String::format<32>("length=\"%d\" ", diagnostic.length).constData()),
+                                  severities[diagnostic.type], xmlEscape(diagnostic.message).constData());
+        };
+    } else {
+        formatDiagnostic = [severities](const Location &loc, const Diagnostic &diagnostic) {
+            return String::format<256>(" (list %d %d %s '%s \"%s\")",
+                                       loc.line(), loc.column(),
+                                       diagnostic.length > 0 ? String::number(diagnostic.length).constData() : "nil",
+                                       severities[diagnostic.type],
+                                       elispEscape(diagnostic.message).constData());
+        };
+    }
+    bool first = true;
+    for (const auto &entry : diagnostics) {
+        const Location &loc = entry.first;
+        if (server && !server->isActiveBuffer(loc.fileId()))
+            continue;
+        const Diagnostic &diagnostic = entry.second;
+        if (diagnostic.type == Diagnostic::None) {
+            if (lastFileId) {
+                ret << endFile[format];
+                lastFileId = 0;
+            }
+            if (hadDiagnostics.remove(entry.first.fileId())) {
+                if (first) {
+                    ret = header[format];
+                    first = false;
+                }
+                ret << String::format<256>(fileEmpty[format], loc.path().constData());
+            }
+        } else if (loc.fileId() != lastFileId) {
+            if (first) {
+                ret = header[format];
+                first = false;
+            }
+            hadDiagnostics.insert(loc.fileId());
+            if (lastFileId)
+                ret << endFile[format];
+            lastFileId = loc.fileId();
+            ret << String::format<256>(startFile[format], loc.path().constData())
+                << formatDiagnostic(loc, diagnostic);
+        }
+    }
+    if (lastFileId)
+        ret << endFile[format];
+    if (!first)
+        ret << trailer[format];
+    return ret;
+}
+
 void Project::onJobFinished(const std::shared_ptr<IndexerJob> &job, const std::shared_ptr<IndexDataMessage> &msg)
 {
     std::shared_ptr<IndexerJob> restart;
@@ -388,20 +524,20 @@ void Project::onJobFinished(const std::shared_ptr<IndexerJob> &job, const std::s
     }
 
     const int idx = mJobCounter - mActiveJobs.size();
-    if (!msg->diagnostics().isEmpty() || !(options.options & Server::NoProgress)) {
+    if (!msg->diagnostics().isEmpty() || options.options & Server::Progress) {
         log([msg, &options, idx, this](const std::shared_ptr<LogOutput> &output) {
                 if (output->testLog(RTags::CompilationErrorXml)) {
-                    Diagnostic::Format format = Diagnostic::XML;
+                    DiagnosticsFormat format = Diagnostics_XML;
                     if (std::static_pointer_cast<RTagsLogOutput>(output)->flags() & RTagsLogOutput::ElispList) {
                         // I know this is RTagsLogOutput because it returned
                         // true for testLog(RTags::CompilationErrorXml)
-                        format = Diagnostic::Elisp;
+                        format = Diagnostics_Elisp;
                     }
                     if (!msg->diagnostics().isEmpty()) {
-                        output->log(Diagnostic::format(msg->diagnostics(), format));
+                        output->log(formatDiagnostics(msg->diagnostics(), format, mHadDiagnostics));
                     }
-                    if (!(options.options & Server::NoProgress)) {
-                        if (format == Diagnostic::XML) {
+                    if (options.options & Server::Progress) {
+                        if (format == Diagnostics_XML) {
                             output->log("<?xml version=\"1.0\" encoding=\"utf-8\"?>\n<progress index=\"%d\" total=\"%d\"></progress>",
                                         idx, mJobCounter);
                         } else {
