@@ -102,11 +102,15 @@ void JobScheduler::startJobs()
             continue;
         }
 
-        if (node->job->priority < HighPriority && mActiveByProcess.size() >= options.lowPriorityJobCount) {
+        uint32_t headerError = 0;
+        if (!mHeaderErrors.isEmpty()) {
+            headerError = hasHeaderError(node->job->source.fileId, project);
+        }
+
+        if (!headerError && node->job->priority < HighPriority && mActiveByProcess.size() >= options.lowPriorityJobCount) {
             break;
         }
 
-        uint32_t headerError = 0;
         if (!mHeaderErrors.isEmpty()) {
             headerError = hasHeaderError(node->job->source.fileId, project);
             if (headerError) {
