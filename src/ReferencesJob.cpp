@@ -62,14 +62,14 @@ int ReferencesJob::execute()
         Symbol sym = proj->findSymbol(pos);
         if (sym.isNull())
             continue;
-        if (sym.isReference())
-            sym = proj->findTarget(sym);
-        if (sym.isNull())
-            continue;
         if (first && !(queryFlags() & QueryMessage::NoSortReferencesByInput)) {
             first = false;
             startLocation = sym.location;
         }
+        if (sym.isReference())
+            sym = proj->findTarget(sym);
+        if (sym.isNull())
+            continue;
 
         if (rename && sym.isConstructorOrDestructor()) {
             const Location loc = sym.location;
