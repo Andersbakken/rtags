@@ -273,7 +273,12 @@ bool Project::init()
         return false;
     }
 
-    file >> mSources >> mVisitedFiles >> mDeclarations;
+    file >> mSources;
+    {
+        std::lock_guard<std::mutex> lock(mMutex);
+        file >> mVisitedFiles;
+    }
+    file >> mDeclarations;
     loadDependencies(file, mDependencies);
 
     for (const auto &dep : mDependencies) {
@@ -602,7 +607,13 @@ bool Project::save()
         error("Save error %s: %s", mProjectFilePath.constData(), file.error().constData());
         return false;
     }
-    file << mSources << mVisitedFiles << mDeclarations;
+    file << mSources;
+
+    {
+        std::lock_guard<std::mutex> lock(mMutex);
+        file << mVisitedFiles;
+    }
+    file << mDeclarations;
     saveDependencies(file, mDependencies);
     if (!file.flush()) {
         error("Save error %s: %s", mProjectFilePath.constData(), file.error().constData());
@@ -914,8 +925,11 @@ int Project::startDirtyJobs(Dirty *dirty, const UnsavedFiles &unsavedFiles)
     }
     const Set<uint32_t> dirtyFiles = dirty->dirtied();
 
+    {
+        std::lock_guard<std::mutex> lock(mMutex);
     for (const auto &fileId : dirtyFiles) {
         mVisitedFiles.remove(fileId);
+    }
     }
 
     for (const auto &source : toIndex) {
@@ -928,8 +942,11 @@ int Project::startDirtyJobs(Dirty *dirty, const UnsavedFiles &unsavedFiles)
 
 bool Project::isIndexed(uint32_t fileId) const
 {
+    {
+        std::lock_guard<std::mutex> lock(mMutex);
     if (mVisitedFiles.contains(fileId))
         return true;
+    }
 
     const uint64_t key = Source::key(fileId, 0);
     auto it = mSources.lower_bound(key);
