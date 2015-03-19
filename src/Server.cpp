@@ -283,7 +283,7 @@ int Server::reloadProjects()
                               file.constData());
                         remove = true;
                     } else {
-                        addProject(p);
+                        addProject(p.ensureTrailingSlash());
                     }
                 } else {
                     remove = true;
@@ -407,7 +407,7 @@ bool Server::index(const String &arguments, const Path &pwd, const Path &project
         }
 
         if (root.isEmpty()) {
-            root = projectRootOverride;
+            root = projectRootOverride.ensureTrailingSlash();
             if (root.isEmpty()) {
                 root = RTags::findProjectRoot(unresolvedPath, RTags::SourceRoot);
                 if (root.isEmpty() && path != unresolvedPath)
