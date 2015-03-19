@@ -21,6 +21,7 @@
 #include "Server.h"
 #include "Server.h"
 #include "JobScheduler.h"
+#include "RTagsLogOutput.h"
 #include <math.h>
 #include <fnmatch.h>
 #include <rct/Log.h>
