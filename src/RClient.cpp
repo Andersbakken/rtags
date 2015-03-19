@@ -415,7 +415,7 @@ int RClient::exec()
     connection->finished().connect(std::bind([](){ EventLoop::eventLoop()->quit(); }));
     connection->disconnected().connect(std::bind([](){ EventLoop::eventLoop()->quit(); }));
     if (!connection->connectUnix(mSocketFile, mConnectTimeout)) {
-        error("Can't seem to connect to server");
+        fprintf(stdout, "Can't seem to connect to server\n");
         return 1;
     }
     int ret = 0;
