@@ -294,6 +294,7 @@ bool Project::init()
         dirty.reset(new IfModifiedDirty(shared_from_this()));
     }
 
+    Set<uint32_t> missingFileMaps;
     {
         List<uint32_t> removed;
         for (auto it : mDependencies) {
@@ -312,6 +313,8 @@ bool Project::init()
                 }
                 removed << it.first;
                 needsSave = true;
+            } else if (!validate(it.first)) {
+                missingFileMaps.insert(it.first);
             }
         }
         for (uint32_t r : removed) {
@@ -322,6 +325,11 @@ bool Project::init()
     if (needsSave)
         save();
     startDirtyJobs(dirty.get());
+    if (!missingFileMaps.isEmpty()) {
+        SimpleDirty simple;
+        simple.init(missingFileMaps, shared_from_this());
+        startDirtyJobs(&simple);
+    }
     return true;
 }
 
@@ -510,8 +518,16 @@ void Project::onJobFinished(const std::shared_ptr<IndexerJob> &job, const std::s
 
     auto src = mSources.find(msg->key());
     if (src == mSources.end()) {
+        releaseFileIds(job->visited);
         error() << "Can't find source for" << Location::path(fileId);
         return;
+    }
+    for (uint32_t fileId : job->visited) {
+        if (!validate(fileId)) {
+            releaseFileIds(job->visited);
+            dirty(job->source.fileId);
+            return;
+        }
     }
 
     const int idx = mJobCounter - mActiveJobs.size();
@@ -914,9 +930,9 @@ int Project::startDirtyJobs(Dirty *dirty, const UnsavedFiles &unsavedFiles)
 
     {
         std::lock_guard<std::mutex> lock(mMutex);
-    for (const auto &fileId : dirtyFiles) {
-        mVisitedFiles.remove(fileId);
-    }
+        for (const auto &fileId : dirtyFiles) {
+            mVisitedFiles.remove(fileId);
+        }
     }
 
     for (const auto &source : toIndex) {
@@ -931,8 +947,8 @@ bool Project::isIndexed(uint32_t fileId) const
 {
     {
         std::lock_guard<std::mutex> lock(mMutex);
-    if (mVisitedFiles.contains(fileId))
-        return true;
+        if (mVisitedFiles.contains(fileId))
+            return true;
     }
 
     const uint64_t key = Source::key(fileId, 0);
@@ -1486,4 +1502,38 @@ void Project::dirty(uint32_t fileId)
     dirtyFiles.insert(fileId);
     dirty.init(dirtyFiles, shared_from_this());
     startDirtyJobs(&dirty);
+}
+
+bool Project::validate(uint32_t fileId) const
+{
+    Path path;
+    String error;
+    {
+        path = sourceFilePath(fileId, fileMapName(SymbolNames));
+        FileMap<String, Set<Location> > fileMap;
+        if (!fileMap.load(path, &error))
+            goto error;
+    }
+    {
+        path = sourceFilePath(fileId, fileMapName(Symbols));
+        FileMap<Location, Symbol> fileMap;
+        if (!fileMap.load(path, &error))
+            goto error;
+    }
+    {
+        path = sourceFilePath(fileId, fileMapName(Targets));
+        FileMap<String, Set<Location> > fileMap;
+        if (!fileMap.load(path, &error))
+            goto error;
+    }
+    {
+        path = sourceFilePath(fileId, fileMapName(Usrs));
+        FileMap<String, Set<Location> > fileMap;
+        if (!fileMap.load(path, &error))
+            goto error;
+    }
+    return true;
+error:
+    ::error() << "Error during validation:" << Location::path(fileId) << error << path;
+    return false;
 }

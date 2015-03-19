@@ -191,6 +191,7 @@ public:
     void endScope();
     void dirty(uint32_t fileId);
 private:
+    bool validate(uint32_t fileId) const;
     void removeDependencies(uint32_t fileId);
     void watch(const Path &file);
     void reloadFileManager();
