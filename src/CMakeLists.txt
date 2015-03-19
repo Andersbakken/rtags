@@ -23,7 +23,7 @@ set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wstack-protector")
 
 include(${CMAKE_SOURCE_DIR}/cmake/EnsureLibraries.cmake)
 
-if (NOT DEFINED CLANGs_LIBS)
+if (NOT DEFINED CLANG_LIBS)
   set(CLANG_LIBS $ENV{CLANG_LIBS})
 endif()
 
