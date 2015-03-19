@@ -1210,21 +1210,20 @@ void Server::jobCount(const std::shared_ptr<QueryMessage> &query, const std::sha
 {
     String q = query->query();
     if (q.isEmpty()) {
-        conn->write<128>("Running with %d/%d jobs", mOptions.jobCount, mOptions.lowPriorityJobCount);
+        conn->write<128>("Running with %d/%d jobs", mOptions.jobCount, mOptions.headerErrorJobCount);
     } else {
-        const bool low = q.startsWith("l");
         const bool header = q.startsWith('h');
-        int &jobs = low ? mOptions.lowPriorityJobCount : header ? mOptions.headerErrorJobCount : mOptions.jobCount;
-        if (low || header)
+        if (header)
             q.remove(0, 1);
-        const int jobCount = q.toLongLong();
-        if (jobCount < 0 || jobCount > 100) {
+        int &jobs = header ? mOptions.headerErrorJobCount : mOptions.jobCount;
+        bool ok;
+        const int jobCount = q.toLongLong(&ok);
+        if (!ok || jobCount < 0 || jobCount > 100) {
             conn->write<128>("Invalid job count %s (%d)", query->query().constData(), jobCount);
         } else {
             jobs = jobCount;
-            mOptions.lowPriorityJobCount = std::min(mOptions.lowPriorityJobCount, mOptions.jobCount);
             mOptions.headerErrorJobCount = std::min(mOptions.headerErrorJobCount, mOptions.jobCount);
-            conn->write<128>("Changed jobs to %d/%d", mOptions.jobCount, mOptions.lowPriorityJobCount);
+            conn->write<128>("Changed jobs to %d/%d", mOptions.jobCount, mOptions.headerErrorJobCount);
         }
     }
     conn->finish();

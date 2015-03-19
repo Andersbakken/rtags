@@ -77,7 +77,6 @@ static void usage(FILE *f)
 #endif
 
             "  --job-count|-j [arg]                       Spawn this many concurrent processes for indexing (default %d).\n"
-            "  --low-priority-job-count|-J [arg]          Allow this many concurrent low-priority jobs (default same as --job-count).\n"
             "  --header-error-job-count|-H [arg]          Allow this many concurrent header error jobs (default std::max(1, --job-count / 2)).\n"
             "  --log-file|-L [arg]                        Log to this file.\n"
 
@@ -145,7 +144,6 @@ int main(int argc, char** argv)
         { "cache-AST", required_argument, 0, 'A' },
         { "verbose", no_argument, 0, 'v' },
         { "job-count", required_argument, 0, 'j' },
-        { "low-priority-job-count", required_argument, 0, 'J' },
         { "header-error-job-count", required_argument, 0, 'H' },
         { "test", required_argument, 0, 't' },
         { "test-timeout", required_argument, 0, 'z' },
@@ -293,7 +291,6 @@ int main(int argc, char** argv)
     serverOpts.threadStackSize = defaultStackSize;
     serverOpts.socketFile = String::format<128>("%s.rdm", Path::home().constData());
     serverOpts.jobCount = std::max(2, ThreadPool::idealThreadCount());
-    serverOpts.lowPriorityJobCount = -1;
     serverOpts.headerErrorJobCount = -1;
     serverOpts.rpVisitFileTimeout = DEFAULT_RP_VISITFILE_TIMEOUT;
     serverOpts.rpIndexDataMessageTimeout = DEFAULT_RP_INDEXER_MESSAGE_TIMEOUT;
@@ -540,13 +537,6 @@ int main(int argc, char** argv)
                 return 1;
             }
             break;
-        case 'J':
-            serverOpts.lowPriorityJobCount = atoi(optarg);
-            if (serverOpts.lowPriorityJobCount < 0) {
-                fprintf(stderr, "Can't parse argument to -J %s. -J must be a positive integer.\n", optarg);
-                return 1;
-            }
-            break;
         case 'H':
             serverOpts.headerErrorJobCount = atoi(optarg);
             if (serverOpts.headerErrorJobCount < 0) {
@@ -594,12 +584,6 @@ int main(int argc, char** argv)
     if (optind < argCount) {
         fprintf(stderr, "rdm: unexpected option -- '%s'\n", args[optind]);
         return 1;
-    }
-
-    if (serverOpts.lowPriorityJobCount == -1) {
-        serverOpts.lowPriorityJobCount = serverOpts.jobCount;
-    } else {
-        serverOpts.lowPriorityJobCount = std::min(serverOpts.lowPriorityJobCount, serverOpts.jobCount);
     }
 
     if (serverOpts.headerErrorJobCount == -1) {

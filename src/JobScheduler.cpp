@@ -107,10 +107,6 @@ void JobScheduler::startJobs()
             headerError = hasHeaderError(node->job->source.fileId, project);
         }
 
-        if (!headerError && node->job->priority < HighPriority && mActiveByProcess.size() >= options.lowPriorityJobCount) {
-            break;
-        }
-
         if (!mHeaderErrors.isEmpty()) {
             headerError = hasHeaderError(node->job->source.fileId, project);
             if (headerError) {
