@@ -27,6 +27,7 @@ IndexerJob::IndexerJob(const Source &s,
             }
         }
     }
+    visited.insert(s.fileId);
 }
 
 String IndexerJob::encode() const
