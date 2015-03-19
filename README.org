@@ -63,11 +63,11 @@ If you plan to tag projects using C++11 features on OS X then you'll
 need a custom libclang, the default one built through homebrew does
 not support using LLVM's [[http://libcxx.llvm.org/][libc++]]. You'll need to install one from
 homebrew-versions instead and explicitly tell it to enable libc++. For
-LLVM 3.5 the following works:
+LLVM 3.6 the following works:
 
 #+BEGIN_SRC
 $ brew tap homebrew/versions
-$ brew install llvm35 --with-libcxx --with-clang --without-assertions --rtti
+$ brew install llvm36 --with-libcxx --with-clang --without-assertions --rtti
 #+END_SRC
 
 or you can install clang and llvm from macports
@@ -119,24 +119,24 @@ with an ncurses UI) instead of =cmake=.
      Usually something like this:
 #+BEGIN_SRC
      $ llvm-config --cxxflags
-     -I/usr/local/Cellar/llvm35/3.5.1/lib/llvm-3.5/include  -DNDEBUG -D_GNU_SOURCE -D__STDC_CONSTANT_MACROS -D__STDC_FORMAT_MACROS -D__STDC_LIMIT_MACROS -O3  -std=c++11 -fvisibility-inlines-hidden -fno-exceptions -fno-common -Woverloaded-virtual -Wcast-qual
+     -I/usr/local/Cellar/llvm36/3.6.0/lib/llvm-3.6/include  -DNDEBUG -D_GNU_SOURCE -D__STDC_CONSTANT_MACROS -D__STDC_FORMAT_MACROS -D__STDC_LIMIT_MACROS -O3  -std=c++11 -fvisibility-inlines-hidden -fno-exceptions -fno-common -Woverloaded-virtual -Wcast-qual
 #+END_SRC
   2. CLANG_LIBDIR
      Usually something like this:
 #+BEGIN_SRC
      $ llvm-config --libdir
-     /usr/local/Cellar/llvm35/3.5.1/lib/llvm-3.5/lib
+     /usr/local/Cellar/llvm36/3.6.0/lib/llvm-3.6/lib
 #+END_SRC
      We need this to locate clang's system headers and we will assume
      that they are located in:
-     ${CLANG_LIBDIR}/clang/CLANG_VERSION_STRING/include (/usr/local/Cellar/llvm35/3.5.1/lib/llvm-3.5/lib/clang/3.5.1/include)
+     ${CLANG_LIBDIR}/clang/CLANG_VERSION_STRING/include (/usr/local/Cellar/llvm36/3.6.0/lib/llvm-3.6/lib/clang/3.6.0/include)
      There should be headers like stdarg.h and limits.h in this
      directory.
 
   2. CLANG_LIBS
      Usually something like this:
 #+BEGIN_SRC
-     -L/usr/local/Cellar/llvm35/3.5.1/lib/llvm-3.5/lib -lclang
+     -L/usr/local/Cellar/llvm36/3.6.0/lib/llvm-3.6/lib -lclang
 #+END_SRC
      Unless specified we will take try to find these libraries using
      cmake's find_library features and/or assuming that they there
