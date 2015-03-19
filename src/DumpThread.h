@@ -33,7 +33,7 @@ private:
     void writeToConnetion(const String &message);
     const unsigned int mQueryFlags;
     const Source mSource;
-    const std::shared_ptr<Connection> &mConnection;
+    std::shared_ptr<Connection> mConnection;
     Hash<Path, uint32_t> mFiles;
     int mIndentLevel;
 };

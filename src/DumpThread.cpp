@@ -25,55 +25,63 @@ CXChildVisitResult DumpThread::visitor(CXCursor cursor, CXCursor, CXClientData u
         unsigned int line, col;
         clang_getPresumedLocation(location, &file, &line, &col);
         Path path = RTags::eatString(file);
-        String message;
-        message.reserve(256);
-        CXSourceRange range = clang_getCursorExtent(cursor);
-        CXSourceLocation rangeEnd = clang_getRangeEnd(range);
-        unsigned int endLine, endColumn;
-        clang_getPresumedLocation(rangeEnd, 0, &endLine, &endColumn);
-        if (!path.isEmpty()) {
-            uint32_t &fileId = that->mFiles[path];
-            if (!fileId) {
-                const Path resolved = path.resolved();
-                fileId = Location::insertFile(resolved);
-                that->mFiles[path] = that->mFiles[resolved] = fileId;
-            }
-            if (that->mQueryFlags & QueryMessage::DumpIncludeHeaders || fileId == that->mSource.fileId) {
-                const Location loc(fileId, line, col);
-                if (!(that->mQueryFlags & QueryMessage::NoContext)) {
-                    message += loc.context(locationFlags);
+        if (!path.isEmpty() && path != "<built-in>") {
+            String message;
+            message.reserve(256);
+            CXSourceRange range = clang_getCursorExtent(cursor);
+            CXSourceLocation rangeEnd = clang_getRangeEnd(range);
+            unsigned int endLine, endColumn;
+            clang_getPresumedLocation(rangeEnd, 0, &endLine, &endColumn);
+            if (!path.isEmpty()) {
+                uint32_t &fileId = that->mFiles[path];
+                if (!fileId) {
+                    const Path resolved = path.resolved();
+                    fileId = Location::insertFile(resolved);
+                    that->mFiles[path] = that->mFiles[resolved] = fileId;
+                }
+                if (that->mQueryFlags & QueryMessage::DumpIncludeHeaders || fileId == that->mSource.fileId) {
+                    const Location loc(fileId, line, col);
+                    if (!(that->mQueryFlags & QueryMessage::NoContext)) {
+                        message += loc.context(locationFlags);
+                    }
                 }
             }
-        }
 
-        if (endLine == line) {
-            message += String::format<32>(" // %d-%d, %d: ", col, endColumn, that->mIndentLevel);
-        } else {
-            message += String::format<32>(" // %d-%d:%d, %d: ", col, endLine, endColumn, that->mIndentLevel);
-        }
-        message += RTags::cursorToString(cursor, RTags::AllCursorToStringFlags);
-        message.append(" " + RTags::typeName(cursor) + " ");
-        if (clang_getCursorKind(cursor) == CXCursor_VarDecl) {
-            const CXCursor autoResolved = RTags::resolveAutoTypeRef(cursor);
-            if (!clang_equalCursors(autoResolved, nullCursor)) {
-                message += " auto resolves to " + RTags::cursorToString(autoResolved, RTags::AllCursorToStringFlags);
+            if (endLine == line) {
+                message += String::format<32>(" // %d-%d, %d: ", col, endColumn, that->mIndentLevel);
+            } else {
+                message += String::format<32>(" // %d-%d:%d, %d: ", col, endLine, endColumn, that->mIndentLevel);
             }
-        }
-        CXCursor ref = clang_getCursorReferenced(cursor);
-        if (clang_equalCursors(ref, cursor)) {
-            message.append("refs self");
-        } else if (!clang_equalCursors(ref, nullCursor)) {
-            message.append("refs ");
-            message.append(RTags::cursorToString(ref, RTags::AllCursorToStringFlags));
-        }
+            message += RTags::cursorToString(cursor, RTags::AllCursorToStringFlags);
+            message.append(" " + RTags::typeName(cursor));;
+            if (clang_getCursorKind(cursor) == CXCursor_VarDecl) {
+                const CXCursor autoResolved = RTags::resolveAutoTypeRef(cursor);
+                if (!clang_equalCursors(autoResolved, nullCursor)) {
+                    message += "auto resolves to " + RTags::cursorToString(autoResolved, RTags::AllCursorToStringFlags);
+                }
+            }
+            CXCursor ref = clang_getCursorReferenced(cursor);
+            if (clang_equalCursors(ref, cursor)) {
+                message.append("refs self");
+            } else if (!clang_equalCursors(ref, nullCursor)) {
+                message.append("refs ");
+                message.append(RTags::cursorToString(ref, RTags::AllCursorToStringFlags));
+            }
 
-        CXCursor canonical = clang_getCanonicalCursor(cursor);
-        if (!clang_equalCursors(canonical, cursor) && !clang_equalCursors(canonical, nullCursor)) {
-            message.append("canonical ");
-            message.append(RTags::cursorToString(canonical, RTags::AllCursorToStringFlags));
-        }
+            CXCursor canonical = clang_getCanonicalCursor(cursor);
+            if (!clang_equalCursors(canonical, cursor) && !clang_equalCursors(canonical, nullCursor)) {
+                message.append("canonical ");
+                message.append(RTags::cursorToString(canonical, RTags::AllCursorToStringFlags));
+            }
 
-        that->writeToConnetion(message);
+            CXCursor specialized = clang_getSpecializedCursorTemplate(cursor);
+            if (!clang_equalCursors(specialized, cursor) && !clang_equalCursors(specialized, nullCursor)) {
+                message.append("specialized ");
+                message.append(RTags::cursorToString(specialized, RTags::AllCursorToStringFlags));
+            }
+
+            that->writeToConnetion(message);
+        }
     }
     ++that->mIndentLevel;
     clang_visitChildren(cursor, DumpThread::visitor, userData);
@@ -95,12 +103,19 @@ void DumpThread::run()
     }
 
     clang_disposeIndex(index);
-    EventLoop::mainEventLoop()->callLaterMove(std::bind((bool(Connection::*)(Message&&))&Connection::send, mConnection, std::placeholders::_1),
-                                              FinishMessage());
+    std::weak_ptr<Connection> conn = mConnection;
+    EventLoop::mainEventLoop()->callLater([conn]() {
+            if (auto c = conn.lock())
+                c->finish();
+        });
 }
 
 void DumpThread::writeToConnetion(const String &message)
 {
-    EventLoop::mainEventLoop()->callLaterMove(std::bind((bool(Connection::*)(Message&&))&Connection::send, mConnection, std::placeholders::_1),
-                                              ResponseMessage(message));
+    std::weak_ptr<Connection> conn = mConnection;
+    EventLoop::mainEventLoop()->callLater([conn, message]() {
+            if (auto c = conn.lock()) {
+                c->write(message);
+            }
+        });
 }
