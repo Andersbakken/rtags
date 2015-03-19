@@ -56,6 +56,10 @@ There are a few prerequisites you need to have in order to build RTags
    makes extensive use of C++11 features such as variadic templates
    and threading utility classes from the C++ standard library.
 3. CMake (>= 2.8), the build system used by RTags.
+4. RTags might very well work with much older emacsen but the oldest
+   version we test with is 24.3.1. There's no particular effort made
+   to support older versions but patches that make it work are
+   welcome.
 
 ** C++11 on OS X
 
