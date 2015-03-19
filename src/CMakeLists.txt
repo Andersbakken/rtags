@@ -15,11 +15,13 @@ ENDIF("${isSystemDir}" STREQUAL "-1")
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-rtti")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall")
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fstack-protector-all")
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wstack-protector")
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall")
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fstack-protector-all")
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wstack-protector")
+if (NOT CYGWIN)
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fstack-protector-all")
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wstack-protector")
+  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fstack-protector-all")
+  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wstack-protector")
+endif ()
 
 include(${CMAKE_SOURCE_DIR}/cmake/EnsureLibraries.cmake)
 
@@ -79,33 +81,33 @@ set(RTAGS_SOURCES
 add_library(rtags STATIC ${RTAGS_SOURCES})
 
 include_directories(${CMAKE_CURRENT_LIST_DIR}
-                    rct/include/
-                    rct
-                    ${CMAKE_CURRENT_BINARY_DIR}/rct/include/rct)
+  rct/include/
+  rct
+  ${CMAKE_CURRENT_BINARY_DIR}/rct/include/rct)
 
 set(RTAGS_SOURCES
-    CompilerManager.cpp
-    CompletionThread.cpp
-    SymbolInfoJob.cpp
-    DependenciesJob.cpp
-    DumpThread.cpp
-    EventSourceClient.cpp
-    FileManager.cpp
-    FindFileJob.cpp
-    FindSymbolsJob.cpp
-    FollowLocationJob.cpp
-    IndexerJob.cpp
-    JobScheduler.cpp
-    ListSymbolsJob.cpp
-    Preprocessor.cpp
-    Project.cpp
-    QueryJob.cpp
-    RTagsClang.cpp
-    ReferencesJob.cpp
-    ScanThread.cpp
-    Server.cpp
-    Source.cpp
-    StatusJob.cpp)
+  CompilerManager.cpp
+  CompletionThread.cpp
+  SymbolInfoJob.cpp
+  DependenciesJob.cpp
+  DumpThread.cpp
+  EventSourceClient.cpp
+  FileManager.cpp
+  FindFileJob.cpp
+  FindSymbolsJob.cpp
+  FollowLocationJob.cpp
+  IndexerJob.cpp
+  JobScheduler.cpp
+  ListSymbolsJob.cpp
+  Preprocessor.cpp
+  Project.cpp
+  QueryJob.cpp
+  RTagsClang.cpp
+  ReferencesJob.cpp
+  ScanThread.cpp
+  Server.cpp
+  Source.cpp
+  StatusJob.cpp)
 
 if (CMAKE_SYSTEM_NAME MATCHES "Darwin")
   set(START_GROUP "")
@@ -122,29 +124,29 @@ set(RTAGS_CLANG_LIBRARIES rtags rct ${START_GROUP} ${CLANG_LIBS} ${END_GROUP} -l
 set(RTAGS_CLANG_SOURCES RTagsClang.cpp Source.cpp)
 
 add_executable(rdm
-               rdm.cpp
-               CompilerManager.cpp
-               CompletionThread.cpp
-               SymbolInfoJob.cpp
-               DependenciesJob.cpp
-               DumpThread.cpp
-               EventSourceClient.cpp
-               FileManager.cpp
-               FindFileJob.cpp
-               FindSymbolsJob.cpp
-               FollowLocationJob.cpp
-               IndexerJob.cpp
-               JobScheduler.cpp
-               ListSymbolsJob.cpp
-               Preprocessor.cpp
-               Project.cpp
-               QueryJob.cpp
-               ReferencesJob.cpp
-               ScanThread.cpp
-               Server.cpp
-               StatusJob.cpp
-               Symbol.cpp
-               ${RTAGS_CLANG_SOURCES})
+  rdm.cpp
+  CompilerManager.cpp
+  CompletionThread.cpp
+  SymbolInfoJob.cpp
+  DependenciesJob.cpp
+  DumpThread.cpp
+  EventSourceClient.cpp
+  FileManager.cpp
+  FindFileJob.cpp
+  FindSymbolsJob.cpp
+  FollowLocationJob.cpp
+  IndexerJob.cpp
+  JobScheduler.cpp
+  ListSymbolsJob.cpp
+  Preprocessor.cpp
+  Project.cpp
+  QueryJob.cpp
+  ReferencesJob.cpp
+  ScanThread.cpp
+  Server.cpp
+  StatusJob.cpp
+  Symbol.cpp
+  ${RTAGS_CLANG_SOURCES})
 
 target_link_libraries(rdm ${RTAGS_CLANG_LIBRARIES})
 
