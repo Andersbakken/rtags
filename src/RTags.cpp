@@ -160,6 +160,7 @@ struct Entry {
 
 static inline Path checkEntries(const Entry *entries, const Path &path, const Path &home)
 {
+    Path best;
     for (int i=0; entries[i].name; ++i) {
         Path p = findAncestor(path, entries[i].name, entries[i].flags);
         if ((p.isEmpty() || p == home) && (entries[i].flags & Wildcard)) {
@@ -169,11 +170,11 @@ static inline Path checkEntries(const Entry *entries, const Path &path, const Pa
                 p = findAncestor(path, name.constData(), entries[i].flags & ~Wildcard);
             }
         }
-        if (!p.isEmpty() && p != home) {
-            return p;
+        if (!p.isEmpty() && p != home && (best.isEmpty() || p.size() < best.size())) {
+            best = p;
         }
     }
-    return Path();
+    return best;
 }
 
 
