@@ -36,15 +36,15 @@ public:
         ElispList = 0x1
     };
 
-    unsigned int flags() const { return mFlags; }
+    virtual unsigned int flags() const override { return mFlags; }
 
-    virtual bool testLog(int level) const
+    virtual bool testLog(int level) const override
     {
         if (logLevel() < 0 || level < 0)
             return level == logLevel();
         return LogOutput::testLog(level);
     }
-    virtual void log(const char *msg, int len)
+    virtual void log(const char *msg, int len) override
     {
         if (mConnection) {
             std::shared_ptr<EventLoop> main = EventLoop::mainEventLoop();

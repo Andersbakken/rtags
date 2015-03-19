@@ -14,7 +14,6 @@
    along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 
 #include "CompletionThread.h"
-#include "RTagsLogOutput.h"
 #include "RTagsClang.h"
 #include "Server.h"
 #include "Token.h"
@@ -435,17 +434,16 @@ void CompletionThread::printCompletions(const List<Completions::Candidate> &comp
     log([&xml, &elisp, &outputs](const std::shared_ptr<LogOutput> &output) {
             // error() << "Got a dude" << output->testLog(RTags::CompilationErrorXml);
             if (output->testLog(RTags::CompilationErrorXml)) {
-                auto out = std::static_pointer_cast<RTagsLogOutput>(output);
-                std::shared_ptr<Output> output(new Output);
-                output->output = out;
-                if (out->flags() & RTagsLogOutput::ElispList) {
-                    output->xml = false;
+                std::shared_ptr<Output> out(new Output);
+                out->output = output;
+                if (output->flags() & RTagsLogOutput::ElispList) {
+                    out->xml = false;
                     elisp = true;
                 } else {
-                    output->xml = true;
+                    out->xml = true;
                     xml = true;
                 }
-                outputs.append(output);
+                outputs.append(out);
             }
         });
 

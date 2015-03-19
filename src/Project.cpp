@@ -21,7 +21,6 @@
 #include "Server.h"
 #include "Server.h"
 #include "JobScheduler.h"
-#include "RTagsLogOutput.h"
 #include <math.h>
 #include <fnmatch.h>
 #include <rct/Log.h>
@@ -530,7 +529,7 @@ void Project::onJobFinished(const std::shared_ptr<IndexerJob> &job, const std::s
         log([&](const std::shared_ptr<LogOutput> &output) {
                 if (output->testLog(RTags::CompilationErrorXml)) {
                     DiagnosticsFormat format = Diagnostics_XML;
-                    if (std::static_pointer_cast<RTagsLogOutput>(output)->flags() & RTagsLogOutput::ElispList) {
+                    if (output->flags() & RTagsLogOutput::ElispList) {
                         // I know this is RTagsLogOutput because it returned
                         // true for testLog(RTags::CompilationErrorXml)
                         format = Diagnostics_Elisp;
