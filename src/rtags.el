@@ -1254,7 +1254,7 @@ References to references will be treated as references to the referenced symbol"
                            (save-excursion
                              (goto-char (point-min))
                              (if (looking-at "Can't seem to connect to server")
-                                 (message "RTags: rdm doesn't seem to be running")
+                                 (and (message "RTags: rdm doesn't seem to be running") nil)
                              ;; (message "%d-%d (%s)" (point-min) (point-max) (buffer-substring-no-properties (point-min) (point-max)))
                                (eval (read (current-buffer)))))))))
           (cond ((eq (car data) 'checkstyle)
@@ -1452,7 +1452,7 @@ References to references will be treated as references to the referenced symbol"
         (setq rtags-last-completions nil)
         (setq rtags-last-completion-position nil)
         (rtags-clear-diagnostics))))
-  (when (called-interactively-p 'any)
+  (when (and (called-interactively-p 'any) (rtags-is-running))
     (switch-to-buffer-other-window "*RTags Diagnostics*")
     (other-window 1)))
 
