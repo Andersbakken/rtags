@@ -28,7 +28,7 @@ class FindFileJob : public QueryJob
 public:
     FindFileJob(const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Project> &project);
 protected:
-    virtual int execute();
+    virtual int execute() override;
 private:
     String mPattern;
     std::regex mRegex;

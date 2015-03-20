@@ -27,7 +27,7 @@ class JSONJob : public QueryJob
 public:
     JSONJob(const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Project> &project);
 protected:
-    virtual void execute();
+    virtual void execute() override;
 private:
     const Match match;
 };

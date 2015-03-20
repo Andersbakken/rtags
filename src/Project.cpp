@@ -70,12 +70,12 @@ public:
         }
     }
 
-    virtual Set<uint32_t> dirtied() const
+    virtual Set<uint32_t> dirtied() const override
     {
         return mDirty;
     }
 
-    virtual bool isDirty(const Source &source)
+    virtual bool isDirty(const Source &source) override
     {
         return mDirty.contains(source.fileId);
     }
@@ -86,7 +86,7 @@ public:
 class ComplexDirty : public Dirty
 {
 public:
-    virtual Set<uint32_t> dirtied() const
+    virtual Set<uint32_t> dirtied() const override
     {
         return mDirty;
     }
@@ -124,7 +124,7 @@ public:
     {
     }
 
-    virtual bool isDirty(const Source &source)
+    virtual bool isDirty(const Source &source) override
     {
         bool ret = false;
 
@@ -160,7 +160,7 @@ public:
         }
     }
 
-    virtual bool isDirty(const Source &source)
+    virtual bool isDirty(const Source &source) override
     {
         bool ret = false;
 

@@ -27,7 +27,7 @@ public:
     StatusJob(const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Project> &project);
     static const char *delimiter;
 protected:
-    virtual int execute();
+    virtual int execute() override;
 private:
     const String query;
 };

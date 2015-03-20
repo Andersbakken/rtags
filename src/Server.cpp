@@ -81,7 +81,7 @@ public:
         : RTagsLogOutput(logLevel, 0), mSocket(socket)
     {}
 
-    virtual void log(const char *msg, int len)
+    virtual void log(const char *msg, int len) override
     {
         if (!EventLoop::isMainThread()) {
             String message(msg, len);

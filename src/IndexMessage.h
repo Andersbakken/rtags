@@ -39,8 +39,8 @@ public:
     bool escape() const { return mEscape; }
     void setEscape(bool escape) { mEscape = escape; }
 
-    virtual void encode(Serializer &serializer) const;
-    virtual void decode(Deserializer &deserializer);
+    virtual void encode(Serializer &serializer) const override;
+    virtual void decode(Deserializer &deserializer) override;
 private:
     Path mWorkingDirectory;
     String mArgs;

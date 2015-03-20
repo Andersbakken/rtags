@@ -26,7 +26,7 @@ class ListSymbolsJob : public QueryJob
 public:
     ListSymbolsJob(const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Project> &proj);
 protected:
-    virtual int execute();
+    virtual int execute() override;
     Set<String> imenu(const std::shared_ptr<Project> &project);
     Set<String> listSymbols(const std::shared_ptr<Project> &project);
 private:

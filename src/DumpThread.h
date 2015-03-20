@@ -27,7 +27,7 @@ class DumpThread : public Thread
 {
 public:
     DumpThread(const std::shared_ptr<QueryMessage> &queryMessage, const Source &source, const std::shared_ptr<Connection> &conn);
-    virtual void run();
+    virtual void run() override;
 private:
     static CXChildVisitResult visitor(CXCursor cursor, CXCursor, CXClientData userData);
     void writeToConnetion(const String &message);

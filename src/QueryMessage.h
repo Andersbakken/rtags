@@ -165,8 +165,8 @@ public:
     static unsigned int keyFlags(unsigned int queryFlags);
     inline unsigned int keyFlags() const { return keyFlags(mFlags); }
 
-    virtual void encode(Serializer &serializer) const;
-    virtual void decode(Deserializer &deserializer);
+    virtual void encode(Serializer &serializer) const override;
+    virtual void decode(Deserializer &deserializer) override;
 
     void addProject(const Path &project) { mCurrentFile.append(project); }
     void setCurrentFile(const Path &currentFile) { mCurrentFile = currentFile; }

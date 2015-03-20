@@ -249,7 +249,7 @@ public:
     const String query;
     unsigned int extraQueryFlags;
 
-    virtual bool exec(RClient *rc, const std::shared_ptr<Connection> &connection)
+    virtual bool exec(RClient *rc, const std::shared_ptr<Connection> &connection) override
     {
         QueryMessage msg(type);
         msg.init(rc->argc(), rc->argv());
@@ -264,7 +264,7 @@ public:
         return connection->send(msg);
     }
 
-    virtual String description() const
+    virtual String description() const override
     {
         return ("QueryMessage " + String::number(type) + " " + query);
     }
@@ -277,12 +277,12 @@ public:
         : RCCommand(), mExitCode(exit)
     {}
 
-    virtual bool exec(RClient *, const std::shared_ptr<Connection> &connection)
+    virtual bool exec(RClient *, const std::shared_ptr<Connection> &connection) override
     {
         const QuitMessage msg(mExitCode);
         return connection->send(msg);
     }
-    virtual String description() const
+    virtual String description() const override
     {
         return String::format<32>("QuitMessage(%d)", mExitCode);
     }
@@ -299,7 +299,7 @@ public:
         : RCCommand(), mLevel(level)
     {
     }
-    virtual bool exec(RClient *rc, const std::shared_ptr<Connection> &connection)
+    virtual bool exec(RClient *rc, const std::shared_ptr<Connection> &connection) override
     {
         unsigned int flags = RTagsLogOutput::None;
         if (rc->queryFlags() & QueryMessage::ElispList)
@@ -309,7 +309,7 @@ public:
         msg.init(rc->argc(), rc->argv());
         return connection->send(msg);
     }
-    virtual String description() const
+    virtual String description() const override
     {
         return "RdmLogCommand";
     }
@@ -330,7 +330,7 @@ public:
     const Path cwd;
     const String args;
     const RClient::EscapeMode escapeMode;
-    virtual bool exec(RClient *rc, const std::shared_ptr<Connection> &connection)
+    virtual bool exec(RClient *rc, const std::shared_ptr<Connection> &connection) override
     {
         bool escape = false;
         switch (rc->mEscapeMode) {
@@ -355,7 +355,7 @@ public:
 
         return connection->send(msg);
     }
-    virtual String description() const
+    virtual String description() const override
     {
         return ("IndexMessage " + cwd);
     }

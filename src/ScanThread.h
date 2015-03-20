@@ -24,7 +24,7 @@ class ScanThread : public Thread
 {
 public:
     ScanThread(const Path &path);
-    virtual void run();
+    virtual void run() override;
     Signal<std::function<void(Set<Path>)> > &finished() { return mFinished; }
     static Set<Path> paths(const Path &path, const List<String> &filters = List<String>());
 private:

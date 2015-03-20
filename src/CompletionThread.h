@@ -33,7 +33,7 @@ public:
     CompletionThread(int cacheSize);
     ~CompletionThread();
 
-    virtual void run();
+    virtual void run() override;
     enum Flag {
         None = 0x0,
         Refresh = 0x1,
