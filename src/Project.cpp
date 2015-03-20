@@ -323,6 +323,20 @@ bool Project::init()
         }
     }
 
+    auto it = mSources.begin();
+    while (it != mSources.end()) {
+        const Source &source = it->second;
+        if (!source.sourceFile().isFile()) {
+            warning() << source.sourceFile() << "seems to have disappeared";
+            removeDependencies(source.fileId);
+            dirty.get()->insertDirtyFile(source.fileId);
+            mSources.erase(it++);
+            needsSave = true;
+        } else {
+            ++it;
+        }
+    }
+
     if (needsSave)
         save();
     startDirtyJobs(dirty.get());
