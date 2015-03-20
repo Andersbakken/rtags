@@ -1122,7 +1122,7 @@ void RClient::onNewMessage(const std::shared_ptr<Message> &message, const std::s
 {
     if (message->messageId() == ResponseMessage::MessageId) {
         const String response = std::static_pointer_cast<ResponseMessage>(message)->data();
-        if (!response.isEmpty()) {
+        if (!response.isEmpty() && mLogLevel >= Error) {
             fprintf(stdout, "%s\n", response.constData());
             fflush(stdout);
         }
