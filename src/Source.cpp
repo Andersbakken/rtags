@@ -799,6 +799,13 @@ List<String> Source::toCommandLine(unsigned int flags) const
     if (flags & IncludeCompiler)
         ret.append(compiler());
 
+    Map<String, String> config;
+    Set<String> remove;
+    if (flags & IncludeRTagsConfig) {
+        config = RTags::rtagsConfig(sourceFile());
+        remove = config.value("remove-arguments").split(";").toSet();
+    }
+
     for (int i=0; i<arguments.size(); ++i) {
         const String &arg = arguments.at(i);
         const bool hasValue = ::hasValue(arg);
@@ -810,6 +817,8 @@ List<String> Source::toCommandLine(unsigned int flags) const
                 skip = isPch(arguments.value(i + 1));
             }
         }
+        if (!skip && remove.contains(arg))
+            skip = true;
         if (!skip) {
             ret.append(arg);
             if (hasValue)
@@ -873,6 +882,10 @@ List<String> Source::toCommandLine(unsigned int flags) const
             }
         }
     }
+    if (flags & IncludeRTagsConfig) {
+        ret << config.value("add-arguments").split(' ');
+    }
+
     if (flags & IncludeSourceFile)
         ret.append(sourceFile());
 

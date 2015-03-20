@@ -123,9 +123,9 @@ void parseTranslationUnit(const Path &sourceFile, const List<String> &args,
 
     const int count = args.size();
     for (int j=0; j<count; ++j) {
-        String arg = args.at(j);
         clangArgs[idx++] = args.at(j).constData();
         if (clangLine) {
+            String arg = args.at(j);
             arg.replace("\"", "\\\"");
             *clangLine += arg;
             *clangLine += ' ';

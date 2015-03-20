@@ -1096,7 +1096,7 @@ bool ClangIndexer::parse()
     assert(!mIndex);
     mIndex = clang_createIndex(0, 1);
     assert(mIndex);
-    const unsigned int commandLineFlags = Source::FilterBlacklist|Source::IncludeDefines|Source::IncludeIncludepaths;
+    const unsigned int commandLineFlags = Source::Default;
     const unsigned int flags = CXTranslationUnit_DetailedPreprocessingRecord;
     List<CXUnsavedFile> unsavedFiles(mUnsavedFiles.size() + 1);
     int unsavedIndex = 0;
