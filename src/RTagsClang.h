@@ -229,6 +229,7 @@ static inline bool isContainer(uint16_t kind)
     case CXCursor_CXXMethod:
     case CXCursor_Constructor:
     case CXCursor_FunctionDecl:
+    case CXCursor_FunctionTemplate:
     case CXCursor_Destructor:
     case CXCursor_ClassTemplate:
     case CXCursor_Namespace:

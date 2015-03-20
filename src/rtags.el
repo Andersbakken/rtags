@@ -118,6 +118,11 @@
   :group 'rtags
   :type 'boolean)
 
+(defcustom rtags-track-container nil
+  "When on continually update current container (function/class/namespace) on intervals"
+  :group 'rtags
+  :type 'boolean)
+
 (defcustom rtags-error-timer-interval .5
   "Interval for minibuffer error timer"
   :group 'rtags
@@ -152,6 +157,16 @@
   "Interval for tracking timer"
   :group 'rtags
   :type 'number)
+
+(defcustom rtags-container-timer-interval 1
+  "Interval for container timer"
+  :group 'rtags
+  :type 'number)
+
+(defcustom rtags-current-container-hook nil
+  "Run after rtags has set the current container"
+  :group 'rtags
+  :type 'hook)
 
 (defcustom rtags-expand-function '(lambda () (dabbrev-expand nil))
   "What function to call for expansions"
@@ -609,7 +624,15 @@ return t if rtags is allowed to modify this file"
       (and (not no-symbol-name) (rtags-current-symbol-name))
       (thing-at-point 'symbol)))
 
-(defun rtags-symbol-info (&optional location verbose save-to-kill-ring no-reparse)
+
+(defun* rtags-symbol-info (&rest args
+                                 &key
+                                 (location nil)
+                                 (include-targets nil)
+                                 (include-references nil)
+                                 (include-parents nil)
+                                 (save-to-kill-ring nil)
+                                 (no-reparse nil))
   (interactive)
   (let ((loc (or location (rtags-current-location)))
         (path (buffer-file-name)))
@@ -618,8 +641,9 @@ return t if rtags is allowed to modify this file"
     (with-temp-buffer
       (rtags-call-rc :path path
                      "-U" loc
-                     (unless verbose "--symbol-info-exclude-targets")
-                     (unless verbose "--symbol-info-exclude-references"))
+                     (unless include-targets "--symbol-info-exclude-targets")
+                     (unless include-targets "--symbol-info-exclude-references")
+                     (if include-parents "--symbol-info-include-parents"))
       (if save-to-kill-ring
           (copy-region-as-kill (point-min) (point-max)))
       (if (called-interactively-p 'any)
@@ -627,9 +651,11 @@ return t if rtags is allowed to modify this file"
       (buffer-string))))
 
 ;;;###autoload
-(defun rtags-print-symbol-info (&optional prefix)
+(defun rtags-print-symbol-info (&optional verbose)
   (interactive "P")
-  (message "%s" (rtags-symbol-info nil (not prefix) (not prefix))))
+  (message "%s" (rtags-symbol-info :include-parents verbose
+                                   :include-targets verbose
+                                   :include-references verbose)))
 
 ;;;###autoload
 (defun rtags-print-dependencies (&optional buffer)
@@ -645,14 +671,14 @@ return t if rtags is allowed to modify this file"
 ;;;###autoload
 (defun rtags-print-enum-value-at-point (&optional location)
   (interactive)
-  (let ((info (rtags-symbol-info location)))
+  (let ((info (rtags-symbol-info :location location)))
     (cond ((string-match "^Enum Value: \\([0-9]+\\) *$" info)
            (let ((enumval (match-string-no-properties 1 info)))
              (message "%s - %s - 0x%X" (rtags-current-symbol-name info) enumval (string-to-number enumval))))
           ((string-match "^Type: Enum *$" info)
            (let ((target (rtags-target)))
              (when target
-               (setq info (rtags-symbol-info target))
+               (setq info (rtags-symbol-info :location target))
                (if (string-match "^Enum Value: \\([0-9]+\\) *$" info)
                    (let ((enumval (match-string-no-properties 1 info)))
                      (message "%s - %s - 0x%X" (rtags-current-symbol-name info) enumval (string-to-number enumval)))))))
@@ -699,8 +725,8 @@ return t if rtags is allowed to modify this file"
     (goto-char (1+ pos))))
 
 (defun rtags-current-location (&optional offset)
-  (format "%s:%d:%d" (or (buffer-file-name) (buffer-name))
-          (line-number-at-pos offset) (1+ (- (or offset (point)) (point-at-bol)))))
+  (let ((fn (buffer-file-name)))
+    (and fn (format "%s:%d:%d" fn (line-number-at-pos offset) (1+ (- (or offset (point)) (point-at-bol)))))))
 
 (defun rtags-log (log)
   (if rtags-rc-log-enabled
@@ -1350,6 +1376,28 @@ References to references will be treated as references to the referenced symbol"
     (while (and current-overlays (not (rtags-fix-fixit-overlay (car current-overlays))))
       (setq current-overlays (cdr current-overlays)))))
 
+
+(defvar rtags-container-timer nil)
+(defvar rtags-container-last-location nil)
+(defvar rtags-cached-current-container nil)
+(defun rtags-update-current-container-cache ()
+  (when (or (eq major-mode 'c++-mode) (eq major-mode 'c-mode))
+    (let ((loc (rtags-current-location)))
+      (when (and loc (not (string= loc rtags-container-last-location)))
+        (setq rtags-container-last-location loc)
+        (let ((cur (rtags-current-container-name)))
+          (when (not (string= cur rtags-cached-current-container))
+            (setq rtags-cached-current-container cur)
+            (run-hook-with-args 'rtags-current-container-hook rtags-current-container-hook)))))))
+
+(defun rtags-restart-find-container-timer ()
+  (interactive)
+  (if rtags-container-timer
+      (cancel-timer rtags-container-timer))
+  (setq rtags-container-timer
+        (and rtags-track-container
+             (run-with-idle-timer rtags-container-timer-interval nil (function rtags-update-current-container-cache)))))
+
 (defvar rtags-tracking-timer nil)
 ;;;###autoload
 (defun rtags-restart-tracking-timer()
@@ -1374,6 +1422,7 @@ References to references will be treated as references to the referenced symbol"
     (rtags-update-current-error)
     (rtags-close-taglist)
     ;;(rtags-update-completions-timer)
+    (rtags-restart-find-container-timer)
     (rtags-restart-tracking-timer)))
 
 (add-hook 'post-command-hook (function rtags-post-command-hook))
@@ -1814,15 +1863,14 @@ References to references will be treated as references to the referenced symbol"
 
 (defun rtags-current-container-name (&optional symbol-info)
   (unless symbol-info
-    (setq symbol-info (rtags-symbol-info)))
-  (let* ((container (string-match "^Container:" symbol-info))
-         (symbolname (string-match "^SymbolName: \\(.*\\)$" symbol-info (if container container 0))))
-    (if container
-        (match-string-no-properties 1 symbol-info)
-      nil)))
+    (setq symbol-info (rtags-symbol-info :include-parents t)))
+  (let ((delimiter (string-match "^====================" symbol-info)))
+    (and (and delimiter
+              (string-match "^SymbolName: \\(.*\\)$" symbol-info delimiter)
+              (match-string 1 symbol-info)))))
 
 (defun rtags-cursor-extent (&optional location)
-  (let ((symbol-info (rtags-symbol-info location)))
+  (let ((symbol-info (rtags-symbol-info :location location)))
     (if (string-match "^Range: \\([0-9]+\\)-\\([0-9]+\\)$" symbol-info)
         (let ((start (+ (string-to-number (match-string-no-properties 2 symbol-info)) 1))
               (end (+ (string-to-number (match-string-no-properties 3 symbol-info)) 1)))
@@ -2206,7 +2254,7 @@ Return nil if it can't get any info about the item."
   ;; try first with --declaration-only
   (let ((target (rtags-target-declaration-first)))
     (when target
-      (let ((range (rtags-decode-range (rtags-symbol-info target nil nil t))))
+      (let ((range (rtags-decode-range (rtags-symbol-info :location target :no-reparse t))))
         (when range
           (let* ((line1 (first range))
                  (line2 (third range))

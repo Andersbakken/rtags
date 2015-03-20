@@ -398,9 +398,15 @@ String ClangIndexer::addNamePermutations(const CXCursor &cursor, const Location 
 
     if (type.isEmpty()) {
         switch (originalKind) {
-        case CXCursor_ClassDecl:
         case CXCursor_StructDecl:
+            type = "struct ";
+            break;
+        case CXCursor_ClassDecl:
         case CXCursor_ClassTemplate:
+            type = "class ";
+            break;
+        case CXCursor_Namespace:
+            type = "namespace ";
             break;
         default:
             type = RTags::typeName(cursor);

@@ -38,9 +38,13 @@ static inline const char *linkageSpelling(CXLinkageKind kind)
 
 String Symbol::toString(unsigned int cursorInfoFlags, unsigned int keyFlags, const std::shared_ptr<Project> &project) const
 {
-    static auto flagsToString = [](unsigned int flags)
+    static auto properties = [this]()
     {
         List<String> ret;
+        if (isDefinition())
+            ret << "Definition";
+        if (isContainer())
+            ret << "Container";
         if ((flags & PureVirtualMethod) == PureVirtualMethod) {
             ret << "Pure Virtual";
         } else if (flags & VirtualMethod) {
@@ -57,7 +61,7 @@ String Symbol::toString(unsigned int cursorInfoFlags, unsigned int keyFlags, con
         }
         if (ret.isEmpty())
             return String();
-        String joined = String::join(ret, ", ");
+        String joined = String::join(ret, ' ');
         joined += '\n';
         return joined;
     };
@@ -68,9 +72,8 @@ String Symbol::toString(unsigned int cursorInfoFlags, unsigned int keyFlags, con
                                       "SymbolLength: %u\n"
                                       "%s" // range
                                       "%s" // enumValue
-                                      "%s" // definition
                                       "%s" // linkage
-                                      "%s" // flags
+                                      "%s" // properties
                                       "%s" // usr
                                       "%s" // briefComment
                                       "%s", // xmlComment
@@ -83,9 +86,8 @@ String Symbol::toString(unsigned int cursorInfoFlags, unsigned int keyFlags, con
                                       kind == CXCursor_EnumConstantDecl ? String::format<32>("Enum Value: %lld\n", enumValue).constData() :
 #endif
                                       "",
-                                      isDefinition() ? "Definition\n" : "",
                                       linkageSpelling(linkage),
-                                      flagsToString(flags).constData(),
+                                      properties().constData(),
                                       usr.isEmpty() ? "" : String::format<64>("Usr: %s\n", usr.constData()).constData(),
                                       briefComment.isEmpty() ? "" : String::format<1024>("Brief comment: %s\n", briefComment.constData()).constData(),
                                       xmlComment.isEmpty() ? "" : String::format<16384>("Xml comment: %s\n", xmlComment.constData()).constData());
