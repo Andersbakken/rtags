@@ -78,6 +78,7 @@ bool ClangIndexer::exec(const String &data)
     uint32_t connectTimeout;
     int32_t niceValue;
     extern bool suspendOnSigSegv;
+    Hash<uint32_t, Path> blockedFiles;
     String dataDir;
 
     deserializer >> id;
@@ -93,6 +94,7 @@ bool ClangIndexer::exec(const String &data)
     deserializer >> suspendOnSigSegv;
     deserializer >> mUnsavedFiles;
     deserializer >> dataDir;
+    deserializer >> blockedFiles;
 
 #if 0
     while (true) {
@@ -131,6 +133,7 @@ bool ClangIndexer::exec(const String &data)
         return false;
     }
 
+    Location::init(blockedFiles);
     Location::set(mSourceFile, mSource.fileId);
     if (!mConnection->connectUnix(socketFile, connectTimeout)) {
         error("Failed to connect to rdm on %s (%dms timeout)", socketFile.constData(), connectTimeout);
