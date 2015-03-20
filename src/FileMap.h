@@ -74,9 +74,7 @@ public:
             }
             return false;
         }
-        int ret;
-        eintrwrap(ret, flock(mFD, LOCK_EX));
-        if (ret != 0) {
+        if (!lock(mFD, Read)) {
             if (error) {
                 *error = Rct::strerror();
                 *error << " " << __LINE__;
@@ -94,8 +92,9 @@ public:
                 *error = Rct::strerror();
                 *error << " " << __LINE__;
             }
-            eintrwrap(ret, flock(mFD, LOCK_UN));
-            close(mFD);
+            lock(mFD, Unlock);
+            int ret;
+            eintrwrap(ret, close(mFD));
             mFD = -1;
             return false;
         }
@@ -109,8 +108,8 @@ public:
         if (mFD != -1) {
             assert(mPointer);
             munmap(const_cast<char*>(mPointer), mSize);
+            lock(mFD, Unlock);
             int ret;
-            eintrwrap(ret, flock(mFD, LOCK_UN));
             eintrwrap(ret, close(mFD));
         }
     }
@@ -258,19 +257,34 @@ public:
             return false;
         int err;
         const int fd = fileno(f);
-        eintrwrap(err, flock(fd, LOCK_EX));
+        if (!lock(fd, Write)) {
+            fclose(f);
+            return false;
+        }
 
         const String data = encode(map);
-        const bool ret = fwrite(data.constData(), data.size(), 1, f);
+        bool ret = fwrite(data.constData(), data.size(), 1, f);
         if (ret)
             eintrwrap(err, ftruncate(fd, data.size()));
-        eintrwrap(err, flock(fd, LOCK_UN));
+        ret = lock(fd, Unlock) && ret;
         fclose(f);
         if (!ret)
             unlink(data.constData());
         return ret;
     }
 private:
+    enum Mode {
+        Read = F_RDLCK,
+        Write = F_WRLCK,
+        Unlock = F_UNLCK
+    };
+    static bool lock(int fd, Mode mode)
+    {
+        struct flock fl = { 0, 0, getpid(), static_cast<short>(mode), SEEK_SET };
+        int ret;
+        eintrwrap(ret, fcntl(fd, F_SETLKW, &fl));
+        return ret != -1;
+    }
     const char *dataSegment() const { return mPointer + sizeof(size_t) + sizeof(size_t); }
 
     template <typename T>
