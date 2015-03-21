@@ -548,11 +548,13 @@ void Project::onJobFinished(const std::shared_ptr<IndexerJob> &job, const std::s
         error() << "Can't find source for" << Location::path(fileId);
         return;
     }
-    for (uint32_t fileId : job->visited) {
-        if (!validate(fileId)) {
-            releaseFileIds(job->visited);
-            dirty(job->source.fileId);
-            return;
+    if (success) {
+        for (uint32_t fileId : job->visited) {
+            if (!validate(fileId)) {
+                releaseFileIds(job->visited);
+                dirty(job->source.fileId);
+                return;
+            }
         }
     }
 
