@@ -632,6 +632,7 @@ return t if rtags is allowed to modify this file"
                                  (include-references nil)
                                  (include-parents nil)
                                  (save-to-kill-ring nil)
+                                 (noerror nil)
                                  (no-reparse nil))
   (interactive)
   (let ((loc (or location (rtags-current-location)))
@@ -640,6 +641,7 @@ return t if rtags is allowed to modify this file"
       (rtags-reparse-file-if-needed))
     (with-temp-buffer
       (rtags-call-rc :path path
+                     :noerror noerror
                      "-U" loc
                      (unless include-targets "--symbol-info-exclude-targets")
                      (unless include-targets "--symbol-info-exclude-references")
@@ -1863,7 +1865,7 @@ References to references will be treated as references to the referenced symbol"
 
 (defun rtags-current-container-name (&optional symbol-info)
   (unless symbol-info
-    (setq symbol-info (rtags-symbol-info :include-parents t)))
+    (setq symbol-info (rtags-symbol-info :include-parents t :noerror t)))
   (let ((delimiter (string-match "^====================" symbol-info)))
     (and (and delimiter
               (string-match "^SymbolName: \\(.*\\)$" symbol-info delimiter)
