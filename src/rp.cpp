@@ -25,15 +25,9 @@
 #include <syslog.h>
 #include "Server.h"
 
-// #ifdef NDEBUG
-bool suspendOnSigSegv = false;
-// #else
-// bool suspendOnSigSegv = true;
-// #endif
-
 static void sigHandler(int signal)
 {
-    if (suspendOnSigSegv) {
+    if (ClangIndexer::serverOpts() & Server::SuspendRPOnCrash) {
         while (true) {
             fprintf(stderr, "rp crashed..., waiting for debugger\n%d\n", getpid());
             sleep(1);

@@ -27,6 +27,7 @@
 #include "Diagnostic.h"
 #include "RClient.h"
 #include <unistd.h>
+#include "Server.h"
 
 static const CXSourceLocation nullLocation = clang_getNullLocation();
 static const CXCursor nullCursor = clang_getNullCursor();
@@ -42,6 +43,7 @@ struct VerboseVisitorUserData {
     ClangIndexer *indexer;
 };
 
+uint32_t ClangIndexer::sServerOpts = 0;
 ClangIndexer::ClangIndexer()
     : mClangUnit(0), mIndex(0), mLastCursor(nullCursor), mVisitFileResponseMessageFileId(0),
       mVisitFileResponseMessageVisit(0), mParseDuration(0), mVisitDuration(0),
@@ -77,7 +79,6 @@ bool ClangIndexer::exec(const String &data)
     uint32_t flags;
     uint32_t connectTimeout;
     int32_t niceValue;
-    extern bool suspendOnSigSegv;
     Hash<uint32_t, Path> blockedFiles;
     String dataDir;
 
@@ -91,7 +92,7 @@ bool ClangIndexer::exec(const String &data)
     deserializer >> mIndexDataMessageTimeout;
     deserializer >> connectTimeout;
     deserializer >> niceValue;
-    deserializer >> suspendOnSigSegv;
+    deserializer >> sServerOpts;
     deserializer >> mUnsavedFiles;
     deserializer >> dataDir;
     deserializer >> blockedFiles;
@@ -1081,10 +1082,12 @@ bool ClangIndexer::handleCursor(const CXCursor &cursor, CXCursorKind kind, const
         mIndexDataMessage.declarations()[c.usr].insert(location.fileId());
     }
 
-    const CXComment comment = clang_Cursor_getParsedComment(cursor);
-    if (clang_Comment_getKind(comment) != CXComment_Null) {
-        c.briefComment = RTags::eatString(clang_Cursor_getBriefCommentText(cursor));
-        c.xmlComment = RTags::eatString(clang_FullComment_getAsXML(comment));
+    if (!(ClangIndexer::serverOpts() & Server::NoComments)) {
+        const CXComment comment = clang_Cursor_getParsedComment(cursor);
+        if (clang_Comment_getKind(comment) != CXComment_Null) {
+            c.briefComment = RTags::eatString(clang_Cursor_getBriefCommentText(cursor));
+            c.xmlComment = RTags::eatString(clang_FullComment_getAsXML(comment));
+        }
     }
 
     switch (c.kind) {

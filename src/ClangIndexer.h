@@ -35,6 +35,7 @@ public:
     ~ClangIndexer();
 
     bool exec(const String &data);
+    static uint32_t serverOpts() { return sServerOpts; }
 private:
     bool diagnose();
     bool visit();
@@ -171,6 +172,8 @@ private:
     uint32_t mLastFileId;
     bool mLastBlocked;
     Path mLastFile;
+
+    static uint32_t sServerOpts;
 };
 
 #endif

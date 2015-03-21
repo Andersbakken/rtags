@@ -97,7 +97,7 @@ String IndexerJob::encode() const
                    << static_cast<uint32_t>(options.rpIndexDataMessageTimeout)
                    << static_cast<uint32_t>(options.rpConnectTimeout)
                    << static_cast<int32_t>(options.rpNiceValue)
-                   << static_cast<bool>(options.options & Server::SuspendRPOnCrash)
+                   << static_cast<uint32_t>(options.options)
                    << unsavedFiles
                    << options.dataDir;
         assert(proj);

@@ -114,6 +114,7 @@ static void usage(FILE *f)
             "  --no-unlimited-error|-f                    Don't pass -ferror-limit=0 to clang.\n"
             "  --Wlarge-by-value-copy|-r [arg]            Use -Wlarge-by-value-copy=[arg] when invoking clang.\n"
             "  --max-file-map-cache-size|-y [arg]         Max files to cache per query (Should not exceed maximum number of open file descriptors allowed per process) (default " STR(DEFAULT_RDM_MAX_FILE_MAP_CACHE_SIZE) ").\n"
+            "  --no-comments                              Don't parse/store doxygen comments.\n"
             "  --arg-transform|-V [arg]                   Use arg to transform arguments. [arg] should be a executable with (execv(3)).\n"
             , std::max(2, ThreadPool::idealThreadCount()), defaultStackSize);
 }
@@ -188,6 +189,7 @@ int main(int argc, char** argv)
 #endif
         { "no-filesystem-watcher", no_argument, 0, 'B' },
         { "arg-transform", required_argument, 0, 'V' },
+        { "no-comments", no_argument, 0, '\1' },
         { 0, 0, 0, 0 }
     };
     const String shortOptions = Rct::shortOptions(opts);
@@ -335,6 +337,9 @@ int main(int argc, char** argv)
             break;
         case 'G':
             serverOpts.blockedArguments << optarg;
+            break;
+        case '\1':
+            serverOpts.options |= Server::NoComments;
             break;
         case 'U': {
             Source::Language lang = Source::NoLanguage;

@@ -70,7 +70,8 @@ public:
         EnableCompilerManager = 0x08000,
         EnableNDEBUG = 0x10000,
         Progress = 0x20000,
-        Weverything = 0x40000
+        Weverything = 0x40000,
+        NoComments = 0x80000
     };
     struct Options {
         Options()
