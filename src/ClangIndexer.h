@@ -117,6 +117,7 @@ private:
     bool handleReference(const CXCursor &cursor, CXCursorKind kind,
                          const Location &loc, CXCursor reference,
                          const CXCursor &parent, Symbol **cursorPtr = 0);
+    void handleBaseClassSpecifier(const CXCursor &cursor);
     void handleInclude(const CXCursor &cursor, CXCursorKind kind, const Location &location);
     Location findByUSR(const CXCursor &cursor, CXCursorKind kind, const Location &loc) const;
     void addOverriddenCursors(const CXCursor &cursor, const Location &location);
@@ -156,6 +157,7 @@ private:
     CXTranslationUnit mClangUnit;
     CXIndex mIndex;
     CXCursor mLastCursor;
+    Location mLastLocation, mLastClass;
     String mClangLine;
     uint32_t mVisitFileResponseMessageFileId;
     bool mVisitFileResponseMessageVisit;

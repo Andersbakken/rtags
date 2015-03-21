@@ -561,13 +561,14 @@ static inline CXCursor findDestructorForDelete(const CXCursor &deleteStatement)
     return destructor;
 }
 
-struct LastCursorUpdater
+template <typename T>
+struct Updater
 {
-    LastCursorUpdater(CXCursor &var, const CXCursor &cursor) : mVar(var), mCursor(cursor) {}
-    ~LastCursorUpdater() { mVar = mCursor; }
+    Updater(T &var, const T &newValue) : mVar(var), mNewValue(newValue) {}
+    ~Updater() { mVar = mNewValue; }
 
-    CXCursor &mVar;
-    CXCursor mCursor;
+    T &mVar;
+    const T mNewValue;
 };
 
 CXChildVisitResult ClangIndexer::indexVisitor(CXCursor cursor, CXCursor parent, CXClientData data)
@@ -580,16 +581,19 @@ CXChildVisitResult ClangIndexer::indexVisitor(CXCursor cursor, CXCursor parent, 
     // fwrite(str.constData(), 1, str.size(), f);
     // fwrite("\n", 1, 1, f);
     // fclose(f);
-    const LastCursorUpdater updater(indexer->mLastCursor, cursor);
+    const Updater<CXCursor> lastCursorUpdater(indexer->mLastCursor, cursor);
 
     const CXCursorKind kind = clang_getCursorKind(cursor);
     const RTags::CursorType type = RTags::cursorType(kind);
-    if (type == RTags::Type_Other)
+    if (type == RTags::Type_Other) {
+        indexer->mLastLocation.clear();
         return CXChildVisit_Recurse;
+    }
 
     bool blocked = false;
 
     Location loc = indexer->createLocation(cursor, &blocked);
+    const Updater<Location> lastLocationUpdater(indexer->mLastLocation, loc);
     if (blocked) {
         // error() << "blocked" << cursor;
         ++indexer->mBlocked;
@@ -614,6 +618,16 @@ CXChildVisitResult ClangIndexer::indexVisitor(CXCursor cursor, CXCursor parent, 
             log << "refs" << ref;
         }
     }
+    if (Symbol::isClass(kind)) {
+        indexer->mLastClass = loc;
+    } else {
+        if (kind == CXCursor_CXXBaseSpecifier) {
+            indexer->handleBaseClassSpecifier(cursor);
+            indexer->mLastLocation.clear();
+            return CXChildVisit_Recurse;
+        }
+    }
+
     switch (type) {
     case RTags::Type_Cursor:
         indexer->handleCursor(cursor, kind, loc);
@@ -946,6 +960,16 @@ void ClangIndexer::handleInclude(const CXCursor &cursor, CXCursorKind kind, cons
         }
     }
     error() << "couldn't create included file" << cursor;
+}
+
+
+void ClangIndexer::handleBaseClassSpecifier(const CXCursor &cursor)
+{
+    auto &lastClass = unit(mLastClass)->symbols[mLastClass];
+    assert(lastClass.isClass());
+    const String usr = ::usr(clang_getCursorReferenced(cursor));
+    assert(!usr.isEmpty());
+    lastClass.baseClasses << usr;
 }
 
 bool ClangIndexer::handleCursor(const CXCursor &cursor, CXCursorKind kind, const Location &location, Symbol **cursorPtr)

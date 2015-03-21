@@ -38,6 +38,17 @@
 
 enum { DirtyTimeout = 100 };
 
+String findSymbolNameByUsr(const std::shared_ptr<Project> &project, uint32_t fileId, const String &usr)
+{
+    assert(project);
+    String ret;
+    for (const auto &sym : project->findByUsr(usr, fileId, Project::ArgDependsOn)) {
+        ret = sym.symbolName;
+        break;
+    }
+    return ret;
+}
+
 Set<Symbol> findTargets(const std::shared_ptr<Project> &project, const Symbol &symbol)
 {
     assert(project);

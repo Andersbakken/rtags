@@ -17,6 +17,7 @@
 #include "ClangIndexer.h"
 #include "RTagsClang.h"
 #include "Source.h"
+#include "Project.h"
 #include <rct/Log.h>
 #include <rct/StopWatch.h>
 #include <rct/String.h>
@@ -57,6 +58,7 @@ void saveFileIds()
 
 Set<Symbol> findTargets(const std::shared_ptr<Project> &, const Symbol &) { return Set<Symbol>(); }
 Set<Symbol> findCallers(const std::shared_ptr<Project> &, const Symbol &) { return Set<Symbol>(); }
+String findSymbolNameByUsr(const std::shared_ptr<Project> &, uint32_t, const String &) { return String(); }
 
 struct SyslogCloser
 {

@@ -39,32 +39,45 @@ static inline const char *linkageSpelling(CXLinkageKind kind)
 String Symbol::toString(unsigned int cursorInfoFlags, unsigned int keyFlags, const std::shared_ptr<Project> &project) const
 {
     static auto properties = [this]()
-    {
-        List<String> ret;
-        if (isDefinition())
-            ret << "Definition";
-        if (isContainer())
-            ret << "Container";
-        if ((flags & PureVirtualMethod) == PureVirtualMethod) {
-            ret << "Pure Virtual";
-        } else if (flags & VirtualMethod) {
-            ret << "Virtual";
-        }
-        if (flags & ConstMethod) {
-            ret << "Const";
-        } else if (flags & StaticMethod) {
-            ret << "Static";
-        }
+        {
+            List<String> ret;
+            if (isDefinition())
+                ret << "Definition";
+            if (isContainer())
+                ret << "Container";
+            if ((flags & PureVirtualMethod) == PureVirtualMethod) {
+                ret << "Pure Virtual";
+            } else if (flags & VirtualMethod) {
+                ret << "Virtual";
+            }
+            if (flags & ConstMethod) {
+                ret << "Const";
+            } else if (flags & StaticMethod) {
+                ret << "Static";
+            }
 
-        if (flags & Variadic) {
-            ret << "Variadic";
+            if (flags & Variadic) {
+                ret << "Variadic";
+            }
+            if (ret.isEmpty())
+                return String();
+            String joined = String::join(ret, ' ');
+            joined += '\n';
+            return joined;
+        };
+
+    List<String> bases;
+    if (project) {
+        extern String findSymbolNameByUsr(const std::shared_ptr<Project> &, uint32_t, const String &);
+        for (const auto &base : baseClasses) {
+            const String usr = findSymbolNameByUsr(project, location.fileId(), base);
+            if (!usr.isEmpty()) {
+                bases << usr;
+            }
         }
-        if (ret.isEmpty())
-            return String();
-        String joined = String::join(ret, ' ');
-        joined += '\n';
-        return joined;
-    };
+    } else {
+        bases = baseClasses;
+    }
 
     String ret = String::format<1024>("SymbolName: %s\n"
                                       "Kind: %s\n"
@@ -75,6 +88,7 @@ String Symbol::toString(unsigned int cursorInfoFlags, unsigned int keyFlags, con
                                       "%s" // linkage
                                       "%s" // properties
                                       "%s" // usr
+                                      "%s" // baseclasses
                                       "%s" // briefComment
                                       "%s", // xmlComment
                                       symbolName.constData(),
@@ -89,6 +103,7 @@ String Symbol::toString(unsigned int cursorInfoFlags, unsigned int keyFlags, con
                                       linkageSpelling(linkage),
                                       properties().constData(),
                                       usr.isEmpty() ? "" : String::format<64>("Usr: %s\n", usr.constData()).constData(),
+                                      bases.isEmpty() ? "" : String::format<64>("BaseClasses: %s\n", String::join(bases, ", ").constData()).constData(),
                                       briefComment.isEmpty() ? "" : String::format<1024>("Brief comment: %s\n", briefComment.constData()).constData(),
                                       xmlComment.isEmpty() ? "" : String::format<16384>("Xml comment: %s\n", xmlComment.constData()).constData());
     if (!(cursorInfoFlags & IgnoreTargets) && project) {
