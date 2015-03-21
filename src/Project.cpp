@@ -785,7 +785,22 @@ void Project::onFileRemoved(const Path &file)
         return;
     removeDependencies(fileId);
     Rct::removeDirectory(Project::sourceFilePath(fileId));
-    mSources.remove(fileId);
+
+    const uint64_t key = Source::key(fileId, 0);
+    auto it = mSources.lower_bound(key);
+    while (it != mSources.end()) {
+        uint32_t f, b;
+        Source::decodeKey(it->first, f, b);
+        if (f != fileId)
+            break;
+        auto job = mActiveJobs.take(it->first);
+        if (job) {
+            releaseFileIds(job->visited);
+            Server::instance()->jobScheduler()->abort(job);
+        }
+        mSources.erase(it++);
+    }
+
     save();
     Server::instance()->jobScheduler()->clearHeaderError(fileId);
 
@@ -929,8 +944,9 @@ int Project::remove(const Match &match)
     while (it != mSources.end()) {
         if (match.match(it->second.sourceFile())) {
             const uint32_t fileId = it->second.fileId;
+            const uint64_t key = it->first;
             mSources.erase(it++);
-            std::shared_ptr<IndexerJob> job = mActiveJobs.take(fileId);
+            std::shared_ptr<IndexerJob> job = mActiveJobs.take(key);
             if (job) {
                 releaseFileIds(job->visited);
                 Server::instance()->jobScheduler()->abort(job);
