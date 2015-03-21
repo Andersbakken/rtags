@@ -533,7 +533,7 @@ return t if rtags is allowed to modify this file"
               (and (cond ((looking-at "Can't seem to connect to server")
                           (erase-buffer)
                           (unless noerror
-                            (error "Can't seem to connect to server. Is rdm running?"))
+                            (message "Can't seem to connect to server. Is rdm running?"))
                           nil)
                          ((looking-at "Project loading")
                           (erase-buffer)
