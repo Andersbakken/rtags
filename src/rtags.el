@@ -1739,7 +1739,7 @@ References to references will be treated as references to the referenced symbol"
                          (eval (read (buffer-string)))))
          (match (car alternatives)))
     (if (> (length alternatives) 1)
-        (setq match (completing-read "Symbol: " alternatives)))
+        (setq match (completing-read "Symbol: " alternatives nil t)))
     (if match
         (rtags-goto-location (with-temp-buffer (rtags-call-rc :path fn "-F" match :path-filter fn) (buffer-string)))
       (message "RTags: No symbols"))))
