@@ -69,7 +69,7 @@ private:
     Set<uint64_t> mHeaderErrorJobIds;
     EmbeddedLinkedList<std::shared_ptr<Node> > mPendingJobs;
     Hash<Process *, std::shared_ptr<Node> > mActiveByProcess;
-    Hash<uint64_t, std::shared_ptr<Node> > mActiveById;
+    Hash<uint64_t, std::shared_ptr<Node> > mActiveById, mInactiveById;
 };
 
 #endif

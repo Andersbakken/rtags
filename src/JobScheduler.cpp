@@ -32,6 +32,8 @@ void JobScheduler::add(const std::shared_ptr<IndexerJob> &job)
         }
         mPendingJobs.insert(node, after);
     }
+    assert(!mInactiveById.contains(job->id));
+    mInactiveById[job->id] = node;
     // error() << "procrash" << mProcrastination << job->sourceFile;
     if (!mProcrastination)
         startJobs();
@@ -88,13 +90,7 @@ void JobScheduler::startJobs()
     while (mActiveByProcess.size() < options.jobCount && node) {
         assert(node);
         assert(node->job);
-        assert(!(node->job->flags & (IndexerJob::Running|IndexerJob::Complete|IndexerJob::Crashed)));
-
-        if (node->job->flags & IndexerJob::Aborted) {
-            debug() << node->job->sourceFile << "was aborted, discarding";
-            cont();
-            continue;
-        }
+        assert(!(node->job->flags & (IndexerJob::Running|IndexerJob::Complete|IndexerJob::Crashed|IndexerJob::Aborted)));
         std::shared_ptr<Project> project = Server::instance()->project(node->job->project);
         if (!project) {
             cont();
@@ -168,6 +164,7 @@ void JobScheduler::startJobs()
         node->job->flags |= IndexerJob::Running;
         process->write(node->job->encode());
         mActiveByProcess[process] = node;
+        mInactiveById.remove(jobId);
         mActiveById[jobId] = node;
         cont();
     }
@@ -235,6 +232,19 @@ void JobScheduler::dump(const std::shared_ptr<Connection> &conn)
                              IndexerJob::dumpFlags(node.second->job->flags).constData());
         }
     }
+
+    if (!mHeaderErrorJobIds.isEmpty()) {
+        conn->write("HeaderErrorJobs:");
+        for (uint64_t headerErrorJobId : mHeaderErrorJobIds) {
+            auto node = mActiveById.value(headerErrorJobId);
+            assert(node);
+            conn->write<128>("%s: 0x%x %s",
+                             node->job->sourceFile.constData(),
+                             node->job->flags,
+                             IndexerJob::dumpFlags(node->job->flags).constData());
+
+        }
+    }
 }
 
 void JobScheduler::abort(const std::shared_ptr<IndexerJob> &job)
@@ -242,12 +252,15 @@ void JobScheduler::abort(const std::shared_ptr<IndexerJob> &job)
     job->flags |= IndexerJob::Aborted;
     job->flags &= ~IndexerJob::Running;
     auto node = mActiveById.take(job->id);
-    if (!node) {// if it's pending we will just not start it when it's ready due to the Aborted flag
-        // error() << "aborting" << job->sourceFile << "no node";
-        return;
+    if (!node) {
+        debug() << "Aborting inactive job" << job->source.sourceFile();
+        node = mInactiveById.take(job->id);
+    } else {
+        debug() << "Aborting active job" << job->source.sourceFile();
     }
+    assert(node);
     if (node->process) {
-        // error() << "Killing process" << node->process;
+        debug() << "Killing process" << node->process;
         node->process->kill();
         mActiveByProcess.remove(node->process);
     }
