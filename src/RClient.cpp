@@ -99,7 +99,7 @@ struct Option opts[] = {
     { RClient::DumpCompletions, "dump-completions", 0, no_argument, "Dump cached completions." },
     { RClient::DumpCompilationDatabase, "dump-compilation-database", 0, no_argument, "Dump compilation database for project." },
     { RClient::SetBuffers, "set-buffers", 0, optional_argument, "Set active buffers (list of filenames for active buffers in editor)." },
-    { RClient::ListBuffers, "list-buffers", 0, optional_argument, "List active buffers." },
+    { RClient::ListBuffers, "list-buffers", 0, no_argument, "List active buffers." },
 
     { RClient::None, 0, 0, 0, "" },
     { RClient::None, 0, 0, 0, "Command flags:" },
