@@ -38,6 +38,7 @@
 
 enum { DirtyTimeout = 100 };
 
+// these are externed from Source.cpp
 String findSymbolNameByUsr(const std::shared_ptr<Project> &project, uint32_t fileId, const String &usr)
 {
     assert(project);
