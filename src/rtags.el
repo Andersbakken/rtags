@@ -1384,7 +1384,7 @@ References to references will be treated as references to the referenced symbol"
 (defvar rtags-cached-current-container nil)
 (defun rtags-update-current-container-cache ()
   (when (not (window-minibuffer-p (get-buffer-window)))
-    (if (or (eq major-mode 'c++-mode) (eq major-mode 'c-mode))
+    (if (or (eq major-mode 'c++-mode) (eq major-mode 'c-mode) (eq major-mode 'objc-mode))
         (let ((loc (rtags-current-location)))
           (when (and loc (not (string= loc rtags-container-last-location)))
             (setq rtags-container-last-location loc)
@@ -2217,7 +2217,7 @@ BUFFER : the buffer to be checked and reparsed, if it's nil, use current buffer"
       (cancel-timer rtags-completions-timer))
   (cond ((not (and rtags-completions-enabled
                    (rtags-has-diagnostics)
-                   (or (eq major-mode 'c++-mode) (eq major-mode 'c-mode)))))
+                   (or (eq major-mode 'c++-mode) (eq major-mode 'c-mode) (eq major-mode 'objc-mode)))))
         ((= rtags-completions-timer-interval 0) (rtags-update-completions))
         (t (setq rtags-completions-timer (run-with-idle-timer rtags-completions-timer-interval
                                                               nil (function rtags-update-completions))))))
@@ -2228,27 +2228,26 @@ BUFFER : the buffer to be checked and reparsed, if it's nil, use current buffer"
 ;;;###autoload
 (defun rtags-update-completions (&optional force)
   (interactive)
-  (if (or (eq major-mode 'c++-mode)
-          (eq major-mode 'c-mode))
-      (let ((pos (rtags-calculate-completion-point)))
-        (message "CHECKING UPDATE COMPLETIONS %d %d"
-                 (or pos -1)
-                 (or (cdr rtags-last-completion-position) -1))
-        (when (or force pos)
-          (if (or force
-                  (not (cdr rtags-last-completion-position))
-                  (not (= pos (cdr rtags-last-completion-position)))
-                  (not (eq (current-buffer) (car rtags-last-completion-position))))
-              (progn
-                (setq rtags-last-completion-position (cons (current-buffer) pos))
-                (setq rtags-last-completions nil)
-                (let ((path (buffer-file-name))
-                      (unsaved (and (buffer-modified-p) (current-buffer)))
-                      (location (rtags-current-location pos)))
-                  (with-temp-buffer
-                    (rtags-call-rc :path path :output 0 :unsaved unsaved "-Y" "-l" location :noerror t))
-                  1))
-            t)))))
+  (when (or (eq major-mode 'c++-mode) (eq major-mode 'c-mode) (eq major-mode 'objc-mode))
+    (let ((pos (rtags-calculate-completion-point)))
+      (message "CHECKING UPDATE COMPLETIONS %d %d"
+               (or pos -1)
+               (or (cdr rtags-last-completion-position) -1))
+      (when (or force pos)
+        (if (or force
+                (not (cdr rtags-last-completion-position))
+                (not (= pos (cdr rtags-last-completion-position)))
+                (not (eq (current-buffer) (car rtags-last-completion-position))))
+            (progn
+              (setq rtags-last-completion-position (cons (current-buffer) pos))
+              (setq rtags-last-completions nil)
+              (let ((path (buffer-file-name))
+                    (unsaved (and (buffer-modified-p) (current-buffer)))
+                    (location (rtags-current-location pos)))
+                (with-temp-buffer
+                  (rtags-call-rc :path path :output 0 :unsaved unsaved "-Y" "-l" location :noerror t))
+                1))
+          t)))))
 
 
 (defun rtags-get-summary-text (&optional max-no-lines)
