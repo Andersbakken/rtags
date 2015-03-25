@@ -22,6 +22,11 @@ and `c-electric-colon', for automatic completion right after \">\" and
   :group 'rtags
   :type 'integer)
 
+(defcustom company-rtags-use-async t
+  "Whether to use async completions for company-rtags"
+  :group 'rtags
+  :type 'boolean)
+
 (defcustom company-rtags-insert-arguments t
   "When non-nil, insert function arguments as a template after completion."
   :group 'rtags
@@ -65,7 +70,7 @@ and `c-electric-colon', for automatic completion right after \">\" and
                   (candidates (cadr rtags-last-completions))
                   (maxwidth (- (window-width) (- (point) (point-at-bol)))))
               (while candidates
-                (if (string-prefix-p prefix (caar candidates))
+                (if (or (not prefix) (string-prefix-p prefix (caar candidates)))
                     (push (company-rtags--make-candidate (car candidates) maxwidth) results))
                 (setq candidates (cdr candidates)))
               (reverse results)))))))
@@ -80,9 +85,34 @@ and `c-electric-colon', for automatic completion right after \">\" and
      ((string-match "\\((.*)\\)" meta)
       (match-string 1 meta)))))
 
+(defvar rtags-company-last-completion-position nil)
+(defvar rtags-company-last-completion-callback nil)
+(defvar rtags-company-last-completion-prefix nil)
+(defun rtags-company-update-completions (cb)
+  ;; (setq rtags-company-last-completion-prefix prefix)
+  (setq rtags-company-last-completion-callback cb)
+  (rtags-update-completions)
+  (setq rtags-company-last-completion-position rtags-last-completion-position)
+  (rtags-company-diagnostics-hook))
+
+(defun rtags-company-diagnostics-hook ()
+  (when (and (eq (car rtags-last-completion-position) (car rtags-company-last-completion-position))
+             (= (cdr rtags-last-completion-position) (cdr rtags-company-last-completion-position)))
+    (let ((results nil)
+          (maxwidth (max 10 (- (window-width) (- (point) (point-at-bol)))))
+          (candidates (cadr rtags-last-completions)))
+      (while candidates
+        (when (or (not rtags-company-last-completion-prefix)
+                  (string-prefix-p rtags-company-last-completion-prefix (caar candidates)))
+          (push (company-rtags--make-candidate (car candidates) maxwidth) results))
+        (setq candidates (cdr candidates)))
+      (funcall rtags-company-last-completion-callback (reverse results)))))
+(add-hook 'rtags-diagnostics-hook 'rtags-company-diagnostics-hook)
+
 (defun company-rtags (command &optional arg &rest ignored)
   "`company-mode' completion back-end for `rtags'."
   (interactive (list 'interactive))
+  (setq rtags-company-last-completion-prefix arg)
   (case command
     (interactive (company-begin-backend 'company-rtags))
     (prefix (and (rtags-is-indexed)
@@ -90,7 +120,12 @@ and `c-electric-colon', for automatic completion right after \">\" and
                  buffer-file-name
                  (not (company-in-string-or-comment))
                  (company-rtags--prefix)))
-    (candidates (company-rtags--candidates arg))
+    (candidates
+     (if company-rtags-use-async
+         (cons :async
+               (lambda (cb)
+                 (rtags-company-update-completions cb)))
+       (candidates (company-rtags--candidates arg))))
     (meta (company-rtags--meta arg))
     (sorted t)
     (annotation (company-rtags--annotation arg))
