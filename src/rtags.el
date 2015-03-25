@@ -158,7 +158,7 @@
   :group 'rtags
   :type 'number)
 
-(defcustom rtags-container-timer-interval 1
+(defcustom rtags-container-timer-interval .5
   "Interval for container timer"
   :group 'rtags
   :type 'number)
@@ -1383,14 +1383,18 @@ References to references will be treated as references to the referenced symbol"
 (defvar rtags-container-last-location nil)
 (defvar rtags-cached-current-container nil)
 (defun rtags-update-current-container-cache ()
-  (when (or (eq major-mode 'c++-mode) (eq major-mode 'c-mode))
-    (let ((loc (rtags-current-location)))
-      (when (and loc (not (string= loc rtags-container-last-location)))
-        (setq rtags-container-last-location loc)
-        (let ((cur (rtags-current-container-name)))
-          (when (not (string= cur rtags-cached-current-container))
-            (setq rtags-cached-current-container cur)
-            (run-hook-with-args 'rtags-current-container-hook rtags-current-container-hook)))))))
+  (when (not (window-minibuffer-p (get-buffer-window)))
+    (if (or (eq major-mode 'c++-mode) (eq major-mode 'c-mode))
+        (let ((loc (rtags-current-location)))
+          (when (and loc (not (string= loc rtags-container-last-location)))
+            (setq rtags-container-last-location loc)
+            (let ((cur (rtags-current-container-name)))
+              (when (not (string= cur rtags-cached-current-container))
+                (setq rtags-cached-current-container cur)
+                (run-hook-with-args 'rtags-current-container-hook rtags-current-container-hook)))))
+      (when rtags-cached-current-container
+        (setq rtags-cached-current-container nil)
+        (run-hook-with-args 'rtags-current-container-hook rtags-current-container-hook)))))
 
 (defun rtags-restart-find-container-timer ()
   (interactive)
