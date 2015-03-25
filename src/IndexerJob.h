@@ -44,6 +44,7 @@ public:
                uint32_t flags,
                const std::shared_ptr<Project> &project,
                const UnsavedFiles &unsavedFiles = UnsavedFiles());
+    void acquireId();
     String encode() const;
 
     uint64_t id;

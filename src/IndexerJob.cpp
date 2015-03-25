@@ -10,9 +10,10 @@ IndexerJob::IndexerJob(const Source &s,
                        uint32_t f,
                        const std::shared_ptr<Project> &p,
                        const UnsavedFiles &u)
-    : id(sNextId++), source(s), sourceFile(s.sourceFile()), flags(f),
+    : id(0), source(s), sourceFile(s.sourceFile()), flags(f),
       project(p->path()), priority(0), unsavedFiles(u), crashCount(0)
 {
+    acquireId();
     if (flags & Dirty)
         ++priority;
     Server *server = Server::instance();
@@ -28,6 +29,11 @@ IndexerJob::IndexerJob(const Source &s,
         }
     }
     visited.insert(s.fileId);
+}
+
+void IndexerJob::acquireId()
+{
+    id = sNextId++;
 }
 
 String IndexerJob::encode() const

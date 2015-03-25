@@ -134,8 +134,8 @@ void JobScheduler::startJobs()
             warning() << "Letting" << node->job->sourceFile << "go even with a headerheader error from" << Location::path(headerError);
             mHeaderErrorJobIds.insert(node->job->id);
         }
-        uint64_t jobId = node->job->id;
-        process->finished().connect([this, id](Process *proc) {
+        const uint64_t jobId = node->job->id;
+        process->finished().connect([this, jobId](Process *proc) {
                 EventLoop::deleteLater(proc);
                 auto node = mActiveByProcess.take(proc);
                 assert(!node || node->process == proc);
@@ -150,7 +150,7 @@ void JobScheduler::startJobs()
                     node->process = 0;
                     assert(!(node->job->flags & IndexerJob::Aborted));
                     if (!(node->job->flags & IndexerJob::Complete) && proc->returnCode() != 0) {
-                        auto nodeById = mActiveById.take(node->job->id);
+                        auto nodeById = mActiveById.take(jobId);
                         assert(nodeById);
                         assert(nodeById == node);
                         // job failed, probably no IndexDataMessage coming
@@ -168,7 +168,7 @@ void JobScheduler::startJobs()
         node->job->flags |= IndexerJob::Running;
         process->write(node->job->encode());
         mActiveByProcess[process] = node;
-        mActiveById[node->job->id] = node;
+        mActiveById[jobId] = node;
         cont();
     }
 }
@@ -205,6 +205,7 @@ void JobScheduler::jobFinished(const std::shared_ptr<IndexerJob> &job, const std
             EventLoop::eventLoop()->registerTimer([job, this](int) {
                     if (!(job->flags & IndexerJob::Aborted)) {
                         job->flags &= ~IndexerJob::Crashed;
+                        job->acquireId();
                         add(job);
                     }
                 }, 500, Timer::SingleShot); // give it 500 ms before we try again
