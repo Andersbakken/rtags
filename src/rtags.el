@@ -2228,12 +2228,13 @@ BUFFER : the buffer to be checked and reparsed, if it's nil, use current buffer"
 ;;;###autoload
 (defun rtags-update-completions (&optional force)
   (interactive)
-  (when (or (eq major-mode 'c++-mode) (eq major-mode 'c-mode) (eq major-mode 'objc-mode))
+  (when (and (or (eq major-mode 'c++-mode) (eq major-mode 'c-mode) (eq major-mode 'objc-mode))
+             (rtags-has-diagnostics))
     (let ((pos (rtags-calculate-completion-point)))
-      (message "CHECKING UPDATE COMPLETIONS %d %d"
-               (or pos -1)
-               (or (cdr rtags-last-completion-position) -1))
-      (when (or force pos)
+      ;; (message "CHECKING UPDATE COMPLETIONS %d %d"
+      ;;          (or pos -1)
+      ;;          (or (cdr rtags-last-completion-position) -1))
+      (when pos
         (if (or force
                 (not (cdr rtags-last-completion-position))
                 (not (= pos (cdr rtags-last-completion-position)))
