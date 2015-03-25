@@ -967,8 +967,16 @@ void ClangIndexer::handleInclude(const CXCursor &cursor, CXCursorKind kind, cons
 void ClangIndexer::handleBaseClassSpecifier(const CXCursor &cursor)
 {
     auto &lastClass = unit(mLastClass)->symbols[mLastClass];
+    if (!lastClass.isClass()) {
+        error() << "Couldn't find class for" << cursor << mLastClass;
+        return;
+    }
     assert(lastClass.isClass());
     const String usr = ::usr(clang_getCursorReferenced(cursor));
+    if (usr.isEmpty()) {
+        error() << "Couldn't find usr for" << clang_getCursorReferenced(cursor) << cursor << mLastClass;
+        return;
+    }
     assert(!usr.isEmpty());
     lastClass.baseClasses << usr;
 }
