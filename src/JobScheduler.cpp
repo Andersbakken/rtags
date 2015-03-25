@@ -138,7 +138,8 @@ void JobScheduler::startJobs()
             warning() << "Letting" << node->job->sourceFile << "go even with a headerheader error from" << Location::path(headerError);
             mHeaderErrorJobIds.insert(node->job->id);
         }
-        process->finished().connect([this](Process *proc) {
+        uint64_t jobId = node->job->id;
+        process->finished().connect([this, id](Process *proc) {
                 EventLoop::deleteLater(proc);
                 auto node = mActiveByProcess.take(proc);
                 assert(!node || node->process == proc);
@@ -161,6 +162,7 @@ void JobScheduler::startJobs()
                         jobFinished(node->job, std::shared_ptr<IndexDataMessage>(new IndexDataMessage(node->job)));
                     }
                 }
+                mHeaderErrorJobIds.remove(jobId);
                 startJobs();
             });
 
@@ -187,7 +189,6 @@ void JobScheduler::handleIndexDataMessage(const std::shared_ptr<IndexDataMessage
 
 void JobScheduler::jobFinished(const std::shared_ptr<IndexerJob> &job, const std::shared_ptr<IndexDataMessage> &message)
 {
-    mHeaderErrorJobIds.remove(job->id);
     mHeaderErrors.unite(message->errorHeaders());
     assert(!(job->flags & IndexerJob::Aborted));
     assert(job);
