@@ -81,7 +81,7 @@ String Symbol::toString(unsigned int cursorInfoFlags, unsigned int keyFlags, con
 
     String ret = String::format<1024>("SymbolName: %s\n"
                                       "Kind: %s\n"
-                                      "Type: %s\n" // type
+                                      "%s" // type
                                       "SymbolLength: %u\n"
                                       "%s" // range
                                       "%s" // enumValue
@@ -93,7 +93,7 @@ String Symbol::toString(unsigned int cursorInfoFlags, unsigned int keyFlags, con
                                       "%s", // xmlComment
                                       symbolName.constData(),
                                       kindSpelling().constData(),
-                                      RTags::eatString(clang_getTypeKindSpelling(type)).constData(),
+                                      type == CXType_Invalid ? "" : String::format<128>("Type: %s\n", RTags::eatString(clang_getTypeKindSpelling(type)).constData()).constData(),
                                       symbolLength,
                                       startLine != -1 ? String::format<32>("Range: %d:%d-%d:%d\n", startLine, startColumn, endLine, endColumn).constData() : "",
 #if CINDEX_VERSION_MINOR > 1
