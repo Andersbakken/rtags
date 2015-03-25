@@ -728,7 +728,7 @@ return t if rtags is allowed to modify this file"
 
 (defun rtags-current-location (&optional offset)
   (let ((fn (buffer-file-name)))
-    (and fn (format "%s:%d:%d" fn (line-number-at-pos offset) (1+ (- (or offset (point)) (point-at-bol)))))))
+    (and fn (format "%s:%d:%d:" fn (line-number-at-pos offset) (1+ (- (or offset (point)) (point-at-bol)))))))
 
 (defun rtags-log (log)
   (if rtags-rc-log-enabled
