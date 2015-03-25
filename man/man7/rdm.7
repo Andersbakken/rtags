@@ -1,0 +1,205 @@
+.TH RDM 7
+
+.SH NAME
+rdm \- RTags daemon
+
+.SH SYNOPSIS
+.B rdm [options]
+
+.B rdm [\-\-help|\-h]
+
+.SH DESCRIPTION
+RTags is a client/server application that indexes C/C++ code and keeps
+a persistent file\-based database of references, declarations,
+definitions, symbolnames etc. There's also limited support for
+ObjC/ObjC++. It allows you to find symbols by name (including nested
+class and namespace scope). Most importantly we give you proper
+follow\-symbol and find\-references support. We also have neat little
+things like rename\-symbol, integration with clang's "fixits"
+(http://clang.llvm.org/diagnostics.html). We also integrate with
+flymake using clang's vastly superior errors and warnings. Since
+RTags constantly will reindex "dirty" files you get live updates of
+compiler errors and warnings. Since we already know how to compile
+your sources we have a way to quickly bring up the preprocessed output
+of the current source file in a buffer.
+
+While existing taggers like gnu global, cscope, etags, ctags etc do a
+decent job for C they often fall a little bit short for C++. With its
+incredible lexical complexity, parsing C++ is an incredibly hard task
+and we make no bones about the fact that the only reason we are able
+to improve on the current tools is because of clang
+(http://clang.llvm.org/). RTags is named RTags in recognition of
+Roberto Raggi on whose C++ parser we intended to base this project but
+he assured us clang was the way to go. The name stuck though.
+
+.SH OPTIONS
+
+Run as server with no arg or connect to arg as server.
+
+.SS Server options:
+.TP
+.BR \-\-clear\-project\-caches|\-C
+Clear out project caches.
+.TP
+.BR \-\-test|\-t\ \fIarg\fR
+Run this test.
+.TP
+.BR \-\-test\-timeout|\-z\ \fIarg\fR
+Timeout for test to complete.
+.TP
+.BR \-\-completion\-cache\-size|\-i\ \fIarg\fR
+Number of translation units to cache (default 10).
+.TP
+.BR \-\-config|\-c\ \fIarg\fR
+Use this file instead of ~/.rdmrc.
+.TP
+.BR \-\-data\-dir|\-d\ \fIarg\fR
+Use this directory to store persistent data (default ~/.rtags).
+.TP
+.BR \-\-disable\-sighandler|\-x
+Disable signal handler to dump stack for crashes.
+.TP
+.BR \-\-disallow\-multiple\-sources|\-m
+With this setting different sources will be merged for each source
+file.
+.TP
+.BR \-\-enable\-NDEBUG|\-g
+Don't remove \-DNDEBUG from compile lines.
+.TP
+.BR \-\-enable\-compiler\-manager|\-R
+Query compilers for their actual include paths instead of letting
+clang use its own.
+.TP
+.BR \-\-exclude\-filter|\-X\ \fIarg\fR
+Files to exclude from rdm, default
+"*/CMakeFiles/*;*/cmake*/Modules/*;*/conftest.c*;/tmp/*".
+.TP
+.BR \-\-extra\-compilers|\-U\ \fIarg\fR
+Override additional "known" compilers. E.g. \-U foobar;c++, foobar;c
+or foobar:objective\-c or just foobar.
+.TP
+.BR \-\-job\-count|\-j\ \fIarg\fR
+Spawn this many concurrent processes for indexing (default 4).
+.TP
+.BR \-\-header\-error\-job\-count|\-H\ \fIarg\fR
+Allow this many concurrent header error jobs (default std::max(1,
+\-\-job\-count / 2)).
+.TP
+.BR \-\-log\-file|\-L\ \fIarg\fR
+Log to this file.
+.TP
+.BR \-\-no\-filemanager\-watch|\-M
+Don't use a file system watcher for filemanager.
+.TP
+.BR \-\-no\-filesystem\-watcher|\-B
+Disable file system watching altogether. Reindexing has to happen
+manually.
+.TP
+.BR \-\-no\-rc|\-N
+Don't load any rc files.
+.TP
+.BR \-\-no\-startup\-project|\-o
+Don't restore the last current project on startup.
+.TP
+.BR \-\-rp\-connect\-timeout|\-O\ \fIarg\fR
+Timeout for connection from rp to rdm in ms (0 means no timeout)
+(default 0).
+.TP
+.BR \-\-rp\-indexer\-message\-timeout|\-T\ \fIarg\fR
+Timeout for rp indexer\-message in ms (0 means no timeout) (default
+60000).
+.TP
+.BR \-\-rp\-nice\-value|\-a\ \fIarg\fR
+Nice value to use for rp (nice(2)) (default \-1, e.g. not nicing).
+.TP
+.BR \-\-rp\-visit\-file\-timeout|\-Z\ \fIarg\fR
+Timeout for rp visitfile commands in ms (0 means no timeout) (default
+60000).
+.TP
+.BR \-\-separate\-debug\-and\-release|\-E
+Normally rdm doesn't consider release and debug as different
+builds. Pass this if you want it to.
+.TP
+.BR \-\-setenv|\-e\ \fIarg\fR
+Set this environment variable (\-\-setenv "foobar=1").
+.TP
+.BR \-\-silent|\-S
+No logging to stdout.
+.TP
+.BR \-\-socket\-file|\-n\ \fIarg\fR
+Use this file for the server socket (default ~/.rdm).
+.TP
+.BR \-\-start\-suspended|\-Q
+Start out suspended (no reindexing enabled).
+.TP
+.BR \-\-suspend\-rp\-on\-crash|\-q\ \fIarg\fR
+Suspend rp in SIGSEGV handler (default off).
+.TP
+.BR \-\-thread\-stack\-size|\-k\ \fIarg\fR
+Set stack size for threadpool to this (default 8388608).
+.TP
+.BR \-\-verbose|\-v
+Change verbosity, multiple \-v's are allowed.
+.TP
+.BR \-\-watch\-system\-paths|\-w
+Watch system paths for changes.
+.TP
+.BR \-\-block\-argument|\-G\ \fIarg\fR
+Block this argument from being passed to clang. E.g. rdm
+\-\-block\-argument \-fno\-inline
+.TP
+.BR \-\-progress|\-p
+Report compilation progress in diagnostics output.
+
+.SS Compiling/Indexing options:
+.TP
+.BR \-\-allow\-Wpedantic|\-P
+Don't strip out \-Wpedantic. This can cause problems in certain
+projects.
+.TP
+.BR \-\-define|\-D\ \fIarg\fR
+Add additional define directive to clang.
+.TP
+.BR \-\-ignore\-printf\-fixits|\-F
+Disregard any clang fixit that looks like it's trying to fix format
+for printf and friends.
+.TP
+.BR \-\-include\-path|\-I\ \fIarg\fR
+Add additional include path to clang.
+.TP
+.BR \-\-isystem|\-s\ \fIarg\fR
+Add additional system include path to clang.
+.TP
+.BR \-\-Weverything|\-u
+Use \-Weverything.
+.TP
+.BR \-\-no\-Wall|\-W
+Don't use \-Wall.
+.TP
+.BR \-\-no\-no\-unknown\-warnings\-option|\-Y
+Don't pass \-Wno\-unknown\-warning\-option
+.TP
+.BR \-\-no\-spell\-checking|\-l
+Don't pass \-fspell\-checking.
+.TP
+.BR \-\-no\-unlimited\-error|\-f
+Don't pass \-ferror\-limit=0 to clang.
+.TP
+.BR \-\-Wlarge\-by\-value\-copy|\-r\ \fIarg\fR
+Use \-Wlarge\-by\-value\-copy=[arg] when invoking clang.
+.TP
+.BR \-\-max\-file\-map\-cache\-size|\-y\ \fIarg\fR
+Max files to cache per query (Should not exceed maximum number of open
+file descriptors allowed per process) (default 500).
+.TP
+.BR \-\-no\-comments
+Don't parse/store doxygen comments.
+.TP
+.BR \-\-arg\-transform|\-V\ \fIarg\fR
+Use arg to transform arguments.  should be a executable with (execv(3)).
+
+
+.SH EXAMPLES
+.SH ENVIRONMENT
+.SH SEE ALSO
+    rc(7)

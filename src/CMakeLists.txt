@@ -168,4 +168,4 @@ endif ()
 
 install(CODE "message(\"Installing rtags...\")")
 install(TARGETS rdm rc rp RUNTIME DESTINATION bin COMPONENT rtags)
-install(FILES ../man/rc.7 ../man/rdm.7 DESTINATION share/man/man7/)
+install(FILES ../man/man7/rc.7 ../man/man7/rdm.7 DESTINATION share/man/man7/)
