@@ -105,10 +105,6 @@ void JobScheduler::startJobs()
         uint32_t headerError = 0;
         if (!mHeaderErrors.isEmpty()) {
             headerError = hasHeaderError(node->job->source.fileId, project);
-        }
-
-        if (!mHeaderErrors.isEmpty()) {
-            headerError = hasHeaderError(node->job->source.fileId, project);
             if (headerError) {
                 // error() << "We got a headerError" << Location::path(headerError) << "for" << node->job->source.sourceFile()
                 //         << mHeaderErrorMaxJobs << mHeaderErrorJobIds;
