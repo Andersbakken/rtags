@@ -644,7 +644,7 @@ bool RClient::parse(int &argc, char **argv)
         case PrepareCodeCompleteAt:
         case CodeCompleteAt: {
             std::cmatch caps;
-            std::regex rx("^(.*):([0-9]+):([0-9]+)");
+            std::regex rx("^(.*):([0-9]+):([0-9]+):?");
             if (!Rct::contains(optarg, rx, &caps) || caps.size() != 4) {
                 fprintf(stderr, "Can't decode argument for --code-complete-at [%s]\n", optarg);
                 return false;
