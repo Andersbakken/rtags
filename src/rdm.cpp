@@ -662,6 +662,8 @@ int main(int argc, char** argv)
     }
 
     loop->exec();
+    const int ret = server->exitCode();
+    server.reset();
     cleanupLogging();
-    return server->exitCode();
+    return ret;
 }
