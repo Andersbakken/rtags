@@ -58,10 +58,7 @@ int ClassHierarchyJob::execute()
                        symbol.location.key(keyFlags()).constData());
         }
         for (const Symbol &sym : classes) {
-            if (sym.isDefinition()) {
-                recurse(sym, title, indent + 2, find);
-                break;
-            }
+            recurse(sym, title, indent + 2, find);
         }
     };
 
