@@ -665,12 +665,23 @@ return t if rtags is allowed to modify this file"
 (defun rtags-print-dependencies (&optional buffer)
   (interactive)
   (let ((dep-buffer (rtags-get-buffer))
-        (fn (buffer-file-name (or buffer (current-buffer)))))
+        (fn (buffer-file-name buffer)))
     (when fn
       (rtags-location-stack-push)
       (switch-to-buffer dep-buffer)
       (rtags-call-rc :path fn "--dependencies" fn)
       (rtags-mode))))
+
+;;;###autoload
+(defun rtags-print-source-arguments (&optional buffer)
+  (interactive)
+  (let ((args-buffer (rtags-get-buffer))
+        (source (buffer-file-name buffer)))
+    (when source
+      (rtags-location-stack-push)
+      (switch-to-buffer args-buffer)
+      (rtags-call-rc :path source "--sources" source)
+      (goto-char (point-min)))))
 
 ;;;###autoload
 (defun rtags-print-enum-value-at-point (&optional location)
@@ -863,7 +874,8 @@ return t if rtags is allowed to modify this file"
     (define-key map (concat prefix "X") (function rtags-fix-fixit-at-point))
     (define-key map (concat prefix "B") (function rtags-show-rtags-buffer))
     (define-key map (concat prefix "I") (function rtags-imenu))
-    (define-key map (concat prefix "T") (function rtags-taglist))))
+    (define-key map (concat prefix "T") (function rtags-taglist))
+    (define-key map (concat prefix "a") (function rtags-print-source-arguments))))
 
 ;;;###autoload
 (defun rtags-print-current-location ()
