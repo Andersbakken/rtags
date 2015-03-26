@@ -1273,9 +1273,9 @@ References to references will be treated as references to the referenced symbol"
           (rtags-handle-check-style-error buf file (car errors))
           (setq errors (cdr errors)))))))
 
-(defun rtags-parse-diagnostics ()
+(defun rtags-parse-diagnostics (&optional buffer)
   (save-excursion
-    (with-current-buffer (get-buffer-create "*RTags Raw*")
+    (with-current-buffer (or buffer (get-buffer-create "*RTags Raw*"))
       (goto-char (point-min))
       (while (search-forward "\n" (point-max) t)
         (let ((data (and (> (1- (point)) (point-min))
@@ -1458,9 +1458,9 @@ References to references will be treated as references to the referenced symbol"
 
 (defun rtags-diagnostics-process-filter (process output)
   ;; Collect the diagnostics into "*RTags Raw*" until a newline is found
-  ;; (with-current-buffer (get-buffer-create "*BALLS*")
+  ;; (with-current-buffer (get-buffer-create "*RTags Debug*")
   ;;   (goto-char (point-max))
-  ;;   (insert "\n--------------------\n" output))
+  ;;   (insert output))
   (with-current-buffer (get-buffer-create "*RTags Raw*")
     (goto-char (point-max))
     (insert output))
