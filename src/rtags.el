@@ -688,6 +688,21 @@ return t if rtags is allowed to modify this file"
         (kill-buffer args-buffer)))))
 
 ;;;###autoload
+(defun rtags-print-class-hierarchy()
+  (interactive)
+  (let ((class-hierarchy-buffer (rtags-get-buffer))
+        (path (buffer-file-name))
+        (location (rtags-current-location)))
+    (when (and path location)
+      (rtags-location-stack-push)
+      (switch-to-buffer class-hierarchy-buffer)
+      (rtags-call-rc :path path "--class-hierarchy" location)
+      (if (> (point-max) (point-min))
+          (rtags-mode)
+        (message "No subclasses for: %s" location)
+        (rtags-location-stack-back)))))
+
+;;;###autoload
 (defun rtags-print-enum-value-at-point (&optional location)
   (interactive)
   (let ((info (rtags-symbol-info :location location)))
@@ -879,6 +894,7 @@ return t if rtags is allowed to modify this file"
     (define-key map (concat prefix "B") (function rtags-show-rtags-buffer))
     (define-key map (concat prefix "I") (function rtags-imenu))
     (define-key map (concat prefix "T") (function rtags-taglist))
+    (define-key map (concat prefix "h") (function rtags-print-class-hierarchy))
     (define-key map (concat prefix "a") (function rtags-print-source-arguments))))
 
 ;;;###autoload
@@ -1711,6 +1727,12 @@ References to references will be treated as references to the referenced symbol"
         (rtags-taglist-mode)
         (deactivate-mark)))))
 
+(defun rtags-is-class-hierarchy-buffer ()
+  (when (eq major-mode 'rtags-mode)
+    (save-excursion
+      (goto-char (point-min))
+      (looking-at "\\(Subclasses:\\|Superclasses:\\)$"))))
+
 ;;;###autoload
 (defun rtags-select (&optional other-window remove show)
   (interactive "P")
@@ -1719,6 +1741,12 @@ References to references will be treated as references to the referenced symbol"
          (window (selected-window)))
     (cond ((eq major-mode 'rtags-taglist-mode)
            (rtags-goto-location (cdr (assoc line rtags-taglist-locations)) nil other-window))
+          ((rtags-is-class-hierarchy-buffer)
+           (save-excursion
+             (goto-char (point-at-bol))
+             (let ((loc (and (looking-at "[^/]*\\([^ \t]+\\)") (match-string 1))))
+               (when loc
+                 (rtags-goto-location loc nil other-window)))))
           ((and (>= rtags-buffer-bookmarks line)
                 (member bookmark (bookmark-all-names)))
            (when other-window
