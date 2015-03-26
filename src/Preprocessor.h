@@ -33,7 +33,7 @@ public:
 private:
     void onProcessFinished();
     const Source mSource;
-    const std::shared_ptr<Connection> &mConnection;
+    std::shared_ptr<Connection> mConnection;
     std::unique_ptr<Process> mProcess;
 };
 
