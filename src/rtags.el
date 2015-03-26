@@ -681,7 +681,11 @@ return t if rtags is allowed to modify this file"
       (rtags-location-stack-push)
       (switch-to-buffer args-buffer)
       (rtags-call-rc :path source "--sources" source)
-      (goto-char (point-min)))))
+      (goto-char (point-min))
+      (when (= (point-min) (point-max))
+        (message "No builds for: %s" source)
+        (rtags-location-stack-back)
+        (kill-buffer args-buffer)))))
 
 ;;;###autoload
 (defun rtags-print-enum-value-at-point (&optional location)
