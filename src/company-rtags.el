@@ -135,10 +135,10 @@ and `c-electric-colon', for automatic completion right after \">\" and
   (setq rtags-company-last-completion-prefix arg)
   (case command
     (interactive (company-begin-backend 'company-rtags))
-    (prefix (and (rtags-is-indexed)
-                 (memq major-mode company-rtags-modes)
+    (prefix (and (memq major-mode company-rtags-modes)
                  buffer-file-name
                  (not (company-in-string-or-comment))
+                 (rtags-is-indexed)
                  (company-rtags--prefix)))
     (candidates
      (if company-rtags-use-async
