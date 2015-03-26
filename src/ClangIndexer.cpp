@@ -1172,6 +1172,7 @@ bool ClangIndexer::parse()
         return true;
     }
     error() << "Failed to parse" << mClangLine;
+    mIndexDataMessage.setInclusionErrors(true);
     return false;
 }
 
@@ -1272,13 +1273,16 @@ bool ClangIndexer::diagnose()
         const CXDiagnosticSeverity sev = clang_getDiagnosticSeverity(diagnostic);
         // error() << "Got a dude" << clang_getCursor(mClangUnit, diagLoc) << fileId << mSource.fileId
         //         << sev << CXDiagnostic_Error;
-        if (fileId != mSource.fileId && sev >= CXDiagnostic_Error && !mIndexDataMessage.errorHeaders().contains(fileId)) {
-            const CXCursor cursor = clang_getCursor(mClangUnit, diagLoc);
+        const CXCursor cursor = clang_getCursor(mClangUnit, diagLoc);
+        const bool inclusionError = clang_getCursorKind(cursor) == CXCursor_InclusionDirective;
+        if (inclusionError)
+            mIndexDataMessage.setInclusionErrors(true);
+        if (fileId != mSource.fileId && sev >= CXDiagnostic_Error && !mIndexDataMessage.headerErrors().contains(fileId)) {
             // error() << "Got a dude" << cursor;
             bool headerError;
             // We don't treat inclusions or code inside a macro expansion as a
             // header error
-            if (clang_getCursorKind(cursor) == CXCursor_InclusionDirective) {
+            if (inclusionError) {
                 headerError = false;
             } else {
                 CXFile expFile, spellingFile;
@@ -1289,7 +1293,7 @@ bool ClangIndexer::diagnose()
                 // error() << headerError << cursor;
             }
             if (headerError) {
-                mIndexDataMessage.errorHeaders().insert(fileId);
+                mIndexDataMessage.headerErrors().insert(fileId);
             }
         }
         if (mIndexDataMessage.files().value(fileId)) {

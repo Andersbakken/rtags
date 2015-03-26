@@ -592,14 +592,12 @@ void Project::onJobFinished(const std::shared_ptr<IndexerJob> &job, const std::s
         if (gotDiagnostics) {
             mHadDiagnostics = newDiagnostics;
         }
-
-        // RTags::CompilationErrorXml, Diagnostic::format(msg->diagnostics()));
     }
 
     int symbolNames = 0;
     Set<uint32_t> visited = msg->visitedFiles();
     updateFixIts(visited, msg->fixIts());
-    updateDependencies(visited, msg->includes());
+    updateDependencies(visited, msg->includes(), msg->inclusionErrors() ? LeaveOld : PruneOld);
     updateDeclarations(visited, msg->declarations());
     if (success) {
         src->second.parsed = msg->parseTime();
@@ -784,16 +782,17 @@ void Project::onFileRemoved(const Path &file)
     debug() << file << "was removed" << fileId;
     if (!fileId)
         return;
-    removeDependencies(fileId);
     Rct::removeDirectory(Project::sourceFilePath(fileId));
 
     const uint64_t key = Source::key(fileId, 0);
     auto it = mSources.lower_bound(key);
+    bool needSave = false;
     while (it != mSources.end()) {
         uint32_t f, b;
         Source::decodeKey(it->first, f, b);
         if (f != fileId)
             break;
+        needSave = true;
         auto job = mActiveJobs.take(it->first);
         if (job) {
             releaseFileIds(job->visited);
@@ -802,7 +801,8 @@ void Project::onFileRemoved(const Path &file)
         mSources.erase(it++);
     }
 
-    save();
+    if (needSave)
+        save();
     Server::instance()->jobScheduler()->clearHeaderError(fileId);
 
     if (Server::instance()->suspended() || mSuspendedFiles.contains(fileId)) {
@@ -819,7 +819,8 @@ void Project::onDirtyTimeout(Timer *)
 {
     Set<uint32_t> dirtyFiles = std::move(mPendingDirtyFiles);
     WatcherDirty dirty(shared_from_this(), dirtyFiles);
-    startDirtyJobs(&dirty);
+    const int dirtied = startDirtyJobs(&dirty);
+    debug() << "onDirtyTimeout" << dirtyFiles << dirtied;
 }
 
 List<Source> Project::sources(uint32_t fileId) const
@@ -867,17 +868,20 @@ void Project::removeDependencies(uint32_t fileId)
     }
 }
 
-void Project::updateDependencies(const Set<uint32_t> &visited, const Includes &includes)
+void Project::updateDependencies(const Set<uint32_t> &visited,
+                                 const Includes &includes,
+                                 UpdateDependenciesMode mode)
 {
     // ### this probably deletes and recreates the same nodes very very often
-    Set<uint32_t> files;
-    for (uint32_t file : visited) {
-        if (DependencyNode *node = mDependencies.value(file)) {
-            for (auto it : node->includes)
-                it.second->dependents.remove(file);
-            node->includes.clear();
+    Set<uint32_t> files = visited;
+    if (mode == PruneOld) {
+        for (uint32_t file : visited) {
+            if (DependencyNode *node = mDependencies.value(file)) {
+                for (auto it : node->includes)
+                    it.second->dependents.remove(file);
+                node->includes.clear();
+            }
         }
-        files.insert(file);
     }
     for (const auto &it : includes) {
         DependencyNode *&includer = mDependencies[it.first];

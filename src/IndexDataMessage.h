@@ -29,25 +29,27 @@ public:
     enum { MessageId = IndexDataMessageId };
 
     IndexDataMessage(const std::shared_ptr<IndexerJob> &job)
-        : RTagsMessage(MessageId), mParseTime(0), mKey(job->source.key()), mId(0), mIndexerJobFlags(job->flags)
+        : RTagsMessage(MessageId), mParseTime(0), mKey(job->source.key()), mId(0),
+          mIndexerJobFlags(job->flags), mInclusionErrors(false)
     {}
 
     IndexDataMessage()
-        : RTagsMessage(MessageId), mParseTime(0), mKey(0), mId(0), mIndexerJobFlags(0)
+        : RTagsMessage(MessageId), mParseTime(0), mKey(0), mId(0),
+          mIndexerJobFlags(0), mInclusionErrors(false)
     {}
 
     void encode(Serializer &serializer) const
     {
         serializer << mProject << mParseTime << mKey << mId << mIndexerJobFlags
                    << mMessage << mFixIts << mIncludes << mDiagnostics << mFiles
-                   << mDeclarations << mHeaderErrors;
+                   << mDeclarations << mHeaderErrors << mInclusionErrors;
     }
 
     void decode(Deserializer &deserializer)
     {
         deserializer >> mProject >> mParseTime >> mKey >> mId >> mIndexerJobFlags
                      >> mMessage >> mFixIts >> mIncludes >> mDiagnostics
-                     >> mFiles >> mDeclarations >> mHeaderErrors;
+                     >> mFiles >> mDeclarations >> mHeaderErrors >> mInclusionErrors;
     }
 
     Set<uint32_t> visitedFiles() const
@@ -100,7 +102,9 @@ public:
     Includes &includes() { return mIncludes; }
     Declarations &declarations() { return mDeclarations; }
     Hash<uint32_t, bool> &files() { return mFiles; }
-    Set<uint32_t> &errorHeaders() { return mHeaderErrors; }
+    Set<uint32_t> &headerErrors() { return mHeaderErrors; }
+    bool inclusionErrors() const { return mInclusionErrors; } // complete failure to build is considered an inclusion error
+    void setInclusionErrors(bool inclusionErrors) { mInclusionErrors = inclusionErrors; }
 private:
     Path mProject;
     uint64_t mParseTime, mKey, mId;
@@ -112,6 +116,7 @@ private:
     Declarations mDeclarations; // function declarations and forward declaration
     Hash<uint32_t, bool> mFiles;
     Set<uint32_t> mHeaderErrors;
+    bool mInclusionErrors;
 };
 
 #endif

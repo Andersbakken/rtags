@@ -182,7 +182,7 @@ void JobScheduler::handleIndexDataMessage(const std::shared_ptr<IndexDataMessage
 
 void JobScheduler::jobFinished(const std::shared_ptr<IndexerJob> &job, const std::shared_ptr<IndexDataMessage> &message)
 {
-    mHeaderErrors.unite(message->errorHeaders());
+    mHeaderErrors.unite(message->headerErrors());
     assert(!(job->flags & IndexerJob::Aborted));
     assert(job);
     assert(message);
