@@ -112,7 +112,9 @@ void JobScheduler::startJobs()
             }
         }
 
+        const uint64_t jobId = node->job->id;
         Process *process = new Process;
+        debug() << "Starting process for" << jobId << node->job->source.key() << node->job.get();
         List<String> arguments;
         for (int i=logLevel(); i>0; --i)
             arguments << "-v";
@@ -120,6 +122,7 @@ void JobScheduler::startJobs()
             error() << "Couldn't start rp" << rp << process->errorString();
             delete process;
             node->job->flags |= IndexerJob::Crashed;
+            debug() << "job crashed (didn't start)" << jobId << node->job->source.key() << node->job.get();
             jobFinished(node->job, std::shared_ptr<IndexDataMessage>(new IndexDataMessage(node->job)));
             rp.clear(); // in case rp was missing for a moment and we fell back to searching $PATH
             cont();
@@ -128,9 +131,8 @@ void JobScheduler::startJobs()
         if (headerError) {
             node->job->priority = IndexerJob::HeaderError;
             warning() << "Letting" << node->job->sourceFile << "go even with a headerheader error from" << Location::path(headerError);
-            mHeaderErrorJobIds.insert(node->job->id);
+            mHeaderErrorJobIds.insert(jobId);
         }
-        const uint64_t jobId = node->job->id;
         process->finished().connect([this, jobId](Process *proc) {
                 EventLoop::deleteLater(proc);
                 auto node = mActiveByProcess.take(proc);
@@ -151,6 +153,7 @@ void JobScheduler::startJobs()
                         assert(nodeById == node);
                         // job failed, probably no IndexDataMessage coming
                         node->job->flags |= IndexerJob::Crashed;
+                        debug() << "job crashed" << jobId << node->job->source.key() << node->job.get();
                         jobFinished(node->job, std::shared_ptr<IndexDataMessage>(new IndexDataMessage(node->job)));
                     }
                 }
@@ -177,6 +180,7 @@ void JobScheduler::handleIndexDataMessage(const std::shared_ptr<IndexDataMessage
         debug() << "Got IndexDataMessage for unknown job";
         return;
     }
+    debug() << "job got index data message" << node->job->id << node->job->source.key() << node->job.get();
     jobFinished(node->job, message);
 }
 
@@ -208,6 +212,7 @@ void JobScheduler::jobFinished(const std::shared_ptr<IndexerJob> &job, const std
                 }, 500, Timer::SingleShot); // give it 500 ms before we try again
             return;
         }
+        debug() << "job crashed too many times" << job->id << job->source.key() << job.get();
     }
     project->onJobFinished(job, message);
 }
@@ -249,16 +254,18 @@ void JobScheduler::dump(const std::shared_ptr<Connection> &conn)
 
 void JobScheduler::abort(const std::shared_ptr<IndexerJob> &job)
 {
+    assert(!(job->flags & IndexerJob::Aborted));
     job->flags |= IndexerJob::Aborted;
     job->flags &= ~IndexerJob::Running;
     auto node = mActiveById.take(job->id);
     if (!node) {
-        debug() << "Aborting inactive job" << job->source.sourceFile();
+        debug() << "Aborting inactive job" << job->source.sourceFile() << job->source.key() << job->id << job.get();
         node = mInactiveById.take(job->id);
+        assert(node);
+        mPendingJobs.remove(node);
     } else {
-        debug() << "Aborting active job" << job->source.sourceFile();
+        debug() << "Aborting active job" << job->source.sourceFile() << job->source.key() << job->id << job.get();
     }
-    assert(node);
     if (node->process) {
         debug() << "Killing process" << node->process;
         node->process->kill();

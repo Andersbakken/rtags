@@ -527,10 +527,10 @@ void Project::onJobFinished(const std::shared_ptr<IndexerJob> &job, const std::s
     const uint32_t fileId = msg->fileId();
     auto j = mActiveJobs.take(msg->key());
     if (!j) {
-        error() << "Couldn't find JobData for" << Location::path(fileId);
+        error() << "Couldn't find JobData for" << Location::path(fileId) << msg->key() << job->id << job.get();
         return;
     } else if (j != job) {
-        error() << "Wrong IndexerJob for for" << Location::path(fileId);
+        error() << "Wrong IndexerJob for" << Location::path(fileId) << msg->key() << job->id << job.get();
         return;
     }
 
