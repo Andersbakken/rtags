@@ -139,6 +139,7 @@ public:
     Set<Symbol> findVirtuals(const Location &location) { return findVirtuals(findSymbol(location)); }
     Set<Symbol> findVirtuals(const Symbol &symbol);
     Set<String> findTargetUsrs(const Location &loc);
+    Set<Symbol> findSubclasses(const Symbol &symbol);
 
     Set<Symbol> findByUsr(const String &usr, uint32_t fileId, DependencyMode mode);
 

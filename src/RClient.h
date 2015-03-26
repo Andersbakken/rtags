@@ -35,6 +35,7 @@ public:
         AllTargets,
         BuildIndex,
         CheckReindex,
+        ClassHierarchy,
         Clear,
         CodeCompleteAt,
         CompilationFlagsOnly,

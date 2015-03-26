@@ -1488,6 +1488,25 @@ Set<String> Project::findTargetUsrs(const Location &loc)
     return usrs;
 }
 
+Set<Symbol> Project::findSubclasses(const Symbol &symbol)
+{
+    assert(symbol.isClass() && symbol.isDefinition());
+    Set<Symbol> ret;
+    for (uint32_t dep : dependencies(symbol.location.fileId(), DependsOnArg)) {
+        auto symbols = openSymbols(dep);
+        if (symbols) {
+            const int count = symbols->count();
+            for (int i=0; i<count; ++i) {
+                const Symbol s = symbols->valueAt(i);
+                if (s.baseClasses.contains(symbol.usr))
+                    ret.insert(s);
+            }
+        }
+    }
+    return ret;
+}
+
+
 void Project::beginScope()
 {
     assert(!mFileMapScope);

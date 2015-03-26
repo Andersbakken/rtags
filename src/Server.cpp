@@ -26,6 +26,7 @@
 #include "RClient.h"
 #include "FindSymbolsJob.h"
 #include "FollowLocationJob.h"
+#include "ClassHierarchyJob.h"
 #include "IndexerJob.h"
 #include "Source.h"
 #include "DumpThread.h"
@@ -596,6 +597,9 @@ void Server::handleQueryMessage(const std::shared_ptr<QueryMessage> &message, co
     case QueryMessage::SetBuffers:
         setBuffers(message, conn);
         break;
+    case QueryMessage::ClassHierarchy:
+        classHierarchy(message, conn);
+        break;
     }
 }
 
@@ -628,9 +632,8 @@ void Server::followLocation(const std::shared_ptr<QueryMessage> &query, const st
 
        - We didn't find anything with the current project
        - The path in question (likely a header) does not start with the current
-       project's path (there's room for mistakes here with symlinks).
+         project's path (there's room for mistakes here with symlinks).
        - The file in question does start with another project's path
-       - The other project is loaded (we will start loading it if it's not)
     */
 
     const Path path = loc.path();
@@ -1402,6 +1405,25 @@ void Server::setBuffers(const std::shared_ptr<QueryMessage> &query, const std::s
         conn->write<32>("Added %d buffers", mActiveBuffers.size());
     }
     conn->finish();
+}
+
+void Server::classHierarchy(const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Connection> &conn)
+{
+    const Location loc = query->location();
+    if (loc.isNull()) {
+        conn->write("Not indexed");
+        conn->finish(1);
+        return;
+    }
+    std::shared_ptr<Project> project = projectForQuery(query);
+    if (!project) {
+        error("No project");
+        conn->finish(1);
+        return;
+    }
+
+    ClassHierarchyJob job(loc, query, project);
+    conn->finish(job.run(conn));
 }
 
 void Server::handleVisitFileMessage(const std::shared_ptr<VisitFileMessage> &message, const std::shared_ptr<Connection> &conn)

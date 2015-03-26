@@ -158,6 +158,7 @@ private:
     void status(const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Connection> &conn);
     void suspend(const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Connection> &conn);
     void setBuffers(const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Connection> &conn);
+    void classHierarchy(const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Connection> &conn);
 
     std::shared_ptr<Project> projectForQuery(const std::shared_ptr<QueryMessage> &queryMessage);
     std::shared_ptr<Project> currentProject() const { return mCurrentProject.lock(); }

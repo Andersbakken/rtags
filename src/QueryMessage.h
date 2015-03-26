@@ -31,6 +31,7 @@ public:
     enum Type {
         GenerateTest,
         CheckReindex,
+        ClassHierarchy,
         ClearProjects,
         CodeCompleteAt,
         DeleteProject,

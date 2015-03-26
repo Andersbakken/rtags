@@ -101,6 +101,7 @@ set(RTAGS_CLANG_SOURCES RTagsClang.cpp Source.cpp)
 
 add_executable(rdm
   rdm.cpp
+  ClassHierarchyJob.cpp
   CompilerManager.cpp
   CompletionThread.cpp
   SymbolInfoJob.cpp
