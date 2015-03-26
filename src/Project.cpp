@@ -510,9 +510,9 @@ static String formatDiagnostics(const Diagnostics &diagnostics, DiagnosticsForma
             if (lastFileId)
                 ret << endFile[format];
             lastFileId = loc.fileId();
-            ret << String::format<256>(startFile[format], loc.path().constData())
-                << formatDiagnostic(loc, diagnostic);
+            ret << String::format<256>(startFile[format], loc.path().constData());
         }
+        ret << formatDiagnostic(loc, diagnostic);
     }
     if (lastFileId)
         ret << endFile[format];
