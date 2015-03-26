@@ -968,11 +968,16 @@ void ClangIndexer::handleBaseClassSpecifier(const CXCursor &cursor)
 {
     auto &lastClass = unit(mLastClass)->symbols[mLastClass];
     if (!lastClass.isClass()) {
-        error() << "Couldn't find class for" << cursor << mLastClass;
+        // this happens with some weird macros in /usr/include/dispatch/io.h:161:1 and others on Mac
+        // error() << "Couldn't find class for" << cursor << mLastClass;
         return;
     }
+    const CXCursor ref = clang_getCursorReferenced(cursor);
+    if (clang_isInvalid(clang_getCursorKind(ref))) // this happens when the base class is a template parameter
+        return;
+
     assert(lastClass.isClass());
-    const String usr = ::usr(clang_getCursorReferenced(cursor));
+    const String usr = ::usr(ref);
     if (usr.isEmpty()) {
         error() << "Couldn't find usr for" << clang_getCursorReferenced(cursor) << cursor << mLastClass;
         return;
