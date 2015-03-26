@@ -145,7 +145,7 @@ and `c-electric-colon', for automatic completion right after \">\" and
          (cons :async
                (lambda (cb)
                  (rtags-company-update-completions cb)))
-       (candidates (company-rtags--candidates arg))))
+       (company-rtags--candidates arg)))
     (meta (company-rtags--meta arg))
     (sorted t)
     (annotation (company-rtags--annotation arg))
