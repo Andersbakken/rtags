@@ -96,7 +96,10 @@ and `c-electric-colon', for automatic completion right after \">\" and
   (rtags-company-diagnostics-hook))
 
 (defun rtags-company-diagnostics-hook ()
-  (when (and (eq (car rtags-last-completion-position) (car rtags-company-last-completion-position))
+  (when (and rtags-company-last-completion-callback
+             rtags-last-completion-position
+             rtags-company-last-completion-position
+             (eq (car rtags-last-completion-position) (car rtags-company-last-completion-position))
              (= (cdr rtags-last-completion-position) (cdr rtags-company-last-completion-position)))
     (let ((results nil)
           (maxwidth (max 10 (- (window-width) (- (point) (point-at-bol)))))
