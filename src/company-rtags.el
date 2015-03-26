@@ -43,6 +43,24 @@ and `c-electric-colon', for automatic completion right after \">\" and
           symbol)
       'stop)))
 
+(defun company-rtags--prefix-type ()
+  (let ((symbol (company-grab-symbol)))
+    (when symbol
+      (save-excursion
+        (forward-char (- (length symbol)))
+        (cond ((looking-back "\\." (1- (point))) 'company-rtags-dot)
+              ((looking-back "\\->" (- (point) 2)) 'company-rtags-arrow)
+              ((looking-back "\\::" (- (point) 2)) 'company-rtags-colons)
+              (t nil))))))
+
+(defun company-rtags--valid-candidate (prefix cand)
+  (and (or (not prefix)
+           (string-prefix-p prefix (car cand)))
+       (let ((prefix-type (company-rtags--prefix-type)))
+         (or (not prefix-type)
+             (eq prefix-type 'company-rtags-colons)
+             (not (string= (nth 2 cand) "EnumConstantDecl"))))))
+
 (defun company-rtags--make-candidate (candidate maxwidth)
   (let* ((text (copy-sequence (nth 0 candidate)))
          (meta (nth 1 candidate))
@@ -70,8 +88,8 @@ and `c-electric-colon', for automatic completion right after \">\" and
                   (candidates (cadr rtags-last-completions))
                   (maxwidth (- (window-width) (- (point) (point-at-bol)))))
               (while candidates
-                (if (or (not prefix) (string-prefix-p prefix (caar candidates)))
-                    (push (company-rtags--make-candidate (car candidates) maxwidth) results))
+                (when (company-rtags--valid-candidate prefix (car candidates))
+                  (push (company-rtags--make-candidate (car candidates) maxwidth) results))
                 (setq candidates (cdr candidates)))
               (reverse results)))))))
 
@@ -105,8 +123,7 @@ and `c-electric-colon', for automatic completion right after \">\" and
           (maxwidth (max 10 (- (window-width) (- (point) (point-at-bol)))))
           (candidates (cadr rtags-last-completions)))
       (while candidates
-        (when (or (not rtags-company-last-completion-prefix)
-                  (string-prefix-p rtags-company-last-completion-prefix (caar candidates)))
+        (when (company-rtags--valid-candidate rtags-company-last-completion-prefix (car candidates))
           (push (company-rtags--make-candidate (car candidates) maxwidth) results))
         (setq candidates (cdr candidates)))
       (funcall rtags-company-last-completion-callback (reverse results)))))
