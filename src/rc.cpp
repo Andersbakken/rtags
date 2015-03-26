@@ -18,8 +18,16 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 int main(int argc, char** argv)
 {
     RClient rc;
-    if (!rc.parse(argc, argv))
-        return 1;
-
-    return rc.exec();
+    int ret = 0;
+    switch (rc.parse(argc, argv)) {
+    case RClient::Parse_Ok:
+        break;
+    case RClient::Parse_Error:
+        ret = 1;
+        break;
+    case RClient::Parse_Exec:
+        ret = rc.exec();
+        break;
+    }
+    return ret;
 }

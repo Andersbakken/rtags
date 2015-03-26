@@ -33,7 +33,16 @@ class Database;
 class Project;
 namespace RTags {
 
-enum { DatabaseVersion = 65 };
+enum {
+    MajorVersion = 2,
+    MinorVersion = 0,
+    DatabaseVersion = 65
+};
+
+inline String versionString()
+{
+    return String::format<64>("%d.%d.%d", MajorVersion, MinorVersion, DatabaseVersion);
+}
 
 enum {
     CompilationError = -1,

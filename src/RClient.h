@@ -117,6 +117,7 @@ public:
         UnescapeCompileCommands,
         UnsavedFile,
         Verbose,
+        Version,
         WildcardSymbolNames,
         XmlDiagnostics,
         NumOptions
@@ -125,7 +126,12 @@ public:
     RClient();
     ~RClient();
     int exec();
-    bool parse(int &argc, char **argv);
+    enum ParseStatus {
+        Parse_Exec,
+        Parse_Ok,
+        Parse_Error
+    };
+    ParseStatus parse(int &argc, char **argv);
 
     int max() const { return mMax; }
     int logLevel() const { return mLogLevel; }

@@ -57,6 +57,7 @@ static void usage(FILE *f)
     fprintf(f,
             "\nUsage: rdm [...options...]\n\n"
             "  --help|-h                                  Display this page.\n"
+            "  --version                                  Display version.\n"
 
             "\nServer options:\n"
             "  --clear-project-caches|-C                  Clear out project caches.\n"
@@ -135,6 +136,7 @@ int main(int argc, char** argv)
 
     struct option opts[] = {
         { "help", no_argument, 0, 'h' },
+        { "version", no_argument, 0, '\2' },
         { "include-path", required_argument, 0, 'I' },
         { "isystem", required_argument, 0, 's' },
         { "define", required_argument, 0, 'D' },
@@ -341,6 +343,9 @@ int main(int argc, char** argv)
         case '\1':
             serverOpts.options |= Server::NoComments;
             break;
+        case '\2':
+            fprintf(stdout, "%s\n", RTags::versionString().constData());
+            return 0;
         case 'U': {
             Source::Language lang = Source::NoLanguage;
             std::regex rx;

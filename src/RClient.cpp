@@ -42,6 +42,7 @@ struct Option {
 struct Option opts[] = {
     { RClient::None, 0, 0, 0, "Options:" },
     { RClient::Verbose, "verbose", 'v', no_argument, "Be more verbose." },
+    { RClient::Version, "version", 0, no_argument, "Print current version." },
     { RClient::Silent, "silent", 'Q', no_argument, "Be silent." },
     { RClient::Help, "help", 'h', no_argument, "Display this help." },
 
@@ -436,7 +437,7 @@ int RClient::exec()
     return ret;
 }
 
-bool RClient::parse(int &argc, char **argv)
+RClient::ParseStatus RClient::parse(int &argc, char **argv)
 {
     Rct::findExecutablePath(*argv);
     mSocketFile = Path::home() + ".rdm";
@@ -489,7 +490,7 @@ bool RClient::parse(int &argc, char **argv)
                 }
             }
         }
-        return 0;
+        return Parse_Ok;
     }
 
     {
@@ -536,10 +537,10 @@ bool RClient::parse(int &argc, char **argv)
             break;
         case Help:
             help(stdout, argv[0]);
-            return false;
+            return Parse_Ok;
         case Man:
             man();
-            return false;
+            return Parse_Ok;
         case SocketFile:
             mSocketFile = optarg;
             break;
@@ -628,16 +629,19 @@ bool RClient::parse(int &argc, char **argv)
             std::regex rx("^([0-9]+)-([0-9]+*)$");
             if (!Rct::contains(optarg, rx, &caps) || caps.size() != 3) {
                 fprintf(stderr, "Can't parse range, must be uint-uint. E.g. 1-123\n");
-                return false;
+                return Parse_Error;
             } else {
                 mMinOffset = atoi(caps.str(1).c_str());
                 mMaxOffset = atoi(caps.str(2).c_str());
                 if (mMaxOffset <= mMinOffset || mMinOffset < 0) {
                     fprintf(stderr, "Invalid range (%d-%d), must be uint-uint. E.g. 1-123\n", mMinOffset, mMaxOffset);
-                    return false;
+                    return Parse_Error;
                 }
             }
             break; }
+        case Version:
+            fprintf(stdout, "%s\n", RTags::versionString().constData());
+            return Parse_Ok;
         case Verbose:
             ++mLogLevel;
             break;
@@ -647,12 +651,12 @@ bool RClient::parse(int &argc, char **argv)
             std::regex rx("^(.*):([0-9]+):([0-9]+):?");
             if (!Rct::contains(optarg, rx, &caps) || caps.size() != 4) {
                 fprintf(stderr, "Can't decode argument for --code-complete-at [%s]\n", optarg);
-                return false;
+                return Parse_Error;
             }
             const Path path = Path::resolved(caps.str(1), Path::MakeAbsolute);
             if (!path.isFile()) {
                 fprintf(stderr, "Can't decode argument for --code-complete-at [%s]\n", optarg);
-                return false;
+                return Parse_Error;
             }
 
             String out;
@@ -682,28 +686,28 @@ bool RClient::parse(int &argc, char **argv)
             mBuildIndex = String(optarg).toULongLong(&ok);
             if (!ok) {
                 fprintf(stderr, "--build-index [arg] must be >= 0\n");
-                return false;
+                return Parse_Error;
             }
             break; }
         case ConnectTimeout:
             mConnectTimeout = atoi(optarg);
             if (mConnectTimeout < 0) {
                 fprintf(stderr, "--connect-timeout [arg] must be >= 0\n");
-                return false;
+                return Parse_Error;
             }
             break;
         case Max:
             mMax = atoi(optarg);
             if (mMax <= 0) {
                 fprintf(stderr, "-M [arg] must be positive integer\n");
-                return false;
+                return Parse_Error;
             }
             break;
         case Timeout:
             mTimeout = atoi(optarg);
             if (mTimeout <= 0) {
                 fprintf(stderr, "-y [arg] must be positive integer\n");
-                return false;
+                return Parse_Error;
             }
             break;
         case UnsavedFile: {
@@ -711,17 +715,17 @@ bool RClient::parse(int &argc, char **argv)
             const int colon = arg.lastIndexOf(':');
             if (colon == -1) {
                 fprintf(stderr, "Can't parse -u [%s]\n", optarg);
-                return false;
+                return Parse_Error;
             }
             const int bytes = atoi(arg.constData() + colon + 1);
             if (!bytes) {
                 fprintf(stderr, "Can't parse -u [%s]\n", optarg);
-                return false;
+                return Parse_Error;
             }
             const Path path = Path::resolved(arg.left(colon));
             if (!path.isFile()) {
                 fprintf(stderr, "Can't open [%s] for reading\n", arg.left(colon).nullTerminated());
-                return false;
+                return Parse_Error;
             }
 
             String contents(bytes, '\0');
@@ -729,7 +733,7 @@ bool RClient::parse(int &argc, char **argv)
             if (r != bytes) {
                 fprintf(stderr, "Read error %d (%s). Got %d, expected %d\n",
                         errno, Rct::strerror(errno).constData(), r, bytes);
-                return false;
+                return Parse_Error;
             }
             mUnsavedFiles[path] = contents;
             break; }
@@ -739,7 +743,7 @@ bool RClient::parse(int &argc, char **argv)
             const String encoded = Location::encode(optarg);
             if (encoded.isEmpty()) {
                 fprintf(stderr, "Can't resolve argument %s\n", optarg);
-                return false;
+                return Parse_Error;
             }
             QueryMessage::Type type = QueryMessage::Invalid;
             switch (opt->option) {
@@ -790,7 +794,7 @@ bool RClient::parse(int &argc, char **argv)
                 exit = String(arg).toLongLong(&ok);
                 if (!ok) {
                     fprintf(stderr, "Invalid argument to -q\n");
-                    return 1;
+                    return Parse_Error;
                 }
             }
             addQuitCommand(exit);
@@ -805,12 +809,12 @@ bool RClient::parse(int &argc, char **argv)
             const Path p = Path::resolved(optarg);
             printf("findProjectRoot [%s] => [%s]\n", p.constData(),
                    RTags::findProjectRoot(p, RTags::SourceRoot).constData());
-            return false; }
+            return Parse_Ok; }
         case FindProjectBuildRoot: {
             const Path p = Path::resolved(optarg);
             printf("findProjectRoot [%s] => [%s]\n", p.constData(),
                    RTags::findProjectRoot(p, RTags::BuildRoot).constData());
-            return false; }
+            return Parse_Ok; }
         case RTagsConfig: {
             const Path p = Path::resolved(optarg);
             Map<String, String> config = RTags::rtagsConfig(p);
@@ -818,7 +822,7 @@ bool RClient::parse(int &argc, char **argv)
             for (const auto &it : config) {
                 printf("%s: \"%s\"\n", it.first.constData(), it.second.constData());
             }
-            return false; }
+            return Parse_Ok; }
         case CheckReindex:
         case Reindex:
         case Project:
@@ -919,14 +923,14 @@ bool RClient::parse(int &argc, char **argv)
             dir.resolve(Path::MakeAbsolute);
             if (!dir.exists()) {
                 fprintf(stderr, "%s does not seem to exist\n", dir.constData());
-                return false;
+                return Parse_Error;
             }
             if (!dir.isDir()) {
                 if (dir.isFile() && dir.endsWith("/compile_commands.json")) {
                     dir = dir.parentDir();
                 } else {
                     fprintf(stderr, "%s is not a directory\n", dir.constData());
-                    return false;
+                    return Parse_Error;
                 }
             }
             if (!dir.endsWith('/'))
@@ -934,7 +938,7 @@ bool RClient::parse(int &argc, char **argv)
             const Path file = dir + "compile_commands.json";
             if (!file.isFile()) {
                 fprintf(stderr, "no compile_commands.json file in %s\n", dir.constData());
-                return false;
+                return Parse_Error;
             }
             addCompile(dir, Escape_Auto);
 #endif
@@ -951,7 +955,7 @@ bool RClient::parse(int &argc, char **argv)
             p.resolve(Path::MakeAbsolute);
             if (!p.exists()) {
                 fprintf(stderr, "%s does not seem to exist\n", optarg);
-                return false;
+                return Parse_Error;
             }
             if (p.isDir())
                 p.append('/');
@@ -961,7 +965,7 @@ bool RClient::parse(int &argc, char **argv)
             Path p = optarg;
             if (!p.isDir()) {
                 fprintf(stderr, "%s does not seem to be a directory\n", optarg);
-                return false;
+                return Parse_Error;
             }
 
             p.resolve(Path::MakeAbsolute);
@@ -979,7 +983,7 @@ bool RClient::parse(int &argc, char **argv)
                     p.resolve(Path::MakeAbsolute);
                     if (!p.isFile()) {
                         fprintf(stderr, "%s is not a file\n", optarg);
-                        return false;
+                        return Parse_Error;
                     }
                 }
             }
@@ -1021,7 +1025,7 @@ bool RClient::parse(int &argc, char **argv)
             Path p = optarg;
             if (!p.exists()) {
                 fprintf(stderr, "%s does not exist\n", optarg);
-                return false;
+                return Parse_Error;
             }
 
             if (!p.isAbsolute())
@@ -1030,7 +1034,7 @@ bool RClient::parse(int &argc, char **argv)
             if (p.isDir()) {
                 if (opt->option != IsIndexed) {
                     fprintf(stderr, "%s is not a file\n", optarg);
-                    return false;
+                    return Parse_Error;
                 } else if (!p.endsWith('/')) {
                     p.append('/');
                 }
@@ -1053,7 +1057,7 @@ bool RClient::parse(int &argc, char **argv)
             p.resolve(Path::MakeAbsolute);
             if (!p.isFile()) {
                 fprintf(stderr, "%s is not a file\n", optarg);
-                return false;
+                return Parse_Error;
             }
             addQuery(QueryMessage::PreprocessFile, p);
             break; }
@@ -1073,24 +1077,24 @@ bool RClient::parse(int &argc, char **argv)
     }
     if (state == Error) {
         help(stderr, argv[0]);
-        return false;
+        return Parse_Error;
     }
 
     if (optind < argc) {
         fprintf(stderr, "rc: unexpected option -- '%s'\n", argv[optind]);
-        return false;
+        return Parse_Error;
     }
 
     if (!initLogging(argv[0], LogStderr, mLogLevel, logFile, logFlags)) {
         fprintf(stderr, "Can't initialize logging with %d %s 0x%0x\n",
                 mLogLevel, logFile.constData(), logFlags);
-        return false;
+        return Parse_Error;
     }
 
 
     if (mCommands.isEmpty()) {
         help(stderr, argv[0]);
-        return false;
+        return Parse_Error;
     }
     if (mCommands.size() > projectCommands.size()) {
         // If there's more than one command one likely does not want output from
@@ -1115,7 +1119,7 @@ bool RClient::parse(int &argc, char **argv)
     mArgc = argc;
     mArgv = argv;
 
-    return true;
+    return Parse_Exec;
 }
 
 void RClient::onNewMessage(const std::shared_ptr<Message> &message, const std::shared_ptr<Connection> &)
