@@ -85,30 +85,6 @@ include_directories(${CMAKE_CURRENT_LIST_DIR}
   rct
   ${CMAKE_CURRENT_BINARY_DIR}/rct/include/rct)
 
-set(RTAGS_SOURCES
-  CompilerManager.cpp
-  CompletionThread.cpp
-  SymbolInfoJob.cpp
-  DependenciesJob.cpp
-  DumpThread.cpp
-  EventSourceClient.cpp
-  FileManager.cpp
-  FindFileJob.cpp
-  FindSymbolsJob.cpp
-  FollowLocationJob.cpp
-  IndexerJob.cpp
-  JobScheduler.cpp
-  ListSymbolsJob.cpp
-  Preprocessor.cpp
-  Project.cpp
-  QueryJob.cpp
-  RTagsClang.cpp
-  ReferencesJob.cpp
-  ScanThread.cpp
-  Server.cpp
-  Source.cpp
-  StatusJob.cpp)
-
 if (CMAKE_SYSTEM_NAME MATCHES "Darwin")
   set(START_GROUP "")
   set(END_GROUP "")
