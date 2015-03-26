@@ -1409,10 +1409,10 @@ References to references will be treated as references to the referenced symbol"
             (let ((cur (rtags-current-container-name)))
               (when (not (string= cur rtags-cached-current-container))
                 (setq rtags-cached-current-container cur)
-                (run-hook-with-args 'rtags-current-container-hook rtags-current-container-hook)))))
+                (run-hook-with-args 'rtags-current-container-hook rtags-cached-current-container)))))
       (when rtags-cached-current-container
         (setq rtags-cached-current-container nil)
-        (run-hook-with-args 'rtags-current-container-hook rtags-current-container-hook)))))
+        (run-hook-with-args 'rtags-current-container-hook rtags-cached-current-container)))))
 
 (defun rtags-restart-find-container-timer ()
   (interactive)
