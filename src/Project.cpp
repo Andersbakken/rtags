@@ -501,18 +501,20 @@ static String formatDiagnostics(const Diagnostics &diagnostics, DiagnosticsForma
                 }
                 ret << String::format<256>(fileEmpty[format], loc.path().constData());
             }
-        } else if (loc.fileId() != lastFileId) {
-            if (first) {
-                ret = header[format];
-                first = false;
+        } else {
+            if (loc.fileId() != lastFileId) {
+                if (first) {
+                    ret = header[format];
+                    first = false;
+                }
+                hadDiagnostics.insert(loc.fileId());
+                if (lastFileId)
+                    ret << endFile[format];
+                lastFileId = loc.fileId();
+                ret << String::format<256>(startFile[format], loc.path().constData());
             }
-            hadDiagnostics.insert(loc.fileId());
-            if (lastFileId)
-                ret << endFile[format];
-            lastFileId = loc.fileId();
-            ret << String::format<256>(startFile[format], loc.path().constData());
+            ret << formatDiagnostic(loc, diagnostic);
         }
-        ret << formatDiagnostic(loc, diagnostic);
     }
     if (lastFileId)
         ret << endFile[format];
