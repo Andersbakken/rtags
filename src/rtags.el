@@ -1819,8 +1819,7 @@ References to references will be treated as references to the referenced symbol"
 (defun rtags-all-files (prefer-exact)
   (with-temp-buffer
     (rtags-call-rc "-P" "--elisp-list" (if rtags-find-file-case-insensitive "-I") (if prefer-exact "-A"))
-    (if (looking-at "Can't seem to connect to server")
-        (and (message "RTags: rdm doesn't seem to be running") nil)
+    (and (> (point-max) (point-min))
       (eval (read (current-buffer))))))
 
 (defvar rtags-find-file-history nil)
