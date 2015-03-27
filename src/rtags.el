@@ -1807,7 +1807,7 @@ References to references will be treated as references to the referenced symbol"
     (forward-line)))
 
 (defun rtags-all-files (prefer-exact)
-  (with-current-buffer (get-buffer-create "*fisk*")
+  (with-temp-buffer
     (rtags-call-rc "-P" "--elisp-list" (if rtags-find-file-case-insensitive "-I") (if prefer-exact "-A"))
     (if (looking-at "Can't seem to connect to server")
         (and (message "RTags: rdm doesn't seem to be running") nil)
