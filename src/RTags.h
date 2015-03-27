@@ -36,7 +36,7 @@ namespace RTags {
 enum {
     MajorVersion = 2,
     MinorVersion = 0,
-    DatabaseVersion = 65
+    DatabaseVersion = 66
 };
 
 inline String versionString()
