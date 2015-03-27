@@ -19,8 +19,16 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 #include "FileManager.h"
 #include "Project.h"
 
+static unsigned int flags(unsigned int queryFlags)
+{
+    unsigned int flags = QueryJob::QuietJob;
+    if (queryFlags & QueryMessage::ElispList)
+        flags |= QueryJob::QuoteOutput;
+    return flags;
+}
+
 FindFileJob::FindFileJob(const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Project> &project)
-    : QueryJob(query, QuietJob, project)
+    : QueryJob(query, ::flags(query->flags()), project)
 {
     const String q = query->query();
     if (!q.isEmpty()) {
@@ -71,6 +79,16 @@ int FindFileJob::execute()
     List<String> matches;
     const bool preferExact = queryFlags() & QueryMessage::FindFilePreferExact;
     int ret = 1;
+    bool firstElisp = queryFlags() & QueryMessage::ElispList;
+
+    auto writeFile = [this, &firstElisp](const Path &path) {
+        if (firstElisp) {
+            firstElisp = false;
+            if (!write("(list", DontQuote))
+                return false;
+        }
+        return write(path);
+    };
     while (dirit != dirs.end()) {
         const Path &dir = dirit->first;
         if (dir.size() < srcRoot.size()) {
@@ -126,8 +144,9 @@ int FindFileJob::execute()
                     matched.resolve();
                 if (preferExact && !foundExact) {
                     matches.append(matched);
-                } else if (!write(matched)) {
-                    return 1; // ???
+                } else {
+                    if (!writeFile(matched))
+                        return 1;
                 }
             }
             out.chop(key.size());
@@ -136,10 +155,11 @@ int FindFileJob::execute()
         ++dirit;
     }
     for (List<String>::const_iterator it = matches.begin(); it != matches.end(); ++it) {
-        if (!write(*it)) {
-            ret = 2;
-            break;
+        if (!writeFile(*it)) {
+            return 1;
         }
     }
+    if (queryFlags() & QueryMessage::ElispList && !firstElisp && !write(")", DontQuote))
+        return 1;
     return ret;
 }

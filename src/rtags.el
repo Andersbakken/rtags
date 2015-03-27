@@ -78,6 +78,11 @@
   :group 'rtags
   :type 'boolean)
 
+(defcustom rtags-use-filename-completion t
+  "Whether Rtags' special filename completion is enabled. Set to nil to enable ido-ubiquitous etc."
+  :group 'rtags
+  :type 'boolean)
+
 (defcustom rtags-diagnostics-use-pipe t
   "If diagnostics can use a pipe. If you're running emacs in cygwin you might have to set this to nil"
   :group 'rtags
@@ -1801,6 +1806,13 @@ References to references will be treated as references to the referenced symbol"
     (insert txt)
     (forward-line)))
 
+(defun rtags-all-files (prefer-exact)
+  (with-current-buffer (get-buffer-create "*fisk*")
+    (rtags-call-rc "-P" "--elisp-list" (if rtags-find-file-case-insensitive "-I") (if prefer-exact "-A"))
+    (if (looking-at "Can't seem to connect to server")
+        (and (message "RTags: rdm doesn't seem to be running") nil)
+      (eval (read (current-buffer))))))
+
 (defvar rtags-find-file-history nil)
 ;;;###autoload
 (defun rtags-find-file (&optional prefix tagname)
@@ -1814,7 +1826,10 @@ References to references will be treated as references to the referenced symbol"
         (setq prompt (concat (format "Find rfiles (default %s): " tagname)))
       (setq prompt "Find rfiles: "))
     (rtags-is-indexed)
-    (setq input (completing-read-default prompt (function rtags-filename-complete) nil nil nil 'rtags-find-file-history))
+    (setq input
+          (if rtags-use-filename-completion
+              (completing-read-default prompt (function rtags-filename-complete) nil nil nil 'rtags-find-file-history)
+            (completing-read prompt (rtags-all-files prefer-exact) nil nil nil 'rtags-find-file-history)))
     (setq rtags-find-file-history (cl-remove-duplicates rtags-find-file-history :from-end t :test 'equal))
     (cond ((string-match "\\(.*\\),\\([0-9]+\\)" input)
            (progn
