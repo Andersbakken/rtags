@@ -895,6 +895,7 @@ return t if rtags is allowed to modify this file"
     (define-key map (concat prefix "O") (function rtags-goto-offset))
     (define-key map (concat prefix ";") (function rtags-find-file))
     (define-key map (concat prefix "F") (function rtags-fixit))
+    (define-key map (concat prefix "L") (function rtags-copy-and-print-current-location))
     (define-key map (concat prefix "X") (function rtags-fix-fixit-at-point))
     (define-key map (concat prefix "B") (function rtags-show-rtags-buffer))
     (define-key map (concat prefix "I") (function rtags-imenu))
@@ -1805,6 +1806,15 @@ References to references will be treated as references to the referenced symbol"
     (goto-char (point-at-eol))
     (insert txt)
     (forward-line)))
+
+;;;###autoload
+(defun rtags-copy-and-print-current-location()
+  (interactive)
+  (let ((loc (rtags-current-location)))
+    (if (not loc)
+        (message "No current location!")
+      (kill-new loc)
+      (message loc))))
 
 (defun rtags-all-files (prefer-exact)
   (with-temp-buffer
