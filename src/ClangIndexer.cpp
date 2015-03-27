@@ -485,12 +485,6 @@ String ClangIndexer::addNamePermutations(const CXCursor &cursor, const Location 
                 const int len = (last - secondLast);
                 memmove(buf + pos + len, buf + pos, secondLast - (buf + pos));
                 pos += len;
-                // ### We could/should just move the colon colon values but this
-                // should be pretty quick and I don't want to write the code to
-                // do it.
-                ::tokenize(buf, pos,
-                           &templateStart, &templateEnd,
-                           &colonColonCount, colonColons);
             }
         } else { // remove templates
             assert(templateStart != -1);
@@ -499,6 +493,12 @@ String ClangIndexer::addNamePermutations(const CXCursor &cursor, const Location 
             memmove(buf + pos + templateSize, buf + pos, (buf + templateStart) - (buf + pos));
             pos += templateSize;
         }
+        // ### We could/should just move the colon colon values but this
+        // should be pretty quick and I don't want to write the code to
+        // do it.
+        ::tokenize(buf, pos,
+                   &templateStart, &templateEnd,
+                   &colonColonCount, colonColons);
     }
 
     return ret;
