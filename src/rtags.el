@@ -1820,7 +1820,7 @@ References to references will be treated as references to the referenced symbol"
   (with-temp-buffer
     (rtags-call-rc "-P" "--elisp-list" (if rtags-find-file-case-insensitive "-I") (if prefer-exact "-A"))
     (and (> (point-max) (point-min))
-      (eval (read (current-buffer))))))
+         (eval (read (current-buffer))))))
 
 (defvar rtags-find-file-history nil)
 ;;;###autoload
