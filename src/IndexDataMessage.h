@@ -30,27 +30,36 @@ public:
 
     IndexDataMessage(const std::shared_ptr<IndexerJob> &job)
         : RTagsMessage(MessageId), mParseTime(0), mKey(job->source.key()), mId(0),
-          mIndexerJobFlags(job->flags), mInclusionErrors(false)
+          mIndexerJobFlags(job->flags), mFlags(0)
     {}
 
     IndexDataMessage()
         : RTagsMessage(MessageId), mParseTime(0), mKey(0), mId(0),
-          mIndexerJobFlags(0), mInclusionErrors(false)
+          mIndexerJobFlags(0), mFlags(0)
     {}
 
     void encode(Serializer &serializer) const
     {
         serializer << mProject << mParseTime << mKey << mId << mIndexerJobFlags
                    << mMessage << mFixIts << mIncludes << mDiagnostics << mFiles
-                   << mDeclarations << mHeaderErrors << mInclusionErrors;
+                   << mDeclarations << mHeaderErrors << mFlags;
     }
 
     void decode(Deserializer &deserializer)
     {
         deserializer >> mProject >> mParseTime >> mKey >> mId >> mIndexerJobFlags
                      >> mMessage >> mFixIts >> mIncludes >> mDiagnostics
-                     >> mFiles >> mDeclarations >> mHeaderErrors >> mInclusionErrors;
+                     >> mFiles >> mDeclarations >> mHeaderErrors >> mFlags;
     }
+
+    enum Flag {
+        None = 0x0,
+        ParseFailure = 0x1,
+        InclusionError = 0x2
+    };
+    unsigned int flags() const { return mFlags; }
+    void setFlags(unsigned int flags) { mFlags = flags; }
+    void setFlag(Flag flag, bool on = true) { if (on) { mFlags |= flag; } else { mFlags &= ~flag; } }
 
     Set<uint32_t> visitedFiles() const
     {
@@ -103,8 +112,6 @@ public:
     Declarations &declarations() { return mDeclarations; }
     Hash<uint32_t, bool> &files() { return mFiles; }
     Set<uint32_t> &headerErrors() { return mHeaderErrors; }
-    bool inclusionErrors() const { return mInclusionErrors; } // complete failure to build is considered an inclusion error
-    void setInclusionErrors(bool inclusionErrors) { mInclusionErrors = inclusionErrors; }
 private:
     Path mProject;
     uint64_t mParseTime, mKey, mId;
@@ -116,7 +123,7 @@ private:
     Declarations mDeclarations; // function declarations and forward declaration
     Hash<uint32_t, bool> mFiles;
     Set<uint32_t> mHeaderErrors;
-    bool mInclusionErrors;
+    unsigned int mFlags;
 };
 
 #endif

@@ -123,7 +123,9 @@ void JobScheduler::startJobs()
             delete process;
             node->job->flags |= IndexerJob::Crashed;
             debug() << "job crashed (didn't start)" << jobId << node->job->source.key() << node->job.get();
-            jobFinished(node->job, std::shared_ptr<IndexDataMessage>(new IndexDataMessage(node->job)));
+            std::shared_ptr<IndexDataMessage> msg(new IndexDataMessage(node->job));
+            msg->setFlag(IndexDataMessage::ParseFailure);
+            jobFinished(node->job, msg);
             rp.clear(); // in case rp was missing for a moment and we fell back to searching $PATH
             cont();
             continue;
@@ -154,7 +156,9 @@ void JobScheduler::startJobs()
                         // job failed, probably no IndexDataMessage coming
                         node->job->flags |= IndexerJob::Crashed;
                         debug() << "job crashed" << jobId << node->job->source.key() << node->job.get();
-                        jobFinished(node->job, std::shared_ptr<IndexDataMessage>(new IndexDataMessage(node->job)));
+                        std::shared_ptr<IndexDataMessage> msg(new IndexDataMessage(node->job));
+                        msg->setFlag(IndexDataMessage::ParseFailure);
+                        jobFinished(node->job, msg);
                     }
                 }
                 mHeaderErrorJobIds.remove(jobId);

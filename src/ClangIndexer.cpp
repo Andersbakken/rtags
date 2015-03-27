@@ -1172,7 +1172,7 @@ bool ClangIndexer::parse()
         return true;
     }
     error() << "Failed to parse" << mClangLine;
-    mIndexDataMessage.setInclusionErrors(true);
+    mIndexDataMessage.setFlag(IndexDataMessage::ParseFailure);
     return false;
 }
 
@@ -1276,7 +1276,7 @@ bool ClangIndexer::diagnose()
         const CXCursor cursor = clang_getCursor(mClangUnit, diagLoc);
         const bool inclusionError = clang_getCursorKind(cursor) == CXCursor_InclusionDirective;
         if (inclusionError)
-            mIndexDataMessage.setInclusionErrors(true);
+            mIndexDataMessage.setFlag(IndexDataMessage::InclusionError);
         if (fileId != mSource.fileId && sev >= CXDiagnostic_Error && !mIndexDataMessage.headerErrors().contains(fileId)) {
             // error() << "Got a dude" << cursor;
             bool headerError;

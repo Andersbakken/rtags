@@ -551,7 +551,7 @@ void Project::onJobFinished(const std::shared_ptr<IndexerJob> &job, const std::s
         error() << "Can't find source for" << Location::path(fileId);
         return;
     }
-    if (success) {
+    if (!(msg->flags() & IndexDataMessage::ParseFailure)) {
         for (uint32_t fileId : job->visited) {
             if (!validate(fileId)) {
                 releaseFileIds(job->visited);
@@ -599,7 +599,8 @@ void Project::onJobFinished(const std::shared_ptr<IndexerJob> &job, const std::s
     int symbolNames = 0;
     Set<uint32_t> visited = msg->visitedFiles();
     updateFixIts(visited, msg->fixIts());
-    updateDependencies(visited, msg->includes(), msg->inclusionErrors() ? LeaveOld : PruneOld);
+    updateDependencies(visited, msg->includes(),
+                       msg->flags() & (IndexDataMessage::InclusionError|IndexDataMessage::ParseFailure) ? LeaveOld : PruneOld);
     updateDeclarations(visited, msg->declarations());
     if (success) {
         src->second.parsed = msg->parseTime();
