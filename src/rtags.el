@@ -61,6 +61,8 @@
 (defvar rtags-path-face 'rtags-path "Path part")
 (defvar rtags-context-face 'rtags-context "Context part")
 (defconst rtags-buffer-name "*RTags*")
+(defconst rtags-diagnostics-buffer-name "*RTags Diagnostics*")
+(defconst rtags-diagnostics-raw-buffer-name "*RTags Raw*")
 (defvar rtags-last-request-not-indexed nil)
 (defvar rtags-buffer-bookmarks 0)
 (defvar rtags-diagnostics-process nil)
@@ -312,7 +314,7 @@ return t if rtags is allowed to modify this file"
   (generate-new-buffer name))
 
 (defun rtags-has-diagnostics ()
-  (and (get-buffer "*RTags Diagnostics*")
+  (and (get-buffer "rtags-diagnostics-buffer-name")
        rtags-diagnostics-process
        (not (eq (process-status rtags-diagnostics-process) 'exit))
        (not (eq (process-status rtags-diagnostics-process) 'signal))))
@@ -416,11 +418,11 @@ return t if rtags is allowed to modify this file"
 (defun rtags-previous-diag () (interactive) (rtags-next-prev-diag nil))
 
 (defun rtags-next-prev-diag (next)
-  (if (get-buffer "*RTags Diagnostics*")
+  (if (get-buffer rtags-diagnostics-buffer-name)
       (let (target
-            (win (get-buffer-window "*RTags Diagnostics*")))
+            (win (get-buffer-window rtags-diagnostics-buffer-name)))
         (if win (select-window win))
-        (set-buffer "*RTags Diagnostics*")
+        (set-buffer rtags-diagnostics-buffer-name)
         (when (not (= (point-max) (point-min)))
           (cond ((and (= (point-at-bol) (point-min)) (not next))
                  (setq target (- (point-max) 1))
@@ -1149,7 +1151,7 @@ References to references will be treated as references to the referenced symbol"
       (delete-overlay (car errorlist))
       (setq errorlist (cdr errorlist)))
     (puthash filename nil rtags-overlays))
-  (let ((diagnostics-buffer (get-buffer "*RTags Diagnostics*"))
+  (let ((diagnostics-buffer (get-buffer rtags-diagnostics-buffer-name))
         (rx (concat "^" filename ":")))
     (when diagnostics-buffer
       (with-current-buffer diagnostics-buffer
@@ -1281,7 +1283,7 @@ References to references will be treated as references to the referenced symbol"
                                            (t 'rtags-errline)))
           (setq errorlist (append errorlist (list overlay)))
           (puthash filename errorlist rtags-overlays))))
-    (let ((diagnostics-buffer (get-buffer "*RTags Diagnostics*")))
+    (let ((diagnostics-buffer (get-buffer rtags-diagnostics-buffer-name)))
       (when diagnostics-buffer
         (with-current-buffer diagnostics-buffer
           (setq buffer-read-only nil)
@@ -1307,7 +1309,7 @@ References to references will be treated as references to the referenced symbol"
 
 (defun rtags-parse-diagnostics (&optional buffer)
   (save-excursion
-    (with-current-buffer (or buffer (get-buffer-create "*RTags Raw*"))
+    (with-current-buffer (or buffer (get-buffer-create rtags-diagnostics-raw-buffer-name))
       (goto-char (point-min))
       (while (search-forward "\n" (point-max) t)
         (let ((data (and (> (1- (point)) (point-min))
@@ -1364,7 +1366,7 @@ References to references will be treated as references to the referenced symbol"
   (setq rtags-update-current-error-timer
         (and (or rtags-display-current-error-as-message
                  rtags-display-current-error-as-tooltip)
-             (get-buffer "*RTags Diagnostics*")
+             (get-buffer rtags-diagnostics-buffer-name)
              (run-with-idle-timer
               rtags-error-timer-interval
               nil
@@ -1473,15 +1475,15 @@ References to references will be treated as references to the referenced symbol"
   (interactive)
   (if (and rtags-diagnostics-process (not (eq (process-status rtags-diagnostics-process) 'exit)))
       (kill-process rtags-diagnostics-process))
-  (if (get-buffer "*RTags Diagnostics*")
-      (kill-buffer "*RTags Diagnostics*")))
+  (if (get-buffer rtags-diagnostics-buffer-name)
+      (kill-buffer rtags-diagnostics-buffer-name)))
 
 ;;;###autoload
 (defun rtags-clear-diagnostics ()
   (interactive)
-  (when (get-buffer "*RTags Diagnostics*")
+  (when (get-buffer rtags-diagnostics-buffer-name)
     (let (deactivate-mark)
-      (with-current-buffer "*RTags Diagnostics*"
+      (with-current-buffer rtags-diagnostics-buffer-name
         (setq buffer-read-only nil)
         (goto-char (point-min))
         (delete-char (- (point-max) (point-min)))
@@ -1489,11 +1491,11 @@ References to references will be treated as references to the referenced symbol"
   (rtags-clear-all-diagnostics-overlays))
 
 (defun rtags-diagnostics-process-filter (process output)
-  ;; Collect the diagnostics into "*RTags Raw*" until a newline is found
+  ;; Collect the diagnostics into rtags-diagnostics-raw-buffer-name until a newline is found
   ;; (with-current-buffer (get-buffer-create "*RTags Debug*")
   ;;   (goto-char (point-max))
   ;;   (insert output))
-  (with-current-buffer (get-buffer-create "*RTags Raw*")
+  (with-current-buffer (get-buffer-create rtags-diagnostics-raw-buffer-name)
     (goto-char (point-max))
     (insert output))
   ;; only try to process diagnostics if we detect an end condition
@@ -1522,7 +1524,7 @@ References to references will be treated as references to the referenced symbol"
   (interactive "P")
   (if restart
       (rtags-stop-diagnostics))
-  (let ((buf (get-buffer-create "*RTags Diagnostics*")))
+  (let ((buf (get-buffer-create rtags-diagnostics-buffer-name)))
     (when (cond ((not rtags-diagnostics-process) t)
                 ((eq (process-status rtags-diagnostics-process) 'exit) t)
                 ((eq (process-status rtags-diagnostics-process) 'signal) t)
@@ -1532,7 +1534,7 @@ References to references will be treated as references to the referenced symbol"
       (unless nodirty
         (rtags-reparse-file))
       (let ((process-connection-type (not rtags-diagnostics-use-pipe))) ;; use a pipe if rtags-diagnostics-use-pipe is t
-        (let ((rawbuf (get-buffer "*RTags Raw*")))
+        (let ((rawbuf (get-buffer rtags-diagnostics-raw-buffer-name)))
           (when rawbuf
             (kill-buffer rawbuf)))
         (setq rtags-diagnostics-process (start-process "RTags Diagnostics" buf (rtags-executable-find "rc") "-m" "--elisp-list"))
@@ -1542,7 +1544,7 @@ References to references will be treated as references to the referenced symbol"
         (setq rtags-last-completion-position nil)
         (rtags-clear-diagnostics))))
   (when (and (called-interactively-p 'any) (rtags-is-running))
-    (switch-to-buffer-other-window "*RTags Diagnostics*")
+    (switch-to-buffer-other-window rtags-diagnostics-buffer-name)
     (other-window 1)))
 
 (defvar rtags-indexed nil)
