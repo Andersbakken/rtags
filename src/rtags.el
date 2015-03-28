@@ -43,7 +43,6 @@
   (eval-when-compile
     (require 'cl)))
 (require 'compile)
-(require 'dabbrev)
 (require 'thingatpt)
 (require 'repeat)
 
@@ -172,11 +171,6 @@
   "Run after rtags has set the current container"
   :group 'rtags
   :type 'hook)
-
-(defcustom rtags-expand-function '(lambda () (dabbrev-expand nil))
-  "What function to call for expansions"
-  :group 'rtags
-  :type 'function)
 
 (defcustom rtags-is-indexable 'rtags-is-indexable-default
   "What function to call for expansions"
