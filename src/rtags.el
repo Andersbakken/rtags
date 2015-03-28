@@ -107,8 +107,8 @@
   :group 'rtags
   :type 'boolean)
 
-(defcustom rtags-completions-timer-interval .5
-  "Interval for completions timer"
+(defcustom rtags-completions-timer-interval -1
+  "Interval for completions timer. -1 means don't preemptively prepare completions"
   :group 'rtags
   :type 'number)
 
@@ -1461,7 +1461,7 @@ References to references will be treated as references to the referenced symbol"
     (rtags-update-current-project)
     (rtags-update-current-error)
     (rtags-close-taglist)
-    ;;(rtags-update-completions-timer)
+    (rtags-update-completions-timer)
     (rtags-restart-find-container-timer)
     (rtags-restart-tracking-timer)))
 
@@ -2280,6 +2280,7 @@ BUFFER : the buffer to be checked and reparsed, if it's nil, use current buffer"
   (if rtags-completions-timer
       (cancel-timer rtags-completions-timer))
   (cond ((not (and rtags-completions-enabled
+                   (>= rtags-completions-timer-interval 0)
                    (rtags-has-diagnostics)
                    (or (eq major-mode 'c++-mode) (eq major-mode 'c-mode) (eq major-mode 'objc-mode)))))
         ((= rtags-completions-timer-interval 0) (rtags-update-completions))
