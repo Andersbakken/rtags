@@ -314,7 +314,7 @@ return t if rtags is allowed to modify this file"
   (generate-new-buffer name))
 
 (defun rtags-has-diagnostics ()
-  (and (get-buffer "rtags-diagnostics-buffer-name")
+  (and (get-buffer rtags-diagnostics-buffer-name)
        rtags-diagnostics-process
        (not (eq (process-status rtags-diagnostics-process) 'exit))
        (not (eq (process-status rtags-diagnostics-process) 'signal))))
