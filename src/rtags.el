@@ -765,7 +765,7 @@ return t if rtags is allowed to modify this file"
 
 (defun rtags-log (log)
   (if rtags-rc-log-enabled
-      (with-current-buffer (get-buffer-create "*RTags Log*")
+      (with-current-buffer (rtags-get-buffer-create-no-undo "*RTags Log*")
         (goto-char (point-max))
         (setq buffer-read-only nil)
         (insert "**********************************\n" log "\n")
@@ -1307,9 +1307,15 @@ References to references will be treated as references to the referenced symbol"
           (rtags-handle-check-style-error buf file (car errors))
           (setq errors (cdr errors)))))))
 
+(defun rtags-get-buffer-create-no-undo (name)
+  (or (get-buffer name)
+      (let ((buf (get-buffer-create name)))
+        (buffer-disable-undo buf)
+        buf)))
+
 (defun rtags-parse-diagnostics (&optional buffer)
   (save-excursion
-    (with-current-buffer (or buffer (get-buffer-create rtags-diagnostics-raw-buffer-name))
+    (with-current-buffer (or buffer (rtags-get-buffer-create-no-undo rtags-diagnostics-raw-buffer-name))
       (goto-char (point-min))
       (while (search-forward "\n" (point-max) t)
         (let ((data (and (> (1- (point)) (point-min))
@@ -1492,10 +1498,10 @@ References to references will be treated as references to the referenced symbol"
 
 (defun rtags-diagnostics-process-filter (process output)
   ;; Collect the diagnostics into rtags-diagnostics-raw-buffer-name until a newline is found
-  ;; (with-current-buffer (get-buffer-create "*RTags Debug*")
+  ;; (with-current-buffer (rtags-get-buffer-create-no-undo "*RTags Debug*")
   ;;   (goto-char (point-max))
   ;;   (insert output))
-  (with-current-buffer (get-buffer-create rtags-diagnostics-raw-buffer-name)
+  (with-current-buffer (rtags-get-buffer-create-no-undo rtags-diagnostics-raw-buffer-name)
     (goto-char (point-max))
     (insert output))
   ;; only try to process diagnostics if we detect an end condition
@@ -1524,7 +1530,7 @@ References to references will be treated as references to the referenced symbol"
   (interactive "P")
   (if restart
       (rtags-stop-diagnostics))
-  (let ((buf (get-buffer-create rtags-diagnostics-buffer-name)))
+  (let ((buf (rtags-get-buffer-create-no-undo rtags-diagnostics-buffer-name)))
     (when (cond ((not rtags-diagnostics-process) t)
                 ((eq (process-status rtags-diagnostics-process) 'exit) t)
                 ((eq (process-status rtags-diagnostics-process) 'signal) t)
