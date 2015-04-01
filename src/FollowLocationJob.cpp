@@ -51,7 +51,7 @@ int FollowLocationJob::execute()
 
     if (queryFlags() & QueryMessage::DeclarationOnly ? target.isDefinition() : !target.isDefinition()) {
         const auto other = project()->findTarget(target);
-        if (!other.isNull()) {
+        if (!other.isNull() && other.usr == target.usr) {
             write(other.location);
             return 0;
         }
