@@ -801,6 +801,7 @@ void Project::onFileRemoved(const Path &file)
             releaseFileIds(job->visited);
             Server::instance()->jobScheduler()->abort(job);
         }
+        debug() << "Erasing source" << Location::path(f);
         mSources.erase(it++);
     }
 
