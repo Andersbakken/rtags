@@ -36,7 +36,6 @@ class Connection;
 class ErrorMessage;
 class IndexDataMessage;
 class QueryJob;
-class JobOutput;
 class LogOutputMessage;
 class Message;
 class OutputMessage;
@@ -100,7 +99,6 @@ public:
     bool runTests();
     const Options &options() const { return mOptions; }
     bool suspended() const { return mSuspended; }
-    void onJobOutput(JobOutput&& out);
     std::shared_ptr<Project> project(const Path &path) const { return mProjects.value(path); }
     bool shouldIndex(const Source &source, const Path &project) const;
     void stopServers();
