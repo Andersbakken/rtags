@@ -2412,7 +2412,6 @@ If rtags-display-summary-as-tooltip is t, a tooltip is displayed."
   t)
 (add-hook 'find-file-hook 'rtags-find-file-hook)
 
-(require 'cl-macs)
 (defun rtags-get-include-file-for-symbol ()
   "Insert #include declaration to buffer corresponding to the input symbol"
   (interactive)
@@ -2430,9 +2429,11 @@ If rtags-display-summary-as-tooltip is t, a tooltip is displayed."
                                                (setq raw-includes-list (split-string (buffer-substring-no-properties (point-min) (point-max)) "\n"))
                                                (completing-read "Pick definition: " raw-includes-list nil t))))
                       (when raw-include (car (split-string raw-include ":")))))
-    (when (and final-res rtags-include-prefixes) (cl-loop for prefix in rtags-include-prefixes
-                                                          do (if (string-match-p prefix final-res) (setq final-res (concat prefix (car (last (split-string final-res prefix))))))))
-    (when final-res (insert (concat "#include \"" final-res "\"\n")))))
+    (when final-res
+      (when rtags-include-prefixes
+        (mapc (λ(prefix) (if (string-match-p prefix final-res) (setq final-res (concat prefix (car (last (split-string final-res prefix)))))))
+              rtags-include-prefixes))
+      (insert (concat "#include \"" final-res "\"\n")))))
 
 (provide 'rtags)
 
