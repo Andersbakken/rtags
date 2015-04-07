@@ -2407,7 +2407,6 @@ If rtags-display-summary-as-tooltip is t, a tooltip is displayed."
   t)
 (add-hook 'find-file-hook 'rtags-find-file-hook)
 
-(require 'cl-macs)
 (defun rtags-get-include-file-for-symbol ()
   "Insert #include declaration to buffer corresponding to the input symbol"
   (interactive)
