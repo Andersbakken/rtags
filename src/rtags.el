@@ -287,11 +287,6 @@ return t if rtags is allowed to modify this file"
   :group 'rtags
   :type 'boolean)
 
-(defcustom rtags-symbolnames-case-insensitive nil
-  "Treat symbol names case insensitively"
-  :group 'rtags
-  :type 'boolean)
-
 (defcustom rtags-find-file-prefer-exact-match t
   "Jump directly to files that exactly match the filename for rtags-find-file"
   :group 'rtags
