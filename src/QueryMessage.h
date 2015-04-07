@@ -170,7 +170,6 @@ public:
     virtual void encode(Serializer &serializer) const override;
     virtual void decode(Deserializer &deserializer) override;
 
-    void addProject(const Path &project) { mCurrentFile.append(project); }
     void setCurrentFile(const Path &currentFile) { mCurrentFile = currentFile; }
     Path currentFile() const { return mCurrentFile; }
 private:
