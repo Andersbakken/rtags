@@ -411,7 +411,7 @@ result in a buffer. If region is active only display the
 preprocessed output for that region.
 
 #+BEGIN_SRC
-(rtags-print-cursorinfo)
+(rtags-print-symbol-info)
 #+END_SRC
 Print some info about symbol under cursor
 
