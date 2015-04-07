@@ -67,6 +67,7 @@ public:
         GenerateTest,
         HasFileManager,
         Help,
+        IncludeFile,
         IMenu,
         IsIndexed,
         IsIndexing,

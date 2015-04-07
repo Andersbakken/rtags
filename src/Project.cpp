@@ -1508,7 +1508,6 @@ Set<Symbol> Project::findSubclasses(const Symbol &symbol)
     return ret;
 }
 
-
 void Project::beginScope()
 {
     assert(!mFileMapScope);

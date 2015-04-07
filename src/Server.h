@@ -137,6 +137,7 @@ private:
     void fixIts(const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Connection> &conn);
     void followLocation(const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Connection> &conn);
     void hasFileManager(const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Connection> &conn);
+    void includeFile(const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Connection> &conn);
     void isIndexed(const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Connection> &conn);
     void isIndexing(const std::shared_ptr<QueryMessage> &, const std::shared_ptr<Connection> &conn);
     void jobCount(const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Connection> &conn);

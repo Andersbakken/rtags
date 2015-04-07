@@ -23,6 +23,7 @@
 #include "VisitFileResponseMessage.h"
 #include "Filter.h"
 #include "FindFileJob.h"
+#include "IncludeFileJob.h"
 #include "RClient.h"
 #include "FindSymbolsJob.h"
 #include "FollowLocationJob.h"
@@ -505,6 +506,9 @@ void Server::handleQueryMessage(const std::shared_ptr<QueryMessage> &message, co
     case QueryMessage::Sources:
         sources(message, conn);
         break;
+    case QueryMessage::IncludeFile:
+        includeFile(message, conn);
+        break;
     case QueryMessage::GenerateTest:
         generateTest(message, conn);
         break;
@@ -985,6 +989,19 @@ void Server::hasFileManager(const std::shared_ptr<QueryMessage> &query, const st
         conn->write("0");
     }
     conn->finish();
+}
+
+void Server::includeFile(const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Connection> &conn)
+{
+    std::shared_ptr<Project> project = projectForQuery(query);
+    if (!project) {
+        conn->write("No project");
+        conn->finish();
+        return;
+    }
+
+    IncludeFileJob job(query, project);
+    conn->finish(job.run(conn));
 }
 
 void Server::preprocessFile(const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Connection> &conn)

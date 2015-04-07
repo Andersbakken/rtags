@@ -90,6 +90,7 @@ struct Option opts[] = {
     { RClient::RemoveFile, "remove", 'D', required_argument, "Remove file from project." },
     { RClient::FindProjectRoot, "find-project-root", 0, required_argument, "Use to check behavior of find-project-root." },
     { RClient::FindProjectBuildRoot, "find-project-build-root", 0, required_argument, "Use to check behavior of find-project-root for builds." },
+    { RClient::IncludeFile, "include-file", 0, required_argument, "Use to generate include statement for symbol." },
     { RClient::Sources, "sources", 0, optional_argument, "Dump sources for source file." },
     { RClient::Dependencies, "dependencies", 0, required_argument, "Dump dependencies for source file." },
     { RClient::ReloadFileManager, "reload-file-manager", 'B', no_argument, "Reload file manager." },
@@ -758,7 +759,7 @@ RClient::ParseStatus RClient::parse(int &argc, char **argv)
             addQuery(type, encoded, QueryMessage::HasLocation);
             break; }
         case CurrentFile:
-            mCurrentFile.append(optarg);
+            mCurrentFile.append(Path::resolved(optarg));
             break;
         case ReloadFileManager:
             addQuery(QueryMessage::ReloadFileManager);
@@ -833,16 +834,19 @@ RClient::ParseStatus RClient::parse(int &argc, char **argv)
         case ListSymbols:
         case FindSymbols:
         case Sources:
+        case IncludeFile:
         case JobCount:
         case Status: {
             unsigned int extraQueryFlags = 0;
             QueryMessage::Type type = QueryMessage::Invalid;
+            bool resolve = true;
             switch (opt->option) {
             case CheckReindex: type = QueryMessage::CheckReindex; break;
             case Reindex: type = QueryMessage::Reindex; break;
             case Project: type = QueryMessage::Project; break;
-            case FindFile: type = QueryMessage::FindFile; break;
+            case FindFile: type = QueryMessage::FindFile; resolve = false; break;
             case Sources: type = QueryMessage::Sources; break;
+            case IncludeFile: type = QueryMessage::IncludeFile; resolve = false; break;
             case Status: type = QueryMessage::Status; break;
             case ListSymbols: type = QueryMessage::ListSymbols; break;
             case FindSymbols: type = QueryMessage::FindSymbols; break;
@@ -858,7 +862,7 @@ RClient::ParseStatus RClient::parse(int &argc, char **argv)
             }
             if (arg) {
                 Path p(arg);
-                if (opt->option != FindFile && p.exists()) {
+                if (resolve && p.exists()) {
                     p.resolve();
                     addQuery(type, p, extraQueryFlags);
                 } else {

@@ -112,6 +112,7 @@ add_executable(rdm
   FindFileJob.cpp
   FindSymbolsJob.cpp
   FollowLocationJob.cpp
+  IncludeFileJob.cpp
   IndexerJob.cpp
   JobScheduler.cpp
   ListSymbolsJob.cpp

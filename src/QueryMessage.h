@@ -29,6 +29,7 @@ class QueryMessage : public RTagsMessage
 public:
     enum { MessageId = QueryId };
     enum Type {
+        Invalid,
         GenerateTest,
         CheckReindex,
         ClassHierarchy,
@@ -44,7 +45,7 @@ public:
         FixIts,
         FollowLocation,
         HasFileManager,
-        Invalid,
+        IncludeFile,
         IsIndexed,
         IsIndexing,
         JobCount,

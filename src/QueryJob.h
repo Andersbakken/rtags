@@ -64,6 +64,7 @@ public:
     void setJobFlags(unsigned int flags) { mJobFlags = flags; }
     void setJobFlag(Flag flag, bool on = true) { if (on) { mJobFlags |= flag; } else { mJobFlags &= ~flag; } }
     unsigned int queryFlags() const { return mQueryMessage ? mQueryMessage->flags() : 0; }
+    std::shared_ptr<QueryMessage> queryMessage() const { return mQueryMessage; }
     unsigned int keyFlags() const { return QueryMessage::keyFlags(queryFlags()); }
     bool filter(const String &val) const;
     Signal<std::function<void(const String &)> > &output() { return mOutput; }
