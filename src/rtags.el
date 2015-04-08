@@ -1055,6 +1055,10 @@ References to references will be treated as references to the referenced symbol"
                   (error "Can't open file %s" filename))
                 (with-current-buffer buf
                   (save-excursion
+                    (message "RTags: Matched: [%s] [%s] for \"%s\""
+                             (or (match-string-no-properties 2 line) "<nothing>")
+                             (or (match-string-no-properties 3 line) "<nothing>")
+                             line)
                     (rtags-goto-line-col (string-to-number (match-string-no-properties 2 line))
                                          (string-to-number (match-string-no-properties 3 line)))
                     (when (cond ((looking-at (concat "~" prev)) (forward-char) t)
