@@ -1050,7 +1050,7 @@ References to references will be treated as references to the referenced symbol"
           (if (string-match "^\\(.*\\):\\([0-9]+\\):\\([0-9]+\\):$" line)
               (let* ((filename (match-string-no-properties 1 line))
                      (buf (or (find-buffer-visiting filename)
-                              (and (incf filesopened) (find-file-noselect filename)))))
+                              (and (find-file-noselect filename) (incf filesopened)))))
                 (unless buf
                   (error "Can't open file %s" filename))
                 (with-current-buffer buf
