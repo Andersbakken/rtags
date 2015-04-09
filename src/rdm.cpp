@@ -24,6 +24,9 @@
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
+#ifdef OS_Darwin
+#include <sys/resource.h>
+#endif
 
 static void sigSegvHandler(int signal)
 {
@@ -122,6 +125,16 @@ static void usage(FILE *f)
 
 int main(int argc, char** argv)
 {
+#ifdef OS_Darwin
+    struct rlimit rlp;
+    if (getrlimit(RLIMIT_NOFILE, &rlp) == 0) {
+        if (rlp.rlim_cur < 1000) {
+            rlp.rlim_cur = 1000;
+            setrlimit(RLIMIT_NOFILE, &rlp);
+        }
+    }
+#endif
+
     {
         pthread_attr_t attr;
         pthread_attr_init(&attr);
