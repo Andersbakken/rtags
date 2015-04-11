@@ -45,7 +45,7 @@ String Source::toString() const
     return ret;
 }
 
-static inline Source::Language guessLanguageFromCompiler(const Path &fullPath) // ### not threadsafe
+static inline Source::Language guessLanguageFromCompiler(const Path &fullPath)
 {
     assert(EventLoop::isMainThread());
 
