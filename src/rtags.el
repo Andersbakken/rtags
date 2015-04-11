@@ -500,7 +500,8 @@ return t if rtags is allowed to modify this file"
                 (default-directory (push (concat "--current-file=" default-directory) arguments))
                 (t nil))
 
-          (rtags-log (concat rc " " (rtags-combine-strings arguments)))
+          (when rtags-rc-log-enabled
+            (rtags-log (concat rc " " (rtags-combine-strings arguments))))
           (let ((proc (cond ((and unsaved async)
                              (let ((proc (apply #'start-process "rc" (current-buffer) rc arguments)))
                                (with-current-buffer unsaved
@@ -755,12 +756,11 @@ return t if rtags is allowed to modify this file"
     (and fn (format "%s:%d:%d:" fn (line-number-at-pos offset) (1+ (- (or offset (point)) (point-at-bol)))))))
 
 (defun rtags-log (log)
-  (if rtags-rc-log-enabled
-      (with-current-buffer (rtags-get-buffer-create-no-undo "*RTags Log*")
-        (goto-char (point-max))
-        (setq buffer-read-only nil)
-        (insert "**********************************\n" log "\n")
-        (setq buffer-read-only t))))
+  (with-current-buffer (rtags-get-buffer-create-no-undo "*RTags Log*")
+    (goto-char (point-max))
+    (setq buffer-read-only nil)
+    (insert "**********************************\n" log "\n")
+    (setq buffer-read-only t)))
 
 (defvar rtags-symbol-history nil)
 
@@ -2048,7 +2048,8 @@ definition."
     (rtags-call-rc "-Y" "-S" string
                    (if rtags-symbolnames-case-insensitive "-I")
                    (if rtags-wildcard-symbol-names "--wildcard-symbol-names"))
-    (rtags-log (buffer-string))
+    ;; (when rtags-rc-log-enabled
+    ;;   (rtags-log (buffer-string)))
     (eval (read (buffer-string)))))
 
 (defun rtags-symbolname-completion-exactmatch (string)
