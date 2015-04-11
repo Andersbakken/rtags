@@ -335,7 +335,7 @@ static inline bool isCompilerWrapper(const char *fileName)
     return false;
 }
 
-List<Source> Source::parse(const String &cmdLine, const Path &base, unsigned int flags,
+List<Source> Source::parse(const String &cmdLine, const Path &base, unsigned int parseFlags,
                            List<Path> *unresolvedInputLocations)
 {
     String args = cmdLine;
@@ -465,7 +465,7 @@ List<Source> Source::parse(const String &cmdLine, const Path &base, unsigned int
                         define.define = def;
                     } else {
                         define.define = def.left(eq);
-                        define.value = (flags & Escape ? unquote(def.mid(eq + 1)) : def.mid(eq + 1));
+                        define.value = (parseFlags & Escape ? unquote(def.mid(eq + 1)) : def.mid(eq + 1));
                     }
                     debug("Parsing define: [%s] => [%s]%s[%s]", def.constData(),
                           define.define.constData(),
@@ -561,7 +561,7 @@ List<Source> Source::parse(const String &cmdLine, const Path &base, unsigned int
                 arguments.append(arg);
                 if (hasValue(arg)) {
                     String val = split.value(++i);
-                    if (flags & Escape)
+                    if (parseFlags & Escape)
                         val = unquote(val);
                     arguments.append(Path::resolved(val, Path::MakeAbsolute, path));
                 }

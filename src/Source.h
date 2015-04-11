@@ -174,7 +174,7 @@ struct Source
         Escape = 0x1
     };
     static List<Source> parse(const String &cmdLine, const Path &pwd,
-                              unsigned int flags,
+                              unsigned int parseFlags,
                               List<Path> *unresolvedInputLocation = 0);
 };
 
