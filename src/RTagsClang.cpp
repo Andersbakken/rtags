@@ -165,9 +165,10 @@ void reparseTranslationUnit(CXTranslationUnit &unit, CXUnsavedFile *unsaved, int
 
 struct ResolveAutoTypeRefUserData
 {
+    // CXCursor orig;
     CXCursor ref;
     int index;
-    bool followedRef;
+    bool ok;
     Hash<CXCursor, bool> *seen;
 };
 
@@ -175,7 +176,7 @@ static CXChildVisitResult resolveAutoTypeRefVisitor(CXCursor cursor, CXCursor, C
 {
     ResolveAutoTypeRefUserData *userData = reinterpret_cast<ResolveAutoTypeRefUserData*>(data);
     ++userData->index;
-    // error() << "Got cursor" << cursor << userData->index;
+    // error() << "Got cursor" << cursor << clang_getCursorReferenced(cursor);
     const CXCursorKind kind = clang_getCursorKind(cursor);
     if (!userData->seen->insert(cursor, true)) {
         // error() << "I've seen" << cursor << "before";
@@ -184,43 +185,59 @@ static CXChildVisitResult resolveAutoTypeRefVisitor(CXCursor cursor, CXCursor, C
     // userData->chain.append(kind);
     // error() << "Got here" << cursor << userData->chain;
     switch (kind) {
+    case CXCursor_CStyleCastExpr:
+    case CXCursor_CXXStaticCastExpr:
+    case CXCursor_CXXDynamicCastExpr:
+    case CXCursor_CXXReinterpretCastExpr:
+    case CXCursor_CXXNewExpr:
+        // error() << "Setting to ok";
+        userData->ok = true;
+        break;
     case CXCursor_TypeRef:
     case CXCursor_TemplateRef:
-        // error() << "Found typeRef" << cursor << userData->index;
+        // error() << userData->orig << "Found typeRef" << cursor << userData->index;
         userData->ref = cursor;
         return CXChildVisit_Break;
     case CXCursor_DeclRefExpr:
+    case CXCursor_CallExpr:
     case CXCursor_UnexposedExpr: {
         CXCursor ref = clang_getCursorReferenced(cursor);
-        // error() << "got unexposed expr ref" << ref;
+        // error() << userData->orig << "got ref" << ref << cursor;
         switch (clang_getCursorKind(ref)) {
+        case CXCursor_FunctionTemplate:
+        case CXCursor_CXXMethod:
+            ref = clang_getSpecializedCursorTemplate(ref);
+            // fall through
         case CXCursor_VarDecl:
         case CXCursor_ParmDecl:
         case CXCursor_FieldDecl:
         case CXCursor_TemplateTypeParameter:
         case CXCursor_TemplateTemplateParameter:
-        case CXCursor_FunctionTemplate:
         case CXCursor_FunctionDecl:
-        case CXCursor_CXXMethod: {
-            userData->followedRef = true;
-            ResolveAutoTypeRefUserData u = { clang_getNullCursor(), 0, true, userData->seen }; //, List<CXCursorKind>() };
+        case CXCursor_Constructor: {
+            // error() << "Recursing for ref" << ref;
+            userData->ok = true;
+            ResolveAutoTypeRefUserData u = { /* userData->orig, */clang_getNullCursor(), 0, true, userData->seen };
             clang_visitChildren(ref, resolveAutoTypeRefVisitor, &u);
-            // error() << "Visited for typeRef" << u.ref
-            //         << clang_isInvalid(clang_getCursorKind(u.ref))
-            //         << u.chain;
+            // error() << "Visited for typeRef" << u.ref << clang_isInvalid(clang_getCursorKind(u.ref));
             if (!clang_equalCursors(u.ref, clang_getNullCursor())) {
+                // error() << "Found a good cursor" << u.ref;
                 ++userData->index;
                 userData->ref = u.ref;
                 return CXChildVisit_Break;
             }
-            if (userData->index + u.index > 10)
+            if (userData->index + u.index > 10) {
+                // error() << "Gone too far";
                 return CXChildVisit_Break;
+            }
             break; }
         default:
+            // error() << "Nothing reffed";
             break;
         }
         break; }
     case CXCursor_ParmDecl:
+        // error() << "Breaking due to ParmDecl";
         // nothing to find here
         return CXChildVisit_Break;
     default:
@@ -238,9 +255,9 @@ CXCursor resolveAutoTypeRef(const CXCursor &cursor)
         // error() << "resolving" << cursor << clang_getCursorType(cursor).kind;
         assert(clang_getCursorKind(cursor) == CXCursor_VarDecl);
         Hash<CXCursor, bool> seen;
-        ResolveAutoTypeRefUserData userData = { clang_getNullCursor(), 0, false, &seen }; //, List<CXCursorKind>() };
+        ResolveAutoTypeRefUserData userData = { /* cursor, */clang_getNullCursor(), 0, false, &seen }; //, List<CXCursorKind>() };
         clang_visitChildren(cursor, resolveAutoTypeRefVisitor, &userData);
-        if (userData.followedRef)
+        if (userData.ok)
             return userData.ref;
     }
     return clang_getNullCursor();
