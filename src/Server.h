@@ -109,10 +109,11 @@ public:
     bool isActiveBuffer(uint32_t fileId) const { return mActiveBuffers.contains(fileId); }
     int exitCode() const { return mExitCode; }
 private:
+    String guessArguments(const String &args, const Path &pwd);
     bool saveFileIds();
     void restoreFileIds();
     bool index(const String &arguments, const Path &pwd,
-               const Path &projectRootOverride, unsigned int sourceFlags = 0);
+               const Path &projectRootOverride, unsigned int indexMessageFlags = 0);
     void onNewConnection(SocketServer *server);
     void setCurrentProject(const std::shared_ptr<Project> &project);
     void onNewMessage(const std::shared_ptr<Message> &message, const std::shared_ptr<Connection> &conn);

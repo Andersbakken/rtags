@@ -62,6 +62,7 @@ struct Option opts[] = {
     { RClient::None, 0, 0, 0, "" },
     { RClient::None, 0, 0, 0, "Indexing commands:" },
     { RClient::Compile, "compile", 'c', optional_argument, "Pass compilation arguments to rdm." },
+    { RClient::GuessFlags, "guess-flags", 0, no_argument, "Guess compile flags (used with -c)." },
 #if CLANG_VERSION_MAJOR > 3 || (CLANG_VERSION_MAJOR == 3 && CLANG_VERSION_MINOR > 3)
     { RClient::LoadCompilationDatabase, "load-compilation-database", 'J', optional_argument, "Load compile_commands.json from directory" },
 #endif
@@ -350,7 +351,8 @@ public:
         IndexMessage msg;
         msg.init(rc->argc(), rc->argv());
         msg.setWorkingDirectory(cwd);
-        msg.setEscape(escape);
+        msg.setFlag(IndexMessage::Escape, escape);
+        msg.setFlag(IndexMessage::GuessFlags, rc->mGuessFlags);
         msg.setArguments(args);
         msg.setCompilationDatabaseDir(compilationDatabaseDir);
         if (!rc->projectRoot().isEmpty())
@@ -367,7 +369,7 @@ public:
 RClient::RClient()
     : mQueryFlags(0), mMax(-1), mLogLevel(0), mTimeout(-1),
       mMinOffset(-1), mMaxOffset(-1), mConnectTimeout(DEFAULT_CONNECT_TIMEOUT),
-      mBuildIndex(0), mEscapeMode(Escape_Auto), mArgc(0), mArgv(0)
+      mBuildIndex(0), mEscapeMode(Escape_Auto), mGuessFlags(false), mArgc(0), mArgv(0)
 {
 }
 
@@ -545,6 +547,9 @@ RClient::ParseStatus RClient::parse(int &argc, char **argv)
             return Parse_Ok;
         case SocketFile:
             mSocketFile = optarg;
+            break;
+        case GuessFlags:
+            mGuessFlags = true;
             break;
         case IMenu:
             mQueryFlags |= QueryMessage::IMenu;

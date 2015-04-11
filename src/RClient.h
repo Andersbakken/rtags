@@ -65,6 +65,7 @@ public:
         FixIts,
         FollowLocation,
         GenerateTest,
+        GuessFlags,
         HasFileManager,
         Help,
         IncludeFile,
@@ -179,6 +180,7 @@ private:
     String mSocketFile;
     Path mCurrentFile;
     EscapeMode mEscapeMode;
+    bool mGuessFlags;
     Path mProjectRoot;
 
     int mArgc;

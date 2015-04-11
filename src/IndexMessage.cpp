@@ -17,16 +17,16 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 #include <rct/Serializer.h>
 
 IndexMessage::IndexMessage()
-    : RTagsMessage(MessageId), mEscape(false)
+    : RTagsMessage(MessageId), mFlags(None)
 {
 }
 
 void IndexMessage::encode(Serializer &serializer) const
 {
-    serializer << mRaw << mWorkingDirectory << mProjectRoot << mCompilationDatabaseDir << mArgs << mEscape;
+    serializer << mRaw << mWorkingDirectory << mProjectRoot << mCompilationDatabaseDir << mArgs << mFlags;
 }
 
 void IndexMessage::decode(Deserializer &deserializer)
 {
-    deserializer >> mRaw >> mWorkingDirectory >> mProjectRoot >> mCompilationDatabaseDir >> mArgs >> mEscape;
+    deserializer >> mRaw >> mWorkingDirectory >> mProjectRoot >> mCompilationDatabaseDir >> mArgs >> mFlags;
 }

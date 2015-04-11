@@ -365,29 +365,99 @@ void Server::onNewMessage(const std::shared_ptr<Message> &message, const std::sh
     }
 }
 
-bool Server::index(const String &arguments, const Path &pwd, const Path &projectRootOverride, unsigned int flags)
+String Server::guessArguments(const String &args, const Path &pwd)
 {
+    Set<Path> includePaths;
+    List<String> ret;
+    bool hasInput = false;
+    Path projectRoot;
+    ret << "clang";
+    for (const String &s : args.split(" ")) {
+        Path file = s;
+        if (!file.isAbsolute())
+            file.prepend(pwd);
+        if (file.isFile()) {
+            if (!hasInput) {
+                hasInput = true;
+                projectRoot = RTags::findProjectRoot(file, RTags::SourceRoot);
+                ret << file;
+                includePaths.insert(file.parentDir());
+                if (projectRoot.isEmpty()) {
+                    return String();
+                }
+            } else {
+                return String();
+            }
+        } else {
+            ret << s;
+        }
+
+    }
+    if (!hasInput) {
+        return String();
+    }
+
+    std::function<void(const Path &)> process = [&](const Path &path) {
+        for (const Path &maybeHeader : path.files(Path::File)) {
+            if (maybeHeader.isHeader()) {
+                Path p = path;
+                do {
+                    if (!includePaths.insert(p) || p == projectRoot)
+                        break;
+                    p = p.parentDir();
+                } while (!p.isEmpty());
+                break;
+            }
+        }
+        for (const Path &dir : path.files(Path::Directory)) {
+            process(dir);
+        }
+    };
+
+    process(projectRoot);
+    for (const Path &p : includePaths) {
+        ret << ("-I" + p);
+    }
+
+    error() << "Got shit" << ret;
+    return String::join(ret, ' ');
+}
+
+bool Server::index(const String &args, const Path &pwd,
+                   const Path &projectRootOverride, unsigned int indexMessageFlags)
+{
+    const unsigned int sourceParseFlags = indexMessageFlags & IndexMessage::Escape ? Source::Escape : Source::None;
+    String arguments;
     List<Path> unresolvedPaths;
     List<Source> sources;
     bool parse = true;
-    if (!mOptions.argTransform.isEmpty()) {
-        Process process;
-        if (process.exec(mOptions.argTransform, List<String>() << arguments) == Process::Done) {
-            if (process.returnCode() != 0) {
-                warning() << "--arg-transform returned" << process.returnCode() << "for" << arguments;
-                return false;
-            }
-            const String stdOut = process.readAllStdOut();
-            if (stdOut != arguments) {
-                warning() << "Changed\n" << arguments << "\nto\n" << stdOut;
-                parse = false;
-                sources = Source::parse(stdOut, pwd, flags, &unresolvedPaths);
+    if (indexMessageFlags & IndexMessage::GuessFlags) {
+        arguments = guessArguments(args, pwd);
+        if (arguments.isEmpty()) {
+            error() << "Can't guess args from" << args;
+            return false;
+        }
+    } else {
+        arguments = args;
+        if (!mOptions.argTransform.isEmpty()) {
+            Process process;
+            if (process.exec(mOptions.argTransform, List<String>() << arguments) == Process::Done) {
+                if (process.returnCode() != 0) {
+                    warning() << "--arg-transform returned" << process.returnCode() << "for" << arguments;
+                    return false;
+                }
+                const String stdOut = process.readAllStdOut();
+                if (stdOut != arguments) {
+                    warning() << "Changed\n" << arguments << "\nto\n" << stdOut;
+                    parse = false;
+                    sources = Source::parse(stdOut, pwd, sourceParseFlags, &unresolvedPaths);
+                }
             }
         }
     }
 
     if (parse)
-        sources = Source::parse(arguments, pwd, flags, &unresolvedPaths);
+        sources = Source::parse(arguments, pwd, sourceParseFlags, &unresolvedPaths);
 
     bool ret = false;
     int idx = 0;
@@ -463,7 +533,7 @@ void Server::handleIndexMessage(const std::shared_ptr<IndexMessage> &message, co
                     args += " ";
             }
 
-            index(args, dir, message->projectRoot(), message->escape() ? Source::Escape : Source::None);
+            index(args, dir, message->projectRoot(), message->flags());
         }
         clang_CompileCommands_dispose(cmds);
         clang_CompilationDatabase_dispose(db);
@@ -475,7 +545,7 @@ void Server::handleIndexMessage(const std::shared_ptr<IndexMessage> &message, co
     }
 #endif
     const bool ret = index(message->arguments(), message->workingDirectory(),
-                           message->projectRoot(), message->escape() ? Source::Escape : Source::None);
+                           message->projectRoot(), message->flags());
     if (conn)
         conn->finish(ret ? 0 : 1);
 }
