@@ -109,7 +109,7 @@ public:
     bool isActiveBuffer(uint32_t fileId) const { return mActiveBuffers.contains(fileId); }
     int exitCode() const { return mExitCode; }
 private:
-    String guessArguments(const String &args, const Path &pwd);
+    String guessArguments(const String &args, const Path &pwd, const Path &projectRootOverride);
     bool saveFileIds();
     void restoreFileIds();
     bool index(const String &arguments, const Path &pwd,

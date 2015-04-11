@@ -365,26 +365,35 @@ void Server::onNewMessage(const std::shared_ptr<Message> &message, const std::sh
     }
 }
 
-String Server::guessArguments(const String &args, const Path &pwd)
+String Server::guessArguments(const String &args, const Path &pwd, const Path &projectRootOverride)
 {
     Set<Path> includePaths;
     List<String> ret;
     bool hasInput = false;
-    Path projectRoot;
+    Set<String> roots;
+    if (!projectRootOverride.isEmpty())
+        roots.insert(projectRootOverride.ensureTrailingSlash());
     ret << "clang";
-    for (const String &s : args.split(" ")) {
+    const List<String> split = args.split(" ");
+    for (int i=0; i<split.size(); ++i) {
+        const String &s = split.at(i);
+        if (s == "--build-root") {
+            const Path root = split.value(++i);
+            if (!root.isEmpty())
+                roots.insert(root.ensureTrailingSlash());
+            continue;
+        }
         Path file = s;
         if (!file.isAbsolute())
             file.prepend(pwd);
         if (file.isFile()) {
             if (!hasInput) {
                 hasInput = true;
-                projectRoot = RTags::findProjectRoot(file, RTags::SourceRoot);
                 ret << file;
                 includePaths.insert(file.parentDir());
-                if (projectRoot.isEmpty()) {
-                    return String();
-                }
+                const Path projectRoot = RTags::findProjectRoot(file, RTags::SourceRoot);
+                if (!projectRoot.isEmpty())
+                    roots.insert(projectRoot);
             } else {
                 return String();
             }
@@ -397,12 +406,13 @@ String Server::guessArguments(const String &args, const Path &pwd)
         return String();
     }
 
-    std::function<void(const Path &)> process = [&](const Path &path) {
+    std::function<void(const Path &, const Path &)> process = [&](const Path &root, const Path &path) {
         for (const Path &maybeHeader : path.files(Path::File)) {
             if (maybeHeader.isHeader()) {
                 Path p = path;
                 do {
-                    if (!includePaths.insert(p) || p == projectRoot)
+                    assert(!p.isEmpty());
+                    if (!includePaths.insert(p) || p == root)
                         break;
                     p = p.parentDir();
                 } while (!p.isEmpty());
@@ -410,16 +420,17 @@ String Server::guessArguments(const String &args, const Path &pwd)
             }
         }
         for (const Path &dir : path.files(Path::Directory)) {
-            process(dir);
+            process(root, dir);
         }
     };
 
-    process(projectRoot);
+    for (const Path &root : roots)
+        process(root, root);
     for (const Path &p : includePaths) {
+        assert(!p.isEmpty());
         ret << ("-I" + p);
     }
 
-    error() << "Got shit" << ret;
     return String::join(ret, ' ');
 }
 
@@ -432,7 +443,7 @@ bool Server::index(const String &args, const Path &pwd,
     List<Source> sources;
     bool parse = true;
     if (indexMessageFlags & IndexMessage::GuessFlags) {
-        arguments = guessArguments(args, pwd);
+        arguments = guessArguments(args, pwd, projectRootOverride);
         if (arguments.isEmpty()) {
             error() << "Can't guess args from" << args;
             return false;
