@@ -492,10 +492,6 @@ return t if rtags is allowed to modify this file"
               (push (format "--range-filter=%d-%d" range-min range-max) arguments))
           (if rtags-timeout
               (push (format "--timeout=%d" rtags-timeout) arguments))
-          (unless rtags-sort-references-by-input
-            (push "--no-sort-references-by-input" arguments))
-          (if rtags-wildcard-symbol-names
-              (push "--wildcard-symbol-names" arguments))
           (if (and rtags-show-containing-function (not (member "-N" arguments)))
               (push "-o" arguments))
 
@@ -973,7 +969,7 @@ References to references will be treated as references to the referenced symbol"
         (fn (buffer-file-name)))
     (rtags-reparse-file-if-needed)
     (with-current-buffer (rtags-get-buffer)
-      (rtags-call-rc :path fn :path-filter prefix "-r" arg)
+      (rtags-call-rc :path fn :path-filter prefix "-r" arg (unless rtags-sort-references-by-input "--no-sort-references-by-input"))
       (rtags-handle-results-buffer))))
 
 ;;;###autoload
@@ -985,7 +981,7 @@ References to references will be treated as references to the referenced symbol"
         (fn (buffer-file-name)))
     (rtags-reparse-file-if-needed)
     (with-current-buffer (rtags-get-buffer)
-      (rtags-call-rc :path fn :path-filter prefix "-r" arg "-k")
+      (rtags-call-rc :path fn :path-filter prefix "-r" arg "-k" (unless rtags-sort-references-by-input "--no-sort-references-by-input"))
       (rtags-handle-results-buffer))))
 
 ;;;###autoload
@@ -996,7 +992,8 @@ References to references will be treated as references to the referenced symbol"
         (fn (buffer-file-name)))
     (rtags-reparse-file-if-needed)
     (with-current-buffer (rtags-get-buffer)
-      (rtags-call-rc :path fn :path-filter prefix "-r" arg "-e")
+      (rtags-call-rc :path fn :path-filter prefix "-r" arg "-e"
+                     (unless rtags-sort-references-by-input "--no-sort-references-by-input"))
       (rtags-handle-results-buffer))))
 
 ;;;###autoload
@@ -1043,8 +1040,9 @@ References to references will be treated as references to the referenced symbol"
       (if (equal replacewith "")
           (error "You have to replace with something"))
       (with-temp-buffer
-        (rtags-call-rc :path file "-e" "--rename" "-N" "-r" location)
-        (message "Got renames %s" (buffer-string))
+        (rtags-call-rc :path file "-e" "--rename" "-N" "-r" location
+                       (unless rtags-sort-references-by-input "--no-sort-references-by-input"))
+        ;; (message "Got renames %s" (buffer-string))
         (dolist (line (split-string (buffer-string) "\n" t))
           (if (string-match "^\\(.*\\):\\([0-9]+\\):\\([0-9]+\\):$" line)
               (let* ((filename (match-string-no-properties 1 line))
@@ -1087,7 +1085,9 @@ References to references will be treated as references to the referenced symbol"
 ;;;###autoload
 (defun rtags-find-references (&optional prefix)
   (interactive "P")
-  (rtags-find-symbols-by-name-internal "Find rreferences" "-R" (and prefix buffer-file-name)))
+  (rtags-find-symbols-by-name-internal "Find rreferences"
+                                       (unless rtags-sort-references-by-input "--no-sort-references-by-input")
+                                       "-R" (and prefix buffer-file-name)))
 
 ;;;###autoload
 (defun rtags-find-symbol-current-file ()
@@ -1100,12 +1100,7 @@ References to references will be treated as references to the referenced symbol"
   (rtags-find-references t))
 
 (defun rtags-dir-filter ()
-  (concat (substring buffer-file-name
-                     0
-                     (string-match
-                      "[^/]*/?$"
-                      buffer-file-name))
-          "[^/]* "))
+  (concat (substring buffer-file-name 0 (string-match "[^/]*/?$" buffer-file-name)) "[^/]* "))
 
 ;;;###autoload
 (defun rtags-find-symbol-current-dir ()
@@ -1791,7 +1786,10 @@ References to references will be treated as references to the referenced symbol"
   (rtags-location-stack-push)
   (let* ((fn (buffer-file-name))
          (alternatives (with-temp-buffer
-                         (rtags-call-rc :path fn :path-filter fn "--imenu" "--list-symbols" "-Y")
+                         (rtags-call-rc :path fn :path-filter fn "--imenu"
+                                        "--list-symbols"
+                                        "-Y"
+                                        (if rtags-wildcard-symbol-names "--wildcard-symbol-names"))
                          (eval (read (buffer-string)))))
          (match (car alternatives)))
     (if (> (length alternatives) 1)
@@ -2039,18 +2037,25 @@ definition."
     (if (not (equal "" input))
         (setq tagname input))
     (with-current-buffer (rtags-get-buffer)
-      (rtags-call-rc :path path switch tagname :path-filter filter :path-filter-regex regexp-filter (if rtags-symbolnames-case-insensitive "-I"))
+      (rtags-call-rc :path path switch tagname :path-filter filter
+                     :path-filter-regex regexp-filter
+                     (if rtags-wildcard-symbol-names "--wildcard-symbol-names")
+                     (if rtags-symbolnames-case-insensitive "-I"))
       (rtags-handle-results-buffer))))
 
 (defun rtags-symbolname-completion-get (string)
   (with-temp-buffer
-    (rtags-call-rc "-Y" "-S" string (if rtags-symbolnames-case-insensitive "-I"))
+    (rtags-call-rc "-Y" "-S" string
+                   (if rtags-symbolnames-case-insensitive "-I")
+                   (if rtags-wildcard-symbol-names "--wildcard-symbol-names"))
     (rtags-log (buffer-string))
     (eval (read (buffer-string)))))
 
 (defun rtags-symbolname-completion-exactmatch (string)
   (with-temp-buffer
-    (rtags-call-rc "-N" "-F" string)
+    (rtags-call-rc "-N" "-F" string
+                   (if rtags-symbolnames-case-insensitive "-I")
+                   (if rtags-wildcard-symbol-names "--wildcard-symbol-names"))
     (> (point-max) (point-min))))
 
 (defun rtags-symbolname-complete (string predicate code)
