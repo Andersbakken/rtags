@@ -19,7 +19,6 @@
 #include "IndexerJob.h"
 #include "RTags.h"
 #include "Server.h"
-#include "Server.h"
 #include "JobScheduler.h"
 #include "RTagsLogOutput.h"
 #include <math.h>
@@ -392,42 +391,62 @@ static inline String xmlEscape(const String& xml)
     if (xml.isEmpty())
         return xml;
 
-    std::ostringstream strm;
+    String ret;
+    ret.reserve(xml.size() * 1.1);
     const char* ch = xml.constData();
-    bool done = false;
-    while (true) {
+    while (*ch) {
         switch (*ch) {
-        case '\0':
-            done = true;
-            break;
         case '"':
-            strm << "\\\"";
+            ret << "\\\"";
             break;
         case '<':
-            strm << "&lt;";
+            ret << "&lt;";
             break;
         case '>':
-            strm << "&gt;";
+            ret << "&gt;";
             break;
         case '&':
-            strm << "&amp;";
+            ret << "&amp;";
             break;
         default:
-            strm << *ch;
+            ret << *ch;
             break;
         }
-        if (done)
-            break;
         ++ch;
     }
-    return strm.str();
+    return ret;
 }
 
 static inline const String elispEscape(const String &data)
 {
-    String ret = data;
-    ret.replace("\"", "\\\"");
-    ret.replace("\n", "\\n"); // ### this could be done more efficiently
+    String ret;
+    int size = data.size();
+    const char *ch = data.constData();
+    bool copied = false;
+    while (size-- > 0) {
+        switch (*ch) {
+        case '"':
+        case '\n':
+            if (!copied) {
+                copied = true;
+                if (size) {
+                    ret.reserve(data.size() + 16);
+                    ret.assign(data.constData(), size);
+                }
+            }
+            if (*ch == '"') {
+                ret << "\\\"";
+            } else {
+                ret << "\\n";
+            }
+        default:
+            if (copied)
+                ret << *ch;
+            break;
+        }
+    }
+    if (!copied)
+        return data;
     return ret;
 }
 
