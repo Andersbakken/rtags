@@ -4,7 +4,7 @@
 
 ;; Author: Jan Erik Hanssen <jhanssen@gmail.com>
 ;;         Anders Bakken <agbakken@gmail.com>
-;; URL: https://github.com/Andersbakken/rtags
+;; URL: http://rtags.net
 
 ;; This file is not part of GNU Emacs.
 
