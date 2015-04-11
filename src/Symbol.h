@@ -43,7 +43,9 @@ struct Symbol
         PureVirtualMethod = 0x02|VirtualMethod,
         StaticMethod = 0x04,
         ConstMethod = 0x08,
-        Variadic = 0x10
+        Variadic = 0x10,
+        Auto = 0x20,
+        AutoRef = 0x40
     };
     String briefComment, xmlComment;
     uint8_t flags;

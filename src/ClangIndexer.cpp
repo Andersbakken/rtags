@@ -1038,7 +1038,10 @@ bool ClangIndexer::handleCursor(const CXCursor &cursor, CXCursorKind kind, const
     } else {
         String typeOverride;
         if (kind == CXCursor_VarDecl) {
-            const CXCursor typeRef = RTags::resolveAutoTypeRef(cursor);
+            bool isAuto;
+            const CXCursor typeRef = RTags::resolveAutoTypeRef(cursor, &isAuto);
+            if (isAuto)
+                c.flags |= Symbol::Auto;
             if (!clang_equalCursors(typeRef, nullCursor)) {
                 // const CXSourceRange range = clang_Cursor_getSpellingNameRange(mLastCursor, 0, 0);
                 // error() << "Found" << typeRef << "for" << cursor << mLastCursor
@@ -1057,6 +1060,7 @@ bool ClangIndexer::handleCursor(const CXCursor &cursor, CXCursorKind kind, const
                     cursorPtr->symbolName += " (auto)";
                     cursorPtr->endLine = c.startLine;
                     cursorPtr->endColumn = c.startColumn + 4;
+                    cursorPtr->flags |= Symbol::AutoRef;
                 }
             }
         }
@@ -1518,10 +1522,10 @@ void ClangIndexer::addFileSymbol(uint32_t file)
 int ClangIndexer::symbolLength(CXCursorKind kind, const CXCursor &cursor)
 {
     if (kind == CXCursor_VarDecl) {
-        const CXCursor typeRef = RTags::resolveAutoTypeRef(cursor);
-        if (!clang_equalCursors(typeRef, nullCursor)) {
+        bool isAuto;
+        RTags::resolveAutoTypeRef(cursor, &isAuto);
+        if (isAuto)
             return 4;
-        }
     }
 
     CXStringScope name = clang_getCursorSpelling(cursor);

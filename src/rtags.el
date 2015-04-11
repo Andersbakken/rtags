@@ -1029,8 +1029,7 @@ References to references will be treated as references to the referenced symbol"
   (interactive)
   (save-some-buffers) ;; it all kinda falls apart when buffers are unsaved
   (let* ((prev (let ((token (rtags-current-token)))
-                 (cond ((string= token "auto") nil)
-                       ((string-match "^~" token) (substring token 1))
+                 (cond ((string-match "^~" token) (substring token 1))
                        (token)
                        (t (error "Not sure what to rename")))))
          (len (and prev (length prev)))

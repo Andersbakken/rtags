@@ -91,10 +91,14 @@ int ReferencesJob::execute()
         if (queryFlags() & QueryMessage::AllReferences) {
             const Set<Symbol> all = proj->findAllReferences(sym);
             for (const auto &symbol : all) {
-                if (!rename && sym.isClass() && symbol.isConstructorOrDestructor())
+                if (rename) {
+                    if (symbol.kind == CXCursor_MacroExpansion && sym.kind != CXCursor_MacroDefinition)
+                        continue;
+                    if (symbol.flags & Symbol::AutoRef)
+                        continue;
+                } else if (sym.isClass() && symbol.isConstructorOrDestructor()) {
                     continue;
-                if (rename && symbol.kind == CXCursor_MacroExpansion && sym.kind != CXCursor_MacroDefinition)
-                    continue;
+                }
                 const bool def = symbol.isDefinition();
                 if (def && declarationOnly)
                     continue;

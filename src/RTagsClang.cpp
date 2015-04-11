@@ -246,12 +246,14 @@ static CXChildVisitResult resolveAutoTypeRefVisitor(CXCursor cursor, CXCursor, C
     return CXChildVisit_Recurse;
 }
 
-CXCursor resolveAutoTypeRef(const CXCursor &cursor)
+CXCursor resolveAutoTypeRef(const CXCursor &cursor, bool *isAuto)
 {
     CXType type = clang_getCursorType(cursor);
     while (type.kind == CXType_Pointer)
         type = clang_getPointeeType(type);
     if (type.kind == CXType_Unexposed) {
+        if (isAuto)
+            *isAuto = true;
         // error() << "resolving" << cursor << clang_getCursorType(cursor).kind;
         assert(clang_getCursorKind(cursor) == CXCursor_VarDecl);
         Hash<CXCursor, bool> seen;
@@ -259,6 +261,8 @@ CXCursor resolveAutoTypeRef(const CXCursor &cursor)
         clang_visitChildren(cursor, resolveAutoTypeRefVisitor, &userData);
         if (userData.ok)
             return userData.ref;
+    } else if (isAuto) {
+        *isAuto = false;
     }
     return clang_getNullCursor();
 }
