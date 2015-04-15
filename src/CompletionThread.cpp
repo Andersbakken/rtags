@@ -391,6 +391,7 @@ void CompletionThread::process(Request *request)
                   sourceFile.constData(), parseTime, reparseTime, completeTime, processTime, nodeCount, request->unsaved.size());
             delete[] nodes;
         } else {
+            printCompletions(List<Completions::Candidate>(), request);
             error() << "No completion results available" << request->location << results->NumResults;
         }
         clang_disposeCodeCompleteResults(results);
@@ -448,7 +449,7 @@ void CompletionThread::printCompletions(const List<Completions::Candidate> &comp
             }
         });
 
-    if (!(request->flags & Refresh) && !outputs.isEmpty() && !completions.isEmpty()) {
+    if (!(request->flags & Refresh) && !outputs.isEmpty()) {
         String xmlOut, elispOut;
         if (xml) {
             xmlOut.reserve(16384);
