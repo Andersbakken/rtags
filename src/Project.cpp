@@ -439,11 +439,13 @@ static inline const String elispEscape(const String &data)
             } else {
                 ret << "\\n";
             }
+            break;
         default:
             if (copied)
                 ret << *ch;
             break;
         }
+        ++ch;
     }
     if (!copied)
         return data;
