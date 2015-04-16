@@ -42,14 +42,14 @@ public:
     {
         serializer << mProject << mParseTime << mKey << mId << mIndexerJobFlags
                    << mMessage << mFixIts << mIncludes << mDiagnostics << mFiles
-                   << mDeclarations << mHeaderErrors << mFlags;
+                   << mDeclarations << mFlags;
     }
 
     void decode(Deserializer &deserializer)
     {
         deserializer >> mProject >> mParseTime >> mKey >> mId >> mIndexerJobFlags
                      >> mMessage >> mFixIts >> mIncludes >> mDiagnostics
-                     >> mFiles >> mDeclarations >> mHeaderErrors >> mFlags;
+                     >> mFiles >> mDeclarations >> mFlags;
     }
 
     enum Flag {
@@ -64,9 +64,9 @@ public:
     Set<uint32_t> visitedFiles() const
     {
         Set<uint32_t> ret;
-        for (Hash<uint32_t, bool>::const_iterator it = mFiles.begin(); it != mFiles.end(); ++it) {
-            if (it->second)
-                ret.insert(it->first);
+        for (const auto &it : mFiles) {
+            if (it.second & Visited)
+                ret.insert(it.first);
         }
         return ret;
     }
@@ -74,9 +74,9 @@ public:
     Set<uint32_t> blockedFiles() const
     {
         Set<uint32_t> ret;
-        for (Hash<uint32_t, bool>::const_iterator it = mFiles.begin(); it != mFiles.end(); ++it) {
-            if (!it->second)
-                ret.insert(it->first);
+        for (const auto &it : mFiles) {
+            if (!(it.second & Visited))
+                ret.insert(it.first);
         }
         return ret;
     }
@@ -110,8 +110,11 @@ public:
     Diagnostics &diagnostics() { return mDiagnostics; }
     Includes &includes() { return mIncludes; }
     Declarations &declarations() { return mDeclarations; }
-    Hash<uint32_t, bool> &files() { return mFiles; }
-    Set<uint32_t> &headerErrors() { return mHeaderErrors; }
+    enum FileFlag {
+        Visited = 0x1,
+        HeaderError = 0x2
+    };
+    Hash<uint32_t, unsigned int> &files() { return mFiles; }
 private:
     Path mProject;
     uint64_t mParseTime, mKey, mId;
@@ -121,8 +124,7 @@ private:
     Diagnostics mDiagnostics;
     Includes mIncludes;
     Declarations mDeclarations; // function declarations and forward declaration
-    Hash<uint32_t, bool> mFiles;
-    Set<uint32_t> mHeaderErrors;
+    Hash<uint32_t, unsigned int> mFiles;
     unsigned int mFlags;
 };
 

@@ -205,7 +205,14 @@ void JobScheduler::handleIndexDataMessage(const std::shared_ptr<IndexDataMessage
 
 void JobScheduler::jobFinished(const std::shared_ptr<IndexerJob> &job, const std::shared_ptr<IndexDataMessage> &message)
 {
-    mHeaderErrors.unite(message->headerErrors());
+    for (const auto &it : message->files()) {
+        if (it.second & IndexDataMessage::HeaderError) {
+            mHeaderErrors.insert(it.first);
+        } else {
+            mHeaderErrors.remove(it.first);
+        }
+    }
+    // mHeaderErrors.unite(message->headerErrors());
     assert(!(job->flags & IndexerJob::Aborted));
     assert(job);
     assert(message);
