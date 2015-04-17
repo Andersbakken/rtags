@@ -1042,8 +1042,7 @@ References to references will be treated as references to the referenced symbol"
       (if (equal replacewith "")
           (error "You have to replace with something"))
       (with-temp-buffer
-        (rtags-call-rc :path file "-e" "--rename" "-N" "-r" location
-                       (unless rtags-sort-references-by-input "--no-sort-references-by-input"))
+        (rtags-call-rc :path file "-e" "--rename" "-N" "-r" location)
         ;; (message "Got renames %s" (buffer-string))
         (dolist (line (split-string (buffer-string) "\n" t))
           (if (string-match "^\\(.*\\):\\([0-9]+\\):\\([0-9]+\\):$" line)
