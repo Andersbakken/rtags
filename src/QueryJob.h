@@ -13,8 +13,8 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 
-#ifndef Job_h
-#define Job_h
+#ifndef QueryJob_h
+#define QueryJob_h
 
 #include <rct/ThreadPool.h>
 #include <rct/List.h>
@@ -25,6 +25,7 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 #include "RTagsClang.h"
 #include "QueryMessage.h"
 #include <mutex>
+#include <rct/Flags.h>
 
 class Location;
 class QueryMessage;
@@ -34,15 +35,18 @@ struct Symbol;
 class QueryJob
 {
 public:
-    enum Flag {
+    enum JobFlag {
         None = 0x0,
         WriteUnfiltered = 0x1,
         QuoteOutput = 0x2,
         QuietJob = 0x4
     };
     enum { Priority = 10 };
-    QueryJob(const std::shared_ptr<QueryMessage> &msg, unsigned int jobFlags, const std::shared_ptr<Project> &proj);
-    QueryJob(unsigned int jobFlags, const std::shared_ptr<Project> &project);
+    QueryJob(const std::shared_ptr<QueryMessage> &msg,
+             const std::shared_ptr<Project> &proj,
+             Flags<JobFlag> jobFlags = Flags<JobFlag>());
+    QueryJob(const std::shared_ptr<Project> &project,
+             Flags<JobFlag> jobFlags = Flags<JobFlag>());
     ~QueryJob();
 
     bool hasFilter() const { return mPathFilters || mPathFiltersRegex; }
@@ -54,18 +58,20 @@ public:
         DontQuote = 0x2,
         Unfiltered = 0x4
     };
-    bool write(const String &out, unsigned int flags = NoWriteFlags);
-    bool write(const Symbol &symbol, unsigned int cursorInfoFlags = 0, unsigned int flags = NoWriteFlags);
-    bool write(const Location &location, unsigned int flags = NoWriteFlags);
+    bool write(const String &out, Flags<WriteFlag> flags = Flags<WriteFlag>());
+    bool write(const Symbol &symbol,
+               Flags<Symbol::ToStringFlag> sourceFlags = Flags<Symbol::ToStringFlag>(),
+               Flags<WriteFlag> writeFlags = Flags<WriteFlag>());
+    bool write(const Location &location, Flags<WriteFlag> writeFlags = Flags<WriteFlag>());
 
-    template <int StaticBufSize> bool write(unsigned int flags, const char *format, ...);
+    template <int StaticBufSize> bool write(Flags<WriteFlag> writeFlags, const char *format, ...);
     template <int StaticBufSize> bool write(const char *format, ...);
-    unsigned int jobFlags() const { return mJobFlags; }
-    void setJobFlags(unsigned int flags) { mJobFlags = flags; }
-    void setJobFlag(Flag flag, bool on = true) { if (on) { mJobFlags |= flag; } else { mJobFlags &= ~flag; } }
-    unsigned int queryFlags() const { return mQueryMessage ? mQueryMessage->flags() : 0; }
+    Flags<JobFlag> jobFlags() const { return mJobFlags; }
+    void setJobFlags(Flags<JobFlag> flags) { mJobFlags = flags; }
+    void setJobFlag(JobFlag flag, bool on = true) { mJobFlags.set(flag, on); }
+    Flags<QueryMessage::Flag> queryFlags() const { return mQueryMessage ? mQueryMessage->flags() : Flags<QueryMessage::Flag>(); }
     std::shared_ptr<QueryMessage> queryMessage() const { return mQueryMessage; }
-    unsigned int keyFlags() const { return QueryMessage::keyFlags(queryFlags()); }
+    Flags<Location::KeyFlag> keyFlags() const { return QueryMessage::keyFlags(queryFlags()); }
     bool filter(const String &val) const;
     Signal<std::function<void(const String &)> > &output() { return mOutput; }
     std::shared_ptr<Project> project() const { return mProject; }
@@ -80,9 +86,9 @@ private:
     mutable std::mutex mMutex;
     bool mAborted;
     int mLinesWritten;
-    bool writeRaw(const String &out, unsigned int flags);
+    bool writeRaw(const String &out, Flags<WriteFlag> flags);
     std::shared_ptr<QueryMessage> mQueryMessage;
-    unsigned int mJobFlags;
+    Flags<JobFlag> mJobFlags;
     Signal<std::function<void(const String &)> > mOutput;
     std::shared_ptr<Project> mProject;
     List<String> *mPathFilters;
@@ -91,8 +97,11 @@ private:
     std::shared_ptr<Connection> mConnection;
 };
 
+RCT_FLAGS(QueryJob::JobFlag);
+RCT_FLAGS(QueryJob::WriteFlag);
+
 template <int StaticBufSize>
-inline bool QueryJob::write(unsigned int flags, const char *format, ...)
+inline bool QueryJob::write(Flags<WriteFlag> flags, const char *format, ...)
 {
     va_list args;
     va_start(args, format);

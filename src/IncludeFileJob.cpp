@@ -19,7 +19,7 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 #include "Project.h"
 
 IncludeFileJob::IncludeFileJob(const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Project> &project)
-    : QueryJob(query, 0, project)
+    : QueryJob(query, project)
 {
     const uint32_t fileId = Location::fileId(query->currentFile());
     mSource = project->sources(fileId).value(query->buildIndex());

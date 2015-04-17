@@ -23,6 +23,7 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 #include <rct/Hash.h>
 #include <rct/Process.h>
 #include "Source.h"
+#include <rct/Flags.h>
 
 class IndexerJob
 {
@@ -38,10 +39,10 @@ public:
         Type_Mask = Dirty|Compile
     };
 
-    static String dumpFlags(unsigned int);
+    static String dumpFlags(Flags<Flag> flags);
 
     IndexerJob(const Source &source,
-               uint32_t flags,
+               Flags<Flag> flags,
                const std::shared_ptr<Project> &project,
                const UnsavedFiles &unsavedFiles = UnsavedFiles());
     void acquireId();
@@ -50,7 +51,7 @@ public:
     uint64_t id;
     Source source;
     Path sourceFile;
-    uint32_t flags;
+    Flags<Flag> flags;
     Path project;
     int priority;
     enum { HeaderError = -1 };
@@ -60,5 +61,7 @@ public:
 private:
     static uint64_t sNextId;
 };
+
+RCT_FLAGS(IndexerJob::Flag);
 
 #endif

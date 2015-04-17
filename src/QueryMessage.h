@@ -23,6 +23,7 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 #include <rct/Hash.h>
 #include "Match.h"
 #include "Location.h"
+#include <rct/Flags.h>
 
 class QueryMessage : public RTagsMessage
 {
@@ -136,8 +137,8 @@ public:
     int max() const { return mMax; }
     void setMax(int max) { mMax = max; }
 
-    unsigned int flags() const { return mFlags; }
-    void setFlags(unsigned int flags)
+    Flags<Flag> flags() const { return mFlags; }
+    void setFlags(Flags<Flag> flags)
     {
         mFlags = flags;
         switch (mType) {
@@ -154,18 +155,10 @@ public:
         }
     }
 
-    void setFlag(Flag flag, bool on = true)
-    {
-        if (on) {
-            mFlags |= flag;
-        } else {
-            mFlags &= ~flag;
-        }
-    }
-
+    void setFlag(Flag flag, bool on = true) { mFlags.set(flag, on); }
     static Flag flagFromString(const String &string);
-    static unsigned int keyFlags(unsigned int queryFlags);
-    inline unsigned int keyFlags() const { return keyFlags(mFlags); }
+    static Flags<Location::KeyFlag> keyFlags(Flags<Flag> queryFlags);
+    inline Flags<Location::KeyFlag> keyFlags() const { return keyFlags(mFlags); }
 
     virtual void encode(Serializer &serializer) const override;
     virtual void decode(Deserializer &deserializer) override;
@@ -175,12 +168,14 @@ public:
 private:
     String mQuery;
     Type mType;
-    unsigned int mFlags;
+    Flags<QueryMessage::Flag> mFlags;
     int mMax, mMinLine, mMaxLine, mBuildIndex;
     List<String> mPathFilters;
     Path mCurrentFile;
     UnsavedFiles mUnsavedFiles;
 };
+
+RCT_FLAGS(QueryMessage::Flag);
 
 DECLARE_NATIVE_TYPE(QueryMessage::Type);
 

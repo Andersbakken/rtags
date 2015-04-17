@@ -18,7 +18,7 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 #include <rct/Serializer.h>
 
 QueryMessage::QueryMessage(Type type)
-    : RTagsMessage(MessageId), mType(type), mFlags(0), mMax(-1), mMinLine(-1), mMaxLine(-1), mBuildIndex(0)
+    : RTagsMessage(MessageId), mType(type), mMax(-1), mMinLine(-1), mMaxLine(-1), mBuildIndex(0)
 {
 }
 
@@ -36,9 +36,9 @@ void QueryMessage::decode(Deserializer &deserializer)
                  >> mUnsavedFiles;
 }
 
-unsigned int QueryMessage::keyFlags(unsigned int queryFlags)
+Flags<Location::KeyFlag> QueryMessage::keyFlags(Flags<Flag> queryFlags)
 {
-    unsigned int ret = Location::NoFlag;
+    Flags<Location::KeyFlag> ret;
     if (!(queryFlags & NoContext))
         ret |= Location::ShowContext;
     if (queryFlags & NoColor)
@@ -48,7 +48,7 @@ unsigned int QueryMessage::keyFlags(unsigned int queryFlags)
 
 Match QueryMessage::match() const
 {
-    unsigned int flags = Match::Flag_StringMatch;
+    Flags<Match::Flag> flags = Match::Flag_StringMatch;
     if (mFlags & MatchRegex)
         flags |= Match::Flag_Regex;
 

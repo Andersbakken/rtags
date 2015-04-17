@@ -29,6 +29,7 @@
 #include <rct/Path.h>
 #include <regex>
 #include <rct/Timer.h>
+#include <rct/Flags.h>
 
 class IndexDataMessage;
 class FileManager;
@@ -124,7 +125,7 @@ public:
     };
     void findSymbols(const String &symbolName,
                      const std::function<void(SymbolMatchType, const String &, const Set<Location> &)> &func,
-                     unsigned int queryFlags,
+                     Flags<QueryMessage::Flag> queryFlags,
                      uint32_t fileFilter = 0);
 
     Symbol findSymbol(const Location &location, int *index = 0);
@@ -150,7 +151,7 @@ public:
         Sort_DeclarationOnly = 0x1,
         Sort_Reverse = 0x2
     };
-    List<RTags::SortedSymbol> sort(const Set<Symbol> &symbols, unsigned int flags = Sort_None);
+    List<RTags::SortedSymbol> sort(const Set<Symbol> &symbols, Flags<SortFlag> flags = Sort_None);
 
     const Files &files() const { return mFiles; }
     Files &files() { return mFiles; }
@@ -340,6 +341,8 @@ private:
 
     mutable std::mutex mMutex;
 };
+
+RCT_FLAGS(Project::SortFlag);
 
 inline bool Project::visitFile(uint32_t visitFileId, const Path &path, uint64_t key)
 {

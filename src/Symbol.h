@@ -21,6 +21,7 @@
 #include "Location.h"
 #include <rct/String.h>
 #include <rct/Serializer.h>
+#include <rct/Flags.h>
 
 class Project;
 struct Symbol
@@ -107,8 +108,8 @@ struct Symbol
         IgnoreReferences = 0x2,
         DefaultFlags = 0x0
     };
-    String toString(unsigned int cursorInfoFlags = DefaultFlags,
-                    unsigned int keyFlags = 0,
+    String toString(Flags<ToStringFlag> toStringFlags = DefaultFlags,
+                    Flags<Location::KeyFlag> = Flags<Location::KeyFlag>(),
                     const std::shared_ptr<Project> &project = std::shared_ptr<Project>()) const;
     String kindSpelling() const { return kindSpelling(kind); }
     String displayName() const;
@@ -117,6 +118,7 @@ struct Symbol
     bool operator<(const Symbol &other) const { return location < other.location; }
 };
 
+RCT_FLAGS(Symbol::ToStringFlag);
 
 template <> inline Serializer &operator<<(Serializer &s, const Symbol &t)
 {

@@ -76,7 +76,7 @@ bool ClangIndexer::exec(const String &data)
     }
     uint64_t id;
     String socketFile;
-    uint32_t flags;
+    Flags<IndexerJob::Flag> indexerJobFlags;
     uint32_t connectTimeout;
     int32_t niceValue;
     Hash<uint32_t, Path> blockedFiles;
@@ -87,7 +87,7 @@ bool ClangIndexer::exec(const String &data)
     deserializer >> mProject;
     deserializer >> mSource;
     deserializer >> mSourceFile;
-    deserializer >> flags;
+    deserializer >> indexerJobFlags;
     deserializer >> mVisitFileTimeout;
     deserializer >> mIndexDataMessageTimeout;
     deserializer >> connectTimeout;
@@ -142,7 +142,7 @@ bool ClangIndexer::exec(const String &data)
     }
     // mLogFile = fopen(String::format("/tmp/%s", mSourceFile.fileName()).constData(), "w");
     mIndexDataMessage.setProject(mProject);
-    mIndexDataMessage.setIndexerJobFlags(flags);
+    mIndexDataMessage.setIndexerJobFlags(indexerJobFlags);
     mIndexDataMessage.setParseTime(parseTime);
     mIndexDataMessage.setKey(mSource.key());
     mIndexDataMessage.setId(id);
@@ -231,7 +231,7 @@ Location ClangIndexer::createLocation(const Path &sourceFile, unsigned int line,
 
     if (id) {
         if (blockedPtr) {
-            Hash<uint32_t, unsigned int>::iterator it = mIndexDataMessage.files().find(id);
+            Hash<uint32_t, Flags<IndexDataMessage::FileFlag> >::iterator it = mIndexDataMessage.files().find(id);
             if (it == mIndexDataMessage.files().end()) {
                 // the only reason we already have an id for a file that isn't
                 // in the mIndexDataMessage.mFiles is that it's blocked from the outset.
@@ -245,7 +245,7 @@ Location ClangIndexer::createLocation(const Path &sourceFile, unsigned int line,
                 if (resolved.isEmpty())
                     resolved = sourceFile.resolved();
 #endif
-                mIndexDataMessage.files()[id] = 0;
+                mIndexDataMessage.files()[id] = IndexDataMessage::NoFileFlag;
                 *blockedPtr = true;
                 return Location();
             } else if (!it->second) {
@@ -278,7 +278,7 @@ Location ClangIndexer::createLocation(const Path &sourceFile, unsigned int line,
         id = mVisitFileResponseMessageFileId;
         break;
     }
-    unsigned int &flags = mIndexDataMessage.files()[id];
+    Flags<IndexDataMessage::FileFlag> &flags = mIndexDataMessage.files()[id];
     if (mVisitFileResponseMessageVisit) {
         flags |= IndexDataMessage::Visited;
         ++mIndexed;
@@ -1151,8 +1151,8 @@ bool ClangIndexer::parse()
     assert(!mIndex);
     mIndex = clang_createIndex(0, 1);
     assert(mIndex);
-    const unsigned int commandLineFlags = Source::Default;
-    const unsigned int flags = CXTranslationUnit_DetailedPreprocessingRecord;
+    const Flags<Source::CommandLineFlag> commandLineFlags = Source::Default;
+    const Flags<CXTranslationUnit_Flags> flags = CXTranslationUnit_DetailedPreprocessingRecord;
     List<CXUnsavedFile> unsavedFiles(mUnsavedFiles.size() + 1);
     int unsavedIndex = 0;
     for (const auto &it : mUnsavedFiles) {
@@ -1283,7 +1283,7 @@ bool ClangIndexer::diagnose()
         const bool inclusionError = clang_getCursorKind(cursor) == CXCursor_InclusionDirective;
         if (inclusionError)
             mIndexDataMessage.setFlag(IndexDataMessage::InclusionError);
-        unsigned int &flags = mIndexDataMessage.files()[fileId];
+        Flags<IndexDataMessage::FileFlag> &flags = mIndexDataMessage.files()[fileId];
         if (fileId != mSource.fileId && !inclusionError && sev >= CXDiagnostic_Error && !(flags & IndexDataMessage::HeaderError)) {
             // We don't treat inclusions or code inside a macro expansion as a
             // header error
@@ -1364,14 +1364,14 @@ bool ClangIndexer::diagnose()
                     assert(string);
                     if (!*string) {
                         error("Fixit for %s Remove %d character%s",
-                              loc.key(0).constData(), endOffset - startOffset,
+                              loc.key().constData(), endOffset - startOffset,
                               endOffset - startOffset > 1 ? "s" : "");
                     } else if (endOffset == startOffset) {
                         error("Fixit for %s Insert \"%s\"",
-                              loc.key(0).constData(), string);
+                              loc.key().constData(), string);
                     } else {
                         error("Fixit for %s Replace %d character%s with \"%s\"",
-                              loc.key(0).constData(), endOffset - startOffset,
+                              loc.key().constData(), endOffset - startOffset,
                               endOffset - startOffset > 1 ? "s" : "", string);
                     }
                     Diagnostic &entry = mIndexDataMessage.diagnostics()[Location(loc.fileId(), line, column)];

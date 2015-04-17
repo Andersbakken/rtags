@@ -434,10 +434,14 @@ String Server::guessArguments(const String &args, const Path &pwd, const Path &p
     return String::join(ret, ' ');
 }
 
-bool Server::index(const String &args, const Path &pwd,
-                   const Path &projectRootOverride, unsigned int indexMessageFlags)
+bool Server::index(const String &args,
+                   const Path &pwd,
+                   const Path &projectRootOverride,
+                   Flags<IndexMessage::Flag> indexMessageFlags)
 {
-    const unsigned int sourceParseFlags = indexMessageFlags & IndexMessage::Escape ? Source::Escape : Source::None;
+    const Flags<Source::ParseFlag> sourceParseFlags = (indexMessageFlags & IndexMessage::Escape
+                                                       ? Source::Escape
+                                                       : Source::None);
     String arguments;
     List<Path> unresolvedPaths;
     List<Source> sources;
@@ -838,23 +842,10 @@ void Server::generateTest(const std::shared_ptr<QueryMessage> &query, const std:
 
     const Source source = project->sources(fileId).value(query->buildIndex());
     if (!source.isNull()) {
-        enum CommandLineMode {
-            IncludeCompiler = 0x001,
-            IncludeSourceFile = 0x002,
-            IncludeDefines = 0x004,
-            IncludeIncludepaths = 0x008,
-            QuoteDefines = 0x010,
-            FilterBlacklist = 0x020,
-            ExcludeDefaultArguments = 0x040,
-            ExcludeDefaultIncludePaths = 0x080,
-            ExcludeDefaultDefines = 0x100,
-            Default = IncludeDefines|IncludeIncludepaths|FilterBlacklist
-        };
-
-        const unsigned int flags = (Source::Default
-                                    |Source::ExcludeDefaultDefines
-                                    |Source::ExcludeDefaultIncludePaths
-                                    |Source::ExcludeDefaultArguments);
+        const Flags<Source::CommandLineFlag> flags = (Source::Default
+                                                      | Source::ExcludeDefaultDefines
+                                                      | Source::ExcludeDefaultIncludePaths
+                                                      | Source::ExcludeDefaultArguments);
 
         const Path root = source.sourceFile().parentDir().ensureTrailingSlash();
         List<String> compile = source.toCommandLine(flags);
@@ -1357,7 +1348,7 @@ void Server::sources(const std::shared_ptr<QueryMessage> &query, const std::shar
                     if (sources.size() > 1)
                         out = String::format<4>("%d: ", idx);
                     if (flagsOnly) {
-                        out += String::join(it.toCommandLine(0), splitLine ? '\n' : ' ');
+                        out += String::join(it.toCommandLine(), splitLine ? '\n' : ' ');
                     } else {
                         out += it.toString();
                     }
@@ -1378,7 +1369,7 @@ void Server::sources(const std::shared_ptr<QueryMessage> &query, const std::shar
                     conn->write<128>("%s%s%s",
                                      it.second.sourceFile().constData(),
                                      splitLine ? "\n" : ": ",
-                                     String::join(it.second.toCommandLine(0), splitLine ? '\n' : ' ').constData());
+                                     String::join(it.second.toCommandLine(), splitLine ? '\n' : ' ').constData());
                 } else {
                     conn->write(it.second.toString());
                 }
@@ -1616,7 +1607,7 @@ void Server::codeCompleteAt(const std::shared_ptr<QueryMessage> &query, const st
     }
 
     const Location loc(fileId, line, column);
-    unsigned int flags = CompletionThread::None;
+    Flags<CompletionThread::Flag> flags;
     if (query->type() == QueryMessage::PrepareCodeCompleteAt)
         flags |= CompletionThread::Refresh;
     if (query->flags() & QueryMessage::ElispList)

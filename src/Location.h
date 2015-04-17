@@ -23,6 +23,7 @@
 #include <assert.h>
 #include <clang-c/Index.h>
 #include <stdio.h>
+#include <rct/Flags.h>
 #if defined(OS_Linux)
 #include <linux/limits.h>
 #endif
@@ -158,8 +159,8 @@ public:
         NoColor = 0x2
     };
 
-    String key(unsigned int flags = NoFlag) const;
-    String context(unsigned int flags) const;
+    String key(Flags<KeyFlag> flags = NoFlag) const;
+    String context(Flags<KeyFlag> flags) const;
 
     static Location decode(const String &data)
     {
@@ -260,6 +261,8 @@ private:
     static const uint64_t LINE_MASK;
     static const uint64_t COLUMN_MASK;
 };
+
+RCT_FLAGS(Location::KeyFlag);
 
 template <> struct FixedSize<Location>
 {

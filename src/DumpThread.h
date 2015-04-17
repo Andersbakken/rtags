@@ -31,7 +31,7 @@ public:
 private:
     static CXChildVisitResult visitor(CXCursor cursor, CXCursor, CXClientData userData);
     void writeToConnetion(const String &message);
-    const unsigned int mQueryFlags;
+    const Flags<QueryMessage::Flag> mQueryFlags;
     const Source mSource;
     std::shared_ptr<Connection> mConnection;
     Hash<Path, uint32_t> mFiles;

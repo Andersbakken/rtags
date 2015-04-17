@@ -48,7 +48,7 @@ Path encodeSourceFilePath(const Path &dataDir, const Path &project, uint32_t fil
 }
 
 
-Path findAncestor(Path path, const char *fn, unsigned int flags)
+Path findAncestor(Path path, const char *fn, Flags<FindAncestorFlag> flags = Flags<FindAncestorFlag>())
 {
     Path ret;
     int slash = path.size();
@@ -155,7 +155,7 @@ Map<String, String> rtagsConfig(const Path &path)
 
 struct Entry {
     const char *name;
-    const unsigned int flags;
+    const Flags<FindAncestorFlag> flags;
 };
 
 static inline Path checkEntries(const Entry *entries, const Path &path, const Path &home)
@@ -194,23 +194,23 @@ Path findProjectRoot(const Path &path, ProjectRootMode mode)
     static const Path home = Path::home();
     if (mode == SourceRoot) {
         const Entry before[] = {
-            { ".git", 0 },
-            { ".svn", 0 },
-            { ".bzr", 0 },
-            { ".tup", 0 },
-            { "GTAGS", 0 },
-            { "configure", 0 },
-            { "CMakeLists.txt", 0 },
+            { ".git", Flags<FindAncestorFlag>() },
+            { ".svn", Flags<FindAncestorFlag>() },
+            { ".bzr", Flags<FindAncestorFlag>() },
+            { ".tup", Flags<FindAncestorFlag>() },
+            { "GTAGS", Flags<FindAncestorFlag>() },
+            { "configure", Flags<FindAncestorFlag>() },
+            { "CMakeLists.txt", Flags<FindAncestorFlag>() },
             { "*.pro", Wildcard },
-            { "scons.1", 0 },
+            { "scons.1", Flags<FindAncestorFlag>() },
             { "*.scons", Wildcard },
-            { "SConstruct", 0 },
+            { "SConstruct", Flags<FindAncestorFlag>() },
             { "autogen.*", Wildcard },
             { "GNUMakefile*", Wildcard },
             { "INSTALL*", Wildcard },
             { "README*", Wildcard },
-            { "compile_commands.json", 0 },
-            { 0, 0 }
+            { "compile_commands.json", Flags<FindAncestorFlag>() },
+            { 0, Flags<FindAncestorFlag>() }
         };
         {
             const Path e = checkEntries(before, path, home);
@@ -221,7 +221,7 @@ Path findProjectRoot(const Path &path, ProjectRootMode mode)
     if (!ret.isEmpty())
         return ret;
     {
-        const Path configStatus = findAncestor(path, "config.status", 0);
+        const Path configStatus = findAncestor(path, "config.status");
         if (!configStatus.isEmpty()) {
             if (mode == BuildRoot)
                 return configStatus;
@@ -259,7 +259,7 @@ Path findProjectRoot(const Path &path, ProjectRootMode mode)
         }
     }
     {
-        const Path cmakeCache = findAncestor(path, "CMakeCache.txt", 0);
+        const Path cmakeCache = findAncestor(path, "CMakeCache.txt");
         if (!cmakeCache.isEmpty()) {
             if (mode == BuildRoot)
                 return cmakeCache;
@@ -313,9 +313,9 @@ Path findProjectRoot(const Path &path, ProjectRootMode mode)
         }
     }
     const Entry after[] = {
-        { "build.ninja", 0 },
+        { "build.ninja", Flags<FindAncestorFlag>() },
         { "Makefile*", Wildcard },
-        { 0, 0 }
+        { 0, Flags<FindAncestorFlag>() }
     };
 
     {

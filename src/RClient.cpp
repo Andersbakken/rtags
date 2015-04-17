@@ -246,12 +246,12 @@ class QueryCommand : public RCCommand
 {
 public:
     QueryCommand(QueryMessage::Type t, const String &q)
-        : RCCommand(), type(t), query(q), extraQueryFlags(0)
+        : RCCommand(), type(t), query(q)
     {}
 
     const QueryMessage::Type type;
     const String query;
-    unsigned int extraQueryFlags;
+    Flags<QueryMessage::Flag> extraQueryFlags;
 
     virtual bool exec(RClient *rc, const std::shared_ptr<Connection> &connection) override
     {
@@ -367,9 +367,9 @@ public:
 };
 
 RClient::RClient()
-    : mQueryFlags(0), mMax(-1), mLogLevel(0), mTimeout(-1),
-      mMinOffset(-1), mMaxOffset(-1), mConnectTimeout(DEFAULT_CONNECT_TIMEOUT),
-      mBuildIndex(0), mEscapeMode(Escape_Auto), mGuessFlags(false), mArgc(0), mArgv(0)
+    : mMax(-1), mLogLevel(0), mTimeout(-1), mMinOffset(-1), mMaxOffset(-1),
+      mConnectTimeout(DEFAULT_CONNECT_TIMEOUT), mBuildIndex(0),
+      mEscapeMode(Escape_Auto), mGuessFlags(false), mArgc(0), mArgv(0)
 {
 }
 
@@ -378,7 +378,7 @@ RClient::~RClient()
     cleanupLogging();
 }
 
-void RClient::addQuery(QueryMessage::Type type, const String &query, unsigned int extraQueryFlags)
+void RClient::addQuery(QueryMessage::Type type, const String &query, Flags<QueryMessage::Flag> extraQueryFlags)
 {
     std::shared_ptr<QueryCommand> cmd(new QueryCommand(type, query));
     cmd->extraQueryFlags = extraQueryFlags;
@@ -842,7 +842,7 @@ RClient::ParseStatus RClient::parse(int &argc, char **argv)
         case IncludeFile:
         case JobCount:
         case Status: {
-            unsigned int extraQueryFlags = 0;
+            Flags<QueryMessage::Flag> extraQueryFlags;
             QueryMessage::Type type = QueryMessage::Invalid;
             bool resolve = true;
             switch (opt->option) {

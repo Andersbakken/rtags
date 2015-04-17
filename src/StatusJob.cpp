@@ -23,7 +23,7 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 
 const char *StatusJob::delimiter = "*********************************";
 StatusJob::StatusJob(const std::shared_ptr<QueryMessage> &q, const std::shared_ptr<Project> &project)
-    : QueryJob(q, WriteUnfiltered|QuietJob, project), query(q->query())
+    : QueryJob(q, project, WriteUnfiltered|QuietJob), query(q->query())
 {
 }
 
@@ -71,7 +71,7 @@ int StatusJob::execute()
         const Server::Options &opt = Server::instance()->options();
         out << "socketFile" << opt.socketFile << '\n'
             << "dataDir" << opt.dataDir << '\n'
-            << "options" << String::format("0x%x\n", opt.options)
+            << "options" << opt.options
             << "jobCount" << opt.jobCount << '\n'
             << "rpVisitFileTimeout" << opt.rpVisitFileTimeout << '\n'
             << "rpIndexDataMessageTimeout" << opt.rpIndexDataMessageTimeout << '\n'

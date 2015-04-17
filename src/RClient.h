@@ -152,13 +152,14 @@ public:
 
     String socketFile() const { return mSocketFile; }
     Path projectRoot() const { return mProjectRoot; }
-    unsigned int queryFlags() const { return mQueryFlags; }
+    Flags<QueryMessage::Flag> queryFlags() const { return mQueryFlags; }
 
     int argc() const { return mArgc; }
     char **argv() const { return mArgv; }
     void onNewMessage(const std::shared_ptr<Message> &message, const std::shared_ptr<Connection> &);
 private:
-    void addQuery(QueryMessage::Type t, const String &query = String(), unsigned int extraQueryFlags = 0);
+    void addQuery(QueryMessage::Type t, const String &query = String(),
+                  Flags<QueryMessage::Flag> extraQueryFlags = Flags<QueryMessage::Flag>());
     void addQuitCommand(int exitCode);
 
     void addLog(int level);
@@ -171,7 +172,7 @@ private:
     void addCompile(const Path &cwd, const String &args, EscapeMode escapeMode);
     void addCompile(const Path &dir, EscapeMode escapeMode);
 
-    unsigned int mQueryFlags;
+    Flags<QueryMessage::Flag> mQueryFlags;
     int mMax, mLogLevel, mTimeout, mMinOffset, mMaxOffset, mConnectTimeout, mBuildIndex;
     Set<String> mPathFilters;
     UnsavedFiles mUnsavedFiles;

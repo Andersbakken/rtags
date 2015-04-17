@@ -26,6 +26,7 @@
 #include <rct/LinkedList.h>
 #include <clang-c/Index.h>
 #include <rct/Connection.h>
+#include <rct/Flags.h>
 
 class CompletionThread : public Thread
 {
@@ -39,7 +40,8 @@ public:
         Refresh = 0x1,
         Elisp = 0x2
     };
-    void completeAt(const Source &source, const Location &location, unsigned int flags, const String &unsaved, const std::shared_ptr<Connection> &conn);
+    void completeAt(const Source &source, const Location &location, Flags<Flag> flags,
+                    const String &unsaved, const std::shared_ptr<Connection> &conn);
     void stop();
     String dump();
 private:
@@ -57,7 +59,7 @@ private:
         }
         Source source;
         Location location;
-        unsigned int flags;
+        Flags<Flag> flags;
         String unsaved;
         std::shared_ptr<Connection> conn;
     };
@@ -106,5 +108,7 @@ private:
     mutable std::mutex mMutex;
     std::condition_variable mCondition;
 };
+
+RCT_FLAGS(CompletionThread::Flag);
 
 #endif

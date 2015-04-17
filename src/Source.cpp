@@ -350,8 +350,8 @@ static inline bool isCompilerWrapper(const char *fileName)
     return false;
 }
 
-List<Source> Source::parse(const String &cmdLine, const Path &base, unsigned int parseFlags,
-                           List<Path> *unresolvedInputLocations)
+List<Source> Source::parse(const String &cmdLine, const Path &base,
+                           Flags<ParseFlag> parseFlags, List<Path> *unresolvedInputLocations)
 {
     String args = cmdLine;
     char quote = '\0';
@@ -419,7 +419,7 @@ List<Source> Source::parse(const String &cmdLine, const Path &base, unsigned int
 
     Language language = guessLanguageFromCompiler(split.front());
     bool hasDashX = false;
-    uint32_t sourceFlags = 0;
+    Flags<Flag> sourceFlags;
     List<String> arguments;
     Set<Define> defines;
     List<Include> includePaths;
@@ -803,7 +803,7 @@ static inline bool isPch(const Path &path)
     return false;
 }
 
-List<String> Source::toCommandLine(unsigned int flags) const
+List<String> Source::toCommandLine(Flags<CommandLineFlag> flags) const
 {
     const Server::Options *options = serverOptions();
     if (!options)

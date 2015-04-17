@@ -28,6 +28,7 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 #include <rct/String.h>
 #include <stdio.h>
 #include <typeinfo>
+#include <rct/Flags.h>
 
 class Database;
 class Project;
@@ -220,7 +221,8 @@ enum FindAncestorFlag {
     Shallow = 0x1,
     Wildcard = 0x2
 };
-Path findAncestor(Path path, const char *fn, unsigned int flags);
+RCT_FLAGS(FindAncestorFlag);
+Path findAncestor(Path path, const char *fn, Flags<FindAncestorFlag> flags);
 Map<String, String> rtagsConfig(const Path &path);
 
 enum { DefinitionBit = 0x1000 };

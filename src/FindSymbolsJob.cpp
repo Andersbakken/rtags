@@ -19,13 +19,13 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 #include "RTagsClang.h"
 #include "Project.h"
 
-static inline unsigned int jobFlags(unsigned int queryFlags)
+static inline Flags<QueryJob::JobFlag> jobFlags(Flags<QueryMessage::Flag> queryFlags)
 {
-    return (queryFlags & QueryMessage::ElispList) ? QueryJob::QuoteOutput|QueryJob::QuietJob : QueryJob::None|QueryJob::QuietJob;
+    return (queryFlags & QueryMessage::ElispList) ? QueryJob::QuoteOutput|QueryJob::QuietJob : QueryJob::QuietJob;
 }
 
 FindSymbolsJob::FindSymbolsJob(const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Project> &proj)
-    : QueryJob(query, ::jobFlags(query->flags()), proj), string(query->query())
+    : QueryJob(query, proj, ::jobFlags(query->flags())), string(query->query())
 {
 }
 
@@ -49,14 +49,14 @@ int FindSymbolsJob::execute()
         };
         proj->findSymbols(string, inserter, queryFlags());
         if (!symbols.isEmpty()) {
-            unsigned int sortFlags = Project::Sort_None;
+            Flags<Project::SortFlag> sortFlags = Project::Sort_None;
             if (queryFlags() & QueryMessage::DeclarationOnly)
                 sortFlags |= Project::Sort_DeclarationOnly;
             if (queryFlags() & QueryMessage::ReverseSort)
                 sortFlags |= Project::Sort_Reverse;
 
             const List<RTags::SortedSymbol> sorted = proj->sort(symbols, sortFlags);
-            const unsigned int writeFlags = filter ? Unfiltered : NoWriteFlags;
+            const Flags<WriteFlag> writeFlags = filter ? Unfiltered : NoWriteFlags;
             const int count = sorted.size();
             ret = count ? 0 : 1;
             for (int i=0; i<count; ++i) {

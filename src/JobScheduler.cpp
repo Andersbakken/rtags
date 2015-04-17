@@ -248,18 +248,18 @@ void JobScheduler::dump(const std::shared_ptr<Connection> &conn)
     if (!mPendingJobs.isEmpty()) {
         conn->write("Pending:");
         for (const auto &node : mPendingJobs) {
-            conn->write<128>("%s: 0x%x %s",
+            conn->write<128>("%s: %s %s",
                              node->job->sourceFile.constData(),
-                             node->job->flags,
+                             node->job->flags.toString().constData(),
                              IndexerJob::dumpFlags(node->job->flags).constData());
         }
     }
     if (!mActiveById.isEmpty()) {
         conn->write("Active:");
         for (const auto &node : mActiveById) {
-            conn->write<128>("%s: 0x%x %s",
+            conn->write<128>("%s: %s %s",
                              node.second->job->sourceFile.constData(),
-                             node.second->job->flags,
+                             node.second->job->flags.toString().constData(),
                              IndexerJob::dumpFlags(node.second->job->flags).constData());
         }
     }
@@ -269,9 +269,9 @@ void JobScheduler::dump(const std::shared_ptr<Connection> &conn)
         for (uint64_t headerErrorJobId : mHeaderErrorJobIds) {
             auto node = mActiveById.value(headerErrorJobId);
             assert(node);
-            conn->write<128>("%s: 0x%x %s",
+            conn->write<128>("%s: %s %s",
                              node->job->sourceFile.constData(),
-                             node->job->flags,
+                             node->job->flags.toString().constData(),
                              IndexerJob::dumpFlags(node->job->flags).constData());
 
         }

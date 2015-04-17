@@ -87,7 +87,8 @@ void CompletionThread::run()
 }
 
 void CompletionThread::completeAt(const Source &source, const Location &location,
-                                  unsigned int flags, const String &unsaved, const std::shared_ptr<Connection> &conn)
+                                  Flags<Flag> flags, const String &unsaved,
+                                  const std::shared_ptr<Connection> &conn)
 {
     Request *request = new Request({ source, location, flags, unsaved, conn});
     std::unique_lock<std::mutex> lock(mMutex);
@@ -254,7 +255,7 @@ void CompletionThread::process(Request *request)
         Rct::LinkedList::deleteAll(cache->firstCompletion);
         cache->firstCompletion = cache->lastCompletion = 0;
         sw.restart();
-        unsigned int flags = clang_defaultEditingTranslationUnitOptions();
+        Flags<CXTranslationUnit_Flags> flags = static_cast<CXTranslationUnit_Flags>(clang_defaultEditingTranslationUnitOptions());
         flags |= CXTranslationUnit_PrecompiledPreamble;
         flags |= CXTranslationUnit_CacheCompletionResults;
         flags |= CXTranslationUnit_SkipFunctionBodies;

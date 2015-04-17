@@ -19,10 +19,12 @@
 #include <rct/Log.h>
 #include "RTags.h"
 
-enum { DefaultFlags = QueryJob::WriteUnfiltered | QueryJob::QuietJob, ElispFlags = DefaultFlags | QueryJob::QuoteOutput };
+const Flags<QueryJob::JobFlag> defaultFlags = (QueryJob::WriteUnfiltered | QueryJob::QuietJob);
+const Flags<QueryJob::JobFlag> elispFlags = (defaultFlags | QueryJob::QuoteOutput);
 
 ListSymbolsJob::ListSymbolsJob(const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Project> &proj)
-    : QueryJob(query, query->flags() & QueryMessage::ElispList ? ElispFlags : DefaultFlags, proj), string(query->query())
+    : QueryJob(query, proj, query->flags() & QueryMessage::ElispList ? elispFlags : defaultFlags),
+      string(query->query())
 {
 }
 

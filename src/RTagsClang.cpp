@@ -34,7 +34,7 @@ String eatString(CXString str)
     return ret;
 }
 
-String cursorToString(CXCursor cursor, unsigned int flags)
+String cursorToString(CXCursor cursor, Flags<CursorToStringFlags> flags)
 {
     const CXCursorKind kind = clang_getCursorKind(cursor);
     String ret;
@@ -111,7 +111,7 @@ String cursorToString(CXCursor cursor, unsigned int flags)
 void parseTranslationUnit(const Path &sourceFile, const List<String> &args,
                           CXTranslationUnit &unit, CXIndex index,
                           CXUnsavedFile *unsaved, int unsavedCount,
-                          unsigned int translationUnitFlags,
+                          Flags<CXTranslationUnit_Flags> translationUnitFlags,
                           String *clangLine)
 
 {
@@ -142,14 +142,14 @@ void parseTranslationUnit(const Path &sourceFile, const List<String> &args,
     for (int i=0; i<3; ++i) {
         auto error = clang_parseTranslationUnit2(index, sourceFile.constData(),
                                                  clangArgs.data(), idx, unsaved, unsavedCount,
-                                                 translationUnitFlags, &unit);
+                                                 translationUnitFlags.cast<unsigned int>(), &unit);
         if (error != CXError_Crashed)
             break;
     }
 #else
     unit = clang_parseTranslationUnit(index, sourceFile.constData(),
                                       clangArgs.data(), idx, unsaved, unsavedCount,
-                                      translationUnitFlags);
+                                      translationUnitFlags.cast<unsigned int>());
 #endif
     // error() << sourceFile << sw.elapsed();
 }

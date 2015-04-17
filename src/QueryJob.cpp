@@ -21,12 +21,11 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 #include "QueryMessage.h"
 #include "Project.h"
 
-// static int count = 0;
-// static int active = 0;
-
-QueryJob::QueryJob(const std::shared_ptr<QueryMessage> &query, unsigned int jobFlags, const std::shared_ptr<Project> &proj)
-    : mAborted(false), mLinesWritten(0), mQueryMessage(query), mJobFlags(jobFlags), mProject(proj), mPathFilters(0),
-      mPathFiltersRegex(0)
+QueryJob::QueryJob(const std::shared_ptr<QueryMessage> &query,
+                   const std::shared_ptr<Project> &proj,
+                   Flags<JobFlag> jobFlags)
+    : mAborted(false), mLinesWritten(0), mQueryMessage(query), mJobFlags(jobFlags),
+      mProject(proj), mPathFilters(0), mPathFiltersRegex(0)
 {
     if (mProject)
         mProject->beginScope();
@@ -48,7 +47,7 @@ QueryJob::QueryJob(const std::shared_ptr<QueryMessage> &query, unsigned int jobF
     }
 }
 
-QueryJob::QueryJob(unsigned int jobFlags, const std::shared_ptr<Project> &proj)
+QueryJob::QueryJob(const std::shared_ptr<Project> &proj, Flags<JobFlag> jobFlags)
     : mAborted(false), mLinesWritten(0), mJobFlags(jobFlags), mProject(proj), mPathFilters(0),
       mPathFiltersRegex(0), mConnection(0)
 {
@@ -72,7 +71,7 @@ uint32_t QueryJob::fileFilter() const
     return 0;
 }
 
-bool QueryJob::write(const String &out, unsigned int flags)
+bool QueryJob::write(const String &out, Flags<WriteFlag> flags)
 {
     if ((mJobFlags & WriteUnfiltered) || (flags & Unfiltered) || filter(out)) {
         if ((mJobFlags & QuoteOutput) && !(flags & DontQuote)) {
@@ -99,7 +98,7 @@ bool QueryJob::write(const String &out, unsigned int flags)
     return true;
 }
 
-bool QueryJob::writeRaw(const String &out, unsigned int flags)
+bool QueryJob::writeRaw(const String &out, Flags<WriteFlag> flags)
 {
     assert(mConnection);
     if (!(flags & IgnoreMax) && mQueryMessage) {
@@ -125,7 +124,7 @@ bool QueryJob::writeRaw(const String &out, unsigned int flags)
     return true;
 }
 
-bool QueryJob::write(const Location &location, unsigned int flags)
+bool QueryJob::write(const Location &location, Flags<WriteFlag> flags)
 {
     if (location.isNull())
         return false;
@@ -179,12 +178,14 @@ bool QueryJob::write(const Location &location, unsigned int flags)
     return write(out, flags);
 }
 
-bool QueryJob::write(const Symbol &symbol, unsigned int cflags, unsigned int flags)
+bool QueryJob::write(const Symbol &symbol,
+                     Flags<Symbol::ToStringFlag> toStringFlags,
+                     Flags<WriteFlag> writeFlags)
 {
     if (symbol.isNull())
         return false;
 
-    return write(symbol.toString(cflags, keyFlags(), project()), flags);
+    return write(symbol.toString(toStringFlags, keyFlags(), project()), writeFlags);
 }
 
 bool QueryJob::filter(const String &value) const

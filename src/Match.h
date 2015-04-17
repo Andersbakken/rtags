@@ -19,6 +19,7 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 #include <rct/String.h>
 #include <rct/Log.h>
 #include <regex>
+#include <rct/Flags.h>
 
 class Match
 {
@@ -31,10 +32,9 @@ public:
     };
 
     inline Match()
-        : mFlags(0)
     {}
 
-    inline Match(const String &pattern, unsigned int flags = Flag_StringMatch)
+    inline Match(const String &pattern, Flags<Flag> flags = Flag_StringMatch)
         : mFlags(flags)
     {
         if (flags & Flag_Regex)
@@ -42,7 +42,7 @@ public:
         mPattern = pattern;
     }
 
-    unsigned int flags() const { return mFlags; }
+    Flags<Flag> flags() const { return mFlags; }
 
     inline bool match(const String &text) const
     {
@@ -80,8 +80,9 @@ public:
 private:
     std::regex mRegex;
     String mPattern;
-    unsigned int mFlags;
+    Flags<Flag> mFlags;
 };
+RCT_FLAGS(Match::Flag);
 
 inline Log operator<<(Log log, const Match &match)
 {

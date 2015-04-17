@@ -19,16 +19,16 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 #include "FileManager.h"
 #include "Project.h"
 
-static unsigned int flags(unsigned int queryFlags)
+static Flags<QueryJob::JobFlag> flags(Flags<QueryMessage::Flag> queryFlags)
 {
-    unsigned int flags = QueryJob::QuietJob;
+    Flags<QueryJob::JobFlag> flags = QueryJob::QuietJob;
     if (queryFlags & QueryMessage::ElispList)
         flags |= QueryJob::QuoteOutput;
     return flags;
 }
 
 FindFileJob::FindFileJob(const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Project> &project)
-    : QueryJob(query, ::flags(query->flags()), project)
+    : QueryJob(query, project, ::flags(query->flags()))
 {
     const String q = query->query();
     if (!q.isEmpty()) {

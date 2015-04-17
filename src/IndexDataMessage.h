@@ -22,6 +22,7 @@
 #include <rct/Serializer.h>
 #include <rct/String.h>
 #include "IndexerJob.h"
+#include <rct/Flags.h>
 
 class IndexDataMessage : public RTagsMessage
 {
@@ -30,36 +31,24 @@ public:
 
     IndexDataMessage(const std::shared_ptr<IndexerJob> &job)
         : RTagsMessage(MessageId), mParseTime(0), mKey(job->source.key()), mId(0),
-          mIndexerJobFlags(job->flags), mFlags(0)
+          mIndexerJobFlags(job->flags)
     {}
 
     IndexDataMessage()
-        : RTagsMessage(MessageId), mParseTime(0), mKey(0), mId(0),
-          mIndexerJobFlags(0), mFlags(0)
+        : RTagsMessage(MessageId), mParseTime(0), mKey(0), mId(0)
     {}
 
-    void encode(Serializer &serializer) const
-    {
-        serializer << mProject << mParseTime << mKey << mId << mIndexerJobFlags
-                   << mMessage << mFixIts << mIncludes << mDiagnostics << mFiles
-                   << mDeclarations << mFlags;
-    }
-
-    void decode(Deserializer &deserializer)
-    {
-        deserializer >> mProject >> mParseTime >> mKey >> mId >> mIndexerJobFlags
-                     >> mMessage >> mFixIts >> mIncludes >> mDiagnostics
-                     >> mFiles >> mDeclarations >> mFlags;
-    }
+    void encode(Serializer &serializer) const;
+    void decode(Deserializer &deserializer);
 
     enum Flag {
         None = 0x0,
         ParseFailure = 0x1,
         InclusionError = 0x2
     };
-    unsigned int flags() const { return mFlags; }
-    void setFlags(unsigned int flags) { mFlags = flags; }
-    void setFlag(Flag flag, bool on = true) { if (on) { mFlags |= flag; } else { mFlags &= ~flag; } }
+    Flags<Flag> flags() const { return mFlags; }
+    void setFlags(Flags<Flag> flags) { mFlags = flags; }
+    void setFlag(Flag flag, bool on = true) { mFlags.set(flag, on); }
 
     Set<uint32_t> visitedFiles() const
     {
@@ -97,8 +86,8 @@ public:
     uint64_t parseTime() const { return mParseTime; }
     void setParseTime(uint64_t parseTime) { mParseTime = parseTime; }
 
-    uint32_t indexerJobFlags() const { return mIndexerJobFlags; }
-    void setIndexerJobFlags(uint32_t flags) { mIndexerJobFlags = flags; }
+    Flags<IndexerJob::Flag> indexerJobFlags() const { return mIndexerJobFlags; }
+    void setIndexerJobFlags(Flags<IndexerJob::Flag> flags) { mIndexerJobFlags = flags; }
 
     uint64_t key() const { return mKey; }
     void setKey(uint64_t key) { mKey = key; }
@@ -111,21 +100,39 @@ public:
     Includes &includes() { return mIncludes; }
     Declarations &declarations() { return mDeclarations; }
     enum FileFlag {
+        NoFileFlag = 0x0,
         Visited = 0x1,
         HeaderError = 0x2
     };
-    Hash<uint32_t, unsigned int> &files() { return mFiles; }
+    Hash<uint32_t, Flags<FileFlag> > &files() { return mFiles; }
 private:
     Path mProject;
     uint64_t mParseTime, mKey, mId;
-    uint32_t mIndexerJobFlags; // indexerjobflags
+    Flags<IndexerJob::Flag> mIndexerJobFlags; // indexerjobflags
     String mMessage; // used as output for dump when flags & Dump
     FixIts mFixIts;
     Diagnostics mDiagnostics;
     Includes mIncludes;
     Declarations mDeclarations; // function declarations and forward declaration
-    Hash<uint32_t, unsigned int> mFiles;
-    unsigned int mFlags;
+    Hash<uint32_t, Flags<FileFlag> > mFiles;
+    Flags<Flag> mFlags;
 };
+
+RCT_FLAGS(IndexDataMessage::Flag);
+RCT_FLAGS(IndexDataMessage::FileFlag);
+
+inline void IndexDataMessage::encode(Serializer &serializer) const
+{
+    serializer << mProject << mParseTime << mKey << mId << mIndexerJobFlags
+               << mMessage << mFixIts << mIncludes << mDiagnostics << mFiles
+               << mDeclarations << mFlags;
+}
+
+inline void IndexDataMessage::decode(Deserializer &deserializer)
+{
+    deserializer >> mProject >> mParseTime >> mKey >> mId >> mIndexerJobFlags
+                 >> mMessage >> mFixIts >> mIncludes >> mDiagnostics
+                 >> mFiles >> mDeclarations >> mFlags;
+}
 
 #endif

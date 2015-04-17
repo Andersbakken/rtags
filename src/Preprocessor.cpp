@@ -26,18 +26,16 @@ Preprocessor::Preprocessor(const Source &source, const std::shared_ptr<Connectio
     mProcess->finished().connect(std::bind(&Preprocessor::onProcessFinished, this));
 }
 
-enum {
-    Flags = (Source::IncludeSourceFile
-             | Source::ExcludeDefaultArguments
-             | Source::ExcludeDefaultIncludePaths
-             | Source::ExcludeDefaultDefines
-             | Source::IncludeIncludepaths
-             | Source::IncludeDefines)
-};
+const Flags<Source::CommandLineFlag> SourceFlags = (Source::IncludeSourceFile
+                                                    | Source::ExcludeDefaultArguments
+                                                    | Source::ExcludeDefaultIncludePaths
+                                                    | Source::ExcludeDefaultDefines
+                                                    | Source::IncludeIncludepaths
+                                                    | Source::IncludeDefines);
 
 void Preprocessor::preprocess()
 {
-    List<String> args = mSource.toCommandLine(Flags);
+    List<String> args = mSource.toCommandLine(SourceFlags);
     args.append("-E");
 
     mProcess->start(mSource.compiler(), args);
@@ -46,7 +44,7 @@ void Preprocessor::preprocess()
 void Preprocessor::onProcessFinished()
 {
     mConnection->client()->setWriteMode(SocketClient::Synchronous);
-    const unsigned int flags = (Flags | Source::IncludeCompiler);
+    const Flags<Source::CommandLineFlag> flags = (SourceFlags | Source::IncludeCompiler);
     mConnection->write<256>("// %s", String::join(mSource.toCommandLine(flags), ' ').constData());
     mConnection->write(mProcess->readAllStdOut());
     const String err = mProcess->readAllStdErr();

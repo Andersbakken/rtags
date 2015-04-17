@@ -36,7 +36,9 @@ static inline const char *linkageSpelling(CXLinkageKind kind)
     return "";
 }
 
-String Symbol::toString(unsigned int cursorInfoFlags, unsigned int keyFlags, const std::shared_ptr<Project> &project) const
+String Symbol::toString(Flags<ToStringFlag> cursorInfoFlags,
+                        Flags<Location::KeyFlag> keyFlags,
+                        const std::shared_ptr<Project> &project) const
 {
     static auto properties = [this]()
         {

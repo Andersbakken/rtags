@@ -19,13 +19,13 @@
 #include "Project.h"
 
 ReferencesJob::ReferencesJob(const Location &loc, const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Project> &proj)
-    : QueryJob(query, 0, proj)
+    : QueryJob(query, proj)
 {
     locations.insert(loc);
 }
 
 ReferencesJob::ReferencesJob(const String &sym, const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Project> &proj)
-    : QueryJob(query, 0, proj), symbolName(sym)
+    : QueryJob(query, proj), symbolName(sym)
 {
 }
 
@@ -36,7 +36,7 @@ int ReferencesJob::execute()
     if (!proj)
         return 1;
     Set<Symbol> refs;
-    Map<Location, std::pair<bool, uint16_t> > references;
+    Map<Location, std::pair<bool, CXCursorKind> > references;
     if (!symbolName.isEmpty()) {
         const bool hasFilter = QueryJob::hasFilter();
         auto inserter = [this, hasFilter](Project::SymbolMatchType type, const String &string, const Set<Location> &locs) {
@@ -66,6 +66,7 @@ int ReferencesJob::execute()
             first = false;
             startLocation = sym.location;
         }
+
         if (sym.isReference())
             sym = proj->findTarget(sym);
         if (sym.isNull())
@@ -129,7 +130,7 @@ int ReferencesJob::execute()
     if (rename) {
         if (!references.isEmpty()) {
             if (queryFlags() & QueryMessage::ReverseSort) {
-                Map<Location, std::pair<bool, uint16_t> >::const_iterator it = references.end();
+                Map<Location, std::pair<bool, CXCursorKind> >::const_iterator it = references.end();
                 do {
                     --it;
                     write(it->first);
@@ -144,7 +145,7 @@ int ReferencesJob::execute()
     } else {
         List<RTags::SortedSymbol> sorted;
         sorted.reserve(references.size());
-        for (Map<Location, std::pair<bool, uint16_t> >::const_iterator it = references.begin();
+        for (Map<Location, std::pair<bool, CXCursorKind> >::const_iterator it = references.begin();
              it != references.end(); ++it) {
             sorted.append(RTags::SortedSymbol(it->first, it->second.first, it->second.second));
         }

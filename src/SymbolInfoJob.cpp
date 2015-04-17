@@ -20,24 +20,24 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 #include "QueryMessage.h"
 
 SymbolInfoJob::SymbolInfoJob(const Location &loc, const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Project> &proj)
-    : QueryJob(query, 0, proj), location(loc)
+    : QueryJob(query, proj), location(loc)
 {
 }
 
 int SymbolInfoJob::execute()
 {
-    unsigned int ciFlags = 0;
+    Flags<Symbol::ToStringFlag> toStringFlags;
     if (queryFlags() & QueryMessage::SymbolInfoExcludeTargets)
-        ciFlags |= Symbol::IgnoreTargets;
+        toStringFlags |= Symbol::IgnoreTargets;
     if (queryFlags() & QueryMessage::SymbolInfoExcludeReferences)
-        ciFlags |= Symbol::IgnoreReferences;
+        toStringFlags |= Symbol::IgnoreReferences;
 
     int ret = 1;
     int idx = -1;
     auto symbol = project()->findSymbol(location, &idx);
     if (!symbol.isNull()) {
         write(symbol.location);
-        write(symbol, ciFlags);
+        write(symbol, toStringFlags);
         ret = 0;
     }
     if (queryFlags() & QueryMessage::SymbolInfoIncludeParents) {
@@ -50,7 +50,7 @@ int SymbolInfoJob::execute()
                 }
             }
         }
-        ciFlags |= Symbol::IgnoreTargets|Symbol::IgnoreReferences;
+        toStringFlags |= Symbol::IgnoreTargets|Symbol::IgnoreReferences;
         const unsigned int line = location.line();
         const unsigned int column = location.column();
         while (idx-- > 0) {
@@ -62,7 +62,7 @@ int SymbolInfoJob::execute()
                 ret = 0;
                 write("====================");
                 write(symbol.location);
-                write(symbol, ciFlags);
+                write(symbol, toStringFlags);
                 break;
             }
         }

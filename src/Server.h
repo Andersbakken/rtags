@@ -22,6 +22,7 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 #include "Source.h"
 #include "IndexerJob.h"
 #include "Match.h"
+#include "IndexMessage.h"
 #include <rct/Connection.h>
 #include <rct/FileSystemWatcher.h>
 #include <rct/List.h>
@@ -29,8 +30,8 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 #include <rct/String.h>
 #include <rct/Timer.h>
 #include <rct/SocketServer.h>
+#include <rct/Flags.h>
 
-class IndexMessage;
 class CompletionThread;
 class Connection;
 class ErrorMessage;
@@ -74,14 +75,14 @@ public:
     };
     struct Options {
         Options()
-            : options(0), jobCount(0), headerErrorJobCount(0),
+            : jobCount(0), headerErrorJobCount(0),
               rpVisitFileTimeout(0), rpIndexDataMessageTimeout(0), rpConnectTimeout(0),
               rpNiceValue(0), threadStackSize(0), maxCrashCount(0),
               completionCacheSize(0), testTimeout(60 * 1000 * 5),
               maxFileMapScopeCacheSize(512)
         {}
         Path socketFile, dataDir, argTransform;
-        unsigned int options;
+        Flags<Option> options;
         int jobCount, headerErrorJobCount, rpVisitFileTimeout, rpIndexDataMessageTimeout,
             rpConnectTimeout, rpNiceValue, threadStackSize, maxCrashCount,
             completionCacheSize, testTimeout, maxFileMapScopeCacheSize;
@@ -112,8 +113,10 @@ private:
     String guessArguments(const String &args, const Path &pwd, const Path &projectRootOverride);
     bool saveFileIds();
     void restoreFileIds();
-    bool index(const String &arguments, const Path &pwd,
-               const Path &projectRootOverride, unsigned int indexMessageFlags = 0);
+    bool index(const String &arguments,
+               const Path &pwd,
+               const Path &projectRootOverride,
+               Flags<IndexMessage::Flag> = Flags<IndexMessage::Flag>());
     void onNewConnection(SocketServer *server);
     void setCurrentProject(const std::shared_ptr<Project> &project);
     void onNewMessage(const std::shared_ptr<Message> &message, const std::shared_ptr<Connection> &conn);
@@ -190,5 +193,7 @@ private:
     Signal<std::function<void()> > mIndexDataMessageReceived;
     friend void saveFileIds();
 };
+
+RCT_FLAGS(Server::Option);
 
 #endif

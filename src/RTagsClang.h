@@ -21,6 +21,7 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 #include "RTags.h"
 #include "Symbol.h"
 #include <clang/Basic/Version.h>
+#include <rct/Flags.h>
 
 struct Unit;
 inline bool operator==(const CXCursor &l, CXCursorKind r)
@@ -63,12 +64,15 @@ enum CursorToStringFlags {
     IncludeSpecializedUsr = 0x4,
     AllCursorToStringFlags = IncludeUSR|IncludeRange|IncludeSpecializedUsr
 };
-String cursorToString(CXCursor cursor, unsigned int = DefaultCursorToStringFlags);
+RCT_FLAGS(CursorToStringFlags);
+String cursorToString(CXCursor cursor, Flags<CursorToStringFlags> = DefaultCursorToStringFlags);
+
+RCT_FLAGS(CXTranslationUnit_Flags);
 
 void parseTranslationUnit(const Path &sourceFile, const List<String> &args,
                           CXTranslationUnit &unit, CXIndex index,
                           CXUnsavedFile *unsaved, int unsavedCount,
-                          unsigned int translationUnitFlags = 0,
+                          Flags<CXTranslationUnit_Flags> translationUnitFlags = CXTranslationUnit_None,
                           String *clangLine = 0);
 void reparseTranslationUnit(CXTranslationUnit &unit, CXUnsavedFile *unsaved, int unsavedCount);
 CXCursor resolveAutoTypeRef(const CXCursor &cursor, bool *isAuto = 0);
@@ -156,7 +160,7 @@ inline bool startsWith(const List<T> &list, const T &str)
     return false;
 }
 
-inline bool isReference(unsigned int kind)
+inline bool isReference(CXCursorKind kind)
 {
     if (clang_isReference(static_cast<CXCursorKind>(kind)))
         return true;
@@ -175,7 +179,7 @@ inline bool isReference(unsigned int kind)
     return false;
 }
 
-inline bool isFunction(unsigned int kind)
+inline bool isFunction(CXCursorKind kind)
 {
     switch (kind) {
     case CXCursor_FunctionTemplate:
@@ -192,7 +196,7 @@ inline bool isFunction(unsigned int kind)
     return false;
 }
 
-inline bool isCursor(uint16_t kind)
+inline bool isCursor(CXCursorKind kind)
 {
     switch (kind) {
     case CXCursor_LabelStmt:
@@ -207,12 +211,10 @@ inline bool isCursor(uint16_t kind)
     return clang_isDeclaration(static_cast<CXCursorKind>(kind));
 }
 
-static inline CursorType cursorType(uint16_t kind)
+static inline CursorType cursorType(CXCursorKind kind)
 {
-    switch (kind) {
-    case CXCursor_InclusionDirective:
+    if (kind == CXCursor_InclusionDirective)
         return Type_Include;
-    }
     if (clang_isStatement(static_cast<CXCursorKind>(kind))) {
         return Type_Other;
     } else if (RTags::isCursor(kind)) {
@@ -223,7 +225,7 @@ static inline CursorType cursorType(uint16_t kind)
     return Type_Other;
 }
 
-static inline bool isContainer(uint16_t kind)
+static inline bool isContainer(CXCursorKind kind)
 {
     switch (kind) {
     case CXCursor_CXXMethod:
@@ -309,13 +311,13 @@ struct SortedSymbol
 {
     SortedSymbol(const Location &loc = Location(),
                  bool definition = false,
-                 uint16_t k = CXCursor_FirstInvalid)
+                 CXCursorKind k = CXCursor_FirstInvalid)
         : location(loc), isDefinition(definition), kind(k)
     {}
 
     Location location;
     bool isDefinition;
-    uint16_t kind;
+    CXCursorKind kind;
 
     int rank() const
     {

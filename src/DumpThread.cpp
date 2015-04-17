@@ -33,7 +33,7 @@ CXChildVisitResult DumpThread::visitor(CXCursor cursor, CXCursor, CXClientData u
     assert(that);
     CXSourceLocation location = clang_getCursorLocation(cursor);
     if (!clang_equalLocations(location, nullLocation)) {
-        unsigned int locationFlags = 0;
+        Flags<Location::KeyFlag> locationFlags;
         if (that->mQueryFlags & QueryMessage::NoColor)
             locationFlags |= Location::NoColor;
         CXString file;

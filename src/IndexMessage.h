@@ -20,6 +20,7 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 #include <rct/String.h>
 #include "RTagsMessage.h"
 #include "RTags.h"
+#include <rct/Flags.h>
 
 class IndexMessage : public RTagsMessage
 {
@@ -41,9 +42,9 @@ public:
         Escape = 0x1,
         GuessFlags = 0x2
     };
-    unsigned int flags() const { return mFlags; }
-    void setFlags(unsigned int flags) { mFlags = flags; }
-    void setFlag(Flag flag, bool on = true) { if (on) { mFlags |= flag; } else { mFlags &= ~flag; } }
+    Flags<Flag> flags() const { return mFlags; }
+    void setFlags(Flags<Flag> flags) { mFlags = flags; }
+    void setFlag(Flag flag, bool on = true) { mFlags.set(flag, on); }
     virtual void encode(Serializer &serializer) const override;
     virtual void decode(Deserializer &deserializer) override;
 private:
@@ -51,7 +52,9 @@ private:
     String mArgs;
     Path mProjectRoot;
     Path mCompilationDatabaseDir;
-    unsigned int mFlags;
+    Flags<Flag> mFlags;
 };
+
+RCT_FLAGS(IndexMessage::Flag);
 
 #endif

@@ -1102,7 +1102,7 @@ void Project::reloadFileManager()
 
 void Project::findSymbols(const String &string,
                           const std::function<void(SymbolMatchType, const String &, const Set<Location> &)> &inserter,
-                          unsigned int queryFlags,
+                          Flags<QueryMessage::Flag> queryFlags,
                           uint32_t fileFilter)
 {
     const bool wildcard = queryFlags & QueryMessage::WildcardSymbolNames && (string.contains('*') || string.contains('?'));
@@ -1171,7 +1171,7 @@ void Project::findSymbols(const String &string,
     }
 }
 
-List<RTags::SortedSymbol> Project::sort(const Set<Symbol> &symbols, unsigned int flags)
+List<RTags::SortedSymbol> Project::sort(const Set<Symbol> &symbols, Flags<SortFlag> flags)
 {
     List<RTags::SortedSymbol> sorted;
     sorted.reserve(symbols.size());
@@ -1217,8 +1217,12 @@ void Project::watch(const Path &file)
 
 String Project::toCompilationDatabase() const
 {
-    const unsigned int flags = (Source::IncludeCompiler | Source::IncludeSourceFile | Source::IncludeDefines
-                                | Source::IncludeIncludepaths | Source::QuoteDefines | Source::FilterBlacklist);
+    const Flags<Source::CommandLineFlag> flags = (Source::IncludeCompiler
+                                                  | Source::IncludeSourceFile
+                                                  | Source::IncludeDefines
+                                                  | Source::IncludeIncludepaths
+                                                  | Source::QuoteDefines
+                                                  | Source::FilterBlacklist);
     Value ret(List<Value>(mSources.size()));
     int i = 0;
     for (const auto &source : mSources) {
