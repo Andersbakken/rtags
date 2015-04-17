@@ -1086,9 +1086,7 @@ References to references will be treated as references to the referenced symbol"
 ;;;###autoload
 (defun rtags-find-references (&optional prefix)
   (interactive "P")
-  (rtags-find-symbols-by-name-internal "Find rreferences"
-                                       (unless rtags-sort-references-by-input "--no-sort-references-by-input")
-                                       "-R" (and prefix buffer-file-name)))
+  (rtags-find-symbols-by-name-internal "Find rreferences" "-R" (and prefix buffer-file-name)))
 
 ;;;###autoload
 (defun rtags-find-symbol-current-file ()
