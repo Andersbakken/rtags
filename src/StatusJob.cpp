@@ -32,7 +32,7 @@ int StatusJob::execute()
     bool matched = false;
     const char *alternatives = "fileids|watchedpaths|dependencies|cursors|symbols|targets|symbolnames|sources|jobs|info|compilers|declarations|headererrors";
 
-    if (!strcasecmp(query.constData(), "fileids")) {
+    if (query.startsWith("fileids", -1, String::CaseInsensitive)) {
         matched = true;
         if (!write(delimiter) || !write("fileids") || !write(delimiter))
             return 1;
@@ -45,7 +45,7 @@ int StatusJob::execute()
             return 1;
     }
 
-    if (!strcasecmp(query.constData(), "headererrors")) {
+    if (query.startsWith("headererrors", -1, String::CaseInsensitive)) {
         matched = true;
         if (!write(delimiter) || !write("headererrors") || !write(delimiter))
             return 1;
@@ -57,7 +57,7 @@ int StatusJob::execute()
             return 1;
     }
 
-    if (query.isEmpty() || !strcasecmp(query.constData(), "info")) {
+    if (query.isEmpty() || query.startsWith("info", -1, String::CaseInsensitive)) {
         matched = true;
         if (!write(delimiter) || !write("info") || !write(delimiter))
             return 1;
@@ -93,7 +93,7 @@ int StatusJob::execute()
         return matched ? 0 : 1;
     }
 
-    if (query.isEmpty() || !strcasecmp(query.constData(), "watchedpaths")) {
+    if (query.isEmpty() || query.startsWith("watchedpaths", -1, String::CaseInsensitive)) {
         matched = true;
         if (!write(delimiter) || !write("watchedpaths") || !write(delimiter))
             return 1;
@@ -118,7 +118,7 @@ int StatusJob::execute()
     }
 
     const Dependencies &deps = proj->dependencies();
-    if (query.isEmpty() || !strcasecmp(query.constData(), "dependencies")) {
+    if (query.isEmpty() || query.startsWith("dependencies", -1, String::CaseInsensitive)) {
         matched = true;
         if (!write(delimiter) || !write("dependencies") || !write(delimiter))
             return 1;
@@ -130,7 +130,7 @@ int StatusJob::execute()
             return 1;
     }
 
-    if (query.isEmpty() || !strcasecmp(query.constData(), "symbols") || !strcasecmp(query.constData(), "cursors")) {
+    if (query.isEmpty() || query.startsWith("symbols", -1, String::CaseInsensitive) || query.startsWith("cursors", -1, String::CaseInsensitive)) {
         matched = true;
         write(delimiter);
         write("symbols");
@@ -153,7 +153,7 @@ int StatusJob::execute()
         }
     }
 
-    if (query.isEmpty() || !strcasecmp(query.constData(), "targets")) {
+    if (query.isEmpty() || query.startsWith("targets", -1, String::CaseInsensitive)) {
         matched = true;
         write(delimiter);
         write("targets");
@@ -180,7 +180,7 @@ int StatusJob::execute()
         }
     }
 
-    if (query.isEmpty() || !strcasecmp(query.constData(), "symbolnames")) {
+    if (query.isEmpty() || query.startsWith("symbolnames", -1, String::CaseInsensitive)) {
         matched = true;
         write(delimiter);
         write("symbolnames");
@@ -202,7 +202,7 @@ int StatusJob::execute()
         }
     }
 
-    if (query.isEmpty() || !strcasecmp(query.constData(), "sources")) {
+    if (query.isEmpty() || query.startsWith("sources", -1, String::CaseInsensitive)) {
         matched = true;
         const Sources &map = proj->sources();
         if (!write(delimiter) || !write("sources") || !write(delimiter))
@@ -213,14 +213,14 @@ int StatusJob::execute()
         }
     }
 
-    if (query.isEmpty() || !strcasecmp(query.constData(), "jobs")) {
+    if (query.isEmpty() || query.startsWith("jobs", -1, String::CaseInsensitive)) {
         matched = true;
         if (!write(delimiter) || !write("jobs") || !write(delimiter))
             return 1;
         Server::instance()->dumpJobs(connection());
     }
 
-    if (query.isEmpty() || !strcasecmp(query.constData(), "compilers")) {
+    if (query.isEmpty() || query.startsWith("compilers", -1, String::CaseInsensitive)) {
         matched = true;
         if (!write(delimiter) || !write("compilers") || !write(delimiter))
             return 1;
@@ -241,7 +241,7 @@ int StatusJob::execute()
         }
     }
 
-    if (query.isEmpty() || !strcasecmp(query.constData(), "declarations")) {
+    if (query.isEmpty() || query.startsWith("declarations", -1, String::CaseInsensitive)) {
         for (const auto &it : proj->declarations()) {
             write(it.first);
             for (uint32_t file : it.second) {
