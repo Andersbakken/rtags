@@ -39,28 +39,39 @@ int IncludeFileJob::execute()
         return 1;
     const Path directory = mSource.sourceFile().parentDir();
     const bool fromHeader = queryMessage()->currentFile().isHeader();
-    project()->findSymbols(mSymbol, [this, &directory, fromHeader](Project::SymbolMatchType type, const String &, const Set<Location> &locations) {
-            if (type == Project::StartsWith)
-                return;
-            for (const Location &loc : locations) {
-                const Path path = loc.path();
-                if (!path.isHeader())
-                    continue;
-                const Symbol sym = project()->findSymbol(loc);
-                if (sym.isDefinition() || !sym.isClass()) {
-                    if (!fromHeader && path.startsWith(directory)) {
-                        write<256>("#include \"%s\"", path.mid(directory.size()).constData());
-                    } else {
-                        for (const Source::Include &inc : mSource.includePaths) {
-                            const Path p = inc.path.ensureTrailingSlash();
-                            if (path.startsWith(p)) {
-                                write<256>("#include <%s>", path.mid(p.size()).constData());
-                            }
+    Set<Location> last;
+    int matches = 0;
+    auto process = [&directory, &fromHeader, this](const Set<Location> &locations) {
+        for (const Location &loc : locations) {
+            const Path path = loc.path();
+            if (!path.isHeader())
+                continue;
+            const Symbol sym = project()->findSymbol(loc);
+            if (sym.isDefinition() || !sym.isClass()) {
+                if (!fromHeader && path.startsWith(directory)) {
+                    write<256>("#include \"%s\"", path.mid(directory.size()).constData());
+                } else {
+                    for (const Source::Include &inc : mSource.includePaths) {
+                        const Path p = inc.path.ensureTrailingSlash();
+                        if (path.startsWith(p)) {
+                            write<256>("#include <%s>", path.mid(p.size()).constData());
                         }
                     }
                 }
             }
+        }
+    };
+    project()->findSymbols(mSymbol, [&](Project::SymbolMatchType type, const String &, const Set<Location> &locations) {
+            ++matches;
+            if (type != Project::StartsWith) {
+                process(locations);
+            } else if (matches == 1) {
+                last = locations;
+            }
         }, queryFlags());
+    if (matches == 1 && !last.isEmpty()) {
+        process(last);
+    }
 
     return 0;
 }
