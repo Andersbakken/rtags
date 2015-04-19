@@ -1497,8 +1497,7 @@ References to references will be treated as references to the referenced symbol"
     (goto-char (point-max))
     (insert output))
   ;; only try to process diagnostics if we detect an end condition
-  (when (string-match "\n" output) ;; Is there a non-regex thing I can call?
-    (rtags-parse-diagnostics)))
+  (rtags-parse-diagnostics))
 
 (defvar rtags-diagnostics-mode-map (make-sparse-keymap))
 (define-key rtags-diagnostics-mode-map (kbd "q") 'rtags-bury-or-delete)
