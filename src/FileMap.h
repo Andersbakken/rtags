@@ -63,9 +63,6 @@ public:
 
     bool load(const Path &path, String *error = 0)
     {
-        const size_t fs = path.fileSize();
-        if (!fs)
-            return false;
         eintrwrap(mFD, open(path.constData(), O_RDONLY));
         if (mFD == -1) {
             if (error) {
@@ -85,7 +82,20 @@ public:
             return false;
         }
 
-        const char *pointer = reinterpret_cast<const char*>(mmap(0, fs, PROT_READ, MAP_PRIVATE, mFD, 0));
+        struct stat st;
+        if (fstat(mFD, &st)) {
+            if (error) {
+                *error = Rct::strerror();
+                *error << " " << __LINE__;
+            }
+            lock(mFD, Unlock);
+            int ret;
+            eintrwrap(ret, close(mFD));
+            mFD = -1;
+            return false;
+        }
+
+        const char *pointer = static_cast<const char*>(mmap(0, st.st_size, PROT_READ, MAP_PRIVATE, mFD, 0));
         // error() << errno;//  << mPointer;
         if (pointer == MAP_FAILED) {
             if (error) {
@@ -99,7 +109,7 @@ public:
             return false;
         }
 
-        init(pointer, fs);
+        init(pointer, st.st_size);
         return true;
     }
 
