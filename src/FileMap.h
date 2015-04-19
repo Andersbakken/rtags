@@ -57,8 +57,8 @@ public:
     {
         mPointer = pointer;
         mSize = size;
-        mCount = *reinterpret_cast<const size_t*>(mPointer);
-        mKeySize = *reinterpret_cast<const size_t*>(mPointer + sizeof(size_t));
+        memcpy(&mCount, mPointer, sizeof(size_t));
+        memcpy(&mKeySize, mPointer + sizeof(size_t), sizeof(size_t));
     }
 
     bool load(const Path &path, String *error = 0)
@@ -220,7 +220,7 @@ public:
                 s << pair.first;
                 keySize = std::max<size_t>(str.size(), keySize);
             }
-            *reinterpret_cast<size_t*>(out.data() + sizeof(size_t)) = keySize;
+            memcpy(out.data() + sizeof(size_t), &keySize, sizeof(keySize));
             char buf[keySize];
             size_t entrySize = keySize;
             if (const size_t size = FixedSize<Value>::value) {
