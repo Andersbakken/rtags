@@ -1589,10 +1589,8 @@ void Server::codeCompleteAt(const std::shared_ptr<QueryMessage> &query, const st
     if (source.isNull()) {
         for (uint32_t dep : project->dependencies(fileId, Project::DependsOnArg)) {
             source = project->sources(dep).value(query->buildIndex());
-            if (!source.isNull()) {
-                source.fileId = fileId;
+            if (!source.isNull())
                 break;
-            }
         }
 
         if (source.isNull()) {
