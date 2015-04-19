@@ -145,6 +145,7 @@ void parseTranslationUnit(const Path &sourceFile, const List<String> &args,
                                                  translationUnitFlags.cast<unsigned int>(), &unit);
         if (error != CXError_Crashed)
             break;
+        usleep(100000);
     }
 #else
     unit = clang_parseTranslationUnit(index, sourceFile.constData(),
