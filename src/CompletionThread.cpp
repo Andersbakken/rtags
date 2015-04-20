@@ -20,13 +20,13 @@
 #include "Token.h"
 
 CompletionThread::CompletionThread(int cacheSize)
-    : mShutdown(false), mCacheSize(cacheSize), mDump(0), mIndex(0), mFirstCache(0), mLastCache(0)
+    : mShutdown(false), mCacheSize(cacheSize), mDump(0), mIndex(0)
 {
 }
 
 CompletionThread::~CompletionThread()
 {
-    Rct::LinkedList::deleteAll(mFirstCache);
+    mCacheList.deleteAll();
 }
 
 void CompletionThread::run()
@@ -62,11 +62,11 @@ void CompletionThread::run()
         if (dump) {
             std::unique_lock<std::mutex> lock(dump->mutex);
             Log out(&dump->string);
-            for (SourceFile *cache = mFirstCache; cache; cache = cache->next) {
+            for (SourceFile *cache = mCacheList.first(); cache; cache = cache->next) {
                 out << cache->source << "\nhash:" << cache->unsavedHash
                     << "lastModified:" << cache->lastModified
                     << "translationUnit:" << cache->translationUnit << "\n";
-                for (Completions *completion = cache->firstCompletion; completion; completion = completion->next) {
+                for (Completions *completion = cache->completionsList.first(); completion; completion = completion->next) {
                     out << "    " << completion->location.key() << "\n";
                     for (const auto &c : completion->candidates) {
                         out << "        " << c.completion << c.signature << c.priority << c.distance
@@ -218,14 +218,16 @@ void CompletionThread::process(Request *request)
     }
     if (!cache) {
         cache = new SourceFile;
-        Rct::LinkedList::insert(cache, mFirstCache, mLastCache, mLastCache);
+        mCacheList.append(cache);
         while (mCacheMap.size() > mCacheSize) {
-            SourceFile *c = mFirstCache;
-            Rct::LinkedList::remove(c, mFirstCache, mLastCache);
+            SourceFile *c = mCacheList.removeFirst();
             mCacheMap.remove(c->source.fileId);
             delete c;
         }
+    } else {
+        mCacheList.moveToEnd(cache);
     }
+
     if (cache->translationUnit && cache->source != request->source) {
         clang_disposeTranslationUnit(cache->translationUnit);
         cache->translationUnit = 0;
@@ -252,8 +254,7 @@ void CompletionThread::process(Request *request)
 
     if (!cache->translationUnit) {
         cache->completionsMap.clear();
-        Rct::LinkedList::deleteAll(cache->firstCompletion);
-        cache->firstCompletion = cache->lastCompletion = 0;
+        cache->completionsList.deleteAll();
         sw.restart();
         Flags<CXTranslationUnit_Flags> flags = static_cast<CXTranslationUnit_Flags>(clang_defaultEditingTranslationUnitOptions());
         flags |= CXTranslationUnit_PrecompiledPreamble;
@@ -285,14 +286,13 @@ void CompletionThread::process(Request *request)
         cache->lastModified = lastModified;
     } else if (cache->unsavedHash != hash || cache->lastModified != lastModified) {
         cache->completionsMap.clear();
-        Rct::LinkedList::deleteAll(cache->firstCompletion);
-        cache->firstCompletion = cache->lastCompletion = 0;
+        cache->completionsList.deleteAll();
         cache->unsavedHash = hash;
         cache->lastModified = lastModified;
     } else if (!(request->flags & Refresh)) {
         const auto it = cache->completionsMap.find(request->location);
         if (it != cache->completionsMap.end()) {
-            Rct::LinkedList::moveToEnd(it->second, cache->firstCompletion, cache->lastCompletion);
+            cache->completionsList.moveToEnd(it->second);
             error("Found completions (%d) in cache %s:%d:%d",
                   it->second->candidates.size(), sourceFile.constData(),
                   request->location.line(), request->location.column());
@@ -371,14 +371,13 @@ void CompletionThread::process(Request *request)
             qsort(nodes, nodeCount, sizeof(Completions::Candidate), compareCompletionCandidates);
             Completions *&c = cache->completionsMap[request->location];
             if (c) {
-                Rct::LinkedList::moveToEnd(c, cache->firstCompletion, cache->lastCompletion);
+                cache->completionsList.moveToEnd(c);
             } else {
                 enum { MaxCompletionCache = 10 }; // ### configurable?
                 c = new Completions(request->location);
-                Rct::LinkedList::insert(c, cache->firstCompletion, cache->lastCompletion, cache->lastCompletion);
+                cache->completionsList.append(c);
                 while (cache->completionsMap.size() > MaxCompletionCache) {
-                    Completions *cc = cache->firstCompletion;
-                    Rct::LinkedList::remove(cc, cache->firstCompletion, cache->lastCompletion);
+                    Completions *cc = cache->completionsList.takeFirst();
                     cache->completionsMap.remove(cc->location);
                     delete cc;
                 }

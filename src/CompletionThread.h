@@ -27,6 +27,7 @@
 #include <clang-c/Index.h>
 #include <rct/Connection.h>
 #include <rct/Flags.h>
+#include <rct/EmbeddedLinkedList.h>
 
 class CompletionThread : public Thread
 {
@@ -89,21 +90,20 @@ private:
 
     struct SourceFile {
         SourceFile()
-            : translationUnit(0), unsavedHash(0), lastModified(0),
-              firstCompletion(0), lastCompletion(0), next(0), prev(0)
+            : translationUnit(0), unsavedHash(0), lastModified(0), next(0), prev(0)
         {}
         CXTranslationUnit translationUnit;
         size_t unsavedHash;
         uint64_t lastModified; // ms
         Source source;
         Map<Location, Completions*> completionsMap;
-        Completions *firstCompletion, *lastCompletion;
+        EmbeddedLinkedList<Completions*> completionsList;
         SourceFile *next, *prev;
     };
     // this datastructure is only touched from inside the thread so it doesn't
     // need to be protected by mMutex
     Hash<uint32_t, SourceFile*> mCacheMap;
-    SourceFile *mFirstCache, *mLastCache;
+    EmbeddedLinkedList<SourceFile*> mCacheList;
 
     mutable std::mutex mMutex;
     std::condition_variable mCondition;
