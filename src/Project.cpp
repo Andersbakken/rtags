@@ -1229,7 +1229,7 @@ String Project::toCompilationDatabase() const
         Value unit;
         unit["directory"] = source.second.directory;
         unit["file"] = source.second.sourceFile();
-        unit["command"] = source.second.toCommandLine(flags);
+        unit["command"] = String::join(source.second.toCommandLine(flags), " ").constData();
         ret[i++] = unit;
     }
 
