@@ -1044,21 +1044,18 @@ References to references will be treated as references to the referenced symbol"
       (with-temp-buffer
         (rtags-call-rc :path file "-e" "--rename" "-N" "-r" location)
         ;; (message "Got renames %s" (buffer-string))
-        (dolist (line (split-string (buffer-string) "\n" t))
-          (if (string-match "^\\(.*\\):\\([0-9]+\\):\\([0-9]+\\):$" line)
-              (let* ((filename (match-string-no-properties 1 line))
+        (dolist (string (split-string (buffer-string) "\n" t))
+          (if (string-match "^\\(.*\\):\\([0-9]+\\):\\([0-9]+\\):$" string)
+              (let* ((filename (match-string-no-properties 1 string))
+                     (line (string-to-number (match-string-no-properties 2 string)))
+                     (col (string-to-number (match-string-no-properties 3 string)))
                      (buf (or (find-buffer-visiting filename)
                               (and (find-file-noselect filename) (incf filesopened)))))
                 (unless buf
                   (error "Can't open file %s" filename))
                 (with-current-buffer buf
                   (save-excursion
-                    ;; (message "RTags: Matched: [%s] [%s] for \"%s\""
-                    ;;          (or (match-string-no-properties 2 line) "<nothing>")
-                    ;;          (or (match-string-no-properties 3 line) "<nothing>")
-                    ;;          line)
-                    (rtags-goto-line-col (string-to-number (match-string-no-properties 2 line))
-                                         (string-to-number (match-string-no-properties 3 line)))
+                    (rtags-goto-line-col line col)
                     (when (cond ((looking-at (concat "~" prev)) (forward-char) t)
                                 ((looking-at "auto ") nil)
                                 ((looking-at prev))
