@@ -165,6 +165,7 @@ public:
 
     void index(const std::shared_ptr<IndexerJob> &job);
     List<Source> sources(uint32_t fileId) const;
+    bool hasSource(uint32_t fileId) const;
     bool isActiveJob(uint64_t key) { return !key || mActiveJobs.contains(key); }
     inline bool visitFile(uint32_t fileId, const Path &path, uint64_t id);
     inline void releaseFileIds(const Set<uint32_t> &fileIds);

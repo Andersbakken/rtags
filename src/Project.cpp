@@ -262,6 +262,19 @@ Project::~Project()
     mDirtyTimer.stop();
 }
 
+static bool hasSourceDependency(const DependencyNode *node)
+{
+    const Path path = Location::path(node->fileId);
+    if (path.isFile() && path.isSource()) {
+        return true;
+    }
+    for (auto it : node->dependents) {
+        if (hasSourceDependency(it.second))
+            return true;
+    }
+    return false;
+}
+
 bool Project::init()
 {
     const Server::Options &options = Server::instance()->options();
@@ -326,7 +339,12 @@ bool Project::init()
                 removed << it.first;
                 needsSave = true;
             } else if (!validate(it.first)) {
-                missingFileMaps.insert(it.first);
+                if (hasSource(it.first) || hasSourceDependency(it.second)) {
+                    missingFileMaps.insert(it.first);
+                } else {
+                    removed << it.first;
+                    needsSave = true;
+                }
             }
         }
         for (uint32_t r : removed) {
@@ -865,6 +883,17 @@ List<Source> Project::sources(uint32_t fileId) const
         }
     }
     return ret;
+}
+
+bool Project::hasSource(uint32_t fileId) const
+{
+    auto it = mSources.lower_bound(Source::key(fileId, 0));
+    while (it != mSources.end()) {
+        uint32_t f, b;
+        Source::decodeKey(it->first, f, b);
+        return f == fileId;
+    }
+    return false;
 }
 
 Set<uint32_t> Project::dependencies(uint32_t fileId, DependencyMode mode) const
