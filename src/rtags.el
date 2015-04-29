@@ -111,8 +111,8 @@
   :group 'rtags
   :type 'boolean)
 
-(defcustom rtags-completions-timer-interval -1
-  "Interval for completions timer. -1 means don't preemptively prepare completions"
+(defcustom rtags-completions-timer-interval nil
+  "Interval for completions timer. nil means don't preemptively prepare completions"
   :group 'rtags
   :type 'number)
 
@@ -2284,12 +2284,14 @@ BUFFER : the buffer to be checked and reparsed, if it's nil, use current buffer"
 ;;;###autoload
 (defun rtags-update-completions-timer ()
   (interactive)
-  (if rtags-completions-timer
-      (cancel-timer rtags-completions-timer))
-  (cond ((not (and rtags-completions-enabled
-                   (>= rtags-completions-timer-interval 0)
-                   (rtags-has-diagnostics)
-                   (or (eq major-mode 'c++-mode) (eq major-mode 'c-mode) (eq major-mode 'objc-mode)))))
+  (when rtags-completions-timer
+    (cancel-timer rtags-completions-timer)
+    (setq rtags-completions-timer nil))
+  (cond ((not rtags-completions-enabled))
+        ((not (integerp rtags-completions-timer-interval)))
+        ((< rtags-completions-timer-interval 0))
+        ((not (rtags-has-diagnostics)))
+        ((not (or (eq major-mode 'c++-mode) (eq major-mode 'c-mode) (eq major-mode 'objc-mode))))
         ((= rtags-completions-timer-interval 0) (rtags-update-completions))
         (t (setq rtags-completions-timer (run-with-idle-timer rtags-completions-timer-interval
                                                               nil (function rtags-update-completions))))))
