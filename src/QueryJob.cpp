@@ -24,8 +24,7 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 QueryJob::QueryJob(const std::shared_ptr<QueryMessage> &query,
                    const std::shared_ptr<Project> &proj,
                    Flags<JobFlag> jobFlags)
-    : mAborted(false), mLinesWritten(0), mQueryMessage(query), mJobFlags(jobFlags),
-      mProject(proj), mPathFilters(0), mPathFiltersRegex(0)
+    : mAborted(false), mLinesWritten(0), mQueryMessage(query), mJobFlags(jobFlags), mProject(proj)
 {
     if (mProject)
         mProject->beginScope();
@@ -35,14 +34,13 @@ QueryJob::QueryJob(const std::shared_ptr<QueryMessage> &query,
     const List<String> &pathFilters = query->pathFilters();
     if (!pathFilters.isEmpty()) {
         if (query->flags() & QueryMessage::MatchRegex) {
-            mPathFiltersRegex = new List<std::regex>();
             const int size = pathFilters.size();
-            mPathFiltersRegex->reserve(size);
+            mPathFiltersRegex.reserve(size);
             for (int i=0; i<size; ++i) {
-                mPathFiltersRegex->append(std::regex(pathFilters.at(i).ref()));
+                mPathFiltersRegex.append(std::regex(pathFilters.at(i).ref()));
             }
         } else {
-            mPathFilters = new List<String>(pathFilters);
+            mPathFilters = pathFilters;
         }
     }
 }
@@ -59,14 +57,12 @@ QueryJob::~QueryJob()
 {
     if (mProject)
         mProject->endScope();
-    delete mPathFilters;
-    delete mPathFiltersRegex;
 }
 
 uint32_t QueryJob::fileFilter() const
 {
-    if (mPathFilters && mPathFilters->size() == 1) {
-        return Location::fileId(mPathFilters->first());
+    if (mPathFilters.size() == 1) {
+        return Location::fileId(mPathFilters.first());
     }
     return 0;
 }
@@ -198,7 +194,7 @@ bool QueryJob::write(const Symbol &symbol,
 
 bool QueryJob::filter(const String &value) const
 {
-    if (!mPathFilters && !mPathFiltersRegex && !(queryFlags() & QueryMessage::FilterSystemIncludes))
+    if (mPathFilters.isEmpty() && mPathFiltersRegex.isEmpty() && !(queryFlags() & QueryMessage::FilterSystemIncludes))
         return true;
 
     const char *val = value.constData();
@@ -208,22 +204,23 @@ bool QueryJob::filter(const String &value) const
     if (queryFlags() & QueryMessage::FilterSystemIncludes && Path::isSystem(val))
         return false;
 
-    if (!mPathFilters && !mPathFiltersRegex)
+    if (mPathFilters.isEmpty() && mPathFiltersRegex.isEmpty())
         return true;
 
-    assert(!mPathFilters != !mPathFiltersRegex);
+    assert(mPathFilters.isEmpty() != mPathFiltersRegex.isEmpty());
     String copy;
     const String &ref = (val != value.constData() ? copy : value);
     if (val != value.constData())
         copy = val;
-    if (mPathFilters)
-        return RTags::startsWith(*mPathFilters, ref);
+    error() << mPathFilters << ref;
+    if (!mPathFilters.isEmpty())
+        return RTags::startsWith(mPathFilters, ref);
 
-    assert(mPathFiltersRegex);
+    assert(!mPathFiltersRegex.isEmpty());
 
-    const int count = mPathFiltersRegex->size();
+    const int count = mPathFiltersRegex.size();
     for (int i=0; i<count; ++i) {
-        if (std::regex_search(ref.constData(), mPathFiltersRegex->at(i)))
+        if (std::regex_search(ref.constData(), mPathFiltersRegex.at(i)))
             return true;
     }
     return false;

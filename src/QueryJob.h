@@ -49,8 +49,8 @@ public:
              Flags<JobFlag> jobFlags = Flags<JobFlag>());
     ~QueryJob();
 
-    bool hasFilter() const { return mPathFilters || mPathFiltersRegex; }
-    List<String> pathFilters() const { return mPathFilters ? *mPathFilters : List<String>(); }
+    bool hasFilter() const { return !mPathFilters.isEmpty() || !mPathFiltersRegex.isEmpty(); }
+    List<String> pathFilters() const { return mPathFilters; }
     uint32_t fileFilter() const;
     enum WriteFlag {
         NoWriteFlags = 0x0,
@@ -90,8 +90,8 @@ private:
     Flags<JobFlag> mJobFlags;
     Signal<std::function<void(const String &)> > mOutput;
     std::shared_ptr<Project> mProject;
-    List<String> *mPathFilters;
-    List<std::regex> *mPathFiltersRegex;
+    List<String> mPathFilters;
+    List<std::regex> mPathFiltersRegex;
     String mBuffer;
     std::shared_ptr<Connection> mConnection;
 };
