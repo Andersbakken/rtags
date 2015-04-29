@@ -44,6 +44,7 @@ static void sigSegvHandler(int signal)
 #define DEFAULT_RDM_MAX_FILE_MAP_CACHE_SIZE 500
 #define DEFAULT_RP_INDEXER_MESSAGE_TIMEOUT 60000
 #define DEFAULT_RP_CONNECT_TIMEOUT 0 // won't time out
+#define DEFAULT_RP_CONNECT_ATTEMPTS 3
 #define DEFAULT_COMPLETION_CACHE_SIZE 10
 #define DEFAULT_MAX_CRASH_COUNT 5
 #define XSTR(s) #s
@@ -91,6 +92,7 @@ static void usage(FILE *f)
             "  --no-rc|-N                                 Don't load any rc files.\n"
             "  --no-startup-project|-o                    Don't restore the last current project on startup.\n"
             "  --rp-connect-timeout|-O [arg]              Timeout for connection from rp to rdm in ms (0 means no timeout) (default " STR(DEFAULT_RP_CONNECT_TIMEOUT) ").\n"
+            "  --rp-connect-attempts [arg]                Number of times rp attempts to connect to rdm before giving up. (default " STR(DEFAULT_RP_CONNECT_ATTEMPTS) ").\n"
             "  --rp-indexer-message-timeout|-T [arg]      Timeout for rp indexer-message in ms (0 means no timeout) (default " STR(DEFAULT_RP_INDEXER_MESSAGE_TIMEOUT) ").\n"
             "  --rp-nice-value|-a [arg]                   Nice value to use for rp (nice(2)) (default -1, e.g. not nicing).\n"
             "  --rp-visit-file-timeout|-Z [arg]           Timeout for rp visitfile commands in ms (0 means no timeout) (default " STR(DEFAULT_RP_VISITFILE_TIMEOUT) ").\n"
@@ -184,6 +186,7 @@ int main(int argc, char** argv)
         { "rp-visit-file-timeout", required_argument, 0, 'Z' },
         { "rp-indexer-message-timeout", required_argument, 0, 'T' },
         { "rp-connect-timeout", required_argument, 0, 'O' },
+        { "rp-connect-attempts", required_argument, 0, '\3' },
         { "rp-nice-value", required_argument, 0, 'a' },
         { "thread-stack-size", required_argument, 0, 'k' },
         { "suspend-rp-on-crash", required_argument, 0, 'q' },
@@ -312,6 +315,7 @@ int main(int argc, char** argv)
     serverOpts.rpVisitFileTimeout = DEFAULT_RP_VISITFILE_TIMEOUT;
     serverOpts.rpIndexDataMessageTimeout = DEFAULT_RP_INDEXER_MESSAGE_TIMEOUT;
     serverOpts.rpConnectTimeout = DEFAULT_RP_CONNECT_TIMEOUT;
+    serverOpts.rpConnectAttempts = DEFAULT_RP_CONNECT_ATTEMPTS;
     serverOpts.maxFileMapScopeCacheSize = DEFAULT_RDM_MAX_FILE_MAP_CACHE_SIZE;
     serverOpts.rpNiceValue = INT_MIN;
     serverOpts.options = Server::Wall|Server::SpellChecking;
@@ -413,6 +417,13 @@ int main(int argc, char** argv)
             serverOpts.rpConnectTimeout = atoi(optarg);
             if (serverOpts.rpConnectTimeout < 0) {
                 fprintf(stderr, "Invalid argument to -O %s\n", optarg);
+                return 1;
+            }
+            break;
+        case '\3':
+            serverOpts.rpConnectAttempts = atoi(optarg);
+            if (serverOpts.rpConnectAttempts <= 0) {
+                fprintf(stderr, "Invalid argument to --rp-connect-attempts %s\n", optarg);
                 return 1;
             }
             break;

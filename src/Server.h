@@ -77,14 +77,14 @@ public:
         Options()
             : jobCount(0), headerErrorJobCount(0),
               rpVisitFileTimeout(0), rpIndexDataMessageTimeout(0), rpConnectTimeout(0),
-              rpNiceValue(0), threadStackSize(0), maxCrashCount(0),
+              rpConnectAttempts(0), rpNiceValue(0), threadStackSize(0), maxCrashCount(0),
               completionCacheSize(0), testTimeout(60 * 1000 * 5),
               maxFileMapScopeCacheSize(512)
         {}
         Path socketFile, dataDir, argTransform;
         Flags<Option> options;
         int jobCount, headerErrorJobCount, rpVisitFileTimeout, rpIndexDataMessageTimeout,
-            rpConnectTimeout, rpNiceValue, threadStackSize, maxCrashCount,
+            rpConnectTimeout, rpConnectAttempts, rpNiceValue, threadStackSize, maxCrashCount,
             completionCacheSize, testTimeout, maxFileMapScopeCacheSize;
         List<String> defaultArguments, excludeFilters;
         Set<String> blockedArguments;

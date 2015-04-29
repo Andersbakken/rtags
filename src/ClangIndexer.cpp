@@ -77,7 +77,7 @@ bool ClangIndexer::exec(const String &data)
     uint64_t id;
     String socketFile;
     Flags<IndexerJob::Flag> indexerJobFlags;
-    uint32_t connectTimeout;
+    uint32_t connectTimeout, connectAttempts;
     int32_t niceValue;
     Hash<uint32_t, Path> blockedFiles;
     String dataDir;
@@ -91,6 +91,7 @@ bool ClangIndexer::exec(const String &data)
     deserializer >> mVisitFileTimeout;
     deserializer >> mIndexDataMessageTimeout;
     deserializer >> connectTimeout;
+    deserializer >> connectAttempts;
     deserializer >> niceValue;
     deserializer >> sServerOpts;
     deserializer >> mUnsavedFiles;
@@ -136,9 +137,14 @@ bool ClangIndexer::exec(const String &data)
 
     Location::init(blockedFiles);
     Location::set(mSourceFile, mSource.fileId);
-    if (!mConnection->connectUnix(socketFile, connectTimeout)) {
-        error("Failed to connect to rdm on %s (%dms timeout)", socketFile.constData(), connectTimeout);
-        return false;
+    while (true) {
+        if (mConnection->connectUnix(socketFile, connectTimeout))
+            break;
+        if (!--connectAttempts) {
+            error("Failed to connect to rdm on %s (%dms timeout)", socketFile.constData(), connectTimeout);
+            return false;
+        }
+        usleep(500 * 1000);
     }
     // mLogFile = fopen(String::format("/tmp/%s", mSourceFile.fileName()).constData(), "w");
     mIndexDataMessage.setProject(mProject);
