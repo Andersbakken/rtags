@@ -56,7 +56,7 @@ int FindSymbolsJob::execute()
                 sortFlags |= Project::Sort_Reverse;
 
             const List<RTags::SortedSymbol> sorted = proj->sort(symbols, sortFlags);
-            const Flags<WriteFlag> writeFlags = filter ? Unfiltered : NoWriteFlags;
+            const Flags<WriteFlag> writeFlags = filter ? NoWriteFlags : Unfiltered;
             const int count = sorted.size();
             ret = count ? 0 : 1;
             for (int i=0; i<count; ++i) {
