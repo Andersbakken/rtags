@@ -139,6 +139,14 @@ bool QueryJob::write(const Location &location, Flags<WriteFlag> flags)
             return false;
         }
     }
+    if (!(flags & WriteUnfiltered)) {
+        const uint32_t filter = fileFilter();
+        if (filter) {
+            if (filter != location.fileId())
+                return false;
+            flags |= Unfiltered;
+        }
+    }
     String out = location.key(keyFlags());
     const bool containingFunction = queryFlags() & QueryMessage::ContainingFunction;
     const bool cursorKind = queryFlags() & QueryMessage::CursorKind;
