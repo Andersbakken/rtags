@@ -80,7 +80,6 @@ public:
     bool isAborted() const { std::lock_guard<std::mutex> lock(mMutex); return mAborted; }
     void abort() { std::lock_guard<std::mutex> lock(mMutex); mAborted = true; }
     std::mutex &mutex() const { return mMutex; }
-    bool &aborted() { return mAborted; }
     const std::shared_ptr<Connection> &connection() const { return mConnection; }
 private:
     mutable std::mutex mMutex;
