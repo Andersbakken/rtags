@@ -39,6 +39,26 @@ static void sigSegvHandler(int signal)
     _exit(1);
 }
 
+#ifdef OS_Darwin
+
+// This is a touch ugly, but it has to be signal-safe.
+
+static EventLoop *sigTermHandlerMainEventLoop;
+
+static void sigTermHandler(int signal)
+{
+    if (sigTermHandlerMainEventLoop)
+    {
+        int oldErrno = errno;
+        
+        sigTermHandlerMainEventLoop->quitDueToSignal();
+
+        errno = oldErrno;
+    }
+}
+
+#endif
+
 #define EXCLUDEFILTER_DEFAULT "*/CMakeFiles/*;*/cmake*/Modules/*;*/conftest.c*;/tmp/*"
 #define DEFAULT_RP_VISITFILE_TIMEOUT 60000
 #define DEFAULT_RDM_MAX_FILE_MAP_CACHE_SIZE 500
@@ -726,7 +746,22 @@ int main(int argc, char** argv)
 
     loop->setInactivityTimeout(inactivityTimeout * 1000);
 
+#ifdef OS_Darwin
+    if (serverOpts.options & Server::Launchd) {
+        sigTermHandlerMainEventLoop = loop.get();
+        signal(SIGTERM, &sigTermHandler);
+    }
+#endif
+
     loop->exec();
+
+#ifdef OS_Darwin
+    if (serverOpts.options & Server::Launchd) {
+        signal(SIGTERM, NULL);
+        sigTermHandlerMainEventLoop = NULL;
+    }
+#endif
+
     const int ret = server->exitCode();
     server.reset();
     cleanupLogging();
