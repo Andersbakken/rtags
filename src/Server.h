@@ -71,7 +71,9 @@ public:
         EnableNDEBUG = 0x10000,
         Progress = 0x20000,
         Weverything = 0x40000,
-        NoComments = 0x80000
+        NoComments = 0x80000,
+        Launchd = 0x100000,     /* Only valid for Darwin... but you're
+                                 * not out of bits yet. */
     };
     struct Options {
         Options()
@@ -172,6 +174,8 @@ private:
     void onHttpClientReadyRead(const SocketClient::SharedPtr &socket);
     void connectToServer();
     void startJobs();
+    bool initUnixServer();
+    void removeSocketFile();
 
     typedef Hash<Path, std::shared_ptr<Project> > ProjectsMap;
     ProjectsMap mProjects;

@@ -62,6 +62,9 @@
 #include <limits>
 #include <regex>
 #include <rct/QuitMessage.h>
+#ifdef OS_Darwin
+#include <launch.h>
+#endif
 
 #if not defined CLANG_LIBDIR
 #error CLANG_LIBDIR not defined during CMake generation
@@ -200,27 +203,10 @@ bool Server::init(const Options &options)
         clearProjects();
     }
 
-    for (int i=0; i<10; ++i) {
-        mUnixServer.reset(new SocketServer);
-        warning() << "listening" << mOptions.socketFile;
-        if (mUnixServer->listen(mOptions.socketFile)) {
-            break;
-        }
-        mUnixServer.reset();
-        if (!i) {
-            enum { Timeout = 1000 };
-            std::shared_ptr<Connection> connection = Connection::create(RClient::NumOptions);
-            if (connection->connectUnix(mOptions.socketFile, Timeout)) {
-                connection->send(QuitMessage());
-                connection->disconnected().connect(std::bind([](){ EventLoop::eventLoop()->quit(); }));
-                connection->finished().connect(std::bind([](){ EventLoop::eventLoop()->quit(); }));
-                EventLoop::eventLoop()->exec(Timeout);
-            }
-        } else {
-            sleep(1);
-        }
-        Path::rm(mOptions.socketFile);
+    if (!initUnixServer()) {
+        return false;
     }
+
     if (!mUnixServer) {
         error("Unable to listen on %s", mOptions.socketFile.constData());
         return false;
@@ -247,6 +233,71 @@ bool Server::init(const Options &options)
 
     return true;
 }
+
+bool Server::initUnixServer()
+{
+#ifdef OS_Darwin
+    // If Launchd, it goes into this bit and never comes out.
+    if (mOptions.options & Launchd) {
+        mUnixServer.reset(new SocketServer);
+        
+        printf("initUnixServer: launchd mode.\n");
+        
+        bool good = false;
+        int *fds = 0;
+        size_t numFDs;
+        int ret = launch_activate_socket("Listener", &fds, &numFDs);
+        
+        if (ret != 0) {
+            error("Failed to retrieve launchd socket: %s", strerror(ret));
+            goto launchd_done;
+        }
+        
+        if (numFDs != 1) {
+            error("Unexpected number of sockets from launch_activate_socket: %zu", numFDs);
+            goto launchd_done;
+        }
+
+        warning() << "got fd from launchd: " << fds[0];
+
+        if (!mUnixServer->listenfd(fds[0])) {
+            goto launchd_done;
+        }
+
+        good = true;
+
+    launchd_done:;
+        free(fds);
+        fds = 0;
+        
+        return good;
+    }
+#endif
+
+    for (int i=0; i<10; ++i) {
+        mUnixServer.reset(new SocketServer);
+        warning() << "listening" << mOptions.socketFile;
+        if (mUnixServer->listen(mOptions.socketFile)) {
+            break;
+        }
+        mUnixServer.reset();
+        if (!i) {
+            enum { Timeout = 1000 };
+            std::shared_ptr<Connection> connection = Connection::create(RClient::NumOptions);
+            if (connection->connectUnix(mOptions.socketFile, Timeout)) {
+                connection->send(QuitMessage());
+                connection->disconnected().connect(std::bind([](){ EventLoop::eventLoop()->quit(); }));
+                connection->finished().connect(std::bind([](){ EventLoop::eventLoop()->quit(); }));
+                EventLoop::eventLoop()->exec(Timeout);
+            }
+        } else {
+            sleep(1);
+        }
+        Path::rm(mOptions.socketFile);
+    }
+
+    return true;
+}    
 
 std::shared_ptr<Project> Server::addProject(const Path &path)
 {
@@ -1564,9 +1615,21 @@ bool Server::saveFileIds()
     return true;
 }
 
+void Server::removeSocketFile()
+{
+#ifdef OS_Darwin
+    if (mOptions.options & Launchd) {
+        return;
+    }
+#endif
+    
+    Path::rm(mOptions.socketFile);
+}
+
 void Server::stopServers()
 {
-    Path::rm(mOptions.socketFile);
+    removeSocketFile();
+    
     mUnixServer.reset();
 }
 
