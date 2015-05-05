@@ -45,7 +45,7 @@ inline bool operator!=(CXCursorKind l, const CXCursor &r)
 inline Log operator<<(Log dbg, CXCursor cursor);
 inline Log operator<<(Log dbg, CXCursorKind kind);
 
-static inline bool operator==(const CXCursor &l, const CXCursor &r) { return clang_equalCursors(l, r); };
+static inline bool operator==(const CXCursor &l, const CXCursor &r) { return clang_equalCursors(l, r); }
 namespace std {
 template <> struct hash<CXCursor> : public unary_function<CXCursor, size_t>
 {
@@ -64,10 +64,10 @@ enum CursorToStringFlags {
     IncludeSpecializedUsr = 0x4,
     AllCursorToStringFlags = IncludeUSR|IncludeRange|IncludeSpecializedUsr
 };
-RCT_FLAGS(CursorToStringFlags);
+RCT_FLAGS(CursorToStringFlags)
 String cursorToString(CXCursor cursor, Flags<CursorToStringFlags> = DefaultCursorToStringFlags);
 
-RCT_FLAGS(CXTranslationUnit_Flags);
+RCT_FLAGS(CXTranslationUnit_Flags)
 
 void parseTranslationUnit(const Path &sourceFile, const List<String> &args,
                           CXTranslationUnit &unit, CXIndex index,

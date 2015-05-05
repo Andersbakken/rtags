@@ -221,7 +221,7 @@ enum FindAncestorFlag {
     Shallow = 0x1,
     Wildcard = 0x2
 };
-RCT_FLAGS(FindAncestorFlag);
+RCT_FLAGS(FindAncestorFlag)
 Path findAncestor(Path path, const char *fn, Flags<FindAncestorFlag> flags);
 Map<String, String> rtagsConfig(const Path &path);
 

@@ -118,8 +118,8 @@ private:
     Flags<Flag> mFlags;
 };
 
-RCT_FLAGS(IndexDataMessage::Flag);
-RCT_FLAGS(IndexDataMessage::FileFlag);
+RCT_FLAGS(IndexDataMessage::Flag)
+RCT_FLAGS(IndexDataMessage::FileFlag)
 
 inline void IndexDataMessage::encode(Serializer &serializer) const
 {

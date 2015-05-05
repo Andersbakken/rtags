@@ -198,6 +198,6 @@ private:
     friend void saveFileIds();
 };
 
-RCT_FLAGS(Server::Option);
+RCT_FLAGS(Server::Option)
 
 #endif

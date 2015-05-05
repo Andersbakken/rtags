@@ -118,7 +118,7 @@ struct Symbol
     bool operator<(const Symbol &other) const { return location < other.location; }
 };
 
-RCT_FLAGS(Symbol::ToStringFlag);
+RCT_FLAGS(Symbol::ToStringFlag)
 
 template <> inline Serializer &operator<<(Serializer &s, const Symbol &t)
 {

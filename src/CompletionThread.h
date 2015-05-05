@@ -109,6 +109,6 @@ private:
     std::condition_variable mCondition;
 };
 
-RCT_FLAGS(CompletionThread::Flag);
+RCT_FLAGS(CompletionThread::Flag)
 
 #endif

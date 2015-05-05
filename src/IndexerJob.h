@@ -62,6 +62,6 @@ private:
     static uint64_t sNextId;
 };
 
-RCT_FLAGS(IndexerJob::Flag);
+RCT_FLAGS(IndexerJob::Flag)
 
 #endif

@@ -343,7 +343,7 @@ private:
     mutable std::mutex mMutex;
 };
 
-RCT_FLAGS(Project::SortFlag);
+RCT_FLAGS(Project::SortFlag)
 
 inline bool Project::visitFile(uint32_t visitFileId, const Path &path, uint64_t key)
 {

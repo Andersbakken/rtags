@@ -96,8 +96,8 @@ private:
     std::shared_ptr<Connection> mConnection;
 };
 
-RCT_FLAGS(QueryJob::JobFlag);
-RCT_FLAGS(QueryJob::WriteFlag);
+RCT_FLAGS(QueryJob::JobFlag)
+RCT_FLAGS(QueryJob::WriteFlag)
 
 template <int StaticBufSize>
 inline bool QueryJob::write(Flags<WriteFlag> flags, const char *format, ...)

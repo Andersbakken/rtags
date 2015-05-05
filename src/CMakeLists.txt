@@ -60,6 +60,7 @@ if (CMAKE_BUILD_TYPE MATCHES "Debug")
   set(RCT_EVENTLOOP_CALLBACK_TIME_THRESHOLD 2000)
 endif ()
 
+add_definitions("-Wno-vla")
 add_definitions("-Wall")
 add_definitions("-DCLANG_LIBDIR=${CLANG_LIBDIR}")
 add_definitions("-DOS_${CMAKE_SYSTEM_NAME}")

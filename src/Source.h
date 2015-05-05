@@ -181,9 +181,9 @@ struct Source
                               List<Path> *unresolvedInputLocation = 0);
 };
 
-RCT_FLAGS(Source::Flag);
-RCT_FLAGS(Source::ParseFlag);
-RCT_FLAGS(Source::CommandLineFlag);
+RCT_FLAGS(Source::Flag)
+RCT_FLAGS(Source::ParseFlag)
+RCT_FLAGS(Source::CommandLineFlag)
 
 inline Source::Source()
     : fileId(0), compilerId(0), buildRootId(0), includePathHash(0),

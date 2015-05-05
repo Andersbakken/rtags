@@ -55,6 +55,6 @@ private:
     Flags<Flag> mFlags;
 };
 
-RCT_FLAGS(IndexMessage::Flag);
+RCT_FLAGS(IndexMessage::Flag)
 
 #endif

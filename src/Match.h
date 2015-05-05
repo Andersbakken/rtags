@@ -82,7 +82,7 @@ private:
     String mPattern;
     Flags<Flag> mFlags;
 };
-RCT_FLAGS(Match::Flag);
+RCT_FLAGS(Match::Flag)
 
 inline Log operator<<(Log log, const Match &match)
 {

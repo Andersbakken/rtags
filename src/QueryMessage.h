@@ -175,7 +175,7 @@ private:
     UnsavedFiles mUnsavedFiles;
 };
 
-RCT_FLAGS(QueryMessage::Flag);
+RCT_FLAGS(QueryMessage::Flag)
 
 DECLARE_NATIVE_TYPE(QueryMessage::Type);
 
