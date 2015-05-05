@@ -241,8 +241,6 @@ bool Server::initUnixServer()
     if (mOptions.options & Launchd) {
         mUnixServer.reset(new SocketServer);
         
-        printf("initUnixServer: launchd mode.\n");
-        
         bool good = false;
         int *fds = 0;
         size_t numFDs;
