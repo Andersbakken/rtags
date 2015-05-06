@@ -42,7 +42,7 @@ struct Source
 
     static const char *languageName(Language language);
 
-    uint64_t parsed;
+    String hashWhenLastParsed;
 
     enum Flag {
         NoFlag = 0x0,
@@ -187,7 +187,7 @@ RCT_FLAGS(Source::CommandLineFlag);
 
 inline Source::Source()
     : fileId(0), compilerId(0), buildRootId(0), includePathHash(0),
-      language(NoLanguage), parsed(0), sysRootIndex(-1)
+      language(NoLanguage), hashWhenLastParsed("0"), sysRootIndex(-1)
 {
 }
 
@@ -317,7 +317,7 @@ template <> inline Deserializer &operator>>(Deserializer &s, Source::Include &d)
 template <> inline Serializer &operator<<(Serializer &s, const Source &b)
 {
     s << b.fileId << b.compilerId << b.buildRootId << static_cast<uint8_t>(b.language)
-      << b.parsed << b.flags << b.defines << b.includePaths << b.arguments << b.sysRootIndex
+      << b.hashWhenLastParsed << b.flags << b.defines << b.includePaths << b.arguments << b.sysRootIndex
       << b.directory << b.includePathHash;
     return s;
 }
@@ -326,7 +326,7 @@ template <> inline Deserializer &operator>>(Deserializer &s, Source &b)
 {
     b.clear();
     uint8_t language;
-    s >> b.fileId >> b.compilerId >> b.buildRootId >> language >> b.parsed >> b.flags
+    s >> b.fileId >> b.compilerId >> b.buildRootId >> language >> b.hashWhenLastParsed >> b.flags
       >> b.defines >> b.includePaths >> b.arguments >> b.sysRootIndex >> b.directory
       >> b.includePathHash;
     b.language = static_cast<Source::Language>(language);
