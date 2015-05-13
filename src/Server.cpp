@@ -1572,19 +1572,14 @@ void Server::stopServers()
 
 void Server::codeCompleteAt(const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Connection> &conn)
 {
-    const String q = query->query();
-    Deserializer deserializer(q);
-    Path path;
-    int line, column;
-    deserializer >> path >> line >> column;
-    path.resolve();
+    const Location loc = query->location(Location::CreateLocation);
     std::shared_ptr<Project> project = projectForQuery(query);
     if (!project) {
-        error("No project found for %s", path.constData());
+        error("No project found for %s", loc.path().constData());
         conn->finish();
         return;
     }
-    const uint32_t fileId = Location::insertFile(path);
+    const uint32_t fileId = loc.fileId();
     Source source = project->sources(fileId).value(query->buildIndex());
     if (source.isNull()) {
         for (uint32_t dep : project->dependencies(fileId, Project::DependsOnArg)) {
@@ -1594,7 +1589,7 @@ void Server::codeCompleteAt(const std::shared_ptr<QueryMessage> &query, const st
         }
 
         if (source.isNull()) {
-            error("No source found for %s", path.constData());
+            error("No source found for %s", loc.path().constData());
             conn->finish();
             return;
         }
@@ -1604,7 +1599,6 @@ void Server::codeCompleteAt(const std::shared_ptr<QueryMessage> &query, const st
         mCompletionThread->start();
     }
 
-    const Location loc(fileId, line, column);
     Flags<CompletionThread::Flag> flags;
     if (query->type() == QueryMessage::PrepareCodeCompleteAt)
         flags |= CompletionThread::Refresh;
@@ -1615,8 +1609,8 @@ void Server::codeCompleteAt(const std::shared_ptr<QueryMessage> &query, const st
         c->finish();
         c.reset();
     }
-    error() << "Got completion request for" << String::format("%s:%d:%d", path.constData(), line, column);
-    mCompletionThread->completeAt(source, loc, flags, query->unsavedFiles().value(path), c);
+    error() << "Got completion request for" << loc;
+    mCompletionThread->completeAt(source, loc, flags, query->unsavedFiles().value(loc.path()), c);
 }
 
 void Server::dumpJobs(const std::shared_ptr<Connection> &conn)

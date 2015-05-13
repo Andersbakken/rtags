@@ -118,7 +118,10 @@ public:
     const UnsavedFiles &unsavedFiles() const { return mUnsavedFiles; }
 
     String query() const { return mQuery; }
-    Location location() const { return Location::decode(mQuery); }
+    Location location(Location::DecodeFlag flag = Location::NoDecodeFlag) const
+    {
+        return Location::decode(mQuery, flag);
+    }
     void setQuery(const String &query) { mQuery = query; }
     void setBuildIndex(int index) { mBuildIndex = index; }
     int buildIndex() const { return mBuildIndex; }

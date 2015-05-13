@@ -25,7 +25,6 @@
 #include "RTagsClang.h"
 #include "FileMap.h"
 #include <rct/StopWatch.h>
-#include <regex>
 
 struct Option {
     const RClient::OptionType option;
@@ -632,18 +631,20 @@ RClient::ParseStatus RClient::parse(int &argc, char **argv)
             mQueryFlags |= QueryMessage::WildcardSymbolNames;
             break; }
         case RangeFilter: {
-            std::cmatch caps;
-            std::regex rx("^([0-9]+)-([0-9]+*)$");
-            if (!Rct::contains(optarg, rx, &caps) || caps.size() != 3) {
+            char *end;
+            mMinOffset = strtoul(optarg, &end, 10);
+            if (*end != '-') {
                 fprintf(stderr, "Can't parse range, must be uint-uint. E.g. 1-123\n");
                 return Parse_Error;
-            } else {
-                mMinOffset = atoi(caps.str(1).c_str());
-                mMaxOffset = atoi(caps.str(2).c_str());
-                if (mMaxOffset <= mMinOffset || mMinOffset < 0) {
-                    fprintf(stderr, "Invalid range (%d-%d), must be uint-uint. E.g. 1-123\n", mMinOffset, mMaxOffset);
-                    return Parse_Error;
-                }
+            }
+            mMaxOffset = strtoul(end + 1, &end, 10);
+            if (*end) {
+                fprintf(stderr, "Can't parse range, must be uint-uint. E.g. 1-123\n");
+                return Parse_Error;
+            }
+            if (mMaxOffset <= mMinOffset || mMinOffset < 0) {
+                fprintf(stderr, "Invalid range (%d-%d), must be uint-uint. E.g. 1-123\n", mMinOffset, mMaxOffset);
+                return Parse_Error;
             }
             break; }
         case Version:
@@ -654,24 +655,13 @@ RClient::ParseStatus RClient::parse(int &argc, char **argv)
             break;
         case PrepareCodeCompleteAt:
         case CodeCompleteAt: {
-            std::cmatch caps;
-            std::regex rx("^(.*):([0-9]+):([0-9]+):?");
-            if (!Rct::contains(optarg, rx, &caps) || caps.size() != 4) {
-                fprintf(stderr, "Can't decode argument for --code-complete-at [%s]\n", optarg);
-                return Parse_Error;
-            }
-            const Path path = Path::resolved(caps.str(1), Path::MakeAbsolute);
-            if (!path.isFile()) {
-                fprintf(stderr, "Can't decode argument for --code-complete-at [%s]\n", optarg);
+            const String encoded = Location::encode(optarg);
+            if (encoded.isEmpty()) {
+                fprintf(stderr, "Can't resolve argument %s\n", optarg);
                 return Parse_Error;
             }
 
-            String out;
-            {
-                Serializer serializer(out);
-                serializer << path << atoi(caps.str(2).c_str()) << atoi(caps.str(3).c_str());
-            }
-            addQuery(opt->option == CodeCompleteAt ? QueryMessage::CodeCompleteAt : QueryMessage::PrepareCodeCompleteAt, out);
+            addQuery(opt->option == CodeCompleteAt ? QueryMessage::CodeCompleteAt : QueryMessage::PrepareCodeCompleteAt, encoded);
             break; }
         case Silent:
             mLogLevel = -1;

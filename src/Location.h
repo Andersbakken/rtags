@@ -162,16 +162,24 @@ public:
     String key(Flags<KeyFlag> flags = NoFlag) const;
     String context(Flags<KeyFlag> flags) const;
 
-    static Location decode(const String &data)
+    enum DecodeFlag {
+        NoDecodeFlag = 0x0,
+        CreateLocation = 0x1
+    };
+    static Location decode(const String &data, DecodeFlag flag = NoDecodeFlag)
     {
         uint32_t col;
         uint32_t line;
         memcpy(&col, data.constData() + data.size() - sizeof(col), sizeof(col));
         memcpy(&line, data.constData() + data.size() - sizeof(line) - sizeof(col), sizeof(line));
-        const Path path(data.constData(), data.size() - sizeof(col) - sizeof(line));
+        Path path(data.constData(), data.size() - sizeof(col) - sizeof(line));
         uint32_t fileId = Location::fileId(path);
-        if (!fileId)
-            fileId = Location::fileId(path.resolved());
+        if (!fileId) {
+            path.resolve();
+            fileId = Location::fileId(path);
+        }
+        if (!fileId && flag == CreateLocation)
+            fileId = Location::insertFile(path);
         if (fileId)
             return Location(fileId, line, col);
         error("Failed to make location from [%s:%d:%d]", path.constData(), line, col);
