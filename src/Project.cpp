@@ -449,7 +449,7 @@ static inline const String elispEscape(const String &data)
                 copied = true;
                 if (i)
                     ret.assign(data.constData(), i);
-                ret.reserve(data.size() + 16);
+                ret.reserve(size + 16);
             }
             if (*ch == '"') {
                 ret << "\\\"";
