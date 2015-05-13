@@ -438,19 +438,18 @@ static inline String xmlEscape(const String& xml)
 static inline const String elispEscape(const String &data)
 {
     String ret;
-    int size = data.size();
+    const int size = data.size();
     const char *ch = data.constData();
     bool copied = false;
-    while (size-- > 0) {
+    for (int i=0; i<size; ++i) {
         switch (*ch) {
         case '"':
         case '\n':
             if (!copied) {
                 copied = true;
-                if (size) {
-                    ret.reserve(data.size() + 16);
-                    ret.assign(data.constData(), size);
-                }
+                if (i)
+                    ret.assign(data.constData(), i);
+                ret.reserve(data.size() + 16);
             }
             if (*ch == '"') {
                 ret << "\\\"";
