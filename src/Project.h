@@ -213,13 +213,8 @@ private:
 
     struct FileMapScope {
         FileMapScope(const std::shared_ptr<Project> &proj, int m)
-            : project(proj), openedFiles(0), max(m), hits(0), misses(0), removals(0)
+            : project(proj), openedFiles(0), max(m)
         {}
-        ~FileMapScope()
-        {
-            warning("%d hits, %d misses (%2.f%%) %d removals",
-                    hits, misses, (hits + misses ? (static_cast<double>(hits) / static_cast<double>(misses)) * 100.0 : 0), removals);
-        }
 
         struct LRUKey {
             FileMapType type;
@@ -253,11 +248,9 @@ private:
         {
             auto it = cache.find(fileId);
             if (it != cache.end()) {
-                ++hits;
                 poke(type, fileId);
                 return it->second;
             }
-            ++misses;
             const Path path = project->sourceFilePath(fileId, Project::fileMapName(type));
             std::shared_ptr<FileMap<Key, Value> > fileMap(new FileMap<Key, Value>);
             String err;
@@ -270,7 +263,6 @@ private:
                     const std::shared_ptr<LRUEntry> e = entryList.takeFirst();
                     assert(e);
                     entryMap.remove(e->key);
-                    ++removals;
                     switch (e->key.type) {
                     case SymbolNames:
                         assert(symbolNames.contains(e->key.fileId));
@@ -306,7 +298,6 @@ private:
         std::shared_ptr<Project> project;
         int openedFiles;
         const int max;
-        int hits, misses, removals;
 
         EmbeddedLinkedList<std::shared_ptr<LRUEntry> > entryList;
         Map<LRUKey, std::shared_ptr<LRUEntry> > entryMap;
