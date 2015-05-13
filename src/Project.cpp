@@ -280,7 +280,8 @@ bool Project::init()
     const Server::Options &options = Server::instance()->options();
     fileManager.reset(new FileManager);
     if (!(options.options & Server::NoFileSystemWatch)) {
-        mWatcher.modified().connect(std::bind(&Project::onFileModified, this, std::placeholders::_1));
+        mWatcher.modified().connect(std::bind(&Project::onFileModifiedOrAdded, this, std::placeholders::_1));
+        mWatcher.added().connect(std::bind(&Project::onFileModifiedOrAdded, this, std::placeholders::_1));
         mWatcher.removed().connect(std::bind(&Project::onFileRemoved, this, std::placeholders::_1));
     }
     if (!(options.options & Server::NoFileManagerWatch)) {
@@ -803,10 +804,10 @@ void Project::index(const std::shared_ptr<IndexerJob> &job)
     Server::instance()->jobScheduler()->add(job);
 }
 
-void Project::onFileModified(const Path &file)
+void Project::onFileModifiedOrAdded(const Path &file)
 {
     const uint32_t fileId = Location::fileId(file);
-    debug() << file << "was modified" << fileId;
+    debug() << file << "was modified or added " << fileId;
     if (!fileId)
         return;
     if (Server::instance()->suspended() || mSuspendedFiles.contains(fileId)) {
@@ -857,7 +858,6 @@ void Project::onFileRemoved(const Path &file)
         mDirtyTimer.restart(DirtyTimeout, Timer::SingleShot);
     }
 }
-
 
 void Project::onDirtyTimeout(Timer *)
 {

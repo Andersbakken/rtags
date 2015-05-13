@@ -177,7 +177,7 @@ public:
     String toCompilationDatabase() const;
     Set<Path> watchedPaths() const { return mWatchedPaths; }
     bool isIndexing() const { return !mActiveJobs.isEmpty(); }
-    void onFileModified(const Path &);
+    void onFileModifiedOrAdded(const Path &);
     void onFileRemoved(const Path &);
     Hash<uint32_t, Path> visitedFiles() const
     {
