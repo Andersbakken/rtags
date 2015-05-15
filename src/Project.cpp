@@ -1202,7 +1202,7 @@ void Project::findSymbols(const String &string,
     }
 }
 
-List<RTags::SortedSymbol> Project::sort(const Set<Symbol> &symbols, Flags<SortFlag> flags)
+List<RTags::SortedSymbol> Project::sort(const Set<Symbol> &symbols, Flags<QueryMessage::Flag> flags)
 {
     List<RTags::SortedSymbol> sorted;
     sorted.reserve(symbols.size());
@@ -1210,19 +1210,21 @@ List<RTags::SortedSymbol> Project::sort(const Set<Symbol> &symbols, Flags<SortFl
         RTags::SortedSymbol node(symbol.location);
         if (!symbol.isNull()) {
             node.isDefinition = symbol.isDefinition();
-            if (flags & Sort_DeclarationOnly && node.isDefinition) {
+            if (flags & QueryMessage::DeclarationOnly && node.isDefinition) {
                 const Symbol decl = findTarget(symbol);
                 if (!decl.isNull() && !decl.isDefinition()) {
                     assert(decl.usr == symbol.usr);
                     continue;
                 }
+            } else if (flags & QueryMessage::DefinitionOnly && !node.isDefinition) {
+                continue;
             }
             node.kind = symbol.kind;
         }
         sorted.push_back(node);
     }
 
-    if (flags & Sort_Reverse) {
+    if (flags & QueryMessage::ReverseSort) {
         std::sort(sorted.begin(), sorted.end(), std::greater<RTags::SortedSymbol>());
     } else {
         std::sort(sorted.begin(), sorted.end());

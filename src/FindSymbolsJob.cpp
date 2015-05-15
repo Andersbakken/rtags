@@ -49,13 +49,7 @@ int FindSymbolsJob::execute()
         };
         proj->findSymbols(string, inserter, queryFlags());
         if (!symbols.isEmpty()) {
-            Flags<Project::SortFlag> sortFlags = Project::Sort_None;
-            if (queryFlags() & QueryMessage::DeclarationOnly)
-                sortFlags |= Project::Sort_DeclarationOnly;
-            if (queryFlags() & QueryMessage::ReverseSort)
-                sortFlags |= Project::Sort_Reverse;
-
-            const List<RTags::SortedSymbol> sorted = proj->sort(symbols, sortFlags);
+            const List<RTags::SortedSymbol> sorted = proj->sort(symbols, queryFlags());
             const Flags<WriteFlag> writeFlags = filter ? NoWriteFlags : Unfiltered;
             const int count = sorted.size();
             ret = count ? 0 : 1;

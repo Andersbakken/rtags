@@ -43,14 +43,7 @@ QueryJob::QueryJob(const std::shared_ptr<QueryMessage> &query,
             mPathFilters = pathFilters;
         }
     }
-}
-
-QueryJob::QueryJob(const std::shared_ptr<Project> &proj, Flags<JobFlag> jobFlags)
-    : mAborted(false), mLinesWritten(0), mJobFlags(jobFlags), mProject(proj), mPathFilters(0),
-      mPathFiltersRegex(0), mConnection(0)
-{
-    if (mProject)
-        mProject->beginScope();
+    mKindFilters = query->kindFilters();
 }
 
 QueryJob::~QueryJob()
@@ -124,17 +117,8 @@ bool QueryJob::write(const Location &location, Flags<WriteFlag> flags)
 {
     if (location.isNull())
         return false;
-    const int minLine = mQueryMessage ? mQueryMessage->minLine() : -1;
-    if (minLine != -1) {
-        assert(mQueryMessage);
-        assert(mQueryMessage->maxLine() != -1);
-        const int maxLine = mQueryMessage->maxLine();
-        assert(maxLine != -1);
-        const int line = location.line();
-        if (line < minLine || line > maxLine) {
-            return false;
-        }
-    }
+    if (filterLocation(location))
+        return false;
     if (!(flags & WriteUnfiltered)) {
         const uint32_t filter = fileFilter();
         if (filter) {
@@ -147,12 +131,14 @@ bool QueryJob::write(const Location &location, Flags<WriteFlag> flags)
     const bool containingFunction = queryFlags() & QueryMessage::ContainingFunction;
     const bool cursorKind = queryFlags() & QueryMessage::CursorKind;
     const bool displayName = queryFlags() & QueryMessage::DisplayName;
-    if (containingFunction || cursorKind || displayName) {
+    if (containingFunction || cursorKind || displayName || !mKindFilters.isEmpty()) {
         int idx;
         Symbol symbol = project()->findSymbol(location, &idx);
         if (symbol.isNull()) {
             error() << "Somehow can't find" << location << "in symbols";
         } else {
+            if (!mKindFilters.isEmpty() && filterKind(symbol.kind))
+                return false;
             if (displayName)
                 out += '\t' + symbol.displayName();
             if (cursorKind)
@@ -187,6 +173,12 @@ bool QueryJob::write(const Symbol &symbol,
                      Flags<WriteFlag> writeFlags)
 {
     if (symbol.isNull())
+        return false;
+
+    if (filterLocation(symbol.location))
+        return false;
+
+    if (!mKindFilters.isEmpty() && filterKind(symbol.kind))
         return false;
 
     return write(symbol.toString(toStringFlags, keyFlags(), project()), writeFlags);
@@ -234,4 +226,31 @@ int QueryJob::run(const std::shared_ptr<Connection> &connection)
     const int ret = execute();
     mConnection = 0;
     return ret;
+}
+
+bool QueryJob::filterLocation(const Location &loc) const
+{
+    const int minLine = mQueryMessage ? mQueryMessage->minLine() : -1;
+    if (minLine != -1) {
+        assert(mQueryMessage);
+        assert(mQueryMessage->maxLine() != -1);
+        const int maxLine = mQueryMessage->maxLine();
+        assert(maxLine != -1);
+        const int line = loc.line();
+        if (line < minLine || line > maxLine) {
+            return true;
+        }
+    }
+    return false;
+}
+
+bool QueryJob::filterKind(CXCursorKind kind) const
+{
+    assert(!mKindFilters.isEmpty());
+    const String kindSpelling = Symbol::kindSpelling(kind);
+    for (auto k : mKindFilters) {
+        if (kindSpelling.contains(k, String::CaseInsensitive))
+            return false;
+    }
+    return true;
 }

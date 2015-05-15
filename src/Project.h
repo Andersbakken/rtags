@@ -147,12 +147,8 @@ public:
 
     Path sourceFilePath(uint32_t fileId, const char *path = "") const;
 
-    enum SortFlag {
-        Sort_None = 0x0,
-        Sort_DeclarationOnly = 0x1,
-        Sort_Reverse = 0x2
-    };
-    List<RTags::SortedSymbol> sort(const Set<Symbol> &symbols, Flags<SortFlag> flags = Sort_None);
+    List<RTags::SortedSymbol> sort(const Set<Symbol> &symbols,
+                                   Flags<QueryMessage::Flag> flags = Flags<QueryMessage::Flag>());
 
     const Files &files() const { return mFiles; }
     Files &files() { return mFiles; }
@@ -328,8 +324,6 @@ private:
 
     mutable std::mutex mMutex;
 };
-
-RCT_FLAGS(Project::SortFlag);
 
 inline bool Project::visitFile(uint32_t visitFileId, const Path &path, uint64_t key)
 {

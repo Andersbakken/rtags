@@ -46,6 +46,7 @@ public:
         CurrentFile,
         CursorKind,
         DeclarationOnly,
+        DefinitionOnly,
         DeleteProject,
         Dependencies,
         Diagnostics,
@@ -73,6 +74,7 @@ public:
         IsIndexed,
         IsIndexing,
         JobCount,
+        KindFilter,
         ListBuffers,
         ListSymbols,
         LoadCompilationDatabase,
@@ -145,6 +147,8 @@ public:
     int minOffset() const { return mMinOffset; }
     int maxOffset() const { return mMaxOffset; }
 
+    const Set<String> &kindFilters() const { return mKindFilters; }
+
     const UnsavedFiles &unsavedFiles() const { return mUnsavedFiles; }
 
     const List<String> &rdmArgs() const { return mRdmArgs; }
@@ -174,7 +178,7 @@ private:
 
     Flags<QueryMessage::Flag> mQueryFlags;
     int mMax, mLogLevel, mTimeout, mMinOffset, mMaxOffset, mConnectTimeout, mBuildIndex;
-    Set<String> mPathFilters;
+    Set<String> mPathFilters, mKindFilters;
     UnsavedFiles mUnsavedFiles;
     List<std::shared_ptr<RCCommand> > mCommands;
     List<String> mRdmArgs;

@@ -25,15 +25,15 @@ QueryMessage::QueryMessage(Type type)
 void QueryMessage::encode(Serializer &serializer) const
 {
     serializer << mRaw << mQuery << mType << mFlags << mMax
-               << mMinLine << mMaxLine << mBuildIndex << mPathFilters << mCurrentFile
-               << mUnsavedFiles;
+               << mMinLine << mMaxLine << mBuildIndex << mPathFilters << mKindFilters
+               << mCurrentFile << mUnsavedFiles;
 }
 
 void QueryMessage::decode(Deserializer &deserializer)
 {
     deserializer >> mRaw >> mQuery >> mType >> mFlags >> mMax
-                 >> mMinLine >> mMaxLine >> mBuildIndex >> mPathFilters >> mCurrentFile
-                 >> mUnsavedFiles;
+                 >> mMinLine >> mMaxLine >> mBuildIndex >> mPathFilters >> mKindFilters
+                 >> mCurrentFile >> mUnsavedFiles;
 }
 
 Flags<Location::KeyFlag> QueryMessage::keyFlags(Flags<Flag> queryFlags)
@@ -91,6 +91,8 @@ QueryMessage::Flag QueryMessage::flagFromString(const String &string)
         return SymbolInfoExcludeReferences;
     } else if (string == "declaration-only") {
         return DeclarationOnly;
+    } else if (string == "definiton-only") {
+        return DefinitionOnly;
     } else if (string == "containing-function") {
         return ContainingFunction;
     } else if (string == "cursor-kind") {

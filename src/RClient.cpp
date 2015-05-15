@@ -135,6 +135,8 @@ struct Option opts[] = {
     { RClient::DisplayName, "display-name", 0, no_argument, "Include display name in --find-symbols output." },
     { RClient::CurrentFile, "current-file", 0, required_argument, "Pass along which file is being edited to give rdm a better chance at picking the right project." },
     { RClient::DeclarationOnly, "declaration-only", 0, no_argument, "Filter out definitions (unless inline).", },
+    { RClient::DefinitionOnly, "definition-only", 0, no_argument, "Filter out declarations (unless inline).", },
+    { RClient::KindFilter, "kind-filter", 0, required_argument, "Only return results matching this kind.", },
     { RClient::IMenu, "imenu", 0, no_argument, "Use with --list-symbols to provide output for (rtags-imenu) (filter namespaces, fully qualified function names, ignore certain symbols etc)." },
     { RClient::ContainingFunction, "containing-function", 'o', no_argument, "Include name of containing function in output."},
     { RClient::BuildIndex, "build-index", 0, required_argument, "For sources with multiple builds, use the arg'th." },
@@ -261,7 +263,8 @@ public:
         msg.setUnsavedFiles(rc->unsavedFiles());
         msg.setFlags(extraQueryFlags | rc->queryFlags());
         msg.setMax(rc->max());
-        msg.setPathFilters(rc->pathFilters().toList());
+        msg.setPathFilters(rc->pathFilters());
+        msg.setKindFilters(rc->kindFilters());
         msg.setRangeFilter(rc->minOffset(), rc->maxOffset());
         msg.setCurrentFile(rc->currentFile());
         return connection->send(msg);
@@ -568,6 +571,9 @@ RClient::ParseStatus RClient::parse(int &argc, char **argv)
         case DeclarationOnly:
             mQueryFlags |= QueryMessage::DeclarationOnly;
             break;
+        case DefinitionOnly:
+            mQueryFlags |= QueryMessage::DefinitionOnly;
+            break;
         case FindVirtuals:
             mQueryFlags |= QueryMessage::FindVirtuals;
             break;
@@ -627,6 +633,9 @@ RClient::ParseStatus RClient::parse(int &argc, char **argv)
             p.resolve();
             mPathFilters.insert(p);
             break; }
+        case KindFilter:
+            mKindFilters.insert(optarg);
+            break;
         case WildcardSymbolNames: {
             mQueryFlags |= QueryMessage::WildcardSymbolNames;
             break; }

@@ -55,6 +55,7 @@ int ReferencesJob::execute()
         proj->findSymbols(symbolName, inserter, queryFlags());
     }
     const bool declarationOnly = queryFlags() & QueryMessage::DeclarationOnly;
+    const bool definitionOnly = queryFlags() & QueryMessage::DefinitionOnly;
     Location startLocation;
     bool first = true;
     for (auto it = locations.begin(); it != locations.end(); ++it) {
@@ -101,17 +102,25 @@ int ReferencesJob::execute()
                     continue;
                 }
                 const bool def = symbol.isDefinition();
-                if (def && declarationOnly)
+                if (def) {
+                    if (declarationOnly)
+                        continue;
+                } else if (definitionOnly) {
                     continue;
+                }
                 references[symbol.location] = std::make_pair(def, symbol.kind);
             }
         } else if (queryFlags() & QueryMessage::FindVirtuals) {
             const Set<Symbol> virtuals = proj->findVirtuals(sym);
-            const bool declarationOnly = queryFlags() & QueryMessage::DeclarationOnly;
             for (const auto &symbol : virtuals) {
                 const bool def = symbol.isDefinition();
-                if (!declarationOnly || !def)
-                    references[symbol.location] = std::make_pair(def, symbol.kind);
+                if (def) {
+                    if (declarationOnly)
+                        continue;
+                } else if (definitionOnly) {
+                    continue;
+                }
+                references[symbol.location] = std::make_pair(def, symbol.kind);
             }
             startLocation.clear();
             // since one normally calls this on a declaration it kinda
@@ -119,11 +128,15 @@ int ReferencesJob::execute()
             // underneath
         } else {
             const Set<Symbol> symbols = proj->findCallers(sym);
-            const bool declarationOnly = queryFlags() & QueryMessage::DeclarationOnly;
             for (const auto &symbol : symbols) {
                 const bool def = symbol.isDefinition();
-                if (!declarationOnly || !def)
-                    references[symbol.location] = std::make_pair(false, CXCursor_FirstInvalid);
+                if (def) {
+                    if (declarationOnly)
+                        continue;
+                } else if (definitionOnly) {
+                    continue;
+                }
+                references[symbol.location] = std::make_pair(false, CXCursor_FirstInvalid);
             }
         }
     }

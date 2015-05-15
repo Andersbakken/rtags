@@ -45,8 +45,6 @@ public:
     QueryJob(const std::shared_ptr<QueryMessage> &msg,
              const std::shared_ptr<Project> &proj,
              Flags<JobFlag> jobFlags = Flags<JobFlag>());
-    QueryJob(const std::shared_ptr<Project> &project,
-             Flags<JobFlag> jobFlags = Flags<JobFlag>());
     ~QueryJob();
 
     bool hasFilter() const { return !mPathFilters.isEmpty() || !mPathFiltersRegex.isEmpty(); }
@@ -82,6 +80,8 @@ public:
     std::mutex &mutex() const { return mMutex; }
     const std::shared_ptr<Connection> &connection() const { return mConnection; }
 private:
+    bool filterLocation(const Location &loc) const;
+    bool filterKind(CXCursorKind kind) const;
     mutable std::mutex mMutex;
     bool mAborted;
     int mLinesWritten;
@@ -92,6 +92,7 @@ private:
     std::shared_ptr<Project> mProject;
     List<String> mPathFilters;
     List<std::regex> mPathFiltersRegex;
+    Set<String> mKindFilters;
     String mBuffer;
     std::shared_ptr<Connection> mConnection;
 };

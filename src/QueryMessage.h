@@ -69,38 +69,39 @@ public:
     };
 
     enum Flag {
-        NoFlag = 0x00000000,
-        NoContext = 0x00000001,
-        FilterSystemIncludes = 0x00000004,
-        StripParentheses = 0x00000008,
-        AllReferences = 0x00000010,
-        ReverseSort = 0x00000020,
-        ElispList = 0x00000040,
-        IMenu = 0x00000080,
-        MatchRegex = 0x00000100,
-        MatchCaseInsensitive = 0x00000200,
-        FindVirtuals = 0x00000400,
-        Silent = 0x00000800,
-        AbsolutePath = 0x00001000,
-        FindFilePreferExact = 0x00002000,
-        SymbolInfoIncludeParents = 0x00004000,
-        SymbolInfoExcludeTargets = 0x00008000,
-        SymbolInfoExcludeReferences = 0x00010000,
-        DeclarationOnly = 0x00020000,
-        ContainingFunction = 0x00040000,
-        AllTargets = 0x00080000,
-        CursorKind = 0x00100000,
-        DisplayName = 0x00200000,
-        CompilationFlagsOnly = 0x00400000,
-        CompilationFlagsSplitLine = 0x00800000,
-        DumpIncludeHeaders = 0x01000000,
-        SilentQuery = 0x02000000,
-        SynchronousCompletions = 0x04000000,
-        NoSortReferencesByInput = 0x08000000,
-        HasLocation = 0x10000000,
-        WildcardSymbolNames = 0x20000000,
-        NoColor = 0x40000000,
-        Rename = 0x80000000
+        NoFlag = 0x000000000,
+        NoContext = 0x000000001,
+        FilterSystemIncludes = 0x000000004,
+        StripParentheses = 0x000000008,
+        AllReferences = 0x000000010,
+        ReverseSort = 0x000000020,
+        ElispList = 0x000000040,
+        IMenu = 0x000000080,
+        MatchRegex = 0x000000100,
+        MatchCaseInsensitive = 0x000000200,
+        FindVirtuals = 0x000000400,
+        Silent = 0x000000800,
+        AbsolutePath = 0x000001000,
+        FindFilePreferExact = 0x000002000,
+        SymbolInfoIncludeParents = 0x000004000,
+        SymbolInfoExcludeTargets = 0x000008000,
+        SymbolInfoExcludeReferences = 0x000010000,
+        DeclarationOnly = 0x000020000,
+        DefinitionOnly = 0x000040000,
+        AllTargets = 0x000080000,
+        CursorKind = 0x000100000,
+        DisplayName = 0x000200000,
+        CompilationFlagsOnly = 0x000400000,
+        CompilationFlagsSplitLine = 0x000800000,
+        DumpIncludeHeaders = 0x001000000,
+        SilentQuery = 0x002000000,
+        SynchronousCompletions = 0x004000000,
+        NoSortReferencesByInput = 0x008000000,
+        HasLocation = 0x010000000,
+        WildcardSymbolNames = 0x020000000,
+        NoColor = 0x040000000,
+        Rename = 0x080000000,
+        ContainingFunction = 0x100000000
     };
 
     QueryMessage(Type type = Invalid);
@@ -108,11 +109,14 @@ public:
     Type type() const { return mType; }
 
     const List<String> &pathFilters() const { return mPathFilters; }
-    void setPathFilters(const List<String> &pathFilters)
+    void setPathFilters(const Set<String> &pathFilters)
     {
-        mPathFilters = pathFilters;
+        mPathFilters = pathFilters.toList();
         std::sort(mPathFilters.begin(), mPathFilters.end());
     }
+
+    void setKindFilters(const Set<String> &kindFilters) { mKindFilters = kindFilters; }
+    const Set<String> &kindFilters() const { return mKindFilters; }
 
     void setUnsavedFiles(const UnsavedFiles &unsavedFiles) { mUnsavedFiles = unsavedFiles; }
     const UnsavedFiles &unsavedFiles() const { return mUnsavedFiles; }
@@ -174,6 +178,7 @@ private:
     Flags<QueryMessage::Flag> mFlags;
     int mMax, mMinLine, mMaxLine, mBuildIndex;
     List<String> mPathFilters;
+    Set<String> mKindFilters;
     Path mCurrentFile;
     UnsavedFiles mUnsavedFiles;
 };
