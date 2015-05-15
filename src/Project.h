@@ -198,13 +198,7 @@ private:
     void removeDependencies(uint32_t fileId);
     void watch(const Path &file);
     void reloadFileManager();
-    enum UpdateDependenciesMode {
-        PruneOld,
-        LeaveOld
-    };
-    void updateDependencies(const Set<uint32_t> &visited,
-                            const Includes &includes,
-                            UpdateDependenciesMode mode);
+    void updateDependencies(const std::shared_ptr<IndexDataMessage> &msg);
     void updateDeclarations(const Set<uint32_t> &visited, Declarations &declarations);
     void updateFixIts(const Set<uint32_t> &visited, FixIts &fixIts);
     int startDirtyJobs(Dirty *dirty, const UnsavedFiles &unsavedFiles = UnsavedFiles());

@@ -640,8 +640,7 @@ void Project::onJobFinished(const std::shared_ptr<IndexerJob> &job, const std::s
     int symbolNames = 0;
     Set<uint32_t> visited = msg->visitedFiles();
     updateFixIts(visited, msg->fixIts());
-    updateDependencies(visited, msg->includes(),
-                       msg->flags() & (IndexDataMessage::InclusionError|IndexDataMessage::ParseFailure) ? LeaveOld : PruneOld);
+    updateDependencies(msg);
     updateDeclarations(visited, msg->declarations());
     if (success) {
         src->second.parsed = msg->parseTime();
@@ -923,22 +922,29 @@ void Project::removeDependencies(uint32_t fileId)
     }
 }
 
-void Project::updateDependencies(const Set<uint32_t> &visited,
-                                 const Includes &includes,
-                                 UpdateDependenciesMode mode)
+void Project::updateDependencies(const std::shared_ptr<IndexDataMessage> &msg)
 {
-    // ### this probably deletes and recreates the same nodes very very often
-    Set<uint32_t> files = visited;
-    if (mode == PruneOld) {
-        for (uint32_t file : visited) {
-            if (DependencyNode *node = mDependencies.value(file)) {
+    const bool prune = !(msg->flags() & (IndexDataMessage::InclusionError|IndexDataMessage::ParseFailure));
+    Set<uint32_t> files;
+    for (auto pair : msg->files()) {
+        DependencyNode *&node = mDependencies[pair.first];
+        if (!node) {
+            node = new DependencyNode(pair.first);
+            if (pair.second & IndexDataMessage::Visited)
+                files.insert(pair.first);
+        } else if (pair.second & IndexDataMessage::Visited) {
+            files.insert(pair.first);
+            if (prune) {
                 for (auto it : node->includes)
-                    it.second->dependents.remove(file);
+                    it.second->dependents.remove(pair.first);
                 node->includes.clear();
             }
         }
+        watch(Location::path(pair.first));
     }
-    for (const auto &it : includes) {
+
+    // // ### this probably deletes and recreates the same nodes very very often
+    for (auto it : msg->includes()) {
         DependencyNode *&includer = mDependencies[it.first];
         DependencyNode *&inclusiary = mDependencies[it.second];
         files.insert(it.first);
@@ -948,9 +954,6 @@ void Project::updateDependencies(const Set<uint32_t> &visited,
         if (!inclusiary)
             inclusiary = new DependencyNode(it.second);
         includer->include(inclusiary);
-    }
-    for (uint32_t file : files) {
-        watch(Location::path(file));
     }
 }
 
