@@ -1399,8 +1399,7 @@ static Set<Symbol> findReferences(const Set<Symbol> &inputs,
     // const bool isClazz = s.isClass();
     for (const Symbol &input : inputs) {
         //warning() << "Calling findReferences" << input.location;
-        const Set<uint32_t> deps = project->dependencies(input.location.fileId(), Project::DependsOnArg);
-        for (const auto &dep : deps) {
+        auto process = [&](uint32_t dep) {
             // error() << "Looking at file" << Location::path(dep) << "for input" << input.location;
             auto targets = project->openTargets(dep);
             if (targets) {
@@ -1412,7 +1411,16 @@ static Set<Symbol> findReferences(const Set<Symbol> &inputs,
                         ret.insert(sym);
                 }
             }
+        };
+
+        if (project->isDeclaration(input.usr)) {
+            for (auto dep : project->dependencies())
+                process(dep.first);
+        } else {
+            for (auto dep : project->dependencies(input.location.fileId(), Project::DependsOnArg))
+                process(dep);
         }
+
     }
     return ret;
 }
@@ -1469,7 +1477,7 @@ Set<Symbol> Project::findCallers(const Symbol &symbol)
     return ::findReferences(symbol, shared_from_this(), [isClazz](const Symbol &input, const Symbol &ref) {
             if (isClazz && ref.isConstructorOrDestructor())
                 return false;
-            if (RTags::isReference(ref.kind)
+            if (ref.isReference()
                 || (input.kind == CXCursor_Constructor && (ref.kind == CXCursor_VarDecl || ref.kind == CXCursor_FieldDecl))) {
                 return true;
             }

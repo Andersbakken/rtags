@@ -118,7 +118,7 @@ int ReferencesJob::execute()
             // doesn't work that well to do the clever offset thing
             // underneath
         } else {
-            const Set<Symbol> symbols = proj->findCallers(pos);
+            const Set<Symbol> symbols = proj->findCallers(sym);
             const bool declarationOnly = queryFlags() & QueryMessage::DeclarationOnly;
             for (const auto &symbol : symbols) {
                 const bool def = symbol.isDefinition();

@@ -1105,6 +1105,7 @@ bool ClangIndexer::handleCursor(const CXCursor &cursor, CXCursorKind kind, const
     unit(location)->usrs[c.usr].insert(location);
     if (c.linkage == CXLinkage_External && !c.isDefinition()) {
         mIndexDataMessage.declarations()[c.usr].insert(location.fileId());
+        unit(location.fileId())->targets[location][usr] = RTags::createTargetsValue(kind, true);
     }
 
     if (!(ClangIndexer::serverOpts() & Server::NoComments)) {

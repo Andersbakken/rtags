@@ -90,7 +90,7 @@ Set<String> ListSymbolsJob::imenu(const std::shared_ptr<Project> &project)
         const int count = symbols->count();
         for (int j=0; j<count; ++j) {
             const Symbol &symbol = symbols->valueAt(j);
-            if (RTags::isReference(symbol.kind))
+            if (symbol.isReference())
                 continue;
             switch (symbol.kind) {
             case CXCursor_VarDecl:

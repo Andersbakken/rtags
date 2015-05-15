@@ -117,6 +117,7 @@ public:
     String dumpDependencies(uint32_t fileId) const;
     const Hash<uint32_t, DependencyNode*> &dependencies() const { return mDependencies; }
     const Declarations &declarations() const { return mDeclarations; }
+    bool isDeclaration(const String &usr) const { return mDeclarations.contains(usr); }
 
     enum SymbolMatchType {
         Exact,
