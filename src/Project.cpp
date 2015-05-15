@@ -1512,12 +1512,9 @@ Set<Symbol> Project::findVirtuals(const Symbol &symbol)
         return Set<Symbol>();
 
     const Symbol parent = [this](const Symbol &symbol) {
-        error() << "symbol is" << symbol;
         for (const String &usr : findTargetUsrs(symbol.location)) {
             const Set<Symbol> syms = findByUsr(usr, symbol.location.fileId(), ArgDependsOn);
-            error() << "Found some usrs" << usr;
             for (const Symbol &sym : syms) {
-                error() << "Trying symbol" << sym << findTargetUsrs(sym.location).size();
                 if (findTargetUsrs(sym.location).isEmpty()) {
                     return sym;
                 }
