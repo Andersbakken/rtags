@@ -1050,8 +1050,9 @@ References to references will be treated as references to the referenced symbol"
                      (line (string-to-number (match-string-no-properties 2 string)))
                      (col (string-to-number (match-string-no-properties 3 string)))
                      (buf (or (find-buffer-visiting filename)
-                              (and (find-file-noselect filename) (incf filesopened)))))
-                (unless buf
+                              (let ((b (find-file-noselect filename)))
+                                (and b (incf filesopened) b)))))
+                (unless (bufferp buf)
                   (error "Can't open file %s" filename))
                 (with-current-buffer buf
                   (save-excursion
