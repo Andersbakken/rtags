@@ -1454,7 +1454,8 @@ References to references will be treated as references to the referenced symbol"
 ;;;###autoload
 (defun rtags-post-command-hook ()
   (interactive)
-  (when rtags-enabled
+  (when (and rtags-enabled
+             (or (not (fboundp 'tramp-tramp-file-p)) (not (tramp-tramp-file-p default-directory))))
     (rtags-update-current-project)
     (rtags-update-current-error)
     (rtags-close-taglist)
