@@ -174,7 +174,7 @@ String Symbol::displayName() const
 
 bool Symbol::isReference() const
 {
-    return RTags::isReference(kind) || (linkage == CXLinkage_External && !isDefinition());
+    return RTags::isReference(kind) || (linkage == CXLinkage_External && !isDefinition() && !RTags::isFunction(kind));
 }
 
 bool Symbol::isContainer() const
