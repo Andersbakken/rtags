@@ -44,7 +44,7 @@ public:
             return level == logLevel();
         return LogOutput::testLog(level);
     }
-    virtual void log(const char *msg, int len) override
+    virtual void log(const char *msg, int len, Flags<LogFlag>) override
     {
         if (mConnection) {
             std::shared_ptr<EventLoop> main = EventLoop::mainEventLoop();
