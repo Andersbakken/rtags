@@ -265,6 +265,7 @@ Project::~Project()
 static bool hasSourceDependency(const DependencyNode *node)
 {
     const Path path = Location::path(node->fileId);
+    // error("%s %d %d", path.constData(), path.isFile(), path.isSource());
     if (path.isFile() && path.isSource()) {
         return true;
     }
