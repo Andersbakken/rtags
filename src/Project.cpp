@@ -262,7 +262,7 @@ Project::~Project()
     mDirtyTimer.stop();
 }
 
-static bool hasSourceDependency(const DependencyNode *node)
+static bool hasSourceDependency(const DependencyNode *node, Set<uint32_t> &seen)
 {
     const Path path = Location::path(node->fileId);
     // error("%s %d %d", path.constData(), path.isFile(), path.isSource());
@@ -270,10 +270,16 @@ static bool hasSourceDependency(const DependencyNode *node)
         return true;
     }
     for (auto it : node->dependents) {
-        if (hasSourceDependency(it.second))
+        if (seen.insert(it.first) && hasSourceDependency(it.second, seen))
             return true;
     }
     return false;
+}
+
+static inline bool hasSourceDependency(const DependencyNode *node)
+{
+    Set<uint32_t> seen;
+    return hasSourceDependency(node, seen);
 }
 
 bool Project::init()
