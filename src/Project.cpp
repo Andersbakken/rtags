@@ -262,24 +262,24 @@ Project::~Project()
     mDirtyTimer.stop();
 }
 
-static bool hasSourceDependency(const DependencyNode *node, Set<uint32_t> &seen)
+static bool hasSourceDependency(const DependencyNode *node, const std::shared_ptr<Project> &project, Set<uint32_t> &seen)
 {
     const Path path = Location::path(node->fileId);
     // error("%s %d %d", path.constData(), path.isFile(), path.isSource());
-    if (path.isFile() && path.isSource()) {
+    if (path.isFile() && path.isSource() && project->hasSource(node->fileId)) {
         return true;
     }
     for (auto it : node->dependents) {
-        if (seen.insert(it.first) && hasSourceDependency(it.second, seen))
+        if (seen.insert(it.first) && hasSourceDependency(it.second, project, seen))
             return true;
     }
     return false;
 }
 
-static inline bool hasSourceDependency(const DependencyNode *node)
+static inline bool hasSourceDependency(const DependencyNode *node, const std::shared_ptr<Project> &project)
 {
     Set<uint32_t> seen;
-    return hasSourceDependency(node, seen);
+    return hasSourceDependency(node, project, seen);
 }
 
 bool Project::init()
@@ -336,6 +336,7 @@ bool Project::init()
             logDirect(Error, String::format<128>("Restoring %s ", mPath.constData()), Flags<LogOutput::LogFlag>());
             outputDirty = true;
         }
+        const std::shared_ptr<Project> project = shared_from_this();
         for (auto it : mDependencies) {
             const Path path = Location::path(it.first);
             if (!path.isFile()) {
@@ -358,7 +359,7 @@ bool Project::init()
                         }
                         error() << err;
                     }
-                    if (hasSource(it.first) || hasSourceDependency(it.second)) {
+                    if (hasSource(it.first) || hasSourceDependency(it.second, project)) {
                         missingFileMaps.insert(it.first);
                     } else {
                         removed << it.first;
