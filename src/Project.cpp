@@ -331,8 +331,11 @@ bool Project::init()
     {
         List<uint32_t> removed;
         int idx = 0;
-        if (mDependencies.size() >= 100)
-            logDirect(Error, String::format<128>(" Restoring %s ", mPath.constData()), Flags<LogFlag>());
+        bool outputDirty = false;
+        if (mDependencies.size() >= 100) {
+            logDirect(Error, String::format<128>("Restoring %s ", mPath.constData()), Flags<LogOutput::LogFlag>());
+            outputDirty = true;
+        }
         for (auto it : mDependencies) {
             const Path path = Location::path(it.first);
             if (!path.isFile()) {
@@ -341,29 +344,36 @@ bool Project::init()
 
                 const Set<uint32_t> dependents = dependencies(it.first, DependsOnArg);
                 for (auto dependent : dependents) {
-                    // we don't have a file to compare with to
-                    // know whether the source is parsed after the
-                    // file was removed... so, force sources
-                    // dirty.
                     dirty.get()->insertDirtyFile(dependent);
                 }
                 removed << it.first;
                 needsSave = true;
-            } else if (!validate(it.first)) {
-                if (hasSource(it.first) || hasSourceDependency(it.second)) {
-                    missingFileMaps.insert(it.first);
-                } else {
-                    removed << it.first;
-                    needsSave = true;
+            } else {
+                String err;
+                if (!validate(it.first, &err)) {
+                    if (!err.isEmpty()) {
+                        if (outputDirty) {
+                            outputDirty = false;
+                            error("\n");
+                        }
+                        error() << err;
+                    }
+                    if (hasSource(it.first) || hasSourceDependency(it.second)) {
+                        missingFileMaps.insert(it.first);
+                    } else {
+                        removed << it.first;
+                        needsSave = true;
+                    }
                 }
             }
             if (++idx % 100 == 0) {
-                logDirect(Error, ".", 1, Flags<LogFlag>());
+                outputDirty = true;
+                logDirect(Error, ".", 1, Flags<LogOutput::LogFlag>());
                 // error("%d/%d (%.2f%%)", idx, count, (idx / static_cast<double>(count)) * 100.0);
             }
         }
-        if (idx >= 100)
-            logDirect(Error, "\n", 1, Flags<LogFlag>());
+        if (outputDirty)
+            logDirect(Error, "\n", 1, Flags<LogOutput::LogFlag>());
         for (uint32_t r : removed) {
             removeDependencies(r);
         }
@@ -1656,7 +1666,7 @@ void Project::dirty(uint32_t fileId)
     startDirtyJobs(&dirty);
 }
 
-bool Project::validate(uint32_t fileId) const
+bool Project::validate(uint32_t fileId, String *err) const
 {
     Path path;
     String error;
@@ -1686,6 +1696,7 @@ bool Project::validate(uint32_t fileId) const
     }
     return true;
 error:
-    ::error() << "Error during validation:" << Location::path(fileId) << error << path;
+    if (err)
+        Log(err) << "Error during validation:" << Location::path(fileId) << error << path;
     return false;
 }

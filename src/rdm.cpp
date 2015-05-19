@@ -331,7 +331,7 @@ int main(int argc, char** argv)
     serverOpts.dataDir = String::format<128>("%s.rtags", Path::home().constData());
 
     const char *logFile = 0;
-    unsigned int logFlags = 0;
+    Flags<LogFileFlag> logFlags;
     int logLevel = 0;
     bool sigHandler = false;
     assert(Path::home().endsWith('/'));
@@ -636,8 +636,8 @@ int main(int argc, char** argv)
     Path logPath(logFile); logPath.resolve();
 
     if (!initLogging(argv[0], LogStderr, logLevel, logPath.constData(), logFlags)) {
-        fprintf(stderr, "Can't initialize logging with %d %s 0x%0x\n",
-                logLevel, logFile ? logFile : "", logFlags);
+        fprintf(stderr, "Can't initialize logging with %d %s %s\n",
+                logLevel, logFile ? logFile : "", logFlags.toString().constData());
         return 1;
     }
 

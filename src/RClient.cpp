@@ -505,7 +505,7 @@ RClient::ParseStatus RClient::parse(int &argc, char **argv)
     }
 
     Path logFile;
-    unsigned int logFlags = 0;
+    Flags<LogFileFlag> logFlags;
 
     enum State {
         Parsing,
@@ -1097,8 +1097,8 @@ RClient::ParseStatus RClient::parse(int &argc, char **argv)
     }
 
     if (!initLogging(argv[0], LogStderr, mLogLevel, logFile, logFlags)) {
-        fprintf(stderr, "Can't initialize logging with %d %s 0x%0x\n",
-                mLogLevel, logFile.constData(), logFlags);
+        fprintf(stderr, "Can't initialize logging with %d %s %s\n",
+                mLogLevel, logFile.constData(), logFlags.toString().constData());
         return Parse_Error;
     }
 
