@@ -331,7 +331,8 @@ bool Project::init()
     {
         List<uint32_t> removed;
         int idx = 0;
-        const int count = mDependencies.size();
+        if (mDependencies.size() >= 100)
+            logDirect(Error, String::format<128>(" Restoring %s ", mPath.constData()), Flags<LogFlag>());
         for (auto it : mDependencies) {
             const Path path = Location::path(it.first);
             if (!path.isFile()) {
@@ -356,10 +357,13 @@ bool Project::init()
                     needsSave = true;
                 }
             }
-            if (++idx % 1000 == 0) {
-                error("%d/%d (%.2f%%)", idx, count, (idx / static_cast<double>(count)) * 100.0);
+            if (++idx % 100 == 0) {
+                logDirect(Error, ".", 1, Flags<LogFlag>());
+                // error("%d/%d (%.2f%%)", idx, count, (idx / static_cast<double>(count)) * 100.0);
             }
         }
+        if (idx >= 100)
+            logDirect(Error, "\n", 1, Flags<LogFlag>());
         for (uint32_t r : removed) {
             removeDependencies(r);
         }
