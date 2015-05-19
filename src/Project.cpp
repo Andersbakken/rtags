@@ -323,6 +323,8 @@ bool Project::init()
     Set<uint32_t> missingFileMaps;
     {
         List<uint32_t> removed;
+        int idx = 0;
+        const int count = mDependencies.size();
         for (auto it : mDependencies) {
             const Path path = Location::path(it.first);
             if (!path.isFile()) {
@@ -346,6 +348,9 @@ bool Project::init()
                     removed << it.first;
                     needsSave = true;
                 }
+            }
+            if (++idx % 1000 == 0) {
+                error("%d/%d (%.2f%%)", idx, count, (idx / static_cast<double>(count)) * 100.0);
             }
         }
         for (uint32_t r : removed) {
