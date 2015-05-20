@@ -21,7 +21,9 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 
 static inline Flags<QueryJob::JobFlag> jobFlags(Flags<QueryMessage::Flag> queryFlags)
 {
-    return (queryFlags & QueryMessage::ElispList) ? QueryJob::QuoteOutput|QueryJob::QuietJob : QueryJob::QuietJob;
+    return (queryFlags & QueryMessage::ElispList
+            ? QueryJob::QuoteOutput|QueryJob::QuietJob
+            : Flags<QueryJob::JobFlag>(QueryJob::QuietJob));
 }
 
 FindSymbolsJob::FindSymbolsJob(const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Project> &proj)

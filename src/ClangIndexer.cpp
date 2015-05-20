@@ -27,7 +27,6 @@
 #include "Diagnostic.h"
 #include "RClient.h"
 #include <unistd.h>
-#include "Server.h"
 
 static const CXSourceLocation nullLocation = clang_getNullLocation();
 static const CXCursor nullCursor = clang_getNullCursor();
@@ -43,7 +42,7 @@ struct VerboseVisitorUserData {
     ClangIndexer *indexer;
 };
 
-uint32_t ClangIndexer::sServerOpts = 0;
+Flags<Server::Option> ClangIndexer::sServerOpts;
 ClangIndexer::ClangIndexer()
     : mClangUnit(0), mIndex(0), mLastCursor(nullCursor), mVisitFileResponseMessageFileId(0),
       mVisitFileResponseMessageVisit(0), mParseDuration(0), mVisitDuration(0),

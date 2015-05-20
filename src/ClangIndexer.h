@@ -26,6 +26,7 @@
 #include "IndexerJob.h"
 #include "RTagsClang.h"
 #include "Symbol.h"
+#include "Server.h"
 
 struct Unit;
 class ClangIndexer
@@ -173,7 +174,7 @@ private:
     bool mLastBlocked;
     Path mLastFile;
 
-    static uint32_t sServerOpts;
+    static Flags<Server::Option> sServerOpts;
 };
 
 #endif

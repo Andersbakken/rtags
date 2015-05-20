@@ -119,7 +119,7 @@ String IndexerJob::encode() const
                    << static_cast<uint32_t>(options.rpConnectTimeout)
                    << static_cast<uint32_t>(options.rpConnectAttempts)
                    << static_cast<int32_t>(options.rpNiceValue)
-                   << static_cast<uint32_t>(options.options)
+                   << options.options
                    << unsavedFiles
                    << options.dataDir;
         assert(proj);
