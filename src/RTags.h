@@ -278,6 +278,70 @@ inline Symbol bestTarget(const Set<Symbol> &targets)
     }
     return ret;
 }
+static inline String xmlEscape(const String& xml)
+{
+    if (xml.isEmpty())
+        return xml;
+
+    String ret;
+    ret.reserve(xml.size() * 1.1);
+    const char* ch = xml.constData();
+    while (*ch) {
+        switch (*ch) {
+        case '"':
+            ret << "\\\"";
+            break;
+        case '<':
+            ret << "&lt;";
+            break;
+        case '>':
+            ret << "&gt;";
+            break;
+        case '&':
+            ret << "&amp;";
+            break;
+        default:
+            ret << *ch;
+            break;
+        }
+        ++ch;
+    }
+    return ret;
+}
+
+static inline const String elispEscape(const String &data)
+{
+    String ret;
+    const int size = data.size();
+    const char *ch = data.constData();
+    bool copied = false;
+    for (int i=0; i<size; ++i) {
+        switch (*ch) {
+        case '"':
+        case '\n':
+            if (!copied) {
+                copied = true;
+                ret.reserve(size + 16);
+                if (i)
+                    ret.assign(data.constData(), i);
+            }
+            if (*ch == '"') {
+                ret << "\\\"";
+            } else {
+                ret << "\\n";
+            }
+            break;
+        default:
+            if (copied)
+                ret << *ch;
+            break;
+        }
+        ++ch;
+    }
+    if (!copied)
+        return data;
+    return ret;
+}
 }
 
 #endif

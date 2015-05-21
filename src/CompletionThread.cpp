@@ -458,7 +458,8 @@ void CompletionThread::printCompletions(const List<Completions::Candidate> &comp
         }
         if (elisp) {
             elispOut.reserve(16384);
-            elispOut += String::format<256>("(list 'completions (list \"%s\" (list", request->location.key().constData());
+            elispOut += String::format<256>("(list 'completions (list \"%s\" (list",
+                                            RTags::elispEscape(request->location.key()).constData());
         }
         for (const auto &val : completions) {
             if (val.cursorKind >= cursorKindNames.size())
@@ -474,8 +475,8 @@ void CompletionThread::printCompletions(const List<Completions::Candidate> &comp
             }
             if (elisp) {
                 elispOut += String::format<128>(" (list \"%s\" \"%s\" \"%s\")",
-                                                val.completion.constData(),
-                                                val.signature.constData(),
+                                                RTags::elispEscape(val.completion).constData(),
+                                                RTags::elispEscape(val.signature).constData(),
                                                 kind.constData());
             }
         }

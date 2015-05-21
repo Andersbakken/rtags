@@ -432,71 +432,6 @@ bool Project::match(const Match &p, bool *indexed) const
     return ret;
 }
 
-static inline String xmlEscape(const String& xml)
-{
-    if (xml.isEmpty())
-        return xml;
-
-    String ret;
-    ret.reserve(xml.size() * 1.1);
-    const char* ch = xml.constData();
-    while (*ch) {
-        switch (*ch) {
-        case '"':
-            ret << "\\\"";
-            break;
-        case '<':
-            ret << "&lt;";
-            break;
-        case '>':
-            ret << "&gt;";
-            break;
-        case '&':
-            ret << "&amp;";
-            break;
-        default:
-            ret << *ch;
-            break;
-        }
-        ++ch;
-    }
-    return ret;
-}
-
-static inline const String elispEscape(const String &data)
-{
-    String ret;
-    const int size = data.size();
-    const char *ch = data.constData();
-    bool copied = false;
-    for (int i=0; i<size; ++i) {
-        switch (*ch) {
-        case '"':
-        case '\n':
-            if (!copied) {
-                copied = true;
-                if (i)
-                    ret.assign(data.constData(), i);
-                ret.reserve(size + 16);
-            }
-            if (*ch == '"') {
-                ret << "\\\"";
-            } else {
-                ret << "\\n";
-            }
-            break;
-        default:
-            if (copied)
-                ret << *ch;
-            break;
-        }
-        ++ch;
-    }
-    if (!copied)
-        return data;
-    return ret;
-}
-
 enum DiagnosticsFormat {
     Diagnostics_XML,
     Diagnostics_Elisp
@@ -540,7 +475,7 @@ static String formatDiagnostics(const Diagnostics &diagnostics, DiagnosticsForma
                                   loc.line(), loc.column(),
                                   (diagnostic.length <= 0 ? ""
                                    : String::format<32>("length=\"%d\" ", diagnostic.length).constData()),
-                                  severities[diagnostic.type], xmlEscape(diagnostic.message).constData());
+                                  severities[diagnostic.type], RTags::xmlEscape(diagnostic.message).constData());
         };
     } else {
         formatDiagnostic = [severities](const Location &loc, const Diagnostic &diagnostic) {
@@ -548,7 +483,7 @@ static String formatDiagnostics(const Diagnostics &diagnostics, DiagnosticsForma
                                        loc.line(), loc.column(),
                                        diagnostic.length > 0 ? String::number(diagnostic.length).constData() : "nil",
                                        severities[diagnostic.type],
-                                       elispEscape(diagnostic.message).constData());
+                                       RTags::elispEscape(diagnostic.message).constData());
         };
     }
     bool first = true;
