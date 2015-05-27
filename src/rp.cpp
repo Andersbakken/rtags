@@ -89,14 +89,14 @@ int main(int argc, char **argv)
     if (!file.isEmpty()) {
         data = file.readAll();
     } else {
-        int size;
+        uint32_t size;
         if (!fread(&size, sizeof(size), 1, stdin)) {
-            error() << "Failed to read from stdout";
+            error() << "Failed to read from stdin";
             return 1;
         }
         data.resize(size);
         if (!fread(&data[0], size, 1, stdin)) {
-            error() << "Failed to read from stdout";
+            error() << "Failed to read from stdin";
             return 2;
         }
         // FILE *f = fopen("/tmp/data", "w");
