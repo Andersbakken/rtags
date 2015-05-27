@@ -1313,9 +1313,7 @@ References to references will be treated as references to the referenced symbol"
                            (narrow-to-region (point-min) (1- (point)))
                            (save-excursion
                              (goto-char (point-min))
-                             (if (looking-at "Can't seem to connect to server")
-                                 (and (message "RTags: rdm doesn't seem to be running") nil)
-                               ;; (message "%d-%d (%s)" (point-min) (point-max) (buffer-substring-no-properties (point-min) (point-max)))
+                             (unless (looking-at "Can't seem to connect to server")
                                (eval (read (current-buffer)))))))))
           (cond ((eq (car data) 'checkstyle)
                  (rtags-parse-check-style (cdr data)))
