@@ -28,6 +28,8 @@
 #include <sys/resource.h>
 #endif
 
+#include <vector>
+
 static void sigSegvHandler(int signal)
 {
     if (Server *server = Server::instance())
@@ -240,8 +242,8 @@ int main(int argc, char** argv)
         Path rcfile = Path::home() + ".rdmrc";
         opterr = 0;
 
-        char *originalArgv[argc];
-        memcpy(originalArgv, argv, sizeof(originalArgv));
+        std::vector<char*> originalArgv(argc);
+        memcpy(&originalArgv[0], argv, sizeof(originalArgv));
         /* getopt will molest argv by moving pointers around when it sees
          * fit. Their idea of an optional argument is different from ours so we
          * have to take a copy of argv before they get their sticky fingers all
