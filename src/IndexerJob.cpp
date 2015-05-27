@@ -125,7 +125,8 @@ String IndexerJob::encode() const
         assert(proj);
         proj->encodeVisitedFiles(serializer);
     }
-    *reinterpret_cast<int*>(&ret[0]) = ret.size() - sizeof(int);
+    const uint32_t size = ret.size() - sizeof(int);
+    memcpy(&ret[0], &size, sizeof(size));
     return ret;
 }
 
