@@ -56,7 +56,7 @@ String IndexerJob::encode() const
     String ret;
     {
         Serializer serializer(ret);
-        serializer << static_cast<int>(0); // for size
+        serializer.write("1234", sizeof(int)); // for size
         std::shared_ptr<Project> proj = Server::instance()->project(project);
         const Server::Options &options = Server::instance()->options();
         Source copy = source;
