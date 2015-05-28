@@ -26,6 +26,8 @@
 #include "Location.h"
 #include <functional>
 
+#include <vector>
+
 template <typename T> inline static int compare(const T &l, const T &r)
 {
     if (l < r)
@@ -221,7 +223,7 @@ public:
                 keySize = std::max<size_t>(str.size(), keySize);
             }
             memcpy(out.data() + sizeof(size_t), &keySize, sizeof(keySize));
-            char buf[keySize];
+            std::vector<char> buf(keySize);
             size_t entrySize = keySize;
             if (const size_t size = FixedSize<Value>::value) {
                 entrySize += size;
@@ -232,10 +234,10 @@ public:
             out.reserve(valuesOffset);
             idx = 0;
             for (const auto &pair : map) {
-                memset(buf, 0, sizeof(buf));
+                memset(&buf[0], 0, buf.size());
                 const String &str = keys[idx++];
-                memcpy(buf, str.data(), str.size()); // no need to copy the \0 :-)
-                encodePair(buf, keySize, pair.second);
+                memcpy(&buf[0], str.data(), str.size()); // no need to copy the \0 :-)
+                encodePair(&buf[0], keySize, pair.second);
             }
         } else {
             size_t entrySize = FixedSize<Key>::value;
