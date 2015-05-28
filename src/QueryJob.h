@@ -45,7 +45,7 @@ public:
     QueryJob(const std::shared_ptr<QueryMessage> &msg,
              const std::shared_ptr<Project> &proj,
              Flags<JobFlag> jobFlags = Flags<JobFlag>());
-    ~QueryJob();
+    virtual ~QueryJob();
 
     bool hasFilter() const { return !mPathFilters.isEmpty() || !mPathFiltersRegex.isEmpty(); }
     List<String> pathFilters() const { return mPathFilters; }
