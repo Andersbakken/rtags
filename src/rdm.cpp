@@ -250,7 +250,7 @@ int main(int argc, char** argv)
         Path rcfile = Path::home() + ".rdmrc";
         opterr = 0;
 
-        char *originalArgv[argc];
+        StackBuffer<128, char*> originalArgv(argc);
         memcpy(originalArgv, argv, sizeof(originalArgv));
         /* getopt will molest argv by moving pointers around when it sees
          * fit. Their idea of an optional argument is different from ours so we

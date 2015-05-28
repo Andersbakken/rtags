@@ -23,6 +23,7 @@
 #include <sys/mman.h>
 #include <rct/Serializer.h>
 #include <rct/Rct.h>
+#include <rct/StackBuffer.h>
 #include "Location.h"
 #include <functional>
 
@@ -221,7 +222,7 @@ public:
                 keySize = std::max<size_t>(str.size(), keySize);
             }
             memcpy(out.data() + sizeof(size_t), &keySize, sizeof(keySize));
-            char buf[keySize];
+            StackBuffer<1024> buf(keySize);
             size_t entrySize = keySize;
             if (const size_t size = FixedSize<Value>::value) {
                 entrySize += size;
@@ -232,7 +233,7 @@ public:
             out.reserve(valuesOffset);
             idx = 0;
             for (const auto &pair : map) {
-                memset(buf, 0, sizeof(buf));
+                memset(buf, 0, keySize);
                 const String &str = keys[idx++];
                 memcpy(buf, str.data(), str.size()); // no need to copy the \0 :-)
                 encodePair(buf, keySize, pair.second);
