@@ -254,6 +254,71 @@ $ cat ~/.rdmrc
 --data-dir=/other/dir
 #+END_SRC
 
+** Integration with =launchd= /(Mac OS X)/
+
+On Mac OS X, you can set =rdm= can be run on demand, on your behalf,
+by =launchd=, and have it exit cleanly after a period of inactivity.
+This isn't quite plug-and-play, but I think it worth the small amount
+of effort.
+
+1. Create a file, e.g., in emacs, with the following contents:
+
+   #+BEGIN_SRC
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+  <dict>
+    <key>Label</key>
+    <string>com.andersbakken.rtags.agent</string>
+    <key>ProgramArguments</key>
+    <array>
+      <string>sh</string>
+      <string>-c</string>
+      <string>$RDM -v --launchd --inactivity-timeout 300 --log-file ~/Library/Logs/rtags.launchd.log</string>
+    </array>
+    <key>Sockets</key>
+    <dict>
+      <key>Listener</key>
+      <dict>
+	<key>SockPathName</key>
+	<string>$HOME/.rdm</string>
+      </dict>
+    </dict>
+  </dict>
+</plist>
+   #+END_SRC
+
+2. Replace =$HOME= with the absolute path to your home folder. Replace
+   =$RDM= with the path to your copy of =rdm=, and add any command
+   line parameters you might usually use.
+
+   (The =SockPathName= entry relates to the name of the domain socket
+   that =rdm= uses. The settings above are for the default value; if
+   your command line options direct it to use some other name, please
+   modify it to suit. Unfortunately =launchd='s configuration files
+   are a bit naff, so you'll have to repeat yourself.)
+
+3. Save the result as
+   =~/Library/LaunchAgents/com.andersbakken.rtags.agent.plist=.
+
+4. Run the following command from the terminal:
+
+   : launchctl load ~/Library/LaunchAgents/com.andersbakken.rtags.agent.plist
+
+   (This will happen automatically next time you log back in.)
+
+5. Try using rtags, and you should find =rdm= will spring into life!
+
+*** Notes
+
+- =rdm= will automatically quit after 5 minutes of inactivity (this is
+  what the =--inactivity-timeout 300= command line option is for), so
+  it won't stick around hogging memory. But =launchd= will still be
+  watching its socket for activity, and will relaunch it if necessary.
+
+- You can watch =launchd='s logging by tailing
+  =~/Library/Logs/rtags.launchd.log=.
+
 * Usage
 
   Now that your files are indexed you can start using rtags. Normally

@@ -107,6 +107,12 @@ static void usage(FILE *f)
             "  --watch-system-paths|-w                    Watch system paths for changes.\n"
             "  --block-argument|-G [arg]                  Block this argument from being passed to clang. E.g. rdm --block-argument -fno-inline\n"
             "  --progress|-p                              Report compilation progress in diagnostics output.\n"
+#ifdef OS_Darwin
+            "  --launchd                                  Run as a launchd job (use launchd API to retrieve socket opened by launchd on rdm's behalf).\n"
+#endif
+            // This only really makes sense if you're using --launchd.
+            // But the code isn't OS X-specific, strictly speaking.
+            "  --inactivity-timeout [arg]                 Time in seconds after which launchd will quit if there's been no activity (N.B., once rdm has quit, something will need to re-run it!).\n"
             "\nCompiling/Indexing options:\n"
             "  --allow-Wpedantic|-P                       Don't strip out -Wpedantic. This can cause problems in certain projects.\n"
             "  --define|-D [arg]                          Add additional define directive to clang.\n"
@@ -208,6 +214,10 @@ int main(int argc, char** argv)
         { "no-filesystem-watcher", no_argument, 0, 'B' },
         { "arg-transform", required_argument, 0, 'V' },
         { "no-comments", no_argument, 0, '\1' },
+#ifdef OS_Darwin
+        { "launchd", no_argument, 0, '\4' },
+#endif
+        { "inactivity-timeout", required_argument, 0, '\5' },
         { 0, 0, 0, 0 }
     };
     const String shortOptions = Rct::shortOptions(opts);
@@ -338,6 +348,7 @@ int main(int argc, char** argv)
     int argCount = argList.size();
     char **args = argList.data();
     bool defaultDataDir = true;
+    int inactivityTimeout = 0;
 
     while (true) {
         const int c = getopt_long(argCount, args, shortOptions.constData(), opts, 0);
@@ -610,6 +621,19 @@ int main(int argc, char** argv)
             if (logLevel >= 0)
                 ++logLevel;
             break;
+#ifdef OS_Darwin
+        case '\4':
+            serverOpts.options |= Server::Launchd;
+            break;
+#endif
+        case '\5':
+            inactivityTimeout = atoi(optarg);
+            if (inactivityTimeout <= 0) {
+                fprintf(stderr, "Invalid argument to --inactivity-timeout %s\n", optarg);
+                return 1;
+            }
+                                       // seconds.
+            break;
         case '?': {
             fprintf(stderr, "Run rdm --help for help\n");
             return 1; }
@@ -641,8 +665,23 @@ int main(int argc, char** argv)
         return 1;
     }
 
+#ifdef OS_Darwin
+    if (serverOpts.options & Server::Launchd) {
+        // Clamp inactivity timeout. launchd starts to worry if the
+        // process runs for less than 10 seconds.
+        
+        static const int MIN_INACTIVITY_TIMEOUT = 15; // includes
+                                                      // fudge factor.
+        
+        if (inactivityTimeout < MIN_INACTIVITY_TIMEOUT) {
+            inactivityTimeout = MIN_INACTIVITY_TIMEOUT;
+            fprintf(stderr, "launchd mode - clamped inactivity timeout to %d to avoid launchd warnings.\n", inactivityTimeout);
+        }
+    }
+#endif
+
     EventLoop::SharedPtr loop(new EventLoop);
-    loop->init(EventLoop::MainEventLoop|EventLoop::EnableSigIntHandler);
+    loop->init(EventLoop::MainEventLoop|EventLoop::EnableSigIntHandler|EventLoop::EnableSigTermHandler);
 
     std::shared_ptr<Server> server(new Server);
     if (!serverOpts.tests.isEmpty()) {
@@ -684,6 +723,8 @@ int main(int argc, char** argv)
     if (!serverOpts.tests.isEmpty()) {
         return server->runTests() ? 0 : 1;
     }
+
+    loop->setInactivityTimeout(inactivityTimeout * 1000);
 
     loop->exec();
     const int ret = server->exitCode();
