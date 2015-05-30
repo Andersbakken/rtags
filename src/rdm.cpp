@@ -642,7 +642,7 @@ int main(int argc, char** argv)
     }
 
     EventLoop::SharedPtr loop(new EventLoop);
-    loop->init(EventLoop::MainEventLoop|EventLoop::EnableSigIntHandler);
+    loop->init(EventLoop::MainEventLoop|EventLoop::EnableSigIntHandler|EventLoop::EnableSigTermHandler);
 
     std::shared_ptr<Server> server(new Server);
     if (!serverOpts.tests.isEmpty()) {
