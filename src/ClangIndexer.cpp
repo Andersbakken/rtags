@@ -26,6 +26,7 @@
 #include "RTags.h"
 #include "Diagnostic.h"
 #include "RClient.h"
+#include "clang-c/Documentation.h"
 #include <unistd.h>
 
 static const CXSourceLocation nullLocation = clang_getNullLocation();
