@@ -258,7 +258,7 @@ $ cat ~/.rdmrc
 
 On Mac OS X, you can set =rdm= can be run on demand, on your behalf,
 by =launchd=, and have it exit cleanly after a period of inactivity.
-This isn't quite plug-and-play, but I think it worth the small amount
+This isn't quite plug-and-play, but should be worth the small amount
 of effort.
 
 1. Create a file, e.g., in emacs, with the following contents:
