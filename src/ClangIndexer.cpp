@@ -26,6 +26,7 @@
 #include "RTags.h"
 #include "Diagnostic.h"
 #include "RClient.h"
+#include "clang-c/Documentation.h"
 #include <unistd.h>
 #if CINDEX_VERSION >= CINDEX_VERSION_ENCODE(0, 25)
 #include <clang-c/Documentation.h>
