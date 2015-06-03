@@ -27,6 +27,9 @@
 #include "Diagnostic.h"
 #include "RClient.h"
 #include <unistd.h>
+#if CINDEX_VERSION >= CINDEX_VERSION_ENCODE(0, 25)
+#include <clang-c/Documentation.h>
+#endif
 
 static const CXSourceLocation nullLocation = clang_getNullLocation();
 static const CXCursor nullCursor = clang_getNullCursor();
@@ -1397,7 +1400,7 @@ bool ClangIndexer::diagnose()
     for (const auto &it : mIndexDataMessage.files()) {
         if (it.second & IndexDataMessage::Visited) {
             const Location loc(it.first, 0, 0);
-#if CINDEX_VERSION_MINOR >= 21
+#if CINDEX_VERSION >= CINDEX_VERSION_ENCODE(0, 21)
             CXFile file = clang_getFile(mClangUnit, loc.path().constData());
             if (file) {
                 if (CXSourceRangeList *skipped = clang_getSkippedRanges(mClangUnit, file)) {
