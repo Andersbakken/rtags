@@ -280,8 +280,8 @@ of effort.
     <dict>
       <key>Listener</key>
       <dict>
-	<key>SockPathName</key>
-	<string>$HOME/.rdm</string>
+    <key>SockPathName</key>
+    <string>$HOME/.rdm</string>
       </dict>
     </dict>
   </dict>
@@ -617,6 +617,21 @@ some of these may be outdated:
 [[http://www.youtube.com/watch?v=p6JHriYmVuY&list=PLAL6K6Ycnt4IwjIjWcYV9bFgcTG_4T1Y_&index=4][Rename symbol]]
 
 [[http://www.youtube.com/watch?v=9CsoJTs58q8&list=PLAL6K6Ycnt4IwjIjWcYV9bFgcTG_4T1Y_&index=8][Enums and cursor info]]
+
+* Support for other editors
+There are several other projects integrating RTags with other editors.
+
+Sublime Text:
+https://github.com/rampage644/sublime-rtags
+
+Vim:
+https://github.com/lyuts/vim-rtags
+https://github.com/shaneharper/vim-rtags
+https://github.com/mattn/vim-rtags
+
+Note to those maintainers. If you need RTags to behave differently or
+add features to make these other integrations easier (like produce
+output in other formats etc), just drop us a note.
 
 * Disclaimer
 RTags is still under development and is not the most stable piece of
