@@ -486,7 +486,10 @@ return t if rtags is allowed to modify this file"
           (if (buffer-file-name unsaved)
               (push (format "--unsaved-file=%s:%d"
                             (buffer-file-name unsaved)
-                            (with-current-buffer unsaved (- (point-max) (point-min))))
+                            (with-current-buffer unsaved
+                              (save-restriction
+                                (widen)
+                                (- (point-max) (point-min)))))
                     arguments))
           (if silent-query
               (push "--silent-query" arguments))
@@ -507,16 +510,19 @@ return t if rtags is allowed to modify this file"
           (let ((proc (cond ((and unsaved async)
                              (let ((proc (apply #'start-process "rc" (current-buffer) rc arguments)))
                                (with-current-buffer unsaved
-;;                                 (rtags-log (buffer-substring-no-properties (point-min) (point-max)))
-                                 (process-send-region proc (point-min) (point-max)))
+                                 (save-restriction
+                                   (widen)
+                                   (process-send-region proc (point-min) (point-max))))
                                proc))
                             (async (apply #'start-process "rc" (current-buffer) rc arguments))
                             ((and unsaved (or (buffer-modified-p unsaved)
                                               (not (buffer-file-name unsaved))))
                              (let ((output-buffer (current-buffer)))
                                (with-current-buffer unsaved
-                                 (apply #'call-process-region (point-min) (point-max) rc
-                                        nil output-buffer nil arguments) nil)))
+                                 (save-restriction
+                                   (widen)
+                                   (apply #'call-process-region (point-min) (point-max) rc
+                                          nil output-buffer nil arguments) nil))))
                             (unsaved (apply #'call-process rc (buffer-file-name unsaved) output nil arguments) nil)
                             (t (apply #'call-process rc nil output nil arguments) nil))))
             (if proc
