@@ -708,15 +708,17 @@ RClient::ParseStatus RClient::parse(int &argc, char **argv)
             break;
         case Max:
             mMax = atoi(optarg);
-            if (mMax <= 0) {
-                fprintf(stderr, "-M [arg] must be positive integer\n");
+            if (mMax < 0) {
+                fprintf(stderr, "-M [arg] must be >= 0\n");
                 return Parse_Error;
             }
             break;
         case Timeout:
             mTimeout = atoi(optarg);
-            if (mTimeout <= 0) {
-                fprintf(stderr, "-y [arg] must be positive integer\n");
+            if (!mTimeout) {
+                mTimeout = -1;
+            } else if (mTimeout < 0) {
+                fprintf(stderr, "-y [arg] must be >= 0\n");
                 return Parse_Error;
             }
             break;
