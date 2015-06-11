@@ -722,13 +722,7 @@ return t if rtags is allowed to modify this file"
 (defun rtags-buffer-is-multibyte ()
   (string-match "\\butf\\b" (symbol-name buffer-file-coding-system)))
 
-(defun rtags-buffer-is-dos()
-  (string-match "\\bdos\\b" (symbol-name buffer-file-coding-system)))
 
-(defun rtags-carriage-returns ()
-  (if (rtags-buffer-is-dos)
-      (1- (line-number-at-pos))
-    0))
 
 (defun rtags-offset (&optional p)
   (save-excursion
