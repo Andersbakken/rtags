@@ -2229,27 +2229,16 @@ definition."
   "WAIT-REPARSING : t to wait for reparsing to finish, nil for async (no waiting).
 :fixme: add a timeout"
   (interactive)
-  (when (null buffer)
+  (unless buffer
     (setq buffer (current-buffer)))
   (let ((file (buffer-file-name buffer)))
     ;;(when (null (rtags-buffer-status buffer))
     ;;(message ":debug: file not indexed"))
     (when (and file (rtags-buffer-status buffer))
-      (with-temp-buffer
-        (when (and rtags-enable-unsaved-reparsing (buffer-modified-p buffer))
-          (rtags-call-rc :path file :unsaved buffer "-V" file)
-          (when wait-reparsing
-            (message "Reparsing buffer")
-            ;;(message ":debug: reparsing file %s" file)
-            ;; Wait for the server to start working.
-            (while (not (rtags-is-working buffer))
-              (sleep-for 0.4))
-            ;; Wait for the file to become indexed.
-            (while (rtags-is-working buffer)
-              (sleep-for 0.4))))
-        (rtags-call-rc :path file "-V" file)
-        (message (format "Dirtied %s" file))))))
-
+      (if (and rtags-enable-unsaved-reparsing (buffer-modified-p buffer))
+          (rtags-call-rc :output (list nil nil) :path file :unsaved buffer "-V" file (if wait-reparsing "--wait"))
+        (rtags-call-rc :output (list nil nil) :path file "-V" file ))
+      (message (format "Dirtied %s" file)))))
 
 ;; assoc list containing unsaved buffers and their modification ticks
 ;; (to avoid reparsing unsaved files if there were no changes since last parsing)
