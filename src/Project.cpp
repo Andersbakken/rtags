@@ -61,7 +61,6 @@ Set<Symbol> findCallers(const std::shared_ptr<Project> &project, const Symbol &s
     return project->findCallers(symbol);
 }
 
-
 class Dirty
 {
 public:
