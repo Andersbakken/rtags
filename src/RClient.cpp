@@ -151,7 +151,8 @@ struct Option opts[] = {
     { RClient::ProjectRoot, "project-root", 0, required_argument, "Override project root for compile commands." },
     { RClient::RTagsConfig, "rtags-config", 0, required_argument, "Print out .rtags-config for argument." },
     { RClient::WildcardSymbolNames, "wildcard-symbol-names", 'a', no_argument, "Expand * like wildcards in --list-symbols and --find-symbols." },
-    { RClient::NoColor, "no-color", 0, no_argument, "Don't colorize context. " },
+    { RClient::NoColor, "no-color", 0, no_argument, "Don't colorize context." },
+    { RClient::Wait, "wait", 0, no_argument, "Wait for reindexing to finish." },
     { RClient::None, 0, 0, 0, 0 }
 };
 
@@ -552,6 +553,9 @@ RClient::ParseStatus RClient::parse(int &argc, char **argv)
             break;
         case GuessFlags:
             mGuessFlags = true;
+            break;
+        case Wait:
+            mQueryFlags |= QueryMessage::Wait;
             break;
         case IMenu:
             mQueryFlags |= QueryMessage::IMenu;

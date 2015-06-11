@@ -167,7 +167,9 @@ public:
     inline bool visitFile(uint32_t fileId, const Path &path, uint64_t id);
     inline void releaseFileIds(const Set<uint32_t> &fileIds);
     String fixIts(uint32_t fileId) const;
-    int reindex(const Match &match, const std::shared_ptr<QueryMessage> &query);
+    int reindex(const Match &match,
+                const std::shared_ptr<QueryMessage> &query,
+                const std::shared_ptr<Connection> &wait);
     int remove(const Match &match);
     void onJobFinished(const std::shared_ptr<IndexerJob> &job, const std::shared_ptr<IndexDataMessage> &msg);
     Sources sources() const { return mSources; }
@@ -198,7 +200,9 @@ private:
     void updateDependencies(const std::shared_ptr<IndexDataMessage> &msg);
     void updateDeclarations(const Set<uint32_t> &visited, Declarations &declarations);
     void updateFixIts(const Set<uint32_t> &visited, FixIts &fixIts);
-    int startDirtyJobs(Dirty *dirty, const UnsavedFiles &unsavedFiles = UnsavedFiles());
+    int startDirtyJobs(Dirty *dirty,
+                       const UnsavedFiles &unsavedFiles = UnsavedFiles(),
+                       const std::shared_ptr<Connection> &wait = std::shared_ptr<Connection>());
     bool save();
     void onDirtyTimeout(Timer *);
 

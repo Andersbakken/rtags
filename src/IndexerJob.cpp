@@ -46,6 +46,11 @@ IndexerJob::IndexerJob(const Source &s,
     visited.insert(s.fileId);
 }
 
+IndexerJob::~IndexerJob()
+{
+    destroyed(this);
+}
+
 void IndexerJob::acquireId()
 {
     id = sNextId++;
@@ -154,3 +159,5 @@ String IndexerJob::dumpFlags(Flags<Flag> flags)
 
     return String::join(ret, ", ");
 }
+
+

@@ -123,6 +123,7 @@ public:
         UnsavedFile,
         Verbose,
         Version,
+        Wait,
         WildcardSymbolNames,
         XmlDiagnostics,
         NumOptions

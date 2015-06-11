@@ -240,19 +240,19 @@ bool Server::initUnixServer()
     // If Launchd, it goes into this bit and never comes out.
     if (mOptions.options & Launchd) {
         mUnixServer.reset(new SocketServer);
-        
+
         printf("initUnixServer: launchd mode.\n");
-        
+
         bool good = false;
         int *fds = 0;
         size_t numFDs;
         int ret = launch_activate_socket("Listener", &fds, &numFDs);
-        
+
         if (ret != 0) {
             error("Failed to retrieve launchd socket: %s", strerror(ret));
             goto launchd_done;
         }
-        
+
         if (numFDs != 1) {
             error("Unexpected number of sockets from launch_activate_socket: %zu", numFDs);
             goto launchd_done;
@@ -269,7 +269,7 @@ bool Server::initUnixServer()
     launchd_done:;
         free(fds);
         fds = 0;
-        
+
         return good;
     }
 #endif
@@ -297,7 +297,7 @@ bool Server::initUnixServer()
     }
 
     return true;
-}    
+}
 
 std::shared_ptr<Project> Server::addProject(const Path &path)
 {
@@ -1165,14 +1165,19 @@ void Server::reindex(const std::shared_ptr<QueryMessage> &query, const std::shar
         }
     }
 
-    const int count = project->reindex(match, query);
+    std::shared_ptr<Connection> wait;
+    if (query->flags() & QueryMessage::Wait)
+        wait = conn;
+
+    const int count = project->reindex(match, query, wait);
     // error() << count << query->query();
     if (count) {
         conn->write<128>("Dirtied %d files", count);
     } else {
         conn->write("No matches");
     }
-    conn->finish();
+    if (!wait)
+        conn->finish();
 }
 
 bool Server::shouldIndex(const Source &source, const Path &srcRoot) const
@@ -1622,14 +1627,14 @@ void Server::removeSocketFile()
         return;
     }
 #endif
-    
+
     Path::rm(mOptions.socketFile);
 }
 
 void Server::stopServers()
 {
     removeSocketFile();
-    
+
     mUnixServer.reset();
 }
 

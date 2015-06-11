@@ -939,7 +939,9 @@ void Project::updateDeclarations(const Set<uint32_t> &visited, Declarations &dec
     }
 }
 
-int Project::reindex(const Match &match, const std::shared_ptr<QueryMessage> &query)
+int Project::reindex(const Match &match,
+                     const std::shared_ptr<QueryMessage> &query,
+                     const std::shared_ptr<Connection> &wait)
 {
     if (query->type() == QueryMessage::Reindex) {
         Set<uint32_t> dirtyFiles;
@@ -954,11 +956,11 @@ int Project::reindex(const Match &match, const std::shared_ptr<QueryMessage> &qu
             return 0;
         SimpleDirty dirty;
         dirty.init(dirtyFiles, shared_from_this());
-        return startDirtyJobs(&dirty, query->unsavedFiles());
+        return startDirtyJobs(&dirty, query->unsavedFiles(), wait);
     } else {
         assert(query->type() == QueryMessage::CheckReindex);
         IfModifiedDirty dirty(shared_from_this(), match);
-        return startDirtyJobs(&dirty, query->unsavedFiles());
+        return startDirtyJobs(&dirty, query->unsavedFiles(), wait);
     }
 }
 
@@ -986,7 +988,7 @@ int Project::remove(const Match &match)
     return count;
 }
 
-int Project::startDirtyJobs(Dirty *dirty, const UnsavedFiles &unsavedFiles)
+int Project::startDirtyJobs(Dirty *dirty, const UnsavedFiles &unsavedFiles, const std::shared_ptr<Connection> &wait)
 {
     const JobScheduler::JobScope scope(Server::instance()->jobScheduler());
     List<Source> toIndex;
@@ -1004,8 +1006,16 @@ int Project::startDirtyJobs(Dirty *dirty, const UnsavedFiles &unsavedFiles)
         }
     }
 
+    std::weak_ptr<Connection> weakConn(wait);
     for (const auto &source : toIndex) {
         std::shared_ptr<IndexerJob> job(new IndexerJob(source, IndexerJob::Dirty, shared_from_this(), unsavedFiles));
+        if (wait) {
+            job->destroyed.connect([weakConn](IndexerJob *) {
+                    if (auto strong = weakConn.lock()) {
+                        strong->finish();
+                    }
+                });
+        }
         index(job);
     }
 

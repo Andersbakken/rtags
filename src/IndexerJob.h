@@ -45,6 +45,7 @@ public:
                Flags<Flag> flags,
                const std::shared_ptr<Project> &project,
                const UnsavedFiles &unsavedFiles = UnsavedFiles());
+    ~IndexerJob();
     void acquireId();
     String encode() const;
 
@@ -58,6 +59,7 @@ public:
     UnsavedFiles unsavedFiles;
     Set<uint32_t> visited;
     int crashCount;
+    Signal<std::function<void(IndexerJob *)> > destroyed;
 private:
     static uint64_t sNextId;
 };
