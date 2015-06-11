@@ -464,8 +464,8 @@ return t if rtags is allowed to modify this file"
                              path-filter-regex
                              range-filter
                              (output (list t nil)) ; not supported for async
-                             (range-min (1- (point-min)))
-                             (range-max (1- (point-max)))
+                             range-min
+                             range-max
                              noerror
                              silent-query
                              &allow-other-keys)
@@ -487,14 +487,15 @@ return t if rtags is allowed to modify this file"
               (push (format "--unsaved-file=%s:%d"
                             (buffer-file-name unsaved)
                             (with-current-buffer unsaved
-                              (save-restriction
-                                (widen)
-                                (- (point-max) (point-min)))))
+                              (rtags-buffer-size)))
                     arguments))
           (if silent-query
               (push "--silent-query" arguments))
           (if range-filter
-              (push (format "--range-filter=%d-%d" range-min range-max) arguments))
+              (push (format "--range-filter=%d-%d"
+                            (or range-min (rtags-offset (point-min)))
+                            (or range-max (rtags-offset (point-max))))
+                    arguments))
           (if rtags-timeout
               (push (format "--timeout=%d" rtags-timeout) arguments))
           (if (and rtags-show-containing-function (not (member "-N" arguments)))
@@ -722,23 +723,29 @@ return t if rtags is allowed to modify this file"
 (defun rtags-buffer-is-multibyte ()
   (string-match "\\butf\\b" (symbol-name buffer-file-coding-system)))
 
-
-
-(defun rtags-offset (&optional p)
-  (save-excursion
-    (if p
-        (goto-char p)
+(defun rtags-point-multibyte (&optional p)
+  (save-restriction
+    (widen)
+    (save-excursion
+      (when p
+        (goto-char p))
       (if (rtags-buffer-is-multibyte)
           (let ((prev (buffer-local-value enable-multibyte-characters (current-buffer)))
                 (loc (local-variable-p enable-multibyte-characters))
                 (pos))
             (set-buffer-multibyte nil)
-            (setq pos (1- (point)))
+            (setq pos (point))
             (set-buffer-multibyte prev)
             (unless loc
               (kill-local-variable enable-multibyte-characters))
             pos)
-        (1- (point))))))
+        (point)))))
+
+(defun rtags-buffer-size ()
+  (- (rtags-point-multibyte (point-max)) (point-min)))
+
+(defun rtags-offset (&optional p)
+  (1- (rtags-point-multibyte p)))
 
 ;;;###autoload
 (defun rtags-goto-offset (pos)
