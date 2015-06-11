@@ -279,6 +279,11 @@ return t if rtags is allowed to modify this file"
   :group 'rtags
   :type 'boolean)
 
+(defcustom rtags-reparse-timeout nil
+  "Max number of ms you're willing to wait for a reparse to finish."
+  :group 'rtags
+  :type 'integer)
+
 (defcustom rtags-find-file-case-insensitive nil
   "Treat files case-insensitively"
   :group 'rtags
@@ -467,6 +472,7 @@ return t if rtags is allowed to modify this file"
                              range-min
                              range-max
                              noerror
+                             timeout
                              silent-query
                              &allow-other-keys)
   (save-excursion
@@ -496,8 +502,8 @@ return t if rtags is allowed to modify this file"
                             (or range-min (rtags-offset (point-min)))
                             (or range-max (rtags-offset (point-max))))
                     arguments))
-          (if rtags-timeout
-              (push (format "--timeout=%d" rtags-timeout) arguments))
+          (if (or timeout rtags-timeout)
+              (push (format "--timeout=%d" (or timeout rtags-timeout)) arguments))
           (if (and rtags-show-containing-function (not (member "-N" arguments)))
               (push "-o" arguments))
 
@@ -2227,8 +2233,7 @@ definition."
 
 ;;;###autoload
 (defun rtags-reparse-file (&optional buffer wait-reparsing)
-  "WAIT-REPARSING : t to wait for reparsing to finish, nil for async (no waiting).
-:fixme: add a timeout"
+  "WAIT-REPARSING : t to wait for reparsing to finish, nil for async (no waiting)."
   (interactive)
   (unless buffer
     (setq buffer (current-buffer)))
@@ -2237,9 +2242,16 @@ definition."
     ;;(message ":debug: file not indexed"))
     (when (and file (rtags-buffer-status buffer))
       (if (and rtags-enable-unsaved-reparsing (buffer-modified-p buffer))
-          (rtags-call-rc :output (list nil nil) :path file :unsaved buffer "-V" file (if wait-reparsing "--wait"))
-        (rtags-call-rc :output (list nil nil) :path file "-V" file ))
-      (message (format "Dirtied %s" file)))))
+          (progn
+            (message "Reparsing %s" file)
+            (rtags-call-rc :path file
+                           :timeout rtags-reparse-timeout
+                           :unsaved buffer
+                           "--silent"
+                           "-V" file
+                           (if wait-reparsing "--wait")))
+        (rtags-call-rc :path file "--silent" "-V" file)
+        (message (format "Dirtied %s" file))))))
 
 ;; assoc list containing unsaved buffers and their modification ticks
 ;; (to avoid reparsing unsaved files if there were no changes since last parsing)
