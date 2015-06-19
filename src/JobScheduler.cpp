@@ -131,7 +131,7 @@ void JobScheduler::startJobs()
         Process *process = new Process;
         debug() << "Starting process for" << jobId << node->job->source.key() << node->job.get();
         List<String> arguments;
-        for (int i=logLevel(); i>0; --i)
+        for (int i=logLevel().toInt(); i>0; --i)
             arguments << "-v";
         if (!process->start(rp, arguments)) {
             error() << "Couldn't start rp" << rp << process->errorString();

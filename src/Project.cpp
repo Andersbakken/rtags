@@ -332,7 +332,7 @@ bool Project::init()
         int idx = 0;
         bool outputDirty = false;
         if (mDependencies.size() >= 100) {
-            logDirect(Error, String::format<128>("Restoring %s ", mPath.constData()), Flags<LogOutput::LogFlag>());
+            logDirect(LogLevel::Error, String::format<128>("Restoring %s ", mPath.constData()), Flags<LogOutput::LogFlag>());
             outputDirty = true;
         }
         const std::shared_ptr<Project> project = shared_from_this();
@@ -368,12 +368,12 @@ bool Project::init()
             }
             if (++idx % 100 == 0) {
                 outputDirty = true;
-                logDirect(Error, ".", 1, Flags<LogOutput::LogFlag>());
+                logDirect(LogLevel::Error, ".", 1, Flags<LogOutput::LogFlag>());
                 // error("%d/%d (%.2f%%)", idx, count, (idx / static_cast<double>(count)) * 100.0);
             }
         }
         if (outputDirty)
-            logDirect(Error, "\n", 1, Flags<LogOutput::LogFlag>());
+            logDirect(LogLevel::Error, "\n", 1, Flags<LogOutput::LogFlag>());
         for (uint32_t r : removed) {
             removeDependencies(r);
         }

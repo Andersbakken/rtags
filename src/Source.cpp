@@ -173,7 +173,7 @@ static inline void eatAutoTools(List<String> &args)
         if (!arg.startsWith("-") && (arg.endsWith("cc") || arg.endsWith("g++") || arg.endsWith("c++") || arg == "cd")) {
             if (i) {
                 args.erase(args.begin(), args.begin() + i);
-                if (testLog(Debug)) {
+                if (testLog(LogLevel::Debug)) {
                     debug() << "ate something " << copy;
                     debug() << "now we have " << args;
                 }
@@ -678,7 +678,7 @@ List<Source> Source::parse(const String &cmdLine, const Path &base,
             source.language = hasDashX ? language : guessLanguageFromSourceFile(input.second, language);
         }
     }
-    if (testLog(Warning))
+    if (testLog(LogLevel::Warning))
         warning() << "Parsed Source(s) successfully:" << ret;
     return ret;
 }

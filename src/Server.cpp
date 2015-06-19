@@ -82,7 +82,7 @@ const Server::Options *serverOptions()
 class HttpLogOutput : public RTagsLogOutput
 {
 public:
-    HttpLogOutput(int logLevel, const SocketClient::SharedPtr &socket)
+    HttpLogOutput(LogLevel logLevel, const SocketClient::SharedPtr &socket)
         : RTagsLogOutput(logLevel, 0), mSocket(socket)
     {}
 
@@ -192,7 +192,7 @@ bool Server::init(const Options &options)
         mOptions.includePaths.append(Source::Include(Source::Include::Type_System, systemInclude));
     }
 
-    Log l(Error);
+    Log l(LogLevel::Error);
     l << "Running with" << mOptions.jobCount << "jobs, using args:"
       << String::join(mOptions.defaultArguments, ' ') << '\n';
     l << "Includepaths:";

@@ -140,7 +140,7 @@ public:
     ParseStatus parse(int &argc, char **argv);
 
     int max() const { return mMax; }
-    int logLevel() const { return mLogLevel; }
+    LogLevel logLevel() const { return mLogLevel; }
     int timeout() const { return mTimeout; }
     int buildIndex() const { return mBuildIndex; }
 
@@ -167,7 +167,7 @@ private:
                   Flags<QueryMessage::Flag> extraQueryFlags = Flags<QueryMessage::Flag>());
     void addQuitCommand(int exitCode);
 
-    void addLog(int level);
+    void addLog(LogLevel level);
     enum EscapeMode {
         Escape_Auto,
         Escape_Do,
@@ -178,7 +178,8 @@ private:
     void addCompile(const Path &dir, EscapeMode escapeMode);
 
     Flags<QueryMessage::Flag> mQueryFlags;
-    int mMax, mLogLevel, mTimeout, mMinOffset, mMaxOffset, mConnectTimeout, mBuildIndex;
+    int mMax, mTimeout, mMinOffset, mMaxOffset, mConnectTimeout, mBuildIndex;
+    LogLevel mLogLevel;
     Set<String> mPathFilters, mKindFilters;
     UnsavedFiles mUnsavedFiles;
     List<std::shared_ptr<RCCommand> > mCommands;

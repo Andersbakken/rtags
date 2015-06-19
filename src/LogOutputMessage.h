@@ -24,12 +24,12 @@ class LogOutputMessage : public RTagsMessage
 public:
     enum { MessageId = LogOutputId };
 
-    LogOutputMessage(int level = 0, unsigned int flags = 0)
+    LogOutputMessage(LogLevel level = LogLevel::Error, unsigned int flags = 0)
         : RTagsMessage(MessageId), mLevel(level), mFlags(flags)
     {
     }
 
-    int level() const { return mLevel; }
+    LogLevel level() const { return mLevel; }
     unsigned int flags() const { return mFlags; }
 
     void encode(Serializer &serializer) const
@@ -42,7 +42,7 @@ public:
         deserializer >> mRaw >> mLevel >> mFlags;
     }
 private:
-    int mLevel;
+    LogLevel mLevel;
     unsigned int mFlags;
 };
 

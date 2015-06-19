@@ -342,7 +342,7 @@ int main(int argc, char** argv)
 
     const char *logFile = 0;
     Flags<LogFileFlag> logFlags;
-    int logLevel = 0;
+    LogLevel logLevel(LogLevel::Error);
     bool sigHandler = false;
     assert(Path::home().endsWith('/'));
     int argCount = argList.size();
@@ -360,7 +360,7 @@ int main(int argc, char** argv)
             // ignored
             break;
         case 'S':
-            logLevel = -1;
+            logLevel = LogLevel::None;
             break;
         case 'X':
             serverOpts.excludeFilters += String(optarg).split(';');
@@ -618,7 +618,7 @@ int main(int argc, char** argv)
             logFile = optarg;
             break;
         case 'v':
-            if (logLevel >= 0)
+            if (logLevel != LogLevel::None)
                 ++logLevel;
             break;
 #ifdef OS_Darwin
@@ -669,10 +669,10 @@ int main(int argc, char** argv)
     if (serverOpts.options & Server::Launchd) {
         // Clamp inactivity timeout. launchd starts to worry if the
         // process runs for less than 10 seconds.
-        
+
         static const int MIN_INACTIVITY_TIMEOUT = 15; // includes
                                                       // fudge factor.
-        
+
         if (inactivityTimeout < MIN_INACTIVITY_TIMEOUT) {
             inactivityTimeout = MIN_INACTIVITY_TIMEOUT;
             fprintf(stderr, "launchd mode - clamped inactivity timeout to %d to avoid launchd warnings.\n", inactivityTimeout);

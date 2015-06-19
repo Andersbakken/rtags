@@ -300,9 +300,9 @@ private:
 class RdmLogCommand : public RCCommand
 {
 public:
-    enum { Default = -3 };
+    static const LogLevel Default;
 
-    RdmLogCommand(int level)
+    RdmLogCommand(LogLevel level)
         : RCCommand(), mLevel(level)
     {
     }
@@ -311,7 +311,7 @@ public:
         unsigned int flags = RTagsLogOutput::None;
         if (rc->queryFlags() & QueryMessage::ElispList)
             flags |= RTagsLogOutput::ElispList;
-        const int level = mLevel == Default ? rc->logLevel() : mLevel;
+        const LogLevel level = mLevel == Default ? rc->logLevel() : mLevel;
         LogOutputMessage msg(level, flags);
         msg.init(rc->argc(), rc->argv());
         return connection->send(msg);
@@ -320,8 +320,11 @@ public:
     {
         return "RdmLogCommand";
     }
-    const int mLevel;
+    const LogLevel mLevel;
 };
+
+const LogLevel RdmLogCommand::Default(-1);
+
 
 class CompileCommand : public RCCommand
 {
@@ -370,9 +373,10 @@ public:
 };
 
 RClient::RClient()
-    : mMax(-1), mLogLevel(0), mTimeout(-1), mMinOffset(-1), mMaxOffset(-1),
+    : mMax(-1), mTimeout(-1), mMinOffset(-1), mMaxOffset(-1),
       mConnectTimeout(DEFAULT_CONNECT_TIMEOUT), mBuildIndex(0),
-      mEscapeMode(Escape_Auto), mGuessFlags(false), mArgc(0), mArgv(0)
+      mLogLevel(LogLevel::Error), mEscapeMode(Escape_Auto),
+      mGuessFlags(false), mArgc(0), mArgv(0)
 {
 }
 
@@ -394,7 +398,7 @@ void RClient::addQuitCommand(int exitCode)
     mCommands.append(cmd);
 }
 
-void RClient::addLog(int level)
+void RClient::addLog(LogLevel level)
 {
     mCommands.append(std::shared_ptr<RCCommand>(new RdmLogCommand(level)));
 }
@@ -423,7 +427,7 @@ int RClient::exec()
     connection->finished().connect(std::bind([](){ EventLoop::eventLoop()->quit(); }));
     connection->disconnected().connect(std::bind([](){ EventLoop::eventLoop()->quit(); }));
     if (!connection->connectUnix(mSocketFile, mConnectTimeout)) {
-        if (mLogLevel >= Error)
+        if (mLogLevel >= LogLevel::Error)
             fprintf(stdout, "Can't seem to connect to server\n");
         return 1;
     }
@@ -677,7 +681,7 @@ RClient::ParseStatus RClient::parse(int &argc, char **argv)
             addQuery(opt->option == CodeCompleteAt ? QueryMessage::CodeCompleteAt : QueryMessage::PrepareCodeCompleteAt, encoded);
             break; }
         case Silent:
-            mLogLevel = -1;
+            mLogLevel = LogLevel::None;
             break;
         case LogFile:
             logFile = optarg;
@@ -1104,7 +1108,7 @@ RClient::ParseStatus RClient::parse(int &argc, char **argv)
 
     if (!initLogging(argv[0], LogStderr, mLogLevel, logFile, logFlags)) {
         fprintf(stderr, "Can't initialize logging with %d %s %s\n",
-                mLogLevel, logFile.constData(), logFlags.toString().constData());
+                mLogLevel.toInt(), logFile.constData(), logFlags.toString().constData());
         return Parse_Error;
     }
 
@@ -1127,8 +1131,8 @@ RClient::ParseStatus RClient::parse(int &argc, char **argv)
         }
     }
 
-    if (!logFile.isEmpty() || mLogLevel > 0) {
-        Log l(1);
+    if (!logFile.isEmpty() || mLogLevel > LogLevel::Error) {
+        Log l(LogLevel::Warning);
         l << argc;
         for (int i = 0; i < argc; ++i)
             l << " " << argv[i];
@@ -1143,7 +1147,7 @@ void RClient::onNewMessage(const std::shared_ptr<Message> &message, const std::s
 {
     if (message->messageId() == ResponseMessage::MessageId) {
         const String response = std::static_pointer_cast<ResponseMessage>(message)->data();
-        if (!response.isEmpty() && mLogLevel >= Error) {
+        if (!response.isEmpty() && mLogLevel >= LogLevel::Error) {
             fprintf(stdout, "%s\n", response.constData());
             fflush(stdout);
         }

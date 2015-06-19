@@ -45,11 +45,9 @@ inline String versionString()
     return String::format<64>("%d.%d.%d", MajorVersion, MinorVersion, DatabaseVersion);
 }
 
-enum {
-    CompilationError = -1,
-    CompilationErrorXml = -2,
-    Statistics = -3
-};
+const LogLevel CompilationError(-2);
+const LogLevel CompilationErrorXml(-2);
+const LogLevel Statistics(-3);
 
 enum UnitType {
     CompileC,

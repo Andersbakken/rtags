@@ -23,7 +23,7 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 class RTagsLogOutput : public LogOutput
 {
 public:
-    RTagsLogOutput(int level, unsigned int flags, const std::shared_ptr<Connection> &conn = std::shared_ptr<Connection>())
+    RTagsLogOutput(LogLevel level, unsigned int flags, const std::shared_ptr<Connection> &conn = std::shared_ptr<Connection>())
         : LogOutput(level), mFlags(flags), mConnection(conn)
     {
         if (conn) {
@@ -38,9 +38,9 @@ public:
 
     virtual unsigned int flags() const override { return mFlags; }
 
-    virtual bool testLog(int level) const override
+    virtual bool testLog(LogLevel level) const override
     {
-        if (logLevel() < 0 || level < 0)
+        if (logLevel() < LogLevel::Error || level < LogLevel::Error)
             return level == logLevel();
         return LogOutput::testLog(level);
     }

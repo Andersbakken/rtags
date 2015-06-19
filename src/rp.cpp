@@ -62,7 +62,7 @@ public:
 
 int main(int argc, char **argv)
 {
-    int logLevel = Error;
+    LogLevel logLevel = LogLevel::Error;
     Path file;
     for (int i=1; i<argc; ++i) {
         if (!strcmp(argv[i], "-v") || !strcmp(argv[i], "--verbose")) {

@@ -621,8 +621,8 @@ CXChildVisitResult ClangIndexer::indexVisitor(CXCursor cursor, CXCursor parent, 
         fwrite("\n", 1, 1, indexer->mLogFile);
     }
 
-    if (testLog(VerboseDebug)) {
-        Log log(VerboseDebug);
+    if (testLog(LogLevel::VerboseDebug)) {
+        Log log(LogLevel::VerboseDebug);
         log << cursor;
         CXCursor ref = clang_getCursorReferenced(cursor);
         if (!clang_isInvalid(clang_getCursorKind(ref)) && !clang_equalCursors(ref, cursor)) {
@@ -1172,7 +1172,7 @@ bool ClangIndexer::parse()
         };
     }
 
-    if (testLog(Debug))
+    if (testLog(LogLevel::Debug))
         debug() << "CI::parse: " << mSource.toCommandLine(commandLineFlags) << "\n";
 
     // for (const auto it : mSource.toCommandLine(commandLineFlags)) {
@@ -1454,7 +1454,7 @@ bool ClangIndexer::visit()
 
     mVisitDuration = watch.elapsed();
 
-    if (testLog(VerboseDebug)) {
+    if (testLog(LogLevel::VerboseDebug)) {
         VerboseVisitorUserData u = { 0, "<VerboseVisitor " + mClangLine + ">\n", this };
         clang_visitChildren(clang_getTranslationUnitCursor(mClangUnit),
                             ClangIndexer::verboseVisitor, &u);
@@ -1467,7 +1467,7 @@ bool ClangIndexer::visit()
             fwrite(u.out.constData(), 1, u.out.size(), f);
             fclose(f);
         } else {
-            logDirect(VerboseDebug, u.out);
+            logDirect(LogLevel::VerboseDebug, u.out);
         }
     }
     return true;
