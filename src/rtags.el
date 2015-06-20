@@ -491,7 +491,7 @@ return t if rtags is allowed to modify this file"
           (push (concat "--path-filter=" path-filter) arguments)
           (when path-filter-regex
             (push "-Z" arguments)))
-        (when (buffer-file-name unsaved)
+        (when (and unsaved (buffer-file-name unsaved))
           (push (format "--unsaved-file=%s:%d"
                         (buffer-file-name unsaved)
                         (with-current-buffer unsaved
