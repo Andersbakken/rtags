@@ -314,7 +314,6 @@ int Server::reloadProjects()
 {
     mProjects.clear(); // ### could keep the ones that persist somehow
     List<Path> projects = mOptions.dataDir.files(Path::Directory);
-    const Path home = Path::home();
     for (int i=0; i<projects.size(); ++i) {
         const Path &file = projects.at(i);
         Path p = file.mid(mOptions.dataDir.size());
