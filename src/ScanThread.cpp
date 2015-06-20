@@ -23,35 +23,26 @@ ScanThread::ScanThread(const Path &path)
 {
 }
 
-struct UserData {
-    Set<Path> paths;
-    const List<String> &filters;
-};
-
-static Path::VisitResult visit(const Path &path, void *userData)
-{
-    UserData *u = reinterpret_cast<UserData*>(userData);
-    const Filter::Result result = Filter::filter(path, u->filters);
-    switch (result) {
-    case Filter::Filtered:
-        return Path::Continue;
-    case Filter::Directory:
-        if (Path::exists(path + "/.rtags-ignore"))
-            return Path::Continue;
-        return Path::Recurse;
-    case Filter::File:
-    case Filter::Source:
-        u->paths.insert(path);
-        break;
-    }
-    return Path::Continue;
-}
-
 Set<Path> ScanThread::paths(const Path &path, const List<String> &filters)
 {
-    UserData userData = { Set<Path>(), filters };
-    path.visit(&::visit, &userData);
-    return userData.paths;
+    Set<Path> paths;
+    path.visit([&paths, &filters](const Path &path) {
+                   const Filter::Result result = Filter::filter(path, filters);
+                   switch (result) {
+                   case Filter::Filtered:
+                       return Path::Continue;
+                   case Filter::Directory:
+                       if (Path::exists(path + "/.rtags-ignore"))
+                           return Path::Continue;
+                       return Path::Recurse;
+                   case Filter::File:
+                   case Filter::Source:
+                       paths.insert(path);
+                       break;
+                   }
+                   return Path::Continue;
+        });
+    return paths;
 }
 
 void ScanThread::run()
