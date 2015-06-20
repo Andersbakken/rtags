@@ -661,7 +661,7 @@ int main(int argc, char** argv)
 
     if (!initLogging(argv[0], LogStderr, logLevel, logPath.constData(), logFlags)) {
         fprintf(stderr, "Can't initialize logging with %d %s %s\n",
-                logLevel, logFile ? logFile : "", logFlags.toString().constData());
+                logLevel.toInt(), logFile ? logFile : "", logFlags.toString().constData());
         return 1;
     }
 
