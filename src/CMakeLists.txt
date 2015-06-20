@@ -96,7 +96,7 @@ endif ()
 add_executable(rc rc.cpp RClient.cpp)
 target_link_libraries(rc rtags rct)
 
-set(RTAGS_CLANG_LIBRARIES rtags rct ${START_GROUP} ${CLANG_LIBS} ${END_GROUP} -lstdc++ ${CURSES_CURSES_LIBRARY})
+set(RTAGS_CLANG_LIBRARIES rtags rct ${START_GROUP} ${CLANG_LIBS} ${END_GROUP} -lstdc++ ${CURSES_LIBRARIES})
 set(RTAGS_CLANG_SOURCES RTagsClang.cpp Source.cpp)
 
 add_executable(rdm
