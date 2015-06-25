@@ -1302,18 +1302,24 @@ References to references will be treated as references to the referenced symbol"
 (defun rtags-parse-diagnostics (&optional buffer)
   (save-excursion
     (with-current-buffer (or buffer (rtags-get-buffer-create-no-undo rtags-diagnostics-raw-buffer-name))
-      (goto-char (point-min))
-      (while (search-forward "\n" (point-max) t)
-        (let ((data (and (> (1- (point)) (point-min))
-                         (save-restriction
-                           (narrow-to-region (point-min) (1- (point)))
-                           (save-excursion
-                             (goto-char (point-min))
-                             (unless (looking-at "Can't seem to connect to server")
-                               (condition-case nil
-                                   (eval (read (current-buffer)))
-                                 (error (setq rtags-diagnostics-error (append rtags-diagnostics-error (buffer-string)))))))))))
-          (cond ((eq (car data) 'checkstyle)
+      (while (and (goto-char (point-min))
+                  (search-forward "\n" (point-max) t))
+        (let* ((pos (1- (point)))
+               (data (and (> (1- pos) (point-min))
+                          (save-restriction
+                            (narrow-to-region (point-min) pos)
+                            (save-excursion
+                              (goto-char (point-min))
+                              (unless (looking-at "Can't seem to connect to server")
+                                (condition-case nil
+                                    (eval (read (current-buffer)))
+                                  (error
+                                   (message "****** Got Diagnostics Error ******")
+                                   (setq rtags-diagnostics-errors
+                                         (append rtags-diagnostics-errors
+                                                 (list (buffer-substring-no-properties (point-min) (point-max)))))))))))))
+          (cond ((not (listp data)))
+                ((eq (car data) 'checkstyle)
                  (rtags-parse-check-style (cdr data)))
                 ((eq (car data) 'progress)
                  (setq rtags-last-index (nth 2 data)
@@ -1323,8 +1329,7 @@ References to references will be treated as references to the referenced symbol"
                 (t))
           (run-hooks 'rtags-diagnostics-hook)
           (forward-char 1)
-          (delete-region (point-min) (point))
-          (goto-char (point-min)))))))
+          (delete-region (point-min) (point)))))))
 
 (defun rtags-check-overlay (overlay)
   (when (and (not (active-minibuffer-window))
