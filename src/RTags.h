@@ -147,8 +147,8 @@ inline void encodePath(Path &path)
             ch = '_';
             break;
         case '_':
-            path.replace(i, 1, "_");
-            ++i;
+            path.insert(++i, '_');
+            ++size;
             break;
         }
     }
