@@ -1205,7 +1205,7 @@ static inline Map<String, Set<Location> > convertTargets(const Map<Location, Map
 bool ClangIndexer::writeFiles(const Path &root, String &error)
 {
     for (const auto &unit : mUnits) {
-        if (!mIndexDataMessage.files().value(unit.first) & IndexDataMessage::Visited) {
+        if (!(mIndexDataMessage.files().value(unit.first) & IndexDataMessage::Visited)) {
             ::error() << "Wanting to write something for" << Location::path(unit.first) << "but we didn't visit it" << mSource.sourceFile()
                       << unit.second->targets.size()
                       << unit.second->usrs.size()
