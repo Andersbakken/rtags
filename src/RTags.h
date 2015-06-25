@@ -28,6 +28,7 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 #include <rct/String.h>
 #include <stdio.h>
 #include <typeinfo>
+#include <rct/SHA256.h>
 #include <rct/Flags.h>
 
 class Database;
@@ -37,7 +38,7 @@ namespace RTags {
 enum {
     MajorVersion = 2,
     MinorVersion = 0,
-    DatabaseVersion = 68
+    DatabaseVersion = 69
 };
 
 inline String versionString()
@@ -136,10 +137,9 @@ static inline bool isOperator(char ch)
     return false;
 }
 
-inline bool encodePath(Path &path)
+inline void encodePath(Path &path)
 {
     int size = path.size();
-    enum { EncodedUnderscoreLength = 12 };
     for (int i=0; i<size; ++i) {
         char &ch = path[i];
         switch (ch) {
@@ -147,57 +147,27 @@ inline bool encodePath(Path &path)
             ch = '_';
             break;
         case '_':
-            path.replace(i, 1, "<underscore>");
-            size += EncodedUnderscoreLength - 1;
-            i += EncodedUnderscoreLength - 1;
-            break;
-        case '<':
-            if (i + EncodedUnderscoreLength <= size && !strncmp(&ch + 1, "underscore>", EncodedUnderscoreLength - 1)) {
-                error("Invalid folder name %s", path.constData());
-                return false;
-            }
+            path.replace(i, 1, "_");
+            ++i;
             break;
         }
     }
-    return true;
 }
 
 inline void decodePath(Path &path)
 {
     int size = path.size();
-    enum { EncodedUnderscoreLength = 12 };
     for (int i=0; i<size; ++i) {
         char &ch = path[i];
-        switch (ch) {
-        case '_':
-            ch = '/';
-            break;
-        case '<':
-            if (i + EncodedUnderscoreLength <= size && !strncmp(&ch + 1, "underscore>", EncodedUnderscoreLength - 1)) {
-                path.replace(i, EncodedUnderscoreLength, "_");
-                size -= EncodedUnderscoreLength - 1;
+        if (ch == '_') {
+            if (i + 1 < size && path.at(i + 1) == '_') {
+                path.remove(i + 1, 1);
+                --size;
+            } else {
+                ch = '/';
             }
-            break;
         }
     }
-}
-
-#define DEFAULT_RDM_TCP_PORT 12526 // ( 100 'r' + (114 'd' * 109 'm')
-
-inline std::pair<String, uint16_t> parseHost(const char *arg)
-{
-    std::pair<String, uint16_t> host;
-    const char *colon = strchr(arg, ':');
-    if (colon) {
-        host.first.assign(arg, colon - arg);
-        host.second = atoi(colon + 1);
-        if (!host.second)
-            host = std::make_pair<String, uint16_t>(String(), 0);
-    } else {
-        host.first = arg;
-        host.second = DEFAULT_RDM_TCP_PORT;
-    }
-    return host;
 }
 
 inline int digits(int len)
