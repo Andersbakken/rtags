@@ -35,8 +35,7 @@ int ListSymbolsJob::execute()
     if (proj) {
         if (queryFlags() & QueryMessage::IMenu) {
             out = imenu(proj);
-        }
-        else {
+        } else {
             out = listSymbols(proj);
         }
     }
@@ -49,13 +48,11 @@ int ListSymbolsJob::execute()
             write(*it);
         }
         write(")", IgnoreMax | DontQuote);
-    }
-    else {
+    } else {
         List<String> sorted = out.toList();
         if (queryFlags() & QueryMessage::ReverseSort) {
             std::sort(sorted.begin(), sorted.end(), std::greater<String>());
-        }
-        else {
+        } else {
             std::sort(sorted.begin(), sorted.end());
         }
         const int count = sorted.size();
