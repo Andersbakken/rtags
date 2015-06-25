@@ -1145,7 +1145,7 @@ void Project::findSymbols(const String &string,
             SymbolMatchType type = Exact;
             if (!string.isEmpty()) {
                 if (wildcard) {
-                    if (!Rct::wildCmp(string.constData(), entry.constData(), cs)) {
+                    if (!matchSymbolName(string, entry, cs)) {
                         continue;
                     }
                     type = Wildcard;

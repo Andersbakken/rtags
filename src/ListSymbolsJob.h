@@ -27,8 +27,29 @@ public:
     ListSymbolsJob(const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Project> &proj);
 protected:
     virtual int execute() override;
-    Set<String> imenu(const std::shared_ptr<Project> &project);
-    Set<String> listSymbols(const std::shared_ptr<Project> &project);
+    Set<String> imenu(const std::shared_ptr<Project> &project, const List<String> &paths) const;
+    Set<String> listSymbols(const std::shared_ptr<Project> &project) const;
+    static bool isImenuSymbol(const Symbol &symbol)
+    {
+        if (!symbol.isReference()) {
+            switch (symbol.kind) {
+            case CXCursor_VarDecl:
+            case CXCursor_ParmDecl:
+            case CXCursor_InclusionDirective:
+            case CXCursor_EnumConstantDecl:
+                break;
+            case CXCursor_ClassDecl:
+            case CXCursor_StructDecl:
+            case CXCursor_ClassTemplate:
+                if (!symbol.isDefinition())
+                    break;
+                return true;
+            default:
+                return true;
+            }
+        }
+        return false;
+    }
 private:
     String string;
 };

@@ -33,8 +33,13 @@ int ListSymbolsJob::execute()
     Set<String> out;
     std::shared_ptr<Project> proj = project();
     if (proj) {
-        if (queryFlags() & QueryMessage::IMenu) {
-            out = imenu(proj);
+        if (queryFlags() & QueryMessage::WildcardSymbolNames
+            && (string.contains('*') || string.contains('?')) && !string.endsWith('*')) {
+            string += '*';
+        }
+        const List<String> paths = pathFilters();
+        if (queryFlags() & QueryMessage::IMenu && !paths.isEmpty()) {
+            out = imenu(proj, paths);
         } else {
             out = listSymbols(proj);
         }
@@ -63,15 +68,12 @@ int ListSymbolsJob::execute()
     return out.isEmpty() ? 1 : 0;
 }
 
-Set<String> ListSymbolsJob::imenu(const std::shared_ptr<Project> &project)
+Set<String> ListSymbolsJob::imenu(const std::shared_ptr<Project> &project, const List<String> &paths) const
 {
     Set<String> out;
-    const List<String> paths = pathFilters();
-    if (paths.isEmpty()) {
-        error() << "--imenu must take path filters";
-        return out;
-    }
-
+    const bool wildcard = queryFlags() & QueryMessage::WildcardSymbolNames && (string.contains('*') || string.contains('?'));
+    const bool caseInsensitive = queryFlags() & QueryMessage::MatchCaseInsensitive;
+    const String::CaseSensitivity cs = caseInsensitive ? String::CaseInsensitive : String::CaseSensitive;
     for (int i=0; i<paths.size(); ++i) {
         const Path file = paths.at(i);
         if (!file.isFile()) {
@@ -87,40 +89,34 @@ Set<String> ListSymbolsJob::imenu(const std::shared_ptr<Project> &project)
         const int count = symbols->count();
         for (int j=0; j<count; ++j) {
             const Symbol &symbol = symbols->valueAt(j);
-            if (symbol.isReference())
+            if (!isImenuSymbol(symbol))
                 continue;
-            switch (symbol.kind) {
-            case CXCursor_VarDecl:
-            case CXCursor_ParmDecl:
-            case CXCursor_InclusionDirective:
-            case CXCursor_EnumConstantDecl:
-                break;
-            case CXCursor_ClassDecl:
-            case CXCursor_StructDecl:
-            case CXCursor_ClassTemplate:
-                if (!symbol.isDefinition())
-                    break;
-                // fall through
-            default: {
-                const String &symbolName = symbol.symbolName;
-                if (!string.isEmpty() && !symbolName.contains(string))
+            const String &symbolName = symbol.symbolName;
+            if (!string.isEmpty()) {
+                if (wildcard) {
+                    if (!Project::matchSymbolName(string, symbolName, cs)) {
+                        continue;
+                    }
+                } else if (!symbolName.contains(string, cs)) {
                     continue;
-                out.insert(symbolName);
-                break; }
+                }
             }
+            out.insert(symbolName);
         }
     }
     return out;
 }
 
-Set<String> ListSymbolsJob::listSymbols(const std::shared_ptr<Project> &project)
+Set<String> ListSymbolsJob::listSymbols(const std::shared_ptr<Project> &project) const
 {
     const bool hasFilter = QueryJob::hasFilter();
     const bool stripParentheses = queryFlags() & QueryMessage::StripParentheses;
+    const bool imenu = queryFlags() & QueryMessage::IMenu;
+
     Set<String> out;
-    auto inserter = [this, hasFilter, stripParentheses, &out](Project::SymbolMatchType,
-                                                              const String &string,
-                                                              const Set<Location> &locations) {
+    auto inserter = [this, &project, hasFilter, stripParentheses, imenu, &out](Project::SymbolMatchType,
+                                                                               const String &string,
+                                                                               const Set<Location> &locations) {
         if (hasFilter) {
             bool ok = false;
             for (const auto &l : locations) {
@@ -130,6 +126,11 @@ Set<String> ListSymbolsJob::listSymbols(const std::shared_ptr<Project> &project)
                 }
             }
             if (!ok)
+                return;
+        }
+        if (imenu) {
+            const Symbol sym = project->findSymbol(*locations.begin());
+            if (!isImenuSymbol(sym))
                 return;
         }
         const int paren = string.indexOf('(');
@@ -142,10 +143,6 @@ Set<String> ListSymbolsJob::listSymbols(const std::shared_ptr<Project> &project)
                 out.insert(string);
         }
     };
-    if (queryFlags() & QueryMessage::WildcardSymbolNames
-        && (string.contains('*') || string.contains('?'))
-        && !string.endsWith('*'))
-        string += '*';
 
     project->findSymbols(string, inserter, queryFlags());
     return out;

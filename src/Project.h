@@ -129,6 +129,11 @@ public:
                      Flags<QueryMessage::Flag> queryFlags,
                      uint32_t fileFilter = 0);
 
+    static bool matchSymbolName(const String &pattern, const String &symbolName, String::CaseSensitivity cs)
+    {
+        return Rct::wildCmp(pattern.constData(), symbolName.constData(), cs);
+    }
+
     Symbol findSymbol(const Location &location, int *index = 0);
     Set<Symbol> findTargets(const Location &location) { return findTargets(findSymbol(location)); }
     Set<Symbol> findTargets(const Symbol &symbol);
