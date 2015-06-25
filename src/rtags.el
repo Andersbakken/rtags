@@ -1298,6 +1298,7 @@ References to references will be treated as references to the referenced symbol"
         (buffer-disable-undo buf)
         buf)))
 
+(defvar rtags-diagnostics-errors nil)
 (defun rtags-parse-diagnostics (&optional buffer)
   (save-excursion
     (with-current-buffer (or buffer (rtags-get-buffer-create-no-undo rtags-diagnostics-raw-buffer-name))
@@ -1309,7 +1310,9 @@ References to references will be treated as references to the referenced symbol"
                            (save-excursion
                              (goto-char (point-min))
                              (unless (looking-at "Can't seem to connect to server")
-                               (eval (read (current-buffer)))))))))
+                               (condition-case nil
+                                   (eval (read (current-buffer)))
+                                 (error (setq rtags-diagnostics-error (append rtags-diagnostics-error (buffer-string)))))))))))
           (cond ((eq (car data) 'checkstyle)
                  (rtags-parse-check-style (cdr data)))
                 ((eq (car data) 'progress)
