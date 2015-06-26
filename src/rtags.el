@@ -791,9 +791,15 @@ return t if rtags is allowed to modify this file"
             (t (switch-to-buffer file-or-buffer))))))
 
 (defun rtags-goto-line-col (line column)
-  (goto-char (point-min))
-  (forward-line (1- line))
-  (forward-char (1- column)))
+  (let ((old (point)))
+    (goto-char (point-min))
+    (condition-case nil
+        (progn
+          (forward-line (1- line))
+          (forward-char (1- column)))
+      (error
+       (goto-char old)
+       nil))))
 
 (defun rtags-goto-location (location &optional nobookmark other-window)
   "Go to a location passed in. It can be either: file,12 or file:13:14 or plain file"
@@ -1245,39 +1251,39 @@ References to references will be treated as references to the referenced symbol"
          (errorlist (gethash filename rtags-overlays nil)))
     (with-current-buffer buffer
       (save-excursion
-        (rtags-goto-line-col line column)
-        (setq startoffset (rtags-offset))
-        (setq endoffset (or (and length (+ startoffset length))
-                            (let ((rsym (rtags-current-symbol t)))
-                              (and rsym (+ startoffset (length rsym))))
-                            (1+ startoffset)))
+        (when (rtags-goto-line-col line column)
+          (setq startoffset (rtags-offset))
+          (setq endoffset (or (and length (+ startoffset length))
+                              (let ((rsym (rtags-current-symbol t)))
+                                (and rsym (+ startoffset (length rsym))))
+                              (1+ startoffset)))
 
-        (let ((overlay (make-overlay (1+ startoffset)
-                                     (cond ((= startoffset endoffset) (+ startoffset 2))
-                                           (t (1+ endoffset)))
-                                     buffer)))
-          (overlay-put overlay 'rtags-error-message message)
-          (overlay-put overlay 'rtags-error-severity severity)
-          (overlay-put overlay 'rtags-error-start startoffset)
-          (overlay-put overlay 'rtags-error-end endoffset)
-          ;; (message "Got overlay %d %d %d %s" startoffset endoffset length severity)
-          (overlay-put overlay 'face (cond ((string= severity 'error) (setq ret 'error) 'rtags-errline)
-                                           ((string= severity 'warning) (setq ret 'warning) 'rtags-warnline)
-                                           ((string= severity 'fixit) (overlay-put overlay 'priority 1) 'rtags-fixitline)
-                                           ((string= severity 'skipped) 'rtags-skippedline)
-                                           (t 'rtags-errline)))
-          (setq errorlist (append errorlist (list overlay)))
-          (puthash filename errorlist rtags-overlays))))
-    (let ((diagnostics-buffer (get-buffer rtags-diagnostics-buffer-name)))
-      (when diagnostics-buffer
-        (with-current-buffer diagnostics-buffer
-          (setq buffer-read-only nil)
-          (when (eq severity 'fixit)
-            (insert (format "%s:%d:%d: fixit: %d-%d: %s\n" filename line column startoffset endoffset message)))
-          (when (> (length message) 0)
-            (insert (format "%s:%d:%d: %s: %s\n" filename line column severity message)))
-          (setq buffer-read-only t))))
-    ret))
+          (let ((overlay (make-overlay (1+ startoffset)
+                                       (cond ((= startoffset endoffset) (+ startoffset 2))
+                                             (t (1+ endoffset)))
+                                       buffer)))
+            (overlay-put overlay 'rtags-error-message message)
+            (overlay-put overlay 'rtags-error-severity severity)
+            (overlay-put overlay 'rtags-error-start startoffset)
+            (overlay-put overlay 'rtags-error-end endoffset)
+            ;; (message "Got overlay %d %d %d %s" startoffset endoffset length severity)
+            (overlay-put overlay 'face (cond ((string= severity 'error) (setq ret 'error) 'rtags-errline)
+                                             ((string= severity 'warning) (setq ret 'warning) 'rtags-warnline)
+                                             ((string= severity 'fixit) (overlay-put overlay 'priority 1) 'rtags-fixitline)
+                                             ((string= severity 'skipped) 'rtags-skippedline)
+                                             (t 'rtags-errline)))
+            (setq errorlist (append errorlist (list overlay)))
+            (puthash filename errorlist rtags-overlays))))
+      (let ((diagnostics-buffer (get-buffer rtags-diagnostics-buffer-name)))
+        (when diagnostics-buffer
+          (with-current-buffer diagnostics-buffer
+            (setq buffer-read-only nil)
+            (when (eq severity 'fixit)
+              (insert (format "%s:%d:%d: fixit: %d-%d: %s\n" filename line column startoffset endoffset message)))
+            (when (> (length message) 0)
+              (insert (format "%s:%d:%d: %s: %s\n" filename line column severity message)))
+            (setq buffer-read-only t))))
+      ret)))
 
 (defun rtags-parse-check-style (checkstyle)
   (while checkstyle
@@ -1922,9 +1928,9 @@ References to references will be treated as references to the referenced symbol"
                     (with-current-buffer tempbuf
                       (insert buffertext)))
                   (with-current-buffer (or tempbuf buffer)
-                    (rtags-goto-line-col line col)
-                    (delete-char length) ;; may be 0
-                    (insert text))))))
+                    (when (rtags-goto-line-col line col)
+                      (delete-char length) ;; may be 0
+                      (insert text)))))))
           ;; (message (format "got something %d to %d => [%s]" start end text))))
           (forward-line)))
       (when tempbuf
@@ -2097,8 +2103,7 @@ definition."
 (defun rtags-offset-for-line-column (line col)
   (let (deactivate-mark)
     (save-excursion
-      (rtags-goto-line-col line col)
-      (rtags-offset))))
+      (and (rtags-goto-line-col line col) (rtags-offset)))))
 
 (defun rtags-range-visible (start end)
   (and (>= start (window-start))
