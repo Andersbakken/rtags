@@ -1274,15 +1274,16 @@ References to references will be treated as references to the referenced symbol"
                                              (t 'rtags-errline)))
             (setq errorlist (append errorlist (list overlay)))
             (puthash filename errorlist rtags-overlays))))
-      (let ((diagnostics-buffer (get-buffer rtags-diagnostics-buffer-name)))
-        (when diagnostics-buffer
-          (with-current-buffer diagnostics-buffer
-            (setq buffer-read-only nil)
-            (when (eq severity 'fixit)
-              (insert (format "%s:%d:%d: fixit: %d-%d: %s\n" filename line column startoffset endoffset message)))
-            (when (> (length message) 0)
-              (insert (format "%s:%d:%d: %s: %s\n" filename line column severity message)))
-            (setq buffer-read-only t))))
+      (when startoffset
+        (let ((diagnostics-buffer (get-buffer rtags-diagnostics-buffer-name)))
+          (when diagnostics-buffer
+            (with-current-buffer diagnostics-buffer
+              (setq buffer-read-only nil)
+              (when (eq severity 'fixit)
+                (insert (format "%s:%d:%d: fixit: %d-%d: %s\n" filename line column startoffset endoffset message)))
+              (when (> (length message) 0)
+                (insert (format "%s:%d:%d: %s: %s\n" filename line column severity message)))
+              (setq buffer-read-only t)))))
       ret)))
 
 (defun rtags-parse-check-style (checkstyle)
