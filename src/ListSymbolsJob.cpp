@@ -38,8 +38,8 @@ int ListSymbolsJob::execute()
             string += '*';
         }
         const List<String> paths = pathFilters();
-        if (queryFlags() & QueryMessage::IMenu && !paths.isEmpty()) {
-            out = imenu(proj, paths);
+        if (!paths.isEmpty()) {
+            out = listSymbolsWithPathFilter(proj, paths);
         } else {
             out = listSymbols(proj);
         }
@@ -68,10 +68,12 @@ int ListSymbolsJob::execute()
     return out.isEmpty() ? 1 : 0;
 }
 
-Set<String> ListSymbolsJob::imenu(const std::shared_ptr<Project> &project, const List<String> &paths) const
+Set<String> ListSymbolsJob::listSymbolsWithPathFilter(const std::shared_ptr<Project> &project, const List<String> &paths) const
 {
     Set<String> out;
+    const bool imenu = queryFlags() & QueryMessage::IMenu;
     const bool wildcard = queryFlags() & QueryMessage::WildcardSymbolNames && (string.contains('*') || string.contains('?'));
+    const bool stripParentheses = queryFlags() & QueryMessage::StripParentheses;
     const bool caseInsensitive = queryFlags() & QueryMessage::MatchCaseInsensitive;
     const String::CaseSensitivity cs = caseInsensitive ? String::CaseInsensitive : String::CaseSensitive;
     for (int i=0; i<paths.size(); ++i) {
@@ -89,7 +91,7 @@ Set<String> ListSymbolsJob::imenu(const std::shared_ptr<Project> &project, const
         const int count = symbols->count();
         for (int j=0; j<count; ++j) {
             const Symbol &symbol = symbols->valueAt(j);
-            if (!isImenuSymbol(symbol))
+            if (imenu && !isImenuSymbol(symbol))
                 continue;
             const String &symbolName = symbol.symbolName;
             if (!string.isEmpty()) {
@@ -100,6 +102,16 @@ Set<String> ListSymbolsJob::imenu(const std::shared_ptr<Project> &project, const
                 } else if (!symbolName.contains(string, cs)) {
                     continue;
                 }
+            }
+
+            const int paren = string.indexOf('(');
+            if (paren == -1) {
+                out.insert(string);
+            } else {
+                if (!RTags::isFunctionVariable(string))
+                    out.insert(string.left(paren));
+                if (!stripParentheses)
+                    out.insert(string);
             }
             out.insert(symbolName);
         }
