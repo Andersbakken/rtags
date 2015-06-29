@@ -796,7 +796,8 @@ return t if rtags is allowed to modify this file"
     (condition-case nil
         (progn
           (forward-line (1- line))
-          (forward-char (1- column)))
+          (forward-char (1- column))
+          t)
       (error
        (goto-char old)
        nil))))
