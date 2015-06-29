@@ -305,9 +305,8 @@ std::shared_ptr<Project> Server::addProject(const Path &path)
     if (!project) {
         project.reset(new Project(path));
         project->init();
-        return project;
     }
-    return std::shared_ptr<Project>();
+    return project;
 }
 
 int Server::reloadProjects()
