@@ -2299,7 +2299,7 @@ BUFFER : the buffer to be checked and reparsed, if it's nil, use current buffer"
     (cancel-timer rtags-completions-timer)
     (setq rtags-completions-timer nil))
   (cond ((not rtags-completions-enabled))
-        ((not (integerp rtags-completions-timer-interval)))
+        ((not (numberp rtags-completions-timer-interval)))
         ((< rtags-completions-timer-interval 0))
         ((not (rtags-has-diagnostics)))
         ((not (or (eq major-mode 'c++-mode) (eq major-mode 'c-mode) (eq major-mode 'objc-mode))))
