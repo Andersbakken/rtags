@@ -122,10 +122,6 @@ int ReferencesJob::execute()
                 }
                 references[symbol.location] = std::make_pair(def, symbol.kind);
             }
-            startLocation.clear();
-            // since one normally calls this on a declaration it kinda
-            // doesn't work that well to do the clever offset thing
-            // underneath
         } else {
             const Set<Symbol> symbols = proj->findCallers(sym);
             for (const auto &symbol : symbols) {
