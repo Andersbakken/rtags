@@ -1105,7 +1105,7 @@ bool ClangIndexer::handleCursor(const CXCursor &cursor, CXCursorKind kind, const
     // cursor's usr allows us to join them. Check JSClassRelease in
     // JavaScriptCore for an example.
     unit(location)->usrs[c.usr].insert(location);
-    if (c.linkage == CXLinkage_External && !c.isDefinition()) {
+    if (c.kind != CXCursor_CXXMethod && c.linkage == CXLinkage_External && !c.isDefinition()) {
         mIndexDataMessage.declarations()[c.usr].insert(location.fileId());
         unit(location.fileId())->targets[location][usr] = RTags::createTargetsValue(kind, true);
     }
