@@ -31,6 +31,7 @@
 #include <rct/ReadLocker.h>
 #include <rct/Thread.h>
 #include <rct/DataFile.h>
+#include <rct/SHA256.h>
 #include <regex>
 #include <memory>
 #include "LogOutputMessage.h"
@@ -104,16 +105,16 @@ public:
     {
         mDirty.insert(fileId);
     }
-    inline uint64_t lastModified(uint32_t fileId)
+    inline String checksum(uint32_t fileId)
     {
-        uint64_t &time = mLastModified[fileId];
-        if (!time) {
-            time = Location::path(fileId).lastModifiedMs();
+        String &csum = mChecksums[fileId];
+        if (csum.isEmpty()) {
+            csum = SHA256::hashFile(Location::path(fileId));
         }
-        return time;
+        return csum;
     }
 
-    Hash<uint32_t, uint64_t> mLastModified;
+    Hash<uint32_t, String> mChecksums;
     Set<uint32_t> mDirty;
 };
 
@@ -140,11 +141,15 @@ public:
 
         if (mMatch.isEmpty() || mMatch.match(source.sourceFile())) {
             for (auto it : mProject->dependencies(source.fileId, Project::ArgDependsOn)) {
-                const uint64_t depLastModified = lastModified(it);
-                if (!depLastModified || depLastModified > source.parsed) {
-                    // dependency is gone
-                    ret = true;
-                    insertDirtyFile(it);
+                const String &depChecksum = checksum(it);
+                List<Source> depSources = mProject->sources(it);
+                for (auto depSrc : depSources) {
+                    if (depChecksum.isEmpty() || depChecksum != depSrc.hashWhenLastParsed) {
+                        // dependency is gone
+                        ret = true;
+                        insertDirtyFile(it);
+                        break;
+                    }
                 }
             }
             if (ret)
@@ -177,8 +182,8 @@ public:
         for (auto it : mModified) {
             const auto &deps = it.second;
             if (deps.contains(source.fileId)) {
-                const uint64_t depLastModified = lastModified(it.first);
-                if (!depLastModified || depLastModified > source.parsed) {
+                const String &depChecksum = checksum(it.first);
+                if (depChecksum != source.hashWhenLastParsed) {
                     // dependency is gone
                     ret = true;
                     insertDirtyFile(it.first);
@@ -604,7 +609,7 @@ void Project::onJobFinished(const std::shared_ptr<IndexerJob> &job, const std::s
     updateDependencies(msg);
     updateDeclarations(visited, msg->declarations());
     if (success) {
-        src->second.parsed = msg->parseTime();
+        src->second.hashWhenLastParsed = SHA256::hashFile(src->second.sourceFile());
         error("[%3d%%] %d/%d %s %s. (%s)",
               static_cast<int>(round((double(idx) / double(mJobCounter)) * 100.0)), idx, mJobCounter,
               String::formatTime(time(0), String::Time).constData(),

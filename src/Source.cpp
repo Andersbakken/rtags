@@ -26,7 +26,7 @@ void Source::clear()
     fileId = compilerId = buildRootId = 0;
     includePathHash = 0;
     language = NoLanguage;
-    parsed = 0;
+    hashWhenLastParsed = "0";
 
     defines.clear();
     includePaths.clear();
@@ -53,8 +53,8 @@ String Source::toString() const
     String ret = String::join(toCommandLine(IncludeCompiler|IncludeSourceFile|IncludeIncludepaths|QuoteDefines|IncludeDefines), ' ');
     if (buildRootId)
         ret << " Build: " << buildRoot();
-    if (parsed)
-        ret << " Parsed: " << String::formatTime(parsed / 1000, String::DateTime);
+    if (hashWhenLastParsed != "0")
+        ret << " Hash when parsed: " << hashWhenLastParsed;
     if (flags & Active)
         ret << " Active";
     return ret;
