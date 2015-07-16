@@ -372,18 +372,6 @@ return t if rtags is allowed to modify this file"
 ;;;###autoload
 (defun rtags-previous-match () (interactive) (rtags-next-prev-match nil))
 
-(defun rtags-next-prev-suitable-match (next)
-  (save-excursion
-    (if next
-        (goto-char (point-at-bol 2))
-      (goto-char (point-at-bol 0)))
-    (beginning-of-line)
-    (when (looking-at "$")
-      (when next
-        (goto-char (point-min))
-        (beginning-of-line)))
-    (point)))
-
 (defun rtags-next-prev-match (next)
   (when (get-buffer rtags-buffer-name)
     (let ((target)
