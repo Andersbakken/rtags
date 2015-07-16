@@ -871,9 +871,9 @@ return t if rtags is allowed to modify this file"
            `(lambda ()
               (interactive)
               (rtags-location-stack-jump ,by)))
-         (if (fboundp 'set-transient-map)
-             (set-transient-map map)
-           (set-temporary-overlay-map map))))))
+         (cond ((fboundp 'set-transient-map) (set-transient-map map))
+               ((fboundp 'set-temporary-overlay-map) (set-temporary-overlay-map map))
+               (t))))))
 
 ;; **************************** API *********************************
 
