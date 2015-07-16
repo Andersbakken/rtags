@@ -387,7 +387,7 @@ return t if rtags is allowed to modify this file"
                (goto-char (point-min))
                (message "%s Wrapped" rtags-buffer-name))
               ((and (not next)
-                    (goto-char (point-at-eol))
+                    (goto-char (point-at-bol))
                     (re-search-backward "^\\(.*?\\):\\([0-9]+\\):\\([0-9]+\\)" nil t)))
               (t
                (goto-char (point-max))
