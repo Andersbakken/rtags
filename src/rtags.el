@@ -103,6 +103,11 @@
   :group 'rtags
   :type 'boolean)
 
+(defcustom rtags-verbose-results nil
+  "Print more verbose results buffer"
+  :group 'rtags
+  :type 'boolean)
+
 (defcustom rtags-sort-references-by-input t
   "Whether rtags sorts the references based on the input to rtags-find-references.*"
   :group 'rtags
@@ -266,10 +271,15 @@ return t if rtags is allowed to modify this file"
   "Face used for marking skipped lines."
   :group 'rtags)
 
+(defconst rtags-verbose-results-delimiter "------------------------------------------")
 (defvar rtags-font-lock-keywords
   `((,"^\\(.*?:[0-9]+:[0-9]+:\\)\\(.*\\)$"
      (1 font-lock-string-face)
-     (2 font-lock-function-name-face))))
+     (2 font-lock-function-name-face))
+    ;; (,(concat "^" rtags-verbose-results-delimiter "$")
+    ;;  (1 font-lock-builtin-face))
+    (,"^ +\\(.*\\)$"
+     (1 font-lock-function-name-face))))
 
 (defcustom rtags-timeout nil
   "Max amount of ms to wait for operation to finish"
@@ -382,18 +392,19 @@ return t if rtags is allowed to modify this file"
         (select-window win))
       (set-buffer rtags-buffer-name)
       (when (> (count-lines (point-max) (point-min)) 1)
-        (cond ((and (= (point-at-bol) (point-min)) (not next))
-               (goto-char (point-max))
-               (beginning-of-line)
-               (while (looking-at "$")
-                 (goto-char (1- (point))))
-               (message "%s Wrapped" rtags-buffer-name))
-              ((and (= (point-at-eol) (point-max)) next)
+        (cond ((and next
+                    (goto-char (point-at-eol))
+                    (re-search-forward "^\\(.*?\\):\\([0-9]+\\):\\([0-9]+\\)" nil t)))
+              (next
                (goto-char (point-min))
-               (setq target (point-min))
                (message "%s Wrapped" rtags-buffer-name))
+              (and (not next)
+                   (goto-char (point-at-eol))
+                   (re-search-backward "^\\(.*?\\):\\([0-9]+\\):\\([0-9]+\\)" nil t))
               (t
-               (goto-char (rtags-next-prev-suitable-match next))))
+               (goto-char (point-max))
+               (re-search-backward "^\\(.*?\\):\\([0-9]+\\):\\([0-9]+\\)" nil t))
+               (message "%s Wrapped" rtags-buffer-name))
         (beginning-of-line)
         (if win
             (rtags-select-other-window)
@@ -1584,6 +1595,7 @@ References to references will be treated as references to the referenced symbol"
 (defun rtags-handle-results-buffer (&optional noautojump)
   (setq rtags-last-request-not-indexed nil)
   (rtags-reset-bookmarks)
+  (set-text-properties (point-min) (point-max) nil)
   (cond ((= (point-min) (point-max))
          (message "RTags: No results") nil)
         ((= (count-lines (point-min) (point-max)) 1)
@@ -1596,15 +1608,17 @@ References to references will be treated as references to the referenced symbol"
              (rtags-goto-location string))))
         (t
          (switch-to-buffer-other-window rtags-buffer-name)
-         (shrink-window-if-larger-than-buffer)
          (goto-char (point-max))
          (when (= (point-at-bol) (point-max))
            (delete-char -1))
          (goto-char (point-min))
          (while (not (eobp))
-           (when (looking-at "^\\(.*?\\):\\([0-9]+\\):\\([0-9]+\\)")
+           (when (looking-at "^\\(.*?\\):\\([0-9]+\\):\\([0-9]+\\):?[ \t]*\\(.*\\)$")
              (incf rtags-buffer-bookmarks)
-             (let* ((buffer (get-file-buffer (match-string-no-properties 1)))
+             ;; (message "matched at %d:%d" (point) rtags-buffer-bookmarks)
+             (let* ((start (point-at-bol))
+                    (end (min (point-max) (1+ (point-at-eol))))
+                    (buffer (get-file-buffer (match-string-no-properties 1)))
                     (line (and buffer (string-to-number (match-string-no-properties 2))))
                     (column (and buffer (string-to-number (match-string-no-properties 3)))))
                (when buffer
@@ -1613,8 +1627,16 @@ References to references will be treated as references to the referenced symbol"
                      (save-restriction
                        (widen)
                        (when (rtags-goto-line-col line column)
-                         (bookmark-set (format "RTags_%d" rtags-buffer-bookmarks)))))))))
+                         (bookmark-set (format "RTags_%d" rtags-buffer-bookmarks)))))))
+               (when rtags-verbose-results
+                 (goto-char (match-end 4))
+                 (insert "\n" rtags-verbose-results-delimiter)
+                 (goto-char (match-beginning 4))
+                 (insert "\n    ")
+                 (incf end 5))
+               (set-text-properties start end (list 'rtags-result-index (cons rtags-buffer-bookmarks start)))))
            (forward-line))
+         (shrink-window-if-larger-than-buffer)
          (rtags-mode)
          (when (and rtags-jump-to-first-match (not noautojump))
            (rtags-select-other-window)))))
@@ -1743,8 +1765,9 @@ References to references will be treated as references to the referenced symbol"
 ;;;###autoload
 (defun rtags-select (&optional other-window remove show)
   (interactive "P")
-  (let* ((line (line-number-at-pos))
-         (bookmark (format "RTags_%d" line))
+  (let* ((idx (get-text-property (point) 'rtags-result-index))
+         (line (line-number-at-pos))
+         (bookmark (and idx (format "RTags_%d" (car idx))))
          (window (selected-window)))
     (cond ((eq major-mode 'rtags-taglist-mode)
            (rtags-goto-location (cdr (assoc line rtags-taglist-locations)) nil other-window))
@@ -1754,7 +1777,8 @@ References to references will be treated as references to the referenced symbol"
              (let ((loc (and (looking-at "[^/]*\\([^ \t]+\\)") (match-string 1))))
                (when loc
                  (rtags-goto-location loc nil other-window)))))
-          ((and (>= rtags-buffer-bookmarks line)
+          ((and idx
+                (>= rtags-buffer-bookmarks (car idx))
                 (member bookmark (bookmark-all-names)))
            (when other-window
              (when (= (length (window-list)) 1)
@@ -1763,8 +1787,11 @@ References to references will be treated as references to the referenced symbol"
            (bookmark-jump bookmark)
            (rtags-location-stack-push))
           (t
+           (when idx
+             (goto-char (cdr idx)))
            (rtags-goto-location (buffer-substring-no-properties (point-at-bol) (point-at-eol)) nil other-window)
-           (bookmark-set bookmark)))
+           (when bookmark
+             (bookmark-set bookmark))))
     (if remove
         (delete-window window)
       (when show
