@@ -79,43 +79,6 @@ const Server::Options *serverOptions()
     return Server::instance() ? &Server::instance()->options() : 0;
 }
 
-class HttpLogOutput : public RTagsLogOutput
-{
-public:
-    HttpLogOutput(LogLevel logLevel, const SocketClient::SharedPtr &socket)
-        : RTagsLogOutput(logLevel, 0), mSocket(socket)
-    {}
-
-    virtual void log(Flags<LogFlag>, const char *msg, int len) override
-    {
-        if (!EventLoop::isMainThread()) {
-            String message(msg, len);
-            SocketClient::WeakPtr weak = mSocket;
-
-            EventLoop::eventLoop()->callLater(std::bind([message, weak, this] {
-                        // ### At some point (with some version of GCC) this
-                        // ### lambda wouldn't compile unless "this" was
-                        // ### captured.
-                        if (SocketClient::SharedPtr socket = weak.lock()) {
-                            HttpLogOutput::send(message.constData(), message.size(), socket);
-                        }
-                    }));
-        } else {
-            send(msg, len, mSocket);
-        }
-    }
-    static void send(const char *msg, int len, const SocketClient::SharedPtr &socket)
-    {
-        static const unsigned char *header = reinterpret_cast<const unsigned char*>("data:");
-        static const unsigned char *crlf = reinterpret_cast<const unsigned char*>("\r\n");
-        socket->write(header, 5);
-        socket->write(reinterpret_cast<const unsigned char *>(msg), len);
-        socket->write(crlf, 2);
-    }
-private:
-    SocketClient::SharedPtr mSocket;
-};
-
 void saveFileIds()
 {
     assert(Server::instance());
