@@ -34,6 +34,8 @@
 
 (require 'bookmark)
 (require 'cc-mode)
+(require 'popup)
+(require 'tramp)
 
 (if (or (> emacs-major-version 24)
         (< emacs-major-version 23)
