@@ -367,8 +367,8 @@ return t if rtags is allowed to modify this file"
               (with-current-buffer buffer
                 (save-restriction
                   (widen)
-                  (rtags-goto-line-col line column)
-                  (bookmark-set (format "RTags_%d" rtags-buffer-bookmarks))))))))
+                  (when (rtags-goto-line-col line column)
+                    (bookmark-set (format "RTags_%d" rtags-buffer-bookmarks)))))))))
       (forward-line))))
 
 (defun rtags-reset-bookmarks ()
