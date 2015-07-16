@@ -1,6 +1,6 @@
 #!/bin/bash
 
-SCRIPT_PATH=`dirname "$0"`;
+SCRIPT_PATH=`dirname $(readlink "$0")`;
 SCRIPT_PATH=`eval "cd \"$SCRIPT_PATH\" && pwd"`
 
 branch_name="$(git symbolic-ref HEAD 2>/dev/null)" || branch_name="(unnamed branch)"     # detached HEAD
