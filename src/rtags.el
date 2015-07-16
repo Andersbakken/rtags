@@ -353,24 +353,6 @@ return t if rtags is allowed to modify this file"
   (goto-char (point-min))
   (setq buffer-read-only t))
 
-(defun rtags-init-bookmarks()
-  (save-excursion
-    (goto-char (point-min))
-    (while (not (eobp))
-      (when (looking-at "^\\(.*?\\):\\([0-9]+\\):\\([0-9]+\\)")
-        (incf rtags-buffer-bookmarks)
-        (let* ((buffer (get-file-buffer (match-string-no-properties 1)))
-               (line (and buffer (string-to-number (match-string-no-properties 2))))
-               (column (and buffer (string-to-number (match-string-no-properties 3)))))
-          (when buffer
-            (let (deactivate-mark)
-              (with-current-buffer buffer
-                (save-restriction
-                  (widen)
-                  (when (rtags-goto-line-col line column)
-                    (bookmark-set (format "RTags_%d" rtags-buffer-bookmarks)))))))))
-      (forward-line))))
-
 (defun rtags-reset-bookmarks ()
   (setq rtags-buffer-bookmarks 0)
   (mapcar (lambda (bookmark) (when (string-match "^RTags_" bookmark) (bookmark-delete bookmark))) (bookmark-all-names)))
@@ -1618,7 +1600,21 @@ References to references will be treated as references to the referenced symbol"
          (goto-char (point-max))
          (when (= (point-at-bol) (point-max))
            (delete-char -1))
-         (rtags-init-bookmarks)
+         (goto-char (point-min))
+         (while (not (eobp))
+           (when (looking-at "^\\(.*?\\):\\([0-9]+\\):\\([0-9]+\\)")
+             (incf rtags-buffer-bookmarks)
+             (let* ((buffer (get-file-buffer (match-string-no-properties 1)))
+                    (line (and buffer (string-to-number (match-string-no-properties 2))))
+                    (column (and buffer (string-to-number (match-string-no-properties 3)))))
+               (when buffer
+                 (let (deactivate-mark)
+                   (with-current-buffer buffer
+                     (save-restriction
+                       (widen)
+                       (when (rtags-goto-line-col line column)
+                         (bookmark-set (format "RTags_%d" rtags-buffer-bookmarks)))))))))
+           (forward-line))
          (rtags-mode)
          (when (and rtags-jump-to-first-match (not noautojump))
            (rtags-select-other-window)))))
