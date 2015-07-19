@@ -1465,7 +1465,7 @@ References to references will be treated as references to the referenced symbol"
 ;;;###autoload
 (defun rtags-stop-diagnostics ()
   (interactive)
-  (when(and rtags-diagnostics-process (not (eq (process-status rtags-diagnostics-process) 'exit)))
+  (when (and rtags-diagnostics-process (not (eq (process-status rtags-diagnostics-process) 'exit)))
     (kill-process rtags-diagnostics-process))
   (when (get-buffer rtags-diagnostics-buffer-name)
     (kill-buffer rtags-diagnostics-buffer-name)))
