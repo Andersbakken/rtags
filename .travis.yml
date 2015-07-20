@@ -1,25 +1,75 @@
+#
+# Available repositories are listed here:
+# https://github.com/travis-ci/apt-source-whitelist/blob/master/ubuntu.json
+#
+
+sudo: false
+
 language: cpp
 
-compiler: gcc
+matrix:
+    include:
+        - env: COMPILER_VERSION=4.8
+          os: linux
+          compiler: g++
+          addons:
+              apt:
+                  sources:
+                      - ubuntu-toolchain-r-test
+                  packages:
+                      - g++-4.8
 
-before_install:
-    - git submodule update --init --recursive
+        - env: COMPILER_VERSION=4.9
+          os: linux
+          compiler: g++
+          addons:
+              apt:
+                  sources:
+                      - ubuntu-toolchain-r-test
+                  packages:
+                      - g++-4.9
 
-install:
-    - sudo add-apt-repository -y ppa:ubuntu-toolchain-r/test
-    - sudo apt-get update -qq
-    - sudo apt-get install -qq libclang1 llvm-3.4-dev libclang-common-3.4-dev libclang-3.4-dev clang-3.4-dev
-    - if [ "$CXX" = "g++" ]; then sudo apt-get install -qq g++-4.8; fi
-    - if [ "$CXX" = "g++" ]; then export CXX="g++-4.8" CC="gcc-4.8"; fi
-    - if [ "$CXX" == "clang++" ]; then export CXX="clang++-3.4" CC="clang-3.4" CXXFLAGS="-stdlib=libc++"; fi
+        - env: COMPILER_VERSION=3.5
+          os: linux
+          compiler: clang++
+          addons:
+              apt:
+                  sources:
+                      - ubuntu-toolchain-r-test
+                      - llvm-toolchain-precise-3.5
+                  packages:
+                      - clang-3.5
+
+        - env: COMPILER_VERSION=3.6
+          os: linux
+          compiler: clang++
+          addons:
+              apt:
+                  sources:
+                      - ubuntu-toolchain-r-test
+                      - llvm-toolchain-precise-3.6
+                  packages:
+                      - clang-3.6
+
+#        - env: COMPILER_VERSION=3.7
+#          os: linux
+#          compiler: clang++
+#          addons:
+#              apt:
+#                  sources:
+#                      - ubuntu-toolchain-r-test
+#                      - llvm-toolchain-precise-3.7
+#                  packages:
+#                      - clang-3.7
 
 before_script:
     - mkdir build
     - cd build
-    - cmake ..
+    - apt-cache search clang
+    - ls /usr/local
+    - echo "Using compilers $CXX-${COMPILER_VERSION} and $CC-${COMPILER_VERSION}"
+    - cmake -DCMAKE_CXX_COMPILER=$CXX-${COMPILER_VERSION} -DCMAKE_C_COMPILER=$CC-${COMPILER_VERSION} ..
+
 
 script: make
 
-os:
-    - linux
-    - osx
