@@ -135,8 +135,7 @@
           (point)))))
 
 (defun rtags-ac-init ()
-  (unless rtags-diagnostics-process
-    (rtags-diagnostics)))
+  (rtags-diagnostics))
 
 (defun rtags-ac-completions-hook ()
   (ac-start))
