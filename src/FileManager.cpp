@@ -155,12 +155,18 @@ void FileManager::watch(const Path &path)
         mWatcher.watch(path);
     }
 }
+
 void FileManager::startScanThread(Timer *)
 {
     std::shared_ptr<Project> project = mProject.lock();
     assert(project);
     ScanThread *thread = new ScanThread(project->path());
     thread->setAutoDelete(true);
-    thread->finished().connect<EventLoop::Move>(std::bind(&FileManager::onRecurseJobFinished, this, std::placeholders::_1));
+    std::weak_ptr<FileManager> that = shared_from_this();
+    thread->finished().connect<EventLoop::Move>([that](const Set<Path> &paths) {
+            if (auto strong = that.lock())
+                strong->onRecurseJobFinished(paths);
+        });
+
     thread->start();
 }

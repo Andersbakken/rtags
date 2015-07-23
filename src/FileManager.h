@@ -24,7 +24,7 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 #include <mutex>
 
 class Project;
-class FileManager
+class FileManager : public std::enable_shared_from_this<FileManager>
 {
 public:
     FileManager();
