@@ -1303,6 +1303,8 @@ Set<Symbol> Project::findTargets(const Symbol &symbol)
     case CXCursor_CXXMethod:
     case CXCursor_Destructor:
     case CXCursor_Constructor:
+    case CXCursor_FieldDecl:
+    case CXCursor_VarDecl:
     case CXCursor_FunctionTemplate: {
         const Set<Symbol> symbols = findByUsr(symbol.usr, symbol.location.fileId(), symbol.isDefinition() ? ArgDependsOn : DependsOnArg);
         for (const auto &c : symbols) {
@@ -1311,7 +1313,9 @@ Set<Symbol> Project::findTargets(const Symbol &symbol)
                 break;
             }
         }
-        break; }
+        if (!ret.isEmpty())
+            break; }
+        // fall through
     default:
         for (const String &usr : findTargetUsrs(symbol.location)) {
             ret.unite(findByUsr(usr, symbol.location.fileId(), Project::ArgDependsOn));
@@ -1350,7 +1354,7 @@ Set<Symbol> Project::findByUsr(const String &usr, uint32_t fileId, DependencyMod
             // error() << usrs << Location::path(file) << usr;
             if (usrs) {
                 for (const Location &loc : usrs->value(usr)) {
-                    // error() << "got a loc" << loc;
+xo                    // error() << "got a loc" << loc;
                     const Symbol c = findSymbol(loc);
                     if (!c.isNull())
                         ret.insert(c);
