@@ -1354,7 +1354,7 @@ Set<Symbol> Project::findByUsr(const String &usr, uint32_t fileId, DependencyMod
             // error() << usrs << Location::path(file) << usr;
             if (usrs) {
                 for (const Location &loc : usrs->value(usr)) {
-xo                    // error() << "got a loc" << loc;
+                    // error() << "got a loc" << loc;
                     const Symbol c = findSymbol(loc);
                     if (!c.isNull())
                         ret.insert(c);
