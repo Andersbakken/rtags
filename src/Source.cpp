@@ -268,6 +268,7 @@ static const char* valueArgs[] = {
     "-iwithprefixbefore",
     "-imultilib",
     "-isysroot",
+    "-ivfsoverlay",
     "-Xpreprocessor",
     "-Xassembler",
     "-Xlinker",
