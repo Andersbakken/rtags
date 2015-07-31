@@ -1429,7 +1429,7 @@ References to references will be treated as references to the referenced symbol"
     (cancel-timer rtags-container-timer))
   (setq rtags-container-timer
         (and rtags-track-container
-             (rtags-is-indexed)
+             (funcall rtags-is-indexable (current-buffer))
              (run-with-idle-timer rtags-container-timer-interval nil (function rtags-update-current-container-cache)))))
 
 (defvar rtags-tracking-timer nil)
