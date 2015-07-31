@@ -58,7 +58,6 @@ public:
         ReferencesName,
         Reindex,
         ReloadFileManager,
-        ReloadProjects,
         RemoveFile,
         SendDiagnostics,
         SetBuffers,

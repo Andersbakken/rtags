@@ -21,6 +21,7 @@
 #include <rct/Serializer.h>
 #include <rct/List.h>
 #include <rct/Flags.h>
+#include "Location.h"
 
 struct Source
 {
@@ -316,7 +317,7 @@ template <> inline Deserializer &operator>>(Deserializer &s, Source::Include &d)
 
 template <> inline Serializer &operator<<(Serializer &s, const Source &b)
 {
-    s << b.fileId << b.compilerId << b.buildRootId << static_cast<uint8_t>(b.language)
+    s << b.sourceFile() << b.fileId << b.compilerId << b.buildRootId << static_cast<uint8_t>(b.language)
       << b.parsed << b.flags << b.defines << b.includePaths << b.arguments << b.sysRootIndex
       << b.directory << b.includePathHash;
     return s;
@@ -326,9 +327,11 @@ template <> inline Deserializer &operator>>(Deserializer &s, Source &b)
 {
     b.clear();
     uint8_t language;
-    s >> b.fileId >> b.compilerId >> b.buildRootId >> language >> b.parsed >> b.flags
+    Path path;
+    s >> path >> b.fileId >> b.compilerId >> b.buildRootId >> language >> b.parsed >> b.flags
       >> b.defines >> b.includePaths >> b.arguments >> b.sysRootIndex >> b.directory
       >> b.includePathHash;
+    Location::set(path, b.fileId);
     b.language = static_cast<Source::Language>(language);
     return s;
 }

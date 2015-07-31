@@ -100,7 +100,6 @@ public:
         ReferenceName,
         Reindex,
         ReloadFileManager,
-        ReloadProjects,
         RemoveFile,
         Rename,
         ReverseSort,

@@ -114,7 +114,7 @@ public:
 private:
     String guessArguments(const String &args, const Path &pwd, const Path &projectRootOverride);
     bool saveFileIds();
-    void restoreFileIds();
+    void load();
     bool index(const String &arguments,
                const Path &pwd,
                const Path &projectRootOverride,
@@ -154,7 +154,6 @@ private:
     void referencesForName(const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Connection> &conn);
     void reindex(const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Connection> &conn);
     void reloadFileManager(const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Connection> &conn);
-    void reloadProjects(const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Connection> &conn);
     void removeFile(const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Connection> &conn);
     void removeProject(const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Connection> &conn);
     void sources(const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Connection> &conn);
@@ -167,7 +166,6 @@ private:
 
     std::shared_ptr<Project> projectForQuery(const std::shared_ptr<QueryMessage> &queryMessage);
     std::shared_ptr<Project> currentProject() const { return mCurrentProject.lock(); }
-    int reloadProjects();
     std::shared_ptr<Project> addProject(const Path &path);
 
     bool hasServer() const;

@@ -230,9 +230,11 @@ public:
     {
         LOCK();
         sPathsToIds = pathsToIds;
-        sLastId = sPathsToIds.size();
+        sIdsToPaths.clear();
+        sLastId = 0;
         for (const auto &it : sPathsToIds) {
             sIdsToPaths[it.second] = it.first;
+            sLastId = std::max(sLastId, it.second);
         }
     }
 
@@ -240,9 +242,11 @@ public:
     {
         LOCK();
         sIdsToPaths = idsToPaths;
-        sLastId = sIdsToPaths.size();
+        sPathsToIds.clear();
+        sLastId = 0;
         for (const auto &it : sIdsToPaths) {
             sPathsToIds[it.second] = it.first;
+            sLastId = std::max(sLastId, it.first);
         }
     }
 
@@ -253,6 +257,7 @@ public:
         Path &p = sIdsToPaths[fileId];
         if (p.isEmpty())
             p = path;
+        sLastId = std::max(sLastId, fileId);
     }
 private:
     static std::mutex sMutex;

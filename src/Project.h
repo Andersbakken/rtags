@@ -119,6 +119,7 @@ public:
     const Declarations &declarations() const { return mDeclarations; }
     bool isDeclaration(const String &usr) const { return mDeclarations.contains(usr); }
 
+    static bool readSources(const Path &path, Sources &sources, String *error);
     enum SymbolMatchType {
         Exact,
         Wildcard,
@@ -197,6 +198,7 @@ public:
     void beginScope();
     void endScope();
     void dirty(uint32_t fileId);
+    bool save();
 private:
     bool validate(uint32_t fileId, String *error = 0) const;
     void removeDependencies(uint32_t fileId);
@@ -208,7 +210,6 @@ private:
     int startDirtyJobs(Dirty *dirty,
                        const UnsavedFiles &unsavedFiles = UnsavedFiles(),
                        const std::shared_ptr<Connection> &wait = std::shared_ptr<Connection>());
-    bool save();
     void onDirtyTimeout(Timer *);
 
     struct FileMapScope {
@@ -306,7 +307,7 @@ private:
     std::shared_ptr<FileMapScope> mFileMapScope;
 
     const Path mPath, mSourceFilePathBase;
-    Path mProjectFilePath;
+    Path mProjectFilePath, mSourcesFilePath;
 
     Files mFiles;
 

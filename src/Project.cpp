@@ -246,7 +246,9 @@ Project::Project(const Path &path)
     Path srcPath = mPath;
     RTags::encodePath(srcPath);
     const Server::Options &options = Server::instance()->options();
-    mProjectFilePath = options.dataDir + srcPath + "/project";
+    const Path tmp = options.dataDir + srcPath;
+    mProjectFilePath = tmp + "/project";
+    mSourcesFilePath = tmp + "/sources";
 }
 
 Project::~Project()
@@ -281,6 +283,20 @@ static inline bool hasSourceDependency(const DependencyNode *node, const std::sh
     return hasSourceDependency(node, project, seen);
 }
 
+bool Project::readSources(const Path &path, Sources &sources, String *err)
+{
+    DataFile file(path, RTags::SourcesFileVersion);
+    if (!file.open(DataFile::Read)) {
+        Path::rm(path);
+        if (err && !file.error().isEmpty())
+            *err = file.error();
+        return false;
+    }
+
+    file >> sources;
+    return true;
+}
+
 bool Project::init()
 {
     const Server::Options &options = Server::instance()->options();
@@ -297,15 +313,25 @@ bool Project::init()
     fileManager->init(shared_from_this(), FileManager::Asynchronous);
     mDirtyTimer.timeout().connect(std::bind(&Project::onDirtyTimeout, this, std::placeholders::_1));
 
+    String err;
+    if (!Project::readSources(mSourcesFilePath, mSources, &err)) {
+        if (!err.isEmpty())
+            error("Sources restore error %s: %s", mPath.constData(), err.constData());
+
+        return false;
+    }
+
     DataFile file(mProjectFilePath, RTags::DatabaseVersion);
     if (!file.open(DataFile::Read)) {
         if (!file.error().isEmpty())
             error("Restore error %s: %s", mPath.constData(), file.error().constData());
         Path::rm(mProjectFilePath);
-        return false;
+        for (const auto &source : mSources) {
+            index(std::shared_ptr<IndexerJob>(new IndexerJob(source.second, IndexerJob::Compile, shared_from_this())));
+        }
+        return true;
     }
 
-    file >> mSources;
     {
         std::lock_guard<std::mutex> lock(mMutex);
         file >> mVisitedFiles;
@@ -636,22 +662,31 @@ void Project::onJobFinished(const std::shared_ptr<IndexerJob> &job, const std::s
 
 bool Project::save()
 {
-    DataFile file(mProjectFilePath, RTags::DatabaseVersion);
-    if (!file.open(DataFile::Write)) {
-        error("Save error %s: %s", mProjectFilePath.constData(), file.error().constData());
-        return false;
+    {
+        DataFile file(mSourcesFilePath, RTags::SourcesFileVersion);
+        if (!file.open(DataFile::Write)) {
+            error("Save error %s: %s", mProjectFilePath.constData(), file.error().constData());
+            return false;
+        }
+        file << mSources;
     }
-    file << mSources;
 
     {
-        std::lock_guard<std::mutex> lock(mMutex);
-        file << mVisitedFiles;
-    }
-    file << mDeclarations;
-    saveDependencies(file, mDependencies);
-    if (!file.flush()) {
-        error("Save error %s: %s", mProjectFilePath.constData(), file.error().constData());
-        return false;
+        DataFile file(mProjectFilePath, RTags::DatabaseVersion);
+        if (!file.open(DataFile::Write)) {
+            error("Save error %s: %s", mProjectFilePath.constData(), file.error().constData());
+            return false;
+        }
+        {
+            std::lock_guard<std::mutex> lock(mMutex);
+            file << mVisitedFiles;
+        }
+        file << mDeclarations;
+        saveDependencies(file, mDependencies);
+        if (!file.flush()) {
+            error("Save error %s: %s", mProjectFilePath.constData(), file.error().constData());
+            return false;
+        }
     }
 
     return true;
@@ -1145,7 +1180,7 @@ void Project::findSymbols(const String &string,
             SymbolMatchType type = Exact;
             if (!string.isEmpty()) {
                 if (wildcard) {
-                    if (!matchSymbolName(string, entry, cs)) {
+                    if (!Rct::wildCmp(string.constData(), entry.constData(), cs)) {
                         continue;
                     }
                     type = Wildcard;
@@ -1649,3 +1684,4 @@ error:
         Log(err) << "Error during validation:" << Location::path(fileId) << error << path;
     return false;
 }
+

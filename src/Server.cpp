@@ -177,9 +177,8 @@ bool Server::init(const Options &options)
 
     mJobScheduler.reset(new JobScheduler);
 
-    restoreFileIds();
+    load();
     mUnixServer->newConnection().connect(std::bind(&Server::onNewConnection, this, std::placeholders::_1));
-    reloadProjects();
     if (!(mOptions.options & NoStartupCurrentProject)) {
         Path current = Path(mOptions.dataDir + ".currentProject").readAll(1024);
         if (current.size() > 1) {
@@ -270,47 +269,6 @@ std::shared_ptr<Project> Server::addProject(const Path &path)
         project->init();
     }
     return project;
-}
-
-int Server::reloadProjects()
-{
-    mProjects.clear(); // ### could keep the ones that persist somehow
-    List<Path> projects = mOptions.dataDir.files(Path::Directory);
-    for (int i=0; i<projects.size(); ++i) {
-        const Path &file = projects.at(i);
-        Path p = file.mid(mOptions.dataDir.size());
-        if (p.endsWith('/'))
-            p.chop(1);
-        RTags::decodePath(p);
-        if (p.isDir()) {
-            bool remove = false;
-            if (FILE *f = fopen((file + "project").constData(), "r")) {
-                Deserializer in(f);
-                int version;
-                in >> version;
-
-                if (version == RTags::DatabaseVersion) {
-                    int fs;
-                    in >> fs;
-                    if (fs != Rct::fileSize(f)) {
-                        error("%s seems to be corrupted, refusing to restore. Removing.",
-                              file.constData());
-                        remove = true;
-                    } else {
-                        addProject(p.ensureTrailingSlash());
-                    }
-                } else {
-                    remove = true;
-                    error() << file << "has wrong format. Got" << version << "expected" << RTags::DatabaseVersion << "Removing";
-                }
-                fclose(f);
-            }
-            if (remove) {
-                Path::rm(file);
-            }
-        }
-    }
-    return mProjects.size();
 }
 
 void Server::onNewConnection(SocketServer *server)
@@ -648,9 +606,6 @@ void Server::handleQueryMessage(const std::shared_ptr<QueryMessage> &message, co
         break;
     case QueryMessage::DeleteProject:
         removeProject(message, conn);
-        break;
-    case QueryMessage::ReloadProjects:
-        reloadProjects(message, conn);
         break;
     case QueryMessage::Project:
         project(message, conn);
@@ -1246,14 +1201,6 @@ void Server::removeProject(const std::shared_ptr<QueryMessage> &query, const std
     conn->finish();
 }
 
-void Server::reloadProjects(const std::shared_ptr<QueryMessage> &/*query*/, const std::shared_ptr<Connection> &conn)
-{
-    const int old = mProjects.size();
-    const int cur = reloadProjects();
-    conn->write<128>("Changed from %d to %d projects", old, cur);
-    conn->finish();
-}
-
 void Server::project(const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Connection> &conn)
 {
     if (query->query().isEmpty()) {
@@ -1544,7 +1491,7 @@ void Server::handleVisitFileMessage(const std::shared_ptr<VisitFileMessage> &mes
     conn->send(msg);
 }
 
-void Server::restoreFileIds()
+void Server::load()
 {
     const Path p = mOptions.dataDir + "fileids";
     DataFile fileIdsFile(mOptions.dataDir + "fileids", RTags::DatabaseVersion);
@@ -1552,11 +1499,78 @@ void Server::restoreFileIds()
         Hash<Path, uint32_t> pathsToIds;
         fileIdsFile >> pathsToIds;
         Location::init(pathsToIds);
+        List<Path> projects = mOptions.dataDir.files(Path::Directory);
+        for (int i=0; i<projects.size(); ++i) {
+            const Path &file = projects.at(i);
+            Path p = file.mid(mOptions.dataDir.size());
+            if (p.endsWith('/'))
+                p.chop(1);
+            RTags::decodePath(p);
+            if (p.isDir()) {
+                bool remove = false;
+                if (FILE *f = fopen((file + "project").constData(), "r")) {
+                    Deserializer in(f);
+                    int version;
+                    in >> version;
+
+                    if (version == RTags::DatabaseVersion) {
+                        int fs;
+                        in >> fs;
+                        if (fs != Rct::fileSize(f)) {
+                            error("%s seems to be corrupted, refusing to restore. Removing.",
+                                  file.constData());
+                            remove = true;
+                        } else {
+                            addProject(p.ensureTrailingSlash());
+                        }
+                    } else {
+                        remove = true;
+                        error() << file << "has wrong format. Got" << version << "expected" << RTags::DatabaseVersion << "Removing";
+                    }
+                    fclose(f);
+                }
+                if (remove) {
+                    Path::rm(file);
+                }
+            }
+        }
     } else {
         if (!fileIdsFile.error().isEmpty()) {
             error("Can't restore file ids: %s", fileIdsFile.error().constData());
         }
+        Hash<Path, Sources> sources;
+        mOptions.dataDir.visit([&sources](const Path &path) {
+                if (path.isDir()) {
+                    if (path.fileName()[0] == '_')
+                        return Path::Recurse;
+                } else if (!strcmp("sources", path.fileName())) {
+                    Path p = path.parentDir().fileName();
+                    if (p.endsWith("/"))
+                        p.chop(1);
+                    RTags::decodePath(p);
+
+                    String err;
+                    if (!Project::readSources(path, sources[p], &err)) {
+                        error("Sources restore error %s: %s", path.constData(), err.constData());
+                    }
+                    // error() << sources[p].size();
+                }
+                return Path::Continue;
+            });
+        // for (const auto &s : sources) {
+        //     error() << s.first << s.second.size();
+        // }
+
         clearProjects();
+        for (const auto &s : sources) {
+            if (!s.second.isEmpty()) {
+                auto project = addProject(s.first);
+                for (const auto &source : s.second) {
+                    project->index(std::shared_ptr<IndexerJob>(new IndexerJob(source.second, IndexerJob::Compile, project)));
+                }
+                project->save();
+            }
+        }
     }
 }
 
