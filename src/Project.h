@@ -21,6 +21,7 @@
 #include "QueryMessage.h"
 #include "RTags.h"
 #include "RTagsClang.h"
+#include <cstdint>
 #include <memory>
 #include <mutex>
 #include <rct/FileSystemWatcher.h>
@@ -61,7 +62,7 @@ public:
     ~Project();
     bool init();
 
-    std::shared_ptr<FileManager> fileManager;
+    std::shared_ptr<FileManager> fileManager() const { return mFileManager; }
 
     Path path() const { return mPath; }
 
@@ -180,10 +181,20 @@ public:
     void onJobFinished(const std::shared_ptr<IndexerJob> &job, const std::shared_ptr<IndexDataMessage> &msg);
     Sources sources() const { return mSources; }
     String toCompilationDatabase() const;
-    Set<Path> watchedPaths() const { return mWatchedPaths; }
+    enum WatchMode {
+        Watch_FileManager = 0x1,
+        Watch_SourceFile = 0x2
+    };
+
+    void watch(const Path &dir, WatchMode mode);
+    void unwatch(const Path &dir, WatchMode mode);
+    void clearWatch(WatchMode mode);
+    Hash<Path, Flags<WatchMode> > watchedPaths() const { return mWatchedPaths; }
+
     bool isIndexing() const { return !mActiveJobs.isEmpty(); }
-    void onFileModifiedOrAdded(const Path &);
-    void onFileRemoved(const Path &);
+    void onFileAdded(const Path &path);
+    void onFileModified(const Path &path);
+    void onFileRemoved(const Path &path);
     Hash<uint32_t, Path> visitedFiles() const
     {
         std::lock_guard<std::mutex> lock(mMutex);
@@ -200,10 +211,10 @@ public:
     void dirty(uint32_t fileId);
     bool save();
 private:
+    void onFileAddedOrModified(const Path &path);
+    void watchFile(uint32_t fileId);
     bool validate(uint32_t fileId, String *error = 0) const;
     void removeDependencies(uint32_t fileId);
-    void watch(const Path &file);
-    void reloadFileManager();
     void updateDependencies(const std::shared_ptr<IndexDataMessage> &msg);
     void updateDeclarations(const Set<uint32_t> &visited, Declarations &declarations);
     void updateFixIts(const Set<uint32_t> &visited, FixIts &fixIts);
@@ -326,7 +337,8 @@ private:
     FileSystemWatcher mWatcher;
     Declarations mDeclarations;
     Sources mSources;
-    Set<Path> mWatchedPaths;
+    Hash<Path, Flags<WatchMode> > mWatchedPaths;
+    std::shared_ptr<FileManager> mFileManager;
     FixIts mFixIts;
 
     Hash<uint32_t, DependencyNode*> mDependencies;
@@ -334,6 +346,8 @@ private:
 
     mutable std::mutex mMutex;
 };
+
+RCT_FLAGS(Project::WatchMode);
 
 inline bool Project::visitFile(uint32_t visitFileId, const Path &path, uint64_t key)
 {

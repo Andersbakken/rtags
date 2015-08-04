@@ -300,17 +300,14 @@ bool Project::readSources(const Path &path, Sources &sources, String *err)
 bool Project::init()
 {
     const Server::Options &options = Server::instance()->options();
-    fileManager.reset(new FileManager);
     if (!(options.options & Server::NoFileSystemWatch)) {
-        mWatcher.modified().connect(std::bind(&Project::onFileModifiedOrAdded, this, std::placeholders::_1));
-        mWatcher.added().connect(std::bind(&Project::onFileModifiedOrAdded, this, std::placeholders::_1));
+        mWatcher.modified().connect(std::bind(&Project::onFileModified, this, std::placeholders::_1));
+        mWatcher.added().connect(std::bind(&Project::onFileAdded, this, std::placeholders::_1));
         mWatcher.removed().connect(std::bind(&Project::onFileRemoved, this, std::placeholders::_1));
     }
-    if (!(options.options & Server::NoFileManagerWatch)) {
-        mWatcher.removed().connect(std::bind(&Project::reloadFileManager, this));
-        mWatcher.added().connect(std::bind(&Project::reloadFileManager, this));
-    }
-    fileManager->init(shared_from_this(), FileManager::Asynchronous);
+    mFileManager.reset(new FileManager);
+    mFileManager->init(shared_from_this(), FileManager::Asynchronous);
+
     mDirtyTimer.timeout().connect(std::bind(&Project::onDirtyTimeout, this, std::placeholders::_1));
 
     String err;
@@ -340,7 +337,7 @@ bool Project::init()
     loadDependencies(file, mDependencies);
 
     for (const auto &dep : mDependencies) {
-        watch(Location::path(dep.first));
+        watchFile(dep.first);
     }
 
     bool needsSave = false;
@@ -416,7 +413,7 @@ bool Project::init()
             mSources.erase(it++);
             needsSave = true;
         } else {
-            watch(sourceFile);
+            watchFile(source.fileId);
             ++it;
         }
     }
@@ -799,10 +796,22 @@ void Project::index(const std::shared_ptr<IndexerJob> &job)
     Server::instance()->jobScheduler()->add(job);
 }
 
-void Project::onFileModifiedOrAdded(const Path &file)
+void Project::onFileModified(const Path &path)
+{
+    debug() << path << "was modified";
+    onFileAddedOrModified(path);
+}
+
+void Project::onFileAdded(const Path &path)
+{
+    debug() << path << "was added";
+    mFileManager->onFileAdded(path);
+    onFileAddedOrModified(path);
+}
+
+void Project::onFileAddedOrModified(const Path &file)
 {
     const uint32_t fileId = Location::fileId(file);
-    debug() << file << "was modified or added " << fileId;
     if (!fileId)
         return;
     if (Server::instance()->suspended() || mSuspendedFiles.contains(fileId)) {
@@ -817,6 +826,7 @@ void Project::onFileModifiedOrAdded(const Path &file)
 
 void Project::onFileRemoved(const Path &file)
 {
+    mFileManager->onFileRemoved(file);
     const uint32_t fileId = Location::fileId(file);
     debug() << file << "was removed" << fileId;
     if (!fileId)
@@ -936,7 +946,7 @@ void Project::updateDependencies(const std::shared_ptr<IndexDataMessage> &msg)
                 node->includes.clear();
             }
         }
-        watch(Location::path(pair.first));
+        watchFile(pair.first);
     }
 
     // // ### this probably deletes and recreates the same nodes very very often
@@ -1131,12 +1141,6 @@ String Project::fixIts(uint32_t fileId) const
     return out;
 }
 
-void Project::reloadFileManager()
-{
-    assert(fileManager);
-    fileManager->reload(FileManager::Asynchronous);
-}
-
 void Project::findSymbols(const String &string,
                           const std::function<void(SymbolMatchType, const String &, const Set<Location> &)> &inserter,
                           Flags<QueryMessage::Flag> queryFlags,
@@ -1238,19 +1242,56 @@ List<RTags::SortedSymbol> Project::sort(const Set<Symbol> &symbols, Flags<QueryM
     return sorted;
 }
 
-void Project::watch(const Path &file)
+void Project::watch(const Path &dir, WatchMode mode)
 {
-    Path dir = file.parentDir();
-    if (dir.isEmpty()) {
-        error() << "Got empty parent dir for" << file;
-    } else {
-        if (mWatchedPaths.contains(dir))
+    if (!dir.isEmpty()) {
+        const auto it = mWatchedPaths.find(dir);
+        if (it != mWatchedPaths.end()) {
+            it->second |= mode;
             return;
-        dir.resolve();
-        if (((Server::instance()->options().options & Server::WatchSystemPaths) || !dir.isSystem())
-            && mWatchedPaths.insert(dir)) {
-            mWatcher.watch(dir);
         }
+        const Path resolved = dir.resolved();
+        if ((Server::instance()->options().options & Server::WatchSystemPaths) || !resolved.isSystem()) {
+            auto &m = mWatchedPaths[resolved];
+            if (!m) {
+                mWatcher.watch(resolved);
+            }
+            m |= mode;
+        }
+    }
+}
+
+void Project::watchFile(uint32_t fileId)
+{
+    watch(Location::path(fileId).parentDir(), Watch_SourceFile);
+}
+
+void Project::clearWatch(WatchMode mode)
+{
+    auto it = mWatchedPaths.begin();
+    while (it != mWatchedPaths.end()) {
+        it->second &= ~mode;
+        if (!it->second) {
+            mWatchedPaths.erase(it++);
+        } else {
+            ++it;
+        }
+    }
+}
+
+void Project::unwatch(const Path &dir, WatchMode mode)
+{
+    auto it = mWatchedPaths.find(dir);
+    if (it == mWatchedPaths.end()) {
+        mWatchedPaths.find(dir.resolved());
+        if (it == mWatchedPaths.end()) {
+            error() << "We're not watching this directory" << dir;
+            return;
+        }
+    }
+    if (!(it->second &= ~mode)) {
+        mWatcher.unwatch(it->first);
+        mWatchedPaths.erase(it);
     }
 }
 
@@ -1684,4 +1725,3 @@ error:
         Log(err) << "Error during validation:" << Location::path(fileId) << error << path;
     return false;
 }
-

@@ -330,8 +330,8 @@ void Server::onNewMessage(const std::shared_ptr<Message> &message, const std::sh
     }
     if (mOptions.options & NoFileManagerWatch) {
         std::shared_ptr<Project> project = currentProject();
-        if (project && project->fileManager && (Rct::monoMs() - project->fileManager->lastReloadTime()) > 60000)
-            project->fileManager->reload(FileManager::Asynchronous);
+        if (project && project->fileManager() && (Rct::monoMs() - project->fileManager()->lastReloadTime()) > 60000)
+            project->fileManager()->reload(FileManager::Asynchronous);
     }
 }
 
@@ -1003,7 +1003,7 @@ void Server::reloadFileManager(const std::shared_ptr<QueryMessage> &, const std:
     if (project) {
         conn->write<512>("Reloading files for %s", project->path().constData());
         conn->finish();
-        project->fileManager->reload(FileManager::Asynchronous);
+        project->fileManager()->reload(FileManager::Asynchronous);
     } else {
         conn->write("No current project");
         conn->finish();
@@ -1014,7 +1014,7 @@ void Server::hasFileManager(const std::shared_ptr<QueryMessage> &query, const st
 {
     const Path path = query->query();
     std::shared_ptr<Project> project = projectForQuery(query);
-    if (project && project->fileManager && (project->fileManager->contains(path) || project->match(query->match()))) {
+    if (project && project->fileManager() && (project->fileManager()->contains(path) || project->match(query->match()))) {
         if (!(query->flags() & QueryMessage::SilentQuery))
             error("=> 1");
         conn->write("1");
@@ -1122,8 +1122,8 @@ void Server::setCurrentProject(const std::shared_ptr<Project> &project)
 {
     std::shared_ptr<Project> old = currentProject();
     if (project != old) {
-        if (old && old->fileManager)
-            old->fileManager->clearFileSystemWatcher();
+        if (old && old->fileManager())
+            old->fileManager()->clearFileSystemWatcher();
         mCurrentProject = project;
         if (project) {
             Path::mkdir(mOptions.dataDir);

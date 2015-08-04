@@ -22,8 +22,6 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 FileManager::FileManager()
     : mLastReloadTime(0)
 {
-    mWatcher.added().connect(std::bind(&FileManager::onFileAdded, this, std::placeholders::_1));
-    mWatcher.removed().connect(std::bind(&FileManager::onFileRemoved, this, std::placeholders::_1));
     mScanTimer.timeout().connect(std::bind(&FileManager::startScanThread, this, std::placeholders::_1));
 }
 
@@ -58,7 +56,7 @@ void FileManager::onRecurseJobFinished(const Set<Path> &paths)
         return;
     Files &map = project->files();
     map.clear();
-    mWatcher.clear();
+    clearFileSystemWatcher();
     for (Set<Path>::const_iterator it = paths.begin(); it != paths.end(); ++it) {
         const Path parent = it->parentDir();
         if (parent.isEmpty()) {
@@ -75,7 +73,7 @@ void FileManager::onRecurseJobFinished(const Set<Path> &paths)
 
 void FileManager::onFileAdded(const Path &path)
 {
-    // error() << "File added" << path;
+    debug() << "fm file added" << path;
     std::lock_guard<std::mutex> lock(mMutex);
     if (path.isEmpty()) {
         return;
@@ -109,21 +107,24 @@ void FileManager::onFileAdded(const Path &path)
 
 void FileManager::onFileRemoved(const Path &path)
 {
-    // error() << "File removed" << path;
+    debug() << "fm file removed" << path;
     std::lock_guard<std::mutex> lock(mMutex);
     std::shared_ptr<Project> project = mProject.lock();
+    if (!project)
+        return;
     Files &map = project->files();
     if (map.contains(path)) {
         reload(Asynchronous);
         return;
-    }
-    const Path parent = path.parentDir();
-    if (map.contains(parent)) {
-        Set<String> &dir = map[parent];
-        dir.remove(String(path.fileName()));
-        if (dir.isEmpty()) {
-            mWatcher.unwatch(parent);
-            map.remove(parent);
+    } else {
+        const Path parent = path.parentDir();
+        if (map.contains(parent)) {
+            Set<String> &dir = map[parent];
+            dir.remove(String(path.fileName()));
+            if (dir.isEmpty()) {
+                project->unwatch(parent, Project::Watch_FileManager);
+                map.remove(parent);
+            }
         }
     }
 }
@@ -150,9 +151,13 @@ bool FileManager::contains(const Path &path) const
 
 void FileManager::watch(const Path &path)
 {
-    if (!(Server::instance()->options().options & Server::NoFileManagerWatch)
-        && !path.contains("/.git/") && !path.contains("/.svn/") && !path.contains("/.cvs/")) {
-        mWatcher.watch(path);
+    if (Server::instance()->options().options & Server::NoFileManagerWatch)
+        return;
+    if (path.contains("/.git/") || path.contains("/.svn/") || path.contains("/.cvs/")) {
+        return; // more source control systems?
+    }
+    if (auto proj = mProject.lock()) {
+        proj->watch(path, Project::Watch_FileManager);
     }
 }
 
@@ -170,3 +175,10 @@ void FileManager::startScanThread(Timer *)
 
     thread->start();
 }
+
+void FileManager::clearFileSystemWatcher()
+{
+    if (auto project = mProject.lock())
+        project->clearWatch(Project::Watch_FileManager);
+}
+

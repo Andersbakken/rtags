@@ -43,7 +43,7 @@ FindFileJob::FindFileJob(const std::shared_ptr<QueryMessage> &query, const std::
 int FindFileJob::execute()
 {
     std::shared_ptr<Project> proj = project();
-    if (!proj || !proj->fileManager) {
+    if (!proj) {
         return 1;
     }
     const Path srcRoot = proj->path();
@@ -71,8 +71,9 @@ int FindFileJob::execute()
     if (absolutePath)
         out.append(srcRoot);
     const Files& dirs = proj->files();
-    if (dirs.isEmpty() && proj && proj->fileManager)
-        proj->fileManager->reload(FileManager::Synchronous);
+    assert(proj->fileManager());
+    if (dirs.isEmpty())
+        proj->fileManager()->reload(FileManager::Synchronous);
     Files::const_iterator dirit = dirs.begin();
     bool foundExact = false;
     const int patternSize = mPattern.size();

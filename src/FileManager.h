@@ -40,13 +40,11 @@ public:
     void onFileRemoved(const Path &path);
     void onRecurseJobFinished(const Set<Path> &mPaths);
     bool contains(const Path &path) const;
-    void clearFileSystemWatcher() { mWatcher.clear(); }
-    Set<Path> watchedPaths() const { return mWatcher.watchedPaths(); }
+    void clearFileSystemWatcher();
 private:
     void startScanThread(Timer *);
     void watch(const Path &path);
     Timer mScanTimer;
-    FileSystemWatcher mWatcher;
     std::weak_ptr<Project> mProject;
     uint64_t mLastReloadTime;
     mutable std::mutex mMutex;
