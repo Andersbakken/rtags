@@ -27,14 +27,13 @@ class Project;
 class FileManager : public std::enable_shared_from_this<FileManager>
 {
 public:
-    FileManager();
+    FileManager(const std::shared_ptr<Project> &project);
     enum Mode {
         Synchronous,
         Asynchronous
     };
 
-    void init(const std::shared_ptr<Project> &proj, Mode mode);
-    void reload(Mode mode);
+    void load(Mode mode);
     uint64_t lastReloadTime() const { return mLastReloadTime; }
     void onFileAdded(const Path &path);
     void onFileRemoved(const Path &path);

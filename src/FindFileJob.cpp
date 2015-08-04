@@ -73,7 +73,7 @@ int FindFileJob::execute()
     const Files& dirs = proj->files();
     assert(proj->fileManager());
     if (dirs.isEmpty())
-        proj->fileManager()->reload(FileManager::Synchronous);
+        proj->fileManager()->load(FileManager::Synchronous);
     Files::const_iterator dirit = dirs.begin();
     bool foundExact = false;
     const int patternSize = mPattern.size();

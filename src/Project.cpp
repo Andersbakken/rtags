@@ -305,8 +305,10 @@ bool Project::init()
         mWatcher.added().connect(std::bind(&Project::onFileAdded, this, std::placeholders::_1));
         mWatcher.removed().connect(std::bind(&Project::onFileRemoved, this, std::placeholders::_1));
     }
-    mFileManager.reset(new FileManager);
-    mFileManager->init(shared_from_this(), FileManager::Asynchronous);
+    mFileManager.reset(new FileManager(shared_from_this()));
+    mWatcher.removed().connect(std::bind(&FileManager::onFileRemoved, mFileManager.get(), std::placeholders::_1));
+    mWatcher.added().connect(std::bind(&FileManager::onFileAdded, mFileManager.get(), std::placeholders::_1));
+
 
     mDirtyTimer.timeout().connect(std::bind(&Project::onDirtyTimeout, this, std::placeholders::_1));
 
@@ -805,13 +807,13 @@ void Project::onFileModified(const Path &path)
 void Project::onFileAdded(const Path &path)
 {
     debug() << path << "was added";
-    mFileManager->onFileAdded(path);
     onFileAddedOrModified(path);
 }
 
 void Project::onFileAddedOrModified(const Path &file)
 {
     const uint32_t fileId = Location::fileId(file);
+    debug() << file << "was modified" << fileId;
     if (!fileId)
         return;
     if (Server::instance()->suspended() || mSuspendedFiles.contains(fileId)) {
@@ -826,7 +828,6 @@ void Project::onFileAddedOrModified(const Path &file)
 
 void Project::onFileRemoved(const Path &file)
 {
-    mFileManager->onFileRemoved(file);
     const uint32_t fileId = Location::fileId(file);
     debug() << file << "was removed" << fileId;
     if (!fileId)

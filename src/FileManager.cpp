@@ -19,19 +19,13 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 #include "Filter.h"
 #include "Project.h"
 
-FileManager::FileManager()
-    : mLastReloadTime(0)
+FileManager::FileManager(const std::shared_ptr<Project> &project)
+    : mProject(project), mLastReloadTime(0)
 {
     mScanTimer.timeout().connect(std::bind(&FileManager::startScanThread, this, std::placeholders::_1));
 }
 
-void FileManager::init(const std::shared_ptr<Project> &proj, Mode mode)
-{
-    mProject = proj;
-    reload(mode);
-}
-
-void FileManager::reload(Mode mode)
+void FileManager::load(Mode mode)
 {
     if (!Server::instance()->options().tests.isEmpty())
         mode = Synchronous;
@@ -65,7 +59,10 @@ void FileManager::onRecurseJobFinished(const Set<Path> &paths)
         }
         assert(!parent.isEmpty());
         Set<String> &dir = map[parent];
-        watch(parent);
+        if (dir.isEmpty()) {
+            watch(parent);
+            // error() << "Watching parent" << parent;
+        }
         dir.insert(it->fileName());
     }
     assert(!map.contains(""));
@@ -82,7 +79,7 @@ void FileManager::onFileAdded(const Path &path)
     switch (res) {
     case Filter::Directory:
         watch(path);
-        reload(Asynchronous);
+        load(Asynchronous);
         return;
     case Filter::Filtered:
         return;
@@ -100,7 +97,7 @@ void FileManager::onFileAdded(const Path &path)
         dir.insert(path.fileName());
     } else {
         error() << "Got empty parent here" << path;
-        reload(Asynchronous);
+        load(Asynchronous);
     }
     assert(!map.contains(Path()));
 }
@@ -113,10 +110,7 @@ void FileManager::onFileRemoved(const Path &path)
     if (!project)
         return;
     Files &map = project->files();
-    if (map.contains(path)) {
-        reload(Asynchronous);
-        return;
-    } else {
+    if (!map.remove(path)) {
         const Path parent = path.parentDir();
         if (map.contains(parent)) {
             Set<String> &dir = map[parent];
@@ -163,6 +157,7 @@ void FileManager::watch(const Path &path)
 
 void FileManager::startScanThread(Timer *)
 {
+    printf("[%s:%d]: void FileManager::startScanThread(Timer *)\n", __FILE__, __LINE__); fflush(stdout);
     std::shared_ptr<Project> project = mProject.lock();
     assert(project);
     ScanThread *thread = new ScanThread(project->path());
