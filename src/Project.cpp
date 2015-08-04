@@ -1562,7 +1562,7 @@ Set<Symbol> Project::findVirtuals(const Symbol &symbol)
     if (symbol.kind != CXCursor_CXXMethod || !(symbol.flags & Symbol::VirtualMethod))
         return Set<Symbol>();
 
-    const Symbol parent = [this](const Symbol &symbol) {
+    Symbol parent = [this](const Symbol &symbol) {
         for (const String &usr : findTargetUsrs(symbol.location)) {
             const Set<Symbol> syms = findByUsr(usr, symbol.location.fileId(), ArgDependsOn);
             for (const Symbol &sym : syms) {
@@ -1575,6 +1575,12 @@ Set<Symbol> Project::findVirtuals(const Symbol &symbol)
     }(symbol);
 
     assert(!parent.isNull());
+    if (parent.isDefinition()) {
+        const auto target = findTarget(parent);
+        if (!target.isNull()) {
+            parent = target;
+        }
+    }
 
     Set<Symbol> symSet;
     symSet.insert(parent);
