@@ -28,6 +28,12 @@
 #include <sys/resource.h>
 #endif
 
+#include <rct/FileSystemWatcher.h>
+
+#if !defined(HAVE_FSEVENTS) && defined(HAVE_KQUEUE)
+#define FILEMANAGER_OPT_IN
+#endif
+
 static void sigSegvHandler(int signal)
 {
     if (Server *server = Server::instance())
@@ -77,16 +83,17 @@ static void usage(FILE *f)
             "  --exclude-filter|-X [arg]                  Files to exclude from rdm, default \"" EXCLUDEFILTER_DEFAULT "\".\n"
             "  --extra-compilers|-U [arg]                 Override additional \"known\" compilers. E.g. -U foobar;c++, foobar;c or foobar:objective-c or just foobar.\n"
 
-#ifdef OS_Darwin
+#ifdef FILEMANAGER_OPT_IN
             "  --filemanager-watch|-M                     Use a file system watcher for filemanager.\n"
+#else
+            "  --no-filemanager-watch|-M                  Don't use a file system watcher for filemanager.\n"
 #endif
 
-            "  --job-count|-j [arg]                       Spawn this many concurrent processes for indexing (default %d).\n"
+         "  --job-count|-j [arg]                       Spawn this many concurrent processes for indexing (default %d).\n"
             "  --header-error-job-count|-H [arg]          Allow this many concurrent header error jobs (default std::max(1, --job-count / 2)).\n"
             "  --log-file|-L [arg]                        Log to this file.\n"
 
-#ifndef OS_Darwin
-            "  --no-filemanager-watch|-M                  Don't use a file system watcher for filemanager.\n"
+#ifndef OS_FreeBSD
 #endif
             "  --no-filesystem-watcher|-B                 Disable file system watching altogether. Reindexing has to happen manually.\n"
             "  --no-rc|-N                                 Don't load any rc files.\n"
@@ -206,7 +213,7 @@ int main(int argc, char** argv)
         { "enable-NDEBUG", no_argument, 0, 'g' },
         { "progress", no_argument, 0, 'p' },
         { "max-file-map-cache-size", required_argument, 0, 'y' },
-#ifdef OS_Darwin
+#ifdef OS_FreeBSD
         { "filemanager-watch", no_argument, 0, 'M' },
 #else
         { "no-filemanager-watch", no_argument, 0, 'M' },
@@ -331,7 +338,7 @@ int main(int argc, char** argv)
     serverOpts.options = Server::Wall|Server::SpellChecking;
     serverOpts.maxCrashCount = DEFAULT_MAX_CRASH_COUNT;
     serverOpts.completionCacheSize = DEFAULT_COMPLETION_CACHE_SIZE;
-#ifdef OS_Darwin
+#ifdef OS_FreeBSD
     serverOpts.options |= Server::NoFileManagerWatch;
 #endif
 // #ifndef NDEBUG
@@ -502,7 +509,7 @@ int main(int argc, char** argv)
             }
             break;
         case 'M':
-#ifdef OS_Darwin
+#ifdef OS_FreeBSD
             serverOpts.options &= ~Server::NoFileManagerWatch;
 #else
             serverOpts.options |= Server::NoFileManagerWatch;
