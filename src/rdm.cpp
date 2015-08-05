@@ -663,6 +663,15 @@ int main(int argc, char** argv)
             return 1;
         case 0:
             setsid();
+            switch (fork()) {
+            case -1:
+                fprintf(stderr, "Failed to fork (%d) %s\n", errno, strerror(errno));
+                return 1;
+            case 0:
+                break;
+            default:
+                return 0;
+            }
             break;
         default:
             return 0;
