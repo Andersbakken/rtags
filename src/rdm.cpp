@@ -76,6 +76,7 @@ static void usage(FILE *f)
             "  --completion-cache-size|-i [arg]           Number of translation units to cache (default " STR(DEFAULT_COMPLETION_CACHE_SIZE) ").\n"
             "  --config|-c [arg]                          Use this file instead of ~/.rdmrc.\n"
             "  --data-dir|-d [arg]                        Use this directory to store persistent data (default ~/.rtags).\n"
+            "  --daemon                                   Run as daemon (detach from terminal).\n"
             "  --disable-sighandler|-x                    Disable signal handler to dump stack for crashes.\n"
             "  --disallow-multiple-sources|-m             With this setting different sources will be merged for each source file.\n"
             "  --enable-NDEBUG|-g                         Don't remove -DNDEBUG from compile lines.\n"
@@ -225,6 +226,7 @@ int main(int argc, char** argv)
         { "launchd", no_argument, 0, '\4' },
 #endif
         { "inactivity-timeout", required_argument, 0, '\5' },
+        { "daemon", no_argument, 0, '\6' },
         { 0, 0, 0, 0 }
     };
     const String shortOptions = Rct::shortOptions(opts);
@@ -249,7 +251,7 @@ int main(int argc, char** argv)
         return 0;
     }
 
-
+    bool daemon = false;
     List<String> argCopy;
     List<char*> argList;
     {
@@ -381,6 +383,10 @@ int main(int argc, char** argv)
         case '\2':
             fprintf(stdout, "%s\n", RTags::versionString().constData());
             return 0;
+        case '\6':
+            daemon = true;
+            logLevel = LogLevel::None;
+            break;
         case 'U': {
             Source::Language lang = Source::NoLanguage;
             std::regex rx;
@@ -634,12 +640,11 @@ int main(int argc, char** argv)
             break;
 #endif
         case '\5':
-            inactivityTimeout = atoi(optarg);
+            inactivityTimeout = atoi(optarg); // seconds.
             if (inactivityTimeout <= 0) {
                 fprintf(stderr, "Invalid argument to --inactivity-timeout %s\n", optarg);
                 return 1;
             }
-                                       // seconds.
             break;
         case '?': {
             fprintf(stderr, "Run rdm --help for help\n");
@@ -649,6 +654,19 @@ int main(int argc, char** argv)
     if (optind < argCount) {
         fprintf(stderr, "rdm: unexpected option -- '%s'\n", args[optind]);
         return 1;
+    }
+
+    if (daemon) {
+        switch (fork()) {
+        case -1:
+            fprintf(stderr, "Failed to fork (%d) %s\n", errno, strerror(errno));
+            return 1;
+        case 0:
+            setsid();
+            break;
+        default:
+            return 0;
+        }
     }
 
     if (serverOpts.headerErrorJobCount == -1) {
