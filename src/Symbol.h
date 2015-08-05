@@ -28,7 +28,8 @@ struct Symbol
 {
     Symbol()
         : symbolLength(0), kind(CXCursor_FirstInvalid), type(CXType_Invalid), linkage(CXLinkage_Invalid),
-          flags(None), enumValue(0), startLine(-1), startColumn(-1), endLine(-1), endColumn(-1)
+          flags(None), enumValue(0), startLine(-1), endLine(-1), startColumn(-1), endColumn(-1),
+          size(-1), fieldOffset(-1)
     {}
 
     Location location;
@@ -54,7 +55,10 @@ struct Symbol
         bool definition;
         int64_t enumValue; // only used if type == CXCursor_EnumConstantDecl
     };
-    int startLine, startColumn, endLine, endColumn;
+    int32_t startLine, endLine;
+    int16_t startColumn, endColumn;
+    int32_t size; // sizeof
+    int32_t fieldOffset; // bits
 
     bool isNull() const { return location.isNull(); }
     void clear()
@@ -69,7 +73,7 @@ struct Symbol
         flags = 0;
         briefComment.clear();
         xmlComment.clear();
-        startLine = startColumn = endLine = endColumn = -1;
+        startLine = startColumn = endLine = endColumn = size = fieldOffset = -1;
     }
 
     uint16_t targetsValue() const;
@@ -125,7 +129,8 @@ template <> inline Serializer &operator<<(Serializer &s, const Symbol &t)
     s << t.location << t.symbolName << t.usr << t.baseClasses << t.symbolLength
       << static_cast<uint16_t>(t.kind) << static_cast<uint16_t>(t.type)
       << static_cast<uint8_t>(t.linkage) << t.flags << t.briefComment << t.xmlComment
-      << t.enumValue << t.startLine << t.startColumn << t.endLine << t.endColumn;
+      << t.enumValue << t.startLine << t.endLine << t.startColumn << t.endColumn
+      << t.size << t.fieldOffset;
     return s;
 }
 
@@ -136,7 +141,8 @@ template <> inline Deserializer &operator>>(Deserializer &s, Symbol &t)
     s >> t.location >> t.symbolName >> t.usr >> t.baseClasses
       >> t.symbolLength >> kind >> type >> linkage >> t.flags
       >> t.briefComment >> t.xmlComment >> t.enumValue
-      >> t.startLine >> t.startColumn >> t.endLine >> t.endColumn;
+      >> t.startLine >> t.endLine >> t.startColumn >> t.endColumn
+      >> t.size >> t.fieldOffset;
 
     t.kind = static_cast<CXCursorKind>(kind);
     t.type = static_cast<CXTypeKind>(type);

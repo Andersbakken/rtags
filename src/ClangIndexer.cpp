@@ -1015,7 +1015,8 @@ bool ClangIndexer::handleCursor(const CXCursor &cursor, CXCursorKind kind, const
     CXStringScope name = clang_getCursorSpelling(cursor);
     const char *cstr = name.data();
     c.symbolLength = cstr ? strlen(cstr) : 0;
-    c.type = clang_getCursorType(cursor).kind;
+    const CXType type = clang_getCursorType(cursor);
+    c.type = type.kind;
     c.location = location;
     c.usr = usr;
     if (!c.symbolLength) {
@@ -1089,15 +1090,30 @@ bool ClangIndexer::handleCursor(const CXCursor &cursor, CXCursorKind kind, const
     c.startColumn = startColumn;
     c.endColumn = endColumn;
 
-    if (kind == CXCursor_EnumConstantDecl) {
-#if CINDEX_VERSION > CINDEX_VERSION_ENCODE(0, 1)
+    switch (kind) {
+    case CXCursor_EnumConstantDecl:
+
+#if CINDEX_VERSION >= CINDEX_VERSION_ENCODE(0, 2)
         c.enumValue = clang_getEnumConstantDeclValue(cursor);
 #else
         c.definition = 1;
 #endif
-    } else {
+        break;
+    case CXCursor_FieldDecl:
+#if CINDEX_VERSION >= CINDEX_VERSION_ENCODE(0, 30)
+        c.fieldOffset = std::max<int32_t>(-1, clang_Cursor_getOffsetOfField(cursor));
+#endif
+        // fall through
+    default:
         c.definition = clang_isCursorDefinition(cursor);
+        break;
     }
+#if CINDEX_VERSION >= CINDEX_VERSION_ENCODE(0, 16)
+    if (!(c.flags & (Symbol::Auto|Symbol::AutoRef)) && c.type != CXType_LValueReference && c.type != CXType_RValueReference) {
+        c.size = clang_Type_getSizeOf(type);
+    }
+#endif
+
     c.kind = kind;
     c.linkage = clang_getCursorLinkage(cursor);
     // apparently some function decls will give a different usr for

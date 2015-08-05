@@ -40,7 +40,7 @@ String Symbol::toString(Flags<ToStringFlag> cursorInfoFlags,
                         Flags<Location::KeyFlag> keyFlags,
                         const std::shared_ptr<Project> &project) const
 {
-    static auto properties = [this]()
+    auto properties = [this]()
         {
             List<String> ret;
             if (isDefinition())
@@ -93,6 +93,8 @@ String Symbol::toString(Flags<ToStringFlag> cursorInfoFlags,
                                       "%s" // linkage
                                       "%s" // properties
                                       "%s" // usr
+                                      "%s" // sizeof
+                                      "%s" // fieldoffset
                                       "%s" // baseclasses
                                       "%s" // briefComment
                                       "%s", // xmlComment
@@ -108,6 +110,8 @@ String Symbol::toString(Flags<ToStringFlag> cursorInfoFlags,
                                       linkageSpelling(linkage),
                                       properties().constData(),
                                       usr.isEmpty() ? "" : String::format<64>("Usr: %s\n", usr.constData()).constData(),
+                                      size > 0 ? String::format<16>("sizeof: %d\n", size).constData() : "",
+                                      fieldOffset >= 0 ? String::format<32>("field offset (bits/bytes): %d/%d\n", fieldOffset, fieldOffset / 8).constData() : "",
                                       bases.isEmpty() ? "" : String::format<64>("BaseClasses: %s\n", String::join(bases, ", ").constData()).constData(),
                                       briefComment.isEmpty() ? "" : String::format<1024>("Brief comment: %s\n", briefComment.constData()).constData(),
                                       xmlComment.isEmpty() ? "" : String::format<16384>("Xml comment: %s\n", xmlComment.constData()).constData());
