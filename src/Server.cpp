@@ -155,24 +155,22 @@ bool Server::init(const Options &options)
         mOptions.includePaths.append(Source::Include(Source::Include::Type_System, systemInclude));
     }
 
-    Log l(LogLevel::Error);
-    l << "Running with" << mOptions.jobCount << "jobs, using args:"
-      << String::join(mOptions.defaultArguments, ' ') << '\n';
-    l << "Includepaths:";
-    for (const auto &inc : mOptions.includePaths)
-        l << inc.toString();
+    if (!initUnixServer()) {
+        error("Unable to listen on %s", mOptions.socketFile.constData());
+        return false;
+    }
+
+    {
+        Log l(LogLevel::Error);
+        l << "Running with" << mOptions.jobCount << "jobs, using args:"
+          << String::join(mOptions.defaultArguments, ' ') << '\n';
+        l << "Includepaths:";
+        for (const auto &inc : mOptions.includePaths)
+            l << inc.toString();
+    }
 
     if (mOptions.options & ClearProjects) {
         clearProjects();
-    }
-
-    if (!initUnixServer()) {
-        return false;
-    }
-
-    if (!mUnixServer) {
-        error("Unable to listen on %s", mOptions.socketFile.constData());
-        return false;
     }
 
     mJobScheduler.reset(new JobScheduler);
@@ -258,7 +256,7 @@ bool Server::initUnixServer()
         Path::rm(mOptions.socketFile);
     }
 
-    return true;
+    return mUnixServer.get();
 }
 
 std::shared_ptr<Project> Server::addProject(const Path &path)
