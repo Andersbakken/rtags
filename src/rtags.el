@@ -643,7 +643,7 @@ return t if rtags is allowed to modify this file"
       (when save-to-kill-ring
         (copy-region-as-kill (point-min) (point-max)))
       (when (called-interactively-p 'any)
-        (message (buffer-string)))
+        (message "%s" (buffer-string)))
       (buffer-string))))
 
 ;;;###autoload
