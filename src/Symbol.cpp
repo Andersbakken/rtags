@@ -112,6 +112,7 @@ String Symbol::toString(Flags<ToStringFlag> cursorInfoFlags,
                                       usr.isEmpty() ? "" : String::format<64>("Usr: %s\n", usr.constData()).constData(),
                                       size > 0 ? String::format<16>("sizeof: %d\n", size).constData() : "",
                                       fieldOffset >= 0 ? String::format<32>("field offset (bits/bytes): %d/%d\n", fieldOffset, fieldOffset / 8).constData() : "",
+                                      alignment >= 0 ? String::format<32>("alignment (bytes): %d\n", alignment).constData() : "",
                                       bases.isEmpty() ? "" : String::format<64>("BaseClasses: %s\n", String::join(bases, ", ").constData()).constData(),
                                       briefComment.isEmpty() ? "" : String::format<1024>("Brief comment: %s\n", briefComment.constData()).constData(),
                                       xmlComment.isEmpty() ? "" : String::format<16384>("Xml comment: %s\n", xmlComment.constData()).constData());

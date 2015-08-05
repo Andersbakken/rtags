@@ -29,7 +29,7 @@ struct Symbol
     Symbol()
         : symbolLength(0), kind(CXCursor_FirstInvalid), type(CXType_Invalid), linkage(CXLinkage_Invalid),
           flags(None), enumValue(0), startLine(-1), endLine(-1), startColumn(-1), endColumn(-1),
-          size(-1), fieldOffset(-1)
+          size(-1), fieldOffset(-1), alignment(-1)
     {}
 
     Location location;
@@ -58,7 +58,7 @@ struct Symbol
     int32_t startLine, endLine;
     int16_t startColumn, endColumn;
     int32_t size; // sizeof
-    int32_t fieldOffset; // bits
+    int16_t fieldOffset, alignment; // bits
 
     bool isNull() const { return location.isNull(); }
     void clear()
@@ -73,7 +73,7 @@ struct Symbol
         flags = 0;
         briefComment.clear();
         xmlComment.clear();
-        startLine = startColumn = endLine = endColumn = size = fieldOffset = -1;
+        startLine = startColumn = endLine = endColumn = size = fieldOffset = alignment = -1;
     }
 
     uint16_t targetsValue() const;
@@ -130,7 +130,7 @@ template <> inline Serializer &operator<<(Serializer &s, const Symbol &t)
       << static_cast<uint16_t>(t.kind) << static_cast<uint16_t>(t.type)
       << static_cast<uint8_t>(t.linkage) << t.flags << t.briefComment << t.xmlComment
       << t.enumValue << t.startLine << t.endLine << t.startColumn << t.endColumn
-      << t.size << t.fieldOffset;
+      << t.size << t.fieldOffset << t.alignment;
     return s;
 }
 
@@ -142,7 +142,7 @@ template <> inline Deserializer &operator>>(Deserializer &s, Symbol &t)
       >> t.symbolLength >> kind >> type >> linkage >> t.flags
       >> t.briefComment >> t.xmlComment >> t.enumValue
       >> t.startLine >> t.endLine >> t.startColumn >> t.endColumn
-      >> t.size >> t.fieldOffset;
+      >> t.size >> t.fieldOffset >> t.alignment;
 
     t.kind = static_cast<CXCursorKind>(kind);
     t.type = static_cast<CXTypeKind>(type);

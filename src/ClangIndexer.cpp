@@ -1101,16 +1101,18 @@ bool ClangIndexer::handleCursor(const CXCursor &cursor, CXCursorKind kind, const
         break;
     case CXCursor_FieldDecl:
 #if CINDEX_VERSION >= CINDEX_VERSION_ENCODE(0, 30)
-        c.fieldOffset = std::max<int32_t>(-1, clang_Cursor_getOffsetOfField(cursor));
+        c.fieldOffset = std::max<int16_t>(-1, clang_Cursor_getOffsetOfField(cursor));
 #endif
         // fall through
     default:
         c.definition = clang_isCursorDefinition(cursor);
         break;
     }
+
 #if CINDEX_VERSION >= CINDEX_VERSION_ENCODE(0, 16)
     if (!(c.flags & (Symbol::Auto|Symbol::AutoRef)) && c.type != CXType_LValueReference && c.type != CXType_RValueReference) {
         c.size = clang_Type_getSizeOf(type);
+        c.alignment = std::max<int16_t>(-1, clang_Type_getAlignOf(type));
     }
 #endif
 
