@@ -2208,7 +2208,7 @@ definition."
   (interactive)
   (let ((rtags-server-executable (rtags-executable-find "rdm")))
     (cond
-     ;; Already stated, nothing need to be done
+     ;; Already started, nothing need to be done
      ((processp rtags-process))
      ;; Executable not found or invalid
      ((or (null rtags-server-executable)
