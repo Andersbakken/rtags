@@ -839,7 +839,7 @@ bool ClangIndexer::handleReference(const CXCursor &cursor, CXCursorKind kind,
 
     bool reffedCursorFound;
     auto reffedCursor = findSymbol(refLoc, &reffedCursorFound);
-    Map<String, uint16_t> &targets = unit(location.fileId())->targets[location];
+    Map<String, uint16_t> &targets = unit(location)->targets[location];
     uint16_t refTargetValue;
     if (reffedCursorFound) {
         refTargetValue = reffedCursor.targetsValue();
@@ -957,8 +957,8 @@ void ClangIndexer::handleInclude(const CXCursor &cursor, CXCursorKind kind, cons
             String include = "#include ";
             const Path path = refLoc.path();
             assert(mSource.fileId);
-            unit(location.fileId())->symbolNames[(include + path)].insert(location);
-            unit(location.fileId())->symbolNames[(include + path.fileName())].insert(location);
+            unit(location)->symbolNames[(include + path)].insert(location);
+            unit(location)->symbolNames[(include + path.fileName())].insert(location);
             mIndexDataMessage.includes().push_back(std::make_pair(location.fileId(), refLoc.fileId()));
             c.symbolName = "#include " + RTags::eatString(clang_getCursorDisplayName(cursor));
             c.kind = cursor.kind;
@@ -1130,7 +1130,7 @@ bool ClangIndexer::handleCursor(const CXCursor &cursor, CXCursorKind kind, const
     unit(location)->usrs[c.usr].insert(location);
     if (c.kind != CXCursor_CXXMethod && c.linkage == CXLinkage_External && !c.isDefinition()) {
         mIndexDataMessage.declarations()[c.usr].insert(location.fileId());
-        unit(location.fileId())->targets[location][usr] = RTags::createTargetsValue(kind, true);
+        unit(location)->targets[location][usr] = RTags::createTargetsValue(kind, true);
     }
 
     if (!(ClangIndexer::serverOpts() & Server::NoComments)) {
@@ -1167,7 +1167,7 @@ bool ClangIndexer::handleCursor(const CXCursor &cursor, CXCursorKind kind, const
     case CXCursor_Constructor:
     case CXCursor_Destructor:
         assert(!::usr(clang_getCursorSemanticParent(cursor)).isEmpty());
-        unit(location.fileId())->targets[location][::usr(clang_getCursorSemanticParent(cursor))] = 0;
+        unit(location)->targets[location][::usr(clang_getCursorSemanticParent(cursor))] = 0;
         break;
     default:
         break;
@@ -1539,7 +1539,7 @@ void ClangIndexer::addFileSymbol(uint32_t file)
 {
     const Location loc(file, 1, 1);
     const Path path = Location::path(file);
-    auto ref = unit(loc.fileId());
+    auto ref = unit(loc);
     ref->symbolNames[path].insert(loc);
     const char *fn = path.fileName();
     ref->symbolNames[fn].insert(loc);
