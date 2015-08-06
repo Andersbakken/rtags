@@ -83,6 +83,11 @@
   :group 'rtags
   :type 'boolean)
 
+(defcustom rtags-reindex-on-save nil
+  "Explicitly reindex files on save. This should only be useful if your file system watching is not working"
+  :group 'rtags
+  :type 'boolean)
+
 (defcustom rtags-use-filename-completion t
   "Whether Rtags' special filename completion is enabled. Set to nil to enable ido-ubiquitous etc."
   :group 'rtags
@@ -1459,6 +1464,15 @@ References to references will be treated as references to the referenced symbol"
     (rtags-update-completions-timer)
     (rtags-restart-find-container-timer)
     (rtags-restart-tracking-timer)))
+
+(defun rtags-after-save-hook ()
+  (interactive)
+  (rtags-call-rc :path (buffer-file-name)
+                 "--silent"
+                 "-V" (buffer-file-name)))
+
+(when rtags-reindex-on-save
+  (add-hook 'after-save-hook (function rtags-after-save-hook)))
 
 (add-hook 'post-command-hook (function rtags-post-command-hook))
 ;; (remove-hook 'post-command-hook (function rtags-post-command-hook))
