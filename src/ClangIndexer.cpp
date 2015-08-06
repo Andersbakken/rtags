@@ -1060,18 +1060,23 @@ bool ClangIndexer::handleCursor(const CXCursor &cursor, CXCursorKind kind, const
                 //         << clang_Range_isNull(range)
                 //         << createLocation(clang_getCursorLocation(mLastCursor));
                 Symbol *cursorPtr = 0;
-                if (handleReference(mLastCursor, CXCursor_TypeRef,
-                                    createLocation(clang_getCursorLocation(mLastCursor)),
-                                    clang_getCursorReferenced(typeRef), nullCursor, &cursorPtr)) {
-                    // the type is read from the cursor passed in and that won't
-                    // be correct in this case
-                    cursorPtr->type = clang_getCursorType(typeRef).kind;
-                    cursorPtr->symbolLength = 4;
-                    typeOverride = cursorPtr->symbolName;
-                    cursorPtr->symbolName += " (auto)";
-                    cursorPtr->endLine = c.startLine;
-                    cursorPtr->endColumn = c.startColumn + 4;
-                    cursorPtr->flags |= Symbol::AutoRef;
+                const CXCursorKind typeRefKind = clang_getCursorKind(typeRef);
+                if (!clang_isInvalid(typeRefKind)) {
+                    c.type = clang_getCursorType(typeRef).kind;
+                    const Location loc = createLocation(clang_getCursorLocation(mLastCursor));
+                    if (loc.fileId() && handleReference(mLastCursor, CXCursor_TypeRef, loc,
+                                                        clang_getCursorReferenced(typeRef), nullCursor, &cursorPtr)) {
+                        // the type is read from the cursor passed in and that won't
+                        // be correct in this case
+                        cursorPtr->symbolLength = 4;
+                        cursorPtr->type = c.type;
+                        const int space = cursorPtr->symbolName.indexOf(' ');
+                        typeOverride = space == -1 ? cursorPtr->symbolName : cursorPtr->symbolName.mid(space + 1);
+                        cursorPtr->symbolName += " (auto)";
+                        cursorPtr->endLine = c.startLine;
+                        cursorPtr->endColumn = c.startColumn + 4;
+                        cursorPtr->flags |= Symbol::AutoRef;
+                    }
                 }
             }
         }
@@ -1224,7 +1229,9 @@ bool ClangIndexer::writeFiles(const Path &root, String &error)
 {
     for (const auto &unit : mUnits) {
         if (!(mIndexDataMessage.files().value(unit.first) & IndexDataMessage::Visited)) {
-            ::error() << "Wanting to write something for" << Location::path(unit.first) << "but we didn't visit it" << mSource.sourceFile()
+            ::error() << "Wanting to write something for"
+                      << unit.first << Location::path(unit.first)
+                      << "but we didn't visit it" << mSource.sourceFile()
                       << unit.second->targets.size()
                       << unit.second->usrs.size()
                       << unit.second->symbolNames.size()
