@@ -33,7 +33,7 @@ struct Symbol
     {}
 
     Location location;
-    String symbolName, usr;
+    String symbolName, usr, typeName;
     List<String> baseClasses;
     uint16_t symbolLength;
     CXCursorKind kind;
@@ -47,7 +47,8 @@ struct Symbol
         ConstMethod = 0x08,
         Variadic = 0x10,
         Auto = 0x20,
-        AutoRef = 0x40
+        AutoRef = 0x40,
+        MacroExpansion = 0x80
     };
     String briefComment, xmlComment;
     uint8_t flags;
@@ -66,6 +67,8 @@ struct Symbol
         location.clear();
         symbolName.clear();
         usr.clear();
+        typeName.clear();
+        baseClasses.clear();
         symbolLength = 0;
         kind = CXCursor_FirstInvalid;
         type = CXType_Invalid;
@@ -126,7 +129,7 @@ RCT_FLAGS(Symbol::ToStringFlag);
 
 template <> inline Serializer &operator<<(Serializer &s, const Symbol &t)
 {
-    s << t.location << t.symbolName << t.usr << t.baseClasses << t.symbolLength
+    s << t.location << t.symbolName << t.usr << t.typeName << t.baseClasses << t.symbolLength
       << static_cast<uint16_t>(t.kind) << static_cast<uint16_t>(t.type)
       << static_cast<uint8_t>(t.linkage) << t.flags << t.briefComment << t.xmlComment
       << t.enumValue << t.startLine << t.endLine << t.startColumn << t.endColumn
@@ -138,7 +141,7 @@ template <> inline Deserializer &operator>>(Deserializer &s, Symbol &t)
 {
     uint16_t kind, type;
     uint8_t linkage;
-    s >> t.location >> t.symbolName >> t.usr >> t.baseClasses
+    s >> t.location >> t.symbolName >> t.usr >> t.typeName >> t.baseClasses
       >> t.symbolLength >> kind >> type >> linkage >> t.flags
       >> t.briefComment >> t.xmlComment >> t.enumValue
       >> t.startLine >> t.endLine >> t.startColumn >> t.endColumn
@@ -155,7 +158,5 @@ static inline Log operator<<(Log dbg, const Symbol &symbol)
     const String out = "Symbol(" + symbol.toString() + ")";
     return (dbg << out);
 }
-
-
 
 #endif

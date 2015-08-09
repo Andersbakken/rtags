@@ -45,6 +45,13 @@ struct VerboseVisitorUserData {
     ClangIndexer *indexer;
 };
 
+static void setType(Symbol &symbol, const CXType &type)
+{
+    symbol.type = type.kind;
+    const String str = RTags::eatString(clang_getTypeSpelling(type));
+    symbol.typeName = str;
+}
+
 Flags<Server::Option> ClangIndexer::sServerOpts;
 ClangIndexer::ClangIndexer()
     : mClangUnit(0), mIndex(0), mLastCursor(nullCursor), mVisitFileResponseMessageFileId(0),
@@ -914,7 +921,7 @@ bool ClangIndexer::handleReference(const CXCursor &cursor, CXCursorKind kind,
             *cursorPtr = 0;
         return false;
     }
-    c.type = clang_getCursorType(cursor).kind;
+    setType(c, clang_getCursorType(cursor));
 
     return true;
 }
@@ -1016,7 +1023,7 @@ bool ClangIndexer::handleCursor(const CXCursor &cursor, CXCursorKind kind, const
     const char *cstr = name.data();
     c.symbolLength = cstr ? strlen(cstr) : 0;
     const CXType type = clang_getCursorType(cursor);
-    c.type = type.kind;
+    setType(c, type);
     c.location = location;
     c.usr = usr;
     if (!c.symbolLength) {
@@ -1062,7 +1069,7 @@ bool ClangIndexer::handleCursor(const CXCursor &cursor, CXCursorKind kind, const
                 Symbol *cursorPtr = 0;
                 const CXCursorKind typeRefKind = clang_getCursorKind(typeRef);
                 if (!clang_isInvalid(typeRefKind)) {
-                    c.type = clang_getCursorType(typeRef).kind;
+                    setType(c, clang_getCursorType(typeRef));
                     const Location loc = createLocation(clang_getCursorLocation(mLastCursor));
                     if (loc.fileId() && handleReference(mLastCursor, CXCursor_TypeRef, loc,
                                                         clang_getCursorReferenced(typeRef), nullCursor, &cursorPtr)) {
@@ -1166,6 +1173,7 @@ bool ClangIndexer::handleCursor(const CXCursor &cursor, CXCursorKind kind, const
         break;
     case CXCursor_Constructor:
     case CXCursor_Destructor:
+        // these are for joining constructors/destructor with their classes (for renaming symbols)
         assert(!::usr(clang_getCursorSemanticParent(cursor)).isEmpty());
         unit(location)->targets[location][::usr(clang_getCursorSemanticParent(cursor))] = 0;
         break;

@@ -659,6 +659,15 @@ return t if rtags is allowed to modify this file"
                                    :include-references verbose)))
 
 ;;;###autoload
+(defun rtags-symbol-type ()
+  (interactive)
+  (let ((info (rtags-symbol-info)))
+    (when (and info (string-match "^Type: \\(.*\\)$" info))
+      (when (called-interactively-p 'any)
+        (message match-string 1 info))
+      (match-string 1 info))))
+
+;;;###autoload
 (defun rtags-print-dependencies (&optional buffer)
   (interactive)
   (let ((dep-buffer (rtags-get-buffer))

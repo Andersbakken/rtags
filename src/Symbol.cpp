@@ -84,6 +84,18 @@ String Symbol::toString(Flags<ToStringFlag> cursorInfoFlags,
         bases = baseClasses;
     }
 
+    auto printTypeName = [this]() {
+        String str;
+        if (!typeName.isEmpty()) {
+            str = typeName;
+        } else if (type != CXType_Invalid) {
+            str = RTags::eatString(clang_getTypeKindSpelling(type));
+        } else {
+            return String();
+        }
+        return String::format<128>("Type: %s\n", str.constData());
+    };
+
     String ret = String::format<1024>("SymbolName: %s\n"
                                       "Kind: %s\n"
                                       "%s" // type
@@ -100,7 +112,7 @@ String Symbol::toString(Flags<ToStringFlag> cursorInfoFlags,
                                       "%s", // xmlComment
                                       symbolName.constData(),
                                       kindSpelling().constData(),
-                                      type == CXType_Invalid ? "" : String::format<128>("Type: %s\n", RTags::eatString(clang_getTypeKindSpelling(type)).constData()).constData(),
+                                      printTypeName().constData(),
                                       symbolLength,
                                       startLine != -1 ? String::format<32>("Range: %d:%d-%d:%d\n", startLine, startColumn, endLine, endColumn).constData() : "",
 #if CINDEX_VERSION_MINOR > 1
