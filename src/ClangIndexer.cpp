@@ -1010,8 +1010,11 @@ bool ClangIndexer::handleCursor(const CXCursor &cursor, CXCursorKind kind, const
     Symbol &c = unit(location)->symbols[location];
     if (cursorPtr)
         *cursorPtr = &c;
-    if (!c.isNull())
+    if (!c.isNull()) {
+        if (c.kind == CXCursor_MacroExpansion)
+            addNamePermutations(cursor, location, String(), RTags::Type_Cursor);
         return true;
+    }
 
     // if (mLogFile) {
     //     String out;
