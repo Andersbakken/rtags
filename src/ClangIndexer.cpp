@@ -45,7 +45,7 @@ struct VerboseVisitorUserData {
     ClangIndexer *indexer;
 };
 
-static void setType(Symbol &symbol, const CXType &type)
+static inline void setType(Symbol &symbol, const CXType &type)
 {
     symbol.type = type.kind;
     const String str = RTags::eatString(clang_getTypeSpelling(type));
