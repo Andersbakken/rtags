@@ -75,7 +75,11 @@ void parseTranslationUnit(const Path &sourceFile, const List<String> &args,
                           Flags<CXTranslationUnit_Flags> translationUnitFlags = CXTranslationUnit_None,
                           String *clangLine = 0);
 void reparseTranslationUnit(CXTranslationUnit &unit, CXUnsavedFile *unsaved, int unsavedCount);
-CXCursor resolveAutoTypeRef(const CXCursor &cursor, bool *isAuto = 0);
+struct Auto {
+    CXCursor cursor;
+    CXType type;
+};
+std::shared_ptr<Auto> resolveAuto(const CXCursor &cursor);
 
 struct Filter
 {

@@ -70,9 +70,9 @@ CXChildVisitResult DumpThread::visitor(CXCursor cursor, CXCursor, CXClientData u
             message += RTags::cursorToString(cursor, RTags::AllCursorToStringFlags);
             message.append(" " + RTags::typeName(cursor));;
             if (clang_getCursorKind(cursor) == CXCursor_VarDecl) {
-                const CXCursor autoResolved = RTags::resolveAutoTypeRef(cursor);
-                if (!clang_equalCursors(autoResolved, nullCursor)) {
-                    message += "auto resolves to " + RTags::cursorToString(autoResolved, RTags::AllCursorToStringFlags);
+                const std::shared_ptr<RTags::Auto> autoResolved = RTags::resolveAuto(cursor);
+                if (autoResolved && !clang_equalCursors(autoResolved->cursor, nullCursor)) {
+                    message += "auto resolves to " + RTags::cursorToString(autoResolved->cursor, RTags::AllCursorToStringFlags);
                 }
             }
             CXCursor ref = clang_getCursorReferenced(cursor);

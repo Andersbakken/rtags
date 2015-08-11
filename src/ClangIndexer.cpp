@@ -366,7 +366,7 @@ static inline void tokenize(const char *buf, int start,
 }
 
 String ClangIndexer::addNamePermutations(const CXCursor &cursor, const Location &location,
-                                         String type, RTags::CursorType cursorType)
+                                         RTags::CursorType cursorType)
 {
     CXCursorKind kind = clang_getCursorKind(cursor);
     const CXCursorKind originalKind = kind;
@@ -414,24 +414,30 @@ String ClangIndexer::addNamePermutations(const CXCursor &cursor, const Location 
         }
     } while (RTags::needsQualifiers(kind));
 
-    if (type.isEmpty()) {
-        switch (originalKind) {
-        case CXCursor_StructDecl:
-            type = "struct ";
-            break;
-        case CXCursor_ClassDecl:
-        case CXCursor_ClassTemplate:
-            type = "class ";
-            break;
-        case CXCursor_Namespace:
-            type = "namespace ";
-            break;
-        default:
-            type = RTags::typeName(cursor);
-            break;
+    String type;
+    switch (originalKind) {
+    case CXCursor_StructDecl:
+        type = "struct ";
+        break;
+    case CXCursor_ClassDecl:
+    case CXCursor_ClassTemplate:
+        type = "class ";
+        break;
+    case CXCursor_Namespace:
+        type = "namespace ";
+        break;
+    case CXCursor_Destructor:
+    case CXCursor_Constructor:
+        break;
+    default: {
+        type = RTags::eatString(clang_getTypeSpelling(clang_getCursorType(cursor)));
+        const int paren = type.indexOf('(');
+        if (paren != -1) {
+            type.resize(paren);
+        } else if (!type.isEmpty() && !type.endsWith('*') && !type.endsWith('&')) {
+            type.append(' ');
         }
-    } else if (!type.isEmpty() && !type.endsWith('*') && !type.endsWith('&')) {
-        type.append(' ');
+        break; }
     }
 
     if (cutoff == -1)
@@ -905,7 +911,7 @@ bool ClangIndexer::handleReference(const CXCursor &cursor, CXCursorKind kind,
     c.definition = false;
     c.kind = kind;
     c.location = location;
-    c.symbolName = reffedCursorFound ? reffedCursor.symbolName : addNamePermutations(ref, refLoc, String(), RTags::Type_Reference);
+    c.symbolName = reffedCursorFound ? reffedCursor.symbolName : addNamePermutations(ref, refLoc, RTags::Type_Reference);
 
     if (isOperator) {
         unsigned int start, end;
@@ -1012,7 +1018,7 @@ bool ClangIndexer::handleCursor(const CXCursor &cursor, CXCursorKind kind, const
         *cursorPtr = &c;
     if (!c.isNull()) {
         if (c.kind == CXCursor_MacroExpansion)
-            addNamePermutations(cursor, location, String(), RTags::Type_Cursor);
+            addNamePermutations(cursor, location, RTags::Type_Cursor);
         return true;
     }
 
@@ -1057,41 +1063,31 @@ bool ClangIndexer::handleCursor(const CXCursor &cursor, CXCursorKind kind, const
             return false;
         }
     } else {
-        String typeOverride;
         if (kind == CXCursor_VarDecl) {
-            bool isAuto;
-            const CXCursor typeRef = RTags::resolveAutoTypeRef(cursor, &isAuto);
-            if (isAuto)
+            std::shared_ptr<RTags::Auto> resolvedAuto = RTags::resolveAuto(cursor);
+            if (resolvedAuto) {
                 c.flags |= Symbol::Auto;
-            if (!clang_equalCursors(typeRef, nullCursor)) {
-                // const CXSourceRange range = clang_Cursor_getSpellingNameRange(mLastCursor, 0, 0);
-                // error() << "Found" << typeRef << "for" << cursor << mLastCursor
-                //         << createLocation(mLastCursor)
-                //         << clang_Range_isNull(range)
-                //         << createLocation(clang_getCursorLocation(mLastCursor));
-                Symbol *cursorPtr = 0;
-                const CXCursorKind typeRefKind = clang_getCursorKind(typeRef);
-                if (!clang_isInvalid(typeRefKind)) {
-                    setType(c, clang_getCursorType(typeRef));
-                    const Location loc = createLocation(clang_getCursorLocation(mLastCursor));
-                    if (loc.fileId() && handleReference(mLastCursor, CXCursor_TypeRef, loc,
-                                                        clang_getCursorReferenced(typeRef), nullCursor, &cursorPtr)) {
-                        // the type is read from the cursor passed in and that won't
-                        // be correct in this case
-                        cursorPtr->symbolLength = 4;
-                        cursorPtr->type = c.type;
-                        const int space = cursorPtr->symbolName.indexOf(' ');
-                        typeOverride = space == -1 ? cursorPtr->symbolName : cursorPtr->symbolName.mid(space + 1);
-                        cursorPtr->symbolName += " (auto)";
-                        cursorPtr->endLine = c.startLine;
-                        cursorPtr->endColumn = c.startColumn + 4;
-                        cursorPtr->flags |= Symbol::AutoRef;
+                if (resolvedAuto->type.kind != CXType_Invalid) {
+                    setType(c, resolvedAuto->type);
+                    if (!clang_equalCursors(resolvedAuto->cursor, nullCursor)) {
+                        const Location loc = createLocation(clang_getCursorLocation(mLastCursor));
+                        Symbol *cursorPtr = 0;
+                        if (loc.fileId() && handleReference(mLastCursor, CXCursor_TypeRef, loc,
+                                                            resolvedAuto->cursor, nullCursor, &cursorPtr)) {
+                            cursorPtr->symbolLength = 4;
+                            cursorPtr->type = c.type;
+                            cursorPtr->endLine = c.startLine;
+                            cursorPtr->endColumn = c.startColumn + 4;
+                            cursorPtr->flags |= Symbol::AutoRef;
+                        }
                     }
+                } else {
+                    error() << "Couldn't resolve auto for" << cursor;
                 }
             }
         }
 
-        c.symbolName = addNamePermutations(cursor, location, typeOverride, RTags::Type_Cursor);
+        c.symbolName = addNamePermutations(cursor, location, RTags::Type_Cursor);
     }
 
     const CXSourceRange range = clang_getCursorExtent(cursor);
@@ -1125,7 +1121,10 @@ bool ClangIndexer::handleCursor(const CXCursor &cursor, CXCursorKind kind, const
     }
 
 #if CINDEX_VERSION >= CINDEX_VERSION_ENCODE(0, 16)
-    if (!(c.flags & (Symbol::Auto|Symbol::AutoRef)) && c.type != CXType_LValueReference && c.type != CXType_RValueReference) {
+    if (!(c.flags & (Symbol::Auto|Symbol::AutoRef))
+        && c.type != CXType_LValueReference
+        && c.type != CXType_RValueReference
+        && c.type != CXType_Unexposed) {
         c.size = clang_Type_getSizeOf(type);
         c.alignment = std::max<int16_t>(-1, clang_Type_getAlignOf(type));
     }
@@ -1561,9 +1560,7 @@ void ClangIndexer::addFileSymbol(uint32_t file)
 int ClangIndexer::symbolLength(CXCursorKind kind, const CXCursor &cursor)
 {
     if (kind == CXCursor_VarDecl) {
-        bool isAuto;
-        RTags::resolveAutoTypeRef(cursor, &isAuto);
-        if (isAuto)
+        if (RTags::resolveAuto(cursor))
             return 4;
     }
 
