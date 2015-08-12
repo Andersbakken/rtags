@@ -664,7 +664,7 @@ return t if rtags is allowed to modify this file"
   (let ((info (rtags-symbol-info)))
     (when (and info (string-match "^Type: \\(.*\\)$" info))
       (when (called-interactively-p 'any)
-        (message match-string 1 info))
+        (message (match-string 1 info)))
       (match-string 1 info))))
 
 ;;;###autoload
