@@ -1736,8 +1736,24 @@ error:
 void Project::loadFailed(uint32_t fileId)
 {
     const Path sourcePath = Location::path(fileId);
-    if (!sourcePath.isSource() || !Server::instance()->jobScheduler()->increasePriority(fileId)) {
-        dirty(fileId);
+    if (sourcePath.isSource()) {
+        if (Server::instance()->jobScheduler()->increasePriority(fileId))
+            return;
+    } else { // header
+        for (auto dep : dependencies(fileId, Project::DependsOnArg)) {
+            if (Location::path(dep).isSource()) {
+                auto src = mSources.lower_bound(Source::key(dep, 0));
+                if (src != mSources.end()) {
+                    uint32_t f, b;
+                    Source::decodeKey(src->first, f, b);
+                    if (f == dep && Server::instance()->jobScheduler()->increasePriority(dep)) {
+                        return;
+                    }
+                }
+            }
+        }
     }
+
+    dirty(fileId); // file might have gone missing
 }
 
