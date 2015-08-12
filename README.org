@@ -481,6 +481,11 @@ preprocessed output for that region.
 Print some info about symbol under cursor
 
 #+BEGIN_SRC
+(rtags-symbol-type)
+#+END_SRC
+Print the type of the symbol under cursor.
+
+#+BEGIN_SRC
 (rtags-print-dependencies)
 #+END_SRC
 Open a buffer showing files that depend on current file/files that
