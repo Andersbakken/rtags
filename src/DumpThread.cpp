@@ -19,7 +19,7 @@
 #include "Server.h"
 
 DumpThread::DumpThread(const std::shared_ptr<QueryMessage> &queryMessage, const Source &source, const std::shared_ptr<Connection> &conn)
-    : Thread(), mQueryFlags(queryMessage->flags()), mSource(source), mConnection(conn), mIndentLevel(0)
+    : Thread(), mQueryFlags(queryMessage->flags()), mSource(source), mConnection(conn), mIndentLevel(0), mAborted(false)
 {
     setAutoDelete(true);
 }
@@ -31,6 +31,8 @@ CXChildVisitResult DumpThread::visitor(CXCursor cursor, CXCursor, CXClientData u
 {
     DumpThread *that = reinterpret_cast<DumpThread*>(userData);
     assert(that);
+    if (that->isAborted())
+        return CXChildVisit_Break;
     CXSourceLocation location = clang_getCursorLocation(cursor);
     if (!clang_equalLocations(location, nullLocation)) {
         Flags<Location::KeyFlag> locationFlags;
@@ -100,12 +102,16 @@ CXChildVisitResult DumpThread::visitor(CXCursor cursor, CXCursor, CXClientData u
     }
     ++that->mIndentLevel;
     clang_visitChildren(cursor, DumpThread::visitor, userData);
+    if (that->isAborted())
+        return CXChildVisit_Break;
     --that->mIndentLevel;
     return CXChildVisit_Continue;
 }
 
 void DumpThread::run()
 {
+    const auto key = mConnection->disconnected().connect([this](const std::shared_ptr<Connection> &) { abort(); });
+
     CXIndex index = clang_createIndex(0, 0);
     CXTranslationUnit translationUnit = 0;
     String clangLine;
@@ -118,6 +124,7 @@ void DumpThread::run()
     }
 
     clang_disposeIndex(index);
+    mConnection->disconnected().disconnect(key);
     std::weak_ptr<Connection> conn = mConnection;
     EventLoop::mainEventLoop()->callLater([conn]() {
             if (auto c = conn.lock())

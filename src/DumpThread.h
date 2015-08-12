@@ -28,6 +28,8 @@ class DumpThread : public Thread
 public:
     DumpThread(const std::shared_ptr<QueryMessage> &queryMessage, const Source &source, const std::shared_ptr<Connection> &conn);
     virtual void run() override;
+    void abort() { std::unique_lock<std::mutex> lock(mMutex); mAborted = false; }
+    bool isAborted() const { std::unique_lock<std::mutex> lock(mMutex); return mAborted; }
 private:
     static CXChildVisitResult visitor(CXCursor cursor, CXCursor, CXClientData userData);
     void writeToConnetion(const String &message);
@@ -36,6 +38,8 @@ private:
     std::shared_ptr<Connection> mConnection;
     Hash<Path, uint32_t> mFiles;
     int mIndentLevel;
+    mutable std::mutex mMutex;
+    bool mAborted;
 };
 
 #endif
