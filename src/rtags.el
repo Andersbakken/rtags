@@ -5,6 +5,7 @@
 ;; Author: Jan Erik Hanssen <jhanssen@gmail.com>
 ;;         Anders Bakken <agbakken@gmail.com>
 ;; URL: http://rtags.net
+;; Package-Requires: ((popup "0.5.3"))
 
 ;; This file is not part of GNU Emacs.
 
