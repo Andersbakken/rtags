@@ -5,6 +5,7 @@
 ;; Author: Jan Erik Hanssen <jhanssen@gmail.com>
 ;;         Anders Bakken <agbakken@gmail.com>
 ;; URL: http://rtags.net
+;; Package-Requires: ((popup "0.5.3"))
 
 ;; This file is not part of GNU Emacs.
 
@@ -664,7 +665,7 @@ return t if rtags is allowed to modify this file"
   (let ((info (rtags-symbol-info)))
     (when (and info (string-match "^Type: \\(.*\\)$" info))
       (when (called-interactively-p 'any)
-        (message match-string 1 info))
+        (message (match-string 1 info)))
       (match-string 1 info))))
 
 ;;;###autoload
