@@ -1082,7 +1082,7 @@ bool ClangIndexer::handleCursor(const CXCursor &cursor, CXCursorKind kind, const
                         }
                     }
                 } else {
-                    error() << "Couldn't resolve auto for" << cursor;
+                    warning() << "Couldn't resolve auto for" << cursor;
                 }
             }
         }
