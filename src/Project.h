@@ -217,6 +217,7 @@ private:
     void removeDependencies(uint32_t fileId);
     void updateDependencies(const std::shared_ptr<IndexDataMessage> &msg);
     void updateDeclarations(const Set<uint32_t> &visited, Declarations &declarations);
+    void loadFailed(uint32_t fileId);
     void updateFixIts(const Set<uint32_t> &visited, FixIts &fixIts);
     int startDirtyJobs(Dirty *dirty,
                        const UnsavedFiles &unsavedFiles = UnsavedFiles(),
@@ -298,7 +299,7 @@ private:
                 assert(openedFiles <= max);
             } else {
                 error() << "Failed to open" << path << Location::path(fileId) << err;
-                project->dirty(fileId);
+                project->loadFailed(fileId);
                 fileMap.reset();
             }
             return fileMap;

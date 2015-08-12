@@ -1732,3 +1732,12 @@ error:
         Log(err) << "Error during validation:" << Location::path(fileId) << error << path;
     return false;
 }
+
+void Project::loadFailed(uint32_t fileId)
+{
+    const Path sourcePath = Location::path(fileId);
+    if (!sourcePath.isSource() || !Server::instance()->jobScheduler()->increasePriority(fileId)) {
+        dirty(fileId);
+    }
+}
+

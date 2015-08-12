@@ -17,6 +17,8 @@
 #include "Project.h"
 #include "Server.h"
 
+enum { MaxPriority = 10 };
+// we set the priority to be this when a job has been requested and we couldn't load it
 JobScheduler::JobScheduler()
     : mProcrastination(0)
 {}
@@ -187,6 +189,7 @@ void JobScheduler::startJobs()
         node->job->flags |= IndexerJob::Running;
         process->write(node->job->encode());
         mActiveByProcess[process] = node;
+        // error() << "STARTING JOB" << node->job->source.sourceFile();
         mInactiveById.remove(jobId);
         mActiveById[jobId] = node;
         cont();
@@ -305,3 +308,31 @@ void JobScheduler::clearHeaderError(uint32_t file)
     if (mHeaderErrors.remove(file))
         warning() << Location::path(file) << "was touched, starting jobs";
 }
+
+// ### This is a linear lookup
+bool JobScheduler::increasePriority(uint32_t fileId)
+{
+    warning() << "Looking for" << Location::path(fileId);
+
+    for (auto node = mPendingJobs.first(); node; node = node->next) {
+        if (node->job->source.fileId == fileId) {
+            if (node->job->priority != IndexerJob::HeaderError) {
+                node->job->priority = MaxPriority;
+                mPendingJobs.moveToFront(node);
+                warning() << "Bumped priority for" << Location::path(fileId);
+            }
+
+            return true;
+        }
+    }
+
+    for (auto pair : mActiveByProcess) {
+        if (pair.second->job->source.fileId == fileId) {
+            warning() << Location::path(fileId) << "is already running";
+            return true;
+        }
+    }
+    warning() << "Failed to find node for" << Location::path(fileId);
+    return false;
+}
+
