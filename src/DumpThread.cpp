@@ -43,25 +43,26 @@ CXChildVisitResult DumpThread::visitor(CXCursor cursor, CXCursor, CXClientData u
         clang_getPresumedLocation(location, &file, &line, &col);
         Path path = RTags::eatString(file);
         if (!path.isEmpty() && path != "<built-in>") {
-            String message;
-            message.reserve(256);
             CXSourceRange range = clang_getCursorExtent(cursor);
             CXSourceLocation rangeEnd = clang_getRangeEnd(range);
             unsigned int endLine, endColumn;
             clang_getPresumedLocation(rangeEnd, 0, &endLine, &endColumn);
-            if (!path.isEmpty()) {
-                uint32_t &fileId = that->mFiles[path];
-                if (!fileId) {
-                    const Path resolved = path.resolved();
-                    fileId = Location::insertFile(resolved);
-                    that->mFiles[path] = that->mFiles[resolved] = fileId;
-                }
-                if (that->mQueryFlags & QueryMessage::DumpIncludeHeaders || fileId == that->mSource.fileId) {
-                    const Location loc(fileId, line, col);
-                    if (!(that->mQueryFlags & QueryMessage::NoContext)) {
-                        message += loc.context(locationFlags);
-                    }
-                }
+            uint32_t &fileId = that->mFiles[path];
+            if (!fileId) {
+                const Path resolved = path.resolved();
+                fileId = Location::insertFile(resolved);
+                that->mFiles[path] = that->mFiles[resolved] = fileId;
+            }
+            if (!(that->mQueryFlags & QueryMessage::DumpIncludeHeaders) && fileId != that->mSource.fileId) {
+                return CXChildVisit_Continue;
+            }
+
+            String message;
+            message.reserve(256);
+
+            if (!(that->mQueryFlags & QueryMessage::NoContext)) {
+                const Location loc(fileId, line, col);
+                message = loc.context(locationFlags);
             }
 
             if (endLine == line) {
