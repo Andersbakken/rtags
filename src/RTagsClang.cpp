@@ -211,53 +211,77 @@ std::shared_ptr<Auto> resolveAuto(const CXCursor &cursor)
                 ret->type = clang_getCursorType(ret->cursor);
                 break;
             case CXCursor_UnexposedExpr:
+            case CXCursor_UnaryOperator:
+            case CXCursor_MemberRefExpr:
+            case CXCursor_ArraySubscriptExpr:
+            case CXCursor_DeclRefExpr:
+            case CXCursor_BinaryOperator:
             case CXCursor_CallExpr: {
                 CXCursor callExpr = firstChild;
                 CXCursor func = clang_getNullCursor();
                 CXCursor parent = func;
                 bool done = false;
-                while (true) {
+                do {
                     const CXCursorKind kind = clang_getCursorKind(callExpr);
-                    if (kind == CXCursor_CallExpr) {
+                    // error() << "GOT" << kind << clang_getCursorKind(parent);
+                    switch (kind) {
+                    case CXCursor_CallExpr:
                         func = clang_getCursorReferenced(callExpr);
-                        if (!clang_isInvalid(clang_getCursorKind(func)))
-                            break;
-                    } else if (kind == CXCursor_LambdaExpr) {
+                        if (!clang_isInvalid(clang_getCursorKind(func))) {
+                            if (clang_getCursorKind(func) == CXCursor_Constructor) {
+                                ret->cursor = clang_getCursorSemanticParent(func);
+                                ret->type = clang_getCursorType(ret->cursor);
+                            } else {
+                                ret->type = clang_getResultType(clang_getCursorType(func));
+                                ret->cursor = clang_getTypeDeclaration(ret->type);
+                            }
+                            done = true;
+                        }
+                        break;
+                    case CXCursor_LambdaExpr:
                         ret->cursor = callExpr;
                         ret->type = clang_getCursorType(callExpr);
                         done = true;
                         break;
-                    } else if (kind == CXCursor_TypeRef) {
+                    case CXCursor_TypeRef:
+                    case CXCursor_MemberRefExpr:
+                    case CXCursor_DeclRefExpr:
                         ret->cursor = clang_getCursorReferenced(callExpr);
                         ret->type = clang_getCursorType(ret->cursor);
                         done = true;
                         break;
-                    } else if (kind == CXCursor_NamespaceRef) {
-                        const CXCursor typeRef = findChild(parent, CXCursor_TypeRef);
-                        if (clang_getCursorKind(typeRef) == CXCursor_TypeRef) {
+                    case CXCursor_NamespaceRef: {
+                        RTags::Filter filter;
+                        filter.kinds.insert(CXCursor_TypeRef);
+                        filter.kinds.insert(CXCursor_MemberRefExpr);
+                        const CXCursor typeRef = children(parent, filter).value(0, clang_getNullCursor());
+                        switch (clang_getCursorKind(typeRef)) {
+                        case CXCursor_TypeRef:
+                        case CXCursor_MemberRefExpr:
                             ret->cursor = clang_getCursorReferenced(typeRef);
                             ret->type = clang_getCursorType(ret->cursor);
+                            break;
+                        default:
+                            break;
                         }
                         done = true;
-                    } else if (kind != CXCursor_UnexposedExpr && kind != CXCursor_MemberRefExpr) {
+                        break; }
+                    case CXCursor_UnexposedExpr:
+                    case CXCursor_UnaryOperator:
+                    case CXCursor_BinaryOperator:
+                    case CXCursor_ArraySubscriptExpr:
+                        break;
+                    default:
                         done = true;
                         break;
                     }
                     parent = callExpr;
                     callExpr = findFirstChild(callExpr);
-                }
-
-                if (!done) {
-                    if (clang_getCursorKind(func) == CXCursor_Constructor) {
-                        ret->cursor = clang_getCursorSemanticParent(func);
-                        ret->type = clang_getCursorType(ret->cursor);
-                    } else {
-                        ret->type = clang_getResultType(clang_getCursorType(func));
-                        ret->cursor = clang_getTypeDeclaration(ret->type);
-                    }
-                }
+                } while (!done);
 
                 break; }
+            case CXCursor_InvalidFile:
+                break;
             default:
                 error() << "Unknown damned auto!!!" << cursor << firstChild;
                 break;
