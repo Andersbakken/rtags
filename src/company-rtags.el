@@ -1,4 +1,4 @@
-;; rtags.el --- A front-end for rtags
+;;; rtags.el --- A front-end for rtags
 
 ;; Copyright (C) 2011-2015  Jan Erik Hanssen and Anders Bakken
 

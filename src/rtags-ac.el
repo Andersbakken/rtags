@@ -1,3 +1,13 @@
+;;; rtags.el --- A front-end for rtags
+
+;; Copyright (C) 2011-2015  Jan Erik Hanssen and Anders Bakken
+
+;; Author: Jan Erik Hanssen <jhanssen@gmail.com>
+;;         Anders Bakken <agbakken@gmail.com>
+;; URL: http://rtags.net
+
+;; This file is not part of GNU Emacs.
+
 ;; This file is part of RTags (http://rtags.net).
 ;;
 ;; RTags is free software: you can redistribute it and/or modify
