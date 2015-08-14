@@ -790,6 +790,7 @@ return t if rtags is allowed to modify this file"
 
 (defun rtags-goto-line-col (line column)
   (let ((old (point)))
+    (push-mark)
     (goto-char (point-min))
     (condition-case nil
         (progn
