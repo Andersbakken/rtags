@@ -16,7 +16,7 @@ if [ "$branch_name" == "master" ]; then
     commit=`git show --oneline --no-patch`
     rm -rf $RELEASES
     mkdir $RELEASES
-    $SCRIPT_PATH/git-archive-all $RELEASES/rtags.tar
+    $SCRIPT_PATH/git-archive-all --prefix rtags/ $RELEASES/rtags.tar
     cd $RELEASES
     git init
     git checkout -b gh-pages
