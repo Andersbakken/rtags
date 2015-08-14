@@ -203,7 +203,7 @@ int main(int argc, char** argv)
         { "rp-connect-attempts", required_argument, 0, '\3' },
         { "rp-nice-value", required_argument, 0, 'a' },
         { "thread-stack-size", required_argument, 0, 'k' },
-        { "suspend-rp-on-crash", required_argument, 0, 'q' },
+        { "suspend-rp-on-crash", no_argument, 0, 'q' },
         { "start-suspended", no_argument, 0, 'Q' },
         { "separate-debug-and-release", no_argument, 0, 'E' },
         { "max-crash-count", required_argument, 0, 'K' },
@@ -505,14 +505,7 @@ int main(int argc, char** argv)
             serverOpts.options |= Server::WatchSystemPaths;
             break;
         case 'q':
-            if (!strcmp(optarg, "on") || !strcmp(optarg, "1")) {
-                serverOpts.options |= Server::SuspendRPOnCrash;
-            } else if (!strcmp(optarg, "off") || !strcmp(optarg, "1")) {
-                serverOpts.options &= ~Server::SuspendRPOnCrash;
-            } else {
-                fprintf(stderr, "Invalid argument to -q. Must be on, off, 1, or 0\n");
-                return 1;
-            }
+            serverOpts.options |= Server::SuspendRPOnCrash;
             break;
         case 'M':
 #ifdef OS_FreeBSD

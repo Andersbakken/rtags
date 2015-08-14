@@ -135,6 +135,20 @@ void JobScheduler::startJobs()
         List<String> arguments;
         for (int i=logLevel().toInt(); i>0; --i)
             arguments << "-v";
+
+        process->readyReadStdOut().connect([this](Process *proc) {
+                std::shared_ptr<Node> node = mActiveByProcess[proc];
+                assert(node);
+                node->stdOut.append(proc->readAllStdOut());
+
+                std::regex rx("@CRASH@([^@]*)@CRASH@");
+                std::smatch match;
+                while (std::regex_search(node->stdOut.ref(), match, rx)) {
+                    error() << match[1].str();
+                    node->stdOut.remove(match.position(), match.length());
+                }
+            });
+
         if (!process->start(rp, arguments)) {
             error() << "Couldn't start rp" << rp << process->errorString();
             delete process;
@@ -157,10 +171,9 @@ void JobScheduler::startJobs()
                 auto node = mActiveByProcess.take(proc);
                 assert(!node || node->process == proc);
                 const String stdErr = proc->readAllStdErr();
-                const String stdOut = proc->readAllStdOut();
-                if (!stdOut.isEmpty() || !stdErr.isEmpty()) {
+                if ((node && !node->stdOut.isEmpty()) || !stdErr.isEmpty()) {
                     error() << (node ? ("Output from " + node->job->sourceFile + ":") : String("Orphaned process:"))
-                            << '\n' << stdErr << stdOut;
+                            << '\n' << stdErr << (node ? node->stdOut : String());
                 }
 
                 if (node) {

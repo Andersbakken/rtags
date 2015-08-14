@@ -61,6 +61,7 @@ private:
         std::shared_ptr<IndexerJob> job;
         Process *process;
         std::shared_ptr<Node> next, prev;
+        String stdOut;
     };
     uint32_t hasHeaderError(DependencyNode *node, Set<uint32_t> &seen) const;
     uint32_t hasHeaderError(uint32_t file, const std::shared_ptr<Project> &project) const;

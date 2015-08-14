@@ -27,16 +27,20 @@
 
 static void sigHandler(int signal)
 {
-    if (ClangIndexer::serverOpts() & Server::SuspendRPOnCrash) {
-        while (true) {
-            fprintf(stderr, "rp crashed..., waiting for debugger\n%d\n", getpid());
-            sleep(1);
-        }
-    }
-    error("Caught signal %d\n", signal);
     // this is not really allowed in signal handlers but will mostly work
     const String trace = Rct::backtrace();
-    fprintf(stderr, "%s\n", trace.constData());
+    if (ClangIndexer::serverOpts() & Server::SuspendRPOnCrash) {
+        int seconds = 2;
+        printf("@CRASH@Caught signal %d\n%s@CRASH@", signal, trace.constData());
+        while (true) {
+            printf("@CRASH@rp crashed, waiting for debugger pid: %d@CRASH@", getpid());
+            fflush(stdout);
+            sleep(seconds);
+            if (seconds < 32)
+                seconds *= 2;
+        }
+    }
+    fprintf(stderr, "Caught signal %d\n%s\n", signal, trace.constData());
     fflush(stderr);
     ::closelog();
     _exit(1);
