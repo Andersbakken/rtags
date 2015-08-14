@@ -23,6 +23,6 @@ if [ "$branch_name" == "master" ]; then
     bzip2 rtags.tar
     git add rtags.tar.gz rtags.tar.bz2
     git commit -m "Release for $commit"
-    git push -f git@github.com:Andersbakken/rtags-releases.git master
+    git push -f git@github.com:Andersbakken/rtags-releases.git gh-pages
     # rm -rf $RELEASES
 fi
