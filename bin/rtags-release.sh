@@ -19,6 +19,7 @@ if [ "$branch_name" == "master" ]; then
     $SCRIPT_PATH/git-archive-all $RELEASES/rtags.tar
     cd $RELEASES
     git init
+    git checkout -b gh-pages
     gzip --keep rtags.tar
     bzip2 rtags.tar
     git add rtags.tar.gz rtags.tar.bz2
