@@ -97,9 +97,8 @@ or
 
 https://github.com/Andersbakken/rtags-releases/raw/gh-pages/rtags.tar.gz
 
-Note that these are not necessarily always up-to-date. (I know this
-isn't how gh-pages are supposed to work but I couldn't figure out the
-.io thing and I force push anyway).
+(I know this isn't how gh-pages are supposed to work but I couldn't
+figure out the .io thing).
 
 We recommend building in a separate directory to keep the build files
 separate from the source, but you can run =cmake= in the source tree
