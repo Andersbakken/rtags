@@ -101,6 +101,10 @@ void applyToSource(Source &source, bool defines, bool incPaths)
                 // Strip -x c++ and try again
                 args.removeFirst();
                 args.removeFirst();
+            } else if (i == 3) {
+                // GCC does not support -nobuiltininc flag.
+                // Remove and retry
+                args.removeFirst();
             } else {
                 error() << "CompilerManager: Cannot extract standard include paths.\n";
                 return;
