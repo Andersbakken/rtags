@@ -70,7 +70,7 @@ void applyToSource(Source &source, bool defines, bool incPaths)
                 err << proc.readAllStdErr().split('\n');
 
                 // proc success. What's next?
-                switch(i) {
+                switch (i) {
                 case 0:
                     // C++ ok .. see which path is controlled by -nostdinc++
                     args.prepend("-nostdinc++");
@@ -101,6 +101,7 @@ void applyToSource(Source &source, bool defines, bool incPaths)
                 // Strip -x c++ and try again
                 args.removeFirst();
                 args.removeFirst();
+                i = 1;
             } else if (i == 3) {
                 // GCC does not support -nobuiltininc flag.
                 // Remove and retry
