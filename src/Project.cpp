@@ -1866,7 +1866,6 @@ static String formatTable(const String &name, const std::shared_ptr<FileMap<Key,
 
         }
     }
-    error() << "Ager" << maxKey << maxValue << width;
 
     String ret;
     ret.reserve((count + 3) * (maxKey + maxValue + 7));

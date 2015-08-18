@@ -385,7 +385,7 @@ RClient::RClient()
     ioctl(0, TIOCGWINSZ, &w);
     mTerminalWidth = w.ws_col;
     if (mTerminalWidth <= 0)
-        mTerminalWidth = 80;
+        mTerminalWidth = 1024;
 }
 
 RClient::~RClient()
