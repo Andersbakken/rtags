@@ -1301,6 +1301,20 @@ void Server::sources(const std::shared_ptr<QueryMessage> &query, const std::shar
     const Path path = query->query();
     const bool flagsOnly = query->flags() & QueryMessage::CompilationFlagsOnly;
     const bool splitLine = query->flags() & QueryMessage::CompilationFlagsSplitLine;
+    auto format = [flagsOnly, splitLine](const Source &source) {
+        if (flagsOnly) {
+            const Flags<Source::CommandLineFlag> flags = (Source::Default
+                                                          |Source::ExcludeDefaultArguments
+                                                          |Source::IncludeCompiler
+                                                          |Source::IncludeSourceFile
+                                                          |Source::ExcludeDefaultIncludePaths);
+            return String::join(source.toCommandLine(flags), splitLine ? '\n' : ' ');
+        } else if (splitLine) {
+            return String::join(source.toString().split(' '), '\n');
+        } else {
+            return source.toString();
+        }
+    };
     if (path.isFile()) {
         std::shared_ptr<Project> project = projectForQuery(query);
         if (project) {
@@ -1308,16 +1322,11 @@ void Server::sources(const std::shared_ptr<QueryMessage> &query, const std::shar
             if (fileId) {
                 const List<Source> sources = project->sources(fileId);
                 int idx = 0;
-                for (const auto &it : sources) {
+                for (const auto &src : sources) {
                     String out;
                     if (sources.size() > 1)
                         out = String::format<4>("%d: ", idx);
-                    if (flagsOnly) {
-                        out += String::join(it.toCommandLine(), splitLine ? '\n' : ' ');
-                    } else {
-                        out += it.toString();
-                    }
-                    conn->write(out);
+                    conn->write(format(src));
                 }
             }
             conn->finish();
@@ -1330,14 +1339,7 @@ void Server::sources(const std::shared_ptr<QueryMessage> &query, const std::shar
         const Sources infos = project->sources();
         for (const auto &it : infos) {
             if (match.isEmpty() || match.match(it.second.sourceFile())) {
-                if (flagsOnly) {
-                    conn->write<128>("%s%s%s",
-                                     it.second.sourceFile().constData(),
-                                     splitLine ? "\n" : ": ",
-                                     String::join(it.second.toCommandLine(), splitLine ? '\n' : ' ').constData());
-                } else {
-                    conn->write(it.second.toString());
-                }
+                conn->write(format(it.second));
             }
         }
     } else {
