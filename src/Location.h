@@ -296,8 +296,8 @@ template <> inline Deserializer &operator>>(Deserializer &s, Location &t)
 
 static inline Log operator<<(Log dbg, const Location &loc)
 {
-    const String out = "Location(" + loc.key() + ")";
-    return (dbg << out);
+    dbg << loc.key();
+    return dbg;
 }
 
 #endif

@@ -54,6 +54,7 @@ public:
         DumpCompilationDatabase,
         DumpCompletions,
         DumpFile,
+        DumpFileMaps,
         DumpIncludeHeaders,
         ElispList,
         FilterSystemHeaders,
@@ -157,6 +158,7 @@ public:
     String socketFile() const { return mSocketFile; }
     Path projectRoot() const { return mProjectRoot; }
     Flags<QueryMessage::Flag> queryFlags() const { return mQueryFlags; }
+    int terminalWidth() const { return mTerminalWidth; }
 
     int argc() const { return mArgc; }
     char **argv() const { return mArgv; }
@@ -188,6 +190,7 @@ private:
     EscapeMode mEscapeMode;
     bool mGuessFlags;
     Path mProjectRoot;
+    int mTerminalWidth;
 
     int mArgc;
     char **mArgv;

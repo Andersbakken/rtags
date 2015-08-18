@@ -18,7 +18,7 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 #include <rct/Serializer.h>
 
 QueryMessage::QueryMessage(Type type)
-    : RTagsMessage(MessageId), mType(type), mMax(-1), mMinLine(-1), mMaxLine(-1), mBuildIndex(0)
+    : RTagsMessage(MessageId), mType(type), mMax(-1), mMinLine(-1), mMaxLine(-1), mBuildIndex(0), mTerminalWidth(-1)
 {
 }
 
@@ -26,14 +26,14 @@ void QueryMessage::encode(Serializer &serializer) const
 {
     serializer << mRaw << mQuery << mType << mFlags << mMax
                << mMinLine << mMaxLine << mBuildIndex << mPathFilters << mKindFilters
-               << mCurrentFile << mUnsavedFiles;
+               << mCurrentFile << mUnsavedFiles << mTerminalWidth;
 }
 
 void QueryMessage::decode(Deserializer &deserializer)
 {
     deserializer >> mRaw >> mQuery >> mType >> mFlags >> mMax
                  >> mMinLine >> mMaxLine >> mBuildIndex >> mPathFilters >> mKindFilters
-                 >> mCurrentFile >> mUnsavedFiles;
+                 >> mCurrentFile >> mUnsavedFiles >> mTerminalWidth;
 }
 
 Flags<Location::KeyFlag> QueryMessage::keyFlags(Flags<Flag> queryFlags)

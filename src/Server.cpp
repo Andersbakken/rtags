@@ -599,6 +599,9 @@ void Server::handleQueryMessage(const std::shared_ptr<QueryMessage> &message, co
     case QueryMessage::DumpFile:
         dumpFile(message, conn);
         break;
+    case QueryMessage::DumpFileMaps:
+        dumpFileMaps(message, conn);
+        break;
     case QueryMessage::Dependencies:
         dependencies(message, conn);
         break;
@@ -787,6 +790,39 @@ void Server::dumpFile(const std::shared_ptr<QueryMessage> &query, const std::sha
         conn->write<256>("%s build: %d not found", query->query().constData(), query->buildIndex());
         conn->finish();
     }
+}
+
+void Server::dumpFileMaps(const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Connection> &conn)
+{
+    Path path;
+    Deserializer deserializer(query->query());
+    deserializer >> path;
+    const uint32_t fileId = Location::fileId(path);
+    if (!fileId) {
+        conn->write<256>("%s is not indexed", query->query().constData());
+        conn->finish();
+        return;
+    }
+
+    std::shared_ptr<Project> project;
+    if (currentProject() && currentProject()->isIndexed(fileId)) {
+        project = currentProject();
+    } else {
+        for (const auto &p : mProjects) {
+            if (p.second->isIndexed(fileId)) {
+                project = p.second;
+                break;
+            }
+        }
+    }
+    if (!project) {
+        conn->write<256>("%s is not indexed", query->query().constData());
+        conn->finish();
+        return;
+    }
+
+    project->dumpFileMaps(query, conn);
+    conn->finish();
 }
 
 void Server::generateTest(const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Connection> &conn)

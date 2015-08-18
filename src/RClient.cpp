@@ -25,6 +25,8 @@
 #include "RTagsClang.h"
 #include "FileMap.h"
 #include <rct/StopWatch.h>
+#include <stdio.h>
+#include <sys/ioctl.h>
 
 struct Option {
     const RClient::OptionType option;
@@ -83,6 +85,7 @@ struct Option opts[] = {
     { RClient::CheckReindex, "check-reindex", 'x', optional_argument, "Check if reindexing is necessary for all files matching pattern." },
     { RClient::FindFile, "path", 'P', optional_argument, "Print files matching pattern." },
     { RClient::DumpFile, "dump-file", 'd', required_argument, "Dump source file." },
+    { RClient::DumpFileMaps, "dump-file-maps", 0, required_argument, "Dump file maps for file." },
     { RClient::GenerateTest, "generate-test", 0, required_argument, "Generate a test for a given source file." },
     { RClient::RdmLog, "rdm-log", 'g', no_argument, "Receive logs from rdm." },
     { RClient::FixIts, "fixits", 0, required_argument, "Get fixits for file." },
@@ -266,6 +269,7 @@ public:
         msg.setPathFilters(rc->pathFilters());
         msg.setKindFilters(rc->kindFilters());
         msg.setRangeFilter(rc->minOffset(), rc->maxOffset());
+        msg.setTerminalWidth(rc->terminalWidth());
         msg.setCurrentFile(rc->currentFile());
         return connection->send(msg);
     }
@@ -375,8 +379,13 @@ RClient::RClient()
     : mMax(-1), mTimeout(-1), mMinOffset(-1), mMaxOffset(-1),
       mConnectTimeout(DEFAULT_CONNECT_TIMEOUT), mBuildIndex(0),
       mLogLevel(LogLevel::Error), mEscapeMode(Escape_Auto),
-      mGuessFlags(false), mArgc(0), mArgv(0)
+      mGuessFlags(false), mTerminalWidth(-1), mArgc(0), mArgv(0)
 {
+    struct winsize w;
+    ioctl(0, TIOCGWINSZ, &w);
+    mTerminalWidth = w.ws_col;
+    if (mTerminalWidth <= 0)
+        mTerminalWidth = 80;
 }
 
 RClient::~RClient()
@@ -1069,6 +1078,24 @@ RClient::ParseStatus RClient::parse(int &argc, char **argv)
 
             addQuery(type, p);
             break; }
+        case DumpFileMaps: {
+            Path p = optarg;
+            if (!p.isFile()) {
+                fprintf(stderr, "%s is not a file\n", optarg);
+                return Parse_Error;
+            }
+            p.resolve();
+            List<String> args;
+            while (optind < argc && argv[optind][0] != '-') {
+                args.append(argv[optind++]);
+            }
+
+            String encoded;
+            Serializer s(encoded);
+            s << p << args;
+            addQuery(QueryMessage::DumpFileMaps, encoded);
+         break; }
+
         case PreprocessFile: {
             Path p = optarg;
             p.resolve(Path::MakeAbsolute);

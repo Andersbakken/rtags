@@ -1757,3 +1757,180 @@ void Project::loadFailed(uint32_t fileId)
     dirty(fileId); // file might have gone missing
 }
 
+template <typename T>
+static inline String toString(const T &t, int &max)
+{
+    String ret;
+    Log(&ret, LogOutput::NoTypename) << t;
+    max = std::max(max, ret.size());
+    ret.replace('\n', ' ');
+    return ret;
+}
+
+template <>
+inline String toString(const String &str, int &max)
+{
+    max = std::max(max, str.size());
+    String ret = str;
+    ret.replace('\n', ' ');
+    return ret;
+}
+
+static inline void fixString(String &string, int size)
+{
+    if (string.size() != size)
+        string.append(String(size - string.size(), ' '));
+}
+
+static List<String> split(const String &value, int max)
+{
+    List<String> words = value.split(' ', String::KeepSeparators);
+    List<String> ret(1);
+    int i = 0;
+    while (i < words.size()) {
+        const String &word = words.at(i);
+        if (ret.last().size() && ret.last().size() + word.size() > max) {
+            fixString(ret.last(), max);
+            ret.append(String());
+            continue;
+        }
+
+        if (word.size() > max) {
+            assert(ret.last().isEmpty());
+            for (int j=0; j<word.size(); j += max) {
+                if (j)
+                    ret.append(String());
+                ret.last() = word.mid(j, max);
+                fixString(ret.last(), max);
+            }
+        } else {
+            ret.last().append(word);
+        }
+        ++i;
+    }
+
+    fixString(ret.last(), max);
+    return ret;
+}
+
+template <typename T> struct PreferComma { enum { value = 0 }; };
+template <typename T> struct PreferComma<Set<T> > { enum { value = 1 }; };
+
+template <typename T>
+static List<String> formatField(const String &value, int max)
+{
+    List<String> ret;
+    if (value.size() <= max) {
+        ret << value.padded(String::End, max);
+    } else {
+        if (PreferComma<T>::value)
+            ret = value.split(',', String::KeepSeparators);
+
+        if (ret.size() > 1) {
+            for (int i=0; i<ret.size(); ++i) {
+                if (ret.at(i).size() > max) {
+                    auto split = ::split(ret.at(i), max);
+                    ret.remove(i, 1);
+                    ret.insert(i, split);
+                    i += split.size() - 1;
+                } else if (ret.at(i).size() != max) {
+                    ret[i].append(String(max - ret.at(i).size(), ' '));
+                }
+            }
+        } else {
+            ret = split(value, max);
+        }
+    }
+    return ret;
+}
+template <typename Key, typename Value>
+static String formatTable(const String &name, const std::shared_ptr<FileMap<Key, Value> > &fileMap, int width)
+{
+    width -= 7; // padding
+    List<String> keys, values;
+    const int count = fileMap->count();
+    int maxKey = 0;
+    int maxValue = 0;
+    for (int i=0; i<count; ++i) {
+        keys << toString(fileMap->keyAt(i), maxKey);
+        values << toString(fileMap->valueAt(i), maxValue);
+    }
+    error() << maxKey << maxValue << width;
+    if (maxKey + maxValue > width) {
+        if (maxKey < maxValue) {
+            maxKey = std::min(maxKey, static_cast<int>(width * .4));
+            maxValue = std::min(maxValue, width - maxKey);
+        } else {
+            maxValue = std::min(maxValue, static_cast<int>(width * .4));
+            maxKey = std::min(maxKey, width - maxValue);
+
+        }
+    }
+    error() << "Ager" << maxKey << maxValue << width;
+
+    String ret;
+    ret.reserve((count + 3) * (maxKey + maxValue + 7));
+    ret << name << '\n' << String(name.size(), '-') << '\n';
+    const String keyFill(maxKey, ' ');
+    const String valueFill(maxValue, ' ');
+    for (int i=0; i<count; ++i) {
+        const List<String> key = formatField<Key>(keys.at(i), maxKey);
+        const List<String> value = formatField<Value>(values.at(i), maxValue);
+        const int c = std::max(key.size(), value.size());
+        char ch = '|';
+        for (int j=0; j<c; ++j) {
+            ret << ch << ' ' << key.value(j, keyFill) << ' ' << ch << ' ' << value.value(j, valueFill) << ' ' << ch << '\n';
+            ch = '*';
+        }
+    }
+    return ret;
+}
+
+void Project::dumpFileMaps(const std::shared_ptr<QueryMessage> &msg, const std::shared_ptr<Connection> &conn)
+{
+    beginScope();
+    String err;
+
+    Path path;
+    List<String> args;
+    Deserializer deserializer(msg->query());
+    deserializer >> path >> args;
+    const uint32_t fileId = Location::fileId(path);
+    assert(fileId);
+    assert(isIndexed(fileId));
+
+    if (args.empty() || args.contains("symbols")) {
+        if (auto tbl = openSymbols(fileId, &err)) {
+            conn->write(formatTable("Symbols:", tbl, msg->terminalWidth()));
+        } else {
+            conn->write(err);
+        }
+    }
+
+    if (args.empty() || args.contains("symbolnames")) {
+        if (auto tbl = openSymbolNames(fileId, &err)) {
+            conn->write(formatTable("Symbol names:", tbl, msg->terminalWidth()));
+        } else {
+            conn->write(err);
+        }
+    }
+
+    if (args.empty() || args.contains("targets")) {
+        if (auto tbl = openTargets(fileId, &err)) {
+            conn->write(formatTable("Targets:", tbl, msg->terminalWidth()));
+        } else {
+            conn->write(err);
+        }
+    }
+
+    if (args.empty() || args.contains("usrs")) {
+        if (auto tbl = openUsrs(fileId, &err)) {
+            conn->write(formatTable("Targets:", tbl, msg->terminalWidth()));
+        } else {
+            conn->write(err);
+        }
+    }
+
+    endScope();
+}
+

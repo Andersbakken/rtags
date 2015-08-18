@@ -88,25 +88,25 @@ public:
         }
         return 0;
     }
-    std::shared_ptr<FileMap<String, Set<Location> > > openSymbolNames(uint32_t fileId)
+    std::shared_ptr<FileMap<String, Set<Location> > > openSymbolNames(uint32_t fileId, String *err = 0)
     {
         assert(mFileMapScope);
-        return mFileMapScope->openFileMap<String, Set<Location> >(SymbolNames, fileId, mFileMapScope->symbolNames);
+        return mFileMapScope->openFileMap<String, Set<Location> >(SymbolNames, fileId, mFileMapScope->symbolNames, err);
     }
-    std::shared_ptr<FileMap<Location, Symbol> > openSymbols(uint32_t fileId)
+    std::shared_ptr<FileMap<Location, Symbol> > openSymbols(uint32_t fileId, String *err = 0)
     {
         assert(mFileMapScope);
-        return mFileMapScope->openFileMap<Location, Symbol>(Symbols, fileId, mFileMapScope->symbols);
+        return mFileMapScope->openFileMap<Location, Symbol>(Symbols, fileId, mFileMapScope->symbols, err);
     }
-    std::shared_ptr<FileMap<String, Set<Location> > > openTargets(uint32_t fileId)
+    std::shared_ptr<FileMap<String, Set<Location> > > openTargets(uint32_t fileId, String *err = 0)
     {
         assert(mFileMapScope);
-        return mFileMapScope->openFileMap<String, Set<Location> >(Targets, fileId, mFileMapScope->targets);
+        return mFileMapScope->openFileMap<String, Set<Location> >(Targets, fileId, mFileMapScope->targets, err);
     }
-    std::shared_ptr<FileMap<String, Set<Location> > > openUsrs(uint32_t fileId)
+    std::shared_ptr<FileMap<String, Set<Location> > > openUsrs(uint32_t fileId, String *err = 0)
     {
         assert(mFileMapScope);
-        return mFileMapScope->openFileMap<String, Set<Location> >(Usrs, fileId, mFileMapScope->usrs);
+        return mFileMapScope->openFileMap<String, Set<Location> >(Usrs, fileId, mFileMapScope->usrs, err);
     }
 
     enum DependencyMode {
@@ -195,6 +195,7 @@ public:
     void onFileAdded(const Path &path);
     void onFileModified(const Path &path);
     void onFileRemoved(const Path &path);
+    void dumpFileMaps(const std::shared_ptr<QueryMessage> &msg, const std::shared_ptr<Connection> &conn);
     Hash<uint32_t, Path> visitedFiles() const
     {
         std::lock_guard<std::mutex> lock(mMutex);
@@ -257,7 +258,8 @@ private:
 
         template <typename Key, typename Value>
         std::shared_ptr<FileMap<Key, Value> > openFileMap(FileMapType type, uint32_t fileId,
-                                                          Hash<uint32_t, std::shared_ptr<FileMap<Key, Value> > > &cache)
+                                                          Hash<uint32_t, std::shared_ptr<FileMap<Key, Value> > > &cache,
+                                                          String *errPtr)
         {
             auto it = cache.find(fileId);
             if (it != cache.end()) {
@@ -298,7 +300,11 @@ private:
                 }
                 assert(openedFiles <= max);
             } else {
-                error() << "Failed to open" << path << Location::path(fileId) << err;
+                if (errPtr) {
+                    *errPtr = "Failed to open: " + path + " " + Location::path(fileId) + ": " + err;
+                } else {
+                    error() << "Failed to open" << path << Location::path(fileId) << err;
+                }
                 project->loadFailed(fileId);
                 fileMap.reset();
             }

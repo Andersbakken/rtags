@@ -41,6 +41,7 @@ public:
         DumpCompilationDatabase,
         DumpCompletions,
         DumpFile,
+        DumpFileMaps,
         FindFile,
         FindSymbols,
         FixIts,
@@ -130,6 +131,9 @@ public:
     void setBuildIndex(int index) { mBuildIndex = index; }
     int buildIndex() const { return mBuildIndex; }
 
+    int terminalWidth() const { return mTerminalWidth; }
+    void setTerminalWidth(int w) { mTerminalWidth = w; }
+
     Match match() const;
 
     void setRangeFilter(int min, int max)
@@ -181,6 +185,7 @@ private:
     Set<String> mKindFilters;
     Path mCurrentFile;
     UnsavedFiles mUnsavedFiles;
+    int mTerminalWidth;
 };
 
 RCT_FLAGS(QueryMessage::Flag);
