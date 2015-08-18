@@ -2194,9 +2194,10 @@ definition."
       (rtags-call-rc :path source "--sources" source "--compilation-flags-only")
       (let* ((lines (split-string (buffer-string) "\n" t))
              (line (car lines)))
-        (when (> (length lines) 1)
-          (setq line (or (completing-read "Choose build: " lines) line)))
-        (when line
+        (when (cond ((> (length lines) 1)
+                     (setq line (or (completing-read "Choose build: " lines) line)))
+                    ((null lines) (message "RTags doesn't know how to compile this file") nil)
+                    (t))
           (compile line))))))
 
 (defvar rtags-rdm-includes nil)
