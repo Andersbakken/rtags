@@ -1855,7 +1855,6 @@ static String formatTable(const String &name, const std::shared_ptr<FileMap<Key,
         keys << toString(fileMap->keyAt(i), maxKey);
         values << toString(fileMap->valueAt(i), maxValue);
     }
-    error() << maxKey << maxValue << width;
     if (maxKey + maxValue > width) {
         if (maxKey < maxValue) {
             maxKey = std::min(maxKey, static_cast<int>(width * .4));
