@@ -23,10 +23,12 @@ IndexMessage::IndexMessage()
 
 void IndexMessage::encode(Serializer &serializer) const
 {
-    serializer << mRaw << mWorkingDirectory << mProjectRoot << mCompilationDatabaseDir << mArgs << mFlags;
+    serializer << mRaw << mWorkingDirectory << mProjectRoot
+               << mCompilationDatabaseDir << mArgs << mFlags << mPathEnvironment;
 }
 
 void IndexMessage::decode(Deserializer &deserializer)
 {
-    deserializer >> mRaw >> mWorkingDirectory >> mProjectRoot >> mCompilationDatabaseDir >> mArgs >> mFlags;
+    deserializer >> mRaw >> mWorkingDirectory >> mProjectRoot
+                 >> mCompilationDatabaseDir >> mArgs >> mFlags >> mPathEnvironment;
 }

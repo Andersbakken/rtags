@@ -28,6 +28,7 @@ struct Source
     inline Source();
 
     uint32_t fileId, compilerId, buildRootId;
+    Path extraCompiler;
     uint64_t includePathHash;
     enum Language {
         NoLanguage,
@@ -177,8 +178,9 @@ struct Source
         Escape = 0x1
     };
     static List<Source> parse(const String &cmdLine,
-                              const Path &pwd,
                               Flags<ParseFlag> parseFlags,
+                              const Path &pwd,
+                              const List<Path> &pathEnvironment,
                               List<Path> *unresolvedInputLocation = 0);
 };
 
@@ -317,9 +319,9 @@ template <> inline Deserializer &operator>>(Deserializer &s, Source::Include &d)
 
 template <> inline Serializer &operator<<(Serializer &s, const Source &b)
 {
-    s << b.sourceFile() << b.fileId << b.compilerId << b.buildRootId << static_cast<uint8_t>(b.language)
-      << b.parsed << b.flags << b.defines << b.includePaths << b.arguments << b.sysRootIndex
-      << b.directory << b.includePathHash;
+    s << b.sourceFile() << b.fileId << b.compilerId << b.extraCompiler << b.buildRootId
+      << static_cast<uint8_t>(b.language) << b.parsed << b.flags << b.defines
+      << b.includePaths << b.arguments << b.sysRootIndex << b.directory << b.includePathHash;
     return s;
 }
 
@@ -328,9 +330,9 @@ template <> inline Deserializer &operator>>(Deserializer &s, Source &b)
     b.clear();
     uint8_t language;
     Path path;
-    s >> path >> b.fileId >> b.compilerId >> b.buildRootId >> language >> b.parsed >> b.flags
-      >> b.defines >> b.includePaths >> b.arguments >> b.sysRootIndex >> b.directory
-      >> b.includePathHash;
+    s >> path >> b.fileId >> b.compilerId >> b.extraCompiler >> b.buildRootId
+      >> language >> b.parsed >> b.flags >> b.defines >> b.includePaths
+      >> b.arguments >> b.sysRootIndex >> b.directory >> b.includePathHash;
     Location::set(path, b.fileId);
     b.language = static_cast<Source::Language>(language);
     return s;

@@ -82,7 +82,9 @@ public:
               rpConnectAttempts(0), rpNiceValue(0), threadStackSize(0), maxCrashCount(0),
               completionCacheSize(0), testTimeout(60 * 1000 * 5),
               maxFileMapScopeCacheSize(512)
-        {}
+        {
+        }
+
         Path socketFile, dataDir, argTransform;
         Flags<Option> options;
         int jobCount, headerErrorJobCount, rpVisitFileTimeout, rpIndexDataMessageTimeout,
@@ -94,7 +96,7 @@ public:
         List<Source::Define> defines;
         List<Path> tests;
         Set<Path> ignoredCompilers;
-        List<std::pair<std::regex, Source::Language> > extraCompilers;
+        List<std::regex> extraCompilers;
 
         inline bool flag(enum Option o) const { return 0 != (options & o); }
     };
@@ -117,6 +119,7 @@ private:
     void load();
     bool index(const String &arguments,
                const Path &pwd,
+               const List<Path> &pathEnvironment,
                const Path &projectRootOverride,
                Flags<IndexMessage::Flag> = Flags<IndexMessage::Flag>());
     void onNewConnection(SocketServer *server);
@@ -184,7 +187,7 @@ private:
     Options mOptions;
     bool mSuspended;
     SocketServer::SharedPtr mUnixServer;
-    bool mVerbose;
+    List<Path> mPathEnvironment;
 
     int mExitCode;
     uint32_t mLastFileId;

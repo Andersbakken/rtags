@@ -38,8 +38,8 @@ namespace RTags {
 enum {
     MajorVersion = 2,
     MinorVersion = 0,
-    DatabaseVersion = 73,
-    SourcesFileVersion = 1
+    DatabaseVersion = 74,
+    SourcesFileVersion = 2
 };
 
 inline String versionString()

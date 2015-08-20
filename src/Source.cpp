@@ -60,64 +60,7 @@ String Source::toString() const
     return ret;
 }
 
-static inline Source::Language guessLanguageFromCompiler(const Path &fullPath)
-{
-    assert(EventLoop::isMainThread());
-
-    if (const auto *opts = serverOptions()) {
-        for (const auto &pair : opts->extraCompilers) {
-            if (Rct::contains(fullPath, pair.first))
-                return pair.second;
-        }
-    }
-
-    String compiler = fullPath.fileName();
-
-    String c;
-    int dash = compiler.lastIndexOf('-');
-    if (dash >= 0) {
-        c = String(compiler.constData() + dash + 1, compiler.size() - dash - 1);
-    } else {
-        c = String(compiler.constData(), compiler.size());
-    }
-
-    if (c.size() != compiler.size()) {
-        bool isVersion = true;
-        for (int i=0; i<c.size(); ++i) {
-            if ((c.at(i) < '0' || c.at(i) > '9') && c.at(i) != '.') {
-#ifdef OS_CYGWIN
-                // eat 'exe' if it exists
-                if (c.mid(i) == "exe")
-                    goto cont;
-#endif
-                isVersion = false;
-                break;
-            }
-        }
-#ifdef OS_CYGWIN
-  cont:
-#endif
-        if (isVersion) {
-            dash = compiler.lastIndexOf('-', dash - 1);
-            if (dash >= 0) {
-                c = compiler.mid(dash + 1, compiler.size() - c.size() - 2 - dash);
-            } else {
-                c = compiler.left(dash);
-            }
-        }
-    }
-
-    Source::Language lang = Source::NoLanguage;
-    if (c.startsWith("g++") || c.startsWith("c++") || c.startsWith("clang++")) {
-        lang = Source::CPlusPlus;
-    } else if (c.startsWith("gcc") || c.startsWith("cc") || c.startsWith("clang")) {
-        lang = Source::C;
-    }
-    return lang;
-}
-
-static inline Source::Language guessLanguageFromSourceFile(const Path &sourceFile,
-                                                           Source::Language defaultLanguage)
+static inline Source::Language guessLanguageFromSourceFile(const Path &sourceFile)
 {
     // ### We should support some more of of these really
     // .Case("cl", IK_OpenCL)
@@ -162,25 +105,44 @@ static inline Source::Language guessLanguageFromSourceFile(const Path &sourceFil
             return Source::ObjectiveC;
         }
     }
-    return defaultLanguage;
+    return Source::NoLanguage;
 }
 
-static inline void eatAutoTools(List<String> &args)
+static Path findFileInPath(const Path &unresolved, const Path &cwd, const List<Path> &pathEnvironment)
 {
-    List<String> copy = args;
-    for (int i=0; i<args.size(); ++i) {
-        const String &arg = args.at(i);
-        if (!arg.startsWith("-") && (arg.endsWith("cc") || arg.endsWith("g++") || arg.endsWith("c++") || arg == "cd")) {
-            if (i) {
-                args.erase(args.begin(), args.begin() + i);
-                if (testLog(LogLevel::Debug)) {
-                    debug() << "ate something " << copy;
-                    debug() << "now we have " << args;
-                }
+    // error() << "Coming in with" << front;
+    Path resolve;
+    Path file;
+    if (unresolved.isAbsolute()) {
+        resolve = unresolved;
+    } else if (unresolved.contains('/')) {
+        assert(cwd.endsWith('/'));
+        resolve = cwd + unresolved;
+    } else {
+        file = unresolved;
+    }
+
+    if (!resolve.isEmpty()) {
+        const Path resolved = resolve.resolved();
+        if (!strcmp(resolved.fileName(), "gcc-rtags-wrapper.sh")) {
+            file = unresolved.fileName();
+        } else {
+            return resolve;
+        }
+        file = unresolved.fileName();
+    }
+
+    for (const Path &path : pathEnvironment) {
+        bool ok;
+        const Path p = Path::resolved(file, Path::RealPath, path, &ok);
+        if (ok) {
+            if (!strcmp(p.fileName(), "gcc-rtags-wrapper.sh") && !access(p.nullTerminated(), R_OK | X_OK)) {
+                debug() << "Found compiler" << p << "for" << unresolved;
+                return Path::resolved(file, Path::MakeAbsolute, path);
             }
-            break;
         }
     }
+    return unresolved;
 }
 
 static inline String trim(const char *start, int size)
@@ -337,28 +299,96 @@ static inline String unquote(const String& arg)
     return arg;
 }
 
-static inline bool isCompilerWrapper(const char *fileName)
+static inline bool isRTagsWrapper(Path path, const List<Path> &pathEnvironment)
 {
-    const char *wrappers[] = {
-        "gcc-rtags-wrapper.sh",
-        "icecc",
-        "plastc",
-        "plast_prefix.sh"
-    };
-    for (const char *wrapper : wrappers) {
-        if (!strcmp(wrapper, fileName))
-            return true;
-    }
-    return false;
+    if (path.isAbsolute())
+        path.resolve();
+    return !strcmp(path.fileName(), "gcc-rtags-wrapper.sh");
 }
 
-List<Source> Source::parse(const String &cmdLine, const Path &base,
-                           Flags<ParseFlag> parseFlags, List<Path> *unresolvedInputLocations)
+static Path resolveCompiler(const Path &unresolved, const Path &cwd, const List<Path> &pathEnvironment)
 {
+    assert(EventLoop::isMainThread()); // not threadsafe
+    static Hash<Path, Path> resolvedFromPath;
+    Path &compiler = resolvedFromPath[unresolved];
+    if (compiler.isEmpty())
+        compiler = findFileInPath(unresolved, cwd, pathEnvironment);
+
+    return compiler;
+}
+
+
+static inline bool isCompiler(const Path &fullPath)
+{
+    assert(EventLoop::isMainThread());
+
+    if (const auto *opts = serverOptions()) {
+        for (const auto &rx : opts->extraCompilers) {
+            if (Rct::contains(fullPath, rx))
+                return true;
+        }
+    }
+
+    String compiler = fullPath.fileName();
+
+    String c;
+    int dash = compiler.lastIndexOf('-');
+    if (dash >= 0) {
+        c = String(compiler.constData() + dash + 1, compiler.size() - dash - 1);
+    } else {
+        c = String(compiler.constData(), compiler.size());
+    }
+
+    if (c.size() != compiler.size()) {
+        bool isVersion = true;
+        for (int i=0; i<c.size(); ++i) {
+            if ((c.at(i) < '0' || c.at(i) > '9') && c.at(i) != '.') {
+#ifdef OS_CYGWIN
+                // eat 'exe' if it exists
+                if (c.mid(i) == "exe")
+                    goto cont;
+#endif
+                isVersion = false;
+                break;
+            }
+        }
+#ifdef OS_CYGWIN
+  cont:
+#endif
+        if (isVersion) {
+            dash = compiler.lastIndexOf('-', dash - 1);
+            if (dash >= 0) {
+                c = compiler.mid(dash + 1, compiler.size() - c.size() - 2 - dash);
+            } else {
+                c = compiler.left(dash);
+            }
+        }
+    }
+
+
+    return (c.startsWith("g++")
+            || c.startsWith("c++")
+            || c.startsWith("clang")
+            || c.startsWith("gcc")
+            || c.startsWith("cc"));
+}
+
+struct Input {
+    Path realPath, absolute;
+    uint32_t fileId;
+    Source::Language language;
+};
+
+List<Source> Source::parse(const String &cmdLine,
+                           Flags<ParseFlag> parseFlags,
+                           const Path &cwd,
+                           const List<Path> &pathEnvironment,
+                           List<Path> *unresolvedInputLocations)
+{
+    assert(!unresolvedInputLocations || unresolvedInputLocations->isEmpty());
     String args = cmdLine;
     char quote = '\0';
     List<String> split;
-    List<std::pair<uint32_t, Path> > inputs;
     {
         char *cur = args.data();
         char *prev = cur;
@@ -390,9 +420,16 @@ List<Source> Source::parse(const String &cmdLine, const Path &base,
         if (cur > prev)
             split.append(trim(prev, cur - prev));
     }
-    debug() << "Source::parse (" << args << ") => " << split << base;
+    debug() << "Source::parse (" << args << ") => " << split << cwd;
 
-    eatAutoTools(split);
+    for (int i=0; i<split.size(); ++i) {
+        if (split.at(i) == "cd" || !findFileInPath(split.at(i), cwd, pathEnvironment).isEmpty()) {
+            if (i) {
+                split.remove(0, i);
+            }
+            break;
+        }
+    }
 
     if (split.isEmpty()) {
         warning() << "Source::parse No args" << cmdLine;
@@ -401,26 +438,18 @@ List<Source> Source::parse(const String &cmdLine, const Path &base,
 
     Path path;
     if (split.front() == "cd" && split.size() > 3 && split.at(2) == "&&") {
-        path = Path::resolved(split.at(1), Path::MakeAbsolute, base);
+        path = Path::resolved(split.at(1), Path::MakeAbsolute, cwd);
         split.erase(split.begin(), split.begin() + 3);
     } else {
-        path = base;
+        path = cwd;
     }
     if (split.isEmpty()) {
         warning() << "Source::parse No args" << cmdLine;
         return List<Source>();
     }
 
-    if (split.first().endsWith("rtags-gcc-prefix.sh")) {
-        if (split.size() == 1) {
-            warning() << "Source::parse No args" << cmdLine;
-            return List<Source>();
-        }
-        split.removeAt(0);
-    }
-
-    Language language = guessLanguageFromCompiler(split.front());
-    bool hasDashX = false;
+    List<Input> inputs;
+    Language language = NoLanguage;
     Flags<Flag> sourceFlags;
     List<String> arguments;
     Set<Define> defines;
@@ -430,10 +459,11 @@ List<Source> Source::parse(const String &cmdLine, const Path &base,
     Path buildRoot;
     uint32_t compilerId = 0;
     uint64_t includePathHash = 0;
+    bool validCompiler = false;
 
     const int s = split.size();
-    bool seenCompiler = false;
     String arg;
+    Path extraCompiler;
     for (int i=0; i<s; ++i) {
         arg = split.at(i);
         if (arg.isEmpty())
@@ -463,7 +493,6 @@ List<Source> Source::parse(const String &cmdLine, const Path &base,
                 } else {
                     return List<Source>();
                 }
-                hasDashX = true;
                 arguments.append("-x");
                 arguments.append(a);
             } else if (arg.startsWith("-D")) {
@@ -507,7 +536,7 @@ List<Source> Source::parse(const String &cmdLine, const Path &base,
                     warning() << "[Source::parse] Removing additional -arch argument(s) to allow indexing.";
                 }
 
-            // Framework includes
+                // Framework includes
             } else if (arg.startsWith("-F")) {
                 addIncludeArg(includePaths, arguments, Source::Include::Type_Framework, 2, split, i, path);
             } else if (arg.startsWith("-iframework")) {
@@ -584,80 +613,50 @@ List<Source> Source::parse(const String &cmdLine, const Path &base,
                 }
             }
         } else {
-            if (!seenCompiler) {
-                seenCompiler = true;
-            } else {
-                Path input = Path::resolved(arg, Path::MakeAbsolute, path);
-                if (input.isSource()) {
-                    if (unresolvedInputLocations)
-                        *unresolvedInputLocations << input;
-                    input.resolve(Path::RealPath);
-                    inputs.append(std::make_pair(Location::insertFile(input), input));
+            bool add = true;
+            if (!compilerId) {
+                add = false;
+                const Path compiler = resolveCompiler(arg, cwd, pathEnvironment);
+                compilerId = Location::insertFile(compiler);
+                validCompiler = isCompiler(compiler);
+            } else if (i == 1) {
+                Path c = arg;
+                if (!c.isHeader() && !c.isSource()) {
+                    add = false;
+                    const Path resolved = findFileInPath(c, cwd, pathEnvironment);
+                    if (!access(resolved.nullTerminated(), R_OK | X_OK)) {
+                        extraCompiler = resolved;
+                        if (!validCompiler)
+                            validCompiler = isCompiler(extraCompiler);
+                    }
+                }
+            }
+            if (add) {
+                const Path resolved = Path::resolved(arg, Path::RealPath, cwd);
+                const Language lang = language != NoLanguage ? language : guessLanguageFromSourceFile(resolved);
+                if (lang != NoLanguage) {
+                    inputs.append({resolved, Path::resolved(arg, Path::MakeAbsolute, cwd), lang});
+                } else {
+                    warning() << "Can't figure out language for" << arg;
                 }
             }
         }
+    }
+
+    if (!validCompiler) {
+        warning() << "Source::parse Nothing looks like a compiler" << Location::path(compilerId) << extraCompiler;
+        return List<Source>();
     }
 
     if (inputs.isEmpty()) {
         warning() << "Source::parse No file for" << cmdLine;
-        if (unresolvedInputLocations)
-            unresolvedInputLocations->clear();
         return List<Source>();
     }
 
-    if (!isIndexable(language)) {
-        warning() << "Source::parse We can't index this" << language;
-        return List<Source>();
-    }
-
-    // ### not threadsafe
-    assert(EventLoop::isMainThread());
-    static Hash<Path, Path> resolvedFromPath;
-    Path front = split.front();
-    Path &compiler = resolvedFromPath[front];
-    if (compiler.isEmpty()) {
-        // error() << "Coming in with" << front;
-        if (front.startsWith('/')) {
-            Path resolved = front.resolved();
-            // error() << "got resolved to" << resolved;
-            const char *fn = resolved.fileName();
-            if (isCompilerWrapper(fn)) {
-                front = front.fileName();
-                // error() << "We're set at" << front;
-            } else {
-                compiler = resolved;
-            }
-        }
-        if (!front.startsWith('/') && !front.isEmpty()) {
-            static const char* path = getenv("PATH");
-            if (path) {
-                static const List<String> paths = String(path).split(':');
-                for (List<String>::const_iterator it = paths.begin(); it != paths.end(); ++it) {
-                    bool ok;
-                    const Path p = Path::resolved(front, Path::RealPath, *it, &ok);
-                    if (ok) {
-                        const char *fn = p.fileName();
-                        if (!isCompilerWrapper(fn) && !access(p.nullTerminated(), R_OK | X_OK)) {
-                            // error() << "Found it at" << compiler;
-                            compiler = p;
-                            break;
-                        }
-                    }
-                }
-            }
-        }
-        // error() << "Got compiler" << split.front() << "==>" << compiler;
-        if (compiler.isEmpty()) {
-            compiler = split.front();
-        }
-    }
-
-    // error() << split.front() << front << compiler;
-    compilerId = Location::insertFile(compiler);
     List<Source> ret;
     if (!inputs.isEmpty()) {
         if (!buildRootId) {
-            buildRoot = RTags::findProjectRoot(inputs.first().second, RTags::BuildRoot);
+            buildRoot = RTags::findProjectRoot(inputs.first().realPath, RTags::BuildRoot);
             buildRoot.resolve(Path::RealPath);
             buildRootId = Location::insertFile(buildRoot);
         }
@@ -666,9 +665,11 @@ List<Source> Source::parse(const String &cmdLine, const Path &base,
         ret.resize(inputs.size());
         int idx = 0;
         for (const auto input : inputs) {
+            unresolvedInputLocations->append(input.absolute);
             Source &source = ret[idx++];
             source.directory = path;
-            source.fileId = input.first;
+            source.fileId = Location::insertFile(input.absolute);
+            source.extraCompiler = extraCompiler;
             source.compilerId = compilerId;
             source.buildRootId = buildRootId;
             source.includePathHash = includePathHash;
@@ -677,7 +678,7 @@ List<Source> Source::parse(const String &cmdLine, const Path &base,
             source.includePaths = includePaths;
             source.arguments = arguments;
             source.sysRootIndex = sysRootIndex;
-            source.language = hasDashX ? language : guessLanguageFromSourceFile(input.second, language);
+            source.language = input.language;
         }
     }
     if (testLog(LogLevel::Warning))
@@ -813,8 +814,11 @@ List<String> Source::toCommandLine(Flags<CommandLineFlag> flags) const
 
     List<String> ret;
     ret.reserve(64);
-    if (flags & IncludeCompiler)
+    if (flags & IncludeCompiler) {
         ret.append(compiler());
+        if (!extraCompiler.isEmpty())
+            ret.append(extraCompiler);
+    }
 
     Map<String, String> config;
     Set<String> remove;

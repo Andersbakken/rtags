@@ -82,7 +82,7 @@ static void usage(FILE *f)
             "  --enable-NDEBUG|-g                         Don't remove -DNDEBUG from compile lines.\n"
             "  --enable-compiler-manager|-R               Query compilers for their actual include paths instead of letting clang use its own.\n"
             "  --exclude-filter|-X [arg]                  Files to exclude from rdm, default \"" EXCLUDEFILTER_DEFAULT "\".\n"
-            "  --extra-compilers|-U [arg]                 Override additional \"known\" compilers. E.g. -U foobar;c++, foobar;c or foobar:objective-c or just foobar.\n"
+            "  --extra-compilers|-U [arg]                 Override additional known compilers.\n"
 
 #ifdef FILEMANAGER_OPT_IN
             "  --filemanager-watch|-M                     Use a file system watcher for filemanager.\n"
@@ -387,31 +387,9 @@ int main(int argc, char** argv)
             daemon = true;
             logLevel = LogLevel::None;
             break;
-        case 'U': {
-            Source::Language lang = Source::NoLanguage;
-            std::regex rx;
-            if (char *semiColon = strchr(optarg, ';')) {
-                for (int i=Source::NoLanguage + 1; i<=Source::ObjectiveCPlusPlus; ++i) {
-                    const char *name = Source::languageName(static_cast<Source::Language>(i));
-                    if (!strcasecmp(name, semiColon + 1)) {
-                        lang = static_cast<Source::Language>(i);
-                        break;
-                    }
-                }
-                if (lang == Source::NoLanguage) {
-                    fprintf(stderr, "Unknown language %s, available languages:\n", semiColon + 1);
-                    for (int i=Source::NoLanguage + 1; i<=Source::ObjectiveCPlusPlus; ++i) {
-                        fprintf(stderr, "  %s\n", Source::languageName(static_cast<Source::Language>(i)));
-                    }
-                    return 1;
-                }
-                rx = std::string(optarg, semiColon - optarg - 1);
-            } else {
-                rx = optarg;
-                lang = Source::C;
-            }
-            serverOpts.extraCompilers.append(std::make_pair(rx, lang));
-            break; }
+        case 'U':
+            serverOpts.extraCompilers.append(std::regex(optarg));
+            break;
         case 'E':
             serverOpts.options |= Server::SeparateDebugAndRelease;
             break;

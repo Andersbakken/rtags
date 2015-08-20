@@ -364,6 +364,7 @@ public:
         msg.setFlag(IndexMessage::GuessFlags, rc->mGuessFlags);
         msg.setArguments(args);
         msg.setCompilationDatabaseDir(compilationDatabaseDir);
+        msg.setPathEnvironment(rc->pathEnvironment());
         if (!rc->projectRoot().isEmpty())
             msg.setProjectRoot(rc->projectRoot());
 
@@ -1178,3 +1179,11 @@ void RClient::onNewMessage(const std::shared_ptr<Message> &message, const std::s
         error("Unexpected message: %d", message->messageId());
     }
 }
+
+List<Path> RClient::pathEnvironment() const
+{
+    if (mPathEnvironment.isEmpty())
+        mPathEnvironment = Rct::pathEnvironment();
+    return mPathEnvironment;
+}
+

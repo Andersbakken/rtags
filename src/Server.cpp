@@ -74,6 +74,7 @@
 #define CLANG_LIBDIR_STR TO_STR(CLANG_LIBDIR)
 #endif
 
+// externed in files that are shared by rdm and rc
 const Server::Options *serverOptions()
 {
     return Server::instance() ? &Server::instance()->options() : 0;
@@ -87,7 +88,7 @@ void saveFileIds()
 
 Server *Server::sInstance = 0;
 Server::Server()
-    : mSuspended(false), mVerbose(false), mExitCode(0), mLastFileId(0), mCompletionThread(0)
+    : mSuspended(false), mPathEnvironment(Rct::pathEnvironment()), mExitCode(0), mLastFileId(0), mCompletionThread(0)
 {
     assert(!sInstance);
     sInstance = this;
@@ -404,6 +405,7 @@ String Server::guessArguments(const String &args, const Path &pwd, const Path &p
 
 bool Server::index(const String &args,
                    const Path &pwd,
+                   const List<Path> &pathEnvironment,
                    const Path &projectRootOverride,
                    Flags<IndexMessage::Flag> indexMessageFlags)
 {
@@ -433,14 +435,14 @@ bool Server::index(const String &args,
                 if (stdOut != arguments) {
                     warning() << "Changed\n" << arguments << "\nto\n" << stdOut;
                     parse = false;
-                    sources = Source::parse(stdOut, pwd, sourceParseFlags, &unresolvedPaths);
+                    sources = Source::parse(stdOut, sourceParseFlags, pwd, pathEnvironment, &unresolvedPaths);
                 }
             }
         }
     }
 
     if (parse)
-        sources = Source::parse(arguments, pwd, sourceParseFlags, &unresolvedPaths);
+        sources = Source::parse(arguments, sourceParseFlags, pwd, pathEnvironment, &unresolvedPaths);
 
     bool ret = false;
     int idx = 0;
@@ -465,8 +467,9 @@ bool Server::index(const String &args,
             root = projectRootOverride.ensureTrailingSlash();
             if (root.isEmpty()) {
                 root = RTags::findProjectRoot(unresolvedPath, RTags::SourceRoot);
-                if (root.isEmpty() && path != unresolvedPath)
+                if (root.isEmpty() && path != unresolvedPath) {
                     root = RTags::findProjectRoot(path, RTags::SourceRoot);
+                }
             }
         }
 
@@ -516,7 +519,7 @@ void Server::handleIndexMessage(const std::shared_ptr<IndexMessage> &message, co
                     args += " ";
             }
 
-            index(args, dir, message->projectRoot(), message->flags());
+            index(args, dir, message->pathEnvironment(), message->projectRoot(), message->flags());
         }
         clang_CompileCommands_dispose(cmds);
         clang_CompilationDatabase_dispose(db);
@@ -528,7 +531,7 @@ void Server::handleIndexMessage(const std::shared_ptr<IndexMessage> &message, co
     }
 #endif
     const bool ret = index(message->arguments(), message->workingDirectory(),
-                           message->projectRoot(), message->flags());
+                           message->pathEnvironment(), message->projectRoot(), message->flags());
     if (conn)
         conn->finish(ret ? 0 : 1);
 }
@@ -1782,7 +1785,7 @@ bool Server::runTests()
                 ret = false;
                 continue;
             }
-            if (!index("clang " + source.convert<String>(), workingDirectory, workingDirectory)) {
+            if (!index("clang " + source.convert<String>(), workingDirectory, mPathEnvironment, workingDirectory)) {
                 error() << "Failed to index" << ("clang " + source.convert<String>()) << workingDirectory;
                 ret = false;
                 continue;
