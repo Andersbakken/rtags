@@ -48,8 +48,8 @@ inline String versionString()
 }
 
 const LogLevel CompilationError(-2);
-const LogLevel CompilationErrorXml(-2);
-const LogLevel Statistics(-3);
+const LogLevel CompilationErrorXml(-3);
+const LogLevel Statistics(-4);
 
 enum UnitType {
     CompileC,
