@@ -1137,9 +1137,25 @@ bool ClangIndexer::handleCursor(const CXCursor &cursor, CXCursorKind kind, const
     // cursor's usr allows us to join them. Check JSClassRelease in
     // JavaScriptCore for an example.
     unit(location)->usrs[c.usr].insert(location);
-    if (c.kind != CXCursor_CXXMethod && c.linkage == CXLinkage_External && !c.isDefinition()) {
-        mIndexDataMessage.declarations()[c.usr].insert(location.fileId());
-        unit(location)->targets[location][usr] = RTags::createTargetsValue(kind, true);
+    if (c.linkage == CXLinkage_External && !c.isDefinition()) {
+        switch (c.kind) {
+        case CXCursor_FunctionDecl:
+        case CXCursor_VarDecl: {
+            mIndexDataMessage.declarations()[c.usr].insert(location.fileId());
+            const auto kind = clang_getCursorKind(clang_getCursorSemanticParent(cursor));
+            switch (kind) {
+            case CXCursor_ClassDecl:
+            case CXCursor_ClassTemplate:
+            case CXCursor_StructDecl:
+                break;
+            default:
+                unit(location)->targets[location][usr] = RTags::createTargetsValue(kind, true);
+                break;
+            }
+            break; }
+        default:
+            break;
+        }
     }
 
     if (!(ClangIndexer::serverOpts() & Server::NoComments)) {
