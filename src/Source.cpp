@@ -342,7 +342,8 @@ static inline bool isCompilerWrapper(const char *fileName)
     const char *wrappers[] = {
         "gcc-rtags-wrapper.sh",
         "icecc",
-        "plastc"
+        "plastc",
+        "plast_prefix.sh"
     };
     for (const char *wrapper : wrappers) {
         if (!strcmp(wrapper, fileName))
