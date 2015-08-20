@@ -893,6 +893,7 @@ return t if rtags is allowed to modify this file"
     (define-key map (concat prefix "[") (function rtags-location-stack-back))
     (define-key map (concat prefix "]") (function rtags-location-stack-forward))
     (define-key map (concat prefix "D") (function rtags-diagnostics))
+    (define-key map (concat prefix "C") (function rtags-compile-file))
     (define-key map (concat prefix "G") (function rtags-guess-function-at-point))
     (define-key map (concat prefix "p") (function rtags-set-current-project))
     (define-key map (concat prefix "P") (function rtags-print-dependencies))
