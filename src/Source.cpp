@@ -619,15 +619,17 @@ List<Source> Source::parse(const String &cmdLine,
                 const Path compiler = resolveCompiler(arg, cwd, pathEnvironment);
                 compilerId = Location::insertFile(compiler);
                 validCompiler = isCompiler(compiler);
-            } else if (i == 1) {
-                Path c = arg;
+            } else {
+                const Path c = arg;
                 if (!c.isHeader() && !c.isSource()) {
                     add = false;
-                    const Path resolved = findFileInPath(c, cwd, pathEnvironment);
-                    if (!access(resolved.nullTerminated(), R_OK | X_OK)) {
-                        extraCompiler = resolved;
-                        if (!validCompiler)
-                            validCompiler = isCompiler(extraCompiler);
+                    if (i == 1) {
+                        const Path resolved = findFileInPath(c, cwd, pathEnvironment);
+                        if (!access(resolved.nullTerminated(), R_OK | X_OK)) {
+                            extraCompiler = resolved;
+                            if (!validCompiler)
+                                validCompiler = isCompiler(extraCompiler);
+                        }
                     }
                 }
             }
