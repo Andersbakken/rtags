@@ -614,6 +614,7 @@ List<Source> Source::parse(const String &cmdLine,
             }
         } else {
             bool add = true;
+            Path resolved;
             if (!compilerId) {
                 add = false;
                 const Path compiler = resolveCompiler(arg, cwd, pathEnvironment);
@@ -621,12 +622,13 @@ List<Source> Source::parse(const String &cmdLine,
                 validCompiler = isCompiler(compiler);
             } else {
                 const Path c = arg;
-                if (!c.isHeader() && !c.isSource()) {
+                resolved = Path::resolved(arg, Path::RealPath, cwd);
+                if (!resolved.isHeader() && !resolved.isSource()) {
                     add = false;
                     if (i == 1) {
-                        const Path resolved = findFileInPath(c, cwd, pathEnvironment);
-                        if (!access(resolved.nullTerminated(), R_OK | X_OK)) {
-                            extraCompiler = resolved;
+                        const Path inPath = findFileInPath(c, cwd, pathEnvironment);
+                        if (!access(inPath.nullTerminated(), R_OK | X_OK)) {
+                            extraCompiler = inPath;
                             if (!validCompiler)
                                 validCompiler = isCompiler(extraCompiler);
                         }
@@ -634,7 +636,6 @@ List<Source> Source::parse(const String &cmdLine,
                 }
             }
             if (add) {
-                const Path resolved = Path::resolved(arg, Path::RealPath, cwd);
                 const Language lang = language != NoLanguage ? language : guessLanguageFromSourceFile(resolved);
                 if (lang != NoLanguage) {
                     inputs.append({resolved, Path::resolved(arg, Path::MakeAbsolute, cwd), lang});
