@@ -1923,7 +1923,7 @@ void Project::dumpFileMaps(const std::shared_ptr<QueryMessage> &msg, const std::
 
     if (args.empty() || args.contains("usrs")) {
         if (auto tbl = openUsrs(fileId, &err)) {
-            conn->write(formatTable("Targets:", tbl, msg->terminalWidth()));
+            conn->write(formatTable("Usrs:", tbl, msg->terminalWidth()));
         } else {
             conn->write(err);
         }
