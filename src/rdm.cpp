@@ -704,10 +704,12 @@ int main(int argc, char** argv)
         }
         serverOpts.dataDir = path;
         strcpy(buf, "/tmp/rtags-sock-XXXXXX");
-        if (!mkstemp(buf)) {
+        const int fd = mkstemp(buf);
+        if (fd == -1) {
             fprintf(stderr, "Failed to mkstemp (%d)\n", errno);
             return 1;
         }
+        close(fd);
         serverOpts.socketFile = buf;
         serverOpts.socketFile.resolve();
     }
