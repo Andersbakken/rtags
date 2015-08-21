@@ -299,13 +299,6 @@ static inline String unquote(const String& arg)
     return arg;
 }
 
-static inline bool isRTagsWrapper(Path path, const List<Path> &pathEnvironment)
-{
-    if (path.isAbsolute())
-        path.resolve();
-    return !strcmp(path.fileName(), "gcc-rtags-wrapper.sh");
-}
-
 static Path resolveCompiler(const Path &unresolved, const Path &cwd, const List<Path> &pathEnvironment)
 {
     assert(EventLoop::isMainThread()); // not threadsafe
