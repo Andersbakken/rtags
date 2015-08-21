@@ -160,7 +160,7 @@ private:
     CXTranslationUnit mClangUnit;
     CXIndex mIndex;
     CXCursor mLastCursor;
-    Location mLastLocation, mLastClass;
+    Location mLastClass;
     String mClangLine;
     uint32_t mVisitFileResponseMessageFileId;
     bool mVisitFileResponseMessageVisit;

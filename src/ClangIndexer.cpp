@@ -588,11 +588,11 @@ static inline CXCursor findDestructorForDelete(const CXCursor &deleteStatement)
 template <typename T>
 struct Updater
 {
-    Updater(T &var, const T &newValue) : mVar(var), mNewValue(newValue) {}
-    ~Updater() { mVar = mNewValue; }
+    Updater(T &v, const T &nv = T()) : var(v), newValue(nv) {}
+    ~Updater() { var = newValue; }
 
-    T &mVar;
-    const T mNewValue;
+    T &var;
+    T newValue;
 };
 
 CXChildVisitResult ClangIndexer::indexVisitor(CXCursor cursor, CXCursor parent, CXClientData data)
@@ -610,14 +610,13 @@ CXChildVisitResult ClangIndexer::indexVisitor(CXCursor cursor, CXCursor parent, 
     const CXCursorKind kind = clang_getCursorKind(cursor);
     const RTags::CursorType type = RTags::cursorType(kind);
     if (type == RTags::Type_Other) {
-        indexer->mLastLocation.clear();
         return CXChildVisit_Recurse;
     }
 
     bool blocked = false;
 
     Location loc = indexer->createLocation(cursor, &blocked);
-    const Updater<Location> lastLocationUpdater(indexer->mLastLocation, loc);
+
     if (blocked) {
         // error() << "blocked" << cursor;
         ++indexer->mBlocked;
@@ -647,7 +646,6 @@ CXChildVisitResult ClangIndexer::indexVisitor(CXCursor cursor, CXCursor parent, 
     } else {
         if (kind == CXCursor_CXXBaseSpecifier) {
             indexer->handleBaseClassSpecifier(cursor);
-            indexer->mLastLocation.clear();
             return CXChildVisit_Recurse;
         }
     }
