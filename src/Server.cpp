@@ -1026,8 +1026,12 @@ void Server::isIndexed(const std::shared_ptr<QueryMessage> &query, const std::sh
     std::shared_ptr<Project> project = projectForQuery(query);
     if (project) {
         bool indexed = false;
-        if (project->match(match, &indexed))
+        if (project->match(match, &indexed)) {
+            if (indexed) {
+                project->prepare(match.fileId());
+            }
             ret = indexed ? "indexed" : "managed";
+        }
     }
 
     if (!(query->flags() & QueryMessage::SilentQuery))

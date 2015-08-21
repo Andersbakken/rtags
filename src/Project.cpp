@@ -1932,3 +1932,16 @@ void Project::dumpFileMaps(const std::shared_ptr<QueryMessage> &msg, const std::
     endScope();
 }
 
+void Project::prepare(uint32_t fileId)
+{
+    if (fileId && isIndexed(fileId)) {
+        beginScope();
+        openSymbolNames(fileId);
+        openSymbols(fileId);
+        openTargets(fileId);
+        openUsrs(fileId);
+        debug() << "Prepared" << Location::path(fileId);
+        endScope();
+    }
+}
+

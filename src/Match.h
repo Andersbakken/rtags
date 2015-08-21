@@ -77,6 +77,10 @@ public:
     {
         return mPattern;
     }
+    uint32_t fileId() const
+    {
+        return Location::fileId(mPattern);
+    }
 private:
     std::regex mRegex;
     String mPattern;

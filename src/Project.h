@@ -211,6 +211,7 @@ public:
     void endScope();
     void dirty(uint32_t fileId);
     bool save();
+    void prepare(uint32_t fileId);
 private:
     void onFileAddedOrModified(const Path &path);
     void watchFile(uint32_t fileId);
