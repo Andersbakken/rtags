@@ -1936,10 +1936,11 @@ void Project::prepare(uint32_t fileId)
 {
     if (fileId && isIndexed(fileId)) {
         beginScope();
-        openSymbolNames(fileId);
-        openSymbols(fileId);
-        openTargets(fileId);
-        openUsrs(fileId);
+        String err;
+        openSymbolNames(fileId, &err);
+        openSymbols(fileId, &err);
+        openTargets(fileId, &err);
+        openUsrs(fileId, &err);
         debug() << "Prepared" << Location::path(fileId);
         endScope();
     }
