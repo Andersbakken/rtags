@@ -188,7 +188,7 @@ public:
 
     void watch(const Path &dir, WatchMode mode);
     void unwatch(const Path &dir, WatchMode mode);
-    void clearWatch(WatchMode mode);
+    void clearWatch(Flags<WatchMode> mode);
     Hash<Path, Flags<WatchMode> > watchedPaths() const { return mWatchedPaths; }
 
     bool isIndexing() const { return !mActiveJobs.isEmpty(); }

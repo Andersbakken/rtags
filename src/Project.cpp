@@ -1267,12 +1267,13 @@ void Project::watchFile(uint32_t fileId)
     watch(Location::path(fileId).parentDir(), Watch_SourceFile);
 }
 
-void Project::clearWatch(WatchMode mode)
+void Project::clearWatch(Flags<WatchMode> mode)
 {
     auto it = mWatchedPaths.begin();
     while (it != mWatchedPaths.end()) {
         it->second &= ~mode;
         if (!it->second) {
+            mWatcher.unwatch(it->first);
             mWatchedPaths.erase(it++);
         } else {
             ++it;
