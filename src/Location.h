@@ -84,8 +84,9 @@ public:
     {
         bool save = false;
         (void)save;
+        assert(path.isAbsolute());
         assert(!path.contains(".."));
-        assert(path.resolved() == path);
+        // in the case of Source::compilerId path can be a symlink
         uint32_t ret;
         {
             LOCK();
