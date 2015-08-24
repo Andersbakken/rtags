@@ -307,6 +307,8 @@ static Path resolveCompiler(const Path &unresolved, const Path &cwd, const List<
     if (compiler.isEmpty())
         compiler = findFileInPath(unresolved, cwd, pathEnvironment);
 
+    if (!compiler.isFile())
+        compiler.clear();
     return compiler;
 }
 
@@ -368,7 +370,6 @@ static inline bool isCompiler(const Path &fullPath)
 
 struct Input {
     Path realPath, absolute;
-    uint32_t fileId;
     Source::Language language;
 };
 
@@ -611,8 +612,12 @@ List<Source> Source::parse(const String &cmdLine,
             if (!compilerId) {
                 add = false;
                 const Path compiler = resolveCompiler(arg, cwd, pathEnvironment);
-                compilerId = Location::insertFile(compiler);
-                validCompiler = isCompiler(compiler);
+                if (!access(compiler.nullTerminated(), R_OK | X_OK)) {
+                    validCompiler = isCompiler(compiler);
+                    compilerId = Location::insertFile(compiler);
+                } else {
+                    break;
+                }
             } else {
                 const Path c = arg;
                 resolved = Path::resolved(arg, Path::RealPath, cwd);
@@ -675,6 +680,7 @@ List<Source> Source::parse(const String &cmdLine,
             source.arguments = arguments;
             source.sysRootIndex = sysRootIndex;
             source.language = input.language;
+            assert(source.language != NoLanguage);
         }
     }
     if (testLog(LogLevel::Warning))
