@@ -136,7 +136,7 @@ static Path findFileInPath(const Path &unresolved, const Path &cwd, const List<P
         bool ok;
         const Path p = Path::resolved(file, Path::RealPath, path, &ok);
         if (ok) {
-            if (!strcmp(p.fileName(), "gcc-rtags-wrapper.sh") && !access(p.nullTerminated(), R_OK | X_OK)) {
+            if (strcmp(p.fileName(), "gcc-rtags-wrapper.sh") && !access(p.nullTerminated(), R_OK | X_OK)) {
                 debug() << "Found compiler" << p << "for" << unresolved;
                 return Path::resolved(file, Path::MakeAbsolute, path);
             }
