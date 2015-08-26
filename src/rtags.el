@@ -71,6 +71,7 @@
 (defvar rtags-last-request-not-indexed nil)
 (defvar rtags-buffer-bookmarks 0)
 (defvar rtags-diagnostics-process nil)
+(defvar rtags-diagnostics-starting nil)
 
 (defun rtags-is-indexable-default (buffer)
   (let ((filename (buffer-file-name buffer)))
@@ -1543,24 +1544,23 @@ References to references will be treated as references to the referenced symbol"
   (when restart
     (rtags-stop-diagnostics))
   (let ((buf (rtags-get-buffer-create-no-undo rtags-diagnostics-buffer-name)))
-    (when (cond ((not rtags-diagnostics-process) t)
-                ((eq (process-status rtags-diagnostics-process) 'exit) t)
-                ((eq (process-status rtags-diagnostics-process) 'signal) t)
-                (t nil))
-      (with-current-buffer buf
-        (rtags-diagnostics-mode))
-      (unless nodirty
-        (rtags-reparse-file))
-      (let ((process-connection-type (not rtags-diagnostics-use-pipe))) ;; use a pipe if rtags-diagnostics-use-pipe is t
-        (let ((rawbuf (get-buffer rtags-diagnostics-raw-buffer-name)))
-          (when rawbuf
-            (kill-buffer rawbuf)))
-        (setq rtags-diagnostics-process (start-process "RTags Diagnostics" buf (rtags-executable-find "rc") "-m" "--elisp-list"))
-        (set-process-filter rtags-diagnostics-process (function rtags-diagnostics-process-filter))
-        (set-process-sentinel rtags-diagnostics-process 'rtags-diagnostics-sentinel)
-        (setq rtags-last-completions nil)
-        (setq rtags-last-completion-position nil)
-        (rtags-clear-diagnostics))))
+    (when (and (not (rtags-has-diagnostics))
+               (not rtags-diagnostics-starting))
+      (let ((rtags-diagnostics-starting t))
+        (with-current-buffer buf
+          (rtags-diagnostics-mode))
+        (unless nodirty
+          (rtags-reparse-file))
+        (let ((process-connection-type (not rtags-diagnostics-use-pipe))) ;; use a pipe if rtags-diagnostics-use-pipe is t
+          (let ((rawbuf (get-buffer rtags-diagnostics-raw-buffer-name)))
+            (when rawbuf
+              (kill-buffer rawbuf)))
+          (setq rtags-diagnostics-process (start-process "RTags Diagnostics" buf (rtags-executable-find "rc") "-m" "--elisp-list"))
+          (set-process-filter rtags-diagnostics-process (function rtags-diagnostics-process-filter))
+          (set-process-sentinel rtags-diagnostics-process 'rtags-diagnostics-sentinel)
+          (setq rtags-last-completions nil)
+          (setq rtags-last-completion-position nil)
+          (rtags-clear-diagnostics)))))
   (when (and (called-interactively-p 'any) (rtags-is-running))
     (switch-to-buffer-other-window rtags-diagnostics-buffer-name)
     (other-window 1)))
