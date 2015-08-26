@@ -22,9 +22,10 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 DependenciesJob::DependenciesJob(const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Project> &project)
     : QueryJob(query, project, QuietJob)
 {
-    Path p = query->query();
-    p.resolve();
-    mFileId = Location::fileId(p);
+    Deserializer deserializer(query->query());
+    Path path;
+    deserializer >> path >> mArgs;
+    mFileId = Location::fileId(path);
 }
 
 int DependenciesJob::execute()
@@ -34,6 +35,6 @@ int DependenciesJob::execute()
     std::shared_ptr<Project> proj = project();
     if (!proj)
         return 2;
-    write(proj->dumpDependencies(mFileId));
+    write(proj->dumpDependencies(mFileId, mArgs));
     return 0;
 }

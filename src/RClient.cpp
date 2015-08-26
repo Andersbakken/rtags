@@ -94,7 +94,7 @@ struct Option opts[] = {
     { RClient::FindProjectBuildRoot, "find-project-build-root", 0, required_argument, "Use to check behavior of find-project-root for builds." },
     { RClient::IncludeFile, "include-file", 0, required_argument, "Use to generate include statement for symbol." },
     { RClient::Sources, "sources", 0, optional_argument, "Dump sources for source file." },
-    { RClient::Dependencies, "dependencies", 0, required_argument, "Dump dependencies for source file." },
+    { RClient::Dependencies, "dependencies", 0, required_argument, "Dump dependencies for source file [(includes, included-by, depends-on, depended-on)]." },
     { RClient::ReloadFileManager, "reload-file-manager", 'B', no_argument, "Reload file manager." },
     { RClient::Man, "man", 0, no_argument, "Output XML for xmltoman to generate man page for rc :-)" },
     { RClient::CodeCompleteAt, "code-complete-at", 'l', required_argument, "Code complete at location: arg is file:line:col." },
@@ -1046,7 +1046,6 @@ RClient::ParseStatus RClient::parse(int &argc, char **argv)
             break;
         case IsIndexed:
         case DumpFile:
-        case Dependencies:
         case GenerateTest:
         case FixIts: {
             Path p = optarg;
@@ -1070,7 +1069,6 @@ RClient::ParseStatus RClient::parse(int &argc, char **argv)
             QueryMessage::Type type = QueryMessage::Invalid;
             switch (opt->option) {
             case GenerateTest: type = QueryMessage::GenerateTest; break;
-            case Dependencies: type = QueryMessage::Dependencies; break;
             case FixIts: type = QueryMessage::FixIts; break;
             case DumpFile: type = QueryMessage::DumpFile; break;
             case IsIndexed: type = QueryMessage::IsIndexed; break;
@@ -1079,7 +1077,8 @@ RClient::ParseStatus RClient::parse(int &argc, char **argv)
 
             addQuery(type, p);
             break; }
-        case DumpFileMaps: {
+        case DumpFileMaps:
+        case Dependencies: {
             Path p = optarg;
             if (!p.isFile()) {
                 fprintf(stderr, "%s is not a file\n", optarg);
@@ -1094,7 +1093,7 @@ RClient::ParseStatus RClient::parse(int &argc, char **argv)
             String encoded;
             Serializer s(encoded);
             s << p << args;
-            addQuery(QueryMessage::DumpFileMaps, encoded);
+            addQuery(opt->option == DumpFileMaps ? QueryMessage::DumpFileMaps : QueryMessage::Dependencies, encoded);
          break; }
 
         case PreprocessFile: {

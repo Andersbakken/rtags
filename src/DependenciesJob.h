@@ -28,6 +28,7 @@ protected:
     virtual int execute() override;
 private:
     uint32_t mFileId;
+    List<String> mArgs;
 };
 
 #endif

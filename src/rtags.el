@@ -669,14 +669,15 @@ return t if rtags is allowed to modify this file"
       (match-string 1 info))))
 
 ;;;###autoload
-(defun rtags-print-dependencies (&optional buffer)
-  (interactive)
+(defun rtags-print-dependencies (&optional prefix buffer)
+  (interactive "P")
   (let ((dep-buffer (rtags-get-buffer))
-        (fn (buffer-file-name buffer)))
+        (fn (buffer-file-name buffer))
+        (args (and prefix (completing-read "Type: " (list "includes" "included-by" "depends-on" "depended-on" )))))
     (when fn
       (rtags-location-stack-push)
       (switch-to-buffer dep-buffer)
-      (rtags-call-rc :path fn "--dependencies" fn)
+      (rtags-call-rc :path fn "--dependencies" fn args)
       (rtags-mode))))
 
 ;;;###autoload

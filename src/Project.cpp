@@ -1644,7 +1644,7 @@ void Project::endScope()
     mFileMapScope.reset();
 }
 
-String Project::dumpDependencies(uint32_t fileId) const
+String Project::dumpDependencies(uint32_t fileId, const List<String> &args) const
 {
     String ret;
 
@@ -1652,39 +1652,45 @@ String Project::dumpDependencies(uint32_t fileId) const
     if (!node)
         return String::format<128>("Can't find node for %s", Location::path(fileId).constData());
 
-    if (!node->includes.isEmpty()) {
-        ret += String::format<256>("  %s includes:\n", Location::path(fileId).constData());
+    if (!node->includes.isEmpty() && (args.isEmpty() || args.contains("includes"))) {
+        if (args.size() != 1)
+            ret += String::format<256>("  %s includes:\n", Location::path(fileId).constData());
         for (const auto &include : node->includes) {
             ret += String::format<256>("    %s\n", Location::path(include.first).constData());
         }
     }
-    if (!node->dependents.isEmpty()) {
-        ret += String::format<256>("  %s is included by:\n", Location::path(fileId).constData());
+    if (!node->dependents.isEmpty() && (args.isEmpty() || args.contains("included-by"))) {
+        if (args.size() != 1)
+            ret += String::format<256>("  %s is included by:\n", Location::path(fileId).constData());
         for (const auto &include : node->dependents) {
             ret += String::format<256>("    %s\n", Location::path(include.first).constData());
         }
     }
 
-    bool first = true;
-    for (auto dep : dependencies(fileId, Project::ArgDependsOn)) {
-        if (dep == fileId)
-            continue;
-        if (first) {
-            first = false;
-            ret += String::format<256>("  %s depends on:\n", Location::path(fileId).constData());
+    if (args.isEmpty() || args.contains("depends-on")) {
+        bool first = args.size() != 1;
+        for (auto dep : dependencies(fileId, Project::ArgDependsOn)) {
+            if (dep == fileId)
+                continue;
+            if (first) {
+                first = false;
+                ret += String::format<256>("  %s depends on:\n", Location::path(fileId).constData());
+            }
+            ret += String::format<256>("    %s\n", Location::path(dep).constData());
         }
-        ret += String::format<256>("    %s\n", Location::path(dep).constData());
     }
 
-    first = true;
-    for (auto dep : dependencies(fileId, Project::DependsOnArg)) {
-        if (dep == fileId)
-            continue;
-        if (first) {
-            first = false;
-            ret += String::format<256>("  %s is depended on by:\n", Location::path(fileId).constData());
+    if (args.isEmpty() || args.contains("depended-on")) {
+        bool first = args.size() != 1;
+        for (auto dep : dependencies(fileId, Project::DependsOnArg)) {
+            if (dep == fileId)
+                continue;
+            if (first) {
+                first = false;
+                ret += String::format<256>("  %s is depended on by:\n", Location::path(fileId).constData());
+            }
+            ret += String::format<256>("    %s\n", Location::path(dep).constData());
         }
-        ret += String::format<256>("    %s\n", Location::path(dep).constData());
     }
 
     return ret;
