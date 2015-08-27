@@ -118,9 +118,7 @@ static void usage(FILE *f)
 #ifdef OS_Darwin
             "  --launchd                                  Run as a launchd job (use launchd API to retrieve socket opened by launchd on rdm's behalf).\n"
 #endif
-            // This only really makes sense if you're using --launchd.
-            // But the code isn't OS X-specific, strictly speaking.
-            "  --inactivity-timeout [arg]                 Time in seconds after which launchd will quit if there's been no activity (N.B., once rdm has quit, something will need to re-run it!).\n"
+            "  --inactivity-timeout [arg]                 Time in seconds after which rdm will quit if there's been no activity (N.B., once rdm has quit, something will need to re-run it!).\n"
             "\nCompiling/Indexing options:\n"
             "  --allow-Wpedantic|-P                       Don't strip out -Wpedantic. This can cause problems in certain projects.\n"
             "  --define|-D [arg]                          Add additional define directive to clang.\n"
