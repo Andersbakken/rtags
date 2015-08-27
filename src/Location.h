@@ -190,7 +190,7 @@ public:
     {
         char path[PATH_MAX];
         uint32_t line, col;
-        if (sscanf(key.constData(), "%[^':']:%d:%d", path, &line, &col) != 3)
+        if (sscanf(key.constData(), "%[^':']:%u:%u", path, &line, &col) != 3)
             return String();
 
         Path resolved = Path::resolved(path, Path::MakeAbsolute, pwd);
@@ -208,7 +208,7 @@ public:
     {
         char path[PATH_MAX];
         uint32_t line, col;
-        if (sscanf(str.constData(), "%[^':']:%d:%d", path, &line, &col) != 3)
+        if (sscanf(str.constData(), "%[^':']:%u:%u", path, &line, &col) != 3)
             return Location();
 
         const Path resolved = Path::resolved(path, Path::RealPath, pwd);
