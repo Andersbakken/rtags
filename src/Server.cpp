@@ -473,6 +473,8 @@ bool Server::index(const String &args,
             }
         }
 
+        root.resolve(Path::RealPath, pwd);
+
         if (shouldIndex(source, root)) {
             std::shared_ptr<Project> &project = mProjects[root];
             if (!project) {
