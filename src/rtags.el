@@ -983,6 +983,25 @@ If called with a prefix restrict to current buffer"
       (rtags-handle-results-buffer))))
 
 ;;;###autoload
+(defun rtags-find-symbol-at-point-harder (&optional prefix)
+  "Find the natural target for the symbol under the cursor and moves to that location.  This is similar to rtags-find-symbol-at-point, but will fall back to searching for the first occurence of the bare symbol name (disregarding overloads, etc.) if needed.
+If called with a prefix restrict to current buffer"
+  (interactive "P")
+  (rtags-location-stack-push)
+  (let ((arg (rtags-current-location))
+        (tagname (rtags-current-symbol))
+        (fn (buffer-file-name)))
+    (rtags-reparse-file-if-needed)
+    (with-current-buffer (rtags-get-buffer)
+      (rtags-call-rc :path fn :path-filter prefix "-f" arg)
+      (if (not (rtags-handle-results-buffer :quiet t))
+          (progn
+            (rtags-call-rc :path fn "-F" tagname "-M" "1" :path-filter prefix
+                           (when rtags-wildcard-symbol-names "--wildcard-symbol-names")
+                           (when rtags-symbolnames-case-insensitive "-I"))
+            (rtags-handle-results-buffer))))))
+
+;;;###autoload
 (defun rtags-find-references-at-point (&optional prefix)
   "Find all references to the symbol under the cursor
 If there's exactly one result jump directly to it.
@@ -1608,12 +1627,12 @@ References to references will be treated as references to the referenced symbol"
 (defun rtags-has-filemanager (&optional buffer)
   (rtags-buffer-status buffer))
 
-(defun rtags-handle-results-buffer (&optional noautojump)
+(defun rtags-handle-results-buffer (&optional noautojump quiet)
   (setq rtags-last-request-not-indexed nil)
   (rtags-reset-bookmarks)
   (set-text-properties (point-min) (point-max) nil)
   (cond ((= (point-min) (point-max))
-         (message "RTags: No results") nil)
+         (when (not quiet) (message "RTags: No results")) nil)
         ((= (count-lines (point-min) (point-max)) 1)
          (let ((string (buffer-string)))
            (if (rtags-not-indexed/connected-message-p string)
@@ -1621,7 +1640,8 @@ References to references will be treated as references to the referenced symbol"
                  (setq rtags-last-request-not-indexed t)
                  nil)
              (bury-buffer)
-             (rtags-goto-location string))))
+             (rtags-goto-location string)
+             t)))
         (t
          (switch-to-buffer-other-window rtags-buffer-name)
          (goto-char (point-max))
@@ -1655,7 +1675,8 @@ References to references will be treated as references to the referenced symbol"
          (shrink-window-if-larger-than-buffer)
          (rtags-mode)
          (when (and rtags-jump-to-first-match (not noautojump))
-           (rtags-select-other-window)))))
+           (rtags-select-other-window))
+         t)))
 
 (defun rtags-filename-complete (string predicate code)
   (let ((complete-list (make-vector 63 0)))
