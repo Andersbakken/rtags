@@ -37,6 +37,7 @@
 (require 'cc-mode)
 (require 'popup)
 (require 'tramp)
+(require 'simple)
 
 (if (or (> emacs-major-version 24)
         (< emacs-major-version 23)
@@ -368,6 +369,7 @@ return t if rtags is allowed to modify this file"
   (use-local-map rtags-mode-map)
   (run-hooks 'rtags-mode-hook)
   (goto-char (point-min))
+  (setq next-error-function 'rtags-next-prev-match)
   (setq buffer-read-only t))
 
 (defun rtags-reset-bookmarks ()
@@ -375,32 +377,39 @@ return t if rtags is allowed to modify this file"
   (mapcar (lambda (bookmark) (when (string-match "^RTags_" bookmark) (bookmark-delete bookmark))) (bookmark-all-names)))
 
 ;;;###autoload
-(defun rtags-next-match () (interactive) (rtags-next-prev-match t))
+(defun rtags-next-match () (interactive) (rtags-next-prev-match 1 nil))
 ;;;###autoload
-(defun rtags-previous-match () (interactive) (rtags-next-prev-match nil))
+(defun rtags-previous-match () (interactive) (rtags-next-prev-match -1 nil))
 
-(defun rtags-next-prev-match (next)
+(defun rtags-next-prev-match (by reset)
   (when (get-buffer rtags-buffer-name)
     (let ((target)
+          (next (> by 0))
           (win (get-buffer-window rtags-buffer-name)))
       (when win
         (select-window win))
       (set-buffer rtags-buffer-name)
+      (when reset
+        (goto-char (point-min)))
       (when (> (count-lines (point-max) (point-min)) 1)
-        (cond ((and next
-                    (goto-char (point-at-eol))
-                    (re-search-forward "^\\(.*?\\):\\([0-9]+\\):\\([0-9]+\\)" nil t)))
-              (next
-               (goto-char (point-min))
-               (message "%s Wrapped" rtags-buffer-name))
-              ((and (not next)
-                    (goto-char (point-at-bol))
-                    (re-search-backward "^\\(.*?\\):\\([0-9]+\\):\\([0-9]+\\)" nil t)))
-              (t
-               (goto-char (point-max))
-               (re-search-backward "^\\(.*?\\):\\([0-9]+\\):\\([0-9]+\\)" nil t))
-               (message "%s Wrapped" rtags-buffer-name))
-        (beginning-of-line)
+        (while (not (eq by 0))
+          (cond ((and next
+                      (goto-char (point-at-eol))
+                      (re-search-forward "^\\(.*?\\):\\([0-9]+\\):\\([0-9]+\\)" nil t)))
+                (next
+                 (goto-char (point-min))
+                 (message "%s Wrapped" rtags-buffer-name))
+                ((and (not next)
+                      (goto-char (point-at-bol))
+                      (re-search-backward "^\\(.*?\\):\\([0-9]+\\):\\([0-9]+\\)" nil t)))
+                (t
+                 (goto-char (point-max))
+                 (re-search-backward "^\\(.*?\\):\\([0-9]+\\):\\([0-9]+\\)" nil t))
+                (message "%s Wrapped" rtags-buffer-name))
+          (beginning-of-line)
+          (if next
+              (decf by)
+            (incf by)))
         (if win
             (rtags-select-other-window)
           (rtags-select))))))
