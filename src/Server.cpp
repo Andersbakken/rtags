@@ -235,6 +235,23 @@ bool Server::initUnixServer()
     }
 #endif
 
+    char* listenFds = getenv("LISTEN_FDS");
+    if (listenFds != NULL) {
+        auto numFDs = atoi(listenFds);
+        if (numFDs != 1) {
+            error("Unexpected number of sockets from systemd: %d", numFDs);
+            return false;
+        }
+
+        mUnixServer.reset(new SocketServer);
+
+        if (!mUnixServer->listenfd(3)) {
+            return false;
+        }
+
+        return true;
+    }
+
     for (int i=0; i<10; ++i) {
         mUnixServer.reset(new SocketServer);
         warning() << "listening" << mOptions.socketFile;
@@ -1669,6 +1686,10 @@ void Server::removeSocketFile()
         return;
     }
 #endif
+
+    if (getenv("LISTEN_FDS")) {
+        return;
+    }
 
     Path::rm(mOptions.socketFile);
 }
