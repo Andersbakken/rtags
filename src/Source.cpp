@@ -379,6 +379,7 @@ List<Source> Source::parse(const String &cmdLine,
                            const List<Path> &pathEnvironment,
                            List<Path> *unresolvedInputLocations)
 {
+    assert(cwd.endsWith('/'));
     assert(!unresolvedInputLocations || unresolvedInputLocations->isEmpty());
     String args = cmdLine;
     char quote = '\0';

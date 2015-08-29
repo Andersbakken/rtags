@@ -426,6 +426,7 @@ bool Server::index(const String &args,
                    const Path &projectRootOverride,
                    Flags<IndexMessage::Flag> indexMessageFlags)
 {
+    assert(pwd.endsWith('/'));
     const Flags<Source::ParseFlag> sourceParseFlags = (indexMessageFlags & IndexMessage::Escape
                                                        ? Source::Escape
                                                        : Source::None);
@@ -525,7 +526,7 @@ void Server::handleIndexMessage(const std::shared_ptr<IndexMessage> &message, co
             CXCompileCommand cmd = clang_CompileCommands_getCommand(cmds, i);
             String args;
             CXString str = clang_CompileCommand_getDirectory(cmd);
-            Path dir = clang_getCString(str);
+            const Path dir = clang_getCString(str);
             clang_disposeString(str);
             const unsigned int num = clang_CompileCommand_getNumArgs(cmd);
             for (unsigned int j = 0; j < num; ++j) {
@@ -536,7 +537,7 @@ void Server::handleIndexMessage(const std::shared_ptr<IndexMessage> &message, co
                     args += " ";
             }
 
-            index(args, dir, message->pathEnvironment(), message->projectRoot(), message->flags());
+            index(args, dir.ensureTrailingSlash(), message->pathEnvironment(), message->projectRoot(), message->flags());
         }
         clang_CompileCommands_dispose(cmds);
         clang_CompilationDatabase_dispose(db);
