@@ -43,6 +43,8 @@ endif ()
 
 find_package(Curses REQUIRED)
 
+string(REGEX REPLACE "-[Og][0-9]*" "" CLANG_CXXFLAGS "${CLANG_CXXFLAGS}")
+
 set(CMAKE_CXX_FLAGS ${CLANG_CXXFLAGS})
 
 if (EXISTS ${CLANG_COMPILATION_INCLUDE})
@@ -147,3 +149,4 @@ install(CODE "message(\"Installing rtags...\")")
 install(TARGETS rdm rc rp RUNTIME DESTINATION bin COMPONENT rtags)
 install(FILES ../man/man7/rc.7 ../man/man7/rdm.7 DESTINATION share/man/man7/)
 install(FILES company-rtags.el rtags-ac.el rtags.el DESTINATION share/emacs/site-lisp/rtags/)
+
