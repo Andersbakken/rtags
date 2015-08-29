@@ -86,6 +86,11 @@
   :group 'rtags
   :type 'boolean)
 
+(defcustom rtags-follow-symbol-try-harder t
+  "Fall back to string-matching if follow symbol fails"
+  :group 'rtags
+  :type 'boolean)
+
 (defcustom rtags-reindex-on-save nil
   "Explicitly reindex files on save. This should only be useful if your file system watching is not working"
   :group 'rtags
@@ -985,30 +990,25 @@ If called with a prefix restrict to current buffer"
   (interactive "P")
   (rtags-location-stack-push)
   (let ((arg (rtags-current-location))
+        (tagname (or (rtags-current-symbol) (rtags-current-token)))
         (fn (buffer-file-name)))
     (rtags-reparse-file-if-needed)
     (with-current-buffer (rtags-get-buffer)
       (rtags-call-rc :path fn :path-filter prefix "-f" arg)
-      (rtags-handle-results-buffer))))
-
-;;;###autoload
-(defun rtags-find-symbol-at-point-harder (&optional prefix)
-  "Find the natural target for the symbol under the cursor and moves to that location.  This is similar to rtags-find-symbol-at-point, but will fall back to searching for the first occurence of the bare symbol name (disregarding overloads, etc.) if needed.
-If called with a prefix restrict to current buffer"
-  (interactive "P")
-  (rtags-location-stack-push)
-  (let ((arg (rtags-current-location))
-        (tagname (rtags-current-symbol))
-        (fn (buffer-file-name)))
-    (rtags-reparse-file-if-needed)
-    (with-current-buffer (rtags-get-buffer)
-      (rtags-call-rc :path fn :path-filter prefix "-f" arg)
-      (if (not (rtags-handle-results-buffer :quiet t))
-          (progn
-            (rtags-call-rc :path fn "-F" tagname "-M" "1" :path-filter prefix
-                           (when rtags-wildcard-symbol-names "--wildcard-symbol-names")
-                           (when rtags-symbolnames-case-insensitive "-I"))
-            (rtags-handle-results-buffer))))))
+      (cond ((not rtags-follow-symbol-try-harder)
+             (rtags-handle-results-buffer))
+            ((rtags-handle-results-buffer :quiet t))
+            (t
+             (erase-buffer)
+             (rtags-call-rc :path fn "-F" tagname "--definition-only" "-M" "1" :path-filter prefix
+                            (when rtags-wildcard-symbol-names "--wildcard-symbol-names")
+                            (when rtags-symbolnames-case-insensitive "-I"))
+             (unless (rtags-handle-results-buffer)
+               (erase-buffer)
+               (rtags-call-rc :path fn "-F" tagname "-M" "1" :path-filter prefix
+                              (when rtags-wildcard-symbol-names "--wildcard-symbol-names")
+                              (when rtags-symbolnames-case-insensitive "-I"))
+               (rtags-handle-results-buffer)))))))
 
 ;;;###autoload
 (defun rtags-find-references-at-point (&optional prefix)
@@ -1642,7 +1642,9 @@ References to references will be treated as references to the referenced symbol"
   (rtags-reset-bookmarks)
   (set-text-properties (point-min) (point-max) nil)
   (cond ((= (point-min) (point-max))
-         (when (not quiet) (message "RTags: No results")) nil)
+         (unless quiet
+           (message "RTags: No results"))
+         nil)
         ((= (count-lines (point-min) (point-max)) 1)
          (let ((string (buffer-string)))
            (if (rtags-not-indexed/connected-message-p string)
