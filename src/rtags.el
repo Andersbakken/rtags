@@ -1568,6 +1568,7 @@ References to references will be treated as references to the referenced symbol"
           (setq rtags-diagnostics-process (start-process "RTags Diagnostics" buf (rtags-executable-find "rc") "-m" "--elisp-list"))
           (set-process-filter rtags-diagnostics-process (function rtags-diagnostics-process-filter))
           (set-process-sentinel rtags-diagnostics-process 'rtags-diagnostics-sentinel)
+          (set-process-query-on-exit-flag rtags-diagnostics-process nil)
           (setq rtags-last-completions nil)
           (setq rtags-last-completion-position nil)
           (rtags-clear-diagnostics)))))
