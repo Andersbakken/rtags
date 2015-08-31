@@ -591,8 +591,8 @@ List<Source> Source::parse(const String &cmdLine,
                         p.canonicalize();
                     }
                     buildRoot = RTags::findProjectRoot(p, RTags::BuildRoot);
+                    buildRoot.resolve(Path::RealPath, cwd);
                     if (buildRoot.isDir()) {
-                        buildRoot.resolve(Path::RealPath);
                         buildRootId = Location::insertFile(buildRoot);
                     } else {
                         buildRoot.clear();
@@ -637,7 +637,7 @@ List<Source> Source::parse(const String &cmdLine,
             if (add) {
                 const Language lang = language != NoLanguage ? language : guessLanguageFromSourceFile(resolved);
                 if (lang != NoLanguage) {
-                    inputs.append({resolved, Path::resolved(arg, Path::MakeAbsolute, cwd), lang});
+                    inputs.append({resolved, Path::resolved(arg, Path::RealPath, cwd), lang});
                 } else {
                     warning() << "Can't figure out language for" << arg;
                 }
@@ -659,7 +659,7 @@ List<Source> Source::parse(const String &cmdLine,
     if (!inputs.isEmpty()) {
         if (!buildRootId) {
             buildRoot = RTags::findProjectRoot(inputs.first().realPath, RTags::BuildRoot);
-            buildRoot.resolve(Path::RealPath);
+            buildRoot.resolve(Path::RealPath, cwd);
             buildRootId = Location::insertFile(buildRoot);
         }
         includePathHash = ::hashIncludePaths(includePaths, buildRoot);
