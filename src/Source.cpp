@@ -637,7 +637,7 @@ List<Source> Source::parse(const String &cmdLine,
             if (add) {
                 const Language lang = language != NoLanguage ? language : guessLanguageFromSourceFile(resolved);
                 if (lang != NoLanguage) {
-                    inputs.append({resolved, Path::resolved(arg, Path::RealPath, cwd), lang});
+                    inputs.append({resolved, Path::resolved(arg, Path::MakeAbsolute, cwd), lang});
                 } else {
                     warning() << "Can't figure out language for" << arg;
                 }
@@ -670,7 +670,7 @@ List<Source> Source::parse(const String &cmdLine,
             unresolvedInputLocations->append(input.absolute);
             Source &source = ret[idx++];
             source.directory = path;
-            source.fileId = Location::insertFile(input.absolute);
+            source.fileId = Location::insertFile(input.realPath);
             source.extraCompiler = extraCompiler;
             source.compilerId = compilerId;
             source.buildRootId = buildRootId;
