@@ -1270,8 +1270,10 @@ References to references will be treated as references to the referenced symbol"
 (defvar rtags-error-warning-count nil)
 (make-variable-buffer-local 'rtags-error-warning-count)
 
+(defvar rtags-last-check-style nil)
 (defun rtags-handle-check-style-error (buffer filename data)
   ;; (message "parsing nodes %s" (buffer-file-name buffer))
+  (setq rtags-last-check-style data)
   (let* ((line (nth 0 data))
          (column (nth 1 data))
          (length (nth 2 data))
@@ -1291,7 +1293,7 @@ References to references will be treated as references to the referenced symbol"
                               (1+ startoffset)))
 
           (let ((overlay (make-overlay (1+ startoffset)
-                                       (cond ((= startoffset endoffset) (+ startoffset 2))
+                                       (cond ((= startoffset endoffset) (min (+ startoffset 2) (point-max)))
                                              (t (1+ endoffset)))
                                        buffer)))
             (overlay-put overlay 'rtags-error-message message)
