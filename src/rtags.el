@@ -1270,10 +1270,8 @@ References to references will be treated as references to the referenced symbol"
 (defvar rtags-error-warning-count nil)
 (make-variable-buffer-local 'rtags-error-warning-count)
 
-(defvar rtags-last-check-style nil)
 (defun rtags-handle-check-style-error (buffer filename data)
   ;; (message "parsing nodes %s" (buffer-file-name buffer))
-  (setq rtags-last-check-style data)
   (let* ((line (nth 0 data))
          (column (nth 1 data))
          (length (nth 2 data))
@@ -1320,7 +1318,11 @@ References to references will be treated as references to the referenced symbol"
               (setq buffer-read-only t)))))
       ret)))
 
+(defvar rtags-last-check-style nil)
+
 (defun rtags-parse-check-style (checkstyle)
+  (when checkstyle
+    (setq rtags-last-check-style checkstyle))
   (while checkstyle
     (let* ((cur (car checkstyle))
            (file (car cur))
