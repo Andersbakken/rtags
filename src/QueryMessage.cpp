@@ -67,8 +67,8 @@ QueryMessage::Flag QueryMessage::flagFromString(const String &string)
         return AllReferences;
     } else if (string == "reverse-sort") {
         return ReverseSort;
-    } else if (string == "elisp-list") {
-        return ElispList;
+    } else if (string == "elisp") {
+        return Elisp;
     } else if (string == "imenu") {
         return IMenu;
     } else if (string == "match-regexp") {

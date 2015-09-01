@@ -1399,7 +1399,7 @@ bool ClangIndexer::diagnose()
                     // no length
                 }
             }
-            // logDirect(RTags::CompilationError, msg.constData());
+            // logDirect(RTags::Diagnostics, msg.constData());
 
             const unsigned int fixItCount = clang_getDiagnosticNumFixIts(diagnostic);
             for (unsigned int f=0; f<fixItCount; ++f) {

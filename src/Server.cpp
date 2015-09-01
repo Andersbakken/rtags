@@ -1368,8 +1368,8 @@ void Server::jobCount(const std::shared_ptr<QueryMessage> &query, const std::sha
 
 void Server::sendDiagnostics(const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Connection> &conn)
 {
-    if (testLog(RTags::CompilationErrorXml))
-        logDirect(RTags::CompilationErrorXml, query->query());
+    if (testLog(RTags::Diagnostics))
+        logDirect(RTags::Diagnostics, query->query());
     conn->finish();
 }
 
@@ -1736,7 +1736,7 @@ void Server::codeCompleteAt(const std::shared_ptr<QueryMessage> &query, const st
     Flags<CompletionThread::Flag> flags;
     if (query->type() == QueryMessage::PrepareCodeCompleteAt)
         flags |= CompletionThread::Refresh;
-    if (query->flags() & QueryMessage::ElispList)
+    if (query->flags() & QueryMessage::Elisp)
         flags |= CompletionThread::Elisp;
     std::shared_ptr<Connection> c = conn;
     if (!(query->flags() & QueryMessage::SynchronousCompletions)) {

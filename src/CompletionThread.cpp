@@ -417,7 +417,7 @@ struct Output
 void CompletionThread::printCompletions(const List<Completions::Candidate> &completions, Request *request)
 {
     static List<String> cursorKindNames;
-    // error() << request->flags << testLog(RTags::CompilationErrorXml) << completions.size() << request->conn;
+    // error() << request->flags << testLog(RTags::Diagnostics) << completions.size() << request->conn;
     List<std::shared_ptr<Output> > outputs;
     bool xml = false;
     bool elisp = false;
@@ -434,11 +434,11 @@ void CompletionThread::printCompletions(const List<Completions::Candidate> &comp
         request->conn.reset();
     }
     log([&xml, &elisp, &outputs](const std::shared_ptr<LogOutput> &output) {
-            // error() << "Got a dude" << output->testLog(RTags::CompilationErrorXml);
-            if (output->testLog(RTags::CompilationErrorXml)) {
+            // error() << "Got a dude" << output->testLog(RTags::Diagnostics);
+            if (output->testLog(RTags::Diagnostics)) {
                 std::shared_ptr<Output> out(new Output);
                 out->output = output;
-                if (output->flags() & RTagsLogOutput::ElispList) {
+                if (output->flags() & RTagsLogOutput::Elisp) {
                     out->xml = false;
                     elisp = true;
                 } else {

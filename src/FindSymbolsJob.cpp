@@ -21,7 +21,7 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 
 static inline Flags<QueryJob::JobFlag> jobFlags(Flags<QueryMessage::Flag> queryFlags)
 {
-    return (queryFlags & QueryMessage::ElispList
+    return (queryFlags & QueryMessage::Elisp
             ? QueryJob::QuoteOutput|QueryJob::QuietJob
             : Flags<QueryJob::JobFlag>(QueryJob::QuietJob));
 }

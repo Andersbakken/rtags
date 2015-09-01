@@ -56,7 +56,7 @@ public:
         DumpFile,
         DumpFileMaps,
         DumpIncludeHeaders,
-        ElispList,
+        Elisp,
         FilterSystemHeaders,
         FindFile,
         FindFilePreferExact,
@@ -125,7 +125,6 @@ public:
         Version,
         Wait,
         WildcardSymbolNames,
-        XmlDiagnostics,
         NumOptions
     };
 

@@ -22,7 +22,7 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 static Flags<QueryJob::JobFlag> flags(Flags<QueryMessage::Flag> queryFlags)
 {
     Flags<QueryJob::JobFlag> flags = QueryJob::QuietJob;
-    if (queryFlags & QueryMessage::ElispList)
+    if (queryFlags & QueryMessage::Elisp)
         flags |= QueryJob::QuoteOutput;
     return flags;
 }
@@ -80,7 +80,7 @@ int FindFileJob::execute()
     List<String> matches;
     const bool preferExact = queryFlags() & QueryMessage::FindFilePreferExact;
     int ret = 1;
-    bool firstElisp = queryFlags() & QueryMessage::ElispList;
+    bool firstElisp = queryFlags() & QueryMessage::Elisp;
 
     auto writeFile = [this, &firstElisp](const Path &path) {
         if (firstElisp) {
@@ -160,7 +160,7 @@ int FindFileJob::execute()
             return 1;
         }
     }
-    if (queryFlags() & QueryMessage::ElispList && !firstElisp && !write(")", DontQuote))
+    if (queryFlags() & QueryMessage::Elisp && !firstElisp && !write(")", DontQuote))
         return 1;
     return ret;
 }

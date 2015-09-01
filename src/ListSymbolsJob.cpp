@@ -23,7 +23,7 @@ const Flags<QueryJob::JobFlag> defaultFlags = (QueryJob::WriteUnfiltered | Query
 const Flags<QueryJob::JobFlag> elispFlags = (defaultFlags | QueryJob::QuoteOutput);
 
 ListSymbolsJob::ListSymbolsJob(const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Project> &proj)
-    : QueryJob(query, proj, query->flags() & QueryMessage::ElispList ? elispFlags : defaultFlags),
+    : QueryJob(query, proj, query->flags() & QueryMessage::Elisp ? elispFlags : defaultFlags),
       string(query->query())
 {
 }
@@ -45,9 +45,7 @@ int ListSymbolsJob::execute()
         }
     }
 
-    const bool elispList = queryFlags() & QueryMessage::ElispList;
-
-    if (elispList) {
+    if (queryFlags() & QueryMessage::Elisp) {
         write("(list", IgnoreMax | DontQuote);
         for (Set<String>::const_iterator it = out.begin(); it != out.end(); ++it) {
             write(*it);

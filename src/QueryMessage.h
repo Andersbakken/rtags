@@ -75,7 +75,7 @@ public:
         StripParentheses = 0x000000008,
         AllReferences = 0x000000010,
         ReverseSort = 0x000000020,
-        ElispList = 0x000000040,
+        Elisp = 0x000000040,
         IMenu = 0x000000080,
         MatchRegex = 0x000000100,
         MatchCaseInsensitive = 0x000000200,

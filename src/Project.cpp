@@ -593,11 +593,11 @@ void Project::onJobFinished(const std::shared_ptr<IndexerJob> &job, const std::s
         Set<uint32_t> newDiagnostics;
         bool gotDiagnostics = false;
         log([&](const std::shared_ptr<LogOutput> &output) {
-                if (output->testLog(RTags::CompilationErrorXml)) {
+                if (output->testLog(RTags::Diagnostics)) {
                     DiagnosticsFormat format = Diagnostics_XML;
-                    if (output->flags() & RTagsLogOutput::ElispList) {
+                    if (output->flags() & RTagsLogOutput::Elisp) {
                         // I know this is RTagsLogOutput because it returned
-                        // true for testLog(RTags::CompilationErrorXml)
+                        // true for testLog(RTags::Diagnostics)
                         format = Diagnostics_Elisp;
                     }
                     if (!msg->diagnostics().isEmpty()) {

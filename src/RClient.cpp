@@ -120,9 +120,8 @@ struct Option opts[] = {
     { RClient::FilterSystemHeaders, "filter-system-headers", 'H', no_argument, "Don't exempt system headers from path filters." },
     { RClient::AllReferences, "all-references", 'e', no_argument, "Include definitions/declarations/constructors/destructors for references. Used for rename symbol." },
     { RClient::AllTargets, "all-targets", 0, no_argument, "Print all targets for -f. Used for debugging." },
-    { RClient::ElispList, "elisp-list", 'Y', no_argument, "Output elisp: (list \"one\" \"two\" ...)." },
-    { RClient::Diagnostics, "diagnostics", 'G', no_argument, "Receive continual diagnostics from rdm." },
-    { RClient::XmlDiagnostics, "xml-diagnostics", 'm', no_argument, "Receive continual XML formatted diagnostics from rdm." },
+    { RClient::Elisp, "elisp", 'Y', no_argument, "Output elisp: (list \"one\" \"two\" ...)." },
+    { RClient::Diagnostics, "diagnostics", 'm', no_argument, "Receive async formatted diagnostics from rdm." },
     { RClient::MatchRegex, "match-regexp", 'Z', no_argument, "Treat various text patterns as regexps (-P, -i, -V)." },
     { RClient::MatchCaseInsensitive, "match-icase", 'I', no_argument, "Match case insensitively" },
     { RClient::AbsolutePath, "absolute-path", 'K', no_argument, "Print files with absolute path." },
@@ -312,8 +311,8 @@ public:
     virtual bool exec(RClient *rc, const std::shared_ptr<Connection> &connection) override
     {
         unsigned int flags = RTagsLogOutput::None;
-        if (rc->queryFlags() & QueryMessage::ElispList)
-            flags |= RTagsLogOutput::ElispList;
+        if (rc->queryFlags() & QueryMessage::Elisp)
+            flags |= RTagsLogOutput::Elisp;
         const LogLevel level = mLevel == Default ? rc->logLevel() : mLevel;
         LogOutputMessage msg(level, flags);
         msg.init(rc->argc(), rc->argv());
@@ -636,8 +635,8 @@ RClient::ParseStatus RClient::parse(int &argc, char **argv)
         case Rename:
             mQueryFlags |= QueryMessage::Rename;
             break;
-        case ElispList:
-            mQueryFlags |= QueryMessage::ElispList;
+        case Elisp:
+            mQueryFlags |= QueryMessage::Elisp;
             break;
         case FilterSystemHeaders:
             mQueryFlags |= QueryMessage::FilterSystemIncludes;
@@ -800,10 +799,7 @@ RClient::ParseStatus RClient::parse(int &argc, char **argv)
             addLog(RdmLogCommand::Default);
             break;
         case Diagnostics:
-            addLog(RTags::CompilationError);
-            break;
-        case XmlDiagnostics:
-            addLog(RTags::CompilationErrorXml);
+            addLog(RTags::Diagnostics);
             break;
         case QuitRdm: {
             const char *arg = 0;

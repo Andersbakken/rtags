@@ -33,7 +33,7 @@ public:
 
     enum Flag {
         None = 0x0,
-        ElispList = 0x1
+        Elisp = 0x1
     };
 
     virtual unsigned int flags() const override { return mFlags; }

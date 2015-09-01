@@ -1589,7 +1589,7 @@ References to references will be treated as references to the referenced symbol"
           (let ((rawbuf (get-buffer rtags-diagnostics-raw-buffer-name)))
             (when rawbuf
               (kill-buffer rawbuf)))
-          (setq rtags-diagnostics-process (start-process "RTags Diagnostics" buf (rtags-executable-find "rc") "-m" "--elisp-list"))
+          (setq rtags-diagnostics-process (start-process "RTags Diagnostics" buf (rtags-executable-find "rc") "-m" "--elisp"))
           (set-process-filter rtags-diagnostics-process (function rtags-diagnostics-process-filter))
           (set-process-sentinel rtags-diagnostics-process 'rtags-diagnostics-sentinel)
           (set-process-query-on-exit-flag rtags-diagnostics-process nil)
@@ -1903,7 +1903,7 @@ References to references will be treated as references to the referenced symbol"
 
 (defun rtags-all-files (prefer-exact)
   (with-temp-buffer
-    (rtags-call-rc "-P" "--elisp-list" (when rtags-find-file-case-insensitive "-I") (when prefer-exact "-A"))
+    (rtags-call-rc "-P" "--elisp" (when rtags-find-file-case-insensitive "-I") (when prefer-exact "-A"))
     (and (> (point-max) (point-min))
          (eval (read (current-buffer))))))
 

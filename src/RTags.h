@@ -47,9 +47,8 @@ inline String versionString()
     return String::format<64>("%d.%d.%d", MajorVersion, MinorVersion, DatabaseVersion);
 }
 
-const LogLevel CompilationError(-2);
-const LogLevel CompilationErrorXml(-3);
-const LogLevel Statistics(-4);
+const LogLevel Diagnostics(-2);
+const LogLevel Statistics(-3);
 
 enum UnitType {
     CompileC,
