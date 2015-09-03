@@ -918,6 +918,22 @@ Set<uint32_t> Project::dependencies(uint32_t fileId, DependencyMode mode) const
     return ret;
 }
 
+bool Project::dependsOn(uint32_t source, uint32_t header) const
+{
+    std::function<bool(DependencyNode *node)> dep = [&](DependencyNode *node) {
+        assert(node);
+        if (node->dependents.contains(source))
+            return true;
+        for (const std::pair<uint32_t, DependencyNode*> &n : node->dependents) {
+            if (dep(n.second))
+                return true;
+        }
+        return false;
+    };
+    DependencyNode *node = mDependencies.value(header);
+    return node && dep(node);
+}
+
 void Project::removeDependencies(uint32_t fileId)
 {
     if (DependencyNode *node = mDependencies.take(fileId)) {
@@ -1952,4 +1968,3 @@ void Project::prepare(uint32_t fileId)
         endScope();
     }
 }
-

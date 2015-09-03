@@ -109,8 +109,23 @@ public:
 
     Type type() const { return mType; }
 
-    const List<String> &pathFilters() const { return mPathFilters; }
-    void setPathFilters(const Set<String> &pathFilters)
+    struct PathFilter {
+        String pattern;
+        enum Mode {
+            Self,
+            Dependency
+        } mode;
+
+        bool operator<(const PathFilter &other) const
+        {
+            const int cmp = pattern.compare(other.pattern);
+            if (!cmp)
+                return mode < other.mode;
+            return cmp < 0;
+        }
+    };
+    const List<PathFilter> &pathFilters() const { return mPathFilters; }
+    void setPathFilters(const Set<PathFilter> &pathFilters)
     {
         mPathFilters = pathFilters.toList();
         std::sort(mPathFilters.begin(), mPathFilters.end());
@@ -181,12 +196,26 @@ private:
     Type mType;
     Flags<QueryMessage::Flag> mFlags;
     int mMax, mMinLine, mMaxLine, mBuildIndex;
-    List<String> mPathFilters;
+    List<PathFilter> mPathFilters;
     Set<String> mKindFilters;
     Path mCurrentFile;
     UnsavedFiles mUnsavedFiles;
     int mTerminalWidth;
 };
+
+inline Serializer &operator<<(Serializer &s, const QueryMessage::PathFilter &filter)
+{
+    s << filter.pattern << static_cast<uint8_t>(filter.mode);
+    return s;
+}
+
+inline Deserializer &operator>>(Deserializer &s, QueryMessage::PathFilter &filter)
+{
+    uint8_t mode;
+    s >> filter.pattern >> mode;
+    filter.mode = static_cast<QueryMessage::PathFilter::Mode>(mode);
+    return s;
+}
 
 RCT_FLAGS(QueryMessage::Flag);
 

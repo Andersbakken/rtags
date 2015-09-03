@@ -26,6 +26,7 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 #include "QueryMessage.h"
 #include <mutex>
 #include <rct/Flags.h>
+#include "Project.h"
 
 class Location;
 class QueryMessage;
@@ -47,9 +48,14 @@ public:
              Flags<JobFlag> jobFlags = Flags<JobFlag>());
     virtual ~QueryJob();
 
-    bool hasFilter() const { return !mPathFilters.isEmpty() || !mPathFiltersRegex.isEmpty(); }
-    List<String> pathFilters() const { return mPathFilters; }
-    uint32_t fileFilter() const;
+    bool hasFilter() const { return mFileFilter || !mFilters.isEmpty(); }
+    List<QueryMessage::PathFilter> pathFilters() const
+    {
+        if (mQueryMessage)
+            return mQueryMessage->pathFilters();
+        return List<QueryMessage::PathFilter>();
+    }
+    uint32_t fileFilter() const { return mFileFilter; }
     enum WriteFlag {
         NoWriteFlags = 0x0,
         IgnoreMax = 0x1,
@@ -80,6 +86,39 @@ public:
     std::mutex &mutex() const { return mMutex; }
     const std::shared_ptr<Connection> &connection() const { return mConnection; }
 private:
+    class Filter
+    {
+    public:
+        virtual ~Filter() {}
+        virtual bool match(uint32_t fileId, const Path &path) const = 0;
+    };
+    class PathFilter : public Filter
+    {
+    public:
+        PathFilter(const Path &p) : pattern(p) {}
+        virtual bool match(uint32_t, const Path &path) const { return path.startsWith(pattern); }
+
+        const Path pattern;
+    };
+    class RegexFilter : public Filter
+    {
+    public:
+        RegexFilter(const String &str) : regex(str.ref()) {}
+        virtual bool match(uint32_t, const Path &path) const { return std::regex_search(path.constData(), regex); }
+
+        const std::regex regex;
+    };
+
+    class DependencyFilter : public Filter
+    {
+    public:
+        DependencyFilter(uint32_t f, const std::shared_ptr<Project> &p) : fileId(f), project(p) {}
+        virtual bool match(uint32_t f, const Path &) const { return project->dependsOn(f, fileId); }
+
+        const uint32_t fileId;
+        const std::shared_ptr<Project> project;
+    };
+
     bool filterLocation(const Location &loc) const;
     bool filterKind(CXCursorKind kind) const;
     mutable std::mutex mMutex;
@@ -90,8 +129,8 @@ private:
     Flags<JobFlag> mJobFlags;
     Signal<std::function<void(const String &)> > mOutput;
     std::shared_ptr<Project> mProject;
-    List<String> mPathFilters;
-    List<std::regex> mPathFiltersRegex;
+    uint32_t mFileFilter;
+    List<std::shared_ptr<Filter> > mFilters;
     Set<String> mKindFilters;
     String mBuffer;
     std::shared_ptr<Connection> mConnection;

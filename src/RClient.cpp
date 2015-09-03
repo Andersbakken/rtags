@@ -116,6 +116,7 @@ struct Option opts[] = {
     { RClient::LogFile, "log-file", 'L', required_argument, "Log to this file." },
     { RClient::NoContext, "no-context", 'N', no_argument, "Don't print context for locations." },
     { RClient::PathFilter, "path-filter", 'i', required_argument, "Filter out results not matching with arg." },
+    { RClient::DependencyFilter, "dependency-filter", 0, required_argument, "Filter out results unless argument depends on them." },
     { RClient::RangeFilter, "range-filter", 0, required_argument, "Filter out results not in the specified range." },
     { RClient::FilterSystemHeaders, "filter-system-headers", 'H', no_argument, "Don't exempt system headers from path filters." },
     { RClient::AllReferences, "all-references", 'e', no_argument, "Include definitions/declarations/constructors/destructors for references. Used for rename symbol." },
@@ -647,14 +648,23 @@ RClient::ParseStatus RClient::parse(int &argc, char **argv)
         case PathFilter: {
             Path p = optarg;
             p.resolve();
-            mPathFilters.insert(p);
+            mPathFilters.insert({ p, QueryMessage::PathFilter::Self });
+            break; }
+        case DependencyFilter: {
+            Path p = optarg;
+            p.resolve();
+            if (!p.isFile()) {
+                fprintf(stderr, "%s doesn't seem to be a file\n", optarg);
+                return Parse_Error;
+            }
+            mPathFilters.insert({ p, QueryMessage::PathFilter::Dependency });
             break; }
         case KindFilter:
             mKindFilters.insert(optarg);
             break;
-        case WildcardSymbolNames: {
+        case WildcardSymbolNames:
             mQueryFlags |= QueryMessage::WildcardSymbolNames;
-            break; }
+            break;
         case RangeFilter: {
             char *end;
             mMinOffset = strtoul(optarg, &end, 10);

@@ -24,23 +24,30 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 QueryJob::QueryJob(const std::shared_ptr<QueryMessage> &query,
                    const std::shared_ptr<Project> &proj,
                    Flags<JobFlag> jobFlags)
-    : mAborted(false), mLinesWritten(0), mQueryMessage(query), mJobFlags(jobFlags), mProject(proj)
+    : mAborted(false), mLinesWritten(0), mQueryMessage(query), mJobFlags(jobFlags), mProject(proj), mFileFilter(0)
 {
     if (mProject)
         mProject->beginScope();
     assert(query);
     if (query->flags() & QueryMessage::SilentQuery)
         setJobFlag(QuietJob);
-    const List<String> &pathFilters = query->pathFilters();
+    const List<QueryMessage::PathFilter> &pathFilters = query->pathFilters();
     if (!pathFilters.isEmpty()) {
-        if (query->flags() & QueryMessage::MatchRegex) {
-            const int size = pathFilters.size();
-            mPathFiltersRegex.reserve(size);
-            for (int i=0; i<size; ++i) {
-                mPathFiltersRegex.append(std::regex(pathFilters.at(i).ref()));
+        if (pathFilters.size() == 1 && pathFilters.first().mode == QueryMessage::PathFilter::Self) {
+            mFileFilter = Location::fileId(pathFilters.first().pattern);
+        }
+        if (!mFileFilter) {
+            for (const QueryMessage::PathFilter &filter : pathFilters) {
+                if (filter.mode == QueryMessage::PathFilter::Dependency) {
+                    uint32_t f = Location::fileId(filter.pattern);
+                    if (f && mProject)
+                        mFilters.append(std::shared_ptr<Filter>(new DependencyFilter(f, mProject)));
+                } else if (query->flags() & QueryMessage::MatchRegex) {
+                    mFilters.append(std::shared_ptr<Filter>(new RegexFilter(filter.pattern)));
+                } else {
+                    mFilters.append(std::shared_ptr<Filter>(new PathFilter(filter.pattern)));
+                }
             }
-        } else {
-            mPathFilters = pathFilters;
         }
     }
     mKindFilters = query->kindFilters();
@@ -50,14 +57,6 @@ QueryJob::~QueryJob()
 {
     if (mProject)
         mProject->endScope();
-}
-
-uint32_t QueryJob::fileFilter() const
-{
-    if (mPathFilters.size() == 1) {
-        return Location::fileId(mPathFilters.first());
-    }
-    return 0;
 }
 
 bool QueryJob::write(const String &out, Flags<WriteFlag> flags)
@@ -117,15 +116,10 @@ bool QueryJob::write(const Location &location, Flags<WriteFlag> flags)
 {
     if (location.isNull())
         return false;
-    if (filterLocation(location))
-        return false;
-    if (!(flags & WriteUnfiltered)) {
-        const uint32_t filter = fileFilter();
-        if (filter) {
-            if (filter != location.fileId())
-                return false;
-            flags |= Unfiltered;
-        }
+    if (!(flags & Unfiltered)) {
+        if (!filterLocation(location))
+            return false;
+        flags |= Unfiltered;
     }
     String out = location.key(keyFlags());
     const bool containingFunction = queryFlags() & QueryMessage::ContainingFunction;
@@ -137,7 +131,7 @@ bool QueryJob::write(const Location &location, Flags<WriteFlag> flags)
         if (symbol.isNull()) {
             error() << "Somehow can't find" << location << "in symbols";
         } else {
-            if (!mKindFilters.isEmpty() && filterKind(symbol.kind))
+            if (!filterKind(symbol.kind))
                 return false;
             if (displayName)
                 out += '\t' + symbol.displayName();
@@ -175,49 +169,48 @@ bool QueryJob::write(const Symbol &symbol,
     if (symbol.isNull())
         return false;
 
-    if (filterLocation(symbol.location))
+    if (!filterLocation(symbol.location))
         return false;
 
-    if (!mKindFilters.isEmpty() && filterKind(symbol.kind))
+    if (!filterKind(symbol.kind))
         return false;
 
-    return write(symbol.toString(toStringFlags, keyFlags(), project()), writeFlags);
+    return write(symbol.toString(toStringFlags, keyFlags(), project()), writeFlags|Unfiltered);
 }
 
 bool QueryJob::filter(const String &value) const
 {
-    if (mPathFilters.isEmpty() && mPathFiltersRegex.isEmpty() && !(queryFlags() & QueryMessage::FilterSystemIncludes))
+    if (mFilters.isEmpty() && !(queryFlags() & QueryMessage::FilterSystemIncludes))
         return true;
 
     const char *val = value.constData();
     while (*val && isspace(*val))
         ++val;
+    const char *space = strchr(val, ' ');
+    Path path;
+    uint32_t fileId = 0;
+    if (space) {
+        path.assign(val, space - val);
+    } else {
+        path = val;
+    }
+
+    if (!path.isFile())
+        return true; // non-file things go unfiltered
 
     if (queryFlags() & QueryMessage::FilterSystemIncludes && Path::isSystem(val))
         return false;
+    fileId = Location::fileId(path);
 
-    if (mPathFilters.isEmpty() && mPathFiltersRegex.isEmpty())
+    if (mFilters.isEmpty())
         return true;
 
-    assert(mPathFilters.isEmpty() != mPathFiltersRegex.isEmpty());
-    String copy;
-    const String &ref = (val != value.constData() ? copy : value);
-    if (val != value.constData())
-        copy = val;
-    error() << mPathFilters << ref;
-    if (!mPathFilters.isEmpty())
-        return RTags::startsWith(mPathFilters, ref);
-
-    assert(!mPathFiltersRegex.isEmpty());
-
-    const int count = mPathFiltersRegex.size();
-    for (int i=0; i<count; ++i) {
-        if (std::regex_search(ref.constData(), mPathFiltersRegex.at(i)))
+    for (const std::shared_ptr<Filter> &filter : mFilters) {
+        if (filter->match(fileId, path))
             return true;
     }
     return false;
 }
-
 
 int QueryJob::run(const std::shared_ptr<Connection> &connection)
 {
@@ -230,6 +223,8 @@ int QueryJob::run(const std::shared_ptr<Connection> &connection)
 
 bool QueryJob::filterLocation(const Location &loc) const
 {
+    if (mFileFilter && loc.fileId() != mFileFilter)
+        return false;
     const int minLine = mQueryMessage ? mQueryMessage->minLine() : -1;
     if (minLine != -1) {
         assert(mQueryMessage);
@@ -238,19 +233,27 @@ bool QueryJob::filterLocation(const Location &loc) const
         assert(maxLine != -1);
         const int line = loc.line();
         if (line < minLine || line > maxLine) {
-            return true;
+            return false;
         }
     }
-    return false;
+    if (!mFilters.isEmpty()) {
+        for (const std::shared_ptr<Filter> &filter : mFilters) {
+            if (filter->match(loc.fileId(), loc.path()))
+                return true;
+        }
+        return false;
+    }
+    return true;
 }
 
 bool QueryJob::filterKind(CXCursorKind kind) const
 {
-    assert(!mKindFilters.isEmpty());
+    if (mKindFilters.isEmpty())
+        return true;
     const String kindSpelling = Symbol::kindSpelling(kind);
     for (auto k : mKindFilters) {
         if (kindSpelling.contains(k, String::CaseInsensitive))
-            return false;
+            return true;
     }
-    return true;
+    return false;
 }

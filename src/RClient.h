@@ -49,6 +49,7 @@ public:
         DefinitionOnly,
         DeleteProject,
         Dependencies,
+        DependencyFilter,
         Diagnostics,
         DisplayName,
         DumpCompilationDatabase,
@@ -143,7 +144,7 @@ public:
     int timeout() const { return mTimeout; }
     int buildIndex() const { return mBuildIndex; }
 
-    const Set<String> &pathFilters() const { return mPathFilters; }
+    const Set<QueryMessage::PathFilter> &pathFilters() const { return mPathFilters; }
     int minOffset() const { return mMinOffset; }
     int maxOffset() const { return mMaxOffset; }
 
@@ -181,7 +182,8 @@ private:
     Flags<QueryMessage::Flag> mQueryFlags;
     int mMax, mTimeout, mMinOffset, mMaxOffset, mConnectTimeout, mBuildIndex;
     LogLevel mLogLevel;
-    Set<String> mPathFilters, mKindFilters;
+    Set<QueryMessage::PathFilter> mPathFilters;
+    Set<String> mKindFilters;
     UnsavedFiles mUnsavedFiles;
     List<std::shared_ptr<RCCommand> > mCommands;
     List<String> mRdmArgs;

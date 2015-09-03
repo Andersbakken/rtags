@@ -27,7 +27,7 @@ public:
     ListSymbolsJob(const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Project> &proj);
 protected:
     virtual int execute() override;
-    Set<String> listSymbolsWithPathFilter(const std::shared_ptr<Project> &project, const List<String> &paths) const;
+    Set<String> listSymbolsWithPathFilter(const std::shared_ptr<Project> &project, const List<Path> &paths) const;
     Set<String> listSymbols(const std::shared_ptr<Project> &project) const;
     static bool isImenuSymbol(const Symbol &symbol)
     {
