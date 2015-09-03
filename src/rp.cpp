@@ -57,7 +57,10 @@ String findSymbolNameByUsr(const std::shared_ptr<Project> &, uint32_t, const Str
 struct SyslogCloser
 {
 public:
-    ~SyslogCloser() { ::closelog(); }
+    ~SyslogCloser()
+    {
+        ::closelog();
+    }
 };
 
 int main(int argc, char **argv)
@@ -77,8 +80,13 @@ int main(int argc, char **argv)
     signal(SIGABRT, sigHandler);
     signal(SIGBUS, sigHandler);
 
-    initLogging(argv[0], LogStderr|LogSyslog, logLevel);
-    SyslogCloser closer;
+    Flags<LogMode> logType = LogStderr;
+    std::shared_ptr<SyslogCloser> closer;
+    if (ClangIndexer::serverOpts() & Server::RPLogToSyslog) {
+        logType |= LogSyslog;
+        closer.reset(new SyslogCloser);
+    }
+    initLogging(argv[0], logType, logLevel);
     (void)closer;
 
     RTags::initMessages();

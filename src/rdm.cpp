@@ -110,6 +110,7 @@ static void usage(FILE *f)
             "  --socket-file|-n [arg]                     Use this file for the server socket (default ~/.rdm).\n"
             "  --start-suspended|-Q                       Start out suspended (no reindexing enabled).\n"
             "  --suspend-rp-on-crash|-q [arg]             Suspend rp in SIGSEGV handler (default " DEFAULT_SUSPEND_RP ").\n"
+            "  --rp-log-to-syslog                         Make rp log to syslog\n"
             "  --thread-stack-size|-k [arg]               Set stack size for threadpool to this (default %zu).\n"
             "  --verbose|-v                               Change verbosity, multiple -v's are allowed.\n"
             "  --watch-system-paths|-w                    Watch system paths for changes.\n"
@@ -202,6 +203,7 @@ int main(int argc, char** argv)
         { "rp-nice-value", required_argument, 0, 'a' },
         { "thread-stack-size", required_argument, 0, 'k' },
         { "suspend-rp-on-crash", no_argument, 0, 'q' },
+        { "rp-log-to-syslog", no_argument, 0, '\7' },
         { "start-suspended", no_argument, 0, 'Q' },
         { "separate-debug-and-release", no_argument, 0, 'E' },
         { "max-crash-count", required_argument, 0, 'K' },
@@ -614,6 +616,9 @@ int main(int argc, char** argv)
                 fprintf(stderr, "Invalid argument to --inactivity-timeout %s\n", optarg);
                 return 1;
             }
+            break;
+        case '\7':
+            serverOpts.options |= Server::RPLogToSyslog;
             break;
         case '?': {
             fprintf(stderr, "Run rdm --help for help\n");
