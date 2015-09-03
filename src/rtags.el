@@ -1,3 +1,4 @@
+;; should have a max of async rc's running
 ;;; rtags.el --- A front-end for rtags
 
 ;; Copyright (C) 2011-2015  Jan Erik Hanssen and Anders Bakken
@@ -1001,12 +1002,12 @@ If called with a prefix restrict to current buffer"
             ((rtags-handle-results-buffer :quiet t))
             (t
              (erase-buffer)
-             (rtags-call-rc :path fn "-F" tagname "--definition-only" "-M" "1" :path-filter prefix
+             (rtags-call-rc :path fn "-F" tagname "--definition-only" "-M" "1" "--dependency-filter" fn :path-filter prefix
                             (when rtags-wildcard-symbol-names "--wildcard-symbol-names")
                             (when rtags-symbolnames-case-insensitive "-I"))
              (unless (rtags-handle-results-buffer)
                (erase-buffer)
-               (rtags-call-rc :path fn "-F" tagname "-M" "1" :path-filter prefix
+               (rtags-call-rc :path fn "-F" tagname "-M" "1" "--dependency-filter" fn :path-filter prefix
                               (when rtags-wildcard-symbol-names "--wildcard-symbol-names")
                               (when rtags-symbolnames-case-insensitive "-I"))
                (rtags-handle-results-buffer)))))))
