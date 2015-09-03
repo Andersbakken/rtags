@@ -1,4 +1,3 @@
-;; should have a max of async rc's running
 ;;; rtags.el --- A front-end for rtags
 
 ;; Copyright (C) 2011-2015  Jan Erik Hanssen and Anders Bakken
@@ -135,6 +134,11 @@
 
 (defcustom rtags-completions-timer-interval nil
   "Interval for completions timer. nil means don't preemptively prepare completions"
+  :group 'rtags
+  :type 'number)
+
+(defcustom rtags-update-current-project-timer-interval .5
+  "Interval for update current project timer"
   :group 'rtags
   :type 'number)
 
@@ -1506,7 +1510,7 @@ References to references will be treated as references to the referenced symbol"
   (interactive)
   (when (and rtags-enabled
              (or (not (fboundp 'tramp-tramp-file-p)) (not (tramp-tramp-file-p default-directory))))
-    (rtags-update-current-project)
+    (rtags-restart-update-current-project-timer)
     (rtags-update-current-error)
     (rtags-close-taglist)
     (rtags-update-completions-timer)
@@ -2081,6 +2085,14 @@ References to references will be treated as references to the referenced symbol"
       (when rc
         (apply #'start-process "rtags-update-current-project" nil rc arguments))))
   t)
+
+(defvar rtags-update-current-project-timer nil)
+(defun rtags-restart-update-current-project-timer ()
+  (interactive)
+  (when rtags-update-current-project-timer
+    (cancel-timer rtags-update-current-project-timer))
+  (setq rtags-update-current-project-timer
+        (run-with-idle-timer rtags-update-current-project-timer-interval nil (function rtags-update-current-project))))
 
 ;;;###autoload
 (defun rtags-show-target-in-other-window (&optional dest-window center-window
