@@ -1355,7 +1355,6 @@ bool ClangIndexer::diagnose()
                 flags |= IndexDataMessage::HeaderError;
         }
         if (flags & IndexDataMessage::Visited) {
-            const String msg = RTags::eatString(clang_getDiagnosticSpelling(diagnostic));
             Diagnostic::Type type = Diagnostic::None;
             switch (sev) {
             case CXDiagnostic_Warning:
@@ -1369,6 +1368,20 @@ bool ClangIndexer::diagnose()
                 break;
             }
             if (type != Diagnostic::None) {
+                String msg = RTags::eatString(clang_getDiagnosticSpelling(diagnostic));
+                const String category = RTags::eatString(clang_getDiagnosticCategoryText(diagnostic));
+                bool colon = false;
+                if (!category.isEmpty()) {
+                    colon = true;
+                    msg << ": " << category;
+                }
+
+                const String option = RTags::eatString(clang_getDiagnosticOption(diagnostic, 0));
+                if (!option.isEmpty()) {
+                    if (!colon)
+                        msg << ':';
+                    msg << ' ' << option;
+                }
                 const unsigned int rangeCount = clang_getDiagnosticNumRanges(diagnostic);
                 bool ok = false;
                 for (unsigned int rangePos = 0; rangePos < rangeCount; ++rangePos) {
