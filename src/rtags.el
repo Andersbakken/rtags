@@ -643,7 +643,6 @@ return t if rtags is allowed to modify this file"
       (and (not no-symbol-name) (rtags-current-symbol-name))
       (thing-at-point 'symbol)))
 
-
 (defun* rtags-symbol-info (&rest args
                                  &key
                                  (location nil)
@@ -1291,7 +1290,7 @@ References to references will be treated as references to the referenced symbol"
         (when (rtags-goto-line-col line column)
           (setq startoffset (rtags-offset))
           (setq endoffset (or (and length (+ startoffset length))
-                              (let ((rsym (rtags-current-symbol t)))
+                              (let ((rsym (thing-at-point 'symbol)))
                                 (and rsym (+ startoffset (length rsym))))
                               (1+ startoffset)))
 
@@ -2129,9 +2128,7 @@ definition."
 
 (defun rtags-find-symbols-by-name-internal (prompt switch &optional filter regexp-filter)
   (rtags-location-stack-push)
-  (let ((tagname (if mark-active
-                     (buffer-substring-no-properties (region-beginning) (region-end))
-                   (rtags-current-symbol)))
+  (let ((tagname (rtags-current-symbol))
         (path (buffer-file-name))
         input)
     (if (> (length tagname) 0)
