@@ -385,8 +385,10 @@ String ClangIndexer::addNamePermutations(const CXCursor &cursor, const Location 
         if (!len)
             break;
 
-        if (pos != sizeof(buf) - 1 && (pos -= 2) >= 0) {
-            memset(buf + pos, ':', 2);
+        if (pos != sizeof(buf) - 1) {
+            pos -= 2;
+            if (pos >= 0)
+                memset(buf + pos, ':', 2);
         }
         pos -= len;
         if (pos < 0) {
