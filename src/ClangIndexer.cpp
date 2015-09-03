@@ -444,13 +444,13 @@ String ClangIndexer::addNamePermutations(const CXCursor &cursor, const Location 
         cutoff = pos;
 
     String ret;
+    if (!type.isEmpty()) {
+        ret = type;
+        ret.append(buf + cutoff, std::max<int>(0, sizeof(buf) - cutoff - 1));
+    } else {
+        ret.assign(buf + cutoff, std::max<int>(0, sizeof(buf) - cutoff - 1));
+    }
     if (cursorType == RTags::Type_Reference) {
-        if (!type.isEmpty()) {
-            ret = type;
-            ret.append(buf + cutoff, sizeof(buf) - cutoff - 1);
-        } else {
-            ret.assign(buf + cutoff, sizeof(buf) - cutoff - 1);
-        }
         return ret;
     }
 
@@ -482,16 +482,6 @@ String ClangIndexer::addNamePermutations(const CXCursor &cursor, const Location 
                 // void foo(int)::int bar
 
                 unit(location.fileId())->symbolNames[type + name].insert(location);
-            }
-        }
-
-        if (i == 0) {
-            // create actual symbol name that will go into SymbolInfo. This doesn't include namespaces etc
-            if (!type.isEmpty()) {
-                ret = type;
-                ret.append(buf + cutoff, sizeof(buf) - cutoff - 1);
-            } else {
-                ret.assign(buf + cutoff, sizeof(buf) - cutoff - 1);
             }
         }
 
