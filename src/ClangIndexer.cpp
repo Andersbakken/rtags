@@ -370,7 +370,7 @@ String ClangIndexer::addNamePermutations(const CXCursor &cursor, const Location 
 {
     CXCursorKind kind = clang_getCursorKind(cursor);
     const CXCursorKind originalKind = kind;
-    char buf[32768];
+    char buf[1024 * 512];
     int pos = sizeof(buf) - 1;
     buf[pos] = '\0';
     int cutoff = -1;
