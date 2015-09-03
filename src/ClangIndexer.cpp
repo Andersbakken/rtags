@@ -1175,11 +1175,14 @@ bool ClangIndexer::handleCursor(const CXCursor &cursor, CXCursorKind kind, const
 
     switch (c.kind) {
     case CXCursor_CXXMethod:
-        if (clang_CXXMethod_isPureVirtual(cursor)) {
+#if CINDEX_VERSION >= CINDEX_VERSION_ENCODE(0, 20)
+        if (clang_CXXMethod_isPureVirtual(cursor))
             c.flags |= Symbol::PureVirtualMethod;
-        } else if (clang_CXXMethod_isVirtual(cursor)) {
+	else
+#endif
+        if (clang_CXXMethod_isVirtual(cursor))
             c.flags |= Symbol::VirtualMethod;
-        }
+
         if (clang_CXXMethod_isStatic(cursor))
             c.flags |= Symbol::StaticMethod;
 #if CINDEX_VERSION >= CINDEX_VERSION_ENCODE(0, 24)
