@@ -455,7 +455,7 @@ String ClangIndexer::addNamePermutations(const CXCursor &cursor, const Location 
     }
 
     int templateStart, templateEnd, colonColonCount;
-    int colonColons[512];
+    int colonColons[1024];
     ::tokenize(buf, pos,
                &templateStart, &templateEnd,
                &colonColonCount, colonColons);
