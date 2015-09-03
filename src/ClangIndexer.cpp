@@ -1379,16 +1379,12 @@ bool ClangIndexer::diagnose()
                     unsigned int startOffset, endOffset;
                     clang_getSpellingLocation(start, 0, 0, 0, &startOffset);
                     clang_getSpellingLocation(end, 0, 0, 0, &endOffset);
-                    if (!rangePos && !startOffset && !endOffset) {
-                        // huh, range invalid? fall back to diag location
-                        break;
-                    } else {
+                    if (startOffset && endOffset) {
                         unsigned int line, column;
                         clang_getSpellingLocation(start, 0, &line, &column, 0);
                         const Location key(loc.fileId(), line, column);
                         mIndexDataMessage.diagnostics()[key] = Diagnostic(type, msg, endOffset - startOffset);
                         ok = true;
-                        break;
                     }
                 }
                 if (!ok) {
