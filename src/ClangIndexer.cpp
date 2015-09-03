@@ -465,7 +465,9 @@ String ClangIndexer::addNamePermutations(const CXCursor &cursor, const Location 
     for (int i=0; i<2; ++i) {
         for (int j=0; j<colonColonCount; ++j) {
             const char *ch = buf + colonColons[j];
-            const String name(ch, sizeof(buf) - (ch - buf) - 1);
+            const String name(ch, std::max<int>(0, sizeof(buf) - (ch - buf) - 1));
+            if (name.isEmpty())
+                continue;
             unit(location.fileId())->symbolNames[name].insert(location);
             if (!type.isEmpty() && (originalKind != CXCursor_ParmDecl || !strchr(ch, '('))) {
                 // We only want to add the type to the final declaration for ParmDecls
