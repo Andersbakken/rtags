@@ -890,6 +890,19 @@ bool ClangIndexer::handleReference(const CXCursor &cursor, CXCursorKind kind,
         }
     }
 
+#if CINDEX_VERSION >= CINDEX_VERSION_ENCODE(0, 16)
+    if (reffedCursorFound) {
+        c.size = reffedCursor.size;
+        c.alignment = reffedCursor.alignment;
+    } else {
+        const CXType type = clang_getCursorType(ref);
+        if (type.kind != CXType_LValueReference && type.kind != CXType_RValueReference && type.kind != CXType_Unexposed) {
+            c.size = clang_Type_getSizeOf(type);
+            c.alignment = std::max<int16_t>(-1, clang_Type_getAlignOf(type));
+        }
+    }
+#endif
+
     CXSourceRange range = clang_getCursorExtent(cursor);
     CXSourceLocation rangeStart = clang_getRangeStart(range);
     CXSourceLocation rangeEnd = clang_getRangeEnd(range);
