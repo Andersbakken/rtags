@@ -105,10 +105,10 @@ private:
     }
     inline Location createLocation(const CXCursor &cursor, bool *blocked = 0)
     {
-        const CXSourceRange range = clang_Cursor_getSpellingNameRange(cursor, 0, 0);
-        if (clang_Range_isNull(range))
+        const CXSourceLocation location = clang_getCursorLocation(cursor);
+        if (clang_equalLocations(location, nullLocation))
             return Location();
-        return createLocation(clang_getRangeStart(range), blocked);
+        return createLocation(location, blocked);
     }
     Location createLocation(const Path &file, unsigned int line, unsigned int col, bool *blocked = 0);
     String addNamePermutations(const CXCursor &cursor,
@@ -153,6 +153,8 @@ private:
 
     Hash<uint32_t, std::shared_ptr<Unit> > mUnits;
 
+    static const CXSourceLocation nullLocation;
+    static const CXCursor nullCursor;
     Path mProject;
     Source mSource;
     Path mSourceFile;
