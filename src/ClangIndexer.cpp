@@ -31,8 +31,8 @@
 #include <clang-c/Documentation.h>
 #endif
 
-CXSourceLocation ClangIndexer::nullLocation = clang_getNullLocation();
-CXCursor nullCursor = ClangIndexer::clang_getNullCursor();
+const CXSourceLocation ClangIndexer::nullLocation = clang_getNullLocation();
+const CXCursor nullCursor = ClangIndexer::clang_getNullCursor();
 
 static inline String usr(const CXCursor &cursor)
 {
