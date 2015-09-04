@@ -159,7 +159,6 @@ and `c-electric-colon', for automatic completion right after \">\" and
   (interactive (list 'interactive))
   (setq rtags-company-last-completion-prefix arg)
   (case command
-    (init (rtags-diagnostics))
     (interactive (company-begin-backend 'company-rtags))
     (prefix (and (memq major-mode company-rtags-modes)
                  buffer-file-name
