@@ -32,7 +32,7 @@
 #endif
 
 const CXSourceLocation ClangIndexer::nullLocation = clang_getNullLocation();
-const CXCursor nullCursor = ClangIndexer::clang_getNullCursor();
+const CXCursor ClangIndexer::nullCursor = clang_getNullCursor();
 
 static inline String usr(const CXCursor &cursor)
 {
@@ -531,7 +531,7 @@ static inline CXCursor findDestructorForDelete(const CXCursor &deleteStatement)
     case CXCursor_CallExpr:
         break;
     default:
-        return nullCursor;
+        return ClangIndexer::nullCursor;
     }
 
     const CXCursor var = clang_getCursorReferenced(child);
@@ -550,7 +550,7 @@ static inline CXCursor findDestructorForDelete(const CXCursor &deleteStatement)
             error() << "Got unexpected cursor" << deleteStatement << var;
             // assert(0);
         }
-        return nullCursor;
+        return ClangIndexer::nullCursor;
     }
 
     CXCursor ref = RTags::findChild(var, CXCursor_TypeRef);
@@ -562,7 +562,7 @@ static inline CXCursor findDestructorForDelete(const CXCursor &deleteStatement)
     case CXCursor_TemplateRef:
         break;
     default:
-        return nullCursor;
+        return ClangIndexer::nullCursor;
     }
 
     const CXCursor referenced = clang_getCursorReferenced(ref);
@@ -573,7 +573,7 @@ static inline CXCursor findDestructorForDelete(const CXCursor &deleteStatement)
     case CXCursor_ClassTemplate:
         break;
     default:
-        return nullCursor;
+        return ClangIndexer::nullCursor;
     }
     const CXCursor destructor = RTags::findChild(referenced, CXCursor_Destructor);
     return destructor;

@@ -32,6 +32,9 @@ struct Unit;
 class ClangIndexer
 {
 public:
+    static const CXSourceLocation nullLocation;
+    static const CXCursor nullCursor;
+
     ClangIndexer();
     ~ClangIndexer();
 
@@ -153,8 +156,6 @@ private:
 
     Hash<uint32_t, std::shared_ptr<Unit> > mUnits;
 
-    static const CXSourceLocation nullLocation;
-    static const CXCursor nullCursor;
     Path mProject;
     Source mSource;
     Path mSourceFile;
