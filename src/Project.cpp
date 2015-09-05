@@ -2088,7 +2088,7 @@ String Project::estimateMemory() const
     size_t total = 0;
     auto add = [&ret, &total](const char *name, size_t size) {
         total += size;
-        ret << String::format<128>("%s: %zu mb", name, size);
+        ret << String::format<128>("%s: %.2fmb", name, size / (1024.0 * 1024.0));
     };
     add("Paths", ::estimateMemory(mFiles));
     add("Visited files", ::estimateMemory(mVisitedFiles));
