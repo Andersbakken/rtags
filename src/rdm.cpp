@@ -102,7 +102,7 @@ static void usage(FILE *f)
             "  --rp-connect-timeout|-O [arg]              Timeout for connection from rp to rdm in ms (0 means no timeout) (default " STR(DEFAULT_RP_CONNECT_TIMEOUT) ").\n"
             "  --rp-connect-attempts [arg]                Number of times rp attempts to connect to rdm before giving up. (default " STR(DEFAULT_RP_CONNECT_ATTEMPTS) ").\n"
             "  --rp-indexer-message-timeout|-T [arg]      Timeout for rp indexer-message in ms (0 means no timeout) (default " STR(DEFAULT_RP_INDEXER_MESSAGE_TIMEOUT) ").\n"
-            "  --rp-nice-value|-a [arg]                   Nice value to use for rp (nice(2)) (default -1, e.g. not nicing).\n"
+            "  --rp-nice-value|-a [arg]                   Nice value to use for rp (nice(2)) (default is no nicing).\n"
             "  --rp-visit-file-timeout|-Z [arg]           Timeout for rp visitfile commands in ms (0 means no timeout) (default " STR(DEFAULT_RP_VISITFILE_TIMEOUT) ").\n"
             "  --separate-debug-and-release|-E            Normally rdm doesn't consider release and debug as different builds. Pass this if you want it to.\n"
             "  --setenv|-e [arg]                          Set this environment variable (--setenv \"foobar=1\").\n"
