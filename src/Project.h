@@ -213,6 +213,7 @@ public:
     void dirty(uint32_t fileId);
     bool save();
     void prepare(uint32_t fileId);
+    String estimateMemory() const;
 private:
     void onFileAddedOrModified(const Path &path);
     void watchFile(uint32_t fileId);

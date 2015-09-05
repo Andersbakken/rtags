@@ -177,6 +177,7 @@ struct Source
         None = 0x0,
         Escape = 0x1
     };
+
     static List<Source> parse(const String &cmdLine,
                               Flags<ParseFlag> parseFlags,
                               const Path &pwd,

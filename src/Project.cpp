@@ -1968,3 +1968,143 @@ void Project::prepare(uint32_t fileId)
         endScope();
     }
 }
+
+template <typename T>
+size_t estimateMemory(const T &t);
+size_t estimateMemory(const String &string);
+size_t estimateMemory(const Source::Define &define);
+size_t estimateMemory(const Source::Include &include);
+size_t estimateMemory(const Source &source);
+template <typename T>
+size_t estimateMemory(const std::shared_ptr<T> &ptr);
+template <typename T>
+size_t estimateMemory(const T *t);
+template <typename T>
+size_t estimateMemory(const Set<T> &container);
+template <typename T>
+size_t estimateMemory(const List<T> &container);
+template <typename Key, typename Value>
+size_t estimateMemory(const Map<Key, Value> &container);
+template <typename Key, typename Value>
+size_t estimateMemory(const Hash<Key, Value> &container);
+
+// impl
+template <typename T>
+size_t estimateMemory(const T &t)
+{
+    return sizeof(t);
+}
+
+size_t estimateMemory(const String &string)
+{
+    return string.size() + 1 + sizeof(string) + (sizeof(size_t) + sizeof(size_t));
+}
+
+size_t estimateMemory(const Source::Define &define)
+{
+    return estimateMemory(define.define) + estimateMemory(define.value);
+}
+
+size_t estimateMemory(const Source::Include &include)
+{
+    return estimateMemory(include.type) + estimateMemory(include.path);
+}
+
+size_t estimateMemory(const Source &source)
+{
+    size_t ret = sizeof(Source);
+    ret += estimateMemory(source.extraCompiler);
+    ret += estimateMemory(source.defines);
+    ret += estimateMemory(source.includePaths);
+    ret += estimateMemory(source.directory);
+    return ret;
+}
+
+template <typename T>
+size_t estimateMemory(const std::shared_ptr<T> &ptr)
+{
+    size_t ret = sizeof(ptr) + sizeof(size_t);
+    if (ptr) {
+        ret += estimateMemory(*ptr);
+    } else {
+        ret += sizeof(T);
+    }
+    return ret;
+}
+
+template <typename T>
+size_t estimateMemory(const T *t)
+{
+    if (t)
+        return estimateMemory(*t);
+    return 0;
+}
+
+template <typename T>
+size_t estimateMemory(const Set<T> &container)
+{
+    size_t ret = sizeof(Set<T>) + sizeof(void*);
+    for (const T &value : container) {
+        ret += estimateMemory(value) + (sizeof(void*) * 2); // might not be entirely fair to std::vector
+    }
+    return ret;
+}
+
+template <typename T>
+size_t estimateMemory(const List<T> &container)
+{
+    size_t ret = sizeof(List<T>) + sizeof(void*);
+    for (const T &value : container) {
+        ret += estimateMemory(value);
+    }
+    return ret;
+}
+
+template <typename T>
+size_t estimateKeyValueContainer(const T &t)
+{
+    size_t ret = sizeof(T) + sizeof(void*);
+    for (const auto &pair : t) {
+        ret += estimateMemory(pair.first) + estimateMemory(pair.second) + (sizeof(void*) * 2);
+    }
+    return ret;
+}
+
+template <typename Key, typename Value>
+size_t estimateMemory(const Map<Key, Value> &container)
+{
+    return estimateKeyValueContainer(container);
+}
+
+template <typename Key, typename Value>
+size_t estimateMemory(const Hash<Key, Value> &container)
+{
+    return estimateKeyValueContainer(container);
+}
+
+String Project::estimateMemory() const
+{
+    List<String> ret;
+    size_t total = 0;
+    auto add = [&ret, &total](const char *name, size_t size) {
+        total += size;
+        ret << String::format<128>("%s: %zu mb", name, size);
+    };
+    add("Paths", ::estimateMemory(mFiles));
+    add("Visited files", ::estimateMemory(mVisitedFiles));
+    add("Had diagnostics", ::estimateMemory(mHadDiagnostics));
+    add("Active jobs", ::estimateMemory(mActiveJobs));
+    add("Fixits", ::estimateMemory(mFixIts));
+    add("Pending dirty files", ::estimateMemory(mPendingDirtyFiles));
+    add("Declarations", ::estimateMemory(mDeclarations));
+    add("Sources", ::estimateMemory(mSources));
+    add("Suspended files", ::estimateMemory(mSuspendedFiles));
+    size_t deps = ::estimateMemory(mDependencies);
+    for (const auto &dep : mDependencies) {
+        deps += ::estimateMemory(*dep.second);
+    }
+    add("Dependencies", deps);
+    add("Total", total);
+    return String::join(ret, "\n");
+}
+
