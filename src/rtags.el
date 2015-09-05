@@ -83,185 +83,214 @@
             (and (member (downcase suffix) (list "cpp" "h" "cc" "c" "cp" "cxx" "m" "mm" "tcc" "txx" "moc" "hxx" "hh")) t))))))
 
 (defcustom rtags-enabled t
-  "Whether rtags is enabled. We try to do nothing when it's not"
+  "Whether rtags is enabled. We try to do nothing when it's not."
   :group 'rtags
-  :type 'boolean)
+  :type 'boolean
+  :safe 'booleanp)
 
 (defcustom rtags-follow-symbol-try-harder t
-  "Fall back to string-matching if follow symbol fails"
+  "Fall back to string-matching if follow symbol fails."
   :group 'rtags
-  :type 'boolean)
+  :type 'boolean
+  :safe 'booleanp)
 
 (defcustom rtags-reindex-on-save nil
-  "Explicitly reindex files on save. This should only be useful if your file system watching is not working"
+  "Explicitly reindex files on save. This should only be useful if your file system watching is not working."
   :group 'rtags
-  :type 'boolean)
+  :type 'boolean
+  :safe 'booleanp)
 
 (defcustom rtags-use-filename-completion t
-  "Whether Rtags' special filename completion is enabled. Set to nil to enable ido-ubiquitous etc."
+  "Whether rtags special filename completion is enabled. Set to nil to enable ido-ubiquitous etc."
   :group 'rtags
-  :type 'boolean)
+  :type 'boolean
+  :safe 'booleanp)
 
 (defcustom rtags-diagnostics-use-pipe t
-  "If diagnostics can use a pipe. If you're running emacs in cygwin you might have to set this to nil"
+  "Whether diagnostics should use pipes. If you're running emacs in cygwin you might have to set this to nil."
   :group 'rtags
-  :type 'boolean)
+  :type 'boolean
+  :safe 'booleanp)
 
 (defcustom rtags-autostart-diagnostics nil
-  "Whether rtags automatically will restart diagnostics"
+  "Whether rtags automatically will restart diagnostics."
   :group 'rtags
-  :type 'boolean)
+  :type 'boolean
+  :safe 'booleanp)
 
 (defcustom rtags-spellcheck-enabled t
-  "Whether rtags does syntax checking with overlays etc to mark errors, warnings and fixups"
+  "Whether rtags does syntax checking with overlays etc to mark errors, warnings and fixups."
   :group 'rtags
-  :type 'boolean)
+  :type 'boolean
+  :safe 'booleanp)
 
 (defcustom rtags-verbose-results nil
-  "Print more verbose results buffer"
+  "Print more verbose results buffer."
   :group 'rtags
-  :type 'boolean)
+  :type 'boolean
+  :safe 'booleanp)
 
 (defcustom rtags-sort-references-by-input t
-  "Whether rtags sorts the references based on the input to rtags-find-references.*"
+  "Whether rtags sorts the references based on the input to `rtags-find-references'."
   :group 'rtags
-  :type 'boolean)
+  :type 'boolean
+  :safe 'booleanp)
 
 (defcustom rtags-completions-enabled nil
-  "Whether completions are enabled"
+  "Whether completions are enabled."
   :group 'rtags
-  :type 'boolean)
+  :type 'boolean
+  :safe 'booleanp)
 
 (defcustom rtags-completions-timer-interval nil
-  "Interval for completions timer. nil means don't preemptively prepare completions"
+  "Interval for completions timer. nil means, don't preemptively prepare completions."
   :group 'rtags
-  :type 'number)
+  :type '(choice (const :tag "Unset" nil) number)
+  :safe 'numberp)
 
 (defcustom rtags-update-current-project-timer-interval .5
-  "Interval for update current project timer"
+  "Interval for update current project timer."
   :group 'rtags
-  :type 'number)
+  :type 'number
+  :safe 'numberp)
 
 (defcustom rtags-wildcard-symbol-names t
-  "Allow use of * and ? to match symbol names"
+  "Allow use of * and ? to match symbol names."
   :group 'rtags
-  :type 'boolean)
+  :type 'boolean
+  :safe 'booleanp)
 
 (defcustom rtags-tracking nil
-  "When on automatically jump to symbol under cursor in *RTags* buffer"
+  "When on automatically jump to symbol under cursor in *RTags* buffer."
   :group 'rtags
-  :type 'boolean)
+  :type 'boolean
+  :safe 'booleanp)
 
 (defcustom rtags-track-container nil
-  "When on continually update current container (function/class/namespace) on intervals"
+  "When on continually update current container (function/class/namespace) on intervals."
   :group 'rtags
-  :type 'boolean)
+  :type 'boolean
+  :safe 'booleanp)
 
 (defcustom rtags-error-timer-interval .5
-  "Interval for minibuffer error timer"
+  "Interval for minibuffer error timer."
   :group 'rtags
-  :type 'number)
+  :type 'number
+  :safe 'numberp)
 
 (defcustom rtags-display-current-error-as-message t
-  "Display error under cursor using (message)"
+  "Display error under cursor using (message)."
+  :group 'rtags
   :type 'boolean
-  :group 'rtags)
+  :safe 'booleanp)
 
 (defcustom rtags-display-current-error-as-tooltip nil
-  "Display error under cursor using popup-tip (requires 'popup)"
+  "Display error under cursor using popup-tip (requires 'popup)."
+  :group 'rtags
   :type 'boolean
-  :group 'rtags)
+  :safe 'booleanp)
 
 (defcustom rtags-display-summary-as-tooltip rtags-popup-available
-  "Display help / summary text using popup-tip (requires 'popup)"
+  "Display help / summary text using popup-tip (requires 'popup)."
+  :group 'rtags
   :type 'boolean
-  :group 'rtags)
+  :safe 'booleanp)
 
 (defcustom rtags-tooltips-enabled rtags-popup-available
   "Display help / summary text when hovering over symbols."
+  :group 'rtags
   :type 'boolean
-  :group 'rtags)
+  :safe 'booleanp)
 
 (defcustom rtags-error-timer-interval .5
-  "Interval for minibuffer error timer"
+  "Interval for minibuffer error timer."
   :group 'rtags
-  :type 'number)
+  :type 'number
+  :safe 'numberp)
 
 (defcustom rtags-tracking-timer-interval .5
-  "Interval for tracking timer"
+  "Interval for tracking timer."
   :group 'rtags
-  :type 'number)
+  :type 'number
+  :safe 'numberp)
 
 (defcustom rtags-container-timer-interval .5
   "Interval for container timer"
   :group 'rtags
-  :type 'number)
+  :type 'number
+  :safe 'numberp)
 
 (defcustom rtags-current-container-hook nil
-  "Run after rtags has set the current container"
+  "Run after rtags has set the current container."
   :group 'rtags
   :type 'hook)
 
 (defcustom rtags-is-indexable 'rtags-is-indexable-default
-  "What function to call for expansions"
+  "What function to call for expansions."
   :group 'rtags
   :type 'function)
 
 (defcustom rtags-after-find-file-hook nil
-  "Run after rtags has jumped to a location possibly in a new file"
+  "Run after rtags has jumped to a location possibly in a new file."
   :group 'rtags
   :type 'hook)
 
 (defcustom rtags-mode-hook nil
-  "Run when rtags-mode is started"
+  "Run when rtags-mode is started."
   :group 'rtags
   :type 'hook)
 
 (defcustom rtags-diagnostics-hook nil
-  "Run after diagnostics have been parsed"
+  "Run after diagnostics have been parsed."
   :group 'rtags
   :type 'hook)
 
 (defcustom rtags-completions-hook nil
-  "Run after completions have been parsed"
+  "Run after completions have been parsed."
   :group 'rtags
   :type 'hook)
 
 (defcustom rtags-edit-hook nil
   "Run before rtags tries to modify a buffer (from rtags-rename)
-return t if rtags is allowed to modify this file"
+return t if rtags is allowed to modify this file."
   :group 'rtags
   :type 'hook)
 
 (defcustom rtags-jump-to-first-match t
-  "If t, jump to first match"
+  "If t, jump to first match."
   :group 'rtags
-  :type 'boolean)
+  :type 'boolean
+  :safe 'booleanp)
 
 (defcustom rtags-timeout nil
-  "Max amount of ms to wait before timing out requests"
+  "Max amount of ms to wait before timing out requests."
   :group 'rtags
-  :type 'integer)
+  :type '(choice (const :tag "Unset" nil) integer)
+  :safe 'integerp)
 
 (defcustom rtags-path nil
-  "Path to rtags executables"
+  "Path to rtags executables."
   :group 'rtags
-  :type 'string)
+  :type '(choice (const :tag "Unset" nil) directory)
+  :risky t)
 
 (defcustom rtags-max-bookmark-count 100
-  "How many bookmarks to keep in stack"
+  "How many bookmarks to keep on the stack."
   :group 'rtags
-  :type 'integer)
+  :type 'integer
+  :safe 'integerp)
 
 (defcustom rtags-rc-log-enabled nil
-  "If t, log rc commands and responses"
+  "If t, log rc commands and responses."
   :group 'rtags
-  :type 'boolean)
+  :type 'boolean
+  :safe 'booleanp)
 
 (defcustom rtags-show-containing-function nil
-  "If t, pass -o to rc to include containing function"
+  "If t, pass -o to rc to include containing function."
   :group 'rtags
-  :type 'boolean)
+  :type 'boolean
+  :safe 'booleanp)
 
 (defface rtags-warnline
   '((((class color) (background dark)) (:background "blue"))
@@ -300,43 +329,43 @@ return t if rtags is allowed to modify this file"
     (,"^ +\\(.*\\)$"
      (1 font-lock-function-name-face))))
 
-(defcustom rtags-timeout nil
-  "Max amount of ms to wait for operation to finish"
-  :group 'rtags
-  :type 'integer)
-
 (defcustom rtags-enable-unsaved-reparsing t
-  "Whether rtags will reparse unsaved buffers as needed"
+  "Whether rtags will reparse unsaved buffers as needed."
   :group 'rtags
-  :type 'boolean)
+  :type 'boolean
+  :safe 'booleanp)
 
 (defcustom rtags-reparse-timeout nil
   "Max number of ms you're willing to wait for a reparse to finish."
   :group 'rtags
-  :type 'integer)
+  :type '(choice (const :tag "Unset" nil) integer)
+  :safe 'integerp)
 
 (defcustom rtags-find-file-case-insensitive nil
-  "Treat files case-insensitively"
+  "Treat files case-insensitively."
   :group 'rtags
-  :type 'boolean)
+  :type 'boolean
+  :safe 'booleanp)
 
 (defcustom rtags-symbolnames-case-insensitive nil
-  "Treat symbol names case-insensitively"
+  "Treat symbol names case-insensitively."
   :group 'rtags
-  :type 'boolean)
+  :type 'boolean
+  :safe 'booleanp)
 
 (defcustom rtags-find-file-prefer-exact-match t
-  "Jump directly to files that exactly match the filename for rtags-find-file"
+  "Jump directly to files that exactly match the filename for `rtags-find-file'."
   :group 'rtags
-  :type 'boolean)
+  :type 'boolean
+  :safe 'booleanp)
 
 (defcustom rtags-other-window-window-size-percentage 30
-  "Percentage size of other buffer"
+  "Percentage size of other buffer."
   :group 'rtags
   :type 'integer)
 
 (defcustom rtags-split-window-function 'split-window
-  "Function to split window. default is 'split-window"
+  "Function to split window. default is `split-window'."
   :group 'rtags
   :type 'function)
 
@@ -1016,10 +1045,10 @@ If called with a prefix restrict to current buffer"
 
 ;;;###autoload
 (defun rtags-find-references-at-point (&optional prefix)
-  "Find all references to the symbol under the cursor
-If there's exactly one result jump directly to it.
-If there's more show a buffer with the different alternatives and jump to the first one if rtags-jump-to-first-match is true.
-References to references will be treated as references to the referenced symbol"
+  "Find all references to the symbol under the cursor.
+If there's exactly one result jump directly to it. If there's more show a buffer
+with the different alternatives and jump to the first one if `rtags-jump-to-first-match'
+is true. References to references will be treated as references to the referenced symbol"
   (interactive "P")
   (rtags-location-stack-push)
   (let ((arg (rtags-current-location))
@@ -2096,7 +2125,7 @@ References to references will be treated as references to the referenced symbol"
 (defun rtags-show-target-in-other-window (&optional dest-window center-window
                                                     try-declaration-first)
   "DEST-WINDOW : destination window. Can be nil; in this case the current window is split
-according to rtags-other-window-window-size-percentage.
+according to `rtags-other-window-window-size-percentage'.
 CENTER-WINDOW : if true the target window is centered.
 TRY-DECLARATION-FIRST : first try to find the declaration of the item, then the
 definition."
@@ -2250,28 +2279,31 @@ definition."
           (compile line))))))
 
 (defcustom rtags-includes-func 'rtags-dummy-includes-func
-  "Function to return flags and include flags for rdm"
+  "Function to return flags and include flags for rdm."
   :group 'rtags
   :type 'function)
 
 (defcustom rtags-rdm-includes ""
-  "Flags"
+  "Additional include paths."
   :group 'rtags
-  :type 'string)
+  :type 'string
+  :safe 'stringp)
 
 (defun rtags-dummy-includes-func()
-  "Dummy function, returns rtags-rdm-includes."
+  "Dummy function, returns `rtags-rdm-includes'."
   rtags-rdm-includes)
 
 (defcustom rtags-process-flags ""
-  "Flags for rdm"
+  "Flags for rdm."
   :group 'rtags
-  :type 'string)
+  :type 'string
+  :safe 'stringp)
 
 (defcustom rtags-rdm-process-use-pipe nil
-  "If t, use pipes to communicate with rdm"
+  "If t, use pipes to communicate with rdm."
   :group 'rtags
-  :type 'boolean)
+  :type 'boolean
+  :safe 'booleanp)
 
 (defvar rtags-rdm-process nil)
 
@@ -2287,14 +2319,14 @@ definition."
               (funcall rtags-includes-func)) " "))
 
 (defun rtags-command ()
-  "Shell command used to start the rtags-server process."
+  "Shell command used to start the `rtags-server' process."
   (format "%s %s %s"
           (rtags-executable-find "rdm")
           (rdm-includes)
           rtags-process-flags))
 
 (defun rtags-cancel-process ()
-  "Stop the rtags process. "
+  "Stop the rtags process."
   (if (not rtags-rdm-process)
       (message "No rtags process running (rdm)...")
     (delete-process rtags-rdm-process)
@@ -2386,7 +2418,7 @@ definition."
 (defun rtags-reparse-file-if-needed (&optional buffer)
   "Reparse file if it's not saved.
 
-BUFFER : the buffer to be checked and reparsed, if it's nil, use current buffer"
+BUFFER : The buffer to be checked and reparsed, if it's nil, use current buffer."
   (when rtags-enable-unsaved-reparsing
     (let ((unsaved (and (buffer-modified-p buffer) (or buffer (current-buffer)))))
       (when unsaved
@@ -2459,9 +2491,11 @@ BUFFER : the buffer to be checked and reparsed, if it's nil, use current buffer"
 
 
 (defun rtags-get-summary-text (&optional max-no-lines)
-  "Return a text describing the item at point: for functions it is the declaration
-\(including the parameters names) if available or the first MAX-NO-LINES (default 5) lines
-of the definition; for variables is the definition, etc.
+  "Return a text describing the item at point.
+
+For functions it is the declaration, including the parameters names, if available
+or the first MAX-NO-LINES (default 5) lines of the definition; for variables is
+the definition, etc.
 
 Return nil if it can't get any info about the item."
   ;; try first with --declaration-only
@@ -2498,10 +2532,10 @@ Return nil if it can't get any info about the item."
 
 ;;;###autoload
 (defun rtags-display-summary (&optional hide-empty)
-  "Display a short text describing the item at point (see rtags-get-summary-text for
+  "Display a short text describing the item at point (see `rtags-get-summary-text' for
 details).
 
-If rtags-display-summary-as-tooltip is t, a tooltip is displayed."
+If `rtags-display-summary-as-tooltip' is t, a tooltip is displayed."
   (interactive)
   (let ((summary (rtags-get-summary-text)))
     (when (or summary (not hide-empty))
@@ -2550,7 +2584,7 @@ If rtags-display-summary-as-tooltip is t, a tooltip is displayed."
 (add-hook 'find-file-hook 'rtags-find-file-hook)
 
 (defun rtags-get-include-file-for-symbol ()
-  "Insert #include declaration to buffer corresponding to the input symbol"
+  "Insert #include declaration to buffer corresponding to the input symbol."
   (interactive)
   (let ((input (completing-read-default "Symbol: " (function rtags-symbolname-complete) nil nil nil 'rtags-symbol-history))
         (current-file (buffer-file-name)))
