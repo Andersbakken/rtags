@@ -36,7 +36,6 @@ int FindSymbolsJob::execute()
     int ret = 2;
     if (std::shared_ptr<Project> proj = project()) {
         Set<Symbol> symbols;
-        const uint32_t filter = fileFilter();
         auto inserter = [proj, this, &symbols](Project::SymbolMatchType type, const String &symbolName, const Set<Location> &locations) {
             if (type == Project::StartsWith) {
                 const int paren = symbolName.indexOf('(');
@@ -52,7 +51,7 @@ int FindSymbolsJob::execute()
         proj->findSymbols(string, inserter, queryFlags());
         if (!symbols.isEmpty()) {
             const List<RTags::SortedSymbol> sorted = proj->sort(symbols, queryFlags());
-            const Flags<WriteFlag> writeFlags = filter ? NoWriteFlags : Unfiltered;
+            const Flags<WriteFlag> writeFlags = fileFilter() ? Unfiltered : NoWriteFlags;
             const int count = sorted.size();
             ret = count ? 0 : 1;
             for (int i=0; i<count; ++i) {
