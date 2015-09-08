@@ -2080,7 +2080,7 @@ References to references will be treated as references to the referenced symbol"
     (setq rtags-last-update-current-project-buffer (current-buffer))
     (let* ((rc (rtags-executable-find "rc"))
            (path (or (buffer-file-name) default-directory))
-           (arguments (list "-T" path "--silent-query")))
+           (arguments (list "-T" path "--diagnose" path "--silent-query")))
       (when rc
         (apply #'start-process "rtags-update-current-project" nil rc arguments))))
   t)

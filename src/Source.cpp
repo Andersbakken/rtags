@@ -325,6 +325,8 @@ static inline bool isCompiler(const Path &fullPath)
     }
 
     String compiler = fullPath.fileName();
+    if (compiler.endsWith(".exe"))
+        return true;
 
     String c;
     int dash = compiler.lastIndexOf('-');

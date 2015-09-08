@@ -38,6 +38,7 @@ public:
         CodeCompleteAt,
         DeleteProject,
         Dependencies,
+        Diagnose,
         DumpCompilationDatabase,
         DumpCompletions,
         DumpFile,

@@ -214,6 +214,8 @@ public:
     bool save();
     void prepare(uint32_t fileId);
     String estimateMemory() const;
+    void diagnose(uint32_t fileId);
+    void diagnoseAll();
 private:
     void onFileAddedOrModified(const Path &path);
     void watchFile(uint32_t fileId);
@@ -335,7 +337,7 @@ private:
     Hash<uint32_t, Path> mVisitedFiles;
     int mJobCounter, mJobsStarted;
 
-    Set<uint32_t> mHadDiagnostics;
+    Diagnostics mDiagnostics;
 
     // key'ed on Source::key()
     Hash<uint64_t, std::shared_ptr<IndexerJob> > mActiveJobs;

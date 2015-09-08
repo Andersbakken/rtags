@@ -333,7 +333,7 @@ bool Project::init()
 
     {
         std::lock_guard<std::mutex> lock(mMutex);
-        file >> mVisitedFiles;
+        file >> mVisitedFiles >> mDiagnostics;
     }
     file >> mDeclarations;
     loadDependencies(file, mDependencies);
@@ -461,16 +461,27 @@ enum DiagnosticsFormat {
     Diagnostics_Elisp
 };
 
-static String formatDiagnostics(const Diagnostics &diagnostics, DiagnosticsFormat format, Set<uint32_t> &hadDiagnostics)
+static inline bool remove(Diagnostics &diags, uint32_t file)
 {
-    Server *server = Server::instance();
-    assert(server);
-    if (server->activeBuffers().isEmpty())
-        server = 0;
-    String ret;
+    Diagnostics::iterator it = diags.lower_bound(Location(file, 0, 0));
+    bool ret = false;
+    while (it != diags.end() && it->first.fileId() == file) {
+        diags.erase(it++);
+        ret = true;
+    }
+    return ret;
+}
 
+struct FormatDiagnosticsOperation {
+    DiagnosticsFormat format;
+    Diagnostics newDiags;
+    uint32_t fileId;
+    bool all;
+};
+
+static String formatDiagnostics(const FormatDiagnosticsOperation &op, Diagnostics &diagnostics)
+{
     const char *severities[] = { "none", "warning", "error", "fixit", "skipped" };
-    uint32_t lastFileId = 0;
 
     static const char *header[] = {
         "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n  <checkstyle>",
@@ -493,7 +504,7 @@ static String formatDiagnostics(const Diagnostics &diagnostics, DiagnosticsForma
         ")"
     };
     std::function<String(const Location &, const Diagnostic &)> formatDiagnostic;
-    if (format == Diagnostics_XML) {
+    if (op.format == Diagnostics_XML) {
         formatDiagnostic = [severities](const Location &loc, const Diagnostic &diagnostic) {
             return String::format<256>("\n      <error line=\"%d\" column=\"%d\" %sseverity=\"%s\" message=\"%s\"/>",
                                        loc.line(), loc.column(),
@@ -510,43 +521,93 @@ static String formatDiagnostics(const Diagnostics &diagnostics, DiagnosticsForma
                                        RTags::elispEscape(diagnostic.message).constData());
         };
     }
+    if (op.fileId) {
+        String ret;
+        assert(op.newDiags.isEmpty());
+        assert(!op.all);
+        const Path path = Location::path(op.fileId);
+        ret << header[op.format]
+            << String::format<256>(startFile[op.format], path.constData());
+
+        Diagnostics::iterator it = diagnostics.lower_bound(Location(op.fileId, 0, 0));
+        bool found = false;
+        while (it != diagnostics.end() && it->first.fileId() == op.fileId) {
+            found = true;
+            ret << formatDiagnostic(it->first, it->second);
+            ++it;
+        }
+        if (!found) {
+            ret << String::format<256>(fileEmpty[op.format], path.constData());
+        }
+        ret << endFile[op.format] << trailer[op.format];
+        return ret;
+    }
+
+    if (op.all) {
+        String ret;
+        uint32_t lastFileId = 0;
+        bool first = true;
+        for (const auto &entry : diagnostics) {
+            const Location &loc = entry.first;
+            const Diagnostic &diagnostic = entry.second;
+            if (loc.fileId() != lastFileId) {
+                if (first) {
+                    ret = header[op.format];
+                    first = false;
+                }
+                if (lastFileId)
+                    ret << endFile[op.format];
+                lastFileId = loc.fileId();
+                ret << String::format<256>(startFile[op.format], loc.path().constData());
+            }
+            diagnostics[entry.first] = entry.second;
+            ret << formatDiagnostic(loc, diagnostic);
+        }
+        if (lastFileId)
+            ret << endFile[op.format];
+        if (!first)
+            ret << trailer[op.format];
+        return ret;
+    }
+
+    String ret;
     bool first = true;
-    for (const auto &entry : diagnostics) {
+    uint32_t lastFileId = 0;
+    for (const auto &entry : op.newDiags) {
         const Location &loc = entry.first;
-        if (server && !server->isActiveBuffer(loc.fileId()))
-            continue;
         const Diagnostic &diagnostic = entry.second;
         if (diagnostic.type == Diagnostic::None) {
             if (lastFileId) {
-                ret << endFile[format];
+                ret << endFile[op.format];
                 lastFileId = 0;
             }
-            if (hadDiagnostics.remove(entry.first.fileId())) {
+            if (::remove(diagnostics, entry.first.fileId())) {
                 if (first) {
-                    ret = header[format];
+                    ret = header[op.format];
                     first = false;
                 }
-                ret << String::format<256>(fileEmpty[format], loc.path().constData());
+                ret << String::format<256>(fileEmpty[op.format], loc.path().constData());
             }
         } else {
             if (loc.fileId() != lastFileId) {
+                ::remove(diagnostics, entry.first.fileId());
                 if (first) {
-                    ret = header[format];
+                    ret = header[op.format];
                     first = false;
                 }
-                hadDiagnostics.insert(loc.fileId());
                 if (lastFileId)
-                    ret << endFile[format];
+                    ret << endFile[op.format];
                 lastFileId = loc.fileId();
-                ret << String::format<256>(startFile[format], loc.path().constData());
+                ret << String::format<256>(startFile[op.format], loc.path().constData());
             }
+            diagnostics[entry.first] = entry.second;
             ret << formatDiagnostic(loc, diagnostic);
         }
     }
     if (lastFileId)
-        ret << endFile[format];
+        ret << endFile[op.format];
     if (!first)
-        ret << trailer[format];
+        ret << trailer[op.format];
     return ret;
 }
 
@@ -590,8 +651,6 @@ void Project::onJobFinished(const std::shared_ptr<IndexerJob> &job, const std::s
 
     const int idx = mJobCounter - mActiveJobs.size();
     if (!msg->diagnostics().isEmpty() || options.options & Server::Progress) {
-        Set<uint32_t> newDiagnostics;
-        bool gotDiagnostics = false;
         log([&](const std::shared_ptr<LogOutput> &output) {
                 if (output->testLog(RTags::Diagnostics)) {
                     DiagnosticsFormat format = Diagnostics_XML;
@@ -601,10 +660,9 @@ void Project::onJobFinished(const std::shared_ptr<IndexerJob> &job, const std::s
                         format = Diagnostics_Elisp;
                     }
                     if (!msg->diagnostics().isEmpty()) {
-                        newDiagnostics = mHadDiagnostics;
-                        const String log = formatDiagnostics(msg->diagnostics(), format, newDiagnostics);
+                        const FormatDiagnosticsOperation op = { format, msg->diagnostics(), 0, false };
+                        const String log = formatDiagnostics(op, mDiagnostics);
                         if (!log.isEmpty()) {
-                            gotDiagnostics = true;
                             output->log(log);
                         }
                     }
@@ -618,9 +676,6 @@ void Project::onJobFinished(const std::shared_ptr<IndexerJob> &job, const std::s
                     }
                 }
             });
-        if (gotDiagnostics) {
-            mHadDiagnostics = newDiagnostics;
-        }
     }
 
     int symbolNames = 0;
@@ -659,6 +714,42 @@ void Project::onJobFinished(const std::shared_ptr<IndexerJob> &job, const std::s
     }
 }
 
+void Project::diagnose(uint32_t fileId)
+{
+    log([&](const std::shared_ptr<LogOutput> &output) {
+            if (output->testLog(RTags::Diagnostics)) {
+                DiagnosticsFormat format = Diagnostics_XML;
+                if (output->flags() & RTagsLogOutput::Elisp) {
+                    // I know this is RTagsLogOutput because it returned
+                    // true for testLog(RTags::Diagnostics)
+                    format = Diagnostics_Elisp;
+                }
+                const FormatDiagnosticsOperation op = { format, Diagnostics(), fileId, false } ;
+                const String log = formatDiagnostics(op, mDiagnostics);
+                if (!log.isEmpty())
+                    output->log(log);
+            }
+        });
+}
+
+void Project::diagnoseAll()
+{
+    log([&](const std::shared_ptr<LogOutput> &output) {
+            if (output->testLog(RTags::Diagnostics)) {
+                DiagnosticsFormat format = Diagnostics_XML;
+                if (output->flags() & RTagsLogOutput::Elisp) {
+                    // I know this is RTagsLogOutput because it returned
+                    // true for testLog(RTags::Diagnostics)
+                    format = Diagnostics_Elisp;
+                }
+                const FormatDiagnosticsOperation op = { format, Diagnostics(), 0, true } ;
+                const String log = formatDiagnostics(op, mDiagnostics);
+                if (!log.isEmpty())
+                    output->log(log);
+            }
+        });
+}
+
 bool Project::save()
 {
     {
@@ -678,7 +769,7 @@ bool Project::save()
         }
         {
             std::lock_guard<std::mutex> lock(mMutex);
-            file << mVisitedFiles;
+            file << mVisitedFiles << mDiagnostics;
         }
         file << mDeclarations;
         saveDependencies(file, mDependencies);
@@ -2092,7 +2183,7 @@ String Project::estimateMemory() const
     };
     add("Paths", ::estimateMemory(mFiles));
     add("Visited files", ::estimateMemory(mVisitedFiles));
-    add("Had diagnostics", ::estimateMemory(mHadDiagnostics));
+    add("Diagnostics", ::estimateMemory(mDiagnostics));
     add("Active jobs", ::estimateMemory(mActiveJobs));
     add("Fixits", ::estimateMemory(mFixIts));
     add("Pending dirty files", ::estimateMemory(mPendingDirtyFiles));
@@ -2107,4 +2198,3 @@ String Project::estimateMemory() const
     add("Total", total);
     return String::join(ret, "\n");
 }
-

@@ -560,6 +560,9 @@ void Server::handleLogOutputMessage(const std::shared_ptr<LogOutputMessage> &mes
 {
     std::shared_ptr<RTagsLogOutput> log(new RTagsLogOutput(message->level(), message->flags(), conn));
     log->add();
+    if (auto project = mCurrentProject.lock()) {
+        project->diagnoseAll();
+    }
 }
 
 void Server::handleIndexDataMessage(const std::shared_ptr<IndexDataMessage> &message, const std::shared_ptr<Connection> &conn)
@@ -624,6 +627,9 @@ void Server::handleQueryMessage(const std::shared_ptr<QueryMessage> &message, co
         break;
     case QueryMessage::DumpFileMaps:
         dumpFileMaps(message, conn);
+        break;
+    case QueryMessage::Diagnose:
+        diagnose(message, conn);
         break;
     case QueryMessage::Dependencies:
         dependencies(message, conn);
@@ -845,6 +851,26 @@ void Server::dumpFileMaps(const std::shared_ptr<QueryMessage> &query, const std:
     }
 
     project->dumpFileMaps(query, conn);
+    conn->finish();
+}
+
+void Server::diagnose(const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Connection> &conn)
+{
+    const uint32_t fileId = Location::fileId(query->query());
+    if (!fileId) {
+        conn->write<256>("%s is not indexed", query->query().constData());
+        conn->finish();
+        return;
+    }
+
+    std::shared_ptr<Project> project = projectForQuery(query);
+    if (!project) {
+        conn->write<256>("%s is not indexed", query->query().constData());
+        conn->finish();
+        return;
+    }
+
+    project->diagnose(fileId);
     conn->finish();
 }
 
@@ -1224,6 +1250,7 @@ void Server::setCurrentProject(const std::shared_ptr<Project> &project)
                 error() << "error opening" << (mOptions.dataDir + ".currentProject") << "for write";
             }
             project->fileManager()->load(FileManager::Synchronous);
+            project->diagnoseAll();
         } else {
             Path::rm(mOptions.dataDir + ".currentProject");
         }

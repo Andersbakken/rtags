@@ -77,6 +77,7 @@ struct Option opts[] = {
     { RClient::FindSymbols, "find-symbols", 'F', optional_argument, "Find symbols matching arg." },
     { RClient::SymbolInfo, "symbol-info", 'U', required_argument, "Get cursor info for this location." },
     { RClient::Status, "status", 's', optional_argument, "Dump status of rdm. Arg can be symbols or symbolNames." },
+    { RClient::Diagnose, "diagnose", 0, required_argument, "Resend diagnostics for file." },
     { RClient::IsIndexed, "is-indexed", 'T', required_argument, "Check if rtags knows about, and is ready to return information about, this source file." },
     { RClient::IsIndexing, "is-indexing", 0, no_argument, "Check if rtags is currently indexing files." },
     { RClient::HasFileManager, "has-filemanager", 0, optional_argument, "Check if rtags has info about files in this directory." },
@@ -1053,6 +1054,7 @@ RClient::ParseStatus RClient::parse(int &argc, char **argv)
         case IsIndexed:
         case DumpFile:
         case GenerateTest:
+        case Diagnose:
         case FixIts: {
             Path p = optarg;
             if (!p.exists()) {
@@ -1077,6 +1079,7 @@ RClient::ParseStatus RClient::parse(int &argc, char **argv)
             case GenerateTest: type = QueryMessage::GenerateTest; break;
             case FixIts: type = QueryMessage::FixIts; break;
             case DumpFile: type = QueryMessage::DumpFile; break;
+            case Diagnose: type = QueryMessage::Diagnose; break;
             case IsIndexed: type = QueryMessage::IsIndexed; break;
             default: assert(0); break;
             }

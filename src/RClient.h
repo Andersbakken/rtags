@@ -50,6 +50,7 @@ public:
         DeleteProject,
         Dependencies,
         DependencyFilter,
+        Diagnose,
         Diagnostics,
         DisplayName,
         DumpCompilationDatabase,
