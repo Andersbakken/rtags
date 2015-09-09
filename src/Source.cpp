@@ -819,10 +819,11 @@ List<String> Source::toCommandLine(Flags<CommandLineFlag> flags) const
 
     List<String> ret;
     ret.reserve(64);
-    if (flags & IncludeCompiler) {
+    if ((flags & IncludeCompiler) == IncludeCompiler) {
         ret.append(compiler());
-        if (!extraCompiler.isEmpty())
-            ret.append(extraCompiler);
+    }
+    if (flags & IncludeExtraCompiler && !extraCompiler.isEmpty()) {
+        ret.append(extraCompiler);
     }
 
     Map<String, String> config;

@@ -27,6 +27,7 @@ Preprocessor::Preprocessor(const Source &source, const std::shared_ptr<Connectio
 }
 
 const Flags<Source::CommandLineFlag> SourceFlags = (Source::IncludeSourceFile
+                                                    | Source::IncludeExtraCompiler
                                                     | Source::ExcludeDefaultArguments
                                                     | Source::ExcludeDefaultIncludePaths
                                                     | Source::ExcludeDefaultDefines

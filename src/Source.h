@@ -56,16 +56,17 @@ struct Source
     Flags<Flag> flags;
 
     enum CommandLineFlag {
-        IncludeCompiler = 0x001,
-        IncludeSourceFile = 0x002,
-        IncludeDefines = 0x004,
-        IncludeIncludepaths = 0x008,
-        QuoteDefines = 0x010,
-        FilterBlacklist = 0x020,
-        ExcludeDefaultArguments = 0x040,
-        ExcludeDefaultIncludePaths = 0x080,
-        ExcludeDefaultDefines = 0x100,
-        IncludeRTagsConfig = 0x200,
+        IncludeExtraCompiler = 0x001,
+        IncludeCompiler = 0x002|IncludeExtraCompiler,
+        IncludeSourceFile = 0x004,
+        IncludeDefines = 0x008,
+        IncludeIncludepaths = 0x010,
+        QuoteDefines = 0x020,
+        FilterBlacklist = 0x040,
+        ExcludeDefaultArguments = 0x080,
+        ExcludeDefaultIncludePaths = 0x100,
+        ExcludeDefaultDefines = 0x200,
+        IncludeRTagsConfig = 0x400,
         Default = IncludeDefines|IncludeIncludepaths|FilterBlacklist|IncludeRTagsConfig
     };
 
