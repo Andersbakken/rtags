@@ -2249,13 +2249,30 @@ definition."
                     (t))
           (compile line))))))
 
-(defvar rtags-rdm-includes nil)
+(defcustom rtags-includes-func 'rtags-dummy-includes-func
+  "Function to return flags and include flags for rdm"
+  :group 'rtags
+  :type 'function)
+
+(defcustom rtags-rdm-includes ""
+  "Flags"
+  :group 'rtags
+  :type 'string)
+
 (defun rtags-dummy-includes-func()
   "Dummy function, returns rtags-rdm-includes."
   rtags-rdm-includes)
 
-(defvar rtags-includes-func 'rtags-dummy-includes-func)
-(defvar rtags-process-flags "")
+(defcustom rtags-process-flags ""
+  "Flags for rdm"
+  :group 'rtags
+  :type 'string)
+
+(defcustom rtags-rdm-process-use-pipe nil
+  "If t, use pipes to communicate with rdm"
+  :group 'rtags
+  :type 'boolean)
+
 (defvar rtags-rdm-process nil)
 
 ;;;###autoload
@@ -2308,10 +2325,10 @@ definition."
       (error "Can't start the process `%s'. Please check the value of the variable `rtags-path'."
              rtags-server-executable))
      (t
-      (setq rtags-rdm-process (start-process-shell-command
-                               "RTags"	     ;process name
-                               "*rdm*"	     ;buffer
-                               (rtags-command))) ;command
+      (if rtags-rdm-process-use-pipe
+          (let ((process-connection-type nil))
+            (setq rtags-rdm-process (start-process-shell-command "RTags" "*rdm*" (rtags-command))))
+        (setq rtags-rdm-process (start-process-shell-command "RTags" "*rdm*" (rtags-command))))
       (and rtags-autostart-diagnostics (rtags-diagnostics))
       (set-process-query-on-exit-flag rtags-rdm-process nil)
       (set-process-sentinel rtags-rdm-process 'rtags-sentinel)))))
