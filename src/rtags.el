@@ -985,7 +985,6 @@ to find anything about the item."
                     (rtags-target nil nil t))))
     target))
 
-;; (defalias 'rtags-find-symbol-at-point 'rtags-follow-symbol-at-point)
 ;;;###autoload
 (defun rtags-find-symbol-at-point (&optional prefix)
   "Find the natural target for the symbol under the cursor and moves to that location.
@@ -2257,13 +2256,12 @@ definition."
 
 (defvar rtags-includes-func 'rtags-dummy-includes-func)
 (defvar rtags-process-flags "")
-(defvar rtags-process nil)
+(defvar rtags-rdm-process nil)
 
 ;;;###autoload
 (defun rtags-quit-rdm ()
   (interactive)
-  (call-process (rtags-executable-find "rc") nil nil nil "--quit-rdm")
-  (setq rtags-process nil))
+  (call-process (rtags-executable-find "rc") nil nil nil "--quit-rdm"))
 
 (defun rdm-includes ()
   (mapconcat 'identity
@@ -2280,10 +2278,9 @@ definition."
 
 (defun rtags-cancel-process ()
   "Stop the rtags process. "
-  (if (not rtags-process)
+  (if (not rtags-rdm-process)
       (message "No rtags process running (rdm)...")
-    (delete-process rtags-process)
-    (setq rtags-process nil)
+    (delete-process rtags-rdm-process)
     (kill-buffer "*rdm*")))
 
 ;;;###autoload
@@ -2291,16 +2288,19 @@ definition."
   (interactive)
   "Restart the rtags process (rdm)."
   (rtags-cancel-process)
-  (rtags-start-process-maybe))
+  (rtags-start-process-unless-running))
 
 ;;;###autoload
-(defun rtags-start-process-maybe ()
+(defun rtags-start-process-unless-running ()
   "Launch the rtags process (rdm) if it's not already started."
   (interactive)
   (let ((rtags-server-executable (rtags-executable-find "rdm")))
     (cond
      ;; Already started, nothing need to be done
-     ((processp rtags-process))
+     ((and (processp rtags-rdm-process)
+           (not (eq (process-status rtags-rdm-process) 'exit))
+           (not (eq (process-status rtags-rdm-process) 'signal))))
+
      ;; Executable not found or invalid
      ((or (null rtags-server-executable)
           (null (file-executable-p rtags-server-executable))
@@ -2308,13 +2308,15 @@ definition."
       (error "Can't start the process `%s'. Please check the value of the variable `rtags-path'."
              rtags-server-executable))
      (t
-      (setq rtags-process (start-process-shell-command
-                           "RTags"	     ;process name
-                           "*rdm*"	     ;buffer
-                           (rtags-command))) ;command
+      (setq rtags-rdm-process (start-process-shell-command
+                               "RTags"	     ;process name
+                               "*rdm*"	     ;buffer
+                               (rtags-command))) ;command
       (and rtags-autostart-diagnostics (rtags-diagnostics))
-      (set-process-query-on-exit-flag rtags-process nil)
-      (set-process-sentinel rtags-process 'rtags-sentinel)))))
+      (set-process-query-on-exit-flag rtags-rdm-process nil)
+      (set-process-sentinel rtags-rdm-process 'rtags-sentinel)))))
+
+(defalias 'rtags-start-process-unless-running 'rtags-start-process-maybe)
 
 (defun rtags-sentinel (process event)
   "Watch the activity of rtags process (rdm)."
