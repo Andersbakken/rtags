@@ -560,9 +560,9 @@ void Server::handleLogOutputMessage(const std::shared_ptr<LogOutputMessage> &mes
 {
     std::shared_ptr<RTagsLogOutput> log(new RTagsLogOutput(message->level(), message->flags(), conn));
     log->add();
-    if (auto project = mCurrentProject.lock()) {
-        project->diagnoseAll();
-    }
+    // if (auto project = mCurrentProject.lock()) {
+    //     project->diagnoseAll();
+    // }
 }
 
 void Server::handleIndexDataMessage(const std::shared_ptr<IndexDataMessage> &message, const std::shared_ptr<Connection> &conn)
@@ -1250,7 +1250,7 @@ void Server::setCurrentProject(const std::shared_ptr<Project> &project)
                 error() << "error opening" << (mOptions.dataDir + ".currentProject") << "for write";
             }
             project->fileManager()->load(FileManager::Synchronous);
-            project->diagnoseAll();
+            // project->diagnoseAll();
         } else {
             Path::rm(mOptions.dataDir + ".currentProject");
         }
