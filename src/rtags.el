@@ -2325,9 +2325,7 @@ definition."
       (error "Can't start the process `%s'. Please check the value of the variable `rtags-path'."
              rtags-server-executable))
      (t
-      (if rtags-rdm-process-use-pipe
-          (let ((process-connection-type nil))
-            (setq rtags-rdm-process (start-process-shell-command "RTags" "*rdm*" (rtags-command))))
+      (let ((process-connection-type (not rtags-rdm-process-use-pipe)))
         (setq rtags-rdm-process (start-process-shell-command "RTags" "*rdm*" (rtags-command))))
       (and rtags-autostart-diagnostics (rtags-diagnostics))
       (set-process-query-on-exit-flag rtags-rdm-process nil)
