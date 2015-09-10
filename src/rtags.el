@@ -774,11 +774,11 @@ return t if rtags is allowed to modify this file."
       (while (not (eobp))
         (let ((current (car (rtags-dependency-tree-current-file))))
           (when current
-            (unless (member current seen)
-              (push current seen)
-              (if expand
-                  (rtags-dependency-tree-expand-current)
-                (rtags-dependency-tree-collapse-current)))))
+            (unless (and expand (member current seen))
+              (if (not expand)
+                  (rtags-dependency-tree-collapse-current)
+                (push current seen)
+                (rtags-dependency-tree-expand-current)))))
         (forward-line 1)))))
 
 (defun rtags-dependency-tree-expand-all ()
