@@ -410,8 +410,19 @@ return t if rtags is allowed to modify this file."
 (define-key rtags-dependency-tree-mode-map (kbd "c") 'rtags-dependency-tree-collapse-all)
 (define-key rtags-dependency-tree-mode-map (kbd "-") 'rtags-dependency-tree-collapse-current)
 (define-key rtags-dependency-tree-mode-map (kbd "+") 'rtags-dependency-tree-expand-current)
-(define-key rtags-dependency-tree-mode-map (kbd "p") 'rtags-dependency-tree-find-path)
+(define-key rtags-dependency-tree-mode-map (kbd "P") 'rtags-dependency-tree-find-path)
 (define-key rtags-dependency-tree-mode-map (kbd "f") 'rtags-dependency-tree-find-path)
+(define-key rtags-dependency-tree-mode-map (kbd "n") 'rtags-dependency-tree-next-level)
+(define-key rtags-dependency-tree-mode-map (kbd "p") 'rtags-dependency-tree-previous-level)
+(define-key rtags-dependency-tree-mode-map (kbd "RET") 'rtags-select-other-window)
+(define-key rtags-dependency-tree-mode-map (kbd "M-RET") 'rtags-select)
+(define-key rtags-dependency-tree-mode-map [mouse-1] 'rtags-select-other-window)
+(define-key rtags-dependency-tree-mode-map [mouse-2] 'rtags-select-other-window)
+(define-key rtags-dependency-tree-mode-map (kbd "M-o") 'rtags-show-in-other-window)
+(define-key rtags-dependency-tree-mode-map (kbd "s") 'rtags-show-in-other-window)
+(define-key rtags-dependency-tree-mode-map (kbd "SPC") 'rtags-select-and-remove-rtags-buffer)
+(define-key rtags-dependency-tree-mode-map (kbd "k") 'previous-line)
+(define-key rtags-dependency-tree-mode-map (kbd "j") 'next-line)
 (define-key rtags-dependency-tree-mode-map (kbd "q") 'rtags-bury-or-delete)
 
 (define-derived-mode rtags-mode fundamental-mode
@@ -763,7 +774,7 @@ return t if rtags is allowed to modify this file."
 
 (defun rtags-dependency-tree-insert-file (file depth)
   (insert (rtags-dependency-tree-indent depth) file)
-  (let ((count (length (cdr (assoc file rtags-dependency-tree-data)))))
+  (let ((count (length (cadr (assoc file rtags-dependency-tree-data)))))
     (when (> count 0)
       (insert " (" (number-to-string count) ")"))))
 
@@ -799,16 +810,16 @@ return t if rtags is allowed to modify this file."
 (defun rtags-dependency-tree-toggle-current-expanded ()
   (interactive)
   (when (rtags-dependency-tree-current-file)
-    (rtags-set-expanded (not (rtags-depdendency-tree-current-is-expanded)))))
+    (rtags-set-expanded (not (rtags-dependency-tree-current-is-expanded)))))
 
 (defun rtags-dependency-tree-collapse-current ()
   (interactive)
-  (when (and (rtags-dependency-tree-current-file) (rtags-depdendency-tree-current-is-expanded))
+  (when (and (rtags-dependency-tree-current-file) (rtags-dependency-tree-current-is-expanded))
     (rtags-set-expanded nil)))
 
 (defun rtags-dependency-tree-expand-current ()
   (interactive)
-  (when (and (rtags-dependency-tree-current-file) (not (rtags-depdendency-tree-current-is-expanded)))
+  (when (and (rtags-dependency-tree-current-file) (not (rtags-dependency-tree-current-is-expanded)))
     (rtags-set-expanded t)))
 
 (defun rtags-dependency-tree-find-helper (filename)
@@ -820,24 +831,24 @@ return t if rtags is allowed to modify this file."
       (setq deps (cdr deps)))
     ret))
 
+(defun rtags-dependency-tree-next-level ()
+  (interactive)
+  (let ((cur (rtags-dependency-tree-current-file)))
+    (when cur
+      (and (re-search-forward (concat "^" (rtags-dependency-tree-indent (1+ (cdr cur))) "[^ ]") nil t)
+           (forward-char -1)))))
+
+(defun rtags-dependency-tree-previous-level ()
+  (interactive)
+  (let ((cur (rtags-dependency-tree-current-file)))
+    (when (and cur (> (cdr cur) 0))
+      (and (re-search-backward (concat "^" (rtags-dependency-tree-indent (1- (cdr cur))) "[^ ]") nil t)
+           (skip-chars-forward " ")))))
+
 (defun rtags-dependency-tree-is-visible (filename)
   (save-excursion
     (goto-char (point-min))
     (re-search-forward (concat "^ *" (regexp-quote filename) "\\( ([0-9]*)\\)?\\(" rtags-dependency-tree-matched-decoration "\\)?$") nil t)))
-
-(defun rtags-dependency-tree-chains (chain)
-  (let ((ret)
-        (chains (rtags-dependency-tree-find-helper (car chain))))
-    (while chains
-      (let ((c (append (list (car chains)) chain)))
-        (if (rtags-dependency-tree-is-visible (car c))
-            (push c ret)
-          (let ((subchains (rtags-dependency-tree-chains c)))
-            (while subchains
-              (push (car subchains) ret)
-              (setq subchains (cdr subchains))))))
-      (setq chains (cdr chains)))
-    ret))
 
 (defun rtags-dependency-tree-find-path (&optional filename)
   (interactive)
@@ -850,27 +861,22 @@ return t if rtags is allowed to modify this file."
   (let ((first)
         (chains (rtags-dependency-tree-chains (list filename))))
     (while chains
+      (goto-char (point-min))
       (let* ((chain (car chains))
              (len (1- (length chain)))
              (idx 0))
         (while (< idx len)
-          ;; (message "Expanding %s" (car chain))
-          (goto-char (point-min))
           (re-search-forward (concat "^"
                                      (rtags-dependency-tree-indent idx)
                                      (regexp-quote (car chain))
                                      "\\( ([0-9]*)\\)?\\("
                                      rtags-dependency-tree-matched-decoration
                                      "\\)?$"))
+          ;; (message "EXPANDING %d %s at %d %S" idx (car chain) (point) (rtags-dependency-tree-current-is-expanded))
           (rtags-dependency-tree-expand-current)
           (incf idx)
           (setq chain (cdr chain)))
-        (re-search-forward (concat "^"
-                                   (rtags-dependency-tree-indent idx)
-                                   (regexp-quote (car chain))
-                                   "\\( ([0-9]*)\\)?\\("
-                                   rtags-dependency-tree-matched-decoration
-                                   "\\)?$"))
+        (re-search-forward (concat "^" (rtags-dependency-tree-indent idx) (regexp-quote (car chain)) "\\( ([0-9]*)\\)?$"))
         (unless (and first (< first (point-at-bol)))
           (setq first (point-at-bol)))
         (unless (eq (char-before) ?*)
@@ -884,10 +890,10 @@ return t if rtags is allowed to modify this file."
     (let ((was buffer-read-only))
       (setq buffer-read-only nil)
       (let* ((current (rtags-dependency-tree-current-file))
-             (children (and current (cdr (assoc (car current) rtags-dependency-tree-data)))))
+             (children (and current (cadr (assoc (car current) rtags-dependency-tree-data)))))
         (unless current
           (error "RTags no file here"))
-        (unless (eq on (null (rtags-depdendency-tree-current-is-expanded)))
+        (unless (eq on (null (rtags-dependency-tree-current-is-expanded)))
           (error "RTags line is already %s" (if on "expanded" "collapsed")))
         (set-text-properties (point-at-bol) (point-at-eol) (and on (list 'rtags-is-expanded (length children))))
         (goto-char (point-at-eol))
@@ -907,7 +913,7 @@ return t if rtags is allowed to modify this file."
             (delete-region start (point)))))
       (setq buffer-read-only was))))
 
-(defun rtags-depdendency-tree-current-is-expanded ()
+(defun rtags-dependency-tree-current-is-expanded ()
   (get-text-property (point-at-bol) 'rtags-is-expanded))
 
 (defun rtags-dependency-tree (&optional all)
@@ -2079,6 +2085,10 @@ is true. References to references will be treated as references to the reference
              (let ((loc (and (looking-at "[^/]*\\([^ \t]+\\)") (match-string 1))))
                (when loc
                  (rtags-goto-location loc nil other-window)))))
+          ((string= (buffer-name) "*RTags Dependencies*")
+           (let ((cur (rtags-dependency-tree-current-file)))
+             (when cur
+               (rtags-goto-location (car cur) nil other-window))))
           ((and idx
                 (>= rtags-buffer-bookmarks (car idx))
                 (member bookmark (bookmark-all-names)))

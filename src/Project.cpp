@@ -1753,35 +1753,36 @@ void Project::endScope()
     mFileMapScope.reset();
 }
 
+static String addDeps(const Dependencies &deps)
+{
+    if (deps.isEmpty())
+        return "nil";
+    String ret;
+    ret << "(list";
+    for (const auto &dep : deps) {
+        ret << " \"" << Location::path(dep.first) << "\"";
+    }
+    ret << ")";
+    return ret;
+}
+
 String Project::dumpDependencies(uint32_t fileId, const List<String> &args, Flags<QueryMessage::Flag> flags) const
 {
     String ret;
 
     auto dumpRaw = [&ret, flags](DependencyNode *n) {
-        if (flags & QueryMessage::Elisp) {
-            ret << " (cons \"" << Location::path(n->fileId) << "\" ";
-        } else {
+        if (!(flags & QueryMessage::Elisp)) {
             ret << Location::path(n->fileId) << "\n";
-        }
-        bool first = true;
-        for (const auto &inc : n->includes) {
-            if (flags & QueryMessage::Elisp) {
-                if (first) {
-                    ret << "(list";
-                    first = false;
-                }
-                ret << " \"" << Location::path(inc.second->fileId) << "\"";
-            } else {
+            for (const auto &inc : n->includes) {
                 ret << "  " << Location::path(inc.second->fileId) << "\n";
             }
-        }
-        if (flags & QueryMessage::Elisp) {
-            if (first) {
-                ret << "nil)\n";
-            } else {
-                ret << "))\n";
+            for (const auto &dep : n->dependents) {
+                ret << "    " << Location::path(dep.second->fileId) << "\n";
             }
+            return;
         }
+
+        ret << " (cons \"" << Location::path(n->fileId) << "\" (cons " << addDeps(n->includes) << ' ' << addDeps(n->dependents) << "))\n";
     };
 
     if (fileId) {
