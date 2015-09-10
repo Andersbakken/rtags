@@ -1753,81 +1753,134 @@ void Project::endScope()
     mFileMapScope.reset();
 }
 
-String Project::dumpDependencies(uint32_t fileId, const List<String> &args) const
+String Project::dumpDependencies(uint32_t fileId, const List<String> &args, Flags<QueryMessage::Flag> flags) const
 {
     String ret;
 
-    DependencyNode *node = mDependencies.value(fileId);
-    if (!node)
-        return String::format<128>("Can't find node for %s", Location::path(fileId).constData());
-
-    if (!node->includes.isEmpty() && (args.isEmpty() || args.contains("includes"))) {
-        if (args.size() != 1)
-            ret += String::format<256>("  %s includes:\n", Location::path(fileId).constData());
-        for (const auto &include : node->includes) {
-            ret += String::format<256>("    %s\n", Location::path(include.first).constData());
+    auto dumpRaw = [&ret, flags](DependencyNode *n) {
+        if (flags & QueryMessage::Elisp) {
+            ret << " (cons \"" << Location::path(n->fileId) << "\" ";
+        } else {
+            ret << Location::path(n->fileId) << "\n";
         }
-    }
-    if (!node->dependents.isEmpty() && (args.isEmpty() || args.contains("included-by"))) {
-        if (args.size() != 1)
-            ret += String::format<256>("  %s is included by:\n", Location::path(fileId).constData());
-        for (const auto &include : node->dependents) {
-            ret += String::format<256>("    %s\n", Location::path(include.first).constData());
-        }
-    }
-
-    if (args.isEmpty() || args.contains("depends-on")) {
-        bool first = args.size() != 1;
-        for (auto dep : dependencies(fileId, Project::ArgDependsOn)) {
-            if (dep == fileId)
-                continue;
-            if (first) {
-                first = false;
-                ret += String::format<256>("  %s depends on:\n", Location::path(fileId).constData());
+        bool first = true;
+        for (const auto &inc : n->includes) {
+            if (flags & QueryMessage::Elisp) {
+                if (first) {
+                    ret << "(list";
+                    first = false;
+                }
+                ret << " \"" << Location::path(inc.second->fileId) << "\"";
+            } else {
+                ret << "  " << Location::path(inc.second->fileId) << "\n";
             }
-            ret += String::format<256>("    %s\n", Location::path(dep).constData());
         }
-    }
-
-    if (args.isEmpty() || args.contains("depended-on")) {
-        bool first = args.size() != 1;
-        for (auto dep : dependencies(fileId, Project::DependsOnArg)) {
-            if (dep == fileId)
-                continue;
+        if (flags & QueryMessage::Elisp) {
             if (first) {
-                first = false;
-                ret += String::format<256>("  %s is depended on by:\n", Location::path(fileId).constData());
+                ret << "nil)\n";
+            } else {
+                ret << "))\n";
             }
-            ret += String::format<256>("    %s\n", Location::path(dep).constData());
         }
-    }
+    };
 
-    if (args.isEmpty() || args.contains("tree-depends-on")) {
-        Set<DependencyNode*> seen;
-
+    if (fileId) {
         DependencyNode *node = mDependencies.value(fileId);
-        if (node) {
-            if (args.size() != 1) {
-                ret += String::format<256>("  %s include tree:\n", Location::path(fileId).constData());
+        if (!node)
+            return String::format<128>("Can't find node for %s", Location::path(fileId).constData());
+
+        if (!node->includes.isEmpty() && (args.isEmpty() || args.contains("includes"))) {
+            if (args.size() != 1)
+                ret += String::format<256>("  %s includes:\n", Location::path(fileId).constData());
+            for (const auto &include : node->includes) {
+                ret += String::format<256>("    %s\n", Location::path(include.first).constData());
             }
+        }
+        if (!node->dependents.isEmpty() && (args.isEmpty() || args.contains("included-by"))) {
+            if (args.size() != 1)
+                ret += String::format<256>("  %s is included by:\n", Location::path(fileId).constData());
+            for (const auto &include : node->dependents) {
+                ret += String::format<256>("    %s\n", Location::path(include.first).constData());
+            }
+        }
 
-            std::function<void(DependencyNode *, int)> process = [&](DependencyNode *n, int depth) {
-                if (!seen.insert(n))
-                    return;
+        if (args.isEmpty() || args.contains("depends-on")) {
+            bool first = args.size() != 1;
+            for (auto dep : dependencies(fileId, Project::ArgDependsOn)) {
+                if (dep == fileId)
+                    continue;
+                if (first) {
+                    first = false;
+                    ret += String::format<256>("  %s depends on:\n", Location::path(fileId).constData());
+                }
+                ret += String::format<256>("    %s\n", Location::path(dep).constData());
+            }
+        }
 
-                ret += String::format<256>("%s%s", String(depth * 2, ' ').constData(), Location::path(n->fileId).constData());
+        if (args.isEmpty() || args.contains("depended-on")) {
+            bool first = args.size() != 1;
+            for (auto dep : dependencies(fileId, Project::DependsOnArg)) {
+                if (dep == fileId)
+                    continue;
+                if (first) {
+                    first = false;
+                    ret += String::format<256>("  %s is depended on by:\n", Location::path(fileId).constData());
+                }
+                ret += String::format<256>("    %s\n", Location::path(dep).constData());
+            }
+        }
 
-                if (!n->includes.isEmpty()) {
-                    ret += " includes:\n";
-                    for (const auto &node : n->includes) {
-                        process(node.second, depth + 1);
+        if (args.isEmpty() || args.contains("tree-depends-on")) {
+            Set<DependencyNode*> seen;
+
+            DependencyNode *node = mDependencies.value(fileId);
+            if (node) {
+                int startDepth = 1;
+                if (args.size() != 1) {
+                    ++startDepth;
+                    ret += String::format<256>("  %s include tree:\n", Location::path(fileId).constData());
+                }
+
+                std::function<void(DependencyNode *, int)> process = [&](DependencyNode *n, int depth) {
+                    ret += String::format<256>("%s%s", String(depth * 2, ' ').constData(), Location::path(n->fileId).constData());
+
+                    if (seen.insert(n) && !n->includes.isEmpty()) {
+                        ret += " includes:\n";
+                        for (const auto &node : n->includes) {
+                            process(node.second, depth + 1);
+                        }
+                    } else {
+                        ret += '\n';
                     }
-                } else {
-                    ret += '\n';
+                };
+                process(node, startDepth);
+            }
+        }
+        if (args.size() == 1 && args.contains("raw")) {
+            Set<DependencyNode*> all;
+            std::function<void(DependencyNode *node)> add = [&](DependencyNode *node) {
+                assert(node);
+                if (!all.insert(node))
+                    return;
+                for (const std::pair<uint32_t, DependencyNode*> &n : node->includes) {
+                    add(n.second);
                 }
             };
-            process(node, 2);
+            add(node);
+            ret << "(list\n";
+            for (DependencyNode *n : all) {
+                dumpRaw(n);
+            }
+            ret.chop(1);
+            ret << ")\n";
         }
+    } else {
+        ret << "(list\n";
+        for (const auto &node : mDependencies) {
+            dumpRaw(node.second);
+        }
+        ret.chop(1);
+        ret << ")\n";
     }
 
     return ret;

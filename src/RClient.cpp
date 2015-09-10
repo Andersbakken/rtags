@@ -95,7 +95,8 @@ struct Option opts[] = {
     { RClient::FindProjectBuildRoot, "find-project-build-root", 0, required_argument, "Use to check behavior of find-project-root for builds." },
     { RClient::IncludeFile, "include-file", 0, required_argument, "Use to generate include statement for symbol." },
     { RClient::Sources, "sources", 0, optional_argument, "Dump sources for source file." },
-    { RClient::Dependencies, "dependencies", 0, required_argument, "Dump dependencies for source file [(includes, included-by, depends-on, depended-on)]." },
+    { RClient::Dependencies, "dependencies", 0, required_argument, "Dump dependencies for source file [(includes, included-by, depends-on, depended-on, tree-depends-on, raw)]." },
+    { RClient::AllDependencies, "all-dependencies", 0, no_argument, "Dump dependencies for all source files [(includes, included-by, depends-on, depended-on, tree-depends-on, raw)]." },
     { RClient::ReloadFileManager, "reload-file-manager", 'B', no_argument, "Reload file manager." },
     { RClient::Man, "man", 0, no_argument, "Output XML for xmltoman to generate man page for rc :-)" },
     { RClient::CodeCompleteAt, "code-complete-at", 'l', required_argument, "Code complete at location: arg is file:line:col." },
@@ -1086,6 +1087,16 @@ RClient::ParseStatus RClient::parse(int &argc, char **argv)
 
             addQuery(type, p);
             break; }
+        case AllDependencies: {
+            String encoded;
+            List<String> args;
+            while (optind < argc && argv[optind][0] != '-') {
+                args.append(argv[optind++]);
+            }
+            Serializer s(encoded);
+            s << Path() << args;
+            addQuery(QueryMessage::Dependencies, encoded);
+            break; }
         case DumpFileMaps:
         case Dependencies: {
             Path p = optarg;
@@ -1103,8 +1114,7 @@ RClient::ParseStatus RClient::parse(int &argc, char **argv)
             Serializer s(encoded);
             s << p << args;
             addQuery(opt->option == DumpFileMaps ? QueryMessage::DumpFileMaps : QueryMessage::Dependencies, encoded);
-         break; }
-
+            break; }
         case PreprocessFile: {
             Path p = optarg;
             p.resolve(Path::MakeAbsolute);

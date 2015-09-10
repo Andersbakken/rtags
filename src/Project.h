@@ -116,7 +116,9 @@ public:
 
     Set<uint32_t> dependencies(uint32_t fileId, DependencyMode mode) const;
     bool dependsOn(uint32_t source, uint32_t header) const;
-    String dumpDependencies(uint32_t fileId, const List<String> &args = List<String>()) const;
+    String dumpDependencies(uint32_t fileId,
+                            const List<String> &args = List<String>(),
+                            Flags<QueryMessage::Flag> flags = Flags<QueryMessage::Flag>()) const;
     const Hash<uint32_t, DependencyNode*> &dependencies() const { return mDependencies; }
     const Declarations &declarations() const { return mDeclarations; }
     bool isDeclaration(const String &usr) const { return mDeclarations.contains(usr); }

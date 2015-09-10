@@ -30,11 +30,9 @@ DependenciesJob::DependenciesJob(const std::shared_ptr<QueryMessage> &query, con
 
 int DependenciesJob::execute()
 {
-    if (!mFileId)
-        return 1;
     std::shared_ptr<Project> proj = project();
     if (!proj)
         return 2;
-    write(proj->dumpDependencies(mFileId, mArgs));
+    write(proj->dumpDependencies(mFileId, mArgs, queryFlags()));
     return 0;
 }

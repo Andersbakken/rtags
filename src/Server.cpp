@@ -967,22 +967,26 @@ void Server::dependencies(const std::shared_ptr<QueryMessage> &query, const std:
     Deserializer deserializer(query->query());
     deserializer >> path;
     const uint32_t fileId = Location::fileId(path);
-    if (!fileId) {
+    if (!fileId && !path.isEmpty()) {
         conn->write<256>("%s is not indexed", query->query().constData());
         conn->finish();
         return;
     }
 
     std::shared_ptr<Project> project;
-    if (currentProject() && currentProject()->isIndexed(fileId)) {
-        project = currentProject();
-    } else {
-        for (const auto &p : mProjects) {
-            if (p.second->isIndexed(fileId)) {
-                project = p.second;
-                break;
+    if (fileId) {
+        if (currentProject() && currentProject()->isIndexed(fileId)) {
+            project = currentProject();
+        } else {
+            for (const auto &p : mProjects) {
+                if (p.second->isIndexed(fileId)) {
+                    project = p.second;
+                    break;
+                }
             }
         }
+    } else {
+        project = currentProject();
     }
     if (!project) {
         conn->write<256>("%s is not indexed", query->query().constData());

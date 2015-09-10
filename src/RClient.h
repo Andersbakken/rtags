@@ -32,6 +32,7 @@ public:
         None = 0,
         AbsolutePath,
         AllReferences,
+        AllDependencies,
         AllTargets,
         BuildIndex,
         CheckReindex,
