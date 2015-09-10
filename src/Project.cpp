@@ -309,7 +309,6 @@ bool Project::init()
     mWatcher.removed().connect(std::bind(&FileManager::onFileRemoved, mFileManager.get(), std::placeholders::_1));
     mWatcher.added().connect(std::bind(&FileManager::onFileAdded, mFileManager.get(), std::placeholders::_1));
 
-
     mDirtyTimer.timeout().connect(std::bind(&Project::onDirtyTimeout, this, std::placeholders::_1));
 
     String err;
@@ -1011,8 +1010,11 @@ Set<uint32_t> Project::dependencies(uint32_t fileId, DependencyMode mode) const
 
 bool Project::dependsOn(uint32_t source, uint32_t header) const
 {
+    Set<uint32_t> seen;
     std::function<bool(DependencyNode *node)> dep = [&](DependencyNode *node) {
         assert(node);
+        if (!seen.insert(node->fileId))
+            return false;
         if (node->dependents.contains(source))
             return true;
         for (const std::pair<uint32_t, DependencyNode*> &n : node->dependents) {
