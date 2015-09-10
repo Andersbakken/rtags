@@ -1802,6 +1802,34 @@ String Project::dumpDependencies(uint32_t fileId, const List<String> &args) cons
         }
     }
 
+    if (args.isEmpty() || args.contains("tree-depends-on")) {
+        Set<DependencyNode*> seen;
+
+        DependencyNode *node = mDependencies.value(fileId);
+        if (node) {
+            if (args.size() != 1) {
+                ret += String::format<256>("  %s include tree:\n", Location::path(fileId).constData());
+            }
+
+            std::function<void(DependencyNode *, int)> process = [&](DependencyNode *n, int depth) {
+                if (!seen.insert(n))
+                    return;
+
+                ret += String::format<256>("%s%s", String(depth * 2, ' ').constData(), Location::path(n->fileId).constData());
+
+                if (!n->includes.isEmpty()) {
+                    ret += " includes:\n";
+                    for (const auto &node : n->includes) {
+                        process(node.second, depth + 1);
+                    }
+                } else {
+                    ret += '\n';
+                }
+            };
+            process(node, 2);
+        }
+    }
+
     return ret;
 }
 
