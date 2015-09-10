@@ -2589,7 +2589,7 @@ definition."
       (set-process-query-on-exit-flag rtags-rdm-process nil)
       (set-process-sentinel rtags-rdm-process 'rtags-sentinel)))))
 
-(defalias 'rtags-start-process-unless-running 'rtags-start-process-maybe)
+(defalias 'rtags-start-process-maybe 'rtags-start-process-unless-running)
 
 (defun rtags-sentinel (process event)
   "Watch the activity of rtags process (rdm)."
