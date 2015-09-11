@@ -103,7 +103,8 @@ public:
         NoColor = 0x040000000,
         Rename = 0x080000000,
         ContainingFunction = 0x100000000,
-        Wait = 0x200000000
+        Wait = 0x200000000,
+        DumpCheckIncludes = 0x400000000
     };
 
     QueryMessage(Type type = Invalid);

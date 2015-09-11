@@ -35,6 +35,7 @@ public:
         AllDependencies,
         AllTargets,
         BuildIndex,
+        CheckIncludes,
         CheckReindex,
         ClassHierarchy,
         Clear,

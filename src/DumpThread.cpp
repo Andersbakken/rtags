@@ -31,44 +31,41 @@ CXChildVisitResult DumpThread::visitor(CXCursor cursor, CXCursor, CXClientData u
 {
     DumpThread *that = reinterpret_cast<DumpThread*>(userData);
     assert(that);
-    if (that->isAborted())
+    return that->visit(cursor);
+}
+
+CXChildVisitResult DumpThread::visit(const CXCursor &cursor)
+{
+    if (isAborted())
         return CXChildVisit_Break;
-    CXSourceLocation location = clang_getCursorLocation(cursor);
-    if (!clang_equalLocations(location, nullLocation)) {
-        Flags<Location::KeyFlag> locationFlags;
-        if (that->mQueryFlags & QueryMessage::NoColor)
-            locationFlags |= Location::NoColor;
-        CXString file;
-        unsigned int line, col;
-        clang_getPresumedLocation(location, &file, &line, &col);
-        Path path = RTags::eatString(file);
-        if (!path.isEmpty() && path != "<built-in>") {
+    const Location location = createLocation(cursor);
+    if (!location.isNull()) {
+        if (mQueryFlags & QueryMessage::DumpCheckIncludes) {
+            checkIncludes(location, cursor);
+        } else {
+            Flags<Location::KeyFlag> locationFlags;
+            if (mQueryFlags & QueryMessage::NoColor)
+                locationFlags |= Location::NoColor;
+
             CXSourceRange range = clang_getCursorExtent(cursor);
             CXSourceLocation rangeEnd = clang_getRangeEnd(range);
             unsigned int endLine, endColumn;
             clang_getPresumedLocation(rangeEnd, 0, &endLine, &endColumn);
-            uint32_t &fileId = that->mFiles[path];
-            if (!fileId) {
-                const Path resolved = path.resolved();
-                fileId = Location::insertFile(resolved);
-                that->mFiles[path] = that->mFiles[resolved] = fileId;
-            }
-            if (!(that->mQueryFlags & QueryMessage::DumpIncludeHeaders) && fileId != that->mSource.fileId) {
+            if (!(mQueryFlags & QueryMessage::DumpIncludeHeaders) && location.fileId() != mSource.fileId) {
                 return CXChildVisit_Continue;
             }
 
             String message;
             message.reserve(256);
 
-            if (!(that->mQueryFlags & QueryMessage::NoContext)) {
-                const Location loc(fileId, line, col);
-                message = loc.context(locationFlags);
+            if (!(mQueryFlags & QueryMessage::NoContext)) {
+                message = location.context(locationFlags);
             }
 
-            if (endLine == line) {
-                message += String::format<32>(" // %d-%d, %d: ", col, endColumn, that->mIndentLevel);
+            if (endLine == location.line()) {
+                message += String::format<32>(" // %d-%d, %d: ", location.column(), endColumn, mIndentLevel);
             } else {
-                message += String::format<32>(" // %d-%d:%d, %d: ", col, endLine, endColumn, that->mIndentLevel);
+                message += String::format<32>(" // %d-%d:%d, %d: ", location.column(), endLine, endColumn, mIndentLevel);
             }
             message += RTags::cursorToString(cursor, RTags::AllCursorToStringFlags);
             message.append(" " + RTags::typeName(cursor));;
@@ -98,14 +95,14 @@ CXChildVisitResult DumpThread::visitor(CXCursor cursor, CXCursor, CXClientData u
                 message.append(RTags::cursorToString(specialized, RTags::AllCursorToStringFlags));
             }
 
-            that->writeToConnetion(message);
+            writeToConnetion(message);
         }
     }
-    ++that->mIndentLevel;
-    clang_visitChildren(cursor, DumpThread::visitor, userData);
-    if (that->isAborted())
+    ++mIndentLevel;
+    clang_visitChildren(cursor, DumpThread::visitor, this);
+    if (isAborted())
         return CXChildVisit_Break;
-    --that->mIndentLevel;
+    --mIndentLevel;
     return CXChildVisit_Continue;
 }
 
@@ -127,6 +124,9 @@ void DumpThread::run()
     clang_disposeIndex(index);
     mConnection->disconnected().disconnect(key);
     std::weak_ptr<Connection> conn = mConnection;
+    if (mQueryFlags & QueryMessage::DumpCheckIncludes) {
+        checkIncludes();
+    }
     EventLoop::mainEventLoop()->callLater([conn]() {
             if (auto c = conn.lock())
                 c->finish();
@@ -142,3 +142,88 @@ void DumpThread::writeToConnetion(const String &message)
             }
         });
 }
+
+void DumpThread::handleInclude(const Location &loc, const CXCursor &cursor)
+{
+    CXFile includedFile = clang_getIncludedFile(cursor);
+    if (includedFile) {
+        CXStringScope fn = clang_getFileName(includedFile);
+        const char *cstr = clang_getCString(fn);
+        if (!cstr) {
+            clang_disposeString(fn);
+            return;
+        }
+        const Path p = Path::resolved(cstr);
+        clang_disposeString(fn);
+        const uint32_t fileId = Location::insertFile(p);
+        Dep *&source = mDependencies[loc.fileId()];
+        if (!source)
+            source = new Dep(loc.fileId());
+        Dep *&include = mDependencies[fileId];
+        if (!include)
+            include = new Dep(fileId);
+        source->include(include);
+    }
+}
+
+void DumpThread::handleReference(const Location &loc, const CXCursor &ref)
+{
+    const Location refLoc = createLocation(ref);
+    if (refLoc.isNull())
+        return;
+
+    Dep *dep = mDependencies[loc.fileId()];
+    assert(dep);
+    Dep *refDep = mDependencies[refLoc.fileId()];
+    assert(refDep);
+    dep->references.insert(refDep);
+    refDep->referencedBy.insert(dep);
+}
+
+
+void DumpThread::checkIncludes(const Location &location, const CXCursor &cursor)
+{
+    if (clang_getCursorKind(cursor) == CXCursor_InclusionDirective) {
+        handleInclude(location, cursor);
+    } else {
+        const CXCursor ref = clang_getCursorReferenced(cursor);
+        if (!clang_equalCursors(ref, cursor) && !clang_equalCursors(ref, nullCursor)) {
+            handleReference(location, ref);
+        }
+    }
+}
+
+void DumpThread::checkIncludes()
+{
+    std::function<bool(Dep *, Dep *, Set<uint32_t> &)> validate = [this, &validate](Dep *source, Dep *header, Set<uint32_t> &seen) {
+        if (!seen.insert(source->fileId))
+            return false;
+        if (source->references.contains(header)) {
+            return true;
+        }
+        for (const auto &child : source->includes) {
+            if (validate(static_cast<Dep*>(child.second), header, seen))
+                return true;
+        }
+
+        return false;
+    };
+    for (const auto &it : mDependencies) {
+        for (const auto &dep  : it.second->includes) {
+            if (Location::path(it.first).isSystem())
+                continue;
+
+            Set<uint32_t> seen;
+            if (!validate(it.second, static_cast<Dep*>(dep.second), seen)) {
+                writeToConnetion(String::format<128>("%s includes %s for no reason",
+                                                     Location::path(it.first).constData(),
+                                                     Location::path(dep.second->fileId).constData()));
+            }
+        }
+    }
+
+    for (auto it : mDependencies) {
+        delete it.second;
+    }
+}
+

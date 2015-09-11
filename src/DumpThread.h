@@ -21,6 +21,8 @@
 #include <Source.h>
 #include <QueryMessage.h>
 #include <clang-c/Index.h>
+#include <RTagsClang.h>
+#include <Project.h>
 
 class Connection;
 class DumpThread : public Thread
@@ -32,13 +34,57 @@ public:
     bool isAborted() const { std::unique_lock<std::mutex> lock(mMutex); return mAborted; }
 private:
     static CXChildVisitResult visitor(CXCursor cursor, CXCursor, CXClientData userData);
+    CXChildVisitResult visit(const CXCursor &cursor);
+    void checkIncludes(const Location &location, const CXCursor &cursor);
+
     void writeToConnetion(const String &message);
+    Location createLocation(const CXSourceLocation &loc)
+    {
+        CXString fileName;
+        unsigned int line, col;
+        CXFile file;
+        clang_getSpellingLocation(loc, &file, &line, &col, 0);
+        if (file) {
+            fileName = clang_getFileName(file);
+        } else {
+            return Location();
+        }
+        const char *fn = clang_getCString(fileName);
+        assert(fn);
+        if (!*fn || !strcmp("<built-in>", fn) || !strcmp("<command line>", fn)) {
+            clang_disposeString(fileName);
+            return Location();
+        }
+        Path path = RTags::eatString(fileName);
+        uint32_t fileId = Location::fileId(path);
+        if (!fileId) {
+            path.resolve();
+            fileId = Location::insertFile(path);
+        }
+        return Location(fileId, line, col);
+    }
+    Location createLocation(const CXCursor &cursor)
+    {
+        return createLocation(clang_getCursorLocation(cursor));
+    }
+    void handleInclude(const Location &loc, const CXCursor &cursor);
+    void handleReference(const Location &loc, const CXCursor &ref);
+    void checkIncludes();
+
+    struct Dep : public DependencyNode
+    {
+        Dep(uint32_t f)
+            : DependencyNode(f)
+        {}
+        Set<Dep*> references, referencedBy;
+    };
+
     const Flags<QueryMessage::Flag> mQueryFlags;
     const Source mSource;
     std::shared_ptr<Connection> mConnection;
-    Hash<Path, uint32_t> mFiles;
     int mIndentLevel;
     mutable std::mutex mMutex;
+    Hash<uint32_t, Dep*> mDependencies;
     bool mAborted;
 };
 

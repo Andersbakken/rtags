@@ -86,6 +86,7 @@ struct Option opts[] = {
     { RClient::CheckReindex, "check-reindex", 'x', optional_argument, "Check if reindexing is necessary for all files matching pattern." },
     { RClient::FindFile, "path", 'P', optional_argument, "Print files matching pattern." },
     { RClient::DumpFile, "dump-file", 'd', required_argument, "Dump source file." },
+    { RClient::CheckIncludes, "check-includes", 0, required_argument, "Check includes for source file." },
     { RClient::DumpFileMaps, "dump-file-maps", 0, required_argument, "Dump file maps for file." },
     { RClient::GenerateTest, "generate-test", 0, required_argument, "Generate a test for a given source file." },
     { RClient::RdmLog, "rdm-log", 'g', no_argument, "Receive logs from rdm." },
@@ -1054,6 +1055,7 @@ RClient::ParseStatus RClient::parse(int &argc, char **argv)
             break;
         case IsIndexed:
         case DumpFile:
+        case CheckIncludes:
         case GenerateTest:
         case Diagnose:
         case FixIts: {
@@ -1075,17 +1077,19 @@ RClient::ParseStatus RClient::parse(int &argc, char **argv)
                 }
             }
             p.resolve();
+            Flags<QueryMessage::Flag> extraQueryFlags;
             QueryMessage::Type type = QueryMessage::Invalid;
             switch (opt->option) {
             case GenerateTest: type = QueryMessage::GenerateTest; break;
             case FixIts: type = QueryMessage::FixIts; break;
             case DumpFile: type = QueryMessage::DumpFile; break;
+            case CheckIncludes: type = QueryMessage::DumpFile; extraQueryFlags |= QueryMessage::DumpCheckIncludes; break;
             case Diagnose: type = QueryMessage::Diagnose; break;
             case IsIndexed: type = QueryMessage::IsIndexed; break;
             default: assert(0); break;
             }
 
-            addQuery(type, p);
+            addQuery(type, p, extraQueryFlags);
             break; }
         case AllDependencies: {
             String encoded;
