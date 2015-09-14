@@ -1107,6 +1107,10 @@ return t if rtags is allowed to modify this file."
              (run-hooks rtags-after-find-file-hook)
              (rtags-goto-offset offset)
              t))
+          ((string-match "\\(.*\\) includes /.*" location)
+           (rtags-find-file-or-buffer (match-string-no-properties 1 location) other-window)
+           (run-hooks rtags-after-find-file-hook)
+           t)
           (t
            (when (string-match "^ +\\(.*\\)$" location)
              (setq location (match-string-no-properties 1 location)))
@@ -2855,6 +2859,19 @@ If `rtags-display-summary-as-tooltip' is t, a tooltip is displayed."
                   (goto-char (point-min)))
                 (insert head include tail))
               (message "Added %s" include))))))))
+
+(defun rtags-check-includes ()
+  (interactive)
+  (let ((filename (buffer-file-name)))
+    (unless filename
+      (error "You need to call rtags-check-includes from an actual file"))
+    (switch-to-buffer (rtags-get-buffer))
+    (rtags-mode)
+    (start-process "*RTags check includes*"
+                   (current-buffer)
+                   (rtags-executable-find "rc")
+                   "--current-file" filename
+                   "--check-includes" filename)))
 
 (provide 'rtags)
 
