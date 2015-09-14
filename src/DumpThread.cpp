@@ -115,7 +115,8 @@ void DumpThread::run()
     String clangLine;
     RTags::parseTranslationUnit(mSource.sourceFile(), mSource.toCommandLine(Source::Default), translationUnit,
                                 index, 0, 0, CXTranslationUnit_DetailedPreprocessingRecord, &clangLine);
-    writeToConnetion(String::format<128>("Indexed: %s => %s", clangLine.constData(), translationUnit ? "success" : "failure"));
+    if (!(mQueryFlags & QueryMessage::DumpCheckIncludes))
+        writeToConnetion(String::format<128>("Indexed: %s => %s", clangLine.constData(), translationUnit ? "success" : "failure"));
     if (translationUnit) {
         clang_visitChildren(clang_getTranslationUnitCursor(translationUnit), DumpThread::visitor, this);
         clang_disposeTranslationUnit(translationUnit);
@@ -195,26 +196,35 @@ void DumpThread::checkIncludes(const Location &location, const CXCursor &cursor)
 
 void DumpThread::checkIncludes()
 {
-    std::function<bool(Dep *, Dep *, Set<uint32_t> &)> validate = [this, &validate](Dep *source, Dep *header, Set<uint32_t> &seen) {
-        if (!seen.insert(source->fileId))
+    std::function<bool(Dep *, Dep *, Set<uint32_t> &, int)> validate = [this, &validate](Dep *source, Dep *header, Set<uint32_t> &seen, int depth) {
+        // error() << depth << "Checking" << Location::path(source->fileId) << Location::path(header->fileId);
+        if (!seen.insert(source->fileId)) {
+            // error() << "already seen" << Location::path(source->fileId);
             return false;
+        }
         if (source->references.contains(header)) {
+            // error() << "Got ref" << Location::path(header->fileId);
             return true;
         }
         for (const auto &child : source->includes) {
-            if (validate(static_cast<Dep*>(child.second), header, seen))
+            // error() << "Checking child" << Location::path(child.second->fileId);
+            if (validate(static_cast<Dep*>(child.second), header, seen, depth + 1)) {
                 return true;
+            }
         }
 
+        // error() << "Checking" << Location::path(source->fileId) << "doesn't seem to need" << Location::path(header->fileId) << depth;
         return false;
     };
     for (const auto &it : mDependencies) {
+        // error() << "got it" << Location::path(it.first);
         for (const auto &dep  : it.second->includes) {
+            // error() << "got include" << Location::path(dep.first);
             if (Location::path(it.first).isSystem())
                 continue;
 
             Set<uint32_t> seen;
-            if (!validate(it.second, static_cast<Dep*>(dep.second), seen)) {
+            if (!validate(it.second, static_cast<Dep*>(dep.second), seen, 0)) {
                 writeToConnetion(String::format<128>("%s includes %s for no reason",
                                                      Location::path(it.first).constData(),
                                                      Location::path(dep.second->fileId).constData()));
