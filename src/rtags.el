@@ -554,6 +554,7 @@ to case differences."
     ret))
 
 (defvar rtags-current-file nil)
+(make-variable-buffer-local 'rtags-current-file)
 (defun* rtags-call-rc (&rest arguments
                        &key (path (buffer-file-name))
                        unsaved
@@ -1110,6 +1111,7 @@ to case differences."
        nil))))
 
 (defvar rtags-current-project nil)
+(make-variable-buffer-local 'rtags-current-project)
 (defun rtags-goto-location (location &optional nobookmark other-window)
   "Go to a location passed in. It can be either: file,12 or file:13:14 or plain file"
   ;; (message (format "rtags-goto-location \"%s\"" location))
