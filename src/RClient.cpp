@@ -28,6 +28,8 @@
 #include <stdio.h>
 #include <sys/ioctl.h>
 
+Path currentProjectPath() { return Path(); }
+
 struct Option {
     const RClient::OptionType option;
     const char *longOpt;
@@ -436,7 +438,7 @@ int RClient::exec()
     const int commandCount = mCommands.size();
     std::shared_ptr<Connection> connection = Connection::create(NumOptions);
     connection->newMessage().connect(std::bind(&RClient::onNewMessage, this,
-                                              std::placeholders::_1, std::placeholders::_2));
+                                               std::placeholders::_1, std::placeholders::_2));
     connection->finished().connect(std::bind([](){ EventLoop::eventLoop()->quit(); }));
     connection->disconnected().connect(std::bind([](){ EventLoop::eventLoop()->quit(); }));
     if (!connection->connectUnix(mSocketFile, mConnectTimeout)) {

@@ -48,7 +48,13 @@ String Location::key(Flags<KeyFlag> flags) const
         extra += ctx.size();
     }
 
-    const Path p = path();
+    Path p = path();
+    if (!(flags & AbsolutePath)) {
+        extern Path currentProjectPath();
+        const Path projectPath = currentProjectPath();
+        if (!projectPath.isEmpty() && p.startsWith(currentProjectPath()))
+            p.remove(0, projectPath.size());
+    }
 
     String ret(p.size() + extra, ' ');
 

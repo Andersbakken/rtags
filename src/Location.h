@@ -157,7 +157,8 @@ public:
     enum KeyFlag {
         NoFlag = 0x0,
         ShowContext = 0x1,
-        NoColor = 0x2
+        NoColor = 0x2,
+        AbsolutePath = 0x4
     };
 
     String key(Flags<KeyFlag> flags = NoFlag) const;

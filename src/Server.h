@@ -113,6 +113,7 @@ public:
     const Set<uint32_t> &activeBuffers() const { return mActiveBuffers; }
     bool isActiveBuffer(uint32_t fileId) const { return mActiveBuffers.contains(fileId); }
     int exitCode() const { return mExitCode; }
+    std::shared_ptr<Project> currentProject() const { return mCurrentProject.lock(); }
 private:
     String guessArguments(const String &args, const Path &pwd, const Path &projectRootOverride);
     bool saveFileIds();
@@ -170,7 +171,6 @@ private:
     void classHierarchy(const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Connection> &conn);
 
     std::shared_ptr<Project> projectForQuery(const std::shared_ptr<QueryMessage> &queryMessage);
-    std::shared_ptr<Project> currentProject() const { return mCurrentProject.lock(); }
     std::shared_ptr<Project> addProject(const Path &path);
 
     bool hasServer() const;

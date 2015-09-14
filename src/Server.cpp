@@ -86,6 +86,13 @@ void saveFileIds()
     Server::instance()->saveFileIds();
 }
 
+Path currentProjectPath()
+{
+    if (std::shared_ptr<Project> p = Server::instance()->currentProject())
+        return p->path();
+    return Path();
+}
+
 Server *Server::sInstance = 0;
 Server::Server()
     : mSuspended(false), mPathEnvironment(Rct::pathEnvironment()), mExitCode(0), mLastFileId(0), mCompletionThread(0)
