@@ -857,6 +857,20 @@ return t if rtags is allowed to modify this file."
     (goto-char (point-min))
     (re-search-forward (concat "^ *" (regexp-quote filename) "\\( ([0-9]*)\\)?\\(" rtags-dependency-tree-matched-decoration "\\)?$") nil t)))
 
+(defun rtags-dependency-tree-chains (chain)
+  (let ((ret)
+        (chains (cddr (assoc (car chain) rtags-dependency-tree-data))))
+    (while chains
+      (let ((c (append (list (car chains)) chain)))
+        (if (rtags-dependency-tree-is-visible (car c))
+            (push c ret)
+          (let ((subchains (rtags-dependency-tree-chains c)))
+            (while subchains
+              (push (car subchains) ret)
+              (setq subchains (cdr subchains))))))
+      (setq chains (cdr chains)))
+    ret))
+
 (defun rtags-dependency-tree-find-path (&optional filename)
   (interactive)
   (unless filename
