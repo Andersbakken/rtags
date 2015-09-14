@@ -46,6 +46,7 @@ public:
         ConnectTimeout,
         ContainingFunction,
         CurrentFile,
+        CurrentProject,
         CursorKind,
         DeclarationOnly,
         DefinitionOnly,

@@ -88,6 +88,12 @@
   :type 'boolean
   :safe 'booleanp)
 
+(defcustom rtags-find-file-absolute nil
+  "Whether rtags-find-file shows absolute paths"
+  :group 'rtags
+  :type 'boolean
+  :safe 'booleanp)
+
 (defcustom rtags-follow-symbol-try-harder t
   "Fall back to string-matching if follow symbol fails."
   :group 'rtags
@@ -1076,7 +1082,11 @@ return t if rtags is allowed to modify this file."
 (defun rtags-goto-location (location &optional nobookmark other-window)
   "Go to a location passed in. It can be either: file,12 or file:13:14 or plain file"
   ;; (message (format "rtags-goto-location \"%s\"" location))
-  (when (> (length location) 0)
+  (unless (string-match location "^/")
+    (with-temp-buffer
+      (rtags-call-rc "--current-project")
+      (setq location (concat (buffer-substring-no-properties (point-min) (1- (point-max))) location))))
+    (when (> (length location) 0)
     (cond ((string-match "\\(.*\\):\\([0-9]+\\):\\([0-9]+\\):?" location)
            (let ((line (string-to-number (match-string-no-properties 2 location)))
                  (column (string-to-number (match-string-no-properties 3 location))))
@@ -2204,7 +2214,8 @@ is true. References to references will be treated as references to the reference
     (rtags-location-stack-push)
 
     (with-current-buffer (rtags-get-buffer)
-      (rtags-call-rc "-K" "-P" tagname
+      (rtags-call-rc "-P" tagname
+                     (when rtags-find-file-absolute "-K")
                      (when rtags-find-file-case-insensitive "-I")
                      (when prefer-exact "-A"))
       (and (= (point-min) (point-max))

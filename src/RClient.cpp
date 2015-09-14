@@ -85,6 +85,7 @@ struct Option opts[] = {
     { RClient::Reindex, "reindex", 'V', optional_argument, "Reindex all files or all files matching pattern." },
     { RClient::CheckReindex, "check-reindex", 'x', optional_argument, "Check if reindexing is necessary for all files matching pattern." },
     { RClient::FindFile, "path", 'P', optional_argument, "Print files matching pattern." },
+    { RClient::CurrentProject, "current-project", 0, no_argument, "Print path for current project." },
     { RClient::DumpFile, "dump-file", 'd', required_argument, "Dump source file." },
     { RClient::CheckIncludes, "check-includes", 0, required_argument, "Check includes for source file." },
     { RClient::DumpFileMaps, "dump-file-maps", 0, required_argument, "Dump file maps for file." },
@@ -856,6 +857,9 @@ RClient::ParseStatus RClient::parse(int &argc, char **argv)
                 printf("%s: \"%s\"\n", it.first.constData(), it.second.constData());
             }
             return Parse_Ok; }
+        case CurrentProject:
+            addQuery(QueryMessage::Project, String(), QueryMessage::CurrentProjectOnly);
+            break;
         case CheckReindex:
         case Reindex:
         case Project:

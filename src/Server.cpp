@@ -1319,7 +1319,11 @@ void Server::removeProject(const std::shared_ptr<QueryMessage> &query, const std
 
 void Server::project(const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Connection> &conn)
 {
-    if (query->query().isEmpty()) {
+    if (query->flags() & QueryMessage::CurrentProjectOnly) {
+        if (std::shared_ptr<Project> current = currentProject()) {
+            conn->write(current->path());
+        }
+    } else if (query->query().isEmpty()) {
         const std::shared_ptr<Project> current = currentProject();
         for (const auto &it : mProjects) {
             conn->write<128>("%s%s", it.first.constData(), it.second == current ? " <=" : "");
