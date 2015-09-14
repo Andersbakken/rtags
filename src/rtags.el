@@ -1082,7 +1082,7 @@ return t if rtags is allowed to modify this file."
 (defun rtags-goto-location (location &optional nobookmark other-window)
   "Go to a location passed in. It can be either: file,12 or file:13:14 or plain file"
   ;; (message (format "rtags-goto-location \"%s\"" location))
-  (unless (string-match location "^/")
+  (unless (string-match "^/" location)
     (with-temp-buffer
       (rtags-call-rc "--current-project")
       (setq location (concat (buffer-substring-no-properties (point-min) (1- (point-max))) location))))
@@ -2220,8 +2220,9 @@ is true. References to references will be treated as references to the reference
                      (when prefer-exact "-A"))
       (and (= (point-min) (point-max))
            (string-match "[^/]\\.\\.[^/]" tagname)
-           (rtags-call-rc "-K" "-P"
+           (rtags-call-rc "-P"
                           (replace-regexp-in-string "\\([^/]\\)\\.\\.\\([^/]\\)" "\\1.\\2" tagname)
+                          (when rtags-find-file-absolute "-K")
                           (when rtags-find-file-case-insensitive "-I")
                           (when prefer-exact "-A")))
 
