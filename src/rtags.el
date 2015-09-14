@@ -727,6 +727,7 @@ return t if rtags is allowed to modify this file."
                      :noerror noerror
                      :silent-query silent-query
                      "-U" loc
+                     "-K"
                      (unless include-targets "--symbol-info-exclude-targets")
                      (unless include-targets "--symbol-info-exclude-references")
                      (when include-parents "--symbol-info-include-parents"))
@@ -1234,8 +1235,8 @@ return t if rtags is allowed to modify this file."
         (rtags-reparse-file-if-needed))
       (with-temp-buffer
         (if declaration-only
-            (rtags-call-rc :path path "--declaration-only" "-N" "-f" location :path-filter filter :noerror t :unsaved unsaved)
-          (rtags-call-rc :path path "-N" "-f" location :path-filter filter :noerror t :unsaved unsaved))
+            (rtags-call-rc :path path "--declaration-only" "-N" "-f" location "-K" :path-filter filter :noerror t :unsaved unsaved)
+          (rtags-call-rc :path path "-N" "-f" location :path-filter filter "-K" :noerror t :unsaved unsaved))
         (setq rtags-last-request-not-indexed nil)
         (cond ((= (point-min) (point-max))
                (unless no-error (message "RTags: No target")) nil)
@@ -1364,7 +1365,7 @@ is true. References to references will be treated as references to the reference
       (when (equal replacewith "")
         (error "You have to replace with something"))
       (with-temp-buffer
-        (rtags-call-rc :path file "-e" "--rename" "-N" "-r" location)
+        (rtags-call-rc :path file "-e" "--rename" "-N" "-r" location "-K")
         ;; (message "Got renames %s" (buffer-string))
         (dolist (string (split-string (buffer-string) "\n" t))
           (when (string-match "^\\(.*\\):\\([0-9]+\\):\\([0-9]+\\):$" string)
