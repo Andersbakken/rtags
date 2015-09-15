@@ -1813,11 +1813,14 @@ is true. References to references will be treated as references to the reference
                                       (cancel-timer rtags-tracking-timer))
                                     (setq rtags-tracking-timer nil))))))
 
+(defun rtags-is-tramp ()
+  (and (fboundp 'tramp-tramp-file-p)
+       (tramp-tramp-file-p default-directory)))
+
 ;;;###autoload
 (defun rtags-post-command-hook ()
   (interactive)
-  (when (and rtags-enabled
-             (or (not (fboundp 'tramp-tramp-file-p)) (not (tramp-tramp-file-p default-directory))))
+  (when (and rtags-enabled (not (rtags-is-tramp)))
     (rtags-restart-update-current-project-timer)
     (rtags-update-current-error)
     (rtags-close-taglist)
@@ -2394,6 +2397,7 @@ is true. References to references will be treated as references to the reference
 (defun rtags-update-current-project ()
   (interactive)
   (when (and (not (eq (current-buffer) rtags-last-update-current-project-buffer))
+             (not (rtags-is-tramp))
              (file-directory-p default-directory))
     (setq rtags-last-update-current-project-buffer (current-buffer))
     (let* ((rc (rtags-executable-find "rc"))
