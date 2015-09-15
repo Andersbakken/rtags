@@ -320,14 +320,7 @@ void CompletionThread::process(Request *request)
         }
         for (unsigned int i = 0; i < results->NumResults; ++i) {
             const CXCursorKind kind = results->Results[i].CursorKind;
-            if (kind == CXCursor_Destructor)
-                continue;
-
             const CXCompletionString &string = results->Results[i].CompletionString;
-            const CXAvailabilityKind availabilityKind = clang_getCompletionAvailability(string);
-            if (availabilityKind != CXAvailability_Available)
-                continue;
-
             const int priority = clang_getCompletionPriority(string);
 
             Completions::Candidate &node = nodes[nodeCount];
