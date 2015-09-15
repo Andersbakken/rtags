@@ -227,6 +227,7 @@ void CompletionThread::process(Request *request)
     } else {
         mCacheList.moveToEnd(cache);
     }
+    const bool sendDebug = testLog(LogLevel::Debug);
 
     if (cache->translationUnit && cache->source != request->source) {
         clang_disposeTranslationUnit(cache->translationUnit);
@@ -252,6 +253,7 @@ void CompletionThread::process(Request *request)
         lastModified = sourceFile.lastModifiedMs();
     }
 
+    const auto &options = Server::instance()->options();
     if (!cache->translationUnit) {
         cache->completionsMap.clear();
         cache->completionsList.deleteAll();
@@ -264,7 +266,6 @@ void CompletionThread::process(Request *request)
         // |CXTranslationUnit_CacheCompletionResults
         // |CXTranslationUnit_SkipFunctionBodies);
 
-        const auto &options = Server::instance()->options();
         for (const auto &inc : options.includePaths) {
             request->source.includePaths << inc;
         }
@@ -320,7 +321,15 @@ void CompletionThread::process(Request *request)
         }
         for (unsigned int i = 0; i < results->NumResults; ++i) {
             const CXCursorKind kind = results->Results[i].CursorKind;
+            if (!(options.options & Server::CompletionsNoFilter) && kind == CXCursor_Destructor)
+                continue;
+
             const CXCompletionString &string = results->Results[i].CompletionString;
+
+            const CXAvailabilityKind availabilityKind = clang_getCompletionAvailability(string);
+            if (!(options.options & Server::CompletionsNoFilter) && availabilityKind != CXAvailability_Available)
+                continue;
+
             const int priority = clang_getCompletionPriority(string);
 
             Completions::Candidate &node = nodes[nodeCount];
@@ -344,7 +353,6 @@ void CompletionThread::process(Request *request)
                         node.signature.append(' ');
                 }
             }
-
             if (ok) {
                 int ws = node.completion.size() - 1;
                 while (ws >= 0 && isspace(node.completion.at(ws)))
@@ -353,6 +361,10 @@ void CompletionThread::process(Request *request)
                     node.completion.truncate(ws + 1);
                     node.signature.replace("\n", "");
                     node.distance = tokens.value(Token(node.completion.constData(), node.completion.size()), -1);
+                    if (sendDebug)
+                        debug() << node.signature << node.priority << kind
+                                << node.distance << clang_getCompletionAvailability(string);
+
                     ++nodeCount;
                     continue;
                 }

@@ -74,6 +74,7 @@ static void usage(FILE *f)
             "  --test|-t [arg]                            Run this test.\n"
             "  --test-timeout|-z [arg]                    Timeout for test to complete.\n"
             "  --completion-cache-size|-i [arg]           Number of translation units to cache (default " STR(DEFAULT_COMPLETION_CACHE_SIZE) ").\n"
+            "  --completion-no-filter                     Don't filter private members and destructors from completions.\n"
             "  --config|-c [arg]                          Use this file instead of ~/.rdmrc.\n"
             "  --data-dir|-d [arg]                        Use this directory to store persistent data (default ~/.rtags).\n"
             "  --daemon                                   Run as daemon (detach from terminal).\n"
@@ -89,8 +90,7 @@ static void usage(FILE *f)
 #else
             "  --no-filemanager-watch|-M                  Don't use a file system watcher for filemanager.\n"
 #endif
-
-         "  --job-count|-j [arg]                       Spawn this many concurrent processes for indexing (default %d).\n"
+            "  --job-count|-j [arg]                       Spawn this many concurrent processes for indexing (default %d).\n"
             "  --header-error-job-count|-H [arg]          Allow this many concurrent header error jobs (default std::max(1, --job-count / 2)).\n"
             "  --log-file|-L [arg]                        Log to this file.\n"
 
@@ -164,7 +164,7 @@ int main(int argc, char** argv)
 
     struct option opts[] = {
         { "help", no_argument, 0, 'h' },
-        { "version", no_argument, 0, '\2' },
+        { "version", no_argument, 0, 2 },
         { "include-path", required_argument, 0, 'I' },
         { "isystem", required_argument, 0, 's' },
         { "define", required_argument, 0, 'D' },
@@ -199,15 +199,16 @@ int main(int argc, char** argv)
         { "rp-visit-file-timeout", required_argument, 0, 'Z' },
         { "rp-indexer-message-timeout", required_argument, 0, 'T' },
         { "rp-connect-timeout", required_argument, 0, 'O' },
-        { "rp-connect-attempts", required_argument, 0, '\3' },
+        { "rp-connect-attempts", required_argument, 0, 3 },
         { "rp-nice-value", required_argument, 0, 'a' },
         { "thread-stack-size", required_argument, 0, 'k' },
         { "suspend-rp-on-crash", no_argument, 0, 'q' },
-        { "rp-log-to-syslog", no_argument, 0, '\7' },
+        { "rp-log-to-syslog", no_argument, 0, 7 },
         { "start-suspended", no_argument, 0, 'Q' },
         { "separate-debug-and-release", no_argument, 0, 'E' },
         { "max-crash-count", required_argument, 0, 'K' },
         { "completion-cache-size", required_argument, 0, 'i' },
+        { "completion-no-filter", no_argument, 0, 8 },
         { "extra-compilers", required_argument, 0, 'U' },
         { "allow-Wpedantic", no_argument, 0, 'P' },
         { "enable-compiler-manager", no_argument, 0, 'R' },
@@ -221,12 +222,12 @@ int main(int argc, char** argv)
 #endif
         { "no-filesystem-watcher", no_argument, 0, 'B' },
         { "arg-transform", required_argument, 0, 'V' },
-        { "no-comments", no_argument, 0, '\1' },
+        { "no-comments", no_argument, 0, 1 },
 #ifdef OS_Darwin
-        { "launchd", no_argument, 0, '\4' },
+        { "launchd", no_argument, 0, 4 },
 #endif
-        { "inactivity-timeout", required_argument, 0, '\5' },
-        { "daemon", no_argument, 0, '\6' },
+        { "inactivity-timeout", required_argument, 0, 5 },
+        { "daemon", no_argument, 0, 6 },
         { 0, 0, 0, 0 }
     };
     const String shortOptions = Rct::shortOptions(opts);
@@ -377,13 +378,13 @@ int main(int argc, char** argv)
         case 'G':
             serverOpts.blockedArguments << optarg;
             break;
-        case '\1':
+        case 1:
             serverOpts.options |= Server::NoComments;
             break;
-        case '\2':
+        case 2:
             fprintf(stdout, "%s\n", RTags::versionString().constData());
             return 0;
-        case '\6':
+        case 6:
             daemon = true;
             logLevel = LogLevel::None;
             break;
@@ -422,7 +423,7 @@ int main(int argc, char** argv)
                 return 1;
             }
             break;
-        case '\3':
+        case 3:
             serverOpts.rpConnectAttempts = atoi(optarg);
             if (serverOpts.rpConnectAttempts <= 0) {
                 fprintf(stderr, "Invalid argument to --rp-connect-attempts %s\n", optarg);
@@ -606,19 +607,22 @@ int main(int argc, char** argv)
                 ++logLevel;
             break;
 #ifdef OS_Darwin
-        case '\4':
+        case 4:
             serverOpts.options |= Server::Launchd;
             break;
 #endif
-        case '\5':
+        case 5:
             inactivityTimeout = atoi(optarg); // seconds.
             if (inactivityTimeout <= 0) {
                 fprintf(stderr, "Invalid argument to --inactivity-timeout %s\n", optarg);
                 return 1;
             }
             break;
-        case '\7':
+        case 7:
             serverOpts.options |= Server::RPLogToSyslog;
+            break;
+        case 8:
+            serverOpts.options |= Server::CompletionsNoFilter;
             break;
         case '?': {
             fprintf(stderr, "Run rdm --help for help\n");

@@ -73,7 +73,8 @@ public:
         Weverything = 0x40000,
         NoComments = 0x80000,
         Launchd = 0x100000,     /* Only valid for Darwin... but you're not out of bits yet. */
-        RPLogToSyslog = 0x200000
+        RPLogToSyslog = 0x200000,
+        CompletionsNoFilter = 0x400000
     };
     struct Options {
         Options()
