@@ -366,7 +366,7 @@ String Server::guessArguments(const String &args, const Path &pwd, const Path &p
     Set<String> roots;
     if (!projectRootOverride.isEmpty())
         roots.insert(projectRootOverride.ensureTrailingSlash());
-    ret << "clang";
+    ret << "/usr/bin/g++";
     const List<String> split = args.split(" ");
     for (int i=0; i<split.size(); ++i) {
         const String &s = split.at(i);
