@@ -1012,7 +1012,7 @@ to case differences."
     (when (and path location)
       (rtags-location-stack-push)
       (switch-to-buffer class-hierarchy-buffer)
-      (rtags-call-rc :path path "--class-hierarchy" location)
+      (rtags-call-rc :path path "-K" "--class-hierarchy" location)
       (if (> (point-max) (point-min))
           (rtags-mode)
         (message "No subclasses for: %s" location)
