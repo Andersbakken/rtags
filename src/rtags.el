@@ -991,6 +991,10 @@ to case differences."
   (interactive)
   (rtags-dependency-tree t))
 
+(defun rtags-references-tree () ;; Need to build an expandable tree based around rc -r [loc] --elisp
+  (interactive)
+  )
+
 ;;;###autoload
 (defun rtags-print-source-arguments (&optional buffer)
   (interactive)
