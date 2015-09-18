@@ -121,7 +121,11 @@ bool QueryJob::write(const Location &location, Flags<WriteFlag> flags)
             return false;
         flags |= Unfiltered;
     }
-    String out = location.key(keyFlags());
+
+    Flags<Location::KeyFlag> kf = keyFlags();
+    if (flags & NoContext)
+        kf &= ~Location::ShowContext;
+    String out = location.key(kf);
     const bool containingFunction = queryFlags() & QueryMessage::ContainingFunction;
     const bool cursorKind = queryFlags() & QueryMessage::CursorKind;
     const bool displayName = queryFlags() & QueryMessage::DisplayName;

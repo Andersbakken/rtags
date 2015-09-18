@@ -41,7 +41,7 @@ Flags<Location::KeyFlag> QueryMessage::keyFlags(Flags<Flag> queryFlags)
     Flags<Location::KeyFlag> ret;
     if (!(queryFlags & NoContext))
         ret |= Location::ShowContext;
-    if (queryFlags & NoColor)
+    if (queryFlags & (NoColor|Elisp))
         ret |= Location::NoColor;
     if (queryFlags & AbsolutePath)
         ret |= Location::AbsolutePath;

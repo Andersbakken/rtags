@@ -57,10 +57,11 @@ public:
     }
     uint32_t fileFilter() const { return mFileFilter; }
     enum WriteFlag {
-        NoWriteFlags = 0x0,
-        IgnoreMax = 0x1,
-        DontQuote = 0x2,
-        Unfiltered = 0x4
+        NoWriteFlags = 0x00,
+        IgnoreMax = 0x01,
+        DontQuote = 0x02,
+        Unfiltered = 0x04,
+        NoContext = 0x08
     };
     bool write(const String &out, Flags<WriteFlag> flags = Flags<WriteFlag>());
     bool write(const Symbol &symbol,

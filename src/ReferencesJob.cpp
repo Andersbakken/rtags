@@ -18,14 +18,19 @@
 #include "RTags.h"
 #include "Project.h"
 
+static inline Flags<QueryJob::JobFlag> jobFlags(Flags<QueryMessage::Flag> queryFlags)
+{
+    return (queryFlags & QueryMessage::Elisp ? Flags<QueryJob::JobFlag>(QueryJob::QuoteOutput) : Flags<QueryJob::JobFlag>());
+}
+
 ReferencesJob::ReferencesJob(const Location &loc, const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Project> &proj)
-    : QueryJob(query, proj)
+    : QueryJob(query, proj, ::jobFlags(query->flags()))
 {
     locations.insert(loc);
 }
 
 ReferencesJob::ReferencesJob(const String &sym, const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Project> &proj)
-    : QueryJob(query, proj), symbolName(sym)
+    : QueryJob(query, proj, ::jobFlags(query->flags())), symbolName(sym)
 {
 }
 
@@ -136,20 +141,39 @@ int ReferencesJob::execute()
             }
         }
     }
+    Flags<QueryJob::WriteFlag> writeFlags;
+    Flags<Location::KeyFlag> kf = keyFlags();
+    if (queryFlags() & QueryMessage::Elisp) {
+        write("(list ", DontQuote);
+        writeFlags |= QueryJob::NoContext;
+    }
+
+    error() << "got queryflags" << queryFlags()
+            << (queryFlags() & (QueryMessage::NoContext|QueryMessage::Elisp));
+    auto writeLoc = [this, writeFlags, kf](const Location &loc) {
+        if ((queryFlags() & (QueryMessage::NoContext|QueryMessage::Elisp)) == QueryMessage::Elisp) {
+            write("(cons ", DontQuote);
+            write(loc, writeFlags);
+            write(loc.context(kf));
+            write(")", DontQuote);
+        } else {
+            write(loc, writeFlags);
+        }
+    };
+
     if (rename) {
         if (!references.isEmpty()) {
             if (queryFlags() & QueryMessage::ReverseSort) {
                 Map<Location, std::pair<bool, CXCursorKind> >::const_iterator it = references.end();
                 do {
                     --it;
-                    write(it->first);
+                    writeLoc(it->first);
                 } while (it != references.begin());
             } else {
                 for (const auto &it : references) {
-                    write(it.first);
+                    writeLoc(it.first);
                 }
             }
-            return 0;
         }
     } else {
         List<RTags::SortedSymbol> sorted;
@@ -176,10 +200,11 @@ int ReferencesJob::execute()
 
         for (int i=0; i<count; ++i) {
             const Location &loc = sorted.at((startIndex + i) % count).location;
-            write(loc);
+            writeLoc(loc);
         }
-        if (count)
-            return 0;
     }
-    return 1;
+    if (queryFlags() & QueryMessage::Elisp)
+        write(")", DontQuote);
+
+    return references.isEmpty() ? 1 : 0;
 }
