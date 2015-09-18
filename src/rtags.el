@@ -789,17 +789,12 @@ to case differences."
 (defvar rtags-dependency-tree-data nil)
 (make-variable-buffer-local 'rtags-dependency-tree-data)
 
-(defvar rtags-dependency-tree-indent 2)
-(defun rtags-dependency-tree-indent (depth) ; ### There must be a nicer way to do this
-  (let ((ret "")
-        (spaces (* depth rtags-dependency-tree-indent)))
-    (while (> spaces 0)
-      (setq ret (concat ret " "))
-      (decf spaces))
-    ret))
+(defvar rtags-tree-indent 2)
+(defun rtags-tree-indent (depth)
+  (make-string (* depth rtags-tree-indent) ? ))
 
 (defun rtags-dependency-tree-insert-file (file depth)
-  (insert (rtags-dependency-tree-indent depth) file)
+  (insert (rtags-tree-indent depth) file)
   (let ((count (length (cadr (assoc file rtags-dependency-tree-data)))))
     (when (> count 0)
       (insert " (" (number-to-string count) ")"))))
@@ -831,7 +826,7 @@ to case differences."
   (save-excursion
     (goto-char (point-at-bol))
     (when (looking-at (concat "^\\( *\\)\\(.*?\\)\\( ([0-9]*)\\)?\\(" rtags-dependency-tree-matched-decoration "\\)?$"))
-      (cons (match-string 2) (/ (length (match-string 1)) rtags-dependency-tree-indent)))))
+      (cons (match-string 2) (/ (length (match-string 1)) rtags-tree-indent)))))
 
 (defun rtags-dependency-tree-toggle-current-expanded ()
   (interactive)
@@ -861,14 +856,14 @@ to case differences."
   (interactive)
   (let ((cur (rtags-dependency-tree-current-file)))
     (when cur
-      (and (re-search-forward (concat "^" (rtags-dependency-tree-indent (1+ (cdr cur))) "[^ ]") nil t)
+      (and (re-search-forward (concat "^" (rtags-tree-indent (1+ (cdr cur))) "[^ ]") nil t)
            (forward-char -1)))))
 
 (defun rtags-dependency-tree-previous-level ()
   (interactive)
   (let ((cur (rtags-dependency-tree-current-file)))
     (when (and cur (> (cdr cur) 0))
-      (and (re-search-backward (concat "^" (rtags-dependency-tree-indent (1- (cdr cur))) "[^ ]") nil t)
+      (and (re-search-backward (concat "^" (rtags-tree-indent (1- (cdr cur))) "[^ ]") nil t)
            (skip-chars-forward " ")))))
 
 (defun rtags-dependency-tree-is-visible (filename)
@@ -907,7 +902,7 @@ to case differences."
              (idx 0))
         (while (< idx len)
           (re-search-forward (concat "^"
-                                     (rtags-dependency-tree-indent idx)
+                                     (rtags-tree-indent idx)
                                      (regexp-quote (car chain))
                                      "\\( ([0-9]*)\\)?\\("
                                      rtags-dependency-tree-matched-decoration
@@ -916,7 +911,7 @@ to case differences."
           (rtags-dependency-tree-expand-current)
           (incf idx)
           (setq chain (cdr chain)))
-        (re-search-forward (concat "^" (rtags-dependency-tree-indent idx) (regexp-quote (car chain)) "\\( ([0-9]*)\\)?$"))
+        (re-search-forward (concat "^" (rtags-tree-indent idx) (regexp-quote (car chain)) "\\( ([0-9]*)\\)?$"))
         (unless (and first (< first (point-at-bol)))
           (setq first (point-at-bol)))
         (unless (eq (char-before) ?*)
