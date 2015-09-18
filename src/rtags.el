@@ -443,6 +443,11 @@ to case differences."
 (define-key rtags-dependency-tree-mode-map (kbd "j") 'next-line)
 (define-key rtags-dependency-tree-mode-map (kbd "q") 'rtags-bury-or-delete)
 
+(defvar rtags-current-file nil)
+(make-variable-buffer-local 'rtags-current-file)
+(defvar rtags-current-project nil)
+(make-variable-buffer-local 'rtags-current-project)
+
 (define-derived-mode rtags-mode fundamental-mode
   (set (make-local-variable 'font-lock-defaults) '(rtags-font-lock-keywords))
   (set (make-local-variable 'rtags-current-file) nil)
@@ -553,8 +558,6 @@ to case differences."
       (setq list (cdr list)))
     ret))
 
-(defvar rtags-current-file nil)
-(make-variable-buffer-local 'rtags-current-file)
 (defun* rtags-call-rc (&rest arguments
                        &key (path (buffer-file-name))
                        unsaved
@@ -1110,8 +1113,6 @@ to case differences."
        (goto-char old)
        nil))))
 
-(defvar rtags-current-project nil)
-(make-variable-buffer-local 'rtags-current-project)
 (defun rtags-goto-location (location &optional nobookmark other-window)
   "Go to a location passed in. It can be either: file,12 or file:13:14 or plain file"
   ;; (message (format "rtags-goto-location \"%s\"" location))
