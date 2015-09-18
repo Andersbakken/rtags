@@ -148,8 +148,6 @@ int ReferencesJob::execute()
         writeFlags |= QueryJob::NoContext;
     }
 
-    error() << "got queryflags" << queryFlags()
-            << (queryFlags() & (QueryMessage::NoContext|QueryMessage::Elisp));
     auto writeLoc = [this, writeFlags, kf](const Location &loc) {
         if ((queryFlags() & (QueryMessage::NoContext|QueryMessage::Elisp)) == QueryMessage::Elisp) {
             write("(cons ", DontQuote);
