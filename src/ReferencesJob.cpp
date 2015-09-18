@@ -150,9 +150,22 @@ int ReferencesJob::execute()
 
     auto writeLoc = [this, writeFlags, kf](const Location &loc) {
         if ((queryFlags() & (QueryMessage::NoContext|QueryMessage::Elisp)) == QueryMessage::Elisp) {
-            write("(cons ", DontQuote);
-            write(loc, writeFlags);
-            write(loc.context(kf));
+            if (!filterLocation(loc))
+                return;
+            write("(list ", DontQuote);
+            locationToString(loc, [this](LocationPiece piece, const String &string) {
+                    switch (piece) {
+                    case Piece_Location:
+                    case Piece_Context:
+                    case Piece_ContainingFunctionLocation:
+                        write(string);
+                        break;
+                    case Piece_SymbolName:
+                    case Piece_Kind:
+                    case Piece_ContainingFunctionName:
+                        break;
+                    }
+                });
             write(")", DontQuote);
         } else {
             write(loc, writeFlags);

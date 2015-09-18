@@ -68,6 +68,17 @@ public:
                Flags<Symbol::ToStringFlag> sourceFlags = Flags<Symbol::ToStringFlag>(),
                Flags<WriteFlag> writeFlags = Flags<WriteFlag>());
     bool write(const Location &location, Flags<WriteFlag> writeFlags = Flags<WriteFlag>());
+    enum LocationPiece {
+        Piece_Location,
+        Piece_Context,
+        Piece_SymbolName,
+        Piece_Kind,
+        Piece_ContainingFunctionName,
+        Piece_ContainingFunctionLocation
+    };
+    bool locationToString(const Location &location,
+                          const std::function<void(LocationPiece, const String &)> &cb,
+                          Flags<WriteFlag> writeFlags = Flags<WriteFlag>());
 
     template <int StaticBufSize> bool write(Flags<WriteFlag> writeFlags, const char *format, ...);
     template <int StaticBufSize> bool write(const char *format, ...);
@@ -86,6 +97,7 @@ public:
     void abort() { std::lock_guard<std::mutex> lock(mMutex); mAborted = true; }
     std::mutex &mutex() const { return mMutex; }
     const std::shared_ptr<Connection> &connection() const { return mConnection; }
+    bool filterLocation(const Location &loc) const;
 private:
     class Filter
     {
@@ -120,7 +132,6 @@ private:
         const std::shared_ptr<Project> project;
     };
 
-    bool filterLocation(const Location &loc) const;
     bool filterKind(CXCursorKind kind) const;
     mutable std::mutex mMutex;
     bool mAborted;

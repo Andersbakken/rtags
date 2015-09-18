@@ -443,6 +443,25 @@ to case differences."
 (define-key rtags-dependency-tree-mode-map (kbd "j") 'next-line)
 (define-key rtags-dependency-tree-mode-map (kbd "q") 'rtags-bury-or-delete)
 
+(defvar rtags-references-tree-mode-map nil)
+(setq rtags-references-tree-mode-map (make-sparse-keymap))
+(define-key rtags-references-tree-mode-map (kbd "TAB") 'rtags-references-tree-toggle-current-expanded)
+(define-key rtags-references-tree-mode-map (kbd "c") 'rtags-references-tree-collapse-all)
+(define-key rtags-references-tree-mode-map (kbd "-") 'rtags-references-tree-collapse-current)
+(define-key rtags-references-tree-mode-map (kbd "+") 'rtags-references-tree-expand-current)
+(define-key rtags-references-tree-mode-map (kbd "n") 'rtags-references-tree-next-level)
+(define-key rtags-references-tree-mode-map (kbd "p") 'rtags-references-tree-previous-level)
+(define-key rtags-references-tree-mode-map (kbd "RET") 'rtags-select-other-window)
+(define-key rtags-references-tree-mode-map (kbd "M-RET") 'rtags-select)
+(define-key rtags-references-tree-mode-map [mouse-1] 'rtags-select-other-window)
+(define-key rtags-references-tree-mode-map [mouse-2] 'rtags-select-other-window)
+(define-key rtags-references-tree-mode-map (kbd "M-o") 'rtags-show-in-other-window)
+(define-key rtags-references-tree-mode-map (kbd "s") 'rtags-show-in-other-window)
+(define-key rtags-references-tree-mode-map (kbd "SPC") 'rtags-select-and-remove-rtags-buffer)
+(define-key rtags-references-tree-mode-map (kbd "k") 'previous-line)
+(define-key rtags-references-tree-mode-map (kbd "j") 'next-line)
+(define-key rtags-references-tree-mode-map (kbd "q") 'rtags-bury-or-delete)
+
 (defvar rtags-current-file nil)
 (make-variable-buffer-local 'rtags-current-file)
 (defvar rtags-current-project nil)
@@ -463,6 +482,13 @@ to case differences."
   ;; (set (make-local-variable 'font-lock-defaults) '(rtags-font-lock-keywords))
   (setq mode-name "rtags-dependency-tree-mode")
   (use-local-map rtags-dependency-tree-mode-map)
+  (goto-char (point-min))
+  (setq buffer-read-only t))
+
+(define-derived-mode rtags-references-tree-mode fundamental-mode
+  (set (make-local-variable 'font-lock-defaults) '(rtags-font-lock-keywords))
+  (setq mode-name "rtags-references-tree-mode")
+  (use-local-map rtags-references-tree-mode-map)
   (goto-char (point-min))
   (setq buffer-read-only t))
 
@@ -828,21 +854,6 @@ to case differences."
     (when (looking-at (concat "^\\( *\\)\\(.*?\\)\\( ([0-9]*)\\)?\\(" rtags-dependency-tree-matched-decoration "\\)?$"))
       (cons (match-string 2) (/ (length (match-string 1)) rtags-tree-indent)))))
 
-(defun rtags-dependency-tree-toggle-current-expanded ()
-  (interactive)
-  (when (rtags-dependency-tree-current-file)
-    (rtags-set-expanded (not (rtags-dependency-tree-current-is-expanded)))))
-
-(defun rtags-dependency-tree-collapse-current ()
-  (interactive)
-  (when (and (rtags-dependency-tree-current-file) (rtags-dependency-tree-current-is-expanded))
-    (rtags-set-expanded nil)))
-
-(defun rtags-dependency-tree-expand-current ()
-  (interactive)
-  (when (and (rtags-dependency-tree-current-file) (not (rtags-dependency-tree-current-is-expanded)))
-    (rtags-set-expanded t)))
-
 (defun rtags-dependency-tree-find-helper (filename)
   (let ((ret)
         (deps rtags-dependency-tree-data))
@@ -920,7 +931,7 @@ to case differences."
     (goto-char first)
     (setq buffer-read-only t)))
 
-(defun rtags-set-expanded (on)
+(defun rtags-dependency-tree-set-expanded (on)
   (save-excursion
     (let ((was buffer-read-only))
       (setq buffer-read-only nil)
@@ -947,6 +958,21 @@ to case differences."
               (decf count))
             (delete-region start (point)))))
       (setq buffer-read-only was))))
+
+(defun rtags-dependency-tree-toggle-current-expanded ()
+  (interactive)
+  (when (rtags-dependency-tree-current-file)
+    (rtags-dependency-tree-set-expanded (not (rtags-dependency-tree-current-is-expanded)))))
+
+(defun rtags-dependency-tree-collapse-current ()
+  (interactive)
+  (when (and (rtags-dependency-tree-current-file) (rtags-dependency-tree-current-is-expanded))
+    (rtags-dependency-tree-set-expanded nil)))
+
+(defun rtags-dependency-tree-expand-current ()
+  (interactive)
+  (when (and (rtags-dependency-tree-current-file) (not (rtags-dependency-tree-current-is-expanded)))
+    (rtags-dependency-tree-set-expanded t)))
 
 (defun rtags-dependency-tree-current-is-expanded ()
   (get-text-property (point-at-bol) 'rtags-is-expanded))
@@ -986,9 +1012,134 @@ to case differences."
   (interactive)
   (rtags-dependency-tree t))
 
+(defvar rtags-references-tree-data nil)
+(make-variable-buffer-local 'rtags-references-tree-data)
+
+(defun rtags-references-tree-current-location ()
+  (save-excursion
+    (goto-char (point-at-bol))
+    (and (looking-at "\\( *\\)\\([^ ]+:[0-9]+:[0-9]+:\\)")
+         (cons
+          (concat rtags-current-project (buffer-substring-no-properties (match-beginning 2) (match-end 2)))
+          (/ (length (match-string 1)) rtags-tree-indent)))))
+
+(defun rtags-file-from-location (location)
+  (and location
+       (string-match "^\\(.+\\):[0-9]+:[0-9]+:" location)
+       (match-string 1 location)))
+
+(defun rtags-references-tree-current-is-expanded ()
+  (let ((cur (rtags-references-tree-current-location)))
+    (when cur
+      (save-excursion
+        (forward-line 1)
+        (when (not (eobp))
+          (let ((next (rtags-references-tree-current-location)))
+            (and next (= (1- (cdr next)) (cdr cur)))))))))
+
+(defun rtags-references-tree-set-expanded (on)
+  (save-excursion
+    (let ((was buffer-read-only))
+      (setq buffer-read-only nil)
+      (let ((current (rtags-references-tree-current-location))
+            (containing-function (get-text-property (point-at-bol) 'rtags-ref-containing-function-location)))
+        (unless (and current containing-function)
+          (error "RTags no file here"))
+        (unless (eq on (null (rtags-references-tree-current-is-expanded)))
+          (error "RTags line is already %s" (if on "expanded" "collapsed")))
+        (goto-char (point-at-eol))
+        (if on
+            (let ((refs)
+                  (loc (concat rtags-current-project containing-function)))
+              (with-temp-buffer
+                (rtags-call-rc :path (rtags-file-from-location loc) "-r" loc "--no-sort-references-by-input" "--elisp" "--containing-function-location")
+                (setq refs
+                      (condition-case nil
+                          (eval (read (current-buffer)))
+                        (error
+                         nil))))
+              (while refs
+                (insert "\n")
+                (rtags-insert-ref (car refs) (1+ (cdr current)))
+                (setq refs (cdr refs))))
+          (forward-char 1)
+          (let ((start (point)))
+            (while (and (not (eobp))
+                        (let ((cur (rtags-references-tree-current-location)))
+                          (and cur (> (cdr cur) (cdr current)))))
+              (forward-line 1))
+            (delete-region start (point))))
+        (setq buffer-read-only was)))))
+
+(defun rtags-references-tree-toggle-current-expanded ()
+  (interactive)
+  (let (rtags-references-tree-current-location)
+    (rtags-references-tree-set-expanded (not (rtags-references-tree-current-is-expanded)))))
+
+(defun rtags-references-tree-collapse-current ()
+  (interactive)
+  (when (and (rtags-references-tree-current-location) (rtags-references-tree-current-is-expanded))
+    (rtags-references-tree-set-expanded nil)))
+
+(defun rtags-references-tree-expand-current ()
+  (interactive)
+  (when (and (rtags-references-tree-current-location) (not (rtags-references-tree-current-is-expanded)))
+    (rtags-references-tree-set-expanded t)))
+
+(defun rtags-references-tree-next-level ()
+  (interactive)
+  ;; (let ((cur (rtags-references-tree-current-location)))
+  ;;   (when cur
+  ;;     (and (re-search-forward (concat "^" (rtags-tree-indent (1+ (cdr cur))) "[^ ]") nil t)
+  ;;          (forward-char -1)))))
+  )
+
+(defun rtags-references-tree-previous-level ()
+  (interactive)
+  ;; (let ((cur (rtags-references-tree-current-location)))
+  ;;   (when (and cur (> (cdr cur) 0))
+  ;;     (and (re-search-backward (concat "^" (rtags-tree-indent (1- (cdr cur))) "[^ ]") nil t)
+  ;;          (skip-chars-forward " ")))))
+  )
+
+(defun rtags-insert-ref (ref level)
+  (insert (rtags-tree-indent level) (car ref) " " (cadr ref))
+  (set-text-properties (point-at-bol) (point-at-eol) (list 'rtags-ref-containing-function-location (caddr ref))))
+
+;;;###autoload
 (defun rtags-references-tree () ;; Need to build an expandable tree based around rc -r [loc] --elisp
   (interactive)
-  )
+  (let ((ref-buffer (rtags-get-buffer "*RTags*"))
+        (loc (rtags-current-location))
+        (refs)
+        (project)
+        (fn (buffer-file-name)))
+    (when (and fn loc)
+      (rtags-reparse-file-if-needed)
+      (with-temp-buffer
+        (rtags-call-rc :path fn "-r" loc "--no-sort-references-by-input" "--elisp" "--containing-function-location")
+        (setq refs
+              (condition-case nil
+                  (eval (read (current-buffer)))
+                (error
+                 nil))))
+      (when refs
+        (with-temp-buffer
+          (rtags-call-rc "--current-project" :path fn)
+          (when (> (point-max) (point-min))
+            (setq project (buffer-substring-no-properties (point-min) (1- (point-max))))))
+        (rtags-location-stack-push)
+        (switch-to-buffer ref-buffer)
+        (rtags-references-tree-mode)
+        (setq rtags-current-project project)
+        (setq buffer-read-only nil)
+        (while refs
+          (rtags-insert-ref (car refs) 0)
+          (insert "\n")
+          (setq refs (cdr refs)))
+        (delete-char -1))
+      (goto-char (point-min))
+      (setq buffer-read-only t))))
 
 ;;;###autoload
 (defun rtags-print-source-arguments (&optional buffer)
@@ -2166,7 +2317,11 @@ is true. References to references will be treated as references to the reference
           (t
            (when idx
              (goto-char (cdr idx)))
-           (rtags-goto-location (buffer-substring-no-properties (point-at-bol) (point-at-eol)) nil other-window)
+           (rtags-goto-location (buffer-substring-no-properties (save-excursion
+                                                                  (goto-char (point-at-bol))
+                                                                  (skip-chars-forward " ")
+                                                                  (point))
+                                                                (point-at-eol)) nil other-window)
            (when bookmark
              (bookmark-set bookmark))))
     (if remove

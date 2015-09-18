@@ -45,6 +45,7 @@ public:
         Compile,
         ConnectTimeout,
         ContainingFunction,
+        ContainingFunctionLocation,
         CurrentFile,
         CurrentProject,
         CursorKind,

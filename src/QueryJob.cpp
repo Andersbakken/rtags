@@ -112,24 +112,23 @@ bool QueryJob::writeRaw(const String &out, Flags<WriteFlag> flags)
     return true;
 }
 
-bool QueryJob::write(const Location &location, Flags<WriteFlag> flags)
+bool QueryJob::locationToString(const Location &location,
+                                const std::function<void(LocationPiece, const String &)> &cb,
+                                Flags<WriteFlag> writeFlags)
 {
     if (location.isNull())
         return false;
-    if (!(flags & Unfiltered)) {
-        if (!filterLocation(location))
-            return false;
-        flags |= Unfiltered;
-    }
-
     Flags<Location::KeyFlag> kf = keyFlags();
-    if (flags & NoContext)
-        kf &= ~Location::ShowContext;
-    String out = location.key(kf);
+    kf &= ~Location::ShowContext;
+    cb(Piece_Location, location.key(kf));
+    if (!(writeFlags & NoContext))
+        cb(Piece_Context, location.context(kf));
+
     const bool containingFunction = queryFlags() & QueryMessage::ContainingFunction;
+    const bool containingFunctionLocation = queryFlags() & QueryMessage::ContainingFunctionLocation;
     const bool cursorKind = queryFlags() & QueryMessage::CursorKind;
     const bool displayName = queryFlags() & QueryMessage::DisplayName;
-    if (containingFunction || cursorKind || displayName || !mKindFilters.isEmpty()) {
+    if (containingFunction || containingFunctionLocation || cursorKind || displayName || !mKindFilters.isEmpty()) {
         int idx;
         Symbol symbol = project()->findSymbol(location, &idx);
         if (symbol.isNull()) {
@@ -138,10 +137,10 @@ bool QueryJob::write(const Location &location, Flags<WriteFlag> flags)
             if (!filterKind(symbol.kind))
                 return false;
             if (displayName)
-                out += '\t' + symbol.displayName();
+                cb(Piece_SymbolName, symbol.displayName());
             if (cursorKind)
-                out += '\t' + symbol.kindSpelling();
-            if (containingFunction) {
+                cb(Piece_Kind, symbol.kindSpelling());
+            if (containingFunction || containingFunctionLocation) {
                 const uint32_t fileId = location.fileId();
                 const unsigned int line = location.line();
                 const unsigned int column = location.column();
@@ -155,7 +154,10 @@ bool QueryJob::write(const Location &location, Flags<WriteFlag> flags)
                             && RTags::isContainer(symbol.kind)
                             && comparePosition(line, column, symbol.startLine, symbol.startColumn) >= 0
                             && comparePosition(line, column, symbol.endLine, symbol.endColumn) <= 0) {
-                            out += "\tfunction: " + symbol.symbolName;
+                            if (containingFunction)
+                                cb(Piece_ContainingFunctionName, symbol.symbolName);
+                            if (containingFunctionLocation)
+                                cb(Piece_ContainingFunctionLocation, symbol.location.key(keyFlags() & ~Location::ShowContext));
                             break;
                         }
                     }
@@ -163,6 +165,37 @@ bool QueryJob::write(const Location &location, Flags<WriteFlag> flags)
             }
         }
     }
+    return true;
+}
+
+bool QueryJob::write(const Location &location, Flags<WriteFlag> flags)
+{
+    if (location.isNull())
+        return false;
+    if (!(flags & Unfiltered)) {
+        if (!filterLocation(location))
+            return false;
+        flags |= Unfiltered;
+    }
+
+    String out;
+    if (!locationToString(location, [&out](LocationPiece piece, const String &string) {
+                switch (piece) {
+                case Piece_Location:
+                    break;
+                case Piece_SymbolName:
+                case Piece_Kind:
+                case Piece_Context:
+                    out << '\t';
+                    break;
+                case Piece_ContainingFunctionName:
+                case Piece_ContainingFunctionLocation:
+                    out << "\tfunction: ";
+                    break;
+                }
+                out << string;
+            }))
+        return false;
     return write(out, flags);
 }
 

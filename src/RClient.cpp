@@ -147,6 +147,7 @@ struct Option opts[] = {
     { RClient::KindFilter, "kind-filter", 0, required_argument, "Only return results matching this kind.", },
     { RClient::IMenu, "imenu", 0, no_argument, "Use with --list-symbols to provide output for (rtags-imenu) (filter namespaces, fully qualified function names, ignore certain symbols etc)." },
     { RClient::ContainingFunction, "containing-function", 'o', no_argument, "Include name of containing function in output."},
+    { RClient::ContainingFunctionLocation, "containing-function-location", 0, no_argument, "Include location of containing function in output."},
     { RClient::BuildIndex, "build-index", 0, required_argument, "For sources with multiple builds, use the arg'th." },
     { RClient::CompilationFlagsOnly, "compilation-flags-only", 0, no_argument, "For --source, only print compilation flags." },
     { RClient::CompilationFlagsSplitLine, "compilation-flags-split-line", 0, no_argument, "For --source, print one compilation flag per line." },
@@ -590,6 +591,9 @@ RClient::ParseStatus RClient::parse(int &argc, char **argv)
             break;
         case ContainingFunction:
             mQueryFlags |= QueryMessage::ContainingFunction;
+            break;
+        case ContainingFunctionLocation:
+            mQueryFlags |= QueryMessage::ContainingFunctionLocation;
             break;
         case DeclarationOnly:
             mQueryFlags |= QueryMessage::DeclarationOnly;
