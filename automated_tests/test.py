@@ -8,10 +8,12 @@ import unittest
 import sys
 
 binary_path = ""
+debug = False
 
 
 def log(s):
-    print s
+    if debug:
+        print s
 
 
 def run_rc(args):
@@ -30,7 +32,7 @@ def run_rc(args):
 def wait_for(p, match):
     while p.poll() is None:
         l = p.stdout.readline()  # This blocks until it receives a newline.
-        print l
+        log(l)
         if match in l:
             break
 
@@ -60,6 +62,8 @@ class Location:
 class TestFixture(unittest.TestCase):
 
     def setUp(self):
+        log("#################################################################")
+        log("Initializing test " + str(self.id))
         cwd = os.getcwd()
         # name should be defined in the derived class !
         self.test_wd = os.path.join(cwd, self.name)
@@ -108,10 +112,13 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Function tests for rtags')
     parser.add_argument('--binary_path', '-b', required=True,
                         help='directory path to the binaries')
+    parser.add_argument('--debug', '-d', action='store_true', default=False,
+                        help='print debug output')
     parser.add_argument('unittest_args', nargs='*')
 
     args = parser.parse_args()
     binary_path = args.binary_path
+    debug = args.debug
 
     sys.argv[1:] = args.unittest_args
     unittest.main()
