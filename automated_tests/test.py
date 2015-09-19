@@ -4,13 +4,10 @@ import argparse
 import subprocess as sp
 import json
 import os
+import unittest
+import sys
 
-parser = argparse.ArgumentParser(description='Function tests for rtags')
-parser.add_argument('--binary_path', '-b', required=True,
-                    help='directory path to the binaries')
-
-args = parser.parse_args()
-binary_path = args.binary_path
+binary_path = ""
 
 
 def log(s):
@@ -38,39 +35,64 @@ def wait_for(p, match):
             break
 
 
-def init_test(name):
-    cwd = os.getcwd()
-    test_wd = os.path.join(cwd, name)
+class TestFixture(unittest.TestCase):
 
-    cdb = [{"directory": test_wd,
-            "command": "clang++ -c main.cpp",
-            "file": "main.cpp"}]
-    cdb_path = os.path.join(test_wd, 'compile_commands.json')
-    with open(cdb_path, 'w') as outfile:
-        json.dump(cdb, outfile)
-        outfile.write("\n")
+    def setUp(self):
+        cwd = os.getcwd()
+        # name should be defined in the derived class !
+        self.test_wd = os.path.join(cwd, self.name)
 
-    # Start rdm
-    rdm = sp.Popen(
-        [os.path.join(binary_path, "rdm")],
-        stdout=sp.PIPE, stderr=sp.STDOUT)
-    wait_for(rdm, "Includepaths")
+        cdb = [{"directory": self.test_wd,
+                "command": "clang++ -c main.cpp",
+                "file": "main.cpp"}]
+        cdb_path = os.path.join(self.test_wd, 'compile_commands.json')
+        with open(cdb_path, 'w') as outfile:
+            json.dump(cdb, outfile)
+            outfile.write("\n")
 
-    # Clean projects
-    out = run_rc(["-C"])
-    wait_for(rdm, "rc -C")
+        # Start rdm
+        self.rdm = sp.Popen(
+            [os.path.join(binary_path, "rdm")],
+            stdout=sp.PIPE, stderr=sp.STDOUT)
+        wait_for(self.rdm, "Includepaths")
 
-    # Load project
-    out = run_rc(["-J", test_wd])
-    wait_for(rdm, "Jobs took")
+        # Clean projects
+        run_rc(["-C"])
+        wait_for(self.rdm, "rc -C")
 
-    # Do the query
-    out = run_rc(
-        ["--follow-location", os.path.join(test_wd, "main.cpp") + ":4:5"])
+        # Load project
+        run_rc(["-J", self.test_wd])
+        wait_for(self.rdm, "Jobs took")
 
-    # Finish rdm
-    rdm.terminate()
-    rdm.wait()
+    def tearDown(self):
+        self.rdm.terminate()
+        self.rdm.wait()
 
-init_test('test_test')
-# exit(0)
+
+class FirstTest(TestFixture):
+
+    def __init__(self, a):
+        self.name = 'test_test'
+        super(FirstTest, self).__init__(a)
+
+    def test_follow_location(self):
+        main_cpp = os.path.join(self.test_wd, "main.cpp")
+        out = run_rc(
+            ["--follow-location", main_cpp + ":4:5"])
+        tokens = out.split(':')
+        self.assertEqual(tokens[0], main_cpp)
+        self.assertEqual(tokens[1], "1")
+        self.assertEqual(tokens[2], "6")
+
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description='Function tests for rtags')
+    parser.add_argument('--binary_path', '-b', required=True,
+                        help='directory path to the binaries')
+    parser.add_argument('unittest_args', nargs='*')
+
+    args = parser.parse_args()
+    binary_path = args.binary_path
+
+    sys.argv[1:] = args.unittest_args
+    unittest.main()
