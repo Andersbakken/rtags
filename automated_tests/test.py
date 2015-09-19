@@ -35,6 +35,28 @@ def wait_for(p, match):
             break
 
 
+class Location:
+
+    def __init__(self, file, line, col):
+        self.file = str(file)
+        self.line = int(line)
+        self.col = int(col)
+
+    @classmethod
+    def fromStr(cls, s):
+        tokens = s.split(":")
+        return cls(tokens[0], tokens[1], tokens[2])
+
+    def __eq__(self, other):
+        if isinstance(other, self.__class__):
+            return self.__dict__ == other.__dict__
+        else:
+            return False
+
+    def __ne__(self, other):
+        return not self.__eq__(other)
+
+
 class TestFixture(unittest.TestCase):
 
     def setUp(self):
@@ -79,10 +101,7 @@ class FirstTest(TestFixture):
         main_cpp = os.path.join(self.test_wd, "main.cpp")
         out = run_rc(
             ["--follow-location", main_cpp + ":4:5"])
-        tokens = out.split(':')
-        self.assertEqual(tokens[0], main_cpp)
-        self.assertEqual(tokens[1], "1")
-        self.assertEqual(tokens[2], "6")
+        self.assertEqual(Location.fromStr(out), Location(main_cpp, 1, 6))
 
 
 if __name__ == '__main__':
