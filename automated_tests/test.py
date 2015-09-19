@@ -16,12 +16,22 @@ def log(s):
         print s
 
 
+def log_rc_output(out):
+    lines = out.split("\n")
+    for i in lines:
+        log(">rc: " + i)
+
+
+def log_rdm_output(out):
+    log(">rdm:" + out.rstrip())
+
+
 def run_rc(args):
     args = [os.path.join(binary_path, "rc")] + args
     # Do the query
     try:
         out = sp.check_output(args)
-        log("rc output: " + out)
+        log_rc_output(out)
     except sp.CalledProcessError as e:
         log("rc err: " + e.output)
         log("rc cmd: " + str(e.cmd))
@@ -32,7 +42,7 @@ def run_rc(args):
 def wait_for(p, match):
     while p.poll() is None:
         l = p.stdout.readline()  # This blocks until it receives a newline.
-        log(l)
+        log_rdm_output(l)
         if match in l:
             break
 
@@ -53,10 +63,16 @@ class Location:
         if isinstance(other, self.__class__):
             return self.__dict__ == other.__dict__
         else:
-            return False
+            raise ValueError("Type error")
 
     def __ne__(self, other):
         return not self.__eq__(other)
+
+    def __lt__(self, other):
+        if isinstance(other, self.__class__):
+            return self.__dict__ < other.__dict__
+        else:
+            raise ValueError("Type error")
 
 
 class TestFixture(unittest.TestCase):
@@ -95,6 +111,10 @@ class TestFixture(unittest.TestCase):
         self.rdm.wait()
 
 
+def compareLocationLists(a, b):
+    return sorted(a) == sorted(b)
+
+
 class FirstTest(TestFixture):
 
     def __init__(self, a):
@@ -106,6 +126,22 @@ class FirstTest(TestFixture):
         out = run_rc(
             ["--follow-location", main_cpp + ":4:5"])
         self.assertEqual(Location.fromStr(out), Location(main_cpp, 1, 6))
+
+    def test_find_references(self):
+        main_cpp = os.path.join(self.test_wd, "main.cpp")
+        out = run_rc(
+            ["--references", main_cpp + ":1:6"])
+
+        locations = []
+        lines = out.split("\n")
+        for line in lines:
+            if len(line) > 0:
+                loc = Location.fromStr(line)
+                locations.append(loc)
+
+        expected_locations = [Location(main_cpp, 4, 5),
+                              Location(main_cpp, 5, 5)]
+        self.assertTrue(compareLocationLists(locations, expected_locations))
 
 
 if __name__ == '__main__':
