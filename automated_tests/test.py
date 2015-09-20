@@ -84,9 +84,12 @@ class TestFixture(unittest.TestCase):
         # name should be defined in the derived class !
         self.test_wd = os.path.join(cwd, self.name)
 
-        cdb = [{"directory": self.test_wd,
-                "command": "clang++ -c main.cpp",
-                "file": "main.cpp"}]
+        cdb = []
+        for file in os.listdir(self.test_wd):
+            if file.endswith(".cpp"):
+                cdb.append({"directory": self.test_wd,
+                            "command": "clang++ -I. -c " + file,
+                            "file": file})
         cdb_path = os.path.join(self.test_wd, 'compile_commands.json')
         with open(cdb_path, 'w') as outfile:
             json.dump(cdb, outfile)
@@ -106,6 +109,10 @@ class TestFixture(unittest.TestCase):
         run_rc(["-J", self.test_wd])
         wait_for(self.rdm, "Jobs took")
 
+        self.main_cpp = os.path.join(self.test_wd, "main.cpp")
+        self.a_hpp = os.path.join(self.test_wd, "a.hpp")
+        self.a_cpp = os.path.join(self.test_wd, "a.cpp")
+
     def tearDown(self):
         self.rdm.terminate()
         self.rdm.wait()
@@ -115,22 +122,20 @@ def compareLocationLists(a, b):
     return sorted(a) == sorted(b)
 
 
-class FirstTest(TestFixture):
+class OneTU(TestFixture):
 
     def __init__(self, a):
         self.name = 'one_translation_unit'
-        super(FirstTest, self).__init__(a)
+        super(OneTU, self).__init__(a)
 
     def test_follow_location(self):
-        main_cpp = os.path.join(self.test_wd, "main.cpp")
         out = run_rc(
-            ["--follow-location", main_cpp + ":4:5"])
-        self.assertEqual(Location.fromStr(out), Location(main_cpp, 1, 6))
+            ["--follow-location", self.main_cpp + ":4:5"])
+        self.assertEqual(Location.fromStr(out), Location(self.main_cpp, 1, 6))
 
     def test_find_references(self):
-        main_cpp = os.path.join(self.test_wd, "main.cpp")
         out = run_rc(
-            ["--references", main_cpp + ":1:6"])
+            ["--references", self.main_cpp + ":1:6"])
 
         locations = []
         lines = out.split("\n")
@@ -139,8 +144,37 @@ class FirstTest(TestFixture):
                 loc = Location.fromStr(line)
                 locations.append(loc)
 
-        expected_locations = [Location(main_cpp, 4, 5),
-                              Location(main_cpp, 5, 5)]
+        expected_locations = [Location(self.main_cpp, 4, 5),
+                              Location(self.main_cpp, 5, 5)]
+        self.assertTrue(compareLocationLists(locations, expected_locations))
+
+
+class MultipleTU(TestFixture):
+
+    def __init__(self, a):
+        self.name = 'multiple_translation_units'
+        super(MultipleTU, self).__init__(a)
+
+    def test_follow_location(self):
+        out = run_rc(
+            ["--follow-location", self.a_hpp + ":1:6"])
+        self.assertEqual(Location.fromStr(out), Location(self.a_cpp, 3, 6))
+
+    def test_find_references(self):
+        out = run_rc(
+            ["--references", self.a_hpp + ":1:6"])
+
+        locations = []
+        lines = out.split("\n")
+        for line in lines:
+            if len(line) > 0:
+                loc = Location.fromStr(line)
+                locations.append(loc)
+
+        expected_locations = [
+            Location(self.a_cpp, 6, 5),
+            Location(self.main_cpp, 4, 5),
+            Location(self.main_cpp, 5, 5)]
         self.assertTrue(compareLocationLists(locations, expected_locations))
 
 
