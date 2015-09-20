@@ -118,7 +118,7 @@ def compareLocationLists(a, b):
 class FirstTest(TestFixture):
 
     def __init__(self, a):
-        self.name = 'test_test'
+        self.name = 'one_translation_unit'
         super(FirstTest, self).__init__(a)
 
     def test_follow_location(self):
