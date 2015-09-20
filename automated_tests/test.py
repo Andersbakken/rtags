@@ -33,7 +33,8 @@ def run_rc(args):
         out = sp.check_output(args)
         log_rc_output(out)
     except sp.CalledProcessError as e:
-        log("rc err: " + e.output)
+        log("rc returncode: " + str(e.returncode))
+        log("rc output: " + e.output)
         log("rc cmd: " + str(e.cmd))
         raise
     return out
@@ -73,6 +74,10 @@ class Location:
             return self.__dict__ < other.__dict__
         else:
             raise ValueError("Type error")
+
+
+def toStr(loc):
+    return "%s:%s:%s" % (loc.file, str(loc.line), str(loc.col))
 
 
 class TestFixture(unittest.TestCase):
@@ -130,12 +135,12 @@ class OneTU(TestFixture):
 
     def test_follow_location(self):
         out = run_rc(
-            ["--follow-location", self.main_cpp + ":4:5"])
+            ["--follow-location", toStr(Location(self.main_cpp, 4, 5))])
         self.assertEqual(Location.fromStr(out), Location(self.main_cpp, 1, 6))
 
     def test_find_references(self):
         out = run_rc(
-            ["--references", self.main_cpp + ":1:6"])
+            ["--references", toStr(Location(self.main_cpp, 1, 6))])
 
         locations = []
         lines = out.split("\n")
@@ -157,12 +162,12 @@ class MultipleTU(TestFixture):
 
     def test_follow_location(self):
         out = run_rc(
-            ["--follow-location", self.a_hpp + ":1:6"])
+            ["--follow-location", toStr(Location(self.a_hpp, 1, 6))])
         self.assertEqual(Location.fromStr(out), Location(self.a_cpp, 3, 6))
 
     def test_find_references(self):
         out = run_rc(
-            ["--references", self.a_hpp + ":1:6"])
+            ["--references", toStr(Location(self.a_hpp, 1, 6))])
 
         locations = []
         lines = out.split("\n")
