@@ -9,6 +9,7 @@ import sys
 
 binary_path = ""
 debug = False
+socket_file = "/var/tmp/rdm_dev"
 
 
 def log(s):
@@ -27,7 +28,8 @@ def log_rdm_output(out):
 
 
 def run_rc(args):
-    args = [os.path.join(binary_path, "rc")] + args
+    args = [os.path.join(binary_path, "rc"),
+            "--socket-file=" + socket_file] + args
     # Do the query
     try:
         out = sp.check_output(args)
@@ -102,13 +104,14 @@ class TestFixture(unittest.TestCase):
 
         # Start rdm
         self.rdm = sp.Popen(
-            [os.path.join(binary_path, "rdm")],
+            [os.path.join(binary_path, "rdm"),
+             "--socket-file=" + socket_file,
+             "--data-dir=~/.rtags_dev",
+             "--no-filesystem-watcher", "--no-startup-project",
+             # --clear-project-caches
+             "-C"],
             stdout=sp.PIPE, stderr=sp.STDOUT)
         wait_for(self.rdm, "Includepaths")
-
-        # Clean projects
-        run_rc(["-C"])
-        wait_for(self.rdm, "rc -C")
 
         # Load project
         run_rc(["-J", self.test_wd])
