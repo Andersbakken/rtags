@@ -98,7 +98,6 @@ public:
     FixIts &fixIts() { return mFixIts; }
     Diagnostics &diagnostics() { return mDiagnostics; }
     Includes &includes() { return mIncludes; }
-    Declarations &declarations() { return mDeclarations; }
     enum FileFlag {
         NoFileFlag = 0x0,
         Visited = 0x1,
@@ -113,7 +112,6 @@ private:
     FixIts mFixIts;
     Diagnostics mDiagnostics;
     Includes mIncludes;
-    Declarations mDeclarations; // function declarations and forward declaration
     Hash<uint32_t, Flags<FileFlag> > mFiles;
     Flags<Flag> mFlags;
 };
@@ -123,16 +121,14 @@ RCT_FLAGS(IndexDataMessage::FileFlag);
 
 inline void IndexDataMessage::encode(Serializer &serializer) const
 {
-    serializer << mProject << mParseTime << mKey << mId << mIndexerJobFlags
-               << mMessage << mFixIts << mIncludes << mDiagnostics << mFiles
-               << mDeclarations << mFlags;
+    serializer << mProject << mParseTime << mKey << mId << mIndexerJobFlags << mMessage
+               << mFixIts << mIncludes << mDiagnostics << mFiles << mFlags;
 }
 
 inline void IndexDataMessage::decode(Deserializer &deserializer)
 {
-    deserializer >> mProject >> mParseTime >> mKey >> mId >> mIndexerJobFlags
-                 >> mMessage >> mFixIts >> mIncludes >> mDiagnostics
-                 >> mFiles >> mDeclarations >> mFlags;
+    deserializer >> mProject >> mParseTime >> mKey >> mId >> mIndexerJobFlags >> mMessage
+                 >> mFixIts >> mIncludes >> mDiagnostics >> mFiles >> mFlags;
 }
 
 #endif

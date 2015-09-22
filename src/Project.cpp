@@ -334,7 +334,6 @@ bool Project::init()
         std::lock_guard<std::mutex> lock(mMutex);
         file >> mVisitedFiles >> mDiagnostics;
     }
-    file >> mDeclarations;
     loadDependencies(file, mDependencies);
 
     for (const auto &dep : mDependencies) {
@@ -681,7 +680,6 @@ void Project::onJobFinished(const std::shared_ptr<IndexerJob> &job, const std::s
     Set<uint32_t> visited = msg->visitedFiles();
     updateFixIts(visited, msg->fixIts());
     updateDependencies(msg);
-    updateDeclarations(visited, msg->declarations());
     if (success) {
         src->second.parsed = msg->parseTime();
         error("[%3d%%] %d/%d %s %s. (%s)",
@@ -770,7 +768,6 @@ bool Project::save()
             std::lock_guard<std::mutex> lock(mMutex);
             file << mVisitedFiles << mDiagnostics;
         }
-        file << mDeclarations;
         saveDependencies(file, mDependencies);
         if (!file.flush()) {
             error("Save error %s: %s", mProjectFilePath.constData(), file.error().constData());
@@ -1070,26 +1067,6 @@ void Project::updateDependencies(const std::shared_ptr<IndexDataMessage> &msg)
         if (!inclusiary)
             inclusiary = new DependencyNode(it.second);
         includer->include(inclusiary);
-    }
-}
-
-void Project::updateDeclarations(const Set<uint32_t> &visited, Declarations &declarations)
-{
-    auto it = mDeclarations.begin();
-    while (it != mDeclarations.end()) {
-        if (it->second.remove([&visited](uint32_t key) { return visited.contains(key); }) && it->second.isEmpty()) {
-            mDeclarations.erase(it++);
-        } else {
-            ++it;
-        }
-    }
-    for (auto &u : declarations) {
-        auto &cur = mDeclarations[u.first];
-        if (cur.isEmpty()) {
-            cur = std::move(u.second);
-        } else {
-            cur.unite(u.second);
-        }
     }
 }
 
@@ -1523,8 +1500,22 @@ Set<Symbol> Project::findByUsr(const String &usr, uint32_t fileId, DependencyMod
         ret.insert(sym);
         return ret;
     }
-    if (mDeclarations.contains(usr)) {
-        assert(!mDeclarations.value(usr).isEmpty());
+    for (uint32_t file : dependencies(fileId, mode)) {
+        auto usrs = openUsrs(file);
+        // error() << usrs << Location::path(file) << usr;
+        if (usrs) {
+            for (const Location &loc : usrs->value(usr)) {
+                // error() << "got a loc" << loc;
+                const Symbol c = findSymbol(loc);
+                if (!c.isNull())
+                    ret.insert(c);
+            }
+            // for (int i=0; i<usrs->count(); ++i) {
+            //     error() << i << usrs->count() << usrs->keyAt(i) << usrs->valueAt(i);
+            // }
+        }
+    }
+    if (ret.isEmpty()) {
         for (const auto &dep : mDependencies) {
             auto usrs = openUsrs(dep.first);
             if (usrs) {
@@ -1535,23 +1526,8 @@ Set<Symbol> Project::findByUsr(const String &usr, uint32_t fileId, DependencyMod
                 }
             }
         }
-    } else {
-        for (uint32_t file : dependencies(fileId, mode)) {
-            auto usrs = openUsrs(file);
-            // error() << usrs << Location::path(file) << usr;
-            if (usrs) {
-                for (const Location &loc : usrs->value(usr)) {
-                    // error() << "got a loc" << loc;
-                    const Symbol c = findSymbol(loc);
-                    if (!c.isNull())
-                        ret.insert(c);
-                }
-                // for (int i=0; i<usrs->count(); ++i) {
-                //     error() << i << usrs->count() << usrs->keyAt(i) << usrs->valueAt(i);
-                // }
-            }
-        }
     }
+
     return ret;
 }
 
@@ -1576,15 +1552,16 @@ static Set<Symbol> findReferences(const Set<Symbol> &inputs,
                 }
             }
         };
+        const Set<uint32_t> seen = project->dependencies(input.location.fileId(), Project::DependsOnArg);
+        for (auto dep : seen)
+            process(dep);
 
-        if (project->isDeclaration(input.usr)) {
-            for (auto dep : project->dependencies())
-                process(dep.first);
-        } else {
-            for (auto dep : project->dependencies(input.location.fileId(), Project::DependsOnArg))
-                process(dep);
+        if (ret.isEmpty()) {
+            for (auto dep : project->dependencies()) {
+                if (!seen.contains(dep.first))
+                    process(dep.first);
+            }
         }
-
     }
     return ret;
 }
@@ -2271,7 +2248,6 @@ String Project::estimateMemory() const
     add("Active jobs", ::estimateMemory(mActiveJobs));
     add("Fixits", ::estimateMemory(mFixIts));
     add("Pending dirty files", ::estimateMemory(mPendingDirtyFiles));
-    add("Declarations", ::estimateMemory(mDeclarations));
     add("Sources", ::estimateMemory(mSources));
     add("Suspended files", ::estimateMemory(mSuspendedFiles));
     size_t deps = ::estimateMemory(mDependencies);

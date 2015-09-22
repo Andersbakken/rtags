@@ -38,7 +38,7 @@ namespace RTags {
 enum {
     MajorVersion = 2,
     MinorVersion = 0,
-    DatabaseVersion = 78,
+    DatabaseVersion = 79,
     SourcesFileVersion = 3
 };
 
@@ -68,7 +68,6 @@ typedef Map<Location, Diagnostic> Diagnostics;
 struct DependencyNode;
 typedef List<std::pair<uint32_t, uint32_t> > Includes;
 typedef Hash<uint32_t, DependencyNode*> Dependencies;
-typedef Hash<String, Set<uint32_t> > Declarations;
 typedef Map<uint64_t, Source> Sources;
 typedef Map<Path, Set<String> > Files;
 typedef Hash<uint32_t, Set<FixIt> > FixIts;

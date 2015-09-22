@@ -33,7 +33,7 @@ int StatusJob::execute()
         return !strncasecmp(query.constData(), name, query.size());
     };
     bool matched = false;
-    const char *alternatives = "fileids|watchedpaths|dependencies|cursors|symbols|targets|symbolnames|sources|jobs|info|compilers|declarations|headererrors|memory";
+    const char *alternatives = "fileids|watchedpaths|dependencies|cursors|symbols|targets|symbolnames|sources|jobs|info|compilers|headererrors|memory";
 
     if (match("fileids")) {
         matched = true;
@@ -231,16 +231,6 @@ int StatusJob::execute()
                 write<512>("    %s", it.toString().constData());
             write("");
         }
-    }
-
-    if (query.isEmpty() || match("declarations")) {
-        for (const auto &it : proj->declarations()) {
-            write(it.first);
-            for (uint32_t file : it.second) {
-                write<128>("  %s", Location::path(file).constData());
-            }
-        }
-        matched = true;
     }
 
     if (query.isEmpty() || match("memory")) {

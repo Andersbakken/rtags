@@ -120,8 +120,6 @@ public:
                             const List<String> &args = List<String>(),
                             Flags<QueryMessage::Flag> flags = Flags<QueryMessage::Flag>()) const;
     const Hash<uint32_t, DependencyNode*> &dependencies() const { return mDependencies; }
-    const Declarations &declarations() const { return mDeclarations; }
-    bool isDeclaration(const String &usr) const { return mDeclarations.contains(usr); }
 
     static bool readSources(const Path &path, Sources &sources, String *error);
     enum SymbolMatchType {
@@ -224,7 +222,6 @@ private:
     bool validate(uint32_t fileId, String *error = 0) const;
     void removeDependencies(uint32_t fileId);
     void updateDependencies(const std::shared_ptr<IndexDataMessage> &msg);
-    void updateDeclarations(const Set<uint32_t> &visited, Declarations &declarations);
     void loadFailed(uint32_t fileId);
     void updateFixIts(const Set<uint32_t> &visited, FixIts &fixIts);
     int startDirtyJobs(Dirty *dirty,
@@ -349,7 +346,6 @@ private:
 
     StopWatch mTimer;
     FileSystemWatcher mWatcher;
-    Declarations mDeclarations;
     Sources mSources;
     Hash<Path, Flags<WatchMode> > mWatchedPaths;
     std::shared_ptr<FileManager> mFileManager;

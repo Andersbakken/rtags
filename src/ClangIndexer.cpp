@@ -1148,7 +1148,6 @@ bool ClangIndexer::handleCursor(const CXCursor &cursor, CXCursorKind kind, const
         switch (c.kind) {
         case CXCursor_FunctionDecl:
         case CXCursor_VarDecl: {
-            mIndexDataMessage.declarations()[c.usr].insert(location.fileId());
             const auto kind = clang_getCursorKind(clang_getCursorSemanticParent(cursor));
             switch (kind) {
             case CXCursor_ClassDecl:
