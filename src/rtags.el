@@ -1052,7 +1052,12 @@ to case differences."
             (let ((refs)
                   (loc (concat rtags-current-project containing-function)))
               (with-temp-buffer
-                (rtags-call-rc :path (rtags-file-from-location loc) "-r" loc "--no-sort-references-by-input" "--elisp" "--containing-function-location")
+                (rtags-call-rc :path (rtags-file-from-location loc)
+                               "-r" loc
+                               "--no-sort-references-by-input"
+                               "--elisp"
+                               "--containing-function-location"
+                               "--containing-function")
                 (setq refs
                       (condition-case nil
                           (eval (read (current-buffer)))
@@ -1103,11 +1108,20 @@ to case differences."
   )
 
 (defun rtags-insert-ref (ref level)
-  (insert (rtags-tree-indent level) (car ref) " " (cadr ref))
-  (set-text-properties (point-at-bol) (point-at-eol) (list 'rtags-ref-containing-function-location (caddr ref))))
+  (insert (rtags-tree-indent level)
+          (cdr (assoc 'loc ref))
+          " "
+          (cdr (assoc 'ctx ref)))
+  (let ((cf (cdr (assoc 'cf ref))))
+    (when cf
+      (insert "\tCalled from: " cf)))
+
+          ;; (car ref) " " (cadr ref))
+  (set-text-properties (point-at-bol) (point-at-eol)
+                       (list 'rtags-ref-containing-function-location (cdr (assoc 'cfl  ref)))))
 
 ;;;###autoload
-(defun rtags-references-tree () ;; Need to build an expandable tree based around rc -r [loc] --elisp
+(defun rtags-references-tree ()
   (interactive)
   (let ((ref-buffer (rtags-get-buffer "*RTags*"))
         (loc (rtags-current-location))
@@ -1117,7 +1131,12 @@ to case differences."
     (when (and fn loc)
       (rtags-reparse-file-if-needed)
       (with-temp-buffer
-        (rtags-call-rc :path fn "-r" loc "--no-sort-references-by-input" "--elisp" "--containing-function-location")
+        (rtags-call-rc :path fn
+                       "-r" loc
+                       "--no-sort-references-by-input"
+                       "--elisp"
+                       "--containing-function-location"
+                       "--containing-function")
         (setq refs
               (condition-case nil
                   (eval (read (current-buffer)))

@@ -148,21 +148,37 @@ int ReferencesJob::execute()
         writeFlags |= QueryJob::NoContext;
     }
 
-    auto writeLoc = [this, writeFlags, kf](const Location &loc) {
-        if ((queryFlags() & (QueryMessage::NoContext|QueryMessage::Elisp)) == QueryMessage::Elisp) {
+    auto writeCons = [this](const String &car, const String &cdr) {
+        write("(cons ", DontQuote);
+        write(car, DontQuote);
+        write(cdr);
+        write(")", DontQuote);
+    };
+
+    auto writeLoc = [this, writeCons, writeFlags, kf](const Location &loc) {
+        if (queryFlags() & QueryMessage::Elisp) {
             if (!filterLocation(loc))
                 return;
             write("(list ", DontQuote);
-            locationToString(loc, [this](LocationPiece piece, const String &string) {
+            locationToString(loc, [writeCons, this](LocationPiece piece, const String &string) {
                     switch (piece) {
-                    case Piece_Location:
-                    case Piece_Context:
                     case Piece_ContainingFunctionLocation:
-                        write(string);
+                        if (queryFlags() & QueryMessage::ContainingFunctionLocation)
+                            writeCons("'cfl", string);
+                        break;
+                    case Piece_ContainingFunctionName:
+                        if (queryFlags() & QueryMessage::ContainingFunction)
+                            writeCons("'cf", string);
+                        break;
+                    case Piece_Location:
+                        writeCons("'loc", string);
+                        break;
+                    case Piece_Context:
+                        if (!(queryFlags() & QueryMessage::NoContext))
+                            writeCons("'ctx", string);
                         break;
                     case Piece_SymbolName:
                     case Piece_Kind:
-                    case Piece_ContainingFunctionName:
                         break;
                     }
                 });
