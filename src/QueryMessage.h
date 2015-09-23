@@ -72,6 +72,7 @@ public:
     enum Flag {
         NoFlag = 0x000000000,
         NoContext = 0x000000001,
+        FindInstantiations = 0x000000002,
         FilterSystemIncludes = 0x000000004,
         StripParentheses = 0x000000008,
         AllReferences = 0x000000010,

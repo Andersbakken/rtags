@@ -635,6 +635,17 @@ CXChildVisitResult ClangIndexer::indexVisitor(CXCursor cursor, CXCursor parent, 
             log << "refs" << ref;
         }
     }
+
+    if (kind == CXCursor_StructDecl) {
+        Log log(LogLevel::Debug);
+        log << "StructDecl! " << cursor;
+        CXCursor c = clang_getSpecializedCursorTemplate(cursor);
+        if (!(clang_equalCursors(c, nullCursor))) {
+            log << "Template! " << c;
+            indexer->unit(loc)->targets[loc][::usr(c)] = 0;
+        }
+    }
+
     if (Symbol::isClass(kind)) {
         indexer->mLastClass = loc;
     } else {

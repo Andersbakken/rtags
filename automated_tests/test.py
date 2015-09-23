@@ -108,6 +108,9 @@ class TestFixture(unittest.TestCase):
              "--socket-file=" + socket_file,
              "--data-dir=~/.rtags_dev",
              "--no-filesystem-watcher", "--no-startup-project",
+             # verbose
+             "-vvv",
+             "--log-file", "logfile",
              # --clear-project-caches
              "-C"],
             stdout=sp.PIPE, stderr=sp.STDOUT)
@@ -183,6 +186,33 @@ class MultipleTU(TestFixture):
             Location(self.a_cpp, 6, 5),
             Location(self.main_cpp, 4, 5),
             Location(self.main_cpp, 5, 5)]
+        self.assertTrue(compareLocationLists(locations, expected_locations))
+
+
+class Templates(TestFixture):
+
+    def __init__(self, a):
+        self.name = 'templates'
+        super(Templates, self).__init__(a)
+
+    def test_follow_location(self):
+        #run_rc(["--status", "targets"])
+        #run_rc(["--status"])
+        out = run_rc(
+            ["--references",
+             toStr(Location(self.main_cpp, 9, 8)),
+             #"--all-references",
+             ])
+        # TODO function
+        locations = []
+        lines = out.split("\n")
+        for line in lines:
+            if len(line) > 0:
+                loc = Location.fromStr(line)
+                locations.append(loc)
+        expected_locations = [
+            Location(self.main_cpp, 16, 17),
+            Location(self.main_cpp, 17, 17)]
         self.assertTrue(compareLocationLists(locations, expected_locations))
 
 
