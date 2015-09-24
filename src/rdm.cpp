@@ -93,7 +93,8 @@ static void usage(FILE *f)
             "  --job-count|-j [arg]                       Spawn this many concurrent processes for indexing (default %d).\n"
             "  --header-error-job-count|-H [arg]          Allow this many concurrent header error jobs (default std::max(1, --job-count / 2)).\n"
             "  --log-file|-L [arg]                        Log to this file.\n"
-
+            "  --log-file-log-level [arg]                 Log level for log file (default is verbose-debug):\n"
+            "                                             options are: error, warning, debug or verbose-debug.\n"
 #ifndef OS_FreeBSD
 #endif
             "  --no-filesystem-watcher|-B                 Disable file system watching altogether. Reindexing has to happen manually.\n"
@@ -228,6 +229,7 @@ int main(int argc, char** argv)
 #endif
         { "inactivity-timeout", required_argument, 0, 5 },
         { "daemon", no_argument, 0, 6 },
+        { "log-file-log-level", required_argument, 0, 9 },
         { 0, 0, 0, 0 }
     };
     const String shortOptions = Rct::shortOptions(opts);
@@ -353,6 +355,7 @@ int main(int argc, char** argv)
     const char *logFile = 0;
     Flags<LogFileFlag> logFlags;
     LogLevel logLevel(LogLevel::Error);
+    LogLevel logFileLogLevel(LogLevel::VerboseDebug);
     bool sigHandler = false;
     assert(Path::home().endsWith('/'));
     int argCount = argList.size();
@@ -387,6 +390,21 @@ int main(int argc, char** argv)
         case 6:
             daemon = true;
             logLevel = LogLevel::None;
+            break;
+        case 9:
+            if (!strcasecmp(optarg, "verbose-debug")) {
+                logFileLogLevel = LogLevel::VerboseDebug;
+            } else if (!strcasecmp(optarg, "debug")) {
+                logFileLogLevel = LogLevel::Debug;
+            } else if (!strcasecmp(optarg, "warning")) {
+                logFileLogLevel = LogLevel::Warning;
+            } else if (!strcasecmp(optarg, "error")) {
+                logFileLogLevel = LogLevel::Error;
+            } else {
+                fprintf(stderr, "Unknown log level: %s options are error, warning, debug or verbose-debug\n",
+                        optarg);
+                return 1;
+            }
             break;
         case 'U':
             serverOpts.extraCompilers.append(std::regex(optarg));
