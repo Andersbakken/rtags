@@ -1381,7 +1381,7 @@ to case differences."
   (unless map
     (setq map c-mode-base-map))
   (unless prefix
-    (setq prefix "\C-xr"))
+    (setq prefix "\C-cr"))
   (ignore-errors
     (define-key map (concat prefix ".") (function rtags-find-symbol-at-point))
     (define-key map (concat prefix ",") (function rtags-find-references-at-point))
@@ -2828,7 +2828,7 @@ definition."
      (t
       (let ((process-connection-type (not rtags-rdm-process-use-pipe)))
         (setq rtags-rdm-process (start-process-shell-command "RTags" "*rdm*" (rtags-command))))
-      (and rtags-autostart-diagnostics (rtags-diagnostics))
+      (and rtags-autostart-diagnosetics (rtags-diagnostics))
       (set-process-query-on-exit-flag rtags-rdm-process nil)
       (set-process-sentinel rtags-rdm-process 'rtags-sentinel)))))
 
