@@ -634,6 +634,22 @@ some of these may be outdated:
 
 [[http://www.youtube.com/watch?v=9CsoJTs58q8&list=PLAL6K6Ycnt4IwjIjWcYV9bFgcTG_4T1Y_&index=8][Enums and cursor info]]
 
+* Debugging RTags
+  If you find that rp is crashing (leading to output like this: "job
+  crashed 191 9698036154370 0x331e7e30"). You should be able to do the
+  following:
+
+#+BEGIN_SRC
+$ rdm --suspend-rp-on-crash
+#+END_SRC
+
+When rp crashes the rp process will stay alive, enabling you to debug
+it with something like this:
+
+#+BEGIN_SRC
+gdb -p `pidof rp`
+#+END_SRC
+
 * Support for other editors
 There are several other projects integrating RTags with other editors.
 
