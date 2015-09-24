@@ -90,6 +90,7 @@ static void usage(FILE *f)
 #else
             "  --no-filemanager-watch|-M                  Don't use a file system watcher for filemanager.\n"
 #endif
+            "  --watch-sources-only                       Only watch source files (not dependencies).\n"
             "  --job-count|-j [arg]                       Spawn this many concurrent processes for indexing (default %d).\n"
             "  --header-error-job-count|-H [arg]          Allow this many concurrent header error jobs (default std::max(1, --job-count / 2)).\n"
             "  --log-file|-L [arg]                        Log to this file.\n"
@@ -230,6 +231,7 @@ int main(int argc, char** argv)
         { "inactivity-timeout", required_argument, 0, 5 },
         { "daemon", no_argument, 0, 6 },
         { "log-file-log-level", required_argument, 0, 9 },
+        { "watch-sources-only", no_argument, 0, 10 },
         { 0, 0, 0, 0 }
     };
     const String shortOptions = Rct::shortOptions(opts);

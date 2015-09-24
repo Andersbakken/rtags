@@ -1332,13 +1332,16 @@ List<RTags::SortedSymbol> Project::sort(const Set<Symbol> &symbols, Flags<QueryM
 void Project::watch(const Path &dir, WatchMode mode)
 {
     if (!dir.isEmpty()) {
+        const auto opts = Server::instance()->options().options;
+        if (opts & Server::WatchSourcesOnly && mode != Watch_SourceFile)
+            return;
         const auto it = mWatchedPaths.find(dir);
         if (it != mWatchedPaths.end()) {
             it->second |= mode;
             return;
         }
         const Path resolved = dir.resolved();
-        if ((Server::instance()->options().options & Server::WatchSystemPaths) || !resolved.isSystem()) {
+        if (opts & Server::WatchSystemPaths || !resolved.isSystem()) {
             auto &m = mWatchedPaths[resolved];
             if (!m) {
                 mWatcher.watch(resolved);
@@ -1350,7 +1353,8 @@ void Project::watch(const Path &dir, WatchMode mode)
 
 void Project::watchFile(uint32_t fileId)
 {
-    watch(Location::path(fileId).parentDir(), Watch_SourceFile);
+    const WatchMode mode = mSources.contains(fileId) ? Watch_SourceFile : Watch_Dependency;
+    watch(Location::path(fileId).parentDir(), mode);
 }
 
 void Project::clearWatch(Flags<WatchMode> mode)
@@ -1373,7 +1377,9 @@ void Project::unwatch(const Path &dir, WatchMode mode)
     if (it == mWatchedPaths.end()) {
         mWatchedPaths.find(dir.resolved());
         if (it == mWatchedPaths.end()) {
-            error() << "We're not watching this directory" << dir;
+            const auto opts = Server::instance()->options().options;
+            if (!(opts & Server::WatchSourcesOnly) || mode != Watch_Dependency)
+                error() << "We're not watching this directory" << dir;
             return;
         }
     }

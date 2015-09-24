@@ -184,7 +184,8 @@ public:
     String toCompilationDatabase() const;
     enum WatchMode {
         Watch_FileManager = 0x1,
-        Watch_SourceFile = 0x2
+        Watch_SourceFile = 0x2,
+        Watch_Dependency = 0x4
     };
 
     void watch(const Path &dir, WatchMode mode);
