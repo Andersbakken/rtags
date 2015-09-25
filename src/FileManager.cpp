@@ -157,7 +157,6 @@ void FileManager::watch(const Path &path)
 
 void FileManager::startScanThread(Timer *)
 {
-    printf("[%s:%d]: void FileManager::startScanThread(Timer *)\n", __FILE__, __LINE__); fflush(stdout);
     std::shared_ptr<Project> project = mProject.lock();
     assert(project);
     ScanThread *thread = new ScanThread(project->path());
