@@ -2828,7 +2828,7 @@ definition."
      (t
       (let ((process-connection-type (not rtags-rdm-process-use-pipe)))
         (setq rtags-rdm-process (start-process-shell-command "RTags" "*rdm*" (rtags-command))))
-      (and rtags-autostart-diagnosetics (rtags-diagnostics))
+      (and rtags-autostart-diagnostics (rtags-diagnostics))
       (set-process-query-on-exit-flag rtags-rdm-process nil)
       (set-process-sentinel rtags-rdm-process 'rtags-sentinel)))))
 
