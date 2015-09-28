@@ -101,11 +101,20 @@ int StatusJob::execute()
         if (!write(delimiter) || !write("watchedpaths") || !write(delimiter))
             return 1;
         Hash<Path, Flags<Project::WatchMode> > watched = proj->watchedPaths();
-        if (!write("Indexer"))
-            return 1;
+        auto watchModeToString = [](Flags<Project::WatchMode> mode) {
+            List<String> ret;
+            if (mode & Project::Watch_FileManager)
+                ret << "filemanager";
+            if (mode & Project::Watch_SourceFile)
+                ret << "source";
+            if (mode & Project::Watch_Dependency)
+                ret << "dependency";
+            return String::join(ret, '|');
+        };
         for (const auto &it : watched) {
-            if (!write<256>("  %s (%s)", it.first.constData(), it.second.toString().constData()))
+            if (!write<256>("  %s (%s)", it.first.constData(), watchModeToString(it.second).constData())) {
                 return 1;
+            }
         }
     }
 
