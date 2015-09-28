@@ -1353,7 +1353,7 @@ void Project::watch(const Path &dir, WatchMode mode)
 
 void Project::watchFile(uint32_t fileId)
 {
-    const WatchMode mode = mSources.contains(fileId) ? Watch_SourceFile : Watch_Dependency;
+    const WatchMode mode = hasSource(fileId) ? Watch_SourceFile : Watch_Dependency;
     watch(Location::path(fileId).parentDir(), mode);
 }
 
