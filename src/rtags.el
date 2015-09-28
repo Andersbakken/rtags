@@ -2000,13 +2000,12 @@ is true. References to references will be treated as references to the reference
 
 (defun rtags-after-save-hook ()
   (interactive)
-  (rtags-call-rc :path (buffer-file-name)
-                 "--silent"
-                 "-V" (buffer-file-name)))
+  (when rtags-reindex-on-save
+    (rtags-call-rc :path (buffer-file-name)
+                   "--silent"
+                   "-V" (buffer-file-name))))
 
-(when rtags-reindex-on-save
-  (add-hook 'after-save-hook (function rtags-after-save-hook)))
-
+(add-hook 'after-save-hook (function rtags-after-save-hook))
 (add-hook 'post-command-hook (function rtags-post-command-hook))
 ;; (remove-hook 'post-command-hook (function rtags-post-command-hook))
 
