@@ -36,7 +36,7 @@ JobScheduler::~JobScheduler()
 void JobScheduler::add(const std::shared_ptr<IndexerJob> &job)
 {
     assert(!(job->flags & ~IndexerJob::Type_Mask));
-    std::shared_ptr<Node> node(new Node({ job, 0, 0, 0 }));
+    std::shared_ptr<Node> node(new Node({ job, 0, 0, 0, String() }));
     node->job = job;
     // error() << job->priority << job->sourceFile << mProcrastination;
     if (mPendingJobs.isEmpty() || job->priority > mPendingJobs.first()->job->priority) {
