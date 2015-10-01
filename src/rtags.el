@@ -614,7 +614,7 @@ to case differences."
           (push (format "--unsaved-file=%s:%d"
                         (buffer-file-name unsaved)
                         (with-current-buffer unsaved
-                            (rtags-buffer-size)))
+                          (rtags-buffer-size)))
                 arguments))
         (when silent-query
           (push "--silent-query" arguments))
@@ -740,7 +740,7 @@ to case differences."
                 ((string-match "^\\([^ ]+\\)[^<]*$" line)
                  (setq projects (add-to-list 'projects (match-string-no-properties 1 line))))
                 (t)))
-          (forward-line)))
+        (forward-line)))
     (setq project (completing-read
                    (format "RTags select project (current is %s): " current)
                    projects))
@@ -1301,7 +1301,7 @@ to case differences."
     (with-temp-buffer
       (rtags-call-rc "--current-project" :path rtags-current-file)
       (setq location (concat (buffer-substring-no-properties (point-min) (1- (point-max))) location))))
-    (when (> (length location) 0)
+  (when (> (length location) 0)
     (cond ((string-match "\\(.*\\):\\([0-9]+\\):\\([0-9]+\\):?" location)
            (let ((line (string-to-number (match-string-no-properties 2 location)))
                  (column (string-to-number (match-string-no-properties 3 location))))
@@ -1364,14 +1364,14 @@ to case differences."
           (setq rtags-location-stack-index target)
           (rtags-goto-location (nth rtags-location-stack-index rtags-location-stack) t))))
     (when repeat-char
-       (let ((map (make-sparse-keymap)))
-         (define-key map (vector repeat-char)
-           `(lambda ()
-              (interactive)
-              (rtags-location-stack-jump ,by)))
-         (cond ((fboundp 'set-transient-map) (set-transient-map map))
-               ((fboundp 'set-temporary-overlay-map) (set-temporary-overlay-map map))
-               (t))))))
+      (let ((map (make-sparse-keymap)))
+        (define-key map (vector repeat-char)
+          `(lambda ()
+             (interactive)
+             (rtags-location-stack-jump ,by)))
+        (cond ((fboundp 'set-transient-map) (set-transient-map map))
+              ((fboundp 'set-temporary-overlay-map) (set-temporary-overlay-map map))
+              (t))))))
 
 ;; **************************** API *********************************
 
@@ -2557,8 +2557,8 @@ is true. References to references will be treated as references to the reference
   (interactive)
   (let ((ret ""))
     (when (and (> (length (window-list nil nil)) 1)
-             rtags-other-window-window
-             (window-live-p rtags-other-window-window))
+               rtags-other-window-window
+               (window-live-p rtags-other-window-window))
       (select-window rtags-other-window-window)
       (setq ret (rtags-current-location))
       (delete-window rtags-other-window-window)
