@@ -326,15 +326,6 @@ return t if rtags is allowed to modify this file."
   :group 'rtags)
 
 (defconst rtags-verbose-results-delimiter "------------------------------------------")
-(defvar rtags-font-lock-keywords
-  `((,"^\\(.*?:[0-9]+:[0-9]+:\\)\\(.*\\)$"
-     (1 font-lock-string-face)
-     (2 font-lock-function-name-face))
-    ;; (,(concat "^" rtags-verbose-results-delimiter "$")
-    ;;  (1 font-lock-builtin-face))
-    (,"^ +\\(.*\\)$"
-     (1 font-lock-function-name-face))))
-
 (defcustom rtags-enable-unsaved-reparsing t
   "Whether rtags will reparse unsaved buffers as needed."
   :group 'rtags
@@ -467,6 +458,32 @@ to case differences."
 (defvar rtags-current-project nil)
 (make-variable-buffer-local 'rtags-current-project)
 
+(defconst rtags-c++-keywords '("alignas" "alignof" "and" "and_eq" "asm" "bitand" "bitor"
+                               "break" "case" "catch" "class" "compl" "const" "constexpr" "const_cast"
+                               "continue" "decltype" "default" "delete" "do" "double" "dynamic_cast"
+                               "else" "enum" "explicit" "export" "extern" "false" "float" "for" "friend"
+                               "goto" "if" "inline" "mutable" "namespace" "new" "noexcept" "not"
+                               "not_eq" "nullptr" "operator" "or" "or_eq" "private" "protected" "public"
+                               "register" "reinterpret_cast" "return" "sizeof" "static" "static_assert"
+                               "static_cast" "struct" "switch" "template" "this" "thread_local" "throw"
+                               "true" "try" "typedef" "typeid" "typename" "union" "using" "virtual"
+                               "void" "volatile" "while" "xor" "xor_eq"))
+
+(defconst rtags-c++-templates '("list" "vector" "map" "set" "unordered_map" "multiset" "multimap"
+                                "shared_ptr" "weak_ptr" "unique_ptr" "unique_lock"))
+(defconst rtags-c++-types '("char" "double" "float" "int" "long" "short" "signed" "unsigned"
+                            "void" "u?int[0-9]+_t" "bool" "wchar_t" "std::string" "std::mutex"))
+
+(defvar rtags-font-lock-keywords
+  `((,"^\\(.*?:[0-9]+:[0-9]+:\\)\\(.*\\)$"
+     (1 font-lock-string-face)
+     (2 font-lock-function-name-face))
+    ;; (,(concat "^" rtags-verbose-results-delimiter "$")
+    ;;  (1 font-lock-builtin-face))
+    (,"^ +\\(.*\\)$"
+     (1 font-lock-function-name-face))))
+
+
 (define-derived-mode rtags-mode fundamental-mode
   (set (make-local-variable 'font-lock-defaults) '(rtags-font-lock-keywords))
   (set (make-local-variable 'rtags-current-file) nil)
@@ -477,6 +494,22 @@ to case differences."
   (goto-char (point-min))
   (setq next-error-function 'rtags-next-prev-match)
   (setq buffer-read-only t))
+
+(font-lock-add-keywords 'rtags-mode
+                        (mapcar (lambda (keyword)
+                                  (cons (concat "\\<" keyword "\\>") 'font-lock-keyword-face))
+                                rtags-c++-keywords))
+
+(defun rtags-make-type (type) (cons (concat "\\<" type "\\>") 'font-lock-type-face))
+(font-lock-add-keywords 'rtags-mode
+                        (mapcar (function rtags-make-type) rtags-c++-types))
+(font-lock-add-keywords 'rtags-mode
+                        (mapcar (function rtags-make-type)
+                                (mapcan (lambda (template)
+                                          (list (concat "std::" template " *<[^<>]*<[^<>]*<[^<>]*>[^>]*>[^>]*>")
+                                                (concat "std::" template " *<[^<>]*<[^<>]*>[^>]*>")
+                                                (concat "std::" template " *<[^<>]*>")))
+                                        rtags-c++-templates)))
 
 (define-derived-mode rtags-dependency-tree-mode fundamental-mode
   ;; (set (make-local-variable 'font-lock-defaults) '(rtags-font-lock-keywords))
