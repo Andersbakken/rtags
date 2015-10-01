@@ -475,9 +475,10 @@ to case differences."
                             "void" "u?int[0-9]+_t" "bool" "wchar_t" "std::string" "std::mutex"))
 
 (defvar rtags-font-lock-keywords
-  `((,"^\\(.*?:[0-9]+:[0-9]+:\\)\\(.*\\)$"
-     (1 font-lock-string-face)
-     (2 font-lock-function-name-face))
+  `((,"^\\(.*?:[0-9]+:[0-9]+:\\).*$"
+     (1 font-lock-string-face))
+    (,"^\\([A-Za-z0-9/._-]*\\)$"
+     (1 font-lock-string-face))
     ;; (,(concat "^" rtags-verbose-results-delimiter "$")
     ;;  (1 font-lock-builtin-face))
     (,"^ +\\(.*\\)$"
