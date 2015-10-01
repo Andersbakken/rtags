@@ -146,6 +146,8 @@ int ReferencesJob::execute()
     if (queryFlags() & QueryMessage::Elisp) {
         write("(list ", DontQuote);
         writeFlags |= QueryJob::NoContext;
+    } else if (queryFlags() & QueryMessage::NoContext) {
+        writeFlags |= QueryJob::NoContext;
     }
 
     auto writeCons = [this](const String &car, const String &cdr) {

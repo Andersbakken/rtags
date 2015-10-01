@@ -194,7 +194,7 @@ bool QueryJob::write(const Location &location, Flags<WriteFlag> flags)
                     break;
                 }
                 out << string;
-            }))
+            }, flags))
         return false;
     return write(out, flags);
 }
