@@ -745,7 +745,7 @@ to case differences."
                    (format "RTags select project (current is %s): " current)
                    projects))
     (when project
-      (with-temp-buffer (rtags-call-rc :output nil :path t "-w" project)))))
+      (find-file project))))
 
 (defun rtags-current-symbol (&optional no-symbol-name)
   (or (and mark-active (buffer-substring-no-properties (point) (mark)))
