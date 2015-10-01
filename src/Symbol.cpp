@@ -73,9 +73,9 @@ String Symbol::toString(Flags<ToStringFlag> cursorInfoFlags,
 
     List<String> bases;
     if (project) {
-        extern String findSymbolNameByUsr(const std::shared_ptr<Project> &, uint32_t, const String &);
+        extern String findSymbolNameByUsr(const std::shared_ptr<Project> &, const String &, const Location &location);
         for (const auto &base : baseClasses) {
-            const String usr = findSymbolNameByUsr(project, location.fileId(), base);
+            const String usr = findSymbolNameByUsr(project, base, location);
             if (!usr.isEmpty()) {
                 bases << usr;
             }

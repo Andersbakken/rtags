@@ -38,11 +38,11 @@
 enum { DirtyTimeout = 100 };
 
 // these are externed from Source.cpp
-String findSymbolNameByUsr(const std::shared_ptr<Project> &project, uint32_t fileId, const String &usr)
+String findSymbolNameByUsr(const std::shared_ptr<Project> &project, const String &usr, const Location &location)
 {
     assert(project);
     String ret;
-    for (const auto &sym : project->findByUsr(usr, fileId, Project::ArgDependsOn)) {
+    for (const auto &sym : project->findByUsr(usr, location.fileId(), Project::ArgDependsOn, location)) {
         ret = sym.symbolName;
         break;
     }
@@ -1476,7 +1476,8 @@ Set<Symbol> Project::findTargets(const Symbol &symbol)
     case CXCursor_FieldDecl:
     case CXCursor_VarDecl:
     case CXCursor_FunctionTemplate: {
-        const Set<Symbol> symbols = findByUsr(symbol.usr, symbol.location.fileId(), symbol.isDefinition() ? ArgDependsOn : DependsOnArg);
+        const Set<Symbol> symbols = findByUsr(symbol.usr, symbol.location.fileId(),
+                                              symbol.isDefinition() ? ArgDependsOn : DependsOnArg, symbol.location);
         for (const auto &c : symbols) {
             if (sameKind(c.kind) && symbol.isDefinition() != c.isDefinition()) {
                 ret.insert(c);
@@ -1496,7 +1497,7 @@ Set<Symbol> Project::findTargets(const Symbol &symbol)
     return ret;
 }
 
-Set<Symbol> Project::findByUsr(const String &usr, uint32_t fileId, DependencyMode mode)
+Set<Symbol> Project::findByUsr(const String &usr, uint32_t fileId, DependencyMode mode, const Location &filtered)
 {
     assert(fileId);
     Set<Symbol> ret;
@@ -1521,7 +1522,7 @@ Set<Symbol> Project::findByUsr(const String &usr, uint32_t fileId, DependencyMod
             // }
         }
     }
-    if (ret.isEmpty()) {
+    if (ret.isEmpty() || (!filtered.isNull() && ret.size() == 1 && ret.begin()->location == filtered)) {
         for (const auto &dep : mDependencies) {
             auto usrs = openUsrs(dep.first);
             if (usrs) {
@@ -1605,7 +1606,9 @@ static Set<Symbol> findReferences(const Symbol &in,
     case CXCursor_Destructor:
     case CXCursor_ConversionFunction:
     case CXCursor_NamespaceAlias:
-        inputs = project->findByUsr(s.usr, s.location.fileId(), s.isDefinition() ? Project::ArgDependsOn : Project::DependsOnArg);
+        inputs = project->findByUsr(s.usr, s.location.fileId(),
+                                    s.isDefinition() ? Project::ArgDependsOn : Project::DependsOnArg,
+                                    in.location);
         break;
     default:
         inputs.insert(s);
@@ -1639,7 +1642,7 @@ Set<Symbol> Project::findAllReferences(const Symbol &symbol)
 
     Set<Symbol> inputs;
     inputs.insert(symbol);
-    inputs.unite(findByUsr(symbol.usr, symbol.location.fileId(), DependsOnArg));
+    inputs.unite(findByUsr(symbol.usr, symbol.location.fileId(), DependsOnArg, symbol.location));
     Set<Symbol> ret = inputs;
     for (const auto &input : inputs) {
         Set<Symbol> inputLocations;

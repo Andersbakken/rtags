@@ -151,7 +151,7 @@ public:
     Set<String> findTargetUsrs(const Location &loc);
     Set<Symbol> findSubclasses(const Symbol &symbol);
 
-    Set<Symbol> findByUsr(const String &usr, uint32_t fileId, DependencyMode mode);
+    Set<Symbol> findByUsr(const String &usr, uint32_t fileId, DependencyMode mode, const Location &filtered = Location());
 
     Path sourceFilePath(uint32_t fileId, const char *path = "") const;
 

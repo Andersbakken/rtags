@@ -83,7 +83,7 @@ int ReferencesJob::execute()
             sym.clear();
             const Set<String> usrs = proj->findTargetUsrs(loc);
             for (const String &usr : usrs) {
-                for (const Symbol &s : proj->findByUsr(usr, loc.fileId(), Project::ArgDependsOn)) {
+                for (const Symbol &s : proj->findByUsr(usr, loc.fileId(), Project::ArgDependsOn, loc)) {
                     if (s.isClass()) {
                         sym = s;
                         if (s.isDefinition())
