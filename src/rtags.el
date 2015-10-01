@@ -69,7 +69,7 @@
 (defvar rtags-context-face 'rtags-context "Context part")
 (defconst rtags-buffer-name "*RTags*")
 (defconst rtags-diagnostics-buffer-name "*RTags Diagnostics*")
-(defconst rtags-diagnostics-raw-buffer-name "*RTags Raw*")
+(defconst rtags-diagnostics-raw-buffer-name " *RTags Raw*")
 (defvar rtags-last-request-not-indexed nil)
 (defvar rtags-buffer-bookmarks 0)
 (defvar rtags-diagnostics-process nil)
