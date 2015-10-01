@@ -216,6 +216,10 @@ std::shared_ptr<Auto> resolveAuto(const CXCursor &cursor)
             case CXCursor_ArraySubscriptExpr:
             case CXCursor_DeclRefExpr:
             case CXCursor_BinaryOperator:
+            case CXCursor_CXXReinterpretCastExpr:
+            case CXCursor_CXXStaticCastExpr:
+            case CXCursor_CXXDynamicCastExpr:
+            case CXCursor_CStyleCastExpr:
             case CXCursor_CallExpr: {
                 CXCursor callExpr = firstChild;
                 CXCursor func = clang_getNullCursor();
@@ -270,6 +274,10 @@ std::shared_ptr<Auto> resolveAuto(const CXCursor &cursor)
                     case CXCursor_UnaryOperator:
                     case CXCursor_BinaryOperator:
                     case CXCursor_ArraySubscriptExpr:
+                    case CXCursor_CXXReinterpretCastExpr:
+                    case CXCursor_CXXStaticCastExpr:
+                    case CXCursor_CXXDynamicCastExpr:
+                    case CXCursor_CStyleCastExpr:
                         break;
                     default:
                         done = true;
