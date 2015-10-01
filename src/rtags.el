@@ -496,21 +496,24 @@ to case differences."
   (setq next-error-function 'rtags-next-prev-match)
   (setq buffer-read-only t))
 
+(defun rtags-wrap-word (word)
+  (concat "[^A-Za-z0-9_]\\(" word "\\)[^A-Za-z0-9_]"))
+
 (font-lock-add-keywords 'rtags-mode
                         (mapcar (lambda (keyword)
-                                  (cons (concat "\\<" keyword "\\>") 'font-lock-keyword-face))
+                                  (cons (rtags-wrap-word keyword) 'font-lock-keyword-face))
                                 rtags-c++-keywords))
 
-(defun rtags-make-type (type) (cons (concat "\\<" type "\\>") 'font-lock-type-face))
+(defun rtags-make-type (type) (cons (rtags-wrap-word type) 'font-lock-type-face))
 (font-lock-add-keywords 'rtags-mode
                         (mapcar (function rtags-make-type) rtags-c++-types))
 (font-lock-add-keywords 'rtags-mode
                         (mapcar (function rtags-make-type)
-                                (mapcan (lambda (template)
-                                          (list (concat "std::" template " *<[^<>]*<[^<>]*<[^<>]*>[^>]*>[^>]*>")
-                                                (concat "std::" template " *<[^<>]*<[^<>]*>[^>]*>")
-                                                (concat "std::" template " *<[^<>]*>")))
-                                        rtags-c++-templates)))
+                                (cl-mapcan (lambda (template)
+                                             (list (concat "std::" template " *<[^<>]*<[^<>]*<[^<>]*>[^>]*>[^>]*>")
+                                                   (concat "std::" template " *<[^<>]*<[^<>]*>[^>]*>")
+                                                   (concat "std::" template " *<[^<>]*>")))
+                                           rtags-c++-templates)))
 
 (define-derived-mode rtags-dependency-tree-mode fundamental-mode
   ;; (set (make-local-variable 'font-lock-defaults) '(rtags-font-lock-keywords))
