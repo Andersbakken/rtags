@@ -484,9 +484,12 @@ to case differences."
     (,"^ +\\(.*\\)$"
      (1 font-lock-function-name-face))))
 
-
 (define-derived-mode rtags-mode fundamental-mode
-  (set (make-local-variable 'font-lock-defaults) '(rtags-font-lock-keywords))
+  (set (make-local-variable 'font-lock-defaults)
+       '(rtags-font-lock-keywords (save-excursion
+                                    (goto-char (point-min))
+                                    (when (search-forward "'\"'" nil t)
+                                      t))))
   (set (make-local-variable 'rtags-current-file) nil)
   (set (make-local-variable 'rtags-current-project) nil)
   (setq mode-name "rtags")
