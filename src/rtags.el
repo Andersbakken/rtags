@@ -1519,7 +1519,8 @@ If called with a prefix restrict to current buffer"
     (rtags-reparse-file-if-needed)
     (with-current-buffer (rtags-get-buffer)
       (rtags-call-rc :path fn :path-filter prefix "-f" arg)
-      (cond ((not rtags-follow-symbol-try-harder)
+      (cond ((or (not rtags-follow-symbol-try-harder)
+                 (= (length tagname) 0))
              (rtags-handle-results-buffer nil nil fn))
             ((rtags-handle-results-buffer nil t fn))
             (t
