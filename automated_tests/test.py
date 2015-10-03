@@ -50,6 +50,16 @@ def wait_for(p, match):
             break
 
 
+def readLocations(out):
+    locations = []
+    lines = out.split("\n")
+    for line in lines:
+        if len(line) > 0:
+            loc = Location.fromStr(line)
+            locations.append(loc)
+    return locations
+
+
 class Location:
 
     def __init__(self, file, line, col):
@@ -148,12 +158,7 @@ class OneTU(TestFixture):
         out = run_rc(
             ["--references", toStr(Location(self.main_cpp, 1, 6))])
 
-        locations = []
-        lines = out.split("\n")
-        for line in lines:
-            if len(line) > 0:
-                loc = Location.fromStr(line)
-                locations.append(loc)
+        locations = readLocations(out)
 
         expected_locations = [Location(self.main_cpp, 4, 5),
                               Location(self.main_cpp, 5, 5)]
@@ -175,12 +180,7 @@ class MultipleTU(TestFixture):
         out = run_rc(
             ["--references", toStr(Location(self.a_hpp, 1, 6))])
 
-        locations = []
-        lines = out.split("\n")
-        for line in lines:
-            if len(line) > 0:
-                loc = Location.fromStr(line)
-                locations.append(loc)
+        locations = readLocations(out)
 
         expected_locations = [
             Location(self.a_cpp, 6, 5),
@@ -203,13 +203,9 @@ class Templates(TestFixture):
              toStr(Location(self.main_cpp, 9, 8)),
              #"--all-references",
              ])
-        # TODO function
-        locations = []
-        lines = out.split("\n")
-        for line in lines:
-            if len(line) > 0:
-                loc = Location.fromStr(line)
-                locations.append(loc)
+
+        locations = readLocations(out)
+
         expected_locations = [
             Location(self.main_cpp, 16, 17),
             Location(self.main_cpp, 17, 17)]
