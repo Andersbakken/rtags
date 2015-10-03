@@ -2,7 +2,7 @@ struct A {
     void foo() {}
 };
 struct B {
-    void foo() {}
+    int foo() {}
 };
 
 template <typename T>

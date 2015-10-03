@@ -196,12 +196,12 @@ class Templates(TestFixture):
         super(Templates, self).__init__(a)
 
     def test_follow_location(self):
-        #run_rc(["--status", "targets"])
-        #run_rc(["--status"])
+        # run_rc(["--status", "targets"])
+        # run_rc(["--status"])
         out = run_rc(
             ["--references",
              toStr(Location(self.main_cpp, 9, 8)),
-             #"--all-references",
+             # "--all-references",
              ])
 
         locations = readLocations(out)
@@ -209,6 +209,21 @@ class Templates(TestFixture):
         expected_locations = [
             Location(self.main_cpp, 16, 17),
             Location(self.main_cpp, 17, 17)]
+        self.assertTrue(compareLocationLists(locations, expected_locations))
+
+    def test_memberExpr(self):
+        out = run_rc(
+            ["--references",
+             # t.foo();
+             #   ^
+             toStr(Location(self.main_cpp, 12, 11)),
+             ])
+
+        locations = readLocations(out)
+
+        expected_locations = [
+            Location(self.main_cpp, 2, 10),
+            Location(self.main_cpp, 5, 9)]
         self.assertTrue(compareLocationLists(locations, expected_locations))
 
 
