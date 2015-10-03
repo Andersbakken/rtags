@@ -99,7 +99,7 @@ bool QueryJob::writeRaw(const String &out, Flags<WriteFlag> flags)
     }
 
     if (!(mJobFlags & QuietJob))
-        error("=> %s", out.constData());
+        warning("=> %s", out.constData());
 
     if (mConnection) {
         if (!mConnection->write(out)) {

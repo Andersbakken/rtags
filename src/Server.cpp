@@ -1113,7 +1113,7 @@ void Server::isIndexed(const std::shared_ptr<QueryMessage> &query, const std::sh
     }
 
     if (!(query->flags() & QueryMessage::SilentQuery))
-        error("=> %s", ret.constData());
+        warning("=> %s", ret.constData());
     conn->write(ret);
     conn->finish();
 }
@@ -1137,11 +1137,11 @@ void Server::hasFileManager(const std::shared_ptr<QueryMessage> &query, const st
     std::shared_ptr<Project> project = projectForQuery(query);
     if (project && project->fileManager() && (project->fileManager()->contains(path) || project->match(query->match()))) {
         if (!(query->flags() & QueryMessage::SilentQuery))
-            error("=> 1");
+            warning("=> 1");
         conn->write("1");
     } else {
         if (!(query->flags() & QueryMessage::SilentQuery))
-            error("=> 0");
+            warning("=> 0");
         conn->write("0");
     }
     conn->finish();

@@ -392,8 +392,8 @@ void CompletionThread::process(Request *request)
                 c->candidates[i] = nodes[i];
             printCompletions(c->candidates, request);
             processTime = sw.elapsed();
-            error("Processed %s, parse %d/%d, complete %d, process %d => %d completions (unsaved %d)",
-                  sourceFile.constData(), parseTime, reparseTime, completeTime, processTime, nodeCount, request->unsaved.size());
+            warning("Processed %s, parse %d/%d, complete %d, process %d => %d completions (unsaved %d)",
+                    sourceFile.constData(), parseTime, reparseTime, completeTime, processTime, nodeCount, request->unsaved.size());
             delete[] nodes;
         } else {
             printCompletions(List<Completions::Candidate>(), request);
