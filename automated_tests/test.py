@@ -209,6 +209,23 @@ class ClassTemplates(TestFixture):
             Location(self.main_cpp, 20, 5)]
         self.assertTrue(compareLocationLists(locations, expected_locations))
 
+    def test_multiple_template_params(self):
+        out = run_rc(
+            ["--references",
+             toStr(Location(self.main_cpp, 25, 8)),
+             ])
+
+        locations = readLocations(out)
+
+        expected_locations = [
+            Location(self.main_cpp, 27, 17),
+            Location(self.main_cpp, 28, 17),
+            Location(self.main_cpp, 29, 17),
+            Location(self.main_cpp, 30, 17),
+            Location(self.main_cpp, 31, 17),
+        ]
+        self.assertTrue(compareLocationLists(locations, expected_locations))
+
     # This is not going to work, because of libclang's limitation.
     # We cannot recurse into the AST nodes of a template instantiation.
     # This means we can't connect a CXXDependentScopeMemberExpr in the base
