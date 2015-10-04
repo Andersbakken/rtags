@@ -234,6 +234,35 @@ class ClassTemplates(TestFixture):
         self.assertTrue(compareLocationLists(locations, expected_locations))
 
 
+class FunctionTemplates(TestFixture):
+
+    def __init__(self, a):
+        self.name = 'FunctionTemplates'
+        super(FunctionTemplates, self).__init__(a)
+
+    def test_follow_location(self):
+        out = run_rc(
+            ["--references",
+             toStr(Location(self.main_cpp, 2, 6)),
+             ])
+
+        locations = readLocations(out)
+
+        expected_locations = [
+
+            # Explicit instantiation will not match. With libclang, we currently
+            # cannot visit this part of the AST.
+            # template void foo<char>(char t);
+            #               ^
+            # Location(self.main_cpp, 6, 15),
+
+            #     foo<int>(4);
+            #     ^
+            Location(self.main_cpp, 10, 5),
+        ]
+        self.assertTrue(compareLocationLists(locations, expected_locations))
+
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Function tests for rtags')
     parser.add_argument('--binary_path', '-b', required=True,
