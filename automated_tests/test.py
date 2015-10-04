@@ -189,11 +189,11 @@ class MultipleTU(TestFixture):
         self.assertTrue(compareLocationLists(locations, expected_locations))
 
 
-class Templates(TestFixture):
+class ClassTemplates(TestFixture):
 
     def __init__(self, a):
-        self.name = 'templates'
-        super(Templates, self).__init__(a)
+        self.name = 'ClassTemplates'
+        super(ClassTemplates, self).__init__(a)
 
     def test_follow_location(self):
         # run_rc(["--status", "targets"])
