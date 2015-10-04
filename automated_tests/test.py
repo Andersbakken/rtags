@@ -146,7 +146,7 @@ def compareLocationLists(a, b):
 class OneTU(TestFixture):
 
     def __init__(self, a):
-        self.name = 'one_translation_unit'
+        self.name = 'OneTU'
         super(OneTU, self).__init__(a)
 
     def test_follow_location(self):
@@ -168,7 +168,7 @@ class OneTU(TestFixture):
 class MultipleTU(TestFixture):
 
     def __init__(self, a):
-        self.name = 'multiple_translation_units'
+        self.name = 'MultipleTU'
         super(MultipleTU, self).__init__(a)
 
     def test_follow_location(self):
