@@ -105,7 +105,7 @@ class TestFixture(unittest.TestCase):
         for file in os.listdir(self.test_wd):
             if file.endswith(".cpp"):
                 cdb.append({"directory": self.test_wd,
-                            "command": "clang++ -I. -c " + file,
+                            "command": "clang++ -std=c++11 -I. -c " + file,
                             "file": file})
         cdb_path = os.path.join(self.test_wd, 'compile_commands.json')
         with open(cdb_path, 'w') as outfile:
