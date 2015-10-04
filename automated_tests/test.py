@@ -248,6 +248,30 @@ class ClassTemplates(TestFixture):
         self.assertTrue(compareLocationLists(locations, expected_locations))
 
 
+class ClassTemplatesMultipleTU(TestFixture):
+
+    def __init__(self, a):
+        self.name = 'ClassTemplatesMultipleTU'
+        super(ClassTemplatesMultipleTU, self).__init__(a)
+
+    def test_multiple_template_params(self):
+        out = run_rc(
+            ["--references",
+             toStr(Location(self.a_hpp, 4, 8)),
+             ])
+
+        locations = readLocations(out)
+
+        expected_locations = [
+            Location(self.main_cpp, 3, 17),
+            Location(self.main_cpp, 4, 17),
+            Location(self.main_cpp, 5, 17),
+            Location(self.a_cpp, 3, 17),
+            Location(self.a_cpp, 4, 17),
+        ]
+        self.assertTrue(compareLocationLists(locations, expected_locations))
+
+
 class FunctionTemplates(TestFixture):
 
     def __init__(self, a):
