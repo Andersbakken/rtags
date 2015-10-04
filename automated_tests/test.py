@@ -263,6 +263,35 @@ class FunctionTemplates(TestFixture):
         self.assertTrue(compareLocationLists(locations, expected_locations))
 
 
+class MetaPrograms(TestFixture):
+
+    def __init__(self, a):
+        self.name = 'MetaPrograms'
+        super(MetaPrograms, self).__init__(a)
+
+    def test_follow_location(self):
+        out = run_rc(
+            ["--references",
+             toStr(Location(self.main_cpp, 2, 8)),
+             ])
+
+        locations = readLocations(out)
+
+        # We'd expect to have several matches, one for each
+        # instantiation/specialization.
+        # But with libclang it is not possible to traverse AST nodes of
+        # all the instantiations. I.e. factorial<1>, facatorial<2> and
+        # factorial<3> is unreachable instantiation nodes.
+        # This behaviour is particularly good in this case, because we don't
+        # need to add special logic to handle meta programs like this.
+        expected_locations = [
+            Location(self.main_cpp, 3, 24),
+            Location(self.main_cpp, 7, 8),
+            Location(self.main_cpp, 11, 9),
+        ]
+        self.assertTrue(compareLocationLists(locations, expected_locations))
+
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Function tests for rtags')
     parser.add_argument('--binary_path', '-b', required=True,
