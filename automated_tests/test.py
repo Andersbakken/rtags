@@ -208,7 +208,8 @@ class Templates(TestFixture):
 
         expected_locations = [
             Location(self.main_cpp, 16, 17),
-            Location(self.main_cpp, 17, 17)]
+            Location(self.main_cpp, 17, 17),
+            Location(self.main_cpp, 20, 5)]
         self.assertTrue(compareLocationLists(locations, expected_locations))
 
     # This is not going to work, because of libclang's limitation.

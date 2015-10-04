@@ -15,3 +15,7 @@ struct X {
 
 template struct X<A>;
 template struct X<B>;
+
+void use () {
+    X<A> x;
+}
