@@ -173,12 +173,12 @@ class MultipleTU(TestFixture):
 
     def test_follow_location(self):
         out = run_rc(
-            ["--follow-location", toStr(Location(self.a_hpp, 1, 6))])
+            ["--follow-location", toStr(Location(self.a_hpp, 3, 6))])
         self.assertEqual(Location.fromStr(out), Location(self.a_cpp, 3, 6))
 
     def test_find_references(self):
         out = run_rc(
-            ["--references", toStr(Location(self.a_hpp, 1, 6))])
+            ["--references", toStr(Location(self.a_hpp, 3, 6))])
 
         locations = readLocations(out)
 
