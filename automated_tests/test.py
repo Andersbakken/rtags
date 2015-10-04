@@ -196,12 +196,9 @@ class ClassTemplates(TestFixture):
         super(ClassTemplates, self).__init__(a)
 
     def test_follow_location(self):
-        # run_rc(["--status", "targets"])
-        # run_rc(["--status"])
         out = run_rc(
             ["--references",
              toStr(Location(self.main_cpp, 9, 8)),
-             # "--all-references",
              ])
 
         locations = readLocations(out)
@@ -218,7 +215,7 @@ class ClassTemplates(TestFixture):
     # template with the MemberExpr in the instantiation.
     # The only way to make it work is to use libtooling (and
     # RecursiveASTVisitor).
-    def memberExpr(self):
+    def disabled_test_memberExpr(self):
         out = run_rc(
             ["--references",
              # t.foo();
