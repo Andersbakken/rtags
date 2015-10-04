@@ -1311,7 +1311,7 @@ to case differences."
 
 (defun rtags-goto-line-col (line column)
   (let ((old (point)))
-    (push-mark)
+    (push-mark nil t)
     (goto-char (point-min))
     (condition-case nil
         (progn
