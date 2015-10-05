@@ -144,6 +144,18 @@ if (NOT "${PROJECT_SOURCE_DIR}" STREQUAL "${PROJECT_BINARY_DIR}")
   file (COPY ${binFiles} DESTINATION "${PROJECT_BINARY_DIR}/bin")
 endif ()
 
+find_package(bash-completion QUIET)
+if (BASH_COMPLETION_FOUND)
+  install(FILES rtags-bash-completion.bash
+    DESTINATION ${BASH_COMPLETION_COMPLETIONSDIR}
+    RENAME rtags
+    PERMISSIONS OWNER_READ OWNER_WRITE GROUP_READ WORLD_READ)
+  install(CODE "execute_process(COMMAND ${CMAKE_COMMAND} -E create_symlink rtags rc
+                                COMMAND ${CMAKE_COMMAND} -E create_symlink rtags rdm
+                                WORKING_DIRECTORY ${BASH_COMPLETION_COMPLETIONSDIR})")
+else()
+  message(STATUS "Bash completion file will not be installed, as cmake bash-completion package was not found!")
+endif()
 install(CODE "message(\"Installing rtags...\")")
 install(TARGETS rdm rc rp RUNTIME DESTINATION bin COMPONENT rtags)
 install(FILES ../man/man7/rc.7 ../man/man7/rdm.7 DESTINATION share/man/man7/)
