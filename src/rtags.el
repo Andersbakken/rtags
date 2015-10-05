@@ -2631,6 +2631,7 @@ is true. References to references will be treated as references to the reference
 (defun rtags-update-current-project ()
   (interactive)
   (when (and (not (eq (current-buffer) rtags-last-update-current-project-buffer))
+             default-directory
              (not (rtags-is-tramp))
              (file-directory-p default-directory))
     (setq rtags-last-update-current-project-buffer (current-buffer))
