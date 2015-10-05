@@ -1,4 +1,3 @@
-cmake_minimum_required(VERSION 2.8.6)
 if (NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE Release)
 endif ()
@@ -149,4 +148,3 @@ install(CODE "message(\"Installing rtags...\")")
 install(TARGETS rdm rc rp RUNTIME DESTINATION bin COMPONENT rtags)
 install(FILES ../man/man7/rc.7 ../man/man7/rdm.7 DESTINATION share/man/man7/)
 install(FILES company-rtags.el rtags-ac.el rtags.el DESTINATION share/emacs/site-lisp/rtags/)
-
