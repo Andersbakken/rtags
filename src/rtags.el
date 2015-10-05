@@ -62,6 +62,7 @@
 (defvar rtags-range-filter nil)
 (defvar rtags-mode-hook nil)
 (defvar rtags-diagnostics-hook nil)
+(defvar rtags-diagnostics-suspended nil)
 (defvar rtags-taglist-hook nil)
 (defface rtags-path nil "Path" :group 'rtags)
 (defface rtags-context nil "Context" :group 'rtags)
@@ -2049,6 +2050,25 @@ is true. References to references will be treated as references to the reference
 (add-hook 'after-save-hook (function rtags-after-save-hook))
 (add-hook 'post-command-hook (function rtags-post-command-hook))
 ;; (remove-hook 'post-command-hook (function rtags-post-command-hook))
+
+(defun rtags-set-diangnostics-suspended-impl (suspended quiet)
+  (setq rtags-diagnostics-suspended suspended)
+  (if suspended
+      (rtags-stop-diagnostics)
+    (and rtags-autostart-diagnostics (rtags-diagnostics)))
+  (unless quiet
+    (message "RTags Diagnostics are %ssuspended" (if suspended "" "not "))))
+
+;;;###autoload
+(defun rtags-toggle-diangnostics-suspended (&optional quiet)
+  (interactive)c
+  (rtags-set-diangnostics-suspended-impl (not rtags-diagnostics-suspended) quiet))
+
+;;;###autoload
+(defun rtags-set-diangnostics-suspended (&optional quiet)
+  (interactive "P")
+  (rtags-set-diangnostics-suspended-impl (y-or-n-p (format "Suspend RTags diagnostics%s? "
+                                                           (or rtags-diagnostics-suspended " (currently suspended)" ""))) quiet))
 
 ;;;###autoload
 (defun rtags-stop-diagnostics ()
