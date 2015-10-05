@@ -2061,7 +2061,7 @@ is true. References to references will be treated as references to the reference
 
 ;;;###autoload
 (defun rtags-toggle-diangnostics-suspended (&optional quiet)
-  (interactive)c
+  (interactive)
   (rtags-set-diangnostics-suspended-impl (not rtags-diagnostics-suspended) quiet))
 
 ;;;###autoload
