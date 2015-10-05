@@ -52,6 +52,7 @@ String Symbol::toString(Flags<ToStringFlag> cursorInfoFlags,
             } else if (flags & VirtualMethod) {
                 ret << "Virtual";
             }
+
             if (flags & ConstMethod) {
                 ret << "Const";
             } else if (flags & StaticMethod) {
@@ -64,6 +65,12 @@ String Symbol::toString(Flags<ToStringFlag> cursorInfoFlags,
                 ret << "Auto";
             if (flags & AutoRef)
                 ret << "AutoRef";
+
+            if (flags & MacroExpansion)
+                ret << "MacroExpansion";
+            if (flags & TemplateSpecialization)
+                ret << "TemplateSpecialization";
+
             if (ret.isEmpty())
                 return String();
             String joined = String::join(ret, ' ');

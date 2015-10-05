@@ -636,13 +636,6 @@ CXChildVisitResult ClangIndexer::indexVisitor(CXCursor cursor, CXCursor parent, 
         }
     }
 
-    if (kind == CXCursor_StructDecl) {
-        CXCursor c = clang_getSpecializedCursorTemplate(cursor);
-        if (!(clang_equalCursors(c, nullCursor))) {
-            indexer->unit(loc)->targets[loc][::usr(c)] = 0;
-        }
-    }
-
     if (Symbol::isClass(kind)) {
         indexer->mLastClass = loc;
     } else {
@@ -1185,7 +1178,7 @@ bool ClangIndexer::handleCursor(const CXCursor &cursor, CXCursorKind kind, const
 #if CINDEX_VERSION >= CINDEX_VERSION_ENCODE(0, 20)
         if (clang_CXXMethod_isPureVirtual(cursor))
             c.flags |= Symbol::PureVirtualMethod;
-    else
+        else
 #endif
         if (clang_CXXMethod_isVirtual(cursor))
             c.flags |= Symbol::VirtualMethod;
@@ -1212,6 +1205,15 @@ bool ClangIndexer::handleCursor(const CXCursor &cursor, CXCursorKind kind, const
         assert(!::usr(clang_getCursorSemanticParent(cursor)).isEmpty());
         unit(location)->targets[location][::usr(clang_getCursorSemanticParent(cursor))] = 0;
         break;
+    case CXCursor_StructDecl:
+    case CXCursor_ClassDecl:
+    case CXCursor_ClassTemplate: {
+        const CXCursor specialization = clang_getSpecializedCursorTemplate(cursor);
+        if (!(clang_equalCursors(specialization, nullCursor))) {
+            unit(location)->targets[location][::usr(specialization)] = 0;
+            c.flags |= Symbol::TemplateSpecialization;
+        }
+        break; }
     default:
         break;
     }

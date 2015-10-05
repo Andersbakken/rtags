@@ -40,18 +40,19 @@ struct Symbol
     CXTypeKind type;
     CXLinkageKind linkage;
     enum Flag {
-        None = 0x00,
-        VirtualMethod = 0x01,
-        PureVirtualMethod = 0x02|VirtualMethod,
-        StaticMethod = 0x04,
-        ConstMethod = 0x08,
-        Variadic = 0x10,
-        Auto = 0x20,
-        AutoRef = 0x40,
-        MacroExpansion = 0x80
+        None = 0x000,
+        VirtualMethod = 0x001,
+        PureVirtualMethod = 0x002|VirtualMethod,
+        StaticMethod = 0x004,
+        ConstMethod = 0x008,
+        Variadic = 0x010,
+        Auto = 0x020,
+        AutoRef = 0x040,
+        MacroExpansion = 0x080,
+        TemplateSpecialization = 0x100
     };
     String briefComment, xmlComment;
-    uint8_t flags;
+    uint16_t flags;
     union {
         bool definition;
         int64_t enumValue; // only used if type == CXCursor_EnumConstantDecl

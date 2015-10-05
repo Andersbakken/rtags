@@ -1454,9 +1454,6 @@ Set<Symbol> Project::findTargets(const Symbol &symbol)
     Set<Symbol> ret;
     if (symbol.isNull())
         return ret;
-    if (symbol.isClass() && symbol.isDefinition())
-        return ret;
-
     auto sameKind = [&symbol](CXCursorKind kind) {
         if (kind == symbol.kind)
             return true;
@@ -1469,6 +1466,8 @@ Set<Symbol> Project::findTargets(const Symbol &symbol)
     case CXCursor_ClassDecl:
     case CXCursor_ClassTemplate:
     case CXCursor_StructDecl:
+        if (symbol.isDefinition() && !(symbol.flags & Symbol::TemplateSpecialization))
+            return ret;
     case CXCursor_FunctionDecl:
     case CXCursor_CXXMethod:
     case CXCursor_Destructor:
@@ -1631,7 +1630,7 @@ Set<Symbol> Project::findCallers(const Symbol &symbol)
                 || (input.kind == CXCursor_Constructor && (ref.kind == CXCursor_VarDecl || ref.kind == CXCursor_FieldDecl))) {
                 return true;
             }
-            if (input.kind == CXCursor_ClassTemplate) {
+            if (input.kind == CXCursor_ClassTemplate && ref.flags & Symbol::TemplateSpecialization) {
                 return true;
             }
             return false;
