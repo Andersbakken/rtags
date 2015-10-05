@@ -1631,6 +1631,9 @@ Set<Symbol> Project::findCallers(const Symbol &symbol)
                 || (input.kind == CXCursor_Constructor && (ref.kind == CXCursor_VarDecl || ref.kind == CXCursor_FieldDecl))) {
                 return true;
             }
+            if (input.kind == CXCursor_ClassTemplate) {
+                return true;
+            }
             return false;
         });
 }
