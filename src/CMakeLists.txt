@@ -146,13 +146,15 @@ endif ()
 
 find_package(bash-completion QUIET)
 if (BASH_COMPLETION_FOUND)
-  install(FILES rtags-bash-completion.bash
-    DESTINATION ${BASH_COMPLETION_COMPLETIONSDIR}
-    RENAME rtags
-    PERMISSIONS OWNER_READ OWNER_WRITE GROUP_READ WORLD_READ)
-  install(CODE "execute_process(COMMAND ${CMAKE_COMMAND} -E create_symlink rtags rc
-                                COMMAND ${CMAKE_COMMAND} -E create_symlink rtags rdm
-                                WORKING_DIRECTORY ${BASH_COMPLETION_COMPLETIONSDIR})")
+  file (MAKE_DIRECTORY "${PROJECT_BINARY_DIR}/completions")
+  execute_process(COMMAND ${CMAKE_COMMAND} -E create_symlink rtags rc
+    COMMAND ${CMAKE_COMMAND} -E create_symlink rtags rdm
+    WORKING_DIRECTORY "${PROJECT_BINARY_DIR}/completions")
+  install(FILES rtags-bash-completion.bash DESTINATION ${BASH_COMPLETION_COMPLETIONSDIR}
+    PERMISSIONS OWNER_WRITE OWNER_READ GROUP_READ WORLD_READ
+    RENAME rtags)
+  install(FILES "${PROJECT_BINARY_DIR}/completions/rc" "${PROJECT_BINARY_DIR}/completions/rdm"
+    DESTINATION ${BASH_COMPLETION_COMPLETIONSDIR})
 else()
   message(STATUS "Bash completion file will not be installed, as cmake bash-completion package was not found!")
 endif()
