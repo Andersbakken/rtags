@@ -6,7 +6,7 @@ _rtags ()
     value_opts=$($app --help | grep '^ \+-' | grep "\[[A-Za-z]*\]" | sed -e 's,\([^ ]\) .*,\1,' -e 's,|, ,')
     prev=${COMP_WORDS[COMP_CWORD-1]}
 
-    if [ -n "$prev" ] && printf -- "${value_opts}\n" | grep --quiet -- "$prev"; then
+    if [ -n "$prev" ] && [ ${COMP_CWORD} -gt 1 ] && printf -- "${value_opts}\n" | grep --quiet -- "$prev"; then
         COMPREPLY=()
         return;
     fi
