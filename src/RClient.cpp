@@ -59,7 +59,7 @@ struct Option opts[] = {
     { RClient::Clear, "clear", 'C', no_argument, "Clear projects." },
     { RClient::Project, "project", 'w', optional_argument, "With arg, select project matching that if unique, otherwise list all projects." },
     { RClient::DeleteProject, "delete-project", 'W', required_argument, "Delete all projects matching regex." },
-    { RClient::JobCount, "jobcount", 'j', optional_argument, "Set or query current job count. (Prefix with l to set low-priority-job-count)." },
+    { RClient::JobCount, "job-count", 'j', optional_argument, "Set or query current job count. (Prefix with l to set low-priority-job-count)." },
 
     { RClient::None, 0, 0, 0, "" },
     { RClient::None, 0, 0, 0, "Indexing commands:" },
@@ -1218,4 +1218,3 @@ List<Path> RClient::pathEnvironment() const
         mPathEnvironment = Rct::pathEnvironment();
     return mPathEnvironment;
 }
-
