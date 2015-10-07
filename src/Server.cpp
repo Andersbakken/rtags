@@ -122,16 +122,16 @@ bool Server::init(const Options &options)
     RTags::initMessages();
 
     mOptions = options;
-    mSuspended = (options.flag(StartSuspended));
-    if (!(options.flag(NoUnlimitedErrors)))
+    mSuspended = (options.options & StartSuspended);
+    if (!(options.options & NoUnlimitedErrors))
         mOptions.defaultArguments << "-ferror-limit=0";
-    if (options.flag(Wall))
+    if (options.options & Wall)
         mOptions.defaultArguments << "-Wall";
-    if (options.flag(Weverything))
+    if (options.options & Weverything)
         mOptions.defaultArguments << "-Weverything";
-    if (options.flag(SpellChecking))
+    if (options.options & SpellChecking)
         mOptions.defaultArguments << "-fspell-checking";
-    if (!(options.flag(NoNoUnknownWarningsOption)))
+    if (!(options.options & NoNoUnknownWarningsOption))
         mOptions.defaultArguments.append("-Wno-unknown-warning-option");
 
     if (mOptions.options & EnableCompilerManager) {

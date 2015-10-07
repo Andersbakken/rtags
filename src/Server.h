@@ -99,8 +99,6 @@ public:
         List<Path> tests;
         Set<Path> ignoredCompilers;
         List<std::regex> extraCompilers;
-
-        inline bool flag(enum Option o) const { return 0 != (options & o); }
     };
     bool init(const Options &options);
     bool runTests();
