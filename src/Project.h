@@ -21,6 +21,7 @@
 #include "QueryMessage.h"
 #include "RTags.h"
 #include "RTagsClang.h"
+#include "IndexMessage.h"
 #include <cstdint>
 #include <memory>
 #include <mutex>
@@ -65,6 +66,9 @@ public:
     std::shared_ptr<FileManager> fileManager() const { return mFileManager; }
 
     Path path() const { return mPath; }
+    void setCompilationDatabaseInfo(const Path &dir,
+                                    const List<Path> &pathEnvironment,
+                                    Flags<IndexMessage::Flag> flags);
 
     bool match(const Match &match, bool *indexed = 0) const;
 
@@ -185,7 +189,8 @@ public:
     enum WatchMode {
         Watch_FileManager = 0x1,
         Watch_SourceFile = 0x2,
-        Watch_Dependency = 0x4
+        Watch_Dependency = 0x4,
+        Watch_CompilationDatabase = 0x8
     };
 
     void watch(const Path &dir, WatchMode mode);
@@ -218,6 +223,8 @@ public:
     void diagnose(uint32_t fileId);
     void diagnoseAll();
 private:
+    void reloadCompilationDatabase();
+    void removeSource(Sources::iterator it);
     void onFileAddedOrModified(const Path &path);
     void watchFile(uint32_t fileId);
     bool validate(uint32_t fileId, String *error = 0) const;
@@ -330,6 +337,12 @@ private:
     std::shared_ptr<FileMapScope> mFileMapScope;
 
     const Path mPath, mSourceFilePathBase;
+    struct CompilationDataBaseInfo {
+        Path dir;
+        uint64_t lastModified;
+        List<Path> pathEnvironment;
+        Flags<IndexMessage::Flag> indexFlags;
+    } mCompilationDatabaseInfo;
     Path mProjectFilePath, mSourcesFilePath;
 
     Files mFiles;
@@ -348,6 +361,7 @@ private:
     StopWatch mTimer;
     FileSystemWatcher mWatcher;
     Sources mSources;
+    Set<uint64_t> *mMarkSources;
     Hash<Path, Flags<WatchMode> > mWatchedPaths;
     std::shared_ptr<FileManager> mFileManager;
     FixIts mFixIts;

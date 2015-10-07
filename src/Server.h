@@ -116,6 +116,7 @@ public:
     bool isActiveBuffer(uint32_t fileId) const { return mActiveBuffers.contains(fileId); }
     int exitCode() const { return mExitCode; }
     std::shared_ptr<Project> currentProject() const { return mCurrentProject.lock(); }
+    void onNewMessage(const std::shared_ptr<Message> &message, const std::shared_ptr<Connection> &conn);
 private:
     String guessArguments(const String &args, const Path &pwd, const Path &projectRootOverride);
     bool saveFileIds();
@@ -124,10 +125,10 @@ private:
                const Path &pwd,
                const List<Path> &pathEnvironment,
                const Path &projectRootOverride,
-               Flags<IndexMessage::Flag> = Flags<IndexMessage::Flag>());
+               Flags<IndexMessage::Flag> = Flags<IndexMessage::Flag>(),
+               std::shared_ptr<Project> *projectPtr = 0);
     void onNewConnection(SocketServer *server);
     void setCurrentProject(const std::shared_ptr<Project> &project);
-    void onNewMessage(const std::shared_ptr<Message> &message, const std::shared_ptr<Connection> &conn);
     void clearProjects();
     void handleIndexMessage(const std::shared_ptr<IndexMessage> &message, const std::shared_ptr<Connection> &conn);
     void handleIndexDataMessage(const std::shared_ptr<IndexDataMessage> &message, const std::shared_ptr<Connection> &conn);

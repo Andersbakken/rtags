@@ -241,7 +241,7 @@ static void saveDependencies(DataFile &file, const Dependencies &dependencies)
 
 Project::Project(const Path &path)
     : mPath(path), mSourceFilePathBase(RTags::encodeSourceFilePath(Server::instance()->options().dataDir, path)),
-      mJobCounter(0), mJobsStarted(0)
+      mJobCounter(0), mJobsStarted(0), mMarkSources(0)
 {
     Path srcPath = mPath;
     RTags::encodePath(srcPath);
@@ -332,7 +332,11 @@ bool Project::init()
 
     {
         std::lock_guard<std::mutex> lock(mMutex);
-        file >> mVisitedFiles >> mDiagnostics;
+        file >> mVisitedFiles >> mDiagnostics
+             >> mCompilationDatabaseInfo.dir
+             >> mCompilationDatabaseInfo.lastModified
+             >> mCompilationDatabaseInfo.pathEnvironment
+             >> mCompilationDatabaseInfo.indexFlags;
     }
     loadDependencies(file, mDependencies);
 
@@ -417,6 +421,9 @@ bool Project::init()
             ++it;
         }
     }
+
+    if (!mCompilationDatabaseInfo.dir.isEmpty())
+        reloadCompilationDatabase();
 
     if (needsSave)
         save();
@@ -766,7 +773,11 @@ bool Project::save()
         }
         {
             std::lock_guard<std::mutex> lock(mMutex);
-            file << mVisitedFiles << mDiagnostics;
+            file << mVisitedFiles << mDiagnostics
+                 << mCompilationDatabaseInfo.dir
+                 << mCompilationDatabaseInfo.lastModified
+                 << mCompilationDatabaseInfo.pathEnvironment
+                 << mCompilationDatabaseInfo.indexFlags;
         }
         saveDependencies(file, mDependencies);
         if (!file.flush()) {
@@ -829,6 +840,8 @@ void Project::index(const std::shared_ptr<IndexerJob> &job)
         } else {
             auto cur = mSources.find(key);
             if (cur != mSources.end()) {
+                if (mMarkSources)
+                    mMarkSources->insert(key);
                 if (!(cur->second.flags & Source::Active))
                     markActive(mSources.lower_bound(Source::key(job->source.fileId, 0)), cur->second.buildRootId, mSources.end());
                 if (cur->second.compareArguments(job->source)) {
@@ -845,6 +858,9 @@ void Project::index(const std::shared_ptr<IndexerJob> &job)
                     Source::decodeKey(it->first, f, b);
                     if (f != job->source.fileId)
                         break;
+
+                    if (mMarkSources)
+                        mMarkSources->insert(it->first);
 
                     if (it->second.compareArguments(job->source)) {
                         markActive(start, b, mSources.end());
@@ -865,6 +881,8 @@ void Project::index(const std::shared_ptr<IndexerJob> &job)
         }
     }
 
+    if (mMarkSources)
+        mMarkSources->insert(key);
     Source &src = mSources[key];
     src = job->source;
     src.flags |= Source::Active;
@@ -899,6 +917,14 @@ void Project::onFileAdded(const Path &path)
 
 void Project::onFileAddedOrModified(const Path &file)
 {
+    // error() << file.fileName() << mCompilationDatabaseInfo.dir << file;
+    if (!mCompilationDatabaseInfo.dir.isEmpty() &&
+        !strcmp(file.fileName(), "compile_commands.json")
+        && file.parentDir() == mCompilationDatabaseInfo.dir) {
+        reloadCompilationDatabase();
+        return;
+    }
+
     const uint32_t fileId = Location::fileId(file);
     debug() << file << "was modified" << fileId;
     if (!fileId)
@@ -1101,17 +1127,8 @@ int Project::remove(const Match &match)
     auto it = mSources.begin();
     while (it != mSources.end()) {
         if (match.match(it->second.sourceFile())) {
-            const uint32_t fileId = it->second.fileId;
-            const uint64_t key = it->first;
-            mSources.erase(it++);
-            std::shared_ptr<IndexerJob> job = mActiveJobs.take(key);
-            if (job) {
-                releaseFileIds(job->visited);
-                Server::instance()->jobScheduler()->abort(job);
-            }
-            removeDependencies(fileId);
+            removeSource(it++);
             ++count;
-            unlink(sourceFilePath(fileId).constData());
         } else {
             ++it;
         }
@@ -2269,3 +2286,63 @@ String Project::estimateMemory() const
     add("Total", total);
     return String::join(ret, "\n");
 }
+
+void Project::setCompilationDatabaseInfo(const Path &dir,
+                                         const List<Path> &pathEnvironment,
+                                         Flags<IndexMessage::Flag> flags)
+{
+    if (!mCompilationDatabaseInfo.dir.isEmpty())
+        unwatch(mCompilationDatabaseInfo.dir, Watch_CompilationDatabase);
+    mCompilationDatabaseInfo = {
+        dir, Path(dir + "compile_commands.json").lastModifiedMs(), pathEnvironment, flags
+    };
+    if (!mCompilationDatabaseInfo.dir.isEmpty())
+        watch(mCompilationDatabaseInfo.dir, Watch_CompilationDatabase);
+    save();
+}
+
+void Project::reloadCompilationDatabase()
+{
+    if (!mCompilationDatabaseInfo.dir.isEmpty() && !Server::instance()->suspended() ) {
+        const uint64_t lastModified = Path(mCompilationDatabaseInfo.dir + "compile_commands.json").lastModifiedMs();
+        if (lastModified && lastModified != mCompilationDatabaseInfo.lastModified) {
+            // error() << lastModified << mCompilationDatabaseInfo.lastModified;
+            std::shared_ptr<IndexMessage> msg(new IndexMessage);
+            msg->setProjectRoot(mPath);
+            msg->setCompilationDatabaseDir(mCompilationDatabaseInfo.dir);
+            msg->setPathEnvironment(mCompilationDatabaseInfo.pathEnvironment);
+            msg->setFlags(mCompilationDatabaseInfo.indexFlags);
+            error() << (mCompilationDatabaseInfo.dir + "compile_commands.json modified, reloading") << mPath;
+            assert(!mMarkSources);
+            Set<uint64_t> markSources;
+            mMarkSources = &markSources;
+            Server::instance()->onNewMessage(msg, std::shared_ptr<Connection>());
+            mMarkSources = 0;
+            Sources::iterator it = mSources.begin();
+            while (it != mSources.end()) {
+                if (!markSources.contains(it->first)) {
+                    error() << it->second.sourceFile() << "is no longer in compile_commands.json, removing";
+                    removeSource(it++);
+                } else {
+                    ++it;
+                }
+            }
+        }
+    }
+}
+
+void Project::removeSource(Sources::iterator it)
+{
+    const uint64_t key = it->first;
+    std::shared_ptr<IndexerJob> job = mActiveJobs.take(key);
+    if (job) {
+        releaseFileIds(job->visited);
+        Server::instance()->jobScheduler()->abort(job);
+    }
+    uint32_t fileId, buildRootId;
+    Source::decodeKey(key, fileId, buildRootId);
+    removeDependencies(fileId);
+    Path::rmdir(sourceFilePath(fileId).constData());
+    mSources.erase(it);
+}
+

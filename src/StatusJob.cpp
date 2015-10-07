@@ -109,6 +109,8 @@ int StatusJob::execute()
                 ret << "source";
             if (mode & Project::Watch_Dependency)
                 ret << "dependency";
+            if (mode & Project::Watch_CompilationDatabase)
+                ret << "compilationdatabase";
             return String::join(ret, '|');
         };
         for (const auto &it : watched) {
