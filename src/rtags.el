@@ -2312,6 +2312,8 @@ is true. References to references will be treated as references to the reference
 ;;;###autoload
 (defun rtags-taglist (&optional dest-window)
   (interactive)
+  (unless (buffer-file-name)
+    (error "rtags-taglist must be run from a buffer visiting a file"))
   (rtags-location-stack-push)
   (setq rtags-taglist-locations nil)
   (let* ((fn (buffer-file-name)) functions classes variables enums macros other)
