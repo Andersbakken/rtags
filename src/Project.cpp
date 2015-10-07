@@ -1267,7 +1267,7 @@ void Project::findSymbols(const String &string,
         lowerBound = string;
     }
 
-    auto processFile = [this, &lowerBound, &string, wildcard, cs, inserter](uint32_t file) {
+    auto processFile = [this, &lowerBound, &string, wildcard, cs, &inserter](uint32_t file) {
         auto symNames = openSymbolNames(file);
         if (!symNames)
             return;
