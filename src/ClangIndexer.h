@@ -39,7 +39,7 @@ public:
     ~ClangIndexer();
 
     bool exec(const String &data);
-    static uint32_t serverOpts() { return sServerOpts; }
+    static Flags<Server::Option> serverOpts() { return sServerOpts; }
 private:
     bool diagnose();
     bool visit();

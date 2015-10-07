@@ -91,7 +91,7 @@ RCT_FLAGS(Match::Flag);
 inline Log operator<<(Log log, const Match &match)
 {
     String ret = "Match(flags: ";
-    ret += String::number(match.flags(), 16);
+    ret += String::number(match.flags().cast<unsigned int>(), 16);
     if (match.flags() & Match::Flag_Regex)
         ret += " rx";
     if (!match.pattern().isEmpty())
