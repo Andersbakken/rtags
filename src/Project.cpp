@@ -1375,7 +1375,7 @@ void Project::unwatch(const Path &dir, WatchMode mode)
 {
     auto it = mWatchedPaths.find(dir);
     if (it == mWatchedPaths.end()) {
-        mWatchedPaths.find(dir.resolved());
+        it = mWatchedPaths.find(dir.resolved());
         if (it == mWatchedPaths.end()) {
             const auto opts = Server::instance()->options().options;
             if (!(opts & Server::WatchSourcesOnly) || mode != Watch_Dependency)
