@@ -121,7 +121,7 @@ bool QueryJob::locationToString(const Location &location,
     Flags<Location::KeyFlag> kf = keyFlags();
     kf &= ~Location::ShowContext;
     cb(Piece_Location, location.key(kf));
-    if (!(writeFlags & NoContext))
+    if (!(writeFlags & NoContext) && !(queryFlags() & QueryMessage::NoContext))
         cb(Piece_Context, location.context(kf));
 
     const bool containingFunction = queryFlags() & QueryMessage::ContainingFunction;
