@@ -36,7 +36,18 @@ int FindSymbolsJob::execute()
     int ret = 2;
     if (std::shared_ptr<Project> proj = project()) {
         Set<Symbol> symbols;
-        auto inserter = [proj, this, &symbols](Project::SymbolMatchType type, const String &symbolName, const Set<Location> &locations) {
+        Location filter;
+        const uint32_t filteredFile = fileFilter();
+        if (filteredFile)
+            filter = Location(filteredFile, 0, 0);
+        auto inserter = [proj, this, &symbols, &filter, filteredFile](Project::SymbolMatchType type,
+                                                                      const String &symbolName,
+                                                                      const Set<Location> &locations) {
+            if (filter.fileId()) {
+                auto it = locations.lower_bound(filter);
+                if (it == locations.end() || it->fileId() != filteredFile)
+                    return;
+            }
             if (type == Project::StartsWith) {
                 const int paren = symbolName.indexOf('(');
                 if (paren == -1 || paren != string.size() || RTags::isFunctionVariable(symbolName))
