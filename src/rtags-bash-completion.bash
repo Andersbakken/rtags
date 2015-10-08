@@ -1,6 +1,6 @@
 _rtags ()
 {
-    local prev value_opts non_value_opts
+    local prev value_opts non_value_opts app cur
 
     app=${COMP_WORDS[0]}
     value_opts=$($app --help | grep '^ \+-' | grep "\[[A-Za-z]*\]" | sed -e 's,\([^ ]\) .*,\1,' -e 's,|, ,')
