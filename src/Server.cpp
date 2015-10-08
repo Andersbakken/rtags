@@ -1050,7 +1050,9 @@ void Server::referencesForName(const std::shared_ptr<QueryMessage> &query, const
 {
     const String name = query->query();
 
-    std::shared_ptr<Project> project = currentProject();
+    std::shared_ptr<Project> project = projectForQuery(query);
+    if (!project)
+        project = currentProject();
 
     if (!project) {
         error("No project");
@@ -1067,7 +1069,9 @@ void Server::findSymbols(const std::shared_ptr<QueryMessage> &query, const std::
 {
     const String partial = query->query();
 
-    std::shared_ptr<Project> project = currentProject();
+    std::shared_ptr<Project> project = projectForQuery(query);
+    if (!project)
+        project = currentProject();
 
     int ret = 0;
     if (!project) {
@@ -1084,7 +1088,10 @@ void Server::listSymbols(const std::shared_ptr<QueryMessage> &query, const std::
 {
     const String partial = query->query();
 
-    std::shared_ptr<Project> project = currentProject();
+    std::shared_ptr<Project> project = projectForQuery(query);
+    if (!project)
+        project = currentProject();
+
     if (!project) {
         error("No project");
         conn->finish();
@@ -1126,9 +1133,12 @@ void Server::isIndexed(const std::shared_ptr<QueryMessage> &query, const std::sh
     conn->finish();
 }
 
-void Server::reloadFileManager(const std::shared_ptr<QueryMessage> &, const std::shared_ptr<Connection> &conn)
+void Server::reloadFileManager(const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Connection> &conn)
 {
-    std::shared_ptr<Project> project = currentProject();
+    std::shared_ptr<Project> project = projectForQuery(query);
+    if (!project)
+        project = currentProject();
+
     if (project) {
         conn->write<512>("Reloading files for %s", project->path().constData());
         conn->finish();
