@@ -1699,6 +1699,9 @@ void Server::load()
         // }
 
         clearProjects();
+        if (!sources.isEmpty()) {
+            error() << "Recovering sources" << sources.size();
+        }
         for (const auto &s : sources) {
             if (!s.second.isEmpty()) {
                 auto project = addProject(s.first);
