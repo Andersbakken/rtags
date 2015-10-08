@@ -57,6 +57,24 @@ int IncludeFileJob::execute()
                         alternatives << String::format<256>("#include <%s>", path.mid(p.size()).constData());
                     }
                 }
+                const int tail = strlen(path.fileName()) + 1;
+                List<String>::iterator it = alternatives.begin();
+                while (it != alternatives.end()) {
+                    bool drop = false;
+                    for (List<String>::const_iterator it2 = it + 1; it2 != alternatives.end(); ++it2) {
+                        if (it2->size() < it->size()) {
+                            if (!strncmp(it2->constData() + 9, it->constData() + 9, it2->size() - tail - 9)) {
+                                drop = true;
+                                break;
+                            }
+                        }
+                    }
+                    if (drop) {
+                        it = alternatives.erase(it);
+                    } else {
+                        ++it;
+                    }
+                }
                 std::sort(alternatives.begin(), alternatives.end(), [](const String &a, const String &b) {
                         return a.size() < b.size();
                     });
