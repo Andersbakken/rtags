@@ -239,8 +239,12 @@ private:
 
     struct FileMapScope {
         FileMapScope(const std::shared_ptr<Project> &proj, int m)
-            : project(proj), openedFiles(0), max(m)
+            : project(proj), openedFiles(0), totalOpened(0), max(m)
         {}
+        ~FileMapScope()
+        {
+            warning() << "Query opened" << totalOpened << "files for project" << project->path();
+        }
 
         struct LRUKey {
             FileMapType type;
@@ -282,6 +286,7 @@ private:
             std::shared_ptr<FileMap<Key, Value> > fileMap(new FileMap<Key, Value>);
             String err;
             if (fileMap->load(path, &err)) {
+                ++totalOpened;
                 cache[fileId] = fileMap;
                 std::shared_ptr<LRUEntry> entry(new LRUEntry(type, fileId));
                 entryList.append(entry);
@@ -327,7 +332,7 @@ private:
         Hash<uint32_t, std::shared_ptr<FileMap<Location, Symbol> > > symbols;
         Hash<uint32_t, std::shared_ptr<FileMap<String, Set<Location> > > > targets, usrs;
         std::shared_ptr<Project> project;
-        int openedFiles;
+        int openedFiles, totalOpened;
         const int max;
 
         EmbeddedLinkedList<std::shared_ptr<LRUEntry> > entryList;
