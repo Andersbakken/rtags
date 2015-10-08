@@ -48,15 +48,20 @@ int IncludeFileJob::execute()
                 continue;
             const Symbol sym = project()->findSymbol(loc);
             if (sym.isDefinition() || !sym.isClass()) {
-                if (!fromHeader && path.startsWith(directory)) {
-                    write<256>("#include \"%s\"", path.mid(directory.size()).constData());
-                } else {
-                    for (const Source::Include &inc : mSource.includePaths) {
-                        const Path p = inc.path.ensureTrailingSlash();
-                        if (path.startsWith(p)) {
-                            write<256>("#include <%s>", path.mid(p.size()).constData());
-                        }
+                List<String> alternatives;
+                if (path.startsWith(directory))
+                    alternatives << String::format<256>("#include \"%s\"", path.mid(directory.size()).constData());
+                for (const Source::Include &inc : mSource.includePaths) {
+                    const Path p = inc.path.ensureTrailingSlash();
+                    if (path.startsWith(p)) {
+                        alternatives << String::format<256>("#include <%s>", path.mid(p.size()).constData());
                     }
+                }
+                std::sort(alternatives.begin(), alternatives.end(), [](const String &a, const String &b) {
+                        return a.size() < b.size();
+                    });
+                for (const auto &a : alternatives) {
+                    write(a);
                 }
             }
         }
