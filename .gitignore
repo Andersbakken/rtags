@@ -35,3 +35,4 @@ compile_commands.json
 /install_manifest.txt
 /build/marker
 .dir-locals.el
+/Uninstall.cmake
