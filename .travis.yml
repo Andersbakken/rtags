@@ -18,6 +18,8 @@ matrix:
                       - ubuntu-toolchain-r-test
                   packages:
                       - g++-4.8
+                      - python-nose
+                      - python-pip
 
         - env: COMPILER_VERSION=4.9
           os: linux
@@ -28,6 +30,8 @@ matrix:
                       - ubuntu-toolchain-r-test
                   packages:
                       - g++-4.9
+                      - python-nose
+                      - python-pip
 
         - env: COMPILER_VERSION=3.5
           os: linux
@@ -39,8 +43,12 @@ matrix:
                       - llvm-toolchain-precise-3.5
                   packages:
                       - clang-3.5
+                      - python-nose
+                      - python-pip
 
-        - env: COMPILER_VERSION=3.6
+        - env:
+            - COMPILER_VERSION=3.6
+            - SKIP_TESTS=On
           os: linux
           compiler: clang++
           addons:
@@ -50,24 +58,19 @@ matrix:
                       - llvm-toolchain-precise-3.6
                   packages:
                       - clang-3.6
+                      - python-nose
+                      - python-pip
 
-#        - env: COMPILER_VERSION=3.7
-#          os: linux
-#          compiler: clang++
-#          addons:
-#              apt:
-#                  sources:
-#                      - ubuntu-toolchain-r-test
-#                      - llvm-toolchain-precise-3.7
-#                  packages:
-#                      - clang-3.7
+install:
+    - pip install --user --upgrade PyHamcrest
 
 before_script:
     - mkdir build
     - cd build
     - echo "Using compilers $CXX-${COMPILER_VERSION} and $CC-${COMPILER_VERSION}"
     - cmake -DCMAKE_CXX_COMPILER=$CXX-${COMPILER_VERSION} -DCMAKE_C_COMPILER=$CC-${COMPILER_VERSION} ..
+    - cd ..
 
-
-script: make
-
+script:
+    - make -j2 -C build
+    - [ -z "$SKIP_TESTS" ] && PATH=$(pwd)/build/bin:$PATH nosetests
