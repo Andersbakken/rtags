@@ -1,0 +1,10 @@
+[
+    { "name": "find_references",
+      "rc-command": [ "--references", "{0}/main.cpp:9:8"],
+      "expectation": ["{0}/main.cpp:16:17","{0}/main.cpp:17:17","{0}/main.cpp:20:5"] },
+
+    { "name": "multiple_template_parameters",
+      "rc-command": [ "--references", "{0}/main.cpp:25:8"],
+      "expectation": ["{0}/main.cpp:27:17","{0}/main.cpp:28:17","{0}/main.cpp:29:17",
+                      "{0}/main.cpp:30:17", "{0}/main.cpp:31:17"] }
+]

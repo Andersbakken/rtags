@@ -1,0 +1,5 @@
+[
+    { "name": "disabled_member_expression",
+      "rc-command": [ "--references", "{0}/main.cpp:12:11"],
+      "expectation": ["{0}/main.cpp:2:10","{0}/main.cpp:5:9"] }
+]
