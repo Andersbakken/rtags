@@ -74,7 +74,7 @@ class Location:
 
     def __eq__(self, other):
         if isinstance(other, self.__class__):
-            return self.__dict__ == other.__dict__
+            return self.file.split("/")[-1] == other.file.split("/")[-1] and self.line == other.line and self.col == other.col
         else:
             raise ValueError("Type error")
 
@@ -327,6 +327,21 @@ class MetaPrograms(TestFixture):
             Location(self.main_cpp, 7, 8),
             Location(self.main_cpp, 11, 9),
         ]
+        self.assertTrue(compareLocationLists(locations, expected_locations))
+
+
+class ForwardDeclaration(TestFixture):
+
+    def __init__(self, a):
+        self.name = 'ForwardDeclaration'
+        super(ForwardDeclaration, self).__init__(a)
+
+    def test_skip_forward_declaration(self):
+        fwdecl = os.path.join(self.test_wd, "contains_forward_declaration.hpp")
+        realdecl = os.path.join(self.test_wd, "include.hpp")
+        out = run_rc( ["--follow-location", toStr(Location(fwdecl, 2, 15)),])
+        locations = readLocations(out)
+        expected_locations = [Location(realdecl, 2, 8),]
         self.assertTrue(compareLocationLists(locations, expected_locations))
 
 
