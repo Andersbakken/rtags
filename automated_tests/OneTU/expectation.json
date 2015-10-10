@@ -1,0 +1,8 @@
+[
+    { "name": "follow_location",
+      "rc-command": [ "--follow-location", "{0}/main.cpp:4:5"],
+      "expectation": ["{0}/main.cpp:1:6"] },
+    { "name": "find_references",
+      "rc-command": [ "--references", "{0}/main.cpp:1:6"],
+      "expectation": ["{0}/main.cpp:4:5", "{0}/main.cpp:5:5"] }
+]

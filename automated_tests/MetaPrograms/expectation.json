@@ -1,0 +1,5 @@
+[
+    { "name": "find_references",
+      "rc-command": [ "--references", "{0}/main.cpp:2:8"],
+      "expectation": ["{0}/main.cpp:3:24","{0}/main.cpp:7:8","{0}/main.cpp:11:9"] }
+]
