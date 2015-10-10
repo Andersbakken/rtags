@@ -1,6 +1,5 @@
 *.o
 *.a
-*.pyc
 Makefile
 core
 CMakeFiles/
