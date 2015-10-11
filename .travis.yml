@@ -73,4 +73,4 @@ before_script:
 
 script:
     - make -j2 -C build
-    - PATH=$(pwd)/build/bin:$PATH [ -z "$SKIP_TESTS" ] && nosetests
+    - test -z "$SKIP_TESTS" && PATH=$(pwd)/build/bin:$PATH nosetests || true
