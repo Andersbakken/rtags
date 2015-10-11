@@ -19,7 +19,7 @@ endforeach()
 
 # We will not traverse back and delete "arbitrary" folders.
 # An exception are directories which are rtags specific directories like,
-# "rtags" under "INSTALL_PREFIX/user/emacs/site-lisp/".
+# "rtags" under "INSTALL_PREFIX/usr/emacs/site-lisp/".
 set(directories "@CMAKE_INSTALL_PREFIX@/share/emacs/site-lisp/rtags")
 foreach(dir ${directories})
   if(IS_DIRECTORY ${dir} AND EXISTS ${dir})
