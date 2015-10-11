@@ -52,7 +52,7 @@ void saveFileIds() {}
 
 Set<Symbol> findTargets(const std::shared_ptr<Project> &, const Symbol &) { return Set<Symbol>(); }
 Set<Symbol> findCallers(const std::shared_ptr<Project> &, const Symbol &) { return Set<Symbol>(); }
-String findSymbolNameByUsr(const std::shared_ptr<Project> &, const String &, const Location &loc) { return String(); }
+String findSymbolNameByUsr(const std::shared_ptr<Project> &, const String &, const Location &) { return String(); }
 Path currentProjectPath() { return Path(); }
 
 struct SyslogCloser

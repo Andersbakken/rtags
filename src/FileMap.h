@@ -208,7 +208,7 @@ public:
             valuesOffset = out.size();
             memcpy(out.data() + sizeof(uint32_t), &valuesOffset, sizeof(valuesOffset));
         }
-        assert(valuesOffset == out.size());
+        assert(valuesOffset == static_cast<uint32_t>(out.size()));
 
         if (uint32_t size = FixedSize<Value>::value) {
             for (const std::pair<Key, Value> &pair : map) {

@@ -309,6 +309,8 @@ static Path resolveCompiler(const Path &unresolved, const Path &cwd, const List<
 
     if (!compiler.isFile())
         compiler.clear();
+    if (compiler.contains(".."))
+	compiler.canonicalize();
     return compiler;
 }
 
