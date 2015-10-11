@@ -603,7 +603,7 @@ to case differences."
           (rtags-select))))))
 
 (defun rtags-executable-find (exe)
-  (let ((result (and rtags-path (concat rtags-path "/bin/" exe))))
+  (let ((result (and rtags-path (expand-file-name exe rtags-path))))
     (if (and result (file-exists-p result))
         result
       (executable-find exe))))
