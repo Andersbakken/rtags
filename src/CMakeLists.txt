@@ -12,16 +12,6 @@ IF("${isSystemDir}" STREQUAL "-1")
   SET(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/lib")
 ENDIF("${isSystemDir}" STREQUAL "-1")
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-rtti")
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall")
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall")
-if (NOT CYGWIN)
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fstack-protector-all")
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wstack-protector")
-  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fstack-protector-all")
-  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wstack-protector")
-endif ()
-
 include(${CMAKE_SOURCE_DIR}/cmake/EnsureLibraries.cmake)
 
 if (NOT DEFINED CLANG_LIBS)
@@ -43,7 +33,8 @@ endif ()
 find_package(Curses REQUIRED)
 
 string(REGEX REPLACE "-[Og][0-9]*" "" CLANG_CXXFLAGS "${CLANG_CXXFLAGS}")
-
+string(REPLACE "-DNDEBUG" "" CLANG_CXXFLAGS "${CLANG_CXXFLAGS}")
+string(REPLACE "-std=c++11" "" CLANG_CXXFLAGS "${CLANG_CXXFLAGS}")
 set(CMAKE_CXX_FLAGS ${CLANG_CXXFLAGS})
 
 if (EXISTS ${CLANG_COMPILATION_INCLUDE})
@@ -55,13 +46,18 @@ set(RCT_NO_INSTALL 1)
 add_subdirectory(rct)
 
 include(${CMAKE_CURRENT_LIST_DIR}/rct/compiler.cmake)
+# Set further compile options after including the rct compiler option.
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wstrict-aliasing=2")
+if (NOT CYGWIN)
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fstack-protector-all -Wstack-protector")
+  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fstack-protector-all -Wstack-protector")
+endif ()
 
 if (CMAKE_BUILD_TYPE MATCHES "Debug")
   add_definitions("-DRTAGS_DEBUG")
   set(RCT_EVENTLOOP_CALLBACK_TIME_THRESHOLD 2000)
 endif ()
 
-add_definitions("-Wall")
 add_definitions("-DCLANG_LIBDIR=${CLANG_LIBDIR}")
 add_definitions("-DOS_${CMAKE_SYSTEM_NAME}")
 
