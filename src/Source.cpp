@@ -307,10 +307,11 @@ static Path resolveCompiler(const Path &unresolved, const Path &cwd, const List<
     if (compiler.isEmpty())
         compiler = findFileInPath(unresolved, cwd, pathEnvironment);
 
-    if (!compiler.isFile())
+    if (!compiler.isFile()) {
         compiler.clear();
-    if (compiler.contains(".."))
-	compiler.canonicalize();
+    } else if (compiler.contains("..")) {
+        compiler.canonicalize();
+    }
     return compiler;
 }
 
