@@ -1,59 +1,109 @@
-if (NOT CLANG_ROOT)
-  set(CLANG_ROOT $ENV{CLANG_ROOT})
+# FindLibClang
+#
+# This module searches libclang and llvm-config, the llvm-config tool is used to
+# get information about the installed llvm/clang package to compile LLVM based
+# programs.
+#
+# It defines the following variables
+#
+# ``LIBCLANG_LLVM_CONFIG_EXECUTABLE``
+#   the llvm-config tool to get various information.
+# ``LIBCLANG_LIBRARIES``
+#   the clang libraries to link against to use Clang/LLVM.
+# ``LIBCLANG_LIBRARY_DIRS``
+#   the directory where the clang libraries are located.
+# ``LIBCLANG_FOUND``
+#   true if libclang was found
+# ``LIBCLANG_VERSION_STRING``
+#   version number as a string
+# ``LIBCLANG_CXXFLAGS``
+#   the compiler flags for files that include LLVM headers
+#
+#=============================================================================
+# Copyright (C) 2011, 2012, 2013 Jan Erik Hanssen and Anders Bakken
+# Copyright (C) 2015 Christian Schwarzgruber <c.schwarzgruber.cs@gmail.com>
+#
+# This file is part of RTags (http://rtags.net).
+#
+# RTags is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# RTags is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with RTags.  If not, see <http://www.gnu.org/licenses/>.
+
+if (NOT LIBCLANG_ROOT_DIR)
+  set(LIBCLANG_ROOT_DIR $ENV{LIBCLANG_ROOT_DIR})
 endif ()
 
-if (NOT LLVM_CONFIG)
-  set(LLVM_CONFIG $ENV{LLVM_CONFIG})
-  if (NOT LLVM_CONFIG)
+if (NOT LIBCLANG_LLVM_CONFIG_EXECUTABLE)
+  set(LIBCLANG_LLVM_CONFIG_EXECUTABLE $ENV{LIBCLANG_LLVM_CONFIG_EXECUTABLE})
+  if (NOT LIBCLANG_LLVM_CONFIG_EXECUTABLE)
     set(llvm_config_names llvm-config)
     foreach(minor RANGE 9 1)
       list(APPEND llvm_config_names "llvm-config3${minor}" "llvm-config-3.${minor}" "llvm-config-mp-3.${minor}")
     endforeach ()
-    find_program(LLVM_CONFIG NAMES ${llvm_config_names})
+    find_program(LIBCLANG_LLVM_CONFIG_EXECUTABLE NAMES ${llvm_config_names})
+  endif ()
+  if (LIBCLANG_LLVM_CONFIG_EXECUTABLE)
+    message(STATUS "llvm-config executable found: ${LIBCLANG_LLVM_CONFIG_EXECUTABLE}")
+  else ()
+    message(FATAL_ERROR "Could NOT find llvm-config executable.")
   endif ()
 endif ()
 
-if (LLVM_CONFIG)
-  message(STATUS "llvm-config found at: ${LLVM_CONFIG}")
-else ()
-  message(FATAL_ERROR "Could NOT find llvm-config executable.")
-endif ()
-
-if (NOT CLANG_CXXFLAGS)
-  execute_process(COMMAND ${LLVM_CONFIG} --cxxflags OUTPUT_VARIABLE CLANG_CXXFLAGS OUTPUT_STRIP_TRAILING_WHITESPACE)
-  if (NOT CLANG_CXXFLAGS)
-    find_path(CLANG_CXXFLAGS_HACK_CMAKECACHE_DOT_TEXT_BULLSHIT clang-c/Index.h HINTS ${CLANG_ROOT}/include NO_DEFAULT_PATH)
-    if (NOT EXISTS ${CLANG_CXXFLAGS_HACK_CMAKECACHE_DOT_TEXT_BULLSHIT})
-      find_path(CLANG_CXXFLAGS clang-c/Index.h)
-      if (NOT EXISTS ${CLANG_CXXFLAGS})
-        message(FATAL_ERROR "Could NOT find clang include path. You can fix this by setting CLANG_CXXFLAGS in your shell or as a cmake variable.")
+if (NOT LIBCLANG_CXXFLAGS)
+  execute_process(COMMAND ${LIBCLANG_LLVM_CONFIG_EXECUTABLE} --cxxflags OUTPUT_VARIABLE LIBCLANG_CXXFLAGS OUTPUT_STRIP_TRAILING_WHITESPACE)
+  if (NOT LIBCLANG_CXXFLAGS)
+    find_path(LIBCLANG_CXXFLAGS_HACK_CMAKECACHE_DOT_TEXT_BULLSHIT clang-c/Index.h HINTS ${LIBCLANG_ROOT_DIR}/include NO_DEFAULT_PATH)
+    if (NOT EXISTS ${LIBCLANG_CXXFLAGS_HACK_CMAKECACHE_DOT_TEXT_BULLSHIT})
+      find_path(LIBCLANG_CXXFLAGS clang-c/Index.h)
+      if (NOT EXISTS ${LIBCLANG_CXXFLAGS})
+        message(FATAL_ERROR "Could NOT find clang include path. You can fix this by setting LIBCLANG_CXXFLAGS in your shell or as a cmake variable.")
       endif ()
     else ()
-      set(CLANG_CXXFLAGS ${CLANG_CXXFLAGS_HACK_CMAKECACHE_DOT_TEXT_BULLSHIT})
+      set(LIBCLANG_CXXFLAGS ${LIBCLANG_CXXFLAGS_HACK_CMAKECACHE_DOT_TEXT_BULLSHIT})
     endif ()
-    set(CLANG_CXXFLAGS "-I${CLANG_CXXFLAGS}")
+    set(LIBCLANG_CXXFLAGS "-I${LIBCLANG_CXXFLAGS}")
+  endif ()
+  set(LIBCLANG_CXXFLAGS ${LIBCLANG_CXXFLAGS} CACHE STRING "The LLVM C++ compiler flags needed to compile LLVM based applications.")
+  string(REGEX REPLACE "-[Og][0-9]*" "" LIBCLANG_CXXFLAGS "${LIBCLANG_CXXFLAGS}")
+  string(REPLACE "-DNDEBUG" "" LIBCLANG_CXXFLAGS "${LIBCLANG_CXXFLAGS}")
+  string(REPLACE "-std=c++11" "" LIBCLANG_CXXFLAGS "${LIBCLANG_CXXFLAGS}")
+  unset(LIBCLANG_CXXFLAGS_HACK_CMAKECACHE_DOT_TEXT_BULLSHIT CACHE)
+endif ()
+
+if (NOT EXISTS ${LIBCLANG_LIBRARY_DIRS})
+  execute_process(COMMAND ${LIBCLANG_LLVM_CONFIG_EXECUTABLE} --libdir OUTPUT_VARIABLE LIBCLANG_LIBRARY_DIRS OUTPUT_STRIP_TRAILING_WHITESPACE)
+  if (NOT EXISTS ${LIBCLANG_LIBRARY_DIRS})
+    message(FATAL_ERROR "Could NOT find clang libdir. You can fix this by setting LIBCLANG_LIBRARY_DIRS in your shell or as a cmake variable.")
   endif ()
 endif ()
 
-if (NOT EXISTS ${CLANG_LIBDIR})
-  execute_process(COMMAND ${LLVM_CONFIG} --libdir OUTPUT_VARIABLE CLANG_LIBDIR OUTPUT_STRIP_TRAILING_WHITESPACE)
-  if (NOT EXISTS ${CLANG_LIBDIR})
-    message(FATAL_ERROR "Could NOT find clang libdir. You can fix this by setting CLANG_LIBDIR in your shell or as a cmake variable.")
-  endif ()
-endif ()
-
-if (NOT CLANG_LIBS)
-  find_library(CLANG_LIB_HACK_CMAKECACHE_DOT_TEXT_BULLSHIT NAMES clang libclang HINTS ${CLANG_LIBDIR} ${CLANG_ROOT}/lib NO_DEFAULT_PATH)
-  if (CLANG_LIB_HACK_CMAKECACHE_DOT_TEXT_BULLSHIT)
-    set(CLANG_LIBS "${CLANG_LIB_HACK_CMAKECACHE_DOT_TEXT_BULLSHIT}")
+if (NOT LIBCLANG_LIBRARIES)
+  find_library(LIBCLANG_LIB_HACK_CMAKECACHE_DOT_TEXT_BULLSHIT NAMES clang libclang HINTS ${LIBCLANG_LIBRARY_DIRS} ${LIBCLANG_ROOT_DIR}/lib NO_DEFAULT_PATH)
+  if (LIBCLANG_LIB_HACK_CMAKECACHE_DOT_TEXT_BULLSHIT)
+    set(LIBCLANG_LIBRARIES "${LIBCLANG_LIB_HACK_CMAKECACHE_DOT_TEXT_BULLSHIT}")
   else ()
-    find_library(CLANG_LIBS NAMES clang libclang)
-    if (NOT EXISTS ${CLANG_LIBS})
-      set (CLANG_LIBS "-L${CLANG_LIBDIR}" "-lclang" "-Wl,-rpath,${CLANG_LIBDIR}")
+    find_library(LIBCLANG_LIBRARIES NAMES clang libclang)
+    if (NOT EXISTS ${LIBCLANG_LIBRARIES})
+      set (LIBCLANG_LIBRARIES "-L${LIBCLANG_LIBRARY_DIRS}" "-lclang" "-Wl,-rpath,${LIBCLANG_LIBRARY_DIRS}")
     endif ()
   endif ()
+  unset(LIBCLANG_LIB_HACK_CMAKECACHE_DOT_TEXT_BULLSHIT CACHE)
 endif ()
 
-execute_process(COMMAND ${LLVM_CONFIG} --version OUTPUT_VARIABLE CLANG_VERSION OUTPUT_STRIP_TRAILING_WHITESPACE)
-message("-- Using Clang ${CLANG_VERSION} from ${CLANG_LIBDIR} with LIBS ${CLANG_LIBS} and CXXFLAGS ${CLANG_CXXFLAGS}")
+set(LIBCLANG_LIBRARY ${LIBCLANG_LIBRARIES} CACHE FILEPATH "Path to the libclang library")
+execute_process(COMMAND ${LIBCLANG_LLVM_CONFIG_EXECUTABLE} --version OUTPUT_VARIABLE LIBCLANG_VERSION_STRING OUTPUT_STRIP_TRAILING_WHITESPACE)
+message("-- Using Clang version ${LIBCLANG_VERSION_STRING} from ${LIBCLANG_LIBRARY_DIRS} with CXXFLAGS ${LIBCLANG_CXXFLAGS}")
 
+# Handly the QUIETLY and REQUIRED arguments and set LIBCLANG_FOUND to TRUE if all listed variables are TRUE
+include(FindPackageHandleStandardArgs)
+find_package_handle_standard_args(LibClang DEFAULT_MSG LIBCLANG_LIBRARY LIBCLANG_CXXFLAGS LIBCLANG_LIBRARY_DIRS)
+mark_as_advanced(LIBCLANG_CXXFLAGS LIBCLANG_LIBRARY LIBCLANG_LLVM_CONFIG_EXECUTABLE)

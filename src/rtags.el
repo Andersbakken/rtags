@@ -603,7 +603,7 @@ to case differences."
           (rtags-select))))))
 
 (defun rtags-executable-find (exe)
-  (let ((result (and rtags-path (concat rtags-path "/bin/" exe))))
+  (let ((result (and rtags-path (expand-file-name exe rtags-path))))
     (if (and result (file-exists-p result))
         result
       (executable-find exe))))
@@ -2876,9 +2876,14 @@ definition."
   (let ((rtags-server-executable (rtags-executable-find "rdm")))
     (cond
      ;; Already started, nothing need to be done
-     ((and (processp rtags-rdm-process)
-           (not (eq (process-status rtags-rdm-process) 'exit))
-           (not (eq (process-status rtags-rdm-process) 'signal))))
+     ((or (and (processp rtags-rdm-process)
+	       (not (eq (process-status rtags-rdm-process) 'exit))
+	       (not (eq (process-status rtags-rdm-process) 'signal)))
+	  (dolist (pid (reverse (list-system-processes))) ;; Check in the sys-processes for rdm
+	    (let ((pname (cdr (assoc 'comm (process-attributes pid)))))
+	      (when (or (string-equal pname "rdm")
+			(string-equal pname "rdm.exe"))
+		(return t))))))
 
      ;; Executable not found or invalid
      ((or (null rtags-server-executable)
