@@ -620,7 +620,6 @@ void Project::onJobFinished(const std::shared_ptr<IndexerJob> &job, const std::s
 
     int symbolNames = 0;
     Set<uint32_t> visited = msg->visitedFiles();
-    error() << msg->diagnostics().keys() << visited;
     updateFixIts(visited, msg->fixIts());
     updateDependencies(msg);
     if (success) {
