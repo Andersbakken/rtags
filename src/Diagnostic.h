@@ -32,6 +32,8 @@ struct Diagnostic
     Type type;
     String message;
     int length;
+
+    bool isNull() const { return type == None; }
 };
 
 template <> inline Serializer &operator<<(Serializer &s, const Diagnostic &d)

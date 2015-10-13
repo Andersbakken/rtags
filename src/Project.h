@@ -232,6 +232,7 @@ private:
     void updateDependencies(const std::shared_ptr<IndexDataMessage> &msg);
     void loadFailed(uint32_t fileId);
     void updateFixIts(const Set<uint32_t> &visited, FixIts &fixIts);
+    Diagnostics updateDiagnostics(const Diagnostics &diagnostics);
     int startDirtyJobs(Dirty *dirty,
                        const UnsavedFiles &unsavedFiles = UnsavedFiles(),
                        const std::shared_ptr<Connection> &wait = std::shared_ptr<Connection>());

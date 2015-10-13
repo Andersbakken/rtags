@@ -466,25 +466,7 @@ enum DiagnosticsFormat {
     Diagnostics_Elisp
 };
 
-static inline bool remove(Diagnostics &diags, uint32_t file)
-{
-    Diagnostics::iterator it = diags.lower_bound(Location(file, 0, 0));
-    bool ret = false;
-    while (it != diags.end() && it->first.fileId() == file) {
-        diags.erase(it++);
-        ret = true;
-    }
-    return ret;
-}
-
-struct FormatDiagnosticsOperation {
-    DiagnosticsFormat format;
-    Diagnostics newDiags;
-    uint32_t fileId;
-    bool all;
-};
-
-static String formatDiagnostics(const FormatDiagnosticsOperation &op, Diagnostics &diagnostics)
+static String formatDiagnostics(const Diagnostics &diagnostics, DiagnosticsFormat format, uint32_t fileId = 0)
 {
     const char *severities[] = { "none", "warning", "error", "fixit", "skipped" };
 
@@ -509,7 +491,7 @@ static String formatDiagnostics(const FormatDiagnosticsOperation &op, Diagnostic
         ")"
     };
     std::function<String(const Location &, const Diagnostic &)> formatDiagnostic;
-    if (op.format == Diagnostics_XML) {
+    if (format == Diagnostics_XML) {
         formatDiagnostic = [severities](const Location &loc, const Diagnostic &diagnostic) {
             return String::format<256>("\n      <error line=\"%d\" column=\"%d\" %sseverity=\"%s\" message=\"%s\"/>",
                                        loc.line(), loc.column(),
@@ -526,30 +508,24 @@ static String formatDiagnostics(const FormatDiagnosticsOperation &op, Diagnostic
                                        RTags::elispEscape(diagnostic.message).constData());
         };
     }
-    if (op.fileId) {
-        String ret;
-        assert(op.newDiags.isEmpty());
-        assert(!op.all);
-        const Path path = Location::path(op.fileId);
-        ret << header[op.format]
-            << String::format<256>(startFile[op.format], path.constData());
+    String ret;
+    if (fileId) {
+        const Path path = Location::path(fileId);
+        ret << header[format]
+            << String::format<256>(startFile[format], path.constData());
 
-        Diagnostics::iterator it = diagnostics.lower_bound(Location(op.fileId, 0, 0));
+        Diagnostics::const_iterator it = diagnostics.lower_bound(Location(fileId, 0, 0));
         bool found = false;
-        while (it != diagnostics.end() && it->first.fileId() == op.fileId) {
+        while (it != diagnostics.end() && it->first.fileId() == fileId) {
             found = true;
             ret << formatDiagnostic(it->first, it->second);
             ++it;
         }
         if (!found) {
-            ret << String::format<256>(fileEmpty[op.format], path.constData());
+            ret << String::format<256>(fileEmpty[format], path.constData());
         }
-        ret << endFile[op.format] << trailer[op.format];
-        return ret;
-    }
-
-    if (op.all) {
-        String ret;
+        ret << endFile[format] << trailer[format];
+    } else {
         uint32_t lastFileId = 0;
         bool first = true;
         for (const auto &entry : diagnostics) {
@@ -557,62 +533,21 @@ static String formatDiagnostics(const FormatDiagnosticsOperation &op, Diagnostic
             const Diagnostic &diagnostic = entry.second;
             if (loc.fileId() != lastFileId) {
                 if (first) {
-                    ret = header[op.format];
+                    ret = header[format];
                     first = false;
                 }
                 if (lastFileId)
-                    ret << endFile[op.format];
+                    ret << endFile[format];
                 lastFileId = loc.fileId();
-                ret << String::format<256>(startFile[op.format], loc.path().constData());
+                ret << String::format<256>(startFile[format], loc.path().constData());
             }
-            diagnostics[entry.first] = entry.second;
             ret << formatDiagnostic(loc, diagnostic);
         }
         if (lastFileId)
-            ret << endFile[op.format];
+            ret << endFile[format];
         if (!first)
-            ret << trailer[op.format];
-        return ret;
+            ret << trailer[format];
     }
-
-    String ret;
-    bool first = true;
-    uint32_t lastFileId = 0;
-    for (const auto &entry : op.newDiags) {
-        const Location &loc = entry.first;
-        const Diagnostic &diagnostic = entry.second;
-        if (diagnostic.type == Diagnostic::None) {
-            if (lastFileId) {
-                ret << endFile[op.format];
-                lastFileId = 0;
-            }
-            if (::remove(diagnostics, entry.first.fileId())) {
-                if (first) {
-                    ret = header[op.format];
-                    first = false;
-                }
-                ret << String::format<256>(fileEmpty[op.format], loc.path().constData());
-            }
-        } else {
-            if (loc.fileId() != lastFileId) {
-                ::remove(diagnostics, entry.first.fileId());
-                if (first) {
-                    ret = header[op.format];
-                    first = false;
-                }
-                if (lastFileId)
-                    ret << endFile[op.format];
-                lastFileId = loc.fileId();
-                ret << String::format<256>(startFile[op.format], loc.path().constData());
-            }
-            diagnostics[entry.first] = entry.second;
-            ret << formatDiagnostic(loc, diagnostic);
-        }
-    }
-    if (lastFileId)
-        ret << endFile[op.format];
-    if (!first)
-        ret << trailer[op.format];
     return ret;
 }
 
@@ -655,7 +590,8 @@ void Project::onJobFinished(const std::shared_ptr<IndexerJob> &job, const std::s
     }
 
     const int idx = mJobCounter - mActiveJobs.size();
-    if (!msg->diagnostics().isEmpty() || options.options & Server::Progress) {
+    const Diagnostics changed = updateDiagnostics(msg->diagnostics());
+    if (!changed.isEmpty() || options.options & Server::Progress) {
         log([&](const std::shared_ptr<LogOutput> &output) {
                 if (output->testLog(RTags::Diagnostics)) {
                     DiagnosticsFormat format = Diagnostics_XML;
@@ -665,8 +601,7 @@ void Project::onJobFinished(const std::shared_ptr<IndexerJob> &job, const std::s
                         format = Diagnostics_Elisp;
                     }
                     if (!msg->diagnostics().isEmpty()) {
-                        const FormatDiagnosticsOperation op = { format, msg->diagnostics(), 0, false };
-                        const String log = formatDiagnostics(op, mDiagnostics);
+                        const String log = formatDiagnostics(changed, format);
                         if (!log.isEmpty()) {
                             output->log(log);
                         }
@@ -685,6 +620,7 @@ void Project::onJobFinished(const std::shared_ptr<IndexerJob> &job, const std::s
 
     int symbolNames = 0;
     Set<uint32_t> visited = msg->visitedFiles();
+    error() << msg->diagnostics().keys() << visited;
     updateFixIts(visited, msg->fixIts());
     updateDependencies(msg);
     if (success) {
@@ -728,8 +664,7 @@ void Project::diagnose(uint32_t fileId)
                     // true for testLog(RTags::Diagnostics)
                     format = Diagnostics_Elisp;
                 }
-                const FormatDiagnosticsOperation op = { format, Diagnostics(), fileId, false } ;
-                const String log = formatDiagnostics(op, mDiagnostics);
+                const String log = formatDiagnostics(mDiagnostics, format, fileId);
                 if (!log.isEmpty())
                     output->log(log);
             }
@@ -746,8 +681,7 @@ void Project::diagnoseAll()
                     // true for testLog(RTags::Diagnostics)
                     format = Diagnostics_Elisp;
                 }
-                const FormatDiagnosticsOperation op = { format, Diagnostics(), 0, true } ;
-                const String log = formatDiagnostics(op, mDiagnostics);
+                const String log = formatDiagnostics(mDiagnostics, format);
                 if (!log.isEmpty())
                     output->log(log);
             }
@@ -1223,6 +1157,32 @@ void Project::updateFixIts(const Set<uint32_t> &visited, FixIts &fixIts)
             mFixIts[v] = fit->second;
         }
     }
+}
+
+Diagnostics Project::updateDiagnostics(const Diagnostics &diagnostics)
+{
+    Diagnostics ret;
+    uint32_t lastFile = 0;
+    for (const auto &it : diagnostics) {
+        const uint32_t f = it.first.fileId();
+        if (f != lastFile) {
+            Diagnostics::iterator old = mDiagnostics.lower_bound(Location(f, 0, 0));
+            bool found = false;
+            while (old != mDiagnostics.end() && old->first.fileId() == f) {
+                found = true;
+                mDiagnostics.erase(old++);
+            }
+            lastFile = f;
+
+            if (it.second.isNull() && !found) {
+                continue;
+            }
+        }
+        if (!it.second.isNull())
+            mDiagnostics.insert(it);
+        ret.insert(it);
+    }
+    return ret;
 }
 
 String Project::fixIts(uint32_t fileId) const
@@ -2345,4 +2305,3 @@ void Project::removeSource(Sources::iterator it)
     Path::rmdir(sourceFilePath(fileId).constData());
     mSources.erase(it);
 }
-
