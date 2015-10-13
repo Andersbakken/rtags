@@ -1155,7 +1155,7 @@ to case differences."
     (when cf
       (insert "\tCalled from: " cf)))
 
-          ;; (car ref) " " (cadr ref))
+  ;; (car ref) " " (cadr ref))
   (set-text-properties (point-at-bol) (point-at-eol)
                        (list 'rtags-ref-containing-function-location (cdr (assoc 'cfl  ref)))))
 
@@ -2877,13 +2877,13 @@ definition."
     (cond
      ;; Already started, nothing need to be done
      ((or (and (processp rtags-rdm-process)
-	       (not (eq (process-status rtags-rdm-process) 'exit))
-	       (not (eq (process-status rtags-rdm-process) 'signal)))
-	  (dolist (pid (reverse (list-system-processes))) ;; Check in the sys-processes for rdm
-	    (let ((pname (cdr (assoc 'comm (process-attributes pid)))))
-	      (when (or (string-equal pname "rdm")
-			(string-equal pname "rdm.exe"))
-		(return t))))))
+               (not (eq (process-status rtags-rdm-process) 'exit))
+               (not (eq (process-status rtags-rdm-process) 'signal)))
+          (dolist (pid (reverse (list-system-processes))) ;; Check in the sys-processes for rdm
+            (let ((pname (cdr (assoc 'comm (process-attributes pid)))))
+              (when (or (string-equal pname "rdm")
+                        (string-equal pname "rdm.exe"))
+                (return t))))))
 
      ;; Executable not found or invalid
      ((or (null rtags-server-executable)
@@ -3121,37 +3121,43 @@ If `rtags-display-summary-as-tooltip' is t, a tooltip is displayed."
 (defun rtags-get-include-file-for-symbol ()
   "Insert #include declaration to buffer corresponding to the input symbol."
   (interactive)
-  (let ((input (completing-read-default "Symbol: " (function rtags-symbolname-complete) nil nil nil 'rtags-symbol-history))
-        (current-file (buffer-file-name)))
+  (let* ((token (rtags-current-token))
+         (prompt (if token
+                     (format "Symbol (default %s): " token)
+                   "Symbol: "))
+         (input (completing-read-default prompt (function rtags-symbolname-complete) nil nil nil 'rtags-symbol-history))
+         (current-file (buffer-file-name)))
     (setq rtags-symbol-history (cl-remove-duplicates rtags-symbol-history :from-end t :test 'equal))
-    (if (string= "" input)
-        (message "You entered an empty symbol. Try again.")
-      (let ((include (with-temp-buffer
-                       (rtags-call-rc :path current-file
-                                      "--include-file" input
-                                      (when rtags-symbolnames-case-insensitive "-I"))
-                       (cond ((= (point-min) (point-max))
-                              (message "RTags: No results") nil)
-                             ((= (count-lines (point-min) (point-max)) 1)
-                              (buffer-substring-no-properties (point-min) (1- (point-max))))
-                             (t
-                              ;; (message "Results:\n%s" (buffer-substring-no-properties (point-min) (point-max)))
-                              (completing-read "Choose: " (split-string (buffer-substring-no-properties (point-min) (point-max)) "\n" t) nil t))))))
-        (when include
-          (save-excursion
+    (when (string= "" input)
+      (if token
+          (setq input token)
+        (message "You entered an empty symbol. Try again.")))
+    (let ((include (with-temp-buffer
+                     (rtags-call-rc :path current-file
+                                    "--include-file" input
+                                    (when rtags-symbolnames-case-insensitive "-I"))
+                     (cond ((= (point-min) (point-max))
+                            (message "RTags: No results") nil)
+                           ((= (count-lines (point-min) (point-max)) 1)
+                            (buffer-substring-no-properties (point-min) (1- (point-max))))
+                           (t
+                            ;; (message "Results:\n%s" (buffer-substring-no-properties (point-min) (point-max)))
+                            (completing-read "Choose: " (split-string (buffer-substring-no-properties (point-min) (point-max)) "\n" t) nil t))))))
+      (when include
+        (save-excursion
+          (goto-char (point-min))
+          (if (re-search-forward include nil t)
+              (message "\"%s\" is already included" include)
             (goto-char (point-min))
-            (if (re-search-forward include nil t)
-                (message "\"%s\" is already included" include)
-              (goto-char (point-min))
-              (let ((head "\n")
-                    (tail ""))
-                (if (re-search-forward "^# *include\\>" nil t)
-                    (end-of-line)
-                  (setq head "")
-                  (setq tail "\n")
-                  (goto-char (point-min)))
-                (insert head include tail))
-              (message "Added %s" include))))))))
+            (let ((head "\n")
+                  (tail ""))
+              (if (re-search-forward "^# *include\\>" nil t)
+                  (end-of-line)
+                (setq head "")
+                (setq tail "\n")
+                (goto-char (point-min)))
+              (insert head include tail))
+            (message "Added %s" include))))))))
 
 (defun rtags-check-includes ()
   (interactive)
