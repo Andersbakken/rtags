@@ -3157,7 +3157,7 @@ If `rtags-display-summary-as-tooltip' is t, a tooltip is displayed."
                 (setq tail "\n")
                 (goto-char (point-min)))
               (insert head include tail))
-            (message "Added %s" include))))))))
+            (message "Added %s" include)))))))
 
 (defun rtags-check-includes ()
   (interactive)
