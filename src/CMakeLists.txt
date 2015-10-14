@@ -55,6 +55,9 @@ if (CMAKE_BUILD_TYPE MATCHES "Debug")
   set(RCT_EVENTLOOP_CALLBACK_TIME_THRESHOLD 2000)
 endif ()
 
+if("${LIBCLANG_LIBDIR}" STREQUAL "")
+  message(FATAL_ERROR "Define LIBCLANG_LIBDIR is empty, please provide the path to the clang library. See README for more help.")
+endif()
 add_definitions("-DCLANG_LIBDIR=${LIBCLANG_LIBDIR}")
 add_definitions("-DOS_${CMAKE_SYSTEM_NAME}")
 
