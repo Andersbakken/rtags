@@ -71,6 +71,7 @@ int IncludeFileJob::execute()
                 case CXCursor_ClassDecl:
                 case CXCursor_StructDecl:
                 case CXCursor_ClassTemplate:
+                case CXCursor_TypedefDecl:
                     if (!sym.isDefinition())
                         break;
                 case CXCursor_FunctionDecl:
