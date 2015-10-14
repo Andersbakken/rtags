@@ -43,7 +43,8 @@ add_subdirectory(rct)
 
 include(${CMAKE_CURRENT_LIST_DIR}/rct/compiler.cmake)
 # Set further compile options after including the rct compiler option.
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wstrict-aliasing=2")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wstrict-aliasing=2 -fno-exceptions -Wcast-qual -fPIC")
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wstrict-aliasing=2 -Wcast-qual -fPIC")
 if (NOT CYGWIN)
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fstack-protector-all -Wstack-protector")
   set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fstack-protector-all -Wstack-protector")
@@ -136,7 +137,7 @@ if (NOT "${PROJECT_SOURCE_DIR}" STREQUAL "${PROJECT_BINARY_DIR}")
   file (COPY ${binFiles} DESTINATION "${PROJECT_BINARY_DIR}/bin")
 endif ()
 
-find_package(bash-completion QUIET)
+find_package(bash-completion)
 if (BASH_COMPLETION_FOUND)
   file (MAKE_DIRECTORY "${PROJECT_BINARY_DIR}/completions")
   execute_process(COMMAND ${CMAKE_COMMAND} -E create_symlink rtags rc
