@@ -43,7 +43,8 @@ add_subdirectory(rct)
 
 include(${CMAKE_CURRENT_LIST_DIR}/rct/compiler.cmake)
 # Set further compile options after including the rct compiler option.
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wstrict-aliasing=2")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wstrict-aliasing=2 -fno-exceptions -Wcast-qual -fPIC")
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wstrict-aliasing=2 -Wcast-qual -fPIC")
 if (NOT CYGWIN)
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fstack-protector-all -Wstack-protector")
   set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fstack-protector-all -Wstack-protector")
@@ -54,6 +55,9 @@ if (CMAKE_BUILD_TYPE MATCHES "Debug")
   set(RCT_EVENTLOOP_CALLBACK_TIME_THRESHOLD 2000)
 endif ()
 
+if("${LIBCLANG_LIBDIR}" STREQUAL "")
+  message(FATAL_ERROR "Define LIBCLANG_LIBDIR is empty, please provide the path to the clang library. See README for more help.")
+endif()
 add_definitions("-DCLANG_LIBDIR=${LIBCLANG_LIBDIR}")
 add_definitions("-DOS_${CMAKE_SYSTEM_NAME}")
 
@@ -136,7 +140,9 @@ if (NOT "${PROJECT_SOURCE_DIR}" STREQUAL "${PROJECT_BINARY_DIR}")
   file (COPY ${binFiles} DESTINATION "${PROJECT_BINARY_DIR}/bin")
 endif ()
 
-find_package(bash-completion QUIET)
+# Install config
+install(CODE "message(\"Installing rtags...\")")
+find_package(bash-completion)
 if (BASH_COMPLETION_FOUND)
   file (MAKE_DIRECTORY "${PROJECT_BINARY_DIR}/completions")
   execute_process(COMMAND ${CMAKE_COMMAND} -E create_symlink rtags rc
@@ -150,7 +156,6 @@ if (BASH_COMPLETION_FOUND)
 else()
   message(STATUS "Bash completion file will not be installed, as cmake bash-completion package was not found!")
 endif()
-install(CODE "message(\"Installing rtags...\")")
 install(TARGETS rdm rc rp RUNTIME DESTINATION bin COMPONENT rtags)
 install(FILES ../man/man7/rc.7 ../man/man7/rdm.7 DESTINATION share/man/man7/)
 install(FILES company-rtags.el rtags-ac.el rtags.el DESTINATION share/emacs/site-lisp/rtags/)

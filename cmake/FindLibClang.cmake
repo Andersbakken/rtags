@@ -10,7 +10,7 @@
 #   the llvm-config tool to get various information.
 # ``LIBCLANG_LIBRARIES``
 #   the clang libraries to link against to use Clang/LLVM.
-# ``LIBCLANG_LIBRARY_DIRS``
+# ``LIBCLANG_LIBDIR``
 #   the directory where the clang libraries are located.
 # ``LIBCLANG_FOUND``
 #   true if libclang was found
@@ -72,10 +72,8 @@ if (NOT LIBCLANG_CXXFLAGS)
     endif ()
     set(LIBCLANG_CXXFLAGS "-I${LIBCLANG_CXXFLAGS}")
   endif ()
+  string(REGEX REPLACE " ?-([Og][0-9]*|std=c\\+\\+..|(W|f)[a-zA-Z-]*|DNDEBUG) ?" "" LIBCLANG_CXXFLAGS "${LIBCLANG_CXXFLAGS}")
   set(LIBCLANG_CXXFLAGS ${LIBCLANG_CXXFLAGS} CACHE STRING "The LLVM C++ compiler flags needed to compile LLVM based applications.")
-  string(REGEX REPLACE "-[Og][0-9]*" "" LIBCLANG_CXXFLAGS "${LIBCLANG_CXXFLAGS}")
-  string(REPLACE "-DNDEBUG" "" LIBCLANG_CXXFLAGS "${LIBCLANG_CXXFLAGS}")
-  string(REPLACE "-std=c++11" "" LIBCLANG_CXXFLAGS "${LIBCLANG_CXXFLAGS}")
   unset(LIBCLANG_CXXFLAGS_HACK_CMAKECACHE_DOT_TEXT_BULLSHIT CACHE)
 endif ()
 
@@ -84,6 +82,7 @@ if (NOT EXISTS ${LIBCLANG_LIBDIR})
   if (NOT EXISTS ${LIBCLANG_LIBDIR})
     message(FATAL_ERROR "Could NOT find clang libdir. You can fix this by setting LIBCLANG_LIBDIR in your shell or as a cmake variable.")
   endif ()
+  set(LIBCLANG_LIBDIR ${LIBCLANG_LIBDIR} CACHE STRING "Path to the clang library.")
 endif ()
 
 if (NOT LIBCLANG_LIBRARIES)
@@ -106,4 +105,4 @@ message("-- Using Clang version ${LIBCLANG_VERSION_STRING} from ${LIBCLANG_LIBDI
 # Handly the QUIETLY and REQUIRED arguments and set LIBCLANG_FOUND to TRUE if all listed variables are TRUE
 include(FindPackageHandleStandardArgs)
 find_package_handle_standard_args(LibClang DEFAULT_MSG LIBCLANG_LIBRARY LIBCLANG_CXXFLAGS LIBCLANG_LIBDIR)
-mark_as_advanced(LIBCLANG_CXXFLAGS LIBCLANG_LIBRARY LIBCLANG_LLVM_CONFIG_EXECUTABLE)
+mark_as_advanced(LIBCLANG_CXXFLAGS LIBCLANG_LIBRARY LIBCLANG_LLVM_CONFIG_EXECUTABLE LIBCLANG_LIBDIR)

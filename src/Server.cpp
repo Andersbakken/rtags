@@ -66,13 +66,9 @@
 #include <launch.h>
 #endif
 
-#if not defined CLANG_LIBDIR
-#error CLANG_LIBDIR not defined during CMake generation
-#else
 #define TO_STR1(x) #x
 #define TO_STR(x)  TO_STR1(x)
 #define CLANG_LIBDIR_STR TO_STR(CLANG_LIBDIR)
-#endif
 
 // externed in files that are shared by rdm and rc
 const Server::Options *serverOptions()
