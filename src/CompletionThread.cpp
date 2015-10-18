@@ -136,17 +136,16 @@ static inline bool isPartOfSymbol(char ch)
     return isalnum(ch) || ch == '_';
 }
 
-int CompletionThread::compareCompletionCandidates(const void *left, const void *right)
+bool CompletionThread::compareCompletionCandidates(Completions::Candidate *l,
+                                                   Completions::Candidate *r)
 {
-    const Completions::Candidate *l = reinterpret_cast<const Completions::Candidate*>(left);
-    const Completions::Candidate *r = reinterpret_cast<const Completions::Candidate*>(right);
     if (l->priority != r->priority)
-        return l->priority < r->priority ? -1 : 1;
+        return l->priority < r->priority;
     if ((l->distance != -1) != (r->distance != -1))
-        return l->distance != -1 ? -1 : 1;
+        return l->distance != -1;
     if (l->distance != r->distance)
-        return l->distance > r->distance ? -1 : 1;
-    return strcmp(l->completion.constData(), r->completion.constData());
+        return l->distance > r->distance;
+    return l->completion < r->completion;
 }
 
 #if 0
@@ -310,7 +309,9 @@ void CompletionThread::process(Request *request)
                                                           &unsaved, unsaved.Length ? 1 : 0, completionFlags);
     completeTime = sw.restart();
     if (results) {
-        Completions::Candidate *nodes = new Completions::Candidate[results->NumResults];
+        std::vector<Completions::Candidate> nodes;
+        nodes.reserve(results->NumResults);
+
         int nodeCount = 0;
         Map<Token, int> tokens;
         if (!request->unsaved.isEmpty()) {
@@ -332,7 +333,10 @@ void CompletionThread::process(Request *request)
 
             const int priority = clang_getCompletionPriority(string);
 
-            Completions::Candidate &node = nodes[nodeCount];
+            if (size_t(nodeCount) == nodes.size())
+                nodes.emplace_back();
+
+            Completions::Candidate &node = nodes.back();
             node.cursorKind = kind;
             node.priority = priority;
             node.signature.reserve(256);
@@ -373,7 +377,13 @@ void CompletionThread::process(Request *request)
             node.signature.clear();
         }
         if (nodeCount) {
-            qsort(nodes, nodeCount, sizeof(Completions::Candidate), compareCompletionCandidates);
+            // Sort pointers instead of shuffling candidates around
+            std::vector<Completions::Candidate*> nodesPtr;
+            nodesPtr.reserve(nodeCount);
+            for (auto& n : nodes) nodesPtr.push_back(&n);
+
+            std::sort(nodesPtr.begin(), nodesPtr.end(), compareCompletionCandidates);
+
             Completions *&c = cache->completionsMap[request->location];
             if (c) {
                 cache->completionsList.moveToEnd(c);
@@ -389,12 +399,11 @@ void CompletionThread::process(Request *request)
             }
             c->candidates.resize(nodeCount);
             for (int i=0; i<nodeCount; ++i)
-                c->candidates[i] = nodes[i];
+                c->candidates[i] = std::move(*nodesPtr[i]);
             printCompletions(c->candidates, request);
             processTime = sw.elapsed();
             warning("Processed %s, parse %d/%d, complete %d, process %d => %d completions (unsaved %d)",
                     sourceFile.constData(), parseTime, reparseTime, completeTime, processTime, nodeCount, request->unsaved.size());
-            delete[] nodes;
         } else {
             printCompletions(List<Completions::Candidate>(), request);
             error() << "No completion results available" << request->location << results->NumResults;
