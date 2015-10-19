@@ -152,7 +152,7 @@ endif ()
 
 foreach(el rtags.el rtags-ac.el company-rtags.el)
     if (NOT "${PROJECT_SOURCE_DIR}" STREQUAL "${PROJECT_BINARY_DIR}")
-        configure_file(${el} ${CMAKE_CURRENT_BINARY_DIR}/${el})
+        configure_file(${el} ${CMAKE_CURRENT_BINARY_DIR}/${el} @ONLY)
     endif ()
     add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/${el}c
         COMMAND ${EMACS_EXECUTABLE} -batch -l ${CMAKE_CURRENT_LIST_DIR}/compile-shim.el -l ${CMAKE_CURRENT_LIST_DIR}/rtags.el -f batch-byte-compile
