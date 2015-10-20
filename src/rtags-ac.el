@@ -27,12 +27,7 @@
 (require 'auto-complete)
 (require 'rtags)
 
-(defconst rtags-location-regx
-  (rx (group (zero-or-more (not (any ":"))))
-      ":"
-      (group (zero-or-more digit))
-      ":"
-      (group (zero-or-more digit))))
+(defconst rtags-location-regx "\\([^:]*\\):\\([0-9]*\\):\\([0-9]*\\)")
 
 (defcustom rtags-ac-expand-functions t
   "Whether to expand function parameter lists in auto-complete mode"
