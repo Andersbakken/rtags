@@ -19,7 +19,7 @@ matrix:
           addons:
             apt:
               sources: ubuntu-toolchain-r-test
-              packages: g++-4.8
+              packages: g++-4.8 emacs
 
         - env: COMPILER_VERSION=4.9
           os: linux
@@ -27,7 +27,7 @@ matrix:
           addons:
             apt:
               sources: ubuntu-toolchain-r-test
-              packages: g++-4.9
+              packages: g++-4.9 emacs
 
         - env: COMPILER_VERSION=3.5
           os: linux
@@ -37,7 +37,7 @@ matrix:
               sources:
                 - llvm-toolchain-precise-3.5
                 - ubuntu-toolchain-r-test
-              packages: clang-3.5
+              packages: clang-3.5 emacs
 
         - env:
             - COMPILER_VERSION=3.6
@@ -49,7 +49,7 @@ matrix:
               sources:
                 - llvm-toolchain-precise-3.6
                 - ubuntu-toolchain-r-test
-              packages: clang-3.6
+              packages: clang-3.6 emacs
 
 install:
   - pip install --user --upgrade nose
