@@ -7,6 +7,7 @@
 (defun ac-prefix-symbol (&rest args))
 (defun ac-start (&rest args))
 (defun ac-define-source (&rest args))
+(defun cl-mapcan (&rest args))
 (defvar company-async-wait nil)
 (defvar rtags nil)
 (defvar ac-last-completion nil)
