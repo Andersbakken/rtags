@@ -1,40 +1,40 @@
 if (NOT CMAKE_BUILD_TYPE)
-  set(CMAKE_BUILD_TYPE Release)
+    set(CMAKE_BUILD_TYPE Release)
 endif ()
 
-SET(CMAKE_SKIP_BUILD_RPATH            FALSE)
-SET(CMAKE_BUILD_WITH_INSTALL_RPATH    FALSE)
-SET(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
+set(CMAKE_SKIP_BUILD_RPATH            FALSE)
+set(CMAKE_BUILD_WITH_INSTALL_RPATH    FALSE)
+set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
 
 # Set RPATH when installing to a custom (non-system) directory
-LIST(FIND CMAKE_PLATFORM_IMPLICIT_LINK_DIRECTORIES "${CMAKE_INSTALL_PREFIX}/lib" isSystemDir)
-IF("${isSystemDir}" STREQUAL "-1")
-  SET(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/lib")
-ENDIF("${isSystemDir}" STREQUAL "-1")
+list(FIND CMAKE_PLATFORM_IMPLICIT_LINK_DIRECTORIES "${CMAKE_INSTALL_PREFIX}/lib" isSystemDir)
+if ("${isSystemDir}" STREQUAL "-1")
+    set(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/lib")
+endif ()
 
 include(${CMAKE_SOURCE_DIR}/cmake/EnsureLibraries.cmake)
 
 if (NOT DEFINED LIBCLANG_LIBRARIES)
-  set(LIBCLANG_LIBRARIES $ENV{LIBCLANG_LIBRARIES})
-endif()
+    set(LIBCLANG_LIBRARIES $ENV{LIBCLANG_LIBRARIES})
+endif ()
 
 if (NOT DEFINED LIBCLANG_CXXFLAGS)
-  set(LIBCLANG_CXXFLAGS $ENV{LIBCLANG_CXXFLAGS})
-endif()
+    set(LIBCLANG_CXXFLAGS $ENV{LIBCLANG_CXXFLAGS})
+endif ()
 
 if (NOT DEFINED LIBCLANG_LIBDIR)
-  set(LIBCLANG_LIBDIR $ENV{LIBCLANG_LIBDIR})
+    set(LIBCLANG_LIBDIR $ENV{LIBCLANG_LIBDIR})
 endif()
 
 if (NOT DEFINED LIBCLANG_LIBRARIES OR NOT DEFINED LIBCLANG_CXXFLAGS OR NOT DEFINED LIBCLANG_LIBDIR)
-  find_package(LibClang REQUIRED)
-  set(CMAKE_CXX_FLAGS ${LIBCLANG_CXXFLAGS})
+    find_package(LibClang REQUIRED)
+    set(CMAKE_CXX_FLAGS ${LIBCLANG_CXXFLAGS})
 endif ()
 
 find_package(Curses REQUIRED)
 
 if (EXISTS ${CLANG_COMPILATION_INCLUDE})
-  add_definitions(-DHAVE_CXCOMPILATIONDATABASE)
+    add_definitions(-DHAVE_CXCOMPILATIONDATABASE)
 endif ()
 
 set(RCT_STATIC 1)
@@ -46,48 +46,48 @@ include(${CMAKE_CURRENT_LIST_DIR}/rct/compiler.cmake)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wstrict-aliasing=2 -fno-exceptions -Wcast-qual -fPIC")
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wstrict-aliasing=2 -Wcast-qual -fPIC")
 if (NOT CYGWIN)
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fstack-protector-all -Wstack-protector")
-  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fstack-protector-all -Wstack-protector")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fstack-protector-all -Wstack-protector")
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fstack-protector-all -Wstack-protector")
 endif ()
 
 if (CMAKE_BUILD_TYPE MATCHES "Debug")
-  add_definitions("-DRTAGS_DEBUG")
-  set(RCT_EVENTLOOP_CALLBACK_TIME_THRESHOLD 2000)
+    add_definitions("-DRTAGS_DEBUG")
+    set(RCT_EVENTLOOP_CALLBACK_TIME_THRESHOLD 2000)
 endif ()
 
 if("${LIBCLANG_LIBDIR}" STREQUAL "")
-  message(FATAL_ERROR "Define LIBCLANG_LIBDIR is empty, please provide the path to the clang library. See README for more help.")
+    message(FATAL_ERROR "Define LIBCLANG_LIBDIR is empty, please provide the path to the clang library. See README for more help.")
 endif()
 add_definitions("-DCLANG_LIBDIR=${LIBCLANG_LIBDIR}")
 add_definitions("-DOS_${CMAKE_SYSTEM_NAME}")
 
 if (CMAKE_SYSTEM_NAME MATCHES "FreeBSD")
-  add_definitions(-D__LONG_LONG_SUPPORTED)
+    add_definitions(-D__LONG_LONG_SUPPORTED)
 endif ()
 
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/bin)
 add_definitions("-DRTAGS_BIN=\"${PROJECT_BINARY_DIR}/bin/\"")
 
 set(RTAGS_SOURCES
-  IndexMessage.cpp
-  Location.cpp
-  Symbol.cpp
-  QueryMessage.cpp
-  RTags.cpp)
+    IndexMessage.cpp
+    Location.cpp
+    Symbol.cpp
+    QueryMessage.cpp
+    RTags.cpp)
 
 add_library(rtags STATIC ${RTAGS_SOURCES})
 
 include_directories(${CMAKE_CURRENT_LIST_DIR}
-  rct/include/
-  rct
-  ${CMAKE_CURRENT_BINARY_DIR}/rct/include/rct)
+    rct/include/
+    rct
+    ${CMAKE_CURRENT_BINARY_DIR}/rct/include/rct)
 
 if (CMAKE_SYSTEM_NAME MATCHES "Darwin")
-  set(START_GROUP "")
-  set(END_GROUP "")
+    set(START_GROUP "")
+    set(END_GROUP "")
 else ()
-  set(START_GROUP "-Wl,--start-group")
-  set(END_GROUP "-Wl,--end-group")
+    set(START_GROUP "-Wl,--start-group")
+    set(END_GROUP "-Wl,--end-group")
 endif ()
 
 add_executable(rc rc.cpp RClient.cpp)
@@ -97,30 +97,30 @@ set(RTAGS_CLANG_LIBRARIES rtags rct ${START_GROUP} ${LIBCLANG_LIBRARIES} ${END_G
 set(RTAGS_CLANG_SOURCES RTagsClang.cpp Source.cpp)
 
 add_executable(rdm
-  rdm.cpp
-  ClassHierarchyJob.cpp
-  CompilerManager.cpp
-  CompletionThread.cpp
-  SymbolInfoJob.cpp
-  DependenciesJob.cpp
-  DumpThread.cpp
-  FileManager.cpp
-  FindFileJob.cpp
-  FindSymbolsJob.cpp
-  FollowLocationJob.cpp
-  IncludeFileJob.cpp
-  IndexerJob.cpp
-  JobScheduler.cpp
-  ListSymbolsJob.cpp
-  Preprocessor.cpp
-  Project.cpp
-  QueryJob.cpp
-  ReferencesJob.cpp
-  ScanThread.cpp
-  Server.cpp
-  StatusJob.cpp
-  Symbol.cpp
-  ${RTAGS_CLANG_SOURCES})
+    rdm.cpp
+    ClassHierarchyJob.cpp
+    CompilerManager.cpp
+    CompletionThread.cpp
+    SymbolInfoJob.cpp
+    DependenciesJob.cpp
+    DumpThread.cpp
+    FileManager.cpp
+    FindFileJob.cpp
+    FindSymbolsJob.cpp
+    FollowLocationJob.cpp
+    IncludeFileJob.cpp
+    IndexerJob.cpp
+    JobScheduler.cpp
+    ListSymbolsJob.cpp
+    Preprocessor.cpp
+    Project.cpp
+    QueryJob.cpp
+    ReferencesJob.cpp
+    ScanThread.cpp
+    Server.cpp
+    StatusJob.cpp
+    Symbol.cpp
+    ${RTAGS_CLANG_SOURCES})
 
 target_link_libraries(rdm ${RTAGS_CLANG_LIBRARIES})
 
@@ -130,14 +130,14 @@ add_executable(rp rp.cpp ClangIndexer.cpp ${RTAGS_CLANG_SOURCES})
 target_link_libraries(rp ${RTAGS_CLANG_LIBRARIES})
 
 if (CYGWIN)
-  EnsureLibraries(rdm rct)
+    EnsureLibraries(rdm rct)
 endif ()
 
 if (NOT "${PROJECT_SOURCE_DIR}" STREQUAL "${PROJECT_BINARY_DIR}")
-  file (GLOB binFiles "${PROJECT_SOURCE_DIR}/bin/*")
-  file (MAKE_DIRECTORY "${PROJECT_BINARY_DIR}/bin")
-  message("Copying files from ${PROJECT_SOURCE_DIR}/bin to ${PROJECT_BINARY_DIR}/bin")
-  file (COPY ${binFiles} DESTINATION "${PROJECT_BINARY_DIR}/bin")
+    file (GLOB binFiles "${PROJECT_SOURCE_DIR}/bin/*")
+    file (MAKE_DIRECTORY "${PROJECT_BINARY_DIR}/bin")
+    message("Copying files from ${PROJECT_SOURCE_DIR}/bin to ${PROJECT_BINARY_DIR}/bin")
+    file (COPY ${binFiles} DESTINATION "${PROJECT_BINARY_DIR}/bin")
 endif ()
 
 # find emacs and complain if not found
@@ -150,35 +150,40 @@ else ()
     endif ()
 endif ()
 
+set(RTAGS_ELISP_SOURCES "")
 foreach(el rtags.el rtags-ac.el company-rtags.el)
+    list(APPEND RTAGS_ELISP_SOURCES ${el})
     if (NOT "${PROJECT_SOURCE_DIR}" STREQUAL "${PROJECT_BINARY_DIR}")
         configure_file(${el} ${CMAKE_CURRENT_BINARY_DIR}/${el} @ONLY)
     endif ()
-    add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/${el}c
-        COMMAND ${EMACS_EXECUTABLE} -batch -l ${CMAKE_CURRENT_LIST_DIR}/compile-shim.el -l ${CMAKE_CURRENT_LIST_DIR}/rtags.el -f batch-byte-compile
-        ${CMAKE_CURRENT_BINARY_DIR}/${el}
-        DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/${el}
-        WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
-        COMMENT "Creating byte-compiled Emacs lisp ${CMAKE_CURRENT_BINARY_DIR}/${el}c")
-    add_custom_target(emacs_byte_compile_${el} ALL DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/${el}c)
+    if (NOT RTAGS_NO_ELISP_BYTECOMPILE)
+    list(APPEND RTAGS_ELISP_SOURCES ${el}c)
+        add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/${el}c
+            COMMAND ${EMACS_EXECUTABLE} -batch -l ${CMAKE_CURRENT_LIST_DIR}/compile-shim.el -l ${CMAKE_CURRENT_LIST_DIR}/rtags.el -f batch-byte-compile
+            ${CMAKE_CURRENT_BINARY_DIR}/${el}
+            DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/${el}
+            WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+            COMMENT "Creating byte-compiled Emacs lisp ${CMAKE_CURRENT_BINARY_DIR}/${el}c")
+        add_custom_target(emacs_byte_compile_${el} ALL DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/${el}c)
+    endif ()
 endforeach()
 
 install(CODE "message(\"Installing rtags...\")")
 find_package(bash-completion)
 if (BASH_COMPLETION_FOUND)
-  file (MAKE_DIRECTORY "${PROJECT_BINARY_DIR}/completions")
-  execute_process(COMMAND ${CMAKE_COMMAND} -E create_symlink rtags rc
-    COMMAND ${CMAKE_COMMAND} -E create_symlink rtags rdm
-    WORKING_DIRECTORY "${PROJECT_BINARY_DIR}/completions")
-  install(FILES rtags-bash-completion.bash DESTINATION ${BASH_COMPLETION_COMPLETIONSDIR}
-    PERMISSIONS OWNER_WRITE OWNER_READ GROUP_READ WORLD_READ
-    RENAME rtags)
-  install(FILES "${PROJECT_BINARY_DIR}/completions/rc" "${PROJECT_BINARY_DIR}/completions/rdm"
-    DESTINATION ${BASH_COMPLETION_COMPLETIONSDIR})
+    file (MAKE_DIRECTORY "${PROJECT_BINARY_DIR}/completions")
+    execute_process(COMMAND ${CMAKE_COMMAND} -E create_symlink rtags rc
+        COMMAND ${CMAKE_COMMAND} -E create_symlink rtags rdm
+        WORKING_DIRECTORY "${PROJECT_BINARY_DIR}/completions")
+    install(FILES rtags-bash-completion.bash DESTINATION ${BASH_COMPLETION_COMPLETIONSDIR}
+        PERMISSIONS OWNER_WRITE OWNER_READ GROUP_READ WORLD_READ
+        RENAME rtags)
+    install(FILES "${PROJECT_BINARY_DIR}/completions/rc" "${PROJECT_BINARY_DIR}/completions/rdm"
+        DESTINATION ${BASH_COMPLETION_COMPLETIONSDIR})
 else()
-  message(STATUS "Bash completion file will not be installed, as cmake bash-completion package was not found!")
+    message(STATUS "Bash completion file will not be installed, as cmake bash-completion package was not found!")
 endif()
 install(TARGETS rdm rc rp RUNTIME DESTINATION bin COMPONENT rtags)
 install(FILES ../bin/gcc-rtags-wrapper.sh DESTINATION bin)
 install(FILES ../man/man7/rc.7 ../man/man7/rdm.7 DESTINATION share/man/man7/)
-install(FILES company-rtags.el company-rtags.elc rtags-ac.el rtags-ac.elc rtags.el rtags.elc DESTINATION share/emacs/site-lisp/rtags/)
+install(FILES ${RTAGS_ELISP_SOURCES} DESTINATION share/emacs/site-lisp/rtags/)
