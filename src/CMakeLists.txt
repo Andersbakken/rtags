@@ -161,7 +161,6 @@ foreach(el rtags.el rtags-ac.el company-rtags.el)
         WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
         COMMENT "Creating byte-compiled Emacs lisp ${CMAKE_CURRENT_BINARY_DIR}/${el}c")
     add_custom_target(emacs_byte_compile_${el} ALL DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/${el}c)
-    message("SHIT ${el}")
 endforeach()
 
 install(CODE "message(\"Installing rtags...\")")
