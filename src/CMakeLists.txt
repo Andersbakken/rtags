@@ -154,19 +154,19 @@ if (NOT RTAGS_ELISP_INSTALL_LOCATION)
     set(RTAGS_ELISP_INSTALL_LOCATION ${CMAKE_INSTALL_PREFIX}/share/emacs/site-lisp/rtags/)
 endif ()
 
+set(RTAGS_ELISP_SOURCES "")
 foreach(el rtags.el rtags-ac.el company-rtags.el)
-    if (NOT "${PROJECT_SOURCE_DIR}" STREQUAL "${PROJECT_BINARY_DIR}")
-        install(FILES ${el} DESTINATION ${RTAGS_ELISP_INSTALL_LOCATION})
-    endif ()
+    file(COPY ${el} DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
+    list(APPEND RTAGS_ELISP_SOURCES ${el})
     if (NOT RTAGS_NO_ELISP_BYTECOMPILE)
+        list(APPEND RTAGS_ELISP_SOURCES ${el})
         add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/${el}c
-            COMMAND ${EMACS_EXECUTABLE} -batch -l ${CMAKE_CURRENT_LIST_DIR}/compile-shim.el -l ${CMAKE_CURRENT_LIST_DIR}/rtags.el -f batch-byte-compile
+            COMMAND ${EMACS_EXECUTABLE} -batch -l ${CMAKE_CURRENT_SOURCE_DIR}/compile-shim.el -l ${CMAKE_CURRENT_SOURCE_DIR}/rtags.el -f batch-byte-compile
             ${CMAKE_CURRENT_BINARY_DIR}/${el}
             DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/${el}
             WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
             COMMENT "Creating byte-compiled Emacs lisp ${CMAKE_CURRENT_BINARY_DIR}/${el}c")
         add_custom_target(emacs_byte_compile_${el} ALL DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/${el}c)
-        install(FILES ${CMAKE_CURRENT_BINARY_DIR}/${el}c DESTINATION ${RTAGS_ELISP_INSTALL_LOCATION})
     endif ()
 endforeach()
 
@@ -186,3 +186,4 @@ endif()
 install(TARGETS rdm rc rp RUNTIME DESTINATION bin COMPONENT rtags)
 install(FILES ../bin/gcc-rtags-wrapper.sh DESTINATION bin)
 install(FILES ../man/man7/rc.7 ../man/man7/rdm.7 DESTINATION share/man/man7/)
+install(FILES ${RTAGS_ELSIP_SOURCES} DESTINATION ${RTAGS_ELISP_INSTALL_LOCATION})
