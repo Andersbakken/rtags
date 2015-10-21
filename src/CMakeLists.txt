@@ -153,6 +153,7 @@ endif ()
 if (NOT RTAGS_ELISP_INSTALL_LOCATION)
     set(RTAGS_ELISP_INSTALL_LOCATION ${CMAKE_INSTALL_PREFIX}/share/emacs/site-lisp/rtags/)
 endif ()
+
 foreach(el rtags.el rtags-ac.el company-rtags.el)
     if (NOT "${PROJECT_SOURCE_DIR}" STREQUAL "${PROJECT_BINARY_DIR}")
         install(FILES ${el} DESTINATION ${RTAGS_ELISP_INSTALL_LOCATION})
@@ -170,8 +171,8 @@ foreach(el rtags.el rtags-ac.el company-rtags.el)
 endforeach()
 
 install(CODE "message(\"Installing rtags...\")")
-find_package(bash-completion)
-if (BASH_COMPLETION_FOUND)
+include(BashCompletion)
+if(BASH_COMPLETION_FOUND)
     file (MAKE_DIRECTORY "${PROJECT_BINARY_DIR}/completions")
     execute_process(COMMAND ${CMAKE_COMMAND} -E create_symlink rtags rc
         COMMAND ${CMAKE_COMMAND} -E create_symlink rtags rdm
@@ -181,8 +182,6 @@ if (BASH_COMPLETION_FOUND)
         RENAME rtags)
     install(FILES "${PROJECT_BINARY_DIR}/completions/rc" "${PROJECT_BINARY_DIR}/completions/rdm"
         DESTINATION ${BASH_COMPLETION_COMPLETIONSDIR})
-else()
-    message(STATUS "Bash completion file will not be installed, as cmake bash-completion package was not found!")
 endif()
 install(TARGETS rdm rc rp RUNTIME DESTINATION bin COMPONENT rtags)
 install(FILES ../bin/gcc-rtags-wrapper.sh DESTINATION bin)
