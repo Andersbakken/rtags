@@ -413,6 +413,9 @@ String ClangIndexer::addNamePermutations(const CXCursor &cursor, const Location 
         }
     } while (RTags::needsQualifiers(kind));
 
+    if (static_cast<size_t>(pos) == sizeof(buf) - 1) {
+        return String();
+    }
     String type;
     switch (originalKind) {
     case CXCursor_StructDecl:
