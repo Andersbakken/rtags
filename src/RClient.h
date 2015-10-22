@@ -49,6 +49,7 @@ public:
         CurrentFile,
         CurrentProject,
         CursorKind,
+        DebugLocations,
         DeclarationOnly,
         DefinitionOnly,
         DeleteProject,

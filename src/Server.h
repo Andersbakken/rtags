@@ -99,6 +99,7 @@ public:
         List<Path> tests;
         Set<Path> ignoredCompilers;
         List<std::regex> extraCompilers;
+        List<String> debugLocations;
     };
     bool init(const Options &options);
     bool runTests();
@@ -170,6 +171,7 @@ private:
     void suspend(const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Connection> &conn);
     void setBuffers(const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Connection> &conn);
     void classHierarchy(const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Connection> &conn);
+    void debugLocations(const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Connection> &conn);
 
     std::shared_ptr<Project> projectForQuery(const std::shared_ptr<QueryMessage> &queryMessage);
     std::shared_ptr<Project> addProject(const Path &path);

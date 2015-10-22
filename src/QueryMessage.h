@@ -36,6 +36,7 @@ public:
         ClassHierarchy,
         ClearProjects,
         CodeCompleteAt,
+        DebugLocations,
         DeleteProject,
         Dependencies,
         Diagnose,

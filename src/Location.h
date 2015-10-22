@@ -122,16 +122,6 @@ public:
     inline bool isNull() const { return !value; }
     inline bool isValid() const { return value; }
     inline void clear() { value = 0; mCachedPath.clear(); }
-    inline bool operator==(const String &str) const
-    {
-        const Location fromPath = Location::fromPathLineAndColumn(str);
-        return operator==(fromPath);
-    }
-    inline bool operator!=(const String &str) const
-    {
-        const Location fromPath = Location::fromPathLineAndColumn(str);
-        return operator!=(fromPath);
-    }
     inline bool operator==(const Location &other) const { return value == other.value; }
     inline bool operator!=(const Location &other) const { return value != other.value; }
     inline int compare(const Location &other) const
@@ -168,6 +158,7 @@ public:
         NoDecodeFlag = 0x0,
         CreateLocation = 0x1
     };
+
     static Location decode(const String &data, DecodeFlag flag = NoDecodeFlag)
     {
         uint32_t col;
@@ -288,6 +279,30 @@ template <> inline Serializer &operator<<(Serializer &s, const Location &t)
 {
     s.write(reinterpret_cast<const char*>(&t.value), sizeof(uint64_t));
     return s;
+}
+
+inline bool operator==(const Location &loc, const String &str)
+{
+    const Location fromPath = Location::fromPathLineAndColumn(str);
+    return loc == fromPath;
+}
+
+inline bool operator!=(const Location &loc, const String &str)
+{
+    const Location fromPath = Location::fromPathLineAndColumn(str);
+    return loc != fromPath;
+}
+
+inline bool operator==(const String &str, const Location &loc)
+{
+    const Location fromPath = Location::fromPathLineAndColumn(str);
+    return loc == fromPath;
+}
+
+inline bool operator!=(const String &str, const Location &loc)
+{
+    const Location fromPath = Location::fromPathLineAndColumn(str);
+    return loc != fromPath;
 }
 
 template <> inline Deserializer &operator>>(Deserializer &s, Location &t)

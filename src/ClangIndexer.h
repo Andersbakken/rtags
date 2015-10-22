@@ -172,6 +172,7 @@ private:
     int mParseDuration, mVisitDuration, mBlocked, mAllowed,
         mIndexed, mVisitFileTimeout, mIndexDataMessageTimeout, mFileIdsQueried;
     UnsavedFiles mUnsavedFiles;
+    List<String> mDebugLocations;
     FILE *mLogFile;
     std::shared_ptr<Connection> mConnection;
     uint32_t mLastFileId;

@@ -111,6 +111,7 @@ struct Option opts[] = {
     { RClient::SetBuffers, "set-buffers", 0, optional_argument, "Set active buffers (list of filenames for active buffers in editor)." },
     { RClient::ListBuffers, "list-buffers", 0, no_argument, "List active buffers." },
     { RClient::ClassHierarchy, "class-hierarchy", 0, required_argument, "Dump class hierarcy for struct/class at location." },
+    { RClient::DebugLocations, "debug-locations", 0, optional_argument, "Manipulate debug locations." },
 
     { RClient::None, 0, 0, 0, "" },
     { RClient::None, 0, 0, 0, "Command flags:" },
@@ -842,6 +843,15 @@ RClient::ParseStatus RClient::parse(int &argc, char **argv)
         case DeleteProject:
             addQuery(QueryMessage::DeleteProject, optarg);
             break;
+        case DebugLocations: {
+            String arg;
+            if (optarg) {
+                arg = optarg;
+            } else if (optind < argc && argv[optind][0] != '-') {
+                arg = argv[optind++];
+            }
+            addQuery(QueryMessage::DebugLocations, arg);
+            break; }
         case SendDiagnostics:
             addQuery(QueryMessage::SendDiagnostics, optarg);
             break;

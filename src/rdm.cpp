@@ -137,6 +137,7 @@ static void usage(FILE *f)
             "  --max-file-map-cache-size|-y [arg]         Max files to cache per query (Should not exceed maximum number of open file descriptors allowed per process) (default " STR(DEFAULT_RDM_MAX_FILE_MAP_CACHE_SIZE) ").\n"
             "  --no-comments                              Don't parse/store doxygen comments.\n"
             "  --arg-transform|-V [arg]                   Use arg to transform arguments. [arg] should be a executable with (execv(3)).\n"
+            "  --debug-locations [arg]                    Set debug locations.\n"
             , std::max(2, ThreadPool::idealThreadCount()), defaultStackSize);
 }
 
@@ -232,6 +233,7 @@ int main(int argc, char** argv)
         { "daemon", no_argument, 0, 6 },
         { "log-file-log-level", required_argument, 0, 9 },
         { "watch-sources-only", no_argument, 0, 10 },
+        { "debug-locations", no_argument, 0, 11 },
         { 0, 0, 0, 0 }
     };
     const String shortOptions = Rct::shortOptions(opts);
@@ -388,6 +390,10 @@ int main(int argc, char** argv)
             break;
         case 10:
             serverOpts.options |= Server::WatchSourcesOnly;
+            break;
+        case 11:
+            if (strcmp(optarg, "clear"))
+                serverOpts.debugLocations << optarg;
             break;
         case 2:
             fprintf(stdout, "%s\n", RTags::versionString().constData());

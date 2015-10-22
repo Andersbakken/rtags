@@ -105,6 +105,7 @@ bool ClangIndexer::exec(const String &data)
     deserializer >> sServerOpts;
     deserializer >> mUnsavedFiles;
     deserializer >> dataDir;
+    deserializer >> mDebugLocations;
     deserializer >> blockedFiles;
 
 #if 0
@@ -618,6 +619,17 @@ CXChildVisitResult ClangIndexer::indexVisitor(CXCursor cursor, CXCursor parent, 
     } else if (loc.isNull()) {
         // error() << "Got null" << cursor;
         return CXChildVisit_Recurse;
+    }
+    for (const String &debug : indexer->mDebugLocations) {
+        if (debug == "all" || debug == loc) {
+            Log log(LogLevel::Error);
+            log << cursor;
+            CXCursor ref = clang_getCursorReferenced(cursor);
+            if (!clang_isInvalid(clang_getCursorKind(ref)) && !clang_equalCursors(ref, cursor)) {
+                log << "refs" << ref;
+            }
+            break;
+        }
     }
     ++indexer->mAllowed;
     if (indexer->mLogFile) {

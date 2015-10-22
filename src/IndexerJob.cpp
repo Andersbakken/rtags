@@ -126,7 +126,8 @@ String IndexerJob::encode() const
                    << static_cast<int32_t>(options.rpNiceValue)
                    << options.options
                    << unsavedFiles
-                   << options.dataDir;
+                   << options.dataDir
+                   << options.debugLocations;
         assert(proj);
         proj->encodeVisitedFiles(serializer);
     }

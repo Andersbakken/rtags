@@ -697,6 +697,9 @@ void Server::handleQueryMessage(const std::shared_ptr<QueryMessage> &message, co
     case QueryMessage::ClassHierarchy:
         classHierarchy(message, conn);
         break;
+    case QueryMessage::DebugLocations:
+        debugLocations(message, conn);
+        break;
     }
 }
 
@@ -1618,6 +1621,25 @@ void Server::classHierarchy(const std::shared_ptr<QueryMessage> &query, const st
     conn->finish(job.run(conn));
 }
 
+void Server::debugLocations(const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Connection> &conn)
+{
+    const String str = query->query();
+    if (str == "clear") {
+        mOptions.debugLocations.clear();
+    } else if (str == "all" || str == "*") {
+        mOptions.debugLocations.clear();
+        mOptions.debugLocations << "all";
+    } else if (!str.isEmpty()) {
+        mOptions.debugLocations << str;
+    }
+    if (mOptions.debugLocations.isEmpty()) {
+        conn->write("No debug locations");
+    } else {
+        conn->write<1024>("Debug locations:\n%s", String::join(mOptions.debugLocations, '\n').constData());
+    }
+    conn->finish();
+}
+
 void Server::handleVisitFileMessage(const std::shared_ptr<VisitFileMessage> &message, const std::shared_ptr<Connection> &conn)
 {
     uint32_t fileId = 0;
@@ -2013,3 +2035,4 @@ bool Server::runTests()
     }
     return ret;
 }
+
