@@ -386,6 +386,9 @@ int main(int argc, char** argv)
         case 1:
             serverOpts.options |= Server::NoComments;
             break;
+        case 10:
+            serverOpts.options |= Server::WatchSourcesOnly;
+            break;
         case 2:
             fprintf(stdout, "%s\n", RTags::versionString().constData());
             return 0;
