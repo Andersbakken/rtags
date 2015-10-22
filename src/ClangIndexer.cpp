@@ -351,13 +351,9 @@ static inline void tokenize(const char *buf, int start,
                 functionEnd = idx;
             break;
         case ':':
-            if (!templateCount && (functionStart == -1 || functionEnd != -1)) {
-                if (buf[idx + 1] == ':') {
-                    sections[(*sectionCount)++] = idx + 2;
-                    ++idx;
-                } else {
-                    sections[(*sectionCount)++] = idx + 1;
-                }
+            if (!templateCount && (functionStart == -1 || functionEnd != -1) && buf[idx + 1] == ':' && (*sectionCount) < 1024) {
+                sections[(*sectionCount)++] = idx + 2;
+                ++idx;
             }
             break;
         case '\0':
