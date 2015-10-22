@@ -1624,7 +1624,7 @@ void Server::classHierarchy(const std::shared_ptr<QueryMessage> &query, const st
 void Server::debugLocations(const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Connection> &conn)
 {
     const String str = query->query();
-    if (str == "clear") {
+    if (str == "clear" || str == "none") {
         mOptions.debugLocations.clear();
     } else if (str == "all" || str == "*") {
         mOptions.debugLocations.clear();

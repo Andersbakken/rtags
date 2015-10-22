@@ -392,8 +392,11 @@ int main(int argc, char** argv)
             serverOpts.options |= Server::WatchSourcesOnly;
             break;
         case 11:
-            if (strcmp(optarg, "clear"))
+            if (!strcmp(optarg, "clear") || !strcmp(optarg, "none")) {
+                serverOpts.debugLocations.clear();
+            } else {
                 serverOpts.debugLocations << optarg;
+            }
             break;
         case 2:
             fprintf(stdout, "%s\n", RTags::versionString().constData());
