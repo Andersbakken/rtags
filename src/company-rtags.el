@@ -81,6 +81,7 @@ and `c-electric-colon', for automatic completion right after \">\" and
 (defun company-rtags--valid-candidate (prefix cand)
   (and (or (not prefix)
            (string-prefix-p prefix (car cand)))
+       (not (string= (nth 2 cand) "NotImplemented"))
        (let ((prefix-type (company-rtags--prefix-type)))
          (or (not prefix-type)
              (eq prefix-type 'company-rtags-colons)
