@@ -50,6 +50,11 @@ if (NOT CYGWIN)
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fstack-protector-all -Wstack-protector")
 endif ()
 
+if (ASAN)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=address -fsanitize=undefined")
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fsanitize=address -fsanitize=undefined")
+endif ()
+
 if (CMAKE_BUILD_TYPE MATCHES "Debug")
     add_definitions("-DRTAGS_DEBUG")
     set(RCT_EVENTLOOP_CALLBACK_TIME_THRESHOLD 2000)
