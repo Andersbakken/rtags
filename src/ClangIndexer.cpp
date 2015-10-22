@@ -314,7 +314,7 @@ Location ClangIndexer::createLocation(const Path &sourceFile, unsigned int line,
 
 static inline void tokenize(const char *buf, int start,
                             int *templateStart, int *templateEnd,
-                            int *sectionCount, int sections[512])
+                            int *sectionCount, int sections[1024])
 {
     int templateCount = 0;
     *templateStart = *templateEnd = -1;
