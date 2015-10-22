@@ -151,7 +151,8 @@ if (EMACS)
 else ()
     find_program(EMACS_EXECUTABLE emacs)
     if(NOT EMACS_EXECUTABLE)
-        message(SEND_ERROR "Emacs could not be found")
+	set(RTAGS_NO_ELISP_BYTECOMPILE TRUE)
+        message(STATUS "Emacs could not be found, elisp will not be byte-compiled!")
     endif ()
 endif ()
 
@@ -162,9 +163,9 @@ endif ()
 set(RTAGS_ELISP_SOURCES "")
 foreach(el rtags.el rtags-ac.el company-rtags.el)
     file(COPY ${el} DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
-    list(APPEND RTAGS_ELISP_SOURCES ${el})
+    list(APPEND RTAGS_ELISP_SOURCES ${CMAKE_CURRENT_BINARY_DIR}/${el})
     if (NOT RTAGS_NO_ELISP_BYTECOMPILE)
-        list(APPEND RTAGS_ELISP_SOURCES ${el})
+        list(APPEND RTAGS_ELISP_SOURCES ${CMAKE_CURRENT_BINARY_DIR}/${el}c)
         add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/${el}c
             COMMAND ${EMACS_EXECUTABLE} -batch -l ${CMAKE_CURRENT_SOURCE_DIR}/compile-shim.el -l ${CMAKE_CURRENT_SOURCE_DIR}/rtags.el -f batch-byte-compile
             ${CMAKE_CURRENT_BINARY_DIR}/${el}
