@@ -71,5 +71,5 @@ before_script:
     - cd ..
 
 script:
-    - make -j2 -C build
+    - VERBOSE=1 make -j2 -C build
     - sh -c 'if [ -z "$SKIP_TESTS" ]; then PATH=$(pwd)/build/bin:$PATH nosetests; else echo "Skipping tests for this platform."; fi'
