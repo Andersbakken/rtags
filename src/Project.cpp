@@ -492,7 +492,7 @@ static String formatDiagnostics(const Diagnostics &diagnostics, DiagnosticsForma
     };
     std::function<String(const Location &, const Diagnostic &)> formatDiagnostic;
     if (format == Diagnostics_XML) {
-        formatDiagnostic = [severities](const Location &loc, const Diagnostic &diagnostic) {
+        formatDiagnostic = [](const Location &loc, const Diagnostic &diagnostic) {
             return String::format<256>("\n      <error line=\"%d\" column=\"%d\" %sseverity=\"%s\" message=\"%s\"/>",
                                        loc.line(), loc.column(),
                                        (diagnostic.length <= 0 ? ""
@@ -500,7 +500,7 @@ static String formatDiagnostics(const Diagnostics &diagnostics, DiagnosticsForma
                                        severities[diagnostic.type], RTags::xmlEscape(diagnostic.message).constData());
         };
     } else {
-        formatDiagnostic = [severities](const Location &loc, const Diagnostic &diagnostic) {
+        formatDiagnostic = [](const Location &loc, const Diagnostic &diagnostic) {
             return String::format<256>(" (list %d %d %s '%s \"%s\")",
                                        loc.line(), loc.column(),
                                        diagnostic.length > 0 ? String::number(diagnostic.length).constData() : "nil",
