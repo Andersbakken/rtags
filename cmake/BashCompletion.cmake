@@ -1,5 +1,4 @@
-set(FORCE_BASH_COMPLETION_INSTALLATION FALSE CACHE BOOL "Always install bash completion files \
-(default installation path /usr/share/bash-completion/completions)")
+set(FORCE_BASH_COMPLETION_INSTALLATION FALSE CACHE BOOL "Always install bash completion files (default installation path /usr/share/bash-completion/completions)")
 
 if(FORCE_BASH_COMPLETION_INSTALLATION AND "${BASH_COMPLETION_COMPLETIONSDIR}" STREQUAL "")
     set(BASH_COMPLETION_COMPLETIONSDIR "/usr/share/bash-completion/completions")
