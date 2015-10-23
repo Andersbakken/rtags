@@ -36,3 +36,4 @@ compile_commands.json
 /build/marker
 .dir-locals.el
 /Uninstall.cmake
+/automated_tests/test_runner.pyc
