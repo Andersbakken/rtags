@@ -468,7 +468,7 @@ enum DiagnosticsFormat {
 
 static String formatDiagnostics(const Diagnostics &diagnostics, DiagnosticsFormat format, uint32_t fileId = 0)
 {
-    const char *severities[] = { "none", "warning", "error", "fixit", "skipped" };
+    static const char *severities[] = { "none", "warning", "error", "fixit", "skipped" };
 
     static const char *header[] = {
         "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n  <checkstyle>",
