@@ -1,17 +1,17 @@
 /* This file is part of RTags (http://rtags.net).
 
-RTags is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
+   RTags is free software: you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation, either version 3 of the License, or
+   (at your option) any later version.
 
-RTags is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
+   RTags is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
 
-You should have received a copy of the GNU General Public License
-along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
+   You should have received a copy of the GNU General Public License
+   along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 
 #ifndef RClient_h
 #define RClient_h
@@ -115,6 +115,7 @@ public:
         SetBuffers,
         Silent,
         SilentQuery,
+        SocketAddress,
         SocketFile,
         Sources,
         Status,
@@ -162,6 +163,8 @@ public:
     const Path &currentFile() const { return mCurrentFile; }
 
     String socketFile() const { return mSocketFile; }
+    String tcpHost() const { return mTcpHost; }
+    uint16_t tcpPort() const { return mTcpPort; }
     Path projectRoot() const { return mProjectRoot; }
     Flags<QueryMessage::Flag> queryFlags() const { return mQueryFlags; }
     int terminalWidth() const { return mTerminalWidth; }
@@ -193,9 +196,11 @@ private:
     UnsavedFiles mUnsavedFiles;
     List<std::shared_ptr<RCCommand> > mCommands;
     List<String> mRdmArgs;
-    String mSocketFile;
+    Path mSocketFile;
     Path mCurrentFile;
     EscapeMode mEscapeMode;
+    String mTcpHost;
+    uint16_t mTcpPort;
     bool mGuessFlags;
     Path mProjectRoot;
     int mTerminalWidth;

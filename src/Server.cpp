@@ -159,7 +159,7 @@ bool Server::init(const Options &options)
         mOptions.includePaths.append(Source::Include(Source::Include::Type_System, systemInclude));
     }
 
-    if (!initUnixServer()) {
+    if (!initServers()) {
         error("Unable to listen on %s", mOptions.socketFile.constData());
         return false;
     }
@@ -180,7 +180,6 @@ bool Server::init(const Options &options)
     mJobScheduler.reset(new JobScheduler);
 
     load();
-    mUnixServer->newConnection().connect(std::bind(&Server::onNewConnection, this, std::placeholders::_1));
     if (!(mOptions.options & NoStartupCurrentProject)) {
         Path current = Path(mOptions.dataDir + ".currentProject").readAll(1024);
         if (current.size() > 1) {
@@ -198,14 +197,14 @@ bool Server::init(const Options &options)
     return true;
 }
 
-bool Server::initUnixServer()
+bool Server::initServers()
 {
 #ifdef OS_Darwin
     // If Launchd, it goes into this bit and never comes out.
     if (mOptions.options & Launchd) {
         mUnixServer.reset(new SocketServer);
 
-        printf("initUnixServer: launchd mode.\n");
+        printf("initServers: launchd mode.\n");
 
         bool good = false;
         int *fds = 0;
@@ -230,7 +229,7 @@ bool Server::initUnixServer()
 
         good = true;
 
-    launchd_done:;
+  launchd_done:;
         free(fds);
         fds = 0;
 
@@ -238,7 +237,7 @@ bool Server::initUnixServer()
     }
 #endif
 
-    char* listenFds = getenv("LISTEN_FDS");
+    char *listenFds = getenv("LISTEN_FDS");
     if (listenFds != NULL) {
         auto numFDs = atoi(listenFds);
         if (numFDs != 1) {
@@ -276,8 +275,37 @@ bool Server::initUnixServer()
         }
         Path::rm(mOptions.socketFile);
     }
+    if (!mUnixServer)
+        return false;
+    mUnixServer->newConnection().connect(std::bind(&Server::onNewConnection, this, std::placeholders::_1));
 
-    return mUnixServer.get();
+    if (mOptions.tcpPort) {
+        for (int i=0; i<10; ++i) {
+            mTcpServer.reset(new SocketServer);
+            warning() << "listening" << mOptions.tcpPort;
+            if (mTcpServer->listen(mOptions.tcpPort)) {
+                break;
+            }
+            mTcpServer.reset();
+            if (!i) {
+                enum { Timeout = 1000 };
+                std::shared_ptr<Connection> connection = Connection::create(RClient::NumOptions);
+                if (connection->connectTcp("127.0.0.1", mOptions.tcpPort, Timeout)) {
+                    connection->send(QuitMessage());
+                    connection->disconnected().connect(std::bind([](){ EventLoop::eventLoop()->quit(); }));
+                    connection->finished().connect(std::bind([](){ EventLoop::eventLoop()->quit(); }));
+                    EventLoop::eventLoop()->exec(Timeout);
+                }
+            } else {
+                sleep(1);
+            }
+        }
+        if (!mTcpServer)
+            return false;
+        mTcpServer->newConnection().connect(std::bind(&Server::onNewConnection, this, std::placeholders::_1));
+    }
+
+    return true;
 }
 
 std::shared_ptr<Project> Server::addProject(const Path &path)

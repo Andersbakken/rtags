@@ -110,6 +110,7 @@ static void usage(FILE *f)
             "  --setenv|-e [arg]                          Set this environment variable (--setenv \"foobar=1\").\n"
             "  --silent|-S                                No logging to stdout.\n"
             "  --socket-file|-n [arg]                     Use this file for the server socket (default ~/.rdm).\n"
+            "  --tcp-port [arg]                        Listen on this tcp socket (default none).\n"
             "  --start-suspended|-Q                       Start out suspended (no reindexing enabled).\n"
             "  --suspend-rp-on-crash|-q                   Suspend rp in SIGSEGV handler (default " DEFAULT_SUSPEND_RP ").\n"
             "  --rp-log-to-syslog                         Make rp log to syslog\n"
@@ -234,6 +235,7 @@ int main(int argc, char** argv)
         { "log-file-log-level", required_argument, 0, 9 },
         { "watch-sources-only", no_argument, 0, 10 },
         { "debug-locations", no_argument, 0, 11 },
+        { "tcp-port", required_argument, 0, 12 },
         { 0, 0, 0, 0 }
     };
     const String shortOptions = Rct::shortOptions(opts);
@@ -396,6 +398,13 @@ int main(int argc, char** argv)
                 serverOpts.debugLocations.clear();
             } else {
                 serverOpts.debugLocations << optarg;
+            }
+            break;
+        case 12:
+            serverOpts.tcpPort = atoi(optarg);
+            if (!serverOpts.tcpPort) {
+                fprintf(stderr, "Invalid port %s for --tcp-port\n", optarg);
+                return 1;
             }
             break;
         case 2:

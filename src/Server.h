@@ -83,7 +83,7 @@ public:
               rpVisitFileTimeout(0), rpIndexDataMessageTimeout(0), rpConnectTimeout(0),
               rpConnectAttempts(0), rpNiceValue(0), threadStackSize(0), maxCrashCount(0),
               completionCacheSize(0), testTimeout(60 * 1000 * 5),
-              maxFileMapScopeCacheSize(512)
+              maxFileMapScopeCacheSize(512), tcpPort(0)
         {
         }
 
@@ -92,6 +92,7 @@ public:
         int jobCount, headerErrorJobCount, rpVisitFileTimeout, rpIndexDataMessageTimeout,
             rpConnectTimeout, rpConnectAttempts, rpNiceValue, threadStackSize, maxCrashCount,
             completionCacheSize, testTimeout, maxFileMapScopeCacheSize;
+        uint16_t tcpPort;
         List<String> defaultArguments, excludeFilters;
         Set<String> blockedArguments;
         List<Source::Include> includePaths;
@@ -180,7 +181,7 @@ private:
     void onHttpClientReadyRead(const SocketClient::SharedPtr &socket);
     void connectToServer();
     void startJobs();
-    bool initUnixServer();
+    bool initServers();
     void removeSocketFile();
 
     typedef Hash<Path, std::shared_ptr<Project> > ProjectsMap;
@@ -190,7 +191,7 @@ private:
     static Server *sInstance;
     Options mOptions;
     bool mSuspended;
-    SocketServer::SharedPtr mUnixServer;
+    SocketServer::SharedPtr mUnixServer, mTcpServer;
     List<Path> mPathEnvironment;
 
     int mExitCode;

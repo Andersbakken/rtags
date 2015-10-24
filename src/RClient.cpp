@@ -134,6 +134,7 @@ struct Option opts[] = {
     { RClient::MatchCaseInsensitive, "match-icase", 'I', no_argument, "Match case insensitively" },
     { RClient::AbsolutePath, "absolute-path", 'K', no_argument, "Print files with absolute path." },
     { RClient::SocketFile, "socket-file", 'n', required_argument, "Use this socket file (default ~/.rdm)." },
+    { RClient::SocketAddress, "socket-address", 0, required_argument, "Use this host:port combination (instead of --socket-file)." },
     { RClient::Timeout, "timeout", 'y', required_argument, "Max time in ms to wait for job to finish (default no timeout)." },
     { RClient::FindVirtuals, "find-virtuals", 'k', no_argument, "Use in combinations with -R or -r to show other implementations of this function." },
     { RClient::FindFilePreferExact, "find-file-prefer-exact", 'A', no_argument, "Use to make --find-file prefer exact matches over partial matches." },
@@ -387,7 +388,7 @@ public:
 RClient::RClient()
     : mMax(-1), mTimeout(-1), mMinOffset(-1), mMaxOffset(-1),
       mConnectTimeout(DEFAULT_CONNECT_TIMEOUT), mBuildIndex(0),
-      mLogLevel(LogLevel::Error), mEscapeMode(Escape_Auto),
+      mLogLevel(LogLevel::Error), mEscapeMode(Escape_Auto), mTcpPort(0),
       mGuessFlags(false), mTerminalWidth(-1), mArgc(0), mArgv(0)
 {
     struct winsize w;
@@ -443,11 +444,30 @@ int RClient::exec()
                                                std::placeholders::_1, std::placeholders::_2));
     connection->finished().connect(std::bind([](){ EventLoop::eventLoop()->quit(); }));
     connection->disconnected().connect(std::bind([](){ EventLoop::eventLoop()->quit(); }));
-    if (!connection->connectUnix(mSocketFile, mConnectTimeout)) {
+    if (mTcpPort) {
+        if (!connection->connectTcp(mTcpHost, mTcpPort, mConnectTimeout)) {
+            if (mLogLevel >= LogLevel::Error)
+                fprintf(stdout, "Can't seem to connect to server (%s:%d)\n", mTcpHost.constData(), mTcpPort);
+            return 1;
+        }
+        connection->connected().connect(std::bind(&EventLoop::quit, loop.get()));
+        loop->exec(mConnectTimeout);
+        if (!connection->isConnected()) {
+            if (mLogLevel >= LogLevel::Error) {
+                if (mTcpPort) {
+                    fprintf(stdout, "Can't seem to connect to server (%s:%d)\n", mTcpHost.constData(), mTcpPort);
+                } else {
+                    fprintf(stdout, "Can't seem to connect to server (%s)\n", mSocketFile.constData());
+                }
+            }
+            return 1;
+        }
+    } else if (!connection->connectUnix(mSocketFile, mConnectTimeout)) {
         if (mLogLevel >= LogLevel::Error)
-            fprintf(stdout, "Can't seem to connect to server\n");
+            fprintf(stdout, "Can't seem to connect to server (%s)\n", mSocketFile.constData());
         return 1;
     }
+
     int ret = 0;
     for (int i=0; i<commandCount; ++i) {
         const std::shared_ptr<RCCommand> &cmd = mCommands.at(i);
@@ -572,6 +592,20 @@ RClient::ParseStatus RClient::parse(int &argc, char **argv)
         case SocketFile:
             mSocketFile = optarg;
             break;
+        case SocketAddress: {
+            mTcpHost.assign(optarg);
+            const int colon = mTcpHost.lastIndexOf(':');
+            if (colon == -1) {
+                fprintf(stderr, "invalid --socket-address %s\n", optarg);
+                return Parse_Error;
+            }
+            mTcpPort = atoi(optarg + colon + 1);
+            if (!mTcpPort) {
+                fprintf(stderr, "invalid --socket-address %s\n", optarg);
+                return Parse_Error;
+            }
+            mTcpHost.truncate(colon);
+            break; }
         case GuessFlags:
             mGuessFlags = true;
             break;
