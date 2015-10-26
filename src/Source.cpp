@@ -259,6 +259,12 @@ static const char *blacklist[] = {
     "-MT",
     "-MQ",
     "-gcc-toolchain",
+    "-fno-var-tracking",
+    "-fvar-tracking",
+    "-fnovar-tracking-assignments",
+    "-fvar-tracking-assignments",
+    "-fvar-tracking-assignments-toggle",
+    "-Og",
     0
 };
 
