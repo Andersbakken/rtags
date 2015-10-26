@@ -61,6 +61,20 @@ There are a few prerequisites you need to have in order to build RTags
    to support older versions but patches that make it work are
    welcome.
 
+*** Optional
+RTags comes with bash completion support, if you want the bash
+completion files to be installed, you either have to make sure that
+*pkg-config* and *bash-completion* package is installed, or you can
+manually force the installation, by setting the variable
+FORCE_BASH_COMPLETION_INSTALLATION to TRUE or ON.
+
+The default installation path is "/usr/share/bash-completion/completions".
+Additionally, you can adjust the BASH_COMPLETION_COMPLATIONSDIR
+variable. However, if the bash completions files are not installed
+in the default completion path, you have to make sure the *rtags*
+bash completion file gets sourced, to get completion support.
+
+
 ** C++11 on OS X
 
 If you plan to tag projects using C++11 features on OS X then you'll
