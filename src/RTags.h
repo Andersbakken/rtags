@@ -39,7 +39,7 @@ enum {
     MajorVersion = 2,
     MinorVersion = 0,
     DatabaseVersion = 81,
-    SourcesFileVersion = 3
+    SourcesFileVersion = 4
 };
 
 inline String versionString()

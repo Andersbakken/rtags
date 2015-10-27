@@ -321,7 +321,8 @@ template <> inline Deserializer &operator>>(Deserializer &s, Source::Include &d)
 
 template <> inline Serializer &operator<<(Serializer &s, const Source &b)
 {
-    s << b.sourceFile() << b.fileId << b.compilerId << b.extraCompiler << b.buildRootId
+    s << b.sourceFile() << b.fileId << b.compiler() << b.compilerId
+      << b.extraCompiler << b.buildRoot() << b.buildRootId
       << static_cast<uint8_t>(b.language) << b.parsed << b.flags << b.defines
       << b.includePaths << b.arguments << b.sysRootIndex << b.directory << b.includePathHash;
     return s;
@@ -331,11 +332,14 @@ template <> inline Deserializer &operator>>(Deserializer &s, Source &b)
 {
     b.clear();
     uint8_t language;
-    Path path;
-    s >> path >> b.fileId >> b.compilerId >> b.extraCompiler >> b.buildRootId
-      >> language >> b.parsed >> b.flags >> b.defines >> b.includePaths
-      >> b.arguments >> b.sysRootIndex >> b.directory >> b.includePathHash;
-    Location::set(path, b.fileId);
+    Path source, compiler, buildRoot;
+    s >> source >> b.fileId >> compiler >> b.compilerId >> b.extraCompiler
+      >> buildRoot >> b.buildRootId >> language >> b.parsed >> b.flags
+      >> b.defines >> b.includePaths >> b.arguments >> b.sysRootIndex
+      >> b.directory >> b.includePathHash;
+    Location::set(source, b.fileId);
+    Location::set(compiler, b.compilerId);
+    Location::set(buildRoot, b.buildRootId);
     b.language = static_cast<Source::Language>(language);
     return s;
 }
