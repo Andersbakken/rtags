@@ -1321,9 +1321,7 @@ to case differences."
        (goto-char old)
        nil))))
 
-(defun rtags-goto-location (location &optional nobookmark other-window)
-  "Go to a location passed in. It can be either: file,12 or file:13:14 or plain file"
-  ;; (message (format "rtags-goto-location \"%s\"" location))
+(defun rtags-absolutify (location)
   (when (not (string-match "^/" location))
     (unless rtags-current-project
       (let ((file rtags-current-file)
@@ -1335,11 +1333,17 @@ to case differences."
         (setq rtags-current-project project)))
     (when rtags-current-project
       (setq location (concat rtags-current-project location))))
-
   (unless (string-match "^/" location)
     (with-temp-buffer
       (rtags-call-rc "--current-project" :path rtags-current-file)
       (setq location (concat (buffer-substring-no-properties (point-min) (1- (point-max))) location))))
+  location)
+
+(defun rtags-goto-location (location &optional nobookmark other-window)
+  "Go to a location passed in. It can be either: file,12 or file:13:14 or plain file"
+  ;; (message (format "rtags-goto-location \"%s\"" location))
+  (setq location (rtags-absolutify location))
+
   (when (> (length location) 0)
     (cond ((string-match "\\(.*\\):\\([0-9]+\\):\\([0-9]+\\):?" location)
            (let ((line (string-to-number (match-string-no-properties 2 location)))
@@ -2211,11 +2215,10 @@ is true. References to references will be treated as references to the reference
          (goto-char (point-min))
          (while (not (eobp))
            (when (looking-at "^\\(.*?\\):\\([0-9]+\\):\\([0-9]+\\):?[ \t]*\\(.*\\)$")
-             (incf rtags-buffer-bookmarks)
              ;; (message "matched at %d:%d" (point) rtags-buffer-bookmarks)
              (let* ((start (point-at-bol))
                     (end (min (point-max) (1+ (point-at-eol))))
-                    (buffer (get-file-buffer (match-string-no-properties 1)))
+                    (buffer (get-file-buffer (rtags-absolutify (match-string-no-properties 1))))
                     (line (and buffer (string-to-number (match-string-no-properties 2))))
                     (column (and buffer (string-to-number (match-string-no-properties 3)))))
                (when buffer
@@ -2224,6 +2227,7 @@ is true. References to references will be treated as references to the reference
                      (save-restriction
                        (widen)
                        (when (rtags-goto-line-col line column)
+                         (incf rtags-buffer-bookmarks)
                          (bookmark-set (format "RTags_%d" rtags-buffer-bookmarks)))))))
                (when rtags-verbose-results
                  (goto-char (match-end 4))
@@ -2384,7 +2388,7 @@ is true. References to references will be treated as references to the reference
            (let ((cur (rtags-dependency-tree-current-file)))
              (when cur
                (rtags-goto-location (car cur) nil other-window))))
-          ((and idx
+          ((and (car idx)
                 (>= rtags-buffer-bookmarks (car idx))
                 (member bookmark (bookmark-all-names)))
            (when other-window
