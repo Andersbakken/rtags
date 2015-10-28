@@ -379,9 +379,9 @@ to case differences."
   (eq t (compare-strings str1 nil nil
                          str2 0 (length str1) ignore-case)))
 
-(defun rtags-is-rtags-buffer ()
-  (and (not (buffer-file-name))
-       (rtags-string-prefix-p "*RTags" (buffer-name))))
+(defun rtags-is-rtags-buffer (&optional buffer)
+  (and (not (buffer-file-name buffer))
+       (rtags-string-prefix-p "*RTags" (buffer-name buffer))))
 
 (defun rtags-has-diagnostics ()
   (and (get-buffer rtags-diagnostics-buffer-name)
@@ -736,6 +736,7 @@ to case differences."
       (setq narrow-start (+ 1 (count-lines (point-min) (region-beginning)))
             narrow-end (+ 1 (count-lines (point-min) (region-end)))))
     (let ((preprocess-buffer (rtags-get-buffer (format "*RTags preprocessed %s*" (buffer-file-name buffer)))))
+      (rtags-delete-rtags-windows)
       (rtags-location-stack-push)
       (with-current-buffer preprocess-buffer
         (rtags-call-rc :path (buffer-file-name buffer) "--preprocess" (buffer-file-name buffer))
@@ -844,6 +845,7 @@ to case differences."
         (fn (buffer-file-name buffer))
         (args (and prefix (completing-read "Type: " (list "includes" "included-by" "depends-on" "depended-on" "tree-depends-on")))))
     (when fn
+      (rtags-delete-rtags-windows)
       (rtags-location-stack-push)
       (switch-to-buffer dep-buffer)
       (rtags-call-rc :path fn "--dependencies" fn args)
@@ -1022,6 +1024,7 @@ to case differences."
         (deps)
         (fn (buffer-file-name)))
     (when (or all fn)
+      (rtags-delete-rtags-windows)
       (rtags-location-stack-push)
       (with-temp-buffer
         (if all
@@ -1186,6 +1189,7 @@ to case differences."
           (rtags-call-rc "--current-project" :path fn)
           (when (> (point-max) (point-min))
             (setq project (buffer-substring-no-properties (point-min) (1- (point-max))))))
+        (rtags-delete-rtags-windows)
         (rtags-location-stack-push)
         (switch-to-buffer ref-buffer)
         (rtags-references-tree-mode)
@@ -1205,6 +1209,7 @@ to case differences."
   (let ((args-buffer (rtags-get-buffer))
         (source (buffer-file-name buffer)))
     (when source
+      (rtags-delete-rtags-windows)
       (rtags-location-stack-push)
       (switch-to-buffer args-buffer)
       (rtags-call-rc :path source "--sources" source)
@@ -1221,6 +1226,7 @@ to case differences."
         (path (buffer-file-name))
         (location (rtags-current-location)))
     (when (and path location)
+      (rtags-delete-rtags-windows)
       (rtags-location-stack-push)
       (switch-to-buffer class-hierarchy-buffer)
       (rtags-call-rc :path path "-K" "--class-hierarchy" location)
@@ -1516,6 +1522,7 @@ For references this means to jump to the definition/declaration of the reference
 For definitions it jumps to the declaration (if there is only one) For declarations it jumps to the definition.
 If called with a prefix restrict to current buffer"
   (interactive "P")
+  (rtags-delete-rtags-windows)
   (rtags-location-stack-push)
   (let ((arg (rtags-current-location))
         (tagname (or (rtags-current-symbol) (rtags-current-token)))
@@ -1546,6 +1553,7 @@ If there's exactly one result jump directly to it. If there's more show a buffer
 with the different alternatives and jump to the first one if `rtags-jump-to-first-match'
 is true. References to references will be treated as references to the referenced symbol"
   (interactive "P")
+  (rtags-delete-rtags-windows)
   (rtags-location-stack-push)
   (let ((arg (rtags-current-location))
         (fn (buffer-file-name)))
@@ -1558,6 +1566,7 @@ is true. References to references will be treated as references to the reference
 (defun rtags-find-virtuals-at-point (&optional prefix)
   "List all reimplentations of function under cursor. This includes both declarations and definitions"
   (interactive "P")
+  (rtags-delete-rtags-windows)
   (rtags-location-stack-push)
   (let ((arg (rtags-current-location))
         (fn (buffer-file-name)))
@@ -1569,6 +1578,7 @@ is true. References to references will be treated as references to the reference
 ;;;###autoload
 (defun rtags-find-all-references-at-point (&optional prefix)
   (interactive "P")
+  (rtags-delete-rtags-windows)
   (rtags-location-stack-push)
   (let ((arg (rtags-current-location))
         (fn (buffer-file-name)))
@@ -1581,6 +1591,7 @@ is true. References to references will be treated as references to the reference
 ;;;###autoload
 (defun rtags-guess-function-at-point()
   (interactive)
+  (rtags-delete-rtags-windows)
   (rtags-location-stack-push)
   (let ((token (rtags-current-token))
         (fn (buffer-file-name)))
@@ -2192,6 +2203,17 @@ is true. References to references will be treated as references to the reference
 (defun rtags-has-filemanager (&optional buffer)
   (rtags-buffer-status buffer))
 
+(defun rtags-delete-rtags-windows ()
+  (let* ((windows (window-list))
+         (count (length windows)))
+    (while windows
+      (when (rtags-is-rtags-buffer (window-buffer (car windows)))
+        (if (= count 1)
+            (bury-buffer (window-buffer (car windows)))
+          (decf count)
+          (delete-window (car windows))))
+      (setq windows (cdr windows)))))
+
 (defun rtags-handle-results-buffer (&optional noautojump quiet path)
   (setq rtags-last-request-not-indexed nil)
   (rtags-reset-bookmarks)
@@ -2207,6 +2229,7 @@ is true. References to references will be treated as references to the reference
                  (setq rtags-last-request-not-indexed t)
                  nil)
              (bury-buffer)
+             (rtags-delete-rtags-windows)
              (rtags-goto-location string)
              t)))
         (t
@@ -2320,6 +2343,7 @@ is true. References to references will be treated as references to the reference
   (interactive)
   (unless (buffer-file-name)
     (error "rtags-taglist must be run from a buffer visiting a file"))
+  (rtags-delete-rtags-windows)
   (rtags-location-stack-push)
   (setq rtags-taglist-locations nil)
   (let* ((fn (buffer-file-name)) functions classes variables enums macros other)
@@ -2433,6 +2457,7 @@ is true. References to references will be treated as references to the reference
 ;;;###autoload
 (defun rtags-imenu ()
   (interactive)
+  (rtags-delete-rtags-windows)
   (rtags-location-stack-push)
   (let* ((fn (buffer-file-name))
          (alternatives (with-temp-buffer
@@ -2474,6 +2499,7 @@ is true. References to references will be treated as references to the reference
 ;;;###autoload
 (defun rtags-find-file (&optional prefix tagname)
   (interactive "P")
+  (rtags-delete-rtags-windows)
   (rtags-location-stack-push)
   (let ((tagname (rtags-current-symbol t)) prompt input offset line column
         (prefer-exact rtags-find-file-prefer-exact-match))
@@ -2707,6 +2733,7 @@ definition."
         (select-window win)))))
 
 (defun rtags-find-symbols-by-name-internal (prompt switch &optional filter regexp-filter)
+  (rtags-delete-rtags-windows)
   (rtags-location-stack-push)
   (let ((tagname (rtags-current-symbol))
         (path (buffer-file-name))
