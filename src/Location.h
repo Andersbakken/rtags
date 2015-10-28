@@ -186,6 +186,8 @@ public:
             return String();
 
         Path resolved = Path::resolved(path, Path::MakeAbsolute, pwd);
+        if (!resolved.isFile())
+            return String();
         {
             char buf[8];
             memcpy(buf, &line, sizeof(line));
