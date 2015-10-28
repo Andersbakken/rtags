@@ -245,6 +245,7 @@ static const char* valueArgs[] = {
     "-MT",
     "-MQ",
     "-gcc-toolchain",
+    "-include",
     0
 };
 
