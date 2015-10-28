@@ -528,8 +528,11 @@ static String formatDiagnostics(const Diagnostics &diagnostics, DiagnosticsForma
     } else {
         uint32_t lastFileId = 0;
         bool first = true;
+        const Set<uint32_t> active = Server::instance()->activeBuffers();
         for (const auto &entry : diagnostics) {
             const Location &loc = entry.first;
+            if (!active.isEmpty() && !active.contains(loc.fileId()))
+                continue;
             const Diagnostic &diagnostic = entry.second;
             if (loc.fileId() != lastFileId) {
                 if (first) {
