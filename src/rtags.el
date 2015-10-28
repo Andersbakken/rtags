@@ -2124,7 +2124,6 @@ is true. References to references will be treated as references to the reference
 ;;;###autoload
 (defun rtags-diagnostics (&optional restart nodirty)
   (interactive "P")
-  (rtags-schedule-buffer-list-update)
   (when restart
     (rtags-stop-diagnostics))
   (let ((buf (rtags-get-buffer-create-no-undo rtags-diagnostics-buffer-name)))
@@ -2145,7 +2144,8 @@ is true. References to references will be treated as references to the reference
           (set-process-query-on-exit-flag rtags-diagnostics-process nil)
           (setq rtags-last-completions nil)
           (setq rtags-last-completion-position nil)
-          (rtags-clear-diagnostics)))))
+          (rtags-clear-diagnostics)
+          (rtags-schedule-buffer-list-update)))))
   (when (and (called-interactively-p 'any) (rtags-is-running))
     (switch-to-buffer-other-window rtags-diagnostics-buffer-name)
     (other-window 1)))
