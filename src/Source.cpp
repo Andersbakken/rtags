@@ -810,7 +810,11 @@ static inline bool isPch(const Path &path)
                 }
             }
         }
-        return false;
+        /* according to
+           http://clang.llvm.org/docs/UsersManual.html#command-line-options
+           -include can be passed with plain text header as argument, but
+           clang will be use .h.pch if it is exists, so let's check it
+         */
     }
 
     for (const char *suffix : { ".gch", ".pch" }) {
@@ -852,6 +856,8 @@ List<String> Source::toCommandLine(Flags<CommandLineFlag> flags) const
                 skip = true;
             } else if (arg == "-include") {
                 skip = isPch(arguments.value(i + 1));
+                if (skip)
+                    ++i;//we need skip option and arg
             }
         }
         if (!skip && remove.contains(arg))
