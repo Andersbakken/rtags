@@ -2123,6 +2123,7 @@ is true. References to references will be treated as references to the reference
 ;;;###autoload
 (defun rtags-diagnostics (&optional restart nodirty)
   (interactive "P")
+  (rtags-schedule-buffer-list-update)
   (when restart
     (rtags-stop-diagnostics))
   (let ((buf (rtags-get-buffer-create-no-undo rtags-diagnostics-buffer-name)))
@@ -3131,6 +3132,16 @@ If `rtags-display-summary-as-tooltip' is t, a tooltip is displayed."
     (rtags-set-buffers (remove (current-buffer) (buffer-list))))
   t)
 (add-hook 'kill-buffer-hook 'rtags-kill-buffer-hook)
+
+(defvar rtags-update-buffer-list-timer nil)
+(defun rtags-update-buffer-list ()
+  (interactive)
+  (setq rtags-update-buffer-list-timer nil)
+  (rtags-set-buffers (buffer-list)))
+
+(defun rtags-schedule-buffer-list-update ()
+  (unless rtags-update-buffer-list-timer
+    (setq rtags-update-buffer-list-timer (run-with-idle-timer 1 nil (function rtags-update-buffer-list)))))
 
 (defun rtags-find-file-hook ()
   (interactive)
