@@ -1322,21 +1322,22 @@ to case differences."
        nil))))
 
 (defun rtags-absolutify (location)
-  (when (not (string-match "^/" location))
-    (unless rtags-current-project
-      (let ((file rtags-current-file)
-            (project))
-        (with-temp-buffer
-          (rtags-call-rc "--current-project" :path file)
-          (when (> (point-max) (point-min))
-            (setq project (buffer-substring-no-properties (point-min) (1- (point-max))))))
-        (setq rtags-current-project project)))
-    (when rtags-current-project
-      (setq location (concat rtags-current-project location))))
-  (unless (string-match "^/" location)
-    (with-temp-buffer
-      (rtags-call-rc "--current-project" :path rtags-current-file)
-      (setq location (concat (buffer-substring-no-properties (point-min) (1- (point-max))) location))))
+  (save-match-data
+    (when (not (string-match "^/" location))
+      (unless rtags-current-project
+        (let ((file rtags-current-file)
+              (project))
+          (with-temp-buffer
+            (rtags-call-rc "--current-project" :path file)
+            (when (> (point-max) (point-min))
+              (setq project (buffer-substring-no-properties (point-min) (1- (point-max))))))
+          (setq rtags-current-project project)))
+      (when rtags-current-project
+        (setq location (concat rtags-current-project location))))
+    (unless (string-match "^/" location)
+      (with-temp-buffer
+        (rtags-call-rc "--current-project" :path rtags-current-file)
+        (setq location (concat (buffer-substring-no-properties (point-min) (1- (point-max))) location)))))
   location)
 
 (defun rtags-goto-location (location &optional nobookmark other-window)
