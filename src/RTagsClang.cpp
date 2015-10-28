@@ -19,7 +19,6 @@
 #include "Project.h"
 #include <rct/Hash.h>
 #include <iostream>
-#include <zlib.h>
 #include "Token.h"
 
 #ifdef HAVE_BACKTRACE
