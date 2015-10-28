@@ -233,6 +233,8 @@ bool Server::initServers()
         free(fds);
         fds = 0;
 
+        mUnixServer->newConnection().connect(std::bind(&Server::onNewConnection, this, std::placeholders::_1));
+
         return good;
     }
 #endif
