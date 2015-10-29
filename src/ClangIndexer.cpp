@@ -1364,8 +1364,7 @@ bool ClangIndexer::diagnose()
     for (unsigned int i=0; i<diagnosticCount; ++i) {
         CXDiagnostic diagnostic = clang_getDiagnostic(mClangUnit, i);
         const CXSourceLocation diagLoc = clang_getDiagnosticLocation(diagnostic);
-        const Location loc = createLocation(diagLoc, 0);
-        const uint32_t fileId = loc.fileId();
+        const uint32_t fileId = createLocation(diagLoc, 0).fileId();
         const CXDiagnosticSeverity sev = clang_getDiagnosticSeverity(diagnostic);
         // error() << "Got a dude" << clang_getCursor(mClangUnit, diagLoc) << fileId << mSource.fileId
         //         << sev << CXDiagnostic_Error;
@@ -1398,20 +1397,48 @@ bool ClangIndexer::diagnose()
                 break;
             }
             if (type != Diagnostic::None) {
-                String msg = RTags::eatString(clang_getDiagnosticSpelling(diagnostic));
-                const String category = RTags::eatString(clang_getDiagnosticCategoryText(diagnostic));
-                bool colon = false;
-                if (!category.isEmpty()) {
-                    colon = true;
-                    msg << ": " << category;
-                }
+                String msg = RTags::eatString(clang_getDiagnosticCategoryText(diagnostic));
+                if (!msg.isEmpty())
+                    msg << ": " << RTags::eatString(clang_getDiagnosticSpelling(diagnostic));
 
                 const String option = RTags::eatString(clang_getDiagnosticOption(diagnostic, 0));
                 if (!option.isEmpty()) {
-                    if (!colon)
-                        msg << ':';
-                    msg << ' ' << option;
+                    msg << ": " << option;
                 }
+
+                CXDiagnosticSet children = clang_getChildDiagnostics(diagnostic);
+                const unsigned int childCount = clang_getNumDiagnosticsInSet(children);
+                for (unsigned i=0; i<childCount; ++i) {
+                    CXDiagnostic child = clang_getDiagnosticInSet(children, i);
+                    const unsigned int rangeCount = clang_getDiagnosticNumRanges(child);
+                    const CXSourceLocation childDiagLoc = clang_getDiagnosticLocation(child);
+                    const uint32_t childFileId = createLocation(childDiagLoc, 0).fileId();
+
+                    Location childLoc;
+                    for (unsigned int rangePos = 0; rangePos < rangeCount; ++rangePos) {
+                        const CXSourceRange range = clang_getDiagnosticRange(child, rangePos);
+                        const CXSourceLocation start = clang_getRangeStart(range);
+                        const CXSourceLocation end = clang_getRangeEnd(range);
+
+                        unsigned int startOffset, endOffset;
+                        clang_getSpellingLocation(start, 0, 0, 0, &startOffset);
+                        clang_getSpellingLocation(end, 0, 0, 0, &endOffset);
+                        if (startOffset && endOffset) {
+                            unsigned int line, column;
+                            clang_getSpellingLocation(start, 0, &line, &column, 0);
+                            childLoc = Location(childFileId, line, column);
+                            break;
+                        }
+                    }
+                    if (childLoc.isNull()) {
+                        unsigned int line, column;
+                        clang_getSpellingLocation(childDiagLoc, 0, &line, &column, 0);
+                        childLoc = Location(childFileId, line, column);
+                    }
+                    msg << '\n' << childLoc.key(Location::NoColor|Location::AbsolutePath) << " " << RTags::eatString(clang_getDiagnosticSpelling(child));
+                }
+                clang_disposeDiagnosticSet(children);
+
                 const unsigned int rangeCount = clang_getDiagnosticNumRanges(diagnostic);
                 bool ok = false;
                 for (unsigned int rangePos = 0; rangePos < rangeCount; ++rangePos) {
@@ -1425,16 +1452,16 @@ bool ClangIndexer::diagnose()
                     if (startOffset && endOffset) {
                         unsigned int line, column;
                         clang_getSpellingLocation(start, 0, &line, &column, 0);
-                        const Location key(loc.fileId(), line, column);
-                        mIndexDataMessage.diagnostics()[key] = Diagnostic(type, msg, endOffset - startOffset);
+                        const Location l(fileId, line, column);
+                        mIndexDataMessage.diagnostics()[l] = Diagnostic(type, msg, endOffset - startOffset);
                         ok = true;
                     }
                 }
                 if (!ok) {
                     unsigned int line, column;
                     clang_getSpellingLocation(diagLoc, 0, &line, &column, 0);
-                    const Location key(loc.fileId(), line, column);
-                    mIndexDataMessage.diagnostics()[key] = Diagnostic(type, msg);
+                    const Location l(fileId, line, column);
+                    mIndexDataMessage.diagnostics()[l] = Diagnostic(type, msg);
                     // no length
                 }
             }
