@@ -53,7 +53,7 @@ class Location:
 
 def run_rc(args):
     args = ["rc", "--socket-file=" + socket_file] + args
-    return sp.check_output(args)
+    return sp.check_output(args, stderr=sp.STDOUT)
 
 
 def wait_for(p, match):
