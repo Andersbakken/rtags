@@ -262,7 +262,7 @@ static const char *blacklist[] = {
     "-gcc-toolchain",
     "-fno-var-tracking",
     "-fvar-tracking",
-    "-fnovar-tracking-assignments",
+    "-fno-var-tracking-assignments",
     "-fvar-tracking-assignments",
     "-fvar-tracking-assignments-toggle",
     "-Og",
