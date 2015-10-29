@@ -387,8 +387,8 @@ to case differences."
   (and (get-buffer rtags-diagnostics-buffer-name)
        rtags-diagnostics-process
        (not (eq (process-status rtags-diagnostics-process) 'exit))
-       (not (eq (process-status rtags-diagnostics-process) 'signal))))
-
+       (not (eq (process-status rtags-diagnostics-process) 'signal))
+       (> (process-id rtags-diagnostics-process) 0)))
 
 ;;;###autoload
 (defun rtags-bury-or-delete ()
