@@ -199,41 +199,56 @@ bool Server::init(const Options &options)
 
 bool Server::initServers()
 {
+    if (mOptions.tcpPort) {
+        for (int i=0; i<10; ++i) {
+            mTcpServer.reset(new SocketServer);
+            warning() << "listening" << mOptions.tcpPort;
+            if (mTcpServer->listen(mOptions.tcpPort)) {
+                break;
+            }
+            mTcpServer.reset();
+            if (!i) {
+                enum { Timeout = 1000 };
+                std::shared_ptr<Connection> connection = Connection::create(RClient::NumOptions);
+                if (connection->connectTcp("127.0.0.1", mOptions.tcpPort, Timeout)) {
+                    connection->send(QuitMessage());
+                    connection->disconnected().connect(std::bind([](){ EventLoop::eventLoop()->quit(); }));
+                    connection->finished().connect(std::bind([](){ EventLoop::eventLoop()->quit(); }));
+                    EventLoop::eventLoop()->exec(Timeout);
+                }
+            } else {
+                sleep(1);
+            }
+        }
+        if (!mTcpServer)
+            return false;
+        mTcpServer->newConnection().connect(std::bind(&Server::onNewConnection, this, std::placeholders::_1));
+    }
+
 #ifdef OS_Darwin
     // If Launchd, it goes into this bit and never comes out.
     if (mOptions.options & Launchd) {
-        mUnixServer.reset(new SocketServer);
+        warning("initServers: launchd mode.");
 
-        printf("initServers: launchd mode.\n");
-
-        bool good = false;
         int *fds = 0;
         size_t numFDs;
         int ret = launch_activate_socket("Listener", &fds, &numFDs);
 
         if (ret != 0) {
             error("Failed to retrieve launchd socket: %s", strerror(ret));
-            goto launchd_done;
-        }
-
-        if (numFDs != 1) {
+        } else if (numFDs != 1) {
             error("Unexpected number of sockets from launch_activate_socket: %zu", numFDs);
-            goto launchd_done;
+        } else {
+            warning() << "got fd from launchd: " << fds[0];
+            mUnixServer.reset(new SocketServer);
+            if (!mUnixServer->listenFD(fds[0]))
+                mUnixServer.reset();
         }
 
-        warning() << "got fd from launchd: " << fds[0];
-
-        if (!mUnixServer->listenFD(fds[0])) {
-            goto launchd_done;
-        }
-
-        good = true;
-
-  launchd_done:;
         free(fds);
-        fds = 0;
-
-        return good;
+        if (!mUnixServer)
+            return false;
+        mUnixServer->newConnection().connect(std::bind(&Server::onNewConnection, this, std::placeholders::_1));
     }
 #endif
 
@@ -251,6 +266,7 @@ bool Server::initServers()
             return false;
         }
 
+        mUnixServer->newConnection().connect(std::bind(&Server::onNewConnection, this, std::placeholders::_1));
         return true;
     }
 
@@ -278,32 +294,6 @@ bool Server::initServers()
     if (!mUnixServer)
         return false;
     mUnixServer->newConnection().connect(std::bind(&Server::onNewConnection, this, std::placeholders::_1));
-
-    if (mOptions.tcpPort) {
-        for (int i=0; i<10; ++i) {
-            mTcpServer.reset(new SocketServer);
-            warning() << "listening" << mOptions.tcpPort;
-            if (mTcpServer->listen(mOptions.tcpPort)) {
-                break;
-            }
-            mTcpServer.reset();
-            if (!i) {
-                enum { Timeout = 1000 };
-                std::shared_ptr<Connection> connection = Connection::create(RClient::NumOptions);
-                if (connection->connectTcp("127.0.0.1", mOptions.tcpPort, Timeout)) {
-                    connection->send(QuitMessage());
-                    connection->disconnected().connect(std::bind([](){ EventLoop::eventLoop()->quit(); }));
-                    connection->finished().connect(std::bind([](){ EventLoop::eventLoop()->quit(); }));
-                    EventLoop::eventLoop()->exec(Timeout);
-                }
-            } else {
-                sleep(1);
-            }
-        }
-        if (!mTcpServer)
-            return false;
-        mTcpServer->newConnection().connect(std::bind(&Server::onNewConnection, this, std::placeholders::_1));
-    }
 
     return true;
 }
