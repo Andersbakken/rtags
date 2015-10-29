@@ -2245,6 +2245,7 @@ is true. References to references will be treated as references to the reference
                     (end (min (point-max) (1+ (point-at-eol))))
                     (buffer (get-file-buffer (rtags-absolutify (match-string-no-properties 1))))
                     (line (and buffer (string-to-number (match-string-no-properties 2))))
+                    (bookmark-idx)
                     (column (and buffer (string-to-number (match-string-no-properties 3)))))
                (when buffer
                  (let (deactivate-mark)
@@ -2252,15 +2253,16 @@ is true. References to references will be treated as references to the reference
                      (save-restriction
                        (widen)
                        (when (rtags-goto-line-col line column)
-                         (incf rtags-buffer-bookmarks)
-                         (bookmark-set (format "RTags_%d" rtags-buffer-bookmarks)))))))
+                         (bookmark-set (format "RTags_%d" rtags-buffer-bookmarks))
+                         (setq bookmark-idx rtags-buffer-bookmarks)
+                         (incf rtags-buffer-bookmarks))))))
                (when rtags-verbose-results
                  (goto-char (match-end 4))
                  (insert "\n" rtags-verbose-results-delimiter)
                  (goto-char (match-beginning 4))
                  (insert "\n    ")
                  (incf end 5))
-               (set-text-properties start end (list 'rtags-result-index (cons rtags-buffer-bookmarks start)))))
+               (set-text-properties start end (list 'rtags-result-index (cons bookmark-idx start)))))
            (forward-line))
          (shrink-window-if-larger-than-buffer)
          (rtags-mode)
@@ -2400,7 +2402,7 @@ is true. References to references will be treated as references to the reference
   (interactive "P")
   (let* ((idx (get-text-property (point) 'rtags-result-index))
          (line (line-number-at-pos))
-         (bookmark (and idx (format "RTags_%d" (car idx))))
+         (bookmark (and (car idx) (format "RTags_%d" (car idx))))
          (window (selected-window)))
     (cond ((eq major-mode 'rtags-taglist-mode)
            (rtags-goto-location (cdr (assoc line rtags-taglist-locations)) nil other-window))
@@ -2424,7 +2426,7 @@ is true. References to references will be treated as references to the reference
            (bookmark-jump bookmark)
            (rtags-location-stack-push))
           (t
-           (when idx
+           (when (cdr idx)
              (goto-char (cdr idx)))
            (rtags-goto-location (buffer-substring-no-properties (save-excursion
                                                                   (goto-char (point-at-bol))
