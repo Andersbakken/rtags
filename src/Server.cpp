@@ -223,7 +223,7 @@ bool Server::initServers()
 
         warning() << "got fd from launchd: " << fds[0];
 
-        if (!mUnixServer->listenfd(fds[0])) {
+        if (!mUnixServer->listenFD(fds[0])) {
             goto launchd_done;
         }
 
@@ -247,7 +247,7 @@ bool Server::initServers()
 
         mUnixServer.reset(new SocketServer);
 
-        if (!mUnixServer->listenfd(3)) {
+        if (!mUnixServer->listenFD(3)) {
             return false;
         }
 
