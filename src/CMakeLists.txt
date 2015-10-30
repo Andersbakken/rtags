@@ -160,21 +160,23 @@ if (NOT RTAGS_ELISP_INSTALL_LOCATION)
     set(RTAGS_ELISP_INSTALL_LOCATION ${CMAKE_INSTALL_PREFIX}/share/emacs/site-lisp/rtags/)
 endif ()
 
-set(RTAGS_ELISP_SOURCES "")
-foreach(el rtags.el rtags-ac.el company-rtags.el)
-    file(COPY ${el} DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
-    list(APPEND RTAGS_ELISP_SOURCES ${CMAKE_CURRENT_BINARY_DIR}/${el})
-    if (NOT RTAGS_NO_ELISP_BYTECOMPILE)
-        list(APPEND RTAGS_ELISP_SOURCES ${CMAKE_CURRENT_BINARY_DIR}/${el}c)
-        add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/${el}c
-            COMMAND ${EMACS_EXECUTABLE} -batch -l ${CMAKE_CURRENT_SOURCE_DIR}/compile-shim.el -l ${CMAKE_CURRENT_SOURCE_DIR}/rtags.el -f batch-byte-compile
-            ${CMAKE_CURRENT_BINARY_DIR}/${el}
-            DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/${el}
-            WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
-            COMMENT "Creating byte-compiled Emacs lisp ${CMAKE_CURRENT_BINARY_DIR}/${el}c")
-        add_custom_target(emacs_byte_compile_${el} ALL DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/${el}c)
-    endif ()
-endforeach()
+if (NOT RTAGS_NO_ELISP)
+    set(RTAGS_ELISP_SOURCES "")
+    foreach(el rtags.el rtags-ac.el company-rtags.el)
+        file(COPY ${el} DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
+        list(APPEND RTAGS_ELISP_SOURCES ${CMAKE_CURRENT_BINARY_DIR}/${el})
+        if (NOT RTAGS_NO_ELISP_BYTECOMPILE)
+            list(APPEND RTAGS_ELISP_SOURCES ${CMAKE_CURRENT_BINARY_DIR}/${el}c)
+            add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/${el}c
+                COMMAND ${EMACS_EXECUTABLE} -batch -l ${CMAKE_CURRENT_SOURCE_DIR}/compile-shim.el -l ${CMAKE_CURRENT_SOURCE_DIR}/rtags.el -f batch-byte-compile
+                ${CMAKE_CURRENT_BINARY_DIR}/${el}
+                DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/${el}
+                WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+                COMMENT "Creating byte-compiled Emacs lisp ${CMAKE_CURRENT_BINARY_DIR}/${el}c")
+            add_custom_target(emacs_byte_compile_${el} ALL DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/${el}c)
+        endif ()
+    endforeach()
+endif ()
 
 install(CODE "message(\"Installing rtags...\")")
 include(BashCompletion)
