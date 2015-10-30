@@ -3,7 +3,11 @@ project(rtags)
 set(CMAKE_LEGACY_CYGWIN_WIN32 0)
 
 if (CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
-    set(CMAKE_INSTALL_PREFIX "/usr" CACHE PATH "Default install path" FORCE)
+    if(CMAKE_SYSTEM_NAME MATCHES "Darwin")
+	set(CMAKE_INSTALL_PREFIX "/usr/local" CACHE PATH "Default install path" FORCE)
+    else()
+	set(CMAKE_INSTALL_PREFIX "/usr" CACHE PATH "Default install path" FORCE)
+    endif()
 endif()
 
 if (NOT CMAKE_BUILD_TYPE)
