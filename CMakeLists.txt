@@ -2,10 +2,6 @@ cmake_minimum_required(VERSION 2.8.6)
 project(rtags)
 set(CMAKE_LEGACY_CYGWIN_WIN32 0)
 
-if (CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
-    set(CMAKE_INSTALL_PREFIX "/usr" CACHE PATH "Default install path" FORCE)
-endif()
-
 if (NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE Release CACHE STRING
     "Choose the type of build, options are: Debug Release RelWithDebInfo MinSizeRel." FORCE)
