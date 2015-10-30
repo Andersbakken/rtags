@@ -261,9 +261,6 @@ void CompletionThread::process(Request *request)
         flags |= CXTranslationUnit_PrecompiledPreamble;
         flags |= CXTranslationUnit_CacheCompletionResults;
         flags |= CXTranslationUnit_SkipFunctionBodies;
-        // (CXTranslationUnit_PrecompiledPreamble
-        // |CXTranslationUnit_CacheCompletionResults
-        // |CXTranslationUnit_SkipFunctionBodies);
 
         for (const auto &inc : options.includePaths) {
             request->source.includePaths << inc;
