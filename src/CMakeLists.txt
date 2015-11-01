@@ -145,42 +145,48 @@ if (NOT "${PROJECT_SOURCE_DIR}" STREQUAL "${PROJECT_BINARY_DIR}")
     file (COPY ${binFiles} DESTINATION "${PROJECT_BINARY_DIR}/bin")
 endif ()
 
-# find emacs and complain if not found
-if (NOT RTAGS_NO_ELISP_BYTECOMPILE)
-    if (EMACS)
-        set(EMACS_EXECUTABLE ${EMACS})
-    else ()
-        find_program(EMACS_EXECUTABLE emacs)
-        if(NOT EMACS_EXECUTABLE)
-            set(RTAGS_NO_ELISP_BYTECOMPILE TRUE)
-            message(STATUS "Emacs could not be found, elisp will not be byte-compiled!")
+if (EMACS)
+    set(EMACS_EXECUTABLE ${EMACS})
+else ()
+    find_program(EMACS_EXECUTABLE emacs)
+endif ()
+
+if (EMACS_EXECUTABLE)
+	  execute_process(COMMAND ${EMACS_EXECUTABLE} --version OUTPUT_VARIABLE EMACS_VERSION_INFORMATION ERROR_QUIET)
+	  string(REGEX MATCH "[0-9]+(\\.[0-9])*" EMACS_VERSION ${EMACS_VERSION_INFORMATION})
+	  if ("${EMACS_VERSION}" LESS "23")
+	      message(STATUS "Installed emacs version is to old, elisp files are not going to be installed, minimum required version is >=23!")
+	      set(RTAGS_NO_ELISP_FILES TRUE)
+	  endif ()
+else ()
+    set(RTAGS_NO_ELISP_FILES TRUE)
+    message(STATUS "Emacs was not found, elisp files are not going to be installed!")
+endif ()
+
+if (NOT RTAGS_NO_ELISP_FILES)
+    if (NOT RTAGS_ELISP_INSTALL_LOCATION)
+        set(RTAGS_ELISP_INSTALL_LOCATION ${CMAKE_INSTALL_PREFIX}/share/emacs/site-lisp/rtags/)
+    endif ()
+    set(RTAGS_ELISP_SOURCES "")
+    foreach(el rtags.el rtags-ac.el company-rtags.el)
+        file(COPY ${el} DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
+        list(APPEND RTAGS_ELISP_SOURCES ${CMAKE_CURRENT_BINARY_DIR}/${el})
+        if (NOT RTAGS_NO_ELISP_BYTECOMPILE)
+            list(APPEND RTAGS_ELISP_SOURCES ${CMAKE_CURRENT_BINARY_DIR}/${el}c)
+            add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/${el}c
+                COMMAND ${EMACS_EXECUTABLE} -batch -l ${CMAKE_CURRENT_SOURCE_DIR}/compile-shim.el -l ${CMAKE_CURRENT_SOURCE_DIR}/rtags.el -f batch-byte-compile
+                ${CMAKE_CURRENT_BINARY_DIR}/${el}
+                DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/${el}
+                WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+                COMMENT "Creating byte-compiled Emacs lisp ${CMAKE_CURRENT_BINARY_DIR}/${el}c")
+            add_custom_target(emacs_byte_compile_${el} ALL DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/${el}c)
         endif ()
-    endif ()
+    endforeach()
 endif ()
-
-if (NOT RTAGS_ELISP_INSTALL_LOCATION)
-    set(RTAGS_ELISP_INSTALL_LOCATION ${CMAKE_INSTALL_PREFIX}/share/emacs/site-lisp/rtags/)
-endif ()
-
-set(RTAGS_ELISP_SOURCES "")
-foreach(el rtags.el rtags-ac.el company-rtags.el)
-    file(COPY ${el} DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
-    list(APPEND RTAGS_ELISP_SOURCES ${CMAKE_CURRENT_BINARY_DIR}/${el})
-    if (NOT RTAGS_NO_ELISP_BYTECOMPILE)
-        list(APPEND RTAGS_ELISP_SOURCES ${CMAKE_CURRENT_BINARY_DIR}/${el}c)
-        add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/${el}c
-            COMMAND ${EMACS_EXECUTABLE} -batch -l ${CMAKE_CURRENT_SOURCE_DIR}/compile-shim.el -l ${CMAKE_CURRENT_SOURCE_DIR}/rtags.el -f batch-byte-compile
-            ${CMAKE_CURRENT_BINARY_DIR}/${el}
-            DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/${el}
-            WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
-            COMMENT "Creating byte-compiled Emacs lisp ${CMAKE_CURRENT_BINARY_DIR}/${el}c")
-        add_custom_target(emacs_byte_compile_${el} ALL DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/${el}c)
-    endif ()
-endforeach()
 
 install(CODE "message(\"Installing rtags...\")")
 include(BashCompletion)
-if(BASH_COMPLETION_FOUND)
+if (BASH_COMPLETION_FOUND)
     file (MAKE_DIRECTORY "${PROJECT_BINARY_DIR}/completions")
     execute_process(COMMAND ${CMAKE_COMMAND} -E create_symlink rtags rc
         COMMAND ${CMAKE_COMMAND} -E create_symlink rtags rdm
@@ -190,8 +196,10 @@ if(BASH_COMPLETION_FOUND)
         RENAME rtags)
     install(FILES "${PROJECT_BINARY_DIR}/completions/rc" "${PROJECT_BINARY_DIR}/completions/rdm"
         DESTINATION ${BASH_COMPLETION_COMPLETIONSDIR})
-endif()
+endif ()
 install(TARGETS rdm rc rp RUNTIME DESTINATION bin COMPONENT rtags)
 install(FILES ../bin/gcc-rtags-wrapper.sh DESTINATION bin)
 install(FILES ../man/man7/rc.7 ../man/man7/rdm.7 DESTINATION share/man/man7/)
-install(FILES ${RTAGS_ELISP_SOURCES} DESTINATION ${RTAGS_ELISP_INSTALL_LOCATION})
+if (NOT RTAGS_NO_ELISP_FILES)
+    install(FILES ${RTAGS_ELISP_SOURCES} DESTINATION ${RTAGS_ELISP_INSTALL_LOCATION})
+endif ()
