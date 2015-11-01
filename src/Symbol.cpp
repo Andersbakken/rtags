@@ -82,9 +82,9 @@ String Symbol::toString(Flags<ToStringFlag> cursorInfoFlags,
     if (project) {
         extern String findSymbolNameByUsr(const std::shared_ptr<Project> &, const String &, const Location &location);
         for (const auto &base : baseClasses) {
-            const String usr = findSymbolNameByUsr(project, base, location);
-            if (!usr.isEmpty()) {
-                bases << usr;
+            const String symbolName = findSymbolNameByUsr(project, base, location);
+            if (!symbolName.isEmpty()) {
+                bases << symbolName;
             }
         }
     } else {
