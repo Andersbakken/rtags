@@ -170,11 +170,11 @@ int StatusJob::execute()
                 const String usr = targets->keyAt(i);
                 write<128>("  %s", usr.constData());
                 for (const auto &t : proj->findByUsr(usr, dep.first, Project::ArgDependsOn)) {
-                    write<1024>("      %s\t%s", t.location.key(keyFlags()).constData(),
+                    write<1024>("      %s\t%s", t.location.toString(locationToStringFlags()).constData(),
                                 t.kindSpelling().constData());
                 }
                 for (const auto &location : targets->valueAt(i)) {
-                    write<1024>("    %s", location.key(keyFlags()).constData());
+                    write<1024>("    %s", location.toString(locationToStringFlags()).constData());
                 }
                 write("------------------------");
                 if (isAborted())
@@ -196,7 +196,7 @@ int StatusJob::execute()
             for (int i=0; i<count; ++i) {
                 write<128>("  %s", symNames->keyAt(i).constData());
                 for (const Location &loc : symNames->valueAt(i)) {
-                    write<1024>("    %s", loc.key().constData());
+                    write<1024>("    %s", loc.toString().constData());
                 }
                 write("------------------------");
                 if (isAborted())

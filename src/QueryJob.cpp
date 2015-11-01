@@ -118,9 +118,9 @@ bool QueryJob::locationToString(const Location &location,
 {
     if (location.isNull())
         return false;
-    Flags<Location::KeyFlag> kf = keyFlags();
+    Flags<Location::ToStringFlag> kf = locationToStringFlags();
     kf &= ~Location::ShowContext;
-    cb(Piece_Location, location.key(kf));
+    cb(Piece_Location, location.toString(kf));
     if (!(writeFlags & NoContext) && !(queryFlags() & QueryMessage::NoContext))
         cb(Piece_Context, location.context(kf));
 
@@ -157,7 +157,7 @@ bool QueryJob::locationToString(const Location &location,
                             if (containingFunction)
                                 cb(Piece_ContainingFunctionName, symbol.symbolName);
                             if (containingFunctionLocation)
-                                cb(Piece_ContainingFunctionLocation, symbol.location.key(keyFlags() & ~Location::ShowContext));
+                                cb(Piece_ContainingFunctionLocation, symbol.location.toString(locationToStringFlags() & ~Location::ShowContext));
                             break;
                         }
                     }
@@ -212,7 +212,7 @@ bool QueryJob::write(const Symbol &symbol,
     if (!filterKind(symbol.kind))
         return false;
 
-    return write(symbol.toString(toStringFlags, keyFlags(), project()), writeFlags|Unfiltered);
+    return write(symbol.toString(toStringFlags, locationToStringFlags(), project()), writeFlags|Unfiltered);
 }
 
 bool QueryJob::filter(const String &value) const

@@ -117,7 +117,7 @@ struct Symbol
         DefaultFlags = 0x0
     };
     String toString(Flags<ToStringFlag> toStringFlags = DefaultFlags,
-                    Flags<Location::KeyFlag> = Flags<Location::KeyFlag>(),
+                    Flags<Location::ToStringFlag> = Flags<Location::ToStringFlag>(),
                     const std::shared_ptr<Project> &project = std::shared_ptr<Project>()) const;
     String kindSpelling() const { return kindSpelling(kind); }
     String displayName() const;

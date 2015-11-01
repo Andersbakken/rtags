@@ -34,7 +34,7 @@ const uint64_t Location::FILEID_MASK = createMask(0, FileBits);
 const uint64_t Location::LINE_MASK = createMask(FileBits, LineBits);
 const uint64_t Location::COLUMN_MASK = createMask(FileBits + LineBits, ColumnBits);
 
-String Location::key(Flags<KeyFlag> flags) const
+String Location::toString(Flags<ToStringFlag> flags) const
 {
     if (isNull())
         return String();
@@ -65,7 +65,7 @@ String Location::key(Flags<KeyFlag> flags) const
     return ret;
 }
 
-String Location::context(Flags<KeyFlag> flags) const
+String Location::context(Flags<ToStringFlag> flags) const
 {
     const String code = path().readAll();
     String ret;

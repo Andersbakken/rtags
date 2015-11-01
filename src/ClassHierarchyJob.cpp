@@ -50,12 +50,12 @@ int ClassHierarchyJob::execute()
             indent = 2;
             write<256>("  %s\t%s",
                        symbol.symbolName.constData(),
-                       symbol.location.key(keyFlags()).constData());
+                       symbol.location.toString(locationToStringFlags()).constData());
         } else {
             write<256>("%s%s\t%s",
                        String(indent, ' ').constData(),
                        symbol.symbolName.constData(),
-                       symbol.location.key(keyFlags()).constData());
+                       symbol.location.toString(locationToStringFlags()).constData());
         }
         for (const Symbol &sym : classes) {
             recurse(sym, title, indent + 2, find);

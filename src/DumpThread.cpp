@@ -43,7 +43,7 @@ CXChildVisitResult DumpThread::visit(const CXCursor &cursor)
         if (mQueryFlags & QueryMessage::DumpCheckIncludes) {
             checkIncludes(location, cursor);
         } else {
-            Flags<Location::KeyFlag> locationFlags;
+            Flags<Location::ToStringFlag> locationFlags;
             if (mQueryFlags & QueryMessage::NoColor)
                 locationFlags |= Location::NoColor;
 

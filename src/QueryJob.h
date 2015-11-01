@@ -87,7 +87,7 @@ public:
     void setJobFlag(JobFlag flag, bool on = true) { mJobFlags.set(flag, on); }
     Flags<QueryMessage::Flag> queryFlags() const { return mQueryMessage ? mQueryMessage->flags() : Flags<QueryMessage::Flag>(); }
     std::shared_ptr<QueryMessage> queryMessage() const { return mQueryMessage; }
-    Flags<Location::KeyFlag> keyFlags() const { return QueryMessage::keyFlags(queryFlags()); }
+    Flags<Location::ToStringFlag> locationToStringFlags() const { return QueryMessage::locationToStringFlags(queryFlags()); }
     bool filter(const String &val) const;
     Signal<std::function<void(const String &)> > &output() { return mOutput; }
     std::shared_ptr<Project> project() const { return mProject; }

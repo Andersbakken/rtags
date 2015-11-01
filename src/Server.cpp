@@ -958,9 +958,9 @@ void Server::generateTest(const std::shared_ptr<QueryMessage> &query, const std:
                     Map<String, Value> test;
                     test["type"] = "follow-location";
                     test["flags"] = noContextFlags;
-                    test["location"] = loc.key();
+                    test["location"] = loc.toString();
                     List<Value> output;
-                    output.append(target.location.key());
+                    output.append(target.location.toString());
                     test["output"] = output;
                     tests.append(test);
                 }

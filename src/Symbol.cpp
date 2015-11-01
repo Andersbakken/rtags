@@ -37,7 +37,7 @@ static inline const char *linkageSpelling(CXLinkageKind kind)
 }
 
 String Symbol::toString(Flags<ToStringFlag> cursorInfoFlags,
-                        Flags<Location::KeyFlag> keyFlags,
+                        Flags<Location::ToStringFlag> locationToStringFlags,
                         const std::shared_ptr<Project> &project) const
 {
     auto properties = [this]()
@@ -141,11 +141,11 @@ String Symbol::toString(Flags<ToStringFlag> cursorInfoFlags,
         if (targets.size()) {
             ret.append("Targets:\n");
             auto best = RTags::bestTarget(targets);
-            ret.append(String::format<128>("    %s\n", best.location.key(keyFlags).constData()));
+            ret.append(String::format<128>("    %s\n", best.location.toString(locationToStringFlags).constData()));
 
             for (const auto &tit : targets) {
                 if (tit.location != best.location)
-                    ret.append(String::format<128>("    %s\n", tit.location.key(keyFlags).constData()));
+                    ret.append(String::format<128>("    %s\n", tit.location.toString(locationToStringFlags).constData()));
             }
         }
     }
@@ -156,7 +156,7 @@ String Symbol::toString(Flags<ToStringFlag> cursorInfoFlags,
         if (references.size()) {
             ret.append("References:\n");
             for (const auto &r : references) {
-                ret.append(String::format<128>("    %s\n", r.location.key(keyFlags).constData()));
+                ret.append(String::format<128>("    %s\n", r.location.toString(locationToStringFlags).constData()));
             }
         }
     }

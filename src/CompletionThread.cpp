@@ -67,7 +67,7 @@ void CompletionThread::run()
                     << "lastModified:" << cache->lastModified
                     << "translationUnit:" << cache->translationUnit << "\n";
                 for (Completions *completion = cache->completionsList.first(); completion; completion = completion->next) {
-                    out << "    " << completion->location.key() << "\n";
+                    out << "    " << completion->location.toString() << "\n";
                     for (const auto &c : completion->candidates) {
                         out << "        " << c.completion << c.signature << c.priority << c.distance
                             << RTags::eatString(clang_getCursorKindSpelling(c.cursorKind)) << "\n";
@@ -465,12 +465,12 @@ void CompletionThread::printCompletions(const List<Completions::Candidate> &comp
         if (xml) {
             xmlOut.reserve(16384);
             xmlOut << String::format<128>("<?xml version=\"1.0\" encoding=\"utf-8\"?><completions location=\"%s\"><![CDATA[",
-                                          request->location.key().constData());
+                                          request->location.toString().constData());
         }
         if (elisp) {
             elispOut.reserve(16384);
             elispOut += String::format<256>("(list 'completions (list \"%s\" (list",
-                                            RTags::elispEscape(request->location.key()).constData());
+                                            RTags::elispEscape(request->location.toString()).constData());
         }
         for (const auto &val : completions) {
             if (val.cursorKind >= cursorKindNames.size())

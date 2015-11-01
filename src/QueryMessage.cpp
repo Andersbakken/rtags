@@ -36,9 +36,9 @@ void QueryMessage::decode(Deserializer &deserializer)
                  >> mCurrentFile >> mUnsavedFiles >> mTerminalWidth;
 }
 
-Flags<Location::KeyFlag> QueryMessage::keyFlags(Flags<Flag> queryFlags)
+Flags<Location::ToStringFlag> QueryMessage::locationToStringFlags(Flags<Flag> queryFlags)
 {
-    Flags<Location::KeyFlag> ret;
+    Flags<Location::ToStringFlag> ret;
     if (!(queryFlags & NoContext))
         ret |= Location::ShowContext;
     if (queryFlags & NoColor)

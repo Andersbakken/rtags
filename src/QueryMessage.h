@@ -188,8 +188,8 @@ public:
 
     void setFlag(Flag flag, bool on = true) { mFlags.set(flag, on); }
     static Flag flagFromString(const String &string);
-    static Flags<Location::KeyFlag> keyFlags(Flags<Flag> queryFlags);
-    inline Flags<Location::KeyFlag> keyFlags() const { return keyFlags(mFlags); }
+    static Flags<Location::ToStringFlag> locationToStringFlags(Flags<Flag> queryFlags);
+    inline Flags<Location::ToStringFlag> locationToStringFlags() const { return locationToStringFlags(mFlags); }
 
     virtual void encode(Serializer &serializer) const override;
     virtual void decode(Deserializer &deserializer) override;

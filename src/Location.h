@@ -144,15 +144,15 @@ public:
         return compare(other) > 0;
     }
 
-    enum KeyFlag {
+    enum ToStringFlag {
         NoFlag = 0x0,
         ShowContext = 0x1,
         NoColor = 0x2,
         AbsolutePath = 0x4
     };
 
-    String key(Flags<KeyFlag> flags = NoFlag) const;
-    String context(Flags<KeyFlag> flags) const;
+    String toString(Flags<ToStringFlag> flags = NoFlag) const;
+    String context(Flags<ToStringFlag> flags) const;
 
     enum DecodeFlag {
         NoDecodeFlag = 0x0,
@@ -270,7 +270,7 @@ private:
     static const uint64_t COLUMN_MASK;
 };
 
-RCT_FLAGS(Location::KeyFlag);
+RCT_FLAGS(Location::ToStringFlag);
 
 template <> struct FixedSize<Location>
 {
@@ -315,7 +315,7 @@ template <> inline Deserializer &operator>>(Deserializer &s, Location &t)
 
 static inline Log operator<<(Log dbg, const Location &loc)
 {
-    dbg << loc.key();
+    dbg << loc.toString();
     return dbg;
 }
 

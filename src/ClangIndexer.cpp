@@ -1435,7 +1435,7 @@ bool ClangIndexer::diagnose()
                         clang_getSpellingLocation(childDiagLoc, 0, &line, &column, 0);
                         childLoc = Location(childFileId, line, column);
                     }
-                    msg << '\n' << childLoc.key(Location::NoColor|Location::AbsolutePath) << " " << RTags::eatString(clang_getDiagnosticSpelling(child));
+                    msg << '\n' << childLoc.toString(Location::NoColor|Location::AbsolutePath) << " " << RTags::eatString(clang_getDiagnosticSpelling(child));
                 }
                 clang_disposeDiagnosticSet(children);
 
@@ -1490,14 +1490,14 @@ bool ClangIndexer::diagnose()
                     assert(string);
                     if (!*string) {
                         error("Fixit for %s Remove %d character%s",
-                              loc.key().constData(), endOffset - startOffset,
+                              loc.toString().constData(), endOffset - startOffset,
                               endOffset - startOffset > 1 ? "s" : "");
                     } else if (endOffset == startOffset) {
                         error("Fixit for %s Insert \"%s\"",
-                              loc.key().constData(), string);
+                              loc.toString().constData(), string);
                     } else {
                         error("Fixit for %s Replace %d character%s with \"%s\"",
-                              loc.key().constData(), endOffset - startOffset,
+                              loc.toString().constData(), endOffset - startOffset,
                               endOffset - startOffset > 1 ? "s" : "", string);
                     }
                     Diagnostic &entry = mIndexDataMessage.diagnostics()[Location(loc.fileId(), line, column)];
