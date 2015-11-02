@@ -24,7 +24,6 @@
 #include <rct/Connection.h>
 #include <rct/EventLoop.h>
 #include "RTags.h"
-#include "Diagnostic.h"
 #include "RClient.h"
 #include <unistd.h>
 #if CINDEX_VERSION >= CINDEX_VERSION_ENCODE(0, 25)
@@ -1436,6 +1435,18 @@ bool ClangIndexer::diagnose()
                         childLoc = Location(childFileId, line, column);
                     }
                     msg << '\n' << childLoc.toString(Location::NoColor|Location::AbsolutePath) << " " << RTags::eatString(clang_getDiagnosticSpelling(child));
+                    Path path = childLoc.path();
+                    int offset = 0;
+                    if (childLoc.fileId() == fileId) {
+                        int fileNameLen;
+                        path.fileName(&fileNameLen);
+                        offset = path.size() - fileNameLen;
+                    } else if (path.startsWith(mProject)) {
+                        offset = mProject.size();
+                    }
+                    msg << '\n';
+                    msg.append(path.constData() + offset, path.size() - offset);
+                    msg << childLoc.line() << ':' << childLoc.column() << ": " << RTags::eatString(clang_getDiagnosticSpelling(child));
                 }
                 clang_disposeDiagnosticSet(children);
 
