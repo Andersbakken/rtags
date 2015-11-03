@@ -64,8 +64,16 @@ void CompletionThread::run()
             Log out(&dump->string);
             for (SourceFile *cache = mCacheList.first(); cache; cache = cache->next) {
                 out << cache->source << "\nhash:" << cache->unsavedHash
-                    << "lastModified:" << cache->lastModified
-                    << "translationUnit:" << cache->translationUnit << "\n";
+                    << "\nlastModified:" << cache->lastModified
+                    << "\nparseTime:" << cache->parseTime
+                    << "\nreparseTime:" << cache->reparseTime
+                    << "\ncompletions:" << cache->completions
+                    << "\ncompletionTime:" << cache->codeCompleteTime
+                    << (cache->completions
+                        ? String::format<32>("(avg: %.2f)",
+                                             (static_cast<double>(cache->codeCompleteTime) / cache->completions))
+                        : String())
+                    << "\ntranslationUnit:" << cache->translationUnit << "\n";
                 for (Completions *completion = cache->completionsList.first(); completion; completion = completion->next) {
                     out << "    " << completion->location.toString() << "\n";
                     for (const auto &c : completion->candidates) {
@@ -272,11 +280,11 @@ void CompletionThread::process(Request *request)
                                     cache->translationUnit, mIndex,
                                     &unsaved, request->unsaved.size() ? 1 : 0, flags, &clangLine);
         // error() << "PARSING" << clangLine;
-        parseTime = sw.restart();
+        parseTime = cache->parseTime = sw.restart();
         if (cache->translationUnit) {
             RTags::reparseTranslationUnit(cache->translationUnit, &unsaved, request->unsaved.size() ? 1 : 0);
         }
-        reparseTime = sw.elapsed();
+        reparseTime = cache->reparseTime = sw.elapsed();
         if (!cache->translationUnit)
             return;
         cache->unsavedHash = hash;
@@ -304,7 +312,8 @@ void CompletionThread::process(Request *request)
     CXCodeCompleteResults *results = clang_codeCompleteAt(cache->translationUnit, sourceFile.constData(),
                                                           request->location.line(), request->location.column(),
                                                           &unsaved, unsaved.Length ? 1 : 0, completionFlags);
-    completeTime = sw.restart();
+    completeTime = cache->codeCompleteTime = sw.restart();
+    ++cache->completions;
     if (results) {
         std::vector<Completions::Candidate> nodes;
         nodes.reserve(results->NumResults);

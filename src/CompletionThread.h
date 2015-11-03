@@ -91,11 +91,13 @@ private:
 
     struct SourceFile {
         SourceFile()
-            : translationUnit(0), unsavedHash(0), lastModified(0), next(0), prev(0)
+            : translationUnit(0), unsavedHash(0), lastModified(0),
+              parseTime(0), reparseTime(0), codeCompleteTime(0), completions(0), next(0), prev(0)
         {}
         CXTranslationUnit translationUnit;
         size_t unsavedHash;
-        uint64_t lastModified; // ms
+        uint64_t lastModified, parseTime, reparseTime, codeCompleteTime; // ms
+        size_t completions;
         Source source;
         Map<Location, Completions*> completionsMap;
         EmbeddedLinkedList<Completions*> completionsList;
