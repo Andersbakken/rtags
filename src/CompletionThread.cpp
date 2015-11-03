@@ -269,6 +269,9 @@ void CompletionThread::process(Request *request)
         flags |= CXTranslationUnit_PrecompiledPreamble;
         flags |= CXTranslationUnit_CacheCompletionResults;
         flags |= CXTranslationUnit_SkipFunctionBodies;
+        flags |= CXTranslationUnit_DetailedPreprocessingRecord;
+        flags |= CXTranslationUnit_Incomplete;
+        flags |= CXTranslationUnit_IncludeBriefCommentsInCodeCompletion;
 
         for (const auto &inc : options.includePaths) {
             request->source.includePaths << inc;
@@ -307,7 +310,9 @@ void CompletionThread::process(Request *request)
     }
 
     sw.restart();
-    const unsigned int completionFlags = (CXCodeComplete_IncludeMacros|CXCodeComplete_IncludeCodePatterns);
+    const unsigned int completionFlags = (CXCodeComplete_IncludeMacros
+                                          |CXCodeComplete_IncludeCodePatterns
+                                          |CXCodeComplete_IncludeBriefComments);
 
     CXCodeCompleteResults *results = clang_codeCompleteAt(cache->translationUnit, sourceFile.constData(),
                                                           request->location.line(), request->location.column(),
