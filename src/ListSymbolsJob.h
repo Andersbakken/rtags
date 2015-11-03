@@ -16,10 +16,10 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 #ifndef ListSymbolsJob_h
 #define ListSymbolsJob_h
 
-#include <rct/String.h>
-#include <rct/List.h>
-#include "QueryMessage.h"
 #include "QueryJob.h"
+#include "QueryMessage.h"
+#include "rct/List.h"
+#include "rct/String.h"
 
 class ListSymbolsJob : public QueryJob
 {

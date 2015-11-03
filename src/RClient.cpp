@@ -14,19 +14,21 @@
    along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 
 #include "RClient.h"
-#include "IndexMessage.h"
-#include "LogOutputMessage.h"
-#include "RTagsLogOutput.h"
-#include <rct/Connection.h>
-#include <rct/EventLoop.h>
-#include <rct/Log.h>
-#include <rct/QuitMessage.h>
-#include <rct/Rct.h>
-#include "RTagsClang.h"
-#include "FileMap.h"
-#include <rct/StopWatch.h>
+
 #include <stdio.h>
 #include <sys/ioctl.h>
+
+#include "FileMap.h"
+#include "IndexMessage.h"
+#include "LogOutputMessage.h"
+#include "rct/Connection.h"
+#include "rct/EventLoop.h"
+#include "rct/Log.h"
+#include "rct/QuitMessage.h"
+#include "rct/Rct.h"
+#include "rct/StopWatch.h"
+#include "RTagsClang.h"
+#include "RTagsLogOutput.h"
 
 Path currentProjectPath() { return Path(); }
 

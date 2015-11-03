@@ -16,17 +16,18 @@
 #ifndef ClangIndexer_h
 #define ClangIndexer_h
 
-#include <rct/StopWatch.h>
-#include <rct/Hash.h>
-#include <rct/Serializer.h>
-#include <rct/Path.h>
-#include <rct/Connection.h>
 #include <sys/stat.h>
+
 #include "IndexDataMessage.h"
 #include "IndexerJob.h"
+#include "rct/Connection.h"
+#include "rct/Hash.h"
+#include "rct/Path.h"
+#include "rct/Serializer.h"
+#include "rct/StopWatch.h"
 #include "RTagsClang.h"
-#include "Symbol.h"
 #include "Server.h"
+#include "Symbol.h"
 
 struct Unit;
 class ClangIndexer

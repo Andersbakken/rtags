@@ -14,12 +14,14 @@ You should have received a copy of the GNU General Public License
 along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 
 #include "QueryJob.h"
-#include "RTags.h"
-#include <rct/EventLoop.h>
-#include "Server.h"
+
 #include <regex>
-#include "QueryMessage.h"
+
 #include "Project.h"
+#include "QueryMessage.h"
+#include "rct/EventLoop.h"
+#include "RTags.h"
+#include "Server.h"
 
 QueryJob::QueryJob(const std::shared_ptr<QueryMessage> &query,
                    const std::shared_ptr<Project> &proj,

@@ -14,9 +14,10 @@ You should have received a copy of the GNU General Public License
 along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 
 #include "ScanThread.h"
-#include "Server.h"
+
 #include "Filter.h"
 #include "Project.h"
+#include "Server.h"
 
 ScanThread::ScanThread(const Path &path)
     : Thread(), mPath(path), mFilters(Server::instance()->options().excludeFilters)
@@ -49,5 +50,3 @@ void ScanThread::run()
 {
     mFinished(paths(mPath, mFilters));
 }
-
-

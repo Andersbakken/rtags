@@ -16,22 +16,23 @@
 #ifndef Project_h
 #define Project_h
 
-#include "IndexerJob.h"
-#include "Match.h"
-#include "QueryMessage.h"
-#include "RTags.h"
-#include "RTagsClang.h"
-#include "IndexMessage.h"
 #include <cstdint>
 #include <memory>
 #include <mutex>
-#include <rct/FileSystemWatcher.h>
-#include <rct/EmbeddedLinkedList.h>
-#include <rct/LinkedList.h>
-#include <rct/Path.h>
 #include <regex>
-#include <rct/Timer.h>
-#include <rct/Flags.h>
+
+#include "IndexerJob.h"
+#include "IndexMessage.h"
+#include "Match.h"
+#include "QueryMessage.h"
+#include "rct/EmbeddedLinkedList.h"
+#include "rct/FileSystemWatcher.h"
+#include "rct/Flags.h"
+#include "rct/LinkedList.h"
+#include "rct/Path.h"
+#include "rct/Timer.h"
+#include "RTagsClang.h"
+#include "RTags.h"
 
 class IndexDataMessage;
 class FileManager;

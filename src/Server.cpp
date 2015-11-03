@@ -15,56 +15,58 @@
 
 #include "Server.h"
 
-#include "CompletionThread.h"
-#include "IndexMessage.h"
-#include "LogOutputMessage.h"
-#include "SymbolInfoJob.h"
-#include "DependenciesJob.h"
-#include "VisitFileResponseMessage.h"
-#include "Filter.h"
-#include "FindFileJob.h"
-#include "IncludeFileJob.h"
-#include "RClient.h"
-#include "FindSymbolsJob.h"
-#include "FollowLocationJob.h"
-#include "ClassHierarchyJob.h"
-#include "IndexerJob.h"
-#include "Source.h"
-#include "DumpThread.h"
+
+#include <arpa/inet.h>
+#include <clang-c/Index.h>
+#include <stdio.h>
+#include <limits>
+#include <regex>
 #if CLANG_VERSION_MAJOR > 3 || (CLANG_VERSION_MAJOR == 3 && CLANG_VERSION_MINOR > 3)
 #include <clang-c/CXCompilationDatabase.h>
 #endif
-#include "ListSymbolsJob.h"
-#include "RTagsLogOutput.h"
-#include "Match.h"
-#include "Preprocessor.h"
-#include "Project.h"
-#include "JobScheduler.h"
-#include "QueryMessage.h"
-#include "VisitFileMessage.h"
-#include "IndexDataMessage.h"
-#include "RTags.h"
-#include "ReferencesJob.h"
-#include "StatusJob.h"
-#include <clang-c/Index.h>
-#include <rct/Connection.h>
-#include <rct/DataFile.h>
-#include <rct/Value.h>
-#include <rct/EventLoop.h>
-#include <rct/SocketClient.h>
-#include <rct/Log.h>
-#include <rct/Message.h>
-#include <rct/Path.h>
-#include <rct/Process.h>
-#include <rct/Rct.h>
-#include <stdio.h>
-#include <arpa/inet.h>
-#include <limits>
-#include <regex>
-#include <rct/QuitMessage.h>
 #ifdef OS_Darwin
 #include <launch.h>
 #endif
+
+#include "ClassHierarchyJob.h"
+#include "CompletionThread.h"
+#include "DependenciesJob.h"
+#include "DumpThread.h"
+#include "Filter.h"
+#include "FindFileJob.h"
+#include "FindSymbolsJob.h"
+#include "FollowLocationJob.h"
+#include "IncludeFileJob.h"
+#include "IndexDataMessage.h"
+#include "IndexerJob.h"
+#include "IndexMessage.h"
+#include "JobScheduler.h"
+#include "ListSymbolsJob.h"
+#include "LogOutputMessage.h"
+#include "Match.h"
+#include "Preprocessor.h"
+#include "Project.h"
+#include "QueryMessage.h"
+#include "RClient.h"
+#include "rct/Connection.h"
+#include "rct/DataFile.h"
+#include "rct/EventLoop.h"
+#include "rct/Log.h"
+#include "rct/Message.h"
+#include "rct/Path.h"
+#include "rct/Process.h"
+#include "rct/QuitMessage.h"
+#include "rct/Rct.h"
+#include "rct/SocketClient.h"
+#include "rct/Value.h"
+#include "ReferencesJob.h"
+#include "RTags.h"
+#include "RTagsLogOutput.h"
+#include "Source.h"
+#include "StatusJob.h"
+#include "SymbolInfoJob.h"
+#include "VisitFileMessage.h"
+#include "VisitFileResponseMessage.h"
 
 #define TO_STR1(x) #x
 #define TO_STR(x)  TO_STR1(x)
@@ -2064,4 +2066,3 @@ bool Server::runTests()
     }
     return ret;
 }
-

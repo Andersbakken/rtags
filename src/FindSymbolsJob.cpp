@@ -14,10 +14,11 @@ You should have received a copy of the GNU General Public License
 along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 
 #include "FindSymbolsJob.h"
-#include "Server.h"
-#include <rct/Log.h>
-#include "RTagsClang.h"
+
 #include "Project.h"
+#include "rct/Log.h"
+#include "RTagsClang.h"
+#include "Server.h"
 
 static inline Flags<QueryJob::JobFlag> jobFlags(Flags<QueryMessage::Flag> queryFlags)
 {

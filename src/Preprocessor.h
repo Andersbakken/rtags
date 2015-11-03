@@ -16,10 +16,11 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 #ifndef PREPROCESSOR_H
 #define PREPROCESSOR_H
 
-#include <rct/Path.h>
-#include <rct/List.h>
-#include <rct/String.h>
 #include <memory>
+
+#include "rct/List.h"
+#include "rct/Path.h"
+#include "rct/String.h"
 #include "RTags.h"
 
 class Connection;

@@ -14,26 +14,28 @@
    along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 
 #include "Project.h"
-#include "FileManager.h"
-#include "Diagnostic.h"
-#include "IndexerJob.h"
-#include "RTags.h"
-#include "Server.h"
-#include "JobScheduler.h"
-#include "RTagsLogOutput.h"
-#include <math.h>
+
 #include <fnmatch.h>
-#include <rct/Log.h>
-#include <rct/MemoryMonitor.h>
-#include <rct/Path.h>
-#include <rct/Value.h>
-#include <rct/Rct.h>
-#include <rct/ReadLocker.h>
-#include <rct/Thread.h>
-#include <rct/DataFile.h>
-#include <regex>
+#include <math.h>
 #include <memory>
+#include <regex>
+
+#include "Diagnostic.h"
+#include "FileManager.h"
+#include "IndexerJob.h"
+#include "JobScheduler.h"
 #include "LogOutputMessage.h"
+#include "rct/DataFile.h"
+#include "rct/Log.h"
+#include "rct/MemoryMonitor.h"
+#include "rct/Path.h"
+#include "rct/Rct.h"
+#include "rct/ReadLocker.h"
+#include "rct/Thread.h"
+#include "rct/Value.h"
+#include "RTags.h"
+#include "RTagsLogOutput.h"
+#include "Server.h"
 
 enum { DirtyTimeout = 100 };
 

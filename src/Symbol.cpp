@@ -14,10 +14,10 @@
    You should have received a copy of the GNU General Public License
    along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 
-#include "Symbol.h"
-#include "RTags.h"
-#include "RTagsClang.h"
 #include "Project.h"
+#include "RTagsClang.h"
+#include "RTags.h"
+#include "Symbol.h"
 
 uint16_t Symbol::targetsValue() const
 {

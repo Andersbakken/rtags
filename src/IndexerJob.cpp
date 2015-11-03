@@ -14,11 +14,12 @@
    along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 
 #include "IndexerJob.h"
-#include "Project.h"
-#include <rct/Process.h>
-#include <RTagsClang.h>
-#include "Server.h"
+
 #include "CompilerManager.h"
+#include "Project.h"
+#include "rct/Process.h"
+#include "RTagsClang.h"
+#include "Server.h"
 
 uint64_t IndexerJob::sNextId = 1;
 IndexerJob::IndexerJob(const Source &s,
@@ -160,5 +161,3 @@ String IndexerJob::dumpFlags(Flags<Flag> flags)
 
     return String::join(ret, ", ");
 }
-
-

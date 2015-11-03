@@ -16,14 +16,9 @@
 #ifndef Location_h
 #define Location_h
 
-#include <rct/String.h>
-#include <rct/Log.h>
-#include <rct/Path.h>
-#include <rct/Serializer.h>
 #include <assert.h>
 #include <clang-c/Index.h>
 #include <stdio.h>
-#include <rct/Flags.h>
 #if defined(OS_Linux)
 #include <linux/limits.h>
 #endif
@@ -33,6 +28,12 @@
 #else
 #define LOCK() do {} while (0)
 #endif
+
+#include "rct/Flags.h"
+#include "rct/Log.h"
+#include "rct/Path.h"
+#include "rct/Serializer.h"
+#include "rct/String.h"
 
 static inline int intCompare(uint32_t l, uint32_t r)
 {

@@ -14,9 +14,10 @@ You should have received a copy of the GNU General Public License
 along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 
 #include "IncludeFileJob.h"
+
+#include "Project.h"
 #include "RTags.h"
 #include "Server.h"
-#include "Project.h"
 
 IncludeFileJob::IncludeFileJob(const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Project> &project)
     : QueryJob(query, project)

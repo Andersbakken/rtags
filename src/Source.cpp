@@ -14,9 +14,10 @@
    along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 
 #include "Source.h"
+
 #include "Location.h"
+#include "rct/EventLoop.h"
 #include "RTags.h"
-#include <rct/EventLoop.h>
 #include "Server.h"
 
 extern const Server::Options *serverOptions();

@@ -16,11 +16,11 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 #ifndef RClient_h
 #define RClient_h
 
-#include <rct/List.h>
-#include <rct/String.h>
-#include <rct/Hash.h>
-#include <rct/Path.h>
 #include "QueryMessage.h"
+#include "rct/Hash.h"
+#include "rct/List.h"
+#include "rct/Path.h"
+#include "rct/String.h"
 
 class RCCommand;
 class QueryCommand;
@@ -213,4 +213,3 @@ private:
 };
 
 #endif
-

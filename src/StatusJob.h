@@ -16,9 +16,9 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 #ifndef StatusJob_h
 #define StatusJob_h
 
-#include <rct/String.h>
-#include <rct/List.h>
 #include "QueryJob.h"
+#include "rct/List.h"
+#include "rct/String.h"
 
 class QueryMessage;
 class StatusJob : public QueryJob

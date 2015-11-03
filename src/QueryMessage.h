@@ -16,14 +16,14 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 #ifndef QUERYMESSAGE_H
 #define QUERYMESSAGE_H
 
-#include "RTagsMessage.h"
-#include "RTags.h"
-#include <rct/Path.h>
-#include <rct/Serializer.h>
-#include <rct/Hash.h>
-#include "Match.h"
 #include "Location.h"
-#include <rct/Flags.h>
+#include "Match.h"
+#include "rct/Flags.h"
+#include "rct/Hash.h"
+#include "rct/Path.h"
+#include "rct/Serializer.h"
+#include "RTags.h"
+#include "RTagsMessage.h"
 
 class QueryMessage : public RTagsMessage
 {

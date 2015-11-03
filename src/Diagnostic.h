@@ -16,8 +16,8 @@
 #ifndef Diagnostic_h
 #define Diagnostic_h
 
-#include <rct/String.h>
-#include <rct/Serializer.h>
+#include "rct/Serializer.h"
+#include "rct/String.h"
 #include "RTags.h"
 
 struct Diagnostic

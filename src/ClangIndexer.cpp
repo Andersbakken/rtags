@@ -14,21 +14,23 @@
    along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 
 #define RTAGS_SINGLE_THREAD
-#include <rct/SHA256.h>
 #include "ClangIndexer.h"
-#include "Diagnostic.h"
-#include "QueryMessage.h"
-#include "VisitFileMessage.h"
-#include "VisitFileResponseMessage.h"
-#include "FileMap.h"
-#include <rct/Connection.h>
-#include <rct/EventLoop.h>
-#include "RTags.h"
-#include "RClient.h"
+
 #include <unistd.h>
 #if CINDEX_VERSION >= CINDEX_VERSION_ENCODE(0, 25)
 #include <clang-c/Documentation.h>
 #endif
+
+#include "Diagnostic.h"
+#include "FileMap.h"
+#include "QueryMessage.h"
+#include "RClient.h"
+#include "rct/Connection.h"
+#include "rct/EventLoop.h"
+#include "rct/SHA256.h"
+#include "RTags.h"
+#include "VisitFileMessage.h"
+#include "VisitFileResponseMessage.h"
 
 const CXSourceLocation ClangIndexer::nullLocation = clang_getNullLocation();
 const CXCursor ClangIndexer::nullCursor = clang_getNullCursor();

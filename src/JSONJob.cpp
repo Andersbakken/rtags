@@ -14,10 +14,11 @@ You should have received a copy of the GNU General Public License
 along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 
 #include "JSONJob.h"
-#include "SymbolInfo.h"
+
 #include "Project.h"
 #include "RTags.h"
 #include "Server.h"
+#include "SymbolInfo.h"
 
 JSONJob::JSONJob(const std::shared_ptr<QueryMessage> &q, const std::shared_ptr<Project> &project)
     : Job(q, WriteUnfiltered|QuietJob, project), match(q.match())
@@ -83,4 +84,3 @@ void JSONJob::execute()
     }
     write("}");
 }
-

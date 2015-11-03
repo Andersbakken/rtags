@@ -16,9 +16,10 @@
 #ifndef ScanThread_h
 #define ScanThread_h
 
-#include <rct/Thread.h>
-#include <rct/Path.h>
-#include <rct/SignalSlot.h>
+#include "rct/Path.h"
+#include "rct/SignalSlot.h"
+#include "rct/Thread.h"
+
 class Project;
 class ScanThread : public Thread
 {

@@ -14,10 +14,11 @@ You should have received a copy of the GNU General Public License
 along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 
 #include "FileManager.h"
-#include "ScanThread.h"
-#include "Server.h"
+
 #include "Filter.h"
 #include "Project.h"
+#include "ScanThread.h"
+#include "Server.h"
 
 FileManager::FileManager(const std::shared_ptr<Project> &project)
     : mProject(project), mLastReloadTime(0)
@@ -175,4 +176,3 @@ void FileManager::clearFileSystemWatcher()
     if (auto project = mProject.lock())
         project->clearWatch(Project::Watch_FileManager);
 }
-

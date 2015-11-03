@@ -14,10 +14,11 @@ You should have received a copy of the GNU General Public License
 along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 
 #include "FindFileJob.h"
-#include "RTags.h"
-#include "Server.h"
+
 #include "FileManager.h"
 #include "Project.h"
+#include "RTags.h"
+#include "Server.h"
 
 static Flags<QueryJob::JobFlag> flags(Flags<QueryMessage::Flag> queryFlags)
 {
