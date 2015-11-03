@@ -256,7 +256,9 @@ public:
         sLastId = std::max(sLastId, fileId);
     }
 private:
+#ifndef RTAGS_SINGLE_THREAD
     static std::mutex sMutex;
+#endif
     static Hash<Path, uint32_t> sPathsToIds;
     static Hash<uint32_t, Path> sIdsToPaths;
     static uint32_t sLastId;
