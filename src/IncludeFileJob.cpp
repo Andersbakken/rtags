@@ -61,7 +61,8 @@ int IncludeFileJob::execute()
     const Path directory = mSource.sourceFile().parentDir();
     Set<Location> last;
     int matches = 0;
-    auto process = [&directory, this](const Set<Location> &locations) {
+    Set<String> all;
+    auto process = [&directory, this, &all](const Set<Location> &locations) {
         for (const Location &loc : locations) {
             bool first = true;
             for (const Path &path : headersForSymbol(project(), loc)) {
@@ -82,11 +83,12 @@ int IncludeFileJob::execute()
                     for (const Source::Include &inc : mSource.includePaths) {
                         const Path p = inc.path.ensureTrailingSlash();
                         if (path.startsWith(p)) {
-                            alternatives << String::format<256>("#include <%s>", path.mid(p.size()).constData());
+                            const String str = String::format<256>("#include <%s>", path.mid(p.size()).constData());
+                            ealternatives << str;
                         }
                     }
                     const int tail = strlen(path.fileName()) + 1;
-                    List<String>::iterator it = alternatives.begin();
+                    List<String>::const_iterator it = alternatives.begin();
                     while (it != alternatives.end()) {
                         bool drop = false;
                         for (List<String>::const_iterator it2 = it + 1; it2 != alternatives.end(); ++it2) {
@@ -97,19 +99,13 @@ int IncludeFileJob::execute()
                                 }
                             }
                         }
-                        if (drop) {
-                            it = alternatives.erase(it);
-                        } else {
-                            ++it;
+                        if (!drop) {
+                            found = true;
+                            all.insert(*it);
                         }
+                        ++it;
                     }
-                    std::sort(alternatives.begin(), alternatives.end(), [](const String &a, const String &b) {
-                            return a.size() < b.size();
-                        });
-                    for (const auto &a : alternatives) {
-                        found = true;
-                        write(a);
-                    }
+
                     break; }
                 default:
                     break;
@@ -119,7 +115,6 @@ int IncludeFileJob::execute()
                         break;
                     first = false;
                 }
-
             }
         }
     };
@@ -141,6 +136,13 @@ int IncludeFileJob::execute()
         }, queryFlags());
     if (matches == 1 && !last.isEmpty()) {
         process(last);
+    }
+    List<String> alternatives = all.toList();
+    std::sort(alternatives.begin(), alternatives.end(), [](const String &a, const String &b) {
+            return a.size() < b.size();
+        });
+    for (const auto &a : alternatives) {
+        write(a);
     }
 
     return 0;
