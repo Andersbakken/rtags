@@ -61,7 +61,6 @@
 #include <arpa/inet.h>
 #include <limits>
 #include <regex>
-#include <vector>
 #include <rct/QuitMessage.h>
 #ifdef OS_Darwin
 #include <launch.h>
