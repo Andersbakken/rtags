@@ -1450,7 +1450,8 @@ bool ClangIndexer::diagnose()
                     msg.append(path.constData() + offset, path.size() - offset);
                     msg << ':' << childLoc.line() << ':' << childLoc.column() << ": " << RTags::eatString(clang_getDiagnosticSpelling(child));
                 }
-                clang_disposeDiagnosticSet(children);
+                if (children)
+                    clang_disposeDiagnosticSet(children);
 
                 const unsigned int rangeCount = clang_getDiagnosticNumRanges(diagnostic);
                 bool ok = false;
