@@ -61,6 +61,7 @@
 #include <arpa/inet.h>
 #include <limits>
 #include <regex>
+#include <vector>
 #include <rct/QuitMessage.h>
 #ifdef OS_Darwin
 #include <launch.h>
@@ -69,6 +70,13 @@
 #define TO_STR1(x) #x
 #define TO_STR(x)  TO_STR1(x)
 #define CLANG_LIBDIR_STR TO_STR(CLANG_LIBDIR)
+
+// Absolute paths to search (under) for (clang) system include files
+// Iterate until we find a dir at <abspath>/clang/<version>/include.
+const static std::vector<std::string> SystemIncludePaths = {
+    CLANG_LIBDIR_STR, // standard llvm build, debian/ubuntu
+    "/usr/lib"        // fedora, arch
+};
 
 // externed in files that are shared by rdm and rc
 const Server::Options *serverOptions()
@@ -152,11 +160,15 @@ bool Server::init(const Options &options)
         }
 #endif
     } else {
-        const Path clangPath = Path::resolved(CLANG_LIBDIR_STR);
-
-        Path systemInclude = clangPath.ensureTrailingSlash();
-        systemInclude << "clang/" << CLANG_VERSION_STRING << "/include/";
-        mOptions.includePaths.append(Source::Include(Source::Include::Type_System, systemInclude));
+        // Iterate until we find an existing directory
+        for (int i = 0; i < SystemIncludePaths.size(); i++) {
+            Path systemInclude = Path::resolved(SystemIncludePaths[i]).ensureTrailingSlash();
+            systemInclude << "clang/" << CLANG_VERSION_STRING << "/include/";
+            if ( systemInclude.isDir() ) {
+                mOptions.includePaths.append(Source::Include(Source::Include::Type_System, systemInclude));
+                break;
+            };
+        }
     }
 
     if (!initServers()) {
