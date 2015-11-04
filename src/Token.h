@@ -1,6 +1,3 @@
-#ifndef Token_h
-#define Token_h
-
 /* This file is part of RTags (http://rtags.net).
 
    RTags is free software: you can redistribute it and/or modify
@@ -16,7 +13,10 @@
    You should have received a copy of the GNU General Public License
    along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 
-#include <rct/Map.h>
+#ifndef Token_h
+#define Token_h
+
+#include "rct/Map.h"
 
 struct Token
 {

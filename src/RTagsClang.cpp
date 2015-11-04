@@ -14,11 +14,13 @@
    along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 
 #include "RTagsClang.h"
-#include "Server.h"
-#include <rct/StopWatch.h>
-#include "Project.h"
-#include <rct/Hash.h>
+
 #include <iostream>
+
+#include "Project.h"
+#include "rct/Hash.h"
+#include "rct/StopWatch.h"
+#include "Server.h"
 #include "Token.h"
 
 #ifdef HAVE_BACKTRACE

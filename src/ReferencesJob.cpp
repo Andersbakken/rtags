@@ -14,9 +14,10 @@
    along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 
 #include "ReferencesJob.h"
-#include "Server.h"
-#include "RTags.h"
+
 #include "Project.h"
+#include "RTags.h"
+#include "Server.h"
 
 static inline Flags<QueryJob::JobFlag> jobFlags(Flags<QueryMessage::Flag> queryFlags)
 {

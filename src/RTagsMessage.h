@@ -16,8 +16,8 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 #ifndef RTagsMessage_h
 #define RTagsMessage_h
 
-#include <rct/Message.h>
-#include <rct/String.h>
+#include "rct/Message.h"
+#include "rct/String.h"
 
 class RTagsMessage : public Message
 {

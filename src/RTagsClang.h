@@ -16,12 +16,13 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 #ifndef __RTAGSCLANG_H__
 #define __RTAGSCLANG_H__
 
-#include "FileMap.h"
-#include "Source.h"
-#include "RTags.h"
-#include "Symbol.h"
 #include <clang/Basic/Version.h>
-#include <rct/Flags.h>
+
+#include "FileMap.h"
+#include "rct/Flags.h"
+#include "RTags.h"
+#include "Source.h"
+#include "Symbol.h"
 
 struct Unit;
 inline bool operator==(const CXCursor &l, CXCursorKind r)

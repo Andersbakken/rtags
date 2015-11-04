@@ -14,12 +14,14 @@ You should have received a copy of the GNU General Public License
 along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 
 #include "StatusJob.h"
-#include "RTags.h"
-#include "Server.h"
+
 #include <clang-c/Index.h>
-#include "Project.h"
+
 #include "CompilerManager.h"
 #include "JobScheduler.h"
+#include "Project.h"
+#include "RTags.h"
+#include "Server.h"
 
 const char *StatusJob::delimiter = "*********************************";
 StatusJob::StatusJob(const std::shared_ptr<QueryMessage> &q, const std::shared_ptr<Project> &project)

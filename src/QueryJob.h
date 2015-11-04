@@ -16,17 +16,18 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 #ifndef QueryJob_h
 #define QueryJob_h
 
-#include <rct/ThreadPool.h>
-#include <rct/List.h>
-#include <rct/String.h>
-#include <rct/EventLoop.h>
-#include <rct/SignalSlot.h>
 #include <regex>
-#include "RTagsClang.h"
-#include "QueryMessage.h"
 #include <mutex>
-#include <rct/Flags.h>
+
 #include "Project.h"
+#include "QueryMessage.h"
+#include "rct/EventLoop.h"
+#include "rct/Flags.h"
+#include "rct/List.h"
+#include "rct/SignalSlot.h"
+#include "rct/String.h"
+#include "rct/ThreadPool.h"
+#include "RTagsClang.h"
 
 class Location;
 class QueryMessage;

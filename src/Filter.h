@@ -16,10 +16,11 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 #ifndef Filter_h
 #define Filter_h
 
-#include <rct/Path.h>
-#include <rct/List.h>
-#include <rct/String.h>
 #include <fnmatch.h>
+
+#include "rct/List.h"
+#include "rct/Path.h"
+#include "rct/String.h"
 
 namespace Filter {
 enum Result {

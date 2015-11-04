@@ -16,11 +16,11 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 #ifndef IndexMessage_h
 #define IndexMessage_h
 
-#include <rct/List.h>
-#include <rct/String.h>
-#include "RTagsMessage.h"
+#include "rct/Flags.h"
+#include "rct/List.h"
+#include "rct/String.h"
 #include "RTags.h"
-#include <rct/Flags.h>
+#include "RTagsMessage.h"
 
 class IndexMessage : public RTagsMessage
 {

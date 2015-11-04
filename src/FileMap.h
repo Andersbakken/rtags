@@ -1,6 +1,3 @@
-#ifndef FileMap_h
-#define FileMap_h
-
 /* This file is part of RTags (http://rtags.net).
 
    RTags is free software: you can redistribute it and/or modify
@@ -16,16 +13,20 @@
    You should have received a copy of the GNU General Public License
    along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 
+#ifndef FileMap_h
+#define FileMap_h
+
 #include <assert.h>
-#include <sys/stat.h>
 #include <fcntl.h>
 #include <sys/file.h>
 #include <sys/mman.h>
-#include <rct/Serializer.h>
-#include <rct/Rct.h>
-#include <rct/StackBuffer.h>
-#include "Location.h"
+#include <sys/stat.h>
 #include <functional>
+
+#include "Location.h"
+#include "rct/Rct.h"
+#include "rct/Serializer.h"
+#include "rct/StackBuffer.h"
 
 template <typename T> inline static int compare(const T &l, const T &r)
 {

@@ -14,8 +14,9 @@ You should have received a copy of the GNU General Public License
 along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 
 #include "QueryMessage.h"
+
+#include "rct/Serializer.h"
 #include "RTags.h"
-#include <rct/Serializer.h>
 
 QueryMessage::QueryMessage(Type type)
     : RTagsMessage(MessageId), mType(type), mMax(-1), mMinLine(-1), mMaxLine(-1), mBuildIndex(0), mTerminalWidth(-1)

@@ -16,13 +16,13 @@
 #ifndef IndexDataMessage_h
 #define IndexDataMessage_h
 
-#include "RTagsMessage.h"
 #include "Diagnostic.h"
-#include <rct/Message.h>
-#include <rct/Serializer.h>
-#include <rct/String.h>
 #include "IndexerJob.h"
-#include <rct/Flags.h>
+#include "rct/Flags.h"
+#include "rct/Message.h"
+#include "rct/Serializer.h"
+#include "rct/String.h"
+#include "RTagsMessage.h"
 
 class IndexDataMessage : public RTagsMessage
 {

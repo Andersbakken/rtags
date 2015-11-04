@@ -16,14 +16,14 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 #ifndef IndexerJob_h
 #define IndexerJob_h
 
+#include "rct/Flags.h"
+#include "rct/Hash.h"
+#include "rct/Hash.h"
+#include "rct/Process.h"
+#include "rct/StopWatch.h"
+#include "rct/ThreadPool.h"
 #include "RTags.h"
-#include <rct/Hash.h>
-#include <rct/ThreadPool.h>
-#include <rct/StopWatch.h>
-#include <rct/Hash.h>
-#include <rct/Process.h>
 #include "Source.h"
-#include <rct/Flags.h>
 
 class IndexerJob
 {

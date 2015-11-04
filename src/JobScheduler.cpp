@@ -14,6 +14,7 @@
    along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 
 #include "JobScheduler.h"
+
 #include "Project.h"
 #include "Server.h"
 
@@ -348,4 +349,3 @@ bool JobScheduler::increasePriority(uint32_t fileId)
     warning() << "Failed to find node for" << Location::path(fileId);
     return false;
 }
-

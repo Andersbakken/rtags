@@ -1,4 +1,3 @@
-
 /* This file is part of RTags (http://rtags.net).
 
    RTags is free software: you can redistribute it and/or modify
@@ -17,12 +16,13 @@
 #ifndef DumpThread_h
 #define DumpThread_h
 
-#include <rct/Thread.h>
-#include <Source.h>
-#include <QueryMessage.h>
 #include <clang-c/Index.h>
-#include <RTagsClang.h>
-#include <Project.h>
+
+#include "Project.h"
+#include "QueryMessage.h"
+#include "rct/Thread.h"
+#include "RTagsClang.h"
+#include "Source.h"
 
 class Connection;
 class DumpThread : public Thread

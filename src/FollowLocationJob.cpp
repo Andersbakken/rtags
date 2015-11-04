@@ -14,9 +14,10 @@ You should have received a copy of the GNU General Public License
 along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 
 #include "FollowLocationJob.h"
+
+#include "Project.h"
 #include "RTags.h"
 #include "Server.h"
-#include "Project.h"
 
 FollowLocationJob::FollowLocationJob(const Location &loc,
                                      const std::shared_ptr<QueryMessage> &query,

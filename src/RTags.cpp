@@ -14,18 +14,10 @@ You should have received a copy of the GNU General Public License
 along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 
 #include "RTags.h"
-#include "Server.h"
-#include "VisitFileMessage.h"
-#include "VisitFileResponseMessage.h"
-#include "IndexDataMessage.h"
-#include "IndexMessage.h"
-#include "LogOutputMessage.h"
-#include "QueryMessage.h"
+
 #include <dirent.h>
 #include <fcntl.h>
 #include <fnmatch.h>
-#include <rct/Rct.h>
-#include <rct/StopWatch.h>
 #include <sys/types.h>
 #ifdef OS_FreeBSD
 #include <sys/sysctl.h>
@@ -33,6 +25,16 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 #ifdef OS_Darwin
 #include <mach-o/dyld.h>
 #endif
+
+#include "IndexDataMessage.h"
+#include "IndexMessage.h"
+#include "LogOutputMessage.h"
+#include "QueryMessage.h"
+#include "rct/Rct.h"
+#include "rct/StopWatch.h"
+#include "Server.h"
+#include "VisitFileMessage.h"
+#include "VisitFileResponseMessage.h"
 
 namespace RTags {
 

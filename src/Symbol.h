@@ -1,6 +1,3 @@
-#ifndef RTagsCursor_h
-#define RTagsCursor_h
-
 /* This file is part of RTags (http://rtags.net).
 
    RTags is free software: you can redistribute it and/or modify
@@ -16,12 +13,16 @@
    You should have received a copy of the GNU General Public License
    along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 
+#ifndef RTagsCursor_h
+#define RTagsCursor_h
+
 #include <clang-c/Index.h>
 #include <stdint.h>
+
 #include "Location.h"
-#include <rct/String.h>
-#include <rct/Serializer.h>
-#include <rct/Flags.h>
+#include "rct/Flags.h"
+#include "rct/Serializer.h"
+#include "rct/String.h"
 
 class Project;
 struct Symbol

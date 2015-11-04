@@ -14,10 +14,11 @@
    along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 
 #include "ListSymbolsJob.h"
-#include "Server.h"
+
 #include "Project.h"
-#include <rct/Log.h>
+#include "rct/Log.h"
 #include "RTags.h"
+#include "Server.h"
 
 const Flags<QueryJob::JobFlag> defaultFlags = (QueryJob::WriteUnfiltered | QueryJob::QuietJob);
 const Flags<QueryJob::JobFlag> elispFlags = (defaultFlags | QueryJob::QuoteOutput);

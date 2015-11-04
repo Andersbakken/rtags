@@ -16,20 +16,21 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 #ifndef RTags_h
 #define RTags_h
 
-#include "rct-config.h"
-#include "FixIt.h"
-#include "Location.h"
-#include "Source.h"
-#include "Symbol.h"
+#include <stdio.h>
 #include <assert.h>
 #include <getopt.h>
-#include <rct/Log.h>
-#include <rct/Path.h>
-#include <rct/String.h>
-#include <stdio.h>
 #include <typeinfo>
-#include <rct/SHA256.h>
-#include <rct/Flags.h>
+
+#include "FixIt.h"
+#include "Location.h"
+#include "rct-config.h"
+#include "rct/Flags.h"
+#include "rct/Log.h"
+#include "rct/Path.h"
+#include "rct/SHA256.h"
+#include "rct/String.h"
+#include "Source.h"
+#include "Symbol.h"
 
 class Database;
 class Project;

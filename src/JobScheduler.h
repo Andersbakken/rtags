@@ -16,11 +16,12 @@
 #ifndef JobScheduler_h
 #define JobScheduler_h
 
-#include "IndexerJob.h"
-#include "IndexDataMessage.h"
 #include <memory>
-#include <rct/EmbeddedLinkedList.h>
-#include <rct/Connection.h>
+
+#include "IndexDataMessage.h"
+#include "IndexerJob.h"
+#include "rct/Connection.h"
+#include "rct/EmbeddedLinkedList.h"
 
 class JobScheduler : public std::enable_shared_from_this<JobScheduler>
 {

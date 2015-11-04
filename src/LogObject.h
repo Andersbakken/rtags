@@ -16,9 +16,9 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 #ifndef LogObject_h
 #define LogObject_h
 
-#include <rct/String.h>
-#include <rct/Log.h>
-#include <rct/Connection.h>
+#include "rct/Connection.h"
+#include "rct/Log.h"
+#include "rct/String.h"
 
 class LogObject : public LogOutput
 {

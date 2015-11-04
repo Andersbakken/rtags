@@ -16,10 +16,11 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 #ifndef Match_h
 #define Match_h
 
-#include <rct/String.h>
-#include <rct/Log.h>
 #include <regex>
+
 #include <rct/Flags.h>
+#include "rct/Log.h"
+#include "rct/String.h"
 
 class Match
 {

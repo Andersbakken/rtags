@@ -17,20 +17,20 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 #define Server_h
 
 #include "FileManager.h"
+#include "IndexerJob.h"
+#include "IndexMessage.h"
+#include "Match.h"
+#include "rct/Connection.h"
+#include "rct/FileSystemWatcher.h"
+#include "rct/Flags.h"
+#include "rct/Hash.h"
+#include "rct/List.h"
+#include "rct/SocketServer.h"
+#include "rct/String.h"
+#include "rct/Timer.h"
 #include "RTagsClang.h"
 #include "RTags.h"
 #include "Source.h"
-#include "IndexerJob.h"
-#include "Match.h"
-#include "IndexMessage.h"
-#include <rct/Connection.h>
-#include <rct/FileSystemWatcher.h>
-#include <rct/List.h>
-#include <rct/Hash.h>
-#include <rct/String.h>
-#include <rct/Timer.h>
-#include <rct/SocketServer.h>
-#include <rct/Flags.h>
 
 class CompletionThread;
 class Connection;

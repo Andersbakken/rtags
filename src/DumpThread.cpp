@@ -14,7 +14,8 @@
    along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 
 #include "DumpThread.h"
-#include <rct/Connection.h>
+
+#include "rct/Connection.h"
 #include "RTagsClang.h"
 #include "Server.h"
 
@@ -236,4 +237,3 @@ void DumpThread::checkIncludes()
         delete it.second;
     }
 }
-

@@ -13,9 +13,10 @@
    You should have received a copy of the GNU General Public License
    along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 
-#include "RTagsLogOutput.h"
 #include "CompletionThread.h"
+
 #include "RTagsClang.h"
+#include "RTagsLogOutput.h"
 #include "Server.h"
 #include "Token.h"
 

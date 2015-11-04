@@ -14,16 +14,17 @@
    along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 
 #define RTAGS_SINGLE_THREAD
-#include "ClangIndexer.h"
-#include "RTagsClang.h"
-#include "Source.h"
-#include "Project.h"
-#include <rct/Log.h>
-#include <rct/StopWatch.h>
-#include <rct/String.h>
 #include <signal.h>
 #include <syslog.h>
+
+#include "ClangIndexer.h"
+#include "Project.h"
+#include "rct/Log.h"
+#include "rct/StopWatch.h"
+#include "rct/String.h"
+#include "RTagsClang.h"
 #include "Server.h"
+#include "Source.h"
 
 static void sigHandler(int signal)
 {

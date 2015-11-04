@@ -13,13 +13,6 @@
    You should have received a copy of the GNU General Public License
    along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 
-#include <rct/EventLoop.h>
-#include <rct/Log.h>
-#include "RTags.h"
-#include "Server.h"
-#include <rct/Rct.h>
-#include <rct/Thread.h>
-#include <rct/ThreadPool.h>
 #include <getopt.h>
 #include <signal.h>
 #include <stdio.h>
@@ -28,7 +21,14 @@
 #include <sys/resource.h>
 #endif
 
-#include <rct/FileSystemWatcher.h>
+#include "rct/EventLoop.h"
+#include "rct/FileSystemWatcher.h"
+#include "rct/Log.h"
+#include "rct/Rct.h"
+#include "rct/Thread.h"
+#include "rct/ThreadPool.h"
+#include "RTags.h"
+#include "Server.h"
 
 #if !defined(HAVE_FSEVENTS) && defined(HAVE_KQUEUE)
 #define FILEMANAGER_OPT_IN
