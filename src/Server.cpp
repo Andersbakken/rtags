@@ -73,7 +73,7 @@
 
 // Absolute paths to search (under) for (clang) system include files
 // Iterate until we find a dir at <abspath>/clang/<version>/include.
-const static std::vector<std::string> SystemIncludePaths = {
+static const List<Path> sSystemIncludePaths = {
     CLANG_LIBDIR_STR, // standard llvm build, debian/ubuntu
     "/usr/lib"        // fedora, arch
 };
@@ -161,13 +161,13 @@ bool Server::init(const Options &options)
 #endif
     } else {
         // Iterate until we find an existing directory
-        for (int i = 0; i < SystemIncludePaths.size(); i++) {
-            Path systemInclude = Path::resolved(SystemIncludePaths[i]).ensureTrailingSlash();
+        for (Path systemInclude : sSystemIncludePaths) {
+            systemInclude = systemInclude.ensureTrailingSlash();
             systemInclude << "clang/" << CLANG_VERSION_STRING << "/include/";
-            if ( systemInclude.isDir() ) {
+            if (systemInclude.isDir()) {
                 mOptions.includePaths.append(Source::Include(Source::Include::Type_System, systemInclude));
                 break;
-            };
+            }
         }
     }
 
