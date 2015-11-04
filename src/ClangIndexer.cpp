@@ -1448,7 +1448,7 @@ bool ClangIndexer::diagnose()
                     }
                     msg << '\n';
                     msg.append(path.constData() + offset, path.size() - offset);
-                    msg << << ':' << childLoc.line() << ':' << childLoc.column() << ": " << RTags::eatString(clang_getDiagnosticSpelling(child));
+                    msg << ':' << childLoc.line() << ':' << childLoc.column() << ": " << RTags::eatString(clang_getDiagnosticSpelling(child));
                 }
                 clang_disposeDiagnosticSet(children);
 
