@@ -84,7 +84,7 @@ int IncludeFileJob::execute()
                         const Path p = inc.path.ensureTrailingSlash();
                         if (path.startsWith(p)) {
                             const String str = String::format<256>("#include <%s>", path.mid(p.size()).constData());
-                            ealternatives << str;
+                            alternatives << str;
                         }
                     }
                     const int tail = strlen(path.fileName()) + 1;
