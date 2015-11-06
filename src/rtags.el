@@ -1965,7 +1965,7 @@ is true. References to references will be treated as references to the reference
         (let ((popup-tip-max-width maxwidth))
           (popup-tip msg :point point :max-width maxwidth :around t))) ;; :face 'rtags-warnline)) ;;(overlay-get overlay 'face)))
       (when rtags-display-current-error-as-message
-        (message "%s" (car msg))))))
+        (message "%s" msg)))))
 
 (defvar rtags-update-current-error-timer nil)
 
