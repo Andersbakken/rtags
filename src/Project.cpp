@@ -513,13 +513,16 @@ static String formatDiagnostics(const Diagnostics &diagnostics, DiagnosticsForma
     String ret;
     if (fileId) {
         const Path path = Location::path(fileId);
-        ret << header[format]
-            << String::format<256>(startFile[format], path.constData());
+        ret << header[format];
 
         Diagnostics::const_iterator it = diagnostics.lower_bound(Location(fileId, 0, 0));
         bool found = false;
         while (it != diagnostics.end() && it->first.fileId() == fileId) {
-            found = true;
+            if (!found) {
+                found = true;
+                ret << String::format<256>(startFile[format], path.constData());
+            }
+
             ret << formatDiagnostic(it->first, it->second);
             ++it;
         }
