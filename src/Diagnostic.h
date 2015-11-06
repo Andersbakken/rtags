@@ -18,14 +18,17 @@
 
 #include "rct/Serializer.h"
 #include "rct/String.h"
-#include "RTags.h"
+#include "Location.h"
+
+struct Diagnostic;
+typedef Map<Location, Diagnostic> Diagnostics;
 
 struct Diagnostic
 {
-    enum Type { None, Warning, Error, Fixit, Skipped };
+    enum Type { None, Warning, Error, Fixit, Note, Skipped };
 
-    Diagnostic(Type t = None, const String &m = String(), int l = -1)
-        : type(t), message(m), length(l)
+    Diagnostic()
+        : type(None), length(-1)
     {
     }
 
@@ -33,19 +36,21 @@ struct Diagnostic
     String message;
     int length;
 
+    Map<Location, int> ranges;
+    Diagnostics children;
     bool isNull() const { return type == None; }
 };
 
 template <> inline Serializer &operator<<(Serializer &s, const Diagnostic &d)
 {
-    s << static_cast<uint8_t>(d.type) << d.message << d.length;
+    s << static_cast<uint8_t>(d.type) << d.message << d.length << d.ranges << d.children;
     return s;
 }
 
 template <> inline Deserializer &operator>>(Deserializer &s, Diagnostic &d)
 {
     uint8_t type;
-    s >> type >> d.message >> d.length;
+    s >> type >> d.message >> d.length >> d.ranges >> d.children;
     d.type = static_cast<Diagnostic::Type>(type);
     return s;
 }

@@ -21,6 +21,7 @@
 #include <mutex>
 #include <regex>
 
+#include "Diagnostic.h"
 #include "IndexerJob.h"
 #include "IndexMessage.h"
 #include "Match.h"
