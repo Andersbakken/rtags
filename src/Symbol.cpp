@@ -114,6 +114,7 @@ String Symbol::toString(Flags<ToStringFlag> cursorInfoFlags,
                                       "%s" // usr
                                       "%s" // sizeof
                                       "%s" // fieldoffset
+                                      "%s" // alignment
                                       "%s" // baseclasses
                                       "%s" // briefComment
                                       "%s", // xmlComment
@@ -123,7 +124,7 @@ String Symbol::toString(Flags<ToStringFlag> cursorInfoFlags,
                                       symbolLength,
                                       startLine != -1 ? String::format<32>("Range: %d:%d-%d:%d\n", startLine, startColumn, endLine, endColumn).constData() : "",
 #if CINDEX_VERSION_MINOR > 1
-                                      kind == CXCursor_EnumConstantDecl ? String::format<32>("Enum Value: %lld\n", enumValue).constData() :
+                                      kind == CXCursor_EnumConstantDecl ? String::format<32>("Enum Value: %lld\n", static_cast<long long>(enumValue)).constData() :
 #endif
                                       "",
                                       linkageSpelling(linkage),

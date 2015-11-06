@@ -623,7 +623,6 @@ void Project::onJobFinished(const std::shared_ptr<IndexerJob> &job, const std::s
             });
     }
 
-    int symbolNames = 0;
     Set<uint32_t> visited = msg->visitedFiles();
     updateFixIts(visited, msg->fixIts());
     updateDependencies(msg);
@@ -650,7 +649,7 @@ void Project::onJobFinished(const std::shared_ptr<IndexerJob> &job, const std::s
         const double averageJobTime = timerElapsed / mJobsStarted;
         const String msg = String::format<1024>("Jobs took %.2fs%s. We're using %lldmb of memory. ",
                                                 timerElapsed, mJobsStarted > 1 ? String::format(", (avg %.2fs)", averageJobTime).constData() : "",
-                                                MemoryMonitor::usage() / (1024 * 1024), symbolNames);
+                                                static_cast<unsigned long long>(MemoryMonitor::usage() / (1024 * 1024)));
         error() << msg;
         mJobsStarted = mJobCounter = 0;
 
