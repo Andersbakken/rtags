@@ -81,8 +81,10 @@ public:
                           const std::function<void(LocationPiece, const String &)> &cb,
                           Flags<WriteFlag> writeFlags = Flags<WriteFlag>());
 
-    template <int StaticBufSize> bool write(Flags<WriteFlag> writeFlags, const char *format, ...);
-    template <int StaticBufSize> bool write(const char *format, ...);
+    template <int StaticBufSize>
+    bool write(Flags<WriteFlag> writeFlags, const char *format, ...) RCT_PRINTF_WARNING(3, 4);
+    template <int StaticBufSize>
+    bool write(const char *format, ...) RCT_PRINTF_WARNING(2, 3);
     Flags<JobFlag> jobFlags() const { return mJobFlags; }
     void setJobFlags(Flags<JobFlag> flags) { mJobFlags = flags; }
     void setJobFlag(JobFlag flag, bool on = true) { mJobFlags.set(flag, on); }
