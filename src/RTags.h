@@ -48,7 +48,7 @@ inline String versionString()
     return String::format<64>("%d.%d.%d", MajorVersion, MinorVersion, DatabaseVersion);
 }
 
-const LogLevel Diagnostics(-2);
+const LogLevel DiagnosticsLevel(-2);
 const LogLevel Statistics(-3);
 
 enum UnitType {

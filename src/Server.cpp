@@ -1458,8 +1458,8 @@ void Server::jobCount(const std::shared_ptr<QueryMessage> &query, const std::sha
 
 void Server::sendDiagnostics(const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Connection> &conn)
 {
-    if (testLog(RTags::Diagnostics))
-        logDirect(RTags::Diagnostics, query->query());
+    if (testLog(RTags::DiagnosticsLevel))
+        logDirect(RTags::DiagnosticsLevel, query->query());
     conn->finish();
 }
 

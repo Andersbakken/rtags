@@ -443,7 +443,7 @@ struct Output
 void CompletionThread::printCompletions(const List<Completions::Candidate> &completions, Request *request)
 {
     static List<String> cursorKindNames;
-    // error() << request->flags << testLog(RTags::Diagnostics) << completions.size() << request->conn;
+    // error() << request->flags << testLog(RTags::DiagnosticsLevel) << completions.size() << request->conn;
     List<std::shared_ptr<Output> > outputs;
     bool xml = false;
     bool elisp = false;
@@ -460,8 +460,8 @@ void CompletionThread::printCompletions(const List<Completions::Candidate> &comp
         request->conn.reset();
     }
     log([&xml, &elisp, &outputs](const std::shared_ptr<LogOutput> &output) {
-            // error() << "Got a dude" << output->testLog(RTags::Diagnostics);
-            if (output->testLog(RTags::Diagnostics)) {
+            // error() << "Got a dude" << output->testLog(RTags::DiagnosticsLevel);
+            if (output->testLog(RTags::DiagnosticsLevel)) {
                 std::shared_ptr<Output> out(new Output);
                 out->output = output;
                 if (output->flags() & RTagsLogOutput::Elisp) {

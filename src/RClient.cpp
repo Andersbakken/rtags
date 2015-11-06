@@ -856,7 +856,7 @@ RClient::ParseStatus RClient::parse(int &argc, char **argv)
             addLog(RdmLogCommand::Default);
             break;
         case Diagnostics:
-            addLog(RTags::Diagnostics);
+            addLog(RTags::DiagnosticsLevel);
             break;
         case QuitRdm: {
             const char *arg = 0;
