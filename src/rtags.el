@@ -2888,12 +2888,14 @@ definition."
     (with-temp-buffer
       (rtags-call-rc :path source "--sources" source "--compilation-flags-only")
       (let* ((lines (split-string (buffer-string) "\n" t))
+             (old-compile-command compile-command)
              (line (car lines)))
         (when (cond ((> (length lines) 1)
                      (setq line (or (completing-read "Choose build: " lines) line)))
                     ((null lines) (message "RTags doesn't know how to compile this file") nil)
                     (t))
-          (compile line))))))
+          (compile line)
+          (setq compile-command old-compile-command))))))
 
 (defcustom rtags-includes-func 'rtags-dummy-includes-func
   "Function to return flags and include flags for rdm."
