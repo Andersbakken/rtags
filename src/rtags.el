@@ -1390,7 +1390,7 @@ to case differences."
     (while (> rtags-location-stack-index 0)
       (decf rtags-location-stack-index)
       (pop rtags-location-stack))
-    (unless (string= bm (nth 0 rtags-location-stack))
+    (unless (string= bm (car rtags-location-stack))
       (push bm rtags-location-stack)
       (when (> (length rtags-location-stack) rtags-max-bookmark-count)
         (nbutlast rtags-location-stack (- (length rtags-location-stack) rtags-max-bookmark-count))))))
@@ -1811,11 +1811,12 @@ is true. References to references will be treated as references to the reference
 
 (defun rtags-handle-check-style (buffer filename data)
   ;; (message "parsing nodes %s" (buffer-file-name buffer))
-  (let* ((line (nth 0 data))
-         (column (nth 1 data))
-         (length (nth 2 data))
-         (severity (nth 3 data))
-         (message (nth 4 data))
+  (let* ((line (nth 1 data))
+         (column (nth 2 data))
+         (length (nth 3 data))
+         (severity (nth 4 data))
+         (message (nth 5 data))
+         (children (nth 6 data))
          (ret)
          (startoffset nil)
          (endoffset nil)
@@ -1833,6 +1834,8 @@ is true. References to references will be treated as references to the reference
                                        (cond ((= startoffset endoffset) (min (+ startoffset 2) (point-max)))
                                              (t (1+ endoffset)))
                                        buffer)))
+            (when children
+              (overlay-put overlay 'rtags-error-children children))
             (overlay-put overlay 'rtags-error-message message)
             (overlay-put overlay 'rtags-error-severity severity)
             (overlay-put overlay 'rtags-error-start startoffset)
@@ -1914,7 +1917,9 @@ is true. References to references will be treated as references to the reference
           (delete-region (point-min) (point)))))))
 
 (defun rtags-check-overlay (overlay)
-  (when (and (not (active-minibuffer-window))
+  (when (and overlay
+             (overlay-get overlay 'rtags-error-message)
+             (not (active-minibuffer-window))
              (not cursor-in-echo-area))
     (rtags-display-overlay overlay (point))))
 
@@ -1924,13 +1929,43 @@ is true. References to references will be treated as references to the reference
   (with-temp-buffer
     (rtags-call-rc "--is-indexing" :noerror t)))
 
+(defun rtags-elide-middle (str len)
+  (if (> (length str) len)
+      (let ((part (- (/ len 2) 3)))
+        (concat (substring str 0 part)
+                "..."
+                (substring str (- part))))
+    str))
+
 (defun rtags-display-overlay (overlay point)
-  (let ((msg (overlay-get overlay 'rtags-error-message)))
+  (let* ((maxwidth (window-width))
+         (msg (rtags-elide-middle (overlay-get overlay 'rtags-error-message) maxwidth))
+         (bol (save-excursion
+                (goto-char point)
+                (point-at-bol)))
+         (used (length msg))
+         (children (and msg (overlay-get overlay 'rtags-error-children))))
     (when (> (length msg) 0)
+      (when children
+        (setq msg (concat msg "\n" (mapconcat #'(lambda (child)
+                                                  (let* ((location (format "%s:%d:%d: "
+                                                                           (file-name-nondirectory (or (car child) (buffer-file-name)))
+                                                                           (nth 1 child)
+                                                                           (nth 2 child)))
+                                                         (ret (concat location
+                                                                      (rtags-elide-middle (nth 5 child) (- maxwidth (length location))))))
+                                                    (setq used (max used (length ret)))
+                                                    ret))
+                                              children
+                                              "\n"))))
       (when rtags-display-current-error-as-tooltip
-        (popup-tip msg :point point)) ;; :face 'rtags-warnline)) ;;(overlay-get overlay 'face)))
+;;        (message "point %d bol %d (%d) used %d maxwidth %d" point bol (- point bol) used maxwidth)
+        (while (>= (+ (- point bol) used) maxwidth)
+          (decf point))
+        (let ((popup-tip-max-width maxwidth))
+          (popup-tip msg :point point :max-width maxwidth :around t))) ;; :face 'rtags-warnline)) ;;(overlay-get overlay 'face)))
       (when rtags-display-current-error-as-message
-        (message (concat "RTags: " msg))))))
+        (message "%s" (car msg))))))
 
 (defvar rtags-update-current-error-timer nil)
 

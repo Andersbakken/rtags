@@ -492,9 +492,9 @@ static String formatDiagnostics(const Diagnostics &diagnostics, DiagnosticsForma
         "\n  </checkstyle>",
         ")"
     };
-    std::function<String(const Location &, const Diagnostic &)> formatDiagnostic;
+    std::function<String(const Location &, const Diagnostic &, uint32_t)> formatDiagnostic;
     if (format == Diagnostics_XML) {
-        formatDiagnostic = [](const Location &loc, const Diagnostic &diagnostic) {
+        formatDiagnostic = [&formatDiagnostic](const Location &loc, const Diagnostic &diagnostic, uint32_t) {
             return String::format<256>("\n      <error line=\"%d\" column=\"%d\" %sseverity=\"%s\" message=\"%s\"/>",
                                        loc.line(), loc.column(),
                                        (diagnostic.length <= 0 ? ""
@@ -502,12 +502,28 @@ static String formatDiagnostics(const Diagnostics &diagnostics, DiagnosticsForma
                                        severities[diagnostic.type], RTags::xmlEscape(diagnostic.message).constData());
         };
     } else {
-        formatDiagnostic = [](const Location &loc, const Diagnostic &diagnostic) {
-            return String::format<256>(" (list %d %d %s '%s \"%s\")",
-                                       loc.line(), loc.column(),
+        formatDiagnostic = [&formatDiagnostic](const Location &loc, const Diagnostic &diagnostic, uint32_t fileId) {
+            String children;
+            if (!diagnostic.children.isEmpty()) {
+                children = "(list";
+                for (const auto &c : diagnostic.children) {
+                    children << ' ' << formatDiagnostic(c.first, c.second, fileId);
+                }
+                children << ")";
+            } else {
+                children = "nil";
+            }
+            const bool fn = (loc.fileId() != fileId);
+            return String::format<256>(" (list %s%s%s %d %d %s '%s \"%s\" %s)",
+                                       fn ? "\"" : "",
+                                       fn ? loc.path().constData() : "nil",
+                                       fn ? "\"" : "",
+                                       loc.line(),
+                                       loc.column(),
                                        diagnostic.length > 0 ? String::number(diagnostic.length).constData() : "nil",
                                        severities[diagnostic.type],
-                                       RTags::elispEscape(diagnostic.message).constData());
+                                       RTags::elispEscape(diagnostic.message).constData(),
+                                       children.constData());
         };
     }
     String ret;
@@ -523,7 +539,7 @@ static String formatDiagnostics(const Diagnostics &diagnostics, DiagnosticsForma
                 ret << String::format<256>(startFile[format], path.constData());
             }
 
-            ret << formatDiagnostic(it->first, it->second);
+            ret << formatDiagnostic(it->first, it->second, fileId);
             ++it;
         }
         if (!found) {
@@ -549,7 +565,7 @@ static String formatDiagnostics(const Diagnostics &diagnostics, DiagnosticsForma
                 lastFileId = loc.fileId();
                 ret << String::format<256>(startFile[format], loc.path().constData());
             }
-            ret << formatDiagnostic(loc, diagnostic);
+            ret << formatDiagnostic(loc, diagnostic, lastFileId);
         }
         if (lastFileId)
             ret << endFile[format];
@@ -609,7 +625,7 @@ void Project::onJobFinished(const std::shared_ptr<IndexerJob> &job, const std::s
                         format = Diagnostics_Elisp;
                     }
                     if (!msg->diagnostics().isEmpty()) {
-                        const String log = formatDiagnostics(changed, format);
+                        const String log = formatDiagnostics(changed, format, false);
                         if (!log.isEmpty()) {
                             output->log(log);
                         }

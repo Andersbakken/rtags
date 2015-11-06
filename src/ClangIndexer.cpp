@@ -1378,7 +1378,7 @@ bool ClangIndexer::diagnose()
         return false;
     }
 
-    std::function<void(CXDiagnostic, Diagnostics &)> process = [&](CXDiagnostic d, Diagnostics &m) {
+    std::function<void(CXDiagnostic, Diagnostics &, bool)> process = [&](CXDiagnostic d, Diagnostics &m, bool displayCategory) {
         const Diagnostic::Type type = convertDiagnosticType(clang_getDiagnosticSeverity(d));
         if (type != Diagnostic::None) {
             const CXSourceLocation diagLoc = clang_getDiagnosticLocation(d);
@@ -1387,9 +1387,12 @@ bool ClangIndexer::diagnose()
             Location location;
             int length = -1;
             Map<Location, int> ranges;
-            String message = RTags::eatString(clang_getDiagnosticCategoryText(d));
+            String message;
+            if (displayCategory)
+                message << RTags::eatString(clang_getDiagnosticCategoryText(d));
             if (!message.isEmpty())
-                message << ": " << RTags::eatString(clang_getDiagnosticSpelling(d));
+                message << ": ";
+            message << RTags::eatString(clang_getDiagnosticSpelling(d));
 
             const String option = RTags::eatString(clang_getDiagnosticOption(d, 0));
             if (!option.isEmpty()) {
@@ -1435,7 +1438,7 @@ bool ClangIndexer::diagnose()
             if (CXDiagnosticSet children = clang_getChildDiagnostics(d)) {
                 const unsigned int childCount = clang_getNumDiagnosticsInSet(children);
                 for (unsigned i=0; i<childCount; ++i) {
-                    process(clang_getDiagnosticInSet(children, i), diagnostic.children);
+                    process(clang_getDiagnosticInSet(children, i), diagnostic.children, false);
                 }
                 clang_disposeDiagnosticSet(children);
             }
@@ -1468,7 +1471,7 @@ bool ClangIndexer::diagnose()
                 flags |= IndexDataMessage::HeaderError;
         }
         if (flags & IndexDataMessage::Visited) {
-            process(diagnostic, mIndexDataMessage.diagnostics());
+            process(diagnostic, mIndexDataMessage.diagnostics(), true);
         }
         // logDirect(RTags::DiagnosticsLevel, message.constData());
 
