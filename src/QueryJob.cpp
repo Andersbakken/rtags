@@ -288,6 +288,7 @@ bool QueryJob::write(const Symbol &symbol,
         enum SymbolToElispMode {
             Mode_Symbol,
             Mode_Target,
+            Mode_Parent,
             Mode_BaseClass,
             Mode_Reference
         };
@@ -383,6 +384,29 @@ bool QueryJob::write(const Symbol &symbol,
                         r << symbolToElisp(reference, Mode_Reference);
                     }
                     elisp(out, "references", r, flags | NoQuote);
+                }}
+                // fall through
+            case Mode_Parent: {
+                auto syms = project()->openSymbols(symbol.location.fileId());
+                int idx = -1;
+                if (syms) {
+                    idx = syms->lowerBound(symbol.location);
+                    if (idx == -1) {
+                        idx = syms->count() - 1;
+                    }
+                }
+                const unsigned int line = symbol.location.line();
+                const unsigned int column = symbol.location.column();
+                while (idx-- > 0) {
+                    const Symbol s = syms->valueAt(idx);
+                    if (s.isDefinition()
+                        && s.isContainer()
+                        && comparePosition(line, column, s.startLine, s.startColumn) >= 0
+                        && comparePosition(line, column, s.endLine, s.endColumn) <= 0) {
+                        const String p = symbolToElisp(s, Mode_Parent);
+                        elisp(out, "parent", p, flags | NoQuote);
+                        break;
+                    }
                 }
                 break; }
             case Mode_Reference:

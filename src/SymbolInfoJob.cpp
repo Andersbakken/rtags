@@ -48,11 +48,9 @@ int SymbolInfoJob::execute()
     if (queryFlags() & QueryMessage::SymbolInfoIncludeParents) {
         auto syms = project()->openSymbols(location.fileId());
         if (syms) {
+            idx = syms->lowerBound(location);
             if (idx == -1) {
-                idx = syms->lowerBound(location);
-                if (idx == -1) {
-                    idx = syms->count() - 1;
-                }
+                idx = syms->count() - 1;
             }
         }
         toStringFlags |= Symbol::IgnoreTargets|Symbol::IgnoreReferences;
