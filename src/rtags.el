@@ -638,7 +638,7 @@ to case differences."
                        silent-query
                        &allow-other-keys)
   (save-excursion
-    (let ((rc (rtags-executable-find "rc")) proc)
+    (let ((rc (rtags-executable-find "rc")) result)
       (if (not rc)
           (unless noerror (error "Can't find rc"))
         (when (and async (not (consp async)))
@@ -674,7 +674,7 @@ to case differences."
 
         (when rtags-rc-log-enabled
           (rtags-log (concat rc " " (rtags-combine-strings arguments))))
-        (let ((proc (cond ((and unsaved async)
+        (let ((result (cond ((and unsaved async)
                            (let ((proc (apply #'start-process "rc" (current-buffer) rc arguments)))
                              (with-current-buffer unsaved
                                (save-restriction
@@ -689,16 +689,16 @@ to case differences."
                                (save-restriction
                                  (widen)
                                  (apply #'call-process-region (point-min) (point-max) rc
-                                        nil output-buffer nil arguments) nil))))
+                                        nil output-buffer nil arguments)))))
                           (unsaved (apply #'call-process rc (buffer-file-name unsaved) output nil arguments) nil)
-                          (t (apply #'call-process rc nil output nil arguments) nil))))
-          (if proc
+                          (t (apply #'call-process rc nil output nil arguments)))))
+          (if (processp result)
               (progn
                 (set-process-query-on-exit-flag proc nil)
-                (set-process-filter proc (car async))
-                (set-process-sentinel proc (cdr async)))
+                (set-process-filter result (car async))
+                (set-process-sentinel result (cdr async)))
             (goto-char (point-min))
-            (and (cond ((looking-at "Can't seem to connect to server")
+            (and (cond ((re-search-forward "Can't seem to connect to server" nil t)
                         (erase-buffer)
                         (unless noerror
                           (message "Can't seem to connect to server. Is rdm running?"))
@@ -708,6 +708,7 @@ to case differences."
                         (message "Project loading...")
                         t)
                        (t))
+                 result
                  rtags-autostart-diagnostics (rtags-diagnostics))))
         (or async (> (point-max) (point-min)))))))
 
@@ -3203,10 +3204,14 @@ If `rtags-display-summary-as-tooltip' is t, a tooltip is displayed."
 (defvar rtags-update-buffer-list-timer nil)
 (defun rtags-update-buffer-list ()
   (interactive)
-  (setq rtags-update-buffer-list-timer nil)
+  ;; (message "rtags-update-buffer-list")
+  (when rtags-update-buffer-list-timer
+    (cancel-timer rtags-update-buffer-list-timer)
+    (setq rtags-update-buffer-list-timer nil))
   (rtags-set-buffers (buffer-list)))
 
 (defun rtags-schedule-buffer-list-update ()
+  ;; (message "rtags-schedule-buffer-list-update %s" (if rtags-update-buffer-list-timer "yes" "no"))
   (unless rtags-update-buffer-list-timer
     (setq rtags-update-buffer-list-timer (run-with-idle-timer 1 nil (function rtags-update-buffer-list)))))
 
