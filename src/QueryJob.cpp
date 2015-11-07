@@ -201,6 +201,76 @@ bool QueryJob::write(const Location &location, Flags<WriteFlag> flags)
     return write(out, flags);
 }
 
+enum ToStringFlag {
+    None = 0x0,
+    Indent = 0x1,
+    Quote = 0x2,
+    NoQuote = 0x4,
+    ElispEscape = 0x8
+};
+
+RCT_FLAGS(ToStringFlag);
+
+template <typename T>
+static inline void toString(String &out, const T &t, Flags<ToStringFlag> flags)
+{
+    if (flags & Quote)
+        out << '"';
+    out << t;
+    if (flags & Quote)
+        out << '"';
+}
+
+template <>
+inline void toString(String &out, const String &string, Flags<ToStringFlag> flags)
+{
+    if (!(flags & NoQuote))
+        out << '"';
+    if (flags & ElispEscape) {
+        out << RTags::elispEscape(string);
+    } else {
+       out << string;
+    }
+    if (!(flags & NoQuote))
+        out << '"';
+}
+
+template <>
+inline void toString(String &out, const bool &b, Flags<ToStringFlag>)
+{
+    out << (b ? "t" : "nil");
+}
+
+template <>
+inline void toString(String &out, const Location &loc, Flags<ToStringFlag> flags)
+{
+    toString(out, loc.toString(Location::NoColor|Location::AbsolutePath), flags);
+}
+
+template <typename T>
+inline static void toString(String &out, const List<T> &list, Flags<ToStringFlag> flags)
+{
+    assert(!list.isEmpty());
+    out << "(list";
+    for (const T &t : list) {
+        out << ' ';
+        if (flags & Indent)
+            out << ' ';
+        toString(out, t, flags);
+    }
+    out << ")";
+}
+
+template <typename T>
+inline static void elisp(String &out, const char *name, const T &t, Flags<ToStringFlag> flags = None)
+{
+    if (flags & Indent)
+        out << ' ';
+    out << " (cons '" << name << ' ';
+    toString(out, t, flags);
+    out << ")\n";
+}
+
 bool QueryJob::write(const Symbol &symbol,
                      Flags<Symbol::ToStringFlag> toStringFlags,
                      Flags<WriteFlag> writeFlags)
@@ -214,7 +284,123 @@ bool QueryJob::write(const Symbol &symbol,
     if (!filterKind(symbol.kind))
         return false;
 
-    return write(symbol.toString(toStringFlags, locationToStringFlags(), project()), writeFlags|Unfiltered);
+    if (queryFlags() & QueryMessage::Elisp) {
+        enum SymbolToElispMode {
+            Mode_Symbol,
+            Mode_Target,
+            Mode_BaseClass,
+            Mode_Reference
+        };
+        std::function<String(const Symbol &, SymbolToElispMode)> symbolToElisp = [&](const Symbol &symbol, SymbolToElispMode mode) {
+            String out;
+            out.reserve(1024);
+            if (mode != Mode_Symbol)
+                out << "\n ";
+            out << "(list\n";
+            Flags<ToStringFlag> flags;
+            if (mode != Mode_Symbol)
+                flags |= Indent;
+            elisp(out, "location", symbol.location, flags);
+            elisp(out, "symbolName", symbol.symbolName, flags);
+            elisp(out, "usr", symbol.usr, flags);
+            if (!symbol.baseClasses.isEmpty()) {
+                List<String> baseClasses;
+                for (const auto &base : symbol.baseClasses) {
+                    Symbol sym;
+                    for (const Symbol &s : project()->findByUsr(base, symbol.location.fileId(), Project::ArgDependsOn, symbol.location)) {
+                        sym = s;
+                        break;
+                    }
+                    if (sym.isNull()) {
+                        String str = " ";
+                        toString(str, base, flags);
+                        baseClasses << str;
+                    } else {
+                        baseClasses << symbolToElisp(sym, Mode_BaseClass);
+                    }
+                }
+
+                elisp(out, "baseClasses", baseClasses, flags);
+            }
+            elisp(out, "symbolLength", static_cast<uint32_t>(symbol.symbolLength), flags);
+            elisp(out, "kind", symbol.kind, flags | Quote);
+            if (!symbol.typeName.isEmpty()) {
+                elisp(out, "type", symbol.typeName, flags);
+            } else if (symbol.type != CXType_Invalid) {
+                elisp(out, "type", symbol.type, flags | Quote);
+            }
+            elisp(out, "linkage", symbol.linkage, flags | Quote);
+            elisp(out, "briefComment", symbol.briefComment, flags | ElispEscape);
+            elisp(out, "xmlComment", symbol.xmlComment, flags | ElispEscape);
+            elisp(out, "startLine", symbol.startLine, flags);
+            elisp(out, "startColumn", symbol.startColumn, flags);
+            elisp(out, "endLine", symbol.endLine, flags);
+            elisp(out, "endColumn", symbol.endColumn, flags);
+            if (symbol.size > 0)
+                elisp(out, "sizeof", symbol.size, flags);
+            if (symbol.fieldOffset > 0)
+                elisp(out, "fieldOffset", symbol.fieldOffset, flags);
+            if (symbol.alignment > 0)
+                elisp(out, "alignment", symbol.alignment, flags);
+            if (symbol.kind == CXCursor_EnumConstantDecl)
+                elisp(out, "enumValue", symbol.enumValue, flags);
+            if (symbol.isDefinition())
+                elisp(out, "definition", true, flags);
+            if (symbol.isContainer())
+                elisp(out, "container", true, flags);
+            if ((symbol.flags & Symbol::PureVirtualMethod) == Symbol::PureVirtualMethod)
+                elisp(out, "PureVirtual", true, flags);
+            if (symbol.flags & Symbol::VirtualMethod)
+                elisp(out, "Virtual", true, flags);
+            if (symbol.flags & Symbol::ConstMethod)
+                elisp(out, "ConstMethod", true, flags);
+            if (symbol.flags & Symbol::StaticMethod)
+                elisp(out, "StaticMethod", true, flags);
+            if (symbol.flags & Symbol::Variadic)
+                elisp(out, "Variadic", true, flags);
+            if (symbol.flags & Symbol::Auto)
+                elisp(out, "Auto", true, flags);
+            if (symbol.flags & Symbol::AutoRef)
+                elisp(out, "AutoRef", true, flags);
+            if (symbol.flags & Symbol::MacroExpansion)
+                elisp(out, "MacroExpansion", true, flags);
+            if (symbol.flags & Symbol::TemplateSpecialization)
+                elisp(out, "TemplateSpecialization", true, flags);
+            switch (mode) {
+            case Mode_Symbol: {
+                const auto targets = project()->findTargets(symbol);
+                if (targets.size()) {
+                    List<String> t;
+                    for (const auto &target : targets) {
+                        t << symbolToElisp(target, Mode_Target);
+                    }
+                    elisp(out, "targets", t, flags | NoQuote);
+                }
+                const auto references = project()->findTargets(symbol);
+                if (references.size()) {
+                    List<String> r;
+                    for (const auto &reference : references) {
+                        r << symbolToElisp(reference, Mode_Reference);
+                    }
+                    elisp(out, "references", r, flags | NoQuote);
+                }
+                break; }
+            case Mode_Reference:
+            case Mode_BaseClass:
+                break;
+            case Mode_Target:
+                elisp(out, "TargetRank", RTags::targetRank(symbol.kind), flags);
+                break;
+            }
+            out.chop(1);
+            out << ')';
+            return out;
+        };
+        const String out = symbolToElisp(symbol, Mode_Symbol);
+        return write(out, writeFlags|Unfiltered);
+    } else {
+        return write(symbol.toString(toStringFlags, locationToStringFlags(), project()), writeFlags|Unfiltered);
+    }
 }
 
 bool QueryJob::filter(const String &value) const

@@ -45,6 +45,8 @@ inline bool operator!=(CXCursorKind l, const CXCursor &r)
 
 inline Log operator<<(Log dbg, CXCursor cursor);
 inline Log operator<<(Log dbg, CXCursorKind kind);
+inline Log operator<<(Log dbg, CXTypeKind kind);
+inline Log operator<<(Log dbg, CXLinkageKind kind);
 
 static inline bool operator==(const CXCursor &l, const CXCursor &r) { return clang_equalCursors(l, r); }
 namespace std {
@@ -408,6 +410,34 @@ inline Log operator<<(Log dbg, CXCursor cursor)
 inline Log operator<<(Log dbg, CXCursorKind kind)
 {
     dbg << RTags::eatString(clang_getCursorKindSpelling(kind));
+    return dbg;
+}
+
+inline Log operator<<(Log dbg, CXTypeKind kind)
+{
+    dbg << RTags::eatString(clang_getTypeKindSpelling(kind));
+    return dbg;
+}
+
+inline Log operator<<(Log dbg, CXLinkageKind kind)
+{
+    switch (kind) {
+    case CXLinkage_Invalid:
+        dbg << "Invalid";
+        break;
+    case CXLinkage_NoLinkage:
+        dbg << "NoLinkage";
+        break;
+    case CXLinkage_Internal:
+        dbg << "Internal";
+        break;
+    case CXLinkage_UniqueExternal:
+        dbg << "UniqueExternal";
+        break;
+    case CXLinkage_External:
+        dbg << "External";
+        break;
+    }
     return dbg;
 }
 

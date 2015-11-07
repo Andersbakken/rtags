@@ -793,6 +793,18 @@ to case differences."
       (and (not no-symbol-name) (rtags-current-symbol-name))
       (thing-at-point 'symbol)))
 
+(defun rtags-symbol-info-internal (&optional piece location)
+  (let* ((loc (or location (rtags-current-location)))
+         (path (buffer-file-name))
+         (object (with-temp-buffer
+                   (and loc
+                        (rtags-call-rc :path path :noerror t "-U" loc "--elisp")
+                        (goto-char (point-min))
+                        (looking-at "(")
+                        (eval (read (current-buffer)))))))
+    (or (and (not piece) object)
+        (cdr (assoc piece object)))))
+
 (defun* rtags-symbol-info (&rest args
                                  &key
                                  (location nil)
