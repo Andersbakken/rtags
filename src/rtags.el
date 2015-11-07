@@ -2658,27 +2658,21 @@ is true. References to references will be treated as references to the reference
 
 (defun rtags-current-symbol-name (&optional symbol-info)
   (unless symbol-info
-    (setq symbol-info (rtags-symbol-info)))
-  (let* ((container (string-match "^Container:" symbol-info))
-         (symbolname (string-match "^SymbolName: \\(.*\\)$" symbol-info))
-         (ret (and symbolname
-                   (or (not container) (< symbolname container))
-                   (match-string-no-properties 1 symbol-info)))
-         (visual (and ret
+    (setq symbol-info (rtags-symbol-info-internal)))
+  (let* ((symbolname (cdr (assoc 'symbolName symbol-info)))
+         (visual (and symbolname
                       (with-temp-buffer
-                        (insert ret)
+                        (insert symbolname)
                         (goto-char (point-min))
                         (when (re-search-forward "(" nil t)
                           (delete-region (1- (point)) (point-max)))
                         (goto-char (point-max))
                         (when (re-search-backward "[: &*]" nil t)
                           (delete-region (point-min) (1+ (point)))
-                          (buffer-string))))))
-    (when visual
-      (let ((token (rtags-current-token)))
-        (unless (string= visual token)
-          (setq ret token))))
-    ret))
+                          (buffer-string)))))
+         (token (rtags-current-token)))
+    (or (and visual (string= visual token) symbolname)
+        token)))
 
 (defun rtags-current-container-name (&optional symbol-info)
   (unless symbol-info
