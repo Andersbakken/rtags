@@ -845,11 +845,13 @@ to case differences."
 ;;;###autoload
 (defun rtags-symbol-type ()
   (interactive)
-  (let ((info (rtags-symbol-info)))
-    (when (and info (string-match "^Type: \\(.*\\)$" info))
-      (when (called-interactively-p 'any)
-        (message (match-string 1 info)))
-      (match-string 1 info))))
+  (let* ((info (rtags-symbol-info-internal nil))
+         (type (cdr (assoc 'type info))))
+    (when (called-interactively-p 'any)
+      (if type
+          (message "RTags: %s: %s" (or (cdr (assoc 'symbolName info)) "<unknown>") type)
+        (message "RTags: type not found")))
+    type))
 
 ;;;###autoload
 (defun rtags-print-dependencies (&optional prefix buffer)
@@ -1255,9 +1257,9 @@ to case differences."
          (enum (or (cdr (assoc 'enumValue symbol))
                    (cdr (assoc 'enumValue (cdr (cadr (assoc 'targets symbol)))))))
          (symbolName (cdr (assoc 'symbolName symbol))))
-    (if (or enum targetEnum)
-        (message "RTags: %s - %d - 0x%x" symbolName (or enum targetEnum) (or enum targetEnum))
-      (message "RTags: No enum here") nil)))
+    (if enum)
+        (message "RTags: %s - %d - 0x%x" symbolName (or enum targetEnum) enum)
+      (message "RTags: No enum here") nil))
 
 (defun rtags-buffer-is-multibyte ()
   (string-match "\\butf\\b" (symbol-name buffer-file-coding-system)))
