@@ -2551,7 +2551,7 @@ is true. References to references will be treated as references to the reference
     (when prefix
       (setq prefer-exact (not prefer-exact)))
     (if (> (length tagname) 0)
-        (setq prompt (concat (format "Find rfiles (default %s): " tagname)))
+        (setq prompt (concat (format "Find rfiles (default: %s): " tagname)))
       (setq prompt "Find rfiles: "))
     (rtags-is-indexed)
     (setq input
@@ -2784,7 +2784,7 @@ definition."
         (path (buffer-file-name))
         input)
     (if (> (length tagname) 0)
-        (setq prompt (concat prompt ": (default " tagname ") "))
+        (setq prompt (concat prompt ": (default: " tagname ") "))
       (setq prompt (concat prompt ": ")))
     (setq input (completing-read-default prompt (function rtags-symbolname-complete) nil nil nil 'rtags-symbol-history))
     (setq rtags-symbol-history (cl-remove-duplicates rtags-symbol-history :from-end t :test 'equal))
@@ -3234,7 +3234,7 @@ If `rtags-display-summary-as-tooltip' is t, a tooltip is displayed."
   (interactive)
   (let* ((token (rtags-current-token))
          (prompt (if token
-                     (format "Symbol (default %s): " token)
+                     (format "Symbol (default: %s): " token)
                    "Symbol: "))
          (input (completing-read-default prompt (function rtags-symbolname-complete) nil nil nil 'rtags-symbol-history))
          (current-file (buffer-file-name)))
