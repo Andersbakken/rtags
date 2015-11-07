@@ -793,7 +793,7 @@ to case differences."
       (and (not no-symbol-name) (rtags-current-symbol-name))
       (thing-at-point 'symbol)))
 
-(defun rtags-symbol-info-internal (&optional piece location)
+(defun rtags-symbol-info-internal (&optional location piece)
   (let* ((loc (or location (rtags-current-location)))
          (path (buffer-file-name))
          (object (with-temp-buffer
@@ -1251,12 +1251,12 @@ to case differences."
 ;;;###autoload
 (defun rtags-print-enum-value-at-point (&optional location)
   (interactive)
-  (let* ((symbol (rtags-symbol-info-internal nil location))
+  (let* ((symbol (rtags-symbol-info-internal location))
          (enum (or (cdr (assoc 'enumValue symbol))
                    (cdr (assoc 'enumValue (cdr (cadr (assoc 'targets symbol)))))))
          (symbolName (cdr (assoc 'symbolName symbol))))
     (if (or enum targetEnum)
-        (message "%s - %d - 0x%x" symbolName (or enum targetEnum) (or enum targetEnum))
+        (message "RTags: %s - %d - 0x%x" symbolName (or enum targetEnum) (or enum targetEnum))
       (message "RTags: No enum here") nil)))
 
 (defun rtags-buffer-is-multibyte ()
@@ -2656,10 +2656,8 @@ is true. References to references will be treated as references to the reference
           (kill-buffer tempbuf)
           (ediff path tempbufname))))))
 
-(defun rtags-current-symbol-name (&optional symbol-info)
-  (unless symbol-info
-    (setq symbol-info (rtags-symbol-info-internal)))
-  (let* ((symbolname (cdr (assoc 'symbolName symbol-info)))
+(defun rtags-current-symbol-name (&optional location)
+  (let* ((symbolname (cdr (assoc 'symbolName (rtags-symbol-info-internal location))))
          (visual (and symbolname
                       (with-temp-buffer
                         (insert symbolname)
@@ -2674,13 +2672,22 @@ is true. References to references will be treated as references to the reference
     (or (and visual (string= visual token) symbolname)
         token)))
 
-(defun rtags-current-container-name (&optional symbol-info)
-  (unless symbol-info
-    (setq symbol-info (rtags-symbol-info :include-parents t :noerror t :silent-query t)))
-  (let ((delimiter (string-match "^====================" symbol-info)))
-    (and (and delimiter
-              (string-match "^SymbolName: \\(.*\\)$" symbol-info delimiter)
-              (match-string 1 symbol-info)))))
+(defun rtags-current-container-name ()
+  (save-excursion
+    (save-restriction
+      (widen)
+      (let ((done)
+            (container))
+        (while (and (> (point) (point-min))
+                    (not done))
+          (let ((token (rtags-current-token)))
+            (if (cond ((null token))
+                      ((member token rtags-c++-keywords))
+                      ((member token rtags-c++-types))
+                      ((not (setq container (cdr (assoc 'symbolName (cdr (assoc 'parent (rtags-symbol-info-internal))))))))
+                      (t (setq done t) nil))
+                (backward-word))))
+        container))))
 
 (defun rtags-cursor-extent (&optional location)
   (let ((symbol-info (rtags-symbol-info :location location)))
