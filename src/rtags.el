@@ -694,7 +694,7 @@ to case differences."
                           (t (apply #'call-process rc nil output nil arguments)))))
           (if (processp result)
               (progn
-                (set-process-query-on-exit-flag proc nil)
+                (set-process-query-on-exit-flag result nil)
                 (set-process-filter result (car async))
                 (set-process-sentinel result (cdr async)))
             (goto-char (point-min))
