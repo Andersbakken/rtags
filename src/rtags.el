@@ -1258,7 +1258,7 @@ to case differences."
                    (cdr (assoc 'enumValue (cdr (cadr (assoc 'targets symbol)))))))
          (symbolName (cdr (assoc 'symbolName symbol))))
     (if enum)
-        (message "RTags: %s - %d - 0x%x" symbolName (or enum targetEnum) enum)
+        (message "RTags: %s - %d - 0x%x" symbolName enum)
       (message "RTags: No enum here") nil))
 
 (defun rtags-buffer-is-multibyte ()
