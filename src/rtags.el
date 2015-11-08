@@ -70,6 +70,7 @@
 (defconst rtags-diagnostics-buffer-name "*RTags Diagnostics*")
 (defconst rtags-diagnostics-raw-buffer-name " *RTags Raw*")
 (defvar rtags-last-request-not-indexed nil)
+(defvar rtags-last-request-not-connected nil)
 (defvar rtags-buffer-bookmarks 0)
 (defvar rtags-diagnostics-process nil)
 (defvar rtags-diagnostics-starting nil)
@@ -641,6 +642,7 @@ to case differences."
     (let ((rc (rtags-executable-find "rc")) result)
       (if (not rc)
           (unless noerror (error "Can't find rc"))
+        (setq rtags-last-request-not-connected nil)
         (when (and async (not (consp async)))
           (error "Invalid argument. async must be a cons or nil"))
         (setq arguments (rtags-remove-keyword-params arguments))
@@ -700,6 +702,7 @@ to case differences."
             (goto-char (point-min))
             (and (cond ((re-search-forward "Can't seem to connect to server" nil t)
                         (erase-buffer)
+                        (setq rtags-last-request-not-connected t)
                         (unless noerror
                           (message "Can't seem to connect to server. Is rdm running?"))
                         nil)
@@ -2686,8 +2689,9 @@ is true. References to references will be treated as references to the reference
             (if (cond ((null token))
                       ((member token rtags-c++-keywords))
                       ((member token rtags-c++-types))
-                      ((not (setq container (cdr (assoc 'symbolName (cdr (assoc 'parent (rtags-symbol-info-internal))))))))
-                      (t (setq done t) nil))
+                      (t
+                       (setq container (cdr (assoc 'symbolName (cdr (assoc 'parent (rtags-symbol-info-internal))))))
+                       (not (setq done (or container rtags-last-request-not-connected)))))
                 (backward-word))))
         container))))
 
