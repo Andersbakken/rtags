@@ -2686,13 +2686,19 @@ is true. References to references will be treated as references to the reference
         (while (and (> (point) (point-min))
                     (not done))
           (let ((token (rtags-current-token)))
-            (if (cond ((null token))
-                      ((member token rtags-c++-keywords))
-                      ((member token rtags-c++-types))
-                      (t
-                       (setq container (cdr (assoc 'symbolName (cdr (assoc 'parent (rtags-symbol-info-internal))))))
-                       (not (setq done (or container rtags-last-request-not-connected)))))
-                (backward-word))))
+            (when (cond ((null token))
+                        ((member token rtags-c++-keywords))
+                        ((member token rtags-c++-types))
+                        (t
+                         (let ((info (rtags-symbol-info-internal)))
+                           (cond (rtags-last-request-not-indexed (setq done t))
+                                 ((setq container (cdr (assoc 'symbolName (cdr (assoc 'parent info))))))
+                                 (info (setq done t))
+                                 (t)))
+                         (when container
+                           (setq done t))
+                         (not (or container done))))
+              (backward-word))))
         container))))
 
 (defun rtags-cursor-extent (&optional location)
