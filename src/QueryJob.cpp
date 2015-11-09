@@ -321,7 +321,7 @@ bool QueryJob::write(const Symbol &symbol,
                     }
                 }
 
-                elisp(out, "baseClasses", baseClasses, flags);
+                elisp(out, "baseClasses", baseClasses, flags | NoQuote);
             }
             elisp(out, "symbolLength", static_cast<uint32_t>(symbol.symbolLength), flags);
             elisp(out, "kind", symbol.kind, flags | Quote);
