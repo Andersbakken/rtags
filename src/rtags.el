@@ -1260,9 +1260,9 @@ to case differences."
          (enum (or (cdr (assoc 'enumValue symbol))
                    (cdr (assoc 'enumValue (cdr (cadr (assoc 'targets symbol)))))))
          (symbolName (cdr (assoc 'symbolName symbol))))
-    (if enum)
-        (message "RTags: %s - %d - 0x%x" symbolName enum)
-      (message "RTags: No enum here") nil))
+    (if enum
+        (message "RTags: %s - %d - 0x%x" symbolName enum enum)
+      (message "RTags: No enum here") nil)))
 
 (defun rtags-buffer-is-multibyte ()
   (string-match "\\butf\\b" (symbol-name buffer-file-coding-system)))
