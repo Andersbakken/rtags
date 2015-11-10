@@ -2566,7 +2566,9 @@ is true. References to references will be treated as references to the reference
     (rtags-is-indexed)
     (setq input
           (if rtags-use-filename-completion
-              (completing-read-default prompt (function rtags-filename-complete) nil nil nil 'rtags-find-file-history)
+              (if (fboundp 'completing-read-default)
+                  (completing-read-default prompt (function rtags-filename-complete) nil nil nil 'rtags-find-file-history)
+                (completing-read prompt (function rtags-filename-complete) nil nil nil 'rtags-find-file-history))
             (completing-read prompt (rtags-all-files prefer-exact) nil nil nil 'rtags-find-file-history)))
     (setq rtags-find-file-history (cl-remove-duplicates rtags-find-file-history :from-end t :test 'equal))
     (cond ((string-match "\\(.*\\),\\([0-9]+\\)" input)
