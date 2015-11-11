@@ -38,15 +38,6 @@
 (require 'tramp)
 (require 'simple)
 
-(if (or (> emacs-major-version 24)
-        (< emacs-major-version 23)
-        (and (= emacs-major-version 24)
-             (>= emacs-minor-version 3)))
-    (progn
-      (require 'cl-lib)
-      (defalias 'defun* 'cl-defun)) ;; cl-lib has own namespace now
-  (eval-when-compile
-    (require 'cl)))
 (require 'compile)
 (require 'thingatpt)
 (require 'repeat)
@@ -74,6 +65,23 @@
 (defvar rtags-buffer-bookmarks 0)
 (defvar rtags-diagnostics-process nil)
 (defvar rtags-diagnostics-starting nil)
+
+(defun rtags-remove (predicate seq &optional not)
+  (let ((ret))
+    (while seq
+      (let ((matched (funcall predicate (car seq))))
+        (when (cond ((and matched not))
+                    ((and (not matched) (not not)))
+                    (t nil))
+          (setq ret (append ret (list (car seq)))))
+        (setq seq (cdr seq))))
+    ret))
+
+(defun rtags-remove-last-if-duplicated (seq) ;; destroys seq
+  (let ((newitem (car (last seq))))
+    (if (> (length (member newitem seq)) 1)
+        (nbutlast seq 1))
+      seq))
 
 (defun rtags-is-indexable-default (buffer)
   (let ((filename (buffer-file-name buffer)))
@@ -512,11 +520,15 @@ to case differences."
                         (mapcar (function rtags-make-type) rtags-c++-types))
 (font-lock-add-keywords 'rtags-mode
                         (mapcar (function rtags-make-type)
-                                (cl-mapcan (lambda (template)
-                                             (list (concat "std::" template " *<[^<>]*<[^<>]*<[^<>]*>[^>]*>[^>]*>")
-                                                   (concat "std::" template " *<[^<>]*<[^<>]*>[^>]*>")
-                                                   (concat "std::" template " *<[^<>]*>")))
-                                           rtags-c++-templates)))
+                                (let ((ret)
+                                      (templates rtags-c++-templates))
+                                  (while templates
+                                    (let ((template (car templates)))
+                                      (push (concat "std::" template " *<[^<>]*<[^<>]*<[^<>]*>[^>]*>[^>]*>") ret)
+                                      (push (concat "std::" template " *<[^<>]*<[^<>]*>[^>]*>") ret)
+                                      (push (concat "std::" template " *<[^<>]*>") ret))
+                                    (setq templates (cdr templates)))
+                                  ret)))
 
 (define-derived-mode rtags-dependency-tree-mode fundamental-mode
   ;; (set (make-local-variable 'font-lock-defaults) '(rtags-font-lock-keywords))
@@ -646,7 +658,7 @@ to case differences."
         (when (and async (not (consp async)))
           (error "Invalid argument. async must be a cons or nil"))
         (setq arguments (rtags-remove-keyword-params arguments))
-        (setq arguments (cl-remove-if '(lambda (arg) (not arg)) arguments))
+        (setq arguments (rtags-remove '(lambda (arg) (not arg)) arguments))
         (when path-filter
           (push (concat "--path-filter=" path-filter) arguments)
           (when path-filter-regex
@@ -1778,11 +1790,15 @@ is true. References to references will be treated as references to the reference
 
 (defun rtags-really-find-buffer (fn)
   (setq fn (file-truename fn))
-  (car
-   (cl-member-if #'(lambda (arg)
-                     (and (buffer-file-name arg)
-                          (string= fn (file-truename (buffer-file-name arg)))))
-                 (buffer-list))))
+  (let ((ret)
+        (buffers (buffer-list)))
+    (while (and (not ret) buffers)
+      (let* ((filename (buffer-file-name (car buffers)))
+             (truename (and filename (file-truename filename))))
+        (if (and truename (string= fn truename))
+            (setq ret (car buffers))
+          (setq buffers (cdr buffers)))))
+    ret))
 
 (defvar rtags-error-warning-count nil)
 (make-variable-buffer-local 'rtags-error-warning-count)
@@ -2006,7 +2022,7 @@ is true. References to references will be treated as references to the reference
   (< (overlay-start l) (overlay-start r)))
 
 (defun rtags-overlays-on-screen ()
-  (sort (cl-remove-if-not 'rtags-is-rtags-overlay (overlays-in (window-start) (window-end))) #'rtags-overlay-comparator))
+  (sort (rtags-remove 'rtags-is-rtags-overlay (overlays-in (window-start) (window-end)) t) #'rtags-overlay-comparator))
 
 (defvar rtags-highlighted-overlay nil)
 
@@ -2570,7 +2586,7 @@ is true. References to references will be treated as references to the reference
                   (completing-read-default prompt (function rtags-filename-complete) nil nil nil 'rtags-find-file-history)
                 (completing-read prompt (function rtags-filename-complete) nil nil nil 'rtags-find-file-history))
             (completing-read prompt (rtags-all-files prefer-exact) nil nil nil 'rtags-find-file-history)))
-    (setq rtags-find-file-history (cl-remove-duplicates rtags-find-file-history :from-end t :test 'equal))
+    (setq rtags-find-file-history (rtags-remove-last-if-duplicated rtags-find-file-history))
     (cond ((string-match "\\(.*\\),\\([0-9]+\\)" input)
            (progn
              (setq tagname (match-string-no-properties 1 input))
@@ -2824,7 +2840,7 @@ definition."
         (setq prompt (concat prompt ": (default: " tagname ") "))
       (setq prompt (concat prompt ": ")))
     (setq input (completing-read-default prompt (function rtags-symbolname-complete) nil nil nil 'rtags-symbol-history))
-    (setq rtags-symbol-history (cl-remove-duplicates rtags-symbol-history :from-end t :test 'equal))
+    (setq rtags-symbol-history (rtags-remove-last-if-duplicated rtags-symbol-history))
     (when (not (equal "" input))
       (setq tagname input))
     (with-current-buffer (rtags-get-buffer)
@@ -3275,7 +3291,7 @@ If `rtags-display-summary-as-tooltip' is t, a tooltip is displayed."
                    "Symbol: "))
          (input (completing-read-default prompt (function rtags-symbolname-complete) nil nil nil 'rtags-symbol-history))
          (current-file (buffer-file-name)))
-    (setq rtags-symbol-history (cl-remove-duplicates rtags-symbol-history :from-end t :test 'equal))
+    (setq rtags-symbol-history (rtags-remove-last-if-duplicated rtags-symbol-history))
     (when (string= "" input)
       (if token
           (setq input token)
