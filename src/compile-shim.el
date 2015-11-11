@@ -2,6 +2,7 @@
 (defun company-begin-backend (&rest args))
 (defun company-in-string-or-comment (&rest args))
 (defun company-template-c-like-templatify (&rest args))
+(defun completing-read-default (&rest args))
 (defun popup-tip (&rest args))
 (defun yas-expand-snippet (&rest args))
 (defun ac-prefix-symbol (&rest args))

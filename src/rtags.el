@@ -37,7 +37,7 @@
 (require 'cc-mode)
 (require 'tramp)
 (require 'simple)
-
+(require 'cl)
 (require 'compile)
 (require 'thingatpt)
 (require 'repeat)
