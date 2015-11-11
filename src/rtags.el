@@ -79,9 +79,9 @@
 
 (defun rtags-remove-last-if-duplicated (seq) ;; destroys seq
   (let ((newitem (car (last seq))))
-    (if (> (length (member newitem seq)) 1)
-        (nbutlast seq 1))
-      seq))
+    (when (> (length (member newitem seq)) 1)
+      (nbutlast seq 1))
+    seq))
 
 (defun rtags-is-indexable-default (buffer)
   (let ((filename (buffer-file-name buffer)))
@@ -689,23 +689,23 @@ to case differences."
         (when rtags-rc-log-enabled
           (rtags-log (concat rc " " (rtags-combine-strings arguments))))
         (let ((result (cond ((and unsaved async)
-                           (let ((proc (apply #'start-process "rc" (current-buffer) rc arguments)))
-                             (with-current-buffer unsaved
-                               (save-restriction
-                                 (widen)
-                                 (process-send-region proc (point-min) (point-max))))
-                             proc))
-                          (async (apply #'start-process "rc" (current-buffer) rc arguments))
-                          ((and unsaved (or (buffer-modified-p unsaved)
-                                            (not (buffer-file-name unsaved))))
-                           (let ((output-buffer (current-buffer)))
-                             (with-current-buffer unsaved
-                               (save-restriction
-                                 (widen)
-                                 (apply #'call-process-region (point-min) (point-max) rc
-                                        nil output-buffer nil arguments)))))
-                          (unsaved (apply #'call-process rc (buffer-file-name unsaved) output nil arguments) nil)
-                          (t (apply #'call-process rc nil output nil arguments)))))
+			     (let ((proc (apply #'start-process "rc" (current-buffer) rc arguments)))
+			       (with-current-buffer unsaved
+				 (save-restriction
+				   (widen)
+				   (process-send-region proc (point-min) (point-max))))
+			       proc))
+			    (async (apply #'start-process "rc" (current-buffer) rc arguments))
+			    ((and unsaved (or (buffer-modified-p unsaved)
+					      (not (buffer-file-name unsaved))))
+			     (let ((output-buffer (current-buffer)))
+			       (with-current-buffer unsaved
+				 (save-restriction
+				   (widen)
+				   (apply #'call-process-region (point-min) (point-max) rc
+					  nil output-buffer nil arguments)))))
+			    (unsaved (apply #'call-process rc (buffer-file-name unsaved) output nil arguments) nil)
+			    (t (apply #'call-process rc nil output nil arguments)))))
           (if (processp result)
               (progn
                 (set-process-query-on-exit-flag result nil)
@@ -2839,7 +2839,9 @@ definition."
     (if (> (length tagname) 0)
         (setq prompt (concat prompt ": (default: " tagname ") "))
       (setq prompt (concat prompt ": ")))
-    (setq input (completing-read-default prompt (function rtags-symbolname-complete) nil nil nil 'rtags-symbol-history))
+    (if (fboundp 'completing-read-default)
+	(setq input (completing-read-default prompt (function rtags-symbolname-complete) nil nil nil 'rtags-symbol-history))
+      (setq input (completing-read prompt (function rtags-symbolname-complete) nil nil nil 'rtags-symbol-history)))
     (setq rtags-symbol-history (rtags-remove-last-if-duplicated rtags-symbol-history))
     (when (not (equal "" input))
       (setq tagname input))
@@ -3289,7 +3291,9 @@ If `rtags-display-summary-as-tooltip' is t, a tooltip is displayed."
          (prompt (if token
                      (format "Symbol (default: %s): " token)
                    "Symbol: "))
-         (input (completing-read-default prompt (function rtags-symbolname-complete) nil nil nil 'rtags-symbol-history))
+	 (input (if (fboundp 'completing-read-default)
+		    (completing-read-default prompt (function rtags-symbolname-complete) nil nil nil 'rtags-symbol-history)
+		  (completing-read prompt (function rtags-symbolname-complete) nil nil nil 'rtags-symbol-history)))
          (current-file (buffer-file-name)))
     (setq rtags-symbol-history (rtags-remove-last-if-duplicated rtags-symbol-history))
     (when (string= "" input)
