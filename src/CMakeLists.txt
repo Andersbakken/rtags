@@ -155,12 +155,12 @@ if (EMACS_EXECUTABLE)
     if (NOT EMACS_ERROR)
         string(REGEX MATCH "[0-9]+(\\.[0-9]+)*" EMACS_VERSION ${EMACS_VERSION_INFORMATION})
         if ("${EMACS_VERSION}" LESS "23")
-	          message(STATUS "Installed emacs version is to old, elisp files are not going to be installed, minimum required version is >=23!")
-	          set(RTAGS_NO_ELISP_FILES TRUE)
+            message(STATUS "Installed emacs version is to old, elisp files are not going to be installed, minimum required version is >=23!")
+            set(RTAGS_NO_ELISP_FILES TRUE)
         endif ()
     else ()
         message(STATUS "Could not get emacs version (\"emacs --version\"), elisp files are not going to be installed")
-	      set(RTAGS_NO_ELISP_FILES TRUE)
+        set(RTAGS_NO_ELISP_FILES TRUE)
     endif ()
 else ()
     set(RTAGS_NO_ELISP_FILES TRUE)
@@ -178,10 +178,10 @@ if (NOT RTAGS_NO_ELISP_FILES)
     endif ()
     set(RTAGS_ELISP_SOURCES "")
     foreach(el ${RTAGS_ELISP_FILES})
-	add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/${el}
-	    COMMAND ${CMAKE_COMMAND} -E copy_if_different ${CMAKE_CURRENT_SOURCE_DIR}/${el} ${CMAKE_CURRENT_BINARY_DIR}/${el}
-	    DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/${el}
-	    COMMENT "Copying ${CMAKE_CURRENT_SOURCE_DIR}/${el} -> ${CMAKE_CURRENT_BINARY_DIR}/${el}")
+        add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/${el}
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different ${CMAKE_CURRENT_SOURCE_DIR}/${el} ${CMAKE_CURRENT_BINARY_DIR}/${el}
+            DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/${el}
+            COMMENT "Copying ${CMAKE_CURRENT_SOURCE_DIR}/${el} -> ${CMAKE_CURRENT_BINARY_DIR}/${el}")
         list(APPEND RTAGS_ELISP_SOURCES ${CMAKE_CURRENT_BINARY_DIR}/${el})
         if (NOT RTAGS_NO_ELISP_BYTECOMPILE)
             list(APPEND RTAGS_ELISP_SOURCES ${CMAKE_CURRENT_BINARY_DIR}/${el}c)
