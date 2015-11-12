@@ -178,21 +178,21 @@ if (NOT RTAGS_NO_ELISP_FILES)
     endif ()
     set(RTAGS_ELISP_SOURCES "")
     foreach(el ${RTAGS_ELISP_FILES})
-        add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/${el}
-            COMMAND ${CMAKE_COMMAND} -E copy_if_different ${CMAKE_CURRENT_SOURCE_DIR}/${el} ${CMAKE_CURRENT_BINARY_DIR}/${el}
-            DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/${el}
-            COMMENT "Copying ${CMAKE_CURRENT_SOURCE_DIR}/${el} -> ${CMAKE_CURRENT_BINARY_DIR}/${el}")
+        if (NOT ${CMAKE_CURRENT_BINARY_DIR} STREQUAL ${CMAKE_CURRENT_SOURCE_DIR})
+            add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/${el}
+		COMMAND ${CMAKE_COMMAND} -E copy_if_different ${CMAKE_CURRENT_SOURCE_DIR}/${el} ${CMAKE_CURRENT_BINARY_DIR}/${el}
+		DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/${el}
+		COMMENT "Copying ${CMAKE_CURRENT_SOURCE_DIR}/${el} -> ${CMAKE_CURRENT_BINARY_DIR}/${el}")
+	endif ()
         list(APPEND RTAGS_ELISP_SOURCES ${CMAKE_CURRENT_BINARY_DIR}/${el})
         if (NOT RTAGS_NO_ELISP_BYTECOMPILE)
             list(APPEND RTAGS_ELISP_SOURCES ${CMAKE_CURRENT_BINARY_DIR}/${el}c)
-            if (NOT ${CMAKE_CURRENT_BINARY_DIR} STREQUAL ${CMAKE_CURRENT_SOURCE_DIR})
-                add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/${el}c
-                    COMMAND ${EMACS_EXECUTABLE} -batch -l ${CMAKE_CURRENT_SOURCE_DIR}/compile-shim.el -l ${CMAKE_CURRENT_SOURCE_DIR}/rtags.el -f batch-byte-compile
-                    ${CMAKE_CURRENT_BINARY_DIR}/${el}
-                    DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/${el}
-                    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
-                    COMMENT "Creating byte-compiled Emacs lisp ${CMAKE_CURRENT_BINARY_DIR}/${el}c")
-            endif ()
+            add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/${el}c
+                COMMAND ${EMACS_EXECUTABLE} -batch -l ${CMAKE_CURRENT_SOURCE_DIR}/compile-shim.el -l ${CMAKE_CURRENT_SOURCE_DIR}/rtags.el -f batch-byte-compile
+                ${CMAKE_CURRENT_BINARY_DIR}/${el}
+                DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/${el}
+                WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+                COMMENT "Creating byte-compiled Emacs lisp ${CMAKE_CURRENT_BINARY_DIR}/${el}c")
             add_custom_target(emacs_byte_compile_${el} ALL DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/${el}c)
         endif ()
     endforeach()

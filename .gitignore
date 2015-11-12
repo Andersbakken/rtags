@@ -30,6 +30,7 @@ compile_commands.json
 /src/libshared.dylib
 /src/.gdb_brestore
 /src/.gdb_brestore.txt
+/src/*.elc
 /.lsdev_default
 /tests/186/
 /install_manifest.txt
