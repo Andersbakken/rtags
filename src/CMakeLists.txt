@@ -167,13 +167,21 @@ else ()
     message(STATUS "Emacs was not found, elisp files are not going to be installed!")
 endif ()
 
+set(RTAGS_ELISP_FILES
+    rtags.el
+    rtags-ac.el
+    company-rtags.el)
+
 if (NOT RTAGS_NO_ELISP_FILES)
     if (NOT RTAGS_ELISP_INSTALL_LOCATION)
         set(RTAGS_ELISP_INSTALL_LOCATION ${CMAKE_INSTALL_PREFIX}/share/emacs/site-lisp/rtags/)
     endif ()
     set(RTAGS_ELISP_SOURCES "")
-    foreach(el rtags.el rtags-ac.el company-rtags.el)
-        file(COPY ${el} DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
+    foreach(el ${RTAGS_ELISP_FILES})
+	add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/${el}
+	    COMMAND ${CMAKE_COMMAND} -E copy_if_different ${CMAKE_CURRENT_SOURCE_DIR}/${el} ${CMAKE_CURRENT_BINARY_DIR}/${el}
+	    DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/${el}
+	    COMMENT "Copying ${CMAKE_CURRENT_SOURCE_DIR}/${el} -> ${CMAKE_CURRENT_BINARY_DIR}/${el}")
         list(APPEND RTAGS_ELISP_SOURCES ${CMAKE_CURRENT_BINARY_DIR}/${el})
         if (NOT RTAGS_NO_ELISP_BYTECOMPILE)
             list(APPEND RTAGS_ELISP_SOURCES ${CMAKE_CURRENT_BINARY_DIR}/${el}c)
