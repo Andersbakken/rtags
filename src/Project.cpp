@@ -340,6 +340,8 @@ bool Project::init()
              >> mCompilationDatabaseInfo.pathEnvironment
              >> mCompilationDatabaseInfo.indexFlags;
     }
+    if (!mCompilationDatabaseInfo.dir.isEmpty())
+        watch(mCompilationDatabaseInfo.dir, Watch_CompilationDatabase);
     loadDependencies(file, mDependencies);
 
     for (const auto &dep : mDependencies) {
