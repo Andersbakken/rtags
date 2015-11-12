@@ -663,6 +663,7 @@ to case differences."
       (if (not rc)
           (unless noerror (error "Can't find rc"))
         (setq rtags-last-request-not-connected nil)
+        (setq rtags-last-request-not-indexed nil)
         (when (and async (not (consp async)))
           (error "Invalid argument. async must be a cons or nil"))
         (setq arguments (rtags-remove-keyword-params arguments))
@@ -697,42 +698,47 @@ to case differences."
         (when rtags-rc-log-enabled
           (rtags-log (concat rc " " (rtags-combine-strings arguments))))
         (let ((result (cond ((and unsaved async)
-			     (let ((proc (apply #'start-process "rc" (current-buffer) rc arguments)))
-			       (with-current-buffer unsaved
-				 (save-restriction
-				   (widen)
-				   (process-send-region proc (point-min) (point-max))))
-			       proc))
-			    (async (apply #'start-process "rc" (current-buffer) rc arguments))
-			    ((and unsaved (or (buffer-modified-p unsaved)
-					      (not (buffer-file-name unsaved))))
-			     (let ((output-buffer (current-buffer)))
-			       (with-current-buffer unsaved
-				 (save-restriction
-				   (widen)
-				   (apply #'call-process-region (point-min) (point-max) rc
-					  nil output-buffer nil arguments)))))
-			    (unsaved (apply #'call-process rc (buffer-file-name unsaved) output nil arguments) nil)
-			    (t (apply #'call-process rc nil output nil arguments)))))
+                             (let ((proc (apply #'start-process "rc" (current-buffer) rc arguments)))
+                               (with-current-buffer unsaved
+                                 (save-restriction
+                                   (widen)
+                                   (process-send-region proc (point-min) (point-max))))
+                               proc))
+                            (async (apply #'start-process "rc" (current-buffer) rc arguments))
+                            ((and unsaved (or (buffer-modified-p unsaved)
+                                              (not (buffer-file-name unsaved))))
+                             (let ((output-buffer (current-buffer)))
+                               (with-current-buffer unsaved
+                                 (save-restriction
+                                   (widen)
+                                   (apply #'call-process-region (point-min) (point-max) rc
+                                          nil output-buffer nil arguments)))))
+                            (unsaved (apply #'call-process rc (buffer-file-name unsaved) output nil arguments) nil)
+                            (t (apply #'call-process rc nil output nil arguments)))))
           (if (processp result)
               (progn
                 (set-process-query-on-exit-flag result nil)
                 (set-process-filter result (car async))
                 (set-process-sentinel result (cdr async)))
             (goto-char (point-min))
-            (and (cond ((re-search-forward "Can't seem to connect to server" nil t)
-                        (erase-buffer)
-                        (setq rtags-last-request-not-connected t)
-                        (unless noerror
-                          (message "Can't seem to connect to server. Is rdm running?"))
-                        nil)
-                       ((looking-at "Project loading")
-                        (erase-buffer)
-                        (message "Project loading...")
-                        t)
-                       (t))
-                 result
-                 rtags-autostart-diagnostics (rtags-diagnostics))))
+            (save-excursion
+              (and (cond ((re-search-forward "^Can't seem to connect to server" nil t)
+                          (erase-buffer)
+                          (setq rtags-last-request-not-connected t)
+                          (unless noerror
+                            (message "Can't seem to connect to server. Is rdm running?"))
+                          nil)
+                         ((re-search-forward "^Not indexed" nil t)
+                          (erase-buffer)
+                          (setq rtags-last-request-not-indexed t)
+                          nil)
+                         ((looking-at "Project loading")
+                          (erase-buffer)
+                          (message "Project loading...")
+                          t)
+                         (t))
+                   (eq result 0)
+                   rtags-autostart-diagnostics (rtags-diagnostics)))))
         (or async (> (point-max) (point-min)))))))
 
 (defvar rtags-preprocess-keymap (make-sparse-keymap))
@@ -1518,10 +1524,6 @@ to case differences."
   (setq rtags-location-stack nil)
   (setq rtags-location-stack-index 0))
 
-(defun rtags-not-indexed/connected-message-p (string)
-  (or (string= string "Not indexed\n")
-      (string= string "Can't seem to connect to server\n")))
-
 (defun rtags-target (&optional filter declaration-only no-reparse no-error)
   "DONT-REPARSE : do not reparse file even if it appears as modified."
   (let ((path (buffer-file-name))
@@ -1534,11 +1536,9 @@ to case differences."
         (if declaration-only
             (rtags-call-rc :path path "--declaration-only" "-N" "-f" location "-K" :path-filter filter :noerror t :unsaved unsaved)
           (rtags-call-rc :path path "-N" "-f" location :path-filter filter "-K" :noerror t :unsaved unsaved))
-        (setq rtags-last-request-not-indexed nil)
         (cond ((= (point-min) (point-max))
                (unless no-error (message "RTags: No target")) nil)
-              ((rtags-not-indexed/connected-message-p (buffer-string))
-               (setq rtags-last-request-not-indexed t) nil)
+              (rtags-last-request-not-indexed nil)
               (t (buffer-substring-no-properties (point-min) (- (point-max) 1))))))))
 
 (defun rtags-target-declaration-first ()
@@ -1996,7 +1996,7 @@ is true. References to references will be treated as references to the reference
                                               children
                                               "\n"))))
       (when rtags-display-current-error-as-tooltip
-;;        (message "point %d bol %d (%d) used %d maxwidth %d" point bol (- point bol) used maxwidth)
+        ;;        (message "point %d bol %d (%d) used %d maxwidth %d" point bol (- point bol) used maxwidth)
         (while (>= (+ (- point bol) used) maxwidth)
           (decf point))
         (let ((popup-tip-max-width maxwidth))
@@ -2292,23 +2292,17 @@ is true. References to references will be treated as references to the reference
       (setq windows (cdr windows)))))
 
 (defun rtags-handle-results-buffer (&optional noautojump quiet path)
-  (setq rtags-last-request-not-indexed nil)
   (rtags-reset-bookmarks)
   (set-text-properties (point-min) (point-max) nil)
   (cond ((= (point-min) (point-max))
          (unless quiet
            (message "RTags: No results"))
          nil)
+        ((or rtags-last-request-not-indexed rtags-last-request-not-connected) nil)
         ((= (count-lines (point-min) (point-max)) 1)
          (let ((string (buffer-string)))
-           (if (rtags-not-indexed/connected-message-p string)
-               (progn
-                 (setq rtags-last-request-not-indexed t)
-                 nil)
-             (bury-buffer)
-             (rtags-delete-rtags-windows)
-             (rtags-goto-location string)
-             t)))
+           (rtags-goto-location string)
+           t))
         (t
          (switch-to-buffer-other-window rtags-buffer-name)
          (goto-char (point-max))
@@ -2728,6 +2722,7 @@ is true. References to references will be treated as references to the reference
                         (t
                          (let ((info (rtags-symbol-info-internal)))
                            (cond (rtags-last-request-not-indexed (setq done t))
+                                 (rtags-last-request-not-connected (setq done t))
                                  ((setq container (or (cdr (assoc 'parent info))
                                                       (and (assoc 'container info) info))))
                                  (info (setq done t))
@@ -2848,7 +2843,7 @@ definition."
         (setq prompt (concat prompt ": (default: " tagname ") "))
       (setq prompt (concat prompt ": ")))
     (if (fboundp 'completing-read-default)
-	(setq input (completing-read-default prompt (function rtags-symbolname-complete) nil nil nil 'rtags-symbol-history))
+        (setq input (completing-read-default prompt (function rtags-symbolname-complete) nil nil nil 'rtags-symbol-history))
       (setq input (completing-read prompt (function rtags-symbolname-complete) nil nil nil 'rtags-symbol-history)))
     (setq rtags-symbol-history (rtags-remove-last-if-duplicated rtags-symbol-history))
     (when (not (equal "" input))
@@ -3299,9 +3294,9 @@ If `rtags-display-summary-as-tooltip' is t, a tooltip is displayed."
          (prompt (if token
                      (format "Symbol (default: %s): " token)
                    "Symbol: "))
-	 (input (if (fboundp 'completing-read-default)
-		    (completing-read-default prompt (function rtags-symbolname-complete) nil nil nil 'rtags-symbol-history)
-		  (completing-read prompt (function rtags-symbolname-complete) nil nil nil 'rtags-symbol-history)))
+         (input (if (fboundp 'completing-read-default)
+                    (completing-read-default prompt (function rtags-symbolname-complete) nil nil nil 'rtags-symbol-history)
+                  (completing-read prompt (function rtags-symbolname-complete) nil nil nil 'rtags-symbol-history)))
          (current-file (buffer-file-name)))
     (setq rtags-symbol-history (rtags-remove-last-if-duplicated rtags-symbol-history))
     (when (string= "" input)
