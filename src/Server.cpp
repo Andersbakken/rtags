@@ -745,6 +745,7 @@ void Server::followLocation(const std::shared_ptr<QueryMessage> &query, const st
     std::shared_ptr<Project> project = projectForQuery(query);
     if (!project) {
         error("No project");
+        conn->write("Not indexed");
         conn->finish(1);
         return;
     }
@@ -992,13 +993,15 @@ void Server::cursorInfo(const std::shared_ptr<QueryMessage> &query, const std::s
 {
     const Location loc = query->location();
     if (loc.isNull()) {
-        conn->finish();
+        conn->write("Not indexed");
+        conn->finish(1);
         return;
     }
     std::shared_ptr<Project> project = projectForQuery(query);
 
     if (!project) {
-        conn->finish();
+        conn->write("Not indexed");
+        conn->finish(1);
     } else {
         SymbolInfoJob job(loc, query, project);
         const int ret = job.run(conn);
@@ -1067,6 +1070,7 @@ void Server::referencesForLocation(const std::shared_ptr<QueryMessage> &query, c
 
     if (!project) {
         error("No project");
+        conn->write("Not indexed");
         conn->finish();
         return;
     }
@@ -1644,6 +1648,7 @@ void Server::classHierarchy(const std::shared_ptr<QueryMessage> &query, const st
     std::shared_ptr<Project> project = projectForQuery(query);
     if (!project) {
         error("No project");
+        conn->write("Not indexed");
         conn->finish(1);
         return;
     }
