@@ -262,7 +262,11 @@ private:
     };
     static bool lock(int fd, Mode mode)
     {
-        struct flock fl = { 0, 0, getpid(), static_cast<short>(mode), SEEK_SET };
+        struct flock fl;
+        memset(&fl, 0, sizeof(fl));
+        fl.l_type = mode;
+        fl.l_whence = SEEK_SET;
+        fl.l_pid = getpid();
         int ret;
         eintrwrap(ret, fcntl(fd, F_SETLKW, &fl));
         return ret != -1;
