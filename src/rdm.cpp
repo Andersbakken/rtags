@@ -359,7 +359,7 @@ int main(int argc, char** argv)
     serverOpts.dataDir = String::format<128>("%s.rtags", Path::home().constData());
 
     const char *logFile = 0;
-    Flags<LogFileFlag> logFlags;
+    Flags<LogFileFlag> logFlags = DontRotate;
     LogLevel logLevel(LogLevel::Error);
     LogLevel logFileLogLevel(LogLevel::VerboseDebug);
     bool sigHandler = false;
