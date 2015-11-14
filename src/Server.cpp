@@ -262,6 +262,7 @@ bool Server::initServers()
         if (!mUnixServer)
             return false;
         mUnixServer->newConnection().connect(std::bind(&Server::onNewConnection, this, std::placeholders::_1));
+        return true;
     }
 #endif
 
