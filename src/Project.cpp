@@ -1889,28 +1889,29 @@ bool Project::validate(uint32_t fileId, String *err) const
 {
     Path path;
     String error;
+    const uint32_t opts = fileMapOptions();
     {
         path = sourceFilePath(fileId, fileMapName(SymbolNames));
         FileMap<String, Set<Location> > fileMap;
-        if (!fileMap.load(path, &error))
+        if (!fileMap.load(path, opts, &error))
             goto error;
     }
     {
         path = sourceFilePath(fileId, fileMapName(Symbols));
         FileMap<Location, Symbol> fileMap;
-        if (!fileMap.load(path, &error))
+        if (!fileMap.load(path, opts, &error))
             goto error;
     }
     {
         path = sourceFilePath(fileId, fileMapName(Targets));
         FileMap<String, Set<Location> > fileMap;
-        if (!fileMap.load(path, &error))
+        if (!fileMap.load(path, opts, &error))
             goto error;
     }
     {
         path = sourceFilePath(fileId, fileMapName(Usrs));
         FileMap<String, Set<Location> > fileMap;
-        if (!fileMap.load(path, &error))
+        if (!fileMap.load(path, opts, &error))
             goto error;
     }
     return true;
@@ -2329,3 +2330,12 @@ void Project::removeSource(Sources::iterator it)
     Path::rmdir(sourceFilePath(fileId).constData());
     mSources.erase(it);
 }
+
+uint32_t Project::fileMapOptions() const
+{
+    uint32_t options = FileMap<int, int>::None;
+    if (Server::instance()->options().options & Server::NoFileLock)
+        options |= FileMap<int, int>::NoLock;
+    return options;
+}
+

@@ -99,6 +99,7 @@ static void usage(FILE *f)
 #ifndef OS_FreeBSD
 #endif
             "  --no-filesystem-watcher|-B                 Disable file system watching altogether. Reindexing has to happen manually.\n"
+            "  --no-file-lock                             Disable file locking. Not entirely safe but might improve performance on certain systems.\n"
             "  --no-rc|-N                                 Don't load any rc files.\n"
             "  --no-startup-project|-o                    Don't restore the last current project on startup.\n"
             "  --rp-connect-timeout|-O [arg]              Timeout for connection from rp to rdm in ms (0 means no timeout) (default " STR(DEFAULT_RP_CONNECT_TIMEOUT) ").\n"
@@ -224,6 +225,7 @@ int main(int argc, char** argv)
 #else
         { "no-filemanager-watch", no_argument, 0, 'M' },
 #endif
+        { "no-file-lock", no_argument, 0, 13 },
         { "no-filesystem-watcher", no_argument, 0, 'B' },
         { "arg-transform", required_argument, 0, 'V' },
         { "no-comments", no_argument, 0, 1 },
@@ -406,6 +408,9 @@ int main(int argc, char** argv)
                 fprintf(stderr, "Invalid port %s for --tcp-port\n", optarg);
                 return 1;
             }
+            break;
+        case 13:
+            serverOpts.options |= Server::NoFileLock;
             break;
         case 2:
             fprintf(stdout, "%s\n", RTags::versionString().constData());

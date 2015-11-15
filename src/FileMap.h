@@ -52,8 +52,20 @@ class FileMap
 {
 public:
     FileMap()
-        : mPointer(0), mSize(0), mCount(0), mValuesOffset(0), mFD(-1)
+        : mPointer(0), mSize(0), mCount(0), mValuesOffset(0), mFD(-1), mOptions(0)
     {}
+
+    ~FileMap()
+    {
+        if (mFD != -1) {
+            assert(mPointer);
+            munmap(const_cast<char*>(mPointer), mSize);
+            if (!(mOptions & NoLock))
+                lock(mFD, Unlock);
+            int ret;
+            eintrwrap(ret, close(mFD));
+        }
+    }
 
     void init(const char *pointer, uint32_t size)
     {
@@ -63,7 +75,11 @@ public:
         memcpy(&mValuesOffset, mPointer + sizeof(uint32_t), sizeof(uint32_t));
     }
 
-    bool load(const Path &path, String *error = 0)
+    enum Options {
+        None = 0x0,
+        NoLock = 0x1
+    };
+    bool load(const Path &path, uint32_t options, String *error = 0)
     {
         eintrwrap(mFD, open(path.constData(), O_RDONLY));
         if (mFD == -1) {
@@ -73,7 +89,7 @@ public:
             }
             return false;
         }
-        if (!lock(mFD, Read)) {
+        if (!(options & NoLock) && !lock(mFD, Read)) {
             if (error) {
                 *error = Rct::strerror();
                 *error << " " << __LINE__;
@@ -111,19 +127,9 @@ public:
             return false;
         }
 
+        mOptions = options;
         init(pointer, st.st_size);
         return true;
-    }
-
-    ~FileMap()
-    {
-        if (mFD != -1) {
-            assert(mPointer);
-            munmap(const_cast<char*>(mPointer), mSize);
-            lock(mFD, Unlock);
-            int ret;
-            eintrwrap(ret, close(mFD));
-        }
     }
 
     Value value(const Key &key, bool *matched = 0) const
@@ -229,7 +235,7 @@ public:
         }
         return out;
     }
-    static bool write(const Path &path, const Map<Key, Value> &map)
+    static bool write(const Path &path, const Map<Key, Value> &map, uint32_t options)
     {
         FILE *f = fopen(path.constData(), "w+");
         if (!f && Path::mkdir(path.parentDir(), Path::Recursive)) {
@@ -239,7 +245,7 @@ public:
             return false;
         int err;
         const int fd = fileno(f);
-        if (!lock(fd, Write)) {
+        if (!(options & NoLock) && !lock(fd, Write)) {
             fclose(f);
             return false;
         }
@@ -248,7 +254,8 @@ public:
         bool ret = fwrite(data.constData(), data.size(), 1, f);
         if (ret)
             eintrwrap(err, ftruncate(fd, data.size()));
-        ret = lock(fd, Unlock) && ret;
+        if (!(options & NoLock))
+            ret = lock(fd, Unlock) && ret;
         fclose(f);
         if (!ret)
             unlink(data.constData());
@@ -295,6 +302,7 @@ const char *mPointer;
     uint32_t mCount;
     uint32_t mValuesOffset;
     int mFD;
+    uint32_t mOptions;
 };
 
 #endif

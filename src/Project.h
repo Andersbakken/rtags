@@ -224,6 +224,7 @@ public:
     String estimateMemory() const;
     void diagnose(uint32_t fileId);
     void diagnoseAll();
+    uint32_t fileMapOptions() const;
 private:
     void reloadCompilationDatabase();
     void removeSource(Sources::iterator it);
@@ -288,7 +289,7 @@ private:
             const Path path = project->sourceFilePath(fileId, Project::fileMapName(type));
             std::shared_ptr<FileMap<Key, Value> > fileMap(new FileMap<Key, Value>);
             String err;
-            if (fileMap->load(path, &err)) {
+            if (fileMap->load(path, project->fileMapOptions(), &err)) {
                 ++totalOpened;
                 cache[fileId] = fileMap;
                 std::shared_ptr<LRUEntry> entry(new LRUEntry(type, fileId));

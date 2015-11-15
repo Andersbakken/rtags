@@ -1303,19 +1303,22 @@ bool ClangIndexer::writeFiles(const Path &root, String &error)
         //           << unit.second->targets.size()
         //           << unit.second->usrs.size()
         //           << unit.second->symbolNames.size();
-        if (!FileMap<Location, Symbol>::write(unitRoot + "/symbols", unit.second->symbols)) {
+        uint32_t fileMapOpts = 0;
+        if (ClangIndexer::serverOpts() & Server::NoFileLock)
+            fileMapOpts |= FileMap<int, int>::NoLock;
+        if (!FileMap<Location, Symbol>::write(unitRoot + "/symbols", unit.second->symbols, fileMapOpts)) {
             error = "Failed to write symbols";
             return false;
         }
-        if (!FileMap<String, Set<Location> >::write(unitRoot + "/targets", convertTargets(unit.second->targets))) {
+        if (!FileMap<String, Set<Location> >::write(unitRoot + "/targets", convertTargets(unit.second->targets), fileMapOpts)) {
             error = "Failed to write targets";
             return false;
         }
-        if (!FileMap<String, Set<Location> >::write(unitRoot + "/usrs", unit.second->usrs)) {
+        if (!FileMap<String, Set<Location> >::write(unitRoot + "/usrs", unit.second->usrs, fileMapOpts)) {
             error = "Failed to write usrs";
             return false;
         }
-        if (!FileMap<String, Set<Location> >::write(unitRoot + "/symnames", unit.second->symbolNames)) {
+        if (!FileMap<String, Set<Location> >::write(unitRoot + "/symnames", unit.second->symbolNames, fileMapOpts)) {
             error = "Failed to write symbolNames";
             return false;
         }

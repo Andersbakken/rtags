@@ -51,31 +51,32 @@ public:
     ~Server();
     static Server *instance() { return sInstance; }
     enum Option {
-        NoOptions = 0x00000,
-        ClearProjects = 0x00001,
-        Wall = 0x00002,
-        IgnorePrintfFixits = 0x00004,
-        NoUnlimitedErrors = 0x00008,
-        SpellChecking = 0x00010,
-        DisallowMultipleSources = 0x00020,
-        NoStartupCurrentProject = 0x00040,
-        WatchSystemPaths = 0x00080,
-        NoFileManagerWatch = 0x00100,
-        NoFileSystemWatch = 0x00200,
-        NoNoUnknownWarningsOption = 0x00400,
-        SuspendRPOnCrash = 0x00800,
-        SeparateDebugAndRelease = 0x01000,
-        AllowPedantic = 0x02000,
-        StartSuspended = 0x04000,
-        EnableCompilerManager = 0x08000,
-        EnableNDEBUG = 0x10000,
-        Progress = 0x20000,
-        Weverything = 0x40000,
-        NoComments = 0x80000,
-        Launchd = 0x100000,     /* Only valid for Darwin... but you're not out of bits yet. */
-        RPLogToSyslog = 0x200000,
-        CompletionsNoFilter = 0x400000,
-        WatchSourcesOnly = 0x800000
+        NoOptions = 0x000000,
+        ClearProjects = 0x000001,
+        Wall = 0x000002,
+        IgnorePrintfFixits = 0x000004,
+        NoUnlimitedErrors = 0x000008,
+        SpellChecking = 0x000010,
+        DisallowMultipleSources = 0x000020,
+        NoStartupCurrentProject = 0x000040,
+        WatchSystemPaths = 0x000080,
+        NoFileManagerWatch = 0x000100,
+        NoFileSystemWatch = 0x000200,
+        NoNoUnknownWarningsOption = 0x000400,
+        SuspendRPOnCrash = 0x000800,
+        SeparateDebugAndRelease = 0x001000,
+        AllowPedantic = 0x002000,
+        StartSuspended = 0x004000,
+        EnableCompilerManager = 0x008000,
+        EnableNDEBUG = 0x010000,
+        Progress = 0x020000,
+        Weverything = 0x040000,
+        NoComments = 0x080000,
+        Launchd = 0x0100000,     /* Only valid for Darwin... but you're not out of bits yet. */
+        RPLogToSyslog = 0x0200000,
+        CompletionsNoFilter = 0x0400000,
+        WatchSourcesOnly = 0x0800000,
+        NoFileLock = 0x1000000
     };
     struct Options {
         Options()
