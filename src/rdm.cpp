@@ -94,7 +94,7 @@ static void usage(FILE *f)
             "  --job-count|-j [arg]                       Spawn this many concurrent processes for indexing (default %d).\n"
             "  --header-error-job-count|-H [arg]          Allow this many concurrent header error jobs (default std::max(1, --job-count / 2)).\n"
             "  --log-file|-L [arg]                        Log to this file.\n"
-            "  --log-file-log-level [arg]                 Log level for log file (default is verbose-debug):\n"
+            "  --log-file-log-level [arg]                 Log level for log file (default is error):\n"
             "                                             options are: error, warning, debug or verbose-debug.\n"
 #ifndef OS_FreeBSD
 #endif
@@ -363,7 +363,7 @@ int main(int argc, char** argv)
     const char *logFile = 0;
     Flags<LogFileFlag> logFlags = DontRotate;
     LogLevel logLevel(LogLevel::Error);
-    LogLevel logFileLogLevel(LogLevel::VerboseDebug);
+    LogLevel logFileLogLevel(LogLevel::Error);
     bool sigHandler = false;
     assert(Path::home().endsWith('/'));
     int argCount = argList.size();
@@ -647,6 +647,7 @@ int main(int argc, char** argv)
             break;
         case 'L':
             logFile = optarg;
+            logLevel = LogLevel::None;
             break;
         case 'v':
             if (logLevel != LogLevel::None)
@@ -717,7 +718,7 @@ int main(int argc, char** argv)
     // Shell-expand logFile
     Path logPath(logFile); logPath.resolve();
 
-    if (!initLogging(argv[0], LogStderr, logLevel, logPath.constData(), logFlags)) {
+    if (!initLogging(argv[0], LogStderr, logLevel, logPath.constData(), logFlags, logFileLogLevel)) {
         fprintf(stderr, "Can't initialize logging with %d %s %s\n",
                 logLevel.toInt(), logFile ? logFile : "", logFlags.toString().constData());
         return 1;
