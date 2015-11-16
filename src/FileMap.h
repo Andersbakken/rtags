@@ -237,28 +237,34 @@ public:
     }
     static bool write(const Path &path, const Map<Key, Value> &map, uint32_t options)
     {
-        FILE *f = fopen(path.constData(), "w+");
-        if (!f && Path::mkdir(path.parentDir(), Path::Recursive)) {
-            f = fopen(path.constData(), "w+");
+        int fd = open(path.constData(), O_RDWR|O_CREAT);
+        if (fd == -1) {
+            if (!Path::mkdir(path.parentDir(), Path::Recursive))
+                return false;
+            fd = open(path.constData(), O_RDWR|O_CREAT);
+            if (fd == -1)
+                return false;
         }
-        if (!f)
-            return false;
-        int err;
-        const int fd = fileno(f);
         if (!(options & NoLock) && !lock(fd, Write)) {
-            fclose(f);
+            ::close(fd);
+            return false;
+        }
+        const String data = encode(map);
+        bool ret = ::ftruncate(fd, data.size()) != -1;
+        if (!ret) {
+            if (!(options & NoLock))
+                lock(fd, Unlock);
+            ::close(fd);
             return false;
         }
 
-        const String data = encode(map);
-        bool ret = fwrite(data.constData(), data.size(), 1, f);
-        if (ret)
-            eintrwrap(err, ftruncate(fd, data.size()));
+        ret = ::write(fd, data.constData(), data.size()) == data.size();
         if (!(options & NoLock))
             ret = lock(fd, Unlock) && ret;
-        fclose(f);
+
+        ::close(fd);
         if (!ret)
-            unlink(data.constData());
+            unlink(path.constData());
         return ret;
     }
 private:
