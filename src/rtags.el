@@ -827,7 +827,7 @@ to case differences."
          (path (buffer-file-name))
          (object (with-temp-buffer
                    (and loc
-                        (rtags-call-rc :path path :noerror t "-U" loc "--elisp" :silent-query silent)
+                        (rtags-call-rc :path path :noerror t :silent-query silent "-U" loc "--elisp")
                         (goto-char (point-min))
                         (looking-at "(")
                         (eval (read (current-buffer)))))))
