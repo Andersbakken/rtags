@@ -35,9 +35,9 @@ $ ./bin/rc -J .
 $ # wait for rdm to be silent
 $ emacs src/rdm.cpp
 (load-file "rtags.el")
-# Go to /Users/abakken/dev/rtags-master/src/rdm.cpp:39:34     if (Server *server = Server::instance())
-#                                                                                         /|\
-#                                                                                          |
+# Go to src/rdm.cpp:39:34     if (Server *server = Server::instance())
+#                                                         /|\
+#                                                          |
 (rtags-find-symbol-at-point)
 # Your location is now on the definition of Server::instance()
 #+END_SRC
@@ -68,11 +68,13 @@ completion files to be installed, you either have to make sure that
 manually force the installation, by setting the variable
 FORCE_BASH_COMPLETION_INSTALLATION to TRUE or ON.
 
-The default installation path is "/usr/share/bash-completion/completions".
+The default installation path is
+"CMAKE_INSTALL_PREFIX/share/bash-completion/completions".
 Additionally, you can adjust the BASH_COMPLETION_COMPLATIONSDIR
 variable. However, if the bash completions files are not installed
-in the default completion path, you have to make sure the *rtags*
-bash completion file gets sourced, to get completion support.
+in the default completion path, i.e. /usr/share/bash-completion/completions
+on GNU/Linux, you have to make sure the *rtags* bash completion file gets
+sourced, to get completion support.
 
 
 ** C++11 on OS X
@@ -140,6 +142,13 @@ with an ncurses UI) instead of =cmake=.
 #+BEGIN_SRC
   cmake -DLIBCLANG_LLVM_CONFIG_EXECUTABLE=/path/to/llvm-config .
 #+END_SRC
+  If you have installed llvm to a different place than the default
+  system directories, like say /opt/llvm, you can tell cmake about it, by
+  setting the variable CMAKE_PREFIX_PATH.
+#+BEGIN_SRC
+  cmake -DCMAKE_PREFIX_PATH=/opt/llvm .
+#+END_SRC
+
   If you don't we will look for variations of the llvm-config
   executable name in your $PATH.
 
