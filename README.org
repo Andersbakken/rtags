@@ -25,22 +25,22 @@ Roberto Raggi on whose C++ parser we intended to base this project but
 he assured us clang was the way to go. The name stuck though.
 
 * TLDR Quickstart
-Build RTags.
+Build RTags
 #+BEGIN_SRC
 $ git clone --recursive https://github.com/Andersbakken/rtags.git
 $ cd rtags
 $ cmake -DCMAKE_EXPORT_COMPILE_COMMANDS=1
 $ make
 #+END_SRC
-Start the RTags daemon (rdm).
+Start the RTags daemon (rdm)
 #+BEGIN_SRC
 $ ./bin/rdm &
 #+END_SRC
-Index the RTags project, and wait until rdm is silent.
+Index the RTags project, and wait until rdm is silent
 #+BEGIN_SRC
 $ ./bin/rc -J .
 #+END_SRC
-Open source file in emacs.
+Open source file in emacs
 #+END_SRC
 #+BEGIN_SRC
 $ emacs +39:34 src/rdm.cpp
@@ -155,15 +155,9 @@ with an ncurses UI) instead of =cmake=.
 #+BEGIN_SRC
   cmake -DLIBCLANG_LLVM_CONFIG_EXECUTABLE=/path/to/llvm-config .
 #+END_SRC
-  If you have installed llvm to a different place than the default
-  system directories, like say /opt/llvm, you can tell cmake about it, by
-  setting the variable CMAKE_PREFIX_PATH.
-#+BEGIN_SRC
-  cmake -DCMAKE_PREFIX_PATH=/opt/llvm .
-#+END_SRC
-
-  If you don't we will look for variations of the llvm-config
-  executable name in your $PATH.
+  If you don't we will look for variations of the llvm-config executable name
+  in your $PATH. If llvm is installed at a different place, you could set the
+  cmake variable CMAKE_PREFIX_PATH to the install prefix path of llvm.
 
   The three things we need are:
   1. LIBCLANG_CXXFLAGS
