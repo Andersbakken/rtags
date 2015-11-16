@@ -822,12 +822,12 @@ to case differences."
       (and (not no-symbol-name) (rtags-current-symbol-name))
       (thing-at-point 'symbol)))
 
-(defun rtags-symbol-info-internal (&optional location piece)
+(defun rtags-symbol-info-internal (&optional location piece silent)
   (let* ((loc (or location (rtags-current-location)))
          (path (buffer-file-name))
          (object (with-temp-buffer
                    (and loc
-                        (rtags-call-rc :path path :noerror t "-U" loc "--elisp")
+                        (rtags-call-rc :path path :noerror t "-U" loc "--elisp" :silent-query silent)
                         (goto-char (point-min))
                         (looking-at "(")
                         (eval (read (current-buffer)))))))
@@ -2720,7 +2720,7 @@ is true. References to references will be treated as references to the reference
                         ((member token rtags-c++-keywords))
                         ((member token rtags-c++-types))
                         (t
-                         (let ((info (rtags-symbol-info-internal)))
+                         (let ((info (rtags-symbol-info-internal nil nil t)))
                            (cond (rtags-last-request-not-indexed (setq done t))
                                  (rtags-last-request-not-connected (setq done t))
                                  ((setq container (or (cdr (assoc 'parent info))
