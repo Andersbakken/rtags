@@ -24,6 +24,7 @@ matrix:
               packages:
                  - g++-4.8
                  - gnupg
+                 - cmake
 
         - env:
             - COMPILER_VERSION=4.9
@@ -36,6 +37,7 @@ matrix:
               packages:
                 - g++-4.9
                 - gnupg
+                - cmake
 
         - env:
             - COMPILER_VERSION=3.5
@@ -50,6 +52,7 @@ matrix:
               packages:
                 - clang-3.5
                 - gnupg
+                - cmake
 
         - env:
             - COMPILER_VERSION=3.6
@@ -65,6 +68,7 @@ matrix:
               packages:
                 - clang-3.6
                 - gnupg
+                - cmake
 
 install:
   - pip install --user --upgrade nose
