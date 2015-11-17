@@ -237,11 +237,11 @@ public:
     }
     static bool write(const Path &path, const Map<Key, Value> &map, uint32_t options)
     {
-        int fd = open(path.constData(), O_RDWR|O_CREAT);
+        int fd = open(path.constData(), O_RDWR|O_CREAT, 0644);
         if (fd == -1) {
             if (!Path::mkdir(path.parentDir(), Path::Recursive))
                 return false;
-            fd = open(path.constData(), O_RDWR|O_CREAT);
+            fd = open(path.constData(), O_RDWR|O_CREAT, 0644);
             if (fd == -1)
                 return false;
         }
