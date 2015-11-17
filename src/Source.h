@@ -126,7 +126,7 @@ struct Source
             if (type == other.type) {
                 return path.compare(other.path);
             }
-            return type < other.type;
+            return type < other.type ? -1 : 1;
         }
 
         inline bool operator==(const Include &other) const { return !compare(other); }
