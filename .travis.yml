@@ -69,6 +69,9 @@ matrix:
                 - clang-3.6
                 - gnupg
                 - cmake
+before_install:
+    - sudo add-apt-repository ppa:george-edison55/cmake-3.x --yes
+    - sudo apt-get update
 
 install:
   - pip install --user --upgrade nose
