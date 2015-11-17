@@ -33,7 +33,6 @@ if (EXISTS ${CLANG_COMPILATION_INCLUDE})
     add_definitions(-DHAVE_CXCOMPILATIONDATABASE)
 endif ()
 
-set(RCT_COTIRE 1)
 set(RCT_NO_INSTALL 1)
 set(RCT_NO_LIBRARY 1)
 include(rct/rct.cmake)
@@ -120,18 +119,15 @@ endif ()
 set(RTAGS_LIBRARIES rtags ${START_GROUP} ${LIBCLANG_LIBRARIES} ${END_GROUP} -lstdc++ ${CURSES_LIBRARIES} ${RCT_LIBRARIES})
 add_executable(rc rc.cpp)
 target_link_libraries(rc ${RTAGS_LIBRARIES})
-cotire(rc)
 
 add_executable(rdm rdm.cpp)
 
 target_link_libraries(rdm ${RTAGS_LIBRARIES})
-cotire(rdm)
 
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/bin)
 
 add_executable(rp rp.cpp)
 target_link_libraries(rp ${RTAGS_LIBRARIES})
-cotire(rp)
 
 if (CYGWIN)
     EnsureLibraries(rdm rct)
