@@ -15,7 +15,7 @@
 
 #include "CompletionThread.h"
 
-#include "RTagsClang.h"
+#include "RTags.h"
 #include "RTagsLogOutput.h"
 #include "Server.h"
 #include "Token.h"

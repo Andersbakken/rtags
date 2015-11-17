@@ -21,7 +21,7 @@
 #include "Project.h"
 #include "QueryMessage.h"
 #include "rct/Thread.h"
-#include "RTagsClang.h"
+#include "RTags.h"
 #include "Source.h"
 
 class Connection;

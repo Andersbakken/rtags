@@ -18,7 +18,7 @@
 #include "CompilerManager.h"
 #include "Project.h"
 #include "rct/Process.h"
-#include "RTagsClang.h"
+#include "RTags.h"
 #include "Server.h"
 
 uint64_t IndexerJob::sNextId = 1;

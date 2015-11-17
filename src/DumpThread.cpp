@@ -16,7 +16,7 @@
 #include "DumpThread.h"
 
 #include "rct/Connection.h"
-#include "RTagsClang.h"
+#include "RTags.h"
 #include "Server.h"
 
 DumpThread::DumpThread(const std::shared_ptr<QueryMessage> &queryMessage, const Source &source, const std::shared_ptr<Connection> &conn)

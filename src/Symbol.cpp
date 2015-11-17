@@ -15,7 +15,6 @@
    along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 
 #include "Project.h"
-#include "RTagsClang.h"
 #include "RTags.h"
 #include "Symbol.h"
 

@@ -20,7 +20,7 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 #include "QueryJob.h"
 #include "rct/List.h"
 #include "rct/String.h"
-#include "RTagsClang.h"
+#include "RTags.h"
 
 class QueryMessage;
 class SymbolInfoJob : public QueryJob

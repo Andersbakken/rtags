@@ -27,7 +27,7 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 #include "rct/SignalSlot.h"
 #include "rct/String.h"
 #include "rct/ThreadPool.h"
-#include "RTagsClang.h"
+#include "RTags.h"
 
 class Location;
 class QueryMessage;

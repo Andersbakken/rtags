@@ -32,7 +32,6 @@
 #include "rct/LinkedList.h"
 #include "rct/Path.h"
 #include "rct/Timer.h"
-#include "RTagsClang.h"
 #include "RTags.h"
 
 class IndexDataMessage;

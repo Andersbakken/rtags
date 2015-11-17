@@ -27,7 +27,7 @@
 #include "rct/QuitMessage.h"
 #include "rct/Rct.h"
 #include "rct/StopWatch.h"
-#include "RTagsClang.h"
+#include "RTags.h"
 #include "RTagsLogOutput.h"
 
 Path currentProjectPath() { return Path(); }

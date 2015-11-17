@@ -25,7 +25,7 @@
 #include "rct/Path.h"
 #include "rct/Serializer.h"
 #include "rct/StopWatch.h"
-#include "RTagsClang.h"
+#include "RTags.h"
 #include "Server.h"
 #include "Symbol.h"
 

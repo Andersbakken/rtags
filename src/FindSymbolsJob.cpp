@@ -17,7 +17,7 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 
 #include "Project.h"
 #include "rct/Log.h"
-#include "RTagsClang.h"
+#include "RTags.h"
 #include "Server.h"
 
 static inline Flags<QueryJob::JobFlag> jobFlags(Flags<QueryMessage::Flag> queryFlags)

@@ -28,7 +28,6 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 #include "rct/SocketServer.h"
 #include "rct/String.h"
 #include "rct/Timer.h"
-#include "RTagsClang.h"
 #include "RTags.h"
 #include "Source.h"
 

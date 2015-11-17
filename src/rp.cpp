@@ -22,7 +22,7 @@
 #include "rct/Log.h"
 #include "rct/StopWatch.h"
 #include "rct/String.h"
-#include "RTagsClang.h"
+#include "RTags.h"
 #include "Server.h"
 #include "Source.h"
 

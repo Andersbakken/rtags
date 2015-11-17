@@ -94,7 +94,6 @@ set(RTAGS_SOURCES
     QueryMessage.cpp
     RClient.cpp
     RTags.cpp
-    RTagsClang.cpp
     ReferencesJob.cpp
     ScanThread.cpp
     Server.cpp
