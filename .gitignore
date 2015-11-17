@@ -37,3 +37,5 @@ compile_commands.json
 /build/marker
 /Uninstall.cmake
 /automated_tests/test_runner.pyc
+/src/*_cotire.cmake
+/src/cotire/

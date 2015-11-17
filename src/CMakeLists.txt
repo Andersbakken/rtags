@@ -93,6 +93,7 @@ endif ()
 
 add_executable(rc rc.cpp RClient.cpp)
 target_link_libraries(rc rtags rct)
+cotire(rc)
 
 set(RTAGS_CLANG_LIBRARIES rtags rct ${START_GROUP} ${LIBCLANG_LIBRARIES} ${END_GROUP} -lstdc++ ${CURSES_LIBRARIES})
 set(RTAGS_CLANG_SOURCES RTagsClang.cpp Source.cpp)
@@ -124,11 +125,13 @@ add_executable(rdm
     ${RTAGS_CLANG_SOURCES})
 
 target_link_libraries(rdm ${RTAGS_CLANG_LIBRARIES})
+cotire(rdm)
 
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/bin)
 
 add_executable(rp rp.cpp ClangIndexer.cpp ${RTAGS_CLANG_SOURCES})
 target_link_libraries(rp ${RTAGS_CLANG_LIBRARIES})
+cotire(rp)
 
 if (CYGWIN)
     EnsureLibraries(rdm rct)
@@ -180,10 +183,10 @@ if (NOT RTAGS_NO_ELISP_FILES)
     foreach(el ${RTAGS_ELISP_FILES})
         if (NOT ${CMAKE_CURRENT_BINARY_DIR} STREQUAL ${CMAKE_CURRENT_SOURCE_DIR})
             add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/${el}
-		COMMAND ${CMAKE_COMMAND} -E copy_if_different ${CMAKE_CURRENT_SOURCE_DIR}/${el} ${CMAKE_CURRENT_BINARY_DIR}/${el}
-		DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/${el}
-		COMMENT "Copying ${CMAKE_CURRENT_SOURCE_DIR}/${el} -> ${CMAKE_CURRENT_BINARY_DIR}/${el}")
-	endif ()
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different ${CMAKE_CURRENT_SOURCE_DIR}/${el} ${CMAKE_CURRENT_BINARY_DIR}/${el}
+        DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/${el}
+        COMMENT "Copying ${CMAKE_CURRENT_SOURCE_DIR}/${el} -> ${CMAKE_CURRENT_BINARY_DIR}/${el}")
+    endif ()
         list(APPEND RTAGS_ELISP_SOURCES ${CMAKE_CURRENT_BINARY_DIR}/${el})
         if (NOT RTAGS_NO_ELISP_BYTECOMPILE)
             list(APPEND RTAGS_ELISP_SOURCES ${CMAKE_CURRENT_BINARY_DIR}/${el}c)

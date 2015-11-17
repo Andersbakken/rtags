@@ -811,7 +811,6 @@ static inline bool isPch(const Path &path)
                 }
             }
         }
-        return false;
     }
 
     for (const char *suffix : { ".gch", ".pch" }) {
