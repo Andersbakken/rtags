@@ -20,8 +20,9 @@ matrix:
           compiler: g++
           addons:
             apt:
-              sources: ubuntu-toolchain-r-test
-                 packages:
+              sources:
+                 - ubuntu-toolchain-r-test
+              packages:
                  - g++-4.8
                  - gnupg
 
@@ -32,8 +33,9 @@ matrix:
           compiler: g++
           addons:
             apt:
-              sources: ubuntu-toolchain-r-test
-                packages:
+              sources:
+                - ubuntu-toolchain-r-test
+              packages:
                 - g++-4.9
                 - gnupg
 
@@ -47,7 +49,6 @@ matrix:
               sources:
                 - llvm-toolchain-precise-3.5
                 - ubuntu-toolchain-r-test
-
               packages:
                 - clang-3.5
                 - gnupg
@@ -61,7 +62,7 @@ matrix:
           addons:
             apt:
               sources:
-              - llvm-toolchain-precise-3.6
+                - llvm-toolchain-precise-3.6
                 - ubuntu-toolchain-r-test
               packages:
                 - clang-3.6
