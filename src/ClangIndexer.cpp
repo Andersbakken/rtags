@@ -185,12 +185,13 @@ bool ClangIndexer::exec(const String &data)
         symbolNameCount += unit.second->symbolNames.size();
     }
     if (mClangUnit) {
-        const char *format = "(%d syms, %d symNames, %d includes, %d of %d files, symbols: %d of %d, %d queried) (%d/%d/%dms)";
-        message += String::format<128>(format, cursorCount, symbolNameCount,
-                                       mIndexDataMessage.includes().size(), mIndexed,
-                                       mIndexDataMessage.files().size(), mAllowed,
-                                       mAllowed + mBlocked, mFileIdsQueried,
-                                       mParseDuration, mVisitDuration, writeDuration);
+        const char *format = "(%d syms, %d symNames, %d includes, %d of %d files, symbols: %d of %d, %d queried%s) (%d/%d/%dms)";
+        message += String::format<1024>(format, cursorCount, symbolNameCount,
+                                        mIndexDataMessage.includes().size(), mIndexed,
+                                        mIndexDataMessage.files().size(), mAllowed,
+                                        mAllowed + mBlocked, mFileIdsQueried,
+                                        mIndexDataMessage.flags() & IndexDataMessage::UsedPCH ? ", pch" : "",
+                                        mParseDuration, mVisitDuration, writeDuration);
     }
     if (mIndexDataMessage.indexerJobFlags() & IndexerJob::Dirty)
         message += " (dirty)";
@@ -1243,6 +1244,7 @@ bool ClangIndexer::parse()
     Flags<CXTranslationUnit_Flags> flags = CXTranslationUnit_DetailedPreprocessingRecord;
     bool pch;
     switch (mSource.language) {
+    case Source::CPlusPlus11Header:
     case Source::CPlusPlusHeader:
     case Source::CHeader:
         flags |= CXTranslationUnit_Incomplete;
@@ -1272,12 +1274,9 @@ bool ClangIndexer::parse()
     List<String> args = mSource.toCommandLine(commandLineFlags);
     if (ClangIndexer::serverOpts() & Server::PCHEnabled) {
         for (const Source::Include &inc : mSource.includePaths) {
-            if (inc.type == Source::Include::Type_PCH) {
-                Path path = RTags::encodeSourceFilePath(mDataDir, mProject, inc.fileId);
-                path << "pch.h.gch";
-                if (path.exists()) {
-                    args << "-include-pch" << path;
-                }
+            if (inc.type == Source::Include::Type_PCH && inc.path.isFile()) {
+                args << "-include-pch" << inc.path;
+                mIndexDataMessage.setFlag(IndexDataMessage::UsedPCH);
             }
         }
     }
@@ -1290,8 +1289,11 @@ bool ClangIndexer::parse()
             Path path = RTags::encodeSourceFilePath(mDataDir, mProject, mSource.fileId);
             Path::mkdir(path, Path::Recursive);
             path << "pch.h.gch";
-            clang_saveTranslationUnit(mClangUnit, path.constData(), clang_defaultSaveOptions(mClangUnit));
-            error() << "SAVED PCH" << path;
+            Path tmp = path;
+            tmp << ".tmp";
+            clang_saveTranslationUnit(mClangUnit, tmp.constData(), clang_defaultSaveOptions(mClangUnit));
+            rename(tmp.constData(), path.constData());
+            warning() << "SAVED PCH" << path;
         }
         mParseDuration = sw.elapsed();
         return true;

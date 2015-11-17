@@ -44,7 +44,8 @@ public:
     enum Flag {
         None = 0x0,
         ParseFailure = 0x1,
-        InclusionError = 0x2
+        InclusionError = 0x2,
+        UsedPCH = 0x4
     };
     Flags<Flag> flags() const { return mFlags; }
     void setFlags(Flags<Flag> flags) { mFlags = flags; }

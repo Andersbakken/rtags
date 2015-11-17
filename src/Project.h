@@ -224,6 +224,7 @@ public:
     void diagnose(uint32_t fileId);
     void diagnoseAll();
     uint32_t fileMapOptions() const;
+    void fixPCH(Source &source);
 private:
     void reloadCompilationDatabase();
     void removeSource(Sources::iterator it);

@@ -211,7 +211,6 @@ Path findProjectRoot(const Path &path, ProjectRootMode mode)
             { "GNUMakefile*", Wildcard },
             { "INSTALL*", Wildcard },
             { "README*", Wildcard },
-            { "compile_commands.json", Flags<FindAncestorFlag>() },
             { 0, Flags<FindAncestorFlag>() }
         };
         {
@@ -299,9 +298,9 @@ Path findProjectRoot(const Path &path, ProjectRootMode mode)
                             ret = line + 2;
                             if (ret.exists()) {
                                 ret = ret.parentDir();
+                                break;
                             } else {
                                 ret.clear();
-                                break;
                             }
                         }
                     }
@@ -315,6 +314,7 @@ Path findProjectRoot(const Path &path, ProjectRootMode mode)
     const Entry after[] = {
         { "build.ninja", Flags<FindAncestorFlag>() },
         { "Makefile*", Wildcard },
+        { "compile_commands.json", Flags<FindAncestorFlag>() },
         { 0, Flags<FindAncestorFlag>() }
     };
 

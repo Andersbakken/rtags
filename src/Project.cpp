@@ -2344,3 +2344,13 @@ uint32_t Project::fileMapOptions() const
     return options;
 }
 
+void Project::fixPCH(Source &source)
+{
+    for (Source::Include &inc : source.includePaths) {
+        if (inc.type == Source::Include::Type_PCH) {
+            const uint32_t fileId = Location::insertFile(inc.path);
+            inc.path = RTags::encodeSourceFilePath(Server::instance()->options().dataDir, mPath, fileId) + "pch.h.gch";
+        }
+    }
+}
+

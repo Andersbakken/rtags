@@ -188,22 +188,19 @@ static inline void addIncludeArg(List<Source::Include> &includePaths,
 {
     const String &arg = args.at(idx);
     Path path;
-    uint32_t fileId = 0;
-    auto fixPCHPath = [&path, cwd, &type, &fileId]() {
+    auto fixPCHPath = [&path, cwd, &type]() {
         if (!path.isDir()) {
             if (!path.exists()) {
                 for (const char *suffix : { ".gch", ".pch" }) {
                     const Path p = Path::resolved(path + suffix, Path::MakeAbsolute, cwd);
                     if (p.exists()) {
                         path = p.mid(0, p.size() - 4);
-                        fileId = Location::insertFile(p);
                         type = Source::Include::Type_PCH;
                         break;
                     }
                 }
             } else {
                 type = Source::Include::Type_PCH;
-                fileId = Location::insertFile(path);
             }
         }
     };
@@ -226,7 +223,7 @@ static inline void addIncludeArg(List<Source::Include> &includePaths,
         }
     }
     if (type != Source::Include::Type_None) {
-        includePaths.append(Source::Include(type, path, fileId));
+        includePaths.append(Source::Include(type, path));
     }
 }
 

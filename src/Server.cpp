@@ -541,6 +541,8 @@ bool Server::index(const String &args,
             }
             if (!mCurrentProject.lock())
                 setCurrentProject(project);
+            if (mOptions.options & PCHEnabled)
+                project->fixPCH(source);
             project->index(std::shared_ptr<IndexerJob>(new IndexerJob(source, IndexerJob::Compile, project)));
             if (projectPtr)
                 *projectPtr = project;
