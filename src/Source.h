@@ -101,13 +101,15 @@ struct Source
             Type_Framework,
             Type_System,
             Type_SystemFramework,
+            Type_PCH
         };
-        Include(Type t = Type_None, const Path &p = Path())
-            : type(t), path(p)
+        Include(Type t = Type_None, const Path &p = Path(), uint32_t file = 0)
+            : type(t), path(p), fileId(file)
         {}
 
         Type type;
         Path path;
+        int fileId;
 
         inline String toString() const
         {
@@ -116,6 +118,7 @@ struct Source
             case Type_Framework: return String::format<128>("-F%s", path.constData());
             case Type_System: return String::format<128>("-isystem %s", path.constData());
             case Type_SystemFramework: return String::format<128>("-iframework %s", path.constData());
+            case Type_PCH: return String::format<128>("-include-pch %d", fileId);
             case Type_None: break;
             }
             return String();
@@ -123,10 +126,15 @@ struct Source
 
         inline int compare(const Source::Include &other) const
         {
-            if (type == other.type) {
-                return path.compare(other.path);
+            if (type != other.type) {
+                return type < other.type ? -1 : 1;
             }
-            return type < other.type ? -1 : 1;
+            if (type == Type_PCH) {
+                if (fileId == other.fileId)
+                    return 0;
+                return fileId < other.fileId ? -1 : 1;
+            }
+            return path.compare(other.path);
         }
 
         inline bool operator==(const Include &other) const { return !compare(other); }
@@ -308,14 +316,14 @@ template <> inline Deserializer &operator>>(Deserializer &s, Source::Define &d)
 
 template <> inline Serializer &operator<<(Serializer &s, const Source::Include &d)
 {
-    s << static_cast<uint8_t>(d.type) << d.path;
+    s << static_cast<uint8_t>(d.type) << d.path << d.fileId;
     return s;
 }
 
 template <> inline Deserializer &operator>>(Deserializer &s, Source::Include &d)
 {
     uint8_t type;
-    s >> type >> d.path;
+    s >> type >> d.path >> d.fileId;
     d.type = static_cast<Source::Include::Type>(type);
     return s;
 }

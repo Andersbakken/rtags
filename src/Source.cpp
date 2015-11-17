@@ -188,14 +188,22 @@ static inline void addIncludeArg(List<Source::Include> &includePaths,
 {
     const String &arg = args.at(idx);
     Path path;
-    auto fixPCHPath = [&path, cwd]() {
-        if (!path.exists()) {
-            for (const char *suffix : { ".gch", ".pch" }) {
-                const Path p = Path::resolved(path + suffix, Path::MakeAbsolute, cwd);
-                if (p.exists()) {
-                    path = p.mid(0, p.size() - 4);
-                    break;
+    uint32_t fileId = 0;
+    auto fixPCHPath = [&path, cwd, &type, &fileId]() {
+        if (!path.isDir()) {
+            if (!path.exists()) {
+                for (const char *suffix : { ".gch", ".pch" }) {
+                    const Path p = Path::resolved(path + suffix, Path::MakeAbsolute, cwd);
+                    if (p.exists()) {
+                        path = p.mid(0, p.size() - 4);
+                        fileId = Location::insertFile(p);
+                        type = Source::Include::Type_PCH;
+                        break;
+                    }
                 }
+            } else {
+                type = Source::Include::Type_PCH;
+                fileId = Location::insertFile(path);
             }
         }
     };
@@ -203,18 +211,22 @@ static inline void addIncludeArg(List<Source::Include> &includePaths,
         path = Path::resolved(args.value(++idx), Path::MakeAbsolute, cwd);
         if (type == Source::Include::Type_None) {
             fixPCHPath();
-            arguments.append(arg);
-            arguments.append(path);
+            if (type == Source::Include::Type_None) {
+                arguments.append(arg);
+                arguments.append(path);
+            }
         }
     } else {
         path = Path::resolved(arg.mid(argLen), Path::MakeAbsolute, cwd);
         if (type == Source::Include::Type_None) {
             fixPCHPath();
-            arguments.append(arg.left(argLen) + path);
+            if (type == Source::Include::Type_None) {
+                arguments.append(arg.left(argLen) + path);
+            }
         }
     }
     if (type != Source::Include::Type_None) {
-        includePaths.append(Source::Include(type, path));
+        includePaths.append(Source::Include(type, path, fileId));
     }
 }
 
@@ -795,32 +807,6 @@ bool Source::compareArguments(const Source &other) const
     return false;
 }
 
-static inline bool isPch(const Path &path)
-{
-    if (path.isFile()) {
-        static const unsigned char pch[][8] = {
-            { 0x43, 0x50, 0x43, 0x48, 0x01, 0x0c, 0x00, 0x00 }, // clang pch
-            { 0x67, 0x70, 0x63, 0x68, 0x43, 0x30, 0x31, 0x34 }, // gcc c-header pch
-            { 0x67, 0x70, 0x63, 0x68, 0x2b, 0x30, 0x31, 0x34 } // gcc c++-header pch
-        };
-        const String contents = path.readAll(8);
-        if (contents.size() == 8) {
-            for (const unsigned char *p : pch) {
-                if (!memcmp(contents.constData(), p, 8)) {
-                    return true;
-                }
-            }
-        }
-    }
-
-    for (const char *suffix : { ".gch", ".pch" }) {
-        const Path p = path + suffix;
-        if (p.exists())
-            return true;
-    }
-    return false;
-}
-
 List<String> Source::toCommandLine(Flags<CommandLineFlag> flags) const
 {
     const Server::Options *options = serverOptions();
@@ -847,12 +833,8 @@ List<String> Source::toCommandLine(Flags<CommandLineFlag> flags) const
         const String &arg = arguments.at(i);
         const bool hasValue = ::hasValue(arg);
         bool skip = false;
-        if (flags & FilterBlacklist) {
-            if (isBlacklisted(arg)) {
-                skip = true;
-            } else if (arg == "-include") {
-                skip = isPch(arguments.value(i + 1));
-            }
+        if (flags & FilterBlacklist && isBlacklisted(arg)) {
+            skip = true;
         }
         if (!skip && remove.contains(arg))
             skip = true;
@@ -895,6 +877,8 @@ List<String> Source::toCommandLine(Flags<CommandLineFlag> flags) const
             case Source::Include::Type_SystemFramework:
                 ret << "-iframework" << inc.path;
                 break;
+            case Source::Include::Type_PCH:
+                break;
             }
         }
         if (!(flags & ExcludeDefaultIncludePaths)) {
@@ -914,6 +898,8 @@ List<String> Source::toCommandLine(Flags<CommandLineFlag> flags) const
                     break;
                 case Source::Include::Type_SystemFramework:
                     ret << "-iframework" << inc.path;
+                    break;
+                case Source::Include::Type_PCH:
                     break;
                 }
             }

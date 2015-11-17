@@ -90,7 +90,6 @@ bool ClangIndexer::exec(const String &data)
     uint32_t connectTimeout, connectAttempts;
     int32_t niceValue;
     Hash<uint32_t, Path> blockedFiles;
-    String dataDir;
 
     deserializer >> id;
     deserializer >> socketFile;
@@ -105,7 +104,7 @@ bool ClangIndexer::exec(const String &data)
     deserializer >> niceValue;
     deserializer >> sServerOpts;
     deserializer >> mUnsavedFiles;
-    deserializer >> dataDir;
+    deserializer >> mDataDir;
     deserializer >> mDebugLocations;
     deserializer >> blockedFiles;
 
@@ -171,7 +170,7 @@ bool ClangIndexer::exec(const String &data)
     String err;
     StopWatch sw;
     int writeDuration = -1;
-    if (!mClangUnit || !writeFiles(RTags::encodeSourceFilePath(dataDir, mProject, 0), err)) {
+    if (!mClangUnit || !writeFiles(RTags::encodeSourceFilePath(mDataDir, mProject, 0), err)) {
         message += " error";
         if (!err.isEmpty())
             message += (' ' + err);
@@ -1241,7 +1240,19 @@ bool ClangIndexer::parse()
     mIndex = clang_createIndex(0, 1);
     assert(mIndex);
     const Flags<Source::CommandLineFlag> commandLineFlags = Source::Default;
-    const Flags<CXTranslationUnit_Flags> flags = CXTranslationUnit_DetailedPreprocessingRecord;
+    Flags<CXTranslationUnit_Flags> flags = CXTranslationUnit_DetailedPreprocessingRecord;
+    bool pch;
+    switch (mSource.language) {
+    case Source::CPlusPlusHeader:
+    case Source::CHeader:
+        flags |= CXTranslationUnit_Incomplete;
+        pch = true;
+        break;
+    default:
+        pch = false;
+        break;
+    }
+
     List<CXUnsavedFile> unsavedFiles(mUnsavedFiles.size() + 1);
     int unsavedIndex = 0;
     for (const auto &it : mUnsavedFiles) {
@@ -1258,11 +1269,28 @@ bool ClangIndexer::parse()
     // for (const auto it : mSource.toCommandLine(commandLineFlags)) {
     //     error("[%s]", it.constData());
     // }
-    RTags::parseTranslationUnit(mSourceFile, mSource.toCommandLine(commandLineFlags), mClangUnit,
+    List<String> args = mSource.toCommandLine(commandLineFlags);
+    for (const Source::Include &inc : mSource.includePaths) {
+        if (inc.type == Source::Include::Type_PCH) {
+            Path path = RTags::encodeSourceFilePath(mDataDir, mProject, inc.fileId);
+            path << "pch.h.gch";
+            if (path.exists()) {
+                args << "-include-pch" << path;
+            }
+        }
+    }
+    RTags::parseTranslationUnit(mSourceFile, args, mClangUnit,
                                 mIndex, &unsavedFiles[0], unsavedIndex, flags, &mClangLine);
 
     warning() << "CI::parse loading unit:" << mClangLine << " " << (mClangUnit != 0);
     if (mClangUnit) {
+        if (pch) {
+            Path path = RTags::encodeSourceFilePath(mDataDir, mProject, mSource.fileId);
+            Path::mkdir(path, Path::Recursive);
+            path << "pch.h.gch";
+            clang_saveTranslationUnit(mClangUnit, path.constData(), clang_defaultSaveOptions(mClangUnit));
+            warning() << "SAVED PCH" << path;
+        }
         mParseDuration = sw.elapsed();
         return true;
     }

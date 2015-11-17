@@ -179,6 +179,7 @@ private:
     uint32_t mLastFileId;
     bool mLastBlocked;
     Path mLastFile;
+    Path mDataDir;
 
     static Flags<Server::Option> sServerOpts;
 };
