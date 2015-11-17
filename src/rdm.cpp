@@ -140,6 +140,7 @@ static void usage(FILE *f)
             "  --no-comments                              Don't parse/store doxygen comments.\n"
             "  --arg-transform|-V [arg]                   Use arg to transform arguments. [arg] should be a executable with (execv(3)).\n"
             "  --debug-locations [arg]                    Set debug locations.\n"
+            "  --pch-enabled                              Enable PCH (experimental).\n"
             , std::max(2, ThreadPool::idealThreadCount()), defaultStackSize);
 }
 
@@ -226,6 +227,7 @@ int main(int argc, char** argv)
         { "no-filemanager-watch", no_argument, 0, 'M' },
 #endif
         { "no-file-lock", no_argument, 0, 13 },
+        { "pch-enabled", no_argument, 0, 14 },
         { "no-filesystem-watcher", no_argument, 0, 'B' },
         { "arg-transform", required_argument, 0, 'V' },
         { "no-comments", no_argument, 0, 1 },
@@ -411,6 +413,9 @@ int main(int argc, char** argv)
             break;
         case 13:
             serverOpts.options |= Server::NoFileLock;
+            break;
+        case 14:
+            serverOpts.options |= Server::PCHEnabled;
             break;
         case 2:
             fprintf(stdout, "%s\n", RTags::versionString().constData());

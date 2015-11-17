@@ -75,7 +75,8 @@ public:
         RPLogToSyslog = 0x0200000,
         CompletionsNoFilter = 0x0400000,
         WatchSourcesOnly = 0x0800000,
-        NoFileLock = 0x1000000
+        NoFileLock = 0x1000000,
+        PCHEnabled = 0x2000000
     };
     struct Options {
         Options()

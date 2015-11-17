@@ -1270,12 +1270,14 @@ bool ClangIndexer::parse()
     //     error("[%s]", it.constData());
     // }
     List<String> args = mSource.toCommandLine(commandLineFlags);
-    for (const Source::Include &inc : mSource.includePaths) {
-        if (inc.type == Source::Include::Type_PCH) {
-            Path path = RTags::encodeSourceFilePath(mDataDir, mProject, inc.fileId);
-            path << "pch.h.gch";
-            if (path.exists()) {
-                args << "-include-pch" << path;
+    if (ClangIndexer::serverOpts() & Server::PCHEnabled) {
+        for (const Source::Include &inc : mSource.includePaths) {
+            if (inc.type == Source::Include::Type_PCH) {
+                Path path = RTags::encodeSourceFilePath(mDataDir, mProject, inc.fileId);
+                path << "pch.h.gch";
+                if (path.exists()) {
+                    args << "-include-pch" << path;
+                }
             }
         }
     }
@@ -1284,12 +1286,12 @@ bool ClangIndexer::parse()
 
     warning() << "CI::parse loading unit:" << mClangLine << " " << (mClangUnit != 0);
     if (mClangUnit) {
-        if (pch) {
+        if (pch && ClangIndexer::serverOpts() & Server::PCHEnabled) {
             Path path = RTags::encodeSourceFilePath(mDataDir, mProject, mSource.fileId);
             Path::mkdir(path, Path::Recursive);
             path << "pch.h.gch";
             clang_saveTranslationUnit(mClangUnit, path.constData(), clang_defaultSaveOptions(mClangUnit));
-            warning() << "SAVED PCH" << path;
+            error() << "SAVED PCH" << path;
         }
         mParseDuration = sw.elapsed();
         return true;
