@@ -462,6 +462,8 @@ bool Server::index(const String &args,
                    Flags<IndexMessage::Flag> indexMessageFlags,
                    std::shared_ptr<Project> *projectPtr)
 {
+    if (args.contains(".gch"))
+        error() << "shit" << args;
     assert(pwd.endsWith('/'));
     const Flags<Source::ParseFlag> sourceParseFlags = (indexMessageFlags & IndexMessage::Escape
                                                        ? Source::Escape

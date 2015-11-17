@@ -365,6 +365,7 @@ private:
 
     Timer mDirtyTimer;
     Set<uint32_t> mPendingDirtyFiles;
+    Hash<Path, std::weak_ptr<IndexerJob> > mPCH;
 
     StopWatch mTimer;
     FileSystemWatcher mWatcher;

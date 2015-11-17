@@ -60,6 +60,7 @@ public:
     Set<uint32_t> visited;
     int crashCount;
     Signal<std::function<void(IndexerJob *)> > destroyed;
+    std::weak_ptr<IndexerJob> dependsOn;
 private:
     static uint64_t sNextId;
 };

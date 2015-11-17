@@ -589,6 +589,8 @@ void Project::onJobFinished(const std::shared_ptr<IndexerJob> &job, const std::s
         error() << "Wrong IndexerJob for" << Location::path(fileId) << msg->key() << job->id << job.get();
         return;
     }
+    if (mPCH.value(job->source.sourceFile()).lock() == job)
+        mPCH.remove(job->source.sourceFile());
 
     const bool success = job->flags & IndexerJob::Complete;
     assert(!(job->flags & IndexerJob::Aborted));
@@ -852,6 +854,13 @@ void Project::index(const std::shared_ptr<IndexerJob> &job)
         --mJobCounter;
     }
     ref = job;
+    switch (job->source.language) {
+    case Source::CPlusPlusHeader:
+    case Source::CHeader:
+        mPCH[job->source.sourceFile()] = job;
+    default:
+        break;
+    }
 
     ++mJobsStarted;
     if (!mJobCounter++) {
@@ -916,6 +925,8 @@ void Project::onFileRemoved(const Path &file)
         needSave = true;
         auto job = mActiveJobs.take(it->first);
         if (job) {
+            if (mPCH.value(job->source.sourceFile()).lock() == job)
+                mPCH.remove(job->source.sourceFile());
             releaseFileIds(job->visited);
             Server::instance()->jobScheduler()->abort(job);
         }
@@ -2321,6 +2332,9 @@ void Project::removeSource(Sources::iterator it)
     const uint64_t key = it->first;
     std::shared_ptr<IndexerJob> job = mActiveJobs.take(key);
     if (job) {
+        if (mPCH.value(job->source.sourceFile()).lock() == job)
+            mPCH.remove(job->source.sourceFile());
+
         releaseFileIds(job->visited);
         Server::instance()->jobScheduler()->abort(job);
     }

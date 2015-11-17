@@ -851,7 +851,10 @@ List<String> Source::toCommandLine(Flags<CommandLineFlag> flags) const
             if (isBlacklisted(arg)) {
                 skip = true;
             } else if (arg == "-include") {
-                skip = isPch(arguments.value(i + 1));
+                if (isPch(arguments.value(i + 1))) {
+                    mInc
+                    mPCH
+                }
             }
         }
         if (!skip && remove.contains(arg))
