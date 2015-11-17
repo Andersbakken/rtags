@@ -22,11 +22,9 @@ matrix:
             apt:
               sources:
                  - ubuntu-toolchain-r-test
-                 - ppa:george-edison55/cmake-3.x
-              packages:
+                 packages:
                  - g++-4.8
                  - gnupg
-                 - cmake
 
         - env:
             - COMPILER_VERSION=4.9
@@ -37,11 +35,9 @@ matrix:
             apt:
               sources:
                 - ubuntu-toolchain-r-test
-                - ppa:george-edison55/cmake-3.x
-              packages:
+                packages:
                 - g++-4.9
                 - gnupg
-                - cmake
 
         - env:
             - COMPILER_VERSION=3.5
@@ -53,12 +49,10 @@ matrix:
               sources:
                 - llvm-toolchain-precise-3.5
                 - ubuntu-toolchain-r-test
-                - ppa:george-edison55/cmake-3.x
 
               packages:
                 - clang-3.5
                 - gnupg
-                - cmake
 
         - env:
             - COMPILER_VERSION=3.6
@@ -69,13 +63,11 @@ matrix:
           addons:
             apt:
               sources:
-                - ppa:george-edison55/cmake-3.x
-                - llvm-toolchain-precise-3.6
+              - llvm-toolchain-precise-3.6
                 - ubuntu-toolchain-r-test
               packages:
                 - clang-3.6
                 - gnupg
-                - cmake
 
 install:
   - pip install --user --upgrade nose
