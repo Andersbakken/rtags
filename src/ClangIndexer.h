@@ -153,7 +153,12 @@ private:
     }
     std::shared_ptr<Unit> unit(const Location &loc) { return unit(loc.fileId()); }
 
-    Symbol findSymbol(const Location &location, bool *ok) const;
+    enum FindResult {
+        Found,
+        NotIndexed,
+        NotFound
+    };
+    Symbol findSymbol(const Location &location, FindResult *result) const;
 
     Hash<uint32_t, std::shared_ptr<Unit> > mUnits;
 

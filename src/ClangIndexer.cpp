@@ -855,11 +855,28 @@ bool ClangIndexer::handleReference(const CXCursor &cursor, CXCursorKind kind,
         return false;
     }
 
-    bool reffedCursorFound;
-    auto reffedCursor = findSymbol(refLoc, &reffedCursorFound);
+    FindResult result;
+    auto reffedCursor = findSymbol(refLoc, &result);
     Map<String, uint16_t> &targets = unit(location)->targets[location];
+    if (result == NotFound) {
+        CXCursor parent = clang_getCursorSemanticParent(ref);
+        CXCursor best = ClangIndexer::nullCursor;
+        while (true) {
+            const CXCursorKind kind = clang_getCursorKind(parent);
+            if (kind != CXCursor_UnionDecl)
+                break;
+            best = parent;
+            parent = clang_getCursorSemanticParent(parent);
+        }
+        if (best == CXCursor_UnionDecl) {
+            // for anonymous unions we don't get to their fields with normal
+            // recursing of the AST. In these cases we visit the union decl
+            clang_visitChildren(best, ClangIndexer::indexVisitor, this);
+            reffedCursor = findSymbol(refLoc, &result);
+        }
+    }
     uint16_t refTargetValue;
-    if (reffedCursorFound) {
+    if (result == Found) {
         refTargetValue = reffedCursor.targetsValue();
     } else {
         refTargetValue = RTags::createTargetsValue(refKind, clang_isCursorDefinition(ref));
@@ -904,7 +921,7 @@ bool ClangIndexer::handleReference(const CXCursor &cursor, CXCursorKind kind,
     }
 
 #if CINDEX_VERSION >= CINDEX_VERSION_ENCODE(0, 16)
-    if (reffedCursorFound) {
+    if (result == Found) {
         c.size = reffedCursor.size;
         c.alignment = reffedCursor.alignment;
     } else {
@@ -929,7 +946,7 @@ bool ClangIndexer::handleReference(const CXCursor &cursor, CXCursorKind kind,
     c.definition = false;
     c.kind = kind;
     c.location = location;
-    c.symbolName = reffedCursorFound ? reffedCursor.symbolName : addNamePermutations(ref, refLoc, RTags::Type_Reference);
+    c.symbolName = result == Found ? reffedCursor.symbolName : addNamePermutations(ref, refLoc, RTags::Type_Reference);
 
     if (isOperator) {
         unsigned int start, end;
@@ -937,7 +954,7 @@ bool ClangIndexer::handleReference(const CXCursor &cursor, CXCursorKind kind,
         clang_getSpellingLocation(rangeEnd, 0, 0, 0, &end);
         c.symbolLength = end - start;
     } else {
-        c.symbolLength = reffedCursorFound ? reffedCursor.symbolLength : symbolLength(refKind, ref);
+        c.symbolLength = result == Found ? reffedCursor.symbolLength : symbolLength(refKind, ref);
     }
     if (!c.symbolLength) {
         unit(location)->symbols.remove(location);
@@ -1712,14 +1729,22 @@ int ClangIndexer::symbolLength(CXCursorKind kind, const CXCursor &cursor)
     return 0;
 }
 
-Symbol ClangIndexer::findSymbol(const Location &location, bool *ok) const
+Symbol ClangIndexer::findSymbol(const Location &location, FindResult *result) const
 {
-    Symbol ret;
     auto it = mUnits.find(location.fileId());
     if (it != mUnits.end()) {
-        ret = it->second->symbols.value(location, Symbol(), ok);
-    } else if (ok) {
-        *ok = false;
+        bool ok;
+        Symbol ret = it->second->symbols.value(location, Symbol(), &ok);
+        if (ok) {
+            *result = Found;
+            return ret;
+        }
     }
-    return ret;
+
+    if (mIndexDataMessage.files().value(location.fileId()) & IndexDataMessage::Visited) {
+        *result = NotFound;
+    } else {
+        *result = NotIndexed;
+    }
+    return Symbol();
 }

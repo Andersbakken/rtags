@@ -105,6 +105,7 @@ public:
         HeaderError = 0x2
     };
     Hash<uint32_t, Flags<FileFlag> > &files() { return mFiles; }
+    const Hash<uint32_t, Flags<FileFlag> > &files() const { return mFiles; }
 private:
     Path mProject;
     uint64_t mParseTime, mKey, mId;
