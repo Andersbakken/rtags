@@ -27,23 +27,23 @@ he assured us clang was the way to go. The name stuck though.
 * TLDR Quickstart
 Build RTags
 #+BEGIN_SRC
-$ git clone --recursive https://github.com/Andersbakken/rtags.git
-$ cd rtags
-$ cmake -DCMAKE_EXPORT_COMPILE_COMMANDS=1
-$ make
+git clone --recursive https://github.com/Andersbakken/rtags.git
+cd rtags
+cmake -DCMAKE_EXPORT_COMPILE_COMMANDS=1 .
+make
 #+END_SRC
 Start the RTags daemon (rdm)
 #+BEGIN_SRC
-$ ./bin/rdm &
+./bin/rdm &
 #+END_SRC
 Index the RTags project, and wait until rdm is silent
 #+BEGIN_SRC
-$ ./bin/rc -J .
+./bin/rc -J .
 #+END_SRC
 Open source file in emacs
 #+END_SRC
 #+BEGIN_SRC
-$ emacs +39:34 src/rdm.cpp
+emacs +39:34 src/rdm.cpp
 #+END_SRC
 Load rtags.el
 #+BEGIN_SRC
