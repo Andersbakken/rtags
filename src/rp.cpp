@@ -47,15 +47,6 @@ static void sigHandler(int signal)
     _exit(1);
 }
 
-// externed in files that are shared by rdm and rc
-const Server::Options *serverOptions() { return 0; }
-void saveFileIds() {}
-
-Set<Symbol> findTargets(const std::shared_ptr<Project> &, const Symbol &) { return Set<Symbol>(); }
-Set<Symbol> findCallers(const std::shared_ptr<Project> &, const Symbol &) { return Set<Symbol>(); }
-String findSymbolNameByUsr(const std::shared_ptr<Project> &, const String &, const Location &) { return String(); }
-Path currentProjectPath() { return Path(); }
-
 struct SyslogCloser
 {
 public:

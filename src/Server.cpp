@@ -82,19 +82,23 @@ static const List<Path> sSystemIncludePaths = {
 // externed in files that are shared by rdm and rc
 const Server::Options *serverOptions()
 {
-    return Server::instance() ? &Server::instance()->options() : 0;
+    if (Server *s = Server::instance()) {
+        return &s->options();
+    }
+    return 0;
 }
-
 void saveFileIds()
 {
-    assert(Server::instance());
-    Server::instance()->saveFileIds();
+    if (Server *s = Server::instance())
+        s->saveFileIds();
 }
 
 Path currentProjectPath()
 {
-    if (std::shared_ptr<Project> p = Server::instance()->currentProject())
-        return p->path();
+    if (Server *server = Server::instance()) {
+        std::shared_ptr<Project> p = server->currentProject();
+        return p ? p->path() : Path();
+    }
     return Path();
 }
 

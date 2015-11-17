@@ -42,25 +42,30 @@ enum { DirtyTimeout = 100 };
 // these are externed from Source.cpp
 String findSymbolNameByUsr(const std::shared_ptr<Project> &project, const String &usr, const Location &location)
 {
-    assert(project);
     String ret;
-    for (const auto &sym : project->findByUsr(usr, location.fileId(), Project::ArgDependsOn, location)) {
-        ret = sym.symbolName;
-        break;
+    if (project) {
+        for (const auto &sym : project->findByUsr(usr, location.fileId(), Project::ArgDependsOn, location)) {
+            ret = sym.symbolName;
+            break;
+        }
     }
     return ret;
 }
 
 Set<Symbol> findTargets(const std::shared_ptr<Project> &project, const Symbol &symbol)
 {
-    assert(project);
-    return project->findTargets(symbol);
+    if (project) {
+        return project->findTargets(symbol);
+    }
+    return Set<Symbol>();
 }
 
 Set<Symbol> findCallers(const std::shared_ptr<Project> &project, const Symbol &symbol)
 {
-    assert(project);
-    return project->findCallers(symbol);
+    if (project) {
+        return project->findCallers(symbol);
+    }
+    return Set<Symbol>();
 }
 
 class Dirty

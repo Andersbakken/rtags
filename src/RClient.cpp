@@ -30,8 +30,6 @@
 #include "RTags.h"
 #include "RTagsLogOutput.h"
 
-Path currentProjectPath() { return Path(); }
-
 struct Option {
     const RClient::OptionType option;
     const char *longOpt;

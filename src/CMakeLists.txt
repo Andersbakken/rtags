@@ -104,6 +104,7 @@ set(RTAGS_SOURCES
     ${RCT_SOURCES})
 
 add_library(rtags STATIC ${RTAGS_SOURCES})
+set_target_properties(rtags PROPERTIES COTIRE_ADD_UNITY_BUILD FALSE)
 cotire(rtags)
 
 include_directories(${CMAKE_CURRENT_LIST_DIR} ${RCT_INCLUDE_DIRS})
