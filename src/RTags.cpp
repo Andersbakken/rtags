@@ -228,7 +228,6 @@ Path findProjectRoot(const Path &path, ProjectRootMode mode)
             if (mode == BuildRoot)
                 return configStatus;
             FILE *f = fopen((configStatus + "config.status").constData(), "r");
-            Path ret;
             if (f) {
                 char line[1024];
                 enum { MaxLines = 10 };
@@ -272,7 +271,6 @@ Path findProjectRoot(const Path &path, ProjectRootMode mode)
                 makefile = false;
             }
             if (f) {
-                Path ret;
                 char line[1024];
                 enum { MaxLines = 256 };
                 for (int i=0; i<MaxLines; ++i) {

@@ -37,12 +37,12 @@ int ClassHierarchyJob::execute()
         return 1;
 
     typedef std::function<Set<Symbol>(const Symbol &)> FindFunc;
-    std::function<void (const Symbol &, const char *title, int, FindFunc)> recurse = [&](const Symbol &symbol,
+    std::function<void (const Symbol &, const char *title, int, FindFunc)> recurse = [&](const Symbol &sym,
                                                                                          const char *title,
                                                                                          int indent,
                                                                                          FindFunc find)
     {
-        auto classes = find(symbol);
+        auto classes = find(sym);
         if (!indent) {
             if (classes.isEmpty()) {
                 return;
@@ -50,16 +50,16 @@ int ClassHierarchyJob::execute()
             write(title);
             indent = 2;
             write<256>("  %s\t%s",
-                       symbol.symbolName.constData(),
-                       symbol.location.toString(locationToStringFlags()).constData());
+                       sym.symbolName.constData(),
+                       sym.location.toString(locationToStringFlags()).constData());
         } else {
             write<256>("%s%s\t%s",
                        String(indent, ' ').constData(),
-                       symbol.symbolName.constData(),
-                       symbol.location.toString(locationToStringFlags()).constData());
+                       sym.symbolName.constData(),
+                       sym.location.toString(locationToStringFlags()).constData());
         }
-        for (const Symbol &sym : classes) {
-            recurse(sym, title, indent + 2, find);
+        for (const Symbol &c : classes) {
+            recurse(c, title, indent + 2, find);
         }
     };
 

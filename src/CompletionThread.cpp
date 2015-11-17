@@ -47,7 +47,7 @@ void CompletionThread::run()
                 }
                 mPending.clear();
                 if (mDump) {
-                    std::unique_lock<std::mutex> lock(mDump->mutex);
+                    std::unique_lock<std::mutex> dumpLock(mDump->mutex);
                     mDump->done = true;
                     mDump->cond.notify_one();
                     mDump = 0;

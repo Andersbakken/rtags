@@ -57,7 +57,7 @@ int SymbolInfoJob::execute()
         const unsigned int line = location.line();
         const unsigned int column = location.column();
         while (idx-- > 0) {
-            const Symbol symbol = syms->valueAt(idx);
+            symbol = syms->valueAt(idx);
             if (symbol.isDefinition()
                 && symbol.isContainer()
                 && comparePosition(line, column, symbol.startLine, symbol.startColumn) >= 0
