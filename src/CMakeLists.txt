@@ -33,9 +33,10 @@ if (EXISTS ${CLANG_COMPILATION_INCLUDE})
     add_definitions(-DHAVE_CXCOMPILATIONDATABASE)
 endif ()
 
-set(RCT_STATIC 1)
+set(RCT_COTIRE 1)
 set(RCT_NO_INSTALL 1)
-add_subdirectory(rct)
+set(RCT_NO_LIBRARY 1)
+include(rct/rct.cmake)
 
 include(${CMAKE_CURRENT_LIST_DIR}/rct/compiler.cmake)
 # Set further compile options after including the rct compiler option.
@@ -61,6 +62,7 @@ if("${LIBCLANG_LIBDIR}" STREQUAL "")
 endif()
 add_definitions("-DCLANG_LIBDIR=${LIBCLANG_LIBDIR}")
 add_definitions("-DOS_${CMAKE_SYSTEM_NAME}")
+add_definitions(${RCT_DEFINITIONS})
 
 if (CMAKE_SYSTEM_NAME MATCHES "FreeBSD")
     add_definitions(-D__LONG_LONG_SUPPORTED)
@@ -70,18 +72,43 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/bin)
 add_definitions("-DRTAGS_BIN=\"${PROJECT_BINARY_DIR}/bin/\"")
 
 set(RTAGS_SOURCES
+    ClangIndexer.cpp
+    ClassHierarchyJob.cpp
+    CompilerManager.cpp
+    CompletionThread.cpp
+    DependenciesJob.cpp
+    DumpThread.cpp
+    FileManager.cpp
+    FindFileJob.cpp
+    FindSymbolsJob.cpp
+    FollowLocationJob.cpp
+    IncludeFileJob.cpp
     IndexMessage.cpp
+    IndexerJob.cpp
+    JobScheduler.cpp
+    ListSymbolsJob.cpp
     Location.cpp
-    Symbol.cpp
+    Preprocessor.cpp
+    Project.cpp
+    QueryJob.cpp
     QueryMessage.cpp
-    RTags.cpp)
+    RClient.cpp
+    RTags.cpp
+    RTagsClang.cpp
+    ReferencesJob.cpp
+    ScanThread.cpp
+    Server.cpp
+    Source.cpp
+    StatusJob.cpp
+    Symbol.cpp
+    Symbol.cpp
+    SymbolInfoJob.cpp
+    ${RCT_SOURCES})
 
 add_library(rtags STATIC ${RTAGS_SOURCES})
+cotire(rtags)
 
-include_directories(${CMAKE_CURRENT_LIST_DIR}
-    rct/include/
-    rct
-    ${CMAKE_CURRENT_BINARY_DIR}/rct/include/rct)
+include_directories(${CMAKE_CURRENT_LIST_DIR} ${RCT_INCLUDE_DIRS})
 
 if (CMAKE_SYSTEM_NAME MATCHES "Darwin")
     set(START_GROUP "")
@@ -91,46 +118,20 @@ else ()
     set(END_GROUP "-Wl,--end-group")
 endif ()
 
-add_executable(rc rc.cpp RClient.cpp)
-target_link_libraries(rc rtags rct)
+set(RTAGS_LIBRARIES rtags ${START_GROUP} ${LIBCLANG_LIBRARIES} ${END_GROUP} -lstdc++ ${CURSES_LIBRARIES} ${RCT_LIBRARIES})
+add_executable(rc rc.cpp)
+target_link_libraries(rc ${RTAGS_LIBRARIES})
 cotire(rc)
 
-set(RTAGS_CLANG_LIBRARIES rtags rct ${START_GROUP} ${LIBCLANG_LIBRARIES} ${END_GROUP} -lstdc++ ${CURSES_LIBRARIES})
-set(RTAGS_CLANG_SOURCES RTagsClang.cpp Source.cpp)
+add_executable(rdm rdm.cpp)
 
-add_executable(rdm
-    rdm.cpp
-    ClassHierarchyJob.cpp
-    CompilerManager.cpp
-    CompletionThread.cpp
-    SymbolInfoJob.cpp
-    DependenciesJob.cpp
-    DumpThread.cpp
-    FileManager.cpp
-    FindFileJob.cpp
-    FindSymbolsJob.cpp
-    FollowLocationJob.cpp
-    IncludeFileJob.cpp
-    IndexerJob.cpp
-    JobScheduler.cpp
-    ListSymbolsJob.cpp
-    Preprocessor.cpp
-    Project.cpp
-    QueryJob.cpp
-    ReferencesJob.cpp
-    ScanThread.cpp
-    Server.cpp
-    StatusJob.cpp
-    Symbol.cpp
-    ${RTAGS_CLANG_SOURCES})
-
-target_link_libraries(rdm ${RTAGS_CLANG_LIBRARIES})
+target_link_libraries(rdm ${RTAGS_LIBRARIES})
 cotire(rdm)
 
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/bin)
 
-add_executable(rp rp.cpp ClangIndexer.cpp ${RTAGS_CLANG_SOURCES})
-target_link_libraries(rp ${RTAGS_CLANG_LIBRARIES})
+add_executable(rp rp.cpp)
+target_link_libraries(rp ${RTAGS_LIBRARIES})
 cotire(rp)
 
 if (CYGWIN)
