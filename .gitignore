@@ -39,3 +39,4 @@ compile_commands.json
 /automated_tests/test_runner.pyc
 /src/*_cotire.cmake
 /src/cotire/
+/build/
