@@ -57,7 +57,7 @@ for i in $(which -a "$(basename "$0")"); do
         if [ -z "$RTAGS_DISABLED" ] && [ -x "$rc" ]; then
             case $(basename "$i") in
                 mpicc)
-                    ecc=cc
+                    cc=cc
                     flags="$(mpicc -show|cut -d ' ' -f 2-) -DMPICH_NO_ATTR_TYPE_TAGS"
                     ;;
                 mpicxx)

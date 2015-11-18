@@ -13,7 +13,7 @@ branch_name=${branch_name##refs/heads/}
 
 RELEASES=~/Downloads/rtags-releases
 if [ "$branch_name" == "master" ]; then
-    commit=`git show --oneline --no-patch`
+    commit=$(git show --oneline --no-patch)
     rm -rf $RELEASES
     mkdir $RELEASES
     $SCRIPT_PATH/git-archive-all --prefix rtags/ $RELEASES/rtags.tar

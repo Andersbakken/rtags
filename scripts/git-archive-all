@@ -104,13 +104,13 @@ function version () {
 }
 
 # Internal variables and initializations.
-readonly PROGRAM=`basename "$0"`
+readonly PROGRAM=$(basename "$0")
 readonly VERSION=0.3
 
 SEPARATE=0
 VERBOSE=0
 
-TARCMD=`command -v gnutar || command -v gtar || command -v tar`
+TARCMD=$(command -v gnutar || command -v gtar || command -v tar)
 FORMAT=tar
 PREFIX=
 TREEISH=HEAD
@@ -177,10 +177,10 @@ while test $# -gt 0; do
     esac
 done
 
-OLD_PWD="`pwd`"
+OLD_PWD=$(pwd)
 TMPDIR=${TMPDIR:-/tmp}
-TMPFILE=`mktemp "$TMPDIR/$PROGRAM.XXXXXX"` # Create a place to store our work's progress
-TOARCHIVE=`mktemp "$TMPDIR/$PROGRAM.toarchive.XXXXXX"`
+TMPFILE=$(mktemp "$TMPDIR/$PROGRAM.XXXXXX") # Create a place to store our work's progress
+TOARCHIVE=$(mktemp "$TMPDIR/$PROGRAM.toarchive.XXXXXX")
 OUT_FILE=$OLD_PWD # assume "this directory" without a name change by default
 
 if [ ! -z "$1" ]; then
@@ -192,7 +192,7 @@ if [ ! -z "$1" ]; then
 fi
 
 # Validate parameters; error early, error often.
-if [ "-" == $OUT_FILE -o $SEPARATE -ne 1 ] && [ "$FORMAT" == "tar" -a `$TARCMD --help | grep -q -- "--concatenate"; echo $?` -ne 0 ]; then
+if [ "-" == $OUT_FILE -o $SEPARATE -ne 1 ] && [ "$FORMAT" == "tar" -a $($TARCMD --help | grep -q -- "--concatenate"; echo $?) -ne 0 ]; then
     echo "Your 'tar' does not support the '--concatenate' option, which we need"
     echo "to produce a single tarfile. Either install a compatible tar (such as"
     echo "gnutar), or invoke $PROGRAM with the '--separate' option."
@@ -201,7 +201,7 @@ elif [ $SEPARATE -eq 1 -a ! -d $OUT_FILE ]; then
     echo "When creating multiple archives, your destination must be a directory."
     echo "If it's not, you risk being surprised when your files are overwritten."
     exit
-elif [ `git config -l | grep -q '^core\.bare=false'; echo $?` -ne 0 ]; then
+elif [ $(git config -l | grep -q '^core\.bare=false'; echo $?) -ne 0 ]; then
     echo "$PROGRAM must be run from a git working copy (i.e., not a bare repository)."
     exit
 fi
@@ -210,12 +210,12 @@ fi
 if [ $VERBOSE -eq 1 ]; then
     echo -n "creating superproject archive..."
 fi
-git archive --format=$FORMAT --prefix="$PREFIX" $TREEISH > $TMPDIR/$(basename "$(pwd)").$FORMAT
+git archive --format=$FORMAT --prefix="$PREFIX" $TREEISH > "$TMPDIR/$(basename "$(pwd)").$FORMAT"
 if [ $VERBOSE -eq 1 ]; then
     echo "done"
 fi
-echo $TMPDIR/$(basename "$(pwd)").$FORMAT >| $TMPFILE # clobber on purpose
-superfile=`head -n 1 $TMPFILE`
+echo "$TMPDIR/$(basename "$(pwd)").$FORMAT" >| $TMPFILE # clobber on purpose
+superfile=$(head -n 1 $TMPFILE)
 
 if [ $VERBOSE -eq 1 ]; then
     echo -n "looking for subprojects..."
@@ -225,14 +225,14 @@ fi
 find . -mindepth 2 -name '.git' -type d -print | sed -e 's/^\.\///' -e 's/\.git$//' >> $TOARCHIVE
 # as of version 1.7.8, git places the submodule .git directories under the superprojects .git dir
 # the submodules get a .git file that points to their .git dir. we need to find all of these too
-find . -mindepth 2 -name '.git' -type f -print | xargs grep -l "gitdir" | sed -e 's/^\.\///' -e 's/\.git$//' >> $TOARCHIVE
+find . -mindepth 2 -name '.git' -type f -print0 | xargs -0 grep -l "gitdir" | sed -e 's/^\.\///' -e 's/\.git$//' >> $TOARCHIVE
 if [ $VERBOSE -eq 1 ]; then
     echo "done"
     echo "  found:"
-    cat $TOARCHIVE | while read arch
+    while read arch
     do
       echo "    $arch"
-    done
+    done < $TOARCHIVE
 fi
 
 if [ $VERBOSE -eq 1 ]; then
@@ -265,8 +265,8 @@ if [ $SEPARATE -eq 0 -o "-" == $OUT_FILE ]; then
     elif [ $FORMAT == 'zip' ]; then
         sed -e '1d' $TMPFILE | while read file; do
             # zip incorrectly stores the full path, so cd and then grow
-            cd `dirname "$file"`
-            zip -g "$superfile" `basename "$file"` && rm -f "$file"
+            cd "$(dirname $file)"
+            zip -g "$superfile" "$(basename $file)" && rm -f "$file"
         done
         cd "$OLD_PWD"
     fi
