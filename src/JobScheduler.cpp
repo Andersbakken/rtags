@@ -300,6 +300,9 @@ void JobScheduler::abort(const std::shared_ptr<IndexerJob> &job)
 {
     assert(!(job->flags & IndexerJob::Aborted));
     job->flags |= IndexerJob::Aborted;
+    if (job->flags & IndexerJob::Crashed) {
+        return;
+    }
     job->flags &= ~IndexerJob::Running;
     auto node = mActiveById.take(job->id);
     if (!node) {

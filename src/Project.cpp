@@ -260,8 +260,7 @@ Project::Project(const Path &path)
 
 Project::~Project()
 {
-    auto activeJobs = std::move(mActiveJobs);
-    for (const auto &job : activeJobs) {
+    for (const auto &job : mActiveJobs) {
         assert(job.second);
         Server::instance()->jobScheduler()->abort(job.second);
     }
