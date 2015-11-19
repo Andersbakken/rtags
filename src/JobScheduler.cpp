@@ -326,8 +326,6 @@ void JobScheduler::clearHeaderError(uint32_t file)
 // ### This is a linear lookup
 bool JobScheduler::increasePriority(uint32_t fileId)
 {
-    warning() << "Looking for" << Location::path(fileId);
-
     for (auto node = mPendingJobs.first(); node; node = node->next) {
         if (node->job->source.fileId == fileId) {
             if (node->job->priority != IndexerJob::HeaderError) {
@@ -342,10 +340,10 @@ bool JobScheduler::increasePriority(uint32_t fileId)
 
     for (auto pair : mActiveByProcess) {
         if (pair.second->job->source.fileId == fileId) {
-            warning() << Location::path(fileId) << "is already running";
+            warning() << Location::path(fileId) << "is already running, no need to bump priority";
             return true;
         }
     }
-    warning() << "Failed to find node for" << Location::path(fileId);
+    debug() << Location::path(fileId) << "is not currently indexing";
     return false;
 }
