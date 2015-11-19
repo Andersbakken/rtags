@@ -79,7 +79,7 @@ and `c-electric-colon', for automatic completion right after \">\" and
               (t nil))))))
 
 (defun company-rtags--valid-candidate (prefix cand)
-  (and (> (length (car cand) 0))
+  (and (> (length (car cand)) 0)
        (or (not prefix)
            (string-prefix-p prefix (car cand)))
        (not (string= (nth 2 cand) "NotImplemented"))
