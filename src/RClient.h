@@ -94,7 +94,6 @@ public:
         NoColor,
         NoContext,
         NoSortReferencesByInput,
-        NoUnescapeCompileCommands,
         PathFilter,
         PrepareCodeCompleteAt,
         PreprocessFile,
@@ -127,7 +126,6 @@ public:
         SymbolInfoExcludeTargets,
         SynchronousCompletions,
         Timeout,
-        UnescapeCompileCommands,
         UnsavedFile,
         Verbose,
         Version,
@@ -179,14 +177,8 @@ private:
     void addQuitCommand(int exitCode);
 
     void addLog(LogLevel level);
-    enum EscapeMode {
-        Escape_Auto,
-        Escape_Do,
-        Escape_Dont
-    };
-
-    void addCompile(const Path &cwd, const String &args, EscapeMode escapeMode);
-    void addCompile(const Path &dir, EscapeMode escapeMode);
+    void addCompile(const Path &cwd, const String &args);
+    void addCompile(const Path &dir);
 
     Flags<QueryMessage::Flag> mQueryFlags;
     int mMax, mTimeout, mMinOffset, mMaxOffset, mConnectTimeout, mBuildIndex;
@@ -198,7 +190,6 @@ private:
     List<String> mRdmArgs;
     Path mSocketFile;
     Path mCurrentFile;
-    EscapeMode mEscapeMode;
     String mTcpHost;
     uint16_t mTcpPort;
     bool mGuessFlags;

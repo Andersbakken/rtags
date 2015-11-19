@@ -177,20 +177,13 @@ struct Source
     String toString() const;
     Path sysRoot() const { return arguments.value(sysRootIndex, "/"); }
 
-    enum ParseFlag {
-        None = 0x0,
-        Escape = 0x1
-    };
-
     static List<Source> parse(const String &cmdLine,
-                              Flags<ParseFlag> parseFlags,
                               const Path &pwd,
                               const List<Path> &pathEnvironment,
                               List<Path> *unresolvedInputLocation = 0);
 };
 
 RCT_FLAGS(Source::Flag);
-RCT_FLAGS(Source::ParseFlag);
 RCT_FLAGS(Source::CommandLineFlag);
 
 inline Source::Source()

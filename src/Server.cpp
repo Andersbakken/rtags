@@ -467,9 +467,6 @@ bool Server::index(const String &args,
                    std::shared_ptr<Project> *projectPtr)
 {
     assert(pwd.endsWith('/'));
-    const Flags<Source::ParseFlag> sourceParseFlags = (indexMessageFlags & IndexMessage::Escape
-                                                       ? Source::Escape
-                                                       : Source::None);
     String arguments;
     List<Path> unresolvedPaths;
     List<Source> sources;
@@ -493,14 +490,14 @@ bool Server::index(const String &args,
                 if (stdOut != arguments) {
                     warning() << "Changed\n" << arguments << "\nto\n" << stdOut;
                     parse = false;
-                    sources = Source::parse(stdOut, sourceParseFlags, pwd, pathEnvironment, &unresolvedPaths);
+                    sources = Source::parse(stdOut, pwd, pathEnvironment, &unresolvedPaths);
                 }
             }
         }
     }
 
     if (parse)
-        sources = Source::parse(arguments, sourceParseFlags, pwd, pathEnvironment, &unresolvedPaths);
+        sources = Source::parse(arguments, pwd, pathEnvironment, &unresolvedPaths);
 
     bool ret = false;
     int idx = 0;

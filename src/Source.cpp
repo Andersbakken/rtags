@@ -396,7 +396,6 @@ struct Input {
 };
 
 List<Source> Source::parse(const String &cmdLine,
-                           Flags<ParseFlag> parseFlags,
                            const Path &cwd,
                            const List<Path> &pathEnvironment,
                            List<Path> *unresolvedInputLocations)
@@ -409,26 +408,34 @@ List<Source> Source::parse(const String &cmdLine,
     {
         char *cur = args.data();
         char *prev = cur;
-        // ### handle escaped quotes?
         int size = args.size();
+        int escape = 0;
         while (size > 0) {
             switch (*cur) {
             case '"':
             case '\'':
-                if (quote == '\0') {
-                    quote = *cur;
-                } else if (*cur == quote) {
-                    quote = '\0';
+                if (escape % 2 == 0) {
+                    if (quote == '\0') {
+                        quote = *cur;
+                    } else if (*cur == quote) {
+                        quote = '\0';
+                    }
                 }
+                escape = 0;
+                break;
+            case '\\':
+                ++escape;
                 break;
             case ' ':
                 if (quote == '\0') {
                     if (cur > prev)
-                        split.append(trim(prev, cur - prev));
+                        split.append(unquote(trim(prev, cur - prev)));
                     prev = cur + 1;
                 }
+                escape = 0;
                 break;
             default:
+                escape = 0;
                 break;
             }
             --size;
@@ -528,7 +535,7 @@ List<Source> Source::parse(const String &cmdLine,
                         define.define = def;
                     } else {
                         define.define = def.left(eq);
-                        define.value = (parseFlags & Escape ? unquote(def.mid(eq + 1)) : def.mid(eq + 1));
+                        define.value = def.mid(eq + 1);
                     }
                     debug("Parsing define: [%s] => [%s]%s[%s]", def.constData(),
                           define.define.constData(),
@@ -623,10 +630,7 @@ List<Source> Source::parse(const String &cmdLine,
             } else {
                 arguments.append(arg);
                 if (hasValue(arg)) {
-                    String val = split.value(++i);
-                    if (parseFlags & Escape)
-                        val = unquote(val);
-                    arguments.append(Path::resolved(val, Path::MakeAbsolute, path));
+                    arguments.append(Path::resolved(split.value(++i), Path::MakeAbsolute, path));
                 }
             }
         } else {

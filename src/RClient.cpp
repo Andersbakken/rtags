@@ -156,8 +156,6 @@ struct Option opts[] = {
     { RClient::DumpIncludeHeaders, "dump-include-headers", 0, no_argument, "For --dump-file, also dump dependencies." },
     { RClient::SilentQuery, "silent-query", 0, no_argument, "Don't log this request in rdm." },
     { RClient::SynchronousCompletions, "synchronous-completions", 0, no_argument, "Wait for completion results." },
-    { RClient::UnescapeCompileCommands, "unescape-compile-commands", 0, no_argument, "Unescape \\'s and unquote arguments to -c." },
-    { RClient::NoUnescapeCompileCommands, "no-unescape-compile-commands", 0, no_argument, "Escape \\'s and unquote arguments to -c." },
     { RClient::NoSortReferencesByInput, "no-sort-references-by-input", 0, no_argument, "Don't sort references by input position." },
     { RClient::ProjectRoot, "project-root", 0, required_argument, "Override project root for compile commands." },
     { RClient::RTagsConfig, "rtags-config", 0, required_argument, "Print out .rtags-config for argument." },
@@ -341,35 +339,21 @@ const LogLevel RdmLogCommand::Default(-1);
 class CompileCommand : public RCCommand
 {
 public:
-    CompileCommand(const Path &c, const String &a, RClient::EscapeMode e)
-        : RCCommand(), cwd(c), args(a), escapeMode(e)
+    CompileCommand(const Path &c, const String &a)
+        : RCCommand(), cwd(c), args(a)
     {}
-    CompileCommand(const Path &dir, RClient::EscapeMode e)
-        : RCCommand(), compilationDatabaseDir(dir), escapeMode(e)
+    CompileCommand(const Path &dir)
+        : RCCommand(), compilationDatabaseDir(dir)
     {}
 
     const Path compilationDatabaseDir;
     const Path cwd;
     const String args;
-    const RClient::EscapeMode escapeMode;
     virtual bool exec(RClient *rc, const std::shared_ptr<Connection> &connection) override
     {
-        bool escape = false;
-        switch (rc->mEscapeMode) {
-        case RClient::Escape_Auto:
-            escape = (escapeMode == RClient::Escape_Do);
-            break;
-        case RClient::Escape_Do:
-            escape = true;
-            break;
-        case RClient::Escape_Dont:
-            escape = false;
-            break;
-        }
         IndexMessage msg;
         msg.init(rc->argc(), rc->argv());
         msg.setWorkingDirectory(cwd);
-        msg.setFlag(IndexMessage::Escape, escape);
         msg.setFlag(IndexMessage::GuessFlags, rc->mGuessFlags);
         msg.setArguments(args);
         msg.setCompilationDatabaseDir(compilationDatabaseDir);
@@ -388,8 +372,8 @@ public:
 RClient::RClient()
     : mMax(-1), mTimeout(-1), mMinOffset(-1), mMaxOffset(-1),
       mConnectTimeout(DEFAULT_CONNECT_TIMEOUT), mBuildIndex(0),
-      mLogLevel(LogLevel::Error), mEscapeMode(Escape_Auto), mTcpPort(0),
-      mGuessFlags(false), mTerminalWidth(-1), mArgc(0), mArgv(0)
+      mLogLevel(LogLevel::Error), mTcpPort(0), mGuessFlags(false),
+      mTerminalWidth(-1), mArgc(0), mArgv(0)
 {
     struct winsize w;
     ioctl(0, TIOCGWINSZ, &w);
@@ -421,14 +405,14 @@ void RClient::addLog(LogLevel level)
     mCommands.append(std::shared_ptr<RCCommand>(new RdmLogCommand(level)));
 }
 
-void RClient::addCompile(const Path &cwd, const String &args, EscapeMode mode)
+void RClient::addCompile(const Path &cwd, const String &args)
 {
-    mCommands.append(std::shared_ptr<RCCommand>(new CompileCommand(cwd, args, mode)));
+    mCommands.append(std::shared_ptr<RCCommand>(new CompileCommand(cwd, args)));
 }
 
-void RClient::addCompile(const Path &dir, EscapeMode mode)
+void RClient::addCompile(const Path &dir)
 {
-    mCommands.append(std::shared_ptr<RCCommand>(new CompileCommand(dir, mode)));
+    mCommands.append(std::shared_ptr<RCCommand>(new CompileCommand(dir)));
 }
 
 int RClient::exec()
@@ -1030,7 +1014,7 @@ RClient::ParseStatus RClient::parse(int &argc, char **argv)
                 fprintf(stderr, "no compile_commands.json file in %s\n", dir.constData());
                 return Parse_Error;
             }
-            addCompile(dir, Escape_Auto);
+            addCompile(dir);
 #endif
             break; }
         case HasFileManager: {
@@ -1089,20 +1073,14 @@ RClient::ParseStatus RClient::parse(int &argc, char **argv)
             if (args == "-" || args.isEmpty()) {
                 char buf[16384];
                 while (fgets(buf, sizeof(buf), stdin)) {
-                    addCompile(Path::pwd(), buf, Escape_Do);
+                    addCompile(Path::pwd(), buf);
                 }
             } else {
-                addCompile(Path::pwd(), args, Escape_Dont);
+                addCompile(Path::pwd(), args);
             }
             break; }
         case IsIndexing:
             addQuery(QueryMessage::IsIndexing);
-            break;
-        case UnescapeCompileCommands:
-            mEscapeMode = Escape_Do;
-            break;
-        case NoUnescapeCompileCommands:
-            mEscapeMode = Escape_Dont;
             break;
         case NoSortReferencesByInput:
             mQueryFlags |= QueryMessage::NoSortReferencesByInput;
