@@ -1,3 +1,4 @@
+// cc clangtest.c `llvm-config-3.6 --cflags` -lclang `llvm-config-3.6 --ldflags` -o clangtest
 #include <clang-c/Index.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -78,11 +79,11 @@ int main(int argc, char **argv)
         for (i=0; i<diagnosticCount; ++i) {
             CXDiagnostic diagnostic = clang_getDiagnostic(unit, i);
             const unsigned int diagnosticOptions = (CXDiagnostic_DisplaySourceLocation|
-                                                CXDiagnostic_DisplayColumn|
-                                                CXDiagnostic_DisplaySourceRanges|
-                                                CXDiagnostic_DisplayOption|
-                                                CXDiagnostic_DisplayCategoryId|
-                                                CXDiagnostic_DisplayCategoryName);
+                                                    CXDiagnostic_DisplayColumn|
+                                                    CXDiagnostic_DisplaySourceRanges|
+                                                    CXDiagnostic_DisplayOption|
+                                                    CXDiagnostic_DisplayCategoryId|
+                                                    CXDiagnostic_DisplayCategoryName);
             CXString diagnosticText = clang_formatDiagnostic(diagnostic, diagnosticOptions);
             const char *cstr = clang_getCString(diagnosticText);
             if (cstr)
