@@ -345,7 +345,7 @@ void CompletionThread::process(Request *request)
 
             const int priority = clang_getCompletionPriority(string);
 
-            if (size_t(nodeCount) == nodes.size())
+            if (static_cast<size_t>(nodeCount) == nodes.size())
                 nodes.emplace_back();
 
             Completions::Candidate &node = nodes.back();
@@ -358,7 +358,10 @@ void CompletionThread::process(Request *request)
                 const CXCompletionChunkKind chunkKind = clang_getCompletionChunkKind(string, j);
                 if (chunkKind == CXCompletionChunk_TypedText) {
                     node.completion = RTags::eatString(clang_getCompletionChunkText(string, j));
-                    if (node.completion.size() > 8 && node.completion.startsWith("operator") && !isPartOfSymbol(node.completion.at(8))) {
+                    if (node.completion.isEmpty()
+                        || (node.completion.size() > 8
+                            && node.completion.startsWith("operator")
+                            && !isPartOfSymbol(node.completion.at(8)))) {
                         ok = false;
                         break;
                     }
