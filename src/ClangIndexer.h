@@ -185,6 +185,7 @@ private:
     bool mLastBlocked;
     Path mLastFile;
     Path mDataDir;
+    bool mUnionRecursion;
 
     static Flags<Server::Option> sServerOpts;
 };

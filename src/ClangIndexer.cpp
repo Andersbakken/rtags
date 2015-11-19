@@ -59,7 +59,8 @@ ClangIndexer::ClangIndexer()
       mVisitFileResponseMessageVisit(0), mParseDuration(0), mVisitDuration(0),
       mBlocked(0), mAllowed(0), mIndexed(1), mVisitFileTimeout(0),
       mIndexDataMessageTimeout(0), mFileIdsQueried(0), mLogFile(0),
-      mConnection(Connection::create(RClient::NumOptions))
+      mConnection(Connection::create(RClient::NumOptions)),
+      mUnionRecursion(false)
 {
     mConnection->newMessage().connect(std::bind(&ClangIndexer::onMessage, this,
                                                 std::placeholders::_1, std::placeholders::_2));
@@ -858,7 +859,7 @@ bool ClangIndexer::handleReference(const CXCursor &cursor, CXCursorKind kind,
     FindResult result;
     auto reffedCursor = findSymbol(refLoc, &result);
     Map<String, uint16_t> &targets = unit(location)->targets[location];
-    if (result == NotFound) {
+    if (result == NotFound && !mUnionRecursion) {
         CXCursor parent = clang_getCursorSemanticParent(ref);
         CXCursor best = ClangIndexer::nullCursor;
         while (true) {
@@ -869,9 +870,11 @@ bool ClangIndexer::handleReference(const CXCursor &cursor, CXCursorKind kind,
             parent = clang_getCursorSemanticParent(parent);
         }
         if (best == CXCursor_UnionDecl) {
+            mUnionRecursion = true;
             // for anonymous unions we don't get to their fields with normal
             // recursing of the AST. In these cases we visit the union decl
             clang_visitChildren(best, ClangIndexer::indexVisitor, this);
+            mUnionRecursion = false;
             reffedCursor = findSymbol(refLoc, &result);
         }
     }
