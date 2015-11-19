@@ -366,7 +366,7 @@ int main(int argc, char** argv)
     Flags<LogFileFlag> logFlags = DontRotate;
     LogLevel logLevel(LogLevel::Error);
     LogLevel logFileLogLevel(LogLevel::Error);
-    bool sigHandler = false;
+    bool sigHandler = true;
     assert(Path::home().endsWith('/'));
     int argCount = argList.size();
     char **args = argList.data();
