@@ -158,6 +158,10 @@ bool Server::init(const Options &options)
             "__builtin_ia32_rorqi",
             "__builtin_ia32_rorhi",
             "__builtin_ia32_rolhi",
+            "__builtin_ia32_rdseed_di_step"
+            "__builtin_ia32_xsaveopt",
+            "__builtin_ia32_xsaveopt64",
+            "__builtin_ia32_sbb_u32"
             0
         };
         for (int i=0; gccBuiltIntVectorFunctionDefines[i]; ++i) {
