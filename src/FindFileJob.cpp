@@ -17,6 +17,7 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 
 #include "FileManager.h"
 #include "Project.h"
+#include "rct/SignalSlot.h"
 #include "RTags.h"
 #include "Server.h"
 

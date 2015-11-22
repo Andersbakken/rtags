@@ -15,15 +15,15 @@
 
 #include "Server.h"
 
-
 #include <arpa/inet.h>
+#include <clang/Basic/Version.h>
+#if CLANG_VERSION_MAJOR > 3 || (CLANG_VERSION_MAJOR == 3 && CLANG_VERSION_MINOR > 3)
+#include <clang-c/CXCompilationDatabase.h>
+#endif
 #include <clang-c/Index.h>
 #include <stdio.h>
 #include <limits>
 #include <regex>
-#if CLANG_VERSION_MAJOR > 3 || (CLANG_VERSION_MAJOR == 3 && CLANG_VERSION_MINOR > 3)
-#include <clang-c/CXCompilationDatabase.h>
-#endif
 #ifdef OS_Darwin
 #include <launch.h>
 #endif
@@ -32,6 +32,7 @@
 #include "CompletionThread.h"
 #include "DependenciesJob.h"
 #include "DumpThread.h"
+#include "FileManager.h"
 #include "Filter.h"
 #include "FindFileJob.h"
 #include "FindSymbolsJob.h"

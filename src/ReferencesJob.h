@@ -18,9 +18,7 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 
 #include "Location.h"
 #include "QueryJob.h"
-#include "rct/List.h"
 #include "rct/String.h"
-#include "RTags.h"
 
 class SymbolInfo;
 class ReferencesJob : public QueryJob

@@ -22,7 +22,7 @@
 
 #include "Diagnostic.h"
 #include "FileManager.h"
-#include "IndexerJob.h"
+#include "IndexDataMessage.h"
 #include "JobScheduler.h"
 #include "LogOutputMessage.h"
 #include "rct/DataFile.h"
@@ -2353,4 +2353,3 @@ void Project::fixPCH(Source &source)
         }
     }
 }
-

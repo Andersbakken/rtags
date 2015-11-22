@@ -15,7 +15,11 @@
 
 #include "JobScheduler.h"
 
+#include "IndexDataMessage.h"
+#include "IndexerJob.h"
 #include "Project.h"
+#include "rct/Connection.h"
+#include "rct/Process.h"
 #include "Server.h"
 
 enum { MaxPriority = 10 };

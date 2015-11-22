@@ -19,6 +19,7 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 
 #include "Project.h"
 #include "QueryMessage.h"
+#include "rct/Connection.h"
 #include "rct/EventLoop.h"
 #include "RTags.h"
 #include "Server.h"

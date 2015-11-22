@@ -17,10 +17,11 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 #define ListSymbolsJob_h
 
 #include "QueryJob.h"
-#include "QueryMessage.h"
-#include "rct/List.h"
 #include "rct/String.h"
 
+template <typename T>
+class List;
+class QueryMessage;
 class ListSymbolsJob : public QueryJob
 {
 public:

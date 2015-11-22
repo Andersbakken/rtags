@@ -21,17 +21,13 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 
 #include "Project.h"
 #include "QueryMessage.h"
-#include "rct/EventLoop.h"
 #include "rct/Flags.h"
 #include "rct/List.h"
 #include "rct/SignalSlot.h"
 #include "rct/String.h"
-#include "rct/ThreadPool.h"
-#include "RTags.h"
 
 class Location;
 class QueryMessage;
-class Project;
 class Connection;
 struct Symbol;
 class QueryJob

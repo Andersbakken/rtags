@@ -18,11 +18,17 @@
 
 #include <memory>
 
-#include "IndexDataMessage.h"
-#include "IndexerJob.h"
-#include "rct/Connection.h"
 #include "rct/EmbeddedLinkedList.h"
+#include "rct/Set.h"
+#include "rct/Hash.h"
+#include "rct/String.h"
 
+class Connection;
+class IndexDataMessage;
+class IndexerJob;
+class Process;
+class Project;
+struct DependencyNode;
 class JobScheduler : public std::enable_shared_from_this<JobScheduler>
 {
 public:

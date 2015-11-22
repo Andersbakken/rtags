@@ -16,6 +16,7 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 #include "FindSymbolsJob.h"
 
 #include "Project.h"
+#include "QueryMessage.h"
 #include "rct/Log.h"
 #include "RTags.h"
 #include "Server.h"

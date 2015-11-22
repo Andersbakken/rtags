@@ -19,7 +19,6 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 #include "rct/Flags.h"
 #include "rct/List.h"
 #include "rct/String.h"
-#include "RTags.h"
 #include "RTagsMessage.h"
 
 class IndexMessage : public RTagsMessage

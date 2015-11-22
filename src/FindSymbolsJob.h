@@ -17,10 +17,9 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 #define FindSymbolsJob_h
 
 #include "QueryJob.h"
-#include "QueryMessage.h"
-#include "rct/List.h"
 #include "rct/String.h"
 
+class QueryMessage;
 class FindSymbolsJob : public QueryJob
 {
 public:

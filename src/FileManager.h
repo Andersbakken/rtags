@@ -18,9 +18,6 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 
 #include <mutex>
 
-#include "Location.h"
-#include "rct/FileSystemWatcher.h"
-#include "rct/List.h"
 #include "rct/Path.h"
 #include "rct/Timer.h"
 

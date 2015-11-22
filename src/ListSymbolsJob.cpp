@@ -16,6 +16,8 @@
 #include "ListSymbolsJob.h"
 
 #include "Project.h"
+#include "QueryMessage.h"
+#include "rct/List.h"
 #include "rct/Log.h"
 #include "RTags.h"
 #include "Server.h"

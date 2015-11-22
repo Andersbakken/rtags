@@ -24,9 +24,7 @@
 #include <functional>
 
 #include "Location.h"
-#include "rct/Rct.h"
 #include "rct/Serializer.h"
-#include "rct/StackBuffer.h"
 
 template <typename T> inline static int compare(const T &l, const T &r)
 {

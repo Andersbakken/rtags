@@ -19,7 +19,6 @@
 #include "Diagnostic.h"
 #include "IndexerJob.h"
 #include "rct/Flags.h"
-#include "rct/Message.h"
 #include "rct/Serializer.h"
 #include "rct/String.h"
 #include "RTagsMessage.h"

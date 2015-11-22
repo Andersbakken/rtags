@@ -18,8 +18,6 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 
 #include "Match.h"
 #include "QueryJob.h"
-#include "rct/String.h"
-#include "RTags.h"
 
 class QueryMessage;
 class JSONJob : public QueryJob

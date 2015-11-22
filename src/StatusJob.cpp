@@ -20,6 +20,7 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 #include "CompilerManager.h"
 #include "JobScheduler.h"
 #include "Project.h"
+#include "rct/Process.h"
 #include "RTags.h"
 #include "Server.h"
 

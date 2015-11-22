@@ -18,10 +18,7 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 
 #include <memory>
 
-#include "rct/List.h"
-#include "rct/Path.h"
-#include "rct/String.h"
-#include "RTags.h"
+#include "Source.h"
 
 class Connection;
 class Process;

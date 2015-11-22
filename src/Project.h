@@ -17,29 +17,27 @@
 #define Project_h
 
 #include <cstdint>
-#include <memory>
 #include <mutex>
-#include <regex>
 
 #include "Diagnostic.h"
+#include "FileMap.h"
 #include "IndexerJob.h"
 #include "IndexMessage.h"
-#include "Match.h"
 #include "QueryMessage.h"
 #include "rct/EmbeddedLinkedList.h"
 #include "rct/FileSystemWatcher.h"
 #include "rct/Flags.h"
-#include "rct/LinkedList.h"
 #include "rct/Path.h"
+#include "rct/StopWatch.h"
 #include "rct/Timer.h"
 #include "RTags.h"
 
-class IndexDataMessage;
-class FileManager;
-class IndexerJob;
-class RestoreThread;
 class Connection;
 class Dirty;
+class FileManager;
+class IndexDataMessage;
+class Match;
+class RestoreThread;
 struct DependencyNode
 {
     DependencyNode(uint32_t f)

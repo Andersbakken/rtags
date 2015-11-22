@@ -17,9 +17,10 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 #define DependenciesJob_h
 
 #include "QueryJob.h"
-#include "QueryMessage.h"
+
 
 class Project;
+class QueryMessage;
 class DependenciesJob : public QueryJob
 {
 public:

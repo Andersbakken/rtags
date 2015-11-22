@@ -19,11 +19,8 @@
 #include <sys/stat.h>
 
 #include "IndexDataMessage.h"
-#include "IndexerJob.h"
-#include "rct/Connection.h"
 #include "rct/Hash.h"
 #include "rct/Path.h"
-#include "rct/Serializer.h"
 #include "rct/StopWatch.h"
 #include "RTags.h"
 #include "Server.h"

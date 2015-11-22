@@ -17,7 +17,6 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 #define RClient_h
 
 #include "QueryMessage.h"
-#include "rct/Hash.h"
 #include "rct/List.h"
 #include "rct/Path.h"
 #include "rct/String.h"
