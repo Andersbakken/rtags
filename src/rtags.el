@@ -284,6 +284,12 @@ return t if rtags is allowed to modify this file."
   :type 'boolean
   :safe 'booleanp)
 
+(defcustom rtags-highlight-current-line t
+  "If t, highlight the current line in *RTags* buffer."
+  :group 'rtags
+  :type 'boolean
+  :safe 'booleanp)
+
 (defcustom rtags-timeout nil
   "Max amount of ms to wait before timing out requests."
   :group 'rtags
@@ -319,6 +325,13 @@ return t if rtags is allowed to modify this file."
     (((class color) (background light)) (:background "blue"))
     (t (:bold t)))
   "Face used for marking error lines."
+  :group 'rtags)
+
+(defface rtags-current-line
+  '((((class color) (background dark)) (:background "gray19"))
+    (((class color) (background light)) (:background "LightGray"))
+    (t (:bold t)))
+  "Face used for highlighting current line."
   :group 'rtags)
 
 (defface rtags-errline
@@ -427,6 +440,8 @@ to case differences."
 (define-key rtags-mode-map (kbd "q") 'rtags-bury-or-delete)
 (define-key rtags-mode-map (kbd "j") 'next-line)
 (define-key rtags-mode-map (kbd "k") 'previous-line)
+(define-key rtags-mode-map (kbd "n") 'next-line)
+(define-key rtags-mode-map (kbd "p") 'previous-line)
 
 (defvar rtags-dependency-tree-mode-map nil)
 (setq rtags-dependency-tree-mode-map (make-sparse-keymap))
@@ -500,6 +515,10 @@ to case differences."
     (,"^ +\\(.*\\)$"
      (1 font-lock-function-name-face))))
 
+(defvar rtags-current-line-overlay nil)
+(defun rtags-update-current-line ()
+  (move-overlay rtags-current-line-overlay (point-at-bol) (point-at-eol)))
+
 (define-derived-mode rtags-mode fundamental-mode
   (set (make-local-variable 'font-lock-defaults)
        '(rtags-font-lock-keywords (save-excursion
@@ -513,6 +532,10 @@ to case differences."
   (run-hooks 'rtags-mode-hook)
   (goto-char (point-min))
   (setq next-error-function 'rtags-next-prev-match)
+  (when rtags-highlight-current-line
+    (let ((overlay (make-overlay (point-at-bol) (point-at-eol) (current-buffer))))
+      (overlay-put overlay 'face 'rtags-current-line)
+      (setq-local rtags-current-line-overlay overlay)))
   (setq buffer-read-only t))
 
 (defun rtags-wrap-word (word)
@@ -590,6 +613,8 @@ to case differences."
           (if next
               (decf by)
             (incf by)))
+        (when rtags-highlight-current-line
+          (rtags-update-current-line))
         (if win
             (rtags-select-other-window)
           (rtags-select))))))
@@ -2129,7 +2154,9 @@ is true. References to references will be treated as references to the reference
     (rtags-close-taglist)
     (rtags-update-completions-timer)
     (rtags-restart-find-container-timer)
-    (rtags-restart-tracking-timer)))
+    (rtags-restart-tracking-timer)
+    (when (and rtags-highlight-current-line (rtags-is-rtags-buffer))
+      (rtags-update-current-line))))
 
 (defun rtags-after-save-hook ()
   (interactive)
