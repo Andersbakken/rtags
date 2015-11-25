@@ -3358,6 +3358,94 @@ If `rtags-display-summary-as-tooltip' is t, a tooltip is displayed."
               (insert head include tail))
             (message "Added %s" include)))))))
 
+(defun rtags-real-target (info)
+  (let* ((kind (cdr (assoc 'kind info)))
+         (ret)
+         (targets (and kind (cdr (assoc 'targets info)))))
+    (while targets
+      (let ((targetkind (cdr (assoc 'kind (car targets)))))
+        (if (and targetkind (string= targetkind kind))
+            (setq ret (car targets)
+                  targets nil)
+          (setq targets (cdr targets)))))
+    ret))
+
+(defun rtags-range-for-symbol-info (info)
+  (save-excursion
+    (let ((start (and (rtags-goto-line-col (cdr (assoc 'startLine info))
+                                           (cdr (assoc 'startColumn info)))
+                      (+ (point) (length (cdr (assoc 'symbolName info))))))
+          (end (and (rtags-goto-line-col (cdr (assoc 'endLine info))
+                                         (cdr (assoc 'endColumn info)))
+                    (point))))
+      (and start end (cons start end)))))
+
+(defun rtags-peer-member-end-location ()
+  (let ((sym (rtags-symbol-info-internal)))
+    ;; (message "TRYING %s => %s" (rtags-current-location) (if sym "yes" "no"))
+    (when (cond ((not sym) nil)
+                ((string= (cdr (assoc 'kind sym)) "CXXConstructor"))
+                ((string= (cdr (assoc 'kind sym)) "CXXDestructor"))
+                ((string= (cdr (assoc 'kind sym)) "CXXMethod"))
+                (t nil))
+      (let ((target (rtags-real-target sym)))
+        (when target
+          (let ((location (cdr (assoc 'location target))))
+            (when (string-match "\\(.*\\):[0-9]+:[0-9]+:?" location)
+              (let ((buffer (find-file-noselect (match-string-no-properties 1 location))))
+                ;; (message "GOT BUF %s" (buffer-file-name buffer))
+                (with-current-buffer buffer
+                  (rtags-goto-line-col (cdr (assoc 'endLine sym))
+                                       (cdr (assoc 'endColumn sym)))
+                  (cons buffer (1+ (point))))))))))))
+
+
+(defun rtags-find-peer (range)
+  (let (loc)
+    (save-excursion
+      (while (and (not loc)
+                  (> (point) (car range)))
+        (backward-word)
+        (setq loc (rtags-peer-member-end-location))))
+    (save-excursion
+      (while (and (not loc)
+                  (< (point) (cdr range)))
+        ;; forward-word puts us at the end of each symbol
+        (forward-char 1)
+        (forward-word)
+        (forward-char -1)
+        (setq loc (rtags-peer-member-end-location))))
+    loc))
+
+(defun rtags-make-member ()
+  (interactive)
+  (let* ((member (rtags-symbol-info-internal))
+         (parent (cdr (assoc 'parent member)))
+         (kind (cdr (assoc 'kind member))))
+    (cond ((not kind) (error "No symbol here that I know of"))
+          ((string= kind "CXXMethod"))
+          ((string= kind "CXXConstructor"))
+          ((string= kind "CXXDestructor"))
+          (t (error "Not an appropriate method/constructor/destructor: %s" kind)))
+
+    (when (cdr (assoc 'definition member))
+      (error "This is already the definition"))
+    (unless parent
+      (error "Can't find parent"))
+    (when (rtags-real-target member)
+      (error "%s is already implemented here: %s"
+             (cdr (assoc 'symbolName member))
+             (cdr (assoc 'location (rtags-real-target member)))))
+    (let ((range (rtags-range-for-symbol-info parent)))
+      (unless range
+        (error "Can't find the range"))
+      (let ((loc (rtags-find-peer range)))
+        (unless loc
+          (error "Can't find a location for this function"))
+        (switch-to-buffer (car loc))
+        (goto-char (cdr loc))
+        (insert (cdr (assoc 'symbolName member)) "\n{}")))))
+
 (defun rtags-check-includes ()
   (interactive)
   (let ((filename (buffer-file-name)))
