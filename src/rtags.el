@@ -2521,7 +2521,8 @@ is true. References to references will be treated as references to the reference
              (when (= (length (window-list)) 1)
                (funcall rtags-split-window-function))
              (other-window 1))
-           (bookmark-jump bookmark)
+           (let ((switch-to-buffer-preserve-window-point nil)) ;; this can mess up bookmarks
+             (bookmark-jump bookmark))
            (rtags-location-stack-push))
           (t
            (when (cdr idx)
