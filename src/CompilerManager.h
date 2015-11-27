@@ -19,7 +19,7 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 #include "rct/List.h"
 #include "rct/Path.h"
 
-class Source;
+struct Source;
 
 namespace CompilerManager
 {
