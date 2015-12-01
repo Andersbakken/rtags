@@ -310,9 +310,11 @@ bool QueryJob::write(const Symbol &symbol,
                 List<String> baseClasses;
                 for (const auto &base : symbol.baseClasses) {
                     Symbol sym;
-                    for (const Symbol &s : project()->findByUsr(base, symbol.location.fileId(), Project::ArgDependsOn, symbol.location)) {
-                        sym = s;
-                        break;
+                    if (mode == Mode_Symbol) {
+                        for (const Symbol &s : project()->findByUsr(base, symbol.location.fileId(), Project::ArgDependsOn, symbol.location)) {
+                            sym = s;
+                            break;
+                        }
                     }
                     if (sym.isNull()) {
                         String str = " ";
@@ -328,7 +330,9 @@ bool QueryJob::write(const Symbol &symbol,
             if (!symbol.arguments.isEmpty()) {
                 List<String> arguments;
                 for (const auto &arg : symbol.arguments) {
-                    Symbol sym = project()->findSymbol(arg);
+                    Symbol sym;
+                    if (mode == Mode_Symbol)
+                        sym = project()->findSymbol(arg);
                     if (sym.isNull()) {
                         String str = " ";
                         toString(str, arg, flags);
