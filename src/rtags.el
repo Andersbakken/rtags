@@ -517,7 +517,8 @@ to case differences."
 
 (defvar rtags-current-line-overlay nil)
 (defun rtags-update-current-line ()
-  (move-overlay rtags-current-line-overlay (point-at-bol) (point-at-eol)))
+  (when (overlayp rtags-current-line-overlay)
+    (move-overlay rtags-current-line-overlay (point-at-bol) (point-at-eol))))
 
 (define-derived-mode rtags-mode fundamental-mode
   (set (make-local-variable 'font-lock-defaults)
@@ -1990,7 +1991,7 @@ is true. References to references will be treated as references to the reference
           (delete-region (point-min) (point)))))))
 
 (defun rtags-check-overlay (overlay)
-  (when (and overlay
+  (when (and (overlayp overlay)
              (overlay-get overlay 'rtags-error-message)
              (not (active-minibuffer-window))
              (not cursor-in-echo-area))
