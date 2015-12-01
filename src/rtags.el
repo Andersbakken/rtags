@@ -1235,6 +1235,8 @@ to case differences."
 ;;;###autoload
 (defun rtags-references-tree ()
   (interactive)
+  (rtags-reset-bookmarks)
+  (rtags-delete-rtags-windows)
   (let ((ref-buffer (rtags-get-buffer "*RTags*"))
         (loc (rtags-current-location))
         (refs)
@@ -1261,7 +1263,7 @@ to case differences."
             (setq project (buffer-substring-no-properties (point-min) (1- (point-max))))))
         (rtags-delete-rtags-windows)
         (rtags-location-stack-push)
-        (switch-to-buffer ref-buffer)
+        (switch-to-buffer-other-window ref-buffer)
         (rtags-references-tree-mode)
         (setq rtags-current-project project)
         (setq buffer-read-only nil)
@@ -1271,7 +1273,21 @@ to case differences."
           (setq refs (cdr refs)))
         (delete-char -1))
       (goto-char (point-min))
-      (setq buffer-read-only t))))
+      (setq buffer-read-only t)
+      (cond ((= (point-min) (point-max))
+             (message "RTags: No results")
+             nil)
+            ((or rtags-last-request-not-indexed rtags-last-request-not-connected) nil)
+            ((= (count-lines (point-min) (point-max)) 1)
+             (let ((string (buffer-string)))
+               (rtags-goto-location string)
+               t))
+            (rtags-jump-to-first-match
+             (shrink-window-if-larger-than-buffer)
+             (rtags-select-other-window))
+            (t
+             (shrink-window-if-larger-than-buffer)
+             t)))))
 
 ;;;###autoload
 (defun rtags-print-source-arguments (&optional buffer)
