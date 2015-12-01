@@ -46,6 +46,8 @@ private:
 
     void addFileSymbol(uint32_t file);
     int symbolLength(CXCursorKind kind, const CXCursor &cursor);
+    void addArguments(Symbol *sym, const CXCursor &cursor);
+
     inline Location createLocation(const CXSourceLocation &location, bool *blocked = 0)
     {
         CXString fileName;

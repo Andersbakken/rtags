@@ -38,6 +38,7 @@ struct Symbol
     Location location;
     String symbolName, usr, typeName;
     List<String> baseClasses;
+    List<Location> arguments;
     uint16_t symbolLength;
     CXCursorKind kind;
     CXTypeKind type;
@@ -73,6 +74,7 @@ struct Symbol
         usr.clear();
         typeName.clear();
         baseClasses.clear();
+        arguments.clear();
         symbolLength = 0;
         kind = CXCursor_FirstInvalid;
         type = CXType_Invalid;
@@ -133,8 +135,8 @@ RCT_FLAGS(Symbol::ToStringFlag);
 
 template <> inline Serializer &operator<<(Serializer &s, const Symbol &t)
 {
-    s << t.location << t.symbolName << t.usr << t.typeName << t.baseClasses << t.symbolLength
-      << static_cast<uint16_t>(t.kind) << static_cast<uint16_t>(t.type)
+    s << t.location << t.symbolName << t.usr << t.typeName << t.baseClasses << t.arguments
+      << t.symbolLength << static_cast<uint16_t>(t.kind) << static_cast<uint16_t>(t.type)
       << static_cast<uint8_t>(t.linkage) << t.flags << t.briefComment << t.xmlComment
       << t.enumValue << t.startLine << t.endLine << t.startColumn << t.endColumn
       << t.size << t.fieldOffset << t.alignment;
@@ -146,7 +148,7 @@ template <> inline Deserializer &operator>>(Deserializer &s, Symbol &t)
     uint16_t kind, type;
     uint8_t linkage;
     s >> t.location >> t.symbolName >> t.usr >> t.typeName >> t.baseClasses
-      >> t.symbolLength >> kind >> type >> linkage >> t.flags
+      >> t.arguments >> t.symbolLength >> kind >> type >> linkage >> t.flags
       >> t.briefComment >> t.xmlComment >> t.enumValue
       >> t.startLine >> t.endLine >> t.startColumn >> t.endColumn
       >> t.size >> t.fieldOffset >> t.alignment;

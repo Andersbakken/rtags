@@ -291,7 +291,8 @@ bool QueryJob::write(const Symbol &symbol,
             Mode_Target,
             Mode_Parent,
             Mode_BaseClass,
-            Mode_Reference
+            Mode_Reference,
+            Mode_Argument
         };
         std::function<String(const Symbol &, SymbolToElispMode)> symbolToElisp = [&](const Symbol &symbol, SymbolToElispMode mode) {
             String out;
@@ -324,6 +325,22 @@ bool QueryJob::write(const Symbol &symbol,
 
                 elisp(out, "baseClasses", baseClasses, flags | NoQuote);
             }
+            if (!symbol.arguments.isEmpty()) {
+                List<String> arguments;
+                for (const auto &arg : symbol.arguments) {
+                    Symbol sym = project()->findSymbol(arg);
+                    if (sym.isNull()) {
+                        String str = " ";
+                        toString(str, arg, flags);
+                        arguments << str;
+                    } else {
+                        arguments << symbolToElisp(sym, Mode_Argument);
+                    }
+                }
+
+                elisp(out, "arguments", arguments, flags | NoQuote);
+            }
+
             elisp(out, "symbolLength", static_cast<uint32_t>(symbol.symbolLength), flags);
             elisp(out, "kind", symbol.kind, flags | Quote);
             if (!symbol.typeName.isEmpty()) {
@@ -412,6 +429,7 @@ bool QueryJob::write(const Symbol &symbol,
                 break; }
             case Mode_Reference:
             case Mode_BaseClass:
+            case Mode_Argument:
                 break;
             case Mode_Target:
                 elisp(out, "TargetRank", RTags::targetRank(symbol.kind), flags);

@@ -77,12 +77,20 @@ String Symbol::toString(Flags<ToStringFlag> cursorInfoFlags,
         };
 
     List<String> bases;
+    List<String> args;
     if (project) {
         extern String findSymbolNameByUsr(const std::shared_ptr<Project> &, const String &, const Location &location);
         for (const auto &base : baseClasses) {
             const String symbolName = findSymbolNameByUsr(project, base, location);
             if (!symbolName.isEmpty()) {
                 bases << symbolName;
+            }
+        }
+        extern String findSymbolNameByLocation(const std::shared_ptr<Project> &project, const Location &location);
+        for (const auto &arg : arguments) {
+            const String symbolName = findSymbolNameByLocation(project, arg);
+            if (!symbolName.isEmpty()) {
+                args << symbolName;
             }
         }
     } else {
@@ -113,6 +121,7 @@ String Symbol::toString(Flags<ToStringFlag> cursorInfoFlags,
                                       "%s" // sizeof
                                       "%s" // fieldoffset
                                       "%s" // alignment
+                                      "%s" // arguments
                                       "%s" // baseclasses
                                       "%s" // briefComment
                                       "%s", // xmlComment
@@ -131,6 +140,7 @@ String Symbol::toString(Flags<ToStringFlag> cursorInfoFlags,
                                       size > 0 ? String::format<16>("sizeof: %d\n", size).constData() : "",
                                       fieldOffset >= 0 ? String::format<32>("field offset (bits/bytes): %d/%d\n", fieldOffset, fieldOffset / 8).constData() : "",
                                       alignment >= 0 ? String::format<32>("alignment (bytes): %d\n", alignment).constData() : "",
+                                      args.isEmpty() ? "" : String::format<1024>("Arguments: %s\n", String::join(args, ", ").constData()).constData(),
                                       bases.isEmpty() ? "" : String::format<64>("BaseClasses: %s\n", String::join(bases, ", ").constData()).constData(),
                                       briefComment.isEmpty() ? "" : String::format<1024>("Brief comment: %s\n", briefComment.constData()).constData(),
                                       xmlComment.isEmpty() ? "" : String::format<16384>("Xml comment: %s\n", xmlComment.constData()).constData());

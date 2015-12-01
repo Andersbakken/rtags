@@ -52,6 +52,15 @@ String findSymbolNameByUsr(const std::shared_ptr<Project> &project, const String
     return ret;
 }
 
+String findSymbolNameByLocation(const std::shared_ptr<Project> &project, const Location &location)
+{
+    String ret;
+    if (project) {
+        ret = project->findSymbol(location).symbolName;
+    }
+    return ret;
+}
+
 Set<Symbol> findTargets(const std::shared_ptr<Project> &project, const Symbol &symbol)
 {
     if (project) {

@@ -1047,6 +1047,17 @@ void ClangIndexer::handleBaseClassSpecifier(const CXCursor &cursor)
     lastClass.baseClasses << usr;
 }
 
+void ClangIndexer::addArguments(Symbol *sym, const CXCursor &cursor)
+{
+    const int count = clang_Cursor_getNumArguments(cursor);
+    if (count > 0) {
+        sym->arguments.resize(count);
+        for (int i=0; i<count; ++i) {
+            sym->arguments[i] = createLocation(clang_Cursor_getArgument(cursor, i));
+        }
+    }
+}
+
 bool ClangIndexer::handleCursor(const CXCursor &cursor, CXCursorKind kind, const Location &location, Symbol **cursorPtr)
 {
     const String usr = ::usr(cursor);
@@ -1230,8 +1241,11 @@ bool ClangIndexer::handleCursor(const CXCursor &cursor, CXCursorKind kind, const
         if (clang_Cursor_isVariadic(cursor))
             c.flags |= Symbol::Variadic;
 #endif
+        addArguments(&c, cursor);
         break;
     case CXCursor_Constructor:
+        addArguments(&c, cursor);
+        // fall through
     case CXCursor_Destructor:
         // these are for joining constructors/destructor with their classes (for renaming symbols)
         assert(!::usr(clang_getCursorSemanticParent(cursor)).isEmpty());
