@@ -1374,7 +1374,7 @@ to case differences."
           (find-file-other-window file-or-buffer)
         (find-file file-or-buffer))
     (let ((buf (get-buffer file-or-buffer)))
-      (cond ((not buf) (message "No buffer named %s" file-or-buffer))
+      (cond ((not buf) (message "No buffer named \"%s\"" file-or-buffer))
             (other-window (switch-to-buffer-other-window file-or-buffer))
             (t (switch-to-buffer file-or-buffer))))))
 
