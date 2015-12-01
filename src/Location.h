@@ -16,11 +16,14 @@
 #ifndef Location_h
 #define Location_h
 
+#include <algorithm>
 #include <assert.h>
 #include <clang-c/Index.h>
 #include <stdio.h>
 #if defined(OS_Linux)
 #include <linux/limits.h>
+#elif defined(OS_Darwin)
+#include <sys/syslimits.h>
 #endif
 #ifndef RTAGS_SINGLE_THREAD
 #include <mutex>

@@ -16,12 +16,14 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 #ifndef RTags_h
 #define RTags_h
 
-#include <stdio.h>
 #include <assert.h>
+#include <ctype.h>
 #include <getopt.h>
 #include <typeinfo>
+#include <utility>
 
 #include <clang/Basic/Version.h>
+#include <clang-c/Index.h>
 
 #include "FixIt.h"
 #include "Location.h"
@@ -30,6 +32,7 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 #include "rct/Flags.h"
 #include "rct/Log.h"
 #include "rct/Path.h"
+#include "rct/Set.h"
 #include "rct/String.h"
 
 class Database;

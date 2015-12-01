@@ -16,9 +16,11 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 #ifndef QUERYMESSAGE_H
 #define QUERYMESSAGE_H
 
+#include <algorithm>
 #include "Location.h"
 #include "Match.h"
 #include "rct/Flags.h"
+#include "rct/Log.h"
 #include "rct/Path.h"
 #include "rct/Serializer.h"
 #include "RTags.h"

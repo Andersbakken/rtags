@@ -17,10 +17,12 @@
 #define RTagsCursor_h
 
 #include <clang-c/Index.h>
+#include <memory>
 #include <stdint.h>
 
 #include "Location.h"
 #include "rct/Flags.h"
+#include "rct/List.h"
 #include "rct/Serializer.h"
 #include "rct/String.h"
 

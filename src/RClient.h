@@ -18,7 +18,9 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 
 #include "QueryMessage.h"
 #include "rct/List.h"
+#include "rct/Message.h"
 #include "rct/Path.h"
+#include "rct/Set.h"
 #include "rct/String.h"
 
 class RCCommand;

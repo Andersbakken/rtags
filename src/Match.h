@@ -18,8 +18,10 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 
 #include <regex>
 
-#include <rct/Flags.h>
+#include "Location.h"
+#include "rct/Flags.h"
 #include "rct/Log.h"
+#include "rct/Rct.h"
 #include "rct/String.h"
 
 class Match

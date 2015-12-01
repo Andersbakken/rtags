@@ -18,6 +18,8 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 
 #include "rct/Message.h"
 #include "rct/String.h"
+#include <cstdint>
+#include <string.h>
 
 class RTagsMessage : public Message
 {
