@@ -24,6 +24,7 @@
 #include "Source.h"
 
 class Connection;
+struct Dep;
 class DumpThread : public Thread
 {
 public:
@@ -69,14 +70,6 @@ private:
     void handleInclude(const Location &loc, const CXCursor &cursor);
     void handleReference(const Location &loc, const CXCursor &ref);
     void checkIncludes();
-
-    struct Dep : public DependencyNode
-    {
-        Dep(uint32_t f)
-            : DependencyNode(f)
-        {}
-        Set<Dep*> references, referencedBy;
-    };
 
     const Flags<QueryMessage::Flag> mQueryFlags;
     const Source mSource;

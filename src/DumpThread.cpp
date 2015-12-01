@@ -19,6 +19,14 @@
 #include "RTags.h"
 #include "Server.h"
 
+struct Dep : public DependencyNode
+{
+    Dep(uint32_t f)
+        : DependencyNode(f)
+    {}
+    Hash<uint32_t, Map<Location, Location> > references;
+};
+
 DumpThread::DumpThread(const std::shared_ptr<QueryMessage> &queryMessage, const Source &source, const std::shared_ptr<Connection> &conn)
     : Thread(), mQueryFlags(queryMessage->flags()), mSource(source), mConnection(conn), mIndentLevel(0), mAborted(false)
 {
@@ -43,6 +51,7 @@ CXChildVisitResult DumpThread::visit(const CXCursor &cursor)
     if (!location.isNull()) {
         if (mQueryFlags & QueryMessage::DumpCheckIncludes) {
             checkIncludes(location, cursor);
+            return CXChildVisit_Recurse;
         } else {
             Flags<Location::ToStringFlag> locationFlags;
             if (mQueryFlags & QueryMessage::NoColor)
@@ -170,18 +179,19 @@ void DumpThread::handleInclude(const Location &loc, const CXCursor &cursor)
 
 void DumpThread::handleReference(const Location &loc, const CXCursor &ref)
 {
+    if (clang_getCursorKind(ref) == CXCursor_Namespace)
+        return;
     const Location refLoc = createLocation(ref);
-    if (refLoc.isNull())
+    if (refLoc.isNull() || refLoc.fileId() == loc.fileId())
         return;
 
     Dep *dep = mDependencies[loc.fileId()];
     assert(dep);
     Dep *refDep = mDependencies[refLoc.fileId()];
     assert(refDep);
-    dep->references.insert(refDep);
-    refDep->referencedBy.insert(dep);
+    auto &refs = dep->references[refDep->fileId];
+    refs[loc] = refLoc;
 }
-
 
 void DumpThread::checkIncludes(const Location &location, const CXCursor &cursor)
 {
@@ -189,46 +199,85 @@ void DumpThread::checkIncludes(const Location &location, const CXCursor &cursor)
         handleInclude(location, cursor);
     } else {
         const CXCursor ref = clang_getCursorReferenced(cursor);
-        if (!clang_equalCursors(ref, cursor) && !clang_equalCursors(ref, nullCursor)) {
+        if (!clang_equalCursors(cursor, nullCursor) && !clang_equalCursors(cursor, ref)) {
             handleReference(location, ref);
         }
     }
 }
 
-void DumpThread::checkIncludes()
+static bool validateHasInclude(uint32_t ref, const Dep *cur, Set<uint32_t> &seen)
 {
-    std::function<bool(Dep *, Dep *, Set<uint32_t> &, int)> validate = [this, &validate](Dep *source, Dep *header, Set<uint32_t> &seen, int depth) {
-        // error() << depth << "Checking" << Location::path(source->fileId) << Location::path(header->fileId);
-        if (!seen.insert(source->fileId)) {
-            // error() << "already seen" << Location::path(source->fileId);
-            return false;
-        }
-        if (source->references.contains(header)) {
-            // error() << "Got ref" << Location::path(header->fileId);
+    assert(ref);
+    assert(cur);
+    if (cur->includes.contains(ref))
+        return true;
+    if (!seen.insert(ref))
+        return false;
+    for (const auto &pair : cur->includes) {
+        if (validateHasInclude(ref, static_cast<const Dep*>(pair.second), seen))
+            return true;
+    }
+    return false;
+}
+
+static bool validateNeedsInclude(const Dep *source, const Dep *header, Set<uint32_t> &seen)
+{
+    if (!seen.insert(header->fileId)) {
+        // error() << "already seen" << Location::path(source->fileId);
+        return false;
+    }
+    if (source->references.contains(header->fileId)) {
+        // error() << "Got ref" << Location::path(header->fileId);
+        return true;
+    }
+    for (const auto &child : header->includes) {
+        // error() << "Checking child" << Location::path(child.second->fileId);
+        if (validateNeedsInclude(source, static_cast<const Dep*>(child.second), seen)) {
             return true;
         }
-        for (const auto &child : source->includes) {
-            // error() << "Checking child" << Location::path(child.second->fileId);
-            if (validate(static_cast<Dep*>(child.second), header, seen, depth + 1)) {
-                return true;
+    }
+
+    // error() << "Checking" << Location::path(source->fileId) << "doesn't seem to need" << Location::path(header->fileId) << depth;
+    return false;
+}
+
+void DumpThread::checkIncludes()
+{
+    for (const auto &it : mDependencies) {
+        const Path path = Location::path(it.first);
+        if (path.isSystem())
+            continue;
+
+        for (const auto &dep  : it.second->includes) {
+            Set<uint32_t> seen;
+            if (!validateNeedsInclude(it.second, static_cast<Dep*>(dep.second), seen)) {
+                writeToConnetion(String::format<128>("%s includes %s for no reason",
+                                                     path.constData(),
+                                                     Location::path(dep.second->fileId).constData()));
             }
         }
 
-        // error() << "Checking" << Location::path(source->fileId) << "doesn't seem to need" << Location::path(header->fileId) << depth;
-        return false;
-    };
-    for (const auto &it : mDependencies) {
-        // error() << "got it" << Location::path(it.first);
-        for (const auto &dep  : it.second->includes) {
-            // error() << "got include" << Location::path(dep.first);
-            if (Location::path(it.first).isSystem())
+        for (const auto &ref : it.second->references) {
+            const Path refPath = Location::path(ref.first);
+            if (refPath.startsWith("/usr/include/sys/_types/_") || refPath.startsWith("/usr/include/_types/_"))
                 continue;
-
             Set<uint32_t> seen;
-            if (!validate(it.second, static_cast<Dep*>(dep.second), seen, 0)) {
-                writeToConnetion(String::format<128>("%s includes %s for no reason",
+            if (!validateHasInclude(ref.first, it.second, seen)) {
+                List<String> reasons;
+                for (const auto &r : ref.second) {
+                    String reason;
+                    Log log(&reason);
+                    log << r.first << "=>" << r.second;
+                    reasons << reason;
+                }
+                writeToConnetion(String::format<128>("%s should include %s (%s)",
                                                      Location::path(it.first).constData(),
-                                                     Location::path(dep.second->fileId).constData()));
+                                                     Location::path(ref.first).constData(),
+                                                     String::join(reasons, " ").constData()));
+                // for (const auto &incs : mDependencies[ref.first]->dependents) {
+                //     writeToConnetion(String::format<128>("GOT INCLUDER %s:%d", Location::path(incs.first).constData(),
+                //                                          incs.first));
+                // }
             }
         }
     }

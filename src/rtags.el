@@ -1393,22 +1393,22 @@ to case differences."
 
 (defun rtags-absolutify (location)
   (when location
-  (save-match-data
-    (when (not (string-match "^/" location))
-      (unless rtags-current-project
-        (let ((file rtags-current-file)
-              (project))
-          (with-temp-buffer
-            (rtags-call-rc "--current-project" :path file)
-            (when (> (point-max) (point-min))
-              (setq project (buffer-substring-no-properties (point-min) (1- (point-max))))))
-          (setq rtags-current-project project)))
-      (when rtags-current-project
-        (setq location (concat rtags-current-project location))))
-    (unless (string-match "^/" location)
-      (with-temp-buffer
-        (rtags-call-rc "--current-project" :path rtags-current-file)
-        (setq location (concat (buffer-substring-no-properties (point-min) (1- (point-max))) location)))))
+    (save-match-data
+      (when (not (string-match "^/" location))
+        (unless rtags-current-project
+          (let ((file rtags-current-file)
+                (project))
+            (with-temp-buffer
+              (rtags-call-rc "--current-project" :path file)
+              (when (> (point-max) (point-min))
+                (setq project (buffer-substring-no-properties (point-min) (1- (point-max))))))
+            (setq rtags-current-project project)))
+        (when rtags-current-project
+          (setq location (concat rtags-current-project location))))
+      (unless (string-match "^/" location)
+        (with-temp-buffer
+          (rtags-call-rc "--current-project" :path rtags-current-file)
+          (setq location (concat (buffer-substring-no-properties (point-min) (1- (point-max))) location)))))
     location))
 
 (defun rtags-goto-location (location &optional nobookmark other-window)
@@ -1417,7 +1417,21 @@ to case differences."
   (setq location (rtags-absolutify location))
 
   (when (> (length location) 0)
-    (cond ((string-match "\\(.*\\):\\([0-9]+\\):\\([0-9]+\\):?" location)
+    (cond ((string-match "\\(.*\\) includes /.*" location)
+           (rtags-find-file-or-buffer (match-string-no-properties 1 location) other-window)
+           (run-hooks 'rtags-after-find-file-hook)
+           t)
+          ((and (string-match "[^ ]* should include /" location)
+                (string= (buffer-substring-no-properties (point-at-bol) (+ (point-at-bol) (length location)))
+                         location))
+           (save-excursion
+             (if (search-backward-regexp "[ (]" (point-at-bol) t)
+                 (forward-char 1)
+               (goto-char (point-at-bol)))
+             (let ((pos (point)))
+               (search-forward-regexp " ")
+               (rtags-goto-location (buffer-substring-no-properties pos (1- (point))) nobookmark other-window))))
+          ((string-match "\\(.*\\):\\([0-9]+\\):\\([0-9]+\\):?" location)
            (let ((line (string-to-number (match-string-no-properties 2 location)))
                  (column (string-to-number (match-string-no-properties 3 location))))
              (rtags-find-file-or-buffer (match-string-no-properties 1 location) other-window)
@@ -1437,10 +1451,6 @@ to case differences."
              (run-hooks 'rtags-after-find-file-hook)
              (rtags-goto-offset offset)
              t))
-          ((string-match "\\(.*\\) includes /.*" location)
-           (rtags-find-file-or-buffer (match-string-no-properties 1 location) other-window)
-           (run-hooks 'rtags-after-find-file-hook)
-           t)
           (t
            (when (string-match "^ +\\(.*\\)$" location)
              (setq location (match-string-no-properties 1 location)))
@@ -3447,18 +3457,41 @@ If `rtags-display-summary-as-tooltip' is t, a tooltip is displayed."
         (goto-char (cdr loc))
         (insert (cdr (assoc 'symbolName member)) "\n{}")))))
 
+(defvar rtags-check-includes-received-output nil)
+(defun rtags-check-includes-filter (process output)
+  (with-current-buffer (process-buffer process)
+    (let ((buffer-read-only nil))
+      (unless rtags-check-includes-received-output
+        (setq rtags-check-includes-received-output t)
+        (erase-buffer))
+      (goto-char (point-max))
+      (insert output))))
+
+(defun rtags-check-includes-sentinel (process event)
+  (let ((status (process-status process)))
+    (when (memq status '(exit signal closed failed))
+      (goto-char (point-min)))))
+
 (defun rtags-check-includes ()
   (interactive)
   (let ((filename (buffer-file-name)))
     (unless filename
       (error "You need to call rtags-check-includes from an actual file"))
-    (switch-to-buffer (rtags-get-buffer))
+    (switch-to-buffer (rtags-get-buffer "*RTags check includes*"))
     (rtags-mode)
-    (start-process "*RTags check includes*"
-                   (current-buffer)
-                   (rtags-executable-find "rc")
-                   "--current-file" filename
-                   "--check-includes" filename)))
+    (setq-local rtags-check-includes-received-output nil)
+    (let ((buffer-read-only nil))
+      (insert "Waiting for rdm..."))
+    (goto-char (point-min))
+    (let ((proc (start-process "*RTags check includes*"
+                               (current-buffer)
+                               (rtags-executable-find "rc")
+                               "--current-file" filename
+                               "--check-includes" filename)))
+      (set-process-query-on-exit-flag proc nil)
+      (set-process-filter proc 'rtags-check-includes-filter)
+      (set-process-sentinel proc 'rtags-check-includes-sentinel))))
+
 
 (provide 'rtags)
 
