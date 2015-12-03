@@ -3343,6 +3343,7 @@ If `rtags-display-summary-as-tooltip' is t, a tooltip is displayed."
   t)
 (add-hook 'find-file-hook 'rtags-find-file-hook)
 
+;;;###autoload
 (defun rtags-get-include-file-for-symbol ()
   "Insert #include declaration to buffer corresponding to the input symbol."
   (interactive)
@@ -3427,7 +3428,6 @@ If `rtags-display-summary-as-tooltip' is t, a tooltip is displayed."
                                        (cdr (assoc 'endColumn sym)))
                   (cons buffer (1+ (point))))))))))))
 
-
 (defun rtags-find-peer (range)
   (let (loc)
     (save-excursion
@@ -3445,6 +3445,7 @@ If `rtags-display-summary-as-tooltip' is t, a tooltip is displayed."
         (setq loc (rtags-peer-member-end-location))))
     loc))
 
+;;;###autoload
 (defun rtags-make-member ()
   (interactive)
   (let* ((member (rtags-symbol-info-internal))
@@ -3489,6 +3490,7 @@ If `rtags-display-summary-as-tooltip' is t, a tooltip is displayed."
     (when (memq status '(exit signal closed failed))
       (goto-char (point-min)))))
 
+;;;###autoload
 (defun rtags-check-includes ()
   (interactive)
   (let ((filename (buffer-file-name)))
@@ -3509,6 +3511,7 @@ If `rtags-display-summary-as-tooltip' is t, a tooltip is displayed."
       (set-process-filter proc 'rtags-check-includes-filter)
       (set-process-sentinel proc 'rtags-check-includes-sentinel))))
 
+;;;###autoload
 (defun rtags-create-doxygen-comment ()
   "Creates doxygen comment for function at point Comment will be inserted before current line. It uses yasnippet to let the user enter missing field manually."
   (interactive)
