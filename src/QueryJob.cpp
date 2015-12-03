@@ -439,7 +439,7 @@ bool QueryJob::write(const Symbol &symbol,
             case Mode_Argument:
                 break;
             case Mode_Target:
-                elisp(out, "TargetRank", RTags::targetRank(symbol.kind), flags);
+                elisp(out, "targetRank", RTags::targetRank(symbol.kind), flags);
                 break;
             }
             out.chop(1);
