@@ -3509,6 +3509,37 @@ If `rtags-display-summary-as-tooltip' is t, a tooltip is displayed."
       (set-process-filter proc 'rtags-check-includes-filter)
       (set-process-sentinel proc 'rtags-check-includes-sentinel))))
 
+(defun rtags-create-doxygen-comment ()
+  "Creates doxygen comment for function at point Comment will be inserted before current line. It uses yasnippet to let the user enter missing field manually."
+  (interactive)
+  (save-some-buffers) ;; it all kinda falls apart when buffers are unsaved
+  (let ((symbol (rtags-symbol-info-internal)))
+    (unless symbol
+      (error "Can't find symbol here"))
+    (let* ((type (cdr (assoc 'type symbol)))
+           (return-val (and (string-match "^\\([^)]*\\) (.*" type)
+                            (match-string 1 type)))
+;;           (args (mapcar (lambda (arg) (cdr (assoc 'symbolName arg))) (cdr (assoc 'arguments symbol))))
+           (index 2)
+           (snippet (concat "/** @Brief ${1:Function description}\n"
+                            (mapconcat (lambda (arg)
+                                         (let ((ret (format " * @param <b>{%s}</b> ${%d:Parameter description}"
+                                                            (cdr (assoc 'symbolName arg)) index)))
+                                           (incf index)
+                                           ret))
+                                       (cdr (assoc 'arguments symbol))
+                                       "\n")
+                            (unless (string= return-val "void")
+                              (format "%s * @return <b>{%s}</b> ${%d:Return value description}\n"
+                                      (if (eq index 2)
+                                          ""
+                                        "\n")
+                                      return-val index))
+                            " */\n")))
+      (beginning-of-line)
+      (yas-expand-snippet snippet (point) (point) nil))))
+
+
 
 (provide 'rtags)
 
