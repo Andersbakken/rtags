@@ -1600,7 +1600,7 @@ static Set<Symbol> findReferences(const Symbol &in,
         s = in;
     }
 
-    // error() << "findReferences" << s.location;
+    // error() << "findReferences" << s.location << in.location << s.kind;
     switch (s.kind) {
     case CXCursor_CXXMethod:
         if (s.flags & Symbol::VirtualMethod) {
@@ -1614,6 +1614,7 @@ static Set<Symbol> findReferences(const Symbol &in,
     case CXCursor_ClassDecl:
     case CXCursor_StructDecl:
     case CXCursor_UnionDecl:
+    case CXCursor_VarDecl:
     case CXCursor_TypedefDecl:
     case CXCursor_Namespace:
     case CXCursor_Constructor:
