@@ -367,8 +367,11 @@ bool QueryJob::write(const Symbol &symbol,
                 elisp(out, "alignment", symbol.alignment, flags);
             if (symbol.kind == CXCursor_EnumConstantDecl)
                 elisp(out, "enumValue", symbol.enumValue, flags);
-            if (symbol.isDefinition())
+            if (symbol.isDefinition()) {
                 elisp(out, "definition", true, flags);
+            } else if (symbol.isReference()) {
+                elisp(out, "reference", true, flags);
+            }
             if (symbol.isContainer())
                 elisp(out, "container", true, flags);
             if ((symbol.flags & Symbol::PureVirtualMethod) == Symbol::PureVirtualMethod)
