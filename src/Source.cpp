@@ -200,7 +200,7 @@ static inline void addIncludeArg(List<Source::Include> &includePaths,
                     }
                 }
             } else {
-                type = Source::Include::Type_PCH;
+                type = Source::Include::Type_FileInclude;
             }
         }
     };
@@ -217,9 +217,6 @@ static inline void addIncludeArg(List<Source::Include> &includePaths,
         path = Path::resolved(arg.mid(argLen), Path::MakeAbsolute, cwd);
         if (type == Source::Include::Type_None) {
             fixPCHPath();
-            if (type == Source::Include::Type_None) {
-                arguments.append(arg.left(argLen) + path);
-            }
         }
     }
     if (type != Source::Include::Type_None) {
@@ -567,7 +564,7 @@ List<Source> Source::parse(const String &cmdLine,
                 addIncludeArg(includePaths, arguments, Source::Include::Type_SystemFramework, 11, split, i, path);
 #endif
             } else if (arg.startsWith("-include")) {
-                addIncludeArg(includePaths, arguments, Source::Include::Type_FileInclude, 8, split, i, path);
+                addIncludeArg(includePaths, arguments, Source::Include::Type_None, 8, split, i, path);
             } else if (arg.startsWith("-isystem")) {
                 addIncludeArg(includePaths, arguments, Source::Include::Type_System, 8, split, i, path);
             } else if (arg.startsWith("-iquote")) {
@@ -879,9 +876,8 @@ List<String> Source::toCommandLine(Flags<CommandLineFlag> flags) const
                 ret << "-iframework" << inc.path;
                 break;
             case Source::Include::Type_FileInclude:
-                ret << "-include" << inc.path;
-                break;
             case Source::Include::Type_PCH:
+                ret << "-include" << inc.path;
                 break;
             }
         }
@@ -904,9 +900,8 @@ List<String> Source::toCommandLine(Flags<CommandLineFlag> flags) const
                     ret << "-iframework" << inc.path;
                     break;
                 case Source::Include::Type_FileInclude:
-                    ret << "-include" << inc.path;
-                    break;
                 case Source::Include::Type_PCH:
+                    ret << "-include" << inc.path;
                     break;
                 }
             }
