@@ -108,6 +108,9 @@ String IndexerJob::encode() const
         for (const auto &inc : options.includePaths) {
             copy.includePaths << inc;
         }
+        if (Server::instance()->options().options & Server::PCHEnabled)
+            proj->fixPCH(copy);
+
         copy.defines << options.defines;
         if (!(options.options & Server::EnableNDEBUG)) {
             copy.defines.remove(Source::Define("NDEBUG"));

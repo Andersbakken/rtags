@@ -1274,7 +1274,10 @@ bool ClangIndexer::parse()
     assert(!mIndex);
     mIndex = clang_createIndex(0, 1);
     assert(mIndex);
-    const Flags<Source::CommandLineFlag> commandLineFlags = Source::Default;
+    Flags<Source::CommandLineFlag> commandLineFlags = Source::Default;
+    if (ClangIndexer::serverOpts() & Server::PCHEnabled)
+        commandLineFlags |= Source::PCHEnabled;
+
     Flags<CXTranslationUnit_Flags> flags = CXTranslationUnit_DetailedPreprocessingRecord;
     bool pch;
     switch (mSource.language) {
@@ -1305,15 +1308,11 @@ bool ClangIndexer::parse()
     // for (const auto it : mSource.toCommandLine(commandLineFlags)) {
     //     error("[%s]", it.constData());
     // }
-    List<String> args = mSource.toCommandLine(commandLineFlags);
-    if (ClangIndexer::serverOpts() & Server::PCHEnabled) {
-        for (const Source::Include &inc : mSource.includePaths) {
-            if (inc.type == Source::Include::Type_PCH && inc.path.isFile()) {
-                args << "-include-pch" << inc.path;
-                mIndexDataMessage.setFlag(IndexDataMessage::UsedPCH);
-            }
-        }
-    }
+    bool usedPch = false;
+    const List<String> args = mSource.toCommandLine(commandLineFlags, &usedPch);
+    if (usedPch)
+        mIndexDataMessage.setFlag(IndexDataMessage::UsedPCH);
+
     RTags::parseTranslationUnit(mSourceFile, args, mClangUnit,
                                 mIndex, &unsavedFiles[0], unsavedIndex, flags, &mClangLine);
 

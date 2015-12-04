@@ -2357,9 +2357,10 @@ uint32_t Project::fileMapOptions() const
 void Project::fixPCH(Source &source)
 {
     for (Source::Include &inc : source.includePaths) {
-        if (inc.type == Source::Include::Type_PCH) {
+        if (inc.type == Source::Include::Type_FileInclude && inc.isPch()) {
             const uint32_t fileId = Location::insertFile(inc.path);
-            inc.path = RTags::encodeSourceFilePath(Server::instance()->options().dataDir, mPath, fileId) + "pch.h.gch";
+            inc.path = RTags::encodeSourceFilePath(Server::instance()->options().dataDir, mPath, fileId) + "pch.h";
+            error() << "PREPARING" << inc.path;
         }
     }
 }

@@ -179,7 +179,6 @@ static inline size_t hashIncludePaths(const List<Source::Include> &includes, con
 }
 
 static inline void addIncludeArg(List<Source::Include> &includePaths,
-                                 List<String> &arguments,
                                  Source::Include::Type type,
                                  int argLen,
                                  const List<String> &args,
@@ -188,42 +187,13 @@ static inline void addIncludeArg(List<Source::Include> &includePaths,
 {
     const String &arg = args.at(idx);
     Path path;
-    auto fixPCHPath = [&path, cwd, &type]() {
-        if (!path.isDir()) {
-            if (!path.exists()) {
-                for (const char *suffix : { ".gch", ".pch" }) {
-                    const Path p = Path::resolved(path + suffix, Path::MakeAbsolute, cwd);
-                    if (p.exists()) {
-                        path = p.mid(0, p.size() - 4);
-                        type = Source::Include::Type_PCH;
-                        break;
-                    }
-                }
-            } else {
-                type = Source::Include::Type_FileInclude;
-            }
-        }
-    };
     if (arg.size() == argLen) {
         path = Path::resolved(args.value(++idx), Path::MakeAbsolute, cwd);
-        if (type == Source::Include::Type_None) {
-            fixPCHPath();
-            if (type == Source::Include::Type_None) {
-                arguments.append(arg);
-                arguments.append(path);
-            }
-        }
     } else {
         path = Path::resolved(arg.mid(argLen), Path::MakeAbsolute, cwd);
-        if (type == Source::Include::Type_None) {
-            fixPCHPath();
-        }
     }
-    if (type != Source::Include::Type_None) {
-        includePaths.append(Source::Include(type, path));
-    }
+    includePaths.append(Source::Include(type, path));
 }
-
 
 static const char* valueArgs[] = {
     "-I",
@@ -541,7 +511,7 @@ List<Source> Source::parse(const String &cmdLine,
                     defines.insert(define);
                 }
             } else if (arg.startsWith("-I")) {
-                addIncludeArg(includePaths, arguments, Source::Include::Type_Include, 2, split, i, path);
+                addIncludeArg(includePaths, Source::Include::Type_Include, 2, split, i, path);
 #ifdef OS_Darwin
             } else if (arg == "-arch") {
                 // Limit -arch to a single format i368/x86_64. Darwin allows
@@ -559,18 +529,20 @@ List<Source> Source::parse(const String &cmdLine,
 
                 // Framework includes
             } else if (arg.startsWith("-F")) {
-                addIncludeArg(includePaths, arguments, Source::Include::Type_Framework, 2, split, i, path);
+                addIncludeArg(includePaths, Source::Include::Type_Framework, 2, split, i, path);
             } else if (arg.startsWith("-iframework")) {
-                addIncludeArg(includePaths, arguments, Source::Include::Type_SystemFramework, 11, split, i, path);
+                addIncludeArg(includePaths, Source::Include::Type_SystemFramework, 11, split, i, path);
 #endif
             } else if (arg.startsWith("-include")) {
-                addIncludeArg(includePaths, arguments, Source::Include::Type_None, 8, split, i, path);
+                addIncludeArg(includePaths, Source::Include::Type_FileInclude, 8, split, i, path);
+            } else if (arg.startsWith("-include-pch")) {
+                addIncludeArg(includePaths, Source::Include::Type_FileInclude, 8, split, i, path);
             } else if (arg.startsWith("-isystem")) {
-                addIncludeArg(includePaths, arguments, Source::Include::Type_System, 8, split, i, path);
+                addIncludeArg(includePaths, Source::Include::Type_System, 8, split, i, path);
             } else if (arg.startsWith("-iquote")) {
-                addIncludeArg(includePaths, arguments, Source::Include::Type_None, 7, split, i, path);
+                addIncludeArg(includePaths, Source::Include::Type_FileInclude, 7, split, i, path);
             } else if (arg.startsWith("-cxx-isystem")) {
-                addIncludeArg(includePaths, arguments, Source::Include::Type_System, 12, split, i, path);
+                addIncludeArg(includePaths, Source::Include::Type_System, 12, split, i, path);
             } else if (arg == "-ObjC++") {
                 language = ObjectiveCPlusPlus;
                 arguments.append(arg);
@@ -805,8 +777,10 @@ bool Source::compareArguments(const Source &other) const
     return false;
 }
 
-List<String> Source::toCommandLine(Flags<CommandLineFlag> flags) const
+List<String> Source::toCommandLine(Flags<CommandLineFlag> flags, bool *usedPch) const
 {
+    if (usedPch)
+        *usedPch = false;
     const Server::Options *options = serverOptions();
     if (!options)
         flags |= (ExcludeDefaultArguments|ExcludeDefaultDefines|ExcludeDefaultIncludePaths);
@@ -876,8 +850,15 @@ List<String> Source::toCommandLine(Flags<CommandLineFlag> flags) const
                 ret << "-iframework" << inc.path;
                 break;
             case Source::Include::Type_FileInclude:
-            case Source::Include::Type_PCH:
-                ret << "-include" << inc.path;
+                if (inc.isPch()) {
+                    if (flags & PCHEnabled) {
+                        if (usedPch)
+                            *usedPch = true;
+                        ret << "-include-pch" << (inc.path + ".gch");
+                    }
+                } else if (inc.path.exists()) {
+                    ret << "-include" << inc.path;
+                }
                 break;
             }
         }
@@ -900,7 +881,6 @@ List<String> Source::toCommandLine(Flags<CommandLineFlag> flags) const
                     ret << "-iframework" << inc.path;
                     break;
                 case Source::Include::Type_FileInclude:
-                case Source::Include::Type_PCH:
                     ret << "-include" << inc.path;
                     break;
                 }
@@ -916,3 +896,15 @@ List<String> Source::toCommandLine(Flags<CommandLineFlag> flags) const
 
     return ret;
 }
+
+bool Source::Include::isPch() const
+{
+    for (const char *suffix : { ".gch", ".pch" }) {
+        const Path p = path + suffix;
+        if (p.isFile()) {
+            return true;
+        }
+    }
+    return false;
+}
+

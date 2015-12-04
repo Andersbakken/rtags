@@ -68,6 +68,7 @@ struct Source
         ExcludeDefaultIncludePaths = 0x100,
         ExcludeDefaultDefines = 0x200,
         IncludeRTagsConfig = 0x400,
+        PCHEnabled = 0x800,
         Default = IncludeDefines|IncludeIncludepaths|FilterBlacklist|IncludeRTagsConfig
     };
 
@@ -101,12 +102,12 @@ struct Source
             Type_Framework,
             Type_System,
             Type_SystemFramework,
-            Type_FileInclude,
-            Type_PCH
+            Type_FileInclude
         };
         Include(Type t = Type_None, const Path &p = Path())
             : type(t), path(p)
         {}
+        bool isPch() const;
 
         Type type;
         Path path;
@@ -118,7 +119,6 @@ struct Source
             case Type_Framework: return String::format<128>("-F%s", path.constData());
             case Type_System: return String::format<128>("-isystem %s", path.constData());
             case Type_SystemFramework: return String::format<128>("-iframework %s", path.constData());
-            case Type_PCH: return String::format<128>("-include-pch %s", path.constData());
             case Type_FileInclude: return String::format<128>("-include %s", path.constData());
             case Type_None: break;
             }
@@ -168,7 +168,8 @@ struct Source
     bool operator<(const Source &other) const;
     bool operator>(const Source &other) const;
 
-    List<String> toCommandLine(Flags<CommandLineFlag> flags = Flags<CommandLineFlag>()) const;
+    List<String> toCommandLine(Flags<CommandLineFlag> flags = Flags<CommandLineFlag>(),
+                               bool *usedPch = 0) const;
     inline bool isIndexable() const;
     static inline bool isIndexable(Language lang);
 
