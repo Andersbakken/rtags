@@ -3526,8 +3526,11 @@ If `rtags-display-summary-as-tooltip' is t, a tooltip is displayed."
            (index 2)
            (snippet (concat "/** @Brief ${1:Function description}\n"
                             (mapconcat (lambda (arg)
-                                         (let ((ret (format " * @param <b>{%s}</b> ${%d:Parameter description}"
-                                                            (cdr (assoc 'symbolName arg)) index)))
+                                         (let* ((complete-name (cdr (assoc 'symbolName arg)))
+                                                (symbol-type (cdr (assoc 'type arg)))
+                                                (symbol-name (substring complete-name (- 0 (cdr (assoc 'symbolLength arg)))))
+                                                (ret (format " * @param %s <b>{%s}</b> ${%d:Parameter description}"
+                                                             symbol-name symbol-type index)))
                                            (incf index)
                                            ret))
                                        (cdr (assoc 'arguments symbol))
