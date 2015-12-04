@@ -1228,7 +1228,7 @@ bool ClangIndexer::handleCursor(const CXCursor &cursor, CXCursorKind kind, const
 
         if (clang_CXXMethod_isStatic(cursor))
             c.flags |= Symbol::StaticMethod;
-#if CINDEX_VERSION >= CINDEX_VERSION_ENCODE(0, 24)
+#if CINDEX_VERSION >= CINDEX_VERSION_ENCODE(0, 27)
         if (clang_CXXMethod_isConst(cursor))
             c.flags |= Symbol::ConstMethod;
 #endif
