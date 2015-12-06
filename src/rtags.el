@@ -1220,17 +1220,37 @@ to case differences."
   )
 
 (defun rtags-insert-ref (ref level)
-  (insert (rtags-tree-indent level)
-          (cdr (assoc 'loc ref))
-          " "
-          (cdr (assoc 'ctx ref)))
-  (let ((cf (cdr (assoc 'cf ref))))
-    (when cf
-      (insert "\tCalled from: " cf)))
+  (let* ((location (cdr (assoc 'loc ref)))
+         (components
+          (and (string-match "^\\(.*?\\):\\([0-9]+\\):\\([0-9]+\\):?$" location)
+               (list (rtags-absolutify (match-string-no-properties 1 location))
+                     (string-to-number (match-string-no-properties 2 location))
+                     (string-to-number (match-string-no-properties 3 location)))))
+         (buffer (get-file-buffer (car components)))
+         (bookmark-idx
+          (when buffer
+            (let (deactivate-mark)
+              (with-current-buffer buffer
+                (save-restriction
+                  (widen)
+                  (when (rtags-goto-line-col (nth 1 components) (nth 2 components))
+                    (bookmark-set (format "RTags_%d" rtags-buffer-bookmarks))
+                    (incf rtags-buffer-bookmarks)
+                    (1- rtags-buffer-bookmarks))))))))
+    (insert (rtags-tree-indent level)
+            location
+            " "
+            (cdr (assoc 'ctx ref)))
+    (let ((cf (cdr (assoc 'cf ref))))
+      (when cf
+        (insert "\tCalled from: " cf)))
 
-  ;; (car ref) " " (cadr ref))
-  (set-text-properties (point-at-bol) (point-at-eol)
-                       (list 'rtags-ref-containing-function-location (cdr (assoc 'cfl  ref)))))
+    ;; (car ref) " " (cadr ref))
+    (set-text-properties (point-at-bol) (point-at-eol)
+                         (if bookmark-idx
+                             (list 'rtags-ref-containing-function-location (cdr (assoc 'cfl ref))
+                                   'rtags-bookmark-index (cons bookmark-idx (point-at-bol)))
+                           (list 'rtags-ref-containing-function-location (cdr (assoc 'cfl ref)))))))
 
 ;;;###autoload
 (defun rtags-references-tree ()
@@ -2388,7 +2408,7 @@ is true. References to references will be treated as references to the reference
                  (goto-char (match-beginning 4))
                  (insert "\n    ")
                  (incf end 5))
-               (set-text-properties start end (list 'rtags-result-index (cons bookmark-idx start)))))
+               (set-text-properties start end (list 'rtags-bookmark-index (cons bookmark-idx start)))))
            (forward-line))
          (shrink-window-if-larger-than-buffer)
          (rtags-mode)
@@ -2526,7 +2546,7 @@ is true. References to references will be treated as references to the reference
 ;;;###autoload
 (defun rtags-select (&optional other-window remove show)
   (interactive "P")
-  (let* ((idx (get-text-property (point) 'rtags-result-index))
+  (let* ((idx (get-text-property (point) 'rtags-bookmark-index))
          (line (line-number-at-pos))
          (bookmark (and (car idx) (format "RTags_%d" (car idx))))
          (window (selected-window)))
