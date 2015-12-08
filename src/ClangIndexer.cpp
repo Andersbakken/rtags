@@ -196,7 +196,6 @@ bool ClangIndexer::exec(const String &data)
     }
     if (mIndexDataMessage.indexerJobFlags() & IndexerJob::Dirty)
         message += " (dirty)";
-    ++mFileIdsQueried;
 
     mIndexDataMessage.setMessage(message);
     sw.restart();
