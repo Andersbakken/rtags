@@ -58,8 +58,8 @@ ClangIndexer::ClangIndexer()
     : mClangUnit(0), mIndex(0), mLastCursor(nullCursor), mVisitFileResponseMessageFileId(0),
       mVisitFileResponseMessageVisit(0), mParseDuration(0), mVisitDuration(0),
       mBlocked(0), mAllowed(0), mIndexed(1), mVisitFileTimeout(0),
-      mIndexDataMessageTimeout(0), mFileIdsQueried(0), mLogFile(0),
-      mConnection(Connection::create(RClient::NumOptions)),
+      mIndexDataMessageTimeout(0), mFileIdsQueried(0), mFileIdsQueriedTime(0),
+      mCursorsVisited(0), mLogFile(0), mConnection(Connection::create(RClient::NumOptions)),
       mUnionRecursion(false)
 {
     mConnection->newMessage().connect(std::bind(&ClangIndexer::onMessage, this,
@@ -186,12 +186,15 @@ bool ClangIndexer::exec(const String &data)
         symbolNameCount += unit.second->symbolNames.size();
     }
     if (mClangUnit) {
-        const char *format = "(%d syms, %d symNames, %d includes, %d of %d files, symbols: %d of %d, %d queried%s) (%d/%d/%dms)";
+        String queryData;
+        if (mFileIdsQueried)
+            queryData = String::format(", %d queried (%dms)", mFileIdsQueried, mFileIdsQueriedTime);
+        const char *format = "(%d syms, %d symNames, %d includes, %d of %d files, symbols: %d of %d, %d cursors%s%s) (%d/%d/%dms)";
         message += String::format<1024>(format, cursorCount, symbolNameCount,
                                         mIndexDataMessage.includes().size(), mIndexed,
                                         mIndexDataMessage.files().size(), mAllowed,
-                                        mAllowed + mBlocked, mFileIdsQueried,
-                                        mIndexDataMessage.flags() & IndexDataMessage::UsedPCH ? ", pch" : "",
+                                        mAllowed + mBlocked, mCursorsVisited,
+                                        queryData.constData(), mIndexDataMessage.flags() & IndexDataMessage::UsedPCH ? ", pch" : "",
                                         mParseDuration, mVisitDuration, writeDuration);
     }
     if (mIndexDataMessage.indexerJobFlags() & IndexerJob::Dirty)
@@ -281,6 +284,8 @@ Location ClangIndexer::createLocation(const Path &sourceFile, unsigned int line,
     mConnection->send(msg);
     StopWatch sw;
     EventLoop::eventLoop()->exec(mVisitFileTimeout);
+    const int elapsed = sw.elapsed();
+    mFileIdsQueriedTime += elapsed;
     switch (mVisitFileResponseMessageFileId) {
     case 0:
         return Location();
@@ -288,7 +293,7 @@ Location ClangIndexer::createLocation(const Path &sourceFile, unsigned int line,
         // timed out.
         if (mVisitFileResponseMessageFileId == UINT_MAX) {
             error() << "Error getting fileId for" << resolved << mLastCursor
-                    << sw.elapsed() << mVisitFileTimeout;
+                    << elapsed << mVisitFileTimeout;
         }
         exit(1);
     default:
@@ -593,6 +598,7 @@ struct Updater
 CXChildVisitResult ClangIndexer::indexVisitor(CXCursor cursor, CXCursor parent, CXClientData data)
 {
     ClangIndexer *indexer = static_cast<ClangIndexer*>(data);
+    ++indexer->mCursorsVisited;
     // error() << "indexVisitor" << cursor;
     // FILE *f = fopen("/tmp/clangindex.log", "a");
     // String str;

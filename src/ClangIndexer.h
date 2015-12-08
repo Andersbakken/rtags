@@ -175,7 +175,8 @@ private:
     Path mSocketFile;
     StopWatch mTimer;
     int mParseDuration, mVisitDuration, mBlocked, mAllowed,
-        mIndexed, mVisitFileTimeout, mIndexDataMessageTimeout, mFileIdsQueried;
+        mIndexed, mVisitFileTimeout, mIndexDataMessageTimeout,
+        mFileIdsQueried, mFileIdsQueriedTime, mCursorsVisited;
     UnsavedFiles mUnsavedFiles;
     List<String> mDebugLocations;
     FILE *mLogFile;
