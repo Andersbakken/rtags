@@ -1290,10 +1290,10 @@ to case differences."
       (with-temp-buffer
         (rtags-call-rc :path fn
                        "-r" loc
-                       "--no-sort-references-by-input"
                        "--elisp"
                        "--containing-function-location"
-                       "--containing-function")
+                       "--containing-function"
+                       (unless rtags-sort-references-by-input "--no-sort-references-by-input"))
         (setq refs
               (condition-case nil
                   (eval (read (current-buffer)))
