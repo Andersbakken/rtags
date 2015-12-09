@@ -468,7 +468,6 @@ to case differences."
 (defvar rtags-references-tree-mode-map nil)
 (setq rtags-references-tree-mode-map (make-sparse-keymap))
 (define-key rtags-references-tree-mode-map (kbd "TAB") 'rtags-references-tree-toggle-current-expanded)
-(define-key rtags-references-tree-mode-map (kbd "c") 'rtags-references-tree-collapse-all)
 (define-key rtags-references-tree-mode-map (kbd "-") 'rtags-references-tree-collapse-current)
 (define-key rtags-references-tree-mode-map (kbd "+") 'rtags-references-tree-expand-current)
 (define-key rtags-references-tree-mode-map (kbd "n") 'rtags-references-tree-next-level)
@@ -1187,6 +1186,7 @@ to case differences."
                           (and cur (> (cdr cur) (cdr current)))))
               (forward-line 1))
             (delete-region start (point))))
+        (rtags-references-tree-align-cfs)
         (setq buffer-read-only was)))))
 
 (defun rtags-references-tree-toggle-current-expanded ()
@@ -1242,15 +1242,17 @@ to case differences."
             location
             " "
             (cdr (assoc 'ctx ref)))
-    (let ((cf (cdr (assoc 'cf ref))))
+    (let ((cf (cdr (assoc 'cf ref)))
+          (props (list 'rtags-ref-containing-function-location (cdr (assoc 'cfl ref))))
+          (pos (point)))
+      (when bookmark-idx
+        (setq props (append props (list 'rtags-bookmark-index (cons bookmark-idx (point-at-bol))))))
       (when cf
-        (insert " <= " cf)))
+        (insert " <= " cf))
 
-    (set-text-properties (point-at-bol) (point-at-eol)
-                         (if bookmark-idx
-                             (list 'rtags-ref-containing-function-location (cdr (assoc 'cfl ref))
-                                   'rtags-bookmark-index (cons bookmark-idx (point-at-bol)))
-                           (list 'rtags-ref-containing-function-location (cdr (assoc 'cfl ref)))))))
+      (set-text-properties (point-at-bol) (point-at-eol) props)
+      (when cf
+        (set-text-properties pos (point) (append props (list 'rtags-ref-cf t)))))))
 
 (defun rtags-references-tree-align-cfs ()
   (save-excursion
@@ -1258,13 +1260,14 @@ to case differences."
     (let ((longest 0)
           (cfs))
       (while (not (eobp))
-        (if (search-forward " <= " (point-at-eol) t)
-            (progn
-              (push (buffer-substring-no-properties (- (point) 4) (point-at-eol)) cfs)
-              (delete-region (- (point) 4) (point-at-eol))
-              (delete-horizontal-space))
-          (goto-char (point-at-eol))
-          (push nil cfs))
+        (goto-char (point-at-eol))
+        (cond ((not (search-backward " <= " (point-at-bol) t))
+               (push nil cfs))
+              ((not (get-text-property (1+ (point)) 'rtags-ref-cf))
+               (push nil cfs))
+              (t (push (buffer-substring (point) (point-at-eol)) cfs)
+                 (delete-region (point) (point-at-eol))
+                 (delete-horizontal-space)))
         (setq longest (max longest (- (point) (point-at-bol))))
         (or (eobp) (forward-char 1)))
       (goto-char (point-min))
