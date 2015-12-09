@@ -1178,7 +1178,8 @@ to case differences."
               (while refs
                 (insert "\n")
                 (rtags-insert-ref (car refs) (1+ (cdr current)))
-                (setq refs (cdr refs))))
+                (setq refs (cdr refs)))
+              (rtags-references-tree-align-cfs))
           (forward-char 1)
           (let ((start (point)))
             (while (and (not (eobp))
@@ -1243,14 +1244,36 @@ to case differences."
             (cdr (assoc 'ctx ref)))
     (let ((cf (cdr (assoc 'cf ref))))
       (when cf
-        (insert "\tCalled from: " cf)))
+        (insert " <= " cf)))
 
-    ;; (car ref) " " (cadr ref))
     (set-text-properties (point-at-bol) (point-at-eol)
                          (if bookmark-idx
                              (list 'rtags-ref-containing-function-location (cdr (assoc 'cfl ref))
                                    'rtags-bookmark-index (cons bookmark-idx (point-at-bol)))
                            (list 'rtags-ref-containing-function-location (cdr (assoc 'cfl ref)))))))
+
+(defun rtags-references-tree-align-cfs ()
+  (save-excursion
+    (goto-char (point-min))
+    (let ((longest 0)
+          (cfs))
+      (while (not (eobp))
+        (if (search-forward " <= " (point-at-eol) t)
+            (progn
+              (push (buffer-substring-no-properties (- (point) 4) (point-at-eol)) cfs)
+              (delete-region (- (point) 4) (point-at-eol))
+              (delete-horizontal-space))
+          (goto-char (point-at-eol))
+          (push nil cfs))
+        (setq longest (max longest (- (point) (point-at-bol))))
+        (or (eobp) (forward-char 1)))
+      (goto-char (point-min))
+      (mapc (lambda (cf)
+              (goto-char (point-at-eol))
+              (when cf
+                (insert (make-string (+ (- longest (- (point) (point-at-bol))) 2) ? ) cf))
+              (forward-char))
+            (nreverse cfs)))))
 
 ;;;###autoload
 (defun rtags-references-tree ()
@@ -1287,10 +1310,11 @@ to case differences."
         (rtags-references-tree-mode)
         (setq rtags-current-project project)
         (setq buffer-read-only nil)
-        (while refs
-          (rtags-insert-ref (car refs) 0)
-          (insert "\n")
-          (setq refs (cdr refs)))
+        (mapc (lambda (ref)
+                (rtags-insert-ref ref 0)
+                (insert "\n"))
+              refs)
+        (rtags-references-tree-align-cfs)
         (delete-char -1))
       (goto-char (point-min))
       (setq buffer-read-only t)
