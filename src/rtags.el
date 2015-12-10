@@ -1327,7 +1327,7 @@ to case differences."
             ((or rtags-last-request-not-indexed rtags-last-request-not-connected) nil)
             ((= (count-lines (point-min) (point-max)) 1)
              (let ((string (buffer-string)))
-               (rtags-goto-location string)
+               (rtags-select-and-remove-rtags-buffer)
                t))
             (rtags-jump-to-first-match
              (shrink-window-if-larger-than-buffer)
