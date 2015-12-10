@@ -1302,7 +1302,8 @@ to case differences."
                   (eval (read (current-buffer)))
                 (error
                  nil))))
-      (when refs
+      (if (not refs)
+          (and (message "RTags: No results") nil)
         (with-temp-buffer
           (rtags-call-rc "--current-project" :path fn)
           (when (> (point-max) (point-min))
@@ -1318,23 +1319,20 @@ to case differences."
                 (insert "\n"))
               refs)
         (rtags-references-tree-align-cfs)
-        (delete-char -1))
-      (goto-char (point-min))
-      (setq buffer-read-only t)
-      (cond ((= (point-min) (point-max))
-             (message "RTags: No results")
-             nil)
-            ((or rtags-last-request-not-indexed rtags-last-request-not-connected) nil)
-            ((= (count-lines (point-min) (point-max)) 1)
-             (let ((string (buffer-string)))
-               (rtags-select-and-remove-rtags-buffer)
-               t))
-            (rtags-jump-to-first-match
-             (shrink-window-if-larger-than-buffer)
-             (rtags-select-other-window))
-            (t
-             (shrink-window-if-larger-than-buffer)
-             t)))))
+        (delete-char -1)
+        (goto-char (point-min))
+        (setq buffer-read-only t)
+        (cond ((or rtags-last-request-not-indexed rtags-last-request-not-connected) nil)
+              ((= (count-lines (point-min) (point-max)) 1)
+               (let ((string (buffer-string)))
+                 (rtags-select-and-remove-rtags-buffer)
+                 t))
+              (rtags-jump-to-first-match
+               (shrink-window-if-larger-than-buffer)
+               (rtags-select-other-window))
+              (t
+               (shrink-window-if-larger-than-buffer)
+               t))))))
 
 ;;;###autoload
 (defun rtags-print-source-arguments (&optional buffer)
