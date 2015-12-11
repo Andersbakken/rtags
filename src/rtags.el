@@ -1268,13 +1268,13 @@ to case differences."
               (t (push (buffer-substring (point) (point-at-eol)) cfs)
                  (delete-region (point) (point-at-eol))
                  (delete-horizontal-space)))
-        (setq longest (max longest (- (point) (point-at-bol))))
+        (setq longest (max longest (current-column)))
         (or (eobp) (forward-char 1)))
       (goto-char (point-min))
       (mapc (lambda (cf)
               (goto-char (point-at-eol))
               (when cf
-                (insert (make-string (+ (- longest (- (point) (point-at-bol))) 2) ? ) cf))
+                (insert (make-string (+ (- longest (current-column)) 2) ? ) cf))
               (forward-char))
             (nreverse cfs)))))
 
