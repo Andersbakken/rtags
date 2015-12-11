@@ -783,19 +783,16 @@ bool ClangIndexer::handleReference(const CXCursor &cursor, CXCursorKind kind,
                                    const Location &location, CXCursor ref,
                                    const CXCursor &parent, Symbol **cursorPtr)
 {
-    bool debug = location == "/home/abakken/temp/safebool/main.cpp:13:9";
     if (cursorPtr)
         *cursorPtr = 0;
     // error() << "handleReference" << cursor << kind << location << ref;
     const CXCursorKind refKind = clang_getCursorKind(ref);
     if (clang_isInvalid(refKind)) {
-        if (debug) error() << "LEFT HERE" << __LINE__;
         return superclassTemplateMemberFunctionUgleHack(cursor, kind, location, ref, parent, cursorPtr);
     }
 
     bool isOperator = false;
     if (kind == CXCursor_CallExpr && (refKind == CXCursor_CXXMethod
-                                      || refKind == CXCursor_ConversionFunction
                                       || refKind == CXCursor_FunctionDecl
                                       || refKind == CXCursor_FunctionTemplate)) {
         // These are bullshit. for this construct:
@@ -808,7 +805,6 @@ bool ClangIndexer::handleReference(const CXCursor &cursor, CXCursorKind kind,
         // For constructors they happen to be the only thing we have that
         // actually refs the constructor and not the class so we have to keep
         // them for that.
-        if (debug) error() << "LEFT HERE" << __LINE__;
         return false;
     }
 
@@ -820,7 +816,6 @@ bool ClangIndexer::handleReference(const CXCursor &cursor, CXCursorKind kind,
         //     // insert it, we'll hook up the target and references later
         //     return handleCursor(cursor, kind, location, cursorPtr);
         // }
-        if (debug) error() << "LEFT HERE" << __LINE__;
         return false;
     }
 
@@ -842,7 +837,6 @@ bool ClangIndexer::handleReference(const CXCursor &cursor, CXCursorKind kind,
             break;
         if (refKind == CXCursor_Constructor || refKind == CXCursor_Destructor) {
             if (isImplicit(ref)) {
-                if (debug) error() << "LEFT HERE" << __LINE__;
                 return false;
             }
         } else {
@@ -852,7 +846,6 @@ bool ClangIndexer::handleReference(const CXCursor &cursor, CXCursorKind kind,
                 const int len = strlen(data);
                 if (len > 8 && !strncmp(data, "operator", 8) && !isalnum(data[8]) && data[8] != '_') {
                     if (isImplicit(ref)) {
-                        if (debug) error() << "LEFT HERE" << __LINE__;
                         return false; // eat implicit operator calls
                     }
                     isOperator = true;
@@ -866,7 +859,6 @@ bool ClangIndexer::handleReference(const CXCursor &cursor, CXCursorKind kind,
 
     const String refUsr = usr(ref);
     if (refUsr.isEmpty()) {
-        if (debug) error() << "LEFT HERE" << __LINE__;
         return false;
     }
 
