@@ -162,6 +162,7 @@ struct Option opts[] = {
     { RClient::WildcardSymbolNames, "wildcard-symbol-names", 'a', no_argument, "Expand * like wildcards in --list-symbols and --find-symbols." },
     { RClient::NoColor, "no-color", 0, no_argument, "Don't colorize context." },
     { RClient::Wait, "wait", 0, no_argument, "Wait for reindexing to finish." },
+    { RClient::Autotest, "autotest", 0, no_argument, "Turn on behaviors appropriate for running autotests." },
     { RClient::None, 0, 0, 0, 0 }
 };
 
@@ -464,7 +465,7 @@ int RClient::exec()
     if (connection->client())
         connection->client()->close();
     mCommands.clear();
-    if (!ret)
+    if (!ret && !(mFlags & Flag_Autotest))
         ret = connection->finishStatus();
     return ret;
 }
@@ -595,6 +596,9 @@ RClient::ParseStatus RClient::parse(int &argc, char **argv)
             break;
         case Wait:
             mQueryFlags |= QueryMessage::Wait;
+            break;
+        case Autotest:
+            mFlags |= Flag_Autotest;
             break;
         case IMenu:
             mQueryFlags |= QueryMessage::IMenu;

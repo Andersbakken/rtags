@@ -35,6 +35,7 @@ public:
         AllReferences,
         AllDependencies,
         AllTargets,
+        Autotest,
         BuildIndex,
         CheckIncludes,
         CheckReindex,
@@ -135,6 +136,11 @@ public:
         NumOptions
     };
 
+    enum Flag {
+        Flag_None = 0x0,
+        Flag_Autotest = 0x1
+    };
+
     RClient();
     ~RClient();
     int exec();
@@ -144,6 +150,8 @@ public:
         Parse_Error
     };
     ParseStatus parse(int &argc, char **argv);
+
+    Flags<Flag> flags() const { return mFlags; }
 
     int max() const { return mMax; }
     LogLevel logLevel() const { return mLogLevel; }
@@ -181,6 +189,7 @@ private:
     void addCompile(const Path &cwd, const String &args);
     void addCompile(const Path &dir);
 
+    Flags<Flag> mFlags;
     Flags<QueryMessage::Flag> mQueryFlags;
     int mMax, mTimeout, mMinOffset, mMaxOffset, mConnectTimeout, mBuildIndex;
     LogLevel mLogLevel;
@@ -203,5 +212,7 @@ private:
 
     friend class CompileCommand;
 };
+
+RCT_FLAGS(RClient::Flag);
 
 #endif
