@@ -92,6 +92,7 @@ static void usage(FILE *f)
 #else
             "  --no-filemanager-watch|-M                  Don't use a file system watcher for filemanager.\n"
 #endif
+            "  --no-filemanager                           Don't scan project directory for files. (rc -P won't work)\n"
             "  --watch-sources-only                       Only watch source files (not dependencies).\n"
             "  --job-count|-j [arg]                       Spawn this many concurrent processes for indexing (default %d).\n"
             "  --header-error-job-count|-H [arg]          Allow this many concurrent header error jobs (default std::max(1, --job-count / 2)).\n"
@@ -228,6 +229,7 @@ int main(int argc, char** argv)
 #else
         { "no-filemanager-watch", no_argument, 0, 'M' },
 #endif
+        { "no-filemanager", no_argument, 0, 15 },
         { "no-file-lock", no_argument, 0, 13 },
         { "pch-enabled", no_argument, 0, 14 },
         { "no-filesystem-watcher", no_argument, 0, 'B' },
@@ -418,6 +420,9 @@ int main(int argc, char** argv)
             break;
         case 14:
             serverOpts.options |= Server::PCHEnabled;
+            break;
+        case 15:
+            serverOpts.options |= Server::NoFileManager;
             break;
         case 2:
             fprintf(stdout, "%s\n", RTags::versionString().constData());

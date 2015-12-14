@@ -388,7 +388,7 @@ void Server::onNewMessage(const std::shared_ptr<Message> &message, const std::sh
         connection->finish(1);
         break;
     }
-    if (mOptions.options & NoFileManagerWatch) {
+    if ((mOptions.options & (NoFileManagerWatch|NoFileManager)) == NoFileManagerWatch) {
         std::shared_ptr<Project> project = currentProject();
         if (project && project->fileManager() && (Rct::monoMs() - project->fileManager()->lastReloadTime()) > 60000)
             project->fileManager()->load(FileManager::Asynchronous);
@@ -1181,9 +1181,14 @@ void Server::reloadFileManager(const std::shared_ptr<QueryMessage> &query, const
         project = currentProject();
 
     if (project) {
-        conn->write<512>("Reloading files for %s", project->path().constData());
-        conn->finish();
-        project->fileManager()->load(FileManager::Asynchronous);
+        if (mOptions.options & NoFileManager) {
+            conn->write<512>("Not watching files");
+            conn->finish(1);
+        } else {
+            conn->write<512>("Reloading files for %s", project->path().constData());
+            conn->finish();
+            project->fileManager()->load(FileManager::Asynchronous);
+        }
     } else {
         conn->write("No current project");
         conn->finish();
@@ -1319,7 +1324,8 @@ void Server::setCurrentProject(const std::shared_ptr<Project> &project)
             } else {
                 error() << "error opening" << (mOptions.dataDir + ".currentProject") << "for write";
             }
-            project->fileManager()->load(FileManager::Synchronous);
+            if (!(mOptions.options & NoFileManager))
+                project->fileManager()->load(FileManager::Synchronous);
             // project->diagnoseAll();
         } else {
             Path::rm(mOptions.dataDir + ".currentProject");

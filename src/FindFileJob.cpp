@@ -48,6 +48,8 @@ int FindFileJob::execute()
     if (!proj) {
         return 1;
     }
+    if (!proj->fileManager())
+        return 1;
     const Path srcRoot = proj->path();
     assert(srcRoot.endsWith('/'));
 

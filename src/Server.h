@@ -69,7 +69,8 @@ public:
         CompletionsNoFilter = 0x0400000,
         WatchSourcesOnly = 0x0800000,
         NoFileLock = 0x1000000,
-        PCHEnabled = 0x2000000
+        PCHEnabled = 0x2000000,
+        NoFileManager = 0x4000000
     };
     struct Options {
         Options()

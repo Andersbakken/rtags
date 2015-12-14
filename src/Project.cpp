@@ -321,9 +321,11 @@ bool Project::init()
         mWatcher.added().connect(std::bind(&Project::onFileAdded, this, std::placeholders::_1));
         mWatcher.removed().connect(std::bind(&Project::onFileRemoved, this, std::placeholders::_1));
     }
-    mFileManager.reset(new FileManager(shared_from_this()));
-    mWatcher.removed().connect(std::bind(&FileManager::onFileRemoved, mFileManager.get(), std::placeholders::_1));
-    mWatcher.added().connect(std::bind(&FileManager::onFileAdded, mFileManager.get(), std::placeholders::_1));
+    if (!(options.options & Server::NoFileManager)) {
+        mFileManager.reset(new FileManager(shared_from_this()));
+        mWatcher.removed().connect(std::bind(&FileManager::onFileRemoved, mFileManager.get(), std::placeholders::_1));
+        mWatcher.added().connect(std::bind(&FileManager::onFileAdded, mFileManager.get(), std::placeholders::_1));
+    }
 
     mDirtyTimer.timeout().connect(std::bind(&Project::onDirtyTimeout, this, std::placeholders::_1));
 
