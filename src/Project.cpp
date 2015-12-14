@@ -1500,7 +1500,8 @@ Set<Symbol> Project::findTargets(const Symbol &symbol)
                 break;
             }
         }
-        if (!ret.isEmpty())
+
+        if (!ret.isEmpty() || (symbol.kind != CXCursor_VarDecl && symbol.kind != CXCursor_FieldDecl))
             break; }
         // fall through
     default:
