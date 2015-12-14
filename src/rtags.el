@@ -2342,7 +2342,12 @@ is true. References to references will be treated as references to the reference
 (defvar rtags-file-managed nil)
 
 (defun rtags-buffer-status (&optional buffer)
-  (let ((path (expand-file-name (or (buffer-file-name buffer) dired-directory default-directory))))
+  (let ((path (expand-file-name (cond ((and (buffer-file-name buffer)
+                                            (file-exists-p (buffer-file-name buffer)))
+                                       (buffer-file-name buffer))
+                                      (dired-directory)
+                                      (default-directory)
+                                      (t nil)))))
     (with-temp-buffer
       (rtags-call-rc :path path "-T" path :noerror t :silent-query t)
       (goto-char (point-min))
