@@ -112,9 +112,9 @@ public:
     int exitCode() const { return mExitCode; }
     std::shared_ptr<Project> currentProject() const { return mCurrentProject.lock(); }
     void onNewMessage(const std::shared_ptr<Message> &message, const std::shared_ptr<Connection> &conn);
+    bool saveFileIds();
 private:
     String guessArguments(const String &args, const Path &pwd, const Path &projectRootOverride);
-    bool saveFileIds();
     void load();
     bool index(const String &arguments,
                const Path &pwd,

@@ -81,12 +81,6 @@ static const List<Path> sSystemIncludePaths = {
 };
 
 // externed in files that are shared by rdm and rc
-void saveFileIds()
-{
-    if (Server *s = Server::instance())
-        s->saveFileIds();
-}
-
 Path currentProjectPath()
 {
     if (Server *server = Server::instance()) {

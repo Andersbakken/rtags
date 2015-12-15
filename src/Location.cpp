@@ -107,3 +107,10 @@ String Location::context(Flags<ToStringFlag> flags) const
     }
     return ret;
 }
+
+void Location::saveFileIds()
+{
+    assert(Server::instance());
+    Server::instance()->saveFileIds();
+}
+

@@ -103,11 +103,9 @@ public:
             ret = id;
         }
 #ifndef RTAGS_SINGLE_THREAD
-        extern void saveFileIds();
         if (save)
             saveFileIds();
 #endif
-
         return ret;
     }
 
@@ -261,6 +259,7 @@ public:
 private:
 #ifndef RTAGS_SINGLE_THREAD
     static std::mutex sMutex;
+    static void saveFileIds();
 #endif
     static Hash<Path, uint32_t> sPathsToIds;
     static Hash<uint32_t, Path> sIdsToPaths;
