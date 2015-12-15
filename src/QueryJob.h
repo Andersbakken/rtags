@@ -125,7 +125,7 @@ private:
     {
     public:
         DependencyFilter(uint32_t f, const std::shared_ptr<Project> &p) : fileId(f), project(p) {}
-        virtual bool match(uint32_t f, const Path &) const { return project->dependsOn(f, fileId); }
+        virtual bool match(uint32_t f, const Path &) const { return project->dependsOn(fileId, f); }
 
         const uint32_t fileId;
         const std::shared_ptr<Project> project;
