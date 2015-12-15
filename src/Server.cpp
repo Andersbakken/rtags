@@ -80,16 +80,6 @@ static const List<Path> sSystemIncludePaths = {
     "/usr/lib"        // fedora, arch
 };
 
-// externed in files that are shared by rdm and rc
-Path currentProjectPath()
-{
-    if (Server *server = Server::instance()) {
-        std::shared_ptr<Project> p = server->currentProject();
-        return p ? p->path() : Path();
-    }
-    return Path();
-}
-
 Server *Server::sInstance = 0;
 Server::Server()
     : mSuspended(false), mPathEnvironment(Rct::pathEnvironment()), mExitCode(0), mLastFileId(0), mCompletionThread(0)

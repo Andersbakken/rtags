@@ -18,6 +18,7 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 #include "rct/Rct.h"
 #include "RTags.h"
 #include "Server.h"
+#include "Project.h"
 
 Hash<Path, uint32_t> Location::sPathsToIds;
 Hash<uint32_t, Path> Location::sIdsToPaths;
@@ -51,11 +52,13 @@ String Location::toString(Flags<ToStringFlag> flags) const
     }
 
     Path p = path();
-    if (!(flags & AbsolutePath)) {
-        extern Path currentProjectPath();
-        const Path projectPath = currentProjectPath();
-        if (!projectPath.isEmpty() && p.startsWith(currentProjectPath()))
-            p.remove(0, projectPath.size());
+    if (!(flags & AbsolutePath) && Server::instance()) {
+        Server *server = Server::instance();
+        if (std::shared_ptr<Project> pp = server->currentProject()) {
+            const Path projectPath = pp->path();
+            if (!projectPath.isEmpty() && p.startsWith(projectPath))
+                p.remove(0, projectPath.size());
+        }
     }
 
     String ret(p.size() + extra, ' ');
