@@ -16,6 +16,7 @@
 
 #include "RTags.h"
 #include "Symbol.h"
+#include "Project.h"
 
 uint16_t Symbol::targetsValue() const
 {
@@ -79,16 +80,14 @@ String Symbol::toString(Flags<ToStringFlag> cursorInfoFlags,
     List<String> bases;
     List<String> args;
     if (project) {
-        extern String findSymbolNameByUsr(const std::shared_ptr<Project> &, const String &, const Location &location);
         for (const auto &base : baseClasses) {
-            const String symbolName = findSymbolNameByUsr(project, base, location);
-            if (!symbolName.isEmpty()) {
-                bases << symbolName;
+            for (const auto &sym : project->findByUsr(base, location.fileId(), Project::ArgDependsOn, location)) {
+                bases << sym.symbolName;
+                break;
             }
         }
-        extern String findSymbolNameByLocation(const std::shared_ptr<Project> &project, const Location &location);
         for (const auto &arg : arguments) {
-            const String symbolName = findSymbolNameByLocation(project, arg);
+            const String symbolName = project->findSymbol(arg).symbolName;
             if (!symbolName.isEmpty()) {
                 args << symbolName;
             }
@@ -145,8 +144,7 @@ String Symbol::toString(Flags<ToStringFlag> cursorInfoFlags,
                                       briefComment.isEmpty() ? "" : String::format<1024>("Brief comment: %s\n", briefComment.constData()).constData(),
                                       xmlComment.isEmpty() ? "" : String::format<16384>("Xml comment: %s\n", xmlComment.constData()).constData());
     if (!(cursorInfoFlags & IgnoreTargets) && project) {
-        extern Set<Symbol> findTargets(const std::shared_ptr<Project> &, const Symbol &);
-        auto targets = findTargets(project, *this);
+        const auto targets = project->findTargets(*this);
         if (targets.size()) {
             ret.append("Targets:\n");
             auto best = RTags::bestTarget(targets);
@@ -160,8 +158,7 @@ String Symbol::toString(Flags<ToStringFlag> cursorInfoFlags,
     }
 
     if (!(cursorInfoFlags & IgnoreReferences) && project && !isReference()) {
-        extern Set<Symbol> findCallers(const std::shared_ptr<Project> &, const Symbol &);
-        auto references = findCallers(project, *this);
+        const auto references = project->findCallers(*this);
         if (references.size()) {
             ret.append("References:\n");
             for (const auto &r : references) {
