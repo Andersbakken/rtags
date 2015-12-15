@@ -69,24 +69,8 @@ private:
             clang_disposeString(fileName);
             return Location();
         }
-        if (!strcmp(fn, mLastFile.constData())) {
-            clang_disposeString(fileName);
-            if (mLastBlocked && blocked) {
-                *blocked = true;
-                return Location();
-            } else if (blocked) {
-                *blocked = false;
-            }
-
-            return Location(mLastFileId, line, col);
-        }
         const Path path = RTags::eatString(fileName);
         const Location ret = createLocation(path, line, col, blocked);
-        if (blocked) {
-            mLastBlocked = *blocked;
-            mLastFileId = ret.fileId();
-            mLastFile = path;
-        }
         return ret;
     }
     Location createLocation(CXFile file, unsigned int line, unsigned int col, bool *blocked = 0)
@@ -181,9 +165,6 @@ private:
     List<String> mDebugLocations;
     FILE *mLogFile;
     std::shared_ptr<Connection> mConnection;
-    uint32_t mLastFileId;
-    bool mLastBlocked;
-    Path mLastFile;
     Path mDataDir;
     bool mUnionRecursion;
 
