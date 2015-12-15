@@ -81,13 +81,6 @@ static const List<Path> sSystemIncludePaths = {
 };
 
 // externed in files that are shared by rdm and rc
-const Server::Options *serverOptions()
-{
-    if (Server *s = Server::instance()) {
-        return &s->options();
-    }
-    return 0;
-}
 void saveFileIds()
 {
     if (Server *s = Server::instance())

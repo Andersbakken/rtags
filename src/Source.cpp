@@ -20,8 +20,6 @@
 #include "RTags.h"
 #include "Server.h"
 
-extern const Server::Options *serverOptions();
-
 void Source::clear()
 {
     fileId = compilerId = buildRootId = 0;
@@ -253,8 +251,8 @@ static inline bool hasValue(const String &arg)
             return true;
     }
 
-    if (const auto *opts = serverOptions()) {
-        for (const String &blockedArg : opts->blockedArguments) {
+    if (const Server *server = Server::instance()) {
+        for (const String &blockedArg : server->options().blockedArguments) {
             if (blockedArg.endsWith('=') && blockedArg.startsWith(arg)) {
                 return true;
             }
@@ -304,8 +302,8 @@ static inline bool isCompiler(const Path &fullPath)
 {
     assert(EventLoop::isMainThread());
 
-    if (const auto *opts = serverOptions()) {
-        for (const auto &rx : opts->extraCompilers) {
+    if (const Server *server = Server::instance()) {
+        for (const auto &rx : server->options().extraCompilers) {
             if (Rct::contains(fullPath, rx))
                 return true;
         }
@@ -743,8 +741,8 @@ bool Source::compareArguments(const Source &other) const
         return false;
     }
 
-    const Server::Options *opts = serverOptions();
-    const bool separateDebugAndRelease = opts && opts->options & Server::SeparateDebugAndRelease;
+    const Server *server = Server::instance();
+    const bool separateDebugAndRelease = server && server->options().options & Server::SeparateDebugAndRelease;
     if (separateDebugAndRelease) {
         if (defines != other.defines) {
             return false;
@@ -781,8 +779,8 @@ List<String> Source::toCommandLine(Flags<CommandLineFlag> flags, bool *usedPch) 
 {
     if (usedPch)
         *usedPch = false;
-    const Server::Options *options = serverOptions();
-    if (!options)
+    const Server *server = Server::instance();
+    if (!server)
         flags |= (ExcludeDefaultArguments|ExcludeDefaultDefines|ExcludeDefaultIncludePaths);
 
     List<String> ret;
@@ -819,7 +817,8 @@ List<String> Source::toCommandLine(Flags<CommandLineFlag> flags, bool *usedPch) 
         }
     }
     if (!(flags & ExcludeDefaultArguments)) {
-        for (const auto &arg : options->defaultArguments)
+        assert(server);
+        for (const auto &arg : server->options().defaultArguments)
             ret.append(arg);
     }
 
@@ -827,7 +826,8 @@ List<String> Source::toCommandLine(Flags<CommandLineFlag> flags, bool *usedPch) 
         for (const auto &def : defines)
             ret += def.toString(flags);
         if (!(flags & ExcludeDefaultIncludePaths)) {
-            for (const auto &def : options->defines)
+            assert(server);
+            for (const auto &def : server->options().defines)
                 ret += def.toString(flags);
         }
     }
@@ -863,7 +863,8 @@ List<String> Source::toCommandLine(Flags<CommandLineFlag> flags, bool *usedPch) 
             }
         }
         if (!(flags & ExcludeDefaultIncludePaths)) {
-            for (const auto &inc : options->includePaths) {
+            assert(server);
+            for (const auto &inc : server->options().includePaths) {
                 switch (inc.type) {
                 case Source::Include::Type_None:
                     assert(0 && "Impossible impossibility");
