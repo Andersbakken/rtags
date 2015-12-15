@@ -1275,7 +1275,8 @@ to case differences."
               (goto-char (point-at-eol))
               (when cf
                 (insert (make-string (+ (- longest (current-column)) 2) ? ) cf))
-              (forward-char))
+              (unless (eobp)
+                (forward-char)))
             (nreverse cfs)))))
 
 ;;;###autoload
