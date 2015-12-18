@@ -341,8 +341,18 @@ void CompletionThread::process(Request *request)
             const CXCompletionString &string = results->Results[i].CompletionString;
 
             const CXAvailabilityKind availabilityKind = clang_getCompletionAvailability(string);
-            if (!(options.options & Server::CompletionsNoFilter) && availabilityKind != CXAvailability_Available)
-                continue;
+            if (!(options.options & Server::CompletionsNoFilter)) {
+                switch (availabilityKind) {
+                case CXAvailability_Available:
+                    break;
+                case CXAvailability_Deprecated:
+                    break;
+                case CXAvailability_NotAccessible:
+                    break;
+                case CXAvailability_NotAvailable: // protected members are erroneously flagged as NotAvailable in clang 3.6
+                    continue;
+                }
+            }
 
             const int priority = clang_getCompletionPriority(string);
 
