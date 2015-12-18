@@ -384,6 +384,19 @@ void CompletionThread::process(Request *request)
                 }
             }
             if (ok) {
+                const unsigned int annotations = clang_getCompletionNumAnnotations(string);
+                for (unsigned i=0; i<annotations; ++i) {
+                    const CXStringScope annotation = clang_getCompletionAnnotation(string, i);
+                    const char *cstr = clang_getCString(annotation);
+                    if (const int len = strlen(cstr)) {
+                        if (!node.annotation.isEmpty())
+                            node.annotation.append(' ');
+                        node.annotation.append(cstr, len);
+                    }
+                }
+                node.parent = RTags::eatString(clang_getCompletionParent(string, 0));
+                node.briefComment = RTags::eatString(clang_getCompletionBriefComment(string));
+
                 int ws = node.completion.size() - 1;
                 while (ws >= 0 && isspace(node.completion.at(ws)))
                     --ws;
@@ -508,16 +521,22 @@ void CompletionThread::printCompletions(const List<Completions::Candidate> &comp
             if (kind.isEmpty())
                 kind = RTags::eatString(clang_getCursorKindSpelling(val.cursorKind));
             if (xml) {
-                xmlOut += String::format<128>(" %s %s %s\n",
+                xmlOut += String::format<128>(" %s %s %s %s %s %s\n",
                                               val.completion.constData(),
                                               val.signature.constData(),
-                                              kind.constData());
+                                              kind.constData(),
+                                              val.annotation.constData(),
+                                              val.parent.constData(),
+                                              val.briefComment.constData());
             }
             if (elisp) {
-                elispOut += String::format<128>(" (list \"%s\" \"%s\" \"%s\")",
+                elispOut += String::format<128>(" (list \"%s\" \"%s\" \"%s\" \"%s\" \"%s\" \"%s\")",
                                                 RTags::elispEscape(val.completion).constData(),
                                                 RTags::elispEscape(val.signature).constData(),
-                                                kind.constData());
+                                                kind.constData(),
+                                                RTags::elispEscape(val.annotation).constData(),
+                                                val.parent.constData(),
+                                                val.briefComment.constData());
             }
         }
         if (elisp)
