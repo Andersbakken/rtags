@@ -906,6 +906,12 @@ void Server::diagnose(const std::shared_ptr<QueryMessage> &query, const std::sha
 
 void Server::generateTest(const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Connection> &conn)
 {
+    auto formatLocation = [](const Location &location) {
+        return String::format<1024>("{0}/%s:%d:%d:",
+                                    location.path().fileName(),
+                                    location.line(),
+                                    location.column());
+    };
     const uint32_t fileId = Location::fileId(query->query());
     if (!fileId) {
         conn->write<256>("%s is not indexed", query->query().constData());
@@ -937,13 +943,8 @@ void Server::generateTest(const std::shared_ptr<QueryMessage> &query, const std:
         }
         compile.append(source.sourceFile().fileName());
 
-        Value out;
-        out["sources"] = (List<Value>() << String::join(compile, ' '));
+        Value tests;
 
-        List<Value> tests;
-
-        List<Value> noContextFlags;
-        noContextFlags.append("no-context");
         for (const auto &dep : project->dependencies()) {
             auto symbols = project->openSymbols(dep.first);
             if (!symbols)
@@ -954,18 +955,22 @@ void Server::generateTest(const std::shared_ptr<QueryMessage> &query, const std:
                 const Symbol target = project->findTarget(loc);
                 if (!target.isNull()) {
                     Map<String, Value> test;
-                    test["type"] = "follow-location";
-                    test["flags"] = noContextFlags;
-                    test["location"] = loc.toString();
-                    List<Value> output;
-                    output.append(target.location.toString());
-                    test["output"] = output;
-                    tests.append(test);
+                    test["name"] = "follow_symbol";
+                    List<String> rcCommand;
+                    rcCommand << "--follow-location" << formatLocation(loc);
+                    test["rc-command"] = rcCommand;
+                    List<String> expectation;
+                    expectation << formatLocation(target.location);
+                    test["expectation"] = expectation;
+                    tests.push_back(test);
                 }
             }
         }
-        out["tests"] = tests;
-        conn->finish(out.toJSON(true));
+        if (tests.isNull()) {
+            conn->finish("No tests generated");
+        } else {
+            conn->finish(tests.toJSON(true));
+        }
     } else {
         conn->write<256>("%s build: %d not found", query->query().constData(), query->buildIndex());
         conn->finish();
