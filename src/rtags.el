@@ -2313,48 +2313,50 @@ is true. References to references will be treated as references to the reference
 ;;;###autoload
 (defun rtags-diagnostics (&optional restart nodirty)
   (interactive "P")
-  (when restart
-    (rtags-stop-diagnostics))
-  (let ((buf (rtags-get-buffer-create-no-undo rtags-diagnostics-buffer-name)))
-    (when (and (not (rtags-has-diagnostics))
-               (not rtags-diagnostics-starting))
-      (let ((rtags-diagnostics-starting t))
-        (with-current-buffer buf
-          (rtags-diagnostics-mode))
-        (unless nodirty
-          (rtags-reparse-file))
-        (let ((process-connection-type (not rtags-diagnostics-use-pipe))) ;; use a pipe if rtags-diagnostics-use-pipe is t
-          (let ((rawbuf (get-buffer rtags-diagnostics-raw-buffer-name)))
-            (when rawbuf
-              (kill-buffer rawbuf)))
-          (setq rtags-diagnostics-process (start-process "RTags Diagnostics" buf (rtags-executable-find "rc") "-m" "--elisp"))
-          (set-process-filter rtags-diagnostics-process (function rtags-diagnostics-process-filter))
-          (set-process-sentinel rtags-diagnostics-process 'rtags-diagnostics-sentinel)
-          (set-process-query-on-exit-flag rtags-diagnostics-process nil)
-          (setq rtags-last-completions nil)
-          (setq rtags-last-completion-position nil)
-          (rtags-clear-diagnostics)
-          (rtags-schedule-buffer-list-update)))))
-  (when (and (called-interactively-p 'any) (rtags-is-running))
-    (switch-to-buffer-other-window rtags-diagnostics-buffer-name)
-    (other-window 1)))
+  (when rtags-enabled
+    (when restart
+      (rtags-stop-diagnostics))
+    (let ((buf (rtags-get-buffer-create-no-undo rtags-diagnostics-buffer-name)))
+      (when (and (not (rtags-has-diagnostics))
+                 (not rtags-diagnostics-starting))
+        (let ((rtags-diagnostics-starting t))
+          (with-current-buffer buf
+            (rtags-diagnostics-mode))
+          (unless nodirty
+            (rtags-reparse-file))
+          (let ((process-connection-type (not rtags-diagnostics-use-pipe))) ;; use a pipe if rtags-diagnostics-use-pipe is t
+            (let ((rawbuf (get-buffer rtags-diagnostics-raw-buffer-name)))
+              (when rawbuf
+                (kill-buffer rawbuf)))
+            (setq rtags-diagnostics-process (start-process "RTags Diagnostics" buf (rtags-executable-find "rc") "-m" "--elisp"))
+            (set-process-filter rtags-diagnostics-process (function rtags-diagnostics-process-filter))
+            (set-process-sentinel rtags-diagnostics-process 'rtags-diagnostics-sentinel)
+            (set-process-query-on-exit-flag rtags-diagnostics-process nil)
+            (setq rtags-last-completions nil)
+            (setq rtags-last-completion-position nil)
+            (rtags-clear-diagnostics)
+            (rtags-schedule-buffer-list-update)))))
+    (when (and (called-interactively-p 'any) (rtags-is-running))
+      (switch-to-buffer-other-window rtags-diagnostics-buffer-name)
+      (other-window 1))))
 
 (defvar rtags-indexed nil)
 (defvar rtags-file-managed nil)
 
 (defun rtags-buffer-status (&optional buffer)
-  (let ((path (expand-file-name (cond ((and (buffer-file-name buffer)
-                                            (file-exists-p (buffer-file-name buffer)))
-                                       (buffer-file-name buffer))
-                                      (dired-directory)
-                                      (default-directory)
-                                      (t nil)))))
-    (with-temp-buffer
-      (rtags-call-rc :path path "-T" path :noerror t :silent-query t)
-      (goto-char (point-min))
-      (cond ((looking-at "indexed") 'rtags-indexed)
-            ((looking-at "managed") 'rtags-file-managed)
-            (t nil)))))
+  (when rtags-enabled
+    (let ((path (expand-file-name (cond ((and (buffer-file-name buffer)
+                                              (file-exists-p (buffer-file-name buffer)))
+                                         (buffer-file-name buffer))
+                                        (dired-directory)
+                                        (default-directory)
+                                        (t nil)))))
+      (with-temp-buffer
+        (rtags-call-rc :path path "-T" path :noerror t :silent-query t)
+        (goto-char (point-min))
+        (cond ((looking-at "indexed") 'rtags-indexed)
+              ((looking-at "managed") 'rtags-file-managed)
+              (t nil))))))
 
 ;;;###autoload
 (defun rtags-compilation-flags ()
@@ -3358,12 +3360,13 @@ If `rtags-display-summary-as-tooltip' is t, a tooltip is displayed."
 
 (defun rtags-set-buffers (buffers)
   ;; (message "calling-set-buffers %d" (length buffers))
-  (with-temp-buffer
-    (mapc (function (lambda (x)
-                      (when (funcall rtags-is-indexable x)
-                        (insert (buffer-file-name x) "\n")))) buffers)
-    ;; (message "files: %s" (combine-and-quote-strings (split-string (buffer-substring-no-properties (point-min) (point-max)) "\n" t)) "|")
-    (rtags-call-rc :noerror t :silent-query t :path t :unsaved (current-buffer) "--set-buffers" "-")))
+  (when rtags-enabled
+    (with-temp-buffer
+      (mapc (function (lambda (x)
+                        (when (funcall rtags-is-indexable x)
+                          (insert (buffer-file-name x) "\n")))) buffers)
+      ;; (message "files: %s" (combine-and-quote-strings (split-string (buffer-substring-no-properties (point-min) (point-max)) "\n" t)) "|")
+      (rtags-call-rc :noerror t :silent-query t :path t :unsaved (current-buffer) "--set-buffers" "-"))))
 
 (defun rtags-kill-buffer-hook ()
   (when (buffer-file-name)
@@ -3390,7 +3393,7 @@ If `rtags-display-summary-as-tooltip' is t, a tooltip is displayed."
 (defun rtags-find-file-hook ()
   (interactive)
   (when (buffer-file-name)
-    (rtags-set-buffers (buffer-list)))
+    (rtags-schedule-buffer-list-update))
   t)
 (add-hook 'find-file-hook 'rtags-find-file-hook)
 
