@@ -649,10 +649,14 @@ to case differences."
           (rtags-select))))))
 
 (defun rtags-executable-find (exe)
-  (let ((result (and rtags-path (expand-file-name exe rtags-path))))
-    (if (and result (file-exists-p result))
-        result
-      (executable-find exe))))
+  (if (tramp-tramp-file-p default-directory)
+      ;; for tramp let's rely on `tramp-remote-path`, so if You have some *debug*
+      ;; directory to store rtags binaries, just put it to `tramp-remote-path`
+      exe
+    (let ((result (and rtags-path (expand-file-name exe rtags-path))))
+      (if (and result (file-exists-p result))
+          result
+        (executable-find exe)))))
 
 (defun rtags-remove-keyword-params (seq)
   (when seq
@@ -668,6 +672,93 @@ to case differences."
       (setq ret (or (and ret (concat ret " " (car list))) (car list)))
       (setq list (cdr list)))
     ret))
+
+(defun rtags-diagnostics-is-running ()
+  (and rtags-diagnostics-process
+             (not (eq (process-status rtags-diagnostics-process) 'exit))
+             (not (eq (process-status rtags-diagnostics-process) 'signal))))
+
+(defun rtags-get-sandbox-id (path)
+  "Returns vector to uniquely define sandbox the path belongs to.
+Each host, the emacs is currently connected can be understood as separate sandbox.
+nil identifies the local (non-tramp)"
+  (if (not (tramp-tramp-file-p path))
+      nil
+    (let ((path-vec (tramp-dissect-file-name path)))
+      (aset path-vec 3 nil)
+      path-vec)))
+
+(defun rtags-sandbox-id-mismatch ()
+  "Returns true if current buffer is away from *current* sandbox.
+*RTags Diagnostics* buffer's sandbox is the *current* sandbox.
+If *RTags Diagnostics* does not exist, then nil is returned (ie. match for everyone)"
+  (if (not (rtags-diagnostics-is-running))
+      nil
+    (let ((current-buff-sandbox-id (rtags-get-sandbox-id default-directory))
+          (buf-name (buffer-name))
+          sandbox-id
+          mismatch
+	  diag-start)
+      (when (get-buffer rtags-diagnostics-buffer-name)
+        (with-current-buffer rtags-diagnostics-buffer-name
+          (setq sandbox-id (rtags-get-sandbox-id default-directory))
+          (setq mismatch (not (equal current-buff-sandbox-id sandbox-id)))
+          (when mismatch
+            (when (y-or-n-p (format "RTags sandbox mismatch! %s: %s; rtags: %s. Change sandbox?: "
+                                    buf-name
+                                    (if current-buff-sandbox-id
+                                        (apply 'tramp-make-tramp-file-name (append current-buff-sandbox-id nil))
+                                      "local")
+                                    (if sandbox-id
+                                        (apply 'tramp-make-tramp-file-name (append sandbox-id nil))
+                                      "local")))
+              (setq diag-start t)))))
+      (when diag-start
+        (rtags-diagnostics t)
+        (message "Done. Issue command once more"))
+      mismatch)))
+
+(defun rtags-run-if-sandbox-matches (rtags-func)
+  "rtags-func is run only if current buffer is within *current* sandbox"
+  (interactive)
+  (if (not (rtags-sandbox-id-mismatch))
+      (call-interactively rtags-func)))
+
+(defun rtags-call-process-region
+  (start end program &optional delete buffer display &rest args)
+  "Use Tramp to handle `call-process-region'.
+Fixes a bug in `tramp-handle-call-process-region'.
+Function based on org-babel-tramp-handle-call-process-region"
+  (if (and (featurep 'tramp) (file-remote-p default-directory))
+      (let ((tmpfile (tramp-compat-make-temp-file "")))
+	(write-region start end tmpfile)
+	(when delete (delete-region start end))
+	(unwind-protect
+	    ;;	(apply 'call-process program tmpfile buffer display args)
+            ;; bug in tramp
+	    (apply 'process-file program tmpfile buffer display args)
+	  (delete-file tmpfile)))
+    (apply 'call-process-region
+           start end program delete buffer display args)))
+
+(defun rtags-trampify (absolute-location)
+  "if absolute-location is tramped, then return it.
+Otherwise if default-directory is tramp one, then uses it to convert absolute-location to remote.
+absolute-location can of course be a path"
+  (if (or (not (tramp-tramp-file-p default-directory))
+          (tramp-tramp-file-p absolute-location))
+      absolute-location
+    (let ((location-vec (tramp-dissect-file-name default-directory)))
+      (aset location-vec 3 absolute-location)
+      (apply 'tramp-make-tramp-file-name (append location-vec nil)))))
+
+(defun rtags-untrampify (location)
+  "gets path segment from tramp path. For non-tramp location just return it non-modified.
+Can be used both for path and location."
+  (if (tramp-tramp-file-p location)
+      (tramp-file-name-localname
+       (tramp-dissect-file-name location))
+    location))
 
 (defun* rtags-call-rc (&rest arguments
                        &key (path (buffer-file-name))
@@ -693,13 +784,18 @@ to case differences."
           (error "Invalid argument. async must be a cons or nil"))
         (setq arguments (rtags-remove-keyword-params arguments))
         (setq arguments (rtags-remove '(lambda (arg) (not arg)) arguments))
+        (setq arguments (mapcar 'rtags-untrampify arguments))
+        ;; other way to ignore colors would IMHO be to configure tramp,
+        ;; but: do we need colors from rc?
+        (push "--no-color" arguments)
+        (setq path (rtags-untrampify path))
         (when path-filter
-          (push (concat "--path-filter=" path-filter) arguments)
+          (push (concat "--path-filter=" (rtags-untrampify path-filter)) arguments)
           (when path-filter-regex
             (push "-Z" arguments)))
         (when (and unsaved (buffer-file-name unsaved))
           (push (format "--unsaved-file=%s:%d"
-                        (buffer-file-name unsaved)
+                        (rtags-untrampify (buffer-file-name unsaved))
                         (with-current-buffer unsaved
                           (rtags-buffer-size)))
                 arguments))
@@ -717,29 +813,30 @@ to case differences."
 
         (cond ((stringp path) (push (concat "--current-file=" path) arguments))
               (path nil)
-              (default-directory (push (concat "--current-file=" default-directory) arguments))
+              (default-directory (push (concat "--current-file=" (rtags-untrampify default-directory)) arguments))
               (t nil))
 
         (when rtags-rc-log-enabled
           (rtags-log (concat rc " " (rtags-combine-strings arguments))))
         (let ((result (cond ((and unsaved async)
-                             (let ((proc (apply #'start-process "rc" (current-buffer) rc arguments)))
+                             (let ((proc (apply #'start-file-process "rc" (current-buffer) rc arguments)))
                                (with-current-buffer unsaved
                                  (save-restriction
                                    (widen)
                                    (process-send-region proc (point-min) (point-max))))
                                proc))
-                            (async (apply #'start-process "rc" (current-buffer) rc arguments))
+                            (async (apply #'start-file-process "rc" (current-buffer) rc arguments))
                             ((and unsaved (or (buffer-modified-p unsaved)
                                               (not (buffer-file-name unsaved))))
                              (let ((output-buffer (current-buffer)))
                                (with-current-buffer unsaved
                                  (save-restriction
                                    (widen)
-                                   (apply #'call-process-region (point-min) (point-max) rc
+                                   (apply #'rtags-call-process-region (point-min) (point-max) rc
                                           nil output-buffer nil arguments)))))
-                            (unsaved (apply #'call-process rc (buffer-file-name unsaved) output nil arguments) nil)
-                            (t (apply #'call-process rc nil output nil arguments)))))
+                            (unsaved (apply #'process-file
+                                            rc (rtags-untrampify (buffer-file-name unsaved)) output nil arguments) nil)
+                            (t (apply #'process-file rc nil output nil arguments)))))
           (if (processp result)
               (progn
                 (set-process-query-on-exit-flag result nil)
@@ -1454,7 +1551,7 @@ to case differences."
        (goto-char old)
        nil))))
 
-(defun rtags-absolutify (location)
+(defun rtags-absolutify (location &optional skip-trampification)
   (when location
     (save-match-data
       (when (not (string-match "^/" location))
@@ -1472,12 +1569,14 @@ to case differences."
         (with-temp-buffer
           (rtags-call-rc "--current-project" :path rtags-current-file)
           (setq location (concat (buffer-substring-no-properties (point-min) (1- (point-max))) location)))))
-    location))
+    (if skip-trampification
+        location
+      (rtags-trampify location))))
 
-(defun rtags-goto-location (location &optional nobookmark other-window)
+(defun rtags-goto-location (location &optional nobookmark other-window skip-trampification)
   "Go to a location passed in. It can be either: file,12 or file:13:14 or plain file"
   ;; (message (format "rtags-goto-location \"%s\"" location))
-  (setq location (rtags-absolutify location))
+  (setq location (rtags-absolutify location skip-trampification))
 
   (when (> (length location) 0)
     (cond ((string-match "\\(.*\\) includes /.*" location)
@@ -1546,11 +1645,14 @@ to case differences."
         (instack (nth rtags-location-stack-index rtags-location-stack))
         (cur (rtags-current-location)))
     (if (not (string= instack cur))
-        (rtags-goto-location instack t)
+        ;; location ring may contain locations from many sandboxes. In case current location is remote
+        ;; and following is local one, we want following be visited as local file.
+        ;; that's why 4th arg is t.
+        (rtags-goto-location instack t nil t)
       (let ((target (+ rtags-location-stack-index by)))
         (when (and (>= target 0) (< target (length rtags-location-stack)))
           (setq rtags-location-stack-index target)
-          (rtags-goto-location (nth rtags-location-stack-index rtags-location-stack) t))))
+          (rtags-goto-location (nth rtags-location-stack-index rtags-location-stack) t nil t))))
     (when repeat-char
       (let ((map (make-sparse-keymap)))
         (define-key map (vector repeat-char)
@@ -1563,6 +1665,10 @@ to case differences."
 
 ;; **************************** API *********************************
 
+(defmacro rtags-sandbox-check-then-run (fun-name)
+  ;; why lambda + interactive? we want fun-name have prefix passed at its invocation
+  `(function (lambda () (interactive) (rtags-run-if-sandbox-matches ,fun-name))))
+
 ;;;###autoload
 (defun rtags-enable-standard-keybindings (&optional map prefix)
   (interactive)
@@ -1571,36 +1677,36 @@ to case differences."
   (unless prefix
     (setq prefix "\C-cr"))
   (ignore-errors
-    (define-key map (concat prefix ".") (function rtags-find-symbol-at-point))
-    (define-key map (concat prefix ",") (function rtags-find-references-at-point))
-    (define-key map (concat prefix "v") (function rtags-find-virtuals-at-point))
-    (define-key map (concat prefix "V") (function rtags-print-enum-value-at-point))
-    (define-key map (concat prefix "/") (function rtags-find-all-references-at-point))
-    (define-key map (concat prefix "Y") (function rtags-cycle-overlays-on-screen))
-    (define-key map (concat prefix ">") (function rtags-find-symbol))
-    (define-key map (concat prefix "<") (function rtags-find-references))
+    (define-key map (concat prefix ".") (rtags-sandbox-check-then-run 'rtags-find-symbol-at-point))
+    (define-key map (concat prefix ",") (rtags-sandbox-check-then-run 'rtags-find-references-at-point))
+    (define-key map (concat prefix "v") (rtags-sandbox-check-then-run 'rtags-find-virtuals-at-point))
+    (define-key map (concat prefix "V") (rtags-sandbox-check-then-run 'rtags-print-enum-value-at-point))
+    (define-key map (concat prefix "/") (rtags-sandbox-check-then-run 'rtags-find-all-references-at-point))
+    (define-key map (concat prefix "Y") (rtags-sandbox-check-then-run 'rtags-cycle-overlays-on-screen))
+    (define-key map (concat prefix ">") (rtags-sandbox-check-then-run 'rtags-find-symbol))
+    (define-key map (concat prefix "<") (rtags-sandbox-check-then-run 'rtags-find-references))
     (define-key map (concat prefix "[") (function rtags-location-stack-back))
     (define-key map (concat prefix "]") (function rtags-location-stack-forward))
     (define-key map (concat prefix "D") (function rtags-diagnostics))
-    (define-key map (concat prefix "C") (function rtags-compile-file))
-    (define-key map (concat prefix "G") (function rtags-guess-function-at-point))
-    (define-key map (concat prefix "p") (function rtags-dependency-tree))
-    (define-key map (concat prefix "P") (function rtags-dependency-tree-all))
-    (define-key map (concat prefix "e") (function rtags-reparse-file))
-    (define-key map (concat prefix "E") (function rtags-preprocess-file))
-    (define-key map (concat prefix "R") (function rtags-rename-symbol))
-    (define-key map (concat prefix "M") (function rtags-symbol-info))
-    (define-key map (concat prefix "S") (function rtags-display-summary))
+    (define-key map (concat prefix "C") (rtags-sandbox-check-then-run 'rtags-compile-file))
+    (define-key map (concat prefix "G") (rtags-sandbox-check-then-run 'rtags-guess-function-at-point))
+    (define-key map (concat prefix "p") (rtags-sandbox-check-then-run 'rtags-dependency-tree))
+    (define-key map (concat prefix "P") (rtags-sandbox-check-then-run 'rtags-dependency-tree-all))
+    (define-key map (concat prefix "e") (rtags-sandbox-check-then-run 'rtags-reparse-file))
+    (define-key map (concat prefix "E") (rtags-sandbox-check-then-run 'rtags-preprocess-file))
+    (define-key map (concat prefix "R") (rtags-sandbox-check-then-run 'rtags-rename-symbol))
+    (define-key map (concat prefix "M") (rtags-sandbox-check-then-run 'rtags-symbol-info))
+    (define-key map (concat prefix "S") (rtags-sandbox-check-then-run 'rtags-display-summary))
     (define-key map (concat prefix "O") (function rtags-goto-offset))
-    (define-key map (concat prefix ";") (function rtags-find-file))
-    (define-key map (concat prefix "F") (function rtags-fixit))
-    (define-key map (concat prefix "L") (function rtags-copy-and-print-current-location))
-    (define-key map (concat prefix "X") (function rtags-fix-fixit-at-point))
+    (define-key map (concat prefix ";") (rtags-sandbox-check-then-run 'rtags-find-file))
+    (define-key map (concat prefix "F") (rtags-sandbox-check-then-run 'rtags-fixit))
+    (define-key map (concat prefix "L") (rtags-sandbox-check-then-run 'rtags-copy-and-print-current-location))
+    (define-key map (concat prefix "X") (rtags-sandbox-check-then-run 'rtags-fix-fixit-at-point))
     (define-key map (concat prefix "B") (function rtags-show-rtags-buffer))
-    (define-key map (concat prefix "I") (function rtags-imenu))
-    (define-key map (concat prefix "T") (function rtags-taglist))
-    (define-key map (concat prefix "h") (function rtags-print-class-hierarchy))
-    (define-key map (concat prefix "a") (function rtags-print-source-arguments))))
+    (define-key map (concat prefix "I") (rtags-sandbox-check-then-run 'rtags-imenu))
+    (define-key map (concat prefix "T") (rtags-sandbox-check-then-run 'rtags-taglist))
+    (define-key map (concat prefix "h") (rtags-sandbox-check-then-run 'rtags-print-class-hierarchy))
+    (define-key map (concat prefix "a") (rtags-sandbox-check-then-run 'rtags-print-source-arguments))))
 
 ;;;###autoload
 (defun rtags-print-current-location ()
@@ -1771,7 +1877,7 @@ is true. References to references will be treated as references to the reference
         ;; (message "Got renames %s" (buffer-string))
         (dolist (string (split-string (buffer-string) "\n" t))
           (when (string-match "^\\(.*\\):\\([0-9]+\\):\\([0-9]+\\):$" string)
-            (let* ((filename (match-string-no-properties 1 string))
+            (let* ((filename (rtags-trampify (match-string-no-properties 1 string)))
                    (line (string-to-number (match-string-no-properties 2 string)))
                    (col (string-to-number (match-string-no-properties 3 string)))
                    (buf (or (find-buffer-visiting filename)
@@ -2003,7 +2109,7 @@ is true. References to references will be treated as references to the reference
     (setq rtags-last-check-style checkstyle))
   (while checkstyle
     (let* ((cur (car checkstyle))
-           (file (car cur))
+           (file (rtags-trampify (car cur)))
            (diags (cdr cur))
            (buf (rtags-really-find-buffer file)))
       (setq checkstyle (cdr checkstyle))
@@ -2215,14 +2321,10 @@ is true. References to references will be treated as references to the reference
                                       (cancel-timer rtags-tracking-timer))
                                     (setq rtags-tracking-timer nil))))))
 
-(defun rtags-is-tramp ()
-  (and (fboundp 'tramp-tramp-file-p)
-       (tramp-tramp-file-p default-directory)))
-
 ;;;###autoload
 (defun rtags-post-command-hook ()
   (interactive)
-  (when (and rtags-enabled (not (rtags-is-tramp)))
+  (when rtags-enabled
     (rtags-restart-update-current-project-timer)
     (rtags-update-current-error)
     (rtags-close-taglist)
@@ -2265,10 +2367,28 @@ is true. References to references will be treated as references to the reference
 ;;;###autoload
 (defun rtags-stop-diagnostics ()
   (interactive)
-  (when (and rtags-diagnostics-process (not (eq (process-status rtags-diagnostics-process) 'exit)))
+  (when (rtags-diagnostics-is-running)
     (kill-process rtags-diagnostics-process))
+
+  (when (rtags-diagnostics-is-running)
+    ;; kill above failed.
+    (when (get-buffer rtags-diagnostics-buffer-name)
+      (with-current-buffer rtags-diagnostics-buffer-name
+        (when (tramp-tramp-file-p default-directory)
+          ;; diagnostics serves some remote host
+          ;; We need to kill it within that context.
+          (let ((result
+                 (process-file "kill" nil nil nil
+                               (int-to-string (process-id rtags-diagnostics-process)))))
+                 (if (not (= result 0))
+                     ;; the kill above did not do. Let's send KILL
+                     (process-file "kill" nil nil nil "-9"
+                                   (int-to-string (process-id rtags-diagnostics-process)))))))))
+
   (when (get-buffer rtags-diagnostics-buffer-name)
     (kill-buffer rtags-diagnostics-buffer-name)))
+
+(add-hook 'kill-emacs-hook 'rtags-stop-diagnostics) ;; remote diagnostics are not killed by default.
 
 ;;;###autoload
 (defun rtags-clear-diagnostics ()
@@ -2328,7 +2448,7 @@ is true. References to references will be treated as references to the reference
             (let ((rawbuf (get-buffer rtags-diagnostics-raw-buffer-name)))
               (when rawbuf
                 (kill-buffer rawbuf)))
-            (setq rtags-diagnostics-process (start-process "RTags Diagnostics" buf (rtags-executable-find "rc") "-m" "--elisp"))
+            (setq rtags-diagnostics-process (start-file-process "RTags Diagnostics" buf (rtags-executable-find "rc") "-m" "--elisp"))
             (set-process-filter rtags-diagnostics-process (function rtags-diagnostics-process-filter))
             (set-process-sentinel rtags-diagnostics-process 'rtags-diagnostics-sentinel)
             (set-process-query-on-exit-flag rtags-diagnostics-process nil)
@@ -2382,7 +2502,6 @@ is true. References to references will be treated as references to the reference
 (defun rtags-is-indexed (&optional buffer)
   (let ((path (buffer-file-name buffer)))
     (cond ((not path) nil)
-          ((and (fboundp 'tramp-tramp-file-p) (tramp-tramp-file-p path)) nil)
           ((equal (rtags-buffer-status buffer) 'rtags-indexed)))))
 
 (defun rtags-has-filemanager (&optional buffer)
@@ -2891,14 +3010,13 @@ is true. References to references will be treated as references to the reference
   (when (and (or (buffer-file-name) dired-directory)
              (not (eq (current-buffer) rtags-last-update-current-project-buffer))
              default-directory
-             (not (rtags-is-tramp))
              (file-directory-p default-directory))
     (setq rtags-last-update-current-project-buffer (current-buffer))
     (let* ((rc (rtags-executable-find "rc"))
-           (path (or (buffer-file-name) default-directory))
+           (path (rtags-untrampify (or (buffer-file-name) default-directory)))
            (arguments (list "-T" path "--diagnose" path "--silent-query")))
       (when rc
-        (apply #'start-process "rtags-update-current-project" nil rc arguments))))
+        (apply #'start-file-process "rtags-update-current-project" nil rc arguments))))
   t)
 
 (defvar rtags-update-current-project-timer nil)
@@ -3104,7 +3222,7 @@ definition."
 ;;;###autoload
 (defun rtags-quit-rdm ()
   (interactive)
-  (call-process (rtags-executable-find "rc") nil nil nil "--quit-rdm"))
+  (process-file (rtags-executable-find "rc") nil nil nil "--quit-rdm"))
 
 (defun rdm-includes ()
   (mapconcat 'identity
@@ -3157,7 +3275,7 @@ definition."
              rtags-server-executable))
      (t
       (let ((process-connection-type (not rtags-rdm-process-use-pipe)))
-        (setq rtags-rdm-process (start-process-shell-command "RTags" "*rdm*" (rtags-command))))
+        (setq rtags-rdm-process (start-file-process-shell-command "RTags" "*rdm*" (rtags-command))))
       (and rtags-autostart-diagnostics (rtags-diagnostics))
       (set-process-query-on-exit-flag rtags-rdm-process nil)
       (set-process-sentinel rtags-rdm-process 'rtags-sentinel)))))
@@ -3310,7 +3428,7 @@ Return nil if it can't get any info about the item."
             (when (> (- line2 line1) max-no-lines)
               (setq range (list line1 (second range) (+ line1 max-no-lines) 1)))
             (when (string-match "\\(.*\\):\\([0-9]+\\):\\([0-9]+\\)" target)
-              (let* ((file-or-buffer (match-string-no-properties 1 target))
+              (let* ((file-or-buffer (rtags-trampify (match-string-no-properties 1 target)))
                      (buf (get-file-buffer file-or-buffer))
                      old-buf)
                 (when (null buf)
@@ -3547,7 +3665,7 @@ If `rtags-display-summary-as-tooltip' is t, a tooltip is displayed."
 ;;;###autoload
 (defun rtags-check-includes ()
   (interactive)
-  (let ((filename (buffer-file-name)))
+  (let ((filename (rtags-untrampify (buffer-file-name))))
     (unless filename
       (error "You need to call rtags-check-includes from an actual file"))
     (switch-to-buffer (rtags-get-buffer "*RTags check includes*"))
@@ -3556,7 +3674,7 @@ If `rtags-display-summary-as-tooltip' is t, a tooltip is displayed."
     (let ((buffer-read-only nil))
       (insert "Waiting for rdm..."))
     (goto-char (point-min))
-    (let ((proc (start-process "*RTags check includes*"
+    (let ((proc (start-file-process "*RTags check includes*"
                                (current-buffer)
                                (rtags-executable-find "rc")
                                "--current-file" filename
