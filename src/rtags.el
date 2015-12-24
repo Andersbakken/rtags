@@ -73,6 +73,7 @@
 (defvar rtags-buffer-bookmarks 0)
 (defvar rtags-diagnostics-process nil)
 (defvar rtags-diagnostics-starting nil)
+(defvar rtags-tramp-enabled nil)
 
 (defun rtags-remove (predicate seq &optional not)
   (let ((ret))
@@ -691,32 +692,35 @@ nil identifies the local (non-tramp)"
 (defun rtags-sandbox-id-mismatch ()
   "Returns true if current buffer is away from *current* sandbox.
 *RTags Diagnostics* buffer's sandbox is the *current* sandbox.
-If *RTags Diagnostics* does not exist, then nil is returned (ie. match for everyone)"
-  (if (not (rtags-diagnostics-is-running))
-      nil
-    (let ((current-buff-sandbox-id (rtags-get-sandbox-id default-directory))
-          (buf-name (buffer-name))
-          sandbox-id
-          mismatch
-	  diag-start)
-      (when (get-buffer rtags-diagnostics-buffer-name)
-        (with-current-buffer rtags-diagnostics-buffer-name
-          (setq sandbox-id (rtags-get-sandbox-id default-directory))
-          (setq mismatch (not (equal current-buff-sandbox-id sandbox-id)))
-          (when mismatch
-            (when (y-or-n-p (format "RTags sandbox mismatch! %s: %s; rtags: %s. Change sandbox?: "
-                                    buf-name
-                                    (if current-buff-sandbox-id
-                                        (apply 'tramp-make-tramp-file-name (append current-buff-sandbox-id nil))
-                                      "local")
-                                    (if sandbox-id
-                                        (apply 'tramp-make-tramp-file-name (append sandbox-id nil))
-                                      "local")))
-              (setq diag-start t)))))
-      (when diag-start
-        (rtags-diagnostics t)
-        (message "Done. Issue command once more"))
-      mismatch)))
+If *RTags Diagnostics* does not exist, then nil is returned (ie. match for everyone)
+Additionally for debugging purposes this method handles `rtags-tramp-enabled` fuse"
+  (let ((mismatch t))
+    (if (and (tramp-tramp-file-p default-directory) (not rtags-tramp-enabled))
+        (message "remote sandbox handling is disabled")
+      (if (not (and (rtags-diagnostics-is-running) (get-buffer rtags-diagnostics-buffer-name)))
+          (setq mismatch nil)
+        (let ((current-buff-sandbox-id (rtags-get-sandbox-id default-directory))
+              (buf-name (buffer-name))
+              sandbox-id
+              diag-start)
+          (when (get-buffer rtags-diagnostics-buffer-name)
+            (with-current-buffer rtags-diagnostics-buffer-name
+              (setq sandbox-id (rtags-get-sandbox-id default-directory))
+              (setq mismatch (not (equal current-buff-sandbox-id sandbox-id)))
+              (when mismatch
+                (when (y-or-n-p (format "RTags sandbox mismatch! %s: %s; rtags: %s. Change sandbox?: "
+                                        buf-name
+                                        (if current-buff-sandbox-id
+                                            (apply 'tramp-make-tramp-file-name (append current-buff-sandbox-id nil))
+                                          "local")
+                                        (if sandbox-id
+                                            (apply 'tramp-make-tramp-file-name (append sandbox-id nil))
+                                          "local")))
+                  (setq diag-start t)))))
+          (when diag-start
+            (rtags-diagnostics t)
+            (message "Done. Issue command once more")))))
+    mismatch))
 
 (defun rtags-run-if-sandbox-matches (rtags-func)
   "rtags-func is run only if current buffer is within *current* sandbox"
