@@ -2797,12 +2797,11 @@ is true. References to references will be treated as references to the reference
 ;;;###autoload
 (defun rtags-copy-and-print-current-location()
   (interactive)
-  (when (rtags-sandbox-id-matches)
-    (let ((loc (rtags-current-location)))
-      (if (not loc)
-          (message "No current location!")
-        (kill-new loc)
-        (message loc)))))
+  (let ((loc (rtags-current-location)))
+    (if (not loc)
+        (message "No current location!")
+      (kill-new loc)
+      (message loc))))
 
 (defun rtags-all-files (prefer-exact)
   (with-temp-buffer
