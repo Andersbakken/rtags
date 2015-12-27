@@ -74,6 +74,18 @@
 (defvar rtags-diagnostics-process nil)
 (defvar rtags-diagnostics-starting nil)
 (defvar rtags-tramp-enabled nil)
+(defvar rtags-buffer-follows-sandbox-id-match 'ask
+  "Tells the way current buffer follows sandbox-id in case
+match fails at a query to rc/rdm backend.
+
+nil - perform current query without updating diagnostics buffer.
+      Diagnostics will be away from current context.
+ask - ask the user if sandbox should be changed. After 'yes',
+      perform the command once more.
+t   - change the sandbox and do the command.
+
+Note: if *RTags Diagnostics* is not running, then the 'match check'
+      is not performed, because sandbox tracking is not needed then.")
 
 (defun rtags-remove (predicate seq &optional not)
   (let ((ret))
@@ -708,15 +720,21 @@ Additionally for debugging purposes this method handles `rtags-tramp-enabled` fu
               (setq sandbox-id (rtags-get-sandbox-id default-directory))
               (setq sandbox-match (equal current-buff-sandbox-id sandbox-id))
               (when (not sandbox-match)
-                (when (y-or-n-p (format "RTags sandbox mismatch! %s: %s; rtags: %s. Change sandbox?: "
-                                        buf-name
-                                        (if current-buff-sandbox-id
-                                            (apply 'tramp-make-tramp-file-name (append current-buff-sandbox-id nil))
-                                          "local")
-                                        (if sandbox-id
-                                            (apply 'tramp-make-tramp-file-name (append sandbox-id nil))
-                                          "local")))
-                  (setq diag-start t)))))
+                (cond ((eq rtags-buffer-follows-sandbox-id-match 'ask)
+                       (when (y-or-n-p (format "RTags sandbox mismatch! %s: %s; rtags: %s. Change sandbox?: "
+                                               buf-name
+                                               (if current-buff-sandbox-id
+                                                   (apply 'tramp-make-tramp-file-name (append current-buff-sandbox-id nil))
+                                                 "local")
+                                               (if sandbox-id
+                                                   (apply 'tramp-make-tramp-file-name (append sandbox-id nil))
+                                                 "local")))
+                         (setq diag-start t)))
+                      ((eq rtags-buffer-follows-sandbox-id-match nil)
+                       (setq sandbox-match t))
+                      (t ;; (eq rtags-buffer-follows-sandbox-id-match t)
+                       (setq sandbox-match t
+                             diag-start t))))))
           (when diag-start
             (rtags-diagnostics t)
             (message "Done. Issue command once more")))))
@@ -3326,7 +3344,7 @@ definition."
 (defun rtags-reparse-file (&optional buffer wait-reparsing)
   "WAIT-REPARSING : t to wait for reparsing to finish, nil for async (no waiting)."
   (interactive)
-  (when (rtags-sandbox-id-matches)
+  (when (and (called-interactively-p) (rtags-sandbox-id-matches))
     (unless buffer
       (setq buffer (current-buffer)))
     (let ((file (buffer-file-name buffer)))
