@@ -77,7 +77,7 @@ private:
     struct Completions {
         Completions(const Location &loc) : location(loc), next(0), prev(0) {}
         struct Candidate {
-            String completion, signature;
+            String completion, signature, annotation, parent, briefComment;
             int priority, distance;
             CXCursorKind cursorKind;
         };

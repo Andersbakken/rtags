@@ -16,7 +16,6 @@
 #include "Project.h"
 
 #include <fnmatch.h>
-#include <math.h>
 #include <memory>
 #include <regex>
 

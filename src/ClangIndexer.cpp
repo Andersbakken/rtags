@@ -188,7 +188,7 @@ bool ClangIndexer::exec(const String &data)
     if (mClangUnit) {
         String queryData;
         if (mFileIdsQueried)
-            queryData = String::format(", %d queried (%dms)", mFileIdsQueried, mFileIdsQueriedTime);
+            queryData = String::format(", %d queried %dms", mFileIdsQueried, mFileIdsQueriedTime);
         const char *format = "(%d syms, %d symNames, %d includes, %d of %d files, symbols: %d of %d, %d cursors%s%s) (%d/%d/%dms)";
         message += String::format<1024>(format, cursorCount, symbolNameCount,
                                         mIndexDataMessage.includes().size(), mIndexed,
