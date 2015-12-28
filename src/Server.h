@@ -119,7 +119,7 @@ private:
                const Path &pwd,
                const List<Path> &pathEnvironment,
                const Path &projectRootOverride,
-               Flags<IndexMessage::Flag> = Flags<IndexMessage::Flag>(),
+               Flags<IndexMessage::Flag> flags = Flags<IndexMessage::Flag>(),
                std::shared_ptr<Project> *projectPtr = 0);
     void onNewConnection(SocketServer *server);
     void setCurrentProject(const std::shared_ptr<Project> &project);
