@@ -895,10 +895,18 @@ Can be used both for path and location."
     (rtags-call-rc :path file "--builds" file)
     (buffer-string)))
 
+(defmacro rtags-called-interactively-p ()
+  (if (or (> emacs-major-version 23)
+          (and (>= emacs-major-version 23)
+               (>= emacs-minor-version 2)))
+      ;; defined with no argument in <=23.1
+      `(with-no-warnings (called-interactively-p 'interactive))
+    `(interactive-p)))
+
 ;;;###autoload
 (defun rtags-preprocess-file (&optional buffer)
   (interactive)
-  (when (or (not (called-interactively-p)) (rtags-sandbox-id-matches))
+  (when (or (not (rtags-called-interactively-p)) (rtags-sandbox-id-matches))
     (unless buffer (setq buffer (current-buffer)))
     (let (narrow-start narrow-end)
       (when (and mark-active
@@ -985,7 +993,7 @@ Can be used both for path and location."
                                  (noerror nil)
                                  (no-reparse nil))
   (interactive)
-  (when (or (not (called-interactively-p)) (rtags-sandbox-id-matches))
+  (when (or (not (rtags-called-interactively-p)) (rtags-sandbox-id-matches))
     (let ((loc (or location (rtags-current-location)))
           (path (buffer-file-name)))
       (when (not no-reparse)
@@ -1205,7 +1213,7 @@ Can be used both for path and location."
 
 (defun rtags-dependency-tree (&optional all)
   (interactive "P")
-  (when (or (not (called-interactively-p)) (rtags-sandbox-id-matches))
+  (when (or (not (rtags-called-interactively-p)) (rtags-sandbox-id-matches))
     (let ((dep-buffer (rtags-get-buffer "*RTags Dependencies*"))
           (deps)
           (fn (buffer-file-name)))
@@ -1238,7 +1246,7 @@ Can be used both for path and location."
 
 (defun rtags-dependency-tree-all ()
   (interactive)
-  (when (or (not (called-interactively-p)) (rtags-sandbox-id-matches))
+  (when (or (not (rtags-called-interactively-p)) (rtags-sandbox-id-matches))
     (rtags-dependency-tree t)))
 
 (defvar rtags-references-tree-data nil)
@@ -1400,7 +1408,7 @@ Can be used both for path and location."
 ;;;###autoload
 (defun rtags-references-tree ()
   (interactive)
-  (when (or (not (called-interactively-p)) (rtags-sandbox-id-matches))
+  (when (or (not (rtags-called-interactively-p)) (rtags-sandbox-id-matches))
     (rtags-reset-bookmarks)
     (rtags-delete-rtags-windows)
     (let ((ref-buffer (rtags-get-buffer "*RTags*"))
@@ -1457,7 +1465,7 @@ Can be used both for path and location."
 ;;;###autoload
 (defun rtags-print-source-arguments (&optional buffer)
   (interactive)
-  (when (or (not (called-interactively-p)) (rtags-sandbox-id-matches))
+  (when (or (not (rtags-called-interactively-p)) (rtags-sandbox-id-matches))
     (let ((args-buffer (rtags-get-buffer))
           (source (buffer-file-name buffer)))
       (when source
@@ -1474,7 +1482,7 @@ Can be used both for path and location."
 ;;;###autoload
 (defun rtags-print-class-hierarchy()
   (interactive)
-  (when (or (not (called-interactively-p)) (rtags-sandbox-id-matches))
+  (when (or (not (rtags-called-interactively-p)) (rtags-sandbox-id-matches))
     (let ((class-hierarchy-buffer (rtags-get-buffer))
           (path (buffer-file-name))
           (location (rtags-current-location)))
@@ -1491,7 +1499,7 @@ Can be used both for path and location."
 ;;;###autoload
 (defun rtags-print-enum-value-at-point (&optional location)
   (interactive)
-  (when (or (not (called-interactively-p)) (rtags-sandbox-id-matches))
+  (when (or (not (rtags-called-interactively-p)) (rtags-sandbox-id-matches))
     (let* ((symbol (rtags-symbol-info-internal location))
            (enum (or (cdr (assoc 'enumValue symbol))
                      (cdr (assoc 'enumValue (cdr (cadr (assoc 'targets symbol)))))))
@@ -1781,7 +1789,7 @@ For references this means to jump to the definition/declaration of the reference
 For definitions it jumps to the declaration (if there is only one) For declarations it jumps to the definition.
 If called with a prefix restrict to current buffer"
   (interactive "P")
-  (when (or (not (called-interactively-p)) (rtags-sandbox-id-matches))
+  (when (or (not (rtags-called-interactively-p)) (rtags-sandbox-id-matches))
     (rtags-delete-rtags-windows)
     (rtags-location-stack-push)
     (let ((arg (rtags-current-location))
@@ -1813,7 +1821,7 @@ If there's exactly one result jump directly to it. If there's more show a buffer
 with the different alternatives and jump to the first one if `rtags-jump-to-first-match'
 is true. References to references will be treated as references to the referenced symbol"
   (interactive "P")
-  (when (or (not (called-interactively-p)) (rtags-sandbox-id-matches))
+  (when (or (not (rtags-called-interactively-p)) (rtags-sandbox-id-matches))
     (rtags-delete-rtags-windows)
     (rtags-location-stack-push)
     (let ((arg (rtags-current-location))
@@ -1827,7 +1835,7 @@ is true. References to references will be treated as references to the reference
 (defun rtags-find-virtuals-at-point (&optional prefix)
   "List all reimplentations of function under cursor. This includes both declarations and definitions"
   (interactive "P")
-  (when (or (not (called-interactively-p)) (rtags-sandbox-id-matches))
+  (when (or (not (rtags-called-interactively-p)) (rtags-sandbox-id-matches))
     (rtags-delete-rtags-windows)
     (rtags-location-stack-push)
     (let ((arg (rtags-current-location))
@@ -1840,7 +1848,7 @@ is true. References to references will be treated as references to the reference
 ;;;###autoload
 (defun rtags-find-all-references-at-point (&optional prefix)
   (interactive "P")
-  (when (or (not (called-interactively-p)) (rtags-sandbox-id-matches))
+  (when (or (not (rtags-called-interactively-p)) (rtags-sandbox-id-matches))
     (rtags-delete-rtags-windows)
     (rtags-location-stack-push)
     (let ((arg (rtags-current-location))
@@ -1854,7 +1862,7 @@ is true. References to references will be treated as references to the reference
 ;;;###autoload
 (defun rtags-guess-function-at-point()
   (interactive)
-  (when (or (not (called-interactively-p)) (rtags-sandbox-id-matches))
+  (when (or (not (rtags-called-interactively-p)) (rtags-sandbox-id-matches))
     (rtags-delete-rtags-windows)
     (rtags-location-stack-push)
     (let ((token (rtags-current-token))
@@ -1880,7 +1888,7 @@ is true. References to references will be treated as references to the reference
 ;;;###autoload
 (defun rtags-rename-symbol ()
   (interactive)
-  (when (or (not (called-interactively-p)) (rtags-sandbox-id-matches))
+  (when (or (not (rtags-called-interactively-p)) (rtags-sandbox-id-matches))
     (save-some-buffers) ;; it all kinda falls apart when buffers are unsaved
     (let* ((prev (let ((token (rtags-current-token)))
                    (cond ((string-match "^~" token) (substring token 1))
@@ -1937,25 +1945,25 @@ is true. References to references will be treated as references to the reference
 ;;;###autoload
 (defun rtags-find-symbol (&optional prefix)
   (interactive "P")
-  (when (or (not (called-interactively-p)) (rtags-sandbox-id-matches))
+  (when (or (not (rtags-called-interactively-p)) (rtags-sandbox-id-matches))
     (rtags-find-symbols-by-name-internal "Find rsymbol" "-F" (and prefix buffer-file-name))))
 
 ;;;###autoload
 (defun rtags-find-references (&optional prefix)
   (interactive "P")
-  (when (or (not (called-interactively-p)) (rtags-sandbox-id-matches))
+  (when (or (not (rtags-called-interactively-p)) (rtags-sandbox-id-matches))
     (rtags-find-symbols-by-name-internal "Find rreferences" "-R" (and prefix buffer-file-name))))
 
 ;;;###autoload
 (defun rtags-find-symbol-current-file ()
   (interactive)
-  (when (or (not (called-interactively-p)) (rtags-sandbox-id-matches))
+  (when (or (not (rtags-called-interactively-p)) (rtags-sandbox-id-matches))
     (rtags-find-symbol t)))
 
 ;;;###autoload
 (defun rtags-find-references-current-file ()
   (interactive)
-  (when (or (not (called-interactively-p)) (rtags-sandbox-id-matches))
+  (when (or (not (rtags-called-interactively-p)) (rtags-sandbox-id-matches))
     (rtags-find-references t)))
 
 (defun rtags-dir-filter ()
@@ -1964,13 +1972,13 @@ is true. References to references will be treated as references to the reference
 ;;;###autoload
 (defun rtags-find-symbol-current-dir ()
   (interactive)
-  (when (or (not (called-interactively-p)) (rtags-sandbox-id-matches))
+  (when (or (not (rtags-called-interactively-p)) (rtags-sandbox-id-matches))
     (rtags-find-symbols-by-name-internal "Find rsymbol" "-F" (rtags-dir-filter) t)))
 
 ;;;###autoload
 (defun rtags-find-references-current-dir ()
   (interactive)
-  (when (or (not (called-interactively-p)) (rtags-sandbox-id-matches))
+  (when (or (not (rtags-called-interactively-p)) (rtags-sandbox-id-matches))
     (rtags-find-symbols-by-name-internal "Find rreferences" (rtags-dir-filter) t)))
 
 ;;;###autoload
@@ -2275,7 +2283,7 @@ is true. References to references will be treated as references to the reference
 ;;;###autoload
 (defun rtags-cycle-overlays-on-screen ()
   (interactive)
-  (when (or (not (called-interactively-p)) (rtags-sandbox-id-matches))
+  (when (or (not (rtags-called-interactively-p)) (rtags-sandbox-id-matches))
     (let* ((overlays (rtags-overlays-on-screen))
            (idx (and rtags-highlighted-overlay (let ((i 0)
                                                      (overlay overlays))
@@ -2307,7 +2315,7 @@ is true. References to references will be treated as references to the reference
 ;;;###autoload
 (defun rtags-fix-fixit-at-point ()
   (interactive)
-  (when (or (not (called-interactively-p)) (rtags-sandbox-id-matches))
+  (when (or (not (rtags-called-interactively-p)) (rtags-sandbox-id-matches))
     (let ((current-overlays (overlays-at (point))))
       (while (and current-overlays (not (rtags-fix-fixit-overlay (car current-overlays))))
         (setq current-overlays (cdr current-overlays))))))
@@ -2675,7 +2683,7 @@ is true. References to references will be treated as references to the reference
 ;;;###autoload
 (defun rtags-taglist (&optional dest-window)
   (interactive)
-  (when (or (not (called-interactively-p)) (rtags-sandbox-id-matches))
+  (when (or (not (rtags-called-interactively-p)) (rtags-sandbox-id-matches))
     (unless (buffer-file-name)
       (error "rtags-taglist must be run from a buffer visiting a file"))
     (rtags-delete-rtags-windows)
@@ -2793,7 +2801,7 @@ is true. References to references will be treated as references to the reference
 ;;;###autoload
 (defun rtags-imenu ()
   (interactive)
-  (when (or (not (called-interactively-p)) (rtags-sandbox-id-matches))
+  (when (or (not (rtags-called-interactively-p)) (rtags-sandbox-id-matches))
     (rtags-delete-rtags-windows)
     (rtags-location-stack-push)
     (let* ((fn (buffer-file-name))
@@ -2836,7 +2844,7 @@ is true. References to references will be treated as references to the reference
 ;;;###autoload
 (defun rtags-find-file (&optional prefix tagname)
   (interactive "P")
-  (when (or (not (called-interactively-p)) (rtags-sandbox-id-matches))
+  (when (or (not (rtags-called-interactively-p)) (rtags-sandbox-id-matches))
     (rtags-delete-rtags-windows)
     (rtags-location-stack-push)
     (let ((tagname (rtags-current-symbol t)) prompt input offset line column
@@ -2908,7 +2916,7 @@ is true. References to references will be treated as references to the reference
 ;;;###autoload
 (defun rtags-fixit (&optional ediff buffer)
   (interactive "P")
-  (when (or (not (called-interactively-p)) (rtags-sandbox-id-matches))
+  (when (or (not (rtags-called-interactively-p)) (rtags-sandbox-id-matches))
     (save-some-buffers)
     (unless buffer
       (setq buffer (current-buffer)))
@@ -3074,7 +3082,7 @@ CENTER-WINDOW : if true the target window is centered.
 TRY-DECLARATION-FIRST : first try to find the declaration of the item, then the
 definition."
   (interactive)
-  (when (or (not (called-interactively-p)) (rtags-sandbox-id-matches))
+  (when (or (not (rtags-called-interactively-p)) (rtags-sandbox-id-matches))
     (let ((target (if try-declaration-first
                       (rtags-target-declaration-first)
                     (rtags-target))))
@@ -3214,7 +3222,7 @@ definition."
 ;;;###autoload
 (defun rtags-compile-file (&optional buffer)
   (interactive)
-  (when (or (not (called-interactively-p)) (rtags-sandbox-id-matches))
+  (when (or (not (rtags-called-interactively-p)) (rtags-sandbox-id-matches))
     (let ((source (cond ((stringp buffer) buffer)
                         ((bufferp buffer) (buffer-file-name buffer))
                         (t (buffer-file-name)))))
@@ -3349,7 +3357,7 @@ definition."
 (defun rtags-reparse-file (&optional buffer wait-reparsing)
   "WAIT-REPARSING : t to wait for reparsing to finish, nil for async (no waiting)."
   (interactive)
-  (when (or (not (called-interactively-p)) (rtags-sandbox-id-matches))
+  (when (or (not (rtags-called-interactively-p)) (rtags-sandbox-id-matches))
     (unless buffer
       (setq buffer (current-buffer)))
     (let ((file (buffer-file-name buffer)))
@@ -3495,7 +3503,7 @@ details).
 
 If `rtags-display-summary-as-tooltip' is t, a tooltip is displayed."
   (interactive)
-  (when (or (not (called-interactively-p)) (rtags-sandbox-id-matches))
+  (when (or (not (rtags-called-interactively-p)) (rtags-sandbox-id-matches))
     (let ((summary (rtags-get-summary-text)))
       (when (or summary (not hide-empty))
         (when (null summary)
@@ -3561,7 +3569,7 @@ If `rtags-display-summary-as-tooltip' is t, a tooltip is displayed."
 (defun rtags-get-include-file-for-symbol ()
   "Insert #include declaration to buffer corresponding to the input symbol."
   (interactive)
-  (when (or (not (called-interactively-p)) (rtags-sandbox-id-matches))
+  (when (or (not (rtags-called-interactively-p)) (rtags-sandbox-id-matches))
     (let* ((token (rtags-current-token))
            (prompt (if token
                        (format "Symbol (default: %s): " token)
@@ -3708,7 +3716,7 @@ If `rtags-display-summary-as-tooltip' is t, a tooltip is displayed."
 ;;;###autoload
 (defun rtags-check-includes ()
   (interactive)
-  (when (or (not (called-interactively-p)) (rtags-sandbox-id-matches))
+  (when (or (not (rtags-called-interactively-p)) (rtags-sandbox-id-matches))
     (let ((filename (rtags-untrampify (buffer-file-name))))
       (unless filename
         (error "You need to call rtags-check-includes from an actual file"))
@@ -3731,7 +3739,7 @@ If `rtags-display-summary-as-tooltip' is t, a tooltip is displayed."
 (defun rtags-create-doxygen-comment ()
   "Creates doxygen comment for function at point Comment will be inserted before current line. It uses yasnippet to let the user enter missing field manually."
   (interactive)
-  (when (or (not (called-interactively-p)) (rtags-sandbox-id-matches))
+  (when (or (not (rtags-called-interactively-p)) (rtags-sandbox-id-matches))
     (save-some-buffers) ;; it all kinda falls apart when buffers are unsaved
     (let ((symbol (rtags-symbol-info-internal)))
       (unless symbol
