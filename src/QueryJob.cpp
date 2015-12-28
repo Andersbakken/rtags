@@ -321,7 +321,8 @@ bool QueryJob::write(const Symbol &symbol,
                     }
                 }
 
-                elisp(out, "baseClasses", baseClasses, flags | NoQuote);
+                if (!baseClasses.isEmpty())
+                    elisp(out, "baseClasses", baseClasses, flags | NoQuote);
             }
             if (!symbol.arguments.isEmpty()) {
                 List<String> arguments;
@@ -334,7 +335,8 @@ bool QueryJob::write(const Symbol &symbol,
                     }
                 }
 
-                elisp(out, "arguments", arguments, flags | NoQuote);
+                if (!arguments.isEmpty())
+                    elisp(out, "arguments", arguments, flags | NoQuote);
             }
 
             elisp(out, "symbolLength", static_cast<uint32_t>(symbol.symbolLength), flags);
