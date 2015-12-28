@@ -316,11 +316,7 @@ bool QueryJob::write(const Symbol &symbol,
                             break;
                         }
                     }
-                    if (sym.isNull()) {
-                        String str = " ";
-                        toString(str, base, flags);
-                        baseClasses << str;
-                    } else {
+                    if (!sym.isNull()) {
                         baseClasses << symbolToElisp(sym, Mode_BaseClass);
                     }
                 }
@@ -333,11 +329,7 @@ bool QueryJob::write(const Symbol &symbol,
                     Symbol sym;
                     if (mode == Mode_Symbol)
                         sym = project()->findSymbol(arg);
-                    if (sym.isNull()) {
-                        String str = " ";
-                        toString(str, arg, flags);
-                        arguments << str;
-                    } else {
+                    if (!sym.isNull()) {
                         arguments << symbolToElisp(sym, Mode_Argument);
                     }
                 }
