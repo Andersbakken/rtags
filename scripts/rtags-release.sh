@@ -15,7 +15,7 @@ branch_name=${branch_name##refs/heads/}
 RELEASES=~/Downloads/rtags-releases
 if [ "$branch_name" == "master" ]; then
     commit=$(git show --oneline --no-patch)
-    current=`curl http://andersbakken.github.io/rtags-releases/commit | cut -d' ' -f1`
+    current=`curl --silent http://andersbakken.github.io/rtags-releases/commit | cut -d' ' -f1`
     if [ "`echo "$commit" | cut -d' ' -f1`" != "$current" ]; then
         rm -rf $RELEASES
         mkdir $RELEASES
