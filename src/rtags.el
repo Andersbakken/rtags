@@ -689,8 +689,8 @@ to case differences."
 
 (defun rtags-diagnostics-is-running ()
   (and rtags-diagnostics-process
-             (not (eq (process-status rtags-diagnostics-process) 'exit))
-             (not (eq (process-status rtags-diagnostics-process) 'signal))))
+       (not (eq (process-status rtags-diagnostics-process) 'exit))
+       (not (eq (process-status rtags-diagnostics-process) 'signal))))
 
 (defun rtags-get-sandbox-id (path)
   "Returns vector to uniquely define sandbox the path belongs to.
@@ -742,19 +742,19 @@ Additionally for debugging purposes this method handles `rtags-tramp-enabled` fu
     sandbox-match))
 
 (defun rtags-call-process-region
-  (start end program &optional delete buffer display &rest args)
+    (start end program &optional delete buffer display &rest args)
   "Use Tramp to handle `call-process-region'.
 Fixes a bug in `tramp-handle-call-process-region'.
 Function based on org-babel-tramp-handle-call-process-region"
   (if (and (featurep 'tramp) (file-remote-p default-directory))
       (let ((tmpfile (tramp-compat-make-temp-file "")))
-	(write-region start end tmpfile)
-	(when delete (delete-region start end))
-	(unwind-protect
-	    ;;	(apply 'call-process program tmpfile buffer display args)
+        (write-region start end tmpfile)
+        (when delete (delete-region start end))
+        (unwind-protect
+            ;;	(apply 'call-process program tmpfile buffer display args)
             ;; bug in tramp
-	    (apply 'process-file program tmpfile buffer display args)
-	  (delete-file tmpfile)))
+            (apply 'process-file program tmpfile buffer display args)
+          (delete-file tmpfile)))
     (apply 'call-process-region
            start end program delete buffer display args)))
 
@@ -2415,11 +2415,10 @@ is true. References to references will be treated as references to the reference
           (let ((result
                  (process-file "kill" nil nil nil
                                (int-to-string (process-id rtags-diagnostics-process)))))
-                 (if (not (= result 0))
-                     ;; the kill above did not do. Let's send KILL
-                     (process-file "kill" nil nil nil "-9"
-                                   (int-to-string (process-id rtags-diagnostics-process)))))))))
-
+            (unless (= result 0)
+              ;; the kill above did not do. Let's send KILL
+              (process-file "kill" nil nil nil "-9"
+                            (int-to-string (process-id rtags-diagnostics-process)))))))))
   (when (get-buffer rtags-diagnostics-buffer-name)
     (kill-buffer rtags-diagnostics-buffer-name)))
 
