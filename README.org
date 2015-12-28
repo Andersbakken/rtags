@@ -120,14 +120,11 @@ $ git submodule update
 
 You can also download the sources from here:
 
-https://github.com/Andersbakken/rtags-releases/raw/gh-pages/rtags.tar.bz2
+http://andersbakken.github.io/rtags-releases/rtags.tar.bz2
 
 or
 
-https://github.com/Andersbakken/rtags-releases/raw/gh-pages/rtags.tar.gz
-
-(I know this isn't how gh-pages are supposed to work but I couldn't
-figure out the .io thing).
+http://andersbakken.github.io/rtags-releases/rtags.tar.gz
 
 We recommend building in a separate directory to keep the build files
 separate from the source, but you can run =cmake= in the source tree
