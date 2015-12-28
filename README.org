@@ -642,8 +642,8 @@ would be returned.
 
 #+END_SRC
 
-* Completion in Emacs:
-  To enable completion in Emacs with company mode do the following:
+* Code Completion in Emacs:
+  To enable code completion in Emacs with company mode do the following:
 
   - Enable rtags-diagnostics. The easiest way is to:
 #+BEGIN_SRC
