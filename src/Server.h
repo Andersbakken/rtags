@@ -104,7 +104,6 @@ public:
     std::shared_ptr<Project> project(const Path &path) const { return mProjects.value(path); }
     bool shouldIndex(const Source &source, const Path &project) const;
     void stopServers();
-    int mongooseStatistics(struct mg_connection *conn);
     void dumpJobs(const std::shared_ptr<Connection> &conn);
     std::shared_ptr<JobScheduler> jobScheduler() const { return mJobScheduler; }
     const Set<uint32_t> &activeBuffers() const { return mActiveBuffers; }
