@@ -642,6 +642,35 @@ would be returned.
 
 #+END_SRC
 
+* Completion in Emacs:
+  To enable completion in Emacs with company mode do the following:
+
+  - Enable rtags-diagnostics. The easiest way is to:
+#+BEGIN_SRC
+  (setq rtags-autostart-diagnostics t)
+#+END_SRC
+  but you can also explicitly start it with
+#+BEGIN_SRC
+M-x rtags-diagnostics <RET>
+#+END_SRC
+  - Enable completions in rtags:
+#+BEGIN_SRC
+    (setq rtags-completion-enabled t)
+#+END_SRC
+  - Add company-rtags to company-backends:
+#+BEGIN_SRC
+  (push 'company-rtags company-backends)
+#+END_SRC
+  - Enable company-mode
+#+BEGIN_SRC
+  (global-company-mode)
+#+END_SRC
+    Or something to that effect.
+
+ To enable completion in Emacs with auto-complete-mode do the
+ following:
+...TODO...
+
 * Videos
 Here are some videos demonstrating how to use RTags with Emacs though
 some of these may be outdated:
