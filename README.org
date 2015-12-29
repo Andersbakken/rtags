@@ -644,9 +644,9 @@ would be returned.
 
   - Enable rtags-diagnostics. The easiest way is to:
 #+BEGIN_SRC
-  (setq rtags-autostart-diagnostics t)
+(setq rtags-autostart-diagnostics t)
 #+END_SRC
-  but you can also explicitly start it with
+    but you can also explicitly start it with
 #+BEGIN_SRC
 M-x rtags-diagnostics <RET>
 #+END_SRC
@@ -654,15 +654,15 @@ M-x rtags-diagnostics <RET>
 #+BEGIN_SRC
     (setq rtags-completion-enabled t)
 #+END_SRC
+  - Enable company-mode
+#+BEGIN_SRC
+  (require 'company)
+  (global-company-mode)
+#+END_SRC
   - Add company-rtags to company-backends:
 #+BEGIN_SRC
   (push 'company-rtags company-backends)
 #+END_SRC
-  - Enable company-mode
-#+BEGIN_SRC
-  (global-company-mode)
-#+END_SRC
-    Or something to that effect.
 
  To enable completion in Emacs with auto-complete-mode do the
  following:
