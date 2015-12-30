@@ -198,7 +198,6 @@ private:
     Signal<std::function<void()> > mIndexDataMessageReceived;
     friend void saveFileIds();
 };
-
 RCT_FLAGS(Server::Option);
 
 #endif
