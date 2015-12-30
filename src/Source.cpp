@@ -178,7 +178,7 @@ static inline size_t hashIncludePaths(const List<Source::Include> &includes, con
 
 static inline void addIncludeArg(List<Source::Include> &includePaths,
                                  Source::Include::Type type,
-                                 int argLen,
+                                 size_t argLen,
                                  const List<String> &args,
                                  int &idx,
                                  const Path &cwd)
@@ -323,7 +323,7 @@ static inline bool isCompiler(const Path &fullPath)
 
     if (c.size() != compiler.size()) {
         bool isVersion = true;
-        for (int i=0; i<c.size(); ++i) {
+        for (size_t i=0; i<c.size(); ++i) {
             if ((c.at(i) < '0' || c.at(i) > '9') && c.at(i) != '.') {
 #ifdef OS_CYGWIN
                 // eat 'exe' if it exists
@@ -411,7 +411,7 @@ List<Source> Source::parse(const String &cmdLine,
     }
     debug() << "Source::parse (" << args << ") => " << split << cwd;
 
-    for (int i=0; i<split.size(); ++i) {
+    for (size_t i=0; i<split.size(); ++i) {
         if (split.at(i) == "cd" || !findFileInPath(split.at(i), cwd, pathEnvironment).isEmpty()) {
             if (i) {
                 split.remove(0, i);
@@ -799,7 +799,7 @@ List<String> Source::toCommandLine(Flags<CommandLineFlag> flags, bool *usedPch) 
         remove = config.value("remove-arguments").split(";").toSet();
     }
 
-    for (int i=0; i<arguments.size(); ++i) {
+    for (size_t i=0; i<arguments.size(); ++i) {
         const String &arg = arguments.at(i);
         const bool hasValue = ::hasValue(arg);
         bool skip = false;

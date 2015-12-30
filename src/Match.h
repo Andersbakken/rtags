@@ -52,8 +52,10 @@ public:
         if (indexIn(text) != -1)
             return true;
         if (mFlags & Flag_StringMatch)
-            return mPattern.indexOf(text, 0, mFlags & Flag_CaseInsensitive ? String::CaseInsensitive : String::CaseSensitive) != -1;
-        return false;
+            return mPattern.indexOf(text, 0, (mFlags & Flag_CaseInsensitive
+                                              ? String::CaseInsensitive
+                                              : String::CaseSensitive)) != String::npos;
+                                    return false;
     }
 
     inline int indexIn(const String &text) const

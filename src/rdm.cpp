@@ -618,20 +618,22 @@ int main(int argc, char** argv)
                 return 1;
             }
             break; }
-        case 'j':
-            serverOpts.jobCount = atoi(optarg);
-            if (serverOpts.jobCount < 0) {
+        case 'j': {
+            bool ok;
+            serverOpts.jobCount = String(optarg).toULong(&ok);
+            if (!ok) {
                 fprintf(stderr, "Can't parse argument to -j %s. -j must be a positive integer.\n", optarg);
                 return 1;
             }
-            break;
-        case 'H':
-            serverOpts.headerErrorJobCount = atoi(optarg);
-            if (serverOpts.headerErrorJobCount < 0) {
-                fprintf(stderr, "Can't parse argument to -H %s. -J must be a positive integer.\n", optarg);
+            break; }
+        case 'H': {
+            bool ok;
+            serverOpts.headerErrorJobCount = String(optarg).toULong(&ok);
+            if (!ok) {
+                fprintf(stderr, "Can't parse argument to -H %s. -H must be a positive integer.\n", optarg);
                 return 1;
             }
-            break;
+            break; }
         case 'r': {
             int large = atoi(optarg);
             if (large <= 0) {
@@ -715,8 +717,8 @@ int main(int argc, char** argv)
         }
     }
 
-    if (serverOpts.headerErrorJobCount == -1) {
-        serverOpts.headerErrorJobCount = std::max(1, serverOpts.jobCount / 2);
+    if (!serverOpts.headerErrorJobCount) {
+        serverOpts.headerErrorJobCount = std::max<size_t>(1, serverOpts.jobCount / 2);
     } else {
         serverOpts.headerErrorJobCount = std::min(serverOpts.headerErrorJobCount, serverOpts.jobCount);
     }

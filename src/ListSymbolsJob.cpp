@@ -90,7 +90,7 @@ Set<String> ListSymbolsJob::listSymbolsWithPathFilter(const std::shared_ptr<Proj
     const bool stripParentheses = queryFlags() & QueryMessage::StripParentheses;
     const bool caseInsensitive = queryFlags() & QueryMessage::MatchCaseInsensitive;
     const String::CaseSensitivity cs = caseInsensitive ? String::CaseInsensitive : String::CaseSensitive;
-    for (int i=0; i<paths.size(); ++i) {
+    for (size_t i=0; i<paths.size(); ++i) {
         const Path file = paths.at(i);
         const uint32_t fileId = Location::fileId(file);
         if (!fileId)

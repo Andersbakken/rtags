@@ -256,7 +256,7 @@ public:
             return false;
         }
 
-        ret = ::write(fd, data.constData(), data.size()) == data.size();
+        ret = ::write(fd, data.constData(), data.size()) == static_cast<ssize_t>(data.size());
         if (!(options & NoLock))
             ret = lock(fd, Unlock) && ret;
 

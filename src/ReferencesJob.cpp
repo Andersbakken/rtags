@@ -47,8 +47,8 @@ int ReferencesJob::execute()
         const bool hasFilter = QueryJob::hasFilter();
         auto inserter = [this, hasFilter](Project::SymbolMatchType type, const String &string, const Set<Location> &locs) {
             if (type == Project::StartsWith) {
-                const int paren = string.indexOf('(');
-                if (paren == -1 || paren != symbolName.size() || RTags::isFunctionVariable(string))
+                const size_t paren = string.indexOf('(');
+                if (paren == String::npos || paren != symbolName.size() || RTags::isFunctionVariable(string))
                     return;
             }
 

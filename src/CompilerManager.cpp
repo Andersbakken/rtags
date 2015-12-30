@@ -113,7 +113,7 @@ void applyToSource(Source &source, bool defines, bool incPaths)
                 return;
             }
         }
-        for (int i=0; i<out.size(); ++i) {
+        for (size_t i=0; i<out.size(); ++i) {
             const String &line = out.at(i);
             // error() << c << line;
             if (line.startsWith("#define ")) {
@@ -131,7 +131,7 @@ void applyToSource(Source &source, bool defines, bool incPaths)
 
         enum { eNormal, eNoStdInc, eNoBuiltin } mode = eNormal;
         List<Source::Include> copy;
-        for (int i=0; i<err.size(); ++i) {
+        for (size_t i=0; i<err.size(); ++i) {
             const String &line = err.at(i);
             if (line.startsWith("@@@@"))  // magic separator
             {
@@ -155,7 +155,7 @@ void applyToSource(Source &source, bool defines, bool incPaths)
                 }
                 copy = compiler.includePaths;
             }
-            int j = 0;
+            size_t j = 0;
             while (j < line.size() && isspace(line.at(j)))
                 ++j;
             int end = line.lastIndexOf(" (framework directory)");

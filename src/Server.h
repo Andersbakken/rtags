@@ -84,7 +84,8 @@ public:
 
         Path socketFile, dataDir, argTransform;
         Flags<Option> options;
-        int jobCount, headerErrorJobCount, rpVisitFileTimeout, rpIndexDataMessageTimeout,
+        size_t jobCount, headerErrorJobCount;
+        int rpVisitFileTimeout, rpIndexDataMessageTimeout,
             rpConnectTimeout, rpConnectAttempts, rpNiceValue, threadStackSize, maxCrashCount,
             completionCacheSize, testTimeout, maxFileMapScopeCacheSize;
         uint16_t tcpPort;

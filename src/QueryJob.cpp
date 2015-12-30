@@ -69,7 +69,7 @@ bool QueryJob::write(const String &out, Flags<WriteFlag> flags)
             String o((out.size() * 2) + 2, '"');
             char *ch = o.data() + 1;
             int l = 2;
-            for (int i=0; i<out.size(); ++i) {
+            for (size_t i=0; i<out.size(); ++i) {
                 const char c = out.at(i);
                 if (c == '"') {
                     *ch = '\\';

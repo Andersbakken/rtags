@@ -52,7 +52,7 @@ private:
 
     Set<uint32_t> mWatched;
     bool mShutdown;
-    const int mCacheSize;
+    const size_t mCacheSize;
     struct Request {
         ~Request()
         {

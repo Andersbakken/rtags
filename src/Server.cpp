@@ -198,6 +198,7 @@ bool Server::init(const Options &options)
 
 bool Server::initServers()
 {
+
     if (mOptions.tcpPort) {
         for (int i=0; i<10; ++i) {
             mTcpServer.reset(new SocketServer);
@@ -382,7 +383,7 @@ String Server::guessArguments(const String &args, const Path &pwd, const Path &p
         roots.insert(projectRootOverride.ensureTrailingSlash());
     ret << "/usr/bin/g++";
     const List<String> split = args.split(" ");
-    for (int i=0; i<split.size(); ++i) {
+    for (size_t i=0; i<split.size(); ++i) {
         const String &s = split.at(i);
         if (s == "--build-root") {
             const Path root = split.value(++i);
@@ -1436,12 +1437,12 @@ void Server::jobCount(const std::shared_ptr<QueryMessage> &query, const std::sha
 {
     String q = query->query();
     if (q.isEmpty()) {
-        conn->write<128>("Running with %d/%d jobs", mOptions.jobCount, mOptions.headerErrorJobCount);
+        conn->write<128>("Running with %zu/%zu jobs", mOptions.jobCount, mOptions.headerErrorJobCount);
     } else {
         const bool header = q.startsWith('h');
         if (header)
             q.remove(0, 1);
-        int &jobs = header ? mOptions.headerErrorJobCount : mOptions.jobCount;
+        size_t &jobs = header ? mOptions.headerErrorJobCount : mOptions.jobCount;
         bool ok;
         const int jobCount = q.toLongLong(&ok);
         if (!ok || jobCount < 0 || jobCount > 100) {
@@ -1449,7 +1450,7 @@ void Server::jobCount(const std::shared_ptr<QueryMessage> &query, const std::sha
         } else {
             jobs = jobCount;
             mOptions.headerErrorJobCount = std::min(mOptions.headerErrorJobCount, mOptions.jobCount);
-            conn->write<128>("Changed jobs to %d/%d", mOptions.jobCount, mOptions.headerErrorJobCount);
+            conn->write<128>("Changed jobs to %zu/%zu", mOptions.jobCount, mOptions.headerErrorJobCount);
         }
     }
     conn->finish();
@@ -1627,7 +1628,7 @@ void Server::setBuffers(const std::shared_ptr<QueryMessage> &query, const std::s
         for (const Path &path : paths) {
             mActiveBuffers << Location::insertFile(path);
         }
-        conn->write<32>("Added %d buffers", mActiveBuffers.size());
+        conn->write<32>("Added %zu buffers", mActiveBuffers.size());
     }
     conn->finish();
 }
@@ -1696,7 +1697,7 @@ void Server::load()
         fileIdsFile >> pathsToIds;
         Location::init(pathsToIds);
         List<Path> projects = mOptions.dataDir.files(Path::Directory);
-        for (int i=0; i<projects.size(); ++i) {
+        for (size_t i=0; i<projects.size(); ++i) {
             const Path &file = projects.at(i);
             Path p = file.mid(mOptions.dataDir.size());
             if (p.endsWith('/'))

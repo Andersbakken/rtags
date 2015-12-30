@@ -1217,7 +1217,8 @@ void Project::findSymbols(const String &string,
     String lowerBound;
     if (wildcard) {
         if (!caseInsensitive) {
-            for (int i=0; i<string.size(); ++i) {
+            const size_t size = string.size();
+            for (size_t i=0; i<size; ++i) {
                 if (string.at(i) == '?' || string.at(i) == '*') {
                     lowerBound = string.left(i);
                     break;
@@ -1925,7 +1926,7 @@ void Project::loadFailed(uint32_t fileId)
 }
 
 template <typename T>
-static inline String toString(const T &t, int &max)
+static inline String toString(const T &t, size_t &max)
 {
     String ret;
     Log(&ret, LogOutput::NoTypename) << t;
@@ -1935,7 +1936,7 @@ static inline String toString(const T &t, int &max)
 }
 
 template <>
-inline String toString(const String &str, int &max)
+inline String toString(const String &str, size_t &max)
 {
     max = std::max(max, str.size());
     String ret = str;
@@ -1943,17 +1944,17 @@ inline String toString(const String &str, int &max)
     return ret;
 }
 
-static inline void fixString(String &string, int size)
+static inline void fixString(String &string, size_t size)
 {
     if (string.size() != size)
         string.append(String(size - string.size(), ' '));
 }
 
-static List<String> split(const String &value, int max)
+static List<String> split(const String &value, size_t max)
 {
     List<String> words = value.split(' ', String::KeepSeparators);
     List<String> ret(1);
-    int i = 0;
+    size_t i = 0;
     while (i < words.size()) {
         const String &word = words.at(i);
         if (ret.last().size() && ret.last().size() + word.size() > max) {
@@ -1964,7 +1965,7 @@ static List<String> split(const String &value, int max)
 
         if (word.size() > max) {
             assert(ret.last().isEmpty());
-            for (int j=0; j<word.size(); j += max) {
+            for (size_t j=0; j<word.size(); j += max) {
                 if (j)
                     ret.append(String());
                 ret.last() = word.mid(j, max);
@@ -1984,7 +1985,7 @@ template <typename T> struct PreferComma { enum { value = 0 }; };
 template <typename T> struct PreferComma<Set<T> > { enum { value = 1 }; };
 
 template <typename T>
-static List<String> formatField(const String &value, int max)
+static List<String> formatField(const String &value, size_t max)
 {
     List<String> ret;
     if (value.size() <= max) {
@@ -1994,7 +1995,7 @@ static List<String> formatField(const String &value, int max)
             ret = value.split(',', String::KeepSeparators);
 
         if (ret.size() > 1) {
-            for (int i=0; i<ret.size(); ++i) {
+            for (size_t i=0; i<ret.size(); ++i) {
                 if (ret.at(i).size() > max) {
                     auto split = ::split(ret.at(i), max);
                     ret.remove(i, 1);
@@ -2011,23 +2012,23 @@ static List<String> formatField(const String &value, int max)
     return ret;
 }
 template <typename Key, typename Value>
-static String formatTable(const String &name, const std::shared_ptr<FileMap<Key, Value> > &fileMap, int width)
+static String formatTable(const String &name, const std::shared_ptr<FileMap<Key, Value> > &fileMap, size_t width)
 {
     width -= 7; // padding
     List<String> keys, values;
     const int count = fileMap->count();
-    int maxKey = 0;
-    int maxValue = 0;
+    size_t maxKey = 0;
+    size_t maxValue = 0;
     for (int i=0; i<count; ++i) {
         keys << toString(fileMap->keyAt(i), maxKey);
         values << toString(fileMap->valueAt(i), maxValue);
     }
     if (maxKey + maxValue > width) {
         if (maxKey < maxValue) {
-            maxKey = std::min(maxKey, static_cast<int>(width * .4));
+            maxKey = std::min(maxKey, static_cast<size_t>(width * .4));
             maxValue = std::min(maxValue, width - maxKey);
         } else {
-            maxValue = std::min(maxValue, static_cast<int>(width * .4));
+            maxValue = std::min(maxValue, static_cast<size_t>(width * .4));
             maxKey = std::min(maxKey, width - maxValue);
 
         }

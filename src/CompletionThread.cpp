@@ -303,7 +303,7 @@ void CompletionThread::process(Request *request)
         const auto it = cache->completionsMap.find(request->location);
         if (it != cache->completionsMap.end()) {
             cache->completionsList.moveToEnd(it->second);
-            error("Found completions (%d) in cache %s:%d:%d",
+            error("Found completions (%zu) in cache %s:%d:%d",
                   it->second->candidates.size(), sourceFile.constData(),
                   request->location.line(), request->location.column());
             printCompletions(it->second->candidates, request);
@@ -403,7 +403,7 @@ void CompletionThread::process(Request *request)
                 if (ws >= 0) {
                     node.completion.truncate(ws + 1);
                     node.signature.replace("\n", "");
-                    node.distance = tokens.value(Token(node.completion.constData(), node.completion.size()), -1);
+                    node.distance = tokens.isEmpty() ? -1 : tokens.value(Token(node.completion.constData(), node.completion.size()), -1);
                     if (sendDebug)
                         debug() << node.signature << node.priority << kind
                                 << node.distance << clang_getCompletionAvailability(string);
@@ -441,7 +441,7 @@ void CompletionThread::process(Request *request)
                 c->candidates[i] = std::move(*nodesPtr[i]);
             printCompletions(c->candidates, request);
             processTime = sw.elapsed();
-            warning("Processed %s, parse %d/%d, complete %d, process %d => %d completions (unsaved %d)",
+            warning("Processed %s, parse %d/%d, complete %d, process %d => %d completions (unsaved %zu)",
                     sourceFile.constData(), parseTime, reparseTime, completeTime, processTime, nodeCount, request->unsaved.size());
         } else {
             printCompletions(List<Completions::Candidate>(), request);

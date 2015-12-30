@@ -124,7 +124,7 @@ int IncludeFileJob::execute()
             bool fuzzy = false;
             if (type == Project::StartsWith) {
                 fuzzy = true;
-                const int paren = symbolName.indexOf('(');
+                const size_t paren = symbolName.indexOf('(');
                 if (paren == mSymbol.size() && !RTags::isFunctionVariable(symbolName))
                     fuzzy = false;
             }

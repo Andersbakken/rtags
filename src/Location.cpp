@@ -92,9 +92,9 @@ String Location::context(Flags<ToStringFlag> flags) const
         ret.assign(ch, end - ch);
         // error() << "foobar" << ret << bool(flags & NoColor);
         if (!(flags & NoColor)) {
-            const int col = column() - 1;
+            const size_t col = column() - 1;
             if (col + 1 < ret.size()) {
-                int last = col;
+                size_t last = col;
                 if (ret.at(last) == '~')
                     ++last;
                 while (ret.size() > last && (isalnum(ret.at(last)) || ret.at(last) == '_'))

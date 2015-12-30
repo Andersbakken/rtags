@@ -51,8 +51,8 @@ int FindSymbolsJob::execute()
                     return;
             }
             if (type == Project::StartsWith) {
-                const int paren = symbolName.indexOf('(');
-                if (paren == -1 || paren != string.size() || RTags::isFunctionVariable(symbolName))
+                const size_t paren = symbolName.indexOf('(');
+                if (paren == String::npos || paren != string.size() || RTags::isFunctionVariable(symbolName))
                     return;
             }
             for (const auto &it : locations) {
