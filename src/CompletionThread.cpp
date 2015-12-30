@@ -530,13 +530,15 @@ void CompletionThread::printCompletions(const List<Completions::Candidate> &comp
                                               val.briefComment.constData());
             }
             if (elisp) {
-                elispOut += String::format<128>(" (list \"%s\" \"%s\" \"%s\" \"%s\" \"%s\" \"%s\")",
+                // elispOut += String::format<128>(" (list \"%s\" \"%s\" \"%s\" \"%s\" \"%s\" \"%s\")",
+                elispOut += String::format<128>(" (list \"%s\" \"%s\" \"%s\")",
                                                 RTags::elispEscape(val.completion).constData(),
                                                 RTags::elispEscape(val.signature).constData(),
-                                                kind.constData(),
-                                                RTags::elispEscape(val.annotation).constData(),
-                                                val.parent.constData(),
-                                                val.briefComment.constData());
+                                                kind.constData());
+                //,
+                                                // RTags::elispEscape(val.annotation).constData(),
+                                                // val.parent.constData(),
+                                                // val.briefComment.constData());
             }
         }
         if (elisp)
