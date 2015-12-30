@@ -668,6 +668,8 @@ This minimal init.el confiuration should be enough to get completion
 to work.
 
 #+BEGIN_SRC
+(require 'package)
+(package-initialize)
 (require 'rtags)
 (require 'company)
 
