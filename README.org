@@ -664,6 +664,21 @@ M-x rtags-diagnostics <RET>
   (push 'company-rtags company-backends)
 #+END_SRC
 
+This minimal init.el confiuration should be enough to get completion
+to work.
+
+#+BEGIN_SRC
+(require 'rtags)
+(require 'company)
+
+(setq rtags-autostart-diagnostics t)
+(rtags-diagnostics)
+(setq rtags-completion-enabled t)
+(push 'company-rtags company-backends)
+(global-company-mode)
+(define-key c-mode-base-map (kbd "<C-tab>") (function company-complete))
+#+END_SRC
+
  To enable completion in Emacs with auto-complete-mode do the
  following:
 ...TODO...
