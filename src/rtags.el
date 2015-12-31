@@ -2574,7 +2574,8 @@ is true. References to references will be treated as references to the reference
            (rtags-goto-location string)
            t))
         (t
-         (switch-to-buffer-other-window rtags-buffer-name)
+         (unless rtags-use-helm
+           (switch-to-buffer-other-window rtags-buffer-name))
          (goto-char (point-max))
          (when (= (point-at-bol) (point-max))
            (delete-char -1))
@@ -2606,12 +2607,11 @@ is true. References to references will be treated as references to the reference
                (set-text-properties start end (list 'rtags-bookmark-index (cons bookmark-idx start)))))
            (forward-line))
          (shrink-window-if-larger-than-buffer)
+         (rtags-mode)
+         (when path
+           (setq rtags-current-file path))
          (if rtags-use-helm
              (helm :sources '(rtags-helm-source))
-           (rtags-mode)
-           (when path
-             (setq rtags-current-file path))
-
            (when (and rtags-jump-to-first-match (not noautojump))
              (rtags-select-other-window)))
          t)))
@@ -3801,10 +3801,10 @@ If `rtags-display-summary-as-tooltip' is t, a tooltip is displayed."
       ret))
 
   (defun rtags-helm-select (candidate)
-    (switch-to-buffer (get-buffer rtags-buffer-name))
-    (goto-char (point-min))
-    (search-forward candidate)
-    (rtags-select t t))
+    (with-current-buffer (get-buffer rtags-buffer-name)
+      (goto-char (point-min))
+      (search-forward candidate)
+      (rtags-select t t)))
     ;; (message "CAND: %d" (get-text-property 0 'rtags-buffer-position candidate)))
 
   (defvar rtags-helm-source '((name . "RTags Helm")
