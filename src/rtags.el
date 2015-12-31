@@ -410,7 +410,8 @@ return t if rtags is allowed to modify this file."
   :type 'function)
 
 (defun rtags-get-buffer (&optional name)
-  (unless name (setq name rtags-buffer-name))
+  (unless name
+    (setq name rtags-buffer-name))
   (when (get-buffer name)
     (kill-buffer name))
   (generate-new-buffer name))
