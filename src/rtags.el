@@ -1368,14 +1368,14 @@ Can be used both for path and location."
     (insert (rtags-tree-indent level)
             location
             " "
-            (cdr (assoc 'ctx ref)))
+            (rtags-elide-text (cdr (assoc 'ctx ref)) (/ (window-width) 3) 'middle))
     (let ((cf (cdr (assoc 'cf ref)))
           (props (list 'rtags-ref-containing-function-location (cdr (assoc 'cfl ref))))
           (pos (point)))
       (when bookmark-idx
         (setq props (append props (list 'rtags-bookmark-index (cons bookmark-idx (point-at-bol))))))
       (when cf
-        (insert " <= " cf))
+        (insert " <= " (rtags-elide-text cf (/ (window-width) 3) 'right)))
 
       (set-text-properties (point-at-bol) (point-at-eol) props)
       (when cf
@@ -2213,17 +2213,23 @@ is true. References to references will be treated as references to the reference
   (with-temp-buffer
     (rtags-call-rc "--is-indexing" :noerror t)))
 
-(defun rtags-elide-middle (str len)
-  (if (> (length str) len)
-      (let ((part (- (/ len 2) 3)))
-        (concat (substring str 0 part)
-                "..."
-                (substring str (- part))))
-    str))
+(defun rtags-elide-text (str len part)
+  (cond ((<= (length str) len) str)
+        ((<= len 3) (substring str 0 len))
+        ((eq part 'middle)
+         (let ((part (- (/ len 2) 3)))
+           (concat (substring str 0 part)
+                   "..."
+                   (substring str (- part)))))
+        ((eq part 'left)
+         (concat "..." (substring str (- (- len 3)))))
+        ((eq part 'right)
+         (concat (substring str 0 (- len 3)) "..."))
+        (t (error "Wrong part"))))
 
 (defun rtags-display-overlay (overlay point)
   (let* ((maxwidth (window-width))
-         (msg (rtags-elide-middle (overlay-get overlay 'rtags-error-message) maxwidth))
+         (msg (rtags-elide-text (overlay-get overlay 'rtags-error-message) maxwidth 'middle))
          (bol (save-excursion
                 (goto-char point)
                 (point-at-bol)))
@@ -2237,7 +2243,7 @@ is true. References to references will be treated as references to the reference
                                                                            (nth 1 child)
                                                                            (nth 2 child)))
                                                          (ret (concat location
-                                                                      (rtags-elide-middle (nth 5 child) (- maxwidth (length location))))))
+                                                                      (rtags-elide-text (nth 5 child) (- maxwidth (length location)) 'middle))))
                                                     (setq used (max used (length ret)))
                                                     ret))
                                               children
