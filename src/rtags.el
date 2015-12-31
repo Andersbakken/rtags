@@ -2606,12 +2606,14 @@ is true. References to references will be treated as references to the reference
                (set-text-properties start end (list 'rtags-bookmark-index (cons bookmark-idx start)))))
            (forward-line))
          (shrink-window-if-larger-than-buffer)
-         (rtags-mode)
-         (when path
-           (setq rtags-current-file path))
+         (if rtags-use-helm
+             (helm :sources '(rtags-helm-source))
+           (rtags-mode)
+           (when path
+             (setq rtags-current-file path))
 
-         (when (and rtags-jump-to-first-match (not noautojump))
-           (rtags-select-other-window))
+           (when (and rtags-jump-to-first-match (not noautojump))
+             (rtags-select-other-window)))
          t)))
 
 (defun rtags-filename-complete (string predicate code)
@@ -3772,6 +3774,42 @@ If `rtags-display-summary-as-tooltip' is t, a tooltip is displayed."
         (yas-expand-snippet snippet (point) (point) nil)))))
 
 
+(defcustom rtags-use-helm nil
+  "If t, use helm to display results when appropriate."
+  :group 'rtags
+  :type 'boolean
+  :safe 'booleanp)
+
+(when (require 'helm nil t)
+  (defun rtags-helm-candidates ()
+    (let ((buf (get-buffer rtags-buffer-name))
+          (ret))
+      (when buf
+        (with-current-buffer buf
+          (save-excursion
+            (goto-char (point-min))
+            (let (done)
+              (while (not done)
+                (let ((str (buffer-substring-no-properties (point-at-bol) (point-at-eol))))
+                  ;; (set-text-properties 0 1 (list 'rtags-buffer-position (point-at-bol)) str)
+                  ;; ### Text properties do not seem to get retained
+                  ;; (message "CAND: %d" (get-text-property 0 'rtags-buffer-position str))
+                  (push str ret))
+                (if (= (point-at-eol) (point-max))
+                    (setq done t)
+                  (forward-line 1)))))))
+      ret))
+
+  (defun rtags-helm-select (candidate)
+    (switch-to-buffer (get-buffer rtags-buffer-name))
+    (goto-char (point-min))
+    (search-forward candidate)
+    (rtags-select t t))
+    ;; (message "CAND: %d" (get-text-property 0 'rtags-buffer-position candidate)))
+
+  (defvar rtags-helm-source '((name . "RTags Helm")
+                              (candidates . rtags-helm-candidates)
+                              (action . rtags-helm-select))))
 
 (provide 'rtags)
 
