@@ -3790,11 +3790,7 @@ If `rtags-display-summary-as-tooltip' is t, a tooltip is displayed."
             (goto-char (point-min))
             (let (done)
               (while (not done)
-                (let ((str (buffer-substring-no-properties (point-at-bol) (point-at-eol))))
-                  ;; (set-text-properties 0 1 (list 'rtags-buffer-position (point-at-bol)) str)
-                  ;; ### Text properties do not seem to get retained
-                  ;; (message "CAND: %d" (get-text-property 0 'rtags-buffer-position str))
-                  (push str ret))
+                (push (cons (buffer-substring-no-properties (point-at-bol) (point-at-eol)) (point-at-bol)) ret)
                 (if (= (point-at-eol) (point-max))
                     (setq done t)
                   (forward-line 1)))))))
@@ -3802,8 +3798,7 @@ If `rtags-display-summary-as-tooltip' is t, a tooltip is displayed."
 
   (defun rtags-helm-select (candidate)
     (with-current-buffer (get-buffer rtags-buffer-name)
-      (goto-char (point-min))
-      (search-forward candidate)
+      (goto-char candidate)
       (rtags-select t t)))
     ;; (message "CAND: %d" (get-text-property 0 'rtags-buffer-position candidate)))
 
