@@ -9,6 +9,7 @@
 (defun ac-start (&rest args))
 (defun ac-define-source (&rest args))
 (defun cl-mapcan (&rest args))
+(defun helm (&rest args))
 (defvar company-async-wait nil)
 (defvar rtags nil)
 (defvar ac-last-completion nil)
@@ -16,3 +17,4 @@
 (provide 'company)
 (provide 'company-template)
 (provide 'auto-complete)
+(provide 'helm)
