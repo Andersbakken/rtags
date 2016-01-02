@@ -201,12 +201,12 @@ static void loadDependencies(DataFile &file, Dependencies &dependencies)
 
 static void saveDependencies(DataFile &file, const Dependencies &dependencies)
 {
-    file << dependencies.size();
+    file << static_cast<int>(dependencies.size());
     for (const auto &it : dependencies) {
         file << it.first;
     }
     for (const auto &it : dependencies) {
-        file << it.second->dependents.size();
+        file << static_cast<int>(it.second->dependents.size());
         if (!it.second->dependents.isEmpty()) {
             file << it.first;
             for (const auto &dep : it.second->dependents) {
