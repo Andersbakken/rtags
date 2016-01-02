@@ -231,6 +231,7 @@ public:
         sLastId = 0;
         for (const auto &it : sPathsToIds) {
             sIdsToPaths[it.second] = it.first;
+            assert(!it.first.isEmpty());
             sLastId = std::max(sLastId, it.second);
         }
     }
@@ -243,6 +244,7 @@ public:
         sLastId = 0;
         for (const auto &it : sIdsToPaths) {
             sPathsToIds[it.second] = it.first;
+            assert(!it.second.isEmpty());
             sLastId = std::max(sLastId, it.first);
         }
     }
