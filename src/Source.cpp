@@ -538,7 +538,7 @@ List<Source> Source::parse(const String &cmdLine,
             } else if (arg.startsWith("-isystem")) {
                 addIncludeArg(includePaths, Source::Include::Type_System, 8, split, i, path);
             } else if (arg.startsWith("-iquote")) {
-                addIncludeArg(includePaths, Source::Include::Type_FileInclude, 7, split, i, path);
+                addIncludeArg(includePaths, Source::Include::Type_Quote, 7, split, i, path);
             } else if (arg.startsWith("-cxx-isystem")) {
                 addIncludeArg(includePaths, Source::Include::Type_System, 12, split, i, path);
             } else if (arg == "-ObjC++") {
@@ -840,6 +840,9 @@ List<String> Source::toCommandLine(Flags<CommandLineFlag> flags, bool *usedPch) 
             case Source::Include::Type_Include:
                 ret << ("-I" + inc.path);
                 break;
+            case Source::Include::Type_Quote:
+                ret << ("-iquote" + inc.path);
+                break;
             case Source::Include::Type_Framework:
                 ret << ("-F" + inc.path);
                 break;
@@ -870,6 +873,9 @@ List<String> Source::toCommandLine(Flags<CommandLineFlag> flags, bool *usedPch) 
                     assert(0 && "Impossible impossibility");
                     break;
                 case Source::Include::Type_Include:
+                    ret << ("-I" + inc.path);
+                    break;
+                case Source::Include::Type_Quote:
                     ret << ("-I" + inc.path);
                     break;
                 case Source::Include::Type_Framework:
@@ -908,4 +914,3 @@ bool Source::Include::isPch() const
     }
     return false;
 }
-

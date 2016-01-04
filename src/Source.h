@@ -99,6 +99,7 @@ struct Source
         enum Type {
             Type_None,
             Type_Include,
+            Type_Quote,
             Type_Framework,
             Type_System,
             Type_SystemFramework,
@@ -116,6 +117,7 @@ struct Source
         {
             switch (type) {
             case Type_Include: return String::format<128>("-I%s", path.constData());
+            case Type_Quote: return String::format<128>("-iquote %s", path.constData());
             case Type_Framework: return String::format<128>("-F%s", path.constData());
             case Type_System: return String::format<128>("-isystem %s", path.constData());
             case Type_SystemFramework: return String::format<128>("-iframework %s", path.constData());
