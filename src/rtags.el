@@ -1372,14 +1372,14 @@ Can be used both for path and location."
     (insert (rtags-tree-indent level)
             location
             " "
-            (rtags-elide-text (cdr (assoc 'ctx ref)) (/ (window-width) 3) 'middle))
+            (rtags-elide-text (cdr (assoc 'ctx ref)) (/ (frame-width) 3) 'middle))
     (let ((cf (cdr (assoc 'cf ref)))
           (props (list 'rtags-ref-containing-function-location (cdr (assoc 'cfl ref))))
           (pos (point)))
       (when bookmark-idx
         (setq props (append props (list 'rtags-bookmark-index (cons bookmark-idx (point-at-bol))))))
       (when cf
-        (insert " <= " (rtags-elide-text cf (/ (window-width) 3) 'right)))
+        (insert " <= " (rtags-elide-text cf (/ (frame-width) 3) 'right)))
 
       (set-text-properties (point-at-bol) (point-at-eol) props)
       (when cf
