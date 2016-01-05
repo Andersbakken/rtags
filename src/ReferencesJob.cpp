@@ -74,8 +74,11 @@ int ReferencesJob::execute()
             startLocation = sym.location;
         }
 
-        if (sym.isReference())
-            sym = proj->findTarget(sym);
+        if (sym.isReference()) {
+            const Symbol target = proj->findTarget(sym);
+            if (!target.isNull())
+                sym = target;
+        }
         if (sym.isNull())
             continue;
 
