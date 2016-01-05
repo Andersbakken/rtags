@@ -6,3 +6,10 @@ int main()
     Local l;
     l.m = new ForwardDecl;
 }
+
+struct Opaque;
+
+void foo()
+{
+    Opaque *op = 0;
+}
