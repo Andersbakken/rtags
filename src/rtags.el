@@ -2487,31 +2487,33 @@ is true. References to references will be treated as references to the reference
 (defun rtags-diagnostics (&optional restart nodirty)
   (interactive "P")
   (when rtags-enabled
-    (when restart
-      (rtags-stop-diagnostics))
-    (let ((buf (rtags-get-buffer-create-no-undo rtags-diagnostics-buffer-name)))
-      (when (and (not (rtags-has-diagnostics))
-                 (not rtags-diagnostics-starting))
-        (let ((rtags-diagnostics-starting t))
-          (with-current-buffer buf
-            (rtags-diagnostics-mode))
-          (unless nodirty
-            (rtags-reparse-file))
-          (let ((process-connection-type (not rtags-diagnostics-use-pipe))) ;; use a pipe if rtags-diagnostics-use-pipe is t
-            (let ((rawbuf (get-buffer rtags-diagnostics-raw-buffer-name)))
-              (when rawbuf
-                (kill-buffer rawbuf)))
-            (setq rtags-diagnostics-process (start-file-process "RTags Diagnostics" buf (rtags-executable-find "rc") "-m" "--elisp"))
-            (set-process-filter rtags-diagnostics-process (function rtags-diagnostics-process-filter))
-            (set-process-sentinel rtags-diagnostics-process 'rtags-diagnostics-sentinel)
-            (set-process-query-on-exit-flag rtags-diagnostics-process nil)
-            (setq rtags-last-completions nil)
-            (setq rtags-last-completion-position nil)
-            (rtags-clear-diagnostics)
-            (rtags-schedule-buffer-list-update)))))
-    (when (and (called-interactively-p 'any) (rtags-is-running))
-      (switch-to-buffer-other-window rtags-diagnostics-buffer-name)
-      (other-window 1))))
+    (let ((rc (rtags-executable-find "rc")))
+      (when rc
+        (when restart
+          (rtags-stop-diagnostics))
+        (let ((buf (rtags-get-buffer-create-no-undo rtags-diagnostics-buffer-name)))
+          (when (and (not (rtags-has-diagnostics))
+                     (not rtags-diagnostics-starting))
+            (let ((rtags-diagnostics-starting t))
+              (with-current-buffer buf
+                (rtags-diagnostics-mode))
+              (unless nodirty
+                (rtags-reparse-file))
+              (let ((process-connection-type (not rtags-diagnostics-use-pipe))) ;; use a pipe if rtags-diagnostics-use-pipe is t
+                (let ((rawbuf (get-buffer rtags-diagnostics-raw-buffer-name)))
+                  (when rawbuf
+                    (kill-buffer rawbuf)))
+                (setq rtags-diagnostics-process (start-file-process "RTags Diagnostics" buf rc "-m" "--elisp"))
+                (set-process-filter rtags-diagnostics-process (function rtags-diagnostics-process-filter))
+                (set-process-sentinel rtags-diagnostics-process 'rtags-diagnostics-sentinel)
+                (set-process-query-on-exit-flag rtags-diagnostics-process nil)
+                (setq rtags-last-completions nil)
+                (setq rtags-last-completion-position nil)
+                (rtags-clear-diagnostics)
+                (rtags-schedule-buffer-list-update)))))
+        (when (and (called-interactively-p 'any) (rtags-is-running))
+          (switch-to-buffer-other-window rtags-diagnostics-buffer-name)
+          (other-window 1))))))
 
 (defvar rtags-indexed nil)
 (defvar rtags-file-managed nil)
@@ -3283,7 +3285,9 @@ definition."
 ;;;###autoload
 (defun rtags-quit-rdm ()
   (interactive)
-  (process-file (rtags-executable-find "rc") nil nil nil "--quit-rdm"))
+  (let ((rc (rtags-executable-find "rc")))
+    (when rc
+      (process-file rc nil nil nil "--quit-rdm"))))
 
 (defun rdm-includes ()
   (mapconcat 'identity
@@ -3730,7 +3734,10 @@ If `rtags-display-summary-as-tooltip' is t, a tooltip is displayed."
 (defun rtags-check-includes ()
   (interactive)
   (when (or (not (rtags-called-interactively-p)) (rtags-sandbox-id-matches))
-    (let ((filename (rtags-untrampify (buffer-file-name))))
+    (let ((filename (rtags-untrampify (buffer-file-name)))
+          (rc (rtags-executable-find "rc")))
+      (unless rc
+        (error "Can't find rc"))
       (unless filename
         (error "You need to call rtags-check-includes from an actual file"))
       (switch-to-buffer (rtags-get-buffer "*RTags check includes*"))
@@ -3741,7 +3748,7 @@ If `rtags-display-summary-as-tooltip' is t, a tooltip is displayed."
       (goto-char (point-min))
       (let ((proc (start-file-process "*RTags check includes*"
                                       (current-buffer)
-                                      (rtags-executable-find "rc")
+                                      rc
                                       "--current-file" filename
                                       "--check-includes" filename)))
         (set-process-query-on-exit-flag proc nil)
