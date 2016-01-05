@@ -666,14 +666,16 @@ to case differences."
           (rtags-select))))))
 
 (defun rtags-executable-find (exe)
-  (if (tramp-tramp-file-p default-directory)
-      ;; for tramp let's rely on `tramp-remote-path`, so if You have some *debug*
-      ;; directory to store rtags binaries, just put it to `tramp-remote-path`
-      exe
-    (let ((result (and rtags-path (expand-file-name exe rtags-path))))
-      (if (and result (file-exists-p result))
-          result
-        (executable-find exe)))))
+  (cond ((tramp-tramp-file-p default-directory) exe)
+        ;; for tramp let's rely on `tramp-remote-path`, so if You have some *debug*
+        ;; directory to store rtags binaries, just put it to `tramp-remote-path`
+        (rtags-path
+         (or
+          (let ((file (expand-file-name exe rtags-path)))
+            (and (file-executable-p file) file))
+          (let ((file (expand-file-name exe (concat rtags-path "/bin/"))))
+            (and (file-executable-p file) file))))
+        (t (executable-find exe))))
 
 (defun rtags-remove-keyword-params (seq)
   (when seq
