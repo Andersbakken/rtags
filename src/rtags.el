@@ -609,7 +609,7 @@ to case differences."
       (set-buffer rtags-buffer-name)
       (when reset
         (goto-char (point-min)))
-      (when (and rtags-use-helm (get-buffer-window helm-action-buffer 'visible))
+      (when (and rtags-use-helm (get-buffer-window helm-action-buffer 'visible) (fboundp 'helm-keyboard-quit))
         (helm-keyboard-quit))
       (when (> (count-lines (point-max) (point-min)) 1)
         (while (not (eq by 0))
