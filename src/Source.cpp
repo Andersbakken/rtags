@@ -841,7 +841,7 @@ List<String> Source::toCommandLine(Flags<CommandLineFlag> flags, bool *usedPch) 
                 ret << ("-I" + inc.path);
                 break;
             case Source::Include::Type_Quote:
-                ret << ("-iquote" + inc.path);
+                ret << "-iquote" << inc.path;
                 break;
             case Source::Include::Type_Framework:
                 ret << ("-F" + inc.path);
@@ -876,7 +876,7 @@ List<String> Source::toCommandLine(Flags<CommandLineFlag> flags, bool *usedPch) 
                     ret << ("-I" + inc.path);
                     break;
                 case Source::Include::Type_Quote:
-                    ret << ("-I" + inc.path);
+                    ret << "-iquote" << inc.path;
                     break;
                 case Source::Include::Type_Framework:
                     ret << ("-F" + inc.path);
