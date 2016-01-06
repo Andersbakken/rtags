@@ -1369,20 +1369,18 @@ Can be used both for path and location."
                     (bookmark-set (format "RTags_%d" rtags-buffer-bookmarks))
                     (incf rtags-buffer-bookmarks)
                     (1- rtags-buffer-bookmarks))))))))
-    (insert (rtags-tree-indent level) location " ")
-    (let ((available (- (frame-width) (current-column) 4)))
-      (insert (rtags-format-context (cdr (assoc 'ctx ref)) (truncate (* available .65))))
-      (let ((cf (cdr (assoc 'cf ref)))
-            (props (list 'rtags-ref-containing-function-location (cdr (assoc 'cfl ref))))
-            (pos (point)))
-        (when bookmark-idx
-          (setq props (append props (list 'rtags-bookmark-index (cons bookmark-idx (point-at-bol))))))
-        (when cf
-          (insert " <= " (rtags-elide-text cf (truncate (* available .35)) 'right)))
+    (insert (rtags-tree-indent level) location " " (rtags-format-context (cdr (assoc 'ctx ref)) .4))
+    (let ((cf (cdr (assoc 'cf ref)))
+          (props (list 'rtags-ref-containing-function-location (cdr (assoc 'cfl ref))))
+          (pos (point)))
+      (when bookmark-idx
+        (setq props (append props (list 'rtags-bookmark-index (cons bookmark-idx (point-at-bol))))))
+      (when cf
+        (insert " <= " (rtags-elide-text cf (truncate (* (frame-width) .25)) 'right)))
 
-        (set-text-properties (point-at-bol) (point-at-eol) props)
-        (when cf
-          (set-text-properties pos (point) (append props (list 'rtags-ref-cf t))))))))
+      (set-text-properties (point-at-bol) (point-at-eol) props)
+      (when cf
+        (set-text-properties pos (point) (append props (list 'rtags-ref-cf t)))))))
 
 (defun rtags-references-tree-align-cfs ()
   (save-excursion
@@ -2216,10 +2214,10 @@ is true. References to references will be treated as references to the reference
   (with-temp-buffer
     (rtags-call-rc "--is-indexing" :noerror t)))
 
-(defun rtags-format-context (str width)
+(defun rtags-format-context (str fraction)
   (when (string-match "^ +" str)
     (setq str (substring str (match-end 0))))
-  (rtags-elide-text str width 'right))
+  (rtags-elide-text str (truncate (* (frame-width) fraction)) 'right))
 
 (defun rtags-elide-text (str len part)
   (cond ((<= (length str) len) str)
