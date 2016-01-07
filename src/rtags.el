@@ -3236,6 +3236,7 @@ definition."
             (message (buffer-substring-no-properties (point-min) (1- (point-max))))
           (message (buffer-string)))))))
 
+(defvar rtags-last-compile-source nil)
 ;;;###autoload
 (defun rtags-compile-file (&optional buffer)
   (interactive)
@@ -3244,6 +3245,7 @@ definition."
                         ((bufferp buffer) (buffer-file-name buffer))
                         (t (buffer-file-name)))))
       (with-temp-buffer
+        (setq rtags-last-compile-source source)
         (rtags-call-rc :path source "--sources" source "--compilation-flags-only")
         (let* ((lines (split-string (buffer-string) "\n" t))
                (old-compile-command compile-command)
@@ -3254,6 +3256,13 @@ definition."
                       (t))
             (compile line)
             (setq compile-command old-compile-command)))))))
+
+;;;###autoload
+(defun rtags-recompile ()
+  (interactive)
+  (if rtags-last-compile-source
+      (rtags-compile-file rtags-last-compile-source)
+    (message "No file to recompile")))
 
 (defcustom rtags-includes-func 'rtags-dummy-includes-func
   "Function to return flags and include flags for rdm."
