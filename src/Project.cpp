@@ -1560,7 +1560,12 @@ static Set<Symbol> findReferences(const Symbol &in,
     Set<Symbol> inputs;
     Symbol s;
     if (in.isReference()) {
-        s = project->findTarget(in);
+        const Symbol target = project->findTarget(in);
+        if (!target.isNull()) {
+            s = target;
+        } else {
+            s = in;
+        }
     } else {
         s = in;
     }
