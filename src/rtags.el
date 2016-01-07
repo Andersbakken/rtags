@@ -1798,6 +1798,8 @@ For references this means to jump to the definition/declaration of the reference
 For definitions it jumps to the declaration (if there is only one) For declarations it jumps to the definition.
 If called with prefix, open first match in other window"
   (interactive "P")
+  (let ((otherwindow (listp prefix))
+        (pathfilter (and (numberp prefix) (buffer-file-name))))
   (when (or (not (rtags-called-interactively-p)) (rtags-sandbox-id-matches))
     (rtags-delete-rtags-windows)
     (rtags-location-stack-push)
@@ -1806,22 +1808,24 @@ If called with prefix, open first match in other window"
           (fn (buffer-file-name)))
       (rtags-reparse-file-if-needed)
       (with-current-buffer (rtags-get-buffer)
-        (rtags-call-rc :path fn "-f" arg)
+        (rtags-call-rc :path fn :path-filter pathfilter "-f" arg)
         (cond ((or (not rtags-follow-symbol-try-harder)
                    (= (length tagname) 0))
-               (rtags-handle-results-buffer nil nil fn prefix))
-              ((rtags-handle-results-buffer nil t fn prefix))
+               (rtags-handle-results-buffer nil nil fn otherwindow))
+              ((rtags-handle-results-buffer nil t fn otherwindow))
               (t
                (erase-buffer)
                (rtags-call-rc :path fn "-F" tagname "--definition-only" "-M" "1" "--dependency-filter" fn
+                              :path-filter pathfilter
                               (when rtags-wildcard-symbol-names "--wildcard-symbol-names")
                               (when rtags-symbolnames-case-insensitive "-I"))
-               (unless (rtags-handle-results-buffer nil nil fn prefix)
+               (unless (rtags-handle-results-buffer nil nil fn otherwindow)
                  (erase-buffer)
                  (rtags-call-rc :path fn "-F" tagname "-M" "1" "--dependency-filter" fn
+                                :path-filter pathfilter
                                 (when rtags-wildcard-symbol-names "--wildcard-symbol-names")
                                 (when rtags-symbolnames-case-insensitive "-I"))
-                 (rtags-handle-results-buffer nil nil fn prefix))))))))
+                 (rtags-handle-results-buffer nil nil fn otherwindow)))))))))
 
 ;;;###autoload
 (defun rtags-find-references-at-point (&optional prefix)
@@ -1830,43 +1834,52 @@ If there's exactly one result jump directly to it. If there's more show a buffer
 with the different alternatives and jump to the first one if `rtags-jump-to-first-match'
 is true. References to references will be treated as references to the referenced symbol"
   (interactive "P")
-  (when (or (not (rtags-called-interactively-p)) (rtags-sandbox-id-matches))
-    (rtags-delete-rtags-windows)
-    (rtags-location-stack-push)
-    (let ((arg (rtags-current-location))
-          (fn (buffer-file-name)))
-      (rtags-reparse-file-if-needed)
-      (with-current-buffer (rtags-get-buffer)
-        (rtags-call-rc :path fn "-r" arg (unless rtags-sort-references-by-input "--no-sort-references-by-input"))
-        (rtags-handle-results-buffer nil nil fn prefix)))))
+  (let ((otherwindow (listp prefix))
+        (pathfilter (and (numberp prefix) (buffer-file-name))))
+    (when (or (not (rtags-called-interactively-p)) (rtags-sandbox-id-matches))
+      (rtags-delete-rtags-windows)
+      (rtags-location-stack-push)
+      (let ((arg (rtags-current-location))
+            (fn (buffer-file-name)))
+        (rtags-reparse-file-if-needed)
+        (with-current-buffer (rtags-get-buffer)
+          (rtags-call-rc :path fn "-r" arg
+                         :path-filter pathfilter
+                         (unless rtags-sort-references-by-input "--no-sort-references-by-input"))
+          (rtags-handle-results-buffer nil nil fn otherwindow))))))
 
 ;;;###autoload
 (defun rtags-find-virtuals-at-point (&optional prefix)
   "List all reimplentations of function under cursor. This includes both declarations and definitions"
   (interactive "P")
-  (when (or (not (rtags-called-interactively-p)) (rtags-sandbox-id-matches))
-    (rtags-delete-rtags-windows)
-    (rtags-location-stack-push)
-    (let ((arg (rtags-current-location))
-          (fn (buffer-file-name)))
-      (rtags-reparse-file-if-needed)
-      (with-current-buffer (rtags-get-buffer)
-        (rtags-call-rc :path fn :path-filter prefix "-r" arg "-k" (unless rtags-sort-references-by-input "--no-sort-references-by-input"))
-        (rtags-handle-results-buffer nil nil fn)))))
+  (let ((otherwindow (listp prefix))
+        (pathfilter (and (numberp prefix) (buffer-file-name))))
+    (when (or (not (rtags-called-interactively-p)) (rtags-sandbox-id-matches))
+      (rtags-delete-rtags-windows)
+      (rtags-location-stack-push)
+      (let ((arg (rtags-current-location))
+            (fn (buffer-file-name)))
+        (rtags-reparse-file-if-needed)
+        (with-current-buffer (rtags-get-buffer)
+          (rtags-call-rc :path fn :path-filter pathfilter
+                         "-r" arg "-k" (unless rtags-sort-references-by-input "--no-sort-references-by-input"))
+          (rtags-handle-results-buffer nil nil fn otherwindow))))))
 
 ;;;###autoload
 (defun rtags-find-all-references-at-point (&optional prefix)
   (interactive "P")
-  (when (or (not (rtags-called-interactively-p)) (rtags-sandbox-id-matches))
-    (rtags-delete-rtags-windows)
-    (rtags-location-stack-push)
-    (let ((arg (rtags-current-location))
-          (fn (buffer-file-name)))
-      (rtags-reparse-file-if-needed)
-      (with-current-buffer (rtags-get-buffer)
-        (rtags-call-rc :path fn "-r" arg "-e"
-                       (unless rtags-sort-references-by-input "--no-sort-references-by-input"))
-        (rtags-handle-results-buffer nil nil fn prefix)))))
+  (let ((otherwindow (listp prefix))
+        (pathfilter (and (numberp prefix) (buffer-file-name))))
+    (when (or (not (rtags-called-interactively-p)) (rtags-sandbox-id-matches))
+      (rtags-delete-rtags-windows)
+      (rtags-location-stack-push)
+      (let ((arg (rtags-current-location))
+            (fn (buffer-file-name)))
+        (rtags-reparse-file-if-needed)
+        (with-current-buffer (rtags-get-buffer)
+          (rtags-call-rc :path fn "-r" arg "-e" :path-filter pathfilter
+                         (unless rtags-sort-references-by-input "--no-sort-references-by-input"))
+          (rtags-handle-results-buffer nil nil fn otherwindow))))))
 
 ;;;###autoload
 (defun rtags-guess-function-at-point()
