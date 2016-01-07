@@ -609,7 +609,10 @@ to case differences."
       (set-buffer rtags-buffer-name)
       (when reset
         (goto-char (point-min)))
-      (when (and rtags-use-helm (get-buffer-window helm-action-buffer 'visible) (fboundp 'helm-keyboard-quit))
+      (when (and rtags-use-helm
+                 (boundp 'helm-action-buffer)
+                 (get-buffer-window helm-action-buffer 'visible)
+                 (fboundp 'helm-keyboard-quit))
         (helm-keyboard-quit))
       (when (> (count-lines (point-max) (point-min)) 1)
         (while (not (eq by 0))
@@ -2635,9 +2638,7 @@ is true. References to references will be treated as references to the reference
           (set-text-properties start end (list 'rtags-bookmark-index (cons bookmark-idx start)))))
       (forward-line))
     (shrink-window-if-larger-than-buffer)
-    (rtags-mode)
-    (when path
-      (setq rtags-current-file path)))
+    (rtags-mode))
 
 (defun rtags-handle-results-buffer (&optional noautojump quiet path other-window)
   "Handle results from RTags. Should be called with the results buffer as current.
@@ -2646,6 +2647,9 @@ The option OTHER-WINDOW is only applicable if rtags is configured not to show th
 "
   (rtags-reset-bookmarks)
   (set-text-properties (point-min) (point-max) nil)
+  (when path
+    (setq rtags-current-file path))
+
   (cond ((= (point-min) (point-max))
          (unless quiet
            (message "RTags: No results"))
