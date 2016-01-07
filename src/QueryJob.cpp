@@ -347,7 +347,7 @@ bool QueryJob::write(const Symbol &symbol,
                 elisp(out, "type", symbol.type, flags | Quote);
             }
             elisp(out, "linkage", symbol.linkage, flags | Quote);
-            elisp(out, "briefComment", symbol.briefComment, flags | ElispEscape);
+            elisp(out, "briefComment", symbol.briefComment + " ", flags | ElispEscape);
             elisp(out, "xmlComment", symbol.xmlComment, flags | ElispEscape);
             elisp(out, "startLine", symbol.startLine, flags);
             elisp(out, "startColumn", symbol.startColumn, flags);
