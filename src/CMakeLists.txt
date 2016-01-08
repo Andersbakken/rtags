@@ -2,6 +2,12 @@ set(CMAKE_SKIP_BUILD_RPATH            FALSE)
 set(CMAKE_BUILD_WITH_INSTALL_RPATH    FALSE)
 set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
 
+# Treat MSYS as Cygwin
+if (MSYS)
+    set(CYGWIN 1)
+    set(CMAKE_SYSTEM_NAME "CYGWIN")
+endif ()
+
 # Set RPATH when installing to a custom (non-system) directory
 list(FIND CMAKE_PLATFORM_IMPLICIT_LINK_DIRECTORIES "${CMAKE_INSTALL_PREFIX}/lib" isSystemDir)
 if ("${isSystemDir}" STREQUAL "-1")
