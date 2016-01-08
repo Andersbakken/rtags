@@ -1801,7 +1801,7 @@ For references this means to jump to the definition/declaration of the reference
 For definitions it jumps to the declaration (if there is only one) For declarations it jumps to the definition.
 If called with prefix, open first match in other window"
   (interactive "P")
-  (let ((otherwindow (listp prefix))
+  (let ((otherwindow (and prefix (listp prefix)))
         (pathfilter (and (numberp prefix) (buffer-file-name))))
   (when (or (not (rtags-called-interactively-p)) (rtags-sandbox-id-matches))
     (rtags-delete-rtags-windows)
@@ -1837,7 +1837,7 @@ If there's exactly one result jump directly to it. If there's more show a buffer
 with the different alternatives and jump to the first one if `rtags-jump-to-first-match'
 is true. References to references will be treated as references to the referenced symbol"
   (interactive "P")
-  (let ((otherwindow (listp prefix))
+  (let ((otherwindow (and prefix (listp prefix)))
         (pathfilter (and (numberp prefix) (buffer-file-name))))
     (when (or (not (rtags-called-interactively-p)) (rtags-sandbox-id-matches))
       (rtags-delete-rtags-windows)
@@ -1855,7 +1855,7 @@ is true. References to references will be treated as references to the reference
 (defun rtags-find-virtuals-at-point (&optional prefix)
   "List all reimplentations of function under cursor. This includes both declarations and definitions"
   (interactive "P")
-  (let ((otherwindow (listp prefix))
+  (let ((otherwindow (and prefix (listp prefix)))
         (pathfilter (and (numberp prefix) (buffer-file-name))))
     (when (or (not (rtags-called-interactively-p)) (rtags-sandbox-id-matches))
       (rtags-delete-rtags-windows)
@@ -1871,7 +1871,7 @@ is true. References to references will be treated as references to the reference
 ;;;###autoload
 (defun rtags-find-all-references-at-point (&optional prefix)
   (interactive "P")
-  (let ((otherwindow (listp prefix))
+  (let ((otherwindow (and prefix (listp prefix)))
         (pathfilter (and (numberp prefix) (buffer-file-name))))
     (when (or (not (rtags-called-interactively-p)) (rtags-sandbox-id-matches))
       (rtags-delete-rtags-windows)
