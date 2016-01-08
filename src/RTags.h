@@ -608,17 +608,28 @@ static inline const String elispEscape(const String &data)
     for (int i=0; i<size; ++i) {
         switch (*ch) {
         case '"':
+        case '\\':
         case '\n':
+        case '\t':
             if (!copied) {
                 copied = true;
                 ret.reserve(size + 16);
                 if (i)
                     ret.assign(data.constData(), i);
             }
-            if (*ch == '"') {
+            switch (*ch) {
+            case '"':
                 ret << "\\\"";
-            } else {
+                break;
+            case '\n':
                 ret << "\\n";
+                break;
+            case '\t':
+                ret << "\\t";
+                break;
+            case '\\':
+                ret << "\\\\";
+                break;
             }
             break;
         default:
