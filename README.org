@@ -456,10 +456,14 @@ put highlighting on code with warnings and errors
 #+BEGIN_SRC
 (rtags-enable-standard-keybindings)
 #+END_SRC
-Sets up a ton of standard keybindings under C-c r (we try to avoid
-crashing with the register shortcuts). If you pass a mode to the
-function it will set it up on that mode, otherwise it will use
-c-mode-base-map).
+Sets up a ton of standard keybindings under C-c r. If you pass a mode
+to the function it will set it up on that mode, otherwise it will use
+c-mode-base-map). You can choose a different prefix than C-c r like
+this:
+
+#+BEGIN_SRC
+(rtags-enable-standard-keybindings c-mode-base-map "\C-xr")
+#+END_SRC
 
 #+BEGIN_SRC
 (rtags-find-file)
