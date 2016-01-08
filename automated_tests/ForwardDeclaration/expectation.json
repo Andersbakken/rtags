@@ -4,5 +4,5 @@
       "expectation": ["{0}/include.hpp:2:8"] },
     { "name": "reference_to_opaque_forward_declaration",
       "rc-command": [ "--references", "{0}/main.cpp:10:8"],
-      "expectation": ["{0}/main:14:5"] }
+      "expectation": ["{0}/main.cpp:14:5"] }
 ]
