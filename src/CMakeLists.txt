@@ -188,7 +188,7 @@ if (NOT RTAGS_NO_ELISP_FILES)
         if (NOT RTAGS_NO_ELISP_BYTECOMPILE)
             list(APPEND RTAGS_ELISP_SOURCES ${CMAKE_CURRENT_BINARY_DIR}/${el}c)
             add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/${el}c
-                COMMAND ${EMACS_EXECUTABLE} -batch -l ${CMAKE_CURRENT_SOURCE_DIR}/compile-shim.el -l ${CMAKE_CURRENT_SOURCE_DIR}/rtags.el -f batch-byte-compile
+                COMMAND ${EMACS_EXECUTABLE} -batch -l ${CMAKE_CURRENT_SOURCE_DIR}/compile-shim.elisp -l ${CMAKE_CURRENT_SOURCE_DIR}/rtags.el -f batch-byte-compile
                 ${CMAKE_CURRENT_BINARY_DIR}/${el}
                 DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/${el}
                 WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
