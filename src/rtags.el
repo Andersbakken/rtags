@@ -3879,20 +3879,42 @@ If `rtags-display-summary-as-tooltip' is t, a tooltip is displayed."
       (rtags-select t t)))
     ;; (message "CAND: %d" (get-text-property 0 'rtags-buffer-position candidate)))
 
+  (defun rtags-helm-get-candidate-line (candidate)
+    (with-current-buffer (get-buffer rtags-buffer-name)
+      (goto-char candidate)
+      (buffer-substring-no-properties (save-excursion
+                                        (goto-char (point-at-bol))
+                                        (skip-chars-forward " ")
+                                        (point))
+                                      (point-at-eol))))
+
   (defun rtags-helm-select-persistent (candidate)
-    (let (location)
-      (with-current-buffer (get-buffer rtags-buffer-name)
-        (goto-char candidate)
-        (setq location (buffer-substring-no-properties (save-excursion
-                                                         (goto-char (point-at-bol))
-                                                         (skip-chars-forward " ")
-                                                         (point))
-                                                       (point-at-eol))))
-      (rtags-goto-location location t nil)
+    (let ((line (rtags-helm-get-candidate-line candidate)))
+      (rtags-goto-location line t nil)
       (helm-highlight-current-line)))
+
+  (defface rtags-helm-file-face
+    '((t :inherit font-lock-keyword-face))
+    "Face used to highlight file name in the *RTags Helm* buffer."
+    :group 'rtags)
+
+  (defface rtags-helm-lineno-face
+    '((t :inherit font-lock-doc-face))
+    "Face used to highlight line number in the *RTags Helm* buffer."
+    :group 'rtags)
+
+  (defun rtags-helm-transform (candidate)
+    (let ((line (rtags-helm-get-candidate-line candidate)))
+      (when (string-match "\\`\\([^:]+\\):\\([0-9]+\\):\\([0-9]+\\):\\(.*\\)" line)
+        (format "%s:%s:%s:%s"
+                (propertize (match-string 1 line) 'face 'rtags-helm-file-face)
+                (propertize (match-string 2 line) 'face 'rtags-helm-lineno-face)
+                (propertize (match-string 3 line) 'face 'rtags-helm-lineno-face)
+                (match-string 4 line)))))
 
   (defvar rtags-helm-source '((name . "RTags Helm")
                               (candidates . rtags-helm-candidates)
+                              (real-to-display . rtags-helm-transform)
                               (action . rtags-helm-select)
                               (persistent-action . rtags-helm-select-persistent))))
 
