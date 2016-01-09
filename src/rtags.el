@@ -3879,9 +3879,22 @@ If `rtags-display-summary-as-tooltip' is t, a tooltip is displayed."
       (rtags-select t t)))
     ;; (message "CAND: %d" (get-text-property 0 'rtags-buffer-position candidate)))
 
+  (defun rtags-helm-select-persistent (candidate)
+    (let (location)
+      (with-current-buffer (get-buffer rtags-buffer-name)
+        (goto-char candidate)
+        (setq location (buffer-substring-no-properties (save-excursion
+                                                         (goto-char (point-at-bol))
+                                                         (skip-chars-forward " ")
+                                                         (point))
+                                                       (point-at-eol))))
+      (rtags-goto-location location t nil)
+      (helm-highlight-current-line)))
+
   (defvar rtags-helm-source '((name . "RTags Helm")
                               (candidates . rtags-helm-candidates)
-                              (action . rtags-helm-select))))
+                              (action . rtags-helm-select)
+                              (persistent-action . rtags-helm-select-persistent))))
 
 (provide 'rtags)
 
