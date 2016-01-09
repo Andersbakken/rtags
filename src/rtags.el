@@ -2904,12 +2904,17 @@ The option OTHER-WINDOW is only applicable if rtags is configured not to show th
 
 (defvar rtags-find-file-history nil)
 ;;;###autoload
-(defun rtags-find-file (&optional prefix tagname)
+(defun rtags-find-file (&optional prefix default-tag)
   (interactive "P")
   (when (or (not (rtags-called-interactively-p)) (rtags-sandbox-id-matches))
     (rtags-delete-rtags-windows)
     (rtags-location-stack-push)
-    (let ((tagname (rtags-current-symbol t)) prompt input offset line column
+    (let ((tagname (or default-tag (rtags-current-symbol t)))
+          (prompt)
+          (input)
+          (offset)
+          (line)
+          (column)
           (prefer-exact rtags-find-file-prefer-exact-match))
       (when prefix
         (setq prefer-exact (not prefer-exact)))
@@ -2924,15 +2929,14 @@ The option OTHER-WINDOW is only applicable if rtags is configured not to show th
                   (completing-read prompt (function rtags-filename-complete) nil nil nil 'rtags-find-file-history))
               (completing-read prompt (rtags-all-files prefer-exact) nil nil nil 'rtags-find-file-history)))
       (setq rtags-find-file-history (rtags-remove-last-if-duplicated rtags-find-file-history))
-      (cond ((string-match "\\(.*\\),\\([0-9]+\\)" input)
-             (progn
-               (setq tagname (match-string-no-properties 1 input))
-               (setq offset (string-to-number (match-string-no-properties 2 input)))))
+      (cond ((null input) nil)
+            ((string-match "\\(.*\\),\\([0-9]+\\)" input)
+             (setq tagname (match-string-no-properties 1 input))
+             (setq offset (string-to-number (match-string-no-properties 2 input))))
             ((string-match "\\(.*\\):\\([0-9]+\\):\\([0-9]+\\)" input)
-             (progn
-               (setq tagname (match-string-no-properties 1 input))
-               (setq line (string-to-number (match-string-no-properties 2 input)))
-               (setq column (string-to-number (match-string-no-properties 3 input)))))
+             (setq tagname (match-string-no-properties 1 input))
+             (setq line (string-to-number (match-string-no-properties 2 input)))
+             (setq column (string-to-number (match-string-no-properties 3 input))))
             ((string-match "\\(.*\\):\\([0-9]+\\)" input)
              (setq tagname (match-string-no-properties 1 input))
              (setq line (string-to-number (match-string-no-properties 2 input))))
