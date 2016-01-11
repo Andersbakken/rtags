@@ -230,7 +230,7 @@ rc -J .
 #+END_SRC
 
 This will produce a compile_commands.json which, if used with rc -J,
-will index all your soures.
+will index all your sources.
 
 There are very likely similar things you can do with other build
 systems that we're unfamiliar with.
