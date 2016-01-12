@@ -356,7 +356,7 @@ bool Project::init()
                 }
                 removed << it.first;
                 needsSave = true;
-            } else {
+            } else if (options.options & Server::ValidateFileMaps) {
                 String err;
                 if (!validate(it.first, &err)) {
                     if (!err.isEmpty()) {

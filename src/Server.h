@@ -70,7 +70,8 @@ public:
         WatchSourcesOnly = 0x0800000,
         NoFileLock = 0x1000000,
         PCHEnabled = 0x2000000,
-        NoFileManager = 0x4000000
+        NoFileManager = 0x4000000,
+        ValidateFileMaps = 0x8000000
     };
     struct Options {
         Options()

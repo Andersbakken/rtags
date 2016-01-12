@@ -143,6 +143,7 @@ static void usage(FILE *f)
             "  --no-comments                              Don't parse/store doxygen comments.\n"
             "  --arg-transform|-V [arg]                   Use arg to transform arguments. [arg] should be a executable with (execv(3)).\n"
             "  --debug-locations [arg]                    Set debug locations.\n"
+            "  --validate-file-maps                       Spend some time validating project data on startup.\n"
             "  --pch-enabled                              Enable PCH (experimental).\n"
             , std::max(2, ThreadPool::idealThreadCount()), defaultStackSize);
 }
@@ -243,6 +244,7 @@ int main(int argc, char** argv)
         { "log-file-log-level", required_argument, 0, 9 },
         { "watch-sources-only", no_argument, 0, 10 },
         { "debug-locations", no_argument, 0, 11 },
+        { "validate-file-maps", no_argument, 0, 16 },
         { "tcp-port", required_argument, 0, 12 },
         { 0, 0, 0, 0 }
     };
@@ -423,6 +425,9 @@ int main(int argc, char** argv)
             break;
         case 15:
             serverOpts.options |= Server::NoFileManager;
+            break;
+        case 16:
+            serverOpts.options |= Server::ValidateFileMaps;
             break;
         case 2:
             fprintf(stdout, "%s\n", RTags::versionString().constData());
