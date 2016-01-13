@@ -8,57 +8,57 @@ sudo: false
 language:
   - cpp
 
-  matrix:
-    include:
-        - env:
-            - COMPILER_VERSION=4.8 ASAN=1
-          os: linux
-          compiler: g++
-          addons:
-            apt:
-              sources:
-                - ubuntu-toolchain-r-test
-              packages:
-                - g++-4.8
-                - gnupg
+matrix:
+  include:
+    - env:
+      - COMPILER_VERSION=4.8 ASAN=1
+      os: linux
+      compiler: g++
+      addons:
+        apt:
+          sources:
+            - ubuntu-toolchain-r-test
+          packages:
+            - g++-4.8
+            - gnupg
 
-        - env:
-            - COMPILER_VERSION=4.9 ASAN=0
-          os: linux
-          compiler: g++
-          addons:
-            apt:
-              sources:
-                - ubuntu-toolchain-r-test
-              packages:
-                - g++-4.9
-                - gnupg
+    - env:
+      - COMPILER_VERSION=4.9 ASAN=0
+      os: linux
+      compiler: g++
+      addons:
+        apt:
+          sources:
+            - ubuntu-toolchain-r-test
+          packages:
+            - g++-4.9
+            - gnupg
 
-        - env:
-            - COMPILER_VERSION=3.5 ASAN=1
-          os: linux
-          compiler: clang++
-          addons:
-            apt:
-              sources:
-                - llvm-toolchain-precise-3.5
-                - ubuntu-toolchain-r-test
-              packages:
-                - clang-3.5
-                - gnupg
+    - env:
+      - COMPILER_VERSION=3.5 ASAN=1
+      os: linux
+      compiler: clang++
+      addons:
+        apt:
+          sources:
+            - llvm-toolchain-precise-3.5
+            - ubuntu-toolchain-r-test
+          packages:
+            - clang-3.5
+            - gnupg
 
-        - env:
-            - COMPILER_VERSION=3.6 SKIP_TESTS=On ASAN=1
-          os: linux
-          compiler: clang++
-          addons:
-            apt:
-              sources:
-                - llvm-toolchain-precise-3.6
-                - ubuntu-toolchain-r-test
-              packages:
-                - clang-3.6
-                - gnupg
+    - env:
+      - COMPILER_VERSION=3.6 SKIP_TESTS=On ASAN=1
+      os: linux
+      compiler: clang++
+      addons:
+        apt:
+          sources:
+            - llvm-toolchain-precise-3.6
+            - ubuntu-toolchain-r-test
+          packages:
+            - clang-3.6
+            - gnupg
 
 install:
   - pip install --user --upgrade nose
