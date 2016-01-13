@@ -110,6 +110,7 @@ set(RTAGS_SOURCES
 
 add_library(rtags STATIC ${RTAGS_SOURCES})
 if (NOT RTAGS_NO_COTIRE)
+    include(cotire)
     set_target_properties(rtags PROPERTIES COTIRE_ADD_UNITY_BUILD FALSE)
     cotire(rtags)
 endif ()
