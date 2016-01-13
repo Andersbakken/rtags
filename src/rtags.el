@@ -59,6 +59,7 @@
 (defvar rtags-range-filter nil)
 (defvar rtags-mode-hook nil)
 (defvar rtags-diagnostics-hook nil)
+(defvar rtags-jump-hook nil)
 (defvar rtags-diagnostics-suspended nil)
 (defvar rtags-taglist-hook nil)
 (defface rtags-path nil "Path" :group 'rtags)
@@ -1674,7 +1675,8 @@ Can be used both for path and location."
     (unless (string= bm (car rtags-location-stack))
       (push bm rtags-location-stack)
       (when (> (length rtags-location-stack) rtags-max-bookmark-count)
-        (nbutlast rtags-location-stack (- (length rtags-location-stack) rtags-max-bookmark-count))))))
+        (nbutlast rtags-location-stack (- (length rtags-location-stack) rtags-max-bookmark-count)))
+      (run-hooks 'rtags-jump-hook))))
 
 ;;;###autoload
 (defun rtags-location-stack-jump (by)
