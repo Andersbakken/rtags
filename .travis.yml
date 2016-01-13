@@ -22,6 +22,7 @@ matrix:
             apt:
               sources:
                  - ubuntu-toolchain-r-test
+                 - kalakris-cmake
               packages:
                  - cmake
                  - g++-4.8
@@ -36,6 +37,7 @@ matrix:
             apt:
               sources:
                 - ubuntu-toolchain-r-test
+                - kalakris-cmake
               packages:
                 - cmake
                 - g++-4.9
@@ -51,6 +53,7 @@ matrix:
               sources:
                 - llvm-toolchain-precise-3.5
                 - ubuntu-toolchain-r-test
+                - kalakris-cmake
               packages:
                 - cmake
                 - clang-3.5
@@ -67,6 +70,7 @@ matrix:
               sources:
                 - llvm-toolchain-precise-3.6
                 - ubuntu-toolchain-r-test
+                - kalakris-cmake
               packages:
                 - clang-3.6
                 - gnupg
