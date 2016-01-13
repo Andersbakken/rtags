@@ -526,7 +526,7 @@ to case differences."
      (1 font-lock-string-face))
     ;; (,(concat "^" rtags-verbose-results-delimiter "$")
     ;;  (1 font-lock-builtin-face))
-    (,"^ +\\(.*\\)$"
+    (,"^[ \t]+\\(.*\\)$"
      (1 font-lock-function-name-face))))
 
 (defvar rtags-current-line-overlay nil)
@@ -1658,7 +1658,7 @@ Can be used both for path and location."
              (rtags-goto-offset offset)
              t))
           (t
-           (when (string-match "^ +\\(.*\\)$" location)
+           (when (string-match "^[ \t]+\\(.*\\)$" location)
              (setq location (match-string-no-properties 1 location)))
            (rtags-find-file-or-buffer location other-window)))
     (unless nobookmark (rtags-location-stack-push))))
@@ -2238,7 +2238,7 @@ is true. References to references will be treated as references to the reference
     (rtags-call-rc "--is-indexing" :noerror t)))
 
 (defun rtags-format-context (str fraction)
-  (when (string-match "^ +" str)
+  (when (string-match "^[ \t]+" str)
     (setq str (substring str (match-end 0))))
   (rtags-elide-text str (truncate (* (frame-width) fraction)) 'right))
 
