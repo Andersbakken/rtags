@@ -23,6 +23,7 @@ matrix:
               sources:
                  - ubuntu-toolchain-r-test
               packages:
+                 - cmake
                  - g++-4.8
                  - gnupg
 
@@ -36,6 +37,7 @@ matrix:
               sources:
                 - ubuntu-toolchain-r-test
               packages:
+                - cmake
                 - g++-4.9
                 - gnupg
 
@@ -50,6 +52,7 @@ matrix:
                 - llvm-toolchain-precise-3.5
                 - ubuntu-toolchain-r-test
               packages:
+                - cmake
                 - clang-3.5
                 - gnupg
 
@@ -67,6 +70,7 @@ matrix:
               packages:
                 - clang-3.6
                 - gnupg
+                - cmake
 
 install:
   - pip install --user --upgrade nose
