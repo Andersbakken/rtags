@@ -102,24 +102,25 @@ and `c-electric-colon', for automatic completion right after \">\" and
   (when (rtags-has-diagnostics)
     (let ((updated (rtags-update-completions)))
       (when updated
-        (if (numberp updated)
-            (let ((old rtags-last-completions)
-                  (maxwait company-rtags-max-wait))
-              (while (and (eq old rtags-last-completions)
-                          (> maxwait 0))
-                (decf maxwait)
-                (sleep-for company-async-wait))))
-        (if (and rtags-last-completions
-                 (eq (current-buffer) (car rtags-last-completion-position))
-                 (= (or (rtags-calculate-completion-point) -1) (cdr rtags-last-completion-position)))
-            (let (results
-                  (candidates (cadr rtags-last-completions))
-                  (maxwidth (- (window-width) (- (point) (point-at-bol)))))
-              (while candidates
-                (when (company-rtags--valid-candidate prefix (car candidates))
-                  (push (company-rtags--make-candidate (car candidates) maxwidth) results))
-                (setq candidates (cdr candidates)))
-              (reverse results)))))))
+        (when (numberp updated)
+          (let ((old rtags-last-completions)
+                (maxwait company-rtags-max-wait))
+            (while (and (eq old rtags-last-completions)
+                        (> maxwait 0))
+              (decf maxwait)
+              (sleep-for company-async-wait))))
+        (when (and rtags-last-completions
+                   (let ((pos (rtags-calculate-completion-point)))
+                     (and pos (string= (car rtags-last-completions)
+                                       (rtags-current-location pos)))))
+          (let (results
+                (candidates (cadr rtags-last-completions))
+                (maxwidth (- (window-width) (- (point) (point-at-bol)))))
+            (while candidates
+              (when (company-rtags--valid-candidate prefix (car candidates))
+                (push (company-rtags--make-candidate (car candidates) maxwidth) results))
+              (setq candidates (cdr candidates)))
+            (reverse results)))))))
 
 (defun company-rtags--meta (candidate insert)
   (get-text-property 0 (if insert 'meta-insert 'meta) candidate))
@@ -131,22 +132,21 @@ and `c-electric-colon', for automatic completion right after \">\" and
      ((string-match "\\((.*)\\)" meta)
       (match-string 1 meta)))))
 
-(defvar rtags-company-last-completion-position nil)
+(defvar rtags-company-last-completion-location nil)
 (defvar rtags-company-last-completion-callback nil)
 (defvar rtags-company-last-completion-prefix nil)
 (defun rtags-company-update-completions (cb)
   ;; (setq rtags-company-last-completion-prefix prefix)
   (setq rtags-company-last-completion-callback cb)
   (rtags-update-completions)
-  (setq rtags-company-last-completion-position rtags-last-completion-position)
+  (let ((pos (rtags-calculate-completion-point)))
+    (setq rtags-company-last-completion-location (and pos (rtags-current-location pos))))
   (rtags-company-diagnostics-hook))
 
 (defun rtags-company-diagnostics-hook ()
   (when (and rtags-company-last-completion-callback
-             rtags-last-completion-position
-             rtags-company-last-completion-position
-             (eq (car rtags-last-completion-position) (car rtags-company-last-completion-position))
-             (= (cdr rtags-last-completion-position) (cdr rtags-company-last-completion-position)))
+             rtags-last-completions
+             (string= (car rtags-last-completions) rtags-company-last-completion-location))
     (let ((results nil)
           (maxwidth (max 10 (- (window-width) (- (point) (point-at-bol)))))
           (candidates (cadr rtags-last-completions)))
@@ -171,9 +171,11 @@ and `c-electric-colon', for automatic completion right after \">\" and
                  (company-rtags--prefix)))
     (candidates
      (if company-rtags-use-async
-         (cons :async
-               (lambda (cb)
-                 (rtags-company-update-completions cb)))
+         (progn
+           (rtags-prepare-completions)
+           (cons :async
+                 (lambda (cb)
+                   (rtags-company-update-completions cb))))
        (company-rtags--candidates arg)))
     (meta (company-rtags--meta arg nil))
     (sorted t)

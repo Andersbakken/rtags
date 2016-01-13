@@ -53,7 +53,7 @@
 (defconst rtags-popup-available (require 'popup nil t))
 
 (defvar rtags-last-completions nil)
-(defvar rtags-last-completion-position nil) ;; cons (buffer . offset)
+(defvar rtags-last-prepare-completion-position nil) ;; cons (buffer . offset)
 (defvar rtags-path-filter nil)
 (defvar rtags-path-filter-regex nil)
 (defvar rtags-range-filter nil)
@@ -178,7 +178,7 @@ Note: it is recommended to run each sandbox is separate emacs process.")
   :type 'boolean
   :safe 'booleanp)
 
-(defcustom rtags-completions-timer-interval nil
+(defcustom rtags-completions-timer-interval 1
   "Interval for completions timer. nil means, don't preemptively prepare completions."
   :group 'rtags
   :type '(choice (const :tag "Unset" nil) number)
@@ -2533,7 +2533,7 @@ is true. References to references will be treated as references to the reference
                 (set-process-sentinel rtags-diagnostics-process 'rtags-diagnostics-sentinel)
                 (set-process-query-on-exit-flag rtags-diagnostics-process nil)
                 (setq rtags-last-completions nil)
-                (setq rtags-last-completion-position nil)
+                (setq rtags-last-prepare-completion-position nil)
                 (rtags-clear-diagnostics)
                 (rtags-schedule-buffer-list-update)))))
         (when (and (called-interactively-p 'any) (rtags-is-running))
@@ -3498,11 +3498,34 @@ BUFFER : The buffer to be checked and reparsed, if it's nil, use current buffer.
   (cond ((not rtags-completions-enabled))
         ((not (numberp rtags-completions-timer-interval)))
         ((< rtags-completions-timer-interval 0))
-        ((not (rtags-has-diagnostics)))
         ((not (or (eq major-mode 'c++-mode) (eq major-mode 'c-mode) (eq major-mode 'objc-mode))))
-        ((= rtags-completions-timer-interval 0) (rtags-update-completions))
+        ((not (rtags-has-diagnostics)))
+        ((= rtags-completions-timer-interval 0) (rtags-prepare-completions))
         (t (setq rtags-completions-timer (run-with-idle-timer rtags-completions-timer-interval
-                                                              nil (function rtags-update-completions))))))
+                                                              nil (function rtags-prepare-completions))))))
+
+(defun rtags-code-complete-enabled ()
+  (and rtags-completions-enabled
+       (or (eq major-mode 'c++-mode) (eq major-mode 'c-mode) (eq major-mode 'objc-mode))
+       (rtags-has-diagnostics)))
+
+(defun rtags-prepare-completions ()
+  (interactive)
+  (when (rtags-code-complete-enabled)
+    (let ((pos (rtags-calculate-completion-point)))
+      (cond ((not pos) nil)
+            ((and (cdr rtags-last-prepare-completion-position)
+                  (= pos (cdr rtags-last-prepare-completion-position))
+                  (eq (current-buffer) (car rtags-last-prepare-completion-position)))
+             1)
+            (t
+             (setq rtags-last-prepare-completion-position (cons (current-buffer) pos))
+             (let ((path (buffer-file-name))
+                   (unsaved (and (buffer-modified-p) (current-buffer)))
+                   (location (rtags-current-location pos)))
+               (with-temp-buffer
+                 (rtags-call-rc :path path :output 0 :unsaved unsaved "--prepare-code-complete-at" location :noerror t)))
+             t)))))
 
 ;; returns t if completions are good, 1 if completions are being
 ;; updated and nil if completion-point is invalid or something like
@@ -3510,27 +3533,24 @@ BUFFER : The buffer to be checked and reparsed, if it's nil, use current buffer.
 ;;;###autoload
 (defun rtags-update-completions (&optional force)
   (interactive)
-  (when (and (or (eq major-mode 'c++-mode) (eq major-mode 'c-mode) (eq major-mode 'objc-mode))
-             (rtags-has-diagnostics))
-    (let ((pos (rtags-calculate-completion-point)))
-      ;; (message "CHECKING UPDATE COMPLETIONS %d %d"
-      ;;          (or pos -1)
-      ;;          (or (cdr rtags-last-completion-position) -1))
-      (when pos
-        (if (or force
-                (not (cdr rtags-last-completion-position))
-                (not (= pos (cdr rtags-last-completion-position)))
-                (not (eq (current-buffer) (car rtags-last-completion-position))))
-            (progn
-              (setq rtags-last-completion-position (cons (current-buffer) pos))
-              (setq rtags-last-completions nil)
-              (let ((path (buffer-file-name))
-                    (unsaved (and (buffer-modified-p) (current-buffer)))
-                    (location (rtags-current-location pos)))
-                (with-temp-buffer
-                  (rtags-call-rc :path path :output 0 :unsaved unsaved "-Y" "-l" location :noerror t))
-                1))
-          t)))))
+  (when (rtags-code-complete-enabled)
+    (let* ((pos (rtags-calculate-completion-point))
+           (location (and pos (rtags-current-location pos)))
+           (ret))
+      (when (cond ((null pos) nil)
+                  ((null location) nil)
+                  (force)
+                  ((not rtags-last-completions))
+                  ((and location (string= (car rtags-last-completions) location))
+                   (setq ret t)
+                   nil)
+                  (t))
+        (setq ret 1)
+        (let ((path (buffer-file-name))
+              (unsaved (and (buffer-modified-p) (current-buffer))))
+          (with-temp-buffer
+            (rtags-call-rc :path path :output 0 :unsaved unsaved "--code-complete-at" location "--elisp" :noerror t))))
+      ret)))
 
 
 (defun rtags-get-summary-text (&optional max-no-lines)

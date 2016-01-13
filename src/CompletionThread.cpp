@@ -238,11 +238,8 @@ void CompletionThread::process(Request *request)
     }
     const bool sendDebug = testLog(LogLevel::Debug);
 
-    if (cache->translationUnit && cache->source != request->source) {
-        clang_disposeTranslationUnit(cache->translationUnit);
-        cache->translationUnit = 0;
-        cache->source = request->source;
-    } else if (!cache->translationUnit) {
+    assert(!cache->translationUnit || cache->source == request->source);
+    if (!cache->translationUnit) {
         cache->source = request->source;
     }
 
@@ -441,8 +438,10 @@ void CompletionThread::process(Request *request)
                 c->candidates[i] = std::move(*nodesPtr[i]);
             printCompletions(c->candidates, request);
             processTime = sw.elapsed();
-            warning("Processed %s, parse %d/%d, complete %d, process %d => %d completions (unsaved %zu)",
-                    sourceFile.constData(), parseTime, reparseTime, completeTime, processTime, nodeCount, request->unsaved.size());
+            warning("Processed %s, parse %d/%d, complete %d, process %d => %d completions (unsaved %zu)%s",
+                    request->location.toString().constData(),
+                    parseTime, reparseTime, completeTime, processTime, nodeCount, request->unsaved.size(),
+                    request->flags & Refresh ? " Refresh" : "");
         } else {
             printCompletions(List<Completions::Candidate>(), request);
             error() << "No completion results available" << request->location << results->NumResults;
@@ -469,6 +468,8 @@ struct Output
 
 void CompletionThread::printCompletions(const List<Completions::Candidate> &completions, Request *request)
 {
+    if (request->flags & Refresh)
+        return;
     static List<String> cursorKindNames;
     // error() << request->flags << testLog(RTags::DiagnosticsLevel) << completions.size() << request->conn;
     List<std::shared_ptr<Output> > outputs;
@@ -502,17 +503,17 @@ void CompletionThread::printCompletions(const List<Completions::Candidate> &comp
             }
         });
 
-    if (!(request->flags & Refresh) && !outputs.isEmpty()) {
+    if (!outputs.isEmpty()) {
         String xmlOut, elispOut;
         if (xml) {
             xmlOut.reserve(16384);
             xmlOut << String::format<128>("<?xml version=\"1.0\" encoding=\"utf-8\"?><completions location=\"%s\"><![CDATA[",
-                                          request->location.toString().constData());
+                                          request->location.toString(Location::AbsolutePath).constData());
         }
         if (elisp) {
             elispOut.reserve(16384);
             elispOut += String::format<256>("(list 'completions (list \"%s\" (list",
-                                            RTags::elispEscape(request->location.toString()).constData());
+                                            RTags::elispEscape(request->location.toString(Location::AbsolutePath)).constData());
         }
         for (const auto &val : completions) {
             if (val.cursorKind >= cursorKindNames.size())
