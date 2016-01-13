@@ -21,10 +21,10 @@ matrix:
           addons:
             apt:
               sources:
-                 - ubuntu-toolchain-r-test
-               packages:
-                 - g++-4.8
-                 - gnupg
+                - ubuntu-toolchain-r-test
+              packages:
+                - g++-4.8
+                - gnupg
 
         - env:
             - COMPILER_VERSION=4.9
