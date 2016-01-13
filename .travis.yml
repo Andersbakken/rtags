@@ -7,15 +7,11 @@ sudo: false
 
 language:
   - cpp
-  - python
 
-python: 2.7
-
-matrix:
+  matrix:
     include:
         - env:
-            - COMPILER_VERSION=4.8
-            - ASAN=1
+            - COMPILER_VERSION=4.8 ASAN=1
           os: linux
           compiler: g++
           addons:
@@ -27,8 +23,7 @@ matrix:
                 - gnupg
 
         - env:
-            - COMPILER_VERSION=4.9
-            - ASAN=0
+            - COMPILER_VERSION=4.9 ASAN=0
           os: linux
           compiler: g++
           addons:
@@ -40,8 +35,7 @@ matrix:
                 - gnupg
 
         - env:
-            - COMPILER_VERSION=3.5
-            - ASAN=1
+            - COMPILER_VERSION=3.5 ASAN=1
           os: linux
           compiler: clang++
           addons:
@@ -54,9 +48,7 @@ matrix:
                 - gnupg
 
         - env:
-            - COMPILER_VERSION=3.6
-            - SKIP_TESTS=On
-            - ASAN=1
+            - COMPILER_VERSION=3.6 SKIP_TESTS=On ASAN=1
           os: linux
           compiler: clang++
           addons:
@@ -75,6 +67,7 @@ install:
 before_script:
     - mkdir build
     - cd build
+    - env
     - echo "Using compilers $CXX-${COMPILER_VERSION} and $CC-${COMPILER_VERSION}"
     - cmake -DRTAGS_NO_COTIRE=1 -DASAN=$ASAN -DCMAKE_CXX_COMPILER=$CXX-${COMPILER_VERSION} -DCMAKE_C_COMPILER=$CC-${COMPILER_VERSION} -DRTAGS_NO_ELISP_BYTECOMPILE=1 ..
     - cd ..
