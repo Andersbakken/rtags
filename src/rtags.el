@@ -365,7 +365,7 @@ return t if rtags is allowed to modify this file."
 
 (defface rtags-skippedline
   '((((class color) (background dark)) (:background "gray12"))
-    (((class color) (background light)) (:background "gray12")))
+    (((class color) (background light)) (:background "light gray")))
   "Face used for marking skipped lines."
   :group 'rtags)
 
