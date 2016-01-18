@@ -365,7 +365,6 @@ int main(int argc, char** argv)
 // #ifndef NDEBUG
 //     serverOpts.options |= Server::SuspendRPOnCrash;
 // #endif
-    serverOpts.excludeFilters = String(EXCLUDEFILTER_DEFAULT).split(';');
     serverOpts.dataDir = String::format<128>("%s.rtags", Path::home().constData());
 
     const char *logFile = 0;
@@ -721,6 +720,9 @@ int main(int argc, char** argv)
             return 0;
         }
     }
+
+    if (serverOpts.excludeFilters.isEmpty())
+        serverOpts.excludeFilters = String(EXCLUDEFILTER_DEFAULT).split(';');
 
     if (!serverOpts.headerErrorJobCount) {
         serverOpts.headerErrorJobCount = std::max<size_t>(1, serverOpts.jobCount / 2);
