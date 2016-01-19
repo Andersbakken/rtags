@@ -93,14 +93,11 @@ sourced, to get completion support.
 ** C++11 on OS X
 
 If you plan to tag projects using C++11 features on OS X then you'll
-need a custom libclang, the default one built through homebrew does
-not support using LLVM's [[http://libcxx.llvm.org/][libc++]]. You'll need to install one from
-homebrew-versions instead and explicitly tell it to enable libc++. For
-LLVM 3.6 the following works:
+need a libclang linked with LLVM's [[http://libcxx.llvm.org/][libc++]].
+For LLVM 3.6 the following works:
 
 #+BEGIN_SRC
-$ brew tap homebrew/versions
-$ brew install llvm36 --with-libcxx --with-clang --without-assertions --rtti
+$ brew install llvm --with-libcxx --with-clang --without-assertions --rtti
 #+END_SRC
 
 or you can install clang and llvm from macports
