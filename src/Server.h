@@ -23,6 +23,13 @@ along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 #include "rct/SocketServer.h"
 #include "rct/String.h"
 #include "Source.h"
+#ifdef OS_Darwin
+#include <Availability.h>
+#ifdef __MAC_10_11
+#include <launch.h>
+#define RTAGS_HAS_LAUNCHD
+#endif
+#endif
 
 class CompletionThread;
 class Connection;

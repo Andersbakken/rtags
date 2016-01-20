@@ -123,7 +123,7 @@ static void usage(FILE *f)
             "  --watch-system-paths|-w                    Watch system paths for changes.\n"
             "  --block-argument|-G [arg]                  Block this argument from being passed to clang. E.g. rdm --block-argument -fno-inline\n"
             "  --progress|-p                              Report compilation progress in diagnostics output.\n"
-#ifdef OS_Darwin
+#ifdef RTAGS_HAS_LAUNCHD
             "  --launchd                                  Run as a launchd job (use launchd API to retrieve socket opened by launchd on rdm's behalf).\n"
 #endif
             "  --inactivity-timeout [arg]                 Time in seconds after which rdm will quit if there's been no activity (N.B., once rdm has quit, something will need to re-run it!).\n"
@@ -236,7 +236,7 @@ int main(int argc, char** argv)
         { "no-filesystem-watcher", no_argument, 0, 'B' },
         { "arg-transform", required_argument, 0, 'V' },
         { "no-comments", no_argument, 0, 1 },
-#ifdef OS_Darwin
+#ifdef RTAGS_HAS_LAUNCHD
         { "launchd", no_argument, 0, 4 },
 #endif
         { "inactivity-timeout", required_argument, 0, 5 },
@@ -671,7 +671,7 @@ int main(int argc, char** argv)
             if (logLevel != LogLevel::None)
                 ++logLevel;
             break;
-#ifdef OS_Darwin
+#ifdef RTAGS_HAS_LAUNCHD
         case 4:
             serverOpts.options |= Server::Launchd;
             break;
@@ -745,7 +745,7 @@ int main(int argc, char** argv)
         return 1;
     }
 
-#ifdef OS_Darwin
+#ifdef RTAGS_HAS_LAUNCHD
     if (serverOpts.options & Server::Launchd) {
         // Clamp inactivity timeout. launchd starts to worry if the
         // process runs for less than 10 seconds.

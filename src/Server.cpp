@@ -24,9 +24,6 @@
 #include <stdio.h>
 #include <limits>
 #include <regex>
-#ifdef OS_Darwin
-#include <launch.h>
-#endif
 
 #include "ClassHierarchyJob.h"
 #include "CompletionThread.h"
@@ -225,7 +222,7 @@ bool Server::initServers()
         mTcpServer->newConnection().connect(std::bind(&Server::onNewConnection, this, std::placeholders::_1));
     }
 
-#ifdef OS_Darwin
+#ifdef RTAGS_HAS_LAUNCHD
     // If Launchd, it goes into this bit and never comes out.
     if (mOptions.options & Launchd) {
         warning("initServers: launchd mode.");
@@ -1797,7 +1794,7 @@ bool Server::saveFileIds()
 
 void Server::removeSocketFile()
 {
-#ifdef OS_Darwin
+#ifdef RTAGS_HAS_LAUNCHD
     if (mOptions.options & Launchd) {
         return;
     }
