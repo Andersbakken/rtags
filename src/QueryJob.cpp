@@ -71,13 +71,18 @@ bool QueryJob::write(const String &out, Flags<WriteFlag> flags)
             int l = 2;
             for (size_t i=0; i<out.size(); ++i) {
                 const char c = out.at(i);
-                if (c == '"') {
+                switch (c) {
+                case '"':
+                case '\\':
+                    *(ch + 1) = c;
                     *ch = '\\';
                     ch += 2;
                     l += 2;
-                } else {
+                    break;
+                default:
                     ++l;
                     *ch++ = c;
+                    break;
                 }
             }
             o.truncate(l);
