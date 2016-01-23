@@ -125,6 +125,12 @@ Note: it is recommended to run each sandbox is separate emacs process.")
   :type 'boolean
   :safe 'booleanp)
 
+(defcustom rtags-close-taglist-on-focuslost nil
+  "Whether rtags-taglist should close when it loses focus"
+  :group 'rtags
+  :type 'boolean
+  :safe 'booleanp)
+
 (defcustom rtags-follow-symbol-try-harder t
   "Fall back to string-matching if follow symbol fails."
   :group 'rtags
@@ -2408,7 +2414,8 @@ is true. References to references will be treated as references to the reference
   (when rtags-enabled
     (rtags-restart-update-current-project-timer)
     (rtags-update-current-error)
-    (rtags-close-taglist)
+    (when rtags-close-taglist-on-focuslost
+      (rtags-close-taglist))
     (rtags-update-completions-timer)
     (rtags-restart-find-container-timer)
     (rtags-restart-tracking-timer)
