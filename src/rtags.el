@@ -131,6 +131,12 @@ Note: it is recommended to run each sandbox is separate emacs process.")
   :type 'boolean
   :safe 'booleanp)
 
+(defcustom rtags-close-taglist-on-selection t
+  "Whether rtags-taglist should close when something is selected"
+  :group 'rtags
+  :type 'boolean
+  :safe 'booleanp)
+
 (defcustom rtags-follow-symbol-try-harder t
   "Fall back to string-matching if follow symbol fails."
   :group 'rtags
@@ -2817,7 +2823,9 @@ The option OTHER-WINDOW is only applicable if rtags is configured not to show th
          (bookmark (and (car idx) (format "RTags_%d" (car idx))))
          (window (selected-window)))
     (cond ((eq major-mode 'rtags-taglist-mode)
-           (rtags-goto-location (cdr (assoc line rtags-taglist-locations)) nil other-window))
+           (rtags-goto-location (cdr (assoc line rtags-taglist-locations)) nil other-window)
+           (when rtags-close-taglist-on-selection
+             (rtags-close-taglist)))
           ((rtags-is-class-hierarchy-buffer)
            (save-excursion
              (goto-char (point-at-bol))
