@@ -34,18 +34,18 @@ matrix:
             - g++-4.9
             - gnupg
 
-    - env:
-      - COMPILER_VERSION=3.5 ASAN=1
-      os: linux
-      compiler: clang++
-      addons:
-        apt:
-          sources:
-            - llvm-toolchain-precise-3.5
-            - ubuntu-toolchain-r-test
-          packages:
-            - clang-3.5
-            - gnupg
+    # - env:
+    #   - COMPILER_VERSION=3.5 ASAN=1
+    #   os: linux
+    #   compiler: clang++
+    #   addons:
+    #     apt:
+    #       sources:
+    #         - llvm-toolchain-precise-3.5
+    #         - ubuntu-toolchain-r-test
+    #       packages:
+    #         - clang-3.5
+    #         - gnupg
 
     - env:
       - COMPILER_VERSION=3.6 SKIP_TESTS=On ASAN=1
