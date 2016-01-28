@@ -23,7 +23,7 @@ while [ -n "$1" ]; do
     shift
 done
 cd "$SCRIPT_PATH"
-[ "$PULL" ] && ! git pull --recurse-submodules && exit 1
+[ "$PULL" ] && ! git pull --recurse-submodules > /dev/null && exit 1
 branch_name="$(git symbolic-ref HEAD 2>/dev/null)" || branch_name="(unnamed branch)"     # detached HEAD
 branch_name=${branch_name##refs/heads/}
 
@@ -43,7 +43,7 @@ if [ "$branch_name" == "master" ]; then
         echo "$commit" > commit
         git add rtags.tar.gz rtags.tar.bz2 commit
         git commit -m "Release for $commit"
-        git push -f git@github.com:Andersbakken/rtags-releases.git gh-pages
+        git push -f git@github.com:Andersbakken/rtags-releases.git gh-pages >/dev/null
         rm -rf $RELEASES
     fi
 fi
