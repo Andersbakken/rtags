@@ -8,7 +8,22 @@ while [ -h "$SOURCE" ]; do # resolve $SOURCE until the file is no longer a symli
 done
 SCRIPT_PATH="$( cd -P "$( dirname "$SOURCE" )" && pwd )"
 
+
+PULL=
+while [ -n "$1" ]; do
+    case "$1" in
+        --pull|-p)
+            PULL=1
+            ;;
+        *)
+            echo "Unknown argument $1"
+            exit 1
+            ;;
+    esac
+    shift
+done
 cd "$SCRIPT_PATH"
+[ "$PULL" ] && ! git pull --recurse-submodules && exit 1
 branch_name="$(git symbolic-ref HEAD 2>/dev/null)" || branch_name="(unnamed branch)"     # detached HEAD
 branch_name=${branch_name##refs/heads/}
 
