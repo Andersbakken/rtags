@@ -19,7 +19,7 @@ matrix:
           sources:
             - ubuntu-toolchain-r-test
           packages:
-            - g++-4.8
+            - "g++-4.8"
             - gnupg
 
     - env:
@@ -31,7 +31,7 @@ matrix:
           sources:
             - ubuntu-toolchain-r-test
           packages:
-            - g++-4.9
+            - "g++-4.9"
             - gnupg
 
     # - env:
