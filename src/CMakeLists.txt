@@ -11,7 +11,7 @@ endif ()
 # Set RPATH when installing to a custom (non-system) directory
 list(FIND CMAKE_PLATFORM_IMPLICIT_LINK_DIRECTORIES "${CMAKE_INSTALL_PREFIX}/lib" isSystemDir)
 if ("${isSystemDir}" STREQUAL "-1")
-    set(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/lib")
+    set(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_RPATH}:${CMAKE_INSTALL_PREFIX}/lib")
 endif ()
 
 include(${CMAKE_SOURCE_DIR}/cmake/EnsureLibraries.cmake)
