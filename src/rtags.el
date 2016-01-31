@@ -3190,7 +3190,7 @@ definition."
           (recenter-top-bottom (when (not center-window) 0))
           (select-window win))))))
 
-(defvar rtags-helm-find-symbol-min-input 4)
+(defvar rtags-helm-find-symbol-min-input 2)
 
 (defun rtags-find-symbols-by-name-internal (prompt switch &optional filter regexp-filter other-window)
   (rtags-delete-rtags-windows)
