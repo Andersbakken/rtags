@@ -3205,7 +3205,8 @@ definition."
         (setq input (helm-comp-read prompt (function rtags-symbolname-complete)
                                     :fuzzy nil
                                     :requires-pattern rtags-helm-find-symbol-min-input
-                                    :input-history rtags-symbol-history))
+                                    :input-history rtags-symbol-history
+                                    :default tagname))
       (if (fboundp 'completing-read-default)
           (setq input (completing-read-default prompt (function rtags-symbolname-complete) nil nil nil 'rtags-symbol-history))
         (setq input (completing-read prompt (function rtags-symbolname-complete) nil nil nil 'rtags-symbol-history))))
