@@ -12,6 +12,7 @@
   (defun ac-define-source (&rest args))
   (defun cl-mapcan (&rest args))
   (defun helm (&rest args))
+  (defun helm-comp-read (&rest args))
   (defvar company-async-wait nil)
   (defvar rtags nil)
   (defvar ac-last-completion nil)
