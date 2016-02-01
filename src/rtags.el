@@ -3201,15 +3201,15 @@ definition."
     (if (> (length tagname) 0)
         (setq prompt (concat prompt ": (default: " tagname ") "))
       (setq prompt (concat prompt ": ")))
-    (if rtags-use-helm
-        (setq input (helm-comp-read prompt (function rtags-symbolname-complete)
-                                    :fuzzy nil
-                                    :requires-pattern rtags-helm-find-symbol-min-input
-                                    :input-history rtags-symbol-history
-                                    :default tagname))
-      (if (fboundp 'completing-read-default)
-          (setq input (completing-read-default prompt (function rtags-symbolname-complete) nil nil nil 'rtags-symbol-history))
-        (setq input (completing-read prompt (function rtags-symbolname-complete) nil nil nil 'rtags-symbol-history))))
+    (setq input (cond (rtags-use-helm
+                       (helm-comp-read prompt (function rtags-symbolname-complete)
+                                       :fuzzy nil
+                                       :requires-pattern rtags-helm-find-symbol-min-input
+                                       :input-history rtags-symbol-history
+                                       :default tagname))
+                      ((fboundp 'completing-read-default)
+                       (completing-read-default prompt (function rtags-symbolname-complete) nil nil nil 'rtags-symbol-history))
+                      (t (completing-read prompt (function rtags-symbolname-complete) nil nil nil 'rtags-symbol-history))))
     (setq rtags-symbol-history (rtags-remove-last-if-duplicated rtags-symbol-history))
     (when (not (equal "" input))
       (setq tagname input))
