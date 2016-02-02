@@ -3190,8 +3190,6 @@ definition."
           (recenter-top-bottom (when (not center-window) 0))
           (select-window win))))))
 
-(defvar rtags-helm-find-symbol-min-input 2)
-
 (defun rtags-find-symbols-by-name-internal (prompt switch &optional filter regexp-filter other-window)
   (rtags-delete-rtags-windows)
   (rtags-location-stack-push)
@@ -3201,13 +3199,7 @@ definition."
     (if (> (length tagname) 0)
         (setq prompt (concat prompt ": (default: " tagname ") "))
       (setq prompt (concat prompt ": ")))
-    (setq input (cond (rtags-use-helm
-                       (helm-comp-read prompt (function rtags-symbolname-complete)
-                                       :fuzzy nil
-                                       :requires-pattern rtags-helm-find-symbol-min-input
-                                       :input-history rtags-symbol-history
-                                       :default tagname))
-                      ((fboundp 'completing-read-default)
+    (setq input (cond ((fboundp 'completing-read-default)
                        (completing-read-default prompt (function rtags-symbolname-complete) nil nil nil 'rtags-symbol-history))
                       (t (completing-read prompt (function rtags-symbolname-complete) nil nil nil 'rtags-symbol-history))))
     (setq rtags-symbol-history (rtags-remove-last-if-duplicated rtags-symbol-history))
