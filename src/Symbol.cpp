@@ -130,7 +130,9 @@ String Symbol::toString(Flags<ToStringFlag> cursorInfoFlags,
                                       symbolLength,
                                       startLine != -1 ? String::format<32>("Range: %d:%d-%d:%d\n", startLine, startColumn, endLine, endColumn).constData() : "",
 #if CINDEX_VERSION_MINOR > 1
-                                      kind == CXCursor_EnumConstantDecl ? String::format<32>("Enum Value: %lld\n", static_cast<long long>(enumValue)).constData() :
+                                      kind == CXCursor_EnumConstantDecl ? String::format<32>("Enum Value: %lld/0x%0llx\n",
+                                                                                             static_cast<long long>(enumValue),
+                                                                                             static_cast<long long>(enumValue)).constData() :
 #endif
                                       "",
                                       linkageSpelling(linkage),
