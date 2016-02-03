@@ -69,7 +69,7 @@ CXChildVisitResult DumpThread::visit(const CXCursor &cursor)
             message.reserve(256);
 
             if (!(mQueryFlags & QueryMessage::NoContext)) {
-                message = location.context(locationFlags);
+                message = location.context(locationFlags, &mContextCache);
             }
 
             if (endLine == location.line()) {

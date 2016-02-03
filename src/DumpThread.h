@@ -77,6 +77,7 @@ private:
     int mIndentLevel;
     mutable std::mutex mMutex;
     Hash<uint32_t, Dep*> mDependencies;
+    Hash<Path, String> mContextCache;
     bool mAborted;
 };
 

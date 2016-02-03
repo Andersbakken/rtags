@@ -145,6 +145,7 @@ private:
     Set<String> mKindFilters;
     String mBuffer;
     std::shared_ptr<Connection> mConnection;
+    Hash<Path, String> mContextCache;
 };
 
 RCT_FLAGS(QueryJob::JobFlag);

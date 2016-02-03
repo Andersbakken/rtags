@@ -128,9 +128,9 @@ bool QueryJob::locationToString(const Location &location,
         return false;
     Flags<Location::ToStringFlag> kf = locationToStringFlags();
     kf &= ~Location::ShowContext;
-    cb(Piece_Location, location.toString(kf));
+    cb(Piece_Location, location.toString(kf, &mContextCache));
     if (!(writeFlags & NoContext) && !(queryFlags() & QueryMessage::NoContext))
-        cb(Piece_Context, location.context(kf));
+        cb(Piece_Context, location.context(kf, &mContextCache));
 
     const bool containingFunction = queryFlags() & QueryMessage::ContainingFunction;
     const bool containingFunctionLocation = queryFlags() & QueryMessage::ContainingFunctionLocation;

@@ -37,7 +37,7 @@ const uint64_t Location::FILEID_MASK = createMask(0, FileBits);
 const uint64_t Location::LINE_MASK = createMask(FileBits, LineBits);
 const uint64_t Location::COLUMN_MASK = createMask(FileBits + LineBits, ColumnBits);
 
-String Location::toString(Flags<ToStringFlag> flags) const
+String Location::toString(Flags<ToStringFlag> flags, Hash<Path, String> *contextCache) const
 {
     if (isNull())
         return String();
@@ -47,7 +47,7 @@ String Location::toString(Flags<ToStringFlag> flags) const
     String ctx;
     if (flags & Location::ShowContext) {
         ctx += '\t';
-        ctx += context(flags);
+        ctx += context(flags, contextCache);
         extra += ctx.size();
     }
 
@@ -70,15 +70,28 @@ String Location::toString(Flags<ToStringFlag> flags) const
     return ret;
 }
 
-String Location::context(Flags<ToStringFlag> flags) const
+String Location::context(Flags<ToStringFlag> flags, Hash<Path, String> *cache) const
 {
-    const String code = path().readAll();
+    String copy;
+    String *code = 0;
+    const Path p = path();
+    if (cache) {
+        String &ref = (*cache)[p];
+        if (ref.isEmpty()) {
+            ref = p.readAll();
+        }
+        code = &ref;
+    } else {
+        copy = p.readAll();
+        code = &copy;
+    }
+
     String ret;
-    if (!code.isEmpty()) {
+    if (!code->isEmpty()) {
         unsigned int l = line();
         if (!l)
             return String();
-        const char *ch = code.constData();
+        const char *ch = code->constData();
         while (--l) {
             ch = strchr(ch, '\n');
             if (!ch)

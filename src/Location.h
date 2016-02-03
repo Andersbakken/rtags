@@ -153,8 +153,8 @@ public:
         AbsolutePath = 0x4
     };
 
-    String toString(Flags<ToStringFlag> flags = NoFlag) const;
-    String context(Flags<ToStringFlag> flags) const;
+    String toString(Flags<ToStringFlag> flags = NoFlag, Hash<Path, String> *contextCache = 0) const;
+    String context(Flags<ToStringFlag> flags, Hash<Path, String> *cache = 0) const;
 
     enum DecodeFlag {
         NoDecodeFlag = 0x0,
