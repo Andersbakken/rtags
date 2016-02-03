@@ -180,10 +180,6 @@ private:
     std::shared_ptr<Project> projectForQuery(const std::shared_ptr<QueryMessage> &queryMessage);
     std::shared_ptr<Project> addProject(const Path &path);
 
-    bool hasServer() const;
-    void onHttpClientReadyRead(const SocketClient::SharedPtr &socket);
-    void connectToServer();
-    void startJobs();
     bool initServers();
     void removeSocketFile();
 
