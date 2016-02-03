@@ -215,6 +215,12 @@ Note: it is recommended to run each sandbox is separate emacs process.")
   :type 'boolean
   :safe 'booleanp)
 
+(defcustom rtags-socket-file nil
+  "Socket file to pass to rc"
+  :group 'rtags
+  :type 'string
+  :safe 'stringp)
+
 (defcustom rtags-track-container nil
   "When on continually update current container (function/class/namespace) on intervals."
   :group 'rtags
@@ -853,6 +859,9 @@ Can be used both for path and location."
               (path nil)
               (default-directory (push (concat "--current-file=" (rtags-untrampify default-directory)) arguments))
               (t nil))
+
+        (when rtags-socket-file
+          (push (concat "-n" (expand-file-name rtags-socket-file)) arguments))
 
         (when rtags-rc-log-enabled
           (rtags-log (concat rc " " (rtags-combine-strings arguments))))
