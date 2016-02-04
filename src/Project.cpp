@@ -356,9 +356,9 @@ bool Project::init()
                 }
                 removed << it.first;
                 needsSave = true;
-            } else if (options.options & Server::ValidateFileMaps) {
+            } else {
                 String err;
-                if (!validate(it.first, &err)) {
+                if (!validate(it.first,  options.options & Server::ValidateFileMaps ? Validate : StatOnly, &err)) {
                     if (!err.isEmpty()) {
                         if (outputDirty) {
                             outputDirty = false;
@@ -584,7 +584,7 @@ void Project::onJobFinished(const std::shared_ptr<IndexerJob> &job, const std::s
     }
     if (!(msg->flags() & IndexDataMessage::ParseFailure)) {
         for (uint32_t fileId : job->visited) {
-            if (!validate(fileId)) {
+            if (!validate(fileId, Validate)) {
                 releaseFileIds(job->visited);
                 dirty(job->source.fileId);
                 return;
@@ -1870,40 +1870,52 @@ void Project::dirty(uint32_t fileId)
     startDirtyJobs(&dirty);
 }
 
-bool Project::validate(uint32_t fileId, String *err) const
+bool Project::validate(uint32_t fileId, ValidateMode mode, String *err) const
 {
-    Path path;
-    String error;
-    const uint32_t opts = fileMapOptions();
-    {
-        path = sourceFilePath(fileId, fileMapName(SymbolNames));
-        FileMap<String, Set<Location> > fileMap;
-        if (!fileMap.load(path, opts, &error))
-            goto error;
-    }
-    {
-        path = sourceFilePath(fileId, fileMapName(Symbols));
-        FileMap<Location, Symbol> fileMap;
-        if (!fileMap.load(path, opts, &error))
-            goto error;
-    }
-    {
-        path = sourceFilePath(fileId, fileMapName(Targets));
-        FileMap<String, Set<Location> > fileMap;
-        if (!fileMap.load(path, opts, &error))
-            goto error;
-    }
-    {
-        path = sourceFilePath(fileId, fileMapName(Usrs));
-        FileMap<String, Set<Location> > fileMap;
-        if (!fileMap.load(path, opts, &error))
-            goto error;
+    if (mode == Validate) {
+        Path path;
+        String error;
+        const uint32_t opts = fileMapOptions();
+        {
+            path = sourceFilePath(fileId, fileMapName(SymbolNames));
+            FileMap<String, Set<Location> > fileMap;
+            if (!fileMap.load(path, opts, &error))
+                goto error;
+        }
+        {
+            path = sourceFilePath(fileId, fileMapName(Symbols));
+            FileMap<Location, Symbol> fileMap;
+            if (!fileMap.load(path, opts, &error))
+                goto error;
+        }
+        {
+            path = sourceFilePath(fileId, fileMapName(Targets));
+            FileMap<String, Set<Location> > fileMap;
+            if (!fileMap.load(path, opts, &error))
+                goto error;
+        }
+        {
+            path = sourceFilePath(fileId, fileMapName(Usrs));
+            FileMap<String, Set<Location> > fileMap;
+            if (!fileMap.load(path, opts, &error))
+                goto error;
+        }
+        return true;
+  error:
+        if (err)
+            Log(err) << "Error during validation:" << Location::path(fileId) << error << path;
+        return false;
+    } else {
+        assert(mode == StatOnly);
+        for (auto type : { Symbols, SymbolNames, Targets, Usrs }) {
+            const Path p = sourceFilePath(fileId, fileMapName(type));
+            if (!p.isFile()) {
+                Log(err) << "Error during validation:" << Location::path(fileId) << p << "doesn't exist";
+                return false;
+            }
+        }
     }
     return true;
-error:
-    if (err)
-        Log(err) << "Error during validation:" << Location::path(fileId) << error << path;
-    return false;
 }
 
 void Project::loadFailed(uint32_t fileId)
