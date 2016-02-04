@@ -3441,11 +3441,13 @@ definition."
 
 (defconst rtags-symbol-chars "ABCDEFGHIKLMNOPQRSTUVWXYZabcdefghiklmnopqrstuvwxyz0123456789_")
 (defun rtags-calculate-completion-point ()
-  (when (or (= (point) (point-at-eol))
-            (looking-at "[\\n A-Za-z0-9_]"))
-    (save-excursion
-      (if (= (skip-chars-backward " ") 0)
-          (skip-chars-backward rtags-symbol-chars))
+  (save-excursion
+    (when (cond ((= (point) (point-at-eol)))
+                ((looking-at "[\\n A-Za-z0-9_]"))
+                ((looking-back "[\\n A-Za-z0-9_]") (backward-char 1) t)
+                (t nil))
+      (when (= (skip-chars-backward " ") 0)
+        (skip-chars-backward rtags-symbol-chars))
       (point))))
 ;; (if (or (= (char-before) 46) ;; '.'
 ;;         (= (char-before) 32) ;; ' '
