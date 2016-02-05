@@ -1126,16 +1126,30 @@ bool ClangIndexer::handleCursor(const CXCursor &cursor, CXCursorKind kind, const
                 c.flags |= Symbol::Auto;
                 if (resolvedAuto->type.kind != CXType_Invalid) {
                     setType(c, resolvedAuto->type);
-                    if (!clang_equalCursors(resolvedAuto->cursor, nullCursor)) {
-                        const Location loc = createLocation(clang_getCursorLocation(mLastCursor));
-                        Symbol *cursorPtr = 0;
-                        if (loc.fileId() && handleReference(mLastCursor, CXCursor_TypeRef, loc,
-                                                            resolvedAuto->cursor, nullCursor, &cursorPtr)) {
-                            cursorPtr->symbolLength = 4;
-                            cursorPtr->type = c.type;
-                            cursorPtr->endLine = c.startLine;
-                            cursorPtr->endColumn = c.startColumn + 4;
-                            cursorPtr->flags |= Symbol::AutoRef;
+                    const Location loc = createLocation(clang_getCursorLocation(mLastCursor));
+                    if (loc.fileId()) {
+                        if (!clang_equalCursors(resolvedAuto->cursor, nullCursor) && clang_getCursorKind(resolvedAuto->cursor) != CXCursor_NoDeclFound) {
+                            Symbol *cursorPtr = 0;
+                            if (handleReference(mLastCursor, CXCursor_TypeRef, loc,
+                                                resolvedAuto->cursor, nullCursor, &cursorPtr)) {
+                                cursorPtr->symbolLength = 4;
+                                cursorPtr->type = c.type;
+                                cursorPtr->endLine = c.startLine;
+                                cursorPtr->endColumn = c.startColumn + 4;
+                                cursorPtr->flags |= Symbol::AutoRef;
+                            }
+                        } else { // built-in type probably
+                            Symbol &sym = unit(loc)->symbols[loc];
+                            if (sym.isNull()) {
+                                sym.kind = CXCursor_NoDeclFound;
+                                sym.type = c.type;
+                                sym.symbolLength = 4;
+                                sym.endLine = c.startLine;
+                                sym.endColumn = c.startColumn + 4;
+                                sym.flags |= Symbol::AutoRef;
+                                sym.symbolName = "auto";
+                                sym.location = loc;
+                            }
                         }
                     }
                 } else {
@@ -1229,8 +1243,8 @@ bool ClangIndexer::handleCursor(const CXCursor &cursor, CXCursorKind kind, const
             c.flags |= Symbol::PureVirtualMethod;
         else
 #endif
-        if (clang_CXXMethod_isVirtual(cursor))
-            c.flags |= Symbol::VirtualMethod;
+            if (clang_CXXMethod_isVirtual(cursor))
+                c.flags |= Symbol::VirtualMethod;
 
         if (clang_CXXMethod_isStatic(cursor))
             c.flags |= Symbol::StaticMethod;
