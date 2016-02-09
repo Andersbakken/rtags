@@ -454,6 +454,7 @@ int RClient::exec()
     }
 
     int ret = 0;
+    bool hasZeroExit = false;
     for (int i=0; i<commandCount; ++i) {
         const std::shared_ptr<RCCommand> &cmd = mCommands.at(i);
         debug() << "running command " << cmd->description();
@@ -461,11 +462,13 @@ int RClient::exec()
             ret = 1;
             break;
         }
+        if (connection->finishStatus() == 0)
+            hasZeroExit = true;
     }
     if (connection->client())
         connection->client()->close();
     mCommands.clear();
-    if (!ret && !(mFlags & Flag_Autotest))
+    if (!ret && !(mFlags & Flag_Autotest) && !hasZeroExit)
         ret = connection->finishStatus();
     return ret;
 }
