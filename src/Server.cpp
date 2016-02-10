@@ -195,7 +195,6 @@ bool Server::init(const Options &options)
 
 bool Server::initServers()
 {
-
     if (mOptions.tcpPort) {
         for (int i=0; i<10; ++i) {
             mTcpServer.reset(new SocketServer);
