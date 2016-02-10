@@ -731,12 +731,10 @@ void Server::followLocation(const std::shared_ptr<QueryMessage> &query, const st
         return;
     }
 
-    int ret;
     {
         FollowLocationJob job(loc, query, project);
-        ret = job.run(conn);
-        if (!ret) {
-            conn->finish(ret);
+        if (!job.run(conn)) {
+            conn->finish(0);
             return;
         }
     }
@@ -758,9 +756,8 @@ void Server::followLocation(const std::shared_ptr<QueryMessage> &query, const st
                 for (const Path &projectPath : paths) {
                     if (path.startsWith(projectPath)) {
                         FollowLocationJob job(loc, query, proj.second);
-                        ret = job.run(conn);
-                        if (!ret) {
-                            conn->finish(ret);
+                        if (job.run(conn)) {
+                            conn->finish(0);
                             return;
                         }
                     }
@@ -768,7 +765,10 @@ void Server::followLocation(const std::shared_ptr<QueryMessage> &query, const st
             }
         }
     }
-    conn->finish(ret);
+    if (!project->dependencies().contains(loc.fileId())) {
+        conn->write("Not indexed");
+    }
+    conn->finish(1);
 }
 
 void Server::isIndexing(const std::shared_ptr<QueryMessage> &, const std::shared_ptr<Connection> &conn)
@@ -835,6 +835,12 @@ void Server::dumpFile(const std::shared_ptr<QueryMessage> &query, const std::sha
     if (!project) {
         conn->write<256>("%s is not indexed", query->query().constData());
         conn->finish();
+        return;
+    }
+
+    if (!project->dependencies().contains(fileId)) {
+        conn->write("Not indexed");
+        conn->finish(1);
         return;
     }
 
@@ -984,15 +990,15 @@ void Server::cursorInfo(const std::shared_ptr<QueryMessage> &query, const std::s
         return;
     }
     std::shared_ptr<Project> project = projectForQuery(query);
-
-    if (!project) {
+    if (!project || !project->dependencies().contains(loc.fileId())) {
         conn->write("Not indexed");
         conn->finish(1);
-    } else {
-        SymbolInfoJob job(loc, query, project);
-        const int ret = job.run(conn);
-        conn->finish(ret);
+        return;
     }
+
+    SymbolInfoJob job(loc, query, project);
+    const int ret = job.run(conn);
+    conn->finish(ret);
 }
 
 void Server::dependencies(const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Connection> &conn)
@@ -1058,6 +1064,12 @@ void Server::referencesForLocation(const std::shared_ptr<QueryMessage> &query, c
         error("No project");
         conn->write("Not indexed");
         conn->finish();
+        return;
+    }
+
+    if (!project->dependencies().contains(loc.fileId())) {
+        conn->write("Not indexed");
+        conn->finish(1);
         return;
     }
 
@@ -1640,6 +1652,12 @@ void Server::classHierarchy(const std::shared_ptr<QueryMessage> &query, const st
     std::shared_ptr<Project> project = projectForQuery(query);
     if (!project) {
         error("No project");
+        conn->write("Not indexed");
+        conn->finish(1);
+        return;
+    }
+
+    if (!project->dependencies().contains(loc.fileId())) {
         conn->write("Not indexed");
         conn->finish(1);
         return;
