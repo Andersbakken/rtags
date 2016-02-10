@@ -125,6 +125,12 @@ Note: it is recommended to run each sandbox is separate emacs process.")
   :type 'boolean
   :safe 'booleanp)
 
+(defcustom rtags-wrap-results t
+  "Whether rtags-next-match/rtags-prev-match wraps around"
+  :group 'rtags
+  :type 'boolean
+  :safe 'booleanp)
+
 (defcustom rtags-close-taglist-on-focus-lost nil
   "Whether rtags-taglist should close when it loses focus"
   :group 'rtags
@@ -639,20 +645,23 @@ to case differences."
         (helm-keyboard-quit))
       (when (> (count-lines (point-max) (point-min)) 1)
         (while (not (eq by 0))
-          (cond ((and next
-                      (goto-char (point-at-eol))
-                      (re-search-forward "^\\(.*?\\):\\([0-9]+\\):\\([0-9]+\\)" nil t)))
-                (next
-                 (goto-char (point-min))
-                 (message "%s Wrapped" rtags-buffer-name))
-                ((and (not next)
-                      (goto-char (point-at-bol))
-                      (re-search-backward "^\\(.*?\\):\\([0-9]+\\):\\([0-9]+\\)" nil t)))
-                (t
-                 (goto-char (point-max))
-                 (re-search-backward "^\\(.*?\\):\\([0-9]+\\):\\([0-9]+\\)" nil t))
-                (message "%s Wrapped" rtags-buffer-name))
-          (beginning-of-line)
+          (let ((match (save-excursion
+                         (if next
+                             (and (goto-char (point-at-eol))
+                                  (re-search-forward "^\\(.*?\\):\\([0-9]+\\):\\([0-9]+\\)" nil t))
+                           (and (goto-char (point-at-bol))
+                                (re-search-backward "^\\(.*?\\):\\([0-9]+\\):\\([0-9]+\\)" nil t))))))
+            (when (cond (match (goto-char match))
+                        ((and rtags-wrap-results next)
+                         (goto-char (point-min))
+                         (re-search-forward "^\\(.*?\\):\\([0-9]+\\):\\([0-9]+\\)" nil t)
+                         (message "%s Wrapped" rtags-buffer-name))
+                        ((and rtags-wrap-results (not next))
+                         (goto-char (point-max))
+                         (re-search-backward "^\\(.*?\\):\\([0-9]+\\):\\([0-9]+\\)" nil t)
+                         (message "%s Wrapped" rtags-buffer-name))
+                        (t nil))
+              (beginning-of-line)))
           (if next
               (decf by)
             (incf by)))
