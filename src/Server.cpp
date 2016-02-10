@@ -1702,7 +1702,7 @@ void Server::load()
             RTags::decodePath(p);
             if (p.isDir()) {
                 bool remove = false;
-                if (FILE *f = fopen((file + "project").constData(), "r")) {
+                if (FILE *f = fopen((file + "/project").constData(), "r")) {
                     Deserializer in(f);
                     int version;
                     in >> version;
