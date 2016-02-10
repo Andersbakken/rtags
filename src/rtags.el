@@ -553,6 +553,12 @@ to case differences."
   (when (overlayp rtags-current-line-overlay)
     (move-overlay rtags-current-line-overlay (point-at-bol) (point-at-eol))))
 
+(defun rtags-init-current-line-overlay ()
+  (when rtags-highlight-current-line
+    (let ((overlay (make-overlay (point-at-bol) (point-at-eol) (current-buffer))))
+      (overlay-put overlay 'face 'rtags-current-line)
+      (setq-local rtags-current-line-overlay overlay))))
+
 (define-derived-mode rtags-mode fundamental-mode
   (set (make-local-variable 'font-lock-defaults)
        '(rtags-font-lock-keywords (save-excursion
@@ -566,10 +572,7 @@ to case differences."
   (run-hooks 'rtags-mode-hook)
   (goto-char (point-min))
   (setq next-error-function 'rtags-next-prev-match)
-  (when rtags-highlight-current-line
-    (let ((overlay (make-overlay (point-at-bol) (point-at-eol) (current-buffer))))
-      (overlay-put overlay 'face 'rtags-current-line)
-      (setq-local rtags-current-line-overlay overlay)))
+  (rtags-init-current-line-overlay)
   (setq buffer-read-only t))
 
 (defun rtags-wrap-word (word)
@@ -607,6 +610,7 @@ to case differences."
   (setq mode-name "rtags-references-tree-mode")
   (use-local-map rtags-references-tree-mode-map)
   (goto-char (point-min))
+  (rtags-init-current-line-overlay)
   (setq buffer-read-only t))
 
 (defun rtags-reset-bookmarks ()
