@@ -2674,7 +2674,6 @@ is true. References to references will be treated as references to the reference
             (incf end 5))
           (set-text-properties start end (list 'rtags-bookmark-index (cons bookmark-idx start)))))
       (forward-line))
-    (shrink-window-if-larger-than-buffer)
     (rtags-mode))
 
 (defun rtags-handle-results-buffer (&optional noautojump quiet path other-window)
@@ -2703,7 +2702,8 @@ The option OTHER-WINDOW is only applicable if rtags is configured not to show th
                     (count-lines (point-min) (point-max))))
          ;; Optionally jump to first result and open results buffer
          (when (and rtags-popup-results-buffer (not rtags-use-helm)
-             (switch-to-buffer-other-window rtags-buffer-name)))
+           (switch-to-buffer-other-window rtags-buffer-name))
+           (shrink-window-if-larger-than-buffer))
          (if rtags-use-helm
              (helm :sources '(rtags-helm-source))
            (when (and rtags-jump-to-first-match (not noautojump))
