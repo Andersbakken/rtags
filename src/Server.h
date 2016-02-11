@@ -90,7 +90,7 @@ public:
         {
         }
 
-        Path socketFile, dataDir, argTransform;
+        Path socketFile, dataDir, argTransform, rp;
         Flags<Option> options;
         size_t jobCount, headerErrorJobCount;
         int rpVisitFileTimeout, rpIndexDataMessageTimeout,

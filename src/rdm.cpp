@@ -64,6 +64,22 @@ static size_t defaultStackSize = 0;
 #define DEFAULT_SUSPEND_RP "on"
 #endif
 
+static inline Path defaultRP()
+{
+    static Path rp;
+    if (rp.isEmpty()) {
+        rp = Rct::executablePath().parentDir() + "rp";
+        if (!rp.isFile()) {
+            rp = Rct::executablePath();
+            rp.resolve();
+            rp = rp.parentDir() + "rp";
+            if (!rp.isFile()) // should be in $PATH
+                rp = "rp";
+        }
+    }
+    return rp;
+}
+
 static void usage(FILE *f)
 {
     fprintf(f,
@@ -145,7 +161,8 @@ static void usage(FILE *f)
             "  --debug-locations [arg]                    Set debug locations.\n"
             "  --validate-file-maps                       Spend some time validating project data on startup.\n"
             "  --pch-enabled                              Enable PCH (experimental).\n"
-            , std::max(2, ThreadPool::idealThreadCount()), defaultStackSize);
+            "  --rp-path [path]                           Path to rp (default %s).\n"
+            , std::max(2, ThreadPool::idealThreadCount()), defaultStackSize, defaultRP().constData());
 }
 
 int main(int argc, char** argv)
@@ -246,6 +263,7 @@ int main(int argc, char** argv)
         { "debug-locations", no_argument, 0, 11 },
         { "validate-file-maps", no_argument, 0, 16 },
         { "tcp-port", required_argument, 0, 12 },
+        { "rp-path", required_argument, 0, 17 },
         { 0, 0, 0, 0 }
     };
     const String shortOptions = Rct::shortOptions(opts);
@@ -359,6 +377,7 @@ int main(int argc, char** argv)
     serverOpts.options = Server::Wall|Server::SpellChecking;
     serverOpts.maxCrashCount = DEFAULT_MAX_CRASH_COUNT;
     serverOpts.completionCacheSize = DEFAULT_COMPLETION_CACHE_SIZE;
+    serverOpts.rp = defaultRP();
 #ifdef OS_FreeBSD
     serverOpts.options |= Server::NoFileManagerWatch;
 #endif
@@ -427,6 +446,11 @@ int main(int argc, char** argv)
             break;
         case 16:
             serverOpts.options |= Server::ValidateFileMaps;
+            break;
+        case 17:
+            serverOpts.rp = optarg;
+            if (serverOpts.rp.isFile())
+                serverOpts.rp.resolve();
             break;
         case 2:
             fprintf(stdout, "%s\n", RTags::versionString().constData());

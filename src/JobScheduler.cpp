@@ -89,18 +89,6 @@ uint32_t JobScheduler::hasHeaderError(uint32_t file, const std::shared_ptr<Proje
 
 void JobScheduler::startJobs()
 {
-    static Path rp;
-    if (rp.isEmpty()) {
-        rp = Rct::executablePath().parentDir() + "rp";
-        if (!rp.isFile()) {
-            rp = Rct::executablePath();
-            rp.resolve();
-            rp = rp.parentDir() + "rp";
-            if (!rp.isFile()) // should be in $PATH
-                rp = "rp";
-        }
-    }
-
     const auto &options = Server::instance()->options();
     std::shared_ptr<Node> node = mPendingJobs.first();
     auto cont = [&node, this]() {
@@ -154,15 +142,14 @@ void JobScheduler::startJobs()
                 }
             });
 
-        if (!process->start(rp, arguments)) {
-            error() << "Couldn't start rp" << rp << process->errorString();
+        if (!process->start(options.rp, arguments)) {
+            error() << "Couldn't start rp" << options.rp << process->errorString();
             delete process;
             node->job->flags |= IndexerJob::Crashed;
             debug() << "job crashed (didn't start)" << jobId << node->job->source.key() << node->job.get();
             std::shared_ptr<IndexDataMessage> msg(new IndexDataMessage(node->job));
             msg->setFlag(IndexDataMessage::ParseFailure);
             jobFinished(node->job, msg);
-            rp.clear(); // in case rp was missing for a moment and we fell back to searching $PATH
             cont();
             continue;
         }
