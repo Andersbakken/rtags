@@ -239,6 +239,7 @@ private:
     void updateFixIts(const Set<uint32_t> &visited, FixIts &fixIts);
     Diagnostics updateDiagnostics(const Diagnostics &diagnostics);
     int startDirtyJobs(Dirty *dirty,
+                       IndexerJob::Flag type,
                        const UnsavedFiles &unsavedFiles = UnsavedFiles(),
                        const std::shared_ptr<Connection> &wait = std::shared_ptr<Connection>());
     void onDirtyTimeout(Timer *);

@@ -197,8 +197,12 @@ bool ClangIndexer::exec(const String &data)
                                         queryData.constData(), mIndexDataMessage.flags() & IndexDataMessage::UsedPCH ? ", pch" : "",
                                         mParseDuration, mVisitDuration, writeDuration);
     }
-    if (mIndexDataMessage.indexerJobFlags() & IndexerJob::Dirty)
+    if (mIndexDataMessage.indexerJobFlags() & IndexerJob::Dirty) {
         message += " (dirty)";
+    } else if (mIndexDataMessage.indexerJobFlags() & IndexerJob::Reindex) {
+        message += " (reindex)";
+    }
+
 
     mIndexDataMessage.setMessage(message);
     sw.restart();

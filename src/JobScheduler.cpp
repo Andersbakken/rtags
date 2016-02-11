@@ -126,6 +126,7 @@ void JobScheduler::startJobs()
         Process *process = new Process;
         debug() << "Starting process for" << jobId << node->job->source.key() << node->job.get();
         List<String> arguments;
+        arguments << "--priority" << String::number(node->job->priority);
         for (int i=logLevel().toInt(); i>0; --i)
             arguments << "-v";
 

@@ -30,12 +30,15 @@ IndexerJob::IndexerJob(const Source &s,
       project(p->path()), priority(0), unsavedFiles(u), crashCount(0)
 {
     acquireId();
-    if (flags & Dirty)
+    if (flags & Dirty) {
         ++priority;
+    } else if (flags & Reindex) {
+        priority += 4;
+    }
     Server *server = Server::instance();
     assert(server);
     if (server->isActiveBuffer(source.fileId)) {
-        priority += 4;
+        priority += 8;
     } else {
         for (uint32_t dep : p->dependencies(source.fileId, Project::ArgDependsOn)) {
             if (server->isActiveBuffer(dep)) {
@@ -145,6 +148,9 @@ String IndexerJob::dumpFlags(Flags<Flag> flags)
     List<String> ret;
     if (flags & Dirty) {
         ret += "Dirty";
+    }
+    if (flags & Reindex) {
+        ret += "Reindex";
     }
     if (flags & Compile) {
         ret += "Compile";

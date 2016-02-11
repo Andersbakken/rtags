@@ -408,11 +408,11 @@ bool Project::init()
 
     if (needsSave)
         save();
-    startDirtyJobs(dirty.get());
+    startDirtyJobs(dirty.get(), IndexerJob::Dirty);
     if (!missingFileMaps.isEmpty()) {
         SimpleDirty simple;
         simple.init(missingFileMaps, shared_from_this());
-        startDirtyJobs(&simple);
+        startDirtyJobs(&simple, IndexerJob::Dirty);
     }
     return true;
 }
@@ -917,7 +917,7 @@ void Project::onDirtyTimeout(Timer *)
 {
     Set<uint32_t> dirtyFiles = std::move(mPendingDirtyFiles);
     WatcherDirty dirty(shared_from_this(), dirtyFiles);
-    const int dirtied = startDirtyJobs(&dirty);
+    const int dirtied = startDirtyJobs(&dirty, IndexerJob::Dirty);
     debug() << "onDirtyTimeout" << dirtyFiles << dirtied;
 }
 
@@ -1048,11 +1048,11 @@ int Project::reindex(const Match &match,
             return 0;
         SimpleDirty dirty;
         dirty.init(dirtyFiles, shared_from_this());
-        return startDirtyJobs(&dirty, query->unsavedFiles(), wait);
+        return startDirtyJobs(&dirty, IndexerJob::Reindex, query->unsavedFiles(), wait);
     } else {
         assert(query->type() == QueryMessage::CheckReindex);
         IfModifiedDirty dirty(shared_from_this(), match);
-        return startDirtyJobs(&dirty, query->unsavedFiles(), wait);
+        return startDirtyJobs(&dirty, IndexerJob::Dirty, query->unsavedFiles(), wait);
     }
 }
 
@@ -1071,8 +1071,11 @@ int Project::remove(const Match &match)
     return count;
 }
 
-int Project::startDirtyJobs(Dirty *dirty, const UnsavedFiles &unsavedFiles, const std::shared_ptr<Connection> &wait)
+int Project::startDirtyJobs(Dirty *dirty, IndexerJob::Flag flag,
+                            const UnsavedFiles &unsavedFiles,
+                            const std::shared_ptr<Connection> &wait)
 {
+    assert(flag == IndexerJob::Dirty || flag == IndexerJob::Reindex);
     const JobScheduler::JobScope scope(Server::instance()->jobScheduler());
     List<Source> toIndex;
     for (const auto &source : mSources) {
@@ -1091,7 +1094,7 @@ int Project::startDirtyJobs(Dirty *dirty, const UnsavedFiles &unsavedFiles, cons
 
     std::weak_ptr<Connection> weakConn(wait);
     for (const auto &source : toIndex) {
-        std::shared_ptr<IndexerJob> job(new IndexerJob(source, IndexerJob::Dirty, shared_from_this(), unsavedFiles));
+        std::shared_ptr<IndexerJob> job(new IndexerJob(source, flag, shared_from_this(), unsavedFiles));
         if (wait) {
             job->destroyed.connect([weakConn](IndexerJob *) {
                     if (auto strong = weakConn.lock()) {
@@ -1867,7 +1870,7 @@ void Project::dirty(uint32_t fileId)
     Set<uint32_t> dirtyFiles;
     dirtyFiles.insert(fileId);
     dirty.init(dirtyFiles, shared_from_this());
-    startDirtyJobs(&dirty);
+    startDirtyJobs(&dirty, IndexerJob::Dirty);
 }
 
 bool Project::validate(uint32_t fileId, ValidateMode mode, String *err) const

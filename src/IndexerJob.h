@@ -27,7 +27,8 @@ public:
     enum Flag {
         None = 0x000,
         Dirty = 0x001,
-        Compile = 0x002,
+        Reindex = 0x002,
+        Compile = 0x004,
         Running = 0x010,
         Crashed = 0x020,
         Aborted = 0x040,
