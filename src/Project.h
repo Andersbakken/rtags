@@ -123,6 +123,7 @@ public:
                             const List<String> &args = List<String>(),
                             Flags<QueryMessage::Flag> flags = Flags<QueryMessage::Flag>()) const;
     const Hash<uint32_t, DependencyNode*> &dependencies() const { return mDependencies; }
+    DependencyNode *dependencyNode(uint32_t fileId) const { return mDependencies.value(fileId); }
 
     static bool readSources(const Path &path, Sources &sources, String *error);
     enum SymbolMatchType {

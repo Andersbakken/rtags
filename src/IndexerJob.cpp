@@ -39,13 +39,19 @@ IndexerJob::IndexerJob(const Source &s,
     assert(server);
     if (server->isActiveBuffer(source.fileId)) {
         priority += 8;
-    } else {
-        for (uint32_t dep : p->dependencies(source.fileId, Project::ArgDependsOn)) {
-            if (server->isActiveBuffer(dep)) {
-                priority += 2;
-                break;
+    } else if (DependencyNode *node = p->dependencyNode(source.fileId)) {
+        Set<DependencyNode*> seen;
+        seen.insert(node);
+        std::function<bool(const DependencyNode *node)> func = [&](const DependencyNode *node) {
+            for (const auto &inc : node->includes) {
+                if (seen.insert(inc.second) && (server->isActiveBuffer(node->fileId) || func(inc.second))) {
+                    return true;
+                }
             }
-        }
+            return false;
+        };
+        if (func(node))
+            priority += 2;
     }
     visited.insert(s.fileId);
 }
