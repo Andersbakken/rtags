@@ -44,7 +44,9 @@ IndexerJob::IndexerJob(const Source &s,
         seen.insert(node);
         std::function<bool(const DependencyNode *node)> func = [&](const DependencyNode *node) {
             for (const auto &inc : node->includes) {
-                if (seen.insert(inc.second) && (server->isActiveBuffer(node->fileId) || func(inc.second))) {
+                if (seen.insert(inc.second)
+                    && !Location::path(node->fileId).isSystem()
+                    && (server->isActiveBuffer(node->fileId) || func(inc.second))) {
                     return true;
                 }
             }
