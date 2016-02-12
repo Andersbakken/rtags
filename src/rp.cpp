@@ -75,13 +75,13 @@ int main(int argc, char **argv)
     signal(SIGABRT, sigHandler);
     signal(SIGBUS, sigHandler);
 
-    Flags<LogMode> logType = LogStderr;
+    Flags<LogFlag> logFlags = LogStderr;
     std::shared_ptr<SyslogCloser> closer;
     if (ClangIndexer::serverOpts() & Server::RPLogToSyslog) {
-        logType |= LogSyslog;
+        logFlags |= LogSyslog;
         closer.reset(new SyslogCloser);
     }
-    initLogging(argv[0], logType, logLevel);
+    initLogging(argv[0], logFlags, logLevel);
     (void)closer;
 
     RTags::initMessages();

@@ -134,6 +134,7 @@ static void usage(FILE *f)
             "  --start-suspended|-Q                       Start out suspended (no reindexing enabled).\n"
             "  --suspend-rp-on-crash|-q                   Suspend rp in SIGSEGV handler (default " DEFAULT_SUSPEND_RP ").\n"
             "  --rp-log-to-syslog                         Make rp log to syslog\n"
+            "  --log-timestamp                            Add timestamp to logs\n"
             "  --thread-stack-size|-k [arg]               Set stack size for threadpool to this (default %zu).\n"
             "  --verbose|-v                               Change verbosity, multiple -v's are allowed.\n"
             "  --watch-system-paths|-w                    Watch system paths for changes.\n"
@@ -264,6 +265,7 @@ int main(int argc, char** argv)
         { "validate-file-maps", no_argument, 0, 16 },
         { "tcp-port", required_argument, 0, 12 },
         { "rp-path", required_argument, 0, 17 },
+        { "log-timestamp", no_argument, 0, 18 },
         { 0, 0, 0, 0 }
     };
     const String shortOptions = Rct::shortOptions(opts);
@@ -387,7 +389,7 @@ int main(int argc, char** argv)
     serverOpts.dataDir = String::format<128>("%s.rtags", Path::home().constData());
 
     const char *logFile = 0;
-    Flags<LogFileFlag> logFlags = DontRotate;
+    Flags<LogFlag> logFlags = DontRotate|LogStderr;
     LogLevel logLevel(LogLevel::Error);
     LogLevel logFileLogLevel(LogLevel::Error);
     bool sigHandler = true;
@@ -451,6 +453,9 @@ int main(int argc, char** argv)
             serverOpts.rp = optarg;
             if (serverOpts.rp.isFile())
                 serverOpts.rp.resolve();
+            break;
+        case 18:
+            logFlags |= LogTimeStamp;
             break;
         case 2:
             fprintf(stdout, "%s\n", RTags::versionString().constData());
@@ -763,7 +768,7 @@ int main(int argc, char** argv)
     // Shell-expand logFile
     Path logPath(logFile); logPath.resolve();
 
-    if (!initLogging(argv[0], LogStderr, logLevel, logPath.constData(), logFlags, logFileLogLevel)) {
+    if (!initLogging(argv[0], logFlags, logLevel, logPath.constData(), logFileLogLevel)) {
         fprintf(stderr, "Can't initialize logging with %d %s %s\n",
                 logLevel.toInt(), logFile ? logFile : "", logFlags.toString().constData());
         return 1;
