@@ -1701,8 +1701,11 @@ Can be used both for path and location."
 (defvar rtags-location-stack-index 0)
 (defvar rtags-location-stack nil)
 
-(defun rtags-location-stack-push ()
-  (let ((bm (rtags-current-location)))
+(defun rtags-location-stack-push (&optional loc-arg)
+  "Push current location into location stack.
+If loc-arg is non-nil, then push it instead.
+See `rtags-current-location' for loc-arg format."
+  (let ((bm (or loc-arg (rtags-current-location))))
     (while (> rtags-location-stack-index 0)
       (decf rtags-location-stack-index)
       (pop rtags-location-stack))
