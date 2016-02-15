@@ -1078,9 +1078,18 @@ RClient::ParseStatus RClient::parse(int &argc, char **argv)
                 args.append(argv[optind++]);
             }
             if (args == "-" || args.isEmpty()) {
+                String pending;
                 char buf[16384];
                 while (fgets(buf, sizeof(buf), stdin)) {
-                    addCompile(Path::pwd(), buf);
+                    pending += buf;
+                    if (!pending.endsWith("\\\n")) {
+                        addCompile(Path::pwd(), pending);
+                    } else {
+                        memset(pending.data() + pending.size() - 2, ' ', 2);
+                    }
+                }
+                if (!pending.isEmpty()) {
+                    addCompile(Path::pwd(), pending);
                 }
             } else {
                 addCompile(Path::pwd(), args);
