@@ -1084,6 +1084,7 @@ RClient::ParseStatus RClient::parse(int &argc, char **argv)
                     pending += buf;
                     if (!pending.endsWith("\\\n")) {
                         addCompile(Path::pwd(), pending);
+                        pending.clear();
                     } else {
                         memset(pending.data() + pending.size() - 2, ' ', 2);
                     }
