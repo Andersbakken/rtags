@@ -27,33 +27,32 @@ he assured us clang was the way to go. The name stuck though.
 
 * TLDR Quickstart
 Build RTags
-#+BEGIN_SRC
+#+BEGIN_SRC sh
 git clone --recursive https://github.com/Andersbakken/rtags.git
 cd rtags
 cmake -DCMAKE_EXPORT_COMPILE_COMMANDS=1 .
 make
 #+END_SRC
 Start the RTags daemon (rdm)
-#+BEGIN_SRC
+#+BEGIN_SRC sh
 ./bin/rdm &
 #+END_SRC
 Index the RTags project, and wait until rdm is silent
-#+BEGIN_SRC
+#+BEGIN_SRC sh
 ./bin/rc -J .
 #+END_SRC
 Open source file in emacs
-#+END_SRC
-#+BEGIN_SRC
+#+BEGIN_SRC sh
 emacs +41:34 src/rdm.cpp
 #+END_SRC
 Load rtags.el
-#+BEGIN_SRC
-M-: (load-file "rtags.el") RET
-#+END_SRC
+#+BEGIN_EXAMPLE
+M-x (load-file "rtags.el") RET
+#+END_EXAMPLE
 Call rtags-find-symbol-at-point
-#+BEGIN_SRC
+#+BEGIN_EXAMPLE
 M-x rtags-find-symbol-at-point RET
-#+END_SRC
+#+END_EXAMPLE
 Your location is now on the definition of Server::instance()
 
 * Installing RTags
@@ -97,13 +96,13 @@ If you plan to tag projects using C++11 features on OS X then you'll
 need a libclang linked with LLVM's [[http://libcxx.llvm.org/][libc++]].
 For LLVM 3.6 the following works:
 
-#+BEGIN_SRC
-$ brew install llvm --with-libcxx --with-clang --without-assertions --rtti
+#+BEGIN_SRC sh
+brew install llvm --with-libcxx --with-clang --without-assertions --rtti
 #+END_SRC
 
 or you can install clang and llvm from macports
 
-#+BEGIN_SRC
+#+BEGIN_SRC sh
 sudo port install clang-3.5
 #+END_SRC
 
@@ -111,9 +110,9 @@ sudo port install clang-3.5
 To build RTags, you need to checkout the repository's submodules, and
 run CMake.
 
-#+BEGIN_SRC
-$ git submodule init
-$ git submodule update
+#+BEGIN_SRC sh
+git submodule init
+git submodule update
 #+END_SRC
 
 You can also download the sources from here:
@@ -127,12 +126,12 @@ http://andersbakken.github.io/rtags-releases/rtags.tar.gz
 We recommend building in a separate directory to keep the build files
 separate from the source, but you can run =cmake= in the source tree
 if you prefer.
-#+BEGIN_SRC
-$ mkdir build
-$ cd build
-$ cmake ..
-$ make
-$ make install
+#+BEGIN_SRC sh
+mkdir build
+cd build
+cmake ..
+make
+make install
 #+END_SRC
 If you want to configure the build interactively, run =ccmake= (CMake
 with an ncurses UI) instead of =cmake=.
@@ -143,13 +142,14 @@ with an ncurses UI) instead of =cmake=.
   variable. If not provided we will try to find llvm-config and
   interrogate it for the information. You can tell rtags which
   llvm-config to use like this:
-#+BEGIN_SRC
+#+BEGIN_SRC sh
   LIBCLANG_LLVM_CONFIG_EXECUTABLE=/path/to/llvm-config cmake .
 #+END_SRC
   or
-#+BEGIN_SRC
+#+BEGIN_SRC sh
   cmake -DLIBCLANG_LLVM_CONFIG_EXECUTABLE=/path/to/llvm-config .
 #+END_SRC
+
   If you don't we will look for variations of the llvm-config executable name
   in your $PATH. If llvm is installed at a different place, you could set the
   cmake variable CMAKE_PREFIX_PATH to the install prefix path of llvm.
@@ -157,13 +157,13 @@ with an ncurses UI) instead of =cmake=.
   The three things we need are:
   1. LIBCLANG_CXXFLAGS
      Usually something like this:
-#+BEGIN_SRC
-     $ llvm-config --cxxflags
+#+BEGIN_SRC sh
+     llvm-config --cxxflags \
      -I/usr/local/Cellar/llvm36/3.6.0/lib/llvm-3.6/include  -DNDEBUG -D_GNU_SOURCE -D__STDC_CONSTANT_MACROS -D__STDC_FORMAT_MACROS -D__STDC_LIMIT_MACROS -O3  -std=c++11 -fvisibility-inlines-hidden -fno-exceptions -fno-common -Woverloaded-virtual -Wcast-qual
 #+END_SRC
   2. LIBCLANG_LIBDIR
      Usually something like this:
-#+BEGIN_SRC
+#+BEGIN_SRC sh
      $ llvm-config --libdir
      /usr/local/Cellar/llvm36/3.6.0/lib/llvm-3.6/lib
 #+END_SRC
@@ -175,9 +175,9 @@ with an ncurses UI) instead of =cmake=.
 
   2. LIBCLANG_LIBRARIES
      Usually something like this:
-#+BEGIN_SRC
+#+BEGIN_EXAMPLE
      -L/usr/local/Cellar/llvm36/3.6.0/lib/llvm-3.6/lib -lclang
-#+END_SRC
+#+END_EXAMPLE
      Unless specified we will take try to find these libraries using
      cmake's find_library features and/or assuming that they there
      will be a libclang.(so|dylib) in ${LIBCLANG_LIBDIR}
@@ -203,10 +203,10 @@ We also require the following libraries:
   to properly index them. This is done through telling rdm about the
   compile line like this:
 
-#+BEGIN_SRC
-$ rc -c gcc -I... -fsomeflag -c foobar.c
-$ rc -J /path/to/a/directory/containing/compile_commands.json
-#+END_SRC
+#+BEGIN_SRC sh
+rc -c gcc -I... -fsomeflag -c foobar.c
+rc -J /path/to/a/directory/containing/compile_commands.json
+#+END_SRC sh
 
 - Normally one achieves this in one of these ways:
 
@@ -214,18 +214,18 @@ $ rc -J /path/to/a/directory/containing/compile_commands.json
   you're using ninja (http://martine.github.io/ninja/) you can do
   something like this:
 
-#+BEGIN_SRC
-$ ninja -t commands | rc -c -
-#+END_SRC
+#+BEGIN_SRC sh
+ninja -t commands | rc -c -
+#+END_SRC sh
 
 After this command rdm will index all the sources in your project.
 
 If you're using cmake you can do this:
 
-#+BEGIN_SRC
+#+BEGIN_SRC sh
 cmake . -DCMAKE_EXPORT_COMPILE_COMMANDS=1
 rc -J .
-#+END_SRC
+#+END_SRC sh
 
 This will produce a compile_commands.json which, if used with rc -J,
 will index all your sources.
@@ -238,22 +238,22 @@ systems that we're unfamiliar with.
 
 This can be done like this:
 
-#+BEGIN_SRC
+#+BEGIN_SRC sh
 
-$ ln -s /path/to/rtags/bin/gcc-rtags-wrapper.sh /somewhere/that/is/in/your/path/before/usr/bin/gcc
-$ ln -s /path/to/rtags/bin/gcc-rtags-wrapper.sh /somewhere/that/is/in/your/path/before/usr/bin/c++
-$ ln -s /path/to/rtags/bin/gcc-rtags-wrapper.sh /somewhere/that/is/in/your/path/before/usr/bin/cc
-$ ln -s /path/to/rtags/bin/gcc-rtags-wrapper.sh /somewhere/that/is/in/your/path/before/usr/bin/g++
+ln -s /path/to/rtags/bin/gcc-rtags-wrapper.sh /somewhere/that/is/in/your/path/before/usr/bin/gcc
+ln -s /path/to/rtags/bin/gcc-rtags-wrapper.sh /somewhere/that/is/in/your/path/before/usr/bin/c++
+ln -s /path/to/rtags/bin/gcc-rtags-wrapper.sh /somewhere/that/is/in/your/path/before/usr/bin/cc
+ln -s /path/to/rtags/bin/gcc-rtags-wrapper.sh /somewhere/that/is/in/your/path/before/usr/bin/g++
 
 #+END_SRC
 E.g.
-#+BEGIN_SRC
+#+BEGIN_EXAMPLE
 
 $ which -a gcc | xargs file
 /home/abakken/bin/gcc: symbolic link to `/home/abakken/dev/rtags/bin/gcc-rtags-wrapper.sh'
 /usr/bin/gcc:         symbolic link to `gcc-4.7'
 
-#+END_SRC
+#+END_EXAMPLE
 
 Now every time you compile a file with `which gcc` rc will get its
 grubby hands all over your command line and make sure RTags knows
@@ -270,8 +270,8 @@ this works out reasonably well.
 
 RTags' only gives you information about current project when you ask
 for things by name. You can explicitly change the current project using:
-#+BEGIN_SRC
-$ rc -w foobar
+#+BEGIN_SRC sh
+rc -w foobar
 #+END_SRC
 
 We try to do it automatically for you by passing along information
@@ -285,10 +285,10 @@ The location of this data is by default ~/.rtags but can be overridden
 by passing =--data-dir /other/dir= to rdm or putting something like
 this in your ~/.rdmrc:
 
-#+BEGIN_SRC
+#+BEGIN_EXAMPLE
 $ cat ~/.rdmrc
 --data-dir=/other/dir
-#+END_SRC
+#+END_EXAMPLE
 
 ** Integration with =launchd= /(Mac OS X)/
 
@@ -299,7 +299,7 @@ of effort.
 
 1. Create a file, e.g., in emacs, with the following contents:
 
-   #+BEGIN_SRC
+   #+BEGIN_SRC xml
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
@@ -362,12 +362,12 @@ of effort.
   information from rdm is to use the command line tool rc.
 
   E.g.
-#+BEGIN_SRC
+#+BEGIN_EXAMPLE
 $ rdm &
 $ ninja -t commands | rc -c
 $ rc --follow-location Job.cpp:20:10
 /home/abakken/dev/rtags/src/Job.h:10:18      List<RegExp> *mPathFiltersRegExp;
-#+END_SRC
+#+END_EXAMPLE
 
   A location has the format of file:line:column.
 
@@ -387,7 +387,7 @@ $ rc --follow-location Job.cpp:20:10
 * Elisp
 There are lots of interactive functions to call:
 
-#+BEGIN_SRC
+#+BEGIN_SRC sh
 (rtags-find-symbol-at-point)
 #+END_SRC
 
@@ -401,17 +401,17 @@ file, limit to the narrowed region. This prefix argument is the same
 for: =rtags-find-references-at-point=, =rtags-find-symbol=,
 =rtags-find-references=
 
-#+BEGIN_SRC
+#+BEGIN_SRC sh
 (rtags-find-references-at-point)
 #+END_SRC
 Find all references to symbol under cursor. If symbol is itself a
 reference it will find all references to the referenced symbol
 
-#+BEGIN_SRC
+#+BEGIN_SRC sh
 (rtags-find-symbol)
 #+END_SRC
 Prompt for name of symbol to go to. Imagine the following code:
-#+BEGIN_SRC
+#+BEGIN_SRC C++
 
 namespace N
 {
@@ -436,14 +436,14 @@ int N::C::func(int) will now be accessible by the following names:
 - N::C::func(int)
 - N::C::func
 
-#+BEGIN_SRC
+#+BEGIN_SRC emacs-lisp
 (rtags-find-references)
 #+END_SRC
 
 Prompt for name of symbol to find references to. Same as above but
 find references to symbol rather than declarations and definitions.
 
-#+BEGIN_SRC
+#+BEGIN_SRC emacs-lisp
 (rtags-diagnostics)
 #+END_SRC
 
@@ -451,7 +451,7 @@ Start an async process in a buffer to receive warnings/errors from
 clang whenever a file gets reindexed. It integrates with flymake to
 put highlighting on code with warnings and errors
 
-#+BEGIN_SRC
+#+BEGIN_SRC emacs-lisp
 (rtags-enable-standard-keybindings)
 #+END_SRC
 Sets up a ton of standard keybindings under C-c r. If you pass a mode
@@ -459,11 +459,11 @@ to the function it will set it up on that mode, otherwise it will use
 c-mode-base-map). You can choose a different prefix than C-c r like
 this:
 
-#+BEGIN_SRC
+#+BEGIN_SRC emacs-lisp
 (rtags-enable-standard-keybindings c-mode-base-map "\C-xr")
 #+END_SRC
 
-#+BEGIN_SRC
+#+BEGIN_SRC emacs-lisp
 (rtags-find-file)
 #+END_SRC
 
@@ -472,27 +472,27 @@ from gtags.el) with completion in the project. This includes all files
 under what we determine to be the root of the project, not just source
 files.
 
-#+BEGIN_SRC
+#+BEGIN_SRC emacs-lisp
 (rtags-find-virtuals-at-point)
 #+END_SRC
 For virtual functions, show the various reimplementations of the
 function at point
 
-#+BEGIN_SRC
+#+BEGIN_SRC emacs-lisp
 (rtags-fixit)
 #+END_SRC
 Apply clang's automatic fixits in current file. If you pass a
 prefix arg use ediff to apply it. See
 (http://clang.llvm.org/diagnostics.html) for more info.
 
-#+BEGIN_SRC
+#+BEGIN_SRC emacs-lisp
 (rtags-imenu)
 #+END_SRC
 Provices an ido-based imenu like interface to a subset of the
 symbols in the current file. Note that it does not actually use
 imenu infrastructure.
 
-#+BEGIN_SRC
+#+BEGIN_SRC emacs-lisp
 (rtags-location-stack-back)
 (rtags-location-stack-forward)
 #+END_SRC
@@ -500,7 +500,7 @@ imenu infrastructure.
 Whenever RTags jumps somewhere it pushes a location onto its
 stack. Jump back and forward in this stack
 
-#+BEGIN_SRC
+#+BEGIN_SRC emacs-lisp
 (rtags-next-match)
 (rtags-previous-match)
 #+END_SRC
@@ -508,52 +508,52 @@ stack. Jump back and forward in this stack
 For functions that return more than one match, jump to the
 next/previous one.
 
-#+BEGIN_SRC
+#+BEGIN_SRC emacs-lisp
 (rtags-preprocess-file)
 #+END_SRC
 Preprocess current file according to known C(XX)Flags and show the
 result in a buffer. If region is active only display the
 preprocessed output for that region.
 
-#+BEGIN_SRC
+#+BEGIN_SRC emacs-lisp
 (rtags-print-symbol-info)
 #+END_SRC
 Print some info about symbol under cursor
 
-#+BEGIN_SRC
+#+BEGIN_SRC emacs-lisp
 (rtags-symbol-type)
 #+END_SRC
 Print the type of the symbol under cursor.
 
-#+BEGIN_SRC
+#+BEGIN_SRC emacs-lisp
 (rtags-print-dependencies)
 #+END_SRC
 Open a buffer showing files that depend on current file/files that
 current file depends on.
 
-#+BEGIN_SRC
+#+BEGIN_SRC emacs-lisp
 (rtags-print-enum-value-at-point)
 #+END_SRC
 Print integral value of enum value at point
 
-#+BEGIN_SRC
+#+BEGIN_SRC emacs-lisp
 (rtags-quit-rdm)
 #+END_SRC
 Shut down rdm
 
-#+BEGIN_SRC
+#+BEGIN_SRC emacs-lisp
 (rtags-rename-symbol)
 #+END_SRC
 Rename symbol under cursor. Make sure all files are saved and fully
 indexed before using.
 
-#+BEGIN_SRC
+#+BEGIN_SRC emacs-lisp
 (rtags-reparse-file)
 #+END_SRC
 Explicitly trigger a reparse of current file. Mostly for
 debugging. Unless we have bugs it should not be necessary.
 
-#+BEGIN_SRC
+#+BEGIN_SRC emacs-lisp
 (rtags-show-rtags-buffer)
 #+END_SRC
 Switch to =*RTags*= buffer. This is the buffer where a number of
@@ -562,23 +562,23 @@ match.
 
 Variables:
 
-#+BEGIN_SRC
+#+BEGIN_SRC emacs-lisp
 rtags-path
 #+END_SRC
 Path to rc/rdm if they're not in =$PATH=.
 
-#+BEGIN_SRC
+#+BEGIN_SRC emacs-lisp
 rtags-jump-to-first-match
 #+END_SRC
 Similar to =compilation-auto-jump-to-first-error=. Whether to jump to
 the first match automatically when there's more than one.
 
-#+BEGIN_SRC
+#+BEGIN_SRC emacs-lisp
 rtags-find-file-case-insensitive
 #+END_SRC
 Whether to match files case-insensitively
 
-#+BEGIN_SRC
+#+BEGIN_SRC emacs-lisp
 rtags-find-file-prefer-exact-match
 #+END_SRC
 Whether to exclude partial matches for file names when an exact
@@ -593,7 +593,7 @@ would be returned.
   You can do something like the following to fall back to e.g. gtags
   if RTags doesn't have a certain project indexed:
 
-#+BEGIN_SRC
+#+BEGIN_SRC emacs-lisp
 (defun use-rtags (&optional useFileManager)
   (and (rtags-executable-find "rc")
        (cond ((not (gtags-get-rootpath)) t)
@@ -645,31 +645,31 @@ would be returned.
   To enable code completion in Emacs with company mode do the following:
 
   - Enable rtags-diagnostics. The easiest way is to:
-#+BEGIN_SRC
+#+BEGIN_SRC emacs-lisp
 (setq rtags-autostart-diagnostics t)
 #+END_SRC
     but you can also explicitly start it with
-#+BEGIN_SRC
+#+BEGIN_EXAMPLE
 M-x rtags-diagnostics <RET>
 #+END_SRC
   - Enable completions in rtags:
-#+BEGIN_SRC
+#+BEGIN_SRC emacs-lisp
     (setq rtags-completions-enabled t)
 #+END_SRC
   - Enable company-mode
-#+BEGIN_SRC
+#+BEGIN_SRC emacs-lisp
   (require 'company)
   (global-company-mode)
 #+END_SRC
   - Add company-rtags to company-backends:
-#+BEGIN_SRC
+#+BEGIN_SRC emacs-lisp
   (push 'company-rtags company-backends)
 #+END_SRC
 
 This minimal init.el confiuration should be enough to get completion
 to work.
 
-#+BEGIN_SRC
+#+BEGIN_SRC emacs-lisp
 (require 'package)
 (package-initialize)
 (require 'rtags)
@@ -714,14 +714,14 @@ some of these may be outdated:
   crashed 191 9698036154370 0x331e7e30"). You should be able to do the
   following:
 
-#+BEGIN_SRC
-$ rdm --suspend-rp-on-crash
+#+BEGIN_SRC sh
+rdm --suspend-rp-on-crash
 #+END_SRC
 
 When rp crashes the rp process will stay alive, enabling you to debug
 it with something like this:
 
-#+BEGIN_SRC
+#+BEGIN_SRC sh
 gdb -p `pidof rp`
 #+END_SRC
 
