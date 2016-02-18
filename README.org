@@ -642,28 +642,28 @@ would be returned.
 #+END_SRC
 
 * Code Completion in Emacs:
-  To enable code completion in Emacs with company mode do the following:
+To enable code completion in Emacs with company mode do the following:
 
-  - Enable rtags-diagnostics. The easiest way is to:
+- Enable rtags-diagnostics. The easiest way is to:
 #+BEGIN_SRC emacs-lisp
 (setq rtags-autostart-diagnostics t)
 #+END_SRC
-    but you can also explicitly start it with
+but you can also explicitly start it with
 #+BEGIN_EXAMPLE
 M-x rtags-diagnostics <RET>
-#+END_SRC
-  - Enable completions in rtags:
+#+END_EXAMPLE
+- Enable completions in rtags:
 #+BEGIN_SRC emacs-lisp
-    (setq rtags-completions-enabled t)
+(setq rtags-completions-enabled t)
 #+END_SRC
-  - Enable company-mode
+- Enable company-mode
 #+BEGIN_SRC emacs-lisp
-  (require 'company)
-  (global-company-mode)
+(require 'company)
+(global-company-mode)
 #+END_SRC
-  - Add company-rtags to company-backends:
+- Add company-rtags to company-backends:
 #+BEGIN_SRC emacs-lisp
-  (push 'company-rtags company-backends)
+(push 'company-rtags company-backends)
 #+END_SRC
 
 This minimal init.el confiuration should be enough to get completion
