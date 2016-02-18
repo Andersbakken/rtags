@@ -1,3 +1,4 @@
+#+OPTIONS: ^:nil
 [[https://travis-ci.org/Andersbakken/rtags][https://travis-ci.org/Andersbakken/rtags.svg?branch=master]]
 
 * Introduction
