@@ -653,7 +653,7 @@ M-x rtags-diagnostics <RET>
 #+END_SRC
   - Enable completions in rtags:
 #+BEGIN_SRC
-    (setq rtags-completion-enabled t)
+    (setq rtags-completions-enabled t)
 #+END_SRC
   - Enable company-mode
 #+BEGIN_SRC
@@ -676,7 +676,7 @@ to work.
 
 (setq rtags-autostart-diagnostics t)
 (rtags-diagnostics)
-(setq rtags-completion-enabled t)
+(setq rtags-completions-enabled t)
 (push 'company-rtags company-backends)
 (global-company-mode)
 (define-key c-mode-base-map (kbd "<C-tab>") (function company-complete))
