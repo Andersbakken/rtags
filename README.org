@@ -355,6 +355,49 @@ of effort.
 - You can watch =launchd='s logging by tailing
   =~/Library/Logs/rtags.launchd.log=.
 
+** Integration with =systemd= /(GNU Linux)/
+
+On GNU/Linux distributions based on the =systemd= service manager, =rdm=
+can also be socket acivated.
+
+ 1. Add the following to =~/.config/systemd/user/rdm.socket=
+
+   #+BEGIN_EXAMPLE
+   [Unit]
+   Description=RTags daemon socket
+
+   [Socket]
+   ListenStream=$HOME/.rdm
+   #+END_EXAMPLE
+
+ 2. Add the following to =~/.config/systemd/user/rdm.service=
+
+   #+BEGIN_EXAMPLE
+   [Unit]
+   Description=RTags daemon
+
+   Requires=rdm.socket
+
+   [Service]
+   Type=simple
+   ExecStart=$RDM -v --inactivity-timeout 300
+   #+END_EXAMPLE
+
+ 3. Replace =$HOME= with the absolute path to your home folder. Replace
+   =$RDM= with the path to your copy of =rdm=, and add any command line
+    parameters you might usually use.
+
+    You have to provide absolute paths here and can't use
+    =${HOME}=. Variable expansion is not performed inside the strings.
+
+ 4. Run the following command from the terminal:
+
+    #+BEGIN_SRC sh
+    systemctl --user enable rdm.socket
+    systemctl --user start rdm.socket
+    #+END_SRC
+
+    =Systemd= will create the =rdm= socket automatically next time you log back in.
 * Usage
 
   Now that your files are indexed you can start using rtags. Normally
