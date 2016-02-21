@@ -3164,6 +3164,7 @@ The option OTHER-WINDOW is only applicable if rtags is configured not to show th
   (when (and (or (buffer-file-name) dired-directory)
              (not (eq (current-buffer) rtags-last-update-current-project-buffer))
              default-directory
+	     (not (and (tramp-tramp-file-p default-directory) (not rtags-tramp-enabled)))
              (file-directory-p default-directory))
     (setq rtags-last-update-current-project-buffer (current-buffer))
     (let* ((rc (rtags-executable-find "rc"))
