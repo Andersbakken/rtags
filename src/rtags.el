@@ -3786,10 +3786,12 @@ If `rtags-display-summary-as-tooltip' is t, a tooltip is displayed."
           (let ((location (cdr (assoc 'location target))))
             (when (string-match "\\(.*\\):[0-9]+:[0-9]+:?" location)
               (let ((buffer (find-file-noselect (match-string-no-properties 1 location))))
-                ;; (message "GOT BUF %s" (buffer-file-name buffer))
+                ;; (message "GOT target %s for %s (%d:%d)" location (rtags-current-location)
+                ;;          (cdr (assoc 'endLine target))
+                ;;          (cdr (assoc 'endColumn target)))
                 (with-current-buffer buffer
-                  (rtags-goto-line-col (cdr (assoc 'endLine sym))
-                                       (cdr (assoc 'endColumn sym)))
+                  (rtags-goto-line-col (cdr (assoc 'endLine target))
+                                       (cdr (assoc 'endColumn target)))
                   (cons buffer (1+ (point))))))))))))
 
 (defun rtags-find-peer (range)
