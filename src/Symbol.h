@@ -53,7 +53,8 @@ struct Symbol
         Auto = 0x020,
         AutoRef = 0x040,
         MacroExpansion = 0x080,
-        TemplateSpecialization = 0x100
+        TemplateSpecialization = 0x100,
+        InlineFunction = 0x200
     };
     String briefComment, xmlComment;
     uint16_t flags;

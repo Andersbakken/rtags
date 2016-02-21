@@ -1275,6 +1275,11 @@ bool ClangIndexer::handleCursor(const CXCursor &cursor, CXCursorKind kind, const
         if (clang_Cursor_isVariadic(cursor))
             c.flags |= Symbol::Variadic;
 #endif
+#if CINDEX_VERSION >= CINDEX_VERSION_ENCODE(0, 33)
+        if (clang_Cursor_isFunctionInlined(cursor))
+            (c.flags |= Symbol::InlineFunction;
+#endif
+
         addArguments(&c, cursor);
         break;
     case CXCursor_Constructor:
