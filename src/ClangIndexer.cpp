@@ -427,6 +427,7 @@ String ClangIndexer::addNamePermutations(const CXCursor &cursor, const Location 
         return String();
     }
     String type;
+    String trailer;
     switch (originalKind) {
     case CXCursor_StructDecl:
         type = "struct ";
@@ -443,6 +444,11 @@ String ClangIndexer::addNamePermutations(const CXCursor &cursor, const Location 
         break;
     default: {
         type = RTags::eatString(clang_getTypeSpelling(clang_getCursorType(cursor)));
+        if (originalKind == CXCursor_FunctionDecl || originalKind == CXCursor_CXXMethod || originalKind == CXCursor_FunctionTemplate) {
+            const size_t idx = type.indexOf(") -> ");
+            if (idx != String::npos)
+                trailer = type.mid(idx + 1);
+        }
         const int paren = type.indexOf('(');
         if (paren != -1) {
             type.resize(paren);
@@ -459,6 +465,10 @@ String ClangIndexer::addNamePermutations(const CXCursor &cursor, const Location 
     if (!type.isEmpty()) {
         ret = type;
         ret.append(buf + cutoff, std::max<int>(0, sizeof(buf) - cutoff - 1));
+        if (!trailer.isEmpty()) {
+            ret += trailer;
+            unit(location.fileId())->symbolNames[ret].insert(location);
+        }
     } else {
         ret.assign(buf + cutoff, std::max<int>(0, sizeof(buf) - cutoff - 1));
     }
