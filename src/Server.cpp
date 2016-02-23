@@ -597,8 +597,7 @@ void Server::handleIndexDataMessage(const std::shared_ptr<IndexDataMessage> &mes
 
 void Server::handleQueryMessage(const std::shared_ptr<QueryMessage> &message, const std::shared_ptr<Connection> &conn)
 {
-    if (!(message->flags() & QueryMessage::SilentQuery))
-        error() << message->raw();
+    Log(message->flags() & QueryMessage::SilentQuery ? LogLevel::Warning : LogLevel::Error) << message->raw();
     conn->setSilent(message->flags() & QueryMessage::Silent);
 
     switch (message->type()) {
