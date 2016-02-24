@@ -88,13 +88,15 @@ and `c-electric-colon', for automatic completion right after \">\" and
              (eq prefix-type 'company-rtags-colons)
              (not (string= (nth 2 cand) "EnumConstantDecl"))))))
 
-(defun company-rtags--make-candidate (candidate maxwidth)
+(defun company-rtags--make-candidate (candidate)
   (let* ((text (copy-sequence (nth 0 candidate)))
          (meta (nth 1 candidate))
          (metalength (length meta)))
     (put-text-property 0 1 'meta-insert meta text)
-    (when (> metalength maxwidth)
-      (setq meta (concat (substring meta 0 (- maxwidth 5)) "<...>)")))
+    (when (> metalength rtags-company-completions-maxwidth)
+      ;; (message "text %s meta %s metalength %d max %d"
+      ;;          text meta metalength rtags-company-completions-maxwidth)
+      (setq meta (concat (substring meta 0 (- rtags-company-completions-maxwidth 5)) "<...>)")))
     (put-text-property 0 1 'meta meta text)
     text))
 
@@ -114,11 +116,10 @@ and `c-electric-colon', for automatic completion right after \">\" and
                      (and pos (string= (car rtags-last-completions)
                                        (rtags-current-location pos)))))
           (let (results
-                (candidates (cadr rtags-last-completions))
-                (maxwidth (- (window-width) (- (point) (point-at-bol)))))
+                (candidates (cadr rtags-last-completions)))
             (while candidates
               (when (company-rtags--valid-candidate prefix (car candidates))
-                (push (company-rtags--make-candidate (car candidates) maxwidth) results))
+                (push (company-rtags--make-candidate (car candidates)) results))
               (setq candidates (cdr candidates)))
             (reverse results)))))))
 
@@ -135,6 +136,11 @@ and `c-electric-colon', for automatic completion right after \">\" and
 (defvar rtags-company-last-completion-location nil)
 (defvar rtags-company-last-completion-callback nil)
 (defvar rtags-company-last-completion-prefix nil)
+(defvar rtags-company-completions-maxwidth nil)
+
+(defun rtags-company-completions-calculate-maxwidth ()
+  (setq rtags-company-completions-maxwidth (max 10 (- (window-width) (- (rtags-calculate-completion-point) (point-at-bol))))))
+
 (defun rtags-company-update-completions (cb)
   ;; (setq rtags-company-last-completion-prefix prefix)
   (setq rtags-company-last-completion-callback cb)
@@ -148,11 +154,10 @@ and `c-electric-colon', for automatic completion right after \">\" and
              rtags-last-completions
              (string= (car rtags-last-completions) rtags-company-last-completion-location))
     (let ((results nil)
-          (maxwidth (max 10 (- (window-width) (- (point) (point-at-bol)))))
           (candidates (cadr rtags-last-completions)))
       (while candidates
         (when (company-rtags--valid-candidate rtags-company-last-completion-prefix (car candidates))
-          (push (company-rtags--make-candidate (car candidates) maxwidth) results))
+          (push (company-rtags--make-candidate (car candidates)) results))
         (setq candidates (cdr candidates)))
       (funcall rtags-company-last-completion-callback (reverse results)))))
 (add-hook 'rtags-diagnostics-hook 'rtags-company-diagnostics-hook)
@@ -162,27 +167,35 @@ and `c-electric-colon', for automatic completion right after \">\" and
   (interactive (list 'interactive))
   (setq rtags-company-last-completion-prefix arg)
   (case command
-    (init (or rtags-autostart-diagnostics (rtags-diagnostics)))
-    (interactive (company-begin-backend 'company-rtags))
-    (prefix (and (memq major-mode company-rtags-modes)
-                 buffer-file-name
-                 (not (company-in-string-or-comment))
-                 (rtags-is-indexed)
-                 (company-rtags--prefix)))
+    (init
+     (setq rtags-company-last-completion-callback nil)
+     (setq rtags-company-last-completion-location nil)
+     (or rtags-autostart-diagnostics (rtags-diagnostics)))
+    (interactive
+     (company-begin-backend 'company-rtags))
+    (prefix
+     (and (memq major-mode company-rtags-modes)
+          buffer-file-name
+          (not (company-in-string-or-comment))
+          (rtags-is-indexed)
+          (company-rtags--prefix)))
     (candidates
-     (if company-rtags-use-async
-         (progn
-           (rtags-prepare-completions)
-           (cons :async
-                 (lambda (cb)
-                   (rtags-company-update-completions cb))))
-       (company-rtags--candidates arg)))
-    (meta (company-rtags--meta arg nil))
+     (rtags-company-completions-calculate-maxwidth)
+     (if (not company-rtags-use-async)
+         (company-rtags--candidates arg)
+       (rtags-prepare-completions)
+       (cons :async
+             (lambda (cb)
+               (rtags-company-update-completions cb)))))
+    (meta
+     (company-rtags--meta arg nil))
     (sorted t)
-    (annotation (company-rtags--annotation arg nil))
-    (post-completion (let ((anno (company-rtags--annotation arg t)))
-                       (when (and company-rtags-insert-arguments anno)
-                         (insert anno)
-                         (company-template-c-like-templatify anno))))))
+    (annotation
+     (company-rtags--annotation arg nil))
+    (post-completion
+     (let ((anno (company-rtags--annotation arg t)))
+       (when (and company-rtags-insert-arguments anno)
+         (insert anno)
+         (company-template-c-like-templatify anno))))))
 
 (provide 'company-rtags)
