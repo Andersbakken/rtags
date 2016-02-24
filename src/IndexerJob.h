@@ -33,7 +33,7 @@ public:
         Crashed = 0x020,
         Aborted = 0x040,
         Complete = 0x080,
-        Type_Mask = Dirty|Compile
+        Type_Mask = Dirty|Compile|Reindex
     };
 
     static String dumpFlags(Flags<Flag> flags);
