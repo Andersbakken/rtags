@@ -262,7 +262,7 @@ static inline bool hasValue(const String &arg)
     return false;
 }
 
-static inline bool isBlacklisted(const String& arg)
+static inline bool isBlacklisted(const String &arg)
 {
     for (int i = 0; blacklist[i]; ++i) {
         if (arg == blacklist[i])
@@ -271,11 +271,13 @@ static inline bool isBlacklisted(const String& arg)
     return false;
 }
 
-static inline String unquote(const String& arg)
+static inline String unquote(const String &arg)
 {
     if (arg.size() >= 4 && arg.startsWith("\\\"") && arg.endsWith("\\\"")) {
         return arg.mid(1, arg.size() - 3) + '\"';
     } else if (arg.size() >= 2 && arg.startsWith('"') && arg.endsWith('"')) {
+        return arg.mid(1, arg.size() - 2);
+    } else if (arg.size() >= 2 && arg.startsWith('\'') && arg.endsWith('\'')) {
         return arg.mid(1, arg.size() - 2);
     }
     return arg;
