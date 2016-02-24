@@ -1277,7 +1277,7 @@ bool ClangIndexer::handleCursor(const CXCursor &cursor, CXCursorKind kind, const
 #endif
 #if CINDEX_VERSION >= CINDEX_VERSION_ENCODE(0, 33)
         if (clang_Cursor_isFunctionInlined(cursor))
-            (c.flags |= Symbol::InlineFunction;
+            c.flags |= Symbol::InlineFunction;
 #endif
 
         addArguments(&c, cursor);
