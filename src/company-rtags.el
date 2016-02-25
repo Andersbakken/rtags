@@ -23,13 +23,17 @@
 ;; You should have received a copy of the GNU General Public License
 ;; along with RTags.  If not, see <http://www.gnu.org/licenses/>.
 
+;;; Commentary:
+
+;;; Code:
+
 (require 'company)
 (require 'company-template)
 
 (eval-when-compile (require 'rtags))
 
 (defvar company-rtags-modes '(c-mode c++-mode objc-mode)
-  "Major modes which rtags may complete.")
+  "Major modes which RTags may complete.")
 
 (defcustom company-rtags-begin-after-member-access t
   "When non-nil, automatic completion will start whenever the current
@@ -163,7 +167,7 @@ and `c-electric-colon', for automatic completion right after \">\" and
 (add-hook 'rtags-diagnostics-hook 'rtags-company-diagnostics-hook)
 
 (defun company-rtags (command &optional arg &rest ignored)
-  "`company-mode' completion back-end for `rtags'."
+  "`company-mode' completion back-end for RTags."
   (interactive (list 'interactive))
   (setq rtags-company-last-completion-prefix arg)
   (case command
@@ -199,3 +203,5 @@ and `c-electric-colon', for automatic completion right after \">\" and
          (company-template-c-like-templatify anno))))))
 
 (provide 'company-rtags)
+
+;;; company-rtags.el ends here
