@@ -32,9 +32,6 @@
 
 (eval-when-compile (require 'rtags))
 
-(defvar company-rtags-modes '(c-mode c++-mode objc-mode)
-  "Major modes which RTags may complete.")
-
 (defcustom company-rtags-begin-after-member-access t
   "When non-nil, automatic completion will start whenever the current
 symbol is preceded by \".\", \"->\" or \"::\", ignoring
@@ -178,7 +175,7 @@ and `c-electric-colon', for automatic completion right after \">\" and
     (interactive
      (company-begin-backend 'company-rtags))
     (prefix
-     (and (memq major-mode company-rtags-modes)
+     (and (memq major-mode rtags-supported-major-modes)
           buffer-file-name
           (not (company-in-string-or-comment))
           (rtags-is-indexed)

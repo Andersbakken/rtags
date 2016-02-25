@@ -16,8 +16,13 @@
   (defvar company-async-wait nil)
   (defvar rtags nil)
   (defvar ac-last-completion nil)
+  (defvar flycheck-checkers nil)
+  (defun flycheck-define-generic-checker (&rest args))
+  (defun flycheck-error-new-at (&rest args))
+  (defun flycheck-verification-result-new (&rest args))
 
   (provide 'company)
   (provide 'company-template)
   (provide 'auto-complete)
+  (provide 'flycheck)
   (provide 'helm))

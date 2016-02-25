@@ -29,7 +29,7 @@
 ;;; Code:
 
 (defgroup rtags nil
-  "Minor mode for rtags."
+  "Minor mode for RTags."
   :group 'tools
   :prefix "rtags-")
 
@@ -89,6 +89,9 @@ Note: if *RTags Diagnostics* is not running, then the 'match check'
       is not performed, because sandbox tracking is not needed then.
 Note: it is recommended to run each sandbox is separate emacs process.")
 
+(defconst rtags-supported-major-modes '(c-mode c++-mode objc-mode)
+  "Major modes RTags supports.")
+
 (defun rtags-remove (predicate seq &optional not)
   (let ((ret))
     (while seq
@@ -114,7 +117,7 @@ Note: it is recommended to run each sandbox is separate emacs process.")
             (and (member (downcase suffix) (list "cpp" "h" "cc" "c" "cp" "cxx" "m" "mm" "tcc" "txx" "moc" "hxx" "hh" "hpp")) t))))))
 
 (defcustom rtags-enabled t
-  "Whether rtags is enabled. We try to do nothing when it's not."
+  "Whether RTags is enabled. We try to do nothing when it's not."
   :group 'rtags
   :type 'boolean
   :safe 'booleanp)
@@ -156,7 +159,7 @@ Note: it is recommended to run each sandbox is separate emacs process.")
   :safe 'booleanp)
 
 (defcustom rtags-use-filename-completion t
-  "Whether rtags special filename completion is enabled. Set to nil to enable ido-ubiquitous etc."
+  "Whether RTags special filename completion is enabled. Set to nil to enable ido-ubiquitous etc."
   :group 'rtags
   :type 'boolean
   :safe 'booleanp)
@@ -168,13 +171,13 @@ Note: it is recommended to run each sandbox is separate emacs process.")
   :safe 'booleanp)
 
 (defcustom rtags-autostart-diagnostics nil
-  "Whether rtags automatically will restart diagnostics."
+  "Whether RTags automatically will restart diagnostics."
   :group 'rtags
   :type 'boolean
   :safe 'booleanp)
 
 (defcustom rtags-spellcheck-enabled t
-  "Whether rtags does syntax checking with overlays etc to mark errors, warnings and fixups."
+  "Whether RTags does syntax checking with overlays etc to mark errors, warnings and fixups."
   :group 'rtags
   :type 'boolean
   :safe 'booleanp)
@@ -186,7 +189,7 @@ Note: it is recommended to run each sandbox is separate emacs process.")
   :safe 'booleanp)
 
 (defcustom rtags-sort-references-by-input t
-  "Whether rtags sorts the references based on the input to `rtags-find-references'."
+  "Whether RTags sorts the references based on the input to `rtags-find-references'."
   :group 'rtags
   :type 'boolean
   :safe 'booleanp)
@@ -282,7 +285,7 @@ Note: it is recommended to run each sandbox is separate emacs process.")
   :safe 'numberp)
 
 (defcustom rtags-current-container-hook nil
-  "Run after rtags has set the current container."
+  "Run after RTags has set the current container."
   :group 'rtags
   :type 'hook)
 
@@ -292,7 +295,7 @@ Note: it is recommended to run each sandbox is separate emacs process.")
   :type 'function)
 
 (defcustom rtags-after-find-file-hook nil
-  "Run after rtags has jumped to a location possibly in a new file."
+  "Run after RTags has jumped to a location possibly in a new file."
   :group 'rtags
   :type 'hook)
 
@@ -312,8 +315,8 @@ Note: it is recommended to run each sandbox is separate emacs process.")
   :type 'hook)
 
 (defcustom rtags-edit-hook nil
-  "Run before rtags tries to modify a buffer (from rtags-rename)
-return t if rtags is allowed to modify this file."
+  "Run before RTags tries to modify a buffer (from rtags-rename)
+return t if RTags is allowed to modify this file."
   :group 'rtags
   :type 'hook)
 
@@ -336,7 +339,7 @@ return t if rtags is allowed to modify this file."
   :safe 'integerp)
 
 (defcustom rtags-path nil
-  "Path to rtags executables."
+  "Path to RTags executables."
   :group 'rtags
   :type '(choice (const :tag "Unset" nil) directory)
   :risky t)
@@ -394,6 +397,7 @@ return t if rtags is allowed to modify this file."
   :group 'rtags)
 
 (defconst rtags-verbose-results-delimiter "------------------------------------------")
+
 (defcustom rtags-enable-unsaved-reparsing nil
   "Whether rtags will reparse unsaved buffers as needed."
   :group 'rtags
@@ -703,7 +707,7 @@ to case differences."
 (defun rtags-executable-find (exe)
   (cond ((tramp-tramp-file-p default-directory) exe)
         ;; for tramp let's rely on `tramp-remote-path`, so if You have some *debug*
-        ;; directory to store rtags binaries, just put it to `tramp-remote-path`
+        ;; directory to store RTags binaries, just put it to `tramp-remote-path`
         (rtags-path
          (or
           (let ((file (expand-file-name exe rtags-path)))
@@ -1504,7 +1508,7 @@ Can be used both for path and location."
 
 ;;;###autoload
 (defun rtags-list-results ()
-  "Show the rtags results buffer."
+  "Show the RTags results buffer."
   (interactive)
   (switch-to-buffer-other-window rtags-buffer-name))
 
@@ -2232,7 +2236,9 @@ is true. References to references will be treated as references to the reference
         (buffer-disable-undo buf)
         buf)))
 
-(defvar rtags-diagnostics-errors nil)
+(defvar rtags-diagnostics-errors nil
+  "List of diagnostics erros.")
+
 (defun rtags-parse-diagnostics (&optional buffer)
   (save-excursion
     (with-current-buffer (or buffer (rtags-get-buffer-create-no-undo rtags-diagnostics-raw-buffer-name))
@@ -2684,7 +2690,7 @@ is true. References to references will be treated as references to the reference
 (defun rtags-handle-results-buffer (&optional noautojump quiet path other-window)
   "Handle results from RTags. Should be called with the results buffer as current.
 
-The option OTHER-WINDOW is only applicable if rtags is configured not to show the results immediately. If non-nil, show the first match in the other window instead of the current one.
+The option OTHER-WINDOW is only applicable if RTags is configured not to show the results immediately. If non-nil, show the first match in the other window instead of the current one.
 "
   (rtags-reset-bookmarks)
   (set-text-properties (point-min) (point-max) nil)
@@ -3408,22 +3414,22 @@ definition."
           rtags-process-flags))
 
 (defun rtags-cancel-process ()
-  "Stop the rtags process."
+  "Stop the RTags process."
   (if (not rtags-rdm-process)
-      (message "No rtags process running (rdm)...")
+      (message "No RTags process running (rdm)...")
     (delete-process rtags-rdm-process)
     (kill-buffer "*rdm*")))
 
 ;;;###autoload
 (defun rtags-restart-process ()
   (interactive)
-  "Restart the rtags process (rdm)."
+  "Restart the RTags process (rdm)."
   (rtags-cancel-process)
   (rtags-start-process-unless-running))
 
 ;;;###autoload
 (defun rtags-start-process-unless-running ()
-  "Launch the rtags process (rdm) if it's not already started."
+  "Launch the RTags process (rdm) if it's not already started."
   (interactive)
   (let ((rtags-server-executable (rtags-executable-find "rdm")))
     (cond
@@ -3453,7 +3459,7 @@ definition."
 (defalias 'rtags-start-process-maybe 'rtags-start-process-unless-running)
 
 (defun rtags-sentinel (process event)
-  "Watch the activity of rtags process (rdm)."
+  "Watch the activity of RTags process (rdm)."
   (let ((status (process-status process)))
     (when (memq status '(exit signal closed failed))
       (message "rtags process (rdm) stopped..."))))
@@ -3545,7 +3551,7 @@ BUFFER : The buffer to be checked and reparsed, if it's nil, use current buffer.
   (cond ((not rtags-completions-enabled))
         ((not (numberp rtags-completions-timer-interval)))
         ((< rtags-completions-timer-interval 0))
-        ((not (or (eq major-mode 'c++-mode) (eq major-mode 'c-mode) (eq major-mode 'objc-mode))))
+        ((not (or (memq major-mode rtags-supported-major-modes))))
         ((not (rtags-has-diagnostics)))
         ((= rtags-completions-timer-interval 0) (rtags-prepare-completions))
         (t (setq rtags-completions-timer (run-with-idle-timer rtags-completions-timer-interval
@@ -3553,7 +3559,7 @@ BUFFER : The buffer to be checked and reparsed, if it's nil, use current buffer.
 
 (defun rtags-code-complete-enabled ()
   (and rtags-completions-enabled
-       (or (eq major-mode 'c++-mode) (eq major-mode 'c-mode) (eq major-mode 'objc-mode))
+       (or (memq major-mode rtags-supported-major-modes))
        (rtags-has-diagnostics)))
 
 (defun rtags-prepare-completions ()

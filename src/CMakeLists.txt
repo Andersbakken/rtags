@@ -171,7 +171,8 @@ endif ()
 set(RTAGS_ELISP_FILES
     rtags.el
     rtags-ac.el
-    company-rtags.el)
+    company-rtags.el
+    flycheck-rtags.el)
 
 if (NOT RTAGS_NO_ELISP_FILES)
     if (NOT RTAGS_ELISP_INSTALL_LOCATION)

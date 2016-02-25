@@ -729,6 +729,22 @@ to work.
  To enable completion in Emacs with auto-complete-mode do the
  following:
 ...TODO...
+* RTags Flycheck integration
+To turn on Flycheck support you need to add the flycheck-rtags checker to
+the flycheck-checkers. To do so, add this to your init.el file.
+#+begin_src emacs-lisp
+(eval-after-load 'flycheck
+   '(add-hook 'flycheck-mode-hook #'flycheck-rtags-setup))
+#+end_src
+You may select the RTags checker upon entering one of the supported major
+modes.
+#+begin_src emacs-lisp
+(defun my-rtags-setup()
+  (flycheck-select-checker 'rtags)
+  (flycheck-mode))
+(add-hook 'c++-mode-common-hook 'my-rtags-setup)
+(add-hook 'c-mode-common-hook 'my-rtags-setup)
+#+end_src
 
 * Videos
 Here are some videos demonstrating how to use RTags with Emacs though
