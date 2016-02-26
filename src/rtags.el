@@ -394,7 +394,7 @@ return t if rtags is allowed to modify this file."
   :group 'rtags)
 
 (defconst rtags-verbose-results-delimiter "------------------------------------------")
-(defcustom rtags-enable-unsaved-reparsing t
+(defcustom rtags-enable-unsaved-reparsing nil
   "Whether rtags will reparse unsaved buffers as needed."
   :group 'rtags
   :type 'boolean
