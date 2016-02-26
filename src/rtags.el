@@ -929,7 +929,7 @@ Can be used both for path and location."
 (define-derived-mode rtags-preprocess-mode c++-mode
   (setq mode-name "rtags-preprocess")
   (use-local-map rtags-preprocess-mode-map)
-  (when(buffer-file-name)
+  (when (buffer-file-name)
     (error "Set buffer with file %s read only " (buffer-file-name)))
   (setq buffer-read-only t))
 
@@ -1594,9 +1594,10 @@ Can be used both for path and location."
           (kill-local-variable enable-multibyte-characters)))
     (goto-char (1+ pos))))
 
-(defun rtags-current-location (&optional offset)
+(defun rtags-current-location (&optional offset truename)
   (let ((fn (buffer-file-name)))
-    (and fn (format "%s:%d:%d:" fn (line-number-at-pos offset) (1+ (- (or offset (point)) (point-at-bol)))))))
+    (and fn (format "%s:%d:%d:" (if truename (file-truename fn) fn)
+                    (line-number-at-pos offset) (1+ (- (or offset (point)) (point-at-bol)))))))
 
 (defun rtags-log (log)
   (with-current-buffer (rtags-get-buffer-create-no-undo "*RTags Log*")
@@ -3581,7 +3582,7 @@ BUFFER : The buffer to be checked and reparsed, if it's nil, use current buffer.
   (interactive)
   (when (rtags-code-complete-enabled)
     (let* ((pos (rtags-calculate-completion-point))
-           (location (and pos (rtags-current-location pos)))
+           (location (and pos (rtags-current-location pos t)))
            (ret))
       (when (cond ((null pos) nil)
                   ((null location) nil)

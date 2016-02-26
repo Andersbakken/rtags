@@ -118,7 +118,7 @@ and `c-electric-colon', for automatic completion right after \">\" and
         (when (and rtags-last-completions
                    (let ((pos (rtags-calculate-completion-point)))
                      (and pos (string= (car rtags-last-completions)
-                                       (rtags-current-location pos)))))
+                                       (rtags-current-location pos t)))))
           (let (results
                 (candidates (cadr rtags-last-completions)))
             (while candidates
@@ -150,7 +150,7 @@ and `c-electric-colon', for automatic completion right after \">\" and
   (setq rtags-company-last-completion-callback cb)
   (rtags-update-completions)
   (let ((pos (rtags-calculate-completion-point)))
-    (setq rtags-company-last-completion-location (and pos (rtags-current-location pos))))
+    (setq rtags-company-last-completion-location (and pos (rtags-current-location pos t))))
   (rtags-company-diagnostics-hook))
 
 (defun rtags-company-diagnostics-hook ()

@@ -48,7 +48,7 @@
   (if (and rtags-last-completions
            (let ((pos (rtags-calculate-completion-point)))
              (and pos (string= (car rtags-last-completions)
-                               (rtags-current-location pos)))))
+                               (rtags-current-location pos t)))))
 
     ;; if last completion was in this src file @ last completion pos
     ;; build a list of completion strings; example format:
