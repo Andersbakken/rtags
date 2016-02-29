@@ -33,8 +33,11 @@
 (eval-when-compile (require 'cl))
 
 (defgroup rtags-ac nil
-  "RTags `auto-complete' backend."
-  :group 'rtags-ac)
+  "Auto completion back-end for RTags."
+  :prefix "rtags-"
+  :group 'ac
+  :group 'rtags
+  :link '(url-link :tag "Website" "http://rtags.net"))
 
 (defconst rtags-location-regx "\\([^:]*\\):\\([0-9]*\\):\\([0-9]*\\)")
 

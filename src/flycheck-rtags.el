@@ -41,7 +41,10 @@
 
 (defgroup flycheck-rtags nil
   "RTags Flycheck integration."
-  :group 'rtags)
+  :prefix "flycheck-"
+  :group 'flycheck
+  :group 'rtags
+  :link '(url-link :tag "Website" "http://rtags.net"))
 
 ;; Shamelessly stolen from flycheck-irony
 (defcustom flycheck-rtags-error-filter #'identity

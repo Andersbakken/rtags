@@ -33,8 +33,11 @@
 (require 'company-template)
 
 (defgroup company-rtags nil
-  "Company RTags backend."
-  :group 'rtags)
+  "Company completion back-end for RTags."
+  :prefix "company-"
+  :group 'company
+  :group 'rtags
+  :link '(url-link :tag "Website" "http://rtags.net"))
 
 (defcustom company-rtags-begin-after-member-access t
   "When non-nil, automatic completion will start whenever the current

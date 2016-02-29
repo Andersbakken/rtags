@@ -30,8 +30,9 @@
 
 (defgroup rtags nil
   "Minor mode for RTags."
+  :prefix "rtags-"
   :group 'tools
-  :prefix "rtags-")
+  :link '(url-link :tag "Website" "http://rtags.net"))
 
 (require 'bookmark)
 (require 'cc-mode)
