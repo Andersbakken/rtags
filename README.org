@@ -734,7 +734,7 @@ To turn on Flycheck support you need to add the flycheck-rtags checker to
 the flycheck-checkers. To do so, add this to your init.el file.
 #+begin_src emacs-lisp
 (eval-after-load 'flycheck
-   '(add-hook 'flycheck-mode-hook #'flycheck-rtags-setup))
+   '(add-hook 'flycheck-mode-hook 'flycheck-rtags-setup))
 #+end_src
 You may select the RTags checker upon entering one of the supported major
 modes.

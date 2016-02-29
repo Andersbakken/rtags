@@ -27,15 +27,20 @@
 
 ;;; Code:
 
-(eval-when-compile (require 'cl))
-(require 'auto-complete)
 (require 'rtags)
+
+(require 'auto-complete)
+(eval-when-compile (require 'cl))
+
+(defgroup rtags-ac nil
+  "RTags `auto-complete' backend."
+  :group 'rtags-ac)
 
 (defconst rtags-location-regx "\\([^:]*\\):\\([0-9]*\\):\\([0-9]*\\)")
 
 (defcustom rtags-ac-expand-functions t
-  "Whether to expand function parameter lists in auto-complete mode"
-  :group 'rtags
+  "Whether to expand function parameter lists in `auto-complete' mode."
+  :group 'rtags-ac
   :type 'boolean)
 
 (defun rtags-ac-trim-leading-trailing-whitespace (argstr)

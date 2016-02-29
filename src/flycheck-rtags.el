@@ -29,7 +29,7 @@
 ;; Usage:
 ;;
 ;; (eval-after-load 'flycheck
-;;   '(add-hook 'flycheck-mode-hook #'flycheck-rtags-setup))
+;;   '(add-hook 'flycheck-mode-hook 'flycheck-rtags-setup))
 ;;
 
 ;;; Code:
@@ -94,8 +94,8 @@ For an example, take a look at `flycheck-dequalify-error-ids'."
 
 (flycheck-define-generic-checker 'rtags
   "RTags flycheck checker."
-  :start #'flycheck-rtags--start
-  :verify #'flycheck-rtags--verify
+  :start 'flycheck-rtags--start
+  :verify 'flycheck-rtags--verify
   :modes rtags-supported-major-modes
   :error-filter flycheck-rtags-error-filter)
 

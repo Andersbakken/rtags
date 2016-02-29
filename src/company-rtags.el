@@ -27,10 +27,14 @@
 
 ;;; Code:
 
+(require 'rtags)
+
 (require 'company)
 (require 'company-template)
 
-(eval-when-compile (require 'rtags))
+(defgroup company-rtags nil
+  "Company RTags backend."
+  :group 'rtags)
 
 (defcustom company-rtags-begin-after-member-access t
   "When non-nil, automatic completion will start whenever the current
@@ -40,23 +44,30 @@ symbol is preceded by \".\", \"->\" or \"::\", ignoring
 If `company-begin-commands' is a list, it should include `c-electric-lt-gt'
 and `c-electric-colon', for automatic completion right after \">\" and
 \":\"."
-  :group 'rtags
+  :group 'company-rtags
   :type 'boolean)
 
 (defcustom company-rtags-max-wait 100
-  "Max number of waits company-rtags will do before giving up (max wait time is (* company-rtags-max-wait company-async-wait))"
-  :group 'rtags
+  "Max number of waits `company-rtags' will do before giving up.
+
+Maximum wait time is: (* company-rtags-max-wait company-async-wait)"
+  :group 'company-rtags
   :type 'integer)
 
 (defcustom company-rtags-use-async t
-  "Whether to use async completions for company-rtags"
-  :group 'rtags
+  "Whether to use async completions for `company-rtags'."
+  :group 'company-rtags
   :type 'boolean)
 
 (defcustom company-rtags-insert-arguments t
   "When non-nil, insert function arguments as a template after completion."
-  :group 'rtags
+  :group 'company-rtags
   :type 'boolean)
+
+(defvar rtags-company-last-completion-location nil)
+(defvar rtags-company-last-completion-callback nil)
+(defvar rtags-company-last-completion-prefix nil)
+(defvar rtags-company-completions-maxwidth nil)
 
 (defun company-rtags--prefix ()
   (let ((symbol (company-grab-symbol)))
@@ -133,11 +144,6 @@ and `c-electric-colon', for automatic completion right after \">\" and
      ((null meta) nil)
      ((string-match "\\((.*)\\)" meta)
       (match-string 1 meta)))))
-
-(defvar rtags-company-last-completion-location nil)
-(defvar rtags-company-last-completion-callback nil)
-(defvar rtags-company-last-completion-prefix nil)
-(defvar rtags-company-completions-maxwidth nil)
 
 (defun rtags-company-completions-calculate-maxwidth ()
   (setq rtags-company-completions-maxwidth (max 10 (- (window-width) (- (rtags-calculate-completion-point) (point-at-bol))))))

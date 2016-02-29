@@ -123,25 +123,25 @@ Note: it is recommended to run each sandbox is separate emacs process.")
   :safe 'booleanp)
 
 (defcustom rtags-find-file-absolute nil
-  "Whether rtags-find-file shows absolute paths"
+  "Whether rtags-find-file shows absolute paths."
   :group 'rtags
   :type 'boolean
   :safe 'booleanp)
 
 (defcustom rtags-wrap-results t
-  "Whether rtags-next-match/rtags-prev-match wraps around"
+  "Whether rtags-next-match/rtags-prev-match wraps around."
   :group 'rtags
   :type 'boolean
   :safe 'booleanp)
 
 (defcustom rtags-close-taglist-on-focus-lost nil
-  "Whether rtags-taglist should close when it loses focus"
+  "Whether rtags-taglist should close when it loses focus."
   :group 'rtags
   :type 'boolean
   :safe 'booleanp)
 
 (defcustom rtags-close-taglist-on-selection t
-  "Whether rtags-taglist should close when something is selected"
+  "Whether rtags-taglist should close when something is selected."
   :group 'rtags
   :type 'boolean
   :safe 'booleanp)
@@ -201,7 +201,7 @@ Note: it is recommended to run each sandbox is separate emacs process.")
   :safe 'booleanp)
 
 (defcustom rtags-completions-timer-interval 1
-  "Interval for completions timer. nil means, don't preemptively prepare completions."
+  "Interval for completions timer. nil (Unset) means, don't preemptively prepare completions."
   :group 'rtags
   :type '(choice (const :tag "Unset" nil) number)
   :safe 'numberp)
@@ -224,8 +224,8 @@ Note: it is recommended to run each sandbox is separate emacs process.")
   :type 'boolean
   :safe 'booleanp)
 
-(defcustom rtags-socket-file nil
-  "Socket file to pass to rc"
+(defcustom rtags-socket-file ""
+  "Socket file to pass to rc."
   :group 'rtags
   :type 'string
   :safe 'stringp)
@@ -877,7 +877,7 @@ Can be used both for path and location."
               (default-directory (push (concat "--current-file=" (rtags-untrampify default-directory)) arguments))
               (t nil))
 
-        (when rtags-socket-file
+        (when (not (string= "" rtags-socket-file))
           (push (concat "-n" (expand-file-name rtags-socket-file)) arguments))
 
         (when rtags-rc-log-enabled
@@ -3551,7 +3551,7 @@ BUFFER : The buffer to be checked and reparsed, if it's nil, use current buffer.
   (cond ((not rtags-completions-enabled))
         ((not (numberp rtags-completions-timer-interval)))
         ((< rtags-completions-timer-interval 0))
-        ((not (or (memq major-mode rtags-supported-major-modes))))
+        ((not (memq major-mode rtags-supported-major-modes)))
         ((not (rtags-has-diagnostics)))
         ((= rtags-completions-timer-interval 0) (rtags-prepare-completions))
         (t (setq rtags-completions-timer (run-with-idle-timer rtags-completions-timer-interval
@@ -3559,7 +3559,7 @@ BUFFER : The buffer to be checked and reparsed, if it's nil, use current buffer.
 
 (defun rtags-code-complete-enabled ()
   (and rtags-completions-enabled
-       (or (memq major-mode rtags-supported-major-modes))
+       (memq major-mode rtags-supported-major-modes)
        (rtags-has-diagnostics)))
 
 (defun rtags-prepare-completions ()
