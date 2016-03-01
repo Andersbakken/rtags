@@ -28,8 +28,14 @@
 
 ;; Usage:
 ;;
-;; (eval-after-load 'flycheck
-;;   '(add-hook 'flycheck-mode-hook 'flycheck-rtags-setup))
+;; (require 'flycheck-rtags)
+;;
+;;
+;; ;; Optional explicitly select the RTags Flycheck checker for c or c++ major mode.
+;; (defun my-flycheck-rtags-setup ()
+;;  (flycheck-select-checker 'rtags))
+;; (add-hook 'c-mode-common-hook 'my-flycheck-rtags-setup)
+;; (add-hook 'c++-mode-common-hook 'my-flycheck-rtags-setup)
 ;;
 
 ;;; Code:
@@ -47,7 +53,7 @@
   :link '(url-link :tag "Website" "http://rtags.net"))
 
 ;; Shamelessly stolen from flycheck-irony
-(defcustom flycheck-rtags-error-filter #'identity
+(defcustom flycheck-rtags-error-filter 'identity
    "A function to filter the errors returned by this checker.
 
 See ':error-filter' description in `flycheck-define-generic-checker'.
@@ -83,7 +89,6 @@ For an example, take a look at `flycheck-dequalify-error-ids'."
 
 (defun flycheck-rtags--start (checker callback)
   (let ((buffer (current-buffer)))
-    ;; (setq lexical-binding t)
     (rtags-diagnostics)
     (funcall callback 'finished (flycheck-rtags--build-error checker buffer))))
 
@@ -102,11 +107,7 @@ For an example, take a look at `flycheck-dequalify-error-ids'."
   :modes rtags-supported-major-modes
   :error-filter flycheck-rtags-error-filter)
 
-;;;###autoload
-(defun flycheck-rtags-setup ()
-  "Setup Flycheck for RTags."
-  (interactive)
-  (add-to-list 'flycheck-checkers 'rtags))
+(add-to-list 'flycheck-checkers 'rtags)
 
 (provide 'flycheck-rtags)
 
