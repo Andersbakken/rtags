@@ -794,7 +794,7 @@ bool ClangIndexer::superclassTemplateMemberFunctionUgleHack(const CXCursor &curs
 }
 
 bool ClangIndexer::handleReference(const CXCursor &cursor, CXCursorKind kind,
-                                   const Location &location, CXCursor ref,
+                                   Location location, CXCursor ref,
                                    const CXCursor &parent, Symbol **cursorPtr)
 {
     if (cursorPtr)
@@ -905,11 +905,52 @@ bool ClangIndexer::handleReference(const CXCursor &cursor, CXCursorKind kind,
         refTargetValue = RTags::createTargetsValue(refKind, clang_isCursorDefinition(ref));
     }
 
+    Symbol *c = &unit(location)->symbols[location];
+    assert(c);
+    bool setTarget = true;
+    if (c->kind == CXCursor_MacroExpansion) {
+        for (const auto &t : targets) {
+            if (RTags::targetsValueKind(t.second) == CXCursor_MacroDefinition) {
+                for (const auto &u : mUnits) { // ### should only search the ones we depend on
+                    const auto it = u.second->usrs.find(t.first);
+                    if (it != u.second->usrs.end()) {
+                        auto mit = mMacroTokens.find(*it->second.begin());
+                        if (mit != mMacroTokens.end()) {
+                            const String id = RTags::eatString(clang_getCursorSpelling(cursor));
+                            auto idit = mit->second.find(id);
+                            if (idit != mit->second.end()) {
+                                List<Location> &locs = idit->second;
+                                assert(!locs.isEmpty());
+                                location = locs.front();
+                                if (locs.size() == 1) {
+                                    if (mit->second.size() == 1) {
+                                        mMacroTokens.erase(mit);
+                                    } else {
+                                        mit->second.erase(idit);
+                                    }
+                                } else {
+                                    locs.remove(0, 1);
+                                }
+                                std::shared_ptr<Unit> u = unit(location);
+                                c = &u->symbols[location];
+                                Map<String, uint16_t> &t = u->targets[location];
+                                t[refUsr] = refTargetValue;
+                                setTarget = false;
+                            }
+                        }
+                        break;
+                    }
+                }
+                break;
+            }
+        }
+    }
+
     assert(!refUsr.isEmpty());
     targets[refUsr] = refTargetValue;
-    Symbol &c = unit(location)->symbols[location];
+
     if (cursorPtr)
-        *cursorPtr = &c;
+        *cursorPtr = c;
 
     // We need the new cursor to replace the symbolLength. This is important
     // in the following case:
@@ -926,8 +967,8 @@ bool ClangIndexer::handleReference(const CXCursor &cursor, CXCursorKind kind,
     // The !isCursor is var decls and field decls where we set up a target even
     // if they're not considered references
 
-    if (!c.isNull()) {
-        if (RTags::isCursor(c.kind))
+    if (setTarget && !c->isNull()) {
+        if (RTags::isCursor(c->kind))
             return true;
         auto best = targets.end();
         int bestRank = -1;
@@ -945,13 +986,13 @@ bool ClangIndexer::handleReference(const CXCursor &cursor, CXCursorKind kind,
 
 #if CINDEX_VERSION >= CINDEX_VERSION_ENCODE(0, 16)
     if (result == Found) {
-        c.size = reffedCursor.size;
-        c.alignment = reffedCursor.alignment;
+        c->size = reffedCursor.size;
+        c->alignment = reffedCursor.alignment;
     } else {
         const CXType type = clang_getCursorType(ref);
         if (type.kind != CXType_LValueReference && type.kind != CXType_RValueReference && type.kind != CXType_Unexposed) {
-            c.size = clang_Type_getSizeOf(type);
-            c.alignment = std::max<int16_t>(-1, clang_Type_getAlignOf(type));
+            c->size = clang_Type_getSizeOf(type);
+            c->alignment = std::max<int16_t>(-1, clang_Type_getAlignOf(type));
         }
     }
 #endif
@@ -962,30 +1003,30 @@ bool ClangIndexer::handleReference(const CXCursor &cursor, CXCursorKind kind,
     unsigned int startLine, startColumn, endLine, endColumn;
     clang_getSpellingLocation(rangeStart, 0, &startLine, &startColumn, 0);
     clang_getSpellingLocation(rangeEnd, 0, &endLine, &endColumn, 0);
-    c.startLine = startLine;
-    c.endLine = endLine;
-    c.startColumn = startColumn;
-    c.endColumn = endColumn;
-    c.definition = false;
-    c.kind = kind;
-    c.location = location;
-    c.symbolName = result == Found ? reffedCursor.symbolName : addNamePermutations(ref, refLoc, RTags::Type_Reference);
+    c->startLine = startLine;
+    c->endLine = endLine;
+    c->startColumn = startColumn;
+    c->endColumn = endColumn;
+    c->definition = false;
+    c->kind = kind;
+    c->location = location;
+    c->symbolName = result == Found ? reffedCursor.symbolName : addNamePermutations(ref, refLoc, RTags::Type_Reference);
 
     if (isOperator) {
         unsigned int start, end;
         clang_getSpellingLocation(rangeStart, 0, 0, 0, &start);
         clang_getSpellingLocation(rangeEnd, 0, 0, 0, &end);
-        c.symbolLength = end - start;
+        c->symbolLength = end - start;
     } else {
-        c.symbolLength = result == Found ? reffedCursor.symbolLength : symbolLength(refKind, ref);
+        c->symbolLength = result == Found ? reffedCursor.symbolLength : symbolLength(refKind, ref);
     }
-    if (!c.symbolLength) {
+    if (!c->symbolLength) {
         unit(location)->symbols.remove(location);
         if (cursorPtr)
             *cursorPtr = 0;
         return false;
     }
-    setType(c, clang_getCursorType(cursor));
+    setType(*c, clang_getCursorType(cursor));
 
     return true;
 }
@@ -1195,6 +1236,21 @@ bool ClangIndexer::handleCursor(const CXCursor &cursor, CXCursorKind kind, const
         c.definition = 1;
 #endif
         break;
+    case CXCursor_MacroDefinition: {
+        CXToken *tokens = 0;
+        unsigned numTokens = 0;
+        clang_tokenize(mClangUnit, range, &tokens, &numTokens);
+        Map<String, List<Location> > &macroTokens = mMacroTokens[location];
+        for (size_t i=0; i<numTokens; ++i) {
+            if (clang_getTokenKind(tokens[i]) == CXToken_Identifier) {
+                List<Location> &locs = macroTokens[RTags::eatString(clang_getTokenSpelling(mClangUnit, tokens[i]))];
+                locs.append(createLocation(clang_getTokenLocation(mClangUnit, tokens[i])));
+            }
+        }
+
+        clang_disposeTokens(mClangUnit, tokens, numTokens);
+        c.definition = 1;
+        break; }
     case CXCursor_FieldDecl:
 #if CINDEX_VERSION >= CINDEX_VERSION_ENCODE(0, 30)
         c.fieldOffset = std::max<int16_t>(-1, clang_Cursor_getOffsetOfField(cursor));

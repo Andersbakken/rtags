@@ -105,7 +105,7 @@ private:
     bool handleCursor(const CXCursor &cursor, CXCursorKind kind,
                       const Location &location, Symbol **cursorPtr = 0);
     bool handleReference(const CXCursor &cursor, CXCursorKind kind,
-                         const Location &loc, CXCursor reference,
+                         Location loc, CXCursor reference,
                          const CXCursor &parent, Symbol **cursorPtr = 0);
     void handleBaseClassSpecifier(const CXCursor &cursor);
     void handleInclude(const CXCursor &cursor, CXCursorKind kind, const Location &location);
@@ -142,6 +142,8 @@ private:
         NotFound
     };
     Symbol findSymbol(const Location &location, FindResult *result) const;
+
+    Map<Location, Map<String, List<Location> > > mMacroTokens;
 
     Hash<uint32_t, std::shared_ptr<Unit> > mUnits;
 
