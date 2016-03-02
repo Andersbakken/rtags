@@ -842,6 +842,7 @@ Can be used both for path and location."
           (unless noerror (error "Can't find rc"))
         (setq rtags-last-request-not-connected nil)
         (setq rtags-last-request-not-indexed nil)
+        (rtags-start-process-maybe)
         (when (and async (not (consp async)))
           (error "Invalid argument. async must be a cons or nil"))
         (setq arguments (rtags-remove-keyword-params arguments))
