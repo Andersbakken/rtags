@@ -25,7 +25,7 @@
 #include "Source.h"
 #ifdef OS_Darwin
 #include <Availability.h>
-#ifdef __MAC_10_11
+#if __MAC_OS_X_VERSION_MAX_ALLOWED >= 101000
 #include <launch.h>
 #define RTAGS_HAS_LAUNCHD
 #endif
