@@ -123,6 +123,12 @@ Note: it is recommended to run each sandbox is separate emacs process.")
   :type 'boolean
   :safe 'booleanp)
 
+(defcustom rtags-use-bookmarks t
+  "Whether RTags uses bookmarks for locations."
+  :group 'rtags
+  :type 'boolean
+  :safe 'booleanp)
+
 (defcustom rtags-find-file-absolute nil
   "Whether rtags-find-file shows absolute paths."
   :group 'rtags
@@ -1401,7 +1407,7 @@ Can be used both for path and location."
                (list (rtags-absolutify (match-string-no-properties 1 location))
                      (string-to-number (match-string-no-properties 2 location))
                      (string-to-number (match-string-no-properties 3 location)))))
-         (buffer (get-file-buffer (car components)))
+         (buffer (and rtags-use-bookmarks (get-file-buffer (car components))))
          (bookmark-idx
           (when buffer
             (let (deactivate-mark)
@@ -2664,7 +2670,7 @@ is true. References to references will be treated as references to the reference
         ;; (message "matched at %d:%d" (point) rtags-buffer-bookmarks)
         (let* ((start (point-at-bol))
                (end (min (point-max) (1+ (point-at-eol))))
-               (buffer (get-file-buffer (rtags-absolutify (match-string-no-properties 1))))
+               (buffer (and rtags-use-bookmarks (get-file-buffer (rtags-absolutify (match-string-no-properties 1)))))
                (line (and buffer (string-to-number (match-string-no-properties 2))))
                (bookmark-idx)
                (column (and buffer (string-to-number (match-string-no-properties 3)))))
