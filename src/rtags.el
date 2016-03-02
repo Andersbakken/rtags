@@ -28,6 +28,7 @@
 
 ;;; Code:
 
+
 (defgroup rtags nil
   "Minor mode for RTags."
   :prefix "rtags-"
@@ -51,8 +52,21 @@
 (require 'thingatpt)
 (require 'repeat)
 
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Constants
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defconst rtags-popup-available (require 'popup nil t))
+(defconst rtags-supported-major-modes '(c-mode c++-mode objc-mode) "Major modes RTags supports.")
+(defconst rtags-verbose-results-delimiter "------------------------------------------")
+(defconst rtags-buffer-name "*RTags*")
+(defconst rtags-diagnostics-buffer-name "*RTags Diagnostics*")
+(defconst rtags-diagnostics-raw-buffer-name " *RTags Raw*")
 
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Variables
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defvar rtags-last-completions nil)
 (defvar rtags-last-prepare-completion-position nil) ;; cons (buffer . offset)
 (defvar rtags-path-filter nil)
@@ -63,60 +77,19 @@
 (defvar rtags-jump-hook nil)
 (defvar rtags-diagnostics-suspended nil)
 (defvar rtags-taglist-hook nil)
-(defface rtags-path nil "Path" :group 'rtags)
-(defface rtags-context nil "Context" :group 'rtags)
 (defvar rtags-path-face 'rtags-path "Path part")
 (defvar rtags-context-face 'rtags-context "Context part")
-(defconst rtags-buffer-name "*RTags*")
-(defconst rtags-diagnostics-buffer-name "*RTags Diagnostics*")
-(defconst rtags-diagnostics-raw-buffer-name " *RTags Raw*")
 (defvar rtags-last-request-not-indexed nil)
 (defvar rtags-last-request-not-connected nil)
 (defvar rtags-buffer-bookmarks 0)
 (defvar rtags-diagnostics-process nil)
 (defvar rtags-diagnostics-starting nil)
 (defvar rtags-tramp-enabled nil)
-(defvar rtags-buffer-follows-sandbox-id-match 'ask
-  "Tells the way current buffer follows sandbox-id in case
-match fails at a query to rc/rdm backend.
 
-nil - perform current query without updating diagnostics buffer.
-      Diagnostics will be away from current context.
-ask - ask the user if sandbox should be changed. After 'yes',
-      perform the command once more.
-t   - change the sandbox and do the command.
-
-Note: if *RTags Diagnostics* is not running, then the 'match check'
-      is not performed, because sandbox tracking is not needed then.
-Note: it is recommended to run each sandbox is separate emacs process.")
-
-(defconst rtags-supported-major-modes '(c-mode c++-mode objc-mode)
-  "Major modes RTags supports.")
-
-(defun rtags-remove (predicate seq &optional not)
-  (let ((ret))
-    (while seq
-      (let ((matched (funcall predicate (car seq))))
-        (when (cond ((and matched not))
-                    ((and (not matched) (not not)))
-                    (t nil))
-          (setq ret (append ret (list (car seq)))))
-        (setq seq (cdr seq))))
-    ret))
-
-(defun rtags-remove-last-if-duplicated (seq) ;; destroys seq
-  (let ((newitem (car (last seq))))
-    (when (> (length (member newitem seq)) 1)
-      (nbutlast seq 1))
-    seq))
-
-(defun rtags-is-indexable-default (buffer)
-  (let ((filename (buffer-file-name buffer)))
-    (when filename
-      (let ((suffix (and (string-match "\.\\([^.]+\\)$" filename) (match-string 1 filename))))
-        (or (not suffix)
-            (and (member (downcase suffix) (list "cpp" "h" "cc" "c" "cp" "cxx" "m" "mm" "tcc" "txx" "moc" "hxx" "hh" "hpp")) t))))))
-
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Customizations
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defcustom rtags-enabled t
   "Whether RTags is enabled. We try to do nothing when it's not."
   :group 'rtags
@@ -369,42 +342,6 @@ return t if RTags is allowed to modify this file."
   :type 'boolean
   :safe 'booleanp)
 
-(defface rtags-warnline
-  '((((class color) (background dark)) (:background "blue"))
-    (((class color) (background light)) (:background "blue"))
-    (t (:bold t)))
-  "Face used for marking error lines."
-  :group 'rtags)
-
-(defface rtags-current-line
-  '((((class color) (background dark)) (:background "gray19"))
-    (((class color) (background light)) (:background "LightGray"))
-    (t (:bold t)))
-  "Face used for highlighting current line."
-  :group 'rtags)
-
-(defface rtags-errline
-  '((((class color) (background dark)) (:background "red"))
-    (((class color) (background light)) (:background "red"))
-    (t (:bold t)))
-  "Face used for marking warning lines."
-  :group 'rtags)
-
-(defface rtags-fixitline
-  '((((class color) (background dark)) (:background "goldenrod4"))
-    (((class color) (background light)) (:background "goldenrod4"))
-    (t (:bold t)))
-  "Face used for marking fixit lines."
-  :group 'rtags)
-
-(defface rtags-skippedline
-  '((((class color) (background dark)) (:background "gray12"))
-    (((class color) (background light)) (:background "light gray")))
-  "Face used for marking skipped lines."
-  :group 'rtags)
-
-(defconst rtags-verbose-results-delimiter "------------------------------------------")
-
 (defcustom rtags-enable-unsaved-reparsing nil
   "Whether rtags will reparse unsaved buffers as needed."
   :group 'rtags
@@ -444,6 +381,145 @@ return t if RTags is allowed to modify this file."
   "Function to split window. default is `split-window'."
   :group 'rtags
   :type 'function)
+
+(defcustom rtags-buffer-follows-sandbox-id-match 'ask
+  "Tells the way current buffer follows sandbox-id in case
+match fails at a query to rc/rdm backend.
+
+nil - perform current query without updating diagnostics buffer.
+      Diagnostics will be away from current context.
+ask - ask the user if sandbox should be changed. After 'yes',
+      perform the command once more.
+t   - change the sandbox and do the command.
+
+Note: if *RTags Diagnostics* is not running, then the 'match check'
+      is not performed, because sandbox tracking is not needed then.
+Note: it is recommended to run each sandbox is separate emacs process."
+  :group 'rtags
+  :type '(choice (const :tag "Perform query without update" nil)
+		 (const :tag "Ask the user" ask)
+		 (const :tag "Change sandbox and do command" t))
+  :safe 'symbolp)
+
+(defcustom rtags-includes-func 'rtags-dummy-includes-func
+  "Function to return flags and include flags for rdm."
+  :group 'rtags
+  :type 'function)
+
+(defcustom rtags-rdm-includes ""
+  "Additional include paths."
+  :group 'rtags
+  :type 'string
+  :safe 'stringp)
+
+(defcustom rtags-process-flags ""
+  "Flags for rdm."
+  :group 'rtags
+  :type 'string
+  :safe 'stringp)
+
+(defcustom rtags-rdm-process-use-pipe nil
+  "If t, use pipes to communicate with rdm."
+  :group 'rtags
+  :type 'boolean
+  :safe 'booleanp)
+
+(defcustom rtags-popup-results-buffer t
+  "Popup the *RTags* buffer when more than one search result is obtained."
+  :group 'rtags
+  :type 'boolean
+  :safe 'booleanp)
+
+(defcustom rtags-use-helm nil
+  "If t, use helm to display results when appropriate."
+  :group 'rtags
+  :type 'boolean
+  :safe 'booleanp)
+
+(defcustom rtags-print-file-names-relative t
+  "Print file names relative to the project root directory.
+
+If non-nil print file names relative to the project root directory,
+otherwise the absolute file name.
+
+Effected interactive functions:
+ - `rtags-find-virtuals-at-point'
+ - `rtags-find-references'
+ - `rtags-find-references-at-point'
+ - `rtags-find-all-references-at-point'
+ - `rtags-print-class-hierarchy'"
+  :group 'rtags
+  :type 'boolean
+  :safe 'booleanp)
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Faces
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(defface rtags-path nil "Path" :group 'rtags)
+(defface rtags-context nil "Context" :group 'rtags)
+
+(defface rtags-warnline
+  '((((class color) (background dark)) (:background "blue"))
+    (((class color) (background light)) (:background "blue"))
+    (t (:bold t)))
+  "Face used for marking error lines."
+  :group 'rtags)
+
+(defface rtags-current-line
+  '((((class color) (background dark)) (:background "gray19"))
+    (((class color) (background light)) (:background "LightGray"))
+    (t (:bold t)))
+  "Face used for highlighting current line."
+  :group 'rtags)
+
+(defface rtags-errline
+  '((((class color) (background dark)) (:background "red"))
+    (((class color) (background light)) (:background "red"))
+    (t (:bold t)))
+  "Face used for marking warning lines."
+  :group 'rtags)
+
+(defface rtags-fixitline
+  '((((class color) (background dark)) (:background "goldenrod4"))
+    (((class color) (background light)) (:background "goldenrod4"))
+    (t (:bold t)))
+  "Face used for marking fixit lines."
+  :group 'rtags)
+
+(defface rtags-skippedline
+  '((((class color) (background dark)) (:background "gray12"))
+    (((class color) (background light)) (:background "light gray")))
+  "Face used for marking skipped lines."
+  :group 'rtags)
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Logic
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(defun rtags-remove (predicate seq &optional not)
+  (let ((ret))
+    (while seq
+      (let ((matched (funcall predicate (car seq))))
+        (when (cond ((and matched not))
+                    ((and (not matched) (not not)))
+                    (t nil))
+          (setq ret (append ret (list (car seq)))))
+        (setq seq (cdr seq))))
+    ret))
+
+(defun rtags-remove-last-if-duplicated (seq) ;; destroys seq
+  (let ((newitem (car (last seq))))
+    (when (> (length (member newitem seq)) 1)
+      (nbutlast seq 1))
+    seq))
+
+(defun rtags-is-indexable-default (buffer)
+  (let ((filename (buffer-file-name buffer)))
+    (when filename
+      (let ((suffix (and (string-match "\.\\([^.]+\\)$" filename) (match-string 1 filename))))
+        (or (not suffix)
+            (and (member (downcase suffix) (list "cpp" "h" "cc" "c" "cp" "cxx" "m" "mm" "tcc" "txx" "moc" "hxx" "hh" "hpp")) t))))))
 
 (defun rtags-get-buffer (&optional name)
   (unless name
@@ -1058,7 +1134,7 @@ Can be used both for path and location."
                        :noerror noerror
                        :silent-query silent-query
                        "-U" loc
-                       "-K"
+                       (unless rtags-print-file-names-relative "-K")
                        (unless include-targets "--symbol-info-exclude-targets")
                        (unless include-targets "--symbol-info-exclude-references")
                        (when include-parents "--symbol-info-include-parents"))
@@ -1096,7 +1172,7 @@ Can be used both for path and location."
       (rtags-delete-rtags-windows)
       (rtags-location-stack-push)
       (switch-to-buffer dep-buffer)
-      (rtags-call-rc :path fn "--dependencies" fn args)
+      (rtags-call-rc :path fn "--dependencies" fn args (unless rtags-print-file-names-relative "-K"))
       (rtags-mode))))
 
 ;;;###autoload
@@ -1549,7 +1625,7 @@ Can be used both for path and location."
         (rtags-delete-rtags-windows)
         (rtags-location-stack-push)
         (switch-to-buffer class-hierarchy-buffer)
-        (rtags-call-rc :path path "-K" "--class-hierarchy" location)
+        (rtags-call-rc :path path "--class-hierarchy" location (unless rtags-print-file-names-relative "-K"))
         (if (> (point-max) (point-min))
             (rtags-mode)
           (message "No subclasses for: %s" location)
@@ -1918,8 +1994,12 @@ is true. References to references will be treated as references to the reference
             (fn (buffer-file-name)))
         (rtags-reparse-file-if-needed)
         (with-current-buffer (rtags-get-buffer)
-          (rtags-call-rc :path fn :path-filter pathfilter
-                         "-r" arg "-k" (unless rtags-sort-references-by-input "--no-sort-references-by-input"))
+          (rtags-call-rc :path fn
+                         :path-filter pathfilter
+                         "-r" arg
+                         "-k"
+                         (unless rtags-sort-references-by-input "--no-sort-references-by-input")
+                         (unless rtags-print-file-names-relative "-K"))
           (rtags-handle-results-buffer nil nil fn otherwindow))))))
 
 ;;;###autoload
@@ -1934,8 +2014,12 @@ is true. References to references will be treated as references to the reference
             (fn (buffer-file-name)))
         (rtags-reparse-file-if-needed)
         (with-current-buffer (rtags-get-buffer)
-          (rtags-call-rc :path fn "-r" arg "-e" :path-filter pathfilter
-                         (unless rtags-sort-references-by-input "--no-sort-references-by-input"))
+          (rtags-call-rc :path fn
+                         "-r" arg
+                         "-e"
+                         :path-filter pathfilter
+                         (unless rtags-sort-references-by-input "--no-sort-references-by-input")
+                         (unless rtags-print-file-names-relative "-K"))
           (rtags-handle-results-buffer nil nil fn otherwindow))))))
 
 ;;;###autoload
@@ -2655,12 +2739,6 @@ is true. References to references will be treated as references to the reference
           (delete-window (car windows))))
       (setq windows (cdr windows)))))
 
-(defcustom rtags-popup-results-buffer t
-  "Popup the *RTags* buffer when more than one search result is obtained."
-  :group 'rtags
-  :type 'boolean
-  :safe 'booleanp)
-
 (defun rtags-format-results ()
   "Create a bookmark for each match and format the buffer."
     (goto-char (point-max))
@@ -3252,7 +3330,8 @@ definition."
       (rtags-call-rc :path path switch tagname :path-filter filter
                      :path-filter-regex regexp-filter
                      (when rtags-wildcard-symbol-names "--wildcard-symbol-names")
-                     (when rtags-symbolnames-case-insensitive "-I"))
+                     (when rtags-symbolnames-case-insensitive "-I")
+                     (unless rtags-print-file-names-relative "-K"))
       ;; (setq-local rtags-current-file (or path default-directory))
       (rtags-handle-results-buffer nil nil path other-window))))
 
@@ -3373,32 +3452,9 @@ definition."
       (rtags-compile-file rtags-last-compiled-source)
     (message "No file to recompile")))
 
-(defcustom rtags-includes-func 'rtags-dummy-includes-func
-  "Function to return flags and include flags for rdm."
-  :group 'rtags
-  :type 'function)
-
-(defcustom rtags-rdm-includes ""
-  "Additional include paths."
-  :group 'rtags
-  :type 'string
-  :safe 'stringp)
-
 (defun rtags-dummy-includes-func()
   "Dummy function, returns `rtags-rdm-includes'."
   rtags-rdm-includes)
-
-(defcustom rtags-process-flags ""
-  "Flags for rdm."
-  :group 'rtags
-  :type 'string
-  :safe 'stringp)
-
-(defcustom rtags-rdm-process-use-pipe nil
-  "If t, use pipes to communicate with rdm."
-  :group 'rtags
-  :type 'boolean
-  :safe 'booleanp)
 
 (defvar rtags-rdm-process nil)
 
@@ -3959,12 +4015,10 @@ If `rtags-display-summary-as-tooltip' is t, a tooltip is displayed."
         (yas-expand-snippet snippet (point) (point) nil)))))
 
 
-(defcustom rtags-use-helm nil
-  "If t, use helm to display results when appropriate."
-  :group 'rtags
-  :type 'boolean
-  :safe 'booleanp)
-
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Helm integration
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (when (require 'helm nil t)
   (defun rtags-helm-candidates ()
     (let ((buf (get-buffer rtags-buffer-name))
