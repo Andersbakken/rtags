@@ -3404,6 +3404,7 @@ definition."
 
 ;;;###autoload
 (defun rtags-quit-rdm ()
+  "Quit the RTags process (rdm)."
   (interactive)
   (let ((rc (rtags-executable-find "rc")))
     (when rc
@@ -3431,8 +3432,8 @@ definition."
 
 ;;;###autoload
 (defun rtags-restart-process ()
-  (interactive)
   "Restart the RTags process (rdm)."
+  (interactive)
   (rtags-cancel-process)
   (rtags-start-process-unless-running))
 
@@ -3464,8 +3465,7 @@ definition."
       (and rtags-autostart-diagnostics (rtags-diagnostics))
       (set-process-query-on-exit-flag rtags-rdm-process nil)
       (set-process-sentinel rtags-rdm-process 'rtags-sentinel)))))
-
-(defalias 'rtags-start-process-maybe 'rtags-start-process-unless-running)
+(define-obsolete-function-alias 'rtags-start-process-maybe 'rtags-start-process-unless-running)
 
 (defun rtags-sentinel (process event)
   "Watch the activity of RTags process (rdm)."

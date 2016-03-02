@@ -430,7 +430,23 @@ $ rc --follow-location Job.cpp:20:10
 * Elisp
 There are lots of interactive functions to call:
 
-#+BEGIN_SRC sh
+#+BEGIN_SRC emacs-lisp
+(rtags-start-process-unless-running)
+#+END_SRC
+Start the =rdm= process unless the process is already running. You may create hook to
+automatically call this function upon entering, e.g. c-mode or c++mode.
+For example:
+#+BEGIN_SRC emacs-lisp
+(add-hook 'c-mode-common-hook 'rtags-start-process-unless-running)
+(add-hook 'c++-mode-common-hook 'rtags-start-process-unless-running)
+#+END_SRC
+
+#+begin_src emacs-lisp
+(rtags-restart-process)
+#+end_src
+Restart the =rdm= process.
+
+#+BEGIN_SRC emacs-lisp
 (rtags-find-symbol-at-point)
 #+END_SRC
 
@@ -444,13 +460,13 @@ file, limit to the narrowed region. This prefix argument is the same
 for: =rtags-find-references-at-point=, =rtags-find-symbol=,
 =rtags-find-references=
 
-#+BEGIN_SRC sh
+#+BEGIN_SRC emacs-lisp
 (rtags-find-references-at-point)
 #+END_SRC
 Find all references to symbol under cursor. If symbol is itself a
 reference it will find all references to the referenced symbol
 
-#+BEGIN_SRC sh
+#+BEGIN_SRC emacs-lisp
 (rtags-find-symbol)
 #+END_SRC
 Prompt for name of symbol to go to. Imagine the following code:
@@ -730,19 +746,19 @@ to work.
  following:
 ...TODO...
 * RTags Flycheck integration
-To turn on RTags Flycheck support you need to load the `flycheck-rtags` package.
-#+begin_src emacs-lisp
+To turn on RTags Flycheck support you need to load the =flycheck-rtags= package.
+#+BEGIN_SRC emacs-lisp
 (require 'flycheck-rtags)
-#+end_src
+#+END_SRC
 ** Optional
 You may explicitly select the RTags Flycheck checker for some major modes, it
 will than be the preferred syntax checker for the major mode.
-#+begin_src emacs-lisp
+#+BEGIN_SRC emacs-lisp
 (defun my-flycheck-rtags-setup ()
   (flycheck-select-checker 'rtags))
 (add-hook 'c-mode-common-hook 'my-flycheck-rtags-setup)
 (add-hook 'c++-mode-common-hook 'my-flycheck-rtags-setup)
-#+end_src
+#+END_SRC
 
 * Videos
 Here are some videos demonstrating how to use RTags with Emacs though
