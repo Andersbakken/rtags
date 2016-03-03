@@ -79,7 +79,10 @@ Maximum wait time is: (* company-rtags-max-wait company-async-wait)"
         (if (and company-rtags-begin-after-member-access
                  (save-excursion
                    (forward-char (- (length symbol)))
-                   (looking-back "\\.\\|->\\|::" (- (point) 2))))
+                   (cond ((looking-back "\\." (1- (point))) 'company-rtags-dot)
+                         ((looking-back "\\->" (- (point) 2)) 'company-rtags-arrow)
+                         ((looking-back "\\::" (- (point) 2)) 'company-rtags-colons)
+                         (t nil))))
             (cons symbol t)
           symbol)
       'stop)))
