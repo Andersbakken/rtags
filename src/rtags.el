@@ -632,7 +632,8 @@ to case differences."
 
 (defun rtags-reset-bookmarks ()
   (setq rtags-buffer-bookmarks 0)
-  (mapcar (lambda (bookmark) (when (string-match "^RTags_" bookmark) (bookmark-delete bookmark))) (bookmark-all-names)))
+  (let ((bookmark-save-flag t))
+    (mapcar (lambda (bookmark) (when (string-match "^RTags_" bookmark) (bookmark-delete bookmark))) (bookmark-all-names))))
 
 ;;;###autoload
 (defun rtags-next-match () (interactive) (rtags-next-prev-match 1 nil))
@@ -1410,7 +1411,8 @@ Can be used both for path and location."
          (buffer (and rtags-use-bookmarks (get-file-buffer (car components))))
          (bookmark-idx
           (when buffer
-            (let (deactivate-mark)
+            (let ((deactivate-mark)
+                  (bookmark-save-flag t))
               (with-current-buffer buffer
                 (save-restriction
                   (widen)
