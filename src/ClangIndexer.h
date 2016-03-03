@@ -143,7 +143,20 @@ private:
     };
     Symbol findSymbol(const Location &location, FindResult *result) const;
 
-    Map<Location, Map<String, List<Location> > > mMacroTokens;
+    struct MacroLocationData {
+        MacroLocationData()
+            : argument(-1)
+        {
+        }
+
+        int argument;
+        List<Location> locations;
+    };
+    struct MacroData {
+        List<String> arguments;
+        Map<String, MacroLocationData> data;
+    };
+    Map<Location, MacroData> mMacroTokens;
 
     Hash<uint32_t, std::shared_ptr<Unit> > mUnits;
 

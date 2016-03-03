@@ -917,16 +917,16 @@ bool ClangIndexer::handleReference(const CXCursor &cursor, CXCursorKind kind,
                         auto mit = mMacroTokens.find(*it->second.begin());
                         if (mit != mMacroTokens.end()) {
                             const String id = RTags::eatString(clang_getCursorSpelling(cursor));
-                            auto idit = mit->second.find(id);
-                            if (idit != mit->second.end()) {
-                                List<Location> &locs = idit->second;
+                            auto idit = mit->second.data.find(id);
+                            if (idit != mit->second.data.end()) {
+                                List<Location> &locs = idit->second.locations;
                                 assert(!locs.isEmpty());
                                 location = locs.front();
                                 if (locs.size() == 1) {
-                                    if (mit->second.size() == 1) {
+                                    if (mit->second.data.size() == 1) {
                                         mMacroTokens.erase(mit);
                                     } else {
-                                        mit->second.erase(idit);
+                                        mit->second.data.erase(idit);
                                     }
                                 } else {
                                     locs.remove(0, 1);
@@ -1240,13 +1240,45 @@ bool ClangIndexer::handleCursor(const CXCursor &cursor, CXCursorKind kind, const
         CXToken *tokens = 0;
         unsigned numTokens = 0;
         clang_tokenize(mClangUnit, range, &tokens, &numTokens);
-        Map<String, List<Location> > &macroTokens = mMacroTokens[location];
-        for (size_t i=0; i<numTokens; ++i) {
-            if (clang_getTokenKind(tokens[i]) == CXToken_Identifier) {
-                List<Location> &locs = macroTokens[RTags::eatString(clang_getTokenSpelling(mClangUnit, tokens[i]))];
-                locs.append(createLocation(clang_getTokenLocation(mClangUnit, tokens[i])));
+        MacroData &macroData = mMacroTokens[location];
+        enum {
+            Unset,
+            GettingArgs,
+            ArgsDone
+        } macroState = Unset;
+        MacroLocationData *last = 0;
+        int lastKind = -1;
+        for (size_t i=1; i<numTokens; ++i) {
+            const CXTokenKind kind = clang_getTokenKind(tokens[i]);
+            // error() << i << kind << macroState << RTags::eatString(clang_getTokenSpelling(mClangUnit, tokens[i]));
+            if (macroState == Unset) {
+                if (kind == CXToken_Punctuation) {
+                    const CXStringScope scope(clang_getTokenSpelling(mClangUnit, tokens[i]));
+                    if (!strcmp(scope.data(), "("))
+                        macroState = GettingArgs;
+                }
+                if (macroState == Unset)
+                    macroState = ArgsDone;
             }
+            // error() << i << clang_getTokenKind(tokens[i])
+            //         << RTags::eatString(clang_getTokenSpelling(mClangUnit, tokens[i]));
+            if (kind == CXToken_Identifier) {
+                const String spelling = RTags::eatString(clang_getTokenSpelling(mClangUnit, tokens[i]));
+                if (macroState == GettingArgs) {
+                    macroData.arguments.append(spelling);
+                } else {
+                    last = &macroData.data[spelling];
+                    List<Location> &locs = last->locations;
+                    locs.append(createLocation(clang_getTokenLocation(mClangUnit, tokens[i])));
+                }
+            } else if (macroState == GettingArgs && kind == CXToken_Punctuation) {
+                const CXStringScope scope(clang_getTokenSpelling(mClangUnit, tokens[i]));
+                if (!strcmp(scope.data(), ")"))
+                    macroState = ArgsDone;
+            }
+            lastKind = kind;
         }
+        error() << macroData.arguments << macroData.data.keys();
 
         clang_disposeTokens(mClangUnit, tokens, numTokens);
         c.definition = 1;
