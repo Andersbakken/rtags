@@ -79,7 +79,7 @@ void CompletionThread::run()
                 for (Completions *completion = cache->completionsList.first(); completion; completion = completion->next) {
                     out << "    " << completion->location.toString() << "\n";
                     for (const auto &c : completion->candidates) {
-                        out << "        " << c.completion << c.signature << c.priority << c.distance
+                        out << "        " << ('"' + c.completion + '"') << ('+' + c.signature + '"') << c.priority << c.distance
                             << RTags::eatString(clang_getCursorKindSpelling(c.cursorKind)) << "\n";
                     }
                 }
