@@ -961,7 +961,7 @@ Can be used both for path and location."
               (default-directory (push (concat "--current-file=" (rtags-untrampify default-directory)) arguments))
               (t nil))
 
-        (when (not (string= "" rtags-socket-file))
+        (when (> (length rtags-socket-file) 0)
           (push (concat "-n" (expand-file-name rtags-socket-file)) arguments))
 
         (when rtags-rc-log-enabled
