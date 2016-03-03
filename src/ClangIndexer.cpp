@@ -1247,7 +1247,7 @@ bool ClangIndexer::handleCursor(const CXCursor &cursor, CXCursorKind kind, const
             ArgsDone
         } macroState = Unset;
         MacroLocationData *last = 0;
-        int lastKind = -1;
+        bool lastWasHashHash = false;
         for (size_t i=1; i<numTokens; ++i) {
             const CXTokenKind kind = clang_getTokenKind(tokens[i]);
             // error() << i << kind << macroState << RTags::eatString(clang_getTokenSpelling(mClangUnit, tokens[i]));
@@ -1262,23 +1262,45 @@ bool ClangIndexer::handleCursor(const CXCursor &cursor, CXCursorKind kind, const
             }
             // error() << i << clang_getTokenKind(tokens[i])
             //         << RTags::eatString(clang_getTokenSpelling(mClangUnit, tokens[i]));
+            bool isHashHash = false;
             if (kind == CXToken_Identifier) {
                 const String spelling = RTags::eatString(clang_getTokenSpelling(mClangUnit, tokens[i]));
                 if (macroState == GettingArgs) {
                     macroData.arguments.append(spelling);
                 } else {
-                    last = &macroData.data[spelling];
-                    List<Location> &locs = last->locations;
-                    locs.append(createLocation(clang_getTokenLocation(mClangUnit, tokens[i])));
+                    if (!lastWasHashHash) {
+                        last = &macroData.data[spelling];
+
+                        List<Location> &locs = last->locations;
+                        locs.append(createLocation(clang_getTokenLocation(mClangUnit, tokens[i])));
+                    }
+                    if (last) {
+                        const size_t idx = macroData.arguments.indexOf(spelling);
+                        if (idx != String::npos) {
+                            last->arguments.insert(idx);
+                        }
+                    }
                 }
             } else if (macroState == GettingArgs && kind == CXToken_Punctuation) {
                 const CXStringScope scope(clang_getTokenSpelling(mClangUnit, tokens[i]));
                 if (!strcmp(scope.data(), ")"))
                     macroState = ArgsDone;
+            } else if (kind == CXToken_Punctuation) {
+                const CXStringScope scope(clang_getTokenSpelling(mClangUnit, tokens[i]));
+                if (!strcmp(scope.data(), "##")) {
+                    isHashHash = true;
+                } else {
+                    last = 0;
+                }
+            } else {
+                last = 0;
             }
-            lastKind = kind;
+            lastWasHashHash = isHashHash;
         }
-        error() << macroData.arguments << macroData.data.keys();
+        // error() << macroData.arguments;
+        // for (const auto &d : macroData.data) {
+        //     error() << d.first << d.second.locations << d.second.arguments;
+        // }
 
         clang_disposeTokens(mClangUnit, tokens, numTokens);
         c.definition = 1;

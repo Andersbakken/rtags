@@ -144,12 +144,7 @@ private:
     Symbol findSymbol(const Location &location, FindResult *result) const;
 
     struct MacroLocationData {
-        MacroLocationData()
-            : argument(-1)
-        {
-        }
-
-        int argument;
+        Set<size_t> arguments;
         List<Location> locations;
     };
     struct MacroData {
