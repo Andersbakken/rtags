@@ -194,9 +194,7 @@ Maximum wait time is: (* company-rtags-max-wait company-async-wait)"
      (if (not company-rtags-use-async)
          (company-rtags--candidates arg)
        (rtags-prepare-completions)
-       (cons :async
-             (lambda (cb)
-               (rtags-company-update-completions cb)))))
+       (cons :async 'rtags-company-update-completions)))
     (meta
      (company-rtags--meta arg nil))
     (sorted t)
