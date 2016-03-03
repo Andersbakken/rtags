@@ -68,6 +68,7 @@ Maximum wait time is: (* company-rtags-max-wait company-async-wait)"
   :type 'boolean)
 
 (defvar rtags-company-last-completion-location nil)
+(defvar rtags-company-last-completion-prefix-type nil)
 (defvar rtags-company-last-completion-callback nil)
 (defvar rtags-company-last-completion-prefix nil)
 (defvar rtags-company-completions-maxwidth nil)
@@ -98,10 +99,9 @@ Maximum wait time is: (* company-rtags-max-wait company-async-wait)"
        (or (not prefix)
            (string-prefix-p prefix (car cand)))
        (not (string= (nth 2 cand) "NotImplemented"))
-       (let ((prefix-type (company-rtags--prefix-type)))
-         (or (not prefix-type)
-             (eq prefix-type 'company-rtags-colons)
-             (not (string= (nth 2 cand) "EnumConstantDecl"))))))
+       (or (not rtags-company-last-completion-prefix-type)
+           (eq rtags-company-last-completion-prefix-type 'company-rtags-colons)
+           (not (string= (nth 2 cand) "EnumConstantDecl")))))
 
 (defun company-rtags--make-candidate (candidate)
   (let* ((text (copy-sequence (nth 0 candidate)))
@@ -154,10 +154,16 @@ Maximum wait time is: (* company-rtags-max-wait company-async-wait)"
 (defun rtags-company-update-completions (cb)
   ;; (setq rtags-company-last-completion-prefix prefix)
   (setq rtags-company-last-completion-callback cb)
-  (rtags-update-completions)
-  (let ((pos (rtags-calculate-completion-point)))
-    (setq rtags-company-last-completion-location (and pos (rtags-current-location pos t))))
-  (rtags-company-diagnostics-hook))
+  (let* ((bufname (and rtags-company-last-completion-location
+                       (string-match "^\\(.*\\):[0-9]+:[0-9]+:$" rtags-company-last-completion-location)
+                       (match-string 1 rtags-company-last-completion-location)))
+         (buf (and bufname (rtags-really-find-buffer bufname))))
+    (when buf
+      (with-current-buffer buf
+        (save-excursion
+          (rtags-goto-location rtags-company-last-completion-location)
+          (rtags-update-completions)
+          (rtags-company-diagnostics-hook))))))
 
 (defun rtags-company-diagnostics-hook ()
   (when (and rtags-company-last-completion-callback
@@ -169,13 +175,22 @@ Maximum wait time is: (* company-rtags-max-wait company-async-wait)"
         (when (company-rtags--valid-candidate rtags-company-last-completion-prefix (car candidates))
           (push (company-rtags--make-candidate (car candidates)) results))
         (setq candidates (cdr candidates)))
+      ;; (message "got candidates %d/%d %s %s %s "
+      ;;          (length results)
+      ;;          (length (cadr rtags-last-completions))
+      ;;          rtags-company-last-completion-prefix
+      ;;          (cond ((eq rtags-company-last-completion-prefix-type 'company-rtags-dot) "dot")
+      ;;                ((eq rtags-company-last-completion-prefix-type 'company-rtags-colons) "colons")
+      ;;                ((eq rtags-company-last-completion-prefix-type 'company-rtags-arrow) "arrow")
+      ;;                (t "nil"))
+      ;;          (buffer-name))
       (funcall rtags-company-last-completion-callback (reverse results)))))
+
 (add-hook 'rtags-diagnostics-hook 'rtags-company-diagnostics-hook)
 
 (defun company-rtags (command &optional arg &rest ignored)
   "`company-mode' completion back-end for RTags."
   (interactive (list 'interactive))
-  (setq rtags-company-last-completion-prefix arg)
   (case command
     (init
      (setq rtags-company-last-completion-callback nil)
@@ -190,11 +205,17 @@ Maximum wait time is: (* company-rtags-max-wait company-async-wait)"
           (rtags-is-indexed)
           (company-rtags--prefix)))
     (candidates
-     (rtags-company-completions-calculate-maxwidth)
-     (if (not company-rtags-use-async)
-         (company-rtags--candidates arg)
-       (rtags-prepare-completions)
-       (cons :async 'rtags-company-update-completions)))
+     (let ((pos (rtags-calculate-completion-point)))
+       (when pos
+         (setq rtags-company-last-completion-prefix (if (> (length arg) 0) arg))
+         (setq rtags-company-last-completion-prefix-type (company-rtags--prefix-type))
+         (setq rtags-company-last-completion-location (rtags-current-location pos t))
+         (setq rtags-current-prefix-type (company-rtags--prefix-type))
+         (rtags-company-completions-calculate-maxwidth)
+         (if (not company-rtags-use-async)
+             (company-rtags--candidates arg)
+           (rtags-prepare-completions)
+           (cons :async 'rtags-company-update-completions)))))
     (meta
      (company-rtags--meta arg nil))
     (sorted t)
