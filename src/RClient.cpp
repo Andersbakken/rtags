@@ -163,6 +163,7 @@ struct Option opts[] = {
     { RClient::NoColor, "no-color", 0, no_argument, "Don't colorize context." },
     { RClient::Wait, "wait", 0, no_argument, "Wait for reindexing to finish." },
     { RClient::Autotest, "autotest", 0, no_argument, "Turn on behaviors appropriate for running autotests." },
+    { RClient::CodeCompleteIncludeMacros, "code-complete-include-macros", 0, no_argument, "Include macros in code completion results." },
     { RClient::None, 0, 0, 0, 0 }
 };
 
@@ -599,6 +600,9 @@ RClient::ParseStatus RClient::parse(int &argc, char **argv)
             break;
         case Wait:
             mQueryFlags |= QueryMessage::Wait;
+            break;
+        case CodeCompleteIncludeMacros:
+            mQueryFlags |= QueryMessage::CodeCompleteIncludeMacros;
             break;
         case Autotest:
             mFlags |= Flag_Autotest;

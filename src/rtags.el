@@ -3473,6 +3473,10 @@ definition."
     (when (memq status '(exit signal closed failed))
       (message "rtags process (rdm) stopped..."))))
 
+(defun rtags-completion-include-macros ()
+  (unless (looking-back "\\.\\|->\\|::" (- (point) 2))
+    "--code-complete-include-macros"))
+
 (defconst rtags-symbol-chars "ABCDEFGHIKLMNOPQRSTUVWXYZabcdefghiklmnopqrstuvwxyz0123456789_")
 (defun rtags-calculate-completion-point ()
   (save-excursion
@@ -3586,7 +3590,7 @@ BUFFER : The buffer to be checked and reparsed, if it's nil, use current buffer.
                    (unsaved (and (buffer-modified-p) (current-buffer)))
                    (location (rtags-current-location pos)))
                (with-temp-buffer
-                 (rtags-call-rc :path path :output 0 :unsaved unsaved "--prepare-code-complete-at" location :noerror t)))
+                 (rtags-call-rc :path path :output 0 :noerror t :unsaved unsaved "--prepare-code-complete-at" location (rtags-completion-include-macros))))
              t)))))
 
 ;; returns t if completions are good, 1 if completions are being
@@ -3611,9 +3615,8 @@ BUFFER : The buffer to be checked and reparsed, if it's nil, use current buffer.
         (let ((path (buffer-file-name))
               (unsaved (and (buffer-modified-p) (current-buffer))))
           (with-temp-buffer
-            (rtags-call-rc :path path :output 0 :unsaved unsaved "--code-complete-at" location "--elisp" :noerror t))))
+            (rtags-call-rc :path path :noerror t :output 0 :unsaved unsaved "--code-complete-at" location "--elisp" (rtags-completion-include-macros)))))
       ret)))
-
 
 (defun rtags-get-summary-text (&optional max-no-lines)
   "Return a text describing the item at point.

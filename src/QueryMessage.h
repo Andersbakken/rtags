@@ -108,7 +108,8 @@ public:
         ContainingFunctionLocation = (1ull << 32),
         DumpCheckIncludes = (1ull << 33),
         CurrentProjectOnly = (1ull << 34),
-        Wait = (1ull << 35)
+        Wait = (1ull << 35),
+        CodeCompleteIncludeMacros = (1ull << 36)
     };
 
     QueryMessage(Type type = Invalid);

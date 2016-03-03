@@ -1864,6 +1864,8 @@ void Server::codeCompleteAt(const std::shared_ptr<QueryMessage> &query, const st
         flags |= CompletionThread::Refresh;
     if (query->flags() & QueryMessage::Elisp)
         flags |= CompletionThread::Elisp;
+    if (query->flags() & QueryMessage::CodeCompleteIncludeMacros)
+        flags |= CompletionThread::CodeCompleteIncludeMacros;
     std::shared_ptr<Connection> c = conn;
     if (!(query->flags() & QueryMessage::SynchronousCompletions)) {
         c->finish();
@@ -2078,5 +2080,6 @@ bool Server::runTests()
         }
         error() << passes << "passes" << failures << "failures" << (tests.size() - failures - passes) << "invalid";
     }
+
     return ret;
 }

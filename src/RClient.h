@@ -42,6 +42,7 @@ public:
         ClassHierarchy,
         Clear,
         CodeCompleteAt,
+        CodeCompleteIncludeMacros,
         CompilationFlagsOnly,
         CompilationFlagsSplitLine,
         Compile,

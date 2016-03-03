@@ -309,9 +309,9 @@ void CompletionThread::process(Request *request)
     }
 
     sw.restart();
-    const unsigned int completionFlags = (CXCodeComplete_IncludeMacros
-                                          |CXCodeComplete_IncludeCodePatterns
-                                          |CXCodeComplete_IncludeBriefComments);
+    unsigned int completionFlags = (CXCodeComplete_IncludeCodePatterns|CXCodeComplete_IncludeBriefComments);
+    if (request->flags & CodeCompleteIncludeMacros)
+        completionFlags |= CXCodeComplete_IncludeMacros;
 
     CXCodeCompleteResults *results = clang_codeCompleteAt(cache->translationUnit, sourceFile.constData(),
                                                           request->location.line(), request->location.column(),

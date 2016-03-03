@@ -40,7 +40,8 @@ public:
     enum Flag {
         None = 0x0,
         Refresh = 0x1,
-        Elisp = 0x2
+        Elisp = 0x2,
+        CodeCompleteIncludeMacros = 0x4
     };
     void completeAt(const Source &source, const Location &location, Flags<Flag> flags,
                     const String &unsaved, const std::shared_ptr<Connection> &conn);
