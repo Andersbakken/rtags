@@ -368,6 +368,9 @@ can also be socket acivated.
 
    [Socket]
    ListenStream=$HOME/.rdm
+   
+   [Install]
+   WantedBy=multi-user.target
    #+END_EXAMPLE
 
  2. Add the following to =~/.config/systemd/user/rdm.service=
