@@ -1883,6 +1883,8 @@ int ClangIndexer::symbolLength(CXCursorKind kind, const CXCursor &cursor)
     // We end up not getting a spelling for the cursor
 
     switch (kind) {
+    case CXCursor_EnumDecl:
+        return 4;
     case CXCursor_ClassDecl:
     case CXCursor_UnionDecl:
         return 5;
