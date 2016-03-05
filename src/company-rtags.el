@@ -213,7 +213,6 @@ Maximum wait time is: (* company-rtags-max-wait company-async-wait)"
          (setq rtags-company-last-completion-prefix (if (> (length arg) 0) arg))
          (setq rtags-company-last-completion-prefix-type (company-rtags--prefix-type))
          (setq rtags-company-last-completion-location (rtags-current-location pos t))
-         (setq rtags-current-prefix-type (company-rtags--prefix-type))
          (rtags-company-completions-calculate-maxwidth)
          (if (not company-rtags-use-async)
              (company-rtags--candidates arg)
