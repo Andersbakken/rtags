@@ -2949,7 +2949,7 @@ The option OTHER-WINDOW is only applicable if RTags is configured not to show th
           ((rtags-is-class-hierarchy-buffer)
            (save-excursion
              (goto-char (point-at-bol))
-             (let ((loc (and (looking-at "[^/]*\\([^ \t]+\\)") (match-string 1))))
+             (let ((loc (and (looking-at "^\\(\\s-*\\w+\\s-+\\)+\\([^ \t]+\\)") (match-string 2))))
                (when loc
                  (rtags-goto-location loc nil other-window)))))
           ((string= (buffer-name) "*RTags Dependencies*")
