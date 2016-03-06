@@ -155,18 +155,9 @@ Maximum wait time is: (* company-rtags-max-wait company-async-wait)"
   (setq rtags-company-completions-maxwidth (max 10 (- (window-width) (- (rtags-calculate-completion-point) (point-at-bol))))))
 
 (defun rtags-company-update-completions (cb)
-  ;; (setq rtags-company-last-completion-prefix prefix)
   (setq rtags-company-last-completion-callback cb)
-  (let* ((bufname (and rtags-company-last-completion-location
-                       (string-match "^\\(.*\\):[0-9]+:[0-9]+:$" rtags-company-last-completion-location)
-                       (match-string 1 rtags-company-last-completion-location)))
-         (buf (and bufname (rtags-really-find-buffer bufname))))
-    (when buf
-      (with-current-buffer buf
-        (save-excursion
-          (rtags-goto-location rtags-company-last-completion-location)
-          (rtags-update-completions)
-          (rtags-company-diagnostics-hook))))))
+  (rtags-update-completions nil rtags-company-last-completion-location)
+  (rtags-company-diagnostics-hook))
 
 (defun rtags-company-diagnostics-hook ()
   (when (and rtags-company-last-completion-callback

@@ -3653,14 +3653,14 @@ BUFFER : The buffer to be checked and reparsed, if it's nil, use current buffer.
 ;; updated and nil if completion-point is invalid or something like
 ;; that
 ;;;###autoload
-(defun rtags-update-completions (&optional force)
+(defun rtags-update-completions (&optional force location)
   (interactive)
   (when (rtags-code-complete-enabled)
-    (let* ((pos (rtags-calculate-completion-point))
-           (location (and pos (rtags-current-location pos t)))
-           (ret))
-      (when (cond ((null pos) nil)
-                  ((null location) nil)
+    (unless location
+      (let ((pos (rtags-calculate-completion-point)))
+        (setq location (and pos (rtags-current-location pos t)))))
+    (let ((ret))
+      (when (cond ((null location) nil)
                   (force)
                   ((not rtags-last-completions))
                   ((and location (string= (car rtags-last-completions) location))
