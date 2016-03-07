@@ -157,7 +157,8 @@
   :safe 'booleanp)
 
 (defcustom rtags-spellcheck-enabled t
-  "Whether RTags does syntax checking with overlays etc to mark errors, warnings and fixups."
+  "Whether RTags does syntax checking with overlays etc to mark errors,
+warnings and fixups."
   :group 'rtags
   :type 'boolean
   :safe 'booleanp)
@@ -169,7 +170,8 @@
   :safe 'booleanp)
 
 (defcustom rtags-sort-references-by-input t
-  "Whether RTags sorts the references based on the input to `rtags-find-references'."
+  "Whether RTags sorts the references based on the input to
+`rtags-find-references'."
   :group 'rtags
   :type 'boolean
   :safe 'booleanp)
@@ -181,7 +183,8 @@
   :safe 'booleanp)
 
 (defcustom rtags-completions-timer-interval 1
-  "Interval for completions timer. nil (Unset) means, don't preemptively prepare completions."
+  "Interval for completions timer. nil (Unset) means, don't preemptively
+prepare completions."
   :group 'rtags
   :type '(choice (const :tag "Unset" nil) number)
   :safe 'numberp)
@@ -211,7 +214,8 @@
   :safe 'stringp)
 
 (defcustom rtags-track-container nil
-  "When on continually update current container (function/class/namespace) on intervals."
+  "When on continually update current container (function/class/namespace)
+on intervals."
   :group 'rtags
   :type 'boolean
   :safe 'booleanp)
@@ -367,7 +371,8 @@ return t if RTags is allowed to modify this file."
   :safe 'booleanp)
 
 (defcustom rtags-find-file-prefer-exact-match t
-  "Jump directly to files that exactly match the filename for `rtags-find-file'."
+  "Jump directly to files that exactly match the filename for
+`rtags-find-file'."
   :group 'rtags
   :type 'boolean
   :safe 'booleanp)
@@ -386,11 +391,11 @@ return t if RTags is allowed to modify this file."
   "Tells the way current buffer follows sandbox-id in case
 match fails at a query to rc/rdm backend.
 
-nil - perform current query without updating diagnostics buffer.
+`nil' perform current query without updating diagnostics buffer.
       Diagnostics will be away from current context.
-ask - ask the user if sandbox should be changed. After 'yes',
+`ask' ask the user if sandbox should be changed. After 'yes',
       perform the command once more.
-t   - change the sandbox and do the command.
+`t'   change the sandbox and do the command.
 
 Note: if *RTags Diagnostics* is not running, then the 'match check'
       is not performed, because sandbox tracking is not needed then.
@@ -436,11 +441,11 @@ Note: it is recommended to run each sandbox is separate emacs process."
   :type 'boolean
   :safe 'booleanp)
 
-(defcustom rtags-print-file-names-relative t
-  "Print file names relative to the project root directory.
+(defcustom rtags-print-filenames-relative t
+  "Print filenames relative to the project root directory.
 
-If non-nil print file names relative to the project root directory,
-otherwise the absolute file name.
+If non-nil, print filenames relative to the project root directory,
+otherwise absolute.
 
 Effected interactive functions:
  - `rtags-find-virtuals-at-point'
@@ -519,7 +524,9 @@ Effected interactive functions:
     (when filename
       (let ((suffix (and (string-match "\.\\([^.]+\\)$" filename) (match-string 1 filename))))
         (or (not suffix)
-            (and (member (downcase suffix) (list "cpp" "h" "cc" "c" "cp" "cxx" "m" "mm" "tcc" "txx" "moc" "hxx" "hh" "hpp")) t))))))
+            (and (member (downcase suffix)
+                         (list "cpp" "h" "cc" "c" "cp" "cxx" "m" "mm" "tcc" "txx" "moc" "hxx" "hh" "hpp"))
+                 t))))))
 
 (defun rtags-get-buffer (&optional name)
   (unless name
@@ -709,7 +716,9 @@ to case differences."
 (defun rtags-reset-bookmarks ()
   (setq rtags-buffer-bookmarks 0)
   (let ((bookmark-save-flag t))
-    (mapcar (lambda (bookmark) (when (string-match "^RTags_" bookmark) (bookmark-delete bookmark))) (bookmark-all-names))))
+    (mapcar (lambda (bookmark)
+              (when (string-match "^RTags_" bookmark) (bookmark-delete bookmark)))
+            (bookmark-all-names))))
 
 ;;;###autoload
 (defun rtags-next-match () (interactive) (rtags-next-prev-match 1 nil))
@@ -888,8 +897,8 @@ Function based on org-babel-tramp-handle-call-process-region"
 
 (defun rtags-trampify (absolute-location)
   "if absolute-location is tramped, then return it.
-Otherwise if default-directory is tramp one, then uses it to convert absolute-location to remote.
-absolute-location can of course be a path"
+Otherwise if default-directory is tramp one, then uses it to convert
+absolute-location to remote. absolute-location can of course be a path"
   (if (or (not (tramp-tramp-file-p default-directory))
           (tramp-tramp-file-p absolute-location))
       absolute-location
@@ -898,8 +907,8 @@ absolute-location can of course be a path"
       (apply 'tramp-make-tramp-file-name (append location-vec nil)))))
 
 (defun rtags-untrampify (location)
-  "gets path segment from tramp path. For non-tramp location just return it non-modified.
-Can be used both for path and location."
+  "Gets path segment from tramp path. For non-tramp location just return
+it non-modified. Can be used both for path and location."
   (if (tramp-tramp-file-p location)
       (tramp-file-name-localname
        (tramp-dissect-file-name location))
@@ -1036,6 +1045,9 @@ Can be used both for path and location."
 
 ;;;###autoload
 (defun rtags-preprocess-file (&optional buffer)
+  "Preprocess selected region or buffer.
+If optional BUFFER is given, use BUFFER instead of `current-buffer'.
+It uses the stored compile command from the RTags database for preprocessing."
   (interactive)
   (when (or (not (rtags-called-interactively-p)) (rtags-sandbox-id-matches))
     (unless buffer (setq buffer (current-buffer)))
@@ -1073,6 +1085,8 @@ Can be used both for path and location."
 
 ;;;###autoload
 (defun rtags-set-current-project ()
+  "Set active project.
+Uses `completing-read' to ask for the project."
   (interactive)
   (let ((projects nil)
         (project nil)
@@ -1134,7 +1148,7 @@ Can be used both for path and location."
                        :noerror noerror
                        :silent-query silent-query
                        "-U" loc
-                       (unless rtags-print-file-names-relative "-K")
+                       (unless rtags-print-filenames-relative "-K")
                        (unless include-targets "--symbol-info-exclude-targets")
                        (unless include-targets "--symbol-info-exclude-references")
                        (when include-parents "--symbol-info-include-parents"))
@@ -1146,6 +1160,7 @@ Can be used both for path and location."
 
 ;;;###autoload
 (defun rtags-print-symbol-info (&optional verbose)
+  "Print information about the symbol under cursor."
   (interactive "P")
   (message "%s" (rtags-symbol-info :include-parents verbose
                                    :include-targets verbose
@@ -1153,6 +1168,7 @@ Can be used both for path and location."
 
 ;;;###autoload
 (defun rtags-symbol-type ()
+  "Print symbol type under cursor."
   (interactive)
   (let* ((info (rtags-symbol-info-internal))
          (type (cdr (assoc 'type info))))
@@ -1162,17 +1178,34 @@ Can be used both for path and location."
         (message "RTags: type not found")))
     type))
 
+;; TODO: Can we allow multiple dependency selections, with helm it would be possible?
+;; TODO: Briefly describe the last two (depended-on tree-depends-on)..
 ;;;###autoload
 (defun rtags-print-dependencies (&optional prefix buffer)
+  "Print dependency information of the file in buffer.
+
+If optional PREFIX is given, a selection of what type of dependency
+information should be shown will be offered. Currently only one can
+be choosen.
+\"includes\"        - Print includes the file in buffer includes.
+\"included-by\"     - Print files which include the file in buffer.
+\"depends-on\"      - Print files the file in buffer depends on.
+\"depended-on\"     - ...
+\"tree-depends-on\" - ...
+
+If optional BUFFER is given print dependencies for file in BUFFER
+instead of file from `current-buffer'.
+"
   (interactive "P")
   (let ((dep-buffer (rtags-get-buffer))
         (fn (buffer-file-name buffer))
-        (args (and prefix (completing-read "Type: " (list "includes" "included-by" "depends-on" "depended-on" "tree-depends-on")))))
+        (args (and prefix
+                   (completing-read "Type: " '("includes" "included-by" "depends-on" "depended-on" "tree-depends-on")))))
     (when fn
       (rtags-delete-rtags-windows)
       (rtags-location-stack-push)
       (switch-to-buffer dep-buffer)
-      (rtags-call-rc :path fn "--dependencies" fn args (unless rtags-print-file-names-relative "-K"))
+      (rtags-call-rc :path fn "--dependencies" fn args (unless rtags-print-filenames-relative "-K"))
       (rtags-mode))))
 
 ;;;###autoload
@@ -1625,7 +1658,7 @@ Can be used both for path and location."
         (rtags-delete-rtags-windows)
         (rtags-location-stack-push)
         (switch-to-buffer class-hierarchy-buffer)
-        (rtags-call-rc :path path "--class-hierarchy" location (unless rtags-print-file-names-relative "-K"))
+        (rtags-call-rc :path path "--class-hierarchy" location (unless rtags-print-filenames-relative "-K"))
         (if (> (point-max) (point-min))
             (rtags-mode)
           (message "No subclasses for: %s" location)
@@ -1970,9 +2003,12 @@ If called with prefix, open first match in other window"
 ;;;###autoload
 (defun rtags-find-references-at-point (&optional prefix)
   "Find all references to the symbol under the cursor.
-If there's exactly one result jump directly to it. If there's more show a buffer
-with the different alternatives and jump to the first one if `rtags-jump-to-first-match'
-is true. References to references will be treated as references to the referenced symbol"
+
+If there's exactly one result jump directly to it, and if optional
+PREFIX is given jump to it in other window. If there's more show a
+buffer with the different alternatives and jump to the first one, if
+`rtags-jump-to-first-match' is true. References to references will be
+treated as references to the referenced symbol."
   (interactive "P")
   (let ((otherwindow (and prefix (listp prefix)))
         (pathfilter (and (numberp prefix) (buffer-file-name))))
@@ -1990,7 +2026,8 @@ is true. References to references will be treated as references to the reference
 
 ;;;###autoload
 (defun rtags-find-virtuals-at-point (&optional prefix)
-  "List all reimplentations of function under cursor. This includes both declarations and definitions"
+  "List all reimplentations of function under cursor.
+This includes both declarations and definitions."
   (interactive "P")
   (let ((otherwindow (and prefix (listp prefix)))
         (pathfilter (and (numberp prefix) (buffer-file-name))))
@@ -2006,7 +2043,7 @@ is true. References to references will be treated as references to the reference
                          "-r" arg
                          "-k"
                          (unless rtags-sort-references-by-input "--no-sort-references-by-input")
-                         (unless rtags-print-file-names-relative "-K"))
+                         (unless rtags-print-filenames-relative "-K"))
           (rtags-handle-results-buffer nil nil fn otherwindow))))))
 
 ;;;###autoload
@@ -2026,7 +2063,7 @@ is true. References to references will be treated as references to the reference
                          "-e"
                          :path-filter pathfilter
                          (unless rtags-sort-references-by-input "--no-sort-references-by-input")
-                         (unless rtags-print-file-names-relative "-K"))
+                         (unless rtags-print-filenames-relative "-K"))
           (rtags-handle-results-buffer nil nil fn otherwindow))))))
 
 ;;;###autoload
@@ -2209,7 +2246,8 @@ is true. References to references will be treated as references to the reference
   (maphash (lambda (filename errorlist)
              (while (and errorlist (listp errorlist))
                (delete-overlay (car errorlist))
-               (setq errorlist (cdr errorlist)))) rtags-overlays)
+               (setq errorlist (cdr errorlist))))
+           rtags-overlays)
   (setq rtags-overlays (make-hash-table :test 'equal)))
 
 (defun rtags-really-find-buffer (fn)
@@ -2782,10 +2820,12 @@ is true. References to references will be treated as references to the reference
     (rtags-mode))
 
 (defun rtags-handle-results-buffer (&optional noautojump quiet path other-window)
-  "Handle results from RTags. Should be called with the results buffer as current.
+  "Handle results from RTags. Should be called with the results buffer
+as current.
 
-The option OTHER-WINDOW is only applicable if RTags is configured not to show the results immediately. If non-nil, show the first match in the other window instead of the current one.
-"
+The option OTHER-WINDOW is only applicable if RTags is configured not to
+show the results immediately. If non-nil, show the first match in the
+other window instead of the current one."
   (rtags-reset-bookmarks)
   (set-text-properties (point-min) (point-max) nil)
   (when path
@@ -3338,7 +3378,7 @@ definition."
                      :path-filter-regex regexp-filter
                      (when rtags-wildcard-symbol-names "--wildcard-symbol-names")
                      (when rtags-symbolnames-case-insensitive "-I")
-                     (unless rtags-print-file-names-relative "-K"))
+                     (unless rtags-print-filenames-relative "-K"))
       ;; (setq-local rtags-current-file (or path default-directory))
       (rtags-handle-results-buffer nil nil path other-window))))
 
@@ -3545,19 +3585,11 @@ definition."
   (save-excursion
     (when (cond ((= (point) (point-at-eol)))
                 ((looking-at "[\\n A-Za-z0-9_]"))
-                ((looking-back "[\\n A-Za-z0-9_]") (backward-char 1) t)
+                ((looking-back "[\\n A-Za-z0-9_]" (backward-char 1) t))
                 (t nil))
       (when (= (skip-chars-backward " ") 0)
         (skip-chars-backward rtags-symbol-chars))
       (point))))
-;; (if (or (= (char-before) 46) ;; '.'
-;;         (= (char-before) 32) ;; ' '
-;;         (= (char-before) 59) ;; ';'
-;;         (= (char-before) 10) ;; '\n'
-;;         (and (= (char-before) 62) (= (char-before (1- (point))) 45)) ;; "->"
-;;         (and (= (char-before) 58) (= (char-before (1- (point))) 58))) ;; "::"
-;;     (point)))))
-
 
 ;;;###autoload
 (defun rtags-reparse-file (&optional buffer wait-reparsing)
@@ -3653,7 +3685,8 @@ BUFFER : The buffer to be checked and reparsed, if it's nil, use current buffer.
                    (unsaved (and (buffer-modified-p) (current-buffer)))
                    (location (rtags-current-location pos)))
                (with-temp-buffer
-                 (rtags-call-rc :path path :output 0 :noerror t :unsaved unsaved "--prepare-code-complete-at" location (rtags-completion-include-macros))))
+                 (rtags-call-rc :path path :output 0 :noerror t :unsaved unsaved
+                                "--prepare-code-complete-at" location (rtags-completion-include-macros))))
              t)))))
 
 ;; returns t if completions are good, 1 if completions are being
@@ -3678,7 +3711,8 @@ BUFFER : The buffer to be checked and reparsed, if it's nil, use current buffer.
         (let ((path (buffer-file-name))
               (unsaved (and (buffer-modified-p) (current-buffer))))
           (with-temp-buffer
-            (rtags-call-rc :path path :noerror t :output 0 :unsaved unsaved "--code-complete-at" location "--elisp" (rtags-completion-include-macros)))))
+            (rtags-call-rc :path path :noerror t :output 0 :unsaved unsaved
+                           "--code-complete-at" location "--elisp" (rtags-completion-include-macros)))))
       ret)))
 
 (defun rtags-get-summary-text (&optional max-no-lines)
@@ -3723,9 +3757,8 @@ Return nil if it can't get any info about the item."
 
 ;;;###autoload
 (defun rtags-display-summary (&optional hide-empty)
-  "Display a short text describing the item at point (see `rtags-get-summary-text' for
-details).
-
+  "Display a short text describing the item at point.
+See `rtags-get-summary-text' for details.
 If `rtags-display-summary-as-tooltip' is t, a tooltip is displayed."
   (interactive)
   (when (or (not (rtags-called-interactively-p)) (rtags-sandbox-id-matches))
@@ -3988,7 +4021,10 @@ If `rtags-display-summary-as-tooltip' is t, a tooltip is displayed."
 
 ;;;###autoload
 (defun rtags-create-doxygen-comment ()
-  "Creates doxygen comment for function at point Comment will be inserted before current line. It uses yasnippet to let the user enter missing field manually."
+  "Creates doxygen comment for function at point.
+
+Comment will be inserted before current line. It uses yasnippet to let
+the user enter missing field manually."
   (interactive)
   (when (or (not (rtags-called-interactively-p)) (rtags-sandbox-id-matches))
     (save-some-buffers) ;; it all kinda falls apart when buffers are unsaved
