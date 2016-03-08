@@ -442,7 +442,7 @@ void parseTranslationUnit(const Path &sourceFile, const List<String> &args,
         if (clangLine) {
             String arg = args.at(j);
             arg.replace("\"", "\\\"");
-            *clangLine += arg;
+            *clangLine += '"' + arg + '"';
             *clangLine += ' ';
         }
     }
