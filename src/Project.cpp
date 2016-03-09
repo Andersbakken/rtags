@@ -171,7 +171,7 @@ public:
     Hash<uint32_t, Set<uint32_t> > mModified;
 };
 
-static void loadDependencies(DataFile &file, Dependencies &dependencies)
+static bool loadDependencies(DataFile &file, Dependencies &dependencies)
 {
     int size;
     file >> size;
@@ -187,16 +187,21 @@ static void loadDependencies(DataFile &file, Dependencies &dependencies)
             uint32_t dependee;
             file >> dependee;
             DependencyNode *ee = dependencies[dependee];
-            assert(ee);
+            if (!ee) {
+                return false;
+            }
             for (int i=0; i<links; ++i) {
                 uint32_t dependent;
                 file >> dependent;
                 DependencyNode *ent = dependencies[dependent];
-                assert(ent);
+                if (!ent) {
+                    return false;
+                }
                 ent->include(ee);
             }
         }
     }
+    return true;
 }
 
 static void saveDependencies(DataFile &file, const Dependencies &dependencies)
@@ -303,7 +308,10 @@ bool Project::init()
         if (!file.error().isEmpty())
             error("Restore error %s: %s", mPath.constData(), file.error().constData());
         Path::rm(mProjectFilePath);
-        for (const auto &source : mSources) {
+        Sources sources;
+        std::swap(sources, mSources);
+        assert(mSources.empty());
+        for (const auto &source : sources) {
             index(std::shared_ptr<IndexerJob>(new IndexerJob(source.second, IndexerJob::Compile, shared_from_this())));
         }
         return true;
@@ -319,7 +327,20 @@ bool Project::init()
     }
     if (!mCompilationDatabaseInfo.dir.isEmpty())
         watch(mCompilationDatabaseInfo.dir, Watch_CompilationDatabase);
-    loadDependencies(file, mDependencies);
+    if (!loadDependencies(file, mDependencies)) {
+        mDependencies.deleteAll();
+        mVisitedFiles.clear();
+        mDiagnostics.clear();
+        error("Restore error %s: Failed load dependencies.", mPath.constData());
+        Path::rm(mProjectFilePath);
+        Sources sources;
+        std::swap(sources, mSources);
+        assert(mSources.empty());
+        for (const auto &source : sources) {
+            index(std::shared_ptr<IndexerJob>(new IndexerJob(source.second, IndexerJob::Compile, shared_from_this())));
+        }
+        return true;
+    }
 
     for (const auto &dep : mDependencies) {
         watchFile(dep.first);
