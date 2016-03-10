@@ -52,6 +52,10 @@
 (require 'thingatpt)
 (require 'repeat)
 
+;; Hack for `kbd'. `kbd' is a macro in Emacs 23, and probably below.
+(if (< emacs-major-version 24)
+    (defalias 'kbd 'read-kbd-macro))
+
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Constants
@@ -103,25 +107,25 @@
   :safe 'booleanp)
 
 (defcustom rtags-find-file-absolute nil
-  "Whether rtags-find-file shows absolute paths."
+  "Whether `rtags-find-file' shows absolute paths."
   :group 'rtags
   :type 'boolean
   :safe 'booleanp)
 
 (defcustom rtags-wrap-results t
-  "Whether rtags-next-match/rtags-prev-match wraps around."
+  "Whether `rtags-next-match'/`rtags-previous-match' wraps around."
   :group 'rtags
   :type 'boolean
   :safe 'booleanp)
 
 (defcustom rtags-close-taglist-on-focus-lost nil
-  "Whether rtags-taglist should close when it loses focus."
+  "Whether `rtags-taglist' should close when it loses focus."
   :group 'rtags
   :type 'boolean
   :safe 'booleanp)
 
 (defcustom rtags-close-taglist-on-selection t
-  "Whether rtags-taglist should close when something is selected."
+  "Whether `rtags-taglist' should close when something is selected."
   :group 'rtags
   :type 'boolean
   :safe 'booleanp)
@@ -233,13 +237,13 @@ on intervals."
   :safe 'booleanp)
 
 (defcustom rtags-display-current-error-as-tooltip nil
-  "Display error under cursor using popup-tip (requires 'popup)."
+  "Display error under cursor using `popup-tip' (requires 'popup)."
   :group 'rtags
   :type 'boolean
   :safe 'booleanp)
 
 (defcustom rtags-display-summary-as-tooltip rtags-popup-available
-  "Display help / summary text using popup-tip (requires 'popup)."
+  "Display help / summary text using `popup-tip' (requires 'popup)."
   :group 'rtags
   :type 'boolean
   :safe 'booleanp)
@@ -284,7 +288,7 @@ on intervals."
   :type 'hook)
 
 (defcustom rtags-mode-hook nil
-  "Run when rtags-mode is started."
+  "Run when `rtags-mode' is started."
   :group 'rtags
   :type 'hook)
 
@@ -397,9 +401,9 @@ match fails at a query to rc/rdm backend.
       perform the command once more.
 `t'   change the sandbox and do the command.
 
-Note: if *RTags Diagnostics* is not running, then the 'match check'
+Note: If *RTags Diagnostics* is not running, then the 'match check'
       is not performed, because sandbox tracking is not needed then.
-Note: it is recommended to run each sandbox is separate emacs process."
+Note: It is recommended to run each sandbox is separate Emacs process."
   :group 'rtags
   :type '(choice (const :tag "Perform query without update" nil)
 		 (const :tag "Ask the user" ask)
@@ -657,7 +661,7 @@ to case differences."
   (when rtags-highlight-current-line
     (let ((overlay (make-overlay (point-at-bol) (point-at-eol) (current-buffer))))
       (overlay-put overlay 'face 'rtags-current-line)
-      (setq-local rtags-current-line-overlay overlay))))
+      (set (make-local-variable 'rtags-current-line-overlay) overlay))))
 
 (define-derived-mode rtags-mode fundamental-mode
   (set (make-local-variable 'font-lock-defaults)
@@ -1917,7 +1921,9 @@ of PREFIX or not, if doesn't contain one, one will be added."
   (define-key map (kbd (concat prefix "T")) 'rtags-taglist)
   (define-key map (kbd (concat prefix "h")) 'rtags-print-class-hierarchy)
   (define-key map (kbd (concat prefix "a")) 'rtags-print-source-arguments)
-  (define-key map (kbd (concat prefix "l")) 'rtags-list-results))
+  (define-key map (kbd (concat prefix "l")) 'rtags-list-results)
+  (define-key map (kbd "M-n") 'rtags-next-match)
+  (define-key map (kbd "M-p") 'rtags-previous-match))
 
 ;;;###autoload
 (defun rtags-print-current-location ()
@@ -4006,7 +4012,7 @@ If `rtags-display-summary-as-tooltip' is t, a tooltip is displayed."
         (error "You need to call rtags-check-includes from an actual file"))
       (switch-to-buffer (rtags-get-buffer "*RTags check includes*"))
       (rtags-mode)
-      (setq-local rtags-check-includes-received-output nil)
+      (set (make-local-variable 'rtags-check-includes-received-output) nil)
       (let ((buffer-read-only nil))
         (insert "Waiting for rdm..."))
       (goto-char (point-min))
