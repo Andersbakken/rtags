@@ -689,9 +689,9 @@ to case differences."
 
 (defun rtags-make-type (type) (cons (rtags-wrap-word type) 'font-lock-type-face))
 (font-lock-add-keywords 'rtags-mode
-                        (mapcar (function rtags-make-type) rtags-c++-types))
+                        (mapcar #'rtags-make-type rtags-c++-types))
 (font-lock-add-keywords 'rtags-mode
-                        (mapcar (function rtags-make-type)
+                        (mapcar #'rtags-make-type
                                 (let ((ret)
                                       (templates rtags-c++-templates))
                                   (while templates
@@ -2495,7 +2495,7 @@ This includes both declarations and definitions."
              (run-with-idle-timer
               rtags-error-timer-interval
               nil
-              (function rtags-display-current-error)))))
+              #'rtags-display-current-error))))
 
 (defun rtags-is-rtags-overlay (overlay) (and overlay (overlay-get overlay 'rtags-error-message)))
 
@@ -2573,7 +2573,7 @@ This includes both declarations and definitions."
   (setq rtags-container-timer
         (and rtags-track-container
              (funcall rtags-is-indexable (current-buffer))
-             (run-with-idle-timer rtags-container-timer-interval nil (function rtags-update-current-container-cache)))))
+             (run-with-idle-timer rtags-container-timer-interval nil #'rtags-update-current-container-cache))))
 
 (defvar rtags-tracking-timer nil)
 ;;;###autoload
@@ -2612,9 +2612,9 @@ This includes both declarations and definitions."
                    "--silent"
                    "-V" (buffer-file-name))))
 
-(add-hook 'after-save-hook (function rtags-after-save-hook))
-(add-hook 'post-command-hook (function rtags-post-command-hook))
-;; (remove-hook 'post-command-hook (function rtags-post-command-hook))
+(add-hook 'after-save-hook 'rtags-after-save-hook)
+(add-hook 'post-command-hook 'rtags-post-command-hook)
+;; (remove-hook 'post-command-hook 'rtags-post-command-hook)
 
 (defun rtags-set-diangnostics-suspended-impl (suspended quiet)
   (setq rtags-diagnostics-suspended suspended)
@@ -2721,7 +2721,7 @@ This includes both declarations and definitions."
                   (when rawbuf
                     (kill-buffer rawbuf)))
                 (setq rtags-diagnostics-process (start-file-process "RTags Diagnostics" buf rc "-m" "--elisp"))
-                (set-process-filter rtags-diagnostics-process (function rtags-diagnostics-process-filter))
+                (set-process-filter rtags-diagnostics-process #'rtags-diagnostics-process-filter)
                 (set-process-sentinel rtags-diagnostics-process 'rtags-diagnostics-sentinel)
                 (set-process-query-on-exit-flag rtags-diagnostics-process nil)
                 (setq rtags-last-completions nil)
@@ -3115,8 +3115,8 @@ other window instead of the current one."
       (setq input
             (if rtags-use-filename-completion
                 (if (fboundp 'completing-read-default)
-                    (completing-read-default prompt (function rtags-filename-complete) nil nil nil 'rtags-find-file-history)
-                  (completing-read prompt (function rtags-filename-complete) nil nil nil 'rtags-find-file-history))
+                    (completing-read-default prompt #'rtags-filename-complete nil nil nil 'rtags-find-file-history)
+                  (completing-read prompt #'rtags-filename-complete nil nil nil 'rtags-find-file-history))
               (completing-read prompt (rtags-all-files prefer-exact) nil nil nil 'rtags-find-file-history)))
       (setq rtags-find-file-history (rtags-remove-last-if-duplicated rtags-find-file-history))
       (cond ((null input) nil)
@@ -3328,7 +3328,7 @@ other window instead of the current one."
   (when rtags-update-current-project-timer
     (cancel-timer rtags-update-current-project-timer))
   (setq rtags-update-current-project-timer
-        (run-with-idle-timer rtags-update-current-project-timer-interval nil (function rtags-update-current-project))))
+        (run-with-idle-timer rtags-update-current-project-timer-interval nil #'rtags-update-current-project)))
 
 ;;;###autoload
 (defun rtags-show-target-in-other-window (&optional dest-window center-window
@@ -3374,8 +3374,8 @@ definition."
         (setq prompt (concat prompt ": (default: " tagname ") "))
       (setq prompt (concat prompt ": ")))
     (setq input (cond ((fboundp 'completing-read-default)
-                       (completing-read-default prompt (function rtags-symbolname-complete) nil nil nil 'rtags-symbol-history))
-                      (t (completing-read prompt (function rtags-symbolname-complete) nil nil nil 'rtags-symbol-history))))
+                       (completing-read-default prompt #'rtags-symbolname-complete nil nil nil 'rtags-symbol-history))
+                      (t (completing-read prompt #'rtags-symbolname-complete nil nil nil 'rtags-symbol-history))))
     (setq rtags-symbol-history (rtags-remove-last-if-duplicated rtags-symbol-history))
     (when (not (equal "" input))
       (setq tagname input))
@@ -3591,7 +3591,7 @@ definition."
   (save-excursion
     (when (cond ((= (point) (point-at-eol)))
                 ((looking-at "[\\n A-Za-z0-9_]"))
-                ((looking-back "[\\n A-Za-z0-9_]" (backward-char 1) t))
+                ;; ((looking-back "[\\n A-Za-z0-9_]" 1 t)) ;; FIXME(abakken): I this really required, without it completion works more reliable.
                 (t nil))
       (when (= (skip-chars-backward " ") 0)
         (skip-chars-backward rtags-symbol-chars))
@@ -3669,7 +3669,7 @@ BUFFER : The buffer to be checked and reparsed, if it's nil, use current buffer.
         ((not (rtags-has-diagnostics)))
         ((= rtags-completions-timer-interval 0) (rtags-prepare-completions))
         (t (setq rtags-completions-timer (run-with-idle-timer rtags-completions-timer-interval
-                                                              nil (function rtags-prepare-completions))))))
+                                                              nil #'rtags-prepare-completions)))))
 
 (defun rtags-code-complete-enabled ()
   (and rtags-completions-enabled
@@ -3794,9 +3794,10 @@ If `rtags-display-summary-as-tooltip' is t, a tooltip is displayed."
   ;; (message "calling-set-buffers %d" (length buffers))
   (when rtags-enabled
     (with-temp-buffer
-      (mapc (function (lambda (x)
-                        (when (funcall rtags-is-indexable x)
-                          (insert (buffer-file-name x) "\n")))) buffers)
+      (mapc #'(lambda (x)
+                (when (funcall rtags-is-indexable x)
+                  (insert (buffer-file-name x) "\n")))
+            buffers)
       ;; (message "files: %s" (combine-and-quote-strings (split-string (buffer-substring-no-properties (point-min) (point-max)) "\n" t)) "|")
       (rtags-call-rc :noerror t :silent-query t :path t :unsaved (current-buffer) "--set-buffers" "-"))))
 
@@ -3820,7 +3821,7 @@ If `rtags-display-summary-as-tooltip' is t, a tooltip is displayed."
 (defun rtags-schedule-buffer-list-update ()
   ;; (message "rtags-schedule-buffer-list-update %s" (if rtags-update-buffer-list-timer "yes" "no"))
   (unless rtags-update-buffer-list-timer
-    (setq rtags-update-buffer-list-timer (run-with-idle-timer 1 nil (function rtags-update-buffer-list)))))
+    (setq rtags-update-buffer-list-timer (run-with-idle-timer 1 nil #'rtags-update-buffer-list))))
 
 (defun rtags-find-file-hook ()
   (interactive)
@@ -3839,8 +3840,8 @@ If `rtags-display-summary-as-tooltip' is t, a tooltip is displayed."
                        (format "Symbol (default: %s): " token)
                      "Symbol: "))
            (input (if (fboundp 'completing-read-default)
-                      (completing-read-default prompt (function rtags-symbolname-complete) nil nil nil 'rtags-symbol-history)
-                    (completing-read prompt (function rtags-symbolname-complete) nil nil nil 'rtags-symbol-history)))
+                      (completing-read-default prompt #'rtags-symbolname-complete nil nil nil 'rtags-symbol-history)
+                    (completing-read prompt #'rtags-symbolname-complete nil nil nil 'rtags-symbol-history)))
            (current-file (buffer-file-name)))
       (setq rtags-symbol-history (rtags-remove-last-if-duplicated rtags-symbol-history))
       (when (string= "" input)
@@ -4043,14 +4044,14 @@ the user enter missing field manually."
              ;;           (args (mapcar (lambda (arg) (cdr (assoc 'symbolName arg))) (cdr (assoc 'arguments symbol))))
              (index 2)
              (snippet (concat "/** @Brief ${1:Function description}\n"
-                              (mapconcat (lambda (arg)
-                                           (let* ((complete-name (cdr (assoc 'symbolName arg)))
-                                                  (symbol-type (cdr (assoc 'type arg)))
-                                                  (symbol-name (substring complete-name (- 0 (cdr (assoc 'symbolLength arg)))))
-                                                  (ret (format " * @param %s <b>{%s}</b> ${%d:Parameter description}"
-                                                               symbol-name symbol-type index)))
-                                             (incf index)
-                                             ret))
+                              (mapconcat #'(lambda (arg)
+                                             (let* ((complete-name (cdr (assoc 'symbolName arg)))
+                                                    (symbol-type (cdr (assoc 'type arg)))
+                                                    (symbol-name (substring complete-name (- 0 (cdr (assoc 'symbolLength arg)))))
+                                                    (ret (format " * @param %s <b>{%s}</b> ${%d:Parameter description}"
+                                                                 symbol-name symbol-type index)))
+                                               (incf index)
+                                               ret))
                                          (cdr (assoc 'arguments symbol))
                                          "\n")
                               (unless (string= return-val "void")
