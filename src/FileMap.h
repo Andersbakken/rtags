@@ -22,6 +22,7 @@
 #include <sys/mman.h>
 #include <sys/stat.h>
 #include <functional>
+#include <limits>
 
 #include "Location.h"
 #include "rct/Serializer.h"
@@ -161,7 +162,8 @@ public:
         if (!mCount) {
             if (match)
                 *match = false;
-            return -1;
+            return std::numeric_limits<uint32_t>::max();
+
         }
         int lower = 0;
         int upper = mCount - 1;
@@ -181,7 +183,7 @@ public:
         } while (lower <= upper);
 
         if (lower == static_cast<int>(mCount))
-            lower = -1;
+            lower = std::numeric_limits<uint32_t>::max();
         if (match)
             *match = false;
         return lower;
@@ -301,7 +303,7 @@ private:
         return t;
     }
 
-const char *mPointer;
+    const char *mPointer;
     uint32_t mSize;
     uint32_t mCount;
     uint32_t mValuesOffset;
