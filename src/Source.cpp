@@ -193,63 +193,68 @@ static inline void addIncludeArg(List<Source::Include> &includePaths,
     includePaths.append(Source::Include(type, path));
 }
 
-static const char* valueArgs[] = {
-    "-I",
-    "-o",
-    "-x",
-    "-target",
+static const char *valueArgs[] = {
     "--param",
-    "-imacros",
-    "-iprefix",
-    "-iwithprefix",
-    "-iwithprefixbefore",
-    "-imultilib",
-    "-isysroot",
-    "-ivfsoverlay",
-    "-Xpreprocessor",
-    "-Xassembler",
-    "-Xlinker",
-    "-Xclang",
-    "-Xanalyzer",
+    "-G",
+    "-I",
+    "-MF",
+    "-MQ",
+    "-MT",
     "-T",
     "-V",
-    "-b",
-    "-G",
+    "-Xanalyzer",
+    "-Xassembler",
+    "-Xclang",
+    "-Xlinker",
+    "-Xpreprocessor",
     "-arch",
-    "-MF",
-    "-MT",
-    "-MQ",
+    "-b",
     "-gcc-toolchain",
+    "-imacros",
+    "-imultilib",
     "-include",
-    0
+    "-iprefix",
+    "-isysroot",
+    "-ivfsoverlay",
+    "-iwithprefix",
+    "-iwithprefixbefore",
+    "-o",
+    "-target",
+    "-x"
 };
 
 static const char *blacklist[] = {
     "-M",
-    "-MM",
-    "-MG",
-    "-MP",
     "-MD",
-    "-MMD",
     "-MF",
-    "-MT",
+    "-MG",
+    "-MM",
+    "-MMD",
+    "-MP",
     "-MQ",
-    "-gcc-toolchain",
+    "-MT",
+    "-Og",
     "-fno-var-tracking",
-    "-fvar-tracking",
     "-fno-var-tracking-assignments",
+    "-fvar-tracking",
     "-fvar-tracking-assignments",
     "-fvar-tracking-assignments-toggle",
-    "-Og",
-    0
+    "-gcc-toolchain"
 };
+
+static int compare(const void *s1, const void *s2)
+{
+    const char *key = static_cast<const char*>(s1);
+    const char * const * arg = static_cast<const char *const *>(s2);
+    return strcmp(key, *arg);
+}
 
 static inline bool hasValue(const String &arg)
 {
-    for (int i = 0; valueArgs[i]; ++i) {
-        if (arg == valueArgs[i])
-            return true;
-    }
+    if (bsearch(arg.constData(), valueArgs,
+                sizeof(valueArgs) / sizeof(valueArgs[0]),
+                sizeof(valueArgs[0]), compare))
+        return true;
 
     if (const Server *server = Server::instance()) {
         for (const String &blockedArg : server->options().blockedArguments) {
@@ -264,11 +269,9 @@ static inline bool hasValue(const String &arg)
 
 static inline bool isBlacklisted(const String &arg)
 {
-    for (int i = 0; blacklist[i]; ++i) {
-        if (arg == blacklist[i])
-            return true;
-    }
-    return false;
+    return bsearch(arg.constData(), blacklist,
+                   sizeof(blacklist) / sizeof(blacklist[0]),
+                   sizeof(blacklist[0]), compare);
 }
 
 static inline String unquote(const String &arg)
