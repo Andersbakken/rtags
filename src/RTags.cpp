@@ -360,16 +360,19 @@ String cursorToString(CXCursor cursor, Flags<CursorToStringFlags> flags)
 
     switch (RTags::cursorType(kind)) {
     case Type_Reference:
-        ret += " r";
+        ret += " ref";
         break;
     case Type_Cursor:
-        ret += " c";
+        ret += " cursor";
+        break;
+    case Type_Scope:
+        ret += " scope";
         break;
     case Type_Other:
-        ret += " o";
+        ret += " other";
         break;
     case Type_Include:
-        ret += " i";
+        ret += " include";
         break;
     }
 
