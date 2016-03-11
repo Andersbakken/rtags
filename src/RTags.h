@@ -51,7 +51,7 @@ namespace RTags {
 enum {
     MajorVersion = 2,
     MinorVersion = 0,
-    DatabaseVersion = 83,
+    DatabaseVersion = 84,
     SourcesFileVersion = 4
 };
 
@@ -71,6 +71,7 @@ enum CursorType {
     Type_Include,
     Type_Cursor,
     Type_Reference,
+    Type_Scope,
     Type_Other
 };
 void initMessages();
@@ -211,6 +212,7 @@ inline bool isFunction(CXCursorKind kind)
     case CXCursor_Constructor:
     case CXCursor_Destructor:
     case CXCursor_CXXMethod:
+    case CXCursor_LambdaExpr:
     case CXCursor_ObjCInstanceMethodDecl:
     case CXCursor_ObjCClassMethodDecl:
         return true;
@@ -240,7 +242,7 @@ static inline CursorType cursorType(CXCursorKind kind)
     if (kind == CXCursor_InclusionDirective)
         return Type_Include;
     if (clang_isStatement(static_cast<CXCursorKind>(kind))) {
-        return Type_Other;
+        return kind == CXCursor_CompoundStmt ? Type_Scope : Type_Other;
     } else if (RTags::isCursor(kind)) {
         return Type_Cursor;
     } else if (RTags::isReference(kind)) {

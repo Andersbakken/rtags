@@ -1455,7 +1455,7 @@ Symbol Project::findSymbol(const Location &location, int *index)
 Set<Symbol> Project::findTargets(const Symbol &symbol)
 {
     Set<Symbol> ret;
-    if (symbol.isNull())
+    if (symbol.isNull() || symbol.flags & Symbol::ImplicitDestruction)
         return ret;
     auto sameKind = [&symbol](CXCursorKind kind) {
         if (kind == symbol.kind)

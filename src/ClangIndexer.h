@@ -102,13 +102,15 @@ private:
                                const Location &location,
                                RTags::CursorType cursorType);
 
-    bool handleCursor(const CXCursor &cursor, CXCursorKind kind,
-                      const Location &location, Symbol **cursorPtr = 0);
+    CXChildVisitResult handleCursor(const CXCursor &cursor, CXCursorKind kind,
+                                    const Location &location, Symbol **cursorPtr = 0);
     bool handleReference(const CXCursor &cursor, CXCursorKind kind,
                          Location loc, CXCursor reference,
-                         const CXCursor &parent, Symbol **cursorPtr = 0);
+                         const CXCursor &parent,
+                         Symbol **cursorPtr = 0);
     void handleBaseClassSpecifier(const CXCursor &cursor);
     void handleInclude(const CXCursor &cursor, CXCursorKind kind, const Location &location);
+    void handleScope(const CXCursor &cursor, CXCursorKind kind, const Location &location);
     Location findByUSR(const CXCursor &cursor, CXCursorKind kind, const Location &loc) const;
     void addOverriddenCursors(const CXCursor &cursor, const Location &location);
     bool superclassTemplateMemberFunctionUgleHack(const CXCursor &cursor, CXCursorKind kind,
@@ -177,6 +179,8 @@ private:
     std::shared_ptr<Connection> mConnection;
     Path mDataDir;
     bool mUnionRecursion;
+
+    List<Location> mScopeStack;
 
     static Flags<Server::Option> sServerOpts;
 };
