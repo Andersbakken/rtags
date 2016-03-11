@@ -143,7 +143,7 @@ public:
         return Value();
     }
 
-    int count() const { return mCount; }
+    uint32_t count() const { return mCount; }
 
     Key keyAt(uint32_t index) const
     {
