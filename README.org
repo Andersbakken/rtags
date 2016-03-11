@@ -367,7 +367,7 @@ can also be socket acivated.
    Description=RTags daemon socket
 
    [Socket]
-   ListenStream=$HOME/.rdm
+   ListenStream=%h/.rdm
    
    [Install]
    WantedBy=multi-user.target
@@ -386,12 +386,11 @@ can also be socket acivated.
    ExecStart=$RDM -v --inactivity-timeout 300
    #+END_EXAMPLE
 
- 3. Replace =$HOME= with the absolute path to your home folder. Replace
-   =$RDM= with the path to your copy of =rdm=, and add any command line
-    parameters you might usually use.
+ 3. Replace =$RDM= with the path to your copy of =rdm=, and add any command
+    line parameters you might usually use.
 
-    You have to provide absolute paths here and can't use
-    =${HOME}=. Variable expansion is not performed inside the strings.
+    You have to use absolute paths here. =%h= is expanded to your home directory.
+    Environment variables are not expanded inside strings.
 
  4. Run the following command from the terminal:
 
@@ -400,7 +399,7 @@ can also be socket acivated.
     systemctl --user start rdm.socket
     #+END_SRC
 
-    =Systemd= will create the =rdm= socket automatically next time you log back in.
+    =Systemd= will create the =rdm= socket automatically.
 * Usage
 
   Now that your files are indexed you can start using rtags. Normally
