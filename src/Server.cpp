@@ -555,7 +555,7 @@ void Server::handleIndexMessage(const std::shared_ptr<IndexMessage> &message, co
                 args += clang_getCString(str);
                 clang_disposeString(str);
                 if (j < num - 1)
-                    args += " ";
+                    args += ' ';
             }
 
             index(args, dir.ensureTrailingSlash(), message->pathEnvironment(),
