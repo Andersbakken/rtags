@@ -29,9 +29,26 @@ FollowLocationJob::FollowLocationJob(const Location &loc,
 
 int FollowLocationJob::execute()
 {
-    const Symbol symbol = project()->findSymbol(location);
-    if (symbol.isNull())
+    int idx = 0;
+    Symbol symbol = project()->findSymbol(location, &idx);
+    if (symbol.isNull()) {
         return 1;
+    }
+
+    // if you invoke a destructor explicitly there's a typeref on the class
+    // name. This finds the destructor instead.
+    if ((symbol.kind == CXCursor_TypeRef || symbol.kind == CXCursor_TemplateRef) && idx > 0) {
+        auto symbols = project()->openSymbols(location.fileId());
+        if (!symbols || !symbols->count())
+            return 1;
+        const Symbol prev = symbols->valueAt(idx - 1);
+        if (prev.kind == CXCursor_MemberRefExpr
+            && prev.location.column() == symbol.location.column() - 1
+            && prev.location.line() == symbol.location.line()
+            && prev.symbolName.contains("~")) {
+            symbol = prev;
+        }
+    }
 
     if (queryFlags() & QueryMessage::AllTargets) {
         const Set<String> usrs = project()->findTargetUsrs(location);
