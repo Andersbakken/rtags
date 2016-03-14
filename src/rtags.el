@@ -1020,9 +1020,9 @@ it non-modified. Can be used both for path and location."
                    rtags-autostart-diagnostics (rtags-diagnostics)))))
         (or async (> (point-max) (point-min)))))))
 
-(defvar rtags-preprocess-keymap (make-sparse-keymap))
-(define-key rtags-preprocess-keymap (kbd "q") 'rtags-bury-or-delete)
-(set-keymap-parent rtags-preprocess-keymap c++-mode-map)
+(defvar rtags-preprocess-mode-map (make-sparse-keymap))
+(define-key rtags-preprocess-mode-map (kbd "q") 'rtags-bury-or-delete)
+(set-keymap-parent rtags-preprocess-mode-map c++-mode-map)
 (define-derived-mode rtags-preprocess-mode c++-mode "rtags-preprocess"
   ;; Do not run any hooks from `c++-mode', as this could cause issues with, e.g. flycheck
   (set (make-local-variable 'c-mode-common-hook) nil)
@@ -2883,7 +2883,7 @@ other window instead of the current one."
 
 (defvar rtags-taglist-protected nil)
 (defvar rtags-taglist-locations nil)
-(define-derived-mode rtags-taglist-mode fundamental-mode "rtags-taglist")
+(define-derived-mode rtags-taglist-mode rtags-mode "rtags-taglist")
 
 ;;;###autoload
 (defun rtags-close-taglist ()
