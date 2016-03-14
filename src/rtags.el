@@ -131,25 +131,28 @@
   :safe 'booleanp)
 
 (defcustom rtags-follow-symbol-try-harder t
-  "Fall back to string-matching if follow symbol fails."
+  "Fall back to string-matching, if follow symbol fails."
   :group 'rtags
   :type 'boolean
   :safe 'booleanp)
 
 (defcustom rtags-reindex-on-save nil
-  "Explicitly reindex files on save. This should only be useful if your file system watching is not working."
+  "Explicitly reindex files on save.
+This is only be useful, if your file system watching is not working."
   :group 'rtags
   :type 'boolean
   :safe 'booleanp)
 
 (defcustom rtags-use-filename-completion t
-  "Whether RTags special filename completion is enabled. Set to nil to enable ido-ubiquitous etc."
+  "Whether RTags special filename completion is enabled.
+Set to nil to enable ido-ubiquitous etc."
   :group 'rtags
   :type 'boolean
   :safe 'booleanp)
 
 (defcustom rtags-diagnostics-use-pipe t
-  "Whether diagnostics should use pipes. If you're running emacs in cygwin you might have to set this to nil."
+  "Whether diagnostics should use pipes.
+If you're running emacs in cygwin you might have to set this to nil."
   :group 'rtags
   :type 'boolean
   :safe 'booleanp)
@@ -663,7 +666,7 @@ to case differences."
       (overlay-put overlay 'face 'rtags-current-line)
       (set (make-local-variable 'rtags-current-line-overlay) overlay))))
 
-(define-derived-mode rtags-mode fundamental-mode
+(define-derived-mode rtags-mode fundamental-mode "rtags"
   (set (make-local-variable 'font-lock-defaults)
        '(rtags-font-lock-keywords (save-excursion
                                     (goto-char (point-min))
@@ -671,9 +674,6 @@ to case differences."
                                       t))))
   (set (make-local-variable 'rtags-current-file) nil)
   (set (make-local-variable 'rtags-current-project) nil)
-  (setq mode-name "rtags")
-  (use-local-map rtags-mode-map)
-  (run-hooks 'rtags-mode-hook)
   (goto-char (point-min))
   (setq next-error-function 'rtags-next-prev-match)
   (rtags-init-current-line-overlay)
@@ -702,17 +702,13 @@ to case differences."
                                     (setq templates (cdr templates)))
                                   ret)))
 
-(define-derived-mode rtags-dependency-tree-mode fundamental-mode
+(define-derived-mode rtags-dependency-tree-mode fundamental-mode "rtags-dependency-tree-mode"
   ;; (set (make-local-variable 'font-lock-defaults) '(rtags-font-lock-keywords))
-  (setq mode-name "rtags-dependency-tree-mode")
-  (use-local-map rtags-dependency-tree-mode-map)
   (goto-char (point-min))
   (setq buffer-read-only t))
 
-(define-derived-mode rtags-references-tree-mode fundamental-mode
+(define-derived-mode rtags-references-tree-mode fundamental-mode "rtags-references-tree-mode"
   (set (make-local-variable 'font-lock-defaults) '(rtags-font-lock-keywords))
-  (setq mode-name "rtags-references-tree-mode")
-  (use-local-map rtags-references-tree-mode-map)
   (goto-char (point-min))
   (rtags-init-current-line-overlay)
   (setq buffer-read-only t))
@@ -1027,9 +1023,10 @@ it non-modified. Can be used both for path and location."
 (defvar rtags-preprocess-keymap (make-sparse-keymap))
 (define-key rtags-preprocess-keymap (kbd "q") 'rtags-bury-or-delete)
 (set-keymap-parent rtags-preprocess-keymap c++-mode-map)
-(define-derived-mode rtags-preprocess-mode c++-mode
-  (setq mode-name "rtags-preprocess")
-  (use-local-map rtags-preprocess-mode-map)
+(define-derived-mode rtags-preprocess-mode c++-mode "rtags-preprocess"
+  ;; Do not run any hooks from `c++-mode', as this could cause issues with, e.g. flycheck
+  (set (make-local-variable 'c-mode-common-hook) nil)
+  (set (make-local-variable 'c++-mode-hook) nil)
   (when (buffer-file-name)
     (error "Set buffer with file %s read only " (buffer-file-name)))
   (setq buffer-read-only t))
@@ -2686,9 +2683,7 @@ This includes both declarations and definitions."
 (define-key rtags-diagnostics-mode-map (kbd "c") 'rtags-clear-diagnostics)
 (define-key rtags-diagnostics-mode-map (kbd "f") 'rtags-apply-fixit-at-point)
 (set-keymap-parent rtags-diagnostics-mode-map compilation-mode-map)
-(define-derived-mode rtags-diagnostics-mode compilation-mode
-  (setq mode-name "rtags-diagnostics")
-  (use-local-map rtags-diagnostics-mode-map)
+(define-derived-mode rtags-diagnostics-mode compilation-mode "rtags-diagnostics"
   (when (buffer-file-name)
     (error "Set buffer with file %s read only " (buffer-file-name)))
   (setq buffer-read-only t))
@@ -2888,10 +2883,7 @@ other window instead of the current one."
 
 (defvar rtags-taglist-protected nil)
 (defvar rtags-taglist-locations nil)
-(define-derived-mode rtags-taglist-mode fundamental-mode
-  (setq mode-name "rtags-taglist")
-  (use-local-map rtags-mode-map)
-  (run-hooks 'rtags-taglist-mode-hook))
+(define-derived-mode rtags-taglist-mode fundamental-mode "rtags-taglist")
 
 ;;;###autoload
 (defun rtags-close-taglist ()
@@ -3588,8 +3580,8 @@ definition."
 (defun rtags-calculate-completion-point ()
   (save-excursion
     (when (cond ((= (point) (point-at-eol)))
-                ((looking-at "[\\n A-Za-z0-9_]"))
-                ;; ((looking-back "[\\n A-Za-z0-9_]" 1 t)) ;; FIXME(abakken): I this really required, without it completion works more reliable.
+                ((looking-at "[\\n A-Za-z0-9_)]"))
+                ((looking-back "[\\n ,.:>A-Za-z0-9_(]" 1 t))
                 (t nil))
       (when (= (skip-chars-backward " ") 0)
         (skip-chars-backward rtags-symbol-chars))

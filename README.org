@@ -368,7 +368,7 @@ can also be socket acivated.
 
    [Socket]
    ListenStream=%h/.rdm
-   
+
    [Install]
    WantedBy=multi-user.target
    #+END_EXAMPLE
@@ -758,8 +758,8 @@ will than be the preferred syntax checker for the major mode.
 #+BEGIN_SRC emacs-lisp
 (defun my-flycheck-rtags-setup ()
   (flycheck-select-checker 'rtags))
-(add-hook 'c-mode-common-hook 'my-flycheck-rtags-setup)
-(add-hook 'c++-mode-common-hook 'my-flycheck-rtags-setup)
+;; c-mode-common-hook is also called by c++-mode
+(add-hook 'c-mode-common-hook #'my-flycheck-rtags-setup)
 #+END_SRC
 
 * Videos

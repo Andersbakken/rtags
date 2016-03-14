@@ -34,8 +34,8 @@
 ;; ;; Optional explicitly select the RTags Flycheck checker for c or c++ major mode.
 ;; (defun my-flycheck-rtags-setup ()
 ;;  (flycheck-select-checker 'rtags))
-;; (add-hook 'c-mode-common-hook 'my-flycheck-rtags-setup)
-;; (add-hook 'c++-mode-common-hook 'my-flycheck-rtags-setup)
+;; ;; c-mode-common-hook is also called by c++-mode
+;; (add-hook 'c-mode-common-hook #'my-flycheck-rtags-setup)
 ;;
 
 ;;; Code:
