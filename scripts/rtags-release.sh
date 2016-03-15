@@ -29,7 +29,10 @@ done
 cd "$REPO"
 UNSTASH=
 if [ "$PULL" ]; then
-    git stash && UNSTASH=1
+    if [ -n "`git status -s -uno 2>/dev/null`" ]; then
+        git stash
+        UNSTASH=1
+    fi
     if ! git pull --recurse-submodules > /dev/null; then
         if [ -n "$UNSTASH" ]; then
             git stash pop
