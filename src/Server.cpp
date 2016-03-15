@@ -1325,21 +1325,17 @@ void Server::setCurrentProject(const std::shared_ptr<Project> &project)
 
 std::shared_ptr<Project> Server::projectForQuery(const std::shared_ptr<QueryMessage> &query)
 {
-    Match matches[2];
-    if (query->flags() & QueryMessage::HasLocation) {
-        matches[0] = query->location().path();
-    } else {
-        matches[0] = query->match();
-    }
+    List<Match> matches;
+    if (query->flags() & QueryMessage::HasLocation)
+        matches << query->location().path();
+    if (!query->currentFile().isEmpty())
+        matches << query->currentFile();
+    if (!(query->flags() & QueryMessage::HasLocation))
+        matches << query->match();
+
     std::shared_ptr<Project> cur = currentProject();
     // give current a chance first to avoid switching project when using system headers etc
-    int count = 1;
-    if (!query->currentFile().isEmpty()) {
-        matches[1] = query->currentFile();
-        count = 2;
-    }
-    for (int i=0; i<count; ++i) {
-        const Match &match = matches[i];
+    for (const Match &match : matches) {
         if (cur && cur->match(match))
             return cur;
 
