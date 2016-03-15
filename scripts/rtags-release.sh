@@ -61,3 +61,5 @@ if [ "$branch_name" == "master" ]; then
         # rm -rf $RELEASES
     fi
 fi
+
+[ -n "$UNSTASH" ] && git stash pop
