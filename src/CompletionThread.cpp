@@ -463,7 +463,7 @@ struct Output
     }
     std::shared_ptr<LogOutput> output;
     std::shared_ptr<Connection> connection;
-    bool xml;
+    Flags<CompletionThread::Flag> flags;
 };
 
 void CompletionThread::printCompletions(const List<Completions::Candidate> &completions, Request *request)
@@ -475,36 +475,43 @@ void CompletionThread::printCompletions(const List<Completions::Candidate> &comp
     List<std::shared_ptr<Output> > outputs;
     bool xml = false;
     bool elisp = false;
+    bool raw = false;
     if (request->conn) {
         std::shared_ptr<Output> output(new Output);
         output->connection = request->conn;
-        output->xml = !(request->flags & Elisp);
+        output->flags = request->flags;
         outputs.append(output);
         if (request->flags & Elisp) {
             elisp = true;
-        } else {
+        } else if (request->flags & XML) {
             xml = true;
+        } else {
+            raw = true;
         }
         request->conn.reset();
     }
-    log([&xml, &elisp, &outputs](const std::shared_ptr<LogOutput> &output) {
+    log([&xml, &elisp, &outputs, &raw](const std::shared_ptr<LogOutput> &output) {
             // error() << "Got a dude" << output->testLog(RTags::DiagnosticsLevel);
             if (output->testLog(RTags::DiagnosticsLevel)) {
                 std::shared_ptr<Output> out(new Output);
                 out->output = output;
                 if (output->flags() & RTagsLogOutput::Elisp) {
-                    out->xml = false;
+                    out->flags |= CompletionThread::Elisp;
                     elisp = true;
-                } else {
-                    out->xml = true;
+                } else if (output->flags() & RTagsLogOutput::XMLCompletions) {
+                    out->flags |= CompletionThread::XML;
                     xml = true;
+                } else {
+                    raw = true;
                 }
                 outputs.append(out);
             }
         });
 
     if (!outputs.isEmpty()) {
-        String xmlOut, elispOut;
+        String rawOut, xmlOut, elispOut;
+        if (raw)
+            rawOut.reserve(16384);
         if (xml) {
             xmlOut.reserve(16384);
             xmlOut << String::format<128>("<?xml version=\"1.0\" encoding=\"utf-8\"?><completions location=\"%s\"><![CDATA[",
@@ -521,14 +528,18 @@ void CompletionThread::printCompletions(const List<Completions::Candidate> &comp
             String &kind = cursorKindNames[val.cursorKind];
             if (kind.isEmpty())
                 kind = RTags::eatString(clang_getCursorKindSpelling(val.cursorKind));
-            if (xml) {
-                xmlOut += String::format<128>(" %s %s %s %s %s %s\n",
-                                              val.completion.constData(),
-                                              val.signature.constData(),
-                                              kind.constData(),
-                                              val.annotation.constData(),
-                                              val.parent.constData(),
-                                              val.briefComment.constData());
+            if (xml || raw) {
+                const String str = String::format<128>(" %s %s %s %s %s %s\n",
+                                                       val.completion.constData(),
+                                                       val.signature.constData(),
+                                                       kind.constData(),
+                                                       val.annotation.constData(),
+                                                       val.parent.constData(),
+                                                       val.briefComment.constData());
+                if (raw)
+                    rawOut += str;
+                if (xml)
+                    xmlOut += str;
             }
             if (elisp) {
                 // elispOut += String::format<128>(" (list \"%s\" \"%s\" \"%s\" \"%s\" \"%s\" \"%s\")",
@@ -537,9 +548,9 @@ void CompletionThread::printCompletions(const List<Completions::Candidate> &comp
                                                 RTags::elispEscape(val.signature).constData(),
                                                 kind.constData());
                 //,
-                                                // RTags::elispEscape(val.annotation).constData(),
-                                                // val.parent.constData(),
-                                                // val.briefComment.constData());
+                // RTags::elispEscape(val.annotation).constData(),
+                // val.parent.constData(),
+                // val.briefComment.constData());
             }
         }
         if (elisp)
@@ -547,12 +558,14 @@ void CompletionThread::printCompletions(const List<Completions::Candidate> &comp
         if (xml)
             xmlOut += "]]></completions>\n";
 
-        EventLoop::mainEventLoop()->callLater([outputs, xmlOut, elispOut]() {
+        EventLoop::mainEventLoop()->callLater([outputs, xmlOut, elispOut, rawOut]() {
                 for (auto &it : outputs) {
-                    if (it->xml) {
+                    if (it->flags & Elisp) {
+                        it->send(elispOut);
+                    } else if (it->flags & XML) {
                         it->send(xmlOut);
                     } else {
-                        it->send(elispOut);
+                        it->send(rawOut);
                     }
                 }
             });

@@ -109,7 +109,8 @@ public:
         DumpCheckIncludes = (1ull << 33),
         CurrentProjectOnly = (1ull << 34),
         Wait = (1ull << 35),
-        CodeCompleteIncludeMacros = (1ull << 36)
+        CodeCompleteIncludeMacros = (1ull << 36),
+        XMLCompletions = (1ull << 37)
     };
 
     QueryMessage(Type type = Invalid);

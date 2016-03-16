@@ -156,6 +156,7 @@ struct Option opts[] = {
     { RClient::DumpIncludeHeaders, "dump-include-headers", 0, no_argument, "For --dump-file, also dump dependencies." },
     { RClient::SilentQuery, "silent-query", 0, no_argument, "Don't log this request in rdm." },
     { RClient::SynchronousCompletions, "synchronous-completions", 0, no_argument, "Wait for completion results." },
+    { RClient::XMLCompletions, "xml-completions", 0, no_argument, "Output completions in XML" },
     { RClient::NoSortReferencesByInput, "no-sort-references-by-input", 0, no_argument, "Don't sort references by input position." },
     { RClient::ProjectRoot, "project-root", 0, required_argument, "Override project root for compile commands." },
     { RClient::RTagsConfig, "rtags-config", 0, required_argument, "Print out .rtags-config for argument." },
@@ -321,8 +322,12 @@ public:
     virtual bool exec(RClient *rc, const std::shared_ptr<Connection> &connection) override
     {
         unsigned int flags = RTagsLogOutput::None;
-        if (rc->queryFlags() & QueryMessage::Elisp)
+        if (rc->queryFlags() & QueryMessage::Elisp) {
             flags |= RTagsLogOutput::Elisp;
+        } else if (rc->queryFlags() & QueryMessage::XMLCompletions) {
+            flags |= RTagsLogOutput::XMLCompletions;
+        }
+
         const LogLevel level = mLevel == Default ? rc->logLevel() : mLevel;
         LogOutputMessage msg(level, flags);
         msg.init(rc->argc(), rc->argv());
@@ -678,6 +683,9 @@ RClient::ParseStatus RClient::parse(int &argc, char **argv)
             break;
         case Elisp:
             mQueryFlags |= QueryMessage::Elisp;
+            break;
+        case XMLCompletions:
+            mQueryFlags |= QueryMessage::XMLCompletions;
             break;
         case FilterSystemHeaders:
             mQueryFlags |= QueryMessage::FilterSystemIncludes;

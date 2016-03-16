@@ -1860,6 +1860,8 @@ void Server::codeCompleteAt(const std::shared_ptr<QueryMessage> &query, const st
         flags |= CompletionThread::Refresh;
     if (query->flags() & QueryMessage::Elisp)
         flags |= CompletionThread::Elisp;
+    if (query->flags() & QueryMessage::XMLCompletions)
+        flags |= CompletionThread::XML;
     if (query->flags() & QueryMessage::CodeCompleteIncludeMacros)
         flags |= CompletionThread::CodeCompleteIncludeMacros;
     std::shared_ptr<Connection> c = conn;

@@ -33,7 +33,8 @@ public:
 
     enum Flag {
         None = 0x0,
-        Elisp = 0x1
+        Elisp = 0x1,
+        XMLCompletions = 0x2
     };
 
     virtual unsigned int flags() const override { return mFlags; }

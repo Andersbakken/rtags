@@ -134,6 +134,7 @@ public:
         Version,
         Wait,
         WildcardSymbolNames,
+        XMLCompletions,
         NumOptions
     };
 
