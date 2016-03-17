@@ -1504,12 +1504,6 @@ Set<Symbol> Project::findByUsr(const String &usr, uint32_t fileId, DependencyMod
 {
     assert(fileId);
     Set<Symbol> ret;
-    if (usr.startsWith("/")) { // for break statements and includes
-        Symbol sym;
-        sym.location = Location::fromPathLineAndColumn(usr);
-        ret.insert(sym);
-        return ret;
-    }
     for (uint32_t file : dependencies(fileId, mode)) {
         auto usrs = openUsrs(file);
         // error() << usrs << Location::path(file) << usr;
@@ -1536,6 +1530,13 @@ Set<Symbol> Project::findByUsr(const String &usr, uint32_t fileId, DependencyMod
                 }
             }
         }
+    }
+
+    if (ret.isEmpty() && usr.startsWith("/")) { // for break statements and includes
+        Symbol sym;
+        sym.location = Location::fromPathLineAndColumn(usr);
+        ret.insert(sym);
+        return ret;
     }
 
     return ret;

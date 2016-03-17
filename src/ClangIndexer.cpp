@@ -1113,26 +1113,44 @@ void ClangIndexer::handleStatement(const CXCursor &cursor, CXCursorKind kind, co
         c.startColumn = startColumn;
         c.endColumn = endColumn;
 
-        mScopeStack.append(Location(location.fileId(), c.endLine, c.endColumn - 1));
+        mScopeStack.append({Scope::Other, Location(location.fileId(), c.startLine, c.startColumn), Location(location.fileId(), c.endLine, c.endColumn - 1) });
         clang_visitChildren(cursor, ClangIndexer::indexVisitor, this);
         mScopeStack.removeLast();
+        break; }
+    case CXCursor_ReturnStmt: {
+        auto u = unit(location);
+        Symbol &c = u->symbols[location];
+        if (!c.isNull())
+            return;
+
+        for (int i=mScopeStack.size() - 1; i>=0; --i) {
+            const auto &scope = mScopeStack.at(i);
+            if (scope.type == Scope::FunctionDefinition) {
+                c.kind = kind;
+                c.symbolName = "return";
+                u->symbolNames[c.symbolName].insert(location);
+                c.kind = kind;
+                c.symbolLength = 6;
+                c.location = location;
+                u->targets[location][scope.start.toString(Location::NoColor|Location::AbsolutePath)] = 0;
+                break;
+            }
+        }
+        if (!c.symbolLength)
+            u->symbols.remove(location);
         break; }
     case CXCursor_ForStmt:
     case CXCursor_WhileStmt:
     case CXCursor_DoStmt:
     case CXCursor_SwitchStmt: {
         const CXSourceRange range = clang_getCursorExtent(cursor);
+        const CXSourceLocation start = clang_getRangeStart(range);
         const CXSourceLocation end = clang_getRangeEnd(range);
-        const Location loc = createLocation(end);
-        if (kind != CXCursor_SwitchStmt) {
-            const Location startLoc = createLocation(clang_getRangeStart(range));
-            mLoopStartStack.append(startLoc);
-        }
-        mLoopSwitchEndStack.append(loc);
+        const Location startLoc = createLocation(start);
+        const Location endLoc = createLocation(end);
+        mLoopStack.append(Loop({kind, startLoc, endLoc}));
         clang_visitChildren(cursor, ClangIndexer::indexVisitor, this);
-        mLoopSwitchEndStack.removeLast();
-        if (kind != CXCursor_SwitchStmt)
-            mLoopStartStack.removeLast();
+        mLoopStack.removeLast();
         break; }
     case CXCursor_ContinueStmt:
     case CXCursor_BreakStmt: {
@@ -1140,22 +1158,38 @@ void ClangIndexer::handleStatement(const CXCursor &cursor, CXCursorKind kind, co
         Symbol &c = u->symbols[location];
         if (!c.isNull())
             break;
-        String target;
+        Location target;
+        CXCursorKind targetKind = CXCursor_FirstInvalid;
         if (kind == CXCursor_BreakStmt) {
-            target = mLoopSwitchEndStack.value(mLoopSwitchEndStack.size() - 1).toString(Location::NoColor|Location::AbsolutePath);
+            target = mLoopStack.value(mLoopStack.size() - 1).end;
         } else {
-            target = mLoopStartStack.value(mLoopStartStack.size() - 1).toString(Location::NoColor|Location::AbsolutePath);
+            for (int i=mLoopStack.size() - 1; i>=0; --i) {
+                const auto &loop = mLoopStack.at(i);
+                if (loop.kind != CXCursor_SwitchStmt) {
+                    target = loop.start;
+                    targetKind = loop.kind;
+                    break;
+                }
+            }
         }
-        if (target.isEmpty()) {
+        if (target.isNull()) {
             u->symbols.remove(location);
+            return;
         }
-
+        Symbol &targetSymbol = u->symbols[target];
+        if (!targetSymbol.symbolLength) {
+            targetSymbol.usr = target.toString(Location::NoColor|Location::AbsolutePath);
+            targetSymbol.kind = targetKind;
+            targetSymbol.symbolName = RTags::eatString(clang_getCursorKindSpelling(targetSymbol.kind));
+            targetSymbol.symbolLength = targetSymbol.symbolName.size();
+            targetSymbol.location = target;
+        }
         c.symbolName = kind == CXCursor_BreakStmt ? "break" : "continue";
         u->symbolNames[c.symbolName].insert(location);
         c.kind = kind;
-        c.symbolLength = c.symbolName.size() + 2;
+        c.symbolLength = c.symbolName.size();
         c.location = location;
-        u->targets[location][target] = 0;
+        u->targets[location][targetSymbol.usr] = 0;
         break; }
     default:
         break;
@@ -1307,7 +1341,7 @@ CXChildVisitResult ClangIndexer::handleCursor(const CXCursor &cursor, CXCursorKi
     switch (kind) {
     case CXCursor_ParmDecl:
     case CXCursor_VarDecl: {
-        if (type.kind != CXType_Record || mScopeStack.isEmpty() || mScopeStack.back().isNull())
+        if (type.kind != CXType_Record || mScopeStack.isEmpty() || mScopeStack.back().type == Scope::FunctionDeclaration)
             break;
 
         CXCursor ref = RTags::findChild(cursor, CXCursor_TypeRef);
@@ -1325,7 +1359,7 @@ CXChildVisitResult ClangIndexer::handleCursor(const CXCursor &cursor, CXCursorKi
                 if (!(clang_equalCursors(destructor, nullCursor))) {
                     const String destructorUsr = ::usr(destructor);
                     assert(!destructorUsr.isEmpty());
-                    const Location scopeEndLocation = mScopeStack.back();
+                    const Location scopeEndLocation = mScopeStack.back().end;
                     auto u = unit(scopeEndLocation);
                     Map<String, uint16_t> &t = u->targets[scopeEndLocation];
                     t[destructorUsr] = 0;
@@ -1532,11 +1566,9 @@ CXChildVisitResult ClangIndexer::handleCursor(const CXCursor &cursor, CXCursorKi
     }
 
     if (RTags::isFunction(c.kind)) {
-        if (c.definition) {
-            mScopeStack.append(Location(location.fileId(), c.endLine, c.endColumn - 1));
-        } else {
-            mScopeStack.append(Location());
-        }
+        mScopeStack.append({c.definition ? Scope::FunctionDefinition : Scope::FunctionDeclaration,
+                            Location(location.fileId(), c.startLine, c.startColumn),
+                            Location(location.fileId(), c.endLine, c.endColumn - 1)});
         clang_visitChildren(cursor, ClangIndexer::indexVisitor, this);
         mScopeStack.removeLast();
         return CXChildVisit_Continue;

@@ -180,7 +180,22 @@ private:
     Path mDataDir;
     bool mUnionRecursion;
 
-    List<Location> mScopeStack, mLoopSwitchEndStack, mLoopStartStack;
+    struct Scope {
+        enum ScopeType {
+            FunctionDefinition,
+            FunctionDeclaration,
+            Other
+        };
+        ScopeType type;
+        Location start, end;
+    };
+    List<Scope> mScopeStack;
+
+    struct Loop { // or switch
+        CXCursorKind kind;
+        Location start, end;
+    };
+    List<Loop> mLoopStack;
 
     static Flags<Server::Option> sServerOpts;
 };

@@ -249,6 +249,7 @@ static inline CursorType cursorType(CXCursorKind kind)
     case CXCursor_WhileStmt:
     case CXCursor_DoStmt:
     case CXCursor_CompoundStmt:
+    case CXCursor_ReturnStmt:
         return Type_Statement;
     default:
         if (clang_isStatement(static_cast<CXCursorKind>(kind))) {
