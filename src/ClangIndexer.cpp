@@ -40,18 +40,31 @@ static inline String usr(const CXCursor &cursor)
     return RTags::eatString(clang_getCursorUSR(clang_getCanonicalCursor(cursor)));
 }
 
-struct VerboseVisitorUserData {
-    int indent;
-    String out;
-    ClangIndexer *indexer;
-};
-
 static inline void setType(Symbol &symbol, const CXType &type)
 {
     symbol.type = type.kind;
     const String str = RTags::eatString(clang_getTypeSpelling(type));
     symbol.typeName = str;
 }
+
+static inline void setRange(Symbol &symbol, const CXSourceRange &range)
+{
+    CXSourceLocation rangeStart = clang_getRangeStart(range);
+    CXSourceLocation rangeEnd = clang_getRangeEnd(range);
+    unsigned int startLine, startColumn, endLine, endColumn;
+    clang_getSpellingLocation(rangeStart, 0, &startLine, &startColumn, 0);
+    clang_getSpellingLocation(rangeEnd, 0, &endLine, &endColumn, 0);
+    symbol.startLine = startLine;
+    symbol.endLine = endLine;
+    symbol.startColumn = startColumn;
+    symbol.endColumn = endColumn;
+}
+
+struct VerboseVisitorUserData {
+    int indent;
+    String out;
+    ClangIndexer *indexer;
+};
 
 Flags<Server::Option> ClangIndexer::sServerOpts;
 ClangIndexer::ClangIndexer()
@@ -1004,15 +1017,7 @@ bool ClangIndexer::handleReference(const CXCursor &cursor, CXCursorKind kind,
 #endif
 
     CXSourceRange range = clang_getCursorExtent(cursor);
-    CXSourceLocation rangeStart = clang_getRangeStart(range);
-    CXSourceLocation rangeEnd = clang_getRangeEnd(range);
-    unsigned int startLine, startColumn, endLine, endColumn;
-    clang_getSpellingLocation(rangeStart, 0, &startLine, &startColumn, 0);
-    clang_getSpellingLocation(rangeEnd, 0, &endLine, &endColumn, 0);
-    c->startLine = startLine;
-    c->endLine = endLine;
-    c->startColumn = startColumn;
-    c->endColumn = endColumn;
+    setRange(*c, range);
     c->definition = false;
     c->kind = kind;
     c->location = location;
@@ -1020,8 +1025,8 @@ bool ClangIndexer::handleReference(const CXCursor &cursor, CXCursorKind kind,
 
     if (isOperator) {
         unsigned int start, end;
-        clang_getSpellingLocation(rangeStart, 0, 0, 0, &start);
-        clang_getSpellingLocation(rangeEnd, 0, 0, 0, &end);
+        clang_getSpellingLocation(clang_getRangeStart(range), 0, 0, 0, &start);
+        clang_getSpellingLocation(clang_getRangeEnd(range), 0, 0, 0, &end);
         c->symbolLength = end - start;
     } else {
         c->symbolLength = result == Found ? reffedCursor.symbolLength : symbolLength(refKind, ref);
@@ -1093,32 +1098,36 @@ void ClangIndexer::handleInclude(const CXCursor &cursor, CXCursorKind kind, cons
 
 void ClangIndexer::handleStatement(const CXCursor &cursor, CXCursorKind kind, const Location &location)
 {
+    auto u = unit(location);
     // error() << "got dude" << kind << location;
     switch (kind) {
     case CXCursor_CompoundStmt: {
-        Symbol &c = unit(location)->symbols[location];
-        if (!c.isNull())
+        Symbol &c = u->symbols[location];
+        if (!c.isNull()) {
             return;
-        c.location = location;
-        c.kind = kind;
-        c.definition = false;
-        const CXSourceRange range = clang_getCursorExtent(cursor);
-        const CXSourceLocation rangeStart = clang_getRangeStart(range);
-        const CXSourceLocation rangeEnd = clang_getRangeEnd(range);
-        unsigned int startLine, startColumn, endLine, endColumn;
-        clang_getSpellingLocation(rangeStart, 0, &startLine, &startColumn, 0);
-        clang_getSpellingLocation(rangeEnd, 0, &endLine, &endColumn, 0);
-        c.startLine = startLine;
-        c.endLine = endLine;
-        c.startColumn = startColumn;
-        c.endColumn = endColumn;
-
-        mScopeStack.append({Scope::Other, Location(location.fileId(), c.startLine, c.startColumn), Location(location.fileId(), c.endLine, c.endColumn - 1) });
-        clang_visitChildren(cursor, ClangIndexer::indexVisitor, this);
-        mScopeStack.removeLast();
+        }
+        setRange(c, clang_getCursorExtent(cursor));
+        const Scope scope = {
+            Scope::Other,
+            Location(location.fileId(), c.startLine, c.startColumn),
+            Location(location.fileId(), c.endLine, c.endColumn - 1)
+        };
+        if (mScopeStack.isEmpty() || mScopeStack.back().end != scope.end) {
+            c.location = location;
+            c.kind = kind;
+            c.definition = false;
+            c.symbolName = "{}";
+            // should it have a symbolLength?
+            mScopeStack.append(scope);
+            clang_visitChildren(cursor, ClangIndexer::indexVisitor, this);
+            mScopeStack.removeLast();
+        } else {
+            // this is the function body, no need for this CompoundStmt
+            u->symbols.remove(location);
+            clang_visitChildren(cursor, ClangIndexer::indexVisitor, this);
+        }
         break; }
     case CXCursor_ReturnStmt: {
-        auto u = unit(location);
         Symbol &c = u->symbols[location];
         if (!c.isNull())
             return;
@@ -1132,6 +1141,7 @@ void ClangIndexer::handleStatement(const CXCursor &cursor, CXCursorKind kind, co
                 c.kind = kind;
                 c.symbolLength = 6;
                 c.location = location;
+                setRange(c, clang_getCursorExtent(cursor));
                 u->targets[location][scope.start.toString(Location::NoColor|Location::AbsolutePath)] = 0;
                 break;
             }
@@ -1142,54 +1152,65 @@ void ClangIndexer::handleStatement(const CXCursor &cursor, CXCursorKind kind, co
     case CXCursor_ForStmt:
     case CXCursor_WhileStmt:
     case CXCursor_DoStmt:
+    case CXCursor_IfStmt:
     case CXCursor_SwitchStmt: {
-        const CXSourceRange range = clang_getCursorExtent(cursor);
-        const CXSourceLocation start = clang_getRangeStart(range);
-        const CXSourceLocation end = clang_getRangeEnd(range);
-        const Location startLoc = createLocation(start);
-        const Location endLoc = createLocation(end);
-        mLoopStack.append(Loop({kind, startLoc, endLoc}));
-        clang_visitChildren(cursor, ClangIndexer::indexVisitor, this);
-        mLoopStack.removeLast();
+        Symbol &c = u->symbols[location];
+        if (!c.isNull())
+            return;
+        setRange(c, clang_getCursorExtent(cursor));
+        c.kind = kind;
+        switch (kind) {
+        case CXCursor_SwitchStmt: c.symbolName = "switch"; break;
+        case CXCursor_IfStmt: c.symbolName = "if"; break;
+        case CXCursor_ForStmt: c.symbolName = "for"; break;
+        case CXCursor_WhileStmt: c.symbolName = "while"; break;
+        case CXCursor_DoStmt: c.symbolName = "do"; break;
+        default: assert(0); break;
+        }
+        u->symbolNames[c.symbolName].insert(location);
+        c.symbolLength = c.symbolName.size();
+        c.location = location;
+        if (kind != CXCursor_IfStmt) {
+            const Loop loop = {
+                kind,
+                Location(location.fileId(), c.startLine, c.startColumn),
+                Location(location.fileId(), c.endLine, c.endColumn)
+            };
+
+            mLoopStack.append(loop);
+            clang_visitChildren(cursor, ClangIndexer::indexVisitor, this);
+            mLoopStack.removeLast();
+        } else {
+            clang_visitChildren(cursor, ClangIndexer::indexVisitor, this);
+        }
         break; }
     case CXCursor_ContinueStmt:
     case CXCursor_BreakStmt: {
-        auto u = unit(location);
         Symbol &c = u->symbols[location];
         if (!c.isNull())
             break;
         Location target;
-        CXCursorKind targetKind = CXCursor_FirstInvalid;
-        if (kind == CXCursor_BreakStmt) {
-            target = mLoopStack.value(mLoopStack.size() - 1).end;
-        } else {
-            for (int i=mLoopStack.size() - 1; i>=0; --i) {
-                const auto &loop = mLoopStack.at(i);
-                if (loop.kind != CXCursor_SwitchStmt) {
-                    target = loop.start;
-                    targetKind = loop.kind;
-                    break;
-                }
+        for (int i = mLoopStack.size() - 1; i>=0; --i) {
+            const auto &loop = mLoopStack.at(i);
+            if (kind == CXCursor_BreakStmt) {
+                target = loop.end;
+                break;
+            } else if (loop.kind != CXCursor_SwitchStmt) {
+                target = loop.start;
+                break;
             }
         }
         if (target.isNull()) {
             u->symbols.remove(location);
             return;
         }
-        Symbol &targetSymbol = u->symbols[target];
-        if (!targetSymbol.symbolLength) {
-            targetSymbol.usr = target.toString(Location::NoColor|Location::AbsolutePath);
-            targetSymbol.kind = targetKind;
-            targetSymbol.symbolName = RTags::eatString(clang_getCursorKindSpelling(targetSymbol.kind));
-            targetSymbol.symbolLength = targetSymbol.symbolName.size();
-            targetSymbol.location = target;
-        }
+        setRange(c, clang_getCursorExtent(cursor));
         c.symbolName = kind == CXCursor_BreakStmt ? "break" : "continue";
         u->symbolNames[c.symbolName].insert(location);
         c.kind = kind;
         c.symbolLength = c.symbolName.size();
         c.location = location;
-        u->targets[location][targetSymbol.usr] = 0;
+        u->targets[location][target.toString(Location::NoColor|Location::AbsolutePath)] = 0;
         break; }
     default:
         break;
@@ -1328,15 +1349,7 @@ CXChildVisitResult ClangIndexer::handleCursor(const CXCursor &cursor, CXCursorKi
     }
 
     const CXSourceRange range = clang_getCursorExtent(cursor);
-    const CXSourceLocation rangeStart = clang_getRangeStart(range);
-    const CXSourceLocation rangeEnd = clang_getRangeEnd(range);
-    unsigned int startLine, startColumn, endLine, endColumn;
-    clang_getSpellingLocation(rangeStart, 0, &startLine, &startColumn, 0);
-    clang_getSpellingLocation(rangeEnd, 0, &endLine, &endColumn, 0);
-    c.startLine = startLine;
-    c.endLine = endLine;
-    c.startColumn = startColumn;
-    c.endColumn = endColumn;
+    setRange(c, range);
 
     switch (kind) {
     case CXCursor_ParmDecl:
