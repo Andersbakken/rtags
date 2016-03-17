@@ -613,20 +613,19 @@ static inline CXCursor findDestructorForDelete(const CXCursor &deleteStatement)
     return destructor;
 }
 
-template <typename T>
-struct Updater
-{
-    Updater(T &v, const T &nv = T()) : var(v), newValue(nv) {}
-    ~Updater() { var = newValue; }
-
-    T &var;
-    T newValue;
-};
-
-CXChildVisitResult ClangIndexer::indexVisitor(CXCursor cursor, CXCursor parent, CXClientData data)
+CXChildVisitResult ClangIndexer::visitorHelper(CXCursor cursor, CXCursor, CXClientData data)
 {
     ClangIndexer *indexer = static_cast<ClangIndexer*>(data);
-    ++indexer->mCursorsVisited;
+    const CXChildVisitResult res = indexer->indexVisitor(cursor);
+    if (res == CXChildVisit_Recurse)
+        indexer->visit(cursor);
+    indexer->mLastCursor = cursor;
+    return CXChildVisit_Continue;
+}
+
+CXChildVisitResult ClangIndexer::indexVisitor(CXCursor cursor)
+{
+    ++mCursorsVisited;
     // error() << "indexVisitor" << cursor;
     // FILE *f = fopen("/tmp/clangindex.log", "a");
     // String str;
@@ -634,7 +633,6 @@ CXChildVisitResult ClangIndexer::indexVisitor(CXCursor cursor, CXCursor parent, 
     // fwrite(str.constData(), 1, str.size(), f);
     // fwrite("\n", 1, 1, f);
     // fclose(f);
-    const Updater<CXCursor> lastCursorUpdater(indexer->mLastCursor, cursor);
 
     const CXCursorKind kind = clang_getCursorKind(cursor);
     const RTags::CursorType type = RTags::cursorType(kind);
@@ -644,17 +642,17 @@ CXChildVisitResult ClangIndexer::indexVisitor(CXCursor cursor, CXCursor parent, 
 
     bool blocked = false;
 
-    Location loc = indexer->createLocation(cursor, &blocked);
+    Location loc = createLocation(cursor, &blocked);
 
     if (blocked) {
         // error() << "blocked" << cursor;
-        ++indexer->mBlocked;
+        ++mBlocked;
         return CXChildVisit_Continue;
     } else if (loc.isNull()) {
         // error() << "Got null" << cursor;
         return CXChildVisit_Recurse;
     }
-    for (const String &debug : indexer->mDebugLocations) {
+    for (const String &debug : mDebugLocations) {
         if (debug == "all" || debug == loc) {
             Log log(LogLevel::Error);
             log << cursor;
@@ -665,12 +663,12 @@ CXChildVisitResult ClangIndexer::indexVisitor(CXCursor cursor, CXCursor parent, 
             break;
         }
     }
-    ++indexer->mAllowed;
-    if (indexer->mLogFile) {
+    ++mAllowed;
+    if (mLogFile) {
         String out;
         Log(&out) << cursor;
-        fwrite(out.constData(), 1, out.size(), indexer->mLogFile);
-        fwrite("\n", 1, 1, indexer->mLogFile);
+        fwrite(out.constData(), 1, out.size(), mLogFile);
+        fwrite("\n", 1, 1, mLogFile);
     }
 
     if (testLog(LogLevel::VerboseDebug)) {
@@ -683,10 +681,10 @@ CXChildVisitResult ClangIndexer::indexVisitor(CXCursor cursor, CXCursor parent, 
     }
 
     if (Symbol::isClass(kind)) {
-        indexer->mLastClass = loc;
+        mLastClass = loc;
     } else {
         if (kind == CXCursor_CXXBaseSpecifier) {
-            indexer->handleBaseClassSpecifier(cursor);
+            handleBaseClassSpecifier(cursor);
             return CXChildVisit_Recurse;
         }
     }
@@ -694,13 +692,13 @@ CXChildVisitResult ClangIndexer::indexVisitor(CXCursor cursor, CXCursor parent, 
     CXChildVisitResult visitResult = CXChildVisit_Recurse;
     switch (type) {
     case RTags::Type_Cursor:
-        visitResult = indexer->handleCursor(cursor, kind, loc);
+        visitResult = handleCursor(cursor, kind, loc);
         break;
     case RTags::Type_Include:
-        indexer->handleInclude(cursor, kind, loc);
+        handleInclude(cursor, kind, loc);
         break;
     case RTags::Type_Statement:
-        visitResult = indexer->handleStatement(cursor, kind, loc);
+        visitResult = handleStatement(cursor, kind, loc);
         break;
     case RTags::Type_Reference:
         switch (kind) {
@@ -708,27 +706,26 @@ CXChildVisitResult ClangIndexer::indexVisitor(CXCursor cursor, CXCursor parent, 
             const int count = clang_getNumOverloadedDecls(cursor);
             for (int i=0; i<count; ++i) {
                 const CXCursor ref = clang_getOverloadedDecl(cursor, i);
-                indexer->handleReference(cursor, kind, loc, ref, parent);
+                handleReference(cursor, kind, loc, ref);
             }
             break; }
         case CXCursor_CXXDeleteExpr:
-            indexer->handleReference(cursor, kind, loc, findDestructorForDelete(cursor), parent);
+            handleReference(cursor, kind, loc, findDestructorForDelete(cursor));
             break;
         case CXCursor_CallExpr: {
             // uglehack, see rtags/tests/nestedClassConstructorCallUgleHack/
             const CXCursor ref = clang_getCursorReferenced(cursor);
             if (clang_getCursorKind(ref) == CXCursor_Constructor
-                && (clang_getCursorKind(indexer->mLastCursor) == CXCursor_TypeRef
-                    || clang_getCursorKind(indexer->mLastCursor) == CXCursor_TemplateRef)
-                && clang_getCursorKind(parent) != CXCursor_VarDecl) {
-                loc = indexer->createLocation(indexer->mLastCursor);
-                indexer->handleReference(indexer->mLastCursor, kind, loc, ref, parent);
+                && (clang_getCursorKind(mLastCursor) == CXCursor_TypeRef || clang_getCursorKind(mLastCursor) == CXCursor_TemplateRef)
+                && clang_getCursorKind(mParents.back()) != CXCursor_VarDecl) {
+                loc = createLocation(mLastCursor);
+                handleReference(mLastCursor, kind, loc, ref);
             } else {
-                indexer->handleReference(cursor, kind, loc, ref, parent);
+                handleReference(cursor, kind, loc, ref);
             }
             break; }
         default:
-            indexer->handleReference(cursor, kind, loc, clang_getCursorReferenced(cursor), parent);
+            handleReference(cursor, kind, loc, clang_getCursorReferenced(cursor));
             break;
         }
         break;
@@ -747,14 +744,14 @@ static inline bool isImplicit(const CXCursor &cursor)
 
 bool ClangIndexer::superclassTemplateMemberFunctionUgleHack(const CXCursor &cursor, CXCursorKind kind,
                                                             const Location &location, const CXCursor &/*ref*/,
-                                                            const CXCursor &parent, Symbol **cursorPtr)
+                                                            Symbol **cursorPtr)
 {
     // This is for references to superclass template functions. Awful awful
     // shit. See https://github.com/Andersbakken/rtags/issues/62 and commit
     // for details. I really should report this as a bug.
     if (cursorPtr)
         *cursorPtr = 0;
-    if (kind != CXCursor_MemberRefExpr && clang_getCursorKind(parent) != CXCursor_CallExpr)
+    if (kind != CXCursor_MemberRefExpr && clang_getCursorKind(mParents.last()) != CXCursor_CallExpr)
         return false;
 
     const CXCursor templateRef = RTags::findChild(cursor, CXCursor_TemplateRef);
@@ -787,7 +784,7 @@ bool ClangIndexer::superclassTemplateMemberFunctionUgleHack(const CXCursor &curs
     if (!name.isEmpty()) {
         RTags::Filter out;
         out.kinds.insert(CXCursor_MemberRefExpr);
-        const int argCount = RTags::children(parent, RTags::Filter(), out).size();
+        const int argCount = RTags::children(mParents.last(), RTags::Filter(), out).size();
         RTags::Filter in(RTags::Filter::And);
         in.names.insert(name);
         in.argumentCount = argCount;
@@ -797,7 +794,7 @@ bool ClangIndexer::superclassTemplateMemberFunctionUgleHack(const CXCursor &curs
             // ### not sure this is correct with line/col
             return handleReference(cursor, kind,
                                    Location(location.fileId(), location.line(), location.column() + 1),
-                                   alternatives.first(), parent, cursorPtr);
+                                   alternatives.first(), cursorPtr);
             break;
         case 0:
             break;
@@ -811,16 +808,14 @@ bool ClangIndexer::superclassTemplateMemberFunctionUgleHack(const CXCursor &curs
     return false;
 }
 
-bool ClangIndexer::handleReference(const CXCursor &cursor, CXCursorKind kind,
-                                   Location location, CXCursor ref,
-                                   const CXCursor &parent, Symbol **cursorPtr)
+bool ClangIndexer::handleReference(const CXCursor &cursor, CXCursorKind kind, Location location, CXCursor ref, Symbol **cursorPtr)
 {
     if (cursorPtr)
         *cursorPtr = 0;
     // error() << "handleReference" << cursor << kind << location << ref;
     const CXCursorKind refKind = clang_getCursorKind(ref);
     if (clang_isInvalid(refKind)) {
-        return superclassTemplateMemberFunctionUgleHack(cursor, kind, location, ref, parent, cursorPtr);
+        return superclassTemplateMemberFunctionUgleHack(cursor, kind, location, ref, cursorPtr);
     }
 
     bool isOperator = false;
@@ -911,7 +906,7 @@ bool ClangIndexer::handleReference(const CXCursor &cursor, CXCursorKind kind,
             mUnionRecursion = true;
             // for anonymous unions we don't get to their fields with normal
             // recursing of the AST. In these cases we visit the union decl
-            clang_visitChildren(best, ClangIndexer::indexVisitor, this);
+            visit(best);
             mUnionRecursion = false;
             reffedCursor = findSymbol(refLoc, &result);
         }
@@ -1118,12 +1113,12 @@ CXChildVisitResult ClangIndexer::handleStatement(const CXCursor &cursor, CXCurso
             c.symbolName = "{}";
             // should it have a symbolLength?
             mScopeStack.append(scope);
-            clang_visitChildren(cursor, ClangIndexer::indexVisitor, this);
+            visit(cursor);
             mScopeStack.removeLast();
         } else {
             // this is the function body, no need for this CompoundStmt
             u->symbols.remove(location);
-            clang_visitChildren(cursor, ClangIndexer::indexVisitor, this);
+            visit(cursor);
         }
         return CXChildVisit_Continue; }
     case CXCursor_ReturnStmt: {
@@ -1177,7 +1172,7 @@ CXChildVisitResult ClangIndexer::handleStatement(const CXCursor &cursor, CXCurso
             };
 
             mLoopStack.append(loop);
-            clang_visitChildren(cursor, ClangIndexer::indexVisitor, this);
+            visit(cursor);
             mLoopStack.removeLast();
             return CXChildVisit_Continue;
         }
@@ -1316,8 +1311,7 @@ CXChildVisitResult ClangIndexer::handleCursor(const CXCursor &cursor, CXCursorKi
                     if (loc.fileId()) {
                         if (!clang_equalCursors(resolvedAuto->cursor, nullCursor) && clang_getCursorKind(resolvedAuto->cursor) != CXCursor_NoDeclFound) {
                             Symbol *cursorPtr = 0;
-                            if (handleReference(mLastCursor, CXCursor_TypeRef, loc,
-                                                resolvedAuto->cursor, nullCursor, &cursorPtr)) {
+                            if (handleReference(mLastCursor, CXCursor_TypeRef, loc, resolvedAuto->cursor, &cursorPtr)) {
                                 cursorPtr->symbolLength = 4;
                                 cursorPtr->type = c.type;
                                 cursorPtr->endLine = c.startLine;
@@ -1581,7 +1575,7 @@ CXChildVisitResult ClangIndexer::handleCursor(const CXCursor &cursor, CXCursorKi
         mScopeStack.append({c.definition ? Scope::FunctionDefinition : Scope::FunctionDeclaration,
                             Location(location.fileId(), c.startLine, c.startColumn),
                             Location(location.fileId(), c.endLine, c.endColumn - 1)});
-        clang_visitChildren(cursor, ClangIndexer::indexVisitor, this);
+        visit(cursor);
         mScopeStack.removeLast();
         return CXChildVisit_Continue;
     }
@@ -1956,8 +1950,7 @@ bool ClangIndexer::visit()
 
     StopWatch watch;
 
-    clang_visitChildren(clang_getTranslationUnitCursor(mClangUnit),
-                        ClangIndexer::indexVisitor, this);
+    visit(clang_getTranslationUnitCursor(mClangUnit));
 
     for (const auto &it : mIndexDataMessage.files()) {
         if (it.second & IndexDataMessage::Visited)

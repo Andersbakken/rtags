@@ -106,7 +106,6 @@ private:
                                     const Location &location, Symbol **cursorPtr = 0);
     bool handleReference(const CXCursor &cursor, CXCursorKind kind,
                          Location loc, CXCursor reference,
-                         const CXCursor &parent,
                          Symbol **cursorPtr = 0);
     void handleBaseClassSpecifier(const CXCursor &cursor);
     void handleInclude(const CXCursor &cursor, CXCursorKind kind, const Location &location);
@@ -115,8 +114,15 @@ private:
     void addOverriddenCursors(const CXCursor &cursor, const Location &location);
     bool superclassTemplateMemberFunctionUgleHack(const CXCursor &cursor, CXCursorKind kind,
                                                   const Location &location, const CXCursor &ref,
-                                                  const CXCursor &parent, Symbol **cursorPtr = 0);
-    static CXChildVisitResult indexVisitor(CXCursor cursor, CXCursor parent, CXClientData client_data);
+                                                  Symbol **cursorPtr = 0);
+    void visit(CXCursor cursor)
+    {
+        mParents.append(cursor);
+        clang_visitChildren(cursor, visitorHelper, this);
+        mParents.removeLast();
+    }
+    CXChildVisitResult indexVisitor(CXCursor cursor);
+    static CXChildVisitResult visitorHelper(CXCursor cursor, CXCursor, CXClientData userData);
     static CXChildVisitResult verboseVisitor(CXCursor cursor, CXCursor, CXClientData userData);
     static CXChildVisitResult resolveAutoTypeRefVisitor(CXCursor cursor, CXCursor, CXClientData data);
 
@@ -196,6 +202,8 @@ private:
         Location start, end;
     };
     List<Loop> mLoopStack;
+
+    List<CXCursor> mParents;
 
     static Flags<Server::Option> sServerOpts;
 };
