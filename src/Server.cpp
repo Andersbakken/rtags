@@ -1216,7 +1216,6 @@ void Server::includeFile(const std::shared_ptr<QueryMessage> &query, const std::
 
 void Server::preprocessFile(const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Connection> &conn)
 {
-    const Path path = query->query();
     std::shared_ptr<Project> project = projectForQuery(query);
     if (!project) {
         conn->write("No project");
@@ -1224,7 +1223,12 @@ void Server::preprocessFile(const std::shared_ptr<QueryMessage> &query, const st
         return;
     }
 
-    const uint32_t fileId = Location::fileId(path);
+    Path path = query->query();
+    uint32_t fileId = Location::fileId(path);
+    if (!fileId) {
+        path.resolve();
+        fileId = Location::fileId(path);
+    }
     const Source source = project->sources(fileId).value(query->buildIndex());
     if (!source.isValid()) {
         conn->write<256>("%s build: %d not found", query->query().constData(), query->buildIndex());
