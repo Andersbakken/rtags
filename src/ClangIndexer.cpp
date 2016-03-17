@@ -847,7 +847,50 @@ bool ClangIndexer::handleReference(const CXCursor &cursor, CXCursorKind kind, Lo
     }
 
     switch (refKind) {
-    case CXCursor_Constructor:
+    case CXCursor_Constructor: {
+        enum State {
+            NotFound,
+            Handled,
+            DestructorNeeded
+        } state = NotFound;
+
+        for (int i=mParents.size() - 1; i>=0 && state == NotFound; --i) {
+            const CXCursor parent = mParents.at(i);
+            switch (clang_getCursorKind(parent)) {
+            case CXCursor_CallExpr: {
+                CXCursor func = clang_getCursorReferenced(parent);
+                switch (clang_getCursorKind(func)) {
+                case CXCursor_FunctionDecl:
+                case CXCursor_FunctionTemplate:
+                case CXCursor_CXXMethod:
+                    if (RTags::eatString(clang_getCursorSpelling(func)) == "operator=") {
+                        state = Handled;
+                    } else {
+                        state = DestructorNeeded;
+                    }
+                    break;
+                default:
+                    // ignore callExprs with invalid refs, they do happen
+                    break;
+                }
+                break; }
+            case CXCursor_VarDecl:
+                state = Handled;
+                break;
+            case CXCursor_ReturnStmt:
+                state = DestructorNeeded;
+                break;
+            default:
+                break;
+            }
+        }
+        if (state == DestructorNeeded) {
+            // error() << clang_getTypeDeclaration(clang_getCursorType(ref));
+            // error() << location << "needs a destructor" << cursor;
+            // error() << clang_getTypeDeclaration(clang_getCursorType(cursor));
+        }
+
+        break; }
     case CXCursor_CXXMethod:
     case CXCursor_FunctionDecl:
     case CXCursor_Destructor:
