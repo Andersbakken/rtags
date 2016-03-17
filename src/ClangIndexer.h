@@ -110,7 +110,7 @@ private:
                          Symbol **cursorPtr = 0);
     void handleBaseClassSpecifier(const CXCursor &cursor);
     void handleInclude(const CXCursor &cursor, CXCursorKind kind, const Location &location);
-    void handleScope(const CXCursor &cursor, CXCursorKind kind, const Location &location);
+    void handleStatement(const CXCursor &cursor, CXCursorKind kind, const Location &location);
     Location findByUSR(const CXCursor &cursor, CXCursorKind kind, const Location &loc) const;
     void addOverriddenCursors(const CXCursor &cursor, const Location &location);
     bool superclassTemplateMemberFunctionUgleHack(const CXCursor &cursor, CXCursorKind kind,
@@ -180,7 +180,7 @@ private:
     Path mDataDir;
     bool mUnionRecursion;
 
-    List<Location> mScopeStack;
+    List<Location> mScopeStack, mLoopSwitchEndStack, mLoopStartStack;
 
     static Flags<Server::Option> sServerOpts;
 };

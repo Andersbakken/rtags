@@ -1504,9 +1504,9 @@ Set<Symbol> Project::findByUsr(const String &usr, uint32_t fileId, DependencyMod
 {
     assert(fileId);
     Set<Symbol> ret;
-    if (usr.startsWith("/")) {
+    if (usr.startsWith("/")) { // for break statements and includes
         Symbol sym;
-        sym.location = Location(Location::fileId(usr), 1, 1);
+        sym.location = Location::fromPathLineAndColumn(usr);
         ret.insert(sym);
         return ret;
     }

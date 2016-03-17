@@ -365,11 +365,11 @@ String cursorToString(CXCursor cursor, Flags<CursorToStringFlags> flags)
     case Type_Cursor:
         ret += " cursor";
         break;
-    case Type_Scope:
-        ret += " scope";
-        break;
     case Type_Other:
         ret += " other";
+        break;
+    case Type_Statement:
+        ret += " statement";
         break;
     case Type_Include:
         ret += " include";

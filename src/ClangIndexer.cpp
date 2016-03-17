@@ -686,8 +686,9 @@ CXChildVisitResult ClangIndexer::indexVisitor(CXCursor cursor, CXCursor parent, 
     case RTags::Type_Include:
         indexer->handleInclude(cursor, kind, loc);
         break;
-    case RTags::Type_Scope:
-        indexer->handleScope(cursor, kind, loc);
+    case RTags::Type_Statement:
+        indexer->handleStatement(cursor, kind, loc);
+        visitResult = CXChildVisit_Continue;
         break;
     case RTags::Type_Reference:
         switch (kind) {
@@ -1081,7 +1082,7 @@ void ClangIndexer::handleInclude(const CXCursor &cursor, CXCursorKind kind, cons
             c.kind = cursor.kind;
             c.symbolLength = c.symbolName.size() + 2;
             c.location = location;
-            unit(location)->targets[location][refLoc.path()] = 0; // ### what targets value to create for this?
+            unit(location)->targets[location][refLoc.toString(Location::NoColor|Location::AbsolutePath)] = 0; // ### what targets value to create for this?
             // this fails for things like:
             // # include    <foobar.h>
             return;
@@ -1090,28 +1091,75 @@ void ClangIndexer::handleInclude(const CXCursor &cursor, CXCursorKind kind, cons
     error() << "couldn't create included file" << cursor;
 }
 
-void ClangIndexer::handleScope(const CXCursor &cursor, CXCursorKind kind, const Location &location)
+void ClangIndexer::handleStatement(const CXCursor &cursor, CXCursorKind kind, const Location &location)
 {
-    Symbol &c = unit(location)->symbols[location];
-    if (!c.isNull())
-        return;
-    c.location = location;
-    c.kind = kind;
-    c.definition = false;
-    const CXSourceRange range = clang_getCursorExtent(cursor);
-    const CXSourceLocation rangeStart = clang_getRangeStart(range);
-    const CXSourceLocation rangeEnd = clang_getRangeEnd(range);
-    unsigned int startLine, startColumn, endLine, endColumn;
-    clang_getSpellingLocation(rangeStart, 0, &startLine, &startColumn, 0);
-    clang_getSpellingLocation(rangeEnd, 0, &endLine, &endColumn, 0);
-    c.startLine = startLine;
-    c.endLine = endLine;
-    c.startColumn = startColumn;
-    c.endColumn = endColumn;
+    // error() << "got dude" << kind << location;
+    switch (kind) {
+    case CXCursor_CompoundStmt: {
+        Symbol &c = unit(location)->symbols[location];
+        if (!c.isNull())
+            return;
+        c.location = location;
+        c.kind = kind;
+        c.definition = false;
+        const CXSourceRange range = clang_getCursorExtent(cursor);
+        const CXSourceLocation rangeStart = clang_getRangeStart(range);
+        const CXSourceLocation rangeEnd = clang_getRangeEnd(range);
+        unsigned int startLine, startColumn, endLine, endColumn;
+        clang_getSpellingLocation(rangeStart, 0, &startLine, &startColumn, 0);
+        clang_getSpellingLocation(rangeEnd, 0, &endLine, &endColumn, 0);
+        c.startLine = startLine;
+        c.endLine = endLine;
+        c.startColumn = startColumn;
+        c.endColumn = endColumn;
 
-    mScopeStack.append(Location(location.fileId(), c.endLine, c.endColumn - 1));
-    clang_visitChildren(cursor, ClangIndexer::indexVisitor, this);
-    mScopeStack.removeLast();
+        mScopeStack.append(Location(location.fileId(), c.endLine, c.endColumn - 1));
+        clang_visitChildren(cursor, ClangIndexer::indexVisitor, this);
+        mScopeStack.removeLast();
+        break; }
+    case CXCursor_ForStmt:
+    case CXCursor_WhileStmt:
+    case CXCursor_DoStmt:
+    case CXCursor_SwitchStmt: {
+        const CXSourceRange range = clang_getCursorExtent(cursor);
+        const CXSourceLocation end = clang_getRangeEnd(range);
+        const Location loc = createLocation(end);
+        if (kind != CXCursor_SwitchStmt) {
+            const Location startLoc = createLocation(clang_getRangeStart(range));
+            mLoopStartStack.append(startLoc);
+        }
+        mLoopSwitchEndStack.append(loc);
+        clang_visitChildren(cursor, ClangIndexer::indexVisitor, this);
+        mLoopSwitchEndStack.removeLast();
+        if (kind != CXCursor_SwitchStmt)
+            mLoopStartStack.removeLast();
+        break; }
+    case CXCursor_ContinueStmt:
+    case CXCursor_BreakStmt: {
+        auto u = unit(location);
+        Symbol &c = u->symbols[location];
+        if (!c.isNull())
+            break;
+        String target;
+        if (kind == CXCursor_BreakStmt) {
+            target = mLoopSwitchEndStack.value(mLoopSwitchEndStack.size() - 1).toString(Location::NoColor|Location::AbsolutePath);
+        } else {
+            target = mLoopStartStack.value(mLoopStartStack.size() - 1).toString(Location::NoColor|Location::AbsolutePath);
+        }
+        if (target.isEmpty()) {
+            u->symbols.remove(location);
+        }
+
+        c.symbolName = kind == CXCursor_BreakStmt ? "break" : "continue";
+        u->symbolNames[c.symbolName].insert(location);
+        c.kind = kind;
+        c.symbolLength = c.symbolName.size() + 2;
+        c.location = location;
+        u->targets[location][target] = 0;
+        break; }
+    default:
+        break;
+    }
 }
 
 void ClangIndexer::handleBaseClassSpecifier(const CXCursor &cursor)
