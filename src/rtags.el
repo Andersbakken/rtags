@@ -2526,7 +2526,7 @@ This includes both declarations and definitions."
         (insert)
         (start (overlay-get overlay 'rtags-error-start))
         (end (overlay-get overlay 'rtags-error-end)))
-    (when (and start end msg (stringp severity) (string= severity "fixit") (string-match "did you mean '\\(.*\\)'\\?$" msg))
+    (when (and start end msg (eq severity 'fixit) (string-match "did you mean '\\(.*\\)'\\?$" msg))
       (save-excursion
         (setq insert (match-string-no-properties 1 msg))
         (rtags-goto-offset start)
