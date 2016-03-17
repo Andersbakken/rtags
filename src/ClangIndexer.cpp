@@ -700,8 +700,7 @@ CXChildVisitResult ClangIndexer::indexVisitor(CXCursor cursor, CXCursor parent, 
         indexer->handleInclude(cursor, kind, loc);
         break;
     case RTags::Type_Statement:
-        indexer->handleStatement(cursor, kind, loc);
-        visitResult = CXChildVisit_Continue;
+        visitResult = indexer->handleStatement(cursor, kind, loc);
         break;
     case RTags::Type_Reference:
         switch (kind) {
@@ -1096,7 +1095,7 @@ void ClangIndexer::handleInclude(const CXCursor &cursor, CXCursorKind kind, cons
     error() << "couldn't create included file" << cursor;
 }
 
-void ClangIndexer::handleStatement(const CXCursor &cursor, CXCursorKind kind, const Location &location)
+CXChildVisitResult ClangIndexer::handleStatement(const CXCursor &cursor, CXCursorKind kind, const Location &location)
 {
     auto u = unit(location);
     // error() << "got dude" << kind << location;
@@ -1104,7 +1103,7 @@ void ClangIndexer::handleStatement(const CXCursor &cursor, CXCursorKind kind, co
     case CXCursor_CompoundStmt: {
         Symbol &c = u->symbols[location];
         if (!c.isNull()) {
-            return;
+            break;
         }
         setRange(c, clang_getCursorExtent(cursor));
         const Scope scope = {
@@ -1126,11 +1125,11 @@ void ClangIndexer::handleStatement(const CXCursor &cursor, CXCursorKind kind, co
             u->symbols.remove(location);
             clang_visitChildren(cursor, ClangIndexer::indexVisitor, this);
         }
-        break; }
+        return CXChildVisit_Continue; }
     case CXCursor_ReturnStmt: {
         Symbol &c = u->symbols[location];
         if (!c.isNull())
-            return;
+            break;
 
         for (int i=mScopeStack.size() - 1; i>=0; --i) {
             const auto &scope = mScopeStack.at(i);
@@ -1156,7 +1155,7 @@ void ClangIndexer::handleStatement(const CXCursor &cursor, CXCursorKind kind, co
     case CXCursor_SwitchStmt: {
         Symbol &c = u->symbols[location];
         if (!c.isNull())
-            return;
+            break;
         setRange(c, clang_getCursorExtent(cursor));
         c.kind = kind;
         switch (kind) {
@@ -1180,8 +1179,7 @@ void ClangIndexer::handleStatement(const CXCursor &cursor, CXCursorKind kind, co
             mLoopStack.append(loop);
             clang_visitChildren(cursor, ClangIndexer::indexVisitor, this);
             mLoopStack.removeLast();
-        } else {
-            clang_visitChildren(cursor, ClangIndexer::indexVisitor, this);
+            return CXChildVisit_Continue;
         }
         break; }
     case CXCursor_ContinueStmt:
@@ -1202,7 +1200,7 @@ void ClangIndexer::handleStatement(const CXCursor &cursor, CXCursorKind kind, co
         }
         if (target.isNull()) {
             u->symbols.remove(location);
-            return;
+            break;
         }
         setRange(c, clang_getCursorExtent(cursor));
         c.symbolName = kind == CXCursor_BreakStmt ? "break" : "continue";
@@ -1215,6 +1213,7 @@ void ClangIndexer::handleStatement(const CXCursor &cursor, CXCursorKind kind, co
     default:
         break;
     }
+    return CXChildVisit_Recurse;
 }
 
 void ClangIndexer::handleBaseClassSpecifier(const CXCursor &cursor)
