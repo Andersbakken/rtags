@@ -3780,18 +3780,26 @@ If `rtags-display-summary-as-tooltip' is t, a tooltip is displayed."
   (add-hook 'tooltip-functions 'rtags-display-tooltip-function))
 
 (defun rtags-set-buffers (buffers)
-  ;; (message "calling-set-buffers %d" (length buffers))
+  "Send the list of indexable buffers to the rtags server, rdm,
+so it knows what files may be queried which helps with responsiveness.
+"
   (when rtags-enabled
     (with-temp-buffer
       (mapc #'(lambda (x)
                 (when (funcall rtags-is-indexable x)
                   (insert (buffer-file-name x) "\n")))
             buffers)
-      ;; (message "files: %s" (combine-and-quote-strings (split-string (buffer-substring-no-properties (point-min) (point-max)) "\n" t)) "|")
+      (when (> (point-max) 1)
+        (rtags-log (concat "--set-buffers files: "
+                           (combine-and-quote-strings
+                            (split-string (buffer-substring-no-properties (point-min) (point-max)) "\n" t)))))
       (rtags-call-rc :noerror t :silent-query t :path t :unsaved (current-buffer) "--set-buffers" "-"))))
 
 (defun rtags-kill-buffer-hook ()
-  (when (buffer-file-name)
+  "When killing a buffer that is indexable, inform rdm of the new
+set of buffers we are visiting."
+  (when (and (buffer-file-name)
+             (memq major-mode rtags-supported-major-modes))
     (unless (file-directory-p default-directory)
       (cd "/"))
     (rtags-set-buffers (remove (current-buffer) (buffer-list))))
@@ -3949,6 +3957,10 @@ If `rtags-display-summary-as-tooltip' is t, a tooltip is displayed."
 
 ;;;###autoload
 (defun rtags-make-member ()
+  "Create a stub member functions. Type a declaration and then
+`rtags-make-member' can be used to create the stub definition in
+the class.
+"
   (interactive)
   (let* ((member (rtags-find-member-function))
          (parent (cdr (assoc 'parent member)))
