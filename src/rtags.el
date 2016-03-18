@@ -1187,7 +1187,7 @@ Uses `completing-read' to ask for the project."
 
 If optional PREFIX is given, a selection of what type of dependency
 information should be shown will be offered. Currently only one can
-be choosen.
+be chosen.
 \"includes\"        - Print includes the file in buffer includes.
 \"included-by\"     - Print files which include the file in buffer.
 \"depends-on\"      - Print files the file in buffer depends on.
@@ -2376,7 +2376,7 @@ This includes both declarations and definitions."
         buf)))
 
 (defvar rtags-diagnostics-errors nil
-  "List of diagnostics erros.")
+  "List of diagnostics errors.")
 
 (defun rtags-parse-diagnostics (&optional buffer)
   (save-excursion
@@ -2611,7 +2611,7 @@ This includes both declarations and definitions."
 (add-hook 'post-command-hook 'rtags-post-command-hook)
 ;; (remove-hook 'post-command-hook 'rtags-post-command-hook)
 
-(defun rtags-set-diangnostics-suspended-impl (suspended quiet)
+(defun rtags-set-diagnostics-suspended-impl (suspended quiet)
   (setq rtags-diagnostics-suspended suspended)
   (if suspended
       (rtags-stop-diagnostics)
@@ -2620,15 +2620,15 @@ This includes both declarations and definitions."
     (message "RTags Diagnostics are %ssuspended" (if suspended "" "not "))))
 
 ;;;###autoload
-(defun rtags-toggle-diangnostics-suspended (&optional quiet)
+(defun rtags-toggle-diagnostics-suspended (&optional quiet)
   (interactive)
-  (rtags-set-diangnostics-suspended-impl (not rtags-diagnostics-suspended) quiet))
+  (rtags-set-diagnostics-suspended-impl (not rtags-diagnostics-suspended) quiet))
 
 ;;;###autoload
-(defun rtags-set-diangnostics-suspended (&optional quiet)
+(defun rtags-set-diagnostics-suspended (&optional quiet)
   (interactive "P")
-  (rtags-set-diangnostics-suspended-impl (y-or-n-p (format "Suspend RTags diagnostics%s? "
-                                                           (or rtags-diagnostics-suspended " (currently suspended)" ""))) quiet))
+  (rtags-set-diagnostics-suspended-impl (y-or-n-p (format "Suspend RTags diagnostics%s? "
+                                                          (or rtags-diagnostics-suspended " (currently suspended)" ""))) quiet))
 
 ;;;###autoload
 (defun rtags-stop-diagnostics ()
