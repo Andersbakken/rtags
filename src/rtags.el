@@ -1031,9 +1031,9 @@ it non-modified. Can be used both for path and location."
     (error "Set buffer with file %s read only " (buffer-file-name)))
   (setq buffer-read-only t))
 
-(defun rtags-builds (&optional file)
+(defun rtags-sources (&optional file)
   (with-temp-buffer
-    (rtags-call-rc :path file "--builds" file)
+    (rtags-call-rc :path file "--sources" file)
     (buffer-string)))
 
 (defmacro rtags-called-interactively-p ()
