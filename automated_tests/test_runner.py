@@ -65,11 +65,13 @@ def wait_for(p, match):
 
 
 def run(rdm, project_dir, test_dir, test_files, rc_command, expected_locations):
+    print 'running test'
     actual_locations = \
         read_locations(project_dir,
                        run_rc([c.format(test_dir) for c in rc_command]))
     # Compare that we have the same results in length and content
     assert_that(actual_locations, has_length(len(expected_locations)))
+    print 'checking location'
     for expected_location_string in expected_locations:
         expected_location = Location.from_str(expected_location_string.format(test_dir))
         assert_that(actual_locations, has_item(expected_location))
@@ -89,6 +91,10 @@ def test_generator():
     base_test_dir = os.path.dirname(os.path.abspath(__file__))
     project_dir = os.path.abspath(os.path.join(base_test_dir, os.path.pardir))
     for test_dir, _, test_files in tuple(os.walk(base_test_dir))[1:]:
+        print 'Test directory:',test_dir
+        print 'Test files:',test_files
+        if "ForwardDeclaration" in test_dir:
+          continue
         expectations = json.load(open(os.path.join(test_dir, "expectation.json"), 'r'))
         rdm = setup_rdm(test_dir, test_files)
         for e in expectations:

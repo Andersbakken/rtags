@@ -79,4 +79,4 @@ before_script:
 
 script:
     - VERBOSE=1 make -j2 -C build
-    - sh -c 'if [ -z "$SKIP_TESTS" ]; then PATH=$(pwd)/build/bin:$PATH nosetests; else echo "Skipping tests for this platform."; fi'
+    - sh -c 'if [ -z "$SKIP_TESTS" ]; then PATH=$(pwd)/build/bin:$PATH nosetests --nocapture; else echo "Skipping tests for this platform."; fi'
