@@ -1906,6 +1906,7 @@ of PREFIX or not, if doesn't contain one, one will be added."
   (define-key map (kbd (concat prefix "E")) 'rtags-preprocess-file)
   (define-key map (kbd (concat prefix "R")) 'rtags-rename-symbol)
   (define-key map (kbd (concat prefix "M")) 'rtags-symbol-info)
+  (define-key map (kbd (concat prefix "U")) 'rtags-display-summary-as-message)
   (define-key map (kbd (concat prefix "S")) 'rtags-display-summary)
   (define-key map (kbd (concat prefix "O")) 'rtags-goto-offset)
   (define-key map (kbd (concat prefix ";")) 'rtags-find-file)
