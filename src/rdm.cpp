@@ -31,19 +31,42 @@
 #include "rct/ThreadPool.h"
 #include "RTags.h"
 #include "Server.h"
+#include <execinfo.h>
 
 #if !defined(HAVE_FSEVENTS) && defined(HAVE_KQUEUE)
 #define FILEMANAGER_OPT_IN
 #endif
 
-static void sigSegvHandler(int signal)
+char crashDumpTempFilePath[PATH_MAX];
+char crashDumpFilePath[PATH_MAX];
+FILE *crashDumpFile = 0;
+static void signalHandler(int signal)
 {
+    enum { SIZE = 1024 };
+    void *stack[SIZE];
+
+    fprintf(stderr, "Caught signal %d\n", signal);
+
+    const int frameCount = backtrace(stack, sizeof(stack) / sizeof(void*));
+    if (frameCount <= 0) {
+        fprintf(stderr, "Couldn't get stack trace\n");
+        if (crashDumpFile)
+            fprintf(crashDumpFile, "Caught signal %d\nCouldn't get stack trace\n", signal);
+    } else {
+        backtrace_symbols_fd(stack, frameCount, fileno(stderr));
+        if (crashDumpFile) {
+            backtrace_symbols_fd(stack, frameCount, fileno(crashDumpFile));
+            fprintf(crashDumpFile, "Caught signal %d\n", signal);
+        }
+    }
+    fflush(stderr);
+
+    if (crashDumpFile) {
+        fclose(crashDumpFile);
+        rename(crashDumpTempFilePath, crashDumpFilePath);
+    }
     if (Server *server = Server::instance())
         server->stopServers();
-    fprintf(stderr, "Caught signal %d\n", signal);
-    const String trace = Rct::backtrace();
-    fprintf(stderr, "%s\n", trace.constData());
-    fflush(stderr);
     _exit(1);
 }
 
@@ -113,7 +136,8 @@ static void usage(FILE *f)
             "  --job-count|-j [arg]                       Spawn this many concurrent processes for indexing (default %d).\n"
             "  --header-error-job-count|-H [arg]          Allow this many concurrent header error jobs (default std::max(1, --job-count / 2)).\n"
             "  --log-file|-L [arg]                        Log to this file.\n"
-            "  --log-file-log-level [arg]                 Log level for log file (default is error):\n"
+            "  --log-file-log-level [arg]                 Log level for log file (default is error).\n"
+            "  --crash-dump-file [arg]                    File to dump crash log to (default is <datadir>/crash.dump).\n"
             "                                             options are: error, warning, debug or verbose-debug.\n"
 #ifndef OS_FreeBSD
 #endif
@@ -166,8 +190,21 @@ static void usage(FILE *f)
             , std::max(2, ThreadPool::idealThreadCount()), defaultStackSize, defaultRP().constData());
 }
 
+class RemoveCrashDump
+{
+public:
+    ~RemoveCrashDump()
+    {
+        if (crashDumpFile) {
+            fclose(crashDumpFile);
+            unlink(crashDumpTempFilePath);
+        }
+    }
+};
+
 int main(int argc, char** argv)
 {
+    RemoveCrashDump removeCrashDump;
 #ifdef OS_Darwin
     struct rlimit rlp;
     if (getrlimit(RLIMIT_NOFILE, &rlp) == 0) {
@@ -197,6 +234,7 @@ int main(int argc, char** argv)
         { "isystem", required_argument, 0, 's' },
         { "define", required_argument, 0, 'D' },
         { "log-file", required_argument, 0, 'L' },
+        { "crash-dump-file", required_argument, 0, 19 },
         { "setenv", required_argument, 0, 'e' },
         { "no-Wall", no_argument, 0, 'W' },
         { "Weverything", no_argument, 0, 'u' },
@@ -380,6 +418,7 @@ int main(int argc, char** argv)
     serverOpts.maxCrashCount = DEFAULT_MAX_CRASH_COUNT;
     serverOpts.completionCacheSize = DEFAULT_COMPLETION_CACHE_SIZE;
     serverOpts.rp = defaultRP();
+    strcpy(crashDumpFilePath, "crash.dump");
 #ifdef OS_FreeBSD
     serverOpts.options |= Server::NoFileManagerWatch;
 #endif
@@ -456,6 +495,9 @@ int main(int argc, char** argv)
             break;
         case 18:
             logFlags |= LogTimeStamp;
+            break;
+        case 19:
+            strcpy(crashDumpFilePath, optarg);
             break;
         case 2:
             fprintf(stdout, "%s\n", RTags::versionString().constData());
@@ -760,9 +802,10 @@ int main(int argc, char** argv)
     }
 
     if (sigHandler) {
-        signal(SIGSEGV, sigSegvHandler);
-        signal(SIGILL, sigSegvHandler);
-        signal(SIGABRT, sigSegvHandler);
+        signal(SIGSEGV, signalHandler);
+        signal(SIGBUS, signalHandler);
+        signal(SIGILL, signalHandler);
+        signal(SIGABRT, signalHandler);
     }
 
     // Shell-expand logFile
@@ -826,6 +869,20 @@ int main(int argc, char** argv)
         }
     }
     serverOpts.dataDir = serverOpts.dataDir.ensureTrailingSlash();
+
+    if (strlen(crashDumpFilePath)) {
+        if (crashDumpFilePath[0] != '/') {
+            const String f = crashDumpFilePath;
+            snprintf(crashDumpFilePath, sizeof(crashDumpFilePath), "%s%s", serverOpts.dataDir.constData(), f.constData());
+        }
+        snprintf(crashDumpTempFilePath, sizeof(crashDumpTempFilePath), "%s.tmp", crashDumpFilePath);
+        crashDumpFile = fopen(crashDumpTempFilePath, "w");
+        if (!crashDumpFile) {
+            fprintf(stderr, "Couldn't open temp file %s for write (%d)", crashDumpTempFilePath, errno);
+            return 1;
+        }
+    }
+
     if (!server->init(serverOpts)) {
         cleanupLogging();
         return 1;
