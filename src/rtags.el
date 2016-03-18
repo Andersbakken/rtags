@@ -1921,6 +1921,66 @@ of PREFIX or not, if doesn't contain one, one will be added."
   (define-key map (kbd (concat prefix "a")) 'rtags-print-source-arguments)
   (define-key map (kbd (concat prefix "l")) 'rtags-list-results))
 
+
+;; XXX - would be nice to rename functions to match menu prompts and
+;; reorder them to match menu ordering.
+
+(defun rtags-submenu-list (&optional submenu-name)
+  "Returns submenu list that can be supplied to `easy-menu-add-item'."
+  (if (not submenu-name)
+      (setq submenu-name "RTags"))
+  (list
+   submenu-name
+   ["Find symbol definition at point" rtags-find-symbol-at-point]
+   ["Find references at point" rtags-find-references-at-point]
+   ["Find symbol definition by name" rtags-find-symbol]
+   ["Find reference by name" rtags-find-references]
+   ["Find all definitions, references, etc. at point"
+    rtags-find-all-references-at-point]
+   ["Find symbol declaration at point" rtags-guess-function-at-point]
+   ["Find virtual method implementations at point" rtags-find-virtuals-at-point]
+   ["Find file in RTags database" rtags-find-file]
+   ["Print enum value at point" rtags-print-enum-value-at-point]
+   "--"
+   ["Location stack back" rtags-location-stack-back]
+   ["Location stack forward" rtags-location-stack-forward]
+   "--"
+   ["List all tags for current file" rtags-taglist]
+   ["Tags imenu" rtags-imenu]
+   ["Print class hierarchy" rtags-print-class-hierarchy]
+   "--"
+   ["Show compiler diagnostic messages" rtags-diagnostics]
+   ["Compile file" rtags-compile-file]
+   ["Cycle though diagnostic overlays" rtags-cycle-overlays-on-screen]
+   ["Apply compiler fix-it" rtags-fixit]
+   ["Apply compiler fix-it at point"  rtags-fixit-at-point]
+   "--"
+   ["Rename symbol" rtags-rename-symbol]
+   ["Make stub member function" rtags-make-member]
+   "--"
+   ["Display summary of symbol at point in tooltip" rtags-display-summary]
+   ["Display summary of symbol at point" rtags-display-summary-as-message]
+   ["Display symbol info" rtags-symbol-info]
+   ["Print dependencies" rtags-dependency-tree]
+   ["Print dependencies for all sources" rtags-dependency-tree-all]
+   "--"
+   ["Reparse file" rtags-reparse-file]
+   ["Preprocess file" rtags-preprocess-file]
+   (list
+    "RTags Development"
+    ["Copy and print current location" rtags-copy-and-print-current-location]
+    ["Print source arguments" rtags-print-source-arguments]
+    ["Goto offset" rtags-goto-offset]
+    ["Show *RTags* buffer" rtags-show-rtags-buffer]
+    ["Show *RTags* buffer in other window" rtags-list-results])))
+
+(defun rtags-add-submenu (menu-name)
+  "Add the RTags submenu to menu-name")
+
+(add-hook 'c++-mode-hook '(lambda () (easy-menu-add-item nil '("C++") (rtags-submenu-list))))
+(add-hook 'c-mode-hook '(lambda () (easy-menu-add-item nil '("C") (rtags-submenu-list))))
+(add-hook 'objc-mode-hook '(lambda () (easy-menu-add-item nil '("ObjC") (rtags-submenu-list))))
+
 ;;;###autoload
 (defun rtags-print-current-location ()
   (interactive)
