@@ -53,8 +53,9 @@
 (require 'repeat)
 
 ;; Hack for `kbd'. `kbd' is a macro in Emacs 23, and probably below.
-(if (< emacs-major-version 24)
-    (defalias 'kbd 'read-kbd-macro))
+(eval-when-compile
+  (when (< emacs-major-version 24)
+    (defalias 'kbd 'read-kbd-macro)))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -214,6 +215,62 @@ prepare completions."
   :type 'boolean
   :safe 'booleanp)
 
+;; Leveraging rtags-socket-file
+;; ----------------------------
+;; One approach to handling multiple projects is to have separate rdm tag
+;; servers, on per project. Consider a project with many thousands of files
+;; (thousands of .so's). The size of the rdm tag database on disk will be
+;; several GBs. Each project is in it's own workspace on disk often referred to
+;; as a sandbox.  Having one rdm tag server for sandbox helps with scalability.
+;; To do this, suppose your sandbox root is SBROOT, you would then:
+;;    mkdir $SBROOT/.rtags
+;;    rdm --socket-file=$SBROOT/.rtags/rdm_socket \
+;;        --data-dir=$SBROOT/.rtags/rtags \
+;;        --log-file=$SBROOT/.rtags/rdm.log \
+;;        --silent \
+;;        --watch-sources-only \
+;;        --job-count=$NCORES
+;;  then in emacs you need to tell rtags.el how to contact to rdm.  You could
+;;  use something like:
+;;    (add-hook 'find-file-hook
+;;            (lambda ()
+;;              (if (= (length rtags-socket-file) 0)
+;;                  (let ((sbroot (if (buffer-file-name) (get-sbroot-for-buffer) nil))
+;;                        (socket-file nil))
+;;                      (when sbroot
+;;                        (setq socket-file (concat sbroot "/.rtags/rdm_socket"))
+;;                        (if (file-exists-p socket-file)
+;;                          (setq rtags-socket-file socket-file)))))))
+;;  where you provide the get-sbroot-for-buffer function to look for the
+;;  .rtags/rdm_socket base on the file currently being loaded, e.g. it is a C++
+;;  file that belongs to the project and contains a .rtags/rdm_socket file.
+;;
+;;  You may also want to provide something like:
+;;      (defun sb-set-active-sbroot-for-rtags ()
+;;        "Set the active sandbox for use by RTags."
+;;        (interactive)
+;;        (let* ((current-sbroot (get-sbroot-for-buffer))
+;;               (default-dir (if (and current-sbroot
+;;                                     (file-exists-p
+;;                                      (concat current-sbroot "/.rtags/rdm_socket")))
+;;                                current-sbroot
+;;                              (if (> (length rtags-socket-file) 0)
+;;                                  (replace-regexp-in-string "/\\.rtags/rdm_socket$" ""
+;;                                                            rtags-socket-file)
+;;                                nil)))
+;;               (sbroot (read-file-name "Sandbox root: " nil default-dir))
+;;               (socket-file (concat sbroot "/.rtags/rdm_socket")))
+;;          (if (not (file-directory-p sbroot))
+;;              (error "Directory, %S, does not exist" sbroot))
+;;          (if (not (file-exists-p socket-file))
+;;              (error "Sandbox has not been indexed (%S does not exist)."
+;;                     socket-file))
+;;          (setq rtags-socket-file socket-file)))
+;;      (easy-menu-add-item nil '(C++)
+;;                        ["Set active sbroot for rtags"
+;;                         (sb-set-active-sbroot-for-rtags) t])
+;;
+;;
 (defcustom rtags-socket-file ""
   "Socket file to pass to rc."
   :group 'rtags
@@ -914,6 +971,21 @@ it non-modified. Can be used both for path and location."
        (tramp-dissect-file-name location))
     location))
 
+(defvar rtags--socket-file-cache '("" ""))
+(defun rtags--get-socket-file-switch ()
+  "Private function which, validates on first access that
+`rtags-socket-file' exists and returns
+--socket-file=/expanded/path/to/socket/file.  Caller is expected
+to only call this when `rtags-socket-file' is defined.
+"
+  (when (not (string-equal (car rtags--socket-file-cache) rtags-socket-file))
+    (setq rtags--socket-file-cache (list rtags-socket-file (expand-file-name rtags-socket-file)))
+    (unless (car rtags--socket-file-cache)
+      (error "%S does not exist" rtags-socket-file)))
+
+  (concat "--socket-file=" (car rtags--socket-file-cache)))
+
+
 (defun* rtags-call-rc (&rest arguments
                        &key (path (buffer-file-name))
                        unsaved
@@ -971,7 +1043,7 @@ it non-modified. Can be used both for path and location."
               (t nil))
 
         (when (> (length rtags-socket-file) 0)
-          (push (concat "-n" (expand-file-name rtags-socket-file)) arguments))
+          (push (rtags--get-socket-file-switch) arguments))
 
         (when rtags-rc-log-enabled
           (rtags-log (concat rc " " (rtags-combine-strings arguments))))
@@ -1005,7 +1077,7 @@ it non-modified. Can be used both for path and location."
                           (erase-buffer)
                           (setq rtags-last-request-not-connected t)
                           (unless noerror
-                            (message "Can't seem to connect to server. Is rdm running?"))
+                            (error "Can't seem to connect to server. Is rdm running?"))
                           nil)
                          ((re-search-forward "^Not indexed" nil t)
                           (erase-buffer)
@@ -2774,7 +2846,11 @@ This includes both declarations and definitions."
                 (let ((rawbuf (get-buffer rtags-diagnostics-raw-buffer-name)))
                   (when rawbuf
                     (kill-buffer rawbuf)))
-                (setq rtags-diagnostics-process (start-file-process "RTags Diagnostics" buf rc "-m" "--elisp"))
+                (let ((rc-args '("-m" "--elisp")))
+                  (when (> (length rtags-socket-file) 0)
+                    (push (rtags--get-socket-file-switch) rc-args))
+                  (setq rtags-diagnostics-process
+                        (apply #'start-file-process "RTags Diagnostics" buf rc rc-args)))
                 (set-process-filter rtags-diagnostics-process #'rtags-diagnostics-process-filter)
                 (set-process-sentinel rtags-diagnostics-process 'rtags-diagnostics-sentinel)
                 (set-process-query-on-exit-flag rtags-diagnostics-process nil)
