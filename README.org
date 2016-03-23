@@ -1,5 +1,7 @@
 #+OPTIONS: ^:nil
 [[https://travis-ci.org/Andersbakken/rtags][https://travis-ci.org/Andersbakken/rtags.svg?branch=master]]
+[[http://www.gnu.org/licenses/gpl-3.0.txt][https://img.shields.io/badge/license-GPL%203-brightgreen.svg]]
+[[http://melpa.org/#/rtags][file:http://melpa.org/packages/rtags-badge.svg]]
 
 * Introduction
 RTags is a client/server application that indexes C/C++ code and keeps
