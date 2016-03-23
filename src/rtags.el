@@ -53,9 +53,8 @@
 (require 'repeat)
 
 ;; Hack for `kbd'. `kbd' is a macro in Emacs 23, and probably below.
-(eval-when-compile
-  (when (< emacs-major-version 24)
-    (defalias 'kbd 'read-kbd-macro)))
+(if (< emacs-major-version 24)
+    (defalias 'kbd 'read-kbd-macro))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
