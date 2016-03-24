@@ -753,15 +753,33 @@ to work.
 ...TODO...
 * RTags Flycheck integration
 To turn on RTags Flycheck support you need to load the =flycheck-rtags= package.
+
 #+BEGIN_SRC emacs-lisp
 (require 'flycheck-rtags)
 #+END_SRC
+
 ** Optional
-You may explicitly select the RTags Flycheck checker for some major modes, it
-will than be the preferred syntax checker for the major mode.
+You may explicitly select the RTags Flycheck checker for some major modes for
+better experience.
+
+At the moment there is no customize option available to choose between
+=rtags-diagnostics= overlays or Flycheck overlays, nor is it planned right
+now.
+We recommend setting =flycheck-highlighting-mode= locally to =nil= as the
+RTags overlays are more accurate.
+
+Further, Flycheck will trigger automatically, based on events, the syntax
+checker for the current buffer, this is however, pretty useless in conjunction
+with RTags. We trigger it manually because we find it gives you a better
+experience.
+To turn off the automatic Flycheck syntax checking, set the variable
+=flycheck-check-syntax-automatically= locally to =nil=.
+
 #+BEGIN_SRC emacs-lisp
 (defun my-flycheck-rtags-setup ()
-  (flycheck-select-checker 'rtags))
+  (flycheck-select-checker 'rtags)
+  (setq-local flycheck-highlighting-mode nil) ;; RTags creates more accurate overlays.
+  (setq-local flycheck-check-syntax-automatically nil))
 ;; c-mode-common-hook is also called by c++-mode
 (add-hook 'c-mode-common-hook #'my-flycheck-rtags-setup)
 #+END_SRC

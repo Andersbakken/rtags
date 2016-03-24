@@ -32,8 +32,13 @@
 ;;
 ;;
 ;; ;; Optional explicitly select the RTags Flycheck checker for c or c++ major mode.
+;; ;; Turn off Flycheck highlighting, use the RTags one.
+;; ;; Turn off automatic Flycheck syntax checking rtags does this manually.
 ;; (defun my-flycheck-rtags-setup ()
-;;  (flycheck-select-checker 'rtags))
+;;   "Configure flycheck-rtags for better experience."
+;;   (flycheck-select-checker 'rtags)
+;;   (setq-local flycheck-check-syntax-automatically nil)
+;;   (setq-local flycheck-highlighting-mode nil))
 ;; ;; c-mode-common-hook is also called by c++-mode
 ;; (add-hook 'c-mode-common-hook #'my-flycheck-rtags-setup)
 ;;
@@ -43,7 +48,7 @@
 (require 'rtags)
 
 (require 'flycheck)
-(eval-when-compile (require 'pcase)) ;; Flycheck requires emacs 24.3 anyway.
+(eval-when-compile (require 'pcase))
 
 (defgroup flycheck-rtags nil
   "RTags Flycheck integration."

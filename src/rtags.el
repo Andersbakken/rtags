@@ -56,6 +56,8 @@
 (if (< emacs-major-version 24)
     (defalias 'kbd 'read-kbd-macro))
 
+(declare-function flycheck-buffer "ext:flycheck")
+
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Constants
@@ -2433,7 +2435,7 @@ This includes both declarations and definitions."
 (defvar rtags-error-warning-count nil)
 (make-variable-buffer-local 'rtags-error-warning-count)
 
-(defun rtags-handle-check-style (buffer filename data)
+(defun rtags-handle-check-style (filename data)
   ;; (message "parsing nodes %s" (buffer-file-name buffer))
   (let* ((line (nth 1 data))
          (column (nth 2 data))
@@ -2445,8 +2447,7 @@ This includes both declarations and definitions."
          (startoffset nil)
          (endoffset nil)
          (errorlist (gethash filename rtags-overlays nil)))
-    (with-current-buffer buffer
-      (save-excursion
+    (save-excursion
         (when (rtags-goto-line-col line column)
           (setq startoffset (rtags-offset))
           (setq endoffset (or (and length (+ startoffset length))
@@ -2457,7 +2458,7 @@ This includes both declarations and definitions."
           (let ((overlay (make-overlay (1+ startoffset)
                                        (cond ((= startoffset endoffset) (min (+ startoffset 2) (point-max)))
                                              (t (1+ endoffset)))
-                                       buffer)))
+                                       (current-buffer))))
             (when children
               (overlay-put overlay 'rtags-error-children children))
             (overlay-put overlay 'rtags-error-message message)
@@ -2482,7 +2483,7 @@ This includes both declarations and definitions."
               (when (> (length message) 0)
                 (insert (format "%s:%d:%d: %s: %s\n" filename line column severity message)))
               (setq buffer-read-only t)))))
-      ret)))
+      ret))
 
 (defvar rtags-last-check-style nil)
 
@@ -2496,10 +2497,15 @@ This includes both declarations and definitions."
            (buf (rtags-really-find-buffer file)))
       (setq checkstyle (cdr checkstyle))
       (when buf
-        (rtags-overlays-remove file)
-        (while diags
-          (rtags-handle-check-style buf file (car diags))
-          (setq diags (cdr diags)))))))
+        (with-current-buffer buf
+          (rtags-overlays-remove file)
+          (while diags
+            (rtags-handle-check-style file (car diags))
+            (setq diags (cdr diags)))
+          ;; Manually trigger Flycheck to be in sync.
+          (when (and (featurep 'flycheck-rtags)
+                     (bound-and-true-p flycheck-mode))
+            (flycheck-buffer)))))))
 
 (defun rtags-get-buffer-create-no-undo (name)
   (or (get-buffer name)

@@ -20,7 +20,6 @@
   (defun flycheck-define-generic-checker (&rest args))
   (defun flycheck-error-new-at (&rest args))
   (defun flycheck-verification-result-new (&rest args))
-  (defun flycheck-select-checker (&rest args))
 
   (provide 'company)
   (provide 'company-template)
