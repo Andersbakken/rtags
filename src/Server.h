@@ -22,6 +22,7 @@
 #include "rct/List.h"
 #include "rct/SocketServer.h"
 #include "rct/String.h"
+#include "rct/Thread.h"
 #include "Source.h"
 #ifdef OS_Darwin
 #include <Availability.h>
@@ -121,15 +122,15 @@ public:
     std::shared_ptr<Project> currentProject() const { return mCurrentProject.lock(); }
     void onNewMessage(const std::shared_ptr<Message> &message, const std::shared_ptr<Connection> &conn);
     bool saveFileIds();
-private:
-    String guessArguments(const String &args, const Path &pwd, const Path &projectRootOverride);
-    void load();
     bool index(const String &arguments,
                const Path &pwd,
                const List<Path> &pathEnvironment,
                const Path &projectRootOverride,
                Flags<IndexMessage::Flag> flags = Flags<IndexMessage::Flag>(),
                std::shared_ptr<Project> *projectPtr = 0);
+private:
+    String guessArguments(const String &args, const Path &pwd, const Path &projectRootOverride);
+    void load();
     void onNewConnection(SocketServer *server);
     void setCurrentProject(const std::shared_ptr<Project> &project);
     void clearProjects();
