@@ -2271,9 +2271,9 @@ This includes both declarations and definitions."
                 (with-current-buffer buf
                   (save-excursion
                     (rtags-goto-line-col line col)
-                    (when (cond ((looking-at (concat "~" prev)) (forward-char) t)
+                    (when (cond ((looking-at prev))
+                                ((looking-at (concat "~" prev)) (forward-char) t)
                                 ((looking-at "auto ") nil)
-                                ((looking-at prev))
                                 (t (error "Rename gone awry. Refusing to rename %s (%s) to %s"
                                           (rtags-current-token)
                                           (rtags-current-location)
