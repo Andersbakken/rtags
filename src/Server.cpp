@@ -583,8 +583,6 @@ void Server::handleIndexMessage(const std::shared_ptr<IndexMessage> &message, co
 #if CLANG_VERSION_MAJOR > 3 || (CLANG_VERSION_MAJOR == 3 && CLANG_VERSION_MINOR > 3)
     const Path path = message->compilationDatabaseDir();
     if (!path.isEmpty()) {
-        const Path path = message->compilationDatabaseDir();
-        assert(!path.isEmpty());
         CXCompilationDatabase_Error err;
         CXCompilationDatabase db = clang_CompilationDatabase_fromDirectory(path.constData(), &err);
         if (err == CXCompilationDatabase_NoError) {
