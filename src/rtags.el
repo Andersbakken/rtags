@@ -198,6 +198,12 @@ prepare completions."
   :type '(choice (const :tag "Unset" nil) number)
   :safe 'numberp)
 
+(defcustom rtags-periodic-reparse-timeout nil
+  "Interval for async parsing of unsaved buffers. nil (Unset) means don't reparse preemptively"
+  :group 'rtags
+  :type '(choice (const :tag "Unset" nil) number)
+  :safe 'numberp)
+
 (defcustom rtags-update-current-project-timer-interval .5
   "Interval for update current project timer."
   :group 'rtags
@@ -2733,6 +2739,7 @@ This includes both declarations and definitions."
     (when rtags-close-taglist-on-focus-lost
       (rtags-close-taglist))
     (rtags-update-completions-timer)
+    (rtags-update-periodic-reparse-timer)
     (rtags-restart-find-container-timer)
     (rtags-restart-tracking-timer)
     (when (and rtags-highlight-current-line (rtags-is-rtags-buffer))
@@ -3729,7 +3736,7 @@ definition."
       (point))))
 
 ;;;###autoload
-(defun rtags-reparse-file (&optional buffer wait-reparsing)
+(defun rtags-reparse-file (&optional buffer)
   "WAIT-REPARSING : t to wait for reparsing to finish, nil for async (no waiting)."
   (interactive)
   (when (or (not (rtags-called-interactively-p)) (rtags-sandbox-id-matches))
@@ -3739,44 +3746,49 @@ definition."
       ;;(when (null (rtags-buffer-status buffer))
       ;;(message ":debug: file not indexed"))
       (when (and file (rtags-buffer-status buffer))
-        (if (and rtags-enable-unsaved-reparsing (buffer-modified-p buffer))
-            (progn
+        (if (buffer-modified-p buffer)
+            (when (or rtags-enable-unsaved-reparsing force)
               (message "Reparsing %s" file)
               (rtags-call-rc :path file
                              :timeout rtags-reparse-timeout
                              :unsaved buffer
                              "--silent"
                              "-V" file
-                             (if wait-reparsing "--wait")))
+                             (if rtags-enable-unsaved-reparsing "--wait")))
           (rtags-call-rc :path file "--silent" "-V" file)
           (message (format "Dirtied %s" file)))))))
 
 ;; assoc list containing unsaved buffers and their modification ticks
 ;; (to avoid reparsing unsaved files if there were no changes since last parsing)
 ;; :fixme: - remove buffers from list on save
-(defvar rtags-unsaved-buffers-ticks nil)
+(defvar rtags-unsaved-buffer-ticks nil)
+(make-variable-buffer-local 'rtags-unsaved-buffer-ticks)
 
-(defun rtags-reparse-file-if-needed (&optional buffer)
+(defvar rtags-periodic-reparse-timer nil)
+(defun rtags-reparse-file-if-needed (&optional buffer force)
   "Reparse file if it's not saved.
 
-BUFFER : The buffer to be checked and reparsed, if it's nil, use current buffer."
-  (when rtags-enable-unsaved-reparsing
+buffer : The buffer to be checked and reparsed, if it's nil, use current buffer.
+force means do it regardless of rtags-enable-unsaved-reparsing "
+  (when (or rtags-enable-unsaved-reparsing force)
     (let ((unsaved (and (buffer-modified-p buffer) (or buffer (current-buffer)))))
       (when unsaved
         ;; check ticks since the last save to avoid parsing the file multiple times
         ;; if it has not been modified
         (let ((current-ticks (buffer-modified-tick unsaved))
-              (old-ticks (cdr (assoc unsaved rtags-unsaved-buffers-ticks))))
+              (old-ticks (buffer-local-value 'rtags-unsaved-buffer-ticks unsaved)))
           ;; reparsing this dirty file for the first time
           ;; or if it was modified since last reparsing
           ;;(message ":debug: buffer=%s, old-ticks=%s, current-ticks=%s"
           ;;unsaved old-ticks current-ticks)
-          (if (or (null old-ticks) (/= current-ticks old-ticks))
-              (progn
-                (rtags-reparse-file unsaved t)
-                (add-to-list 'rtags-unsaved-buffers-ticks (cons unsaved current-ticks)))
-            (let ((item (assoc unsaved rtags-unsaved-buffers-ticks)))  ;; else update ticks
-              (setf (cdr item) current-ticks))))))))
+          (when (or (null old-ticks) (/= current-ticks old-ticks))
+            (rtags-reparse-file unsaved)
+            (setq-local rtags-unsaved-buffer-ticks current-ticks)))))))
+
+(defun rtags-periodic-reparse-buffer ()
+  (rtags-reparse-file-if-needed nil t)
+  (setq rtags-periodic-reparse-timer nil)
+  (rtags-update-periodic-reparse-timer))
 
 ;;;###autoload
 (defun rtags-maybe-reparse-file (&optional buffer)
@@ -3801,6 +3813,14 @@ BUFFER : The buffer to be checked and reparsed, if it's nil, use current buffer.
         ((= rtags-completions-timer-interval 0) (rtags-prepare-completions))
         (t (setq rtags-completions-timer (run-with-idle-timer rtags-completions-timer-interval
                                                               nil #'rtags-prepare-completions)))))
+
+(defun rtags-update-periodic-reparse-timer ()
+  (interactive)
+  (when (and rtags-periodic-reparse-timeout
+             (not rtags-periodic-reparse-timer)
+             (rtags-has-diagnostics))
+    (setq rtags-periodic-reparse-timer (run-with-idle-timer rtags-periodic-reparse-timeout nil #'rtags-periodic-reparse-buffer))))
+
 
 (defun rtags-code-complete-enabled ()
   (and rtags-completions-enabled
