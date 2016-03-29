@@ -657,8 +657,8 @@ List<Source> Source::parse(const String &cmdLine,
     if (!inputs.isEmpty()) {
         if (!buildRootId) {
             buildRoot = RTags::findProjectRoot(inputs.first().realPath, RTags::BuildRoot);
-            buildRoot.resolve(Path::RealPath, cwd);
-            buildRootId = Location::insertFile(buildRoot);
+            if (buildRoot.isDir())
+                buildRootId = Location::insertFile(buildRoot);
         }
         includePathHash = ::hashIncludePaths(includePaths, buildRoot);
 
