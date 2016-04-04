@@ -3817,6 +3817,7 @@ force means do it regardless of rtags-enable-unsaved-reparsing "
 (defun rtags-update-periodic-reparse-timer ()
   (interactive)
   (when (and rtags-periodic-reparse-timeout
+             (funcall rtags-is-indexable (current-buffer))
              (not rtags-periodic-reparse-timer)
              (rtags-has-diagnostics))
     (setq rtags-periodic-reparse-timer (run-with-idle-timer rtags-periodic-reparse-timeout nil #'rtags-periodic-reparse-buffer))))
