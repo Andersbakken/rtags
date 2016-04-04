@@ -1827,7 +1827,15 @@ instead of file from `current-buffer'.
     (condition-case nil
         (progn
           (forward-line (1- line))
-          (forward-char (1- column))
+          (if (rtags-buffer-is-multibyte)
+              (let ((prev (buffer-local-value enable-multibyte-characters (current-buffer)))
+                    (loc (local-variable-p enable-multibyte-characters)))
+                (set-buffer-multibyte nil)
+                (forward-char (1- column))
+                (set-buffer-multibyte prev)
+                (unless loc
+                  (kill-local-variable enable-multibyte-characters)))
+            (forward-char (1- column)))
           t)
       (error
        (goto-char old)
@@ -2349,9 +2357,11 @@ This includes both declarations and definitions."
                 (select-window win)
               (switch-to-buffer-other-window buf)))
           (save-excursion
-            (rtags-goto-offset start)
-            (delete-char (- end start)) ;; may be 0
-            (insert text)))))))
+            (save-restriction
+              (widen)
+              (goto-char start)
+              (delete-char (- end start)) ;; may be 0
+              (insert text))))))))
 
 (defvar rtags-overlays (make-hash-table :test 'equal))
 
@@ -2450,46 +2460,47 @@ This includes both declarations and definitions."
          (message (nth 5 data))
          (children (nth 6 data))
          (ret)
-         (startoffset nil)
-         (endoffset nil)
+         (start)
+         (end)
          (errorlist (gethash filename rtags-overlays nil)))
     (save-excursion
-        (when (rtags-goto-line-col line column)
-          (setq startoffset (rtags-offset))
-          (setq endoffset (or (and length (+ startoffset length))
-                              (let ((rsym (thing-at-point 'symbol)))
-                                (and rsym (+ startoffset (length rsym))))
-                              (1+ startoffset)))
-
-          (let ((overlay (make-overlay (1+ startoffset)
-                                       (cond ((= startoffset endoffset) (min (+ startoffset 2) (point-max)))
-                                             (t (1+ endoffset)))
-                                       (current-buffer))))
-            (when children
-              (overlay-put overlay 'rtags-error-children children))
-            (overlay-put overlay 'rtags-error-message message)
-            (overlay-put overlay 'rtags-error-severity severity)
-            (overlay-put overlay 'rtags-error-start startoffset)
-            (overlay-put overlay 'rtags-error-end endoffset)
-            ;; (message "Got overlay %d %d %d %s" startoffset endoffset length severity)
-            (overlay-put overlay 'face (cond ((string= severity 'error) (setq ret 'error) 'rtags-errline)
-                                             ((string= severity 'warning) (setq ret 'warning) 'rtags-warnline)
-                                             ((string= severity 'fixit) (overlay-put overlay 'priority 1) 'rtags-fixitline)
-                                             ((string= severity 'skipped) 'rtags-skippedline)
-                                             (t 'rtags-errline)))
-            (setq errorlist (append errorlist (list overlay)))
-            (puthash filename errorlist rtags-overlays))))
-      (when startoffset
-        (let ((diagnostics-buffer (get-buffer rtags-diagnostics-buffer-name)))
-          (when diagnostics-buffer
-            (with-current-buffer diagnostics-buffer
-              (setq buffer-read-only nil)
-              (when (eq severity 'fixit)
-                (insert (format "%s:%d:%d: fixit: %d-%d: %s\n" filename line column startoffset endoffset message)))
-              (when (> (length message) 0)
-                (insert (format "%s:%d:%d: %s: %s\n" filename line column severity message)))
-              (setq buffer-read-only t)))))
-      ret))
+      (when (rtags-goto-line-col line column)
+        (setq start (point))
+        (setq end (cond (length (save-excursion
+                                  (rtags-goto-offset (+ (rtags-offset) length))
+                                  (point)))
+                        ((let ((sym (thing-at-point 'symbol)))
+                           (and sym (+ start (length sym)))))
+                        (t (1+ start))))
+        (let ((overlay (make-overlay start (if (= start end)
+                                               (min (1+ start) (point-max))
+                                             end)
+                                     (current-buffer))))
+          (when children
+            (overlay-put overlay 'rtags-error-children children))
+          (overlay-put overlay 'rtags-error-message message)
+          (overlay-put overlay 'rtags-error-severity severity)
+          (overlay-put overlay 'rtags-error-start start)
+          (overlay-put overlay 'rtags-error-end end)
+          ;; (message "Got overlay %s:%d:%d %d - %d-%d - %s" filename line column (or length -1) start end severity)
+          (overlay-put overlay 'face (cond ((string= severity 'error) (setq ret 'error) 'rtags-errline)
+                                           ((string= severity 'warning) (setq ret 'warning) 'rtags-warnline)
+                                           ((string= severity 'fixit) (overlay-put overlay 'priority 1) 'rtags-fixitline)
+                                           ((string= severity 'skipped) 'rtags-skippedline)
+                                           (t 'rtags-errline)))
+          (setq errorlist (append errorlist (list overlay)))
+          (puthash filename errorlist rtags-overlays))))
+    (when start
+      (let ((diagnostics-buffer (get-buffer rtags-diagnostics-buffer-name)))
+        (when diagnostics-buffer
+          (with-current-buffer diagnostics-buffer
+            (setq buffer-read-only nil)
+            (when (eq severity 'fixit)
+              (insert (format "%s:%d:%d: fixit: %d-%d: %s\n" filename line column start end message)))
+            (when (> (length message) 0)
+              (insert (format "%s:%d:%d: %s: %s\n" filename line column severity message)))
+            (setq buffer-read-only t)))))
+    ret))
 
 (defvar rtags-last-check-style nil)
 
@@ -2672,11 +2683,13 @@ This includes both declarations and definitions."
         (end (overlay-get overlay 'rtags-error-end)))
     (when (and start end msg (eq severity 'fixit) (string-match "did you mean '\\(.*\\)'\\?$" msg))
       (save-excursion
-        (setq insert (match-string-no-properties 1 msg))
-        (rtags-goto-offset start)
-        (delete-char (- end start))
-        (when insert
-          (insert insert))))))
+        (save-restriction
+          (widen)
+          (setq insert (match-string-no-properties 1 msg))
+          (goto-char start)
+          (delete-char (- end start))
+          (when insert
+            (insert insert)))))))
 
 ;;;###autoload
 (defun rtags-fix-fixit-at-point ()
