@@ -3748,7 +3748,8 @@ definition."
       (when (and file (rtags-buffer-status buffer))
         (if (buffer-modified-p buffer)
             (when (or rtags-enable-unsaved-reparsing force)
-              (message "Reparsing %s" file)
+              (unless force
+                (message "Reparsing %s" file))
               (rtags-call-rc :path file
                              :timeout rtags-reparse-timeout
                              :unsaved buffer
