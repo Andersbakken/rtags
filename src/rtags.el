@@ -3736,7 +3736,7 @@ definition."
       (point))))
 
 ;;;###autoload
-(defun rtags-reparse-file (&optional buffer)
+(defun rtags-reparse-file (&optional buffer force)
   "WAIT-REPARSING : t to wait for reparsing to finish, nil for async (no waiting)."
   (interactive)
   (when (or (not (rtags-called-interactively-p)) (rtags-sandbox-id-matches))
@@ -3783,7 +3783,7 @@ force means do it regardless of rtags-enable-unsaved-reparsing "
           ;;(message ":debug: buffer=%s, old-ticks=%s, current-ticks=%s"
           ;;unsaved old-ticks current-ticks)
           (when (or (null old-ticks) (/= current-ticks old-ticks))
-            (rtags-reparse-file unsaved)
+            (rtags-reparse-file unsaved force)
             (setq-local rtags-unsaved-buffer-ticks current-ticks)))))))
 
 (defun rtags-periodic-reparse-buffer ()
