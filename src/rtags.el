@@ -3432,16 +3432,6 @@ other window instead of the current one."
             (end (+ (string-to-number (match-string-no-properties 3 symbol-info)) 1)))
         (cons start end)))))
 
-(defun rtags-decode-range (symbol-info)
-  "Decode range from the SYMBOL-INFO (e.g. 5:1-10:3) and return a list with 2 coordinates:
-\(line1 col1 line2 col2)"
-  (when (string-match "^Range: \\([0-9]+\\):\\([0-9]+\\)-\\([0-9]+\\):\\([0-9]+\\)$" symbol-info)
-    (let ((line1 (string-to-number (match-string-no-properties 1 symbol-info)))
-          (col1 (string-to-number (match-string-no-properties 2 symbol-info)))
-          (line2 (string-to-number (match-string-no-properties 3 symbol-info)))
-          (col2 (string-to-number (match-string-no-properties 4 symbol-info))))
-      (list line1 col1 line2 col2))))
-
 (defvar rtags-other-window-window nil)
 ;;;###autoload
 (defun rtags-remove-other-window ()
@@ -3890,26 +3880,32 @@ force means do it regardless of rtags-enable-unsaved-reparsing "
                            "--code-complete-at" location "--elisp" (rtags-completion-include-macros)))))
       ret)))
 
-(defun rtags-get-summary-text (&optional max-no-lines)
+(defun rtags-get-summary-text (&optional max-num-lines)
   "Return a text describing the item at point.
 
 For functions it is the declaration, including the parameters names, if available
-or the first MAX-NO-LINES (default 5) lines of the definition; for variables is
+or the first MAX-NUM-LINES (default 5) lines of the definition; for variables is
 the definition, etc.
 
 Return nil if it can't get any info about the item."
   ;; try first with --declaration-only
   (let ((target (rtags-target-declaration-first)))
     (when target
-      (let ((range (rtags-decode-range (rtags-symbol-info :location target :no-reparse t))))
-        (when range
-          (let* ((line1 (first range))
-                 (line2 (third range))
-                 symbol-text pos1 pos2)
-            (when (null max-no-lines)
-              (setq max-no-lines 5))
-            (when (> (- line2 line1) max-no-lines)
-              (setq range (list line1 (second range) (+ line1 max-no-lines) 1)))
+      (let ((symbol (rtags-symbol-info-internal target nil t)))
+        (when symbol
+          (let* ((line1 (cdr (assoc 'startLine symbol)))
+                 (line2 (cdr (assoc 'endLine symbol)))
+                 (range (list line1 (cdr (assoc 'startColumn symbol)) line2 (cdr (assoc 'endColumn symbol))))
+                 (brief (cdr (assoc 'briefComment symbol)))
+                 symbol-text
+                 pos1
+                 pos2)
+            (unless (> (length brief) 0)
+              (setq brief nil))
+            (when (null max-num-lines)
+              (setq max-num-lines 5))
+            (when (> (- line2 line1) max-num-lines)
+              (setq range (list line1 (second range) (+ line1 max-num-lines) 1)))
             (when (string-match "\\(.*\\):\\([0-9]+\\):\\([0-9]+\\)" target)
               (let* ((file-or-buffer (rtags-trampify (match-string-no-properties 1 target)))
                      (buf (get-file-buffer file-or-buffer))
@@ -3926,9 +3922,9 @@ Return nil if it can't get any info about the item."
                     (rtags-goto-line-col (third range) (fourth range))
                     (setq pos2 (point))
                     (setq symbol-text (buffer-substring-no-properties pos1 pos2))))))
-            symbol-text)
-          )))))
-
+            (cond ((and symbol-text brief) (concat brief "\n\n" symbol-text))
+                  (brief)
+                  (t symbol-text))))))))
 
 ;;;###autoload
 (defun rtags-display-summary (&optional hide-empty)
