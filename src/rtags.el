@@ -3708,9 +3708,12 @@ definition."
                (not (eq (process-status rtags-rdm-process) 'exit))
                (not (eq (process-status rtags-rdm-process) 'signal)))
           (dolist (pid (reverse (list-system-processes))) ;; Check in the sys-processes for rdm
-            (let ((pname (cdr (assoc 'comm (process-attributes pid)))))
-              (when (or (string-equal pname "rdm")
-                        (string-equal pname "rdm.exe"))
+            (let* ((attrs (process-attributes pid))
+                   (pname (cdr (assoc 'comm attrs)))
+                   (uid   (cdr (assoc 'euid attrs))))
+              (when  (and (eq uid (user-uid))
+                          (or (string-equal pname "rdm")
+                              (string-equal pname "rdm.exe")))
                 (return t))))))
 
      ;; Executable not found or invalid
