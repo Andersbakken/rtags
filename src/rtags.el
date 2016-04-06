@@ -3710,10 +3710,10 @@ definition."
           (dolist (pid (reverse (list-system-processes))) ;; Check in the sys-processes for rdm
             (let* ((attrs (process-attributes pid))
                    (pname (cdr (assoc 'comm attrs)))
-                   (uid   (cdr (assoc 'euid attrs))))
-              (when  (and (eq uid (user-uid))
-                          (or (string-equal pname "rdm")
-                              (string-equal pname "rdm.exe")))
+                   (uid (cdr (assoc 'euid attrs))))
+              (when (and (eq uid (user-uid))
+                         (or (string-equal pname "rdm")
+                             (string-equal pname "rdm.exe")))
                 (return t))))))
 
      ;; Executable not found or invalid
