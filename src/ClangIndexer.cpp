@@ -1335,6 +1335,11 @@ CXChildVisitResult ClangIndexer::handleCursor(const CXCursor &cursor, CXCursorKi
             c.symbolLength = 6;
             c.symbolName = "struct";
             break;
+        case CXCursor_LambdaExpr:
+            c.symbolLength = 2;
+            c.symbolName = c.typeName;
+            c.flags |= Symbol::Definition;
+            break;
         default:
             unit(location)->symbols.remove(location);
             if (cursorPtr)
@@ -1600,6 +1605,9 @@ CXChildVisitResult ClangIndexer::handleCursor(const CXCursor &cursor, CXCursorKi
             c.flags |= Symbol::InlineFunction;
 #endif
 
+        addArguments(&c, cursor);
+        break;
+    case CXCursor_LambdaExpr:
         addArguments(&c, cursor);
         break;
     case CXCursor_Constructor:

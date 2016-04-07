@@ -51,7 +51,7 @@ namespace RTags {
 enum {
     MajorVersion = 2,
     MinorVersion = 0,
-    DatabaseVersion = 86,
+    DatabaseVersion = 87,
     SourcesFileVersion = 4
 };
 
@@ -242,6 +242,8 @@ static inline CursorType cursorType(CXCursorKind kind)
     switch (kind) {
     case CXCursor_InclusionDirective:
         return Type_Include;
+    case CXCursor_LambdaExpr:
+        return Type_Cursor;
     case CXCursor_BreakStmt:
     case CXCursor_ContinueStmt:
     case CXCursor_SwitchStmt:
@@ -279,6 +281,7 @@ static inline bool isContainer(CXCursorKind kind)
     case CXCursor_ObjCInstanceMethodDecl:
     case CXCursor_ObjCClassMethodDecl:
     case CXCursor_StructDecl:
+    case CXCursor_LambdaExpr:
         return true;
     default:
         break;

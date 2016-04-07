@@ -3383,6 +3383,14 @@ other window instead of the current one."
     (or (and visual (string= visual token) symbolname)
         token)))
 
+(defconst rtags-backward-token-symbolchars "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_~")
+(defun rtags-backward-token ()
+  (or (< (skip-chars-backward " \t\n") 0)
+      (< (skip-chars-backward "[]") 0) ;; for lambdas
+      (< (skip-chars-backward "A[A-Za-z_]") 0)
+      (< (skip-chars-backward rtags-backward-token-symbolchars) 0)
+      (backward-char)))
+
 (defun rtags-current-container ()
   (save-excursion
     (save-restriction
@@ -3422,7 +3430,7 @@ other window instead of the current one."
                                             (>= col end-column)))
                                (setq container nil))))
                          (not done)))
-              (backward-word))))
+              (rtags-backward-token))))
         container))))
 
 (defun rtags-current-container-name ()
@@ -4123,7 +4131,7 @@ set of buffers we are visiting."
   (interactive)
   (let* ((container (rtags-current-container))
          (kind (cdr (assoc 'kind container))))
-    (unless (member kind (list "CXXConstructor" "CXXDestructor" "CXXMethod" "FunctionDecl" "FunctionTemplate"))
+    (unless (member kind (list "CXXConstructor" "CXXDestructor" "CXXMethod" "FunctionDecl" "FunctionTemplate" "LambdaExpr"))
       (error "Can't find a function here"))
     (when (rtags-called-interactively-p)
       (message "Current function: %s stackCost: %d" (cdr (assoc 'symbolName container)) (cdr (assoc 'stackCost container))))
