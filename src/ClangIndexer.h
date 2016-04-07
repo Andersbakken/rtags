@@ -193,6 +193,7 @@ private:
             Other
         };
         ScopeType type;
+        Symbol *symbol;
         Location start, end;
     };
     List<Scope> mScopeStack;

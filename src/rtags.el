@@ -3383,7 +3383,7 @@ other window instead of the current one."
     (or (and visual (string= visual token) symbolname)
         token)))
 
-(defun rtags-current-container-name ()
+(defun rtags-current-container ()
   (save-excursion
     (save-restriction
       (widen)
@@ -3423,7 +3423,10 @@ other window instead of the current one."
                                (setq container nil))))
                          (not done)))
               (backward-word))))
-        (cdr (assoc 'symbolName container))))))
+        container))))
+
+(defun rtags-current-container-name ()
+  (cdr (assoc 'symbolName (rtags-current-container))))
 
 (defun rtags-cursor-extent (&optional location)
   (let ((symbol-info (rtags-symbol-info :location location)))
@@ -4115,6 +4118,16 @@ set of buffers we are visiting."
           (insert "#include \"" (file-name-nondirectory fn) "\"\n")
           (setq loc (cons (current-buffer) (point))))))
     loc))
+
+(defun rtags-stack-cost ()
+  (interactive)
+  (let* ((container (rtags-current-container))
+         (kind (cdr (assoc 'kind container))))
+    (unless (member kind (list "CXXConstructor" "CXXDestructor" "CXXMethod" "FunctionDecl" "FunctionTemplate"))
+      (error "Can't find a function here"))
+    (when (rtags-called-interactively-p)
+      (message "Current function: %s stackCost: %d" (cdr (assoc 'symbolName container)) (cdr (assoc 'stackCost container))))
+    (cdr (assoc 'stackSize container))))
 
 (defun rtags-find-member-function ()
   (save-excursion

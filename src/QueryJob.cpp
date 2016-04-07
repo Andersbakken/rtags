@@ -368,6 +368,8 @@ bool QueryJob::write(const Symbol &symbol,
                 elisp(out, "enumValue", symbol.enumValue, flags);
             if (symbol.isDefinition()) {
                 elisp(out, "definition", true, flags);
+                if (RTags::isFunction(symbol.kind))
+                    elisp(out, "stackCost", symbol.stackCost, flags);
             } else if (symbol.isReference()) {
                 elisp(out, "reference", true, flags);
             }

@@ -1055,7 +1055,6 @@ bool ClangIndexer::handleReference(const CXCursor &cursor, CXCursorKind kind, Lo
 
     CXSourceRange range = clang_getCursorExtent(cursor);
     setRange(*c, range);
-    c->definition = false;
     c->kind = kind;
     c->location = location;
     c->symbolName = result == Found ? reffedCursor.symbolName : addNamePermutations(ref, refLoc, RTags::Type_Reference);
@@ -1145,14 +1144,13 @@ CXChildVisitResult ClangIndexer::handleStatement(const CXCursor &cursor, CXCurso
         }
         setRange(c, clang_getCursorExtent(cursor));
         const Scope scope = {
-            Scope::Other,
+            Scope::Other, 0,
             Location(location.fileId(), c.startLine, c.startColumn),
             Location(location.fileId(), c.endLine, c.endColumn - 1)
         };
         if (mScopeStack.isEmpty() || mScopeStack.back().end != scope.end) {
             c.location = location;
             c.kind = kind;
-            c.definition = false;
             c.symbolName = "{}";
             // should it have a symbolLength?
             mScopeStack.append(scope);
@@ -1430,11 +1428,9 @@ CXChildVisitResult ClangIndexer::handleCursor(const CXCursor &cursor, CXCursorKi
         }
         break; }
     case CXCursor_EnumConstantDecl:
-
+        c.flags |= Symbol::Definition;
 #if CINDEX_VERSION >= CINDEX_VERSION_ENCODE(0, 2)
         c.enumValue = clang_getEnumConstantDeclValue(cursor);
-#else
-        c.definition = 1;
 #endif
         break;
     case CXCursor_MacroDefinition: {
@@ -1504,7 +1500,7 @@ CXChildVisitResult ClangIndexer::handleCursor(const CXCursor &cursor, CXCursorKi
         // }
 
         clang_disposeTokens(mClangUnit, tokens, numTokens);
-        c.definition = 1;
+        c.flags |= Symbol::Definition;
         break; }
     case CXCursor_FieldDecl:
 #if CINDEX_VERSION >= CINDEX_VERSION_ENCODE(0, 30)
@@ -1512,7 +1508,8 @@ CXChildVisitResult ClangIndexer::handleCursor(const CXCursor &cursor, CXCursorKi
 #endif
         // fall through
     default:
-        c.definition = clang_isCursorDefinition(cursor);
+        if (clang_isCursorDefinition(cursor))
+            c.flags |= Symbol::Definition;
         break;
     }
 
@@ -1523,6 +1520,18 @@ CXChildVisitResult ClangIndexer::handleCursor(const CXCursor &cursor, CXCursorKi
         && c.type != CXType_Unexposed) {
         c.size = clang_Type_getSizeOf(type);
         c.alignment = std::max<int16_t>(-1, clang_Type_getAlignOf(type));
+        if (c.size > 0 && (kind == CXCursor_VarDecl || kind == CXCursor_ParmDecl)) {
+            for (int i=mScopeStack.size() - 1; i>=0; --i) {
+                auto &scope = mScopeStack.at(i);
+                if (scope.type == Scope::FunctionDefinition) {
+                    assert(scope.symbol);
+                    scope.symbol->stackCost += c.size;
+                    break;
+                } else if (scope.type == Scope::FunctionDeclaration) {
+                    break;
+                }
+            }
+        }
     }
 #endif
 
@@ -1615,7 +1624,8 @@ CXChildVisitResult ClangIndexer::handleCursor(const CXCursor &cursor, CXCursorKi
     }
 
     if (RTags::isFunction(c.kind)) {
-        mScopeStack.append({c.definition ? Scope::FunctionDefinition : Scope::FunctionDeclaration,
+        const bool definition = c.flags & Symbol::Definition;
+        mScopeStack.append({definition ? Scope::FunctionDefinition : Scope::FunctionDeclaration, definition ? &c : 0,
                             Location(location.fileId(), c.startLine, c.startColumn),
                             Location(location.fileId(), c.endLine, c.endColumn - 1)});
         visit(cursor);

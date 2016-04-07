@@ -55,12 +55,13 @@ struct Symbol
         MacroExpansion = 0x080,
         TemplateSpecialization = 0x100,
         InlineFunction = 0x200,
-        ImplicitDestruction = 0x400
+        ImplicitDestruction = 0x400,
+        Definition = 0x800
     };
     String briefComment, xmlComment;
     uint16_t flags;
     union {
-        bool definition;
+        int32_t stackCost; // cost for function definitions
         int64_t enumValue; // only used if type == CXCursor_EnumConstantDecl
     };
     int32_t startLine, endLine;
@@ -116,7 +117,7 @@ struct Symbol
     bool isReference() const;
     bool isContainer() const;
 
-    inline bool isDefinition() const { return kind == CXCursor_EnumConstantDecl || definition; }
+    inline bool isDefinition() const { return flags & Definition; }
 
     enum ToStringFlag {
         IgnoreTargets = 0x1,
