@@ -113,7 +113,7 @@ String Symbol::toString(Flags<ToStringFlag> cursorInfoFlags,
                                       "%s" // type
                                       "SymbolLength: %u\n"
                                       "%s" // range
-                                      "%s" // enumValue
+                                      "%s" // enumValue/stackCost
                                       "%s" // linkage
                                       "%s" // properties
                                       "%s" // usr
@@ -130,11 +130,16 @@ String Symbol::toString(Flags<ToStringFlag> cursorInfoFlags,
                                       symbolLength,
                                       startLine != -1 ? String::format<32>("Range: %d:%d-%d:%d\n", startLine, startColumn, endLine, endColumn).constData() : "",
 #if CINDEX_VERSION_MINOR > 1
-                                      kind == CXCursor_EnumConstantDecl ? String::format<32>("Enum Value: %lld/0x%0llx\n",
-                                                                                             static_cast<long long>(enumValue),
-                                                                                             static_cast<long long>(enumValue)).constData() :
-#endif
+                                      (kind == CXCursor_EnumConstantDecl
+                                       ? String::format<32>("Enum Value: %lld/0x%0llx\n",
+                                                            static_cast<long long>(enumValue),
+                                                            static_cast<long long>(enumValue)).constData()
+                                       : (isDefinition() && RTags::isFunction(kind)
+                                          ? String::format<32>("Stack cost: %d\n", stackCost).constData()
+                                          : "")),
+#else
                                       "",
+#endif
                                       linkageSpelling(linkage),
                                       properties().constData(),
                                       usr.isEmpty() ? "" : String::format<64>("Usr: %s\n", usr.constData()).constData(),
