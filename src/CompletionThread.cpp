@@ -146,8 +146,8 @@ static inline bool isPartOfSymbol(char ch)
     return isalnum(ch) || ch == '_';
 }
 
-bool CompletionThread::compareCompletionCandidates(Completions::Candidate *l,
-                                                   Completions::Candidate *r)
+bool CompletionThread::compareCompletionCandidates(const Completions::Candidate *l,
+                                                   const Completions::Candidate *r)
 {
     if (l->priority != r->priority)
         return l->priority < r->priority;
@@ -414,9 +414,10 @@ void CompletionThread::process(Request *request)
         }
         if (nodeCount) {
             // Sort pointers instead of shuffling candidates around
-            std::vector<Completions::Candidate*> nodesPtr;
+            std::vector<const Completions::Candidate*> nodesPtr;
             nodesPtr.reserve(nodeCount);
-            for (auto& n : nodes) nodesPtr.push_back(&n);
+            for (const auto &n : nodes)
+                nodesPtr.push_back(&n);
 
             std::sort(nodesPtr.begin(), nodesPtr.end(), compareCompletionCandidates);
 

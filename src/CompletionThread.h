@@ -89,8 +89,8 @@ private:
     };
 
     void printCompletions(const List<Completions::Candidate> &completions, Request *request);
-    static bool compareCompletionCandidates(Completions::Candidate *l,
-                                            Completions::Candidate *r);
+    static bool compareCompletionCandidates(const Completions::Candidate *l,
+                                            const Completions::Candidate *r);
 
     struct SourceFile {
         SourceFile()
