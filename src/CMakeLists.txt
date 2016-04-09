@@ -77,11 +77,11 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/bin)
 
 set(RTAGS_SOURCES
     ClangIndexer.cpp
+    ClangThread.cpp
     ClassHierarchyJob.cpp
     CompilerManager.cpp
     CompletionThread.cpp
     DependenciesJob.cpp
-    DumpThread.cpp
     FileManager.cpp
     FindFileJob.cpp
     FindSymbolsJob.cpp

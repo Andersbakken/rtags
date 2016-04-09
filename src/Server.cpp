@@ -25,7 +25,7 @@
 #include "ClassHierarchyJob.h"
 #include "CompletionThread.h"
 #include "DependenciesJob.h"
-#include "DumpThread.h"
+#include "ClangThread.h"
 #include "FileManager.h"
 #include "Filter.h"
 #include "FindFileJob.h"
@@ -614,7 +614,10 @@ void Server::handleQueryMessage(const std::shared_ptr<QueryMessage> &message, co
         findFile(message, conn);
         break;
     case QueryMessage::DumpFile:
-        dumpFile(message, conn);
+#ifdef HAVE_SCRIPTENGINE
+    case QueryMessage::VisitAST:
+#endif
+        startClangThread(message, conn);
         break;
     case QueryMessage::DumpFileMaps:
         dumpFileMaps(message, conn);
@@ -790,7 +793,7 @@ void Server::findFile(const std::shared_ptr<QueryMessage> &query, const std::sha
     conn->finish(ret);
 }
 
-void Server::dumpFile(const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Connection> &conn)
+void Server::startClangThread(const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Connection> &conn)
 {
     const uint32_t fileId = Location::fileId(query->query());
     if (!fileId) {
@@ -814,8 +817,8 @@ void Server::dumpFile(const std::shared_ptr<QueryMessage> &query, const std::sha
 
     const Source source = project->sources(fileId).value(query->buildIndex());
     if (!source.isNull()) {
-        DumpThread *dumpThread = new DumpThread(query, source, conn);
-        dumpThread->start(Thread::Normal, 8 * 1024 * 1024); // 8MiB stack size
+        ClangThread *thread = new ClangThread(query, source, conn);
+        thread->start(Thread::Normal, 8 * 1024 * 1024); // 8MiB stack size
     } else {
         conn->write<256>("%s build: %d not found", query->query().constData(), query->buildIndex());
         conn->finish();
@@ -2054,4 +2057,3 @@ bool Server::runTests()
 
     return ret;
 }
-

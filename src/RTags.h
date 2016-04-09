@@ -752,4 +752,109 @@ inline Log operator<<(Log dbg, CXLinkageKind kind)
     return dbg;
 }
 
+inline Log operator<<(Log dbg, CXTemplateArgumentKind kind)
+{
+    switch (kind) {
+    case CXTemplateArgumentKind_Null: dbg << "Null"; break;
+    case CXTemplateArgumentKind_Type: dbg << "Type"; break;
+    case CXTemplateArgumentKind_Declaration: dbg << "Declaration"; break;
+    case CXTemplateArgumentKind_NullPtr: dbg << "NullPtr"; break;
+    case CXTemplateArgumentKind_Integral: dbg << "Integral"; break;
+    case CXTemplateArgumentKind_Template: dbg << "Template"; break;
+    case CXTemplateArgumentKind_TemplateExpansion: dbg << "TemplateExpansion"; break;
+    case CXTemplateArgumentKind_Expression: dbg << "Expression"; break;
+    case CXTemplateArgumentKind_Pack: dbg << "Pack"; break;
+    case CXTemplateArgumentKind_Invalid: dbg << "Invalid"; break;
+    }
+    return dbg;
+}
+
+
+inline Log operator<<(Log dbg, CXAvailabilityKind kind)
+{
+    switch (kind) {
+    case CXAvailability_Available: dbg << "Available"; break;
+    case CXAvailability_Deprecated: dbg << "Deprecated"; break;
+    case CXAvailability_NotAvailable: dbg << "NotAvailable"; break;
+    case CXAvailability_NotAccessible: dbg << "NotAccessible"; break;
+    }
+    return dbg;
+}
+
+inline Log operator<<(Log dbg, CXLanguageKind kind)
+{
+    switch (kind) {
+    case CXLanguage_Invalid: dbg << "Invalid"; break;
+    case CXLanguage_C: dbg << "C"; break;
+    case CXLanguage_ObjC: dbg << "ObjC"; break;
+    case CXLanguage_CPlusPlus: dbg << "CPlusPlus"; break;
+    }
+    return dbg;
+}
+
+inline Log operator<<(Log dbg, CXDiagnosticSeverity severity)
+{
+    switch (severity) {
+    case CXDiagnostic_Ignored: dbg << "Ignored"; break;
+    case CXDiagnostic_Note   : dbg << "Note"; break;
+    case CXDiagnostic_Warning: dbg << "Warning"; break;
+    case CXDiagnostic_Error  : dbg << "Error"; break;
+    case CXDiagnostic_Fatal  : dbg << "Fatal"; break;
+    }
+    return dbg;
+}
+
+inline Log operator<<(Log dbg, CXCallingConv conv)
+{
+    switch (conv) {
+    case CXCallingConv_Default: dbg << "Default"; break;
+    case CXCallingConv_C: dbg << "C"; break;
+    case CXCallingConv_X86StdCall: dbg << "X86StdCall"; break;
+    case CXCallingConv_X86FastCall: dbg << "X86FastCall"; break;
+    case CXCallingConv_X86ThisCall: dbg << "X86ThisCall"; break;
+    case CXCallingConv_X86Pascal: dbg << "X86Pascal"; break;
+    case CXCallingConv_AAPCS: dbg << "AAPCS"; break;
+    case CXCallingConv_AAPCS_VFP: dbg << "AAPCS_VFP"; break;
+    /* case CXCallingConv_PnaclCall: dbg << "PnaclCall"; break; */
+    case CXCallingConv_IntelOclBicc: dbg << "IntelOclBicc"; break;
+    case CXCallingConv_X86_64Win64: dbg << "X86_64Win64"; break;
+    case CXCallingConv_X86_64SysV: dbg << "X86_64SysV"; break;
+    case CXCallingConv_X86VectorCall: dbg << "X86VectorCall"; break;
+    case CXCallingConv_Invalid: dbg << "Invalid"; break;
+    case CXCallingConv_Unexposed: dbg << "Unexposed"; break;
+    }
+    return dbg;
+}
+
+inline Log operator<<(Log dbg, CXRefQualifierKind kind)
+{
+    switch (kind) {
+    case CXRefQualifier_None: dbg << "None"; break;
+    case CXRefQualifier_LValue: dbg << "lvalue"; break;
+    case CXRefQualifier_RValue: dbg << "rvalue"; break;
+    }
+    return dbg;
+}
+
+inline Log operator<<(Log dbg, CXTypeLayoutError err)
+{
+    switch (err) {
+    case CXTypeLayoutError_Invalid: dbg << "Invalid"; break;
+    case CXTypeLayoutError_Incomplete: dbg << "Incomplete"; break;
+    case CXTypeLayoutError_Dependent: dbg << "Dependent"; break;
+    case CXTypeLayoutError_NotConstantSize: dbg << "NotConstantSize"; break;
+    case CXTypeLayoutError_InvalidFieldName: dbg << "InvalidFieldName"; break;
+    }
+    return dbg;
+};
+
+
+inline String &operator<<(String &str, CXString cxstr)
+{
+    if (const char *cstr = clang_getCString(cxstr))
+        str.append(cstr);
+    clang_disposeString(cxstr);
+    return str;
+}
+
 #endif

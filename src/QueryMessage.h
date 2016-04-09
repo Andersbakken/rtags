@@ -69,6 +69,9 @@ public:
         Status,
         Suspend,
         SymbolInfo
+#ifdef HAVE_SCRIPTENGINE
+        , VisitAST
+#endif
     };
 
     enum Flag {
@@ -140,6 +143,11 @@ public:
         std::sort(mPathFilters.begin(), mPathFilters.end());
     }
 
+#ifdef HAVE_SCRIPTENGINE
+    void setVisitASTScripts(const List<String> &scripts) { mVisitAstScripts = scripts; }
+    List<String> visitASTScripts() const { return mVisitAstScripts; }
+#endif
+
     void setKindFilters(const Set<String> &kindFilters) { mKindFilters = kindFilters; }
     const Set<String> &kindFilters() const { return mKindFilters; }
 
@@ -210,6 +218,9 @@ private:
     Path mCurrentFile;
     UnsavedFiles mUnsavedFiles;
     int mTerminalWidth;
+#ifdef HAVE_SCRIPTENGINE
+    List<String> mVisitAstScripts;
+#endif
 };
 
 inline Serializer &operator<<(Serializer &s, const QueryMessage::PathFilter &filter)

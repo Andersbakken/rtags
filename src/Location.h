@@ -153,6 +153,8 @@ public:
     String toString(Flags<ToStringFlag> flags = NoFlag, Hash<Path, String> *contextCache = 0) const;
     String context(Flags<ToStringFlag> flags, Hash<Path, String> *cache = 0) const;
 
+    inline String debug() const;
+
     enum DecodeFlag {
         NoDecodeFlag = 0x0,
         CreateLocation = 0x1
@@ -320,6 +322,11 @@ static inline Log operator<<(Log dbg, Location loc)
 {
     dbg << loc.toString();
     return dbg;
+}
+
+inline String Location::debug() const
+{
+    return toString(NoColor|AbsolutePath);
 }
 
 #endif
