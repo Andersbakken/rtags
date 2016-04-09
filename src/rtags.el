@@ -2554,7 +2554,8 @@ This includes both declarations and definitions."
                                                  (list (buffer-substring-no-properties (point-min) (point-max)))))))))))))
           (cond ((not (listp data)))
                 ((eq (car data) 'checkstyle)
-                 (rtags-parse-check-style (cdr data)))
+                 (when rtags-spellcheck-enabled
+                   (rtags-parse-check-style (cdr data))))
                 ((eq (car data) 'progress)
                  (setq rtags-last-index (nth 2 data)
                        rtags-last-total (nth 3 data)))
