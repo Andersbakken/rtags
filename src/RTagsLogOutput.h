@@ -34,13 +34,16 @@ public:
     enum Flag {
         None = 0x0,
         Elisp = 0x1,
-        XMLCompletions = 0x2
+        XMLCompletions = 0x2,
+        NoSpellChecking = 0x4
     };
 
     virtual unsigned int flags() const override { return mFlags; }
 
     virtual bool testLog(LogLevel level) const override
     {
+        if (level == RTags::DiagnosticsLevel && mFlags & NoSpellChecking)
+            return false;
         if (logLevel() < LogLevel::Error || level < LogLevel::Error)
             return level == logLevel();
         return LogOutput::testLog(level);

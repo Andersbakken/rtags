@@ -165,6 +165,7 @@ struct Option opts[] = {
     { RClient::Wait, "wait", 0, no_argument, "Wait for reindexing to finish." },
     { RClient::Autotest, "autotest", 0, no_argument, "Turn on behaviors appropriate for running autotests." },
     { RClient::CodeCompleteIncludeMacros, "code-complete-include-macros", 0, no_argument, "Include macros in code completion results." },
+    { RClient::NoSpellCheckinging, "no-spell-checking", 0, no_argument, "Don't produce spell check info in diagnostics." },
     { RClient::None, 0, 0, 0, 0 }
 };
 
@@ -326,6 +327,8 @@ public:
             flags |= RTagsLogOutput::Elisp;
         } else if (rc->queryFlags() & QueryMessage::XMLCompletions) {
             flags |= RTagsLogOutput::XMLCompletions;
+        } else if (rc->queryFlags() & QueryMessage::NoSpellChecking) {
+            flags |= RTagsLogOutput::NoSpellChecking;
         }
 
         const LogLevel level = mLevel == Default ? rc->logLevel() : mLevel;
@@ -605,6 +608,9 @@ RClient::ParseStatus RClient::parse(int &argc, char **argv)
             break;
         case Wait:
             mQueryFlags |= QueryMessage::Wait;
+            break;
+        case NoSpellCheckinging:
+            mQueryFlags |= QueryMessage::NoSpellChecking;
             break;
         case CodeCompleteIncludeMacros:
             mQueryFlags |= QueryMessage::CodeCompleteIncludeMacros;

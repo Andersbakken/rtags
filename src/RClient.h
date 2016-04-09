@@ -97,6 +97,7 @@ public:
         NoColor,
         NoContext,
         NoSortReferencesByInput,
+        NoSpellCheckinging,
         PathFilter,
         PrepareCodeCompleteAt,
         PreprocessFile,

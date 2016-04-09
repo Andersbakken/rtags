@@ -110,7 +110,8 @@ public:
         CurrentProjectOnly = (1ull << 34),
         Wait = (1ull << 35),
         CodeCompleteIncludeMacros = (1ull << 36),
-        XMLCompletions = (1ull << 37)
+        XMLCompletions = (1ull << 37),
+        NoSpellChecking = (1ull << 38)
     };
 
     QueryMessage(Type type = Invalid);
