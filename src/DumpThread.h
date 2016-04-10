@@ -35,7 +35,7 @@ public:
 private:
     static CXChildVisitResult visitor(CXCursor cursor, CXCursor, CXClientData userData);
     CXChildVisitResult visit(const CXCursor &cursor);
-    void checkIncludes(const Location &location, const CXCursor &cursor);
+    void checkIncludes(Location location, const CXCursor &cursor);
 
     void writeToConnetion(const String &message);
     Location createLocation(const CXSourceLocation &loc)
@@ -67,8 +67,8 @@ private:
     {
         return createLocation(clang_getCursorLocation(cursor));
     }
-    void handleInclude(const Location &loc, const CXCursor &cursor);
-    void handleReference(const Location &loc, const CXCursor &ref);
+    void handleInclude(Location loc, const CXCursor &cursor);
+    void handleReference(Location loc, const CXCursor &ref);
     void checkIncludes();
 
     const Flags<QueryMessage::Flag> mQueryFlags;

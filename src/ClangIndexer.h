@@ -99,21 +99,21 @@ private:
     }
     Location createLocation(const Path &file, unsigned int line, unsigned int col, bool *blocked = 0);
     String addNamePermutations(const CXCursor &cursor,
-                               const Location &location,
+                               Location location,
                                RTags::CursorType cursorType);
 
     CXChildVisitResult handleCursor(const CXCursor &cursor, CXCursorKind kind,
-                                    const Location &location, Symbol **cursorPtr = 0);
+                                    Location location, Symbol **cursorPtr = 0);
     bool handleReference(const CXCursor &cursor, CXCursorKind kind,
                          Location loc, CXCursor reference,
                          Symbol **cursorPtr = 0);
     void handleBaseClassSpecifier(const CXCursor &cursor);
-    void handleInclude(const CXCursor &cursor, CXCursorKind kind, const Location &location);
-    CXChildVisitResult handleStatement(const CXCursor &cursor, CXCursorKind kind, const Location &location);
-    Location findByUSR(const CXCursor &cursor, CXCursorKind kind, const Location &loc) const;
-    void addOverriddenCursors(const CXCursor &cursor, const Location &location);
+    void handleInclude(const CXCursor &cursor, CXCursorKind kind, Location location);
+    CXChildVisitResult handleStatement(const CXCursor &cursor, CXCursorKind kind, Location location);
+    Location findByUSR(const CXCursor &cursor, CXCursorKind kind, Location loc) const;
+    void addOverriddenCursors(const CXCursor &cursor, Location location);
     bool superclassTemplateMemberFunctionUgleHack(const CXCursor &cursor, CXCursorKind kind,
-                                                  const Location &location, const CXCursor &ref,
+                                                  Location location, const CXCursor &ref,
                                                   Symbol **cursorPtr = 0);
     void visit(CXCursor cursor)
     {
@@ -142,14 +142,14 @@ private:
             unit.reset(new Unit);
         return unit;
     }
-    std::shared_ptr<Unit> unit(const Location &loc) { return unit(loc.fileId()); }
+    std::shared_ptr<Unit> unit(Location loc) { return unit(loc.fileId()); }
 
     enum FindResult {
         Found,
         NotIndexed,
         NotFound
     };
-    Symbol findSymbol(const Location &location, FindResult *result) const;
+    Symbol findSymbol(Location location, FindResult *result) const;
 
     struct MacroLocationData {
         Set<size_t> arguments;

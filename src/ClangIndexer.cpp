@@ -385,8 +385,7 @@ static inline void tokenize(const char *buf, int start,
     }
 }
 
-String ClangIndexer::addNamePermutations(const CXCursor &cursor, const Location &location,
-                                         RTags::CursorType cursorType)
+String ClangIndexer::addNamePermutations(const CXCursor &cursor, Location location, RTags::CursorType cursorType)
 {
     CXCursorKind kind = clang_getCursorKind(cursor);
     const CXCursorKind originalKind = kind;
@@ -743,7 +742,7 @@ static inline bool isImplicit(const CXCursor &cursor)
 }
 
 bool ClangIndexer::superclassTemplateMemberFunctionUgleHack(const CXCursor &cursor, CXCursorKind kind,
-                                                            const Location &location, const CXCursor &/*ref*/,
+                                                            Location location, const CXCursor &/*ref*/,
                                                             Symbol **cursorPtr)
 {
     // This is for references to superclass template functions. Awful awful
@@ -1079,7 +1078,7 @@ bool ClangIndexer::handleReference(const CXCursor &cursor, CXCursorKind kind, Lo
 }
 
 
-void ClangIndexer::addOverriddenCursors(const CXCursor &cursor, const Location &location)
+void ClangIndexer::addOverriddenCursors(const CXCursor &cursor, Location location)
 {
     // error() << "addOverriddenCursors" << cursor << location;
     CXCursor *overridden;
@@ -1101,7 +1100,7 @@ void ClangIndexer::addOverriddenCursors(const CXCursor &cursor, const Location &
     clang_disposeOverriddenCursors(overridden);
 }
 
-void ClangIndexer::handleInclude(const CXCursor &cursor, CXCursorKind kind, const Location &location)
+void ClangIndexer::handleInclude(const CXCursor &cursor, CXCursorKind kind, Location location)
 {
     assert(kind == CXCursor_InclusionDirective);
     (void)kind;
@@ -1132,7 +1131,7 @@ void ClangIndexer::handleInclude(const CXCursor &cursor, CXCursorKind kind, cons
     error() << "couldn't create included file" << cursor;
 }
 
-CXChildVisitResult ClangIndexer::handleStatement(const CXCursor &cursor, CXCursorKind kind, const Location &location)
+CXChildVisitResult ClangIndexer::handleStatement(const CXCursor &cursor, CXCursorKind kind, Location location)
 {
     auto u = unit(location);
     // error() << "got dude" << kind << location;
@@ -1286,7 +1285,7 @@ void ClangIndexer::addArguments(Symbol *sym, const CXCursor &cursor)
 }
 
 CXChildVisitResult ClangIndexer::handleCursor(const CXCursor &cursor, CXCursorKind kind,
-                                              const Location &location, Symbol **cursorPtr)
+                                              Location location, Symbol **cursorPtr)
 {
     const String usr = ::usr(cursor);
     // error() << "Got a cursor" << cursor;
@@ -2123,7 +2122,7 @@ int ClangIndexer::symbolLength(CXCursorKind kind, const CXCursor &cursor)
     return 0;
 }
 
-Symbol ClangIndexer::findSymbol(const Location &location, FindResult *result) const
+Symbol ClangIndexer::findSymbol(Location location, FindResult *result) const
 {
     auto it = mUnits.find(location.fileId());
     if (it != mUnits.end()) {

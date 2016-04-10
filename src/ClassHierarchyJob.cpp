@@ -19,7 +19,7 @@
 #include "RTags.h"
 #include "Server.h"
 
-ClassHierarchyJob::ClassHierarchyJob(const Location &loc,
+ClassHierarchyJob::ClassHierarchyJob(Location loc,
                                      const std::shared_ptr<QueryMessage> &query,
                                      const std::shared_ptr<Project> &project)
     : QueryJob(query, project), location(loc)

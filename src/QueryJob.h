@@ -64,7 +64,7 @@ public:
     bool write(const Symbol &symbol,
                Flags<Symbol::ToStringFlag> sourceFlags = Flags<Symbol::ToStringFlag>(),
                Flags<WriteFlag> writeFlags = Flags<WriteFlag>());
-    bool write(const Location &location, Flags<WriteFlag> writeFlags = Flags<WriteFlag>());
+    bool write(Location location, Flags<WriteFlag> writeFlags = Flags<WriteFlag>());
     enum LocationPiece {
         Piece_Location,
         Piece_Context,
@@ -73,7 +73,7 @@ public:
         Piece_ContainingFunctionName,
         Piece_ContainingFunctionLocation
     };
-    bool locationToString(const Location &location,
+    bool locationToString(Location location,
                           const std::function<void(LocationPiece, const String &)> &cb,
                           Flags<WriteFlag> writeFlags = Flags<WriteFlag>());
 
@@ -96,7 +96,7 @@ public:
     void abort() { std::lock_guard<std::mutex> lock(mMutex); mAborted = true; }
     std::mutex &mutex() const { return mMutex; }
     const std::shared_ptr<Connection> &connection() const { return mConnection; }
-    bool filterLocation(const Location &loc) const;
+    bool filterLocation(Location loc) const;
 private:
     class Filter
     {

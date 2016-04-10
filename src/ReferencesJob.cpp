@@ -24,7 +24,7 @@ static inline Flags<QueryJob::JobFlag> jobFlags(Flags<QueryMessage::Flag> queryF
     return (queryFlags & QueryMessage::Elisp ? Flags<QueryJob::JobFlag>(QueryJob::QuoteOutput) : Flags<QueryJob::JobFlag>());
 }
 
-ReferencesJob::ReferencesJob(const Location &loc, const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Project> &proj)
+ReferencesJob::ReferencesJob(Location loc, const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Project> &proj)
     : QueryJob(query, proj, ::jobFlags(query->flags()))
 {
     locations.insert(loc);
@@ -161,7 +161,7 @@ int ReferencesJob::execute()
         write(")", DontQuote);
     };
 
-    auto writeLoc = [this, writeCons, writeFlags, kf](const Location &loc) {
+    auto writeLoc = [this, writeCons, writeFlags, kf](Location loc) {
         if (queryFlags() & QueryMessage::Elisp) {
             if (!filterLocation(loc))
                 return;
@@ -232,7 +232,7 @@ int ReferencesJob::execute()
         }
 
         for (int i=0; i<count; ++i) {
-            const Location &loc = sorted.at((startIndex + i) % count).location;
+            Location loc = sorted.at((startIndex + i) % count).location;
             writeLoc(loc);
         }
     }

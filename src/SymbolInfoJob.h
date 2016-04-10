@@ -23,7 +23,7 @@ class QueryMessage;
 class SymbolInfoJob : public QueryJob
 {
 public:
-    SymbolInfoJob(const Location &loc, const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Project> &proj);
+    SymbolInfoJob(Location loc, const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Project> &proj);
 protected:
     virtual int execute() override;
 private:

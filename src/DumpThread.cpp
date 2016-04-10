@@ -154,7 +154,7 @@ void DumpThread::writeToConnetion(const String &message)
         });
 }
 
-void DumpThread::handleInclude(const Location &loc, const CXCursor &cursor)
+void DumpThread::handleInclude(Location loc, const CXCursor &cursor)
 {
     CXFile includedFile = clang_getIncludedFile(cursor);
     if (includedFile) {
@@ -177,7 +177,7 @@ void DumpThread::handleInclude(const Location &loc, const CXCursor &cursor)
     }
 }
 
-void DumpThread::handleReference(const Location &loc, const CXCursor &ref)
+void DumpThread::handleReference(Location loc, const CXCursor &ref)
 {
     if (clang_getCursorKind(ref) == CXCursor_Namespace)
         return;
@@ -193,7 +193,7 @@ void DumpThread::handleReference(const Location &loc, const CXCursor &ref)
     refs[loc] = refLoc;
 }
 
-void DumpThread::checkIncludes(const Location &location, const CXCursor &cursor)
+void DumpThread::checkIncludes(Location location, const CXCursor &cursor)
 {
     if (clang_getCursorKind(cursor) == CXCursor_InclusionDirective) {
         handleInclude(location, cursor);

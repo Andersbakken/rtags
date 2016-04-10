@@ -492,9 +492,9 @@ static String formatDiagnostics(const Diagnostics &diagnostics, DiagnosticsForma
         "\n  </checkstyle>",
         ")"
     };
-    std::function<String(const Location &, const Diagnostic &, uint32_t)> formatDiagnostic;
+    std::function<String(Location , const Diagnostic &, uint32_t)> formatDiagnostic;
     if (format == Diagnostics_XML) {
-        formatDiagnostic = [&formatDiagnostic](const Location &loc, const Diagnostic &diagnostic, uint32_t) {
+        formatDiagnostic = [&formatDiagnostic](Location loc, const Diagnostic &diagnostic, uint32_t) {
             return String::format<256>("\n      <error line=\"%d\" column=\"%d\" %sseverity=\"%s\" message=\"%s\"/>",
                                        loc.line(), loc.column(),
                                        (diagnostic.length <= 0 ? ""
@@ -502,7 +502,7 @@ static String formatDiagnostics(const Diagnostics &diagnostics, DiagnosticsForma
                                        severities[diagnostic.type], RTags::xmlEscape(diagnostic.message).constData());
         };
     } else {
-        formatDiagnostic = [&formatDiagnostic](const Location &loc, const Diagnostic &diagnostic, uint32_t fileId) {
+        formatDiagnostic = [&formatDiagnostic](Location loc, const Diagnostic &diagnostic, uint32_t fileId) {
             String children;
             if (!diagnostic.children.isEmpty()) {
                 children = "(list";
@@ -551,7 +551,7 @@ static String formatDiagnostics(const Diagnostics &diagnostics, DiagnosticsForma
         bool first = true;
         const Set<uint32_t> active = Server::instance()->activeBuffers();
         for (const auto &entry : diagnostics) {
-            const Location &loc = entry.first;
+            Location loc = entry.first;
             if (!active.isEmpty() && !active.contains(loc.fileId()))
                 continue;
             const Diagnostic &diagnostic = entry.second;
@@ -1413,7 +1413,7 @@ String Project::toCompilationDatabase() const
     return ret.toJSON(true);
 }
 
-Symbol Project::findSymbol(const Location &location, int *index)
+Symbol Project::findSymbol(Location location, int *index)
 {
     if (index)
         *index = -1;
@@ -1500,7 +1500,7 @@ Set<Symbol> Project::findTargets(const Symbol &symbol)
     return ret;
 }
 
-Set<Symbol> Project::findByUsr(const String &usr, uint32_t fileId, DependencyMode mode, const Location &filtered)
+Set<Symbol> Project::findByUsr(const String &usr, uint32_t fileId, DependencyMode mode, Location filtered)
 {
     assert(fileId);
     Set<Symbol> ret;
@@ -1508,7 +1508,7 @@ Set<Symbol> Project::findByUsr(const String &usr, uint32_t fileId, DependencyMod
         auto usrs = openUsrs(file);
         // error() << usrs << Location::path(file) << usr;
         if (usrs) {
-            for (const Location &loc : usrs->value(usr)) {
+            for (Location loc : usrs->value(usr)) {
                 // error() << "got a loc" << loc;
                 const Symbol c = findSymbol(loc);
                 if (!c.isNull())
@@ -1523,7 +1523,7 @@ Set<Symbol> Project::findByUsr(const String &usr, uint32_t fileId, DependencyMod
         for (const auto &dep : mDependencies) {
             auto usrs = openUsrs(dep.first);
             if (usrs) {
-                for (const Location &loc : usrs->value(usr)) {
+                for (Location loc : usrs->value(usr)) {
                     const Symbol c = findSymbol(loc);
                     if (!c.isNull())
                         ret.insert(c);
@@ -1708,7 +1708,7 @@ Set<Symbol> Project::findVirtuals(const Symbol &symbol)
     return ret;
 }
 
-Set<String> Project::findTargetUsrs(const Location &loc)
+Set<String> Project::findTargetUsrs(Location loc)
 {
     Set<String> usrs;
     auto targets = openTargets(loc.fileId());

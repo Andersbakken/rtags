@@ -198,7 +198,7 @@ int StatusJob::execute()
             const int count = symNames->count();
             for (int i=0; i<count; ++i) {
                 write<128>("  %s", symNames->keyAt(i).constData());
-                for (const Location &loc : symNames->valueAt(i)) {
+                for (Location loc : symNames->valueAt(i)) {
                     write<1024>("    %s", loc.toString().constData());
                 }
                 write("------------------------");

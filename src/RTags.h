@@ -350,7 +350,7 @@ String typeString(const CXType &type);
 
 struct SortedSymbol
 {
-    SortedSymbol(const Location &loc = Location(),
+    SortedSymbol(Location loc = Location(),
                  bool definition = false,
                  CXCursorKind k = CXCursor_FirstInvalid)
         : location(loc), isDefinition(definition), kind(k)

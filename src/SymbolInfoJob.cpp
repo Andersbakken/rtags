@@ -20,7 +20,7 @@
 #include "RTags.h"
 #include "Server.h"
 
-SymbolInfoJob::SymbolInfoJob(const Location &loc, const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Project> &proj)
+SymbolInfoJob::SymbolInfoJob(Location loc, const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Project> &proj)
     : QueryJob(query, proj), location(loc)
 {
 }

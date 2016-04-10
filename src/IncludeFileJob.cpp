@@ -34,7 +34,7 @@ IncludeFileJob::IncludeFileJob(const std::shared_ptr<QueryMessage> &query, const
     mSymbol = query->query();
 }
 
-static inline List<Path> headersForSymbol(const std::shared_ptr<Project> &project, const Location &loc)
+static inline List<Path> headersForSymbol(const std::shared_ptr<Project> &project, Location loc)
 {
     List<Path> ret;
     const Path &path = loc.path();
@@ -64,7 +64,7 @@ int IncludeFileJob::execute()
     int matches = 0;
     Set<String> all;
     auto process = [&directory, this, &all](const Set<Location> &locations) {
-        for (const Location &loc : locations) {
+        for (Location loc : locations) {
             bool first = true;
             for (const Path &path : headersForSymbol(project(), loc)) {
                 bool found = false;

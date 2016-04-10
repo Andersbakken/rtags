@@ -24,7 +24,7 @@ class SymbolInfo;
 class ReferencesJob : public QueryJob
 {
 public:
-    ReferencesJob(const Location &location, const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Project> &project);
+    ReferencesJob(Location location, const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Project> &project);
     ReferencesJob(const String &symbolName, const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Project> &project);
 protected:
     virtual int execute() override;

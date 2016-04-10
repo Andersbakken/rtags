@@ -20,7 +20,7 @@
 #include "RTags.h"
 #include "Server.h"
 
-FollowLocationJob::FollowLocationJob(const Location &loc,
+FollowLocationJob::FollowLocationJob(Location loc,
                                      const std::shared_ptr<QueryMessage> &query,
                                      const std::shared_ptr<Project> &project)
     : QueryJob(query, project), location(loc)

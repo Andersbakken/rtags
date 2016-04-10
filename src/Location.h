@@ -115,18 +115,15 @@ public:
 
     inline Path path() const
     {
-        if (mCachedPath.isEmpty()) {
-            LOCK();
-            mCachedPath = sIdsToPaths.value(fileId());
-        }
-        return mCachedPath;
+        LOCK();
+        return sIdsToPaths.value(fileId());
     }
     inline bool isNull() const { return !value; }
     inline bool isValid() const { return value; }
-    inline void clear() { value = 0; mCachedPath.clear(); }
-    inline bool operator==(const Location &other) const { return value == other.value; }
-    inline bool operator!=(const Location &other) const { return value != other.value; }
-    inline int compare(const Location &other) const
+    inline void clear() { value = 0; }
+    inline bool operator==(Location other) const { return value == other.value; }
+    inline bool operator!=(Location other) const { return value != other.value; }
+    inline int compare(Location other) const
     {
         int ret = intCompare(fileId(), other.fileId());
         if (!ret) {
@@ -136,12 +133,12 @@ public:
         }
         return ret;
     }
-    inline bool operator<(const Location &other) const
+    inline bool operator<(Location other) const
     {
         return compare(other) < 0;
     }
 
-    inline bool operator>(const Location &other) const
+    inline bool operator>(Location other) const
     {
         return compare(other) > 0;
     }
@@ -266,7 +263,6 @@ private:
     static Hash<Path, uint32_t> sPathsToIds;
     static Hash<uint32_t, Path> sIdsToPaths;
     static uint32_t sLastId;
-    mutable Path mCachedPath;
     enum {
         FileBits = 22,
         LineBits = 21,
@@ -290,25 +286,25 @@ template <> inline Serializer &operator<<(Serializer &s, const Location &t)
     return s;
 }
 
-inline bool operator==(const Location &loc, const String &str)
+inline bool operator==(Location loc, const String &str)
 {
     const Location fromPath = Location::fromPathLineAndColumn(str);
     return loc == fromPath;
 }
 
-inline bool operator!=(const Location &loc, const String &str)
+inline bool operator!=(Location loc, const String &str)
 {
     const Location fromPath = Location::fromPathLineAndColumn(str);
     return loc != fromPath;
 }
 
-inline bool operator==(const String &str, const Location &loc)
+inline bool operator==(const String &str, Location loc)
 {
     const Location fromPath = Location::fromPathLineAndColumn(str);
     return loc == fromPath;
 }
 
-inline bool operator!=(const String &str, const Location &loc)
+inline bool operator!=(const String &str, Location loc)
 {
     const Location fromPath = Location::fromPathLineAndColumn(str);
     return loc != fromPath;
@@ -320,7 +316,7 @@ template <> inline Deserializer &operator>>(Deserializer &s, Location &t)
     return s;
 }
 
-static inline Log operator<<(Log dbg, const Location &loc)
+static inline Log operator<<(Log dbg, Location loc)
 {
     dbg << loc.toString();
     return dbg;

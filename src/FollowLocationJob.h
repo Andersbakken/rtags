@@ -22,7 +22,7 @@
 class FollowLocationJob : public QueryJob
 {
 public:
-    FollowLocationJob(const Location &loc, const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Project> &project);
+    FollowLocationJob(Location loc, const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Project> &project);
 protected:
     virtual int execute() override;
 private:

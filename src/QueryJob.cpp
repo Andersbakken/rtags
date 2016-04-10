@@ -120,7 +120,7 @@ bool QueryJob::writeRaw(const String &out, Flags<WriteFlag> flags)
     return true;
 }
 
-bool QueryJob::locationToString(const Location &location,
+bool QueryJob::locationToString(Location location,
                                 const std::function<void(LocationPiece, const String &)> &cb,
                                 Flags<WriteFlag> writeFlags)
 {
@@ -176,7 +176,7 @@ bool QueryJob::locationToString(const Location &location,
     return true;
 }
 
-bool QueryJob::write(const Location &location, Flags<WriteFlag> flags)
+bool QueryJob::write(Location location, Flags<WriteFlag> flags)
 {
     if (location.isNull())
         return false;
@@ -497,7 +497,7 @@ int QueryJob::run(const std::shared_ptr<Connection> &connection)
     return ret;
 }
 
-bool QueryJob::filterLocation(const Location &loc) const
+bool QueryJob::filterLocation(Location loc) const
 {
     if (mFileFilter && loc.fileId() != mFileFilter)
         return false;

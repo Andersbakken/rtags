@@ -953,7 +953,7 @@ void Server::diagnose(const std::shared_ptr<QueryMessage> &query, const std::sha
 
 void Server::generateTest(const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Connection> &conn)
 {
-    auto formatLocation = [](const Location &location) {
+    auto formatLocation = [](Location location) {
         return String::format<1024>("{0}/%s:%d:%d:",
                                     location.path().fileName(),
                                     location.line(),

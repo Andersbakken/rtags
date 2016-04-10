@@ -96,7 +96,7 @@ void CompletionThread::run()
     mIndex = 0;
 }
 
-void CompletionThread::completeAt(const Source &source, const Location &location,
+void CompletionThread::completeAt(const Source &source, Location location,
                                   Flags<Flag> flags, const String &unsaved,
                                   const std::shared_ptr<Connection> &conn)
 {

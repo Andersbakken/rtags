@@ -26,7 +26,7 @@ JSONJob::JSONJob(const std::shared_ptr<QueryMessage> &q, const std::shared_ptr<P
     assert(project.get());
 }
 
-static String toJSON(const Location &loc, uint32_t fileId, int length, int srcRootLength)
+static String toJSON(Location loc, uint32_t fileId, int length, int srcRootLength)
 {
     if (loc.fileId() == fileId) {
         return String::format<64>("{\"offset\":%d,\"length\":%d}", loc.offset(), length);

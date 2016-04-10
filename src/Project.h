@@ -141,21 +141,21 @@ public:
         return Rct::wildCmp(pattern.constData(), symbolName.constData(), cs);
     }
 
-    Symbol findSymbol(const Location &location, int *index = 0);
-    Set<Symbol> findTargets(const Location &location) { return findTargets(findSymbol(location)); }
+    Symbol findSymbol(Location location, int *index = 0);
+    Set<Symbol> findTargets(Location location) { return findTargets(findSymbol(location)); }
     Set<Symbol> findTargets(const Symbol &symbol);
-    Symbol findTarget(const Location &location) { return RTags::bestTarget(findTargets(location)); }
+    Symbol findTarget(Location location) { return RTags::bestTarget(findTargets(location)); }
     Symbol findTarget(const Symbol &symbol) { return RTags::bestTarget(findTargets(symbol)); }
-    Set<Symbol> findAllReferences(const Location &location) { return findAllReferences(findSymbol(location)); }
+    Set<Symbol> findAllReferences(Location location) { return findAllReferences(findSymbol(location)); }
     Set<Symbol> findAllReferences(const Symbol &symbol);
-    Set<Symbol> findCallers(const Location &location) { return findCallers(findSymbol(location)); }
+    Set<Symbol> findCallers(Location location) { return findCallers(findSymbol(location)); }
     Set<Symbol> findCallers(const Symbol &symbol);
-    Set<Symbol> findVirtuals(const Location &location) { return findVirtuals(findSymbol(location)); }
+    Set<Symbol> findVirtuals(Location location) { return findVirtuals(findSymbol(location)); }
     Set<Symbol> findVirtuals(const Symbol &symbol);
-    Set<String> findTargetUsrs(const Location &loc);
+    Set<String> findTargetUsrs(Location loc);
     Set<Symbol> findSubclasses(const Symbol &symbol);
 
-    Set<Symbol> findByUsr(const String &usr, uint32_t fileId, DependencyMode mode, const Location &filtered = Location());
+    Set<Symbol> findByUsr(const String &usr, uint32_t fileId, DependencyMode mode, Location filtered = Location());
 
     Path sourceFilePath(uint32_t fileId, const char *path = "") const;
 

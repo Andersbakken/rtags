@@ -44,7 +44,7 @@ public:
         XML = 0x4,
         CodeCompleteIncludeMacros = 0x8
     };
-    void completeAt(const Source &source, const Location &location, Flags<Flag> flags,
+    void completeAt(const Source &source, Location location, Flags<Flag> flags,
                     const String &unsaved, const std::shared_ptr<Connection> &conn);
     void stop();
     String dump();
@@ -77,7 +77,7 @@ private:
     CXIndex mIndex;
 
     struct Completions {
-        Completions(const Location &loc) : location(loc), next(0), prev(0) {}
+        Completions(Location loc) : location(loc), next(0), prev(0) {}
         struct Candidate {
             String completion, signature, annotation, parent, briefComment;
             int priority, distance;
