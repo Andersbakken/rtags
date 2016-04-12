@@ -3156,7 +3156,7 @@ other window instead of the current one."
           ((rtags-is-class-hierarchy-buffer)
            (save-excursion
              (goto-char (point-at-bol))
-             (let ((loc (and (looking-at "^\\(\\s-*\\w+\\s-+\\)+\\([^ \t]+\\)") (match-string 2))))
+             (let ((loc (and (looking-at "^\\(\\s-*[A-Za-z0-9:_]+\\s-+\\)+\\([^ \t]+\\)") (match-string 2))))
                (when loc
                  (rtags-goto-location loc nil other-window)))))
           ((string= (buffer-name) "*RTags Dependencies*")
