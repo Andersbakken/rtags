@@ -67,7 +67,8 @@ public:
     Path path() const { return mPath; }
     void setCompilationDatabaseInfo(const Path &dir,
                                     const List<Path> &pathEnvironment,
-                                    Flags<IndexMessage::Flag> flags);
+                                    Flags<IndexMessage::Flag> flags,
+                                    const Set<uint64_t> &indexed = Set<uint64_t>());
 
     bool match(const Match &match, bool *indexed = 0) const;
 
@@ -374,7 +375,6 @@ private:
     StopWatch mTimer;
     FileSystemWatcher mWatcher;
     Sources mSources;
-    Set<uint64_t> *mMarkSources;
     Hash<Path, Flags<WatchMode> > mWatchedPaths;
     std::shared_ptr<FileManager> mFileManager;
     FixIts mFixIts;

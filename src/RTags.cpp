@@ -27,14 +27,18 @@
 #endif
 
 #include "IndexDataMessage.h"
-#include "IndexMessage.h"
 #include "LogOutputMessage.h"
 #include "QueryMessage.h"
 #include "rct/Rct.h"
 #include "rct/StopWatch.h"
 #include "Server.h"
+#include "Project.h"
 #include "VisitFileMessage.h"
 #include "VisitFileResponseMessage.h"
+
+#if CLANG_VERSION_MAJOR > 3 || (CLANG_VERSION_MAJOR == 3 && CLANG_VERSION_MINOR > 3)
+#include <clang-c/CXCompilationDatabase.h>
+#endif
 
 namespace RTags {
 
@@ -810,5 +814,100 @@ String typeString(const CXType &type)
     if (ret.endsWith(' '))
         ret.chop(1);
     return ret;
+}
+
+class CompileCommandsOperation
+{
+public:
+    CompileCommandsOperation(const Path &d,
+                             const List<Path> &pathEnv,
+                             Flags<IndexMessage::Flag> f,
+                             const Path &proot)
+        : dir(d), pathEnvironment(pathEnv), flags(f), projectRootOverride(proot), indexIndex(0)
+    {}
+    ~CompileCommandsOperation()
+    {
+        if (project) {
+            project->setCompilationDatabaseInfo(dir, pathEnvironment, flags, indexed);
+        }
+    }
+
+    struct Index {
+        String args;
+        Path dir;
+    };
+
+
+    void work()
+    {
+        Server *server = Server::instance();
+        if (!server) {
+            delete this;
+            return;
+        }
+        const size_t max = std::min(indexIndex + 5, indexes.size());
+        while (indexIndex < max) {
+            server->index(indexes.at(indexIndex).args,
+                          indexes.at(indexIndex).dir,
+                          pathEnvironment,
+                          projectRootOverride,
+                          flags,
+                          &project,
+                          &indexed);
+            ++indexIndex;
+        }
+        if (max == indexes.size()) {
+            EventLoop::deleteLater(this);
+        } else {
+            EventLoop::eventLoop()->callLater(std::bind(&CompileCommandsOperation::work, this));
+        }
+    }
+    const Path dir;
+    const List<Path> pathEnvironment;
+    const Flags<IndexMessage::Flag> flags;
+    const Path projectRootOverride;
+    Set<uint64_t> indexed;
+    std::shared_ptr<Project> project;
+    List<Index> indexes;
+    size_t indexIndex;
+};
+
+bool loadCompileCommands(const Path &dir,
+                         const List<Path> &pathEnvironment,
+                         Flags<IndexMessage::Flag> flags,
+                         const Path &projectRootOverride)
+{
+#if CLANG_VERSION_MAJOR > 3 || (CLANG_VERSION_MAJOR == 3 && CLANG_VERSION_MINOR > 3)
+    CXCompilationDatabase_Error err;
+    CXCompilationDatabase db = clang_CompilationDatabase_fromDirectory(dir.constData(), &err);
+    if (err == CXCompilationDatabase_NoError) {
+        CXCompileCommands cmds = clang_CompilationDatabase_getAllCompileCommands(db);
+        const unsigned int sz = clang_CompileCommands_getSize(cmds);
+        CompileCommandsOperation *op = new CompileCommandsOperation(dir, pathEnvironment,
+                                                                    flags, projectRootOverride);
+        op->indexes.reserve(sz);
+        for (unsigned int i = 0; i < sz; ++i) {
+            CXCompileCommand cmd = clang_CompileCommands_getCommand(cmds, i);
+            String args;
+            CXString str = clang_CompileCommand_getDirectory(cmd);
+            const Path dir = clang_getCString(str);
+            clang_disposeString(str);
+            const unsigned int num = clang_CompileCommand_getNumArgs(cmd);
+            for (unsigned int j = 0; j < num; ++j) {
+                str = clang_CompileCommand_getArg(cmd, j);
+                args += clang_getCString(str);
+                clang_disposeString(str);
+                if (j < num - 1)
+                    args += ' ';
+            }
+            op->indexes.push_back(CompileCommandsOperation::Index { args, dir.ensureTrailingSlash() } );
+        }
+        EventLoop::eventLoop()->callLater(std::bind(&CompileCommandsOperation::work, op));
+        clang_CompileCommands_dispose(cmds);
+        clang_CompilationDatabase_dispose(db);
+        return true;
+    }
+#endif
+    return false;
 }
 }

@@ -127,7 +127,8 @@ public:
                const List<Path> &pathEnvironment,
                const Path &projectRootOverride,
                Flags<IndexMessage::Flag> flags = Flags<IndexMessage::Flag>(),
-               std::shared_ptr<Project> *projectPtr = 0);
+               std::shared_ptr<Project> *projectPtr = 0,
+               Set<uint64_t> *indexed = 0);
 private:
     String guessArguments(const String &args, const Path &pwd, const Path &projectRootOverride);
     void load();

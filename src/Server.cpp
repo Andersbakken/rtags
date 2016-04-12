@@ -17,9 +17,6 @@
 
 #include <arpa/inet.h>
 #include <clang/Basic/Version.h>
-#if CLANG_VERSION_MAJOR > 3 || (CLANG_VERSION_MAJOR == 3 && CLANG_VERSION_MINOR > 3)
-#include <clang-c/CXCompilationDatabase.h>
-#endif
 #include <clang-c/Index.h>
 #include <stdio.h>
 #include <limits>
@@ -443,7 +440,8 @@ bool Server::index(const String &args,
                    const List<Path> &pathEnvironment,
                    const Path &projectRootOverride,
                    Flags<IndexMessage::Flag> indexMessageFlags,
-                   std::shared_ptr<Project> *projectPtr)
+                   std::shared_ptr<Project> *projectPtr,
+                   Set<uint64_t> *indexed)
 {
     assert(pwd.endsWith('/'));
     String arguments;
@@ -515,6 +513,8 @@ bool Server::index(const String &args,
                 addProject(root);
                 assert(project);
             }
+            if (indexed)
+                indexed->insert(source.key());
             if (!mCurrentProject.lock())
                 setCurrentProject(project);
             project->index(std::shared_ptr<IndexerJob>(new IndexerJob(source, IndexerJob::Compile, project)));
@@ -526,98 +526,25 @@ bool Server::index(const String &args,
     return ret;
 }
 
-#if CLANG_VERSION_MAJOR > 3 || (CLANG_VERSION_MAJOR == 3 && CLANG_VERSION_MINOR > 3)
-struct CompileCommandsOperation
-{
-    CompileCommandsOperation(const std::shared_ptr<IndexMessage> &msg)
-        : message(msg), indexIndex(0)
-    {}
-    ~CompileCommandsOperation()
-    {
-        if (project) {
-            project->setCompilationDatabaseInfo(message->compilationDatabaseDir(),
-                                                message->pathEnvironment(),
-                                                message->flags());
-        }
-    }
-
-    struct Index {
-        String args;
-        Path dir;
-    };
-
-
-    void work()
-    {
-        Server *server = Server::instance();
-        if (!server) {
-            delete this;
-            return;
-        }
-        const size_t max = std::min(indexIndex + 5, indexes.size());
-        while (indexIndex < max) {
-            server->index(indexes.at(indexIndex).args,
-                          indexes.at(indexIndex).dir,
-                          message->pathEnvironment(),
-                          message->projectRoot(),
-                          message->flags(),
-                          &project);
-            ++indexIndex;
-        }
-        if (max == indexes.size()) {
-            EventLoop::deleteLater(this);
-        } else {
-            EventLoop::eventLoop()->callLater(std::bind(&CompileCommandsOperation::work, this));
-        }
-    }
-    std::shared_ptr<IndexMessage> message;
-    std::shared_ptr<Project> project;
-    List<Index> indexes;
-    size_t indexIndex;
-};
-
-#endif
-
 void Server::handleIndexMessage(const std::shared_ptr<IndexMessage> &message, const std::shared_ptr<Connection> &conn)
 {
-#if CLANG_VERSION_MAJOR > 3 || (CLANG_VERSION_MAJOR == 3 && CLANG_VERSION_MINOR > 3)
     const Path path = message->compilationDatabaseDir();
     if (!path.isEmpty()) {
-        CXCompilationDatabase_Error err;
-        CXCompilationDatabase db = clang_CompilationDatabase_fromDirectory(path.constData(), &err);
-        if (err == CXCompilationDatabase_NoError) {
-            CXCompileCommands cmds = clang_CompilationDatabase_getAllCompileCommands(db);
-            const unsigned int sz = clang_CompileCommands_getSize(cmds);
-            CompileCommandsOperation *op = new CompileCommandsOperation(message);
-            op->indexes.reserve(sz);
-            for (unsigned int i = 0; i < sz; ++i) {
-                CXCompileCommand cmd = clang_CompileCommands_getCommand(cmds, i);
-                String args;
-                CXString str = clang_CompileCommand_getDirectory(cmd);
-                const Path dir = clang_getCString(str);
-                clang_disposeString(str);
-                const unsigned int num = clang_CompileCommand_getNumArgs(cmd);
-                for (unsigned int j = 0; j < num; ++j) {
-                    str = clang_CompileCommand_getArg(cmd, j);
-                    args += clang_getCString(str);
-                    clang_disposeString(str);
-                    if (j < num - 1)
-                        args += ' ';
-                }
-                op->indexes.push_back(CompileCommandsOperation::Index { args, dir.ensureTrailingSlash() } );
-            }
-            EventLoop::eventLoop()->callLater(std::bind(&CompileCommandsOperation::work, op));
-            clang_CompileCommands_dispose(cmds);
-            clang_CompilationDatabase_dispose(db);
-        }
+        if (RTags::loadCompileCommands(message->compilationDatabaseDir(),
+                                       message->pathEnvironment(),
+                                       message->flags(),
+                                       message->projectRoot())) {
 
-        if (conn) {
-            conn->write("[Server] Compilation database loading...");
+            if (conn) {
+                conn->write("[Server] Compilation database loading...");
+                conn->finish();
+            }
+        } else if (conn) {
+            conn->write("[Server] Compilation failed to load.");
             conn->finish();
         }
         return;
     }
-#endif
     const bool ret = index(message->arguments(), message->workingDirectory(),
                            message->pathEnvironment(), message->projectRoot(), message->flags());
     if (conn)
@@ -628,9 +555,6 @@ void Server::handleLogOutputMessage(const std::shared_ptr<LogOutputMessage> &mes
 {
     std::shared_ptr<RTagsLogOutput> log(new RTagsLogOutput(message->level(), message->flags(), conn));
     log->add();
-    // if (auto project = mCurrentProject.lock()) {
-    //     project->diagnoseAll();
-    // }
 }
 
 void Server::handleIndexDataMessage(const std::shared_ptr<IndexDataMessage> &message, const std::shared_ptr<Connection> &conn)

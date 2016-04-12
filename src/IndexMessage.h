@@ -40,7 +40,8 @@ public:
     void setArguments(const String &arguments) { mArgs = arguments; }
     enum Flag {
         None = 0x0,
-        GuessFlags = 0x1
+        GuessFlags = 0x1,
+        ReloadCompilationDatabase = 0x2
     };
     Flags<Flag> flags() const { return mFlags; }
     void setFlags(Flags<Flag> flags) { mFlags = flags; }

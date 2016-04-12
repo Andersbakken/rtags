@@ -34,6 +34,7 @@
 #include "rct/Path.h"
 #include "rct/Set.h"
 #include "rct/String.h"
+#include "IndexMessage.h"
 
 class Database;
 class Project;
@@ -531,6 +532,10 @@ enum FindAncestorFlag {
 RCT_FLAGS(FindAncestorFlag);
 Path findAncestor(Path path, const char *fn, Flags<FindAncestorFlag> flags);
 Map<String, String> rtagsConfig(const Path &path);
+bool loadCompileCommands(const Path &dir,
+                         const List<Path> &pathEnv,
+                         Flags<IndexMessage::Flag> f,
+                         const Path &proot);
 
 enum { DefinitionBit = 0x1000 };
 inline CXCursorKind targetsValueKind(uint16_t val)
