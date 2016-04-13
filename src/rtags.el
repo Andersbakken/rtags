@@ -3791,20 +3791,21 @@ definition."
 
 buffer : The buffer to be checked and reparsed, if it's nil, use current buffer.
 force means do it regardless of rtags-enable-unsaved-reparsing "
-  (when (or rtags-enable-unsaved-reparsing force)
-    (let ((unsaved (and (buffer-modified-p buffer) (or buffer (current-buffer)))))
-      (when unsaved
-        ;; check ticks since the last save to avoid parsing the file multiple times
-        ;; if it has not been modified
-        (let ((current-ticks (buffer-modified-tick unsaved))
-              (old-ticks (buffer-local-value 'rtags-unsaved-buffer-ticks unsaved)))
-          ;; reparsing this dirty file for the first time
-          ;; or if it was modified since last reparsing
-          ;;(message ":debug: buffer=%s, old-ticks=%s, current-ticks=%s"
-          ;;unsaved old-ticks current-ticks)
-          (when (or (null old-ticks) (/= current-ticks old-ticks))
-            (rtags-reparse-file unsaved force)
-            (setq-local rtags-unsaved-buffer-ticks current-ticks)))))))
+  (unless buffer
+    (setq buffer (current-buffer)))
+  (when (and (or rtags-enable-unsaved-reparsing force)
+             (buffer-modified-p buffer))
+    ;; check ticks since the last save to avoid parsing the file multiple times
+    ;; if it has not been modified
+    (let ((current-ticks (buffer-modified-tick unsaved))
+          (old-ticks (buffer-local-value 'rtags-unsaved-buffer-ticks unsaved)))
+      ;; reparsing this dirty file for the first time
+      ;; or if it was modified since last reparsing
+      ;;(message ":debug: buffer=%s, old-ticks=%s, current-ticks=%s"
+      ;;unsaved old-ticks current-ticks)
+      (when (or (null old-ticks) (/= current-ticks old-ticks))
+        (rtags-reparse-file unsaved force)
+        (setq-local rtags-unsaved-buffer-ticks current-ticks)))))
 
 (defun rtags-periodic-reparse-buffer ()
   (rtags-reparse-file-if-needed nil t)
@@ -3838,8 +3839,8 @@ force means do it regardless of rtags-enable-unsaved-reparsing "
 (defun rtags-update-periodic-reparse-timer ()
   (interactive)
   (when (and rtags-periodic-reparse-timeout
-             (funcall rtags-is-indexable (current-buffer))
              (not rtags-periodic-reparse-timer)
+             (funcall rtags-is-indexable (current-buffer))
              (rtags-has-diagnostics))
     (setq rtags-periodic-reparse-timer (run-with-idle-timer rtags-periodic-reparse-timeout nil #'rtags-periodic-reparse-buffer))))
 
