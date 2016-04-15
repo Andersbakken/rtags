@@ -185,7 +185,7 @@ Maximum wait time is: (* company-rtags-max-wait company-async-wait)"
 (defun company-rtags (command &optional arg &rest ignored)
   "`company-mode' completion back-end for RTags."
   (interactive (list 'interactive))
-  (case command
+  (cl-case command
     (init
      (setq rtags-company-last-completion-callback nil)
      (setq rtags-company-last-completion-location nil)
