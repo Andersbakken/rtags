@@ -25,13 +25,16 @@
 #include "rct/FileSystemWatcher.h"
 #include "rct/Log.h"
 #include "rct/Process.h"
+#include "rct/rct-config.h"
 #include "rct/Rct.h"
 #include "rct/StackBuffer.h"
 #include "rct/Thread.h"
 #include "rct/ThreadPool.h"
 #include "RTags.h"
 #include "Server.h"
+#ifdef HAVE_BACKTRACE
 #include <execinfo.h>
+#endif
 
 #if !defined(HAVE_FSEVENTS) && defined(HAVE_KQUEUE)
 #define FILEMANAGER_OPT_IN
@@ -46,7 +49,7 @@ static void signalHandler(int signal)
     void *stack[SIZE];
 
     fprintf(stderr, "Caught signal %d\n", signal);
-
+#ifdef HAVE_BACKTRACE
     const int frameCount = backtrace(stack, sizeof(stack) / sizeof(void*));
     if (frameCount <= 0) {
         fprintf(stderr, "Couldn't get stack trace\n");
@@ -59,6 +62,7 @@ static void signalHandler(int signal)
             fprintf(crashDumpFile, "Caught signal %d\n", signal);
         }
     }
+#endif
     fflush(stderr);
 
     if (crashDumpFile) {
@@ -870,6 +874,7 @@ int main(int argc, char** argv)
     }
     serverOpts.dataDir = serverOpts.dataDir.ensureTrailingSlash();
 
+#ifdef HAVE_BACKTRACE
     if (strlen(crashDumpFilePath)) {
         if (crashDumpFilePath[0] != '/') {
             const String f = crashDumpFilePath;
@@ -883,6 +888,7 @@ int main(int argc, char** argv)
             return 1;
         }
     }
+#endif
 
     if (!server->init(serverOpts)) {
         cleanupLogging();
