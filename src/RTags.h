@@ -752,6 +752,7 @@ inline Log operator<<(Log dbg, CXLinkageKind kind)
     return dbg;
 }
 
+#if CINDEX_VERSION > CINDEX_VERSION_ENCODE(0, 28)
 inline Log operator<<(Log dbg, CXTemplateArgumentKind kind)
 {
     switch (kind) {
@@ -768,7 +769,7 @@ inline Log operator<<(Log dbg, CXTemplateArgumentKind kind)
     }
     return dbg;
 }
-
+#endif
 
 inline Log operator<<(Log dbg, CXAvailabilityKind kind)
 {
@@ -796,10 +797,10 @@ inline Log operator<<(Log dbg, CXDiagnosticSeverity severity)
 {
     switch (severity) {
     case CXDiagnostic_Ignored: dbg << "Ignored"; break;
-    case CXDiagnostic_Note   : dbg << "Note"; break;
+    case CXDiagnostic_Note: dbg << "Note"; break;
     case CXDiagnostic_Warning: dbg << "Warning"; break;
-    case CXDiagnostic_Error  : dbg << "Error"; break;
-    case CXDiagnostic_Fatal  : dbg << "Fatal"; break;
+    case CXDiagnostic_Error: dbg << "Error"; break;
+    case CXDiagnostic_Fatal: dbg << "Fatal"; break;
     }
     return dbg;
 }
@@ -822,6 +823,8 @@ inline Log operator<<(Log dbg, CXCallingConv conv)
     case CXCallingConv_X86VectorCall: dbg << "X86VectorCall"; break;
     case CXCallingConv_Invalid: dbg << "Invalid"; break;
     case CXCallingConv_Unexposed: dbg << "Unexposed"; break;
+    default:
+        break;
     }
     return dbg;
 }

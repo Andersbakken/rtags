@@ -1085,9 +1085,11 @@ void ClangThread::processAST(CXTranslationUnit unit)
                         const int count = clang_Cursor_getNumTemplateArguments(cursor->cursor);
                         for (int i=0; i<count; ++i) {
                             Value arg;
+#if CINDEX_VERSION > CINDEX_VERSION_ENCODE(0, 28)
                             String kind;
                             Log(&kind) << create(clang_Cursor_getTemplateArgumentKind(cursor->cursor, i));
                             arg["kind"] = create(kind);
+#endif
                             arg["type"] = create(clang_Cursor_getTemplateArgumentType(cursor->cursor, i));
                             arg["value"] = create(clang_Cursor_getTemplateArgumentValue(cursor->cursor, i));
                             ret.push_back(arg);
