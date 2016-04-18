@@ -752,7 +752,7 @@ inline Log operator<<(Log dbg, CXLinkageKind kind)
     return dbg;
 }
 
-#if CINDEX_VERSION > CINDEX_VERSION_ENCODE(0, 28)
+#if CINDEX_VERSION >= CINDEX_VERSION_ENCODE(0, 29)
 inline Log operator<<(Log dbg, CXTemplateArgumentKind kind)
 {
     switch (kind) {
@@ -820,7 +820,9 @@ inline Log operator<<(Log dbg, CXCallingConv conv)
     case CXCallingConv_IntelOclBicc: dbg << "IntelOclBicc"; break;
     case CXCallingConv_X86_64Win64: dbg << "X86_64Win64"; break;
     case CXCallingConv_X86_64SysV: dbg << "X86_64SysV"; break;
+#if CINDEX_VERSION >= CINDEX_VERSION_ENCODE(0, 30)
     case CXCallingConv_X86VectorCall: dbg << "X86VectorCall"; break;
+#endif
     case CXCallingConv_Invalid: dbg << "Invalid"; break;
     case CXCallingConv_Unexposed: dbg << "Unexposed"; break;
     default:
