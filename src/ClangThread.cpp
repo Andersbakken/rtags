@@ -41,9 +41,9 @@ ClangThread::ClangThread(const std::shared_ptr<QueryMessage> &queryMessage,
 ClangThread::~ClangThread()
 {
 #ifdef HAVE_SCRIPTENGINE
-    if (!mParent.isEmpty()) {
-        assert(mParent.size() == 1);
-        delete mParent.front();
+    if (!mParents.isEmpty()) {
+        assert(mParents.size() == 1);
+        delete mParents.front();
     }
 #endif
 }

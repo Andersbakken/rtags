@@ -115,7 +115,6 @@ struct Option opts[] = {
 #ifdef HAVE_SCRIPTENGINE
     { RClient::VisitAST, "visit-ast", 0, required_argument, "Visit AST of a source file." },
 #endif
-
     { RClient::None, 0, 0, 0, "" },
     { RClient::None, 0, 0, 0, "Command flags:" },
     { RClient::StripParen, "strip-paren", 'p', no_argument, "Strip parens in various contexts." },
