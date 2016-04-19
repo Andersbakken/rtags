@@ -68,7 +68,7 @@ For an example, take a look at `flycheck-dequalify-error-ids'."
 
 (defun flycheck-rtags--build-error (checker buffer)
   (let* ((diagnostics-buffer (get-buffer rtags-diagnostics-buffer-name))
-         (file-name (buffer-file-name buffer))
+         (file-name (file-truename (buffer-file-name buffer)))
          (rx (concat "^\\(" file-name "\\):\\([0-9]+\\):\\([0-9]+\\): \\(\\w+\\): \\(.*\\)$"))
          flycheck-errors)
     (with-current-buffer diagnostics-buffer
