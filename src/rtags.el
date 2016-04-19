@@ -2467,8 +2467,11 @@ This includes both declarations and definitions."
       (when (rtags-goto-line-col line column)
         (setq start (point))
         (setq end (cond (length (save-excursion
-                                  (rtags-goto-offset (+ (rtags-offset) length))
-                                  (point)))
+                                  (save-restriction
+                                    (widen)
+                                    (let (deactivate-mark)
+                                      (rtags-goto-offset (+ (rtags-offset) length))
+                                      (point)))))
                         ((let ((sym (thing-at-point 'symbol)))
                            (and sym (+ start (length sym)))))
                         (t (1+ start))))
@@ -3592,7 +3595,9 @@ definition."
 (defun rtags-offset-for-line-column (line col)
   (let (deactivate-mark)
     (save-excursion
-      (and (rtags-goto-line-col line col) (rtags-offset)))))
+      (save-restriction
+        (widen)
+        (and (rtags-goto-line-col line col) (rtags-offset))))))
 
 (defun rtags-range-visible (start end)
   (and (>= start (window-start))
