@@ -25,6 +25,7 @@
 #include <clang/Basic/Version.h>
 #include <clang-c/Index.h>
 
+#include "rct/rct-config.h"
 #include "FixIt.h"
 #include "Location.h"
 #include "Source.h"
