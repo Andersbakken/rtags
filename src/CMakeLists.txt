@@ -39,13 +39,18 @@ if (EXISTS ${CLANG_COMPILATION_INCLUDE})
     add_definitions(-DHAVE_CXCOMPILATIONDATABASE)
 endif ()
 
+find_package(Lua)
+If (LUA_FOUND)
+    set(RCT_RTTI_ENABLED 1)
+endif ()
+
 set(RCT_NO_INSTALL 1)
 set(RCT_NO_LIBRARY 1)
 include(rct/rct.cmake)
 
 include(${CMAKE_CURRENT_LIST_DIR}/rct/compiler.cmake)
 # Set further compile options after including the rct compiler option.
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wstrict-aliasing=2 -fno-exceptions -Wcast-qual -fPIC")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wstrict-aliasing=2 -Wcast-qual -fPIC")
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wstrict-aliasing=2 -Wcast-qual -fPIC")
 if (NOT CYGWIN)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fstack-protector-all -Wstack-protector")
@@ -108,6 +113,10 @@ set(RTAGS_SOURCES
     SymbolInfoJob.cpp
     ${RCT_SOURCES})
 
+if (LUA_FOUND)
+    list(APPEND RTAGS_SOURCES AST.cpp)
+endif ()
+
 add_library(rtags STATIC ${RTAGS_SOURCES})
 if (RTAGS_COTIRE)
     include(cotire)
@@ -115,7 +124,7 @@ if (RTAGS_COTIRE)
     cotire(rtags)
 endif ()
 
-include_directories(${CMAKE_CURRENT_LIST_DIR} ${RCT_INCLUDE_DIRS})
+include_directories(${CMAKE_CURRENT_LIST_DIR} ${RCT_INCLUDE_DIRS} ${CMAKE_CURRENT_LIST_DIR}/selene/include)
 
 if (CMAKE_SYSTEM_NAME MATCHES "Darwin")
     set(START_GROUP "")
@@ -126,6 +135,19 @@ else ()
 endif ()
 
 set(RTAGS_LIBRARIES rtags ${START_GROUP} ${LIBCLANG_LIBRARIES} ${END_GROUP} -lstdc++ ${CURSES_LIBRARIES} ${RCT_LIBRARIES})
+
+if (LUA_FOUND)
+    set(RTAGS_LIBRARIES ${RTAGS_LIBRARIES} ${LUA_LIBRARIES})
+    include_directories(${LUA_INCLUDE_DIR})
+    add_definitions(-DRTAGS_HAS_LUA)
+    if (APPLE)
+        set_source_files_properties(AST.cpp PROPERTIES COMPILE_FLAGS "-Wno-unused-parameter -Wno-unused-variable -ftemplate-depth=2000")
+    elseif (UNIX)
+        set_source_files_properties(AST.cpp PROPERTIES COMPILE_FLAGS "-Wno-unused-parameter -Wno-unused-variable -Wno-unused-but-set-parameter -ftemplate-depth=2000")
+    endif ()
+endif ()
+
+
 add_executable(rc rc.cpp)
 target_link_libraries(rc ${RTAGS_LIBRARIES})
 

@@ -69,7 +69,7 @@ public:
         Status,
         Suspend,
         SymbolInfo
-#ifdef HAVE_SCRIPTENGINE
+#ifdef RTAGS_HAS_LUA
         , VisitAST
 #endif
     };
@@ -143,9 +143,9 @@ public:
         std::sort(mPathFilters.begin(), mPathFilters.end());
     }
 
-#ifdef HAVE_SCRIPTENGINE
-    void setVisitASTScripts(const List<String> &scripts) { mVisitAstScripts = scripts; }
-    List<String> visitASTScripts() const { return mVisitAstScripts; }
+#ifdef RTAGS_HAS_LUA
+    void setVisitASTScripts(const List<String> &scripts) { mVisitASTScripts = scripts; }
+    List<String> visitASTScripts() const { return mVisitASTScripts; }
 #endif
 
     void setKindFilters(const Set<String> &kindFilters) { mKindFilters = kindFilters; }
@@ -218,8 +218,8 @@ private:
     Path mCurrentFile;
     UnsavedFiles mUnsavedFiles;
     int mTerminalWidth;
-#ifdef HAVE_SCRIPTENGINE
-    List<String> mVisitAstScripts;
+#ifdef RTAGS_HAS_LUA
+    List<String> mVisitASTScripts;
 #endif
 };
 

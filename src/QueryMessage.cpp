@@ -28,8 +28,8 @@ void QueryMessage::encode(Serializer &serializer) const
     serializer << mRaw << mQuery << mType << mFlags << mMax
                << mMinLine << mMaxLine << mBuildIndex << mPathFilters << mKindFilters
                << mCurrentFile << mUnsavedFiles << mTerminalWidth
-#ifdef HAVE_SCRIPTENGINE
-               << mVisitAstScripts
+#ifdef RTAGS_HAS_LUA
+               << mVisitASTScripts
 #endif
         ;
 }
@@ -39,8 +39,8 @@ void QueryMessage::decode(Deserializer &deserializer)
     deserializer >> mRaw >> mQuery >> mType >> mFlags >> mMax
                  >> mMinLine >> mMaxLine >> mBuildIndex >> mPathFilters >> mKindFilters
                  >> mCurrentFile >> mUnsavedFiles >> mTerminalWidth
-#ifdef HAVE_SCRIPTENGINE
-                 >> mVisitAstScripts
+#ifdef RTAGS_HAS_LUA
+                 >> mVisitASTScripts
 #endif
         ;
 }

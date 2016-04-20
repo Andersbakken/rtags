@@ -23,7 +23,6 @@
 #include "rct/Thread.h"
 #include "rct/Value.h"
 #include "Source.h"
-#include "rct/ScriptEngine.h"
 
 class Connection;
 struct Dep;
@@ -37,65 +36,21 @@ public:
     virtual void run() override;
     void abort() { std::unique_lock<std::mutex> lock(mMutex); mAborted = false; }
     bool isAborted() const { std::unique_lock<std::mutex> lock(mMutex); return mAborted; }
+
+
 private:
     static CXChildVisitResult visitor(CXCursor cursor, CXCursor, CXClientData userData);
     CXChildVisitResult visit(const CXCursor &cursor);
     void checkIncludes(Location location, const CXCursor &cursor);
 
-    class Loc : public Location
-    {
-    public:
-        Loc()
-            : offset(-1)
-        {}
-        Loc(uint32_t fileId, uint32_t line, uint32_t col, uint32_t o)
-            : Location(fileId, line, col), offset(o)
-        {}
-        int offset;
-    };
-
-
     void writeToConnetion(const String &message);
-    static Loc createLocation(CXSourceLocation loc)
-    {
-        CXString fileName;
-        unsigned int line, col, offset;
-        CXFile file;
-        clang_getSpellingLocation(loc, &file, &line, &col, &offset);
-        if (file) {
-            fileName = clang_getFileName(file);
-        } else {
-            return Loc();
-        }
-        const char *fn = clang_getCString(fileName);
-        assert(fn);
-        if (!*fn || !strcmp("<built-in>", fn) || !strcmp("<command line>", fn)) {
-            clang_disposeString(fileName);
-            return Loc();
-        }
-        Path path = RTags::eatString(fileName);
-        uint32_t fileId = Location::fileId(path);
-        if (!fileId) {
-            path.resolve();
-            fileId = Location::insertFile(path);
-        }
-        return Loc(fileId, line, col, offset);
-    }
-
-    static Loc createLocation(const CXCursor &cursor)
-    {
-        return createLocation(clang_getCursorLocation(cursor));
-    }
     void handleInclude(Location loc, const CXCursor &cursor);
     void handleReference(Location loc, const CXCursor &ref);
     void checkIncludes();
 
-#ifdef HAVE_SCRIPTENGINE
+#ifdef RTAGS_HAS_LUA
     static CXChildVisitResult visitASTVisitor(CXCursor cursor, CXCursor, CXClientData userData);
     void processAST(CXTranslationUnit unit);
-
-    ScriptEngine mScriptEngine;
-    std::shared_ptr<ScriptEngine::Class> mCursorClass, mTypeClass, mLocationClass, mRangeClass;
 
     enum ExtraDataType {
         Type_Invalid,
@@ -104,27 +59,7 @@ private:
         Type_Range,
         Type_Type
     };
-
-    struct Cursor
-    {
-        Cursor(const std::shared_ptr<ScriptEngine::Object> &o, Cursor *p, const CXCursor &c, Loc loc)
-            : object(o), parent(p), cursor(c), location(loc), usr(RTags::eatString(clang_getCursorUSR(c)))
-        {
-        }
-        ~Cursor()
-        {
-            for (Cursor *child : children)
-                delete child;
-        }
-
-        std::shared_ptr<ScriptEngine::Object> object;
-        Cursor *parent;
-        CXCursor cursor;
-        Loc location;
-        String usr;
-        List<Cursor*> children;
-    };
-
+#if 0
     template <typename T>
     static T extraData(const std::shared_ptr<ScriptEngine::Object> &object, ExtraDataType type, bool *ok = 0)
     {
@@ -190,9 +125,7 @@ private:
         return t;
     }
 
-    Hash<String, List<Cursor *> > mCursorsByUsr;
-    Map<Loc, List<Cursor *> > mCursorsByLocation;
-    List<Cursor*> mParents;
+#endif
 #endif
     const std::shared_ptr<QueryMessage> mQueryMessage;
     const Source mSource;

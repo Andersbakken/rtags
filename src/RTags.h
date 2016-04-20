@@ -239,7 +239,7 @@ inline bool isCursor(CXCursorKind kind)
     return clang_isDeclaration(static_cast<CXCursorKind>(kind));
 }
 
-static inline CursorType cursorType(CXCursorKind kind)
+inline CursorType cursorType(CXCursorKind kind)
 {
     switch (kind) {
     case CXCursor_InclusionDirective:
@@ -267,7 +267,7 @@ static inline CursorType cursorType(CXCursorKind kind)
     return Type_Other;
 }
 
-static inline bool isContainer(CXCursorKind kind)
+inline bool isContainer(CXCursorKind kind)
 {
     switch (kind) {
     case CXCursor_CXXMethod:
@@ -291,7 +291,7 @@ static inline bool isContainer(CXCursorKind kind)
     return false;
 }
 
-static inline bool needsQualifiers(CXCursorKind kind)
+inline bool needsQualifiers(CXCursorKind kind)
 {
     switch (kind) {
     case CXCursor_CXXMethod:
@@ -316,7 +316,7 @@ static inline bool needsQualifiers(CXCursorKind kind)
 }
 
 String typeName(const CXCursor &cursor);
-static inline const char *builtinTypeName(CXTypeKind kind)
+inline const char *builtinTypeName(CXTypeKind kind)
 {
     const char *ret = 0;
     switch (kind) {
@@ -426,12 +426,12 @@ inline bool addTo(Container &container, const Value &value)
     return container.size() != oldSize;
 }
 
-static inline bool isSymbol(char ch)
+inline bool isSymbol(char ch)
 {
     return (isalnum(ch) || ch == '_' || ch == '~');
 }
 
-static inline bool isFunctionVariable(const String &entry)
+inline bool isFunctionVariable(const String &entry)
 {
     assert(entry.contains('('));
     const int endParen = entry.lastIndexOf(')');
@@ -448,7 +448,7 @@ static inline bool isFunctionVariable(const String &entry)
     return false;
 }
 
-static inline bool isOperator(char ch)
+inline bool isOperator(char ch)
 {
     switch (ch) {
     case '!':
@@ -560,7 +560,7 @@ inline Symbol bestTarget(const Set<Symbol> &targets)
     }
     return ret;
 }
-static inline String xmlEscape(const String& xml)
+inline String xmlEscape(const String& xml)
 {
     if (xml.isEmpty())
         return xml;
@@ -591,7 +591,7 @@ static inline String xmlEscape(const String& xml)
     return ret;
 }
 
-static inline const String elispEscape(const String &data)
+inline const String elispEscape(const String &data)
 {
     String ret;
     const int size = data.size();
@@ -635,6 +635,41 @@ static inline const String elispEscape(const String &data)
         return data;
     return ret;
 }
+
+inline Location createLocation(CXSourceLocation loc, int *offsetPtr = 0)
+{
+    if (offsetPtr)
+        *offsetPtr = -1;
+    CXString fileName;
+    unsigned int line, col, offset;
+    CXFile file;
+    clang_getSpellingLocation(loc, &file, &line, &col, &offset);
+    if (file) {
+        fileName = clang_getFileName(file);
+    } else {
+        return Location();
+    }
+    const char *fn = clang_getCString(fileName);
+    assert(fn);
+    if (!*fn || !strcmp("<built-in>", fn) || !strcmp("<command line>", fn)) {
+        clang_disposeString(fileName);
+        return Location();
+    }
+    Path path = RTags::eatString(fileName);
+    uint32_t fileId = Location::fileId(path);
+    if (!fileId) {
+        path.resolve();
+        fileId = Location::insertFile(path);
+    }
+    if (offsetPtr)
+        *offsetPtr = offset;
+    return Location(fileId, line, col);
+}
+
+inline Location createLocation(const CXCursor &cursor, int *offsetPtr = 0)
+{
+    return createLocation(clang_getCursorLocation(cursor), offsetPtr);
+}
 }
 
 inline bool operator==(const CXCursor &l, CXCursorKind r)
@@ -660,8 +695,7 @@ inline Log operator<<(Log dbg, CXCursorKind kind);
 inline Log operator<<(Log dbg, CXTypeKind kind);
 inline Log operator<<(Log dbg, CXLinkageKind kind);
 
-static inline bool operator==(const CXCursor &l, const CXCursor &r) { return clang_equalCursors(l, r); }
-
+inline bool operator==(const CXCursor &l, const CXCursor &r) { return clang_equalCursors(l, r); }
 class CXStringScope
 {
 public:
@@ -821,8 +855,7 @@ inline Log operator<<(Log dbg, CXTypeLayoutError err)
     case CXTypeLayoutError_InvalidFieldName: dbg << "InvalidFieldName"; break;
     }
     return dbg;
-};
-
+}
 
 inline String &operator<<(String &str, CXString cxstr)
 {

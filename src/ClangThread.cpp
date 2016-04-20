@@ -15,9 +15,11 @@
 
 #include "ClangThread.h"
 #include "rct/Connection.h"
-
 #include "RTags.h"
 #include "Server.h"
+#ifdef RTAGS_HAS_LUA
+#include "AST.h"
+#endif
 
 struct Dep : public DependencyNode
 {
@@ -40,12 +42,6 @@ ClangThread::ClangThread(const std::shared_ptr<QueryMessage> &queryMessage,
 
 ClangThread::~ClangThread()
 {
-#ifdef HAVE_SCRIPTENGINE
-    if (!mParents.isEmpty()) {
-        assert(mParents.size() == 1);
-        delete mParents.front();
-    }
-#endif
 }
 
 CXChildVisitResult ClangThread::visitor(CXCursor cursor, CXCursor, CXClientData userData)
@@ -59,14 +55,10 @@ CXChildVisitResult ClangThread::visit(const CXCursor &cursor)
 {
     if (isAborted())
         return CXChildVisit_Break;
-    const Location location = createLocation(cursor);
+    const Location location = RTags::createLocation(cursor);
     if (!location.isNull()) {
         if (mQueryMessage->flags() & QueryMessage::DumpCheckIncludes) {
             checkIncludes(location, cursor);
-            // return CXChildVisit_Recurse;
-        // } else if (mQueryMessage->flags() & QueryMessage::JSON) {
-        //     visitAST(cursor, location);
-        //     // return CXChildVisit_Recurse;
         } else {
             Flags<Location::ToStringFlag> locationFlags;
             if (mQueryMessage->flags() & QueryMessage::NoColor)
@@ -144,9 +136,14 @@ void ClangThread::run()
 
     const unsigned long long parseTime = sw.restart();
     error() << "parseTime" << parseTime;
-#ifdef HAVE_SCRIPTENGINE
+#ifdef RTAGS_HAS_LUA
     if (mQueryMessage->type() == QueryMessage::VisitAST) {
-        processAST(translationUnit);
+        std::shared_ptr<AST> ast = AST::create(mSource, translationUnit);
+        if (ast) {
+            for (const String script : mQueryMessage->visitASTScripts()) {
+                ast->evaluate(script);
+            }
+        }
     } else
 #endif
         if (mQueryMessage->type() == QueryMessage::DumpFile && !(mQueryMessage->flags() & QueryMessage::DumpCheckIncludes)) {
@@ -208,7 +205,7 @@ void ClangThread::handleReference(Location loc, const CXCursor &ref)
 {
     if (clang_getCursorKind(ref) == CXCursor_Namespace)
         return;
-    const Location refLoc = createLocation(ref);
+    const Location refLoc = RTags::createLocation(ref);
     if (refLoc.isNull() || refLoc.fileId() == loc.fileId())
         return;
 
@@ -792,109 +789,369 @@ Value ClangThread::rangeToValue(Location start, Location end)
 }
 #endif
 
-#ifdef HAVE_SCRIPTENGINE
-CXChildVisitResult ClangThread::visitASTVisitor(CXCursor cursor, CXCursor, CXClientData userData)
+#if 0
+#ifdef RTAGS_HAS_LUA
+template <typename T> static void assign(sel::Selector selector, const T &t) { selector = t; }
+void assign(sel::Selector selector, const String &str) { selector = str.ref(); }
+void assign(sel::Selector selector, Cursor *c) { selector = c->self; }
+
+template <typename T>
+static void exposeArray(sel::Selector selector, const std::vector<T> &array)
 {
-    ClangThread *thread = reinterpret_cast<ClangThread*>(userData);
-    Cursor *p = thread->mParents.empty() ? 0 : thread->mParents.last();
-    assert(thread);
-    assert(thread->mCursorClass);
-    auto object = thread->mCursorClass->create();
-    Cursor *c = new Cursor(object, p, cursor, thread->createLocation(cursor));
-    object->setExtraData(c);
-    if (!c->usr.isEmpty())
-        thread->mCursorsByUsr[c->usr].append(c);
+    int i = 0;
+    for (const T &t : array) {
+        assign(selector[i++], t);
+    }
+    // selector["length"] = static_cast<int>(array.size());
+}
+
+struct UserData {
+    sel::State *state;
+    ClangThread *thread;
+    List<Cursor*> parents;
+};
+
+CXChildVisitResult ClangThread::visitASTVisitor(CXCursor cursor, CXCursor, CXClientData u)
+{
+    UserData *userData = reinterpret_cast<UserData*>(u);
+    assert(userData);
+    Cursor *p = userData->parents.isEmpty() ? 0 : userData->parents.back();
+    // assert(thread->mCursorClass);
+    // auto object = thread->mCursorClass->create();
+    Cursor *c = new Cursor(p, cursor, ClangThread::createLocation(cursor),
+                           (p ? p->self["children"][p->children.size()] : (*userData->state)["root"]));
+    if (!c->usr.empty())
+        userData->thread->mCursorsByUsr[c->usr].append(c);
     if (!c->location.isNull())
-        thread->mCursorsByLocation[c->location].append(c);
-    p->children.append(c);
-    thread->mParents.append(c);
-    clang_visitChildren(cursor, &ClangThread::visitASTVisitor, thread);
-    thread->mParents.removeLast();
+        userData->thread->mCursorsByLocation[c->location].append(c);
+    if (p) {
+        p->children.append(c);
+        // c->self["parent"] = [p]() { return p->self; };
+    } else {
+        c->usr = "drity";
+    }
+    // c->self.SetObj(*c, "parent", [p]() { return p->self; });
+    // c->self.SetObj(*c, "parentUsr", &Cursor::parentUsr);
+    // c->self["drit"] = "tull";
+    c->self["drit"]["parent"] = []() { return "fisk"; };
+    c->self["selector"]["parent"] = []() { return "fisk"; };
+    // c->self.SetClass<Selector>();
+    sel::State *state = userData->state;
+    c->self["location"] = [state, c]() {
+        // sel::Selector sel = state->createSelector();
+        // sel["line"] = c->location.line();
+        // return sel;
+    };
+
+    exposeArray(c->self["children"], c->children);
+    userData->parents.append(c);
+    clang_visitChildren(cursor, &ClangThread::visitASTVisitor, userData);
+    userData->parents.removeLast();
+    // c->self["location"] = [c]() { return exposeLocation(c->location); };
+    // c->self.SetObj(*c, "children",
+    // c->self["usr"] = &Cursor::usr;
+
+#if 0
+    mCursorClass->registerProperty("location", [this](const std::shared_ptr<ScriptEngine::Object> &object) -> Value {
+            assert(object);
+            Cursor *cursor = extraData<Cursor*>(object, Type_Cursor);
+            return cursor ? create(cursor->location) : Value();
+        });
+
+    mCursorClass->registerProperty("usr", [this](const std::shared_ptr<ScriptEngine::Object> &object) -> Value {
+            assert(object);
+            Cursor *cursor = extraData<Cursor*>(object, Type_Cursor);
+            return cursor ? create(cursor->usr) : Value();
+        });
+
+    mCursorClass->registerProperty("kind", [this](const std::shared_ptr<ScriptEngine::Object> &object) -> Value {
+            assert(object);
+            Cursor *cursor = extraData<Cursor*>(object, Type_Cursor);
+            return cursor ? create(clang_getCursorKindSpelling(clang_getCursorKind(cursor->cursor))) : Value();
+        });
+
+    mCursorClass->registerProperty("linkage", [this](const std::shared_ptr<ScriptEngine::Object> &object) -> Value {
+            assert(object);
+            Cursor *cursor = extraData<Cursor*>(object, Type_Cursor);
+            if (cursor) {
+                String ret;
+                Log(&ret) << clang_getCursorLinkage(cursor->cursor);
+                return create(ret);
+            }
+            return Value();
+        });
+
+    mCursorClass->registerProperty("availability", [this](const std::shared_ptr<ScriptEngine::Object> &object) -> Value {
+            assert(object);
+            Cursor *cursor = extraData<Cursor*>(object, Type_Cursor);
+            if (cursor) {
+                String ret;
+                Log(&ret) << clang_getCursorAvailability(cursor->cursor);
+                return create(ret);
+            }
+            return Value();
+        });
+
+    mCursorClass->registerProperty("language", [this](const std::shared_ptr<ScriptEngine::Object> &object) -> Value {
+            assert(object);
+            Cursor *cursor = extraData<Cursor*>(object, Type_Cursor);
+            if (cursor) {
+                String ret;
+                Log(&ret) << clang_getCursorLanguage(cursor->cursor);
+                return create(ret);
+            }
+            return Value();
+        });
+
+    {
+        typedef CXString (*StringFunc)(CXCursor);
+        auto registerStringProperty = [this](const char *name, StringFunc func) {
+            mCursorClass->registerProperty(name, [this, func](const std::shared_ptr<ScriptEngine::Object> &object) -> Value {
+                    assert(object);
+                    Cursor *cursor = extraData<Cursor*>(object, Type_Cursor);
+                    if (cursor) {
+                        return create(func(cursor->cursor));
+                    }
+                    return Value();
+                });
+        };
+        registerStringProperty("spelling", &clang_getCursorSpelling);
+        registerStringProperty("displayName", &clang_getCursorDisplayName);
+        registerStringProperty("displayName", &clang_getCursorDisplayName);
+        registerStringProperty("rawComment", &clang_Cursor_getRawCommentText);
+        registerStringProperty("briefComment", &clang_Cursor_getBriefCommentText);
+        registerStringProperty("mangledName", &clang_Cursor_getMangling);
+    }
+
+    mCursorClass->registerProperty("templateKind", [this](const std::shared_ptr<ScriptEngine::Object> &object) -> Value { // ### asserts on some things
+            assert(object);
+            Cursor *cursor = extraData<Cursor*>(object, Type_Cursor);
+            if (cursor) {
+                return create(clang_getCursorKindSpelling(clang_getTemplateCursorKind(cursor->cursor)));
+            }
+            return Value();
+        });
+
+    mCursorClass->registerProperty("range", [this](const std::shared_ptr<ScriptEngine::Object> &object) -> Value {
+            assert(object);
+            Cursor *cursor = extraData<Cursor*>(object, Type_Cursor);
+            return cursor ? create(clang_getCursorExtent(cursor->cursor)) : Value();
+        });
+
+    mCursorClass->registerProperty("overridden", [this](const std::shared_ptr<ScriptEngine::Object> &object) -> Value {
+            assert(object);
+            Cursor *cursor = extraData<Cursor*>(object, Type_Cursor);
+            Value ret;
+            if (cursor) {
+                CXCursor *overridden = 0;
+                unsigned count;
+                clang_getOverriddenCursors(cursor->cursor, &overridden, &count);
+                if (overridden) {
+                    for (unsigned i=0; i<count; ++i) {
+                        const Value cc = create(overridden[i]);
+                        if (!cc.isNull())
+                            ret.push_back(cc);
+                    }
+                    clang_disposeOverriddenCursors(overridden);
+                }
+            }
+            return ret;
+        });
+
+    mCursorClass->registerProperty("arguments", [this](const std::shared_ptr<ScriptEngine::Object> &object) -> Value {
+            assert(object);
+            Cursor *cursor = extraData<Cursor*>(object, Type_Cursor);
+            Value ret;
+            if (cursor) {
+                const int count = clang_Cursor_getNumArguments(cursor->cursor);
+                for (int i=0; i<count; ++i) {
+                    const Value arg = create(clang_Cursor_getArgument(cursor->cursor, i));
+                    if (!arg.isNull())
+                        ret.push_back(arg);
+                }
+            }
+            return ret;
+        });
+
+    mCursorClass->registerProperty("bitFieldWidth", [this](const std::shared_ptr<ScriptEngine::Object> &object) -> Value {
+            assert(object);
+            Cursor *cursor = extraData<Cursor*>(object, Type_Cursor);
+            return cursor ? create(clang_getFieldDeclBitWidth(cursor->cursor)) : Value();
+            return Value();
+        });
+
+    mCursorClass->registerProperty("typedefUnderlyingType", [this](const std::shared_ptr<ScriptEngine::Object> &object) -> Value {
+            assert(object);
+            Cursor *cursor = extraData<Cursor*>(object, Type_Cursor);
+            return cursor ? create(clang_getTypedefDeclUnderlyingType(cursor->cursor)) : Value();
+            return Value();
+        });
+
+    mCursorClass->registerProperty("enumIntegerType", [this](const std::shared_ptr<ScriptEngine::Object> &object) -> Value {
+            assert(object);
+            Cursor *cursor = extraData<Cursor*>(object, Type_Cursor);
+            return cursor ? create(clang_getEnumDeclIntegerType(cursor->cursor)) : Value();
+            return Value();
+        });
+
+    mCursorClass->registerProperty("enumConstantValue", [this](const std::shared_ptr<ScriptEngine::Object> &object) -> Value {
+            assert(object);
+            Cursor *cursor = extraData<Cursor*>(object, Type_Cursor);
+            return cursor ? create(clang_getEnumConstantDeclValue(cursor->cursor)) : Value();
+            return Value();
+        });
+
+    mCursorClass->registerProperty("includedFile", [this](const std::shared_ptr<ScriptEngine::Object> &object) -> Value {
+            assert(object);
+            Cursor *cursor = extraData<Cursor*>(object, Type_Cursor);
+            if (cursor && clang_getCursorKind(cursor->cursor) == CXCursor_InclusionDirective) {
+                CXFile includedFile = clang_getIncludedFile(cursor->cursor);
+                if (includedFile) {
+                    CXStringScope fn = clang_getFileName(includedFile);
+                    const char *cstr = clang_getCString(fn);
+                    if (cstr)
+                        return create(Path::resolved(cstr));
+                }
+            }
+            return Value();
+        });
+
+    mCursorClass->registerProperty("templateArguments", [this](const std::shared_ptr<ScriptEngine::Object> &object) -> Value {
+            assert(object);
+            Cursor *cursor = extraData<Cursor*>(object, Type_Cursor);
+            Value ret;
+            if (cursor) {
+                const int count = clang_Cursor_getNumTemplateArguments(cursor->cursor);
+                for (int i=0; i<count; ++i) {
+                    Value arg;
+#if CINDEX_VERSION > CINDEX_VERSION_ENCODE(0, 28)
+                    String kind;
+                    Log(&kind) << create(clang_Cursor_getTemplateArgumentKind(cursor->cursor, i));
+                    arg["kind"] = create(kind);
+#endif
+                    arg["type"] = create(clang_Cursor_getTemplateArgumentType(cursor->cursor, i));
+                    arg["value"] = create(clang_Cursor_getTemplateArgumentValue(cursor->cursor, i));
+                    ret.push_back(arg);
+                }
+            }
+            return ret;
+        });
+
+
+    {
+        typedef CXCursor (*CursorFunc)(CXCursor);
+        auto registerCursorProperty = [this](const char *name, CursorFunc func) {
+            mCursorClass->registerProperty(name, [this, func](const std::shared_ptr<ScriptEngine::Object> &object) -> Value {
+                    assert(object);
+                    Cursor *cursor = extraData<Cursor*>(object, Type_Cursor);
+                    if (cursor) {
+                        const CXCursor ret = func(cursor->cursor);
+                        if (!clang_equalCursors(cursor->cursor, ret))
+                            return create(ret);
+                    }
+                    return Value();
+                });
+        };
+        registerCursorProperty("referenced", &clang_getCursorReferenced);
+        registerCursorProperty("canonical", &clang_getCanonicalCursor);
+        registerCursorProperty("lexicalParent", &clang_getCursorLexicalParent);
+        registerCursorProperty("semanticParent", &clang_getCursorSemanticParent);
+        registerCursorProperty("definitionCursor", & clang_getCursorDefinition);
+        registerCursorProperty("specializedCursorTemplate", &clang_getSpecializedCursorTemplate);
+    }
+    {
+        struct BooleanFunc {
+            typedef unsigned (*UnsignedBooleanFunc)(CXCursor);
+            typedef int (*SignedBooleanFunc)(CXCursor);
+            BooleanFunc(UnsignedBooleanFunc func) : ufunc(func), sfunc(0) {}
+            BooleanFunc(SignedBooleanFunc func) : ufunc(0), sfunc(func) {}
+            bool operator()(CXCursor cursor) const { return ufunc ? ufunc(cursor) : sfunc(cursor); }
+
+            UnsignedBooleanFunc ufunc;
+            SignedBooleanFunc sfunc;
+        };
+
+        auto registerBooleanProperty = [this](const char *name, BooleanFunc func) {
+            mCursorClass->registerProperty(name, [this, func](const std::shared_ptr<ScriptEngine::Object> &object) -> Value {
+                    assert(object);
+                    Cursor *cursor = extraData<Cursor*>(object, Type_Cursor);
+                    if (cursor) {
+                        return create(func(cursor->cursor));
+                    }
+                    return Value();
+                });
+        };
+        registerBooleanProperty("bitField", &clang_Cursor_isBitField);
+        registerBooleanProperty("virtualBase", &clang_isVirtualBase);
+        registerBooleanProperty("static", &clang_CXXMethod_isStatic);
+        registerBooleanProperty("virtual", &clang_CXXMethod_isVirtual);
+        registerBooleanProperty("pureVirtual", &clang_CXXMethod_isPureVirtual);
+        registerBooleanProperty("const", &clang_CXXMethod_isConst);
+        registerBooleanProperty("definition", &clang_isCursorDefinition);
+        registerBooleanProperty("dynamicCall", &clang_Cursor_isDynamicCall);
+    }
+#endif
+
+    // thread->mParents.removeLast();
     return CXChildVisit_Continue;
 }
 
 void ClangThread::processAST(CXTranslationUnit unit)
 {
-    std::shared_ptr<ScriptEngine::Object> global = mScriptEngine.globalObject();
-    Value info;
-    info["sourceFile"] = mSource.sourceFile();
-    info["commandLine"] = mSource.toCommandLine(Source::Default);
-    info["success"] = unit != 0;
-    auto console = global->child("console");
-    console->registerFunction("log", [](const std::shared_ptr<ScriptEngine::Object> &, const List<Value> &args) -> Value {
-            error() << "balls";
-            if (args.isEmpty())
-                return ScriptEngine::instance()->throwException<Value>("No arguments passed to console function");
+    sel::State state{true};
+    state["SourceLocation"].SetClass<SourceLocation>("line", &SourceLocation::line,
+                                                     "column", &SourceLocation::column,
+                                                     "file", &SourceLocation::file,
+                                                     "offset", &SourceLocation::offset,
+                                                     "toString", &SourceLocation::toString);
+    state["SourceRange"].SetClass<SourceRange>("start", &SourceRange::start,
+                                               "end", &SourceRange::end,
+                                               "length", &SourceRange::length,
+                                               "toString", &SourceRange::toString);
+    state["Cursor"].SetClass<Cursor>(
 
-            Log log(LogLevel::Error);
-            for (const Value &arg : args) {
-                const String &str = arg.toString();
-                if (str.isEmpty()) {
-                    log << arg;
-                } else {
-                    log << str;
-                }
-            }
-            return Value::undefined();
-        });
-    String err;
-    error() << mScriptEngine.evaluate("5", Path(), &err);
-    error() << err;
-    return;
+    state["sourceFile"] = mSource.sourceFile().ref();
+    state["func"] = []() {
+        SourceLocation l(12, 13, 14, 15);
+        return l;
+    };
+    exposeArray(state["commandLine"], mSource.toCommandLine(Source::Default|Source::IncludeCompiler|Source::IncludeSourceFile));
+    // std::function<void(Cursor *, sel::Selector parentSelector)> recurse = [&](Cursor *c, sel::Selector selector) {
+    //     selector.SetObj(*c, "parent", &Cursor::
+    //     // int i = 0;
+    //     // for (Cursor *child : c->children) {
+    //     //     recurse(child, (*c->selector)[i++]);
+    //     // }
+    // };
 
+
+    // auto args = state["commandLine"];
+    // int i = 0;
+    // for (const String &str :
+    //     args[i++] = str.ref();
+    // state["commandLine"] = args;
+    // info["sourceFile"] = mSource.sourceFile();
+    // info["commandLine"] = mSource.toCommandLine(Source::Default);
+    state["success"] = (unit != 0);
+    CXCursor translationUnitCursor = clang_getTranslationUnitCursor(unit);
+
+    state["func2"] = [translationUnitCursor]() {
+        return SourceRange(clang_getCursorExtent(translationUnitCursor));
+    };
+
+    UserData userData;
+    userData.thread = this;
+    userData.state = &state;
+    visitASTVisitor(translationUnitCursor, nullCursor, &userData);
+    // mParents.append(new Cursor(0, translationUnitCursor, Loc(), state["root"]));
+    // clang_visitChildren(translationUnitCursor, &ClangThread::visitASTVisitor, this);
+
+    // error() << state("sourceFile;");
+    for (const String script : mQueryMessage->visitASTScripts()) {
+        error() << state(script.constData()) << script;
+    }
     if (unit) {
-        {
-            mLocationClass = ScriptEngine::Class::create("Location");
-            mLocationClass->registerProperty("line", [](const std::shared_ptr<ScriptEngine::Object> &object) -> Value {
-                    assert(object);
-                    return extraData<Loc>(object, Type_Location).line();
-                });
-            mLocationClass->registerProperty("column", [](const std::shared_ptr<ScriptEngine::Object> &object) -> Value {
-                    assert(object);
-                    return extraData<Loc>(object, Type_Location).column();
-                });
-            mLocationClass->registerProperty("file", [](const std::shared_ptr<ScriptEngine::Object> &object) -> Value {
-                    assert(object);
-                    return extraData<Loc>(object, Type_Location).path();
-                });
-            mLocationClass->registerProperty("offset", [](const std::shared_ptr<ScriptEngine::Object> &object) -> Value {
-                    assert(object);
-                    return extraData<Loc>(object, Type_Location).offset;
-                });
-            mLocationClass->registerFunction("toString", [](const std::shared_ptr<ScriptEngine::Object> &object, const List<Value> &) -> Value {
-                    assert(object);
-                    return extraData<Loc>(object, Type_Location).toString(Location::AbsolutePath|Location::NoColor);
-                });
-        }
-
-        {
-            mRangeClass = ScriptEngine::Class::create("Range");
-            mRangeClass->registerProperty("start", [this](const std::shared_ptr<ScriptEngine::Object> &object) -> Value {
-                    bool ok;
-                    const CXSourceRange range = extraData<CXSourceRange>(object, Type_Range, &ok);
-                    if (ok)
-                        return create(createLocation(clang_getRangeStart(range)));
-                    return Value(); // should I return an actual location object?
-                });
-            mRangeClass->registerProperty("end", [this](const std::shared_ptr<ScriptEngine::Object> &object) -> Value {
-                    bool ok;
-                    const CXSourceRange range = extraData<CXSourceRange>(object, Type_Range, &ok);
-                    if (ok)
-                        return create(createLocation(clang_getRangeEnd(range)));
-                    return Value(); // should I return an actual location object?
-                });
-            mRangeClass->registerProperty("length", [this](const std::shared_ptr<ScriptEngine::Object> &object) -> Value {
-                    bool ok;
-                    const CXSourceRange range = extraData<CXSourceRange>(object, Type_Range, &ok);
-                    if (ok) {
-                        unsigned int start, end;
-                        clang_getSpellingLocation(clang_getRangeStart(range), 0, 0, 0, &start);
-                        clang_getSpellingLocation(clang_getRangeStart(range), 0, 0, 0, &end);
-                        return create(end - start);
-                    }
-                    return Value(); // should I return an actual location object?
-                });
-        }
+#if 0
 
         {
             mCursorClass = ScriptEngine::Class::create("Cursor");
@@ -1292,13 +1549,9 @@ void ClangThread::processAST(CXTranslationUnit unit)
                 registerNumberProperty("sizeof", &clang_Type_getSizeOf);
             }
         }
-        CXCursor translationUnitCursor = clang_getTranslationUnitCursor(unit);
-        visitASTVisitor(translationUnitCursor, nullCursor, this);
-        auto object = mCursorClass->create();
-        mParents.append(new Cursor(object, 0, translationUnitCursor, Loc()));
-        object->setExtraData(mParents.last());
-        clang_visitChildren(translationUnitCursor, &ClangThread::visitASTVisitor, this);
-        global->setProperty("translationUnit", create(mParents.front()));
+#endif
+        // global->setProperty("translationUnit", create(mParents.front()));
     }
 }
+#endif
 #endif

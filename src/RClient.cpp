@@ -112,7 +112,7 @@ struct Option opts[] = {
     { RClient::ListBuffers, "list-buffers", 0, no_argument, "List active buffers." },
     { RClient::ClassHierarchy, "class-hierarchy", 0, required_argument, "Dump class hierarcy for struct/class at location." },
     { RClient::DebugLocations, "debug-locations", 0, optional_argument, "Manipulate debug locations." },
-#ifdef HAVE_SCRIPTENGINE
+#ifdef RTAGS_HAS_LUA
     { RClient::VisitAST, "visit-ast", 0, required_argument, "Visit AST of a source file." },
 #endif
     { RClient::None, 0, 0, 0, "" },
@@ -168,7 +168,7 @@ struct Option opts[] = {
     { RClient::Autotest, "autotest", 0, no_argument, "Turn on behaviors appropriate for running autotests." },
     { RClient::CodeCompleteIncludeMacros, "code-complete-include-macros", 0, no_argument, "Include macros in code completion results." },
     { RClient::NoSpellCheckinging, "no-spell-checking", 0, no_argument, "Don't produce spell check info in diagnostics." },
-#ifdef HAVE_SCRIPTENGINE
+#ifdef RTAGS_HAS_LUA
     { RClient::VisitASTScript, "visit-ast-script", 0, required_argument, "Use this script visit AST (@file.js|sourcecode)." },
 #endif
     { RClient::None, 0, 0, 0, 0 }
@@ -287,6 +287,9 @@ public:
         msg.setRangeFilter(rc->minOffset(), rc->maxOffset());
         msg.setTerminalWidth(rc->terminalWidth());
         msg.setCurrentFile(rc->currentFile());
+#ifdef RTAGS_HAS_LUA
+        msg.setVisitASTScripts(rc->visitASTScripts());
+#endif
         return connection->send(msg);
     }
 
@@ -1212,7 +1215,7 @@ RClient::ParseStatus RClient::parse(int &argc, char **argv)
         case ReferenceName:
             addQuery(QueryMessage::ReferencesName, optarg);
             break;
-#ifdef HAVE_SCRIPTENGINE
+#ifdef RTAGS_HAS_LUA
         case VisitAST: {
             Path p = optarg;
             p.resolve(Path::MakeAbsolute);
@@ -1236,7 +1239,7 @@ RClient::ParseStatus RClient::parse(int &argc, char **argv)
                 fprintf(stderr, "Script is empty\n");
                 return Parse_Error;
             }
-            mVisitAstScripts.push_back(code);
+            mVisitASTScripts.push_back(code);
             break; }
 #endif
         }

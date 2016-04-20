@@ -616,7 +616,7 @@ void Server::handleQueryMessage(const std::shared_ptr<QueryMessage> &message, co
         findFile(message, conn);
         break;
     case QueryMessage::DumpFile:
-#ifdef HAVE_SCRIPTENGINE
+#ifdef RTAGS_HAS_LUA
     case QueryMessage::VisitAST:
 #endif
         startClangThread(message, conn);

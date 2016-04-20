@@ -134,7 +134,7 @@ public:
         UnsavedFile,
         Verbose,
         Version,
-#ifdef HAVE_SCRIPTENGINE
+#ifdef RTAGS_HAS_LUA
         VisitAST,
         VisitASTScript,
 #endif
@@ -188,8 +188,8 @@ public:
     char **argv() const { return mArgv; }
     void onNewMessage(const std::shared_ptr<Message> &message, const std::shared_ptr<Connection> &);
     List<Path> pathEnvironment() const;
-#ifdef HAVE_SCRIPTENGINE
-    List<String> visitAstScripts() const { return mVisitAstScripts; }
+#ifdef RTAGS_HAS_LUA
+    List<String> visitASTScripts() const { return mVisitASTScripts; }
 #endif
 private:
     void addQuery(QueryMessage::Type t, const String &query = String(),
@@ -216,8 +216,8 @@ private:
     bool mGuessFlags;
     Path mProjectRoot;
     int mTerminalWidth;
-#ifdef HAVE_SCRIPTENGINE
-    List<String> mVisitAstScripts;
+#ifdef RTAGS_HAS_LUA
+    List<String> mVisitASTScripts;
 #endif
     mutable List<Path> mPathEnvironment;
 

@@ -2,3 +2,6 @@
         path = src/rct
         url = https://github.com/Andersbakken/rct
         branch = master
+[submodule "src/selene"]
+	path = src/selene
+	url = https://github.com/jeremyong/Selene.git
