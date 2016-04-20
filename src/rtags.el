@@ -3810,7 +3810,7 @@ force means do it regardless of rtags-enable-unsaved-reparsing "
       ;;unsaved old-ticks current-ticks)
       (when (or (null old-ticks) (/= current-ticks old-ticks))
         (rtags-reparse-file buffer force)
-        (setq-local rtags-unsaved-buffer-ticks current-ticks)))))
+        (set (make-local-variable 'rtags-unsaved-buffer-ticks) current-ticks)))))
 
 (defun rtags-periodic-reparse-buffer ()
   (rtags-reparse-file-if-needed nil t)
