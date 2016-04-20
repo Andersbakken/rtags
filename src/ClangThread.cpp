@@ -796,8 +796,9 @@ Value ClangThread::rangeToValue(Location start, Location end)
 CXChildVisitResult ClangThread::visitASTVisitor(CXCursor cursor, CXCursor, CXClientData userData)
 {
     ClangThread *thread = reinterpret_cast<ClangThread*>(userData);
-    assert(!thread->mParents.isEmpty());
-    Cursor *p = thread->mParents.last();
+    Cursor *p = thread->mParents.empty() ? 0 : thread->mParents.last();
+    assert(thread);
+    assert(thread->mCursorClass);
     auto object = thread->mCursorClass->create();
     Cursor *c = new Cursor(object, p, cursor, thread->createLocation(cursor));
     object->setExtraData(c);
@@ -821,6 +822,7 @@ void ClangThread::processAST(CXTranslationUnit unit)
     info["success"] = unit != 0;
     auto console = global->child("console");
     console->registerFunction("log", [](const std::shared_ptr<ScriptEngine::Object> &, const List<Value> &args) -> Value {
+            error() << "balls";
             if (args.isEmpty())
                 return ScriptEngine::instance()->throwException<Value>("No arguments passed to console function");
 
@@ -835,6 +837,10 @@ void ClangThread::processAST(CXTranslationUnit unit)
             }
             return Value::undefined();
         });
+    String err;
+    error() << mScriptEngine.evaluate("5", Path(), &err);
+    error() << err;
+    return;
 
     if (unit) {
         {
@@ -1133,7 +1139,7 @@ void ClangThread::processAST(CXTranslationUnit unit)
                 };
 
                 auto registerBooleanProperty = [this](const char *name, BooleanFunc func) {
-                    mTypeClass->registerProperty(name, [this, func](const std::shared_ptr<ScriptEngine::Object> &object) -> Value {
+                    mCursorClass->registerProperty(name, [this, func](const std::shared_ptr<ScriptEngine::Object> &object) -> Value {
                             assert(object);
                             Cursor *cursor = extraData<Cursor*>(object, Type_Cursor);
                             if (cursor) {
@@ -1296,73 +1302,3 @@ void ClangThread::processAST(CXTranslationUnit unit)
     }
 }
 #endif
-    /*
-
-      struct Cursor : public Link {
-      Cursor()
-      : referenced(0), lexicalParent(0), semanticParent(0),
-      canonical(0), definition(0), specializedCursorTemplate(0),
-      bitFieldWidth(-1), flags(0)
-      {}
-      Location location, rangeStart, rangeEnd;
-      Path includedFile;
-      String usr, kind, linkage, availability, spelling, displayName, mangledName, templateCursorKind;
-      Cursor *referenced, *lexicalParent, *semanticParent, *canonical, *definition, *specializedCursorTemplate;
-      List<Cursor*> overridden, arguments, overloadedDecls, children;
-      int bitFieldWidth;
-      struct TemplateArgument {
-      String kind;
-      long long value;
-      unsigned long long unsignedValue;
-      Type *type;
-      };
-      List<TemplateArgument> templateArguments;
-      Type *type, *receiverType, *typedefUnderlyingType, *enumDeclIntegerType, *resultType;
-
-      enum Flag {
-      None = 0x00,
-      BitField = 0x001,
-      VirtualBase = 0x002,
-      Definition = 0x004,
-      DynamicCall = 0x008,
-      Variadic = 0x010,
-      PureVirtual = 0x020,
-      Virtual = 0x040,
-      Static = 0x080,
-      Const = 0x100
-      };
-
-      unsigned flags;
-
-      Value toValue() const;
-      };
-      Cursor *mTranslationUnitCursor;
-      List<std::shared_ptr<Cursor> > mCursors;
-      List<Cursor*> mParentStack;
-      Hash<String, Cursor*> mCursorsByUsr;
-
-      struct Type : public Link {
-      Type()
-      : canonicalType(0), pointeeType(0), resultType(0), elementType(0),
-      arrayElementType(0), classType(0), typeDeclaration(0), flags(0),
-      numElements(-1), arraySize(-1), align(-1), sizeOf(-1)
-      {}
-      String spelling, kind, element, referenceType, callingConvention;
-      Type *canonicalType, *pointeeType, *resultType, *elementType, *arrayElementType, *classType;
-      List<Type*> arguments, templateArguments;
-      Cursor *typeDeclaration;
-      enum Flag {
-      None = 0x00,
-      ConstQualified = 0x01,
-      VolatileQualified = 0x02,
-      RestrictQualified = 0x04,
-      Variadic = 0x08,
-      RValue = 0x10,
-      LValue = 0x20,
-      POD = 0x40
-      };
-      Value toValue() const;
-      unsigned flags;
-      long long numElements, arraySize, align, sizeOf;
-      };
-    */
