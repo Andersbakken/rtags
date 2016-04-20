@@ -3802,15 +3802,15 @@ force means do it regardless of rtags-enable-unsaved-reparsing "
              (buffer-modified-p buffer))
     ;; check ticks since the last save to avoid parsing the file multiple times
     ;; if it has not been modified
-    (let ((current-ticks (buffer-modified-tick unsaved))
-          (old-ticks (buffer-local-value 'rtags-unsaved-buffer-ticks unsaved)))
+    (let ((current-ticks (buffer-modified-tick buffer))
+          (old-ticks (buffer-local-value 'rtags-unsaved-buffer-ticks buffer)))
       ;; reparsing this dirty file for the first time
       ;; or if it was modified since last reparsing
       ;;(message ":debug: buffer=%s, old-ticks=%s, current-ticks=%s"
       ;;unsaved old-ticks current-ticks)
       (when (or (null old-ticks) (/= current-ticks old-ticks))
-        (rtags-reparse-file unsaved force)
-        (set (make-local-variable 'rtags-unsaved-buffer-ticks) current-ticks)))))
+        (rtags-reparse-file buffer force)
+        (setq-local rtags-unsaved-buffer-ticks current-ticks)))))
 
 (defun rtags-periodic-reparse-buffer ()
   (rtags-reparse-file-if-needed nil t)
