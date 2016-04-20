@@ -32,6 +32,7 @@
 #include "rct/Rct.h"
 #include "rct/StopWatch.h"
 #include "Server.h"
+#include "ClangIndexer.h"
 #include "Project.h"
 #include "VisitFileMessage.h"
 #include "VisitFileResponseMessage.h"
@@ -40,7 +41,53 @@
 #include <clang-c/CXCompilationDatabase.h>
 #endif
 
+
 namespace RTags {
+void encodePath(Path &path)
+{
+    const Path &root = Server::instance() ? Server::instance()->options().root : ClangIndexer::serverRoot();
+    if (!root.isEmpty() && path.startsWith(root)) {
+        path.replace(0, root.size(), "$/");
+    }
+    int size = path.size();
+    for (int i=0; i<size; ++i) {
+        char &ch = path[i];
+        switch (ch) {
+        case '/':
+            ch = '_';
+            break;
+        case '_':
+            path.insert(++i, '_');
+            ++size;
+            break;
+        }
+    }
+}
+
+void decodePath(Path &path)
+{
+    int i = 0;
+    if (path.startsWith("$_")) {
+        const Path &root = Server::instance() ? Server::instance()->options().root : ClangIndexer::serverRoot();
+        assert(!root.isEmpty());
+        path.replace(0, 2, root);
+        i = root.size();
+    }
+    int size = path.size();
+    while (i < size) {
+        char &ch = path[i];
+        if (ch == '_') {
+            if (i + 1 < size && path.at(i + 1) == '_') {
+                path.remove(i + 1, 1);
+                --size;
+            } else {
+                ch = '/';
+            }
+        }
+        ++i;
+    }
+}
+
 
 Path encodeSourceFilePath(const Path &dataDir, const Path &project, uint32_t fileId)
 {

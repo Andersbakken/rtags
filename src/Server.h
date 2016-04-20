@@ -91,7 +91,7 @@ public:
         {
         }
 
-        Path socketFile, dataDir, argTransform, rp;
+        Path socketFile, dataDir, argTransform, rp, root;
         Flags<Option> options;
         size_t jobCount, headerErrorJobCount;
         int rpVisitFileTimeout, rpIndexDataMessageTimeout,
@@ -129,9 +129,13 @@ public:
                Flags<IndexMessage::Flag> flags = Flags<IndexMessage::Flag>(),
                std::shared_ptr<Project> *projectPtr = 0,
                Set<uint64_t> *indexed = 0);
+    enum FileIdsFileFlag {
+        None = 0x0,
+        HasRoot = 0x1
+    };
 private:
     String guessArguments(const String &args, const Path &pwd, const Path &projectRootOverride);
-    void load();
+    bool load();
     void onNewConnection(SocketServer *server);
     void setCurrentProject(const std::shared_ptr<Project> &project);
     void clearProjects();
@@ -206,5 +210,6 @@ private:
     friend void saveFileIds();
 };
 RCT_FLAGS(Server::Option);
+RCT_FLAGS(Server::FileIdsFileFlag);
 
 #endif

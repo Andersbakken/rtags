@@ -38,6 +38,7 @@ public:
 
     bool exec(const String &data);
     static Flags<Server::Option> serverOpts() { return sServerOpts; }
+    static const Path &serverRoot() { return sServerRoot; }
 private:
     bool diagnose();
     bool visit();
@@ -207,6 +208,7 @@ private:
     List<CXCursor> mParents;
 
     static Flags<Server::Option> sServerOpts;
+    static Path sServerRoot;
 };
 
 #endif

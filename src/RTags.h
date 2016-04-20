@@ -53,7 +53,7 @@ namespace RTags {
 enum {
     MajorVersion = 2,
     MinorVersion = 0,
-    DatabaseVersion = 87,
+    DatabaseVersion = 88,
     SourcesFileVersion = 4
 };
 
@@ -478,39 +478,8 @@ static inline bool isOperator(char ch)
     return false;
 }
 
-inline void encodePath(Path &path)
-{
-    int size = path.size();
-    for (int i=0; i<size; ++i) {
-        char &ch = path[i];
-        switch (ch) {
-        case '/':
-            ch = '_';
-            break;
-        case '_':
-            path.insert(++i, '_');
-            ++size;
-            break;
-        }
-    }
-}
-
-inline void decodePath(Path &path)
-{
-    int size = path.size();
-    for (int i=0; i<size; ++i) {
-        char &ch = path[i];
-        if (ch == '_') {
-            if (i + 1 < size && path.at(i + 1) == '_') {
-                path.remove(i + 1, 1);
-                --size;
-            } else {
-                ch = '/';
-            }
-        }
-    }
-}
-
+void encodePath(Path &path);
+void decodePath(Path &path);
 inline int digits(int len)
 {
     int ret = 1;

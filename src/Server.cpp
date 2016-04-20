@@ -172,9 +172,11 @@ bool Server::init(const Options &options)
 
     mJobScheduler.reset(new JobScheduler);
 
-    load();
+    if (!load())
+        return false;
     if (!(mOptions.options & NoStartupCurrentProject)) {
         Path current = Path(mOptions.dataDir + ".currentProject").readAll(1024);
+        RTags::decodePath(current);
         if (current.size() > 1) {
             current.chop(1);
             const auto project = mProjects.value(current);
@@ -714,7 +716,7 @@ void Server::followLocation(const std::shared_ptr<QueryMessage> &query, const st
 
        - We didn't find anything with the current project
        - The path in question (likely a header) does not start with the current
-         project's path (there's room for mistakes here with symlinks).
+       project's path (there's room for mistakes here with symlinks).
        - The file in question does start with another project's path
     */
 
@@ -1280,7 +1282,9 @@ void Server::setCurrentProject(const std::shared_ptr<Project> &project)
             Path::mkdir(mOptions.dataDir);
             FILE *f = fopen((mOptions.dataDir + ".currentProject").constData(), "w");
             if (f) {
-                if (!fwrite(project->path().constData(), project->path().size(), 1, f) || !fwrite("\n", 1, 1, f)) {
+                Path p = project->path();
+                RTags::encodePath(p);
+                if (!fwrite(p.constData(), p.size(), 1, f) || !fwrite("\n", 1, 1, f)) {
                     error() << "error writing to" << (mOptions.dataDir + ".currentProject");
                     fclose(f);
                     unlink((mOptions.dataDir + ".currentProject").constData());
@@ -1673,18 +1677,43 @@ void Server::handleVisitFileMessage(const std::shared_ptr<VisitFileMessage> &mes
     conn->send(msg);
 }
 
-void Server::load()
+bool Server::load()
 {
     const Path p = mOptions.dataDir + "fileids";
     DataFile fileIdsFile(mOptions.dataDir + "fileids", RTags::DatabaseVersion);
     if (fileIdsFile.open(DataFile::Read)) {
+        Flags<FileIdsFileFlag> flags;
+        fileIdsFile >> flags;
+        if (flags & HasRoot && mOptions.root.isEmpty()) {
+            error() << "This database was produced with --root. You have to specify a root argument or wipe the db by running with -C";
+            return false;
+        }
+
         Hash<Path, uint32_t> pathsToIds;
-        fileIdsFile >> pathsToIds;
+        if (flags & HasRoot) {
+            assert(mOptions.root.endsWith("/") && mOptions.root.startsWith("/"));
+            uint32_t count;
+            fileIdsFile >> count;
+            for (uint32_t i=0; i<count; ++i) {
+                Path path;
+                uint32_t id;
+                fileIdsFile >> path >> id;
+                if (path.startsWith('$')) {
+                    assert(path.startsWith("$/"));
+                    path.replace(0, 2, mOptions.root);
+                }
+                pathsToIds[std::move(path)] = id;
+            }
+        } else {
+            fileIdsFile >> pathsToIds;
+        }
+
         Location::init(pathsToIds);
         List<Path> projects = mOptions.dataDir.files(Path::Directory);
         for (size_t i=0; i<projects.size(); ++i) {
             const Path &file = projects.at(i);
             Path p = file.mid(mOptions.dataDir.size());
+            Path old = p;
             if (p.endsWith('/'))
                 p.chop(1);
             RTags::decodePath(p);
@@ -1723,7 +1752,8 @@ void Server::load()
         Hash<Path, Sources> sources;
         mOptions.dataDir.visit([&sources](const Path &path) {
                 if (path.isDir()) {
-                    if (path.fileName()[0] == '_')
+                    const char *fn = path.fileName();
+                    if (*fn == '_' || !strncmp(fn, "$_", 2))
                         return Path::Recurse;
                 } else if (!strcmp("sources", path.fileName())) {
                     Path p = path.parentDir().fileName();
@@ -1757,6 +1787,7 @@ void Server::load()
             }
         }
     }
+    return true;
 }
 
 bool Server::saveFileIds()
@@ -1769,8 +1800,24 @@ bool Server::saveFileIds()
         error("Can't save file ids: %s", fileIdsFile.error().constData());
         return false;
     }
-    const Hash<Path, uint32_t> pathsToIds = Location::pathsToIds();
-    fileIdsFile << pathsToIds;
+    Flags<FileIdsFileFlag> flags;
+    if (!mOptions.root.isEmpty())
+        flags |= HasRoot;
+    fileIdsFile << flags;
+    if (mOptions.root.isEmpty()) {
+        fileIdsFile << Location::pathsToIds();
+    } else {
+        assert(mOptions.root.endsWith('/'));
+        fileIdsFile << Location::count();
+        Location::iterate([&fileIdsFile, this](const Path &path, uint32_t id) {
+                if (path.startsWith(mOptions.root)) {
+                    const Path p = "$/" + path.mid(mOptions.root.size());
+                    fileIdsFile << p << id;
+                } else {
+                    fileIdsFile << path << id;
+                }
+            });
+    }
     if (!fileIdsFile.flush()) {
         error("Can't save file ids: %s", fileIdsFile.error().constData());
         return false;

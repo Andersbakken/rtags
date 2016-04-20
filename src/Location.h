@@ -84,6 +84,12 @@ public:
         return sLastId;
     }
 
+    static uint32_t count()
+    {
+        LOCK();
+        return sIdsToPaths.size();
+    }
+
     static inline uint32_t insertFile(const Path &path)
     {
         bool save = false;
@@ -221,6 +227,14 @@ public:
     {
         LOCK();
         return sPathsToIds;
+    }
+
+    static void iterate(std::function<void(const Path &, uint32_t)> func)
+    {
+        LOCK();
+        for (const auto &it : sPathsToIds) {
+            func(it.first, it.second);
+        }
     }
     static void init(const Hash<Path, uint32_t> &pathsToIds)
     {

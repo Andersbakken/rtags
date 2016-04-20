@@ -67,6 +67,7 @@ struct VerboseVisitorUserData {
 };
 
 Flags<Server::Option> ClangIndexer::sServerOpts;
+Path ClangIndexer::sServerRoot;
 ClangIndexer::ClangIndexer()
     : mClangUnit(0), mIndex(0), mLastCursor(nullCursor), mVisitFileResponseMessageFileId(0),
       mVisitFileResponseMessageVisit(0), mParseDuration(0), mVisitDuration(0),
@@ -117,6 +118,7 @@ bool ClangIndexer::exec(const String &data)
     deserializer >> connectAttempts;
     deserializer >> niceValue;
     deserializer >> sServerOpts;
+    deserializer >> sServerRoot;
     deserializer >> mUnsavedFiles;
     deserializer >> mDataDir;
     deserializer >> mDebugLocations;
