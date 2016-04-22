@@ -26,8 +26,6 @@ CXChildVisitResult AST::visitor(CXCursor cursor, CXCursor, CXClientData u)
     UserData *userData = reinterpret_cast<UserData*>(u);
     assert(userData);
     Cursor::Data *p = userData->parents.isEmpty() ? 0 : userData->parents.back();
-    // assert(thread->mCursorClass);
-    // auto object = thread->mCursorClass->create();
     Cursor c = userData->ast->construct(cursor, p);
     userData->parents.push_back(c.data.get());
     clang_visitChildren(cursor, visitor, u);
@@ -48,9 +46,10 @@ static void exposeArray(sel::Selector selector, const std::vector<T> &array)
 }
 
 
-std::shared_ptr<AST> AST::create(const Source &source, CXTranslationUnit unit)
+std::shared_ptr<AST> AST::create(const Source &source, const String &sourceCode, CXTranslationUnit unit)
 {
     std::shared_ptr<AST> ast(new AST);
+    ast->mSourceCode = sourceCode;
     if (unit) {
         UserData userData;
         userData.ast = ast.get();
@@ -123,4 +122,5 @@ List<AST::SkippedRange> AST::skippedRanges() const
 
 void AST::evaluate(const String &script)
 {
+
 }

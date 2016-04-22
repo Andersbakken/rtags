@@ -235,7 +235,7 @@ public:
 
     };
 
-    static std::shared_ptr<AST> create(const Source &source, CXTranslationUnit unit);
+    static std::shared_ptr<AST> create(const Source &source, const String &sourceCode, CXTranslationUnit unit);
     void evaluate(const String &script);
     Cursor *root() const { return mRoot; }
     List<Diagnostic> diagnostics() const;
@@ -310,6 +310,7 @@ private:
     {}
     mutable Hash<std::string, List<Cursor> > mByUsr;
     mutable Map<SourceLocation, List<Cursor> > mByLocation;
+    String mSourceCode;
     Cursor *mRoot;
 };
 

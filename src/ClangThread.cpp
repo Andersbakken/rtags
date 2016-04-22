@@ -131,14 +131,21 @@ void ClangThread::run()
     CXIndex index = clang_createIndex(0, 0);
     CXTranslationUnit translationUnit = 0;
     String clangLine;
+    String sourceCode = mSource.sourceFile().readAll();
+    CXUnsavedFile unsaved = {
+        mSource.sourceFile().constData(),
+        sourceCode.constData(),
+        static_cast<unsigned long>(sourceCode.size())
+    };
+
     RTags::parseTranslationUnit(mSource.sourceFile(), mSource.toCommandLine(Source::Default), translationUnit,
-                                index, 0, 0, CXTranslationUnit_DetailedPreprocessingRecord, &clangLine);
+                                index, &unsaved, 1, CXTranslationUnit_DetailedPreprocessingRecord, &clangLine);
 
     const unsigned long long parseTime = sw.restart();
     error() << "parseTime" << parseTime;
 #ifdef RTAGS_HAS_LUA
     if (mQueryMessage->type() == QueryMessage::VisitAST) {
-        std::shared_ptr<AST> ast = AST::create(mSource, translationUnit);
+        std::shared_ptr<AST> ast = AST::create(mSource, sourceCode, translationUnit);
         if (ast) {
             for (const String script : mQueryMessage->visitASTScripts()) {
                 ast->evaluate(script);
