@@ -23,6 +23,9 @@
 #include "rct/String.h"
 #include "rct/List.h"
 
+namespace sel {
+class State;
+};
 class AST
 {
 public:
@@ -72,8 +75,9 @@ public:
         std::string toString() const { return start().toString() + " - " + end().toString(); }
     };
     struct CursorType;
+    struct Cursors;
     struct Cursor {
-        struct Data {
+        struct Data : public std::enable_shared_from_this<Data> {
             Data(AST *a, Data *p, const CXCursor &c, const SourceLocation &loc, const std::string &u = std::string())
                 : ast(a), parent(p), cursor(c), location(loc), usr(u)
             {
@@ -116,24 +120,23 @@ public:
             }
             return count;
         }
-        Cursor overridden(unsigned idx) const
+        Cursors overriddenCursors() const
         {
-            Cursor ret;
+            Cursors ret;
             if (data) {
                 CXCursor *overridden = 0;
                 unsigned count;
                 clang_getOverriddenCursors(data->cursor, &overridden, &count);
-                if (overridden) {
-                    if (idx < count)
-                        ret = data->ast->create(overridden[idx]);
-                    clang_disposeOverriddenCursors(overridden);
-                }
+                ret.resize(count);
+                for (unsigned i=0; i<count; ++i)
+                    ret[i] = data->ast->create(overridden[i]);
+                clang_disposeOverriddenCursors(overridden);
             }
             return ret;
         }
 
         unsigned argumentCount() const { return data ? clang_Cursor_getNumArguments(data->cursor) : 0; }
-        Cursor argument(unsigned idx) const { return data ? data->ast->create(clang_Cursor_getArgument(data->cursor, idx)) : Cursor(); }
+        inline Cursors arguments() const;
 
         int fieldBitWidth() const { return intProperty(&clang_getFieldDeclBitWidth); }
         CursorType typedefUnderlyingType() const { return cursorTypeProperty(&clang_getTypedefDeclUnderlyingType); }
@@ -154,7 +157,7 @@ public:
         }
 
         unsigned templateArgumentCount() const { return data ? clang_Cursor_getNumTemplateArguments(data->cursor) : 0; }
-        CursorType templateArgumentCursor(unsigned idx) const { return data ? CursorType(data->ast, clang_Cursor_getTemplateArgumentType(data->cursor, idx)) : CursorType(); }
+        CursorType templateArgumentType(unsigned idx) const { return data ? CursorType(data->ast, clang_Cursor_getTemplateArgumentType(data->cursor, idx)) : CursorType(); }
         long long templateArgumentValue(unsigned idx) const { return data ? clang_Cursor_getTemplateArgumentValue(data->cursor, idx) : -1; }
         std::string templateArgumentKind(unsigned idx) const
         {
@@ -174,6 +177,9 @@ public:
         Cursor semanticParent() const { return cursorProperty(&clang_getCursorSemanticParent); }
         Cursor definitionCursor() const { return cursorProperty(& clang_getCursorDefinition); }
         Cursor specializedCursorTemplate() const { return cursorProperty(&clang_getSpecializedCursorTemplate); }
+        int childCount() const { return data ? data->children.size() : 0; }
+        Cursor child(int idx) { return data ? Cursor{ data->children.value(idx)->shared_from_this() } : Cursor(); }
+        Cursors children() const;
 
         bool isBitField() const { return intProperty<unsigned, bool>(&clang_Cursor_isBitField); }
         bool isVirtualBase() const { return intProperty<unsigned, bool>(&clang_isVirtualBase); }
@@ -190,6 +196,12 @@ public:
         template <typename Func> CursorType cursorTypeProperty(Func func) const { return data ? CursorType(data->ast, func(data->cursor)) : CursorType(); }
 
         std::shared_ptr<Data> data;
+    };
+
+    struct Cursors : public List<Cursor>
+    {
+        int count() const { return List<Cursor>::size(); }
+        Cursor at(int idx) const { return value(idx); }
     };
 
     struct CursorType {
@@ -236,7 +248,7 @@ public:
     };
 
     static std::shared_ptr<AST> create(const Source &source, const String &sourceCode, CXTranslationUnit unit);
-    void evaluate(const String &script);
+    List<String> evaluate(const String &script);
     Cursor *root() const { return mRoot; }
     List<Diagnostic> diagnostics() const;
     List<SkippedRange> skippedRanges() const;
@@ -311,7 +323,37 @@ private:
     mutable Hash<std::string, List<Cursor> > mByUsr;
     mutable Map<SourceLocation, List<Cursor> > mByLocation;
     String mSourceCode;
+    List<String> mReturnValues;
     Cursor *mRoot;
+    std::shared_ptr<sel::State> mState;
 };
 
+
+inline AST::Cursors AST::Cursor::children() const
+{
+    Cursors ret;
+    if (data) {
+        ret.resize(data->children.size());
+        int i = 0;
+        for (Data *child : data->children) {
+            ret[i++] = Cursor { child->shared_from_this() };
+        }
+    }
+    return ret;
+}
+
+inline AST::Cursors AST::Cursor::arguments() const
+{
+    AST::Cursors ret;
+    if (data) {
+        const unsigned size = clang_Cursor_getNumArguments(data->cursor);
+        if (size) {
+            ret.resize(size);
+            for (unsigned i=0; i<size; ++i) {
+                ret[i] = data->ast->create(clang_Cursor_getArgument(data->cursor, i));
+            }
+        }
+    }
+    return ret;
+}
 #endif

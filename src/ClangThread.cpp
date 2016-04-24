@@ -148,7 +148,12 @@ void ClangThread::run()
         std::shared_ptr<AST> ast = AST::create(mSource, sourceCode, translationUnit);
         if (ast) {
             for (const String script : mQueryMessage->visitASTScripts()) {
-                ast->evaluate(script);
+                error() << script;
+                for (const String &str : ast->evaluate(script)) {
+                    if (!str.isEmpty()) {
+                        writeToConnetion(str);
+                    }
+                }
             }
         }
     } else
