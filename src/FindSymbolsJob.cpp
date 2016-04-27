@@ -38,18 +38,9 @@ int FindSymbolsJob::execute()
     int ret = 2;
     if (std::shared_ptr<Project> proj = project()) {
         Set<Symbol> symbols;
-        Location filter;
-        const uint32_t filteredFile = fileFilter();
-        if (filteredFile)
-            filter = Location(filteredFile, 0, 0);
-        auto inserter = [proj, this, &symbols, &filter, filteredFile](Project::SymbolMatchType type,
-                                                                      const String &symbolName,
-                                                                      const Set<Location> &locations) {
-            if (filter.fileId()) {
-                auto it = locations.lower_bound(filter);
-                if (it == locations.end() || it->fileId() != filteredFile)
-                    return;
-            }
+        auto inserter = [proj, this, &symbols](Project::SymbolMatchType type,
+                                               const String &symbolName,
+                                               const Set<Location> &locations) {
             if (type == Project::StartsWith) {
                 const size_t paren = symbolName.indexOf('(');
                 if (paren == String::npos || paren != string.size() || RTags::isFunctionVariable(symbolName))
@@ -61,7 +52,7 @@ int FindSymbolsJob::execute()
                     symbols.insert(sym);
             }
         };
-        proj->findSymbols(string, inserter, queryFlags());
+        proj->findSymbols(string, inserter, queryFlags(), fileFilter());
         if (!symbols.isEmpty()) {
             const List<RTags::SortedSymbol> sorted = proj->sort(symbols, queryFlags());
             const Flags<WriteFlag> writeFlags = fileFilter() ? Unfiltered : NoWriteFlags;
