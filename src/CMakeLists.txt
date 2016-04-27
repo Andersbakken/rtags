@@ -41,7 +41,12 @@ endif ()
 
 find_package(Lua)
 If (LUA_FOUND)
-    set(RCT_RTTI_ENABLED 1)
+    string(COMPARE LESS "${LUA_VERSION_MAJOR}.${LUA_VERSION_MINOR}" "5.2" LUA_TOO_OLD)
+    if (${LUA_TOO_OLD})
+        set(LUA_FOUND 0)
+    else ()
+        set(RCT_RTTI_ENABLED 1)
+    endif ()
 endif ()
 
 set(RCT_NO_INSTALL 1)
