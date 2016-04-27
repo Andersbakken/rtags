@@ -3947,18 +3947,22 @@ Return nil if it can't get any info about the item."
                   (t symbol-text))))))))
 
 ;;;###autoload
-(defun rtags-display-summary (&optional hide-empty)
+(defun rtags-display-summary (&optional hide-empty pos)
   "Display a short text describing the item at point.
 See `rtags-get-summary-text' for details.
 If `rtags-display-summary-as-tooltip' is t, a tooltip is displayed."
   (interactive)
   (when (or (not (rtags-called-interactively-p)) (rtags-sandbox-id-matches))
-    (let ((summary (rtags-get-summary-text)))
-      (when (or summary (not hide-empty))
-        (when (null summary)
-          (setq summary "No information for symbol"))
+    (let (summary)
+      (save-excursion
+        (when pos (goto-char pos))
+        (setq summary (rtags-get-summary-text))
+        (when (or summary (not hide-empty))
+          (when (null summary)
+            (setq summary "No information for symbol"))))
+      (when summary
         (if rtags-display-summary-as-tooltip
-            (popup-tip summary)
+            (popup-tip summary :point pos)
           (message "%s" summary))))))
 
 (defun rtags-display-tooltip-function (event)
@@ -3967,10 +3971,8 @@ If `rtags-display-summary-as-tooltip' is t, a tooltip is displayed."
              (eventp event))
     (let ((pos (posn-point (event-end event))))
       (when pos
-        (save-excursion
-          (goto-char pos)
-          (rtags-display-summary t)
-          t)))))
+        (rtags-display-summary t pos)
+        t))))
 
 (when rtags-tooltips-enabled
   (add-hook 'tooltip-functions 'rtags-display-tooltip-function))
