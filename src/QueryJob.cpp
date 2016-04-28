@@ -208,11 +208,12 @@ bool QueryJob::write(Location location, Flags<WriteFlag> flags)
 }
 
 enum ToStringFlag {
-    None = 0x0,
-    Indent = 0x1,
-    Quote = 0x2,
-    NoQuote = 0x4,
-    ElispEscape = 0x8
+    None = 0x00,
+    Indent = 0x01,
+    Quote = 0x02,
+    NoQuote = 0x04,
+    ElispEscape = 0x08,
+    NoSpaces = 0x10
 };
 
 RCT_FLAGS(ToStringFlag);
@@ -272,9 +273,15 @@ inline static void elisp(String &out, const char *name, const T &t, Flags<ToStri
 {
     if (flags & Indent)
         out << ' ';
-    out << " (cons '" << name << ' ';
+    if (!(flags & NoSpaces))
+        out << ' ';
+    out << "(cons '" << name << ' ';
     toString(out, t, flags);
-    out << ")\n";
+    if (!(flags & NoSpaces)) {
+        out << ")\n";
+    } else {
+        out << ')';
+    }
 }
 
 bool QueryJob::write(const Symbol &symbol,
@@ -332,16 +339,24 @@ bool QueryJob::write(const Symbol &symbol,
             if (!symbol.arguments.isEmpty()) {
                 List<String> arguments;
                 for (const auto &arg : symbol.arguments) {
-                    Symbol sym;
-                    if (mode == Mode_Symbol)
-                        sym = project()->findSymbol(arg);
-                    if (!sym.isNull()) {
-                        arguments << symbolToElisp(sym, Mode_Argument);
+                    List<String> s;
+                    {
+                        String out;
+                        elisp(out, "location", arg.first, NoSpaces);
+                        s << out;
+                    }
+                    {
+                        String out;
+                        elisp(out, "symbolLength", arg.second, NoSpaces);
+                        s << out;
+                    }
+                    {
+                        String out;
+                        toString(out, s, NoQuote);
+                        arguments << out;
                     }
                 }
-
-                if (!arguments.isEmpty())
-                    elisp(out, "arguments", arguments, flags | NoQuote);
+                elisp(out, "arguments", arguments, flags | NoQuote);
             }
 
             elisp(out, "symbolLength", static_cast<uint32_t>(symbol.symbolLength), flags);

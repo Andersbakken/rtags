@@ -38,7 +38,7 @@ struct Symbol
     Location location;
     String symbolName, usr, typeName;
     List<String> baseClasses;
-    List<Location> arguments;
+    List<std::pair<Location, int> > arguments;
     uint16_t symbolLength;
     CXCursorKind kind;
     CXTypeKind type;

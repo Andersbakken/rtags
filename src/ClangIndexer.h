@@ -49,12 +49,12 @@ private:
     int symbolLength(CXCursorKind kind, const CXCursor &cursor);
     void addArguments(Symbol *sym, const CXCursor &cursor);
 
-    inline Location createLocation(const CXSourceLocation &location, bool *blocked = 0)
+    inline Location createLocation(const CXSourceLocation &location, bool *blocked = 0, unsigned *offset = 0)
     {
         CXString fileName;
         unsigned int line, col;
         CXFile file;
-        clang_getSpellingLocation(location, &file, &line, &col, 0);
+        clang_getSpellingLocation(location, &file, &line, &col, offset);
         if (file) {
             fileName = clang_getFileName(file);
         } else {
@@ -170,7 +170,7 @@ private:
     IndexDataMessage mIndexDataMessage;
     CXTranslationUnit mClangUnit;
     CXIndex mIndex;
-    CXCursor mLastCursor;
+    CXCursor mLastCursor, mLastCallExpr;
     Location mLastClass;
     String mClangLine;
     uint32_t mVisitFileResponseMessageFileId;

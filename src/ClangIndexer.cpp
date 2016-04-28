@@ -69,9 +69,9 @@ struct VerboseVisitorUserData {
 Flags<Server::Option> ClangIndexer::sServerOpts;
 Path ClangIndexer::sServerRoot;
 ClangIndexer::ClangIndexer()
-    : mClangUnit(0), mIndex(0), mLastCursor(nullCursor), mVisitFileResponseMessageFileId(0),
-      mVisitFileResponseMessageVisit(0), mParseDuration(0), mVisitDuration(0),
-      mBlocked(0), mAllowed(0), mIndexed(1), mVisitFileTimeout(0),
+    : mClangUnit(0), mIndex(0), mLastCursor(nullCursor), mLastCallExpr(nullCursor),
+      mVisitFileResponseMessageFileId(0), mVisitFileResponseMessageVisit(0), mParseDuration(0),
+      mVisitDuration(0), mBlocked(0), mAllowed(0), mIndexed(1), mVisitFileTimeout(0),
       mIndexDataMessageTimeout(0), mFileIdsQueried(0), mFileIdsQueriedTime(0),
       mCursorsVisited(0), mLogFile(0), mConnection(Connection::create(RClient::NumOptions)),
       mUnionRecursion(false)
@@ -715,6 +715,7 @@ CXChildVisitResult ClangIndexer::indexVisitor(CXCursor cursor)
             break;
         case CXCursor_CallExpr: {
             // uglehack, see rtags/tests/nestedClassConstructorCallUgleHack/
+            mLastCallExpr = cursor;
             const CXCursor ref = clang_getCursorReferenced(cursor);
             if (clang_getCursorKind(ref) == CXCursor_Constructor
                 && (clang_getCursorKind(mLastCursor) == CXCursor_TypeRef || clang_getCursorKind(mLastCursor) == CXCursor_TemplateRef)
@@ -820,9 +821,7 @@ bool ClangIndexer::handleReference(const CXCursor &cursor, CXCursorKind kind, Lo
     }
 
     bool isOperator = false;
-    if (kind == CXCursor_CallExpr && (refKind == CXCursor_CXXMethod
-                                      || refKind == CXCursor_FunctionDecl
-                                      || refKind == CXCursor_FunctionTemplate)) {
+    if (kind == CXCursor_CallExpr && refKind == CXCursor_CXXMethod) {
         // These are bullshit. for this construct:
         // foo.bar();
         // the position of the cursor is at the foo, not the bar.
@@ -1075,6 +1074,11 @@ bool ClangIndexer::handleReference(const CXCursor &cursor, CXCursorKind kind, Lo
         return false;
     }
     setType(*c, clang_getCursorType(cursor));
+    if (kind == CXCursor_CallExpr) {
+        addArguments(c, cursor);
+    } else if (refKind == CXCursor_CXXMethod) {
+        addArguments(c, mLastCallExpr);
+    }
 
     return true;
 }
@@ -1281,7 +1285,11 @@ void ClangIndexer::addArguments(Symbol *sym, const CXCursor &cursor)
     if (count > 0) {
         sym->arguments.resize(count);
         for (int i=0; i<count; ++i) {
-            sym->arguments[i] = createLocation(clang_Cursor_getArgument(cursor, i));
+            CXSourceRange range = clang_getCursorExtent(clang_Cursor_getArgument(cursor, i));
+            unsigned startOffset, endOffset;
+            sym->arguments[i].first = createLocation(clang_getRangeStart(range), 0, &startOffset);
+            clang_getSpellingLocation(clang_getRangeEnd(range), 0, 0, 0, &endOffset);
+            sym->arguments[i].second = endOffset - startOffset;
         }
     }
 }

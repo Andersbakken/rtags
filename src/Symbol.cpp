@@ -81,15 +81,22 @@ String Symbol::toString(Flags<ToStringFlag> cursorInfoFlags,
     List<String> args;
     if (project) {
         for (const auto &base : baseClasses) {
+            bool found = false;
             for (const auto &sym : project->findByUsr(base, location.fileId(), Project::ArgDependsOn, location)) {
                 bases << sym.symbolName;
+                found = true;
                 break;
+            }
+            if (!found) {
+                bases << base;
             }
         }
         for (const auto &arg : arguments) {
-            const String symbolName = project->findSymbol(arg).symbolName;
+            const String symbolName = project->findSymbol(arg.first).symbolName;
             if (!symbolName.isEmpty()) {
                 args << symbolName;
+            } else {
+                args << arg.first.toString(locationToStringFlags & ~Location::ShowContext);
             }
         }
     } else {
