@@ -2112,7 +2112,7 @@ of PREFIX or not, if doesn't contain one, one will be added."
   "First try to find the declaration of the item (using --declaration-only), then try
 to find anything about the item."
   (let ((target (or (rtags-target nil t nil t)
-                    (rtags-target nil nil t))))
+                    (rtags-target nil nil nil t))))
     target))
 
 ;;;###autoload
