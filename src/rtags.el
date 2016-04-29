@@ -4277,6 +4277,13 @@ the user enter missing field manually."
         (beginning-of-line)
         (yas-expand-snippet snippet (point) (point) nil)))))
 
+(defun rtags-eldoc ()
+  (when (and (not (nth 4 (syntax-ppss)))
+             (thing-at-point 'symbol t))
+    (let ((doc (rtags-get-summary-text)))
+      (and doc (replace-regexp-in-string "{.*" ""
+                                         (replace-regexp-in-string "[ \t\n]+" " "
+                                                                   (replace-regexp-in-string "\n" "" doc)))))))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
