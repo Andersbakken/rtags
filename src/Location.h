@@ -182,7 +182,7 @@ public:
             fileId = Location::insertFile(path);
         if (fileId)
             return Location(fileId, line, col);
-        error("Failed to make location from [%s:%d:%d]", path.constData(), line, col);
+        error("%s:%d:%d is not indexed", path.constData(), line, col);
         return Location();
     }
     static String encode(const String &key, const Path &pwd = Path())
