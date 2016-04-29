@@ -1848,7 +1848,7 @@ instead of file from `current-buffer'.
           (let ((file rtags-current-file)
                 (project))
             (with-temp-buffer
-              (rtags-call-rc "--current-project" :path file)
+              (rtags-call-rc :path file "--current-project")
               (when (> (point-max) (point-min))
                 (setq project (buffer-substring-no-properties (point-min) (1- (point-max))))))
             (setq rtags-current-project project)))
@@ -1856,7 +1856,7 @@ instead of file from `current-buffer'.
           (setq location (concat rtags-current-project location))))
       (unless (string-match "^/" location)
         (with-temp-buffer
-          (rtags-call-rc "--current-project" :path rtags-current-file)
+          (rtags-call-rc :path rtags-current-file "--current-project")
           (setq location (concat (buffer-substring-no-properties (point-min) (1- (point-max))) location)))))
     (if skip-trampification
         location
@@ -2101,8 +2101,8 @@ of PREFIX or not, if doesn't contain one, one will be added."
         (rtags-reparse-file-if-needed))
       (with-temp-buffer
         (if declaration-only
-            (rtags-call-rc :path path "--declaration-only" "-N" "-f" location "-K" :path-filter filter :noerror t :unsaved unsaved)
-          (rtags-call-rc :path path "-N" "-f" location :path-filter filter "-K" :noerror t :unsaved unsaved))
+            (rtags-call-rc :path-filter filter :unsaved unsaved :noerror t :path path "--declaration-only" "-N" "-f" location "-K")
+          (rtags-call-rc :noerror t :unsaved unsaved :path-filter filter :path path "-N" "-f" location "-K"))
         (cond ((= (point-min) (point-max))
                (unless no-error (message "RTags: No target")) nil)
               (rtags-last-request-not-indexed nil)
@@ -2139,14 +2139,13 @@ If called with prefix, open first match in other window"
                 ((rtags-handle-results-buffer nil t fn otherwindow))
                 (t
                  (erase-buffer)
-                 (rtags-call-rc :path fn "-F" tagname "--definition-only" "-M" "1" "--dependency-filter" fn
-                                :path-filter pathfilter
+                 (rtags-call-rc :path-filter pathfilter :path fn
+                                "-F" tagname "--definition-only" "-M" "1" "--dependency-filter" fn
                                 (when rtags-wildcard-symbol-names "--wildcard-symbol-names")
                                 (when rtags-symbolnames-case-insensitive "-I"))
                  (unless (rtags-handle-results-buffer nil nil fn otherwindow)
                    (erase-buffer)
-                   (rtags-call-rc :path fn "-F" tagname "-M" "1" "--dependency-filter" fn
-                                  :path-filter pathfilter
+                   (rtags-call-rc :path fn :path-filter pathfilter "-F" tagname "-M" "1" "--dependency-filter" fn
                                   (when rtags-wildcard-symbol-names "--wildcard-symbol-names")
                                   (when rtags-symbolnames-case-insensitive "-I"))
                    (rtags-handle-results-buffer nil nil fn otherwindow)))))))))
@@ -2170,8 +2169,7 @@ treated as references to the referenced symbol."
             (fn (buffer-file-name)))
         (rtags-reparse-file-if-needed)
         (with-current-buffer (rtags-get-buffer)
-          (rtags-call-rc :path fn "-r" arg
-                         :path-filter pathfilter
+          (rtags-call-rc :path fn :path-filter pathfilter "-r" arg
                          (unless rtags-sort-references-by-input "--no-sort-references-by-input"))
           (rtags-handle-results-buffer nil nil fn otherwindow))))))
 
@@ -2210,9 +2208,9 @@ This includes both declarations and definitions."
         (rtags-reparse-file-if-needed)
         (with-current-buffer (rtags-get-buffer)
           (rtags-call-rc :path fn
+                         :path-filter pathfilter
                          "-r" arg
                          "-e"
-                         :path-filter pathfilter
                          (unless rtags-sort-references-by-input "--no-sort-references-by-input")
                          (unless rtags-print-filenames-relative "-K"))
           (rtags-handle-results-buffer nil nil fn otherwindow))))))
@@ -2582,7 +2580,7 @@ This includes both declarations and definitions."
 (defun rtags-is-running ()
   (interactive)
   (with-temp-buffer
-    (rtags-call-rc "--is-indexing" :noerror t)))
+    (rtags-call-rc :noerror t "--is-indexing")))
 
 (defun rtags-format-context (str fraction)
   (when (string-match "^[ \t]+" str)
@@ -2907,7 +2905,7 @@ This includes both declarations and definitions."
                                         (default-directory)
                                         (t nil)))))
       (with-temp-buffer
-        (rtags-call-rc :path path "-T" path :noerror t :silent-query t)
+        (rtags-call-rc :noerror t :silent-query t :path path "-T" path)
         (goto-char (point-min))
         (cond ((looking-at "indexed") 'rtags-indexed)
               ((looking-at "managed") 'rtags-file-managed)
@@ -2926,7 +2924,7 @@ This includes both declarations and definitions."
   (let ((path (expand-file-name (or (buffer-file-name buffer) dired-directory default-directory))))
     (with-temp-buffer
       ;;(message ":debug: rtags-is-working: buffer=%s, path=%s" buffer path)
-      (rtags-call-rc :path path "-s" "jobs" :output (list t t) :silent-query t)
+      (rtags-call-rc :output (list t t) :silent-query t :path path "-s" "jobs")
       (let ((text (buffer-substring-no-properties (point-min) (point-max))))
         ;;(message ":debug: text=%s" text)
         (cond ((string-match "Dirty" text) t)
@@ -3228,7 +3226,7 @@ other window instead of the current one."
       (when (> (length alternatives) 1)
         (setq match (completing-read "Symbol: " alternatives nil t)))
       (when match
-        (rtags-goto-location (with-temp-buffer (rtags-call-rc :path fn "-F" match :path-filter fn) (buffer-string)))
+        (rtags-goto-location (with-temp-buffer (rtags-call-rc :path-filter fn :path fn "-F" match) (buffer-string)))
         (message "RTags: No symbols")))))
 
 (defun rtags-append (txt)
