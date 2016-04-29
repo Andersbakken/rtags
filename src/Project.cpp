@@ -897,25 +897,19 @@ void Project::onFileRemoved(const Path &file)
     Rct::removeDirectory(Project::sourceFilePath(fileId));
 
     const uint64_t key = Source::key(fileId, 0);
-    auto it = mSources.lower_bound(key);
-    bool needSave = false;
-    while (it != mSources.end()) {
+    for (auto it = mSources.lower_bound(key); it != mSources.end(); ++it) {
         uint32_t f, b;
         Source::decodeKey(it->first, f, b);
         if (f != fileId)
             break;
-        needSave = true;
         auto job = mActiveJobs.take(it->first);
         if (job) {
             releaseFileIds(job->visited);
             Server::instance()->jobScheduler()->abort(job);
         }
         debug() << "Erasing source" << Location::path(f);
-        mSources.erase(it++);
     }
 
-    if (needSave)
-        save();
     Server::instance()->jobScheduler()->clearHeaderError(fileId);
 
     if (Server::instance()->suspended() || mSuspendedFiles.contains(fileId)) {
