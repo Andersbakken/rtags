@@ -289,8 +289,8 @@ bool Project::init()
     }
     if (!(options.options & Server::NoFileManager)) {
         mFileManager.reset(new FileManager(shared_from_this()));
-        mWatcher.removed().connect(std::bind(&FileManager::onFileRemoved, mFileManager.get(), std::placeholders::_1));
-        mWatcher.added().connect(std::bind(&FileManager::onFileAdded, mFileManager.get(), std::placeholders::_1));
+        mWatcher.removed().connect([this](const Path &path) { if (mWatchedPaths.value(path.parentDir()) & Watch_FileManager) mFileManager->onFileRemoved(path); });
+        mWatcher.added().connect([this](const Path &path) { if (mWatchedPaths.value(path.parentDir()) & Watch_FileManager) mFileManager->onFileAdded(path); });
     }
 
     mDirtyTimer.timeout().connect(std::bind(&Project::onDirtyTimeout, this, std::placeholders::_1));
