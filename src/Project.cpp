@@ -1330,12 +1330,10 @@ void Project::watch(const Path &dir, WatchMode mode)
             it->second |= mode;
             return;
         }
-        const Path resolved = dir.resolved();
-        if (opts & Server::WatchSystemPaths || !resolved.isSystem()) {
-            auto &m = mWatchedPaths[resolved];
-            if (!m) {
-                mWatcher.watch(resolved);
-            }
+        if (opts & Server::WatchSystemPaths || !dir.isSystem()) {
+            auto &m = mWatchedPaths[dir];
+            if (!m)
+                mWatcher.watch(dir);
             m |= mode;
         }
     }
