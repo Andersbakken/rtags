@@ -1590,6 +1590,26 @@ instead of file from `current-buffer'.
   ;;          (skip-chars-forward " ")))))
   )
 
+(defun rtags-goto-line-col (line column)
+  (let ((old (point)))
+    (goto-char (point-min))
+    (condition-case nil
+        (progn
+          (forward-line (1- line))
+          (if (rtags-buffer-is-multibyte)
+              (let ((prev (buffer-local-value enable-multibyte-characters (current-buffer)))
+                    (loc (local-variable-p enable-multibyte-characters)))
+                (set-buffer-multibyte nil)
+                (forward-char (1- column))
+                (set-buffer-multibyte prev)
+                (unless loc
+                  (kill-local-variable enable-multibyte-characters)))
+            (forward-char (1- column)))
+          t)
+      (error
+       (goto-char old)
+       nil))))
+
 (defun rtags-insert-ref (ref level)
   (let* ((location (cdr (assoc 'loc ref)))
          (components
@@ -1820,27 +1840,6 @@ instead of file from `current-buffer'.
             (other-window (switch-to-buffer-other-window file-or-buffer))
             (t (switch-to-buffer file-or-buffer))))))
 
-(defun rtags-goto-line-col (line column)
-  (let ((old (point)))
-    (push-mark nil t)
-    (goto-char (point-min))
-    (condition-case nil
-        (progn
-          (forward-line (1- line))
-          (if (rtags-buffer-is-multibyte)
-              (let ((prev (buffer-local-value enable-multibyte-characters (current-buffer)))
-                    (loc (local-variable-p enable-multibyte-characters)))
-                (set-buffer-multibyte nil)
-                (forward-char (1- column))
-                (set-buffer-multibyte prev)
-                (unless loc
-                  (kill-local-variable enable-multibyte-characters)))
-            (forward-char (1- column)))
-          t)
-      (error
-       (goto-char old)
-       nil))))
-
 (defun rtags-absolutify (location &optional skip-trampification)
   (when location
     (save-match-data
@@ -1887,12 +1886,14 @@ instead of file from `current-buffer'.
            (let ((line (string-to-number (match-string-no-properties 2 location)))
                  (column (string-to-number (match-string-no-properties 3 location))))
              (rtags-find-file-or-buffer (match-string-no-properties 1 location) other-window)
+             (push-mark nil t)
              (rtags-goto-line-col line column)
              (run-hooks 'rtags-after-find-file-hook)
              t))
           ((string-match "\\(.*\\):\\([0-9]+\\):?" location)
            (let ((line (string-to-number (match-string-no-properties 2 location))))
              (rtags-find-file-or-buffer (match-string-no-properties 1 location) other-window)
+             (push-mark nil t)
              (goto-char (point-min))
              (forward-line (1- line))
              (run-hooks 'rtags-after-find-file-hook)
@@ -1900,6 +1901,7 @@ instead of file from `current-buffer'.
           ((string-match "\\(.*\\),\\([0-9]+\\)" location)
            (let ((offset (string-to-number (match-string-no-properties 2 location))))
              (rtags-find-file-or-buffer (match-string-no-properties 1 location) other-window)
+             (push-mark nil t)
              (rtags-goto-offset offset)
              (run-hooks 'rtags-after-find-file-hook)
              t))
@@ -3005,6 +3007,7 @@ other window instead of the current one."
         ((or rtags-last-request-not-indexed rtags-last-request-not-connected) nil)
         ((= (count-lines (point-min) (point-max)) 1)
          (let ((string (buffer-string)))
+           (push-mark nil t)
            (rtags-goto-location string nil other-window)
            t))
         (t
@@ -3148,6 +3151,7 @@ other window instead of the current one."
 ;;;###autoload
 (defun rtags-select (&optional other-window remove show)
   (interactive "P")
+  (push-mark nil t)
   (let* ((idx (get-text-property (point) 'rtags-bookmark-index))
          (line (line-number-at-pos))
          (bookmark (and (car idx) (format "RTags_%d" (car idx))))
