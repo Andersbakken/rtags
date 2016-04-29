@@ -134,10 +134,12 @@ std::shared_ptr<AST> AST::create(const Source &source, const String &sourceCode,
 
 List<AST::Diagnostic> AST::diagnostics() const
 {
+    return List<Diagnostic>();
 }
 
 List<AST::SkippedRange> AST::skippedRanges() const
 {
+    return List<SkippedRange>();
 }
 
 List<String> AST::evaluate(const String &script)
