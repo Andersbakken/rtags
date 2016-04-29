@@ -866,24 +866,29 @@ String typeString(const CXType &type)
 class CompileCommandsOperation
 {
 public:
-    CompileCommandsOperation(const Path &d,
-                             const List<Path> &pathEnv,
-                             Flags<IndexMessage::Flag> f,
-                             const Path &proot)
-        : dir(d), pathEnvironment(pathEnv), flags(f), projectRootOverride(proot), indexIndex(0)
+    CompileCommandsOperation(const Hash<Path, CompilationDataBaseInfo> &i, const Path &p)
+        : infos(i), projectRootOverride(p), indexIndex(0)
     {}
     ~CompileCommandsOperation()
     {
         if (project) {
-            project->setCompilationDatabaseInfo(dir, pathEnvironment, flags, indexed);
+            for (auto &info : infos) {
+                info.second.lastModified = Path(info.first + "compile_commands.json").lastModifiedMs();
+                if (info.second.indexFlags & IndexMessage::AppendCompilationDatabase) {
+                    assert(infos.size() == 1);
+                    info.second.indexFlags &= ~IndexMessage::AppendCompilationDatabase;
+                    project->addCompilationDatabaseInfo(std::move(info.first), std::move(info.second));
+                    return;
+                }
+            }
+            project->setCompilationDatabaseInfos(std::move(infos), indexed);
         }
     }
 
     struct Index {
         String args;
-        Path dir;
+        Path dir, compileCommandsDir;
     };
-
 
     void work()
     {
@@ -894,24 +899,25 @@ public:
         }
         const size_t max = std::min(indexIndex + 5, indexes.size());
         while (indexIndex < max) {
-            server->index(indexes.at(indexIndex).args,
-                          indexes.at(indexIndex).dir,
-                          pathEnvironment,
+            const Index &idx = indexes.at(indexIndex);
+            const auto it = infos.find(idx.compileCommandsDir);
+            assert(it != infos.end());
+            server->index(idx.args,
+                          idx.dir,
+                          it->second.pathEnvironment,
                           projectRootOverride,
-                          flags,
+                          it->second.indexFlags,
                           &project,
                           &indexed);
             ++indexIndex;
         }
-        if (max == indexes.size()) {
+        if (indexIndex == indexes.size()) {
             EventLoop::deleteLater(this);
         } else {
             EventLoop::eventLoop()->callLater(std::bind(&CompileCommandsOperation::work, this));
         }
     }
-    const Path dir;
-    const List<Path> pathEnvironment;
-    const Flags<IndexMessage::Flag> flags;
+    Hash<Path, CompilationDataBaseInfo> infos;
     const Path projectRootOverride;
     Set<uint64_t> indexed;
     std::shared_ptr<Project> project;
@@ -919,25 +925,30 @@ public:
     size_t indexIndex;
 };
 
-bool loadCompileCommands(const Path &dir,
-                         const List<Path> &pathEnvironment,
-                         Flags<IndexMessage::Flag> flags,
-                         const Path &projectRootOverride)
+bool loadCompileCommands(const Hash<Path, CompilationDataBaseInfo> &infos, const Path &projectRootOverride)
 {
 #if CLANG_VERSION_MAJOR > 3 || (CLANG_VERSION_MAJOR == 3 && CLANG_VERSION_MINOR > 3)
-    CXCompilationDatabase_Error err;
-    CXCompilationDatabase db = clang_CompilationDatabase_fromDirectory(dir.constData(), &err);
-    if (err == CXCompilationDatabase_NoError) {
+    CompileCommandsOperation *op = 0;
+    for (const auto &info : infos) {
+        CXCompilationDatabase_Error err;
+        CXCompilationDatabase db = clang_CompilationDatabase_fromDirectory(info.first.constData(), &err);
+        if (err != CXCompilationDatabase_NoError) {
+            error("Can't load compilation database from %scompile_Commands.json", info.first.constData());
+            continue;
+        }
         CXCompileCommands cmds = clang_CompilationDatabase_getAllCompileCommands(db);
         const unsigned int sz = clang_CompileCommands_getSize(cmds);
-        CompileCommandsOperation *op = new CompileCommandsOperation(dir, pathEnvironment,
-                                                                    flags, projectRootOverride);
-        op->indexes.reserve(sz);
+        if (!op) {
+            op = new CompileCommandsOperation(infos, projectRootOverride);
+            op->indexes.reserve(sz);
+        } else {
+            op->indexes.reserve(op->indexes.size() + sz);
+        }
         for (unsigned int i = 0; i < sz; ++i) {
             CXCompileCommand cmd = clang_CompileCommands_getCommand(cmds, i);
             String args;
             CXString str = clang_CompileCommand_getDirectory(cmd);
-            const Path dir = clang_getCString(str);
+            const Path compileDir = clang_getCString(str);
             clang_disposeString(str);
             const unsigned int num = clang_CompileCommand_getNumArgs(cmd);
             for (unsigned int j = 0; j < num; ++j) {
@@ -947,11 +958,15 @@ bool loadCompileCommands(const Path &dir,
                 if (j < num - 1)
                     args += ' ';
             }
-            op->indexes.push_back(CompileCommandsOperation::Index { args, dir.ensureTrailingSlash() } );
+            op->indexes.push_back(CompileCommandsOperation::Index { args, compileDir.ensureTrailingSlash(), info.first } );
         }
-        EventLoop::eventLoop()->callLater(std::bind(&CompileCommandsOperation::work, op));
         clang_CompileCommands_dispose(cmds);
         clang_CompilationDatabase_dispose(db);
+    };
+
+
+    if (op) {
+        EventLoop::eventLoop()->callLater(std::bind(&CompileCommandsOperation::work, op));
         return true;
     }
 #endif

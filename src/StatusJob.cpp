@@ -36,7 +36,7 @@ int StatusJob::execute()
         return !strncasecmp(query.constData(), name, query.size());
     };
     bool matched = false;
-    const char *alternatives = "fileids|watchedpaths|dependencies|cursors|symbols|targets|symbolnames|sources|jobs|info|compilers|headererrors|memory";
+    const char *alternatives = "fileids|watchedpaths|dependencies|cursors|symbols|targets|symbolnames|sources|jobs|info|compilers|headererrors|memory|project";
 
     if (match("fileids")) {
         matched = true;
@@ -248,10 +248,34 @@ int StatusJob::execute()
     }
 
     if (query.isEmpty() || match("memory")) {
+        if (!write(delimiter) || !write("memory") || !write(delimiter))
+            return 1;
         write(proj->estimateMemory());
         matched = true;
     }
 
+    if (query.isEmpty() || match("project")) {
+        if (!write(delimiter) || !write("project") || !write(delimiter))
+            return 1;
+        write(String::format<1024>("Path: %s", proj->path().constData()));
+        bool first = true;
+        for (const auto &info : proj->compilationDataBaseInfos()) {
+            if (first) {
+                first = false;
+                write("\nCompilation Commands Database(s):");
+            }
+            write(String::format<1024>("    File: %scompile_commands.json\n"
+                                       "    Last-Modified: %s (%llu)\n"
+                                       "    Path-Environement: %s\n"
+                                       "    Index-Flags: %s",
+                                       info.first.constData(),
+                                       String::formatTime(info.second.lastModified / 1000).constData(),
+                                       static_cast<unsigned long long>(info.second.lastModified),
+                                       String::join(info.second.pathEnvironment, ':').constData(),
+                                       info.second.indexFlags.toString().constData()));
+        }
+        matched = true;
+    }
 
     if (!matched) {
         write<256>("rc -s %s", alternatives);

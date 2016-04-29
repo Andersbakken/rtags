@@ -41,6 +41,7 @@ class Database;
 class Project;
 struct Diagnostic;
 struct DependencyNode;
+struct CompilationDataBaseInfo;
 typedef List<std::pair<uint32_t, uint32_t> > Includes;
 typedef Hash<uint32_t, DependencyNode*> Dependencies;
 typedef Map<uint64_t, Source> Sources;
@@ -53,8 +54,8 @@ namespace RTags {
 enum {
     MajorVersion = 2,
     MinorVersion = 0,
-    DatabaseVersion = 89,
-    SourcesFileVersion = 4
+    DatabaseVersion = 90,
+    SourcesFileVersion = 5
 };
 
 inline String versionString()
@@ -502,10 +503,7 @@ enum FindAncestorFlag {
 RCT_FLAGS(FindAncestorFlag);
 Path findAncestor(Path path, const char *fn, Flags<FindAncestorFlag> flags);
 Map<String, String> rtagsConfig(const Path &path);
-bool loadCompileCommands(const Path &dir,
-                         const List<Path> &pathEnv,
-                         Flags<IndexMessage::Flag> f,
-                         const Path &proot);
+bool loadCompileCommands(const Hash<Path, CompilationDataBaseInfo> &infos, const Path &projectRoot);
 
 enum { DefinitionBit = 0x1000 };
 inline CXCursorKind targetsValueKind(uint16_t val)
@@ -670,6 +668,24 @@ inline Location createLocation(const CXCursor &cursor, int *offsetPtr = 0)
 {
     return createLocation(clang_getCursorLocation(cursor), offsetPtr);
 }
+}
+
+struct CompilationDataBaseInfo {
+    uint64_t lastModified;
+    List<Path> pathEnvironment;
+    Flags<IndexMessage::Flag> indexFlags;
+};
+
+inline Serializer &operator<<(Serializer &s, const CompilationDataBaseInfo &info)
+{
+    s << info.lastModified << info.pathEnvironment << info.indexFlags;
+    return s;
+}
+
+inline Deserializer &operator>>(Deserializer &s, CompilationDataBaseInfo &info)
+{
+    s >> info.lastModified >> info.pathEnvironment >> info.indexFlags;
+    return s;
 }
 
 inline bool operator==(const CXCursor &l, CXCursorKind r)

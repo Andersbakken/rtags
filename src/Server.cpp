@@ -532,11 +532,13 @@ void Server::handleIndexMessage(const std::shared_ptr<IndexMessage> &message, co
 {
     const Path path = message->compilationDatabaseDir();
     if (!path.isEmpty()) {
-        if (RTags::loadCompileCommands(message->compilationDatabaseDir(),
-                                       message->pathEnvironment(),
-                                       message->flags(),
-                                       message->projectRoot())) {
-
+        Hash<Path, CompilationDataBaseInfo> infos;
+        infos[message->compilationDatabaseDir().ensureTrailingSlash()] = {
+            0,
+            message->pathEnvironment(),
+            message->flags() | IndexMessage::AppendCompilationDatabase
+        };
+        if (RTags::loadCompileCommands(infos, message->projectRoot())) {
             if (conn) {
                 conn->write("[Server] Compilation database loading...");
                 conn->finish();
@@ -1762,8 +1764,9 @@ bool Server::load()
                     RTags::decodePath(p);
 
                     String err;
-                    if (!Project::readSources(path, sources[p], &err)) {
+                    if (!Project::readSources(path, sources[p], 0, &err)) {
                         error("Sources restore error %s: %s", path.constData(), err.constData());
+                        sources.remove(p);
                     }
                     // error() << sources[p].size();
                 }

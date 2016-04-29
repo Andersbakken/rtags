@@ -30,6 +30,7 @@
 #include "rct/Path.h"
 #include "rct/StopWatch.h"
 #include "rct/Timer.h"
+#include "rct/Serializer.h"
 #include "RTags.h"
 
 class Connection;
@@ -65,10 +66,9 @@ public:
     std::shared_ptr<FileManager> fileManager() const { return mFileManager; }
 
     Path path() const { return mPath; }
-    void setCompilationDatabaseInfo(const Path &dir,
-                                    const List<Path> &pathEnvironment,
-                                    Flags<IndexMessage::Flag> flags,
-                                    const Set<uint64_t> &indexed = Set<uint64_t>());
+    void setCompilationDatabaseInfos(Hash<Path, CompilationDataBaseInfo> &&infos, const Set<uint64_t> &indexed);
+    void addCompilationDatabaseInfo(const Path &path, CompilationDataBaseInfo &&info);
+    Hash<Path, CompilationDataBaseInfo> compilationDataBaseInfos() const { return mCompilationDatabaseInfos; }
 
     bool match(const Match &match, bool *indexed = 0) const;
 
@@ -126,7 +126,8 @@ public:
     const Hash<uint32_t, DependencyNode*> &dependencies() const { return mDependencies; }
     DependencyNode *dependencyNode(uint32_t fileId) const { return mDependencies.value(fileId); }
 
-    static bool readSources(const Path &path, Sources &sources, String *error);
+    static bool readSources(const Path &path, Sources &sources,
+                            Hash<Path, CompilationDataBaseInfo> *compileCommands, String *error);
     enum SymbolMatchType {
         Exact,
         Wildcard,
@@ -226,7 +227,7 @@ public:
     uint32_t fileMapOptions() const;
     void fixPCH(Source &source);
 private:
-    void reloadCompilationDatabase();
+    void reloadCompilationDatabases();
     void removeSource(Sources::iterator it);
     void onFileAddedOrModified(const Path &path);
     void watchFile(uint32_t fileId);
@@ -351,12 +352,7 @@ private:
     std::shared_ptr<FileMapScope> mFileMapScope;
 
     const Path mPath, mSourceFilePathBase;
-    struct CompilationDataBaseInfo {
-        Path dir;
-        uint64_t lastModified;
-        List<Path> pathEnvironment;
-        Flags<IndexMessage::Flag> indexFlags;
-    } mCompilationDatabaseInfo;
+    Hash<Path, CompilationDataBaseInfo> mCompilationDatabaseInfos;
     Path mProjectFilePath, mSourcesFilePath;
 
     Files mFiles;

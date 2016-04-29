@@ -265,7 +265,7 @@ static inline bool hasSourceDependency(const DependencyNode *node, const std::sh
     return hasSourceDependency(node, project, seen);
 }
 
-bool Project::readSources(const Path &path, Sources &sources, String *err)
+bool Project::readSources(const Path &path, Sources &sources, Hash<Path, CompilationDataBaseInfo> *info, String *err)
 {
     DataFile file(path, RTags::SourcesFileVersion);
     if (!file.open(DataFile::Read)) {
@@ -276,6 +276,8 @@ bool Project::readSources(const Path &path, Sources &sources, String *err)
     }
 
     file >> sources;
+    if (info)
+        file >> *info;
     return true;
 }
 
@@ -296,49 +298,58 @@ bool Project::init()
     mDirtyTimer.timeout().connect(std::bind(&Project::onDirtyTimeout, this, std::placeholders::_1));
 
     String err;
-    if (!Project::readSources(mSourcesFilePath, mSources, &err)) {
+    if (!Project::readSources(mSourcesFilePath, mSources, &mCompilationDatabaseInfos, &err)) {
         if (!err.isEmpty())
             error("Sources restore error %s: %s", mPath.constData(), err.constData());
 
         return false;
     }
 
+    auto reindex = [this]() {
+        if (mCompilationDatabaseInfos.isEmpty()) {
+            mProjectFilePath.visit([](const Path &path) {
+                    if (strcmp(path.fileName(), "sources")) {
+                        if (path.isDir()) {
+                            Rct::removeDirectory(path);
+                        } else {
+                            path.rm();
+                        }
+                    }
+                    return Path::Continue;
+                });
+            Sources sources;
+            std::swap(sources, mSources);
+            assert(mSources.empty());
+            for (const auto &source : sources) {
+                index(std::shared_ptr<IndexerJob>(new IndexerJob(source.second, IndexerJob::Compile, shared_from_this())));
+            }
+        } else {
+            RTags::loadCompileCommands(mCompilationDatabaseInfos, mPath);
+        }
+    };
+
     DataFile file(mProjectFilePath, RTags::DatabaseVersion);
     if (!file.open(DataFile::Read)) {
         if (!file.error().isEmpty())
             error("Restore error %s: %s", mPath.constData(), file.error().constData());
-        Path::rm(mProjectFilePath);
-        Sources sources;
-        std::swap(sources, mSources);
-        assert(mSources.empty());
-        for (const auto &source : sources) {
-            index(std::shared_ptr<IndexerJob>(new IndexerJob(source.second, IndexerJob::Compile, shared_from_this())));
-        }
+        reindex();
         return true;
     }
 
     {
         std::lock_guard<std::mutex> lock(mMutex);
-        file >> mVisitedFiles >> mDiagnostics
-             >> mCompilationDatabaseInfo.dir
-             >> mCompilationDatabaseInfo.lastModified
-             >> mCompilationDatabaseInfo.pathEnvironment
-             >> mCompilationDatabaseInfo.indexFlags;
+        file >> mVisitedFiles;
     }
-    if (!mCompilationDatabaseInfo.dir.isEmpty())
-        watch(mCompilationDatabaseInfo.dir, Watch_CompilationDatabase);
+    file >> mDiagnostics;
+    for (const auto &info : mCompilationDatabaseInfos)
+        watch(info.first, Watch_CompilationDatabase);
+
     if (!loadDependencies(file, mDependencies)) {
         mDependencies.deleteAll();
         mVisitedFiles.clear();
         mDiagnostics.clear();
         error("Restore error %s: Failed load dependencies.", mPath.constData());
-        Path::rm(mProjectFilePath);
-        Sources sources;
-        std::swap(sources, mSources);
-        assert(mSources.empty());
-        for (const auto &source : sources) {
-            index(std::shared_ptr<IndexerJob>(new IndexerJob(source.second, IndexerJob::Compile, shared_from_this())));
-        }
+        reindex();
         return true;
     }
 
@@ -424,8 +435,7 @@ bool Project::init()
         }
     }
 
-    if (!mCompilationDatabaseInfo.dir.isEmpty())
-        reloadCompilationDatabase();
+    reloadCompilationDatabases();
 
     if (needsSave)
         save();
@@ -718,7 +728,7 @@ bool Project::save()
             error("Save error %s: %s", mProjectFilePath.constData(), file.error().constData());
             return false;
         }
-        file << mSources;
+        file << mSources << mCompilationDatabaseInfos;
     }
 
     {
@@ -729,12 +739,9 @@ bool Project::save()
         }
         {
             std::lock_guard<std::mutex> lock(mMutex);
-            file << mVisitedFiles << mDiagnostics
-                 << mCompilationDatabaseInfo.dir
-                 << mCompilationDatabaseInfo.lastModified
-                 << mCompilationDatabaseInfo.pathEnvironment
-                 << mCompilationDatabaseInfo.indexFlags;
+            file << mVisitedFiles;
         }
+        file << mDiagnostics;
         saveDependencies(file, mDependencies);
         if (!file.flush()) {
             error("Save error %s: %s", mProjectFilePath.constData(), file.error().constData());
@@ -866,11 +873,11 @@ void Project::onFileAdded(const Path &path)
 
 void Project::onFileAddedOrModified(const Path &file)
 {
-    // error() << file.fileName() << mCompilationDatabaseInfo.dir << file;
-    if (!mCompilationDatabaseInfo.dir.isEmpty() &&
-        !strcmp(file.fileName(), "compile_commands.json")
-        && file.parentDir() == mCompilationDatabaseInfo.dir) {
-        reloadCompilationDatabase();
+    // error() << file.fileName() << mCompilationDatabaseInfos.dir << file;
+    if (!mCompilationDatabaseInfos.isEmpty()
+        && !strcmp(file.fileName(), "compile_commands.json")
+        && mCompilationDatabaseInfos.contains(file.parentDir())) {
+        reloadCompilationDatabases();
         return;
     }
 
@@ -2279,43 +2286,42 @@ String Project::estimateMemory() const
     return String::join(ret, "\n");
 }
 
-void Project::setCompilationDatabaseInfo(const Path &dir,
-                                         const List<Path> &pathEnvironment,
-                                         Flags<IndexMessage::Flag> flags,
-                                         const Set<uint64_t> &indexed)
+void Project::addCompilationDatabaseInfo(const Path &path, CompilationDataBaseInfo &&info)
 {
-    if (!mCompilationDatabaseInfo.dir.isEmpty())
-        unwatch(mCompilationDatabaseInfo.dir, Watch_CompilationDatabase);
-    mCompilationDatabaseInfo = {
-        dir,
-        Path(dir + "compile_commands.json").lastModifiedMs(),
-        pathEnvironment,
-        flags | IndexMessage::ReloadCompilationDatabase
-    };
-    if (flags & IndexMessage::ReloadCompilationDatabase) {
-        Sources::iterator it = mSources.begin();
-        while (it != mSources.end()) {
-            if (!indexed.contains(it->first)) {
-                error() << it->second.sourceFile() << "is no longer in compile_commands.json, removing";
-                removeSource(it++);
-            } else {
-                ++it;
-            }
-        }
-    }
-    if (!mCompilationDatabaseInfo.dir.isEmpty())
-        watch(mCompilationDatabaseInfo.dir, Watch_CompilationDatabase);
+    mCompilationDatabaseInfos[path] = std::move(info);
+    watch(path, Watch_CompilationDatabase);
     save();
 }
 
-void Project::reloadCompilationDatabase()
+void Project::setCompilationDatabaseInfos(Hash<Path, CompilationDataBaseInfo> &&infos, const Set<uint64_t> &indexed)
 {
-    if (!mCompilationDatabaseInfo.dir.isEmpty() && !Server::instance()->suspended() ) {
-        const Path file(mCompilationDatabaseInfo.dir + "compile_commands.json");
-        const uint64_t lastModified = file.lastModifiedMs();
-        if (lastModified && lastModified != mCompilationDatabaseInfo.lastModified) {
-            RTags::loadCompileCommands(mCompilationDatabaseInfo.dir, mCompilationDatabaseInfo.pathEnvironment,
-                                       mCompilationDatabaseInfo.indexFlags, mPath);
+    mCompilationDatabaseInfos = std::move(infos);
+    for (auto &info : mCompilationDatabaseInfos) {
+        info.second.lastModified = Path(info.first + "compile_commands.json").lastModifiedMs();
+        watch(info.first, Watch_CompilationDatabase);
+    }
+    Sources::iterator it = mSources.begin();
+    while (it != mSources.end()) {
+        if (!indexed.contains(it->first)) {
+            error() << it->second.sourceFile() << "is no longer in compile_commands.json, removing";
+            removeSource(it++);
+        } else {
+            ++it;
+        }
+    }
+    save();
+}
+
+void Project::reloadCompilationDatabases()
+{
+    if (!Server::instance()->suspended() ) {
+        for (const auto &info : mCompilationDatabaseInfos) {
+            const Path file(info.first + "compile_commands.json");
+            const uint64_t lastModified = file.lastModifiedMs();
+            if (lastModified && lastModified != info.second.lastModified) {
+                RTags::loadCompileCommands(mCompilationDatabaseInfos, mPath);
+                return;
+            }
         }
     }
 }
@@ -2353,3 +2359,4 @@ void Project::fixPCH(Source &source)
         }
     }
 }
+
