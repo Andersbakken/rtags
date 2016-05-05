@@ -3848,7 +3848,10 @@ force means do it regardless of rtags-enable-unsaved-reparsing "
   (when (and rtags-periodic-reparse-timeout
              (not rtags-periodic-reparse-timer)
              (funcall rtags-is-indexable (current-buffer))
-             (rtags-has-diagnostics))
+             (rtags-has-diagnostics)
+             (let ((proc (get-buffer-process (get-buffer "*compilation*"))))
+               (or (not proc)
+                   (not (eq (process-status proc) 'run)))))
     (setq rtags-periodic-reparse-timer (run-with-idle-timer rtags-periodic-reparse-timeout nil #'rtags-periodic-reparse-buffer))))
 
 
