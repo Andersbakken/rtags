@@ -101,16 +101,16 @@ static void registerClasses(sel::State &state)
                                           "isDefinition", &AST::Cursor::isDefinition,
                                           "isDynamicCall", &AST::Cursor::isDynamicCall);
 
-    std::function<Cursors(const Cursor &, const std::string &, int)> recurse;
-    recurse = [&recurse](const Cursor &cursor, const std::string &kind, int depth = -1) -> Cursors {
-        Cursors ret;
+    std::function<AST::Cursors(const AST::Cursor &, const std::string &, int)> recurse;
+    recurse = [&recurse](const AST::Cursor &cursor, const std::string &kind, int depth = -1) -> AST::Cursors {
+        AST::Cursors ret;
         if (cursor.kind() == kind)
             ret.append(cursor);
         if (const int childCount = cursor.childCount()) {
             if (depth > 0 || depth == -1) {
                 const int childDepth = depth == -1 ? -1 : depth - 1;
                 for (int i=0; i<childCount; ++i) {
-                    const Cursor &child = cursor.child(i);
+                    const AST::Cursor &child = cursor.child(i);
                     ret.append(recurse(child, kind, childDepth));
                 }
             }
