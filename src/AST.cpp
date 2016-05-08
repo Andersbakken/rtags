@@ -100,6 +100,26 @@ static void registerClasses(sel::State &state)
                                           "isConst", &AST::Cursor::isConst,
                                           "isDefinition", &AST::Cursor::isDefinition,
                                           "isDynamicCall", &AST::Cursor::isDynamicCall);
+
+    std::function<Cursors(const Cursor &, const std::string &, int)> recurse;
+    recurse = [&recurse](const Cursor &cursor, const std::string &kind, int depth = -1) -> Cursors {
+        Cursors ret;
+        if (cursor.kind() == kind)
+            ret.append(cursor);
+        if (const int childCount = cursor.childCount()) {
+            if (depth > 0 || depth == -1) {
+                const int childDepth = depth == -1 ? -1 : depth - 1;
+                for (int i=0; i<childCount; ++i) {
+                    const Cursor &child = cursor.child(i);
+                    ret.append(recurse(child, kind, childDepth));
+                }
+            }
+        }
+
+        return ret;
+    };
+    state["query"] = recurse;
+
 }
 
 std::shared_ptr<AST> AST::create(const Source &source, const String &sourceCode, CXTranslationUnit unit)

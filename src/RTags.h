@@ -728,6 +728,8 @@ public:
         return clang_getCString(string);
     }
     operator CXString () const { return string; }
+    bool operator==(const std::string &str) const { return !strcmp(clang_getCString(string), str.c_str()); }
+    bool operator!=(const std::string &str) const { return strcmp(clang_getCString(string), str.c_str()); }
 private:
     CXString string;
 };

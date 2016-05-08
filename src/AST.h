@@ -178,8 +178,27 @@ public:
         Cursor definitionCursor() const { return cursorProperty(& clang_getCursorDefinition); }
         Cursor specializedCursorTemplate() const { return cursorProperty(&clang_getSpecializedCursorTemplate); }
         int childCount() const { return data ? data->children.size() : 0; }
-        Cursor child(int idx) { return data ? Cursor{ data->children.value(idx)->shared_from_this() } : Cursor(); }
+        Cursor child(int idx) const { return data ? Cursor{ data->children.value(idx)->shared_from_this() } : Cursor(); }
         Cursors children() const;
+        Cursors query(const std::string &kind, int depth = -1) const
+        {
+            Cursors ret;
+            if (data) {
+                CXStringScope scope(clang_getCursorKindSpelling(clang_getCursorKind(data->cursor)));
+                if (scope == kind)
+                    ret.append(*this);
+                if (const int count = childCount()) {
+                    if (depth > 0 || depth == -1) {
+                        const int childDepth = depth == -1 ? -1 : depth - 1;
+                        for (int i=0; i<count; ++i) {
+                            const Cursor &c = child(i);
+                            ret.append(c.query(kind, childDepth));
+                        }
+                    }
+                }
+            }
+            return ret;
+        }
 
         bool isBitField() const { return intProperty<unsigned, bool>(&clang_Cursor_isBitField); }
         bool isVirtualBase() const { return intProperty<unsigned, bool>(&clang_isVirtualBase); }
