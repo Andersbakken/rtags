@@ -106,7 +106,15 @@ public:
         std::string displayName() const { return stringProperty(&clang_getCursorDisplayName); }
         std::string rawComment() const { return stringProperty(&clang_Cursor_getRawCommentText); }
         std::string briefComment() const { return stringProperty(&clang_Cursor_getBriefCommentText); }
-        std::string mangledName() const { return stringProperty(&clang_Cursor_getMangling); }
+
+        std::string mangledName() const
+        {
+#if CINDEX_VERSION > CINDEX_VERSION_ENCODE(0, 28)
+            return stringProperty(&clang_Cursor_getMangling);
+#else
+            return std::string();
+#endif
+        }
         std::string templateKind() const { return stringProperty(&clang_getTemplateCursorKind); }
         SourceRange range() const { return data ? SourceRange { clang_getCursorExtent(data->cursor) } : SourceRange(); }
         unsigned overriddenCount() const
@@ -156,9 +164,32 @@ public:
             return std::string();
         }
 
-        unsigned templateArgumentCount() const { return data ? clang_Cursor_getNumTemplateArguments(data->cursor) : 0; }
-        CursorType templateArgumentType(unsigned idx) const { return data ? CursorType(data->ast, clang_Cursor_getTemplateArgumentType(data->cursor, idx)) : CursorType(); }
-        long long templateArgumentValue(unsigned idx) const { return data ? clang_Cursor_getTemplateArgumentValue(data->cursor, idx) : -1; }
+        unsigned templateArgumentCount() const
+        {
+#if CINDEX_VERSION > CINDEX_VERSION_ENCODE(0, 28)
+             return data ? clang_Cursor_getNumTemplateArguments(data->cursor) : 0;
+#else
+             return 0;
+#endif
+        }
+        CursorType templateArgumentType(unsigned idx) const
+        {
+#if CINDEX_VERSION > CINDEX_VERSION_ENCODE(0, 28)
+            return data ? CursorType(data->ast, clang_Cursor_getTemplateArgumentType(data->cursor, idx)) : CursorType();
+#else
+            (void)idx;
+            return CursorType();
+#endif
+        }
+        long long templateArgumentValue(unsigned idx) const
+        {
+#if CINDEX_VERSION > CINDEX_VERSION_ENCODE(0, 28)
+            return data ? clang_Cursor_getTemplateArgumentValue(data->cursor, idx) : -1;
+#else
+            (void)idx;
+            return -1;
+#endif
+        }
         std::string templateArgumentKind(unsigned idx) const
         {
             std::string ret;
