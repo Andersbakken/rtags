@@ -236,9 +236,11 @@ Maximum wait time is: (* company-rtags-max-wait company-async-wait)"
           (company-rtags--annotation arg nil)))
     (post-completion
      (cond ((eq rtags-company-last-completion-prefix-type 'company-rtags-include)
-            (insert ">"))
+            (unless (search-forward ">" (point-at-eol) t)
+              (insert ">")))
            ((eq rtags-company-last-completion-prefix-type 'company-rtags-include-quote)
-            (insert "\""))
+            (unless (search-forward "\"" (point-at-eol) t)
+              (insert "\"")))
            (t
             (let ((anno (company-rtags--annotation arg t)))
               (when (and company-rtags-insert-arguments anno)
