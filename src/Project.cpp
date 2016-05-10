@@ -1389,7 +1389,7 @@ String Project::toCompilationDatabase() const
     const Flags<Source::CommandLineFlag> flags = (Source::IncludeCompiler
                                                   | Source::IncludeSourceFile
                                                   | Source::IncludeDefines
-                                                  | Source::IncludeIncludepaths
+                                                  | Source::IncludeIncludePaths
                                                   | Source::QuoteDefines
                                                   | Source::FilterBlacklist);
     Value ret(List<Value>(mSources.size()));

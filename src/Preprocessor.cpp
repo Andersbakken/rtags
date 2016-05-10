@@ -32,7 +32,7 @@ const Flags<Source::CommandLineFlag> SourceFlags = (Source::IncludeSourceFile
                                                     | Source::ExcludeDefaultArguments
                                                     | Source::ExcludeDefaultIncludePaths
                                                     | Source::ExcludeDefaultDefines
-                                                    | Source::IncludeIncludepaths
+                                                    | Source::IncludeIncludePaths
                                                     | Source::IncludeDefines);
 
 void Preprocessor::preprocess()

@@ -49,7 +49,7 @@ Path Source::compiler() const
 
 String Source::toString() const
 {
-    String ret = String::join(toCommandLine(IncludeCompiler|IncludeSourceFile|IncludeIncludepaths|QuoteDefines|IncludeDefines), ' ');
+    String ret = String::join(toCommandLine(IncludeCompiler|IncludeSourceFile|IncludeIncludePaths|QuoteDefines|IncludeDefines), ' ');
     if (buildRootId)
         ret << " Build: " << buildRoot();
     if (parsed)
@@ -836,7 +836,7 @@ List<String> Source::toCommandLine(Flags<CommandLineFlag> flags, bool *usedPch) 
                 ret += def.toString(flags);
         }
     }
-    if (flags & IncludeIncludepaths) {
+    if (flags & IncludeIncludePaths) {
         for (const auto &inc : includePaths) {
             switch (inc.type) {
             case Source::Include::Type_None:

@@ -61,7 +61,7 @@ struct Source
         IncludeCompiler = 0x002|IncludeExtraCompiler,
         IncludeSourceFile = 0x004,
         IncludeDefines = 0x008,
-        IncludeIncludepaths = 0x010,
+        IncludeIncludePaths = 0x010,
         QuoteDefines = 0x020,
         FilterBlacklist = 0x040,
         ExcludeDefaultArguments = 0x080,
@@ -69,7 +69,7 @@ struct Source
         ExcludeDefaultDefines = 0x200,
         IncludeRTagsConfig = 0x400,
         PCHEnabled = 0x800,
-        Default = IncludeDefines|IncludeIncludepaths|FilterBlacklist|IncludeRTagsConfig
+        Default = IncludeDefines|IncludeIncludePaths|FilterBlacklist|IncludeRTagsConfig
     };
 
 
