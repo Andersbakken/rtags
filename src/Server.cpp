@@ -1479,7 +1479,35 @@ void Server::sources(const std::shared_ptr<QueryMessage> &query, const std::shar
         if (project) {
             const uint32_t fileId = Location::fileId(path);
             if (fileId) {
-                const List<Source> sources = project->sources(fileId);
+                List<Source> sources = project->sources(fileId);
+                if (sources.isEmpty() && path.isHeader()) {
+                    Set<uint32_t> seen;
+                    std::function<uint32_t(uint32_t)> findSource = [&findSource, &project, &seen](uint32_t fileId) {
+                        DependencyNode *node = project->dependencyNode(fileId);
+                        uint32_t ret = 0;
+                        if (node) {
+                            for (const auto &dep : node->dependents) {
+                                if (!seen.insert(dep.first))
+                                    continue;
+
+                                if (Location::path(dep.first).isSource()) {
+                                    ret = dep.first;
+                                    break;
+                                } else {
+                                    ret  = findSource(dep.first);
+                                    if (ret)
+                                        break;
+                                }
+                            }
+                        }
+                        return ret;
+                    };
+
+                    const uint32_t source = findSource(fileId);
+                    sources = project->sources(source);
+                    if (sources.size() > 1)
+                        sources.resize(1);
+                }
                 int idx = 0;
                 for (const auto &src : sources) {
                     String out;
