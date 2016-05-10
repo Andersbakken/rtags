@@ -4030,6 +4030,22 @@ set of buffers we are visiting."
   t)
 (add-hook 'find-file-hook 'rtags-find-file-hook)
 
+(defun rtags-insert-include (include)
+  (save-excursion
+    (goto-char (point-min))
+    (if (re-search-forward include nil t)
+        (message "\"%s\" is already included" include)
+      (goto-char (point-min))
+      (let ((head "\n")
+            (tail ""))
+        (if (re-search-forward "^# *include\\>" nil t)
+            (end-of-line)
+          (setq head "")
+          (setq tail "\n")
+          (goto-char (point-min)))
+        (insert head include tail))
+      (message "Added %s" include))))
+
 ;;;###autoload
 (defun rtags-get-include-file-for-symbol ()
   "Insert #include declaration to buffer corresponding to the input symbol."
@@ -4060,20 +4076,30 @@ set of buffers we are visiting."
                               ;; (message "Results:\n%s" (buffer-substring-no-properties (point-min) (point-max)))
                               (completing-read "Choose: " (split-string (buffer-substring-no-properties (point-min) (point-max)) "\n" t) nil t))))))
         (when include
-          (save-excursion
-            (goto-char (point-min))
-            (if (re-search-forward include nil t)
-                (message "\"%s\" is already included" include)
-              (goto-char (point-min))
-              (let ((head "\n")
-                    (tail ""))
-                (if (re-search-forward "^# *include\\>" nil t)
-                    (end-of-line)
-                  (setq head "")
-                  (setq tail "\n")
-                  (goto-char (point-min)))
-                (insert head include tail))
-              (message "Added %s" include))))))))
+          (rtags-insert-include include))))))
+
+(defun rtags-include-file ()
+  (interactive)
+  (let* ((alternatives (let ((buf (or (buffer-file-name) (error "Buffer is not visiting a file"))))
+                         (with-temp-buffer (rtags-call-rc :path buf
+                                                          "--code-complete-at" (concat buf ":1:1:")
+                                                          "--code-complete-includes"
+                                                          "--elisp")
+                                           (goto-char (point-min))
+                                           (point-max)
+                                           (and (looking-at "(")
+                                                (eval (read (buffer-string)))))))
+         (file (and alternatives (completing-read "File: "
+                                                  (let ((all))
+                                                    (mapc (lambda (include)
+                                                            (push (format (format "<%s>" include)) all)
+                                                            (push (format (format "\"%s\"" include)) all))
+                                                          alternatives)
+                                                    all)))))
+    (unless alternatives
+      (error "No valid includes found"))
+    (when file
+      (rtags-insert-include (concat "#include " file "\n")))))
 
 (defun rtags-real-target (info)
   (let* ((kind (cdr (assoc 'kind info)))
