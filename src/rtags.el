@@ -4037,7 +4037,8 @@ set of buffers we are visiting."
         (message "\"%s\" is already included" include)
       (goto-char (point-min))
       (let ((head "\n")
-            (tail ""))
+            (tail "")
+            (include (replace-regexp-in-string "\n$" "" include)))
         (if (re-search-forward "^# *include\\>" nil t)
             (end-of-line)
           (setq head "")
@@ -4047,9 +4048,10 @@ set of buffers we are visiting."
       (message "Added %s" include))))
 
 ;;;###autoload
-(defun rtags-get-include-file-for-symbol ()
-  "Insert #include declaration to buffer corresponding to the input symbol."
-  (interactive)
+(defun rtags-get-include-file-for-symbol (&optional prefix)
+  "Insert #include declaration to buffer corresponding to the input symbol.
+With optional PREFIX insert include at point."
+  (interactive "P")
   (when (or (not (rtags-called-interactively-p)) (rtags-sandbox-id-matches))
     (let* ((token (rtags-current-token))
            (prompt (if token
@@ -4076,10 +4078,14 @@ set of buffers we are visiting."
                               ;; (message "Results:\n%s" (buffer-substring-no-properties (point-min) (point-max)))
                               (completing-read "Choose: " (split-string (buffer-substring-no-properties (point-min) (point-max)) "\n" t) nil t))))))
         (when include
-          (rtags-insert-include include))))))
+          (if prefix
+              (insert include)
+            (rtags-insert-include include)))))))
 
-(defun rtags-include-file ()
-  (interactive)
+(defun rtags-include-file (&optional prefix)
+  "Insert selected or entered include name in buffer.
+With optional PREFIX insert include at point."
+  (interactive "P")
   (let* ((alternatives (let ((buf (or (buffer-file-name) (error "Buffer is not visiting a file"))))
                          (with-temp-buffer (rtags-call-rc :path buf
                                                           "--code-complete-at" (concat buf ":1:1:")
@@ -4099,7 +4105,10 @@ set of buffers we are visiting."
     (unless alternatives
       (error "No valid includes found"))
     (when file
-      (rtags-insert-include (concat "#include " file "\n")))))
+      (let ((include (concat "#include " file)))
+        (if prefix
+            (insert include)
+          (rtags-insert-include include))))))
 
 (defun rtags-real-target (info)
   (let* ((kind (cdr (assoc 'kind info)))
