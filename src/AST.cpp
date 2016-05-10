@@ -57,69 +57,54 @@ static void registerClasses(sel::State &state)
                                                     "end", &AST::SourceRange::end,
                                                     "length", &AST::SourceRange::length,
                                                     "toString", &AST::SourceRange::toString);
-    state["Cursor"].SetClass<AST::Cursor>("location", &AST::Cursor::location,
-                                          "usr", &AST::Cursor::usr,
-                                          "kind", &AST::Cursor::kind,
-                                          "linkage", &AST::Cursor::linkage,
-                                          "availability", &AST::Cursor::availability,
-                                          "language", &AST::Cursor::language,
-                                          "spelling", &AST::Cursor::spelling,
-                                          "displayName", &AST::Cursor::displayName,
-                                          "rawComment", &AST::Cursor::rawComment,
-                                          "briefComment", &AST::Cursor::briefComment,
-                                          "mangledName", &AST::Cursor::mangledName,
-                                          "templateKind", &AST::Cursor::templateKind,
-                                          "range", &AST::Cursor::range,
-                                          "children", &AST::Cursor::children,
-                                          "overriddenCount", &AST::Cursor::overriddenCount,
-                                          "overriddenCursors", &AST::Cursor::overriddenCursors,
-                                          "argumentCount", &AST::Cursor::argumentCount,
-                                          "arguments", &AST::Cursor::arguments,
-                                          "fieldBitWidth", &AST::Cursor::fieldBitWidth,
-                                          "typedefUnderlyingType", &AST::Cursor::typedefUnderlyingType,
-                                          "enumIntegerType", &AST::Cursor::enumIntegerType,
-                                          "enumConstantValue", &AST::Cursor::enumConstantValue,
-                                          "includedFile", &AST::Cursor::includedFile,
-                                          "templateArgumentCount", &AST::Cursor::templateArgumentCount,
-                                          "templateArgumentType", &AST::Cursor::templateArgumentType,
-                                          "templateArgumentValue", &AST::Cursor::templateArgumentValue,
-                                          "templateArgumentKind", &AST::Cursor::templateArgumentKind,
-                                          "referenced", &AST::Cursor::referenced,
-                                          "canonical", &AST::Cursor::canonical,
-                                          "lexicalParent", &AST::Cursor::lexicalParent,
-                                          "semanticParent", &AST::Cursor::semanticParent,
-                                          "definitionCursor", &AST::Cursor::definitionCursor,
-                                          "specializedCursorTemplate", &AST::Cursor::specializedCursorTemplate,
-                                          "childCount", &AST::Cursor::childCount,
-                                          "child", &AST::Cursor::child,
-                                          "isBitField", &AST::Cursor::isBitField,
-                                          "isVirtualBase", &AST::Cursor::isVirtualBase,
-                                          "isStatic", &AST::Cursor::isStatic,
-                                          "isVirtual", &AST::Cursor::isVirtual,
-                                          "isPureVirtual", &AST::Cursor::isPureVirtual,
-                                          "isConst", &AST::Cursor::isConst,
-                                          "isDefinition", &AST::Cursor::isDefinition,
-                                          "isDynamicCall", &AST::Cursor::isDynamicCall);
-
-    std::function<AST::Cursors(const AST::Cursor &, const std::string &, int)> recurse;
-    recurse = [&recurse](const AST::Cursor &cursor, const std::string &kind, int depth = -1) -> AST::Cursors {
-        AST::Cursors ret;
-        if (cursor.kind() == kind)
-            ret.append(cursor);
-        if (const int childCount = cursor.childCount()) {
-            if (depth > 0 || depth == -1) {
-                const int childDepth = depth == -1 ? -1 : depth - 1;
-                for (int i=0; i<childCount; ++i) {
-                    const AST::Cursor &child = cursor.child(i);
-                    ret.append(recurse(child, kind, childDepth));
-                }
-            }
-        }
-
-        return ret;
-    };
-    state["query"] = recurse;
-
+    auto cursor = state["Cursor"];
+    cursor.SetClass<AST::Cursor>("location", &AST::Cursor::location,
+                                 "usr", &AST::Cursor::usr,
+                                 "kind", &AST::Cursor::kind,
+                                 "linkage", &AST::Cursor::linkage,
+                                 "availability", &AST::Cursor::availability,
+                                 "language", &AST::Cursor::language,
+                                 "spelling", &AST::Cursor::spelling,
+                                 "displayName", &AST::Cursor::displayName,
+                                 "rawComment", &AST::Cursor::rawComment,
+                                 "briefComment", &AST::Cursor::briefComment,
+                                 "mangledName", &AST::Cursor::mangledName,
+                                 "templateKind", &AST::Cursor::templateKind,
+                                 "range", &AST::Cursor::range,
+                                 "children", &AST::Cursor::children,
+                                 "query", &AST::Cursor::query,
+                                 "None", &AST::Cursor::none,
+                                 "Add", &AST::Cursor::add,
+                                 "Recurse", &AST::Cursor::recurse,
+                                 "overriddenCount", &AST::Cursor::overriddenCount,
+                                 "overriddenCursors", &AST::Cursor::overriddenCursors,
+                                 "argumentCount", &AST::Cursor::argumentCount,
+                                 "arguments", &AST::Cursor::arguments,
+                                 "fieldBitWidth", &AST::Cursor::fieldBitWidth,
+                                 "typedefUnderlyingType", &AST::Cursor::typedefUnderlyingType,
+                                 "enumIntegerType", &AST::Cursor::enumIntegerType,
+                                 "enumConstantValue", &AST::Cursor::enumConstantValue,
+                                 "includedFile", &AST::Cursor::includedFile,
+                                 "templateArgumentCount", &AST::Cursor::templateArgumentCount,
+                                 "templateArgumentType", &AST::Cursor::templateArgumentType,
+                                 "templateArgumentValue", &AST::Cursor::templateArgumentValue,
+                                 "templateArgumentKind", &AST::Cursor::templateArgumentKind,
+                                 "referenced", &AST::Cursor::referenced,
+                                 "canonical", &AST::Cursor::canonical,
+                                 "lexicalParent", &AST::Cursor::lexicalParent,
+                                 "semanticParent", &AST::Cursor::semanticParent,
+                                 "definitionCursor", &AST::Cursor::definitionCursor,
+                                 "specializedCursorTemplate", &AST::Cursor::specializedCursorTemplate,
+                                 "childCount", &AST::Cursor::childCount,
+                                 "child", &AST::Cursor::child,
+                                 "isBitField", &AST::Cursor::isBitField,
+                                 "isVirtualBase", &AST::Cursor::isVirtualBase,
+                                 "isStatic", &AST::Cursor::isStatic,
+                                 "isVirtual", &AST::Cursor::isVirtual,
+                                 "isPureVirtual", &AST::Cursor::isPureVirtual,
+                                 "isConst", &AST::Cursor::isConst,
+                                 "isDefinition", &AST::Cursor::isDefinition,
+                                 "isDynamicCall", &AST::Cursor::isDynamicCall);
 }
 
 std::shared_ptr<AST> AST::create(const Source &source, const String &sourceCode, CXTranslationUnit unit)

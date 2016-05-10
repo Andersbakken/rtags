@@ -211,20 +211,25 @@ public:
         int childCount() const { return data ? data->children.size() : 0; }
         Cursor child(int idx) const { return data ? Cursor{ data->children.value(idx)->shared_from_this() } : Cursor(); }
         Cursors children() const;
-        Cursors query(const std::string &kind, int depth = -1) const
+        enum QueryResult {
+            None = 0x0,
+            Add = 0x1,
+            Recurse = 0x2
+        };
+        unsigned none() const { return None; };
+        unsigned add() const { return Add; };
+        unsigned recurse() const { return Recurse; };
+        Cursors query(const std::function<unsigned(const Cursor&)> callback, int depth = INT_MAX) const
         {
             Cursors ret;
             if (data) {
-                CXStringScope scope(clang_getCursorKindSpelling(clang_getCursorKind(data->cursor)));
-                if (scope == kind)
+                const unsigned result = callback(*this);
+                if (result & Add)
                     ret.append(*this);
-                if (const int count = childCount()) {
-                    if (depth > 0 || depth == -1) {
-                        const int childDepth = depth == -1 ? -1 : depth - 1;
-                        for (int i=0; i<count; ++i) {
-                            const Cursor &c = child(i);
-                            ret.append(c.query(kind, childDepth));
-                        }
+                if (result & Recurse && depth > 0) {
+                    for (Data *childData : data->children) {
+                        const Cursor child = { childData->shared_from_this() };
+                        ret.append(child.query(callback, depth - 1));
                     }
                 }
             }
