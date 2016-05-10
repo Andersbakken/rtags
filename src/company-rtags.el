@@ -76,25 +76,29 @@ Maximum wait time is: (* company-rtags-max-wait company-async-wait)"
 (defun company-rtags--prefix ()
   (let ((symbol (company-grab-symbol)))
     (if symbol
-        (if (and company-rtags-begin-after-member-access
-                 (save-excursion
-                   (forward-char (- (length symbol)))
-                   (cond ((looking-back "\\." (1- (point))) 'company-rtags-dot)
-                         ((looking-back "\\->" (- (point) 2)) 'company-rtags-arrow)
-                         ((looking-back "\\::" (- (point) 2)) 'company-rtags-colons)
-                         (t nil))))
-            (cons symbol t)
-          symbol)
+        (cond ((and company-rtags-begin-after-member-access
+                    (not (company-in-string-or-comment))
+                    (save-excursion
+                      (forward-char (- (length symbol)))
+                      (cond ((looking-back "\\." (1- (point))))
+                            ((looking-back "\\->" (- (point) 2)))
+                            ((looking-back "\\::" (- (point) 2)))
+                            (t nil))))
+               (cons symbol t))
+              ((looking-back "# *include *[<\"]\\([A-Za-z0-9-_./\\]*\\)") (match-string 1))
+              (t symbol))
       'stop)))
 
 (defun company-rtags--prefix-type ()
-  (let ((symbol (company-grab-symbol)))
+  (let ((symbol (company-grab-symbol))
+        (string-or-comment (company-in-string-or-comment)))
     (when symbol
       (save-excursion
         (forward-char (- (length symbol)))
-        (cond ((looking-back "\\." (1- (point))) 'company-rtags-dot)
-              ((looking-back "\\->" (- (point) 2)) 'company-rtags-arrow)
-              ((looking-back "\\::" (- (point) 2)) 'company-rtags-colons)
+        (cond ((and (not string-or-comment) (looking-back "\\." (1- (point)))) 'company-rtags-dot)
+              ((and (not string-or-comment) (looking-back "\\->" (- (point) 2))) 'company-rtags-arrow)
+              ((and (not string-or-comment) (looking-back "\\::" (- (point) 2))) 'company-rtags-colons)
+              ((looking-back "# *include *\\([<\"]\\)[A-Za-z0-9-_./\\]*") (if (string= (match-string 1) "\"") 'company-rtags-include-quote : 'company-rtags-include))
               (t nil))))))
 
 (defun company-rtags--valid-candidate (prefix cand)
@@ -119,7 +123,22 @@ Maximum wait time is: (* company-rtags-max-wait company-async-wait)"
     text))
 
 (defun company-rtags--candidates (prefix)
-  (when (rtags-has-diagnostics)
+  (if (member rtags-company-last-completion-prefix-type (list 'company-rtags-include 'company-rtags-include-quote))
+      (let* ((file (and (string-match "^\\(.*?\\):\\([0-9]+\\):\\([0-9]+\\):?[ \t]*\\(.*\\)$" rtags-company-last-completion-location)
+                        (match-string 1 rtags-company-last-completion-location)))
+             (alternatives (and file
+                                (with-temp-buffer
+                                  (rtags-call-rc :path file "--code-complete-at" rtags-company-last-completion-location "--code-complete-includes" "--elisp")
+                                  (eval (read (buffer-string))))))
+             (results))
+        (while alternatives
+          (let ((text (car alternatives)))
+            (when (or (not prefix)
+                      (string-prefix-p prefix text))
+              (put-text-property 0 1 'meta-insert (concat text (if (eq rtags-company-last-completion-prefix-type 'company-rtags-include-quote) "\"" ">")) text)
+              (push text results))
+            (setq alternatives (cdr alternatives))))
+          results)
     (let ((updated (rtags-update-completions)))
       (when updated
         (when (numberp updated)
@@ -193,9 +212,8 @@ Maximum wait time is: (* company-rtags-max-wait company-async-wait)"
     (interactive
      (company-begin-backend 'company-rtags))
     (prefix
-     (and (memq major-mode rtags-supported-major-modes)
-          buffer-file-name
-          (not (company-in-string-or-comment))
+     (and buffer-file-name
+          (memq major-mode rtags-supported-major-modes)
           (rtags-is-indexed)
           (company-rtags--prefix)))
     (candidates
@@ -205,20 +223,27 @@ Maximum wait time is: (* company-rtags-max-wait company-async-wait)"
          (setq rtags-company-last-completion-prefix-type (company-rtags--prefix-type))
          (setq rtags-company-last-completion-location (rtags-current-location pos t))
          (rtags-company-completions-calculate-maxwidth)
-         (if (not company-rtags-use-async)
+         (if (or (member rtags-company-last-completion-prefix-type (list 'company-rtags-include 'company-rtags-include-quote))
+                 (not company-rtags-use-async))
              (company-rtags--candidates arg)
            (rtags-prepare-completions)
            (cons :async 'rtags-company-update-completions)))))
     (meta
      (company-rtags--meta arg nil))
-    (sorted t)
+    (sorted (not (member rtags-company-last-completion-prefix-type (list 'company-rtags-include 'company-rtags-include-quote))))
     (annotation
-     (company-rtags--annotation arg nil))
+     (and (not (member rtags-company-last-completion-prefix-type (list 'company-rtags-include 'company-rtags-include-quote)))
+          (company-rtags--annotation arg nil)))
     (post-completion
-     (let ((anno (company-rtags--annotation arg t)))
-       (when (and company-rtags-insert-arguments anno)
-         (insert anno)
-         (company-template-c-like-templatify anno))))))
+     (cond ((eq rtags-company-last-completion-prefix-type 'company-rtags-include)
+            (insert ">"))
+           ((eq rtags-company-last-completion-prefix-type 'company-rtags-include-quote)
+            (insert "\""))
+           (t
+            (let ((anno (company-rtags--annotation arg t)))
+              (when (and company-rtags-insert-arguments anno)
+                (insert anno)
+                (company-template-c-like-templatify anno))))))))
 
 (provide 'company-rtags)
 

@@ -226,6 +226,7 @@ public:
     void diagnoseAll();
     uint32_t fileMapOptions() const;
     void fixPCH(Source &source);
+    void includeCompletions(Flags<QueryMessage::Flag> flags, const std::shared_ptr<Connection> &conn, Source &&source) const;
 private:
     void reloadCompilationDatabases();
     void removeSource(Sources::iterator it);

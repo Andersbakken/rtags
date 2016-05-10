@@ -1904,6 +1904,11 @@ void Server::codeCompleteAt(const std::shared_ptr<QueryMessage> &query, const st
             return;
         }
     }
+    if (query->flags() & QueryMessage::CodeCompleteIncludes) {
+        project->includeCompletions(query->flags(), conn, std::move(source));
+        conn->finish();
+        return;
+    }
     if (!mCompletionThread) {
         mCompletionThread = new CompletionThread(mOptions.completionCacheSize);
         mCompletionThread->start();

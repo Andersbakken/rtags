@@ -167,6 +167,7 @@ struct Option opts[] = {
     { RClient::Wait, "wait", 0, no_argument, "Wait for reindexing to finish." },
     { RClient::Autotest, "autotest", 0, no_argument, "Turn on behaviors appropriate for running autotests." },
     { RClient::CodeCompleteIncludeMacros, "code-complete-include-macros", 0, no_argument, "Include macros in code completion results." },
+    { RClient::CodeCompleteIncludes, "code-complete-includes", 0, no_argument, "Give includes in completion results." },
     { RClient::NoSpellCheckinging, "no-spell-checking", 0, no_argument, "Don't produce spell check info in diagnostics." },
 #ifdef RTAGS_HAS_LUA
     { RClient::VisitASTScript, "visit-ast-script", 0, required_argument, "Use this script visit AST (@file.js|sourcecode)." },
@@ -622,6 +623,9 @@ RClient::ParseStatus RClient::parse(int &argc, char **argv)
             break;
         case CodeCompleteIncludeMacros:
             mQueryFlags |= QueryMessage::CodeCompleteIncludeMacros;
+            break;
+        case CodeCompleteIncludes:
+            mQueryFlags |= QueryMessage::CodeCompleteIncludes;
             break;
         case Autotest:
             mFlags |= Flag_Autotest;

@@ -114,7 +114,8 @@ public:
         Wait = (1ull << 35),
         CodeCompleteIncludeMacros = (1ull << 36),
         XMLCompletions = (1ull << 37),
-        NoSpellChecking = (1ull << 38)
+        NoSpellChecking = (1ull << 38),
+        CodeCompleteIncludes = (1ull << 39)
     };
 
     QueryMessage(Type type = Invalid);

@@ -21,6 +21,7 @@
 
 #include "Diagnostic.h"
 #include "FileManager.h"
+#include "CompilerManager.h"
 #include "IndexDataMessage.h"
 #include "JobScheduler.h"
 #include "LogOutputMessage.h"
@@ -2360,3 +2361,47 @@ void Project::fixPCH(Source &source)
     }
 }
 
+void Project::includeCompletions(Flags<QueryMessage::Flag> flags, const std::shared_ptr<Connection> &conn, Source &&source) const
+{
+    CompilerManager::applyToSource(source, CompilerManager::IncludeIncludePaths);
+    source.includePaths.sort();
+    Set<Path> seen;
+    if (flags & QueryMessage::Elisp) {
+        conn->write("(list");
+    }
+    for (const Source::Include &inc : source.includePaths) {
+        Path root;
+        switch (inc.type) {
+        case Source::Include::Type_Framework:
+        case Source::Include::Type_SystemFramework:
+            root = inc.path.ensureTrailingSlash() + "Headers/";
+            break;
+        default:
+            root = inc.path.ensureTrailingSlash();
+            break;
+        }
+        if (!seen.insert(root))
+            continue;
+        int depth = 0;
+        enum { MaxDepth = 2 }; // configurable?
+        std::function<Path::VisitResult(const Path &)> visitor = [&depth, flags, &conn, &visitor, &root](const Path &path) {
+            if (path.isHeader()) {
+                const String p = path.mid(root.size());
+                if (flags & QueryMessage::Elisp) {
+                    conn->write<1024>(" \"%s\"", p.constData());
+                } else {
+                    conn->write(p);
+                }
+            } else if (depth < MaxDepth && path.isDir()) {
+                ++depth;
+                path.visit(visitor);
+                --depth;
+            }
+
+            return Path::Continue;
+        };
+        root.visit(visitor);
+    }
+    if (flags & QueryMessage::Elisp)
+        conn->write(")");
+}
