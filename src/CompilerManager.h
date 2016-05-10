@@ -18,13 +18,21 @@
 
 #include "rct/List.h"
 #include "rct/Path.h"
+#include "rct/Serializer.h"
+#include "rct/Flags.h"
 
 struct Source;
 
 namespace CompilerManager
 {
 List<Path> compilers();
-void applyToSource(Source &source, bool defines, bool incPaths);
+enum Flag {
+    None = 0x0,
+    IncludeDefines = 0x1,
+    IncludeIncludePaths = 0x2
+};
+RCT_FLAGS(Flag);
+void applyToSource(Source &source, Flags<Flag> flags);
 }
 
 #endif

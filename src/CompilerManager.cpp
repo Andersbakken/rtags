@@ -49,7 +49,7 @@ List<Path> compilers()
     return sCompilers.keys();
 }
 
-void applyToSource(Source &source, bool defines, bool incPaths)
+void applyToSource(Source &source, Flags<CompilerManager::Flag> flags)
 {
     std::lock_guard<std::mutex> lock(sMutex);
     Path cpath = source.compiler();
@@ -180,17 +180,16 @@ void applyToSource(Source &source, bool defines, bool incPaths)
         debug() << "StdInc++: " << compiler.stdincxxPaths << "\nBuiltin: " << compiler.builtinPaths;
         debug() << "[CompilerManager] returning.\n";
     }
-    if (defines)
+    if (flags & IncludeDefines)
         source.defines << compiler.defines;
-    if (incPaths) {
+    if (flags & IncludeIncludePaths) {
         if (!source.arguments.contains("-nostdinc")) {
             source.includePaths << compiler.includePaths;
             if (!source.arguments.contains("-nostdinc++"))
                 source.includePaths << compiler.stdincxxPaths;
             if (!source.arguments.contains("-nobuiltininc"))
                 source.includePaths << compiler.builtinPaths;
-        }
-        else if (!strncmp("clang", cpath.fileName(), 5)) {
+        } else if (!strncmp("clang", cpath.fileName(), 5)) {
             // Module.map causes errors when -nostdinc is used, as it
             // can't find some mappings to compiler provided headers
             source.arguments.append("-fno-modules");

@@ -93,8 +93,9 @@ String IndexerJob::encode() const
             }
         }
 
-        if (options.options & Server::EnableCompilerManager)
-            CompilerManager::applyToSource(copy, false, true);
+        if (options.options & Server::EnableCompilerManager) {
+            CompilerManager::applyToSource(copy, CompilerManager::IncludeIncludePaths);
+        }
 
         for (const String &blocked : options.blockedArguments) {
             if (blocked.endsWith("=")) {

@@ -235,7 +235,7 @@ int StatusJob::execute()
             source.compilerId = Location::insertFile(compiler);
             source.defines.clear();
             source.includePaths.clear();
-            CompilerManager::applyToSource(source, true, true);
+            CompilerManager::applyToSource(source, CompilerManager::IncludeIncludePaths|CompilerManager::IncludeDefines);
             write(compiler);
             write("  Defines:");
             for (const auto &it : source.defines)
