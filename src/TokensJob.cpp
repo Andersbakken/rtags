@@ -93,7 +93,7 @@ int TokensJob::execute()
     }
 
     while (i < count) {
-        const Token token = std::move(map->valueAt(i++));
+        const Token token = map->valueAt(i++);
         if (token.offset > mTo)
             break;
         if (!writeToken(token))
