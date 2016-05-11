@@ -115,7 +115,6 @@ set(RTAGS_SOURCES
 
 if (LUA_FOUND)
     list(APPEND RTAGS_SOURCES AST.cpp)
-    set_source_files_properties(AST PROPERTIES COMPILE_FLAGS "-Wno-cast-qual")
 endif ()
 
 add_library(rtags STATIC ${RTAGS_SOURCES})
@@ -142,9 +141,9 @@ if (LUA_FOUND)
     include_directories(${LUA_INCLUDE_DIR})
     add_definitions(-DRTAGS_HAS_LUA)
     if (APPLE)
-        set_source_files_properties(AST.cpp PROPERTIES COMPILE_FLAGS "-Wno-unused-parameter -Wno-unused-variable -ftemplate-depth=2000")
+        set_source_files_properties(AST.cpp PROPERTIES COMPILE_FLAGS "-Wno-unused-parameter -Wno-unused-variable -ftemplate-depth=2000 -Wno-cast-qual")
     elseif (UNIX)
-        set_source_files_properties(AST.cpp PROPERTIES COMPILE_FLAGS "-Wno-unused-parameter -Wno-unused-variable -Wno-unused-but-set-parameter -ftemplate-depth=2000")
+        set_source_files_properties(AST.cpp PROPERTIES COMPILE_FLAGS "-Wno-unused-parameter -Wno-unused-variable -Wno-unused-but-set-parameter -ftemplate-depth=2000 -Wno-cast-qual")
     endif ()
 endif ()
 
