@@ -115,6 +115,7 @@ set(RTAGS_SOURCES
 
 if (LUA_FOUND)
     list(APPEND RTAGS_SOURCES AST.cpp)
+    set_source_files_properties(AST PROPERTIES COMPILE_FLAGS "-Wno-cast-qual")
 endif ()
 
 add_library(rtags STATIC ${RTAGS_SOURCES})
