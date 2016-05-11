@@ -76,7 +76,8 @@ Maximum wait time is: (* company-rtags-max-wait company-async-wait)"
 (defun company-rtags--prefix ()
   (let ((symbol (company-grab-symbol)))
     (if symbol
-        (cond ((and company-rtags-begin-after-member-access
+        (cond ((looking-back "# *include *[<\"]\\([A-Za-z0-9-_./\\]*\\)" (point-at-bol)) (match-string 1))
+              ((and company-rtags-begin-after-member-access
                     (not (company-in-string-or-comment))
                     (save-excursion
                       (forward-char (- (length symbol)))
@@ -85,7 +86,6 @@ Maximum wait time is: (* company-rtags-max-wait company-async-wait)"
                             ((looking-back "\\::" (- (point) 2)))
                             (t nil))))
                (cons symbol t))
-              ((looking-back "# *include *[<\"]\\([A-Za-z0-9-_./\\]*\\)" (point-at-bol)) (match-string 1))
               (t symbol))
       'stop)))
 
@@ -95,10 +95,10 @@ Maximum wait time is: (* company-rtags-max-wait company-async-wait)"
     (when symbol
       (save-excursion
         (forward-char (- (length symbol)))
-        (cond ((and (not string-or-comment) (looking-back "\\." (1- (point)))) 'company-rtags-dot)
+        (cond ((looking-back "# *include *\\([<\"]\\)[A-Za-z0-9-_./\\]*" (point-at-bol)) (if (string= (match-string 1) "\"") 'company-rtags-include-quote : 'company-rtags-include))
+              ((and (not string-or-comment) (looking-back "\\." (1- (point)))) 'company-rtags-dot)
               ((and (not string-or-comment) (looking-back "\\->" (- (point) 2))) 'company-rtags-arrow)
               ((and (not string-or-comment) (looking-back "\\::" (- (point) 2))) 'company-rtags-colons)
-              ((looking-back "# *include *\\([<\"]\\)[A-Za-z0-9-_./\\]*" (point-at-bol)) (if (string= (match-string 1) "\"") 'company-rtags-include-quote : 'company-rtags-include))
               (t nil))))))
 
 (defun company-rtags--valid-candidate (prefix cand)
