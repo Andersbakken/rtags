@@ -2383,8 +2383,10 @@ void Project::includeCompletions(Flags<QueryMessage::Flag> flags, const std::sha
         if (!seen.insert(root))
             continue;
         int depth = 0;
-        enum { MaxDepth = 2 }; // configurable?
-        std::function<Path::VisitResult(const Path &)> visitor = [&depth, flags, &conn, &visitor, &root](const Path &path) {
+        int maxDepth = Server::instance()->options().maxIncludeCompletionDepth;
+        if (!maxDepth)
+            maxDepth = INT_MAX;
+        std::function<Path::VisitResult(const Path &)> visitor = [&depth, flags, &conn, &visitor, &root, maxDepth](const Path &path) {
             if (path.isHeader()) {
                 const String p = path.mid(root.size());
                 if (flags & QueryMessage::Elisp) {
@@ -2392,7 +2394,7 @@ void Project::includeCompletions(Flags<QueryMessage::Flag> flags, const std::sha
                 } else {
                     conn->write(p);
                 }
-            } else if (depth < MaxDepth && path.isDir()) {
+            } else if (depth < maxDepth && path.isDir()) {
                 ++depth;
                 path.visit(visitor);
                 --depth;

@@ -81,6 +81,7 @@ static void signalHandler(int signal)
 #define DEFAULT_RP_CONNECT_TIMEOUT 0 // won't time out
 #define DEFAULT_RP_CONNECT_ATTEMPTS 3
 #define DEFAULT_COMPLETION_CACHE_SIZE 10
+#define DEFAULT_MAX_INCLUDE_COMPLETION_DEPTH 3
 #define DEFAULT_MAX_CRASH_COUNT 5
 #define XSTR(s) #s
 #define STR(s) XSTR(s)
@@ -120,6 +121,7 @@ static void usage(FILE *f)
             "  --test-timeout|-z [arg]                    Timeout for test to complete.\n"
             "  --completion-cache-size|-i [arg]           Number of translation units to cache (default " STR(DEFAULT_COMPLETION_CACHE_SIZE) ").\n"
             "  --completion-no-filter                     Don't filter private members and destructors from completions.\n"
+            "  --max-include-completion-depth [arg]       Max recursion depth for header completion (default " STR(DEFAULT_MAX_INCLUDE_COMPLETION_DEPTH) ").\n"
             "  --config|-c [arg]                          Use this file instead of ~/.rdmrc.\n"
             "  --data-dir|-d [arg]                        Use this directory to store persistent data (default ~/.rtags).\n"
             "  --daemon                                   Run as daemon (detach from terminal).\n"
@@ -280,6 +282,7 @@ int main(int argc, char** argv)
         { "max-crash-count", required_argument, 0, 'K' },
         { "completion-cache-size", required_argument, 0, 'i' },
         { "completion-no-filter", no_argument, 0, 8 },
+        { "max-include-completion-depth", required_argument, 0, 21 },
         { "extra-compilers", required_argument, 0, 'U' },
         { "allow-Wpedantic", no_argument, 0, 'P' },
         { "enable-compiler-manager", no_argument, 0, 'R' },
@@ -423,6 +426,7 @@ int main(int argc, char** argv)
     serverOpts.options = Server::Wall|Server::SpellChecking;
     serverOpts.maxCrashCount = DEFAULT_MAX_CRASH_COUNT;
     serverOpts.completionCacheSize = DEFAULT_COMPLETION_CACHE_SIZE;
+    serverOpts.maxIncludeCompletionDepth = DEFAULT_MAX_INCLUDE_COMPLETION_DEPTH;
     serverOpts.rp = defaultRP();
     strcpy(crashDumpFilePath, "crash.dump");
 #ifdef OS_FreeBSD
@@ -690,6 +694,9 @@ int main(int argc, char** argv)
                 fprintf(stderr, "Invalid argument to -i %s\n", optarg);
                 return 1;
             }
+            break;
+        case 21:
+            serverOpts.maxIncludeCompletionDepth = strtoul(optarg, 0, 10);
             break;
         case 'T':
             serverOpts.rpIndexDataMessageTimeout = atoi(optarg);
