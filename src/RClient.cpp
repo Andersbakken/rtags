@@ -115,6 +115,7 @@ struct Option opts[] = {
 #ifdef RTAGS_HAS_LUA
     { RClient::VisitAST, "visit-ast", 0, required_argument, "Visit AST of a source file." },
 #endif
+    { RClient::Tokens, "tokens", 0, required_argument, "Dump tokens for file. --tokens file.cpp:123-321 for range." },
     { RClient::None, 0, 0, 0, "" },
     { RClient::None, 0, 0, 0, "Command flags:" },
     { RClient::StripParen, "strip-paren", 'p', no_argument, "Strip parens in various contexts." },
@@ -140,7 +141,7 @@ struct Option opts[] = {
     { RClient::Timeout, "timeout", 'y', required_argument, "Max time in ms to wait for job to finish (default no timeout)." },
     { RClient::FindVirtuals, "find-virtuals", 'k', no_argument, "Use in combinations with -R or -r to show other implementations of this function." },
     { RClient::FindFilePreferExact, "find-file-prefer-exact", 'A', no_argument, "Use to make --find-file prefer exact matches over partial matches." },
-    { RClient::SymbolInfoIncludeParents, "symbol-info-include-parents", 0, no_argument, "Use to make --symbol-info include parent symbols." },
+    { RClient::SymbolInfoExcludeParents, "symbol-info-exclude-parents", 0, no_argument, "Use to make --symbol-info include parent symbols." },
     { RClient::SymbolInfoExcludeTargets, "symbol-info-exclude-targets", 0, no_argument, "Use to make --symbol-info exclude target symbols." },
     { RClient::SymbolInfoExcludeReferences, "symbol-info-exclude-references", 0, no_argument, "Use to make --symbol-info exclude reference symbols." },
     { RClient::CursorKind, "cursor-kind", 0, no_argument, "Include cursor kind in --find-symbols output." },
@@ -172,6 +173,7 @@ struct Option opts[] = {
 #ifdef RTAGS_HAS_LUA
     { RClient::VisitASTScript, "visit-ast-script", 0, required_argument, "Use this script visit AST (@file.js|sourcecode)." },
 #endif
+    { RClient::TokensIncludeSymbols, "tokens-include-symbols", 0, no_argument, "Include symbols for tokens." },
     { RClient::None, 0, 0, 0, 0 }
 };
 
@@ -660,8 +662,8 @@ RClient::ParseStatus RClient::parse(int &argc, char **argv)
         case FindFilePreferExact:
             mQueryFlags |= QueryMessage::FindFilePreferExact;
             break;
-        case SymbolInfoIncludeParents:
-            mQueryFlags |= QueryMessage::SymbolInfoIncludeParents;
+        case SymbolInfoExcludeParents:
+            mQueryFlags |= QueryMessage::SymbolInfoExcludeParents;
             break;
         case SymbolInfoExcludeTargets:
             mQueryFlags |= QueryMessage::SymbolInfoExcludeTargets;
@@ -1198,6 +1200,38 @@ RClient::ParseStatus RClient::parse(int &argc, char **argv)
             s << p << args;
             addQuery(opt->option == DumpFileMaps ? QueryMessage::DumpFileMaps : QueryMessage::Dependencies, encoded);
             break; }
+        case Tokens: {
+            char path[PATH_MAX];
+            uint32_t from, to;
+            if (sscanf(optarg, "%[^':']:%u-%u", path, &from, &to) != 3) {
+                if (sscanf(optarg, "%[^':']:%u-", path, &from) == 2) {
+                    to = UINT_MAX;
+                } else if (sscanf(optarg, "%[^':']:-%u", path, &to) == 2) {
+                    from = 0;
+                } else {
+                    strncpy(path, optarg, strlen(optarg));
+                    from = 0;
+                    to = UINT_MAX;
+                }
+            }
+
+            const Path p = Path::resolved(path);
+            if (!p.isFile()) {
+                fprintf(stderr, "%s is not a file\n", optarg);
+                return Parse_Error;
+            }
+            if (from >= to) {
+                fprintf(stderr, "Invalid range: %s\n", optarg);
+                return Parse_Error;
+            }
+            String data;
+            Serializer s(data);
+            s << p << from << to;
+            addQuery(QueryMessage::Tokens, data);
+            break; }
+        case TokensIncludeSymbols:
+            mQueryFlags |= QueryMessage::TokensIncludeSymbols;
+            break;
         case PreprocessFile: {
             Path p = optarg;
             p.resolve(Path::MakeAbsolute);

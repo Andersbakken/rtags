@@ -60,7 +60,7 @@ int FollowLocationJob::execute()
     }
 
     const auto target = project()->findTarget(symbol);
-    if (target.isNull())
+    if (target.location.isNull())
         return 1;
 
     if (symbol.usr == target.usr) {

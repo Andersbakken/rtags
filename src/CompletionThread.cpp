@@ -19,7 +19,6 @@
 #include "RTags.h"
 #include "RTagsLogOutput.h"
 #include "Server.h"
-#include "Token.h"
 
 CompletionThread::CompletionThread(int cacheSize)
     : mShutdown(false), mCacheSize(cacheSize), mDump(0), mIndex(0)

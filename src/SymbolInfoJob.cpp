@@ -32,6 +32,8 @@ int SymbolInfoJob::execute()
         toStringFlags |= Symbol::IgnoreTargets;
     if (queryFlags() & QueryMessage::SymbolInfoExcludeReferences)
         toStringFlags |= Symbol::IgnoreReferences;
+    if (queryFlags() & QueryMessage::SymbolInfoExcludeParents)
+        toStringFlags |= Symbol::IgnoreParents;
 
     int ret = 1;
     int idx = -1;
@@ -45,7 +47,7 @@ int SymbolInfoJob::execute()
         }
         ret = 0;
     }
-    if (queryFlags() & QueryMessage::SymbolInfoIncludeParents) {
+    if (!(queryFlags() & QueryMessage::SymbolInfoExcludeParents)) {
         auto syms = project()->openSymbols(location.fileId());
         if (syms) {
             idx = syms->lowerBound(location);

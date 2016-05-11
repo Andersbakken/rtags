@@ -17,6 +17,7 @@
 #define ClangIndexer_h
 
 #include <sys/stat.h>
+#include "Token.h"
 
 #include "IndexDataMessage.h"
 #include "rct/Hash.h"
@@ -43,6 +44,7 @@ private:
     bool diagnose();
     bool visit();
     bool parse();
+    void tokenize(CXFile file, uint32_t fileId, const Path &path);
     bool writeFiles(const Path &root, String &error);
 
     void addFileSymbol(uint32_t file);
@@ -134,6 +136,7 @@ private:
         Map<Location, Map<String, uint16_t> > targets;
         Map<String, Set<Location> > usrs;
         Map<String, Set<Location> > symbolNames;
+        Map<uint32_t, Token> tokens;
     };
 
     std::shared_ptr<Unit> unit(uint32_t fileId)

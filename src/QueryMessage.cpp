@@ -94,8 +94,8 @@ QueryMessage::Flag QueryMessage::flagFromString(const String &string)
         return AbsolutePath;
     } else if (string == "find-file-prefer-exact") {
         return FindFilePreferExact;
-    } else if (string == "symbol-info-include-parents") {
-        return SymbolInfoIncludeParents;
+    } else if (string == "symbol-info-exclude-parents") {
+        return SymbolInfoExcludeParents;
     } else if (string == "symbol-info-exclude-targets") {
         return SymbolInfoExcludeTargets;
     } else if (string == "symbol-info-exclude-references") {

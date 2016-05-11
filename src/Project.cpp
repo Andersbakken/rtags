@@ -2132,6 +2132,15 @@ void Project::dumpFileMaps(const std::shared_ptr<QueryMessage> &msg, const std::
         }
     }
 
+    if (args.empty() || args.contains("tokens")) {
+        if (auto tbl = openTokens(fileId, &err)) {
+            conn->write(formatTable("Tokens:", tbl, msg->terminalWidth()));
+        } else {
+            conn->write(err);
+        }
+    }
+
+
     endScope();
 }
 

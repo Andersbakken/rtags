@@ -54,7 +54,7 @@ namespace RTags {
 enum {
     MajorVersion = 2,
     MinorVersion = 0,
-    DatabaseVersion = 90,
+    DatabaseVersion = 91,
     SourcesFileVersion = 5
 };
 
@@ -168,6 +168,18 @@ CXCursor findChild(CXCursor parent, CXCursorKind kind);
 CXCursor findChild(CXCursor parent, const String &name);
 List<CXCursor> findChain(CXCursor parent, const List<CXCursorKind> &kinds);
 List<CXCursor> children(CXCursor parent, const Filter &in = Filter(), const Filter &out = Filter());
+
+inline const char *tokenKindSpelling(CXTokenKind kind)
+{
+    switch (kind) {
+    case CXToken_Punctuation: return "Punctuation";
+    case CXToken_Keyword: return "Keyword";
+    case CXToken_Identifier: return "Identifier";
+    case CXToken_Literal: return "Literal";
+    case CXToken_Comment: return "Comment";
+    }
+    return 0;
+}
 
 template <typename T>
 inline bool startsWith(const List<T> &list, const T &str)
@@ -872,6 +884,12 @@ inline Log operator<<(Log dbg, CXTypeLayoutError err)
     case CXTypeLayoutError_NotConstantSize: dbg << "NotConstantSize"; break;
     case CXTypeLayoutError_InvalidFieldName: dbg << "InvalidFieldName"; break;
     }
+    return dbg;
+}
+
+inline Log operator<<(Log dbg, CXTokenKind kind)
+{
+    dbg << RTags::tokenKindSpelling(kind);
     return dbg;
 }
 

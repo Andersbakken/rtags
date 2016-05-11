@@ -14,6 +14,7 @@
    along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 
 #include "Server.h"
+#include "TokensJob.h"
 
 #include <arpa/inet.h>
 #include <clang/Basic/Version.h>
@@ -687,6 +688,9 @@ void Server::handleQueryMessage(const std::shared_ptr<QueryMessage> &message, co
     case QueryMessage::DebugLocations:
         debugLocations(message, conn);
         break;
+    case QueryMessage::Tokens:
+        tokens(message, conn);
+        break;
     }
 }
 
@@ -848,6 +852,7 @@ void Server::dumpFileMaps(const std::shared_ptr<QueryMessage> &query, const std:
         for (const auto &p : mProjects) {
             if (p.second->isIndexed(fileId)) {
                 project = p.second;
+                setCurrentProject(project);
                 break;
             }
         }
@@ -996,6 +1001,7 @@ void Server::dependencies(const std::shared_ptr<QueryMessage> &query, const std:
             for (const auto &p : mProjects) {
                 if (p.second->isIndexed(fileId)) {
                     project = p.second;
+                    setCurrentProject(project);
                     break;
                 }
             }
@@ -1689,6 +1695,42 @@ void Server::debugLocations(const std::shared_ptr<QueryMessage> &query, const st
         conn->write<1024>("Debug locations:\n%s", String::join(mOptions.debugLocations, '\n').constData());
     }
     conn->finish();
+}
+
+
+void Server::tokens(const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Connection> &conn)
+{
+    Path path;
+    uint32_t from, to;
+    Deserializer deserializer(query->query());
+    deserializer >> path >> from >> to;
+    const uint32_t fileId = Location::fileId(path);
+    if (!fileId) {
+        conn->write<256>("%s is not indexed", query->query().constData());
+        conn->finish();
+        return;
+    }
+
+    std::shared_ptr<Project> project;
+    if (currentProject() && currentProject()->isIndexed(fileId)) {
+        project = currentProject();
+    } else {
+        for (const auto &p : mProjects) {
+            if (p.second->isIndexed(fileId)) {
+                project = p.second;
+                setCurrentProject(project);
+                break;
+            }
+        }
+    }
+    if (!project) {
+        conn->write<256>("%s is not indexed", query->query().constData());
+        conn->finish();
+        return;
+    }
+
+    TokensJob job(query, fileId, from, to, project);
+    conn->finish(job.run(conn));
 }
 
 void Server::handleVisitFileMessage(const std::shared_ptr<VisitFileMessage> &message, const std::shared_ptr<Connection> &conn)

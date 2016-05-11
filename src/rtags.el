@@ -1231,7 +1231,7 @@ Uses `completing-read' to ask for the project."
                        (unless rtags-print-filenames-relative "-K")
                        (unless include-targets "--symbol-info-exclude-targets")
                        (unless include-targets "--symbol-info-exclude-references")
-                       (when include-parents "--symbol-info-include-parents"))
+                       (unless include-parents "--symbol-info-exclude-parents"))
         (when save-to-kill-ring
           (copy-region-as-kill (point-min) (point-max)))
         (when (called-interactively-p 'any)
@@ -4274,6 +4274,35 @@ the class.
         (set-process-query-on-exit-flag proc nil)
         (set-process-filter proc 'rtags-check-includes-filter)
         (set-process-sentinel proc 'rtags-check-includes-sentinel)))))
+
+;;;###autoload
+(defun rtags-tokens (&optional from to)
+  (interactive)
+  (when (and (not from)
+             (not to)
+             mark-active)
+    (setq from (region-beginning))
+    (setq to (region-end)))
+  (when (and from to)
+    (let ((min (min from to))
+          (max (max from to)))
+      (setq from min)
+      (setq to max)))
+  (let ((path (buffer-file-name)))
+    (unless path
+      (error "rtags-tokens must be run from a buffer visiting a file"))
+    (with-temp-buffer
+      (rtags-call-rc :path path
+                     "--elisp"
+                     "--tokens-include-symbols"
+                     "--symbol-info-exclude-targets"
+                     "--symbol-info-exclude-references"
+                     "--tokens" (cond ((and from to) (format "%s:%d-%d" path from to))
+                                      (from (format "%s:%d-" path from))
+                                      (to (format "%s:-%d" path to))
+                                      (t path)))
+      (and (looking-at "(")
+           (eval (read (buffer-string)))))))
 
 ;;;###autoload
 (defun rtags-create-doxygen-comment ()

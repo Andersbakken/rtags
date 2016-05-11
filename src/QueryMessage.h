@@ -68,10 +68,11 @@ public:
         Sources,
         Status,
         Suspend,
-        SymbolInfo
+        SymbolInfo,
 #ifdef RTAGS_HAS_LUA
-        , VisitAST
+        VisitAST,
 #endif
+        Tokens
     };
 
     enum Flag {
@@ -89,7 +90,7 @@ public:
         Silent = (1ull << 10),
         AbsolutePath = (1ull << 11),
         FindFilePreferExact = (1ull << 12),
-        SymbolInfoIncludeParents = (1ull << 13),
+        SymbolInfoExcludeParents = (1ull << 13),
         SymbolInfoExcludeTargets = (1ull << 14),
         SymbolInfoExcludeReferences = (1ull << 15),
         DeclarationOnly = (1ull << 16),
@@ -115,7 +116,8 @@ public:
         CodeCompleteIncludeMacros = (1ull << 36),
         XMLCompletions = (1ull << 37),
         NoSpellChecking = (1ull << 38),
-        CodeCompleteIncludes = (1ull << 39)
+        CodeCompleteIncludes = (1ull << 39),
+        TokensIncludeSymbols = (1ull << 40)
     };
 
     QueryMessage(Type type = Invalid);

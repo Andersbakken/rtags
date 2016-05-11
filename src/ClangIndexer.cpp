@@ -1743,7 +1743,8 @@ bool ClangIndexer::writeFiles(const Path &root, String &error)
                       << unit.second->targets.size()
                       << unit.second->usrs.size()
                       << unit.second->symbolNames.size()
-                      << unit.second->symbols.size();
+                      << unit.second->symbols.size()
+                      << unit.second->tokens.size();
             continue;
         }
         assert(mIndexDataMessage.files().value(unit.first) & IndexDataMessage::Visited);
@@ -1770,6 +1771,10 @@ bool ClangIndexer::writeFiles(const Path &root, String &error)
             return false;
         }
         if (!FileMap<String, Set<Location> >::write(unitRoot + "/symnames", unit.second->symbolNames, fileMapOpts)) {
+            error = "Failed to write symbolNames";
+            return false;
+        }
+        if (!FileMap<uint32_t, Token>::write(unitRoot + "/tokens", unit.second->tokens, fileMapOpts)) {
             error = "Failed to write symbolNames";
             return false;
         }
@@ -1977,9 +1982,11 @@ bool ClangIndexer::diagnose()
     for (const auto &it : mIndexDataMessage.files()) {
         if (it.second & IndexDataMessage::Visited) {
             const Location loc(it.first, 0, 0);
-#if CINDEX_VERSION >= CINDEX_VERSION_ENCODE(0, 21)
-            CXFile file = clang_getFile(mClangUnit, loc.path().constData());
+            const Path path = loc.path();
+            CXFile file = clang_getFile(mClangUnit, path.constData());
+            bool found = false;
             if (file) {
+#if CINDEX_VERSION >= CINDEX_VERSION_ENCODE(0, 21)
                 if (CXSourceRangeList *skipped = clang_getSkippedRanges(mClangUnit, file)) {
                     const unsigned int count = skipped->count;
                     for (unsigned int i=0; i<count; ++i) {
@@ -1999,17 +2006,49 @@ bool ClangIndexer::diagnose()
 
                     clang_disposeSourceRangeList(skipped);
                     if (count)
-                        continue;
+                        found = true;
                 }
-            }
 #endif
-            const Map<Location, Diagnostic>::const_iterator x = mIndexDataMessage.diagnostics().lower_bound(loc);
-            if (x == mIndexDataMessage.diagnostics().end() || x->first.fileId() != it.first) {
-                mIndexDataMessage.diagnostics()[loc] = Diagnostic();
+                tokenize(file, it.first, path);
+            }
+            if (!found) {
+                const Map<Location, Diagnostic>::const_iterator x = mIndexDataMessage.diagnostics().lower_bound(loc);
+                if (x == mIndexDataMessage.diagnostics().end() || x->first.fileId() != it.first) {
+                    mIndexDataMessage.diagnostics()[loc] = Diagnostic();
+                }
             }
         }
     }
     return true;
+}
+
+void ClangIndexer::tokenize(CXFile file, uint32_t fileId, const Path &path)
+{
+    StopWatch sw;
+    const CXSourceLocation startLoc = clang_getLocationForOffset(mClangUnit, file, 0);
+    const CXSourceLocation endLoc = clang_getLocationForOffset(mClangUnit, file, path.fileSize());
+
+    CXSourceRange range = clang_getRange(startLoc, endLoc);
+    CXToken *tokens = 0;
+    unsigned numTokens = 0;
+    auto &map = unit(fileId)->tokens;
+    clang_tokenize(mClangUnit, range, &tokens, &numTokens);
+    for (unsigned i=0; i<numTokens; ++i) {
+        const CXSourceRange range = clang_getTokenExtent(mClangUnit, tokens[i]);
+        unsigned offset, endOffset;
+        const CXSourceLocation start = clang_getRangeStart(range);
+        clang_getSpellingLocation(start, 0, 0, 0, &offset);
+        clang_getSpellingLocation(clang_getRangeEnd(range), 0, 0, 0, &endOffset);
+        map[offset] = {
+            clang_getTokenKind(tokens[i]),
+            RTags::eatString(clang_getTokenSpelling(mClangUnit, tokens[i])),
+            createLocation(start),
+            offset,
+            endOffset - offset
+        };
+    }
+
+    clang_disposeTokens(mClangUnit, tokens, numTokens);
 }
 
 bool ClangIndexer::visit()
@@ -2151,3 +2190,4 @@ Symbol ClangIndexer::findSymbol(Location location, FindResult *result) const
     }
     return Symbol();
 }
+

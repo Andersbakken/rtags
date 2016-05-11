@@ -32,6 +32,7 @@
 #include "rct/Timer.h"
 #include "rct/Serializer.h"
 #include "RTags.h"
+#include "Token.h"
 
 class Connection;
 class Dirty;
@@ -76,19 +77,17 @@ public:
         Symbols,
         SymbolNames,
         Targets,
-        Usrs
+        Usrs,
+        Tokens
     };
     static const char *fileMapName(FileMapType type)
     {
         switch (type) {
-        case Symbols:
-            return "symbols";
-        case SymbolNames:
-            return "symnames";
-        case Targets:
-            return "targets";
-        case Usrs:
-            return "usrs";
+        case Symbols: return "symbols";
+        case SymbolNames: return "symnames";
+        case Targets: return "targets";
+        case Usrs: return "usrs";
+        case Tokens: return "tokens";
         }
         return 0;
     }
@@ -112,6 +111,13 @@ public:
         assert(mFileMapScope);
         return mFileMapScope->openFileMap<String, Set<Location> >(Usrs, fileId, mFileMapScope->usrs, err);
     }
+
+    std::shared_ptr<FileMap<uint32_t, Token> > openTokens(uint32_t fileId, String *err = 0)
+    {
+        assert(mFileMapScope);
+        return mFileMapScope->openFileMap<uint32_t, Token>(Tokens, fileId, mFileMapScope->tokens, err);
+    }
+
 
     enum DependencyMode {
         DependsOnArg,
@@ -323,6 +329,10 @@ private:
                         assert(usrs.contains(e->key.fileId));
                         usrs.remove(e->key.fileId);
                         break;
+                    case Tokens:
+                        assert(tokens.contains(e->key.fileId));
+                        tokens.remove(e->key.fileId);
+                        break;
                     }
                     --openedFiles;
                 }
@@ -342,6 +352,7 @@ private:
         Hash<uint32_t, std::shared_ptr<FileMap<String, Set<Location> > > > symbolNames;
         Hash<uint32_t, std::shared_ptr<FileMap<Location, Symbol> > > symbols;
         Hash<uint32_t, std::shared_ptr<FileMap<String, Set<Location> > > > targets, usrs;
+        Hash<uint32_t, std::shared_ptr<FileMap<uint32_t, Token> > > tokens;
         std::shared_ptr<Project> project;
         int openedFiles, totalOpened;
         const int max;

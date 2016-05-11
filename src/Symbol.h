@@ -69,7 +69,7 @@ struct Symbol
     int32_t size; // sizeof
     int16_t fieldOffset, alignment; // bits
 
-    bool isNull() const { return location.isNull(); }
+    bool isNull() const { return location.isNull() || clang_isInvalid(kind); }
     void clear()
     {
         location.clear();
@@ -120,9 +120,10 @@ struct Symbol
     inline bool isDefinition() const { return flags & Definition; }
 
     enum ToStringFlag {
+        DefaultFlags = 0x0,
         IgnoreTargets = 0x1,
         IgnoreReferences = 0x2,
-        DefaultFlags = 0x0
+        IgnoreParents = 0x4
     };
     String toString(Flags<ToStringFlag> toStringFlags = DefaultFlags,
                     Flags<Location::ToStringFlag> = Flags<Location::ToStringFlag>(),

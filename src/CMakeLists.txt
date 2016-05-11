@@ -111,6 +111,7 @@ set(RTAGS_SOURCES
     Symbol.cpp
     Symbol.cpp
     SymbolInfoJob.cpp
+    TokensJob.cpp
     ${RCT_SOURCES})
 
 if (LUA_FOUND)

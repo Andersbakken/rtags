@@ -236,7 +236,7 @@ inline void toString(String &out, const String &string, Flags<ToStringFlag> flag
     if (flags & ElispEscape) {
         out << RTags::elispEscape(string);
     } else {
-       out << string;
+        out << string;
     }
     if (!(flags & NoQuote))
         out << '"';
@@ -391,65 +391,71 @@ bool QueryJob::write(const Symbol &symbol,
             if (symbol.isContainer())
                 elisp(out, "container", true, flags);
             if ((symbol.flags & Symbol::PureVirtualMethod) == Symbol::PureVirtualMethod)
-                elisp(out, "PureVirtual", true, flags);
+                elisp(out, "purevirtual", true, flags);
             if (symbol.flags & Symbol::VirtualMethod)
-                elisp(out, "Virtual", true, flags);
+                elisp(out, "virtual", true, flags);
             if (symbol.flags & Symbol::ConstMethod)
-                elisp(out, "ConstMethod", true, flags);
+                elisp(out, "constmethod", true, flags);
             if (symbol.flags & Symbol::StaticMethod)
-                elisp(out, "StaticMethod", true, flags);
+                elisp(out, "staticmethod", true, flags);
             if (symbol.flags & Symbol::Variadic)
-                elisp(out, "Variadic", true, flags);
+                elisp(out, "variadic", true, flags);
             if (symbol.flags & Symbol::Auto)
-                elisp(out, "Auto", true, flags);
+                elisp(out, "auto", true, flags);
             if (symbol.flags & Symbol::AutoRef)
-                elisp(out, "AutoRef", true, flags);
+                elisp(out, "autoref", true, flags);
             if (symbol.flags & Symbol::MacroExpansion)
-                elisp(out, "MacroExpansion", true, flags);
+                elisp(out, "macroexpansion", true, flags);
             if (symbol.flags & Symbol::TemplateSpecialization)
-                elisp(out, "TemplateSpecialization", true, flags);
+                elisp(out, "templatespecialization", true, flags);
             switch (mode) {
-            case Mode_Symbol: {
-                const auto targets = project()->findTargets(symbol);
-                if (targets.size()) {
-                    List<String> t;
-                    for (const auto &target : targets) {
-                        t << symbolToElisp(target, Mode_Target);
+            case Mode_Symbol:
+                if (!(toStringFlags & Symbol::IgnoreTargets)) {
+                    const auto targets = project()->findTargets(symbol);
+                    if (targets.size()) {
+                        List<String> t;
+                        for (const auto &target : targets) {
+                            t << symbolToElisp(target, Mode_Target);
+                        }
+                        elisp(out, "targets", t, flags | NoQuote);
                     }
-                    elisp(out, "targets", t, flags | NoQuote);
                 }
-                const auto references = project()->findTargets(symbol);
-                if (references.size()) {
-                    List<String> r;
-                    for (const auto &reference : references) {
-                        r << symbolToElisp(reference, Mode_Reference);
+                if (!(toStringFlags & Symbol::IgnoreReferences)) {
+                    const auto references = project()->findTargets(symbol);
+                    if (references.size()) {
+                        List<String> r;
+                        for (const auto &reference : references) {
+                            r << symbolToElisp(reference, Mode_Reference);
+                        }
+                        elisp(out, "references", r, flags | NoQuote);
                     }
-                    elisp(out, "references", r, flags | NoQuote);
-                }}
+                }
                 // fall through
-            case Mode_Parent: {
-                auto syms = project()->openSymbols(symbol.location.fileId());
-                int idx = -1;
-                if (syms) {
-                    idx = syms->lowerBound(symbol.location);
-                    if (idx == -1) {
-                        idx = syms->count() - 1;
+            case Mode_Parent:
+                if (!(toStringFlags & Symbol::IgnoreParents)) {
+                    auto syms = project()->openSymbols(symbol.location.fileId());
+                    int idx = -1;
+                    if (syms) {
+                        idx = syms->lowerBound(symbol.location);
+                        if (idx == -1) {
+                            idx = syms->count() - 1;
+                        }
+                    }
+                    const unsigned int line = symbol.location.line();
+                    const unsigned int column = symbol.location.column();
+                    while (idx-- > 0) {
+                        const Symbol s = syms->valueAt(idx);
+                        if (s.isDefinition()
+                            && s.isContainer()
+                            && comparePosition(line, column, s.startLine, s.startColumn) >= 0
+                            && comparePosition(line, column, s.endLine, s.endColumn) <= 0) {
+                            const String p = symbolToElisp(s, Mode_Parent);
+                            elisp(out, "parent", p, flags | NoQuote);
+                            break;
+                        }
                     }
                 }
-                const unsigned int line = symbol.location.line();
-                const unsigned int column = symbol.location.column();
-                while (idx-- > 0) {
-                    const Symbol s = syms->valueAt(idx);
-                    if (s.isDefinition()
-                        && s.isContainer()
-                        && comparePosition(line, column, s.startLine, s.startColumn) >= 0
-                        && comparePosition(line, column, s.endLine, s.endColumn) <= 0) {
-                        const String p = symbolToElisp(s, Mode_Parent);
-                        elisp(out, "parent", p, flags | NoQuote);
-                        break;
-                    }
-                }
-                break; }
+                break;
             case Mode_Reference:
             case Mode_BaseClass:
             case Mode_Argument:

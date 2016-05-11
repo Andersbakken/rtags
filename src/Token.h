@@ -16,66 +16,50 @@
 #ifndef Token_h
 #define Token_h
 
-#include "rct/Map.h"
+#include "rct/Serializer.h"
+#include "rct/Log.h"
+#include "Location.h"
+#include <clang-c/Index.h>
 
 struct Token
 {
-    Token(const char *bytes = 0, int size = 0)
-        : data(bytes), length(size)
-    {}
+    CXTokenKind kind;
+    String spelling;
+    Location location;
+    uint32_t offset, length;
 
-    inline bool operator==(const Token &other) const
+    String toString() const
     {
-        return length == other.length && !strncmp(data, other.data, length);
-    }
-    inline bool operator<(const Token &other) const
-    {
-        if (!data)
-            return !other.data ? 0 : -1;
-        if (!other.data)
-            return 1;
-        const int minLength = std::min(length, other.length);
-        int ret = memcmp(data, other.data, minLength);
-        if (!ret) {
-            if (length < other.length) {
-                ret = -1;
-            } else if (other.length < length) {
-                ret = 1;
-            }
+        String ret;
+        {
+            Log(&ret) << "Location:" << location
+                      << "Offset:" << offset
+                      << "Length:" << length
+                      << "Kind:" << kind
+                      << "\nSpelling:\n" << spelling;
         }
         return ret;
     }
-
-    const char *data;
-    int length;
-
-    static inline Map<Token, int> tokenize(const char *data, int size)
-    {
-        Map<Token, int> tokens;
-        int tokenEnd = -1;
-        for (int i=size - 1; i>=0; --i) {
-            if (RTags::isSymbol(data[i])) {
-                if (tokenEnd == -1)
-                    tokenEnd = i;
-            } else if (tokenEnd != -1) {
-                addToken(data, i + 1, tokenEnd - i, tokens);
-                tokenEnd = -1;
-            }
-        }
-        if (tokenEnd != -1)
-            addToken(data, 0, tokenEnd + 1, tokens);
-        return tokens;
-    }
-private:
-    static inline void addToken(const char *data, int pos, int len, Map<Token, int> &tokens)
-    {
-        int &val = tokens[Token(data + pos, len)];
-        if (!val)
-            val = pos;
-    }
-
-
 };
 
+template <> inline Serializer &operator<<(Serializer &s, const Token &t)
+{
+    s << static_cast<uint8_t>(t.kind) << t.spelling << t.location << t.offset << t.length;
+    return s;
+}
+
+template <> inline Deserializer &operator>>(Deserializer &s, Token &t)
+{
+    uint8_t kind;
+    s >> kind >> t.spelling >> t.location >> t.offset >> t.length;
+    t.kind = static_cast<CXTokenKind>(kind);
+    return s;
+}
+
+static inline Log operator<<(Log dbg, const Token &token)
+{
+    const String out = "Token(" + token.toString() + ")";
+    return (dbg << out);
+}
 
 #endif
