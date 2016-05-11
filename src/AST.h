@@ -241,7 +241,14 @@ public:
         bool isStatic() const { return intProperty<unsigned, bool>(&clang_CXXMethod_isStatic); }
         bool isVirtual() const { return intProperty<unsigned, bool>(&clang_CXXMethod_isVirtual); }
         bool isPureVirtual() const { return intProperty<unsigned, bool>(&clang_CXXMethod_isPureVirtual); }
-        bool isConst() const { return intProperty<unsigned, bool>(&clang_CXXMethod_isConst); }
+        bool isConst() const
+        {
+#if CINDEX_VERSION > CINDEX_VERSION_ENCODE(0, 20)
+            return intProperty<unsigned, bool>(&clang_CXXMethod_isConst);
+#else
+            return false;
+#endif
+        }
         bool isDefinition() const { return intProperty<unsigned, bool>(&clang_isCursorDefinition); }
         bool isDynamicCall() const { return intProperty<int, bool>(&clang_Cursor_isDynamicCall); }
 
@@ -269,8 +276,23 @@ public:
         std::string referenceType() const { return toString(clang_Type_getCXXRefQualifier(type)); }
         unsigned argumentCount() const { return clang_getNumArgTypes(type); }
         CursorType argument(unsigned idx) const { return CursorType(ast, clang_getArgType(type, idx)); }
-        unsigned templateArgumentCount() const { return clang_Type_getNumTemplateArguments(type); }
-        CursorType templateArgument(unsigned idx) const { return CursorType(ast, clang_Type_getTemplateArgumentAsType(type, idx)); }
+        unsigned templateArgumentCount() const
+        {
+#if CINDEX_VERSION > CINDEX_VERSION_ENCODE(0, 20)
+            return clang_Type_getNumTemplateArguments(type);
+#else
+            return 0;
+#endif
+        }
+        CursorType templateArgument(unsigned idx) const
+        {
+#if CINDEX_VERSION > CINDEX_VERSION_ENCODE(0, 20)
+            return CursorType(ast, clang_Type_getTemplateArgumentAsType(type, idx));
+#else
+            (void)idx;
+            return CursorType();
+#endif
+        }
         CursorType canonicalType() const { return CursorType(ast, clang_getCanonicalType(type)); }
         CursorType pointeeType() const { return CursorType(ast, clang_getPointeeType(type)); }
         CursorType resultType() const { return CursorType(ast, clang_getResultType(type)); }
@@ -327,7 +349,9 @@ public:
                     return c;
                 }
             }
-            return Cursor();
+            // The explicit const cast is here to satisfy travis clang matrix.
+            // clang 3.4 does not allow to use two different return types
+            return (const Cursor)Cursor();
         };
 
         const std::string usr = toString(clang_getCursorUSR(cursor));

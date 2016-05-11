@@ -135,7 +135,7 @@ else ()
     set(END_GROUP "-Wl,--end-group")
 endif ()
 
-set(RTAGS_LIBRARIES rtags ${START_GROUP} ${LIBCLANG_LIBRARIES} ${END_GROUP} -lstdc++ ${CURSES_LIBRARIES} ${RCT_LIBRARIES})
+set(RTAGS_LIBRARIES rtags ${START_GROUP} ${LIBCLANG_LIBRARIES} ${END_GROUP} ${CURSES_LIBRARIES})
 
 if (LUA_FOUND)
     set(RTAGS_LIBRARIES ${RTAGS_LIBRARIES} ${LUA_LIBRARIES})
@@ -148,7 +148,8 @@ if (LUA_FOUND)
     endif ()
 endif ()
 
-
+# RCT_LIBRARIES and stdc++ library must be at the end
+set(RTAGS_LIBRARIES ${RTAGS_LIBRARIES} -lstdc++ ${RCT_LIBRARIES})
 add_executable(rc rc.cpp)
 target_link_libraries(rc ${RTAGS_LIBRARIES})
 
