@@ -2373,6 +2373,7 @@ void Project::fixPCH(Source &source)
 void Project::includeCompletions(Flags<QueryMessage::Flag> flags, const std::shared_ptr<Connection> &conn, Source &&source) const
 {
     CompilerManager::applyToSource(source, CompilerManager::IncludeIncludePaths);
+    source.includePaths.append(Server::instance()->options().includePaths);
     source.includePaths.sort();
     Set<Path> seen;
     if (flags & QueryMessage::Elisp) {
