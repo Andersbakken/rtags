@@ -133,14 +133,12 @@ void applyToSource(Source &source, Flags<CompilerManager::Flag> flags)
         List<Source::Include> copy;
         for (size_t i=0; i<err.size(); ++i) {
             const String &line = err.at(i);
-            if (line.startsWith("@@@@"))  // magic separator
-            {
+            if (line.startsWith("@@@@")) { // magic separator
                 if (mode == eNoStdInc) {
                     // What's left in copy are the std c++ paths
                     compiler.stdincxxPaths = copy;
                     mode = eNoBuiltin;
-                }
-                else if (mode == eNoBuiltin) {
+                } else if (mode == eNoBuiltin) {
                     // What's left in copy are the builtin paths
                     compiler.builtinPaths = copy;
                     // Set the includePaths exclusive of stdinc/builtin
@@ -149,8 +147,7 @@ void applyToSource(Source &source, Flags<CompilerManager::Flag> flags)
                     for (auto inc : compiler.builtinPaths)
                         compiler.includePaths.remove(inc);
                     break; // we're done
-                }
-                else {
+                } else {
                     mode = eNoStdInc;
                 }
                 copy = compiler.includePaths;
@@ -170,8 +167,7 @@ void applyToSource(Source &source, Flags<CompilerManager::Flag> flags)
                 path.resolve();
                 if (mode == eNormal) {
                     compiler.includePaths.append(Source::Include(type, path));
-                }
-                else {
+                } else {
                     copy.remove(Source::Include(type, path));
                 }
             }
