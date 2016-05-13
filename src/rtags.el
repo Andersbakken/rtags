@@ -4297,6 +4297,7 @@ the class.
                      "--tokens-include-symbols"
                      "--symbol-info-exclude-targets"
                      "--symbol-info-exclude-references"
+                     "--symbol-info-exclude-parents"
                      "--tokens" (cond ((and from to) (format "%s:%d-%d" path from to))
                                       (from (format "%s:%d-" path from))
                                       (to (format "%s:-%d" path to))
