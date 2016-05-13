@@ -282,6 +282,20 @@ bool Project::readSources(const Path &path, Sources &sources, Hash<Path, Compila
     return true;
 }
 
+static void converVisitedFilesToRelativePath(Hash<uint32_t, Path> & visitedFiles)
+{
+    for (auto & m : visitedFiles) {
+        Location::convertPathRelative(m.second);
+    }
+}
+
+static void converVisitedFilesToFullPath(Hash<uint32_t, Path> & visitedFiles)
+{
+    for (auto & m : visitedFiles) {
+        Location::convertPathFull(m.second);
+    }
+}
+
 bool Project::init()
 {
     const Server::Options &options = Server::instance()->options();
@@ -340,6 +354,8 @@ bool Project::init()
     {
         std::lock_guard<std::mutex> lock(mMutex);
         file >> mVisitedFiles;
+        // SBROOT
+        converVisitedFilesToFullPath(mVisitedFiles);
     }
     file >> mDiagnostics;
     for (const auto &info : mCompilationDatabaseInfos)
@@ -740,6 +756,8 @@ bool Project::save()
         }
         {
             std::lock_guard<std::mutex> lock(mMutex);
+            // SBROOT
+            converVisitedFilesToRelativePath(mVisitedFiles);
             file << mVisitedFiles;
         }
         file << mDiagnostics;
@@ -1264,7 +1282,9 @@ void Project::findSymbols(const String &string,
         }
 
         for (int i=idx; i<count; ++i) {
-            const String &entry = symNames->keyAt(i);
+            // SBROOT
+            String tsymName = Location::replaceRelativeWithFullPath(symNames->keyAt(i));
+            const String &entry = tsymName;
             // error() << i << count << entry;
             SymbolMatchType type = Exact;
             if (!string.isEmpty()) {
@@ -1501,7 +1521,9 @@ Set<Symbol> Project::findByUsr(const String &usr, uint32_t fileId, DependencyMod
         auto usrs = openUsrs(file);
         // error() << usrs << Location::path(file) << usr;
         if (usrs) {
-            for (Location loc : usrs->value(usr)) {
+            // SBROOT
+            String tusr = Location::replaceFullWithRelativePath(usr);
+            for (Location loc : usrs->value(tusr)) {
                 // error() << "got a loc" << loc;
                 const Symbol c = findSymbol(loc);
                 if (!c.isNull())
@@ -1516,7 +1538,9 @@ Set<Symbol> Project::findByUsr(const String &usr, uint32_t fileId, DependencyMod
         for (const auto &dep : mDependencies) {
             auto usrs = openUsrs(dep.first);
             if (usrs) {
-                for (Location loc : usrs->value(usr)) {
+                // SBROOT
+                String tusr = Location::replaceFullWithRelativePath(usr);
+                for (Location loc : usrs->value(tusr)) {
                     const Symbol c = findSymbol(loc);
                     if (!c.isNull())
                         ret.insert(c);
@@ -1547,7 +1571,9 @@ static Set<Symbol> findReferences(const Set<Symbol> &inputs,
             // error() << "Looking at file" << Location::path(dep) << "for input" << input.location;
             auto targets = project->openTargets(dep);
             if (targets) {
-                const Set<Location> locations = targets->value(input.usr);
+                // SBROOT
+                String tusr = Location::replaceFullWithRelativePath(input.usr);
+                const Set<Location> locations = targets->value(tusr);
                 // error() << "Got locations for usr" << input.usr << locations;
                 for (const auto &loc : locations) {
                     auto sym = project->findSymbol(loc);
@@ -1708,8 +1734,11 @@ Set<String> Project::findTargetUsrs(Location loc)
     if (targets) {
         const int count = targets->count();
         for (int i=0; i<count; ++i) {
-            if (targets->valueAt(i).contains(loc))
-                usrs.insert(targets->keyAt(i));
+            if (targets->valueAt(i).contains(loc)) {
+                // SBROOT
+                String ttarget = Location::replaceRelativeWithFullPath(targets->keyAt(i));
+                usrs.insert(ttarget);
+            }
         }
     }
     return usrs;

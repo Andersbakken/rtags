@@ -919,3 +919,21 @@ bool Source::Include::isPch() const
     }
     return false;
 }
+
+void Source::convertIncludePathsRelative(List<Include> & tincludePaths)
+{
+    for (auto & m : tincludePaths) {
+        if (!m.path.isEmpty()) {
+            Location::convertPathRelative(m.path);
+        }
+    }
+}
+
+void Source::convertIncludePathsFull(List<Include> & tincludePaths)
+{
+    for (auto & m : tincludePaths) {
+        if (!m.path.isEmpty()) {
+            Location::convertPathFull(m.path);
+        }
+    }
+}

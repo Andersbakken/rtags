@@ -45,9 +45,9 @@
 namespace RTags {
 void encodePath(Path &path)
 {
-    const Path &root = Server::instance() ? Server::instance()->options().root : ClangIndexer::serverRoot();
-    if (!root.isEmpty() && path.startsWith(root)) {
-        path.replace(0, root.size(), "$/");
+    // SBROOT
+    if (!Location::sandboxRoot().isEmpty()) {
+        Location::convertPathRelative(path);
     }
     int size = path.size();
     for (int i=0; i<size; ++i) {
@@ -66,13 +66,11 @@ void encodePath(Path &path)
 
 void decodePath(Path &path)
 {
-    int i = 0;
-    if (path.startsWith("$_")) {
-        const Path &root = Server::instance() ? Server::instance()->options().root : ClangIndexer::serverRoot();
-        assert(!root.isEmpty());
-        path.replace(0, 2, root);
-        i = root.size();
+    // SBROOT
+    if (!Location::sandboxRoot().isEmpty()) {
+        Location::strPathToSbRoot(path);
     }
+    int i = 0;
     int size = path.size();
     while (i < size) {
         char &ch = path[i];

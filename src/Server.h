@@ -91,7 +91,7 @@ public:
         {
         }
 
-        Path socketFile, dataDir, argTransform, rp, root;
+        Path socketFile, dataDir, argTransform, rp, sandboxRoot;
         Flags<Option> options;
         size_t jobCount, headerErrorJobCount, maxIncludeCompletionDepth;
         int rpVisitFileTimeout, rpIndexDataMessageTimeout,
@@ -131,7 +131,7 @@ public:
                Set<uint64_t> *indexed = 0);
     enum FileIdsFileFlag {
         None = 0x0,
-        HasRoot = 0x1
+        HasSandboxRoot = 0x1
     };
 private:
     String guessArguments(const String &args, const Path &pwd, const Path &projectRootOverride);

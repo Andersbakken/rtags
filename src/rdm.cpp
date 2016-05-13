@@ -145,7 +145,7 @@ static void usage(FILE *f)
             "  --log-file-log-level [arg]                 Log level for log file (default is error).\n"
             "  --crash-dump-file [arg]                    File to dump crash log to (default is <datadir>/crash.dump).\n"
             "                                             options are: error, warning, debug or verbose-debug.\n"
-            "  --root [arg]                               Root to use for paths.\n" // ### need better docs
+            " --sandbox-root dir                          Create index using relative path by stripping dir (enables copying of tag index db files without need to reindexing)\n"
 #ifndef OS_FreeBSD
 #endif
             "  --no-filesystem-watcher|-B                 Disable file system watching altogether. Reindexing has to happen manually.\n"
@@ -312,7 +312,7 @@ int main(int argc, char** argv)
         { "tcp-port", required_argument, 0, 12 },
         { "rp-path", required_argument, 0, 17 },
         { "log-timestamp", no_argument, 0, 18 },
-        { "root", required_argument, 0, 20 },
+        { "sandbox-root", required_argument, 0, 20 },
         { 0, 0, 0, 0 }
     };
     const String shortOptions = Rct::shortOptions(opts);
@@ -510,10 +510,19 @@ int main(int argc, char** argv)
             strcpy(crashDumpFilePath, optarg);
             break;
         case 20:
-            serverOpts.root = optarg;
-            if (!serverOpts.root.resolve() || !serverOpts.root.isDir()) {
-                fprintf(stderr, "%s is not a directory\n", optarg);
-                return 1;
+            {
+                auto len = strlen(optarg);
+                if (optarg[len-1] != '/') {
+                    std::string tmparg = optarg;
+                    tmparg += '/';
+                    serverOpts.sandboxRoot = tmparg.c_str();
+                } else {
+                    serverOpts.sandboxRoot = optarg;
+                }
+                if (!serverOpts.sandboxRoot.resolve() || !serverOpts.sandboxRoot.isDir()) {
+                    fprintf(stderr, "%s is not a valid directory for sandbox-root\n", optarg);
+                    return 1;
+                }
             }
             break;
         case 2:

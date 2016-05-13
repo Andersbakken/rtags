@@ -39,7 +39,12 @@ public:
 
     bool exec(const String &data);
     static Flags<Server::Option> serverOpts() { return sServerOpts; }
-    static const Path &serverRoot() { return sServerRoot; }
+    static const Path &serverSandboxRoot() { return sServerSandboxRoot; }
+    static void setServerSandboxRoot(const String & s)
+    {
+        sServerSandboxRoot = s;
+    }
+
 private:
     bool diagnose();
     bool visit();
@@ -211,7 +216,7 @@ private:
     List<CXCursor> mParents;
 
     static Flags<Server::Option> sServerOpts;
-    static Path sServerRoot;
+    static Path sServerSandboxRoot;
 };
 
 #endif
