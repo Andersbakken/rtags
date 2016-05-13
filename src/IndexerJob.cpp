@@ -141,7 +141,7 @@ String IndexerJob::encode() const
                    << static_cast<uint32_t>(options.rpConnectAttempts)
                    << static_cast<int32_t>(options.rpNiceValue)
                    << options.options
-                   << options.root
+                   << options.sandboxRoot
                    << unsavedFiles
                    << options.dataDir
                    << options.debugLocations;

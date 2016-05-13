@@ -186,6 +186,8 @@ struct Source
                               const Path &pwd,
                               const List<Path> &pathEnvironment,
                               List<Path> *unresolvedInputLocation = 0);
+    static void convertIncludePathsRelative(List<Include> & tincludePaths);
+    static void convertIncludePathsFull(List<Include> & tincludePaths);
 };
 
 RCT_FLAGS(Source::Flag);
@@ -325,10 +327,27 @@ template <> inline Deserializer &operator>>(Deserializer &s, Source::Include &d)
 
 template <> inline Serializer &operator<<(Serializer &s, const Source &b)
 {
-    s << b.sourceFile() << b.fileId << b.compiler() << b.compilerId
-      << b.extraCompiler << b.buildRoot() << b.buildRootId
+    // SBROOT
+    // sourceFile, buildRoot, compiler(?), includePaths
+    Path tsourceFile = b.sourceFile();
+    Location::convertPathRelative(tsourceFile);
+    Path tbuildRoot = b.buildRoot();
+    Location::convertPathRelative(tbuildRoot);
+
+    List<Source::Include> tincludePaths = b.includePaths;
+    Source::convertIncludePathsRelative(tincludePaths);
+
+    Path tcompiler = b.compiler();
+    Location::convertPathRelative(tcompiler);
+    Path textraCompiler = b.extraCompiler;
+    Location::convertPathRelative(textraCompiler);
+    Path tdirectory = b.directory;
+    Location::convertPathRelative(tdirectory);
+     
+    s << tsourceFile << b.fileId << b.compiler() << b.compilerId
+      << b.extraCompiler << tbuildRoot << b.buildRootId
       << static_cast<uint8_t>(b.language) << b.parsed << b.flags << b.defines
-      << b.includePaths << b.arguments << b.sysRootIndex << b.directory << b.includePathHash;
+      << tincludePaths << b.arguments << b.sysRootIndex << tdirectory << b.includePathHash;
     return s;
 }
 
@@ -341,6 +360,17 @@ template <> inline Deserializer &operator>>(Deserializer &s, Source &b)
       >> buildRoot >> b.buildRootId >> language >> b.parsed >> b.flags
       >> b.defines >> b.includePaths >> b.arguments >> b.sysRootIndex
       >> b.directory >> b.includePathHash;
+
+    // SBROOT
+    Location::convertPathFull(source);
+    Location::convertPathFull(buildRoot);
+    Location::convertPathFull(compiler);
+    Location::convertPathFull(b.extraCompiler);
+    Location::convertPathFull(b.directory);
+    
+    Source::convertIncludePathsFull(b.includePaths);
+
+    
     Location::set(source, b.fileId);
     Location::set(compiler, b.compilerId);
     Location::set(buildRoot, b.buildRootId);

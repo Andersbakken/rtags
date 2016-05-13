@@ -68,6 +68,36 @@
 #define TO_STR(x)  TO_STR1(x)
 #define CLANG_LIBDIR_STR TO_STR(CLANG_LIBDIR)
 
+namespace {
+
+void convertToRelativePath(const Hash<Path, uint32_t> & pathsToIds, Hash<Path, uint32_t> & relpathsToIds)
+{
+    // Log l(LogLevel::Error);
+
+    for (Hash<Path, uint32_t>::const_iterator it = pathsToIds.begin(); it != pathsToIds.end(); ++it) {
+        Path relPath = it->first;
+        // l << "Path from " << relPath;
+        Location::convertPathRelative(relPath);
+        // l << " to " << relPath << "\n";
+        relpathsToIds[relPath] = it->second;
+    }
+}
+
+void convertToFullPath(const Hash<Path, uint32_t> & relPathsToIds, Hash<Path, uint32_t> & pathsToIds)
+{
+    // Log l(LogLevel::Error);
+
+    for (Hash<Path, uint32_t>::const_iterator it = relPathsToIds.begin(); it != relPathsToIds.end(); ++it) {
+        Path fullPath = it->first;
+        // l << "Path from " << fullPath;
+        Location::convertPathFull(fullPath);
+        // l << " to " << fullPath << "\n";
+        pathsToIds[fullPath] = it->second;
+    }
+}
+
+}
+
 // Absolute paths to search (under) for (clang) system include files
 // Iterate until we find a dir at <abspath>/clang/<version>/include.
 static const List<Path> sSystemIncludePaths = {
@@ -1756,30 +1786,18 @@ bool Server::load()
     if (fileIdsFile.open(DataFile::Read)) {
         Flags<FileIdsFileFlag> flags;
         fileIdsFile >> flags;
-        if (flags & HasRoot && mOptions.root.isEmpty()) {
-            error() << "This database was produced with --root. You have to specify a root argument or wipe the db by running with -C";
+        if (flags & HasSandboxRoot && mOptions.sandboxRoot.isEmpty()) {
+            error() << "This database was produced with --sandbox-root option using relative path. You have to specify a sandbox-root argument or wipe the db by running with -C";
             return false;
         }
 
-        Hash<Path, uint32_t> pathsToIds;
-        if (flags & HasRoot) {
-            assert(mOptions.root.endsWith("/") && mOptions.root.startsWith("/"));
-            uint32_t count;
-            fileIdsFile >> count;
-            for (uint32_t i=0; i<count; ++i) {
-                Path path;
-                uint32_t id;
-                fileIdsFile >> path >> id;
-                if (path.startsWith('$')) {
-                    assert(path.startsWith("$/"));
-                    path.replace(0, 2, mOptions.root);
-                }
-                pathsToIds[std::move(path)] = id;
-            }
-        } else {
-            fileIdsFile >> pathsToIds;
-        }
+        // SBROOT
+        Hash<Path, uint32_t> relPathsToIds;
+        fileIdsFile >> relPathsToIds;
 
+        Hash<Path, uint32_t> pathsToIds;
+        convertToFullPath(relPathsToIds, pathsToIds);
+        
         Location::init(pathsToIds);
         List<Path> projects = mOptions.dataDir.files(Path::Directory);
         for (size_t i=0; i<projects.size(); ++i) {
@@ -1874,23 +1892,16 @@ bool Server::saveFileIds()
         return false;
     }
     Flags<FileIdsFileFlag> flags;
-    if (!mOptions.root.isEmpty())
-        flags |= HasRoot;
+    if (!mOptions.sandboxRoot.isEmpty())
+        flags |= HasSandboxRoot;
     fileIdsFile << flags;
-    if (mOptions.root.isEmpty()) {
-        fileIdsFile << Location::pathsToIds();
-    } else {
-        assert(mOptions.root.endsWith('/'));
-        fileIdsFile << Location::count();
-        Location::iterate([&fileIdsFile, this](const Path &path, uint32_t id) {
-                if (path.startsWith(mOptions.root)) {
-                    const Path p = "$/" + path.mid(mOptions.root.size());
-                    fileIdsFile << p << id;
-                } else {
-                    fileIdsFile << path << id;
-                }
-            });
-    }
+    
+    const Hash<Path, uint32_t> & pathsToIds = Location::pathsToIds();
+    Hash<Path, uint32_t> relpathsToIds;
+    // SBROOT
+    convertToRelativePath(pathsToIds, relpathsToIds);
+    fileIdsFile << relpathsToIds;
+
     if (!fileIdsFile.flush()) {
         error("Can't save file ids: %s", fileIdsFile.error().constData());
         return false;
