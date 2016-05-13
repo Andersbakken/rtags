@@ -821,7 +821,9 @@ bool ClangIndexer::handleReference(const CXCursor &cursor, CXCursorKind kind, Lo
     }
 
     bool isOperator = false;
-    if (kind == CXCursor_CallExpr && refKind == CXCursor_CXXMethod) {
+    if (kind == CXCursor_CallExpr && (refKind == CXCursor_CXXMethod
+                                      || refKind == CXCursor_FunctionDecl
+                                      || refKind == CXCursor_FunctionTemplate)) {
         // These are bullshit. for this construct:
         // foo.bar();
         // the position of the cursor is at the foo, not the bar.
