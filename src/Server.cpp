@@ -1797,7 +1797,7 @@ bool Server::load()
 
         Hash<Path, uint32_t> pathsToIds;
         convertToFullPath(relPathsToIds, pathsToIds);
-        
+
         Location::init(pathsToIds);
         List<Path> projects = mOptions.dataDir.files(Path::Directory);
         for (size_t i=0; i<projects.size(); ++i) {
@@ -1895,7 +1895,7 @@ bool Server::saveFileIds()
     if (!mOptions.sandboxRoot.isEmpty())
         flags |= HasSandboxRoot;
     fileIdsFile << flags;
-    
+
     const Hash<Path, uint32_t> & pathsToIds = Location::pathsToIds();
     Hash<Path, uint32_t> relpathsToIds;
     // SBROOT

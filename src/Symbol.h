@@ -146,7 +146,7 @@ template <> inline Serializer &operator<<(Serializer &s, const Symbol &t)
     String ttypeName = Location::replaceFullWithRelativePath(t.typeName);
     String tbriefComment = Location::replaceFullWithRelativePath(t.briefComment);
     String txmlComment = Location::replaceFullWithRelativePath(t.xmlComment);
-    
+
     s << t.location << tsymbolName << tusr << ttypeName << t.baseClasses << t.arguments
       << t.symbolLength << static_cast<uint16_t>(t.kind) << static_cast<uint16_t>(t.type)
       << static_cast<uint8_t>(t.linkage) << t.flags << tbriefComment << txmlComment

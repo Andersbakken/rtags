@@ -96,7 +96,7 @@ public:
 
     static void convertPathRelative(Path & path);
     static void convertPathFull(Path &path);
-    
+
     static bool containRelativePath(const String & str);
     static bool containSandboxRoot(const String & str);
 

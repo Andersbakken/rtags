@@ -67,7 +67,7 @@ int main(int argc, char **argv)
             ++logLevel;
         } else if (!strcmp(argv[i], "--priority")) { // ignore, only for wrapping purposes
             ++i;
-        } else if (!strcmp(argv[i], "--sandbox-root")) { 
+        } else if (!strcmp(argv[i], "--sandbox-root")) {
             // SBROOT
             ++i;
             sbroot = argv[i];
@@ -75,8 +75,8 @@ int main(int argc, char **argv)
         } else {
             file = argv[i];
         }
-    } 
-    
+    }
+
     // SBROOT
     if (ClangIndexer::serverSandboxRoot().isEmpty()) {
         ClangIndexer::setServerSandboxRoot(sbroot);

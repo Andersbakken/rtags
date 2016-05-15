@@ -343,7 +343,7 @@ template <> inline Serializer &operator<<(Serializer &s, const Source &b)
     Location::convertPathRelative(textraCompiler);
     Path tdirectory = b.directory;
     Location::convertPathRelative(tdirectory);
-     
+
     s << tsourceFile << b.fileId << b.compiler() << b.compilerId
       << b.extraCompiler << tbuildRoot << b.buildRootId
       << static_cast<uint8_t>(b.language) << b.parsed << b.flags << b.defines
@@ -367,10 +367,10 @@ template <> inline Deserializer &operator>>(Deserializer &s, Source &b)
     Location::convertPathFull(compiler);
     Location::convertPathFull(b.extraCompiler);
     Location::convertPathFull(b.directory);
-    
+
     Source::convertIncludePathsFull(b.includePaths);
 
-    
+
     Location::set(source, b.fileId);
     Location::set(compiler, b.compilerId);
     Location::set(buildRoot, b.buildRootId);

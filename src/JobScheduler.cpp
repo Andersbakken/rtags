@@ -127,12 +127,12 @@ void JobScheduler::startJobs()
         debug() << "Starting process for" << jobId << node->job->source.key() << node->job.get();
         List<String> arguments;
         arguments << "--priority" << String::number(node->job->priority);
-        
+
         // SBROOT
         if (!options.sandboxRoot.isEmpty()) {
             arguments << "--sandbox-root" << options.sandboxRoot.constData();
         }
-        
+
         for (int i=logLevel().toInt(); i>0; --i)
             arguments << "-v";
 
