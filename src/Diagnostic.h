@@ -19,6 +19,7 @@
 #include "rct/Serializer.h"
 #include "rct/String.h"
 #include "Location.h"
+#include "Sandbox.h"
 
 struct Diagnostic;
 typedef Map<Location, Diagnostic> Diagnostics;
@@ -44,7 +45,7 @@ struct Diagnostic
 template <> inline Serializer &operator<<(Serializer &s, const Diagnostic &d)
 {
     // SBROOT
-    String tmessage = Location::replaceFullWithRelativePath(d.message);
+    String tmessage = Sandbox::encoded(d.message);
     s << static_cast<uint8_t>(d.type) << tmessage << d.length << d.ranges << d.children;
     return s;
 }
@@ -55,7 +56,7 @@ template <> inline Deserializer &operator>>(Deserializer &s, Diagnostic &d)
     String tmessage;
     s >> type >> tmessage >> d.length >> d.ranges >> d.children;
     // SBROOT
-    d.message = Location::replaceRelativeWithFullPath(tmessage);
+    d.message = Sandbox::decoded(tmessage);
     d.type = static_cast<Diagnostic::Type>(type);
     return s;
 }

@@ -65,38 +65,8 @@
 #include "VisitFileResponseMessage.h"
 
 #define TO_STR1(x) #x
-#define TO_STR(x)  TO_STR1(x)
+#define TO_STR(x) TO_STR1(x)
 #define CLANG_LIBDIR_STR TO_STR(CLANG_LIBDIR)
-
-namespace {
-
-void convertToRelativePath(const Hash<Path, uint32_t> & pathsToIds, Hash<Path, uint32_t> & relpathsToIds)
-{
-    // Log l(LogLevel::Error);
-
-    for (Hash<Path, uint32_t>::const_iterator it = pathsToIds.begin(); it != pathsToIds.end(); ++it) {
-        Path relPath = it->first;
-        // l << "Path from " << relPath;
-        Location::convertPathRelative(relPath);
-        // l << " to " << relPath << "\n";
-        relpathsToIds[relPath] = it->second;
-    }
-}
-
-void convertToFullPath(const Hash<Path, uint32_t> & relPathsToIds, Hash<Path, uint32_t> & pathsToIds)
-{
-    // Log l(LogLevel::Error);
-
-    for (Hash<Path, uint32_t>::const_iterator it = relPathsToIds.begin(); it != relPathsToIds.end(); ++it) {
-        Path fullPath = it->first;
-        // l << "Path from " << fullPath;
-        Location::convertPathFull(fullPath);
-        // l << " to " << fullPath << "\n";
-        pathsToIds[fullPath] = it->second;
-    }
-}
-
-}
 
 // Absolute paths to search (under) for (clang) system include files
 // Iterate until we find a dir at <abspath>/clang/<version>/include.
@@ -219,7 +189,6 @@ bool Server::init(const Options &options)
             }
         }
     }
-
     return true;
 }
 
@@ -1792,11 +1761,10 @@ bool Server::load()
         }
 
         // SBROOT
-        Hash<Path, uint32_t> relPathsToIds;
-        fileIdsFile >> relPathsToIds;
-
         Hash<Path, uint32_t> pathsToIds;
-        convertToFullPath(relPathsToIds, pathsToIds);
+        fileIdsFile >> pathsToIds;
+
+        Sandbox::decode(pathsToIds);
 
         Location::init(pathsToIds);
         List<Path> projects = mOptions.dataDir.files(Path::Directory);
@@ -1896,11 +1864,7 @@ bool Server::saveFileIds()
         flags |= HasSandboxRoot;
     fileIdsFile << flags;
 
-    const Hash<Path, uint32_t> & pathsToIds = Location::pathsToIds();
-    Hash<Path, uint32_t> relpathsToIds;
-    // SBROOT
-    convertToRelativePath(pathsToIds, relpathsToIds);
-    fileIdsFile << relpathsToIds;
+    fileIdsFile << Sandbox::encoded(Location::pathsToIds());
 
     if (!fileIdsFile.flush()) {
         error("Can't save file ids: %s", fileIdsFile.error().constData());

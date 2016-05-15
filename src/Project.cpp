@@ -277,23 +277,29 @@ bool Project::readSources(const Path &path, Sources &sources, Hash<Path, Compila
     }
 
     file >> sources;
-    if (info)
+    if (Sandbox::hasRoot()) {
+        for (auto &src : sources) {
+            Source &s = src.second;
+            for (String &arg : s.arguments) {
+                arg = Sandbox::decoded(arg);
+            }
+        }
+        if (info) {
+            uint32_t size;
+            file >> size;
+            while (size > 0) {
+                --size;
+                Path path;
+                file >> path;
+                Sandbox::decode(path);
+                auto &ref = (*info)[path];
+                file >> ref;
+            }
+        }
+    } else if (info) {
         file >> *info;
+    }
     return true;
-}
-
-static void converVisitedFilesToRelativePath(Hash<uint32_t, Path> & visitedFiles)
-{
-    for (auto & m : visitedFiles) {
-        Location::convertPathRelative(m.second);
-    }
-}
-
-static void converVisitedFilesToFullPath(Hash<uint32_t, Path> & visitedFiles)
-{
-    for (auto & m : visitedFiles) {
-        Location::convertPathFull(m.second);
-    }
 }
 
 bool Project::init()
@@ -354,8 +360,7 @@ bool Project::init()
     {
         std::lock_guard<std::mutex> lock(mMutex);
         file >> mVisitedFiles;
-        // SBROOT
-        converVisitedFilesToFullPath(mVisitedFiles);
+        Sandbox::decode(mVisitedFiles);
     }
     file >> mDiagnostics;
     for (const auto &info : mCompilationDatabaseInfos)
@@ -745,7 +750,15 @@ bool Project::save()
             error("Save error %s: %s", mProjectFilePath.constData(), file.error().constData());
             return false;
         }
-        file << mSources << mCompilationDatabaseInfos;
+        file << mSources;
+        if (Sandbox::root().isEmpty()) {
+            file << mCompilationDatabaseInfos;
+        } else {
+            file << static_cast<uint32_t>(mCompilationDatabaseInfos.size());
+            for (const auto &i : mCompilationDatabaseInfos) {
+                file << Sandbox::encoded(i.first) << i.second;
+            }
+        }
     }
 
     {
@@ -756,9 +769,11 @@ bool Project::save()
         }
         {
             std::lock_guard<std::mutex> lock(mMutex);
-            // SBROOT
-            converVisitedFilesToRelativePath(mVisitedFiles);
-            file << mVisitedFiles;
+            if (Sandbox::hasRoot()) {
+                file << Sandbox::encoded(mVisitedFiles);
+            } else {
+                file << mVisitedFiles;
+            }
         }
         file << mDiagnostics;
         saveDependencies(file, mDependencies);
@@ -1283,7 +1298,7 @@ void Project::findSymbols(const String &string,
 
         for (int i=idx; i<count; ++i) {
             // SBROOT
-            String tsymName = Location::replaceRelativeWithFullPath(symNames->keyAt(i));
+            String tsymName = Sandbox::decoded(symNames->keyAt(i));
             const String &entry = tsymName;
             // error() << i << count << entry;
             SymbolMatchType type = Exact;
@@ -1522,7 +1537,7 @@ Set<Symbol> Project::findByUsr(const String &usr, uint32_t fileId, DependencyMod
         // error() << usrs << Location::path(file) << usr;
         if (usrs) {
             // SBROOT
-            String tusr = Location::replaceFullWithRelativePath(usr);
+            String tusr = Sandbox::encoded(usr);
             for (Location loc : usrs->value(tusr)) {
                 // error() << "got a loc" << loc;
                 const Symbol c = findSymbol(loc);
@@ -1539,7 +1554,7 @@ Set<Symbol> Project::findByUsr(const String &usr, uint32_t fileId, DependencyMod
             auto usrs = openUsrs(dep.first);
             if (usrs) {
                 // SBROOT
-                String tusr = Location::replaceFullWithRelativePath(usr);
+                String tusr = Sandbox::encoded(usr);
                 for (Location loc : usrs->value(tusr)) {
                     const Symbol c = findSymbol(loc);
                     if (!c.isNull())
@@ -1572,7 +1587,7 @@ static Set<Symbol> findReferences(const Set<Symbol> &inputs,
             auto targets = project->openTargets(dep);
             if (targets) {
                 // SBROOT
-                String tusr = Location::replaceFullWithRelativePath(input.usr);
+                String tusr = Sandbox::encoded(input.usr);
                 const Set<Location> locations = targets->value(tusr);
                 // error() << "Got locations for usr" << input.usr << locations;
                 for (const auto &loc : locations) {
@@ -1736,7 +1751,7 @@ Set<String> Project::findTargetUsrs(Location loc)
         for (int i=0; i<count; ++i) {
             if (targets->valueAt(i).contains(loc)) {
                 // SBROOT
-                String ttarget = Location::replaceRelativeWithFullPath(targets->keyAt(i));
+                String ttarget = Sandbox::decoded(targets->keyAt(i));
                 usrs.insert(ttarget);
             }
         }

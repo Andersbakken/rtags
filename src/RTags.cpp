@@ -45,10 +45,7 @@
 namespace RTags {
 void encodePath(Path &path)
 {
-    // SBROOT
-    if (!Location::sandboxRoot().isEmpty()) {
-        Location::convertPathRelative(path);
-    }
+    Sandbox::encode(path);
     int size = path.size();
     for (int i=0; i<size; ++i) {
         char &ch = path[i];
@@ -66,10 +63,7 @@ void encodePath(Path &path)
 
 void decodePath(Path &path)
 {
-    // SBROOT
-    if (!Location::sandboxRoot().isEmpty()) {
-        Location::strPathToSbRoot(path);
-    }
+    Sandbox::decode(path);
     int i = 0;
     int size = path.size();
     while (i < size) {

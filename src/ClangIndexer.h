@@ -40,11 +40,6 @@ public:
     bool exec(const String &data);
     static Flags<Server::Option> serverOpts() { return sServerOpts; }
     static const Path &serverSandboxRoot() { return sServerSandboxRoot; }
-    static void setServerSandboxRoot(const String & s)
-    {
-        sServerSandboxRoot = s;
-    }
-
 private:
     bool diagnose();
     bool visit();

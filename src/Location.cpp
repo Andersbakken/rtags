@@ -53,7 +53,9 @@ String Location::toString(Flags<ToStringFlag> flags, Hash<Path, String> *context
     }
 
     Path p = path();
-    if (!(flags & AbsolutePath) && Server::instance()) {
+    if (flags & ConvertToRelative) {
+        Sandbox::encode(p);
+    } else if (!(flags & AbsolutePath) && Server::instance()) {
         Server *server = Server::instance();
         if (std::shared_ptr<Project> pp = server->currentProject()) {
             const Path projectPath = pp->path();
@@ -123,89 +125,6 @@ String Location::context(Flags<ToStringFlag> flags, Hash<Path, String> *cache) c
         }
     }
     return ret;
-}
-
-const Path &Location::sandboxRoot()
-{
-    if (Server::instance()) {
-        return Server::instance()->options().sandboxRoot;
-    } else {
-        return ClangIndexer::serverSandboxRoot();
-    }
-}
-
-const char *RELSBROOT = "[[SBROOT]]";
-static inline bool pathStartWithRELSBROOT(const Path &path)
-{
-    return (strncmp(path.c_str(), RELSBROOT, strlen(RELSBROOT)) == 0);
-}
-
-bool Location::containRelativePath(const String & str)
-{
-    return (str.indexOf(RELSBROOT) != std::string::npos);
-}
-
-void Location::strPathToSbRoot(Path &path)
-{
-    auto idx = path.indexOf(RELSBROOT);
-    if (idx != std::string::npos) {
-        path.replace(idx, strlen(RELSBROOT), Location::sandboxRoot());
-    }
-}
-
-bool Location::containSandboxRoot(const String & str)
-{
-    if (Location::sandboxRoot().isEmpty()) return false;
-    return (str.indexOf(Location::sandboxRoot()) != std::string::npos);
-}
-
-String Location::replaceRelativeWithFullPath(const String & key)
-{
-    if (!Location::sandboxRoot().isEmpty()) {
-        auto idx = key.indexOf(RELSBROOT);
-        if (idx != std::string::npos) {
-            String keyCpy = key;
-            keyCpy.replace(idx, strlen(RELSBROOT), Location::sandboxRoot());
-            return keyCpy;
-        }
-    }
-    return key;
-}
-
-String Location::replaceFullWithRelativePath(const String & key)
-{
-    if (!Location::sandboxRoot().isEmpty()) {
-        auto idx = key.indexOf(Location::sandboxRoot());
-        if (idx != std::string::npos) {
-            String keyCpy = key;
-            keyCpy.replace(idx, Location::sandboxRoot().size(), RELSBROOT);
-            return keyCpy;
-        }
-    }
-    return key;
-}
-
-void Location::convertPathRelative(Path & path)
-{
-    if (!path.isEmpty() && !pathStartWithRELSBROOT(path)) {
-        // assert(path.isAbsolute());
-        const Path &root = Location::sandboxRoot();
-        if (!root.isEmpty() && path.startsWith(root)) {
-            assert(root.endsWith('/'));
-            path.replace(0, root.size(), RELSBROOT);
-        }
-    }
-}
-
-void Location::convertPathFull(Path &path)
-{
-    if (pathStartWithRELSBROOT(path)) {
-        const Path &root = Location::sandboxRoot();
-        if (!root.isEmpty()) {
-            assert(root.endsWith('/'));
-            path.replace(0, strlen(RELSBROOT), root.c_str());
-        }
-    }
 }
 
 void Location::saveFileIds()

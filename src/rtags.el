@@ -4278,8 +4278,19 @@ the class.
         (set-process-filter proc 'rtags-check-includes-filter)
         (set-process-sentinel proc 'rtags-check-includes-sentinel)))))
 
+
+(defvar rtags-tokens-callback nil)
+(make-variable-buffer-local 'rtags-tokens-callback)
+
+(defun rtags-tokens-sentinel (process event)
+  (let ((status (process-status process)))
+    (when (memq status '(exit signal closed failed))
+      (goto-char (point-min))
+      (funcall rtags-tokens-callback (and (looking-at "(")
+                                          (eval (read (buffer-string))))))))
+
 ;;;###autoload
-(defun rtags-tokens (&optional from to)
+(defun rtags-tokens (&optional from to callback)
   (interactive)
   (when (and (not from)
              (not to)
@@ -4294,19 +4305,40 @@ the class.
   (let ((path (buffer-file-name)))
     (unless path
       (error "rtags-tokens must be run from a buffer visiting a file"))
-    (with-temp-buffer
-      (rtags-call-rc :path path
-                     "--elisp"
-                     "--tokens-include-symbols"
-                     "--symbol-info-exclude-targets"
-                     "--symbol-info-exclude-references"
-                     "--symbol-info-exclude-parents"
-                     "--tokens" (cond ((and from to) (format "%s:%d-%d" path from to))
-                                      (from (format "%s:%d-" path from))
-                                      (to (format "%s:-%d" path to))
-                                      (t path)))
-      (and (looking-at "(")
-           (eval (read (buffer-string)))))))
+    (cond ((functionp callback)
+           (let ((buf (rtags-get-buffer-create-no-undo " *RTags Tokens*")))
+             (with-current-buffer buf
+               (erase-buffer)
+               (let ((proc (start-process "RTags Tokens Async"
+                                          buf
+                                          (rtags-executable-find "rc")
+                                          "--elisp"
+;;                                          "--tokens-include-symbols"
+                                          "--symbol-info-exclude-targets"
+                                          "--symbol-info-exclude-references"
+                                          "--symbol-info-exclude-parents"
+                                          "--tokens" (cond ((and from to) (format "%s:%d-%d" path from to))
+                                                           (from (format "%s:%d-" path from))
+                                                           (to (format "%s:-%d" path to))
+                                                           (t path)))))
+                 (setq rtags-tokens-callback callback)
+                 (setq shit proc)
+                 (set-process-sentinel proc 'rtags-tokens-sentinel)))))
+          ((null callback)
+           (with-temp-buffer
+             (rtags-call-rc :path path
+                            "--elisp"
+                            "--tokens-include-symbols"
+                            "--symbol-info-exclude-targets"
+                            "--symbol-info-exclude-references"
+                            "--symbol-info-exclude-parents"
+                            "--tokens" (cond ((and from to) (format "%s:%d-%d" path from to))
+                                             (from (format "%s:%d-" path from))
+                                             (to (format "%s:-%d" path to))
+                                             (t path)))
+             (and (looking-at "(")
+                  (eval (read (buffer-string))))))
+          (t (error "Callback must be a function")))))
 
 ;;;###autoload
 (defun rtags-create-doxygen-comment ()

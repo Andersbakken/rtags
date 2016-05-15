@@ -110,6 +110,7 @@ set(RTAGS_SOURCES
     RClient.cpp
     RTags.cpp
     ReferencesJob.cpp
+    Sandbox.cpp
     ScanThread.cpp
     Server.cpp
     Source.cpp

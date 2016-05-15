@@ -129,11 +129,12 @@ String IndexerJob::encode() const
         }
         assert(!sourceFile.isEmpty());
         serializer << static_cast<uint16_t>(RTags::DatabaseVersion)
+                   << options.sandboxRoot
                    << id
                    << options.socketFile
-                   << project
-                   << copy
-                   << sourceFile
+                   << project;
+        copy.encode(serializer, Source::IgnoreSandbox);
+        serializer << sourceFile
                    << flags
                    << static_cast<uint32_t>(options.rpVisitFileTimeout)
                    << static_cast<uint32_t>(options.rpIndexDataMessageTimeout)
@@ -141,7 +142,6 @@ String IndexerJob::encode() const
                    << static_cast<uint32_t>(options.rpConnectAttempts)
                    << static_cast<int32_t>(options.rpNiceValue)
                    << options.options
-                   << options.sandboxRoot
                    << unsavedFiles
                    << options.dataDir
                    << options.debugLocations;

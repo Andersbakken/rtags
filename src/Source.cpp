@@ -920,20 +920,54 @@ bool Source::Include::isPch() const
     return false;
 }
 
-void Source::convertIncludePathsRelative(List<Include> & tincludePaths)
+void Source::encode(Serializer &s, EncodeMode mode) const
 {
-    for (auto & m : tincludePaths) {
-        if (!m.path.isEmpty()) {
-            Location::convertPathRelative(m.path);
-        }
+    // SBROOT
+    // sourceFile, buildRoot, compiler(?), includePaths
+
+    if (mode == EncodeSandbox && !Sandbox::root().isEmpty()) {
+        s << Sandbox::encoded(sourceFile()) << fileId << Sandbox::encoded(compiler()) << compilerId
+          << Sandbox::encoded(extraCompiler) << Sandbox::encoded(buildRoot()) << buildRootId
+          << static_cast<uint8_t>(language) << parsed << flags << defines;
+
+        auto incPaths = includePaths;
+        for (auto &inc : incPaths)
+            Sandbox::encode(inc.path);
+
+        s << incPaths << Sandbox::encoded(arguments)
+          << sysRootIndex << Sandbox::encoded(directory) << includePathHash;
+    } else {
+        s << sourceFile() << fileId << compiler() << compilerId
+          << extraCompiler << buildRoot() << buildRootId
+          << static_cast<uint8_t>(language) << parsed << flags << defines
+          << includePaths << arguments << sysRootIndex << directory << includePathHash;
     }
 }
 
-void Source::convertIncludePathsFull(List<Include> & tincludePaths)
+void Source::decode(Deserializer &s, EncodeMode mode)
 {
-    for (auto & m : tincludePaths) {
-        if (!m.path.isEmpty()) {
-            Location::convertPathFull(m.path);
-        }
+    clear();
+    uint8_t lang;
+    Path source, compiler, buildRoot;
+    s >> source >> fileId >> compiler >> compilerId >> extraCompiler
+      >> buildRoot >> buildRootId >> lang >> parsed >> flags
+      >> defines >> includePaths >> arguments >> sysRootIndex
+      >> directory >> includePathHash;
+    language = static_cast<Language>(lang);
+
+    if (mode == EncodeSandbox && !Sandbox::root().isEmpty()) { // SBROOT
+        Sandbox::decode(source);
+        Sandbox::decode(buildRoot);
+        Sandbox::decode(compiler);
+        Sandbox::decode(extraCompiler);
+        Sandbox::decode(directory);
+        for (auto &inc : includePaths)
+            Sandbox::decode(inc.path);
+        Sandbox::decode(arguments);
     }
+
+    Location::set(source, fileId);
+    Location::set(compiler, compilerId);
+    Location::set(buildRoot, buildRootId);
+    language = static_cast<Source::Language>(language);
 }

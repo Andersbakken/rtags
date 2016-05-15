@@ -36,6 +36,7 @@
 #include "rct/Set.h"
 #include "rct/String.h"
 #include "IndexMessage.h"
+#include "Sandbox.h"
 
 class Database;
 class Project;
@@ -690,13 +691,14 @@ struct CompilationDataBaseInfo {
 
 inline Serializer &operator<<(Serializer &s, const CompilationDataBaseInfo &info)
 {
-    s << info.lastModified << info.pathEnvironment << info.indexFlags;
+    s << info.lastModified << Sandbox::encoded(info.pathEnvironment) << info.indexFlags;
     return s;
 }
 
 inline Deserializer &operator>>(Deserializer &s, CompilationDataBaseInfo &info)
 {
     s >> info.lastModified >> info.pathEnvironment >> info.indexFlags;
+    Sandbox::decode(info.pathEnvironment);
     return s;
 }
 

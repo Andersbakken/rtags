@@ -37,6 +37,7 @@
 #include "rct/Path.h"
 #include "rct/Serializer.h"
 #include "rct/String.h"
+#include "rct/StackBuffer.h"
 
 static inline int intCompare(uint32_t l, uint32_t r)
 {
@@ -53,6 +54,7 @@ static inline int comparePosition(uint32_t lline, uint32_t lcol, uint32_t rline,
         ret = intCompare(lcol, rcol);
     return ret;
 }
+
 class Location
 {
 public:
@@ -89,19 +91,6 @@ public:
         LOCK();
         return sIdsToPaths.size();
     }
-
-    static const Path & sandboxRoot();
-
-    static void strPathToSbRoot(Path &path);
-
-    static void convertPathRelative(Path & path);
-    static void convertPathFull(Path &path);
-
-    static bool containRelativePath(const String & str);
-    static bool containSandboxRoot(const String & str);
-
-    static String replaceRelativeWithFullPath(const String & key);
-    static String replaceFullWithRelativePath(const String & key);
 
     static inline uint32_t insertFile(const Path &path)
     {
@@ -166,7 +155,8 @@ public:
         NoFlag = 0x0,
         ShowContext = 0x1,
         NoColor = 0x2,
-        AbsolutePath = 0x4
+        AbsolutePath = 0x4,
+        ConvertToRelative = 0x8
     };
 
     String toString(Flags<ToStringFlag> flags = NoFlag, Hash<Path, String> *contextCache = 0) const;
