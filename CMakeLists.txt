@@ -13,6 +13,7 @@ endif()
 
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/")
 
+include(FeatureSummary)
 add_subdirectory(src)
 
 if (EXISTS "rules.ninja")
@@ -27,5 +28,4 @@ endif()
 configure_file("${CMAKE_MODULE_PATH}/Uninstall.cmake.in" "${CMAKE_BINARY_DIR}/Uninstall.cmake" IMMEDIATE @ONLY)
 add_custom_target(uninstall ${CMAKE_COMMAND} -P "${CMAKE_BINARY_DIR}/Uninstall.cmake")
 
-include(FeatureSummary)
-feature_summary(WHAT ALL)
+feature_summary(INCLUDE_QUIET_PACKAGES WHAT ALL)

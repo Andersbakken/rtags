@@ -5,6 +5,12 @@ if(FORCE_BASH_COMPLETION_INSTALLATION AND "${BASH_COMPLETION_COMPLETIONSDIR}" ST
 endif()
 
 find_package(PkgConfig QUIET)
+set_package_properties(PkgConfig
+    PROPERTIES
+    URL "https://www.freedesktop.org/wiki/Software/pkg-config/"
+    DESCRIPTION "helper tool"
+    TYPE OPTIONAL
+    PURPOSE "We use it to get the bash completion installation path, and replace the prefix with the value of CMAKE_INSTALL_PREFIX.")
 if(PKG_CONFIG_FOUND OR FORCE_BASH_COMPLETION_INSTALLATION)
     if(PKG_CONFIG_FOUND AND NOT FORCE_BASH_COMPLETION_INSTALLATION)
         execute_process(COMMAND ${PKG_CONFIG_EXECUTABLE} --variable=completionsdir bash-completion

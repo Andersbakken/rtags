@@ -22,7 +22,7 @@
 #
 # Description: The following variables can be changed from the build matrix:
 #  - ASAN        (default value is "1")
-#  - LUA_VERSION (default value is "3.5.2")
+#  - LUA_VERSION (default value is "5.3.2")
 #  - LUA_DISABLE (default value is "", set it to anything to disable lua
 #                 extension for that matrix)
 ASAN=${ASAN:-"1"}
@@ -44,7 +44,6 @@ if [ ! $LUA_DISABLE ]; then
     pushd .. > /dev/null
     git clone --depth 1 --branch $LUA_VERSION https://github.com/lua/lua.git
     cd lua
-
     make $TRAVIS_OS_NAME local
     popd > /dev/null
 
@@ -57,7 +56,6 @@ if [ ! $LUA_DISABLE ]; then
     # `find_package(Lua51 5.3)`, and all `LUA_FOUND` with `LUA51_FOUND`.
     echo "Applying LUA src/CMakeLists.txt hack (misuse FindLua51.cmake)."
     sed -i 's/\(find_package(Lua\).*/\151)/;s/LUA_FOUND/LUA51_FOUND/g' src/CMakeLists.txt
-
     CMAKE_PARAMS+=("-DLUA_INCLUDE_DIR=$LUA_INSTALL_DIR/include"
                    "-DLUA_LIBRARY=$LUA_INSTALL_DIR/lib/liblua.a")
 else
