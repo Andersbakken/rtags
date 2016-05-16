@@ -3940,13 +3940,16 @@ Return nil if it can't get any info about the item."
                   (find-file file-or-buffer)
                   (setq buf (current-buffer))
                   (switch-to-buffer old-buf))
-                (with-current-buffer buf
-                  (save-excursion
-                    (rtags-goto-line-col (first range) (second range))
-                    (setq pos1 (point))
-                    (rtags-goto-line-col (third range) (fourth range))
-                    (setq pos2 (point))
-                    (setq symbol-text (buffer-substring-no-properties pos1 pos2))))))
+                (if (string= (cdr (assoc 'kind symbol)) "EnumConstantDecl")
+                    (setq symbol-text (format "%s = %d(0x%x)" (cdr (assoc 'symbolName symbol))
+                                              (cdr (assoc 'enumValue symbol)) (cdr (assoc 'enumValue symbol))))
+                  (with-current-buffer buf
+                    (save-excursion
+                      (rtags-goto-line-col (first range) (second range))
+                      (setq pos1 (point))
+                      (rtags-goto-line-col (third range) (fourth range))
+                      (setq pos2 (point))
+                      (setq symbol-text (buffer-substring-no-properties pos1 pos2)))))))
             (cond ((and symbol-text brief) (concat brief "\n\n" symbol-text))
                   (brief)
                   (t symbol-text))))))))
