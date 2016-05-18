@@ -17,6 +17,9 @@
 #include "ClangThread.h"
 #include "selene.h"
 
+#define TO_STR1(x) #x
+#define TO_STR(x) TO_STR1(x)
+
 struct UserData {
     List<AST::Cursor> parents;
     AST *ast;
@@ -146,6 +149,8 @@ std::shared_ptr<AST> AST::create(const Source &source, const String &sourceCode,
             // sscanf
             // return mByUsr.value(usr);
         };
+        const String script = Path(TO_STR(RTAGS_INSTALL_DIR) "/rtags.lua").readAll();
+        state(script.constData());
     }
     return ast;
 }

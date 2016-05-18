@@ -76,6 +76,7 @@ endif ()
 if("${LIBCLANG_LIBDIR}" STREQUAL "")
     message(FATAL_ERROR "Define LIBCLANG_LIBDIR is empty, please provide the path to the clang library. See README for more help.")
 endif()
+add_definitions("-DRTAGS_INSTALL_DIR=${CMAKE_CURRENT_BINARY_DIR}")
 add_definitions("-DCLANG_LIBDIR=${LIBCLANG_LIBDIR}")
 add_definitions("-DOS_${CMAKE_SYSTEM_NAME}")
 add_definitions(${RCT_DEFINITIONS})
@@ -205,6 +206,13 @@ set(RTAGS_ELISP_FILES
     rtags-ac.el
     company-rtags.el
     flycheck-rtags.el)
+
+if (NOT RTAGS_NO_LUA_FILES AND LUA_FOUND AND NOT ${CMAKE_CURRENT_BINARY_DIR} STREQUAL ${CMAKE_CURRENT_SOURCE_DIR})
+    add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/rtags.lua
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different ${CMAKE_CURRENT_SOURCE_DIR}/rtags.lua ${CMAKE_CURRENT_BINARY_DIR}/rtags.lua
+        DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/rtags.lua
+        COMMENT "Copying ${CMAKE_CURRENT_SOURCE_DIR}/rtags.lua -> ${CMAKE_CURRENT_BINARY_DIR}/rtags.lua")
+endif ()
 
 if (NOT RTAGS_NO_ELISP_FILES)
     if (NOT RTAGS_ELISP_INSTALL_LOCATION)
