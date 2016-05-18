@@ -4286,9 +4286,11 @@ the class.
 (defun rtags-tokens-sentinel (process event)
   (let ((status (process-status process)))
     (when (memq status '(exit signal closed failed))
-      (goto-char (point-min))
-      (funcall rtags-tokens-callback (and (looking-at "(")
-                                          (eval (read (buffer-string))))))))
+      (with-current-buffer (process-buffer process)
+        (goto-char (point-min))
+        (funcall rtags-tokens-callback (and (looking-at "(")
+                                            (eval (read (buffer-string)))))
+        (kill-buffer (process-buffer process))))))
 
 ;;;###autoload
 (defun rtags-tokens (&optional from to callback)
