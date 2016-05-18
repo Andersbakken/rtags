@@ -142,13 +142,13 @@ void ClangThread::run()
                                 index, &unsaved, 1, CXTranslationUnit_DetailedPreprocessingRecord, &clangLine);
 
     const unsigned long long parseTime = sw.restart();
-    error() << "parseTime" << parseTime;
+    warning() << "parseTime" << parseTime;
 #ifdef RTAGS_HAS_LUA
     if (mQueryMessage->type() == QueryMessage::VisitAST) {
         std::shared_ptr<AST> ast = AST::create(mSource, sourceCode, translationUnit);
         if (ast) {
             for (const String script : mQueryMessage->visitASTScripts()) {
-                error() << script;
+                warning() << "evaluating script:\n" << script;
                 for (const String &str : ast->evaluate(script)) {
                     if (!str.isEmpty()) {
                         writeToConnetion(str);
