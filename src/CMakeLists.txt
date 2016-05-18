@@ -117,6 +117,7 @@ set(RTAGS_SOURCES
     Symbol.cpp
     Symbol.cpp
     SymbolInfoJob.cpp
+    Token.cpp
     TokensJob.cpp
     ${RCT_SOURCES})
 

@@ -28,18 +28,7 @@ struct Token
     Location location;
     uint32_t offset, length;
 
-    String toString() const
-    {
-        String ret;
-        {
-            Log(&ret) << "Location:" << location
-                      << "Offset:" << offset
-                      << "Length:" << length
-                      << "Kind:" << kind
-                      << "\nSpelling:\n" << spelling;
-        }
-        return ret;
-    }
+    String toString() const;
 };
 
 template <> inline Serializer &operator<<(Serializer &s, const Token &t)
