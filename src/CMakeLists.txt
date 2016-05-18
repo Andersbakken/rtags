@@ -214,10 +214,10 @@ if (NOT RTAGS_NO_ELISP_FILES)
     foreach(el ${RTAGS_ELISP_FILES})
         if (NOT ${CMAKE_CURRENT_BINARY_DIR} STREQUAL ${CMAKE_CURRENT_SOURCE_DIR})
             add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/${el}
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different ${CMAKE_CURRENT_SOURCE_DIR}/${el} ${CMAKE_CURRENT_BINARY_DIR}/${el}
-        DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/${el}
-        COMMENT "Copying ${CMAKE_CURRENT_SOURCE_DIR}/${el} -> ${CMAKE_CURRENT_BINARY_DIR}/${el}")
-    endif ()
+                COMMAND ${CMAKE_COMMAND} -E copy_if_different ${CMAKE_CURRENT_SOURCE_DIR}/${el} ${CMAKE_CURRENT_BINARY_DIR}/${el}
+                DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/${el}
+                COMMENT "Copying ${CMAKE_CURRENT_SOURCE_DIR}/${el} -> ${CMAKE_CURRENT_BINARY_DIR}/${el}")
+        endif ()
         list(APPEND RTAGS_ELISP_SOURCES ${CMAKE_CURRENT_BINARY_DIR}/${el})
         if (NOT RTAGS_NO_ELISP_BYTECOMPILE)
             list(APPEND RTAGS_ELISP_SOURCES ${CMAKE_CURRENT_BINARY_DIR}/${el}c)
