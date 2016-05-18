@@ -262,7 +262,7 @@ public:
 
     struct Cursors : public List<Cursor>
     {
-        int count() const { return List<Cursor>::size(); }
+        int size() const { return List<Cursor>::size(); }
         Cursor at(int idx) const { return value(idx); }
     };
 
@@ -342,7 +342,7 @@ public:
         if (clang_isInvalid(clang_getCursorKind(cursor)))
             return Cursor();
 
-        auto match = [&cursor](const List<Cursor> &cursors) {
+        auto match = [&cursor](const Cursors &cursors) -> Cursor {
             for (const Cursor &c : cursors) {
                 assert(c.data);
                 if (clang_equalCursors(c.data->cursor, cursor)) {
@@ -351,7 +351,7 @@ public:
             }
             // The explicit const cast is here to satisfy travis clang matrix.
             // clang 3.4 does not allow to use two different return types
-            return (const Cursor)Cursor();
+            return Cursor();
         };
 
         const std::string usr = toString(clang_getCursorUSR(cursor));
@@ -399,8 +399,8 @@ private:
     AST()
         : mRoot(0)
     {}
-    mutable Hash<std::string, List<Cursor> > mByUsr;
-    mutable Map<SourceLocation, List<Cursor> > mByLocation;
+    mutable Hash<std::string, Cursors> mByUsr;
+    mutable Map<SourceLocation, Cursors> mByLocation;
     String mSourceCode;
     List<String> mReturnValues;
     Cursor *mRoot;

@@ -57,6 +57,10 @@ static void registerClasses(sel::State &state)
                                                     "end", &AST::SourceRange::end,
                                                     "length", &AST::SourceRange::length,
                                                     "toString", &AST::SourceRange::toString);
+
+    auto cursors = state["Cursors"];
+    cursors.SetClass<AST::Cursors>("size", &AST::Cursors::size,
+                                   "at", &AST::Cursors::at);
     auto cursor = state["Cursor"];
     cursor.SetClass<AST::Cursor>("location", &AST::Cursor::location,
                                  "usr", &AST::Cursor::usr,
@@ -117,11 +121,11 @@ std::shared_ptr<AST> AST::create(const Source &source, const String &sourceCode,
     state["sourceFile"] = source.sourceFile().ref();
     state["sourceCode"] = sourceCode.ref();
     state["write"] = [ast](const std::string &str) {
+        // error() << "writing" << str;
         ast->mReturnValues.append(str);
     };
 
     exposeArray(state["commandLine"], source.toCommandLine(Source::Default|Source::IncludeCompiler|Source::IncludeSourceFile));
-
 
     if (unit) {
         UserData userData;
@@ -131,7 +135,16 @@ std::shared_ptr<AST> AST::create(const Source &source, const String &sourceCode,
         const Cursor root = userData.parents.front();
         state["root"] = [root]() { return root; };
         state["findByUsr"] = [ast](const std::string &usr) {
+            return ast->mByUsr.value(usr);
+        };
 
+        state["findByOffset"] = [ast](const std::string &str) {
+            // int offset = atoi(str.c_str());
+            // if (offset) {
+
+            // } else
+            // sscanf
+            // return mByUsr.value(usr);
         };
     }
     return ast;
@@ -150,6 +163,10 @@ List<AST::SkippedRange> AST::skippedRanges() const
 List<String> AST::evaluate(const String &script)
 {
     assert(mReturnValues.isEmpty());
-    mState->operator()(script.constData());
+    try {
+        mState->operator()(script.constData());
+    } catch (...) {
+        error() << "Got exception";
+    }
     return std::move(mReturnValues);
 }
