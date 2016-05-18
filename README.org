@@ -510,7 +510,7 @@ page at some point. Most users will have limited interest in ever calling them
 manually and would rather just use the interactive elisp functions.
 
 * Elisp
-There are lots of interactive functions to call:
+** Functions
 
 #+BEGIN_SRC emacs-lisp
 (rtags-start-process-unless-running)
@@ -711,7 +711,23 @@ have bugs it should not be necessary.
 Switch to =*RTags*= buffer. This is the buffer where a number of functions
 display their alternatives when they have more than one match.
 
-Variables:
+#+BEGIN_SRC emacs-lisp
+(rtags-include-file)
+#+END_SRC
+
+Insert selected or entered include, e.g. "string.h"/<string.h> in current
+buffer, either at the top, after the first include statement or with prefix
+argument (=C-u=) at current point.
+
+#+BEGIN_SRC emacs-lisp
+(rtags-get-include-file-for-symbol)
+#+END_SRC
+
+Insert include for entered symbol or symbol under courser in current buffer,
+either at the top, after the first include statement or with prefix argument
+(=C-u=) at current point.
+
+** Variables
 
 #+BEGIN_SRC emacs-lisp
 rtags-path
@@ -741,25 +757,9 @@ found. E.g. =/foobar.cpp= =/bar.cpp= If =rtags-find-file-prefer-exact-match=
 is =t= a query for =bar.cpp= would only return =/bar.cpp=, otherwise both
 =foobar.cpp= and =bar.cpp= would be returned.
 
-#+BEGIN_SRC emacs-lisp
-rtags-include-file
-#+END_SRC
-
-Insert selected or entered include, e.g. "string.h"/<string.h> in current
-buffer, either at the top, after the first include statement or with prefix
-argument (=C-u=) at current point.
-
-#+BEGIN_SRC emacs-lisp
-rtags-get-include-file-for-symbol
-#+END_SRC
-
-Insert include for entered symbol or symbol under courser in current buffer,
-either at the top, after the first include statement or with prefix argument
-(=C-u=) at current point.
-
-- Fall back to other taggers:
-  You can do something like the following to fall back to e.g. gtags
-  if RTags doesn't have a certain project indexed:
+** Fall back to other taggers
+You can do something like the following to fall back to e.g. gtags
+if RTags doesn't have a certain project indexed:
 
 #+BEGIN_SRC emacs-lisp
 (defun use-rtags (&optional useFileManager)
