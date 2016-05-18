@@ -34,7 +34,7 @@ set(CPACK_PACKAGE_CONTACT "${PKG_USERNAME}")
 #set(CPACK_PACKAGE_VERSION_MINOR "${VERSION_MINOR}")
 set(CPACK_PACKAGE_VERSION "${VERSION}")
 
-INCLUDE(CPack)
+include(CPack)
 cpack_add_component(rtags)
 
 feature_summary(INCLUDE_QUIET_PACKAGES WHAT ALL)

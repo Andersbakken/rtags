@@ -40,3 +40,6 @@ compile_commands.json
 /src/*_cotire.cmake
 /src/cotire/
 /build/
+/CPackConfig.cmake
+/CPackSourceConfig.cmake
+/source/VERSION
