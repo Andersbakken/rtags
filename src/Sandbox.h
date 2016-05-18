@@ -58,7 +58,7 @@ bool encode(T &t, ReplaceMode mode = Everywhere)
             ret = true;
     }
 
-    return true;
+    return ret;
 }
 
 template <typename T,
@@ -127,14 +127,6 @@ bool decode(T &t, ReplaceMode mode = Everywhere)
     return false;
 }
 
-// bool decode(List<Source::Include> &includePaths, ReplaceMode mode = Everywhere)
-// {
-//     bool ret = false;
-//     for (Source::Include &inc : includePaths)
-//         ret = decode(inc.path, mode) || ret;
-//     return ret;
-// }
-
 template <typename T,
           typename std::enable_if<std::is_convertible<typename T::mapped_type, String>::value>::type * = nullptr,
           typename std::enable_if<!std::is_convertible<typename T::key_type, String>::value>::type * = nullptr>
@@ -146,7 +138,7 @@ bool decode(T &t, ReplaceMode mode = Everywhere)
             ret = true;
     }
 
-    return true;
+    return ret;
 }
 
 template <typename T,
