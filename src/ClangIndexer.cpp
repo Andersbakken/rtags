@@ -31,6 +31,7 @@
 #include "RTags.h"
 #include "VisitFileMessage.h"
 #include "VisitFileResponseMessage.h"
+#include "Location.h"
 
 const CXSourceLocation ClangIndexer::nullLocation = clang_getNullLocation();
 const CXCursor ClangIndexer::nullCursor = clang_getNullCursor();
@@ -67,7 +68,7 @@ struct VerboseVisitorUserData {
 };
 
 Flags<Server::Option> ClangIndexer::sServerOpts;
-Path ClangIndexer::sServerRoot;
+Path ClangIndexer::sServerSandboxRoot;
 ClangIndexer::ClangIndexer()
     : mClangUnit(0), mIndex(0), mLastCursor(nullCursor), mLastCallExpr(nullCursor),
       mVisitFileResponseMessageFileId(0), mVisitFileResponseMessageVisit(0), mParseDuration(0),
@@ -118,7 +119,7 @@ bool ClangIndexer::exec(const String &data)
     deserializer >> connectAttempts;
     deserializer >> niceValue;
     deserializer >> sServerOpts;
-    deserializer >> sServerRoot;
+    deserializer >> sServerSandboxRoot;
     deserializer >> mUnsavedFiles;
     deserializer >> mDataDir;
     deserializer >> mDebugLocations;
@@ -1735,6 +1736,24 @@ static inline Map<String, Set<Location> > convertTargets(const Map<Location, Map
     return ret;
 }
 
+static void convertRelativePath(Map<String, Set<Location> > & usrs)
+{
+    std::list<String> sbstrs;
+
+    for (auto & m : usrs) {
+        if (Location::containSandboxRoot(m.first)) {
+            sbstrs.push_back(m.first);
+        }
+    }
+    for (auto & n : sbstrs) {
+        auto it = usrs.find(n);
+        assert(it != usrs.end());
+        String srel = Location::replaceFullWithRelativePath(n);
+        std::swap(usrs[srel], it->second);
+        usrs.erase(it);
+    }
+}
+
 bool ClangIndexer::writeFiles(const Path &root, String &error)
 {
     for (const auto &unit : mUnits) {
@@ -1764,14 +1783,21 @@ bool ClangIndexer::writeFiles(const Path &root, String &error)
             error = "Failed to write symbols";
             return false;
         }
-        if (!FileMap<String, Set<Location> >::write(unitRoot + "/targets", convertTargets(unit.second->targets), fileMapOpts)) {
+        Map<String, Set<Location> > tmpTargets = convertTargets(unit.second->targets);
+        // SBROOT
+        convertRelativePath(tmpTargets);
+        if (!FileMap<String, Set<Location> >::write(unitRoot + "/targets", tmpTargets, fileMapOpts)) {
             error = "Failed to write targets";
             return false;
         }
+        // SBROOT
+        convertRelativePath(unit.second->usrs);
         if (!FileMap<String, Set<Location> >::write(unitRoot + "/usrs", unit.second->usrs, fileMapOpts)) {
             error = "Failed to write usrs";
             return false;
         }
+        // SBROOT
+        convertRelativePath(unit.second->symbolNames);
         if (!FileMap<String, Set<Location> >::write(unitRoot + "/symnames", unit.second->symbolNames, fileMapOpts)) {
             error = "Failed to write symbolNames";
             return false;

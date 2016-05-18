@@ -90,6 +90,19 @@ public:
         return sIdsToPaths.size();
     }
 
+    static const Path & sandboxRoot();
+
+    static void strPathToSbRoot(Path &path);
+
+    static void convertPathRelative(Path & path);
+    static void convertPathFull(Path &path);
+    
+    static bool containRelativePath(const String & str);
+    static bool containSandboxRoot(const String & str);
+
+    static String replaceRelativeWithFullPath(const String & key);
+    static String replaceFullWithRelativePath(const String & key);
+
     static inline uint32_t insertFile(const Path &path)
     {
         bool save = false;

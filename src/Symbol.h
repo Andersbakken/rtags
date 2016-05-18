@@ -139,9 +139,17 @@ RCT_FLAGS(Symbol::ToStringFlag);
 
 template <> inline Serializer &operator<<(Serializer &s, const Symbol &t)
 {
-    s << t.location << t.symbolName << t.usr << t.typeName << t.baseClasses << t.arguments
+    // SBROOT -- need to find and replace to relative path
+    //     symbolName, usr, briefComment, xmlComment
+    String tsymbolName = Location::replaceFullWithRelativePath(t.symbolName);
+    String tusr = Location::replaceFullWithRelativePath(t.usr);
+    String ttypeName = Location::replaceFullWithRelativePath(t.typeName);
+    String tbriefComment = Location::replaceFullWithRelativePath(t.briefComment);
+    String txmlComment = Location::replaceFullWithRelativePath(t.xmlComment);
+    
+    s << t.location << tsymbolName << tusr << ttypeName << t.baseClasses << t.arguments
       << t.symbolLength << static_cast<uint16_t>(t.kind) << static_cast<uint16_t>(t.type)
-      << static_cast<uint8_t>(t.linkage) << t.flags << t.briefComment << t.xmlComment
+      << static_cast<uint8_t>(t.linkage) << t.flags << tbriefComment << txmlComment
       << t.enumValue << t.startLine << t.endLine << t.startColumn << t.endColumn
       << t.size << t.fieldOffset << t.alignment;
     return s;
@@ -151,11 +159,18 @@ template <> inline Deserializer &operator>>(Deserializer &s, Symbol &t)
 {
     uint16_t kind, type;
     uint8_t linkage;
+    // SBROOT -- need to find and replace to full path
     s >> t.location >> t.symbolName >> t.usr >> t.typeName >> t.baseClasses
       >> t.arguments >> t.symbolLength >> kind >> type >> linkage >> t.flags
       >> t.briefComment >> t.xmlComment >> t.enumValue
       >> t.startLine >> t.endLine >> t.startColumn >> t.endColumn
       >> t.size >> t.fieldOffset >> t.alignment;
+
+    t.symbolName = Location::replaceRelativeWithFullPath(t.symbolName);
+    t.usr = Location::replaceRelativeWithFullPath(t.usr);
+    t.typeName = Location::replaceRelativeWithFullPath(t.typeName);
+    t.briefComment = Location::replaceRelativeWithFullPath(t.briefComment);
+    t.xmlComment = Location::replaceRelativeWithFullPath(t.xmlComment);
 
     t.kind = static_cast<CXCursorKind>(kind);
     t.type = static_cast<CXTypeKind>(type);

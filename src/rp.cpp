@@ -60,14 +60,26 @@ int main(int argc, char **argv)
 {
     LogLevel logLevel = LogLevel::Error;
     Path file;
+    String sbroot;
+
     for (int i=1; i<argc; ++i) {
         if (!strcmp(argv[i], "-v") || !strcmp(argv[i], "--verbose")) {
             ++logLevel;
         } else if (!strcmp(argv[i], "--priority")) { // ignore, only for wrapping purposes
             ++i;
+        } else if (!strcmp(argv[i], "--sandbox-root")) { 
+            // SBROOT
+            ++i;
+            sbroot = argv[i];
+            ++i;
         } else {
             file = argv[i];
         }
+    } 
+    
+    // SBROOT
+    if (ClangIndexer::serverSandboxRoot().isEmpty()) {
+        ClangIndexer::setServerSandboxRoot(sbroot);
     }
 
     setenv("LIBCLANG_NOTHREADS", "1", 0);
