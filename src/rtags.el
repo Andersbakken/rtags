@@ -4323,7 +4323,6 @@ the class.
                                                            (to (format "%s:-%d" path to))
                                                            (t path)))))
                  (setq rtags-tokens-callback callback)
-                 (setq shit proc)
                  (set-process-sentinel proc 'rtags-tokens-sentinel)))))
           ((null callback)
            (with-temp-buffer
