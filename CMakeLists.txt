@@ -28,4 +28,13 @@ endif()
 configure_file("${CMAKE_MODULE_PATH}/Uninstall.cmake.in" "${CMAKE_BINARY_DIR}/Uninstall.cmake" IMMEDIATE @ONLY)
 add_custom_target(uninstall ${CMAKE_COMMAND} -P "${CMAKE_BINARY_DIR}/Uninstall.cmake")
 
+include(PkgInfo)
+set(CPACK_PACKAGE_CONTACT "${PKG_USERNAME}")
+#set(CPACK_PACKAGE_VERSION_MAJOR "${VERSION_MAJOR}")
+#set(CPACK_PACKAGE_VERSION_MINOR "${VERSION_MINOR}")
+set(CPACK_PACKAGE_VERSION "${VERSION}")
+
+INCLUDE(CPack)
+cpack_add_component(rtags)
+
 feature_summary(INCLUDE_QUIET_PACKAGES WHAT ALL)
