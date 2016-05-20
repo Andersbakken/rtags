@@ -4434,7 +4434,7 @@ the user enter missing field manually."
   (defun rtags-helm-select (candidate)
     (with-current-buffer (get-buffer rtags-buffer-name)
       (goto-char candidate)
-      (rtags-select t t)))
+      (rtags-select t nil)))
   ;; (message "CAND: %d" (get-text-property 0 'rtags-buffer-position candidate)))
 
   (defun rtags-helm-get-candidate-line (candidate)
