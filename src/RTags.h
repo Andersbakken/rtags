@@ -55,7 +55,7 @@ namespace RTags {
 enum {
     MajorVersion = 2,
     MinorVersion = 0,
-    DatabaseVersion = 92,
+    DatabaseVersion = 93,
     SourcesFileVersion = 5
 };
 
@@ -76,6 +76,7 @@ enum CursorType {
     Type_Cursor,
     Type_Reference,
     Type_Statement,
+    Type_Literal,
     Type_Other
 };
 void initMessages();
@@ -256,6 +257,17 @@ inline bool isCursor(CXCursorKind kind)
 inline CursorType cursorType(CXCursorKind kind)
 {
     switch (kind) {
+    case CXCursor_IntegerLiteral:
+    case CXCursor_FloatingLiteral:
+    case CXCursor_ImaginaryLiteral:
+    case CXCursor_StringLiteral:
+    case CXCursor_CharacterLiteral:
+    case CXCursor_CompoundLiteralExpr:
+    case CXCursor_CXXBoolLiteralExpr:
+    case CXCursor_CXXNullPtrLiteralExpr:
+    case CXCursor_ObjCStringLiteral:
+    case CXCursor_ObjCBoolLiteralExpr:
+        return Type_Literal;
     case CXCursor_InclusionDirective:
         return Type_Include;
     case CXCursor_LambdaExpr:

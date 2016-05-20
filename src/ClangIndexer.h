@@ -93,12 +93,12 @@ private:
         clang_disposeString(fn);
         return createLocation(p, line, col, blocked);
     }
-    inline Location createLocation(const CXCursor &cursor, bool *blocked = 0)
+    inline Location createLocation(const CXCursor &cursor, bool *blocked = 0, unsigned *offset = 0)
     {
         const CXSourceLocation location = clang_getCursorLocation(cursor);
         if (clang_equalLocations(location, nullLocation))
             return Location();
-        return createLocation(location, blocked);
+        return createLocation(location, blocked, offset);
     }
     Location createLocation(const Path &file, unsigned int line, unsigned int col, bool *blocked = 0);
     String addNamePermutations(const CXCursor &cursor,
@@ -112,6 +112,7 @@ private:
                          Symbol **cursorPtr = 0);
     void handleBaseClassSpecifier(const CXCursor &cursor);
     void handleInclude(const CXCursor &cursor, CXCursorKind kind, Location location);
+    void handleLiteral(const CXCursor &cursor, CXCursorKind kind, Location location, unsigned offset);
     CXChildVisitResult handleStatement(const CXCursor &cursor, CXCursorKind kind, Location location);
     Location findByUSR(const CXCursor &cursor, CXCursorKind kind, Location loc) const;
     void addOverriddenCursors(const CXCursor &cursor, Location location);

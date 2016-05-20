@@ -182,7 +182,7 @@ bool ClangIndexer::exec(const String &data)
 
     assert(mConnection->isConnected());
     mIndexDataMessage.files()[mSource.fileId] |= IndexDataMessage::Visited;
-    parse() && visit() && diagnose();
+    parse() && diagnose() && visit();
     String message = mSourceFile.toTilde();
     String err;
     StopWatch sw;
@@ -644,7 +644,8 @@ CXChildVisitResult ClangIndexer::indexVisitor(CXCursor cursor)
 
     bool blocked = false;
 
-    Location loc = createLocation(cursor, &blocked);
+    unsigned offset = 0;
+    Location loc = createLocation(cursor, &blocked, &offset);
 
     if (blocked) {
         // error() << "blocked" << cursor;
@@ -698,6 +699,9 @@ CXChildVisitResult ClangIndexer::indexVisitor(CXCursor cursor)
         break;
     case RTags::Type_Include:
         handleInclude(cursor, kind, loc);
+        break;
+    case RTags::Type_Literal:
+        handleLiteral(cursor, kind, loc, offset);
         break;
     case RTags::Type_Statement:
         visitResult = handleStatement(cursor, kind, loc);
@@ -1081,7 +1085,7 @@ bool ClangIndexer::handleReference(const CXCursor &cursor, CXCursorKind kind, Lo
     setType(*c, clang_getCursorType(cursor));
     if (kind == CXCursor_CallExpr) {
         addArguments(c, cursor);
-    } else if (refKind == CXCursor_CXXMethod) {
+    } else if (RTags::isFunction(CXCursor_CXXMethod)) {
         addArguments(c, mLastCallExpr);
     }
 
@@ -1141,6 +1145,42 @@ void ClangIndexer::handleInclude(const CXCursor &cursor, CXCursorKind kind, Loca
         }
     }
     error() << "couldn't create included file" << cursor;
+}
+
+void ClangIndexer::handleLiteral(const CXCursor &cursor, CXCursorKind kind, Location location, unsigned offset)
+{
+    auto u = unit(location);
+    // error() << location << kind
+    //         << RTags::eatString(clang_getCursorDisplayName(cursor))
+    //         << RTags::eatString(clang_getCursorSpelling(cursor))
+    //         << clang_getCursorType(cursor).kind;
+
+    CXType type = clang_getCursorType(cursor);
+    String symbolName;
+    if (kind != CXCursor_StringLiteral) {
+        auto it = u->tokens.find(offset);
+        if (it == u->tokens.end()) {
+            Log(&symbolName) << type.kind;
+        } else {
+            symbolName = it->second.spelling;
+        }
+    } else {
+        symbolName = RTags::eatString(clang_getCursorSpelling(cursor));
+    }
+    // error() << location << kind << displayName;
+    u->symbolNames[symbolName].insert(location);
+    Symbol &s = u->symbols[location];
+    if (!s.isNull())
+        return;
+    s.location = location;
+    s.symbolName = symbolName;
+    s.kind = kind;
+    s.symbolLength = symbolName.size();
+    s.size = clang_Type_getSizeOf(type);
+    setType(s, type);
+    setRange(s, clang_getCursorExtent(cursor));
+
+    // s.symbolName = RTags::eatString(clang_getCursorDisplayName(cursor));
 }
 
 CXChildVisitResult ClangIndexer::handleStatement(const CXCursor &cursor, CXCursorKind kind, Location location)
@@ -2200,4 +2240,3 @@ Symbol ClangIndexer::findSymbol(Location location, FindResult *result) const
     }
     return Symbol();
 }
-

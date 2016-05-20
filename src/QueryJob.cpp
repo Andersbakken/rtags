@@ -347,7 +347,7 @@ bool QueryJob::write(const Symbol &symbol,
                     }
                     {
                         String out;
-                        elisp(out, "symbolLength", arg.second, NoSpaces);
+                        elisp(out, "length", arg.second, NoSpaces);
                         s << out;
                     }
                     {

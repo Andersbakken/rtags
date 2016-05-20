@@ -417,6 +417,9 @@ String cursorToString(CXCursor cursor, Flags<CursorToStringFlags> flags)
     case Type_Include:
         ret += " include";
         break;
+    case Type_Literal:
+        ret += " literal";
+        break;
     }
 
     const String name = eatString(clang_getCursorDisplayName(cursor));
