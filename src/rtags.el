@@ -2705,7 +2705,18 @@ This includes both declarations and definitions."
                        (buffer-substring-no-properties start end))
             (delete-char (- end start))
             (when (cdr replacedata)
-              (insert (cdr replacedata))))))))))
+              (insert (cdr replacedata)))
+            (let ((overlays (overlays-in (point) (point-max)))
+                  (change (- (length (cdr replacedata))
+                             (- end start))))
+              (while overlays
+                (let ((overlay (car overlays)))
+                  (when (eq (overlay-get overlay 'rtags-error-severity) 'fixit)
+                    (let ((start (overlay-get overlay 'rtags-error-start))
+                          (end (overlay-get overlay 'rtags-error-end)))
+                      (overlay-put overlay 'rtags-error-start (+ start change))
+                      (overlay-put overlay 'rtags-error-end (+ end change))))
+                  (setq overlays (cdr overlays))))))))))))
 
 ;;;###autoload
 (defun rtags-fix-fixit-at-point ()
