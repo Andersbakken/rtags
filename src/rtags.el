@@ -2680,20 +2680,32 @@ This includes both declarations and definitions."
         (rtags-display-overlay overlay (overlay-start overlay))))))
 
 (defun rtags-fix-fixit-overlay (overlay)
-  (let ((msg (overlay-get overlay 'rtags-error-message))
-        (severity (overlay-get overlay 'rtags-error-severity))
-        (insert)
-        (start (overlay-get overlay 'rtags-error-start))
-        (end (overlay-get overlay 'rtags-error-end)))
-    (when (and start end msg (eq severity 'fixit) (string-match "did you mean '\\(.*\\)'\\?$" msg))
+  (let* ((msg (overlay-get overlay 'rtags-error-message))
+         (severity (overlay-get overlay 'rtags-error-severity))
+         (replacedata (and msg (cond ((string-match "^[^']*'\\([^']*\\)'.*did you mean '\\([^']*\\)'" msg)
+                                      (cons (match-string-no-properties 1 msg)
+                                            (match-string-no-properties 2 msg)))
+                                     ((string-match "did you mean '\\(.*\\)'\\?$" msg)
+                                      (cons nil (match-string-no-properties 1 msg)))
+                                     (t nil))))
+         (start (overlay-get overlay 'rtags-error-start))
+         (end (overlay-get overlay 'rtags-error-end)))
+    (when (and start
+               end
+               replacedata
+               (eq severity 'fixit)
       (save-excursion
         (save-restriction
           (widen)
-          (setq insert (match-string-no-properties 1 msg))
           (goto-char start)
-          (delete-char (- end start))
-          (when insert
-            (insert insert)))))))
+          (if (and (car replacedata)
+                   (not (looking-at (car replacedata))))
+              (message "RTags: Fixit doesn't seem valid, refusing to apply. Was expecting to replace '%s' but instead I see '%s'"
+                       (car replacedata)
+                       (buffer-substring-no-properties start end))
+            (delete-char (- end start))
+            (when (cdr replacedata)
+              (insert (cdr replacedata))))))))))
 
 ;;;###autoload
 (defun rtags-fix-fixit-at-point ()
