@@ -1,22 +1,48 @@
 _rtags ()
 {
-    local prev value_opts non_value_opts app cur
+    # Those local variables are needed by _init_completion.
+    local cur prev words cword
+    _init_completion || return
+    local app=${words[0]}
 
-    app=${COMP_WORDS[0]}
-    value_opts=$($app --help | grep '^ \+-' | grep "\[[A-Za-z]*\]" | sed -e 's,\([^ ]\) .*,\1,' -e 's,|, ,')
-    prev=${COMP_WORDS[COMP_CWORD-1]}
-
-    if [ -n "$prev" ] && [ ${COMP_CWORD} -gt 1 ] && printf -- "${value_opts}\n" | grep --quiet -- "$prev"; then
-        COMPREPLY=()
-        return;
+    if [[ $app == \~* ]]; then
+        # Tell shellcheck we know that single quotes prevent expansion.
+        # shellcheck disable=SC2016
+        eval app="${app%%/*}"/'${app#*/}'
     fi
 
-    cur=${COMP_WORDS[COMP_CWORD]}
-    non_value_opts=$($app --help | grep '^ \+-' | grep -v "\[[A-Za-z]*\]" | sed -e 's,\([^ ]\) .*,\1,' -e 's,|, ,')
+    # In case app starts with a dollar sign, like $HOME/...
+    if [[ $app == \$* ]]; then
+        # shellcheck disable=SC2016
+        eval app="${app%%/*}"/'${app#*/}'
+    fi
+
+    # Always use absolute path to executable so we can verify it later.
+    if [[ $app != /* ]]; then
+        app=$(which $app)
+    fi
+
+    # If value of app doesn't point to an executable after possible expansion
+    # return immediately.
+    test -x $app || return
+
+    local -r value_opts=$($app --help | grep '^ \+-' | grep "\[[A-Za-z]*\]" | \
+                              sed -e 's,\([^ ]\) .*,\1,' -e 's,|, ,')
+
+    if [ -n "$prev" ] && [ $cword -gt 1 ] \
+           && printf -- "${value_opts}\n" | grep --quiet -- "$prev"; then
+        COMPREPLY=()
+        return
+    fi
+
+    local -r non_value_opts=$($app --help | grep '^ \+-' | \
+                                  grep -v "\[[A-Za-z]*\]" | \
+                                  sed -e 's,\([^ ]\) .*,\1,' -e 's,|, ,')
 
     COMPREPLY=($(compgen -W "$value_opts $non_value_opts" -- $cur))
 
-    if [ -n "$cur" ] && [ ${#COMPREPLY[@]} -eq 0 ] && printf -- "$cur\n" | grep --quiet -- "^-[^-]"; then
+    if [ -n "$cur" ] && [ ${#COMPREPLY[@]} -eq 0 ] \
+           && printf -- "$cur\n" | grep --quiet -- "^-[^-]"; then
         COMPREPLY=($(compgen -W "$value_opts $non_value_opts" -- -$cur))
     fi
 }
