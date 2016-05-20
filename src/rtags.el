@@ -3929,6 +3929,72 @@ force means do it regardless of rtags-enable-unsaved-reparsing "
                            "--code-complete-at" location "--elisp" (rtags-completion-include-macros)))))
       ret)))
 
+(defconst rtags-paren-start ?()
+(defconst rtags-paren-end ?))
+(defun rtags-find-arg (startpos argument)
+  (let ((location (cdr (assoc 'location argument))))
+    (when (string-match ".*:\\([0-9]+\\):\\([0-9]+\\):?" location)
+      (let* ((start (rtags-offset-for-line-column (string-to-number (match-string-no-properties 1 location))
+                                                  (string-to-number (match-string-no-properties 2 location))))
+             (end (and start (+ start (cdr (assoc 'length argument))))))
+        (and start (>= startpos start) (< startpos end))))))
+
+(defun rtags-get-arg-info (&optional startpoint)
+  (let* ((parens 1)
+         (startpos (rtags-offset startpoint))
+         (pos (or startpoint (point)))
+         (ret))
+    (while (and pos
+                (not ret)
+                (> (1+ pos) (point-min)))
+      (let ((char (char-before pos)))
+        ;; (message "%d - %c %d - %d - %s" (rtags-offset pos) char char parens (rtags-current-location pos))
+        (and (cond ((= char rtags-paren-start)
+                    (if (> (decf parens) 0)
+                        t
+                      (decf pos 2)
+                      (while (and (> pos (point-min))
+                                  (or (eq (char-before pos) ?\s)
+                                      (eq (char-before pos) ?\n)
+                                      (eq (char-before pos) ?\t)
+                                      (eq (char-before pos) ?\r)))
+                        (decf pos))
+                      ;; (message "looking at %s" (rtags-current-location pos))
+                      (let* ((funcref (rtags-symbol-info-internal (rtags-current-location pos)))
+                             (func (cadr (assoc 'targets funcref)))
+                             (idx 0)
+                             (arguments (cdr (assoc 'arguments funcref))))
+                        ;; (when arguments
+                        ;;   (message "got args %d" (length arguments)))
+                        (while arguments
+                          (let ((arg (car arguments)))
+                            (if (rtags-find-arg startpos arg)
+                                (setq ret (let* ((arg (nth idx (cdr (assoc 'arguments func))))
+                                                 (location (cdr (assoc 'location arg)))
+                                                 (length (cdr (assoc 'length arg))))
+                                            (save-excursion
+                                              (string-match "\\(.*\\):\\([0-9]+\\):\\([0-9]+\\):?" location)
+                                              (let* ((line (string-to-number (match-string-no-properties 2 location)))
+                                                     (col (string-to-number (match-string-no-properties 3 location)))
+                                                     (filename (rtags-trampify (match-string-no-properties 1 location)))
+                                                     (buf (and (file-exists-p filename) (find-file-noselect filename))))
+                                                (when buf
+                                                  (with-current-buffer buf
+                                                    (save-restriction
+                                                      (widen)
+                                                      (save-excursion
+                                                        (rtags-goto-line-col line col)
+                                                        (buffer-substring-no-properties (point) (+ (point) length)))))))))
+                                      arguments nil)
+                              (incf idx)
+                              (setq arguments (cdr arguments))))))
+                      (setq pos nil)))
+                   ((= char rtags-paren-end)
+                    (incf parens))
+                   (t))
+             (decf pos))))
+    ret))
+
 (defun rtags-get-summary-text (&optional max-num-lines)
   "Return a text describing the item at point.
 
@@ -3938,45 +4004,43 @@ the definition, etc.
 
 Return nil if it can't get any info about the item."
   ;; try first with --declaration-only
-  (let ((target (rtags-target-declaration-first)))
-    (when target
-      (let ((symbol (rtags-symbol-info-internal target nil t)))
-        (when symbol
-          (let* ((line1 (cdr (assoc 'startLine symbol)))
-                 (line2 (cdr (assoc 'endLine symbol)))
-                 (range (list line1 (cdr (assoc 'startColumn symbol)) line2 (cdr (assoc 'endColumn symbol))))
-                 (brief (cdr (assoc 'briefComment symbol)))
-                 symbol-text
-                 pos1
-                 pos2)
-            (unless (> (length brief) 0)
-              (setq brief nil))
-            (when (null max-num-lines)
-              (setq max-num-lines 5))
-            (when (> (- line2 line1) max-num-lines)
-              (setq range (list line1 (second range) (+ line1 max-num-lines) 1)))
-            (when (string-match "\\(.*\\):\\([0-9]+\\):\\([0-9]+\\)" target)
-              (let* ((file-or-buffer (rtags-trampify (match-string-no-properties 1 target)))
-                     (buf (get-file-buffer file-or-buffer))
-                     old-buf)
-                (when (null buf)
-                  (setq old-buf (current-buffer))
-                  (find-file file-or-buffer)
-                  (setq buf (current-buffer))
-                  (switch-to-buffer old-buf))
-                (if (string= (cdr (assoc 'kind symbol)) "EnumConstantDecl")
-                    (setq symbol-text (format "%s = %d(0x%x)" (cdr (assoc 'symbolName symbol))
-                                              (cdr (assoc 'enumValue symbol)) (cdr (assoc 'enumValue symbol))))
-                  (with-current-buffer buf
-                    (save-excursion
-                      (rtags-goto-line-col (first range) (second range))
-                      (setq pos1 (point))
-                      (rtags-goto-line-col (third range) (fourth range))
-                      (setq pos2 (point))
-                      (setq symbol-text (buffer-substring-no-properties pos1 pos2)))))))
-            (cond ((and symbol-text brief) (concat brief "\n\n" symbol-text))
-                  (brief)
-                  (t symbol-text))))))))
+  (let ((symbol (rtags-symbol-info-internal (rtags-target-declaration-first) nil t)))
+    (when symbol
+      (let* ((line1 (cdr (assoc 'startLine symbol)))
+             (line2 (cdr (assoc 'endLine symbol)))
+             (location (cdr (assoc 'location symbol)))
+             (range (list line1 (cdr (assoc 'startColumn symbol)) line2 (cdr (assoc 'endColumn symbol))))
+             (brief (cdr (assoc 'briefComment symbol)))
+             symbol-text
+             arg-text
+             pos1
+             pos2)
+        (unless (> (length brief) 0)
+          (setq brief nil))
+        (when (null max-num-lines)
+          (setq max-num-lines 5))
+        (when (> (- line2 line1) max-num-lines)
+          (setq range (list line1 (second range) (+ line1 max-num-lines) 1)))
+        (when (string-match "\\(.*\\):\\([0-9]+\\):\\([0-9]+\\)" location)
+          (let* ((file-or-buffer (rtags-trampify (match-string-no-properties 1 location)))
+                 (buf (get-file-buffer file-or-buffer))
+                 old-buf)
+            (if (string= (cdr (assoc 'kind symbol)) "EnumConstantDecl")
+                (setq symbol-text (format "%s = %d(0x%x)" (cdr (assoc 'symbolName symbol))
+                                          (cdr (assoc 'enumValue symbol)) (cdr (assoc 'enumValue symbol))))
+              (when (not buf)
+                (setq buf (find-file-noselect file-or-buffer)))
+              (with-current-buffer buf
+                (save-excursion
+                  (rtags-goto-line-col (first range) (second range))
+                  ;; (setq arg-text (rtags-get-arg-info))
+                  (setq pos1 (point))
+                  (rtags-goto-line-col (third range) (fourth range))
+                  (setq pos2 (point))
+                  (setq symbol-text (buffer-substring-no-properties pos1 pos2)))))))
+        (cond ((and symbol-text brief) (concat brief "\n\n" symbol-text))
+              (brief)
+              (t symbol-text))))))
 
 ;;;###autoload
 (defun rtags-display-summary (&optional hide-empty pos)
