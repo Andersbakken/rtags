@@ -98,7 +98,7 @@ private:
             : translationUnit(0), unsavedHash(0), lastModified(0),
               parseTime(0), reparseTime(0), codeCompleteTime(0), completions(0), next(0), prev(0)
         {}
-        CXTranslationUnit translationUnit;
+        std::shared_ptr<RTags::TranslationUnit> translationUnit;
         size_t unsavedHash;
         uint64_t lastModified, parseTime, reparseTime, codeCompleteTime; // ms
         size_t completions;

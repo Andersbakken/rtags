@@ -128,9 +128,6 @@ void ClangThread::run()
     StopWatch sw;
     const auto key = mConnection->disconnected().connect([this](const std::shared_ptr<Connection> &) { abort(); });
 
-    CXIndex index = clang_createIndex(0, 0);
-    CXTranslationUnit translationUnit = 0;
-    String clangLine;
     String sourceCode = mSource.sourceFile().readAll();
     CXUnsavedFile unsaved = {
         mSource.sourceFile().constData(),
@@ -138,14 +135,17 @@ void ClangThread::run()
         static_cast<unsigned long>(sourceCode.size())
     };
 
-    RTags::parseTranslationUnit(mSource.sourceFile(), mSource.toCommandLine(Source::Default), translationUnit,
-                                index, &unsaved, 1, CXTranslationUnit_DetailedPreprocessingRecord, &clangLine);
+
+    std::shared_ptr<RTags::TranslationUnit> translationUnit = RTags::TranslationUnit::create(mSource.sourceFile(),
+                                                                                             mSource.toCommandLine(Source::Default),
+                                                                                             &unsaved, 1, CXTranslationUnit_DetailedPreprocessingRecord,
+                                                                                             false);
 
     const unsigned long long parseTime = sw.restart();
     warning() << "parseTime" << parseTime;
 #ifdef RTAGS_HAS_LUA
     if (mQueryMessage->type() == QueryMessage::VisitAST) {
-        std::shared_ptr<AST> ast = AST::create(mSource, sourceCode, translationUnit);
+        std::shared_ptr<AST> ast = AST::create(mSource, sourceCode, translationUnit->unit);
         if (ast) {
             for (const String script : mQueryMessage->visitASTScripts()) {
                 warning() << "evaluating script:\n" << script;
@@ -159,18 +159,14 @@ void ClangThread::run()
     } else
 #endif
         if (mQueryMessage->type() == QueryMessage::DumpFile && !(mQueryMessage->flags() & QueryMessage::DumpCheckIncludes)) {
-        writeToConnetion(String::format<128>("Indexed: %s => %s", clangLine.constData(), translationUnit ? "success" : "failure"));
-        if (translationUnit) {
-            clang_visitChildren(clang_getTranslationUnitCursor(translationUnit), ClangThread::visitor, this);
-            if (mQueryMessage->flags() & QueryMessage::DumpCheckIncludes)
-                checkIncludes();
+            writeToConnetion(String::format<128>("Indexed: %s => %s", translationUnit->clangLine.constData(), translationUnit ? "success" : "failure"));
+            if (translationUnit) {
+                clang_visitChildren(clang_getTranslationUnitCursor(translationUnit->unit), ClangThread::visitor, this);
+                if (mQueryMessage->flags() & QueryMessage::DumpCheckIncludes)
+                    checkIncludes();
+            }
         }
-    }
 
-    if (translationUnit)
-        clang_disposeTranslationUnit(translationUnit);
-
-    clang_disposeIndex(index);
 
     mConnection->disconnected().disconnect(key);
     std::weak_ptr<Connection> conn = mConnection;

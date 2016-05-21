@@ -276,14 +276,13 @@ void CompletionThread::process(Request *request)
         }
         request->source.defines << options.defines;
 
-        String clangLine;
-        RTags::parseTranslationUnit(sourceFile, request->source.toCommandLine(Source::Default|Source::ExcludeDefaultArguments),
-                                    cache->translationUnit, mIndex,
-                                    &unsaved, request->unsaved.size() ? 1 : 0, flags, &clangLine);
+        cache->translationUnit = RTags::TranslationUnit::create(sourceFile,
+                                                                request->source.toCommandLine(Source::Default|Source::ExcludeDefaultArguments),
+                                                                &unsaved, request->unsaved.size() ? 1 : 0, flags);
         // error() << "PARSING" << clangLine;
         parseTime = cache->parseTime = sw.restart();
         if (cache->translationUnit) {
-            RTags::reparseTranslationUnit(cache->translationUnit, &unsaved, request->unsaved.size() ? 1 : 0);
+            cache->translationUnit->reparse(&unsaved, request->unsaved.size() ? 1 : 0);
         }
         reparseTime = cache->reparseTime = sw.elapsed();
         if (!cache->translationUnit)
@@ -312,7 +311,7 @@ void CompletionThread::process(Request *request)
     if (request->flags & CodeCompleteIncludeMacros)
         completionFlags |= CXCodeComplete_IncludeMacros;
 
-    CXCodeCompleteResults *results = clang_codeCompleteAt(cache->translationUnit, sourceFile.constData(),
+    CXCodeCompleteResults *results = clang_codeCompleteAt(cache->translationUnit->unit, sourceFile.constData(),
                                                           request->location.line(), request->location.column(),
                                                           &unsaved, unsaved.Length ? 1 : 0, completionFlags);
     completeTime = cache->codeCompleteTime = sw.restart();

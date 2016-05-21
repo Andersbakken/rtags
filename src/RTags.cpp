@@ -472,15 +472,15 @@ String cursorToString(CXCursor cursor, Flags<CursorToStringFlags> flags)
     return ret;
 }
 
-void parseTranslationUnit(const Path &sourceFile, const List<String> &args,
-                          CXTranslationUnit &unit, CXIndex index,
-                          CXUnsavedFile *unsaved, int unsavedCount,
-                          Flags<CXTranslationUnit_Flags> translationUnitFlags,
-                          String *clangLine)
+std::shared_ptr<TranslationUnit> TranslationUnit::create(const Path &sourceFile, const List<String> &args,
+                                                         CXUnsavedFile *unsaved, int unsavedCount,
+                                                         Flags<CXTranslationUnit_Flags> translationUnitFlags,
+                                                         bool displayDiagnostics)
 
 {
-    if (clangLine)
-        *clangLine = "clang ";
+    std::shared_ptr<TranslationUnit> ret(new TranslationUnit);
+    ret->clangLine = "clang ";
+    ret->index = clang_createIndex(0, displayDiagnostics);
 
     int idx = 0;
     List<const char*> clangArgs(args.size() + 2, 0);
@@ -488,44 +488,44 @@ void parseTranslationUnit(const Path &sourceFile, const List<String> &args,
     const int count = args.size();
     for (int j=0; j<count; ++j) {
         clangArgs[idx++] = args.at(j).constData();
-        if (clangLine) {
-            String arg = args.at(j);
-            arg.replace("\"", "\\\"");
-            *clangLine += '"' + arg + '"';
-            *clangLine += ' ';
-        }
+        String arg = args.at(j);
+        arg.replace("\"", "\\\"");
+        ret->clangLine += '"' + arg + '"';
+        ret->clangLine += ' ';
     }
     // clangArgs[idx++] = "-disable-free";
     // clangArgs[idx++] = "-disable-llvm-verifier";
 
-    if (clangLine)
-        *clangLine += sourceFile;
+    ret->clangLine += sourceFile;
 
     // StopWatch sw;
 #if CINDEX_VERSION_MINOR >= 23
     for (int i=0; i<3; ++i) {
-        auto error = clang_parseTranslationUnit2(index, sourceFile.constData(),
+        auto error = clang_parseTranslationUnit2(ret->index, sourceFile.constData(),
                                                  clangArgs.data(), idx, unsaved, unsavedCount,
-                                                 translationUnitFlags.cast<unsigned int>(), &unit);
+                                                 translationUnitFlags.cast<unsigned int>(), &ret->unit);
         if (error != CXError_Crashed)
             break;
         usleep(100000);
     }
 #else
-    unit = clang_parseTranslationUnit(index, sourceFile.constData(),
-                                      clangArgs.data(), idx, unsaved, unsavedCount,
-                                      translationUnitFlags.cast<unsigned int>());
+    ret->unit = clang_parseTranslationUnit(ret->index, sourceFile.constData(),
+                                           clangArgs.data(), idx, unsaved, unsavedCount,
+                                           translationUnitFlags.cast<unsigned int>());
 #endif
     // error() << sourceFile << sw.elapsed();
+    return ret;
 }
 
-void reparseTranslationUnit(CXTranslationUnit &unit, CXUnsavedFile *unsaved, int unsavedCount)
+bool TranslationUnit::reparse(CXUnsavedFile *unsaved, int unsavedCount)
 {
     assert(unit);
     if (clang_reparseTranslationUnit(unit, unsavedCount, unsaved, clang_defaultReparseOptions(unit)) != 0) {
         clang_disposeTranslationUnit(unit);
         unit = 0;
+        return false;
     }
+    return true;
 }
 
 #if 1

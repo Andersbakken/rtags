@@ -95,12 +95,43 @@ String cursorToString(CXCursor cursor, Flags<CursorToStringFlags> = DefaultCurso
 
 RCT_FLAGS(CXTranslationUnit_Flags);
 
-void parseTranslationUnit(const Path &sourceFile, const List<String> &args,
-                          CXTranslationUnit &unit, CXIndex index,
-                          CXUnsavedFile *unsaved, int unsavedCount,
-                          Flags<CXTranslationUnit_Flags> translationUnitFlags = CXTranslationUnit_None,
-                          String *clangLine = 0);
-void reparseTranslationUnit(CXTranslationUnit &unit, CXUnsavedFile *unsaved, int unsavedCount);
+struct TranslationUnit {
+    TranslationUnit()
+        : index(0), unit(0)
+    {}
+    ~TranslationUnit()
+    {
+        if (unit)
+            clang_disposeTranslationUnit(unit);
+        if (index)
+            clang_disposeIndex(index);
+    }
+    static void visit(CXCursor cursor, std::function<CXChildVisitResult(CXCursor)> func)
+    {
+        clang_visitChildren(cursor, [](CXCursor cursor, CXCursor, CXClientData data) {
+                return (*reinterpret_cast<std::function<CXChildVisitResult(CXCursor)> *>(data))(cursor);
+            }, &func);
+    }
+    void visit(std::function<CXChildVisitResult(CXCursor)> func)
+    {
+        visit(cursor(), func);
+    }
+
+    CXCursor cursor() const { return clang_getTranslationUnitCursor(unit); }
+
+    bool reparse(CXUnsavedFile *unsaved, int unsavedCount);
+    static std::shared_ptr<TranslationUnit> create(const Path &sourceFile,
+                                                   const List<String> &args,
+                                                   CXUnsavedFile *unsaved,
+                                                   int unsavedCount,
+                                                   Flags<CXTranslationUnit_Flags> translationUnitFlags = CXTranslationUnit_None,
+                                                   bool displayDiagnostics = true);
+
+    CXIndex index;
+    CXTranslationUnit unit;
+    String clangLine;
+};
+
 struct Auto {
     CXCursor cursor;
     CXType type;

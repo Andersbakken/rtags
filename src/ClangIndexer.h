@@ -172,11 +172,9 @@ private:
     Source mSource;
     Path mSourceFile;
     IndexDataMessage mIndexDataMessage;
-    CXTranslationUnit mClangUnit;
-    CXIndex mIndex;
+    std::shared_ptr<RTags::TranslationUnit> mTranslationUnit;
     CXCursor mLastCursor, mLastCallExpr;
     Location mLastClass;
-    String mClangLine;
     uint32_t mVisitFileResponseMessageFileId;
     bool mVisitFileResponseMessageVisit;
     Path mSocketFile;
