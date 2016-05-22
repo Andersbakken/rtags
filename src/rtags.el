@@ -4471,11 +4471,17 @@ the user enter missing field manually."
 
 (defun rtags-eldoc ()
   (when (and (not (nth 4 (syntax-ppss)))
-             (thing-at-point 'symbol t))
+             (let ((text (thing-at-point 'symbol)))
+               (when (and text (sequencep text))
+                 (set-text-properties 0 (length text) nil text))
+               text))
     (let ((doc (rtags-get-summary-text)))
-      (and doc (replace-regexp-in-string "{.*" ""
-                                         (replace-regexp-in-string "[ \t\n]+" " "
-                                                                   (replace-regexp-in-string "\n" "" doc)))))))
+      (and doc
+           (replace-regexp-in-string
+            "{.*" ""
+            (replace-regexp-in-string
+             "[ \t\n]+" " "
+             (replace-regexp-in-string "\n" "" doc)))))))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
