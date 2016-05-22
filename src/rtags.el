@@ -2475,6 +2475,8 @@ This includes both declarations and definitions."
                         ((let ((sym (thing-at-point 'symbol)))
                            (and sym (+ start (length sym)))))
                         (t (1+ start))))
+        (when (looking-back "#")
+          (decf start))
         (let ((overlay (make-overlay start (if (= start end)
                                                (min (1+ start) (point-max))
                                              end)
