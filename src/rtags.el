@@ -1230,7 +1230,7 @@ Uses `completing-read' to ask for the project."
                        "-U" loc
                        (unless rtags-print-filenames-relative "-K")
                        (unless include-targets "--symbol-info-exclude-targets")
-                       (unless include-targets "--symbol-info-exclude-references")
+                       (unless include-references "--symbol-info-exclude-references")
                        (unless include-parents "--symbol-info-exclude-parents"))
         (when save-to-kill-ring
           (copy-region-as-kill (point-min) (point-max)))
