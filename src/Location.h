@@ -146,9 +146,19 @@ public:
         return compare(other) < 0;
     }
 
+    inline bool operator<=(Location other) const
+    {
+        return compare(other) <= 0;
+    }
+
     inline bool operator>(Location other) const
     {
         return compare(other) > 0;
+    }
+
+    inline bool operator>=(Location other) const
+    {
+        return compare(other) >= 0;
     }
 
     enum ToStringFlag {
