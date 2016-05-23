@@ -145,7 +145,7 @@ static void usage(FILE *f)
             "  --log-file-log-level [arg]                 Log level for log file (default is error).\n"
             "  --crash-dump-file [arg]                    File to dump crash log to (default is <datadir>/crash.dump).\n"
             "                                             options are: error, warning, debug or verbose-debug.\n"
-            " --sandbox-root dir                          Create index using relative path by stripping dir (enables copying of tag index db files without need to reindexing)\n"
+            " --sandbox-root [dir]                        Create index using relative paths by stripping dir (enables copying of tag index db files without need to reindex)\n"
 #ifndef OS_FreeBSD
 #endif
             "  --no-filesystem-watcher|-B                 Disable file system watching altogether. Reindexing has to happen manually.\n"
