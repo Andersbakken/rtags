@@ -79,11 +79,6 @@ There are a few prerequisites you need to have in order to build RTags
   features (such as RTags itself). Alternatively you can grab the sources from
   [[http://llvm.org/releases/download.html][llvm.org]] and build it yourself.
 
-- =libcurses=
-
-  For some reason clang requires this, on Linux you should be able to install
-  the libcurses (ncurses) package with your distribution package manager.
-
 - =GCC/Clang= >= 4.7/3.2
 
   A modern compiler to build RTags. RTags makes extensive use of C++11
