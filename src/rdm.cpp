@@ -161,7 +161,7 @@ static void usage(FILE *f)
             "  --setenv|-e [arg]                          Set this environment variable (--setenv \"foobar=1\").\n"
             "  --silent|-S                                No logging to stdout.\n"
             "  --socket-file|-n [arg]                     Use this file for the server socket (default ~/.rdm).\n"
-            "  --tcp-port [arg]                        Listen on this tcp socket (default none).\n"
+            "  --tcp-port [arg]                           Listen on this tcp socket (default none).\n"
             "  --start-suspended|-Q                       Start out suspended (no reindexing enabled).\n"
             "  --suspend-rp-on-crash|-q                   Suspend rp in SIGSEGV handler (default " DEFAULT_SUSPEND_RP ").\n"
             "  --rp-log-to-syslog                         Make rp log to syslog\n"
