@@ -45,7 +45,6 @@ static inline void setType(Symbol &symbol, const CXType &type)
 {
     symbol.type = type.kind;
     symbol.typeName = RTags::eatString(clang_getTypeSpelling(type));
-    Sandbox::encode(symbol.typeName);
 }
 
 static inline void setRange(Symbol &symbol, const CXSourceRange &range)
@@ -1061,9 +1060,6 @@ bool ClangIndexer::handleReference(const CXCursor &cursor, CXCursorKind kind, Lo
     c->kind = kind;
     c->location = location;
     c->symbolName = result == Found ? reffedCursor.symbolName : addNamePermutations(ref, refLoc, RTags::Type_Reference);
-    if (kind == CXCursor_CallExpr)
-        Sandbox::encode(c->symbolName);
-
     if (isOperator) {
         unsigned int start, end;
         clang_getSpellingLocation(clang_getRangeStart(range), 0, 0, 0, &start);
@@ -1125,7 +1121,6 @@ void ClangIndexer::handleInclude(const CXCursor &cursor, CXCursorKind kind, Loca
 
             String include = "#include ";
             Path path = refLoc.path();
-            Sandbox::encode(path);
             assert(mSource.fileId);
             unit(location)->symbolNames[(include + path)].insert(location);
             unit(location)->symbolNames[(include + path.fileName())].insert(location);
@@ -1488,7 +1483,6 @@ CXChildVisitResult ClangIndexer::handleCursor(const CXCursor &cursor, CXCursorKi
 #if CINDEX_VERSION >= CINDEX_VERSION_ENCODE(0, 2)
         c.enumValue = clang_getEnumConstantDeclValue(cursor);
 #endif
-        Sandbox::encode(c.typeName);
         break;
     case CXCursor_MacroDefinition: {
         CXToken *tokens = 0;
@@ -1762,19 +1756,40 @@ bool ClangIndexer::parse()
     return false;
 }
 
-static inline Map<String, Set<Location> > convertTargets(const Map<Location, Map<String, uint16_t> > &in)
+static inline Map<String, Set<Location> > convertTargets(const Map<Location, Map<String, uint16_t> > &in, bool hasRoot)
 {
     Map<String, Set<Location> > ret;
-    for (const auto &v : in) {
-        for (const auto &u : v.second) {
-            ret[u.first].insert(v.first);
+    if (hasRoot) {
+        for (const auto &v : in) {
+            for (const auto &u : v.second) {
+                ret[Sandbox::encoded(u.first)].insert(v.first);
+            }
+        }
+    } else {
+        for (const auto &v : in) {
+            for (const auto &u : v.second) {
+                ret[u.first].insert(v.first);
+            }
         }
     }
     return ret;
 }
 
+static inline void encodeSymbols(Map<Location, Symbol> &symbols)
+{
+    assert(Sandbox::hasRoot());
+    for (auto &sym : symbols) {
+        Sandbox::encode(sym.second.symbolName);
+        Sandbox::encode(sym.second.usr);
+        Sandbox::encode(sym.second.typeName);
+        Sandbox::encode(sym.second.briefComment);
+        Sandbox::encode(sym.second.xmlComment);
+    }
+}
+
 bool ClangIndexer::writeFiles(const Path &root, String &error)
 {
+    const bool hasRoot = Sandbox::hasRoot();
     for (const auto &unit : mUnits) {
         if (!(mIndexDataMessage.files().value(unit.first) & IndexDataMessage::Visited)) {
             ::error() << "Wanting to write something for"
@@ -1798,11 +1813,18 @@ bool ClangIndexer::writeFiles(const Path &root, String &error)
         uint32_t fileMapOpts = 0;
         if (ClangIndexer::serverOpts() & Server::NoFileLock)
             fileMapOpts |= FileMap<int, int>::NoLock;
+
+        if (hasRoot) {
+            encodeSymbols(unit.second->symbols);
+            Sandbox::encode(unit.second->usrs);
+            Sandbox::encode(unit.second->symbolNames);
+        }
+
         if (!FileMap<Location, Symbol>::write(unitRoot + "/symbols", unit.second->symbols, fileMapOpts)) {
             error = "Failed to write symbols";
             return false;
         }
-        if (!FileMap<String, Set<Location> >::write(unitRoot + "/targets", convertTargets(unit.second->targets), fileMapOpts)) {
+        if (!FileMap<String, Set<Location> >::write(unitRoot + "/targets", convertTargets(unit.second->targets, hasRoot), fileMapOpts)) {
             error = "Failed to write targets";
             return false;
         }
@@ -2169,8 +2191,7 @@ CXChildVisitResult ClangIndexer::verboseVisitor(CXCursor cursor, CXCursor, CXCli
 void ClangIndexer::addFileSymbol(uint32_t file)
 {
     const Location loc(file, 1, 1);
-    Path path = Location::path(file);
-    Sandbox::encode(path);
+    const Path path = Location::path(file);
     auto ref = unit(loc);
     ref->symbolNames[path].insert(loc);
     const char *fn = path.fileName();

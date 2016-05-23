@@ -162,10 +162,11 @@ template <> inline Deserializer &operator>>(Deserializer &s, Symbol &t)
     t.type = static_cast<CXTypeKind>(type);
     t.linkage = static_cast<CXLinkageKind>(linkage);
 
-    if (t.kind == CXCursor_LambdaExpr) {
-        Sandbox::decode(t.typeName);
-        Sandbox::decode(t.symbolName);
-    }
+    Sandbox::decode(t.typeName);
+    Sandbox::decode(t.symbolName);
+    Sandbox::decode(t.usr);
+    Sandbox::decode(t.briefComment);
+    Sandbox::decode(t.xmlComment);
     return s;
 }
 

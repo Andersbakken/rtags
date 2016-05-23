@@ -1258,11 +1258,12 @@ String Project::fixIts(uint32_t fileId) const
     return out;
 }
 
-void Project::findSymbols(const String &string,
+void Project::findSymbols(const String &unencoded,
                           const std::function<void(SymbolMatchType, const String &, const Set<Location> &)> &inserter,
                           Flags<QueryMessage::Flag> queryFlags,
                           uint32_t fileFilter)
 {
+    const String string = Sandbox::encoded(unencoded);
     const bool wildcard = queryFlags & QueryMessage::WildcardSymbolNames && (string.contains('*') || string.contains('?'));
     const bool caseInsensitive = queryFlags & QueryMessage::MatchCaseInsensitive;
     const String::CaseSensitivity cs = caseInsensitive ? String::CaseInsensitive : String::CaseSensitive;
@@ -1297,9 +1298,7 @@ void Project::findSymbols(const String &string,
         }
 
         for (int i=idx; i<count; ++i) {
-            // SBROOT
-            String tsymName = Sandbox::decoded(symNames->keyAt(i));
-            const String &entry = tsymName;
+            const String entry = symNames->keyAt(i);
             // error() << i << count << entry;
             SymbolMatchType type = Exact;
             if (!string.isEmpty()) {
@@ -1532,12 +1531,12 @@ Set<Symbol> Project::findByUsr(const String &usr, uint32_t fileId, DependencyMod
 {
     assert(fileId);
     Set<Symbol> ret;
+    const String tusr = Sandbox::encoded(usr);
     for (uint32_t file : dependencies(fileId, mode)) {
         auto usrs = openUsrs(file);
         // error() << usrs << Location::path(file) << usr;
         if (usrs) {
             // SBROOT
-            String tusr = Sandbox::encoded(usr);
             for (Location loc : usrs->value(tusr)) {
                 // error() << "got a loc" << loc;
                 const Symbol c = findSymbol(loc);
@@ -1751,8 +1750,7 @@ Set<String> Project::findTargetUsrs(Location loc)
         for (int i=0; i<count; ++i) {
             if (targets->valueAt(i).contains(loc)) {
                 // SBROOT
-                String ttarget = Sandbox::decoded(targets->keyAt(i));
-                usrs.insert(ttarget);
+                usrs.insert(Sandbox::decoded(targets->keyAt(i)));
             }
         }
     }
