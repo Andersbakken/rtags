@@ -732,8 +732,6 @@ CXChildVisitResult ClangIndexer::indexVisitor(CXCursor cursor)
             extractArguments(&destArguments, ref);
             visit(cursor);
             if (mLastCallExprSymbol && !arguments.isEmpty()) {
-                if (loc.path().endsWith("/main.cpp"))
-                    error() << "shit" << cursor << ref << destArguments.size() << arguments.size();
                 const Location invokedLocation = createLocation(ref);
                 auto u = unit(loc);
                 size_t idx = 0;
@@ -749,19 +747,12 @@ CXChildVisitResult ClangIndexer::indexVisitor(CXCursor cursor)
                         end = arguments.value(idx + 1).first;
                     }
                     auto it = u->symbols.lower_bound(start);
-                    if (loc.path().endsWith("/main.cpp")) {
-                        error() << "searching for" << "start" << start
-                                << "it" << it->first << "end" << end << "\n" << u->symbols.keys();
-                    }
-
                     while (it != u->symbols.end() && it->first < end) {
                         auto &sym = it->second;
                         sym.argumentUsage.index = idx;
                         sym.argumentUsage.invokedFunction = invokedLocation;
                         sym.argumentUsage.argument = destArg;
                         sym.argumentUsage.invocation = mLastCallExprSymbol->location;
-                        if (loc.path().endsWith("/main.cpp"))
-                            error() << "setting fucking arg usage" << sym.location << sym.symbolName;
                         ++it;
                     }
                     ++idx;
