@@ -3655,6 +3655,17 @@ definition."
           (message (buffer-string)))))))
 
 ;;;###autoload
+(defun rtags-suspend-all-files()
+  (interactive)
+  (let ((buffer (buffer-file-name)))
+    (when buffer
+      (with-temp-buffer
+        (rtags-call-rc :path buffer "-X" "all")
+        (if (> (point-max) (point-min))
+            (message (buffer-substring-no-properties (point-min) (1- (point-max))))
+          (message (buffer-string)))))))
+
+;;;###autoload
 (defun rtags-list-suspended-files()
   (interactive)
   (let ((buffer (buffer-file-name)))
