@@ -4028,7 +4028,7 @@ Return nil if it can't get any info about the item."
                  (buf (get-file-buffer file-or-buffer))
                  old-buf)
             (if (string= (cdr (assoc 'kind symbol)) "EnumConstantDecl")
-                (setq symbol-text (format "%s = %d(0x%x)" (cdr (assoc 'symbolName symbol))
+                (setq symbol-text (format "enum: %s = %d(0x%x)" (cdr (assoc 'symbolName symbol))
                                           (cdr (assoc 'enumValue symbol)) (cdr (assoc 'enumValue symbol))))
               (when (not buf)
                 (setq buf (find-file-noselect file-or-buffer)))
@@ -4062,6 +4062,13 @@ If `rtags-display-summary-as-tooltip' is t, a tooltip is displayed."
         (if rtags-display-summary-as-tooltip
             (popup-tip summary :point pos)
           (message "%s" summary))))))
+
+;;;###autoload
+(defun rtags-display-summary-as-message ()
+  "Display a short text in message area describing the item at point.
+See `rtags-get-summary-text' for details."
+  (interactive)
+  (message "%s" (or (rtags-get-summary-text) "No information for symbol")))
 
 (defun rtags-display-tooltip-function (event)
   (interactive)
