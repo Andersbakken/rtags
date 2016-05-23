@@ -40,14 +40,15 @@ int SymbolInfoJob::execute()
     auto symbol = project()->findSymbol(location, &idx);
     if (!symbol.isNull()) {
         if (queryFlags() & QueryMessage::Elisp) {
-            write(symbol);
+            write(symbol, toStringFlags);
         } else {
             write(symbol.location);
             write(symbol, toStringFlags);
         }
         ret = 0;
     }
-    if (!(queryFlags() & QueryMessage::SymbolInfoExcludeParents)) {
+    if (!(queryFlags() & QueryMessage::SymbolInfoExcludeParents)
+        && !(queryFlags() & QueryMessage::Elisp)) {
         auto syms = project()->openSymbols(location.fileId());
         if (syms) {
             idx = syms->lowerBound(location);

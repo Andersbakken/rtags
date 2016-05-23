@@ -3953,61 +3953,62 @@ force means do it regardless of rtags-enable-unsaved-reparsing "
              (end (and start (+ start (cdr (assoc 'length argument))))))
         (and start (>= startpos start) (< startpos end))))))
 
-(defun rtags-get-arg-info (&optional startpoint)
-  (let* ((parens 1)
-         (startpos (rtags-offset startpoint))
-         (pos (or startpoint (point)))
-         (ret))
-    (while (and pos
-                (not ret)
-                (> (1+ pos) (point-min)))
-      (let ((char (char-before pos)))
-        ;; (message "%d - %c %d - %d - %s" (rtags-offset pos) char char parens (rtags-current-location pos))
-        (and (cond ((= char rtags-paren-start)
-                    (if (> (decf parens) 0)
-                        t
-                      (decf pos 2)
-                      (while (and (> pos (point-min))
-                                  (or (eq (char-before pos) ?\s)
-                                      (eq (char-before pos) ?\n)
-                                      (eq (char-before pos) ?\t)
-                                      (eq (char-before pos) ?\r)))
-                        (decf pos))
-                      ;; (message "looking at %s" (rtags-current-location pos))
-                      (let* ((funcref (rtags-symbol-info-internal (rtags-current-location pos)))
-                             (func (cadr (assoc 'targets funcref)))
-                             (idx 0)
-                             (arguments (cdr (assoc 'arguments funcref))))
-                        ;; (when arguments
-                        ;;   (message "got args %d" (length arguments)))
-                        (while arguments
-                          (let ((arg (car arguments)))
-                            (if (rtags-find-arg startpos arg)
-                                (setq ret (let* ((arg (nth idx (cdr (assoc 'arguments func))))
-                                                 (location (cdr (assoc 'location arg)))
-                                                 (length (cdr (assoc 'length arg))))
-                                            (save-excursion
-                                              (string-match "\\(.*\\):\\([0-9]+\\):\\([0-9]+\\):?" location)
-                                              (let* ((line (string-to-number (match-string-no-properties 2 location)))
-                                                     (col (string-to-number (match-string-no-properties 3 location)))
-                                                     (filename (rtags-trampify (match-string-no-properties 1 location)))
-                                                     (buf (and (file-exists-p filename) (find-file-noselect filename))))
-                                                (when buf
-                                                  (with-current-buffer buf
-                                                    (save-restriction
-                                                      (widen)
-                                                      (save-excursion
-                                                        (rtags-goto-line-col line col)
-                                                        (buffer-substring-no-properties (point) (+ (point) length)))))))))
-                                      arguments nil)
-                              (incf idx)
-                              (setq arguments (cdr arguments))))))
-                      (setq pos nil)))
-                   ((= char rtags-paren-end)
-                    (incf parens))
-                   (t))
-             (decf pos))))
-    ret))
+(defun* rtags-get-file-contents (&rest args
+                                       &key
+                                       (file nil)
+                                       (startline nil)
+                                       (startcol nil)
+                                       (endline nil)
+                                       (endcol nil)
+                                       (location nil)
+                                       (length nil)
+                                       (maxlines nil)
+                                       (info nil))
+  (when (cond ((and location length (string-match "\\(.*\\):\\([0-9]+\\):\\([0-9]+\\)" location))
+               (setq file (match-string-no-properties 1 location)
+                     startline (string-to-number (match-string-no-properties 2 location))
+                     startcol (string-to-number (match-string-no-properties 3 location)))
+               (if maxlines
+                   (error "maxlines doesn't work with location/length")
+                 t))
+              ((and file startline startcol endline endcol))
+              ((and info (let ((path (cdr (assoc 'location info)))
+                               (sl (cdr (assoc 'startLine info)))
+                               (sc (cdr (assoc 'startColumn info)))
+                               (el (cdr (assoc 'endLine info)))
+                               (ec (cdr (assoc 'endColumn info))))
+                           (when (and sl sc el ec path (string-match "\\(.*\\):[0-9]+:[0-9]+" path))
+                             (setq file (match-string-no-properties 1 path))
+                             (setq startline sl startcol sc endline el endcol ec)))))
+              (t nil))
+    (let* ((file-or-buffer (rtags-trampify file))
+           (buf (get-file-buffer file-or-buffer)))
+      (unless buf
+        (setq buf (find-file-noselect file-or-buffer)))
+      (with-current-buffer buf
+        (save-excursion
+          (save-restriction
+            (widen)
+            (rtags-goto-line-col startline startcol)
+            (let ((start (point)))
+              (if length
+                  (forward-char length)
+                (rtags-goto-line-col endline endcol))
+              (let ((ret (buffer-substring-no-properties start (point))))
+                (when (and ret maxlines)
+                  (let ((split (split-string ret "\n")))
+                    (when (> (length split) maxlines)
+                      (nbutlast split (- (length split) maxlines))
+                      (setq ret (mapconcat 'identity split "\n")))))
+                ret))))))))
+
+(defun rtags-get-arg-usage-text (info)
+  (let ((invokedFunction (rtags-get-file-contents :info (rtags-symbol-info-internal (cdr (assoc 'invokedFunction info)))
+                                                  :maxlines 1))
+        (functionArgument (rtags-get-file-contents :location (cdr (assoc 'functionArgumentLocation info))
+                                                   :length (cdr (assoc 'functionArgumentLength info)))))
+    (when (and functionArgument invokedFunction)
+      (format "Argument '%s' for '%s'" functionArgument invokedFunction))))
 
 (defun rtags-get-summary-text (&optional max-num-lines)
   "Return a text describing the item at point.
@@ -4020,41 +4021,22 @@ Return nil if it can't get any info about the item."
   ;; try first with --declaration-only
   (let ((symbol (rtags-symbol-info-internal (rtags-target-declaration-first) nil t)))
     (when symbol
-      (let* ((line1 (cdr (assoc 'startLine symbol)))
-             (line2 (cdr (assoc 'endLine symbol)))
-             (location (cdr (assoc 'location symbol)))
-             (range (list line1 (cdr (assoc 'startColumn symbol)) line2 (cdr (assoc 'endColumn symbol))))
-             (brief (cdr (assoc 'briefComment symbol)))
+      (let* ((brief (cdr (assoc 'briefComment symbol)))
              symbol-text
-             arg-text
-             pos1
-             pos2)
+             (arg-text (let ((data (cdr (assoc 'functionArgument (rtags-symbol-info-internal)))))
+                         (and data (rtags-get-file-contents :location (cdr (assoc 'location data))
+                                                            :length (cdr (assoc 'length data)))))))
         (unless (> (length brief) 0)
           (setq brief nil))
-        (when (null max-num-lines)
-          (setq max-num-lines 5))
-        (when (> (- line2 line1) max-num-lines)
-          (setq range (list line1 (second range) (+ line1 max-num-lines) 1)))
-        (when (string-match "\\(.*\\):\\([0-9]+\\):\\([0-9]+\\)" location)
-          (let* ((file-or-buffer (rtags-trampify (match-string-no-properties 1 location)))
-                 (buf (get-file-buffer file-or-buffer))
-                 old-buf)
-            (if (string= (cdr (assoc 'kind symbol)) "EnumConstantDecl")
-                (setq symbol-text (format "enum: %s = %d(0x%x)" (cdr (assoc 'symbolName symbol))
-                                          (cdr (assoc 'enumValue symbol)) (cdr (assoc 'enumValue symbol))))
-              (when (not buf)
-                (setq buf (find-file-noselect file-or-buffer)))
-              (with-current-buffer buf
-                (save-excursion
-                  (rtags-goto-line-col (first range) (second range))
-                  ;; (setq arg-text (rtags-get-arg-info))
-                  (setq pos1 (point))
-                  (rtags-goto-line-col (third range) (fourth range))
-                  (setq pos2 (point))
-                  (setq symbol-text (buffer-substring-no-properties pos1 pos2)))))))
-        (cond ((and symbol-text brief) (concat brief "\n\n" symbol-text))
-              (brief)
-              (t symbol-text))))))
+        (if (string= (cdr (assoc 'kind symbol)) "EnumConstantDecl")
+            (setq symbol-text (format "enum: %s = %d(0x%x)" (cdr (assoc 'symbolName symbol))
+                                      (cdr (assoc 'enumValue symbol)) (cdr (assoc 'enumValue symbol))))
+          (setq symbol-text (rtags-get-file-contents :info symbol :maxlines (or max-num-lines 5))))
+        (when arg-text
+          (setq symbol-text (concat symbol-text "\n Argument for: " arg-text)))
+        (when brief
+          (setq symbol-text (concat symbol-text "\n\n" brief)))
+        symbol-text))))
 
 ;;;###autoload
 (defun rtags-display-summary (&optional hide-empty pos)

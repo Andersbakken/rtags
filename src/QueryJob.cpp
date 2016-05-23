@@ -318,6 +318,13 @@ bool QueryJob::write(const Symbol &symbol,
             elisp(out, "location", symbol.location, flags);
             elisp(out, "symbolName", symbol.symbolName,
                   flags | (symbol.kind == CXCursor_StringLiteral ? ::ElispEscape : ::None));
+            if (symbol.argumentUsage.index != String::npos) {
+                elisp(out, "invocation", symbol.argumentUsage.invocation, flags);
+                elisp(out, "invokedFunction", symbol.argumentUsage.invokedFunction, flags);
+                elisp(out, "functionArgumentLocation", symbol.argumentUsage.argument.first, flags);
+                elisp(out, "functionArgumentLength", symbol.argumentUsage.argument.second, flags);
+                elisp(out, "argumentIndex", symbol.argumentUsage.index, flags);
+            }
             elisp(out, "usr", symbol.usr, flags);
             if (!symbol.baseClasses.isEmpty()) {
                 List<String> baseClasses;

@@ -36,7 +36,16 @@ struct Symbol
           size(-1), fieldOffset(-1), alignment(-1)
     {}
 
-    Location location;
+    Location location; // set for arguments only
+    struct ArgumentUsage {
+        ArgumentUsage()
+            : index(String::npos)
+        {}
+        Location invocation, invokedFunction;
+        std::pair<Location, int> argument;
+        size_t index;
+    } argumentUsage;
+
     String symbolName, usr, typeName;
     List<String> baseClasses;
     List<std::pair<Location, int> > arguments;
@@ -74,6 +83,7 @@ struct Symbol
     void clear()
     {
         location.clear();
+        argumentUsage = ArgumentUsage();
         symbolName.clear();
         usr.clear();
         typeName.clear();
@@ -138,10 +148,34 @@ struct Symbol
 
 RCT_FLAGS(Symbol::ToStringFlag);
 
+template <> inline Serializer &operator<<(Serializer &s, const Symbol::ArgumentUsage &usage)
+{
+    s << usage.index;
+    if (usage.index != String::npos) {
+        s << usage.invocation << usage.argument << usage.invokedFunction;
+    }
+    return s;
+}
+
+template <> inline Deserializer &operator>>(Deserializer &s, Symbol::ArgumentUsage &usage)
+{
+    s >> usage.index;
+    if (usage.index != String::npos) {
+        s >> usage.invocation >> usage.argument >> usage.invokedFunction;
+    } else {
+        usage.invocation.clear();
+        usage.invokedFunction.clear();
+        usage.argument.first.clear();
+        usage.argument.second = 0;
+    }
+    return s;
+}
+
 template <> inline Serializer &operator<<(Serializer &s, const Symbol &t)
 {
-    s << t.location << t.symbolName << t.usr << t.typeName << t.baseClasses << t.arguments
-      << t.symbolLength << static_cast<uint16_t>(t.kind) << static_cast<uint16_t>(t.type)
+    s << t.location << t.argumentUsage << t.symbolName << t.usr
+      << t.typeName << t.baseClasses << t.arguments << t.symbolLength
+      << static_cast<uint16_t>(t.kind) << static_cast<uint16_t>(t.type)
       << static_cast<uint8_t>(t.linkage) << t.flags << t.briefComment << t.xmlComment
       << t.enumValue << t.startLine << t.endLine << t.startColumn << t.endColumn
       << t.size << t.fieldOffset << t.alignment;
@@ -152,8 +186,9 @@ template <> inline Deserializer &operator>>(Deserializer &s, Symbol &t)
 {
     uint16_t kind, type;
     uint8_t linkage;
-    s >> t.location >> t.symbolName >> t.usr >> t.typeName >> t.baseClasses
-      >> t.arguments >> t.symbolLength >> kind >> type >> linkage >> t.flags
+    s >> t.location >> t.argumentUsage >> t.symbolName
+      >> t.usr >> t.typeName >> t.baseClasses >> t.arguments
+      >> t.symbolLength >> kind >> type >> linkage >> t.flags
       >> t.briefComment >> t.xmlComment >> t.enumValue
       >> t.startLine >> t.endLine >> t.startColumn >> t.endColumn
       >> t.size >> t.fieldOffset >> t.alignment;

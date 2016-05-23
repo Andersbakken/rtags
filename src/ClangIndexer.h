@@ -49,7 +49,7 @@ private:
 
     void addFileSymbol(uint32_t file);
     int symbolLength(CXCursorKind kind, const CXCursor &cursor);
-    void addArguments(Symbol *sym, const CXCursor &cursor);
+    void extractArguments(List<std::pair<Location, int> > *arguments, const CXCursor &cursor);
 
     inline Location createLocation(const CXSourceLocation &location, bool *blocked = 0, unsigned *offset = 0)
     {
@@ -173,7 +173,8 @@ private:
     Path mSourceFile;
     IndexDataMessage mIndexDataMessage;
     std::shared_ptr<RTags::TranslationUnit> mTranslationUnit;
-    CXCursor mLastCursor, mLastCallExpr;
+    CXCursor mLastCursor;
+    Symbol *mLastCallExprSymbol;
     Location mLastClass;
     uint32_t mVisitFileResponseMessageFileId;
     bool mVisitFileResponseMessageVisit;
