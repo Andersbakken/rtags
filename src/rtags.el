@@ -53,8 +53,9 @@
 (require 'repeat)
 
 ;; Hack for `kbd'. `kbd' is a macro in Emacs 23, and probably below.
-(if (< emacs-major-version 24)
-    (defalias 'kbd 'read-kbd-macro))
+(eval-and-compile
+  (if (< emacs-major-version 24)
+      (defalias 'kbd 'read-kbd-macro)))
 
 (declare-function flycheck-buffer "ext:flycheck")
 
