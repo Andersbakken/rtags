@@ -923,6 +923,11 @@ public:
 bool loadCompileCommands(const Hash<Path, CompilationDataBaseInfo> &infos, const Path &projectRootOverride)
 {
 #if CLANG_VERSION_MAJOR > 3 || (CLANG_VERSION_MAJOR == 3 && CLANG_VERSION_MINOR > 3)
+    if (Sandbox::hasRoot() && !projectRootOverride.isEmpty() && !projectRootOverride.startsWith(Sandbox::root())) {
+        error("Invalid --project-root '%s', must be inside --sandbox-root '%s'",
+              projectRootOverride.constData(), Sandbox::root().constData());
+        return false;
+    }
     CompileCommandsOperation *op = 0;
     for (const auto &info : infos) {
         CXCompilationDatabase_Error err;

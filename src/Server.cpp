@@ -445,6 +445,12 @@ bool Server::index(const String &args,
                    std::shared_ptr<Project> *projectPtr,
                    Set<uint64_t> *indexed)
 {
+    if (Sandbox::hasRoot() && !projectRootOverride.isEmpty() && !projectRootOverride.startsWith(Sandbox::root())) {
+        error("Invalid --project-root '%s', must be inside --sandbox-root '%s'",
+              projectRootOverride.constData(), Sandbox::root().constData());
+        return false;
+    }
+
     assert(pwd.endsWith('/'));
     String arguments;
     List<Path> unresolvedPaths;
@@ -547,12 +553,12 @@ void Server::handleIndexMessage(const std::shared_ptr<IndexMessage> &message, co
             conn->write("[Server] Compilation failed to load.");
             conn->finish();
         }
-        return;
+    } else {
+        const bool ret = index(message->arguments(), message->workingDirectory(),
+                               message->pathEnvironment(), message->projectRoot(), message->flags());
+        if (conn)
+            conn->finish(ret ? 0 : 1);
     }
-    const bool ret = index(message->arguments(), message->workingDirectory(),
-                           message->pathEnvironment(), message->projectRoot(), message->flags());
-    if (conn)
-        conn->finish(ret ? 0 : 1);
 }
 
 void Server::handleLogOutputMessage(const std::shared_ptr<LogOutputMessage> &message, const std::shared_ptr<Connection> &conn)
@@ -1272,6 +1278,12 @@ bool Server::shouldIndex(const Source &source, const Path &srcRoot) const
 
     if (Filter::filter(sourceFile, mOptions.excludeFilters) == Filter::Filtered) {
         warning() << "Shouldn't index" << source.sourceFile() << "because of exclude filter";
+        return false;
+    }
+
+    if (Sandbox::hasRoot() && !srcRoot.isEmpty() && !srcRoot.startsWith(Sandbox::root())) {
+        error("Invalid project root for %s '%s', must be inside --sandbox-root '%s'",
+              sourceFile.constData(), srcRoot.constData(), Sandbox::root().constData());
         return false;
     }
 
