@@ -317,7 +317,7 @@ bool QueryJob::write(const Symbol &symbol,
                 flags |= Indent;
             elisp(out, "location", symbol.location, flags);
             elisp(out, "symbolName", symbol.symbolName,
-                  flags | static_cast<ToStringFlag>(symbol.kind == CXCursor_StringLiteral ? ElispEscape : None));
+                  flags | (symbol.kind == CXCursor_StringLiteral ? ::ElispEscape : ::None));
             elisp(out, "usr", symbol.usr, flags);
             if (!symbol.baseClasses.isEmpty()) {
                 List<String> baseClasses;
