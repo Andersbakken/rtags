@@ -157,7 +157,7 @@ String Symbol::toString(Flags<ToStringFlag> cursorInfoFlags,
                                       bases.isEmpty() ? "" : String::format<64>("BaseClasses: %s\n", String::join(bases, ", ").constData()).constData(),
                                       briefComment.isEmpty() ? "" : String::format<1024>("Brief comment: %s\n", briefComment.constData()).constData(),
                                       xmlComment.isEmpty() ? "" : String::format<16384>("Xml comment: %s\n", xmlComment.constData()).constData());
-    if (!(cursorInfoFlags & IgnoreTargets) && project) {
+    if (cursorInfoFlags & IncludeTargets && project) {
         const auto targets = project->findTargets(*this);
         if (targets.size()) {
             ret.append("Targets:\n");
@@ -171,7 +171,7 @@ String Symbol::toString(Flags<ToStringFlag> cursorInfoFlags,
         }
     }
 
-    if (!(cursorInfoFlags & IgnoreReferences) && project && !isReference()) {
+    if (cursorInfoFlags & IncludeReferences && project && !isReference()) {
         const auto references = project->findCallers(*this);
         if (references.size()) {
             ret.append("References:\n");

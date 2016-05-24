@@ -94,12 +94,14 @@ QueryMessage::Flag QueryMessage::flagFromString(const String &string)
         return AbsolutePath;
     } else if (string == "find-file-prefer-exact") {
         return FindFilePreferExact;
-    } else if (string == "symbol-info-exclude-parents") {
-        return SymbolInfoExcludeParents;
-    } else if (string == "symbol-info-exclude-targets") {
-        return SymbolInfoExcludeTargets;
-    } else if (string == "symbol-info-exclude-references") {
-        return SymbolInfoExcludeReferences;
+    } else if (string == "symbol-info-include-parents") {
+        return SymbolInfoIncludeParents;
+    } else if (string == "symbol-info-include-targets") {
+        return SymbolInfoIncludeTargets;
+    } else if (string == "symbol-info-include-references") {
+        return SymbolInfoIncludeReferences;
+    } else if (string == "symbol-info-include-base-classes") {
+        return SymbolInfoIncludeBaseClasses;
     } else if (string == "declaration-only") {
         return DeclarationOnly;
     } else if (string == "definiton-only") {

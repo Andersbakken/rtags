@@ -141,9 +141,10 @@ struct Option opts[] = {
     { RClient::Timeout, "timeout", 'y', required_argument, "Max time in ms to wait for job to finish (default no timeout)." },
     { RClient::FindVirtuals, "find-virtuals", 'k', no_argument, "Use in combinations with -R or -r to show other implementations of this function." },
     { RClient::FindFilePreferExact, "find-file-prefer-exact", 'A', no_argument, "Use to make --find-file prefer exact matches over partial matches." },
-    { RClient::SymbolInfoExcludeParents, "symbol-info-exclude-parents", 0, no_argument, "Use to make --symbol-info include parent symbols." },
-    { RClient::SymbolInfoExcludeTargets, "symbol-info-exclude-targets", 0, no_argument, "Use to make --symbol-info exclude target symbols." },
-    { RClient::SymbolInfoExcludeReferences, "symbol-info-exclude-references", 0, no_argument, "Use to make --symbol-info exclude reference symbols." },
+    { RClient::SymbolInfoIncludeParents, "symbol-info-include-parents", 0, no_argument, "Use to make --symbol-info include parent symbols." },
+    { RClient::SymbolInfoIncludeTargets, "symbol-info-include-targets", 0, no_argument, "Use to make --symbol-info include target symbols." },
+    { RClient::SymbolInfoIncludeReferences, "symbol-info-include-references", 0, no_argument, "Use to make --symbol-info include reference symbols." },
+    { RClient::SymbolInfoIncludeBaseClasses, "symbol-info-include-base-classes", 0, no_argument, "Use to make --symbol-info include baseclasses' symbols." },
     { RClient::CursorKind, "cursor-kind", 0, no_argument, "Include cursor kind in --find-symbols output." },
     { RClient::DisplayName, "display-name", 0, no_argument, "Include display name in --find-symbols output." },
     { RClient::CurrentFile, "current-file", 0, required_argument, "Pass along which file is being edited to give rdm a better chance at picking the right project." },
@@ -662,14 +663,17 @@ RClient::ParseStatus RClient::parse(int &argc, char **argv)
         case FindFilePreferExact:
             mQueryFlags |= QueryMessage::FindFilePreferExact;
             break;
-        case SymbolInfoExcludeParents:
-            mQueryFlags |= QueryMessage::SymbolInfoExcludeParents;
+        case SymbolInfoIncludeParents:
+            mQueryFlags |= QueryMessage::SymbolInfoIncludeParents;
             break;
-        case SymbolInfoExcludeTargets:
-            mQueryFlags |= QueryMessage::SymbolInfoExcludeTargets;
+        case SymbolInfoIncludeTargets:
+            mQueryFlags |= QueryMessage::SymbolInfoIncludeTargets;
             break;
-        case SymbolInfoExcludeReferences:
-            mQueryFlags |= QueryMessage::SymbolInfoExcludeReferences;
+        case SymbolInfoIncludeReferences:
+            mQueryFlags |= QueryMessage::SymbolInfoIncludeReferences;
+            break;
+        case SymbolInfoIncludeBaseClasses:
+            mQueryFlags |= QueryMessage::SymbolInfoIncludeBaseClasses;
             break;
         case CursorKind:
             mQueryFlags |= QueryMessage::CursorKind;

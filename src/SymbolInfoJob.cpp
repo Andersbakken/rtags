@@ -28,12 +28,14 @@ SymbolInfoJob::SymbolInfoJob(Location loc, const std::shared_ptr<QueryMessage> &
 int SymbolInfoJob::execute()
 {
     Flags<Symbol::ToStringFlag> toStringFlags;
-    if (queryFlags() & QueryMessage::SymbolInfoExcludeTargets)
-        toStringFlags |= Symbol::IgnoreTargets;
-    if (queryFlags() & QueryMessage::SymbolInfoExcludeReferences)
-        toStringFlags |= Symbol::IgnoreReferences;
-    if (queryFlags() & QueryMessage::SymbolInfoExcludeParents)
-        toStringFlags |= Symbol::IgnoreParents;
+    if (queryFlags() & QueryMessage::SymbolInfoIncludeTargets)
+        toStringFlags |= Symbol::IncludeTargets;
+    if (queryFlags() & QueryMessage::SymbolInfoIncludeReferences)
+        toStringFlags |= Symbol::IncludeReferences;
+    if (queryFlags() & QueryMessage::SymbolInfoIncludeParents)
+        toStringFlags |= Symbol::IncludeParents;
+    if (queryFlags() & QueryMessage::SymbolInfoIncludeBaseClasses)
+        toStringFlags |= Symbol::IncludeBaseClasses;
 
     int ret = 1;
     int idx = -1;
@@ -47,8 +49,7 @@ int SymbolInfoJob::execute()
         }
         ret = 0;
     }
-    if (!(queryFlags() & QueryMessage::SymbolInfoExcludeParents)
-        && !(queryFlags() & QueryMessage::Elisp)) {
+    if (queryFlags() & QueryMessage::SymbolInfoIncludeParents && !(queryFlags() & QueryMessage::Elisp)) {
         auto syms = project()->openSymbols(location.fileId());
         if (syms) {
             idx = syms->lowerBound(location);
@@ -56,7 +57,7 @@ int SymbolInfoJob::execute()
                 idx = syms->count() - 1;
             }
         }
-        toStringFlags |= Symbol::IgnoreTargets|Symbol::IgnoreReferences;
+        toStringFlags &= ~(Symbol::IncludeTargets|Symbol::IncludeReferences|Symbol::IncludeBaseClasses);
         const unsigned int line = location.line();
         const unsigned int column = location.column();
         while (idx-- > 0) {

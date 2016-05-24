@@ -132,9 +132,10 @@ struct Symbol
 
     enum ToStringFlag {
         DefaultFlags = 0x0,
-        IgnoreTargets = 0x1,
-        IgnoreReferences = 0x2,
-        IgnoreParents = 0x4
+        IncludeTargets = 0x1,
+        IncludeReferences = 0x2,
+        IncludeParents = 0x4,
+        IncludeBaseClasses = 0x8
     };
     String toString(Flags<ToStringFlag> toStringFlags = DefaultFlags,
                     Flags<Location::ToStringFlag> = Flags<Location::ToStringFlag>(),

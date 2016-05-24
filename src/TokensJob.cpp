@@ -56,12 +56,14 @@ int TokensJob::execute()
         write("(list");
         if (queryFlags() & QueryMessage::TokensIncludeSymbols) {
             Flags<Symbol::ToStringFlag> toStringFlags;
-            if (queryFlags() & QueryMessage::SymbolInfoExcludeTargets)
-                toStringFlags |= Symbol::IgnoreTargets;
-            if (queryFlags() & QueryMessage::SymbolInfoExcludeReferences)
-                toStringFlags |= Symbol::IgnoreReferences;
-            if (queryFlags() & QueryMessage::SymbolInfoExcludeParents)
-                toStringFlags |= Symbol::IgnoreParents;
+            if (queryFlags() & QueryMessage::SymbolInfoIncludeTargets)
+                toStringFlags |= Symbol::IncludeTargets;
+            if (queryFlags() & QueryMessage::SymbolInfoIncludeReferences)
+                toStringFlags |= Symbol::IncludeReferences;
+            if (queryFlags() & QueryMessage::SymbolInfoIncludeParents)
+                toStringFlags |= Symbol::IncludeParents;
+            if (queryFlags() & QueryMessage::SymbolInfoIncludeBaseClasses)
+                toStringFlags |= Symbol::IncludeBaseClasses;
             writeToken = [this, &proj, elispFormat, toStringFlags](const Token &token) {
                 String out = String::format<1024>(elispFormat,
                                                   token.offset, token.length, RTags::tokenKindSpelling(token.kind),

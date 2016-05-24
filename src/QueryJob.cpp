@@ -326,18 +326,12 @@ bool QueryJob::write(const Symbol &symbol,
                 elisp(out, "argumentIndex", symbol.argumentUsage.index, flags);
             }
             elisp(out, "usr", symbol.usr, flags);
-            if (!symbol.baseClasses.isEmpty()) {
+            if (!symbol.baseClasses.isEmpty() && toStringFlags & Symbol::IncludeBaseClasses) {
                 List<String> baseClasses;
                 for (const auto &base : symbol.baseClasses) {
-                    Symbol sym;
-                    if (mode == Mode_Symbol) {
-                        for (const Symbol &s : project()->findByUsr(base, symbol.location.fileId(), Project::ArgDependsOn, symbol.location)) {
-                            sym = s;
-                            break;
-                        }
-                    }
-                    if (!sym.isNull()) {
-                        baseClasses << symbolToElisp(sym, Mode_BaseClass);
+                    for (const Symbol &s : project()->findByUsr(base, symbol.location.fileId(), Project::ArgDependsOn, symbol.location)) {
+                        baseClasses << symbolToElisp(s, Mode_BaseClass);
+                        break;
                     }
                 }
 
@@ -418,7 +412,7 @@ bool QueryJob::write(const Symbol &symbol,
                 elisp(out, "templatespecialization", true, flags);
             switch (mode) {
             case Mode_Symbol:
-                if (!(toStringFlags & Symbol::IgnoreTargets)) {
+                if (toStringFlags & Symbol::IncludeTargets) {
                     const auto targets = project()->findTargets(symbol);
                     if (targets.size()) {
                         List<String> t;
@@ -428,7 +422,7 @@ bool QueryJob::write(const Symbol &symbol,
                         elisp(out, "targets", t, flags | NoQuote);
                     }
                 }
-                if (!(toStringFlags & Symbol::IgnoreReferences)) {
+                if (toStringFlags & Symbol::IncludeReferences) {
                     const auto references = project()->findCallers(symbol);
                     if (references.size()) {
                         List<String> r;
@@ -440,7 +434,7 @@ bool QueryJob::write(const Symbol &symbol,
                 }
                 // fall through
             case Mode_Parent:
-                if (!(toStringFlags & Symbol::IgnoreParents)) {
+                if (toStringFlags & Symbol::IncludeParents) {
                     auto syms = project()->openSymbols(symbol.location.fileId());
                     int idx = -1;
                     if (syms) {

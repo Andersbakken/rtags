@@ -1213,6 +1213,7 @@ Uses `completing-read' to ask for the project."
                                  (location nil)
                                  (include-targets nil)
                                  (include-references nil)
+                                 (include-base-classes nil)
                                  (include-parents nil)
                                  (save-to-kill-ring nil)
                                  (silent-query nil)
@@ -1230,9 +1231,10 @@ Uses `completing-read' to ask for the project."
                        :silent-query silent-query
                        "-U" loc
                        (unless rtags-print-filenames-relative "-K")
-                       (unless include-targets "--symbol-info-exclude-targets")
-                       (unless include-references "--symbol-info-exclude-references")
-                       (unless include-parents "--symbol-info-exclude-parents"))
+                       (when include-targets "--symbol-info-include-targets")
+                       (when include-references "--symbol-info-include-references")
+                       (when include-base-classes "--symbol-info-include-base-classes")
+                       (when include-parents "--symbol-info-include-parents"))
         (when save-to-kill-ring
           (copy-region-as-kill (point-min) (point-max)))
         (when (called-interactively-p 'any)
@@ -4406,10 +4408,7 @@ the class.
                                           buf
                                           (rtags-executable-find "rc")
                                           "--elisp"
-;;                                          "--tokens-include-symbols"
-                                          "--symbol-info-exclude-targets"
-                                          "--symbol-info-exclude-references"
-                                          "--symbol-info-exclude-parents"
+                                          "--tokens-include-symbols"
                                           "--tokens" (cond ((and from to) (format "%s:%d-%d" path from to))
                                                            (from (format "%s:%d-" path from))
                                                            (to (format "%s:-%d" path to))
@@ -4421,9 +4420,6 @@ the class.
              (rtags-call-rc :path path
                             "--elisp"
                             "--tokens-include-symbols"
-                            "--symbol-info-exclude-targets"
-                            "--symbol-info-exclude-references"
-                            "--symbol-info-exclude-parents"
                             "--tokens" (cond ((and from to) (format "%s:%d-%d" path from to))
                                              (from (format "%s:%d-" path from))
                                              (to (format "%s:-%d" path to))
