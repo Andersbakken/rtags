@@ -429,7 +429,7 @@ bool QueryJob::write(const Symbol &symbol,
                     }
                 }
                 if (!(toStringFlags & Symbol::IgnoreReferences)) {
-                    const auto references = project()->findTargets(symbol);
+                    const auto references = project()->findCallers(symbol);
                     if (references.size()) {
                         List<String> r;
                         for (const auto &reference : references) {
