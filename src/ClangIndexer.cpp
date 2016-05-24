@@ -176,7 +176,7 @@ bool ClangIndexer::exec(const String &data)
 
     assert(mConnection->isConnected());
     mIndexDataMessage.files()[mSource.fileId] |= IndexDataMessage::Visited;
-    parse() && diagnose() && visit();
+    parse() && visit() && diagnose();
     String message = mSourceFile.toTilde();
     String err;
     StopWatch sw;
@@ -638,8 +638,7 @@ CXChildVisitResult ClangIndexer::indexVisitor(CXCursor cursor)
 
     bool blocked = false;
 
-    unsigned offset = 0;
-    Location loc = createLocation(cursor, &blocked, &offset);
+    Location loc = createLocation(cursor, &blocked);
 
     if (blocked) {
         // error() << "blocked" << cursor;
@@ -695,7 +694,7 @@ CXChildVisitResult ClangIndexer::indexVisitor(CXCursor cursor)
         handleInclude(cursor, kind, loc);
         break;
     case RTags::Type_Literal:
-        handleLiteral(cursor, kind, loc, offset);
+        handleLiteral(cursor, kind, loc);
         break;
     case RTags::Type_Statement:
         visitResult = handleStatement(cursor, kind, loc);
@@ -1173,7 +1172,7 @@ void ClangIndexer::handleInclude(const CXCursor &cursor, CXCursorKind kind, Loca
     error() << "couldn't create included file" << cursor;
 }
 
-void ClangIndexer::handleLiteral(const CXCursor &cursor, CXCursorKind kind, Location location, unsigned offset)
+void ClangIndexer::handleLiteral(const CXCursor &cursor, CXCursorKind kind, Location location)
 {
     auto u = unit(location);
     // error() << location << kind
@@ -1182,31 +1181,35 @@ void ClangIndexer::handleLiteral(const CXCursor &cursor, CXCursorKind kind, Loca
     //         << clang_getCursorType(cursor).kind;
 
     CXType type = clang_getCursorType(cursor);
-    String symbolName;
-    if (kind != CXCursor_StringLiteral) {
-        auto it = u->tokens.find(offset);
-        if (it == u->tokens.end()) {
-            Log(&symbolName) << type.kind;
-        } else {
-            symbolName = it->second.spelling;
-        }
-    } else {
-        symbolName = RTags::eatString(clang_getCursorSpelling(cursor));
-    }
     // error() << location << kind << displayName;
-    u->symbolNames[symbolName].insert(location);
     Symbol &s = u->symbols[location];
     if (!s.isNull())
         return;
     s.location = location;
-    s.symbolName = symbolName;
     s.kind = kind;
-    s.symbolLength = symbolName.size();
     s.size = clang_Type_getSizeOf(type);
     setType(s, type);
-    setRange(s, clang_getCursorExtent(cursor));
+    CXSourceRange range = clang_getCursorExtent(cursor);
+    setRange(s, range);
 
-    // s.symbolName = RTags::eatString(clang_getCursorDisplayName(cursor));
+    String symbolName;
+    if (kind != CXCursor_StringLiteral) {
+        CXToken *tokens = 0;
+        unsigned numTokens = 0;
+        clang_tokenize(mTranslationUnit->unit, range, &tokens, &numTokens);
+        if (numTokens) {
+            symbolName = RTags::eatString(clang_getTokenSpelling(mTranslationUnit->unit, tokens[0]));
+        } else {
+            Log(&symbolName) << type.kind;
+        }
+
+        clang_disposeTokens(mTranslationUnit->unit, tokens, numTokens);
+    } else {
+        symbolName = RTags::eatString(clang_getCursorSpelling(cursor));
+    }
+    s.symbolName = symbolName;
+    u->symbolNames[symbolName].insert(location);
+    s.symbolLength = symbolName.size();
 }
 
 CXChildVisitResult ClangIndexer::handleStatement(const CXCursor &cursor, CXCursorKind kind, Location location)

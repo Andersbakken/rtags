@@ -112,7 +112,7 @@ private:
                          Symbol **cursorPtr = 0);
     void handleBaseClassSpecifier(const CXCursor &cursor);
     void handleInclude(const CXCursor &cursor, CXCursorKind kind, Location location);
-    void handleLiteral(const CXCursor &cursor, CXCursorKind kind, Location location, unsigned offset);
+    void handleLiteral(const CXCursor &cursor, CXCursorKind kind, Location location);
     CXChildVisitResult handleStatement(const CXCursor &cursor, CXCursorKind kind, Location location);
     Location findByUSR(const CXCursor &cursor, CXCursorKind kind, Location loc) const;
     void addOverriddenCursors(const CXCursor &cursor, Location location);
