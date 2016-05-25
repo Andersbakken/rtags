@@ -1767,8 +1767,11 @@ bool Server::load()
     if (fileIdsFile.open(DataFile::Read)) {
         Flags<FileIdsFileFlag> flags;
         fileIdsFile >> flags;
-        if (flags & HasSandboxRoot && mOptions.sandboxRoot.isEmpty()) {
+        if (flags & HasSandboxRoot && !Sandbox::hasRoot()) {
             error() << "This database was produced with --sandbox-root option using relative path. You have to specify a sandbox-root argument or wipe the db by running with -C";
+            return false;
+        } else if (Sandbox::hasRoot() && !(flags & HasSandboxRoot)) {
+            error() << "This database was produced without --sandbox-root option using relative path. You can't specify a sandbox-root argument for this db unless you start the db over by passing -C";
             return false;
         }
 
@@ -1872,11 +1875,10 @@ bool Server::saveFileIds()
         return false;
     }
     Flags<FileIdsFileFlag> flags;
-    if (!mOptions.sandboxRoot.isEmpty())
+    if (Sandbox::hasRoot())
         flags |= HasSandboxRoot;
-    fileIdsFile << flags;
 
-    fileIdsFile << Sandbox::encoded(Location::pathsToIds());
+    fileIdsFile << flags << Sandbox::encoded(Location::pathsToIds());
 
     if (!fileIdsFile.flush()) {
         error("Can't save file ids: %s", fileIdsFile.error().constData());
