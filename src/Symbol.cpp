@@ -225,3 +225,158 @@ bool Symbol::isContainer() const
 {
     return RTags::isContainer(kind);
 }
+
+Value Symbol::toValue(const std::shared_ptr<Project> &project,
+                      Flags<ToStringFlag> toStringFlags,
+                      Flags<Location::ToStringFlag> locationToStringFlags) const
+{
+    std::function<Value(const Symbol &, Flags<ToStringFlag>)> toValue = [&](const Symbol &symbol, Flags<ToStringFlag> flags) {
+        Value ret;
+        if (!symbol.isNull()) {
+            ret["location"] = symbol.location.toString(locationToStringFlags);
+            if (symbol.argumentUsage.index != String::npos) {
+                ret["invocation"] = symbol.argumentUsage.invocation.toString(locationToStringFlags);
+                ret["invokedFunction"] = symbol.argumentUsage.invokedFunction.toString(locationToStringFlags);
+                ret["functionArgumentLocation"] = symbol.argumentUsage.argument.first.toString(locationToStringFlags);
+                ret["functionArgumentLength"] = symbol.argumentUsage.argument.second;
+                ret["argumentIndex"] = symbol.argumentUsage.index;
+            }
+            if (!symbol.symbolName.isEmpty())
+                ret["symbolName"] = symbol.symbolName;
+            if (!symbol.usr.isEmpty())
+                ret["usr"] = symbol.usr;
+            if (!symbol.typeName.isEmpty()) {
+                ret["type"] = symbol.typeName;
+            } else if (symbol.type != CXType_Invalid) {
+                String str;
+                Log(&str) << symbol.type;
+                ret["type"] = str;
+            }
+
+            if (!symbol.baseClasses.isEmpty())
+                ret["baseClasses"] = symbol.baseClasses;
+            if (!symbol.arguments.isEmpty()) {
+                Value args;
+                for (const auto &arg : symbol.arguments) {
+                    Value a;
+                    a["location"] = arg.first.toString(locationToStringFlags);
+                    a["length"] = arg.second;
+                    args.push_back(a);
+                }
+                ret["arguments"] = args;
+            }
+            ret["symbolLength"] = symbol.symbolLength;
+            {
+                String str;
+                Log(&str) << symbol.kind;
+                ret["kind"] = str;
+            }
+            {
+                String str;
+                Log(&str) << symbol.linkage;
+                ret["linkage"] = str;
+            }
+
+            if (!symbol.briefComment.isEmpty())
+                ret["briefComment"] = symbol.briefComment;
+            if (!symbol.xmlComment.isEmpty())
+                ret["xmlComment"] = symbol.xmlComment;
+            ret["startLine"] = symbol.startLine;
+            ret["startColumn"] = symbol.startColumn;
+            ret["endLine"] = symbol.endLine;
+            ret["endColumn"] = symbol.endColumn;
+            if (symbol.size > 0)
+                ret["sizeof"] = symbol.size;
+            if (symbol.fieldOffset > 0)
+                ret["fieldOffset"] = symbol.fieldOffset;
+            if (symbol.alignment > 0)
+                ret["alignment"] = symbol.alignment;
+            if (symbol.kind == CXCursor_EnumConstantDecl)
+                ret["enumValue"] = symbol.enumValue;
+            if (symbol.isDefinition()) {
+                ret["definition"] = true;
+                if (RTags::isFunction(symbol.kind))
+                    ret["stackCost"] = symbol.stackCost;
+            } else if (symbol.isReference()) {
+                ret["reference"] = true;
+            }
+            if (symbol.isContainer())
+                ret["container"] = true;
+            if ((symbol.flags & Symbol::PureVirtualMethod) == Symbol::PureVirtualMethod)
+                ret["purevirtual"] = true;
+            if (symbol.flags & Symbol::VirtualMethod)
+                ret["virtual"] = true;
+            if (symbol.flags & Symbol::ConstMethod)
+                ret["constmethod"] = true;
+            if (symbol.flags & Symbol::StaticMethod)
+                ret["staticmethod"] = true;
+            if (symbol.flags & Symbol::Variadic)
+                ret["variadic"] = true;
+            if (symbol.flags & Symbol::Auto)
+                ret["auto"] = true;
+            if (symbol.flags & Symbol::AutoRef)
+                ret["autoref"] = true;
+            if (symbol.flags & Symbol::MacroExpansion)
+                ret["macroexpansion"] = true;
+            if (symbol.flags & Symbol::TemplateSpecialization)
+                ret["templatespecialization"] = true;
+            if (flags & IncludeTargets) {
+                const auto targets = project->findTargets(symbol);
+                if (!targets.isEmpty()) {
+                    Value t;
+                    for (const auto &target : targets) {
+                        t.push_back(toValue(target, NullFlags));
+                    }
+                    ret["targets"] = t;
+                }
+            }
+            if (toStringFlags & IncludeReferences) {
+                const auto references = project->findCallers(symbol);
+                if (!references.isEmpty()) {
+                    Value r;
+                    for (const auto &ref : references) {
+                        r.push_back(toValue(ref, NullFlags));
+                    }
+                    ret["references"] = r;
+                }
+            }
+            if (toStringFlags & IncludeBaseClasses) {
+                List<Value> b;
+                for (const auto &base : symbol.baseClasses) {
+                    for (const Symbol &s : project->findByUsr(base, symbol.location.fileId(), Project::ArgDependsOn, symbol.location)) {
+                        b.append(toValue(s, NullFlags));
+                        break;
+                    }
+                }
+                if (!baseClasses.isEmpty()) {
+                    ret["baseClasses"] = b;
+                }
+            }
+
+            if (toStringFlags & IncludeParents) {
+                auto syms = project->openSymbols(symbol.location.fileId());
+                int idx = -1;
+                if (syms) {
+                    idx = syms->lowerBound(symbol.location);
+                    if (idx == -1) {
+                        idx = syms->count() - 1;
+                    }
+                }
+                const unsigned int line = symbol.location.line();
+                const unsigned int column = symbol.location.column();
+                while (idx-- > 0) {
+                    const Symbol s = syms->valueAt(idx);
+                    if (s.isDefinition()
+                        && s.isContainer()
+                        && comparePosition(line, column, s.startLine, s.startColumn) >= 0
+                        && comparePosition(line, column, s.endLine, s.endColumn) <= 0) {
+                        ret["parent"] = toValue(s, IncludeParents);
+                        break;
+                    }
+                }
+            }
+        }
+        return ret;
+    };
+    return toValue(*this, toStringFlags);
+}

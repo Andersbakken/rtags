@@ -26,6 +26,7 @@
 #include "rct/List.h"
 #include "rct/Serializer.h"
 #include "rct/String.h"
+#include "rct/Value.h"
 
 class Project;
 struct Symbol
@@ -137,6 +138,9 @@ struct Symbol
         IncludeParents = 0x4,
         IncludeBaseClasses = 0x8
     };
+    Value toValue(const std::shared_ptr<Project> &project,
+                  Flags<ToStringFlag> toStringFlags,
+                  Flags<Location::ToStringFlag> locationToStringFlags) const;
     String toString(Flags<ToStringFlag> toStringFlags = DefaultFlags,
                     Flags<Location::ToStringFlag> = Flags<Location::ToStringFlag>(),
                     const std::shared_ptr<Project> &project = std::shared_ptr<Project>()) const;

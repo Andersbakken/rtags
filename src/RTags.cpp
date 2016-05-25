@@ -975,4 +975,94 @@ bool loadCompileCommands(const Hash<Path, CompilationDataBaseInfo> &infos, const
 #endif
     return false;
 }
+
+#define OUTPUT_LITERAL(string)                  \
+    {                                           \
+        const char literal[] = string;          \
+        output(literal, sizeof(literal) - 1);   \
+    }
+class ElispFormatter : public Value::Formatter
+{
+public:
+    virtual void format(const Value &value, std::function<void(const char *, size_t)> output) const
+    {
+        switch (value.type()) {
+        case Value::Type_Invalid:
+        case Value::Type_Undefined:
+            OUTPUT_LITERAL("nil");
+            break;
+        case Value::Type_Boolean:
+            if (value.toBool()) {
+                OUTPUT_LITERAL("t");
+            } else {
+                OUTPUT_LITERAL("nil");
+            }
+            break;
+        case Value::Type_Integer: {
+            char buf[128];
+            const size_t w = snprintf(buf, sizeof(buf), "%d", value.toInteger());
+            output(buf, w);
+            break; }
+        case Value::Type_Double: {
+            char buf[128];
+            const size_t w = snprintf(buf, sizeof(buf), "%g", value.toDouble());
+            output(buf, w);
+            break; }
+        case Value::Type_String: {
+            const String str = elispEscape(value.toString());
+            OUTPUT_LITERAL("\"");
+            output(str.constData(), str.size());
+            OUTPUT_LITERAL("\"");
+            break; }
+        case Value::Type_Custom: {
+            const String str = elispEscape(value.toCustom()->toString());
+            OUTPUT_LITERAL("\"");
+            output(str.constData(), str.size());
+            OUTPUT_LITERAL("\"");
+            break; }
+        case Value::Type_Map: {
+            const auto end = value.end();
+            bool first = true;
+            output("(list ", 6);
+            for (auto it = value.begin(); it != end; ++it) {
+                if (!first) {
+                    output(" ", 1);
+                } else {
+                    first = false;
+                }
+                OUTPUT_LITERAL("(cons '");
+                output(it->first.constData(), it->first.size());
+                OUTPUT_LITERAL(" ");
+                format(it->second, output);
+                OUTPUT_LITERAL(")");
+            }
+            output(")", 1);
+            break; }
+        case Value::Type_List: {
+            const auto end = value.listEnd();
+            OUTPUT_LITERAL("(list ");
+            bool first = true;
+            for (auto it = value.listBegin(); it != end; ++it) {
+                if (!first) {
+                    OUTPUT_LITERAL(" ");
+                } else {
+                    first = false;
+                }
+                format(*it, output);
+            }
+            OUTPUT_LITERAL(")");
+            break; }
+        case Value::Type_Date:
+            const String str = elispEscape(String::formatTime(value.toDate().time()));
+            OUTPUT_LITERAL("\"");
+            output(str.constData(), str.size());
+            OUTPUT_LITERAL("\"");
+            break;
+        }
+    }
+};
+String toElisp(const Value &value)
+{
+    return ElispFormatter().toString(value);
+}
 }

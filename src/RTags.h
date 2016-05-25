@@ -30,6 +30,7 @@
 #include "Location.h"
 #include "Source.h"
 #include "Symbol.h"
+#include "rct/Value.h"
 #include "rct/Flags.h"
 #include "rct/Log.h"
 #include "rct/Path.h"
@@ -684,6 +685,7 @@ inline const String elispEscape(const String &data)
         return data;
     return ret;
 }
+String toElisp(const Value &value);
 
 inline Location createLocation(CXSourceLocation loc, int *offsetPtr = 0)
 {

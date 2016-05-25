@@ -470,7 +470,7 @@ bool QueryJob::write(const Symbol &symbol,
             out << ')';
             return out;
         };
-        const String out = symbolToElisp(symbol, Mode_Symbol);
+        const String out = RTags::toElisp(symbol.toValue(project(), toStringFlags, Location::NoColor|Location::AbsolutePath));
         return write(out, writeFlags|Unfiltered);
     } else {
         return write(symbol.toString(toStringFlags, locationToStringFlags(), project()), writeFlags|Unfiltered);
