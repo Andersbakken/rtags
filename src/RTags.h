@@ -897,8 +897,10 @@ inline Log operator<<(Log dbg, CXCallingConv conv)
     case CXCallingConv_AAPCS_VFP: dbg << "AAPCS_VFP"; break;
     /* case CXCallingConv_PnaclCall: dbg << "PnaclCall"; break; */
     case CXCallingConv_IntelOclBicc: dbg << "IntelOclBicc"; break;
+#if CINDEX_VERSION >= CINDEX_VERSION_ENCODE(0, 20)
     case CXCallingConv_X86_64Win64: dbg << "X86_64Win64"; break;
     case CXCallingConv_X86_64SysV: dbg << "X86_64SysV"; break;
+#endif
 #if CINDEX_VERSION >= CINDEX_VERSION_ENCODE(0, 30)
     case CXCallingConv_X86VectorCall: dbg << "X86VectorCall"; break;
 #endif
@@ -910,6 +912,7 @@ inline Log operator<<(Log dbg, CXCallingConv conv)
     return dbg;
 }
 
+#if CINDEX_VERSION >= CINDEX_VERSION_ENCODE(0, 20)
 inline Log operator<<(Log dbg, CXRefQualifierKind kind)
 {
     switch (kind) {
@@ -919,6 +922,7 @@ inline Log operator<<(Log dbg, CXRefQualifierKind kind)
     }
     return dbg;
 }
+#endif
 
 inline Log operator<<(Log dbg, CXTypeLayoutError err)
 {

@@ -922,7 +922,7 @@ public:
 
 bool loadCompileCommands(const Hash<Path, CompilationDataBaseInfo> &infos, const Path &projectRootOverride)
 {
-#if CLANG_VERSION_MAJOR > 3 || (CLANG_VERSION_MAJOR == 3 && CLANG_VERSION_MINOR > 3)
+#if CINDEX_VERSION >= CINDEX_VERSION_ENCODE(0, 20)
     if (Sandbox::hasRoot() && !projectRootOverride.isEmpty() && !projectRootOverride.startsWith(Sandbox::root())) {
         error("Invalid --project-root '%s', must be inside --sandbox-root '%s'",
               projectRootOverride.constData(), Sandbox::root().constData());
@@ -969,6 +969,9 @@ bool loadCompileCommands(const Hash<Path, CompilationDataBaseInfo> &infos, const
         EventLoop::eventLoop()->callLater(std::bind(&CompileCommandsOperation::work, op));
         return true;
     }
+#else
+    (void)infos;
+    (void)projectRootOverride;
 #endif
     return false;
 }

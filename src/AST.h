@@ -240,7 +240,14 @@ public:
         bool isVirtualBase() const { return intProperty<unsigned, bool>(&clang_isVirtualBase); }
         bool isStatic() const { return intProperty<unsigned, bool>(&clang_CXXMethod_isStatic); }
         bool isVirtual() const { return intProperty<unsigned, bool>(&clang_CXXMethod_isVirtual); }
-        bool isPureVirtual() const { return intProperty<unsigned, bool>(&clang_CXXMethod_isPureVirtual); }
+        bool isPureVirtual() const
+        {
+#if CINDEX_VERSION >= CINDEX_VERSION_ENCODE(0, 20)
+            return intProperty<unsigned, bool>(&clang_CXXMethod_isPureVirtual);
+#else
+            return false;
+#endif
+        }
         bool isConst() const
         {
 #if CINDEX_VERSION > CINDEX_VERSION_ENCODE(0, 20)
@@ -273,7 +280,14 @@ public:
         std::string spelling() const { return toString(clang_getTypeSpelling(type)); }
         Cursor declaration() const { return ast ? ast->create(clang_getTypeDeclaration(type)) : Cursor(); }
         std::string callingConvention() const { return toString(clang_getFunctionTypeCallingConv(type)); }
-        std::string referenceType() const { return toString(clang_Type_getCXXRefQualifier(type)); }
+        std::string referenceType() const
+        {
+#if CINDEX_VERSION >= CINDEX_VERSION_ENCODE(0, 20)
+            return toString(clang_Type_getCXXRefQualifier(type));
+#else
+            return std::string();
+#endif
+        }
         unsigned argumentCount() const { return clang_getNumArgTypes(type); }
         CursorType argument(unsigned idx) const { return CursorType(ast, clang_getArgType(type, idx)); }
         unsigned templateArgumentCount() const
@@ -298,7 +312,14 @@ public:
         CursorType resultType() const { return CursorType(ast, clang_getResultType(type)); }
         CursorType elementType() const { return CursorType(ast, clang_getElementType(type)); }
         CursorType arrayElementType() const { return CursorType(ast, clang_getElementType(type)); }
-        CursorType classType() const { return CursorType(ast, clang_Type_getClassType(type)); }
+        CursorType classType() const
+        {
+#if CINDEX_VERSION >= CINDEX_VERSION_ENCODE(0, 20)
+            return CursorType(ast, clang_Type_getClassType(type));
+#else
+            return CursorType();
+#endif
+        }
 
         bool isConstQualified() const { return clang_isConstQualifiedType(type); }
         bool isEstrictQualified() const { return clang_isRestrictQualifiedType(type); }
