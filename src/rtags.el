@@ -2947,7 +2947,10 @@ This includes both declarations and definitions."
     (when path
       (with-temp-buffer
         (rtags-call-rc :path path "--source" path "--compilation-flags-only" "--compilation-flags-split-line")
-        (split-string (buffer-substring-no-properties (point-min) (point-max)) "\n" t)))))
+        (let ((str (buffer-substring-no-properties (point-min) (point-max))))
+          (when (rtags-called-interactively-p)
+            (message "%s" (combine-and-quote-strings (split-string str "\n") " ")))
+          (split-string str "\n" t))))))
 
 (defun rtags-is-working (&optional buffer)
   (let ((path (expand-file-name (or (buffer-file-name buffer) dired-directory default-directory))))
