@@ -3569,7 +3569,7 @@ definition."
     (when (not (equal "" input))
       (setq tagname input))
     (with-current-buffer (rtags-get-buffer)
-      (rtags-call-rc :path path switch (shell-quote-argument tagname) :path-filter filter
+      (rtags-call-rc :path path switch tagname :path-filter filter
                      :path-filter-regex regexp-filter
                      (when rtags-wildcard-symbol-names "--wildcard-symbol-names")
                      (when rtags-symbolnames-case-insensitive "-I")
