@@ -52,12 +52,7 @@ typedef Hash<Path, String> UnsavedFiles;
 
 namespace RTags {
 
-enum {
-    MajorVersion = 2,
-    MinorVersion = 0,
-    DatabaseVersion = 94,
-    SourcesFileVersion = 5
-};
+#include "RTagsVersion.h"
 
 inline String versionString()
 {

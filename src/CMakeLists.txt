@@ -2,6 +2,11 @@ set(CMAKE_SKIP_BUILD_RPATH            FALSE)
 set(CMAKE_BUILD_WITH_INSTALL_RPATH    FALSE)
 set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
 
+configure_file(
+    "${CMAKE_CURRENT_SOURCE_DIR}/RTagsVersion.h.in"
+    "${CMAKE_CURRENT_BINARY_DIR}/include/RTagsVersion.h"
+    )
+
 # Treat MSYS as Cygwin
 if (MSYS)
     set(CYGWIN 1)
@@ -44,16 +49,17 @@ set_package_properties(Lua
     DESCRIPTION "a scripting language"
     TYPE OPTIONAL
     PURPOSE "Dependency of the selene sub-module, see http://www.rtags.net for a more detailed description.")
-If (LUA_FOUND)
+if (LUA_FOUND)
     set(RCT_RTTI_ENABLED 1)
 endif ()
 
 set(RCT_NO_INSTALL 1)
 set(RCT_NO_LIBRARY 1)
+# Everyting which as been set either in rct/rct.cmake or rct/compiler.cmake
+# doesn't need to be set in this file again.
 include(rct/rct.cmake)
 
-include(${CMAKE_CURRENT_LIST_DIR}/rct/compiler.cmake)
-# Set further compile options after including the rct compiler option.
+message(STATUS "AFTER compiler.cmake ${CMAKE_CXX_FLAGS}")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wstrict-aliasing=2 -Wcast-qual -fPIC")
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wstrict-aliasing=2 -Wcast-qual -fPIC")
 if (NOT CYGWIN)
@@ -61,23 +67,16 @@ if (NOT CYGWIN)
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fstack-protector-all -Wstack-protector")
 endif ()
 
-if (ASAN)
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=address")
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fsanitize=address")
-endif ()
-
 if (CMAKE_BUILD_TYPE MATCHES "Debug")
     add_definitions("-DRTAGS_DEBUG")
     set(RCT_EVENTLOOP_CALLBACK_TIME_THRESHOLD 2000)
 endif ()
 
-if("${LIBCLANG_LIBDIR}" STREQUAL "")
-    message(FATAL_ERROR "Define LIBCLANG_LIBDIR is empty, please provide the path to the clang library. See README for more help.")
-endif()
-add_definitions("-DRTAGS_INSTALL_DIR=${CMAKE_CURRENT_BINARY_DIR}")
-add_definitions("-DCLANG_LIBDIR=${LIBCLANG_LIBDIR}")
-add_definitions("-DOS_${CMAKE_SYSTEM_NAME}")
-add_definitions(${RCT_DEFINITIONS})
+add_definitions(
+    "-DRTAGS_SOURCE_DIR=${CMAKE_CURRENT_SOURCE_DIR}"
+    "-DCLANG_LIBDIR=${LIBCLANG_LIBDIR}"
+    "-DOS_${CMAKE_SYSTEM_NAME}"
+    ${RCT_DEFINITIONS})
 
 if (CMAKE_SYSTEM_NAME MATCHES "FreeBSD")
     add_definitions(-D__LONG_LONG_SUPPORTED)
@@ -132,7 +131,10 @@ if (RTAGS_COTIRE)
     cotire(rtags)
 endif ()
 
-include_directories(${CMAKE_CURRENT_LIST_DIR} ${RCT_INCLUDE_DIRS} ${CMAKE_CURRENT_LIST_DIR}/selene/include)
+include_directories(
+    ${CMAKE_CURRENT_LIST_DIR}
+    ${RCT_INCLUDE_DIRS}
+    ${CMAKE_CURRENT_LIST_DIR}/selene/include)
 
 if (CMAKE_SYSTEM_NAME MATCHES "Darwin")
     set(START_GROUP "")

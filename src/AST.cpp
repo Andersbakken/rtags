@@ -149,7 +149,7 @@ std::shared_ptr<AST> AST::create(const Source &source, const String &sourceCode,
             // sscanf
             // return mByUsr.value(usr);
         };
-        const String script = Path(TO_STR(RTAGS_INSTALL_DIR) "/rtags.lua").readAll();
+        const String script = Path(TO_STR(RTAGS_SOURCE_DIR) "/rtags.lua").readAll();
         state(script.constData());
     }
     return ast;
