@@ -89,7 +89,7 @@ There are a few prerequisites you need to have in order to build RTags
 
   The meta-built system used by RTags.
 -----
-- =emacs= >= 24.3
+- =emacs= >= 24.3 is recommended
 
   RTags might very well work with much older =emacs= versions but the oldest
   version we have tested with is 23.4.1. There's no particular effort made to
@@ -280,57 +280,85 @@ rc -c gcc -I... -fsomeflag -c foobar.c
 rc -J /path/to/a/directory/containing/compile_commands.json
 #+END_SRC sh
 
-- Normally one achieves this in one of these ways:
+You can generate a compile_commands.json with various different tools, one
+might fit better than the other, depending on your project build system.
 
-- Make the build system output all compilation commands. E.g. if
-  you're using ninja (http://martine.github.io/ninja/) you can do something
-  like this:
+- [[https://ninja-build.org/manual.html][ninja]]
 
-#+BEGIN_SRC sh
-ninja -t commands | rc -c -
-#+END_SRC sh
+  #+begin_src sh
+  ninja -t compdb cxx cc > compile_commands.json
+  rc -J
+  #+end_src
 
-After this command =rdm= will index all the sources in your project.
+  With =ninja= it's also possible to pipe the commands directly to =rc=.
 
-If you're using cmake you can do this:
+  #+BEGIN_SRC sh
+  ninja -t commands | rc -c -
+  # Parse commands for a specific target only
+  ninja -t commands rdm | rc -c -
+  #+END_SRC
 
-#+BEGIN_SRC sh
-cmake . -DCMAKE_EXPORT_COMPILE_COMMANDS=1
-rc -J .
-#+END_SRC sh
+- =cmake=
 
-This will produce a compile_commands.json which, if used with =rc -J=, will
-index all your sources.
+  =cmake= can generate a compile_commands.json file as well.
 
-There are very likely similar things you can do with other build systems that
-we're unfamiliar with.
+  #+BEGIN_SRC sh
+  cmake -DCMAKE_EXPORT_COMPILE_COMMANDS=1 .
+  rc -J
+  #+END_SRC
 
-- The other approach to getting your files indexed is to man-in-the-middle
-  your compiler.
+- [[https://github.com/rizsotto/Bear][Bear]]
 
-This can be done like this:
+  If you have a pure makefile based project you can use =bear= to generate a
+  compile_commands.json file. However, if you are cross-compiling you probably
+  need to adjust the command entries in the compile_commands.json file to match
+  the correct compiler. Further, make sure you clean your project before
+  invoking =bear=.
 
-#+BEGIN_SRC sh
+  #+BEGIN_SRC sh
+  make clean
+  bear make
+  rc -J
+  # Parse commands for a specific target only
+  make clean
+  bear make rdm
+  rc -J
+  #+END_SRC
 
-ln -s /path/to/rtags/bin/gcc-rtags-wrapper.sh /somewhere/that/is/in/your/path/before/usr/bin/gcc
-ln -s /path/to/rtags/bin/gcc-rtags-wrapper.sh /somewhere/that/is/in/your/path/before/usr/bin/c++
-ln -s /path/to/rtags/bin/gcc-rtags-wrapper.sh /somewhere/that/is/in/your/path/before/usr/bin/cc
-ln -s /path/to/rtags/bin/gcc-rtags-wrapper.sh /somewhere/that/is/in/your/path/before/usr/bin/g++
+- =make=
 
+  You can ask =make= to only print the recipes without actually doing something.
+  This might be perfectly fine for not too complex makefiles.
+
+  #+BEGIN_SRC sh
+  make clean
+  make -nk | rc -c -
+  #+END_SRC
+
+  There are very likely similar things you can do with other build systems that
+  we're unfamiliar with, please let us know if you do.
+
+- A different approach to get your files indexed is the man-in-the-middle
+
+  This can be done like this:
+
+  #+BEGIN_SRC sh
+  ln -s /path/to/rtags/bin/gcc-rtags-wrapper.sh /somewhere/that/is/in/your/path/before/usr/bin/gcc
+  ln -s /path/to/rtags/bin/gcc-rtags-wrapper.sh /somewhere/that/is/in/your/path/before/usr/bin/c++
+  ln -s /path/to/rtags/bin/gcc-rtags-wrapper.sh /somewhere/that/is/in/your/path/before/usr/bin/cc
+  ln -s /path/to/rtags/bin/gcc-rtags-wrapper.sh /somewhere/that/is/in/your/path/before/usr/bin/g++
 #+END_SRC
 
-E.g.
+  E.g.
 
-#+BEGIN_EXAMPLE
+  #+BEGIN_EXAMPLE
+  $ which -a gcc | xargs file
+  /home/abakken/bin/gcc: symbolic link to `/home/abakken/dev/rtags/bin/gcc-rtags-wrapper.sh'
+  /usr/bin/gcc:         symbolic link to `gcc-4.7'
+  #+END_EXAMPLE
 
-$ which -a gcc | xargs file
-/home/abakken/bin/gcc: symbolic link to `/home/abakken/dev/rtags/bin/gcc-rtags-wrapper.sh'
-/usr/bin/gcc:         symbolic link to `gcc-4.7'
-
-#+END_EXAMPLE
-
-Now every time you compile a file with =which gcc= =rc= will get its grubby
-hands all over your command line and make sure RTags knows about it.
+  Now every time you compile a file with =which gcc= =rc= will get its grubby
+  hands all over your command line and make sure RTags knows about it.
 
 RTags will group source files into projects based on some heuristics.
 
@@ -339,7 +367,8 @@ configure/CMakeLists.txt/scons.1/.git) etc to try to determine the likely
 project root for each source file. For generated source files that end up in
 the build directory we try to find the source root based on similar heuristics
 around config.status/CMakeCache.txt etc. Usually this works out reasonably
-well.
+well. If it doesn't for you, you can pass =--project-root
+/path/to/the/project/root= to =rc=.
 
 RTags only gives you information about current project when you ask
 for things by name. You can explicitly change the current project using:
