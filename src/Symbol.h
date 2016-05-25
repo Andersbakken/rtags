@@ -36,7 +36,7 @@ struct Symbol
           size(-1), fieldOffset(-1), alignment(-1)
     {}
 
-    Location location; // set for arguments only
+    Location location;
     struct ArgumentUsage {
         ArgumentUsage()
             : index(String::npos)
@@ -44,7 +44,7 @@ struct Symbol
         Location invocation, invokedFunction;
         std::pair<Location, int> argument;
         size_t index;
-    } argumentUsage;
+    } argumentUsage; // set for arguments only
 
     String symbolName, usr, typeName;
     List<String> baseClasses;
