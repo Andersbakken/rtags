@@ -309,11 +309,11 @@ might fit better than the other, depending on your project build system.
 
 - [[https://github.com/rizsotto/Bear][Bear]]
 
-  If you have a pure makefile based project you can use =bear= to generate a
-  compile_commands.json file. However, if you are cross-compiling you probably
-  need to adjust the command entries in the compile_commands.json file to match
-  the correct compiler. Further, make sure you clean your project before
-  invoking =bear=.
+  For other projects you can use =bear= to generate a compile_commands.json
+  file. However, if you are cross-compiling you probably need to adjust the
+  command entries in the compile_commands.json file to match the correct
+  compiler. Furthermore, make sure you clean your project before invoking
+  =bear=.
 
   #+BEGIN_SRC sh
   make clean
@@ -328,7 +328,7 @@ might fit better than the other, depending on your project build system.
 - =make=
 
   You can ask =make= to only print the recipes without actually doing something.
-  This might be perfectly fine for not too complex makefiles.
+  This way may be perfectly fine for not too complex Makefiles.
 
   #+BEGIN_SRC sh
   make clean

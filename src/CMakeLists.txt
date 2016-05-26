@@ -59,7 +59,6 @@ set(RCT_NO_LIBRARY 1)
 # doesn't need to be set in this file again.
 include(rct/rct.cmake)
 
-message(STATUS "AFTER compiler.cmake ${CMAKE_CXX_FLAGS}")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wstrict-aliasing=2 -Wcast-qual -fPIC")
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wstrict-aliasing=2 -Wcast-qual -fPIC")
 if (NOT CYGWIN)
@@ -150,11 +149,13 @@ if (LUA_FOUND)
     set(RTAGS_LIBRARIES ${RTAGS_LIBRARIES} ${LUA_LIBRARIES})
     include_directories(${LUA_INCLUDE_DIR})
     add_definitions(-DRTAGS_HAS_LUA)
-    if (APPLE)
-        set_source_files_properties(AST.cpp PROPERTIES COMPILE_FLAGS "-Wno-unused-parameter -Wno-unused-variable -ftemplate-depth=2000 -Wno-cast-qual")
-    elseif (UNIX)
-        set_source_files_properties(AST.cpp PROPERTIES COMPILE_FLAGS "-Wno-unused-parameter -Wno-unused-variable -Wno-unused-but-set-parameter -ftemplate-depth=2000 -Wno-cast-qual")
-    endif ()
+    if ("${CMAKE_CXX_COMPILER_ID}" MATCHES "Clang")
+        set_source_files_properties(AST.cpp PROPERTIES
+            COMPILE_FLAGS "-Wno-unused-parameter -Wno-unused-variable -ftemplate-depth=2000 -Wno-cast-qual")
+    else ()
+        set_source_files_properties(AST.cpp PROPERTIES
+            COMPILE_FLAGS "-Wno-unused-but-set-parameter -Wno-unused-parameter -Wno-unused-variable -ftemplate-depth=2000 -Wno-cast-qual")
+    endif()
 endif ()
 
 # RCT_LIBRARIES and stdc++ library must be at the end
