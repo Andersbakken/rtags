@@ -43,3 +43,4 @@ compile_commands.json
 /CPackConfig.cmake
 /CPackSourceConfig.cmake
 /source/VERSION
+/src/include/RTagsVersion.h
