@@ -316,7 +316,7 @@ on intervals."
   :type 'boolean
   :safe 'booleanp)
 
-(defcustom rtags-tooltips-enabled rtags-popup-available
+(defcustom rtags-tooltips-enabled (and rtags-popup-available t)
   "Display help / summary text when hovering over symbols."
   :group 'rtags
   :type 'boolean
@@ -570,6 +570,12 @@ Effected interactive functions:
   "Face used for marking skipped lines."
   :group 'rtags)
 
+(defface rtags-argument-face
+  '((((class color) (background dark)) (:background "blue"))
+    (((class color) (background light)) (:background "blue"))
+    (t (:bold t)))
+  "Face used for marking error lines."
+  :group 'rtags)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Logic
@@ -4005,15 +4011,23 @@ force means do it regardless of rtags-enable-unsaved-reparsing "
                     (when (> (length split) maxlines)
                       (nbutlast split (- (length split) maxlines))
                       (setq ret (mapconcat 'identity split "\n")))))
-                ret))))))))
+                (and ret (list (cons 'contents ret)
+                               (cons 'offset (rtags-offset start))))))))))))
 
 (defun rtags-get-arg-usage-text (info)
-  (let ((invokedFunction (rtags-get-file-contents :info (rtags-symbol-info-internal (cdr (assoc 'invokedFunction info)))
-                                                  :maxlines 1))
-        (functionArgument (rtags-get-file-contents :location (cdr (assoc 'functionArgumentLocation info))
-                                                   :length (cdr (assoc 'functionArgumentLength info)))))
-    (when (and functionArgument invokedFunction)
-      (format "Argument '%s' for '%s'" functionArgument invokedFunction))))
+  (when info
+    (let* ((invokedFunction (rtags-symbol-info-internal (cdr (assoc 'invokedFunction info))))
+           (invokedFunctionContents (and invokedFunction (rtags-get-file-contents :info invokedFunction :maxlines 1)))
+           (invokedFunctionString (cdr (assoc 'contents invokedFunctionContents)))
+           (functionArgument (rtags-get-file-contents :location (cdr (assoc 'functionArgumentLocation info))
+                                                      :length (cdr (assoc 'functionArgumentLength info)))))
+      (when (and functionArgument invokedFunctionContents)
+        (concat (substring invokedFunctionString 0 (- (cdr (assoc 'offset functionArgument))
+                                                      (cdr (assoc 'offset invokedFunctionContents))))
+                (propertize (cdr (assoc 'contents functionArgument)) 'face 'rtags-argument-face)
+                (substring invokedFunctionString (+ (- (cdr (assoc 'offset functionArgument))
+                                                       (cdr (assoc 'offset invokedFunctionContents)))
+                                                    (length (cdr (assoc 'contents functionArgument))))))))))
 
 (defun rtags-get-summary-text (&optional max-num-lines)
   "Return a text describing the item at point.
@@ -4026,22 +4040,20 @@ Return nil if it can't get any info about the item."
   ;; try first with --declaration-only
   (let ((symbol (rtags-symbol-info-internal (rtags-target-declaration-first) nil t)))
     (when symbol
-      (let* ((brief (cdr (assoc 'briefComment symbol)))
-             symbol-text
-             (arg-text (let ((data (cdr (assoc 'functionArgument (rtags-symbol-info-internal)))))
-                         (and data (rtags-get-file-contents :location (cdr (assoc 'location data))
-                                                            :length (cdr (assoc 'length data)))))))
+      (let ((brief (cdr (assoc 'briefComment symbol)))
+            symbol-text
+            (arg-text (rtags-get-arg-usage-text (rtags-symbol-info-internal))))
         (unless (> (length brief) 0)
           (setq brief nil))
         (if (string= (cdr (assoc 'kind symbol)) "EnumConstantDecl")
             (setq symbol-text (format "enum: %s = %d(0x%x)" (cdr (assoc 'symbolName symbol))
                                       (cdr (assoc 'enumValue symbol)) (cdr (assoc 'enumValue symbol))))
-          (setq symbol-text (rtags-get-file-contents :info symbol :maxlines (or max-num-lines 5))))
+          (setq symbol-text (cdr (assoc 'contents (rtags-get-file-contents :info symbol :maxlines (or max-num-lines 5)))))
         (when arg-text
-          (setq symbol-text (concat symbol-text "\n Argument for: " arg-text)))
+          (setq symbol-text (concat symbol-text "\n" arg-text)))
         (when brief
           (setq symbol-text (concat symbol-text "\n\n" brief)))
-        symbol-text))))
+        symbol-text)))))
 
 ;;;###autoload
 (defun rtags-display-summary (&optional hide-empty pos)
@@ -4481,7 +4493,7 @@ the user enter missing field manually."
             "{.*" ""
             (replace-regexp-in-string
              "[ \t\n]+" " "
-             (replace-regexp-in-string "\n" "" doc)))))))
+             (replace-regexp-in-string "\n" " " doc)))))))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
