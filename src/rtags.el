@@ -537,8 +537,8 @@ Effected interactive functions:
 (defface rtags-context nil "Context" :group 'rtags)
 
 (defface rtags-warnline
-  '((((class color) (background dark)) (:background "blue"))
-    (((class color) (background light)) (:background "blue"))
+  '((((class color) (background dark)) (:background "chartreuse4"))
+    (((class color) (background light)) (:background "LightGoldenrod1"))
     (t (:bold t)))
   "Face used for marking error lines."
   :group 'rtags)
