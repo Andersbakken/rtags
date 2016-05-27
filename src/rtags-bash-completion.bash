@@ -1,8 +1,18 @@
+__init_completion()
+{
+    COMPREPLY=()
+    _get_comp_words_by_ref cur prev words cword
+}
+
 _rtags ()
 {
     # Those local variables are needed by _init_completion.
     local cur prev words cword
-    _init_completion || return
+    if declare -F _init_completions >/dev/null 2>&1; then
+        _init_completion
+    else
+        __init_completion
+    fi
     local app=${words[0]}
 
     if [[ $app == \~* ]]; then
