@@ -616,6 +616,7 @@ int main(int argc, char** argv)
             break;
         case 'n':
             serverOpts.socketFile = optarg;
+            serverOpts.socketFile.resolve();
             break;
         case 'd':
             defaultDataDir = false;
