@@ -87,6 +87,7 @@ public:
         IsIndexed,
         IsIndexing,
         JobCount,
+        JSON,
         KindFilter,
         ListBuffers,
         ListSymbols,
@@ -144,7 +145,7 @@ public:
 #endif
         Wait,
         WildcardSymbolNames,
-        XMLCompletions,
+        XML,
         NumOptions
     };
 

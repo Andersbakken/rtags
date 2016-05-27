@@ -61,9 +61,7 @@ public:
         NoContext = 0x08
     };
     bool write(const String &out, Flags<WriteFlag> flags = Flags<WriteFlag>());
-    bool write(const Symbol &symbol,
-               Flags<Symbol::ToStringFlag> sourceFlags = Flags<Symbol::ToStringFlag>(),
-               Flags<WriteFlag> writeFlags = Flags<WriteFlag>());
+    bool write(const Symbol &symbol, Flags<WriteFlag> writeFlags = Flags<WriteFlag>());
     bool write(Location location, Flags<WriteFlag> writeFlags = Flags<WriteFlag>());
     enum LocationPiece {
         Piece_Location,

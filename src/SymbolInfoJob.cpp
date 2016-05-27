@@ -27,52 +27,12 @@ SymbolInfoJob::SymbolInfoJob(Location loc, const std::shared_ptr<QueryMessage> &
 
 int SymbolInfoJob::execute()
 {
-    Flags<Symbol::ToStringFlag> toStringFlags;
-    if (queryFlags() & QueryMessage::SymbolInfoIncludeTargets)
-        toStringFlags |= Symbol::IncludeTargets;
-    if (queryFlags() & QueryMessage::SymbolInfoIncludeReferences)
-        toStringFlags |= Symbol::IncludeReferences;
-    if (queryFlags() & QueryMessage::SymbolInfoIncludeParents)
-        toStringFlags |= Symbol::IncludeParents;
-    if (queryFlags() & QueryMessage::SymbolInfoIncludeBaseClasses)
-        toStringFlags |= Symbol::IncludeBaseClasses;
-
     int ret = 1;
     int idx = -1;
     auto symbol = project()->findSymbol(location, &idx);
     if (!symbol.isNull()) {
-        if (queryFlags() & QueryMessage::Elisp) {
-            write(symbol, toStringFlags);
-        } else {
-            write(symbol.location);
-            write(symbol, toStringFlags);
-        }
+        write(symbol);
         ret = 0;
-    }
-    if (queryFlags() & QueryMessage::SymbolInfoIncludeParents && !(queryFlags() & QueryMessage::Elisp)) {
-        auto syms = project()->openSymbols(location.fileId());
-        if (syms) {
-            idx = syms->lowerBound(location);
-            if (idx == -1) {
-                idx = syms->count() - 1;
-            }
-        }
-        toStringFlags &= ~(Symbol::IncludeTargets|Symbol::IncludeReferences|Symbol::IncludeBaseClasses);
-        const unsigned int line = location.line();
-        const unsigned int column = location.column();
-        while (idx-- > 0) {
-            symbol = syms->valueAt(idx);
-            if (symbol.isDefinition()
-                && symbol.isContainer()
-                && comparePosition(line, column, symbol.startLine, symbol.startColumn) >= 0
-                && comparePosition(line, column, symbol.endLine, symbol.endColumn) <= 0) {
-                ret = 0;
-                write("====================");
-                write(symbol.location);
-                write(symbol, toStringFlags);
-                break;
-            }
-        }
     }
     return ret;
 }

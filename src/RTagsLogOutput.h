@@ -23,6 +23,13 @@
 class RTagsLogOutput : public LogOutput
 {
 public:
+    enum Flag {
+        None = 0x0,
+        Elisp = 0x1,
+        XML = 0x2,
+        JSON = 0x4,
+        NoSpellChecking = 0x8
+    };
     RTagsLogOutput(LogLevel level, unsigned int flags, const std::shared_ptr<Connection> &conn = std::shared_ptr<Connection>())
         : LogOutput(level), mFlags(flags), mConnection(conn)
     {
@@ -30,13 +37,6 @@ public:
             conn->disconnected().connect(std::bind(&RTagsLogOutput::remove, this));
         }
     }
-
-    enum Flag {
-        None = 0x0,
-        Elisp = 0x1,
-        XMLCompletions = 0x2,
-        NoSpellChecking = 0x4
-    };
 
     virtual unsigned int flags() const override { return mFlags; }
 

@@ -284,10 +284,19 @@ inline static void elisp(String &out, const char *name, const T &t, Flags<ToStri
     }
 }
 
-bool QueryJob::write(const Symbol &symbol,
-                     Flags<Symbol::ToStringFlag> toStringFlags,
-                     Flags<WriteFlag> writeFlags)
+bool QueryJob::write(const Symbol &symbol, Flags<WriteFlag> writeFlags)
 {
+    Flags<Symbol::ToStringFlag> toStringFlags;
+    if (queryFlags() & QueryMessage::SymbolInfoIncludeTargets)
+        toStringFlags |= Symbol::IncludeTargets;
+    if (queryFlags() & QueryMessage::SymbolInfoIncludeReferences)
+        toStringFlags |= Symbol::IncludeReferences;
+    if (queryFlags() & QueryMessage::SymbolInfoIncludeParents)
+        toStringFlags |= Symbol::IncludeParents;
+    if (queryFlags() & QueryMessage::SymbolInfoIncludeBaseClasses)
+        toStringFlags |= Symbol::IncludeBaseClasses;
+
+
     if (symbol.isNull())
         return false;
 
@@ -297,184 +306,15 @@ bool QueryJob::write(const Symbol &symbol,
     if (!filterKind(symbol.kind))
         return false;
 
+    String out;
     if (queryFlags() & QueryMessage::Elisp) {
-        enum SymbolToElispMode {
-            Mode_Symbol,
-            Mode_Target,
-            Mode_Parent,
-            Mode_BaseClass,
-            Mode_Reference,
-            Mode_Argument
-        };
-        std::function<String(const Symbol &, SymbolToElispMode)> symbolToElisp = [&](const Symbol &symbol, SymbolToElispMode mode) {
-            String out;
-            out.reserve(1024);
-            if (mode != Mode_Symbol)
-                out << "\n ";
-            out << "(list\n";
-            Flags<ToStringFlag> flags;
-            if (mode != Mode_Symbol)
-                flags |= Indent;
-            elisp(out, "location", symbol.location, flags);
-            elisp(out, "symbolName", symbol.symbolName,
-                  flags | (symbol.kind == CXCursor_StringLiteral ? ::ElispEscape : ::None));
-            if (symbol.argumentUsage.index != String::npos) {
-                elisp(out, "invocation", symbol.argumentUsage.invocation, flags);
-                elisp(out, "invokedFunction", symbol.argumentUsage.invokedFunction, flags);
-                elisp(out, "functionArgumentLocation", symbol.argumentUsage.argument.first, flags);
-                elisp(out, "functionArgumentLength", symbol.argumentUsage.argument.second, flags);
-                elisp(out, "argumentIndex", symbol.argumentUsage.index, flags);
-            }
-            elisp(out, "usr", symbol.usr, flags);
-            if (!symbol.baseClasses.isEmpty() && toStringFlags & Symbol::IncludeBaseClasses) {
-                List<String> baseClasses;
-                for (const auto &base : symbol.baseClasses) {
-                    for (const Symbol &s : project()->findByUsr(base, symbol.location.fileId(), Project::ArgDependsOn, symbol.location)) {
-                        baseClasses << symbolToElisp(s, Mode_BaseClass);
-                        break;
-                    }
-                }
-
-                if (!baseClasses.isEmpty())
-                    elisp(out, "baseClasses", baseClasses, flags | NoQuote);
-            }
-            if (!symbol.arguments.isEmpty()) {
-                List<String> arguments;
-                for (const auto &arg : symbol.arguments) {
-                    List<String> s;
-                    {
-                        String out;
-                        elisp(out, "location", arg.first, NoSpaces);
-                        s << out;
-                    }
-                    {
-                        String out;
-                        elisp(out, "length", arg.second, NoSpaces);
-                        s << out;
-                    }
-                    {
-                        String out;
-                        toString(out, s, NoQuote);
-                        arguments << out;
-                    }
-                }
-                elisp(out, "arguments", arguments, flags | NoQuote);
-            }
-
-            elisp(out, "symbolLength", static_cast<uint32_t>(symbol.symbolLength), flags);
-            elisp(out, "kind", symbol.kind, flags | Quote);
-            if (!symbol.typeName.isEmpty()) {
-                elisp(out, "type", symbol.typeName, flags);
-            } else if (symbol.type != CXType_Invalid) {
-                elisp(out, "type", symbol.type, flags | Quote);
-            }
-            elisp(out, "linkage", symbol.linkage, flags | Quote);
-            elisp(out, "briefComment", symbol.briefComment, flags | ElispEscape);
-            elisp(out, "xmlComment", symbol.xmlComment, flags | ElispEscape);
-            elisp(out, "startLine", symbol.startLine, flags);
-            elisp(out, "startColumn", symbol.startColumn, flags);
-            elisp(out, "endLine", symbol.endLine, flags);
-            elisp(out, "endColumn", symbol.endColumn, flags);
-            if (symbol.size > 0)
-                elisp(out, "sizeof", symbol.size, flags);
-            if (symbol.fieldOffset > 0)
-                elisp(out, "fieldOffset", symbol.fieldOffset, flags);
-            if (symbol.alignment > 0)
-                elisp(out, "alignment", symbol.alignment, flags);
-            if (symbol.kind == CXCursor_EnumConstantDecl)
-                elisp(out, "enumValue", symbol.enumValue, flags);
-            if (symbol.isDefinition()) {
-                elisp(out, "definition", true, flags);
-                if (RTags::isFunction(symbol.kind))
-                    elisp(out, "stackCost", symbol.stackCost, flags);
-            } else if (symbol.isReference()) {
-                elisp(out, "reference", true, flags);
-            }
-            if (symbol.isContainer())
-                elisp(out, "container", true, flags);
-            if ((symbol.flags & Symbol::PureVirtualMethod) == Symbol::PureVirtualMethod)
-                elisp(out, "purevirtual", true, flags);
-            if (symbol.flags & Symbol::VirtualMethod)
-                elisp(out, "virtual", true, flags);
-            if (symbol.flags & Symbol::ConstMethod)
-                elisp(out, "constmethod", true, flags);
-            if (symbol.flags & Symbol::StaticMethod)
-                elisp(out, "staticmethod", true, flags);
-            if (symbol.flags & Symbol::Variadic)
-                elisp(out, "variadic", true, flags);
-            if (symbol.flags & Symbol::Auto)
-                elisp(out, "auto", true, flags);
-            if (symbol.flags & Symbol::AutoRef)
-                elisp(out, "autoref", true, flags);
-            if (symbol.flags & Symbol::MacroExpansion)
-                elisp(out, "macroexpansion", true, flags);
-            if (symbol.flags & Symbol::TemplateSpecialization)
-                elisp(out, "templatespecialization", true, flags);
-            switch (mode) {
-            case Mode_Symbol:
-                if (toStringFlags & Symbol::IncludeTargets) {
-                    const auto targets = project()->findTargets(symbol);
-                    if (targets.size()) {
-                        List<String> t;
-                        for (const auto &target : targets) {
-                            t << symbolToElisp(target, Mode_Target);
-                        }
-                        elisp(out, "targets", t, flags | NoQuote);
-                    }
-                }
-                if (toStringFlags & Symbol::IncludeReferences) {
-                    const auto references = project()->findCallers(symbol);
-                    if (references.size()) {
-                        List<String> r;
-                        for (const auto &reference : references) {
-                            r << symbolToElisp(reference, Mode_Reference);
-                        }
-                        elisp(out, "references", r, flags | NoQuote);
-                    }
-                }
-                // fall through
-            case Mode_Parent:
-                if (toStringFlags & Symbol::IncludeParents) {
-                    auto syms = project()->openSymbols(symbol.location.fileId());
-                    int idx = -1;
-                    if (syms) {
-                        idx = syms->lowerBound(symbol.location);
-                        if (idx == -1) {
-                            idx = syms->count() - 1;
-                        }
-                    }
-                    const unsigned int line = symbol.location.line();
-                    const unsigned int column = symbol.location.column();
-                    while (idx-- > 0) {
-                        const Symbol s = syms->valueAt(idx);
-                        if (s.isDefinition()
-                            && s.isContainer()
-                            && comparePosition(line, column, s.startLine, s.startColumn) >= 0
-                            && comparePosition(line, column, s.endLine, s.endColumn) <= 0) {
-                            const String p = symbolToElisp(s, Mode_Parent);
-                            elisp(out, "parent", p, flags | NoQuote);
-                            break;
-                        }
-                    }
-                }
-                break;
-            case Mode_Reference:
-            case Mode_BaseClass:
-            case Mode_Argument:
-                break;
-            case Mode_Target:
-                elisp(out, "targetRank", RTags::targetRank(symbol.kind), flags);
-                break;
-            }
-            out.chop(1);
-            out << ')';
-            return out;
-        };
-        const String out = RTags::toElisp(symbol.toValue(project(), toStringFlags, Location::NoColor|Location::AbsolutePath));
-        return write(out, writeFlags|Unfiltered);
+        out = RTags::toElisp(symbol.toValue(project(), toStringFlags, Location::NoColor|Location::AbsolutePath));
+    } else if (queryFlags() & QueryMessage::JSON) {
+        out = symbol.toValue(project(), toStringFlags, Location::NoColor|Location::AbsolutePath).toJSON();
     } else {
-        return write(symbol.toString(toStringFlags, locationToStringFlags(), project()), writeFlags|Unfiltered);
+        out = symbol.toString(toStringFlags, locationToStringFlags(), project());
     }
+    return write(out, writeFlags|Unfiltered);
 }
 
 bool QueryJob::filter(const String &value) const

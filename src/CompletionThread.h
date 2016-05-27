@@ -39,11 +39,12 @@ public:
 
     virtual void run() override;
     enum Flag {
-        None = 0x0,
-        Refresh = 0x1,
-        Elisp = 0x2,
-        XML = 0x4,
-        CodeCompleteIncludeMacros = 0x8
+        None = 0x00,
+        Refresh = 0x01,
+        Elisp = 0x02,
+        XML = 0x04,
+        JSON = 0x08,
+        CodeCompleteIncludeMacros = 0x10
     };
     void completeAt(const Source &source, Location location, Flags<Flag> flags,
                     const String &unsaved, const std::shared_ptr<Connection> &conn);

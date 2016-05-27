@@ -132,6 +132,7 @@ struct Option opts[] = {
     { RClient::AllReferences, "all-references", 'e', no_argument, "Include definitions/declarations/constructors/destructors for references. Used for rename symbol." },
     { RClient::AllTargets, "all-targets", 0, no_argument, "Print all targets for -f. Used for debugging." },
     { RClient::Elisp, "elisp", 'Y', no_argument, "Output elisp: (list \"one\" \"two\" ...)." },
+    { RClient::JSON, "json", 0, no_argument, "Output json." },
     { RClient::Diagnostics, "diagnostics", 'm', no_argument, "Receive async formatted diagnostics from rdm." },
     { RClient::MatchRegex, "match-regexp", 'Z', no_argument, "Treat various text patterns as regexps (-P, -i, -V)." },
     { RClient::MatchCaseInsensitive, "match-icase", 'I', no_argument, "Match case insensitively" },
@@ -160,7 +161,7 @@ struct Option opts[] = {
     { RClient::DumpIncludeHeaders, "dump-include-headers", 0, no_argument, "For --dump-file, also dump dependencies." },
     { RClient::SilentQuery, "silent-query", 0, no_argument, "Don't log this request in rdm." },
     { RClient::SynchronousCompletions, "synchronous-completions", 0, no_argument, "Wait for completion results." },
-    { RClient::XMLCompletions, "xml-completions", 0, no_argument, "Output completions in XML" },
+    { RClient::XML, "xml", 0, no_argument, "Output XML" },
     { RClient::NoSortReferencesByInput, "no-sort-references-by-input", 0, no_argument, "Don't sort references by input position." },
     { RClient::ProjectRoot, "project-root", 0, required_argument, "Override project root for compile commands." },
     { RClient::RTagsConfig, "rtags-config", 0, required_argument, "Print out .rtags-config for argument." },
@@ -337,8 +338,10 @@ public:
         unsigned int flags = RTagsLogOutput::None;
         if (rc->queryFlags() & QueryMessage::Elisp) {
             flags |= RTagsLogOutput::Elisp;
-        } else if (rc->queryFlags() & QueryMessage::XMLCompletions) {
-            flags |= RTagsLogOutput::XMLCompletions;
+        } else if (rc->queryFlags() & QueryMessage::XML) {
+            flags |= RTagsLogOutput::XML;
+        } else if (rc->queryFlags() & QueryMessage::JSON) {
+            flags |= RTagsLogOutput::JSON;
         } else if (rc->queryFlags() & QueryMessage::NoSpellChecking) {
             flags |= RTagsLogOutput::NoSpellChecking;
         }
@@ -708,8 +711,11 @@ RClient::ParseStatus RClient::parse(int &argc, char **argv)
         case Elisp:
             mQueryFlags |= QueryMessage::Elisp;
             break;
-        case XMLCompletions:
-            mQueryFlags |= QueryMessage::XMLCompletions;
+        case JSON:
+            mQueryFlags |= QueryMessage::JSON;
+            break;
+        case XML:
+            mQueryFlags |= QueryMessage::XML;
             break;
         case FilterSystemHeaders:
             mQueryFlags |= QueryMessage::FilterSystemIncludes;

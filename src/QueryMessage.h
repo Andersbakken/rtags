@@ -115,10 +115,11 @@ public:
         CurrentProjectOnly = (1ull << 35),
         Wait = (1ull << 36),
         CodeCompleteIncludeMacros = (1ull << 37),
-        XMLCompletions = (1ull << 38),
+        XML = (1ull << 38),
         NoSpellChecking = (1ull << 39),
         CodeCompleteIncludes = (1ull << 40),
-        TokensIncludeSymbols = (1ull << 41)
+        TokensIncludeSymbols = (1ull << 41),
+        JSON = (1ull << 42)
     };
 
     QueryMessage(Type type = Invalid);

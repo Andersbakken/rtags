@@ -475,6 +475,7 @@ void CompletionThread::printCompletions(const List<Completions::Candidate> &comp
     bool xml = false;
     bool elisp = false;
     bool raw = false;
+    bool json = false;
     if (request->conn) {
         std::shared_ptr<Output> output(new Output);
         output->connection = request->conn;
@@ -484,12 +485,14 @@ void CompletionThread::printCompletions(const List<Completions::Candidate> &comp
             elisp = true;
         } else if (request->flags & XML) {
             xml = true;
+        } else if (request->flags & JSON) {
+            json = true;
         } else {
             raw = true;
         }
         request->conn.reset();
     }
-    log([&xml, &elisp, &outputs, &raw](const std::shared_ptr<LogOutput> &output) {
+    log([&xml, &elisp, &outputs, &raw, &json](const std::shared_ptr<LogOutput> &output) {
             // error() << "Got a dude" << output->testLog(RTags::DiagnosticsLevel);
             if (output->testLog(RTags::DiagnosticsLevel)) {
                 std::shared_ptr<Output> out(new Output);
@@ -497,9 +500,12 @@ void CompletionThread::printCompletions(const List<Completions::Candidate> &comp
                 if (output->flags() & RTagsLogOutput::Elisp) {
                     out->flags |= CompletionThread::Elisp;
                     elisp = true;
-                } else if (output->flags() & RTagsLogOutput::XMLCompletions) {
+                } else if (output->flags() & RTagsLogOutput::XML) {
                     out->flags |= CompletionThread::XML;
                     xml = true;
+                } else if (output->flags() & RTagsLogOutput::JSON) {
+                    out->flags |= CompletionThread::JSON;
+                    json = true;
                 } else {
                     raw = true;
                 }
@@ -508,12 +514,12 @@ void CompletionThread::printCompletions(const List<Completions::Candidate> &comp
         });
 
     if (!outputs.isEmpty()) {
-        String rawOut, xmlOut, elispOut;
+        String rawOut, xmlOut, jsonOut, elispOut;
         if (raw)
             rawOut.reserve(16384);
         if (xml) {
             xmlOut.reserve(16384);
-            xmlOut << String::format<128>("<?xml version=\"1.0\" encoding=\"utf-8\"?><completions location=\"%s\"><![CDATA[",
+            xmlOut += String::format<128>("<?xml version=\"1.0\" encoding=\"utf-8\"?><completions location=\"%s\"><![CDATA[",
                                           request->location.toString(Location::AbsolutePath).constData());
         }
         if (elisp) {
@@ -551,22 +557,39 @@ void CompletionThread::printCompletions(const List<Completions::Candidate> &comp
                 // val.parent.constData(),
                 // val.briefComment.constData());
             }
-        }
-        if (elisp)
-            elispOut += ")))";
-        if (xml)
-            xmlOut += "]]></completions>\n";
-
-        EventLoop::mainEventLoop()->callLater([outputs, xmlOut, elispOut, rawOut]() {
-                for (auto &it : outputs) {
-                    if (it->flags & Elisp) {
-                        it->send(elispOut);
-                    } else if (it->flags & XML) {
-                        it->send(xmlOut);
-                    } else {
-                        it->send(rawOut);
-                    }
+            if (json) {
+                if (jsonOut.isEmpty()) {
+                    jsonOut.reserve(16384);
+                    jsonOut += "{\"completions\":[";
+                } else {
+                    jsonOut += ',';
                 }
-            });
+
+                jsonOut += String::format<1024>("{\"completion\":%s,\"signature\":%s,\"kind\":\"%s\"}",
+                                                Rct::jsonEscape(val.completion).constData(),
+                                                Rct::jsonEscape(val.signature).constData(),
+                                                kind.constData());
+                                                          }
+            }
+            if (elisp)
+                elispOut += ")))";
+            if (xml)
+                xmlOut += "]]></completions>\n";
+            if (json)
+                jsonOut += "]}";
+
+            EventLoop::mainEventLoop()->callLater([outputs, xmlOut, elispOut, rawOut, jsonOut]() {
+                    for (auto &it : outputs) {
+                        if (it->flags & Elisp) {
+                            it->send(elispOut);
+                        } else if (it->flags & XML) {
+                            it->send(xmlOut);
+                        } else if (it->flags & JSON) {
+                            it->send(jsonOut);
+                        } else {
+                            it->send(rawOut);
+                        }
+                    }
+                });
+        }
     }
-}

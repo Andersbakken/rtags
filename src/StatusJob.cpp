@@ -148,9 +148,7 @@ int StatusJob::execute()
                 continue;
             const int count = symbols->count();
             for (int i=0; i<count; ++i) {
-                const Location loc = symbols->keyAt(i);
                 const Symbol c = symbols->valueAt(i);
-                write(loc);
                 write(c);
                 write("------------------------");
                 if (isAborted())

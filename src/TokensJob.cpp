@@ -55,16 +55,7 @@ int TokensJob::execute()
         const char *elispFormat = "(cons %d (list (cons 'length %d) (cons 'kind \"%s\") (cons 'spelling \"%s\")))";
         write("(list");
         if (queryFlags() & QueryMessage::TokensIncludeSymbols) {
-            Flags<Symbol::ToStringFlag> toStringFlags;
-            if (queryFlags() & QueryMessage::SymbolInfoIncludeTargets)
-                toStringFlags |= Symbol::IncludeTargets;
-            if (queryFlags() & QueryMessage::SymbolInfoIncludeReferences)
-                toStringFlags |= Symbol::IncludeReferences;
-            if (queryFlags() & QueryMessage::SymbolInfoIncludeParents)
-                toStringFlags |= Symbol::IncludeParents;
-            if (queryFlags() & QueryMessage::SymbolInfoIncludeBaseClasses)
-                toStringFlags |= Symbol::IncludeBaseClasses;
-            writeToken = [this, &proj, elispFormat, toStringFlags](const Token &token) {
+            writeToken = [this, &proj, elispFormat](const Token &token) {
                 String out = String::format<1024>(elispFormat,
                                                   token.offset, token.length, RTags::tokenKindSpelling(token.kind),
                                                   RTags::elispEscape(token.spelling).constData());
@@ -77,7 +68,7 @@ int TokensJob::execute()
                     return false;
 
                 if (!sym.isNull())
-                    return write(sym, toStringFlags) && write(")))");
+                    return write(sym) && write(")))");
                 return true;
             };
 

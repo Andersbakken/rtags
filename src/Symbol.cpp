@@ -115,7 +115,8 @@ String Symbol::toString(Flags<ToStringFlag> cursorInfoFlags,
         return String::format<128>("Type: %s\n", str.constData());
     };
 
-    String ret = String::format<1024>("SymbolName: %s\n"
+    String ret = String::format<1024>("%s\n"
+                                      "SymbolName: %s\n"
                                       "Kind: %s\n"
                                       "%s" // type
                                       "SymbolLength: %u\n"
@@ -131,6 +132,7 @@ String Symbol::toString(Flags<ToStringFlag> cursorInfoFlags,
                                       "%s" // baseclasses
                                       "%s" // briefComment
                                       "%s", // xmlComment
+                                      location.toString(locationToStringFlags).constData(),
                                       symbolName.constData(),
                                       kindSpelling().constData(),
                                       printTypeName().constData(),
@@ -156,7 +158,7 @@ String Symbol::toString(Flags<ToStringFlag> cursorInfoFlags,
                                       args.isEmpty() ? "" : String::format<1024>("Arguments: %s\n", String::join(args, ", ").constData()).constData(),
                                       bases.isEmpty() ? "" : String::format<64>("BaseClasses: %s\n", String::join(bases, ", ").constData()).constData(),
                                       briefComment.isEmpty() ? "" : String::format<1024>("Brief comment: %s\n", briefComment.constData()).constData(),
-                                      xmlComment.isEmpty() ? "" : String::format<16384>("Xml comment: %s\n", xmlComment.constData()).constData());
+                                      xmlComment.isEmpty() ? "" : String::format<16384>("XML comment: %s\n", xmlComment.constData()).constData());
     if (cursorInfoFlags & IncludeTargets && project) {
         const auto targets = project->findTargets(*this);
         if (targets.size()) {
