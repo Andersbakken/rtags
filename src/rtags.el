@@ -1202,17 +1202,29 @@ Uses `completing-read' to ask for the project."
       (and (not no-symbol-name) (rtags-current-symbol-name))
       (thing-at-point 'symbol)))
 
-(defun rtags-symbol-info-internal (&optional location piece silent)
-  (let* ((loc (or location (rtags-current-location)))
-         (path (buffer-file-name))
-         (object (with-temp-buffer
-                   (and loc
-                        (rtags-call-rc :path path :noerror t :silent-query silent "-U" loc "--elisp")
-                        (goto-char (point-min))
-                        (looking-at "(")
-                        (eval (read (current-buffer)))))))
-    (or (and (not piece) object)
-        (cdr (assoc piece object)))))
+(defun* rtags-symbol-info-internal (&rest foo
+                                          &key
+                                          (parents nil)
+                                          (references nil)
+                                          (targets nil)
+                                          (base-classes nil)
+                                          (piece nil)
+                                          (location (rtags-current-location))
+                                          (silent nil))
+  (when location
+    (let* ((path (buffer-file-name))
+           (object (with-temp-buffer
+                     (and location
+                          (rtags-call-rc :path path :noerror t :silent-query silent "-U" location "--elisp"
+                                         (when parents "--symbol-info-include-parents")
+                                         (when references "--symbol-info-include-references")
+                                         (when targets "--symbol-info-include-targets")
+                                         (when base-classes "--symbol-info-include-base-classes"))
+                          (goto-char (point-min))
+                          (looking-at "(")
+                          (eval (read (current-buffer)))))))
+      (or (and (not piece) object)
+          (cdr (assoc piece object))))))
 
 (defun* rtags-symbol-info (&rest args
                                  &key
@@ -1777,7 +1789,7 @@ instead of file from `current-buffer'.
 (defun rtags-print-enum-value-at-point (&optional location)
   (interactive)
   (when (or (not (rtags-called-interactively-p)) (rtags-sandbox-id-matches))
-    (let* ((symbol (rtags-symbol-info-internal location))
+    (let* ((symbol (rtags-symbol-info-internal :location location))
            (enum (or (cdr (assoc 'enumValue symbol))
                      (cdr (assoc 'enumValue (cdr (cadr (assoc 'targets symbol)))))))
            (symbolName (cdr (assoc 'symbolName symbol))))
@@ -3414,7 +3426,7 @@ other window instead of the current one."
             (ediff path tempbufname)))))))
 
 (defun rtags-current-symbol-name (&optional location)
-  (let* ((symbolname (cdr (assoc 'symbolName (rtags-symbol-info-internal location))))
+  (let* ((symbolname (cdr (assoc 'symbolName (rtags-symbol-info-internal :location location))))
          (visual (and symbolname
                       (with-temp-buffer
                         (insert symbolname)
@@ -3455,7 +3467,7 @@ other window instead of the current one."
                         ((member token rtags-c++-keywords))
                         ((member token rtags-c++-types))
                         (t
-                         (let ((info (rtags-symbol-info-internal nil nil t)))
+                         (let ((info (rtags-symbol-info-internal :silent t)))
                            (cond (rtags-last-request-not-indexed (setq done t))
                                  (rtags-last-request-not-connected (setq done t))
                                  ((setq container (or (cdr (assoc 'parent info))
@@ -4016,7 +4028,7 @@ force means do it regardless of rtags-enable-unsaved-reparsing "
 
 (defun rtags-get-arg-usage-text (info)
   (when info
-    (let* ((invokedFunction (rtags-symbol-info-internal (cdr (assoc 'invokedFunction info))))
+    (let* ((invokedFunction (rtags-symbol-info-internal :location (cdr (assoc 'invokedFunction info))))
            (invokedFunctionContents (and invokedFunction (rtags-get-file-contents :info invokedFunction :maxlines 1)))
            (invokedFunctionString (cdr (assoc 'contents invokedFunctionContents)))
            (functionArgument (rtags-get-file-contents :location (cdr (assoc 'functionArgumentLocation info))
@@ -4038,7 +4050,7 @@ the definition, etc.
 
 Return nil if it can't get any info about the item."
   ;; try first with --declaration-only
-  (let ((symbol (rtags-symbol-info-internal (rtags-target-declaration-first) nil t)))
+  (let ((symbol (rtags-symbol-info-internal :location (rtags-target-declaration-first) :silent t)))
     (when symbol
       (let ((brief (cdr (assoc 'briefComment symbol)))
             symbol-text
@@ -4304,11 +4316,11 @@ With optional PREFIX insert include at point."
     (let ((start (point))
           (start (point-at-bol))
           (valid (list "CXXMethod" "CXXConstructor" "CXXDestructor" "FunctionTemplate"))
-          (sym (rtags-symbol-info-internal nil nil t)))
+          (sym (rtags-symbol-info-internal :silent t :parents t)))
       (unless (and sym (member (cdr (assoc 'kind sym)) valid))
         (goto-char (point-at-eol))
         (while (and (not sym) (>= (point) start))
-          (setq sym (rtags-symbol-info-internal nil nil t))
+          (setq sym (rtags-symbol-info-internal :silent t))
           (unless (and sym (member (cdr (assoc 'kind sym)) valid))
             (setq sym nil)
             (backward-word))))
