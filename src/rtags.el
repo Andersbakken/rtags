@@ -5,7 +5,7 @@
 ;; Author: Jan Erik Hanssen <jhanssen@gmail.com>
 ;;         Anders Bakken <agbakken@gmail.com>
 ;; URL: http://rtags.net
-;; Version: 2.0
+;; Version: 2.3.94
 
 ;; This file is not part of GNU Emacs.
 
@@ -199,11 +199,22 @@ prepare completions."
   :type '(choice (const :tag "Unset" nil) number)
   :safe 'numberp)
 
+
 (defcustom rtags-periodic-reparse-timeout nil
-  "Interval for async parsing of unsaved buffers. nil (Unset) means don't reparse preemptively"
+  "Interval, in seconds, for async idle parsing of unsaved buffers.
+
+nil (Unset) means don't reparse preemptively.
+
+Setting this variable directly has no effect, either set this variable using
+the Customize interface, `rtags-set-periodic-reparse-timeout',
+`customize-set-variable' or `custom-set-variables'."
   :group 'rtags
   :type '(choice (const :tag "Unset" nil) number)
-  :safe 'numberp)
+  :risky nil
+  :set (lambda (var val)
+         (if (boundp var)
+             (rtags-set-periodic-reparse-timeout val)
+           (set var val))))
 
 (defcustom rtags-update-current-project-timer-interval .5
   "Interval for update current project timer."
@@ -2803,7 +2814,6 @@ This includes both declarations and definitions."
     (when rtags-close-taglist-on-focus-lost
       (rtags-close-taglist))
     (rtags-update-completions-timer)
-    (rtags-update-periodic-reparse-timer)
     (rtags-restart-find-container-timer)
     (rtags-restart-tracking-timer)
     (when (and rtags-highlight-current-line (rtags-is-rtags-buffer))
@@ -3853,7 +3863,6 @@ definition."
 (defvar rtags-unsaved-buffer-ticks nil)
 (make-variable-buffer-local 'rtags-unsaved-buffer-ticks)
 
-(defvar rtags-periodic-reparse-timer nil)
 (defun rtags-reparse-file-if-needed (&optional buffer force)
   "Reparse file if it's not saved.
 
@@ -3875,10 +3884,6 @@ force means do it regardless of rtags-enable-unsaved-reparsing "
         (rtags-reparse-file buffer force)
         (set (make-local-variable 'rtags-unsaved-buffer-ticks) current-ticks)))))
 
-(defun rtags-periodic-reparse-buffer ()
-  (rtags-reparse-file-if-needed nil t)
-  (setq rtags-periodic-reparse-timer nil)
-  (rtags-update-periodic-reparse-timer))
 
 ;;;###autoload
 (defun rtags-maybe-reparse-file (&optional buffer)
@@ -3901,20 +3906,25 @@ force means do it regardless of rtags-enable-unsaved-reparsing "
         ((not (memq major-mode rtags-supported-major-modes)))
         ((not (rtags-has-diagnostics)))
         ((= rtags-completions-timer-interval 0) (rtags-prepare-completions))
-        (t (setq rtags-completions-timer (run-with-idle-timer rtags-completions-timer-interval
-                                                              nil #'rtags-prepare-completions)))))
+        (t (setq rtags-completions-timer (run-with-idle-timer rtags-completions-timer-interval nil #'rtags-prepare-completions)))))
 
-(defun rtags-update-periodic-reparse-timer ()
-  (interactive)
-  (when (and rtags-periodic-reparse-timeout
-             (not rtags-periodic-reparse-timer)
-             (funcall rtags-is-indexable (current-buffer))
-             (rtags-has-diagnostics)
-             (let ((proc (get-buffer-process (get-buffer "*compilation*"))))
-               (or (not proc)
-                   (not (eq (process-status proc) 'run)))))
-    (setq rtags-periodic-reparse-timer (run-with-idle-timer rtags-periodic-reparse-timeout nil #'rtags-periodic-reparse-buffer))))
+(defvar rtags-periodic-reparse-timer nil)
+;;;###autoload
+(defun rtags-set-periodic-reparse-timeout (time)
+  "Set `rtags-periodic-reparse-timeout' to TIME."
+  (interactive "P")
+  (when rtags-periodic-reparse-timer
+    (cancel-timer rtags-periodic-reparse-timer))
+  (setq rtags-periodic-reparse-timeout (if time (abs time) time))
+  (setq rtags-periodic-reparse-timer nil)
+  (rtags--update-periodic-reparse-timer))
 
+(defun rtags--update-periodic-reparse-timer ()
+  (when (and (not rtags-periodic-reparse-timer)
+             rtags-periodic-reparse-timeout)
+    (setq rtags-periodic-reparse-timer
+          (run-with-idle-timer rtags-periodic-reparse-timeout t
+                               #'rtags-reparse-file-if-needed nil t))))
 
 (defun rtags-code-complete-enabled ()
   (and rtags-completions-enabled
