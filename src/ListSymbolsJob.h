@@ -32,12 +32,17 @@ protected:
     Set<String> listSymbols(const std::shared_ptr<Project> &project) const;
     static bool isImenuSymbol(const Symbol &symbol)
     {
-        if (!symbol.isReference()) {
+        if (!symbol.isReference() && !clang_isStatement(symbol.kind)) {
             switch (symbol.kind) {
             case CXCursor_VarDecl:
             case CXCursor_ParmDecl:
             case CXCursor_InclusionDirective:
             case CXCursor_EnumConstantDecl:
+            case CXCursor_StringLiteral:
+            case CXCursor_IntegerLiteral:
+            case CXCursor_FloatingLiteral:
+            case CXCursor_ImaginaryLiteral:
+            case CXCursor_CharacterLiteral:
                 break;
             case CXCursor_ClassDecl:
             case CXCursor_StructDecl:
