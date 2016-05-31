@@ -149,7 +149,7 @@ need a libclang linked with LLVM's [[http://libcxx.llvm.org/][libc++]].
 For LLVM 3.6 the following works:
 
 #+BEGIN_SRC sh
-brew install llvm --with-libcxx --with-clang --without-assertions --rtti
+brew install llvm --with-libcxx --with-clang --without-assertions --with-rtti
 #+END_SRC
 
 or you can install clang and llvm from mac ports
