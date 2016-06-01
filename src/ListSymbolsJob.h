@@ -39,6 +39,7 @@ protected:
             case CXCursor_InclusionDirective:
             case CXCursor_EnumConstantDecl:
             case CXCursor_StringLiteral:
+            case CXCursor_CXXBoolLiteralExpr:
             case CXCursor_IntegerLiteral:
             case CXCursor_FloatingLiteral:
             case CXCursor_ImaginaryLiteral:
