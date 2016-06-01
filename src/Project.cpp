@@ -394,7 +394,7 @@ bool Project::init()
         int idx = 0;
         bool outputDirty = false;
         if (mDependencies.size() >= 100) {
-            logDirect(LogLevel::Error, String::format<128>("Restoring %s ", mPath.constData()), Flags<LogOutput::LogFlag>());
+            logDirect(LogLevel::Error, String::format<128>("Restoring %s ", mPath.constData()), LogOutput::StdOut);
             outputDirty = true;
         }
         const std::shared_ptr<Project> project = shared_from_this();
@@ -416,7 +416,7 @@ bool Project::init()
                     if (!err.isEmpty()) {
                         if (outputDirty) {
                             outputDirty = false;
-                            error("\n");
+                            logDirect(LogLevel::Error, String("\n"), LogOutput::StdOut);
                         }
                         error() << err;
                     }
@@ -430,12 +430,12 @@ bool Project::init()
             }
             if (++idx % 100 == 0) {
                 outputDirty = true;
-                logDirect(LogLevel::Error, ".", 1, Flags<LogOutput::LogFlag>());
+                logDirect(LogLevel::Error, ".", 1, LogOutput::StdOut);
                 // error("%d/%d (%.2f%%)", idx, count, (idx / static_cast<double>(count)) * 100.0);
             }
         }
         if (outputDirty)
-            logDirect(LogLevel::Error, "\n", 1, Flags<LogOutput::LogFlag>());
+            logDirect(LogLevel::Error, "\n", 1, LogOutput::StdOut);
         for (uint32_t r : removed) {
             removeDependencies(r);
         }
@@ -679,19 +679,21 @@ void Project::onJobFinished(const std::shared_ptr<IndexerJob> &job, const std::s
     updateDependencies(msg);
     if (success) {
         src->second.parsed = msg->parseTime();
-        error("[%3d%%] %d/%d %s %s. (%s)",
-              static_cast<int>(round((double(idx) / double(mJobCounter)) * 100.0)), idx, mJobCounter,
-              String::formatTime(time(0), String::Time).constData(),
-              msg->message().constData(),
-              (job->priority == IndexerJob::HeaderError
-               ? "header-error"
-               : String::format<16>("priority %d", job->priority).constData()));
+        logDirect(LogLevel::Error, String::format("[%3d%%] %d/%d %s %s. (%s)",
+                                                  static_cast<int>(round((double(idx) / double(mJobCounter)) * 100.0)), idx, mJobCounter,
+                                                  String::formatTime(time(0), String::Time).constData(),
+                                                  msg->message().constData(),
+                                                  (job->priority == IndexerJob::HeaderError
+                                                   ? "header-error"
+                                                   : String::format<16>("priority %d", job->priority).constData())),
+                  LogOutput::StdOut|LogOutput::TrailingNewLine);
     } else {
         assert(msg->indexerJobFlags() & IndexerJob::Crashed);
-        error("[%3d%%] %d/%d %s %s indexing crashed.",
-              static_cast<int>(round((double(idx) / double(mJobCounter)) * 100.0)), idx, mJobCounter,
-              String::formatTime(time(0), String::Time).constData(),
-              Location::path(fileId).toTilde().constData());
+        logDirect(LogLevel::Error, String::format("[%3d%%] %d/%d %s %s indexing crashed.",
+                                                  static_cast<int>(round((double(idx) / double(mJobCounter)) * 100.0)), idx, mJobCounter,
+                                                  String::formatTime(time(0), String::Time).constData(),
+                                                  Location::path(fileId).toTilde().constData()),
+                  LogOutput::StdOut|LogOutput::TrailingNewLine);
     }
 
     save();
@@ -701,7 +703,7 @@ void Project::onJobFinished(const std::shared_ptr<IndexerJob> &job, const std::s
         const String msg = String::format<1024>("Jobs took %.2fs%s. We're using %lldmb of memory. ",
                                                 timerElapsed, mJobsStarted > 1 ? String::format(", (avg %.2fs)", averageJobTime).constData() : "",
                                                 static_cast<unsigned long long>(MemoryMonitor::usage() / (1024 * 1024)));
-        error() << msg;
+        Log(LogLevel::Error, LogOutput::StdOut|LogOutput::TrailingNewLine) << msg;
         mJobsStarted = mJobCounter = 0;
 
         // error() << "Finished this
