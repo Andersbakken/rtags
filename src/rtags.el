@@ -1623,24 +1623,26 @@ instead of file from `current-buffer'.
   )
 
 (defun rtags-goto-line-col (line column)
-  (let ((old (point)))
+  (let ((old (point))
+        (multibyte (rtags-buffer-is-multibyte))
+        (prev (buffer-local-value enable-multibyte-characters (current-buffer)))
+        (ret t)
+        (loc (local-variable-p enable-multibyte-characters)))
+    (when multibyte
+      (set-buffer-multibyte nil))
     (goto-char (point-min))
     (condition-case nil
         (progn
           (forward-line (1- line))
-          (if (rtags-buffer-is-multibyte)
-              (let ((prev (buffer-local-value enable-multibyte-characters (current-buffer)))
-                    (loc (local-variable-p enable-multibyte-characters)))
-                (set-buffer-multibyte nil)
-                (forward-char (1- column))
-                (set-buffer-multibyte prev)
-                (unless loc
-                  (kill-local-variable enable-multibyte-characters)))
-            (forward-char (1- column)))
-          t)
+          (forward-char (1- column)))
       (error
-       (goto-char old)
-       nil))))
+       (setq ret nil)
+       (goto-char old)))
+    (when multibyte
+      (set-buffer-multibyte prev))
+    (unless loc
+      (kill-local-variable enable-multibyte-characters))
+    ret))
 
 (defun rtags-insert-ref (ref level)
   (let* ((location (cdr (assoc 'loc ref)))
