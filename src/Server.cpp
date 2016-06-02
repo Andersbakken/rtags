@@ -154,7 +154,7 @@ bool Server::init(const Options &options)
     }
 
     if (!initServers()) {
-        error("Unable to listen on %s", mOptions.socketFile.constData());
+        error("Unable to listen on %s (errno: %d)", mOptions.socketFile.constData(), errno);
         return false;
     }
 
