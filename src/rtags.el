@@ -900,11 +900,12 @@ to case differences."
         (cons head (rtags-remove-keyword-params tail))))))
 
 (defun rtags-combine-strings (list)
-  (let (ret)
-    (while list
-      (setq ret (or (and ret (concat ret " " (car list))) (car list)))
-      (setq list (cdr list)))
-    ret))
+  (mapconcat (lambda (str)
+               (cond ((string-match "\"" str) (concat "\"" (replace-regexp-in-string "\"" "\\\"" str) "\""))
+                     ((string-match " " str) (concat "\"" str "\""))
+                     (t str)))
+             list
+             " "))
 
 (defun rtags-diagnostics-is-running ()
   (and rtags-diagnostics-process
