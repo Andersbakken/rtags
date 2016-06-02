@@ -551,7 +551,6 @@ String ClangIndexer::addNamePermutations(const CXCursor &cursor, Location locati
     return ret;
 }
 
-
 static inline CXCursor findDestructorForDelete(const CXCursor &deleteStatement)
 {
     const CXCursor child = RTags::findFirstChild(deleteStatement);
@@ -1095,7 +1094,10 @@ bool ClangIndexer::handleReference(const CXCursor &cursor, CXCursorKind kind, Lo
     setRange(*c, range);
     c->kind = kind;
     c->location = location;
-    c->symbolName = result == Found ? reffedCursor.symbolName : addNamePermutations(ref, refLoc, RTags::Type_Reference);
+
+    c->symbolName = RTags::eatString(clang_getCursorSpelling(cursor));
+    if (c->symbolName.isEmpty())
+        c->symbolName = (result == Found ? reffedCursor.symbolName : addNamePermutations(ref, refLoc, RTags::Type_Reference));
     if (isOperator) {
         unsigned int start, end;
         clang_getSpellingLocation(clang_getRangeStart(range), 0, 0, 0, &start);
@@ -1109,6 +1111,8 @@ bool ClangIndexer::handleReference(const CXCursor &cursor, CXCursorKind kind, Lo
         if (cursorPtr)
             *cursorPtr = 0;
         return false;
+    } else {
+        unit(location)->symbolNames[c->symbolName].insert(location);
     }
     setType(*c, clang_getCursorType(cursor));
     if (RTags::isFunction(refKind)) {
