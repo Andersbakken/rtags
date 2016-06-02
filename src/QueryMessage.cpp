@@ -196,10 +196,10 @@ bool QueryMessage::KindFilters::filter(const Symbol &symbol) const
         }
         return false;
     };
-    if (!out.isEmpty() && match(out, flags & OutHasWildcards|OutHasCategories)) {
+    if (!out.isEmpty() && match(out, flags & (OutHasWildcards|OutHasCategories))) {
         return false;
     }
-    if (in.isEmpty() || match(in, flags & InHasWildcards|InHasCategories)) {
+    if (in.isEmpty() || match(in, flags & (InHasWildcards|InHasCategories))) {
         return true;
     } else {
         return false;
