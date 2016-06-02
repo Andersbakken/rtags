@@ -142,7 +142,7 @@ bool QueryJob::locationToString(Location location,
         if (symbol.isNull()) {
             error() << "Somehow can't find" << location << "in symbols";
         } else {
-            if (!filterKind(symbol.kind))
+            if (!mKindFilters.filter(symbol))
                 return false;
             if (displayName)
                 cb(Piece_SymbolName, symbol.displayName());
@@ -207,83 +207,6 @@ bool QueryJob::write(Location location, Flags<WriteFlag> flags)
     return write(out, flags);
 }
 
-enum ToStringFlag {
-    None = 0x00,
-    Indent = 0x01,
-    Quote = 0x02,
-    NoQuote = 0x04,
-    ElispEscape = 0x08,
-    NoSpaces = 0x10
-};
-
-RCT_FLAGS(ToStringFlag);
-
-template <typename T>
-static inline void toString(String &out, const T &t, Flags<ToStringFlag> flags)
-{
-    if (flags & Quote)
-        out << '"';
-    out << t;
-    if (flags & Quote)
-        out << '"';
-}
-
-template <>
-inline void toString(String &out, const String &string, Flags<ToStringFlag> flags)
-{
-    if (!(flags & NoQuote))
-        out << '"';
-    if (flags & ElispEscape) {
-        out << RTags::elispEscape(string);
-    } else {
-        out << string;
-    }
-    if (!(flags & NoQuote))
-        out << '"';
-}
-
-template <>
-inline void toString(String &out, const bool &b, Flags<ToStringFlag>)
-{
-    out << (b ? "t" : "nil");
-}
-
-template <>
-inline void toString(String &out, const Location &loc, Flags<ToStringFlag> flags)
-{
-    toString(out, loc.toString(Location::NoColor|Location::AbsolutePath), flags);
-}
-
-template <typename T>
-inline static void toString(String &out, const List<T> &list, Flags<ToStringFlag> flags)
-{
-    assert(!list.isEmpty());
-    out << "(list";
-    for (const T &t : list) {
-        out << ' ';
-        if (flags & Indent)
-            out << ' ';
-        toString(out, t, flags);
-    }
-    out << ")";
-}
-
-template <typename T>
-inline static void elisp(String &out, const char *name, const T &t, Flags<ToStringFlag> flags = None)
-{
-    if (flags & Indent)
-        out << ' ';
-    if (!(flags & NoSpaces))
-        out << ' ';
-    out << "(cons '" << name << ' ';
-    toString(out, t, flags);
-    if (!(flags & NoSpaces)) {
-        out << ")\n";
-    } else {
-        out << ')';
-    }
-}
-
 bool QueryJob::write(const Symbol &symbol, Flags<WriteFlag> writeFlags)
 {
     Flags<Symbol::ToStringFlag> toStringFlags;
@@ -303,7 +226,7 @@ bool QueryJob::write(const Symbol &symbol, Flags<WriteFlag> writeFlags)
     if (!filterLocation(symbol.location))
         return false;
 
-    if (!filterKind(symbol.kind))
+    if (!mKindFilters.filter(symbol))
         return false;
 
     String out;
@@ -383,16 +306,4 @@ bool QueryJob::filterLocation(Location loc) const
         return false;
     }
     return true;
-}
-
-bool QueryJob::filterKind(CXCursorKind kind) const
-{
-    if (mKindFilters.isEmpty())
-        return true;
-    const String kindSpelling = Symbol::kindSpelling(kind);
-    for (auto k : mKindFilters) {
-        if (kindSpelling.contains(k, String::CaseInsensitive))
-            return true;
-    }
-    return false;
 }

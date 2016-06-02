@@ -85,7 +85,6 @@ int ListSymbolsJob::execute()
 Set<String> ListSymbolsJob::listSymbolsWithPathFilter(const std::shared_ptr<Project> &project, const List<Path> &paths) const
 {
     Set<String> out;
-    const bool imenu = queryFlags() & QueryMessage::IMenu;
     const bool wildcard = queryFlags() & QueryMessage::WildcardSymbolNames && (string.contains('*') || string.contains('?'));
     const bool stripParentheses = queryFlags() & QueryMessage::StripParentheses;
     const bool caseInsensitive = queryFlags() & QueryMessage::MatchCaseInsensitive;
@@ -101,9 +100,12 @@ Set<String> ListSymbolsJob::listSymbolsWithPathFilter(const std::shared_ptr<Proj
         const int count = symbols->count();
         for (int j=0; j<count; ++j) {
             const Symbol &symbol = symbols->valueAt(j);
-            if (imenu && !isImenuSymbol(symbol))
+            if (!filterKind(symbol)) {
                 continue;
+            }
             const String &symbolName = symbol.symbolName;
+            if (symbolName.isEmpty())
+                continue;
             if (!string.isEmpty()) {
                 if (wildcard) {
                     if (!Project::matchSymbolName(string, symbolName, cs)) {
@@ -114,16 +116,17 @@ Set<String> ListSymbolsJob::listSymbolsWithPathFilter(const std::shared_ptr<Proj
                 }
             }
 
-            const int paren = string.indexOf('(');
-            if (paren == -1) {
-                out.insert(string);
+            if (stripParentheses) {
+                const int paren = symbolName.indexOf('(');
+                if (paren == -1) {
+                    out.insert(symbolName);
+                } else {
+                    if (!RTags::isFunctionVariable(symbolName))
+                        out.insert(symbolName.left(paren));
+                }
             } else {
-                if (!RTags::isFunctionVariable(string))
-                    out.insert(string.left(paren));
-                if (!stripParentheses)
-                    out.insert(string);
+                out.insert(symbolName);
             }
-            out.insert(symbolName);
         }
     }
     return out;
@@ -132,13 +135,13 @@ Set<String> ListSymbolsJob::listSymbolsWithPathFilter(const std::shared_ptr<Proj
 Set<String> ListSymbolsJob::listSymbols(const std::shared_ptr<Project> &project) const
 {
     const bool hasFilter = QueryJob::hasFilter();
+    const bool hasKindFilter = QueryJob::hasKindFilter();
     const bool stripParentheses = queryFlags() & QueryMessage::StripParentheses;
-    const bool imenu = queryFlags() & QueryMessage::IMenu;
 
     Set<String> out;
-    auto inserter = [this, &project, hasFilter, stripParentheses, imenu, &out](Project::SymbolMatchType,
-                                                                               const String &string,
-                                                                               const Set<Location> &locations) {
+    auto inserter = [this, &project, hasFilter, hasKindFilter, stripParentheses, &out](Project::SymbolMatchType,
+                                                                                       const String &string,
+                                                                                       const Set<Location> &locations) {
         if (hasFilter) {
             bool ok = false;
             for (const auto &l : locations) {
@@ -150,9 +153,9 @@ Set<String> ListSymbolsJob::listSymbols(const std::shared_ptr<Project> &project)
             if (!ok)
                 return;
         }
-        if (imenu) {
+        if (hasKindFilter) {
             const Symbol sym = project->findSymbol(*locations.begin());
-            if (!isImenuSymbol(sym))
+            if (!filterKind(sym))
                 return;
         }
         const int paren = string.indexOf('(');

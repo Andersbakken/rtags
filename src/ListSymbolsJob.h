@@ -30,33 +30,6 @@ protected:
     virtual int execute() override;
     Set<String> listSymbolsWithPathFilter(const std::shared_ptr<Project> &project, const List<Path> &paths) const;
     Set<String> listSymbols(const std::shared_ptr<Project> &project) const;
-    static bool isImenuSymbol(const Symbol &symbol)
-    {
-        if (!symbol.isReference() && !clang_isStatement(symbol.kind)) {
-            switch (symbol.kind) {
-            case CXCursor_VarDecl:
-            case CXCursor_ParmDecl:
-            case CXCursor_InclusionDirective:
-            case CXCursor_EnumConstantDecl:
-            case CXCursor_StringLiteral:
-            case CXCursor_CXXBoolLiteralExpr:
-            case CXCursor_IntegerLiteral:
-            case CXCursor_FloatingLiteral:
-            case CXCursor_ImaginaryLiteral:
-            case CXCursor_CharacterLiteral:
-                break;
-            case CXCursor_ClassDecl:
-            case CXCursor_StructDecl:
-            case CXCursor_ClassTemplate:
-                if (!symbol.isDefinition())
-                    break;
-                return true;
-            default:
-                return true;
-            }
-        }
-        return false;
-    }
 private:
     String string;
 };

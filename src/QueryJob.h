@@ -46,6 +46,7 @@ public:
     virtual ~QueryJob();
 
     bool hasFilter() const { return mFileFilter || !mFilters.isEmpty(); }
+    bool hasKindFilter() const { return !mKindFilters.isEmpty(); }
     List<QueryMessage::PathFilter> pathFilters() const
     {
         if (mQueryMessage)
@@ -95,6 +96,7 @@ public:
     std::mutex &mutex() const { return mMutex; }
     const std::shared_ptr<Connection> &connection() const { return mConnection; }
     bool filterLocation(Location loc) const;
+    bool filterKind(const Symbol &symbol) const { return mKindFilters.filter(symbol); }
 private:
     class Filter
     {
@@ -129,7 +131,6 @@ private:
         const std::shared_ptr<Project> project;
     };
 
-    bool filterKind(CXCursorKind kind) const;
     mutable std::mutex mMutex;
     bool mAborted;
     int mLinesWritten;
@@ -140,7 +141,7 @@ private:
     std::shared_ptr<Project> mProject;
     uint32_t mFileFilter;
     List<std::shared_ptr<Filter> > mFilters;
-    Set<String> mKindFilters;
+    QueryMessage::KindFilters mKindFilters;
     String mBuffer;
     std::shared_ptr<Connection> mConnection;
     Hash<Path, String> mContextCache;

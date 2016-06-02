@@ -47,17 +47,19 @@ static inline void setType(Symbol &symbol, const CXType &type)
     symbol.typeName = RTags::eatString(clang_getTypeSpelling(type));
 }
 
-static inline void setRange(Symbol &symbol, const CXSourceRange &range)
+static inline void setRange(Symbol &symbol, const CXSourceRange &range, uint16_t *length = 0)
 {
     CXSourceLocation rangeStart = clang_getRangeStart(range);
     CXSourceLocation rangeEnd = clang_getRangeEnd(range);
-    unsigned int startLine, startColumn, endLine, endColumn;
-    clang_getSpellingLocation(rangeStart, 0, &startLine, &startColumn, 0);
-    clang_getSpellingLocation(rangeEnd, 0, &endLine, &endColumn, 0);
+    unsigned int startLine, startColumn, endLine, endColumn, startOffset, endOffset;
+    clang_getSpellingLocation(rangeStart, 0, &startLine, &startColumn, &startOffset);
+    clang_getSpellingLocation(rangeEnd, 0, &endLine, &endColumn, &endOffset);
     symbol.startLine = startLine;
     symbol.endLine = endLine;
     symbol.startColumn = startColumn;
     symbol.endColumn = endColumn;
+    if (length)
+        *length = static_cast<uint16_t>(endOffset - startOffset);
 }
 
 struct VerboseVisitorUserData {
@@ -1091,7 +1093,8 @@ bool ClangIndexer::handleReference(const CXCursor &cursor, CXCursorKind kind, Lo
 #endif
 
     CXSourceRange range = clang_getCursorExtent(cursor);
-    setRange(*c, range);
+    uint16_t symLength;
+    setRange(*c, range, &symLength);
     c->kind = kind;
     c->location = location;
 
@@ -1099,10 +1102,7 @@ bool ClangIndexer::handleReference(const CXCursor &cursor, CXCursorKind kind, Lo
     if (c->symbolName.isEmpty())
         c->symbolName = (result == Found ? reffedCursor.symbolName : addNamePermutations(ref, refLoc, RTags::Type_Reference));
     if (isOperator) {
-        unsigned int start, end;
-        clang_getSpellingLocation(clang_getRangeStart(range), 0, 0, 0, &start);
-        clang_getSpellingLocation(clang_getRangeEnd(range), 0, 0, 0, &end);
-        c->symbolLength = end - start;
+        c->symbolLength = symLength;
     } else {
         c->symbolLength = result == Found ? reffedCursor.symbolLength : symbolLength(refKind, ref);
     }
@@ -1194,7 +1194,7 @@ void ClangIndexer::handleLiteral(const CXCursor &cursor, CXCursorKind kind, Loca
     s.size = clang_Type_getSizeOf(type);
     setType(s, type);
     CXSourceRange range = clang_getCursorExtent(cursor);
-    setRange(s, range);
+    setRange(s, range, &s.symbolLength);
 
     String symbolName;
     if (kind != CXCursor_StringLiteral) {
@@ -1236,6 +1236,7 @@ CXChildVisitResult ClangIndexer::handleStatement(const CXCursor &cursor, CXCurso
             c.location = location;
             c.kind = kind;
             c.symbolName = "{}";
+            c.symbolLength = 1;
             // should it have a symbolLength?
             mScopeStack.append(scope);
             visit(cursor);

@@ -83,13 +83,13 @@ public:
         HasFileManager,
         Help,
         IncludeFile,
-        IMenu,
         IsIndexed,
         IsIndexing,
         JobCount,
         JSON,
         KindFilter,
         ListBuffers,
+        ListCursorKinds,
         ListSymbols,
         LoadCompilationDatabase,
         LogFile,
@@ -175,7 +175,7 @@ public:
     int minOffset() const { return mMinOffset; }
     int maxOffset() const { return mMaxOffset; }
 
-    const Set<String> &kindFilters() const { return mKindFilters; }
+    const QueryMessage::KindFilters &kindFilters() const { return mKindFilters; }
 
     const UnsavedFiles &unsavedFiles() const { return mUnsavedFiles; }
 
@@ -210,7 +210,7 @@ private:
     int mMax, mTimeout, mMinOffset, mMaxOffset, mConnectTimeout, mBuildIndex;
     LogLevel mLogLevel;
     Set<QueryMessage::PathFilter> mPathFilters;
-    Set<String> mKindFilters;
+    QueryMessage::KindFilters mKindFilters;
     UnsavedFiles mUnsavedFiles;
     List<std::shared_ptr<RCCommand> > mCommands;
     List<String> mRdmArgs;

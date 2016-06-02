@@ -80,8 +80,6 @@ QueryMessage::Flag QueryMessage::flagFromString(const String &string)
         return ReverseSort;
     } else if (string == "elisp") {
         return Elisp;
-    } else if (string == "imenu") {
-        return IMenu;
     } else if (string == "match-regexp") {
         return MatchRegex;
     } else if (string == "match-case-insensitive") {
@@ -134,4 +132,111 @@ QueryMessage::Flag QueryMessage::flagFromString(const String &string)
         return AllTargets;
     }
     return NoFlag;
+}
+
+bool QueryMessage::KindFilters::filter(const Symbol &symbol) const
+{
+    if (isEmpty())
+        return true;
+
+    String spelling = Symbol::kindSpelling(symbol.kind).toLower();
+    spelling.remove(' ');
+    auto match = [&spelling, &symbol](const Map<String, Flags<DefinitionType> > &map, bool hasWildcardsOrCategories) {
+        auto it = map.find(spelling);
+        auto matchDefinition = [&symbol](Flags<DefinitionType> flags) {
+            flags &= Definition|NotDefinition;
+            switch (flags.cast<int>()) {
+            case Definition:
+                if (symbol.isDefinition())
+                    return true;
+                break;
+            case NotDefinition:
+                if (!symbol.isDefinition())
+                    return true;
+                break;
+            default:
+                assert(flags == (Definition|NotDefinition));
+                return true;
+            }
+            return false;
+        };
+        if (it != map.end() && matchDefinition(it->second)) {
+            return true;
+        }
+        if (hasWildcardsOrCategories) {
+            for (const auto &pair : map) {
+                if (pair.second & Wildcard) {
+                    if (matchDefinition(pair.second) && Rct::wildCmp(pair.first.constData(), spelling.constData())) {
+                        return true;
+                    }
+                }  else if (pair.second & Category && matchDefinition(pair.second)) {
+                    if (pair.first == "references") {
+                        if (symbol.isReference())
+                            return true;
+                    } else if (pair.first == "statements") {
+                        if (clang_isStatement(symbol.kind))
+                            return true;
+                    } else if (pair.first == "declarations") {
+                        if (clang_isDeclaration(symbol.kind))
+                            return true;
+                    } else if (pair.first == "expressions") {
+                        if (clang_isExpression(symbol.kind))
+                            return true;
+                    } else if (pair.first == "attributes") {
+                        if (clang_isAttribute(symbol.kind))
+                            return true;
+                    } else if (pair.first == "preprocessing") {
+                        if (clang_isPreprocessing(symbol.kind))
+                            return true;
+                    } else {
+                        assert(0);
+                    }
+                }
+            }
+        }
+        return false;
+    };
+    if (!out.isEmpty() && match(out, flags & OutHasWildcards|OutHasCategories)) {
+        return false;
+    }
+    if (in.isEmpty() || match(in, flags & InHasWildcards|InHasCategories)) {
+        return true;
+    } else {
+        return false;
+    }
+}
+
+void QueryMessage::KindFilters::insert(const String &arg)
+{
+    for (String a : arg.toLower().split(',', String::SkipEmpty)) {
+        Flags<DefinitionType> f = Definition|NotDefinition;
+        Map<String, Flags<DefinitionType> > *target = &in;
+        const bool hasWildCard = a.contains("?") || a.contains("*");
+        if (hasWildCard)
+            f |= Wildcard;
+
+        if (a.endsWith('+')) {
+            a.chop(1);
+            f &= ~NotDefinition;
+        } else if (a.endsWith('-')) {
+            a.chop(1);
+            f &= ~Definition;
+        }
+
+        const bool o = a.startsWith('-');
+        if (o) {
+            target = &out;
+            if (hasWildCard)
+                flags |= OutHasWildcards;
+            a.remove(0, 1);
+        } else if (hasWildCard) {
+            flags |= InHasWildcards;
+        }
+        if (a == "references" || a == "statements" || a == "declarations"
+            || a == "expressions" || a == "attributes" || a == "preprocessing") {
+            f |= Category;
+            flags |= (o ? OutHasCategories : InHasCategories);
+        }
+        (*target)[a] |= f;
+    }
 }

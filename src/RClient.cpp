@@ -110,6 +110,7 @@ struct Option opts[] = {
     { RClient::DumpCompilationDatabase, "dump-compilation-database", 0, no_argument, "Dump compilation database for project." },
     { RClient::SetBuffers, "set-buffers", 0, optional_argument, "Set active buffers (list of filenames for active buffers in editor)." },
     { RClient::ListBuffers, "list-buffers", 0, no_argument, "List active buffers." },
+    { RClient::ListCursorKinds, "list-cursor-kinds", 0, no_argument, "List spelling for known cursor kinds." },
     { RClient::ClassHierarchy, "class-hierarchy", 0, required_argument, "Dump class hierarcy for struct/class at location." },
     { RClient::DebugLocations, "debug-locations", 0, optional_argument, "Manipulate debug locations." },
 #ifdef RTAGS_HAS_LUA
@@ -152,7 +153,6 @@ struct Option opts[] = {
     { RClient::DeclarationOnly, "declaration-only", 0, no_argument, "Filter out definitions (unless inline).", },
     { RClient::DefinitionOnly, "definition-only", 0, no_argument, "Filter out declarations (unless inline).", },
     { RClient::KindFilter, "kind-filter", 0, required_argument, "Only return results matching this kind.", },
-    { RClient::IMenu, "imenu", 0, no_argument, "Use with --list-symbols to provide output for (rtags-imenu) (filter namespaces, fully qualified function names, ignore certain symbols etc)." },
     { RClient::ContainingFunction, "containing-function", 'o', no_argument, "Include name of containing function in output."},
     { RClient::ContainingFunctionLocation, "containing-function-location", 0, no_argument, "Include location of containing function in output."},
     { RClient::BuildIndex, "build-index", 0, required_argument, "For sources with multiple builds, use the arg'th." },
@@ -636,9 +636,6 @@ RClient::ParseStatus RClient::parse(int &argc, char **argv)
         case Autotest:
             mFlags |= Flag_Autotest;
             break;
-        case IMenu:
-            mQueryFlags |= QueryMessage::IMenu;
-            break;
         case CompilationFlagsOnly:
             mQueryFlags |= QueryMessage::CompilationFlagsOnly;
             break;
@@ -994,6 +991,29 @@ RClient::ParseStatus RClient::parse(int &argc, char **argv)
         case ListBuffers:
             addQuery(QueryMessage::SetBuffers);
             break;
+        case ListCursorKinds: {
+            auto print = [](CXCursorKind from, CXCursorKind to) {
+                for (int i=from; i<=to; ++i) {
+                    const CXCursorKind kind = static_cast<CXCursorKind>(i);
+                    String spelling = RTags::eatString(clang_getCursorKindSpelling(kind));
+                    spelling.remove(' ');
+                    Log(LogLevel::Error, LogOutput::StdOut|LogOutput::TrailingNewLine) << spelling;
+                }
+            };
+            Log(LogLevel::Error, LogOutput::StdOut|LogOutput::TrailingNewLine) << "Declarations:";
+            print(CXCursor_FirstDecl, CXCursor_LastDecl);
+            print(CXCursor_FirstExtraDecl, CXCursor_LastExtraDecl);
+            Log(LogLevel::Error, LogOutput::StdOut|LogOutput::TrailingNewLine) << "References:";
+            print(CXCursor_FirstRef, CXCursor_LastRef);
+            Log(LogLevel::Error, LogOutput::StdOut|LogOutput::TrailingNewLine) << "Expressions:";
+            print(CXCursor_FirstExpr, CXCursor_LastExpr);
+            Log(LogLevel::Error, LogOutput::StdOut|LogOutput::TrailingNewLine) << "Statements:";
+            print(CXCursor_FirstStmt, CXCursor_LastStmt);
+            Log(LogLevel::Error, LogOutput::StdOut|LogOutput::TrailingNewLine) << "Attributes:";
+            print(CXCursor_FirstAttr, CXCursor_LastAttr);
+            Log(LogLevel::Error, LogOutput::StdOut|LogOutput::TrailingNewLine) << "Preprocessing:";
+            print(CXCursor_FirstPreprocessing, CXCursor_LastPreprocessing);
+            return Parse_Ok; }
         case SetBuffers: {
             const char *arg = 0;
             if (optarg) {

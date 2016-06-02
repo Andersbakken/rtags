@@ -83,48 +83,69 @@ public:
         AllReferences = (1ull << 3),
         ReverseSort = (1ull << 4),
         Elisp = (1ull << 5),
-        IMenu = (1ull << 6),
-        MatchRegex = (1ull << 7),
-        MatchCaseInsensitive = (1ull << 8),
-        FindVirtuals = (1ull << 9),
-        Silent = (1ull << 10),
-        AbsolutePath = (1ull << 11),
-        FindFilePreferExact = (1ull << 12),
-        SymbolInfoIncludeParents = (1ull << 13),
-        SymbolInfoIncludeTargets = (1ull << 14),
-        SymbolInfoIncludeReferences = (1ull << 15),
-        SymbolInfoIncludeBaseClasses = (1ull << 16),
-        DeclarationOnly = (1ull << 17),
-        DefinitionOnly = (1ull << 18),
-        AllTargets = (1ull << 19),
-        CursorKind = (1ull << 20),
-        DisplayName = (1ull << 21),
-        CompilationFlagsOnly = (1ull << 22),
-        CompilationFlagsSplitLine = (1ull << 23),
-        DumpIncludeHeaders = (1ull << 24),
-        SilentQuery = (1ull << 25),
-        SynchronousCompletions = (1ull << 26),
-        NoSortReferencesByInput = (1ull << 27),
-        HasLocation = (1ull << 28),
-        WildcardSymbolNames = (1ull << 29),
-        NoColor = (1ull << 30),
-        Rename = (1ull << 31),
-        ContainingFunction = (1ull << 32),
-        ContainingFunctionLocation = (1ull << 33),
-        DumpCheckIncludes = (1ull << 34),
-        CurrentProjectOnly = (1ull << 35),
-        Wait = (1ull << 36),
-        CodeCompleteIncludeMacros = (1ull << 37),
-        XML = (1ull << 38),
-        NoSpellChecking = (1ull << 39),
-        CodeCompleteIncludes = (1ull << 40),
-        TokensIncludeSymbols = (1ull << 41),
-        JSON = (1ull << 42)
+        MatchRegex = (1ull << 6),
+        MatchCaseInsensitive = (1ull << 7),
+        FindVirtuals = (1ull << 8),
+        Silent = (1ull << 9),
+        AbsolutePath = (1ull << 10),
+        FindFilePreferExact = (1ull << 11),
+        SymbolInfoIncludeParents = (1ull << 12),
+        SymbolInfoIncludeTargets = (1ull << 13),
+        SymbolInfoIncludeReferences = (1ull << 14),
+        SymbolInfoIncludeBaseClasses = (1ull << 15),
+        DeclarationOnly = (1ull << 16),
+        DefinitionOnly = (1ull << 17),
+        AllTargets = (1ull << 18),
+        CursorKind = (1ull << 19),
+        DisplayName = (1ull << 20),
+        CompilationFlagsOnly = (1ull << 21),
+        CompilationFlagsSplitLine = (1ull << 22),
+        DumpIncludeHeaders = (1ull << 23),
+        SilentQuery = (1ull << 24),
+        SynchronousCompletions = (1ull << 25),
+        NoSortReferencesByInput = (1ull << 26),
+        HasLocation = (1ull << 27),
+        WildcardSymbolNames = (1ull << 28),
+        NoColor = (1ull << 29),
+        Rename = (1ull << 30),
+        ContainingFunction = (1ull << 31),
+        ContainingFunctionLocation = (1ull << 32),
+        DumpCheckIncludes = (1ull << 33),
+        CurrentProjectOnly = (1ull << 34),
+        Wait = (1ull << 35),
+        CodeCompleteIncludeMacros = (1ull << 36),
+        XML = (1ull << 37),
+        NoSpellChecking = (1ull << 38),
+        CodeCompleteIncludes = (1ull << 39),
+        TokensIncludeSymbols = (1ull << 40),
+        JSON = (1ull << 41)
     };
 
     QueryMessage(Type type = Invalid);
 
     Type type() const { return mType; }
+
+    struct KindFilters {
+        enum Flag {
+            None = 0x0,
+            InHasWildcards = 0x1,
+            InHasCategories = 0x2,
+            OutHasWildcards = 0x4,
+            OutHasCategories = 0x8
+        };
+        enum DefinitionType {
+            Unset = 0x0,
+            NotDefinition = 0x1,
+            Definition = 0x2,
+            Wildcard = 0x4,
+            Category = 0x8
+        };
+        Flags<Flag> flags;
+        Map<String, Flags<DefinitionType> > in, out;
+        bool filter(const Symbol &symbol) const;
+        void insert(const String &arg);
+        bool isEmpty() const { return in.isEmpty() && out.isEmpty(); }
+    };
 
     struct PathFilter {
         String pattern;
@@ -153,8 +174,8 @@ public:
     List<String> visitASTScripts() const { return mVisitASTScripts; }
 #endif
 
-    void setKindFilters(const Set<String> &kindFilters) { mKindFilters = kindFilters; }
-    const Set<String> &kindFilters() const { return mKindFilters; }
+    void setKindFilters(const KindFilters &kindFilters) { mKindFilters = kindFilters; }
+    const KindFilters &kindFilters() const { return mKindFilters; }
 
     void setUnsavedFiles(const UnsavedFiles &unsavedFiles) { mUnsavedFiles = unsavedFiles; }
     const UnsavedFiles &unsavedFiles() const { return mUnsavedFiles; }
@@ -219,7 +240,7 @@ private:
     Flags<QueryMessage::Flag> mFlags;
     int mMax, mMinLine, mMaxLine, mBuildIndex;
     List<PathFilter> mPathFilters;
-    Set<String> mKindFilters;
+    KindFilters mKindFilters;
     Path mCurrentFile;
     UnsavedFiles mUnsavedFiles;
     int mTerminalWidth;
@@ -227,6 +248,11 @@ private:
     List<String> mVisitASTScripts;
 #endif
 };
+
+DECLARE_NATIVE_TYPE(QueryMessage::Type);
+RCT_FLAGS(QueryMessage::Flag);
+RCT_FLAGS(QueryMessage::KindFilters::DefinitionType);
+RCT_FLAGS(QueryMessage::KindFilters::Flag);
 
 inline Serializer &operator<<(Serializer &s, const QueryMessage::PathFilter &filter)
 {
@@ -242,8 +268,16 @@ inline Deserializer &operator>>(Deserializer &s, QueryMessage::PathFilter &filte
     return s;
 }
 
-RCT_FLAGS(QueryMessage::Flag);
+inline Serializer &operator<<(Serializer &s, const QueryMessage::KindFilters &filter)
+{
+    s << filter.flags << filter.in << filter.out;
+    return s;
+}
 
-DECLARE_NATIVE_TYPE(QueryMessage::Type);
+inline Deserializer &operator>>(Deserializer &s, QueryMessage::KindFilters &filter)
+{
+    s >> filter.flags >> filter.in >> filter.out;
+    return s;
+}
 
 #endif // QUERYMESSAGE_H

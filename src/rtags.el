@@ -524,6 +524,12 @@ Note: It is recommended to run each sandbox is separate Emacs process."
   :type 'boolean
   :safe 'booleanp)
 
+(defcustom rtags-imenu-kind-filter "-references,-vardecl,-parmdecl,-inclusiondirective,-*literal*,-enumconstantdecl,-classdecl-,-structdecl-,-classtemplate-,-statements,-lambdaexpr"
+  "argument passed to --kind-filter for rtags-imenu"
+  :group 'rtags
+  :type 'string
+  :safe 'stringp)
+
 (defcustom rtags-print-filenames-relative t
   "Print filenames relative to the project root directory.
 
@@ -3280,16 +3286,16 @@ other window instead of the current one."
     (rtags-location-stack-push)
     (let* ((fn (buffer-file-name))
            (alternatives (with-temp-buffer
-                           (rtags-call-rc :path fn :path-filter fn "--imenu"
-                                          "--list-symbols"
-                                          "-Y"
-                                          (when rtags-wildcard-symbol-names "--wildcard-symbol-names"))
+                           (rtags-call-rc :path fn :path-filter fn
+                                          "--kind-filter" rtags-imenu-kind-filter
+                                          "--elisp"
+                                          (when rtags-wildcard-symbol-names "--wildcard-symbol-names")
+                                          "--list-symbols")
                            (eval (read (buffer-string)))))
-           (match (car alternatives)))
-      (when (> (length alternatives) 1)
-        (setq match (completing-read "Symbol: " alternatives nil t)))
+           (match (and (> (length alternatives) 1)
+                       (completing-read "Symbol: " alternatives nil t))))
       (when match
-        (rtags-goto-location (with-temp-buffer (rtags-call-rc :path-filter fn :path fn "-F" match) (buffer-string)))
+        (rtags-goto-location (with-temp-buffer (rtags-call-rc :path-filter fn :path fn "-F" match "--no-context" "--absolute-path") (buffer-string)))
         (message "RTags: No symbols")))))
 
 (defun rtags-append (txt)
@@ -3613,7 +3619,7 @@ definition."
 
 (defun rtags-symbolname-completion-get (string)
   (with-temp-buffer
-    (rtags-call-rc "-Y" "-S" string
+    (rtags-call-rc "--elisp" "-S" string
                    (when rtags-symbolnames-case-insensitive "-I")
                    (when rtags-wildcard-symbol-names "--wildcard-symbol-names"))
     ;; (when rtags-rc-log-enabled
