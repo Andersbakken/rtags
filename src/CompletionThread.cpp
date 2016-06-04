@@ -307,6 +307,7 @@ void CompletionThread::process(Request *request)
         cache->completionsList.deleteAll();
         cache->unsavedHash = hash;
         cache->lastModified = lastModified;
+        // ### should we reparse here?
     } else if (!(request->flags & (Refresh|WarmUp))) {
         const auto it = cache->completionsMap.find(request->location);
         if (it != cache->completionsMap.end()) {
