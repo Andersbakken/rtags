@@ -1475,6 +1475,9 @@ CXChildVisitResult ClangIndexer::handleCursor(const CXCursor &cursor, CXCursorKi
         c.symbolName = addNamePermutations(cursor, location, RTags::Type_Cursor);
     }
 
+    if (clang_isCursorDefinition(cursor))
+        c.flags |= Symbol::Definition;
+
     const CXSourceRange range = clang_getCursorExtent(cursor);
     setRange(c, range);
 
@@ -1601,8 +1604,6 @@ CXChildVisitResult ClangIndexer::handleCursor(const CXCursor &cursor, CXCursorKi
 #endif
         // fall through
     default:
-        if (clang_isCursorDefinition(cursor))
-            c.flags |= Symbol::Definition;
         break;
     }
 
