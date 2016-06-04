@@ -1426,7 +1426,6 @@ CXChildVisitResult ClangIndexer::handleCursor(const CXCursor &cursor, CXCursorKi
         case CXCursor_LambdaExpr:
             c.symbolLength = 2;
             c.symbolName = c.typeName;
-            c.flags |= Symbol::Definition;
             break;
         default:
             unit(location)->symbols.remove(location);
@@ -1524,7 +1523,6 @@ CXChildVisitResult ClangIndexer::handleCursor(const CXCursor &cursor, CXCursorKi
         }
         break; }
     case CXCursor_EnumConstantDecl:
-        c.flags |= Symbol::Definition;
 #if CINDEX_VERSION >= CINDEX_VERSION_ENCODE(0, 2)
         c.enumValue = clang_getEnumConstantDeclValue(cursor);
 #endif
@@ -1596,7 +1594,6 @@ CXChildVisitResult ClangIndexer::handleCursor(const CXCursor &cursor, CXCursorKi
         // }
 
         clang_disposeTokens(mTranslationUnit->unit, tokens, numTokens);
-        c.flags |= Symbol::Definition;
         break; }
     case CXCursor_FieldDecl:
 #if CINDEX_VERSION >= CINDEX_VERSION_ENCODE(0, 30)
