@@ -953,7 +953,14 @@ bool loadCompileCommands(const Hash<Path, CompilationDataBaseInfo> &infos, const
             const unsigned int num = clang_CompileCommand_getNumArgs(cmd);
             for (unsigned int j = 0; j < num; ++j) {
                 str = clang_CompileCommand_getArg(cmd, j);
-                args += clang_getCString(str);
+                const char *ch = clang_getCString(str);
+                if (strchr(ch, ' ')) {
+                    args += '"';
+                    args += ch;
+                    args += '"';
+                } else {
+                    args += ch;
+                }
                 clang_disposeString(str);
                 if (j < num - 1)
                     args += ' ';
