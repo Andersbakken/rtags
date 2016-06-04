@@ -44,10 +44,13 @@ public:
         Elisp = 0x02,
         XML = 0x04,
         JSON = 0x08,
-        CodeCompleteIncludeMacros = 0x10
+        CodeCompleteIncludeMacros = 0x10,
+        WarmUp = 0x20
     };
-    void completeAt(const Source &source, Location location, Flags<Flag> flags,
-                    const String &unsaved, const std::shared_ptr<Connection> &conn);
+    bool isCached(uint32_t fileId, const std::shared_ptr<Project> &project) const;
+    void completeAt(Source &&source, Location location, Flags<Flag> flags,
+                    String &&unsaved, const std::shared_ptr<Connection> &conn);
+    void prepare(Source &&source, String &&unsaved);
     void stop();
     String dump();
 private:

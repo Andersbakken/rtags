@@ -14,6 +14,7 @@
    along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 
 #include "CompletionThread.h"
+#include "Project.h"
 
 #include "rct/StopWatch.h"
 #include "RTags.h"
@@ -95,11 +96,11 @@ void CompletionThread::run()
     mIndex = 0;
 }
 
-void CompletionThread::completeAt(const Source &source, Location location,
-                                  Flags<Flag> flags, const String &unsaved,
+void CompletionThread::completeAt(Source &&source, Location location,
+                                  Flags<Flag> flags, String &&unsaved,
                                   const std::shared_ptr<Connection> &conn)
 {
-    Request *request = new Request({ source, location, flags, unsaved, conn});
+    Request *request = new Request({ std::forward<Source>(source), location, flags, std::forward<String>(unsaved), conn});
     std::unique_lock<std::mutex> lock(mMutex);
     auto it = mPending.begin();
     while (it != mPending.end()) {
@@ -111,6 +112,18 @@ void CompletionThread::completeAt(const Source &source, Location location,
         ++it;
     }
     mPending.push_front(request);
+    mCondition.notify_one();
+}
+
+void CompletionThread::prepare(Source &&source, String &&unsaved)
+{
+    std::unique_lock<std::mutex> lock(mMutex);
+    for (auto req : mPending) {
+        if (req->source == source)
+            return;
+    }
+    Request *request = new Request({ std::forward<Source>(source), Location(), WarmUp, std::forward<String>(unsaved), std::shared_ptr<Connection>() });
+    mPending.push_back(request);
     mCondition.notify_one();
 }
 
@@ -294,7 +307,7 @@ void CompletionThread::process(Request *request)
         cache->completionsList.deleteAll();
         cache->unsavedHash = hash;
         cache->lastModified = lastModified;
-    } else if (!(request->flags & Refresh)) {
+    } else if (!(request->flags & (Refresh|WarmUp))) {
         const auto it = cache->completionsMap.find(request->location);
         if (it != cache->completionsMap.end()) {
             cache->completionsList.moveToEnd(it->second);
@@ -304,6 +317,10 @@ void CompletionThread::process(Request *request)
             printCompletions(it->second->candidates, request);
             return;
         }
+    }
+
+    if (request->flags & WarmUp) {
+        return;
     }
 
     sw.restart();
@@ -569,27 +586,36 @@ void CompletionThread::printCompletions(const List<Completions::Candidate> &comp
                                                 Rct::jsonEscape(val.completion).constData(),
                                                 Rct::jsonEscape(val.signature).constData(),
                                                 kind.constData());
-                                                          }
             }
-            if (elisp)
-                elispOut += ")))";
-            if (xml)
-                xmlOut += "]]></completions>\n";
-            if (json)
-                jsonOut += "]}";
-
-            EventLoop::mainEventLoop()->callLater([outputs, xmlOut, elispOut, rawOut, jsonOut]() {
-                    for (auto &it : outputs) {
-                        if (it->flags & Elisp) {
-                            it->send(elispOut);
-                        } else if (it->flags & XML) {
-                            it->send(xmlOut);
-                        } else if (it->flags & JSON) {
-                            it->send(jsonOut);
-                        } else {
-                            it->send(rawOut);
-                        }
-                    }
-                });
         }
+        if (elisp)
+            elispOut += ")))";
+        if (xml)
+            xmlOut += "]]></completions>\n";
+        if (json)
+            jsonOut += "]}";
+
+        EventLoop::mainEventLoop()->callLater([outputs, xmlOut, elispOut, rawOut, jsonOut]() {
+                for (auto &it : outputs) {
+                    if (it->flags & Elisp) {
+                        it->send(elispOut);
+                    } else if (it->flags & XML) {
+                        it->send(xmlOut);
+                    } else if (it->flags & JSON) {
+                        it->send(jsonOut);
+                    } else {
+                        it->send(rawOut);
+                    }
+                }
+            });
     }
+}
+
+bool CompletionThread::isCached(uint32_t fileId, const std::shared_ptr<Project> &project) const
+{
+    for (SourceFile *file : mCacheList) {
+        if (file->source.fileId == fileId || project->dependsOn(file->source.fileId, fileId))
+            return true;
+    }
+    return false;
+}

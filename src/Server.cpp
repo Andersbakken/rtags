@@ -891,6 +891,22 @@ void Server::diagnose(const std::shared_ptr<QueryMessage> &query, const std::sha
 
     project->diagnose(fileId);
     conn->finish();
+    if (mCompletionThread && !mCompletionThread->isCached(fileId, project)) {
+        Source source = project->sources(fileId).value(query->buildIndex());
+        if (source.isNull()) {
+            for (uint32_t dep : project->dependencies(fileId, Project::DependsOnArg)) {
+                source = project->sources(dep).value(query->buildIndex());
+                if (!source.isNull())
+                    break;
+            }
+
+            if (source.isNull()) {
+                return;
+            }
+        }
+
+        mCompletionThread->prepare(std::move(source), query->unsavedFiles().value(Location::path(fileId)));
+    }
 }
 
 void Server::generateTest(const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Connection> &conn)
@@ -1967,7 +1983,7 @@ void Server::codeCompleteAt(const std::shared_ptr<QueryMessage> &query, const st
         c.reset();
     }
     error() << "Got completion request for" << loc;
-    mCompletionThread->completeAt(source, loc, flags, query->unsavedFiles().value(loc.path()), c);
+    mCompletionThread->completeAt(std::move(source), loc, flags, query->unsavedFiles().value(loc.path()), c);
 }
 
 void Server::dumpJobs(const std::shared_ptr<Connection> &conn)
