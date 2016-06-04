@@ -89,7 +89,13 @@ uint32_t JobScheduler::hasHeaderError(uint32_t file, const std::shared_ptr<Proje
 
 void JobScheduler::startJobs()
 {
-    const auto &options = Server::instance()->options();
+    Server *server = Server::instance();
+    assert(server);
+    if (server->suspended()) {
+        warning() << "Suspended, not starting jobs";
+        return;
+    }
+    const auto &options = server->options();
     std::shared_ptr<Node> node = mPendingJobs.first();
     auto cont = [&node, this]() {
         auto tmp = node->next;

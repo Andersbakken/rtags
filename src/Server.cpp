@@ -1601,6 +1601,7 @@ void Server::suspend(const std::shared_ptr<QueryMessage> &query, const std::shar
     } else {
         project = currentProject();
     }
+    const bool old = mSuspended;
     switch (mode) {
     case All:
         mSuspended = true;
@@ -1642,6 +1643,9 @@ void Server::suspend(const std::shared_ptr<QueryMessage> &query, const std::shar
         break;
     }
     conn->finish();
+
+    if (old && !mSuspended)
+        mJobScheduler->startJobs();
 }
 
 void Server::setBuffers(const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Connection> &conn)

@@ -60,10 +60,10 @@ public:
     void clearHeaderError(uint32_t file);
     Set<uint32_t> headerErrors() const { return mHeaderErrors; }
     bool increasePriority(uint32_t fileId);
+    void startJobs();
 private:
     enum { HighPriority = 5 };
     void jobFinished(const std::shared_ptr<IndexerJob> &job, const std::shared_ptr<IndexDataMessage> &message);
-    void startJobs();
     struct Node {
         std::shared_ptr<IndexerJob> job;
         Process *process;
