@@ -793,6 +793,7 @@ inline Log operator<<(Log dbg, CXTypeKind kind);
 inline Log operator<<(Log dbg, CXLinkageKind kind);
 
 inline bool operator==(const CXCursor &l, const CXCursor &r) { return clang_equalCursors(l, r); }
+inline bool operator!=(const CXCursor &l, const CXCursor &r) { return !clang_equalCursors(l, r); }
 class CXStringScope
 {
 public:
