@@ -44,7 +44,7 @@ public:
         Elisp = 0x02,
         XML = 0x04,
         JSON = 0x08,
-        CodeCompleteIncludeMacros = 0x10,
+        IncludeMacros = 0x10,
         WarmUp = 0x20
     };
     bool isCached(uint32_t fileId, const std::shared_ptr<Project> &project) const;
@@ -87,9 +87,28 @@ private:
             String completion, signature, annotation, parent, briefComment;
             int priority, distance;
             CXCursorKind cursorKind;
+            struct Chunk {
+                Chunk()
+                    : kind(CXCompletionChunk_Optional)
+                {}
+                Chunk(String &&t, CXCompletionChunkKind k)
+                    : text(std::forward<String>(t)), kind(k)
+                {}
+                String text;
+                CXCompletionChunkKind kind;
+            };
+            List<Chunk> chunks;
+
+            enum Flag {
+                None = 0x0,
+                IncludeChunks = 0x1
+            };
+            Value toValue(unsigned int flags) const;
         };
+
         List<Candidate> candidates;
         const Location location;
+        Flags<Flag> flags;
         Completions *next, *prev;
     };
 
