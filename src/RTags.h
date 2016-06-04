@@ -395,8 +395,7 @@ inline const char *builtinTypeName(CXTypeKind kind)
     case CXType_Float: ret = "float"; break;
     case CXType_Double: ret = "double"; break;
     case CXType_LongDouble: ret = "long double"; break;
-    default:
-        break;
+    default: break;
     }
     return ret;
 }
