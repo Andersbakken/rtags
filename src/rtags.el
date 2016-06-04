@@ -524,6 +524,11 @@ Note: It is recommended to run each sandbox is separate Emacs process."
   :type 'boolean
   :safe 'booleanp)
 
+(defcustom rtags-helm-actions '(("Select other window" . rtags-helm-select-other-window)
+                                ("Select" . rtags-helm-select)))
+  "Set to override default rtags-helm behavior"
+  :group 'rtags)
+
 (defcustom rtags-imenu-kind-filter "-references,-vardecl,-parmdecl,-inclusiondirective,-*literal*,-enumconstantdecl,-classdecl-,-structdecl-,-classtemplate-,-statements,-lambdaexpr"
   "argument passed to --kind-filter for rtags-imenu"
   :group 'rtags
@@ -3526,7 +3531,7 @@ other window instead of the current one."
   (interactive)
   (let ((ret ""))
     (when (and (> (length (window-list nil nil)) 1)
-               rtags-other-window-window
+               (windowp rtags-other-window-window)
                (window-live-p rtags-other-window-window))
       (select-window rtags-other-window-window)
       (setq ret (rtags-current-location))
@@ -4549,7 +4554,13 @@ the user enter missing field manually."
   (defun rtags-helm-select (candidate)
     (with-current-buffer (get-buffer rtags-buffer-name)
       (goto-char candidate)
+      (rtags-select nil nil)))
+
+  (defun rtags-helm-select-other-window (candidate)
+    (with-current-buffer (get-buffer rtags-buffer-name)
+      (goto-char candidate)
       (rtags-select t nil)))
+
   ;; (message "CAND: %d" (get-text-property 0 'rtags-buffer-position candidate)))
 
   (defun rtags-helm-get-candidate-line (candidate)
@@ -4585,11 +4596,15 @@ the user enter missing field manually."
                 (propertize (match-string 3 line) 'face 'rtags-helm-lineno-face)
                 (match-string 4 line)))))
 
-  (defvar rtags-helm-source '((name . "RTags Helm")
-                              (candidates . rtags-helm-candidates)
-                              (real-to-display . rtags-helm-transform)
-                              (action . rtags-helm-select)
-                              (persistent-action . rtags-helm-select-persistent))))
+  (defvar rtags-helm-source nil)
+  (setq rtags-helm-source '((name . "RTags Helm")
+                            (candidates . rtags-helm-candidates)
+                            (real-to-display . rtags-helm-transform)
+                            (action . rtags-helm-actions)
+                                    ;; (("Select other window" . rtags-helm-select-other-window)
+                                    ;;    ("Select" . rtags-helm-select)
+                                    ;;    ("Select persistent" . rtags-helm-select-persistent)))
+                            (persistent-action . rtags-helm-select-persistent))))
 
 (provide 'rtags)
 
