@@ -57,7 +57,13 @@
   (if (< emacs-major-version 24)
       (defalias 'kbd 'read-kbd-macro)))
 
+;; Make the byte-compiler happy.
 (declare-function flycheck-buffer "ext:flycheck")
+(declare-function yas-expand-snippet "ext:yasnippet" t)
+(declare-function popup-tip "ext:popup" t)
+(declare-function helm "ext:helm" t)
+(declare-function helm-highlight-current-line "ext:helm")
+(declare-function rtags-helm-get-candidate-line 'rtags (candidate))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
