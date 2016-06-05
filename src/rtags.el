@@ -524,11 +524,6 @@ Note: It is recommended to run each sandbox is separate Emacs process."
   :type 'boolean
   :safe 'booleanp)
 
-(defcustom rtags-helm-actions (list (cons "Select other window" rtags-helm-select-other-window)
-                                    (cons "Select" rtags-helm-select))
-  "Set to override default rtags-helm behavior"
-  :group 'rtags)
-
 (defcustom rtags-imenu-kind-filter "-references,-vardecl,-parmdecl,-inclusiondirective,-*literal*,-enumconstantdecl,-classdecl-,-structdecl-,-classtemplate-,-statements,-lambdaexpr"
   "argument passed to --kind-filter for rtags-imenu"
   :group 'rtags
@@ -4536,6 +4531,14 @@ the user enter missing field manually."
 ;; Helm integration
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (when (require 'helm nil t)
+  (defcustom rtags-helm-actions
+    '(("Select" . rtags-helm-select)
+      ("Select other window" . rtags-helm-select-other-window))
+    "RTags helm actions.
+Each element of the alist is a cons-cell of the form (DESCRIPTION . FUNCTION)."
+    :group 'rtags
+    :type '(alist :key-type string :value-type function))
+
   (defun rtags-helm-candidates ()
     (let ((buf (get-buffer rtags-buffer-name))
           (ret))
@@ -4601,9 +4604,6 @@ the user enter missing field manually."
                             (candidates . rtags-helm-candidates)
                             (real-to-display . rtags-helm-transform)
                             (action . rtags-helm-actions)
-                                    ;; (("Select other window" . rtags-helm-select-other-window)
-                                    ;;    ("Select" . rtags-helm-select)
-                                    ;;    ("Select persistent" . rtags-helm-select-persistent)))
                             (persistent-action . rtags-helm-select-persistent))))
 
 (provide 'rtags)
