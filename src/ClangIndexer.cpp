@@ -1079,13 +1079,16 @@ bool ClangIndexer::handleReference(const CXCursor &cursor, CXCursorKind kind, Lo
         }
     }
 
-#if CINDEX_VERSION >= CINDEX_VERSION_ENCODE(0, 16)
+#if CINDEX_VERSION >= CINDEX_VERSION_ENCODE(0, 35)
     if (result == Found) {
         c->size = reffedCursor.size;
         c->alignment = reffedCursor.alignment;
     } else {
         const CXType type = clang_getCursorType(ref);
-        if (type.kind != CXType_LValueReference && type.kind != CXType_RValueReference && type.kind != CXType_Unexposed) {
+        if (type.kind != CXType_LValueReference
+            && type.kind != CXType_RValueReference
+            && type.type != CXType_Auto
+            && type.kind != CXType_Unexposed) {
             c->size = clang_Type_getSizeOf(type);
             c->alignment = std::max<int16_t>(-1, clang_Type_getAlignOf(type));
         }
@@ -1191,7 +1194,6 @@ void ClangIndexer::handleLiteral(const CXCursor &cursor, CXCursorKind kind, Loca
         return;
     s.location = location;
     s.kind = kind;
-    s.size = clang_Type_getSizeOf(type);
     setType(s, type);
     CXSourceRange range = clang_getCursorExtent(cursor);
     setRange(s, range, &s.symbolLength);
@@ -1604,10 +1606,11 @@ CXChildVisitResult ClangIndexer::handleCursor(const CXCursor &cursor, CXCursorKi
         break;
     }
 
-#if CINDEX_VERSION >= CINDEX_VERSION_ENCODE(0, 16)
+#if CINDEX_VERSION >= CINDEX_VERSION_ENCODE(0, 35)
     if (!(c.flags & (Symbol::Auto|Symbol::AutoRef))
         && c.type != CXType_LValueReference
         && c.type != CXType_RValueReference
+        && c.type != CXType_Auto
         && c.type != CXType_Unexposed) {
         c.size = clang_Type_getSizeOf(type);
         c.alignment = std::max<int16_t>(-1, clang_Type_getAlignOf(type));
