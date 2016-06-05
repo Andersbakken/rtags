@@ -788,6 +788,7 @@ inline bool operator!=(CXCursorKind l, const CXCursor &r)
 }
 
 inline Log operator<<(Log dbg, CXCursor cursor);
+inline Log operator<<(Log dbg, CXType type);
 inline Log operator<<(Log dbg, CXCursorKind kind);
 inline Log operator<<(Log dbg, CXTypeKind kind);
 inline Log operator<<(Log dbg, CXLinkageKind kind);
@@ -819,6 +820,12 @@ private:
 inline Log operator<<(Log dbg, CXCursor cursor)
 {
     dbg << RTags::cursorToString(cursor, RTags::AllCursorToStringFlags);
+    return dbg;
+}
+
+inline Log operator<<(Log dbg, CXType type)
+{
+    dbg << type.kind << RTags::eatString(clang_getTypeSpelling(type));
     return dbg;
 }
 
