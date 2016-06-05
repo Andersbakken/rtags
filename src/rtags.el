@@ -524,8 +524,8 @@ Note: It is recommended to run each sandbox is separate Emacs process."
   :type 'boolean
   :safe 'booleanp)
 
-(defcustom rtags-helm-actions '(("Select other window" . rtags-helm-select-other-window)
-                                ("Select" . rtags-helm-select)))
+(defcustom rtags-helm-actions (list (cons "Select other window" rtags-helm-select-other-window)
+                                    (cons "Select" rtags-helm-select))
   "Set to override default rtags-helm behavior"
   :group 'rtags)
 
