@@ -620,7 +620,7 @@ List<Source> Source::parse(const String &cmdLine,
             } else {
                 const Path c = arg;
                 resolved = Path::resolved(arg, Path::RealPath, cwd);
-                if (!resolved.isHeader() && !resolved.isSource()) {
+                if ((!resolved.extension() || !resolved.isHeader()) && !resolved.isSource()) {
                     add = false;
                     if (i == 1) {
                         const Path inPath = findFileInPath(c, cwd, pathEnvironment);
