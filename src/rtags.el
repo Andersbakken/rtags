@@ -4051,6 +4051,17 @@ force means do it regardless of rtags-enable-unsaved-reparsing "
                 (and ret (list (cons 'contents ret)
                                (cons 'offset (rtags-offset start))))))))))))
 
+(defun rtags--safe-substring (string &optional from to)
+  (let ((len (length string)))
+    (when (and from (< from 0))
+      (setq from (+ len from)))
+    (when (and to (< to 0))
+      (setq to (+ len to)))
+    (cond ((and from to (> from to)) "")
+          ((and from (> from len)) "")
+          ((and to (> to len)) "")
+          (t (substring string from to)))))
+
 (defun rtags-get-arg-usage-text (info)
   (when info
     (let* ((invokedFunction (rtags-symbol-info-internal :location (cdr (assoc 'invokedFunction info))))
@@ -4059,12 +4070,12 @@ force means do it regardless of rtags-enable-unsaved-reparsing "
            (functionArgument (rtags-get-file-contents :location (cdr (assoc 'functionArgumentLocation info))
                                                       :length (cdr (assoc 'functionArgumentLength info)))))
       (when (and functionArgument invokedFunctionContents)
-        (concat (substring invokedFunctionString 0 (- (cdr (assoc 'offset functionArgument))
-                                                      (cdr (assoc 'offset invokedFunctionContents))))
+        (concat (rtags--safe-substring invokedFunctionString 0 (- (cdr (assoc 'offset functionArgument))
+                                                                  (cdr (assoc 'offset invokedFunctionContents))))
                 (propertize (cdr (assoc 'contents functionArgument)) 'face 'rtags-argument-face)
-                (substring invokedFunctionString (+ (- (cdr (assoc 'offset functionArgument))
-                                                       (cdr (assoc 'offset invokedFunctionContents)))
-                                                    (length (cdr (assoc 'contents functionArgument))))))))))
+                (rtags--safe-substring invokedFunctionString (+ (- (cdr (assoc 'offset functionArgument))
+                                                                   (cdr (assoc 'offset invokedFunctionContents)))
+                                                                (length (cdr (assoc 'contents functionArgument))))))))))
 
 (defun rtags-get-summary-text (&optional max-num-lines)
   "Return a text describing the item at point.
