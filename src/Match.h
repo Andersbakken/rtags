@@ -49,7 +49,7 @@ public:
 
     inline bool match(const String &text) const
     {
-        if (indexIn(text) != -1)
+        if (indexIn(text) != String::npos)
             return true;
         if (mFlags & Flag_StringMatch)
             return mPattern.indexOf(text, 0, (mFlags & Flag_CaseInsensitive
@@ -58,12 +58,12 @@ public:
         return false;
     }
 
-    inline int indexIn(const String &text) const
+    inline size_t indexIn(const String &text) const
     {
-        int index = -1;
+        size_t index = String::npos;
         if (mFlags & Flag_StringMatch)
             index = text.indexOf(mPattern, 0, mFlags & Flag_CaseInsensitive ? String::CaseInsensitive : String::CaseSensitive);
-        if (index == -1 && mFlags & Flag_Regex) {
+        if (index == String::npos && mFlags & Flag_Regex) {
             index = Rct::indexIn(text, mRegex);
         }
         return index;
