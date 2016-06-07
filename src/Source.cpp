@@ -314,10 +314,20 @@ static inline bool isCompiler(const Path &fullPath)
         }
     }
 
-    String compiler = fullPath.fileName();
-    if (compiler.endsWith(".exe"))
-        return true;
 
+    const auto check = [](const String &c) {
+        return (c.startsWith("g++")
+                || c.startsWith("c++")
+                || c.startsWith("clang")
+                || c.startsWith("gcc")
+                || c.startsWith("cc")
+                || c.endsWith(".exe"));
+    };
+
+
+    String compiler = fullPath.fileName();
+    if (check(compiler))
+        return true;
     String c;
     int dash = compiler.lastIndexOf('-');
     if (dash >= 0) {
@@ -325,7 +335,6 @@ static inline bool isCompiler(const Path &fullPath)
     } else {
         c = String(compiler.constData(), compiler.size());
     }
-
     if (c.size() != compiler.size()) {
         bool isVersion = true;
         for (size_t i=0; i<c.size(); ++i) {
@@ -352,12 +361,7 @@ static inline bool isCompiler(const Path &fullPath)
         }
     }
 
-
-    return (c.startsWith("g++")
-            || c.startsWith("c++")
-            || c.startsWith("clang")
-            || c.startsWith("gcc")
-            || c.startsWith("cc"));
+    return check(c);
 }
 
 struct Input {
