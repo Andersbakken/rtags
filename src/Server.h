@@ -104,7 +104,6 @@ public:
         List<Source::Define> defines;
         List<Path> tests;
         Set<Path> ignoredCompilers;
-        List<std::regex> extraCompilers;
         List<String> debugLocations;
     };
     bool init(const Options &options);

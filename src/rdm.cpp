@@ -130,7 +130,6 @@ static void usage(FILE *f)
             "  --enable-NDEBUG|-g                         Don't remove -DNDEBUG from compile lines.\n"
             "  --enable-compiler-manager|-R               Query compilers for their actual include paths instead of letting clang use its own.\n"
             "  --exclude-filter|-X [arg]                  Files to exclude from rdm, default \"" EXCLUDEFILTER_DEFAULT "\".\n"
-            "  --extra-compilers|-U [arg]                 Override additional known compilers.\n"
 
 #ifdef FILEMANAGER_OPT_IN
             "  --filemanager-watch|-M                     Use a file system watcher for filemanager.\n"
@@ -283,7 +282,6 @@ int main(int argc, char** argv)
         { "completion-cache-size", required_argument, 0, 'i' },
         { "completion-no-filter", no_argument, 0, 8 },
         { "max-include-completion-depth", required_argument, 0, 21 },
-        { "extra-compilers", required_argument, 0, 'U' },
         { "allow-Wpedantic", no_argument, 0, 'P' },
         { "enable-compiler-manager", no_argument, 0, 'R' },
         { "enable-NDEBUG", no_argument, 0, 'g' },
@@ -546,9 +544,6 @@ int main(int argc, char** argv)
                         optarg);
                 return 1;
             }
-            break;
-        case 'U':
-            serverOpts.extraCompilers.append(std::regex(optarg));
             break;
         case 'E':
             serverOpts.options |= Server::SeparateDebugAndRelease;
