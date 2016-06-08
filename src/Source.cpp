@@ -312,6 +312,9 @@ static Path resolveCompiler(const Path &unresolved, const Path &cwd, const List<
 
 static inline bool isCompiler(const Path &fullPath, const List<Path> &pathEnvironment)
 {
+    const char *fileName = fullPath.fileName();
+    if (!strcmp(fileName, "ccache"))
+        return true;
     assert(EventLoop::isMainThread());
     static Hash<Path, bool> sCache;
 
