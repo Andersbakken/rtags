@@ -320,7 +320,7 @@ static inline bool isCompiler(const Path &fullPath, const List<Path> &pathEnviro
     if (ok)
         return ret;
 
-    char path[32];
+    char path[PATH_MAX];
     strcpy(path, "/tmp/rtags-compiler-check-XXXXXX.c");
     const int fd = mkstemps(path, 2);
     if (fd == -1) {
