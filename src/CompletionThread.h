@@ -66,6 +66,7 @@ private:
             if (conn)
                 conn->finish();
         }
+        String toString() const;
         Source source;
         Location location;
         Flags<Flag> flags;

@@ -21,9 +21,17 @@
 #include "RTagsLogOutput.h"
 #include "Server.h"
 
+static uint64_t start = 0;
+#if 1
+#define LOG() if (false) debug()
+#else
+#define LOG() error() << "CODE COMPLETION" << String::format<16>("%gs", static_cast<double>(Rct::monoMs() - ::start) / 1000.0)
+#endif
+
 CompletionThread::CompletionThread(int cacheSize)
     : mShutdown(false), mCacheSize(cacheSize), mDump(0), mIndex(0)
 {
+    ::start = Rct::monoMs();
 }
 
 CompletionThread::~CompletionThread()
@@ -100,6 +108,7 @@ void CompletionThread::completeAt(Source &&source, Location location,
                                   Flags<Flag> flags, String &&unsaved,
                                   const std::shared_ptr<Connection> &conn)
 {
+    LOG() << "completeAt" << location << flags;
     Request *request = new Request({ std::forward<Source>(source), location, flags, std::forward<String>(unsaved), conn});
     std::unique_lock<std::mutex> lock(mMutex);
     auto it = mPending.begin();
@@ -174,6 +183,7 @@ bool CompletionThread::compareCompletionCandidates(const Completions::Candidate 
 
 void CompletionThread::process(Request *request)
 {
+    LOG() << "processing" << request->toString();
     // if (!request->unsaved.isEmpty()) {
     //     int line = request->location.line();
     //     int pos = 0;
@@ -205,14 +215,17 @@ void CompletionThread::process(Request *request)
     int processTime = 0;
     SourceFile *&cache = mCacheMap[request->source.fileId];
     if (cache && cache->source != request->source) {
+        LOG() << "cached sourcefile doesn't matched source, discarding" << request->source.sourceFile();
         delete cache;
         cache = 0;
     }
     if (!cache) {
         cache = new SourceFile;
+        LOG() << "creating source file for" << request->source.sourceFile();
         mCacheList.append(cache);
         while (mCacheMap.size() > mCacheSize) {
             SourceFile *c = mCacheList.removeFirst();
+            LOG() << "over cache limit. discarding" << c->source.sourceFile();
             mCacheMap.remove(c->source.fileId);
             delete c;
         }
@@ -244,6 +257,7 @@ void CompletionThread::process(Request *request)
 
     const auto &options = Server::instance()->options();
     if (!cache->translationUnit) {
+        LOG() << "No translationUnit for" << request->source.sourceFile() << "recreating";
         cache->completionsMap.clear();
         cache->completionsList.deleteAll();
         sw.restart();
@@ -266,6 +280,7 @@ void CompletionThread::process(Request *request)
         // error() << "PARSING" << clangLine;
         parseTime = cache->parseTime = sw.restart();
         if (cache->translationUnit) {
+            LOG() << "reparsing translation unit" << request->source.sourceFile();
             cache->translationUnit->reparse(&unsaved, request->unsaved.size() ? 1 : 0);
         }
         reparseTime = cache->reparseTime = sw.elapsed();
@@ -274,6 +289,9 @@ void CompletionThread::process(Request *request)
         cache->unsavedHash = hash;
         cache->lastModified = lastModified;
     } else if (cache->unsavedHash != hash || cache->lastModified != lastModified) {
+        LOG() << "cache mismatch for " << request->source.sourceFile()
+              << "discarding because of" << (cache->unsavedHash != hash ? "unsaved contents" : "modification time");
+
         cache->completionsMap.clear();
         cache->completionsList.deleteAll();
         cache->unsavedHash = hash;
@@ -283,11 +301,14 @@ void CompletionThread::process(Request *request)
         const auto it = cache->completionsMap.find(request->location);
         if (it != cache->completionsMap.end()) {
             if (!(it->second->flags & IncludeMacros) && request->flags & IncludeMacros) {
+                LOG() << "Found cached completions for" << request->location << "but request flags differ, discarding";
                 cache->completionsList.remove(it->second);
                 delete it->second;
                 cache->completionsMap.erase(it);
                 warning("Discarded cached completions because of mismatched macro inclusiveness");
             } else {
+                LOG() << "Found cached completions " << request->location;
+
                 cache->completionsList.moveToEnd(it->second);
                 log(LogLevel::Error, LogOutput::StdOut|LogOutput::TrailingNewLine,
                     "Found completions (%zu) in cache %s:%d:%d",
@@ -312,6 +333,8 @@ void CompletionThread::process(Request *request)
                                                           request->location.line(), request->location.column(),
                                                           &unsaved, unsaved.Length ? 1 : 0, completionFlags);
     completeTime = cache->codeCompleteTime = sw.restart();
+    LOG() << "Generated completions for" << request->location << (results ? "successfully" : "unsuccessfully") << "in" << completeTime << "ms";
+
     ++cache->completions;
     if (results) {
         std::vector<Completions::Candidate> nodes;
@@ -438,11 +461,13 @@ void CompletionThread::process(Request *request)
                 c->candidates[i] = std::move(*nodesPtr[i]);
             printCompletions(c->candidates, request);
             processTime = sw.elapsed();
+            LOG() << "Sent" << nodeCount << "completions for" << request->location;
             warning("Processed %s, parse %d/%d, complete %d, process %d => %d completions (unsaved %zu)%s",
                     request->location.toString().constData(),
                     parseTime, reparseTime, completeTime, processTime, nodeCount, request->unsaved.size(),
                     request->flags & Refresh ? " Refresh" : "");
         } else {
+            LOG() << "No completions available for" << request->location;
             printCompletions(List<Completions::Candidate>(), request);
             error() << "No completion results available" << request->location << results->NumResults;
         }
@@ -635,3 +660,28 @@ bool CompletionThread::isCached(uint32_t fileId, const std::shared_ptr<Project> 
     return false;
 }
 
+
+String CompletionThread::Request::toString() const
+{
+    String ret = location.toString(Location::NoColor);
+    if (!unsaved.isEmpty())
+        ret += String::format<64>(" - Unsaved: %zu", unsaved.size());
+
+    struct {
+        const char *name;
+        const Flag flag;
+    } const f[] = {
+        { "Refresh", Refresh },
+        { "Elisp", Elisp },
+        { "XML", XML },
+        { "JSON", JSON },
+        { "IncludeMacros", IncludeMacros },
+        { "WarmUp", WarmUp },
+    };
+    for (const auto &flag : f) {
+        if (flags & flag.flag) {
+            ret += String::format<64>(" - %s", flag.name);
+        }
+    }
+    return ret;
+}
