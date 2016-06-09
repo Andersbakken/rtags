@@ -35,6 +35,7 @@ public:
     {
         if (conn) {
             conn->disconnected().connect(std::bind(&RTagsLogOutput::remove, this));
+            conn->client()->setLogsEnabled(false);
         }
     }
 
