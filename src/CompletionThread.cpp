@@ -119,8 +119,10 @@ void CompletionThread::prepare(Source &&source, String &&unsaved)
 {
     std::unique_lock<std::mutex> lock(mMutex);
     for (auto req : mPending) {
-        if (req->source == source)
+        if (req->source == source) {
+            req->unsaved = std::move(unsaved);
             return;
+        }
     }
     Request *request = new Request({ std::forward<Source>(source), Location(), WarmUp, std::forward<String>(unsaved), std::shared_ptr<Connection>() });
     mPending.push_back(request);
