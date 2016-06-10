@@ -313,7 +313,7 @@ static Path resolveCompiler(const Path &unresolved, const Path &cwd, const List<
 static inline bool isCompiler(const Path &fullPath, const List<Path> &pathEnvironment)
 {
     const char *fileName = fullPath.fileName();
-    if (!strcmp(fileName, "ccache") || strstr(fileName, "clang") || strstr(fileName, "gcc") || strstr(fileName, "g++"))
+    if (!strcmp(fileName, "ccache") || strstr(fileName, "clang") || strstr(fileName, "gcc") || strstr(fileName, "g++") || !strcmp(fileName, "cc") || !strcmp(fileName, "c++"))
         return true;
     assert(EventLoop::isMainThread());
     static Hash<Path, bool> sCache;
