@@ -1872,7 +1872,7 @@ instead of file from `current-buffer'.
   (with-current-buffer (rtags-get-buffer-create-no-undo "*RTags Log*")
     (goto-char (point-max))
     (setq buffer-read-only nil)
-    (insert "**********************************\n" log "\n")
+    (insert (format "**********************************\n%.0f: %s\n" (float-time) log))
     (setq buffer-read-only t)))
 
 (defvar rtags-symbol-history nil)
