@@ -558,27 +558,28 @@ void CompletionThread::printCompletions(const List<Completions::Candidate> &comp
             raw = true;
         }
         request->conn.reset();
-    }
-    log([&xml, &elisp, &outputs, &raw, &json](const std::shared_ptr<LogOutput> &output) {
-            // error() << "Got a dude" << output->testLog(RTags::DiagnosticsLevel);
-            if (output->testLog(RTags::DiagnosticsLevel)) {
-                std::shared_ptr<Output> out(new Output);
-                out->output = output;
-                if (output->flags() & RTagsLogOutput::Elisp) {
-                    out->flags |= CompletionThread::Elisp;
-                    elisp = true;
-                } else if (output->flags() & RTagsLogOutput::XML) {
-                    out->flags |= CompletionThread::XML;
-                    xml = true;
-                } else if (output->flags() & RTagsLogOutput::JSON) {
-                    out->flags |= CompletionThread::JSON;
-                    json = true;
-                } else {
-                    raw = true;
+    } else {
+        log([&xml, &elisp, &outputs, &raw, &json](const std::shared_ptr<LogOutput> &output) {
+                // error() << "Got a dude" << output->testLog(RTags::DiagnosticsLevel);
+                if (output->testLog(RTags::DiagnosticsLevel)) {
+                    std::shared_ptr<Output> out(new Output);
+                    out->output = output;
+                    if (output->flags() & RTagsLogOutput::Elisp) {
+                        out->flags |= CompletionThread::Elisp;
+                        elisp = true;
+                    } else if (output->flags() & RTagsLogOutput::XML) {
+                        out->flags |= CompletionThread::XML;
+                        xml = true;
+                    } else if (output->flags() & RTagsLogOutput::JSON) {
+                        out->flags |= CompletionThread::JSON;
+                        json = true;
+                    } else {
+                        raw = true;
+                    }
+                    outputs.append(out);
                 }
-                outputs.append(out);
-            }
-        });
+            });
+    }
 
     if (!outputs.isEmpty()) {
         String rawOut, xmlOut, jsonOut, elispOut;
