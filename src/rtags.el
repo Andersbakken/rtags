@@ -1044,8 +1044,6 @@ to only call this when `rtags-socket-file' is defined.
           (unless noerror (error "Can't find rc"))
         (setq rtags-last-request-not-connected nil)
         (setq rtags-last-request-not-indexed nil)
-        (when (and async (not (consp async)))
-          (error "Invalid argument. async must be a cons or nil"))
         (setq arguments (rtags-remove-keyword-params arguments))
         (setq arguments (rtags-remove '(lambda (arg) (not arg)) arguments))
         (setq arguments (mapcar 'rtags-untrampify arguments))
@@ -1107,8 +1105,11 @@ to only call this when `rtags-socket-file' is defined.
           (if (processp result)
               (progn
                 (set-process-query-on-exit-flag result nil)
-                (set-process-filter result (car async))
-                (set-process-sentinel result (cdr async)))
+                (when (car async)
+                  (set-process-filter result (car async)))
+                (when (cdr async)
+                  (set-process-sentinel result (cdr async))))
+            ;; synchronous
             (goto-char (point-min))
             (save-excursion
               (and (cond ((re-search-forward "^Can't seem to connect to server" nil t)
