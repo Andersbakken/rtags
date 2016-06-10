@@ -171,6 +171,7 @@ struct Option opts[] = {
     { RClient::Autotest, "autotest", 0, no_argument, "Turn on behaviors appropriate for running autotests." },
     { RClient::CodeCompleteIncludeMacros, "code-complete-include-macros", 0, no_argument, "Include macros in code completion results." },
     { RClient::CodeCompleteIncludes, "code-complete-includes", 0, no_argument, "Give includes in completion results." },
+    { RClient::CodeCompletionEnabled, "code-completion-enabled", 0, no_argument, "Inform rdm that we're code-completing. Use with --diagnose" },
     { RClient::NoSpellCheckinging, "no-spell-checking", 0, no_argument, "Don't produce spell check info in diagnostics." },
 #ifdef RTAGS_HAS_LUA
     { RClient::VisitASTScript, "visit-ast-script", 0, required_argument, "Use this script visit AST (@file.js|sourcecode)." },
@@ -632,6 +633,9 @@ RClient::ParseStatus RClient::parse(int &argc, char **argv)
             break;
         case CodeCompleteIncludes:
             mQueryFlags |= QueryMessage::CodeCompleteIncludes;
+            break;
+        case CodeCompletionEnabled:
+            mQueryFlags |= QueryMessage::CodeCompletionEnabled;
             break;
         case Autotest:
             mFlags |= Flag_Autotest;

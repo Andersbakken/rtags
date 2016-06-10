@@ -3554,6 +3554,10 @@ other window instead of the current one."
     (let* ((rc (rtags-executable-find "rc"))
            (path (rtags-untrampify (or (buffer-file-name) default-directory)))
            (arguments (list "-T" path "--diagnose" path "--silent-query")))
+      (when (and rtags-completions-enabled
+                 (or (and (boundp 'company-mode) company-mode)
+                     (and (boundp 'auto-complete-mode) auto-complete-mode)))
+        (push "--code-completion-enabled" arguments))
       (when rc
         (apply #'start-file-process "rtags-update-current-project" nil rc arguments))))
   t)

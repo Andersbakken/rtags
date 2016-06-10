@@ -891,6 +891,11 @@ void Server::diagnose(const std::shared_ptr<QueryMessage> &query, const std::sha
 
     project->diagnose(fileId);
     conn->finish();
+    if (query->flags() & QueryMessage::CodeCompletionEnabled && !mCompletionThread) {
+        mCompletionThread = new CompletionThread(mOptions.completionCacheSize);
+        mCompletionThread->start();
+    }
+
     if (mCompletionThread && !mCompletionThread->isCached(fileId, project)) {
         Source source = project->sources(fileId).value(query->buildIndex());
         if (source.isNull()) {

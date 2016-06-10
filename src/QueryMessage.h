@@ -118,7 +118,8 @@ public:
         NoSpellChecking = (1ull << 38),
         CodeCompleteIncludes = (1ull << 39),
         TokensIncludeSymbols = (1ull << 40),
-        JSON = (1ull << 41)
+        JSON = (1ull << 41),
+        CodeCompletionEnabled = (1ull << 42)
     };
 
     QueryMessage(Type type = Invalid);
