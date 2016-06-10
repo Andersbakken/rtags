@@ -76,7 +76,7 @@ int ReferencesJob::execute()
 
         if (sym.isReference()) {
             const Symbol target = proj->findTarget(sym);
-            if (!target.isNull())
+            if (!target.isNull() && target.kind != CXCursor_MacroExpansion)
                 sym = target;
         }
         if (sym.isNull())

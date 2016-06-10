@@ -1588,7 +1588,7 @@ static Set<Symbol> findReferences(const Set<Symbol> &inputs,
             auto targets = project->openTargets(dep);
             if (targets) {
                 // SBROOT
-                String tusr = Sandbox::encoded(input.usr);
+                const String tusr = Sandbox::encoded(input.usr);
                 const Set<Location> locations = targets->value(tusr);
                 // error() << "Got locations for usr" << input.usr << locations;
                 for (const auto &loc : locations) {
@@ -1598,13 +1598,13 @@ static Set<Symbol> findReferences(const Set<Symbol> &inputs,
                 }
             }
         };
-        const Set<uint32_t> seen = project->dependencies(input.location.fileId(), Project::DependsOnArg);
-        for (auto dep : seen)
+        const Set<uint32_t> deps = project->dependencies(input.location.fileId(), Project::DependsOnArg);
+        for (auto dep : deps)
             process(dep);
 
         if (ret.isEmpty()) {
             for (auto dep : project->dependencies()) {
-                if (!seen.contains(dep.first))
+                if (!deps.contains(dep.first))
                     process(dep.first);
             }
         }
@@ -1619,16 +1619,26 @@ static Set<Symbol> findReferences(const Symbol &in,
 {
     Set<Symbol> inputs;
     Symbol s;
+    Location location;
     if (in.isReference()) {
         const Symbol target = project->findTarget(in);
         if (!target.isNull()) {
-            s = target;
-        } else {
-            s = in;
+            if (target.kind != CXCursor_MacroExpansion) {
+                s = target;
+            } else {
+                s = in;
+                auto usrs = project->findTargetUsrs(s.location);
+                if (!usrs.isEmpty())
+                    s.usr = *usrs.begin();
+                // error() << "GOT USRS" << usrs;
+                s.location = location = target.location;
+            }
         }
-    } else {
-        s = in;
     }
+    if (s.isNull())
+        s = in;
+    if (location.isNull())
+        location = s.location;
 
     // error() << "findReferences" << s.location << in.location << s.kind;
     switch (s.kind) {
@@ -1651,7 +1661,7 @@ static Set<Symbol> findReferences(const Symbol &in,
     case CXCursor_Destructor:
     case CXCursor_ConversionFunction:
     case CXCursor_NamespaceAlias:
-        inputs = project->findByUsr(s.usr, s.location.fileId(),
+        inputs = project->findByUsr(s.usr, location.fileId(),
                                     s.isDefinition() ? Project::ArgDependsOn : Project::DependsOnArg,
                                     in.location);
         break;
