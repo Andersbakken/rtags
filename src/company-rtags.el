@@ -138,7 +138,8 @@ Maximum wait time is: (* company-rtags-max-wait company-async-wait)"
               (put-text-property 0 1 'meta-insert (concat text (if (eq rtags-company-last-completion-prefix-type 'company-rtags-include-quote) "\"" ">")) text)
               (push text results))
             (setq alternatives (cdr alternatives))))
-          results)
+        results)
+    ;; this needs to call code-complete-at --synchronous-completions
     (let ((updated (rtags-update-completions)))
       (when updated
         (when (numberp updated)
@@ -173,33 +174,41 @@ Maximum wait time is: (* company-rtags-max-wait company-async-wait)"
 (defun rtags-company-completions-calculate-maxwidth ()
   (setq rtags-company-completions-maxwidth (max 10 (- (window-width) (- (rtags-calculate-completion-point) (point-at-bol))))))
 
+(defun rtags-company-code-complete-at-sentinel (process event)
+  (let ((status (process-status process)))
+    (when (eq status 'exit)
+      (with-current-buffer (process-buffer process)
+        (goto-char (point-min))
+        (when (looking-at "(")
+          (let ((data
+                 (condition-case nil
+                     (eval (read (current-buffer)))
+                   (error
+                    (message "****** Got Completion Error ******")
+                    (setq rtags-diagnostics-errors
+                          (append rtags-diagnostics-errors
+                                  (list (buffer-substring-no-properties (point-min) (point-max)))))
+                    nil))))
+            (when (and (eq (car data) 'completions)
+                       (string= rtags-company-last-completion-location (caadr data)))
+              (let ((all (cadadr data))
+                    (completions))
+                (while all
+                  (when (company-rtags--valid-candidate rtags-company-last-completion-prefix (car all))
+                    (push (company-rtags--make-candidate (car all)) completions))
+                  (setq all (cdr all)))
+                (funcall rtags-company-last-completion-callback (reverse completions))))))))
+    (when (memq status '(exit signal closed failed))
+      (kill-buffer (process-buffer process)))))
+
 (defun rtags-company-update-completions (cb)
   (setq rtags-company-last-completion-callback cb)
-  (rtags-update-completions nil rtags-company-last-completion-location)
-  (rtags-company-diagnostics-hook))
+  (let ((file (buffer-file-name)))
+    (with-current-buffer (generate-new-buffer "*RTags Completions*")
+      (rtags-call-rc :path file
+                     :async (cons nil 'rtags-company-code-complete-at-sentinel)
+                     "--code-complete-at" rtags-company-last-completion-location "--synchronous-completions" "--elisp"))))
 
-(defun rtags-company-diagnostics-hook ()
-  (when (and rtags-company-last-completion-callback
-             rtags-last-completions
-             (string= (car rtags-last-completions) rtags-company-last-completion-location))
-    (let ((results nil)
-          (candidates (cadr rtags-last-completions)))
-      (while candidates
-        (when (company-rtags--valid-candidate rtags-company-last-completion-prefix (car candidates))
-          (push (company-rtags--make-candidate (car candidates)) results))
-        (setq candidates (cdr candidates)))
-      ;; (message "got candidates %d/%d %s %s %s "
-      ;;          (length results)
-      ;;          (length (cadr rtags-last-completions))
-      ;;          rtags-company-last-completion-prefix
-      ;;          (cond ((eq rtags-company-last-completion-prefix-type 'company-rtags-dot) "dot")
-      ;;                ((eq rtags-company-last-completion-prefix-type 'company-rtags-colons) "colons")
-      ;;                ((eq rtags-company-last-completion-prefix-type 'company-rtags-arrow) "arrow")
-      ;;                (t "nil"))
-      ;;          (buffer-name))
-      (funcall rtags-company-last-completion-callback (reverse results)))))
-
-(add-hook 'rtags-diagnostics-hook 'rtags-company-diagnostics-hook)
 
 (defun company-rtags (command &optional arg &rest ignored)
   "`company-mode' completion back-end for RTags."
