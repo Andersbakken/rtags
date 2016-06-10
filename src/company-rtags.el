@@ -203,10 +203,11 @@ Maximum wait time is: (* company-rtags-max-wait company-async-wait)"
 
 (defun rtags-company-update-completions (cb)
   (setq rtags-company-last-completion-callback cb)
-  (let ((file (buffer-file-name)))
+  (let ((buf (current-buffer)))
     (with-current-buffer (generate-new-buffer "*RTags Completions*")
-      (rtags-call-rc :path file
+      (rtags-call-rc :path (buffer-file-name buf)
                      :async (cons nil 'rtags-company-code-complete-at-sentinel)
+                     :unsaved (and (buffer-modified-p buf) buf)
                      "--code-complete-at" rtags-company-last-completion-location "--synchronous-completions" "--elisp"))))
 
 
