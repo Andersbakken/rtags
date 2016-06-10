@@ -459,17 +459,24 @@ void CompletionThread::process(Request *request)
             c->candidates.resize(nodeCount);
             for (int i=0; i<nodeCount; ++i)
                 c->candidates[i] = std::move(*nodesPtr[i]);
-            printCompletions(c->candidates, request);
-            processTime = sw.elapsed();
-            LOG() << "Sent" << nodeCount << "completions for" << request->location;
+            if (!(request->flags & Refresh)) {
+                printCompletions(c->candidates, request);
+                processTime = sw.elapsed();
+                LOG() << "Sent" << nodeCount << "completions for" << request->location;
+            } else {
+                LOG() << "Prepared" << nodeCount << "completions for" << request->location;
+            }
             warning("Processed %s, parse %d/%d, complete %d, process %d => %d completions (unsaved %zu)%s",
                     request->location.toString().constData(),
                     parseTime, reparseTime, completeTime, processTime, nodeCount, request->unsaved.size(),
                     request->flags & Refresh ? " Refresh" : "");
-        } else {
+
+        } else if (!(request->flags & Refresh)) {
             LOG() << "No completions available for" << request->location;
             printCompletions(List<Completions::Candidate>(), request);
             error() << "No completion results available" << request->location << results->NumResults;
+        } else {
+            LOG() << "No completions available for" << request->location << "refresh";
         }
         clang_disposeCodeCompleteResults(results);
     }
