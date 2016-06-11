@@ -30,19 +30,11 @@
 #include "RTags.h"
 #include "RTagsLogOutput.h"
 
-struct Option {
-    const RClient::OptionType option;
-    const char *longOpt;
-    const char shortOpt;
-    const int argument;
-    const char *description;
-};
-
 #define DEFAULT_CONNECT_TIMEOUT 1000
 #define XSTR(s) #s
 #define STR(s) XSTR(s)
 
-struct Option opts[] = {
+struct CommandLineParser::Option<RClient::OptionType> opts[] = {
     { RClient::None, 0, 0, 0, "Options:" },
     { RClient::Verbose, "verbose", 'v', no_argument, "Be more verbose." },
     { RClient::Version, "version", 0, no_argument, "Print current version." },
@@ -180,85 +172,6 @@ struct Option opts[] = {
     { RClient::None, 0, 0, 0, 0 }
 };
 
-static void help(FILE *f, const char* app)
-{
-    List<String> out;
-    int longest = 0;
-    for (int i=0; opts[i].description; ++i) {
-        if (!opts[i].longOpt && !opts[i].shortOpt) {
-            out.append(String());
-        } else {
-            out.append(String::format<64>("  %s%s%s%s",
-                                          opts[i].longOpt ? String::format<4>("--%s", opts[i].longOpt).constData() : "",
-                                          opts[i].longOpt && opts[i].shortOpt ? "|" : "",
-                                          opts[i].shortOpt ? String::format<2>("-%c", opts[i].shortOpt).constData() : "",
-                                          opts[i].argument == required_argument ? " [arg] "
-                                          : opts[i].argument == optional_argument ? " [optional] " : ""));
-            longest = std::max<int>(out[i].size(), longest);
-        }
-    }
-    fprintf(f, "%s options...\n", app);
-    const int count = out.size();
-    for (int i=0; i<count; ++i) {
-        if (out.at(i).isEmpty()) {
-            fprintf(f, "%s\n", opts[i].description);
-        } else {
-            fprintf(f, "%s%s %s\n",
-                    out.at(i).constData(),
-                    String(longest - out.at(i).size(), ' ').constData(),
-                    opts[i].description);
-        }
-    }
-}
-
-static void man()
-{
-    String out =
-        "<!DOCTYPE manpage SYSTEM \"http://masqmail.cx/xmltoman/xmltoman.dtd\">\n"
-        "<?xml-stylesheet type=\"text/xsl\" href=\"http://masqmail.cx/xmltoman/xmltoman.xsl\"?>\n"
-        "\n"
-        "<manpage name=\"rc\" section=\"1\" desc=\"command line client for RTags\">\n"
-        "\n"
-        "<synopsis>\n"
-        "  <cmd>rc <arg>file.1.xml</arg> > file.1</cmd>\n"
-        "</synopsis>\n"
-        "\n"
-        "<description>\n"
-        "\n"
-        "<p>rc is a command line client used to control RTags.</p>\n"
-        "\n"
-        "</description>\n";
-    for (int i=0; opts[i].description; ++i) {
-        if (*opts[i].description) {
-            if (!opts[i].longOpt && !opts[i].shortOpt) {
-                if (i)
-                    out.append("</section>\n");
-                out.append(String::format<128>("<section name=\"%s\">\n", opts[i].description));
-            } else {
-                out.append(String::format<64>("  <option>%s%s%s%s<optdesc>%s</optdesc></option>\n",
-                                              opts[i].longOpt ? String::format<4>("--%s", opts[i].longOpt).constData() : "",
-                                              opts[i].longOpt && opts[i].shortOpt ? "|" : "",
-                                              opts[i].shortOpt ? String::format<2>("-%c", opts[i].shortOpt).constData() : "",
-                                              opts[i].argument == required_argument ? " [arg] "
-                                              : opts[i].argument == optional_argument ? " [optional] " : "",
-                                              opts[i].description));
-            }
-        }
-    }
-    out.append("</section>\n"
-               "<section name=\"Authors\">\n"
-               "  <p>RTags was written by Jan Erik Hanssen &lt;jhanssen@gmail.com&gt; and Anders Bakken &lt;abakken@gmail.com&gt;</p>\n"
-               "</section>\n"
-               "<section name=\"See also\">\n"
-               "  <p><manref name=\"rdm\" section=\"1\"/></p>\n"
-               "</section>\n"
-               "<section name=\"Comments\">\n"
-               "  <p>This man page was written using <manref name=\"xmltoman\" section=\"1\" href=\"http://masqmail.cx/xmltoman/\"/>.</p>\n"
-               "</section>\n"
-               "</manpage>\n");
-    printf("%s", out.constData());
-}
-
 class RCCommand
 {
 public:
@@ -360,7 +273,6 @@ public:
 };
 
 const LogLevel RdmLogCommand::Default(-1);
-
 
 class CompileCommand : public RCCommand
 {
@@ -498,110 +410,33 @@ int RClient::exec()
     return ret;
 }
 
-RClient::ParseStatus RClient::parse(int &argc, char **argv)
+CommandLineParser::ParseStatus RClient::parse(int &argc, char **argv)
 {
     Rct::findExecutablePath(*argv);
     mSocketFile = Path::home() + ".rdm";
 
-    List<option> options;
-    options.reserve(sizeof(opts) / sizeof(Option));
     List<std::shared_ptr<QueryCommand> > projectCommands;
-
-    String shortOptionString;
-    Hash<int, Option*> shortOptions, longOptions;
-    for (int i=0; opts[i].description; ++i) {
-        if (opts[i].option != None) {
-            const option opt = { opts[i].longOpt, opts[i].argument, 0, opts[i].shortOpt };
-            if (opts[i].shortOpt) {
-                shortOptionString.append(opts[i].shortOpt);
-                switch (opts[i].argument) {
-                case no_argument:
-                    break;
-                case required_argument:
-                    shortOptionString.append(':');
-                    break;
-                case optional_argument:
-                    shortOptionString.append("::");
-                    break;
-                }
-                assert(!shortOptions.contains(opts[i].shortOpt));
-                shortOptions[opts[i].shortOpt] = &opts[i];
-            }
-            if (opts[i].longOpt)
-                longOptions[options.size()] = &opts[i];
-            options.push_back(opt);
-        }
-    }
-
-    if (getenv("RTAGS_DUMP_UNUSED")) {
-        String unused;
-        for (int i=0; i<26; ++i) {
-            if (!shortOptionString.contains('a' + i))
-                unused.append('a' + i);
-            if (!shortOptionString.contains('A' + i))
-                unused.append('A' + i);
-        }
-        printf("Unused: %s\n", unused.constData());
-        for (int i=0; opts[i].description; ++i) {
-            if (opts[i].longOpt) {
-                if (!opts[i].shortOpt) {
-                    printf("No shortoption for %s\n", opts[i].longOpt);
-                } else if (opts[i].longOpt[0] != opts[i].shortOpt) {
-                    printf("Not ideal option for %s|%c\n", opts[i].longOpt, opts[i].shortOpt);
-                }
-            }
-        }
-        return Parse_Ok;
-    }
-
-    {
-        const option opt = { 0, 0, 0, 0 };
-        options.push_back(opt);
-    }
 
     Path logFile;
     Flags<LogFlag> logFlags = LogStderr;
 
-    enum State {
-        Parsing,
-        Done,
-        Error
-    } state = Parsing;
-    while (true) {
-        int idx = -1;
-        const int c = getopt_long(argc, argv, shortOptionString.constData(), options.data(), &idx);
-        switch (c) {
-        case -1:
-            state = Done;
-            break;
-        case '?':
-        case ':':
-            state = Error;
-            break;
-        default:
-            break;
-        }
-        if (state != Parsing)
-            break;
+    if (!isatty(STDOUT_FILENO)) {
+        mQueryFlags |= QueryMessage::NoColor;
+    }
 
-        const Option *opt = (idx == -1 ? shortOptions.value(c) : longOptions.value(idx));
-        assert(opt);
-
-        if (!isatty(STDOUT_FILENO)) {
-            mQueryFlags |= QueryMessage::NoColor;
-        }
-
-        switch (opt->option) {
+    std::function<CommandLineParser::ParseStatus(RClient::OptionType type)> cb;
+    cb = [&](RClient::OptionType type) -> CommandLineParser::ParseStatus {
+        switch (type) {
         case None:
         case NumOptions:
             assert(0);
             break;
         case Help:
-            help(stdout, argv[0]);
-            return Parse_Ok;
+        CommandLineParser::help(stdout, argv[0], opts, sizeof(opts) / sizeof(opts[0]));
+            return CommandLineParser::Parse_Ok;
         case Man:
-            man();
-            return Parse_Ok;
+            CommandLineParser::man(opts, sizeof(opts) / sizeof(opts[0]));
+            return CommandLineParser::Parse_Ok;
         case SocketFile:
             mSocketFile = optarg;
             break;
@@ -610,15 +445,16 @@ RClient::ParseStatus RClient::parse(int &argc, char **argv)
             const int colon = mTcpHost.lastIndexOf(':');
             if (colon == -1) {
                 fprintf(stderr, "invalid --socket-address %s\n", optarg);
-                return Parse_Error;
+                return CommandLineParser::Parse_Error;
             }
             mTcpPort = atoi(optarg + colon + 1);
             if (!mTcpPort) {
                 fprintf(stderr, "invalid --socket-address %s\n", optarg);
-                return Parse_Error;
+                return CommandLineParser::Parse_Error;
             }
             mTcpHost.truncate(colon);
-            break; }
+            break;
+        }
         case GuessFlags:
             mGuessFlags = true;
             break;
@@ -728,16 +564,18 @@ RClient::ParseStatus RClient::parse(int &argc, char **argv)
             Path p = optarg;
             p.resolve();
             mPathFilters.insert({ p, QueryMessage::PathFilter::Self });
-            break; }
+            break;
+        }
         case DependencyFilter: {
             Path p = optarg;
             p.resolve();
             if (!p.isFile()) {
                 fprintf(stderr, "%s doesn't seem to be a file\n", optarg);
-                return Parse_Error;
+                return CommandLineParser::Parse_Error;
             }
             mPathFilters.insert({ p, QueryMessage::PathFilter::Dependency });
-            break; }
+            break;
+        }
         case KindFilter:
             mKindFilters.insert(optarg);
             break;
@@ -749,21 +587,22 @@ RClient::ParseStatus RClient::parse(int &argc, char **argv)
             mMinOffset = strtoul(optarg, &end, 10);
             if (*end != '-') {
                 fprintf(stderr, "Can't parse range, must be uint-uint. E.g. 1-123\n");
-                return Parse_Error;
+                return CommandLineParser::Parse_Error;
             }
             mMaxOffset = strtoul(end + 1, &end, 10);
             if (*end) {
                 fprintf(stderr, "Can't parse range, must be uint-uint. E.g. 1-123\n");
-                return Parse_Error;
+                return CommandLineParser::Parse_Error;
             }
             if (mMaxOffset <= mMinOffset || mMinOffset < 0) {
                 fprintf(stderr, "Invalid range (%d-%d), must be uint-uint. E.g. 1-123\n", mMinOffset, mMaxOffset);
-                return Parse_Error;
+                return CommandLineParser::Parse_Error;
             }
-            break; }
+            break;
+        }
         case Version:
             fprintf(stdout, "%s\n", RTags::versionString().constData());
-            return Parse_Ok;
+            return CommandLineParser::Parse_Ok;
         case Verbose:
             ++mLogLevel;
             break;
@@ -772,11 +611,12 @@ RClient::ParseStatus RClient::parse(int &argc, char **argv)
             const String encoded = Location::encode(optarg);
             if (encoded.isEmpty()) {
                 fprintf(stderr, "Can't resolve argument %s\n", optarg);
-                return Parse_Error;
+                return CommandLineParser::Parse_Error;
             }
 
-            addQuery(opt->option == CodeCompleteAt ? QueryMessage::CodeCompleteAt : QueryMessage::PrepareCodeCompleteAt, encoded);
-            break; }
+            addQuery(type == CodeCompleteAt ? QueryMessage::CodeCompleteAt : QueryMessage::PrepareCodeCompleteAt, encoded);
+            break;
+        }
         case Silent:
             mLogLevel = LogLevel::None;
             break;
@@ -797,21 +637,22 @@ RClient::ParseStatus RClient::parse(int &argc, char **argv)
             mBuildIndex = String(optarg).toULongLong(&ok);
             if (!ok) {
                 fprintf(stderr, "--build-index [arg] must be >= 0\n");
-                return Parse_Error;
+                return CommandLineParser::Parse_Error;
             }
-            break; }
+            break;
+        }
         case ConnectTimeout:
             mConnectTimeout = atoi(optarg);
             if (mConnectTimeout < 0) {
                 fprintf(stderr, "--connect-timeout [arg] must be >= 0\n");
-                return Parse_Error;
+                return CommandLineParser::Parse_Error;
             }
             break;
         case Max:
             mMax = atoi(optarg);
             if (mMax < 0) {
                 fprintf(stderr, "-M [arg] must be >= 0\n");
-                return Parse_Error;
+                return CommandLineParser::Parse_Error;
             }
             break;
         case Timeout:
@@ -820,7 +661,7 @@ RClient::ParseStatus RClient::parse(int &argc, char **argv)
                 mTimeout = -1;
             } else if (mTimeout < 0) {
                 fprintf(stderr, "-y [arg] must be >= 0\n");
-                return Parse_Error;
+                return CommandLineParser::Parse_Error;
             }
             break;
         case UnsavedFile: {
@@ -828,28 +669,28 @@ RClient::ParseStatus RClient::parse(int &argc, char **argv)
             const int colon = arg.lastIndexOf(':');
             if (colon == -1) {
                 fprintf(stderr, "Can't parse -u [%s]\n", optarg);
-                return Parse_Error;
+                return CommandLineParser::Parse_Error;
             }
             const int bytes = atoi(arg.constData() + colon + 1);
             if (!bytes) {
                 fprintf(stderr, "Can't parse -u [%s]\n", optarg);
-                return Parse_Error;
+                return CommandLineParser::Parse_Error;
             }
             const Path path = Path::resolved(arg.left(colon));
             if (!path.isFile()) {
                 fprintf(stderr, "Can't open [%s] for reading\n", arg.left(colon).nullTerminated());
-                return Parse_Error;
+                return CommandLineParser::Parse_Error;
             }
 
             String contents(bytes, '\0');
             const int r = fread(contents.data(), 1, bytes, stdin);
             if (r != bytes) {
-                fprintf(stderr, "Read error %d (%s). Got %d, expected %d\n",
-                        errno, Rct::strerror(errno).constData(), r, bytes);
-                return Parse_Error;
+                fprintf(stderr, "Read error %d (%s). Got %d, expected %d\n", errno, Rct::strerror(errno).constData(), r, bytes);
+                return CommandLineParser::Parse_Error;
             }
             mUnsavedFiles[path] = contents;
-            break; }
+            break;
+        }
         case FollowLocation:
         case SymbolInfo:
         case ClassHierarchy:
@@ -857,17 +698,27 @@ RClient::ParseStatus RClient::parse(int &argc, char **argv)
             const String encoded = Location::encode(optarg);
             if (encoded.isEmpty()) {
                 fprintf(stderr, "Can't resolve argument %s\n", optarg);
-                return Parse_Error;
+                return CommandLineParser::Parse_Error;
             }
-            QueryMessage::Type type = QueryMessage::Invalid;
-            switch (opt->option) {
-            case FollowLocation: type = QueryMessage::FollowLocation; break;
-            case SymbolInfo: type = QueryMessage::SymbolInfo; break;
-            case ReferenceLocation: type = QueryMessage::ReferencesLocation; break;
-            case ClassHierarchy: type = QueryMessage::ClassHierarchy; break;
-            default: assert(0); break;
+            QueryMessage::Type queryType = QueryMessage::Invalid;
+            switch (type) {
+            case FollowLocation:
+                queryType = QueryMessage::FollowLocation;
+                break;
+            case SymbolInfo:
+                queryType = QueryMessage::SymbolInfo;
+                break;
+            case ReferenceLocation:
+                queryType = QueryMessage::ReferencesLocation;
+                break;
+            case ClassHierarchy:
+                queryType = QueryMessage::ClassHierarchy;
+                break;
+            default:
+                assert(0);
+                break;
             }
-            addQuery(type, encoded, QueryMessage::HasLocation);
+            addQuery(queryType, encoded, QueryMessage::HasLocation);
             break; }
         case CurrentFile:
             mCurrentFile.append(Path::resolved(optarg));
@@ -903,11 +754,12 @@ RClient::ParseStatus RClient::parse(int &argc, char **argv)
                 exit = String(arg).toLongLong(&ok);
                 if (!ok) {
                     fprintf(stderr, "Invalid argument to -q\n");
-                    return Parse_Error;
+                    return CommandLineParser::Parse_Error;
                 }
             }
             addQuitCommand(exit);
-            break; }
+            break;
+        }
         case DeleteProject:
             addQuery(QueryMessage::DeleteProject, optarg);
             break;
@@ -919,20 +771,21 @@ RClient::ParseStatus RClient::parse(int &argc, char **argv)
                 arg = argv[optind++];
             }
             addQuery(QueryMessage::DebugLocations, arg);
-            break; }
+            break;
+        }
         case SendDiagnostics:
             addQuery(QueryMessage::SendDiagnostics, optarg);
             break;
         case FindProjectRoot: {
             const Path p = Path::resolved(optarg);
-            printf("findProjectRoot [%s] => [%s]\n", p.constData(),
-                   RTags::findProjectRoot(p, RTags::SourceRoot).constData());
-            return Parse_Ok; }
+            printf("findProjectRoot [%s] => [%s]\n", p.constData(), RTags::findProjectRoot(p, RTags::SourceRoot).constData());
+            return CommandLineParser::Parse_Ok;
+        }
         case FindProjectBuildRoot: {
             const Path p = Path::resolved(optarg);
-            printf("findProjectRoot [%s] => [%s]\n", p.constData(),
-                   RTags::findProjectRoot(p, RTags::BuildRoot).constData());
-            return Parse_Ok; }
+            printf("findProjectRoot [%s] => [%s]\n", p.constData(), RTags::findProjectRoot(p, RTags::BuildRoot).constData());
+            return CommandLineParser::Parse_Ok;
+        }
         case RTagsConfig: {
             const Path p = Path::resolved(optarg);
             Map<String, String> config = RTags::rtagsConfig(p);
@@ -940,7 +793,8 @@ RClient::ParseStatus RClient::parse(int &argc, char **argv)
             for (const auto &it : config) {
                 printf("%s: \"%s\"\n", it.first.constData(), it.second.constData());
             }
-            return Parse_Ok; }
+            return CommandLineParser::Parse_Ok;
+        }
         case CurrentProject:
             addQuery(QueryMessage::Project, String(), QueryMessage::CurrentProjectOnly);
             break;
@@ -955,20 +809,44 @@ RClient::ParseStatus RClient::parse(int &argc, char **argv)
         case JobCount:
         case Status: {
             Flags<QueryMessage::Flag> extraQueryFlags;
-            QueryMessage::Type type = QueryMessage::Invalid;
+            QueryMessage::Type queryType = QueryMessage::Invalid;
             bool resolve = true;
-            switch (opt->option) {
-            case CheckReindex: type = QueryMessage::CheckReindex; break;
-            case Reindex: type = QueryMessage::Reindex; break;
-            case Project: type = QueryMessage::Project; break;
-            case FindFile: type = QueryMessage::FindFile; resolve = false; break;
-            case Sources: type = QueryMessage::Sources; break;
-            case IncludeFile: type = QueryMessage::IncludeFile; resolve = false; break;
-            case Status: type = QueryMessage::Status; break;
-            case ListSymbols: type = QueryMessage::ListSymbols; break;
-            case FindSymbols: type = QueryMessage::FindSymbols; break;
-            case JobCount: type = QueryMessage::JobCount; break;
-            default: assert(0); break;
+            switch (type) {
+            case CheckReindex:
+                queryType = QueryMessage::CheckReindex;
+                break;
+            case Reindex:
+                queryType = QueryMessage::Reindex;
+                break;
+            case Project:
+                queryType = QueryMessage::Project;
+                break;
+            case FindFile:
+                queryType = QueryMessage::FindFile;
+                resolve = false;
+                break;
+            case Sources:
+                queryType = QueryMessage::Sources;
+                break;
+            case IncludeFile:
+                queryType = QueryMessage::IncludeFile;
+                resolve = false;
+                break;
+            case Status:
+                queryType = QueryMessage::Status;
+                break;
+            case ListSymbols:
+                queryType = QueryMessage::ListSymbols;
+                break;
+            case FindSymbols:
+                queryType = QueryMessage::FindSymbols;
+                break;
+            case JobCount:
+                queryType = QueryMessage::JobCount;
+                break;
+            default:
+                assert(0);
+                break;
             }
 
             const char *arg = 0;
@@ -981,15 +859,15 @@ RClient::ParseStatus RClient::parse(int &argc, char **argv)
                 Path p(arg);
                 if (resolve && p.exists()) {
                     p.resolve();
-                    addQuery(type, p, extraQueryFlags);
+                    addQuery(queryType, p, extraQueryFlags);
                 } else {
-                    addQuery(type, arg, extraQueryFlags);
+                    addQuery(queryType, arg, extraQueryFlags);
                 }
             } else {
-                addQuery(type, String(), extraQueryFlags);
+                addQuery(queryType, String(), extraQueryFlags);
             }
             assert(!mCommands.isEmpty());
-            if (type == QueryMessage::Project)
+            if (queryType == QueryMessage::Project)
                 projectCommands.append(std::static_pointer_cast<QueryCommand>(mCommands.back()));
             break; }
         case ListBuffers:
@@ -997,27 +875,27 @@ RClient::ParseStatus RClient::parse(int &argc, char **argv)
             break;
         case ListCursorKinds: {
             auto print = [](CXCursorKind from, CXCursorKind to) {
-                for (int i=from; i<=to; ++i) {
+                for (int i = from; i <= to; ++i) {
                     const CXCursorKind kind = static_cast<CXCursorKind>(i);
                     String spelling = RTags::eatString(clang_getCursorKindSpelling(kind));
                     spelling.remove(' ');
-                    Log(LogLevel::Error, LogOutput::StdOut|LogOutput::TrailingNewLine) << spelling;
+                    Log(LogLevel::Error, LogOutput::StdOut | LogOutput::TrailingNewLine) << spelling;
                 }
             };
-            Log(LogLevel::Error, LogOutput::StdOut|LogOutput::TrailingNewLine) << "Declarations:";
+            Log(LogLevel::Error, LogOutput::StdOut | LogOutput::TrailingNewLine) << "Declarations:";
             print(CXCursor_FirstDecl, CXCursor_LastDecl);
             print(CXCursor_FirstExtraDecl, CXCursor_LastExtraDecl);
-            Log(LogLevel::Error, LogOutput::StdOut|LogOutput::TrailingNewLine) << "References:";
+            Log(LogLevel::Error, LogOutput::StdOut | LogOutput::TrailingNewLine) << "References:";
             print(CXCursor_FirstRef, CXCursor_LastRef);
-            Log(LogLevel::Error, LogOutput::StdOut|LogOutput::TrailingNewLine) << "Expressions:";
+            Log(LogLevel::Error, LogOutput::StdOut | LogOutput::TrailingNewLine) << "Expressions:";
             print(CXCursor_FirstExpr, CXCursor_LastExpr);
-            Log(LogLevel::Error, LogOutput::StdOut|LogOutput::TrailingNewLine) << "Statements:";
+            Log(LogLevel::Error, LogOutput::StdOut | LogOutput::TrailingNewLine) << "Statements:";
             print(CXCursor_FirstStmt, CXCursor_LastStmt);
-            Log(LogLevel::Error, LogOutput::StdOut|LogOutput::TrailingNewLine) << "Attributes:";
+            Log(LogLevel::Error, LogOutput::StdOut | LogOutput::TrailingNewLine) << "Attributes:";
             print(CXCursor_FirstAttr, CXCursor_LastAttr);
-            Log(LogLevel::Error, LogOutput::StdOut|LogOutput::TrailingNewLine) << "Preprocessing:";
+            Log(LogLevel::Error, LogOutput::StdOut | LogOutput::TrailingNewLine) << "Preprocessing:";
             print(CXCursor_FirstPreprocessing, CXCursor_LastPreprocessing);
-            return Parse_Ok; }
+            return CommandLineParser::Parse_Ok; }
         case SetBuffers: {
             const char *arg = 0;
             if (optarg) {
@@ -1058,7 +936,7 @@ RClient::ParseStatus RClient::parse(int &argc, char **argv)
             addQuery(QueryMessage::SetBuffers, encoded);
             break; }
         case LoadCompilationDatabase: {
-#if CLANG_VERSION_MAJOR > 3 || (CLANG_VERSION_MAJOR == 3 && CLANG_VERSION_MINOR > 3)
+    #if CLANG_VERSION_MAJOR > 3 || (CLANG_VERSION_MAJOR == 3 && CLANG_VERSION_MINOR > 3)
             Path dir;
             if (optarg) {
                 dir = optarg;
@@ -1070,14 +948,14 @@ RClient::ParseStatus RClient::parse(int &argc, char **argv)
             dir.resolve(Path::MakeAbsolute);
             if (!dir.exists()) {
                 fprintf(stderr, "%s does not seem to exist\n", dir.constData());
-                return Parse_Error;
+                return CommandLineParser::Parse_Error;
             }
             if (!dir.isDir()) {
                 if (dir.isFile() && dir.endsWith("/compile_commands.json")) {
                     dir = dir.parentDir();
                 } else {
                     fprintf(stderr, "%s is not a directory\n", dir.constData());
-                    return Parse_Error;
+                    return CommandLineParser::Parse_Error;
                 }
             }
             if (!dir.endsWith('/'))
@@ -1085,10 +963,10 @@ RClient::ParseStatus RClient::parse(int &argc, char **argv)
             const Path file = dir + "compile_commands.json";
             if (!file.isFile()) {
                 fprintf(stderr, "no compile_commands.json file in %s\n", dir.constData());
-                return Parse_Error;
+                return CommandLineParser::Parse_Error;
             }
             addCompile(dir);
-#endif
+    #endif
             break; }
         case HasFileManager: {
             Path p;
@@ -1102,7 +980,7 @@ RClient::ParseStatus RClient::parse(int &argc, char **argv)
             p.resolve(Path::MakeAbsolute);
             if (!p.exists()) {
                 fprintf(stderr, "%s does not seem to exist\n", optarg);
-                return Parse_Error;
+                return CommandLineParser::Parse_Error;
             }
             if (p.isDir())
                 p.append('/');
@@ -1112,7 +990,7 @@ RClient::ParseStatus RClient::parse(int &argc, char **argv)
             Path p = optarg;
             if (!p.isDir()) {
                 fprintf(stderr, "%s does not seem to be a directory\n", optarg);
-                return Parse_Error;
+                return CommandLineParser::Parse_Error;
             }
 
             p.resolve(Path::MakeAbsolute);
@@ -1130,7 +1008,7 @@ RClient::ParseStatus RClient::parse(int &argc, char **argv)
                     p.resolve(Path::MakeAbsolute);
                     if (!p.isFile()) {
                         fprintf(stderr, "%s is not a file\n", optarg);
-                        return Parse_Error;
+                        return CommandLineParser::Parse_Error;
                     }
                 }
             }
@@ -1177,34 +1055,49 @@ RClient::ParseStatus RClient::parse(int &argc, char **argv)
             Path p = optarg;
             if (!p.exists()) {
                 fprintf(stderr, "%s does not exist\n", optarg);
-                return Parse_Error;
+                return CommandLineParser::Parse_Error;
             }
 
             if (!p.isAbsolute())
                 p.prepend(Path::pwd());
 
             if (p.isDir()) {
-                if (opt->option != IsIndexed) {
+                if (type != IsIndexed) {
                     fprintf(stderr, "%s is not a file\n", optarg);
-                    return Parse_Error;
+                    return CommandLineParser::Parse_Error;
                 } else if (!p.endsWith('/')) {
                     p.append('/');
                 }
             }
             p.resolve();
             Flags<QueryMessage::Flag> extraQueryFlags;
-            QueryMessage::Type type = QueryMessage::Invalid;
-            switch (opt->option) {
-            case GenerateTest: type = QueryMessage::GenerateTest; break;
-            case FixIts: type = QueryMessage::FixIts; break;
-            case DumpFile: type = QueryMessage::DumpFile; break;
-            case CheckIncludes: type = QueryMessage::DumpFile; extraQueryFlags |= QueryMessage::DumpCheckIncludes; break;
-            case Diagnose: type = QueryMessage::Diagnose; break;
-            case IsIndexed: type = QueryMessage::IsIndexed; break;
-            default: assert(0); break;
+            QueryMessage::Type queryType = QueryMessage::Invalid;
+            switch (type) {
+            case GenerateTest:
+                queryType = QueryMessage::GenerateTest;
+                break;
+            case FixIts:
+                queryType = QueryMessage::FixIts;
+                break;
+            case DumpFile:
+                queryType = QueryMessage::DumpFile;
+                break;
+            case CheckIncludes:
+                queryType = QueryMessage::DumpFile;
+                extraQueryFlags |= QueryMessage::DumpCheckIncludes;
+                break;
+            case Diagnose:
+                queryType = QueryMessage::Diagnose;
+                break;
+            case IsIndexed:
+                queryType = QueryMessage::IsIndexed;
+                break;
+            default:
+                assert(0);
+                break;
             }
 
-            addQuery(type, p, extraQueryFlags);
+            addQuery(queryType, p, extraQueryFlags);
             break; }
         case AllDependencies: {
             String encoded;
@@ -1221,7 +1114,7 @@ RClient::ParseStatus RClient::parse(int &argc, char **argv)
             Path p = optarg;
             if (!p.isFile()) {
                 fprintf(stderr, "%s is not a file\n", optarg);
-                return Parse_Error;
+                return CommandLineParser::Parse_Error;
             }
             p.resolve();
             List<String> args;
@@ -1232,7 +1125,7 @@ RClient::ParseStatus RClient::parse(int &argc, char **argv)
             String encoded;
             Serializer s(encoded);
             s << p << args;
-            addQuery(opt->option == DumpFileMaps ? QueryMessage::DumpFileMaps : QueryMessage::Dependencies, encoded);
+            addQuery(type == DumpFileMaps ? QueryMessage::DumpFileMaps : QueryMessage::Dependencies, encoded);
             break; }
         case Tokens: {
             char path[PATH_MAX];
@@ -1252,11 +1145,11 @@ RClient::ParseStatus RClient::parse(int &argc, char **argv)
             const Path p = Path::resolved(path);
             if (!p.isFile()) {
                 fprintf(stderr, "%s is not a file\n", optarg);
-                return Parse_Error;
+                return CommandLineParser::Parse_Error;
             }
             if (from >= to) {
                 fprintf(stderr, "Invalid range: %s\n", optarg);
-                return Parse_Error;
+                return CommandLineParser::Parse_Error;
             }
             String data;
             Serializer s(data);
@@ -1271,11 +1164,10 @@ RClient::ParseStatus RClient::parse(int &argc, char **argv)
             p.resolve(Path::MakeAbsolute);
             if (!p.isFile()) {
                 fprintf(stderr, "%s is not a file\n", optarg);
-                return Parse_Error;
+                return CommandLineParser::Parse_Error;
             }
             addQuery(QueryMessage::PreprocessFile, p);
             break; }
-
         case RemoveFile: {
             const Path p = Path::resolved(optarg, Path::MakeAbsolute);
             if (!p.exists()) {
@@ -1287,13 +1179,13 @@ RClient::ParseStatus RClient::parse(int &argc, char **argv)
         case ReferenceName:
             addQuery(QueryMessage::ReferencesName, optarg);
             break;
-#ifdef RTAGS_HAS_LUA
+    #ifdef RTAGS_HAS_LUA
         case VisitAST: {
             Path p = optarg;
             p.resolve(Path::MakeAbsolute);
             if (!p.isFile()) {
                 fprintf(stderr, "%s is not a file\n", optarg);
-                return Parse_Error;
+                return CommandLineParser::Parse_Error;
             }
             addQuery(QueryMessage::VisitAST, p);
             break; }
@@ -1303,39 +1195,36 @@ RClient::ParseStatus RClient::parse(int &argc, char **argv)
                 const Path p = code.mid(1);
                 if (!p.isFile()) {
                     fprintf(stderr, "%s is not a file\n", p.constData());
-                    return Parse_Error;
+                    return CommandLineParser::Parse_Error;
                 }
                 code = p.readAll();
             }
             if (code.isEmpty()) {
                 fprintf(stderr, "Script is empty\n");
-                return Parse_Error;
+                return CommandLineParser::Parse_Error;
             }
             mVisitASTScripts.push_back(code);
             break; }
-#endif
+    #endif
         }
-    }
-    if (state == Error) {
-        help(stderr, argv[0]);
-        return Parse_Error;
-    }
+        return CommandLineParser::Parse_Exec;
+    };
 
-    if (optind < argc) {
-        fprintf(stderr, "rc: unexpected option -- '%s'\n", argv[optind]);
-        return Parse_Error;
+    auto ret = CommandLineParser::parse<RClient::OptionType>(argc, argv, opts, sizeof(opts) / sizeof(opts[0]), NullFlags, cb);
+    if (ret == CommandLineParser::Parse_Error) {
+        help(stderr, argv[0], opts, sizeof(opts) / sizeof(opts[0]));
+        return CommandLineParser::Parse_Error;
     }
 
     if (!initLogging(argv[0], logFlags, mLogLevel, logFile)) {
-        fprintf(stderr, "Can't initialize logging with %d %s %s\n",
-                mLogLevel.toInt(), logFile.constData(), logFlags.toString().constData());
-        return Parse_Error;
+        fprintf(stderr, "Can't initialize logging with %d %s %s\n", mLogLevel.toInt(), logFile.constData(),
+                logFlags.toString().constData());
+        return CommandLineParser::Parse_Error;
     }
 
-
     if (mCommands.isEmpty()) {
-        help(stderr, argv[0]);
-        return Parse_Error;
+        help(stderr, argv[0], opts, sizeof(opts) / sizeof(opts[0]));
+        return CommandLineParser::Parse_Error;
     }
     if (mCommands.size() > projectCommands.size()) {
         // If there's more than one command one likely does not want output from
@@ -1343,7 +1232,7 @@ RClient::ParseStatus RClient::parse(int &argc, char **argv)
         // we don't have to pass a different flag for auto-updating project
         // using the current buffer but rather piggy-back on --project
         const int count = projectCommands.size();
-        for (int i=0; i<count; ++i) {
+        for (int i = 0; i < count; ++i) {
             std::shared_ptr<QueryCommand> &cmd = projectCommands[i];
             if (!cmd->query.isEmpty()) {
                 cmd->extraQueryFlags |= QueryMessage::Silent;
@@ -1360,7 +1249,7 @@ RClient::ParseStatus RClient::parse(int &argc, char **argv)
     mArgc = argc;
     mArgv = argv;
 
-    return Parse_Exec;
+    return CommandLineParser::Parse_Exec;
 }
 
 void RClient::onNewMessage(const std::shared_ptr<Message> &message, const std::shared_ptr<Connection> &)

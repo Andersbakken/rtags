@@ -158,12 +158,7 @@ public:
     RClient();
     ~RClient();
     int exec();
-    enum ParseStatus {
-        Parse_Exec,
-        Parse_Ok,
-        Parse_Error
-    };
-    ParseStatus parse(int &argc, char **argv);
+    CommandLineParser::ParseStatus parse(int &argc, char **argv);
 
     Flags<Flag> flags() const { return mFlags; }
 

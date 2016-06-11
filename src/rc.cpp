@@ -20,12 +20,12 @@ int main(int argc, char** argv)
     RClient rc;
     int ret = 0;
     switch (rc.parse(argc, argv)) {
-    case RClient::Parse_Ok:
+    case CommandLineParser::Parse_Ok:
         break;
-    case RClient::Parse_Error:
+    case CommandLineParser::Parse_Error:
         ret = 1;
         break;
-    case RClient::Parse_Exec:
+    case CommandLineParser::Parse_Exec:
         ret = rc.exec();
         break;
     }
