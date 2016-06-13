@@ -205,6 +205,23 @@ prepare completions."
   :type '(choice (const :tag "Unset" nil) number)
   :safe 'numberp)
 
+(defun rtags--update-periodic-reparse-timer ()
+  (when (and (not rtags-periodic-reparse-timer)
+             rtags-periodic-reparse-timeout)
+    (setq rtags-periodic-reparse-timer
+          (run-with-idle-timer rtags-periodic-reparse-timeout t
+                               #'rtags-reparse-file-if-needed nil t))))
+
+(defvar rtags-periodic-reparse-timer nil)
+;;;###autoload
+(defun rtags-set-periodic-reparse-timeout (time)
+  "Set `rtags-periodic-reparse-timeout' to TIME."
+  (interactive "P")
+  (when rtags-periodic-reparse-timer
+    (cancel-timer rtags-periodic-reparse-timer))
+  (setq rtags-periodic-reparse-timeout (if time (abs time) time))
+  (setq rtags-periodic-reparse-timer nil)
+  (rtags--update-periodic-reparse-timer))
 
 (defcustom rtags-periodic-reparse-timeout nil
   "Interval, in seconds, for async idle parsing of unsaved buffers.
@@ -3927,24 +3944,6 @@ force means do it regardless of rtags-enable-unsaved-reparsing "
         ((not (rtags-has-diagnostics)))
         ((= rtags-completions-timer-interval 0) (rtags-prepare-completions))
         (t (setq rtags-completions-timer (run-with-idle-timer rtags-completions-timer-interval nil #'rtags-prepare-completions)))))
-
-(defvar rtags-periodic-reparse-timer nil)
-;;;###autoload
-(defun rtags-set-periodic-reparse-timeout (time)
-  "Set `rtags-periodic-reparse-timeout' to TIME."
-  (interactive "P")
-  (when rtags-periodic-reparse-timer
-    (cancel-timer rtags-periodic-reparse-timer))
-  (setq rtags-periodic-reparse-timeout (if time (abs time) time))
-  (setq rtags-periodic-reparse-timer nil)
-  (rtags--update-periodic-reparse-timer))
-
-(defun rtags--update-periodic-reparse-timer ()
-  (when (and (not rtags-periodic-reparse-timer)
-             rtags-periodic-reparse-timeout)
-    (setq rtags-periodic-reparse-timer
-          (run-with-idle-timer rtags-periodic-reparse-timeout t
-                               #'rtags-reparse-file-if-needed nil t))))
 
 (defun rtags-code-complete-enabled ()
   (and rtags-completions-enabled
