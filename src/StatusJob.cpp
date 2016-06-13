@@ -83,7 +83,6 @@ int StatusJob::execute()
             << "rpIndexDataMessageTimeout" << opt.rpIndexDataMessageTimeout << '\n'
             << "rpConnectTimeout" << opt.rpConnectTimeout << '\n'
             << "rpConnectTimeout" << opt.rpConnectTimeout << '\n'
-            << "threadStackSize" << opt.threadStackSize << '\n'
             << "defaultArguments" << opt.defaultArguments << '\n'
             << "includePaths" << opt.includePaths << '\n'
             << "defines" << opt.defines << '\n'

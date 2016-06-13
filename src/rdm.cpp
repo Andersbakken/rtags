@@ -85,7 +85,6 @@ static void signalHandler(int signal)
 #define DEFAULT_MAX_CRASH_COUNT 5
 #define XSTR(s) #s
 #define STR(s) XSTR(s)
-static size_t defaultStackSize = 0;
 #ifdef NDEBUG
 #define DEFAULT_SUSPEND_RP "off"
 #else
@@ -108,94 +107,6 @@ static inline Path defaultRP()
     return rp;
 }
 
-static void usage(FILE *f)
-{
-    fprintf(f,
-            "\nUsage: rdm [...options...]\n\n"
-            "  --help|-h                                  Display this page.\n"
-            "  --version                                  Display version.\n"
-
-            "\nServer options:\n"
-            "  --clear-project-caches|-C                  Clear out project caches.\n"
-            "  --test|-t [arg]                            Run this test.\n"
-            "  --test-timeout|-z [arg]                    Timeout for test to complete.\n"
-            "  --completion-cache-size|-i [arg]           Number of translation units to cache (default " STR(DEFAULT_COMPLETION_CACHE_SIZE) ").\n"
-            "  --completion-no-filter                     Don't filter private members and destructors from completions.\n"
-            "  --max-include-completion-depth [arg]       Max recursion depth for header completion (default " STR(DEFAULT_MAX_INCLUDE_COMPLETION_DEPTH) ").\n"
-            "  --config|-c [arg]                          Use this file instead of ~/.rdmrc.\n"
-            "  --data-dir|-d [arg]                        Use this directory to store persistent data (default ~/.rtags).\n"
-            "  --daemon                                   Run as daemon (detach from terminal).\n"
-            "  --disable-sighandler|-x                    Disable signal handler to dump stack for crashes.\n"
-            "  --disallow-multiple-sources|-m             With this setting different sources will be merged for each source file.\n"
-            "  --enable-NDEBUG|-g                         Don't remove -DNDEBUG from compile lines.\n"
-            "  --enable-compiler-manager|-R               Query compilers for their actual include paths instead of letting clang use its own.\n"
-            "  --exclude-filter|-X [arg]                  Files to exclude from rdm, default \"" EXCLUDEFILTER_DEFAULT "\".\n"
-
-#ifdef FILEMANAGER_OPT_IN
-            "  --filemanager-watch|-M                     Use a file system watcher for filemanager.\n"
-#else
-            "  --no-filemanager-watch|-M                  Don't use a file system watcher for filemanager.\n"
-#endif
-            "  --no-filemanager                           Don't scan project directory for files. (rc -P won't work)\n"
-            "  --watch-sources-only                       Only watch source files (not dependencies).\n"
-            "  --job-count|-j [arg]                       Spawn this many concurrent processes for indexing (default %d).\n"
-            "  --header-error-job-count|-H [arg]          Allow this many concurrent header error jobs (default std::max(1, --job-count / 2)).\n"
-            "  --log-file|-L [arg]                        Log to this file.\n"
-            "  --log-file-log-level [arg]                 Log level for log file (default is error).\n"
-            "  --crash-dump-file [arg]                    File to dump crash log to (default is <datadir>/crash.dump).\n"
-            "                                             options are: error, warning, debug or verbose-debug.\n"
-            "  --sandbox-root [dir]                       Create index using relative paths by stripping dir (enables copying of tag index db files without need to reindex)\n"
-#ifndef OS_FreeBSD
-#endif
-            "  --no-filesystem-watcher|-B                 Disable file system watching altogether. Reindexing has to happen manually.\n"
-            "  --no-file-lock                             Disable file locking. Not entirely safe but might improve performance on certain systems.\n"
-            "  --no-rc|-N                                 Don't load any rc files.\n"
-            "  --no-startup-project|-o                    Don't restore the last current project on startup.\n"
-            "  --rp-connect-timeout|-O [arg]              Timeout for connection from rp to rdm in ms (0 means no timeout) (default " STR(DEFAULT_RP_CONNECT_TIMEOUT) ").\n"
-            "  --rp-connect-attempts [arg]                Number of times rp attempts to connect to rdm before giving up. (default " STR(DEFAULT_RP_CONNECT_ATTEMPTS) ").\n"
-            "  --rp-indexer-message-timeout|-T [arg]      Timeout for rp indexer-message in ms (0 means no timeout) (default " STR(DEFAULT_RP_INDEXER_MESSAGE_TIMEOUT) ").\n"
-            "  --rp-nice-value|-a [arg]                   Nice value to use for rp (nice(2)) (default is no nicing).\n"
-            "  --rp-visit-file-timeout|-Z [arg]           Timeout for rp visitfile commands in ms (0 means no timeout) (default " STR(DEFAULT_RP_VISITFILE_TIMEOUT) ").\n"
-            "  --separate-debug-and-release|-E            Normally rdm doesn't consider release and debug as different builds. Pass this if you want it to.\n"
-            "  --setenv|-e [arg]                          Set this environment variable (--setenv \"foobar=1\").\n"
-            "  --silent|-S                                No logging to stdout.\n"
-            "  --socket-file|-n [arg]                     Use this file for the server socket (default ~/.rdm).\n"
-            "  --tcp-port [arg]                           Listen on this tcp socket (default none).\n"
-            "  --start-suspended|-Q                       Start out suspended (no reindexing enabled).\n"
-            "  --suspend-rp-on-crash|-q                   Suspend rp in SIGSEGV handler (default " DEFAULT_SUSPEND_RP ").\n"
-            "  --rp-log-to-syslog                         Make rp log to syslog\n"
-            "  --log-timestamp                            Add timestamp to logs\n"
-            "  --thread-stack-size|-k [arg]               Set stack size for threadpool to this (default %zu).\n"
-            "  --verbose|-v                               Change verbosity, multiple -v's are allowed.\n"
-            "  --watch-system-paths|-w                    Watch system paths for changes.\n"
-            "  --block-argument|-G [arg]                  Block this argument from being passed to clang. E.g. rdm --block-argument -fno-inline\n"
-            "  --progress|-p                              Report compilation progress in diagnostics output.\n"
-#ifdef RTAGS_HAS_LAUNCHD
-            "  --launchd                                  Run as a launchd job (use launchd API to retrieve socket opened by launchd on rdm's behalf).\n"
-#endif
-            "  --inactivity-timeout [arg]                 Time in seconds after which rdm will quit if there's been no activity (N.B., once rdm has quit, something will need to re-run it!).\n"
-            "\nCompiling/Indexing options:\n"
-            "  --allow-Wpedantic|-P                       Don't strip out -Wpedantic. This can cause problems in certain projects.\n"
-            "  --define|-D [arg]                          Add additional define directive to clang.\n"
-            "  --ignore-printf-fixits|-F                  Disregard any clang fixit that looks like it's trying to fix format for printf and friends.\n"
-            "  --include-path|-I [arg]                    Add additional include path to clang.\n"
-            "  --isystem|-s [arg]                         Add additional system include path to clang.\n"
-            "  --Weverything|-u                           Use -Weverything.\n"
-            "  --no-Wall|-W                               Don't use -Wall.\n"
-            "  --no-no-unknown-warnings-option|-Y         Don't pass -Wno-unknown-warning-option\n"
-            "  --no-spell-checking|-l                     Don't pass -fspell-checking.\n"
-            "  --no-unlimited-error|-f                    Don't pass -ferror-limit=0 to clang.\n"
-            "  --Wlarge-by-value-copy|-r [arg]            Use -Wlarge-by-value-copy=[arg] when invoking clang.\n"
-            "  --max-file-map-cache-size|-y [arg]         Max files to cache per query (Should not exceed maximum number of open file descriptors allowed per process) (default " STR(DEFAULT_RDM_MAX_FILE_MAP_CACHE_SIZE) ").\n"
-            "  --no-comments                              Don't parse/store doxygen comments.\n"
-            "  --arg-transform|-V [arg]                   Use arg to transform arguments. [arg] should be a executable with (execv(3)).\n"
-            "  --debug-locations [arg]                    Set debug locations.\n"
-            "  --validate-file-maps                       Spend some time validating project data on startup.\n"
-            "  --pch-enabled                              Enable PCH (experimental).\n"
-            "  --rp-path [path]                           Path to rp (default %s).\n"
-            , std::max(2, ThreadPool::idealThreadCount()), defaultStackSize, defaultRP().constData());
-}
-
 class RemoveCrashDump
 {
 public:
@@ -206,6 +117,176 @@ public:
             unlink(crashDumpTempFilePath);
         }
     }
+};
+
+enum ConfigOptionType {
+    ConfigNone = 0,
+    Config,
+    NoRc
+};
+
+enum OptionType {
+    None = 0,
+    Help,
+    Version,
+    IncludePath,
+    Isystem,
+    Define,
+    LogFile,
+    CrashDumpFile,
+    SetEnv,
+    NoWall,
+    Weverything,
+    Verbose,
+    JobCount,
+    HeaderErrorJobCount,
+    Test,
+    TestTimeout,
+    CleanSlate,
+    DisableSigHandler,
+    Silent,
+    ExcludeFilter,
+    SocketFile,
+    DataDir,
+    IgnorePrintfFixits,
+    NoUnlimitederrors,
+    BlockArgument,
+    NoSpellChecking,
+    LargeByValueCopy,
+    DisallowMultipleSources,
+    NoStartupProject,
+    NoNoUnknownWarningsOption,
+    IgnoreCompiler,
+    WatchSystemPaths,
+    RpVisitFileTimeout,
+    RpIndexerMessageTimeout,
+    RpConnectTimeout,
+    RpConnectAttempts,
+    RpNiceValue,
+    SuspendRpOnCrash,
+    RpLogToSyslog,
+    StartSuspended,
+    SeparateDebugAndRelease,
+    MaxCrashCount,
+    CompletionCacheSize,
+    CompletionNoFilter,
+    MaxIncludeCompletionDepth,
+    AllowWpedantic,
+    EnableCompilerManager,
+    EnableNDEBUG,
+    Progress,
+    MaxFileMapCacheSize,
+#ifdef OS_FreeBSD
+    FileManagerWatch,
+#else
+    NoFileManagerWatch,
+#endif
+    NoFileManager,
+    NoFileLock,
+    PchEnabled,
+    NoFilesystemWatcher,
+    ArgTransform,
+    NoComments,
+#ifdef RTAGS_HAS_LAUNCHD
+    Launchd,
+#endif
+    InactivityTimeout,
+    Daemon,
+    LogFileLogLevel,
+    WatchSourcesOnly,
+    DebugLocations,
+    ValidateFileMaps,
+    TcpPort,
+    RpPath,
+    LogTimestamp,
+    SandboxRoot
+};
+
+const struct CommandLineParser::Option<ConfigOptionType> configOpts[] = {
+    { Config, "config", 'c', required_argument, "Use this file (instead of ~/.rdmrc)." },
+    { NoRc, "no-rc", 'N', no_argument, "Don't load any rc files." }
+};
+
+const struct CommandLineParser::Option<OptionType> opts[] = {
+    { None, 0, 0, 0, "Options:" },
+    { Help, "help", 'h', no_argument, "Display this page." },
+    { Version, "version", 0, no_argument, "Display version." },
+    { IncludePath, "include-path", 'I', required_argument, "Add additional include path to clang." },
+    { Isystem, "isystem", 's', required_argument, "Add additional system include path to clang." },
+    { Define, "define", 'D', required_argument, "Add additional define directive to clang" },
+    { LogFile, "log-file", 'L', required_argument, "Log to this file." },
+    { CrashDumpFile, "crash-dump-file", 0, required_argument, "File to dump crash log to (default is <datadir>/crash.dump)." },
+    { SetEnv, "setenv", 'e', required_argument, "Set this environment variable (--setenv \"foobar=1\")." },
+    { NoWall, "no-Wall", 'W', no_argument, "Don't use -Wall." },
+    { Weverything, "Weverything", 'u', no_argument, "Use -Weverything." },
+    { Verbose, "verbose", 'v', no_argument, "Change verbosity, multiple -v's are allowed." },
+    { JobCount, "job-count", 'j', required_argument, String::format("Spawn this many concurrent processes for indexing (default %d).",
+                                                                    std::max(2, ThreadPool::idealThreadCount())) },
+    { HeaderErrorJobCount, "header-error-job-count", 'H', required_argument, "Allow this many concurrent header error jobs (default std::max(1, --job-count / 2))." },
+    { Test, "test", 't', required_argument, "Run this test." },
+    { TestTimeout, "test-timeout", 'z', required_argument, "Timeout for test to complete." },
+    { CleanSlate, "clean-slate", 'C', no_argument, "Clear out all data." },
+    { DisableSigHandler, "disable-sighandler", 'x', no_argument, "Disable signal handler to dump stack for crashes." },
+    { Silent, "silent", 'S', no_argument, "No logging to stdout/stderr." },
+    { ExcludeFilter, "exclude-filter", 'X', required_argument, "Files to exclude from rdm, default \"" EXCLUDEFILTER_DEFAULT "\"." },
+    { SocketFile, "socket-file", 'n', required_argument, "Use this file for the server socket (default ~/.rdm)." },
+    { DataDir, "data-dir", 'd', required_argument, "Use this directory to store persistent data (default ~/.rtags)." },
+    { IgnorePrintfFixits, "ignore-printf-fixits", 'F', no_argument, "Disregard any clang fixit that looks like it's trying to fix format for printf and friends." },
+    { NoUnlimitederrors, "no-unlimited-errors", 'f', no_argument, "Don't pass -ferror-limit=0 to clang." }, // ### should be allowed to set error limit instead
+    { BlockArgument, "block-argument", 'G', required_argument, "Block this argument from being passed to clang. E.g. rdm --block-argument -fno-inline" },
+    { NoSpellChecking, "no-spell-checking", 'l', no_argument, "Don't pass -fspell-checking." },
+    { LargeByValueCopy, "large-by-value-copy", 'r', required_argument, "Use -Wlarge-by-value-copy=[arg] when invoking clang." },
+    { DisallowMultipleSources, "disallow-multiple-sources", 'm', no_argument, "With this setting different sources will be merged for each source file." },
+    { NoStartupProject, "no-startup-project", 'o', no_argument, "Don't restore the last current project on startup." },
+    { NoNoUnknownWarningsOption, "no-no-unknown-warnings-option", 'Y', no_argument, "Don't pass -Wno-unknown-warning-option." },
+    { IgnoreCompiler, "ignore-compiler", 'b', required_argument, "Ignore this compiler." },
+    { WatchSystemPaths, "watch-system-paths", 'w', no_argument, "Watch system paths for changes." },
+    { RpVisitFileTimeout, "rp-visit-file-timeout", 'Z', required_argument, "Timeout for rp visitfile commands in ms (0 means no timeout) (default " STR(DEFAULT_RP_VISITFILE_TIMEOUT) ")." },
+    { RpIndexerMessageTimeout, "rp-indexer-message-timeout", 'T', required_argument, "Timeout for rp indexer-message in ms (0 means no timeout) (default " STR(DEFAULT_RP_INDEXER_MESSAGE_TIMEOUT) ")." },
+    { RpConnectTimeout, "rp-connect-timeout", 'O', required_argument, "Timeout for connection from rp to rdm in ms (0 means no timeout) (default " STR(DEFAULT_RP_CONNECT_TIMEOUT) ")." },
+    { RpConnectAttempts, "rp-connect-attempts", 0, required_argument, "Number of times rp attempts to connect to rdm before giving up. (default " STR(DEFAULT_RP_CONNECT_ATTEMPTS) ")." },
+    { RpNiceValue, "rp-nice-value", 'a', required_argument, "Nice value to use for rp (nice(2)) (default is no nicing)." },
+    { SuspendRpOnCrash, "suspend-rp-on-crash", 'q', no_argument, "Suspend rp in SIGSEGV handler (default " DEFAULT_SUSPEND_RP ")." },
+    { RpLogToSyslog, "rp-log-to-syslog", 0, no_argument, "Make rp log to syslog." },
+    { StartSuspended, "start-suspended", 'Q', no_argument, "Start out suspended (no reindexing enabled)." },
+    { SeparateDebugAndRelease, "separate-debug-and-release", 'E', no_argument, "Normally rdm doesn't consider release and debug as different builds. Pass this if you want it to." },
+    { MaxCrashCount, "max-crash-count", 'K', required_argument, "Max number of crashes before giving up a sourcefile (default " STR(DEFAULT_MAX_CRASH_COUNT) ")." },
+    { CompletionCacheSize, "completion-cache-size", 'i', required_argument, "Number of translation units to cache (default " STR(DEFAULT_COMPLETION_CACHE_SIZE) ")." },
+    { CompletionNoFilter, "completion-no-filter", 0, no_argument, "Don't filter private members and destructors from completions." },
+    { MaxIncludeCompletionDepth, "max-include-completion-depth", 0, required_argument, "Max recursion depth for header completion (default " STR(DEFAULT_MAX_INCLUDE_COMPLETION_DEPTH) ")." },
+    { AllowWpedantic, "allow-Wpedantic", 'P', no_argument, "Don't strip out -Wpedantic. This can cause problems in certain projects." },
+    { EnableCompilerManager, "enable-compiler-manager", 'R', no_argument, "Query compilers for their actual include paths instead of letting clang use its own." },
+    { EnableNDEBUG, "enable-NDEBUG", 'g', no_argument, "Don't remove -DNDEBUG from compile lines." },
+    { Progress, "progress", 'p', no_argument, "Report compilation progress in diagnostics output." },
+    { MaxFileMapCacheSize, "max-file-map-cache-size", 'y', required_argument, "Max files to cache per query (Should not exceed maximum number of open file descriptors allowed per process) (default " STR(DEFAULT_RDM_MAX_FILE_MAP_CACHE_SIZE) ")." },
+#ifdef FILEMANAGER_OPT_IN
+    { FilemanagerWatch, "filemanager-watch", 'M', no_argument, "Use a file system watcher for filemanager." },
+#else
+    { NoFileManagerWatch, "no-filemanager-watch", 'M', no_argument, "Don't use a file system watcher for filemanager." },
+#endif
+    { NoFileManager, "no-filemanager", 0, no_argument, "Don't scan project directory for files. (rc -P won't work)." },
+    { NoFileLock, "no-file-lock", 0, no_argument, "Disable file locking. Not entirely safe but might improve performance on certain systems." },
+    { PchEnabled, "pch-enabled", 0, no_argument, "Enable PCH (experimental)." },
+    { NoFilesystemWatcher, "no-filesystem-watcher", 'B', no_argument, "Disable file system watching altogether. Reindexing has to be triggered manually." },
+    { ArgTransform, "arg-transform", 'V', required_argument, "Use arg to transform arguments. [arg] should be executable with (execv(3))." },
+    { NoComments, "no-comments", 0, no_argument, "Don't parse/store doxygen comments." },
+#ifdef RTAGS_HAS_LAUNCHD
+    { Launchd, "launchd", 0, no_argument, "Run as a launchd job (use launchd API to retrieve socket opened by launchd on rdm's behalf)." },
+#endif
+    { InactivityTimeout, "inactivity-timeout", 0, required_argument, "Time in seconds after which rdm will quit if there's been no activity (N.B., once rdm has quit, something will need to re-run it!)." },
+    { Daemon, "daemon", 0, no_argument, "Run as daemon (detach from terminal)." },
+    { LogFileLogLevel, "log-file-log-level", 0, required_argument, "Log level for log file (default is error), options are: error, warning, debug or verbose-debug." },
+    { WatchSourcesOnly, "watch-sources-only", 0, no_argument, "Only watch source files (not dependencies)." },
+    { DebugLocations, "debug-locations", 0, no_argument, "Set debug locations." },
+    { ValidateFileMaps, "validate-file-maps", 0, no_argument, "Spend some time validating project data on startup." },
+    { TcpPort, "tcp-port", 0, required_argument, "Listen on this tcp socket (default none)." },
+    { RpPath, "rp-path", 0, required_argument, String::format<256>("Path to rp (default %s).", defaultRP().constData()) },
+    { LogTimestamp, "log-timestamp", 0, no_argument, "Add timestamp to logs." },
+    { SandboxRoot, "sandbox-root",  0, required_argument, "Create index using relative paths by stripping dir (enables copying of tag index db files without need to reindex)." },
+    { None, "config", 'c', required_argument, "Use this file (instead of ~/.rdmrc)." },
+    { None, "no-rc", 'N', no_argument, "Don't load any rc files." },
+
+    { None, 0, 0, 0, String() }
 };
 
 int main(int argc, char** argv)
@@ -221,119 +302,7 @@ int main(int argc, char** argv)
     }
 #endif
 
-    {
-        pthread_attr_t attr;
-        pthread_attr_init(&attr);
-        pthread_attr_getstacksize(&attr, &defaultStackSize);
-        pthread_attr_destroy(&attr);
-        if (defaultStackSize < 1024 * 1024 * 4) { // 4 megs should be enough for everyone right?
-            defaultStackSize = 1024 * 1024 * 4;
-        }
-    }
-
     Rct::findExecutablePath(*argv);
-
-    struct option opts[] = {
-        { "help", no_argument, 0, 'h' },
-        { "version", no_argument, 0, 2 },
-        { "include-path", required_argument, 0, 'I' },
-        { "isystem", required_argument, 0, 's' },
-        { "define", required_argument, 0, 'D' },
-        { "log-file", required_argument, 0, 'L' },
-        { "crash-dump-file", required_argument, 0, 19 },
-        { "setenv", required_argument, 0, 'e' },
-        { "no-Wall", no_argument, 0, 'W' },
-        { "Weverything", no_argument, 0, 'u' },
-        { "cache-AST", required_argument, 0, 'A' },
-        { "verbose", no_argument, 0, 'v' },
-        { "job-count", required_argument, 0, 'j' },
-        { "header-error-job-count", required_argument, 0, 'H' },
-        { "test", required_argument, 0, 't' },
-        { "test-timeout", required_argument, 0, 'z' },
-        { "clean-slate", no_argument, 0, 'C' },
-        { "disable-sighandler", no_argument, 0, 'x' },
-        { "silent", no_argument, 0, 'S' },
-        { "exclude-filter", required_argument, 0, 'X' },
-        { "socket-file", required_argument, 0, 'n' },
-        { "config", required_argument, 0, 'c' },
-        { "no-rc", no_argument, 0, 'N' },
-        { "data-dir", required_argument, 0, 'd' },
-        { "ignore-printf-fixits", no_argument, 0, 'F' },
-        { "no-unlimited-errors", no_argument, 0, 'f' },
-        { "block-argument", required_argument, 0, 'G' },
-        { "no-spell-checking", no_argument, 0, 'l' },
-        { "large-by-value-copy", required_argument, 0, 'r' },
-        { "disallow-multiple-sources", no_argument, 0, 'm' },
-        { "no-startup-project", no_argument, 0, 'o' },
-        { "no-no-unknown-warnings-option", no_argument, 0, 'Y' },
-        { "ignore-compiler", required_argument, 0, 'b' },
-        { "watch-system-paths", no_argument, 0, 'w' },
-        { "rp-visit-file-timeout", required_argument, 0, 'Z' },
-        { "rp-indexer-message-timeout", required_argument, 0, 'T' },
-        { "rp-connect-timeout", required_argument, 0, 'O' },
-        { "rp-connect-attempts", required_argument, 0, 3 },
-        { "rp-nice-value", required_argument, 0, 'a' },
-        { "thread-stack-size", required_argument, 0, 'k' },
-        { "suspend-rp-on-crash", no_argument, 0, 'q' },
-        { "rp-log-to-syslog", no_argument, 0, 7 },
-        { "start-suspended", no_argument, 0, 'Q' },
-        { "separate-debug-and-release", no_argument, 0, 'E' },
-        { "max-crash-count", required_argument, 0, 'K' },
-        { "completion-cache-size", required_argument, 0, 'i' },
-        { "completion-no-filter", no_argument, 0, 8 },
-        { "max-include-completion-depth", required_argument, 0, 21 },
-        { "allow-Wpedantic", no_argument, 0, 'P' },
-        { "enable-compiler-manager", no_argument, 0, 'R' },
-        { "enable-NDEBUG", no_argument, 0, 'g' },
-        { "progress", no_argument, 0, 'p' },
-        { "max-file-map-cache-size", required_argument, 0, 'y' },
-#ifdef OS_FreeBSD
-        { "filemanager-watch", no_argument, 0, 'M' },
-#else
-        { "no-filemanager-watch", no_argument, 0, 'M' },
-#endif
-        { "no-filemanager", no_argument, 0, 15 },
-        { "no-file-lock", no_argument, 0, 13 },
-        { "pch-enabled", no_argument, 0, 14 },
-        { "no-filesystem-watcher", no_argument, 0, 'B' },
-        { "arg-transform", required_argument, 0, 'V' },
-        { "no-comments", no_argument, 0, 1 },
-#ifdef RTAGS_HAS_LAUNCHD
-        { "launchd", no_argument, 0, 4 },
-#endif
-        { "inactivity-timeout", required_argument, 0, 5 },
-        { "daemon", no_argument, 0, 6 },
-        { "log-file-log-level", required_argument, 0, 9 },
-        { "watch-sources-only", no_argument, 0, 10 },
-        { "debug-locations", no_argument, 0, 11 },
-        { "validate-file-maps", no_argument, 0, 16 },
-        { "tcp-port", required_argument, 0, 12 },
-        { "rp-path", required_argument, 0, 17 },
-        { "log-timestamp", no_argument, 0, 18 },
-        { "sandbox-root", required_argument, 0, 20 },
-        { 0, 0, 0, 0 }
-    };
-    const String shortOptions = Rct::shortOptions(opts);
-    if (getenv("RTAGS_DUMP_UNUSED")) {
-        String unused;
-        for (int i=0; i<26; ++i) {
-            if (!shortOptions.contains('a' + i))
-                unused.append('a' + i);
-            if (!shortOptions.contains('A' + i))
-                unused.append('A' + i);
-        }
-        printf("Unused: %s\n", unused.constData());
-        for (int i=0; opts[i].name; ++i) {
-            if (opts[i].name) {
-                if (!opts[i].val) {
-                    printf("No shortoption for %s\n", opts[i].name);
-                } else if (opts[i].name[0] != opts[i].val) {
-                    printf("Not ideal option for %s|%c\n", opts[i].name, opts[i].val);
-                }
-            }
-        }
-        return 0;
-    }
 
     bool daemon = false;
     List<String> argCopy;
@@ -362,27 +331,28 @@ int main(int argc, char** argv)
          *
          */
 
-        while (true) {
-            const int c = getopt_long(argc, argv, shortOptions.constData(), opts, 0);
-            if (c == -1)
-                break;
-            switch (c) {
-            case 'N':
-                norc = true;
-                break;
-            case 'c':
-                rcfile = optarg;
-                break;
-            default:
-                break;
-            }
-        }
-        opterr = 1;
+        CommandLineParser::parse<ConfigOptionType>(argc, argv, configOpts, sizeof(configOpts) / sizeof(configOpts[0]),
+                                                   CommandLineParser::IgnoreUnknown, [&norc, &rcfile](ConfigOptionType type) {
+                                                       switch (type) {
+                                                       case ConfigNone:
+                                                           assert(0);
+                                                           break;
+                                                       case Config:
+                                                           rcfile = optarg;
+                                                           break;
+                                                       case NoRc:
+                                                           norc = true;
+                                                           break;
+                                                       }
+
+                                                       return CommandLineParser::Parse_Exec;
+                                                   });
+
         argList.append(argv[0]);
         if (!norc) {
             String rc = Path("/etc/rdmrc").readAll();
             if (!rc.isEmpty()) {
-                for (const String& s : rc.split('\n')) {
+                for (const String &s : rc.split('\n')) {
                     if (!s.isEmpty() && !s.startsWith('#'))
                         argCopy += s.split(' ');
                 }
@@ -406,12 +376,9 @@ int main(int argc, char** argv)
 
         for (int i=1; i<argc; ++i)
             argList.append(originalArgv[i]);
-
-        optind = 1;
     }
 
     Server::Options serverOpts;
-    serverOpts.threadStackSize = defaultStackSize;
     serverOpts.socketFile = String::format<128>("%s.rdm", Path::home().constData());
     serverOpts.jobCount = std::max(2, ThreadPool::idealThreadCount());
     serverOpts.headerErrorJobCount = -1;
@@ -430,9 +397,9 @@ int main(int argc, char** argv)
 #ifdef OS_FreeBSD
     serverOpts.options |= Server::NoFileManagerWatch;
 #endif
-// #ifndef NDEBUG
-//     serverOpts.options |= Server::SuspendRPOnCrash;
-// #endif
+    // #ifndef NDEBUG
+    //     serverOpts.options |= Server::SuspendRPOnCrash;
+    // #endif
     serverOpts.dataDir = String::format<128>("%s.rtags", Path::home().constData());
 
     const char *logFile = 0;
@@ -445,92 +412,277 @@ int main(int argc, char** argv)
     char **args = argList.data();
     bool defaultDataDir = true;
     int inactivityTimeout = 0;
+    std::function<CommandLineParser::ParseStatus(OptionType type)> cb;
+    cb = [&](OptionType type) {
+        switch (type) {
+        case None:
+            break;
+        case Help:
+            CommandLineParser::help(stdout, Rct::executablePath().fileName(), opts, sizeof(opts) / sizeof(opts[0]));
+            return CommandLineParser::Parse_Ok;
+        case Version:
+            fprintf(stdout, "%s\n", RTags::versionString().constData());
+            return CommandLineParser::Parse_Ok;
+        case IncludePath:
+            serverOpts.includePaths.append(Source::Include(Source::Include::Type_Include, Path::resolved(optarg)));
+            break;
+        case Isystem:
+            serverOpts.includePaths.append(Source::Include(Source::Include::Type_System, Path::resolved(optarg)));
+            break;
 
-    while (true) {
-        const int c = getopt_long(argCount, args, shortOptions.constData(), opts, 0);
-        if (c == -1)
-            break;
-        switch (c) {
-        case 'N':
-        case 'c':
-            // ignored
-            break;
-        case 'S':
+        case Define: {
+            const char *eq = strchr(optarg, '=');
+            Source::Define def;
+            if (!eq) {
+                def.define = optarg;
+            } else {
+                def.define = String(optarg, eq - optarg);
+                def.value = eq + 1;
+            }
+            serverOpts.defines.append(def);
+            break; }
+        case LogFile:
+            logFile = optarg;
             logLevel = LogLevel::None;
             break;
-        case 'X':
-            serverOpts.excludeFilters += String(optarg).split(';');
-            break;
-        case 'G':
-            serverOpts.blockedArguments << optarg;
-            break;
-        case 1:
-            serverOpts.options |= Server::NoComments;
-            break;
-        case 10:
-            serverOpts.options |= Server::WatchSourcesOnly;
-            break;
-        case 11:
-            if (!strcmp(optarg, "clear") || !strcmp(optarg, "none")) {
-                serverOpts.debugLocations.clear();
-            } else {
-                serverOpts.debugLocations << optarg;
-            }
-            break;
-        case 12:
-            serverOpts.tcpPort = atoi(optarg);
-            if (!serverOpts.tcpPort) {
-                fprintf(stderr, "Invalid port %s for --tcp-port\n", optarg);
-                return 1;
-            }
-            break;
-        case 13:
-            serverOpts.options |= Server::NoFileLock;
-            break;
-        case 14:
-            serverOpts.options |= Server::PCHEnabled;
-            break;
-        case 15:
-            serverOpts.options |= Server::NoFileManager;
-            break;
-        case 16:
-            serverOpts.options |= Server::ValidateFileMaps;
-            break;
-        case 17:
-            serverOpts.rp = optarg;
-            if (serverOpts.rp.isFile())
-                serverOpts.rp.resolve();
-            break;
-        case 18:
-            logFlags |= LogTimeStamp;
-            break;
-        case 19:
+        case CrashDumpFile:
             strcpy(crashDumpFilePath, optarg);
             break;
-        case 20:
-            {
-                auto len = strlen(optarg);
-                if (optarg[len-1] != '/') {
-                    std::string tmparg = optarg;
-                    tmparg += '/';
-                    serverOpts.sandboxRoot = tmparg.c_str();
-                } else {
-                    serverOpts.sandboxRoot = optarg;
-                }
-                if (!serverOpts.sandboxRoot.resolve() || !serverOpts.sandboxRoot.isDir()) {
-                    fprintf(stderr, "%s is not a valid directory for sandbox-root\n", optarg);
-                    return 1;
-                }
+        case SetEnv:
+            putenv(optarg);
+            break;
+        case NoWall:
+            serverOpts.options &= ~Server::Wall;
+            break;
+        case Weverything:
+            serverOpts.options |= Server::Weverything;
+            break;
+        case Verbose:
+            if (logLevel != LogLevel::None)
+                ++logLevel;
+            break;
+        case JobCount: {
+            bool ok;
+            serverOpts.jobCount = String(optarg).toULong(&ok);
+            if (!ok) {
+                fprintf(stderr, "Can't parse argument to -j %s. -j must be a positive integer.\n", optarg);
+                return CommandLineParser::Parse_Error;
+            }
+            break; }
+        case HeaderErrorJobCount: {
+            bool ok;
+            serverOpts.headerErrorJobCount = String(optarg).toULong(&ok);
+            if (!ok) {
+                fprintf(stderr, "Can't parse argument to -H %s. -H must be a positive integer.\n", optarg);
+                return CommandLineParser::Parse_Error;
+            }
+            break; }
+        case Test: {
+            Path test(optarg);
+            if (!test.resolve() || !test.isFile()) {
+                fprintf(stderr, "%s doesn't seem to be a file\n", optarg);
+                return CommandLineParser::Parse_Error;
+            }
+            serverOpts.tests += test;
+            break; }
+        case TestTimeout:
+            serverOpts.testTimeout = atoi(optarg);
+            if (serverOpts.testTimeout <= 0) {
+                fprintf(stderr, "Invalid argument to -z %s\n", optarg);
+                return CommandLineParser::Parse_Error;
             }
             break;
-        case 2:
-            fprintf(stdout, "%s\n", RTags::versionString().constData());
-            return 0;
-        case 6:
+        case CleanSlate:
+            serverOpts.options |= Server::ClearProjects;
+            break;
+        case DisableSigHandler:
+            sigHandler = false;
+            break;
+        case Silent:
+            logLevel = LogLevel::None;
+            break;
+        case ExcludeFilter:
+            serverOpts.excludeFilters += String(optarg).split(';');
+            break;
+        case SocketFile:
+            serverOpts.socketFile = optarg;
+            serverOpts.socketFile.resolve();
+        case DataDir:
+            defaultDataDir = false;
+            serverOpts.dataDir = String::format<128>("%s", Path::resolved(optarg).constData());
+            break;
+        case IgnorePrintfFixits:
+            serverOpts.options |= Server::IgnorePrintfFixits;
+            break;
+        case NoUnlimitederrors:
+            serverOpts.options |= Server::NoUnlimitedErrors;
+            break;
+        case BlockArgument:
+            serverOpts.blockedArguments << optarg;
+            break;
+        case NoSpellChecking:
+            serverOpts.options &= ~Server::SpellChecking;
+            break;
+        case LargeByValueCopy: {
+            int large = atoi(optarg);
+            if (large <= 0) {
+                fprintf(stderr, "Can't parse argument to -r %s\n", optarg);
+                return CommandLineParser::Parse_Error;
+            }
+            serverOpts.defaultArguments.append("-Wlarge-by-value-copy=" + String(optarg)); // ### not quite working
+            break; }
+        case DisallowMultipleSources:
+            serverOpts.options |= Server::DisallowMultipleSources;
+            break;
+        case NoStartupProject:
+            serverOpts.options |= Server::NoStartupCurrentProject;
+            break;
+        case NoNoUnknownWarningsOption:
+            serverOpts.options |= Server::NoNoUnknownWarningsOption;
+            break;
+        case IgnoreCompiler:
+            serverOpts.ignoredCompilers.insert(Path::resolved(optarg));
+            break;
+        case WatchSystemPaths:
+            serverOpts.options |= Server::WatchSystemPaths;
+            break;
+        case RpVisitFileTimeout:
+            serverOpts.rpVisitFileTimeout = atoi(optarg);
+            if (serverOpts.rpVisitFileTimeout < 0) {
+                fprintf(stderr, "Invalid argument to -Z %s\n", optarg);
+                return CommandLineParser::Parse_Error;
+            }
+            if (!serverOpts.rpVisitFileTimeout)
+                serverOpts.rpVisitFileTimeout = -1;
+            break;
+        case RpIndexerMessageTimeout:
+            serverOpts.rpIndexDataMessageTimeout = atoi(optarg);
+            if (serverOpts.rpIndexDataMessageTimeout <= 0) {
+                fprintf(stderr, "Can't parse argument to -T %s.\n", optarg);
+                return CommandLineParser::Parse_Error;
+            }
+            break;
+        case RpConnectTimeout:
+            serverOpts.rpConnectTimeout = atoi(optarg);
+            if (serverOpts.rpConnectTimeout < 0) {
+                fprintf(stderr, "Invalid argument to -O %s\n", optarg);
+                return CommandLineParser::Parse_Error;
+            }
+            break;
+        case RpConnectAttempts:
+            serverOpts.rpConnectAttempts = atoi(optarg);
+            if (serverOpts.rpConnectAttempts <= 0) {
+                fprintf(stderr, "Invalid argument to --rp-connect-attempts %s\n", optarg);
+                return CommandLineParser::Parse_Error;
+            }
+            break;
+        case RpNiceValue: {
+            bool ok;
+            serverOpts.rpNiceValue = String(optarg).toLong(&ok);
+            if (!ok) {
+                fprintf(stderr, "Can't parse argument to -a %s.\n", optarg);
+                return CommandLineParser::Parse_Error;
+            }
+            break; }
+        case SuspendRpOnCrash:
+            serverOpts.options |= Server::SuspendRPOnCrash;
+            break;
+        case RpLogToSyslog:
+            serverOpts.options |= Server::RPLogToSyslog;
+            break;
+        case StartSuspended:
+            serverOpts.options |= Server::StartSuspended;
+            break;
+        case SeparateDebugAndRelease:
+            serverOpts.options |= Server::SeparateDebugAndRelease;
+            break;
+        case MaxCrashCount:
+            serverOpts.maxCrashCount = atoi(optarg);
+            if (serverOpts.maxCrashCount <= 0) {
+                fprintf(stderr, "Invalid argument to -K %s\n", optarg);
+                return CommandLineParser::Parse_Error;
+            }
+            break;
+        case CompletionCacheSize:
+            serverOpts.completionCacheSize = atoi(optarg);
+            if (serverOpts.completionCacheSize <= 0) {
+                fprintf(stderr, "Invalid argument to -i %s\n", optarg);
+                return CommandLineParser::Parse_Error;
+            }
+            break;
+        case CompletionNoFilter:
+            serverOpts.options |= Server::CompletionsNoFilter;
+            break;
+        case MaxIncludeCompletionDepth:
+            serverOpts.maxIncludeCompletionDepth = strtoul(optarg, 0, 10);
+            break;
+        case AllowWpedantic:
+            serverOpts.options |= Server::AllowPedantic;
+            break;
+        case EnableCompilerManager:
+            serverOpts.options |= Server::EnableCompilerManager;
+            break;
+        case EnableNDEBUG:
+            serverOpts.options |= Server::EnableNDEBUG;
+            break;
+        case Progress:
+            serverOpts.options |= Server::Progress;
+            break;
+        case MaxFileMapCacheSize:
+            serverOpts.maxFileMapScopeCacheSize = atoi(optarg);
+            if (serverOpts.maxFileMapScopeCacheSize <= 0) {
+                fprintf(stderr, "Invalid argument to -y %s\n", optarg);
+                return CommandLineParser::Parse_Error;
+            }
+            break;
+    #ifdef FILEMANAGER_OPT_IN
+        case FileManagerWatch:
+            serverOpts.options &= ~Server::NoFileManagerWatch;
+            break;
+    #else
+        case NoFileManagerWatch:
+            serverOpts.options |= Server::NoFileManagerWatch;
+            break;
+    #endif
+        case NoFileManager:
+            serverOpts.options |= Server::NoFileManager;
+            break;
+        case NoFileLock:
+            serverOpts.options |= Server::NoFileLock;
+            break;
+        case PchEnabled:
+            serverOpts.options |= Server::PCHEnabled;
+            break;
+        case NoFilesystemWatcher:
+            serverOpts.options |= Server::NoFileSystemWatch;
+            break;
+        case ArgTransform:
+            serverOpts.argTransform = Process::findCommand(optarg);
+            if (strlen(optarg) && serverOpts.argTransform.isEmpty()) {
+                fprintf(stderr, "Invalid argument to -V. Can't resolve %s", optarg);
+                return CommandLineParser::Parse_Error;
+            }
+            break;
+        case NoComments:
+            serverOpts.options |= Server::NoComments;
+            break;
+    #ifdef RTAGS_HAS_LAUNCHD
+        case Launchd:
+            serverOpts.options |= Server::Launchd;
+            break;
+    #endif
+        case InactivityTimeout:
+            inactivityTimeout = atoi(optarg); // seconds.
+            if (inactivityTimeout <= 0) {
+                fprintf(stderr, "Invalid argument to --inactivity-timeout %s\n", optarg);
+                return CommandLineParser::Parse_Error;
+            }
+            break;
+        case Daemon:
             daemon = true;
             logLevel = LogLevel::None;
             break;
-        case 9:
+        case LogFileLogLevel:
             if (!strcasecmp(optarg, "verbose-debug")) {
                 logFileLogLevel = LogLevel::VerboseDebug;
             } else if (!strcasecmp(optarg, "debug")) {
@@ -542,257 +694,67 @@ int main(int argc, char** argv)
             } else {
                 fprintf(stderr, "Unknown log level: %s options are error, warning, debug or verbose-debug\n",
                         optarg);
-                return 1;
+                return CommandLineParser::Parse_Error;
             }
             break;
-        case 'E':
-            serverOpts.options |= Server::SeparateDebugAndRelease;
+        case WatchSourcesOnly:
+            serverOpts.options |= Server::WatchSourcesOnly;
             break;
-        case 'g':
-            serverOpts.options |= Server::EnableNDEBUG;
-            break;
-        case 'Q':
-            serverOpts.options |= Server::StartSuspended;
-            break;
-        case 'Z':
-            serverOpts.rpVisitFileTimeout = atoi(optarg);
-            if (serverOpts.rpVisitFileTimeout < 0) {
-                fprintf(stderr, "Invalid argument to -Z %s\n", optarg);
-                return 1;
-            }
-            if (!serverOpts.rpVisitFileTimeout)
-                serverOpts.rpVisitFileTimeout = -1;
-            break;
-        case 'y':
-            serverOpts.maxFileMapScopeCacheSize = atoi(optarg);
-            if (serverOpts.maxFileMapScopeCacheSize <= 0) {
-                fprintf(stderr, "Invalid argument to -y %s\n", optarg);
-                return 1;
-            }
-            break;
-        case 'O':
-            serverOpts.rpConnectTimeout = atoi(optarg);
-            if (serverOpts.rpConnectTimeout < 0) {
-                fprintf(stderr, "Invalid argument to -O %s\n", optarg);
-                return 1;
-            }
-            break;
-        case 3:
-            serverOpts.rpConnectAttempts = atoi(optarg);
-            if (serverOpts.rpConnectAttempts <= 0) {
-                fprintf(stderr, "Invalid argument to --rp-connect-attempts %s\n", optarg);
-                return 1;
-            }
-            break;
-        case 'k':
-            serverOpts.threadStackSize = atoi(optarg);
-            if (serverOpts.threadStackSize < 0) {
-                fprintf(stderr, "Invalid argument to -k %s\n", optarg);
-                return 1;
-            }
-            break;
-        case 'b':
-            serverOpts.ignoredCompilers.insert(Path::resolved(optarg));
-            break;
-        case 't': {
-            Path test(optarg);
-            if (!test.resolve() || !test.isFile()) {
-                fprintf(stderr, "%s doesn't seem to be a file\n", optarg);
-                return 1;
-            }
-            serverOpts.tests += test;
-            break; }
-        case 'z':
-            serverOpts.testTimeout = atoi(optarg);
-            if (serverOpts.testTimeout <= 0) {
-                fprintf(stderr, "Invalid argument to -z %s\n", optarg);
-                return 1;
-            }
-            break;
-        case 'n':
-            serverOpts.socketFile = optarg;
-            serverOpts.socketFile.resolve();
-            break;
-        case 'd':
-            defaultDataDir = false;
-            serverOpts.dataDir = String::format<128>("%s", Path::resolved(optarg).constData());
-            break;
-        case 'h':
-            usage(stdout);
-            return 0;
-        case 'Y':
-            serverOpts.options |= Server::NoNoUnknownWarningsOption;
-            break;
-        case 'p':
-            serverOpts.options |= Server::Progress;
-            break;
-        case 'R':
-            serverOpts.options |= Server::EnableCompilerManager;
-            break;
-        case 'm':
-            serverOpts.options |= Server::DisallowMultipleSources;
-            break;
-        case 'o':
-            serverOpts.options |= Server::NoStartupCurrentProject;
-            break;
-        case 'w':
-            serverOpts.options |= Server::WatchSystemPaths;
-            break;
-        case 'q':
-            serverOpts.options |= Server::SuspendRPOnCrash;
-            break;
-        case 'M':
-#ifdef OS_FreeBSD
-            serverOpts.options &= ~Server::NoFileManagerWatch;
-#else
-            serverOpts.options |= Server::NoFileManagerWatch;
-#endif
-            break;
-        case 'B':
-            serverOpts.options |= Server::NoFileSystemWatch;
-            break;
-        case 'V':
-            serverOpts.argTransform = Process::findCommand(optarg);
-            if (strlen(optarg) && serverOpts.argTransform.isEmpty()) {
-                fprintf(stderr, "Invalid argument to -V. Can't resolve %s", optarg);
-                return 1;
-            }
-
-            break;
-      case 'F':
-            serverOpts.options |= Server::IgnorePrintfFixits;
-            break;
-        case 'f':
-            serverOpts.options |= Server::NoUnlimitedErrors;
-            break;
-        case 'l':
-            serverOpts.options &= ~Server::SpellChecking;
-            break;
-        case 'W':
-            serverOpts.options &= ~Server::Wall;
-            break;
-        case 'u':
-            serverOpts.options |= Server::Weverything;
-            break;
-        case 'P':
-            serverOpts.options |= Server::AllowPedantic;
-            break;
-        case 'C':
-            serverOpts.options |= Server::ClearProjects;
-            break;
-        case 'e':
-            putenv(optarg);
-            break;
-        case 'x':
-            sigHandler = false;
-            break;
-        case 'K':
-            serverOpts.maxCrashCount = atoi(optarg);
-            if (serverOpts.maxCrashCount <= 0) {
-                fprintf(stderr, "Invalid argument to -K %s\n", optarg);
-                return 1;
-            }
-            break;
-        case 'i':
-            serverOpts.completionCacheSize = atoi(optarg);
-            if (serverOpts.completionCacheSize <= 0) {
-                fprintf(stderr, "Invalid argument to -i %s\n", optarg);
-                return 1;
-            }
-            break;
-        case 21:
-            serverOpts.maxIncludeCompletionDepth = strtoul(optarg, 0, 10);
-            break;
-        case 'T':
-            serverOpts.rpIndexDataMessageTimeout = atoi(optarg);
-            if (serverOpts.rpIndexDataMessageTimeout <= 0) {
-                fprintf(stderr, "Can't parse argument to -T %s.\n", optarg);
-                return 1;
-            }
-            break;
-        case 'a': {
-            bool ok;
-            serverOpts.rpNiceValue = String(optarg).toLong(&ok);
-            if (!ok) {
-                fprintf(stderr, "Can't parse argument to -a %s.\n", optarg);
-                return 1;
-            }
-            break; }
-        case 'j': {
-            bool ok;
-            serverOpts.jobCount = String(optarg).toULong(&ok);
-            if (!ok) {
-                fprintf(stderr, "Can't parse argument to -j %s. -j must be a positive integer.\n", optarg);
-                return 1;
-            }
-            break; }
-        case 'H': {
-            bool ok;
-            serverOpts.headerErrorJobCount = String(optarg).toULong(&ok);
-            if (!ok) {
-                fprintf(stderr, "Can't parse argument to -H %s. -H must be a positive integer.\n", optarg);
-                return 1;
-            }
-            break; }
-        case 'r': {
-            int large = atoi(optarg);
-            if (large <= 0) {
-                fprintf(stderr, "Can't parse argument to -r %s\n", optarg);
-                return 1;
-            }
-            serverOpts.defaultArguments.append("-Wlarge-by-value-copy=" + String(optarg)); // ### not quite working
-            break; }
-        case 'D': {
-            const char *eq = strchr(optarg, '=');
-            Source::Define def;
-            if (!eq) {
-                def.define = optarg;
+        case DebugLocations:
+            if (!strcmp(optarg, "clear") || !strcmp(optarg, "none")) {
+                serverOpts.debugLocations.clear();
             } else {
-                def.define = String(optarg, eq - optarg);
-                def.value = eq + 1;
+                serverOpts.debugLocations << optarg;
             }
-            serverOpts.defines.append(def);
+            break;
+        case ValidateFileMaps:
+            serverOpts.options |= Server::ValidateFileMaps;
+            break;
+        case TcpPort:
+            serverOpts.tcpPort = atoi(optarg);
+            if (!serverOpts.tcpPort) {
+                fprintf(stderr, "Invalid port %s for --tcp-port\n", optarg);
+                return CommandLineParser::Parse_Error;
+            }
+            break;
+        case RpPath:
+            serverOpts.rp = optarg;
+            if (serverOpts.rp.isFile()) {
+                serverOpts.rp.resolve();
+            } else {
+                fprintf(stderr, "%s is not a file\n", optarg);
+                return CommandLineParser::Parse_Error;
+            }
+            break;
+        case LogTimestamp:
+            logFlags |= LogTimeStamp;
+            break;
+        case SandboxRoot: {
+            const int len = strlen(optarg);
+            if (optarg[len-1] != '/') {
+                std::string tmparg = optarg;
+                tmparg += '/';
+                serverOpts.sandboxRoot = tmparg.c_str();
+            } else {
+                serverOpts.sandboxRoot = optarg;
+            }
+            if (!serverOpts.sandboxRoot.resolve() || !serverOpts.sandboxRoot.isDir()) {
+                fprintf(stderr, "%s is not a valid directory for sandbox-root\n", optarg);
+                return CommandLineParser::Parse_Error;
+            }
             break; }
-        case 'I':
-            serverOpts.includePaths.append(Source::Include(Source::Include::Type_Include, Path::resolved(optarg)));
-            break;
-        case 's':
-            serverOpts.includePaths.append(Source::Include(Source::Include::Type_System, Path::resolved(optarg)));
-            break;
-        case 'L':
-            logFile = optarg;
-            logLevel = LogLevel::None;
-            break;
-        case 'v':
-            if (logLevel != LogLevel::None)
-                ++logLevel;
-            break;
-#ifdef RTAGS_HAS_LAUNCHD
-        case 4:
-            serverOpts.options |= Server::Launchd;
-            break;
-#endif
-        case 5:
-            inactivityTimeout = atoi(optarg); // seconds.
-            if (inactivityTimeout <= 0) {
-                fprintf(stderr, "Invalid argument to --inactivity-timeout %s\n", optarg);
-                return 1;
-            }
-            break;
-        case 7:
-            serverOpts.options |= Server::RPLogToSyslog;
-            break;
-        case 8:
-            serverOpts.options |= Server::CompletionsNoFilter;
-            break;
-        case '?': {
-            fprintf(stderr, "Run rdm --help for help\n");
-            return 1; }
         }
-    }
-    if (optind < argCount) {
-        fprintf(stderr, "rdm: unexpected option -- '%s'\n", args[optind]);
+
+        return CommandLineParser::Parse_Exec;
+    };
+
+    switch (CommandLineParser::parse<OptionType>(argCount, args, opts, sizeof(opts) / sizeof(opts[0]), NullFlags, cb)) {
+    case CommandLineParser::Parse_Error:
         return 1;
+    case CommandLineParser::Parse_Ok:
+        return 0;
+    case CommandLineParser::Parse_Exec:
+        break;
     }
 
     if (daemon) {
@@ -848,7 +810,7 @@ int main(int argc, char** argv)
         // process runs for less than 10 seconds.
 
         static const int MIN_INACTIVITY_TIMEOUT = 15; // includes
-                                                      // fudge factor.
+        // fudge factor.
 
         if (inactivityTimeout < MIN_INACTIVITY_TIMEOUT) {
             inactivityTimeout = MIN_INACTIVITY_TIMEOUT;
@@ -928,3 +890,5 @@ int main(int argc, char** argv)
     cleanupLogging();
     return ret;
 }
+
+

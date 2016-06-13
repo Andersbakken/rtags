@@ -22,11 +22,7 @@
 #include "Server.h"
 
 static uint64_t start = 0;
-#if 1
-#define LOG() if (false) debug()
-#else
-#define LOG() error() << "CODE COMPLETION" << String::format<16>("%gs", static_cast<double>(Rct::monoMs() - ::start) / 1000.0)
-#endif
+#define LOG() if (Server::instance()->options().options & Server::CompletionLogs) error() << "CODE COMPLETION" << String::format<16>("%gs", static_cast<double>(Rct::monoMs() - ::start) / 1000.0)
 
 CompletionThread::CompletionThread(int cacheSize)
     : mShutdown(false), mCacheSize(cacheSize), mDump(0), mIndex(0)

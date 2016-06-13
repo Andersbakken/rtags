@@ -51,41 +51,42 @@ public:
     ~Server();
     static Server *instance() { return sInstance; }
     enum Option {
-        NoOptions = 0x000000,
-        ClearProjects = 0x000001,
-        Wall = 0x000002,
-        IgnorePrintfFixits = 0x000004,
-        NoUnlimitedErrors = 0x000008,
-        SpellChecking = 0x000010,
-        DisallowMultipleSources = 0x000020,
-        NoStartupCurrentProject = 0x000040,
-        WatchSystemPaths = 0x000080,
-        NoFileManagerWatch = 0x000100,
-        NoFileSystemWatch = 0x000200,
-        NoNoUnknownWarningsOption = 0x000400,
-        SuspendRPOnCrash = 0x000800,
-        SeparateDebugAndRelease = 0x001000,
-        AllowPedantic = 0x002000,
-        StartSuspended = 0x004000,
-        EnableCompilerManager = 0x008000,
-        EnableNDEBUG = 0x010000,
-        Progress = 0x020000,
-        Weverything = 0x040000,
-        NoComments = 0x080000,
-        Launchd = 0x0100000,     /* Only valid for Darwin... but you're not out of bits yet. */
-        RPLogToSyslog = 0x0200000,
-        CompletionsNoFilter = 0x0400000,
-        WatchSourcesOnly = 0x0800000,
-        NoFileLock = 0x1000000,
-        PCHEnabled = 0x2000000,
-        NoFileManager = 0x4000000,
-        ValidateFileMaps = 0x8000000
+        NoOptions = 0x0,
+        ClearProjects = (1ull << 1),
+        Wall = (1ull << 2),
+        IgnorePrintfFixits = (1ull << 3),
+        NoUnlimitedErrors = (1ull << 4),
+        SpellChecking = (1ull << 5),
+        DisallowMultipleSources = (1ull << 6),
+        NoStartupCurrentProject = (1ull << 7),
+        WatchSystemPaths = (1ull << 8),
+        NoFileManagerWatch = (1ull << 9),
+        NoFileSystemWatch = (1ull << 10),
+        NoNoUnknownWarningsOption = (1ull << 11),
+        SuspendRPOnCrash = (1ull << 12),
+        SeparateDebugAndRelease = (1ull << 13),
+        AllowPedantic = (1ull << 14),
+        StartSuspended = (1ull << 15),
+        EnableCompilerManager = (1ull << 16),
+        EnableNDEBUG = (1ull << 17),
+        Progress = (1ull << 18),
+        Weverything = (1ull << 19),
+        NoComments = (1ull << 20),
+        Launchd = (1ull << 21),     /* Only valid for Darwin... but you're not out of bits yet. */
+        RPLogToSyslog = (1ull << 22),
+        CompletionsNoFilter = (1ull << 23),
+        WatchSourcesOnly = (1ull << 24),
+        NoFileLock = (1ull << 25),
+        PCHEnabled = (1ull << 26),
+        NoFileManager = (1ull << 27),
+        ValidateFileMaps = (1ull << 28),
+        CompletionLogs = (1ull << 29)
     };
     struct Options {
         Options()
             : jobCount(0), headerErrorJobCount(0), maxIncludeCompletionDepth(0),
               rpVisitFileTimeout(0), rpIndexDataMessageTimeout(0), rpConnectTimeout(0),
-              rpConnectAttempts(0), rpNiceValue(0), threadStackSize(0), maxCrashCount(0),
+              rpConnectAttempts(0), rpNiceValue(0), maxCrashCount(0),
               completionCacheSize(0), testTimeout(60 * 1000 * 5),
               maxFileMapScopeCacheSize(512), tcpPort(0)
         {
@@ -95,7 +96,7 @@ public:
         Flags<Option> options;
         size_t jobCount, headerErrorJobCount, maxIncludeCompletionDepth;
         int rpVisitFileTimeout, rpIndexDataMessageTimeout,
-            rpConnectTimeout, rpConnectAttempts, rpNiceValue, threadStackSize, maxCrashCount,
+            rpConnectTimeout, rpConnectAttempts, rpNiceValue, maxCrashCount,
             completionCacheSize, testTimeout, maxFileMapScopeCacheSize;
         uint16_t tcpPort;
         List<String> defaultArguments, excludeFilters;

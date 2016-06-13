@@ -189,7 +189,6 @@ private:
         }
     };
 
-
     // these datastructures are only touched from inside the thread so it doesn't
     // need to be protected by mMutex
     Hash<uint32_t, SourceFile*> mCacheMap;
