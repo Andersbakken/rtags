@@ -202,93 +202,6 @@ enum OptionType {
     SandboxRoot
 };
 
-const struct CommandLineParser::Option<ConfigOptionType> configOpts[] = {
-    { Config, "config", 'c', required_argument, "Use this file (instead of ~/.rdmrc)." },
-    { NoRc, "no-rc", 'N', no_argument, "Don't load any rc files." }
-};
-
-const struct CommandLineParser::Option<OptionType> opts[] = {
-    { None, 0, 0, 0, "Options:" },
-    { Help, "help", 'h', no_argument, "Display this page." },
-    { Version, "version", 0, no_argument, "Display version." },
-    { IncludePath, "include-path", 'I', required_argument, "Add additional include path to clang." },
-    { Isystem, "isystem", 's', required_argument, "Add additional system include path to clang." },
-    { Define, "define", 'D', required_argument, "Add additional define directive to clang" },
-    { LogFile, "log-file", 'L', required_argument, "Log to this file." },
-    { CrashDumpFile, "crash-dump-file", 0, required_argument, "File to dump crash log to (default is <datadir>/crash.dump)." },
-    { SetEnv, "setenv", 'e', required_argument, "Set this environment variable (--setenv \"foobar=1\")." },
-    { NoWall, "no-Wall", 'W', no_argument, "Don't use -Wall." },
-    { Weverything, "Weverything", 'u', no_argument, "Use -Weverything." },
-    { Verbose, "verbose", 'v', no_argument, "Change verbosity, multiple -v's are allowed." },
-    { JobCount, "job-count", 'j', required_argument, String::format("Spawn this many concurrent processes for indexing (default %d).",
-                                                                    std::max(2, ThreadPool::idealThreadCount())) },
-    { HeaderErrorJobCount, "header-error-job-count", 'H', required_argument, "Allow this many concurrent header error jobs (default std::max(1, --job-count / 2))." },
-    { Test, "test", 't', required_argument, "Run this test." },
-    { TestTimeout, "test-timeout", 'z', required_argument, "Timeout for test to complete." },
-    { CleanSlate, "clean-slate", 'C', no_argument, "Clear out all data." },
-    { DisableSigHandler, "disable-sighandler", 'x', no_argument, "Disable signal handler to dump stack for crashes." },
-    { Silent, "silent", 'S', no_argument, "No logging to stdout/stderr." },
-    { ExcludeFilter, "exclude-filter", 'X', required_argument, "Files to exclude from rdm, default \"" EXCLUDEFILTER_DEFAULT "\"." },
-    { SocketFile, "socket-file", 'n', required_argument, "Use this file for the server socket (default ~/.rdm)." },
-    { DataDir, "data-dir", 'd', required_argument, "Use this directory to store persistent data (default ~/.rtags)." },
-    { IgnorePrintfFixits, "ignore-printf-fixits", 'F', no_argument, "Disregard any clang fixit that looks like it's trying to fix format for printf and friends." },
-    { NoUnlimitederrors, "no-unlimited-errors", 'f', no_argument, "Don't pass -ferror-limit=0 to clang." }, // ### should be allowed to set error limit instead
-    { BlockArgument, "block-argument", 'G', required_argument, "Block this argument from being passed to clang. E.g. rdm --block-argument -fno-inline" },
-    { NoSpellChecking, "no-spell-checking", 'l', no_argument, "Don't pass -fspell-checking." },
-    { LargeByValueCopy, "large-by-value-copy", 'r', required_argument, "Use -Wlarge-by-value-copy=[arg] when invoking clang." },
-    { DisallowMultipleSources, "disallow-multiple-sources", 'm', no_argument, "With this setting different sources will be merged for each source file." },
-    { NoStartupProject, "no-startup-project", 'o', no_argument, "Don't restore the last current project on startup." },
-    { NoNoUnknownWarningsOption, "no-no-unknown-warnings-option", 'Y', no_argument, "Don't pass -Wno-unknown-warning-option." },
-    { IgnoreCompiler, "ignore-compiler", 'b', required_argument, "Ignore this compiler." },
-    { WatchSystemPaths, "watch-system-paths", 'w', no_argument, "Watch system paths for changes." },
-    { RpVisitFileTimeout, "rp-visit-file-timeout", 'Z', required_argument, "Timeout for rp visitfile commands in ms (0 means no timeout) (default " STR(DEFAULT_RP_VISITFILE_TIMEOUT) ")." },
-    { RpIndexerMessageTimeout, "rp-indexer-message-timeout", 'T', required_argument, "Timeout for rp indexer-message in ms (0 means no timeout) (default " STR(DEFAULT_RP_INDEXER_MESSAGE_TIMEOUT) ")." },
-    { RpConnectTimeout, "rp-connect-timeout", 'O', required_argument, "Timeout for connection from rp to rdm in ms (0 means no timeout) (default " STR(DEFAULT_RP_CONNECT_TIMEOUT) ")." },
-    { RpConnectAttempts, "rp-connect-attempts", 0, required_argument, "Number of times rp attempts to connect to rdm before giving up. (default " STR(DEFAULT_RP_CONNECT_ATTEMPTS) ")." },
-    { RpNiceValue, "rp-nice-value", 'a', required_argument, "Nice value to use for rp (nice(2)) (default is no nicing)." },
-    { SuspendRpOnCrash, "suspend-rp-on-crash", 'q', no_argument, "Suspend rp in SIGSEGV handler (default " DEFAULT_SUSPEND_RP ")." },
-    { RpLogToSyslog, "rp-log-to-syslog", 0, no_argument, "Make rp log to syslog." },
-    { StartSuspended, "start-suspended", 'Q', no_argument, "Start out suspended (no reindexing enabled)." },
-    { SeparateDebugAndRelease, "separate-debug-and-release", 'E', no_argument, "Normally rdm doesn't consider release and debug as different builds. Pass this if you want it to." },
-    { MaxCrashCount, "max-crash-count", 'K', required_argument, "Max number of crashes before giving up a sourcefile (default " STR(DEFAULT_MAX_CRASH_COUNT) ")." },
-    { CompletionCacheSize, "completion-cache-size", 'i', required_argument, "Number of translation units to cache (default " STR(DEFAULT_COMPLETION_CACHE_SIZE) ")." },
-    { CompletionNoFilter, "completion-no-filter", 0, no_argument, "Don't filter private members and destructors from completions." },
-    { MaxIncludeCompletionDepth, "max-include-completion-depth", 0, required_argument, "Max recursion depth for header completion (default " STR(DEFAULT_MAX_INCLUDE_COMPLETION_DEPTH) ")." },
-    { AllowWpedantic, "allow-Wpedantic", 'P', no_argument, "Don't strip out -Wpedantic. This can cause problems in certain projects." },
-    { EnableCompilerManager, "enable-compiler-manager", 'R', no_argument, "Query compilers for their actual include paths instead of letting clang use its own." },
-    { EnableNDEBUG, "enable-NDEBUG", 'g', no_argument, "Don't remove -DNDEBUG from compile lines." },
-    { Progress, "progress", 'p', no_argument, "Report compilation progress in diagnostics output." },
-    { MaxFileMapCacheSize, "max-file-map-cache-size", 'y', required_argument, "Max files to cache per query (Should not exceed maximum number of open file descriptors allowed per process) (default " STR(DEFAULT_RDM_MAX_FILE_MAP_CACHE_SIZE) ")." },
-#ifdef FILEMANAGER_OPT_IN
-    { FilemanagerWatch, "filemanager-watch", 'M', no_argument, "Use a file system watcher for filemanager." },
-#else
-    { NoFileManagerWatch, "no-filemanager-watch", 'M', no_argument, "Don't use a file system watcher for filemanager." },
-#endif
-    { NoFileManager, "no-filemanager", 0, no_argument, "Don't scan project directory for files. (rc -P won't work)." },
-    { NoFileLock, "no-file-lock", 0, no_argument, "Disable file locking. Not entirely safe but might improve performance on certain systems." },
-    { PchEnabled, "pch-enabled", 0, no_argument, "Enable PCH (experimental)." },
-    { NoFilesystemWatcher, "no-filesystem-watcher", 'B', no_argument, "Disable file system watching altogether. Reindexing has to be triggered manually." },
-    { ArgTransform, "arg-transform", 'V', required_argument, "Use arg to transform arguments. [arg] should be executable with (execv(3))." },
-    { NoComments, "no-comments", 0, no_argument, "Don't parse/store doxygen comments." },
-#ifdef RTAGS_HAS_LAUNCHD
-    { Launchd, "launchd", 0, no_argument, "Run as a launchd job (use launchd API to retrieve socket opened by launchd on rdm's behalf)." },
-#endif
-    { InactivityTimeout, "inactivity-timeout", 0, required_argument, "Time in seconds after which rdm will quit if there's been no activity (N.B., once rdm has quit, something will need to re-run it!)." },
-    { Daemon, "daemon", 0, no_argument, "Run as daemon (detach from terminal)." },
-    { LogFileLogLevel, "log-file-log-level", 0, required_argument, "Log level for log file (default is error), options are: error, warning, debug or verbose-debug." },
-    { WatchSourcesOnly, "watch-sources-only", 0, no_argument, "Only watch source files (not dependencies)." },
-    { DebugLocations, "debug-locations", 0, no_argument, "Set debug locations." },
-    { ValidateFileMaps, "validate-file-maps", 0, no_argument, "Spend some time validating project data on startup." },
-    { TcpPort, "tcp-port", 0, required_argument, "Listen on this tcp socket (default none)." },
-    { RpPath, "rp-path", 0, required_argument, String::format<256>("Path to rp (default %s).", defaultRP().constData()) },
-    { LogTimestamp, "log-timestamp", 0, no_argument, "Add timestamp to logs." },
-    { SandboxRoot, "sandbox-root",  0, required_argument, "Create index using relative paths by stripping dir (enables copying of tag index db files without need to reindex)." },
-    { None, "config", 'c', required_argument, "Use this file (instead of ~/.rdmrc)." },
-    { None, "no-rc", 'N', no_argument, "Don't load any rc files." },
-
-    { None, 0, 0, 0, String() }
-};
-
 int main(int argc, char** argv)
 {
     RemoveCrashDump removeCrashDump;
@@ -330,6 +243,11 @@ int main(int argc, char** argv)
          * files.
          *
          */
+
+        const struct CommandLineParser::Option<ConfigOptionType> configOpts[] = {
+            { Config, "config", 'c', required_argument, "Use this file (instead of ~/.rdmrc)." },
+            { NoRc, "no-rc", 'N', no_argument, "Don't load any rc files." }
+        };
 
         CommandLineParser::parse<ConfigOptionType>(argc, argv, configOpts, sizeof(configOpts) / sizeof(configOpts[0]),
                                                    CommandLineParser::IgnoreUnknown, [&norc, &rcfile](ConfigOptionType type) {
@@ -412,6 +330,87 @@ int main(int argc, char** argv)
     char **args = argList.data();
     bool defaultDataDir = true;
     int inactivityTimeout = 0;
+
+    const struct CommandLineParser::Option<OptionType> opts[] = {
+        { None, 0, 0, 0, "Options:" },
+        { Help, "help", 'h', no_argument, "Display this page." },
+        { Version, "version", 0, no_argument, "Display version." },
+        { IncludePath, "include-path", 'I', required_argument, "Add additional include path to clang." },
+        { Isystem, "isystem", 's', required_argument, "Add additional system include path to clang." },
+        { Define, "define", 'D', required_argument, "Add additional define directive to clang" },
+        { LogFile, "log-file", 'L', required_argument, "Log to this file." },
+        { CrashDumpFile, "crash-dump-file", 0, required_argument, "File to dump crash log to (default is <datadir>/crash.dump)." },
+        { SetEnv, "setenv", 'e', required_argument, "Set this environment variable (--setenv \"foobar=1\")." },
+        { NoWall, "no-Wall", 'W', no_argument, "Don't use -Wall." },
+        { Weverything, "Weverything", 'u', no_argument, "Use -Weverything." },
+        { Verbose, "verbose", 'v', no_argument, "Change verbosity, multiple -v's are allowed." },
+        { JobCount, "job-count", 'j', required_argument, String::format("Spawn this many concurrent processes for indexing (default %d).",
+                                                                        std::max(2, ThreadPool::idealThreadCount())) },
+        { HeaderErrorJobCount, "header-error-job-count", 'H', required_argument, "Allow this many concurrent header error jobs (default std::max(1, --job-count / 2))." },
+        { Test, "test", 't', required_argument, "Run this test." },
+        { TestTimeout, "test-timeout", 'z', required_argument, "Timeout for test to complete." },
+        { CleanSlate, "clean-slate", 'C', no_argument, "Clear out all data." },
+        { DisableSigHandler, "disable-sighandler", 'x', no_argument, "Disable signal handler to dump stack for crashes." },
+        { Silent, "silent", 'S', no_argument, "No logging to stdout/stderr." },
+        { ExcludeFilter, "exclude-filter", 'X', required_argument, "Files to exclude from rdm, default \"" EXCLUDEFILTER_DEFAULT "\"." },
+        { SocketFile, "socket-file", 'n', required_argument, "Use this file for the server socket (default ~/.rdm)." },
+        { DataDir, "data-dir", 'd', required_argument, "Use this directory to store persistent data (default ~/.rtags)." },
+        { IgnorePrintfFixits, "ignore-printf-fixits", 'F', no_argument, "Disregard any clang fixit that looks like it's trying to fix format for printf and friends." },
+        { NoUnlimitederrors, "no-unlimited-errors", 'f', no_argument, "Don't pass -ferror-limit=0 to clang." }, // ### should be allowed to set error limit instead
+        { BlockArgument, "block-argument", 'G', required_argument, "Block this argument from being passed to clang. E.g. rdm --block-argument -fno-inline" },
+        { NoSpellChecking, "no-spell-checking", 'l', no_argument, "Don't pass -fspell-checking." },
+        { LargeByValueCopy, "large-by-value-copy", 'r', required_argument, "Use -Wlarge-by-value-copy=[arg] when invoking clang." },
+        { DisallowMultipleSources, "disallow-multiple-sources", 'm', no_argument, "With this setting different sources will be merged for each source file." },
+        { NoStartupProject, "no-startup-project", 'o', no_argument, "Don't restore the last current project on startup." },
+        { NoNoUnknownWarningsOption, "no-no-unknown-warnings-option", 'Y', no_argument, "Don't pass -Wno-unknown-warning-option." },
+        { IgnoreCompiler, "ignore-compiler", 'b', required_argument, "Ignore this compiler." },
+        { WatchSystemPaths, "watch-system-paths", 'w', no_argument, "Watch system paths for changes." },
+        { RpVisitFileTimeout, "rp-visit-file-timeout", 'Z', required_argument, "Timeout for rp visitfile commands in ms (0 means no timeout) (default " STR(DEFAULT_RP_VISITFILE_TIMEOUT) ")." },
+        { RpIndexerMessageTimeout, "rp-indexer-message-timeout", 'T', required_argument, "Timeout for rp indexer-message in ms (0 means no timeout) (default " STR(DEFAULT_RP_INDEXER_MESSAGE_TIMEOUT) ")." },
+        { RpConnectTimeout, "rp-connect-timeout", 'O', required_argument, "Timeout for connection from rp to rdm in ms (0 means no timeout) (default " STR(DEFAULT_RP_CONNECT_TIMEOUT) ")." },
+        { RpConnectAttempts, "rp-connect-attempts", 0, required_argument, "Number of times rp attempts to connect to rdm before giving up. (default " STR(DEFAULT_RP_CONNECT_ATTEMPTS) ")." },
+        { RpNiceValue, "rp-nice-value", 'a', required_argument, "Nice value to use for rp (nice(2)) (default is no nicing)." },
+        { SuspendRpOnCrash, "suspend-rp-on-crash", 'q', no_argument, "Suspend rp in SIGSEGV handler (default " DEFAULT_SUSPEND_RP ")." },
+        { RpLogToSyslog, "rp-log-to-syslog", 0, no_argument, "Make rp log to syslog." },
+        { StartSuspended, "start-suspended", 'Q', no_argument, "Start out suspended (no reindexing enabled)." },
+        { SeparateDebugAndRelease, "separate-debug-and-release", 'E', no_argument, "Normally rdm doesn't consider release and debug as different builds. Pass this if you want it to." },
+        { MaxCrashCount, "max-crash-count", 'K', required_argument, "Max number of crashes before giving up a sourcefile (default " STR(DEFAULT_MAX_CRASH_COUNT) ")." },
+        { CompletionCacheSize, "completion-cache-size", 'i', required_argument, "Number of translation units to cache (default " STR(DEFAULT_COMPLETION_CACHE_SIZE) ")." },
+        { CompletionNoFilter, "completion-no-filter", 0, no_argument, "Don't filter private members and destructors from completions." },
+        { MaxIncludeCompletionDepth, "max-include-completion-depth", 0, required_argument, "Max recursion depth for header completion (default " STR(DEFAULT_MAX_INCLUDE_COMPLETION_DEPTH) ")." },
+        { AllowWpedantic, "allow-Wpedantic", 'P', no_argument, "Don't strip out -Wpedantic. This can cause problems in certain projects." },
+        { EnableCompilerManager, "enable-compiler-manager", 'R', no_argument, "Query compilers for their actual include paths instead of letting clang use its own." },
+        { EnableNDEBUG, "enable-NDEBUG", 'g', no_argument, "Don't remove -DNDEBUG from compile lines." },
+        { Progress, "progress", 'p', no_argument, "Report compilation progress in diagnostics output." },
+        { MaxFileMapCacheSize, "max-file-map-cache-size", 'y', required_argument, "Max files to cache per query (Should not exceed maximum number of open file descriptors allowed per process) (default " STR(DEFAULT_RDM_MAX_FILE_MAP_CACHE_SIZE) ")." },
+#ifdef FILEMANAGER_OPT_IN
+        { FilemanagerWatch, "filemanager-watch", 'M', no_argument, "Use a file system watcher for filemanager." },
+#else
+        { NoFileManagerWatch, "no-filemanager-watch", 'M', no_argument, "Don't use a file system watcher for filemanager." },
+#endif
+        { NoFileManager, "no-filemanager", 0, no_argument, "Don't scan project directory for files. (rc -P won't work)." },
+        { NoFileLock, "no-file-lock", 0, no_argument, "Disable file locking. Not entirely safe but might improve performance on certain systems." },
+        { PchEnabled, "pch-enabled", 0, no_argument, "Enable PCH (experimental)." },
+        { NoFilesystemWatcher, "no-filesystem-watcher", 'B', no_argument, "Disable file system watching altogether. Reindexing has to be triggered manually." },
+        { ArgTransform, "arg-transform", 'V', required_argument, "Use arg to transform arguments. [arg] should be executable with (execv(3))." },
+        { NoComments, "no-comments", 0, no_argument, "Don't parse/store doxygen comments." },
+#ifdef RTAGS_HAS_LAUNCHD
+        { Launchd, "launchd", 0, no_argument, "Run as a launchd job (use launchd API to retrieve socket opened by launchd on rdm's behalf)." },
+#endif
+        { InactivityTimeout, "inactivity-timeout", 0, required_argument, "Time in seconds after which rdm will quit if there's been no activity (N.B., once rdm has quit, something will need to re-run it!)." },
+        { Daemon, "daemon", 0, no_argument, "Run as daemon (detach from terminal)." },
+        { LogFileLogLevel, "log-file-log-level", 0, required_argument, "Log level for log file (default is error), options are: error, warning, debug or verbose-debug." },
+        { WatchSourcesOnly, "watch-sources-only", 0, no_argument, "Only watch source files (not dependencies)." },
+        { DebugLocations, "debug-locations", 0, no_argument, "Set debug locations." },
+        { ValidateFileMaps, "validate-file-maps", 0, no_argument, "Spend some time validating project data on startup." },
+        { TcpPort, "tcp-port", 0, required_argument, "Listen on this tcp socket (default none)." },
+        { RpPath, "rp-path", 0, required_argument, String::format<256>("Path to rp (default %s).", defaultRP().constData()) },
+        { LogTimestamp, "log-timestamp", 0, no_argument, "Add timestamp to logs." },
+        { SandboxRoot, "sandbox-root",  0, required_argument, "Create index using relative paths by stripping dir (enables copying of tag index db files without need to reindex)." },
+        { None, "config", 'c', required_argument, "Use this file (instead of ~/.rdmrc)." },
+        { None, "no-rc", 'N', no_argument, "Don't load any rc files." }
+    };
+
     std::function<CommandLineParser::ParseStatus(OptionType type)> cb;
     cb = [&](OptionType type) {
         switch (type) {
