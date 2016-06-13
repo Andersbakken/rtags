@@ -44,3 +44,4 @@ compile_commands.json
 /CPackSourceConfig.cmake
 /source/VERSION
 /src/include/RTagsVersion.h
+/bin/rlex

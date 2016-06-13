@@ -172,6 +172,9 @@ set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/bin)
 add_executable(rp rp.cpp)
 target_link_libraries(rp ${RTAGS_LIBRARIES})
 
+add_executable(rlex rlex.cpp)
+target_link_libraries(rlex ${RTAGS_LIBRARIES})
+
 if (CYGWIN)
     EnsureLibraries(rdm rct)
 endif ()
