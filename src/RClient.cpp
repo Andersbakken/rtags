@@ -432,7 +432,7 @@ CommandLineParser::ParseStatus RClient::parse(int &argc, char **argv)
             assert(0);
             break;
         case Help:
-        CommandLineParser::help(stdout, argv[0], opts, sizeof(opts) / sizeof(opts[0]));
+            CommandLineParser::help(stdout, argv[0], opts, sizeof(opts) / sizeof(opts[0]));
             return CommandLineParser::Parse_Ok;
         case Man:
             CommandLineParser::man(opts, sizeof(opts) / sizeof(opts[0]));
@@ -936,7 +936,7 @@ CommandLineParser::ParseStatus RClient::parse(int &argc, char **argv)
             addQuery(QueryMessage::SetBuffers, encoded);
             break; }
         case LoadCompilationDatabase: {
-    #if CLANG_VERSION_MAJOR > 3 || (CLANG_VERSION_MAJOR == 3 && CLANG_VERSION_MINOR > 3)
+#if CLANG_VERSION_MAJOR > 3 || (CLANG_VERSION_MAJOR == 3 && CLANG_VERSION_MINOR > 3)
             Path dir;
             if (optarg) {
                 dir = optarg;
@@ -966,7 +966,7 @@ CommandLineParser::ParseStatus RClient::parse(int &argc, char **argv)
                 return CommandLineParser::Parse_Error;
             }
             addCompile(dir);
-    #endif
+#endif
             break; }
         case HasFileManager: {
             Path p;
@@ -1179,7 +1179,7 @@ CommandLineParser::ParseStatus RClient::parse(int &argc, char **argv)
         case ReferenceName:
             addQuery(QueryMessage::ReferencesName, optarg);
             break;
-    #ifdef RTAGS_HAS_LUA
+#ifdef RTAGS_HAS_LUA
         case VisitAST: {
             Path p = optarg;
             p.resolve(Path::MakeAbsolute);
@@ -1205,7 +1205,7 @@ CommandLineParser::ParseStatus RClient::parse(int &argc, char **argv)
             }
             mVisitASTScripts.push_back(code);
             break; }
-    #endif
+#endif
         }
         return CommandLineParser::Parse_Exec;
     };
