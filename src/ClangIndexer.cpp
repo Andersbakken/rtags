@@ -1854,7 +1854,7 @@ bool ClangIndexer::writeFiles(const Path &root, String &error)
             FILE *f = fopen((unitRoot + "/info").constData(), "w");
             if (!f)
                 return false;
-            fprintf(f, "Indexed by %s at %llu\n", p.constData(), mIndexDataMessage.parseTime());
+            fprintf(f, "Indexed by %s at %llu\n", p.constData(), static_cast<unsigned long long>(mIndexDataMessage.parseTime()));
             fclose(f);
         }
 
@@ -1905,7 +1905,8 @@ bool ClangIndexer::writeFiles(const Path &root, String &error)
 
     const String args = Sandbox::encoded(String::join(mSource.toCommandLine(Source::Default|Source::IncludeCompiler|Source::IncludeSourceFile), ' '));
 
-    fprintf(f, "%s\n%s\nIndexed at %llu\n", p.constData(), args.constData(), mIndexDataMessage.parseTime());
+    fprintf(f, "%s\n%s\nIndexed at %llu\n", p.constData(), args.constData(),
+            static_cast<unsigned long long>(mIndexDataMessage.parseTime()));
     fclose(f);
 
     return true;
