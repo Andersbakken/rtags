@@ -1210,10 +1210,15 @@ CommandLineParser::ParseStatus RClient::parse(int &argc, char **argv)
         return CommandLineParser::Parse_Exec;
     };
 
-    auto ret = CommandLineParser::parse<RClient::OptionType>(argc, argv, opts, sizeof(opts) / sizeof(opts[0]), NullFlags, cb);
-    if (ret == CommandLineParser::Parse_Error) {
+    const auto ret = CommandLineParser::parse<RClient::OptionType>(argc, argv, opts, sizeof(opts) / sizeof(opts[0]), NullFlags, cb);
+    switch (ret) {
+    case CommandLineParser::Parse_Error:
         help(stderr, argv[0], opts, sizeof(opts) / sizeof(opts[0]));
-        return CommandLineParser::Parse_Error;
+        // fall through
+    case CommandLineParser::Parse_Ok:
+        return ret;
+    case CommandLineParser::Parse_Exec:
+        break;
     }
 
     if (!initLogging(argv[0], logFlags, mLogLevel, logFile)) {
