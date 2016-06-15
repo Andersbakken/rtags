@@ -506,6 +506,7 @@ int main(int argc, char** argv)
         case SocketFile:
             serverOpts.socketFile = optarg;
             serverOpts.socketFile.resolve();
+            break;
         case DataDir:
             defaultDataDir = false;
             serverOpts.dataDir = String::format<128>("%s", Path::resolved(optarg).constData());
@@ -634,15 +635,15 @@ int main(int argc, char** argv)
                 return CommandLineParser::Parse_Error;
             }
             break;
-    #ifdef FILEMANAGER_OPT_IN
+#ifdef FILEMANAGER_OPT_IN
         case FileManagerWatch:
             serverOpts.options &= ~Server::NoFileManagerWatch;
             break;
-    #else
+#else
         case NoFileManagerWatch:
             serverOpts.options |= Server::NoFileManagerWatch;
             break;
-    #endif
+#endif
         case NoFileManager:
             serverOpts.options |= Server::NoFileManager;
             break;
@@ -665,11 +666,11 @@ int main(int argc, char** argv)
         case NoComments:
             serverOpts.options |= Server::NoComments;
             break;
-    #ifdef RTAGS_HAS_LAUNCHD
+#ifdef RTAGS_HAS_LAUNCHD
         case Launchd:
             serverOpts.options |= Server::Launchd;
             break;
-    #endif
+#endif
         case InactivityTimeout:
             inactivityTimeout = atoi(optarg); // seconds.
             if (inactivityTimeout <= 0) {
@@ -866,7 +867,7 @@ int main(int argc, char** argv)
         Path::mkdir(serverOpts.dataDir);
         crashDumpFile = fopen(crashDumpTempFilePath, "w");
         if (!crashDumpFile) {
-            fprintf(stderr, "Couldn't open temp file %s for write (%d)", crashDumpTempFilePath, errno);
+            fprintf(stderr, "Couldn't open temp file %s for write (%d)\n", crashDumpTempFilePath, errno);
             return 1;
         }
     }
