@@ -215,7 +215,7 @@ public:
             return false;
         assert(col);
         *col = static_cast<uint32_t>(strtoul(str + lastColon + 1, &end, 10));
-        if (*end != ':' || end == str + lastColon + 1)
+        if ((*end && *end != ':') || end == str + lastColon + 1)
             return false;
 
         *path = Path::resolved(key.left(secondLastColon), mode, pwd);
