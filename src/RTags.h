@@ -773,8 +773,8 @@ RCT_FLAGS(Flag);
 template <typename T>
 ParseStatus parse(int &argc, char **argv, const Option<T> *opts, size_t count, Flags<Flag> flags, const std::function<ParseStatus(T)> &handler)
 {
-    optind = 1;
-    opterr = 1;
+    optind = optreset = 1;
+    opterr = (flags & IgnoreUnknown) ? 0 : 1;
     Hash<int, const Option<T> *> shortOptions, longOptions;
     List<option> options;
     String shortOptionsString;
