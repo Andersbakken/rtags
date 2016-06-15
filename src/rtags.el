@@ -4551,7 +4551,7 @@ the user enter missing field manually."
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Helm integration
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-(when (require 'helm nil t)
+(with-eval-after-load 'helm
   (defcustom rtags-helm-actions
     '(("Select" . rtags-helm-select)
       ("Select other window" . rtags-helm-select-other-window))
