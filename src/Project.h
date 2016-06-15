@@ -397,20 +397,20 @@ RCT_FLAGS(Project::WatchMode);
 
 inline bool Project::visitFile(uint32_t visitFileId, const Path &path, uint64_t key)
 {
+    assert(key);
     std::lock_guard<std::mutex> lock(mMutex);
     assert(visitFileId);
     Path &p = mVisitedFiles[visitFileId];
+    assert(key);
+    assert(mActiveJobs.contains(key));
+    std::shared_ptr<IndexerJob> &job = mActiveJobs[key];
+    assert(job);
     if (p.isEmpty()) {
         p = path;
-        if (key) {
-            assert(mActiveJobs.contains(key));
-            std::shared_ptr<IndexerJob> &job = mActiveJobs[key];
-            assert(job);
-            job->visited.insert(visitFileId);
-        }
+        job->visited.insert(visitFileId);
         return true;
     }
-    return false;
+    return job->visited.contains(visitFileId);
 }
 
 inline void Project::releaseFileIds(const Set<uint32_t> &fileIds)
