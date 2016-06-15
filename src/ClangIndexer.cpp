@@ -1832,6 +1832,7 @@ static inline void encodeSymbols(Map<Location, Symbol> &symbols)
 
 bool ClangIndexer::writeFiles(const Path &root, String &error)
 {
+    const Path p = Sandbox::encoded(mSourceFile);
     const bool hasRoot = Sandbox::hasRoot();
     for (const auto &unit : mUnits) {
         if (!(mIndexDataMessage.files().value(unit.first) & IndexDataMessage::Visited)) {
@@ -1849,6 +1850,14 @@ bool ClangIndexer::writeFiles(const Path &root, String &error)
         String unitRoot = root;
         unitRoot << unit.first;
         Path::mkdir(unitRoot, Path::Recursive);
+        if (unit.first != mSource.fileId) {
+            FILE *f = fopen((unitRoot + "/info").constData(), "w");
+            if (!f)
+                return false;
+            fprintf(f, "Indexed by %s at %llu\n", p.constData(), mIndexDataMessage.parseTime());
+            fclose(f);
+        }
+
         // ::error() << "Writing file" << Location::path(unit.first) << unitRoot << unit.second->symbols.size()
         //           << unit.second->targets.size()
         //           << unit.second->usrs.size()
@@ -1894,10 +1903,9 @@ bool ClangIndexer::writeFiles(const Path &root, String &error)
         return false;
     }
 
-    const Path p = Sandbox::encoded(mSourceFile);
     const String args = Sandbox::encoded(String::join(mSource.toCommandLine(Source::Default|Source::IncludeCompiler|Source::IncludeSourceFile), ' '));
 
-    fprintf(f, "%s\n%s\n", p.constData(), args.constData());
+    fprintf(f, "%s\n%s\nIndexed at %llu\n", p.constData(), args.constData(), mIndexDataMessage.parseTime());
     fclose(f);
 
     return true;
