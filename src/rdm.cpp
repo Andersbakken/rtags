@@ -170,6 +170,7 @@ enum OptionType {
     MaxCrashCount,
     CompletionCacheSize,
     CompletionNoFilter,
+    CompletionLogs,
     MaxIncludeCompletionDepth,
     AllowWpedantic,
     EnableCompilerManager,
@@ -377,6 +378,7 @@ int main(int argc, char** argv)
         { MaxCrashCount, "max-crash-count", 'K', required_argument, "Max number of crashes before giving up a sourcefile (default " STR(DEFAULT_MAX_CRASH_COUNT) ")." },
         { CompletionCacheSize, "completion-cache-size", 'i', required_argument, "Number of translation units to cache (default " STR(DEFAULT_COMPLETION_CACHE_SIZE) ")." },
         { CompletionNoFilter, "completion-no-filter", 0, no_argument, "Don't filter private members and destructors from completions." },
+        { CompletionLogs, "completion-logs", 0, no_argument, "Log more info about completions." },
         { MaxIncludeCompletionDepth, "max-include-completion-depth", 0, required_argument, "Max recursion depth for header completion (default " STR(DEFAULT_MAX_INCLUDE_COMPLETION_DEPTH) ")." },
         { AllowWpedantic, "allow-Wpedantic", 'P', no_argument, "Don't strip out -Wpedantic. This can cause problems in certain projects." },
         { EnableCompilerManager, "enable-compiler-manager", 'R', no_argument, "Query compilers for their actual include paths instead of letting clang use its own." },
@@ -612,6 +614,9 @@ int main(int argc, char** argv)
             break;
         case CompletionNoFilter:
             serverOpts.options |= Server::CompletionsNoFilter;
+            break;
+        case CompletionLogs:
+            serverOpts.options |= Server::CompletionLogs;
             break;
         case MaxIncludeCompletionDepth:
             serverOpts.maxIncludeCompletionDepth = strtoul(optarg, 0, 10);
