@@ -48,7 +48,7 @@ int FindSymbolsJob::execute()
             }
             for (const auto &it : locations) {
                 const Symbol sym = proj->findSymbol(it);
-                if (!sym.isNull())
+                if (!sym.isNull() || sym.flags & Symbol::FileSymbol)
                     symbols.insert(sym);
             }
         };

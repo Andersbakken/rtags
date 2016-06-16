@@ -55,19 +55,20 @@ struct Symbol
     CXTypeKind type;
     CXLinkageKind linkage;
     enum Flag {
-        None = 0x000,
-        VirtualMethod = 0x001,
-        PureVirtualMethod = 0x002|VirtualMethod,
-        StaticMethod = 0x004,
-        ConstMethod = 0x008,
-        Variadic = 0x010,
-        Auto = 0x020,
-        AutoRef = 0x040,
-        MacroExpansion = 0x080,
-        TemplateSpecialization = 0x100,
-        InlineFunction = 0x200,
-        ImplicitDestruction = 0x400,
-        Definition = 0x800
+        None                   = 0x0000,
+        VirtualMethod          = 0x0001,
+        PureVirtualMethod      = 0x0002|VirtualMethod,
+        StaticMethod           = 0x0004,
+        ConstMethod            = 0x0008,
+        Variadic               = 0x0010,
+        Auto                   = 0x0020,
+        AutoRef                = 0x0040,
+        MacroExpansion         = 0x0080,
+        TemplateSpecialization = 0x0100,
+        InlineFunction         = 0x0200,
+        ImplicitDestruction    = 0x0400,
+        Definition             = 0x0800,
+        FileSymbol             = 0x1000
     };
     String briefComment, xmlComment;
     uint16_t flags;
