@@ -177,6 +177,7 @@ bool ClangIndexer::exec(const String &data)
     mIndexDataMessage.setId(id);
 
     assert(mConnection->isConnected());
+    assert(mSource.fileId);
     mIndexDataMessage.files()[mSource.fileId] |= IndexDataMessage::Visited;
     parse() && visit() && diagnose();
     String message = mSourceFile.toTilde();
@@ -281,6 +282,7 @@ Location ClangIndexer::createLocation(const Path &sourceFile, unsigned int line,
                 if (resolved.isEmpty())
                     resolved = sourceFile.resolved();
 #endif
+                assert(id);
                 mIndexDataMessage.files()[id] = IndexDataMessage::NoFileFlag;
                 *blockedPtr = true;
                 return Location();
@@ -316,6 +318,7 @@ Location ClangIndexer::createLocation(const Path &sourceFile, unsigned int line,
         id = mVisitFileResponseMessageFileId;
         break;
     }
+    assert(id);
     Flags<IndexDataMessage::FileFlag> &flags = mIndexDataMessage.files()[id];
     if (mVisitFileResponseMessageVisit) {
         flags |= IndexDataMessage::Visited;
@@ -2027,6 +2030,12 @@ bool ClangIndexer::diagnose()
         CXDiagnostic diagnostic = clang_getDiagnostic(mTranslationUnit->unit, i);
         const CXSourceLocation diagLoc = clang_getDiagnosticLocation(diagnostic);
         const uint32_t fileId = createLocation(diagLoc, 0).fileId();
+        if (!fileId) {
+            clang_disposeDiagnostic(diagnostic);
+            error() << "Couldn't get location for diagnostics" << clang_getCursor(mTranslationUnit->unit, diagLoc) << fileId << mSource.fileId
+                    << clang_getDiagnosticSeverity(diagnostic);
+            continue;
+        }
         const CXDiagnosticSeverity sev = clang_getDiagnosticSeverity(diagnostic);
         // error() << "Got a dude" << clang_getCursor(mTranslationUnit->unit, diagLoc) << fileId << mSource.fileId
         //         << sev << CXDiagnostic_Error;
@@ -2034,6 +2043,7 @@ bool ClangIndexer::diagnose()
         const bool inclusionError = clang_getCursorKind(cursor) == CXCursor_InclusionDirective;
         if (inclusionError)
             mIndexDataMessage.setFlag(IndexDataMessage::InclusionError);
+        assert(fileId);
         Flags<IndexDataMessage::FileFlag> &flags = mIndexDataMessage.files()[fileId];
         if (fileId != mSource.fileId && !inclusionError && sev >= CXDiagnostic_Error && !(flags & IndexDataMessage::HeaderError)) {
             // We don't treat inclusions or code inside a macro expansion as a
