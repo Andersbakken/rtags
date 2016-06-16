@@ -2260,14 +2260,15 @@ void ClangIndexer::addFileSymbol(uint32_t file)
     const char *fn = path.fileName();
     ref->symbolNames[fn].insert(loc);
     Symbol &sym = ref->symbols[loc];
+    if (sym.isNull())
+        sym.flags |= Symbol::FileSymbol;
     sym.location = loc;
 }
 
 int ClangIndexer::symbolLength(CXCursorKind kind, const CXCursor &cursor)
 {
-    if (kind == CXCursor_VarDecl) {
-        if (RTags::resolveAuto(cursor))
-            return 4;
+    if (kind == CXCursor_VarDecl && RTags::resolveAuto(cursor)) {
+        return 4;
     }
 
     CXStringScope name = clang_getCursorSpelling(cursor);
