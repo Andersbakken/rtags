@@ -54,12 +54,7 @@ typedef Hash<Path, String> UnsavedFiles;
 
 namespace RTags {
 
-#include "RTagsVersion.h"
-
-inline String versionString()
-{
-    return String::format<64>("%d.%d.%d", MajorVersion, MinorVersion, DatabaseVersion);
-}
+String versionString();
 
 const LogLevel DiagnosticsLevel(-2);
 const LogLevel Statistics(-3);

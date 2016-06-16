@@ -29,6 +29,7 @@
 #include "rct/EventLoop.h"
 #include "rct/SHA256.h"
 #include "RTags.h"
+#include "RTagsVersion.h"
 #include "VisitFileMessage.h"
 #include "VisitFileResponseMessage.h"
 #include "Location.h"

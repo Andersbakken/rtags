@@ -1,6 +1,9 @@
+namespace RTags {
+
 enum {
     MajorVersion = @RTAGS_VERSION_MAJOR@,
     MinorVersion = @RTAGS_VERSION_MINOR@,
     DatabaseVersion = @RTAGS_VERSION_DATABASE@,
     SourcesFileVersion = @RTAGS_VERSION_SOURCES_FILE@
 };
+}

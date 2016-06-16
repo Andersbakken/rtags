@@ -36,6 +36,7 @@
 #include "RTags.h"
 #include "RTagsLogOutput.h"
 #include "Server.h"
+#include "RTagsVersion.h"
 
 enum { DirtyTimeout = 100 };
 

@@ -36,6 +36,7 @@
 #include "Project.h"
 #include "VisitFileMessage.h"
 #include "VisitFileResponseMessage.h"
+#include "RTagsVersion.h"
 
 #if CLANG_VERSION_MAJOR > 3 || (CLANG_VERSION_MAJOR == 3 && CLANG_VERSION_MINOR > 3)
 #include <clang-c/CXCompilationDatabase.h>
@@ -43,6 +44,11 @@
 
 
 namespace RTags {
+String versionString()
+{
+    return String::format<64>("%d.%d.%d", MajorVersion, MinorVersion, DatabaseVersion);
+}
+
 void encodePath(Path &path)
 {
     Sandbox::encode(path);

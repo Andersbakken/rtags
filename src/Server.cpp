@@ -63,6 +63,7 @@
 #include "SymbolInfoJob.h"
 #include "VisitFileMessage.h"
 #include "VisitFileResponseMessage.h"
+#include "RTagsVersion.h"
 
 #define TO_STR1(x) #x
 #define TO_STR(x) TO_STR1(x)

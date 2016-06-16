@@ -20,6 +20,7 @@
 #include "rct/Process.h"
 #include "RTags.h"
 #include "Server.h"
+#include "RTagsVersion.h"
 
 uint64_t IndexerJob::sNextId = 1;
 IndexerJob::IndexerJob(const Source &s,
