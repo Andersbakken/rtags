@@ -111,8 +111,7 @@ static inline Source::Language guessLanguageFromSourceFile(const Path &sourceFil
 
 static bool isWrapper(const char *name)
 {
-    return (!strcmp(name, "gcc-rtags-wrapper.sh")
-            || !strcmp(name, "icecc"));
+    return (!strcmp(name, "gcc-rtags-wrapper.sh") || !strcmp(name, "icecc"));
 }
 static Path findFileInPath(const Path &unresolved, const Path &cwd, const List<Path> &pathEnvironment)
 {
@@ -142,7 +141,7 @@ static Path findFileInPath(const Path &unresolved, const Path &cwd, const List<P
         bool ok;
         const Path p = Path::resolved(file, Path::RealPath, path, &ok);
         if (ok) {
-            if (isWrapper(p.fileName()) && !access(p.constData(), R_OK | X_OK)) {
+            if (!isWrapper(p.fileName()) && !access(p.constData(), R_OK | X_OK)) {
                 debug() << "Found compiler" << p << "for" << unresolved;
                 return Path::resolved(file, Path::MakeAbsolute, path);
             }
@@ -313,7 +312,7 @@ static Path resolveCompiler(const Path &unresolved, const Path &cwd, const List<
 static inline bool isCompiler(const Path &fullPath, const List<Path> &pathEnvironment)
 {
     const char *fileName = fullPath.fileName();
-    if (!strcmp(fileName, "ccache") || strstr(fileName, "clang") || strstr(fileName, "gcc") || strstr(fileName, "g++") || !strcmp(fileName, "cc") || !strcmp(fileName, "c++"))
+    if (!strcmp(fileName, "ccache"))
         return true;
     assert(EventLoop::isMainThread());
     static Hash<Path, bool> sCache;
@@ -331,7 +330,7 @@ static inline bool isCompiler(const Path &fullPath, const List<Path> &pathEnviro
         return false;
     }
 
-    const char *contents = "int main() { return 0; }";
+    const char *contents = "int foo() { return 0; }";
     const ssize_t len = strlen(contents);
     if (write(fd, contents, len) != len) {
         error("Failed to write to temporary file errno: %d", errno);
@@ -344,7 +343,7 @@ static inline bool isCompiler(const Path &fullPath, const List<Path> &pathEnviro
     Path out = path;
     out += ".out";
     Process proc;
-    proc.exec(fullPath, List<String>() << "-x" << "c" << path << "-o" << out, pathEnvironment);
+    proc.exec(fullPath, List<String>() << "-x" << "c" << "-c" << path << "-o" << out, pathEnvironment);
     assert(proc.isFinished());
     sCache[fullPath] = !proc.returnCode();
     unlink(path);
