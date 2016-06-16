@@ -179,6 +179,7 @@ static bool loadDependencies(DataFile &file, Dependencies &dependencies)
     for (int i=0; i<size; ++i) {
         uint32_t fileId;
         file >> fileId;
+        assert(fileId);
         dependencies[fileId] = new DependencyNode(fileId);
     }
     for (int i=0; i<size; ++i) {
@@ -1052,6 +1053,7 @@ void Project::updateDependencies(const std::shared_ptr<IndexDataMessage> &msg)
     const bool prune = !(msg->flags() & (IndexDataMessage::InclusionError|IndexDataMessage::ParseFailure));
     Set<uint32_t> files;
     for (auto pair : msg->files()) {
+        assert(pair.first);
         DependencyNode *&node = mDependencies[pair.first];
         if (!node) {
             node = new DependencyNode(pair.first);
@@ -1070,6 +1072,8 @@ void Project::updateDependencies(const std::shared_ptr<IndexDataMessage> &msg)
 
     // // ### this probably deletes and recreates the same nodes very very often
     for (auto it : msg->includes()) {
+        assert(it.first);
+        assert(it.second);
         DependencyNode *&includer = mDependencies[it.first];
         DependencyNode *&inclusiary = mDependencies[it.second];
         files.insert(it.first);
