@@ -179,7 +179,8 @@ static bool loadDependencies(DataFile &file, Dependencies &dependencies)
     for (int i=0; i<size; ++i) {
         uint32_t fileId;
         file >> fileId;
-        assert(fileId);
+        if (!fileId)
+            return false;
         dependencies[fileId] = new DependencyNode(fileId);
     }
     for (int i=0; i<size; ++i) {
@@ -371,7 +372,7 @@ bool Project::init()
         mDependencies.deleteAll();
         mVisitedFiles.clear();
         mDiagnostics.clear();
-        error("Restore error %s: Failed load dependencies.", mPath.constData());
+        error("Restore error %s: Failed to load dependencies.", mPath.constData());
         reindex();
         return true;
     }
