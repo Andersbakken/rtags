@@ -2033,8 +2033,8 @@ bool ClangIndexer::diagnose()
         const uint32_t fileId = createLocation(diagLoc, 0).fileId();
         if (!fileId) {
             clang_disposeDiagnostic(diagnostic);
-            error() << "Couldn't get location for diagnostics" << clang_getCursor(mTranslationUnit->unit, diagLoc) << fileId << mSource.fileId
-                    << clang_getDiagnosticSeverity(diagnostic);
+            // error() << "Couldn't get location for diagnostics" << clang_getCursor(mTranslationUnit->unit, diagLoc) << fileId << mSource.fileId
+            //         << clang_getDiagnosticSeverity(diagnostic);
             continue;
         }
         const CXDiagnosticSeverity sev = clang_getDiagnosticSeverity(diagnostic);
