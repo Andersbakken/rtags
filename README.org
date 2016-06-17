@@ -56,7 +56,7 @@ emacs +41:34 src/rdm.cpp
 Load =rtags.el=
 
 #+BEGIN_EXAMPLE
-M-x (load-file "rtags.el") RET
+M-: (load-file "rtags.el") RET
 #+END_EXAMPLE
 
 Call =rtags-find-symbol-at-point=
