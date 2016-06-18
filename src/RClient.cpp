@@ -1213,7 +1213,7 @@ CommandLineParser::ParseStatus RClient::parse(int &argc, char **argv)
     const auto ret = CommandLineParser::parse<RClient::OptionType>(argc, argv, opts, sizeof(opts) / sizeof(opts[0]), NullFlags, cb);
     switch (ret) {
     case CommandLineParser::Parse_Error:
-        help(stderr, argv[0], opts, sizeof(opts) / sizeof(opts[0]));
+        fprintf(stderr, "Try 'rc --help' for more information.\n");
         // fall through
     case CommandLineParser::Parse_Ok:
         return ret;
