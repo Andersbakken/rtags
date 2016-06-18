@@ -3510,7 +3510,7 @@ other window instead of the current one."
                         ((member token rtags-c++-keywords))
                         ((member token rtags-c++-types))
                         (t
-                         (let ((info (rtags-symbol-info-internal :silent t)))
+                         (let ((info (rtags-symbol-info-internal :silent t :parents t)))
                            (cond (rtags-last-request-not-indexed (setq done t))
                                  (rtags-last-request-not-connected (setq done t))
                                  ((setq container (or (cdr (assoc 'parent info))
