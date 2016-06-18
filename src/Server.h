@@ -55,32 +55,31 @@ public:
         ClearProjects = (1ull << 1),
         Wall = (1ull << 2),
         IgnorePrintfFixits = (1ull << 3),
-        NoUnlimitedErrors = (1ull << 4),
-        SpellChecking = (1ull << 5),
-        DisallowMultipleSources = (1ull << 6),
-        NoStartupCurrentProject = (1ull << 7),
-        WatchSystemPaths = (1ull << 8),
-        NoFileManagerWatch = (1ull << 9),
-        NoFileSystemWatch = (1ull << 10),
-        NoNoUnknownWarningsOption = (1ull << 11),
-        SuspendRPOnCrash = (1ull << 12),
-        SeparateDebugAndRelease = (1ull << 13),
-        AllowPedantic = (1ull << 14),
-        StartSuspended = (1ull << 15),
-        EnableCompilerManager = (1ull << 16),
-        EnableNDEBUG = (1ull << 17),
-        Progress = (1ull << 18),
-        Weverything = (1ull << 19),
-        NoComments = (1ull << 20),
-        Launchd = (1ull << 21),     /* Only valid for Darwin... but you're not out of bits yet. */
-        RPLogToSyslog = (1ull << 22),
-        CompletionsNoFilter = (1ull << 23),
-        WatchSourcesOnly = (1ull << 24),
-        NoFileLock = (1ull << 25),
-        PCHEnabled = (1ull << 26),
-        NoFileManager = (1ull << 27),
-        ValidateFileMaps = (1ull << 28),
-        CompletionLogs = (1ull << 29)
+        SpellChecking = (1ull << 4),
+        DisallowMultipleSources = (1ull << 5),
+        NoStartupCurrentProject = (1ull << 6),
+        WatchSystemPaths = (1ull << 7),
+        NoFileManagerWatch = (1ull << 8),
+        NoFileSystemWatch = (1ull << 9),
+        NoNoUnknownWarningsOption = (1ull << 10),
+        SuspendRPOnCrash = (1ull << 11),
+        SeparateDebugAndRelease = (1ull << 12),
+        AllowPedantic = (1ull << 13),
+        StartSuspended = (1ull << 14),
+        EnableCompilerManager = (1ull << 15),
+        EnableNDEBUG = (1ull << 16),
+        Progress = (1ull << 17),
+        Weverything = (1ull << 18),
+        NoComments = (1ull << 19),
+        Launchd = (1ull << 20),     /* Only valid for Darwin... but you're not out of bits yet. */
+        RPLogToSyslog = (1ull << 21),
+        CompletionsNoFilter = (1ull << 22),
+        WatchSourcesOnly = (1ull << 23),
+        NoFileLock = (1ull << 24),
+        PCHEnabled = (1ull << 25),
+        NoFileManager = (1ull << 26),
+        ValidateFileMaps = (1ull << 27),
+        CompletionLogs = (1ull << 28)
     };
     struct Options {
         Options()
@@ -97,7 +96,7 @@ public:
         size_t jobCount, headerErrorJobCount, maxIncludeCompletionDepth;
         int rpVisitFileTimeout, rpIndexDataMessageTimeout,
             rpConnectTimeout, rpConnectAttempts, rpNiceValue, maxCrashCount,
-            completionCacheSize, testTimeout, maxFileMapScopeCacheSize;
+            completionCacheSize, testTimeout, maxFileMapScopeCacheSize, errorLimit;
         uint16_t tcpPort;
         List<String> defaultArguments, excludeFilters;
         Set<String> blockedArguments;

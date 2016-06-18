@@ -81,6 +81,7 @@ static void signalHandler(int signal)
 #define DEFAULT_RP_CONNECT_TIMEOUT 0 // won't time out
 #define DEFAULT_RP_CONNECT_ATTEMPTS 3
 #define DEFAULT_COMPLETION_CACHE_SIZE 10
+#define DEFAULT_ERROR_LIMIT 50
 #define DEFAULT_MAX_INCLUDE_COMPLETION_DEPTH 3
 #define DEFAULT_MAX_CRASH_COUNT 5
 #define XSTR(s) #s
@@ -149,7 +150,7 @@ enum OptionType {
     SocketFile,
     DataDir,
     IgnorePrintfFixits,
-    NoUnlimitederrors,
+    ErrorLimit,
     BlockArgument,
     NoSpellChecking,
     LargeByValueCopy,
@@ -357,7 +358,7 @@ int main(int argc, char** argv)
         { SocketFile, "socket-file", 'n', required_argument, "Use this file for the server socket (default ~/.rdm)." },
         { DataDir, "data-dir", 'd', required_argument, "Use this directory to store persistent data (default ~/.rtags)." },
         { IgnorePrintfFixits, "ignore-printf-fixits", 'F', no_argument, "Disregard any clang fixit that looks like it's trying to fix format for printf and friends." },
-        { NoUnlimitederrors, "no-unlimited-errors", 'f', no_argument, "Don't pass -ferror-limit=0 to clang." }, // ### should be allowed to set error limit instead
+        { ErrorLimit, "error-limit", 'f', required_argument, "Set error limit to argument (-ferror-limit={arg} (default " STR(DEFAULT_ERROR_LIMIT) ")." },
         { BlockArgument, "block-argument", 'G', required_argument, "Block this argument from being passed to clang. E.g. rdm --block-argument -fno-inline" },
         { NoSpellChecking, "no-spell-checking", 'l', no_argument, "Don't pass -fspell-checking." },
         { LargeByValueCopy, "large-by-value-copy", 'r', required_argument, "Use -Wlarge-by-value-copy=[arg] when invoking clang." },
@@ -516,9 +517,14 @@ int main(int argc, char** argv)
         case IgnorePrintfFixits:
             serverOpts.options |= Server::IgnorePrintfFixits;
             break;
-        case NoUnlimitederrors:
-            serverOpts.options |= Server::NoUnlimitedErrors;
-            break;
+        case ErrorLimit: {
+            bool ok;
+            serverOpts.errorLimit = String(optarg).toULong(&ok);
+            if (!ok) {
+                fprintf(stderr, "Can't parse argument to --error-limit %s\n", optarg);
+                return CommandLineParser::Parse_Error;
+            }
+            break; }
         case BlockArgument:
             serverOpts.blockedArguments << optarg;
             break;

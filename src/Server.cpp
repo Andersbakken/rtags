@@ -106,8 +106,7 @@ bool Server::init(const Options &options)
 
     mOptions = options;
     mSuspended = (options.options & StartSuspended);
-    if (!(options.options & NoUnlimitedErrors))
-        mOptions.defaultArguments << "-ferror-limit=0";
+    mOptions.defaultArguments << String::format<32>("-ferror-limit=%d", mOptions.errorLimit);
     if (options.options & Wall)
         mOptions.defaultArguments << "-Wall";
     if (options.options & Weverything)
