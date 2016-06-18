@@ -22,12 +22,14 @@
 #include "Server.h"
 
 static uint64_t start = 0;
-#define LOG() if (Server::instance()->options().options & Server::CompletionLogs) error() << "CODE COMPLETION" << String::format<16>("%gs", static_cast<double>(Rct::monoMs() - ::start) / 1000.0)
+#define LOG()                                                           \
+    if (Server::instance()->options().options & Server::CompletionLogs) \
+        error() << "CODE COMPLETION" << String::format<16>("%gs", static_cast<double>(Rct::monoMs() - ::start) / 1000.0)
+
 
 CompletionThread::CompletionThread(int cacheSize)
     : mShutdown(false), mCacheSize(cacheSize), mDump(0), mIndex(0)
 {
-    ::start = Rct::monoMs();
 }
 
 CompletionThread::~CompletionThread()
@@ -104,7 +106,8 @@ void CompletionThread::completeAt(Source &&source, Location location,
                                   Flags<Flag> flags, String &&unsaved,
                                   const std::shared_ptr<Connection> &conn)
 {
-    LOG() << "completeAt" << location << flags;
+    if (Server::instance()->options().options & Server::CompletionLogs)
+        error() << "CODE COMPLETION completeAt" << location << flags;
     Request *request = new Request({ std::forward<Source>(source), location, flags, std::forward<String>(unsaved), conn});
     std::unique_lock<std::mutex> lock(mMutex);
     auto it = mPending.begin();
@@ -122,6 +125,8 @@ void CompletionThread::completeAt(Source &&source, Location location,
 
 void CompletionThread::prepare(Source &&source, String &&unsaved)
 {
+    if (Server::instance()->options().options & Server::CompletionLogs)
+        error() << "CODE COMPLETION prepare" << source.sourceFile() << unsaved.size();
     std::unique_lock<std::mutex> lock(mMutex);
     for (auto req : mPending) {
         if (req->source == source) {
@@ -136,6 +141,7 @@ void CompletionThread::prepare(Source &&source, String &&unsaved)
 
 String CompletionThread::dump()
 {
+
     Dump dump;
     dump.done = false;
     {
@@ -179,31 +185,8 @@ bool CompletionThread::compareCompletionCandidates(const Completions::Candidate 
 
 void CompletionThread::process(Request *request)
 {
+    ::start = Rct::monoMs();
     LOG() << "processing" << request->toString();
-    // if (!request->unsaved.isEmpty()) {
-    //     int line = request->location.line();
-    //     int pos = 0;
-    //     while (line > 1) {
-    //         int p = request->unsaved.indexOf('\n', pos);
-    //         if (p == -1) {
-    //             pos = -1;
-    //             break;
-    //         }
-    //         pos = p + 1;
-    //         --line;
-    //     }
-    //     if (pos != -1) {
-    //         int end = request->unsaved.indexOf('\n', pos);
-    //         if (end == -1)
-    //             end = request->unsaved.size();
-    //         error("Completing at %s:%d:%d line: [%s]\n",
-    //               request->location.path().constData(),
-    //               request->location.line(),
-    //               request->location.column(),
-    //               request->unsaved.mid(pos, end - pos).constData());
-    //     }
-    // }
-
     StopWatch sw;
     int parseTime = 0;
     int reparseTime = 0;
@@ -280,8 +263,10 @@ void CompletionThread::process(Request *request)
             cache->translationUnit->reparse(&unsaved, request->unsaved.size() ? 1 : 0);
         }
         reparseTime = cache->reparseTime = sw.elapsed();
-        if (!cache->translationUnit)
+        if (!cache->translationUnit) {
+            LOG() << "Failed to parse translation unit" << request->source.sourceFile();
             return;
+        }
         cache->unsavedHash = hash;
         cache->lastModified = lastModified;
     } else if (cache->unsavedHash != hash || cache->lastModified != lastModified) {
@@ -317,6 +302,7 @@ void CompletionThread::process(Request *request)
     }
 
     if (request->flags & WarmUp) {
+        LOG() << "Warmed up unit" << request->source.sourceFile();
         return;
     }
 
@@ -668,8 +654,9 @@ bool CompletionThread::isCached(uint32_t fileId, const std::shared_ptr<Project> 
 String CompletionThread::Request::toString() const
 {
     String ret = location.toString(Location::NoColor);
-    if (!unsaved.isEmpty())
+    if (!unsaved.isEmpty()) {
         ret += String::format<64>(" - Unsaved: %zu", unsaved.size());
+    }
 
     struct {
         const char *name;
@@ -682,10 +669,36 @@ String CompletionThread::Request::toString() const
         { "IncludeMacros", IncludeMacros },
         { "WarmUp", WarmUp },
     };
+
     for (const auto &flag : f) {
         if (flags & flag.flag) {
             ret += String::format<64>(" - %s", flag.name);
         }
     }
+
+    if (!unsaved.isEmpty() && !location.isNull()) {
+        int line = location.line();
+        int pos = 0;
+        while (line > 1) {
+            int p = unsaved.indexOf('\n', pos);
+            if (p == -1) {
+                pos = -1;
+                break;
+            }
+            pos = p + 1;
+            --line;
+        }
+        if (pos != -1) {
+            int end = unsaved.indexOf('\n', pos);
+            if (end == -1)
+                end = unsaved.size();
+            ret += String::format<1024>(" - Completing at %s:%d:%d line: [%s]",
+                                        location.path().constData(),
+                                        location.line(),
+                                        location.column(),
+                                        unsaved.mid(pos, end - pos).constData());
+        }
+    }
+
     return ret;
 }
