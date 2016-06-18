@@ -500,6 +500,7 @@ String ClangIndexer::addNamePermutations(const CXCursor &cursor, Location locati
     ::tokenize(buf, pos,
                &templateStart, &templateEnd,
                &colonColonCount, colonColons);
+    assert((*templateStart != -1) == (*templateEnd != -1));
 
     // i == 0 --> with templates,
     // i == 1 without templates or without EnumConstantDecl part
