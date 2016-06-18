@@ -383,6 +383,9 @@ static inline void tokenize(const char *buf, int start,
             }
             break;
         case '\0':
+            if (templateCount) {
+                *templateStart = *templateEnd = -1;
+            }
             return;
         }
     }
