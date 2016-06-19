@@ -198,34 +198,35 @@ public:
         error("%s:%d:%d is not indexed", path.constData(), line, col);
         return Location();
     }
-    static bool parse(const String &key, const Path &pwd, Path::ResolveMode mode,
-                      uint32_t *line, uint32_t *col, Path *path)
+    static bool parse(const String &str, const Path &pwd, Path::ResolveMode mode,
+                      Path *path, uint32_t *line, uint32_t *col)
     {
-        const size_t lastColon = key.lastIndexOf(':', key.size() - 2);
+        const size_t lastColon = str.lastIndexOf(':', str.size() - 2);
         if (lastColon == String::npos)
             return false;
-        const size_t secondLastColon = key.lastIndexOf(':', lastColon - 1);
+        const size_t secondLastColon = str.lastIndexOf(':', lastColon - 1);
         if (secondLastColon == String::npos)
             return false;
-        const char *str = key.constData();
+        const char *cstr = str.constData();
         char *end;
         assert(line);
-        *line = static_cast<uint32_t>(strtoul(str + secondLastColon + 1, &end, 10));
+        *line = static_cast<uint32_t>(strtoul(cstr + secondLastColon + 1, &end, 10));
         if (*end != ':' || end == str + secondLastColon + 1)
             return false;
         assert(col);
-        *col = static_cast<uint32_t>(strtoul(str + lastColon + 1, &end, 10));
+        *col = static_cast<uint32_t>(strtoul(cstr + lastColon + 1, &end, 10));
         if ((*end && *end != ':') || end == str + lastColon + 1)
             return false;
 
-        *path = Path::resolved(key.left(secondLastColon), mode, pwd);
+        *path = Path::resolved(str.left(secondLastColon), mode, pwd);
         return path->isFile();
     }
-    static String encode(const String &key, const Path &pwd = Path())
+
+    static String encode(const String &str, const Path &pwd = Path())
     {
         uint32_t line, col;
         Path path;
-        if (!parse(key, pwd, Path::MakeAbsolute, &line, &col, &path))
+        if (!parse(str, pwd, Path::MakeAbsolute, &path, &line, &col))
             return String();
         char buf[8];
         memcpy(buf, &line, sizeof(line));
@@ -238,7 +239,7 @@ public:
     {
         uint32_t line, col;
         Path path;
-        if (!parse(str, pwd, Path::RealPath, &line, &col, &path))
+        if (!parse(str, pwd, Path::RealPath, &path, &line, &col))
             return Location();
 
         const uint32_t fileId = Location::fileId(path);
