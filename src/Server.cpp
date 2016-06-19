@@ -653,7 +653,7 @@ void Server::handleQueryMessage(const std::shared_ptr<QueryMessage> &message, co
         clearProjects(message, conn);
         break;
     case QueryMessage::SymbolInfo:
-        cursorInfo(message, conn);
+        symbolInfo(message, conn);
         break;
     case QueryMessage::FollowLocation:
         followLocation(message, conn);
@@ -988,7 +988,7 @@ void Server::generateTest(const std::shared_ptr<QueryMessage> &query, const std:
     project->endScope();
 }
 
-void Server::cursorInfo(const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Connection> &conn)
+void Server::symbolInfo(const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Connection> &conn)
 {
     const Location loc = query->location();
     if (loc.isNull()) {

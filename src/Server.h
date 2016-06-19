@@ -149,7 +149,7 @@ private:
     void sendDiagnostics(const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Connection> &conn);
     void clearProjects(const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Connection> &conn);
     void codeCompleteAt(const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Connection> &conn);
-    void cursorInfo(const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Connection> &conn);
+    void symbolInfo(const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Connection> &conn);
     void dependencies(const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Connection> &conn);
     void startClangThread(const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Connection> &conn);
     void dumpFileMaps(const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Connection> &conn);
