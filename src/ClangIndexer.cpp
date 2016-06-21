@@ -1095,7 +1095,7 @@ bool ClangIndexer::handleReference(const CXCursor &cursor, CXCursorKind kind, Lo
         const CXType type = clang_getCursorType(ref);
         if (type.kind != CXType_LValueReference
             && type.kind != CXType_RValueReference
-            && type.type != CXType_Auto
+            && type.kind != CXType_Auto
             && type.kind != CXType_Unexposed) {
             c->size = clang_Type_getSizeOf(type);
             c->alignment = std::max<int16_t>(-1, clang_Type_getAlignOf(type));
