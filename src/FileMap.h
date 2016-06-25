@@ -134,7 +134,7 @@ public:
     Value value(const Key &key, bool *matched = 0) const
     {
         bool match;
-        const int idx = lowerBound(key, &match);
+        const uint32_t idx = lowerBound(key, &match);
         // error() << "value" << idx << key << match;
         if (matched)
             *matched = match;

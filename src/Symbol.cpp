@@ -357,10 +357,10 @@ Value Symbol::toValue(const std::shared_ptr<Project> &project,
 
             if (toStringFlags & IncludeParents) {
                 auto syms = project->openSymbols(symbol.location.fileId());
-                int idx = -1;
+                uint32_t idx = -1;
                 if (syms) {
                     idx = syms->lowerBound(symbol.location);
-                    if (idx == -1) {
+                    if (idx == std::numeric_limits<uint32_t>::max()) {
                         idx = syms->count() - 1;
                     }
                 }

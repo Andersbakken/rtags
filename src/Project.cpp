@@ -1297,10 +1297,10 @@ void Project::findSymbols(const String &unencoded,
         const int count = symNames->count();
         // error() << "Looking at" << count << Location::path(dep.first)
         //         << lowerBound << string;
-        int idx = 0;
+        uint32_t idx = 0;
         if (!lowerBound.isEmpty()) {
             idx = symNames->lowerBound(lowerBound);
-            if (idx == -1) {
+            if (idx == std::numeric_limits<uint32_t>::max()) {
                 return;
             }
         }
@@ -1459,7 +1459,7 @@ Symbol Project::findSymbol(Location location, int *index)
         return Symbol();
 
     bool exact = false;
-    int idx = symbols->lowerBound(location, &exact);
+    uint32_t idx = symbols->lowerBound(location, &exact);
     if (exact) {
         if (index)
             *index = idx;
@@ -1468,7 +1468,7 @@ Symbol Project::findSymbol(Location location, int *index)
     switch (idx) {
     case 0:
         return Symbol();
-    case -1:
+    case std::numeric_limits<uint32_t>::max():
         idx = symbols->count() - 1;
         break;
     default:
