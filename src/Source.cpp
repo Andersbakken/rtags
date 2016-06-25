@@ -240,8 +240,11 @@ static const char *blacklist[] = {
     "-MQ",
     "-MT",
     "-Og",
+    "-fbuild-session-file=",
+    "-fbuild-session-timestamp=",
     "-fembed-bitcode",
     "-fembed-bitcode-marker",
+    "-fmodules-validate-once-per-build-session",
     "-fno-var-tracking",
     "-fno-var-tracking-assignments",
     "-fvar-tracking",
@@ -277,7 +280,17 @@ static inline bool hasValue(const String &arg)
 
 static inline bool isBlacklisted(const String &arg)
 {
-    return bsearch(arg.constData(), blacklist,
+    const char *cstr;
+    const size_t idx = arg.indexOf('=');
+    String copy;
+    if (idx == String::npos) {
+        cstr = arg.c_str();
+    } else {
+        copy = arg.left(idx + 1);
+        cstr = copy.c_str();
+    }
+
+    return bsearch(cstr, blacklist,
                    sizeof(blacklist) / sizeof(blacklist[0]),
                    sizeof(blacklist[0]), compare);
 }
