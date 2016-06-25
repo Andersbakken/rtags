@@ -240,6 +240,8 @@ static const char *blacklist[] = {
     "-MQ",
     "-MT",
     "-Og",
+    "-fembed-bitcode",
+    "-fembed-bitcode-marker",
     "-fno-var-tracking",
     "-fno-var-tracking-assignments",
     "-fvar-tracking",
