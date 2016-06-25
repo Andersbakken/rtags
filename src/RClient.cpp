@@ -692,7 +692,6 @@ CommandLineParser::ParseStatus RClient::parse(int &argc, char **argv)
             break;
         }
         case FollowLocation:
-        case SymbolInfo:
         case ClassHierarchy:
         case ReferenceLocation: {
             const String encoded = Location::encode(optarg);
@@ -705,9 +704,6 @@ CommandLineParser::ParseStatus RClient::parse(int &argc, char **argv)
             case FollowLocation:
                 queryType = QueryMessage::FollowLocation;
                 break;
-            case SymbolInfo:
-                queryType = QueryMessage::SymbolInfo;
-                break;
             case ReferenceLocation:
                 queryType = QueryMessage::ReferencesLocation;
                 break;
@@ -719,6 +715,30 @@ CommandLineParser::ParseStatus RClient::parse(int &argc, char **argv)
                 break;
             }
             addQuery(queryType, encoded, QueryMessage::HasLocation);
+            break; }
+        case SymbolInfo: {
+            std::cmatch match;
+            std::regex rx("^(.*):([0-9]+):([0-9]+):?-:?([0-9]+):([0-9]+):?");
+            Path path;
+            uint32_t line = 0, col = 0, line2 = 0, col2 = 0;
+            if (std::regex_match(optarg, match, rx)) {
+                path.assign(optarg, match.length(1));
+                line = atoi(optarg + match.position(2));
+                col = atoi(optarg + match.position(3));
+                line2 = atoi(optarg + match.position(4));
+                col2 = atoi(optarg + match.position(5));
+                if (!line || !col || !line2 || !col2 || !path.resolve(Path::MakeAbsolute)) {
+                    fprintf(stderr, "Can't parse range %s\n", optarg);
+                    return CommandLineParser::Parse_Error;
+                }
+            } else if (!Location::parse(optarg, Path(), Path::MakeAbsolute, &path, &line, &col)) {
+                fprintf(stderr, "Can't parse range %s\n", optarg);
+                return CommandLineParser::Parse_Error;
+            }
+            String query;
+            Serializer serializer(query);
+            serializer << path << line << col << line2 << col2;
+            addQuery(QueryMessage::SymbolInfo, query);
             break; }
         case CurrentFile:
             mCurrentFile.append(Path::resolved(optarg));

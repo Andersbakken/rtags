@@ -990,20 +990,29 @@ void Server::generateTest(const std::shared_ptr<QueryMessage> &query, const std:
 
 void Server::symbolInfo(const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Connection> &conn)
 {
-    const Location loc = query->location();
-    if (loc.isNull()) {
-        conn->write("Not indexed");
-        conn->finish(1);
-        return;
-    }
-    std::shared_ptr<Project> project = projectForQuery(query);
-    if (!project || !project->dependencies().contains(loc.fileId())) {
+    const String data = query->query();
+    Deserializer deserializer(data);
+    Path path;
+    uint32_t line, column, line2, column2;
+    deserializer >> path >> line >> column >> line2 >> column2;
+    const uint32_t fileId = Location::fileId(path);
+    if (!fileId) {
         conn->write("Not indexed");
         conn->finish(1);
         return;
     }
 
-    SymbolInfoJob job(loc, query, project);
+    std::shared_ptr<Project> project = projectForQuery(query);
+    if (!project || !project->dependencies().contains(fileId)) {
+        conn->write("Not indexed");
+        conn->finish(1);
+        return;
+    }
+
+    const Location start(fileId, line, column);
+    const Location end = line2 ? Location(fileId, line2, column2) : Location();
+
+    SymbolInfoJob job(start, end, query, project);
     const int ret = job.run(conn);
     conn->finish(ret);
 }

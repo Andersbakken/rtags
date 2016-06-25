@@ -20,8 +20,9 @@
 #include "RTags.h"
 #include "Server.h"
 
-SymbolInfoJob::SymbolInfoJob(Location loc, const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Project> &proj)
-    : QueryJob(query, proj), location(loc)
+SymbolInfoJob::SymbolInfoJob(Location s, Location e,
+                             const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Project> &proj)
+    : QueryJob(query, proj), start(s), end(e)
 {
 }
 
@@ -29,10 +30,50 @@ int SymbolInfoJob::execute()
 {
     int ret = 1;
     int idx = -1;
-    auto symbol = project()->findSymbol(location, &idx);
-    if (!symbol.isNull()) {
-        write(symbol);
-        ret = 0;
+    if (end.isNull()) {
+        auto symbol = project()->findSymbol(start, &idx);
+        if (!symbol.isNull()) {
+            write(symbol);
+            ret = 0;
+        }
+    } else {
+        assert(start.fileId() == end.fileId());
+        auto symbols = project()->openSymbols(start.fileId());
+        if (symbols && symbols->count()) {
+            bool exact = false;
+            uint32_t idx = symbols->lowerBound(start, &exact);
+            if (exact) {
+                write("(list");
+                write(symbols->valueAt(idx++));
+                ret = 0;
+            } else {
+                switch (idx) {
+                case 0:
+                    break;
+                case std::numeric_limits<uint32_t>::max():
+                    idx = symbols->count() - 1;
+                    break;
+                default:
+                    --idx;
+                    break;
+                }
+            }
+            const uint32_t count = symbols->count();
+            while (idx < count) {
+                const Location loc = symbols->keyAt(idx);
+                if (loc > end)
+                    break;
+                if (loc >= start) {
+                    if (ret)
+                        write("(list");
+                    write(symbols->valueAt(idx));
+                    ret = 0;
+                }
+                ++idx;
+            }
+            if (!ret)
+                write(")");
+        }
     }
     return ret;
 }
