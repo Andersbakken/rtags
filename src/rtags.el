@@ -687,6 +687,8 @@ to case differences."
 (define-key rtags-mode-map [mouse-1] 'rtags-select-other-window)
 (define-key rtags-mode-map [mouse-2] 'rtags-select-other-window)
 (define-key rtags-mode-map (kbd "M-o") 'rtags-show-in-other-window)
+(define-key rtags-mode-map (kbd "c") 'rtags-select-caller)
+(define-key rtags-mode-map (kbd "M-c") 'rtags-select-caller-other-window)
 (define-key rtags-mode-map (kbd "s") 'rtags-show-in-other-window)
 (define-key rtags-mode-map (kbd "SPC") 'rtags-select-and-remove-rtags-buffer)
 (define-key rtags-mode-map (kbd "q") 'rtags-bury-or-delete)
@@ -1789,6 +1791,90 @@ instead of file from `current-buffer'.
                  (shrink-window-if-larger-than-buffer)
                  t)))))))
 
+(defun rtags-is-function (symbol)
+  (member (cdr (assoc 'kind symbol)) (list "CXXMethod" "Constructor" "FunctionDecl" "FunctionTemplate" "Destructor" "LambdaExpr")))
+
+(defun rtags-symbols-in-container (&optional filter)
+  (let ((container (rtags-current-container)))
+    (and container
+         (or (null filter) (funcall filter container))
+         (cons container (rtags-symbol-info-internal :targets t
+                                                     :location (format "%s:%d:%d:-:%d:%d:"
+                                                                       (buffer-file-name)
+                                                                       (cdr (assoc 'startLine container))
+                                                                       (cdr (assoc 'startColumn container))
+                                                                       (cdr (assoc 'endLine container))
+                                                                       (cdr (assoc 'endColumn container))))))))
+
+(defun rtags-find-functions-called-by-this-function-format-reference (file info)
+  (let* ((startLine (cdr (assoc 'startLine info)))
+         (startColumn (cdr (assoc 'startColumn info)))
+         (endLine (cdr (assoc 'startLine info)))
+         (endColumn (cdr (assoc 'endColumn info)))
+         (contents (cdr (assoc 'contents (rtags-get-file-contents :file file :startLine startLine))))
+         (before (1- startColumn))
+         (length (length contents))
+         (after (and (= startLine endLine) (- length endColumn 1))))
+    ;; (when after
+    ;;   (setq contents (concat (substring contents 0 before)
+    ;;                          (substring contents before (- length 2 after))
+    ;;                          ;; (propertize (substring contents before (- length 2 after)) 'face 'rtags-argument-face)
+    ;;                          (substring contents after))))
+    (and (string-match "^ *\\(.*\\) *$" contents) (match-string 1 contents))))
+
+;;;###autoload
+(defun rtags-find-functions-called-by-this-function ()
+  (interactive)
+  (let* ((containersyms (rtags-symbols-in-container 'rtags-is-function))
+         (container (car containersyms))
+         (symbols (cdr containersyms))
+         (file (buffer-file-name))
+         (calls))
+    (while symbols
+      (when (and (cdr (assoc 'reference (car symbols))))
+        (let ((targets (cdr (assoc 'targets (car symbols)))))
+          (while targets
+            (when (rtags-is-function (car targets))
+              (push (cons (car targets) (car symbols)) calls))
+            (setq targets (cdr targets)))))
+      (setq symbols (cdr symbols)))
+    (if (not calls)
+        (message "No function-calls found")
+      (switch-to-buffer (rtags-get-buffer))
+      (while calls
+        (goto-char (point-min))
+        (let ((call (car calls)))
+          (insert (cdr (assoc 'location (car call)))
+                  " - "
+                  (cdr (assoc 'symbolName (car call)))
+                  " - called from - "
+                  (format "%s:%d:%d: - "
+                          (file-name-nondirectory file)
+                          (cdr (assoc 'startLine (cdr call)))
+                          (cdr (assoc 'startColumn (cdr call))))
+                  (rtags-find-functions-called-by-this-function-format-reference file (cdr call))
+                  "\n"))
+        (setq calls (cdr calls)))
+      (goto-char (point-max))
+      (backward-delete-char 1)
+      (goto-char (point-min))
+      (insert "Functions called from: " (cdr (assoc 'location container)) " " (cdr (assoc 'symbolName container)) "\n")
+      (goto-char (point-min))
+      (setq buffer-read-only t)
+      (rtags-mode))))
+
+   ;; (message "got symbol %s at %s" (cdr (assoc 'kind (car symbols))) (cdr (assoc 'location (car symbols))))
+   ;;    (setq symbols (cdr symbols)))))
+
+
+;;;###autoload
+(defun rtags-find-all-functions-called-this-function ()
+
+
+
+  )
+
+
 ;;;###autoload
 (defun rtags-list-results ()
   "Show the RTags results buffer."
@@ -1947,7 +2033,7 @@ instead of file from `current-buffer'.
              (let ((pos (point)))
                (search-forward-regexp " ")
                (rtags-goto-location (buffer-substring-no-properties pos (1- (point))) nobookmark other-window))))
-          ((string-match "\\(.*\\):\\([0-9]+\\):\\([0-9]+\\):?" location)
+          ((string-match "\\(.*?\\):\\([0-9]+\\):\\([0-9]+\\):?" location)
            (let ((line (string-to-number (match-string-no-properties 2 location)))
                  (column (string-to-number (match-string-no-properties 3 location))))
              (rtags-find-file-or-buffer (match-string-no-properties 1 location) other-window)
@@ -1955,7 +2041,7 @@ instead of file from `current-buffer'.
              (rtags-goto-line-col line column)
              (run-hooks 'rtags-after-find-file-hook)
              t))
-          ((string-match "\\(.*\\):\\([0-9]+\\):?" location)
+          ((string-match "\\(.*?\\):\\([0-9]+\\):?" location)
            (let ((line (string-to-number (match-string-no-properties 2 location))))
              (rtags-find-file-or-buffer (match-string-no-properties 1 location) other-window)
              (push-mark nil t)
@@ -1963,7 +2049,7 @@ instead of file from `current-buffer'.
              (forward-line (1- line))
              (run-hooks 'rtags-after-find-file-hook)
              t))
-          ((string-match "\\(.*\\),\\([0-9]+\\)" location)
+          ((string-match "\\(.*?\\),\\([0-9]+\\)" location)
            (let ((offset (string-to-number (match-string-no-properties 2 location))))
              (rtags-find-file-or-buffer (match-string-no-properties 1 location) other-window)
              (push-mark nil t)
@@ -3292,6 +3378,25 @@ other window instead of the current one."
   (rtags-select (not not-other-window)))
 
 ;;;###autoload
+(defun rtags-select-caller (&optional not-other-window)
+  (interactive "P")
+  (let ((file (save-excursion
+                (goto-char (point-min))
+                (and (looking-at "Functions called from: \\(.*?\\):[0-9]+:[0-9]+:")
+                     (match-string 1)))))
+  (when file
+    (save-excursion
+      (goto-char (point-at-bol))
+      (when (looking-at ".*called from - .*?:\\([0-9]+\\):\\([0-9]+\\):")
+        (rtags-goto-location (concat file ":" (match-string 1) ":" (match-string 2)) (not not-other-window)))))))
+
+
+;;;###autoload
+(defun rtags-select-caller-other-window ()
+  (interactive)
+  (rtags-select-caller t))
+
+;;;###autoload
 (defun rtags-show-in-other-window ()
   (interactive)
   ;; (message "About to show")
@@ -3491,6 +3596,13 @@ other window instead of the current one."
       (< (skip-chars-backward "A[A-Za-z_]") 0)
       (< (skip-chars-backward rtags-backward-token-symbolchars) 0)
       (backward-char)))
+
+(defun rtags-forward-token ()
+  (or (< (skip-chars-forward " \t\n") 0)
+      (< (skip-chars-forward "[]") 0) ;; for lambdas
+      (< (skip-chars-forward "A[A-Za-z_]") 0)
+      (< (skip-chars-forward rtags-backward-token-symbolchars) 0)
+      (forward-char)))
 
 (defun rtags-current-container ()
   (save-excursion
@@ -4008,22 +4120,28 @@ force means do it regardless of rtags-enable-unsaved-reparsing "
 (defun* rtags-get-file-contents (&rest args
                                        &key
                                        (file nil)
-                                       (startline nil)
-                                       (startcol nil)
-                                       (endline nil)
-                                       (endcol nil)
+                                       (startLine nil)
+                                       (startColumn nil)
+                                       (endLine nil)
+                                       (endColumn nil)
                                        (location nil)
                                        (length nil)
                                        (maxlines nil)
                                        (info nil))
   (when (cond ((and location length (string-match "\\(.*\\):\\([0-9]+\\):\\([0-9]+\\)" location))
                (setq file (match-string-no-properties 1 location)
-                     startline (string-to-number (match-string-no-properties 2 location))
-                     startcol (string-to-number (match-string-no-properties 3 location)))
+                     startLine (string-to-number (match-string-no-properties 2 location))
+                     startColumn (string-to-number (match-string-no-properties 3 location)))
                (if maxlines
                    (error "maxlines doesn't work with location/length")
                  t))
-              ((and file startline startcol endline endcol))
+              ((and startLine)
+               (unless file
+                 (setq file (buffer-file-name)))
+               (unless endLine
+                 (setq endLine startLine))
+               (unless startColumn
+                 (setq startColumn 1)))
               ((and info (let ((path (cdr (assoc 'location info)))
                                (sl (cdr (assoc 'startLine info)))
                                (sc (cdr (assoc 'startColumn info)))
@@ -4031,7 +4149,7 @@ force means do it regardless of rtags-enable-unsaved-reparsing "
                                (ec (cdr (assoc 'endColumn info))))
                            (when (and sl sc el ec path (string-match "\\(.*\\):[0-9]+:[0-9]+" path))
                              (setq file (match-string-no-properties 1 path))
-                             (setq startline sl startcol sc endline el endcol ec)))))
+                             (setq startLine sl startColumn sc endLine el endColumn ec)))))
               (t nil))
     (let* ((file-or-buffer (rtags-trampify file))
            (buf (get-file-buffer file-or-buffer)))
@@ -4041,11 +4159,13 @@ force means do it regardless of rtags-enable-unsaved-reparsing "
         (save-excursion
           (save-restriction
             (widen)
-            (rtags-goto-line-col startline startcol)
+            (rtags-goto-line-col startLine startColumn)
             (let ((start (point)))
               (if length
                   (forward-char length)
-                (rtags-goto-line-col endline endcol))
+                (rtags-goto-line-col endLine (or endColumn 1))
+                (unless endColumn
+                  (goto-char (point-at-eol))))
               (let ((ret (buffer-substring-no-properties start (point))))
                 (when (and ret maxlines)
                   (let ((split (split-string ret "\n")))
