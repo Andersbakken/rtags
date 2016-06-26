@@ -2393,8 +2393,8 @@ This includes both declarations and definitions."
         (buffer-substring-no-properties start (point))))))
 
 ;;;###autoload
-(defun rtags-rename-symbol ()
-  (interactive)
+(defun rtags-rename-symbol (&optional no-confirm)
+  (interactive "P")
   (when (or (not (rtags-called-interactively-p)) (rtags-sandbox-id-matches))
     (save-some-buffers) ;; it all kinda falls apart when buffers are unsaved
     (let* ((prev (let ((token (rtags-current-token)))
@@ -2408,8 +2408,10 @@ This includes both declarations and definitions."
                              (format "Replace '%s' with: " prev)
                            "Replace with: ")))
            (modifications 0)
+           (confirmbuffer (and (not no-confirm) (rtags-get-buffer "*RTags rename symbol*")))
            (filesopened 0)
            (location (rtags-current-location))
+           (confirms)
            replacements)
       (save-excursion
         (when (equal replacewith "")
@@ -2437,7 +2439,18 @@ This includes both declarations and definitions."
                                           (rtags-current-token)
                                           (rtags-current-location)
                                           replacewith)))
+                      (when confirmbuffer
+                        (push (concat (buffer-substring-no-properties (point-at-bol) (point))
+                                      (propertize (buffer-substring-no-properties (point) (+ (point) (length prev))) 'face 'rtags-argument-face)
+                                      (buffer-substring-no-properties (+ (point) (length prev)) (point-at-eol))) confirms))
                       (add-to-list 'replacements (cons (current-buffer) (point))))))))))
+        (unless no-confirm
+          (switch-to-buffer (rtags-get-buffer "*RTags rename symbol*"))
+          (insert (propertize (concat "Change to '" replacewith) 'face 'rtags-context-face) "'\n" (mapconcat 'identity confirms "\n"))
+          (goto-char (point-min))
+          (unless (y-or-n-p (format "RTags: Confirm %d renames? " (length confirms)))
+            (setq replacements nil))
+          (kill-buffer (current-buffer)))
         (dolist (value replacements)
           (with-current-buffer (car value)
             (when (run-hook-with-args-until-failure 'rtags-edit-hook)
