@@ -577,10 +577,27 @@ Effected interactive functions:
 (defface rtags-context nil "Context" :group 'rtags)
 
 (defface rtags-warnline
-  '((((class color) (background dark)) (:background "chartreuse4"))
-    (((class color) (background light)) (:background "LightGoldenrod1"))
-    (t (:bold t)))
+  '((((supports :underline (:style wave)))
+     :underline (:style wave :color "orange"))
+    (t
+     :underline t :inherit error))
   "Face used for marking error lines."
+  :group 'rtags)
+
+(defface rtags-errline
+  '((((supports :underline (:style wave)))
+     :underline (:style wave :color "red"))
+    (t
+     :underline t :inherit error))
+  "Face used for marking warning lines."
+  :group 'rtags)
+
+(defface rtags-fixitline
+  '((((supports :underline (:style wave)))
+     :underline (:style wave :color "chartreuse3"))
+    (t
+     :underline t :inherit error))
+  "Face used for marking fixit lines."
   :group 'rtags)
 
 (defface rtags-current-line
@@ -588,20 +605,6 @@ Effected interactive functions:
     (((class color) (background light)) (:background "LightGray"))
     (t (:bold t)))
   "Face used for highlighting current line."
-  :group 'rtags)
-
-(defface rtags-errline
-  '((((class color) (background dark)) (:background "red"))
-    (((class color) (background light)) (:background "red"))
-    (t (:bold t)))
-  "Face used for marking warning lines."
-  :group 'rtags)
-
-(defface rtags-fixitline
-  '((((class color) (background dark)) (:background "goldenrod4"))
-    (((class color) (background light)) (:background "goldenrod4"))
-    (t (:bold t)))
-  "Face used for marking fixit lines."
   :group 'rtags)
 
 (defface rtags-skippedline
