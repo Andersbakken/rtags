@@ -875,21 +875,32 @@ void Server::dumpFileMaps(const std::shared_ptr<QueryMessage> &query, const std:
 
 void Server::diagnose(const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Connection> &conn)
 {
-    const uint32_t fileId = Location::fileId(query->query());
-    if (!fileId) {
-        conn->write<256>("%s is not indexed", query->query().constData());
-        conn->finish();
-        return;
+    uint32_t fileId = 0;
+    if (!query->query().isEmpty()) {
+        fileId = Location::fileId(query->query());
+        if (!fileId) {
+            conn->write<256>("%s is not indexed", query->query().constData());
+            conn->finish();
+            return;
+        }
     }
 
     std::shared_ptr<Project> project = projectForQuery(query);
     if (!project) {
-        conn->write<256>("%s is not indexed", query->query().constData());
-        conn->finish();
-        return;
+        if (!fileId)
+            project = mCurrentProject.lock();
+        if (!project) {
+            conn->write<256>("%s is not indexed", query->query().constData());
+            conn->finish();
+            return;
+        }
     }
 
-    project->diagnose(fileId);
+    if (query->flags() & QueryMessage::SynchronousDiagnostics) {
+        conn->write(project->diagnosticsToString(query->flags(), fileId));
+    } else {
+        project->diagnose(fileId);
+    }
     conn->finish();
     if (query->flags() & QueryMessage::CodeCompletionEnabled && !mCompletionThread) {
         mCompletionThread = new CompletionThread(mOptions.completionCacheSize);

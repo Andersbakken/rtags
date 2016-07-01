@@ -228,6 +228,7 @@ public:
     bool save();
     void prepare(uint32_t fileId);
     String estimateMemory() const;
+    String diagnosticsToString(Flags<QueryMessage::Flag> flags, uint32_t fileId);
     void diagnose(uint32_t fileId);
     void diagnoseAll();
     uint32_t fileMapOptions() const;

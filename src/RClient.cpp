@@ -72,6 +72,7 @@ struct CommandLineParser::Option<RClient::OptionType> opts[] = {
     { RClient::SymbolInfo, "symbol-info", 'U', required_argument, "Get cursor info for this location." },
     { RClient::Status, "status", 's', optional_argument, "Dump status of rdm. Arg can be symbols or symbolNames." },
     { RClient::Diagnose, "diagnose", 0, required_argument, "Resend diagnostics for file." },
+    { RClient::DiagnoseAll, "diagnose-all", 0, no_argument, "Resend diagnostics for all files." },
     { RClient::IsIndexed, "is-indexed", 'T', required_argument, "Check if rtags knows about, and is ready to return information about, this source file." },
     { RClient::IsIndexing, "is-indexing", 0, no_argument, "Check if rtags is currently indexing files." },
     { RClient::HasFileManager, "has-filemanager", 0, optional_argument, "Check if rtags has info about files in this directory." },
@@ -152,7 +153,8 @@ struct CommandLineParser::Option<RClient::OptionType> opts[] = {
     { RClient::CompilationFlagsSplitLine, "compilation-flags-split-line", 0, no_argument, "For --source, print one compilation flag per line." },
     { RClient::DumpIncludeHeaders, "dump-include-headers", 0, no_argument, "For --dump-file, also dump dependencies." },
     { RClient::SilentQuery, "silent-query", 0, no_argument, "Don't log this request in rdm." },
-    { RClient::SynchronousCompletions, "synchronous-completions", 0, no_argument, "Wait for completion results." },
+    { RClient::SynchronousCompletions, "synchronous-completions", 0, no_argument, "Wait for completion results and print them to stdout." },
+    { RClient::SynchronousDiagnostics, "synchronous-diagnostics", 0, no_argument, "Wait for diagnostics and print them to stdout." },
     { RClient::XML, "xml", 0, no_argument, "Output XML" },
     { RClient::NoSortReferencesByInput, "no-sort-references-by-input", 0, no_argument, "Don't sort references by input position." },
     { RClient::ProjectRoot, "project-root", 0, required_argument, "Override project root for compile commands." },
@@ -520,6 +522,9 @@ CommandLineParser::ParseStatus RClient::parse(int &argc, char **argv)
             break;
         case SynchronousCompletions:
             mQueryFlags |= QueryMessage::SynchronousCompletions;
+            break;
+        case SynchronousDiagnostics:
+            mQueryFlags |= QueryMessage::SynchronousDiagnostics;
             break;
         case DisplayName:
             mQueryFlags |= QueryMessage::DisplayName;
@@ -1065,6 +1070,9 @@ CommandLineParser::ParseStatus RClient::parse(int &argc, char **argv)
             break;
         case NoSortReferencesByInput:
             mQueryFlags |= QueryMessage::NoSortReferencesByInput;
+            break;
+        case DiagnoseAll:
+            addQuery(QueryMessage::Diagnose, String());
             break;
         case IsIndexed:
         case DumpFile:

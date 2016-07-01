@@ -498,14 +498,58 @@ bool Project::match(const Match &p, bool *indexed) const
     return ret;
 }
 
-enum DiagnosticsFormat {
-    Diagnostics_XML,
-    Diagnostics_Elisp
-};
-
-static String formatDiagnostics(const Diagnostics &diagnostics, DiagnosticsFormat format, uint32_t fileId = 0)
+static const char *severities[] = { "none", "warning", "error", "fixit", "note", "skipped" };
+static String formatDiagnostics(const Diagnostics &diagnostics, Flags<QueryMessage::Flag> flags, uint32_t fileId = 0)
 {
-    static const char *severities[] = { "none", "warning", "error", "fixit", "note", "skipped" };
+    if (flags & QueryMessage::JSON) {
+        std::function<Value(uint32_t, Location, const Diagnostic &)> toValue = [&toValue, flags](uint32_t fileId, Location loc, const Diagnostic &diagnostic) {
+            Value value;
+            if (loc.fileId() != fileId)
+                value["file"] = loc.path();
+            value["line"] = loc.line();
+            value["column"] = loc.column();
+            if (diagnostic.length > 0)
+                value["length"] = diagnostic.length;
+            value["type"] = severities[diagnostic.type];
+            if (!diagnostic.message.isEmpty())
+                value["message"] = diagnostic.message;
+            if (!diagnostic.children.isEmpty()) {
+                Value &children = value["children"];
+                for (const auto &c : diagnostic.children) {
+                    children.push_back(toValue(fileId, c.first, c.second));
+                }
+            }
+            return value;
+        };
+
+
+        Diagnostics::const_iterator it;
+        Diagnostics::const_iterator end;
+        if (fileId) {
+            it = diagnostics.lower_bound(Location(fileId, 0, 0));
+            end = diagnostics.lower_bound(Location(fileId + 1, 0, 0));
+        } else {
+            it = diagnostics.begin();
+            end = diagnostics.end();
+        }
+
+        Value val;
+        Value &checkStyle = val["checkStyle"];
+        Value *currentFile = 0;
+        uint32_t lastFileId = 0;
+        while (it != diagnostics.end()) {
+            if (it->first.fileId() != lastFileId) {
+                lastFileId = it->first.fileId();
+                if (fileId && lastFileId != fileId)
+                    break;
+                currentFile = &checkStyle[it->first.path()];
+            }
+
+            currentFile->push_back(toValue(lastFileId, it->first, it->second));
+            ++it;
+        }
+        return val.toJSON();
+    }
 
     static const char *header[] = {
         "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n  <checkstyle>",
@@ -528,6 +572,12 @@ static String formatDiagnostics(const Diagnostics &diagnostics, DiagnosticsForma
         ")"
     };
     std::function<String(Location , const Diagnostic &, uint32_t)> formatDiagnostic;
+
+    enum DiagnosticsFormat {
+        Diagnostics_XML,
+        Diagnostics_Elisp
+    } const format = flags & QueryMessage::Elisp ? Diagnostics_Elisp : Diagnostics_XML;
+
     if (format == Diagnostics_XML) {
         formatDiagnostic = [&formatDiagnostic](Location loc, const Diagnostic &diagnostic, uint32_t) {
             return String::format<256>("\n      <error line=\"%d\" column=\"%d\" %sseverity=\"%s\" message=\"%s\"/>",
@@ -653,11 +703,11 @@ void Project::onJobFinished(const std::shared_ptr<IndexerJob> &job, const std::s
     if (!changed.isEmpty() || options.options & Server::Progress) {
         log([&](const std::shared_ptr<LogOutput> &output) {
                 if (output->testLog(RTags::DiagnosticsLevel)) {
-                    DiagnosticsFormat format = Diagnostics_XML;
+                    QueryMessage::Flag format = QueryMessage::XML;
                     if (output->flags() & RTagsLogOutput::Elisp) {
                         // I know this is RTagsLogOutput because it returned
                         // true for testLog(RTags::DiagnosticsLevel)
-                        format = Diagnostics_Elisp;
+                        format = QueryMessage::Elisp;
                     }
                     if (!msg->diagnostics().isEmpty()) {
                         const String log = formatDiagnostics(changed, format, false);
@@ -666,7 +716,7 @@ void Project::onJobFinished(const std::shared_ptr<IndexerJob> &job, const std::s
                         }
                     }
                     if (options.options & Server::Progress) {
-                        if (format == Diagnostics_XML) {
+                        if (format == QueryMessage::XML) {
                             output->log("<?xml version=\"1.0\" encoding=\"utf-8\"?>\n<progress index=\"%d\" total=\"%d\"></progress>",
                                         idx, mJobCounter);
                         } else {
@@ -717,11 +767,11 @@ void Project::diagnose(uint32_t fileId)
 {
     log([&](const std::shared_ptr<LogOutput> &output) {
             if (output->testLog(RTags::DiagnosticsLevel)) {
-                DiagnosticsFormat format = Diagnostics_XML;
+                QueryMessage::Flag format = QueryMessage::XML;
                 if (output->flags() & RTagsLogOutput::Elisp) {
                     // I know this is RTagsLogOutput because it returned
                     // true for testLog(RTags::DiagnosticsLevel)
-                    format = Diagnostics_Elisp;
+                    format = QueryMessage::Elisp;
                 }
                 const String log = formatDiagnostics(mDiagnostics, format, fileId);
                 if (!log.isEmpty())
@@ -734,17 +784,22 @@ void Project::diagnoseAll()
 {
     log([&](const std::shared_ptr<LogOutput> &output) {
             if (output->testLog(RTags::DiagnosticsLevel)) {
-                DiagnosticsFormat format = Diagnostics_XML;
+                QueryMessage::Flag format = QueryMessage::XML;
                 if (output->flags() & RTagsLogOutput::Elisp) {
                     // I know this is RTagsLogOutput because it returned
                     // true for testLog(RTags::DiagnosticsLevel)
-                    format = Diagnostics_Elisp;
+                    format = QueryMessage::Elisp;
                 }
                 const String log = formatDiagnostics(mDiagnostics, format);
                 if (!log.isEmpty())
                     output->log(log);
             }
         });
+}
+
+String Project::diagnosticsToString(Flags<QueryMessage::Flag> flags, uint32_t fileId)
+{
+    return formatDiagnostics(mDiagnostics, flags, fileId);
 }
 
 bool Project::save()
