@@ -598,10 +598,11 @@ void CompletionThread::printCompletions(const List<Completions::Candidate> &comp
             }
             if (elisp) {
                 // elispOut += String::format<128>(" (list \"%s\" \"%s\" \"%s\" \"%s\" \"%s\" \"%s\")",
-                elispOut += String::format<128>(" (list \"%s\" \"%s\" \"%s\")",
+                elispOut += String::format<128>(" (list \"%s\" \"%s\" \"%s\" \"%s\")",
                                                 RTags::elispEscape(val.completion).constData(),
                                                 RTags::elispEscape(val.signature).constData(),
-                                                kind.constData());
+                                                kind.constData(),
+                                                RTags::elispEscape(val.briefComment).constData());
                 //,
                 // RTags::elispEscape(val.annotation).constData(),
                 // val.parent.constData(),

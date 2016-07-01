@@ -113,13 +113,15 @@ Maximum wait time is: (* company-rtags-max-wait company-async-wait)"
 (defun company-rtags--make-candidate (candidate)
   (let* ((text (copy-sequence (nth 0 candidate)))
          (meta (nth 1 candidate))
+         (brief (nth 3 candidate))
          (metalength (length meta)))
     (put-text-property 0 1 'meta-insert meta text)
     (when (> metalength rtags-company-completions-maxwidth)
-      ;; (message "text %s meta %s metalength %d max %d"
-      ;;          text meta metalength rtags-company-completions-maxwidth)
+      ;; (message "text %s meta %s metalength %d max %d brief %s"
+      ;;          text meta metalength rtags-company-completions-maxwidth brief)
       (setq meta (concat (substring meta 0 (- rtags-company-completions-maxwidth 5)) "<...>)")))
     (put-text-property 0 1 'meta meta text)
+    (put-text-property 0 1 'brief brief text)
     text))
 
 (defun company-rtags--candidates (prefix)
@@ -163,6 +165,13 @@ Maximum wait time is: (* company-rtags-max-wait company-async-wait)"
 
 (defun company-rtags--meta (candidate insert)
   (get-text-property 0 (if insert 'meta-insert 'meta) candidate))
+
+(defun company-rtags--doc-buffer (candidate)
+  (let ((brief (get-text-property 0 'brief candidate))
+        (meta (company-rtags--meta candidate nil)))
+    (if meta
+        (format "%s\n\n%s" meta brief)
+      brief)))
 
 (defun company-rtags--annotation (candidate insert)
   (let ((meta (company-rtags--meta candidate insert)))
@@ -244,6 +253,8 @@ Maximum wait time is: (* company-rtags-max-wait company-async-wait)"
     (annotation
      (and (not (member rtags-company-last-completion-prefix-type (list 'company-rtags-include 'company-rtags-include-quote)))
           (company-rtags--annotation arg nil)))
+    (doc-buffer
+     (company-doc-buffer (company-rtags--doc-buffer arg)))
     (post-completion
      (cond ((eq rtags-company-last-completion-prefix-type 'company-rtags-include)
             (unless (search-forward ">" (point-at-eol) t)
