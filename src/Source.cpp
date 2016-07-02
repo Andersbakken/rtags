@@ -250,7 +250,12 @@ static const char *blacklist[] = {
     "-fvar-tracking",
     "-fvar-tracking-assignments",
     "-fvar-tracking-assignments-toggle",
-    "-gcc-toolchain"
+    "-gcc-toolchain",
+    "-march=",
+    "-masm=",
+    "-mcpu=",
+    "-mfpmath=",
+    "-mtune="
 };
 
 static int compare(const void *s1, const void *s2)
