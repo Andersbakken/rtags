@@ -367,7 +367,9 @@ static inline bool isCompiler(const Path &fullPath, const List<Path> &pathEnviro
     args << "-x" << "c" << "-c" << path << "-o" << out;
     proc.exec(fullPath, args, pathEnvironment);
     if (proc.returnCode() != 0) {
-        warning() << "Failed to compile" << fullPath << args << "\nwith $PATH:\n" << pathEnvironment;
+        warning() << "Failed to compile" << fullPath << args << "\nwith $PATH:\n" << pathEnvironment
+                  << "\nstderr:\n" << proc.readAllStdErr()
+                  << "\nstdout:\n" proc.readAllStdOut();
     }
     assert(proc.isFinished());
     sCache[fullPath] = !proc.returnCode();
