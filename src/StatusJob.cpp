@@ -268,7 +268,7 @@ int StatusJob::execute()
                                        info.first.constData(),
                                        String::formatTime(info.second.lastModified / 1000).constData(),
                                        static_cast<unsigned long long>(info.second.lastModified),
-                                       String::join(info.second.pathEnvironment, ':').constData(),
+                                       String::join(info.second.environment, ':').constData(),
                                        info.second.indexFlags.toString().constData()));
         }
         matched = true;

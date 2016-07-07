@@ -385,9 +385,16 @@ struct Input {
 
 List<Source> Source::parse(const String &cmdLine,
                            const Path &cwd,
-                           const List<Path> &pathEnvironment,
+                           const List<String> &environment,
                            List<Path> *unresolvedInputLocations)
 {
+    List<Path> pathEnvironment;
+    for (const String &env : environment) {
+        if (env.startsWith("PATH=")) {
+            pathEnvironment = env.mid(5).split(':', String::SkipEmpty);
+            break;
+        }
+    }
     assert(cwd.endsWith('/'));
     assert(!unresolvedInputLocations || unresolvedInputLocations->isEmpty());
     String args = cmdLine;

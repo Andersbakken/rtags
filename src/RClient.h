@@ -190,7 +190,7 @@ public:
     int argc() const { return mArgc; }
     char **argv() const { return mArgv; }
     void onNewMessage(const std::shared_ptr<Message> &message, const std::shared_ptr<Connection> &);
-    List<Path> pathEnvironment() const;
+    List<String> environment() const;
 #ifdef RTAGS_HAS_LUA
     List<String> visitASTScripts() const { return mVisitASTScripts; }
 #endif
@@ -222,7 +222,7 @@ private:
 #ifdef RTAGS_HAS_LUA
     List<String> mVisitASTScripts;
 #endif
-    mutable List<Path> mPathEnvironment;
+    mutable List<String> mEnvironment;
 
     int mArgc;
     char **mArgv;

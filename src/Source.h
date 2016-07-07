@@ -183,7 +183,7 @@ struct Source
 
     static List<Source> parse(const String &cmdLine,
                               const Path &pwd,
-                              const List<Path> &pathEnvironment,
+                              const List<String> &environment,
                               List<Path> *unresolvedInputLocation = 0);
     enum EncodeMode {
         IgnoreSandbox,

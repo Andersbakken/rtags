@@ -939,20 +939,20 @@ static void man(const Option<T> *opts, size_t count)
 
 struct CompilationDataBaseInfo {
     uint64_t lastModified;
-    List<Path> pathEnvironment;
+    List<String> environment;
     Flags<IndexMessage::Flag> indexFlags;
 };
 
 inline Serializer &operator<<(Serializer &s, const CompilationDataBaseInfo &info)
 {
-    s << info.lastModified << Sandbox::encoded(info.pathEnvironment) << info.indexFlags;
+    s << info.lastModified << Sandbox::encoded(info.environment) << info.indexFlags;
     return s;
 }
 
 inline Deserializer &operator>>(Deserializer &s, CompilationDataBaseInfo &info)
 {
-    s >> info.lastModified >> info.pathEnvironment >> info.indexFlags;
-    Sandbox::decode(info.pathEnvironment);
+    s >> info.lastModified >> info.environment >> info.indexFlags;
+    Sandbox::decode(info.environment);
     return s;
 }
 

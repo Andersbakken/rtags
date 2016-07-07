@@ -905,7 +905,7 @@ public:
             assert(it != infos.end());
             server->index(idx.args,
                           idx.dir,
-                          it->second.pathEnvironment,
+                          it->second.environment,
                           projectRootOverride,
                           it->second.indexFlags,
                           &project,

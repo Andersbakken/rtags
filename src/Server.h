@@ -123,7 +123,7 @@ public:
     bool saveFileIds();
     bool index(const String &arguments,
                const Path &pwd,
-               const List<Path> &pathEnvironment,
+               const List<String> &environment,
                const Path &projectRootOverride,
                Flags<IndexMessage::Flag> flags = Flags<IndexMessage::Flag>(),
                std::shared_ptr<Project> *projectPtr = 0,
@@ -197,7 +197,7 @@ private:
     Options mOptions;
     bool mSuspended;
     SocketServer::SharedPtr mUnixServer, mTcpServer;
-    List<Path> mPathEnvironment;
+    List<String> mEnvironment;
 
     int mExitCode;
     uint32_t mLastFileId;

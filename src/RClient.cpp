@@ -297,7 +297,7 @@ public:
         msg.setFlag(IndexMessage::GuessFlags, rc->mGuessFlags);
         msg.setArguments(args);
         msg.setCompilationDatabaseDir(compilationDatabaseDir);
-        msg.setPathEnvironment(rc->pathEnvironment());
+        msg.setEnvironment(rc->environment());
         if (!rc->projectRoot().isEmpty())
             msg.setProjectRoot(rc->projectRoot());
 
@@ -1298,9 +1298,10 @@ void RClient::onNewMessage(const std::shared_ptr<Message> &message, const std::s
     }
 }
 
-List<Path> RClient::pathEnvironment() const
+List<String> RClient::environment() const
 {
-    if (mPathEnvironment.isEmpty())
-        mPathEnvironment = Rct::pathEnvironment();
-    return mPathEnvironment;
+    if (mEnvironment.isEmpty()) {
+        mEnvironment = Rct::environment();
+    }
+    return mEnvironment;
 }

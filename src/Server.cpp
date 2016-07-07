@@ -78,7 +78,7 @@ static const List<Path> sSystemIncludePaths = {
 
 Server *Server::sInstance = 0;
 Server::Server()
-    : mSuspended(false), mPathEnvironment(Rct::pathEnvironment()), mExitCode(0), mLastFileId(0), mCompletionThread(0)
+    : mSuspended(false), mEnvironment(Rct::environment()), mExitCode(0), mLastFileId(0), mCompletionThread(0)
 {
     assert(!sInstance);
     sInstance = this;
@@ -439,7 +439,7 @@ String Server::guessArguments(const String &args, const Path &pwd, const Path &p
 
 bool Server::index(const String &args,
                    const Path &pwd,
-                   const List<Path> &pathEnvironment,
+                   const List<String> &environment,
                    const Path &projectRootOverride,
                    Flags<IndexMessage::Flag> indexMessageFlags,
                    std::shared_ptr<Project> *projectPtr,
@@ -475,14 +475,14 @@ bool Server::index(const String &args,
                 if (stdOut != arguments) {
                     warning() << "Changed\n" << arguments << "\nto\n" << stdOut;
                     parse = false;
-                    sources = Source::parse(stdOut, pwd, pathEnvironment, &unresolvedPaths);
+                    sources = Source::parse(stdOut, pwd, environment, &unresolvedPaths);
                 }
             }
         }
     }
 
     if (parse)
-        sources = Source::parse(arguments, pwd, pathEnvironment, &unresolvedPaths);
+        sources = Source::parse(arguments, pwd, environment, &unresolvedPaths);
 
     bool ret = false;
     int idx = 0;
@@ -541,7 +541,7 @@ void Server::handleIndexMessage(const std::shared_ptr<IndexMessage> &message, co
         Hash<Path, CompilationDataBaseInfo> infos;
         infos[message->compilationDatabaseDir().ensureTrailingSlash()] = {
             0,
-            message->pathEnvironment(),
+            message->environment(),
             message->flags() | IndexMessage::AppendCompilationDatabase
         };
         if (RTags::loadCompileCommands(infos, message->projectRoot())) {
@@ -555,7 +555,7 @@ void Server::handleIndexMessage(const std::shared_ptr<IndexMessage> &message, co
         }
     } else {
         const bool ret = index(message->arguments(), message->workingDirectory(),
-                               message->pathEnvironment(), message->projectRoot(), message->flags());
+                               message->environment(), message->projectRoot(), message->flags());
         if (conn)
             conn->finish(ret ? 0 : 1);
     }
@@ -2098,7 +2098,7 @@ bool Server::runTests()
                 ret = false;
                 continue;
             }
-            if (!index("clang " + source.convert<String>(), workingDirectory, mPathEnvironment, workingDirectory)) {
+            if (!index("clang " + source.convert<String>(), workingDirectory, mEnvironment, workingDirectory)) {
                 error() << "Failed to index" << ("clang " + source.convert<String>()) << workingDirectory;
                 ret = false;
                 continue;

@@ -32,8 +32,8 @@ public:
     void setProjectRoot(const Path &projectRoot) { mProjectRoot = projectRoot; }
     const Path &workingDirectory() const { return mWorkingDirectory; }
     void setWorkingDirectory(const Path &workingDirectory) { mWorkingDirectory = workingDirectory; }
-    const List<Path> &pathEnvironment() const { return mPathEnvironment; }
-    void setPathEnvironment(const List<String> &pathEnvironment) { mPathEnvironment = pathEnvironment; }
+    void setEnvironment(const List<String> &environment) { mEnvironment = environment; }
+    List<String> environment() const { return mEnvironment; }
     Path compilationDatabaseDir() const { return mCompilationDatabaseDir; }
     void setCompilationDatabaseDir(const Path &path) { mCompilationDatabaseDir = path; }
     const String &arguments() const { return mArgs; }
@@ -50,8 +50,8 @@ public:
     virtual void decode(Deserializer &deserializer) override;
 private:
     Path mWorkingDirectory;
-    List<Path> mPathEnvironment;
     String mArgs;
+    List<String> mEnvironment;
     Path mProjectRoot;
     Path mCompilationDatabaseDir;
     Flags<Flag> mFlags;
