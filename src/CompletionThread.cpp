@@ -241,12 +241,15 @@ void CompletionThread::process(Request *request)
         cache->completionsList.deleteAll();
         sw.restart();
         Flags<CXTranslationUnit_Flags> flags = static_cast<CXTranslationUnit_Flags>(clang_defaultEditingTranslationUnitOptions());
-        flags |= CXTranslationUnit_PrecompiledPreamble;
-        flags |= CXTranslationUnit_CacheCompletionResults;
-        flags |= CXTranslationUnit_SkipFunctionBodies;
+        // flags |= CXTranslationUnit_CacheCompletionResults;
         flags |= CXTranslationUnit_DetailedPreprocessingRecord;
         flags |= CXTranslationUnit_Incomplete;
         flags |= CXTranslationUnit_IncludeBriefCommentsInCodeCompletion;
+#if CINDEX_VERSION >= CINDEX_VERSION_ENCODE(0, 32) && 0
+        flags |= CXTranslationUnit_CreatePreambleOnFirstParse;
+#else
+        flags |= CXTranslationUnit_PrecompiledPreamble;
+#endif
 
         for (const auto &inc : options.includePaths) {
             request->source.includePaths << inc;
@@ -258,10 +261,12 @@ void CompletionThread::process(Request *request)
                                                                 &unsaved, request->unsaved.size() ? 1 : 0, flags);
         // error() << "PARSING" << clangLine;
         parseTime = cache->parseTime = sw.restart();
+#if CINDEX_VERSION < CINDEX_VERSION_ENCODE(0, 32) || 1
         if (cache->translationUnit) {
             LOG() << "reparsing translation unit" << request->source.sourceFile();
             cache->translationUnit->reparse(&unsaved, request->unsaved.size() ? 1 : 0);
         }
+#endif
         reparseTime = cache->reparseTime = sw.elapsed();
         if (!cache->translationUnit) {
             LOG() << "Failed to parse translation unit" << request->source.sourceFile();
