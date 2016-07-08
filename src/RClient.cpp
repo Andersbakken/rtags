@@ -97,7 +97,6 @@ struct CommandLineParser::Option<RClient::OptionType> opts[] = {
     { RClient::ReloadFileManager, "reload-file-manager", 'B', no_argument, "Reload file manager." },
     { RClient::Man, "man", 0, no_argument, "Output XML for xmltoman to generate man page for rc :-)" },
     { RClient::CodeCompleteAt, "code-complete-at", 'l', required_argument, "Code complete at location: arg is file:line:col." },
-    { RClient::PrepareCodeCompleteAt, "prepare-code-complete-at", 'b', required_argument, "Prepare code completion at location: arg is file:line:col." },
     { RClient::SendDiagnostics, "send-diagnostics", 0, required_argument, "Only for debugging. Send data to all -G connections." },
     { RClient::DumpCompletions, "dump-completions", 0, no_argument, "Dump cached completions." },
     { RClient::DumpCompilationDatabase, "dump-compilation-database", 0, no_argument, "Dump compilation database for project." },
@@ -611,7 +610,6 @@ CommandLineParser::ParseStatus RClient::parse(int &argc, char **argv)
         case Verbose:
             ++mLogLevel;
             break;
-        case PrepareCodeCompleteAt:
         case CodeCompleteAt: {
             const String encoded = Location::encode(optarg);
             if (encoded.isEmpty()) {
@@ -619,7 +617,7 @@ CommandLineParser::ParseStatus RClient::parse(int &argc, char **argv)
                 return CommandLineParser::Parse_Error;
             }
 
-            addQuery(type == CodeCompleteAt ? QueryMessage::CodeCompleteAt : QueryMessage::PrepareCodeCompleteAt, encoded);
+            addQuery(QueryMessage::CodeCompleteAt, encoded);
             break;
         }
         case Silent:

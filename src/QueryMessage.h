@@ -55,7 +55,6 @@ public:
         IsIndexing,
         JobCount,
         ListSymbols,
-        PrepareCodeCompleteAt,
         PreprocessFile,
         Project,
         ReferencesLocation,

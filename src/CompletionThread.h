@@ -40,12 +40,11 @@ public:
     virtual void run() override;
     enum Flag {
         None = 0x00,
-        Refresh = 0x01,
-        Elisp = 0x02,
-        XML = 0x04,
-        JSON = 0x08,
-        IncludeMacros = 0x10,
-        WarmUp = 0x20
+        Elisp = 0x01,
+        XML = 0x02,
+        JSON = 0x04,
+        IncludeMacros = 0x08,
+        WarmUp = 0x10
     };
     bool isCached(uint32_t fileId, const std::shared_ptr<Project> &project) const;
     void completeAt(Source &&source, Location location, Flags<Flag> flags,
@@ -80,7 +79,6 @@ private:
         std::condition_variable cond;
         String string;
     } *mDump;
-    CXIndex mIndex;
 
     struct Completions {
         Completions(Location loc) : location(loc), next(0), prev(0) {}
@@ -113,22 +111,18 @@ private:
         Completions *next, *prev;
     };
 
-    void printCompletions(const List<Completions::Candidate> &completions, Request *request);
+    void printCompletions(const List<const Completions::Candidate *> &completions, Request *request);
     static bool compareCompletionCandidates(const Completions::Candidate *l,
                                             const Completions::Candidate *r);
 
     struct SourceFile {
         SourceFile()
-            : translationUnit(0), unsavedHash(0), lastModified(0),
-              parseTime(0), reparseTime(0), codeCompleteTime(0), completions(0), next(0), prev(0)
+            : translationUnit(0), parseTime(0), reparseTime(0), codeCompleteTime(0), completions(0), next(0), prev(0)
         {}
         std::shared_ptr<RTags::TranslationUnit> translationUnit;
-        size_t unsavedHash;
-        uint64_t lastModified, parseTime, reparseTime, codeCompleteTime; // ms
+        uint64_t parseTime, reparseTime, codeCompleteTime; // ms
         size_t completions;
         Source source;
-        Map<Location, Completions*> completionsMap;
-        EmbeddedLinkedList<Completions*> completionsList;
         SourceFile *next, *prev;
     };
 

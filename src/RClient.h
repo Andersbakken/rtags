@@ -104,7 +104,6 @@ public:
         NoSortReferencesByInput,
         NoSpellCheckinging,
         PathFilter,
-        PrepareCodeCompleteAt,
         PreprocessFile,
         Project,
         ProjectRoot,

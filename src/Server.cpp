@@ -603,7 +603,6 @@ void Server::handleQueryMessage(const std::shared_ptr<QueryMessage> &message, co
         sendDiagnostics(message, conn);
         break;
     case QueryMessage::CodeCompleteAt:
-    case QueryMessage::PrepareCodeCompleteAt:
         codeCompleteAt(message, conn);
         break;
     case QueryMessage::Suspend:
@@ -1992,8 +1991,6 @@ void Server::codeCompleteAt(const std::shared_ptr<QueryMessage> &query, const st
     }
 
     Flags<CompletionThread::Flag> flags;
-    if (query->type() == QueryMessage::PrepareCodeCompleteAt)
-        flags |= CompletionThread::Refresh;
     if (query->flags() & QueryMessage::Elisp)
         flags |= CompletionThread::Elisp;
     if (query->flags() & QueryMessage::JSON)
