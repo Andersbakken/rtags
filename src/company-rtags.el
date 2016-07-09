@@ -50,13 +50,6 @@ and `c-electric-colon', for automatic completion right after \">\" and
   :group 'company-rtags
   :type 'boolean)
 
-(defcustom company-rtags-max-wait 100
-  "Max number of waits `company-rtags' will do before giving up.
-
-Maximum wait time is: (* company-rtags-max-wait company-async-wait)"
-  :group 'company-rtags
-  :type 'integer)
-
 (defcustom company-rtags-insert-arguments t
   "When non-nil, insert function arguments as a template after completion."
   :group 'company-rtags
