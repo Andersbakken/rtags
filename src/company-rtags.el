@@ -57,11 +57,6 @@ Maximum wait time is: (* company-rtags-max-wait company-async-wait)"
   :group 'company-rtags
   :type 'integer)
 
-(defcustom company-rtags-use-async t
-  "Whether to use async completions for `company-rtags'."
-  :group 'company-rtags
-  :type 'boolean)
-
 (defcustom company-rtags-insert-arguments t
   "When non-nil, insert function arguments as a template after completion."
   :group 'company-rtags
@@ -124,7 +119,7 @@ Maximum wait time is: (* company-rtags-max-wait company-async-wait)"
     (put-text-property 0 1 'brief brief text)
     text))
 
-(defun company-rtags--candidates (prefix)
+(defun company-rtags--candidates ()
   (if (member rtags-company-last-completion-prefix-type (list 'company-rtags-include 'company-rtags-include-quote))
       (let* ((file (and (string-match "^\\(.*?\\):\\([0-9]+\\):\\([0-9]+\\):?[ \t]*\\(.*\\)$" rtags-company-last-completion-location)
                         (match-string 1 rtags-company-last-completion-location)))
@@ -135,8 +130,8 @@ Maximum wait time is: (* company-rtags-max-wait company-async-wait)"
              (results))
         (while alternatives
           (let ((text (car alternatives)))
-            (when (or (not prefix)
-                      (string-prefix-p prefix text))
+            (when (or (not rtags-company-last-completion-prefix)
+                      (string-prefix-p rtags-company-last-completion-prefix text))
               (put-text-property 0 1 'meta-insert (concat text (if (eq rtags-company-last-completion-prefix-type 'company-rtags-include-quote) "\"" ">")) text)
               (push text results))
             (setq alternatives (cdr alternatives))))
@@ -214,6 +209,7 @@ Maximum wait time is: (* company-rtags-max-wait company-async-wait)"
 (defun company-rtags (command &optional arg &rest ignored)
   "`company-mode' completion back-end for RTags."
   (interactive (list 'interactive))
+  (message "company-rtags %s %s" (symbol-name command) arg)
   (cl-case command
     (init
      (setq rtags-company-last-completion-callback nil)
@@ -233,10 +229,7 @@ Maximum wait time is: (* company-rtags-max-wait company-async-wait)"
          (setq rtags-company-last-completion-prefix-type (company-rtags--prefix-type))
          (setq rtags-company-last-completion-location (rtags-current-location pos t))
          (rtags-company-completions-calculate-maxwidth)
-         (if (or (member rtags-company-last-completion-prefix-type (list 'company-rtags-include 'company-rtags-include-quote))
-                 (not company-rtags-use-async))
-             (company-rtags--candidates arg)
-           (cons :async 'rtags-company-update-completions)))))
+         (company-rtags--candidates))))
     (meta
      (company-rtags--meta arg nil))
     (sorted (not (member rtags-company-last-completion-prefix-type (list 'company-rtags-include 'company-rtags-include-quote))))
