@@ -1995,6 +1995,11 @@ void Server::codeCompleteAt(const std::shared_ptr<QueryMessage> &query, const st
         mCompletionThread->start();
     }
 
+    std::shared_ptr<Connection> c = conn;
+    if (!(query->flags() & QueryMessage::SynchronousCompletions)) {
+        c->finish();
+        c.reset();
+    }
     Flags<CompletionThread::Flag> flags;
     if (query->flags() & QueryMessage::Elisp)
         flags |= CompletionThread::Elisp;
@@ -2004,21 +2009,9 @@ void Server::codeCompleteAt(const std::shared_ptr<QueryMessage> &query, const st
         flags |= CompletionThread::XML;
     if (query->flags() & QueryMessage::CodeCompleteIncludeMacros)
         flags |= CompletionThread::IncludeMacros;
-    std::shared_ptr<Connection> c = conn;
-    if (!(query->flags() & QueryMessage::SynchronousCompletions)) {
-        c->finish();
-        c.reset();
-    }
-    error() << "Got completion request for" << loc;
-    if (mCompletionThread->isCached(fileId, project)) {
-        mCompletionThread->completeAt(std::move(source), loc, flags, query->unsavedFiles().value(loc.path()), c);
-    } else {
-        if (c) {
-            c->finish();
-            c.reset();
-        }
-        mCompletionThread->prepare(std::move(source), query->unsavedFiles().value(Location::path(fileId)));
-    }
+    if (query->flags() & QueryMessage::CodeCompleteNoWait)
+        flags |= CompletionThread::NoWait;
+    mCompletionThread->completeAt(std::move(source), loc, flags, query->unsavedFiles().value(loc.path()), c);
 }
 
 void Server::dumpJobs(const std::shared_ptr<Connection> &conn)

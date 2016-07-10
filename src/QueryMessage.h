@@ -119,7 +119,8 @@ public:
         TokensIncludeSymbols = (1ull << 40),
         JSON = (1ull << 41),
         CodeCompletionEnabled = (1ull << 42),
-        SynchronousDiagnostics = (1ull << 43)
+        SynchronousDiagnostics = (1ull << 43),
+        CodeCompleteNoWait = (1ull << 44)
     };
 
     QueryMessage(Type type = Invalid);

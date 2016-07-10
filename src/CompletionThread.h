@@ -44,7 +44,8 @@ public:
         XML = 0x02,
         JSON = 0x04,
         IncludeMacros = 0x08,
-        WarmUp = 0x10
+        WarmUp = 0x10,
+        NoWait = 0x20
     };
     bool isCached(uint32_t fileId, const std::shared_ptr<Project> &project) const;
     void completeAt(Source &&source, Location location, Flags<Flag> flags,

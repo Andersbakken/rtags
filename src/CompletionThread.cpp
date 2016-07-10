@@ -130,7 +130,6 @@ void CompletionThread::prepare(Source &&source, String &&unsaved)
 
 String CompletionThread::dump()
 {
-
     Dump dump;
     dump.done = false;
     {
@@ -219,6 +218,19 @@ void CompletionThread::process(Request *request)
 
     const auto &options = Server::instance()->options();
     if (!cache->translationUnit) {
+        if (request->conn && request->flags & NoWait) {
+            request->flags |= WarmUp;
+            if (request->flags & Elisp) {
+                request->conn->finish("(list (cons 'pending t))");
+            } else if (request->flags & XML) {
+                request->conn->finish("<?xml version=\"1.0\" encoding=\"utf-8\"?><completions pending=\"true\">");
+            } else if (request->flags & JSON) {
+                request->conn->finish("{\"pending\":true}");
+            } else {
+                request->conn->finish("pending");
+            }
+            request->conn.reset();
+        }
         LOG() << "No translationUnit for" << request->source.sourceFile() << "recreating";
         sw.restart();
         Flags<CXTranslationUnit_Flags> flags = static_cast<CXTranslationUnit_Flags>(clang_defaultEditingTranslationUnitOptions());

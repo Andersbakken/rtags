@@ -164,6 +164,7 @@ struct CommandLineParser::Option<RClient::OptionType> opts[] = {
     { RClient::Autotest, "autotest", 0, no_argument, "Turn on behaviors appropriate for running autotests." },
     { RClient::CodeCompleteIncludeMacros, "code-complete-include-macros", 0, no_argument, "Include macros in code completion results." },
     { RClient::CodeCompleteIncludes, "code-complete-includes", 0, no_argument, "Give includes in completion results." },
+    { RClient::CodeCompleteNoWait, "code-complete-no-wait", 0, no_argument, "Don't wait for synchronous completion if the translation unit has to be created." },
     { RClient::CodeCompletionEnabled, "code-completion-enabled", 0, no_argument, "Inform rdm that we're code-completing. Use with --diagnose" },
     { RClient::NoSpellCheckinging, "no-spell-checking", 0, no_argument, "Don't produce spell check info in diagnostics." },
 #ifdef RTAGS_HAS_LUA
@@ -470,6 +471,9 @@ CommandLineParser::ParseStatus RClient::parse(int &argc, char **argv)
             break;
         case CodeCompleteIncludes:
             mQueryFlags |= QueryMessage::CodeCompleteIncludes;
+            break;
+        case CodeCompleteNoWait:
+            mQueryFlags |= QueryMessage::CodeCompleteNoWait;
             break;
         case CodeCompletionEnabled:
             mQueryFlags |= QueryMessage::CodeCompletionEnabled;

@@ -196,8 +196,11 @@ and `c-electric-colon', for automatic completion right after \">\" and
       (rtags-call-rc :path (buffer-file-name buf)
                      :async (cons nil 'rtags-company-code-complete-at-sentinel)
                      :unsaved (and (buffer-modified-p buf) buf)
-                     "--code-complete-at" rtags-company-last-completion-location "--synchronous-completions" "--elisp"))))
-
+                     "--synchronous-completions"
+                     "--code-complete-no-wait"
+                     "--elisp"
+                     "--code-complete-at"
+                     rtags-company-last-completion-location))))
 
 (defun company-rtags (command &optional arg &rest ignored)
   "`company-mode' completion back-end for RTags."
@@ -206,8 +209,7 @@ and `c-electric-colon', for automatic completion right after \">\" and
   (cl-case command
     (init
      (setq rtags-company-last-completion-callback nil)
-     (setq rtags-company-last-completion-location nil)
-     (or rtags-autostart-diagnostics (rtags-diagnostics)))
+     (setq rtags-company-last-completion-location nil))
     (interactive
      (company-begin-backend 'company-rtags))
     (prefix
