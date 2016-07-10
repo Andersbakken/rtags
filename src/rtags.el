@@ -3035,6 +3035,7 @@ This includes both declarations and definitions."
 (defun rtags-diagnostics-sentinel (process event)
   (let ((status (process-status process)))
     (when (memq status '(exit signal closed failed))
+      (setq rtags-last-update-current-project-buffer nil)
       (rtags-clear-diagnostics))))
 
 ;;;###autoload
