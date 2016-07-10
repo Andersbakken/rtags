@@ -202,7 +202,7 @@ and `c-electric-colon', for automatic completion right after \">\" and
 (defun company-rtags (command &optional arg &rest ignored)
   "`company-mode' completion back-end for RTags."
   (interactive (list 'interactive))
-  (message "company-rtags %s %s" (symbol-name command) arg)
+  ;; (message "company-rtags %s %s" (symbol-name command) arg)
   (cl-case command
     (init
      (setq rtags-company-last-completion-callback nil)
