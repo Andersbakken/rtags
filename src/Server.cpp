@@ -1968,10 +1968,16 @@ void Server::codeCompleteAt(const std::shared_ptr<QueryMessage> &query, const st
     const uint32_t fileId = loc.fileId();
     Source source = project->sources(fileId).value(query->buildIndex());
     if (source.isNull()) {
-        for (uint32_t dep : project->dependencies(fileId, Project::DependsOnArg)) {
-            source = project->sources(dep).value(query->buildIndex());
-            if (!source.isNull())
-                break;
+        const Set<uint32_t> deps = project->dependencies(fileId, Project::DependsOnArg);
+        if (mCompletionThread)
+            source = mCompletionThread->findSource(deps);
+
+        if (source.isNull()) {
+            for (uint32_t dep : deps) {
+                source = project->sources(dep).value(query->buildIndex());
+                if (!source.isNull())
+                    break;
+            }
         }
 
         if (source.isNull()) {
@@ -1980,11 +1986,13 @@ void Server::codeCompleteAt(const std::shared_ptr<QueryMessage> &query, const st
             return;
         }
     }
+
     if (query->flags() & QueryMessage::CodeCompleteIncludes) {
         project->includeCompletions(query->flags(), conn, std::move(source));
         conn->finish();
         return;
     }
+
     if (!mCompletionThread) {
         mCompletionThread = new CompletionThread(mOptions.completionCacheSize);
         mCompletionThread->start();
@@ -2005,7 +2013,15 @@ void Server::codeCompleteAt(const std::shared_ptr<QueryMessage> &query, const st
         c.reset();
     }
     error() << "Got completion request for" << loc;
-    mCompletionThread->completeAt(std::move(source), loc, flags, query->unsavedFiles().value(loc.path()), c);
+    if (mCompletionThread->isCached(fileId, project)) {
+        mCompletionThread->completeAt(std::move(source), loc, flags, query->unsavedFiles().value(loc.path()), c);
+    } else {
+        if (c) {
+            c->finish();
+            c.reset();
+        }
+        mCompletionThread->prepare(std::move(source), query->unsavedFiles().value(Location::path(fileId)));
+    }
 }
 
 void Server::dumpJobs(const std::shared_ptr<Connection> &conn)

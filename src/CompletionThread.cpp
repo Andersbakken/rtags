@@ -181,6 +181,7 @@ void CompletionThread::process(Request *request)
     int reparseTime = 0;
     int completeTime = 0;
     int processTime = 0;
+    mMutex.lock();
     SourceFile *&cache = mCacheMap[request->source.fileId];
 
     if (cache && cache->source != request->source) {
@@ -201,6 +202,7 @@ void CompletionThread::process(Request *request)
     } else {
         mCacheList.moveToEnd(cache);
     }
+    mMutex.unlock();
     const bool sendDebug = testLog(LogLevel::Debug);
 
     assert(!cache->translationUnit || cache->source == request->source);
@@ -569,6 +571,7 @@ void CompletionThread::printCompletions(const List<const Completions::Candidate 
 
 bool CompletionThread::isCached(uint32_t fileId, const std::shared_ptr<Project> &project) const
 {
+    std::unique_lock<std::mutex> lock(mMutex);
     for (SourceFile *file : mCacheList) {
         if (file->source.fileId == fileId || project->dependsOn(file->source.fileId, fileId))
             return true;
@@ -626,4 +629,15 @@ String CompletionThread::Request::toString() const
     }
 
     return ret;
+}
+
+Source CompletionThread::findSource(const Set<uint32_t> &deps) const
+{
+    std::unique_lock<std::mutex> lock(mMutex);
+    for (SourceFile *sourceFile = mCacheList.first(); sourceFile; sourceFile = sourceFile->next) {
+        if (deps.contains(sourceFile->source.fileId)) {
+            return sourceFile->source;
+        }
+    }
+    return Source();
 }

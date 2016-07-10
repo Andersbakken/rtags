@@ -50,6 +50,7 @@ public:
     void completeAt(Source &&source, Location location, Flags<Flag> flags,
                     String &&unsaved, const std::shared_ptr<Connection> &conn);
     void prepare(Source &&source, String &&unsaved);
+    Source findSource(const Set<uint32_t> &deps) const;
     void stop();
     String dump();
 private:
@@ -183,8 +184,6 @@ private:
         }
     };
 
-    // these datastructures are only touched from inside the thread so it doesn't
-    // need to be protected by mMutex
     Hash<uint32_t, SourceFile*> mCacheMap;
     EmbeddedLinkedList<SourceFile*> mCacheList;
 
