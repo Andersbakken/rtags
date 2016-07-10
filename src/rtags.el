@@ -1074,6 +1074,8 @@ to only call this when `rtags-socket-file' is defined.
                         (with-current-buffer unsaved
                           (rtags-buffer-size)))
                 arguments))
+        (when rtags-completions-enabled
+          (push "--code-completion-enabled" arguments))
         (when silent-query
           (push "--silent-query" arguments))
         (when range-filter
