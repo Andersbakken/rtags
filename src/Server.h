@@ -188,6 +188,7 @@ private:
 
     bool initServers();
     void removeSocketFile();
+    void prepareCompletion(const std::shared_ptr<QueryMessage> &query, uint32_t fileId, const std::shared_ptr<Project> &project);
 
     typedef Hash<Path, std::shared_ptr<Project> > ProjectsMap;
     ProjectsMap mProjects;
