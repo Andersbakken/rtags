@@ -624,12 +624,15 @@ CXChildVisitResult ClangIndexer::visitorHelper(CXCursor cursor, CXCursor, CXClie
     const CXChildVisitResult res = indexer->indexVisitor(cursor);
     if (res == CXChildVisit_Recurse)
         indexer->visit(cursor);
-    indexer->mLastCursor = cursor;
     return CXChildVisit_Continue;
 }
 
 CXChildVisitResult ClangIndexer::indexVisitor(CXCursor cursor)
 {
+    struct UpdateLastCursor {
+        ~UpdateLastCursor() { func(); }
+        std::function<void()> func;
+    } call = { [this, cursor]() { mLastCursor = cursor; } };
     ++mCursorsVisited;
     // error() << "indexVisitor" << cursor;
     // FILE *f = fopen("/tmp/clangindex.log", "a");
