@@ -1075,7 +1075,7 @@ to only call this when `rtags-socket-file' is defined.
                           (rtags-buffer-size)))
                 arguments))
         (when rtags-completions-enabled
-          (push "--code-completion-enabled" arguments))
+          (push "-b" arguments))
         (when silent-query
           (push "--silent-query" arguments))
         (when range-filter
@@ -3693,7 +3693,7 @@ other window instead of the current one."
       (when (and rtags-completions-enabled
                  (or (and (boundp 'company-mode) company-mode)
                      (and (boundp 'auto-complete-mode) auto-complete-mode)))
-        (push "--code-completion-enabled" arguments))
+        (push "-b" arguments))
       (when rc
         (apply #'start-file-process "rtags-update-current-project" nil rc arguments))))
   t)
