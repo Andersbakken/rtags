@@ -996,8 +996,11 @@ void Source::decode(Deserializer &s, EncodeMode mode)
         Sandbox::decode(arguments);
     }
 
+    assert(fileId);
     Location::set(source, fileId);
-    Location::set(compiler, compilerId);
-    Location::set(buildRoot, buildRootId);
+    if (compilerId)
+        Location::set(compiler, compilerId);
+    if (buildRootId)
+        Location::set(buildRoot, buildRootId);
     language = static_cast<Source::Language>(language);
 }
