@@ -165,9 +165,6 @@ and `c-electric-colon', for automatic completion right after \">\" and
                (eval (read (current-buffer)))
              (error
               (message "****** Got Completion Error ******")
-              (setq rtags-diagnostics-errors
-                    (append rtags-diagnostics-errors
-                            (list (buffer-substring-no-properties (point-min) (point-max)))))
               nil))))
       (when (and (eq (car data) 'completions)
                  (string= rtags-company-last-completion-location (caadr data)))
