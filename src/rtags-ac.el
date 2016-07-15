@@ -52,12 +52,13 @@
    (replace-regexp-in-string (rx string-start (one-or-more blank)) "" argstr)))
 
 (defun rtags-ac-candidates ()
-  (let ((buf (current-buffer)))
+  (let ((buf (current-buffer))
+        (loc (rtags-current-location)))
     (when (buffer-file-name buf)
       (with-temp-buffer
         (rtags-call-rc :path (buffer-file-name buf)
                        :unsaved (and (buffer-modified-p buf) buf)
-                       "--code-complete-at" rtags-company-last-completion-location "--synchronous-completions" "--elisp")
+                       "--code-complete-at" loc "--synchronous-completions" "--elisp")
         (goto-char (point-min))
         (when (looking-at "(")
           (let ((data
