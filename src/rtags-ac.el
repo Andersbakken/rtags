@@ -52,25 +52,26 @@
    (replace-regexp-in-string (rx string-start (one-or-more blank)) "" argstr)))
 
 (defun rtags-ac-candidates ()
-  ;; locstr is fullpath_srcfile:row#:col#
-  (if (and rtags-last-completions
-           (let ((pos (rtags-calculate-completion-point)))
-             (and pos (string= (car rtags-last-completions)
-                               (rtags-current-location pos t)))))
-
-    ;; if last completion was in this src file @ last completion pos
-    ;; build a list of completion strings; example format:
-    ;; #("word" 'rtags-ac-full "void word(int x)" 'rtags-ac-type "FunctionDecl")
-      (mapcar #'(lambda (elem)
-                  (propertize (car elem)
-                              'rtags-ac-full (cadr elem)
-                              'rtags-ac-type (caddr elem)))
-              (cadr rtags-last-completions))
-      ;; else forcefully update completions if the compl pos has changed
-      ;; checking compl pos helps keep the process buffer from getting slammed
-    (rtags-update-completions)
-    ;; return nil as `ac-update-greedy' expects us to return a list or nil
-    nil))
+  (let ((buf (current-buffer)))
+    (when (buffer-file-name buf)
+      (with-temp-buffer
+        (rtags-call-rc :path (buffer-file-name buf)
+                       :unsaved (and (buffer-modified-p buf) buf)
+                       "--code-complete-at" rtags-company-last-completion-location "--synchronous-completions" "--elisp")
+        (goto-char (point-min))
+        (when (looking-at "(")
+          (let ((data
+                 (condition-case nil
+                     (eval (read (current-buffer)))
+                   (error
+                    (message "****** Got Completion Error ******")
+                    nil))))
+            (and (eq (car data) 'completions)
+                 (mapcar #'(lambda (elem)
+                             (propertize (car elem)
+                                         'rtags-ac-full (cadr elem)
+                                         'rtags-ac-type (caddr elem)))
+                         (cadadr data)))))))))
 
 (defun rtags-ac-document (item)
   (get-text-property 0 'rtags-ac-full item))
