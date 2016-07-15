@@ -32,6 +32,8 @@
 (require 'company)
 (require 'company-template)
 
+(declare-function company-doc-buffer "ext:company")
+
 (defgroup company-rtags nil
   "Company completion back-end for RTags."
   :prefix "company-"
