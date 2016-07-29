@@ -57,9 +57,7 @@ struct CommandLineParser::Option<RClient::OptionType> opts[] = {
     { RClient::None, 0, 0, 0, "Indexing commands:" },
     { RClient::Compile, "compile", 'c', optional_argument, "Pass compilation arguments to rdm." },
     { RClient::GuessFlags, "guess-flags", 0, no_argument, "Guess compile flags (used with -c)." },
-#if CLANG_VERSION_MAJOR > 3 || (CLANG_VERSION_MAJOR == 3 && CLANG_VERSION_MINOR > 3)
     { RClient::LoadCompilationDatabase, "load-compilation-database", 'J', optional_argument, "Load compile_commands.json from directory" },
-#endif
     { RClient::Suspend, "suspend", 'X', optional_argument, "Dump suspended files (don't track changes in these files) with no arg. Otherwise toggle suspension for arg." },
 
     { RClient::None, 0, 0, 0, "" },
@@ -963,7 +961,6 @@ CommandLineParser::ParseStatus RClient::parse(int &argc, char **argv)
             addQuery(QueryMessage::SetBuffers, encoded);
             break; }
         case LoadCompilationDatabase: {
-#if CLANG_VERSION_MAJOR > 3 || (CLANG_VERSION_MAJOR == 3 && CLANG_VERSION_MINOR > 3)
             Path dir;
             if (optarg) {
                 dir = optarg;
@@ -993,7 +990,6 @@ CommandLineParser::ParseStatus RClient::parse(int &argc, char **argv)
                 return CommandLineParser::Parse_Error;
             }
             addCompile(dir);
-#endif
             break; }
         case HasFileManager: {
             Path p;

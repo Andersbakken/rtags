@@ -37,11 +37,7 @@
 #include "VisitFileMessage.h"
 #include "VisitFileResponseMessage.h"
 #include "RTagsVersion.h"
-
-#if CLANG_VERSION_MAJOR > 3 || (CLANG_VERSION_MAJOR == 3 && CLANG_VERSION_MINOR > 3)
 #include <clang-c/CXCompilationDatabase.h>
-#endif
-
 
 namespace RTags {
 String versionString()
@@ -849,13 +845,11 @@ String typeString(const CXType &type)
 
     if (type.kind == CXType_ConstantArray) {
         ret += typeString(clang_getArrayElementType(type));
-#if CLANG_VERSION_MAJOR > 3 || (CLANG_VERSION_MAJOR == 3 && CLANG_VERSION_MINOR >= 1)
         const int64_t count = clang_getNumElements(type);
         ret += '[';
         if (count >= 0)
             ret += String::number(count);
         ret += ']';
-#endif
         return ret;
     }
     ret += typeName(clang_getTypeDeclaration(type));
