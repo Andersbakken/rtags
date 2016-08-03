@@ -2279,24 +2279,36 @@ If called with prefix, open first match in other window"
             (tagname (or (rtags-current-symbol) (rtags-current-token)))
             (fn (buffer-file-name)))
         (rtags-reparse-file-if-needed)
-        (with-current-buffer (rtags-get-buffer)
-          (rtags-call-rc :path fn :path-filter pathfilter "-f" arg)
-          (cond ((or (not rtags-follow-symbol-try-harder)
-                     (= (length tagname) 0))
-                 (rtags-handle-results-buffer nil nil fn otherwindow))
-                ((rtags-handle-results-buffer nil t fn otherwindow))
-                (t
-                 (erase-buffer)
-                 (rtags-call-rc :path-filter pathfilter :path fn
-                                "-F" tagname "--definition-only" "-M" "1" "--dependency-filter" fn
-                                (when rtags-wildcard-symbol-names "--wildcard-symbol-names")
-                                (when rtags-symbolnames-case-insensitive "-I"))
-                 (unless (rtags-handle-results-buffer nil nil fn otherwindow)
-                   (erase-buffer)
-                   (rtags-call-rc :path fn :path-filter pathfilter "-F" tagname "-M" "1" "--dependency-filter" fn
-                                  (when rtags-wildcard-symbol-names "--wildcard-symbol-names")
-                                  (when rtags-symbolnames-case-insensitive "-I"))
-                   (rtags-handle-results-buffer nil nil fn otherwindow)))))))))
+        (let ((old (let ((buf (get-buffer rtags-buffer-name)))
+                     (and buf (with-current-buffer buf
+                                (cons (buffer-string) (point))))))
+              (buf (rtags-get-buffer)))
+          (with-current-buffer buf
+            (rtags-call-rc :path fn :path-filter pathfilter "-f" arg)
+            (let ((ret (cond ((or (not rtags-follow-symbol-try-harder)
+                                  (= (length tagname) 0))
+                              (rtags-handle-results-buffer nil nil fn otherwindow))
+                             ((rtags-handle-results-buffer nil t fn otherwindow))
+                             (t
+                              (erase-buffer)
+                              (rtags-call-rc :path-filter pathfilter :path fn
+                                             "-F" tagname "--definition-only" "-M" "1" "--dependency-filter" fn
+                                             (when rtags-wildcard-symbol-names "--wildcard-symbol-names")
+                                             (when rtags-symbolnames-case-insensitive "-I"))
+                              (unless (rtags-handle-results-buffer nil nil fn otherwindow)
+                                (erase-buffer)
+                                (rtags-call-rc :path fn :path-filter pathfilter "-F" tagname "-M" "1" "--dependency-filter" fn
+                                               (when rtags-wildcard-symbol-names "--wildcard-symbol-names")
+                                               (when rtags-symbolnames-case-insensitive "-I"))
+                                (rtags-handle-results-buffer nil nil fn otherwindow))))))
+              (when (and old (> (length (car old)) 0))
+                (with-current-buffer buf
+                  (when (<= (count-lines (point-min) (point-max)) 1)
+                    (setq buffer-read-only nil)
+                    (erase-buffer)
+                    (insert (car old))
+                    (goto-char (cdr old)))))
+              ret)))))))
 
 ;;;###autoload
 (defun rtags-find-references-at-point (&optional prefix)
