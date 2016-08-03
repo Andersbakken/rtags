@@ -989,11 +989,15 @@ void Server::symbolInfo(const std::shared_ptr<QueryMessage> &query, const std::s
     Path path;
     uint32_t line, column, line2, column2;
     deserializer >> path >> line >> column >> line2 >> column2;
-    const uint32_t fileId = Location::fileId(path);
+    uint32_t fileId = Location::fileId(path);
     if (!fileId) {
-        conn->write("Not indexed");
-        conn->finish(1);
-        return;
+        path.resolve();
+        fileId = Location::fileId(path);
+        if (!fileId) {
+            conn->write("Not indexed");
+            conn->finish(1);
+            return;
+        }
     }
 
     std::shared_ptr<Project> project = projectForQuery(query);
