@@ -47,7 +47,7 @@ RELEASES=~/Downloads/rtags-releases
 if [ "$branch_name" == "master" ]; then
     commit=$(git show --oneline --no-patch)
     current=`curl --silent http://andersbakken.github.io/rtags-releases/commit | cut -d' ' -f1`
-    if [ "`echo "$commit" | cut -d' ' -f1`" != "$current" ] || true; then
+    if [ "`echo "$commit" | cut -d' ' -f1`" != "$current" ]; then
         rm -rf "$RELEASES"
         mkdir "$RELEASES"
         tar --exclude-vcs --transform 's,^,rtags/,' -cvzf $RELEASES/rtags.tar.gz .
@@ -60,8 +60,8 @@ if [ "$branch_name" == "master" ]; then
         echo "$commit" > commit
         git add rtags.tar.gz rtags.tar.bz2 commit
         git commit -m "Release for $commit"
-        # git push -f git@github.com:Andersbakken/rtags-releases.git gh-pages >/dev/null
-        # rm -rf $RELEASES
+        git push -f git@github.com:Andersbakken/rtags-releases.git gh-pages >/dev/null
+        rm -rf $RELEASES
     fi
 fi
 
