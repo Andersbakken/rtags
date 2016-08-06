@@ -893,7 +893,7 @@ List<String> Source::toCommandLine(Flags<CommandLineFlag> flags, bool *usedPch) 
                             *usedPch = true;
                         ret << "-include-pch" << (inc.path + ".gch");
                     }
-                } else if (inc.path.exists()) {
+                } else {
                     ret << "-include" << inc.path;
                 }
                 break;
