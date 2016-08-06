@@ -2,10 +2,35 @@ set(CMAKE_SKIP_BUILD_RPATH            FALSE)
 set(CMAKE_BUILD_WITH_INSTALL_RPATH    FALSE)
 set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
 
-configure_file(
-    "${CMAKE_CURRENT_SOURCE_DIR}/RTagsVersion.h.in"
-    "${CMAKE_CURRENT_BINARY_DIR}/include/RTagsVersion.h"
-    )
+include(ExternalProject)
+
+if (NOT RTAGS_NO_BUILD_CLANG)
+    if (RTAGS_NO_INSTALL)
+        set(CLANG_INSTALL_PATH ${CMAKE_CURRENT_BINARY_DIR}/llvmclang-prefix/install)
+    else ()
+        set(CLANG_INSTALL_PATH ${CMAKE_INSTALL_PREFIX}/rtags-llvmclang)
+    endif ()
+    ExternalProject_Add(llvmclang
+        DOWNLOAD_COMMAND ${PROJECT_SOURCE_DIR}/scripts/getclang.sh 3.8.1
+        SOURCE_DIR llvmclang-prefix/src/llvm
+        CMAKE_ARGS -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=${CLANG_INSTALL_PATH} -DLLVM_BUILD_TOOLS=0
+        LOG_DOWNLOAD 1            # Wrap download in script to log output
+        LOG_UPDATE 1              # Wrap update in script to log output
+        LOG_CONFIGURE 1           # Wrap configure in script to log output
+        LOG_BUILD 1               # Wrap build in script to log output
+        LOG_TEST 1                # Wrap test in script to log output
+        LOG_INSTALL 1             # Wrap install in script to log output
+        )
+    set(LIBCLANG_LIBRARIES "${CLANG_INSTALL_PATH}/lib/libclang${CMAKE_SHARED_LIBRARY_SUFFIX}")
+    set(LIBCLANG_CXXFLAGS "-I${CLANG_INSTALL_PATH}/include -fPIC  -D_GNU_SOURCE -D__STDC_CONSTANT_MACROS -D__STDC_FORMAT_MACROS -D__STDC_LIMIT_MACROS")
+    set(LIBCLANG_LIBDIR "${CLANG_INSTALL_PATH}/lib")
+    if (CMAKE_SYSTEM_NAME MATCHES "Darwin")
+        add_definitions("-DCLANG_INCLUDE=${CLANG_INSTALL_PATH}/include/c++/v1") # add libcxx include
+    endif ()
+endif ()
+
+
+configure_file("${CMAKE_CURRENT_SOURCE_DIR}/RTagsVersion.h.in" "${CMAKE_CURRENT_BINARY_DIR}/include/RTagsVersion.h")
 
 # Treat MSYS as Cygwin
 if (MSYS)
@@ -164,7 +189,6 @@ add_executable(rc rc.cpp)
 target_link_libraries(rc ${RTAGS_LIBRARIES})
 
 add_executable(rdm rdm.cpp)
-
 target_link_libraries(rdm ${RTAGS_LIBRARIES})
 
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/bin)

@@ -68,6 +68,9 @@
 #define TO_STR1(x) #x
 #define TO_STR(x) TO_STR1(x)
 #define CLANG_LIBDIR_STR TO_STR(CLANG_LIBDIR)
+#ifdef CLANG_INCLUDE
+#define CLANG_INCLUDE_STR TO_STR(CLANG_INCLUDE)
+#endif
 
 // Absolute paths to search (under) for (clang) system include files
 // Iterate until we find a dir at <abspath>/clang/<version>/include.
@@ -142,6 +145,10 @@ bool Server::init(const Options &options)
         }
 #endif
     } else {
+#ifdef CLANG_INCLUDE
+        mOptions.includePaths.append(Source::Include(Source::Include::Type_System, CLANG_INCLUDE_STR));
+#endif
+
         // Iterate until we find an existing directory
         for (Path systemInclude : sSystemIncludePaths) {
             systemInclude = systemInclude.ensureTrailingSlash();
