@@ -23,6 +23,6 @@ if [ ${STATUS} == 200 ] || [ ! -d llvm ]; then
     if [ `uname -s` = Darwin ]; then
         curl -z ${LIBCXX_FILE} http://llvm.org/releases/${VERSION}/${LIBCXX_FILE} -o ${LIBCXX_FILE}
         tar xf ${LIBCXX_FILE}
-        mv ${LIBCXX} llvm-${VERSION}.src/projects/libcxx
+        mv ${LIBCXX} llvm/projects/libcxx
     fi
 fi
