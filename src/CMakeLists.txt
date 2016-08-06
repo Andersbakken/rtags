@@ -149,6 +149,10 @@ if (LUA_FOUND)
 endif ()
 
 add_library(rtags STATIC ${RTAGS_SOURCES})
+if (NOT RTAGS_NO_BUILD_CLANG)
+    add_dependencies(rtags llvmclang)
+endif ()
+
 if (RTAGS_COTIRE)
     include(cotire)
     set_target_properties(rtags PROPERTIES COTIRE_ADD_UNITY_BUILD FALSE)
