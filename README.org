@@ -195,6 +195,16 @@ sudo port install clang-3.5
   interactively configure the RTags build.
 
 * Finding clang
+** Let the Build System Download and Compile LLVM/Clang
+By default, the cmake build system automatically download and builds the
+required llvm/clang libraries, unless cmake is configured with
+RTAGS_NO_BUILD_CLANG.
+
+** Use Your System's version
+If you define RTAGS_NO_BUILD_CLANG in cmake, the build system will try to
+locate the required llvm/clang libraries and options automatically from what is
+installed on your system.
+
 RTags needs three pieces of information about =libclang=. All of these can be
 provided to =cmake= by way of an environment variable or a =cmake= variable. If
 not provided we will try to find =llvm-config= and interrogate it for the
