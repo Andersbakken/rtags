@@ -45,3 +45,4 @@ compile_commands.json
 /source/VERSION
 /src/include/RTagsVersion.h
 /bin/rlex
+/src/llvmclang-prefix/
