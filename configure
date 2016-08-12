@@ -1,0 +1,114 @@
+#!/bin/bash
+
+function usage ()
+{
+    echo "configure [OPTIONS...]"
+    echo "  --help|-h                       Display this help"
+    echo "  --cmake [arg]                   Use arg instead of \"cmake\""
+    echo "  --cmake-argument [arg]          Pass additional arguments to cmake"
+    echo "  --cmake-generator [arg]         Use this generator for cmake (e.g. Ninja)"
+    echo "  --enable-dev-options            Set certain development options (cpack)"
+    echo "  --debug                         Compile RTags in debug mode"
+    echo "  --release                       Compile RTags in release mode (default)"
+    echo "  --system-clang                  Don't build llvm/clang as part of RTags' build process"
+    echo "  --no-install                    Generate a build that isn't going to be installed"
+    echo "  --prefix [arg]                  Set install prefix to arg"
+    echo "  --clang-libraries [arg]         Override what libraries RTags will use to link against clang/llvm (Implies --system-clang)"
+    echo "  --clang-cxxflags [arg]          Override what cxxflags RTags will use for compilation to be able to include clang headers. (Implies --system-clang)"
+    echo "  --clang-libdir [arg]            Sets the libdir RTags will use for clang. (Implies --system-clang)"
+    echo "  --cotire                        Enable cotire when building RTags"
+    echo "  --emacs                         Use arg instead of \"emacs\" when byte-compiling elisp"
+    echo "  --no-lua-files-install          Don't install RTags lua files"
+    echo "  --no-elisp-files-install        Don't install RTags elisp files"
+    echo "  --no-elisp-bytecompile          Don't bytecompile RTags elisp files"
+    echo "  --elisp-install-location [arg]  Install elisp files to this location"
+}
+
+CMAKE=cmake
+CMAKE_ARGS="-DCMAKE_EXPORT_COMPILE_COMMANDS=1"
+NOBUILD=
+while [ -n "$1" ]; do
+    case "$1" in
+        --help|-h)
+            usage > /dev/stdout
+            exit 0
+            ;;
+        --cmake)
+            shift
+            CMAKE="$1"
+            ;;
+        --cmake-argument)
+            shift
+            CMAKE_ARGS="${CMAKE_ARGS} \"$1\""
+            ;;
+        --cmake-generator)
+            shift
+            CMAKE_ARGS="${CMAKE_ARGS} -G \"$1\""
+            ;;
+        --enable-dev-options)
+            CMAKE_ARGS="${CMAKE_ARGS} -DRTAGS_ENABLE_DEV_OPTIONS=1"
+            ;;
+        --debug)
+            CMAKE_ARGS="${CMAKE_ARGS} -DCMAKE_BUILD_TYPE=Debug"
+            ;;
+        --release)
+            CMAKE_ARGS="${CMAKE_ARGS} -DCMAKE_BUILD_TYPE=Release"
+            ;;
+        --system-clang)
+            NOBUILD=1
+            ;;
+        --no-install)
+            CMAKE_ARGS="${CMAKE_ARGS} -DRTAGS_NO_INSTALL=1"
+            ;;
+        --prefix)
+            shift
+            CMAKE_ARGS="${CMAKE_ARGS} -DCMAKE_INSTALL_PREFIX=\"$1\""
+            ;;
+        --clang-libraries)
+            shift
+            NOBUILD=1
+            CMAKE_ARGS="${CMAKE_ARGS} -DLIBCLANG_LIBRARIES=\"$1\""
+            ;;
+        --clang-cxxflags)
+            shift
+            NOBUILD=1
+            CMAKE_ARGS="${CMAKE_ARGS} -DLIBCLANG_CXXFLAGS=\"$1\""
+            ;;
+        --clang-libdir)
+            shift
+            NOBUILD=1
+            CMAKE_ARGS="${CMAKE_ARGS} -DLIBCLANG_LIBDIR=\"$1\""
+            ;;
+        --cotire)
+            CMAKE_ARGS="${CMAKE_ARGS} -DRTAGS_COTIRE=1"
+            ;;
+        --emacs)
+            shift
+            CMAKE_ARGS="${CMAKE_ARGS} -DEMACS=\"$1\""
+            ;;
+        --no-lua-files-install)
+            CMAKE_ARGS="${CMAKE_ARGS} -DRTAGS_NO_LUA_FILES=1"
+            ;;
+        --no-elisp-files-install)
+            CMAKE_ARGS="${CMAKE_ARGS} -DRTAGS_NO_ELISP_FILES=1"
+            ;;
+        --no-elisp-bytecompile)
+            CMAKE_ARGS="${CMAKE_ARGS} -DRTAGS_NO_ELISP_BYTECOMPILE=1"
+            ;;
+        --elisp-install-location)
+            shift
+            CMAKE_ARGS="${CMAKE_ARGS} -DRTAGS_ELISP_INSTALL_LOCATION=\"$1\""
+            ;;
+        *)
+            usage > /dev/stderr
+            echo "Unknown option $1"
+            exit 1
+            ;;
+    esac
+    shift
+done
+
+[ -n "$NOBUILD" ] && CMAKE_ARGS="${CMAKE_ARGS} -DRTAGS_NO_BUILD_CLANG=1"
+
+echo -e "Running cmake:\n\"$CMAKE\" \"$(dirname ${BASH_SOURCE[0]})\" ${CMAKE_ARGS}\n"
+eval "$CMAKE" "$(dirname ${BASH_SOURCE[0]})" ${CMAKE_ARGS}
