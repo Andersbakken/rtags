@@ -78,14 +78,15 @@ String IndexerJob::encode() const
         std::shared_ptr<Project> proj = Server::instance()->project(project);
         const Server::Options &options = Server::instance()->options();
         Source copy = source;
-        if (options.options & (Server::Weverything|Server::Wall) && source.arguments.contains("-Werror")) {
-            for (const auto &arg : options.defaultArguments) {
-                if (arg != "-Wall" && arg != "-Weverything")
-                    copy.arguments << arg;
-            }
-        } else {
-            copy.arguments << options.defaultArguments;
+        if (!(options.options & Server::AllowWErrorAndWFatalErrors)) {
+            int idx = source.arguments.indexOf("-Werror");
+            if (idx != -1)
+                copy.arguments.removeAt(idx);
+            idx = source.arguments.indexOf("-Wfatal-error");
+            if (idx != -1)
+                copy.arguments.removeAt(idx);
         }
+        copy.arguments << options.defaultArguments;
 
         if (!(options.options & Server::AllowPedantic)) {
             const int idx = copy.arguments.indexOf("-Wpedantic");

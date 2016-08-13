@@ -174,6 +174,7 @@ enum OptionType {
     CompletionLogs,
     MaxIncludeCompletionDepth,
     AllowWpedantic,
+    AllowWErrorAndWFatalErrors,
     EnableCompilerManager,
     EnableNDEBUG,
     Progress,
@@ -383,6 +384,7 @@ int main(int argc, char** argv)
         { CompletionLogs, "completion-logs", 0, no_argument, "Log more info about completions." },
         { MaxIncludeCompletionDepth, "max-include-completion-depth", 0, required_argument, "Max recursion depth for header completion (default " STR(DEFAULT_MAX_INCLUDE_COMPLETION_DEPTH) ")." },
         { AllowWpedantic, "allow-Wpedantic", 'P', no_argument, "Don't strip out -Wpedantic. This can cause problems in certain projects." },
+        { AllowWErrorAndWFatalErrors, "allow-Werror", 0, no_argument, "Don't strip out -Werror and -Wfatal-error. By default these are stripped out. " },
         { EnableCompilerManager, "enable-compiler-manager", 'R', no_argument, "Query compilers for their actual include paths instead of letting clang use its own." },
         { EnableNDEBUG, "enable-NDEBUG", 'g', no_argument, "Don't remove -DNDEBUG from compile lines." },
         { Progress, "progress", 'p', no_argument, "Report compilation progress in diagnostics output." },
@@ -631,6 +633,9 @@ int main(int argc, char** argv)
             break;
         case AllowWpedantic:
             serverOpts.options |= Server::AllowPedantic;
+            break;
+        case AllowWErrorAndWFatalErrors:
+            serverOpts.options |= Server::AllowWErrorAndWFatalErrors;
             break;
         case EnableCompilerManager:
             serverOpts.options |= Server::EnableCompilerManager;
