@@ -264,11 +264,13 @@ int StatusJob::execute()
             write(String::format<1024>("    File: %scompile_commands.json\n"
                                        "    Last-Modified: %s (%llu)\n"
                                        "    Path-Environement: %s\n"
+                                       "    Bytes written: %zu\n"
                                        "    Index-Flags: %s",
                                        info.first.constData(),
                                        String::formatTime(info.second.lastModified / 1000).constData(),
                                        static_cast<unsigned long long>(info.second.lastModified),
                                        String::join(info.second.environment, ':').constData(),
+                                       proj->bytesWritten(),
                                        info.second.indexFlags.toString().constData()));
         }
         matched = true;

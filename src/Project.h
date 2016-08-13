@@ -234,6 +234,7 @@ public:
     uint32_t fileMapOptions() const;
     void fixPCH(Source &source);
     void includeCompletions(Flags<QueryMessage::Flag> flags, const std::shared_ptr<Connection> &conn, Source &&source) const;
+    size_t bytesWritten() const { return mBytesWritten; }
 private:
     void reloadCompilationDatabases();
     void removeSource(Sources::iterator it);
@@ -390,6 +391,8 @@ private:
 
     Hash<uint32_t, DependencyNode*> mDependencies;
     Set<uint32_t> mSuspendedFiles;
+
+    size_t mBytesWritten;
 
     mutable std::mutex mMutex;
 };

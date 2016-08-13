@@ -203,11 +203,12 @@ bool ClangIndexer::exec(const String &data)
         String queryData;
         if (mFileIdsQueried)
             queryData = String::format(", %d queried %dms", mFileIdsQueried, mFileIdsQueriedTime);
-        const char *format = "(%d syms, %d symNames, %d includes, %d of %d files, symbols: %d of %d, %d cursors%s%s) (%d/%d/%dms)";
+        const char *format = "(%d syms, %d symNames, %d includes, %d of %d files, symbols: %d of %d, %d cursors, %zu bytes written%s%s) (%d/%d/%dms)";
         message += String::format<1024>(format, cursorCount, symbolNameCount,
                                         mIndexDataMessage.includes().size(), mIndexed,
                                         mIndexDataMessage.files().size(), mAllowed,
                                         mAllowed + mBlocked, mCursorsVisited,
+                                        mIndexDataMessage.bytesWritten(),
                                         queryData.constData(), mIndexDataMessage.flags() & IndexDataMessage::UsedPCH ? ", pch" : "",
                                         mParseDuration, mVisitDuration, writeDuration);
     }
@@ -1852,6 +1853,7 @@ static inline void encodeSymbols(Map<Location, Symbol> &symbols)
 
 bool ClangIndexer::writeFiles(const Path &root, String &error)
 {
+    size_t bytesWritten = 0;
     const Path p = Sandbox::encoded(mSourceFile);
     const bool hasRoot = Sandbox::hasRoot();
     for (const auto &unit : mUnits) {
@@ -1874,7 +1876,7 @@ bool ClangIndexer::writeFiles(const Path &root, String &error)
             FILE *f = fopen((unitRoot + "/info").constData(), "w");
             if (!f)
                 return false;
-            fprintf(f, "Indexed by %s at %llu\n", p.constData(), static_cast<unsigned long long>(mIndexDataMessage.parseTime()));
+            bytesWritten += fprintf(f, "Indexed by %s at %llu\n", p.constData(), static_cast<unsigned long long>(mIndexDataMessage.parseTime()));
             fclose(f);
         }
 
@@ -1892,27 +1894,40 @@ bool ClangIndexer::writeFiles(const Path &root, String &error)
             Sandbox::encode(unit.second->symbolNames);
         }
 
-        if (!FileMap<Location, Symbol>::write(unitRoot + "/symbols", unit.second->symbols, fileMapOpts)) {
+        size_t w;
+        // for (const char *name : { "/symbols", "/targets", "/usrs", "/symnames", "/tokens" }) {
+        //     if (Path::exists(unitRoot + "/symbols"))
+        //         ::error() << (unitRoot + name) << "already exists";
+        // }
+        if (!(w = FileMap<Location, Symbol>::write(unitRoot + "/symbols", unit.second->symbols, fileMapOpts))) {
             error = "Failed to write symbols";
             return false;
         }
-        if (!FileMap<String, Set<Location> >::write(unitRoot + "/targets", convertTargets(unit.second->targets, hasRoot), fileMapOpts)) {
+        bytesWritten += w;
+
+        if (!(w = FileMap<String, Set<Location> >::write(unitRoot + "/targets", convertTargets(unit.second->targets, hasRoot), fileMapOpts))) {
             error = "Failed to write targets";
             return false;
         }
-        if (!FileMap<String, Set<Location> >::write(unitRoot + "/usrs", unit.second->usrs, fileMapOpts)) {
+        bytesWritten += w;
+
+        if (!(w += FileMap<String, Set<Location> >::write(unitRoot + "/usrs", unit.second->usrs, fileMapOpts))) {
             error = "Failed to write usrs";
             return false;
         }
-        // SBROOT
-        if (!FileMap<String, Set<Location> >::write(unitRoot + "/symnames", unit.second->symbolNames, fileMapOpts)) {
+        bytesWritten += w;
+
+        if (!(w += FileMap<String, Set<Location> >::write(unitRoot + "/symnames", unit.second->symbolNames, fileMapOpts))) {
             error = "Failed to write symbolNames";
             return false;
         }
-        if (!FileMap<uint32_t, Token>::write(unitRoot + "/tokens", unit.second->tokens, fileMapOpts)) {
+        bytesWritten += w;
+
+        if (!(w += FileMap<uint32_t, Token>::write(unitRoot + "/tokens", unit.second->tokens, fileMapOpts))) {
             error = "Failed to write symbolNames";
             return false;
         }
+        bytesWritten += w;
     }
     String sourceRoot = root;
     sourceRoot << mSource.fileId;
@@ -1925,10 +1940,10 @@ bool ClangIndexer::writeFiles(const Path &root, String &error)
 
     const String args = Sandbox::encoded(String::join(mSource.toCommandLine(Source::Default|Source::IncludeCompiler|Source::IncludeSourceFile), ' '));
 
-    fprintf(f, "%s\n%s\nIndexed at %llu\n", p.constData(), args.constData(),
-            static_cast<unsigned long long>(mIndexDataMessage.parseTime()));
+    bytesWritten += fprintf(f, "%s\n%s\nIndexed at %llu\n", p.constData(), args.constData(),
+                            static_cast<unsigned long long>(mIndexDataMessage.parseTime()));
     fclose(f);
-
+    mIndexDataMessage.setBytesWritten(bytesWritten);
     return true;
 }
 

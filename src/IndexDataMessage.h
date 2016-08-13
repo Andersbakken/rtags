@@ -30,11 +30,11 @@ public:
 
     IndexDataMessage(const std::shared_ptr<IndexerJob> &job)
         : RTagsMessage(MessageId), mParseTime(0), mKey(job->source.key()), mId(0),
-          mIndexerJobFlags(job->flags)
+          mIndexerJobFlags(job->flags), mBytesWritten(0)
     {}
 
     IndexDataMessage()
-        : RTagsMessage(MessageId), mParseTime(0), mKey(0), mId(0)
+        : RTagsMessage(MessageId), mParseTime(0), mKey(0), mId(0), mBytesWritten(0)
     {}
 
     void encode(Serializer &serializer) const;
@@ -105,6 +105,9 @@ public:
     };
     Hash<uint32_t, Flags<FileFlag> > &files() { return mFiles; }
     const Hash<uint32_t, Flags<FileFlag> > &files() const { return mFiles; }
+
+    size_t bytesWritten() const { return mBytesWritten; }
+    void setBytesWritten(size_t bytesWritten) { mBytesWritten = bytesWritten; }
 private:
     Path mProject;
     uint64_t mParseTime, mKey, mId;
@@ -115,6 +118,7 @@ private:
     Includes mIncludes;
     Hash<uint32_t, Flags<FileFlag> > mFiles;
     Flags<Flag> mFlags;
+    size_t mBytesWritten;
 };
 
 RCT_FLAGS(IndexDataMessage::Flag);
@@ -123,13 +127,13 @@ RCT_FLAGS(IndexDataMessage::FileFlag);
 inline void IndexDataMessage::encode(Serializer &serializer) const
 {
     serializer << mProject << mParseTime << mKey << mId << mIndexerJobFlags << mMessage
-               << mFixIts << mIncludes << mDiagnostics << mFiles << mFlags;
+               << mFixIts << mIncludes << mDiagnostics << mFiles << mFlags << mBytesWritten;
 }
 
 inline void IndexDataMessage::decode(Deserializer &deserializer)
 {
     deserializer >> mProject >> mParseTime >> mKey >> mId >> mIndexerJobFlags >> mMessage
-                 >> mFixIts >> mIncludes >> mDiagnostics >> mFiles >> mFlags;
+                 >> mFixIts >> mIncludes >> mDiagnostics >> mFiles >> mFlags >> mBytesWritten;
 }
 
 #endif

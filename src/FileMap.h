@@ -235,37 +235,37 @@ public:
         }
         return out;
     }
-    static bool write(const Path &path, const Map<Key, Value> &map, uint32_t options)
+    static size_t write(const Path &path, const Map<Key, Value> &map, uint32_t options)
     {
         int fd = open(path.constData(), O_RDWR|O_CREAT, 0644);
         if (fd == -1) {
             if (!Path::mkdir(path.parentDir(), Path::Recursive))
-                return false;
+                return 0;
             fd = open(path.constData(), O_RDWR|O_CREAT, 0644);
             if (fd == -1)
-                return false;
+                return 0;
         }
         if (!(options & NoLock) && !lock(fd, Write)) {
             ::close(fd);
-            return false;
+            return 0;
         }
         const String data = encode(map);
-        bool ret = ::ftruncate(fd, data.size()) != -1;
-        if (!ret) {
+        bool ok = ::ftruncate(fd, data.size()) != -1;
+        if (!ok) {
             if (!(options & NoLock))
                 lock(fd, Unlock);
             ::close(fd);
-            return false;
+            return 0;
         }
 
-        ret = ::write(fd, data.constData(), data.size()) == static_cast<ssize_t>(data.size());
+        ok = ::write(fd, data.constData(), data.size()) == static_cast<ssize_t>(data.size());
         if (!(options & NoLock))
-            ret = lock(fd, Unlock) && ret;
+            ok = lock(fd, Unlock) && ok;
 
         ::close(fd);
-        if (!ret)
+        if (!ok)
             unlink(path.constData());
-        return ret;
+        return ok ? data.size() : 0;
     }
 private:
     enum Mode {
