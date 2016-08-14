@@ -333,7 +333,7 @@ static Path resolveCompiler(const Path &unresolved, const Path &cwd, const List<
 }
 
 
-static inline bool isCompiler(const Path &fullPath, const List<Path> &pathEnvironment)
+static inline bool isCompiler(const Path &fullPath, const List<String> &environment)
 {
     const char *fileName = fullPath.fileName();
     if (!strcmp(fileName, "ccache"))
@@ -369,9 +369,9 @@ static inline bool isCompiler(const Path &fullPath, const List<Path> &pathEnviro
     Process proc;
     List<String> args;
     args << "-x" << "c" << "-c" << path << "-o" << out;
-    proc.exec(fullPath, args, pathEnvironment);
+    proc.exec(fullPath, args, environment);
     if (proc.returnCode() != 0) {
-        warning() << "Failed to compile" << fullPath << args << "\nwith $PATH:\n" << pathEnvironment
+        warning() << "Failed to compile" << fullPath << args << "\nwith ENV:\n" << environment
                   << "\nstderr:\n" << proc.readAllStdErr()
                   << "\nstdout:\n" << proc.readAllStdOut();
     }
@@ -641,7 +641,7 @@ List<Source> Source::parse(const String &cmdLine,
                 add = false;
                 const Path compiler = resolveCompiler(arg, cwd, pathEnvironment);
                 if (!access(compiler.nullTerminated(), R_OK | X_OK)) {
-                    validCompiler = isCompiler(compiler, pathEnvironment);
+                    validCompiler = isCompiler(compiler, environment);
                     compilerId = Location::insertFile(compiler);
                 } else {
                     break;
@@ -656,7 +656,7 @@ List<Source> Source::parse(const String &cmdLine,
                         if (!access(inPath.nullTerminated(), R_OK | X_OK)) {
                             extraCompiler = inPath;
                             if (!validCompiler)
-                                validCompiler = isCompiler(extraCompiler, pathEnvironment);
+                                validCompiler = isCompiler(extraCompiler, environment);
                         }
                     }
                 }
