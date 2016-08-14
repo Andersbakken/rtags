@@ -309,6 +309,7 @@ int main(int argc, char** argv)
     serverOpts.rpConnectTimeout = DEFAULT_RP_CONNECT_TIMEOUT;
     serverOpts.rpConnectAttempts = DEFAULT_RP_CONNECT_ATTEMPTS;
     serverOpts.maxFileMapScopeCacheSize = DEFAULT_RDM_MAX_FILE_MAP_CACHE_SIZE;
+    serverOpts.errorLimit = DEFAULT_ERROR_LIMIT;
     serverOpts.rpNiceValue = INT_MIN;
     serverOpts.options = Server::Wall|Server::SpellChecking;
     serverOpts.maxCrashCount = DEFAULT_MAX_CRASH_COUNT;
