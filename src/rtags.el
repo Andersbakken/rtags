@@ -1836,32 +1836,27 @@ instead of file from `current-buffer'.
       (setq symbols (cdr symbols)))
     (if (not calls)
         (message "No function-calls found")
-      (switch-to-buffer (rtags-get-buffer))
-      (while calls
+      (with-current-buffer (rtags-get-buffer)
+        (while calls
+          (goto-char (point-min))
+          (let ((call (car calls)))
+            (insert (cdr (assoc 'location (car call)))
+                    " - "
+                    (cdr (assoc 'symbolName (car call)))
+                    " - called from - "
+                    (format "%s:%d:%d: - "
+                            (file-name-nondirectory file)
+                            (cdr (assoc 'startLine (cdr call)))
+                            (cdr (assoc 'startColumn (cdr call))))
+                    (rtags-find-functions-called-by-this-function-format-reference file (cdr call))
+                    "\n"))
+          (setq calls (cdr calls)))
+        (goto-char (point-max))
+        (backward-delete-char 1)
         (goto-char (point-min))
-        (let ((call (car calls)))
-          (insert (cdr (assoc 'location (car call)))
-                  " - "
-                  (cdr (assoc 'symbolName (car call)))
-                  " - called from - "
-                  (format "%s:%d:%d: - "
-                          (file-name-nondirectory file)
-                          (cdr (assoc 'startLine (cdr call)))
-                          (cdr (assoc 'startColumn (cdr call))))
-                  (rtags-find-functions-called-by-this-function-format-reference file (cdr call))
-                  "\n"))
-        (setq calls (cdr calls)))
-      (goto-char (point-max))
-      (backward-delete-char 1)
-      (goto-char (point-min))
-      (insert "Functions called from: " (cdr (assoc 'location container)) " " (cdr (assoc 'symbolName container)) "\n")
-      (goto-char (point-min))
-      (setq buffer-read-only t)
-      (rtags-mode))))
-
-   ;; (message "got symbol %s at %s" (cdr (assoc 'kind (car symbols))) (cdr (assoc 'location (car symbols))))
-   ;;    (setq symbols (cdr symbols)))))
-
+        (insert "Functions called from: " (cdr (assoc 'location container)) " " (cdr (assoc 'symbolName container)) "\n")
+        (goto-char (point-min))
+        (rtags-handle-results-buffer)))))
 
 ;;;###autoload
 (defun rtags-find-all-functions-called-this-function ()
@@ -3151,38 +3146,44 @@ This includes both declarations and definitions."
 
 (defun rtags-format-results ()
   "Create a bookmark for each match and format the buffer."
-  (goto-char (point-max))
-  (when (= (point-at-bol) (point-max))
-    (delete-char -1))
-  (goto-char (point-min))
-  (while (not (eobp))
-    (when (looking-at "^\\(.*?\\):\\([0-9]+\\):\\([0-9]+\\):?[ \t]*\\(.*\\)$")
-      ;; (message "matched at %d:%d" (point) rtags-buffer-bookmarks)
-      (let* ((start (point-at-bol))
-             (end (min (point-max) (1+ (point-at-eol))))
-             (buffer (and rtags-use-bookmarks (get-file-buffer (rtags-absolutify (match-string-no-properties 1)))))
-             (line (and buffer (string-to-number (match-string-no-properties 2))))
-             (bookmark-idx)
-             (column (and buffer (string-to-number (match-string-no-properties 3)))))
-        (when buffer
-          (let (deactivate-mark)
-            (with-current-buffer buffer
-              (save-excursion
-                (save-restriction
-                  (widen)
-                  (when (rtags-goto-line-col line column)
-                    (bookmark-set (format "RTags_%d" rtags-buffer-bookmarks))
-                    (setq bookmark-idx rtags-buffer-bookmarks)
-                    (incf rtags-buffer-bookmarks)))))))
-        (when rtags-verbose-results
-          (goto-char (match-end 4))
-          (insert "\n" rtags-verbose-results-delimiter)
-          (goto-char (match-beginning 4))
-          (insert "\n    ")
-          (incf end 5))
-        (set-text-properties start end (list 'rtags-bookmark-index (cons bookmark-idx start)))))
-    (forward-line))
-  (rtags-mode))
+  (let ((startpos))
+    (goto-char (point-max))
+    (when (= (point-at-bol) (point-max))
+      (delete-char -1))
+    (goto-char (point-min))
+    (when (looking-at "Functions called from:")
+      (forward-line 1)
+      (setq startpos (point)))
+    (while (not (eobp))
+      (when (looking-at "^\\(.*?\\):\\([0-9]+\\):\\([0-9]+\\):?[ \t]*\\(.*\\)$")
+        ;; (message "matched at %d:%d" (point) rtags-buffer-bookmarks)
+        (let* ((start (point-at-bol))
+               (end (min (point-max) (1+ (point-at-eol))))
+               (buffer (and rtags-use-bookmarks (get-file-buffer (rtags-absolutify (match-string-no-properties 1)))))
+               (line (and buffer (string-to-number (match-string-no-properties 2))))
+               (bookmark-idx)
+               (column (and buffer (string-to-number (match-string-no-properties 3)))))
+          (when buffer
+            (let (deactivate-mark)
+              (with-current-buffer buffer
+                (save-excursion
+                  (save-restriction
+                    (widen)
+                    (when (rtags-goto-line-col line column)
+                      (bookmark-set (format "RTags_%d" rtags-buffer-bookmarks))
+                      (setq bookmark-idx rtags-buffer-bookmarks)
+                      (incf rtags-buffer-bookmarks)))))))
+          (when rtags-verbose-results
+            (goto-char (match-end 4))
+            (insert "\n" rtags-verbose-results-delimiter)
+            (goto-char (match-beginning 4))
+            (insert "\n    ")
+            (incf end 5))
+          (set-text-properties start end (list 'rtags-bookmark-index (cons bookmark-idx start)))))
+      (forward-line 1))
+    (rtags-mode)
+    (when startpos
+      (goto-char startpos))))
 
 (defun rtags-handle-results-buffer (&optional noautojump quiet path other-window)
   "Handle results from RTags. Should be called with the results buffer
@@ -4645,6 +4646,8 @@ Each element of the alist is a cons-cell of the form (DESCRIPTION . FUNCTION)."
         (with-current-buffer buf
           (save-excursion
             (goto-char (point-min))
+            (when (looking-at "Functions called from:")
+              (forward-line 1))
             (let (done)
               (while (not done)
                 (push (cons (buffer-substring-no-properties (point-at-bol) (point-at-eol)) (point-at-bol)) ret)
