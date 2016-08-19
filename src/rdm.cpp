@@ -74,7 +74,7 @@ static void signalHandler(int signal)
     _exit(1);
 }
 
-#define EXCLUDEFILTER_DEFAULT "*/CMakeFiles/*;*/cmake*/Modules/*;*/conftest.c*;/tmp/*"
+#define EXCLUDEFILTER_DEFAULT "*/CMakeFiles/*;*/cmake*/Modules/*;*/conftest.c*;/tmp/*;/private/tmp/*"
 #define DEFAULT_RP_VISITFILE_TIMEOUT 60000
 #define DEFAULT_RDM_MAX_FILE_MAP_CACHE_SIZE 500
 #define DEFAULT_RP_INDEXER_MESSAGE_TIMEOUT 60000
