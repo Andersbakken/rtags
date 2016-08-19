@@ -4,7 +4,7 @@ set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
 
 include(ExternalProject)
 
-if (NOT RTAGS_NO_BUILD_CLANG)
+if (RTAGS_BUILD_CLANG)
     if (RTAGS_NO_INSTALL)
         set(CLANG_INSTALL_PATH ${CMAKE_CURRENT_BINARY_DIR}/llvmclang-prefix/install)
     else ()
@@ -150,7 +150,7 @@ if (LUA_FOUND)
 endif ()
 
 add_library(rtags STATIC ${RTAGS_SOURCES})
-if (NOT RTAGS_NO_BUILD_CLANG)
+if (RTAGS_BUILD_CLANG)
     add_dependencies(rtags llvmclang)
 endif ()
 
