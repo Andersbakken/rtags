@@ -4003,7 +4003,7 @@ definition."
       (point))))
 
 ;;;###autoload
-(defun rtags-reparse-file (&optional buffer force)
+(defun rtags-reparse-file (&optional buffer periodic)
   "WAIT-REPARSING : t to wait for reparsing to finish, nil for async (no waiting)."
   (interactive)
   (when (or (not (rtags-called-interactively-p)) (rtags-sandbox-id-matches))
@@ -4014,15 +4014,15 @@ definition."
       ;;(message ":debug: file not indexed"))
       (when (and file (rtags-buffer-status buffer))
         (if (buffer-modified-p buffer)
-            (when (or rtags-enable-unsaved-reparsing force)
-              (unless force
+            (when (or rtags-enable-unsaved-reparsing periodic)
+              (unless periodic
                 (message "Reparsing %s" file))
               (rtags-call-rc :path file
                              :timeout rtags-reparse-timeout
                              :unsaved buffer
                              "--silent"
                              "-V" file
-                             (if rtags-enable-unsaved-reparsing "--wait")))
+                             (unless periodic "--wait")))
           (rtags-call-rc :path file "--silent" "-V" file)
           (message (format "Dirtied %s" file)))))))
 
@@ -4032,14 +4032,14 @@ definition."
 (defvar rtags-unsaved-buffer-ticks nil)
 (make-variable-buffer-local 'rtags-unsaved-buffer-ticks)
 
-(defun rtags-reparse-file-if-needed (&optional buffer force)
+(defun rtags-reparse-file-if-needed (&optional buffer periodic)
   "Reparse file if it's not saved.
 
 buffer : The buffer to be checked and reparsed, if it's nil, use current buffer.
 force means do it regardless of rtags-enable-unsaved-reparsing "
   (unless buffer
     (setq buffer (current-buffer)))
-  (when (and (or rtags-enable-unsaved-reparsing force)
+  (when (and (or rtags-enable-unsaved-reparsing periodic)
              (buffer-modified-p buffer))
     ;; check ticks since the last save to avoid parsing the file multiple times
     ;; if it has not been modified
@@ -4050,7 +4050,7 @@ force means do it regardless of rtags-enable-unsaved-reparsing "
       ;;(message ":debug: buffer=%s, old-ticks=%s, current-ticks=%s"
       ;;unsaved old-ticks current-ticks)
       (when (or (null old-ticks) (/= current-ticks old-ticks))
-        (rtags-reparse-file buffer force)
+        (rtags-reparse-file buffer periodic)
         (set (make-local-variable 'rtags-unsaved-buffer-ticks) current-ticks)))))
 
 
