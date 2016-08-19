@@ -126,6 +126,7 @@ set(RTAGS_SOURCES
     ListSymbolsJob.cpp
     Location.cpp
     Preprocessor.cpp
+    ProcThread.cpp
     Project.cpp
     QueryJob.cpp
     QueryMessage.cpp
