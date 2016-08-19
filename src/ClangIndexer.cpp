@@ -464,9 +464,9 @@ String ClangIndexer::addNamePermutations(const CXCursor &cursor, Location locati
     default: {
         type = RTags::eatString(clang_getTypeSpelling(clang_getCursorType(cursor)));
         if (originalKind == CXCursor_FunctionDecl || originalKind == CXCursor_CXXMethod || originalKind == CXCursor_FunctionTemplate) {
-            const size_t idx = type.indexOf(") -> ");
+            const size_t idx = type.indexOf(" -> ");
             if (idx != String::npos)
-                trailer = type.mid(idx + 1);
+                trailer = type.mid(idx);
         }
         const int paren = type.indexOf('(');
         if (paren != -1) {
