@@ -195,26 +195,8 @@ sudo port install clang-3.5
   interactively configure the RTags build.
 
 * Finding clang
-** Let the Build System Download and Compile LLVM/Clang
-By default, the cmake build system automatically download and builds the
-required llvm/clang libraries, unless cmake is configured with
-RTAGS_NO_BUILD_CLANG.
-
-Note that if you use ninja to build RTags you might run into the
-following error:
-
-#+BEGIN_SRC sh
-ninja: error: '/usr/local/rtags-llvmclang/lib/libclang.dylib', needed by 'bin/rdm', missing and no known rule to make it
-#+END_SRC
-
-In that case you need to do this:
-
-#+BEGIN_SRC sh
-ninja llvmclang && ninja && ninja install
-#+END_SRC
-
 ** Use Your System's version
-If you define RTAGS_NO_BUILD_CLANG in cmake, the build system will try to
+Unless you define RTAGS_BUILD_CLANG in cmake (or configure), the build system will try to
 locate the required llvm/clang libraries and options automatically from what is
 installed on your system.
 
@@ -287,8 +269,26 @@ Like with =LIBCLANG_LLVM_CONFIG_EXECUTABLE= these variables can be overwritten
 as a =cmake= variable =(cmake -DLIBCLANG_LIBDIR =...)= or an environment variable
 =(LIBCLANG_LIBDIR =... cmake)=
 
-RTags uses C++11 features, and requires a relatively new compiler. GCC version
->= 4.8 or clang >= 3.2 should work.
+** Let the Build System Download and Compile LLVM/Clang
+By default, cmake searches for a system libclang. If you want it to
+download and build the required llvm/clang libraries, either call
+cmake with -DRTAGS_BUILD_CLANG=1 or configure with --build-clang
+
+Note that if you use ninja to build RTags you might run into the
+following error:
+
+#+BEGIN_SRC sh
+ninja: error: '/usr/local/rtags-llvmclang/lib/libclang.dylib', needed by 'bin/rdm', missing and no known rule to make it
+#+END_SRC
+
+In that case you need to do this:
+
+#+BEGIN_SRC sh
+ninja llvmclang && ninja && ninja install
+#+END_SRC
+
+RTags uses C++11 features, and requires a relatively new compiler. GCC
+version >= 4.8 or clang >= 3.2 should work.
 
 * Setup
 

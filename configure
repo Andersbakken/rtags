@@ -10,12 +10,13 @@ function usage ()
     echo "  --enable-dev-options            Set certain development options (cpack)"
     echo "  --debug                         Compile RTags in debug mode"
     echo "  --release                       Compile RTags in release mode (default)"
-    echo "  --system-clang                  Don't build llvm/clang as part of RTags' build process"
+    echo "  --system-clang                  Don't build llvm/clang as part of RTags' build process (default)"
+    echo "  --build-clang                   Download and build llvm/clang as part of RTags' build process"
     echo "  --no-install                    Generate a build that isn't going to be installed"
     echo "  --prefix [arg]                  Set install prefix to arg"
-    echo "  --clang-libraries [arg]         Override what libraries RTags will use to link against clang/llvm (Implies --system-clang)"
-    echo "  --clang-cxxflags [arg]          Override what cxxflags RTags will use for compilation to be able to include clang headers. (Implies --system-clang)"
-    echo "  --clang-libdir [arg]            Sets the libdir RTags will use for clang. (Implies --system-clang)"
+    echo "  --clang-libraries [arg]         Override what libraries RTags will use to link against clang/llvm"
+    echo "  --clang-cxxflags [arg]          Override what cxxflags RTags will use for compilation to be able to include clang headers."
+    echo "  --clang-libdir [arg]            Sets the libdir RTags will use for clang."
     echo "  --cotire                        Enable cotire when building RTags"
     echo "  --emacs                         Use arg instead of \"emacs\" when byte-compiling elisp"
     echo "  --no-lua-files-install          Don't install RTags lua files"
@@ -26,7 +27,7 @@ function usage ()
 
 CMAKE=cmake
 CMAKE_ARGS="-DCMAKE_EXPORT_COMPILE_COMMANDS=1"
-NOBUILD=
+BUILD=
 while [ -n "$1" ]; do
     case "$1" in
         --help|-h)
@@ -55,7 +56,7 @@ while [ -n "$1" ]; do
             CMAKE_ARGS="${CMAKE_ARGS} -DCMAKE_BUILD_TYPE=Release"
             ;;
         --system-clang)
-            NOBUILD=1
+            BUILD=
             ;;
         --no-install)
             CMAKE_ARGS="${CMAKE_ARGS} -DRTAGS_NO_INSTALL=1"
@@ -66,17 +67,14 @@ while [ -n "$1" ]; do
             ;;
         --clang-libraries)
             shift
-            NOBUILD=1
             CMAKE_ARGS="${CMAKE_ARGS} -DLIBCLANG_LIBRARIES=\"$1\""
             ;;
         --clang-cxxflags)
             shift
-            NOBUILD=1
             CMAKE_ARGS="${CMAKE_ARGS} -DLIBCLANG_CXXFLAGS=\"$1\""
             ;;
         --clang-libdir)
             shift
-            NOBUILD=1
             CMAKE_ARGS="${CMAKE_ARGS} -DLIBCLANG_LIBDIR=\"$1\""
             ;;
         --cotire)
@@ -108,7 +106,7 @@ while [ -n "$1" ]; do
     shift
 done
 
-[ -n "$NOBUILD" ] && CMAKE_ARGS="${CMAKE_ARGS} -DRTAGS_NO_BUILD_CLANG=1"
+[ -n "$BUILD" ] && CMAKE_ARGS="${CMAKE_ARGS} -DRTAGS_BUILD_CLANG=1"
 
 echo -e "Running cmake:\n\"$CMAKE\" \"$(dirname ${BASH_SOURCE[0]})\" ${CMAKE_ARGS}\n"
 eval "$CMAKE" "$(dirname ${BASH_SOURCE[0]})" ${CMAKE_ARGS}
