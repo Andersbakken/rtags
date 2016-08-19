@@ -335,8 +335,8 @@ static Path resolveCompiler(const Path &unresolved, const Path &cwd, const List<
 
 static inline bool isCompiler(const Path &fullPath, const List<String> &environment)
 {
-    const char *fileName = fullPath.fileName();
-    if (!strcmp(fileName, "ccache"))
+    assert(Server::instance());
+    if (Server::instance()->options().compilerWrappers.contains(fullPath.fileName()))
         return true;
     assert(EventLoop::isMainThread());
     static Hash<Path, bool> sCache;

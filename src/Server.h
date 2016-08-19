@@ -105,6 +105,7 @@ public:
         List<Source::Define> defines;
         List<Path> tests;
         Set<Path> ignoredCompilers;
+        Set<String> compilerWrappers;
         List<String> debugLocations;
     };
     bool init(const Options &options);

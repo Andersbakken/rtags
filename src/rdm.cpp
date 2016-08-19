@@ -74,7 +74,8 @@ static void signalHandler(int signal)
     _exit(1);
 }
 
-#define EXCLUDEFILTER_DEFAULT "*/CMakeFiles/*;*/cmake*/Modules/*;*/conftest.c*;/tmp/*;/private/tmp/*"
+#define DEFAULT_EXCLUDEFILTER "*/CMakeFiles/*;*/cmake*/Modules/*;*/conftest.c*;/tmp/*;/private/tmp/*"
+#define DEFAULT_COMPILER_WRAPPERS "ccache"
 #define DEFAULT_RP_VISITFILE_TIMEOUT 60000
 #define DEFAULT_RDM_MAX_FILE_MAP_CACHE_SIZE 500
 #define DEFAULT_RP_INDEXER_MESSAGE_TIMEOUT 60000
@@ -158,6 +159,7 @@ enum OptionType {
     NoStartupProject,
     NoNoUnknownWarningsOption,
     IgnoreCompiler,
+    CompilerWrappers,
     WatchSystemPaths,
     RpVisitFileTimeout,
     RpIndexerMessageTimeout,
@@ -357,7 +359,7 @@ int main(int argc, char** argv)
         { CleanSlate, "clean-slate", 'C', no_argument, "Clear out all data." },
         { DisableSigHandler, "disable-sighandler", 'x', no_argument, "Disable signal handler to dump stack for crashes." },
         { Silent, "silent", 'S', no_argument, "No logging to stdout/stderr." },
-        { ExcludeFilter, "exclude-filter", 'X', required_argument, "Files to exclude from rdm, default \"" EXCLUDEFILTER_DEFAULT "\"." },
+        { ExcludeFilter, "exclude-filter", 'X', required_argument, "Files to exclude from rdm, default \"" DEFAULT_EXCLUDEFILTER "\"." },
         { SocketFile, "socket-file", 'n', required_argument, "Use this file for the server socket (default ~/.rdm)." },
         { DataDir, "data-dir", 'd', required_argument, "Use this directory to store persistent data (default ~/.rtags)." },
         { IgnorePrintfFixits, "ignore-printf-fixits", 'F', no_argument, "Disregard any clang fixit that looks like it's trying to fix format for printf and friends." },
@@ -369,6 +371,7 @@ int main(int argc, char** argv)
         { NoStartupProject, "no-startup-project", 'o', no_argument, "Don't restore the last current project on startup." },
         { NoNoUnknownWarningsOption, "no-no-unknown-warnings-option", 'Y', no_argument, "Don't pass -Wno-unknown-warning-option." },
         { IgnoreCompiler, "ignore-compiler", 'b', required_argument, "Ignore this compiler." },
+        { CompilerWrappers, "compiler-wrappers", 0, required_argument, "Consider these filenames compiler wrappers (split on ;), default " DEFAULT_COMPILER_WRAPPERS "\"." },
         { WatchSystemPaths, "watch-system-paths", 'w', no_argument, "Watch system paths for changes." },
         { RpVisitFileTimeout, "rp-visit-file-timeout", 'Z', required_argument, "Timeout for rp visitfile commands in ms (0 means no timeout) (default " STR(DEFAULT_RP_VISITFILE_TIMEOUT) ")." },
         { RpIndexerMessageTimeout, "rp-indexer-message-timeout", 'T', required_argument, "Timeout for rp indexer-message in ms (0 means no timeout) (default " STR(DEFAULT_RP_INDEXER_MESSAGE_TIMEOUT) ")." },
@@ -555,6 +558,9 @@ int main(int argc, char** argv)
             break;
         case IgnoreCompiler:
             serverOpts.ignoredCompilers.insert(Path::resolved(optarg));
+            break;
+        case CompilerWrappers:
+            serverOpts.compilerWrappers = String(optarg).split(";", String::SkipEmpty).toSet();
             break;
         case WatchSystemPaths:
             serverOpts.options |= Server::WatchSystemPaths;
@@ -799,7 +805,9 @@ int main(int argc, char** argv)
     }
 
     if (serverOpts.excludeFilters.isEmpty())
-        serverOpts.excludeFilters = String(EXCLUDEFILTER_DEFAULT).split(';');
+        serverOpts.excludeFilters = String(DEFAULT_EXCLUDEFILTER).split(';');
+    if (serverOpts.compilerWrappers.isEmpty())
+        serverOpts.compilerWrappers = String(DEFAULT_COMPILER_WRAPPERS).split(';').toSet();
 
     if (!serverOpts.headerErrorJobCount) {
         serverOpts.headerErrorJobCount = std::max<size_t>(1, serverOpts.jobCount / 2);
