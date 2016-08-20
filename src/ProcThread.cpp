@@ -113,7 +113,7 @@ void ProcThread::readProc()
             continue;
         }
 
-        if (!strncmp(node.cmdLine, "/bin/bash", 9))
+        if (!strncmp(node.cmdLine, "/bin/bash", 9) || !strncmp(node.cmdLine, "/bin/sh", 7))
             continue;
 
         while (read > 0 && !node.cmdLine[read-1])
@@ -131,7 +131,8 @@ void ProcThread::readProc()
             case ' ':
                 if (prev == node.cmdLine) {
                     node.cmdLine[i] = '\0';
-                    if (strstr("cc1plus", node.cmdLine) || strstr("/rc", node.cmdLine)) {
+                    // error() << "Considering" << node.cmdLine;
+                    if (strstr(node.cmdLine, "cc1plus") || strstr(node.cmdLine, "/rc")) {
                         hasSource = Nay;
                     }
                 }
@@ -159,6 +160,8 @@ void ProcThread::readProc()
         }
         if (hasSource != Yay)
             continue;
+
+        // error() << "GOT SOURCE" << node.cmdLine;
 
         snprintf(file, sizeof(file), "/proc/%s/cwd", p->d_name);
         const int w = readlink(file, node.cwd, sizeof(node.cwd) - 2);
@@ -215,8 +218,13 @@ void ProcThread::readProc()
     }
     for (size_t i=0; i<nodes.size() - 1; ++i) {
         const auto &node = nodes.at(i);
-        List<Source> sources = Source::parse(node.cmdLine, node.cwd, node.environ);
-        error() << "GOT SOURCES" << sources.size() << "from" << node.cmdLine;
+        List<Path> paths;
+        List<Source> sources = Source::parse(node.cmdLine, node.cwd, node.environ, &paths);
+        if (sources.size()) {
+            error() << "GOT SOURCES" << node.cmdLine;
+        }
+        // error() << "GOT SOURCES" << sources.size() << "from" << node.cmdLine
+        //         << paths;
     }
 
     Hash<int, bool>::iterator it = mNodes.begin();
