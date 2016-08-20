@@ -316,9 +316,11 @@ static inline String unquote(const String &arg)
     return arg;
 }
 
+static std::mutex sMutex;
+
 static Path resolveCompiler(const Path &unresolved, const Path &cwd, const List<Path> &pathEnvironment)
 {
-    assert(EventLoop::isMainThread()); // not threadsafe
+    std::unique_lock<std::mutex> lock(sMutex);
     static Hash<Path, Path> resolvedFromPath;
     Path &compiler = resolvedFromPath[unresolved];
     if (compiler.isEmpty())
@@ -335,10 +337,10 @@ static Path resolveCompiler(const Path &unresolved, const Path &cwd, const List<
 
 static inline bool isCompiler(const Path &fullPath, const List<String> &environment)
 {
+    std::unique_lock<std::mutex> lock(sMutex);
     assert(Server::instance());
     if (Server::instance()->options().compilerWrappers.contains(fullPath.fileName()))
         return true;
-    assert(EventLoop::isMainThread());
     static Hash<Path, bool> sCache;
 
     bool ok;
