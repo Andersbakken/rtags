@@ -50,7 +50,7 @@ Index the RTags project, and wait until =rdm= is silent
 Open source file in =emacs=
 
 #+BEGIN_SRC sh
-emacs +41:34 src/rdm.cpp
+emacs +72:34 src/rdm.cpp
 #+END_SRC
 
 Load =rtags.el=
