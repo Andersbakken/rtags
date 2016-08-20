@@ -17,12 +17,18 @@
 #define ProcThread_h
 
 #include <rct/Hash.h>
+#include <rct/Path.h>
 #include <rct/Thread.h>
 #include <rct/SignalSlot.h>
 #include <rct/String.h>
 #include <mutex>
 #include <condition_variable>
 #include <time.h>
+#include "Source.h"
+
+#if defined(OS_Linux) || defined(OS_FreeBSD) || 1
+#define RTAGS_HAS_PROC
+#endif
 
 class ProcThread : public Thread
 {
@@ -32,23 +38,19 @@ public:
 
     void stop();
     virtual void run();
-    Signal<std::function<void(String)> > &command() { return mCommand; }
+    Signal<std::function<void(List<Source>)> > &command() { return mCommand; }
 private:
     void readProc();
 
-    Signal<std::function<void(String)> > mCommand;
+    Signal<std::function<void(List<Source>)> > mCommand;
     std::mutex mMutex;
     std::condition_variable mCond;
     int mInterval;
 
-    struct Node {
-        Node()
-            : creationData(0), marked(false)
-        {}
-        time_t creationData;
-        bool marked;
-    };
-    Hash<unsigned long long, Node> mSeen;
+#ifdef RTAGS_HAS_PROC
+    Path mPath;
+#endif
+    Hash<int, bool> mNodes;
 };
 
 #endif
