@@ -27,6 +27,7 @@
 #include "rct/QuitMessage.h"
 #include "rct/Rct.h"
 #include "rct/StopWatch.h"
+#include "rct/OnDestruction.h"
 #include "RTags.h"
 #include "RTagsLogOutput.h"
 
@@ -356,7 +357,7 @@ void RClient::addCompile(const Path &dir)
 int RClient::exec()
 {
     RTags::initMessages();
-
+    OnDestruction onDestruction([]() { Message::cleanup(); });
     EventLoop::SharedPtr loop(new EventLoop);
     loop->init(EventLoop::MainEventLoop);
 
