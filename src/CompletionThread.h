@@ -119,9 +119,11 @@ private:
 
     struct SourceFile {
         SourceFile()
-            : translationUnit(0), parseTime(0), reparseTime(0), codeCompleteTime(0), completions(0), next(0), prev(0)
+            : lastModified(0), parseTime(0), reparseTime(0), codeCompleteTime(0), completions(0), next(0), prev(0)
         {}
         std::shared_ptr<RTags::TranslationUnit> translationUnit;
+        String unsaved;
+        uint64_t lastModified;
         uint64_t parseTime, reparseTime, codeCompleteTime; // ms
         size_t completions;
         Source source;

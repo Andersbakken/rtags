@@ -217,6 +217,7 @@ void CompletionThread::process(Request *request)
     };
 
     const auto &options = Server::instance()->options();
+    bool reparse = false;
     if (!cache->translationUnit) {
         if (request->conn && request->flags & NoWait) {
             request->flags |= WarmUp;
@@ -251,21 +252,37 @@ void CompletionThread::process(Request *request)
                                                                 request->source.toCommandLine(Source::Default|Source::ExcludeDefaultArguments),
                                                                 &unsaved, request->unsaved.size() ? 1 : 0, flags);
         // error() << "PARSING" << clangLine;
-        parseTime = cache->parseTime = sw.restart();
-// #if CINDEX_VERSION < CINDEX_VERSION_ENCODE(0, 32)
+        parseTime = cache->parseTime = sw.elapsed();
         // with clang 3.8 it definitely seems like we have to reparse once to
         // generate the preamble. Even with CXTranslationUnit_CreatePreambleOnFirstParse
-        if (cache->translationUnit) {
-            LOG() << "reparsing translation unit" << request->source.sourceFile();
-            cache->translationUnit->reparse(&unsaved, request->unsaved.size() ? 1 : 0);
-        }
-// #endif
-        reparseTime = cache->reparseTime = sw.elapsed();
         if (!cache->translationUnit) {
             LOG() << "Failed to parse translation unit" << request->source.sourceFile();
             return;
         }
+        reparse = true;
+    } else if (!request->unsaved.isEmpty()) {
+        reparse = request->unsaved == cache->unsaved;
+        cache->lastModified = 0;
+    } else {
+        const uint64_t lastModified = request->source.sourceFile().lastModifiedMs();
+        if (lastModified != cache->lastModified) {
+            cache->lastModified = lastModified;
+            cache->unsaved.clear();
+            reparse = true;
+        } else {
+            assert(cache->unsaved.isEmpty());
+        }
     }
+
+    if (reparse) {
+        sw.restart();
+        assert(cache->translationUnit);
+        LOG() << "reparsing translation unit" << request->source.sourceFile();
+        cache->translationUnit->reparse(&unsaved, request->unsaved.size() ? 1 : 0);
+        reparseTime = cache->reparseTime = sw.elapsed();
+        cache->unsaved = std::move(request->unsaved);
+    }
+
 
     if (request->flags & WarmUp) {
         LOG() << "Warmed up unit" << request->source.sourceFile();
