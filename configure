@@ -58,6 +58,9 @@ while [ -n "$1" ]; do
         --system-clang)
             BUILD=
             ;;
+        --build-clang)
+            BUILD=1
+            ;;
         --no-install)
             CMAKE_ARGS="${CMAKE_ARGS} -DRTAGS_NO_INSTALL=1"
             ;;
