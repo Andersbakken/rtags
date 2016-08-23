@@ -46,3 +46,7 @@ compile_commands.json
 /src/include/RTagsVersion.h
 /bin/rlex
 /src/llvmclang-prefix/
+/emake.xml
+/emake.data.bak
+/emake.data
+/.emake/sched/Linux/emake.sched
