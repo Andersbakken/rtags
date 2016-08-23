@@ -67,16 +67,7 @@ if (EXISTS ${CLANG_COMPILATION_INCLUDE})
     add_definitions(-DHAVE_CXCOMPILATIONDATABASE)
 endif ()
 
-find_package(Lua 5.3 QUIET)
-set_package_properties(Lua
-    PROPERTIES
-    URL "https://www.lua.org/"
-    DESCRIPTION "a scripting language"
-    TYPE OPTIONAL
-    PURPOSE "Dependency of the selene sub-module, see http://www.rtags.net for a more detailed description.")
-if (LUA_FOUND)
-    set(RCT_RTTI_ENABLED 1)
-endif ()
+add_subdirectory(lua)
 
 set(RCT_NO_INSTALL 1)
 set(RCT_NO_LIBRARY 1)
