@@ -164,7 +164,7 @@ endif ()
 
 set(RTAGS_LIBRARIES rtags ${START_GROUP} ${LIBCLANG_LIBRARIES} ${END_GROUP} liblua)
 
-include_directories(${CMAKE_CURRENT_LIST_DIR}/lua ${CMAKE_CURRENT_LIST_DIR}/lua/src)
+include_directories(${CMAKE_CURRENT_BINARY_DIR}/lua ${CMAKE_CURRENT_LIST_DIR}/lua/src)
 add_definitions(-DRTAGS_HAS_LUA)
 if ("${CMAKE_CXX_COMPILER_ID}" MATCHES "Clang")
     set_source_files_properties(AST.cpp PROPERTIES
