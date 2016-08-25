@@ -67,17 +67,9 @@ if (EXISTS ${CLANG_COMPILATION_INCLUDE})
     add_definitions(-DHAVE_CXCOMPILATIONDATABASE)
 endif ()
 
-find_package(Lua 5.3 QUIET)
-set_package_properties(Lua
-    PROPERTIES
-    URL "https://www.lua.org/"
-    DESCRIPTION "a scripting language"
-    TYPE OPTIONAL
-    PURPOSE "Dependency of the selene sub-module, see http://www.rtags.net for a more detailed description.")
-if (LUA_FOUND)
-    set(RCT_RTTI_ENABLED 1)
-endif ()
+add_subdirectory(lua)
 
+set(RCT_RTTI_ENABLED 1)
 set(RCT_NO_INSTALL 1)
 set(RCT_NO_LIBRARY 1)
 # Everyting which as been set either in rct/rct.cmake or rct/compiler.cmake
@@ -109,6 +101,7 @@ endif ()
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/bin)
 
 set(RTAGS_SOURCES
+    AST.cpp
     ClangIndexer.cpp
     ClangThread.cpp
     ClassHierarchyJob.cpp
@@ -145,10 +138,6 @@ set(RTAGS_SOURCES
     TokensJob.cpp
     ${RCT_SOURCES})
 
-if (LUA_FOUND)
-    list(APPEND RTAGS_SOURCES AST.cpp)
-endif ()
-
 add_library(rtags STATIC ${RTAGS_SOURCES})
 if (RTAGS_BUILD_CLANG)
     add_dependencies(rtags llvmclang)
@@ -173,20 +162,17 @@ else ()
     set(END_GROUP "-Wl,--end-group")
 endif ()
 
-set(RTAGS_LIBRARIES rtags ${START_GROUP} ${LIBCLANG_LIBRARIES} ${END_GROUP})
+set(RTAGS_LIBRARIES rtags ${START_GROUP} ${LIBCLANG_LIBRARIES} ${END_GROUP} liblua)
 
-if (LUA_FOUND)
-    set(RTAGS_LIBRARIES ${RTAGS_LIBRARIES} ${LUA_LIBRARIES})
-    include_directories(${LUA_INCLUDE_DIR})
-    add_definitions(-DRTAGS_HAS_LUA)
-    if ("${CMAKE_CXX_COMPILER_ID}" MATCHES "Clang")
-        set_source_files_properties(AST.cpp PROPERTIES
-            COMPILE_FLAGS "-Wno-unused-parameter -Wno-unused-variable -ftemplate-depth=2000 -Wno-cast-qual")
-    else ()
-        set_source_files_properties(AST.cpp PROPERTIES
-            COMPILE_FLAGS "-Wno-unused-but-set-parameter -Wno-unused-parameter -Wno-unused-variable -ftemplate-depth=2000 -Wno-cast-qual")
-    endif()
-endif ()
+include_directories(${CMAKE_CURRENT_BINARY_DIR}/lua ${CMAKE_CURRENT_LIST_DIR}/lua/src)
+add_definitions(-DRTAGS_HAS_LUA)
+if ("${CMAKE_CXX_COMPILER_ID}" MATCHES "Clang")
+    set_source_files_properties(AST.cpp PROPERTIES
+        COMPILE_FLAGS "-Wno-unused-parameter -Wno-unused-variable -ftemplate-depth=2000 -Wno-cast-qual")
+else ()
+    set_source_files_properties(AST.cpp PROPERTIES
+        COMPILE_FLAGS "-Wno-unused-but-set-parameter -Wno-unused-parameter -Wno-unused-variable -ftemplate-depth=2000 -Wno-cast-qual")
+endif()
 
 # RCT_LIBRARIES and stdc++ library must be at the end
 set(RTAGS_LIBRARIES ${RTAGS_LIBRARIES} -lstdc++ ${RCT_LIBRARIES})

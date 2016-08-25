@@ -332,7 +332,7 @@ Value Symbol::toValue(const std::shared_ptr<Project> &project,
                     ret["targets"] = t;
                 }
             }
-            if (toStringFlags & IncludeReferences) {
+            if (flags & IncludeReferences) {
                 const auto references = project->findCallers(symbol);
                 if (!references.isEmpty()) {
                     Value r;
@@ -342,7 +342,7 @@ Value Symbol::toValue(const std::shared_ptr<Project> &project,
                     ret["references"] = r;
                 }
             }
-            if (toStringFlags & IncludeBaseClasses) {
+            if (flags & IncludeBaseClasses) {
                 List<Value> b;
                 for (const auto &base : symbol.baseClasses) {
                     for (const Symbol &s : project->findByUsr(base, symbol.location.fileId(), Project::ArgDependsOn, symbol.location)) {
@@ -355,7 +355,7 @@ Value Symbol::toValue(const std::shared_ptr<Project> &project,
                 }
             }
 
-            if (toStringFlags & IncludeParents) {
+            if (flags & IncludeParents) {
                 auto syms = project->openSymbols(symbol.location.fileId());
                 uint32_t idx = -1;
                 if (syms) {
