@@ -2770,7 +2770,9 @@ This includes both declarations and definitions."
         (t (error "Wrong part"))))
 
 (defun rtags-display-overlay (overlay point)
-  (let* ((maxwidth (window-width))
+  (let* ((maxwidth (if rtags-display-current-error-as-tooltip
+                       (window-width)
+                     (frame-width)))
          (msg (rtags-elide-text (overlay-get overlay 'rtags-error-message) maxwidth 'middle))
          (bol (save-excursion
                 (goto-char point)
