@@ -67,7 +67,11 @@ if (EXISTS ${CLANG_COMPILATION_INCLUDE})
     add_definitions(-DHAVE_CXCOMPILATIONDATABASE)
 endif ()
 
-add_subdirectory(lua)
+ExternalProject_Add(lua
+    DOWNLOAD_COMMAND ""
+    SOURCE_DIR lua
+    INSTALL_COMMAND ""
+    CMAKE_ARGS -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=0 -DCMAKE_GENERATOR=${CMAKE_GENERATOR})
 
 set(RCT_RTTI_ENABLED 1)
 set(RCT_NO_INSTALL 1)
@@ -142,6 +146,7 @@ add_library(rtags STATIC ${RTAGS_SOURCES})
 if (RTAGS_BUILD_CLANG)
     add_dependencies(rtags llvmclang)
 endif ()
+add_dependencies(rtags lua)
 
 if (RTAGS_COTIRE)
     include(cotire)
@@ -152,7 +157,9 @@ endif ()
 include_directories(
     ${CMAKE_CURRENT_LIST_DIR}
     ${RCT_INCLUDE_DIRS}
-    ${CMAKE_CURRENT_LIST_DIR}/selene/include)
+    ${CMAKE_CURRENT_LIST_DIR}/selene/include
+    ${CMAKE_CURRENT_BINARY_DIR}/lua-prefix/src/lua-build
+    ${CMAKE_CURRENT_LIST_DIR}/lua/src)
 
 if (CMAKE_SYSTEM_NAME MATCHES "Darwin")
     set(START_GROUP "")
@@ -162,9 +169,8 @@ else ()
     set(END_GROUP "-Wl,--end-group")
 endif ()
 
-set(RTAGS_LIBRARIES rtags ${START_GROUP} ${LIBCLANG_LIBRARIES} ${END_GROUP} liblua)
+set(RTAGS_LIBRARIES rtags ${START_GROUP} ${LIBCLANG_LIBRARIES} ${END_GROUP} -L${CMAKE_CURRENT_BINARY_DIR}/lua-prefix/src/lua-build/ liblua.a)
 
-include_directories(${CMAKE_CURRENT_BINARY_DIR}/lua ${CMAKE_CURRENT_LIST_DIR}/lua/src)
 add_definitions(-DRTAGS_HAS_LUA)
 if ("${CMAKE_CXX_COMPILER_ID}" MATCHES "Clang")
     set_source_files_properties(AST.cpp PROPERTIES

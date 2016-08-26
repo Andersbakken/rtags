@@ -44,7 +44,7 @@ while [ -n "$1" ]; do
             ;;
         --cmake-generator)
             shift
-            CMAKE_ARGS="${CMAKE_ARGS} -G \"$1\""
+            CMAKE_GENERATOR="$1"
             ;;
         --enable-dev-options)
             CMAKE_ARGS="${CMAKE_ARGS} -DRTAGS_ENABLE_DEV_OPTIONS=1"
@@ -109,6 +109,7 @@ while [ -n "$1" ]; do
     shift
 done
 
+[ -n "$CMAKE_GENERATOR" ] && CMAKE_ARGS="${CMAKE_ARGS} -G \"$CMAKE_GENERATOR\""
 [ -n "$BUILD" ] && CMAKE_ARGS="${CMAKE_ARGS} -DRTAGS_BUILD_CLANG=1"
 
 echo -e "Running cmake:\n\"$CMAKE\" \"$(dirname ${BASH_SOURCE[0]})\" ${CMAKE_ARGS}\n"

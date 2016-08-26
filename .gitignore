@@ -50,3 +50,4 @@ compile_commands.json
 /emake.data.bak
 /emake.data
 /.emake/sched/Linux/emake.sched
+/src/lua-prefix
