@@ -335,7 +335,6 @@ int main(int argc, char** argv)
     assert(Path::home().endsWith('/'));
     int argCount = argList.size();
     char **args = argList.data();
-    bool defaultDataDir = true;
     int inactivityTimeout = 0;
 
     const struct CommandLineParser::Option<OptionType> opts[] = {
@@ -519,7 +518,6 @@ int main(int argc, char** argv)
             serverOpts.socketFile.resolve();
             break;
         case DataDir:
-            defaultDataDir = false;
             serverOpts.dataDir = String::format<128>("%s", Path::resolved(optarg).constData());
             break;
         case IgnorePrintfFixits:
@@ -873,14 +871,6 @@ int main(int argc, char** argv)
         close(fd);
         serverOpts.socketFile = buf;
         serverOpts.socketFile.resolve();
-    }
-    if (defaultDataDir) {
-        Path migration = String::format<128>("%s.rtags-file", Path::home().constData());
-        if (migration.isDir()) {
-            Path::rmdir(serverOpts.dataDir);
-            rename(migration.constData(), serverOpts.dataDir.constData());
-            error() << "Migrated datadir from ~/.rtags-file ~/.rtags";
-        }
     }
     serverOpts.dataDir = serverOpts.dataDir.ensureTrailingSlash();
 
