@@ -394,7 +394,7 @@ int main(int argc, char** argv)
         { Progress, "progress", 'p', no_argument, "Report compilation progress in diagnostics output." },
         { MaxFileMapCacheSize, "max-file-map-cache-size", 'y', required_argument, "Max files to cache per query (Should not exceed maximum number of open file descriptors allowed per process) (default " STR(DEFAULT_RDM_MAX_FILE_MAP_CACHE_SIZE) ")." },
 #ifdef FILEMANAGER_OPT_IN
-        { FilemanagerWatch, "filemanager-watch", 'M', no_argument, "Use a file system watcher for filemanager." },
+        { FileManagerWatch, "filemanager-watch", 'M', no_argument, "Use a file system watcher for filemanager." },
 #else
         { NoFileManagerWatch, "no-filemanager-watch", 'M', no_argument, "Don't use a file system watcher for filemanager." },
 #endif
