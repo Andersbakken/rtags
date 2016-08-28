@@ -877,7 +877,7 @@ int main(int argc, char** argv)
     if (defaultDataDir) {
         Path migration = String::format<128>("%s.rtags-file", Path::home().constData());
         if (migration.isDir()) {
-            Rct::removeDirectory(serverOpts.dataDir);
+            Path::rmdir(serverOpts.dataDir);
             rename(migration.constData(), serverOpts.dataDir.constData());
             error() << "Migrated datadir from ~/.rtags-file ~/.rtags";
         }

@@ -334,7 +334,7 @@ bool Project::init()
             mProjectFilePath.visit([](const Path &path) {
                     if (strcmp(path.fileName(), "sources")) {
                         if (path.isDir()) {
-                            Rct::removeDirectory(path);
+                            Path::rmdir(path);
                         } else {
                             path.rm();
                         }
@@ -996,7 +996,7 @@ void Project::onFileRemoved(const Path &file)
     debug() << file << "was removed" << fileId;
     if (!fileId)
         return;
-    Rct::removeDirectory(Project::sourceFilePath(fileId));
+    Path::rmdir(Project::sourceFilePath(fileId));
 
     const uint64_t key = Source::key(fileId, 0);
     for (auto it = mSources.lower_bound(key); it != mSources.end(); ++it) {

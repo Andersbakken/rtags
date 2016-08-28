@@ -1276,7 +1276,7 @@ void Server::preprocessFile(const std::shared_ptr<QueryMessage> &query, const st
 
 void Server::clearProjects()
 {
-    Rct::removeDirectory(mOptions.dataDir);
+    Path::rmdir(mOptions.dataDir);
     setCurrentProject(std::shared_ptr<Project>());
     mProjects.clear();
     saveFileIds();
@@ -1411,7 +1411,7 @@ void Server::removeProject(const std::shared_ptr<QueryMessage> &query, const std
             Path path = cur->first;
             conn->write<128>("Deleted project: %s", path.constData());
             RTags::encodePath(path);
-            Rct::removeDirectory(mOptions.dataDir + path);
+            Path::rmdir(mOptions.dataDir + path);
             warning() << "Deleted" << (mOptions.dataDir + path);
             mProjects.erase(cur);
         }
