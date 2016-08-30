@@ -905,7 +905,7 @@ to case differences."
           (rtags-select))))))
 
 (defun rtags-executable-find (exe)
-  (cond ((tramp-tramp-file-p default-directory) exe)
+  (cond ((and rtags-tramp-enabled (tramp-tramp-file-p default-directory)) exe)
         ;; for tramp let's rely on `tramp-remote-path`, so if You have some *debug*
         ;; directory to store RTags binaries, just put it to `tramp-remote-path`
         (rtags-path
@@ -991,7 +991,9 @@ Additionally for debugging purposes this method handles `rtags-tramp-enabled` fu
   "Use Tramp to handle `call-process-region'.
 Fixes a bug in `tramp-handle-call-process-region'.
 Function based on org-babel-tramp-handle-call-process-region"
-  (if (and (featurep 'tramp) (file-remote-p default-directory))
+  (if (and (featurep 'tramp)
+           rtags-tramp-enabled
+           (file-remote-p default-directory))
       (let ((tmpfile (tramp-compat-make-temp-file "")))
         (write-region start end tmpfile)
         (when delete (delete-region start end))
@@ -1007,7 +1009,8 @@ Function based on org-babel-tramp-handle-call-process-region"
   "if absolute-location is tramped, then return it.
 Otherwise if default-directory is tramp one, then uses it to convert
 absolute-location to remote. absolute-location can of course be a path"
-  (if (or (not (tramp-tramp-file-p default-directory))
+  (if (or (not rtags-tramp-enabled)
+          (not (tramp-tramp-file-p default-directory))
           (tramp-tramp-file-p absolute-location))
       absolute-location
     (let ((location-vec (tramp-dissect-file-name default-directory)))
@@ -2995,7 +2998,7 @@ This includes both declarations and definitions."
     ;; kill above failed.
     (when (get-buffer rtags-diagnostics-buffer-name)
       (with-current-buffer rtags-diagnostics-buffer-name
-        (when (tramp-tramp-file-p default-directory)
+        (when (and rtags-tramp-enabled (tramp-tramp-file-p default-directory))
           ;; diagnostics serves some remote host
           ;; We need to kill it within that context.
           (let ((result
