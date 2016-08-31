@@ -310,6 +310,12 @@ the Customize interface, `rtags-set-periodic-reparse-timeout',
   :type 'string
   :safe 'stringp)
 
+(defcustom rtags-find-file-prompt "Find files"
+  "What prompt to use for rtags-find-file"
+  :group 'rtags
+  :type 'string
+  :type 'stringp)
+
 (defcustom rtags-track-container nil
   "When on continually update current container (function/class/namespace)
 on intervals."
@@ -3491,8 +3497,8 @@ other window instead of the current one."
       (when prefix
         (setq prefer-exact (not prefer-exact)))
       (if (> (length tagname) 0)
-          (setq prompt (concat (format "Find rfiles (default: %s): " tagname)))
-        (setq prompt "Find rfiles: "))
+          (setq prompt (format "%s (default: %s): " rtags-find-file-prompt tagname))
+        (setq prompt (format "%s: " rtags-find-file-prompt)))
       (rtags-is-indexed)
       (setq input
             (if rtags-use-filename-completion
