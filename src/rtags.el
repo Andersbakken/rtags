@@ -1058,6 +1058,7 @@ to only call this when `rtags-socket-file' is defined.
                        range-max
                        noerror
                        timeout
+                       silent
                        silent-query
                        &allow-other-keys)
   (save-excursion
@@ -1085,6 +1086,9 @@ to only call this when `rtags-socket-file' is defined.
                 arguments))
         (when rtags-completions-enabled
           (push "-b" arguments))
+        (when silent
+          (push "--silent" arguments)
+          (setq output nil))
         (when silent-query
           (push "--silent-query" arguments))
         (when range-filter
@@ -1117,12 +1121,11 @@ to only call this when `rtags-socket-file' is defined.
                             (async (apply #'start-file-process "rc" (current-buffer) rc arguments))
                             ((and unsaved (or (buffer-modified-p unsaved)
                                               (not (buffer-file-name unsaved))))
-                             (let ((output-buffer (current-buffer)))
-                               (with-current-buffer unsaved
-                                 (save-restriction
-                                   (widen)
-                                   (apply #'rtags-call-process-region (point-min) (point-max) rc
-                                          nil output-buffer nil arguments)))))
+                             (with-current-buffer unsaved
+                               (save-restriction
+                                 (widen)
+                                 (apply #'rtags-call-process-region (point-min) (point-max) rc
+                                        nil output nil arguments))))
                             (unsaved (apply #'process-file
                                             rc (rtags-untrampify (buffer-file-name unsaved)) output nil arguments) nil)
                             (t (apply #'process-file rc nil output nil arguments)))))
@@ -2967,7 +2970,7 @@ This includes both declarations and definitions."
   (interactive)
   (when rtags-reindex-on-save
     (rtags-call-rc :path (buffer-file-name)
-                   "--silent"
+                   :silent t
                    "-V" (buffer-file-name))))
 
 
@@ -4030,10 +4033,12 @@ definition."
               (rtags-call-rc :path file
                              :timeout rtags-reparse-timeout
                              :unsaved buffer
-                             "--silent"
+                             :silent t
                              "-V" file
                              (unless periodic "--wait")))
-          (rtags-call-rc :path file "--silent" "-V" file)
+          (rtags-call-rc :path file
+                         :silent t
+                         "-V" file)
           (message (format "Dirtied %s" file)))))))
 
 ;; assoc list containing unsaved buffers and their modification ticks
