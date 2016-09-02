@@ -1045,6 +1045,12 @@ to only call this when `rtags-socket-file' is defined.
 
   (concat "--socket-file=" (car rtags--socket-file-cache)))
 
+(defun rtags--convert-output-buffer (arg)
+  (cond ((null arg) nil)
+        ((eq t arg) (current-buffer))
+        ((consp arg) (cons (rtags--convert-output-buffer (car arg))
+                           (rtags--convert-output-buffer (cdr arg))))
+        (t arg)))
 
 (defun* rtags-call-rc (&rest arguments
                        &key (path (buffer-file-name))
@@ -1065,6 +1071,7 @@ to only call this when `rtags-socket-file' is defined.
     (let ((rc (rtags-executable-find "rc")) result)
       (if (not rc)
           (unless noerror (error "Can't find rc"))
+        (setq output (rtags--convert-output-buffer output))
         (setq rtags-last-request-not-connected nil)
         (setq rtags-last-request-not-indexed nil)
         (setq arguments (rtags-remove-keyword-params arguments))
