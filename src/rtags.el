@@ -4253,7 +4253,7 @@ so it knows what files may be queried which helps with responsiveness.
         (rtags-log (concat "--set-buffers files: "
                            (combine-and-quote-strings
                             (split-string (buffer-substring-no-properties (point-min) (point-max)) "\n" t)))))
-      (rtags-call-rc :noerror t :silent-query t :path t :unsaved (current-buffer) "--set-buffers" "-"))))
+      (rtags-call-rc :noerror t :silent-query t :silent t :path t :unsaved (current-buffer) "--set-buffers" "-"))))
 
 (defun rtags-kill-buffer-hook ()
   "When killing a buffer that is indexable, inform rdm of the new
