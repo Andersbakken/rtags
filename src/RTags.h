@@ -848,7 +848,7 @@ ParseStatus parse(int &argc, char **argv, const Option<T> *opts, size_t count, F
         assert(opt->option);
         ret = handler(opt->option);
     }
-    if (optind < argc) {
+    if (ret == Parse_Exec && optind < argc) {
         fprintf(stderr, "unexpected option -- '%s'\n", argv[optind]);
         return Parse_Error;
     }
