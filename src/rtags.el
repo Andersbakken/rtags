@@ -3099,12 +3099,11 @@ This includes both declarations and definitions."
 
 (defun rtags-buffer-status (&optional buffer)
   (when rtags-enabled
-    (let ((path (expand-file-name (cond ((and (buffer-file-name buffer)
-                                              (file-exists-p (buffer-file-name buffer)))
-                                         (buffer-file-name buffer))
-                                        (dired-directory)
-                                        (default-directory)
-                                        (t nil)))))
+    (let* ((fn (buffer-file-name buffer))
+           (path (expand-file-name (cond (fn (and (file-exists-p fn) fn))
+                                         (dired-directory)
+                                         (default-directory)
+                                         (t nil)))))
       (with-temp-buffer
         (rtags-call-rc :noerror t :silent-query t :path path "-T" path)
         (goto-char (point-min))
