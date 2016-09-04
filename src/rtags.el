@@ -4614,8 +4614,9 @@ the user enter missing field manually."
              ;;           (args (mapcar (lambda (arg) (cdr (assoc 'symbolName arg))) (cdr (assoc 'arguments symbol))))
              (index 2)
              (snippet (concat "/** @Brief ${1:Function description}\n"
-                              (mapconcat #'(lambda (arg)
-                                             (let* ((complete-name (cdr (assoc 'symbolName arg)))
+                              (mapconcat #'(lambda (argLoc)
+                                             (let* ((arg (rtags-symbol-info-internal :location (cdr (assoc 'cursor argLoc))))
+                                                    (complete-name (cdr (assoc 'symbolName arg)))
                                                     (symbol-type (cdr (assoc 'type arg)))
                                                     (symbol-name (substring complete-name (- 0 (cdr (assoc 'symbolLength arg)))))
                                                     (ret (format " * @param %s <b>{%s}</b> ${%d:Parameter description}"

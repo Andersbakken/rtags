@@ -38,18 +38,39 @@ struct Symbol
     {}
 
     Location location;
+    String symbolName, usr, typeName;
+    List<String> baseClasses;
+    struct Argument {
+        Argument()
+            : length(0)
+        {}
+        Location location, cursor;
+        size_t length;
+
+        void clear()
+        {
+            location.clear();
+            cursor.clear();
+            length = 0;
+        }
+    };
+    List<Argument> arguments;
     struct ArgumentUsage {
         ArgumentUsage()
             : index(String::npos)
         {}
+        void clear()
+        {
+            invocation.clear();
+            invokedFunction.clear();
+            argument.clear();
+            index = String::npos;
+        }
         Location invocation, invokedFunction;
-        std::pair<Location, int> argument;
+        Argument argument;
         size_t index;
-    } argumentUsage; // set for arguments only
+    } argumentUsage; // set for references that are used as an argument only
 
-    String symbolName, usr, typeName;
-    List<String> baseClasses;
-    List<std::pair<Location, int> > arguments;
     uint16_t symbolLength;
     CXCursorKind kind;
     CXTypeKind type;
@@ -154,6 +175,18 @@ struct Symbol
 
 RCT_FLAGS(Symbol::ToStringFlag);
 
+template <> inline Serializer &operator<<(Serializer &s, const Symbol::Argument &arg)
+{
+    s << arg.location << arg.cursor << arg.length;
+    return s;
+}
+
+template <> inline Deserializer &operator>>(Deserializer &s, Symbol::Argument &arg)
+{
+    s >> arg.location >> arg.cursor >> arg.length;
+    return s;
+}
+
 template <> inline Serializer &operator<<(Serializer &s, const Symbol::ArgumentUsage &usage)
 {
     s << usage.index;
@@ -169,10 +202,7 @@ template <> inline Deserializer &operator>>(Deserializer &s, Symbol::ArgumentUsa
     if (usage.index != String::npos) {
         s >> usage.invocation >> usage.argument >> usage.invokedFunction;
     } else {
-        usage.invocation.clear();
-        usage.invokedFunction.clear();
-        usage.argument.first.clear();
-        usage.argument.second = 0;
+        usage.clear();
     }
     return s;
 }

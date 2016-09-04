@@ -726,7 +726,7 @@ CXChildVisitResult ClangIndexer::indexVisitor(CXCursor cursor)
             break;
         case CXCursor_CallExpr: {
             // uglehack, see rtags/tests/nestedClassConstructorCallUgleHack/
-            List<std::pair<Location, int> > arguments;
+            List<Symbol::Argument> arguments;
             extractArguments(&arguments, cursor);
             Symbol *old = 0;
             Location oldLoc;
@@ -740,7 +740,7 @@ CXChildVisitResult ClangIndexer::indexVisitor(CXCursor cursor)
             } else {
                 handleReference(cursor, kind, loc, ref);
             }
-            List<std::pair<Location, int> > destArguments;
+            List<Symbol::Argument> destArguments;
             extractArguments(&destArguments, ref);
             visit(cursor);
             if (mLastCallExprSymbol && !arguments.isEmpty()) {
@@ -749,14 +749,14 @@ CXChildVisitResult ClangIndexer::indexVisitor(CXCursor cursor)
                 size_t idx = 0;
                 for (const auto &arg : arguments) {
                     const auto destArg = destArguments.value(idx);
-                    if (destArg.first.isNull())
+                    if (destArg.location.isNull())
                         break;
-                    const Location start = arg.first;
+                    const Location start = arg.location;
                     Location end;
                     if (idx + 1 == arguments.size()) {
-                        end = Location(start.fileId(), start.line(), start.column() + arg.second); // this falls apart with multi-line args
+                        end = Location(start.fileId(), start.line(), start.column() + arg.length); // this falls apart with multi-line args
                     } else {
-                        end = arguments.value(idx + 1).first;
+                        end = arguments.value(idx + 1).location;
                     }
                     auto it = u->symbols.lower_bound(start);
                     while (it != u->symbols.end() && it->first < end) {
@@ -1382,17 +1382,21 @@ void ClangIndexer::handleBaseClassSpecifier(const CXCursor &cursor)
     lastClass.baseClasses << usr;
 }
 
-void ClangIndexer::extractArguments(List<std::pair<Location, int> > *arguments, const CXCursor &cursor)
+void ClangIndexer::extractArguments(List<Symbol::Argument> *arguments, const CXCursor &cursor)
 {
     assert(arguments);
     const int count = std::max(0, clang_Cursor_getNumArguments(cursor));
     arguments->resize(count);
     for (int i=0; i<count; ++i) {
-        CXSourceRange range = clang_getCursorExtent(clang_Cursor_getArgument(cursor, i));
+        auto &ref = (*arguments)[i];
+        CXCursor arg = clang_Cursor_getArgument(cursor, i);
+        CXSourceRange range = clang_getCursorExtent(arg);
         unsigned startOffset, endOffset;
-        (*arguments)[i].first = createLocation(clang_getRangeStart(range), 0, &startOffset);
+
+        ref.location = createLocation(clang_getRangeStart(range), 0, &startOffset);
         clang_getSpellingLocation(clang_getRangeEnd(range), 0, 0, 0, &endOffset);
-        (*arguments)[i].second = endOffset - startOffset;
+        ref.length = endOffset - startOffset;
+        ref.cursor = createLocation(arg);
     }
 }
 
