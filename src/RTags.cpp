@@ -897,13 +897,14 @@ public:
             const Index &idx = indexes.at(indexIndex);
             const auto it = infos.find(idx.compileCommandsDir);
             assert(it != infos.end());
-            server->index(idx.args,
-                          idx.dir,
-                          it->second.environment,
-                          projectRootOverride,
-                          it->second.indexFlags,
-                          &project,
-                          &indexed);
+            // server->index(idx.args,
+            //               idx.dir,
+            //               it->second.environment,
+            //               projectRootOverride,
+            //               it->second.indexFlags,
+            //               &project,
+            //               &indexed);
+            #warning do we still need this shit?
             ++indexIndex;
         }
         if (indexIndex == indexes.size()) {
@@ -914,7 +915,7 @@ public:
     }
     Hash<Path, CompilationDataBaseInfo> infos;
     const Path projectRootOverride;
-    Set<uint64_t> indexed;
+    Set<Source> indexed;
     std::shared_ptr<Project> project;
     List<Index> indexes;
     size_t indexIndex;

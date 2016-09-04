@@ -169,10 +169,11 @@ private:
     Hash<uint32_t, std::shared_ptr<Unit> > mUnits;
 
     Path mProject;
-    Source mSource;
+    List<Source> mSources;
     Path mSourceFile;
     IndexDataMessage mIndexDataMessage;
-    std::shared_ptr<RTags::TranslationUnit> mTranslationUnit;
+    List<std::shared_ptr<RTags::TranslationUnit> > mTranslationUnits;
+    size_t mCurrentTranslationUnit;
     CXCursor mLastCursor;
     Symbol *mLastCallExprSymbol;
     Location mLastClass;

@@ -23,19 +23,19 @@ class VisitFileMessage : public RTagsMessage
 public:
     enum { MessageId = VisitFileId };
 
-    VisitFileMessage(const Path &file = Path(), const Path &project = Path(), uint64_t key = 0)
-        : RTagsMessage(MessageId), mFile(file), mProject(project), mKey(key)
+    VisitFileMessage(const Path &file = Path(), const Path &project = Path(), uint64_t id = 0)
+        : RTagsMessage(MessageId), mFile(file), mProject(project), mId(id)
     {
     }
 
     Path project() const { return mProject; }
     Path file() const { return mFile; }
-    uint64_t key() const { return mKey; }
-    void encode(Serializer &serializer) const { serializer << mProject << mFile << mKey; }
-    void decode(Deserializer &deserializer) { deserializer >> mProject >> mFile >> mKey; }
+    uint64_t id() const { return mId; } // IndexerJob::id
+    void encode(Serializer &serializer) const { serializer << mProject << mFile << mId; }
+    void decode(Deserializer &deserializer) { deserializer >> mProject >> mFile >> mId; }
 private:
     Path mFile, mProject;
-    uint64_t mKey;
+    uint64_t mId;
 };
 
 #endif

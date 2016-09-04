@@ -24,6 +24,7 @@
 #include "rct/String.h"
 #include "rct/Thread.h"
 #include "Source.h"
+#include "RTags.h"
 #ifdef OS_Darwin
 #include <Availability.h>
 #if __MAC_OS_X_VERSION_MAX_ALLOWED >= 101000
@@ -123,19 +124,34 @@ public:
     std::shared_ptr<Project> currentProject() const { return mCurrentProject.lock(); }
     void onNewMessage(const std::shared_ptr<Message> &message, const std::shared_ptr<Connection> &conn);
     bool saveFileIds();
-    bool index(const String &arguments,
+    struct IndexParseData {
+        Map<Path, Sources> sources;
+        Flags<IndexMessage::Flag> flags;
+        List<String> environment;
+    };
+
+    void processParseData(const std::shared_ptr<IndexParseData> &data);
+    bool loadCompileCommands(const std::shared_ptr<IndexParseData> &data,
+                             const Path &compileCommands,
+                             const Path &projectOverride = Path()) const;
+    bool parse(const std::shared_ptr<IndexParseData> &data,
+               const String &arguments,
                const Path &pwd,
-               const List<String> &environment,
-               const Path &projectRootOverride,
-               Flags<IndexMessage::Flag> flags = Flags<IndexMessage::Flag>(),
-               std::shared_ptr<Project> *projectPtr = 0,
-               Set<uint64_t> *indexed = 0);
+               const Path &projectOverride = Path()) const
+    {
+        String copy = arguments;
+        return parse(data, std::move(copy), pwd, projectOverride);
+    }
+    bool parse(const std::shared_ptr<IndexParseData> &data,
+               String &&arguments,
+               const Path &pwd,
+               const Path &projectOverride = Path()) const;
     enum FileIdsFileFlag {
         None = 0x0,
         HasSandboxRoot = 0x1
     };
 private:
-    String guessArguments(const String &args, const Path &pwd, const Path &projectRootOverride);
+    String guessArguments(const String &args, const Path &pwd, const Path &projectRootOverride) const;
     bool load();
     void onNewConnection(SocketServer *server);
     void setCurrentProject(const std::shared_ptr<Project> &project);

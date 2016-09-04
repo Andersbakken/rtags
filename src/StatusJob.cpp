@@ -210,9 +210,11 @@ int StatusJob::execute()
         const Sources &map = proj->sources();
         if (!write(delimiter) || !write("sources") || !write(delimiter))
             return 1;
-        for (Sources::const_iterator it = map.begin(); it != map.end(); ++it) {
-            if (!write<512>("  %s: %s", it->second.sourceFile().constData(), it->second.toString().constData()))
-                return 1;
+        for (const auto &ss : map) {
+            for (const auto &s : ss.second) {
+                if (!write<512>("  %s: %s", s.sourceFile().constData(), s.toString().constData()))
+                    return 1;
+            }
         }
     }
 

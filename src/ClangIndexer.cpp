@@ -72,7 +72,8 @@ struct VerboseVisitorUserData {
 Flags<Server::Option> ClangIndexer::sServerOpts;
 Path ClangIndexer::sServerSandboxRoot;
 ClangIndexer::ClangIndexer()
-    : mLastCursor(nullCursor), mLastCallExprSymbol(0), mVisitFileResponseMessageFileId(0),
+    : mCurrentTranslationUnit(String::npos), mLastCursor(nullCursor),
+      mLastCallExprSymbol(0), mVisitFileResponseMessageFileId(0),
       mVisitFileResponseMessageVisit(0), mParseDuration(0), mVisitDuration(0), mBlocked(0),
       mAllowed(0), mIndexed(1), mVisitFileTimeout(0), mIndexDataMessageTimeout(0),
       mFileIdsQueried(0), mFileIdsQueriedTime(0), mCursorsVisited(0), mLogFile(0),
@@ -108,7 +109,12 @@ bool ClangIndexer::exec(const String &data)
     deserializer >> id;
     deserializer >> socketFile;
     deserializer >> mProject;
-    mSource.decode(deserializer, Source::IgnoreSandbox);
+    uint32_t count;
+    deserializer >> count;
+    mSources.resize(count);
+    for (uint32_t i=0; i<count; ++i) {
+        mSources[i].decode(deserializer, Source::IgnoreSandbox);
+    }
     deserializer >> mSourceFile;
     deserializer >> indexerJobFlags;
     deserializer >> mVisitFileTimeout;
@@ -149,9 +155,23 @@ bool ClangIndexer::exec(const String &data)
         error("No sourcefile");
         return false;
     }
-    if (!mSource.fileId) {
-        error("Bad fileId");
+
+    switch (mSources.size()) {
+    case 0:
+        error("No sourcefile");
         return false;
+    case 1:
+        if (!mSources.front().fileId) {
+            error("Bad fileId");
+            return false;
+        }
+    default:
+        for (size_t i=1; i<mSources.size(); ++i) {
+            if (!mSources.at(i).fileId || mSources.at(i).fileId != mSources.front().fileId) {
+                error("Bad fileId");
+                return false;
+            }
+        }
     }
 
     if (mProject.isEmpty()) {
@@ -160,7 +180,7 @@ bool ClangIndexer::exec(const String &data)
     }
 
     Location::init(blockedFiles);
-    Location::set(mSourceFile, mSource.fileId);
+    Location::set(mSourceFile, mSources.front().fileId);
     while (true) {
         if (mConnection->connectUnix(socketFile, connectTimeout))
             break;
@@ -174,18 +194,26 @@ bool ClangIndexer::exec(const String &data)
     mIndexDataMessage.setProject(mProject);
     mIndexDataMessage.setIndexerJobFlags(indexerJobFlags);
     mIndexDataMessage.setParseTime(parseTime);
-    mIndexDataMessage.setKey(mSource.key());
+    mIndexDataMessage.setFileId(mSources.front().fileId);
     mIndexDataMessage.setId(id);
 
     assert(mConnection->isConnected());
-    assert(mSource.fileId);
-    mIndexDataMessage.files()[mSource.fileId] |= IndexDataMessage::Visited;
+    assert(mSources.front().fileId);
+    mIndexDataMessage.files()[mSources.front().fileId] |= IndexDataMessage::Visited;
     parse() && visit() && diagnose();
     String message = mSourceFile.toTilde();
     String err;
+
     StopWatch sw;
     int writeDuration = -1;
-    if (!mTranslationUnit->unit || !writeFiles(RTags::encodeSourceFilePath(mDataDir, mProject, 0), err)) {
+    bool hasUnit = false;
+    for (const auto &u : mTranslationUnits) {
+        if (u->unit) {
+            hasUnit = true;
+            break;
+        }
+    }
+    if (!hasUnit || !writeFiles(RTags::encodeSourceFilePath(mDataDir, mProject, 0), err)) {
         message += " error";
         if (!err.isEmpty())
             message += (' ' + err);
@@ -199,7 +227,7 @@ bool ClangIndexer::exec(const String &data)
         cursorCount += unit.second->symbols.size();
         symbolNameCount += unit.second->symbolNames.size();
     }
-    if (mTranslationUnit->unit) {
+    if (hasUnit) {
         String queryData;
         if (mFileIdsQueried)
             queryData = String::format(", %d queried %dms", mFileIdsQueried, mFileIdsQueriedTime);
@@ -297,7 +325,7 @@ Location ClangIndexer::createLocation(const Path &sourceFile, unsigned int line,
     }
 
     ++mFileIdsQueried;
-    VisitFileMessage msg(resolved, mProject, mIndexDataMessage.key());
+    VisitFileMessage msg(resolved, mProject, mIndexDataMessage.id());
 
     mVisitFileResponseMessageFileId = UINT_MAX;
     mVisitFileResponseMessageVisit = false;
@@ -1174,7 +1202,7 @@ void ClangIndexer::handleInclude(const CXCursor &cursor, CXCursorKind kind, Loca
 
             String include = "#include ";
             Path path = refLoc.path();
-            assert(mSource.fileId);
+            assert(mSources.front().fileId);
             unit(location)->symbolNames[(include + path)].insert(location);
             unit(location)->symbolNames[(include + path.fileName())].insert(location);
             mIndexDataMessage.includes().push_back(std::make_pair(location.fileId(), refLoc.fileId()));
@@ -1193,6 +1221,7 @@ void ClangIndexer::handleInclude(const CXCursor &cursor, CXCursorKind kind, Loca
 
 void ClangIndexer::handleLiteral(const CXCursor &cursor, CXCursorKind kind, Location location)
 {
+    auto tu = mTranslationUnits.at(mCurrentTranslationUnit)->unit;
     auto u = unit(location);
     // error() << location << kind
     //         << RTags::eatString(clang_getCursorDisplayName(cursor))
@@ -1214,14 +1243,14 @@ void ClangIndexer::handleLiteral(const CXCursor &cursor, CXCursorKind kind, Loca
     if (kind != CXCursor_StringLiteral) {
         CXToken *tokens = 0;
         unsigned numTokens = 0;
-        clang_tokenize(mTranslationUnit->unit, range, &tokens, &numTokens);
+        clang_tokenize(tu, range, &tokens, &numTokens);
         if (numTokens) {
-            symbolName = RTags::eatString(clang_getTokenSpelling(mTranslationUnit->unit, tokens[0]));
+            symbolName = RTags::eatString(clang_getTokenSpelling(tu, tokens[0]));
         } else {
             Log(&symbolName) << type.kind;
         }
 
-        clang_disposeTokens(mTranslationUnit->unit, tokens, numTokens);
+        clang_disposeTokens(tu, tokens, numTokens);
     } else {
         symbolName = RTags::eatString(clang_getCursorSpelling(cursor));
     }
@@ -1403,6 +1432,7 @@ void ClangIndexer::extractArguments(List<Symbol::Argument> *arguments, const CXC
 CXChildVisitResult ClangIndexer::handleCursor(const CXCursor &cursor, CXCursorKind kind,
                                               Location location, Symbol **cursorPtr)
 {
+    auto tu = mTranslationUnits.at(mCurrentTranslationUnit)->unit;
     const String usr = ::usr(cursor);
     // error() << "Got a cursor" << cursor;
     Symbol &c = unit(location)->symbols[location];
@@ -1557,7 +1587,7 @@ CXChildVisitResult ClangIndexer::handleCursor(const CXCursor &cursor, CXCursorKi
     case CXCursor_MacroDefinition: {
         CXToken *tokens = 0;
         unsigned numTokens = 0;
-        clang_tokenize(mTranslationUnit->unit, range, &tokens, &numTokens);
+        clang_tokenize(tu, range, &tokens, &numTokens);
         MacroData &macroData = mMacroTokens[location];
         enum {
             Unset,
@@ -1568,10 +1598,10 @@ CXChildVisitResult ClangIndexer::handleCursor(const CXCursor &cursor, CXCursorKi
         bool lastWasHashHash = false;
         for (size_t i=1; i<numTokens; ++i) {
             const CXTokenKind kind = clang_getTokenKind(tokens[i]);
-            // error() << i << kind << macroState << RTags::eatString(clang_getTokenSpelling(mTranslationUnit->unit, tokens[i]));
+            // error() << i << kind << macroState << RTags::eatString(clang_getTokenSpelling(tu, tokens[i]));
             if (macroState == Unset) {
                 if (kind == CXToken_Punctuation) {
-                    const CXStringScope scope(clang_getTokenSpelling(mTranslationUnit->unit, tokens[i]));
+                    const CXStringScope scope(clang_getTokenSpelling(tu, tokens[i]));
                     if (!strcmp(scope.data(), "("))
                         macroState = GettingArgs;
                 }
@@ -1579,10 +1609,10 @@ CXChildVisitResult ClangIndexer::handleCursor(const CXCursor &cursor, CXCursorKi
                     macroState = ArgsDone;
             }
             // error() << i << clang_getTokenKind(tokens[i])
-            //         << RTags::eatString(clang_getTokenSpelling(mTranslationUnit->unit, tokens[i]));
+            //         << RTags::eatString(clang_getTokenSpelling(tu, tokens[i]));
             bool isHashHash = false;
             if (kind == CXToken_Identifier) {
-                const String spelling = RTags::eatString(clang_getTokenSpelling(mTranslationUnit->unit, tokens[i]));
+                const String spelling = RTags::eatString(clang_getTokenSpelling(tu, tokens[i]));
                 if (macroState == GettingArgs) {
                     macroData.arguments.append(spelling);
                 } else {
@@ -1590,7 +1620,7 @@ CXChildVisitResult ClangIndexer::handleCursor(const CXCursor &cursor, CXCursorKi
                         last = &macroData.data[spelling];
 
                         List<Location> &locs = last->locations;
-                        locs.append(createLocation(clang_getTokenLocation(mTranslationUnit->unit, tokens[i])));
+                        locs.append(createLocation(clang_getTokenLocation(tu, tokens[i])));
                     }
                     if (last) {
                         const size_t idx = macroData.arguments.indexOf(spelling);
@@ -1600,11 +1630,11 @@ CXChildVisitResult ClangIndexer::handleCursor(const CXCursor &cursor, CXCursorKi
                     }
                 }
             } else if (macroState == GettingArgs && kind == CXToken_Punctuation) {
-                const CXStringScope scope(clang_getTokenSpelling(mTranslationUnit->unit, tokens[i]));
+                const CXStringScope scope(clang_getTokenSpelling(tu, tokens[i]));
                 if (!strcmp(scope.data(), ")"))
                     macroState = ArgsDone;
             } else if (kind == CXToken_Punctuation) {
-                const CXStringScope scope(clang_getTokenSpelling(mTranslationUnit->unit, tokens[i]));
+                const CXStringScope scope(clang_getTokenSpelling(tu, tokens[i]));
                 if (!strcmp(scope.data(), "##")) {
                     isHashHash = true;
                 } else {
@@ -1620,7 +1650,7 @@ CXChildVisitResult ClangIndexer::handleCursor(const CXCursor &cursor, CXCursorKi
         //     error() << d.first << d.second.locations << d.second.arguments;
         // }
 
-        clang_disposeTokens(mTranslationUnit->unit, tokens, numTokens);
+        clang_disposeTokens(tu, tokens, numTokens);
         break; }
     case CXCursor_FieldDecl:
 #if CINDEX_VERSION >= CINDEX_VERSION_ENCODE(0, 30)
@@ -1761,14 +1791,14 @@ CXChildVisitResult ClangIndexer::handleCursor(const CXCursor &cursor, CXCursorKi
 bool ClangIndexer::parse()
 {
     StopWatch sw;
-    assert(!mTranslationUnit);
+    assert(mTranslationUnits.isEmpty());
     Flags<Source::CommandLineFlag> commandLineFlags = Source::Default;
     if (ClangIndexer::serverOpts() & Server::PCHEnabled)
         commandLineFlags |= Source::PCHEnabled;
 
     Flags<CXTranslationUnit_Flags> flags = CXTranslationUnit_DetailedPreprocessingRecord;
     bool pch;
-    switch (mSource.language) {
+    switch (mSources.front().language) {
     case Source::CPlusPlus11Header:
     case Source::CPlusPlusHeader:
     case Source::CHeader:
@@ -1790,38 +1820,42 @@ bool ClangIndexer::parse()
         };
     }
 
-    if (testLog(LogLevel::Debug))
-        debug() << "CI::parse: " << mSource.toCommandLine(commandLineFlags) << "\n";
+    bool ok = false;
+    for (const Source &source : mSources) {
+        if (testLog(LogLevel::Debug))
+            debug() << "CI::parse: " << source.toCommandLine(commandLineFlags) << "\n";
 
-    // for (const auto it : mSource.toCommandLine(commandLineFlags)) {
-    //     error("[%s]", it.constData());
-    // }
-    bool usedPch = false;
-    const List<String> args = mSource.toCommandLine(commandLineFlags, &usedPch);
-    if (usedPch)
-        mIndexDataMessage.setFlag(IndexDataMessage::UsedPCH);
+        // for (const auto it : source.toCommandLine(commandLineFlags)) {
+        //     error("[%s]", it.constData());
+        // }
+        bool usedPch = false;
+        const List<String> args = source.toCommandLine(commandLineFlags, &usedPch);
+        if (usedPch)
+            mIndexDataMessage.setFlag(IndexDataMessage::UsedPCH);
 
-    mTranslationUnit = RTags::TranslationUnit::create(mSourceFile, args, &unsavedFiles[0],
-                                                      unsavedIndex, flags);
+        auto unit = RTags::TranslationUnit::create(mSourceFile, args, &unsavedFiles[0], unsavedIndex, flags);
+        mTranslationUnits.push_back(unit);
 
-    warning() << "CI::parse loading unit:" << mTranslationUnit->clangLine << " " << (mTranslationUnit->unit != 0);
-    if (mTranslationUnit->unit) {
-        if (pch && ClangIndexer::serverOpts() & Server::PCHEnabled) {
-            Path path = RTags::encodeSourceFilePath(mDataDir, mProject, mSource.fileId);
-            Path::mkdir(path, Path::Recursive);
-            path << "pch.h.gch";
-            Path tmp = path;
-            tmp << ".tmp";
-            clang_saveTranslationUnit(mTranslationUnit->unit, tmp.constData(), clang_defaultSaveOptions(mTranslationUnit->unit));
-            rename(tmp.constData(), path.constData());
-            warning() << "SAVED PCH" << path;
+        warning() << "CI::parse loading unit:" << unit->clangLine << " " << (unit->unit != 0);
+        if (unit->unit) {
+            ok = true;
+            if (pch && ClangIndexer::serverOpts() & Server::PCHEnabled) {
+                Path path = RTags::encodeSourceFilePath(mDataDir, mProject, source.fileId);
+                Path::mkdir(path, Path::Recursive);
+                path << "pch.h.gch";
+                Path tmp = path;
+                tmp << ".tmp";
+                clang_saveTranslationUnit(unit->unit, tmp.constData(), clang_defaultSaveOptions(unit->unit));
+                rename(tmp.constData(), path.constData());
+                warning() << "SAVED PCH" << path;
+            }
+            mParseDuration = sw.elapsed();
+        } else {
+            error() << "Failed to parse" << unit->clangLine;
+            mIndexDataMessage.setFlag(IndexDataMessage::ParseFailure);
         }
-        mParseDuration = sw.elapsed();
-        return true;
     }
-    error() << "Failed to parse" << mTranslationUnit->clangLine;
-    mIndexDataMessage.setFlag(IndexDataMessage::ParseFailure);
-    return false;
+    return ok;
 }
 
 static inline Map<String, Set<Location> > convertTargets(const Map<Location, Map<String, uint16_t> > &in, bool hasRoot)
@@ -1860,11 +1894,12 @@ bool ClangIndexer::writeFiles(const Path &root, String &error)
     size_t bytesWritten = 0;
     const Path p = Sandbox::encoded(mSourceFile);
     const bool hasRoot = Sandbox::hasRoot();
+    const uint32_t fileId = mSources.front().fileId;
     for (const auto &unit : mUnits) {
         if (!(mIndexDataMessage.files().value(unit.first) & IndexDataMessage::Visited)) {
             ::error() << "Wanting to write something for"
                       << unit.first << Location::path(unit.first)
-                      << "but we didn't visit it" << mSource.sourceFile()
+                      << "but we didn't visit it" << mSourceFile
                       << unit.second->targets.size()
                       << unit.second->usrs.size()
                       << unit.second->symbolNames.size()
@@ -1876,7 +1911,7 @@ bool ClangIndexer::writeFiles(const Path &root, String &error)
         String unitRoot = root;
         unitRoot << unit.first;
         Path::mkdir(unitRoot, Path::Recursive);
-        if (unit.first != mSource.fileId) {
+        if (unit.first != fileId) {
             FILE *f = fopen((unitRoot + "/info").constData(), "w");
             if (!f)
                 return false;
@@ -1934,7 +1969,7 @@ bool ClangIndexer::writeFiles(const Path &root, String &error)
         bytesWritten += w;
     }
     String sourceRoot = root;
-    sourceRoot << mSource.fileId;
+    sourceRoot << fileId;
     Path::mkdir(sourceRoot, Path::Recursive);
     sourceRoot << "/info";
     FILE *f = fopen(sourceRoot.constData(), "w");
@@ -1942,10 +1977,13 @@ bool ClangIndexer::writeFiles(const Path &root, String &error)
         return false;
     }
 
-    const String args = Sandbox::encoded(String::join(mSource.toCommandLine(Source::Default|Source::IncludeCompiler|Source::IncludeSourceFile), ' '));
+    for (const Source &source : mSources) {
+        const String args = Sandbox::encoded(String::join(source.toCommandLine(Source::Default|Source::IncludeCompiler|Source::IncludeSourceFile), ' '));
 
-    bytesWritten += fprintf(f, "%s\n%s\nIndexed at %llu\n", p.constData(), args.constData(),
-                            static_cast<unsigned long long>(mIndexDataMessage.parseTime()));
+        bytesWritten += fprintf(f, "%s\n%s\n", p.constData(), args.constData());
+    }
+    bytesWritten += fprintf(f, "Indexed at %llu\n", static_cast<unsigned long long>(mIndexDataMessage.parseTime()));
+
     fclose(f);
     mIndexDataMessage.setBytesWritten(bytesWritten);
     return true;
@@ -1988,7 +2026,8 @@ static inline Diagnostic::Type convertDiagnosticType(CXDiagnosticSeverity sev)
 
 bool ClangIndexer::diagnose()
 {
-    if (!mTranslationUnit->unit) {
+    auto tu = mTranslationUnits.at(mCurrentTranslationUnit)->unit;
+    if (!tu) {
         return false;
     }
 
@@ -2060,28 +2099,28 @@ bool ClangIndexer::diagnose()
     };
 
     List<String> compilationErrors;
-    const unsigned int diagnosticCount = clang_getNumDiagnostics(mTranslationUnit->unit);
+    const unsigned int diagnosticCount = clang_getNumDiagnostics(tu);
 
     for (unsigned int i=0; i<diagnosticCount; ++i) {
-        CXDiagnostic diagnostic = clang_getDiagnostic(mTranslationUnit->unit, i);
+        CXDiagnostic diagnostic = clang_getDiagnostic(tu, i);
         const CXSourceLocation diagLoc = clang_getDiagnosticLocation(diagnostic);
         const uint32_t fileId = createLocation(diagLoc, 0).fileId();
         if (!fileId) {
             clang_disposeDiagnostic(diagnostic);
-            // error() << "Couldn't get location for diagnostics" << clang_getCursor(mTranslationUnit->unit, diagLoc) << fileId << mSource.fileId
+            // error() << "Couldn't get location for diagnostics" << clang_getCursor(tu, diagLoc) << fileId << mSource.fileId
             //         << clang_getDiagnosticSeverity(diagnostic);
             continue;
         }
         const CXDiagnosticSeverity sev = clang_getDiagnosticSeverity(diagnostic);
-        // error() << "Got a dude" << clang_getCursor(mTranslationUnit->unit, diagLoc) << fileId << mSource.fileId
+        // error() << "Got a dude" << clang_getCursor(tu, diagLoc) << fileId << mSource.fileId
         //         << sev << CXDiagnostic_Error;
-        const CXCursor cursor = clang_getCursor(mTranslationUnit->unit, diagLoc);
+        const CXCursor cursor = clang_getCursor(tu, diagLoc);
         const bool inclusionError = clang_getCursorKind(cursor) == CXCursor_InclusionDirective;
         if (inclusionError)
             mIndexDataMessage.setFlag(IndexDataMessage::InclusionError);
         assert(fileId);
         Flags<IndexDataMessage::FileFlag> &flags = mIndexDataMessage.files()[fileId];
-        if (fileId != mSource.fileId && !inclusionError && sev >= CXDiagnostic_Error && !(flags & IndexDataMessage::HeaderError)) {
+        if (fileId != mSources.front().fileId && !inclusionError && sev >= CXDiagnostic_Error && !(flags & IndexDataMessage::HeaderError)) {
             // We don't treat inclusions or code inside a macro expansion as a
             // header error
             CXFile expFile, spellingFile;
@@ -2145,11 +2184,11 @@ bool ClangIndexer::diagnose()
         if (it.second & IndexDataMessage::Visited) {
             const Location loc(it.first, 0, 0);
             const Path path = loc.path();
-            CXFile file = clang_getFile(mTranslationUnit->unit, path.constData());
+            CXFile file = clang_getFile(tu, path.constData());
             bool found = false;
             if (file) {
 #if CINDEX_VERSION >= CINDEX_VERSION_ENCODE(0, 21)
-                if (CXSourceRangeList *skipped = clang_getSkippedRanges(mTranslationUnit->unit, file)) {
+                if (CXSourceRangeList *skipped = clang_getSkippedRanges(tu, file)) {
                     const unsigned int count = skipped->count;
                     for (unsigned int i=0; i<count; ++i) {
                         CXSourceLocation start = clang_getRangeStart(skipped->ranges[i]);
@@ -2186,42 +2225,45 @@ bool ClangIndexer::diagnose()
 
 void ClangIndexer::tokenize(CXFile file, uint32_t fileId, const Path &path)
 {
+    const auto &tu = mTranslationUnits.at(mCurrentTranslationUnit)->unit;
     StopWatch sw;
-    const CXSourceLocation startLoc = clang_getLocationForOffset(mTranslationUnit->unit, file, 0);
-    const CXSourceLocation endLoc = clang_getLocationForOffset(mTranslationUnit->unit, file, path.fileSize());
+    const CXSourceLocation startLoc = clang_getLocationForOffset(tu, file, 0);
+    const CXSourceLocation endLoc = clang_getLocationForOffset(tu, file, path.fileSize());
 
     CXSourceRange range = clang_getRange(startLoc, endLoc);
     CXToken *tokens = 0;
     unsigned numTokens = 0;
     auto &map = unit(fileId)->tokens;
-    clang_tokenize(mTranslationUnit->unit, range, &tokens, &numTokens);
+    clang_tokenize(tu, range, &tokens, &numTokens);
     for (unsigned i=0; i<numTokens; ++i) {
-        const CXSourceRange range = clang_getTokenExtent(mTranslationUnit->unit, tokens[i]);
+        const CXSourceRange range = clang_getTokenExtent(tu, tokens[i]);
         unsigned offset, endOffset;
         const CXSourceLocation start = clang_getRangeStart(range);
         clang_getSpellingLocation(start, 0, 0, 0, &offset);
         clang_getSpellingLocation(clang_getRangeEnd(range), 0, 0, 0, &endOffset);
         map[offset] = {
             clang_getTokenKind(tokens[i]),
-            RTags::eatString(clang_getTokenSpelling(mTranslationUnit->unit, tokens[i])),
+            RTags::eatString(clang_getTokenSpelling(tu, tokens[i])),
             createLocation(start),
             offset,
             endOffset - offset
         };
     }
 
-    clang_disposeTokens(mTranslationUnit->unit, tokens, numTokens);
+    clang_disposeTokens(tu, tokens, numTokens);
 }
 
 bool ClangIndexer::visit()
 {
-    if (!mTranslationUnit->unit || !mSource.fileId) {
+    const auto &unit = mTranslationUnits.at(mCurrentTranslationUnit);
+    assert(mSources.front().fileId);
+    if (!unit->unit) {
         return false;
     }
 
     StopWatch watch;
 
-    visit(clang_getTranslationUnitCursor(mTranslationUnit->unit));
+    visit(clang_getTranslationUnitCursor(unit->unit));
 
     for (const auto &it : mIndexDataMessage.files()) {
         if (it.second & IndexDataMessage::Visited)
@@ -2231,13 +2273,13 @@ bool ClangIndexer::visit()
     mVisitDuration = watch.elapsed();
 
     if (testLog(LogLevel::VerboseDebug)) {
-        VerboseVisitorUserData u = { 0, "<VerboseVisitor " + mTranslationUnit->clangLine + ">\n", this };
-        clang_visitChildren(clang_getTranslationUnitCursor(mTranslationUnit->unit),
+        VerboseVisitorUserData u = { 0, "<VerboseVisitor " + unit->clangLine + ">\n", this };
+        clang_visitChildren(clang_getTranslationUnitCursor(unit->unit),
                             ClangIndexer::verboseVisitor, &u);
-        u.out += "</VerboseVisitor " + mTranslationUnit->clangLine + ">";
+        u.out += "</VerboseVisitor " + unit->clangLine + ">";
         if (getenv("RTAGS_INDEXERJOB_DUMP_TO_FILE")) {
             char buf[1024];
-            snprintf(buf, sizeof(buf), "/tmp/%s.log", Location::path(mSource.fileId).fileName());
+            snprintf(buf, sizeof(buf), "/tmp/%s.log", mSourceFile.fileName());
             FILE *f = fopen(buf, "w");
             assert(f);
             fwrite(u.out.constData(), 1, u.out.size(), f);

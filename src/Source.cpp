@@ -23,7 +23,7 @@
 
 void Source::clear()
 {
-    fileId = compilerId = buildRootId = 0;
+    fileId = compilerId = buildRootId = compilationDataBaseId = 0;
     includePathHash = 0;
     language = NoLanguage;
     parsed = 0;
@@ -43,6 +43,11 @@ Path Source::buildRoot() const
     return Location::path(buildRootId);
 }
 
+Path Source::compilationDataBase() const
+{
+    return Location::path(compilationDataBaseId);
+}
+
 Path Source::compiler() const
 {
     return Location::path(compilerId);
@@ -55,8 +60,8 @@ String Source::toString() const
         ret << " Build: " << buildRoot();
     if (parsed)
         ret << " Parsed: " << String::formatTime(parsed / 1000, String::DateTime);
-    if (flags & Active)
-        ret << " Active";
+    if (compilationDataBaseId)
+        ret << " Compilation database: " << compilationDataBase();
     return ret;
 }
 
@@ -970,6 +975,7 @@ void Source::encode(Serializer &s, EncodeMode mode) const
     } else {
         s << sourceFile() << fileId << compiler() << compilerId
           << extraCompiler << buildRoot() << buildRootId
+          << compilationDataBase() << compilationDataBaseId
           << static_cast<uint8_t>(language) << parsed << flags << defines
           << includePaths << arguments << sysRootIndex << directory << includePathHash;
     }
@@ -979,9 +985,10 @@ void Source::decode(Deserializer &s, EncodeMode mode)
 {
     clear();
     uint8_t lang;
-    Path source, compiler, buildRoot;
+    Path source, compiler, buildRoot, compilationDataBase;
     s >> source >> fileId >> compiler >> compilerId >> extraCompiler
-      >> buildRoot >> buildRootId >> lang >> parsed >> flags
+      >> buildRoot >> buildRootId >> compilationDataBase >> compilationDataBaseId
+      >> lang >> parsed >> flags
       >> defines >> includePaths >> arguments >> sysRootIndex
       >> directory >> includePathHash;
     language = static_cast<Language>(lang);
@@ -989,6 +996,7 @@ void Source::decode(Deserializer &s, EncodeMode mode)
     if (mode == EncodeSandbox && !Sandbox::root().isEmpty()) { // SBROOT
         Sandbox::decode(source);
         Sandbox::decode(buildRoot);
+        Sandbox::decode(compilationDataBase);
         Sandbox::decode(compiler);
         Sandbox::decode(extraCompiler);
         Sandbox::decode(directory);
@@ -1003,5 +1011,7 @@ void Source::decode(Deserializer &s, EncodeMode mode)
         Location::set(compiler, compilerId);
     if (buildRootId)
         Location::set(buildRoot, buildRootId);
+    if (compilationDataBaseId)
+        Location::set(compilationDataBase, compilationDataBaseId);
     language = static_cast<Source::Language>(language);
 }

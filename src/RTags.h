@@ -47,7 +47,7 @@ struct DependencyNode;
 struct CompilationDataBaseInfo;
 typedef List<std::pair<uint32_t, uint32_t> > Includes;
 typedef Hash<uint32_t, DependencyNode*> Dependencies;
-typedef Map<uint64_t, Source> Sources;
+typedef Hash<uint32_t, Set<Source> > Sources;
 typedef Map<Path, Set<String> > Files;
 typedef Hash<uint32_t, Set<FixIt> > FixIts;
 typedef Hash<Path, String> UnsavedFiles;

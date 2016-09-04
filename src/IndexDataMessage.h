@@ -29,12 +29,11 @@ public:
     enum { MessageId = IndexDataMessageId };
 
     IndexDataMessage(const std::shared_ptr<IndexerJob> &job)
-        : RTagsMessage(MessageId), mParseTime(0), mKey(job->source.key()), mId(0),
-          mIndexerJobFlags(job->flags), mBytesWritten(0)
+        : RTagsMessage(MessageId), mParseTime(0), mId(0), mIndexerJobFlags(job->flags), mBytesWritten(0)
     {}
 
     IndexDataMessage()
-        : RTagsMessage(MessageId), mParseTime(0), mKey(0), mId(0), mBytesWritten(0)
+        : RTagsMessage(MessageId), mParseTime(0), mId(0), mBytesWritten(0)
     {}
 
     void encode(Serializer &serializer) const;
@@ -70,13 +69,6 @@ public:
         return ret;
     }
 
-    uint32_t fileId() const
-    {
-        uint32_t fileId, buildRootId;
-        Source::decodeKey(mKey, fileId, buildRootId);
-        return fileId;
-    }
-
     const Path &project() const { return mProject; }
     void setProject(const Path &project) { mProject = project; }
 
@@ -89,8 +81,8 @@ public:
     Flags<IndexerJob::Flag> indexerJobFlags() const { return mIndexerJobFlags; }
     void setIndexerJobFlags(Flags<IndexerJob::Flag> flags) { mIndexerJobFlags = flags; }
 
-    uint64_t key() const { return mKey; }
-    void setKey(uint64_t key) { mKey = key; }
+    uint32_t fileId() const { return mFileId; }
+    void setFileId(uint32_t fileId) { mFileId = fileId; }
 
     const String &message() const { return mMessage; }
     void setMessage(const String &msg) { mMessage = msg; }
@@ -108,9 +100,13 @@ public:
 
     size_t bytesWritten() const { return mBytesWritten; }
     void setBytesWritten(size_t bytesWritten) { mBytesWritten = bytesWritten; }
+
+    List<Source> sources() const { return mSources; }
+    void setSources(const List<Source> &sources) { mSources = sources; }
 private:
     Path mProject;
-    uint64_t mParseTime, mKey, mId;
+    uint64_t mParseTime, mId;
+    uint32_t mFileId;
     Flags<IndexerJob::Flag> mIndexerJobFlags; // indexerjobflags
     String mMessage; // used as output for dump when flags & Dump
     FixIts mFixIts;
@@ -119,6 +115,7 @@ private:
     Hash<uint32_t, Flags<FileFlag> > mFiles;
     Flags<Flag> mFlags;
     size_t mBytesWritten;
+    List<Source> mSources;
 };
 
 RCT_FLAGS(IndexDataMessage::Flag);
@@ -126,14 +123,26 @@ RCT_FLAGS(IndexDataMessage::FileFlag);
 
 inline void IndexDataMessage::encode(Serializer &serializer) const
 {
-    serializer << mProject << mParseTime << mKey << mId << mIndexerJobFlags << mMessage
-               << mFixIts << mIncludes << mDiagnostics << mFiles << mFlags << mBytesWritten;
+    serializer << mProject << mParseTime << mFileId << mId << mIndexerJobFlags << mMessage
+               << mFixIts << mIncludes << mDiagnostics << mFiles << mFlags << mBytesWritten
+               << static_cast<uint32_t>(mSources.size());
+    for (const Source &source : mSources) {
+        source.encode(serializer, Source::IgnoreSandbox);
+    }
 }
 
 inline void IndexDataMessage::decode(Deserializer &deserializer)
 {
-    deserializer >> mProject >> mParseTime >> mKey >> mId >> mIndexerJobFlags >> mMessage
+    deserializer >> mProject >> mParseTime >> mFileId >> mId >> mIndexerJobFlags >> mMessage
                  >> mFixIts >> mIncludes >> mDiagnostics >> mFiles >> mFlags >> mBytesWritten;
+
+    uint32_t size;
+    deserializer >> size;
+    mSources.resize(size);
+    for (Source &source : mSources) {
+        source.decode(deserializer, Source::IgnoreSandbox);
+    }
+
 }
 
 #endif

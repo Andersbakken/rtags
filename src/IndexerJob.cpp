@@ -23,13 +23,15 @@
 #include "RTagsVersion.h"
 
 uint64_t IndexerJob::sNextId = 1;
-IndexerJob::IndexerJob(const Source &s,
+IndexerJob::IndexerJob(const List<Source> &s,
                        Flags<Flag> f,
                        const std::shared_ptr<Project> &p,
                        const UnsavedFiles &u)
-    : id(0), source(s), sourceFile(s.sourceFile()), flags(f),
+    : id(0), sources(s), flags(f),
       project(p->path()), priority(0), unsavedFiles(u), crashCount(0)
 {
+    assert(!sources.isEmpty());
+    sourceFile = s.front().sourceFile();
     acquireId();
     if (flags & Dirty) {
         ++priority;
@@ -38,9 +40,9 @@ IndexerJob::IndexerJob(const Source &s,
     }
     Server *server = Server::instance();
     assert(server);
-    if (server->isActiveBuffer(source.fileId)) {
+    if (server->isActiveBuffer(sources.front().fileId)) {
         priority += 8;
-    } else if (DependencyNode *node = p->dependencyNode(source.fileId)) {
+    } else if (DependencyNode *node = p->dependencyNode(sources.front().fileId)) {
         Set<DependencyNode*> seen;
         seen.insert(node);
         std::function<bool(const DependencyNode *node)> func = [&](const DependencyNode *node) {
@@ -56,7 +58,7 @@ IndexerJob::IndexerJob(const Source &s,
         if (func(node))
             priority += 2;
     }
-    visited.insert(s.fileId);
+    visited.insert(sources.front().fileId);
 }
 
 IndexerJob::~IndexerJob()
@@ -77,65 +79,68 @@ String IndexerJob::encode() const
         serializer.write("1234", sizeof(int)); // for size
         std::shared_ptr<Project> proj = Server::instance()->project(project);
         const Server::Options &options = Server::instance()->options();
-        Source copy = source;
-        if (!(options.options & Server::AllowWErrorAndWFatalErrors)) {
-            int idx = source.arguments.indexOf("-Werror");
-            if (idx != -1)
-                copy.arguments.removeAt(idx);
-            idx = source.arguments.indexOf("-Wfatal-error");
-            if (idx != -1)
-                copy.arguments.removeAt(idx);
-        }
-        copy.arguments << options.defaultArguments;
-
-        if (!(options.options & Server::AllowPedantic)) {
-            const int idx = copy.arguments.indexOf("-Wpedantic");
-            if (idx != -1) {
-                copy.arguments.removeAt(idx);
-            }
-        }
-
-        if (options.options & Server::EnableCompilerManager) {
-            CompilerManager::applyToSource(copy, CompilerManager::IncludeIncludePaths);
-        }
-
-        for (const String &blocked : options.blockedArguments) {
-            if (blocked.endsWith("=")) {
-                size_t i = 0;
-                while (i<copy.arguments.size()) {
-                    if (copy.arguments.at(i).startsWith(blocked)) {
-                        // error() << "Removing" << copy.arguments.at(i);
-                        copy.arguments.remove(i, 1);
-                    } else if (!strncmp(blocked.constData(), copy.arguments.at(i).constData(), blocked.size() - 1)) {
-                        const size_t count = (i + 1 < copy.arguments.size()) ? 2 : 1;
-                        // error() << "Removing" << copy.arguments.mid(i, count);
-                        copy.arguments.remove(i, count);
-                    } else {
-                        ++i;
-                    }
-                }
-            } else {
-                copy.arguments.remove(blocked);
-            }
-        }
-
-        for (const auto &inc : options.includePaths) {
-            copy.includePaths << inc;
-        }
-        if (Server::instance()->options().options & Server::PCHEnabled)
-            proj->fixPCH(copy);
-
-        copy.defines << options.defines;
-        if (!(options.options & Server::EnableNDEBUG)) {
-            copy.defines.remove(Source::Define("NDEBUG"));
-        }
-        assert(!sourceFile.isEmpty());
         serializer << static_cast<uint16_t>(RTags::DatabaseVersion)
                    << options.sandboxRoot
                    << id
                    << options.socketFile
-                   << project;
-        copy.encode(serializer, Source::IgnoreSandbox);
+                   << project
+                   << static_cast<uint32_t>(sources.size());
+        for (Source copy : sources) {
+            if (!(options.options & Server::AllowWErrorAndWFatalErrors)) {
+                int idx = copy.arguments.indexOf("-Werror");
+                if (idx != -1)
+                    copy.arguments.removeAt(idx);
+                idx = copy.arguments.indexOf("-Wfatal-error");
+                if (idx != -1)
+                    copy.arguments.removeAt(idx);
+            }
+            copy.arguments << options.defaultArguments;
+
+            if (!(options.options & Server::AllowPedantic)) {
+                const int idx = copy.arguments.indexOf("-Wpedantic");
+                if (idx != -1) {
+                    copy.arguments.removeAt(idx);
+                }
+            }
+
+            if (options.options & Server::EnableCompilerManager) {
+                CompilerManager::applyToSource(copy, CompilerManager::IncludeIncludePaths);
+            }
+
+            for (const String &blocked : options.blockedArguments) {
+                if (blocked.endsWith("=")) {
+                    size_t i = 0;
+                    while (i<copy.arguments.size()) {
+                        if (copy.arguments.at(i).startsWith(blocked)) {
+                            // error() << "Removing" << copy.arguments.at(i);
+                            copy.arguments.remove(i, 1);
+                        } else if (!strncmp(blocked.constData(), copy.arguments.at(i).constData(), blocked.size() - 1)) {
+                            const size_t count = (i + 1 < copy.arguments.size()) ? 2 : 1;
+                            // error() << "Removing" << copy.arguments.mid(i, count);
+                            copy.arguments.remove(i, count);
+                        } else {
+                            ++i;
+                        }
+                    }
+                } else {
+                    copy.arguments.remove(blocked);
+                }
+            }
+
+            for (const auto &inc : options.includePaths) {
+                copy.includePaths << inc;
+            }
+            if (Server::instance()->options().options & Server::PCHEnabled)
+                proj->fixPCH(copy);
+
+            copy.defines << options.defines;
+            if (!(options.options & Server::EnableNDEBUG)) {
+                copy.defines.remove(Source::Define("NDEBUG"));
+            }
+            assert(!sourceFile.isEmpty());
+            copy.encode(serializer, Source::IgnoreSandbox);
+        }
+        assert(proj);
         serializer << sourceFile
                    << flags
                    << static_cast<uint32_t>(options.rpVisitFileTimeout)
@@ -147,7 +152,7 @@ String IndexerJob::encode() const
                    << unsavedFiles
                    << options.dataDir
                    << options.debugLocations;
-        assert(proj);
+
         proj->encodeVisitedFiles(serializer);
     }
     const uint32_t size = ret.size() - sizeof(int);

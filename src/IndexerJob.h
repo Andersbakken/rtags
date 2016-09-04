@@ -38,16 +38,19 @@ public:
 
     static String dumpFlags(Flags<Flag> flags);
 
-    IndexerJob(const Source &source,
+    IndexerJob(const List<Source> &sources,
                Flags<Flag> flags,
                const std::shared_ptr<Project> &project,
                const UnsavedFiles &unsavedFiles = UnsavedFiles());
     ~IndexerJob();
+
     void acquireId();
     String encode() const;
 
+    uint32_t fileId() const { assert(!sources.isEmpty()); return sources.front().fileId; }
+
     uint64_t id;
-    Source source;
+    List<Source> sources;
     Path sourceFile;
     Flags<Flag> flags;
     Path project;
