@@ -111,8 +111,8 @@ int StatusJob::execute()
                 ret << "source";
             if (mode & Project::Watch_Dependency)
                 ret << "dependency";
-            if (mode & Project::Watch_CompilationDatabase)
-                ret << "compilationdatabase";
+            if (mode & Project::Watch_CompileCommands)
+                ret << "compilecommands";
             return String::join(ret, '|');
         };
         for (const auto &it : watched) {
@@ -258,6 +258,8 @@ int StatusJob::execute()
             return 1;
         write(String::format<1024>("Path: %s", proj->path().constData()));
         bool first = true;
+#warning not done
+#if 0
         for (const auto &info : proj->compilationDataBaseInfos()) {
             if (first) {
                 first = false;
@@ -276,6 +278,7 @@ int StatusJob::execute()
                                        info.second.indexFlags.toString().constData()));
         }
         matched = true;
+#endif
     }
 
     if (!matched) {

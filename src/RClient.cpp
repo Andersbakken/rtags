@@ -58,7 +58,7 @@ struct CommandLineParser::Option<RClient::OptionType> opts[] = {
     { RClient::None, 0, 0, 0, "Indexing commands:" },
     { RClient::Compile, "compile", 'c', optional_argument, "Pass compilation arguments to rdm." },
     { RClient::GuessFlags, "guess-flags", 0, no_argument, "Guess compile flags (used with -c)." },
-    { RClient::LoadCompilationDatabase, "load-compilation-database", 'J', optional_argument, "Load compile_commands.json from directory" },
+    { RClient::LoadCompileCommands, "load-compile-commands", 'J', optional_argument, "Load compile_commands.json from directory" },
     { RClient::Suspend, "suspend", 'X', optional_argument, "Dump suspended files (don't track changes in these files) with no arg. Otherwise toggle suspension for arg." },
 
     { RClient::None, 0, 0, 0, "" },
@@ -98,7 +98,7 @@ struct CommandLineParser::Option<RClient::OptionType> opts[] = {
     { RClient::CodeCompleteAt, "code-complete-at", 'l', required_argument, "Code complete at location: arg is file:line:col." },
     { RClient::SendDiagnostics, "send-diagnostics", 0, required_argument, "Only for debugging. Send data to all -G connections." },
     { RClient::DumpCompletions, "dump-completions", 0, no_argument, "Dump cached completions." },
-    { RClient::DumpCompilationDatabase, "dump-compilation-database", 0, no_argument, "Dump compilation database for project." },
+    { RClient::DumpCompileCommands, "dump-compile-commands", 0, no_argument, "Dump compile_commands.json for project." },
     { RClient::SetBuffers, "set-buffers", 0, optional_argument, "Set active buffers (list of filenames for active buffers in editor)." },
     { RClient::ListBuffers, "list-buffers", 0, no_argument, "List active buffers." },
     { RClient::ListCursorKinds, "list-cursor-kinds", 0, no_argument, "List spelling for known cursor kinds." },
@@ -282,10 +282,10 @@ public:
         : RCCommand(), cwd(c), args(a)
     {}
     CompileCommand(const Path &dir)
-        : RCCommand(), compilationDatabaseDir(dir)
+        : RCCommand(), compileCommandsDir(dir)
     {}
 
-    const Path compilationDatabaseDir;
+    const Path compileCommandsDir;
     const Path cwd;
     const String args;
     virtual bool exec(RClient *rc, const std::shared_ptr<Connection> &connection) override
@@ -295,7 +295,7 @@ public:
         msg.setWorkingDirectory(cwd);
         msg.setFlag(IndexMessage::GuessFlags, rc->mGuessFlags);
         msg.setArguments(args);
-        msg.setCompilationDatabaseDir(compilationDatabaseDir);
+        msg.setCompileCommandsDir(compileCommandsDir);
         msg.setEnvironment(rc->environment());
         if (!rc->projectRoot().isEmpty())
             msg.setProjectRoot(rc->projectRoot());
@@ -755,8 +755,8 @@ CommandLineParser::ParseStatus RClient::parse(int &argc, char **argv)
         case DumpCompletions:
             addQuery(QueryMessage::DumpCompletions);
             break;
-        case DumpCompilationDatabase:
-            addQuery(QueryMessage::DumpCompilationDatabase);
+        case DumpCompileCommands:
+            addQuery(QueryMessage::DumpCompileCommands);
             break;
         case Clear:
             addQuery(QueryMessage::ClearProjects);
@@ -961,7 +961,7 @@ CommandLineParser::ParseStatus RClient::parse(int &argc, char **argv)
             }
             addQuery(QueryMessage::SetBuffers, encoded);
             break; }
-        case LoadCompilationDatabase: {
+        case LoadCompileCommands: {
             Path dir;
             if (optarg) {
                 dir = optarg;

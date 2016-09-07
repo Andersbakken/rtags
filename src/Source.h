@@ -28,7 +28,7 @@ struct Source
 {
     inline Source();
 
-    uint32_t fileId, compilerId, buildRootId, compilationDataBaseId;
+    uint32_t fileId, compilerId, buildRootId, compileCommandsFileId;
     Path extraCompiler;
     uint64_t includePathHash;
     enum Language {
@@ -159,7 +159,7 @@ struct Source
 
     Path sourceFile() const;
     Path buildRoot() const;
-    Path compilationDataBase() const;
+    Path compileCommands() const;
     Path compiler() const;
     void clear();
     String toString() const;

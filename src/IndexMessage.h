@@ -34,14 +34,15 @@ public:
     void setWorkingDirectory(const Path &workingDirectory) { mWorkingDirectory = workingDirectory; }
     void setEnvironment(const List<String> &environment) { mEnvironment = environment; }
     List<String> environment() const { return mEnvironment; }
-    Path compilationDatabaseDir() const { return mCompilationDatabaseDir; }
-    void setCompilationDatabaseDir(const Path &path) { mCompilationDatabaseDir = path; }
+    Path compileCommandsDir() const { return mCompileCommandsDir; }
+    void setCompileCommandsDir(const Path &path) { mCompileCommandsDir = path; }
     const String &arguments() const { return mArgs; }
+    String &&takeArguments() { return std::move(mArgs); }
     void setArguments(const String &arguments) { mArgs = arguments; }
     enum Flag {
         None = 0x0,
         GuessFlags = 0x1,
-        AppendCompilationDatabase = 0x2
+        AppendCompileCommands = 0x2
     };
     Flags<Flag> flags() const { return mFlags; }
     void setFlags(Flags<Flag> flags) { mFlags = flags; }
@@ -53,7 +54,7 @@ private:
     String mArgs;
     List<String> mEnvironment;
     Path mProjectRoot;
-    Path mCompilationDatabaseDir;
+    Path mCompileCommandsDir;
     Flags<Flag> mFlags;
 };
 

@@ -23,7 +23,7 @@
 
 void Source::clear()
 {
-    fileId = compilerId = buildRootId = compilationDataBaseId = 0;
+    fileId = compilerId = buildRootId = compileCommandsFileId = 0;
     includePathHash = 0;
     language = NoLanguage;
     parsed = 0;
@@ -43,9 +43,9 @@ Path Source::buildRoot() const
     return Location::path(buildRootId);
 }
 
-Path Source::compilationDataBase() const
+Path Source::compileCommands() const
 {
-    return Location::path(compilationDataBaseId);
+    return Location::path(compileCommandsFileId);
 }
 
 Path Source::compiler() const
@@ -60,8 +60,8 @@ String Source::toString() const
         ret << " Build: " << buildRoot();
     if (parsed)
         ret << " Parsed: " << String::formatTime(parsed / 1000, String::DateTime);
-    if (compilationDataBaseId)
-        ret << " Compilation database: " << compilationDataBase();
+    if (compileCommandsFileId)
+        ret << " compile_commands: " << compileCommands();
     return ret;
 }
 
@@ -975,7 +975,7 @@ void Source::encode(Serializer &s, EncodeMode mode) const
     } else {
         s << sourceFile() << fileId << compiler() << compilerId
           << extraCompiler << buildRoot() << buildRootId
-          << compilationDataBase() << compilationDataBaseId
+          << compileCommands() << compileCommandsFileId
           << static_cast<uint8_t>(language) << parsed << flags << defines
           << includePaths << arguments << sysRootIndex << directory << includePathHash;
     }
@@ -985,9 +985,9 @@ void Source::decode(Deserializer &s, EncodeMode mode)
 {
     clear();
     uint8_t lang;
-    Path source, compiler, buildRoot, compilationDataBase;
+    Path source, compiler, buildRoot, compileCommands;
     s >> source >> fileId >> compiler >> compilerId >> extraCompiler
-      >> buildRoot >> buildRootId >> compilationDataBase >> compilationDataBaseId
+      >> buildRoot >> buildRootId >> compileCommands >> compileCommandsFileId
       >> lang >> parsed >> flags
       >> defines >> includePaths >> arguments >> sysRootIndex
       >> directory >> includePathHash;
@@ -996,7 +996,7 @@ void Source::decode(Deserializer &s, EncodeMode mode)
     if (mode == EncodeSandbox && !Sandbox::root().isEmpty()) { // SBROOT
         Sandbox::decode(source);
         Sandbox::decode(buildRoot);
-        Sandbox::decode(compilationDataBase);
+        Sandbox::decode(compileCommands);
         Sandbox::decode(compiler);
         Sandbox::decode(extraCompiler);
         Sandbox::decode(directory);
@@ -1011,7 +1011,7 @@ void Source::decode(Deserializer &s, EncodeMode mode)
         Location::set(compiler, compilerId);
     if (buildRootId)
         Location::set(buildRoot, buildRootId);
-    if (compilationDataBaseId)
-        Location::set(compilationDataBase, compilationDataBaseId);
+    if (compileCommandsFileId)
+        Location::set(compileCommands, compileCommandsFileId);
     language = static_cast<Source::Language>(language);
 }

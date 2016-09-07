@@ -124,28 +124,9 @@ public:
     std::shared_ptr<Project> currentProject() const { return mCurrentProject.lock(); }
     void onNewMessage(const std::shared_ptr<Message> &message, const std::shared_ptr<Connection> &conn);
     bool saveFileIds();
-    struct IndexParseData {
-        Map<Path, Sources> sources;
-        Flags<IndexMessage::Flag> flags;
-        List<String> environment;
-    };
-
-    void processParseData(const std::shared_ptr<IndexParseData> &data);
-    bool loadCompileCommands(const std::shared_ptr<IndexParseData> &data,
-                             const Path &compileCommands,
-                             const Path &projectOverride = Path()) const;
-    bool parse(const std::shared_ptr<IndexParseData> &data,
-               const String &arguments,
-               const Path &pwd,
-               const Path &projectOverride = Path()) const
-    {
-        String copy = arguments;
-        return parse(data, std::move(copy), pwd, projectOverride);
-    }
-    bool parse(const std::shared_ptr<IndexParseData> &data,
-               String &&arguments,
-               const Path &pwd,
-               const Path &projectOverride = Path()) const;
+    void processParseData(IndexParseData &&data);
+    bool loadCompileCommands(IndexParseData &data, const Path &compileCommands, const List<String> &environment) const;
+    bool parse(IndexParseData &data, String &&arguments, const Path &pwd, uint32_t compileCommandsFileId = 0) const;
     enum FileIdsFileFlag {
         None = 0x0,
         HasSandboxRoot = 0x1
@@ -193,7 +174,7 @@ private:
     void removeProject(const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Connection> &conn);
     void sources(const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Connection> &conn);
     void dumpCompletions(const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Connection> &conn);
-    void dumpCompilationDatabase(const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Connection> &conn);
+    void dumpCompileCommands(const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Connection> &conn);
     void status(const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Connection> &conn);
     void suspend(const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Connection> &conn);
     void setBuffers(const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Connection> &conn);

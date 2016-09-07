@@ -41,7 +41,7 @@ public:
         DeleteProject,
         Dependencies,
         Diagnose,
-        DumpCompilationDatabase,
+        DumpCompileCommands,
         DumpCompletions,
         DumpFile,
         DumpFileMaps,

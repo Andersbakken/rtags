@@ -67,10 +67,6 @@ public:
     std::shared_ptr<FileManager> fileManager() const { return mFileManager; }
 
     Path path() const { return mPath; }
-    void setCompilationDatabaseInfos(Hash<Path, CompilationDataBaseInfo> &&infos, const Set<Source> &indexed);
-    void addCompilationDatabaseInfo(const Path &path, CompilationDataBaseInfo &&info);
-    Hash<Path, CompilationDataBaseInfo> compilationDataBaseInfos() const { return mCompilationDatabaseInfos; }
-
     bool match(const Match &match, bool *indexed = 0) const;
 
     enum FileMapType {
@@ -132,8 +128,7 @@ public:
     const Hash<uint32_t, DependencyNode*> &dependencies() const { return mDependencies; }
     DependencyNode *dependencyNode(uint32_t fileId) const { return mDependencies.value(fileId); }
 
-    static bool readSources(const Path &path, Sources &sources,
-                            Hash<Path, CompilationDataBaseInfo> *compileCommands, String *error);
+    static bool readSources(const Path &path, IndexParseData &data, String *error);
     enum SymbolMatchType {
         Exact,
         Wildcard,
@@ -180,8 +175,10 @@ public:
 
     bool isIndexed(uint32_t fileId) const;
 
+    void processParseData(IndexParseData &&data);
     void index(const std::shared_ptr<IndexerJob> &job, bool);
-    void index(uint32_t fileId, Flags<IndexerJob::Flag> flags);
+    void reindex(uint32_t fileId, Flags<IndexerJob::Flag> flags);
+    Sources sources() const;
     Set<Source> sources(uint32_t fileId) const;
     Source source(uint32_t fileId, int buildIndex) const;
     bool hasSource(uint32_t fileId) const;
@@ -194,13 +191,12 @@ public:
                 const std::shared_ptr<Connection> &wait);
     int remove(const Match &match);
     void onJobFinished(const std::shared_ptr<IndexerJob> &job, const std::shared_ptr<IndexDataMessage> &msg);
-    Sources sources() const { return mSources; }
-    String toCompilationDatabase() const;
+    String toCompileCommands() const;
     enum WatchMode {
         Watch_FileManager = 0x1,
         Watch_SourceFile = 0x2,
         Watch_Dependency = 0x4,
-        Watch_CompilationDatabase = 0x8
+        Watch_CompileCommands = 0x8
     };
 
     void watch(const Path &dir, WatchMode mode);
@@ -240,9 +236,22 @@ public:
     Sources::const_iterator find(const Source &source) const;
     Sources::iterator find(const Source &source);
 private:
-    static void forEachSource(Sources &sources, std::function<void(uint32_t, Source &source)> cb);
-    static void forEachSource(const Sources &sources, std::function<void(uint32_t, const Source &source)> cb);
-    void reloadCompilationDatabases();
+    enum VisitResult {
+        Stop,
+        Continue
+    };
+    static VisitResult forEachSources(const IndexParseData &data, std::function<VisitResult(const Sources &sources)> cb);
+    static VisitResult forEachSources(IndexParseData &data, std::function<VisitResult(Sources &sources)> cb);
+    VisitResult forEachSources(std::function<VisitResult(const Sources &sources)> cb) const { return forEachSources(mIndexParseData, cb); }
+    VisitResult forEachSources(std::function<VisitResult(Sources &sources)> cb) { return forEachSources(mIndexParseData, cb); }
+    static VisitResult forEachSource(Sources &sources, std::function<VisitResult(uint32_t, Source &source)> cb);
+    static VisitResult forEachSource(const Sources &sources, std::function<VisitResult(uint32_t, const Source &source)> cb);
+    static VisitResult forEachSource(IndexParseData &data, std::function<VisitResult(uint32_t, Source &source)> cb);
+    static VisitResult forEachSource(const IndexParseData &data, std::function<VisitResult(uint32_t, const Source &source)> cb);
+    VisitResult forEachSource(std::function<VisitResult(uint32_t, const Source &source)> cb) const { return forEachSource(mIndexParseData, cb); }
+    VisitResult forEachSource(std::function<VisitResult(uint32_t, Source &source)> cb) { return forEachSource(mIndexParseData, cb); }
+
+    void reloadCompileCommands();
     void removeSource(Sources::iterator it);
     void onFileAddedOrModified(const Path &path);
     void watchFile(uint32_t fileId);
@@ -372,7 +381,6 @@ private:
     std::shared_ptr<FileMapScope> mFileMapScope;
 
     const Path mPath, mSourceFilePathBase;
-    Hash<Path, CompilationDataBaseInfo> mCompilationDatabaseInfos;
     Path mProjectFilePath, mSourcesFilePath;
 
     Files mFiles;
@@ -390,7 +398,7 @@ private:
 
     StopWatch mTimer;
     FileSystemWatcher mWatcher;
-    Sources mSources;
+    IndexParseData mIndexParseData;
     Hash<Path, Flags<WatchMode> > mWatchedPaths;
     std::shared_ptr<FileManager> mFileManager;
     FixIts mFixIts;

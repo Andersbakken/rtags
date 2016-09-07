@@ -44,7 +44,6 @@ class Database;
 class Project;
 struct Diagnostic;
 struct DependencyNode;
-struct CompilationDataBaseInfo;
 typedef List<std::pair<uint32_t, uint32_t> > Includes;
 typedef Hash<uint32_t, DependencyNode*> Dependencies;
 typedef Hash<uint32_t, Set<Source> > Sources;
@@ -578,7 +577,6 @@ enum FindAncestorFlag {
 RCT_FLAGS(FindAncestorFlag);
 Path findAncestor(Path path, const char *fn, Flags<FindAncestorFlag> flags);
 Map<String, String> rtagsConfig(const Path &path);
-bool loadCompileCommands(const Hash<Path, CompilationDataBaseInfo> &infos, const Path &projectRoot);
 
 enum { DefinitionBit = 0x1000 };
 inline CXCursorKind targetsValueKind(uint16_t val)
@@ -936,25 +934,58 @@ static void man(const Option<T> *opts, size_t count)
 }
 }
 
-
-struct CompilationDataBaseInfo {
-    uint64_t lastModified;
+struct IndexParseData
+{
+    Path project;
+    struct CompileCommands {
+        uint64_t lastModifiedMs;
+        Sources sources;
+        List<String> environment;
+    };
+    Hash<uint32_t, CompileCommands> compileCommands; // fileId for compile_commands.json -> CompileCommands
     List<String> environment;
-    Flags<IndexMessage::Flag> indexFlags;
+    Sources sources;
 };
 
-inline Serializer &operator<<(Serializer &s, const CompilationDataBaseInfo &info)
+inline Serializer &operator<<(Serializer &s, const IndexParseData::CompileCommands &commands)
 {
-    s << info.lastModified << Sandbox::encoded(info.environment) << info.indexFlags;
+    s << commands.lastModifiedMs << commands.sources << Sandbox::encoded(commands.environment);
     return s;
 }
 
-inline Deserializer &operator>>(Deserializer &s, CompilationDataBaseInfo &info)
+inline Deserializer &operator>>(Deserializer &s, IndexParseData::CompileCommands &commands)
 {
-    s >> info.lastModified >> info.environment >> info.indexFlags;
-    Sandbox::decode(info.environment);
+    s >> commands.lastModifiedMs >> commands.sources >> commands.environment;
+    Sandbox::decode(commands.environment);
     return s;
 }
+
+inline Serializer &operator<<(Serializer &s, const IndexParseData &data)
+{
+    s << data.project << static_cast<uint32_t>(data.compileCommands.size());
+    for (const auto &pair : data.compileCommands) {
+        s << Location::path(pair.first) << pair.second;
+    }
+    s << data.sources << Sandbox::encoded(data.environment);
+    return s;
+}
+
+inline Deserializer &operator>>(Deserializer &s, IndexParseData &data)
+{
+    s >> data.project;
+    data.compileCommands.clear();
+    uint32_t size;
+    s >> size;
+    while (size-- > 0) {
+        Path file;
+        s >> file;
+        s >> data.compileCommands[Location::insertFile(file)];
+    }
+    s >> data.sources >> data.environment;
+    Sandbox::decode(data.environment);
+    return s;
+}
+
 
 inline bool operator==(const CXCursor &l, CXCursorKind r)
 {

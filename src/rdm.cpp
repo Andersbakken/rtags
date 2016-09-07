@@ -303,7 +303,7 @@ int main(int argc, char** argv)
     }
 
     Server::Options serverOpts;
-    serverOpts.socketFile = String::format<128>("%s.rdm", Path::home().constData());
+    serverOpts.socketFile = String::format<128>("%s.rdm-sources", Path::home().constData());
     serverOpts.jobCount = std::max(2, ThreadPool::idealThreadCount());
     serverOpts.headerErrorJobCount = -1;
     serverOpts.rpVisitFileTimeout = DEFAULT_RP_VISITFILE_TIMEOUT;
@@ -325,7 +325,7 @@ int main(int argc, char** argv)
     // #ifndef NDEBUG
     //     serverOpts.options |= Server::SuspendRPOnCrash;
     // #endif
-    serverOpts.dataDir = String::format<128>("%s.rtags", Path::home().constData());
+    serverOpts.dataDir = String::format<128>("%s.rtags-sources", Path::home().constData());
 
     const char *logFile = 0;
     Flags<LogFlag> logFlags = DontRotate|LogStderr;

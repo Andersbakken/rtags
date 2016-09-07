@@ -23,7 +23,7 @@
 #include "RTagsVersion.h"
 
 uint64_t IndexerJob::sNextId = 1;
-IndexerJob::IndexerJob(const List<Source> &s,
+IndexerJob::IndexerJob(const Set<Source> &s,
                        Flags<Flag> f,
                        const std::shared_ptr<Project> &p,
                        const UnsavedFiles &u)
@@ -31,7 +31,7 @@ IndexerJob::IndexerJob(const List<Source> &s,
       project(p->path()), priority(0), unsavedFiles(u), crashCount(0)
 {
     assert(!sources.isEmpty());
-    sourceFile = s.front().sourceFile();
+    sourceFile = s.begin()->sourceFile();
     acquireId();
     if (flags & Dirty) {
         ++priority;
@@ -40,9 +40,9 @@ IndexerJob::IndexerJob(const List<Source> &s,
     }
     Server *server = Server::instance();
     assert(server);
-    if (server->isActiveBuffer(sources.front().fileId)) {
+    if (server->isActiveBuffer(sources.begin()->fileId)) {
         priority += 8;
-    } else if (DependencyNode *node = p->dependencyNode(sources.front().fileId)) {
+    } else if (DependencyNode *node = p->dependencyNode(sources.begin()->fileId)) {
         Set<DependencyNode*> seen;
         seen.insert(node);
         std::function<bool(const DependencyNode *node)> func = [&](const DependencyNode *node) {
@@ -58,7 +58,7 @@ IndexerJob::IndexerJob(const List<Source> &s,
         if (func(node))
             priority += 2;
     }
-    visited.insert(sources.front().fileId);
+    visited.insert(sources.begin()->fileId);
 }
 
 IndexerJob::~IndexerJob()
