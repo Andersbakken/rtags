@@ -348,7 +348,7 @@ void CompletionThread::process(Request *request)
                 String text = RTags::eatString(clang_getCompletionChunkText(string, j));
                 if (chunkKind == CXCompletionChunk_TypedText) {
                     node.completion = text;
-                    if (node.completion.isEmpty() {
+                    if (node.completion.isEmpty()) {
                         ok = false;
                         break;
                     }
