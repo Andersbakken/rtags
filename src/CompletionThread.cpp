@@ -315,9 +315,6 @@ void CompletionThread::process(Request *request)
         }
         for (unsigned int i = 0; i < results->NumResults; ++i) {
             const CXCursorKind kind = results->Results[i].CursorKind;
-            if (!(options.options & Server::CompletionsNoFilter) && kind == CXCursor_Destructor)
-                continue;
-
             const CXCompletionString &string = results->Results[i].CompletionString;
 
             const CXAvailabilityKind availabilityKind = clang_getCompletionAvailability(string);
@@ -351,10 +348,7 @@ void CompletionThread::process(Request *request)
                 String text = RTags::eatString(clang_getCompletionChunkText(string, j));
                 if (chunkKind == CXCompletionChunk_TypedText) {
                     node.completion = text;
-                    if (node.completion.isEmpty()
-                        || (node.completion.size() > 8
-                            && node.completion.startsWith("operator")
-                            && !isPartOfSymbol(node.completion.at(8)))) {
+                    if (node.completion.isEmpty() {
                         ok = false;
                         break;
                     }
