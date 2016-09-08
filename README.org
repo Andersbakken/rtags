@@ -504,7 +504,7 @@ also be socket acivated.
    [Unit]
    Description=RTags daemon
 
-   Requires=rdm.socketp
+   Requires=rdm.socket
 
    [Service]
    Type=simple
