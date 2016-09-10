@@ -154,11 +154,6 @@ void CompletionThread::stop()
     mCondition.notify_one();
 }
 
-static inline bool isPartOfSymbol(char ch)
-{
-    return isalnum(ch) || ch == '_';
-}
-
 bool CompletionThread::compareCompletionCandidates(const Completions::Candidate *l,
                                                    const Completions::Candidate *r)
 {
