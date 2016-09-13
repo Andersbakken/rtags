@@ -1126,8 +1126,6 @@ bool ClangIndexer::handleReference(const CXCursor &cursor, CXCursorKind kind, Lo
         if (cursorPtr)
             *cursorPtr = 0;
         return false;
-    } else {
-        unit(location)->symbolNames[c->symbolName].insert(location);
     }
     setType(*c, clang_getCursorType(cursor));
     if (RTags::isFunction(refKind)) {
