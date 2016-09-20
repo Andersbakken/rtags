@@ -1006,7 +1006,7 @@ CommandLineParser::ParseStatus RClient::parse(int &argc, char **argv)
                 fprintf(stderr, "%s does not seem to exist\n", optarg);
                 return CommandLineParser::Parse_Error;
             }
-            if (p.isDir())
+            if (p.isDir() && !p.endsWith('/'))
                 p.append('/');
             addQuery(QueryMessage::HasFileManager, p);
             break; }
