@@ -1222,7 +1222,7 @@ void Server::hasFileManager(const std::shared_ptr<QueryMessage> &query, const st
 {
     const Path path = query->query();
     std::shared_ptr<Project> project = projectForQuery(query);
-    if (project && project->fileManager() && (project->fileManager()->contains(path) || project->match(query->match()))) {
+    if (project && project->fileManager() ? project->fileManager()->contains(path) : project->match(query->match())) {
         if (!(query->flags() & QueryMessage::SilentQuery))
             warning("=> 1");
         conn->write("1");
