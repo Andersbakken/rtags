@@ -67,11 +67,13 @@ if (EXISTS ${CLANG_COMPILATION_INCLUDE})
     add_definitions(-DHAVE_CXCOMPILATIONDATABASE)
 endif ()
 
-ExternalProject_Add(lua
-    DOWNLOAD_COMMAND ""
-    SOURCE_DIR ${CMAKE_CURRENT_LIST_DIR}/lua
-    INSTALL_COMMAND ""
-    CMAKE_ARGS -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=0 -DCMAKE_GENERATOR=${CMAKE_GENERATOR})
+if (LUA_ENABLED)
+    ExternalProject_Add(lua
+        DOWNLOAD_COMMAND ""
+        SOURCE_DIR ${CMAKE_CURRENT_LIST_DIR}/lua
+        INSTALL_COMMAND ""
+        CMAKE_ARGS -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=0 -DCMAKE_GENERATOR=${CMAKE_GENERATOR})
+endif ()
 
 set(RCT_RTTI_ENABLED 1)
 set(RCT_NO_INSTALL 1)
@@ -105,7 +107,6 @@ endif ()
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/bin)
 
 set(RTAGS_SOURCES
-    AST.cpp
     ClangIndexer.cpp
     ClangThread.cpp
     ClassHierarchyJob.cpp
@@ -142,11 +143,17 @@ set(RTAGS_SOURCES
     TokensJob.cpp
     ${RCT_SOURCES})
 
+if (LUA_ENABLED)
+    list(APPEND RTAGS_SOURCES AST.cpp)
+endif ()
+
 add_library(rtags STATIC ${RTAGS_SOURCES})
 if (RTAGS_BUILD_CLANG)
     add_dependencies(rtags llvmclang)
 endif ()
-add_dependencies(rtags lua)
+if (LUA_ENABLED)
+    add_dependencies(rtags lua)
+endif ()
 
 if (RTAGS_COTIRE)
     include(cotire)
@@ -169,9 +176,12 @@ else ()
     set(END_GROUP "-Wl,--end-group")
 endif ()
 
-set(RTAGS_LIBRARIES rtags ${START_GROUP} ${LIBCLANG_LIBRARIES} ${END_GROUP} -L${CMAKE_CURRENT_BINARY_DIR}/lua-prefix/src/lua-build/ liblua.a)
+set(RTAGS_LIBRARIES rtags ${START_GROUP} ${LIBCLANG_LIBRARIES} ${END_GROUP})
+if (LUA_ENABLED)
+    list(APPEND RTAGS_LIBRARIES -L${CMAKE_CURRENT_BINARY_DIR}/lua-prefix/src/lua-build/ liblua.a)
+    add_definitions(-DRTAGS_HAS_LUA)
+endif ()
 
-add_definitions(-DRTAGS_HAS_LUA)
 if ("${CMAKE_CXX_COMPILER_ID}" MATCHES "Clang")
     set_source_files_properties(AST.cpp PROPERTIES
         COMPILE_FLAGS "-Wno-unused-parameter -Wno-unused-variable -ftemplate-depth=2000 -Wno-cast-qual")
@@ -229,7 +239,7 @@ set(RTAGS_ELISP_FILES
     company-rtags.el
     flycheck-rtags.el)
 
-if (NOT RTAGS_NO_LUA_FILES AND LUA_FOUND AND NOT ${CMAKE_CURRENT_BINARY_DIR} STREQUAL ${CMAKE_CURRENT_SOURCE_DIR})
+if (LUA_ENABLED AND NOT RTAGS_NO_LUA_FILES AND LUA_FOUND AND NOT ${CMAKE_CURRENT_BINARY_DIR} STREQUAL ${CMAKE_CURRENT_SOURCE_DIR})
     add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/rtags.lua
         COMMAND ${CMAKE_COMMAND} -E copy_if_different ${CMAKE_CURRENT_SOURCE_DIR}/rtags.lua ${CMAKE_CURRENT_BINARY_DIR}/rtags.lua
         DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/rtags.lua
