@@ -23,7 +23,6 @@
 #include <utility>
 #include <unistd.h>
 
-#include <clang/Basic/Version.h>
 #include <clang-c/Index.h>
 
 #include "rct/rct-config.h"

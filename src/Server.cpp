@@ -17,7 +17,6 @@
 #include "TokensJob.h"
 
 #include <arpa/inet.h>
-#include <clang/Basic/Version.h>
 #include <clang-c/Index.h>
 #include <stdio.h>
 #include <limits>
@@ -71,6 +70,10 @@
 #ifdef CLANG_INCLUDE
 #define CLANG_INCLUDE_STR TO_STR(CLANG_INCLUDE)
 #endif
+#ifdef CLANG_VERSION
+#define CLANG_VERSION_STRING TO_STR(CLANG_VERSION)
+#endif
+
 
 // Absolute paths to search (under) for (clang) system include files
 // Iterate until we find a dir at <abspath>/clang/<version>/include.
