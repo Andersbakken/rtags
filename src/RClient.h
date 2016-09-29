@@ -102,6 +102,7 @@ public:
         Max,
         NoColor,
         NoContext,
+        NoRealPath,
         NoSortReferencesByInput,
         NoSpellCheckinging,
         PathFilter,
@@ -149,6 +150,7 @@ public:
         Wait,
         WildcardSymbolNames,
         XML,
+        Noop,
         NumOptions
     };
 

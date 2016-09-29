@@ -22,6 +22,7 @@
 #include <typeinfo>
 #include <utility>
 #include <unistd.h>
+#include <initializer_list>
 
 #include <clang-c/Index.h>
 
@@ -763,9 +764,25 @@ enum Flag {
     NoFlag = 0x0,
     IgnoreUnknown = 0x1
 };
+
+enum ConfigOptionType {
+    ConfigNone = 0,
+    Config,
+    NoRc
+};
+
+inline List<String> toStringList(int argc, char **argv)
+{
+    List<String> ret(argc);
+    for (int i=0; i<argc; ++i) {
+        ret[i] = argv[i];
+    }
+    return ret;
+}
+
 RCT_FLAGS(Flag);
 template <typename T>
-ParseStatus parse(int &argc, char **argv, const Option<T> *opts, size_t count, Flags<Flag> flags, const std::function<ParseStatus(T)> &handler)
+ParseStatus parse(List<String> args, std::initializer_list<Option<T> > optsList, Flags<Flag> flags, const std::function<ParseStatus(T)> &handler)
 {
     optind = 1;
 #ifdef OS_Darwin
@@ -776,7 +793,8 @@ ParseStatus parse(int &argc, char **argv, const Option<T> *opts, size_t count, F
     List<option> options;
     String shortOptionsString;
 
-    for (size_t i=0; i<count; ++i) {
+    const Option<T> *opts = optsList.begin();
+    for (size_t i=0; i<optsList.size(); ++i) {
         if (opts[i].option) {
             const option opt = { opts[i].longOpt, opts[i].argument, 0, opts[i].shortOpt };
             if (opts[i].shortOpt) {
@@ -809,7 +827,7 @@ ParseStatus parse(int &argc, char **argv, const Option<T> *opts, size_t count, F
                 unused.append('A' + i);
         }
         printf("Unused: %s\n", unused.constData());
-        for (size_t i=0; i<count; ++i) {
+        for (size_t i=0; i<optsList.size(); ++i) {
             if (opts[i].longOpt) {
                 if (!opts[i].shortOpt) {
                     printf("No shortoption for %s\n", opts[i].longOpt);
@@ -827,6 +845,11 @@ ParseStatus parse(int &argc, char **argv, const Option<T> *opts, size_t count, F
     }
 
     ParseStatus ret = Parse_Exec;
+    int argc = 0;
+    StackBuffer<128, char*> argv(args.size());
+    for (String &arg : args) {
+        argv[argc++] = arg.data();
+    }
     while (ret == Parse_Exec) {
         int idx = -1;
         const int c = getopt_long(argc, argv, shortOptionsString.constData(), options.data(), &idx);
@@ -854,25 +877,104 @@ ParseStatus parse(int &argc, char **argv, const Option<T> *opts, size_t count, F
 
     return ret;
 }
+
 template <typename T>
-static void help(FILE *f, const char* app, const Option<T> *opts, size_t count)
+ParseStatus parse(int argc, char **argv, std::initializer_list<Option<T> > opts, Flags<Flag> flags, const std::function<ParseStatus(T)> &handler)
+{
+    return parse(toStringList(argc, argv), opts, flags, handler);
+}
+
+template <typename T>
+ParseStatus parse(List<String> args,
+                  std::initializer_list<Option<T> > opts,
+                  Flags<Flag> flags,
+                  const String &app,
+                  std::initializer_list<Option<ConfigOptionType> > configArgs,
+                  const std::function<ParseStatus(T)> &handler)
+{
+    assert(!app.isEmpty());
+    bool norc = false;
+    Path rcfile = Path::home() + app + "rc";
+    opterr = 0;
+
+    CommandLineParser::parse<ConfigOptionType>(args, configArgs,
+                                               CommandLineParser::IgnoreUnknown, [&norc, &rcfile](ConfigOptionType type) {
+                                                   switch (type) {
+                                                   case ConfigNone:
+                                                       assert(0);
+                                                       break;
+                                                   case Config:
+                                                       rcfile = optarg;
+                                                       break;
+                                                   case NoRc:
+                                                       norc = true;
+                                                       break;
+                                                   }
+
+                                                   return CommandLineParser::Parse_Exec;
+                                               });
+
+    if (!norc) {
+        List<String> copy;
+        copy.reserve(args.size() + 10);
+        copy.append(args.front());
+        String rc = Path("/etc/" + app + "rc").readAll();
+        if (!rc.isEmpty()) {
+            for (const String &s : rc.split('\n')) {
+                if (!s.isEmpty() && !s.startsWith('#'))
+                    copy += s.split(' ');
+            }
+        }
+        if (!rcfile.isEmpty()) {
+            rc = rcfile.readAll();
+            if (!rc.isEmpty()) {
+                for (const String& s : rc.split('\n')) {
+                    if (!s.isEmpty() && !s.startsWith('#'))
+                        copy += s.split(' ');
+                }
+            }
+        }
+        for (size_t i=1; i<args.size(); ++i) {
+            copy.append(args.at(i));
+        }
+        return parse(copy, opts, flags, handler);
+    }
+
+    return parse(args, opts, flags, handler);
+}
+
+template <typename T>
+ParseStatus parse(int argc,
+                  char **argv,
+                  std::initializer_list<Option<T> > opts,
+                  Flags<Flag> flags,
+                  const String &app,
+                  std::initializer_list<Option<ConfigOptionType> > configArgs,
+                  const std::function<ParseStatus(T)> &handler)
+{
+    return parse(toStringList(argc, argv), opts, flags, app, configArgs, handler);
+}
+
+template <typename T>
+static void help(FILE *f, const char *app, std::initializer_list<Option<T> > optsList)
 {
     List<String> out;
-    int longest = 0;
-    for (size_t i=0; i<count; ++i) {
-        if (!opts[i].longOpt && !opts[i].shortOpt) {
+    size_t longest = 0;
+    for (const auto &opt : optsList) {
+        if (!opt.longOpt && !opt.shortOpt) {
             out.append(String());
         } else {
             out.append(String::format<64>("  %s%s%s%s",
-                                          opts[i].longOpt ? String::format<4>("--%s", opts[i].longOpt).constData() : "",
-                                          opts[i].longOpt && opts[i].shortOpt ? "|" : "",
-                                          opts[i].shortOpt ? String::format<2>("-%c", opts[i].shortOpt).constData() : "",
-                                          opts[i].argument == required_argument ? " [arg] "
-                                          : opts[i].argument == optional_argument ? " [optional] " : ""));
-            longest = std::max<int>(out[i].size(), longest);
+                                          opt.longOpt ? String::format<4>("--%s", opt.longOpt).constData() : "",
+                                          opt.longOpt && opt.shortOpt ? "|" : "",
+                                          opt.shortOpt ? String::format<2>("-%c", opt.shortOpt).constData() : "",
+                                          opt.argument == required_argument ? " [arg] "
+                                          : opt.argument == optional_argument ? " [optional] " : ""));
+            longest = std::max<size_t>(out.back().size(), longest);
         }
     }
     fprintf(f, "%s options...\n", app);
+    const Option<T> *opts = optsList.begin();
     const size_t c = out.size();
     for (size_t i=0; i<c; ++i) {
         if (out.at(i).isEmpty()) {
@@ -887,8 +989,9 @@ static void help(FILE *f, const char* app, const Option<T> *opts, size_t count)
 }
 
 template <typename T>
-static void man(const Option<T> *opts, size_t count)
+static void man(std::initializer_list<Option<T> > optsList)
 {
+    const Option<T> *opts = optsList.begin();
     String out = ("<!DOCTYPE manpage SYSTEM \"http://masqmail.cx/xmltoman/xmltoman.dtd\">\n"
                   "<?xml-stylesheet type=\"text/xsl\" href=\"http://masqmail.cx/xmltoman/xmltoman.xsl\"?>\n"
                   "\n"
@@ -903,7 +1006,7 @@ static void man(const Option<T> *opts, size_t count)
                   "<p>rc is a command line client used to control RTags.</p>\n"
                   "\n"
                   "</description>\n");
-    for (size_t i=0; i<count; ++i) {
+    for (size_t i=0; i<optsList.size(); ++i) {
         if (!opts[i].description.isEmpty()) {
             if (!opts[i].longOpt && !opts[i].shortOpt) {
                 if (i)
