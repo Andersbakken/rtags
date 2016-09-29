@@ -745,12 +745,7 @@ CommandLineParser::ParseStatus RClient::parse(int &argc, char **argv)
             addQuery(QueryMessage::SymbolInfo, query);
             break; }
         case CurrentFile: {
-            Path p = optarg;
-            if (!p.isFile()) {
-                fprintf(stderr, "%s is not a file\n", optarg);
-                return CommandLineParser::Parse_Error;
-            }
-            mCurrentFile = p.resolved();
+            mCurrentFile = Path(optarg).resolved();
             break; }
         case ReloadFileManager: {
             addQuery(QueryMessage::ReloadFileManager);
