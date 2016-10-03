@@ -894,7 +894,7 @@ ParseStatus parse(List<String> args,
 {
     assert(!app.isEmpty());
     bool norc = false;
-    Path rcfile = Path::home() + app + "rc";
+    Path rcfile = Path::home() + "." + app + "rc";
     opterr = 0;
 
     CommandLineParser::parse<ConfigOptionType>(args, configArgs,
