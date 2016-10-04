@@ -31,6 +31,7 @@
 #include "rct/Thread.h"
 #include "rct/ThreadPool.h"
 #include "RTags.h"
+#include "CommandLineParser.h"
 #include "Server.h"
 #ifdef HAVE_BACKTRACE
 #include <execinfo.h>

@@ -22,6 +22,7 @@
 #include "rct/Path.h"
 #include "rct/Set.h"
 #include "rct/String.h"
+#include "CommandLineParser.h"
 #include "rct/rct-config.h"
 
 class RCCommand;
