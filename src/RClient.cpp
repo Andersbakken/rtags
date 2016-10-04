@@ -199,7 +199,7 @@ public:
     virtual bool exec(RClient *rc, const std::shared_ptr<Connection> &connection) override
     {
         QueryMessage msg(type);
-        msg.init(rc->argc(), rc->argv());
+        msg.setCommandLine(rc->commandLine());
         msg.setQuery(query);
         msg.setBuildIndex(rc->buildIndex());
         msg.setUnsavedFiles(rc->unsavedFiles());
@@ -266,7 +266,7 @@ public:
 
         const LogLevel level = mLevel == Default ? rc->logLevel() : mLevel;
         LogOutputMessage msg(level, flags);
-        msg.init(rc->argc(), rc->argv());
+        msg.setCommandLine(rc->commandLine());
         return connection->send(msg);
     }
     virtual String description() const override
@@ -294,7 +294,7 @@ public:
     virtual bool exec(RClient *rc, const std::shared_ptr<Connection> &connection) override
     {
         IndexMessage msg;
-        msg.init(rc->argc(), rc->argv());
+        msg.setCommandLine(rc->commandLine());
         msg.setWorkingDirectory(cwd);
         msg.setFlag(IndexMessage::GuessFlags, rc->mGuessFlags);
         msg.setArguments(args);
@@ -315,7 +315,7 @@ RClient::RClient()
     : mMax(-1), mTimeout(-1), mMinOffset(-1), mMaxOffset(-1),
       mConnectTimeout(DEFAULT_CONNECT_TIMEOUT), mBuildIndex(0),
       mLogLevel(LogLevel::Error), mTcpPort(0), mGuessFlags(false),
-      mTerminalWidth(-1), mArgc(0), mArgv(0)
+      mTerminalWidth(-1)
 {
     struct winsize w;
     ioctl(0, TIOCGWINSZ, &w);
@@ -414,9 +414,9 @@ int RClient::exec()
     return ret;
 }
 
-CommandLineParser::ParseStatus RClient::parse(int &argc, char **argv)
+CommandLineParser::ParseStatus RClient::parse(int &argcIn, char **argvIn)
 {
-    Rct::findExecutablePath(*argv);
+    Rct::findExecutablePath(*argvIn);
     mSocketFile = Path::home() + ".rdm";
 
     List<std::shared_ptr<QueryCommand> > projectCommands;
@@ -435,8 +435,8 @@ CommandLineParser::ParseStatus RClient::parse(int &argc, char **argv)
         Path rcfile = Path::home() + ".rcrc";
         opterr = 0;
 
-        StackBuffer<128, char*> originalArgv(argc);
-        memcpy(originalArgv, argv, sizeof(char*) * argc);
+        StackBuffer<128, char*> originalArgv(argcIn);
+        memcpy(originalArgv, argvIn, sizeof(char*) * argcIn);
         /* getopt will molest argv by moving pointers around when it sees
          * fit. Their idea of an optional argument is different from ours so we
          * have to take a copy of argv before they get their sticky fingers all
@@ -459,7 +459,7 @@ CommandLineParser::ParseStatus RClient::parse(int &argc, char **argv)
             { CommandLineParser::NoRc, "no-rc", 0, no_argument, "Don't load any rc files." }
         };
 
-        CommandLineParser::parse<CommandLineParser::ConfigOptionType>(argc, argv, configOpts,
+        CommandLineParser::parse<CommandLineParser::ConfigOptionType>(argcIn, argvIn, configOpts,
                                                                       CommandLineParser::IgnoreUnknown, [&norc, &rcfile](CommandLineParser::ConfigOptionType type) {
                                                                           switch (type) {
                                                                           case CommandLineParser::ConfigNone:
@@ -476,7 +476,7 @@ CommandLineParser::ParseStatus RClient::parse(int &argc, char **argv)
                                                                           return CommandLineParser::Parse_Exec;
                                                                       });
 
-        argList.append(argv[0]);
+        argList.append(argvIn[0]);
         if (!norc) {
             String rc = Path("/etc/rcrc").readAll();
             if (!rc.isEmpty()) {
@@ -502,8 +502,22 @@ CommandLineParser::ParseStatus RClient::parse(int &argc, char **argv)
             }
         }
 
-        for (int i=1; i<argc; ++i)
+        for (int i=1; i<argcIn; ++i)
             argList.append(originalArgv[i]);
+    }
+
+    int argc = argList.size();
+    char **argv = argList.data();
+    mCommandLine.reserve(1024);
+    for (int i=0; i<argc; ++i) {
+        if (i > 0)
+            mCommandLine.append(' ');
+        const bool space = strchr(argv[i], ' ');
+        if (space)
+            mCommandLine.append('"');
+        mCommandLine.append(argv[i]);
+        if (space)
+            mCommandLine.append('"');
     }
 
     std::function<CommandLineParser::ParseStatus(RClient::OptionType type)> cb;
@@ -847,8 +861,8 @@ CommandLineParser::ParseStatus RClient::parse(int &argc, char **argv)
             const char *arg = 0;
             if (optarg) {
                 arg = optarg;
-            } else if (optind < argc && argv[optind][0] != '-') {
-                arg = argv[optind++];
+            } else if (optind < argcIn && argvIn[optind][0] != '-') {
+                arg = argvIn[optind++];
             }
             int exit = 0;
             if (arg) {
@@ -869,8 +883,8 @@ CommandLineParser::ParseStatus RClient::parse(int &argc, char **argv)
             String arg;
             if (optarg) {
                 arg = optarg;
-            } else if (optind < argc && argv[optind][0] != '-') {
-                arg = argv[optind++];
+            } else if (optind < argcIn && argvIn[optind][0] != '-') {
+                arg = argvIn[optind++];
             }
             addQuery(QueryMessage::DebugLocations, arg);
             break; }
@@ -1312,10 +1326,7 @@ CommandLineParser::ParseStatus RClient::parse(int &argc, char **argv)
         return CommandLineParser::Parse_Exec;
     };
 
-    int argCount = argList.size();
-    char **args = argList.data();
-
-    const auto ret = CommandLineParser::parse<OptionType>(argCount, args, opts, NullFlags, cb);
+    const auto ret = CommandLineParser::parse<OptionType>(argc, argv, opts, NullFlags, cb);
     switch (ret) {
     case CommandLineParser::Parse_Error:
         fprintf(stderr, "Try 'rc --help' for more information.\n");
@@ -1356,8 +1367,6 @@ CommandLineParser::ParseStatus RClient::parse(int &argc, char **argv)
         for (int i = 0; i < argc; ++i)
             l << " " << argv[i];
     }
-    mArgc = argc;
-    mArgv = argv;
 
     return CommandLineParser::Parse_Exec;
 }

@@ -353,7 +353,7 @@ void Server::onNewMessage(const std::shared_ptr<Message> &message, const std::sh
         break;
     case LogOutputMessage::MessageId: {
         auto msg = std::static_pointer_cast<LogOutputMessage>(message);
-        logDirect(LogLevel::Error, msg->raw(), LogOutput::StdOut|LogOutput::TrailingNewLine);
+        logDirect(LogLevel::Error, msg->commandLine(), LogOutput::StdOut|LogOutput::TrailingNewLine);
         handleLogOutputMessage(msg, connection);
         break; }
     case VisitFileMessage::MessageId:
@@ -587,7 +587,7 @@ void Server::handleIndexDataMessage(const std::shared_ptr<IndexDataMessage> &mes
 void Server::handleQueryMessage(const std::shared_ptr<QueryMessage> &message, const std::shared_ptr<Connection> &conn)
 {
     Log(message->flags() & QueryMessage::SilentQuery ? LogLevel::Warning : LogLevel::Error,
-        LogOutput::StdOut|LogOutput::TrailingNewLine) << message->raw();
+        LogOutput::StdOut|LogOutput::TrailingNewLine) << message->commandLine();
     conn->setSilent(message->flags() & QueryMessage::Silent);
 
     switch (message->type()) {

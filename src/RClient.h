@@ -190,8 +190,7 @@ public:
     Flags<QueryMessage::Flag> queryFlags() const { return mQueryFlags; }
     int terminalWidth() const { return mTerminalWidth; }
 
-    int argc() const { return mArgc; }
-    char **argv() const { return mArgv; }
+    String commandLine() const { return mCommandLine; }
     void onNewMessage(const std::shared_ptr<Message> &message, const std::shared_ptr<Connection> &);
     List<String> environment() const;
 #ifdef RTAGS_HAS_LUA
@@ -227,9 +226,7 @@ private:
 #endif
     mutable List<String> mEnvironment;
 
-    int mArgc;
-    char **mArgv;
-
+    String mCommandLine;
     friend class CompileCommand;
 };
 

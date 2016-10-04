@@ -33,12 +33,12 @@ public:
 
     void encode(Serializer &serializer) const
     {
-        serializer << mRaw << mLevel << mFlags;
+        serializer << mCommandLine << mLevel << mFlags;
     }
 
     void decode(Deserializer &deserializer)
     {
-        deserializer >> mRaw >> mLevel >> mFlags;
+        deserializer >> mCommandLine >> mLevel >> mFlags;
     }
 private:
     LogLevel mLevel;
