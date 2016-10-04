@@ -52,7 +52,7 @@ inline List<String> toStringList(int argc, char **argv)
 
 RCT_FLAGS(Flag);
 template <typename T>
-ParseStatus parse(List<String> args, std::initializer_list<Option<T> > optsList, Flags<Flag> flags, const std::function<ParseStatus(T)> &handler)
+ParseStatus parse(const List<String> &args, std::initializer_list<Option<T> > optsList, Flags<Flag> flags, const std::function<ParseStatus(T)> &handler)
 {
     optind = 1;
 #ifdef OS_Darwin
@@ -116,9 +116,9 @@ ParseStatus parse(List<String> args, std::initializer_list<Option<T> > optsList,
 
     ParseStatus ret = Parse_Exec;
     int argc = 0;
-    StackBuffer<128, char*> argv(args.size() + 1);
-    for (String &arg : args) {
-        argv[argc++] = arg.data();
+    char **argv = new char*[args.size() + 1];
+    for (const String &arg : args) {
+        argv[argc++] = strdup(arg.constData());
     }
     argv[argc] = 0;
     while (ret == Parse_Exec) {
@@ -126,6 +126,7 @@ ParseStatus parse(List<String> args, std::initializer_list<Option<T> > optsList,
         const int c = getopt_long(argc, argv, shortOptionsString.constData(), options.data(), &idx);
         switch (c) {
         case -1:
+            delete[] argv;
             return ret;
         case '?':
         case ':':
@@ -141,6 +142,7 @@ ParseStatus parse(List<String> args, std::initializer_list<Option<T> > optsList,
         assert(opt->option);
         ret = handler(opt->option);
     }
+    delete[] argv;
     if (ret == Parse_Exec && optind < argc) {
         fprintf(stderr, "unexpected option -- '%s'\n", argv[optind]);
         return Parse_Error;
@@ -156,7 +158,7 @@ ParseStatus parse(int argc, char **argv, std::initializer_list<Option<T> > opts,
 }
 
 template <typename T>
-ParseStatus parse(List<String> args,
+ParseStatus parse(const List<String> &args,
                   std::initializer_list<Option<T> > opts,
                   Flags<Flag> flags,
                   const String &app,
