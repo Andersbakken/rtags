@@ -220,6 +220,84 @@ int main(int argc, char** argv)
     Rct::findExecutablePath(*argv);
 
     bool daemon = false;
+    List<String> argCopy;
+    List<char*> argList;
+    {
+        bool norc = false;
+        Path rcfile = Path::home() + ".rdmrc";
+        opterr = 0;
+
+        StackBuffer<128, char*> originalArgv(argc);
+        memcpy(originalArgv, argv, sizeof(char*) * argc);
+        /* getopt will molest argv by moving pointers around when it sees
+         * fit. Their idea of an optional argument is different from ours so we
+         * have to take a copy of argv before they get their sticky fingers all
+         * over it.
+         *
+         * We think this should be okay for an optional argument:
+         * -s something
+         *
+         * They only populate optarg if you do:
+         * -ssomething.
+         *
+         * We don't want to copy argv into argList before processing rc files
+         * since command line args should take precedence over things in rc
+         * files.
+         *
+         */
+
+        const std::initializer_list<CommandLineParser::Option<CommandLineParser::ConfigOptionType> > configOpts = {
+            { CommandLineParser::Config, "config", 'c', required_argument, "Use this file (instead of ~/.rdmrc)." },
+            { CommandLineParser::NoRc, "no-rc", 'N', no_argument, "Don't load any rc files." }
+        };
+
+        CommandLineParser::parse<CommandLineParser::ConfigOptionType>(argc, argv, configOpts,
+                                                                      CommandLineParser::IgnoreUnknown, [&norc, &rcfile](CommandLineParser::ConfigOptionType type) {
+                                                                          switch (type) {
+                                                                          case CommandLineParser::ConfigNone:
+                                                                              assert(0);
+                                                                              break;
+                                                                          case CommandLineParser::Config:
+                                                                              rcfile = optarg;
+                                                                              break;
+                                                                          case CommandLineParser::NoRc:
+                                                                              norc = true;
+                                                                              break;
+                                                                          }
+
+                                                                          return CommandLineParser::Parse_Exec;
+                                                                      });
+
+        argList.append(argv[0]);
+        if (!norc) {
+            String rc = Path("/etc/rdmrc").readAll();
+            if (!rc.isEmpty()) {
+                for (const String &s : rc.split('\n')) {
+                    if (!s.isEmpty() && !s.startsWith('#'))
+                        argCopy += s.split(' ');
+                }
+            }
+            if (!rcfile.isEmpty()) {
+                rc = rcfile.readAll();
+                if (!rc.isEmpty()) {
+                    for (const String& s : rc.split('\n')) {
+                        if (!s.isEmpty() && !s.startsWith('#'))
+                            argCopy += s.split(' ');
+                    }
+                }
+            }
+            const int s = argCopy.size();
+            for (int i=0; i<s; ++i) {
+                String &arg = argCopy.at(i);
+                if (!arg.isEmpty())
+                    argList.append(arg.data());
+            }
+        }
+
+        for (int i=1; i<argc; ++i)
+            argList.append(originalArgv[i]);
+    }
+
     Server::Options serverOpts;
     serverOpts.socketFile = String::format<128>("%s.rdm", Path::home().constData());
     serverOpts.jobCount = std::max(2, ThreadPool::idealThreadCount());
@@ -251,6 +329,8 @@ int main(int argc, char** argv)
     LogLevel logFileLogLevel(LogLevel::Error);
     bool sigHandler = true;
     assert(Path::home().endsWith('/'));
+    int argCount = argList.size();
+    char **args = argList.data();
     int inactivityTimeout = 0;
 
     const std::initializer_list<CommandLineParser::Option<OptionType> > opts = {
@@ -689,12 +769,7 @@ int main(int argc, char** argv)
         return CommandLineParser::Parse_Exec;
     };
 
-    const std::initializer_list<CommandLineParser::Option<CommandLineParser::ConfigOptionType> > configOpts = {
-        { CommandLineParser::Config, "config", 'c', required_argument, "Use this file (instead of ~/.rdmrc)." },
-        { CommandLineParser::NoRc, "no-rc", 'N', no_argument, "Don't load any rc files." }
-    };
-
-    switch (CommandLineParser::parse<OptionType>(argc, argv, opts, NullFlags, "rdm", configOpts, cb)) {
+    switch (CommandLineParser::parse<OptionType>(argCount, args, opts, NullFlags, cb)) {
     case CommandLineParser::Parse_Error:
         return 1;
     case CommandLineParser::Parse_Ok:
@@ -748,8 +823,8 @@ int main(int argc, char** argv)
     logPath.resolve();
 
     if (!initLogging(argv[0], logFlags, logLevel, logPath.constData(), logFileLogLevel)) {
-        fprintf(stderr, "Can't initialize logging with [%s] [0x%x] [%s] [%s]\n",
-                argv[0], logLevel.toInt(), logFile ? logFile : "", logFlags.toString().constData());
+        fprintf(stderr, "Can't initialize logging with %d %s %s\n",
+                logLevel.toInt(), logFile ? logFile : "", logFlags.toString().constData());
         return 1;
     }
 

@@ -428,6 +428,84 @@ CommandLineParser::ParseStatus RClient::parse(int &argc, char **argv)
         mQueryFlags |= QueryMessage::NoColor;
     }
 
+    List<String> argCopy;
+    List<char*> argList;
+    {
+        bool norc = false;
+        Path rcfile = Path::home() + ".rcrc";
+        opterr = 0;
+
+        StackBuffer<128, char*> originalArgv(argc);
+        memcpy(originalArgv, argv, sizeof(char*) * argc);
+        /* getopt will molest argv by moving pointers around when it sees
+         * fit. Their idea of an optional argument is different from ours so we
+         * have to take a copy of argv before they get their sticky fingers all
+         * over it.
+         *
+         * We think this should be okay for an optional argument:
+         * -s something
+         *
+         * They only populate optarg if you do:
+         * -ssomething.
+         *
+         * We don't want to copy argv into argList before processing rc files
+         * since command line args should take precedence over things in rc
+         * files.
+         *
+         */
+
+        const std::initializer_list<CommandLineParser::Option<CommandLineParser::ConfigOptionType> > configOpts = {
+            { CommandLineParser::Config, "config", 0, required_argument, "Use this file (instead of ~/.rcrc)." },
+            { CommandLineParser::NoRc, "no-rc", 0, no_argument, "Don't load any rc files." }
+        };
+
+        CommandLineParser::parse<CommandLineParser::ConfigOptionType>(argc, argv, configOpts,
+                                                                      CommandLineParser::IgnoreUnknown, [&norc, &rcfile](CommandLineParser::ConfigOptionType type) {
+                                                                          switch (type) {
+                                                                          case CommandLineParser::ConfigNone:
+                                                                              assert(0);
+                                                                              break;
+                                                                          case CommandLineParser::Config:
+                                                                              rcfile = optarg;
+                                                                              break;
+                                                                          case CommandLineParser::NoRc:
+                                                                              norc = true;
+                                                                              break;
+                                                                          }
+
+                                                                          return CommandLineParser::Parse_Exec;
+                                                                      });
+
+        argList.append(argv[0]);
+        if (!norc) {
+            String rc = Path("/etc/rcrc").readAll();
+            if (!rc.isEmpty()) {
+                for (const String &s : rc.split('\n')) {
+                    if (!s.isEmpty() && !s.startsWith('#'))
+                        argCopy += s.split(' ');
+                }
+            }
+            if (!rcfile.isEmpty()) {
+                rc = rcfile.readAll();
+                if (!rc.isEmpty()) {
+                    for (const String& s : rc.split('\n')) {
+                        if (!s.isEmpty() && !s.startsWith('#'))
+                            argCopy += s.split(' ');
+                    }
+                }
+            }
+            const int s = argCopy.size();
+            for (int i=0; i<s; ++i) {
+                String &arg = argCopy.at(i);
+                if (!arg.isEmpty())
+                    argList.append(arg.data());
+            }
+        }
+
+        for (int i=1; i<argc; ++i)
+            argList.append(originalArgv[i]);
+    }
+
     std::function<CommandLineParser::ParseStatus(RClient::OptionType type)> cb;
     cb = [&](RClient::OptionType type) -> CommandLineParser::ParseStatus {
         switch (type) {
@@ -1234,12 +1312,10 @@ CommandLineParser::ParseStatus RClient::parse(int &argc, char **argv)
         return CommandLineParser::Parse_Exec;
     };
 
-    const std::initializer_list<CommandLineParser::Option<CommandLineParser::ConfigOptionType> > configOpts = {
-        { CommandLineParser::Config, "config", 0, required_argument, "Use this file (instead of ~/.rcrc)." },
-        { CommandLineParser::NoRc, "no-rc", 0, no_argument, "Don't load any rc files." }
-    };
+    int argCount = argList.size();
+    char **args = argList.data();
 
-    const auto ret = CommandLineParser::parse<RClient::OptionType>(argc, argv, opts, NullFlags, "rc", configOpts, cb);
+    const auto ret = CommandLineParser::parse<OptionType>(argCount, args, opts, NullFlags, cb);
     switch (ret) {
     case CommandLineParser::Parse_Error:
         fprintf(stderr, "Try 'rc --help' for more information.\n");

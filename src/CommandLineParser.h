@@ -41,18 +41,9 @@ enum ConfigOptionType {
     NoRc
 };
 
-inline List<String> toStringList(int argc, char **argv)
-{
-    List<String> ret(argc);
-    for (int i=0; i<argc; ++i) {
-        ret[i] = argv[i];
-    }
-    return ret;
-}
-
 RCT_FLAGS(Flag);
 template <typename T>
-ParseStatus parse(const List<String> &args, std::initializer_list<Option<T> > optsList, Flags<Flag> flags, const std::function<ParseStatus(T)> &handler)
+ParseStatus parse(int &argc, char **argv, std::initializer_list<Option<T> > optsList, Flags<Flag> flags, const std::function<ParseStatus(T)> &handler)
 {
     optind = 1;
 #ifdef OS_Darwin
@@ -115,23 +106,18 @@ ParseStatus parse(const List<String> &args, std::initializer_list<Option<T> > op
     }
 
     ParseStatus ret = Parse_Exec;
-    int argc = 0;
-    char **argv = new char*[args.size() + 1];
-    for (const String &arg : args) {
-        argv[argc++] = strdup(arg.constData());
-    }
-    argv[argc] = 0;
+
     while (ret == Parse_Exec) {
         int idx = -1;
         const int c = getopt_long(argc, argv, shortOptionsString.constData(), options.data(), &idx);
         switch (c) {
         case -1:
-            delete[] argv;
             return ret;
         case '?':
         case ':':
-            if (!(flags & IgnoreUnknown))
+            if (!(flags & IgnoreUnknown)) {
                 return Parse_Error;
+            }
             continue;
         default:
             break;
@@ -142,90 +128,12 @@ ParseStatus parse(const List<String> &args, std::initializer_list<Option<T> > op
         assert(opt->option);
         ret = handler(opt->option);
     }
-    delete[] argv;
     if (ret == Parse_Exec && optind < argc) {
         fprintf(stderr, "unexpected option -- '%s'\n", argv[optind]);
         return Parse_Error;
     }
 
     return ret;
-}
-
-template <typename T>
-ParseStatus parse(int argc, char **argv, std::initializer_list<Option<T> > opts, Flags<Flag> flags, const std::function<ParseStatus(T)> &handler)
-{
-    return parse(toStringList(argc, argv), opts, flags, handler);
-}
-
-template <typename T>
-ParseStatus parse(const List<String> &args,
-                  std::initializer_list<Option<T> > opts,
-                  Flags<Flag> flags,
-                  const String &app,
-                  std::initializer_list<Option<ConfigOptionType> > configArgs,
-                  const std::function<ParseStatus(T)> &handler)
-{
-    assert(!app.isEmpty());
-    bool norc = false;
-    Path rcfile = Path::home() + "." + app + "rc";
-    opterr = 0;
-
-    CommandLineParser::parse<ConfigOptionType>(args, configArgs,
-                                               CommandLineParser::IgnoreUnknown, [&norc, &rcfile](ConfigOptionType type) {
-                                                   switch (type) {
-                                                   case ConfigNone:
-                                                       assert(0);
-                                                       break;
-                                                   case Config:
-                                                       rcfile = optarg;
-                                                       break;
-                                                   case NoRc:
-                                                       norc = true;
-                                                       break;
-                                                   }
-
-                                                   return CommandLineParser::Parse_Exec;
-                                               });
-
-    if (!norc) {
-        List<String> copy;
-        copy.reserve(args.size() + 10);
-        copy.append(args.front());
-        String rc = Path("/etc/" + app + "rc").readAll();
-        if (!rc.isEmpty()) {
-            for (const String &s : rc.split('\n')) {
-                if (!s.isEmpty() && !s.startsWith('#'))
-                    copy += s.split(' ');
-            }
-        }
-        if (!rcfile.isEmpty()) {
-            rc = rcfile.readAll();
-            if (!rc.isEmpty()) {
-                for (const String& s : rc.split('\n')) {
-                    if (!s.isEmpty() && !s.startsWith('#'))
-                        copy += s.split(' ');
-                }
-            }
-        }
-        for (size_t i=1; i<args.size(); ++i) {
-            copy.append(args.at(i));
-        }
-        return parse(copy, opts, flags, handler);
-    }
-
-    return parse(args, opts, flags, handler);
-}
-
-template <typename T>
-ParseStatus parse(int argc,
-                  char **argv,
-                  std::initializer_list<Option<T> > opts,
-                  Flags<Flag> flags,
-                  const String &app,
-                  std::initializer_list<Option<ConfigOptionType> > configArgs,
-                  const std::function<ParseStatus(T)> &handler)
-{
-    return parse(toStringList(argc, argv), opts, flags, app, configArgs, handler);
 }
 
 template <typename T>
