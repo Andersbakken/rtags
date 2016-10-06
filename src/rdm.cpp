@@ -764,6 +764,7 @@ int main(int argc, char** argv)
             break; }
         case NoRealPath: {
             Path::setRealPathEnabled(false);
+            serverOpts.options |= Server::NoRealPath;
             break; }
         }
 

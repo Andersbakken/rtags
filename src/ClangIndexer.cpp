@@ -122,6 +122,10 @@ bool ClangIndexer::exec(const String &data)
     deserializer >> mDebugLocations;
     deserializer >> blockedFiles;
 
+    if (sServerOpts & Server::NoRealPath) {
+        Path::setRealPathEnabled(false);
+    }
+
 #if 0
     while (true) {
         FILE *f = fopen((String("/tmp/stop_") + mSourceFile.fileName()).constData(), "r+");
