@@ -123,7 +123,6 @@ ParseStatus parse(int &argc, char **argv, std::initializer_list<Option<T> > opts
             break;
         }
 
-        const Option<T> *opt = (idx == -1 ? shortOptions.value(c) : longOptions.value(idx));
         const Option<T> *opt = (c ? shortOptions.value(c) : longOptions.value(idx));
         assert(opt);
         assert(opt->option);
