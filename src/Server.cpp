@@ -494,7 +494,7 @@ bool Server::index(const String &args,
     if (parse)
         sources = Source::parse(arguments, pwd, environment, &unresolvedPaths);
 
-    bool ret = false;
+    bool ret = (sources.isEmpty() && unresolvedPaths.size() == 1 && unresolvedPaths.front() == "-");
     int idx = 0;
     for (Source &source : sources) {
         const Path path = source.sourceFile();

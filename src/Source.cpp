@@ -385,7 +385,7 @@ static inline bool isCompiler(const Path &fullPath, const List<String> &environm
 }
 
 struct Input {
-    Path realPath, absolute;
+    Path realPath, absolute, unmolested;
     Source::Language language;
 };
 
@@ -497,12 +497,17 @@ List<Source> Source::parse(const String &cmdLine,
             (arg.startsWith('"') && arg.endsWith('"')))
             arg = arg.mid(1, arg.size() - 2);
         // ### is this even right?
-        if (arg.startsWith('-')) {
+        if (arg.size() > 1 && arg.startsWith('-')) {
             if (arg == "-E") {
                 warning() << "Preprocessing, ignore" << cmdLine;
                 return List<Source>();
-            } else if (arg == "-x") {
-                const String a = split.value(++i);
+            } else if (arg.startsWith("-x")) {
+                String a;
+                if (arg.size() == 2) {
+                    a = split.value(++i);
+                } else {
+                    a = arg.mid(2);
+                }
                 if (a == "c-header") {
                     language = CHeader;
                 } else if (a == "c++-header") {
@@ -651,7 +656,7 @@ List<Source> Source::parse(const String &cmdLine,
             } else {
                 const Path c = arg;
                 resolved = Path::resolved(arg, Path::RealPath, cwd);
-                if ((!resolved.extension() || !resolved.isHeader()) && !resolved.isSource()) {
+                if (arg != "-" && (!resolved.extension() || !resolved.isHeader()) && !resolved.isSource()) {
                     add = false;
                     if (i == 1) {
                         const Path inPath = findFileInPath(c, cwd, pathEnvironment);
@@ -666,7 +671,7 @@ List<Source> Source::parse(const String &cmdLine,
             if (add) {
                 const Language lang = language != NoLanguage ? language : guessLanguageFromSourceFile(resolved);
                 if (lang != NoLanguage) {
-                    inputs.append({resolved, Path::resolved(arg, Path::MakeAbsolute, cwd), lang});
+                    inputs.append({resolved, Path::resolved(arg, Path::MakeAbsolute, cwd), arg, lang});
                 } else {
                     warning() << "Can't figure out language for" << arg;
                 }
@@ -693,11 +698,12 @@ List<Source> Source::parse(const String &cmdLine,
         }
         includePathHash = ::hashIncludePaths(includePaths, buildRoot);
 
-        ret.resize(inputs.size());
-        int idx = 0;
+        ret.reserve(inputs.size());
         for (const auto input : inputs) {
             unresolvedInputLocations->append(input.absolute);
-            Source &source = ret[idx++];
+            if (input.unmolested == "-")
+                continue;
+            Source source;
             source.directory = path;
             source.fileId = Location::insertFile(input.realPath);
             source.extraCompiler = extraCompiler;
@@ -711,6 +717,7 @@ List<Source> Source::parse(const String &cmdLine,
             source.sysRootIndex = sysRootIndex;
             source.language = input.language;
             assert(source.language != NoLanguage);
+            ret.emplace_back(std::move(source));
         }
     }
     if (testLog(LogLevel::Warning))
