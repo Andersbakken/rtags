@@ -163,7 +163,7 @@ public:
     RClient();
     ~RClient();
     int exec();
-    CommandLineParser::ParseStatus parse(int &argc, char **argv);
+    CommandLineParser::ParseStatus parse(size_t argc, char **argv);
 
     Flags<Flag> flags() const { return mFlags; }
 
