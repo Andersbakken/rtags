@@ -412,6 +412,7 @@ int main(int argc, char** argv)
         { RpPath, "rp-path", 0, required_argument, String::format<256>("Path to rp (default %s).", defaultRP().constData()) },
         { LogTimestamp, "log-timestamp", 0, no_argument, "Add timestamp to logs." },
         { SandboxRoot, "sandbox-root",  0, required_argument, "Create index using relative paths by stripping dir (enables copying of tag index db files without need to reindex)." },
+        { NoRealPath, "no-realpath", 0, no_argument, "Don't use realpath(3) for files" },
         { Noop, "config", 'c', required_argument, "Use this file (instead of ~/.rdmrc)." },
         { Noop, "no-rc", 'N', no_argument, "Don't load any rc files." }
     };
