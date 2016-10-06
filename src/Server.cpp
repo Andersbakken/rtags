@@ -1282,7 +1282,7 @@ void Server::clearProjects()
     Path::rmdir(mOptions.dataDir);
     setCurrentProject(std::shared_ptr<Project>());
     mProjects.clear();
-    saveFileIds();
+    Location::init(Hash<Path, uint32_t>());
 }
 
 void Server::reindex(const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Connection> &conn)
