@@ -227,6 +227,8 @@ static inline Path checkEntries(const Entry *entries, const Path &path, const Pa
 
 Path findProjectRoot(const Path &path, ProjectRootMode mode)
 {
+    if (path == "-")
+        return Path();
     if (!path.isAbsolute())
         error() << "GOT BAD PATH" << path;
     assert(path.isAbsolute());
