@@ -43,8 +43,6 @@ std::initializer_list<CommandLineParser::Option<RClient::OptionType> > opts = {
     { RClient::Help, "help", 'h', CommandLineParser::NoValue, "Display this help." },
     { RClient::Noop, "config", 0, CommandLineParser::Required, "Use this file (instead of ~/.rcrc)." },
     { RClient::Noop, "no-rc", 0, CommandLineParser::NoValue, "Don't load any rc files." },
-    { RClient::Noop, "null", '0', CommandLineParser::NoValue, "null" },
-    { RClient::Noop, "one", '1', CommandLineParser::NoValue, "null" },
 
     { RClient::None, String(), 0, CommandLineParser::NoValue, "" },
     { RClient::None, String(), 0, CommandLineParser::NoValue, "Rdm:" },
