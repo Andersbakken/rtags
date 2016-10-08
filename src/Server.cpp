@@ -1551,8 +1551,8 @@ void Server::sources(const std::shared_ptr<QueryMessage> &query, const std::shar
                 List<Source> sources = project->sources(fileId);
                 if (sources.isEmpty() && path.isHeader()) {
                     Set<uint32_t> seen;
-                    std::function<uint32_t(uint32_t)> findSource = [&findSource, &project, &seen](uint32_t fileId) {
-                        DependencyNode *node = project->dependencyNode(fileId);
+                    std::function<uint32_t(uint32_t)> findSource = [&findSource, &project, &seen](uint32_t file) {
+                        DependencyNode *node = project->dependencyNode(file);
                         uint32_t ret = 0;
                         if (node) {
                             for (const auto &dep : node->dependents) {
@@ -1841,12 +1841,12 @@ bool Server::load()
         List<Path> projects = mOptions.dataDir.files(Path::Directory);
         for (size_t i=0; i<projects.size(); ++i) {
             const Path &file = projects.at(i);
-            Path p = file.mid(mOptions.dataDir.size());
-            Path old = p;
-            if (p.endsWith('/'))
-                p.chop(1);
-            RTags::decodePath(p);
-            if (p.isDir()) {
+            Path filePath = file.mid(mOptions.dataDir.size());
+            Path old = filePath;
+            if (filePath.endsWith('/'))
+                filePath.chop(1);
+            RTags::decodePath(filePath);
+            if (filePath.isDir()) {
                 bool remove = false;
                 if (FILE *f = fopen((file + "/project").constData(), "r")) {
                     Deserializer in(f);
@@ -1861,7 +1861,7 @@ bool Server::load()
                                   file.constData());
                             remove = true;
                         } else {
-                            addProject(p.ensureTrailingSlash());
+                            addProject(filePath.ensureTrailingSlash());
                         }
                     } else {
                         remove = true;
@@ -1885,15 +1885,15 @@ bool Server::load()
                     if (*fn == '_' || !strncmp(fn, "$_", 2))
                         return Path::Recurse;
                 } else if (!strcmp("sources", path.fileName())) {
-                    Path p = path.parentDir().fileName();
-                    if (p.endsWith("/"))
-                        p.chop(1);
-                    RTags::decodePath(p);
+                    Path filePath = path.parentDir().fileName();
+                    if (filePath.endsWith("/"))
+                        filePath.chop(1);
+                    RTags::decodePath(filePath);
 
                     String err;
-                    if (!Project::readSources(path, sources[p], 0, &err)) {
+                    if (!Project::readSources(path, sources[filePath], 0, &err)) {
                         error("Sources restore error %s: %s", path.constData(), err.constData());
-                        sources.remove(p);
+                        sources.remove(filePath);
                     }
                     // error() << sources[p].size();
                 }

@@ -140,7 +140,7 @@ Set<String> ListSymbolsJob::listSymbols(const std::shared_ptr<Project> &project)
 
     Set<String> out;
     auto inserter = [this, &project, hasFilter, hasKindFilter, stripParentheses, &out](Project::SymbolMatchType,
-                                                                                       const String &string,
+                                                                                       const String &str,
                                                                                        const Set<Location> &locations) {
         if (hasFilter) {
             bool ok = false;
@@ -158,14 +158,14 @@ Set<String> ListSymbolsJob::listSymbols(const std::shared_ptr<Project> &project)
             if (!filterKind(sym))
                 return;
         }
-        const int paren = string.indexOf('(');
+        const int paren = str.indexOf('(');
         if (paren == -1) {
-            out.insert(string);
+            out.insert(str);
         } else {
-            if (!RTags::isFunctionVariable(string))
-                out.insert(string.left(paren));
+            if (!RTags::isFunctionVariable(str))
+                out.insert(str.left(paren));
             if (!stripParentheses)
-                out.insert(string);
+                out.insert(str);
         }
     };
 

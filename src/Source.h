@@ -358,7 +358,7 @@ static inline Log operator<<(Log dbg, const Source::Include &inc)
     return dbg;
 }
 
-inline String Source::Define::toString(Flags<CommandLineFlag> flags) const
+inline String Source::Define::toString(Flags<CommandLineFlag> f) const
 {
     String ret;
     ret.reserve(2 + define.size() + value.size() + 5);
@@ -366,7 +366,7 @@ inline String Source::Define::toString(Flags<CommandLineFlag> flags) const
     ret += define;
     if (!value.isEmpty()) {
         ret += '=';
-        if (flags & Source::QuoteDefines) {
+        if (f & Source::QuoteDefines) {
             String out = value;
             out.replace("\\", "\\\\");
             out.replace("\"", "\\\"");

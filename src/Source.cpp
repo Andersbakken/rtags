@@ -818,26 +818,26 @@ bool Source::compareArguments(const Source &other) const
     return false;
 }
 
-List<String> Source::toCommandLine(Flags<CommandLineFlag> flags, bool *usedPch) const
+List<String> Source::toCommandLine(Flags<CommandLineFlag> f, bool *usedPch) const
 {
     if (usedPch)
         *usedPch = false;
     const Server *server = Server::instance();
     if (!server)
-        flags |= (ExcludeDefaultArguments|ExcludeDefaultDefines|ExcludeDefaultIncludePaths);
+        f |= (ExcludeDefaultArguments|ExcludeDefaultDefines|ExcludeDefaultIncludePaths);
 
     List<String> ret;
     ret.reserve(64);
-    if ((flags & IncludeCompiler) == IncludeCompiler) {
+    if ((f & IncludeCompiler) == IncludeCompiler) {
         ret.append(compiler());
     }
-    if (flags & IncludeExtraCompiler && !extraCompiler.isEmpty()) {
+    if (f & IncludeExtraCompiler && !extraCompiler.isEmpty()) {
         ret.append(extraCompiler);
     }
 
     Map<String, String> config;
     Set<String> remove;
-    if (flags & IncludeRTagsConfig) {
+    if (f & IncludeRTagsConfig) {
         config = RTags::rtagsConfig(sourceFile());
         remove = config.value("remove-arguments").split(";").toSet();
     }
@@ -846,7 +846,7 @@ List<String> Source::toCommandLine(Flags<CommandLineFlag> flags, bool *usedPch) 
         const String &arg = arguments.at(i);
         const bool hasValue = ::hasValue(arg);
         bool skip = false;
-        if (flags & FilterBlacklist && isBlacklisted(arg)) {
+        if (f & FilterBlacklist && isBlacklisted(arg)) {
             skip = true;
         }
         if (!skip && remove.contains(arg))
@@ -859,22 +859,22 @@ List<String> Source::toCommandLine(Flags<CommandLineFlag> flags, bool *usedPch) 
             ++i;
         }
     }
-    if (!(flags & ExcludeDefaultArguments)) {
+    if (!(f & ExcludeDefaultArguments)) {
         assert(server);
         for (const auto &arg : server->options().defaultArguments)
             ret.append(arg);
     }
 
-    if (flags & IncludeDefines) {
+    if (f & IncludeDefines) {
         for (const auto &def : defines)
-            ret += def.toString(flags);
-        if (!(flags & ExcludeDefaultIncludePaths)) {
+            ret += def.toString(f);
+        if (!(f & ExcludeDefaultIncludePaths)) {
             assert(server);
             for (const auto &def : server->options().defines)
-                ret += def.toString(flags);
+                ret += def.toString(f);
         }
     }
-    if (flags & IncludeIncludePaths) {
+    if (f & IncludeIncludePaths) {
         for (const auto &inc : includePaths) {
             switch (inc.type) {
             case Source::Include::Type_None:
@@ -897,7 +897,7 @@ List<String> Source::toCommandLine(Flags<CommandLineFlag> flags, bool *usedPch) 
                 break;
             case Source::Include::Type_FileInclude:
                 if (inc.isPch()) {
-                    if (flags & PCHEnabled) {
+                    if (f & PCHEnabled) {
                         if (usedPch)
                             *usedPch = true;
                         ret << "-include-pch" << (inc.path + ".gch");
@@ -908,7 +908,7 @@ List<String> Source::toCommandLine(Flags<CommandLineFlag> flags, bool *usedPch) 
                 break;
             }
         }
-        if (!(flags & ExcludeDefaultIncludePaths)) {
+        if (!(f & ExcludeDefaultIncludePaths)) {
             assert(server);
             for (const auto &inc : server->options().includePaths) {
                 switch (inc.type) {
@@ -937,11 +937,11 @@ List<String> Source::toCommandLine(Flags<CommandLineFlag> flags, bool *usedPch) 
             }
         }
     }
-    if (flags & IncludeRTagsConfig) {
+    if (f & IncludeRTagsConfig) {
         ret << config.value("add-arguments").split(' ');
     }
 
-    if (flags & IncludeSourceFile)
+    if (f & IncludeSourceFile)
         ret.append(sourceFile());
 
     return ret;

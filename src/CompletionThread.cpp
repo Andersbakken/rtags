@@ -357,8 +357,8 @@ void CompletionThread::process(Request *request)
             }
             if (ok) {
                 const unsigned int annotations = clang_getCompletionNumAnnotations(string);
-                for (unsigned i=0; i<annotations; ++i) {
-                    const CXStringScope annotation = clang_getCompletionAnnotation(string, i);
+                for (unsigned j=0; j<annotations; ++j) {
+                    const CXStringScope annotation = clang_getCompletionAnnotation(string, j);
                     const char *cstr = clang_getCString(annotation);
                     if (const int len = strlen(cstr)) {
                         if (!node.annotation.isEmpty())
@@ -411,7 +411,7 @@ void CompletionThread::process(Request *request)
     }
 }
 
-Value CompletionThread::Completions::Candidate::toValue(unsigned int flags) const
+Value CompletionThread::Completions::Candidate::toValue(unsigned int f) const
 {
     Value ret;
     if (!completion.isEmpty())
@@ -429,7 +429,7 @@ Value CompletionThread::Completions::Candidate::toValue(unsigned int flags) cons
     String str;
     str << cursorKind;
     ret["kind"] = str;
-    if (flags & IncludeChunks && !chunks.isEmpty()) {
+    if (f & IncludeChunks && !chunks.isEmpty()) {
         Value cc;
         cc.arrayReserve(chunks.size());
         for (const auto &chunk : chunks) {

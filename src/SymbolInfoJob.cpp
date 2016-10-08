@@ -29,9 +29,8 @@ SymbolInfoJob::SymbolInfoJob(Location s, Location e,
 int SymbolInfoJob::execute()
 {
     int ret = 1;
-    int idx = -1;
     if (end.isNull()) {
-        auto symbol = project()->findSymbol(start, &idx);
+        auto symbol = project()->findSymbol(start);
         if (!symbol.isNull()) {
             write(symbol);
             ret = 0;

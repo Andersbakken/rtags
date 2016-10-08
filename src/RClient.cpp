@@ -433,7 +433,7 @@ CommandLineParser::ParseStatus RClient::parse(size_t argc, char **argv)
                                                  String &&value,
                                                  size_t &idx,
                                                  const List<String> &args)> cb;
-    cb = [&](RClient::OptionType type, String &&value, size_t &idx, const List<String> &args) -> CommandLineParser::ParseStatus {
+    cb = [this, &logFlags, &projectCommands, &logFile](RClient::OptionType type, String &&value, size_t &idx, const List<String> &arguments) -> CommandLineParser::ParseStatus {
         switch (type) {
         case None:
         case NumOptions: {
@@ -763,8 +763,8 @@ CommandLineParser::ParseStatus RClient::parse(size_t argc, char **argv)
             String arg;
             if (!value.isEmpty()) {
                 arg = std::move(value);
-            } else if (idx < argc && args[idx][0] != '-') {
-                arg = args[idx++];
+            } else if (idx < arguments.size() && arguments[idx][0] != '-') {
+                arg = arguments[idx++];
             }
             int exit = 0;
             if (!arg.isEmpty()) {
@@ -783,8 +783,8 @@ CommandLineParser::ParseStatus RClient::parse(size_t argc, char **argv)
             String arg;
             if (!value.isEmpty()) {
                 arg = std::move(value);
-            } else if (idx < args.size() && args[idx][0] != '-') {
-                arg = args[idx++];
+            } else if (idx < arguments.size() && arguments[idx][0] != '-') {
+                arg = arguments[idx++];
             }
             addQuery(QueryMessage::DebugLocations, arg);
             break; }
@@ -864,8 +864,8 @@ CommandLineParser::ParseStatus RClient::parse(size_t argc, char **argv)
             String arg;
             if (!value.isEmpty()) {
                 arg = std::move(value);
-            } else if (idx < argc && args[idx][0] != '-') {
-                arg = args[idx++];
+            } else if (idx < arguments.size() && arguments[idx][0] != '-') {
+                arg = arguments[idx++];
             }
             if (!arg.isEmpty()) {
                 Path p(arg);
@@ -912,8 +912,8 @@ CommandLineParser::ParseStatus RClient::parse(size_t argc, char **argv)
             String arg = 0;
             if (!value.isEmpty()) {
                 arg = std::move(value);
-            } else if (idx < argc && (args[idx][0] != '-' || args[idx] == "-")) {
-                arg = args[idx++];
+            } else if (idx < arguments.size() && (arguments[idx][0] != '-' || arguments[idx] == "-")) {
+                arg = arguments[idx++];
             }
             String encoded;
             if (!arg.isEmpty()) {
@@ -932,10 +932,10 @@ CommandLineParser::ParseStatus RClient::parse(size_t argc, char **argv)
                 if (arg == "-") {
                     char buf[1024];
                     while (fgets(buf, sizeof(buf), stdin)) {
-                        String arg(buf);
-                        if (arg.endsWith('\n'))
-                            arg.chop(1);
-                        addBuffer(arg);
+                        String a(buf);
+                        if (a.endsWith('\n'))
+                            a.chop(1);
+                        addBuffer(a);
                     }
                 } else {
                     for (const String &buffer : arg.split(';')) {
@@ -951,8 +951,8 @@ CommandLineParser::ParseStatus RClient::parse(size_t argc, char **argv)
             Path dir;
             if (!value.isEmpty()) {
                 dir = std::move(value);
-            } else if (idx < argc && args[idx][0] != '-') {
-                dir = args[idx++];
+            } else if (idx < arguments.size() && arguments[idx][0] != '-') {
+                dir = arguments[idx++];
             } else {
                 dir = Path::pwd();
             }
@@ -979,8 +979,8 @@ CommandLineParser::ParseStatus RClient::parse(size_t argc, char **argv)
             Path p;
             if (!value.isEmpty()) {
                 p = std::move(value);
-            } else if (idx < argc && args[idx][0] != '-') {
-                p = args[idx++];
+            } else if (idx < arguments.size() && arguments[idx][0] != '-') {
+                p = arguments[idx++];
             } else {
                 p = ".";
             }
@@ -1005,8 +1005,8 @@ CommandLineParser::ParseStatus RClient::parse(size_t argc, char **argv)
             Path p;
             if (!value.isEmpty()) {
                 p = std::move(value);
-            } else if (idx < argc && args[idx][0] != '-') {
-                p = args[idx++];
+            } else if (idx < arguments.size() && arguments[idx][0] != '-') {
+                p = arguments[idx++];
             }
             if (!p.isEmpty()) {
                 if (p != "clear" && p != "all") {
@@ -1019,11 +1019,22 @@ CommandLineParser::ParseStatus RClient::parse(size_t argc, char **argv)
             addQuery(QueryMessage::Suspend, p);
             break; }
         case Compile: {
-            String args = std::move(value);
-            while (idx < argc) {
+            auto quote = [](const String &str) -> String {
+                if (str.contains(' ')) {
+                    String ret = str;
+                    ret.replace("\"", "\\\"");
+                    ret.insert(0, "\"");
+                    ret.append("\"");
+                    return ret;
+                }
+                return str;
+            };
+            String args = quote(std::move(value));
+
+            while (idx < arguments.size()) {
                 if (!args.isEmpty())
                     args.append(' ');
-                args.append(args[idx++]);
+                args.append(quote(arguments[idx++]));
             }
             if (args == "-" || args.isEmpty()) {
                 String pending;
@@ -1107,8 +1118,8 @@ CommandLineParser::ParseStatus RClient::parse(size_t argc, char **argv)
         case AllDependencies: {
             String encoded;
             List<String> args;
-            while (idx < argc && args[idx][0] != '-') {
-                args.append(args[idx++]);
+            while (idx < arguments.size() && arguments[idx][0] != '-') {
+                args.append(arguments[idx++]);
             }
             Serializer s(encoded);
             s << Path() << args;
@@ -1122,8 +1133,8 @@ CommandLineParser::ParseStatus RClient::parse(size_t argc, char **argv)
             }
             p.resolve();
             List<String> args;
-            while (idx < argc && args[idx][0] != '-') {
-                args.append(args[idx++]);
+            while (idx < arguments.size() && arguments[idx][0] != '-') {
+                args.append(arguments[idx++]);
             }
 
             String encoded;
