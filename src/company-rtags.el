@@ -169,7 +169,7 @@ and `c-electric-colon', for automatic completion right after \">\" and
               (message "****** Got Completion Error ******")
               nil))))
       (when (and (eq (car data) 'completions)
-                 (string= rtags-company-last-completion-location (caadr data)))
+                 (string= (rtags-untrampify rtags-company-last-completion-location) (caadr data)))
         (let ((all (cadadr data))
               (completions))
           (while all
