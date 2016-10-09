@@ -96,100 +96,100 @@ void JobScheduler::startJobs()
         return;
     }
     const auto &options = server->options();
-    std::shared_ptr<Node> node = mPendingJobs.first();
-    auto cont = [&node, this]() {
-        auto tmp = node->next;
-        mPendingJobs.remove(node);
-        node = tmp;
+    std::shared_ptr<Node> jobNode = mPendingJobs.first();
+    auto cont = [&jobNode, this]() {
+        auto tmp = jobNode->next;
+        mPendingJobs.remove(jobNode);
+        jobNode = tmp;
     };
 
-    while (mActiveByProcess.size() < options.jobCount && node) {
-        assert(node);
-        assert(node->job);
-        assert(!(node->job->flags & (IndexerJob::Running|IndexerJob::Complete|IndexerJob::Crashed|IndexerJob::Aborted)));
-        std::shared_ptr<Project> project = Server::instance()->project(node->job->project);
+    while (mActiveByProcess.size() < options.jobCount && jobNode) {
+        assert(jobNode);
+        assert(jobNode->job);
+        assert(!(jobNode->job->flags & (IndexerJob::Running|IndexerJob::Complete|IndexerJob::Crashed|IndexerJob::Aborted)));
+        std::shared_ptr<Project> project = Server::instance()->project(jobNode->job->project);
         if (!project) {
             cont();
-            debug() << node->job->sourceFile << "doesn't have a project, discarding";
+            debug() << jobNode->job->sourceFile << "doesn't have a project, discarding";
             continue;
         }
 
         uint32_t headerError = 0;
         if (!mHeaderErrors.isEmpty()) {
-            headerError = hasHeaderError(node->job->source.fileId, project);
+            headerError = hasHeaderError(jobNode->job->source.fileId, project);
             if (headerError) {
                 // error() << "We got a headerError" << Location::path(headerError) << "for" << node->job->source.sourceFile()
                 //         << mHeaderErrorMaxJobs << mHeaderErrorJobIds;
                 if (options.headerErrorJobCount <= mHeaderErrorJobIds.size()) {
-                    warning() << "Holding off on" << node->job->sourceFile << "it's got a header error from" << Location::path(headerError);
-                    node = node->next;
+                    warning() << "Holding off on" << jobNode->job->sourceFile << "it's got a header error from" << Location::path(headerError);
+                    jobNode = jobNode->next;
                     continue;
                 }
             }
         }
 
-        const uint64_t jobId = node->job->id;
+        const uint64_t jobId = jobNode->job->id;
         Process *process = new Process;
-        debug() << "Starting process for" << jobId << node->job->source.key() << node->job.get();
+        debug() << "Starting process for" << jobId << jobNode->job->source.key() << jobNode->job.get();
         List<String> arguments;
-        arguments << "--priority" << String::number(node->job->priority);
+        arguments << "--priority" << String::number(jobNode->job->priority);
 
         for (int i=logLevel().toInt(); i>0; --i)
             arguments << "-v";
 
         process->readyReadStdOut().connect([this](Process *proc) {
-                std::shared_ptr<Node> node = mActiveByProcess[proc];
-                assert(node);
-                node->stdOut.append(proc->readAllStdOut());
+                std::shared_ptr<Node> n = mActiveByProcess[proc];
+                assert(n);
+                n->stdOut.append(proc->readAllStdOut());
 
                 std::regex rx("@CRASH@([^@]*)@CRASH@");
                 std::smatch match;
-                while (std::regex_search(node->stdOut.ref(), match, rx)) {
+                while (std::regex_search(n->stdOut.ref(), match, rx)) {
                     error() << match[1].str();
-                    node->stdOut.remove(match.position(), match.length());
+                    n->stdOut.remove(match.position(), match.length());
                 }
             });
 
         if (!process->start(options.rp, arguments)) {
             error() << "Couldn't start rp" << options.rp << process->errorString();
             delete process;
-            node->job->flags |= IndexerJob::Crashed;
-            debug() << "job crashed (didn't start)" << jobId << node->job->source.key() << node->job.get();
-            std::shared_ptr<IndexDataMessage> msg(new IndexDataMessage(node->job));
+            jobNode->job->flags |= IndexerJob::Crashed;
+            debug() << "job crashed (didn't start)" << jobId << jobNode->job->source.key() << jobNode->job.get();
+            std::shared_ptr<IndexDataMessage> msg(new IndexDataMessage(jobNode->job));
             msg->setFlag(IndexDataMessage::ParseFailure);
-            jobFinished(node->job, msg);
+            jobFinished(jobNode->job, msg);
             cont();
             continue;
         }
         if (headerError) {
-            node->job->priority = IndexerJob::HeaderError;
-            warning() << "Letting" << node->job->sourceFile << "go even with a headerheader error from" << Location::path(headerError);
+            jobNode->job->priority = IndexerJob::HeaderError;
+            warning() << "Letting" << jobNode->job->sourceFile << "go even with a headerheader error from" << Location::path(headerError);
             mHeaderErrorJobIds.insert(jobId);
         }
         process->finished().connect([this, jobId](Process *proc) {
                 EventLoop::deleteLater(proc);
-                auto node = mActiveByProcess.take(proc);
-                assert(!node || node->process == proc);
+                auto n = mActiveByProcess.take(proc);
+                assert(!n || n->process == proc);
                 const String stdErr = proc->readAllStdErr();
-                if ((node && !node->stdOut.isEmpty()) || !stdErr.isEmpty()) {
-                    error() << (node ? ("Output from " + node->job->sourceFile + ":") : String("Orphaned process:"))
-                            << '\n' << stdErr << (node ? node->stdOut : String());
+                if ((n && !n->stdOut.isEmpty()) || !stdErr.isEmpty()) {
+                    error() << (n ? ("Output from " + n->job->sourceFile + ":") : String("Orphaned process:"))
+                            << '\n' << stdErr << (n ? n->stdOut : String());
                 }
 
-                if (node) {
-                    assert(node->process == proc);
-                    node->process = 0;
-                    assert(!(node->job->flags & IndexerJob::Aborted));
-                    if (!(node->job->flags & IndexerJob::Complete) && proc->returnCode() != 0) {
+                if (n) {
+                    assert(n->process == proc);
+                    n->process = 0;
+                    assert(!(n->job->flags & IndexerJob::Aborted));
+                    if (!(n->job->flags & IndexerJob::Complete) && proc->returnCode() != 0) {
                         auto nodeById = mActiveById.take(jobId);
                         assert(nodeById);
-                        assert(nodeById == node);
+                        assert(nodeById == n);
                         // job failed, probably no IndexDataMessage coming
-                        node->job->flags |= IndexerJob::Crashed;
-                        debug() << "job crashed" << jobId << node->job->source.key() << node->job.get();
-                        std::shared_ptr<IndexDataMessage> msg(new IndexDataMessage(node->job));
+                        n->job->flags |= IndexerJob::Crashed;
+                        debug() << "job crashed" << jobId << n->job->source.key() << n->job.get();
+                        std::shared_ptr<IndexDataMessage> msg(new IndexDataMessage(n->job));
                         msg->setFlag(IndexDataMessage::ParseFailure);
-                        jobFinished(node->job, msg);
+                        jobFinished(n->job, msg);
                     }
                 }
                 mHeaderErrorJobIds.remove(jobId);
@@ -197,14 +197,14 @@ void JobScheduler::startJobs()
             });
 
 
-        node->process = process;
-        assert(!(node->job->flags & ~IndexerJob::Type_Mask));
-        node->job->flags |= IndexerJob::Running;
-        process->write(node->job->encode());
-        mActiveByProcess[process] = node;
+        jobNode->process = process;
+        assert(!(jobNode->job->flags & ~IndexerJob::Type_Mask));
+        jobNode->job->flags |= IndexerJob::Running;
+        process->write(jobNode->job->encode());
+        mActiveByProcess[process] = jobNode;
         // error() << "STARTING JOB" << node->job->source.sourceFile();
         mInactiveById.remove(jobId);
-        mActiveById[jobId] = node;
+        mActiveById[jobId] = jobNode;
         cont();
     }
 }

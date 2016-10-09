@@ -43,11 +43,11 @@ IndexerJob::IndexerJob(const Source &s,
     } else if (DependencyNode *node = p->dependencyNode(source.fileId)) {
         Set<DependencyNode*> seen;
         seen.insert(node);
-        std::function<bool(const DependencyNode *node)> func = [&](const DependencyNode *node) {
-            for (const auto &inc : node->includes) {
+        std::function<bool(const DependencyNode *node)> func = [&seen, server, &func](const DependencyNode *n) {
+            for (const auto &inc : n->includes) {
                 if (seen.insert(inc.second)
-                    && !Location::path(node->fileId).isSystem()
-                    && (server->isActiveBuffer(node->fileId) || func(inc.second))) {
+                    && !Location::path(n->fileId).isSystem()
+                    && (server->isActiveBuffer(n->fileId) || func(inc.second))) {
                     return true;
                 }
             }

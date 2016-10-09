@@ -97,9 +97,9 @@ struct TranslationUnit {
         if (index)
             clang_disposeIndex(index);
     }
-    static void visit(CXCursor cursor, std::function<CXChildVisitResult(CXCursor)> func)
+    static void visit(CXCursor c, std::function<CXChildVisitResult(CXCursor)> func)
     {
-        clang_visitChildren(cursor, [](CXCursor cursor, CXCursor, CXClientData data) {
+        clang_visitChildren(c, [](CXCursor cursor, CXCursor, CXClientData data) {
                 return (*reinterpret_cast<std::function<CXChildVisitResult(CXCursor)> *>(data))(cursor);
             }, &func);
     }
