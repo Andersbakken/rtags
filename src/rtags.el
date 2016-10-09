@@ -1000,7 +1000,7 @@ Function based on org-babel-tramp-handle-call-process-region"
   (if (and (featurep 'tramp)
            rtags-tramp-enabled
            (file-remote-p default-directory))
-      (let ((tmpfile (tramp-compat-make-temp-file "")))
+      (let ((tmpfile (make-temp-file "tramprt")))
         (write-region start end tmpfile)
         (when delete (delete-region start end))
         (unwind-protect
