@@ -36,8 +36,6 @@ public:
     virtual void run() override;
     void abort() { std::unique_lock<std::mutex> lock(mMutex); mAborted = false; }
     bool isAborted() const { std::unique_lock<std::mutex> lock(mMutex); return mAborted; }
-
-
 private:
     static CXChildVisitResult visitor(CXCursor cursor, CXCursor, CXClientData userData);
     CXChildVisitResult visit(const CXCursor &cursor);
@@ -48,85 +46,6 @@ private:
     void handleReference(Location loc, const CXCursor &ref);
     void checkIncludes();
 
-#ifdef RTAGS_HAS_LUA
-    static CXChildVisitResult visitASTVisitor(CXCursor cursor, CXCursor, CXClientData userData);
-    void processAST(CXTranslationUnit unit);
-
-    enum ExtraDataType {
-        Type_Invalid,
-        Type_Cursor,
-        Type_Location,
-        Type_Range,
-        Type_Type
-    };
-#if 0
-    template <typename T>
-    static T extraData(const std::shared_ptr<ScriptEngine::Object> &object, ExtraDataType type, bool *ok = 0)
-    {
-        assert(object);
-        return object->extraData<T>(type, ok);
-    }
-
-    Value create(Loc location)
-    {
-        auto object = mLocationClass->create();
-        object->setExtraData<Loc>(location, Type_Location);
-        return mScriptEngine.fromObject(object);
-    }
-
-    Value create(CXSourceRange range)
-    {
-        auto object = mRangeClass->create();
-        object->setExtraData<CXSourceRange>(range, Type_Range);
-        return mScriptEngine.fromObject(object);
-    }
-
-    Value create(CXType type)
-    {
-        auto object = mTypeClass->create();
-        object->setExtraData<CXType>(type, Type_Type);
-        return mScriptEngine.fromObject(object);
-    }
-
-    Value create(Cursor *cursor)
-    {
-        if (cursor) {
-            assert(cursor);
-            assert(cursor->object);
-            return mScriptEngine.fromObject(cursor->object);
-        }
-        return Value();
-    }
-
-    Value create(const CXCursor &cursor)
-    {
-        const CXCursorKind kind = clang_getCursorKind(cursor);
-        if (!clang_isInvalid(kind)) {
-            const Loc loc = createLocation(cursor);
-            auto it = mCursorsByLocation.find(loc);
-            if (it != mCursorsByLocation.end()) {
-                for (Cursor *c : it->second) {
-                    if (clang_equalCursors(c->cursor, cursor))
-                        return mScriptEngine.fromObject(c->object);
-                }
-            }
-        }
-        return Value();
-    }
-
-    Value create(CXString str)
-    {
-        return RTags::eatString(str);
-    }
-
-    template <typename T>
-    Value create(const T &t)
-    {
-        return t;
-    }
-
-#endif
-#endif
     const std::shared_ptr<QueryMessage> mQueryMessage;
     const Source mSource;
     std::shared_ptr<Connection> mConnection;
