@@ -904,12 +904,12 @@ bool ClangIndexer::handleReference(const CXCursor &cursor, CXCursorKind kind, Lo
     switch (refKind) {
     case CXCursor_Constructor: {
         enum State {
-            NotFound,
+            Invalid,
             Handled,
             DestructorNeeded
-        } state = NotFound;
+        } state = Invalid;
 
-        for (int i=mParents.size() - 1; i>=0 && state == NotFound; --i) {
+        for (int i=mParents.size() - 1; i>=0 && state == Invalid; --i) {
             const CXCursor parent = mParents.at(i);
             switch (clang_getCursorKind(parent)) {
             case CXCursor_CallExpr: {
