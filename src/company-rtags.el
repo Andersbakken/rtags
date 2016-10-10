@@ -245,6 +245,15 @@ and `c-electric-colon', for automatic completion right after \">\" and
                 (insert anno)
                 (company-template-c-like-templatify anno))))))))
 
+
+(defun rtags-completion-at-point ()
+  (when (and (company-manual-begin)
+             (looking-back company-common (line-beginning-position)))
+    (list
+     (match-beginning 0)
+     (match-end 0)
+     company-candidates)))
+
 (provide 'company-rtags)
 
 ;;; company-rtags.el ends here
