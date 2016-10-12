@@ -550,120 +550,143 @@ std::shared_ptr<Auto> resolveAuto(const CXCursor &cursor)
     while (type.kind == CXType_Pointer)
         type = clang_getPointeeType(type);
 
-    if (type.kind == CXType_Unexposed) {
-        const CXStringScope spelling = clang_getTypeSpelling(type);
-        if (!strcmp(clang_getCString(spelling), "auto")) {
-            const CXCursor null = clang_getNullCursor();
-            ret.reset(new Auto { null, clang_getCursorType(null) });
-            l() << "resolving" << cursor << clang_getCursorType(cursor).kind;
-            assert(clang_getCursorKind(cursor) == CXCursor_VarDecl);
-            CXCursor firstChild = findFirstChild(cursor);
-            // error() << clang_getCursorKind(firstChild) << "fobar" << cursor;
-            switch (clang_getCursorKind(firstChild)) {
-            case CXCursor_IntegerLiteral:
-            case CXCursor_FloatingLiteral:
-            case CXCursor_ImaginaryLiteral:
-            case CXCursor_StringLiteral:
-            case CXCursor_CharacterLiteral:
-                ret->type = clang_getCursorType(firstChild);
-                break;
-            case CXCursor_CXXNewExpr: {
-                const CXCursor typeRef = findFirstChild(firstChild);
-                if (clang_getCursorKind(typeRef) == CXCursor_TypeRef) {
-                    ret->cursor = clang_getCursorReferenced(typeRef);
-                    ret->type = clang_getCursorType(ret->cursor);
-                }
-                break; }
-            case CXCursor_LambdaExpr:
-                ret->cursor = firstChild;
+    bool isAuto = false;
+#if CINDEX_VERSION >= CINDEX_VERSION_ENCODE(0, 32)
+    if (type.kind == CXType_Auto) {
+        isAuto = true;
+    } else
+#endif
+    {
+        if (type.kind == CXType_Unexposed) {
+            const CXStringScope spelling = clang_getTypeSpelling(type);
+            isAuto = !strcmp(clang_getCString(spelling), "auto");
+        }
+    }
+
+    if (isAuto) {
+        const CXCursor null = clang_getNullCursor();
+        ret.reset(new Auto { null, clang_getCursorType(null) });
+        assert(clang_getCursorKind(cursor) == CXCursor_VarDecl);
+        CXCursor firstChild = findFirstChild(cursor);
+        l() << "resolving" << cursor << clang_getCursorType(cursor).kind << "firstchild is" << clang_getCursorKind(firstChild);
+        switch (clang_getCursorKind(firstChild)) {
+        case CXCursor_IntegerLiteral:
+        case CXCursor_FloatingLiteral:
+        case CXCursor_ImaginaryLiteral:
+        case CXCursor_StringLiteral:
+        case CXCursor_CharacterLiteral:
+            ret->type = clang_getCursorType(firstChild);
+            break;
+        case CXCursor_CXXNewExpr: {
+            const CXCursor typeRef = findFirstChild(firstChild);
+            if (clang_getCursorKind(typeRef) == CXCursor_TypeRef) {
+                ret->cursor = clang_getCursorReferenced(typeRef);
                 ret->type = clang_getCursorType(ret->cursor);
-                break;
-            case CXCursor_UnexposedExpr:
-            case CXCursor_UnaryOperator:
-            case CXCursor_MemberRefExpr:
-            case CXCursor_ArraySubscriptExpr:
-            case CXCursor_DeclRefExpr:
-            case CXCursor_BinaryOperator:
-            case CXCursor_CXXReinterpretCastExpr:
-            case CXCursor_CXXStaticCastExpr:
-            case CXCursor_CXXDynamicCastExpr:
-            case CXCursor_CStyleCastExpr:
-            case CXCursor_CXXConstCastExpr:
-            case CXCursor_CallExpr: {
-                CXCursor callExpr = firstChild;
-                CXCursor func = clang_getNullCursor();
-                CXCursor parent = func;
-                bool done = false;
-                do {
-                    const CXCursorKind kind = clang_getCursorKind(callExpr);
-                    // error() << "GOT" << kind << clang_getCursorKind(parent);
-                    switch (kind) {
-                    case CXCursor_CallExpr:
-                        func = clang_getCursorReferenced(callExpr);
-                        if (!clang_isInvalid(clang_getCursorKind(func))) {
-                            if (clang_getCursorKind(func) == CXCursor_Constructor) {
-                                ret->cursor = clang_getCursorSemanticParent(func);
-                                ret->type = clang_getCursorType(ret->cursor);
-                            } else {
-                                ret->type = clang_getResultType(clang_getCursorType(func));
-                                ret->cursor = clang_getTypeDeclaration(ret->type);
-                            }
-                            done = true;
+            }
+            break; }
+        case CXCursor_LambdaExpr:
+            ret->cursor = firstChild;
+            ret->type = clang_getCursorType(ret->cursor);
+            break;
+        case CXCursor_UnexposedExpr:
+        case CXCursor_UnaryOperator:
+        case CXCursor_MemberRefExpr:
+        case CXCursor_ArraySubscriptExpr:
+        case CXCursor_DeclRefExpr:
+        case CXCursor_BinaryOperator:
+        case CXCursor_CXXReinterpretCastExpr:
+        case CXCursor_CXXStaticCastExpr:
+        case CXCursor_CXXDynamicCastExpr:
+        case CXCursor_CStyleCastExpr:
+        case CXCursor_CXXConstCastExpr:
+        case CXCursor_CallExpr: {
+            CXCursor callExpr = firstChild;
+            CXCursor func = clang_getNullCursor();
+            CXCursor parent = func;
+            bool done = false;
+            do {
+                const CXCursorKind kind = clang_getCursorKind(callExpr);
+                l() << "GOT" << kind << clang_getCursorKind(parent);
+                switch (kind) {
+                case CXCursor_CallExpr:
+                    func = clang_getCursorReferenced(callExpr);
+                    if (!clang_isInvalid(clang_getCursorKind(func))) {
+                        if (clang_getCursorKind(func) == CXCursor_Constructor) {
+                            ret->cursor = clang_getCursorSemanticParent(func);
+                            ret->type = clang_getCursorType(ret->cursor);
+                        } else {
+                            ret->type = clang_getResultType(clang_getCursorType(func));
+                            ret->cursor = clang_getTypeDeclaration(ret->type);
                         }
-                        break;
-                    case CXCursor_LambdaExpr:
-                        ret->cursor = callExpr;
-                        ret->type = clang_getCursorType(callExpr);
                         done = true;
+                    }
+                    break;
+                case CXCursor_LambdaExpr:
+                    ret->cursor = callExpr;
+                    ret->type = clang_getCursorType(callExpr);
+                    done = true;
+                    break;
+                case CXCursor_DeclRefExpr:
+                case CXCursor_MemberRefExpr:
+                    callExpr = clang_getCursorReferenced(callExpr);
+                    switch (clang_getCursorKind(callExpr)) {
+                    case CXCursor_VarDecl:
+                    case CXCursor_FieldDecl:
+                    case CXCursor_ParmDecl:
                         break;
-                    case CXCursor_TypeRef:
-                    case CXCursor_MemberRefExpr:
-                    case CXCursor_DeclRefExpr:
-                        ret->cursor = clang_getCursorReferenced(callExpr);
+                    default:
+                        ret->cursor = callExpr;
                         ret->type = clang_getCursorType(ret->cursor);
                         done = true;
                         break;
-                    case CXCursor_NamespaceRef: {
-                        RTags::Filter filter;
-                        filter.kinds.insert(CXCursor_TypeRef);
-                        filter.kinds.insert(CXCursor_MemberRefExpr);
-                        const CXCursor typeRef = children(parent, filter).value(0, clang_getNullCursor());
-                        switch (clang_getCursorKind(typeRef)) {
-                        case CXCursor_TypeRef:
-                        case CXCursor_MemberRefExpr:
-                            ret->cursor = clang_getCursorReferenced(typeRef);
-                            ret->type = clang_getCursorType(ret->cursor);
-                            break;
-                        default:
-                            break;
-                        }
-                        done = true;
-                        break; }
-                    case CXCursor_UnexposedExpr:
-                    case CXCursor_UnaryOperator:
-                    case CXCursor_BinaryOperator:
-                    case CXCursor_ArraySubscriptExpr:
-                    case CXCursor_CXXReinterpretCastExpr:
-                    case CXCursor_CXXStaticCastExpr:
-                    case CXCursor_CXXDynamicCastExpr:
-                    case CXCursor_CXXConstCastExpr:
-                    case CXCursor_CStyleCastExpr:
+                    }
+                    break;
+                case CXCursor_TypeRef:
+                    ret->cursor = clang_getCursorReferenced(callExpr);
+                    ret->type = clang_getCursorType(ret->cursor);
+                    done = true;
+                    break;
+
+                case CXCursor_NamespaceRef: {
+                    RTags::Filter filter;
+                    filter.kinds.insert(CXCursor_TypeRef);
+                    filter.kinds.insert(CXCursor_MemberRefExpr);
+                    const CXCursor typeRef = children(parent, filter).value(0, clang_getNullCursor());
+                    switch (clang_getCursorKind(typeRef)) {
+                    case CXCursor_TypeRef:
+                    case CXCursor_MemberRefExpr:
+                        ret->cursor = clang_getCursorReferenced(typeRef);
+                        ret->type = clang_getCursorType(ret->cursor);
                         break;
                     default:
-                        done = true;
                         break;
                     }
-                    parent = callExpr;
-                    callExpr = findFirstChild(callExpr);
-                } while (!done);
+                    done = true;
+                    break; }
+                case CXCursor_UnexposedExpr:
+                case CXCursor_UnaryOperator:
+                case CXCursor_BinaryOperator:
+                case CXCursor_ArraySubscriptExpr:
+                case CXCursor_CXXReinterpretCastExpr:
+                case CXCursor_CXXStaticCastExpr:
+                case CXCursor_CXXDynamicCastExpr:
+                case CXCursor_CXXConstCastExpr:
+                case CXCursor_CStyleCastExpr:
+                    break;
+                default:
+                    done = true;
+                    break;
+                }
+                parent = callExpr;
+                callExpr = findFirstChild(callExpr);
+            } while (!done);
 
-                break; }
-            case CXCursor_InvalidFile:
-                break;
-            default:
-                error() << "Unknown damned auto!!!" << cursor << firstChild;
-                break;
-            }
+            break; }
+        case CXCursor_InvalidFile:
+            break;
+        default:
+            error() << "Unknown damned auto!!!" << cursor << firstChild;
+            break;
         }
     }
     if (ret && ret->type.kind != CXType_Invalid)
