@@ -162,12 +162,16 @@ static inline String trim(const char *start, int size)
     return String(start, size);
 }
 
-static inline size_t hashIncludePaths(const List<Source::Include> &includes, const Path &buildRoot)
+static inline size_t hashIncludePaths(const List<Source::Include> &includes, const Path &buildRoot, Flags<Server::Option> flags)
 {
     size_t hash = 0;
     std::hash<Path> hasher;
     for (const auto &inc : includes) {
         size_t h;
+        if (flags & Server::SourceIgnoreIncludePathDifferencesInUsr && inc.path.startsWith("/usr/") && !inc.path.startsWith("/usr/home/")) {
+            continue;
+        }
+
         if (!buildRoot.isEmpty() && inc.path.startsWith(buildRoot)) {
             h = hasher(inc.path.mid(buildRoot.size()));
         } else {
@@ -230,6 +234,7 @@ static const char *valueArgs[] = {
 };
 
 static const char *blacklist[] = {
+    "--param",
     "-M",
     "-MD",
     "-MF",
@@ -240,8 +245,11 @@ static const char *blacklist[] = {
     "-MQ",
     "-MT",
     "-Og",
+    "-Wa,--32",
+    "-Wa,--64",
     "-Wl,--incremental-full",
     "-Wl,--incremental-patch,1",
+    "-Wl,--no-incremental",
     "-fbuild-session-file=",
     "-fbuild-session-timestamp=",
     "-fembed-bitcode",
@@ -259,7 +267,8 @@ static const char *blacklist[] = {
     "-masm=",
     "-mcpu=",
     "-mfpmath=",
-    "-mtune="
+    "-mtune=",
+    "-s"
 };
 
 static int compare(const void *s1, const void *s2)
@@ -696,7 +705,8 @@ List<Source> Source::parse(const String &cmdLine,
             if (buildRoot.isDir())
                 buildRootId = Location::insertFile(buildRoot);
         }
-        includePathHash = ::hashIncludePaths(includePaths, buildRoot);
+        const Flags<Server::Option> serverFlags = Server::instance() ? Server::instance()->options().options : NullFlags;
+        includePathHash = ::hashIncludePaths(includePaths, buildRoot, serverFlags);
 
         ret.reserve(inputs.size());
         for (const auto input : inputs) {
@@ -759,7 +769,7 @@ static inline bool compareDefinesNoNDEBUG(const Set<Source::Define> &l, const Se
 
 static bool nextArg(List<String>::const_iterator &it,
                     const List<String>::const_iterator end,
-                    bool separateDebugAndRelease)
+                    Flags<Server::Option> flags)
 {
     while (it != end) {
         if (isBlacklisted(*it)) {
@@ -767,7 +777,9 @@ static bool nextArg(List<String>::const_iterator &it,
             ++it;
             if (val && it != end)
                 ++it;
-        } else if (!separateDebugAndRelease && (*it == "-g" || it->startsWith("-O"))) {
+        } else if (!(flags & Server::SeparateDebugAndRelease) && (*it == "-g" || it->startsWith("-O"))) {
+            ++it;
+        } else if (!(flags & Server::Separate32BitAnd64Bit) && (*it == "-m32" || *it == "-m64")) {
             ++it;
         } else {
             break;
@@ -781,16 +793,19 @@ bool Source::compareArguments(const Source &other) const
     assert(fileId == other.fileId);
 
     if  (includePathHash != other.includePathHash) {
+        warning() << "includepathhash is different";
         return false;
     }
 
     const Server *server = Server::instance();
-    const bool separateDebugAndRelease = server && server->options().options & Server::SeparateDebugAndRelease;
-    if (separateDebugAndRelease) {
+    const Flags<Server::Option> serverFlags = server ? server->options().options : NullFlags;
+    if (serverFlags & Server::SeparateDebugAndRelease) {
         if (defines != other.defines) {
+            warning() << "defines are different 1";
             return false;
         }
     } else if (!compareDefinesNoNDEBUG(defines, other.defines)) {
+        warning() << "defines are different 2";
         return false;
     }
 
@@ -800,21 +815,27 @@ bool Source::compareArguments(const Source &other) const
     const auto hisEnd = other.arguments.end();
 
     while (me != him) {
-        if (!nextArg(me, myEnd, separateDebugAndRelease))
+        if (!nextArg(me, myEnd, serverFlags))
             break;
-        if (!nextArg(him, hisEnd, separateDebugAndRelease))
+        if (!nextArg(him, hisEnd, serverFlags)) {
+            warning() << "Couldn't find arg for him" << *me;
             return false;
+        }
         if (*me != *him) {
+            warning() << "Args are different" << *me << *him;
             return false;
         }
         ++me;
         ++him;
     }
     if (him == hisEnd) {
+        warning() << "Args are the same";
         return true;
-    } else if (!nextArg(him, hisEnd, separateDebugAndRelease)) {
+    } else if (!nextArg(him, hisEnd, serverFlags)) {
+        warning() << "Args are the same";
         return true;
     }
+    warning() << "He has an arg that I don't have" << *him;
     return false;
 }
 

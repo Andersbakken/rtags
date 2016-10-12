@@ -164,6 +164,8 @@ enum OptionType {
     RpLogToSyslog,
     StartSuspended,
     SeparateDebugAndRelease,
+    Separate32BitAnd64Bit,
+    SourceIgnoreIncludePathDifferencesInUsr,
     MaxCrashCount,
     CompletionCacheSize,
     CompletionNoFilter,
@@ -296,6 +298,8 @@ int main(int argc, char** argv)
         { RpLogToSyslog, "rp-log-to-syslog", 0, CommandLineParser::NoValue, "Make rp log to syslog." },
         { StartSuspended, "start-suspended", 'Q', CommandLineParser::NoValue, "Start out suspended (no reindexing enabled)." },
         { SeparateDebugAndRelease, "separate-debug-and-release", 'E', CommandLineParser::NoValue, "Normally rdm doesn't consider release and debug as different builds. Pass this if you want it to." },
+        { Separate32BitAnd64Bit, "separate-32-bit-and-64-bit", 0, CommandLineParser::NoValue, "Normally rdm doesn't consider -m32 and -m64 as different builds. Pass this if you want it to." },
+        { SourceIgnoreIncludePathDifferencesInUsr, "ignore-include-path-differences-in-usr", 0, CommandLineParser::NoValue, "Don't consider sources that only differ in includepaths within /usr (not including /usr/home/) as different builds." },
         { MaxCrashCount, "max-crash-count", 'K', CommandLineParser::Required, "Max number of crashes before giving up a sourcefile (default " STR(DEFAULT_MAX_CRASH_COUNT) ")." },
         { CompletionCacheSize, "completion-cache-size", 'i', CommandLineParser::Required, "Number of translation units to cache (default " STR(DEFAULT_COMPLETION_CACHE_SIZE) ")." },
         { CompletionNoFilter, "completion-no-filter", 0, CommandLineParser::NoValue, "Don't filter private members and destructors from completions." },
@@ -517,6 +521,12 @@ int main(int argc, char** argv)
             break; }
         case SeparateDebugAndRelease: {
             serverOpts.options |= Server::SeparateDebugAndRelease;
+            break; }
+        case Separate32BitAnd64Bit: {
+            serverOpts.options |= Server::Separate32BitAnd64Bit;
+            break; }
+        case SourceIgnoreIncludePathDifferencesInUsr: {
+            serverOpts.options |= Server::SourceIgnoreIncludePathDifferencesInUsr;
             break; }
         case MaxCrashCount: {
             serverOpts.maxCrashCount = atoi(value.constData());
