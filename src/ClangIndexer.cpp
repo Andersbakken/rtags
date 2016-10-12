@@ -1462,7 +1462,7 @@ CXChildVisitResult ClangIndexer::handleCursor(const CXCursor &cursor, CXCursorKi
             return CXChildVisit_Recurse;
         }
     } else {
-        if (kind == CXCursor_VarDecl) {
+        if (kind == CXCursor_VarDecl || kind == CXCursor_ParmDecl) {
             std::shared_ptr<RTags::Auto> resolvedAuto = RTags::resolveAuto(cursor);
             if (resolvedAuto) {
                 c.flags |= Symbol::Auto;
