@@ -293,3 +293,8 @@ install(FILES ../man/man7/rc.7 ../man/man7/rdm.7 DESTINATION share/man/man7/)
 if (NOT RTAGS_NO_ELISP_FILES)
     install(FILES ${RTAGS_ELISP_SOURCES} DESTINATION ${RTAGS_ELISP_INSTALL_LOCATION})
 endif ()
+
+if (CLANGTEST_ENABLED)
+    add_executable(clangtest clangtest.c)
+    target_link_libraries(clangtest ${LIBCLANG_LIBRARIES})
+endif ()
