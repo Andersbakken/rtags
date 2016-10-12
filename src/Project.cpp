@@ -750,8 +750,8 @@ void Project::onJobFinished(const std::shared_ptr<IndexerJob> &job, const std::s
                   LogOutput::StdOut|LogOutput::TrailingNewLine);
     }
 
-    save();
     if (mActiveJobs.isEmpty()) {
+        save();
         double timerElapsed = (mTimer.elapsed() / 1000.0);
         const double averageJobTime = timerElapsed / mJobsStarted;
         const String m = String::format<1024>("Jobs took %.2fs%s. We're using %lldmb of memory. ",
