@@ -4048,7 +4048,8 @@ force means do it regardless of rtags-enable-unsaved-reparsing "
   (unless buffer
     (setq buffer (current-buffer)))
   (when (and (or rtags-enable-unsaved-reparsing periodic)
-             (buffer-modified-p buffer))
+             (buffer-modified-p buffer)
+             (funcall rtags-is-indexable buffer))
     ;; check ticks since the last save to avoid parsing the file multiple times
     ;; if it has not been modified
     (let ((current-ticks (buffer-modified-tick buffer))
