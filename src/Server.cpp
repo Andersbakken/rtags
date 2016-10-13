@@ -1281,6 +1281,9 @@ void Server::clearProjects()
 {
     Path::rmdir(mOptions.dataDir);
     setCurrentProject(std::shared_ptr<Project>());
+    for (auto p : mProjects) {
+        p.second->destroy();
+    }
     mProjects.clear();
     Location::init(Hash<Path, uint32_t>());
 }
@@ -1416,6 +1419,7 @@ void Server::removeProject(const std::shared_ptr<QueryMessage> &query, const std
             RTags::encodePath(path);
             Path::rmdir(mOptions.dataDir + path);
             warning() << "Deleted" << (mOptions.dataDir + path);
+            cur->second->destroy();
             mProjects.erase(cur);
         }
     }

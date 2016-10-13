@@ -227,7 +227,7 @@ static void saveDependencies(DataFile &file, const Dependencies &dependencies)
 
 Project::Project(const Path &path)
     : mPath(path), mSourceFilePathBase(RTags::encodeSourceFilePath(Server::instance()->options().dataDir, path)),
-      mJobCounter(0), mJobsStarted(0), mBytesWritten(0)
+      mJobCounter(0), mJobsStarted(0), mBytesWritten(0), mSaveDirty(false)
 {
     Path srcPath = mPath;
     RTags::encodePath(srcPath);
@@ -239,6 +239,8 @@ Project::Project(const Path &path)
 
 Project::~Project()
 {
+    if (mSaveDirty)
+        save();
     for (const auto &job : mActiveJobs) {
         assert(job.second);
         Server::instance()->jobScheduler()->abort(job.second);
@@ -761,6 +763,8 @@ void Project::onJobFinished(const std::shared_ptr<IndexerJob> &job, const std::s
         mJobsStarted = mJobCounter = 0;
 
         // error() << "Finished this
+    } else {
+        mSaveDirty = true;
     }
 }
 
@@ -843,7 +847,7 @@ bool Project::save()
             return false;
         }
     }
-
+    mSaveDirty = false;
     return true;
 }
 
@@ -2416,7 +2420,7 @@ void Project::addCompilationDatabaseInfo(const Path &path, CompilationDataBaseIn
 {
     mCompilationDatabaseInfos[path] = std::move(info);
     watch(path, Watch_CompilationDatabase);
-    save();
+    mSaveDirty = true;
 }
 
 void Project::setCompilationDatabaseInfos(Hash<Path, CompilationDataBaseInfo> &&infos, const Set<uint64_t> &indexed)
@@ -2435,7 +2439,7 @@ void Project::setCompilationDatabaseInfos(Hash<Path, CompilationDataBaseInfo> &&
             ++it;
         }
     }
-    save();
+    mSaveDirty = true;
 }
 
 void Project::reloadCompilationDatabases()

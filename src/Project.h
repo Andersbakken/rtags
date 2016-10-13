@@ -235,6 +235,7 @@ public:
     void fixPCH(Source &source);
     void includeCompletions(Flags<QueryMessage::Flag> flags, const std::shared_ptr<Connection> &conn, Source &&source) const;
     size_t bytesWritten() const { return mBytesWritten; }
+    void destroy() { mSaveDirty = false; }
 private:
     void reloadCompilationDatabases();
     void removeSource(Sources::iterator it);
@@ -393,6 +394,7 @@ private:
     Set<uint32_t> mSuspendedFiles;
 
     size_t mBytesWritten;
+    bool mSaveDirty;
 
     mutable std::mutex mMutex;
 };
