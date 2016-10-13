@@ -2588,18 +2588,6 @@ This includes both declarations and definitions."
            rtags-overlays)
   (setq rtags-overlays (make-hash-table :test 'equal)))
 
-(defun rtags-really-find-buffer (fn)
-  (setq fn (file-truename fn))
-  (let ((ret)
-        (buffers (buffer-list)))
-    (while (and (not ret) buffers)
-      (let* ((filename (buffer-file-name (car buffers)))
-             (truename (and filename (file-truename filename))))
-        (if (and truename (string= fn truename))
-            (setq ret (car buffers))
-          (setq buffers (cdr buffers)))))
-    ret))
-
 (defvar rtags-error-warning-count nil)
 (make-variable-buffer-local 'rtags-error-warning-count)
 
@@ -2646,7 +2634,6 @@ This includes both declarations and definitions."
          (severity (nth 4 data))
          (message (nth 5 data))
          (children (nth 6 data))
-         (ret)
          (start)
          (end)
          (errorlist (gethash filename rtags-overlays nil)))
@@ -2675,13 +2662,11 @@ This includes both declarations and definitions."
           (overlay-put overlay 'rtags-error-start start)
           (overlay-put overlay 'rtags-error-end end)
           ;; (message "Got overlay %s:%d:%d %d - %d-%d - %s" filename line column (or length -1) start end severity)
-          (overlay-put overlay 'face (cond ((string= severity 'error) (setq ret 'error) 'rtags-errline)
-                                           ((string= severity 'warning) (setq ret 'warning) 'rtags-warnline)
-                                           ((string= severity 'fixit) (overlay-put overlay 'priority 1) 'rtags-fixitline)
-                                           ((string= severity 'skipped) 'rtags-skippedline)
-                                           (t 'rtags-errline)))
-          (setq errorlist (append errorlist (list overlay)))
-          (puthash filename errorlist rtags-overlays))))
+          (overlay-put overlay 'face (cond ((eq severity 'error) 'rtags-errline)
+                                           ((eq severity 'warning) 'rtags-warnline)
+                                           ((eq severity 'fixit) (overlay-put overlay 'priority 1) 'rtags-fixitline)
+                                           ((eq severity 'skipped) 'rtags-skippedline)
+                                           (t 'rtags-errline))))))
     (when start
       (let ((diagnostics-buffer (get-buffer rtags-diagnostics-buffer-name)))
         (when diagnostics-buffer
@@ -2691,8 +2676,7 @@ This includes both declarations and definitions."
               (insert (format "%s:%d:%d: fixit: %d-%d: %s\n" filename line column start end message)))
             (when (> (length message) 0)
               (insert (format "%s:%d:%d: %s: %s\n" filename line column severity message)))
-            (setq buffer-read-only t)))))
-    ret))
+            (setq buffer-read-only t)))))))
 
 (defvar rtags-last-check-style nil)
 
@@ -2703,7 +2687,7 @@ This includes both declarations and definitions."
     (let* ((cur (car checkstyle))
            (file (rtags-trampify (car cur)))
            (diags (cdr cur))
-           (buf (rtags-really-find-buffer file)))
+           (buf (find-buffer-visiting file)))
       (setq checkstyle (cdr checkstyle))
       (when buf
         (with-current-buffer buf
