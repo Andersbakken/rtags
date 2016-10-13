@@ -33,6 +33,7 @@
 (require 'company-template)
 
 (declare-function company-doc-buffer "ext:company")
+(declare-function company-manual-begin "ext:company")
 
 (defgroup company-rtags nil
   "Company completion back-end for RTags."
@@ -248,12 +249,12 @@ and `c-electric-colon', for automatic completion right after \">\" and
 
 (defun rtags-completion-at-point ()
   (when (and (company-manual-begin)
+             (boundp 'company-common)
              (looking-back company-common (line-beginning-position)))
     (list
      (match-beginning 0)
      (match-end 0)
-     company-candidates)))
-
+     (and (boundp 'company-candidates) company-candidates))))
 (provide 'company-rtags)
 
 ;;; company-rtags.el ends here
