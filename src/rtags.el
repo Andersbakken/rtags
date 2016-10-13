@@ -2550,43 +2550,65 @@ This includes both declarations and definitions."
               (delete-char (- end start)) ;; may be 0
               (insert text))))))))
 
-(defvar rtags-overlays (make-hash-table :test 'equal))
+(defvar rtags-overlays-buffers nil)
 
-(defun rtags-overlays-remove (filename)
-  (let ((errorlist (gethash filename rtags-overlays nil)))
-    (while (and errorlist (listp errorlist))
-      (delete-overlay (car errorlist))
-      (setq errorlist (cdr errorlist)))
-    (puthash filename nil rtags-overlays))
-  (let ((diagnostics-buffer (get-buffer rtags-diagnostics-buffer-name))
-        (rx (concat "^" filename ":")))
-    (when diagnostics-buffer
-      (with-current-buffer diagnostics-buffer
-        (setq buffer-read-only nil)
-        (save-excursion
-          (goto-char (point-min))
-          (while (not (eobp))
-            (if (looking-at rx)
-                (delete-char (- (1+ (point-at-eol)) (point)))
-              (forward-line))))
-        (setq buffer-read-only t)))))
+(defun rtags-overlays-buffers-add (buffer)
+  (add-to-list 'rtags-overlays-buffers buffer))
 
+(defun rtags-overlays-buffers-contains (buffer)
+  (member buffer rtags-overlays-buffers))
+
+(defun rtags-overlays-buffers-remove (buffer)
+  (setq rtags-overlays-buffers (delq buffer rtags-overlays-buffers)))
+
+(defun rtags-overlays-buffers-set (buffer on)
+  (if on
+      (rtags-overlays-buffers-add buffer)
+    (rtags-overlays-buffers-remove buffer)))
+
+(defun rtags-overlays-remove (&optional no-update-diagnostics-buffer)
+  (save-restriction
+    (widen)
+    (let ((overlays (overlay-lists)))
+      (dolist (overlay (car overlays))
+        (when (rtags-is-rtags-overlay overlay)
+          (delete-overlay overlay)))
+      (dolist (overlay (cdr overlays))
+        (when (rtags-is-rtags-overlay overlay)
+          (delete-overlay overlay)))))
+  (unless no-update-diagnostics-buffer
+    (let ((diagnostics-buffer (get-buffer rtags-diagnostics-buffer-name))
+          (rx (concat "^" (buffer-file-name) ":")))
+      (when diagnostics-buffer
+        (with-current-buffer diagnostics-buffer
+          (setq buffer-read-only nil)
+          (save-excursion
+            (goto-char (point-min))
+            (while (not (eobp))
+              (if (looking-at rx)
+                  (delete-char (- (1+ (point-at-eol)) (point)))
+                (forward-line))))
+          (setq buffer-read-only t))))))
 
 ;;;###autoload
-(defun rtags-clear-diagnostics-overlays(&optional buf)
+(defun rtags-clear-diagnostics-overlays (&optional buf)
   (interactive)
-  (let ((fn (buffer-file-name buf)))
-    (when fn
-      (rtags-overlays-remove fn))))
+  (if buf
+      (with-current-buffer buf
+        (rtags-overlays-remove))
+    (rtags-overlays-remove)))
 
 (defun rtags-clear-all-diagnostics-overlays()
   (interactive)
-  (maphash (lambda (filename errorlist)
-             (while (and errorlist (listp errorlist))
-               (delete-overlay (car errorlist))
-               (setq errorlist (cdr errorlist))))
-           rtags-overlays)
-  (setq rtags-overlays (make-hash-table :test 'equal)))
+  (dolist (buf rtags-overlays-buffers)
+    (with-current-buffer buf
+      (rtags-overlays-remove t)))
+  (let ((diagnostics-buffer (get-buffer rtags-diagnostics-buffer-name)))
+    (when diagnostics-buffer
+      (with-current-buffer diagnostics-buffer
+        (setq buffer-read-only nil)
+        (erase-buffer)
+        (setq buffer-read-only t)))))
 
 (defvar rtags-error-warning-count nil)
 (make-variable-buffer-local 'rtags-error-warning-count)
@@ -2635,8 +2657,7 @@ This includes both declarations and definitions."
          (message (nth 5 data))
          (children (nth 6 data))
          (start)
-         (end)
-         (errorlist (gethash filename rtags-overlays nil)))
+         (end))
     (save-excursion
       (when (rtags-goto-line-col line column)
         (setq start (point))
@@ -2662,11 +2683,23 @@ This includes both declarations and definitions."
           (overlay-put overlay 'rtags-error-start start)
           (overlay-put overlay 'rtags-error-end end)
           ;; (message "Got overlay %s:%d:%d %d - %d-%d - %s" filename line column (or length -1) start end severity)
-          (overlay-put overlay 'face (cond ((eq severity 'error) 'rtags-errline)
-                                           ((eq severity 'warning) 'rtags-warnline)
-                                           ((eq severity 'fixit) (overlay-put overlay 'priority 1) 'rtags-fixitline)
-                                           ((eq severity 'skipped) 'rtags-skippedline)
-                                           (t 'rtags-errline))))))
+          (overlay-put overlay 'face (cond ((eq severity 'error)
+                                            (if rtags-error-warning-count
+                                                (incf (car rtags-error-warning-count))
+                                              (setq rtags-error-warning-count (cons 1 0)))
+                                            'rtags-errline)
+                                           ((eq severity 'warning)
+                                            (if rtags-error-warning-count
+                                                (incf (cdr rtags-error-warning-count))
+                                              (setq rtags-error-warning-count (cons 0 1)))
+                                            'rtags-warnline)
+                                           ((eq severity 'fixit)
+                                            (overlay-put overlay 'priority 1)
+                                            'rtags-fixitline)
+                                           ((eq severity 'skipped)
+                                            'rtags-skippedline)
+                                           (t
+                                            'rtags-errline))))))
     (when start
       (let ((diagnostics-buffer (get-buffer rtags-diagnostics-buffer-name)))
         (when diagnostics-buffer
@@ -2683,18 +2716,17 @@ This includes both declarations and definitions."
 (defun rtags-parse-check-style (checkstyle)
   (when checkstyle
     (setq rtags-last-check-style checkstyle))
-  (while checkstyle
-    (let* ((cur (car checkstyle))
-           (file (rtags-trampify (car cur)))
+  (dolist (cur checkstyle)
+    (let* ((file (rtags-trampify (car cur)))
            (diags (cdr cur))
            (buf (find-buffer-visiting file)))
-      (setq checkstyle (cdr checkstyle))
       (when buf
         (with-current-buffer buf
-          (rtags-overlays-remove file)
-          (while diags
-            (rtags-handle-check-style file (car diags))
-            (setq diags (cdr diags)))
+          (rtags-overlays-remove)
+          (setq rtags-error-warning-count nil)
+          (rtags-overlays-buffers-set buf diags)
+          (dolist (diag diags)
+            (rtags-handle-check-style file diag))
           ;; Manually trigger Flycheck to be in sync.
           (when (and (featurep 'flycheck-rtags)
                      (bound-and-true-p flycheck-mode))
