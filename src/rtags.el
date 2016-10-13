@@ -2959,7 +2959,7 @@ This includes both declarations and definitions."
 
 (defun rtags-after-save-hook ()
   (interactive)
-  (when rtags-reindex-on-save
+  (when (and rtags-reindex-on-save (funcall rtags-is-indexable (current-buffer)))
     (rtags-call-rc :path (buffer-file-name)
                    :silent t
                    "-V" (buffer-file-name))))
