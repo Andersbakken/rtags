@@ -22,6 +22,7 @@
 #include "rct/Path.h"
 #include "rct/Set.h"
 #include "rct/String.h"
+#include "CommandLineParser.h"
 #include "rct/rct-config.h"
 
 class RCCommand;
@@ -102,6 +103,7 @@ public:
         Max,
         NoColor,
         NoContext,
+        NoRealPath,
         NoSortReferencesByInput,
         NoSpellCheckinging,
         PathFilter,
@@ -149,6 +151,7 @@ public:
         Wait,
         WildcardSymbolNames,
         XML,
+        Noop,
         NumOptions
     };
 
@@ -160,7 +163,7 @@ public:
     RClient();
     ~RClient();
     int exec();
-    CommandLineParser::ParseStatus parse(int &argc, char **argv);
+    CommandLineParser::ParseStatus parse(size_t argc, char **argv);
 
     Flags<Flag> flags() const { return mFlags; }
 
@@ -187,8 +190,7 @@ public:
     Flags<QueryMessage::Flag> queryFlags() const { return mQueryFlags; }
     int terminalWidth() const { return mTerminalWidth; }
 
-    int argc() const { return mArgc; }
-    char **argv() const { return mArgv; }
+    String commandLine() const { return mCommandLine; }
     void onNewMessage(const std::shared_ptr<Message> &message, const std::shared_ptr<Connection> &);
     List<String> environment() const;
 #ifdef RTAGS_HAS_LUA
@@ -224,9 +226,7 @@ private:
 #endif
     mutable List<String> mEnvironment;
 
-    int mArgc;
-    char **mArgv;
-
+    String mCommandLine;
     friend class CompileCommand;
 };
 

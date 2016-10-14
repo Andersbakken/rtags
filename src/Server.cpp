@@ -17,7 +17,6 @@
 #include "TokensJob.h"
 
 #include <arpa/inet.h>
-#include <clang/Basic/Version.h>
 #include <clang-c/Index.h>
 #include <clang-c/CXCompilationDatabase.h>
 #include <stdio.h>
@@ -72,6 +71,10 @@
 #ifdef CLANG_INCLUDE
 #define CLANG_INCLUDE_STR TO_STR(CLANG_INCLUDE)
 #endif
+#ifdef CLANG_VERSION
+#define CLANG_VERSION_STRING TO_STR(CLANG_VERSION)
+#endif
+
 
 // Absolute paths to search (under) for (clang) system include files
 // Iterate until we find a dir at <abspath>/clang/<version>/include.
@@ -351,7 +354,7 @@ void Server::onNewMessage(const std::shared_ptr<Message> &message, const std::sh
         break;
     case LogOutputMessage::MessageId: {
         auto msg = std::static_pointer_cast<LogOutputMessage>(message);
-        logDirect(LogLevel::Error, msg->raw(), LogOutput::StdOut|LogOutput::TrailingNewLine);
+        logDirect(LogLevel::Error, msg->commandLine(), LogOutput::StdOut|LogOutput::TrailingNewLine);
         handleLogOutputMessage(msg, connection);
         break; }
     case VisitFileMessage::MessageId:
@@ -524,7 +527,7 @@ bool Server::parse(IndexParseData &data, String &&arguments, const Path &pwd, ui
     }
 
     assert(!compileCommandsFileId || data.compileCommands.contains(compileCommandsFileId));
-    bool ret = false;
+    bool ret = (sources.isEmpty() && unresolvedPaths.size() == 1 && unresolvedPaths.front() == "-");
     int idx = 0;
     const auto &env = compileCommandsFileId ? data.compileCommands[compileCommandsFileId].environment : data.environment;
     for (Source &source : Source::parse(arguments, pwd, env, &unresolvedPaths)) {
@@ -630,7 +633,7 @@ void Server::handleIndexDataMessage(const std::shared_ptr<IndexDataMessage> &mes
 void Server::handleQueryMessage(const std::shared_ptr<QueryMessage> &message, const std::shared_ptr<Connection> &conn)
 {
     Log(message->flags() & QueryMessage::SilentQuery ? LogLevel::Warning : LogLevel::Error,
-        LogOutput::StdOut|LogOutput::TrailingNewLine) << message->raw();
+        LogOutput::StdOut|LogOutput::TrailingNewLine) << message->commandLine();
     conn->setSilent(message->flags() & QueryMessage::Silent);
 
     switch (message->type()) {
@@ -1268,7 +1271,7 @@ void Server::hasFileManager(const std::shared_ptr<QueryMessage> &query, const st
 {
     const Path path = query->query();
     std::shared_ptr<Project> project = projectForQuery(query);
-    if (project && project->fileManager() && (project->fileManager()->contains(path) || project->match(query->match()))) {
+    if (project && project->fileManager() ? project->fileManager()->contains(path) : project->match(query->match())) {
         if (!(query->flags() & QueryMessage::SilentQuery))
             warning("=> 1");
         conn->write("1");
@@ -1324,8 +1327,11 @@ void Server::clearProjects()
 {
     Path::rmdir(mOptions.dataDir);
     setCurrentProject(std::shared_ptr<Project>());
+    for (auto p : mProjects) {
+        p.second->destroy();
+    }
     mProjects.clear();
-    saveFileIds();
+    Location::init(Hash<Path, uint32_t>());
 }
 
 void Server::reindex(const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Connection> &conn)
@@ -1459,6 +1465,7 @@ void Server::removeProject(const std::shared_ptr<QueryMessage> &query, const std
             RTags::encodePath(path);
             Path::rmdir(mOptions.dataDir + path);
             warning() << "Deleted" << (mOptions.dataDir + path);
+            cur->second->destroy();
             mProjects.erase(cur);
         }
     }
@@ -1890,12 +1897,12 @@ bool Server::load()
         List<Path> projects = mOptions.dataDir.files(Path::Directory);
         for (size_t i=0; i<projects.size(); ++i) {
             const Path &file = projects.at(i);
-            Path p = file.mid(mOptions.dataDir.size());
-            Path old = p;
-            if (p.endsWith('/'))
-                p.chop(1);
-            RTags::decodePath(p);
-            if (p.isDir()) {
+            Path filePath = file.mid(mOptions.dataDir.size());
+            Path old = filePath;
+            if (filePath.endsWith('/'))
+                filePath.chop(1);
+            RTags::decodePath(filePath);
+            if (filePath.isDir()) {
                 bool remove = false;
                 if (FILE *f = fopen((file + "/project").constData(), "r")) {
                     Deserializer in(f);
@@ -1910,7 +1917,7 @@ bool Server::load()
                                   file.constData());
                             remove = true;
                         } else {
-                            addProject(p.ensureTrailingSlash());
+                            addProject(filePath.ensureTrailingSlash());
                         }
                     } else {
                         remove = true;
@@ -1934,10 +1941,10 @@ bool Server::load()
                     if (*fn == '_' || !strncmp(fn, "$_", 2))
                         return Path::Recurse;
                 } else if (!strcmp("sources", path.fileName())) {
-                    Path p = path.parentDir().fileName();
-                    if (p.endsWith("/"))
-                        p.chop(1);
-                    RTags::decodePath(p);
+                    Path filePath = path.parentDir().fileName();
+                    if (filePath.endsWith("/"))
+                        filePath.chop(1);
+                    RTags::decodePath(filePath);
 
                     String err;
                     ProjectData data;

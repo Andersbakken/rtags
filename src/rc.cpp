@@ -19,11 +19,13 @@ int main(int argc, char** argv)
 {
     RClient rc;
     int ret = 0;
-    switch (rc.parse(argc, argv)) {
+    const CommandLineParser::ParseStatus status = rc.parse(argc, argv);
+    switch (status.status) {
     case CommandLineParser::Parse_Ok:
         break;
     case CommandLineParser::Parse_Error:
         ret = 1;
+        fprintf(stderr, "%s\n", status.error.constData());
         break;
     case CommandLineParser::Parse_Exec:
         ret = rc.exec();

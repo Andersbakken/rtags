@@ -81,7 +81,10 @@ public:
         NoFileManager = (1ull << 26),
         ValidateFileMaps = (1ull << 27),
         CompletionLogs = (1ull << 28),
-        AllowWErrorAndWFatalErrors = (1ull << 29)
+        AllowWErrorAndWFatalErrors = (1ull << 29),
+        NoRealPath = (1ull << 30),
+        Separate32BitAnd64Bit = (1ull << 31),
+        SourceIgnoreIncludePathDifferencesInUsr = (1ull << 32)
     };
     struct Options {
         Options()

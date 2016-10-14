@@ -154,11 +154,6 @@ void CompletionThread::stop()
     mCondition.notify_one();
 }
 
-static inline bool isPartOfSymbol(char ch)
-{
-    return isalnum(ch) || ch == '_';
-}
-
 bool CompletionThread::compareCompletionCandidates(const Completions::Candidate *l,
                                                    const Completions::Candidate *r)
 {
@@ -315,9 +310,6 @@ void CompletionThread::process(Request *request)
         }
         for (unsigned int i = 0; i < results->NumResults; ++i) {
             const CXCursorKind kind = results->Results[i].CursorKind;
-            if (!(options.options & Server::CompletionsNoFilter) && kind == CXCursor_Destructor)
-                continue;
-
             const CXCompletionString &string = results->Results[i].CompletionString;
 
             const CXAvailabilityKind availabilityKind = clang_getCompletionAvailability(string);
@@ -351,10 +343,7 @@ void CompletionThread::process(Request *request)
                 String text = RTags::eatString(clang_getCompletionChunkText(string, j));
                 if (chunkKind == CXCompletionChunk_TypedText) {
                     node.completion = text;
-                    if (node.completion.isEmpty()
-                        || (node.completion.size() > 8
-                            && node.completion.startsWith("operator")
-                            && !isPartOfSymbol(node.completion.at(8)))) {
+                    if (node.completion.isEmpty()) {
                         ok = false;
                         break;
                     }
@@ -368,8 +357,8 @@ void CompletionThread::process(Request *request)
             }
             if (ok) {
                 const unsigned int annotations = clang_getCompletionNumAnnotations(string);
-                for (unsigned i=0; i<annotations; ++i) {
-                    const CXStringScope annotation = clang_getCompletionAnnotation(string, i);
+                for (unsigned j=0; j<annotations; ++j) {
+                    const CXStringScope annotation = clang_getCompletionAnnotation(string, j);
                     const char *cstr = clang_getCString(annotation);
                     if (const int len = strlen(cstr)) {
                         if (!node.annotation.isEmpty())
@@ -422,7 +411,7 @@ void CompletionThread::process(Request *request)
     }
 }
 
-Value CompletionThread::Completions::Candidate::toValue(unsigned int flags) const
+Value CompletionThread::Completions::Candidate::toValue(unsigned int f) const
 {
     Value ret;
     if (!completion.isEmpty())
@@ -440,7 +429,7 @@ Value CompletionThread::Completions::Candidate::toValue(unsigned int flags) cons
     String str;
     str << cursorKind;
     ret["kind"] = str;
-    if (flags & IncludeChunks && !chunks.isEmpty()) {
+    if (f & IncludeChunks && !chunks.isEmpty()) {
         Value cc;
         cc.arrayReserve(chunks.size());
         for (const auto &chunk : chunks) {

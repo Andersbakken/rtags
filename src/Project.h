@@ -235,6 +235,7 @@ public:
     size_t bytesWritten() const { return mBytesWritten; }
     Sources::const_iterator find(const Source &source) const;
     Sources::iterator find(const Source &source);
+    void destroy() { mSaveDirty = false; }
 private:
     enum VisitResult {
         Stop,
@@ -407,6 +408,7 @@ private:
     Set<uint32_t> mSuspendedFiles;
 
     size_t mBytesWritten;
+    bool mSaveDirty;
 
     mutable std::mutex mMutex;
 };

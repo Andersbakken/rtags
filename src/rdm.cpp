@@ -13,7 +13,6 @@
    You should have received a copy of the GNU General Public License
    along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 
-#include <getopt.h>
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -31,6 +30,7 @@
 #include "rct/Thread.h"
 #include "rct/ThreadPool.h"
 #include "RTags.h"
+#include "CommandLineParser.h"
 #include "Server.h"
 #ifdef HAVE_BACKTRACE
 #include <execinfo.h>
@@ -121,12 +121,6 @@ public:
     }
 };
 
-enum ConfigOptionType {
-    ConfigNone = 0,
-    Config,
-    NoRc
-};
-
 enum OptionType {
     None = 0,
     Help,
@@ -170,6 +164,8 @@ enum OptionType {
     RpLogToSyslog,
     StartSuspended,
     SeparateDebugAndRelease,
+    Separate32BitAnd64Bit,
+    SourceIgnoreIncludePathDifferencesInUsr,
     MaxCrashCount,
     CompletionCacheSize,
     CompletionNoFilter,
@@ -205,6 +201,7 @@ enum OptionType {
     RpPath,
     LogTimestamp,
     SandboxRoot,
+    NoRealPath,
     Noop
 };
 
@@ -224,84 +221,6 @@ int main(int argc, char** argv)
     Rct::findExecutablePath(*argv);
 
     bool daemon = false;
-    List<String> argCopy;
-    List<char*> argList;
-    {
-        bool norc = false;
-        Path rcfile = Path::home() + ".rdmrc";
-        opterr = 0;
-
-        StackBuffer<128, char*> originalArgv(argc);
-        memcpy(originalArgv, argv, sizeof(char*) * argc);
-        /* getopt will molest argv by moving pointers around when it sees
-         * fit. Their idea of an optional argument is different from ours so we
-         * have to take a copy of argv before they get their sticky fingers all
-         * over it.
-         *
-         * We think this should be okay for an optional argument:
-         * -s something
-         *
-         * They only populate optarg if you do:
-         * -ssomething.
-         *
-         * We don't want to copy argv into argList before processing rc files
-         * since command line args should take precedence over things in rc
-         * files.
-         *
-         */
-
-        const struct CommandLineParser::Option<ConfigOptionType> configOpts[] = {
-            { Config, "config", 'c', required_argument, "Use this file (instead of ~/.rdmrc)." },
-            { NoRc, "no-rc", 'N', no_argument, "Don't load any rc files." }
-        };
-
-        CommandLineParser::parse<ConfigOptionType>(argc, argv, configOpts, sizeof(configOpts) / sizeof(configOpts[0]),
-                                                   CommandLineParser::IgnoreUnknown, [&norc, &rcfile](ConfigOptionType type) {
-                                                       switch (type) {
-                                                       case ConfigNone:
-                                                           assert(0);
-                                                           break;
-                                                       case Config:
-                                                           rcfile = optarg;
-                                                           break;
-                                                       case NoRc:
-                                                           norc = true;
-                                                           break;
-                                                       }
-
-                                                       return CommandLineParser::Parse_Exec;
-                                                   });
-
-        argList.append(argv[0]);
-        if (!norc) {
-            String rc = Path("/etc/rdmrc").readAll();
-            if (!rc.isEmpty()) {
-                for (const String &s : rc.split('\n')) {
-                    if (!s.isEmpty() && !s.startsWith('#'))
-                        argCopy += s.split(' ');
-                }
-            }
-            if (!rcfile.isEmpty()) {
-                rc = rcfile.readAll();
-                if (!rc.isEmpty()) {
-                    for (const String& s : rc.split('\n')) {
-                        if (!s.isEmpty() && !s.startsWith('#'))
-                            argCopy += s.split(' ');
-                    }
-                }
-            }
-            const int s = argCopy.size();
-            for (int i=0; i<s; ++i) {
-                String &arg = argCopy.at(i);
-                if (!arg.isEmpty())
-                    argList.append(arg.data());
-            }
-        }
-
-        for (int i=1; i<argc; ++i)
-            argList.append(originalArgv[i]);
-    }
-
     Server::Options serverOpts;
     serverOpts.socketFile = String::format<128>("%s.rdm-sources", Path::home().constData());
     serverOpts.jobCount = std::max(2, ThreadPool::idealThreadCount());
@@ -327,452 +246,450 @@ int main(int argc, char** argv)
     // #endif
     serverOpts.dataDir = String::format<128>("%s.rtags-sources", Path::home().constData());
 
-    const char *logFile = 0;
+    Path logFile;
     Flags<LogFlag> logFlags = DontRotate|LogStderr;
     LogLevel logLevel(LogLevel::Error);
     LogLevel logFileLogLevel(LogLevel::Error);
     bool sigHandler = true;
     assert(Path::home().endsWith('/'));
-    int argCount = argList.size();
-    char **args = argList.data();
     int inactivityTimeout = 0;
 
-    const struct CommandLineParser::Option<OptionType> opts[] = {
-        { None, 0, 0, 0, "Options:" },
-        { Help, "help", 'h', no_argument, "Display this page." },
-        { Version, "version", 0, no_argument, "Display version." },
-        { IncludePath, "include-path", 'I', required_argument, "Add additional include path to clang." },
-        { Isystem, "isystem", 's', required_argument, "Add additional system include path to clang." },
-        { Define, "define", 'D', required_argument, "Add additional define directive to clang" },
-        { LogFile, "log-file", 'L', required_argument, "Log to this file." },
-        { CrashDumpFile, "crash-dump-file", 0, required_argument, "File to dump crash log to (default is <datadir>/crash.dump)." },
-        { SetEnv, "setenv", 'e', required_argument, "Set this environment variable (--setenv \"foobar=1\")." },
-        { NoWall, "no-Wall", 'W', no_argument, "Don't use -Wall." },
-        { Weverything, "Weverything", 'u', no_argument, "Use -Weverything." },
-        { Verbose, "verbose", 'v', no_argument, "Change verbosity, multiple -v's are allowed." },
-        { JobCount, "job-count", 'j', required_argument, String::format("Spawn this many concurrent processes for indexing (default %d).",
-                                                                        std::max(2, ThreadPool::idealThreadCount())) },
-        { HeaderErrorJobCount, "header-error-job-count", 'H', required_argument, "Allow this many concurrent header error jobs (default std::max(1, --job-count / 2))." },
-        { Test, "test", 't', required_argument, "Run this test." },
-        { TestTimeout, "test-timeout", 'z', required_argument, "Timeout for test to complete." },
-        { CleanSlate, "clean-slate", 'C', no_argument, "Clear out all data." },
-        { DisableSigHandler, "disable-sighandler", 'x', no_argument, "Disable signal handler to dump stack for crashes." },
-        { Silent, "silent", 'S', no_argument, "No logging to stdout/stderr." },
-        { ExcludeFilter, "exclude-filter", 'X', required_argument, "Files to exclude from rdm, default \"" DEFAULT_EXCLUDEFILTER "\"." },
-        { SocketFile, "socket-file", 'n', required_argument, "Use this file for the server socket (default ~/.rdm)." },
-        { DataDir, "data-dir", 'd', required_argument, "Use this directory to store persistent data (default ~/.rtags)." },
-        { IgnorePrintfFixits, "ignore-printf-fixits", 'F', no_argument, "Disregard any clang fixit that looks like it's trying to fix format for printf and friends." },
-        { ErrorLimit, "error-limit", 'f', required_argument, "Set error limit to argument (-ferror-limit={arg} (default " STR(DEFAULT_ERROR_LIMIT) ")." },
-        { BlockArgument, "block-argument", 'G', required_argument, "Block this argument from being passed to clang. E.g. rdm --block-argument -fno-inline" },
-        { NoSpellChecking, "no-spell-checking", 'l', no_argument, "Don't pass -fspell-checking." },
-        { LargeByValueCopy, "large-by-value-copy", 'r', required_argument, "Use -Wlarge-by-value-copy=[arg] when invoking clang." },
-        { DisallowMultipleSources, "disallow-multiple-sources", 'm', no_argument, "With this setting different sources will be merged for each source file." },
-        { NoStartupProject, "no-startup-project", 'o', no_argument, "Don't restore the last current project on startup." },
-        { NoNoUnknownWarningsOption, "no-no-unknown-warnings-option", 'Y', no_argument, "Don't pass -Wno-unknown-warning-option." },
-        { IgnoreCompiler, "ignore-compiler", 'b', required_argument, "Ignore this compiler." },
-        { CompilerWrappers, "compiler-wrappers", 0, required_argument, "Consider these filenames compiler wrappers (split on ;), default " DEFAULT_COMPILER_WRAPPERS "\"." },
-        { WatchSystemPaths, "watch-system-paths", 'w', no_argument, "Watch system paths for changes." },
-        { RpVisitFileTimeout, "rp-visit-file-timeout", 'Z', required_argument, "Timeout for rp visitfile commands in ms (0 means no timeout) (default " STR(DEFAULT_RP_VISITFILE_TIMEOUT) ")." },
-        { RpIndexerMessageTimeout, "rp-indexer-message-timeout", 'T', required_argument, "Timeout for rp indexer-message in ms (0 means no timeout) (default " STR(DEFAULT_RP_INDEXER_MESSAGE_TIMEOUT) ")." },
-        { RpConnectTimeout, "rp-connect-timeout", 'O', required_argument, "Timeout for connection from rp to rdm in ms (0 means no timeout) (default " STR(DEFAULT_RP_CONNECT_TIMEOUT) ")." },
-        { RpConnectAttempts, "rp-connect-attempts", 0, required_argument, "Number of times rp attempts to connect to rdm before giving up. (default " STR(DEFAULT_RP_CONNECT_ATTEMPTS) ")." },
-        { RpNiceValue, "rp-nice-value", 'a', required_argument, "Nice value to use for rp (nice(2)) (default is no nicing)." },
-        { SuspendRpOnCrash, "suspend-rp-on-crash", 'q', no_argument, "Suspend rp in SIGSEGV handler (default " DEFAULT_SUSPEND_RP ")." },
-        { RpLogToSyslog, "rp-log-to-syslog", 0, no_argument, "Make rp log to syslog." },
-        { StartSuspended, "start-suspended", 'Q', no_argument, "Start out suspended (no reindexing enabled)." },
-        { SeparateDebugAndRelease, "separate-debug-and-release", 'E', no_argument, "Normally rdm doesn't consider release and debug as different builds. Pass this if you want it to." },
-        { MaxCrashCount, "max-crash-count", 'K', required_argument, "Max number of crashes before giving up a sourcefile (default " STR(DEFAULT_MAX_CRASH_COUNT) ")." },
-        { CompletionCacheSize, "completion-cache-size", 'i', required_argument, "Number of translation units to cache (default " STR(DEFAULT_COMPLETION_CACHE_SIZE) ")." },
-        { CompletionNoFilter, "completion-no-filter", 0, no_argument, "Don't filter private members and destructors from completions." },
-        { CompletionLogs, "completion-logs", 0, no_argument, "Log more info about completions." },
-        { MaxIncludeCompletionDepth, "max-include-completion-depth", 0, required_argument, "Max recursion depth for header completion (default " STR(DEFAULT_MAX_INCLUDE_COMPLETION_DEPTH) ")." },
-        { AllowWpedantic, "allow-Wpedantic", 'P', no_argument, "Don't strip out -Wpedantic. This can cause problems in certain projects." },
-        { AllowWErrorAndWFatalErrors, "allow-Werror", 0, no_argument, "Don't strip out -Werror and -Wfatal-error. By default these are stripped out. " },
-        { EnableCompilerManager, "enable-compiler-manager", 'R', no_argument, "Query compilers for their actual include paths instead of letting clang use its own." },
-        { EnableNDEBUG, "enable-NDEBUG", 'g', no_argument, "Don't remove -DNDEBUG from compile lines." },
-        { Progress, "progress", 'p', no_argument, "Report compilation progress in diagnostics output." },
-        { MaxFileMapCacheSize, "max-file-map-cache-size", 'y', required_argument, "Max files to cache per query (Should not exceed maximum number of open file descriptors allowed per process) (default " STR(DEFAULT_RDM_MAX_FILE_MAP_CACHE_SIZE) ")." },
+    const std::initializer_list<CommandLineParser::Option<OptionType> > opts = {
+        { None, 0, 0, CommandLineParser::NoValue, "Options:" },
+        { Help, "help", 'h', CommandLineParser::NoValue, "Display this page." },
+        { Version, "version", 0, CommandLineParser::NoValue, "Display version." },
+        { IncludePath, "include-path", 'I', CommandLineParser::Required, "Add additional include path to clang." },
+        { Isystem, "isystem", 's', CommandLineParser::Required, "Add additional system include path to clang." },
+        { Define, "define", 'D', CommandLineParser::Required, "Add additional define directive to clang" },
+        { LogFile, "log-file", 'L', CommandLineParser::Required, "Log to this file." },
+        { CrashDumpFile, "crash-dump-file", 0, CommandLineParser::Required, "File to dump crash log to (default is <datadir>/crash.dump)." },
+        { SetEnv, "setenv", 'e', CommandLineParser::Required, "Set this environment variable (--setenv \"foobar=1\")." },
+        { NoWall, "no-Wall", 'W', CommandLineParser::NoValue, "Don't use -Wall." },
+        { Weverything, "Weverything", 'u', CommandLineParser::NoValue, "Use -Weverything." },
+        { Verbose, "verbose", 'v', CommandLineParser::NoValue, "Change verbosity, multiple -v's are allowed." },
+        { JobCount, "job-count", 'j', CommandLineParser::Required, String::format("Spawn this many concurrent processes for indexing (default %d).",
+                                                                                  std::max(2, ThreadPool::idealThreadCount())) },
+        { HeaderErrorJobCount, "header-error-job-count", 'H', CommandLineParser::Required, "Allow this many concurrent header error jobs (default std::max(1, --job-count / 2))." },
+        { Test, "test", 't', CommandLineParser::Required, "Run this test." },
+        { TestTimeout, "test-timeout", 'z', CommandLineParser::Required, "Timeout for test to complete." },
+        { CleanSlate, "clean-slate", 'C', CommandLineParser::NoValue, "Clear out all data." },
+        { DisableSigHandler, "disable-sighandler", 'x', CommandLineParser::NoValue, "Disable signal handler to dump stack for crashes." },
+        { Silent, "silent", 'S', CommandLineParser::NoValue, "No logging to stdout/stderr." },
+        { ExcludeFilter, "exclude-filter", 'X', CommandLineParser::Required, "Files to exclude from rdm, default \"" DEFAULT_EXCLUDEFILTER "\"." },
+        { SocketFile, "socket-file", 'n', CommandLineParser::Required, "Use this file for the server socket (default ~/.rdm)." },
+        { DataDir, "data-dir", 'd', CommandLineParser::Required, "Use this directory to store persistent data (default ~/.rtags)." },
+        { IgnorePrintfFixits, "ignore-printf-fixits", 'F', CommandLineParser::NoValue, "Disregard any clang fixit that looks like it's trying to fix format for printf and friends." },
+        { ErrorLimit, "error-limit", 'f', CommandLineParser::Required, "Set error limit to argument (-ferror-limit={arg} (default " STR(DEFAULT_ERROR_LIMIT) ")." },
+        { BlockArgument, "block-argument", 'G', CommandLineParser::Required, "Block this argument from being passed to clang. E.g. rdm --block-argument -fno-inline" },
+        { NoSpellChecking, "no-spell-checking", 'l', CommandLineParser::NoValue, "Don't pass -fspell-checking." },
+        { LargeByValueCopy, "large-by-value-copy", 'r', CommandLineParser::Required, "Use -Wlarge-by-value-copy=[arg] when invoking clang." },
+        { DisallowMultipleSources, "disallow-multiple-sources", 'm', CommandLineParser::NoValue, "With this setting different sources will be merged for each source file." },
+        { NoStartupProject, "no-startup-project", 'o', CommandLineParser::NoValue, "Don't restore the last current project on startup." },
+        { NoNoUnknownWarningsOption, "no-no-unknown-warnings-option", 'Y', CommandLineParser::NoValue, "Don't pass -Wno-unknown-warning-option." },
+        { IgnoreCompiler, "ignore-compiler", 'b', CommandLineParser::Required, "Ignore this compiler." },
+        { CompilerWrappers, "compiler-wrappers", 0, CommandLineParser::Required, "Consider these filenames compiler wrappers (split on ;), default " DEFAULT_COMPILER_WRAPPERS "\"." },
+        { WatchSystemPaths, "watch-system-paths", 'w', CommandLineParser::NoValue, "Watch system paths for changes." },
+        { RpVisitFileTimeout, "rp-visit-file-timeout", 'Z', CommandLineParser::Required, "Timeout for rp visitfile commands in ms (0 means no timeout) (default " STR(DEFAULT_RP_VISITFILE_TIMEOUT) ")." },
+        { RpIndexerMessageTimeout, "rp-indexer-message-timeout", 'T', CommandLineParser::Required, "Timeout for rp indexer-message in ms (0 means no timeout) (default " STR(DEFAULT_RP_INDEXER_MESSAGE_TIMEOUT) ")." },
+        { RpConnectTimeout, "rp-connect-timeout", 'O', CommandLineParser::Required, "Timeout for connection from rp to rdm in ms (0 means no timeout) (default " STR(DEFAULT_RP_CONNECT_TIMEOUT) ")." },
+        { RpConnectAttempts, "rp-connect-attempts", 0, CommandLineParser::Required, "Number of times rp attempts to connect to rdm before giving up. (default " STR(DEFAULT_RP_CONNECT_ATTEMPTS) ")." },
+        { RpNiceValue, "rp-nice-value", 'a', CommandLineParser::Required, "Nice value to use for rp (nice(2)) (default is no nicing)." },
+        { SuspendRpOnCrash, "suspend-rp-on-crash", 'q', CommandLineParser::NoValue, "Suspend rp in SIGSEGV handler (default " DEFAULT_SUSPEND_RP ")." },
+        { RpLogToSyslog, "rp-log-to-syslog", 0, CommandLineParser::NoValue, "Make rp log to syslog." },
+        { StartSuspended, "start-suspended", 'Q', CommandLineParser::NoValue, "Start out suspended (no reindexing enabled)." },
+        { SeparateDebugAndRelease, "separate-debug-and-release", 'E', CommandLineParser::NoValue, "Normally rdm doesn't consider release and debug as different builds. Pass this if you want it to." },
+        { Separate32BitAnd64Bit, "separate-32-bit-and-64-bit", 0, CommandLineParser::NoValue, "Normally rdm doesn't consider -m32 and -m64 as different builds. Pass this if you want it to." },
+        { SourceIgnoreIncludePathDifferencesInUsr, "ignore-include-path-differences-in-usr", 0, CommandLineParser::NoValue, "Don't consider sources that only differ in includepaths within /usr (not including /usr/home/) as different builds." },
+        { MaxCrashCount, "max-crash-count", 'K', CommandLineParser::Required, "Max number of crashes before giving up a sourcefile (default " STR(DEFAULT_MAX_CRASH_COUNT) ")." },
+        { CompletionCacheSize, "completion-cache-size", 'i', CommandLineParser::Required, "Number of translation units to cache (default " STR(DEFAULT_COMPLETION_CACHE_SIZE) ")." },
+        { CompletionNoFilter, "completion-no-filter", 0, CommandLineParser::NoValue, "Don't filter private members and destructors from completions." },
+        { CompletionLogs, "completion-logs", 0, CommandLineParser::NoValue, "Log more info about completions." },
+        { MaxIncludeCompletionDepth, "max-include-completion-depth", 0, CommandLineParser::Required, "Max recursion depth for header completion (default " STR(DEFAULT_MAX_INCLUDE_COMPLETION_DEPTH) ")." },
+        { AllowWpedantic, "allow-Wpedantic", 'P', CommandLineParser::NoValue, "Don't strip out -Wpedantic. This can cause problems in certain projects." },
+        { AllowWErrorAndWFatalErrors, "allow-Werror", 0, CommandLineParser::NoValue, "Don't strip out -Werror and -Wfatal-error. By default these are stripped out. " },
+        { EnableCompilerManager, "enable-compiler-manager", 'R', CommandLineParser::NoValue, "Query compilers for their actual include paths instead of letting clang use its own." },
+        { EnableNDEBUG, "enable-NDEBUG", 'g', CommandLineParser::NoValue, "Don't remove -DNDEBUG from compile lines." },
+        { Progress, "progress", 'p', CommandLineParser::NoValue, "Report compilation progress in diagnostics output." },
+        { MaxFileMapCacheSize, "max-file-map-cache-size", 'y', CommandLineParser::Required, "Max files to cache per query (Should not exceed maximum number of open file descriptors allowed per process) (default " STR(DEFAULT_RDM_MAX_FILE_MAP_CACHE_SIZE) ")." },
 #ifdef FILEMANAGER_OPT_IN
-        { FileManagerWatch, "filemanager-watch", 'M', no_argument, "Use a file system watcher for filemanager." },
+        { FileManagerWatch, "filemanager-watch", 'M', CommandLineParser::NoValue, "Use a file system watcher for filemanager." },
 #else
-        { NoFileManagerWatch, "no-filemanager-watch", 'M', no_argument, "Don't use a file system watcher for filemanager." },
+        { NoFileManagerWatch, "no-filemanager-watch", 'M', CommandLineParser::NoValue, "Don't use a file system watcher for filemanager." },
 #endif
-        { NoFileManager, "no-filemanager", 0, no_argument, "Don't scan project directory for files. (rc -P won't work)." },
-        { NoFileLock, "no-file-lock", 0, no_argument, "Disable file locking. Not entirely safe but might improve performance on certain systems." },
-        { PchEnabled, "pch-enabled", 0, no_argument, "Enable PCH (experimental)." },
-        { NoFilesystemWatcher, "no-filesystem-watcher", 'B', no_argument, "Disable file system watching altogether. Reindexing has to be triggered manually." },
-        { ArgTransform, "arg-transform", 'V', required_argument, "Use arg to transform arguments. [arg] should be executable with (execv(3))." },
-        { NoComments, "no-comments", 0, no_argument, "Don't parse/store doxygen comments." },
+        { NoFileManager, "no-filemanager", 0, CommandLineParser::NoValue, "Don't scan project directory for files. (rc -P won't work)." },
+        { NoFileLock, "no-file-lock", 0, CommandLineParser::NoValue, "Disable file locking. Not entirely safe but might improve performance on certain systems." },
+        { PchEnabled, "pch-enabled", 0, CommandLineParser::NoValue, "Enable PCH (experimental)." },
+        { NoFilesystemWatcher, "no-filesystem-watcher", 'B', CommandLineParser::NoValue, "Disable file system watching altogether. Reindexing has to be triggered manually." },
+        { ArgTransform, "arg-transform", 'V', CommandLineParser::Required, "Use arg to transform arguments. [arg] should be executable with (execv(3))." },
+        { NoComments, "no-comments", 0, CommandLineParser::NoValue, "Don't parse/store doxygen comments." },
 #ifdef RTAGS_HAS_LAUNCHD
-        { Launchd, "launchd", 0, no_argument, "Run as a launchd job (use launchd API to retrieve socket opened by launchd on rdm's behalf)." },
+        { Launchd, "launchd", 0, CommandLineParser::NoValue, "Run as a launchd job (use launchd API to retrieve socket opened by launchd on rdm's behalf)." },
 #endif
-        { InactivityTimeout, "inactivity-timeout", 0, required_argument, "Time in seconds after which rdm will quit if there's been no activity (N.B., once rdm has quit, something will need to re-run it!)." },
-        { Daemon, "daemon", 0, no_argument, "Run as daemon (detach from terminal)." },
-        { LogFileLogLevel, "log-file-log-level", 0, required_argument, "Log level for log file (default is error), options are: error, warning, debug or verbose-debug." },
-        { WatchSourcesOnly, "watch-sources-only", 0, no_argument, "Only watch source files (not dependencies)." },
-        { DebugLocations, "debug-locations", 0, no_argument, "Set debug locations." },
-        { ValidateFileMaps, "validate-file-maps", 0, no_argument, "Spend some time validating project data on startup." },
-        { TcpPort, "tcp-port", 0, required_argument, "Listen on this tcp socket (default none)." },
-        { RpPath, "rp-path", 0, required_argument, String::format<256>("Path to rp (default %s).", defaultRP().constData()) },
-        { LogTimestamp, "log-timestamp", 0, no_argument, "Add timestamp to logs." },
-        { SandboxRoot, "sandbox-root",  0, required_argument, "Create index using relative paths by stripping dir (enables copying of tag index db files without need to reindex)." },
-        { Noop, "config", 'c', required_argument, "Use this file (instead of ~/.rdmrc)." },
-        { Noop, "no-rc", 'N', no_argument, "Don't load any rc files." }
+        { InactivityTimeout, "inactivity-timeout", 0, CommandLineParser::Required, "Time in seconds after which rdm will quit if there's been no activity (N.B., once rdm has quit, something will need to re-run it!)." },
+        { Daemon, "daemon", 0, CommandLineParser::NoValue, "Run as daemon (detach from terminal)." },
+        { LogFileLogLevel, "log-file-log-level", 0, CommandLineParser::Required, "Log level for log file (default is error), options are: error, warning, debug or verbose-debug." },
+        { WatchSourcesOnly, "watch-sources-only", 0, CommandLineParser::NoValue, "Only watch source files (not dependencies)." },
+        { DebugLocations, "debug-locations", 0, CommandLineParser::NoValue, "Set debug locations." },
+        { ValidateFileMaps, "validate-file-maps", 0, CommandLineParser::NoValue, "Spend some time validating project data on startup." },
+        { TcpPort, "tcp-port", 0, CommandLineParser::Required, "Listen on this tcp socket (default none)." },
+        { RpPath, "rp-path", 0, CommandLineParser::Required, String::format<256>("Path to rp (default %s).", defaultRP().constData()) },
+        { LogTimestamp, "log-timestamp", 0, CommandLineParser::NoValue, "Add timestamp to logs." },
+        { SandboxRoot, "sandbox-root",  0, CommandLineParser::Required, "Create index using relative paths by stripping dir (enables copying of tag index db files without need to reindex)." },
+        { NoRealPath, "no-realpath", 0, CommandLineParser::NoValue, "Don't use realpath(3) for files" },
+        { Noop, "config", 'c', CommandLineParser::Required, "Use this file (instead of ~/.rdmrc)." },
+        { Noop, "no-rc", 'N', CommandLineParser::NoValue, "Don't load any rc files." }
     };
 
-    std::function<CommandLineParser::ParseStatus(OptionType type)> cb;
-    cb = [&](OptionType type) {
+    std::function<CommandLineParser::ParseStatus(OptionType type, String &&value, size_t &idx, const List<String> &args)> cb;
+    cb = [&](OptionType type, String &&value, size_t &, const List<String> &) -> CommandLineParser::ParseStatus {
         switch (type) {
         case None:
         case Noop:
-            break;
-        case Help:
-            CommandLineParser::help(stdout, Rct::executablePath().fileName(), opts, sizeof(opts) / sizeof(opts[0]));
-            return CommandLineParser::Parse_Ok;
-        case Version:
+        break;
+        case Help: {
+            CommandLineParser::help(stdout, Rct::executablePath().fileName(), opts);
+            return { String(), CommandLineParser::Parse_Ok }; }
+        case Version: {
             fprintf(stdout, "%s\n", RTags::versionString().constData());
-            return CommandLineParser::Parse_Ok;
-        case IncludePath:
-            serverOpts.includePaths.append(Source::Include(Source::Include::Type_Include, Path::resolved(optarg)));
-            break;
-        case Isystem:
-            serverOpts.includePaths.append(Source::Include(Source::Include::Type_System, Path::resolved(optarg)));
-            break;
-
+            return { String(), CommandLineParser::Parse_Ok }; }
+        case IncludePath: {
+            serverOpts.includePaths.append(Source::Include(Source::Include::Type_Include, Path::resolved(value)));
+            break; }
+        case Isystem: {
+            serverOpts.includePaths.append(Source::Include(Source::Include::Type_System, Path::resolved(value)));
+            break; }
         case Define: {
-            const char *eq = strchr(optarg, '=');
+            const size_t eq = value.indexOf('=');
             Source::Define def;
-            if (!eq) {
-                def.define = optarg;
+            if (eq == String::npos) {
+                def.define = std::move(value);
             } else {
-                def.define = String(optarg, eq - optarg);
-                def.value = eq + 1;
+                def.define = value.left(eq);
+                def.value = value.mid(eq + 1);
             }
             serverOpts.defines.append(def);
             break; }
-        case LogFile:
-            logFile = optarg;
+        case LogFile: {
+            logFile = std::move(value);
+            logFile.resolve();
             logLevel = LogLevel::None;
-            break;
-        case CrashDumpFile:
-            strcpy(crashDumpFilePath, optarg);
-            break;
-        case SetEnv:
-            putenv(optarg);
-            break;
-        case NoWall:
+            break; }
+        case CrashDumpFile: {
+            strncpy(crashDumpFilePath, value.constData(), sizeof(crashDumpFilePath) - 1);
+            break; }
+        case SetEnv: {
+            putenv(&value[0]);
+            break; }
+        case NoWall: {
             serverOpts.options &= ~Server::Wall;
-            break;
-        case Weverything:
+            break; }
+        case Weverything: {
             serverOpts.options |= Server::Weverything;
-            break;
-        case Verbose:
+            break; }
+        case Verbose: {
             if (logLevel != LogLevel::None)
                 ++logLevel;
-            break;
+            break; }
         case JobCount: {
             bool ok;
-            serverOpts.jobCount = String(optarg).toULong(&ok);
+            serverOpts.jobCount = String(value).toULong(&ok);
             if (!ok) {
-                fprintf(stderr, "Can't parse argument to -j %s. -j must be a positive integer.\n", optarg);
-                return CommandLineParser::Parse_Error;
+                return { String::format<1024>("Can't parse argument to -j %s. -j must be a positive integer.\n", value.constData()), CommandLineParser::Parse_Error };
             }
             break; }
         case HeaderErrorJobCount: {
             bool ok;
-            serverOpts.headerErrorJobCount = String(optarg).toULong(&ok);
+            serverOpts.headerErrorJobCount = String(value).toULong(&ok);
             if (!ok) {
-                fprintf(stderr, "Can't parse argument to -H %s. -H must be a positive integer.\n", optarg);
-                return CommandLineParser::Parse_Error;
+                return { String::format<1024>("Can't parse argument to -H %s. -H must be a positive integer.", value.constData()), CommandLineParser::Parse_Error };
             }
             break; }
         case Test: {
-            Path test(optarg);
+            Path test(value);
             if (!test.resolve() || !test.isFile()) {
-                fprintf(stderr, "%s doesn't seem to be a file\n", optarg);
-                return CommandLineParser::Parse_Error;
+                return { String::format<1024>("%s doesn't seem to be a file", value.constData()), CommandLineParser::Parse_Error };
             }
             serverOpts.tests += test;
             break; }
-        case TestTimeout:
-            serverOpts.testTimeout = atoi(optarg);
+        case TestTimeout: {
+            serverOpts.testTimeout = atoi(value.constData());
             if (serverOpts.testTimeout <= 0) {
-                fprintf(stderr, "Invalid argument to -z %s\n", optarg);
-                return CommandLineParser::Parse_Error;
+                return { String::format<1024>("Invalid argument to -z %s", value.constData()), CommandLineParser::Parse_Error };
             }
-            break;
-        case CleanSlate:
+            break; }
+        case CleanSlate: {
             serverOpts.options |= Server::ClearProjects;
-            break;
-        case DisableSigHandler:
+            break; }
+        case DisableSigHandler: {
             sigHandler = false;
-            break;
-        case Silent:
+            break; }
+        case Silent: {
             logLevel = LogLevel::None;
-            break;
-        case ExcludeFilter:
-            serverOpts.excludeFilters += String(optarg).split(';');
-            break;
-        case SocketFile:
-            serverOpts.socketFile = optarg;
+            break; }
+        case ExcludeFilter: {
+            serverOpts.excludeFilters += String(value).split(';');
+            break; }
+        case SocketFile: {
+            serverOpts.socketFile = std::move(value);
             serverOpts.socketFile.resolve();
-            break;
-        case DataDir:
-            serverOpts.dataDir = String::format<128>("%s", Path::resolved(optarg).constData());
-            break;
-        case IgnorePrintfFixits:
+            break; }
+        case DataDir: {
+            serverOpts.dataDir = String::format<128>("%s", Path::resolved(value).constData());
+            break; }
+        case IgnorePrintfFixits: {
             serverOpts.options |= Server::IgnorePrintfFixits;
-            break;
+            break; }
         case ErrorLimit: {
             bool ok;
-            serverOpts.errorLimit = String(optarg).toULong(&ok);
+            serverOpts.errorLimit = String(value).toULong(&ok);
             if (!ok) {
-                fprintf(stderr, "Can't parse argument to --error-limit %s\n", optarg);
-                return CommandLineParser::Parse_Error;
+                return { String::format<1024>("Can't parse argument to --error-limit %s", value.constData()), CommandLineParser::Parse_Error };
             }
             break; }
-        case BlockArgument:
-            serverOpts.blockedArguments << optarg;
-            break;
-        case NoSpellChecking:
+        case BlockArgument: {
+            serverOpts.blockedArguments << value;
+            break; }
+        case NoSpellChecking: {
             serverOpts.options &= ~Server::SpellChecking;
-            break;
-        case LargeByValueCopy: {
-            int large = atoi(optarg);
-            if (large <= 0) {
-                fprintf(stderr, "Can't parse argument to -r %s\n", optarg);
-                return CommandLineParser::Parse_Error;
-            }
-            serverOpts.defaultArguments.append("-Wlarge-by-value-copy=" + String(optarg)); // ### not quite working
             break; }
-        case DisallowMultipleSources:
+        case LargeByValueCopy: {
+            int large = atoi(value.constData());
+            if (large <= 0) {
+                return { String::format<1024>("Can't parse argument to -r %s", value.constData()), CommandLineParser::Parse_Error };
+            }
+            serverOpts.defaultArguments.append("-Wlarge-by-value-copy=" + String(value)); // ### not quite working
+            break; }
+        case DisallowMultipleSources: {
             serverOpts.options |= Server::DisallowMultipleSources;
-            break;
-        case NoStartupProject:
+            break; }
+        case NoStartupProject: {
             serverOpts.options |= Server::NoStartupCurrentProject;
-            break;
-        case NoNoUnknownWarningsOption:
+            break; }
+        case NoNoUnknownWarningsOption: {
             serverOpts.options |= Server::NoNoUnknownWarningsOption;
-            break;
-        case IgnoreCompiler:
-            serverOpts.ignoredCompilers.insert(Path::resolved(optarg));
-            break;
-        case CompilerWrappers:
-            serverOpts.compilerWrappers = String(optarg).split(";", String::SkipEmpty).toSet();
-            break;
-        case WatchSystemPaths:
+            break; }
+        case IgnoreCompiler: {
+            serverOpts.ignoredCompilers.insert(Path::resolved(value));
+            break; }
+        case CompilerWrappers: {
+            serverOpts.compilerWrappers = String(value).split(";", String::SkipEmpty).toSet();
+            break; }
+        case WatchSystemPaths: {
             serverOpts.options |= Server::WatchSystemPaths;
-            break;
-        case RpVisitFileTimeout:
-            serverOpts.rpVisitFileTimeout = atoi(optarg);
+            break; }
+        case RpVisitFileTimeout: {
+            serverOpts.rpVisitFileTimeout = atoi(value.constData());
             if (serverOpts.rpVisitFileTimeout < 0) {
-                fprintf(stderr, "Invalid argument to -Z %s\n", optarg);
-                return CommandLineParser::Parse_Error;
+                return { String::format<1024>("Invalid argument to -Z %s", value.constData()), CommandLineParser::Parse_Error };
             }
             if (!serverOpts.rpVisitFileTimeout)
                 serverOpts.rpVisitFileTimeout = -1;
-            break;
-        case RpIndexerMessageTimeout:
-            serverOpts.rpIndexDataMessageTimeout = atoi(optarg);
+            break; }
+        case RpIndexerMessageTimeout: {
+            serverOpts.rpIndexDataMessageTimeout = atoi(value.constData());
             if (serverOpts.rpIndexDataMessageTimeout <= 0) {
-                fprintf(stderr, "Can't parse argument to -T %s.\n", optarg);
-                return CommandLineParser::Parse_Error;
-            }
-            break;
-        case RpConnectTimeout:
-            serverOpts.rpConnectTimeout = atoi(optarg);
-            if (serverOpts.rpConnectTimeout < 0) {
-                fprintf(stderr, "Invalid argument to -O %s\n", optarg);
-                return CommandLineParser::Parse_Error;
-            }
-            break;
-        case RpConnectAttempts:
-            serverOpts.rpConnectAttempts = atoi(optarg);
-            if (serverOpts.rpConnectAttempts <= 0) {
-                fprintf(stderr, "Invalid argument to --rp-connect-attempts %s\n", optarg);
-                return CommandLineParser::Parse_Error;
-            }
-            break;
-        case RpNiceValue: {
-            bool ok;
-            serverOpts.rpNiceValue = String(optarg).toLong(&ok);
-            if (!ok) {
-                fprintf(stderr, "Can't parse argument to -a %s.\n", optarg);
-                return CommandLineParser::Parse_Error;
+                return { String::format<1024>("Can't parse argument to -T %s.", value.constData()), CommandLineParser::Parse_Error };
             }
             break; }
-        case SuspendRpOnCrash:
+        case RpConnectTimeout: {
+            serverOpts.rpConnectTimeout = atoi(value.constData());
+            if (serverOpts.rpConnectTimeout < 0) {
+                return { String::format<1024>("Invalid argument to -O %s", value.constData()), CommandLineParser::Parse_Error };
+            }
+            break; }
+        case RpConnectAttempts: {
+            serverOpts.rpConnectAttempts = atoi(value.constData());
+            if (serverOpts.rpConnectAttempts <= 0) {
+                return { String::format<1024>("Invalid argument to --rp-connect-attempts %s", value.constData()), CommandLineParser::Parse_Error };
+            }
+            break; }
+        case RpNiceValue: {
+            bool ok;
+            serverOpts.rpNiceValue = String(value).toLong(&ok);
+            if (!ok) {
+                return { String::format<1024>("Can't parse argument to -a %s.", value.constData()), CommandLineParser::Parse_Error };
+            }
+            break; }
+        case SuspendRpOnCrash: {
             serverOpts.options |= Server::SuspendRPOnCrash;
-            break;
-        case RpLogToSyslog:
+            break; }
+        case RpLogToSyslog: {
             serverOpts.options |= Server::RPLogToSyslog;
-            break;
-        case StartSuspended:
+            break; }
+        case StartSuspended: {
             serverOpts.options |= Server::StartSuspended;
-            break;
-        case SeparateDebugAndRelease:
+            break; }
+        case SeparateDebugAndRelease: {
             serverOpts.options |= Server::SeparateDebugAndRelease;
-            break;
-        case MaxCrashCount:
-            serverOpts.maxCrashCount = atoi(optarg);
+            break; }
+        case Separate32BitAnd64Bit: {
+            serverOpts.options |= Server::Separate32BitAnd64Bit;
+            break; }
+        case SourceIgnoreIncludePathDifferencesInUsr: {
+            serverOpts.options |= Server::SourceIgnoreIncludePathDifferencesInUsr;
+            break; }
+        case MaxCrashCount: {
+            serverOpts.maxCrashCount = atoi(value.constData());
             if (serverOpts.maxCrashCount <= 0) {
-                fprintf(stderr, "Invalid argument to -K %s\n", optarg);
-                return CommandLineParser::Parse_Error;
+                return { String::format<1024>("Invalid argument to -K %s", value.constData()), CommandLineParser::Parse_Error };
             }
-            break;
-        case CompletionCacheSize:
-            serverOpts.completionCacheSize = atoi(optarg);
+            break; }
+        case CompletionCacheSize: {
+            serverOpts.completionCacheSize = atoi(value.constData());
             if (serverOpts.completionCacheSize <= 0) {
-                fprintf(stderr, "Invalid argument to -i %s\n", optarg);
-                return CommandLineParser::Parse_Error;
+                return { String::format<1024>("Invalid argument to -i %s", value.constData()), CommandLineParser::Parse_Error };
             }
-            break;
-        case CompletionNoFilter:
+            break; }
+        case CompletionNoFilter: {
             serverOpts.options |= Server::CompletionsNoFilter;
-            break;
-        case CompletionLogs:
+            break; }
+        case CompletionLogs: {
             serverOpts.options |= Server::CompletionLogs;
-            break;
-        case MaxIncludeCompletionDepth:
-            serverOpts.maxIncludeCompletionDepth = strtoul(optarg, 0, 10);
-            break;
-        case AllowWpedantic:
+            break; }
+        case MaxIncludeCompletionDepth: {
+            serverOpts.maxIncludeCompletionDepth = strtoul(value.constData(), 0, 10);
+            break; }
+        case AllowWpedantic: {
             serverOpts.options |= Server::AllowPedantic;
-            break;
-        case AllowWErrorAndWFatalErrors:
+            break; }
+        case AllowWErrorAndWFatalErrors: {
             serverOpts.options |= Server::AllowWErrorAndWFatalErrors;
-            break;
-        case EnableCompilerManager:
+            break; }
+        case EnableCompilerManager: {
             serverOpts.options |= Server::EnableCompilerManager;
-            break;
-        case EnableNDEBUG:
+            break; }
+        case EnableNDEBUG: {
             serverOpts.options |= Server::EnableNDEBUG;
-            break;
-        case Progress:
+            break; }
+        case Progress: {
             serverOpts.options |= Server::Progress;
-            break;
-        case MaxFileMapCacheSize:
-            serverOpts.maxFileMapScopeCacheSize = atoi(optarg);
+            break; }
+        case MaxFileMapCacheSize: {
+            serverOpts.maxFileMapScopeCacheSize = atoi(value.constData());
             if (serverOpts.maxFileMapScopeCacheSize <= 0) {
-                fprintf(stderr, "Invalid argument to -y %s\n", optarg);
-                return CommandLineParser::Parse_Error;
+                return { String::format<1024>("Invalid argument to -y %s", value.constData()), CommandLineParser::Parse_Error };
             }
-            break;
+            break; }
 #ifdef FILEMANAGER_OPT_IN
-        case FileManagerWatch:
+        case FileManagerWatch: {
             serverOpts.options &= ~Server::NoFileManagerWatch;
-            break;
+            break; }
 #else
-        case NoFileManagerWatch:
+        case NoFileManagerWatch: {
             serverOpts.options |= Server::NoFileManagerWatch;
-            break;
+            break; }
 #endif
-        case NoFileManager:
+        case NoFileManager: {
             serverOpts.options |= Server::NoFileManager;
-            break;
-        case NoFileLock:
+            break; }
+        case NoFileLock: {
             serverOpts.options |= Server::NoFileLock;
-            break;
-        case PchEnabled:
+            break; }
+        case PchEnabled: {
             serverOpts.options |= Server::PCHEnabled;
-            break;
-        case NoFilesystemWatcher:
+            break; }
+        case NoFilesystemWatcher: {
             serverOpts.options |= Server::NoFileSystemWatch;
-            break;
-        case ArgTransform:
-            serverOpts.argTransform = Process::findCommand(optarg);
-            if (strlen(optarg) && serverOpts.argTransform.isEmpty()) {
-                fprintf(stderr, "Invalid argument to -V. Can't resolve %s", optarg);
-                return CommandLineParser::Parse_Error;
+            break; }
+        case ArgTransform: {
+            serverOpts.argTransform = Process::findCommand(value);
+            if (!value.isEmpty() && serverOpts.argTransform.isEmpty()) {
+                return { String::format<1024>("Invalid argument to -V. Can't resolve %s", value.constData()), CommandLineParser::Parse_Error };
             }
-            break;
-        case NoComments:
+            break; }
+        case NoComments: {
             serverOpts.options |= Server::NoComments;
-            break;
+            break; }
 #ifdef RTAGS_HAS_LAUNCHD
-        case Launchd:
+        case Launchd: {
             serverOpts.options |= Server::Launchd;
-            break;
+            break; }
 #endif
-        case InactivityTimeout:
-            inactivityTimeout = atoi(optarg); // seconds.
+        case InactivityTimeout: {
+            inactivityTimeout = atoi(value.constData()); // seconds.
             if (inactivityTimeout <= 0) {
-                fprintf(stderr, "Invalid argument to --inactivity-timeout %s\n", optarg);
-                return CommandLineParser::Parse_Error;
+                return { String::format<1024>("Invalid argument to --inactivity-timeout %s", value.constData()), CommandLineParser::Parse_Error };
             }
-            break;
-        case Daemon:
+            break; }
+        case Daemon: {
             daemon = true;
             logLevel = LogLevel::None;
-            break;
-        case LogFileLogLevel:
-            if (!strcasecmp(optarg, "verbose-debug")) {
+            break; }
+        case LogFileLogLevel: {
+            if (!strcasecmp(value.constData(), "verbose-debug")) {
                 logFileLogLevel = LogLevel::VerboseDebug;
-            } else if (!strcasecmp(optarg, "debug")) {
+            } else if (!strcasecmp(value.constData(), "debug")) {
                 logFileLogLevel = LogLevel::Debug;
-            } else if (!strcasecmp(optarg, "warning")) {
+            } else if (!strcasecmp(value.constData(), "warning")) {
                 logFileLogLevel = LogLevel::Warning;
-            } else if (!strcasecmp(optarg, "error")) {
+            } else if (!strcasecmp(value.constData(), "error")) {
                 logFileLogLevel = LogLevel::Error;
             } else {
-                fprintf(stderr, "Unknown log level: %s options are error, warning, debug or verbose-debug\n",
-                        optarg);
-                return CommandLineParser::Parse_Error;
+                return { String::format<1024>("Unknown log level: %s options are error, warning, debug or verbose-debug", value.constData()),
+                         CommandLineParser::Parse_Error };
             }
-            break;
-        case WatchSourcesOnly:
+            break; }
+        case WatchSourcesOnly: {
             serverOpts.options |= Server::WatchSourcesOnly;
-            break;
-        case DebugLocations:
-            if (!strcmp(optarg, "clear") || !strcmp(optarg, "none")) {
+            break; }
+        case DebugLocations: {
+            if (value == "clear" || value == "none") {
                 serverOpts.debugLocations.clear();
             } else {
-                serverOpts.debugLocations << optarg;
+                serverOpts.debugLocations << value;
             }
-            break;
-        case ValidateFileMaps:
+            break; }
+        case ValidateFileMaps: {
             serverOpts.options |= Server::ValidateFileMaps;
-            break;
-        case TcpPort:
-            serverOpts.tcpPort = atoi(optarg);
+            break; }
+        case TcpPort: {
+            serverOpts.tcpPort = atoi(value.constData());
             if (!serverOpts.tcpPort) {
-                fprintf(stderr, "Invalid port %s for --tcp-port\n", optarg);
-                return CommandLineParser::Parse_Error;
+                return { String::format<1024>("Invalid port %s for --tcp-port", value.constData()), CommandLineParser::Parse_Error };
             }
-            break;
-        case RpPath:
-            serverOpts.rp = optarg;
+            break; }
+        case RpPath: {
+            serverOpts.rp = std::move(value);
             if (serverOpts.rp.isFile()) {
                 serverOpts.rp.resolve();
             } else {
-                fprintf(stderr, "%s is not a file\n", optarg);
-                return CommandLineParser::Parse_Error;
+                return { String::format<1024>("%s is not a file", value.constData()), CommandLineParser::Parse_Error };
             }
-            break;
-        case LogTimestamp:
+            break; }
+        case LogTimestamp: {
             logFlags |= LogTimeStamp;
-            break;
+            break; }
         case SandboxRoot: {
-            const int len = strlen(optarg);
-            if (optarg[len-1] != '/') {
-                std::string tmparg = optarg;
-                tmparg += '/';
-                serverOpts.sandboxRoot = tmparg.c_str();
-            } else {
-                serverOpts.sandboxRoot = optarg;
-            }
+            serverOpts.sandboxRoot = std::move(value);
+            if (!serverOpts.sandboxRoot.endsWith('/'))
+                serverOpts.sandboxRoot += '/';
             if (!serverOpts.sandboxRoot.resolve() || !serverOpts.sandboxRoot.isDir()) {
-                fprintf(stderr, "%s is not a valid directory for sandbox-root\n", optarg);
-                return CommandLineParser::Parse_Error;
+                return {
+                    String::format<1024>("%s is not a valid directory for sandbox-root",
+                                         serverOpts.sandboxRoot.constData()),
+                    CommandLineParser::Parse_Error
+                    };
             }
+            break; }
+        case NoRealPath: {
+            Path::setRealPathEnabled(false);
+            serverOpts.options |= Server::NoRealPath;
             break; }
         }
 
-        return CommandLineParser::Parse_Exec;
+        return { String(), CommandLineParser::Parse_Exec };
     };
 
-    switch (CommandLineParser::parse<OptionType>(argCount, args, opts, sizeof(opts) / sizeof(opts[0]), NullFlags, cb)) {
+    const std::initializer_list<CommandLineParser::Option<CommandLineParser::ConfigOptionType> > configOpts = {
+        { CommandLineParser::Config, "config", 'c', CommandLineParser::Required, "Use this file (instead of ~/.rdmrc)." },
+        { CommandLineParser::NoRc, "no-rc", 'N', CommandLineParser::NoValue, "Don't load any rc files." }
+    };
+
+
+    const CommandLineParser::ParseStatus status = CommandLineParser::parse<OptionType>(argc, argv, opts, NullFlags, cb, "rdm", configOpts);
+    switch (status.status) {
     case CommandLineParser::Parse_Error:
+        fprintf(stderr, "%s\n", status.error.constData());
         return 1;
     case CommandLineParser::Parse_Ok:
         return 0;
@@ -820,12 +737,9 @@ int main(int argc, char** argv)
         signal(SIGABRT, signalHandler);
     }
 
-    // Shell-expand logFile
-    Path logPath(logFile); logPath.resolve();
-
-    if (!initLogging(argv[0], logFlags, logLevel, logPath.constData(), logFileLogLevel)) {
+    if (!initLogging(argv[0], logFlags, logLevel, logFile, logFileLogLevel)) {
         fprintf(stderr, "Can't initialize logging with %d %s %s\n",
-                logLevel.toInt(), logFile ? logFile : "", logFlags.toString().constData());
+                logLevel.toInt(), logFile.constData(), logFlags.toString().constData());
         return 1;
     }
 

@@ -35,142 +35,145 @@
 #define XSTR(s) #s
 #define STR(s) XSTR(s)
 
-struct CommandLineParser::Option<RClient::OptionType> opts[] = {
-    { RClient::None, 0, 0, 0, "Options:" },
-    { RClient::Verbose, "verbose", 'v', no_argument, "Be more verbose." },
-    { RClient::Version, "version", 0, no_argument, "Print current version." },
-    { RClient::Silent, "silent", 'Q', no_argument, "Be silent." },
-    { RClient::Help, "help", 'h', no_argument, "Display this help." },
+std::initializer_list<CommandLineParser::Option<RClient::OptionType> > opts = {
+    { RClient::None, String(), 0, CommandLineParser::NoValue, "Options:" },
+    { RClient::Verbose, "verbose", 'v', CommandLineParser::NoValue, "Be more verbose." },
+    { RClient::Version, "version", 0, CommandLineParser::NoValue, "Print current version." },
+    { RClient::Silent, "silent", 'Q', CommandLineParser::NoValue, "Be silent." },
+    { RClient::Help, "help", 'h', CommandLineParser::NoValue, "Display this help." },
+    { RClient::Noop, "config", 0, CommandLineParser::Required, "Use this file (instead of ~/.rcrc)." },
+    { RClient::Noop, "no-rc", 0, CommandLineParser::NoValue, "Don't load any rc files." },
 
-    { RClient::None, 0, 0, 0, "" },
-    { RClient::None, 0, 0, 0, "Rdm:" },
-    { RClient::QuitRdm, "quit-rdm", 'q', no_argument, "Tell server to shut down with optional exit code as argument." },
-    { RClient::ConnectTimeout, "connect-timeout", 0, required_argument, "Timeout for connecting to rdm in ms (default " STR(DEFAULT_CONNECT_TIMEOUT)  ")." },
+    { RClient::None, String(), 0, CommandLineParser::NoValue, "" },
+    { RClient::None, String(), 0, CommandLineParser::NoValue, "Rdm:" },
+    { RClient::QuitRdm, "quit-rdm", 'q', CommandLineParser::NoValue, "Tell server to shut down with optional exit code as argument." },
+    { RClient::ConnectTimeout, "connect-timeout", 0, CommandLineParser::Required, "Timeout for connecting to rdm in ms (default " STR(DEFAULT_CONNECT_TIMEOUT)  ")." },
 
-    { RClient::None, 0, 0, 0, "" },
-    { RClient::None, 0, 0, 0, "Project management:" },
-    { RClient::Clear, "clear", 'C', no_argument, "Clear projects." },
-    { RClient::Project, "project", 'w', optional_argument, "With arg, select project matching that if unique, otherwise list all projects." },
-    { RClient::DeleteProject, "delete-project", 'W', required_argument, "Delete all projects matching regex." },
-    { RClient::JobCount, "job-count", 'j', optional_argument, "Set or query current job count. (Prefix with l to set low-priority-job-count)." },
+    { RClient::None, String(), 0, CommandLineParser::NoValue, "" },
+    { RClient::None, String(), 0, CommandLineParser::NoValue, "Project management:" },
+    { RClient::Clear, "clear", 'C', CommandLineParser::NoValue, "Clear projects." },
+    { RClient::Project, "project", 'w', CommandLineParser::Optional, "With arg, select project matching that if unique, otherwise list all projects." },
+    { RClient::DeleteProject, "delete-project", 'W', CommandLineParser::Required, "Delete all projects matching regex." },
+    { RClient::JobCount, "job-count", 'j', CommandLineParser::Optional, "Set or query current job count. (Prefix with l to set low-priority-job-count)." },
 
-    { RClient::None, 0, 0, 0, "" },
-    { RClient::None, 0, 0, 0, "Indexing commands:" },
-    { RClient::Compile, "compile", 'c', optional_argument, "Pass compilation arguments to rdm." },
-    { RClient::GuessFlags, "guess-flags", 0, no_argument, "Guess compile flags (used with -c)." },
-    { RClient::LoadCompileCommands, "load-compile-commands", 'J', optional_argument, "Load compile_commands.json from directory" },
-    { RClient::Suspend, "suspend", 'X', optional_argument, "Dump suspended files (don't track changes in these files) with no arg. Otherwise toggle suspension for arg." },
+    { RClient::None, String(), 0, CommandLineParser::NoValue, "" },
+    { RClient::None, String(), 0, CommandLineParser::NoValue, "Indexing commands:" },
+    { RClient::Compile, "compile", 'c', CommandLineParser::Optional, "Pass compilation arguments to rdm." },
+    { RClient::GuessFlags, "guess-flags", 0, CommandLineParser::NoValue, "Guess compile flags (used with -c)." },
+    { RClient::LoadCompilationDatabase, "load-compilation-database", 'J', CommandLineParser::Optional, "Load compile_commands.json from directory" },
+    { RClient::Suspend, "suspend", 'X', CommandLineParser::Optional, "Dump suspended files (don't track changes in these files) with no arg. Otherwise toggle suspension for arg." },
 
-    { RClient::None, 0, 0, 0, "" },
-    { RClient::None, 0, 0, 0, "Query commands:" },
-    { RClient::FollowLocation, "follow-location", 'f', required_argument, "Follow this location." },
-    { RClient::ReferenceName, "references-name", 'R', required_argument, "Find references matching arg." },
-    { RClient::ReferenceLocation, "references", 'r', required_argument, "Find references matching this location." },
-    { RClient::ListSymbols, "list-symbols", 'S', optional_argument, "List symbol names matching arg." },
-    { RClient::FindSymbols, "find-symbols", 'F', optional_argument, "Find symbols matching arg." },
-    { RClient::SymbolInfo, "symbol-info", 'U', required_argument, "Get cursor info for this location." },
-    { RClient::Status, "status", 's', optional_argument, "Dump status of rdm. Arg can be symbols or symbolNames." },
-    { RClient::Diagnose, "diagnose", 0, required_argument, "Resend diagnostics for file." },
-    { RClient::DiagnoseAll, "diagnose-all", 0, no_argument, "Resend diagnostics for all files." },
-    { RClient::IsIndexed, "is-indexed", 'T', required_argument, "Check if rtags knows about, and is ready to return information about, this source file." },
-    { RClient::IsIndexing, "is-indexing", 0, no_argument, "Check if rtags is currently indexing files." },
-    { RClient::HasFileManager, "has-filemanager", 0, optional_argument, "Check if rtags has info about files in this directory." },
-    { RClient::PreprocessFile, "preprocess", 'E', required_argument, "Preprocess file." },
-    { RClient::Reindex, "reindex", 'V', optional_argument, "Reindex all files or all files matching pattern." },
-    { RClient::CheckReindex, "check-reindex", 'x', optional_argument, "Check if reindexing is necessary for all files matching pattern." },
-    { RClient::FindFile, "path", 'P', optional_argument, "Print files matching pattern." },
-    { RClient::CurrentProject, "current-project", 0, no_argument, "Print path for current project." },
-    { RClient::DumpFile, "dump-file", 'd', required_argument, "Dump source file." },
-    { RClient::CheckIncludes, "check-includes", 0, required_argument, "Check includes for source file." },
-    { RClient::DumpFileMaps, "dump-file-maps", 0, required_argument, "Dump file maps for file." },
-    { RClient::GenerateTest, "generate-test", 0, required_argument, "Generate a test for a given source file." },
-    { RClient::RdmLog, "rdm-log", 'g', no_argument, "Receive logs from rdm." },
-    { RClient::FixIts, "fixits", 0, required_argument, "Get fixits for file." },
-    { RClient::RemoveFile, "remove", 'D', required_argument, "Remove file from project." },
-    { RClient::FindProjectRoot, "find-project-root", 0, required_argument, "Use to check behavior of find-project-root." },
-    { RClient::FindProjectBuildRoot, "find-project-build-root", 0, required_argument, "Use to check behavior of find-project-root for builds." },
-    { RClient::IncludeFile, "include-file", 0, required_argument, "Use to generate include statement for symbol." },
-    { RClient::Sources, "sources", 0, optional_argument, "Dump sources for source file." },
-    { RClient::Dependencies, "dependencies", 0, required_argument, "Dump dependencies for source file [(includes, included-by, depends-on, depended-on, tree-depends-on, raw)]." },
-    { RClient::AllDependencies, "all-dependencies", 0, no_argument, "Dump dependencies for all source files [(includes, included-by, depends-on, depended-on, tree-depends-on, raw)]." },
-    { RClient::ReloadFileManager, "reload-file-manager", 'B', no_argument, "Reload file manager." },
-    { RClient::Man, "man", 0, no_argument, "Output XML for xmltoman to generate man page for rc :-)" },
-    { RClient::CodeCompleteAt, "code-complete-at", 'l', required_argument, "Code complete at location: arg is file:line:col." },
-    { RClient::SendDiagnostics, "send-diagnostics", 0, required_argument, "Only for debugging. Send data to all -G connections." },
-    { RClient::DumpCompletions, "dump-completions", 0, no_argument, "Dump cached completions." },
-    { RClient::DumpCompileCommands, "dump-compile-commands", 0, no_argument, "Dump compile_commands.json for project." },
-    { RClient::SetBuffers, "set-buffers", 0, optional_argument, "Set active buffers (list of filenames for active buffers in editor)." },
-    { RClient::ListBuffers, "list-buffers", 0, no_argument, "List active buffers." },
-    { RClient::ListCursorKinds, "list-cursor-kinds", 0, no_argument, "List spelling for known cursor kinds." },
-    { RClient::ClassHierarchy, "class-hierarchy", 0, required_argument, "Dump class hierarcy for struct/class at location." },
-    { RClient::DebugLocations, "debug-locations", 0, optional_argument, "Manipulate debug locations." },
+    { RClient::None, String(), 0, CommandLineParser::NoValue, "" },
+    { RClient::None, String(), 0, CommandLineParser::NoValue, "Query commands:" },
+    { RClient::FollowLocation, "follow-location", 'f', CommandLineParser::Required, "Follow this location." },
+    { RClient::ReferenceName, "references-name", 'R', CommandLineParser::Required, "Find references matching arg." },
+    { RClient::ReferenceLocation, "references", 'r', CommandLineParser::Required, "Find references matching this location." },
+    { RClient::ListSymbols, "list-symbols", 'S', CommandLineParser::Optional, "List symbol names matching arg." },
+    { RClient::FindSymbols, "find-symbols", 'F', CommandLineParser::Optional, "Find symbols matching arg." },
+    { RClient::SymbolInfo, "symbol-info", 'U', CommandLineParser::Required, "Get cursor info for this location." },
+    { RClient::Status, "status", 's', CommandLineParser::Optional, "Dump status of rdm. Arg can be symbols or symbolNames." },
+    { RClient::Diagnose, "diagnose", 0, CommandLineParser::Required, "Resend diagnostics for file." },
+    { RClient::DiagnoseAll, "diagnose-all", 0, CommandLineParser::NoValue, "Resend diagnostics for all files." },
+    { RClient::IsIndexed, "is-indexed", 'T', CommandLineParser::Required, "Check if rtags knows about, and is ready to return information about, this source file." },
+    { RClient::IsIndexing, "is-indexing", 0, CommandLineParser::NoValue, "Check if rtags is currently indexing files." },
+    { RClient::HasFileManager, "has-filemanager", 0, CommandLineParser::Optional, "Check if rtags has info about files in this directory." },
+    { RClient::PreprocessFile, "preprocess", 'E', CommandLineParser::Required, "Preprocess file." },
+    { RClient::Reindex, "reindex", 'V', CommandLineParser::Optional, "Reindex all files or all files matching pattern." },
+    { RClient::CheckReindex, "check-reindex", 'x', CommandLineParser::Optional, "Check if reindexing is necessary for all files matching pattern." },
+    { RClient::FindFile, "path", 'P', CommandLineParser::Optional, "Print files matching pattern." },
+    { RClient::CurrentProject, "current-project", 0, CommandLineParser::NoValue, "Print path for current project." },
+    { RClient::DumpFile, "dump-file", 'd', CommandLineParser::Required, "Dump source file." },
+    { RClient::CheckIncludes, "check-includes", 0, CommandLineParser::Required, "Check includes for source file." },
+    { RClient::DumpFileMaps, "dump-file-maps", 0, CommandLineParser::Required, "Dump file maps for file." },
+    { RClient::GenerateTest, "generate-test", 0, CommandLineParser::Required, "Generate a test for a given source file." },
+    { RClient::RdmLog, "rdm-log", 'g', CommandLineParser::NoValue, "Receive logs from rdm." },
+    { RClient::FixIts, "fixits", 0, CommandLineParser::Required, "Get fixits for file." },
+    { RClient::RemoveFile, "remove", 'D', CommandLineParser::Required, "Remove file from project." },
+    { RClient::FindProjectRoot, "find-project-root", 0, CommandLineParser::Required, "Use to check behavior of find-project-root." },
+    { RClient::FindProjectBuildRoot, "find-project-build-root", 0, CommandLineParser::Required, "Use to check behavior of find-project-root for builds." },
+    { RClient::IncludeFile, "include-file", 0, CommandLineParser::Required, "Use to generate include statement for symbol." },
+    { RClient::Sources, "sources", 0, CommandLineParser::Optional, "Dump sources for source file." },
+    { RClient::Dependencies, "dependencies", 0, CommandLineParser::Required, "Dump dependencies for source file [(includes, included-by, depends-on, depended-on, tree-depends-on, raw)]." },
+    { RClient::AllDependencies, "all-dependencies", 0, CommandLineParser::NoValue, "Dump dependencies for all source files [(includes, included-by, depends-on, depended-on, tree-depends-on, raw)]." },
+    { RClient::ReloadFileManager, "reload-file-manager", 'B', CommandLineParser::NoValue, "Reload file manager." },
+    { RClient::Man, "man", 0, CommandLineParser::NoValue, "Output XML for xmltoman to generate man page for rc :-)" },
+    { RClient::CodeCompleteAt, "code-complete-at", 'l', CommandLineParser::Required, "Code complete at location: arg is file:line:col." },
+    { RClient::SendDiagnostics, "send-diagnostics", 0, CommandLineParser::Required, "Only for debugging. Send data to all -G connections." },
+    { RClient::DumpCompletions, "dump-completions", 0, CommandLineParser::NoValue, "Dump cached completions." },
+    { RClient::DumpCompilationDatabase, "dump-compilation-database", 0, CommandLineParser::NoValue, "Dump compilation database for project." },
+    { RClient::SetBuffers, "set-buffers", 0, CommandLineParser::Optional, "Set active buffers (list of filenames for active buffers in editor)." },
+    { RClient::ListBuffers, "list-buffers", 0, CommandLineParser::NoValue, "List active buffers." },
+    { RClient::ListCursorKinds, "list-cursor-kinds", 0, CommandLineParser::NoValue, "List spelling for known cursor kinds." },
+    { RClient::ClassHierarchy, "class-hierarchy", 0, CommandLineParser::Required, "Dump class hierarcy for struct/class at location." },
+    { RClient::DebugLocations, "debug-locations", 0, CommandLineParser::Optional, "Manipulate debug locations." },
 #ifdef RTAGS_HAS_LUA
-    { RClient::VisitAST, "visit-ast", 0, required_argument, "Visit AST of a source file." },
+    { RClient::VisitAST, "visit-ast", 0, CommandLineParser::Required, "Visit AST of a source file." },
 #endif
-    { RClient::Tokens, "tokens", 0, required_argument, "Dump tokens for file. --tokens file.cpp:123-321 for range." },
-    { RClient::None, 0, 0, 0, "" },
-    { RClient::None, 0, 0, 0, "Command flags:" },
-    { RClient::StripParen, "strip-paren", 'p', no_argument, "Strip parens in various contexts." },
-    { RClient::Max, "max", 'M', required_argument, "Max lines of output for queries." },
-    { RClient::ReverseSort, "reverse-sort", 'O', no_argument, "Sort output reversed." },
-    { RClient::Rename, "rename", 0, no_argument, "Used for --references to indicate that we're using the results to rename symbols." },
-    { RClient::UnsavedFile, "unsaved-file", 0, required_argument, "Pass unsaved file on command line. E.g. --unsaved-file=main.cpp:1200 then write 1200 bytes on stdin." },
-    { RClient::LogFile, "log-file", 'L', required_argument, "Log to this file." },
-    { RClient::NoContext, "no-context", 'N', no_argument, "Don't print context for locations." },
-    { RClient::PathFilter, "path-filter", 'i', required_argument, "Filter out results not matching with arg." },
-    { RClient::DependencyFilter, "dependency-filter", 0, required_argument, "Filter out results unless argument depends on them." },
-    { RClient::RangeFilter, "range-filter", 0, required_argument, "Filter out results not in the specified range." },
-    { RClient::FilterSystemHeaders, "filter-system-headers", 'H', no_argument, "Don't exempt system headers from path filters." },
-    { RClient::AllReferences, "all-references", 'e', no_argument, "Include definitions/declarations/constructors/destructors for references. Used for rename symbol." },
-    { RClient::AllTargets, "all-targets", 0, no_argument, "Print all targets for -f. Used for debugging." },
-    { RClient::Elisp, "elisp", 'Y', no_argument, "Output elisp: (list \"one\" \"two\" ...)." },
-    { RClient::JSON, "json", 0, no_argument, "Output json." },
-    { RClient::Diagnostics, "diagnostics", 'm', no_argument, "Receive async formatted diagnostics from rdm." },
-    { RClient::MatchRegex, "match-regexp", 'Z', no_argument, "Treat various text patterns as regexps (-P, -i, -V)." },
-    { RClient::MatchCaseInsensitive, "match-icase", 'I', no_argument, "Match case insensitively" },
-    { RClient::AbsolutePath, "absolute-path", 'K', no_argument, "Print files with absolute path." },
-    { RClient::SocketFile, "socket-file", 'n', required_argument, "Use this socket file (default ~/.rdm)." },
-    { RClient::SocketAddress, "socket-address", 0, required_argument, "Use this host:port combination (instead of --socket-file)." },
-    { RClient::Timeout, "timeout", 'y', required_argument, "Max time in ms to wait for job to finish (default no timeout)." },
-    { RClient::FindVirtuals, "find-virtuals", 'k', no_argument, "Use in combinations with -R or -r to show other implementations of this function." },
-    { RClient::FindFilePreferExact, "find-file-prefer-exact", 'A', no_argument, "Use to make --find-file prefer exact matches over partial matches." },
-    { RClient::SymbolInfoIncludeParents, "symbol-info-include-parents", 0, no_argument, "Use to make --symbol-info include parent symbols." },
-    { RClient::SymbolInfoIncludeTargets, "symbol-info-include-targets", 0, no_argument, "Use to make --symbol-info include target symbols." },
-    { RClient::SymbolInfoIncludeReferences, "symbol-info-include-references", 0, no_argument, "Use to make --symbol-info include reference symbols." },
-    { RClient::SymbolInfoIncludeBaseClasses, "symbol-info-include-base-classes", 0, no_argument, "Use to make --symbol-info include baseclasses' symbols." },
-    { RClient::CursorKind, "cursor-kind", 0, no_argument, "Include cursor kind in --find-symbols output." },
-    { RClient::DisplayName, "display-name", 0, no_argument, "Include display name in --find-symbols output." },
-    { RClient::CurrentFile, "current-file", 0, required_argument, "Pass along which file is being edited to give rdm a better chance at picking the right project." },
-    { RClient::DeclarationOnly, "declaration-only", 0, no_argument, "Filter out definitions (unless inline).", },
-    { RClient::DefinitionOnly, "definition-only", 0, no_argument, "Filter out declarations (unless inline).", },
-    { RClient::KindFilter, "kind-filter", 0, required_argument, "Only return results matching this kind.", },
-    { RClient::ContainingFunction, "containing-function", 'o', no_argument, "Include name of containing function in output."},
-    { RClient::ContainingFunctionLocation, "containing-function-location", 0, no_argument, "Include location of containing function in output."},
-    { RClient::BuildIndex, "build-index", 0, required_argument, "For sources with multiple builds, use the arg'th." },
-    { RClient::CompilationFlagsOnly, "compilation-flags-only", 0, no_argument, "For --source, only print compilation flags." },
-    { RClient::CompilationFlagsSplitLine, "compilation-flags-split-line", 0, no_argument, "For --source, print one compilation flag per line." },
-    { RClient::DumpIncludeHeaders, "dump-include-headers", 0, no_argument, "For --dump-file, also dump dependencies." },
-    { RClient::SilentQuery, "silent-query", 0, no_argument, "Don't log this request in rdm." },
-    { RClient::SynchronousCompletions, "synchronous-completions", 0, no_argument, "Wait for completion results and print them to stdout." },
-    { RClient::SynchronousDiagnostics, "synchronous-diagnostics", 0, no_argument, "Wait for diagnostics and print them to stdout." },
-    { RClient::XML, "xml", 0, no_argument, "Output XML" },
-    { RClient::NoSortReferencesByInput, "no-sort-references-by-input", 0, no_argument, "Don't sort references by input position." },
-    { RClient::ProjectRoot, "project-root", 0, required_argument, "Override project root for compile commands." },
-    { RClient::RTagsConfig, "rtags-config", 0, required_argument, "Print out .rtags-config for argument." },
-    { RClient::WildcardSymbolNames, "wildcard-symbol-names", 'a', no_argument, "Expand * like wildcards in --list-symbols and --find-symbols." },
-    { RClient::NoColor, "no-color", 0, no_argument, "Don't colorize context." },
-    { RClient::Wait, "wait", 0, no_argument, "Wait for reindexing to finish." },
-    { RClient::Autotest, "autotest", 0, no_argument, "Turn on behaviors appropriate for running autotests." },
-    { RClient::CodeCompleteIncludeMacros, "code-complete-include-macros", 0, no_argument, "Include macros in code completion results." },
-    { RClient::CodeCompleteIncludes, "code-complete-includes", 0, no_argument, "Give includes in completion results." },
-    { RClient::CodeCompleteNoWait, "code-complete-no-wait", 0, no_argument, "Don't wait for synchronous completion if the translation unit has to be created." },
-    { RClient::CodeCompletionEnabled, "code-completion-enabled", 'b', no_argument, "Inform rdm that we're code-completing. Use with --diagnose" },
-    { RClient::NoSpellCheckinging, "no-spell-checking", 0, no_argument, "Don't produce spell check info in diagnostics." },
+    { RClient::Tokens, "tokens", 0, CommandLineParser::Required, "Dump tokens for file. --tokens file.cpp:123-321 for range." },
+    { RClient::None, String(), 0, CommandLineParser::NoValue, "" },
+    { RClient::None, String(), 0, CommandLineParser::NoValue, "Command flags:" },
+    { RClient::StripParen, "strip-paren", 'p', CommandLineParser::NoValue, "Strip parens in various contexts." },
+    { RClient::Max, "max", 'M', CommandLineParser::Required, "Max lines of output for queries." },
+    { RClient::ReverseSort, "reverse-sort", 'O', CommandLineParser::NoValue, "Sort output reversed." },
+    { RClient::Rename, "rename", 0, CommandLineParser::NoValue, "Used for --references to indicate that we're using the results to rename symbols." },
+    { RClient::UnsavedFile, "unsaved-file", 0, CommandLineParser::Required, "Pass unsaved file on command line. E.g. --unsaved-file=main.cpp:1200 then write 1200 bytes on stdin." },
+    { RClient::LogFile, "log-file", 'L', CommandLineParser::Required, "Log to this file." },
+    { RClient::NoContext, "no-context", 'N', CommandLineParser::NoValue, "Don't print context for locations." },
+    { RClient::PathFilter, "path-filter", 'i', CommandLineParser::Required, "Filter out results not matching with arg." },
+    { RClient::DependencyFilter, "dependency-filter", 0, CommandLineParser::Required, "Filter out results unless argument depends on them." },
+    { RClient::RangeFilter, "range-filter", 0, CommandLineParser::Required, "Filter out results not in the specified range." },
+    { RClient::FilterSystemHeaders, "filter-system-headers", 'H', CommandLineParser::NoValue, "Don't exempt system headers from path filters." },
+    { RClient::AllReferences, "all-references", 'e', CommandLineParser::NoValue, "Include definitions/declarations/constructors/destructors for references. Used for rename symbol." },
+    { RClient::AllTargets, "all-targets", 0, CommandLineParser::NoValue, "Print all targets for -f. Used for debugging." },
+    { RClient::Elisp, "elisp", 'Y', CommandLineParser::NoValue, "Output elisp: (list \"one\" \"two\" ...)." },
+    { RClient::JSON, "json", 0, CommandLineParser::NoValue, "Output json." },
+    { RClient::Diagnostics, "diagnostics", 'm', CommandLineParser::NoValue, "Receive async formatted diagnostics from rdm." },
+    { RClient::MatchRegex, "match-regexp", 'Z', CommandLineParser::NoValue, "Treat various text patterns as regexps (-P, -i, -V)." },
+    { RClient::MatchCaseInsensitive, "match-icase", 'I', CommandLineParser::NoValue, "Match case insensitively" },
+    { RClient::AbsolutePath, "absolute-path", 'K', CommandLineParser::NoValue, "Print files with absolute path." },
+    { RClient::SocketFile, "socket-file", 'n', CommandLineParser::Required, "Use this socket file (default ~/.rdm)." },
+    { RClient::SocketAddress, "socket-address", 0, CommandLineParser::Required, "Use this host:port combination (instead of --socket-file)." },
+    { RClient::Timeout, "timeout", 'y', CommandLineParser::Required, "Max time in ms to wait for job to finish (default no timeout)." },
+    { RClient::FindVirtuals, "find-virtuals", 'k', CommandLineParser::NoValue, "Use in combinations with -R or -r to show other implementations of this function." },
+    { RClient::FindFilePreferExact, "find-file-prefer-exact", 'A', CommandLineParser::NoValue, "Use to make --find-file prefer exact matches over partial matches." },
+    { RClient::SymbolInfoIncludeParents, "symbol-info-include-parents", 0, CommandLineParser::NoValue, "Use to make --symbol-info include parent symbols." },
+    { RClient::SymbolInfoIncludeTargets, "symbol-info-include-targets", 0, CommandLineParser::NoValue, "Use to make --symbol-info include target symbols." },
+    { RClient::SymbolInfoIncludeReferences, "symbol-info-include-references", 0, CommandLineParser::NoValue, "Use to make --symbol-info include reference symbols." },
+    { RClient::SymbolInfoIncludeBaseClasses, "symbol-info-include-base-classes", 0, CommandLineParser::NoValue, "Use to make --symbol-info include baseclasses' symbols." },
+    { RClient::CursorKind, "cursor-kind", 0, CommandLineParser::NoValue, "Include cursor kind in --find-symbols output." },
+    { RClient::DisplayName, "display-name", 0, CommandLineParser::NoValue, "Include display name in --find-symbols output." },
+    { RClient::CurrentFile, "current-file", 0, CommandLineParser::Required, "Pass along which file is being edited to give rdm a better chance at picking the right project." },
+    { RClient::DeclarationOnly, "declaration-only", 0, CommandLineParser::NoValue, "Filter out definitions (unless inline).", },
+    { RClient::DefinitionOnly, "definition-only", 0, CommandLineParser::NoValue, "Filter out declarations (unless inline).", },
+    { RClient::KindFilter, "kind-filter", 0, CommandLineParser::Required, "Only return results matching this kind.", },
+    { RClient::ContainingFunction, "containing-function", 'o', CommandLineParser::NoValue, "Include name of containing function in output."},
+    { RClient::ContainingFunctionLocation, "containing-function-location", 0, CommandLineParser::NoValue, "Include location of containing function in output."},
+    { RClient::BuildIndex, "build-index", 0, CommandLineParser::Required, "For sources with multiple builds, use the arg'th." },
+    { RClient::CompilationFlagsOnly, "compilation-flags-only", 0, CommandLineParser::NoValue, "For --source, only print compilation flags." },
+    { RClient::CompilationFlagsSplitLine, "compilation-flags-split-line", 0, CommandLineParser::NoValue, "For --source, print one compilation flag per line." },
+    { RClient::DumpIncludeHeaders, "dump-include-headers", 0, CommandLineParser::NoValue, "For --dump-file, also dump dependencies." },
+    { RClient::SilentQuery, "silent-query", 0, CommandLineParser::NoValue, "Don't log this request in rdm." },
+    { RClient::SynchronousCompletions, "synchronous-completions", 0, CommandLineParser::NoValue, "Wait for completion results and print them to stdout." },
+    { RClient::SynchronousDiagnostics, "synchronous-diagnostics", 0, CommandLineParser::NoValue, "Wait for diagnostics and print them to stdout." },
+    { RClient::XML, "xml", 0, CommandLineParser::NoValue, "Output XML" },
+    { RClient::NoSortReferencesByInput, "no-sort-references-by-input", 0, CommandLineParser::NoValue, "Don't sort references by input position." },
+    { RClient::ProjectRoot, "project-root", 0, CommandLineParser::Required, "Override project root for compile commands." },
+    { RClient::RTagsConfig, "rtags-config", 0, CommandLineParser::Required, "Print out .rtags-config for argument." },
+    { RClient::WildcardSymbolNames, "wildcard-symbol-names", 'a', CommandLineParser::NoValue, "Expand * like wildcards in --list-symbols and --find-symbols." },
+    { RClient::NoColor, "no-color", 0, CommandLineParser::NoValue, "Don't colorize context." },
+    { RClient::Wait, "wait", 0, CommandLineParser::NoValue, "Wait for reindexing to finish." },
+    { RClient::Autotest, "autotest", 0, CommandLineParser::NoValue, "Turn on behaviors appropriate for running autotests." },
+    { RClient::CodeCompleteIncludeMacros, "code-complete-include-macros", 0, CommandLineParser::NoValue, "Include macros in code completion results." },
+    { RClient::CodeCompleteIncludes, "code-complete-includes", 0, CommandLineParser::NoValue, "Give includes in completion results." },
+    { RClient::CodeCompleteNoWait, "code-complete-no-wait", 0, CommandLineParser::NoValue, "Don't wait for synchronous completion if the translation unit has to be created." },
+    { RClient::CodeCompletionEnabled, "code-completion-enabled", 'b', CommandLineParser::NoValue, "Inform rdm that we're code-completing. Use with --diagnose" },
+    { RClient::NoSpellCheckinging, "no-spell-checking", 0, CommandLineParser::NoValue, "Don't produce spell check info in diagnostics." },
 #ifdef RTAGS_HAS_LUA
-    { RClient::VisitASTScript, "visit-ast-script", 0, required_argument, "Use this script visit AST (@file.js|sourcecode)." },
+    { RClient::VisitASTScript, "visit-ast-script", 0, CommandLineParser::Required, "Use this script visit AST (@file.js|sourcecode)." },
 #endif
-    { RClient::TokensIncludeSymbols, "tokens-include-symbols", 0, no_argument, "Include symbols for tokens." },
-    { RClient::None, 0, 0, 0, 0 }
+    { RClient::TokensIncludeSymbols, "tokens-include-symbols", 0, CommandLineParser::NoValue, "Include symbols for tokens." },
+    { RClient::NoRealPath, "no-realpath", 0, CommandLineParser::NoValue, "Don't resolve paths using realpath(3)." },
+    { RClient::None, String(), 0, CommandLineParser::NoValue, 0 }
 };
 
 class RCCommand
@@ -196,7 +199,7 @@ public:
     virtual bool exec(RClient *rc, const std::shared_ptr<Connection> &connection) override
     {
         QueryMessage msg(type);
-        msg.init(rc->argc(), rc->argv());
+        msg.setCommandLine(rc->commandLine());
         msg.setQuery(query);
         msg.setBuildIndex(rc->buildIndex());
         msg.setUnsavedFiles(rc->unsavedFiles());
@@ -263,7 +266,7 @@ public:
 
         const LogLevel level = mLevel == Default ? rc->logLevel() : mLevel;
         LogOutputMessage msg(level, flags);
-        msg.init(rc->argc(), rc->argv());
+        msg.setCommandLine(rc->commandLine());
         return connection->send(msg);
     }
     virtual String description() const override
@@ -291,7 +294,7 @@ public:
     virtual bool exec(RClient *rc, const std::shared_ptr<Connection> &connection) override
     {
         IndexMessage msg;
-        msg.init(rc->argc(), rc->argv());
+        msg.setCommandLine(rc->commandLine());
         msg.setWorkingDirectory(cwd);
         msg.setFlag(IndexMessage::GuessFlags, rc->mGuessFlags);
         msg.setArguments(args);
@@ -312,7 +315,7 @@ RClient::RClient()
     : mMax(-1), mTimeout(-1), mMinOffset(-1), mMaxOffset(-1),
       mConnectTimeout(DEFAULT_CONNECT_TIMEOUT), mBuildIndex(0),
       mLogLevel(LogLevel::Error), mTcpPort(0), mGuessFlags(false),
-      mTerminalWidth(-1), mArgc(0), mArgv(0)
+      mTerminalWidth(-1)
 {
     struct winsize w;
     ioctl(0, TIOCGWINSZ, &w);
@@ -411,7 +414,7 @@ int RClient::exec()
     return ret;
 }
 
-CommandLineParser::ParseStatus RClient::parse(int &argc, char **argv)
+CommandLineParser::ParseStatus RClient::parse(size_t argc, char **argv)
 {
     Rct::findExecutablePath(*argv);
     mSocketFile = Path::home() + ".rdm";
@@ -425,285 +428,276 @@ CommandLineParser::ParseStatus RClient::parse(int &argc, char **argv)
         mQueryFlags |= QueryMessage::NoColor;
     }
 
-    std::function<CommandLineParser::ParseStatus(RClient::OptionType type)> cb;
-    cb = [&](RClient::OptionType type) -> CommandLineParser::ParseStatus {
+
+    std::function<CommandLineParser::ParseStatus(RClient::OptionType type,
+                                                 String &&value,
+                                                 size_t &idx,
+                                                 const List<String> &args)> cb;
+    cb = [this, &logFlags, &projectCommands, &logFile](RClient::OptionType type, String &&value, size_t &idx, const List<String> &arguments) -> CommandLineParser::ParseStatus {
         switch (type) {
         case None:
-        case NumOptions:
+        case NumOptions: {
             assert(0);
-            break;
-        case Help:
-            CommandLineParser::help(stdout, argv[0], opts, sizeof(opts) / sizeof(opts[0]));
-            return CommandLineParser::Parse_Ok;
-        case Man:
-            CommandLineParser::man(opts, sizeof(opts) / sizeof(opts[0]));
-            return CommandLineParser::Parse_Ok;
-        case SocketFile:
-            mSocketFile = optarg;
-            break;
+            break; }
+        case Noop: {
+            break; }
+        case NoRealPath: {
+            Path::setRealPathEnabled(false);
+            break; }
+        case Help: {
+            CommandLineParser::help(stdout, "rc", opts);
+            return { String(), CommandLineParser::Parse_Ok } ; }
+        case Man: {
+            CommandLineParser::man(opts);
+            return { String(), CommandLineParser::Parse_Ok }; }
+        case SocketFile: {
+            mSocketFile = std::move(value);
+            break; }
         case SocketAddress: {
-            mTcpHost.assign(optarg);
+            mTcpHost = std::move(value);
             const int colon = mTcpHost.lastIndexOf(':');
             if (colon == -1) {
-                fprintf(stderr, "invalid --socket-address %s\n", optarg);
-                return CommandLineParser::Parse_Error;
+                return { String::format<1024>("invalid --socket-address %s\n", value.constData()), CommandLineParser::Parse_Error };
             }
-            mTcpPort = atoi(optarg + colon + 1);
+            mTcpPort = atoi(value.constData() + colon + 1);
             if (!mTcpPort) {
-                fprintf(stderr, "invalid --socket-address %s\n", optarg);
-                return CommandLineParser::Parse_Error;
+                return { String::format<1024>("invalid --socket-address %s", value.constData()), CommandLineParser::Parse_Error };
             }
             mTcpHost.truncate(colon);
-            break;
-        }
-        case GuessFlags:
+            break; }
+        case GuessFlags: {
             mGuessFlags = true;
-            break;
-        case Wait:
+            break; }
+        case Wait: {
             mQueryFlags |= QueryMessage::Wait;
-            break;
-        case NoSpellCheckinging:
+            break; }
+        case NoSpellCheckinging: {
             mQueryFlags |= QueryMessage::NoSpellChecking;
-            break;
-        case CodeCompleteIncludeMacros:
+            break; }
+        case CodeCompleteIncludeMacros: {
             mQueryFlags |= QueryMessage::CodeCompleteIncludeMacros;
-            break;
-        case CodeCompleteIncludes:
+            break; }
+        case CodeCompleteIncludes: {
             mQueryFlags |= QueryMessage::CodeCompleteIncludes;
-            break;
-        case CodeCompleteNoWait:
+            break; }
+        case CodeCompleteNoWait: {
             mQueryFlags |= QueryMessage::CodeCompleteNoWait;
-            break;
-        case CodeCompletionEnabled:
+            break; }
+        case CodeCompletionEnabled: {
             mQueryFlags |= QueryMessage::CodeCompletionEnabled;
-            break;
-        case Autotest:
+            break; }
+        case Autotest: {
             mFlags |= Flag_Autotest;
-            break;
-        case CompilationFlagsOnly:
+            break; }
+        case CompilationFlagsOnly: {
             mQueryFlags |= QueryMessage::CompilationFlagsOnly;
-            break;
-        case NoColor:
+            break; }
+        case NoColor: {
             mQueryFlags |= QueryMessage::NoColor;
-            break;
-        case CompilationFlagsSplitLine:
+            break; }
+        case CompilationFlagsSplitLine: {
             mQueryFlags |= QueryMessage::CompilationFlagsSplitLine;
-            break;
-        case ContainingFunction:
+            break; }
+        case ContainingFunction: {
             mQueryFlags |= QueryMessage::ContainingFunction;
-            break;
-        case ContainingFunctionLocation:
+            break; }
+        case ContainingFunctionLocation: {
             mQueryFlags |= QueryMessage::ContainingFunctionLocation;
-            break;
-        case DeclarationOnly:
+            break; }
+        case DeclarationOnly: {
             mQueryFlags |= QueryMessage::DeclarationOnly;
-            break;
-        case DefinitionOnly:
+            break; }
+        case DefinitionOnly: {
             mQueryFlags |= QueryMessage::DefinitionOnly;
-            break;
-        case FindVirtuals:
+            break; }
+        case FindVirtuals: {
             mQueryFlags |= QueryMessage::FindVirtuals;
-            break;
-        case FindFilePreferExact:
+            break; }
+        case FindFilePreferExact: {
             mQueryFlags |= QueryMessage::FindFilePreferExact;
-            break;
-        case SymbolInfoIncludeParents:
+            break; }
+        case SymbolInfoIncludeParents: {
             mQueryFlags |= QueryMessage::SymbolInfoIncludeParents;
-            break;
-        case SymbolInfoIncludeTargets:
+            break; }
+        case SymbolInfoIncludeTargets: {
             mQueryFlags |= QueryMessage::SymbolInfoIncludeTargets;
-            break;
-        case SymbolInfoIncludeReferences:
+            break; }
+        case SymbolInfoIncludeReferences: {
             mQueryFlags |= QueryMessage::SymbolInfoIncludeReferences;
-            break;
-        case SymbolInfoIncludeBaseClasses:
+            break; }
+        case SymbolInfoIncludeBaseClasses: {
             mQueryFlags |= QueryMessage::SymbolInfoIncludeBaseClasses;
-            break;
-        case CursorKind:
+            break; }
+        case CursorKind: {
             mQueryFlags |= QueryMessage::CursorKind;
-            break;
-        case SynchronousCompletions:
+            break; }
+        case SynchronousCompletions: {
             mQueryFlags |= QueryMessage::SynchronousCompletions;
-            break;
-        case SynchronousDiagnostics:
+            break; }
+        case SynchronousDiagnostics: {
             mQueryFlags |= QueryMessage::SynchronousDiagnostics;
-            break;
-        case DisplayName:
+            break; }
+        case DisplayName: {
             mQueryFlags |= QueryMessage::DisplayName;
-            break;
-        case AllReferences:
+            break; }
+        case AllReferences: {
             mQueryFlags |= QueryMessage::AllReferences;
-            break;
-        case AllTargets:
+            break; }
+        case AllTargets: {
             mQueryFlags |= QueryMessage::AllTargets;
-            break;
-        case MatchCaseInsensitive:
+            break; }
+        case MatchCaseInsensitive: {
             mQueryFlags |= QueryMessage::MatchCaseInsensitive;
-            break;
-        case MatchRegex:
+            break; }
+        case MatchRegex: {
             mQueryFlags |= QueryMessage::MatchRegex;
-            break;
-        case AbsolutePath:
+            break; }
+        case AbsolutePath: {
             mQueryFlags |= QueryMessage::AbsolutePath;
-            break;
-        case ReverseSort:
+            break; }
+        case ReverseSort: {
             mQueryFlags |= QueryMessage::ReverseSort;
-            break;
-        case Rename:
+            break; }
+        case Rename: {
             mQueryFlags |= QueryMessage::Rename;
-            break;
-        case Elisp:
+            break; }
+        case Elisp: {
             mQueryFlags |= QueryMessage::Elisp;
-            break;
-        case JSON:
+            break; }
+        case JSON: {
             mQueryFlags |= QueryMessage::JSON;
-            break;
-        case XML:
+            break; }
+        case XML: {
             mQueryFlags |= QueryMessage::XML;
-            break;
-        case FilterSystemHeaders:
+            break; }
+        case FilterSystemHeaders: {
             mQueryFlags |= QueryMessage::FilterSystemIncludes;
-            break;
-        case NoContext:
+            break; }
+        case NoContext: {
             mQueryFlags |= QueryMessage::NoContext;
-            break;
+            break; }
         case PathFilter: {
-            Path p = optarg;
-            p.resolve();
-            mPathFilters.insert({ p, QueryMessage::PathFilter::Self });
-            break;
-        }
+            mPathFilters.insert({ Path::resolved(value), QueryMessage::PathFilter::Self });
+            break; }
         case DependencyFilter: {
-            Path p = optarg;
-            p.resolve();
+            Path p = std::move(value);
             if (!p.isFile()) {
-                fprintf(stderr, "%s doesn't seem to be a file\n", optarg);
-                return CommandLineParser::Parse_Error;
+                return { String::format<1024>("%s doesn't seem to be a file", value.constData()), CommandLineParser::Parse_Error };
             }
-            mPathFilters.insert({ p, QueryMessage::PathFilter::Dependency });
-            break;
-        }
-        case KindFilter:
-            mKindFilters.insert(optarg);
-            break;
-        case WildcardSymbolNames:
+            mPathFilters.insert({ Path::resolved(p), QueryMessage::PathFilter::Dependency });
+            break; }
+        case KindFilter: {
+            mKindFilters.insert(value);
+            break; }
+        case WildcardSymbolNames: {
             mQueryFlags |= QueryMessage::WildcardSymbolNames;
-            break;
+            break; }
         case RangeFilter: {
             char *end;
-            mMinOffset = strtoul(optarg, &end, 10);
+            mMinOffset = strtoul(value.constData(), &end, 10);
             if (*end != '-') {
-                fprintf(stderr, "Can't parse range, must be uint-uint. E.g. 1-123\n");
-                return CommandLineParser::Parse_Error;
+                return { String::format<1024>("Can't parse range, must be uint-uint. E.g. 1-123"), CommandLineParser::Parse_Error };
             }
             mMaxOffset = strtoul(end + 1, &end, 10);
             if (*end) {
-                fprintf(stderr, "Can't parse range, must be uint-uint. E.g. 1-123\n");
-                return CommandLineParser::Parse_Error;
+                return { String::format<1024>("Can't parse range, must be uint-uint. E.g. 1-123"), CommandLineParser::Parse_Error };
             }
             if (mMaxOffset <= mMinOffset || mMinOffset < 0) {
-                fprintf(stderr, "Invalid range (%d-%d), must be uint-uint. E.g. 1-123\n", mMinOffset, mMaxOffset);
-                return CommandLineParser::Parse_Error;
+                return { String::format<1024>("Invalid range (%d-%d), must be uint-uint. E.g. 1-123", mMinOffset, mMaxOffset),
+                         CommandLineParser::Parse_Error };
             }
-            break;
-        }
-        case Version:
+            break; }
+        case Version: {
             fprintf(stdout, "%s\n", RTags::versionString().constData());
-            return CommandLineParser::Parse_Ok;
-        case Verbose:
+            return { String(), CommandLineParser::Parse_Ok }; }
+        case Verbose: {
             ++mLogLevel;
-            break;
+            break; }
         case CodeCompleteAt: {
-            const String encoded = Location::encode(optarg);
+            const String encoded = Location::encode(value);
             if (encoded.isEmpty()) {
-                fprintf(stderr, "Can't resolve argument %s\n", optarg);
-                return CommandLineParser::Parse_Error;
+                return { String::format<1024>("Can't resolve argument %s", value.constData()), CommandLineParser::Parse_Error };
             }
 
             addQuery(QueryMessage::CodeCompleteAt, encoded);
-            break;
-        }
-        case Silent:
+            break; }
+        case Silent: {
             mLogLevel = LogLevel::None;
-            break;
-        case LogFile:
-            logFile = optarg;
-            break;
-        case StripParen:
+            break; }
+        case LogFile: {
+            logFile = std::move(value);
+            break; }
+        case StripParen: {
             mQueryFlags |= QueryMessage::StripParentheses;
-            break;
-        case DumpIncludeHeaders:
+            break; }
+        case DumpIncludeHeaders: {
             mQueryFlags |= QueryMessage::DumpIncludeHeaders;
-            break;
-        case SilentQuery:
+            break; }
+        case SilentQuery: {
             mQueryFlags |= QueryMessage::SilentQuery;
-            break;
+            break; }
         case BuildIndex: {
             bool ok;
-            mBuildIndex = String(optarg).toULongLong(&ok);
+            mBuildIndex = String(value).toULongLong(&ok);
             if (!ok) {
-                fprintf(stderr, "--build-index [arg] must be >= 0\n");
-                return CommandLineParser::Parse_Error;
+                return { String::format<1024>("--build-index [arg] must be >= 0"), CommandLineParser::Parse_Error };
             }
-            break;
-        }
-        case ConnectTimeout:
-            mConnectTimeout = atoi(optarg);
+            break; }
+        case ConnectTimeout: {
+            mConnectTimeout = atoi(value.constData());
             if (mConnectTimeout < 0) {
-                fprintf(stderr, "--connect-timeout [arg] must be >= 0\n");
-                return CommandLineParser::Parse_Error;
+                return { String::format<1024>("--connect-timeout [arg] must be >= 0"), CommandLineParser::Parse_Error };
             }
-            break;
-        case Max:
-            mMax = atoi(optarg);
-            if (mMax < 0) {
-                fprintf(stderr, "-M [arg] must be >= 0\n");
-                return CommandLineParser::Parse_Error;
+            break; }
+        case Max: {
+            bool ok;
+            mMax = value.toULongLong(&ok);
+            if (!ok) {
+                return { String::format<1024>("-M [arg] must be >= 0"), CommandLineParser::Parse_Error };
             }
-            break;
-        case Timeout:
-            mTimeout = atoi(optarg);
+            break; }
+        case Timeout: {
+            mTimeout = atoi(value.constData());
             if (!mTimeout) {
                 mTimeout = -1;
             } else if (mTimeout < 0) {
-                fprintf(stderr, "-y [arg] must be >= 0\n");
-                return CommandLineParser::Parse_Error;
+                return { String::format<1024>("-y [arg] must be >= 0"), CommandLineParser::Parse_Error };
             }
-            break;
+            break; }
         case UnsavedFile: {
-            const String arg(optarg);
+            const String arg(value);
             const int colon = arg.lastIndexOf(':');
             if (colon == -1) {
-                fprintf(stderr, "Can't parse -u [%s]\n", optarg);
-                return CommandLineParser::Parse_Error;
+                return { String::format<1024>("Can't parse -u [%s]", value.constData()), CommandLineParser::Parse_Error };
             }
             const int bytes = atoi(arg.constData() + colon + 1);
             if (!bytes) {
-                fprintf(stderr, "Can't parse -u [%s]\n", optarg);
-                return CommandLineParser::Parse_Error;
+                return { String::format<1024>("Can't parse -u [%s]", value.constData()), CommandLineParser::Parse_Error };
             }
-            const Path path = Path::resolved(arg.left(colon));
+            const Path path = arg.left(colon);
             if (!path.isFile()) {
-                fprintf(stderr, "Can't open [%s] for reading\n", arg.left(colon).nullTerminated());
-                return CommandLineParser::Parse_Error;
+                return {
+                    String::format<1024>("Can't open [%s] for reading", arg.left(colon).nullTerminated()),
+                    CommandLineParser::Parse_Error
+                    };
             }
 
             String contents(bytes, '\0');
             const int r = fread(contents.data(), 1, bytes, stdin);
             if (r != bytes) {
-                fprintf(stderr, "Read error %d (%s). Got %d, expected %d\n", errno, Rct::strerror(errno).constData(), r, bytes);
-                return CommandLineParser::Parse_Error;
+                return {
+                    String::format<1024>("Read error %d (%s). Got %d, expected %d", errno, Rct::strerror(errno).constData(), r, bytes),
+                    CommandLineParser::Parse_Error
+                    };
             }
             mUnsavedFiles[path] = contents;
-            break;
-        }
+            break; }
         case FollowLocation:
         case ClassHierarchy:
         case ReferenceLocation: {
-            const String encoded = Location::encode(optarg);
+            const String encoded = Location::encode(value);
             if (encoded.isEmpty()) {
-                fprintf(stderr, "Can't resolve argument %s\n", optarg);
-                return CommandLineParser::Parse_Error;
+                return { String::format<1024>("Can't resolve argument %s", value.constData()), CommandLineParser::Parse_Error };
             }
             QueryMessage::Type queryType = QueryMessage::Invalid;
             switch (type) {
@@ -727,32 +721,30 @@ CommandLineParser::ParseStatus RClient::parse(int &argc, char **argv)
             std::regex rx("^(.*):([0-9]+):([0-9]+):?-:?([0-9]+):([0-9]+):?");
             Path path;
             uint32_t line = 0, col = 0, line2 = 0, col2 = 0;
-            if (std::regex_match(optarg, match, rx)) {
-                path.assign(optarg, match.length(1));
-                line = atoi(optarg + match.position(2));
-                col = atoi(optarg + match.position(3));
-                line2 = atoi(optarg + match.position(4));
-                col2 = atoi(optarg + match.position(5));
+            if (std::regex_match(value.constData(), match, rx)) {
+                path.assign(value.constData(), match.length(1));
+                line = atoi(value.constData() + match.position(2));
+                col = atoi(value.constData() + match.position(3));
+                line2 = atoi(value.constData() + match.position(4));
+                col2 = atoi(value.constData() + match.position(5));
                 if (!line || !col || !line2 || !col2 || !path.resolve(Path::MakeAbsolute)) {
-                    fprintf(stderr, "Can't parse range %s\n", optarg);
-                    return CommandLineParser::Parse_Error;
+                    return { String::format<1024>("Can't parse range %s", value.constData()), CommandLineParser::Parse_Error };
                 }
-            } else if (!Location::parse(optarg, Path(), Path::MakeAbsolute, &path, &line, &col)) {
-                fprintf(stderr, "Can't parse range %s\n", optarg);
-                return CommandLineParser::Parse_Error;
+            } else if (!Location::parse(value, Path(), Path::MakeAbsolute, &path, &line, &col)) {
+                return { String::format<1024>("Can't parse range %s", value.constData()), CommandLineParser::Parse_Error };
             }
             String query;
             Serializer serializer(query);
             serializer << path << line << col << line2 << col2;
             addQuery(QueryMessage::SymbolInfo, query);
             break; }
-        case CurrentFile:
-            mCurrentFile.append(Path::resolved(optarg));
-            break;
-        case ReloadFileManager:
+        case CurrentFile: {
+            mCurrentFile = Path(value).resolved();
+            break; }
+        case ReloadFileManager: {
             addQuery(QueryMessage::ReloadFileManager);
-            break;
-        case DumpCompletions:
+            break; }
+        case DumpCompletions: {
             addQuery(QueryMessage::DumpCompletions);
             break;
         case DumpCompileCommands:
@@ -760,70 +752,64 @@ CommandLineParser::ParseStatus RClient::parse(int &argc, char **argv)
             break;
         case Clear:
             addQuery(QueryMessage::ClearProjects);
-            break;
-        case RdmLog:
+            break; }
+        case RdmLog: {
             addLog(RdmLogCommand::Default);
-            break;
-        case Diagnostics:
+            break; }
+        case Diagnostics: {
             addLog(RTags::DiagnosticsLevel);
-            break;
+            break; }
         case QuitRdm: {
-            const char *arg = 0;
-            if (optarg) {
-                arg = optarg;
-            } else if (optind < argc && argv[optind][0] != '-') {
-                arg = argv[optind++];
+            String arg;
+            if (!value.isEmpty()) {
+                arg = std::move(value);
+            } else if (idx < arguments.size() && arguments[idx][0] != '-') {
+                arg = arguments[idx++];
             }
             int exit = 0;
-            if (arg) {
+            if (!arg.isEmpty()) {
                 bool ok;
                 exit = String(arg).toLongLong(&ok);
                 if (!ok) {
-                    fprintf(stderr, "Invalid argument to -q\n");
-                    return CommandLineParser::Parse_Error;
+                    return { String::format<1024>("Invalid argument to -q"), CommandLineParser::Parse_Error };
                 }
             }
             addQuitCommand(exit);
-            break;
-        }
-        case DeleteProject:
-            addQuery(QueryMessage::DeleteProject, optarg);
-            break;
+            break; }
+        case DeleteProject: {
+            addQuery(QueryMessage::DeleteProject, value);
+            break; }
         case DebugLocations: {
             String arg;
-            if (optarg) {
-                arg = optarg;
-            } else if (optind < argc && argv[optind][0] != '-') {
-                arg = argv[optind++];
+            if (!value.isEmpty()) {
+                arg = std::move(value);
+            } else if (idx < arguments.size() && arguments[idx][0] != '-') {
+                arg = arguments[idx++];
             }
             addQuery(QueryMessage::DebugLocations, arg);
-            break;
-        }
-        case SendDiagnostics:
-            addQuery(QueryMessage::SendDiagnostics, optarg);
-            break;
+            break; }
+        case SendDiagnostics: {
+            addQuery(QueryMessage::SendDiagnostics, value);
+            break; }
         case FindProjectRoot: {
-            const Path p = Path::resolved(optarg);
+            const Path p = Path::resolved(value); // this won't work correctly with --no-realpath unless --no-realpath is passed first
             printf("findProjectRoot [%s] => [%s]\n", p.constData(), RTags::findProjectRoot(p, RTags::SourceRoot).constData());
-            return CommandLineParser::Parse_Ok;
-        }
+            return { String(), CommandLineParser::Parse_Ok }; }
         case FindProjectBuildRoot: {
-            const Path p = Path::resolved(optarg);
+            const Path p = Path::resolved(value); // this won't work correctly with --no-realpath unless --no-realpath is passed first
             printf("findProjectRoot [%s] => [%s]\n", p.constData(), RTags::findProjectRoot(p, RTags::BuildRoot).constData());
-            return CommandLineParser::Parse_Ok;
-        }
+            return { String(), CommandLineParser::Parse_Ok }; }
         case RTagsConfig: {
-            const Path p = Path::resolved(optarg);
+            const Path p = Path::resolved(value); // this won't work correctly with --no-realpath unless --no-realpath is passed first
             Map<String, String> config = RTags::rtagsConfig(p);
             printf("rtags-config: %s:\n", p.constData());
             for (const auto &it : config) {
                 printf("%s: \"%s\"\n", it.first.constData(), it.second.constData());
             }
-            return CommandLineParser::Parse_Ok;
-        }
-        case CurrentProject:
+            return { String(), CommandLineParser::Parse_Ok }; }
+        case CurrentProject: {
             addQuery(QueryMessage::Project, String(), QueryMessage::CurrentProjectOnly);
-            break;
+            break; }
         case CheckReindex:
         case Reindex:
         case Project:
@@ -875,13 +861,13 @@ CommandLineParser::ParseStatus RClient::parse(int &argc, char **argv)
                 break;
             }
 
-            const char *arg = 0;
-            if (optarg) {
-                arg = optarg;
-            } else if (optind < argc && argv[optind][0] != '-') {
-                arg = argv[optind++];
+            String arg;
+            if (!value.isEmpty()) {
+                arg = std::move(value);
+            } else if (idx < arguments.size() && arguments[idx][0] != '-') {
+                arg = arguments[idx++];
             }
-            if (arg) {
+            if (!arg.isEmpty()) {
                 Path p(arg);
                 if (resolve && p.exists()) {
                     p.resolve();
@@ -896,9 +882,9 @@ CommandLineParser::ParseStatus RClient::parse(int &argc, char **argv)
             if (queryType == QueryMessage::Project)
                 projectCommands.append(std::static_pointer_cast<QueryCommand>(mCommands.back()));
             break; }
-        case ListBuffers:
+        case ListBuffers: {
             addQuery(QueryMessage::SetBuffers);
-            break;
+            break; }
         case ListCursorKinds: {
             auto print = [](CXCursorKind from, CXCursorKind to) {
                 for (int i = from; i <= to; ++i) {
@@ -921,16 +907,16 @@ CommandLineParser::ParseStatus RClient::parse(int &argc, char **argv)
             print(CXCursor_FirstAttr, CXCursor_LastAttr);
             Log(LogLevel::Error, LogOutput::StdOut | LogOutput::TrailingNewLine) << "Preprocessing:";
             print(CXCursor_FirstPreprocessing, CXCursor_LastPreprocessing);
-            return CommandLineParser::Parse_Ok; }
+            return { String(), CommandLineParser::Parse_Ok }; }
         case SetBuffers: {
-            const char *arg = 0;
-            if (optarg) {
-                arg = optarg;
-            } else if (optind < argc && (argv[optind][0] != '-' || !strcmp(argv[optind], "-"))) {
-                arg = argv[optind++];
+            String arg = 0;
+            if (!value.isEmpty()) {
+                arg = std::move(value);
+            } else if (idx < arguments.size() && (arguments[idx][0] != '-' || arguments[idx] == "-")) {
+                arg = arguments[idx++];
             }
             String encoded;
-            if (arg) {
+            if (!arg.isEmpty()) {
                 List<Path> paths;
                 auto addBuffer = [&paths](const String &p) {
                     if (p.isEmpty())
@@ -943,16 +929,16 @@ CommandLineParser::ParseStatus RClient::parse(int &argc, char **argv)
                     }
                 };
 
-                if (!strcmp(arg, "-")) {
+                if (arg == "-") {
                     char buf[1024];
                     while (fgets(buf, sizeof(buf), stdin)) {
-                        String arg(buf);
-                        if (arg.endsWith('\n'))
-                            arg.chop(1);
-                        addBuffer(arg);
+                        String a(buf);
+                        if (a.endsWith('\n'))
+                            a.chop(1);
+                        addBuffer(a);
                     }
                 } else {
-                    for (const String &buffer : String(arg).split(';')) {
+                    for (const String &buffer : arg.split(';')) {
                         addBuffer(buffer);
                     }
                 }
@@ -963,58 +949,53 @@ CommandLineParser::ParseStatus RClient::parse(int &argc, char **argv)
             break; }
         case LoadCompileCommands: {
             Path dir;
-            if (optarg) {
-                dir = optarg;
-            } else if (optind < argc && argv[optind][0] != '-') {
-                dir = argv[optind++];
+            if (!value.isEmpty()) {
+                dir = std::move(value);
+            } else if (idx < arguments.size() && arguments[idx][0] != '-') {
+                dir = arguments[idx++];
             } else {
                 dir = Path::pwd();
             }
             dir.resolve(Path::MakeAbsolute);
             if (!dir.exists()) {
-                fprintf(stderr, "%s does not seem to exist\n", dir.constData());
-                return CommandLineParser::Parse_Error;
+                return { String::format<1024>("%s does not seem to exist", dir.constData()), CommandLineParser::Parse_Error };
             }
             if (!dir.isDir()) {
                 if (dir.isFile() && dir.endsWith("/compile_commands.json")) {
                     dir = dir.parentDir();
                 } else {
-                    fprintf(stderr, "%s is not a directory\n", dir.constData());
-                    return CommandLineParser::Parse_Error;
+                    return { String::format<1024>("%s is not a directory", dir.constData()), CommandLineParser::Parse_Error };
                 }
             }
             if (!dir.endsWith('/'))
                 dir += '/';
             const Path file = dir + "compile_commands.json";
             if (!file.isFile()) {
-                fprintf(stderr, "no compile_commands.json file in %s\n", dir.constData());
-                return CommandLineParser::Parse_Error;
+                return { String::format<1024>("no compile_commands.json file in %s", dir.constData()), CommandLineParser::Parse_Error };
             }
             addCompile(dir);
             break; }
         case HasFileManager: {
             Path p;
-            if (optarg) {
-                p = optarg;
-            } else if (optind < argc && argv[optind][0] != '-') {
-                p = argv[optind++];
+            if (!value.isEmpty()) {
+                p = std::move(value);
+            } else if (idx < arguments.size() && arguments[idx][0] != '-') {
+                p = arguments[idx++];
             } else {
                 p = ".";
             }
             p.resolve(Path::MakeAbsolute);
             if (!p.exists()) {
-                fprintf(stderr, "%s does not seem to exist\n", optarg);
-                return CommandLineParser::Parse_Error;
+                return { String::format<1024>("%s does not seem to exist", value.constData()), CommandLineParser::Parse_Error };
             }
-            if (p.isDir())
+            if (p.isDir() && !p.endsWith('/'))
                 p.append('/');
             addQuery(QueryMessage::HasFileManager, p);
             break; }
         case ProjectRoot: {
-            Path p = optarg;
+            Path p = std::move(value);
             if (!p.isDir()) {
-                fprintf(stderr, "%s does not seem to be a directory\n", optarg);
-                return CommandLineParser::Parse_Error;
+                return { String::format<1024>("%s does not seem to be a directory", value.constData()), CommandLineParser::Parse_Error };
             }
 
             p.resolve(Path::MakeAbsolute);
@@ -1022,28 +1003,38 @@ CommandLineParser::ParseStatus RClient::parse(int &argc, char **argv)
             break; }
         case Suspend: {
             Path p;
-            if (optarg) {
-                p = optarg;
-            } else if (optind < argc && argv[optind][0] != '-') {
-                p = argv[optind++];
+            if (!value.isEmpty()) {
+                p = std::move(value);
+            } else if (idx < arguments.size() && arguments[idx][0] != '-') {
+                p = arguments[idx++];
             }
             if (!p.isEmpty()) {
                 if (p != "clear" && p != "all") {
                     p.resolve(Path::MakeAbsolute);
                     if (!p.isFile()) {
-                        fprintf(stderr, "%s is not a file\n", optarg);
-                        return CommandLineParser::Parse_Error;
+                        return { String::format<1024>("%s is not a file", value.constData()), CommandLineParser::Parse_Error };
                     }
                 }
             }
             addQuery(QueryMessage::Suspend, p);
             break; }
         case Compile: {
-            String args = optarg;
-            while (optind < argc) {
+            auto quote = [](const String &str) -> String {
+                if (str.contains(' ')) {
+                    String ret = str;
+                    ret.replace("\"", "\\\"");
+                    ret.insert(0, "\"");
+                    ret.append("\"");
+                    return ret;
+                }
+                return str;
+            };
+            String args = quote(std::move(value));
+
+            while (idx < arguments.size()) {
                 if (!args.isEmpty())
                     args.append(' ');
-                args.append(argv[optind++]);
+                args.append(quote(arguments[idx++]));
             }
             if (args == "-" || args.isEmpty()) {
                 String pending;
@@ -1064,25 +1055,24 @@ CommandLineParser::ParseStatus RClient::parse(int &argc, char **argv)
                 addCompile(Path::pwd(), args);
             }
             break; }
-        case IsIndexing:
+        case IsIndexing: {
             addQuery(QueryMessage::IsIndexing);
-            break;
-        case NoSortReferencesByInput:
+            break; }
+        case NoSortReferencesByInput: {
             mQueryFlags |= QueryMessage::NoSortReferencesByInput;
-            break;
-        case DiagnoseAll:
+            break; }
+        case DiagnoseAll: {
             addQuery(QueryMessage::Diagnose, String());
-            break;
+            break; }
         case IsIndexed:
         case DumpFile:
         case CheckIncludes:
         case GenerateTest:
         case Diagnose:
         case FixIts: {
-            Path p = optarg;
+            Path p = std::move(value);
             if (!p.exists()) {
-                fprintf(stderr, "%s does not exist\n", optarg);
-                return CommandLineParser::Parse_Error;
+                return { String::format<1024>("%s does not exist", value.constData()), CommandLineParser::Parse_Error };
             }
 
             if (!p.isAbsolute())
@@ -1090,8 +1080,7 @@ CommandLineParser::ParseStatus RClient::parse(int &argc, char **argv)
 
             if (p.isDir()) {
                 if (type != IsIndexed) {
-                    fprintf(stderr, "%s is not a file\n", optarg);
-                    return CommandLineParser::Parse_Error;
+                    return { String::format<1024>("%s is not a file", value.constData()), CommandLineParser::Parse_Error };
                 } else if (!p.endsWith('/')) {
                     p.append('/');
                 }
@@ -1129,8 +1118,8 @@ CommandLineParser::ParseStatus RClient::parse(int &argc, char **argv)
         case AllDependencies: {
             String encoded;
             List<String> args;
-            while (optind < argc && argv[optind][0] != '-') {
-                args.append(argv[optind++]);
+            while (idx < arguments.size() && arguments[idx][0] != '-') {
+                args.append(arguments[idx++]);
             }
             Serializer s(encoded);
             s << Path() << args;
@@ -1138,15 +1127,14 @@ CommandLineParser::ParseStatus RClient::parse(int &argc, char **argv)
             break; }
         case DumpFileMaps:
         case Dependencies: {
-            Path p = optarg;
+            Path p = std::move(value);
             if (!p.isFile()) {
-                fprintf(stderr, "%s is not a file\n", optarg);
-                return CommandLineParser::Parse_Error;
+                return { String::format<1024>("%s is not a file", value.constData()), CommandLineParser::Parse_Error };
             }
             p.resolve();
             List<String> args;
-            while (optind < argc && argv[optind][0] != '-') {
-                args.append(argv[optind++]);
+            while (idx < arguments.size() && arguments[idx][0] != '-') {
+                args.append(arguments[idx++]);
             }
 
             String encoded;
@@ -1157,13 +1145,13 @@ CommandLineParser::ParseStatus RClient::parse(int &argc, char **argv)
         case Tokens: {
             char path[PATH_MAX];
             uint32_t from, to;
-            if (sscanf(optarg, "%[^':']:%u-%u", path, &from, &to) != 3) {
-                if (sscanf(optarg, "%[^':']:%u-", path, &from) == 2) {
+            if (sscanf(value.constData(), "%[^':']:%u-%u", path, &from, &to) != 3) {
+                if (sscanf(value.constData(), "%[^':']:%u-", path, &from) == 2) {
                     to = UINT_MAX;
-                } else if (sscanf(optarg, "%[^':']:-%u", path, &to) == 2) {
+                } else if (sscanf(value.constData(), "%[^':']:-%u", path, &to) == 2) {
                     from = 0;
                 } else {
-                    strncpy(path, optarg, strlen(optarg));
+                    strncpy(path, value.constData(), value.size());
                     from = 0;
                     to = UINT_MAX;
                 }
@@ -1171,92 +1159,85 @@ CommandLineParser::ParseStatus RClient::parse(int &argc, char **argv)
 
             const Path p = Path::resolved(path);
             if (!p.isFile()) {
-                fprintf(stderr, "%s is not a file\n", optarg);
-                return CommandLineParser::Parse_Error;
+                return { String::format<1024>("%s is not a file", value.constData()), CommandLineParser::Parse_Error };
             }
             if (from >= to) {
-                fprintf(stderr, "Invalid range: %s\n", optarg);
-                return CommandLineParser::Parse_Error;
+                return { String::format<1024>("Invalid range: %s", value.constData()), CommandLineParser::Parse_Error };
             }
             String data;
             Serializer s(data);
             s << p << from << to;
             addQuery(QueryMessage::Tokens, data);
             break; }
-        case TokensIncludeSymbols:
+        case TokensIncludeSymbols: {
             mQueryFlags |= QueryMessage::TokensIncludeSymbols;
-            break;
+            break; }
         case PreprocessFile: {
-            Path p = optarg;
+            Path p = std::move(value);
             p.resolve(Path::MakeAbsolute);
             if (!p.isFile()) {
-                fprintf(stderr, "%s is not a file\n", optarg);
-                return CommandLineParser::Parse_Error;
+                return { String::format<1024>("%s is not a file", value.constData()), CommandLineParser::Parse_Error };
             }
             addQuery(QueryMessage::PreprocessFile, p);
             break; }
         case RemoveFile: {
-            const Path p = Path::resolved(optarg, Path::MakeAbsolute);
+            const Path p = Path::resolved(value, Path::MakeAbsolute);
             if (!p.exists()) {
                 addQuery(QueryMessage::RemoveFile, p);
             } else {
-                addQuery(QueryMessage::RemoveFile, optarg);
+                addQuery(QueryMessage::RemoveFile, value);
             }
             break; }
-        case ReferenceName:
-            addQuery(QueryMessage::ReferencesName, optarg);
-            break;
+        case ReferenceName: {
+            addQuery(QueryMessage::ReferencesName, value);
+            break; }
 #ifdef RTAGS_HAS_LUA
         case VisitAST: {
-            Path p = optarg;
+            Path p = std::move(value);
             p.resolve(Path::MakeAbsolute);
             if (!p.isFile()) {
-                fprintf(stderr, "%s is not a file\n", optarg);
-                return CommandLineParser::Parse_Error;
+                return { String::format<1024>("%s is not a file", value.constData()), CommandLineParser::Parse_Error };
             }
             addQuery(QueryMessage::VisitAST, p);
             break; }
         case VisitASTScript: {
-            String code = optarg;
+            String code = std::move(value);
             if (code.startsWith("@")) {
                 const Path p = code.mid(1);
                 if (!p.isFile()) {
-                    fprintf(stderr, "%s is not a file\n", p.constData());
-                    return CommandLineParser::Parse_Error;
+                    return { String::format<1024>("%s is not a file", p.constData()), CommandLineParser::Parse_Error };
                 }
                 code = p.readAll();
             }
             if (code.isEmpty()) {
-                fprintf(stderr, "Script is empty\n");
-                return CommandLineParser::Parse_Error;
+                return { String::format<1024>("Script is empty"), CommandLineParser::Parse_Error };
             }
             mVisitASTScripts.push_back(code);
             break; }
 #endif
         }
-        return CommandLineParser::Parse_Exec;
+        return { String(), CommandLineParser::Parse_Exec };
     };
 
-    const auto ret = CommandLineParser::parse<RClient::OptionType>(argc, argv, opts, sizeof(opts) / sizeof(opts[0]), NullFlags, cb);
-    switch (ret) {
-    case CommandLineParser::Parse_Error:
-        fprintf(stderr, "Try 'rc --help' for more information.\n");
-        // fall through
-    case CommandLineParser::Parse_Ok:
-        return ret;
-    case CommandLineParser::Parse_Exec:
-        break;
+    const std::initializer_list<CommandLineParser::Option<CommandLineParser::ConfigOptionType> > configOpts = {
+        { CommandLineParser::Config, "config", 0, CommandLineParser::Required, "Use this file (instead of ~/.rcrc)." },
+        { CommandLineParser::NoRc, "no-rc", 0, CommandLineParser::NoValue, "Don't load any rc files." }
+    };
+
+    auto ret = CommandLineParser::parse<OptionType>(argc, argv, opts, NullFlags, cb, "rc", configOpts, &mCommandLine);
+    if (ret.status == CommandLineParser::Parse_Error) {
+        ret.error += "\nTry 'rc --help' for more information.";
     }
+    if (ret.status != CommandLineParser::Parse_Exec)
+        return ret;
 
     if (!initLogging(argv[0], logFlags, mLogLevel, logFile)) {
-        fprintf(stderr, "Can't initialize logging with %d %s %s\n", mLogLevel.toInt(), logFile.constData(),
-                logFlags.toString().constData());
-        return CommandLineParser::Parse_Error;
+        return { String::format<1024>("Can't initialize logging with %d %s %s", mLogLevel.toInt(), logFile.constData(), logFlags.toString().constData()), CommandLineParser::Parse_Error };
     }
 
     if (mCommands.isEmpty()) {
-        help(stderr, argv[0], opts, sizeof(opts) / sizeof(opts[0]));
-        return CommandLineParser::Parse_Error;
+        help(stderr, argv[0], opts);
+        return { "No commands", CommandLineParser::Parse_Error };
     }
     if (mCommands.size() > projectCommands.size()) {
         // If there's more than one command one likely does not want output from
@@ -1275,13 +1256,11 @@ CommandLineParser::ParseStatus RClient::parse(int &argc, char **argv)
     if (!logFile.isEmpty() || mLogLevel > LogLevel::Error) {
         Log l(LogLevel::Warning);
         l << argc;
-        for (int i = 0; i < argc; ++i)
+        for (size_t i = 0; i < argc; ++i)
             l << " " << argv[i];
     }
-    mArgc = argc;
-    mArgv = argv;
 
-    return CommandLineParser::Parse_Exec;
+    return { String(), CommandLineParser::Parse_Exec };
 }
 
 void RClient::onNewMessage(const std::shared_ptr<Message> &message, const std::shared_ptr<Connection> &)

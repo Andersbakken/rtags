@@ -1,4 +1,4 @@
-// cc clangtest.c `llvm-config-3.6 --cflags` -lclang `llvm-config-3.6 --ldflags` -o clangtest
+// cc clangtest.c `llvm-config-3.8 --cflags` -lclang `llvm-config-3.8 --ldflags` -o clangtest
 #include <clang-c/Index.h>
 #include <stdio.h>
 #include <stdlib.h>

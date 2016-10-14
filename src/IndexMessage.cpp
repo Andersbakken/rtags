@@ -24,12 +24,12 @@ IndexMessage::IndexMessage()
 
 void IndexMessage::encode(Serializer &serializer) const
 {
-    serializer << mRaw << mWorkingDirectory << mProjectRoot
+    serializer << mCommandLine << mWorkingDirectory << mProjectRoot
                << mCompileCommandsDir << mArgs << mFlags << mEnvironment;
 }
 
 void IndexMessage::decode(Deserializer &deserializer)
 {
-    deserializer >> mRaw >> mWorkingDirectory >> mProjectRoot
+    deserializer >> mCommandLine >> mWorkingDirectory >> mProjectRoot
                  >> mCompileCommandsDir >> mArgs >> mFlags >> mEnvironment;
 }

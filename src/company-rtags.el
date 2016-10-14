@@ -33,6 +33,7 @@
 (require 'company-template)
 
 (declare-function company-doc-buffer "ext:company")
+(declare-function company-manual-begin "ext:company")
 
 (defgroup company-rtags nil
   "Company completion back-end for RTags."
@@ -169,7 +170,7 @@ and `c-electric-colon', for automatic completion right after \">\" and
               (message "****** Got Completion Error ******")
               nil))))
       (when (and (eq (car data) 'completions)
-                 (string= rtags-company-last-completion-location (caadr data)))
+                 (string= (rtags-untrampify rtags-company-last-completion-location) (caadr data)))
         (let ((all (cadadr data))
               (completions))
           (while all
@@ -245,6 +246,15 @@ and `c-electric-colon', for automatic completion right after \">\" and
                 (insert anno)
                 (company-template-c-like-templatify anno))))))))
 
+
+(defun rtags-completion-at-point ()
+  (when (and (company-manual-begin)
+             (boundp 'company-common)
+             (looking-back company-common (line-beginning-position)))
+    (list
+     (match-beginning 0)
+     (match-end 0)
+     (and (boundp 'company-candidates) company-candidates))))
 (provide 'company-rtags)
 
 ;;; company-rtags.el ends here

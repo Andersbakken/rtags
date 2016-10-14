@@ -92,9 +92,9 @@ String Symbol::toString(Flags<ToStringFlag> cursorInfoFlags,
             }
         }
         for (const auto &arg : arguments) {
-            const String symbolName = project->findSymbol(arg.cursor).symbolName;
-            if (!symbolName.isEmpty()) {
-                args << symbolName;
+            const String symName = project->findSymbol(arg.cursor).symbolName;
+            if (!symName.isEmpty()) {
+                args << symName;
             } else {
                 args << arg.cursor.toString(locationToStringFlags & ~Location::ShowContext);
             }
@@ -232,7 +232,7 @@ Value Symbol::toValue(const std::shared_ptr<Project> &project,
                       Flags<ToStringFlag> toStringFlags,
                       Flags<Location::ToStringFlag> locationToStringFlags) const
 {
-    std::function<Value(const Symbol &, Flags<ToStringFlag>)> toValue = [&](const Symbol &symbol, Flags<ToStringFlag> flags) {
+    std::function<Value(const Symbol &, Flags<ToStringFlag>)> toValue = [&](const Symbol &symbol, Flags<ToStringFlag> f) {
         Value ret;
         if (!symbol.isNull()) {
             ret["location"] = symbol.location.toString(locationToStringFlags);
@@ -324,7 +324,7 @@ Value Symbol::toValue(const std::shared_ptr<Project> &project,
                 ret["macroexpansion"] = true;
             if (symbol.flags & Symbol::TemplateSpecialization)
                 ret["templatespecialization"] = true;
-            if (flags & IncludeTargets) {
+            if (f & IncludeTargets) {
                 const auto targets = project->findTargets(symbol);
                 if (!targets.isEmpty()) {
                     Value t;
@@ -334,7 +334,7 @@ Value Symbol::toValue(const std::shared_ptr<Project> &project,
                     ret["targets"] = t;
                 }
             }
-            if (flags & IncludeReferences) {
+            if (f & IncludeReferences) {
                 const auto references = project->findCallers(symbol);
                 if (!references.isEmpty()) {
                     Value r;
@@ -344,7 +344,7 @@ Value Symbol::toValue(const std::shared_ptr<Project> &project,
                     ret["references"] = r;
                 }
             }
-            if (flags & IncludeBaseClasses) {
+            if (f & IncludeBaseClasses) {
                 List<Value> b;
                 for (const auto &base : symbol.baseClasses) {
                     for (const Symbol &s : project->findByUsr(base, symbol.location.fileId(), Project::ArgDependsOn, symbol.location)) {
@@ -357,7 +357,7 @@ Value Symbol::toValue(const std::shared_ptr<Project> &project,
                 }
             }
 
-            if (flags & IncludeParents) {
+            if (f & IncludeParents) {
                 auto syms = project->openSymbols(symbol.location.fileId());
                 uint32_t idx = -1;
                 if (syms) {

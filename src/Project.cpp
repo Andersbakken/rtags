@@ -207,7 +207,7 @@ static bool loadDependencies(DataFile &file, Dependencies &dependencies)
             if (!ee) {
                 return false;
             }
-            for (int i=0; i<links; ++i) {
+            while (links--) {
                 uint32_t dependent;
                 file >> dependent;
                 DependencyNode *ent = dependencies[dependent];
@@ -240,7 +240,7 @@ static void saveDependencies(DataFile &file, const Dependencies &dependencies)
 
 Project::Project(const Path &path)
     : mPath(path), mSourceFilePathBase(RTags::encodeSourceFilePath(Server::instance()->options().dataDir, path)),
-      mJobCounter(0), mJobsStarted(0), mBytesWritten(0)
+      mJobCounter(0), mJobsStarted(0), mBytesWritten(0), mSaveDirty(false)
 {
     Path srcPath = mPath;
     RTags::encodePath(srcPath);
@@ -252,6 +252,8 @@ Project::Project(const Path &path)
 
 Project::~Project()
 {
+    if (mSaveDirty)
+        save();
     for (const auto &job : mActiveJobs) {
         assert(job.second);
         Server::instance()->jobScheduler()->abort(job.second);
@@ -306,10 +308,10 @@ bool Project::readSources(const Path &path, IndexParseData &data, String *err)
             file >> size;
             while (size > 0) {
                 --size;
-                Path path;
-                file >> path;
-                Sandbox::decode(path);
-                auto &ref = (*info)[path];
+                Path p;
+                file >> p;
+                Sandbox::decode(p);
+                auto &ref = (*info)[p];
                 file >> ref;
             }
         }
@@ -434,14 +436,14 @@ bool Project::init()
                 removed << it.first;
                 needsSave = true;
             } else {
-                String err;
-                if (!validate(it.first,  options.options & Server::ValidateFileMaps ? Validate : StatOnly, &err)) {
-                    if (!err.isEmpty()) {
+                String errorString;
+                if (!validate(it.first,  options.options & Server::ValidateFileMaps ? Validate : StatOnly, &errorString)) {
+                    if (!errorString.isEmpty()) {
                         if (outputDirty) {
                             outputDirty = false;
                             logDirect(LogLevel::Error, String("\n"), LogOutput::StdOut);
                         }
-                        error() << err;
+                        error() << errorString;
                     }
                     if (hasSource(it.first) || hasSourceDependency(it.second, project)) {
                         missingFileMaps.insert(it.first);
@@ -522,9 +524,9 @@ static const char *severities[] = { "none", "warning", "error", "fixit", "note",
 static String formatDiagnostics(const Diagnostics &diagnostics, Flags<QueryMessage::Flag> flags, uint32_t fileId = 0)
 {
     if (flags & QueryMessage::JSON) {
-        std::function<Value(uint32_t, Location, const Diagnostic &)> toValue = [&toValue, flags](uint32_t fileId, Location loc, const Diagnostic &diagnostic) {
+        std::function<Value(uint32_t, Location, const Diagnostic &)> toValue = [&toValue, flags](uint32_t file, Location loc, const Diagnostic &diagnostic) {
             Value value;
-            if (loc.fileId() != fileId)
+            if (loc.fileId() != file)
                 value["file"] = loc.path();
             value["line"] = loc.line();
             value["column"] = loc.column();
@@ -536,7 +538,7 @@ static String formatDiagnostics(const Diagnostics &diagnostics, Flags<QueryMessa
             if (!diagnostic.children.isEmpty()) {
                 Value &children = value["children"];
                 for (const auto &c : diagnostic.children) {
-                    children.push_back(toValue(fileId, c.first, c.second));
+                    children.push_back(toValue(file, c.first, c.second));
                 }
             }
             return value;
@@ -607,18 +609,18 @@ static String formatDiagnostics(const Diagnostics &diagnostics, Flags<QueryMessa
                                        severities[diagnostic.type], RTags::xmlEscape(diagnostic.message).constData());
         };
     } else {
-        formatDiagnostic = [&formatDiagnostic](Location loc, const Diagnostic &diagnostic, uint32_t fileId) {
+        formatDiagnostic = [&formatDiagnostic](Location loc, const Diagnostic &diagnostic, uint32_t file) {
             String children;
             if (!diagnostic.children.isEmpty()) {
                 children = "(list";
                 for (const auto &c : diagnostic.children) {
-                    children << ' ' << formatDiagnostic(c.first, c.second, fileId);
+                    children << ' ' << formatDiagnostic(c.first, c.second, file);
                 }
                 children << ")";
             } else {
                 children = "nil";
             }
-            const bool fn = (loc.fileId() != fileId);
+            const bool fn = (loc.fileId() != file);
             return String::format<256>(" (list %s%s%s %d %d %s '%s \"%s\" %s)",
                                        fn ? "\"" : "",
                                        fn ? loc.path().constData() : "nil",
@@ -712,8 +714,8 @@ void Project::onJobFinished(const std::shared_ptr<IndexerJob> &job, const std::s
         return;
     }
     if (!(msg->flags() & IndexDataMessage::ParseFailure)) {
-        for (uint32_t fileId : job->visited) {
-            if (!validate(fileId, Validate)) {
+        for (uint32_t file : job->visited) {
+            if (!validate(file, Validate)) {
                 releaseFileIds(job->visited);
                 dirty(job->fileId());
                 return;
@@ -772,17 +774,19 @@ void Project::onJobFinished(const std::shared_ptr<IndexerJob> &job, const std::s
                   LogOutput::StdOut|LogOutput::TrailingNewLine);
     }
 
-    save();
     if (mActiveJobs.isEmpty()) {
+        save();
         double timerElapsed = (mTimer.elapsed() / 1000.0);
         const double averageJobTime = timerElapsed / mJobsStarted;
-        const String msg = String::format<1024>("Jobs took %.2fs%s. We're using %lldmb of memory. ",
-                                                timerElapsed, mJobsStarted > 1 ? String::format(", (avg %.2fs)", averageJobTime).constData() : "",
-                                                static_cast<unsigned long long>(MemoryMonitor::usage() / (1024 * 1024)));
-        Log(LogLevel::Error, LogOutput::StdOut|LogOutput::TrailingNewLine) << msg;
+        const String m = String::format<1024>("Jobs took %.2fs%s. We're using %lldmb of memory. ",
+                                              timerElapsed, mJobsStarted > 1 ? String::format(", (avg %.2fs)", averageJobTime).constData() : "",
+                                              static_cast<unsigned long long>(MemoryMonitor::usage() / (1024 * 1024)));
+        Log(LogLevel::Error, LogOutput::StdOut|LogOutput::TrailingNewLine) << m;
         mJobsStarted = mJobCounter = 0;
 
         // error() << "Finished this
+    } else {
+        mSaveDirty = true;
     }
 #endif
 }
@@ -857,7 +861,7 @@ bool Project::save()
             return false;
         }
     }
-
+    mSaveDirty = false;
     return true;
 }
 
@@ -1057,8 +1061,8 @@ Set<uint32_t> Project::dependencies(uint32_t fileId, DependencyMode mode) const
 {
     Set<uint32_t> ret;
     ret.insert(fileId);
-    std::function<void(uint32_t)> fill = [&](uint32_t fileId) {
-        if (DependencyNode *node = mDependencies.value(fileId)) {
+    std::function<void(uint32_t)> fill = [&](uint32_t file) {
+        if (DependencyNode *node = mDependencies.value(file)) {
             const auto &nodes = (mode == ArgDependsOn ? node->includes : node->dependents);
             for (const auto &it : nodes) {
                 if (ret.insert(it.first))
@@ -1577,7 +1581,7 @@ Set<Symbol> Project::findByUsr(const String &usr, uint32_t fileId, DependencyMod
 {
     assert(fileId);
     Set<Symbol> ret;
-    const String tusr = Sandbox::encoded(usr);
+    String tusr = Sandbox::encoded(usr);
     for (uint32_t file : dependencies(fileId, mode)) {
         auto usrs = openUsrs(file);
         // error() << usrs << Location::path(file) << usr;
@@ -1599,7 +1603,7 @@ Set<Symbol> Project::findByUsr(const String &usr, uint32_t fileId, DependencyMod
             auto usrs = openUsrs(dep.first);
             if (usrs) {
                 // SBROOT
-                String tusr = Sandbox::encoded(usr);
+                tusr = Sandbox::encoded(usr);
                 for (Location loc : usrs->value(tusr)) {
                     const Symbol c = findSymbol(loc);
                     if (!c.isNull())
@@ -1761,16 +1765,16 @@ Set<Symbol> Project::findVirtuals(const Symbol &symbol)
     if (symbol.kind != CXCursor_CXXMethod || !(symbol.flags & Symbol::VirtualMethod))
         return Set<Symbol>();
 
-    Symbol parent = [this](const Symbol &symbol) {
-        for (const String &usr : findTargetUsrs(symbol.location)) {
-            const Set<Symbol> syms = findByUsr(usr, symbol.location.fileId(), ArgDependsOn);
-            for (const Symbol &sym : syms) {
-                if (findTargetUsrs(sym.location).isEmpty()) {
-                    return sym;
+    Symbol parent = [this](const Symbol &sym) {
+        for (const String &usr : findTargetUsrs(sym.location)) {
+            const Set<Symbol> syms = findByUsr(usr, sym.location.fileId(), ArgDependsOn);
+            for (const Symbol &s : syms) {
+                if (findTargetUsrs(s.location).isEmpty()) {
+                    return s;
                 }
             }
         }
-        return symbol;
+        return sym;
     }(symbol);
 
     assert(!parent.isNull());
@@ -1924,8 +1928,8 @@ String Project::dumpDependencies(uint32_t fileId, const List<String> &args, Flag
         if (args.isEmpty() || args.contains("tree-depends-on")) {
             Set<DependencyNode*> seen;
 
-            DependencyNode *node = mDependencies.value(fileId);
-            if (node) {
+            DependencyNode *depNode = mDependencies.value(fileId);
+            if (depNode) {
                 int startDepth = 1;
                 if (args.size() != 1) {
                     ++startDepth;
@@ -1937,23 +1941,23 @@ String Project::dumpDependencies(uint32_t fileId, const List<String> &args, Flag
 
                     if (seen.insert(n) && !n->includes.isEmpty()) {
                         ret += " includes:\n";
-                        for (const auto &node : n->includes) {
-                            process(node.second, depth + 1);
+                        for (const auto &includeNode : n->includes) {
+                            process(includeNode.second, depth + 1);
                         }
                     } else {
                         ret += '\n';
                     }
                 };
-                process(node, startDepth);
+                process(depNode, startDepth);
             }
         }
         if (args.size() == 1 && args.contains("raw")) {
             Set<DependencyNode*> all;
-            std::function<void(DependencyNode *node)> add = [&](DependencyNode *node) {
-                assert(node);
-                if (!all.insert(node))
+            std::function<void(DependencyNode *node)> add = [&](DependencyNode *depNode) {
+                assert(depNode);
+                if (!all.insert(depNode))
                     return;
-                for (const std::pair<uint32_t, DependencyNode*> &n : node->includes) {
+                for (const std::pair<uint32_t, DependencyNode*> &n : depNode->includes) {
                     add(n.second);
                 }
             };
@@ -2389,9 +2393,9 @@ String Project::estimateMemory() const
 #if 0
 void Project::addCompileCommandsInfo(const Path &path, CompilationDataBaseInfo &&info)
 {
-    mCompileCommandsInfos[path] = std::move(info);
-    watch(path, Watch_compileCommands);
-    save();
+    mCompilationDatabaseInfos[path] = std::move(info);
+    watch(path, Watch_CompilationDatabase);
+    mSaveDirty = true;
 }
 
 void Project::setCompileCommandsInfos(Hash<Path, CompilationDataBaseInfo> &&infos, const Set<Source> &indexed)
@@ -2411,8 +2415,7 @@ void Project::setCompileCommandsInfos(Hash<Path, CompilationDataBaseInfo> &&info
             ++it;
         }
     }
-    save();
-#endif
+    mSaveDirty = true;
 }
 #endif
 

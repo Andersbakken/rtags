@@ -25,7 +25,7 @@ QueryMessage::QueryMessage(Type type)
 
 void QueryMessage::encode(Serializer &serializer) const
 {
-    serializer << mRaw << mQuery << mType << mFlags << mMax
+    serializer << mCommandLine << mQuery << mType << mFlags << mMax
                << mMinLine << mMaxLine << mBuildIndex << mPathFilters << mKindFilters
                << mCurrentFile << mUnsavedFiles << mTerminalWidth
 #ifdef RTAGS_HAS_LUA
@@ -36,7 +36,7 @@ void QueryMessage::encode(Serializer &serializer) const
 
 void QueryMessage::decode(Deserializer &deserializer)
 {
-    deserializer >> mRaw >> mQuery >> mType >> mFlags >> mMax
+    deserializer >> mCommandLine >> mQuery >> mType >> mFlags >> mMax
                  >> mMinLine >> mMaxLine >> mBuildIndex >> mPathFilters >> mKindFilters
                  >> mCurrentFile >> mUnsavedFiles >> mTerminalWidth
 #ifdef RTAGS_HAS_LUA
@@ -143,9 +143,9 @@ bool QueryMessage::KindFilters::filter(const Symbol &symbol) const
     spelling.remove(' ');
     auto match = [&spelling, &symbol](const Map<String, Flags<DefinitionType> > &map, bool hasWildcardsOrCategories) {
         auto it = map.find(spelling);
-        auto matchDefinition = [&symbol](Flags<DefinitionType> flags) {
-            flags &= Definition|NotDefinition;
-            switch (flags.cast<int>()) {
+        auto matchDefinition = [&symbol](Flags<DefinitionType> f) {
+            f &= Definition|NotDefinition;
+            switch (f.cast<int>()) {
             case Definition:
                 if (symbol.isDefinition())
                     return true;
@@ -155,7 +155,7 @@ bool QueryMessage::KindFilters::filter(const Symbol &symbol) const
                     return true;
                 break;
             default:
-                assert(flags == (Definition|NotDefinition));
+                assert(f == (Definition|NotDefinition));
                 return true;
             }
             return false;
