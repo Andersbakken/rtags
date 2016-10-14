@@ -13,7 +13,7 @@ if (RTAGS_BUILD_CLANG)
     ExternalProject_Add(llvmclang
         DOWNLOAD_COMMAND ${PROJECT_SOURCE_DIR}/scripts/getclang.sh 3.8.1
         SOURCE_DIR llvmclang-prefix/src/llvm
-        CMAKE_ARGS -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=${CLANG_INSTALL_PATH} -DLLVM_BUILD_TOOLS=0
+        CMAKE_ARGS -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=${CLANG_INSTALL_PATH} -DLLVM_BUILD_TOOLS=1
         LOG_DOWNLOAD 1            # Wrap download in script to log output
         LOG_UPDATE 1              # Wrap update in script to log output
         LOG_CONFIGURE 1           # Wrap configure in script to log output
