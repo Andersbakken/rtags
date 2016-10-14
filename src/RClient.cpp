@@ -60,7 +60,7 @@ std::initializer_list<CommandLineParser::Option<RClient::OptionType> > opts = {
     { RClient::None, String(), 0, CommandLineParser::NoValue, "Indexing commands:" },
     { RClient::Compile, "compile", 'c', CommandLineParser::Optional, "Pass compilation arguments to rdm." },
     { RClient::GuessFlags, "guess-flags", 0, CommandLineParser::NoValue, "Guess compile flags (used with -c)." },
-    { RClient::LoadCompilationDatabase, "load-compilation-database", 'J', CommandLineParser::Optional, "Load compile_commands.json from directory" },
+    { RClient::LoadCompileCommands, "load-compile-commands", 'J', CommandLineParser::Optional, "Load compile_commands.json from directory" },
     { RClient::Suspend, "suspend", 'X', CommandLineParser::Optional, "Dump suspended files (don't track changes in these files) with no arg. Otherwise toggle suspension for arg." },
 
     { RClient::None, String(), 0, CommandLineParser::NoValue, "" },
@@ -100,7 +100,7 @@ std::initializer_list<CommandLineParser::Option<RClient::OptionType> > opts = {
     { RClient::CodeCompleteAt, "code-complete-at", 'l', CommandLineParser::Required, "Code complete at location: arg is file:line:col." },
     { RClient::SendDiagnostics, "send-diagnostics", 0, CommandLineParser::Required, "Only for debugging. Send data to all -G connections." },
     { RClient::DumpCompletions, "dump-completions", 0, CommandLineParser::NoValue, "Dump cached completions." },
-    { RClient::DumpCompilationDatabase, "dump-compilation-database", 0, CommandLineParser::NoValue, "Dump compilation database for project." },
+    { RClient::DumpCompileCommands, "dump-compile-commands", 0, CommandLineParser::NoValue, "Dump compilation database for project." },
     { RClient::SetBuffers, "set-buffers", 0, CommandLineParser::Optional, "Set active buffers (list of filenames for active buffers in editor)." },
     { RClient::ListBuffers, "list-buffers", 0, CommandLineParser::NoValue, "List active buffers." },
     { RClient::ListCursorKinds, "list-cursor-kinds", 0, CommandLineParser::NoValue, "List spelling for known cursor kinds." },

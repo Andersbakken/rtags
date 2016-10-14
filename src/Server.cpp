@@ -527,10 +527,11 @@ bool Server::parse(IndexParseData &data, String &&arguments, const Path &pwd, ui
     }
 
     assert(!compileCommandsFileId || data.compileCommands.contains(compileCommandsFileId));
+    const auto &env = compileCommandsFileId ? data.compileCommands[compileCommandsFileId].environment : data.environment;
+    List<Source> sources = Source::parse(arguments, pwd, env, &unresolvedPaths);
     bool ret = (sources.isEmpty() && unresolvedPaths.size() == 1 && unresolvedPaths.front() == "-");
     int idx = 0;
-    const auto &env = compileCommandsFileId ? data.compileCommands[compileCommandsFileId].environment : data.environment;
-    for (Source &source : Source::parse(arguments, pwd, env, &unresolvedPaths)) {
+    for (Source &source : sources) {
         const Path path = source.sourceFile();
 
         std::shared_ptr<Project> current = currentProject();
@@ -1601,8 +1602,8 @@ void Server::sources(const std::shared_ptr<QueryMessage> &query, const std::shar
                 Set<Source> sources = project->sources(fileId);
                 if (sources.isEmpty() && path.isHeader()) {
                     Set<uint32_t> seen;
-                    std::function<uint32_t(uint32_t)> findSourceFileId = [&findSourceFileId, &project, &seen](uint32_t fileId) {
-                        DependencyNode *node = project->dependencyNode(fileId);
+                    std::function<uint32_t(uint32_t)> findSourceFileId = [&findSourceFileId, &project, &seen](uint32_t file) {
+                        DependencyNode *node = project->dependencyNode(file);
                         uint32_t ret = 0;
                         if (node) {
                             for (const auto &dep : node->dependents) {

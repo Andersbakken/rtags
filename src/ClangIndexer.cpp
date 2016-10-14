@@ -1612,7 +1612,7 @@ CXChildVisitResult ClangIndexer::handleCursor(const CXCursor &cursor, CXCursorKi
             // error() << i << clang_getTokenKind(tokens[i])
             //         << RTags::eatString(clang_getTokenSpelling(tu, tokens[i]));
             bool isHashHash = false;
-            if (kind == CXToken_Identifier) {
+            if (k == CXToken_Identifier) {
                 const String spelling = RTags::eatString(clang_getTokenSpelling(tu, tokens[i]));
                 if (macroState == GettingArgs) {
                     macroData.arguments.append(spelling);
