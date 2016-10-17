@@ -453,7 +453,7 @@ struct Output
             connection->write(string);
             connection->finish();
         } else {
-            output->log(string.constData(), string.size());
+            output->log(string.constData());
         }
     }
     std::shared_ptr<LogOutput> output;
