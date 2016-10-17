@@ -4669,8 +4669,8 @@ the user enter missing field manually."
              (replace-regexp-in-string "\n" " " doc)))))))
 
 
-(when (featurep 'helm)
-  (require 'rtags-helm))
+(eval-after-load "helm"
+  '(require 'rtags-helm))
 
 (provide 'rtags)
 
