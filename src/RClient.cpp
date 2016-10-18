@@ -1031,10 +1031,12 @@ CommandLineParser::ParseStatus RClient::parse(size_t argc, char **argv)
             };
             String args = quote(std::move(value));
 
-            while (idx < arguments.size()) {
-                if (!args.isEmpty())
-                    args.append(' ');
-                args.append(quote(arguments[idx++]));
+            if (idx + 1 < arguments.size()) {
+                while (++idx < arguments.size()) {
+                    if (!args.isEmpty())
+                        args.append(' ');
+                    args.append(quote(arguments[idx]));
+                }
             }
             if (args == "-" || args.isEmpty()) {
                 String pending;
