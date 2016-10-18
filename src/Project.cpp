@@ -1,3 +1,4 @@
+
 /* This file is part of RTags (http://rtags.net).
 
    RTags is free software: you can redistribute it and/or modify
@@ -302,21 +303,6 @@ bool Project::readSources(const Path &path, IndexParseData &data, String *err)
                 }
                 return Continue;
             });
-
-        if (info) {
-            uint32_t size;
-            file >> size;
-            while (size > 0) {
-                --size;
-                Path p;
-                file >> p;
-                Sandbox::decode(p);
-                auto &ref = (*info)[p];
-                file >> ref;
-            }
-        }
-    } else if (info) {
-        file >> *info;
     }
     return true;
 }
@@ -1169,17 +1155,18 @@ int Project::reindex(const Match &match,
 
 int Project::remove(const Match &match)
 {
-    int count = 0;
-    auto it = mSources.begin();
-    while (it != mSources.end()) {
-        if (match.match(Location::path(it->first))) {
-            removeSource(it++);
-            ++count;
-        } else {
-            ++it;
-        }
-    }
-    return count;
+#warning not done
+    // int count = 0;
+    // auto it = mSources.begin();
+    // while (it != mSources.end()) {
+    //     if (match.match(Location::path(it->first))) {
+    //         removeSource(it++);
+    //         ++count;
+    //     } else {
+    //         ++it;
+    //     }
+    // }
+    // return count;
 }
 
 int Project::startDirtyJobs(Dirty *dirty, IndexerJob::Flag flag,
@@ -1477,14 +1464,14 @@ String Project::toCompileCommands() const
                                                   | Source::IncludeIncludePaths
                                                   | Source::QuoteDefines
                                                   | Source::FilterBlacklist);
-    Value ret(List<Value>(mSources.size()));
-    int i = 0;
-    forEachSource(mSources, [&ret, &i, flags](uint32_t, const Source &source) {
+    Value ret;
+    forEachSource([&ret, flags](uint32_t, const Source &source) -> VisitResult {
             Value unit;
             unit["directory"] = source.directory;
             unit["file"] = source.sourceFile();
             unit["command"] = String::join(source.toCommandLine(flags), " ").constData();
-            ret[i++] = unit;
+            ret.push_back(unit);
+            return Continue;
         });
 
     return ret.toJSON(true);
@@ -2040,16 +2027,17 @@ bool Project::validate(uint32_t fileId, ValidateMode mode, String *err) const
 
 void Project::loadFailed(uint32_t fileId)
 {
-    if (mSources.contains(fileId)) {
-        if (Server::instance()->jobScheduler()->increasePriority(fileId))
-            return;
-    } else { // header
-        for (auto dep : dependencies(fileId, Project::DependsOnArg)) {
-            if (mSources.contains(dep) && Server::instance()->jobScheduler()->increasePriority(dep)) {
-                return;
-            }
-        }
-    }
+#warning not done
+    // if (mSources.contains(fileId)) {
+    //     if (Server::instance()->jobScheduler()->increasePriority(fileId))
+    //         return;
+    // } else { // header
+    //     for (auto dep : dependencies(fileId, Project::DependsOnArg)) {
+    //         if (mSources.contains(dep) && Server::instance()->jobScheduler()->increasePriority(dep)) {
+    //             return;
+    //         }
+    //     }
+    // }
 
     dirty(fileId); // file might have gone missing
 }
@@ -2379,7 +2367,7 @@ String Project::estimateMemory() const
     add("Active jobs", ::estimateMemory(mActiveJobs));
     add("Fixits", ::estimateMemory(mFixIts));
     add("Pending dirty files", ::estimateMemory(mPendingDirtyFiles));
-    add("Sources", ::estimateMemory(mSources));
+    add("Sources", ::estimateMemory(mIndexParseData.sources));
     add("Suspended files", ::estimateMemory(mSuspendedFiles));
     size_t deps = ::estimateMemory(mDependencies);
     for (const auto &dep : mDependencies) {
@@ -2400,7 +2388,6 @@ void Project::addCompileCommandsInfo(const Path &path, CompilationDataBaseInfo &
 
 void Project::setCompileCommandsInfos(Hash<Path, CompilationDataBaseInfo> &&infos, const Set<Source> &indexed)
 {
-#if 0
     mCompileCommandsInfos = std::move(infos);
     for (auto &info : mCompileCommandsInfos) {
         info.second.lastModified = Path(info.first + "compile_commands.json").lastModifiedMs();
@@ -2542,16 +2529,18 @@ Sources::const_iterator Project::find(const Source &source) const
 #endif
 }
 
-void Project::forEachSource(Sources &sources, std::function<void(uint32_t, Source &source)> cb)
+Project::VisitResult Project::forEachSource(Sources &sources, std::function<VisitResult(uint32_t, Source &source)> cb)
 {
     for (auto &src : sources) {
         Set<Source> &set = src.second;
         Set<Source>::iterator it = set.begin();
         List<Source> replacements;
         replacements.reserve(set.size());
-        while (it != set.end()) {
+        bool done = false;
+        while (!done && it != set.end()) {
             Source s = *it;
-            cb(src.first, s);
+            if (cb(src.first, s) == Stop)
+                done = true;
             if (s != *it) {
                 replacements.append(s);
                 set.erase(it++);
@@ -2562,16 +2551,21 @@ void Project::forEachSource(Sources &sources, std::function<void(uint32_t, Sourc
         for (const Source &s : replacements) {
             set.insert(s);
         }
+        if (done)
+            return Stop;
     }
+    return Continue;
 }
 
-void Project::forEachSource(const Sources &sources, std::function<void(uint32_t, const Source &source)> cb)
+Project::VisitResult Project::forEachSource(const Sources &sources, std::function<VisitResult(uint32_t, const Source &source)> cb)
 {
     for (auto &src : sources) {
         for (Set<Source>::const_iterator it = src.second.begin(); it != src.second.end(); ++it) {
-            cb(src.first, *it);
+            if (cb(src.first, *it) == Stop)
+                return Stop;
         }
     }
+    return Continue;
 }
 
 Source Project::source(uint32_t fileId, int buildIndex) const
@@ -2588,8 +2582,7 @@ Source Project::source(uint32_t fileId, int buildIndex) const
                 }
             }
             return Continue;
-        }
-        }
+        });
     return ret;
 }
 

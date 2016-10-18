@@ -1881,10 +1881,12 @@ bool Server::load()
         Flags<FileIdsFileFlag> flags;
         fileIdsFile >> flags;
         if (flags & HasSandboxRoot && !Sandbox::hasRoot()) {
-            error() << "This database was produced with --sandbox-root option using relative path. You have to specify a sandbox-root argument or wipe the db by running with -C";
+            error() << ("This database was produced with --sandbox-root option using relative path. "
+                        "You have to specify a sandbox-root argument or wipe the db by running with -C");
             return false;
         } else if (Sandbox::hasRoot() && !(flags & HasSandboxRoot)) {
-            error() << "This database was produced without --sandbox-root option using relative path. You can't specify a sandbox-root argument for this db unless you start the db over by passing -C";
+            error() << ("This database was produced without --sandbox-root option using relative path. "
+                        "You can't specify a sandbox-root argument for this db unless you start the db over by passing -C");
             return false;
         }
 
@@ -1935,8 +1937,8 @@ bool Server::load()
         if (!fileIdsFile.error().isEmpty()) {
             error("Can't restore file ids: %s", fileIdsFile.error().constData());
         }
-        Hash<Path, ProjectData> projectData;
-        mOptions.dataDir.visit([&projectData](const Path &path) {
+        Hash<Path, IndexParseData> projects;
+        mOptions.dataDir.visit([&projects](const Path &path) {
                 if (path.isDir()) {
                     const char *fn = path.fileName();
                     if (*fn == '_' || !strncmp(fn, "$_", 2))
@@ -1948,45 +1950,27 @@ bool Server::load()
                     RTags::decodePath(filePath);
 
                     String err;
-                    ProjectData data;
-#warning read sources
-#if 0
-                    if (!Project::readSources(path, data.sources, &data.infos, &err)) {
+                    IndexParseData data;
+                    if (!Project::readSources(path, data, &err)) {
                         error("Sources restore error %s: %s", path.constData(), err.constData());
                     } else {
-                        if (!data.infos.isEmpty()) {
+                        data.project = filePath;
+                        if (!data.compileCommands.isEmpty())
                             data.sources.clear();
-                        }
-                        projectData[p] = data;
+                        projects[filePath] = data;
                     }
-#endif
-                    // error() << sources[p].size();
                 }
                 return Path::Continue;
             });
-        // for (const auto &s : sources) {
-        //     error() << s.first << s.second.size();
-        // }
 
         clearProjects();
-        if (!projectData.isEmpty()) {
-            error() << "Recovering sources" << projectData.size();
+        if (!projects.isEmpty()) {
+            error() << "Recovering sources" << projects.size();
         }
-        for (const auto &s : projectData) {
-            IndexParseData indexData;
-            indexData.project = s.first;
-#warning not done
-#if 0
-            for (const auto &info : s.second.infos) {
-                indexData->flags = info.second.indexFlags;
-                indexData->environment = info.second.environment;
-                loadCompileCommands(indexData, info.first);
-            }
-            if (!s.second.sources.isEmpty()) {
-                indexData->projectData[s.first].sources = s.second.sources;
-            }
-#endif
-            addProject(s.first)->save();
+        for (auto &s : projects) {
+            auto p = addProject(s.first);
+            p->processParseData(std::move(s.second));
+            p->save();
         }
     }
     return true;
