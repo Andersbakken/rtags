@@ -21,9 +21,6 @@ if (RTAGS_BUILD_CLANG)
         LOG_TEST 1                # Wrap test in script to log output
         LOG_INSTALL 1             # Wrap install in script to log output
         )
-    set(LIBCLANG_LIBRARIES "${CLANG_INSTALL_PATH}/lib/libclang${CMAKE_SHARED_LIBRARY_SUFFIX}")
-    set(LIBCLANG_CXXFLAGS "-I${CLANG_INSTALL_PATH}/include -fPIC  -D_GNU_SOURCE -D__STDC_CONSTANT_MACROS -D__STDC_FORMAT_MACROS -D__STDC_LIMIT_MACROS")
-    set(LIBCLANG_LIBDIR "${CLANG_INSTALL_PATH}/lib")
     if (CMAKE_SYSTEM_NAME MATCHES "Darwin")
         add_definitions("-DCLANG_INCLUDE=${CLANG_INSTALL_PATH}/include/c++/v1") # add libcxx include
     endif ()
