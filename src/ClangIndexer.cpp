@@ -46,6 +46,9 @@ static inline void setType(Symbol &symbol, const CXType &type)
 {
     symbol.type = type.kind;
     symbol.typeName = RTags::eatString(clang_getTypeSpelling(type));
+    const CXType canonical = clang_getCanonicalType(type);
+    if (!clang_equalTypes(type, canonical))
+        symbol.typeName += " => " + RTags::eatString(clang_getTypeSpelling(canonical));
 }
 
 static inline void setRange(Symbol &symbol, const CXSourceRange &range, uint16_t *length = 0)
@@ -466,14 +469,14 @@ String ClangIndexer::addNamePermutations(const CXCursor &cursor, Location locati
     case CXCursor_Constructor:
         break;
     default: {
-        type = RTags::eatString(clang_getTypeSpelling(clang_getCursorType(cursor)));
+        type = RTags::eatString(clang_getTypeSpelling(clang_getCanonicalType(clang_getCursorType(cursor))));
         if (originalKind == CXCursor_FunctionDecl || originalKind == CXCursor_CXXMethod || originalKind == CXCursor_FunctionTemplate) {
             const size_t idx = type.indexOf(" -> ");
             if (idx != String::npos)
                 trailer = type.mid(idx);
         }
-        const int paren = type.indexOf('(');
-        if (paren != -1 && (paren != 8 || !type.startsWith("decltype("))) {
+        const size_t paren = type.indexOf('(');
+        if (paren != String::npos) {
             type.resize(paren);
         } else if (!type.isEmpty() && !type.endsWith('*') && !type.endsWith('&')) {
             type.append(' ');
