@@ -501,7 +501,7 @@ String ClangIndexer::addNamePermutations(const CXCursor &cursor, Location locati
                 trailer = type.mid(idx);
         }
         const int paren = type.indexOf('(');
-        if (paren != -1) {
+        if (paren != -1 && (paren != 8 || !type.startsWith("decltype("))) {
             type.resize(paren);
         } else if (!type.isEmpty() && !type.endsWith('*') && !type.endsWith('&')) {
             type.append(' ');

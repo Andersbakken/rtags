@@ -742,10 +742,10 @@ void Project::onJobFinished(const std::shared_ptr<IndexerJob> &job, const std::s
                     }
                     if (options.options & Server::Progress) {
                         if (format == QueryMessage::XML) {
-                            output->log("<?xml version=\"1.0\" encoding=\"utf-8\"?>\n<progress index=\"%d\" total=\"%d\"></progress>",
-                                        idx, mJobCounter);
+                            output->vlog("<?xml version=\"1.0\" encoding=\"utf-8\"?>\n<progress index=\"%d\" total=\"%d\"></progress>",
+                                         idx, mJobCounter);
                         } else {
-                            output->log("(list 'progress %d %d)", idx, mJobCounter);
+                            output->vlog("(list 'progress %d %d)", idx, mJobCounter);
                         }
                     }
                 }

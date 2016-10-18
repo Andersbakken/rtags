@@ -237,6 +237,7 @@ endif ()
 set(RTAGS_ELISP_FILES
     rtags.el
     rtags-ac.el
+    rtags-helm.el
     company-rtags.el
     flycheck-rtags.el)
 
