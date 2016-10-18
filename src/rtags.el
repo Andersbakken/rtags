@@ -4668,10 +4668,6 @@ the user enter missing field manually."
              "[ \t\n]+" " "
              (replace-regexp-in-string "\n" " " doc)))))))
 
-
-(eval-after-load "helm"
-  '(require 'rtags-helm))
-
 (provide 'rtags)
 
 ;;; rtags.el ends here
