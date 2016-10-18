@@ -258,27 +258,23 @@ int StatusJob::execute()
             return 1;
         write(String::format<1024>("Path: %s", proj->path().constData()));
         bool first = true;
-#warning not done
-#if 0
-        for (const auto &info : proj->compilationDataBaseInfos()) {
+        for (const auto &info : proj->indexParseData().compileCommands) {
             if (first) {
                 first = false;
-                write("\nCompilation Commands Database(s):");
+                write("\nCompile commands:");
             }
-            write(String::format<1024>("    File: %scompile_commands.json\n"
+            write(String::format<1024>("    File: %s\n"
                                        "    Last-Modified: %s (%llu)\n"
-                                       "    Path-Environement: %s\n"
                                        "    Bytes written: %zu\n"
-                                       "    Index-Flags: %s",
-                                       info.first.constData(),
-                                       String::formatTime(info.second.lastModified / 1000).constData(),
-                                       static_cast<unsigned long long>(info.second.lastModified),
-                                       String::join(info.second.environment, ':').constData(),
+                                       "    Environment: %s\n",
+                                       Location::path(info.first).constData(),
+                                       String::formatTime(info.second.lastModifiedMs / 1000).constData(),
+                                       static_cast<unsigned long long>(info.second.lastModifiedMs),
                                        proj->bytesWritten(),
-                                       info.second.indexFlags.toString().constData()));
+                                       String::join(info.second.environment, '\n').constData()));
+
         }
         matched = true;
-#endif
     }
 
     if (!matched) {

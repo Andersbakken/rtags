@@ -46,7 +46,7 @@ class Dirty
 public:
     virtual ~Dirty() {}
     virtual Set<uint32_t> dirtied() const = 0;
-    virtual bool isDirty(uint32_t, const Set<Source> &) = 0;
+    virtual bool isDirty(const Source &) = 0;
 };
 
 class SimpleDirty : public Dirty
@@ -65,9 +65,9 @@ public:
         return mDirty;
     }
 
-    virtual bool isDirty(uint32_t fileId, const Set<Source> &) override
+    virtual bool isDirty(const Source &src) override
     {
-        return mDirty.contains(fileId);
+        return mDirty.contains(src.fileId);
     }
 
     Set<uint32_t> mDirty;
@@ -100,7 +100,7 @@ public:
 class SuspendedDirty : public ComplexDirty
 {
 public:
-    bool isDirty(uint32_t, const Set<Source> &) override
+    bool isDirty(const Source &) override
     {
         return false;
     }
@@ -114,29 +114,22 @@ public:
     {
     }
 
-    virtual bool isDirty(uint32_t fileId, const Set<Source> &sources) override
+    virtual bool isDirty(const Source &source) override
     {
         bool ret = false;
 
-        if (mMatch.isEmpty() || mMatch.match(Location::path(fileId))) {
-            for (auto it : mProject->dependencies(fileId, Project::ArgDependsOn)) {
+        if (mMatch.isEmpty() || mMatch.match(Location::path(source.fileId))) {
+            for (auto it : mProject->dependencies(source.fileId, Project::ArgDependsOn)) {
                 uint64_t depLastModified = lastModified(it);
-                if (!depLastModified) {
+                if (!depLastModified || depLastModified > source.parsed) {
                     ret = true;
                     insertDirtyFile(it);
-                } else {
-                    for (const Source &source : sources ) {
-                        if (depLastModified > source.parsed) {
-                            ret = true;
-                            insertDirtyFile(it);
-                        }
-                    }
                 }
             }
             if (ret)
-                mDirty.insert(fileId);
+                mDirty.insert(source.fileId);
 
-            assert(!ret || mDirty.contains(fileId));
+            assert(!ret || mDirty.contains(source.fileId));
         }
         return ret;
     }
@@ -156,31 +149,24 @@ public:
         }
     }
 
-    virtual bool isDirty(uint32_t fileId, const Set<Source> &sources) override
+    virtual bool isDirty(const Source &source) override
     {
         bool ret = false;
 
         for (auto it : mModified) {
             const auto &deps = it.second;
-            if (deps.contains(fileId)) {
+            if (deps.contains(source.fileId)) {
                 const uint64_t depLastModified = lastModified(it.first);
-                if (!depLastModified) {
+                if (!depLastModified || depLastModified > source.parsed) {
                     // dependency is gone
                     ret = true;
                     insertDirtyFile(it.first);
-                } else {
-                    for (const Source &source : sources ) {
-                        if (depLastModified > source.parsed) {
-                            ret = true;
-                            insertDirtyFile(fileId);
-                        }
-                    }
                 }
             }
         }
 
         if (ret)
-            insertDirtyFile(fileId);
+            insertDirtyFile(source.fileId);
         return ret;
     }
 
@@ -297,7 +283,7 @@ bool Project::readSources(const Path &path, IndexParseData &data, String *err)
 
     file >> data;
     if (Sandbox::hasRoot()) {
-        forEachSource(data, [](uint32_t, Source &source) {
+        forEachSource(data, [](Source &source) {
                 for (String &arg : source.arguments) {
                     arg = Sandbox::decoded(arg);
                 }
@@ -323,9 +309,8 @@ bool Project::init()
 
     mDirtyTimer.timeout().connect(std::bind(&Project::onDirtyTimeout, this, std::placeholders::_1));
 
-#if 0
     String err;
-    if (!Project::readSources(mSourcesFilePath, mSources, &mCompileCommandsInfos, &err)) {
+    if (!Project::readSources(mSourcesFilePath, mIndexParseData, &err)) {
         if (!err.isEmpty())
             error("Sources restore error %s: %s", mPath.constData(), err.constData());
 
@@ -333,31 +318,18 @@ bool Project::init()
     }
 
     auto reindexAll = [this]() {
-        if (mCompileCommandsInfos.isEmpty()) {
-            mProjectFilePath.visit([](const Path &path) {
-                    if (strcmp(path.fileName(), "sources")) {
-                        if (path.isDir()) {
-                            Path::rmdir(path);
-                        } else {
-                            path.rm();
-                        }
+        mProjectFilePath.visit([](const Path &path) {
+                if (strcmp(path.fileName(), "sources")) {
+                    if (path.isDir()) {
+                        Path::rmdir(path);
+                    } else {
+                        path.rm();
                     }
-                    return Path::Continue;
-                });
-            Sources sources;
-            std::swap(sources, mSources);
-            assert(mSources.empty());
-            uint32_t last = 0;
-            Set<uint32_t> files;
-            for (const auto &source : sources) {
-                if (source.first != last) {
-                    last = source.first;
-                    reindex(last, IndexerJob::Compile);
                 }
-            }
-        } else {
-            RTags::loadCompileCommands(mCompileCommandsInfos, mPath);
-        }
+                return Path::Continue;
+            });
+        auto parseData = std::move(mIndexParseData);
+        processParseData(std::move(parseData));
     };
 
     DataFile file(mProjectFilePath, RTags::DatabaseVersion);
@@ -374,8 +346,8 @@ bool Project::init()
         Sandbox::decode(mVisitedFiles);
     }
     file >> mDiagnostics;
-    for (const auto &info : mCompileCommandsInfos)
-        watch(info.first, Watch_compileCommands);
+    for (const auto &info : mIndexParseData.compileCommands)
+        watch(Location::path(info.first), Watch_CompileCommands);
 
     if (!loadDependencies(file, mDependencies)) {
         mDependencies.deleteAll();
@@ -452,20 +424,18 @@ bool Project::init()
         }
     }
 
-    auto it = mSources.begin();
-    while (it != mSources.end()) {
-        const Path sourceFile = Location::path(it->first);
-        if (!sourceFile.isFile()) {
-            warning() << sourceFile << "seems to have disappeared";
-            removeDependencies(it->first);
-            dirty.get()->insertDirtyFile(it->first);
-            mSources.erase(it++);
-            needsSave = true;
-        } else {
-            watchFile(it->first);
-            ++it;
-        }
-    }
+    forEachSource([&dirty, this, &needsSave](Source &src) -> VisitResult {
+            const Path sourceFile = Location::path(src.fileId);
+            if (!sourceFile.isFile()) {
+                warning() << sourceFile << "seems to have disappeared";
+                removeDependencies(src.fileId);
+                dirty.get()->insertDirtyFile(src.fileId);
+                needsSave = true;
+                return Remove;
+            }
+            watchFile(src.fileId);
+            return Continue;
+        });
 
     reloadCompileCommands();
 
@@ -477,7 +447,6 @@ bool Project::init()
         simple.init(missingFileMaps, shared_from_this());
         startDirtyJobs(&simple, IndexerJob::Dirty);
     }
-#endif
     return true;
 }
 
@@ -670,11 +639,11 @@ static String formatDiagnostics(const Diagnostics &diagnostics, Flags<QueryMessa
 
 void Project::onJobFinished(const std::shared_ptr<IndexerJob> &job, const std::shared_ptr<IndexDataMessage> &msg)
 {
-#if 0
+    error() << "GOT A JOB" << Location::path(msg->fileId()) << Location::path(job->fileId()) << job.get();
     mBytesWritten += msg->bytesWritten();
     std::shared_ptr<IndexerJob> restart;
     const uint32_t fileId = msg->fileId();
-    auto j = mActiveJobs.take(msg->id());
+    auto j = mActiveJobs.take(fileId);
     if (!j) {
         error() << "Couldn't find JobData for" << Location::path(fileId) << msg->id() << job->id << job.get();
         return;
@@ -692,9 +661,7 @@ void Project::onJobFinished(const std::shared_ptr<IndexerJob> &job, const std::s
         releaseFileIds(job->visited);
     }
 
-    auto range = mSources.equal_range(msg->fileId());
-    auto src = mSources.find(msg->fileId());
-    if (src == mSources.end()) {
+    if (!hasSource(msg->fileId())) {
         releaseFileIds(job->visited);
         error() << "Can't find source for" << Location::path(fileId);
         return;
@@ -742,7 +709,15 @@ void Project::onJobFinished(const std::shared_ptr<IndexerJob> &job, const std::s
     updateFixIts(visited, msg->fixIts());
     updateDependencies(msg);
     if (success) {
-        src->second.parsed = msg->parseTime();
+        forEachSources([&msg](Sources &sources) -> VisitResult {
+                if (sources.contains(msg->fileId())) {
+                    auto &ref = sources[msg->fileId()];
+                    for (Source &src : ref) {
+                        src.parsed = msg->parseTime();
+                    }
+                }
+                return Continue;
+            });
         logDirect(LogLevel::Error, String::format("[%3d%%] %d/%d %s %s. (%s)",
                                                   static_cast<int>(round((double(idx) / double(mJobCounter)) * 100.0)), idx, mJobCounter,
                                                   String::formatTime(time(0), String::Time).constData(),
@@ -774,7 +749,6 @@ void Project::onJobFinished(const std::shared_ptr<IndexerJob> &job, const std::s
     } else {
         mSaveDirty = true;
     }
-#endif
 }
 
 void Project::diagnose(uint32_t fileId)
@@ -851,9 +825,8 @@ bool Project::save()
     return true;
 }
 
-void Project::index(const std::shared_ptr<IndexerJob> &job, bool)
+void Project::index(const std::shared_ptr<IndexerJob> &job)
 {
-#if 0
     const Path sourceFile = job->sourceFile;
     static const char *fileFilter = getenv("RTAGS_FILE_FILTER");
     if (fileFilter && !strstr(job->sourceFile.constData(), fileFilter)) {
@@ -862,78 +835,34 @@ void Project::index(const std::shared_ptr<IndexerJob> &job, bool)
         return;
     }
 
-    if (Server::instance()->suspended() && mSources.contains(job->fileId()) && (job->flags & IndexerJob::Compile)) {
+    if (Server::instance()->suspended() && hasSource(job->fileId()) && (job->flags & IndexerJob::Compile)) {
         return;
     }
 
-#if 1
-    if (job->flags & IndexerJob::Compile) {
-        const auto &options = Server::instance()->options();
-        if (options.options & Server::NoFileSystemWatch && mSources.contains(job->fileId())) {
-            // When we're not watching the file system, we ignore
-            // updating compiles. This means that you always have to
-            // do check-reindex to build existing files!
-            return;
-        }
-
-        auto cur = mSources.find(key);
-        if (cur != mSources.end()) {
-            if (!(cur->second.flags & Source::Active))
-                markActive(mSources.lower_bound(Source::key(job->source.fileId, 0)), cur->second.buildRootId, mSources.end());
-            if (cur->second.compareArguments(job->source)) {
-                // no updates
-                return;
-            }
-        } else {
-            auto it = mSources.lower_bound(Source::key(job->source.fileId, 0));
-            const auto start = it;
-            const bool disallowMultiple = options.options & Server::DisallowMultipleSources;
-            bool unsetActive = false;
-            while (it != mSources.end()) {
-                uint32_t f, b;
-                Source::decodeKey(it->first, f, b);
-                if (f != job->source.fileId)
-                    break;
-
-                if (it->second.compareArguments(job->source)) {
-                    markActive(start, b, mSources.end());
-                    // no updates
-                    return;
-                } else if (disallowMultiple) {
-                    mSources.erase(it++);
-                    continue;
-                }
-                unsetActive = true;
-                ++it;
-            }
-            if (unsetActive) {
-                assert(!disallowMultiple);
-                markActive(start, 0, mSources.end());
-            }
-        }
+    if (job->flags & IndexerJob::Compile && Server::instance()->options().options & Server::NoFileSystemWatch && hasSource(job->fileId())) {
+        // When we're not watching the file system, we ignore
+        // updating compiles. This means that you always have to
+        // do check-reindex to build existing files!
+        return;
     }
-#endif
-}
 
-Source &src = mSources[key];
-src = job->source;
-src.flags |= Source::Active;
 
-std::shared_ptr<IndexerJob> &ref = mActiveJobs[key];
-if (ref) {
-    releaseFileIds(ref->visited);
-    Server::instance()->jobScheduler()->abort(ref);
-    --mJobCounter;
-}
-ref = job;
+    std::shared_ptr<IndexerJob> &ref = mActiveJobs[job->fileId()];
+    if (ref) {
+        error() << "Aborting a job" << ref.get() << Location::path(job->fileId());
+        releaseFileIds(ref->visited);
+        Server::instance()->jobScheduler()->abort(ref);
+        --mJobCounter;
+    }
+    ref = job;
+    error() << "Starting a job" << job.get() << Location::path(job->fileId());
 
-++mJobsStarted;
-if (!mJobCounter++) {
-    mTimer.start();
-}
+    ++mJobsStarted;
+    if (!mJobCounter++) {
+        mTimer.start();
+    }
 
-Server::instance()->jobScheduler()->add(job);
-#endif
+    Server::instance()->jobScheduler()->add(job);
 }
 
 void Project::onFileModified(const Path &path)
@@ -950,17 +879,13 @@ void Project::onFileAdded(const Path &path)
 
 void Project::onFileAddedOrModified(const Path &file)
 {
-#if 0
+    const uint32_t fileId = Location::fileId(file);
     // error() << file.fileName() << mCompileCommandsInfos.dir << file;
-    if (!mCompileCommandsInfos.isEmpty()
-        && !strcmp(file.fileName(), "compile_commands.json")
-        && mCompileCommandsInfos.contains(file.parentDir())) {
+    if (!mIndexParseData.compileCommands.contains(fileId)) {
         reloadCompileCommands();
         return;
     }
-#endif
 
-    const uint32_t fileId = Location::fileId(file);
     debug() << file << "was modified" << fileId;
     if (!fileId)
         return;
@@ -984,7 +909,7 @@ void Project::onFileRemoved(const Path &file)
 
     auto it = mActiveJobs.begin();
     while (it != mActiveJobs.end()) {
-        if (it->second->sources.begin()->fileId == fileId) {
+        if (it->first == fileId) {
             releaseFileIds(it->second->visited);
             mActiveJobs.erase(it++);
         } else {
@@ -1155,33 +1080,29 @@ int Project::reindex(const Match &match,
 
 int Project::remove(const Match &match)
 {
-#warning not done
-    // int count = 0;
-    // auto it = mSources.begin();
-    // while (it != mSources.end()) {
-    //     if (match.match(Location::path(it->first))) {
-    //         removeSource(it++);
-    //         ++count;
-    //     } else {
-    //         ++it;
-    //     }
-    // }
-    // return count;
+    int count = 0;
+    forEachSource([&match, &count](Source &src) -> VisitResult {
+            if (match.match(src.sourceFile())) {
+                ++count;
+                return Remove;
+            }
+            return Continue;
+        });
+    return count;
 }
 
 int Project::startDirtyJobs(Dirty *dirty, IndexerJob::Flag flag,
                             const UnsavedFiles &unsavedFiles,
                             const std::shared_ptr<Connection> &wait)
 {
-#if 0
     assert(flag == IndexerJob::Dirty || flag == IndexerJob::Reindex);
     const JobScheduler::JobScope scope(Server::instance()->jobScheduler());
-    List<Set<Source> > toIndex;
-    for (const auto &source : mSources) {
-        if (dirty->isDirty(source.first, source.second)) {
-            toIndex.append(source.second);
-        }
-    }
+    Set<uint32_t> toIndex;
+    forEachSource([dirty, &toIndex](const Source &src) -> VisitResult {
+            if (dirty->isDirty(src))
+                toIndex.insert(src.fileId);
+            return Continue;
+        });
     const Set<uint32_t> dirtyFiles = dirty->dirtied();
 
     {
@@ -1191,21 +1112,20 @@ int Project::startDirtyJobs(Dirty *dirty, IndexerJob::Flag flag,
         }
     }
 
-    std::weak_ptr<Connection> weakConn(wait);
-    for (const auto &sources : toIndex) {
-        // std::shared_ptr<IndexerJob> job(new IndexerJob(source, flag, shared_from_this(), unsavedFiles));
-        // if (wait) {
-        //     job->destroyed.connect([weakConn](IndexerJob *) {
-        //             if (auto strong = weakConn.lock()) {
-        //                 strong->finish();
-        //             }
-        //         });
-        // }
-        // index(job);
+    std::weak_ptr<Connection> weakConn = wait;
+    for (uint32_t fileId : toIndex) {
+        std::shared_ptr<IndexerJob> job(new IndexerJob(sources(fileId), flag, shared_from_this(), unsavedFiles));
+        if (wait) {
+            job->destroyed.connect([weakConn](IndexerJob *) {
+                    if (auto strong = weakConn.lock()) {
+                        strong->finish();
+                    }
+                });
+        }
+        index(job);
     }
 
     return toIndex.size();
-#endif
 }
 
 bool Project::isIndexed(uint32_t fileId) const
@@ -1465,7 +1385,7 @@ String Project::toCompileCommands() const
                                                   | Source::QuoteDefines
                                                   | Source::FilterBlacklist);
     Value ret;
-    forEachSource([&ret, flags](uint32_t, const Source &source) -> VisitResult {
+    forEachSource([&ret, flags](const Source &source) -> VisitResult {
             Value unit;
             unit["directory"] = source.directory;
             unit["file"] = source.sourceFile();
@@ -2027,17 +1947,16 @@ bool Project::validate(uint32_t fileId, ValidateMode mode, String *err) const
 
 void Project::loadFailed(uint32_t fileId)
 {
-#warning not done
-    // if (mSources.contains(fileId)) {
-    //     if (Server::instance()->jobScheduler()->increasePriority(fileId))
-    //         return;
-    // } else { // header
-    //     for (auto dep : dependencies(fileId, Project::DependsOnArg)) {
-    //         if (mSources.contains(dep) && Server::instance()->jobScheduler()->increasePriority(dep)) {
-    //             return;
-    //         }
-    //     }
-    // }
+    if (hasSource(fileId)) {
+        if (Server::instance()->jobScheduler()->increasePriority(fileId))
+            return;
+    } else { // header
+        for (auto dep : dependencies(fileId, Project::DependsOnArg)) {
+            if (hasSource(dep) && Server::instance()->jobScheduler()->increasePriority(dep)) {
+                return;
+            }
+        }
+    }
 
     dirty(fileId); // file might have gone missing
 }
@@ -2378,76 +2297,20 @@ String Project::estimateMemory() const
     return String::join(ret, "\n");
 }
 
-#if 0
-void Project::addCompileCommandsInfo(const Path &path, CompilationDataBaseInfo &&info)
-{
-    mCompilationDatabaseInfos[path] = std::move(info);
-    watch(path, Watch_CompilationDatabase);
-    mSaveDirty = true;
-}
-
-void Project::setCompileCommandsInfos(Hash<Path, CompilationDataBaseInfo> &&infos, const Set<Source> &indexed)
-{
-    mCompileCommandsInfos = std::move(infos);
-    for (auto &info : mCompileCommandsInfos) {
-        info.second.lastModified = Path(info.first + "compile_commands.json").lastModifiedMs();
-        watch(info.first, Watch_compileCommands);
-    }
-    Sources::iterator it = mSources.begin();
-    while (it != mSources.end()) {
-        if (!indexed.contains(it->second)) {
-            error() << it->second.sourceFile() << "is no longer in compile_commands.json, removing";
-            removeSource(it++);
-        } else {
-            ++it;
-        }
-    }
-    mSaveDirty = true;
-}
-#endif
-
 void Project::reloadCompileCommands()
 {
-#warning not done
-#if 0
-    if (!Server::instance()->suspended() ) {
-        for (const auto &info : mCompileCommandsInfos) {
-            const Path file(info.first + "compile_commands.json");
+    if (!Server::instance()->suspended()) {
+        IndexParseData data;
+        data.environment = mIndexParseData.environment;
+        for (const auto &info : mIndexParseData.compileCommands) {
+            const Path file = Location::path(info.first);
             const uint64_t lastModified = file.lastModifiedMs();
-            if (lastModified && lastModified != info.second.lastModified) {
-                RTags::loadCompileCommands(mCompileCommandsInfos, mPath);
+            if (lastModified && lastModified != info.second.lastModifiedMs) {
+                Server::instance()->loadCompileCommands(data, file, info.second.environment);
             }
         }
+        processParseData(std::move(data));
     }
-#endif
-}
-
-void Project::removeSource(Sources::iterator it)
-{
-#if 0
-    assert(it != mSources.end());
-    auto ajit = mActiveJobs.begin();
-    while (ajit != mActiveJobs.end()) {
-        const size_t idx = ajit->second->sources.contains(it->second);
-        if (idx == String::npos) {
-            ++ajit;
-        } else if (ajit->second->sources.size() > 1) {
-            ajit->second->sources.removeAt(idx);
-            ++ajit;
-        } else {
-            releaseFileIds(ajit->second->visited);
-            Server::instance()->jobScheduler()->abort(ajit->second);
-            mActiveJobs.erase(ajit++);
-        }
-    }
-
-    const uint32_t fileId = it->first;
-    mSources.erase(it);
-    if (mSources.find(fileId) == mSources.end()) {
-        removeDependencies(fileId);
-        Path::rmdir(sourceFilePath(fileId).constData());
-    }
-#endif
 }
 
 uint32_t Project::fileMapOptions() const
@@ -2517,57 +2380,6 @@ void Project::includeCompletions(Flags<QueryMessage::Flag> flags, const std::sha
         conn->write(")");
 }
 
-Sources::const_iterator Project::find(const Source &source) const
-{
-#if 0
-    auto range = mSources.equal_range(source.fileId);
-    for (auto it = range.first; it != range.second; ++it) {
-        if (it->second == source)
-            return it;
-    }
-    return mSources.end();
-#endif
-}
-
-Project::VisitResult Project::forEachSource(Sources &sources, std::function<VisitResult(uint32_t, Source &source)> cb)
-{
-    for (auto &src : sources) {
-        Set<Source> &set = src.second;
-        Set<Source>::iterator it = set.begin();
-        List<Source> replacements;
-        replacements.reserve(set.size());
-        bool done = false;
-        while (!done && it != set.end()) {
-            Source s = *it;
-            if (cb(src.first, s) == Stop)
-                done = true;
-            if (s != *it) {
-                replacements.append(s);
-                set.erase(it++);
-            } else {
-                ++it;
-            }
-        }
-        for (const Source &s : replacements) {
-            set.insert(s);
-        }
-        if (done)
-            return Stop;
-    }
-    return Continue;
-}
-
-Project::VisitResult Project::forEachSource(const Sources &sources, std::function<VisitResult(uint32_t, const Source &source)> cb)
-{
-    for (auto &src : sources) {
-        for (Set<Source>::const_iterator it = src.second.begin(); it != src.second.end(); ++it) {
-            if (cb(src.first, *it) == Stop)
-                return Stop;
-        }
-    }
-    return Continue;
-}
-
 Source Project::source(uint32_t fileId, int buildIndex) const
 {
     Source ret;
@@ -2588,45 +2400,149 @@ Source Project::source(uint32_t fileId, int buildIndex) const
 
 void Project::reindex(uint32_t fileId, Flags<IndexerJob::Flag> flags)
 {
+    index(std::shared_ptr<IndexerJob>(new IndexerJob(sources(fileId), flags, shared_from_this())));
 }
 
 void Project::processParseData(IndexParseData &&data)
 {
+    Set<uint32_t> index;
+    if (mIndexParseData.isEmpty()) {
+        mIndexParseData = std::move(data);
+        forEachSources([this, &index](const Sources &sources) -> VisitResult {
+                for (auto pair : sources) {
+                    index.insert(pair.first);
+                }
+                return Continue;
+            });
+    } else {
+        forEachSource(data.sources, [this, &index](const Source &source) -> VisitResult {
+                auto &ref = mIndexParseData.sources[source.fileId];
+                if (ref.contains(source)) {
+                    ref.append(source);
+                    index.insert(source.fileId);
+                }
+                return Continue;
+            });
 
+        for (auto &cc : data.compileCommands) {
+            if (!mIndexParseData.compileCommands.contains(cc.first)) {
+                for (auto pair : cc.second.sources) {
+                    index.insert(pair.first);
+                }
+                mIndexParseData.compileCommands[cc.first] = std::move(cc.second);
+            } else {
+                auto &ref = mIndexParseData.compileCommands[cc.first];
+                forEachSource(cc.second.sources, [&index, &ref](const Source &source) -> VisitResult {
+                        auto &r = ref.sources[source.fileId];
+                        if (!r.contains(source)) {
+                            r.append(source);
+                            index.insert(source.fileId);
+                        }
+                        return Continue;
+                    });
+            }
+        }
+    }
+    for (uint32_t fileId : index) {
+        reindex(fileId, IndexerJob::Compile);
+    }
 }
 
-Project::VisitResult Project::forEachSources(const IndexParseData &data, std::function<VisitResult(const Sources &sources)> cb)
+void Project::forEachSource(const Sources &sources, std::function<VisitResult(const Source &source)> cb)
+{
+    for (auto &src : sources) {
+        for (const Source &s : src.second) {
+            auto ret = cb(s);
+            assert(ret != Remove);
+            if (ret == Stop)
+                return;
+        }
+    }
+}
+
+void Project::forEachSource(Sources &sources, std::function<VisitResult(Source &source)> cb)
+{
+    Sources::iterator sit = sources.begin();
+    while (sit != sources.end()) {
+        List<Source> &list = sit->second;
+        List<Source>::iterator it = list.begin();
+        bool done = false;
+        while (it != list.end()) {
+            const auto ret = cb(*it);
+            if (ret == Remove) {
+                it = list.erase(it);
+            } else if (ret == Stop) {
+                done = true;
+                break;
+            } else {
+                ++it;
+            }
+        }
+        if (list.isEmpty()) {
+            sources.erase(sit++);
+        } else {
+            ++sit;
+        }
+        if (done)
+            break;
+    }
+}
+
+void Project::forEachSources(const IndexParseData &data, std::function<VisitResult(const Sources &sources)> cb)
 {
     for (const auto &compileCommands : data.compileCommands) {
-        if (cb(compileCommands.second.sources) == Stop)
-            return Stop;
+        const auto ret = cb(compileCommands.second.sources);
+        assert(ret != Remove);
+        if (ret == Stop)
+            return;
     }
-    return cb(data.sources);
+    const auto ret = cb(data.sources);
+    (void)ret;
+    assert(ret != Remove);
 }
 
-Project::VisitResult Project::forEachSources(IndexParseData &data, std::function<VisitResult(Sources &sources)> cb)
+void Project::forEachSources(IndexParseData &data, std::function<VisitResult(Sources &sources)> cb)
 {
-    for (auto &compileCommands : data.compileCommands) {
-        if (cb(compileCommands.second.sources) == Stop)
-            return Stop;
+    auto it = data.compileCommands.begin();
+    while (it != data.compileCommands.end()) {
+        const auto ret = cb(it->second.sources);
+        if (ret == Remove) {
+            data.compileCommands.erase(it++);
+        } else if (ret == Stop) {
+            return;
+        } else {
+            ++it;
+        }
     }
-    return cb(data.sources);
+    if (cb(data.sources) == Remove)
+        data.sources.clear();
 }
 
-Project::VisitResult Project::forEachSource(const IndexParseData &data, std::function<VisitResult(uint32_t, const Source &source)> cb)
+void Project::forEachSource(const IndexParseData &data, std::function<VisitResult(const Source &source)> cb)
 {
-    return forEachSources(data, [&cb](const Sources &sources) {
-            if (forEachSource(sources, cb) == Stop)
-                return Stop;
-            return Continue;
+    bool stop = false;
+    forEachSources(data, [&stop, &cb](const Sources &sources) {
+            forEachSource(sources, [&stop, &cb](const Source &src) {
+                    const auto ret = cb(src);
+                    assert(ret != Remove);
+                    if (ret == Stop)
+                        stop = true;
+                    return ret;
+                });
+            return stop ? Stop : Continue;
         });
 }
 
-Project::VisitResult Project::forEachSource(IndexParseData &data, std::function<VisitResult(uint32_t, Source &source)> cb)
+void Project::forEachSource(IndexParseData &data, std::function<VisitResult(Source &source)> cb)
 {
-    return forEachSources(data, [&cb](Sources &sources) {
-            if (forEachSource(sources, cb) == Stop)
-                return Stop;
-            return Continue;
+    bool stop = false;
+    forEachSources(data, [&stop, &cb](Sources &sources) {
+            forEachSource(sources, [&stop, &cb](Source &src) {
+                    const auto ret = cb(src);
+                    if (ret == Stop)
+                        stop = true;
+                    return ret;
+                });
+            return stop ? Stop : Continue;
         });
 }

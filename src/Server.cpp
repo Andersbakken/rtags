@@ -559,7 +559,7 @@ bool Server::parse(IndexParseData &data, String &&arguments, const Path &pwd, ui
 
         if (shouldIndex(source, data.project)) {
             Sources &s = compileCommandsFileId ? data.compileCommands[compileCommandsFileId].sources : data.sources;
-            Set<Source> &srcs = s[source.fileId];
+            List<Source> &srcs = s[source.fileId];
             if (srcs.contains(source))
                 continue;
             bool found = false;
@@ -572,7 +572,7 @@ bool Server::parse(IndexParseData &data, String &&arguments, const Path &pwd, ui
             if (found)
                 continue;
             source.compileCommandsFileId = compileCommandsFileId;
-            srcs.insert(source);
+            srcs.append(source);
             ret = true;
         }
     }
@@ -615,7 +615,11 @@ void Server::handleIndexMessage(const std::shared_ptr<IndexMessage> &message, co
 void Server::processParseData(IndexParseData &&data)
 {
     assert(!data.project.isEmpty());
-    addProject(data.project)->processParseData(std::forward<IndexParseData>(data));
+    auto proj = addProject(data.project);
+    assert(proj);
+    proj->processParseData(std::forward<IndexParseData>(data));
+    if (!currentProject())
+        setCurrentProject(proj);
 }
 
 void Server::handleLogOutputMessage(const std::shared_ptr<LogOutputMessage> &message, const std::shared_ptr<Connection> &conn)

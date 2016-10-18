@@ -45,7 +45,7 @@ struct Diagnostic;
 struct DependencyNode;
 typedef List<std::pair<uint32_t, uint32_t> > Includes;
 typedef Hash<uint32_t, DependencyNode*> Dependencies;
-typedef Hash<uint32_t, Set<Source> > Sources;
+typedef Hash<uint32_t, List<Source> > Sources;
 typedef Map<Path, Set<String> > Files;
 typedef Hash<uint32_t, Set<FixIt> > FixIts;
 typedef Hash<Path, String> UnsavedFiles;
@@ -754,6 +754,8 @@ struct IndexParseData
     Hash<uint32_t, CompileCommands> compileCommands; // fileId for compile_commands.json -> CompileCommands
     List<String> environment;
     Sources sources;
+
+    bool isEmpty() const { return compileCommands.isEmpty() && environment.isEmpty() && sources.isEmpty(); }
 };
 
 inline Serializer &operator<<(Serializer &s, const IndexParseData::CompileCommands &commands)

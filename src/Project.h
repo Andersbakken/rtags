@@ -176,7 +176,8 @@ public:
     bool isIndexed(uint32_t fileId) const;
 
     void processParseData(IndexParseData &&data);
-    void index(const std::shared_ptr<IndexerJob> &job, bool);
+    const IndexParseData &indexParseData() const { return mIndexParseData; }
+    void index(const std::shared_ptr<IndexerJob> &job);
     void reindex(uint32_t fileId, Flags<IndexerJob::Flag> flags);
     Sources sources() const;
     Set<Source> sources(uint32_t fileId) const;
@@ -233,27 +234,26 @@ public:
     void fixPCH(Source &source);
     void includeCompletions(Flags<QueryMessage::Flag> flags, const std::shared_ptr<Connection> &conn, Source &&source) const;
     size_t bytesWritten() const { return mBytesWritten; }
-    Sources::const_iterator find(const Source &source) const;
-    Sources::iterator find(const Source &source);
     void destroy() { mSaveDirty = false; }
 private:
     enum VisitResult {
         Stop,
-        Continue
+        Continue,
+        Remove // not allowed for const calls
     };
-    static VisitResult forEachSources(const IndexParseData &data, std::function<VisitResult(const Sources &sources)> cb);
-    static VisitResult forEachSources(IndexParseData &data, std::function<VisitResult(Sources &sources)> cb);
-    VisitResult forEachSources(std::function<VisitResult(const Sources &sources)> cb) const { return forEachSources(mIndexParseData, cb); }
-    VisitResult forEachSources(std::function<VisitResult(Sources &sources)> cb) { return forEachSources(mIndexParseData, cb); }
-    static VisitResult forEachSource(Sources &sources, std::function<VisitResult(uint32_t, Source &source)> cb);
-    static VisitResult forEachSource(const Sources &sources, std::function<VisitResult(uint32_t, const Source &source)> cb);
-    static VisitResult forEachSource(IndexParseData &data, std::function<VisitResult(uint32_t, Source &source)> cb);
-    static VisitResult forEachSource(const IndexParseData &data, std::function<VisitResult(uint32_t, const Source &source)> cb);
-    VisitResult forEachSource(std::function<VisitResult(uint32_t, const Source &source)> cb) const { return forEachSource(mIndexParseData, cb); }
-    VisitResult forEachSource(std::function<VisitResult(uint32_t, Source &source)> cb) { return forEachSource(mIndexParseData, cb); }
+    static void forEachSources(const IndexParseData &data, std::function<VisitResult(const Sources &sources)> cb);
+    static void forEachSources(IndexParseData &data, std::function<VisitResult(Sources &sources)> cb);
+    void forEachSources(std::function<VisitResult(const Sources &sources)> cb) const { forEachSources(mIndexParseData, cb); }
+    void forEachSources(std::function<VisitResult(Sources &sources)> cb) { forEachSources(mIndexParseData, cb); }
+
+    static void forEachSource(Sources &sources, std::function<VisitResult(Source &source)> cb);
+    static void forEachSource(const Sources &sources, std::function<VisitResult(const Source &source)> cb);
+    static void forEachSource(IndexParseData &data, std::function<VisitResult(Source &source)> cb);
+    static void forEachSource(const IndexParseData &data, std::function<VisitResult(const Source &source)> cb);
+    void forEachSource(std::function<VisitResult(const Source &source)> cb) const { forEachSource(mIndexParseData, cb); }
+    void forEachSource(std::function<VisitResult(Source &source)> cb) { forEachSource(mIndexParseData, cb); }
 
     void reloadCompileCommands();
-    void removeSource(Sources::iterator it);
     void onFileAddedOrModified(const Path &path);
     void watchFile(uint32_t fileId);
     enum ValidateMode {
@@ -391,8 +391,7 @@ private:
 
     Diagnostics mDiagnostics;
 
-    // key'ed on IndexerJob::id
-    Hash<uint64_t, std::shared_ptr<IndexerJob> > mActiveJobs;
+    Hash<uint32_t, std::shared_ptr<IndexerJob> > mActiveJobs;
 
     Timer mDirtyTimer;
     Set<uint32_t> mPendingDirtyFiles;
