@@ -1476,7 +1476,8 @@ CXChildVisitResult ClangIndexer::handleCursor(const CXCursor &cursor, CXCursorKi
                 c.flags |= Symbol::Auto;
                 if (resolvedAuto.type.kind != CXType_Invalid) {
                     setType(c, resolvedAuto.type);
-                    const Location loc = createLocation(clang_getCursorLocation(mLastCursor));
+                    bool blocked = false;
+                    const Location loc = createLocation(clang_getCursorLocation(mLastCursor), &blocked);
                     if (loc.fileId()) {
                         if (!clang_equalCursors(resolvedAuto.cursor, nullCursor) && clang_getCursorKind(resolvedAuto.cursor) != CXCursor_NoDeclFound) {
                             Symbol *cptr = 0;
