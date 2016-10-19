@@ -127,7 +127,7 @@ struct Auto {
     CXCursor cursor;
     CXType type;
 };
-std::shared_ptr<Auto> resolveAuto(const CXCursor &cursor);
+bool resolveAuto(const CXCursor &cursor, Auto *a = 0);
 
 struct Filter
 {

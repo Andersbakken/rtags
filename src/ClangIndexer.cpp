@@ -1471,16 +1471,16 @@ CXChildVisitResult ClangIndexer::handleCursor(const CXCursor &cursor, CXCursorKi
         }
     } else {
         if (kind == CXCursor_VarDecl || kind == CXCursor_ParmDecl) {
-            std::shared_ptr<RTags::Auto> resolvedAuto = RTags::resolveAuto(cursor);
-            if (resolvedAuto) {
+            RTags::Auto resolvedAuto;
+            if (RTags::resolveAuto(cursor, &resolvedAuto)) {
                 c.flags |= Symbol::Auto;
-                if (resolvedAuto->type.kind != CXType_Invalid) {
-                    setType(c, resolvedAuto->type);
+                if (resolvedAuto.type.kind != CXType_Invalid) {
+                    setType(c, resolvedAuto.type);
                     const Location loc = createLocation(clang_getCursorLocation(mLastCursor));
                     if (loc.fileId()) {
-                        if (!clang_equalCursors(resolvedAuto->cursor, nullCursor) && clang_getCursorKind(resolvedAuto->cursor) != CXCursor_NoDeclFound) {
+                        if (!clang_equalCursors(resolvedAuto.cursor, nullCursor) && clang_getCursorKind(resolvedAuto.cursor) != CXCursor_NoDeclFound) {
                             Symbol *cptr = 0;
-                            if (handleReference(mLastCursor, CXCursor_TypeRef, loc, resolvedAuto->cursor, &cptr)) {
+                            if (handleReference(mLastCursor, CXCursor_TypeRef, loc, resolvedAuto.cursor, &cptr)) {
                                 cptr->symbolLength = 4;
                                 cptr->type = c.type;
                                 cptr->endLine = c.startLine;
