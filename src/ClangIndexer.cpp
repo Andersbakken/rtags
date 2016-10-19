@@ -47,8 +47,13 @@ static inline void setType(Symbol &symbol, const CXType &type)
     symbol.type = type.kind;
     symbol.typeName = RTags::eatString(clang_getTypeSpelling(type));
     const CXType canonical = clang_getCanonicalType(type);
-    if (!clang_equalTypes(type, canonical))
+    if (!clang_equalTypes(type, canonical)
+#if CINDEX_VERSION >= CINDEX_VERSION_ENCODE(0, 32)
+        && (symbol.typeName == "auto" || type.kind != CXType_Auto)
+#endif
+        ) {
         symbol.typeName += " => " + RTags::eatString(clang_getTypeSpelling(canonical));
+    }
 }
 
 static inline void setRange(Symbol &symbol, const CXSourceRange &range, uint16_t *length = 0)
