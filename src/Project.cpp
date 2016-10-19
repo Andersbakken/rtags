@@ -1746,7 +1746,7 @@ Set<Symbol> Project::findCallers(const Symbol &symbol)
 {
     const bool isClazz = symbol.isClass();
     return ::findReferences(symbol, shared_from_this(), [isClazz](const Symbol &input, const Symbol &ref) {
-            if (isClazz && ref.isConstructorOrDestructor())
+            if (isClazz && (ref.isConstructorOrDestructor() || ref.kind == CXCursor_CallExpr))
                 return false;
             if (ref.isReference()
                 || (input.kind == CXCursor_Constructor && (ref.kind == CXCursor_VarDecl || ref.kind == CXCursor_FieldDecl))) {
