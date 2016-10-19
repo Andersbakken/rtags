@@ -182,10 +182,10 @@ endif ()
 
 if ("${CMAKE_CXX_COMPILER_ID}" MATCHES "Clang")
     set_source_files_properties(AST.cpp PROPERTIES
-        COMPILE_FLAGS "-Wno-unused-parameter -Wno-unused-variable -ftemplate-depth=2000 -Wno-cast-qual")
+        COMPILE_FLAGS "-Wno-unused-parameter -Wno-unused-variable -ftemplate-depth=2000 -Wno-cast-qual -Wno-shadow")
 else ()
     set_source_files_properties(AST.cpp PROPERTIES
-        COMPILE_FLAGS "-Wno-unused-but-set-parameter -Wno-unused-parameter -Wno-unused-variable -ftemplate-depth=2000 -Wno-cast-qual")
+        COMPILE_FLAGS "-Wno-unused-but-set-parameter -Wno-unused-parameter -Wno-unused-variable -ftemplate-depth=2000 -Wno-cast-qual -Wno-shadow")
 endif()
 
 # RCT_LIBRARIES and stdc++ library must be at the end
