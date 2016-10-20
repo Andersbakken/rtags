@@ -34,6 +34,8 @@
 (require 'rtags)
 (require 'helm)
 
+(declare-function helm-highlight-current-line "ext:helm")
+
 (defcustom rtags-helm-actions
   '(("Select" . rtags-helm-select)
     ("Select other window" . rtags-helm-select-other-window))

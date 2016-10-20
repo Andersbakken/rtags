@@ -46,6 +46,14 @@ static inline void setType(Symbol &symbol, const CXType &type)
 {
     symbol.type = type.kind;
     symbol.typeName = RTags::eatString(clang_getTypeSpelling(type));
+    const CXType canonical = clang_getCanonicalType(type);
+    if (!clang_equalTypes(type, canonical)
+#if CINDEX_VERSION >= CINDEX_VERSION_ENCODE(0, 32)
+        && (symbol.typeName == "auto" || type.kind != CXType_Auto)
+#endif
+        ) {
+        symbol.typeName += " => " + RTags::eatString(clang_getTypeSpelling(canonical));
+    }
 }
 
 static inline void setRange(Symbol &symbol, const CXSourceRange &range, uint16_t *length = 0)
@@ -494,14 +502,14 @@ String ClangIndexer::addNamePermutations(const CXCursor &cursor, Location locati
     case CXCursor_Constructor:
         break;
     default: {
-        type = RTags::eatString(clang_getTypeSpelling(clang_getCursorType(cursor)));
+        type = RTags::eatString(clang_getTypeSpelling(clang_getCanonicalType(clang_getCursorType(cursor))));
         if (originalKind == CXCursor_FunctionDecl || originalKind == CXCursor_CXXMethod || originalKind == CXCursor_FunctionTemplate) {
             const size_t idx = type.indexOf(" -> ");
             if (idx != String::npos)
                 trailer = type.mid(idx);
         }
-        const int paren = type.indexOf('(');
-        if (paren != -1 && (paren != 8 || !type.startsWith("decltype("))) {
+        const size_t paren = type.indexOf('(');
+        if (paren != String::npos) {
             type.resize(paren);
         } else if (!type.isEmpty() && !type.endsWith('*') && !type.endsWith('&')) {
             type.append(' ');
@@ -1493,16 +1501,17 @@ CXChildVisitResult ClangIndexer::handleCursor(const CXCursor &cursor, CXCursorKi
         }
     } else {
         if (kind == CXCursor_VarDecl || kind == CXCursor_ParmDecl) {
-            std::shared_ptr<RTags::Auto> resolvedAuto = RTags::resolveAuto(cursor);
-            if (resolvedAuto) {
+            RTags::Auto resolvedAuto;
+            if (RTags::resolveAuto(cursor, &resolvedAuto)) {
                 c.flags |= Symbol::Auto;
-                if (resolvedAuto->type.kind != CXType_Invalid) {
-                    setType(c, resolvedAuto->type);
-                    const Location loc = createLocation(clang_getCursorLocation(mLastCursor));
+                if (resolvedAuto.type.kind != CXType_Invalid) {
+                    setType(c, resolvedAuto.type);
+                    bool blocked = false;
+                    const Location loc = createLocation(clang_getCursorLocation(mLastCursor), &blocked);
                     if (loc.fileId()) {
-                        if (!clang_equalCursors(resolvedAuto->cursor, nullCursor) && clang_getCursorKind(resolvedAuto->cursor) != CXCursor_NoDeclFound) {
+                        if (!clang_equalCursors(resolvedAuto.cursor, nullCursor) && clang_getCursorKind(resolvedAuto.cursor) != CXCursor_NoDeclFound) {
                             Symbol *cptr = 0;
-                            if (handleReference(mLastCursor, CXCursor_TypeRef, loc, resolvedAuto->cursor, &cptr)) {
+                            if (handleReference(mLastCursor, CXCursor_TypeRef, loc, resolvedAuto.cursor, &cptr)) {
                                 cptr->symbolLength = 4;
                                 cptr->type = c.type;
                                 cptr->endLine = c.startLine;
