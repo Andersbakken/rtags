@@ -854,7 +854,6 @@ void Project::index(const std::shared_ptr<IndexerJob> &job)
         --mJobCounter;
     }
     ref = job;
-    error() << "Starting a job" << job.get() << Location::path(job->fileId());
 
     ++mJobsStarted;
     if (!mJobCounter++) {
@@ -880,7 +879,7 @@ void Project::onFileAddedOrModified(const Path &file)
 {
     const uint32_t fileId = Location::fileId(file);
     // error() << file.fileName() << mCompileCommandsInfos.dir << file;
-    if (!mIndexParseData.compileCommands.contains(fileId)) {
+    if (mIndexParseData.compileCommands.contains(fileId)) {
         reloadCompileCommands();
         return;
     }
@@ -2293,6 +2292,7 @@ void Project::reloadCompileCommands()
 {
     if (!Server::instance()->suspended()) {
         IndexParseData data;
+        data.project = mPath;
         data.environment = mIndexParseData.environment;
         for (const auto &info : mIndexParseData.compileCommands) {
             const Path file = Location::path(info.first);

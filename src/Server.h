@@ -45,6 +45,7 @@ class Project;
 class QueryMessage;
 class VisitFileMessage;
 class JobScheduler;
+class IndexParseData;
 class Server
 {
 public:

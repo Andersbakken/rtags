@@ -30,6 +30,7 @@
 #include "LogOutputMessage.h"
 #include "QueryMessage.h"
 #include "rct/Rct.h"
+#include "rct/Connection.h"
 #include "rct/StopWatch.h"
 #include "Server.h"
 #include "ClangIndexer.h"
@@ -845,3 +846,4 @@ String toElisp(const Value &value)
     return ElispFormatter().toString(value);
 }
 }
+

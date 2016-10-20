@@ -281,16 +281,16 @@ const LogLevel RdmLogCommand::Default(-1);
 class CompileCommand : public RCCommand
 {
 public:
-    CompileCommand(const Path &c, const String &a)
-        : RCCommand(), cwd(c), args(a)
+    CompileCommand(const String &a, const Path &c)
+        : RCCommand(), args(a), cwd(c)
     {}
-    CompileCommand(const Path &dir)
-        : RCCommand(), compileCommandsDir(dir)
+    CompileCommand(const Path &path)
+        : RCCommand(), compileCommands(path)
     {}
 
-    const Path compileCommandsDir;
-    const Path cwd;
     const String args;
+    const Path cwd;
+    const Path compileCommands;
     virtual bool exec(RClient *rc, const std::shared_ptr<Connection> &connection) override
     {
         IndexMessage msg;
@@ -298,7 +298,7 @@ public:
         msg.setWorkingDirectory(cwd);
         msg.setFlag(IndexMessage::GuessFlags, rc->mGuessFlags);
         msg.setArguments(args);
-        msg.setCompileCommandsDir(compileCommandsDir);
+        msg.setCompileCommands(compileCommands);
         msg.setEnvironment(rc->environment());
         if (!rc->projectRoot().isEmpty())
             msg.setProjectRoot(rc->projectRoot());
@@ -347,14 +347,14 @@ void RClient::addLog(LogLevel level)
     mCommands.append(std::shared_ptr<RCCommand>(new RdmLogCommand(level)));
 }
 
-void RClient::addCompile(const Path &cwd, const String &args)
+void RClient::addCompile(const String &args, const Path &cwd)
 {
-    mCommands.append(std::shared_ptr<RCCommand>(new CompileCommand(cwd, args)));
+    mCommands.append(std::shared_ptr<RCCommand>(new CompileCommand(args, cwd)));
 }
 
-void RClient::addCompile(const Path &dir)
+void RClient::addCompile(const Path &path)
 {
-    mCommands.append(std::shared_ptr<RCCommand>(new CompileCommand(dir)));
+    mCommands.append(std::shared_ptr<RCCommand>(new CompileCommand(path)));
 }
 
 int RClient::exec()
@@ -948,32 +948,27 @@ CommandLineParser::ParseStatus RClient::parse(size_t argc, char **argv)
             addQuery(QueryMessage::SetBuffers, encoded);
             break; }
         case LoadCompileCommands: {
-            Path dir;
+            Path path;
             if (!value.isEmpty()) {
-                dir = std::move(value);
+                path = std::move(value);
             } else if (idx < arguments.size() && arguments[idx][0] != '-') {
-                dir = arguments[idx++];
+                path = arguments[idx++];
             } else {
-                dir = Path::pwd();
+                path = Path::pwd();
             }
-            dir.resolve(Path::MakeAbsolute);
-            if (!dir.exists()) {
-                return { String::format<1024>("%s does not seem to exist", dir.constData()), CommandLineParser::Parse_Error };
+            path.resolve(Path::MakeAbsolute);
+            if (!path.exists()) {
+                return { String::format<1024>("%s does not seem to exist", path.constData()), CommandLineParser::Parse_Error };
+            } else if (path.isDir()) {
+                path += "compile_commands.json";
+            } else if (!path.endsWith("/compile_commands.json")) {
+                return { "The file has to be called compile_commands.json", CommandLineParser::Parse_Error };
             }
-            if (!dir.isDir()) {
-                if (dir.isFile() && dir.endsWith("/compile_commands.json")) {
-                    dir = dir.parentDir();
-                } else {
-                    return { String::format<1024>("%s is not a directory", dir.constData()), CommandLineParser::Parse_Error };
-                }
+            if (!path.exists()) {
+                return { String::format<1024>("no compile_commands.json file in %s", path.constData()), CommandLineParser::Parse_Error };
             }
-            if (!dir.endsWith('/'))
-                dir += '/';
-            const Path file = dir + "compile_commands.json";
-            if (!file.isFile()) {
-                return { String::format<1024>("no compile_commands.json file in %s", dir.constData()), CommandLineParser::Parse_Error };
-            }
-            addCompile(dir);
+
+            addCompile(path);
             break; }
         case HasFileManager: {
             Path p;
@@ -1044,17 +1039,17 @@ CommandLineParser::ParseStatus RClient::parse(size_t argc, char **argv)
                 while (fgets(buf, sizeof(buf), stdin)) {
                     pending += buf;
                     if (!pending.endsWith("\\\n")) {
-                        addCompile(Path::pwd(), pending);
+                        addCompile(pending, Path::pwd());
                         pending.clear();
                     } else {
                         memset(pending.data() + pending.size() - 2, ' ', 2);
                     }
                 }
                 if (!pending.isEmpty()) {
-                    addCompile(Path::pwd(), pending);
+                    addCompile(pending, Path::pwd());
                 }
             } else {
-                addCompile(Path::pwd(), args);
+                addCompile(args, Path::pwd());
             }
             break; }
         case IsIndexing: {

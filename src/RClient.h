@@ -202,8 +202,8 @@ private:
     void addQuitCommand(int exitCode);
 
     void addLog(LogLevel level);
-    void addCompile(const Path &cwd, const String &args);
-    void addCompile(const Path &dir);
+    void addCompile(const String &args, const Path &cwd);
+    void addCompile(const Path &compileCommands);
 
     Flags<Flag> mFlags;
     Flags<QueryMessage::Flag> mQueryFlags;

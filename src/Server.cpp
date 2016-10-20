@@ -44,6 +44,7 @@
 #include "Project.h"
 #include "QueryMessage.h"
 #include "RClient.h"
+#include "IndexParseData.h"
 #include "rct/Connection.h"
 #include "rct/DataFile.h"
 #include "rct/EventLoop.h"
@@ -458,12 +459,12 @@ bool Server::loadCompileCommands(IndexParseData &data, const Path &compileComman
 
     CXCompilationDatabase_Error err;
     const uint64_t now = Rct::currentTimeMs();
-    CXCompilationDatabase db = clang_CompilationDatabase_fromDirectory(compileCommands.constData(), &err);
+    CXCompilationDatabase db = clang_CompilationDatabase_fromDirectory(compileCommands.parentDir().constData(), &err);
     if (err != CXCompilationDatabase_NoError) {
-        error("Can't load compilation database from %scompile_Commands.json", compileCommands.constData());
+        error("Can't load compilation database from %s", compileCommands.constData());
         return false;
     }
-    const uint32_t fileId = Location::insertFile(compileCommands + "compile_commands.json");
+    const uint32_t fileId = Location::insertFile(compileCommands);
     bool ret = false;
     CXCompileCommands cmds = clang_CompilationDatabase_getAllCompileCommands(db);
     const unsigned int sz = clang_CompileCommands_getSize(cmds);
@@ -581,7 +582,7 @@ bool Server::parse(IndexParseData &data, String &&arguments, const Path &pwd, ui
 
 void Server::handleIndexMessage(const std::shared_ptr<IndexMessage> &message, const std::shared_ptr<Connection> &conn)
 {
-    const Path path = message->compileCommandsDir();
+    const Path path = message->compileCommands();
     IndexParseData data;
     data.project = message->projectRoot();
     bool ret = true;
@@ -1645,13 +1646,7 @@ void Server::sources(const std::shared_ptr<QueryMessage> &query, const std::shar
     }
 
     if (std::shared_ptr<Project> project = currentProject()) {
-        const Match match = query->match();
-        project->forEachSource([&conn, &match, &format](const Source &src) {
-                if (match.isEmpty() || match.match(src.sourceFile())) {
-                    conn->write(format(src));
-                }
-                return Project::Continue;
-            });
+        project->indexParseData().write([&conn](const String &str) { return conn->write(str); });
     } else {
         conn->write("No project");
     }

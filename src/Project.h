@@ -24,6 +24,7 @@
 #include "IndexerJob.h"
 #include "IndexMessage.h"
 #include "QueryMessage.h"
+#include "IndexParseData.h"
 #include "rct/EmbeddedLinkedList.h"
 #include "rct/FileSystemWatcher.h"
 #include "rct/Flags.h"

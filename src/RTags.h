@@ -743,61 +743,6 @@ inline Location createLocation(const CXCursor &cursor, int *offsetPtr = 0)
 }
 }
 
-struct IndexParseData
-{
-    Path project;
-    struct CompileCommands {
-        uint64_t lastModifiedMs;
-        Sources sources;
-        List<String> environment;
-    };
-    Hash<uint32_t, CompileCommands> compileCommands; // fileId for compile_commands.json -> CompileCommands
-    List<String> environment;
-    Sources sources;
-
-    bool isEmpty() const { return compileCommands.isEmpty() && environment.isEmpty() && sources.isEmpty(); }
-};
-
-inline Serializer &operator<<(Serializer &s, const IndexParseData::CompileCommands &commands)
-{
-    s << commands.lastModifiedMs << commands.sources << Sandbox::encoded(commands.environment);
-    return s;
-}
-
-inline Deserializer &operator>>(Deserializer &s, IndexParseData::CompileCommands &commands)
-{
-    s >> commands.lastModifiedMs >> commands.sources >> commands.environment;
-    Sandbox::decode(commands.environment);
-    return s;
-}
-
-inline Serializer &operator<<(Serializer &s, const IndexParseData &data)
-{
-    s << data.project << static_cast<uint32_t>(data.compileCommands.size());
-    for (const auto &pair : data.compileCommands) {
-        s << Location::path(pair.first) << pair.second;
-    }
-    s << data.sources << Sandbox::encoded(data.environment);
-    return s;
-}
-
-inline Deserializer &operator>>(Deserializer &s, IndexParseData &data)
-{
-    s >> data.project;
-    data.compileCommands.clear();
-    uint32_t size;
-    s >> size;
-    while (size-- > 0) {
-        Path file;
-        s >> file;
-        s >> data.compileCommands[Location::insertFile(file)];
-    }
-    s >> data.sources >> data.environment;
-    Sandbox::decode(data.environment);
-    return s;
-}
-
-
 inline bool operator==(const CXCursor &l, CXCursorKind r)
 {
     return clang_getCursorKind(l) == r;

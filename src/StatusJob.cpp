@@ -209,29 +209,7 @@ int StatusJob::execute()
         matched = true;
         if (!write(delimiter) || !write("sources") || !write(delimiter))
             return 1;
-        const auto &sources = proj->indexParseData();
-
-        auto process = [this](const String &str, const Sources &sss) {
-            if (!sss.isEmpty()) {
-                if (!write<512>("%s:", str.constData()))
-                    return false;
-
-                for (const auto &ss : sss) {
-                    for (const auto &s : ss.second) {
-                        if (!write<512>("  %s: %s", s.sourceFile().constData(), s.toString().constData()))
-                            return false;
-                    }
-                }
-            }
-            return true;
-        };
-        if (!process("Sources", sources.sources))
-            return 1;
-
-        for (const auto &commands : sources.compileCommands) {
-            if (!process(Location::path(commands.first), commands.second.sources))
-                return 1;
-        }
+        proj->indexParseData().write([this](const String &str) { return write(str); });
     }
 
     if (query.isEmpty() || match("jobs")) {

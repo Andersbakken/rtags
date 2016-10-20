@@ -117,6 +117,7 @@ set(RTAGS_SOURCES
     FollowLocationJob.cpp
     IncludeFileJob.cpp
     IndexMessage.cpp
+    IndexParseData.cpp
     IndexerJob.cpp
     JobScheduler.cpp
     ListSymbolsJob.cpp
