@@ -639,7 +639,6 @@ static String formatDiagnostics(const Diagnostics &diagnostics, Flags<QueryMessa
 
 void Project::onJobFinished(const std::shared_ptr<IndexerJob> &job, const std::shared_ptr<IndexDataMessage> &msg)
 {
-    error() << "GOT A JOB" << Location::path(msg->fileId()) << Location::path(job->fileId()) << job.get();
     mBytesWritten += msg->bytesWritten();
     std::shared_ptr<IndexerJob> restart;
     const uint32_t fileId = msg->fileId();
@@ -934,13 +933,6 @@ void Project::onDirtyTimeout(Timer *)
     WatcherDirty dirty(shared_from_this(), dirtyFiles);
     const int dirtied = startDirtyJobs(&dirty, IndexerJob::Dirty);
     debug() << "onDirtyTimeout" << dirtyFiles << dirtied;
-}
-
-Sources Project::sources() const
-{
-    Sources ret;
-    forEachSources([&ret](const Sources &srcs) { ret += srcs; return Continue; });
-    return ret;
 }
 
 Set<Source> Project::sources(uint32_t fileId) const

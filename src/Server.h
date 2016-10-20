@@ -127,7 +127,6 @@ public:
     std::shared_ptr<Project> currentProject() const { return mCurrentProject.lock(); }
     void onNewMessage(const std::shared_ptr<Message> &message, const std::shared_ptr<Connection> &conn);
     bool saveFileIds();
-    void processParseData(IndexParseData &&data);
     bool loadCompileCommands(IndexParseData &data, const Path &compileCommands, const List<String> &environment) const;
     bool parse(IndexParseData &data, String &&arguments, const Path &pwd, uint32_t compileCommandsFileId = 0) const;
     enum FileIdsFileFlag {

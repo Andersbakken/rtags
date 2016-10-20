@@ -179,7 +179,6 @@ public:
     const IndexParseData &indexParseData() const { return mIndexParseData; }
     void index(const std::shared_ptr<IndexerJob> &job);
     void reindex(uint32_t fileId, Flags<IndexerJob::Flag> flags);
-    Sources sources() const;
     Set<Source> sources(uint32_t fileId) const;
     Source source(uint32_t fileId, int buildIndex) const;
     bool hasSource(uint32_t fileId) const;
@@ -235,7 +234,6 @@ public:
     void includeCompletions(Flags<QueryMessage::Flag> flags, const std::shared_ptr<Connection> &conn, Source &&source) const;
     size_t bytesWritten() const { return mBytesWritten; }
     void destroy() { mSaveDirty = false; }
-private:
     enum VisitResult {
         Stop,
         Continue,
@@ -252,6 +250,7 @@ private:
     static void forEachSource(const IndexParseData &data, std::function<VisitResult(const Source &source)> cb);
     void forEachSource(std::function<VisitResult(const Source &source)> cb) const { forEachSource(mIndexParseData, cb); }
     void forEachSource(std::function<VisitResult(Source &source)> cb) { forEachSource(mIndexParseData, cb); }
+private:
 
     void reloadCompileCommands();
     void onFileAddedOrModified(const Path &path);

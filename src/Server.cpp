@@ -463,7 +463,7 @@ bool Server::loadCompileCommands(IndexParseData &data, const Path &compileComman
         error("Can't load compilation database from %scompile_Commands.json", compileCommands.constData());
         return false;
     }
-    const uint32_t fileId = Location::insertFile(compileCommands);
+    const uint32_t fileId = Location::insertFile(compileCommands + "compile_commands.json");
     bool ret = false;
     CXCompileCommands cmds = clang_CompilationDatabase_getAllCompileCommands(db);
     const unsigned int sz = clang_CompileCommands_getSize(cmds);
@@ -608,18 +608,12 @@ void Server::handleIndexMessage(const std::shared_ptr<IndexMessage> &message, co
     if (conn)
         conn->finish(ret ? 0 : 1);
     if (ret) {
-        processParseData(std::move(data));
+        auto proj = addProject(data.project);
+        assert(proj);
+        proj->processParseData(std::move(data));
+        if (!currentProject())
+            setCurrentProject(proj);
     }
-}
-
-void Server::processParseData(IndexParseData &&data)
-{
-    assert(!data.project.isEmpty());
-    auto proj = addProject(data.project);
-    assert(proj);
-    proj->processParseData(std::forward<IndexParseData>(data));
-    if (!currentProject())
-        setCurrentProject(proj);
 }
 
 void Server::handleLogOutputMessage(const std::shared_ptr<LogOutputMessage> &message, const std::shared_ptr<Connection> &conn)
@@ -1652,14 +1646,12 @@ void Server::sources(const std::shared_ptr<QueryMessage> &query, const std::shar
 
     if (std::shared_ptr<Project> project = currentProject()) {
         const Match match = query->match();
-        const Sources infos = project->sources();
-        for (const auto &it : infos) {
-            if (match.isEmpty() || match.match(Location::path(it.first))) {
-                for (const Source &src : it.second) {
+        project->forEachSource([&conn, &match, &format](const Source &src) {
+                if (match.isEmpty() || match.match(src.sourceFile())) {
                     conn->write(format(src));
                 }
-            }
-        }
+                return Project::Continue;
+            });
     } else {
         conn->write("No project");
     }
