@@ -3604,7 +3604,7 @@ other window instead of the current one."
                      (point-max))))
              (line nil))
         (with-temp-buffer
-          (rtags-call-rc :path path "--fixit" path)
+          (rtags-call-rc :path path "--fixits" path)
           (goto-char (point-min))
           (while (not (eobp))
             (let ((line (buffer-substring-no-properties (point-at-bol) (point-at-eol))))
