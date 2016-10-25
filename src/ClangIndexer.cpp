@@ -1197,7 +1197,7 @@ void ClangIndexer::handleInclude(const CXCursor &cursor, CXCursorKind kind, Loca
             return;
         }
     }
-    error() << "couldn't create included file" << cursor;
+    error() << "handleInclude failed" << includedFile << cursor;
 }
 
 void ClangIndexer::handleLiteral(const CXCursor &cursor, CXCursorKind kind, Location location)
