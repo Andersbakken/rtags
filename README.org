@@ -948,6 +948,14 @@ To turn off the automatic Flycheck syntax checking, set the variable
 (add-hook 'c-mode-common-hook #'my-flycheck-rtags-setup)
 #+END_SRC
 
+* Helm support
+  To integrate rtags with helm you need to do the following:
+
+#+BEGIN_SRC emacs-lisp
+(require 'rtags-helm)
+(setq rtags-use-helm t)
+#+END_SRC
+
 * Videos
 Here are some videos demonstrating how to use RTags with Emacs though some of
 these may be outdated:
