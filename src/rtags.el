@@ -2577,7 +2577,7 @@ This includes both declarations and definitions."
           (delete-overlay overlay)))))
   (unless no-update-diagnostics-buffer
     (let ((diagnostics-buffer (get-buffer rtags-diagnostics-buffer-name))
-          (rx (concat "^" (buffer-file-name) ":")))
+          (rx (concat "^" (file-truename (buffer-file-name)) ":")))
       (when diagnostics-buffer
         (with-current-buffer diagnostics-buffer
           (setq buffer-read-only nil)
