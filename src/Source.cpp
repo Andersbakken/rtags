@@ -636,7 +636,7 @@ List<Source> Source::parse(const String &cmdLine,
                 }
                 if (!p.isEmpty()) {
                     bool ok;
-                    p = Path::resolved(split.value(++i), Path::RealPath, path, &ok);
+                    p = Path::resolved(p, Path::RealPath, path, &ok);
                     // error() << p << ok << split.value(i) << Path::resolved(split.value(i), Path::MakeAbsolute);
                     if (!ok && !p.isAbsolute()) {
                         p.prepend(path); // the object file might not exist
