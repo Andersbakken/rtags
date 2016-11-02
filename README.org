@@ -423,7 +423,7 @@ On Mac OS X, you can set =rdm= can be run on demand, on your behalf, by
 way to do this is with Homebrew:
 
 #+BEGIN_SRC
-brew service start rtags
+brew services start rtags
 #+END_SRC
 
 You can also do it manually using the following steps:
