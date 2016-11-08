@@ -45,11 +45,12 @@ char crashDumpFilePath[PATH_MAX];
 FILE *crashDumpFile = 0;
 static void signalHandler(int signal)
 {
+    fprintf(stderr, "Caught signal %d\n", signal);
+    
+#ifdef HAVE_BACKTRACE
     enum { SIZE = 1024 };
     void *stack[SIZE];
 
-    fprintf(stderr, "Caught signal %d\n", signal);
-#ifdef HAVE_BACKTRACE
     const int frameCount = backtrace(stack, sizeof(stack) / sizeof(void*));
     if (frameCount <= 0) {
         fprintf(stderr, "Couldn't get stack trace\n");
