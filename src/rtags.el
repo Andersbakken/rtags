@@ -2468,7 +2468,7 @@ This includes both declarations and definitions."
                       (add-to-list 'replacements (cons (current-buffer) (point))))))))))
         (unless no-confirm
           (switch-to-buffer (rtags-get-buffer "*RTags rename symbol*"))
-          (insert (propertize (concat "Change to '" replacewith) 'face 'rtags-context-face) "'\n" (mapconcat 'identity confirms "\n"))
+          (insert (propertize (concat "Change to '" replacewith) 'face 'rtags-context-face) "'\n" (mapconcat 'identity (reverse confirms) "\n"))
           (goto-char (point-min))
           (unless (y-or-n-p (format "RTags: Confirm %d renames? " (length confirms)))
             (setq replacements nil))
