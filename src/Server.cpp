@@ -2030,7 +2030,7 @@ void Server::codeCompleteAt(const std::shared_ptr<QueryMessage> &query, const st
         flags |= CompletionThread::IncludeMacros;
     if (query->flags() & QueryMessage::CodeCompleteNoWait)
         flags |= CompletionThread::NoWait;
-    mCompletionThread->completeAt(std::move(source), loc, flags, query->unsavedFiles().value(loc.path()), c);
+    mCompletionThread->completeAt(std::move(source), loc, flags, query->unsavedFiles().value(loc.path()), query->codeCompletePrefix(), c);
 }
 
 void Server::dumpJobs(const std::shared_ptr<Connection> &conn)

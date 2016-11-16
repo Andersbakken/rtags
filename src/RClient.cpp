@@ -166,6 +166,7 @@ std::initializer_list<CommandLineParser::Option<RClient::OptionType> > opts = {
     { RClient::CodeCompleteIncludeMacros, "code-complete-include-macros", 0, CommandLineParser::NoValue, "Include macros in code completion results." },
     { RClient::CodeCompleteIncludes, "code-complete-includes", 0, CommandLineParser::NoValue, "Give includes in completion results." },
     { RClient::CodeCompleteNoWait, "code-complete-no-wait", 0, CommandLineParser::NoValue, "Don't wait for synchronous completion if the translation unit has to be created." },
+    { RClient::CodeCompletePrefix, "code-complete-prefix", 0, CommandLineParser::Required, "Filter out code completion results that don't start with this prefix." },
     { RClient::CodeCompletionEnabled, "code-completion-enabled", 'b', CommandLineParser::NoValue, "Inform rdm that we're code-completing. Use with --diagnose" },
     { RClient::NoSpellCheckinging, "no-spell-checking", 0, CommandLineParser::NoValue, "Don't produce spell check info in diagnostics." },
 #ifdef RTAGS_HAS_LUA
@@ -210,6 +211,7 @@ public:
         msg.setRangeFilter(rc->minOffset(), rc->maxOffset());
         msg.setTerminalWidth(rc->terminalWidth());
         msg.setCurrentFile(rc->currentFile());
+        msg.setCodeCompletePrefix(rc->codeCompletePrefix());
 #ifdef RTAGS_HAS_LUA
         msg.setVisitASTScripts(rc->visitASTScripts());
 #endif
@@ -476,6 +478,9 @@ CommandLineParser::ParseStatus RClient::parse(size_t argc, char **argv)
             break; }
         case CodeCompleteIncludeMacros: {
             mQueryFlags |= QueryMessage::CodeCompleteIncludeMacros;
+            break; }
+        case CodeCompletePrefix: {
+            mCodeCompletePrefix = std::move(value);
             break; }
         case CodeCompleteIncludes: {
             mQueryFlags |= QueryMessage::CodeCompleteIncludes;

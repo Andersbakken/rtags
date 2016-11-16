@@ -93,11 +93,12 @@ void CompletionThread::run()
 
 void CompletionThread::completeAt(Source &&source, Location location,
                                   Flags<Flag> flags, String &&unsaved,
+                                  const String &prefix,
                                   const std::shared_ptr<Connection> &conn)
 {
     if (Server::instance()->options().options & Server::CompletionLogs)
         error() << "CODE COMPLETION completeAt" << location << flags;
-    Request *request = new Request({ std::forward<Source>(source), location, flags, std::forward<String>(unsaved), conn});
+    Request *request = new Request({ std::forward<Source>(source), location, flags, std::forward<String>(unsaved), prefix, conn});
     std::unique_lock<std::mutex> lock(mMutex);
     auto it = mPending.begin();
     while (it != mPending.end()) {
@@ -123,7 +124,7 @@ void CompletionThread::prepare(Source &&source, String &&unsaved)
             return;
         }
     }
-    Request *request = new Request({ std::forward<Source>(source), Location(), WarmUp, std::forward<String>(unsaved), std::shared_ptr<Connection>() });
+    Request *request = new Request({ std::forward<Source>(source), Location(), WarmUp, std::forward<String>(unsaved), String(), std::shared_ptr<Connection>() });
     mPending.push_back(request);
     mCondition.notify_one();
 }
@@ -343,7 +344,7 @@ void CompletionThread::process(Request *request)
                 String text = RTags::eatString(clang_getCompletionChunkText(string, j));
                 if (chunkKind == CXCompletionChunk_TypedText) {
                     node.completion = text;
-                    if (node.completion.isEmpty()) {
+                    if (node.completion.isEmpty() || (!request->prefix.isEmpty() && !text.startsWith(request->prefix))) {
                         ok = false;
                         break;
                     }

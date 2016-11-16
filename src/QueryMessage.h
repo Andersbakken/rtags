@@ -236,8 +236,11 @@ public:
 
     void setCurrentFile(const Path &currentFile) { mCurrentFile = currentFile; }
     Path currentFile() const { return mCurrentFile; }
+
+    String codeCompletePrefix() const { return mCodeCompletePrefix; }
+    void setCodeCompletePrefix(const String &prefix) { mCodeCompletePrefix = prefix; }
 private:
-    String mQuery;
+    String mQuery, mCodeCompletePrefix;
     Type mType;
     Flags<QueryMessage::Flag> mFlags;
     int mMax, mMinLine, mMaxLine, mBuildIndex;

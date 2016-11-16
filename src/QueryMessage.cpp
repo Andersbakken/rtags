@@ -25,7 +25,7 @@ QueryMessage::QueryMessage(Type type)
 
 void QueryMessage::encode(Serializer &serializer) const
 {
-    serializer << mCommandLine << mQuery << mType << mFlags << mMax
+    serializer << mCommandLine << mQuery << mCodeCompletePrefix << mType << mFlags << mMax
                << mMinLine << mMaxLine << mBuildIndex << mPathFilters << mKindFilters
                << mCurrentFile << mUnsavedFiles << mTerminalWidth
 #ifdef RTAGS_HAS_LUA
@@ -36,7 +36,7 @@ void QueryMessage::encode(Serializer &serializer) const
 
 void QueryMessage::decode(Deserializer &deserializer)
 {
-    deserializer >> mCommandLine >> mQuery >> mType >> mFlags >> mMax
+    deserializer >> mCommandLine >> mQuery >> mCodeCompletePrefix >> mType >> mFlags >> mMax
                  >> mMinLine >> mMaxLine >> mBuildIndex >> mPathFilters >> mKindFilters
                  >> mCurrentFile >> mUnsavedFiles >> mTerminalWidth
 #ifdef RTAGS_HAS_LUA
