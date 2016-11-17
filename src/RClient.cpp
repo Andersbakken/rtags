@@ -914,7 +914,7 @@ CommandLineParser::ParseStatus RClient::parse(size_t argc, char **argv)
             print(CXCursor_FirstPreprocessing, CXCursor_LastPreprocessing);
             return { String(), CommandLineParser::Parse_Ok }; }
         case SetBuffers: {
-            String arg = 0;
+            String arg;
             if (!value.isEmpty()) {
                 arg = std::move(value);
             } else if (idx < arguments.size() && (arguments[idx][0] != '-' || arguments[idx] == "-")) {
