@@ -2,7 +2,10 @@
     { "name": "forward_declared_object_points_to_real_declaration",
       "rc-command": [ "--follow-location", "{0}/contains_forward_declaration.hpp:3:16"],
       "expectation": ["{0}/include.hpp:2:8"] },
+    { "name": "forward_declared_object_points_to_real_declaration_through_macro",
+      "rc-command": [ "--follow-location", "{0}/main.cpp:10:15"],
+      "expectation": ["{0}/include.hpp:2:8"] },
     { "name": "reference_to_opaque_forward_declaration",
-      "rc-command": [ "--references", "{0}/main.cpp:10:8"],
-      "expectation": ["{0}/main.cpp:14:5"] }
+      "rc-command": [ "--references", "{0}/main.cpp:13:8"],
+      "expectation": ["{0}/main.cpp:17:5"] }
 ]

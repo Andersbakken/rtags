@@ -207,7 +207,7 @@ ParseStatus parse(int argc, char **argv,
                 status = handler(opt->option, std::move(value), i, args);
                 break;
             case Optional:
-                if (value.isEmpty() && i + 1 < args.size() && !args.at(i + 1).startsWith('-'))
+                if (value.isEmpty() && i + 1 < args.size() && (!args.at(i + 1).startsWith('-') || args.at(i + 1).size() == 1))
                     value = args.at(++i);
                 status = handler(opt->option, std::move(value), i, args);
                 break;

@@ -137,7 +137,10 @@ and `c-electric-colon', for automatic completion right after \">\" and
       (with-temp-buffer
         (rtags-call-rc :path (buffer-file-name buf)
                        :unsaved (and (buffer-modified-p buf) buf)
-                       "--code-complete-at" rtags-company-last-completion-location "--synchronous-completions" "--elisp")
+                       "--code-complete-at" rtags-company-last-completion-location
+                       "--synchronous-completions"
+                       "--code-complete-prefix" (or rtags-company-last-completion-prefix "")
+                       "--elisp")
         (rtags-company--make-candidates)))))
 
 (defun company-rtags--meta (candidate insert)

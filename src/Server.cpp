@@ -1496,26 +1496,27 @@ void Server::project(const std::shared_ptr<QueryMessage> &query, const std::shar
         if (it != mProjects.end()) {
             selected = it->second;
         } else {
-            for (const auto &pit : mProjects) {
-                assert(pit.second);
-                if (ok) {
-                    if (!index) {
-                        selected = pit.second;
-                    } else {
-                        --index;
-                    }
+            if (ok) {
+                if (index < mProjects.size()) {
+                    selected = std::next(mProjects.cbegin(), index)->second;
+                    assert(selected);
                 }
-                if (pit.second->match(match)) {
-                    if (error) {
-                        conn->write(pit.first);
-                    } else if (selected) {
-                        error = true;
-                        conn->write<128>("Multiple matches for %s", match.pattern().constData());
-                        conn->write(selected->path());
-                        conn->write(pit.first);
-                        selected.reset();
-                    } else {
-                        selected = pit.second;
+            }
+            if (!selected) {
+                for (const auto &pit : mProjects) {
+                    assert(pit.second);
+                    if (pit.second->match(match)) {
+                        if (error) {
+                            conn->write(pit.first);
+                        } else if (selected) {
+                            error = true;
+                            conn->write<128>("Multiple matches for %s", match.pattern().constData());
+                            conn->write(selected->path());
+                            conn->write(pit.first);
+                            selected.reset();
+                        } else {
+                            selected = pit.second;
+                        }
                     }
                 }
             }
@@ -2072,7 +2073,7 @@ void Server::codeCompleteAt(const std::shared_ptr<QueryMessage> &query, const st
         flags |= CompletionThread::IncludeMacros;
     if (query->flags() & QueryMessage::CodeCompleteNoWait)
         flags |= CompletionThread::NoWait;
-    mCompletionThread->completeAt(std::move(source), loc, flags, query->unsavedFiles().value(loc.path()), c);
+    mCompletionThread->completeAt(std::move(source), loc, flags, query->unsavedFiles().value(loc.path()), query->codeCompletePrefix(), c);
 }
 
 void Server::dumpJobs(const std::shared_ptr<Connection> &conn)

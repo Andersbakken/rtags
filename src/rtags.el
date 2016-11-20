@@ -2468,7 +2468,7 @@ This includes both declarations and definitions."
                       (add-to-list 'replacements (cons (current-buffer) (point))))))))))
         (unless no-confirm
           (switch-to-buffer (rtags-get-buffer "*RTags rename symbol*"))
-          (insert (propertize (concat "Change to '" replacewith) 'face 'rtags-context-face) "'\n" (mapconcat 'identity confirms "\n"))
+          (insert (propertize (concat "Change to '" replacewith) 'face 'rtags-context-face) "'\n" (mapconcat 'identity (reverse confirms) "\n"))
           (goto-char (point-min))
           (unless (y-or-n-p (format "RTags: Confirm %d renames? " (length confirms)))
             (setq replacements nil))
@@ -2577,7 +2577,7 @@ This includes both declarations and definitions."
           (delete-overlay overlay)))))
   (unless no-update-diagnostics-buffer
     (let ((diagnostics-buffer (get-buffer rtags-diagnostics-buffer-name))
-          (rx (concat "^" (buffer-file-name) ":")))
+          (rx (concat "^" (file-truename (buffer-file-name)) ":")))
       (when diagnostics-buffer
         (with-current-buffer diagnostics-buffer
           (setq buffer-read-only nil)
@@ -3604,7 +3604,7 @@ other window instead of the current one."
                      (point-max))))
              (line nil))
         (with-temp-buffer
-          (rtags-call-rc :path path "--fixit" path)
+          (rtags-call-rc :path path "--fixits" path)
           (goto-char (point-min))
           (while (not (eobp))
             (let ((line (buffer-substring-no-properties (point-at-bol) (point-at-eol))))

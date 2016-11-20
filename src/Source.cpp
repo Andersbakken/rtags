@@ -632,10 +632,16 @@ List<Source> Source::parse(const String &cmdLine,
                     root.resolve();
                     arguments.append(root);
                 }
-            } else if (arg == "-o") {
-                if (i + 1 < s) {
+            } else if (arg.startsWith("-o")) {
+                Path p;
+                if (arg.size() > 2) {
+                    p = arg.mid(2);
+                } else if (i + 1 < s) {
+                    p = split.value(++i);
+                }
+                if (!p.isEmpty()) {
                     bool ok;
-                    Path p = Path::resolved(split.value(++i), Path::RealPath, path, &ok);
+                    p = Path::resolved(p, Path::RealPath, path, &ok);
                     // error() << p << ok << split.value(i) << Path::resolved(split.value(i), Path::MakeAbsolute);
                     if (!ok && !p.isAbsolute()) {
                         p.prepend(path); // the object file might not exist

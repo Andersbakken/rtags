@@ -74,7 +74,7 @@ There are a few prerequisites you need to have in order to build RTags
 - =LLVM/Clang= >= 3.3
 
   On Linux you may be able to use your distribution package manager to install
-  this. On OS X you can use homebrew or possibly other package managers,
+  this. On OS X you can use Homebrew or possibly other package managers,
   though see below for details if you plan to tag projects that use C++11
   features (such as RTags itself). Alternatively you can grab the sources from
   [[http://llvm.org/releases/download.html][llvm.org]] and build it yourself.
@@ -419,8 +419,14 @@ $ cat ~/.rdmrc
 ** Integration with =launchd= /(Mac OS X)/
 
 On Mac OS X, you can set =rdm= can be run on demand, on your behalf, by
-=launchd=, and have it exit cleanly after a period of inactivity. This isn't
-quite plug-and-play, but should be worth the small amount of effort.
+=launchd=, and have it exit cleanly after a period of inactivity. The easiest
+way to do this is with Homebrew:
+
+#+BEGIN_SRC
+brew services start rtags
+#+END_SRC
+
+You can also do it manually using the following steps:
 
 1. Create a file, e.g., in emacs, with the following contents:
 
@@ -940,6 +946,14 @@ To turn off the automatic Flycheck syntax checking, set the variable
   (setq-local flycheck-check-syntax-automatically nil))
 ;; c-mode-common-hook is also called by c++-mode
 (add-hook 'c-mode-common-hook #'my-flycheck-rtags-setup)
+#+END_SRC
+
+* Helm support
+  To integrate rtags with helm you need to do the following:
+
+#+BEGIN_SRC emacs-lisp
+(require 'rtags-helm)
+(setq rtags-use-helm t)
 #+END_SRC
 
 * Videos

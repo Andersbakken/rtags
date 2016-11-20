@@ -24,6 +24,7 @@ if (RTAGS_BUILD_CLANG)
     if (CMAKE_SYSTEM_NAME MATCHES "Darwin")
         add_definitions("-DCLANG_INCLUDE=${CLANG_INSTALL_PATH}/include/c++/v1") # add libcxx include
     endif ()
+    set(LIBCLANG_LLVM_CONFIG_EXECUTABLE ${CLANG_INSTALL_PATH}/bin/llvm-config)
 endif ()
 
 

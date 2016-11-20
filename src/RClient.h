@@ -47,6 +47,7 @@ public:
         CodeCompleteIncludeMacros,
         CodeCompleteIncludes,
         CodeCompleteNoWait,
+        CodeCompletePrefix,
         CodeCompletionEnabled,
         CompilationFlagsOnly,
         CompilationFlagsSplitLine,
@@ -193,6 +194,7 @@ public:
     String commandLine() const { return mCommandLine; }
     void onNewMessage(const std::shared_ptr<Message> &message, const std::shared_ptr<Connection> &);
     List<String> environment() const;
+    String codeCompletePrefix() const { return mCodeCompletePrefix; }
 #ifdef RTAGS_HAS_LUA
     List<String> visitASTScripts() const { return mVisitASTScripts; }
 #endif
@@ -217,6 +219,7 @@ private:
     Path mSocketFile;
     Path mCurrentFile;
     String mTcpHost;
+    String mCodeCompletePrefix;
     uint16_t mTcpPort;
     bool mGuessFlags;
     Path mProjectRoot;
