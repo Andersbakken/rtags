@@ -1,3 +1,4 @@
+
 /* This file is part of RTags (http://rtags.net).
 
    RTags is free software: you can redistribute it and/or modify
@@ -37,14 +38,7 @@ public:
     inline Match()
     {}
 
-    inline Match(const String &pattern, Flags<Flag> flags = Flag_StringMatch)
-        : mFlags(flags)
-    {
-        if (flags & Flag_Regex)
-            mRegex = pattern.ref();
-        mPattern = pattern;
-    }
-
+    inline Match(const String &pattern, Flags<Flag> flags = Flag_StringMatch);
     Flags<Flag> flags() const { return mFlags; }
 
     inline bool match(const String &text) const
@@ -105,6 +99,20 @@ inline Log operator<<(Log log, const Match &match)
     log << ret;
     return log;
 }
+
+inline Match::Match(const String &pattern, Flags<Flag> flags)
+    : mFlags(flags)
+{
+    if (flags & Flag_Regex) {
+        try {
+            mRegex = pattern.ref();
+        } catch (std::regex_error err) {
+            mFlags &= ~Flag_Regex;
+        }
+    }
+    mPattern = pattern;
+}
+
 
 
 
