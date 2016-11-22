@@ -41,7 +41,7 @@ JobScheduler::~JobScheduler()
 void JobScheduler::add(const std::shared_ptr<IndexerJob> &job)
 {
     assert(!(job->flags & ~IndexerJob::Type_Mask));
-    std::shared_ptr<Node> node(new Node({ job, 0, 0, 0, String() }));
+    std::shared_ptr<Node> node(new Node({ 0, job, 0, 0, 0, String() }));
     node->job = job;
     // error() << job->priority << job->sourceFile << mProcrastination;
     if (mPendingJobs.isEmpty() || job->priority > mPendingJobs.first()->job->priority) {
@@ -201,6 +201,7 @@ void JobScheduler::startJobs()
         assert(!(jobNode->job->flags & ~IndexerJob::Type_Mask));
         jobNode->job->flags |= IndexerJob::Running;
         process->write(jobNode->job->encode());
+        jobNode->started = Rct::monoMs();
         mActiveByProcess[process] = jobNode;
         // error() << "STARTING JOB" << node->job->source.sourceFile();
         mInactiveById.remove(jobId);
@@ -273,11 +274,14 @@ void JobScheduler::dump(const std::shared_ptr<Connection> &conn)
     }
     if (!mActiveById.isEmpty()) {
         conn->write("Active:");
+        const unsigned long long now = Rct::monoMs();
         for (const auto &node : mActiveById) {
-            conn->write<128>("%s: %s %s",
+            conn->write<128>("%s: %s %s %lldms",
                              node.second->job->sourceFile.constData(),
                              node.second->job->flags.toString().constData(),
-                             IndexerJob::dumpFlags(node.second->job->flags).constData());
+                             IndexerJob::dumpFlags(node.second->job->flags).constData(),
+                             now - node.second->started);
+
         }
     }
 

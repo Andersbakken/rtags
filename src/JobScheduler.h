@@ -65,6 +65,7 @@ private:
     enum { HighPriority = 5 };
     void jobFinished(const std::shared_ptr<IndexerJob> &job, const std::shared_ptr<IndexDataMessage> &message);
     struct Node {
+        unsigned long long started;
         std::shared_ptr<IndexerJob> job;
         Process *process;
         std::shared_ptr<Node> next, prev;
