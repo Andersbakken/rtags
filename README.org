@@ -501,7 +501,7 @@ also be socket acivated.
    ListenStream=%h/.rdm
 
    [Install]
-   WantedBy=multi-user.target
+   WantedBy=default.target
    #+END_EXAMPLE
 
  2. Add the following to =~/.config/systemd/user/rdm.service=
