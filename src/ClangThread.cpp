@@ -158,7 +158,7 @@ void ClangThread::run()
         }
     } else
 #endif
-        if (mQueryMessage->type() == QueryMessage::DumpFile && !(mQueryMessage->flags() & QueryMessage::DumpCheckIncludes)) {
+        if (mQueryMessage->type() == QueryMessage::DumpFile && mQueryMessage->flags() & QueryMessage::DumpCheckIncludes) {
             writeToConnetion(String::format<128>("Indexed: %s => %s", translationUnit->clangLine.constData(), translationUnit ? "success" : "failure"));
             if (translationUnit) {
                 clang_visitChildren(clang_getTranslationUnitCursor(translationUnit->unit), ClangThread::visitor, this);
@@ -288,6 +288,8 @@ void ClangThread::checkIncludes()
                                                      Location::path(dep.second->fileId).constData()));
             }
         }
+
+        continue; // the rest of this doeesn't really work that well.
 
         for (const auto &ref : it.second->references) {
             const Path refPath = Location::path(ref.first);
