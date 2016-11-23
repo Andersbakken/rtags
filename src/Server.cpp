@@ -1856,7 +1856,7 @@ void Server::handleVisitFileMessage(const std::shared_ptr<VisitFileMessage> &mes
     bool visit = false;
 
     std::shared_ptr<Project> project = mProjects.value(message->project());
-    const uint64_t id = message->id();
+    const uint32_t id = message->sourceFileId();
     if (project && project->isActiveJob(id)) {
         assert(message->file() == message->file().resolved());
         fileId = Location::insertFile(message->file());

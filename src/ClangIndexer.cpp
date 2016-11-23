@@ -337,7 +337,7 @@ Location ClangIndexer::createLocation(const Path &sourceFile, unsigned int line,
     }
 
     ++mFileIdsQueried;
-    VisitFileMessage msg(resolved, mProject, mIndexDataMessage.id());
+    VisitFileMessage msg(resolved, mProject, mIndexDataMessage.fileId());
 
     mVisitFileResponseMessageFileId = UINT_MAX;
     mVisitFileResponseMessageVisit = false;
@@ -1844,7 +1844,6 @@ bool ClangIndexer::parse()
             mIndexDataMessage.setFlag(IndexDataMessage::UsedPCH);
 
         auto unit = RTags::TranslationUnit::create(mSourceFile, args, &unsavedFiles[0], unsavedIndex, flags);
-        error() << args;
         mTranslationUnits.push_back(unit);
 
         warning() << "CI::parse loading unit:" << unit->clangLine << " " << (unit->unit != 0);

@@ -183,8 +183,8 @@ public:
     Set<Source> sources(uint32_t fileId) const;
     Source source(uint32_t fileId, int buildIndex) const;
     bool hasSource(uint32_t fileId) const;
-    bool isActiveJob(uint64_t id) { return !id || mActiveJobs.contains(id); }
-    inline bool visitFile(uint32_t fileId, const Path &path, uint64_t id);
+    bool isActiveJob(uint32_t sourceFileId) { return !sourceFileId || mActiveJobs.contains(sourceFileId); }
+    inline bool visitFile(uint32_t fileId, const Path &path, uint32_t sourceFileId);
     inline void releaseFileIds(const Set<uint32_t> &fileIds);
     String fixIts(uint32_t fileId) const;
     int reindex(const Match &match,
@@ -414,8 +414,9 @@ private:
 
 RCT_FLAGS(Project::WatchMode);
 
-inline bool Project::visitFile(uint32_t visitFileId, const Path &path, uint64_t id)
+inline bool Project::visitFile(uint32_t visitFileId, const Path &path, uint32_t id)
 {
+    error() << "SOMEONE WANTS TO VISIT" << path;
     assert(id);
     std::lock_guard<std::mutex> lock(mMutex);
     assert(visitFileId);
