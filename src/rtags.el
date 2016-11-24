@@ -1078,7 +1078,7 @@ to only call this when `rtags-socket-file' is defined.
         (setq arguments (mapcar 'rtags-untrampify arguments))
         ;; other way to ignore colors would IMHO be to configure tramp,
         ;; but: do we need colors from rc?
-        (push "--no-color" arguments)
+        (push "-z" arguments)
         (setq path (rtags-untrampify path))
         (when path-filter
           (push (concat "--path-filter=" (rtags-untrampify path-filter)) arguments)
@@ -2262,7 +2262,7 @@ of PREFIX or not, if doesn't contain one, one will be added."
         (rtags-reparse-file-if-needed))
       (with-temp-buffer
         (if declaration-only
-            (rtags-call-rc :path-filter filter :unsaved unsaved :noerror t :path path "--declaration-only" "-N" "-f" location "-K")
+            (rtags-call-rc :path-filter filter :unsaved unsaved :noerror t :path path "-G" "-N" "-f" location "-K")
           (rtags-call-rc :noerror t :unsaved unsaved :path-filter filter :path path "-N" "-f" location "-K"))
         (cond ((= (point-min) (point-max))
                (unless no-error (message "RTags: No target")) nil)
@@ -2399,7 +2399,7 @@ This includes both declarations and definitions."
       (when token
         (rtags-reparse-file-if-needed)
         (with-current-buffer (rtags-get-buffer)
-          (rtags-call-rc :path fn "--declaration-only" "-F" token)
+          (rtags-call-rc :path fn "-G" "-F" token)
           (rtags-handle-results-buffer t nil fn))))))
 
 (defun rtags-current-token ()
@@ -3773,7 +3773,7 @@ definition."
         (let ((token (rtags-current-token)))
           (when token
             (with-temp-buffer
-              (rtags-call-rc "--declaration-only" "-N" "-F" token)
+              (rtags-call-rc "-G" "-N" "-F" token)
               (when (= (count-lines (point-min) (point-max)) 1)
                 (setq target (buffer-substring-no-properties (point) (- (point-max) 1))))))))
       (when target
