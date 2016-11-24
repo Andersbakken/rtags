@@ -225,7 +225,12 @@ int main(int argc, char** argv)
 
     bool daemon = false;
     Server::Options serverOpts;
-    serverOpts.socketFile = String::format<128>("%s.rdm", Path::home().constData());
+    const char * runtimeDir = getenv("XDG_RUNTIME_DIR");
+    if (runtimeDir == NULL) {
+        serverOpts.socketFile = String::format<128>("%s.rdm", Path::home().constData());
+    } else {
+        serverOpts.socketFile = String::format<1024>("%s/rdm.socket", runtimeDir);
+    }
     serverOpts.jobCount = std::max(2, ThreadPool::idealThreadCount());
     serverOpts.headerErrorJobCount = -1;
     serverOpts.rpVisitFileTimeout = DEFAULT_RP_VISITFILE_TIMEOUT;
@@ -248,7 +253,12 @@ int main(int argc, char** argv)
     //     serverOpts.options |= Server::SuspendRPOnCrash;
     // #endif
     serverOpts.dataDir = String::format<128>("%s.rtags", Path::home().constData());
-
+    if (!serverOpts.dataDir.exists()) {
+         const char * dataDir = getenv("XDG_CACHE_HOME");
+         serverOpts.dataDir = dataDir ? dataDir : Path::home() + ".cache";
+         serverOpts.dataDir += "/rtags/";
+         serverOpts.dataDir.mkdir(Path::Recursive);
+    }
     Path logFile;
     Flags<LogFlag> logFlags = DontRotate|LogStderr;
     LogLevel logLevel(LogLevel::Error);

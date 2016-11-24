@@ -94,6 +94,13 @@ ParseStatus parse(int argc, char **argv,
     if (configOpts.size() && !app.isEmpty()) {
         bool norc = false;
         Path rcfile = Path::home() + "." + app + "rc";
+        if (!rcfile.exists()) {
+            const char * configPath = getenv("XDG_CONFIG_DIR");
+            rcfile = configPath ? configPath : Path::home() + ".config";
+            rcfile += "/rtags/";
+            rcfile.mkdir(Path::Recursive);
+            rcfile += app + "rc";
+        }
         parse<ConfigOptionType>(argc, argv, configOpts,
                                 IgnoreUnknown, [&norc, &rcfile](ConfigOptionType type, String &&value, size_t &, const List<String> &) -> ParseStatus {
                                     switch (type) {
