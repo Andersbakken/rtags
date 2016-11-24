@@ -192,19 +192,6 @@ and `c-electric-colon', for automatic completion right after \">\" and
     (when (memq status '(exit signal closed failed))
       (kill-buffer (process-buffer process)))))
 
-(defun rtags-company-update-completions (cb)
-  (setq rtags-company-last-completion-callback cb)
-  (let ((buf (current-buffer)))
-    (with-current-buffer (generate-new-buffer "*RTags Completions*")
-      (rtags-call-rc :path (buffer-file-name buf)
-                     :async (cons nil 'rtags-company-code-complete-at-sentinel)
-                     :unsaved (and (buffer-modified-p buf) buf)
-                     "--synchronous-completions"
-                     "--code-complete-no-wait"
-                     "--elisp"
-                     "--code-complete-at"
-                     rtags-company-last-completion-location))))
-
 (defun company-rtags (command &optional arg &rest ignored)
   "`company-mode' completion back-end for RTags."
   (interactive (list 'interactive))
