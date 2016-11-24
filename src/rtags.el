@@ -380,6 +380,14 @@ on intervals."
   :group 'rtags
   :type 'function)
 
+(defcustom rtags-bury-buffer-function 'rtags-bury-or-delete
+  "The function used to bury or kill the current rtags buffer."
+  :group 'rtags
+  :type '(radio (function-item rtags-bury-or-delete)
+                (function-item quit-window)
+                (function-item bury-buffer)
+                (function :tag "Function")))
+
 (defcustom rtags-after-find-file-hook nil
   "Run after RTags has jumped to a location possibly in a new file."
   :group 'rtags
@@ -671,12 +679,16 @@ to case differences."
        (not (eq (process-status rtags-diagnostics-process) 'signal))
        (> (process-id rtags-diagnostics-process) 0)))
 
-;;;###autoload
 (defun rtags-bury-or-delete ()
   (interactive)
-  (if (> (length (window-list)) 1)
-      (delete-window)
-    (bury-buffer)))
+    (if (> (length (window-list)) 1)
+        (delete-window)
+      (bury-buffer)))
+
+;;;###autoload
+(defun rtags-call-bury-or-delete ()
+  (interactive)
+  (funcall rtags-bury-buffer-function))
 
 (defvar rtags-mode-map nil)
 ;; assign command to keys
@@ -690,7 +702,7 @@ to case differences."
 (define-key rtags-mode-map (kbd "M-c") 'rtags-select-caller-other-window)
 (define-key rtags-mode-map (kbd "s") 'rtags-show-in-other-window)
 (define-key rtags-mode-map (kbd "SPC") 'rtags-select-and-remove-rtags-buffer)
-(define-key rtags-mode-map (kbd "q") 'rtags-bury-or-delete)
+(define-key rtags-mode-map (kbd "q") 'rtags-call-bury-or-delete)
 (define-key rtags-mode-map (kbd "j") 'next-line)
 (define-key rtags-mode-map (kbd "k") 'previous-line)
 (define-key rtags-mode-map (kbd "n") 'next-line)
@@ -716,7 +728,7 @@ to case differences."
 (define-key rtags-dependency-tree-mode-map (kbd "SPC") 'rtags-select-and-remove-rtags-buffer)
 (define-key rtags-dependency-tree-mode-map (kbd "k") 'previous-line)
 (define-key rtags-dependency-tree-mode-map (kbd "j") 'next-line)
-(define-key rtags-dependency-tree-mode-map (kbd "q") 'rtags-bury-or-delete)
+(define-key rtags-dependency-tree-mode-map (kbd "q") 'rtags-call-bury-or-delete)
 
 (defvar rtags-references-tree-mode-map nil)
 (setq rtags-references-tree-mode-map (make-sparse-keymap))
@@ -734,7 +746,7 @@ to case differences."
 (define-key rtags-references-tree-mode-map (kbd "SPC") 'rtags-select-and-remove-rtags-buffer)
 (define-key rtags-references-tree-mode-map (kbd "k") 'previous-line)
 (define-key rtags-references-tree-mode-map (kbd "j") 'next-line)
-(define-key rtags-references-tree-mode-map (kbd "q") 'rtags-bury-or-delete)
+(define-key rtags-references-tree-mode-map (kbd "q") 'rtags-call-bury-or-delete)
 
 (defvar rtags-current-file nil)
 (make-variable-buffer-local 'rtags-current-file)
@@ -1165,7 +1177,7 @@ to only call this when `rtags-socket-file' is defined.
         (or async (> (point-max) (point-min)))))))
 
 (defvar rtags-preprocess-mode-map (make-sparse-keymap))
-(define-key rtags-preprocess-mode-map (kbd "q") 'rtags-bury-or-delete)
+(define-key rtags-preprocess-mode-map (kbd "q") 'rtags-call-bury-or-delete)
 (set-keymap-parent rtags-preprocess-mode-map c++-mode-map)
 (define-derived-mode rtags-preprocess-mode c++-mode "rtags-preprocess"
   ;; Do not run any hooks from `c++-mode', as this could cause issues with, e.g. flycheck
@@ -2956,6 +2968,7 @@ This includes both declarations and definitions."
     (cancel-timer rtags-container-timer))
   (setq rtags-container-timer
         (and rtags-track-container
+
              (funcall rtags-is-indexable (current-buffer))
              (run-with-idle-timer rtags-container-timer-interval nil #'rtags-update-current-container-cache))))
 
@@ -3068,7 +3081,7 @@ This includes both declarations and definitions."
   (rtags-parse-diagnostics))
 
 (defvar rtags-diagnostics-mode-map (make-sparse-keymap))
-(define-key rtags-diagnostics-mode-map (kbd "q") 'rtags-bury-or-delete)
+(define-key rtags-diagnostics-mode-map (kbd "q") 'rtags-call-bury-or-delete)
 (define-key rtags-diagnostics-mode-map (kbd "c") 'rtags-clear-diagnostics)
 (define-key rtags-diagnostics-mode-map (kbd "f") 'rtags-apply-fixit-at-point)
 (set-keymap-parent rtags-diagnostics-mode-map compilation-mode-map)
