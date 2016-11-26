@@ -698,19 +698,6 @@ to case differences."
     (when (and conf (equal frame (window-configuration-frame conf)))
       (set-window-configuration conf))))
 
-(defun magit-restore-window-configuration (&optional kill-buffer)
-  "Bury or kill the current buffer and restore previous window configuration."
-  (let ((winconf magit-previous-window-configuration)
-        (buffer (current-buffer))
-        (frame (selected-frame)))
-    (quit-window kill-buffer (selected-window))
-    (when (and winconf (equal frame (window-configuration-frame winconf)))
-      (set-window-configuration winconf)
-      (when (buffer-live-p buffer)
-        (with-current-buffer buffer
-          (setq magit-previous-window-configuration nil))))))
-
-
 ;;;###autoload
 (defun rtags-call-bury-or-delete ()
   (interactive)
