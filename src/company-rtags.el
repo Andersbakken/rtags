@@ -139,8 +139,10 @@ and `c-electric-colon', for automatic completion right after \">\" and
                        :unsaved (and (buffer-modified-p buf) buf)
                        "--code-complete-at" rtags-company-last-completion-location
                        "--synchronous-completions"
-                       "--code-complete-prefix" (or rtags-company-last-completion-prefix "")
-                       "--elisp")
+                       "--elisp"
+                       (if (> (length rtags-company-last-completion-location) 0)
+                           (concat "--code-complete-prefix=" rtags-company-last-completion-prefix)))
+
         (rtags-company--make-candidates)))))
 
 (defun company-rtags--meta (candidate insert)
@@ -191,19 +193,6 @@ and `c-electric-colon', for automatic completion right after \">\" and
             (funcall rtags-company-last-completion-callback completions)))))
     (when (memq status '(exit signal closed failed))
       (kill-buffer (process-buffer process)))))
-
-(defun rtags-company-update-completions (cb)
-  (setq rtags-company-last-completion-callback cb)
-  (let ((buf (current-buffer)))
-    (with-current-buffer (generate-new-buffer "*RTags Completions*")
-      (rtags-call-rc :path (buffer-file-name buf)
-                     :async (cons nil 'rtags-company-code-complete-at-sentinel)
-                     :unsaved (and (buffer-modified-p buf) buf)
-                     "--synchronous-completions"
-                     "--code-complete-no-wait"
-                     "--elisp"
-                     "--code-complete-at"
-                     rtags-company-last-completion-location))))
 
 (defun company-rtags (command &optional arg &rest ignored)
   "`company-mode' completion back-end for RTags."
