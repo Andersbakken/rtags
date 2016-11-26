@@ -629,7 +629,7 @@ Effected interactive functions:
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defun rtags-buffer-file-name (&optional buffer)
-  (buffer-file-name (buffer-base-buffer buffer)))
+  (buffer-file-name (or (buffer-base-buffer buffer) buffer)))
 
 (defun rtags-remove (predicate seq &optional not)
   (let ((ret))
