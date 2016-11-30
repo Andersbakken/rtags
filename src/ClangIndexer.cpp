@@ -233,6 +233,9 @@ bool ClangIndexer::exec(const String &data)
         writeDuration = sw.elapsed();
     }
     message += String::format<16>(" in %lldms. ", mTimer.elapsed());
+    if (mSources.size() > 1) {
+        message += String::format("(%zu builds) ", mSources.size());
+    }
     int cursorCount = 0;
     int symbolNameCount = 0;
     for (const auto &unit : mUnits) {
