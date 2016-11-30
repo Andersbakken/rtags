@@ -559,21 +559,27 @@ bool Server::parse(IndexParseData &data, String &&arguments, const Path &pwd, ui
         }
 
         if (shouldIndex(source, data.project)) {
-            Sources &s = compileCommandsFileId ? data.compileCommands[compileCommandsFileId].sources : data.sources;
-            List<Source> &srcs = s[source.fileId];
-            if (srcs.contains(source))
-                continue;
             bool found = false;
-            for (const Source &existingSource : srcs) {
-                if (existingSource.compareArguments(source)) {
-                    found = true;
-                    break;
-                }
-            }
+            Project::forEachSources(data, [&found, &source](Sources &srcs) -> Project::VisitResult {
+                    auto it = srcs.find(source.fileId);
+                    if (it != srcs.end()) {
+                        for (const Source &existingSource : it->second) {
+                            if (existingSource.compareArguments(source)) {
+                                found = true;
+                                return Project::Stop;
+                            }
+                        }
+                    }
+
+                    return Project::Continue;
+                });
+
             if (found)
                 continue;
+
+            Sources &s = compileCommandsFileId ? data.compileCommands[compileCommandsFileId].sources : data.sources;
             source.compileCommandsFileId = compileCommandsFileId;
-            srcs.append(source);
+            s[source.fileId].append(source);
             ret = true;
         }
     }
