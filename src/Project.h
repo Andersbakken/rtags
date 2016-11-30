@@ -416,7 +416,6 @@ RCT_FLAGS(Project::WatchMode);
 
 inline bool Project::visitFile(uint32_t visitFileId, const Path &path, uint32_t id)
 {
-    error() << "SOMEONE WANTS TO VISIT" << path;
     assert(id);
     std::lock_guard<std::mutex> lock(mMutex);
     assert(visitFileId);
