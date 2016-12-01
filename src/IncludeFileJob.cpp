@@ -23,10 +23,10 @@ IncludeFileJob::IncludeFileJob(const std::shared_ptr<QueryMessage> &query, const
     : QueryJob(query, project)
 {
     const uint32_t fileId = Location::fileId(query->currentFile());
-    mSource = project->sources(fileId).toList().value(query->buildIndex());
+    mSource = project->sources(fileId).value(query->buildIndex());
     if (mSource.isNull()) {
         for (const uint32_t dep : project->dependencies(fileId, Project::DependsOnArg)) {
-            mSource = project->sources(dep).toList().value(query->buildIndex());
+            mSource = project->sources(dep).value(query->buildIndex());
             if (!mSource.isNull())
                 break;
         }

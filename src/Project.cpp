@@ -934,9 +934,9 @@ void Project::onDirtyTimeout(Timer *)
     debug() << "onDirtyTimeout" << dirtyFiles << dirtied;
 }
 
-Set<Source> Project::sources(uint32_t fileId) const
+List<Source> Project::sources(uint32_t fileId) const
 {
-    Set<Source> ret;
+    List<Source> ret;
     forEachSources([&ret, fileId](const Sources &srcs) {
             const auto it = srcs.find(fileId);
             if (it != srcs.end())
@@ -2409,7 +2409,7 @@ void Project::processParseData(IndexParseData &&data)
     } else {
         forEachSource(data.sources, [this, &index](const Source &source) -> VisitResult {
                 auto &ref = mIndexParseData.sources[source.fileId];
-                if (ref.contains(source)) {
+                if (!ref.contains(source)) {
                     ref.append(source);
                     index.insert(source.fileId);
                 }

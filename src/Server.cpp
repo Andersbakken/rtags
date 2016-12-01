@@ -559,27 +559,11 @@ bool Server::parse(IndexParseData &data, String &&arguments, const Path &pwd, ui
         }
 
         if (shouldIndex(source, data.project)) {
-            bool found = false;
-            Project::forEachSources(data, [&found, &source](Sources &srcs) -> Project::VisitResult {
-                    auto it = srcs.find(source.fileId);
-                    if (it != srcs.end()) {
-                        for (const Source &existingSource : it->second) {
-                            if (existingSource.compareArguments(source)) {
-                                found = true;
-                                return Project::Stop;
-                            }
-                        }
-                    }
-
-                    return Project::Continue;
-                });
-
-            if (found)
-                continue;
-
             Sources &s = compileCommandsFileId ? data.compileCommands[compileCommandsFileId].sources : data.sources;
             source.compileCommandsFileId = compileCommandsFileId;
-            s[source.fileId].append(source);
+            auto &list = s[source.fileId];
+            if (!list.contains(source))
+                list.append(source);
             ret = true;
         }
     }
@@ -1605,7 +1589,7 @@ void Server::sources(const std::shared_ptr<QueryMessage> &query, const std::shar
             const uint32_t fileId = Location::fileId(path);
             if (fileId) {
                 prepareCompletion(query, fileId, project);
-                Set<Source> sources = project->sources(fileId);
+                List<Source> sources = project->sources(fileId);
                 if (sources.isEmpty() && path.isHeader()) {
                     Set<uint32_t> seen;
                     std::function<uint32_t(uint32_t)> findSourceFileId = [&findSourceFileId, &project, &seen](uint32_t file) {

@@ -180,7 +180,7 @@ public:
     const IndexParseData &indexParseData() const { return mIndexParseData; }
     void index(const std::shared_ptr<IndexerJob> &job);
     void reindex(uint32_t fileId, Flags<IndexerJob::Flag> flags);
-    Set<Source> sources(uint32_t fileId) const;
+    List<Source> sources(uint32_t fileId) const;
     Source source(uint32_t fileId, int buildIndex) const;
     bool hasSource(uint32_t fileId) const;
     bool isActiveJob(uint32_t sourceFileId) { return !sourceFileId || mActiveJobs.contains(sourceFileId); }

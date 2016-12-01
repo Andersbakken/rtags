@@ -23,13 +23,27 @@
 #include "RTagsVersion.h"
 
 uint64_t IndexerJob::sNextId = 1;
-IndexerJob::IndexerJob(const Set<Source> &s,
+IndexerJob::IndexerJob(const List<Source> &s,
                        Flags<Flag> f,
                        const std::shared_ptr<Project> &p,
                        const UnsavedFiles &u)
-    : id(0), sources(s), flags(f),
+    : id(0), flags(f),
       project(p->path()), priority(0), unsavedFiles(u), crashCount(0)
 {
+    sources.append(s.front());
+    for (size_t i=1; i<s.size(); ++i) {
+        const Source &src = s.at(i);
+        bool found = false;
+        for (size_t j=0; j<sources.size(); ++j) {
+            if (src.compareArguments(sources.at(j))) {
+                found = true;
+                break;
+            }
+        }
+        if (!found)
+            sources.append(src);
+    }
+
     assert(!sources.isEmpty());
     sourceFile = s.begin()->sourceFile();
     acquireId();
