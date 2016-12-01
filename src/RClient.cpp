@@ -419,7 +419,7 @@ int RClient::exec()
 CommandLineParser::ParseStatus RClient::parse(size_t argc, char **argv)
 {
     Rct::findExecutablePath(*argv);
-    mSocketFile = Path::home() + ".rdm-sources";
+    mSocketFile = Path::home() + ".rdm";
 
     List<std::shared_ptr<QueryCommand> > projectCommands;
 
