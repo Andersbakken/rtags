@@ -149,7 +149,7 @@ enum OptionType {
     BlockArgument,
     NoSpellChecking,
     LargeByValueCopy,
-    DisallowMultipleSources,
+    AllowMultipleSources,
     NoStartupProject,
     NoNoUnknownWarningsOption,
     IgnoreCompiler,
@@ -222,7 +222,7 @@ int main(int argc, char** argv)
 
     bool daemon = false;
     Server::Options serverOpts;
-    serverOpts.socketFile = String::format<128>("%s.rdm-sources", Path::home().constData());
+    serverOpts.socketFile = String::format<128>("%s.rdm", Path::home().constData());
     serverOpts.jobCount = std::max(2, ThreadPool::idealThreadCount());
     serverOpts.headerErrorJobCount = -1;
     serverOpts.rpVisitFileTimeout = DEFAULT_RP_VISITFILE_TIMEOUT;
@@ -244,7 +244,7 @@ int main(int argc, char** argv)
     // #ifndef NDEBUG
     //     serverOpts.options |= Server::SuspendRPOnCrash;
     // #endif
-    serverOpts.dataDir = String::format<128>("%s.rtags-sources", Path::home().constData());
+    serverOpts.dataDir = String::format<128>("%s.rtags", Path::home().constData());
 
     Path logFile;
     Flags<LogFlag> logFlags = DontRotate|LogStderr;
@@ -283,7 +283,7 @@ int main(int argc, char** argv)
         { BlockArgument, "block-argument", 'G', CommandLineParser::Required, "Block this argument from being passed to clang. E.g. rdm --block-argument -fno-inline" },
         { NoSpellChecking, "no-spell-checking", 'l', CommandLineParser::NoValue, "Don't pass -fspell-checking." },
         { LargeByValueCopy, "large-by-value-copy", 'r', CommandLineParser::Required, "Use -Wlarge-by-value-copy=[arg] when invoking clang." },
-        { DisallowMultipleSources, "disallow-multiple-sources", 'm', CommandLineParser::NoValue, "With this setting different sources will be merged for each source file." },
+        { AllowMultipleSources, "allow-multiple-sources", 'm', CommandLineParser::NoValue, "Don't merge source files added with -c." },
         { NoStartupProject, "no-startup-project", 'o', CommandLineParser::NoValue, "Don't restore the last current project on startup." },
         { NoNoUnknownWarningsOption, "no-no-unknown-warnings-option", 'Y', CommandLineParser::NoValue, "Don't pass -Wno-unknown-warning-option." },
         { IgnoreCompiler, "ignore-compiler", 'b', CommandLineParser::Required, "Ignore this compiler." },
@@ -459,8 +459,8 @@ int main(int argc, char** argv)
             }
             serverOpts.defaultArguments.append("-Wlarge-by-value-copy=" + String(value)); // ### not quite working
             break; }
-        case DisallowMultipleSources: {
-            serverOpts.options |= Server::DisallowMultipleSources;
+        case AllowMultipleSources: {
+            serverOpts.options |= Server::AllowMultipleSources;
             break; }
         case NoStartupProject: {
             serverOpts.options |= Server::NoStartupCurrentProject;

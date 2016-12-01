@@ -58,7 +58,7 @@ public:
         Wall = (1ull << 2),
         IgnorePrintfFixits = (1ull << 3),
         SpellChecking = (1ull << 4),
-        DisallowMultipleSources = (1ull << 5),
+        AllowMultipleSources = (1ull << 5),
         NoStartupCurrentProject = (1ull << 6),
         WatchSystemPaths = (1ull << 7),
         NoFileManagerWatch = (1ull << 8),

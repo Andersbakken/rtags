@@ -2418,11 +2418,18 @@ void Project::processParseData(IndexParseData &&data)
         forEachSource(data.sources, [this, &index](const Source &source) -> VisitResult {
                 // only allowing one "loose" build per fileId
                 auto &ref = mIndexParseData.sources[source.fileId];
-                if (ref.isEmpty()) {
-                    index.insert(source.fileId);
-                } else if (ref[0] != source) {
-                    ref[0] = source;
-                    index.insert(source.fileId);
+                if (Server::instance()->options().options & Server::AllowMultipleSources) {
+                    if (!ref.contains(source)) {
+                        ref.append(source);
+                        index.insert(source.fileId);
+                    }
+                } else {
+                    if (ref.isEmpty()) {
+                        index.insert(source.fileId);
+                    } else if (ref[0] != source) {
+                        ref[0] = source;
+                        index.insert(source.fileId);
+                    }
                 }
                 return Continue;
             });
