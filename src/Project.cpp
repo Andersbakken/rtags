@@ -2286,24 +2286,27 @@ String Project::estimateMemory() const
 void Project::reloadCompileCommands()
 {
     if (!Server::instance()->suspended()) {
+        Hash<uint32_t, uint32_t> removed;
         IndexParseData data;
         data.project = mPath;
         data.environment = mIndexParseData.environment;
         bool found = false;
-        for (const auto &info : mIndexParseData.compileCommands) {
-            const Path file = Location::path(info.first);
+        auto it = mIndexParseData.compileCommands.begin();
+        while (it != mIndexParseData.compileCommands.end()) {
+            const Path file = Location::path(it->first);
             const uint64_t lastModified = file.lastModifiedMs();
             if (!lastModified) {
-                Hash<uint32_t, uint32_t> removed;
-                for (auto it : info.second.sources) {
-                    removed[it.first] = info.first;
+                for (auto src : it->second.sources) {
+                    removed[src.first] = it->first;
                 }
-                removeSources(removed);
-            } else if (lastModified != info.second.lastModifiedMs) {
+                mIndexParseData.compileCommands.erase(it++);
+            } else if (lastModified != it->second.lastModifiedMs) {
                 found = true;
-                Server::instance()->loadCompileCommands(data, file, info.second.environment);
+                Server::instance()->loadCompileCommands(data, file, it->second.environment);
             }
+            ++it;
         }
+        removeSources(removed);
         if (found)
             processParseData(std::move(data));
     }
