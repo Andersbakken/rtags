@@ -34,6 +34,32 @@ public:
         CompileCommands()
             : lastModifiedMs(0)
         {}
+        CompileCommands(CompileCommands &&other)
+            : lastModifiedMs(other.lastModifiedMs), sources(std::move(other.sources)), environment(std::move(other.environment))
+        {
+            other.lastModifiedMs = 0;
+        }
+        CompileCommands(const CompileCommands &other)
+            : lastModifiedMs(other.lastModifiedMs), sources(other.sources), environment(other.environment)
+        {}
+
+        CompileCommands &operator=(CompileCommands &&other)
+        {
+            lastModifiedMs = other.lastModifiedMs;
+            sources = std::move(other.sources);
+            environment = std::move(other.environment);
+            other.lastModifiedMs = 0;
+            return *this;
+        }
+
+        CompileCommands &operator=(const CompileCommands &other)
+        {
+            lastModifiedMs = other.lastModifiedMs;
+            sources = other.sources;
+            environment = other.environment;
+            return *this;
+        }
+
         uint64_t lastModifiedMs;
         Sources sources;
         List<String> environment;

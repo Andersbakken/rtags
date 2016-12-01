@@ -210,6 +210,8 @@ public:
     void onFileModified(const Path &path);
     void onFileRemoved(const Path &path);
     void dumpFileMaps(const std::shared_ptr<QueryMessage> &msg, const std::shared_ptr<Connection> &conn);
+    void removeSources(const Hash<uint32_t, uint32_t> &sources); // key fileid, value fileid for compile_commands.json
+    void removeSource(uint32_t fileId);
     Hash<uint32_t, Path> visitedFiles() const
     {
         std::lock_guard<std::mutex> lock(mMutex);
