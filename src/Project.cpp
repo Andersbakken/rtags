@@ -282,6 +282,7 @@ bool Project::readSources(const Path &path, IndexParseData &data, String *err)
     }
 
     file >> data;
+
     if (Sandbox::hasRoot()) {
         forEachSource(data, [](Source &source) {
                 for (String &arg : source.arguments) {
@@ -709,6 +710,7 @@ void Project::onJobFinished(const std::shared_ptr<IndexerJob> &job, const std::s
     updateDependencies(msg);
     if (success) {
         forEachSources([&msg](Sources &sources) -> VisitResult {
+                // error() << "finished with" << Location::path(msg->fileId()) << sources.contains(msg->fileId()) << msg->parseTime();
                 if (sources.contains(msg->fileId())) {
                     auto &ref = sources[msg->fileId()];
                     for (Source &src : ref) {
@@ -746,6 +748,7 @@ void Project::onJobFinished(const std::shared_ptr<IndexerJob> &job, const std::s
 
         // error() << "Finished this
     } else {
+        error() << mActiveJobs.size();
         mSaveDirty = true;
     }
 }
@@ -1085,6 +1088,7 @@ int Project::startDirtyJobs(Dirty *dirty, IndexerJob::Flag flag,
     const JobScheduler::JobScope scope(Server::instance()->jobScheduler());
     Set<uint32_t> toIndex;
     forEachSource([dirty, &toIndex](const Source &src) -> VisitResult {
+            error() << "STARTING DIRTY" << Location::path(src.fileId) << src.parsed;
             if (dirty->isDirty(src))
                 toIndex.insert(src.fileId);
             return Continue;

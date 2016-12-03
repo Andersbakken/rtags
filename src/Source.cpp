@@ -1007,6 +1007,7 @@ void Source::encode(Serializer &s, EncodeMode mode) const
         s << incPaths << Sandbox::encoded(arguments)
           << sysRootIndex << Sandbox::encoded(directory) << includePathHash;
     } else {
+        error() << "SENT A DUDE" << sourceFile() << parsed;
         s << sourceFile() << fileId << compiler() << compilerId
           << extraCompiler << buildRoot() << buildRootId
           << compileCommands() << compileCommandsFileId
@@ -1025,6 +1026,7 @@ void Source::decode(Deserializer &s, EncodeMode mode)
       >> lang >> parsed >> flags
       >> defines >> includePaths >> arguments >> sysRootIndex
       >> directory >> includePathHash;
+    error() << "GOT A DUDE" << source << parsed;
     language = static_cast<Language>(lang);
 
     if (mode == EncodeSandbox && !Sandbox::root().isEmpty()) { // SBROOT
