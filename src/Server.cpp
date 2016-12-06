@@ -458,7 +458,6 @@ bool Server::loadCompileCommands(IndexParseData &data, const Path &compileComman
     }
 
     CXCompilationDatabase_Error err;
-    const uint64_t now = Rct::currentTimeMs();
     CXCompilationDatabase db = clang_CompilationDatabase_fromDirectory(compileCommands.parentDir().constData(), &err);
     if (err != CXCompilationDatabase_NoError) {
         error("Can't load compilation database from %s", compileCommands.constData());
@@ -470,7 +469,7 @@ bool Server::loadCompileCommands(IndexParseData &data, const Path &compileComman
     const unsigned int sz = clang_CompileCommands_getSize(cmds);
     auto &ref = data.compileCommands[fileId];
     ref.environment = environment;
-    ref.lastModifiedMs = now;
+    ref.lastModifiedMs = compileCommands.lastModifiedMs();
     for (unsigned int i = 0; i < sz; ++i) {
         CXCompileCommand cmd = clang_CompileCommands_getCommand(cmds, i);
         String args;
