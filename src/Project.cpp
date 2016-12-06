@@ -2462,11 +2462,17 @@ void Project::processParseData(IndexParseData &&data, Set<uint32_t> *dirty)
                     const uint32_t fileId = list.fileId();
                     auto oit = oldSources.find(fileId);
                     if (oit != oldSources.end()) {
-                        if (oit->second != list) { // not comparing parsed, only List<Source>
-                            index.insert(fileId);
-                        } else {
-                            // error() << "SAME SOURCES, NO REPARSE";
+                        bool same = true;
+                        for (size_t idx=0; idx<list.size(); ++idx) {
+                            if (!oit->second.at(idx).compareArguments(list.at(idx))) {
+                                same = false;
+                                break;
+                            }
+                        }
+                        if (same) {
                             list.parsed = oit->second.parsed; // don't want to reparse these, maintain parseTime
+                        } else {
+                            index.insert(fileId);
                         }
                         oldSources.erase(oit);
                     } else {
