@@ -161,42 +161,36 @@ Map<String, String> rtagsConfig(const Path &path)
 {
     Path dir = path.isDir() ? path : path.parentDir();
     Map<String, String> ret;
-    if (dir.resolve()) {
-        char buf[1024];
-        struct stat statBuf;
-        while (dir.size() > 1) {
-            assert(dir.endsWith('/'));
-            snprintf(buf, sizeof(buf), "%s.rtags-config", dir.constData());
-            if (!stat(buf, &statBuf) && S_ISREG(statBuf.st_mode)) {
-                FILE *f = fopen(buf, "r");
-                if (f) {
-                    while ((fgets(buf, sizeof(buf), f))) {
-                        int len = strlen(buf);
-                        while (len > 0 && isspace(buf[len - 1]))
-                            --len;
-                        if (len) {
-                            buf[len] = '\0';
-                            String key;
-                            char *colon = strchr(buf, ':');
-                            char *value = 0;
-                            if (colon) {
-                                key.assign(buf, colon - buf);
-                                value = colon + 1;
-                                while (isspace(*value))
-                                    ++value;
-                            } else {
-                                key.assign(buf, len);
-                            }
-                            if (!key.isEmpty() && !ret.contains(key)) {
-                                ret[key] = value;
-                            }
-                        }
+    char buf[1024];
+    while (dir.size() > 1) {
+        assert(dir.endsWith('/'));
+        snprintf(buf, sizeof(buf), "%s.rtags-config", dir.constData());
+        if (FILE *f = fopen(buf, "r")) {
+            while ((fgets(buf, sizeof(buf), f))) {
+                int len = strlen(buf);
+                while (len > 0 && isspace(buf[len - 1]))
+                    --len;
+                if (len) {
+                    buf[len] = '\0';
+                    String key;
+                    char *colon = strchr(buf, ':');
+                    char *value = 0;
+                    if (colon) {
+                        key.assign(buf, colon - buf);
+                        value = colon + 1;
+                        while (isspace(*value))
+                            ++value;
+                    } else {
+                        key.assign(buf, len);
                     }
-                    fclose(f);
+                    if (!key.isEmpty() && !ret.contains(key)) {
+                        ret[key] = value;
+                    }
                 }
             }
-            dir = dir.parentDir();
+            fclose(f);
         }
+        dir = dir.parentDir();
     }
     return ret;
 }
