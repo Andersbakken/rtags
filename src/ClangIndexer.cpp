@@ -942,6 +942,15 @@ bool ClangIndexer::handleReference(const CXCursor &cursor, CXCursorKind kind, Lo
 
     switch (refKind) {
     case CXCursor_Constructor: {
+        while (true) {
+            const CXCursor general = clang_getSpecializedCursorTemplate(ref);
+            if (!clang_Cursor_isNull(general) && createLocation(general) == refLoc) {
+                ref = general;
+            } else {
+                break;
+            }
+        }
+
         enum State {
             Invalid,
             Handled,
