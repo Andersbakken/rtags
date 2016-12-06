@@ -128,8 +128,12 @@ public:
     std::shared_ptr<Project> currentProject() const { return mCurrentProject.lock(); }
     void onNewMessage(const std::shared_ptr<Message> &message, const std::shared_ptr<Connection> &conn);
     bool saveFileIds();
-    bool loadCompileCommands(IndexParseData &data, const Path &compileCommands, const List<String> &environment) const;
-    bool parse(IndexParseData &data, String &&arguments, const Path &pwd, uint32_t compileCommandsFileId = 0) const;
+    bool loadCompileCommands(IndexParseData &data, const Path &compileCommands, const List<String> &environment, SourceCache *cache) const;
+    bool parse(IndexParseData &data,
+               String &&arguments,
+               const Path &pwd,
+               uint32_t compileCommandsFileId = 0,
+               SourceCache *cache = 0) const;
     enum FileIdsFileFlag {
         None = 0x0,
         HasSandboxRoot = 0x1

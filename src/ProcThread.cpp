@@ -15,6 +15,7 @@
 
 #include "ProcThread.h"
 #include <rct/StopWatch.h>
+#include "RTags.h"
 #ifdef RTAGS_HAS_PROC
 #include <sys/types.h>
 #include <dirent.h>
@@ -216,10 +217,11 @@ void ProcThread::readProc()
         // }
         ++found;
     }
+    SourceCache cache;
     for (size_t i=0; i<nodes.size() - 1; ++i) {
         const auto &node = nodes.at(i);
         List<Path> paths;
-        List<Source> sources = Source::parse(node.cmdLine, node.cwd, node.environ, &paths);
+        List<Source> sources = Source::parse(node.cmdLine, node.cwd, node.environ, &paths, &cache);
         if (sources.size()) {
             error() << "GOT SOURCES" << node.cmdLine;
         }

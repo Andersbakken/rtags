@@ -50,6 +50,7 @@ typedef Map<Path, Set<String> > Files;
 typedef Hash<uint32_t, Set<FixIt> > FixIts;
 typedef Hash<Path, String> UnsavedFiles;
 
+struct SourceCache;
 namespace RTags {
 
 String versionString();
@@ -568,14 +569,14 @@ enum ProjectRootMode {
     SourceRoot,
     BuildRoot
 };
-Path findProjectRoot(const Path &path, ProjectRootMode mode);
+Path findProjectRoot(const Path &path, ProjectRootMode mode, SourceCache *cache = 0);
 enum FindAncestorFlag {
     Shallow = 0x1,
     Wildcard = 0x2
 };
 RCT_FLAGS(FindAncestorFlag);
-Path findAncestor(Path path, const char *fn, Flags<FindAncestorFlag> flags);
-Map<String, String> rtagsConfig(const Path &path);
+Path findAncestor(Path path, const String &fn, Flags<FindAncestorFlag> flags, SourceCache *cache = 0);
+Map<String, String> rtagsConfig(const Path &path, SourceCache *cache = 0);
 
 enum { DefinitionBit = 0x1000 };
 inline CXCursorKind targetsValueKind(uint16_t val)
@@ -742,6 +743,25 @@ inline Location createLocation(const CXCursor &cursor, int *offsetPtr = 0)
     return createLocation(clang_getCursorLocation(cursor), offsetPtr);
 }
 }
+
+struct SourceCache
+{
+    Hash<Path, Map<String, String> > rtagsConfigCache;
+    Hash<Path, std::pair<Path, bool> > compilerCache; // bool signifies isCompiler, not just executable
+    struct AncestorCacheKey {
+        String string;
+        Flags<RTags::FindAncestorFlag> flags;
+
+        bool operator<(const AncestorCacheKey &other) const
+        {
+            const int cmp = string.compare(other.string);
+            if (cmp)
+                return cmp < 0;
+            return flags < other.flags;
+        }
+    };
+    Hash<Path, Map<AncestorCacheKey, Path> > ancestorCache;
+};
 
 inline bool operator==(const CXCursor &l, CXCursorKind r)
 {

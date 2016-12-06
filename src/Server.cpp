@@ -449,7 +449,7 @@ String Server::guessArguments(const String &args, const Path &pwd, const Path &p
     return String::join(ret, ' ');
 }
 
-bool Server::loadCompileCommands(IndexParseData &data, const Path &compileCommands, const List<String> &environment) const
+bool Server::loadCompileCommands(IndexParseData &data, const Path &compileCommands, const List<String> &environment, SourceCache *cache) const
 {
     if (Sandbox::hasRoot() && !data.project.isEmpty() && !data.project.startsWith(Sandbox::root())) {
         error("Invalid --project-root '%s', must be inside --sandbox-root '%s'",
@@ -491,7 +491,7 @@ bool Server::loadCompileCommands(IndexParseData &data, const Path &compileComman
             if (j < num - 1)
                 args += ' ';
         }
-        ret = parse(data, std::move(args), compileDir.ensureTrailingSlash(), fileId) || ret;
+        ret = parse(data, std::move(args), compileDir.ensureTrailingSlash(), fileId, cache) || ret;
     }
     clang_CompileCommands_dispose(cmds);
     clang_CompilationDatabase_dispose(db);
@@ -501,7 +501,7 @@ bool Server::loadCompileCommands(IndexParseData &data, const Path &compileComman
     return ret;
 }
 
-bool Server::parse(IndexParseData &data, String &&arguments, const Path &pwd, uint32_t compileCommandsFileId) const
+bool Server::parse(IndexParseData &data, String &&arguments, const Path &pwd, uint32_t compileCommandsFileId, SourceCache *cache) const
 {
     if (Sandbox::hasRoot() && !data.project.isEmpty() && !data.project.startsWith(Sandbox::root())) {
         error("Invalid --project-root '%s', must be inside --sandbox-root '%s'",
@@ -528,9 +528,9 @@ bool Server::parse(IndexParseData &data, String &&arguments, const Path &pwd, ui
 
     assert(!compileCommandsFileId || data.compileCommands.contains(compileCommandsFileId));
     const auto &env = compileCommandsFileId ? data.compileCommands[compileCommandsFileId].environment : data.environment;
-    List<Source> sources = Source::parse(arguments, pwd, env, &unresolvedPaths);
+    List<Source> sources = Source::parse(arguments, pwd, env, &unresolvedPaths, cache);
     bool ret = (sources.isEmpty() && unresolvedPaths.size() == 1 && unresolvedPaths.front() == "-");
-    int idx = 0;
+    size_t idx = 0;
     for (Source &source : sources) {
         const Path path = source.sourceFile();
 
@@ -549,9 +549,9 @@ bool Server::parse(IndexParseData &data, String &&arguments, const Path &pwd, ui
             }
 
             if (data.project.isEmpty()) {
-                data.project = RTags::findProjectRoot(unresolvedPath, RTags::SourceRoot);
+                data.project = RTags::findProjectRoot(unresolvedPath, RTags::SourceRoot, cache);
                 if (data.project.isEmpty() && path != unresolvedPath) {
-                    data.project = RTags::findProjectRoot(path, RTags::SourceRoot);
+                    data.project = RTags::findProjectRoot(path, RTags::SourceRoot, cache);
                 }
             }
             data.project.resolve(Path::RealPath, pwd);
@@ -576,7 +576,8 @@ void Server::handleIndexMessage(const std::shared_ptr<IndexMessage> &message, co
     data.project = message->projectRoot();
     bool ret = true;
     if (!path.isEmpty()) {
-        if (loadCompileCommands(data, path, message->environment())) {
+        SourceCache cache;
+        if (loadCompileCommands(data, path, message->environment(), &cache)) {
             if (conn)
                 conn->write("[Server] Compilation database loading...");
         } else if (conn) {

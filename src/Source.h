@@ -24,6 +24,7 @@
 #include "rct/Path.h"
 #include "rct/Serializer.h"
 
+struct SourceCache;
 struct Source
 {
     inline Source();
@@ -166,7 +167,8 @@ struct Source
     static List<Source> parse(const String &cmdLine,
                               const Path &pwd,
                               const List<String> &environment,
-                              List<Path> *unresolvedInputLocation = 0);
+                              List<Path> *unresolvedInputLocation = 0,
+                              SourceCache *cache = 0);
     enum EncodeMode {
         IgnoreSandbox,
         EncodeSandbox

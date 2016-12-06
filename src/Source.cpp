@@ -291,63 +291,8 @@ static inline String unquote(const String &arg)
     return arg;
 }
 
-static std::mutex sMutex;
-
-static Path resolveCompiler(const Path &unresolved, const Path &cwd, const List<Path> &pathEnvironment)
-{
-    std::unique_lock<std::mutex> lock(sMutex);
-    static Hash<Path, Path> resolvedFromPath;
-    Path &compiler = resolvedFromPath[unresolved];
-    if (compiler.isEmpty()) {
-        // error() << "Coming in with" << unresolved << cwd << pathEnvironment;
-        Path resolve;
-        Path file;
-        if (unresolved.isAbsolute()) {
-            resolve = unresolved;
-        } else if (unresolved.contains('/')) {
-            assert(cwd.endsWith('/'));
-            resolve = cwd + unresolved;
-        } else {
-            file = unresolved;
-        }
-
-        if (!resolve.isEmpty()) {
-            const Path resolved = resolve.resolved();
-            if (isWrapper(resolved.fileName())) {
-                file = unresolved.fileName();
-            } else {
-                compiler = resolve;
-            }
-        }
-
-        if (compiler.isEmpty()) {
-            for (const Path &path : pathEnvironment) {
-                bool ok;
-                const Path p = Path::resolved(file, Path::RealPath, path, &ok);
-                if (ok) {
-                    if (!isWrapper(p.fileName()) && !access(p.constData(), R_OK | X_OK)) {
-                        debug() << "Found compiler" << p << "for" << unresolved;
-                        compiler = Path::resolved(file, Path::MakeAbsolute, path);
-                        break;
-                    }
-                }
-            }
-        }
-    }
-
-    if (!compiler.isFile()) {
-        compiler.clear();
-    } else if (compiler.contains("..")) {
-        compiler.canonicalize();
-    }
-    return compiler;
-}
-
-
 static inline bool isCompiler(const Path &fullPath, const List<String> &environment)
 {
-    std::unique_lock<std::mutex> lock(sMutex);
-    assert(Server::instance());
     if (Server::instance()->options().compilerWrappers.contains(fullPath.fileName()))
         return true;
     static Hash<Path, bool> sCache;
@@ -393,6 +338,65 @@ static inline bool isCompiler(const Path &fullPath, const List<String> &environm
     return !proc.returnCode();
 }
 
+enum Mode {
+    Mode_Executable,
+    Mode_Compiler
+};
+static std::pair<Path, bool> resolveCompiler(const Path &unresolved,
+                                             const Path &cwd,
+                                             const List<String> environment,
+                                             const List<Path> &pathEnvironment,
+                                             SourceCache *cache)
+{
+    std::pair<Path, bool> dummy;
+    auto &compiler = cache ? cache->compilerCache[unresolved] : dummy;
+    if (compiler.first.isEmpty()) {
+        // error() << "Coming in with" << unresolved << cwd << pathEnvironment;
+        Path resolve;
+        Path file;
+        if (unresolved.isAbsolute()) {
+            resolve = unresolved;
+        } else if (unresolved.contains('/')) {
+            assert(cwd.endsWith('/'));
+            resolve = cwd + unresolved;
+        } else {
+            file = unresolved;
+        }
+
+        if (!resolve.isEmpty()) {
+            const Path resolved = resolve.resolved();
+            if (isWrapper(resolved.fileName())) {
+                file = unresolved.fileName();
+            } else {
+                compiler.first = resolve;
+            }
+        }
+
+        if (compiler.first.isEmpty()) {
+            for (const Path &path : pathEnvironment) {
+                bool ok;
+                const Path p = Path::resolved(file, Path::RealPath, path, &ok);
+                if (ok) {
+                    if (!isWrapper(p.fileName()) && !access(p.constData(), R_OK | X_OK)) {
+                        debug() << "Found compiler" << p << "for" << unresolved;
+                        compiler.first = Path::resolved(file, Path::MakeAbsolute, path);
+                        break;
+                    }
+                }
+            }
+        }
+        if (!compiler.first.isFile()) {
+            compiler.first.clear();
+        } else {
+            if (compiler.first.contains(".."))
+                compiler.first.canonicalize();
+            compiler.second = isCompiler(compiler.first, environment);
+        }
+    }
+
+    return compiler;
+}
+
 struct Input {
     Path realPath, absolute, unmolested;
     Source::Language language;
@@ -401,7 +405,8 @@ struct Input {
 List<Source> Source::parse(const String &cmdLine,
                            const Path &cwd,
                            const List<String> &environment,
-                           List<Path> *unresolvedInputLocations)
+                           List<Path> *unresolvedInputLocations,
+                           SourceCache *cache)
 {
     List<Path> pathEnvironment;
     for (const String &env : environment) {
@@ -457,7 +462,7 @@ List<Source> Source::parse(const String &cmdLine,
     debug() << "Source::parse (" << args << ") => " << split << cwd;
 
     for (size_t i=0; i<split.size(); ++i) {
-        if (split.at(i) == "cd" || !resolveCompiler(split.at(i), cwd, pathEnvironment).isEmpty()) {
+        if (split.at(i) == "cd" || !resolveCompiler(split.at(i), cwd, environment, pathEnvironment, cache).first.isEmpty()) {
             if (i) {
                 split.remove(0, i);
             }
@@ -642,7 +647,7 @@ List<Source> Source::parse(const String &cmdLine,
                         p.prepend(path); // the object file might not exist
                         p.canonicalize();
                     }
-                    buildRoot = RTags::findProjectRoot(p, RTags::BuildRoot);
+                    buildRoot = RTags::findProjectRoot(p, RTags::BuildRoot, cache);
                     buildRoot.resolve(Path::RealPath, cwd);
                     if (buildRoot.isDir()) {
                         buildRootId = Location::insertFile(buildRoot);
@@ -661,10 +666,10 @@ List<Source> Source::parse(const String &cmdLine,
             Path resolved;
             if (!compilerId) {
                 add = false;
-                const Path compiler = resolveCompiler(arg, cwd, pathEnvironment);
-                if (!access(compiler.nullTerminated(), R_OK | X_OK)) {
-                    validCompiler = isCompiler(compiler, environment);
-                    compilerId = Location::insertFile(compiler);
+                const std::pair<Path, bool> compiler = resolveCompiler(arg, cwd, environment, pathEnvironment, cache);
+                if (!compiler.first.isEmpty()) {
+                    validCompiler = compiler.second;
+                    compilerId = Location::insertFile(compiler.first);
                 } else {
                     break;
                 }
@@ -674,11 +679,11 @@ List<Source> Source::parse(const String &cmdLine,
                 if (arg != "-" && (!resolved.extension() || !resolved.isHeader()) && !resolved.isSource()) {
                     add = false;
                     if (i == 1) {
-                        const Path inPath = resolveCompiler(c, cwd, pathEnvironment);
-                        if (!access(inPath.nullTerminated(), R_OK | X_OK)) {
-                            extraCompiler = inPath;
+                        const std::pair<Path, bool> inPath = resolveCompiler(c, cwd, environment, pathEnvironment, cache);
+                        if (!inPath.first.isEmpty()) {
+                            extraCompiler = inPath.first;
                             if (!validCompiler)
-                                validCompiler = isCompiler(extraCompiler, environment);
+                                validCompiler = inPath.second;
                         }
                     }
                 }
@@ -707,7 +712,7 @@ List<Source> Source::parse(const String &cmdLine,
     List<Source> ret;
     if (!inputs.isEmpty()) {
         if (!buildRootId) {
-            buildRoot = RTags::findProjectRoot(inputs.first().realPath, RTags::BuildRoot);
+            buildRoot = RTags::findProjectRoot(inputs.first().realPath, RTags::BuildRoot, cache);
             if (buildRoot.isDir())
                 buildRootId = Location::insertFile(buildRoot);
         }

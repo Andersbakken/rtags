@@ -2299,6 +2299,7 @@ String Project::estimateMemory() const
 void Project::reloadCompileCommands()
 {
     if (!Server::instance()->suspended()) {
+        SourceCache cache;
         Hash<uint32_t, uint32_t> removed;
         IndexParseData data;
         data.project = mPath;
@@ -2314,7 +2315,7 @@ void Project::reloadCompileCommands()
                 }
                 mIndexParseData.compileCommands.erase(it++);
             } else if (lastModified != it->second.lastModifiedMs
-                       && Server::instance()->loadCompileCommands(data, file, it->second.environment)) {
+                       && Server::instance()->loadCompileCommands(data, file, it->second.environment, &cache)) {
                 found = true;
             }
             ++it;
