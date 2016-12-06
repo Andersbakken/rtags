@@ -158,14 +158,16 @@ void ClangThread::run()
         }
     } else
 #endif
-        if (mQueryMessage->type() == QueryMessage::DumpFile && mQueryMessage->flags() & QueryMessage::DumpCheckIncludes) {
+    {
+        if (mQueryMessage->type() == QueryMessage::DumpFile && mQueryMessage->flags() & QueryMessage::DumpCheckIncludes)
             writeToConnetion(String::format<128>("Indexed: %s => %s", translationUnit->clangLine.constData(), translationUnit ? "success" : "failure"));
-            if (translationUnit) {
-                clang_visitChildren(clang_getTranslationUnitCursor(translationUnit->unit), ClangThread::visitor, this);
-                if (mQueryMessage->flags() & QueryMessage::DumpCheckIncludes)
-                    checkIncludes();
-            }
+
+        if (translationUnit) {
+            clang_visitChildren(clang_getTranslationUnitCursor(translationUnit->unit), ClangThread::visitor, this);
+            if (mQueryMessage->flags() & QueryMessage::DumpCheckIncludes)
+                checkIncludes();
         }
+    }
 
 
     mConnection->disconnected().disconnect(key);
