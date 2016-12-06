@@ -176,7 +176,7 @@ public:
 
     bool isIndexed(uint32_t fileId) const;
 
-    void processParseData(IndexParseData &&data, Set<uint32_t> *dirty = 0);
+    void processParseData(IndexParseData &&data);
     const IndexParseData &indexParseData() const { return mIndexParseData; }
     void index(const std::shared_ptr<IndexerJob> &job);
     void reindex(uint32_t fileId, Flags<IndexerJob::Flag> flags);
@@ -261,7 +261,7 @@ public:
     void forEachSource(std::function<VisitResult(const Source &source)> cb) const { forEachSource(mIndexParseData, cb); }
     void forEachSource(std::function<VisitResult(Source &source)> cb) { forEachSource(mIndexParseData, cb); }
 private:
-    void reloadCompileCommands(Set<uint32_t> *dirty = 0);
+    void reloadCompileCommands();
     void onFileAddedOrModified(const Path &path);
     void watchFile(uint32_t fileId);
     enum ValidateMode {
