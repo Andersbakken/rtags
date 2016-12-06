@@ -115,42 +115,6 @@ static bool isWrapper(const char *name)
 {
     return (!strcmp(name, "gcc-rtags-wrapper.sh") || !strcmp(name, "icecc"));
 }
-static Path findFileInPath(const Path &unresolved, const Path &cwd, const List<Path> &pathEnvironment)
-{
-    // error() << "Coming in with" << front;
-    Path resolve;
-    Path file;
-    if (unresolved.isAbsolute()) {
-        resolve = unresolved;
-    } else if (unresolved.contains('/')) {
-        assert(cwd.endsWith('/'));
-        resolve = cwd + unresolved;
-    } else {
-        file = unresolved;
-    }
-
-    if (!resolve.isEmpty()) {
-        const Path resolved = resolve.resolved();
-        if (isWrapper(resolved.fileName())) {
-            file = unresolved.fileName();
-        } else {
-            return resolve;
-        }
-        file = unresolved.fileName();
-    }
-
-    for (const Path &path : pathEnvironment) {
-        bool ok;
-        const Path p = Path::resolved(file, Path::RealPath, path, &ok);
-        if (ok) {
-            if (!isWrapper(p.fileName()) && !access(p.constData(), R_OK | X_OK)) {
-                debug() << "Found compiler" << p << "for" << unresolved;
-                return Path::resolved(file, Path::MakeAbsolute, path);
-            }
-        }
-    }
-    return unresolved;
-}
 
 static inline String trim(const char *start, int size)
 {
@@ -334,8 +298,42 @@ static Path resolveCompiler(const Path &unresolved, const Path &cwd, const List<
     std::unique_lock<std::mutex> lock(sMutex);
     static Hash<Path, Path> resolvedFromPath;
     Path &compiler = resolvedFromPath[unresolved];
-    if (compiler.isEmpty())
-        compiler = findFileInPath(unresolved, cwd, pathEnvironment);
+    if (compiler.isEmpty()) {
+        // error() << "Coming in with" << unresolved << cwd << pathEnvironment;
+        Path resolve;
+        Path file;
+        if (unresolved.isAbsolute()) {
+            resolve = unresolved;
+        } else if (unresolved.contains('/')) {
+            assert(cwd.endsWith('/'));
+            resolve = cwd + unresolved;
+        } else {
+            file = unresolved;
+        }
+
+        if (!resolve.isEmpty()) {
+            const Path resolved = resolve.resolved();
+            if (isWrapper(resolved.fileName())) {
+                file = unresolved.fileName();
+            } else {
+                compiler = resolve;
+            }
+        }
+
+        if (compiler.isEmpty()) {
+            for (const Path &path : pathEnvironment) {
+                bool ok;
+                const Path p = Path::resolved(file, Path::RealPath, path, &ok);
+                if (ok) {
+                    if (!isWrapper(p.fileName()) && !access(p.constData(), R_OK | X_OK)) {
+                        debug() << "Found compiler" << p << "for" << unresolved;
+                        compiler = Path::resolved(file, Path::MakeAbsolute, path);
+                        break;
+                    }
+                }
+            }
+        }
+    }
 
     if (!compiler.isFile()) {
         compiler.clear();
@@ -459,7 +457,7 @@ List<Source> Source::parse(const String &cmdLine,
     debug() << "Source::parse (" << args << ") => " << split << cwd;
 
     for (size_t i=0; i<split.size(); ++i) {
-        if (split.at(i) == "cd" || !findFileInPath(split.at(i), cwd, pathEnvironment).isEmpty()) {
+        if (split.at(i) == "cd" || !resolveCompiler(split.at(i), cwd, pathEnvironment).isEmpty()) {
             if (i) {
                 split.remove(0, i);
             }
@@ -676,7 +674,7 @@ List<Source> Source::parse(const String &cmdLine,
                 if (arg != "-" && (!resolved.extension() || !resolved.isHeader()) && !resolved.isSource()) {
                     add = false;
                     if (i == 1) {
-                        const Path inPath = findFileInPath(c, cwd, pathEnvironment);
+                        const Path inPath = resolveCompiler(c, cwd, pathEnvironment);
                         if (!access(inPath.nullTerminated(), R_OK | X_OK)) {
                             extraCompiler = inPath;
                             if (!validCompiler)
