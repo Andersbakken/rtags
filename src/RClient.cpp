@@ -1135,8 +1135,8 @@ CommandLineParser::ParseStatus RClient::parse(size_t argc, char **argv)
             }
             p.resolve();
             List<String> args;
-            while (idx < arguments.size() && arguments[idx][0] != '-') {
-                args.append(arguments[idx++]);
+            while (idx + 1 < arguments.size() && arguments[idx + 1][0] != '-') {
+                args.append(arguments[++idx]);
             }
 
             String encoded;
