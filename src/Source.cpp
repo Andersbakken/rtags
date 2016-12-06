@@ -26,7 +26,6 @@ void Source::clear()
     fileId = compilerId = buildRootId = compileCommandsFileId = 0;
     includePathHash = 0;
     language = NoLanguage;
-    parsed = 0;
 
     defines.clear();
     includePaths.clear();
@@ -58,8 +57,6 @@ String Source::toString() const
     String ret = String::join(toCommandLine(IncludeCompiler|IncludeSourceFile|IncludeIncludePaths|QuoteDefines|IncludeDefines), ' ');
     if (buildRootId)
         ret << " Build: " << buildRoot();
-    if (parsed)
-        ret << " Parsed: " << String::formatTime(parsed / 1000, String::DateTime);
     if (compileCommandsFileId)
         ret << " compile_commands: " << compileCommands();
     return ret;
@@ -998,7 +995,7 @@ void Source::encode(Serializer &s, EncodeMode mode) const
     if (mode == EncodeSandbox && !Sandbox::root().isEmpty()) {
         s << Sandbox::encoded(sourceFile()) << fileId << Sandbox::encoded(compiler()) << compilerId
           << Sandbox::encoded(extraCompiler) << Sandbox::encoded(buildRoot()) << buildRootId
-          << static_cast<uint8_t>(language) << parsed << flags << defines;
+          << static_cast<uint8_t>(language) << flags << defines;
 
         auto incPaths = includePaths;
         for (auto &inc : incPaths)
@@ -1007,11 +1004,10 @@ void Source::encode(Serializer &s, EncodeMode mode) const
         s << incPaths << Sandbox::encoded(arguments)
           << sysRootIndex << Sandbox::encoded(directory) << includePathHash;
     } else {
-        error() << "SENT A DUDE" << sourceFile() << parsed;
         s << sourceFile() << fileId << compiler() << compilerId
           << extraCompiler << buildRoot() << buildRootId
           << compileCommands() << compileCommandsFileId
-          << static_cast<uint8_t>(language) << parsed << flags << defines
+          << static_cast<uint8_t>(language) << flags << defines
           << includePaths << arguments << sysRootIndex << directory << includePathHash;
     }
 }
@@ -1023,10 +1019,9 @@ void Source::decode(Deserializer &s, EncodeMode mode)
     Path source, compiler, buildRoot, compileCommands;
     s >> source >> fileId >> compiler >> compilerId >> extraCompiler
       >> buildRoot >> buildRootId >> compileCommands >> compileCommandsFileId
-      >> lang >> parsed >> flags
+      >> lang >> flags
       >> defines >> includePaths >> arguments >> sysRootIndex
       >> directory >> includePathHash;
-    error() << "GOT A DUDE" << source << parsed;
     language = static_cast<Language>(lang);
 
     if (mode == EncodeSandbox && !Sandbox::root().isEmpty()) { // SBROOT

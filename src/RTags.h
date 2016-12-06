@@ -45,7 +45,7 @@ struct Diagnostic;
 struct DependencyNode;
 typedef List<std::pair<uint32_t, uint32_t> > Includes;
 typedef Hash<uint32_t, DependencyNode*> Dependencies;
-typedef Hash<uint32_t, List<Source> > Sources;
+typedef Hash<uint32_t, SourceList> Sources;
 typedef Map<Path, Set<String> > Files;
 typedef Hash<uint32_t, Set<FixIt> > FixIts;
 typedef Hash<Path, String> UnsavedFiles;

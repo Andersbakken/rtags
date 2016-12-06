@@ -45,8 +45,6 @@ struct Source
 
     static const char *languageName(Language language);
 
-    uint64_t parsed;
-
     enum Flag {
         NoFlag = 0x0,
         NoRtti = 0x1,
@@ -182,7 +180,7 @@ RCT_FLAGS(Source::CommandLineFlag);
 
 inline Source::Source()
     : fileId(0), compilerId(0), buildRootId(0), includePathHash(0),
-      language(NoLanguage), parsed(0), sysRootIndex(-1)
+      language(NoLanguage), sysRootIndex(-1)
 {
 }
 
@@ -362,5 +360,26 @@ inline String Source::Define::toString(Flags<CommandLineFlag> f) const
     return ret;
 }
 
+class SourceList : public List<Source>
+{
+public:
+    uint64_t parsed = 0;
+
+    uint32_t fileId() const { return isEmpty() ? 0 : front().fileId; }
+};
+
+template <>
+inline Serializer &operator<<(Serializer &s, const SourceList &sources)
+{
+    s << static_cast<const List<Source> &>(sources) << sources.parsed;
+    return s;
+}
+
+template <>
+inline Deserializer &operator>>(Deserializer &d, SourceList &sources)
+{
+    d >> static_cast<List<Source> &>(sources) >> sources.parsed;
+    return d;
+}
 
 #endif

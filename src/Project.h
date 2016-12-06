@@ -176,7 +176,7 @@ public:
 
     bool isIndexed(uint32_t fileId) const;
 
-    void processParseData(IndexParseData &&data);
+    void processParseData(IndexParseData &&data, Set<uint32_t> *dirty = 0);
     const IndexParseData &indexParseData() const { return mIndexParseData; }
     void index(const std::shared_ptr<IndexerJob> &job);
     void reindex(uint32_t fileId, Flags<IndexerJob::Flag> flags);
@@ -247,6 +247,13 @@ public:
     void forEachSources(std::function<VisitResult(const Sources &sources)> cb) const { forEachSources(mIndexParseData, cb); }
     void forEachSources(std::function<VisitResult(Sources &sources)> cb) { forEachSources(mIndexParseData, cb); }
 
+    static void forEachSourceList(const IndexParseData &data, std::function<VisitResult(const SourceList &sources)> cb);
+    static void forEachSourceList(IndexParseData &data, std::function<VisitResult(SourceList &sources)> cb);
+    static void forEachSourceList(Sources &sources, std::function<VisitResult(SourceList &source)> cb);
+    static void forEachSourceList(const Sources &sources, std::function<VisitResult(const SourceList &source)> cb);
+    void forEachSourceList(std::function<VisitResult(const SourceList &sources)> cb) const { forEachSourceList(mIndexParseData, cb); }
+    void forEachSourceList(std::function<VisitResult(SourceList &sources)> cb) { forEachSourceList(mIndexParseData, cb); }
+
     static void forEachSource(Sources &sources, std::function<VisitResult(Source &source)> cb);
     static void forEachSource(const Sources &sources, std::function<VisitResult(const Source &source)> cb);
     static void forEachSource(IndexParseData &data, std::function<VisitResult(Source &source)> cb);
@@ -254,8 +261,7 @@ public:
     void forEachSource(std::function<VisitResult(const Source &source)> cb) const { forEachSource(mIndexParseData, cb); }
     void forEachSource(std::function<VisitResult(Source &source)> cb) { forEachSource(mIndexParseData, cb); }
 private:
-
-    void reloadCompileCommands();
+    void reloadCompileCommands(Set<uint32_t> *dirty = 0);
     void onFileAddedOrModified(const Path &path);
     void watchFile(uint32_t fileId);
     enum ValidateMode {
@@ -269,7 +275,7 @@ private:
     void updateFixIts(const Set<uint32_t> &visited, FixIts &fixIts);
     Diagnostics updateDiagnostics(const Diagnostics &diagnostics);
     int startDirtyJobs(Dirty *dirty,
-                       IndexerJob::Flag type,
+                       Flags<IndexerJob::Flag> type,
                        const UnsavedFiles &unsavedFiles = UnsavedFiles(),
                        const std::shared_ptr<Connection> &wait = std::shared_ptr<Connection>());
     void onDirtyTimeout(Timer *);
