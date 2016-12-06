@@ -851,7 +851,7 @@ void Project::index(const std::shared_ptr<IndexerJob> &job)
 
     std::shared_ptr<IndexerJob> &ref = mActiveJobs[job->fileId()];
     if (ref) {
-        error() << "Aborting a job" << ref.get() << Location::path(job->fileId());
+        // warning() << "Aborting a job" << ref.get() << Location::path(job->fileId());
         releaseFileIds(ref->visited);
         Server::instance()->jobScheduler()->abort(ref);
         --mJobCounter;
