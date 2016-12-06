@@ -749,7 +749,6 @@ void Project::onJobFinished(const std::shared_ptr<IndexerJob> &job, const std::s
 
         // error() << "Finished this
     } else {
-        error() << mActiveJobs.size();
         mSaveDirty = true;
     }
 }
