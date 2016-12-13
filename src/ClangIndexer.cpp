@@ -942,59 +942,7 @@ bool ClangIndexer::handleReference(const CXCursor &cursor, CXCursorKind kind, Lo
     }
 
     switch (refKind) {
-    case CXCursor_Constructor: {
-        while (true) {
-            const CXCursor general = clang_getSpecializedCursorTemplate(ref);
-            if (!clang_Cursor_isNull(general) && createLocation(general) == refLoc) {
-                ref = general;
-            } else {
-                break;
-            }
-        }
-
-        enum State {
-            Invalid,
-            Handled,
-            DestructorNeeded
-        } state = Invalid;
-
-        for (int i=mParents.size() - 1; i>=0 && state == Invalid; --i) {
-            const CXCursor parent = mParents.at(i);
-            switch (clang_getCursorKind(parent)) {
-            case CXCursor_CallExpr: {
-                CXCursor func = clang_getCursorReferenced(parent);
-                switch (clang_getCursorKind(func)) {
-                case CXCursor_FunctionDecl:
-                case CXCursor_FunctionTemplate:
-                case CXCursor_CXXMethod:
-                    if (RTags::eatString(clang_getCursorSpelling(func)) == "operator=") {
-                        state = Handled;
-                    } else {
-                        state = DestructorNeeded;
-                    }
-                    break;
-                default:
-                    // ignore callExprs with invalid refs, they do happen
-                    break;
-                }
-                break; }
-            case CXCursor_VarDecl:
-                state = Handled;
-                break;
-            case CXCursor_ReturnStmt:
-                state = DestructorNeeded;
-                break;
-            default:
-                break;
-            }
-        }
-        if (state == DestructorNeeded) {
-            // error() << clang_getTypeDeclaration(clang_getCursorType(ref));
-            // error() << location << "needs a destructor" << cursor;
-            // error() << clang_getTypeDeclaration(clang_getCursorType(cursor));
-        }
-
-        break; }
+    case CXCursor_Constructor:
     case CXCursor_CXXMethod:
     case CXCursor_FunctionDecl:
     case CXCursor_Destructor:
