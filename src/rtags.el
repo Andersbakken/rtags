@@ -2632,7 +2632,7 @@ This includes both declarations and definitions."
     (with-current-buffer buf
       (rtags-overlays-remove t)))
   (let ((diagnostics-buffer (get-buffer rtags-diagnostics-buffer-name)))
-    (when diagnostics-buffer
+    (when (buffer-live-p diagnostics-buffer)
       (with-current-buffer diagnostics-buffer
         (setq buffer-read-only nil)
         (erase-buffer)
