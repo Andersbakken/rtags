@@ -673,10 +673,6 @@ CXChildVisitResult ClangIndexer::visitorHelper(CXCursor cursor, CXCursor, CXClie
 
 CXChildVisitResult ClangIndexer::indexVisitor(CXCursor cursor)
 {
-    struct UpdateLastCursor {
-        ~UpdateLastCursor() { func(); }
-        std::function<void()> func;
-    } call = { [this, cursor]() { mLastCursor = cursor; } };
     ++mCursorsVisited;
     // error() << "indexVisitor" << cursor;
     // FILE *f = fopen("/tmp/clangindex.log", "a");
@@ -691,6 +687,11 @@ CXChildVisitResult ClangIndexer::indexVisitor(CXCursor cursor)
     if (type == RTags::Type_Other) {
         return CXChildVisit_Recurse;
     }
+
+    struct UpdateLastCursor {
+        ~UpdateLastCursor() { func(); }
+        std::function<void()> func;
+    } call = { [this, cursor]() { mLastCursor = cursor; } };
 
     bool blocked = false;
 
