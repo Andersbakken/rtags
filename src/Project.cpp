@@ -794,6 +794,7 @@ String Project::diagnosticsToString(Flags<QueryMessage::Flag> flags, uint32_t fi
 
 bool Project::save()
 {
+    Path::mkdir(mSourcesFilePath.parentDir(), Path::Recursive);
     {
         DataFile file(mSourcesFilePath, RTags::SourcesFileVersion);
         if (!file.open(DataFile::Write)) {
