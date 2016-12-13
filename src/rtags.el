@@ -3077,14 +3077,15 @@ This includes both declarations and definitions."
 ;;;###autoload
 (defun rtags-clear-diagnostics ()
   (interactive)
-  (when (get-buffer rtags-diagnostics-buffer-name)
-    (let (deactivate-mark)
-      (with-current-buffer rtags-diagnostics-buffer-name
-        (setq buffer-read-only nil)
-        (goto-char (point-min))
-        (delete-char (- (point-max) (point-min)))
-        (setq buffer-read-only t))))
-  (rtags-clear-all-diagnostics-overlays))
+  (let ((buf (get-buffer rtags-diagnostics-buffer-name)))
+    (when (buffer-live-p buf)
+      (let (deactivate-mark)
+        (with-current-buffer buf
+          (setq buffer-read-only nil)
+          (goto-char (point-min))
+          (delete-char (- (point-max) (point-min)))
+          (setq buffer-read-only t))))
+    (rtags-clear-all-diagnostics-overlays)))
 
 (defun rtags-diagnostics-process-filter (process output)
   ;; Collect the diagnostics into rtags-diagnostics-raw-buffer-name until a newline is found
