@@ -182,7 +182,7 @@ bool Server::init(const Options &options)
     }
 
     if (mOptions.options & ClearProjects) {
-        clearProjects();
+        clearProjects(Clear_All);
     }
 
     mJobScheduler.reset(new JobScheduler);
@@ -1315,7 +1315,7 @@ void Server::preprocessFile(const std::shared_ptr<QueryMessage> &query, const st
     }
 }
 
-void Server::clearProjects()
+void Server::clearProjects(ClearMode mode)
 {
     Path::rmdir(mOptions.dataDir);
     setCurrentProject(std::shared_ptr<Project>());
@@ -1323,7 +1323,8 @@ void Server::clearProjects()
         p.second->destroy();
     }
     mProjects.clear();
-    Location::init(Hash<Path, uint32_t>());
+    if (mode == Clear_All)
+        Location::init(Hash<Path, uint32_t>());
 }
 
 void Server::reindex(const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Connection> &conn)
@@ -1561,7 +1562,7 @@ void Server::sendDiagnostics(const std::shared_ptr<QueryMessage> &query, const s
 
 void Server::clearProjects(const std::shared_ptr<QueryMessage> &/*query*/, const std::shared_ptr<Connection> &conn)
 {
-    clearProjects();
+    clearProjects(Clear_All);
     conn->write("Cleared projects");
     conn->finish();
 }
@@ -1939,15 +1940,13 @@ bool Server::load()
                         error("Sources restore error %s: %s", path.constData(), err.constData());
                     } else {
                         data.project = filePath;
-                        if (!data.compileCommands.isEmpty())
-                            data.sources.clear();
-                        projects[filePath] = data;
+                        projects[filePath] = std::move(data);
                     }
                 }
                 return Path::Continue;
             });
 
-        clearProjects();
+        clearProjects(Clear_KeepFileIds);
         if (!projects.isEmpty()) {
             error() << "Recovering sources" << projects.size();
         }
