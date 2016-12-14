@@ -203,6 +203,7 @@ enum OptionType {
     LogTimestamp,
     LogFlushOption,
     SandboxRoot,
+    PollTimer,
     NoRealPath,
     Noop
 };
@@ -338,6 +339,7 @@ int main(int argc, char** argv)
         { LogTimestamp, "log-timestamp", 0, CommandLineParser::NoValue, "Add timestamp to logs." },
         { LogFlushOption, "log-flush", 0, CommandLineParser::NoValue, "Flush stderr/stdout after each log." },
         { SandboxRoot, "sandbox-root",  0, CommandLineParser::Required, "Create index using relative paths by stripping dir (enables copying of tag index db files without need to reindex)." },
+        { PollTimer, "poll-timer", 0, CommandLineParser::Required, "Poll the database of the current project every <arg> seconds. " },
         { NoRealPath, "no-realpath", 0, CommandLineParser::NoValue, "Don't use realpath(3) for files" },
         { Noop, "config", 'c', CommandLineParser::Required, "Use this file (instead of ~/.rdmrc)." },
         { Noop, "no-rc", 'N', CommandLineParser::NoValue, "Don't load any rc files." }
@@ -418,6 +420,12 @@ int main(int argc, char** argv)
             serverOpts.testTimeout = atoi(value.constData());
             if (serverOpts.testTimeout <= 0) {
                 return { String::format<1024>("Invalid argument to -z %s", value.constData()), CommandLineParser::Parse_Error };
+            }
+            break; }
+        case PollTimer: {
+            serverOpts.pollTimer = atoi(value.constData());
+            if (serverOpts.pollTimer < 0) {
+                return { String::format<1024>("Invalid argument to --poll-timer %s", value.constData()), CommandLineParser::Parse_Error };
             }
             break; }
         case CleanSlate: {

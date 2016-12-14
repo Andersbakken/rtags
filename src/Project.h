@@ -237,6 +237,7 @@ public:
     void includeCompletions(Flags<QueryMessage::Flag> flags, const std::shared_ptr<Connection> &conn, Source &&source) const;
     size_t bytesWritten() const { return mBytesWritten; }
     void destroy() { mSaveDirty = false; }
+    void poll();
     enum VisitResult {
         Stop,
         Continue,

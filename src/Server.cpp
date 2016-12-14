@@ -86,7 +86,7 @@ static const List<Path> sSystemIncludePaths = {
 
 Server *Server::sInstance = 0;
 Server::Server()
-    : mSuspended(false), mEnvironment(Rct::environment()), mExitCode(0), mLastFileId(0), mCompletionThread(0)
+    : mSuspended(false), mEnvironment(Rct::environment()), mPollTimer(-1), mExitCode(0), mLastFileId(0), mCompletionThread(0)
 {
     assert(!sInstance);
     sInstance = this;
@@ -94,6 +94,9 @@ Server::Server()
 
 Server::~Server()
 {
+    if (mPollTimer >= 0)
+        EventLoop::eventLoop()->unregisterTimer(mPollTimer);
+
     if (mCompletionThread) {
         mCompletionThread->stop();
         mCompletionThread->join();
@@ -202,6 +205,15 @@ bool Server::init(const Options &options)
                 setCurrentProject(project);
             }
         }
+    }
+
+    assert(mOptions.pollTimer >= 0);
+    if (mOptions.pollTimer) {
+        mPollTimer = EventLoop::eventLoop()->registerTimer([this](int) {
+                if (std::shared_ptr<Project> proj = mCurrentProject.lock()) {
+                    proj->poll();
+                }
+            }, mOptions.pollTimer * 1000);
     }
     return true;
 }

@@ -93,7 +93,7 @@ public:
               rpVisitFileTimeout(0), rpIndexDataMessageTimeout(0), rpConnectTimeout(0),
               rpConnectAttempts(0), rpNiceValue(0), maxCrashCount(0),
               completionCacheSize(0), testTimeout(60 * 1000 * 5),
-              maxFileMapScopeCacheSize(512), tcpPort(0)
+              maxFileMapScopeCacheSize(512), pollTimer(0), tcpPort(0)
         {
         }
 
@@ -102,7 +102,8 @@ public:
         size_t jobCount, headerErrorJobCount, maxIncludeCompletionDepth;
         int rpVisitFileTimeout, rpIndexDataMessageTimeout,
             rpConnectTimeout, rpConnectAttempts, rpNiceValue, maxCrashCount,
-            completionCacheSize, testTimeout, maxFileMapScopeCacheSize, errorLimit;
+            completionCacheSize, testTimeout, maxFileMapScopeCacheSize, errorLimit,
+            pollTimer;
         uint16_t tcpPort;
         List<String> defaultArguments, excludeFilters;
         Set<String> blockedArguments;
@@ -210,7 +211,7 @@ private:
     SocketServer::SharedPtr mUnixServer, mTcpServer;
     List<String> mEnvironment;
 
-    int mExitCode;
+    int mPollTimer, mExitCode;
     uint32_t mLastFileId;
     std::shared_ptr<JobScheduler> mJobScheduler;
     CompletionThread *mCompletionThread;
