@@ -2413,12 +2413,7 @@ Source Project::source(uint32_t fileId, int buildIndex) const
 
 void Project::reindex(uint32_t fileId, Flags<IndexerJob::Flag> flags)
 {
-    SourceList list = sources(fileId);
-    if (list.isEmpty()) {
-        error() << "GOT EMPTY LIST OF SOURCES" << Location::path(fileId);
-    } else {
-        index(std::shared_ptr<IndexerJob>(new IndexerJob(std::move(list), flags, shared_from_this())));
-    }
+    index(std::shared_ptr<IndexerJob>(new IndexerJob(sources(fileId), flags, shared_from_this())));
 }
 
 void Project::processParseData(IndexParseData &&data)
@@ -2446,6 +2441,7 @@ void Project::processParseData(IndexParseData &&data)
                 } else {
                     if (ref.isEmpty()) {
                         index.insert(source.fileId);
+                        ref.push_back(source);
                     } else if (ref[0] != source) {
                         if (!ref[0].compareArguments(source)) {
                             index.insert(source.fileId);
