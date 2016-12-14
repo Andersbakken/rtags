@@ -46,7 +46,7 @@ FILE *crashDumpFile = 0;
 static void signalHandler(int signal)
 {
     fprintf(stderr, "Caught signal %d\n", signal);
-    
+
 #ifdef HAVE_BACKTRACE
     enum { SIZE = 1024 };
     void *stack[SIZE];
@@ -201,6 +201,7 @@ enum OptionType {
     TcpPort,
     RpPath,
     LogTimestamp,
+    LogFlushOption,
     SandboxRoot,
     NoRealPath,
     Noop
@@ -335,6 +336,7 @@ int main(int argc, char** argv)
         { TcpPort, "tcp-port", 0, CommandLineParser::Required, "Listen on this tcp socket (default none)." },
         { RpPath, "rp-path", 0, CommandLineParser::Required, String::format<256>("Path to rp (default %s).", defaultRP().constData()) },
         { LogTimestamp, "log-timestamp", 0, CommandLineParser::NoValue, "Add timestamp to logs." },
+        { LogFlushOption, "log-flush", 0, CommandLineParser::NoValue, "Flush stderr/stdout after each log." },
         { SandboxRoot, "sandbox-root",  0, CommandLineParser::Required, "Create index using relative paths by stripping dir (enables copying of tag index db files without need to reindex)." },
         { NoRealPath, "no-realpath", 0, CommandLineParser::NoValue, "Don't use realpath(3) for files" },
         { Noop, "config", 'c', CommandLineParser::Required, "Use this file (instead of ~/.rdmrc)." },
@@ -659,6 +661,9 @@ int main(int argc, char** argv)
             break; }
         case LogTimestamp: {
             logFlags |= LogTimeStamp;
+            break; }
+        case LogFlushOption: {
+            logFlags |= LogFlush;
             break; }
         case SandboxRoot: {
             serverOpts.sandboxRoot = std::move(value);
