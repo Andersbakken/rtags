@@ -2681,8 +2681,7 @@ void Project::removeSource(uint32_t fileId)
 
 void Project::poll()
 {
-    const Server::Options &options = Server::instance()->options();
     for (auto it : mDependencies) {
-        validate(it.first,  options.options & Server::ValidateFileMaps ? Validate : StatOnly);
+        validate(it.first,  Validate);
     }
 }
