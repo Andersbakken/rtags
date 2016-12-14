@@ -530,7 +530,7 @@ bool Server::parse(IndexParseData &data, String &&arguments, const Path &pwd, ui
 
     assert(!compileCommandsFileId || data.compileCommands.contains(compileCommandsFileId));
     const auto &env = compileCommandsFileId ? data.compileCommands[compileCommandsFileId].environment : data.environment;
-    List<Source> sources = Source::parse(arguments, pwd, env, &unresolvedPaths, cache);
+    SourceList sources = Source::parse(arguments, pwd, env, &unresolvedPaths, cache);
     bool ret = (sources.isEmpty() && unresolvedPaths.size() == 1 && unresolvedPaths.front() == "-");
     size_t idx = 0;
     for (Source &source : sources) {
@@ -1592,7 +1592,7 @@ void Server::sources(const std::shared_ptr<QueryMessage> &query, const std::shar
             const uint32_t fileId = Location::fileId(path);
             if (fileId) {
                 prepareCompletion(query, fileId, project);
-                List<Source> sources = project->sources(fileId);
+                SourceList sources = project->sources(fileId);
                 if (sources.isEmpty() && path.isHeader()) {
                     Set<uint32_t> seen;
                     std::function<uint32_t(uint32_t)> findSourceFileId = [&findSourceFileId, &project, &seen](uint32_t file) {

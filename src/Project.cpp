@@ -932,9 +932,9 @@ void Project::onDirtyTimeout(Timer *)
     debug() << "onDirtyTimeout" << dirtyFiles << dirtied;
 }
 
-List<Source> Project::sources(uint32_t fileId) const
+SourceList Project::sources(uint32_t fileId) const
 {
-    List<Source> ret;
+    SourceList ret;
     forEachSources([&ret, fileId](const Sources &srcs) {
             const auto it = srcs.find(fileId);
             if (it != srcs.end())
@@ -2413,7 +2413,12 @@ Source Project::source(uint32_t fileId, int buildIndex) const
 
 void Project::reindex(uint32_t fileId, Flags<IndexerJob::Flag> flags)
 {
-    index(std::shared_ptr<IndexerJob>(new IndexerJob(sources(fileId), flags, shared_from_this())));
+    SourceList list = sources(fileId);
+    if (list.isEmpty()) {
+        error() << "GOT EMPTY LIST OF SOURCES" << Location::path(fileId);
+    } else {
+        index(std::shared_ptr<IndexerJob>(new IndexerJob(std::move(list), flags, shared_from_this())));
+    }
 }
 
 void Project::processParseData(IndexParseData &&data)
@@ -2483,8 +2488,9 @@ void Project::processParseData(IndexParseData &&data)
                     return Continue;
                 });
 
-            for (auto it : oldSources)
+            for (auto it : oldSources) {
                 removed[it.first] = cc.first;
+            }
         }
     }
     removeSources(removed);
@@ -2568,8 +2574,8 @@ void Project::forEachSource(Sources &sources, std::function<VisitResult(Source &
 {
     Sources::iterator sit = sources.begin();
     while (sit != sources.end()) {
-        List<Source> &list = sit->second;
-        List<Source>::iterator it = list.begin();
+        SourceList &list = sit->second;
+        SourceList::iterator it = list.begin();
         bool done = false;
         while (it != list.end()) {
             const auto ret = cb(*it);

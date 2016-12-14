@@ -39,7 +39,7 @@ public:
 
     static String dumpFlags(Flags<Flag> flags);
 
-    IndexerJob(const List<Source> &sources,
+    IndexerJob(const SourceList &sources,
                Flags<Flag> flags,
                const std::shared_ptr<Project> &project,
                const UnsavedFiles &unsavedFiles = UnsavedFiles());
@@ -51,7 +51,7 @@ public:
     uint32_t fileId() const { assert(!sources.isEmpty()); return sources.begin()->fileId; }
 
     uint64_t id;
-    List<Source> sources;
+    SourceList sources;
     Path sourceFile;
     Flags<Flag> flags;
     Path project;

@@ -25,6 +25,7 @@
 #include "rct/Serializer.h"
 
 struct SourceCache;
+class SourceList;
 struct Source
 {
     inline Source();
@@ -164,7 +165,7 @@ struct Source
     String toString() const;
     Path sysRoot() const { return arguments.value(sysRootIndex, "/"); }
 
-    static List<Source> parse(const String &cmdLine,
+    static SourceList parse(const String &cmdLine,
                               const Path &pwd,
                               const List<String> &environment,
                               List<Path> *unresolvedInputLocation = 0,

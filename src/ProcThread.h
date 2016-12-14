@@ -38,11 +38,11 @@ public:
 
     void stop();
     virtual void run();
-    Signal<std::function<void(List<Source>)> > &command() { return mCommand; }
+    Signal<std::function<void(SourceList)> > &command() { return mCommand; }
 private:
     void readProc();
 
-    Signal<std::function<void(List<Source>)> > mCommand;
+    Signal<std::function<void(SourceList)> > mCommand;
     std::mutex mMutex;
     std::condition_variable mCond;
     int mInterval;

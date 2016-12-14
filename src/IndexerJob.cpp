@@ -23,7 +23,7 @@
 #include "RTagsVersion.h"
 
 uint64_t IndexerJob::sNextId = 1;
-IndexerJob::IndexerJob(const List<Source> &s,
+IndexerJob::IndexerJob(const SourceList &s,
                        Flags<Flag> f,
                        const std::shared_ptr<Project> &p,
                        const UnsavedFiles &u)

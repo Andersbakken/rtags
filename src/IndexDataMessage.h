@@ -101,8 +101,8 @@ public:
     size_t bytesWritten() const { return mBytesWritten; }
     void setBytesWritten(size_t bytesWritten) { mBytesWritten = bytesWritten; }
 
-    List<Source> sources() const { return mSources; }
-    void setSources(const List<Source> &sources) { mSources = sources; }
+    SourceList sources() const { return mSources; }
+    void setSources(const SourceList &sources) { mSources = sources; }
 private:
     Path mProject;
     uint64_t mParseTime, mId;
@@ -115,7 +115,7 @@ private:
     Hash<uint32_t, Flags<FileFlag> > mFiles;
     Flags<Flag> mFlags;
     size_t mBytesWritten;
-    List<Source> mSources;
+    SourceList mSources;
 };
 
 RCT_FLAGS(IndexDataMessage::Flag);

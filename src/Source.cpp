@@ -402,7 +402,7 @@ struct Input {
     Source::Language language;
 };
 
-List<Source> Source::parse(const String &cmdLine,
+SourceList Source::parse(const String &cmdLine,
                            const Path &cwd,
                            const List<String> &environment,
                            List<Path> *unresolvedInputLocations,
@@ -472,7 +472,7 @@ List<Source> Source::parse(const String &cmdLine,
 
     if (split.isEmpty()) {
         warning() << "Source::parse No args" << cmdLine;
-        return List<Source>();
+        return SourceList();
     }
 
     Path path;
@@ -484,7 +484,7 @@ List<Source> Source::parse(const String &cmdLine,
     }
     if (split.isEmpty()) {
         warning() << "Source::parse No args" << cmdLine;
-        return List<Source>();
+        return SourceList();
     }
 
     List<Input> inputs;
@@ -514,7 +514,7 @@ List<Source> Source::parse(const String &cmdLine,
         if (arg.size() > 1 && arg.startsWith('-')) {
             if (arg == "-E") {
                 warning() << "Preprocessing, ignore" << cmdLine;
-                return List<Source>();
+                return SourceList();
             } else if (arg.startsWith("-x")) {
                 String a;
                 if (arg.size() == 2) {
@@ -535,7 +535,7 @@ List<Source> Source::parse(const String &cmdLine,
                 } else if (a == "objective-c++") {
                     language = ObjectiveCPlusPlus;
                 } else {
-                    return List<Source>();
+                    return SourceList();
                 }
                 arguments.append("-x");
                 arguments.append(a);
@@ -701,15 +701,15 @@ List<Source> Source::parse(const String &cmdLine,
 
     if (!validCompiler) {
         warning() << "Source::parse Nothing looks like a compiler" << Location::path(compilerId) << extraCompiler;
-        return List<Source>();
+        return SourceList();
     }
 
     if (inputs.isEmpty()) {
         warning() << "Source::parse No file for" << cmdLine;
-        return List<Source>();
+        return SourceList();
     }
 
-    List<Source> ret;
+    SourceList ret;
     if (!inputs.isEmpty()) {
         if (!buildRootId) {
             buildRoot = RTags::findProjectRoot(inputs.first().realPath, RTags::BuildRoot, cache);

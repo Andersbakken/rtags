@@ -169,7 +169,7 @@ private:
     Hash<uint32_t, std::shared_ptr<Unit> > mUnits;
 
     Path mProject;
-    List<Source> mSources;
+    SourceList mSources;
     Path mSourceFile;
     IndexDataMessage mIndexDataMessage;
     List<std::shared_ptr<RTags::TranslationUnit> > mTranslationUnits;

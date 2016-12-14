@@ -221,7 +221,7 @@ void ProcThread::readProc()
     for (size_t i=0; i<nodes.size() - 1; ++i) {
         const auto &node = nodes.at(i);
         List<Path> paths;
-        List<Source> sources = Source::parse(node.cmdLine, node.cwd, node.environ, &paths, &cache);
+        SourceList sources = Source::parse(node.cmdLine, node.cwd, node.environ, &paths, &cache);
         if (sources.size()) {
             error() << "GOT SOURCES" << node.cmdLine;
         }
