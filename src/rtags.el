@@ -2629,8 +2629,9 @@ This includes both declarations and definitions."
 (defun rtags-clear-all-diagnostics-overlays()
   (interactive)
   (dolist (buf rtags-overlays-buffers)
-    (with-current-buffer buf
-      (rtags-overlays-remove t)))
+    (when (buffer-live-p buf)
+      (with-current-buffer buf
+        (rtags-overlays-remove t))))
   (let ((diagnostics-buffer (get-buffer rtags-diagnostics-buffer-name)))
     (when (buffer-live-p diagnostics-buffer)
       (with-current-buffer diagnostics-buffer
