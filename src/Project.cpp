@@ -881,15 +881,15 @@ void Project::onFileAdded(const Path &path)
 void Project::onFileAddedOrModified(const Path &file)
 {
     const uint32_t fileId = Location::fileId(file);
+    debug() << file << "was modified" << fileId;
+    if (!fileId)
+        return;
     // error() << file.fileName() << mCompileCommandsInfos.dir << file;
     if (mIndexParseData.compileCommands.contains(fileId)) {
         reloadCompileCommands();
         return;
     }
 
-    debug() << file << "was modified" << fileId;
-    if (!fileId)
-        return;
     if (Server::instance()->suspended() || mSuspendedFiles.contains(fileId)) {
         warning() << file << "is suspended. Ignoring modification";
         return;
