@@ -598,8 +598,8 @@ inline uint16_t createTargetsValue(const CXCursor &cursor)
 inline int targetRank(CXCursorKind kind)
 {
     switch (kind) {
-    case CXCursor_Constructor: // this one should be more than class/struct decl
-        return 1;
+    case CXCursor_Constructor: // this one should be more than class/struct decl and fielddecl
+        return 5;
     case CXCursor_ClassDecl:
     case CXCursor_StructDecl:
     case CXCursor_ClassTemplate:
@@ -613,7 +613,7 @@ inline int targetRank(CXCursorKind kind)
         // objects seem to come out as function templates
         return 3;
     case CXCursor_MacroDefinition:
-        return 4;
+        return 5;
     default:
         return 2;
     }

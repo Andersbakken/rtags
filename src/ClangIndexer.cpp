@@ -1078,7 +1078,7 @@ bool ClangIndexer::handleReference(const CXCursor &cursor, CXCursorKind kind, Lo
         if (RTags::isCursor(c->kind))
             return true;
         auto best = targets.end();
-        int bestRank = -1;
+        int bestRank = RTags::targetRank(RTags::targetsValueKind(refTargetValue));
         for (auto it = targets.begin(); it != targets.end(); ++it) {
             const int r = RTags::targetRank(RTags::targetsValueKind(it->second));
             if (r > bestRank || (r == bestRank && RTags::targetsValueIsDefinition(it->second))) {
