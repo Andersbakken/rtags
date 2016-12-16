@@ -195,6 +195,7 @@ warnings and fixups."
   :type 'boolean
   :safe 'booleanp)
 
+(defvar rtags-periodic-reparse-timer nil)
 (defun rtags--update-periodic-reparse-timer ()
   (when (and (not rtags-periodic-reparse-timer)
              rtags-periodic-reparse-timeout)
