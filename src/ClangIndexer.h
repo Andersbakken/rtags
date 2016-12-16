@@ -50,6 +50,7 @@ private:
     void addFileSymbol(uint32_t file);
     int symbolLength(CXCursorKind kind, const CXCursor &cursor);
     void extractArguments(List<Symbol::Argument> *arguments, const CXCursor &cursor);
+    CXCursor resolveTemplate(CXCursor cursor, Location location = Location());
 
     inline Location createLocation(const CXSourceLocation &location, bool *blocked = 0, unsigned *offset = 0)
     {

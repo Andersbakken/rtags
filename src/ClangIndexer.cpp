@@ -947,16 +947,9 @@ bool ClangIndexer::handleReference(const CXCursor &cursor, CXCursorKind kind, Lo
     case CXCursor_FunctionDecl:
     case CXCursor_Destructor:
     case CXCursor_FunctionTemplate: {
-        while (true) {
-            const CXCursor general = clang_getSpecializedCursorTemplate(ref);
-            if (!clang_Cursor_isNull(general) && createLocation(general) == refLoc) {
-                ref = general;
-            } else {
-                break;
-            }
-        }
         if (refKind == CXCursor_FunctionDecl)
             break;
+        ref = resolveTemplate(ref, refLoc);
         if (refKind == CXCursor_Constructor || refKind == CXCursor_Destructor) {
             if (isImplicit(ref)) {
                 return false;
@@ -1147,7 +1140,7 @@ void ClangIndexer::addOverriddenCursors(const CXCursor &cursor, Location locatio
     for (unsigned int i=0; i<count; ++i) {
         // error() << location << "got" << i << count << loc;
 
-        const String usr = ::usr(overridden[i]);
+        const String usr = ::usr(resolveTemplate(overridden[i]));
         assert(!usr.isEmpty());
         // assert(!locCursor.usr.isEmpty());
 
@@ -1363,15 +1356,7 @@ void ClangIndexer::handleBaseClassSpecifier(const CXCursor &cursor)
         return;
     }
 
-    while (true) {
-        const CXCursor templateRef = clang_getSpecializedCursorTemplate(ref);
-        if (!clang_isInvalid(clang_getCursorKind(templateRef))) {
-            ref = templateRef;
-        } else {
-            break;
-        }
-    }
-
+    ref = resolveTemplate(ref);
     const String usr = ::usr(ref);
     if (usr.isEmpty()) {
         error() << "Couldn't find usr for" << clang_getCursorReferenced(cursor) << cursor << mLastClass;
@@ -2375,3 +2360,20 @@ Symbol ClangIndexer::findSymbol(Location location, FindResult *result) const
     }
     return Symbol();
 }
+
+CXCursor ClangIndexer::resolveTemplate(CXCursor cursor, Location location)
+{
+    while (true) {
+        const CXCursor general = clang_getSpecializedCursorTemplate(cursor);
+        if (location.isNull())
+            location = createLocation(cursor);
+        if (!clang_Cursor_isNull(general) && createLocation(general) == location) {
+            cursor = general;
+        } else {
+            break;
+        }
+    }
+    return cursor;
+}
+
+
