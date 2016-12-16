@@ -26,6 +26,7 @@
 #include "RTags.h"
 #include "Server.h"
 #include "Symbol.h"
+#include <unordered_set>
 
 struct Unit;
 class ClangIndexer
@@ -50,6 +51,7 @@ private:
     void addFileSymbol(uint32_t file);
     int symbolLength(CXCursorKind kind, const CXCursor &cursor);
     void extractArguments(List<Symbol::Argument> *arguments, const CXCursor &cursor);
+    CXCursor resolveTemplate(CXCursor cursor, Location location = Location());
 
     inline Location createLocation(const CXSourceLocation &location, bool *blocked = 0, unsigned *offset = 0)
     {
@@ -115,7 +117,7 @@ private:
     void handleLiteral(const CXCursor &cursor, CXCursorKind kind, Location location);
     CXChildVisitResult handleStatement(const CXCursor &cursor, CXCursorKind kind, Location location);
     Location findByUSR(const CXCursor &cursor, CXCursorKind kind, Location loc) const;
-    void addOverriddenCursors(const CXCursor &cursor, Location location);
+    std::unordered_set<CXCursor> addOverriddenCursors(const CXCursor &cursor, Location location);
     bool superclassTemplateMemberFunctionUgleHack(const CXCursor &cursor, CXCursorKind kind,
                                                   Location location, const CXCursor &ref,
                                                   Symbol **cursorPtr = 0);

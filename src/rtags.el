@@ -195,6 +195,7 @@ warnings and fixups."
   :type 'boolean
   :safe 'booleanp)
 
+(defvar rtags-periodic-reparse-timer nil)
 (defun rtags--update-periodic-reparse-timer ()
   (when (and (not rtags-periodic-reparse-timer)
              rtags-periodic-reparse-timeout)
@@ -4241,7 +4242,7 @@ the definition, etc.
 
 Return nil if it can't get any info about the item."
   ;; try first with --declaration-only
-  (let ((symbol (rtags-symbol-info-internal :location (rtags-target-declaration-first) :silent t)))
+  (let ((symbol (rtags-symbol-info-internal :location (or (rtags-target-declaration-first) (rtags-current-location)) :silent t)))
     (when symbol
       (let ((brief (cdr (assoc 'briefComment symbol)))
             symbol-text
