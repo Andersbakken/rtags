@@ -333,30 +333,30 @@ RClient::~RClient()
 
 void RClient::addQuery(QueryMessage::Type type, const String &query, Flags<QueryMessage::Flag> extraQueryFlags)
 {
-    std::shared_ptr<QueryCommand> cmd(new QueryCommand(type, query));
+    auto cmd = std::make_shared<QueryCommand>(type, query);
     cmd->extraQueryFlags = extraQueryFlags;
     mCommands.append(cmd);
 }
 
 void RClient::addQuitCommand(int exitCode)
 {
-    std::shared_ptr<QuitCommand> cmd(new QuitCommand(exitCode));
+    auto cmd = std::make_shared<QuitCommand>(exitCode);
     mCommands.append(cmd);
 }
 
 void RClient::addLog(LogLevel level)
 {
-    mCommands.append(std::shared_ptr<RCCommand>(new RdmLogCommand(level)));
+    mCommands.append(std::make_shared<RdmLogCommand>(level));
 }
 
 void RClient::addCompile(const String &args, const Path &cwd)
 {
-    mCommands.append(std::shared_ptr<RCCommand>(new CompileCommand(args, cwd)));
+    mCommands.append(std::make_shared<CompileCommand>(args, cwd));
 }
 
 void RClient::addCompile(const Path &path)
 {
-    mCommands.append(std::shared_ptr<RCCommand>(new CompileCommand(path)));
+    mCommands.append(std::make_shared<CompileCommand>(path));
 }
 
 int RClient::exec()

@@ -41,7 +41,7 @@ JobScheduler::~JobScheduler()
 void JobScheduler::add(const std::shared_ptr<IndexerJob> &job)
 {
     assert(!(job->flags & ~IndexerJob::Type_Mask));
-    std::shared_ptr<Node> node(new Node({ 0, job, 0, 0, 0, String() }));
+    std::shared_ptr<Node> node(new Node({0, job, 0, 0, 0, String()}));
     node->job = job;
     // error() << job->priority << job->sourceFile << mProcrastination;
     if (mPendingJobs.isEmpty() || job->priority > mPendingJobs.first()->job->priority) {
@@ -155,7 +155,7 @@ void JobScheduler::startJobs()
             delete process;
             jobNode->job->flags |= IndexerJob::Crashed;
             debug() << "job crashed (didn't start)" << jobId << jobNode->job->fileId() << jobNode->job.get();
-            std::shared_ptr<IndexDataMessage> msg(new IndexDataMessage(jobNode->job));
+            auto msg = std::make_shared<IndexDataMessage>(jobNode->job);
             msg->setFlag(IndexDataMessage::ParseFailure);
             jobFinished(jobNode->job, msg);
             cont();
@@ -187,7 +187,7 @@ void JobScheduler::startJobs()
                         // job failed, probably no IndexDataMessage coming
                         n->job->flags |= IndexerJob::Crashed;
                         debug() << "job crashed" << jobId << n->job->fileId() << n->job.get();
-                        std::shared_ptr<IndexDataMessage> msg(new IndexDataMessage(n->job));
+                        auto msg = std::make_shared<IndexDataMessage>(n->job);
                         msg->setFlag(IndexDataMessage::ParseFailure);
                         jobFinished(n->job, msg);
                     }

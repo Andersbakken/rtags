@@ -472,7 +472,7 @@ void CompletionThread::printCompletions(const List<const Completions::Candidate 
     bool raw = false;
     bool json = false;
     if (request->conn) {
-        std::shared_ptr<Output> output(new Output);
+        auto output = std::make_shared<Output>();
         output->connection = request->conn;
         output->flags = request->flags;
         outputs.append(output);
@@ -490,7 +490,7 @@ void CompletionThread::printCompletions(const List<const Completions::Candidate 
         log([&xml, &elisp, &outputs, &raw, &json](const std::shared_ptr<LogOutput> &output) {
                 // error() << "Got a dude" << output->testLog(RTags::DiagnosticsLevel);
                 if (output->testLog(RTags::DiagnosticsLevel)) {
-                    std::shared_ptr<Output> out(new Output);
+                    auto out = std::make_shared<Output>();
                     out->output = output;
                     if (output->flags() & RTagsLogOutput::Elisp) {
                         out->flags |= CompletionThread::Elisp;

@@ -623,7 +623,7 @@ void Server::handleIndexMessage(const std::shared_ptr<IndexMessage> &message, co
 
 void Server::handleLogOutputMessage(const std::shared_ptr<LogOutputMessage> &message, const std::shared_ptr<Connection> &conn)
 {
-    std::shared_ptr<RTagsLogOutput> log(new RTagsLogOutput(message->level(), message->flags(), conn));
+    auto log = std::make_shared<RTagsLogOutput>(message->level(), message->flags(), conn);
     log->add();
 }
 
