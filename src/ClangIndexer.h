@@ -26,6 +26,7 @@
 #include "RTags.h"
 #include "Server.h"
 #include "Symbol.h"
+#include <unordered_set>
 
 struct Unit;
 class ClangIndexer
@@ -116,7 +117,7 @@ private:
     void handleLiteral(const CXCursor &cursor, CXCursorKind kind, Location location);
     CXChildVisitResult handleStatement(const CXCursor &cursor, CXCursorKind kind, Location location);
     Location findByUSR(const CXCursor &cursor, CXCursorKind kind, Location loc) const;
-    void addOverriddenCursors(const CXCursor &cursor, Location location);
+    std::unordered_set<CXCursor> addOverriddenCursors(const CXCursor &cursor, Location location);
     bool superclassTemplateMemberFunctionUgleHack(const CXCursor &cursor, CXCursorKind kind,
                                                   Location location, const CXCursor &ref,
                                                   Symbol **cursorPtr = 0);

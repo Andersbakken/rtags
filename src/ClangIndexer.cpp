@@ -1129,26 +1129,34 @@ bool ClangIndexer::handleReference(const CXCursor &cursor, CXCursorKind kind, Lo
 }
 
 
-void ClangIndexer::addOverriddenCursors(const CXCursor &cursor, Location location)
+std::unordered_set<CXCursor> ClangIndexer::addOverriddenCursors(const CXCursor &c, Location location)
 {
     // error() << "addOverriddenCursors" << cursor << location;
-    CXCursor *overridden;
-    unsigned int count;
-    clang_getOverriddenCursors(cursor, &overridden, &count);
-    if (!overridden)
-        return;
-    for (unsigned int i=0; i<count; ++i) {
-        // error() << location << "got" << i << count << loc;
+    std::unordered_set<CXCursor> ret;
+    std::function<void(const CXCursor &)> process = [location, &ret, this, &process](const CXCursor &cursor) {
+        CXCursor *overridden;
+        unsigned int count;
+        clang_getOverriddenCursors(cursor, &overridden, &count);
+        if (overridden) {
+            ret.insert(cursor);
+            for (unsigned int i=0; i<count; ++i) {
+                // error() << location << "got" << i << count << loc;
 
-        const String usr = ::usr(resolveTemplate(overridden[i]));
-        assert(!usr.isEmpty());
-        // assert(!locCursor.usr.isEmpty());
+                const CXCursor resolved = resolveTemplate(overridden[i]);
+                ret.insert(resolved);
+                const String usr = ::usr(resolved);
+                assert(!usr.isEmpty());
+                // assert(!locCursor.usr.isEmpty());
 
-        // error() << location << "targets" << overridden[i];
-        unit(location)->targets[location][usr] = 0;
-        addOverriddenCursors(overridden[i], location);
-    }
-    clang_disposeOverriddenCursors(overridden);
+                // error() << location << "targets" << overridden[i];
+                unit(location)->targets[location][usr] = 0;
+                process(overridden[i]);
+            }
+            clang_disposeOverriddenCursors(overridden);
+        }
+    };
+    process(c);
+    return ret;
 }
 
 void ClangIndexer::handleInclude(const CXCursor &cursor, CXCursorKind kind, Location location)
@@ -1667,14 +1675,7 @@ CXChildVisitResult ClangIndexer::handleCursor(const CXCursor &cursor, CXCursorKi
         }
     }
 
-    if (!(ClangIndexer::serverOpts() & Server::NoComments)) {
-        const CXComment comment = clang_Cursor_getParsedComment(cursor);
-        if (clang_Comment_getKind(comment) != CXComment_Null) {
-            c.briefComment = RTags::eatString(clang_Cursor_getBriefCommentText(cursor));
-            c.xmlComment = RTags::eatString(clang_FullComment_getAsXML(comment));
-        }
-    }
-
+    std::unordered_set<CXCursor> cursors;
     switch (c.kind) {
     case CXCursor_CXXMethod:
 #if CINDEX_VERSION >= CINDEX_VERSION_ENCODE(0, 20)
@@ -1692,7 +1693,7 @@ CXChildVisitResult ClangIndexer::handleCursor(const CXCursor &cursor, CXCursorKi
             c.flags |= Symbol::ConstMethod;
 #endif
 
-        addOverriddenCursors(cursor, location);
+        cursors = addOverriddenCursors(cursor, location);
         // fall through
     case CXCursor_FunctionDecl:
     case CXCursor_FunctionTemplate:
@@ -1731,11 +1732,30 @@ CXChildVisitResult ClangIndexer::handleCursor(const CXCursor &cursor, CXCursorKi
         break;
     }
 
+    if (!(ClangIndexer::serverOpts() & Server::NoComments)) {
+        CXComment comment = clang_Cursor_getParsedComment(cursor);
+        if (clang_Comment_getKind(comment) != CXComment_Null) {
+            c.briefComment = RTags::eatString(clang_Cursor_getBriefCommentText(cursor));
+            c.xmlComment = RTags::eatString(clang_FullComment_getAsXML(comment));
+        }
+
+        for (auto it = cursors.begin(); it != cursors.end() && (c.briefComment.isEmpty() || c.xmlComment.isEmpty()); ++it) {
+            comment = clang_Cursor_getParsedComment(*it);
+            if (clang_Comment_getKind(comment) != CXComment_Null) {
+                if (c.briefComment.isEmpty()) {
+                    c.briefComment = RTags::eatString(clang_Cursor_getBriefCommentText(*it));
+                }
+                if (c.xmlComment.isEmpty())
+                    c.xmlComment = RTags::eatString(clang_FullComment_getAsXML(comment));
+            }
+        }
+    }
+
     if (RTags::isFunction(c.kind)) {
         const bool definition = c.flags & Symbol::Definition;
         mScopeStack.append({definition ? Scope::FunctionDefinition : Scope::FunctionDeclaration, definition ? &c : 0,
-                            Location(location.fileId(), c.startLine, c.startColumn),
-                            Location(location.fileId(), c.endLine, c.endColumn - 1)});
+                Location(location.fileId(), c.startLine, c.startColumn),
+                Location(location.fileId(), c.endLine, c.endColumn - 1)});
         visit(cursor);
         mScopeStack.removeLast();
         return CXChildVisit_Continue;

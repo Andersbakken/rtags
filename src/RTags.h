@@ -744,6 +744,17 @@ inline Location createLocation(const CXCursor &cursor, int *offsetPtr = 0)
 }
 }
 
+namespace std
+{
+template <> struct hash<CXCursor> : public unary_function<CXCursor, size_t>
+{
+    size_t operator()(const CXCursor &value) const
+    {
+        return clang_hashCursor(value);
+    }
+};
+}
+
 struct SourceCache
 {
     Hash<Path, Map<String, String> > rtagsConfigCache;
