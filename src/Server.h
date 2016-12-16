@@ -33,6 +33,7 @@
 #endif
 #endif
 
+class Match;
 class CompletionThread;
 class Connection;
 class ErrorMessage;
@@ -195,6 +196,7 @@ private:
     void tokens(const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Connection> &conn);
 
     std::shared_ptr<Project> projectForQuery(const std::shared_ptr<QueryMessage> &queryMessage);
+    std::shared_ptr<Project> projectForMatches(const List<Match> &matches);
     std::shared_ptr<Project> addProject(const Path &path);
 
     bool initServers();

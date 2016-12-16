@@ -39,6 +39,13 @@ public:
     {}
 
     inline Match(const String &pattern, Flags<Flag> flags = Flag_StringMatch);
+    inline Match(Match &&other) noexcept
+        : mRegex(std::move(other.mRegex)), mPattern(std::move(other.mPattern)), mFlags(other.mFlags)
+    {}
+    inline Match(const Match &other)
+        : mRegex(other.mRegex), mPattern(other.mPattern), mFlags(other.mFlags)
+    {}
+
     Flags<Flag> flags() const { return mFlags; }
 
     inline bool match(const String &text) const

@@ -171,6 +171,7 @@ public:
 
     const Set<uint32_t> &suspendedFiles() const;
     bool toggleSuspendFile(uint32_t file);
+    void setSuspended(uint32_t file, bool suspended);
     bool isSuspended(uint32_t file) const;
     void clearSuspendedFiles();
 

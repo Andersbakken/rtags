@@ -3906,15 +3906,25 @@ definition."
        (<= end (window-end))))
 
 ;;;###autoload
-(defun rtags-toggle-file-suspended()
+(defun rtags-suspend-file(&optional arg)
   (interactive)
   (let ((buffer (rtags-buffer-file-name)))
     (when buffer
       (with-temp-buffer
-        (rtags-call-rc :path buffer "-X" buffer)
+        (rtags-call-rc :path buffer "-X" buffer (or arg "on"))
         (if (> (point-max) (point-min))
             (message (buffer-substring-no-properties (point-min) (1- (point-max))))
           (message (buffer-string)))))))
+
+;;;###autoload
+(defun rtags-unsuspend-file()
+  (interactive)
+  (rtags-suspend-file "off"))
+
+;;;###autoload
+(defun rtags-toggle-file-suspended()
+  (interactive)
+  (rtags-suspend-file "toggle"))
 
 ;;;###autoload
 (defun rtags-clear-suspended-files()

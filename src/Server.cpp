@@ -1437,6 +1437,11 @@ std::shared_ptr<Project> Server::projectForQuery(const std::shared_ptr<QueryMess
     if (!(query->flags() & QueryMessage::HasLocation))
         matches << query->match();
 
+    return projectForMatches(matches);
+}
+
+std::shared_ptr<Project> Server::projectForMatches(const List<Match> &matches)
+{
     std::shared_ptr<Project> cur = currentProject();
     // give current a chance first to avoid switching project when using system headers etc
     for (const Match &match : matches) {
@@ -1686,27 +1691,47 @@ void Server::dumpCompileCommands(const std::shared_ptr<QueryMessage> &query, con
 
 void Server::suspend(const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Connection> &conn)
 {
-    const Path p = query->match().pattern();
+    Path p;
+    String modeString;
+    const String pattern = query->match().pattern();
+    Deserializer deserializer(pattern);
+    deserializer >> p >> modeString;
     enum Mode {
-        List,
+        ListFiles,
         All,
         Clear,
-        File
-    } mode = List;
+        FileToggle,
+        FileOn,
+        FileOff
+    } mode = ListFiles;
     if (p == "clear") {
         mode = Clear;
+        assert(modeString.isEmpty());
     } else if (p == "all") {
         mode = All;
+        assert(modeString.isEmpty());
     } else if (!p.isEmpty()) {
-        mode = File;
+        if (modeString == "on") {
+            mode = FileOn;
+        } else if (modeString == "off") {
+            mode = FileOff;
+        } else {
+            mode = FileToggle;
+        }
     }
 
+    List<Match> matches;
+    if (!query->currentFile().isEmpty())
+        matches.push_back(query->currentFile());
+    if (mode == FileOn || mode == FileOff || mode == FileOn)
+        matches.push_back(p);
     std::shared_ptr<Project> project;
-    if (mode == File) {
-        project = projectForQuery(query);
-    } else {
+    if (matches.isEmpty()) {
         project = currentProject();
+    } else {
+        project = projectForMatches(matches);
     }
+
     const bool old = mSuspended;
     switch (mode) {
     case All:
@@ -1719,7 +1744,7 @@ void Server::suspend(const std::shared_ptr<QueryMessage> &query, const std::shar
             project->clearSuspendedFiles();
         conn->write("No files suspended.");
         break;
-    case List:
+    case ListFiles:
         if (mSuspended)
             conn->write("All files are suspended.");
         if (project) {
@@ -1732,7 +1757,9 @@ void Server::suspend(const std::shared_ptr<QueryMessage> &query, const std::shar
             }
         }
         break;
-    case File:
+    case FileOn:
+    case FileOff:
+    case FileToggle:
         if (!project) {
             conn->write("No project");
         } else if (!p.isFile()) {
@@ -1740,8 +1767,15 @@ void Server::suspend(const std::shared_ptr<QueryMessage> &query, const std::shar
         } else {
             const uint32_t fileId = Location::fileId(p);
             if (fileId) {
+                bool suspended;
+                switch (mode) {
+                case FileToggle: suspended = project->toggleSuspendFile(fileId); break;
+                case FileOff: suspended = false; project->setSuspended(fileId, false); break;
+                case FileOn: suspended = true; project->setSuspended(fileId, true); break;
+                default: assert(0);
+                }
                 conn->write<512>("%s is no%s suspended", p.constData(),
-                                 project->toggleSuspendFile(fileId) ? "w" : " longer");
+                                 suspended ? "w" : " longer");
             } else {
                 conn->write<512>("%s is not indexed", p.constData());
             }
@@ -2203,32 +2237,32 @@ bool Server::runTests()
             }
             std::shared_ptr<QueryMessage> query;
             if (type == "follow-location") {
-                const String location = Location::encode(test.operator[]<String>("location"), workingDirectory);
+                String location = Location::encode(test.operator[]<String>("location"), workingDirectory);
                 if (location.isEmpty()) {
                     error() << "Invalid test. Invalid location";
                     ret = false;
                     continue;
                 }
                 query.reset(new QueryMessage(QueryMessage::FollowLocation));
-                query->setQuery(location);
+                query->setQuery(std::move(location));
             } else if (type == "references") {
-                const String location = Location::encode(test.operator[]<String>("location"), workingDirectory);
+                String location = Location::encode(test.operator[]<String>("location"), workingDirectory);
                 if (location.isEmpty()) {
                     error() << "Invalid test. Invalid location";
                     ret = false;
                     continue;
                 }
                 query.reset(new QueryMessage(QueryMessage::ReferencesLocation));
-                query->setQuery(location);
+                query->setQuery(std::move(location));
             } else if (type == "references-name") {
-                const String name = test.operator[]<String>("name");
+                String name = test.operator[]<String>("name");
                 if (name.isEmpty()) {
                     error() << "Invalid test. Invalid name";
                     ret = false;
                     continue;
                 }
                 query.reset(new QueryMessage(QueryMessage::ReferencesLocation));
-                query->setQuery(name);
+                query->setQuery(std::move(name));
             } else {
                 error() << "Unknown test" << type;
                 ret = false;

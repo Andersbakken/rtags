@@ -31,14 +31,15 @@ public:
     const Path &projectRoot() const { return mProjectRoot; }
     void setProjectRoot(const Path &projectRoot) { mProjectRoot = projectRoot; }
     const Path &workingDirectory() const { return mWorkingDirectory; }
-    void setWorkingDirectory(const Path &workingDirectory) { mWorkingDirectory = workingDirectory; }
+    void setWorkingDirectory(Path &&workingDirectory) { mWorkingDirectory = std::move(workingDirectory); }
     void setEnvironment(const List<String> &environment) { mEnvironment = environment; }
-    List<String> environment() const { return mEnvironment; }
+    const List<String> &environment() const { return mEnvironment; }
+    List<String> &&takeEnvironment() { return std::move(mEnvironment); }
     Path compileCommands() const { return mCompileCommands; }
-    void setCompileCommands(const Path &path) { mCompileCommands = path; }
+    void setCompileCommands(Path &&path) { mCompileCommands = std::move(path); }
     const String &arguments() const { return mArgs; }
     String &&takeArguments() { return std::move(mArgs); }
-    void setArguments(const String &arguments) { mArgs = arguments; }
+    void setArguments(String &&arguments) { mArgs = std::move(arguments); }
     enum Flag {
         None = 0x0,
         GuessFlags = 0x1

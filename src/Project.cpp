@@ -1151,6 +1151,15 @@ bool Project::toggleSuspendFile(uint32_t file)
     return true;
 }
 
+void Project::setSuspended(uint32_t file, bool suspended)
+{
+    if (suspended) {
+        mSuspendedFiles.insert(file);
+    } else {
+        mSuspendedFiles.remove(file);
+    }
+}
+
 bool Project::isSuspended(uint32_t file) const
 {
     return mSuspendedFiles.contains(file);

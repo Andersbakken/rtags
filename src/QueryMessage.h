@@ -187,7 +187,7 @@ public:
     {
         return Location::decode(mQuery, flag);
     }
-    void setQuery(const String &query) { mQuery = query; }
+    void setQuery(String &&query) { mQuery = std::move(query); }
     void setBuildIndex(int index) { mBuildIndex = index; }
     int buildIndex() const { return mBuildIndex; }
 
@@ -238,7 +238,7 @@ public:
     Path currentFile() const { return mCurrentFile; }
 
     String codeCompletePrefix() const { return mCodeCompletePrefix; }
-    void setCodeCompletePrefix(const String &prefix) { mCodeCompletePrefix = prefix; }
+    void setCodeCompletePrefix(String &&prefix) { mCodeCompletePrefix = std::move(prefix); }
 private:
     String mQuery, mCodeCompletePrefix;
     Type mType;
