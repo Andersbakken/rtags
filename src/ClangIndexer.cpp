@@ -1120,7 +1120,7 @@ bool ClangIndexer::handleReference(const CXCursor &cursor, CXCursorKind kind, Lo
             *cursorPtr = 0;
         return false;
     }
-    setType(*c, clang_getCursorType(cursor));
+    setType(*c, clang_getCursorType(kind == CXCursor_MemberRefExpr ? ref : cursor));
     if (RTags::isFunction(refKind)) {
         mLastCallExprSymbol = c;
     }
