@@ -1767,7 +1767,7 @@ void Server::suspend(const std::shared_ptr<QueryMessage> &query, const std::shar
         } else {
             const uint32_t fileId = Location::fileId(p);
             if (fileId) {
-                bool suspended;
+                bool suspended = false;
                 switch (mode) {
                 case FileToggle: suspended = project->toggleSuspendFile(fileId); break;
                 case FileOff: suspended = false; project->setSuspended(fileId, false); break;
