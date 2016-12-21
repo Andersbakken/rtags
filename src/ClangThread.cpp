@@ -88,29 +88,34 @@ CXChildVisitResult ClangThread::visit(const CXCursor &cursor)
             message.append(" " + RTags::typeName(cursor));;
             if (clang_getCursorKind(cursor) == CXCursor_VarDecl) {
                 RTags::Auto autoResolved;
-                if (RTags::resolveAuto(cursor, &autoResolved) && !clang_equalCursors(autoResolved.cursor, nullCursor)) {
+                if (RTags::resolveAuto(cursor, &autoResolved) && autoResolved.cursor != nullCursor) {
                     message += "auto resolves to " + RTags::cursorToString(autoResolved.cursor, RTags::AllCursorToStringFlags);
                 }
             }
+            auto printCursor = [&message](const CXCursor &c) {
+                CXCursor canonical = clang_getCanonicalCursor(c);
+                if (canonical != c && canonical != nullCursor) {
+                    message.append("canonical ");
+                    message.append(RTags::cursorToString(canonical, RTags::AllCursorToStringFlags));
+                }
+
+                CXCursor specialized = clang_getSpecializedCursorTemplate(c);
+                if (specialized != c && specialized == nullCursor) {
+                    message.append("specialized ");
+                    message.append(RTags::cursorToString(specialized, RTags::AllCursorToStringFlags));
+                }
+            };
+
             CXCursor ref = clang_getCursorReferenced(cursor);
-            if (clang_equalCursors(ref, cursor)) {
+            if (ref == cursor) {
                 message.append("refs self");
-            } else if (!clang_equalCursors(ref, nullCursor)) {
+            } else if (ref != nullCursor) {
                 message.append("refs ");
                 message.append(RTags::cursorToString(ref, RTags::AllCursorToStringFlags));
+                printCursor(ref);
             }
 
-            CXCursor canonical = clang_getCanonicalCursor(cursor);
-            if (!clang_equalCursors(canonical, cursor) && !clang_equalCursors(canonical, nullCursor)) {
-                message.append("canonical ");
-                message.append(RTags::cursorToString(canonical, RTags::AllCursorToStringFlags));
-            }
-
-            CXCursor specialized = clang_getSpecializedCursorTemplate(cursor);
-            if (!clang_equalCursors(specialized, cursor) && !clang_equalCursors(specialized, nullCursor)) {
-                message.append("specialized ");
-                message.append(RTags::cursorToString(specialized, RTags::AllCursorToStringFlags));
-            }
+            printCursor(cursor);
 
             writeToConnetion(message);
         }
@@ -233,7 +238,7 @@ void ClangThread::checkIncludes(Location location, const CXCursor &cursor)
         handleInclude(location, cursor);
     } else {
         const CXCursor ref = clang_getCursorReferenced(cursor);
-        if (!clang_equalCursors(cursor, nullCursor) && !clang_equalCursors(cursor, ref)) {
+        if (cursor != nullCursor && cursor != ref) {
             handleReference(location, ref);
         }
     }
