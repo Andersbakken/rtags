@@ -1364,7 +1364,14 @@ void ClangIndexer::handleBaseClassSpecifier(const CXCursor &cursor)
         return;
     }
 
-    ref = resolveTemplate(ref);
+    while (true) {
+        CXCursor tmp = resolveTypedef(resolveTemplate(ref));
+        if (clang_equalCursors(tmp, ref)) {
+            break;
+        } else {
+            ref = std::move(tmp);
+        }
+    }
     const String usr = ::usr(ref);
     if (usr.isEmpty()) {
         error() << "Couldn't find usr for" << clang_getCursorReferenced(cursor) << cursor << mLastClass;
@@ -2396,4 +2403,15 @@ CXCursor ClangIndexer::resolveTemplate(CXCursor cursor, Location location)
     return cursor;
 }
 
-
+CXCursor ClangIndexer::resolveTypedef(CXCursor cursor)
+{
+    while (clang_getCursorKind(cursor) == CXCursor_TypedefDecl) {
+        CXCursor typedeffed = clang_getTypeDeclaration(clang_getTypedefDeclUnderlyingType(cursor));
+        if (typedeffed != nullCursor) {
+            cursor = typedeffed;
+        } else {
+            break;
+        }
+    }
+    return cursor;
+}

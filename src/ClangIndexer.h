@@ -52,6 +52,7 @@ private:
     int symbolLength(CXCursorKind kind, const CXCursor &cursor);
     void extractArguments(List<Symbol::Argument> *arguments, const CXCursor &cursor);
     CXCursor resolveTemplate(CXCursor cursor, Location location = Location());
+    static CXCursor resolveTypedef(CXCursor cursor);
 
     inline Location createLocation(const CXSourceLocation &location, bool *blocked = 0, unsigned *offset = 0)
     {
