@@ -2474,12 +2474,18 @@ void Project::processParseData(IndexParseData &&data)
                     const uint32_t fileId = list.fileId();
                     auto oit = oldSources.find(fileId);
                     if (oit != oldSources.end()) {
-                        bool same = true;
-                        for (size_t idx=0; idx<list.size(); ++idx) {
-                            if (!oit->second.at(idx).compareArguments(list.at(idx))) {
-                                same = false;
-                                break;
+                        bool same;
+                        const auto &oitSources = oit->second;
+                        if (list.size() == oitSources.size()) {
+                            same = true;
+                            for (size_t idx=0; idx<list.size(); ++idx) {
+                                if (!oitSources.at(idx).compareArguments(list.at(idx))) {
+                                    same = false;
+                                    break;
+                                }
                             }
+                        } else {
+                            same = false;
                         }
                         if (same) {
                             list.parsed = oit->second.parsed; // don't want to reparse these, maintain parseTime
