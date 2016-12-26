@@ -89,32 +89,40 @@ CXChildVisitResult ClangThread::visit(const CXCursor &cursor)
                     message += "auto resolves to " + RTags::cursorToString(autoResolved.cursor, RTags::AllCursorToStringFlags);
                 }
             }
-            auto printCursor = [&message](const CXCursor &c) {
+            auto printCursor = [&message](const CXCursor &c, bool *spec = 0) {
                 CXCursor canonical = clang_getCanonicalCursor(c);
                 if (canonical != c && RTags::isValid(canonical)) {
-                    message.append("canonical ");
+                    message.append(" canonical ");
                     message.append(RTags::cursorToString(canonical, RTags::AllCursorToStringFlags));
                 }
 
                 CXCursor specialized = clang_getSpecializedCursorTemplate(c);
                 if (specialized != c && RTags::isValid(specialized)) {
-                    message.append("specialized ");
+                    message.append(" specialized ");
                     message.append(RTags::cursorToString(specialized, RTags::AllCursorToStringFlags));
+                    if (spec)
+                        *spec = true;
+                } else if (spec) {
+                    *spec = false;
                 }
             };
 
             CXCursor ref = clang_getCursorReferenced(cursor);
-            if (ref == cursor) {
-                message.append("refs self");
-            } else if (RTags::isValid(ref)) {
+            bool refSpecialized = false;
+            if (RTags::isValid(ref) && ref != cursor) {
                 message.append("refs ");
                 message.append(RTags::cursorToString(ref, RTags::AllCursorToStringFlags));
-                printCursor(ref);
+                printCursor(ref, &refSpecialized);
+                if (refSpecialized && cursor != CXCursor_DeclRefExpr && cursor != CXCursor_MemberRefExpr)
+                    refSpecialized = false;
             }
 
             printCursor(cursor);
 
             writeToConnetion(message);
+            if (refSpecialized) {
+                visit(ref);
+            }
         }
     }
     ++mIndentLevel;
