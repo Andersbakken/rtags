@@ -69,6 +69,8 @@ String Symbol::toString(Flags<ToStringFlag> cursorInfoFlags,
                 ret << "MacroExpansion";
             if (flags & TemplateSpecialization)
                 ret << "TemplateSpecialization";
+            if (flags & TemplateReference)
+                ret << "TemplateReference";
 
             if (ret.isEmpty())
                 return String();
@@ -324,6 +326,8 @@ Value Symbol::toValue(const std::shared_ptr<Project> &project,
                 ret["macroexpansion"] = true;
             if (symbol.flags & Symbol::TemplateSpecialization)
                 ret["templatespecialization"] = true;
+            if (symbol.flags & Symbol::TemplateReference)
+                ret["templatereference"] = true;
             if (f & IncludeTargets) {
                 const auto targets = project->findTargets(symbol);
                 if (!targets.isEmpty()) {

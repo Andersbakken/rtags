@@ -88,8 +88,9 @@ struct Symbol
         TemplateSpecialization = 0x0100,
         InlineFunction         = 0x0200,
         ImplicitDestruction    = 0x0400,
-        Definition             = 0x0800,
-        FileSymbol             = 0x1000
+        TemplateReference      = 0x0800,
+        Definition             = 0x1000,
+        FileSymbol             = 0x2000
     };
     String briefComment, xmlComment;
     uint16_t flags;

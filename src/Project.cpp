@@ -960,6 +960,12 @@ bool Project::hasSource(uint32_t fileId) const
 Set<uint32_t> Project::dependencies(uint32_t fileId, DependencyMode mode) const
 {
     Set<uint32_t> ret;
+    if (mode == All) {
+        for (const auto &node : mDependencies) {
+            ret.insert(node.first);
+        }
+        return ret;
+    }
     ret.insert(fileId);
     std::function<void(uint32_t)> fill = [&](uint32_t file) {
         if (DependencyNode *node = mDependencies.value(file)) {
@@ -1483,8 +1489,14 @@ Set<Symbol> Project::findTargets(const Symbol &symbol)
             break; }
         // fall through
     default:
-        for (const String &usr : findTargetUsrs(symbol.location)) {
-            ret.unite(findByUsr(usr, symbol.location.fileId(), Project::ArgDependsOn));
+        if (symbol.flags & Symbol::TemplateReference) {
+            for (const String &usr : findTargetUsrs(symbol)) {
+                ret.unite(findByUsr(usr, symbol.location.fileId(), Project::DependsOnArg));
+            }
+        } else {
+            for (const String &usr : findTargetUsrs(symbol.location)) {
+                ret.unite(findByUsr(usr, symbol.location.fileId(), Project::ArgDependsOn));
+            }
         }
         break;
     }
@@ -1726,6 +1738,28 @@ Set<String> Project::findTargetUsrs(Location loc)
             if (targets->valueAt(i).contains(loc)) {
                 // SBROOT
                 usrs.insert(Sandbox::decoded(targets->keyAt(i)));
+            }
+        }
+    }
+    return usrs;
+}
+
+Set<String> Project::findTargetUsrs(const Symbol &symbol)
+{
+    if (!(symbol.flags & Symbol::TemplateReference)) {
+        return findTargetUsrs(symbol.location);
+    }
+
+    Set<String> usrs;
+    for (uint32_t fileId : dependencies(symbol.location.fileId(), DependsOnArg)) {
+        auto targets = openTargets(fileId);
+        if (targets) {
+            const int count = targets->count();
+            for (int i=0; i<count; ++i) {
+                if (targets->valueAt(i).contains(symbol.location)) {
+                    // SBROOT
+                    usrs.insert(Sandbox::decoded(targets->keyAt(i)));
+                }
             }
         }
     }

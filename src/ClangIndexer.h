@@ -48,7 +48,7 @@ private:
     void addFileSymbol(uint32_t file);
     int symbolLength(CXCursorKind kind, const CXCursor &cursor);
     void extractArguments(List<Symbol::Argument> *arguments, const CXCursor &cursor);
-    CXCursor resolveTemplate(CXCursor cursor, Location location = Location());
+    CXCursor resolveTemplate(CXCursor cursor, Location location = Location(), bool *specialized = 0);
     static CXCursor resolveTypedef(CXCursor cursor);
 
     inline Location createLocation(const CXSourceLocation &location, bool *blocked = 0, unsigned *offset = 0)
@@ -140,11 +140,12 @@ private:
         Map<uint32_t, Token> tokens;
     };
 
-    std::shared_ptr<Unit> unit(uint32_t fileId)
+    std::shared_ptr<Unit> &unit(uint32_t fileId)
     {
         std::shared_ptr<Unit> &unit = mUnits[fileId];
-        if (!unit)
+        if (!unit) {
             unit.reset(new Unit);
+        }
         return unit;
     }
     std::shared_ptr<Unit> unit(Location loc) { return unit(loc.fileId()); }
@@ -210,6 +211,8 @@ private:
     List<Loop> mLoopStack;
 
     List<CXCursor> mParents;
+    std::unordered_set<CXCursor> mTemplateSpecializations;
+    size_t mInTemplateFunction;
 
     static Flags<Server::Option> sServerOpts;
     static Path sServerSandboxRoot;

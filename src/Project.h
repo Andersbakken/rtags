@@ -118,7 +118,8 @@ public:
 
     enum DependencyMode {
         DependsOnArg,
-        ArgDependsOn
+        ArgDependsOn,
+        All
     };
 
     Set<uint32_t> dependencies(uint32_t fileId, DependencyMode mode) const;
@@ -156,10 +157,11 @@ public:
     Set<Symbol> findCallers(const Symbol &symbol);
     Set<Symbol> findVirtuals(Location location) { return findVirtuals(findSymbol(location)); }
     Set<Symbol> findVirtuals(const Symbol &symbol);
+    Set<String> findTargetUsrs(const Symbol &symbol);
     Set<String> findTargetUsrs(Location loc);
     Set<Symbol> findSubclasses(const Symbol &symbol);
 
-    Set<Symbol> findByUsr(const String &usr, uint32_t fileId, DependencyMode mode, Location filtered = Location());
+    Set<Symbol> findByUsr(const String &usr, uint32_t fileId = 0, DependencyMode mode = All, Location filtered = Location());
 
     Path sourceFilePath(uint32_t fileId, const char *path = "") const;
 
