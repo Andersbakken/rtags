@@ -94,7 +94,7 @@ public:
         SymbolInfoIncludeBaseClasses = (1ull << 15),
         DeclarationOnly = (1ull << 16),
         DefinitionOnly = (1ull << 17),
-        AllTargets = (1ull << 18),
+        TargetUsrs = (1ull << 18),
         CursorKind = (1ull << 19),
         DisplayName = (1ull << 20),
         CompilationFlagsOnly = (1ull << 21),
@@ -120,7 +120,8 @@ public:
         JSON = (1ull << 41),
         CodeCompletionEnabled = (1ull << 42),
         SynchronousDiagnostics = (1ull << 43),
-        CodeCompleteNoWait = (1ull << 44)
+        CodeCompleteNoWait = (1ull << 44),
+        AllTargets = (1ull << 45)
     };
 
     QueryMessage(Type type = Invalid);

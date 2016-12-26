@@ -50,31 +50,56 @@ int FollowLocationJob::execute()
         }
     }
 
-    if (queryFlags() & QueryMessage::AllTargets) {
+    if (queryFlags() & QueryMessage::TargetUsrs) {
         const Set<String> usrs = project()->findTargetUsrs(location);
         for (const String &usr : usrs) {
             for (const Symbol &s : project()->findByUsr(usr, location.fileId(), Project::ArgDependsOn, location)) {
                 write(s.toString());
             }
         }
-    }
-
-    const auto target = project()->findTarget(symbol);
-    if (target.location.isNull())
-        return 1;
-
-    if (symbol.usr == target.usr) {
-        write(target.location);
         return 0;
     }
 
-    if (queryFlags() & QueryMessage::DeclarationOnly ? target.isDefinition() : !target.isDefinition()) {
-        const auto other = project()->findTarget(target);
-        if (!other.isNull() && other.usr == target.usr) {
-            write(other.location);
-            return 0;
+    auto targets = project()->findTargets(symbol).toList();
+    targets.sort([](const Symbol &l, const Symbol &r) {
+            const int lrank = RTags::targetRank(l.kind);
+            const int rrank = RTags::targetRank(r.kind);
+            return lrank > rrank || (lrank == rrank && l.isDefinition());
+        });
+
+    int rank = -1;
+    Set<Location> seen;
+    auto writeTarget = [&rank, this, &seen](const Symbol &target) {
+        if (seen.insert(target.location)) {
+            write(target.location);
+            rank = RTags::targetRank(target.kind);
         }
+    };
+    for (const auto &target : targets) {
+        if (rank != -1 && RTags::targetRank(target.kind) != rank)
+            continue;
+        if (target.location.isNull())
+            continue;
+
+        if (symbol.usr == target.usr) {
+            writeTarget(target);
+            if (queryFlags() & QueryMessage::AllTargets)
+                continue;
+            break;
+        }
+
+        if (queryFlags() & QueryMessage::DeclarationOnly ? target.isDefinition() : !target.isDefinition()) {
+            const auto other = project()->findTarget(target);
+            if (!other.isNull() && other.usr == target.usr) {
+                writeTarget(other);
+                if (queryFlags() & QueryMessage::AllTargets)
+                    continue;
+                break;
+            }
+        }
+        writeTarget(target);
+        if (!(queryFlags() & QueryMessage::AllTargets))
+            break;
     }
-    write(target.location);
     return 0;
 }

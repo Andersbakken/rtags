@@ -124,7 +124,8 @@ std::initializer_list<CommandLineParser::Option<RClient::OptionType> > opts = {
     { RClient::RangeFilter, "range-filter", 0, CommandLineParser::Required, "Filter out results not in the specified range." },
     { RClient::FilterSystemHeaders, "filter-system-headers", 'H', CommandLineParser::NoValue, "Don't exempt system headers from path filters." },
     { RClient::AllReferences, "all-references", 'e', CommandLineParser::NoValue, "Include definitions/declarations/constructors/destructors for references. Used for rename symbol." },
-    { RClient::AllTargets, "all-targets", 0, CommandLineParser::NoValue, "Print all targets for -f. Used for debugging." },
+    { RClient::TargetUsrs, "target-usrs", 0, CommandLineParser::NoValue, "Print all matching usr targets for -f. Used for debugging." },
+    { RClient::AllTargets, "all-targets", 0, CommandLineParser::NoValue, "Print multiple targets for -f. Sorted by best match." },
     { RClient::Elisp, "elisp", 'Y', CommandLineParser::NoValue, "Output elisp: (list \"one\" \"two\" ...)." },
     { RClient::JSON, "json", 0, CommandLineParser::NoValue, "Output json." },
     { RClient::Diagnostics, "diagnostics", 'm', CommandLineParser::NoValue, "Receive async formatted diagnostics from rdm." },
@@ -550,6 +551,9 @@ CommandLineParser::ParseStatus RClient::parse(size_t argc, char **argv)
             break; }
         case AllTargets: {
             mQueryFlags |= QueryMessage::AllTargets;
+            break; }
+        case TargetUsrs: {
+            mQueryFlags |= QueryMessage::TargetUsrs;
             break; }
         case MatchCaseInsensitive: {
             mQueryFlags |= QueryMessage::MatchCaseInsensitive;

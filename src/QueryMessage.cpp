@@ -128,8 +128,8 @@ QueryMessage::Flag QueryMessage::flagFromString(const String &string)
         return WildcardSymbolNames;
     } else if (string == "no-color") {
         return NoColor;
-    } else if (string == "all-targets") {
-        return AllTargets;
+    } else if (string == "target-usrs") {
+        return TargetUsrs;
     }
     return NoFlag;
 }
