@@ -29,9 +29,6 @@ struct Dep : public DependencyNode
     Hash<uint32_t, Map<Location, Location> > references;
 };
 
-static const CXSourceLocation nullLocation = clang_getNullLocation();
-static const CXCursor nullCursor = clang_getNullCursor();
-
 ClangThread::ClangThread(const std::shared_ptr<QueryMessage> &queryMessage,
                          const Source &source, const std::shared_ptr<Connection> &conn)
     : Thread(), mQueryMessage(queryMessage), mSource(source),
@@ -88,19 +85,19 @@ CXChildVisitResult ClangThread::visit(const CXCursor &cursor)
             message.append(" " + RTags::typeName(cursor));;
             if (clang_getCursorKind(cursor) == CXCursor_VarDecl) {
                 RTags::Auto autoResolved;
-                if (RTags::resolveAuto(cursor, &autoResolved) && autoResolved.cursor != nullCursor) {
+                if (RTags::resolveAuto(cursor, &autoResolved) && RTags::isValid(autoResolved.cursor)) {
                     message += "auto resolves to " + RTags::cursorToString(autoResolved.cursor, RTags::AllCursorToStringFlags);
                 }
             }
             auto printCursor = [&message](const CXCursor &c) {
                 CXCursor canonical = clang_getCanonicalCursor(c);
-                if (canonical != c && canonical != nullCursor) {
+                if (canonical != c && RTags::isValid(canonical)) {
                     message.append("canonical ");
                     message.append(RTags::cursorToString(canonical, RTags::AllCursorToStringFlags));
                 }
 
                 CXCursor specialized = clang_getSpecializedCursorTemplate(c);
-                if (specialized != c && specialized == nullCursor) {
+                if (specialized != c && RTags::isValid(specialized)) {
                     message.append("specialized ");
                     message.append(RTags::cursorToString(specialized, RTags::AllCursorToStringFlags));
                 }
@@ -109,7 +106,7 @@ CXChildVisitResult ClangThread::visit(const CXCursor &cursor)
             CXCursor ref = clang_getCursorReferenced(cursor);
             if (ref == cursor) {
                 message.append("refs self");
-            } else if (ref != nullCursor) {
+            } else if (RTags::isValid(ref)) {
                 message.append("refs ");
                 message.append(RTags::cursorToString(ref, RTags::AllCursorToStringFlags));
                 printCursor(ref);
@@ -238,7 +235,7 @@ void ClangThread::checkIncludes(Location location, const CXCursor &cursor)
         handleInclude(location, cursor);
     } else {
         const CXCursor ref = clang_getCursorReferenced(cursor);
-        if (cursor != nullCursor && cursor != ref) {
+        if (RTags::isValid(cursor) && cursor != ref) {
             handleReference(location, ref);
         }
     }

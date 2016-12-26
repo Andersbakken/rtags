@@ -32,9 +32,6 @@ struct Unit;
 class ClangIndexer
 {
 public:
-    static const CXSourceLocation nullLocation;
-    static const CXCursor nullCursor;
-
     ClangIndexer();
     ~ClangIndexer();
 
@@ -99,7 +96,7 @@ private:
     inline Location createLocation(const CXCursor &cursor, bool *blocked = 0, unsigned *offset = 0)
     {
         const CXSourceLocation location = clang_getCursorLocation(cursor);
-        if (clang_equalLocations(location, nullLocation))
+        if (!location)
             return Location();
         return createLocation(location, blocked, offset);
     }

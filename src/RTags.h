@@ -51,6 +51,44 @@ typedef Hash<uint32_t, Set<FixIt> > FixIts;
 typedef Hash<Path, String> UnsavedFiles;
 
 struct SourceCache;
+inline bool operator==(const CXCursor &l, CXCursorKind r)
+{
+    return clang_getCursorKind(l) == r;
+}
+inline bool operator==(CXCursorKind l, const CXCursor &r)
+{
+    return l == clang_getCursorKind(r);
+}
+
+inline bool operator!=(const CXCursor &l, CXCursorKind r)
+{
+    return clang_getCursorKind(l) != r;
+}
+inline bool operator!=(CXCursorKind l, const CXCursor &r)
+{
+    return l != clang_getCursorKind(r);
+}
+
+inline bool operator==(const CXCursor &l, const CXCursor &r)
+{
+    return clang_equalCursors(l, r);
+}
+inline bool operator!=(const CXCursor &l, const CXCursor &r)
+{
+    return !clang_equalCursors(l, r);
+}
+
+inline bool operator!(const CXCursor &cursor)
+{
+    return clang_Cursor_isNull(cursor);
+}
+
+inline bool operator!(const CXSourceLocation &location)
+{
+    static const CXSourceLocation sNullLocation = clang_getNullLocation();
+    return clang_equalLocations(location, sNullLocation);
+}
+
 namespace RTags {
 
 String versionString();
@@ -742,6 +780,20 @@ inline Location createLocation(const CXCursor &cursor, int *offsetPtr = 0)
 {
     return createLocation(clang_getCursorLocation(cursor), offsetPtr);
 }
+
+inline bool isValid(const CXCursor &cursor)
+{
+    return !!cursor;
+}
+
+inline bool isValid(CXCursorKind kind)
+{
+    return !clang_isInvalid(kind);
+}
+inline bool isValid(const CXSourceLocation &location)
+{
+    return !!location;
+}
 }
 
 namespace std
@@ -774,32 +826,12 @@ struct SourceCache
     Hash<Path, Map<AncestorCacheKey, Path> > ancestorCache;
 };
 
-inline bool operator==(const CXCursor &l, CXCursorKind r)
-{
-    return clang_getCursorKind(l) == r;
-}
-inline bool operator==(CXCursorKind l, const CXCursor &r)
-{
-    return l == clang_getCursorKind(r);
-}
-
-inline bool operator!=(const CXCursor &l, CXCursorKind r)
-{
-    return clang_getCursorKind(l) != r;
-}
-inline bool operator!=(CXCursorKind l, const CXCursor &r)
-{
-    return l != clang_getCursorKind(r);
-}
-
 inline Log operator<<(Log dbg, CXCursor cursor);
 inline Log operator<<(Log dbg, CXType type);
 inline Log operator<<(Log dbg, CXCursorKind kind);
 inline Log operator<<(Log dbg, CXTypeKind kind);
 inline Log operator<<(Log dbg, CXLinkageKind kind);
 
-inline bool operator==(const CXCursor &l, const CXCursor &r) { return clang_equalCursors(l, r); }
-inline bool operator!=(const CXCursor &l, const CXCursor &r) { return !clang_equalCursors(l, r); }
 class CXStringScope
 {
 public:

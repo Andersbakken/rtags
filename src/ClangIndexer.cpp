@@ -34,9 +34,6 @@
 #include "VisitFileResponseMessage.h"
 #include "Location.h"
 
-const CXSourceLocation ClangIndexer::nullLocation = clang_getNullLocation();
-const CXCursor ClangIndexer::nullCursor = clang_getNullCursor();
-
 static inline String usr(const CXCursor &cursor)
 {
     return RTags::eatString(clang_getCursorUSR(clang_getCanonicalCursor(cursor)));
@@ -80,7 +77,7 @@ struct VerboseVisitorUserData {
 Flags<Server::Option> ClangIndexer::sServerOpts;
 Path ClangIndexer::sServerSandboxRoot;
 ClangIndexer::ClangIndexer()
-    : mCurrentTranslationUnit(String::npos), mLastCursor(nullCursor),
+    : mCurrentTranslationUnit(String::npos), mLastCursor(clang_getNullCursor()),
       mLastCallExprSymbol(0), mVisitFileResponseMessageFileId(0),
       mVisitFileResponseMessageVisit(0), mParseDuration(0), mVisitDuration(0), mBlocked(0),
       mAllowed(0), mIndexed(1), mVisitFileTimeout(0), mIndexDataMessageTimeout(0),
@@ -614,7 +611,7 @@ static inline CXCursor findDestructorForDelete(const CXCursor &deleteStatement)
     case CXCursor_CallExpr:
         break;
     default:
-        return ClangIndexer::nullCursor;
+        return clang_getNullCursor();
     }
 
     const CXCursor var = clang_getCursorReferenced(child);
@@ -633,7 +630,7 @@ static inline CXCursor findDestructorForDelete(const CXCursor &deleteStatement)
             error() << "Got unexpected cursor" << deleteStatement << var;
             // assert(0);
         }
-        return ClangIndexer::nullCursor;
+        return clang_getNullCursor();
     }
 
     CXCursor ref = RTags::findChild(var, CXCursor_TypeRef);
@@ -645,7 +642,7 @@ static inline CXCursor findDestructorForDelete(const CXCursor &deleteStatement)
     case CXCursor_TemplateRef:
         break;
     default:
-        return ClangIndexer::nullCursor;
+        return clang_getNullCursor();
     }
 
     const CXCursor referenced = clang_getCursorReferenced(ref);
@@ -656,7 +653,7 @@ static inline CXCursor findDestructorForDelete(const CXCursor &deleteStatement)
     case CXCursor_ClassTemplate:
         break;
     default:
-        return ClangIndexer::nullCursor;
+        return clang_getNullCursor();
     }
     const CXCursor destructor = RTags::findChild(referenced, CXCursor_Destructor);
     return destructor;
@@ -982,7 +979,7 @@ bool ClangIndexer::handleReference(const CXCursor &cursor, CXCursorKind kind, Lo
     Map<String, uint16_t> &targets = unit(location)->targets[location];
     if (result == NotFound && !mUnionRecursion) {
         CXCursor parent = clang_getCursorSemanticParent(ref);
-        CXCursor best = ClangIndexer::nullCursor;
+        CXCursor best = clang_getNullCursor();
         while (true) {
             if (clang_getCursorKind(parent) != CXCursor_UnionDecl)
                 break;
@@ -1470,7 +1467,7 @@ CXChildVisitResult ClangIndexer::handleCursor(const CXCursor &cursor, CXCursorKi
                     bool blocked = false;
                     const Location loc = createLocation(clang_getCursorLocation(mLastCursor), &blocked);
                     if (loc.fileId()) {
-                        if (resolvedAuto.cursor != nullCursor && clang_getCursorKind(resolvedAuto.cursor) != CXCursor_NoDeclFound) {
+                        if (RTags::isValid(resolvedAuto.cursor) && clang_getCursorKind(resolvedAuto.cursor) != CXCursor_NoDeclFound) {
                             Symbol *cptr = 0;
                             if (handleReference(mLastCursor, CXCursor_TypeRef, loc, resolvedAuto.cursor, &cptr)) {
                                 cptr->symbolLength = 4;
@@ -1526,7 +1523,7 @@ CXChildVisitResult ClangIndexer::handleCursor(const CXCursor &cursor, CXCursorKi
             case CXCursor_ClassDecl:
             case CXCursor_ClassTemplate: {
                 const CXCursor destructor = RTags::findChild(referenced, CXCursor_Destructor);
-                if (destructor != nullCursor) {
+                if (RTags::isValid(destructor)) {
                     const String destructorUsr = ::usr(destructor);
                     assert(!destructorUsr.isEmpty());
                     const Location scopeEndLocation = mScopeStack.back().end;
@@ -1730,7 +1727,7 @@ CXChildVisitResult ClangIndexer::handleCursor(const CXCursor &cursor, CXCursorKi
     case CXCursor_ClassDecl:
     case CXCursor_ClassTemplate: {
         const CXCursor specialization = clang_getSpecializedCursorTemplate(cursor);
-        if (specialization != nullCursor) {
+        if (RTags::isValid(specialization)) {
             unit(location)->targets[location][::usr(specialization)] = 0;
             c.flags |= Symbol::TemplateSpecialization;
         }
@@ -2296,7 +2293,7 @@ CXChildVisitResult ClangIndexer::verboseVisitor(CXCursor cursor, CXCursor, CXCli
         u->out += RTags::cursorToString(cursor);
         if (ref == cursor) {
             u->out += " refs self";
-        } else if (ref != nullCursor) {
+        } else if (RTags::isValid(ref)) {
             u->out += " refs " + RTags::cursorToString(ref);
         }
 
@@ -2409,7 +2406,7 @@ CXCursor ClangIndexer::resolveTypedef(CXCursor cursor)
 {
     while (clang_getCursorKind(cursor) == CXCursor_TypedefDecl) {
         CXCursor typedeffed = clang_getTypeDeclaration(clang_getTypedefDeclUnderlyingType(cursor));
-        if (typedeffed != nullCursor) {
+        if (RTags::isValid(typedeffed)) {
             cursor = typedeffed;
         } else {
             break;
