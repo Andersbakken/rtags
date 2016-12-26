@@ -90,6 +90,12 @@ int StatusJob::execute()
         write(out);
     }
 
+    if (query.isEmpty() || match("jobs")) {
+        matched = true;
+        if (!write(delimiter) || !write("jobs") || !write(delimiter))
+            return 1;
+        Server::instance()->dumpJobs(connection());
+    }
 
     std::shared_ptr<Project> proj = project();
     if (!proj) {
@@ -210,13 +216,6 @@ int StatusJob::execute()
         if (!write(delimiter) || !write("sources") || !write(delimiter))
             return 1;
         proj->indexParseData().write([this](const String &str) { return write(str); });
-    }
-
-    if (query.isEmpty() || match("jobs")) {
-        matched = true;
-        if (!write(delimiter) || !write("jobs") || !write(delimiter))
-            return 1;
-        Server::instance()->dumpJobs(connection());
     }
 
     if (query.isEmpty() || match("compilers")) {
