@@ -947,9 +947,9 @@ bool ClangIndexer::handleReference(const CXCursor &cursor, CXCursorKind kind, Lo
     case CXCursor_FunctionDecl:
     case CXCursor_Destructor:
     case CXCursor_FunctionTemplate: {
+        ref = resolveTemplate(ref, refLoc);
         if (refKind == CXCursor_FunctionDecl)
             break;
-        ref = resolveTemplate(ref, refLoc);
         if (refKind == CXCursor_Constructor || refKind == CXCursor_Destructor) {
             if (isImplicit(ref)) {
                 return false;
