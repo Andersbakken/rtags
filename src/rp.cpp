@@ -86,7 +86,7 @@ int main(int argc, char **argv)
     (void)closer;
 
     RTags::initMessages();
-    std::shared_ptr<EventLoop> eventLoop(new EventLoop);
+    auto eventLoop = std::make_shared<EventLoop>();
     eventLoop->init(EventLoop::MainEventLoop);
     String data;
 

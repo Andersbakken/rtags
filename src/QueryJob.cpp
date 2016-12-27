@@ -44,11 +44,11 @@ QueryJob::QueryJob(const std::shared_ptr<QueryMessage> &query,
                 if (filter.mode == QueryMessage::PathFilter::Dependency) {
                     uint32_t f = Location::fileId(filter.pattern);
                     if (f && mProject)
-                        mFilters.append(std::shared_ptr<Filter>(new DependencyFilter(f, mProject)));
+                        mFilters.append(std::make_shared<DependencyFilter>(f, mProject));
                 } else if (query->flags() & QueryMessage::MatchRegex) {
-                    mFilters.append(std::shared_ptr<Filter>(new RegexFilter(filter.pattern)));
+                    mFilters.append(std::make_shared<RegexFilter>(filter.pattern));
                 } else {
-                    mFilters.append(std::shared_ptr<Filter>(new PathFilter(filter.pattern)));
+                    mFilters.append(std::make_shared<PathFilter>(filter.pattern));
                 }
             }
         }

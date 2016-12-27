@@ -330,12 +330,12 @@ private:
                 return it->second;
             }
             const Path path = project->sourceFilePath(fileId, Project::fileMapName(type));
-            std::shared_ptr<FileMap<Key, Value> > fileMap(new FileMap<Key, Value>);
+            auto fileMap = std::make_shared<FileMap<Key, Value>>();
             String err;
             if (fileMap->load(path, project->fileMapOptions(), &err)) {
                 ++totalOpened;
                 cache[fileId] = fileMap;
-                std::shared_ptr<LRUEntry> entry(new LRUEntry(type, fileId));
+                auto entry = std::make_shared<LRUEntry>(type, fileId);
                 entryList.append(entry);
                 entryMap[entry->key] = entry;
                 if (++openedFiles > max) {

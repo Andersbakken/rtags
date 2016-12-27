@@ -334,30 +334,30 @@ RClient::~RClient()
 
 void RClient::addQuery(QueryMessage::Type type, String &&query, Flags<QueryMessage::Flag> extraQueryFlags)
 {
-    std::shared_ptr<QueryCommand> cmd(new QueryCommand(type, std::move(query)));
+    auto cmd = std::make_shared<QueryCommand>(type, std::move(query));
     cmd->extraQueryFlags = extraQueryFlags;
     mCommands.append(cmd);
 }
 
 void RClient::addQuitCommand(int exitCode)
 {
-    std::shared_ptr<QuitCommand> cmd(new QuitCommand(exitCode));
+    auto cmd = std::make_shared<QuitCommand>(exitCode);
     mCommands.append(cmd);
 }
 
 void RClient::addLog(LogLevel level)
 {
-    mCommands.append(std::shared_ptr<RCCommand>(new RdmLogCommand(level)));
+    mCommands.append(std::make_shared<RdmLogCommand>(level));
 }
 
 void RClient::addCompile(String &&args, const Path &cwd)
 {
-    mCommands.append(std::shared_ptr<RCCommand>(new CompileCommand(std::move(args), cwd)));
+    mCommands.append(std::make_shared<CompileCommand>(args, std::move(cwd)));
 }
 
 void RClient::addCompile(Path &&path)
 {
-    mCommands.append(std::shared_ptr<RCCommand>(new CompileCommand(std::move(path))));
+    mCommands.append(std::make_shared<CompileCommand>(std::move(path)));
 }
 
 int RClient::exec()

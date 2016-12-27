@@ -1117,7 +1117,7 @@ int Project::startDirtyJobs(Dirty *dirty, Flags<IndexerJob::Flag> flags,
                 continue;
         }
 
-        std::shared_ptr<IndexerJob> job(new IndexerJob(sources(fileId), flags, shared_from_this(), unsavedFiles));
+        auto job = std::make_shared<IndexerJob>(sources(fileId), flags, shared_from_this(), unsavedFiles);
         if (wait) {
             job->destroyed.connect([weakConn](IndexerJob *) {
                     // should arguably be refcounted but I don't know if anyone waits for multiple jobs
@@ -2455,7 +2455,7 @@ Source Project::source(uint32_t fileId, int buildIndex) const
 
 void Project::reindex(uint32_t fileId, Flags<IndexerJob::Flag> flags)
 {
-    index(std::shared_ptr<IndexerJob>(new IndexerJob(sources(fileId), flags, shared_from_this())));
+    index(std::make_shared<IndexerJob>(sources(fileId), flags, shared_from_this()));
 }
 
 void Project::processParseData(IndexParseData &&data)

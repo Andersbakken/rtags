@@ -508,7 +508,7 @@ std::shared_ptr<TranslationUnit> TranslationUnit::create(const Path &sourceFile,
                                                          bool displayDiagnostics)
 
 {
-    std::shared_ptr<TranslationUnit> ret(new TranslationUnit);
+    auto ret = std::make_shared<TranslationUnit>();
     ret->clangLine = "clang ";
     ret->index = clang_createIndex(0, displayDiagnostics);
 

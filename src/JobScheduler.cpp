@@ -155,7 +155,7 @@ void JobScheduler::startJobs()
             delete process;
             jobNode->job->flags |= IndexerJob::Crashed;
             debug() << "job crashed (didn't start)" << jobId << jobNode->job->fileId() << jobNode->job.get();
-            std::shared_ptr<IndexDataMessage> msg(new IndexDataMessage(jobNode->job));
+            auto msg = std::make_shared<IndexDataMessage>(jobNode->job);
             msg->setFlag(IndexDataMessage::ParseFailure);
             jobFinished(jobNode->job, msg);
             cont();
@@ -187,7 +187,7 @@ void JobScheduler::startJobs()
                         // job failed, probably no IndexDataMessage coming
                         n->job->flags |= IndexerJob::Crashed;
                         debug() << "job crashed" << jobId << n->job->fileId() << n->job.get();
-                        std::shared_ptr<IndexDataMessage> msg(new IndexDataMessage(n->job));
+                        auto msg = std::make_shared<IndexDataMessage>(n->job);
                         msg->setFlag(IndexDataMessage::ParseFailure);
                         jobFinished(n->job, msg);
                     }
