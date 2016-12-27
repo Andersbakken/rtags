@@ -352,7 +352,7 @@ void RClient::addLog(LogLevel level)
 
 void RClient::addCompile(String &&args, const Path &cwd)
 {
-    mCommands.append(std::make_shared<CompileCommand>(args, std::move(cwd)));
+    mCommands.append(std::make_shared<CompileCommand>(std::move(args), cwd));
 }
 
 void RClient::addCompile(Path &&path)
