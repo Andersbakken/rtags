@@ -56,6 +56,7 @@ if [ "$branch_name" == "master" ]; then
         cd $RELEASES
         cp rtags.tar /tmp
         git init
+        rm -rf .git/hooks/*
         git checkout -b gh-pages
         echo "$commit" > commit
         git add rtags.tar.gz rtags.tar.bz2 commit
