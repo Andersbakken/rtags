@@ -862,12 +862,24 @@ to case differences."
   (rtags-init-current-line-overlay)
   (setq buffer-read-only t))
 
+(defun rtags-bookmark-all-names ()
+  (condition-case nil
+      (bookmark-all-names)
+    (error
+     nil)))
+
+(defun rtags-bookmark-set (name)
+  (condition-case nil
+      (progn (bookmark-set name) t)
+    (error
+     nil)))
+
 (defun rtags-reset-bookmarks ()
   (setq rtags-buffer-bookmarks 0)
   (let ((bookmark-save-flag t))
     (mapcar (lambda (bookmark)
               (when (string-match "^RTags_" bookmark) (bookmark-delete bookmark)))
-            (bookmark-all-names))))
+            (rtags-bookmark-all-names))))
 
 ;;;###autoload
 (defun rtags-next-match () (interactive) (rtags-next-prev-match 1 nil))
@@ -1744,9 +1756,9 @@ instead of file from `current-buffer'.
                 (save-restriction
                   (widen)
                   (when (rtags-goto-line-col (nth 1 components) (nth 2 components))
-                    (bookmark-set (format "RTags_%d" rtags-buffer-bookmarks))
-                    (incf rtags-buffer-bookmarks)
-                    (1- rtags-buffer-bookmarks))))))))
+                    (when (rtags-bookmark-set (format "RTags_%d" rtags-buffer-bookmarks))
+                      (incf rtags-buffer-bookmarks)
+                      (1- rtags-buffer-bookmarks)))))))))
     (insert (rtags-tree-indent level) location " " (rtags-format-context (cdr (assoc 'ctx ref)) .4))
     (let ((cf (cdr (assoc 'cf ref)))
           (props (list 'rtags-ref-containing-function-location (cdr (assoc 'cfl ref))))
@@ -3239,8 +3251,8 @@ This includes both declarations and definitions."
                 (save-excursion
                   (save-restriction
                     (widen)
-                    (when (rtags-goto-line-col line column)
-                      (bookmark-set (format "RTags_%d" rtags-buffer-bookmarks))
+                    (when (and (rtags-goto-line-col line column)
+                               (rtags-bookmark-set (format "RTags_%d" rtags-buffer-bookmarks)))
                       (setq bookmark-idx rtags-buffer-bookmarks)
                       (incf rtags-buffer-bookmarks)))))))
           (when rtags-verbose-results
@@ -3439,7 +3451,7 @@ other window instead of the current one."
                (rtags-goto-location (car cur) nil other-window))))
           ((and (car idx)
                 (>= rtags-buffer-bookmarks (car idx))
-                (member bookmark (bookmark-all-names)))
+                (member bookmark (rtags-bookmark-all-names)))
            (when other-window
              (when (= (length (window-list)) 1)
                (funcall rtags-split-window-function))
