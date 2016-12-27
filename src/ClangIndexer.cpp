@@ -2358,7 +2358,6 @@ bool ClangIndexer::visit()
     for (const CXCursor &spec : mTemplateSpecializations) {
         CXCursor body = RTags::findChild(spec, CXCursor_CompoundStmt);
         clang_visitChildren(body, [](CXCursor cursor, CXCursor, CXClientData userData) {
-                error() << "visit" << cursor;
                 ClangIndexer *indexer = reinterpret_cast<ClangIndexer*>(userData);
                 (void)userData;
                 const CXCursorKind kind = clang_getCursorKind(cursor);
