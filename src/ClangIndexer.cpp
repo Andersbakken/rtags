@@ -2355,34 +2355,39 @@ bool ClangIndexer::visit()
             addFileSymbol(it.first);
     }
 
+    std::unordered_set<CXCursor> seen;
     for (const CXCursor &spec : mTemplateSpecializations) {
-        CXCursor body = RTags::findChild(spec, CXCursor_CompoundStmt);
-        clang_visitChildren(body, [](CXCursor cursor, CXCursor, CXClientData userData) {
-                ClangIndexer *indexer = reinterpret_cast<ClangIndexer*>(userData);
-                (void)userData;
-                const CXCursorKind kind = clang_getCursorKind(cursor);
-                const CXCursor ref = clang_getCursorReferenced(cursor);
-                if (!ref)
-                    return CXChildVisit_Recurse;
-                const CXCursorKind refKind = clang_getCursorKind(ref);
-                if (kind == CXCursor_CallExpr && (refKind == CXCursor_CXXMethod
-                                                  || refKind == CXCursor_FunctionDecl
-                                                  || refKind == CXCursor_FunctionTemplate)) {
-                    return CXChildVisit_Recurse;
-                }
-
-                // error() << "considering" << cursor << "for" << ref;
-                bool ignored;
-                const Location loc = indexer->createLocation(cursor, &ignored);
-                if (!loc.isNull()) {
-                    const String refUsr = usr(ref);
-                    assert(!refUsr.isEmpty());
-                    const uint32_t fileId = indexer->mSources.front().fileId;
-                    indexer->unit(fileId)->targets[loc][refUsr] = RTags::createTargetsValue(refKind, clang_isCursorDefinition(ref));
-                    // error() << "inserting" << loc << refUsr;
-                }
+        std::function<CXChildVisitResult(CXCursor)> visitor = [&visitor, &seen, this](CXCursor cursor) {
+            if (!seen.insert(cursor).second) {
+                return CXChildVisit_Continue;
+            }
+            const CXCursorKind kind = clang_getCursorKind(cursor);
+            const CXCursor ref = clang_getCursorReferenced(cursor);
+            if (!ref)
                 return CXChildVisit_Recurse;
-            }, this);
+            const CXCursorKind refKind = clang_getCursorKind(ref);
+            if (kind == CXCursor_CallExpr && (refKind == CXCursor_CXXMethod
+                                              || refKind == CXCursor_FunctionDecl
+                                              || refKind == CXCursor_FunctionTemplate)) {
+                return CXChildVisit_Recurse;
+            }
+
+            // error() << "considering" << cursor << "for" << ref;
+            bool ignored;
+            const Location loc = createLocation(cursor, &ignored);
+            if (!loc.isNull()) {
+                const String refUsr = usr(resolveTemplate(ref));
+                assert(!refUsr.isEmpty());
+                const uint32_t fileId = mSources.front().fileId;
+                unit(fileId)->targets[loc][refUsr] = RTags::createTargetsValue(refKind, clang_isCursorDefinition(ref));
+                if (RTags::isFunction(refKind) && mTemplateSpecializations.find(ref) == mTemplateSpecializations.end()) {
+                    RTags::TranslationUnit::visit(ref, visitor);
+                }
+                // error() << "inserting" << loc << refUsr;
+            }
+            return CXChildVisit_Recurse;
+        };
+        RTags::TranslationUnit::visit(spec, visitor);
     }
 
     mVisitDuration = watch.elapsed();
