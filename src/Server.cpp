@@ -338,6 +338,13 @@ void Server::onNewConnection(SocketServer *server)
             break;
         }
         std::shared_ptr<Connection> conn = Connection::create(client, RClient::NumOptions);
+        conn->setErrorHandler([](const SocketClient::SharedPtr &, Message::MessageError &&error) {
+                if (error.type == Message::Message_VersionError) {
+                    ::error("Wrong version marker. You're probably using mismatched versions of rc and rdm");
+                } else {
+                    logDirect(LogLevel::Error, error.text);
+                }
+            });
         conn->newMessage().connect(std::bind(&Server::onNewMessage, this, std::placeholders::_1, std::placeholders::_2));
         mConnections.insert(conn);
         std::weak_ptr<Connection> weak = conn;
