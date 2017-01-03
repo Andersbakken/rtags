@@ -514,7 +514,7 @@ also be socket acivated.
 
    [Service]
    Type=simple
-   ExecStart=$RDM -v --inactivity-timeout 300
+   ExecStart=$RDM -v --inactivity-timeout 300 --log-flush
    #+END_EXAMPLE
 
  3. Replace =$RDM= with the path to your copy of =rdm=, and add any command
